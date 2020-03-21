@@ -35,6 +35,8 @@ Author : franciscom
             </div>
           {/if}
         </div>
+        
+        <div class="spaceOne" style="margin-top:35px;"></div>
 
         <div class="preconditionsCONTAINER">
           {if $cfdt.before_preconditions neq ''}
