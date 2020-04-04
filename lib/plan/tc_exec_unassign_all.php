@@ -15,7 +15,7 @@ testlinkInitPage($db, false, false);
 
 $assignment_mgr = new assignment_mgr($db);
 $testplan_mgr = new testplan($db);
-$build_mgr = new build_mgr($db);
+$build_mgr = new build($db);
 $templateCfg = templateConfiguration();
 
 $args = init_args();

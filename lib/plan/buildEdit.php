@@ -26,7 +26,7 @@ $op->buttonCfg->value = "";
 
 $smarty = new TLSmarty();
 $tplan_mgr = new testplan($db);
-$build_mgr = new build_mgr($db);
+$build_mgr = new build($db);
 
 $args = init_args($_REQUEST,$_SESSION,$date_format_cfg,$tplan_mgr);
 $gui = initializeGui($args,$build_mgr);
