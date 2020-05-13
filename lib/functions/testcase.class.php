@@ -6,7 +6,7 @@
  * @filesource  testcase.class.php
  * @package     TestLink
  * @author      Francisco Mancardi (francisco.mancardi@gmail.com)
- * @copyright   2005-2023, TestLink community
+ * @copyright   2005-2022, TestLink community
  * @link        http://www.testlink.org/
  *
  */
@@ -19,7 +19,7 @@ require_once( dirname(__FILE__) . '/users.inc.php' );
 require_once( dirname(__FILE__) . '/event_api.php');
 
 /** list of supported format for Test case import/export */
-$g_tcFormatStrings = array ("XML" => lang_get('the_format_tc_xml_import'));
+$g_tcFormatStrings = ["XML" => lang_get('the_format_tc_xml_import')];
 
 /**
  * class for Test case CRUD
@@ -69,16 +69,15 @@ class testcase extends tlObjectWithAttachments {
 
   var $cfield_mgr;
 
-  var $import_file_types = array("XML" => "XML");
-  var $export_file_types = array("XML" => "XML");
-  var $execution_types = array();
+  var $import_file_types = ["XML" => "XML"];
+  var $export_file_types = ["XML" => "XML"];
+  var $execution_types = [];
   var $cfg;
   var $debugMsg;
   var $layout;
   var $XMLCfg;
   var $tproject_id;
 
-  var $keywordAnnotations = [];
 
   /**
    * testcase class constructor
@@ -116,8 +115,6 @@ class testcase extends tlObjectWithAttachments {
     $this->XMLCfg->att = $this->getAttXMLCfg();
     $this->XMLCfg->req = $this->getReqXMLCfg();
 
-    $this->keywordAnnotations = config_get("keywords")->annotations;
-
     // ATTENTION:
     // second argument is used to set $this->attachmentTableName,property that this calls
     // get from his parent
@@ -130,6 +127,9 @@ class testcase extends tlObjectWithAttachments {
    *
    */
   function setTestProject($tproject_id) {
+    if ($tproject_id == 0) {
+      throw new Exception("test project id can not be 0");
+    }
     $this->tproject_id = intval($tproject_id);
   }
 
@@ -137,18 +137,39 @@ class testcase extends tlObjectWithAttachments {
    *
    */
   static function getExecutionTypes() {
-    $stdSet = array(self::EXECUTION_TYPE_MANUAL => lang_get('manual'),
-                    self::EXECUTION_TYPE_AUTO => lang_get('automated'));
+    $stdSet = [
+      self::EXECUTION_TYPE_MANUAL => lang_get('manual'),
+      self::EXECUTION_TYPE_AUTO => lang_get('automated')
+    ];
 
-    if( !is_null($customSet = config_get('custom_execution_types')) )
-    {
-      foreach($customSet as $code => $lbl)
-      {
+    if( !is_null($customSet = config_get('custom_execution_types')) ) {
+      foreach($customSet as $code => $lbl) {
         $stdSet[$code] = lang_get($lbl);
       }
     }
     return $stdSet;
   }
+
+  /**
+   *
+   */
+  static function getStandardGrantsNames() {
+    return [
+    'mgt_modify_tc',
+    'mgt_view_req',
+    'testplan_planning',
+    'mgt_modify_product',
+    'mgt_modify_req',
+    'testcase_freeze',
+    'keyword_assignment',
+    'req_tcase_link_management',
+    'testproject_edit_executed_testcases',
+    'testproject_delete_executed_testcases',
+    'testproject_add_remove_keywords_executed_tcversions',
+    'delete_frozen_tcversion'
+    ];
+  }  
+
 
 
   /**
@@ -192,7 +213,10 @@ class testcase extends tlObjectWithAttachments {
 
     // needed for IVU 2019 implementation
     if( null != $guiObj ) {
-      $p2l = array('show_mode','tplan_id');
+      $p2l = [
+        'show_mode',
+        'tplan_id'
+      ];
       foreach($p2l as $pr) {
         if( property_exists($guiObj, $pr) ) {
           $url .= "&$pr=" . $guiObj->$pr;
@@ -212,7 +236,12 @@ class testcase extends tlObjectWithAttachments {
 
     // needed for IVU 2019 implementation
     if( null != $guiObj ) {
-      $p2l = array('show_mode','tplan_id');
+      $p2l = [
+        'show_mode',
+        'tplan_id',
+        'tproject_id'
+      ];
+
       foreach($p2l as $pr) {
         if( property_exists($guiObj, $pr) ) {
           $url .= "&$pr=" . $guiObj->$pr;
@@ -233,7 +262,11 @@ class testcase extends tlObjectWithAttachments {
 
     // needed for IVU 2019 implementation
     if( null != $guiObj ) {
-      $p2l = array('show_mode','tplan_id');
+      $p2l = [
+        'show_mode',
+        'tplan_id',
+        'tproject_id'
+      ];
       foreach($p2l as $pr) {
         if( property_exists($guiObj, $pr) ) {
           $url .= "&$pr=" . $guiObj->$pr;
@@ -451,14 +484,24 @@ class testcase extends tlObjectWithAttachments {
     $name = trim($name);
     $originalNameLen = tlStringLen($name);
 
-    $getOptions = array();
-    $ret = array('id' => -1,'external_id' => 0, 'status_ok' => 1,'msg' => 'ok',
-                 'new_name' => '', 'version_number' => 1, 'has_duplicate' => false,
-                 'external_id_already_exists' => false, 'update_name' => false);
+    $getOptions = [];
+    $ret = [
+      'id' => -1,'
+      external_id' => 0, 
+      'status_ok' => 1,
+      'msg' => 'ok',
+      'new_name' => '', 
+      'version_number' => 1, 
+      'has_duplicate' => false,
+      'external_id_already_exists' => false, 
+      'update_name' => false
+    ];
 
-    $my['options'] = array('check_duplicate_name' => self::DONT_CHECK_DUPLICATE_NAME,
-                           'action_on_duplicate_name' => 'generate_new',
-                           'external_id' => null, 'importLogic' => null);
+    $my['options'] = [
+      'check_duplicate_name' => self::DONT_CHECK_DUPLICATE_NAME,
+      'action_on_duplicate_name' => 'generate_new',
+      'external_id' => null, 'importLogic' => null
+    ];
 
     $my['options'] = array_merge($my['options'], (array)$options);
 
@@ -905,32 +948,34 @@ class testcase extends tlObjectWithAttachments {
    *
    *
    */
-  function show(&$smarty,$guiObj,$identity,$grants,$opt=null) {
+  function show(&$smarty,$guiObj,$identity,$grantSet,$opt=null) {
     static $cfg;
     static $reqMgr;
     static $hidePreconditions;
     static $hideSummary;
-    static $isArtifactKW;
-
+    static $debugMsg;
+    
     if(!$cfg) {
+      $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
       $cfg = config_get('spec_cfg');
-      $isArtifactKW = config_get('keywords')->specialKeywords->tcaseIsArtifact;
       $reqMgr = new requirement_mgr($this->db);
 
       // Investigate if special keywords are defined in the test project
       $tproject_id = intval($identity->tproject_id);
       $hidePreconditions = tlKeyword::doesKeywordExist($this->db,'@#HIDE_PRECONDITIONS_IF_EMPTY',$tproject_id);
       $hideSummary = tlKeyword::doesKeywordExist($this->db,'@#HIDE_SUMMARY_IF_EMPTY',$tproject_id);
-      $hidePreconditions = ($hidePreconditions['kwID'] != null);
-      $hideSummary = ($hideSummary['kwID'] != null);
+      $hidePreconditions = (isset($hidePreconditions['kwID']) && $hidePreconditions['kwID'] != null);
+      $hideSummary = (isset($hideSummary['kwID']) && $hideSummary['kwID'] != null);
     }
+
+  
 
     $status_ok = ($identity->id > 0);
     if( !$status_ok ) {
       throw new Exception(__METHOD__ . ' EXCEPTION: Test Case ID is invalid ( <= 0)' );
     }
     
-    $my = array('opt' => array('getAttachments' => false));
+    $my = ['opt' => array('getAttachments' => false)];
     $my['opt'] = array_merge($my['opt'],(array)$opt);
 
     $id = $identity->id;
@@ -944,10 +989,22 @@ class testcase extends tlObjectWithAttachments {
 
     $getVersionID = $idCard->tcversion_id;
 
+    $grants = $grantSet;
+    if (is_null($grantSet)) {
+      $grants = new stdClass();
+      $grant2check = $this->getStandardGrantsNames();
+      foreach($grant2check as $right) {
+        $grants->$right = $_SESSION['currentUser']->hasRight($this->db,$right,$this->tproject_id);
+        $guiObj->$right = $grants->$right;
+      }  
+    }
+
     $gui = $this->initShowGui($guiObj,$grants,$idCard);
 
     $gui->hidePreconditions = $hidePreconditions;
     $gui->hideSummary = $hideSummary;
+
+    $gui->tprojOpt = $this->tproject_mgr->getOptions($idCard->tproject_id);
 
     // When editing on execution, it's important to understand
     // is current displayed version is LINKED to Test Plan 
@@ -983,6 +1040,7 @@ class testcase extends tlObjectWithAttachments {
       ];
 
       $cfx = 0;
+      $gui->otherVersionsAliens = null;
       $gui->otherVersionsKeywords = array();
 
       $gui->fileUploadURL = array();
@@ -1040,6 +1098,8 @@ class testcase extends tlObjectWithAttachments {
         $gui->delTCVPlatformURL = $_SESSION['basehref'] . 
           $this->getDeleteTCVPlatformRelativeURL($io,$gui);
 
+        $gui->delTCVAlienURL = $_SESSION['basehref'] . 
+          $this->getDeleteTCVAlienRelativeURL($io,$gui);
 
         // Impacted for version management
         $gui->fileUploadURL[$currentVersionID] = 
@@ -1062,21 +1122,11 @@ class testcase extends tlObjectWithAttachments {
         $gui->currentVersionKeywords = 
           $this->getKeywords($tc_id,$currentVersionID);
 
-        /* Special processing */
-        $gui->currentVersionIsArtifact = false;
-        if ($gui->currentVersionKeywords != null) {
-          foreach($gui->currentVersionKeywords as $kitie) {
-            if ($kitie['keyword'] == $isArtifactKW) {
-               $gui->currentVersionIsArtifact = true;
-              break;
-            }
-          }
-        }
-
-
         $gui->currentVersionPlatforms = 
           $this->getPlatforms($tc_id,$currentVersionID);
 
+        $gui->currentVersionAliens = 
+          $this->getAliens($tc_id,$currentVersionID);
 
         $whoami = array('tcase_id' => $tc_id, 
                         'tcversion_id' => $currentVersionID);
@@ -1088,6 +1138,8 @@ class testcase extends tlObjectWithAttachments {
         $gui->currentVersionFreePlatforms = 
           $this->getFreePlatforms($whoami,$of);
 
+   
+        $gui->currentVersionFreeAliens = null;
 
         if( $my['opt']['getAttachments'] ) {
           $gui->attachments[$currentVersionID] = 
@@ -1210,6 +1262,10 @@ class testcase extends tlObjectWithAttachments {
             $gui->otherVersionsPlatforms[] = 
               $this->getPlatforms($version['testcase_id'],$version['id']);
 
+            $gui->otherVersionsAliens[] = 
+              $this->getAliens($version['testcase_id'],
+                               $version['id']);
+
           }
         } // Other versions exist
       }
@@ -1221,6 +1277,8 @@ class testcase extends tlObjectWithAttachments {
       $gui->relation_domain = $this->getRelationTypeDomainForHTMLSelect();
     }
 
+    $gui->alien_relation_domain = $this->getAlienRelationTypeDomainForHTMLSelect();
+
     // Removing duplicate and NULL id's
     unset($userIDSet['']);
     $gui->users = tlUser::getByIDs($this->db,array_keys($userIDSet));
@@ -1229,20 +1287,38 @@ class testcase extends tlObjectWithAttachments {
     $this->initShowGuiActions($gui);
     $tplCfg = templateConfiguration('tcView');
 
+    // Aliens are related to issuetracker
+    $sql = "/* $debugMsg */
+            SELECT issuetracker_id 
+            FROM {$this->tables['testproject_issuetracker']}
+            WHERE testproject_id = {$idCard->tproject_id}";
 
-    $gui->additionalMessages = [];
-    if ($gui->currentVersionKeywords != null && count($gui->currentVersionKeywords) > 0) {
-      // look for annotations in notes
-      foreach($gui->currentVersionKeywords as $kwEntity) {
-        foreach($this->keywordAnnotations as $kwAnnot) {
-          if (strpos($kwEntity['notes'],$kwAnnot) !== false) {
-            $gui->additionalMessages[] =
-              json_decode(str_replace($kwAnnot,'',explode("/@",$kwEntity['notes'])[0]));
-           break;
-          }
+    $rs = $this->db->get_recordset($sql);
+    $gui->addAndLinkIsEnabled = 0;
+    if ($gui->hasIssueTracker = (null != $rs)) {
+      $system = new tlIssueTracker($this->db);
+      // 20220904 - $repo = $system->getInterfaceObject($this->tproject_id);
+      $repo = $system->getInterfaceObject($idCard->tproject_id);
+      $gui->addAndLinkIsEnabled = method_exists($repo,'addLink');
+
+      if ($gui->currentVersionAliens != null) {
+        $this->buildAlienBlob($gui->currentVersionAliens,$repo);
+      }
+      
+      if ($gui->otherVersionsAliens != null) {
+        foreach ($gui->otherVersionsAliens as $zzx => $elem) {
+          $this->buildAlienBlob($gui->otherVersionsAliens[$zzx],$repo);
         }
       }
     }
+
+    // simplest way to pass tproject_id on js calls
+    $jsArgs = '';
+    if (property_exists($gui,'tproject_id')) {
+        $jsArgs = '&tproject_id=' . $gui->tproject_id;
+    }
+    $smarty->assign('args',$jsArgs);
+    
     $smarty->assign('gui',$gui);
     $smarty->display($tplCfg->template_dir . $tplCfg->default_template);
   }
@@ -2325,6 +2401,7 @@ class testcase extends tlObjectWithAttachments {
     if( $this->tproject_id > 0 ) {
 
       $po = $this->tproject_mgr->getOptions($this->tproject_id);
+
       if($po->requirementsEnabled) {
         $freezeLinkOnNewTCVersion = $reqTCLinksCfg->freezeLinkOnNewTCVersion;
         $freezeLinkedRequirements = $freezeLinkOnNewTCVersion && 
@@ -2371,6 +2448,8 @@ class testcase extends tlObjectWithAttachments {
     $this->copyTCVRelations($source['version_id'],$dest['version_id']);
 
     $this->copyPlatformsTo($source,$dest,null,$auditContext,array('delete' => false));
+
+    $this->copyAliensTo($source,$dest,$auditContext);
 
 
     if( $this->cfg->testcase->relations->enable && 
@@ -2662,7 +2741,11 @@ class testcase extends tlObjectWithAttachments {
 
   */
   function get_by_id($id,$version_id = self::ALL_VERSIONS, $filters = null, $options=null) {
-    $my['filters'] = array('active_status' => 'ALL', 'open_status' => 'ALL', 'version_number' => 1);
+    $my['filters'] = [
+      'active_status' => 'ALL', 
+      'open_status' => 'ALL', 
+      'version_number' => 1
+    ];
     $my['filters'] = array_merge($my['filters'], (array)$filters);
 
     $my['options'] = [
@@ -2781,7 +2864,7 @@ class testcase extends tlObjectWithAttachments {
       break;
     }
 
-    $render = array();
+    $render = [];
     $render['ghost'] = false;
     $render['ghostSteps'] = false;
     $render['imageInline'] = $my['options']['renderImageInline'];
@@ -3614,8 +3697,11 @@ class testcase extends tlObjectWithAttachments {
 
       // Audit Context
       $tcPath = $this->getPathName( $id );
-      $kwOpt = array('cols' => 'id,keyword', 
-                     'accessKey' => 'id', 'kwSet' => $kw_ids);
+      $kwOpt = [
+        'cols' => 'id,keyword', 
+        'accessKey' => 'id', 
+        'kwSet' => $kw_ids
+      ];
       $keywordSet = tlKeyword::getSimpleSet($this->db,$kwOpt);
 
       foreach($keywordSet as $elem ) {
@@ -3661,13 +3747,17 @@ class testcase extends tlObjectWithAttachments {
    */
   function copyKeywordsTo($source,$dest,$kwMappings,$auditContext=null,$opt=null) {
 
-    $adt = array('on' => self::AUDIT_ON);
+    $adt = [
+      'on' => self::AUDIT_ON
+    ];
     if( isset($dest['version']) ) {
       $adt['version'] = $dest['version'];
     }
     $adt = array_merge($adt,(array)$auditContext);
 
-    $what = array('delete' => true);
+    $what = [
+      'delete' => true
+    ];
     $what = array_merge($what,(array)$opt);
 
     // Not sure that this delete is needed (@20180610)
@@ -3999,10 +4089,13 @@ class testcase extends tlObjectWithAttachments {
     $resultsCfg = config_get('results');
     $status_not_run = $resultsCfg['status_code']['not_run'];
 
-    $filterKeys = array('build_id','platform_id');
+    $filterKeys = [
+      'build_id',
+      'platform_id'
+    ];
     foreach($filterKeys as $key) {
       $filterBy[$key] = '';
-      if(!is_null($$key) && intval($$key) > 0) {  // 20230826
+      if( !is_null($$key) ) {
         $itemSet = implode(',', (array)$$key);
         $filterBy[$key] = " AND e.{$key} IN ({$itemSet}) ";
       }
@@ -4026,8 +4119,13 @@ class testcase extends tlObjectWithAttachments {
     //               1 -> get last execution on EACH BUILD.
     //                    GROUP BY must be done BY tcversion_id,build_id
     //
-    $localOptions=array('getNoExecutions' => 0, 'groupByBuild' => 0, 'getSteps' => 1,
-                        'getStepsExecInfo' => 0, 'output' => 'std');
+    $localOptions=[
+      'getNoExecutions' => 0,
+      'groupByBuild' => 0,
+      'getSteps' => 1,
+      'getStepsExecInfo' => 0, 
+      'output' => 'std'
+    ];
     if(!is_null($options) && is_array($options)) {
       $localOptions=array_merge($localOptions,$options);
     }
@@ -5476,10 +5574,6 @@ class testcase extends tlObjectWithAttachments {
     $options = array('getTSuiteKeywords' => false);
     $options = array_merge($options, (array)$opt);
    
-    if ($options['getTSuiteKeywords']) {
-      $kwLikeStart = config_get('keywords')->specialKeywords->startWith; 
-    }
-
     $idSet = (array)$tcaseSet;
     foreach($idSet as $item) {
       $path_info = $this->tree_manager->get_path($item);
@@ -5503,8 +5597,7 @@ class testcase extends tlObjectWithAttachments {
       if( null != $xtree && $options['getTSuiteKeywords'] ) {
         $tsSet = array_keys($xtree);
         $opkw = array('output' => 'kwname');
-        //$fkw = array('keywordsLikeStart' => '@#');
-        $fkw = array('keywordsLikeStart' => $kwLikeStart);
+        $fkw = array('keywordsLikeStart' => '@#');
         $iset = (array) $tsuiteMgr->getTSuitesFilteredByKWSet($tsSet,$opkw,$fkw);
 
         foreach( $iset as $tsuite_id => $elem ) {
@@ -5581,11 +5674,16 @@ class testcase extends tlObjectWithAttachments {
    *
    *
    */
-  function buildDirectWebLink($base_href,$id,$tproject_id=null)
+  function buildDirectWebLink($context)
   {
-    list($external_id,$prefix,$glue,$tc_number) = $this->getExternalID($id,$tproject_id);
+    $id = intval($context->id);
+    $tproject_id = null;
+    if (property_exists($context, 'tproject_id')) {
+      $tproject_id = intval($context->tproject_id);
+    }
 
-    $dl = $base_href . 'linkto.php?tprojectPrefix=' . urlencode($prefix) .
+    list($external_id,$prefix,$glue,$tc_number) = $this->getExternalID($id,$tproject_id);
+    $dl = $context->basehref . 'linkto.php?tprojectPrefix=' . urlencode($prefix) . 
           '&item=testcase&id=' . urlencode($external_id);
     return $dl;
   }
@@ -5610,14 +5708,14 @@ class testcase extends tlObjectWithAttachments {
     {
       $tcase_prefix = $prefix;
     }
-    $info = $this->get_last_version_info($id, array('output' => 'minimun'));
+    $info = $this->get_last_version_info($id, ['output' => 'minimun']);
     if (is_null($info)) {
       return [];
     }
 
     $external = $info['tc_external_id'];
     $identity = $tcase_prefix . $this->cfg->testcase->glue_character . $external;
-    return array($identity,$tcase_prefix,$this->cfg->testcase->glue_character,$external);
+    return [$identity,$tcase_prefix,$this->cfg->testcase->glue_character,$external];
   }
 
 
@@ -6226,8 +6324,8 @@ class testcase extends tlObjectWithAttachments {
     // Remember we are using (at least on Postgres FK => we need to delete 
     // in a precise order.
 
-    $stepSet = (array)$this->get_steps($tcversion_id,0,
-                                        array('fields2get' => 'id', 'accessKey' => 'id'));
+    $stepSet = $this->get_steps($tcversion_id,0,
+                        array('fields2get' => 'id', 'accessKey' => 'id'));
     if( count($stepSet) > 0 )
     {
       $this->delete_step_by_id(array_keys($stepSet));
@@ -6346,12 +6444,9 @@ class testcase extends tlObjectWithAttachments {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
     // IMPORTANT NOTICE: keys are field names of executions tables
-    $my['filters'] = [
-      'tcversion_id' => null,
-      'testplan_id' => null,
-      'platform_id' => null,
-      'build_id' => null
-    ];
+    $my['filters'] = array('tcversion_id' => null,'testplan_id' => null,
+                           'platform_id' => null, 'build_id' => null);
+
 
     $my['filters'] = array_merge($my['filters'], (array)$filters);
 
@@ -6359,30 +6454,16 @@ class testcase extends tlObjectWithAttachments {
     $my['options'] = array_merge($my['options'], (array)$options);
 
     $filterBy = array();
-    $filterKeys = [
-      'build_id',
-      'platform_id',
-      'testplan_id',
-      'tcversion_id'
-    ];
-    
-    
+    $filterKeys = array('build_id','platform_id','testplan_id','tcversion_id');
     foreach($filterKeys as $fieldName)
     {
-      $filterBy[$fieldName] = '';  // default -> no filter
-
-      if ($fieldName == 'platform_id' && $my['filters'][$fieldName] == -1) {
-        continue;
-      }
-
+      $filterBy[$fieldName] = '';
       if( !is_null($my['filters'][$fieldName]) )
       {
         $itemSet = implode(',', (array)($my['filters'][$fieldName]));
         $filterBy[$fieldName] = " AND E.{$fieldName} IN ({$itemSet}) ";
       }
     }
-
-
 
 
     // --------------------------------------------------------------------
@@ -6841,10 +6922,10 @@ class testcase extends tlObjectWithAttachments {
     $my['opt'] = array_merge($my['opt'],(array)$options);
     $safeContext = $execContext;
     $safeIdentity = $identity;
-    foreach($safeContext as &$ele) {
+    foreach($safeContext as &$ele)
+    {
       $ele = intval($ele);
     }
-
     foreach($safeIdentity as &$ele)
     {
       $ele = intval($ele);
@@ -6852,9 +6933,6 @@ class testcase extends tlObjectWithAttachments {
 
     // dammed names!!!
     $safeContext['tplan_id'] = isset($safeContext['tplan_id']) ? $safeContext['tplan_id'] : $safeContext['testplan_id'];
-    if ($safeContext['platform_id'] < 0) {
-      $safeContext['platform_id'] = 0;
-    }
 
 
     // we have to manage following situations
@@ -6872,7 +6950,6 @@ class testcase extends tlObjectWithAttachments {
       $addWhereLEX = " AND H2O.parent_id = " . $safeIdentity['id'];
       $addWhere = " AND NHTC.id = " . $safeIdentity['id'];
     }
-
 
     $sqlLEX = ' SELECT EE.tcversion_id,EE.testplan_id,EE.platform_id,EE.build_id,' .
               ' MAX(EE.id) AS id ' .
@@ -7187,6 +7264,10 @@ class testcase extends tlObjectWithAttachments {
       $goo->uploadOp = null;
     }
 
+    if( !property_exists($goo, 'hasIssueTracker') ) {
+      $goo->hasIssueTracker = false;
+    }
+
     $goo->new_version_source = 'this';
 
     $goo->execution_types = $this->execution_types;
@@ -7216,6 +7297,10 @@ class testcase extends tlObjectWithAttachments {
 
     $goo->view_req_rights = property_exists($grantsObj, 'mgt_view_req') ? $grantsObj->mgt_view_req : 0;
     $goo->assign_keywords = property_exists($grantsObj, 'keyword_assignment') ? $grantsObj->keyword_assignment : 0;
+
+    // Yes keywords right will be used also for aliens
+    $goo->assign_aliens = $goo->assign_keywords;
+
 	  $goo->req_tcase_link_management = property_exists($grantsObj, 'req_tcase_link_management') ? $grantsObj->req_tcase_link_management : 0;
 
     $goo->parentTestSuiteName = '';
@@ -7231,6 +7316,7 @@ class testcase extends tlObjectWithAttachments {
     $goo->tc_current_version = array();
     $goo->status_quo = array();
     $goo->keywords_map = array();
+    $goo->aliens_map = array();
     $goo->arrReqs = array();
 
     $goo->cf_current_version = null;
@@ -7239,14 +7325,21 @@ class testcase extends tlObjectWithAttachments {
     $goo->platforms = null;
     
     // add_relation_feedback_msg @used-by testcaseCommands.class.php:doAddRelation()
-    $viewer_defaults = array('title' => lang_get('title_test_case'),'show_title' => 'no',
-                             'action' => '', 'msg_result' => '','user_feedback' => '',
-                             'refreshTree' => 1, 'disable_edit' => 0,
-                             'display_testproject' => 0,'display_parent_testsuite' => 0,
-                             'hilite_testcase_name' => 0,'show_match_count' => 0,
-                             'add_relation_feedback_msg' => '');
+    $viewer_defaults = 
+      ['title' => lang_get('title_test_case'),
+            'show_title' => 'no',
+            'action' => '', 'msg_result' => '',
+            'user_feedback' => '',
+            'refreshTree' => 1, 'disable_edit' => 0,
+            'display_testproject' => 0,
+            'display_parent_testsuite' => 0,
+            'hilite_testcase_name' => 0,
+            'show_match_count' => 0,
+            'add_relation_feedback_msg' => ''
+            ];
 
-    $viewer_defaults = array_merge($viewer_defaults, (array)$guiObj->viewerArgs);
+    $viewer_defaults = array_merge($viewer_defaults, 
+                         (array)$guiObj->viewerArgs);
 
     $goo->display_testproject = $viewer_defaults['display_testproject'];
     $goo->display_parent_testsuite = $viewer_defaults['display_parent_testsuite'];
@@ -7325,8 +7418,7 @@ class testcase extends tlObjectWithAttachments {
 
     $platformMgr = new tlPlatform($this->db,$goo->tproject_id);
 
-    $opx = array('enable_on_design' => true,
-                 'enable_on_execution' => false);
+    $opx = ['enable_on_design' => true];
     $goo->platforms = $platformMgr->getAllAsMap($opx);
 
     $goo->tcasePrefix = $this->tproject_mgr->getTestCasePrefix($goo->tproject_id) . $this->cfg->testcase->glue_character;
@@ -7487,7 +7579,7 @@ class testcase extends tlObjectWithAttachments {
 
                         $ghost .= $stx[0]['actions'] . $rightside;
                       }
-                    } else if ($dx['Preconditions']) {
+                    } else if (isset($dx['Preconditions'])) {
                       $withPrecond = $this->get_basic_info($xid,['number' => $vn],['preconditions']);
                       $isTestCaseGhost = false;
                       $deghosted = true;
@@ -7710,14 +7802,14 @@ class testcase extends tlObjectWithAttachments {
   public function getRelations($id) {
     $debugMsg = "/* {$this->debugMsg}" . __FUNCTION__ . ' */';
 
+    $safeID = intval($id);
+
     $relSet = array();
     $relSet['num_relations'] = 0;
 
     $dummy = $this->get_by_id($id,self::LATEST_VERSION,null,
                               array('output' => 'essential','getPrefix' => true,
                                     'caller' => __FUNCTION__));
-    // Get the TC version ID
-    $versionID = intval($dummy[0]['id']);
 
     $relSet['item'] = (null != $dummy) ? current($dummy) : null;
     $relSet['relations'] = array();
@@ -7726,7 +7818,7 @@ class testcase extends tlObjectWithAttachments {
 
     $sql = " $debugMsg SELECT id, source_id, destination_id, relation_type, author_id, creation_ts " .
            " FROM {$this->tables['testcase_relations']} " .
-           " WHERE source_id=$versionID OR destination_id=$versionID " .
+           " WHERE source_id=$safeID OR destination_id=$safeID " .
            " ORDER BY id ASC ";
 
     $relSet['relations']= $this->db->get_recordset($sql);
@@ -7744,13 +7836,13 @@ class testcase extends tlObjectWithAttachments {
 
             $type_localized = 'destination_localized';
             $other_key = 'source_id';
-            if ($versionID == $rel['source_id'])
+            if ($id == $rel['source_id'])
             {
               $type_localized = 'source_localized';
               $other_key = 'destination_id';
             }
             $relSet['relations'][$key]['type_localized'] = $relSet['relations'][$key][$type_localized];
-            $otherItem = $this->get_by_id(null,$rel[$other_key],null,
+            $otherItem = $this->get_by_id($rel[$other_key],self::LATEST_VERSION,null,
                                           array('output' => 'full_without_users','getPrefix' => true));
 
 
@@ -8135,29 +8227,24 @@ class testcase extends tlObjectWithAttachments {
       // - child_of
       // - depends_on
       // where item is DESTINATION and NOT SOURCE
-      if( $relation['source_id'] == $item['id'])
+      if( $relation['source_id'] == $item['testcase_id'])
       {
         $ele['source_ext_id'] = $item['fullExternalID'];
-        $ele['source_version'] = $item['version'];
         $ele['destination_ext_id'] = $relation['related_tcase']['fullExternalID'];
-        $ele['destination_version'] = $relation['related_tcase']['version'];
       }
       else
       {
         // SWAP
         $ele['source_ext_id'] = $relation['related_tcase']['fullExternalID'];
-        $ele['source_version'] = $relation['related_tcase']['version'];
         $ele['destination_ext_id'] = $item['fullExternalID'];
-        $ele['destination_version'] = $item['version'];
       }
       $ele['relation_type'] = $relation['relation_type'];
 
-      $info = array("||SOURCE||" => "source_ext_id", "||SOURCE_VERSION||" => "source_version",
-                    "||DESTINATION||" => "destination_ext_id", "||DESTINATION_VERSION||" => "destination_version",
+      $info = array("||SOURCE||" => "source_ext_id","||DESTINATION||" => "destination_ext_id",
                     "||TYPE||" => "relation_type");
 
-      $elemTpl = "\t" .   "<relation>" . "\n\t\t" . "<source version=\"||SOURCE_VERSION||\">||SOURCE||</source>" ;
-      $elemTpl .= "\n\t\t" . "<destination version=\"||DESTINATION_VERSION||\">||DESTINATION||</destination>";
+      $elemTpl = "\t" .   "<relation>" . "\n\t\t" . "<source>||SOURCE||</source>" ;
+      $elemTpl .= "\n\t\t" . "<destination>||DESTINATION||</destination>";
       $elemTpl .=  "\n\t\t" . "<type>||TYPE||</type>" . "\n\t" . "</relation>" . "\n";
 
       $work[] = $ele;
@@ -8410,7 +8497,7 @@ class testcase extends tlObjectWithAttachments {
   }
 
  /**
-  * render CF values
+  * render CF values and Keywords
   *
   * <p> </p> added by web rich editor create some layout issues
   *
@@ -9510,7 +9597,6 @@ class testcase extends tlObjectWithAttachments {
           $s2w = '';
         }
 
-        $safeID['platform_id'] = ($safeID['platform_id'] == -1) ? 0 : $safeID['platform_id'];
         $sql = " INSERT INTO {$this->tables['execution_tcsteps_wip']} 
                  (tcstep_id,testplan_id,platform_id,build_id,tester_id,
                  notes,status) VALUES 
@@ -9581,11 +9667,8 @@ class testcase extends tlObjectWithAttachments {
    * 
    */
   public function deleteStepsPartialExec($stepsIds,$context) {
+    $inClause = implode(",",$stepsIds);
     if( count($stepsIds) > 0 ) {
-      // https://github.com/TestLinkOpenSourceTRMS/testlink-code/pull/327
-      // Security
-      $inClause = $this->db->prepare_string(implode(",",$stepsIds));
-
       $sql = " DELETE FROM {$this->tables['execution_tcsteps_wip']} 
                WHERE tcstep_id IN (" . $inClause . ") " .
              " AND testplan_id = " . 
@@ -9950,7 +10033,11 @@ class testcase extends tlObjectWithAttachments {
     $url = "lib/testcases/tcEdit.php?doAction=removePlatform";
 
     if( null != $guiObj ) {
-      $p2l = array('show_mode','tplan_id');
+      $p2l = [
+        'show_mode',
+        'tplan_id',
+        'tproject_id'
+      ];
       foreach($p2l as $pr) {
         if( property_exists($guiObj, $pr) ) {
           $url .= "&$pr=" . $guiObj->$pr;
@@ -10009,29 +10096,426 @@ class testcase extends tlObjectWithAttachments {
   /**
    *
    */
-  function getLTCVInfo($tcaseID) {
-    $parentSet = (array)$tcaseID;
-    $sql = "SELECT 
-            NHTC.name, NHTCV.node_order,
-            NHTC.parent_id AS testsuite_id,
-            LTCV.tcversion_id, TCV.id, TCV.version, 
-            NHTCV.parent_id AS testcase_id,
-            TCV.active, TCV.tc_external_id,
-            TCV.execution_type, TCV.importance,
-            TCV.status
-            FROM {$this->views['latest_tcase_version_id']} LTCV
-            JOIN {$this->tables['tcversions']} TCV
-            ON TCV.id = LTCV.tcversion_id
-            JOIN {$this->tables['nodes_hierarchy']} NHTCV
-            ON NHTCV.id = TCV.id
-            JOIN {$this->tables['nodes_hierarchy']} NHTC
-            ON NHTC.id = NHTCV.parent_id
-            WHERE LTCV.testcase_id IN (" . 
-            implode(',',$parentSet) . ")";
+  function getFreeAliens($idCard,$opt = null) {
+    $my['opt'] = array('accessKey' => 'alien_id', 'fields' => null, 
+                       'orderBy' => null, 'tproject_id' => null,
+                       'output' => 'std', 'add_blank' => false);
 
-    // $rs = $this->db->fetchRowsIntoMap($sql,'testcase_id');
+    $my['opt'] = array_merge($my['opt'],(array)$opt);
+
+    $safe = array();
+    foreach($idCard as $key => $val) {
+      $safe[$key] = intval($val);
+    }
+
+    // CRITIC
+    $tproject_id = $my['opt']['tproject_id'];
+    if( null == $tproject_id ) {
+      $tproject_id = $this->get_testproject($safe['tcase_id']);
+    }
+    $tproject_id = intval($tproject_id);
+
+    $sql = " SELECT AL.id AS alien_id, AL.name 
+             FROM {$this->tables['aliens']} AL
+             WHERE AL.testproject_id = {$tproject_id}
+             AND AL.id NOT IN 
+             (
+               SELECT TCAL.alien_id 
+               FROM {$this->tables['testcase_aliens']} TCAL
+               WHERE TCAL.testcase_id = {$safe['tcase_id']}
+               AND TCAL.tcversion_id = {$safe['tcversion_id']}
+             ) ";
+
+    if (!is_null($my['opt']['orderBy'])) {
+      $sql .= ' ' . $my['opt']['orderBy'];
+    }
+
+    switch($my['opt']['output']) {
+      case 'html_options':
+        $items = $this->db->fetchColumnsIntoMap($sql,'alien_id','name');
+        if( null != $items && $my['opt']['add_blank']) {
+          $items = array(0 => '') + $items;
+        }
+
+      break;
+
+      default:
+        $items = $this->db->fetchRowsIntoMap($sql,$my['opt']['accessKey']);
+      break;
+    }
+
+    return $items;
+  }
+
+
+
+  /**
+   *
+   */
+  function getAliens($tcID,$versionID,$alienID = null,$opt = null) {
+    $my['opt'] = array('accessKey' => 'alien_id', 
+                       'fields' => null, 
+                       'orderBy' => null);
+
+    $my['opt'] = array_merge($my['opt'],(array)$opt);
+
+    $f2g = is_null($my['opt']['fields']) ?
+           ' TCAL.id AS tcalien_link,alien_id,
+             testcase_id,tcversion_id,relation_type ' :
+           $my['opt']['fields'];
+
+    $sfTC = intval($tcID);
+    $sfTCV = intval($versionID);
+    $sql = " SELECT {$f2g}
+             FROM {$this->tables['testcase_aliens']} TCAL
+             WHERE testcase_id = $sfTC 
+             AND tcversion_id = $sfTCV";
+
+    if (!is_null($alienID)) {
+      $sql .= " AND alien_id = " 
+              . "'" 
+              . $this->db->prepare_string($alienID)
+              . "'";
+    }
+
+    if (!is_null($my['opt']['orderBy'])) {
+      $sql .= ' ' . $my['opt']['orderBy'];
+    }
+
+    switch( $my['opt']['accessKey'] ) {
+      case 'testcase_id,tcversion_id';
+        $items = $this->db->fetchMapRowsIntoMap($sql,'testcase_id','tcversion_id',database::CUMULATIVE);
+      break;
+
+      default:
+        $items = $this->db->fetchRowsIntoMap($sql,$my['opt']['accessKey']);
+      break;
+    }
+
+    if ($items != null) {
+      $ll = $this->getAlienRelationTypeDomainForHTMLSelect();
+      foreach($items as $key => $elem) {
+        if (!isset($elem['relation_type'])) {
+          break;
+        }
+        $items[$key]['relTypeVerbose'] = $ll['items'][$elem['relation_type']]; 
+      }
+    }
+    return $items;
+  }
+
+  /**
+   * $idCard stdClass()
+   *   tproject_id
+   *   tcase_id
+   *   tcversion_id
+   *
+   * $alienRelType int applied to whole idSet 
+   */
+  function addAliens($idCard,$idSet,$alienRelType,$audit=null) {
+
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+
+    $adt = array('on' => self::AUDIT_ON, 'version' => null);
+    $adt = array_merge($adt, (array)$audit);
+
+    if( count($idSet) == 0 ) {
+      return true;
+    }
+
+    $safeID = array('tpr' => intval($idCard->tproject_id),
+                    'tc' => intval($idCard->tcase_id), 
+                    'tcv' => intval($idCard->tcversion_id));
+    foreach($safeID as $key => $val ) {
+      if($val <= 0) {
+        throw new Exception(__METHOD__ . 
+          " $key cannot be $val ", 1);
+      }
+    } 
+
+    // Firts check if records exist    
+    $sql = "/* $debugMsg */
+            SELECT alien_id FROM 
+            {$this->tables['testcase_aliens']} 
+            WHERE testcase_id = {$safeID['tc']} 
+            AND tcversion_id = {$safeID['tcv']} 
+            AND testproject_id = {$safeID['tpr']} 
+            AND alien_id IN ('" . implode("','",$idSet) . "')";
+
+    $nuCheck = $this->db->fetchRowsIntoMap($sql,'alien_id');
+ 
+    $sql = "/* $debugMsg */
+            INSERT INTO {$this->tables['testcase_aliens']} 
+            (testproject_id,testcase_id,tcversion_id
+             ,alien_id,relation_type) 
+            VALUES ";
+
+    $dummy = array();
+    $alienSet = array();
+    foreach( $idSet as $kiwi ) {
+      if( !isset($nuCheck[$kiwi]) ) {
+        $dummy[] = "({$safeID['tpr']},
+                     {$safeID['tc']},{$safeID['tcv']},
+                     '{$kiwi}',
+                     $alienRelType)";
+        $alienSet[$kiwi] = $alienRelType;              
+      }
+    }
+
+    if( count($dummy) <= 0 ) {
+      return;
+    }
+   
+    // Go ahead
+    $sql .= implode(',', $dummy);
+    $this->db->exec_query($sql);
+
+    // Now add into tlIssueTracker    
+    $system = new tlIssueTracker($this->db);
+    $repo = $system->getInterfaceObject($safeID['tpr']);
+    if ( method_exists($repo,'addLink') ) {
+      $link = new stdClass();
+      $in = $this->getExternalID($safeID['tc'],$safeID['tpr']);
+      $link->testCaseID = $in[0];
+      $link->testCaseName = $this->getName($safeID['tc']);
+      $verbose = $this->getAlienRelationLabels();
+
+      foreach ($alienSet as $alienID => $relType) {
+        $link->relation = $verbose[$relType];
+        $repo->addLink($alienID,$link); 
+      }
+    }
+     
+    // Now AUDIT
+    if ( $adt['on'] == self::AUDIT_ON ) {
+      // Audit Context
+      $tcPath = $this->getPathName($safeID['tc']);
+    }
+      
+    return true;
+  }
+
+  /**
+   *
+   */
+  function getDeleteTCVAlienRelativeURL($identity,&$guiObj=null) {
+    $url = "lib/testcases/tcEdit.php?doAction=removeAlien";
+
+    if( null != $guiObj ) {
+      $p2l = [
+        'show_mode',
+        'tplan_id',
+        'tproject_id'
+      ];
+
+      foreach($p2l as $pr) {
+        if( property_exists($guiObj, $pr) ) {
+          $url .= "&$pr=" . $guiObj->$pr;
+        }        
+      }
+    }        
+           
+    $url .= '&tcase_id=%1&tcalien_link_id=%2';
+    return $url;
+  }
+
+  /**
+   *
+   */
+  function deleteAliensByLink($tcID, $linkID, $audit=null) {
+    
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;   
+    $safeTCID = intval($tcID); 
+
+    $links = (array)$linkID;
+    $inClause = implode(',',$links);
+
+    $sql = " /* $debugMsg */ 
+             SELECT LT.tcversion_id, LT.alien_id
+             FROM {$this->tables['testcase_aliens']} LT
+             WHERE LT.testcase_id = {$safeTCID}
+             AND LT.id IN ($inClause) ";
+
     $rs = $this->db->get_recordset($sql);
-    return $rs;
+    
+    foreach($rs as $link) {
+      $this->deleteAliens($safeTCID, $link['tcversion_id'], 
+        $link['alien_id'],$audit);
+    }  
+  }
+
+  /**
+   *
+   *
+   */
+  function deleteAliens($tcID,$versionID,$alID = null,$audit=null) {
+
+    $sf = new stdClass();
+    $sf->tcase_id = intval($tcID);
+    $sf->tcversion_id = intval($versionID);
+
+    $sql = " DELETE FROM {$this->tables['testcase_aliens']}
+             WHERE testcase_id = $sf->tcase_id 
+             AND tcversion_id = $sf->tcversion_id ";
+
+    $adt = array('on' => self::AUDIT_ON);
+    $adt = array_merge($adt,(array)$audit);
+
+    /* Needs security processing */
+    if (!is_null($alID)) {
+      if (is_array($alID)) {
+        $sql .= " AND alien_id IN ('" . 
+                implode(',',$alID) . "')";
+      } else {
+        $sql .= " AND alien_id = '" .
+                $this->db->prepare_string($alID) . "'";
+      }
+      $key4log = (array)$alID;
+    } else {
+      $key4log = 
+        array_keys((array)$this->getAliens($sf->tcase_id,
+          $sf->tcversion_id));
+    }
+
+    $result = $this->db->exec_query($sql);
+
+    // Remove from issue tracker    
+    $system = new tlIssueTracker($this->db);
+    $repo = $system->getInterfaceObject($this->tproject_id);
+    if ( method_exists($repo,'removeLink') ) {
+      $link = new stdClass();
+      $in = $this->getExternalID($sf->tcase_id,$this->tproject_id);
+      $link->testCaseID = $in[0];
+      $verbose = $this->getAlienRelationLabels();
+      foreach ($key4log as $alienID) {
+        $repo->removeLink($alienID,$link); 
+      }
+    }
+
+    
+    /* delay the audit code */
+    if (1==0 && $result && $adt['on']==self::AUDIT_ON) {
+      $tcInfo = $this->tree_manager->get_node_hierarchy_info($tcID);
+      if ($tcInfo && $key4log) {
+        $et = new tlAlien($this->db);
+        $aliens = $et->getByID($key4log,array('accessKey' => 'id'));
+        foreach($key4log as $key2get) {
+          logAuditEvent(TLS("audit_alien_assignment_removed_tc",
+            $aliens[$key2get]['name'],$tcInfo['name']),
+            "ASSIGN",$sf->tcversion_id,"nodes_hierarchy");
+        }
+      }
+    }
+    /**/
+
+    return $result;
+  }
+
+  /**
+   *
+   */
+  function getAliensByIdCard($idCard) {
+    return $this->getAliens($idCard['tcase_id'],
+                            $idCard['tcversion_id']);
+  }
+
+  /**
+   *
+   */
+  function buildAlienBlob(&$ufoCrew,&$repo)
+  {
+    static $oCache = array();
+    
+    if ($ufoCrew == null) {
+      return;
+    }
+    
+    $akey = 'alien_id';
+    $ohnooo = "(" . lang_get('reference_not_found') . ")";
+    foreach ($ufoCrew as $ik => $el) {
+      $code = trim($el[$akey]);
+      if (!isset($oCache[$code])) {
+        $oCache[$code] = $repo->getIssue($code);
+      }
+      $ufoCrew[$ik]['blob'] = $oCache[$code];
+      $houstonWeHaveAProblem = false;
+      if (null == $ufoCrew[$ik]['blob']) {
+        $houstonWeHaveAProblem = true;
+        $ufoCrew[$ik]['blob'] = new stdClass();
+        $ufoCrew[$ik]['blob']->summaryHTMLString = $ohnooo;
+      } else if (property_exists($ufoCrew[$ik]['blob'], 
+                                 'exception')) {
+        $houstonWeHaveAProblem = true;
+        $ufoCrew[$ik]['blob']
+          ->summaryHTMLString = $ufoCrew[$ik]['blob']->reason;
+      }
+      if ($houstonWeHaveAProblem) {
+        $ufoCrew[$ik]['blob']->reportedBy = null;
+        $ufoCrew[$ik]['blob']->handledBy = null;
+        $ufoCrew[$ik]['blob']->version = null;
+        $ufoCrew[$ik]['blob']->fixedInVersion = null;
+        $ufoCrew[$ik]['blob']->targetVersion = null;
+        $ufoCrew[$ik]['blob']->statusVerbose = null;          
+      }
+      $ufoCrew[$ik]['name'] = $code;        
+    }
+  }
+
+  /**
+   *
+   */
+  function copyAliensTo($source,$dest,$auditContext=null,
+                        $opt=null) 
+  {
+
+    $adt = array('on' => self::AUDIT_ON);
+    if( isset($dest['version']) ) {
+      $adt['version'] = $dest['version'];
+    }
+    $adt = array_merge($adt,(array)$auditContext);
+
+    $what = array('delete' => true);
+    $what = array_merge($what,(array)$opt);
+
+    $sourceIT = $this->getAliens($source['id'],
+                                 $source['version_id']);
+    if( !is_null($sourceIT) ) {
+      $itSet = array_keys($sourceIT);
+      $cedula = new stdClass();
+      $cedula->tproject_id = $this->tproject_id;
+      $cedula->tcase_id = $dest['id'];
+      $cedula->tcversion_id = $dest['version_id'];
+      $this->addAliens($cedula,$itSet,$adt);
+    }
+
+    return true;
+  }
+
+
+  /**
+   *
+   * @return array $htmlSelect info needed to create select box on multiple templates
+   */
+  function getAlienRelationTypeDomainForHTMLSelect() {
+    $htmlSelect = array('items' => array(), 'selected' => null);
+    $labels = $this->getAlienRelationLabels();
+    foreach ($labels as $key => $lbl) {
+      $htmlSelect['items'][$key] = $lbl;
+    }
+    $htmlSelect['selected'] = TL_ALIEN_REL_TYPE_FIX;
+    return $htmlSelect;
+  }
+
+  /**
+   *
+   */
+  public static function getAlienRelationLabels() {
+    $cfg = config_get('testcase_cfg');
+    $labels = $cfg->aliens->relationsType->labels;
+    foreach ($labels as $key => $label) {
+      $labels[$key] = lang_get($label);
+    }
+    return $labels;
   }
 
   /**
