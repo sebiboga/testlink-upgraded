@@ -19,14 +19,16 @@
 define('TL_SMARTY_VERSION',3);  // @since 1.9.8
 
 /** TestLink Release version (MUST BE changed before the release day) */
-define('TL_VERSION_NUMBER', '1.9.20'); 
-define('TL_VERSION', TL_VERSION_NUMBER . ' [fixed] '); 
+define('TL_VERSION_NUMBER', '2.0.0'); 
+define('TL_VERSION', TL_VERSION_NUMBER . ' [DEV] '); 
 define('TL_FACE_DIR', 'prague'); 
 
 /** Latest Database version that is used to give users feedback 
  *  about necesssary upgrades
  *  if you set this parameter also upgrade 
  *  lib/functions/configCheck.php - checkSchemaVersion() */
+
+// @TODO need to be changed to 2.0.0
 define('TL_LATEST_DB_VERSION', 'DB ' . '1.9.20');
 
 // needed to avoid problems in install scripts that do not include config.inc.php
@@ -39,14 +41,11 @@ if (!defined('TL_ABS_PATH')) {
 $ds = DIRECTORY_SEPARATOR;
 $ps = PATH_SEPARATOR;
 
-$p2functions = TL_ABS_PATH . 'lib' . $ds . 'functions' . $ds;
-$p2lib = TL_ABS_PATH . 'lib' . $ds;
 ini_set('include_path', ini_get('include_path') . $ps . '.' . 
-  $ps . $p2functions  . 
-  $ps . $p2functions . 'oauth_providers' . $ds .   
-  $ps . $p2lib . 'issuetrackerintegration' . $ds . 
-  $ps . $p2lib . 'codetrackerintegration' . $ds . 
-  $ps . $p2lib . 'reqmgrsystemintegration' . $ds);
+  $ps . TL_ABS_PATH . 'lib' . $ds . 'functions' . $ds  . 
+  $ps . TL_ABS_PATH . 'lib' . $ds . 'issuetrackerintegration' . $ds . 
+  $ps . TL_ABS_PATH . 'lib' . $ds . 'codetrackerintegration' . $ds . 
+  $ps . TL_ABS_PATH . 'lib' . $ds . 'reqmgrsystemintegration' . $ds);
 
 ini_set('include_path',ini_get('include_path') . 
         $ps . TL_ABS_PATH . 'third_party' . $ds . 
@@ -545,13 +544,14 @@ $g_role_colour = array (
 
 
 // --------------------------------------------------------------------------------------
-/** LDAP authentication errors */
-define( 'ERROR_LDAP_AUTH_FAILED',1400);
-define( 'ERROR_LDAP_SERVER_CONNECT_FAILED',1401);
-define( 'ERROR_LDAP_UPDATE_FAILED',1402 );
-define( 'ERROR_LDAP_USER_NOT_FOUND',1403);
-define( 'ERROR_LDAP_BIND_FAILED',1404);
-define( 'ERROR_LDAP_START_TLS_FAILED',1405);
+/** LDAP authentication status code */
+define('LDAP_BIND_OK',0);
+define('ERROR_LDAP_AUTH_FAILED',1400);
+define('ERROR_LDAP_SERVER_CONNECT_FAILED',1401);
+define('ERROR_LDAP_UPDATE_FAILED',1402 );
+define('ERROR_LDAP_USER_NOT_FOUND',1403);
+define('ERROR_LDAP_BIND_FAILED',1404);
+define('ERROR_LDAP_START_TLS_FAILED',1405);
 
 // --------------------------------------------------------------------------------------
 /* [Priority, Urgency, Importance] */
@@ -586,9 +586,6 @@ $tlCfg->priority['code_label'] = array(HIGH => 'high_priority',MEDIUM => 'medium
 define('TL_REL_TYPE_PARENT_CHILD', 1);
 define('TL_REL_TYPE_BLOCKS_DEPENDS', 2);
 define('TL_REL_TYPE_RELATED', 3);
-define('TL_REL_TYPE_AUTOMATION_PARENT_CHILD', 4);
-define('TL_REL_TYPE_EXECUTE_TOGETHER',5);
-
 
 
 /**
@@ -938,26 +935,9 @@ $tlCfg->results['charts']['dimensions'] =
 // see strings.txt for labels
 // $TLS_testCaseStatus_KEY => $TLS_testCaseStatus_draft
 //  
-$tlCfg->testCaseStatus = array( 'draft' => 1, 
-                                'readyForReview' => 2, 
-                                'reviewInProgress' => 3, 
-                                'rework' => 4, 
-                                'obsolete' => 5, 
-                                'future' => 6, 
-                                'final' => 7 );   
-
-
-// see strings.txt for labels
-// $TLS_testCaseStatus_hint_KEY => $TLS_testCaseStatus_hint_draft
-//
-$tlCfg->testCaseStatusDisplayHintOnTestDesign = ['draft' => '' /* 'testCaseStatus_hint_draft' */, 
-                                                 'readyForReview' => '', 
-                                                 'reviewInProgress' => '', 
-                                                 'rework' => '', 
-                                                 'obsolete' => 'testCaseStatus_hint_obsolete', 
-                                                 'future' => '', 
-                                                 'final' => '' ];   
-// -----------------------------------------------------------------------------------------
+$tlCfg->testCaseStatus = array( 'draft' => 1, 'readyForReview' => 2, 
+                                'reviewInProgress' => 3, 'rework' => 4, 
+                                'obsolete' => 5, 'future' => 6, 'final' => 7 );   
 
 
 /** @uses testcase.class.php */
