@@ -9,7 +9,7 @@
  * @filesource	tlsmarty.inc.php
  * @package 	  TestLink
  * @author 		  Martin Havlat
- * @copyright 	2005-2022, TestLink community 
+ * @copyright 	2005-2020, TestLink community 
  * @link 		    http://www.testlink.org/
  * @link 		    http://www.smarty.net/ 
  *
@@ -82,43 +82,60 @@ function guard_header_smarty($file) {
  */
 class TLSmarty extends Smarty {
   private $tlImages;
+  private $tlIMGTags;
   var $tlTemplateCfg;
-	
+	private $dashioHome;
+
   function __construct() {
     global $tlCfg;
     global $g_tpl;
     
+    $basehref = isset($_SESSION['basehref']) 
+                ? $_SESSION['basehref'] : TL_BASE_HREF;
+
+    $my_locale = isset($_SESSION['locale']) 
+                 ? $_SESSION['locale'] : TL_DEFAULT_LOCALE;
+
     parent::__construct();
-  
-    $this->template_dir = [
-      'main' => TL_ABS_PATH . 'gui/templates/' . $tlCfg->gui->ux . '/'
-    ];
+    
+    $main = TL_ABS_PATH . 'gui/templates/dashio/';
+    $this->template_dir = 
+             ['main' => $main,
+              'attach' => $main . 'attachments/',
+              'execInc' => $main . 'execute/include/',
+              'feedback' => $main . 'feedback/',
+              'include' => $main . 'include/',
+              'tcaseInc' => $main . 'testcases/include/',
+              'tcaseLbl' => $main . 'testcases/labels/'
+             ];
                           
     $this->config_dir = TL_ABS_PATH . 'gui/templates/conf';
     $this->compile_dir = TL_TEMP_PATH;
-    
 
+    // 20200222
+    // Can not access $this->dashioHome in templates
+    // without doing the ->assign().
+    // I declare the variable anyway, to be able to access
+    // it from PHP code
+    //
+    $this->dashioHome = 'gui/templates/dashio/dashio-template/';
+    $this->assign('dashioHome', $this->dashioHome);
 
+    $this->assign('dashioHomeURL', $basehref . $this->dashioHome);
+
+    // ----------------------------------------------------------    
     $testproject_coloring = $tlCfg->gui->testproject_coloring;
     $testprojectColor = $tlCfg->gui->background_color ; 
-    
-    if (isset($_SESSION['testprojectColor'])) {
-      $testprojectColor =  $_SESSION['testprojectColor'];
-      if ($testprojectColor == "") {
-          $testprojectColor = $tlCfg->gui->background_color;
-      }    
-    }
     $this->assign('testprojectColor', $testprojectColor);
     
-    $my_locale = isset($_SESSION['locale']) ? $_SESSION['locale'] : TL_DEFAULT_LOCALE;
-    $basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : TL_BASE_HREF;
     
     if ($tlCfg->smarty_debug) {
       $this->debugging = true;
       tLog("Smarty debug window = ON");
     }
-    
-    // ----------------------------------------------------------------------
+
+
+    // --------------------------------------------------------------
     // Must be initialized to avoid log on TestLink Event Viewer due to undefined variable.
     // This means that optional/missing parameters on include can not be used.
     //
@@ -153,7 +170,7 @@ class TLSmarty extends Smarty {
             
     $this->assign('tplan_name',null);
     $this->assign('name',null);
-    // -----------------------------------------------------------------------------
+    // -------------------------------------------------------------
     
     $this->assign('basehref', $basehref);
     $this->assign('css', $basehref . TL_TESTLINK_CSS);
@@ -167,24 +184,46 @@ class TLSmarty extends Smarty {
     $this->assign('locale', $my_locale);
      
     //
-    $stdTPLCfg = array();
-    $stdTPLCfg['inc_tcbody'] = 'testcases/inc_tcbody.tpl';
-    $stdTPLCfg['inc_steps'] = 'testcases/inc_steps.tpl';
+    $stdTPLCfg = ['tcViewViewer.inc' => '',
+                  'tcbody.inc' => '',
+                  'steps.inc' => '',
+                  'aliens.inc' => '',
+                  'keywords.inc' => '',
+                  'relations.inc' => '', 
+                  'quickexec.inc' => '',
+                  'platforms.inc' => '',
+                  'attributesLinearForViewer.inc' => '', 
+                  'steps_horizontal.inc' => '',
+                  'steps_vertical.inc' => ''];
 
-    $stdTPLCfg['inc_show_scripts_table'] = 'inc_show_scripts_table.tpl';
-    
-    $stdTPLCfg['keywords.inc'] = 'testcases/keywords.inc.tpl';
+    array_walk($stdTPLCfg, function (&$value, $key) {
+      $bbb = "testcases/include/";
+      return $value =  $bbb . $key . '.tpl';
+    });
+ 
+    $stdTPLCfg['exec_test_spec.inc'] = '';
+    $stdTPLCfg['exec_img_controls.inc'] = '';
+    $stdTPLCfg['exec_controls.inc'] = '';
+    $stdTPLCfg['exec_show_tc_exec.inc'] = '';
+    $stdTPLCfg['exec_tc_relations.inc'] = '';
+    $stdTPLCfg['add_issue_on_step.inc'] = '';
+    $stdTPLCfg['create_issue.inc'] = '';
+    $stdTPLCfg['execSetResultsBulk.inc'] = '';
+    $stdTPLCfg['execSetResultsJS.inc'] = '';
+    $stdTPLCfg['execSetResultsRemoteExec.inc'] = '';
+    $stdTPLCfg['execSetResultsUtils.inc'] = '';
+    $stdTPLCfg['issueTrackerMetadata.inc'] = '';
+    $stdTPLCfg['issue_inputs_on_step.inc'] = '';
 
-    $stdTPLCfg['attributesLinearForViewer.inc'] = 
-      'testcases/attributesLinearForViewer.inc.tpl';
-
-    $stdTPLCfg['relations.inc'] = 'testcases/relations.inc.tpl'; 
-    $stdTPLCfg['quickexec.inc'] = 'testcases/quickexec.inc.tpl'; 
-
-    $stdTPLCfg['steps_horizontal.inc'] = 'testcases/steps_horizontal.inc.tpl';
-    $stdTPLCfg['steps_vertical.inc'] = 'testcases/steps_vertical.inc.tpl';
-
-    $stdTPLCfg['platforms.inc'] = 'testcases/platforms.inc.tpl';
+    array_walk($stdTPLCfg, function (&$value, $key) {
+      $bbb = "execute/include/";
+      if ($value == '') {
+        return $value =  $bbb . $key . '.tpl';
+      }
+    });
+ 
+    $stdTPLCfg['showScriptsTable.inc'] = 
+      'include/showScriptsTable.inc.tpl';
 
 
     // -----------------------------------------------------------------------------
@@ -263,6 +302,7 @@ class TLSmarty extends Smarty {
     // -----------------------------------------------------------------------------
     // Images
     $this->tlImages = tlSmarty::getImageSet();
+    $this->tlIMGTags = tlSmarty::getIMGTagsSet();
     
     $msg = lang_get('show_hide_api_info');
     $this->tlImages['toggle_api_info'] =  "<img class=\"clickable\" title=\"{$msg}\" alt=\"{$msg}\" " .
@@ -294,6 +334,7 @@ class TLSmarty extends Smarty {
 
     // Do not move!!!
     $this->assign("tlImages",$this->tlImages);
+    $this->assign("tlIMGTags",$this->tlIMGTags);
     
     // Register functions
     $this->registerPlugin("function","lang_get", "lang_get_smarty");
@@ -411,11 +452,9 @@ class TLSmarty extends Smarty {
                    'plugins' => $imgLoc . 'connect.png',
                    'public' => $imgLoc . 'door_open.png',
                    'private' => $imgLoc . 'door.png',
-                   'relations' => $imgLoc . 'asterisk_yellow.png',
                    'remove' => $imgLoc . 'delete.png',
                    'reorder' => $imgLoc . 'arrow_switch.png',
                    'report' => $imgLoc . 'report.png',
-                   'report_test_automation' => $imgLoc . 'lightning.png',
                    'report_word' => $imgLoc . 'page_word.png',
                    'requirements' => $imgLoc . 'cart.png',
                    'resequence' => $imgLoc . 'control_equalizer.png',
@@ -431,6 +470,7 @@ class TLSmarty extends Smarty {
                    'test_specification' => $imgLoc . 'chart_organisation.png',
                    'toggle_all' => $imgLoc .'toggle_all.gif',
                    'user' => $imgLoc . 'user.png',
+                   'user_badge' => $imgLoc . 'employee-badge.png',
                    'upload' => $imgLoc . 'upload_16.png',
                    'upload_greyed' => $imgLoc . 'upload_16_greyed.png',
                    'warning' => $imgLoc . 'error_triangle.png',
@@ -446,17 +486,34 @@ class TLSmarty extends Smarty {
 
     $imi = config_get('images');
     if(count($imi) >0) {
-      foreach($imi as $key => $img) {
-
-        // You need to configure in your custom config something like this
-        // $tlCfg->images['test_status_passed_with_remarks'] = 
-        // '%imgLoc%test_status_passed_with_remarks.png';
-        // PAY ATTENTION to the place holder %imgLoc%
-        $imi[$key] = str_replace('%imgLoc%', $imgLoc, $img);
-      }
       $dummy = array_merge($dummy,$imi);
     }                 
     return $dummy;
 	}
+
+  /**
+   *
+   */
+  static function getIMGTagsSet() {
+    $burl = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : TL_BASE_HREF;
+    $imgLoc = $burl . TL_THEME_IMG_DIR;
+    // var_dump($imgLoc);
+ 
+
+    // $dummy = array('checked' => '<img src="' . $imgLoc . 'apply_f2_16.png">');
+    $dummy = array('displayOnExec' => '<i class="fa fa-desktop"></i>'
+                   ,'cog' => '<i class="fa fa-cog" aria-hidden="true"></i>'
+                  );
+
+    $dummy['toggle_direct_link'] = 
+      "<i class=\"fas fa-link\" title=\"{$msg}\" alt=\"{$msg}\" " .
+      " onclick=\"showHideByClass('div','direct_link');event.stopPropagation();\" " .
+      "></i>";
+
+    // var_dump($dummy);
+    return $dummy;
+  }
+
+
 
 } 
