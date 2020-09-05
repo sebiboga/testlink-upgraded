@@ -333,7 +333,6 @@ CREATE TABLE /*prefix*/platforms (
   notes text NOT NULL,
   enable_on_design tinyint(1) unsigned NOT NULL default '0',
   enable_on_execution tinyint(1) unsigned NOT NULL default '1',
-  is_open tinyint(1) unsigned NOT NULL default '1',
   PRIMARY KEY (id),
   UNIQUE KEY /*prefix*/idx_platforms (testproject_id,name)
 ) DEFAULT CHARSET=utf8;
@@ -799,11 +798,12 @@ CREATE TABLE /*prefix*/testcase_platforms (
 ) DEFAULT CHARSET=utf8;
 
 
+# 20200905 change to avoid issues with MySQL 5.7.24
 CREATE TABLE /*prefix*/baseline_l1l2_context (
   id int(10) unsigned NOT NULL AUTO_INCREMENT,
   testplan_id int(10) unsigned NOT NULL DEFAULT '0',
   platform_id int(10) unsigned NOT NULL DEFAULT '0',
-  begin_exec_ts timestamp NOT NULL,
+  begin_exec_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   end_exec_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creation_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
