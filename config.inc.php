@@ -1351,6 +1351,10 @@ $tlCfg->testcase_cfg->viewerFieldsOrder->preconditions = 1;
 
 
 
+$tlCfg->testcase_cfg->viewerHideEmptyFields = new stdClass();
+$tlCfg->testcase_cfg->viewerHideEmptyFields->summary = true;
+$tlCfg->testcase_cfg->viewerHideEmptyFields->preconditions = true;
+
 
 
 // Effects on Req Version to TCVersion LINK 
