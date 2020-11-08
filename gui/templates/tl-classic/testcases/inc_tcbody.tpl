@@ -32,7 +32,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 {* ------------------------------------------------------------------------------------------ *}
 
 
-<div class="mainAttrContainer"> 
+{if $inc_tcbody_args_tcase_is_artifact == false}
+<div class="mainAttrContainer">
   <div class="summaryCONTAINER">
     {if $inc_tcbody_cf.before_summary neq ''}
       <div id="cf_before_summary"
@@ -41,7 +42,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       </div>
       <br>
     {/if}
-    {if $showSummary} 
+    {if $showSummary}
       <div class="labelHolder">{$inc_tcbody_labels.summary}</div>
       <div id="summary">{if $inc_tcbody_editor_type == 'none'}{$tco.summary|nl2br}{else}{$tco.summary}{/if}</div>
     {/if}
@@ -66,11 +67,11 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       </div>
       <br>
     {/if}
-    {if $showPreconditions} 
+    {if $showPreconditions}
       {$spanid="preconditions_{$tco.id}"}
-      <span id="{$spanid}" 
-            class="ghost" 
-            style="display:none">{$tco.ghost_preconditions}</span>    
+      <span id="{$spanid}"
+            class="ghost"
+            style="display:none">{$tco.ghost_preconditions}</span>
 
       <div class="labelHolder">{$inc_tcbody_labels.preconditions}
         <img class="clickable" src="{$tlImages.ghost_item}"
@@ -87,7 +88,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       </div>
     {/if}
   </div>
-  
+
   {if $inc_tcbody_cf.before_steps_results neq ''}
     <div class="CFBeforeStepsCONTAINER">
       <div class="custom_field_container">
@@ -106,3 +107,4 @@ function copyAttrGhostString(spanID) {
   navigator.clipboard.writeText(ghostString);
 }
 </script>
+{/if}

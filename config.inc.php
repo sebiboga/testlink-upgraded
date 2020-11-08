@@ -87,6 +87,14 @@ $tlCfg->keywords->byTestProject = array();
 
 $tlCfg->keywords->headsUpTSuiteOnExec = 'CMD_OPEN_ON_EXEC';
 
+
+$tlCfg->keywords->specialKeywords = new stdClass(); 
+$tlCfg->keywords->specialKeywords->startWith = '@#';
+$tlCfg->keywords->specialKeywords->tcaseIsArtifact = '@#ARTIFACT';
+
+
+
+
 $tlCfg->accessWithoutLogin = array();
 
 

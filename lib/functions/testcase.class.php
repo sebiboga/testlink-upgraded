@@ -910,9 +910,11 @@ class testcase extends tlObjectWithAttachments {
     static $reqMgr;
     static $hidePreconditions;
     static $hideSummary;
+    static $isArtifactKW;
 
     if(!$cfg) {
       $cfg = config_get('spec_cfg');
+      $isArtifactKW = config_get('keywords')->specialKeywords->tcaseIsArtifact;
       $reqMgr = new requirement_mgr($this->db);
 
       // Investigate if special keywords are defined in the test project
@@ -1060,7 +1062,18 @@ class testcase extends tlObjectWithAttachments {
         $gui->currentVersionKeywords = 
           $this->getKeywords($tc_id,$currentVersionID);
 
-          
+        /* Special processing */
+        $gui->currentVersionIsArtifact = false;
+        if ($gui->currentVersionKeywords != null) {
+          foreach($gui->currentVersionKeywords as $kitie) {
+            if ($kitie['keyword'] == $isArtifactKW) {
+               $gui->currentVersionIsArtifact = true;
+              break;
+            }
+          }
+        }
+
+
         $gui->currentVersionPlatforms = 
           $this->getPlatforms($tc_id,$currentVersionID);
 
@@ -5463,6 +5476,10 @@ class testcase extends tlObjectWithAttachments {
     $options = array('getTSuiteKeywords' => false);
     $options = array_merge($options, (array)$opt);
    
+    if ($options['getTSuiteKeywords']) {
+      $kwLikeStart = config_get('keywords')->specialKeywords->startWith; 
+    }
+
     $idSet = (array)$tcaseSet;
     foreach($idSet as $item) {
       $path_info = $this->tree_manager->get_path($item);
@@ -5486,7 +5503,8 @@ class testcase extends tlObjectWithAttachments {
       if( null != $xtree && $options['getTSuiteKeywords'] ) {
         $tsSet = array_keys($xtree);
         $opkw = array('output' => 'kwname');
-        $fkw = array('keywordsLikeStart' => '@#');
+        //$fkw = array('keywordsLikeStart' => '@#');
+        $fkw = array('keywordsLikeStart' => $kwLikeStart);
         $iset = (array) $tsuiteMgr->getTSuitesFilteredByKWSet($tsSet,$opkw,$fkw);
 
         foreach( $iset as $tsuite_id => $elem ) {
