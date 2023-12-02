@@ -7,7 +7,7 @@
  *
  * @filesource  tcImport.php
  * @package     TestLink
- * @copyright   2007-2019, TestLink community 
+ * @copyright   2007-2022, TestLink community 
  * @link        http://testlink.sourceforge.net/ 
  * 
  */
@@ -17,12 +17,11 @@ require_once('csv.inc.php');
 require_once('xml.inc.php');
 
 testlinkInitPage($db);
-
-
 $templateCfg = templateConfiguration();
-$pcheck_fn=null;
-$args = init_args();
-$gui = initializeGui($db,$args);
+$pcheck_fn = null;
+
+list($args,$gui) = initScript($db);
+
 if ($args->do_upload) {
   
   // check the uploaded file
@@ -65,7 +64,7 @@ if ($args->do_upload) {
       $opt['duplicateLogic'] = array('hitCriteria' => $args->hit_criteria,
                                      'actionOnHit' => $args->action_on_duplicated_name);
       $gui->resultMap = $pimport_fn($db,$gui->dest,
-         intval($args->container_id),intval($args->tproject_id),intval($args->userID),
+         intval($args->containerID),intval($args->tproject_id),intval($args->userID),
          $opt);
     }
   } else if(is_null($gui->file_check)) {
@@ -91,18 +90,19 @@ if($args->useRecursion) {
   $obj_mgr->setTestProject($args->tproject_id);
 }
 
-$gui->actionOptions = 
-array('skip' => lang_get('skip_testcase_import'),
-      'update_last_version' => lang_get('update_last_testcase_version'),
-      'generate_new' => lang_get('generate_new_testcase'),
-      'create_new_version' => lang_get('create_new_testcase_version'));
+$gui->actionOptions = [
+  'skip' => lang_get('skip_testcase_import'),
+  'update_last_version' => lang_get('update_last_testcase_version'),
+  'generate_new' => lang_get('generate_new_testcase'),
+  'create_new_version' => lang_get('create_new_testcase_version')
+];
 
-$gui->hitOptions = array('name' => lang_get('same_name'),
-                         'internalID' => lang_get('same_internalID'),
-                         'externalID' => lang_get('same_externalID'));
+$gui->hitOptions = [
+  'name' => lang_get('same_name'),
+  'internalID' => lang_get('same_internalID'),
+  'externalID' => lang_get('same_externalID')
+];
 
-
-$gui->testprojectName = $_SESSION['testprojectName'];
 $gui->importTypes = $obj_mgr->get_import_file_types();
 $gui->action_on_duplicated_name=$args->action_on_duplicated_name;
 
@@ -143,8 +143,7 @@ function importTestCaseDataFromXML(&$db,$fileName,$parentID,$tproject_id,$userID
           $tproject->importKeywordsFromSimpleXML($tproject_id,$xmlKeywords[$idx]);
         }
         $kwMap = $tproject->get_keywords_map($tproject_id);
-        // change keywords to lowercase to be case insensitive
-        $kwMap = is_null($kwMap) ? null : array_change_key_case(array_flip($kwMap), CASE_LOWER);
+        $kwMap = is_null($kwMap) ? null : array_flip($kwMap);
       }
 
       if (!$useRecursion &&  ($xml->getName() == 'testcases') ) {
@@ -269,11 +268,8 @@ function saveImportedTCData(&$db,$tcData,$tproject_id,$container_id,
   for($idx = 0; $idx <$tc_qty ; $idx++) {
     $tc = $tcData[$idx];
     $name = $tc['name'];
-    
     $summary = $tc['summary'];
     $steps = $tc['steps'];
-    $internalid = $tc['internalid'];
-    $externalid = $tc['externalid'];
 
     $doCreate = true;
     if( $duplicatedLogic['actionOnHit'] == 'update_last_version' || 
@@ -313,9 +309,7 @@ function saveImportedTCData(&$db,$tcData,$tproject_id,$container_id,
     // if use has not provided order I think is OK TestLink make any choice.
     $node_order = isset($tc['node_order']) ? intval($tc['node_order']) : ($idx+1);
     $internalid = $tc['internalid'];
-    
     $preconditions = $tc['preconditions'];
-    
     $exec_type = isset($tc['execution_type']) ? $tc['execution_type'] : TESTCASE_EXECUTION_TYPE_MANUAL;
     $importance = isset($tc['importance']) ? $tc['importance'] : MEDIUM;   
 
@@ -427,7 +421,7 @@ function saveImportedTCData(&$db,$tcData,$tproject_id,$container_id,
            break;
            
            default:
-             $doCreate=false; 
+               $doCreate=false; 
            break;
        }
     }
@@ -518,14 +512,12 @@ function saveImportedTCData(&$db,$tcData,$tproject_id,$container_id,
 
     $hasAttachments=(isset($tc['attachments']) && !is_null($tc['attachments']));
     if($hasAttachments) {
-      $fk_id = $doCreate ? $ret['tcversion_id'] : $internalid;
-
+      $fk_id = $doCreate ? $ret['id'] : $internalid;
       if ($internalid == "" && $item_id>0) { 
         $internalid = $item_id;
       }
-
-        
-      $msg = processAttachments( $db, true, $name, $internalid, $fk_id, $tc['attachments'], $feedbackMsg );
+      $msg = processAttachments( $db, $name, $internalid, $fk_id, $tc['attachments'], 
+               $feedbackMsg );
       if( !is_null($msg) ) {
         $resultMap = array_merge($resultMap,$msg);
       }      
@@ -540,9 +532,6 @@ function saveImportedTCData(&$db,$tcData,$tproject_id,$container_id,
 // -------------------------------------------------------------------------------
 /*
   function: buildKeywordList
-
-  Build the list of DB ID of the keywords used in the XML.
-
   args :
   returns: 
 */
@@ -550,8 +539,7 @@ function buildKeywordList($kwMap,$keywords) {
   $items = array();
   $loop2do = sizeof($keywords);
   for($jdx = 0; $jdx <$loop2do ; $jdx++) {
-    // change Map keys (keyword) to lowercase to be case insensitive
-    $items[] = $kwMap[strtolower(trim($keywords[$jdx]['name']))];
+    $items[] = $kwMap[trim($keywords[$jdx]['name'])]; 
   }
   return $items;
 }
@@ -567,19 +555,14 @@ function buildKeywordList($kwMap,$keywords) {
 function check_xml_tc_tsuite($fileName,$recursiveMode) {
   $xml = @simplexml_load_file_wrapper($fileName);
   $file_check = array('status_ok' => 0, 'msg' => 'xml_load_ko');          
-  if($xml !== FALSE)
-  {
+  if ($xml !== FALSE) {
     $file_check = array('status_ok' => 1, 'msg' => 'ok');          
     $elementName = $xml->getName();
-    if($recursiveMode)
-    {
-      if($elementName != 'testsuite')
-      {
+    if ($recursiveMode) {
+      if ($elementName != 'testsuite') {
         $file_check=array('status_ok' => 0, 'msg' => lang_get('wrong_xml_tsuite_file'));
       }  
-    }
-    else
-    {
+    } else {
       if($elementName != 'testcases' && $elementName != 'testcase')
         {
         $file_check=array('status_ok' => 0, 'msg' => lang_get('wrong_xml_tcase_file'));
@@ -594,23 +577,30 @@ function check_xml_tc_tsuite($fileName,$recursiveMode) {
 /* contribution by mirosvad - 
    Convert new line characters from XLS to HTML 
 */
-function nl2p($str)  
+function nl2p($str) 
 {
   return str_replace('<p></p>', '', '<p>' . preg_replace('#\n|\r#', '</p>$0<p>', $str) . '</p>'); //MS
 }
 
 
-/*
-  function: 
-  
-  args :
-  
-  returns: 
-  
-*/
-function init_args()
+/**
+ *
+ *
+ */
+function initScript(&$dbH) 
 {
-  $args = new stdClass();
+  $args = init_args($dbH);
+  $gui = initializeGui($dbH,$args);
+  return array($args,$gui);
+}
+
+/**
+ *
+ */
+function init_args(&$dbH)
+{
+  list($args,$env) = initContext();
+
   $_REQUEST = strings_stripSlashes($_REQUEST);
 
   $key='action_on_duplicated_name';
@@ -619,18 +609,29 @@ function init_args()
   $key='hit_criteria';
   $args->$key = isset($_REQUEST[$key]) ? $_REQUEST[$key] : 'name';
        
-        
-  $args->importType = isset($_REQUEST['importType']) ? $_REQUEST['importType'] : null;
-  $args->useRecursion = isset($_REQUEST['useRecursion']) ? $_REQUEST['useRecursion'] : 0;
-  $args->location = isset($_REQUEST['location']) ? $_REQUEST['location'] : null; 
-  $args->container_id = isset($_REQUEST['containerID']) ? intval($_REQUEST['containerID']) : 0;
-  $args->bIntoProject = isset($_REQUEST['bIntoProject']) ? intval($_REQUEST['bIntoProject']) : 0;
-    
-  $args->containerType = isset($_REQUEST['containerType']) ? intval($_REQUEST['containerType']) : 0;
+  $k2n = [
+    'importType',
+    'location'
+  ];
+  foreach ($k2n as $prop) {
+    $args->$prop = isset($_REQUEST[$prop]) ? $_REQUEST[$prop] : null;
+  }      
+
+  $k2z = [
+    'useRecursion',
+    'bIntoProject',
+    'containerID'
+  ];
+  foreach ($k2z as $prop) {
+    $args->$prop = isset($_REQUEST[$prop]) ? intval($_REQUEST[$prop]) : 0;
+  }      
+
   $args->do_upload = isset($_REQUEST['UploadFile']) ? 1 : 0;
     
   $args->userID = $_SESSION['userID'];
-  $args->tproject_id = $_SESSION['testprojectID'];
+  if ($args->containerID == 0) {
+    throw new Exception("Can Not Import Without a Container", 1);
+  }
   
   return $args;
 }
@@ -774,13 +775,14 @@ function processRequirements(&$dbHandler,&$reqMgr,$tcaseName,$tcIDCard,
  * Else return an array of messages.
  *
  */
-function processAttachments( &$dbHandler, $isTestCase, $tcaseName, $xmlInternalID, $fk_Id, $tcAtt, $messages )
+function processAttachments( &$dbHandler, $tcaseName, $xmlInternalID, $fk_Id, $tcAtt, $messages )
 {  
 	static $duplicateAttachment;
 	$resultMsg=null;	
-	$tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy','attachments','tcversions'));
+	$tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy','attachments'));
 	
-	foreach( $tcAtt as $ydx => $value ) {	
+	foreach( $tcAtt as $ydx => $value )
+	{	
 		$addAttachment = false;
 		
 		// Is it a CREATION or an UPDATE?
@@ -798,29 +800,28 @@ function processAttachments( &$dbHandler, $isTestCase, $tcaseName, $xmlInternalI
 			// allow attachment import only if no record with the same signature have been found in database
 			$addAttachment = ( is_null($rsx) || count($rsx) < 1 );
 			if( $addAttachment === false ){ // inform user that the attachment has been skipped
-			  if( !isset($duplicateAttachment[$value['id']]) ) {
-				  $duplicateAttachment[$value['id']]=sprintf($messages['attachment'],$value['name']);  
+			  if( !isset($duplicateAttachment[$value['id']]) )
+			  {
+				$duplicateAttachment[$value['id']]=sprintf($messages['attachment'],$value['name']);  
 			  }
 			  $resultMsg[] = array($tcaseName,$duplicateAttachment[$value['id']]); 
 			}
 			
-		} else{
+		}else{
 			// Creation
 			$addAttachment = true;
 		}
 		
-		if( $addAttachment ) {
+		if( $addAttachment )
+		{
 			$attachRepo = tlAttachmentRepository::create($dbHandler);
 				
 			$fileInfo = $attachRepo->createAttachmentTempFile( $value['content'] );	
 			$fileInfo['name'] = $value['name'];
 			$fileInfo['type'] = $value['file_type'];
-      $tableRef = $tables['nodes_hierarchy'];
-      if ($isTestCase) {
-        $tableRef = $tables['tcversions'];
-      }
-			$iaOp = $attachRepo->insertAttachment( $fk_Id, $tableRef, $value['title'], $fileInfo);
-    }
+
+			$attachRepo->insertAttachment( $fk_Id, $tables['nodes_hierarchy'], $value['title'], $fileInfo);
+		}
 	} //foreach
 	 
 	return $resultMsg;
@@ -850,11 +851,6 @@ function importTestCasesFromSimpleXML(&$db,&$simpleXMLObj,$parentID,$tproject_id
  */
 function getTestCaseSetFromSimpleXMLObj($xmlTCs)
 {
-  static $cfg;
-  if (!$cfg) {
-    $cfg = config_get('testcase_cfg')->import;
-  }	
-
   $tcSet = null;
   if (!$xmlTCs)
   {
@@ -877,39 +873,16 @@ function getTestCaseSetFromSimpleXMLObj($xmlTCs)
   $tcXML['attributes'] = array('string' => array("name" => 'trim'), 
                                'integer' =>array('internalid' => null));
 
-
   for($idx = 0; $idx < $loops2do; $idx++)
   {
     $dummy = getItemsFromSimpleXMLObj(array($xmlTCs[$idx]),$tcXML);
     $tc = $dummy[0]; 
-    if ($tc) {
-     
-      if ($cfg->wordwrap->summary > 0) {
-        $tc['summary'] = wordwrap($tc['summary'],$cfg->wordwrap->summary);
-      } 
-      if ($cfg->wordwrap->preconditions > 0) {
-        $tc['preconditions'] = wordwrap($tc['preconditions'],$cfg->wordwrap->preconditions);
-      }
-
-
+        
+    if ($tc)
+    {
       // Test Case Steps
       $steps = getStepsFromSimpleXMLObj($xmlTCs[$idx]->steps->step);
       $tc['steps'] = $steps;
-
-      if ($cfg->wordwrap->actions > 0 || $cfg->wordwrap->expected_results > 0) {
-	    foreach ($tc['steps'] as $sdx => $elem) {
-	    
-	      if ($cfg->wordwrap->actions > 0) {
-	      	$tc['steps'][$sdx]['actions'] = wordwrap($tc['steps'][$sdx]['actions'],
-	      		                                     $cfg->wordwrap->actions);	      	
-	      }
-
-	      if ($cfg->wordwrap->expected_results > 0) {
-	      	$tc['steps'][$sdx]['expected_results'] = wordwrap($tc['steps'][$sdx]['expected_results'],
-	      		                                     $cfg->wordwrap->expected_results);
-          }
-	    }
-      }
 
       $keywords = getKeywordsFromSimpleXMLObj($xmlTCs[$idx]->keywords->keyword);
       if ($keywords)
@@ -924,13 +897,15 @@ function getTestCaseSetFromSimpleXMLObj($xmlTCs)
       } 
 
       $requirements = getRequirementsFromSimpleXMLObj($xmlTCs[$idx]->requirements->requirement);
-      if($requirements) {
+      if($requirements)
+      {
           $tc['requirements'] = $requirements;  
       } 
 
 	  $attachments = getAttachmentsFromSimpleXMLObj($xmlTCs[$idx]->attachments->attachment);
-    if($attachments) {
-		  $tc['attachments'] = $attachments;  
+	  if($attachments)
+	  {
+		$tc['attachments'] = $attachments;  
 	  }
 	}
 	$tcaseSet[$jdx++] = $tc;    
@@ -1099,7 +1074,7 @@ function importTestSuitesFromSimpleXML(&$dbHandler,&$xml,$parentID,$tproject_id,
 			if ($tsuiteXMLID == "" && $info[0]['id']>0){ // testsuite id is optionnal in XML schema, id may has been retrieved from name during update
 				$tsuiteXMLID = $info[0]['id'];
 			}
-		  $msg = processAttachments( $dbHandler, false, $tsuite['name'], $tsuiteXMLID, $tsuite['id'], $attachments, $feedbackMsg );
+		  $msg = processAttachments( $dbHandler, $tsuite['name'], $tsuiteXMLID, $tsuite['id'], $attachments, $feedbackMsg );
 		  if( !is_null($msg) )
 		  {
 			$resultMap = array_merge($resultMap,$msg);
@@ -1167,12 +1142,22 @@ function importTestSuitesFromSimpleXML(&$dbHandler,&$xml,$parentID,$tproject_id,
  **/
 function initializeGui(&$dbHandler,&$argsObj)
 {
-  $guiObj = new stdClass();
+  list($add2args,$guiObj) = initUserEnv($dbHandler,$argsObj);
+
+  if (0 == $guiObj->tproject_id) {
+    throw new Exception("Bad Test Project ID", 1);
+  }
+  $argsObj->tproject_id = $guiObj->tproject_id;
+
+  $guiObj->tproject_name = 
+    testproject::getName($dbHandler,$guiObj->tproject_id);
+
   $guiObj->importLimitBytes = config_get('import_file_max_size_bytes');
   $guiObj->importLimitKB = ($guiObj->importLimitBytes / 1024);
   $guiObj->hitCriteria = $argsObj->hit_criteria;
   $guiObj->useRecursion = $argsObj->useRecursion;
-  $guiObj->containerID = $argsObj->container_id;
+  $guiObj->containerID = $argsObj->containerID;
+
   $guiObj->bImport = tlStringLen($argsObj->importType);
   $guiObj->bIntoProject = $argsObj->bIntoProject;
   $guiObj->resultMap = null;
@@ -1182,35 +1167,55 @@ function initializeGui(&$dbHandler,&$argsObj)
   $dest_common = TL_TEMP_PATH . session_id(). "-importtcs";
   $dest_files = array('XML' => $dest_common . ".xml");
   $guiObj->dest = $dest_files['XML'];
-  if(!is_null($argsObj->importType))
-  {
+  if (!is_null($argsObj->importType)) {
     $guiObj->dest = $dest_files[$argsObj->importType];
   }
   
   $guiObj->file_check = array('status_ok' => 1, 'msg' => 'ok');
   
-  if($argsObj->useRecursion)
-  {
+  $guiObj->container_description = lang_get('test_suite');
+  if ($argsObj->useRecursion) {
     $guiObj->import_title = lang_get('title_tsuite_import_to');  
-    $guiObj->container_description = lang_get('test_suite');
-  }
-  else
-  {
+  } else {
     $guiObj->import_title = lang_get('title_tc_import_to');
-    $guiObj->container_description = lang_get('test_case');
   }
 
-  if($argsObj->container_id)
-  {
+  if (null != $argsObj->containerID) {
     $tree_mgr = new tree($dbHandler);
-    $node_info = $tree_mgr->get_node_hierarchy_info($argsObj->container_id);
+    $node_info = $tree_mgr->get_node_hierarchy_info($argsObj->containerID);
     unset($tree_mgr);    
     $guiObj->container_name = $node_info['name'];
-    if($argsObj->container_id == $argsObj->tproject_id)
-    {
+    $guiObj->container_description = lang_get('testsuite');
+    if ($argsObj->containerID == $argsObj->tproject_id) {
       $guiObj->container_description = lang_get('testproject');
-    }  
+    }   
+
+    $guiObj->pageTitle = $guiObj->container_description . ' : ' . $guiObj->container_name;
   }
+
+
+  $guiObj->cancelActionJS = 'location.href=fRoot+' . "'" . "lib/testcases/archiveData.php?";
+
+  if (intval($argsObj->containerID) > 0) {
+    if (intval($argsObj->containerID) == intval($argsObj->tproject_id)) {
+      $guiObj->cancelActionJS .= 'edit=testproject';
+    } else {
+      $guiObj->cancelActionJS .= 'edit=testsuite';
+    }
+    $guiObj->cancelActionJS .= '&id=' . intval($argsObj->containerID);
+  } else {
+    $guiObj->cancelActionJS .= 'edit=testcase&id=' . intval($argsObj->tcase_id);
+  }
+
+  if( property_exists($argsObj, 'tplan_id') ) {
+    $guiObj->cancelActionJS .= "&tplan_id={$argsObj->tplan_id}";
+  }
+
+  if( property_exists($argsObj, 'tproject_id') ) {
+    $guiObj->cancelActionJS .= "&tproject_id={$argsObj->tproject_id}";
+  }
+
+  $guiObj->cancelActionJS .= "'";
 
   return $guiObj;
 } 
