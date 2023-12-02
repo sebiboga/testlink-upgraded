@@ -8,7 +8,7 @@
  * Allows users to create/edit keywords. 
  *
  * @package    TestLink
- * @copyright  2005,2023 TestLink community 
+ * @copyright  2005,2019 TestLink community 
  * @link       http://www.testlink.org/
  *  
 **/
@@ -19,7 +19,7 @@ require_once("xml.inc.php");
 require_once("keywordsEnv.php");
 
 
-testlinkInitPage($db, false, false, "checkRights");
+testlinkInitPage($db);
 $tplCfg = templateConfiguration();
 
 $tplEngine = new TLSmarty();
@@ -50,13 +50,12 @@ switch ($action) {
 if($op->status == 1) {
   $tpl = $op->template;
 } else {
-  $tpl = (property_exists($op,'template') 
-          && null != $op->template) ? $op->template :
-         $tplCfg->default_template;
+  $tpl = $tplCfg->default_template;
   $gui->user_feedback = getKeywordErrorMessage($op->status);
 }
 
 $gui->keywords = null;
+$gui->activeMenu['projects'] = 'active';
 $gui->submitCode = "";
 if ($tpl != $tplCfg->default_template) {
   // I'm going to return to screen that display all keywords
@@ -70,7 +69,7 @@ if ($tpl != $tplCfg->default_template) {
   $gui->submitCode="return dialog_onSubmit($gui->dialogName)";
 }
 
-if ($setUpDialog) {
+if( $setUpDialog ) {
   $gui->dialogName = 'kw_dialog';
   $gui->bodyOnLoad = "dialog_onLoad($gui->dialogName)";
   $gui->bodyOnUnload = "dialog_onUnload($gui->dialogName)";  
@@ -119,13 +118,26 @@ function initEnv(&$dbHandler) {
     throw new Exception("Error Invalid Test Project ID", 1);
   }
 
+  // Check rights before doing anything else
+  // Abort if rights are not enough 
+  // Check Only At Test project level
   $args->user = $_SESSION['currentUser'];
+  $environment = array('tproject_id' => $args->tproject_id);
+  
+  $check = new stdClass();
+  $check->items = array('mgt_modify_key','mgt_view_key');
+  $check->mode = 'and';
+  checkAccess($dbHandler,$args->user,$environment,$check);
+
+  // OK Go ahead
   $args->canManage = true;
   $args->mgt_view_events = $args->user->hasRight($dbHandler,"mgt_view_events",$args->tproject_id);
 
   $treeMgr = new tree($dbHandler);
   $dummy = $treeMgr->get_node_hierarchy_info($args->tproject_id);
   $args->tproject_name = $dummy['name'];  
+
+  setOpenByAnotherEnv($args);
 
   return $args;
 }
@@ -228,7 +240,7 @@ function do_delete(&$args,&$guiObj,&$tproject_mgr) {
 
 /*
  *  initialize variables to launch user interface (smarty template)
- *  to get information to accomplish create and link task.
+ *  to get information to accomplish create task.
 */
 function cfl(&$argsObj,&$guiObj) {
   $guiObj->submit_button_action = 'do_cfl';
@@ -243,31 +255,31 @@ function cfl(&$argsObj,&$guiObj) {
 }
 
 /*
- * Creates & Link the keyword
+ * Creates the keyword
  */
 function do_cfl(&$args,&$guiObj,&$tproject_mgr) {
   $guiObj->submit_button_action = 'do_cfl';
-  $guiObj->submit_button_label = lang_get('btn_create_and_link');
+  $guiObj->submit_button_label = lang_get('btn_save');
   $guiObj->main_descr = lang_get('keyword_management');
-  $guiObj->action_descr = lang_get('create_keyword_and_link');
+  $guiObj->action_descr = lang_get('create_keyword');
 
   $op = $tproject_mgr->addKeyword($args->tproject_id,$args->keyword,$args->notes);
-  
-  $ret = new stdClass();
-  if ($op['status'] >= tl::OK) {
-    $ret->template = 'keywordsView.tpl';
+  if( $op['status'] >= tl::OK ) {
     $tcaseMgr = new testcase($tproject_mgr->db);
     $tbl = tlObject::getDBTables('nodes_hierarchy');
     $sql = "SELECT parent_id FROM {$tbl['nodes_hierarchy']}
             WHERE id=" . intval($args->tcversion_id);
     $rs = $tproject_mgr->db->get_recordset($sql);
     $tcase_id = intval($rs[0]['parent_id']);
-    $tcaseMgr->addKeywords($tcase_id,$args->tcversion_id,
-        array($op['id']));
+    $tcaseMgr->addKeywords($tcase_id,$args->tcversion_id,array($op['id']));
   }
+
+  $ret = new stdClass();
+  $ret->template = 'keywordsView.tpl';
   $ret->status = $op['status'];
   return $ret;
 }
+
 
 
 /**
@@ -278,24 +290,23 @@ function getKeywordErrorMessage($code) {
   switch($code) {
     case tlKeyword::E_NAMENOTALLOWED:
       $msg = lang_get('keywords_char_not_allowed'); 
-    break;
+      break;
 
     case tlKeyword::E_NAMELENGTH:
       $msg = lang_get('empty_keyword_no');
-    break;
+      break;
 
     case tlKeyword::E_DBERROR:
     case ERROR: 
       $msg = lang_get('kw_update_fails');
-    break;
+      break;
 
     case tlKeyword::E_NAMEALREADYEXISTS:
       $msg = lang_get('keyword_already_exists');
-    break;
+      break;
 
     default:
       $msg = 'ok';
-    break;  
   }
   return $msg;
 }
@@ -306,11 +317,13 @@ function getKeywordErrorMessage($code) {
  */
 function initializeGui(&$dbH,&$args) {
 
-  $gui = new stdClass();
-  $gui->dialogName='keywordsEdit_dialog';
+  list($add2args,$gui) = initUserEnv($dbH,$args);
   $gui->openByOther = $args->openByOther;
   $gui->directAccess = $args->directAccess;
   $gui->tcversion_id = $args->tcversion_id;
+  $gui->dialogName = $args->dialogName;
+  $gui->bodyOnLoad = $args->bodyOnLoad;
+  $gui->bodyOnUnload = $args->bodyOnUnload;  
 
   $gui->user_feedback = '';
 
@@ -329,14 +342,8 @@ function initializeGui(&$dbH,&$args) {
   $gui->keyword = $args->keyword;
   $gui->keywordID = $args->keyword_id;
 
-  $gui->editUrl = $_SESSION['basehref'] . 
-                  "lib/keywords/keywordsEdit.php?" .
+  $gui->editUrl = $_SESSION['basehref'] . "lib/keywords/keywordsEdit.php?" .
                   "tproject_id={$gui->tproject_id}"; 
 
   return $gui;
-}
-
-function checkRights(&$db,&$user) {
-	return ($user->hasRightOnProj($db,'mgt_view_key')
-       || $user->hasRightOnProj($db,'mgt_modify_key'));
 }
