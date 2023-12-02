@@ -36,12 +36,10 @@ abstract class issueTrackerInterface
   var $tlCharSet = null;
   
   // private vars don't touch
-  // usable only if interface is done via direct DB access.
-  var $dbConnection = null;  
+  var $dbConnection = null;  // usable only if interface is done via direct DB access.
   var $dbMsg = '';
-  // useful for connect/disconnect methods
-  var $interfaceViaDB = false;  
   var $connected = false;
+  var $interfaceViaDB = false;  // useful for connect/disconnect methods
   var $resolvedStatus;
   
   var $methodOpt = array('buildViewBugLink' => 
@@ -52,7 +50,6 @@ abstract class issueTrackerInterface
 
   var $guiCfg = array();
   var $summaryLengthLimit = 120;  // Mantis max is 128.  
-  var $forbidden_chars = '/[!|�%&()\/=?]/';
 
   /**
    * Construct and connect to BTS.
@@ -84,15 +81,7 @@ abstract class issueTrackerInterface
    **/
   function canCreateViaAPI()
   {
-    return false;
-  }
-
- /**
-  *
-  **/
-  function canAddNoteViaAPI()
-  {
-    return false;
+    return true;
   }
 
 
@@ -108,7 +97,8 @@ abstract class issueTrackerInterface
    *
    * 
    **/
-  function setCfg($xmlString) {
+  function setCfg($xmlString)
+  {
     $msg = null;
     $signature = 'Source:' . __METHOD__;
 
@@ -138,16 +128,12 @@ abstract class issueTrackerInterface
       $msg .= 'Message: ' .$e->getMessage();
     }
 
-    if( !($retval = is_null($msg)) )
-    {
-      tLog(__METHOD__ . $msg, 'ERROR');  
-    }  
-
     if ($this->cfg == false) {
       tLog(__METHOD__ . $msg, 'ERROR'); 
       return false; 
     }  
 
+    // Everything seems OK
     // 
     if( !property_exists($this->cfg,'userinteraction') )
     {
@@ -216,8 +202,7 @@ abstract class issueTrackerInterface
     }
        
     // cast everything to string in order to avoid issues
-    // @20140604 someone has been issues trying to connect 
-    // to JIRA on MSSQL    
+    // @20140604 someone has been issues trying to connect to JIRA on MSSQL    
     $this->cfg->dbtype = strtolower((string)$this->cfg->dbtype);
     $this->cfg->dbhost = (string)$this->cfg->dbhost;
     $this->cfg->dbuser = (string)$this->cfg->dbuser;
@@ -225,28 +210,27 @@ abstract class issueTrackerInterface
     $this->cfg->dbname = (string)$this->cfg->dbname;
 
     $this->dbConnection = new database($this->cfg->dbtype);
-    $result = $this->dbConnection->connect(false, 
-                     $this->cfg->dbhost,
-                     $this->cfg->dbuser,
-                     $this->cfg->dbpassword, 
-                     $this->cfg->dbname);
+    $result = $this->dbConnection->connect(false, $this->cfg->dbhost,$this->cfg->dbuser,
+                                           $this->cfg->dbpassword, $this->cfg->dbname);
 
-    if (!$result['status']) {
+    if (!$result['status'])
+    {
       $this->dbConnection = null;
-      $cnn = "(interface: - Host:{$this->cfg->dbhost} - " . 
-             "DBName: {$this->cfg->dbname} 
-             - User: {$this->cfg->dbuser}) "; 
-      $msg = sprintf(lang_get('BTS_connect_to_database_fails'),
-                     $cnn);
+      $connection_args = "(interface: - Host:$this->cfg->dbhost - " . 
+                         "DBName: $this->cfg->dbname - User: $this->cfg->dbuser) "; 
+      $msg = sprintf(lang_get('BTS_connect_to_database_fails'),$connection_args);
       tLog($msg  . $result['dbms_msg'], 'ERROR');
     }
-    elseif ($this->cfg->dbtype == 'mysql') {
-      if ($this->cfg->dbcharset == 'UTF-8') {
+    elseif ($this->cfg->dbtype == 'mysql')
+    {
+      if ($this->cfg->dbcharset == 'UTF-8')
+      {
         $r = $this->dbConnection->exec_query("SET CHARACTER SET utf8");
         $r = $this->dbConnection->exec_query("SET NAMES utf8");
         $r = $this->dbConnection->exec_query("SET collation_connection = 'utf8_general_ci'");
       }
-      else {
+      else
+      {
         $r = $this->dbConnection->exec_query("SET CHARACTER SET " . $this->cfg->dbcharset);
         $r = $this->dbConnection->exec_query("SET NAMES ". $this->cfg->dbcharset);
       }
@@ -294,10 +278,13 @@ abstract class issueTrackerInterface
   function checkBugIDSyntaxNumeric($issueID)
   {
     $valid = true;  
-    $blackList = '/\D/i';  
-    if (preg_match($blackList, $issueID)) {
+    $forbidden_chars = '/\D/i';  
+    if (preg_match($forbidden_chars, $issueID))
+    {
       $valid = false; 
-    } else {
+    }
+    else 
+    {
       $valid = (intval($issueID) > 0);  
     }
     return $valid;
@@ -315,7 +302,8 @@ abstract class issueTrackerInterface
     $status_ok = !(trim($issueID) == "");
     if($status_ok)
     {
-      if (preg_match($this->forbidden_chars, $issueID))
+      $forbidden_chars = '/[!|�%&()\/=?]/';
+      if (preg_match($forbidden_chars, $issueID))
       {
         $status_ok = false;
       }
@@ -454,8 +442,12 @@ abstract class issueTrackerInterface
    * @return string returns a complete URL
    *
    **/
-  function getEnterBugURL() {
-    return $this->cfg->uricreate;
+  function getEnterBugURL()
+  {
+    if (property_exists($this->cfg, 'uricreate')) {
+      return $this->cfg->uricreate;
+    }
+    return '';
   }
 
 
@@ -468,7 +460,8 @@ abstract class issueTrackerInterface
    * 
    * @return string 
    **/
-  function buildViewBugURL($issueID) {
+  function buildViewBugURL($issueID)
+  {
     return $this->cfg->uriview . urlencode($issueID);
   }
 
@@ -546,14 +539,11 @@ abstract class issueTrackerInterface
       $statusCfg['status'] = $this->defaultResolvedStatus;
     }
     $this->resolvedStatus = new stdClass();
-    $this->resolvedStatus->byCode = [];
-    $this->resolvedStatus->byName = [];
-
     foreach ($statusCfg['status'] as $cfx) {
       $e = (array)$cfx;
       $this->resolvedStatus->byCode[$e['code']] = $e['verbose'];
     }
-    $this->resolvedStatus->byName = array_flip($this->resolvedStatus->byCode);      
+    $this->resolvedStatus->byName = array_flip($this->resolvedStatus->byCode);
   }
   
   /**
@@ -616,14 +606,6 @@ abstract class issueTrackerInterface
    */
   function getBugSummaryMaxLength() {
     return $this->summaryLengthLimit;
-  }
-
-  /**
-   * 
-   **/
-  function normalizeBugID($issueID)
-  {
-    return $issueID;
   }
 
 }
