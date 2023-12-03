@@ -5,7 +5,7 @@
  * 
  * @filesource  testproject.class.php
  * @package     TestLink
- * @copyright   2005-2020, TestLink community 
+ * @copyright   2005-2022, TestLink community 
  * @link        http://testlink.sourceforge.net/
  * 
  **/
@@ -85,7 +85,7 @@ class testproject extends tlObjectWithAttachments {
  */
 function create($item,$opt=null) {
   $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-  $my['opt'] = array('doChecks' => false, 'setSessionProject' => true);
+  $my['opt'] = array('doChecks' => false);
   $my['opt'] = array_merge($my['opt'],(array)$opt);
   
   $serOptions = serialize($item->options);
@@ -139,12 +139,7 @@ function create($item,$opt=null) {
   $evt->objectType = 'testprojects';
  
   if ($result) {
-    // set project to session if not defined (the first project) or update the current
-    if (!isset($_SESSION['testprojectID']) && $my['opt']['setSessionProject']) {
-      $this->setSessionProject($id);
-    }
     $evt->logLevel = 'AUDIT';
-
     // Send Event
     $ctx = array('id' => $id, 'name' => $item->name, 'prefix' => $tcPrefix);
     event_signal('EVENT_TEST_PROJECT_CREATE', $ctx);
@@ -218,17 +213,11 @@ function update($id, $name, $color, $notes,$options,$active=null,
     $result = $this->db->exec_query($sql);
   }
 
-  if ($result)
-  {
-    // update session data
-    $this->setSessionProject($safeID);
-
+  if ($result) {
     // Send Event
     $ctx = array('id' => $id, 'name' => $name, 'prefix' => $tcprefix);
     event_signal('EVENT_TEST_PROJECT_UPDATE', $ctx);
-  }
-  else
-  {
+  } else {
     $status_msg = 'Update FAILED!';
     $status_ok = 0;
     $log_level ='ERROR';
@@ -238,60 +227,6 @@ function update($id, $name, $color, $notes,$options,$active=null,
   tLog($log_msg,$log_level);
   return ($status_ok);
 }
-
-/**
- * Set session data related to a Test project
- * 
- * @param integer $projectId Project ID; zero causes unset data
- */
-public function setSessionProject($projectId)
-{
-  $tproject_info = null;
-  
-  if ($projectId)
-  {
-    $tproject_info = $this->get_by_id($projectId);
-  }
-
-  if ($tproject_info) {
-    $_SESSION['testprojectID'] = $tproject_info['id'];
-    $_SESSION['testprojectName'] = $tproject_info['name'];
-    $_SESSION['testprojectColor'] = $tproject_info['color'];
-    $_SESSION['testprojectPrefix'] = $tproject_info['prefix'];
-
-    $_SESSION['testprojectOptions'] = new stdClass();
-    $_SESSION['testprojectOptions']->requirementsEnabled = 
-            isset($tproject_info['opt']->requirementsEnabled) 
-            ? $tproject_info['opt']->requirementsEnabled : 0;
-    $_SESSION['testprojectOptions']->testPriorityEnabled = 
-            isset($tproject_info['opt']->testPriorityEnabled) 
-            ? $tproject_info['opt']->testPriorityEnabled : 0;
-    $_SESSION['testprojectOptions']->automationEnabled = 
-            isset($tproject_info['opt']->automationEnabled) 
-            ? $tproject_info['opt']->automationEnabled : 0;
-    $_SESSION['testprojectOptions']->inventoryEnabled = 
-            isset($tproject_info['opt']->inventoryEnabled) 
-            ? $tproject_info['opt']->inventoryEnabled : 0;
-
-    tLog("Test Project was activated: [" . $tproject_info['id'] . "]" . 
-        $tproject_info['name'], 'INFO');
-  }
-  else
-  {
-    if (isset($_SESSION['testprojectID']))
-    {
-      tLog("Test Project deactivated: [" . $_SESSION['testprojectID'] . "] " . 
-          $_SESSION['testprojectName'], 'INFO');
-    }
-    unset($_SESSION['testprojectID']);
-    unset($_SESSION['testprojectName']);
-    unset($_SESSION['testprojectColor']);
-    unset($_SESSION['testprojectOptions']);
-    unset($_SESSION['testprojectPrefix']);
-  }
-
-}
-
 
 /**
  * Unserialize project options
@@ -397,6 +332,11 @@ public function get_by_name($name, $addClause = null, $opt=null)
  */
 public function get_by_id($id, $opt=null)
 {
+  if( null == $id ) {
+    echo '<pre>'; debug_print_backtrace(); echo '</pre>';
+    throw new Exception(__METHOD__ . ' EXCEPTION: test project ID, is mandatory');  
+  }
+
   $condition = "testprojects.id=". intval($id);
   $result = $this->getTestProject($condition,$opt);
   return $result[0];
@@ -530,8 +470,11 @@ args:
 function get_accessible_for_user($user_id,$opt = null,$filters = null) {
   $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
   $my = array();
-  $my['opt'] = array('output' => 'map', 'order_by' => ' ORDER BY name ', 'field_set' => 'full',
-                     'format' => 'std', 'add_issuetracker' => false, 'add_codetracker' => false,
+  $my['opt'] = array('output' => 'map', 
+                     'order_by' => ' ORDER BY name ', 
+                     'field_set' => 'full',
+                     'format' => 'std', 'add_issuetracker' => false, 
+                     'add_codetracker' => false,
                      'add_reqmgrsystem' => false);
   $my['opt'] = array_merge($my['opt'],(array)$opt);
   
@@ -545,7 +488,9 @@ function get_accessible_for_user($user_id,$opt = null,$filters = null) {
   $safe_user_id = intval($user_id);
 
   // Get default/global role
-  $sql = "/* $debugMsg */ SELECT id,role_id FROM {$this->tables['users']} where id=" . $safe_user_id;
+  $sql = "/* $debugMsg */ 
+          SELECT id,role_id FROM {$this->tables['users']} 
+          WHERE id=" . $safe_user_id;
   $user_info = $this->db->get_recordset($sql);
   $globalRoleID = intval($user_info[0]['role_id']);
 
@@ -784,6 +729,7 @@ function show(&$smarty,$guiObj,$template_dir,$id,$sqlResult='', $action = 'updat
     $gui->sqlResult = $sqlResult;
   }
 
+
   $p2ow = array('refreshTree' => false, 'user_feedback' => '');
   foreach ($p2ow as $prop => $value) {
     if (!property_exists($gui,$prop)) {
@@ -796,7 +742,8 @@ function show(&$smarty,$guiObj,$template_dir,$id,$sqlResult='', $action = 'updat
   $gui->modify_tc_rights = has_rights($this->db,"mgt_modify_tc",$safeID);
   $gui->mgt_modify_product = has_rights($this->db,"mgt_modify_product");
 
-
+// CRITIC for import URL
+  $gui->containerID = $safeID;
 
   $gui->container_data = $this->get_by_id($safeID);
   $gui->moddedItem = $gui->container_data;
@@ -918,13 +865,12 @@ function count_testcases($id)
     $ret['status_ok'] = 1;
     $ret['msg'] = 'ok';
 
-    if ($name == "")
-    {
+    if ($name == "") {
       $ret['msg'] = lang_get('info_product_name_empty');
       $ret['status_ok'] = 0;
     }
-    if ($ret['status_ok'] && !check_string($name,$forbidden_pattern))
-    {
+
+    if ($ret['status_ok'] && !check_string($name,$forbidden_pattern)) {
       $ret['msg'] = lang_get('string_contains_bad_chars');
       $ret['status_ok'] = 0;
     }
@@ -1138,19 +1084,23 @@ function setPublicStatus($id,$status)
    * @param string $notes
    *
    **/
-  public function addKeyword($testprojectID,$keyword,$notes) {
+  public function addKeyword($tprojID,$keyword,$notes) {
     $kw = new tlKeyword();
-    $kw->initialize(null,$testprojectID,$keyword,$notes);
-    $op = array('status' => tlKeyword::E_DBERROR, 'id' => -1, 
-                'msg' => 'ko DB Error');
-
+    $kw->initialize(null,$tprojID,$keyword,$notes);
+    $op = [
+      'status' => tlKeyword::E_DBERROR, 
+      'id' => -1, 
+      'msg' => 'ko DB Error'
+    ];
     $op['status'] = $kw->writeToDB($this->db);
-    $op['id'] = $kw->dbID;
-
     if ($op['status'] >= tl::OK) {
-      logAuditEvent(TLS("audit_keyword_created",$keyword),"CREATE",$op['id'],"keywords");
+      $op['id'] = $kw->dbID;
+      $audit = TLS("audit_keyword_created",$keyword) .
+               sprintf(lang_get('on_testproject'),
+                       testproject::getName($this->db,$tprojID));
+      logAuditEvent($audit,"CREATE",$op['id'],"keywords");
     } else {
-      $op['msg'] = tlKeyword::getError($op['status']);
+      $op['msg'] = tlKeyword::getErrorMessage($op['status']);
     }
 
     return $op;
@@ -1436,6 +1386,21 @@ function setPublicStatus($id,$status)
       }
     }
     return $status;
+  }
+
+
+  /***
+   * 
+   */
+  function getKeywordsAsMapByName($tproject_id) {
+    $keywordMap = null;
+    $keywords = $this->getKeywords($tproject_id);
+    if ($keywords) {
+      foreach($keywords as $kw) {
+        $keywordMap[$kw->name] = $kw->notes;
+      }
+    }
+    return $keywordMap;
   }
 
   /**
@@ -2056,18 +2021,6 @@ function setPublicStatus($id,$status)
       $sql = "/* $debugMsg */ DELETE FROM {$this->object_table} WHERE id = {$id}";
       
       $result = $this->db->exec_query($sql);
-      if ($result)
-      {
-        $tproject_id_on_session = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : $id;
-        if ($id == $tproject_id_on_session)
-        {
-          $this->setSessionProject(null);
-        }  
-      }
-      else
-      {
-        $error .= lang_get('info_product_delete_fails');
-      }  
     }
     
     if (empty($error))
@@ -2113,8 +2066,7 @@ function setPublicStatus($id,$status)
     static $tcNodeTypeID;
     static $tsuiteNodeTypeID;
     static $debugMsg;
-    if (!$tcNodeTypeID)
-    {
+    if (!$tcNodeTypeID) {
       $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
       $tcNodeTypeID = $this->tree_manager->node_descr_id['testcase'];
       $tsuiteNodeTypeID = $this->tree_manager->node_descr_id['testsuite'];
@@ -2124,8 +2076,7 @@ function setPublicStatus($id,$status)
     $my['options'] = array('output' => 'just_id');
     $my['options'] = array_merge($my['options'], (array)$options);
   
-    switch($my['options']['output']) 
-    {
+    switch ($my['options']['output'])  {
       case 'external_id':
         $use_array = true;
       break;
@@ -2135,6 +2086,56 @@ function setPublicStatus($id,$status)
         $use_array = false;
       break;
     }
+
+    // dbms version support CTE?
+    if ($this->db->db_supports_cte()) {
+      $sql = " 
+        with recursive cte_nh (id, name, parent_id,node_type_id) as (
+          select id,name,parent_id,node_type_id
+          from {$this->tables['nodes_hierarchy']}
+          where parent_id IN ({$idList})
+          union all
+          select NH.id,NH.name,NH.parent_id,NH.node_type_id
+          from  {$this->tables['nodes_hierarchy']} NH
+          inner join cte_nh
+          on NH.parent_id = cte_nh.id
+        )
+        select * from cte_nh 
+        where cte_nh.node_type_id IN ($tcNodeTypeID)";
+      $rs = (array)$this->db->get_recordset($sql);
+
+      $itemSet = [];
+      foreach ($rs as $elem) {
+        $itemSet[] = $elem['id'];
+      }
+
+      switch ($my['options']['output'])  {
+        case 'external_id':
+          $inClause = " (" .implode(',',$itemSet) . " )";
+          $sql = " SELECT DISTINCT NHTCV.parent_id, TCV.tc_external_id
+                   FROM {$this->tables['nodes_hierarchy']} NHTCV
+                   JOIN  {$this->tables['tcversions']} TCV 
+                   ON TCV.id = NHTCV.id 
+                   WHERE NHTCV.parent_id IN $inClause";
+            
+          $rs = $this->db->fetchRowsIntoMap($sql,'parent_id');
+          foreach ($rs as $parent_id => $elem) {
+            $out[$parent_id] = $elem['tc_external_id'];
+          }
+        break;
+        
+        case 'just_id':
+        default:
+          $out = $itemSet;
+        break;
+      }
+
+      // Retun value Pascal Style
+      $tcIDs = $out;
+      return;
+    }
+    
+
     
     $sql = "/* $debugMsg */  SELECT id,node_type_id from {$this->tables['nodes_hierarchy']} " .
            " WHERE parent_id IN ({$idList})";
@@ -2879,13 +2880,7 @@ private function copy_platforms($source_id, $target_id)
     $platform_mgr->setTestProjectID($target_id);
     foreach($platformSet as $platform)
     {
-      $item = new stdClass();
-      $item->name = $platform['name'];
-      $item->notes = (string)$platform['notes'];
-      $item->enable_on_design = intval($platform['enable_on_design']);
-      $item->enable_on_execution = intval($platform['enable_on_execution']);
-
-      $op = $platform_mgr->create($item);
+      $op = $platform_mgr->create($platform['name'],$platform['notes']);
       $old_new[$platform['id']] = $op['id'];
     }
   }
@@ -3199,18 +3194,16 @@ function _get_subtree_rec($node_id,&$pnode,$filters = null, $options = null) {
     return $qnum;
   }
 
-    // create list with test cases nodes
-  $tclist = null;
+  // create list with test cases nodes
+  $tclist = [];
   $ks = array_keys($rs);
   foreach($ks as $ikey) {
     if( $rs[$ikey]['node_type_id'] == $this->tree_manager->node_descr_id['testcase'] ) {
       $tclist[$rs[$ikey]['id']] = $rs[$ikey]['id'];
     }
   }    
-  if( !is_null($tclist) ) {
+  if( count($tclist) > 0 ) {
     $filterOnTC = false;
-
-    // 2018, where is the active check?
 
     // Can be replace with a view?
     $glvn = " /* Get LATEST ACTIVE tcversion NUMBER */ " .  
@@ -3447,9 +3440,6 @@ function getTCLatestVersionFilteredByKeywords($tproject_id, $keyword_id=0, $keyw
 /**
  *
  *
- * @internal revisions
- * @since 1.9.4
- *
  */
 function isIssueTrackerEnabled($id)
 {
@@ -3518,8 +3508,8 @@ function isCodeTrackerEnabled($id) {
          "SELECT code_tracker_enabled FROM {$this->object_table} " .
          "WHERE id =" . intval($id);   
        
-  $ret = $this->db->get_recordset($sql);
-  return $ret[0]['code_tracker_enabled'];
+  $ret = (array)$this->db->get_recordset($sql);
+  return (count($ret) > 0) ? $ret[0]['code_tracker_enabled'] : 0;
 }
 
 
@@ -3839,6 +3829,9 @@ function getPublicAttr($id)
            " FROM {$this->object_table} testprojects " .
            " WHERE testprojects.id = " . intval($id);
     $rs = $this->db->get_recordset($sql);  
+    if (null == $rs || count($rs) <=0) {
+      return (object)[];
+    }
     return unserialize($rs[0]['options']);       
   }  
 
@@ -3851,10 +3844,8 @@ function getPublicAttr($id)
 
     $nike = false;
     $itemOpt = $this->getOptions( ($safeID = intval($id)) );
-    foreach($itemOpt as $prop => $value)
-    {
-      if( property_exists($optObj, $prop) )
-      {
+    foreach ($itemOpt as $prop => $value) {
+      if( property_exists($optObj, $prop) ) {
         $itemOpt->$prop = $optObj->$prop;
         $nike = true;
       }  
@@ -4087,7 +4078,8 @@ function getActiveTestPlansCount($id)
  */
 function getPlatformsLatestTCV($tproject_id, $platform_id=0) {
 
-  $filter = '' ;
+  $filter= '' ;
+  $subquery='';
   $ltcvJoin = " JOIN {$this->views['latest_tcase_version_id']} LTCV
                 ON LTCV.tcversion_id = TPL.tcversion_id ";
 
@@ -4105,7 +4097,7 @@ function getPlatformsLatestTCV($tproject_id, $platform_id=0) {
            ON TPL.platform_id = PL.id
            {$ltcvJoin}
            WHERE PL.testproject_id = {$tproject_id}
-           {$filter}
+           {$filter} {$subquery}
            ORDER BY name ASC ";
 
   $items = $this->db->fetchMapRowsIntoMap($sql,'testcase_id','platform_id');
@@ -4235,19 +4227,82 @@ function getTCLatestVersionFilteredByPlatforms($tproject_id, $platform_id=0) {
     return is_null($rs) ? $rs : $rs[0]['name'];
   }
 
-  /***
+  /**
    *
-   * @used-by testcase.class.php 
    */
-  function getKeywordsAsMapByName($tproject_id) {
-    $keywordMap = null;
-    $keywords = $this->getKeywords($tproject_id);
-    if ($keywords) {
-      foreach($keywords as $kw) {
-        $keywordMap[$kw->name] = $kw->notes;
+  function getTCQtyCreatedMonthly($id,$options=null)
+  {
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+      
+    $thisYear = date('Y'); 
+      
+    $opt = array('startTime' => $thisYear . '-01-01 00:00:00', 
+                 'endTime' => $thisYear . '-12-31 23:59:59');
+
+    $opt = array_merge($opt,(array)$options);
+    $safe = array('tproject_id' => intval($id));
+    
+    $target = array();
+    $this->get_all_testcases_id($id,$target);
+    $itemQty = count($target);
+   
+    $rs = null;
+    if ($itemQty > 0) {
+      $inClause = "(" . implode(',', $target) . ")";
+
+      $sql = " /* $debugMsg */ 
+               SELECT count(*) as qty, SQ.year_mm AS yyyy_mm 
+               FROM ( /* SQ */
+                 SELECT {$this->db->db->sqlDate('Y_m','creation_ts')} AS year_mm 
+                 FROM {$this->views['latest_tcase_version_id']} LTCVID 
+                 JOIN {$this->tables['tcversions']} TCV 
+                 ON TCV.id = LTCVID.tcversion_id 
+                 WHERE LTCVID.testcase_id IN $inClause";
+
+      $sql .= " AND TCV.creation_ts >= '{$opt['startTime']}'";
+      $sql .= " AND TCV.creation_ts <= '{$opt['endTime']}' ) SQ ";
+
+      $sql .= " GROUP BY yyyy_mm";
+
+      // echo $sql;
+      // $rs = $this->db->fetchRowsIntoMap($sql,'yyyy_mm');
+      $rs = $this->db->fetchColumnsIntoMap($sql,'yyyy_mm','qty');
+    }
+    return $rs;
+  }  
+
+
+
+  /**
+   *
+   */
+  function getViewActions( $context ) 
+  {
+    $act = new stdClass();
+    $act->managerURL="lib/project/projectEdit.php";
+    $cc = "$act->managerURL?doAction";
+    $prop = array('tproject_id','tplan_id');
+    $ent = '';
+    foreach( $prop as $pp ) {
+      $ent .= "&$pp=";
+      if( property_exists($context,$pp) ) {
+        $ent .= intval($context->$pp);
+      } else {
+        $ent .= "0";
       }
     }
-    return $keywordMap;
+    $environment = trim($ent,'&');
+    $ent .= "&itemID=";
+
+    $act->deleteAction = "$cc=doDelete$ent";
+    $act->editAction = "$cc=edit$ent";
+    $act->createAction = "$cc=create$ent";
+
+    $pv = "lib/project/projectView.php";
+    $act->searchAction = "$pv?doAction=search$ent";
+    $act->displayListURL = "$pv?" . $environment;
+
+    return $act;
   }
 
 } // end class
