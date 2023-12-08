@@ -17,7 +17,6 @@ class reqCommands {
   private $reqStatusDomain;
   private $reqTypeDomain;
   private $attrCfg;
-  private $reqCfg;
 
   const OVERWRITESCOPE=true;
   
@@ -26,12 +25,12 @@ class reqCommands {
       $this->reqSpecMgr = new requirement_spec_mgr($db);
       $this->reqMgr = new requirement_mgr($db);
       
-      $this->reqCfg = config_get('req_cfg');
-      $this->reqStatusDomain = init_labels($this->reqCfg->status_labels);
-      $this->reqTypeDomain = init_labels($this->reqCfg->type_labels);
-      $this->reqRelationTypeDescr = init_labels($this->reqCfg->rel_type_description);
+      $reqCfg = config_get('req_cfg');
+      $this->reqStatusDomain = init_labels($reqCfg->status_labels);
+      $this->reqTypeDomain = init_labels($reqCfg->type_labels);
+      $this->reqRelationTypeDescr = init_labels($reqCfg->rel_type_description);
       
-      $type_ec = $this->reqCfg->type_expected_coverage;
+      $type_ec = $reqCfg->type_expected_coverage;
       $this->attrCfg = array();
       $this->attrCfg['expected_coverage'] = array();
       foreach($this->reqTypeDomain as $type_code => $dummy) {
@@ -233,6 +232,8 @@ class reqCommands {
     $obj->reqTypeDomain = $this->reqTypeDomain;
     $obj->req_spec_id = $argsObj->req_spec_id;
     $obj->expected_coverage = $argsObj->expected_coverage;
+
+    $obj->tproject_id = $argsObj->tproject_id;
   
     // manage new order
     $order = 0;
@@ -262,7 +263,7 @@ class reqCommands {
       } 
       else 
       {
-        $obj->template = "reqView.php?refreshTree={$argsObj->refreshTree}&requirement_id={$ret['id']}";
+        $obj->template = "reqView.php?refreshTree={$argsObj->refreshTree}&requirement_id={$ret['id']}&tproject_id={$obj->tproject_id}";
       }
       $obj->req_id = $ret['id'];
       $argsObj->scope = '';
@@ -352,7 +353,7 @@ class reqCommands {
       {
         $obj->main_descr = '';
         $obj->action_descr = '';
-        $obj->template = "reqView.php?refreshTree={$argsObj->refreshTree}&requirement_id={$argsObj->req_id}";
+        $obj->template = "reqView.php?refreshTree={$argsObj->refreshTree}&requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
 
         $this->reqMgr->values_to_db($request,$argsObj->req_version_id,$cf_map);
 
@@ -495,11 +496,10 @@ class reqCommands {
       $count = count((array)$this->reqMgr->get_coverage($req['id']));
       $guiObj->all_reqs[$key]['coverage'] = $count;
 
-      $expected = $guiObj->all_reqs[$key]['expected_coverage'];
+      $denominator = ($guiObj->all_reqs[$key]['expected_coverage'] * $count);      
       $guiObj->all_reqs[$key]['coverage_percent'] = 0;
-      if ($expected != 0) {
-        $guiObj->all_reqs[$key]['coverage_percent'] =
-          round(100 / $expected * $count, 2);
+      if ($denominator != 0) {
+        $guiObj->all_reqs[$key]['coverage_percent'] = round(100 / $denominator, 2);
       }
     }
     return $guiObj;
@@ -617,7 +617,7 @@ class reqCommands {
     $ret = $this->reqMgr->create_new_version($argsObj->req_id,$argsObj->user_id,$opt);
     $obj = $this->initGuiBean();
     $obj->user_feedback = $ret['msg'];
-    $obj->template = "reqView.php?requirement_id={$argsObj->req_id}";
+    $obj->template = "reqView.php?requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
     $obj->req = null;
     $obj->req_id = $argsObj->req_id;
     return $obj;  
@@ -726,7 +726,7 @@ class reqCommands {
     
     $obj = $this->initGuiBean();    
     $op['msg']  = ($op['ok'] ? '<div class="info">' : '<div class="error">') . $op['msg'] . '</div>';
-    $obj->template = "reqView.php?requirement_id={$own_id}&relation_add_result_msg=" . $op['msg'];
+    $obj->template = "reqView.php?requirement_id={$own_id}&relation_add_result_msg=" . $op['msg'] .  "&tproject_id={$argsObj->tproject_id}";
     
     return $obj;  
   }
@@ -762,7 +762,7 @@ class reqCommands {
     }
     
     $obj = $this->initGuiBean();    
-    $obj->template = "reqView.php?requirement_id=$requirement_id&relation_add_result_msg=" . $op['msg'];
+    $obj->template = "reqView.php?requirement_id=$requirement_id&relation_add_result_msg=" . $op['msg'] . "&tproject_id={$argsObj->tproject_id}";
     
     return $obj;
   }
@@ -786,7 +786,7 @@ class reqCommands {
     
     $obj = $this->initGuiBean();
     $obj->user_feedback = $ret['msg'];
-         $obj->template = "reqView.php?requirement_id={$argsObj->req_id}";
+         $obj->template = "reqView.php?requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
         $obj->req = null;
     $obj->req_id = $argsObj->req_id;
     return $obj;  
@@ -897,7 +897,7 @@ class reqCommands {
     $obj->req = $req_version;
     $obj->req_spec_id = $argsObj->req_spec_id;
     $obj->req_version_id = $argsObj->req_version_id;
-    $obj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}";
+    $obj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
 
     // Analise test case identity
     $tcaseCfg = config_get('testcase_cfg');
@@ -974,16 +974,19 @@ class reqCommands {
     $obj->req = $req_version;
     $obj->req_spec_id = $argsObj->req_spec_id;
     $obj->req_version_id = $argsObj->req_version_id;
-    $obj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}";
+    $obj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
     return $obj;
   }
 
   /**
    *
    */
-  function fileUpload(&$argsObj,$request) {
-    $argsObj->uploadOp = fileUploadManagement($this->db,$argsObj->req_version_id,
-      $argsObj->fileTitle,$this->reqMgr->getAttachmentTableName());
+  function fileUpload(&$argsObj,$request) 
+  {
+    $argsObj->uploadOp = fileUploadManagement($this->db,
+                           $argsObj->req_version_id,
+                           $argsObj->fileTitle,
+                           $this->reqMgr->getAttachmentTableName());
 
     return $this->initGuiObjForAttachmentOperations($argsObj);
   }
@@ -1011,9 +1014,9 @@ class reqCommands {
     $guiObj->action_descr = '';
     $guiObj->req_id = $argsObj->req_id;
     $guiObj->suggest_revision = $guiObj->prompt_for_log = false;
-    $guiObj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}";
-    $guiObj->uploadOp = $argsObj->uploadOp;
+    $guiObj->template = "reqView.php?refreshTree=0&requirement_id={$argsObj->req_id}&tproject_id={$argsObj->tproject_id}";
 
+    $guiObj->uploadOp = $argsObj->uploadOp;
     return $guiObj;    
   }
 
