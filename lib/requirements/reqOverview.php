@@ -6,7 +6,7 @@
  *
  * @package     TestLink
  * @author      Andreas Simon
- * @copyright   2018,2020 TestLink community
+ * @copyright   2018,2019 TestLink community
  * @filesource  reqOverview.php
  *
  * List requirements with (or without) Custom Field Data in an ExtJS Table.
@@ -18,8 +18,7 @@
 require_once("../../config.inc.php");
 require_once("common.php");
 require_once('exttable.class.php');
-
-testlinkInitPage($db,false,false);
+testlinkInitPage($db,false,false,"checkRights");
 
 $cfield_mgr = new cfield_mgr($db);
 $templateCfg = templateConfiguration();
@@ -28,11 +27,8 @@ $req_mgr = new requirement_mgr($db);
 
 $cfg = getCfg();
 $args = init_args($tproject_mgr);
-$gui = init_gui($args);
-$ctx = new stdClass();
-$ctx->tproject_id = $args->tproject_id;
-checkRights($db,$args->user,$ctx);
 
+$gui = init_gui($args);
 $gui->reqIDs = $tproject_mgr->get_all_requirement_ids($args->tproject_id);
 
 $smarty = new TLSmarty();
@@ -124,14 +120,6 @@ if(count($gui->reqIDs) > 0)  {
       $pathCache[$req[0]['srs_id']] = htmlentities(implode("/", $path), ENT_QUOTES, $cfg->charset);
     }         
 
-
-    # get all cfield ids we have columns for in the req overview
-    $cfield_ids = array();
-    foreach ($gui->cfields4req as $cf){
-      $cfield_ids[] = $cf['id'];
-    }
-
-
     foreach($req as $version) {
       // get content for each row to display
       $result = array();
@@ -155,7 +143,7 @@ if(count($gui->reqIDs) > 0)  {
         
       $result[] = $pathCache[$req[0]['srs_id']];
         
-      $edit_link = '<a href="javascript:openLinkedReqVersionWindow(' . $id . ',' . $version['version_id'] . ',' . $args->tproject_id . ')">' . 
+      $edit_link = '<a href="javascript:openLinkedReqVersionWindow(' . $id . ',' . $version['version_id'] . ',' . $gui->tproject_id . ')">' . 
                    '<img title="' .$labels['requirement'] . '" src="' . $imgSet['edit'] . '" /></a> ';
       
       $result[] =  '<!-- ' . $title . ' -->' . $edit_link . $title;
@@ -211,36 +199,29 @@ if(count($gui->reqIDs) > 0)  {
         $rx = isset($relationCounters[$id]) ? $relationCounters[$id] : 0;
         $result[] = "<!-- " . str_pad($rx,10,'0') . " -->" . $rx;
       }
+     
       
-      #8792: append one item to $result for every displayed column (no content?: append empty string) 
-      if($gui->processCF) {  
-        $linkedCFWithContent = array();
-        if ( isset($cfByReqVer[$version['version_id']])) {      
-          $linkedCFWithContent = $cfByReqVer[$version['version_id']];
-        }
+      if($gui->processCF) {
+        // get custom field values for this req version
+        $linked_cfields = $cfByReqVer[$version['version_id']];
 
-        foreach ($cfield_ids as $cf_id) {
-          if (isset($linkedCFWithContent[$cf_id])) {
-            $cf = $linkedCFWithContent[$cf_id];
-            $verbose_type = $req_mgr->cfield_mgr->custom_field_types[$cf['type']];
-            $value = preg_replace('!\s+!', ' ', htmlspecialchars($cf['value'], ENT_QUOTES, $cfg->charset));
-            if( ($verbose_type == 'date' || $verbose_type == 'datetime') && is_numeric($value) && $value != 0 ) {
-              $value = @strftime( $cfg->$verbose_type . " ({$labels['week_short']} %W)" , $value);  #fix typo: missing 's' in labels
-            }
-            $result[] = $value;
-          }
-          else {
-            $result[]  = '';
-            continue;
+        foreach ($linked_cfields as $cf) {
+          $verbose_type = $req_mgr->cfield_mgr->custom_field_types[$cf['type']];
+          $value = preg_replace('!\s+!', ' ', htmlspecialchars($cf['value'], ENT_QUOTES, $cfg->charset));
+          if( ($verbose_type == 'date' || $verbose_type == 'datetime') && is_numeric($value) && $value != 0 ) {
+            $value = @strftime( $cfg->$verbose_type . " ({$label['week_short']} %W)" , $value);
           }  
+          $result[] = $value;
         }
-      }
+      }  
         
       $rows[] = $result;
     }
   }
     
-  // --------------------------------------------------------------------
+  // echo 'Elapsed Time since SCRIPT START to EXT-JS Phase START (sec) =' . round(microtime(true) - $chronoStart);
+  // die();
+  // -------------------------------------------------------------------------------------------------- 
   // Construction of EXT-JS table starts here    
   if(($gui->row_qty = count($rows)) > 0 ) {
     $version_string = ($args->all_versions) ? $labels['number_of_versions'] : $labels['number_of_reqs'];
@@ -333,9 +314,7 @@ $smarty->display($templateCfg->template_dir . $templateCfg->default_template);
  * @return array $args array with user input information
  */
 function init_args(&$tproject_mgr) {
-  $args = new stdClass();
-  $args->user = isset($_SESSION['currentUser']) 
-                ? $_SESSION['currentUser'] : null;
+  list($args,$env) = initContext();
 
   $all_versions = isset($_REQUEST['all_versions']) ? true : false;
   $all_versions_hidden = isset($_REQUEST['all_versions_hidden']) ? true : false;
@@ -350,8 +329,6 @@ function init_args(&$tproject_mgr) {
   }
   $args->all_versions = $_SESSION['all_versions'] = $selection;
   
-  $args->tproject_id = intval(isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0);
-  $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
 
   if($args->tproject_id > 0)  {
     $tproject_info = $tproject_mgr->get_by_id($args->tproject_id);
@@ -401,12 +378,11 @@ function getCfg() {
   return $cfg;
 }
 
-/**
- *
+
+/*
+ * rights check function for testlinkInitPage()
  */
-function checkRights(&$db, &$user, $context) 
-{
-  $context->rightsOr = ["mgt_view_req"];
-  $context->rightsAnd = [];
-  pageAccessCheck($db, $user, $context);
+function checkRights(&$db, &$user) {
+  return $user->hasRight($db,'mgt_view_req');
 }
+

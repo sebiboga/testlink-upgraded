@@ -5,13 +5,14 @@
  *
  * @filesource  reqSearch.php
  * @package     TestLink
- * @copyright   2005-2020, TestLink community 
+ * @copyright   2005-2019, TestLink community 
  * @link        http://www.testlink.org/index.php
  *
  * Search results for requirements.
  *
  *
  */
+
 require_once("../../config.inc.php");
 require_once("common.php");
 require_once("requirements.inc.php");
@@ -34,10 +35,10 @@ $gui = $commandMgr->initGuiBean();
 $gui->main_descr = lang_get('caption_search_form_req');
 $gui->warning_msg = '';
 $gui->path_info = null;
+$gui->resultSet = null;
 $gui->tableSet = null;
-$gui->resultSet = [];
 
-$map = [];
+$map = array();
 $args = init_args($date_format_cfg);
 
 $gui->tcasePrefix = $tproject_mgr->getTestCasePrefix($args->tprojectID);
@@ -123,7 +124,7 @@ function buildExtTable($gui, $charset) {
   //
   //
 
-  if(count($gui->resultSet) > 0) {
+  if( is_array($gui->resultSet) && count($gui->resultSet) > 0) {
     $columns = array();
     
     $columns[] = array('title_key' => 'req_spec');
@@ -154,11 +155,9 @@ function buildExtTable($gui, $charset) {
       $matches = '';
       foreach($itemSet as $rx) {
         if($rx['revision_id'] > 0) {
-          $dummy = sprintf($reqRevHref,$rx['revision_id'],$rx['version'],
-                           $rx['revision']);
+          $dummy = sprintf($reqRevHref,$rx['revision_id'],$rx['version'],$rx['revision']);
         } else {
-          $dummy = sprintf($reqVerHref,$req_id,$rx['version_id'],$gui->tproject_id,$rx['version'],
-                           $rx['revision']);
+          $dummy = sprintf($reqVerHref,$req_id,$rx['version_id'],$gui->tproject_id,$rx['version'],$rx['revision']);
         } 
         $matches .= $dummy;
       }
@@ -192,24 +191,18 @@ function buildExtTable($gui, $charset) {
 
  */
 function init_args($dateFormat) {
-  $args = new stdClass();
+  list($args,$env) = initContext();
   $_REQUEST = strings_stripSlashes($_REQUEST);
 
-  $strnull = array('requirement_document_id', 'name','scope', 
-                   'reqStatus',
+  $strnull = array('requirement_document_id', 'name','scope', 'reqStatus',
                    'custom_field_value', 'targetRequirement',
-                   'creation_date_from','creation_date_to',
-                   'log_message',
+                   'version', 'tcid', 'reqType', 'relation_type',
+                   'creation_date_from','creation_date_to','log_message',
                    'modification_date_from','modification_date_to');
   
   foreach($strnull as $keyvar) {
     $args->$keyvar = isset($_REQUEST[$keyvar]) ? trim($_REQUEST[$keyvar]) : null;
     $args->$keyvar = !is_null($args->$keyvar) && strlen($args->$keyvar) > 0 ? trim($args->$keyvar) : null;
-  }
-
-  $intcheck = array('version', 'tcid', 'reqType', 'relation_type');
-  foreach($intcheck as $keyvar) {
-    $args->$keyvar = isset($_REQUEST[$keyvar]) ? intval($_REQUEST[$keyvar]) : null;
   }
 
   $int0 = array('custom_field_id', 'coverage');
@@ -236,7 +229,7 @@ function init_args($dateFormat) {
   }
   
   $args->userID = isset($_SESSION['userID']) ? $_SESSION['userID'] : 0;
-  $args->tprojectID = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
+  $args->tprojectID = $args->tproject_id;
 
   return $args;
 }
@@ -291,17 +284,13 @@ function build_search_sql(&$dbHandler,&$argsObj,&$guiObj) {
   //         value: table alias
   //  
   $likeKeys = array('name' => 
-                      array('name' => 
-                            array('ver' => "NH_REQ", 'rev' => "REQR")),
+                      array('name' => array('ver' => "NH_REQ", 'rev' => "REQR")),
                     'requirement_document_id' => 
-                      array('req_doc_id' => 
-                            array('ver' => 'REQ', 'rev' => 'REQR')),
+                      array('req_doc_id' => array('ver' => 'REQ', 'rev' => 'REQR')),
                     'scope' => 
-                      array('scope' => 
-                            array('ver' => 'REQV', 'rev' => 'REQR')),
+                      array('scope' => array('ver' => 'REQV', 'rev' => 'REQR')),
                     'log_message' 
-                      => array('log_message' => 
-                               array('ver' => 'REQV','rev' =>'REQR')));
+                      => array('log_message'=> array('ver' => 'REQV','rev' =>'REQR')));
 
   foreach($likeKeys as $key => $fcfg) {
     if($argsObj->$key) {
@@ -314,8 +303,7 @@ function build_search_sql(&$dbHandler,&$argsObj,&$guiObj) {
   }           
 
   $char_keys = array( 'reqType' => 
-                 array('type' => 
-                          array('ver' => "REQV", 'rev' => "REQR")),
+                 array('type' => array('ver' => "REQV", 'rev' => "REQR")),
                        'reqStatus' => 
                          array('status' => array('ver' => 'REQV', 'rev' => 'REQR')));
 
@@ -332,7 +320,7 @@ function build_search_sql(&$dbHandler,&$argsObj,&$guiObj) {
   if ($argsObj->version) {
     $version = $dbHandler->prepare_int($argsObj->version);
     $filter['ver']['version'] = " AND REQV.version = {$version} ";
-    $filter['rev']['version'] = $filter['ver']['version'];
+    $filter['rev']['version'] = $filter['versions']['by_version'];
   }
   
   if ($argsObj->coverage) {
@@ -344,7 +332,7 @@ function build_search_sql(&$dbHandler,&$argsObj,&$guiObj) {
   
   
   // Complex processing
-  if(!is_null($argsObj->relation_type) && intval($argsObj->relation_type) >0) {
+  if(!is_null($argsObj->relation_type)) {
     // search by relation type    
     // $argsObj->relation_type is a string in following form
     // e.g. 3_destination or 2_source or only 4
@@ -383,7 +371,7 @@ function build_search_sql(&$dbHandler,&$argsObj,&$guiObj) {
     $tcid = str_replace($guiObj->tcasePrefix, "", $tcid);
 
     $filter['ver']['tcid'] = " AND TCV.tc_external_id = '$tcid' ";
-    $filter['rev']['tcid'] = $filter['ver']['tcid'];
+    $filter['rev']['tcid'] = $filter['ver']['by_tcid'];
       
     $from['ver']['tcid'] =  
 

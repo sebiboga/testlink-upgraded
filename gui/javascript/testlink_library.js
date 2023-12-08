@@ -154,17 +154,22 @@ function STS(id)
   returns:
 
 */
-function SP()
+function SP(tproj_id)
 {
-  var action_url = fRoot+menuUrl;
-  parent.workframe.location = action_url;
+  var action_url = fRoot+menuUrl+"?tproject_id="+parseInt(tproj_id);
+  parent.workframe.location = action_url+args;
 }
 
 /**
  *  EXecution DaShboard (EXDS)
  */
-function EXDS() {
-  var action_url = fRoot+'lib/execute/execDashboard.php';
+function EXDS(tproject_id,tplan_id) {
+  var action_url = fRoot+'lib/execute/execDashboard.php'+
+                   '?tproject_id='+tproject_id;
+  if (typeof tplan_id != 'undefined'){
+     action_url +='&tplan_id='+tplan_id;
+  }                  
+  action_url += args;
   parent.workframe.location = action_url;
 }
 
@@ -186,7 +191,8 @@ function EP(id) {
   // get checkboxes status
   var pParams = tree_getPrintPreferences();
   var action_url = fRoot+menuUrl+"?print_scope=test_specification" + "&edit=testproject" +
-                   "&level=testproject&containerType=testproject&id="+id+args+"&"+pParams;
+                   "&level=testproject&containerType=testproject&id="+id+
+                   "&caller=EP&tproject_id="+id+ args+"&"+pParams;
 
   // alert(_FUNCTION_NAME_ + " " +action_url);
                  
@@ -202,19 +208,22 @@ function EP(id) {
 
   rev :
 */
-function ETS(id) {
-  // menuUrl 99% => archiveData.php
-
+function ETS(tproj_id,id) {
+  // menuUrl => archiveData.php
+  // menuUrl => lib/plan/planAddTC.php
+  
   // get checkboxes status
   var _FUNCTION_NAME_="ETS";
   var pParams = tree_getPrintPreferences();
   var action_url=fRoot+menuUrl+"?print_scope=test_specification" +
-                 "&edit=testsuite&level=testsuite&" + 
-                 "containerType=testsuite&id="+id+args+"&"+pParams;
+                 "&edit=testsuite&level=testsuite" +
+                 "&caller=ETS"+
+                 "&containerType=testsuite&id=" + id + 
+                 "&tproject_id=" + tproj_id + args+"&"+pParams;
 
-  // alert(_FUNCTION_NAME_ + " " +action_url);
+  //alert(_FUNCTION_NAME_ + " " +action_url);
+  console.log(_FUNCTION_NAME_ + " " +action_url);
   parent.workframe.location = action_url;
-
 }
 
 /*
@@ -225,11 +234,17 @@ function ETS(id) {
   returns:
 
 */
-function ET(id,v)
+function ET(tproj_id,id,v)
 {
   // get checkboxes status
   var _FUNCTION_NAME_="ET";
-  var my_location = fRoot+menuUrl+"?version_id="+v+"&edit=testcase&id="+id+args;
+  if(v == undefined) {
+    v = -1;
+  }
+  var my_location = fRoot + menuUrl + 
+      "?version_id="+v+"&edit=testcase&id=" + id +
+       "&caller=ET"+
+      "&tproject_id=" + tproj_id + args;
   // alert(_FUNCTION_NAME_ + " " +my_location);
   parent.workframe.location = my_location;
 }
@@ -260,15 +275,19 @@ function TPROJECT_PTC(id)
 function TPROJECT_PTP_RS(id)
 {
   var pParams = tree_getPrintPreferences();
-  parent.workframe.location = fRoot+menuUrl+"?type=reqspec&level=testproject&id="+id+args+"&"+pParams;
+  parent.workframe.location = fRoot+menuUrl+
+    "?type=reqspec&level=testproject&id="+id+
+    "&tproject_id="+id+args+"&"+pParams;
 }
 
 
 /* Generate doc: one Req Spec (with children) */
-function TPROJECT_PRS(id)
+function TPROJECT_PRS(tproject_id,id)
 {
   var pParams = tree_getPrintPreferences();
-  parent.workframe.location = fRoot+menuUrl+"?type=reqspec&level=reqspec&id="+id+args+"&"+pParams;
+  parent.workframe.location = fRoot+menuUrl+
+    "?type=reqspec&level=reqspec&id="+id+
+    "&tproject_id="+tproject_id+args+"&"+pParams;
 }
 
 
@@ -827,8 +846,8 @@ function openAssignmentOverviewWindow(user_id, build_id, tplan_id) {
 
 /**
  * Open testcase description in a popup window.
- * @author Andreas Simon
- * @param tc_id
+ *
+ * 
  */
 function openTCEditWindow(tcase_id,tcversion_id,tproject_id)  {
   var url = "lib/testcases/archiveData.php?edit=testcase&id=" + tcase_id;
@@ -840,7 +859,7 @@ function openTCEditWindow(tcase_id,tcversion_id,tproject_id)  {
   if (tproject_id !== undefined) {
     url += "&tproject_id=" + tproject_id;
   }
-
+          
   var width = getCookie("TCEditPopupWidth");
   var height = getCookie("TCEditPopupHeight");
   
@@ -853,7 +872,7 @@ function openTCEditWindow(tcase_id,tcversion_id,tproject_id)  {
   {
     var height = "600";
   }
-  
+  //DEBUG alert(url)
   var windowCfg = "width="+width+",height="+height+",resizable=yes,scrollbars=yes,dependent=yes";
   window.open(fRoot+url, '_blank', windowCfg);
 }
@@ -914,6 +933,8 @@ function open_help_window(help_page,locale)
 /*
   function: openTCaseWindow
 
+  globals: setted in inc_head.tpl
+
   args: tcase_id: test case id
         tcversion_id: test case version id
         show_mode: string used on testcase.show() to manage refresh 
@@ -929,8 +950,11 @@ function open_help_window(help_page,locale)
 */
 function openTCaseWindow(tcase_id,tcversion_id,show_mode) {
   var feature_url = "lib/testcases/archiveData.php";
-  feature_url +="?allow_edit=0&show_mode="+show_mode+"&edit=testcase&id="+
-          tcase_id+"&tcversion_id="+tcversion_id;
+  feature_url +="?allow_edit=0&show_mode=" + show_mode +
+                "&edit=testcase&id=" + parseInt(tcase_id) +
+                "&tcversion_id=" + parseInt(tcversion_id) + args +
+                "&tproject_id=" + parseInt(tproject_id) +
+                "&tplan_id=" + parseInt(tplan_id);
 
   var width = getCookie("TCEditPopupWidth");
   var height = getCookie("TCEditPopupHeight");
@@ -955,15 +979,18 @@ function openTCaseWindow(tcase_id,tcversion_id,show_mode) {
  * 
  * @param req_id Requirement ID
  * @param req_version_id Requirement Version ID
+ * @param tproject_id 
  * @param anchor string with anchor name
  */
 function openLinkedReqVersionWindow(req_id, req_version_id, tproject_id, anchor) {
+
   if (anchor == null) {
     anchor = '';
   } else {
     anchor = '#' + anchor;
   }
   
+
   var windowCfg='';
   var feature_url = "lib/requirements/reqView.php";
   feature_url += "?showReqSpecTitle=1&requirement_id=" + req_id + "&req_version_id=" + req_version_id;
@@ -1012,7 +1039,7 @@ function openLinkedReqWindow(req_id, tproject_id, anchor) {
     height = "600";
   }
 
-  feature_url += "?showReqSpecTitle=1&requirement_id=" + req_id;
+  feature_url += "?showReqSpecTitle=1&requirement_id=" + req_id; 
   feature_url += "&tproject_id=" + tproject_id + anchor;
   windowCfg = "width="+width+",height="+height+",resizable=yes,scrollbars=yes,dependent=yes";
   window.open(fRoot+feature_url,"Requirement",windowCfg);
@@ -1025,7 +1052,7 @@ function openLinkedReqWindow(req_id, tproject_id, anchor) {
  * @param req_version_id Requirement Version ID
  * @param anchor string with anchor name
  */
-function openLinkedReqVersionWindow(req_id,req_version_id, tproject_id, anchor) {
+function DUPLICATEDopenLinkedReqVersionWindow(req_id,req_version_id, anchor) {
   var width = getCookie("ReqPopupWidth");
   var height = getCookie("ReqPopupHeight");
   var windowCfg='';
@@ -1047,7 +1074,7 @@ function openLinkedReqVersionWindow(req_id,req_version_id, tproject_id, anchor) 
   }
 
   feature_url += "?&showReqSpecTitle=1&requirement_id=" + req_id + 
-                 "&req_version_id=" + req_version_id + "&tproject_id=" + tproject_id + anchor;
+                 "&req_version_id=" + req_version_id + anchor;
   windowCfg = "width="+width+",height="+height+",resizable=yes,scrollbars=yes,dependent=yes";
   window.open(fRoot+feature_url,"Requirement",windowCfg);
 }
@@ -1091,12 +1118,8 @@ function openLinkedReqSpecWindow(reqspec_id, anchor)
 
 /*
   function: TPROJECT_REQ_SPEC_MGMT
-            launcher for Testproject REQuirement SPECifications ManaGeMenT
-
-  args:
-
-  returns:
-
+            launcher for Testproject REQuirement 
+            SPECifications ManaGeMenT
 */
 function TPROJECT_REQ_SPEC_MGMT(id)
 {
@@ -1119,13 +1142,15 @@ function TPROJECT_REQ_SPEC_MGMT(id)
   returns:
 
 */
-function REQ_SPEC_MGMT(id)
+function REQ_SPEC_MGMT(tproj_id,id)
 {
   var _FUNCTION_NAME_="REQ_SPEC_MGMT";
   var pParams = tree_getPrintPreferences();
-  var action_url = fRoot+req_spec_manager_url+"?item=req_spec&req_spec_id="+id+args+"&"+pParams;
+  var action_url = fRoot+req_spec_manager_url+
+                   "?item=req_spec&tproject_id="+tproj_id+
+                   "&req_spec_id="+id+args+"&"+pParams;
   
-  // alert(_FUNCTION_NAME_ + " " +action_url);
+  //alert(_FUNCTION_NAME_ + " " +action_url);
   parent.workframe.location = action_url;
 }
 
@@ -1138,11 +1163,13 @@ function REQ_SPEC_MGMT(id)
   returns:
 
 */
-function REQ_MGMT(id)
+function REQ_MGMT(tproj_id,id)
 {
   var _FUNCTION_NAME_="REQ_MGMT";
   var pParams = tree_getPrintPreferences();
-  var action_url = fRoot+req_manager_url+"?item=requirement&requirement_id="+id+args+"&"+pParams;
+  var action_url = fRoot+req_manager_url+
+                   "?item=requirement&tproject_id="+tproj_id+
+                   "&requirement_id="+id+args+"&"+pParams;
 
   //alert(_FUNCTION_NAME_ + " " +action_url);
   parent.workframe.location = action_url;
@@ -1599,11 +1626,21 @@ function openPrintPreview(type, id, child_id, revision, print_action) {
   switch(type) {
 
     case 'req':
-      feature_url += "?req_id=" + id + "&req_version_id=" + child_id + "&req_revision=" + revision;
+      if( feature_url.indexOf('?') > 0 ) {
+        feature_url += "&";  
+      } else {
+        feature_url += "?";
+      }
+      feature_url += "req_id=" + id + "&req_version_id=" + child_id + "&req_revision=" + revision;
     break;
 
     case 'reqSpec':
-      feature_url += "?reqspec_id=" + id + "&reqspec_revision_id=" + child_id;
+      if( feature_url.indexOf('?') > 0 ) {
+        feature_url += "&";  
+      } else {
+        feature_url += "?";
+      }
+      feature_url += "reqspec_id=" + id + "&reqspec_revision_id=" + child_id;
     break;
     
     case 'tc':
@@ -1633,6 +1670,7 @@ function openExecHistoryWindow(tc_id,tplan_check,tproject_id) {
   {
     url = url + '&onlyActiveTestPlans=' + tplan_check;    
   }  
+
 
   if (width == null)
   {
@@ -1962,18 +2000,17 @@ alert(page);
   window.open(fRoot+feature_url,"Keywords",windowCfg);
 }
 
-
 /**
- *
+ * 
+ * @param {*} id 
  */
-function showHideByDataEntity(target)
-{
-  var tg = '[data-entity="' + target + '"]';
-  var you = $(tg);
-  if (you.css('display') == 'block') {
-    you.hide();
-  } else {
-    you.show();
-  }
-}
+function copyInputTextToClipboard(id) {
+  var copyText = document.getElementById(id);
 
+  // Select the text field
+  copyText.select();
+  copyText.setSelectionRange(0, 99999); // For mobile devices
+
+  // Copy the text inside the text field
+  navigator.clipboard.writeText(copyText.value);
+ }
