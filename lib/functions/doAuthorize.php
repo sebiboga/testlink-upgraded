@@ -8,7 +8,7 @@
  * @filesource  doAuthorize.php
  * @package     TestLink
  * @author      Chad Rosen, Martin Havlat,Francisco Mancardi
- * @copyright   2003-2021, TestLink community 
+ * @copyright   2003-2023, TestLink community 
  * @link        http://www.testlink.org
  *
  */
@@ -54,6 +54,7 @@ function doAuthorize(&$db,$login,$pwd,$options=null) {
   $loginExpired = false;
   $doLogin = false;
 
+  // if( $doChecks && !is_null($pwd) && !is_null($login)) {
   if( $doChecks && !is_null($login)) {
     $user = new tlUser();
     $user->login = $login;
@@ -122,9 +123,7 @@ function doAuthorize(&$db,$login,$pwd,$options=null) {
     
         if( $check->status_ok ) {
           $forceUserCreation = true;
-          $uf = getUserFieldsFromLDAP($user->login,
-                  $authCfg['ldap'][$check->ldap_index]);
-            
+          $uf = getUserFieldsFromLDAP($user->login,$authCfg['ldap'][$check->ldap_index],$check->ldap_connection);
           $user->emailAddress = $uf->emailAddress;
           $user->firstName = $uf->firstName;
           $user->lastName = $uf->lastName;
@@ -133,22 +132,9 @@ function doAuthorize(&$db,$login,$pwd,$options=null) {
     }  
 
     if( $forceUserCreation ) {
-      // first & last name are mandatory
-      $user->firstName = trim($user->firstName);
-      $user->lastName = trim($user->lastName);
-      $porsi = explode('@',$user->emailAddress);
-
-      if ($user->firstName == '') {
-        $user->firstName = 'DynGen ' . trim($porsi[0]);
-      }
-      if ($user->lastName == '') {
-        $user->lastName = 'DynGen ' . trim($porsi[1]);
-      }
-
       // Anyway, write a password on the DB.
-      $fake = md5('the quick brown fox jumps over the lazy dog');
-      $fake = md5(md5($fake));
-      $user->setPassword($fake);  
+      $fake = 'the quick brown fox jumps over the lazy dog';
+      $user->setPassword( $fake );  
       $doLogin = ($user->writeToDB($db) == tl::OK);
     }
 
@@ -184,10 +170,8 @@ function doAuthorize(&$db,$login,$pwd,$options=null) {
     tlSetCookie($ckObj);
 
     // Disallow two sessions within one browser
-    if (property_exists($options,'doSessionExistsCheck')
-        && $options->doSessionExistsCheck 
-        && isset($_SESSION['currentUser']) 
-        && !is_null($_SESSION['currentUser'])) {
+    if ($options->doSessionExistsCheck && 
+        isset($_SESSION['currentUser']) && !is_null($_SESSION['currentUser'])) {
       $result['msg'] = lang_get('login_msg_session_exists1') . 
                        ' <a style="color:white;" href="logout.php">' . 
                        lang_get('logout_link') . '</a>' . lang_get('login_msg_session_exists2');
@@ -299,7 +283,7 @@ function auth_does_password_match(&$db,&$userObj,$cleartext_password)
     break;
   }
 
-  switch($authMethod) {
+  switch ($authMethod) {
     case 'LDAP':
       $msg[ERROR_LDAP_AUTH_FAILED] = lang_get('error_ldap_auth_failed');
       $msg[ERROR_LDAP_SERVER_CONNECT_FAILED] = lang_get('error_ldap_server_connect_failed');
@@ -332,26 +316,40 @@ function auth_does_password_match(&$db,&$userObj,$cleartext_password)
  */
 function getUserFieldsFromLDAP($login,$ldapCfg)
 {
-  $k2l = array('emailAddress' => 'email', 'firstName' => 'firstname', 'lastName' => 'surname'); 
-  $ret = new stdClass();
-  
-  foreach($k2l as $p => $ldf)
+  $testlink2ldap = [
+    'emailAddress' => 'email', 
+    'firstName' => 'firstname', 
+    'lastName' => 'surname'
+  ]; 
+
+  $decode = [];
+  $getFieldsCfg = [];
+  foreach($testlink2ldap as $p => $ldf)
   {
-    $ret->$p = ldap_get_field_from_username($ldapCfg,$login,
-                                            strtolower($ldapCfg['ldap_' . $ldf . '_field']));
+    $prop = strtolower($ldapCfg['ldap_' . $ldf . '_field']);
+    $getFieldsCfg[] = $prop;
+    $decode[$p] = $prop;
   }  
+  $ldapFields = ldap_get_field_from_username($ldapCfg, $login, $getFieldsCfg);
 
   // Defaults
-  $k2l = array('firstName' => $login,'lastName' => $login, 'emailAddress' => 'no_mail_configured@on_ldapserver.org');
-  foreach($k2l as $prop => $val)
-  {
-    if( is_null($ret->$prop) || strlen($ret->$prop) == 0 )
+  $k2value = [
+    'firstName' => $login,
+    'lastName' => $login, 
+    'emailAddress' => 'no_mail_configured@on_ldapserver.org'
+  ];
+
+  $fieldsByTLKeys = new stdClass();
+  foreach($k2value as $prop => $defaultValue) {
+    $target = $decode[$prop];
+    $fieldsByTLKeys->$prop = $ldapFields->$target;
+    if( is_null($ldapFields->$target) || strlen($ldapFields->$target) == 0 )
     {
-      $ret->$prop = $val;  
+      $fieldsByTLKeys->$prop = $defaultValue;
     }
   }  
 
-  return $ret;
+  return $fieldsByTLKeys;
 } 
 
 
@@ -432,17 +430,20 @@ function doSessionSetUp(&$dbHandler,&$userObj) {
 
   $ckObj = new stdClass();
   $ckObj->name = config_get('auth_cookie');
-  $ckObj->value = $userObj->getSecurityCookie();
+  $ckObj->value = $user->getSecurityCookie();
   $ckObj->expire = $expireOnBrowserClose = false;
   tlSetCookie($ckObj);
 
 
   // Block two sessions within one browser
-  if (isset($_SESSION['currentUser']) && !is_null($_SESSION['currentUser'])) {
+  if (isset($_SESSION['currentUser']) && !is_null($_SESSION['currentUser']))
+  {
     $ret['msg'] = lang_get('login_msg_session_exists1') . 
                      ' <a style="color:white;" href="logout.php">' . 
                      lang_get('logout_link') . '</a>' . lang_get('login_msg_session_exists2'); 
-  } else { 
+  }
+  else
+  { 
     // Setting user's session information
     $_SESSION['currentUser'] = $userObj;
     $_SESSION['lastActivity'] = time();
