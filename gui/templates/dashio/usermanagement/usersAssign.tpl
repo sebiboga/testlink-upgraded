@@ -73,8 +73,49 @@ function toggleRowByClass(oid,className,displayCheckOn,displayCheckOff,displayVa
 }
 </script>
 
+<script>
+/**
+ * 
+ * @param string feature -> 'testplan' or 'testproject'
+ **/
+function changeFeature(feature)
+{
+  var tmp = document.getElementById('featureSel');
+  var fID = '';
+  if (!tmp)
+  {
+    return;
+  }
+  fID = tmp.value;
+
+  if(fID) {
+    baseLocation = fRoot+"lib/usermanagement/usersAssign.php?featureType="+feature+"&featureID="+fID; 
+    switch (feature) {
+      case 'testproject':
+        var tplan_id = document.getElementById('tplan_id').value;
+        where = baseLocation + "&tproject_id=" + fID + "&tplan_id=" + tplan_id; 
+      break;
+
+      case 'testplan':
+        var tproject_id = document.getElementById('tproject_id').value;
+        where = baseLocation + "&tproject_id=" + tproject_id + "&tplan_id=" + fID;       
+      break;
+    }
+    location = where      
+  } 
+}
+
+</script>
+
+
 {if $tlCfg->gui->usersAssign->pagination->enabled}
   {$ll = $tlCfg->gui->usersAssign->pagination->length}
+  <script>
+  addToDataTablesConfig = {
+    "columnDefs": [ { "searchable": false, "targets": 1 }],
+    "language": { "search": "{$labels.User}" }
+  };  
+  </script>
   {include file="DataTables.inc.tpl" DataTablesSelector="#item_view" DataTablesLengthMenu=$ll}
 {/if}
 
@@ -107,8 +148,8 @@ during refresh feature, and then we have a bad refresh on page getting a bug.
 	<input type="hidden" name="featureID" value="{$featureID}" />
 	<input type="hidden" name="featureType" value="{$gui->featureType}" />
 
-	<input type="hidden" name="tproject_id" value="{$gui->tproject_id}" />
-	<input type="hidden" name="tplan_id" value="{$gui->tplan_id}" />
+	<input type="hidden" name="tproject_id" id="tproject_id" value="{$gui->tproject_id}" />
+	<input type="hidden" name="tplan_id" id="tplan_id" value="{$gui->tplan_id}" />
 
   {$styleLH="padding: 0px 30px 10px 5px;"}
   <div class="panel panel-default" style="background-color: #EAEAED;">
