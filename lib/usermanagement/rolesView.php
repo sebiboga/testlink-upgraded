@@ -36,6 +36,11 @@ switch ($args->doAction)
     }
   break;
 
+  case 'confirmDelete':
+    $doDelete = true;
+  break;
+
+
   default:
   break;
 }
