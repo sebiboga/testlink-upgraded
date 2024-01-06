@@ -28,7 +28,13 @@ if(isset($authCfg['SSO_enabled']) && $authCfg['SSO_enabled']
 
   $xx = config_get('logoutUrl');
   $lo = is_null($xx) || trim($xx) == '' ? $std : $xx;
-  redirect($lo);
+
+  // XSS Attack - 06486: Cross-Site Scripting on login page
+  $safeUrl = addslashes($lo);
+  echo "<script type='text/javascript'>";
+  echo "location.href='$safeUrl';";
+  echo "</script>";
+  exit;
 }
 exit();
 
