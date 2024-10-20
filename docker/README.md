@@ -13,13 +13,13 @@ cp -n .env.example .env
 To  build a docker image of testlink, you can use the following command:
 
 ```bash
-docker build --tag testlink:1.9.20 --tag testlink:latest .
+docker build --tag testlink:2.0.0 --tag testlink:latest .
 ```
 
 Alternatively, build without cached layers:
 
 ```bash
-docker build --no-cache --tag testlink-code:1.9.20 --tag testlink:latest .
+docker build --no-cache --tag testlink-code:2.0.0 --tag testlink:latest .
 ```
 
 ## Starting up Testlink using `docker compose`

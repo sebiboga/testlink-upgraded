@@ -1,4 +1,4 @@
-FROM php:7.4-apache
+FROM php:8.1-apache
 
 RUN apt update && apt upgrade -y
 RUN apt install -y \
@@ -13,9 +13,20 @@ RUN docker-php-ext-install mysqli && \
   docker-php-ext-install gd
 RUN apt clean
 
-WORKDIR /var/www/html
+RUN mkdir -p /var/www/testlink
+
+WORKDIR /var/www/testlink
 
 COPY . .
 COPY ./docker/php.ini-production /usr/local/etc/php/conf.d/php.ini
 
-RUN  chown -R www-data:www-data /var/www/html/gui/templates_c
+RUN  chown -R www-data:www-data /var/www/testlink
+RUN rm -rf docker
+ENV APACHE_DOCUMENT_ROOT /var/www/testlink
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+
+USER www-data
+
+EXPOSE 80
+CMD ["apache2ctl", "-D", "FOREGROUND"]

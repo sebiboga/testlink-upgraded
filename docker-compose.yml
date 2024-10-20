@@ -1,22 +1,21 @@
+version: "3.9"
 networks: 
   testlink:
     name: testlink
 services:
-  db:
+  testlink-mysql:
     image: mysql:8.3.0
     networks:
     - testlink
     restart: unless-stopped
     user: mysql
+    command: --default-authentication-plugin=mysql_native_password
     environment:
-    - MYSQL_USER=teste
-    - MYSQL_PASSWORD=teste
-    - MYSQL_ROOT_PASSWORD=teste
-    - MYSQL_DATABASE=testlink
+    - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
     volumes:
     - mysql:/var/lib/mysql
 
-  maildev:
+  testlink-maildev:
     image: maildev/maildev:latest
     networks:
     - testlink
@@ -27,26 +26,28 @@ services:
     environment:
     - NODE_TLS_REJECT_UNAUTHORIZED=0
 
-  app: &app
+  testlink-app: &testlink-app
+    image: testlink:2.0.0
     build: .
     restart: unless-stopped
     depends_on:
-      db:
+      testlink-mysql:
         condition: service_started
-      maildev:
+      testlink-maildev:
         condition: service_started
     networks:
     - testlink
     ports:
-    - 8090:80
+    - 8080:80
     volumes:
-      - ./logs:/var/testlink/logs:Z
-      - ./upload_area:/var/testlink/upload_area:Z
+    - ./:/var/www/testlink
+    - ./logs:/var/testlink/logs
+    - ./upload_area:/var/testlink/upload_area
 
-  restore:
-    <<: *app
+  testlink-restore:
+    <<: *testlink-app
     depends_on:
-      app:
+      testlink-app:
         condition: service_started
     restart: no
     ports: []
