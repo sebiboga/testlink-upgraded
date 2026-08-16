@@ -143,6 +143,11 @@ abstract class issueTrackerInterface
       tLog(__METHOD__ . $msg, 'ERROR');  
     }  
 
+    if ($this->cfg == false) {
+      tLog(__METHOD__ . $msg, 'ERROR'); 
+      return false; 
+    }  
+
     // 
     if( !property_exists($this->cfg,'userinteraction') )
     {

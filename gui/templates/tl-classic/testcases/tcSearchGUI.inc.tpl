@@ -35,8 +35,8 @@ Purpose: show form for search through test cases in test specification
                  size="{#TC_ID_SIZE#}" maxlength="{#TC_ID_MAXLEN#}" value="{$gui->targetTestCase|escape}"/></td>
 
       <td>{$labels.th_tcversion}</td>
-      <td><input type="text" name="version"
-                 size="{#VERSION_SIZE#}" maxlength="{#VERSION_MAXLEN#}" value="{$gui->tcversion|escape}" /></td>
+      <td><input type="number" name="version" min="1"
+                 value="{$gui->tcversion|escape}" /></td>
       
       <td>{$labels.th_title}</td>
       <td><input type="text" name="name" id="name" 

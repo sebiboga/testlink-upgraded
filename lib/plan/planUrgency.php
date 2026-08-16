@@ -126,6 +126,7 @@ function initializeGui(&$argsObj,&$treeMgr)
   $guiObj->user_feedback = null;
   $guiObj->node_id = $argsObj->node_id;
   $guiObj->tplan_id = $argsObj->tplan_id;
+  $guiObj->tproject_id = $argsObj->tproject_id;
   $guiObj->tplan_name = $argsObj->tplan_name;
   $guiObj->formToken = $argsObj->treeFormToken;
   return $guiObj;

@@ -400,7 +400,7 @@ class requirement_spec_mgr extends tlObjectWithAttachments
 		$title=trim_and_limit($item['name']);
    	$doc_id=trim_and_limit($item['doc_id']);
      
-   	$path=$this->tree_mgr->get_path($item['id']); 
+   	$path=(array)$this->tree_mgr->get_path($item['id']); 
    	$tproject_id = $path[0]['parent_id'];
    	$last_idx=count($path)-1;
    	$parent_id = $last_idx==0 ? null : $path[$last_idx]['parent_id'];
@@ -645,7 +645,7 @@ class requirement_spec_mgr extends tlObjectWithAttachments
     $getOptions['decodeUsers'] = $my['options']['decodeUsers'];
 
 
-	  $rs = $this->req_mgr->get_by_id($reqSet,$reqVersionSet,null,
+	  $rs = (array)$this->req_mgr->get_by_id($reqSet,$reqVersionSet,null,
                                     $getOptions,$my['filters']);	 
 
     switch($my['options']['output']) {
@@ -711,7 +711,7 @@ class requirement_spec_mgr extends tlObjectWithAttachments
 				if(is_null($rs)){
 					$rs =  $this->req_mgr->get_by_id($reqSet,$reqVersionSet,null,$getOptions,$my['filters']);	
 				} else {
-					$rs = array_merge($rs, $this->req_mgr->get_by_id($reqSet,$reqVersionSet,null,$getOptions,$my['filters']));
+					$rs = array_merge($rs, (array)$this->req_mgr->get_by_id($reqSet,$reqVersionSet,null,$getOptions,$my['filters']));
 				}
 				
 

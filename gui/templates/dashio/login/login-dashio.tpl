@@ -9,19 +9,20 @@
   <meta name="description" content="">
   <meta name="author" content="Dashboard">
   <meta name="keyword" content="Dashboard, Bootstrap, Admin, Template, Theme, Responsive, Fluid, Retina">
-  <title>{$labels.login}</title>
+  <title>{$labels.login}{$dashioHome}</title>
 
   <!-- Favicons -->
-  <link href="gui/templates/dashio/img/favicon.png" rel="icon">
-  <link href="gui/templates/dashioimg/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="{$dashioHome}favicon.png" rel="icon">
+  <link href="{$dashioHome}apple-touch-icon.png" rel="apple-touch-icon">
 
   <!-- Bootstrap core CSS -->
-  <link href="gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+  <link href="{$dashioHome}lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <!--external css-->
-  <link href="gui/templates/dashio/lib/font-awesome/css/font-awesome.css" rel="stylesheet" />
+  <link href="{$fontawesomeHomeURL}/css/all.css" rel="stylesheet" />
+
   <!-- Custom styles for this template -->
-  <link href="gui/templates/dashio/css/style.css" rel="stylesheet">
-  <link href="gui/templates/dashio/css/style-responsive.css" rel="stylesheet">
+  <link href="{$dashioHome}css/style.css" rel="stylesheet">
+  <link href="{$dashioHome}css/style-responsive.css" rel="stylesheet">
   
   <!-- =======================================================
     Template Name: Dashio
@@ -67,7 +68,8 @@
 
             <label class="checkbox">&nbsp;</label>
 
-            <button class="btn btn-theme btn-block" type="submit">
+            <button name="tl_login_btn" id="tl_login_btn" 
+              class="btn btn-theme btn-block" type="submit">
               <i class="fa fa-lock"></i> {$labels.btn_login} </button>
             <hr>
             
@@ -105,16 +107,16 @@
   </div>
 
   <!-- js placed at the end of the document so the pages load faster -->
-  <script src="gui/templates/dashio/lib/jquery/jquery.min.js"></script>
-  <script src="gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+  <script src="{$dashioHome}lib/jquery/jquery.min.js"></script>
+  <script src="{$dashioHome}lib/bootstrap/js/bootstrap.min.js"></script>
   <!--BACKSTRETCH-->
   <!-- You can use an image of whatever size. This script will stretch to fit in any screen size.-->
-  <script type="text/javascript" src="gui/templates/dashio/lib/jquery.backstretch.min.js"></script>
+  <script type="text/javascript" 
+          src="{$dashioHome}lib/jquery.backstretch.min.js"></script>
   <script>
-  var bg = "{$gui->loginBackgroundImg}";  
-  $.backstretch(bg, {
-    speed: 500
-  });
+    $.backstretch("{$gui->loginBackgroundImg}", {
+      speed: 500
+    });
   </script>
 </body>
 

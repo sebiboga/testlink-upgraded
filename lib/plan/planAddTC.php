@@ -607,6 +607,8 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr,&$tcaseMgr)
 
   $gui = new stdClass();
   $gui->status_feedback = buildStatusFeedbackMsg();
+  $gui->tproject_id = $argsObj->tproject_id;
+  $gui->tplan_id = $argsObj->tplan_id;
 
   $gui->testCasePrefix = $tcaseMgr->tproject_mgr->getTestCasePrefix($argsObj->tproject_id);
   $gui->testCasePrefix .= $tcase_cfg->glue_character;

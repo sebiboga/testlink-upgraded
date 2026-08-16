@@ -890,6 +890,9 @@ class reqSpecCommands
     $obj->doActionButton = 'do' . ucfirst(__FUNCTION__);
     $obj->req_spec_id = $argsObj->req_spec_id;
     $obj->refreshTree = 0;
+
+    $obj->tproject_id = $argsObj->tproject_id;
+    $obj->tplan_id = isset($argsObj->tplan_id) ? $argsObj->tplan_id : 0;
     
     return $obj;
   }

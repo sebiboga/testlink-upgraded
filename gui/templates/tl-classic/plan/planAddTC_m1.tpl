@@ -328,9 +328,9 @@ On ajax navigation it will begin again!
                       {/if}
         			     
         			        <td>
-  							<img class="clickable" src="{$tlImages.history_small}"
-  							     onclick="javascript:openExecHistoryWindow({$tcase.id});"
-  							     title="{$labels.execution_history}" />
+							<img class="clickable" src="{$tlImages.history_small}"
+							     onclick="javascript:openExecHistoryWindow({$tcase.id},undefined,{$gui->tproject_id});"
+							     title="{$labels.execution_history}" />
   							<img class="clickable" src="{$smarty.const.TL_THEME_IMG_DIR}/edit_icon.png"
   							     onclick="javascript:openTCaseWindow({$tcase.id});"
   							     title="{$labels.design}" />
