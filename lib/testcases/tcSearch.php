@@ -183,19 +183,21 @@ if ($args->tprojectID && $args->doAction == 'doSearch') {
   $from['users'] = '';
   if( $args->created_by != '' )
   {
+    $safeCreatedBy = $db->prepare_string($args->created_by);
     $from['users'] .= " JOIN {$tables['users']} AUTHOR ON AUTHOR.id = TCV.author_id ";
-    $filter['author'] = " AND ( AUTHOR.login LIKE '%{$args->created_by}%' OR " .
-                        "       AUTHOR.first LIKE '%{$args->created_by}%' OR " .
-                        "       AUTHOR.last LIKE '%{$args->created_by}%') ";
+    $filter['author'] = " AND ( AUTHOR.login LIKE '%" . $safeCreatedBy . "%' OR " .
+                        "       AUTHOR.first LIKE '%" . $safeCreatedBy . "%' OR " .
+                        "       AUTHOR.last LIKE '%" . $safeCreatedBy . "%') ";
   }  
 
   $args->edited_by = trim($args->edited_by);
   if( $args->edited_by != '' )
   {
+    $safeEditedBy = $db->prepare_string($args->edited_by);
     $from['users'] .= " JOIN {$tables['users']} UPDATER ON UPDATER.id = TCV.updater_id ";
-    $filter['modifier'] = " AND ( UPDATER.login LIKE '%{$args->edited_by}%' OR " .
-                        "         UPDATER.first LIKE '%{$args->edited_by}%' OR " .
-                        "         UPDATER.last LIKE '%{$args->edited_by}%') ";
+    $filter['modifier'] = " AND ( UPDATER.login LIKE '%" . $safeEditedBy . "%' OR " .
+                        "         UPDATER.first LIKE '%" . $safeEditedBy . "%' OR " .
+                        "         UPDATER.last LIKE '%" . $safeEditedBy . "%') ";
   }  
     
   $sqlFields = " SELECT NH_TC.id AS testcase_id,NH_TC.name,TCV.id AS tcversion_id," .
@@ -359,6 +361,11 @@ function init_args(&$tprojectMgr)
 {
   $_REQUEST=strings_stripSlashes($_REQUEST);
 
+  // IMPORTANT NOTICE
+  // "creation_date_from" => array(tlInputParameter::STRING_N,0,10),
+  // 0 -> min len
+  // 10 -> forced len by the tlInputParameter
+  //
   $args = new stdClass();
   $iParams = array("doAction" => array(tlInputParameter::STRING_N,0,10),
                    "tproject_id" => array(tlInputParameter::INT_N), 
@@ -377,10 +384,10 @@ function init_args(&$tprojectMgr)
                    "preconditions" => array(tlInputParameter::STRING_N,0,50),
                    "requirement_doc_id" => array(tlInputParameter::STRING_N,0,32),
                    "importance" => array(tlInputParameter::INT_N),
-                   "creation_date_from" => array(tlInputParameter::STRING_N),
-                   "creation_date_to" => array(tlInputParameter::STRING_N),
-                   "modification_date_from" => array(tlInputParameter::STRING_N),
-                   "modification_date_to" => array(tlInputParameter::STRING_N),
+                   "creation_date_from" => array(tlInputParameter::STRING_N,0,10),
+                   "creation_date_to" => array(tlInputParameter::STRING_N,0,10),
+                   "modification_date_from" => array(tlInputParameter::STRING_N,0,10),
+                   "modification_date_to" => array(tlInputParameter::STRING_N,0,10),
                    "jolly" => array(tlInputParameter::STRING_N));
     
   $args = new stdClass();
@@ -423,21 +430,41 @@ function init_args(&$tprojectMgr)
 
 
   $dateFormat = config_get('date_format');
+  $PHPdateFormat = str_replace('%','',$dateFormat);
   $filter = null;
   foreach($k2w as $key => $value)
   {
-    if (isset($args->$key) && $args->$key != '') 
+    if (validateDate($args->$key,$PHPdateFormat))
     {
-      $da = split_localized_date($args->$key, $dateFormat);
-      if ($da != null) 
+      if (isset($args->$key) && $args->$key != '') 
       {
-        $args->$key = $da['year'] . "-" . $da['month'] . "-" . $da['day'] . $value; // set date in iso format
-        $filter[$key] = " AND TCV.{$k2f[$key]} '{$args->$key}' ";
+        $da = split_localized_date($args->$key, $dateFormat);
+        if ($da != null) 
+        {
+          $args->$key = $da['year'] . "-" . $da['month'] . "-" . $da['day'] . $value; // set date in iso format
+          $filter[$key] = " AND TCV.{$k2f[$key]} '{$args->$key}' ";
+        }
       }
+    }
+    else
+    {
+      // Cleanup no good date
+      $args->$key = '';
     }
   } 
 
   return array($args,$filter);
+}
+
+
+/**
+ * https://uibakery.io/regex-library/date-regex-php
+ * https://tecadmin.net/validate-date-string-in-php/
+ */
+function validateDate($dateToValidate, $format = 'Y-m-d')
+{
+    $ddd = DateTime::createFromFormat($format, $dateToValidate);
+    return $ddd && $ddd->format($format) === $dateToValidate;
 }
 
 
