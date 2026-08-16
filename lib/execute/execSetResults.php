@@ -361,7 +361,7 @@ if(!is_null($linked_tcversions)) {
       $tcase_id = array_intersect($tcase_id, $args->testcases_to_show);
     }  
 
-    $gui->map_last_exec = 
+    $gui->map_last_exec =
       getLatestExec($db,$tcase_id,$tcversion_id,$gui,$args,$tcase_mgr);
 
     $gui->map_last_exec_any_build = null;
@@ -2301,8 +2301,17 @@ function getSettingsAndFilters(&$argsObj) {
     }
 
     if(isset($isNumeric[$prop])) {
-      $argsObj->$prop = intval($argsObj->$prop);              
-    }  
+      $argsObj->$prop = intval($argsObj->$prop);
+    }
+  }
+
+  // The platform filter uses -1 as the "no platform selected" sentinel, but
+  // testplan_tcversions.platform_id and executions.platform_id store 0 for
+  // test plans without platforms. Queries downstream compare the value
+  // directly against those columns, so -1 never matches and the execution
+  // pane renders "No data available". Normalize to the DB convention.
+  if($argsObj->platform_id < 0) {
+    $argsObj->platform_id = 0;
   }
 
 

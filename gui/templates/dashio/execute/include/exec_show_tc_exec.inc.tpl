@@ -509,7 +509,16 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
              args_cfg=$cfg}
 
     {if $tc_exec.can_be_executed}
-      {include file="execute/include/{$tplConfig.inc_exec_controls}"
+      {* $tplConfig.inc_exec_controls carries the tl-classic file name
+         (inc_exec_controls.tpl / inc_exec_img_controls.tpl). Map it onto the
+         dashio names, otherwise the include points at a file this theme
+         does not have. *}
+      {if $tplConfig.inc_exec_controls == 'inc_exec_controls.tpl'}
+        {$exec_controls_tpl=$tplConfig['exec_controls.inc']}
+      {else}
+        {$exec_controls_tpl=$tplConfig['exec_img_controls.inc']}
+      {/if}
+      {include file=$exec_controls_tpl
                args_save_type='single'
                args_input_enable_mgmt=$input_enabled_disabled
                args_tcversion_id=$tcversion_id

@@ -102,13 +102,18 @@ class tlReports extends tlObjectWithDB
             }
           }
           
-          $dl = $items[$xdx]['directLink']; 
-          $mask = '<img class="clickable" title="%s" alt="%s" ' .
+          $dl = $items[$xdx]['directLink'];
+
+          // imgSet entries hold FontAwesome markup (<i class="fa ..."></i>),
+          // not image paths, so they must be emitted as element content.
+          // Feeding them to src="" breaks out of the attribute and the rest of
+          // the tag leaks into the page as text.
+          $mask = '<span class="clickable" title="%s" ' .
                   ' onclick="showHideByClass(' . "'div','%s');event.stopPropagation();" . '" ' .
-                  ' src="' . $context->imgSet['link_to_report'] . '" align="center" />';
+                  '>' . $context->imgSet['link_to_report'] . '</span>';
 
           $divClass = 'direct_link_' . $xdx;        
-          $items[$xdx]['toggle'] = sprintf($mask,$toggleMsg,$toggleMsg,$divClass);
+          $items[$xdx]['toggle'] = sprintf($mask,$toggleMsg,$divClass);
           $items[$xdx]['directLinkDiv'] = '<div class="' . $divClass . '" ' .
                                           "style='display:none;border:1px solid;background-color:white;'>" . 
                                           '<a href="' . $dl .'" target="_blank">' . $dl . '</a><br></div>';

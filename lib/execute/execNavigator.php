@@ -65,6 +65,11 @@ function initializeGui(&$dbH,&$control) {
     unset($_SESSION['loadExecDashboard'][$control->form_token]);      
   }  
 
+  // Needed by the template to emit EXDS(tproject_id,tplan_id).
+  // Without it the call is rendered as EXDS(,NN) => JS syntax error that
+  // aborts the whole inline script, leaving the execution tree unbuilt.
+  $gui->tproject_id = intval($control->args->testproject_id);
+
   $gui->menuUrl = 'lib/execute/execSetResults.php';
   $gui->args = $control->get_argument_string();
   if($control->args->loadExecDashboard == false) {
