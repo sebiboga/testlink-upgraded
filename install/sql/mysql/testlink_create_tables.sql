@@ -762,6 +762,26 @@ CREATE TABLE /*prefix*/testcase_relations (
   PRIMARY KEY  (`id`)
 ) DEFAULT CHARSET=utf8;
 
+CREATE TABLE /*prefix*/aliens (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `name` varchar(100) NOT NULL,
+  `testproject_id` int(10) unsigned NOT NULL,
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY /*prefix*/aliens_uidx1 (`testproject_id`,`name`)
+) DEFAULT CHARSET=utf8;
+
+CREATE TABLE /*prefix*/testcase_aliens (
+  `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL,
+  `testcase_id` int(10) unsigned NOT NULL,
+  `tcversion_id` int(10) unsigned NOT NULL,
+  `alien_id` int(10) unsigned NOT NULL,
+  `relation_type` smallint(5) unsigned NOT NULL default '1',
+  PRIMARY KEY  (`id`),
+  UNIQUE KEY /*prefix*/testcase_aliens_uidx1 (`testcase_id`,`tcversion_id`,`alien_id`),
+  KEY /*prefix*/testcase_aliens_idx1 (`testproject_id`)
+) DEFAULT CHARSET=utf8;
+
 CREATE TABLE /*prefix*/req_monitor (
   `req_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,

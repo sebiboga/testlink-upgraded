@@ -288,6 +288,8 @@ abstract class tlObject implements iSerialization
                     'risk_assignments',
                     'role_rights',
                     'roles',
+                    'aliens',
+                    'testcase_aliens',
                     'testcase_relations',
                     'tcversions',
                     'tcsteps',
