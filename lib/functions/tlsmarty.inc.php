@@ -571,8 +571,17 @@ class TLSmarty extends Smarty {
       return;
     }
 
-    // Page already provided the menu, leave it alone.
-    if( property_exists($gui,'showMenu') && null != $gui->showMenu ) {
+    $needsMenu = !property_exists($gui,'showMenu') || null == $gui->showMenu;
+
+    // aside.tpl filters the individual menu entries on these rights. They go
+    // in a variable of their own because pages use $gui->grants as an array
+    // while the menu needs the object form, and overwriting theirs would
+    // break page content already built around the array.
+    $menuGrants = (property_exists($gui,'grants') && is_object($gui->grants))
+                  ? $gui->grants : null;
+
+    if( !$needsMenu && null != $menuGrants ) {
+      $this->assign('menuGrants',$menuGrants);
       return;
     }
 
@@ -584,17 +593,20 @@ class TLSmarty extends Smarty {
 
     list($uxArgs,$ux) = initUserEnv($db,$ctx);
 
-    // grants is deliberately not copied: pages use it as an array while
-    // aside.tpl reads it as an object, and overwriting it here would break
-    // the page content that has already been built around the array form.
-    foreach( array('showMenu','activeMenu','uri','logo','whoami','access') as $prop ) {
-      if( property_exists($ux,$prop) &&
-          (!property_exists($gui,$prop) || null == $gui->$prop) ) {
-        $gui->$prop = $ux->$prop;
-      }
+    if( null == $menuGrants && property_exists($ux,'grants') ) {
+      $menuGrants = $ux->grants;
     }
+    $this->assign('menuGrants',$menuGrants);
 
-    $this->assign('gui',$gui);
+    if( $needsMenu ) {
+      foreach( array('showMenu','activeMenu','uri','logo','whoami','access') as $prop ) {
+        if( property_exists($ux,$prop) &&
+            (!property_exists($gui,$prop) || null == $gui->$prop) ) {
+          $gui->$prop = $ux->$prop;
+        }
+      }
+      $this->assign('gui',$gui);
+    }
   }
 
   /**

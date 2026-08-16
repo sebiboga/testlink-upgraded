@@ -49,19 +49,19 @@ Left side menu
                   <span>{$labels.system}</span>
                   </a>
                 <ul class="sub">
-                  {if $gui->grants->event_viewer == "yes"}
+                  {if $menuGrants->event_viewer == "yes"}
                     <li>
                     <a id="events"
                         href="{$gui->uri->events}">{$labels.event_viewer}</a>
                     </li>
                   {/if}
-                  {if $gui->grants->user_mgmt == "yes"}
+                  {if $menuGrants->user_mgmt == "yes"}
                     <li>
                       <a id="userMgmt" href="{$gui->uri->userMgmt}">{$labels.title_user_mgmt}</a>
                     </li>
                   {/if}
 
-                  {if $gui->grants->cfield_management == "yes"}
+                  {if $menuGrants->cfield_management == "yes"}
                     <li><a id="cfieldsView" href="{$gui->uri->cfieldsView}">{$labels.href_cfields_management}</a>
                     </li>
                   {/if}
@@ -81,16 +81,16 @@ Left side menu
                   <span>{$labels.projects}</span>
                   </a>
                 <ul class="sub">
-                  {if $gui->grants->project_edit == "yes"}
+                  {if $menuGrants->project_edit == "yes"}
                     <li><a id="projectView" href="{$gui->uri->projectView}">{$labels.href_tproject_management}</a></li>
                   {/if}
-                  {if $gui->grants->tproject_user_role_assignment == "yes"}
+                  {if $menuGrants->tproject_user_role_assignment == "yes"}
                     <li><a href="{$gui->uri->usersAssign}">{$labels.href_assign_user_roles}</a></li>
                   {/if}
-                  {if $gui->grants->cfield_management == "yes"}
+                  {if $menuGrants->cfield_management == "yes"}
                     <li><a href="{$gui->uri->cfAssignment}">{$labels.href_cfields_tproject_assign}</a></li>
                   {/if}
-                  {if $gui->grants->keywords_view == "yes"}
+                  {if $menuGrants->keywords_view == "yes"}
                     <li><a href="{$gui->uri->keywordsView}">{$labels.href_keywords_manage}</a></li>
                   {/if}
                   {if $gui->access.platform == 'yes'}
@@ -117,10 +117,10 @@ Left side menu
                   <li><a href="{$gui->uri->printReqSpec}">{$labels.href_print_req}</a></li>
                   <li><a href="{$gui->uri->searchReq}">{$labels.href_search_req}</a></li>  
                   <li><a href="{$gui->uri->searchReqSpec}">{$labels.href_search_req_spec}</a></li>  
-                  {if $gui->grants->req_tcase_link_management == "yes"}
+                  {if $menuGrants->req_tcase_link_management == "yes"}
                     <li><a href="{$gui->uri->assignReq}">{$labels.href_req_assign}</a></li>
                   {/if}
-                  {if $gui->grants->monitor_req == "yes"}
+                  {if $menuGrants->monitor_req == "yes"}
                     <li><a href="{$gui->uri->reqMonOverView}">{$labels.href_req_monitor_overview}</a></li>
                   {/if}
                 </ul>
@@ -134,21 +134,21 @@ Left side menu
                   </a>
                 <ul class="sub">
                   <li><a href="{$gui->uri->testSpec}">
-                  {if $gui->grants->modify_tc eq "yes"}
+                  {if $menuGrants->modify_tc eq "yes"}
                     {lang_get s='href_edit_tc'}
                   {else}
                     {lang_get s='href_browse_tc'}
                   {/if}</a></li>
                   
-                  {if $gui->grants->view_tc == "yes"}
+                  {if $menuGrants->view_tc == "yes"}
                   <li><a href="{$gui->uri->tcSearch}">{$labels.href_search_tc}</a></li>
                   {/if}
 
                   {if $gui->hasKeywords && 
-                      $gui->grants->keyword_assignment == "yes"}
+                      $menuGrants->keyword_assignment == "yes"}
                     <li><a href="{$gui->uri->keywordsAssign}">{$labels.href_keywords_assign}</a></li>
                   {/if}
-                  {if $gui->grants->modify_tc == 'yes'}
+                  {if $menuGrants->modify_tc == 'yes'}
                     <li><a href="{$gui->uri->tcCreatedUser}">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
                 </ul>
@@ -161,14 +161,14 @@ Left side menu
                   <span>{$labels.title_test_plan_mgmt}</span>
                   </a>
                 <ul class="sub">
-                  {if $gui->grants->mgt_testplan_create == "yes"}
+                  {if $menuGrants->mgt_testplan_create == "yes"}
                   <li><a href="{$gui->uri->planView}">
                   {$labels.href_plan_management}</a>
                   </li>
                   {/if}
 
                   {if $gui->uri->buildView != null 
-                      && $gui->grants->testplan_create_build == "yes" 
+                      && $menuGrants->testplan_create_build == "yes" 
                       && $gui->countPlans > 0}
                     <li><a href="{$gui->uri->buildView}">{$labels.href_build_new}</a>
                     </li>  
@@ -180,25 +180,25 @@ Left side menu
                   {/if}
 
                   {if $gui->uri->platformAssign != null
-                      && $gui->grants->testplan_add_remove_platforms == "yes" 
+                      && $menuGrants->testplan_add_remove_platforms == "yes" 
                       && $gui->countPlans > 0}
                     <li><a href="{$gui->uri->platformAssign}">{$labels.href_platform_assign}</a>
                     </li>  
                   {/if}    
 
                   {if $gui->uri->setTestUrgency != null
-                      && $gui->grants->testplan_set_urgent_testcases == "yes"}
+                      && $menuGrants->testplan_set_urgent_testcases == "yes"}
                     <li><a href="{$gui->uri->setTestUrgency}">{$labels.href_plan_assign_urgency}</a>
                   {/if}
 
                   {if $gui->uri->planUpdateTC != null
-                      && $gui->grants->testplan_update_linked_testcase_versions == "yes"}
+                      && $menuGrants->testplan_update_linked_testcase_versions == "yes"}
                     <a href="{$gui->uri->planUpdateTC}">
                     {$labels.href_update_tplan}</a>
                   {/if} 
 
                   {if $gui->uri->showNewestTCV != null
-                      && $gui->grants->testplan_show_testcases_newest_versions == "yes"}
+                      && $menuGrants->testplan_show_testcases_newest_versions == "yes"}
                     <a href="{$gui->uri->showNewestTCV}">{$labels.href_newest_tcversions}</a>
                   {/if} 
                 </ul>
@@ -211,10 +211,10 @@ Left side menu
                   <span>{$labels.testcase_execution}</span>
                   </a>
                 <ul class="sub">
-                  {if $gui->grants->testplan_execute == "yes"}
+                  {if $menuGrants->testplan_execute == "yes"}
                     {$lbx = $labels.href_execute_test}
                   {/if}
-                  {if $gui->grants->exec_ro_access == "yes"}  
+                  {if $menuGrants->exec_ro_access == "yes"}  
                     {$lbx = $labels.href_exec_ro_access}
                   {/if}
 
@@ -229,12 +229,12 @@ Left side menu
                   {/if}
                     
                   {if $gui->uri->testcase_assignments != null
-                      && $gui->grants->exec_testcases_assigned_to_me == "yes"}
+                      && $menuGrants->exec_testcases_assigned_to_me == "yes"}
                     <li><a href="{$gui->uri->testcase_assignments}">{$labels.href_my_testcase_assignments}</a>
                   {/if} 
 
                   {if $gui->uri->milestonesView != null
-                      && $gui->grants->testplan_milestone_overview == "yes" 
+                      && $menuGrants->testplan_milestone_overview == "yes" 
                       && $gui->countPlans > 0}
                     <li><a href="{$gui->uri->milestonesView}" >{$labels.href_plan_mstones}</a></li>
                   {/if}
