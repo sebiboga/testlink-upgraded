@@ -2918,7 +2918,7 @@ class testcase extends tlObjectWithAttachments {
         try {
           $this->renderVariables($recordset[$accessKey],$my['options']['tproject_id']);
         } catch (Exception $e) {
-          echo '<pre>';debug_print_backtrace();  echo '</pre>'; die();
+          // Log exception but don't break response
         }
       }
       reset($recordset);
