@@ -312,7 +312,7 @@ class stashrestInterface extends codeTrackerInterface
 
       foreach($commitList->values as $elem)
       {
-        $ret[$elem->id] = $elem->displayId . ' (' . @strftime($localesDateFormat,
+        $ret[$elem->id] = $elem->displayId . ' (' . tlStrftime($localesDateFormat,
                           ($elem->authorTimestamp / 1000)) . '): ' . $elem->message;
       }
     }

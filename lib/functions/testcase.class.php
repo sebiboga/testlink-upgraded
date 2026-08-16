@@ -598,7 +598,7 @@ class testcase extends tlObjectWithAttachments {
                   $doIt = true;
                   while($doIt) {
                     if( $doIt = !is_null($itemSet) ) {
-                      $prefix = @strftime($algo_cfg->text,time());
+                      $prefix = tlStrftime($algo_cfg->text,time());
                       $target = $prefix . " " . $name ;
                       $final_len = strlen($target);
                       if( $final_len > $name_max_len)
@@ -8436,7 +8436,7 @@ class testcase extends tlObjectWithAttachments {
    */
   function generateTimeStampName($name)
   {
-    return @strftime("%Y%m%d-%H:%M:%S", time()) . ' ' . $name;
+    return tlStrftime("%Y%m%d-%H:%M:%S", time()) . ' ' . $name;
   }
 
   /**

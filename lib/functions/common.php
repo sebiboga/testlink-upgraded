@@ -22,6 +22,9 @@
 require_once('object.class.php');
 require_once('metastring.class.php');
 
+/** PHP 8.1+ compatibility shims */
+require_once('php81_compat.php');
+
 /** Testlink Plugin API helper methods, must be included before lang_api.php */
 require_once('plugin_api.php');
 

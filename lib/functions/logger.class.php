@@ -1427,7 +1427,7 @@ function watchPHPErrors($errno, $errstr, $errfile, $errline)
   if ($doIt && isset($errors[$errno]) )
   {
     // suppress some kind of errors
-    // @strftime(),strtotime(),date()
+    // tlStrftime(),strtotime(),date()
     // work in block just to make copy and paste easier
     // Block 1 - errstr
     // Block 2 - errfile
