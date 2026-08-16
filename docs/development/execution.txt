@@ -1,8 +1,205 @@
-Test case step exec template
-- testcases/inc_steps.tpl
+Test Execution Workflow Documentation
+=====================================
 
+## Overview
 
-** grep -rl inc_exec_test_spec *
-execute/inc_exec_show_tc_exec.tpl
-execute/inc_exec_test_spec.tpl
-testcases/inc_steps.tpl
+Test execution in TestLink involves:
+1. User navigating to a test plan
+2. Selecting tests to execute
+3. Recording execution results (pass/fail/blocked)
+4. Optionally linking bugs to failed tests
+5. Viewing execution history
+
+## Core Components
+
+### Files Involved
+
+Main execution UI template:
+- testcases/inc_steps.tpl - Displays test steps during execution
+
+Execution display templates:
+- execute/inc_exec_show_tc_exec.tpl - Shows test case execution results
+- execute/inc_exec_test_spec.tpl - Shows test specification
+
+Execution controllers:
+- lib/execute/execSetResults.php - Records execution results
+- lib/execute/execHistory.php - Views execution history
+- lib/execute/bugAdd.php - Links bugs to execution
+
+## Execution State Machine
+
+Test cases progress through these states:
+
+1. NOT RUN (initial state)
+   ↓
+2. RUNNING (user selected test for execution)
+   ↓
+3. PASSED (user marked test as passed)
+   - or FAILED (user marked test as failed)
+   - or BLOCKED (user marked test as blocked)
+   ↓
+4. COMPLETE
+
+## Test Result Recording
+
+### Via UI (execSetResults.php)
+
+Flow:
+1. User opens test plan
+2. User selects test case to execute
+3. User views steps (inc_steps.tpl displays steps)
+4. For each step:
+   - User reviews expected results
+   - User performs test actions
+   - User records step result (pass/fail/not applicable)
+5. User records overall test result
+6. System saves result to database
+
+Key table: executions (stores test execution results)
+- tcpid: Test case version
+- tpid: Test plan ID
+- buildid: Build ID
+- status: Result status (p/f/b/w for pass/fail/blocked/wait)
+- execution_ts: Execution timestamp
+
+### Via API (REST v3)
+
+```
+POST /api/rest/v3/execution/create
+{
+    "testcase_id": 123,
+    "plan_id": 45,
+    "build_id": 10,
+    "status": "passed",
+    "notes": "Test passed successfully"
+}
+```
+
+## Status Transitions
+
+### Allowed Status Transitions
+
+NOT_RUN → PASSED
+NOT_RUN → FAILED
+NOT_RUN → BLOCKED
+NOT_RUN → WAIT
+
+PASSED → FAILED (retest)
+PASSED → PASSED (retest)
+FAILED → PASSED (retest)
+FAILED → FAILED (retest)
+
+Note: Latest execution always overwrites previous
+
+## Database Schema (executions table)
+
+```sql
+CREATE TABLE executions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tcversion_id INT,          -- Test case version ID
+    tplan_id INT,              -- Test plan ID
+    testplan_id INT,           -- Alternative test plan ID
+    build_id INT,              -- Build ID
+    platform_id INT,           -- Platform ID
+    status CHAR(1),            -- p/f/b/w (pass/fail/blocked/wait)
+    execution_ts TIMESTAMP,    -- When executed
+    notes TEXT,                -- Execution notes
+    tester_id INT,             -- Who executed
+    ...
+);
+```
+
+## Key Class: testcase
+
+Location: lib/functions/testcase.class.php
+
+Key methods for execution:
+- get_steps($tcversion_id) - Get test steps
+- create_step() - Add step to test case
+- update_step() - Modify step
+- set_execution_type() - Manual vs Automated
+
+## Execution Display
+
+### Test Steps Display (inc_steps.tpl)
+
+Shows:
+- Step number
+- Step actions (what user should do)
+- Expected results (what should happen)
+- Status of each step
+- Input field for step result
+
+Templates involved:
+- testcases/inc_steps.tpl - Main step display
+- execute/inc_exec_show_tc_exec.tpl - Shows execution during test run
+- execute/inc_exec_img_controls.tpl - Step image/evidence handling
+
+## Bug Linking
+
+When a test fails, user can link bugs:
+- Via bugAdd.php
+- Search for existing bugs
+- Create new bug in linked bug tracker
+- Link bug to failed test execution
+
+## Execution History
+
+View previous test executions:
+- execHistory.php shows all execution history
+- Filter by platform, build, tester
+- Compare execution results across builds
+- Track test stability over time
+
+## Key Classes and Methods
+
+### Test Execution Recording
+
+```php
+// In execSetResults.php
+$execution_data = [
+    'testcase_id' => $testcase_id,
+    'plan_id' => $plan_id,
+    'build_id' => $build_id,
+    'status' => 'p',  // pass
+    'notes' => 'Test executed successfully'
+];
+
+// Save to database
+$sql = "INSERT INTO executions (tcversion_id, tplan_id, build_id, status, notes) "
+     . "VALUES (" . $testcase_id . ", " . $plan_id . ", " . $build_id . ", 'p', ...)";
+$db->exec_query($sql);
+```
+
+### Getting Execution Results
+
+```php
+// Get execution for a test case in a plan
+$sql = "SELECT * FROM executions "
+     . "WHERE tcpid = " . $testcase_id
+     . "  AND tpid = " . $plan_id
+     . " ORDER BY execution_ts DESC LIMIT 1";
+$result = $db->get_recordset($sql);
+```
+
+## Upload on Execution Feature
+
+New in v1.9.20:
+- Users can upload evidence/attachments during test execution
+- Configured per test step
+- Columns: upload_on_execution_enabled, upload_on_execution_mandatory
+
+See issue #32 and #48 for implementation details.
+
+## Performance Considerations
+
+1. Limit queries to specific plans/builds
+2. Cache execution results when displaying lists
+3. Archive old execution data to separate table
+4. Use indexes on frequently queried columns
+
+## Related Documentation
+
+- See DEVELOPER_GUIDE.md for architecture overview
+- See planAddTC.php.txt for test plan management
+- See API Documentation for programmatic execution recording

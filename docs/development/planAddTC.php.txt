@@ -1,41 +1,264 @@
-planAddTC.php.txt
+Test Case Addition to Test Plan - Implementation Guide
+======================================================
 
-This does filter on keywords ALWAYS in OR mode.
+## Overview
 
-CRITIC:
-We have arrived after clicking in a node of Test Spec Tree where we have two classes of filters
-1. filters on attribute COMMON to all test case versions => TEST CASE attribute like keyword_id
-2. filters on attribute that can change on each test case version => execution type.
+The planAddTC feature allows users to add existing test cases to a test plan. This is one of the most complex features in TestLink due to the need to handle:
 
-For attributes at Version Level, filter is done ON LAST ACTIVE version, that can be NOT the VERSION
-already linked to test plan.
-This can produce same weird effects like this:
- 1. Test Suite A - create TC1 - Version 1 - exec type MANUAL
- 2. Test Suite A - create TC2 - Version 1 - exec type AUTO
- 3. Test Suite A - create TC3 - Version 1 - exec type MANUAL
- 4. Use feature ADD/REMOVE test cases from test plan.
- 5. Add TC1 - Version 1 to test plan
- 6. Apply filter on exec type AUTO
- 7. Tree will display (Folder) Test Suite A with 1 element
- 8. click on folder, then on RIGHT pane:
-    TC2 - Version 1 NOT ASSIGNED TO TEST PLAN is displayed
- 9. Use feature edits test cases, to create a new version for TC1 -> Version 2 - exec type AUTO
-10. Use feature ADD/REMOVE test cases from test plan.
-11. Apply filter on exec type AUTO
-12. Tree will display (Folder) Test Suite A with 2 elements
-13. click on folder, then on RIGHT pane:
-    TC2 - Version 1 NOT ASSIGNED TO TEST PLAN is displayed
-    TC1 - Version 2 NOT ASSIGNED TO TEST PLAN is displayed  ----> THIS IS RIGHT but WRONG
-    Only one TC version can be linked to test plan, and TC1 already is LINKED BUT with VERSION 1.
-    Version 2 is displayed because it has EXEC TYPE AUTO
+1. Test case filtering (by keywords, platform, execution type, etc.)
+2. Test case versioning (only one version can be linked per plan)
+3. Complex database queries joining multiple tables
+4. Tree-based UI for organizing test suites and test cases
+5. Bulk operations (add/remove multiple at once)
 
-How to solve ?
-Filters regarding this kind of attributes WILL BE NOT APPLIEDED to get linked items
-In this way counters on Test Spec Tree and amount of TC displayed on right pane will be coherent.
+## Architecture
 
+### Files Involved
 
-20130426
-Hmm. But if I do as explained in ' How to solve ?'
-I need to apply this filters on a second step or this filters will not work
-Need to check what I've done
+PHP Controllers:
+- lib/plan/planAddTC.php - Main controller
 
+Templates:
+- gui/templates/tl-classic/plan/planAddTC_m1.tpl - UI template
+- gui/templates/dashio/plan/planAddTC.tpl - Dashboard theme UI
+
+Classes:
+- lib/functions/testproject.class.php - Test project operations
+- lib/functions/testcase.class.php - Test case operations
+- lib/plan/testplan.class.php - Test plan operations
+
+## Key Concept: Test Case Versioning
+
+Critical issue to understand:
+- One test case can have MULTIPLE VERSIONS
+- A test plan links to EXACTLY ONE version of a test case
+- Different versions can have different properties:
+  - Different execution type (MANUAL vs AUTOMATED)
+  - Different steps
+  - Different keywords
+  - Different status
+
+Example scenario (reproduces complex bug):
+1. Test Suite A - create TC1 - Version 1 - exec type MANUAL
+2. Create TC2 - Version 1 - exec type AUTO
+3. Create TC3 - Version 1 - exec type MANUAL
+4. Add TC1 Version 1 to test plan
+5. Apply filter on exec type AUTO
+6. Tree shows Test Suite A with 1 element
+7. Click folder → RIGHT pane shows:
+   - TC2 - Version 1 (NOT assigned to plan) ✓ Correct
+8. Edit TC1 → Create Version 2 - exec type AUTO
+9. Add TC1 Version 2 to test plan
+10. Apply filter on exec type AUTO
+11. Tree shows Test Suite A with 2 elements
+12. RIGHT pane shows:
+    - TC2 - Version 1 (NOT assigned) - Correct
+    - TC1 - Version 2 (NOT assigned) - WRONG!
+
+    This is WRONG because:
+    - TC1 IS linked to plan, but with VERSION 1
+    - Version 2 is shown only because it matches the AUTO filter
+    - Creates confusion about what's actually linked
+
+## Filtering Logic
+
+### Filter Types
+
+1. **Common Attributes** (exist on all versions):
+   - Keyword ID
+   - Test case ID
+   - Test case name
+
+2. **Version-Level Attributes** (can differ between versions):
+   - Execution type (MANUAL vs AUTOMATED)
+   - Steps
+   - Keywords (can differ per version in some cases)
+
+### Filter Application Problem
+
+Current implementation:
+- Applies ALL filters together
+- For version-level attributes, filters on LAST ACTIVE version
+- This is NOT the same as version linked to plan
+- Creates inconsistency between tree counter and displayed items
+
+Solution (from code comment):
+- Version-level attribute filters should NOT be applied to already-linked items
+- This keeps displayed items consistent with actual links
+- Two-step filtering:
+  1. First: Get items already linked to plan (ignore version filters)
+  2. Second: Apply version-level filters to unlinked items
+
+## Database Schema
+
+Key tables:
+
+```sql
+-- Test cases table
+CREATE TABLE testcases (
+    id INT PRIMARY KEY,
+    name VARCHAR(255),
+    parent_id INT,          -- Test suite
+    ...
+);
+
+-- Test case versions
+CREATE TABLE tcversions (
+    id INT PRIMARY KEY,
+    tcid INT,               -- Links to testcases
+    version INT,
+    execution_type INT,     -- 1=MANUAL, 2=AUTOMATED
+    ...
+);
+
+-- Test plan test cases (the link table)
+CREATE TABLE test_plan_test_cases (
+    testplan_id INT,
+    testcaseid INT,         -- Points to testcases (not tcversions!)
+    tcversionid INT,        -- The specific version linked
+    platform_id INT,
+    ...
+);
+
+-- Keywords
+CREATE TABLE keywords (
+    id INT PRIMARY KEY,
+    keyword VARCHAR(255),
+    ...
+);
+
+-- Test case keywords
+CREATE TABLE testcase_keywords (
+    tcid INT,
+    keywordid INT,
+    ...
+);
+```
+
+## Implementation Details
+
+### Getting Test Cases for a Plan
+
+```php
+// In planAddTC.php
+$sql = "SELECT DISTINCT tc.id, tc.name, tcv.id AS version_id,
+               tcv.execution_type, kw.keyword_id
+        FROM testcases tc
+        JOIN tcversions tcv ON tc.id = tcv.tcid
+        LEFT JOIN testcase_keywords kw ON tc.id = kw.tcid
+        WHERE tc.parent_id = " . $suite_id;
+
+// Then filter based on user selections
+if ($filter_execution_type) {
+    // Only filter for UNLINKED versions
+    // For linked versions, show the actual linked version
+}
+```
+
+### Handling Test Suite Filters
+
+Tree shows test suites (folders) containing test cases.
+When filtering:
+- Count based on filters
+- But keep consistency for already-linked items
+
+### Adding Test Case to Plan
+
+```php
+// Insert into test_plan_test_cases
+$sql = "INSERT INTO test_plan_test_cases
+        (testplan_id, testcaseid, tcversionid, platform_id)
+        VALUES (" . $plan_id . ", " . $tc_id . ", " . $version_id . ", " . $platform_id . ")";
+```
+
+## Common Pitfalls
+
+1. **Mixing test case ID with version ID**:
+   - test_plan_test_cases stores BOTH
+   - testcaseid = test case ID
+   - tcversionid = version ID
+   - Queries must join correctly
+
+2. **Filter inconsistency**:
+   - Don't apply version-level filters to linked items
+   - Use two-step filtering
+
+3. **Multi-version confusion**:
+   - One plan = one version per test case
+   - Don't show multiple versions as if they're separate items
+
+4. **Keyword filtering**:
+   - Keywords can be at test case level
+   - Always use OR logic (test case with ANY selected keyword)
+
+## Code Examples
+
+### Get Test Cases NOT Yet Added to Plan
+
+```php
+$sql = "SELECT DISTINCT tc.id, tc.name, tcv.id AS tcvid, tcv.execution_type
+        FROM testcases tc
+        JOIN tcversions tcv ON tc.id = tcv.tcid AND tcv.version =
+             (SELECT MAX(version) FROM tcversions WHERE tcid = tc.id)
+        LEFT JOIN test_plan_test_cases tptc
+          ON tc.id = tptc.testcaseid AND tptc.testplan_id = " . $plan_id . "
+        WHERE tptc.id IS NULL
+        AND tc.parent_id = " . $suite_id;
+```
+
+### Get Test Cases Already Added to Plan
+
+```php
+$sql = "SELECT DISTINCT tc.id, tc.name, tcv.id AS tcvid
+        FROM testcases tc
+        JOIN tcversions tcv ON tc.id = tcv.tcid
+        JOIN test_plan_test_cases tptc
+          ON tc.id = tptc.testcaseid AND tcv.id = tptc.tcversionid
+        WHERE tptc.testplan_id = " . $plan_id
+        AND tc.parent_id = " . $suite_id;
+```
+
+## UI/UX Considerations
+
+1. **Tree display**: Shows test suites and nested test cases
+2. **Filter controls**: Allow filtering by keyword, exec type, etc.
+3. **Left/Right panes**:
+   - Left: Tree of available test cases
+   - Right: Actions (Add/Remove buttons)
+4. **Counters**: Show number of test cases before/after filter
+5. **Drag and drop**: Some implementations support D&D from tree to plan
+
+## Performance
+
+1. Don't fetch all test cases at once
+2. Use pagination for large result sets
+3. Cache static data (keywords, execution types)
+4. Index heavily used filter columns
+
+## Related Features
+
+- Test case filtering and search
+- Test plan management
+- Platform assignment per test case
+- Bulk operations (add/remove multiple)
+
+## Testing
+
+Key test scenarios:
+1. Add new test case to empty plan
+2. Add test case with specific keyword
+3. Add test case with specific exec type
+4. Filter combined with existing links
+5. Handle test case with multiple versions
+6. Remove test case from plan
+7. Verify counts match displayed items
+
+## Recent Changes (v1.9.20)
+
+- Upload-on-execution support (see issue #32)
+- Enhanced filtering
+- Performance improvements
+
+---
+
+See DEVELOPER_GUIDE.md for architecture overview and common tasks.
