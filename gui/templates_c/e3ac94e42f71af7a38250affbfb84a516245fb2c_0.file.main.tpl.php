@@ -1,11 +1,11 @@
 <?php
-/* Smarty version 4.5.7, created on 2026-08-16 18:31:00
+/* Smarty version 4.5.7, created on 2026-08-16 18:35:10
   from 'C:\sebi\CLAUDE\testlink-upgraded\gui\templates\dashio\main.tpl' */
 
 /* @var Smarty_Internal_Template $_smarty_tpl */
 if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   'version' => '4.5.7',
-  'unifunc' => 'content_6a8201e4922289_30118117',
+  'unifunc' => 'content_6a8202deaa3738_81015319',
   'has_nocache_code' => false,
   'file_dependency' => 
   array (
@@ -20,7 +20,7 @@ if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   array (
   ),
 ),false)) {
-function content_6a8201e4922289_30118117 (Smarty_Internal_Template $_smarty_tpl) {
+function content_6a8202deaa3738_81015319 (Smarty_Internal_Template $_smarty_tpl) {
 ?><!DOCTYPE html>
 <html lang="en">
 

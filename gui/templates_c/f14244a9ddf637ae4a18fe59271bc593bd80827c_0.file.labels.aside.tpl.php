@@ -1,11 +1,11 @@
 <?php
-/* Smarty version 4.5.7, created on 2026-08-16 18:31:00
+/* Smarty version 4.5.7, created on 2026-08-16 18:35:10
   from 'C:\sebi\CLAUDE\testlink-upgraded\gui\templates\dashio\labels\labels.aside.tpl' */
 
 /* @var Smarty_Internal_Template $_smarty_tpl */
 if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   'version' => '4.5.7',
-  'unifunc' => 'content_6a8201e4e097b7_16902673',
+  'unifunc' => 'content_6a8202dee71112_33012699',
   'has_nocache_code' => false,
   'file_dependency' => 
   array (
@@ -20,7 +20,7 @@ if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   array (
   ),
 ),false)) {
-function content_6a8201e4e097b7_16902673 (Smarty_Internal_Template $_smarty_tpl) {
+function content_6a8202dee71112_33012699 (Smarty_Internal_Template $_smarty_tpl) {
 echo call_user_func_array( $_smarty_tpl->smarty->registered_plugins[Smarty::PLUGIN_FUNCTION]['lang_get'][0], array( array('var'=>"l10n",'s'=>'title_product_mgmt,href_tproject_management,href_admin_modules,
    href_assign_user_roles,href_cfields_management,system_config,
    href_cfields_tproject_assign,href_keywords_manage,

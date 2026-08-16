@@ -4,7 +4,6 @@ Left side menu
 @filesource aside.tpl
 *}
 {$whoami = $smarty.template}
-{debug}
 {include file="./labels/labels.$whoami"} 
     <aside>
       <div id="sidebar" class="nav-collapse ">

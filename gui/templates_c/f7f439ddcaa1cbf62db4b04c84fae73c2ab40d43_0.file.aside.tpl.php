@@ -1,18 +1,18 @@
 <?php
-/* Smarty version 4.5.7, created on 2026-08-16 18:31:00
+/* Smarty version 4.5.7, created on 2026-08-16 18:35:10
   from 'C:\sebi\CLAUDE\testlink-upgraded\gui\templates\dashio\aside.tpl' */
 
 /* @var Smarty_Internal_Template $_smarty_tpl */
 if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   'version' => '4.5.7',
-  'unifunc' => 'content_6a8201e4de0626_00083381',
+  'unifunc' => 'content_6a8202dee677d0_95424892',
   'has_nocache_code' => false,
   'file_dependency' => 
   array (
     'f7f439ddcaa1cbf62db4b04c84fae73c2ab40d43' => 
     array (
       0 => 'C:\\sebi\\CLAUDE\\testlink-upgraded\\gui\\templates\\dashio\\aside.tpl',
-      1 => 1786874918,
+      1 => 1786905268,
       2 => 'file',
     ),
   ),
@@ -20,11 +20,8 @@ if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   array (
   ),
 ),false)) {
-function content_6a8201e4de0626_00083381 (Smarty_Internal_Template $_smarty_tpl) {
+function content_6a8202dee677d0_95424892 (Smarty_Internal_Template $_smarty_tpl) {
 $_smarty_tpl->_assignInScope('whoami', basename($_smarty_tpl->source->filepath));
-$_smarty_debug = new Smarty_Internal_Debug;
- $_smarty_debug->display_debug($_smarty_tpl);
-unset($_smarty_debug);
 $_smarty_tpl->_subTemplateRender("./labels/labels.".((string)$_smarty_tpl->tpl_vars['whoami']->value), $_smarty_tpl->cache_id, $_smarty_tpl->compile_id, 0, $_smarty_tpl->cache_lifetime, array(), 0, true);
 ?> 
     <aside>
