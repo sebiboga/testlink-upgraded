@@ -334,9 +334,9 @@ class mantisrestInterface extends issueTrackerInterface {
         $this->APIClient->addExternalLinks($op->id,$more['links']);
       }
   
-      $ret = ['status_ok' => true, 'id' => (string)$op->id, 
+      $ret = ['status_ok' => true, 'id' => (string)$op->id,
               'msg' => sprintf(lang_get('mantis_bug_created'),
-              $summary, (string)$op->board_id)];
+              $summary, (string)$op->id)];
     }
     catch (Exception $e) {
        $msg = "Create Mantis Issue Via REST FAILURE => " . $e->getMessage();
