@@ -5,7 +5,7 @@
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'reference' => '4fe583e2d094ebe692dac13fd4c384c2322036fa',
+        'reference' => '893e23747b0a928312a5804a0b7f7381885e3964',
         'name' => '__root__',
         'dev' => true,
     ),
@@ -16,7 +16,7 @@
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
-            'reference' => '4fe583e2d094ebe692dac13fd4c384c2322036fa',
+            'reference' => '893e23747b0a928312a5804a0b7f7381885e3964',
             'dev_requirement' => false,
         ),
         'adodb/adodb-php' => array(
@@ -343,12 +343,12 @@
             'dev_requirement' => false,
         ),
         'smarty/smarty' => array(
-            'pretty_version' => 'v3.1.48',
-            'version' => '3.1.48.0',
+            'pretty_version' => 'v4.5.7',
+            'version' => '4.5.7.0',
             'type' => 'library',
             'install_path' => __DIR__ . '/../smarty/smarty',
             'aliases' => array(),
-            'reference' => '2fc443806cdcaee4441be4d0bb09f8fa56a17f2c',
+            'reference' => '838d6ad1c635f8a6bafc08d791b8af18d8304b3a',
             'dev_requirement' => false,
         ),
         'symfony/deprecation-contracts' => array(
