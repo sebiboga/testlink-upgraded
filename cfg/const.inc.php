@@ -588,9 +588,11 @@ define('TL_REL_TYPE_RELATED', 3);
 define('TL_REL_TYPE_AUTOMATION_PARENT_CHILD', 4);
 define('TL_REL_TYPE_EXECUTE_TOGETHER', 5);
 
+define('TL_ALIEN_REL_TYPE_FIX', 1);
+define('TL_ALIEN_REL_TYPE_REGRESSION', 2);
 
 /**
- * data status constants are applicable for data like requirement, test case, Test Plan 
+ * data status constants are applicable for data like requirement, test case, Test Plan
  * @since 2.0 
  */
 /** Review status: design phase; data are not available for review or using */ 
