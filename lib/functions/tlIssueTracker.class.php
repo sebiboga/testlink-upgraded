@@ -79,7 +79,7 @@ class tlIssueTracker extends tlObject
            23 =>  array('type' => 'kaiten','api' =>'rest',
                         'enabled' => true, 'order' => 24),
            25 =>  array('type' => 'github','api' =>'rest',
-                        'enabled' => false, 'order' => 25),
+                        'enabled' => true, 'order' => 25),
            26 =>  array('type' => 'trello','api' =>'rest',
                         'enabled' => true, 'order' => 26),
            27 =>  array('type' => 'tuleap','api' =>'rest',
