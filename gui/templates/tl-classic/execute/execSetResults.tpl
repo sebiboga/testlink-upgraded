@@ -428,8 +428,7 @@ IMPORTANT: if you change value, you need to chang init_args() logic on execSetRe
         
         {$tlImages.toggle_direct_link} &nbsp;
         <div class="direct_link" style='display:none'>
-        <img class="clip" src="{$tlImages.clipboard}" title="eye" 
-             data-clipboard-text="{$gui->direct_link}">
+        <span class="clip" title="eye" data-clipboard-text="{$gui->direct_link}">{$tlImages.clipboard}</span>
         <a href="{$gui->direct_link}" target="_blank">
         {$gui->direct_link}</a></div>
         

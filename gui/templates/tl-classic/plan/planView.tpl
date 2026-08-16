@@ -126,8 +126,7 @@ var del_action=fRoot+'{$deleteAction}';
                <span class="api_info" style='display:none'>{$tlCfg->api->id_format|replace:"%s":$testplan.id}</span>
              
                {if $gsmarty_gui->show_icon_edit}
-                   <img title="{$labels.testplan_alt_edit_tp}"  alt="{$labels.testplan_alt_edit_tp}" 
-                        src="{$tlImages.edit}"/>
+                   <span title="{$labels.testplan_alt_edit_tp}">{$tlImages.edit}</span>
                {/if}  
             </a>
         </td>
@@ -153,49 +152,34 @@ var del_action=fRoot+'{$deleteAction}';
 
         <td class="clickable_icon" data-qa-active="{$testplan.active}">
           {if $testplan.active==1} 
-              <input type="image" style="border:none" 
-                     title="{$labels.active_click_to_change}" alt="{$labels.active_click_to_change}" 
-                     onClick = "do_action.value='setInactive';tplan_id.value={$testplan.id};"
-                     src="{$tlImages.on}"/>
+              <button type="submit" style="border:none" title="{$labels.active_click_to_change}" alt="{$labels.active_click_to_change}" onClick = "do_action.value='setInactive';tplan_id.value={$testplan.id};">{$tlImages.on}</button>
             {else}
-              <input type="image" style="border:none" 
-                   title="{$labels.inactive_click_to_change}" alt="{$labels.inactive_click_to_change}" 
-                   onClick = "do_action.value='setActive';tplan_id.value={$testplan.id};"
-                   src="{$tlImages.off}"/>
+              <button type="submit" style="border:none" title="{$labels.inactive_click_to_change}" alt="{$labels.inactive_click_to_change}" onClick = "do_action.value='setActive';tplan_id.value={$testplan.id};">{$tlImages.off}</button>
             {/if}
         </td>
         <td class="clickable_icon" data-qa-is_public="{$testplan.is_public}">
           {if $testplan.is_public eq 1} 
-              <img style="border:none" title="{$labels.public}"  alt="{$labels.public}" src="{$tlImages.checked}"/>
+              <span style="border:none" title="{$labels.public}">{$tlImages.checked}</span>
             {else}
               &nbsp;        
             {/if}
         </td>
         <td style="width:8%;">
-            <img style="border:none;cursor: pointer;" 
-                 alt="{$labels.testplan_alt_delete_tp}"
-               title="{$labels.testplan_alt_delete_tp}" 
-               onclick="delete_confirmation({$testplan.id},'{$testplan.name|escape:'javascript'|escape}',
-                                            '{$del_msgbox_title}','{$warning_msg}');"
-               src="{$tlImages.delete}"/>
+            <span style="border:none;cursor: pointer;" title="{$labels.testplan_alt_delete_tp}" onclick="delete_confirmation({$testplan.id},'{$testplan.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
             <a href="{$exportAction}{$testplan.id}"> 
-            <img style="border:none;cursor: pointer;" alt="{$labels.export_testplan_links}" 
-                 title="{$labels.export_testplan_links}" src="{$tlImages.export}"/>
+            <span style="border:none;cursor: pointer;" title="{$labels.export_testplan_links}">{$tlImages.export}</span>
             </a>     
             <a href="{$importAction}{$testplan.id}"> 
-            <img style="border:none;cursor: pointer;" alt="{$labels.import_testplan_links}" 
-                 title="{$labels.import_testplan_links}"  src="{$tlImages.import}"/>
+            <span style="border:none;cursor: pointer;" title="{$labels.import_testplan_links}">{$tlImages.import}</span>
             </a>     
 
             {if $testplan.rights.testplan_user_role_assignment}
               <a href="{$assignRolesAction}{$testplan.id}"> 
-              <img style="border:none;cursor: pointer;" alt="{$labels.assign_roles}" 
-                   title="{$labels.assign_roles}"  src="{$tlImages.user}"/>
+              <span style="border:none;cursor: pointer;" title="{$labels.assign_roles}">{$tlImages.user}</span>
               </a>     
             {/if}
             <a href="{$gotoExecuteAction}{$testplan.id}"> 
-            <img style="border:none;cursor: pointer;" alt="{$labels.execution}" 
-                 title="{$labels.execution}"  src="{$tlImages.execution}"/>
+            <span style="border:none;cursor: pointer;" title="{$labels.execution}">{$tlImages.execution}</span>
             </a>     
         </td>
       </tr>

@@ -115,12 +115,7 @@ var del_action = fRoot+'lib/keywords/keywordsEdit.php'+
             {/if}
 
             {if $yesDel == 1}
-            <img style="border:none;cursor: pointer;"
-                alt="{$labels.alt_delete_keyword}" title="{$labels.alt_delete_keyword}"   
-                src="{$tlImages.delete}"           
-               onclick="delete_confirmation({$gui->keywords[kwx]->dbID},
-                      '{$gui->keywords[kwx]->name|escape:'javascript'|escape}',
-                      '{$del_msgbox_title}','{$warning_msg}');" />
+            <span style="border:none;cursor: pointer;" title="{$labels.alt_delete_keyword}" onclick="delete_confirmation({$gui->keywords[kwx]->dbID}, '{$gui->keywords[kwx]->name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
             {/if}          
         </td>
       {/if}

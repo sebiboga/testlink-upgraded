@@ -42,16 +42,13 @@ Purpose: smarty template - show Test Results and Metrics
     &nbsp;&nbsp;
     <input hidden name="sendByEmail" value="1">
     
-    <input type="image" name="reportByMail" id="reportByMail" 
-           src="{$tlImages.email}" title="{$labels.send_by_email_to_me}"
-           onclick="submit();">
+    <button type="submit" name="reportByMail" id="reportByMail" title="{$labels.send_by_email_to_me}" onclick="submit();">{$tlImages.email}</button>
   </form>
 {/if}
 <form name="exportSpreadsheet" id="exportSpreadsheet" method="POST"
       action={$gui->actionSpreadsheet}>
   &nbsp;&nbsp;
-  <input type="image" name="exportSpreadSheet" id="exportSpreadSheet" 
-         src="{$tlImages.export_excel}" title="{$labels.export_as_spreadsheet}">
+  <button type="submit" name="exportSpreadSheet" id="exportSpreadSheet" title="{$labels.export_as_spreadsheet}">{$tlImages.export_excel}</button>
   
   {if $gui->apikey != ''}
     <input type="hidden" name="apikey" id="apikey" value="{$gui->apikey}">

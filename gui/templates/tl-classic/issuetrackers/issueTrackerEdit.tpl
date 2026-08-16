@@ -118,7 +118,7 @@ function displayITSCfgExample(oid,displayOID)
   		<tr>
   			<th> {$labels.issuetracker_cfg_example}
           <a href="javascript:displayITSCfgExample('type','cfg_example')">
-            <img src="{$tlImages.eye}" title="{$labels.show_hide}">
+            <span title="{$labels.show_hide}">{$tlImages.eye}</span>
           </a>
         </th>
   			<td name="cfg_example" id="cfg_example">&nbsp;</td>

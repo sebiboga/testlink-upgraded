@@ -1,6 +1,6 @@
 /* left-bar-scripts.js */
 /*---LEFT BAR ACCORDION----*/
-function initAccordion() {
+jQuery(function() {
   if (jQuery('#nav-accordion').length > 0) {
     jQuery('#nav-accordion').dcAccordion({
       eventType: 'click',
@@ -13,14 +13,7 @@ function initAccordion() {
       classExpand: 'dcjq-current-parent'
     });
   }
-}
-
-jQuery(document).ready(initAccordion);
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initAccordion);
-} else {
-  initAccordion();
-}
+});
 
 var Script = function() {
 

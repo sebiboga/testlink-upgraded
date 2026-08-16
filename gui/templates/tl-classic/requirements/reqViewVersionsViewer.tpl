@@ -163,7 +163,7 @@ viewer for requirement
       {/if}
       <td class="bold" colspan="2" id="tooltip-{$tpt}">{$labels.version}
       {$args_req.version} {$labels.revision} {$args_req.revision}
-      <img src="{$tlImages.log_message_small}" style="border:none" />
+      <span style="border:none">{$tlImages.log_message_small}</span>
       </td>
     </tr>
   {/if}
@@ -191,7 +191,7 @@ viewer for requirement
   <td>
     <fieldset class="x-fieldset x-form-label-left"><legend class="legend_container">{$labels.coverage}</legend>
     {if $gui->user_feedback != ''}
-      <img class="clickable" src="{$tlImages.warning}"/>
+      <span class="clickable">{$tlImages.warning}</span>
       {$gui->user_feedback}<br><p>
     {/if}
     
@@ -207,24 +207,18 @@ viewer for requirement
         <span>
 		{if $args_grants->req_tcase_link_management == "yes" && 
         $args_req_coverage[row].can_be_deleted}
-        <input type="image"  class="clickable" src="{$tlImages.disconnect_small}" 
-               title="{$labels.removeLinkToTestCase}" onClick="tcaseIdentity.value={$args_req_coverage[row].tcversion_id}">
+        <button type="submit" class="clickable" title="{$labels.removeLinkToTestCase}" onClick="tcaseIdentity.value={$args_req_coverage[row].tcversion_id}">{$tlImages.disconnect_small}</button>
     {else}    
         &nbsp;&nbsp; 
 		{/if}
         &nbsp;&nbsp; 
         {if $args_req_coverage[row].is_obsolete ==1}
-        <img class="clickable" src="{$tlImages.heads_up}"
-             title="{$labels.obsolete}" />
+        <span class="clickable" title="{$labels.obsolete}">{$tlImages.heads_up}</span>
         {else}
           &nbsp;&nbsp;&nbsp; 
         {/if}
-        <img class="clickable" src="{$tlImages.history_small}"
-             onclick="javascript:openExecHistoryWindow({$args_req_coverage[row].id});"
-             title="{$labels.execution_history}" />
-        <img class="clickable" src="{$tlImages.edit_icon}"
-             onclick="javascript:openTCaseWindow({$args_req_coverage[row].id});"
-             title="{$labels.design}" />
+        <span class="clickable" onclick="javascript:openExecHistoryWindow({$args_req_coverage[row].id});" title="{$labels.execution_history}">{$tlImages.history_small}</span>
+        <span class="clickable" onclick="javascript:openTCaseWindow({$args_req_coverage[row].id});" title="{$labels.design}">{$tlImages.edit_icon}</span>
         {$args_gui->tcasePrefix|escape}{$args_gui->glueChar}{$args_req_coverage[row].tc_external_id}{$args_gui->pieceSep}{$args_req_coverage[row].tcase_name|escape} [{$labels.version} {$args_req_coverage[row].version}]
         </span><br />
       {/section}
@@ -240,8 +234,7 @@ viewer for requirement
       <input type="hidden" id="atRVID" name="req_version_id" value="{$args_req.version_id}" />
       <input type="hidden" id="atAction" name="doAction" value="addTestCase" />
     
-      <img class="clickable" src="{$tlImages.add}" onclick="javascript:toogleShowHide('addTestCase');"
-           title="{$labels.addLinkToTestCase}" /> 
+      <span class="clickable" onclick="javascript:toogleShowHide('addTestCase');" title="{$labels.addLinkToTestCase}">{$tlImages.add}</span> 
            
       <div id="addTestCase"  name="addTestCase" style="display:none;">
         <input type="input" name="tcaseIdentity" value=" " >

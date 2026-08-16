@@ -211,8 +211,7 @@ viewer for requirement
         <span>
 		{if $args_grants->req_tcase_link_management == "yes" && 
         $args_req_coverage[row].can_be_deleted}
-        <input type="image"  class="clickable" src="{$tlImages.disconnect_small}" 
-               title="{$labels.removeLinkToTestCase}" onClick="tcaseIdentity.value={$args_req_coverage[row].tcversion_id}">
+        <button type="submit" class="clickable" title="{$labels.removeLinkToTestCase}" onClick="tcaseIdentity.value={$args_req_coverage[row].tcversion_id}">{$tlImages.disconnect_small}</button>
     {else}    
         &nbsp;&nbsp; 
 		{/if}

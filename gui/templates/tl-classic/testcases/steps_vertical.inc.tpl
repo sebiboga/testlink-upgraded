@@ -12,8 +12,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 *}
   {if $edit_enabled && $args_frozen_version=="no"}
   <tr><td>
-    <img class="clickable" src="{$tlImages.reorder}" align="left" title="{$inc_steps_labels.show_hide_reorder}"
-    onclick="showHideByClass('span','order_info');"></td>
+    <span class="clickable" align="left" title="{$inc_steps_labels.show_hide_reorder}" onclick="showHideByClass('span','order_info');">{$tlImages.reorder}</span></td>
     <td>{$inc_steps_labels.show_hide_reorder}</td>
   </tr>
   {/if}
@@ -47,16 +46,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
         style="padding: 0.5em">{if $gui->stepDesignEditorType  == 'none'}{$step_info.actions|nl2br}{else}{$step_info.actions}{/if}</td>
     {if $edit_enabled && $args_frozen_version=="no"}
     <td class="clickable_icon">
-      <img style="border:none;cursor: pointer;"
-           title="{$inc_steps_labels.delete_step}"
-           alt="{$inc_steps_labels.delete_step}"
-           onclick="delete_confirmation({$step_info.id},
-                   '{$step_info.step_number|escape:'javascript'|escape}',
-                   '{$del_msgbox_title}','{$warning_msg}');"
-           src="{$tlImages.delete}"/>
-      <img style="border:none;cursor: pointer;"  title="{$inc_steps_labels.insert_step}"    
-           alt="{$inc_steps_labels.insert_step}"
-           onclick="launchInsertStep({$step_info.id});" src="{$tlImages.insert_step}"/>
+      <span style="border:none;cursor: pointer;" title="{$inc_steps_labels.delete_step}" onclick="delete_confirmation({$step_info.id}, '{$step_info.step_number|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
+      <span style="border:none;cursor: pointer;" title="{$inc_steps_labels.insert_step}" onclick="launchInsertStep({$step_info.id});">{$tlImages.insert_step}</span>
 
     </td>
     {/if}

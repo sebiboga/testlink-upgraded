@@ -86,7 +86,7 @@ var pF_remove_platform = remove_platform;
                      '{$tcplat_link_item.name|escape:'javascript'}', 
                      remove_plat_msgbox_title, remove_plat_msgbox_msg, 
                      pF_remove_platform);">
-           <img src="{$tlImages.delete}" title="{$plat_labels.img_title_remove_platform}"  style="border:none" /></a>
+           <span title="{$plat_labels.img_title_remove_platform}" style="border:none">{$tlImages.delete}</span></a>
            {/if}
             <br />
                 {foreachelse}

@@ -55,9 +55,7 @@ function validateForm(f)
   <div class="workBack">
   <div class="action_descr">{$gui->action_descr|escape}
   	{if $gui->mgt_view_events eq "yes" && $gui->keywordID > 0}
-			<img style="margin-left:5px;" class="clickable" src="{$tlImages.info}" 
-				 onclick="showEventHistoryFor('{$gui->keywordID}','keywords')" 
-				 alt="{$labels.show_event_history}" title="{$labels.show_event_history}"/>
+			<span style="margin-left:5px;" class="clickable" onclick="showEventHistoryFor('{$gui->keywordID}','keywords')" title="{$labels.show_event_history}">{$tlImages.info}</span>
 	{/if}
   
   </div><br />

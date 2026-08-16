@@ -59,15 +59,13 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
   {if $attach_show_upload_btn && !$attach_downloadOnly}
   <div  style="text-align:left;margin:3px;background:#CDE;padding: 3px 3px 3px 3px;border-style: groove;border-width: thin;">
       <label for="uploadedFile_[{$attach_id}]" class="labelHolder">{$labels.local_file} </label>
-      <img class="clickable" src="{$tlImages.activity}" title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">
+      <span class="clickable" title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">{$tlImages.activity}</span>
 
       {if $tlCfg->attachments->allowed_filenames_regexp != ''}
-        <img class="clickable" src="{$tlImages.activity}" 
-             title="{$labels.allowed_filenames_regexp}{$tlCfg->attachments->allowed_filenames_regexp}">      
+        <span class="clickable" title="{$labels.allowed_filenames_regexp}{$tlCfg->attachments->allowed_filenames_regexp}">{$tlImages.activity}</span>      
       {/if}
       {if $tlCfg->attachments->allowed_files != ''}
-        <img class="clickable" src="{$tlImages.activity}" 
-             title="{$labels.allowed_files}{$tlCfg->attachments->allowed_files}">  
+        <span class="clickable" title="{$labels.allowed_files}{$tlCfg->attachments->allowed_files}">{$tlImages.activity}</span>  
       {/if}
 
 

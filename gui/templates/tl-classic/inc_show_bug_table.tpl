@@ -41,31 +41,28 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
                Only choice to avoid JS issues => treat always as string 
 		    *}
    		    <a href="javascript:open_bug_note_add_window('{$bug_id}',{$gui->tproject_id},{$tc_old_exec.id},{$tc_old_exec.execution_id},'add_note')">
-   		    <img src="{$tlImages.bug_add_note}" title="{$labels.bug_add_note}" style="border:none" /></a>
+   		    <span title="{$labels.bug_add_note}" style="border:none">{$tlImages.bug_add_note}</span></a>
 		  </td>
 		{/if}
 
         {if $gui->issueTrackerIntegrationOn}
           <td>
        		<a href="javascript:open_bug_add_window({$gui->tproject_id},{$gui->tplan_id},{$tc_old_exec.id},{$tc_old_exec.execution_id},{$bug_elem.tcstep_id},'link')">
-      		<img src="{$tlImages.bug_link_tl_to_bts}"
-      		     title="{$labels.bug_link_tl_to_bts}" style="border:none" /></a>
+      		<span title="{$labels.bug_link_tl_to_bts}" style="border:none">{$tlImages.bug_link_tl_to_bts}</span></a>
           </td>
         {/if}
 
         {if $gui->tlCanCreateIssue}
        	  <td>
        		<a href="javascript:open_bug_add_window({$gui->tproject_id},{$gui->tplan_id},{$tc_old_exec.id},{$tc_old_exec.execution_id},{$bug_elem.tcstep_id},'create')">
-      		<img src="{$tlImages.bug_create_into_bts}" title="{$labels.bug_create_into_bts}" style="border:none" /></a>
+      		<span title="{$labels.bug_create_into_bts}" style="border:none">{$tlImages.bug_create_into_bts}</span></a>
       	  </td>
         {/if}
 
 
 		{if $can_delete}
 		  <td class="clickable_icon">
-		  	<img class="clickable" onclick="delete_confirmation('{$exec_id}-{$bug_elem.tcstep_id}-{$bug_id|escape:'javascript'|escape}','{$bug_id|escape:'javascript'|escape}',
-			            '{$l10nb.delete_bug}','{$l10nb.del_bug_warning_msg} ({$l10nb.bug_id} {$bug_id})',deleteBug);" style="border:none" title="{$l10nb.delete_bug}" alt="{$l10nb.delete_bug}" 
-			            src="{$tlImages.delete}"/></td>
+		  	<span class="clickable" onclick="delete_confirmation('{$exec_id}-{$bug_elem.tcstep_id}-{$bug_id|escape:'javascript'|escape}','{$bug_id|escape:'javascript'|escape}', '{$l10nb.delete_bug}','{$l10nb.del_bug_warning_msg} ({$l10nb.bug_id} {$bug_id})',deleteBug);" style="border:none" title="{$l10nb.delete_bug}">{$tlImages.delete}</span></td>
 		{/if}
 	</tr>
 	{/foreach}

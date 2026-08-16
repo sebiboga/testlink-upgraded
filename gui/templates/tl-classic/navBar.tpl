@@ -24,9 +24,9 @@ title bar + menu
 
   <span class="bold">{$gui->whoami|escape}</span>
   <span>&nbsp;&nbsp;&nbsp;<a href='lib/usermanagement/userInfo.php' target="mainframe" accesskey="i"
-          tabindex="6"><img src="{$tlImages.account}" title="{$labels.title_edit_personal_data}"></a>
+          tabindex="6"><span title="{$labels.title_edit_personal_data}">{$tlImages.account}</span></a>
         <a href="{$gui->logout}" target="_parent" accesskey="q">
-        <img src="{$tlImages.logout}" title="{$labels.link_logout}"></a>
+        <span title="{$labels.link_logout}">{$tlImages.logout}</span></a>
   </span>
 </div>
 
@@ -59,10 +59,7 @@ title bar + menu
 
       {* Give a hint to archiveData, will make logic simpler to understand *}
     <input type="hidden" id="caller" name="caller" value="navBar" />
-    <img src="{$tlImages.magnifier}"
-         title="{$labels.search_testcase}" alt="{$labels.search_testcase}"
-         onclick="jQuery('#searchTC').submit()" class="clickable" 
-         style="position:relative; top:2px;" />
+    <span title="{$labels.search_testcase}" onclick="jQuery('#searchTC').submit()" class="clickable" style="position:relative; top:2px;">{$tlImages.magnifier}</span>
     <input type="hidden" name="edit" value="testcase"/>
     <input type="hidden" name="allow_edit" value="0"/>
     </form>
@@ -77,10 +74,7 @@ title bar + menu
     <input style="font-size: 80%; position:relative; top:-1px;" type="text" size="50"
            title="{$labels.full_text_search}" name="target" value="" />
 
-    <img src="{$tlImages.magnifier}"
-         title="{$labels.full_text_search}" alt="{$labels.full_text_search}"
-         onclick="jQuery('#fullTextSearch').submit()" class="clickable" 
-         style="position:relative; top:2px;" />
+    <span title="{$labels.full_text_search}" onclick="jQuery('#fullTextSearch').submit()" class="clickable" style="position:relative; top:2px;">{$tlImages.magnifier}</span>
     </form>
   {/if}
 

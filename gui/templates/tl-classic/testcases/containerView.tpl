@@ -111,8 +111,7 @@ function jsCallDeleteFile(btn, text, o_id)
   {if $gui->modify_tc_rights == 'yes'}
     {$bDownloadOnly=false}
 
-  <img class="clickable" src="{$tlImages.cog}" onclick="javascript:toogleShowHide('tproject_control_panel');"
-       title="{$labels.actions}" />
+  <span class="clickable" onclick="javascript:toogleShowHide('tproject_control_panel');" title="{$labels.actions}">{$tlImages.cog}</span>
   <div id="tproject_control_panel" style="display:{$tlCfg->gui->op_area_display->test_spec_container};">
     <fieldset class="groupBtn">
     <b>{$labels.testsuite_operations}</b>
@@ -130,28 +129,21 @@ function jsCallDeleteFile(btn, text, o_id)
       <input type="hidden" name="containerID" value="{$gui->container_data.id}" />
       <input type="hidden" name="containerType" id="containerType" value="{$gui->level}" />
 
-      <input type="image" src="{$tlImages.add}" name="new_testsuite" id="new_testsuite" 
-             onclick="doAction.value='new_testsuite'" title="{$labels.btn_new_testsuite}">
+      <button type="submit" name="new_testsuite" id="new_testsuite" onclick="doAction.value='new_testsuite'" title="{$labels.btn_new_testsuite}">{$tlImages.add}</button>
       
-      <input type="image" src="{$tlImages.order_alpha}" name="reorder_testproject_testsuites_alpha" 
-             id="reorder_testproject_testsuites_alpha" 
-             onclick="doAction.value='reorder_testproject_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">
+      <button type="submit" name="reorder_testproject_testsuites_alpha" id="reorder_testproject_testsuites_alpha" onclick="doAction.value='reorder_testproject_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">{$tlImages.order_alpha}</button>
 
-      <img src="{$tlImages.import}" onclick="location='{$importToTProjectAction}'" title="{$labels.btn_import_testsuite}" />
+      <span onclick="location='{$importToTProjectAction}'" title="{$labels.btn_import_testsuite}">{$tlImages.import}</span>
 
       {if $gui->canDoExport}
-        <img src="{$tlImages.export}" onclick="location='{$tsuiteExportAction}'" title="{$labels.btn_export_all_testsuites}" />
+        <span onclick="location='{$tsuiteExportAction}'" title="{$labels.btn_export_all_testsuites}">{$tlImages.export}</span>
       {/if}
 
-      <img src="{$tlImages.report}" onclick="window.open('{$testSpecFullDocAction}')" 
-           title="{$labels.btn_gen_test_spec_new_window}" />
+      <span onclick="window.open('{$testSpecFullDocAction}')" title="{$labels.btn_gen_test_spec_new_window}">{$tlImages.report}</span>
 
-      <img src="{$tlImages.report_word}" onclick="window.open('{$testSpecFullWordDocAction}')" 
-           title="{$labels.btn_gen_test_spec_word}" />
+      <span onclick="window.open('{$testSpecFullWordDocAction}')" title="{$labels.btn_gen_test_spec_word}">{$tlImages.report_word}</span>
 
-      <img src="{$tlImages.report_test_automation}"    
-           onclick="location='{$reportTestAutomationAction}'" 
-           title="{$labels.btn_report_test_automation}" />
+      <span onclick="location='{$reportTestAutomationAction}'" title="{$labels.btn_report_test_automation}">{$tlImages.report_test_automation}</span>
 
     </form>
     </fieldset>

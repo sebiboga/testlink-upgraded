@@ -45,12 +45,12 @@ var del_action=fRoot+'lib/codetrackers/codeTrackerEdit.php?doAction=doDelete&id=
 			<td>
 				{if $gui->canManage != ""}
 					<a href="lib/codetrackers/codeTrackerView.php?id={$item_def.id}">
-					  <img src="{$tlImages.wrench}" title="{$labels.check_bts_connection}">
+					  <span title="{$labels.check_bts_connection}">{$tlImages.wrench}</span>
 					</a>
           {if $item_def.connection_status == "ok"}
-					  <img src="{$tlImages.check_ok}" title="{$labels.bts_check_ok}">
+					  <span title="{$labels.bts_check_ok}">{$tlImages.check_ok}</span>
 				  {elseif $item_def.connection_status == "ko"}
-					  <img src="{$tlImages.check_ko}" title="{$labels.bts_check_ko}">
+					  <span title="{$labels.bts_check_ko}">{$tlImages.check_ko}</span>
 				  {else}
 				    &nbsp;
 				  {/if}
@@ -70,12 +70,7 @@ var del_action=fRoot+'lib/codetrackers/codeTrackerEdit.php?doAction=doDelete&id=
 
 				<td class="clickable_icon">
 				{if $gui->canManage != ""  && $item_def.link_count == 0}
-			  		<img style="border:none;cursor: pointer;"
-			       		alt="{$labels.alt_delete}" title="{$labels.alt_delete}"   
-             		src="{$tlImages.delete}"			     
-				     	 onclick="delete_confirmation({$item_def.id},
-				              '{$item_def.name|escape:'javascript'|escape}',
-				              '{$del_msgbox_title}','{$warning_msg}');" />
+			  		<span style="border:none;cursor: pointer;" title="{$labels.alt_delete}" onclick="delete_confirmation({$item_def.id}, '{$item_def.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
 				{/if}
 				</td>
 		</tr>

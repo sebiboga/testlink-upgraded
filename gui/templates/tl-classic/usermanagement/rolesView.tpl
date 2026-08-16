@@ -90,18 +90,13 @@ Purpose: smarty template - View defined roles
 				<td>{if $gui->editorType == 'none'}{$role->description|nl2br}{else}{$role->description|strip_tags|strip}{/if}</td>
                 <td>
                     {if $role->dbID > $smarty.const.TL_LAST_SYSTEM_ROLE}
-                       <img style="border:none;cursor: pointer;" title="{$labels.alt_delete_role}"
-                            alt="{$labels.alt_delete_role}"
-                            onclick="delete_confirmation({$role->dbID},'{$role->getDisplayName()|escape:'javascript'|escape}',
-                                                         '{$del_msgbox_title}','{$warning_msg}');"
-                            src="{$tlImages.delete}"/>
+                       <span style="border:none;cursor: pointer;" title="{$labels.alt_delete_role}" onclick="delete_confirmation({$role->dbID},'{$role->getDisplayName()|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
                     {/if}
                 </td>
 
                 <td>
           <a href="{$duplicateRoleAction}{$role->dbID}">
-          <img style="border:none;cursor: pointer;" title="{$labels.duplicate_role}" alt="{$labels.duplicate_role}"
-               src="{$tlImages.duplicate}"/>
+          <span style="border:none;cursor: pointer;" title="{$labels.duplicate_role}">{$tlImages.duplicate}</span>
           </a>
                 </td>
 

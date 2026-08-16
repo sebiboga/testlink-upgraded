@@ -38,9 +38,7 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
 
       {if $can_delete}
         <td class="clickable_icon">
-          <img class="clickable" onclick="delete_confirmation('{$tproject_id}:{$item_id}-{$script_id|escape:'javascript'|escape}','{$script_id|escape:'javascript'|escape}',
-           '{$l10nb.delete_script}','{$l10nb.del_script_warning_msg} ({$l10nb.script_id} {$script_id})',deleteScript);" style="border:none" title="{$l10nb.delete_script}" alt="{$l10nb.delete_script}" 
-            src="{$tlImages.delete}"/></td>
+          <span class="clickable" onclick="delete_confirmation('{$tproject_id}:{$item_id}-{$script_id|escape:'javascript'|escape}','{$script_id|escape:'javascript'|escape}', '{$l10nb.delete_script}','{$l10nb.del_script_warning_msg} ({$l10nb.script_id} {$script_id})',deleteScript);" style="border:none" title="{$l10nb.delete_script}">{$tlImages.delete}</span></td>
       {/if}
     </tr>
   {/foreach}

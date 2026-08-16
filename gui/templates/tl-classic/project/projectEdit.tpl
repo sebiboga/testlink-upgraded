@@ -87,9 +87,7 @@ manageTracker('code_tracker_id','code_tracker_enabled');">
   {$main_descr|escape}  {$tlCfg->gui_title_separator_1}
   {$caption|escape}
   {if $mgt_view_events eq "yes" and $gui->tprojectID}
-    <img style="margin-left:5px;" class="clickable" src="{$tlImages.help}" 
-           onclick="showEventHistoryFor('{$gui->tprojectID}','testprojects')" 
-           alt="{$labels.show_event_history}" title="{$labels.show_event_history}"/>
+    <span style="margin-left:5px;" class="clickable" onclick="showEventHistoryFor('{$gui->tprojectID}','testprojects')" title="{$labels.show_event_history}">{$tlImages.help}</span>
   {/if}
 </h1>
 

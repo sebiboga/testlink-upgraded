@@ -24,7 +24,7 @@ jQuery(".chosen-select").chosen({ width: "100%" });
 	<h1 class="title">{$gui->pageTitle}</h1>
     <div class="workBack">
       {if $gui->userFeedback != ''}
-      <img src="{$tlImages.warning}"> <b>{$gui->userFeedback}</b>
+      <span>{$tlImages.warning}</span> <b>{$gui->userFeedback}</b>
       {/if}
       <form action="{$gui->url2call}" method="post">
         <div>

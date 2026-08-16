@@ -38,11 +38,9 @@ show Test Results by Status
   {/if}
 
   &nbsp;&nbsp;
-  <input type="image" name="exportSpreadSheet" id="exportSpreadSheet" 
-         src="{$tlImages.export_excel}" title="{$labels.export_as_spreadsheet}">
+  <button type="submit" name="exportSpreadSheet" id="exportSpreadSheet" title="{$labels.export_as_spreadsheet}">{$tlImages.export_excel}</button>
 
-  <input type="image" name="sendSpreadSheetByMail" id="sendSpreadSheetByMail" 
-         src="{$tlImages.email}" title="{$labels.send_spreadsheet_by_email}">
+  <button type="submit" name="sendSpreadSheetByMail" id="sendSpreadSheetByMail" title="{$labels.send_spreadsheet_by_email}">{$tlImages.email}</button>
 
   <p class="italic">{$gui->info_xls_report|escape}</p>
 

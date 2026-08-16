@@ -26,7 +26,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
         {$tplan=$gui->tplan_id}
         {$metaMode="editOnExec&tplan_id=$tplan"}                    
         <a href="javascript:openTCaseWindow({$tc_exec.testcase_id},{$tc_exec.id},'{$metaMode}')">
-        <img src="{$tlImages.note_edit}"  title="{$labels.show_tcase_spec}">
+        <span title="{$labels.show_tcase_spec}">{$tlImages.note_edit}</span>
         </a>
       {/if}
     
@@ -58,9 +58,9 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       <div>
         <br>
         {if $tc_exec.assigned_user == ''}
-          <img src="{$tlImages.warning}" style="border:none" />&nbsp;{$labels.has_no_assignment}
+          <span style="border:none">{$tlImages.warning}</span>&nbsp;{$labels.has_no_assignment}
         {else}
-            <img src="{$tlImages.user}" style="border:none" />&nbsp;
+            <span style="border:none">{$tlImages.user}</span>&nbsp;
             {$labels.assigned_to}{$title_sep}{$tc_exec.assigned_user|escape}
         {/if}
       </div>

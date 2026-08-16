@@ -23,15 +23,9 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
             <tr>
               <td class="bold"><nobr>{$rx.id} / {$rx.type_localized|escape}</nobr></td>
               <td>
-              <img class="clickable" src="{$tlImages.history_small}"
-                   onclick="javascript:openExecHistoryWindow({$rx.related_tcase.testcase_id});"
-                   title="{$labels.execution_history}" />
-              <img class="clickable" src="{$tlImages.exec_icon}"
-                   onclick="javascript:openExecutionWindow({$rx.related_tcase.testcase_id},{$rx.related_tcase.id},{$gui->build_id},{$gui->tplan_id},{$gui->platform_id});"
-                   title="{$labels.execution}" />
-              <img class="clickable" src="{$tlImages.edit}"
-                   onclick="javascript:openTCaseWindow({$rx.related_tcase.testcase_id},{$rx.related_tcase.id});"
-                   title="{$labels.design}" />            
+              <span class="clickable" onclick="javascript:openExecHistoryWindow({$rx.related_tcase.testcase_id});" title="{$labels.execution_history}">{$tlImages.history_small}</span>
+              <span class="clickable" onclick="javascript:openExecutionWindow({$rx.related_tcase.testcase_id},{$rx.related_tcase.id},{$gui->build_id},{$gui->tplan_id},{$gui->platform_id});" title="{$labels.execution}">{$tlImages.exec_icon}</span>
+              <span class="clickable" onclick="javascript:openTCaseWindow({$rx.related_tcase.testcase_id},{$rx.related_tcase.id});" title="{$labels.design}">{$tlImages.edit}</span>            
               <a href="javascript:openTCaseWindow({$rx.related_tcase.testcase_id},{$rx.related_tcase.id})">
                  {$rx.related_tcase.fullExternalID|escape}:
                  {$rx.related_tcase.name|escape}</a>

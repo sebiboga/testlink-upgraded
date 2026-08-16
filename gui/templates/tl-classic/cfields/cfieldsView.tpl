@@ -56,7 +56,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       <td width="10%">{$cf_def.label|escape}</td>
       <td width="5%">{$gui->cf_types[$cf_def.type]}</td>
       <td width="10%">{$cf_def.enabled_on_context}</td>
-      <td align="center" width="5%">{if $cf_def.show_on_execution}<img src="{$tlImages.checked}">{/if} </td>
+      <td align="center" width="5%">{if $cf_def.show_on_execution}<span>{$tlImages.checked}</span>{/if} </td>
       <td width="10%">{lang_get s=$cf_def.node_description}</td>
       
       </tr>

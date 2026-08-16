@@ -172,6 +172,7 @@ if( $doIt ) {
 
       $gui = new stdClass();
       $gui->tproject_id = $args->tprojectID;
+      $gui->containerID = $args->containerID;
       $gui->containerType = $level;
       $gui->refreshTree = $args->refreshTree;
       $gui->hasKeywords = (count((array)$opt_cfg->from->map) > 0) || (count((array)$opt_cfg->to->map) > 0);
@@ -259,9 +260,10 @@ if( $doIt ) {
 
       $gui = new stdClass();
       $gui->tproject_id = $args->tprojectID;
+      $gui->containerID = $args->containerID;
       $gui->containerType = $level;
       $gui->refreshTree = $args->refreshTree;
-      $gui->cancelActionJS = 'location.href=fRoot+' . 
+      $gui->cancelActionJS = 'location.href=fRoot+' .
                              "'lib/testcases/archiveData.php?id=" . intval($args->containerID);
       
       switch($level) {

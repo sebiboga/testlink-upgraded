@@ -9,7 +9,7 @@ Left side menu
       <div id="sidebar" class="nav-collapse ">
         <!-- sidebar menu start-->
         <ul class="sidebar-menu" id="nav-accordion">
-          <p class="centered"><img src="{$gui->logo}"></p>
+          <p class="centered"><img src="{$gui->logo}" alt="TestLink"></p>
           <h4 class="centered"><a href="{$gui->uri->userInfo}">{$gui->whoami}</a></h4>
           {if $gui->showMenu != null}
             {if $gui->showMenu.dashboard == true}

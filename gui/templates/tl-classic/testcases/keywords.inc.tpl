@@ -83,10 +83,10 @@ var pF_remove_keyword = remove_keyword;
         <a href="javascript:open_popup('{$kwView}')">{$tcView_viewer_labels.keywords}</a> &nbsp; 
 
         <a href="javascript:open_popup('{$kwAdd}')">
-        <img src="{$tlImages.add}" title="{$kw_labels.createKW}"  style="border:none" /></a>&nbsp; 
+        <span title="{$kw_labels.createKW}" style="border:none">{$tlImages.add}</span></a>&nbsp; 
 
         <a href="javascript:open_popup('{$kwAL}')">
-        <img src="{$tlImages.keyword_add}" title="{$kw_labels.btn_create_and_link}"  style="border:none" /></a>&nbsp; 
+        <span title="{$kw_labels.btn_create_and_link}" style="border:none">{$tlImages.keyword_add}</span></a>&nbsp; 
       </td>
 
     </tr>
@@ -100,7 +100,7 @@ var pF_remove_keyword = remove_keyword;
                         '{$tckw_link_item.keyword|escape:'javascript'}', 
                         remove_kw_msgbox_title, remove_kw_msgbox_msg, 
                         pF_remove_keyword);">
-              <img src="{$tlImages.delete}" title="{$kw_labels.img_title_remove_keyword}"  style="border:none" /></a>
+              <span title="{$kw_labels.img_title_remove_keyword}" style="border:none">{$tlImages.delete}</span></a>
             {/if}
               {$tckw_link_item.keyword|escape}
         </td>      

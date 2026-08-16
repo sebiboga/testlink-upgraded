@@ -181,8 +181,7 @@ var pF_freeze_req_spec = freeze_req_spec;
     <div class="direct_link" style='display:none'><a href="{$gui->direct_link}" target="_blank">{$gui->direct_link}</a></div>
   {/if}
 {if $gui->req_spec.id}
-<img class="clickable" src="{$tlImages.cog}" onclick="javascript:toogleShowHide('control_panel');"
-     title="{$labels.actions}" />
+<span class="clickable" onclick="javascript:toogleShowHide('control_panel');" title="{$labels.actions}">{$tlImages.cog}</span>
 {include file="requirements/$buttons_template" args_reqspec_id=$reqSpecID}
 
 <table class="simple">
@@ -192,7 +191,7 @@ var pF_freeze_req_spec = freeze_req_spec;
   <tr>
     <td class="bold" id="tooltip-{$gui->req_spec.revision_id}">
       {$labels.revision}{$smarty.const.TITLE_SEP}{$gui->req_spec.revision}
-       <img src="{$tlImages.log_message_small}" style="border:none" />
+       <span style="border:none">{$tlImages.log_message_small}</span>
       </td>
   </tr>
   <tr>

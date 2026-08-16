@@ -111,8 +111,7 @@ var del_action=fRoot+'{$deleteAction}';
   				<td>
   				    <a href="{$editAction}{$build.id}" title="{$labels.alt_edit_build}">{$build.name|escape}
   					     {if $gsmarty_gui->show_icon_edit}
-  					         <img style="border:none" alt="{$labels.alt_edit_build}" title="{$labels.alt_edit_build}"
-  					              src="{$tlImages.edit}"/>
+  					         <span style="border:none" title="{$labels.alt_edit_build}">{$tlImages.edit}</span>
   					     {/if}    
   					  </a>   
               <span class="api_info" style='display:none'>{$tlCfg->api->id_format|replace:"%s":$build.id}</span>
@@ -130,38 +129,22 @@ var del_action=fRoot+'{$deleteAction}';
 
           <td class="clickable_icon">
             {if $build.active==1} 
-                <input type="image" style="border:none" id="set_build_active"
-                       title="{$labels.active_click_to_change}" alt="{$labels.active_click_to_change}" 
-                       onClick = "do_action.value='setInactive';build_id.value={$build.id};"
-                       src="{$tlImages.on}"/>
+                <button type="submit" style="border:none" id="set_build_active" title="{$labels.active_click_to_change}" alt="{$labels.active_click_to_change}" onClick = "do_action.value='setInactive';build_id.value={$build.id};">{$tlImages.on}</button>
               {else}
-                <input type="image" style="border:none" id="set_build_inactive"
-                     title="{$labels.inactive_click_to_change}" alt="{$labels.inactive_click_to_change}" 
-                     onClick = "do_action.value='setActive';build_id.value={$build.id};"
-                     src="{$tlImages.off}"/>
+                <button type="submit" style="border:none" id="set_build_inactive" title="{$labels.inactive_click_to_change}" alt="{$labels.inactive_click_to_change}" onClick = "do_action.value='setActive';build_id.value={$build.id};">{$tlImages.off}</button>
               {/if}
           </td>
 
           <td class="clickable_icon">
             {if $build.is_open==1} 
-                <input type="image" style="border:none" id="close_build"
-                       title="{$labels.click_to_set_closed}" alt="{$labels.click_to_set_closed}" 
-                       onClick = "do_action.value='close';build_id.value={$build.id};"
-                       src="{$tlImages.lock_open}"/>
+                <button type="submit" style="border:none" id="close_build" title="{$labels.click_to_set_closed}" alt="{$labels.click_to_set_closed}" onClick = "do_action.value='close';build_id.value={$build.id};">{$tlImages.lock_open}</button>
               {else}
-                <input type="image" style="border:none" id="open_build"
-                     title="{$labels.click_to_set_open}" alt="{$labels.click_to_set_open}" 
-                     onClick = "do_action.value='open';build_id.value={$build.id};"
-                     src="{$tlImages.lock}"/>
+                <button type="submit" style="border:none" id="open_build" title="{$labels.click_to_set_open}" alt="{$labels.click_to_set_open}" onClick = "do_action.value='open';build_id.value={$build.id};">{$tlImages.lock}</button>
               {/if}
           </td>
 
   				<td class="clickable_icon">
-				       <img style="border:none;cursor: pointer;"  title="{$labels.alt_delete_build}" 
-  				            alt="{$labels.alt_delete_build}" 
- 					            onclick="delete_confirmation({$build.id},'{$build.name|escape:'javascript'|escape}',
- 					                                         '{$del_msgbox_title}','{$warning_msg}');"
-  				            src="{$tlImages.delete}"/>
+				       <span style="border:none;cursor: pointer;" title="{$labels.alt_delete_build}" onclick="delete_confirmation({$build.id},'{$build.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
   				</td>
   			</tr>
   		{/foreach}

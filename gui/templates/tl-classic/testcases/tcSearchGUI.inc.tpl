@@ -25,8 +25,7 @@ Purpose: show form for search through test cases in test specification
   <table class="simple" style="width:100%">
     <tr>
      <td colspan="8">
-     <img src="{$tlImages.info}" title =" {$labels.filter_mode_and} {$gui->search_important_notice|escape}.
-                                          {$labels.search_prefix_ignored|escape}">
+     <span title =" {$labels.filter_mode_and} {$gui->search_important_notice|escape}. {$labels.search_prefix_ignored|escape}">{$tlImages.info}</span>
      </td>
     </tr>
     <tr>
@@ -144,7 +143,7 @@ Purpose: show form for search through test cases in test specification
     </tr>
 
      <tr>
-      <td>{$labels.jolly}<img src="{$tlImages.info}" title="{$labels.jolly_hint}"></td>
+      <td>{$labels.jolly}<span title="{$labels.jolly_hint}">{$tlImages.info}</span></td>
       <td><input type="text" name="jolly" id="jolly" 
       value="{$gui->jolly|escape}"
                  size="{#SUMMARY_SIZE#}" maxlength="{#SUMMARY_MAXLEN#}" /></td>

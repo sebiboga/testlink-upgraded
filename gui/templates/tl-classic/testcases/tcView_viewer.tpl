@@ -422,7 +422,7 @@ viewer for test case in test specification
       <div class="{$defClass}" align="center">
         {if property_exists($msgCfg, "tlImagesAccessKey") && $msgCfg->tlImagesAccessKey != ""}
           {$imgAccessKey = $msgCfg->tlImagesAccessKey}
-          <img class="clickable" src="{$tlImages[$msgCfg->tlImagesAccessKey]}" />
+          <span class="clickable">{$tlImages[$msgCfg->tlImagesAccessKey]}</span>
         {/if}      
       {$additionalMsg}
       </div>
@@ -594,9 +594,7 @@ viewer for test case in test specification
                  target="mainframe" class="bold">{$tcView_viewer_labels.Requirements}</a>
 
                 {if $reqLinkingEnabled && $args_testcase.isTheLatest == 1}
-                  <img class="clickable" src="{$tlImages.item_link}"
-                       onclick="javascript:openReqWindow({$args_testcase.testcase_id},'a');"
-                       title="{$tcView_viewer_labels.link_unlink_requirements}" />
+                  <span class="clickable" onclick="javascript:openReqWindow({$args_testcase.testcase_id},'a');" title="{$tcView_viewer_labels.link_unlink_requirements}">{$tlImages.item_link}</span>
                 {/if}
                 : &nbsp;</span>
           </td>
@@ -607,9 +605,7 @@ viewer for test case in test specification
                   {$reqVersionNum=$args_reqs[item].version}
                   
                   
-                  <img class="clickable" src="{$tlImages.edit}"
-                       onclick="javascript:openLinkedReqVersionWindow({$reqID},{$reqVersionID});"
-                       title="{$tcView_viewer_labels.requirement}" />
+                  <span class="clickable" onclick="javascript:openLinkedReqVersionWindow({$reqID},{$reqVersionID});" title="{$tcView_viewer_labels.requirement}">{$tlImages.edit}</span>
                   {$openC}{$args_reqs[item].req_spec_title|escape}{$closeC}
                   {$args_reqs[item].req_doc_id|escape}&nbsp{$openC}{$tcView_viewer_labels.version_short}{$reqVersionNum}{$closeC}{$sepC}{$args_reqs[item].title|escape}
                   {if !$smarty.section.item.last}<br />{/if}
@@ -632,7 +628,7 @@ viewer for test case in test specification
             <span><a title="{$tcView_viewer_labels.code_mgmt}" href="{$gui->cts->cfg->uriview}"
                  target="_blank" class="bold">{$tcView_viewer_labels.code_mgmt}</a><b>: &nbsp;</b>
               <a href="javascript:open_script_add_window({$gui->tproject_id},null,{$tcversion_id},'link')">
-              <img src="{$tlImages.new_f2_16}" title="{$tcView_viewer_labels.code_link_tl_to_cts}" style="border:none" /></a>
+              <span title="{$tcView_viewer_labels.code_link_tl_to_cts}" style="border:none">{$tlImages.new_f2_16}</span></a>
                 &nbsp;
             </span>
           </td>

@@ -17,20 +17,14 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
       {* $tcversion_id inherited  from tcView_viewer.tpl *}
       {if $inc_relations != ''}
-        <img class="clickable" src="{$tlImages.relations}"
-             title="{$inc_tcbody_labels.tc_has_relations}"
-             onclick="document.getElementById('relations_{$tcversion_id}').scrollIntoView();">       
+        <span class="clickable" title="{$inc_tcbody_labels.tc_has_relations}" onclick="document.getElementById('relations_{$tcversion_id}').scrollIntoView();">{$tlImages.relations}</span>       
       {/if} 
     
       {$tco.tc_external_id}{$smarty.const.TITLE_SEP}{$tco.name|escape}
       {$smarty.const.TITLE_SEP_TYPE2}{$inc_tcbody_labels.version|escape}{$tco.version}
-      <img class="clickable" src="{$tlImages.ghost_item}"
-               title="{$inc_tcbody_labels.show_ghost_string}"
-               onclick="showHideByDataEntity('ghostTC');">
+      <span class="clickable" title="{$inc_tcbody_labels.show_ghost_string}" onclick="showHideByDataEntity('ghostTC');">{$tlImages.ghost_item}</span>
 
-      <img class="clickable" src="{$tlImages.activity}"
-           title="{$inc_tcbody_labels.display_author_updater}"
-           onclick="showHideByDataEntity('createUpdate');">
+      <span class="clickable" title="{$inc_tcbody_labels.display_author_updater}" onclick="showHideByDataEntity('createUpdate');">{$tlImages.activity}</span>
   </div>
   <div class="row" style="display:none;" data-entity="ghostTC">{$tco.ghost}<hr></div> 
   {if $inc_tcbody_author_userinfo != ''}  

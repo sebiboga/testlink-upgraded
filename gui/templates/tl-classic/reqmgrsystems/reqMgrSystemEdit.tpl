@@ -70,9 +70,7 @@ function displayCfgExample(oid,displayOID)
   
   <div class="action_descr">{$gui->action_descr|escape}
     {if $gui->mgt_view_events eq "yes" && $gui->item.id > 0}
-      <img style="margin-left:5px;" class="clickable" src="{$tlImages.info}"
-         onclick="showEventHistoryFor('{$gui->item.id}','reqmrgsystems')" 
-         alt="{$labels.show_event_history}" title="{$labels.show_event_history}"/>
+      <span style="margin-left:5px;" class="clickable" onclick="showEventHistoryFor('{$gui->item.id}','reqmrgsystems')" title="{$labels.show_event_history}">{$tlImages.info}</span>
   {/if}
   
   </div><br />

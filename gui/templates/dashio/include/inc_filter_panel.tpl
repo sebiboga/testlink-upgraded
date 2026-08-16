@@ -199,28 +199,14 @@
           <td>&nbsp;</td>
           <td>
             {if $control->draw_export_testplan_button}
-            <image src="{$tlImages.export}" title="{$labels.btn_export_testplan_tree}"
-                   onclick="javascript: openExportTestPlan('export_testplan','{$gui->tproject_id}',
-                  '{$control->settings.setting_testplan.selected}',
-                  '{$platformID}',
-                  '{$control->settings.setting_build.selected}','tree',
-                  '{$control->form_token}');" />
+            <span title="{$labels.btn_export_testplan_tree}" onclick="javascript: openExportTestPlan('export_testplan','{$gui->tproject_id}', '{$control->settings.setting_testplan.selected}', '{$platformID}', '{$control->settings.setting_build.selected}','tree', '{$control->form_token}');">{$tlImages.export}</span>
             &nbsp;                                               
-            <image src="{$tlImages.export_for_results_import}" title="{$labels.btn_export_testplan_tree_for_results}"
-                   onclick="javascript: openExportTestPlan('export_testplan','{$gui->tproject_id}',
-                   '{$control->settings.setting_testplan.selected}',
-                   '{$platformID}',
-                   '{$control->settings.setting_build.selected}',
-                   '4results',
-                   '{$control->form_token}');" />
+            <span title="{$labels.btn_export_testplan_tree_for_results}" onclick="javascript: openExportTestPlan('export_testplan','{$gui->tproject_id}', '{$control->settings.setting_testplan.selected}', '{$platformID}', '{$control->settings.setting_build.selected}', '4results', '{$control->form_token}');">{$tlImages.export_for_results_import}</span>
 
             &nbsp;                                               
             {/if}
             {if $control->draw_import_xml_results_button}
-            <image src="{$tlImages.import_results}" title="{$labels.import_xml_results}"
-                   onclick="javascript: openImportResult('import_xml_results',{$gui->tproject_id},
-                   {$control->settings.setting_testplan.selected},
-                   {$control->settings.setting_build.selected},{$platformID});" />
+            <span title="{$labels.import_xml_results}" onclick="javascript: openImportResult('import_xml_results',{$gui->tproject_id}, {$control->settings.setting_testplan.selected}, {$control->settings.setting_build.selected},{$platformID});">{$tlImages.import_results}</span>
             {/if}
           </td>
         </tr>

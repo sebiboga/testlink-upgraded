@@ -140,12 +140,9 @@ function jsCallDeleteFile(btn, text, o_id)
       <input type="hidden" name="containerType" id="containerType" 
              value="{$gui->level}" />
 
-      <input type="image" src="{$tlImages.add}" name="new_testsuite" id="new_testsuite" 
-             onclick="doAction.value='new_testsuite'" title="{$labels.btn_new_testsuite}">
+      <button type="submit" name="new_testsuite" id="new_testsuite" onclick="doAction.value='new_testsuite'" title="{$labels.btn_new_testsuite}">{$tlImages.add}</button>
       
-      <input type="image" src="{$tlImages.order_alpha}" name="reorder_testproject_testsuites_alpha" 
-             id="reorder_testproject_testsuites_alpha" 
-             onclick="doAction.value='reorder_testproject_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">
+      <button type="submit" name="reorder_testproject_testsuites_alpha" id="reorder_testproject_testsuites_alpha" onclick="doAction.value='reorder_testproject_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">{$tlImages.order_alpha}</button>
 
       <span onclick="location='{$importToTProjectAction}'" title="{$labels.btn_import_testsuite}">{$tlImages.import}</span>
 

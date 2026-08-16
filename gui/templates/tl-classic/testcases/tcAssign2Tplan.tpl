@@ -46,10 +46,8 @@ function check_action_precondition(container_id,action)
 {if $gui->tplans}
 <form method="post" action="{$basehref}lib/testcases/tcEdit.php?testcase_id={$gui->tcase_id}&tcversion_id={$gui->tcversion_id}">
   <div>
-  <img class="clickable" src="{$tlImages.history_small}" onclick="javascript:openExecHistoryWindow({$gui->tcase_id});"
-        title="{$labels.execution_history}" />
-  <img class="clickable" src="{$tlImages.edit_icon}" onclick="javascript:openTCaseWindow({$gui->tcase_id});"
-       title="{$labels.design}" />
+  <span class="clickable" onclick="javascript:openExecHistoryWindow({$gui->tcase_id});" title="{$labels.execution_history}">{$tlImages.history_small}</span>
+  <span class="clickable" onclick="javascript:openTCaseWindow({$gui->tcase_id});" title="{$labels.design}">{$tlImages.edit_icon}</span>
   {$gui->tcaseIdentity|escape}
   </div>
 <br>

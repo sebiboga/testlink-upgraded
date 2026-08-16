@@ -135,7 +135,7 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
 
 		<div>
       <fieldset>
-			<img src="{$tlImages.user_group}" title="{$labels.user_bulk_assignment}">
+			<span title="{$labels.user_bulk_assignment}">{$tlImages.user_group}</span>
       {$labels.user_bulk_action}<br>
       <select class="chosen-bulk-select" multiple="multiple"
               name="bulk_tester_div[]" id="bulk_tester_div" >
@@ -155,7 +155,7 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
         value="{$labels.btn_remove_assignments}" />
 
 			<span style="margin-left:20px;">
-        <img src="{$tlImages.email}" title="{$labels.send_mail_to_tester}">
+        <span title="{$labels.send_mail_to_tester}">{$tlImages.email}</span>
         <input type="checkbox" title="{$labels.send_mail_to_tester}"
           name="send_mail" id="send_mail" {$gui->send_mail_checked} />
 			</span>
@@ -209,9 +209,7 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
 			      <thead>
 			      <tr style="background-color:#059; font-weight:bold; color:white">
 			      	<th width="35px" align="center">
-			          <img class="clickable" src="{$tlImages.toggle_all}"
-			               onclick='cs_all_checkbox_in_div("{$div_id}","{$add_cb}_{$ts_id}_","add_value_{$ts_id}");'
-                     title="{$labels.check_uncheck_all_checkboxes}" />
+			          <span class="clickable" onclick='cs_all_checkbox_in_div("{$div_id}","{$add_cb}_{$ts_id}_","add_value_{$ts_id}");' title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
 			      	</th>
               <th>{$labels.th_test_case}&nbsp;{$gsmarty_gui->role_separator_open}
               	{$labels.version}{$gsmarty_gui->role_separator_close}</th>
@@ -253,15 +251,9 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
                     			                     value="{$tcase.feature_id[$platform_id]}" />
               	    	</td>
               	    	<td>
-              	    		<img class="clickable" src="{$tlImages.history_small}"
-              	    		     onclick="javascript:openExecHistoryWindow({$tcase.id});"
-              	    		     title="{$labels.execution_history}" />
-              	    		<img class="clickable" src="{$tlImages.exec_icon}"
-              	    		     onclick="javascript:openExecutionWindow({$tcase.id},{$tcase.linked_version_id},{$gui->build_id},{$gui->tplan_id},{$platform_id});"
-              	    		     title="{$labels.execution}" />
-              	    		<img class="clickable" src="{$tlImages.edit}"
-              	    		     onclick="javascript:openTCaseWindow({$tcase.id},{$tcase.linked_version_id});"
-              	    		     title="{$labels.design}" />
+              	    		<span class="clickable" onclick="javascript:openExecHistoryWindow({$tcase.id});" title="{$labels.execution_history}">{$tlImages.history_small}</span>
+              	    		<span class="clickable" onclick="javascript:openExecutionWindow({$tcase.id},{$tcase.linked_version_id},{$gui->build_id},{$gui->tplan_id},{$platform_id});" title="{$labels.execution}">{$tlImages.exec_icon}</span>
+              	    		<span class="clickable" onclick="javascript:openTCaseWindow({$tcase.id},{$tcase.linked_version_id});" title="{$labels.design}">{$tlImages.edit}</span>
               	    		{$gui->testCasePrefix|escape}{$tcase.external_id|escape}{$gsmarty_gui->title_separator_1}{$tcase.name|escape}
               	    		&nbsp;{$gsmarty_gui->role_separator_open} {$tcase.tcversions[$tcase.linked_version_id]}
               	    		{$gsmarty_gui->role_separator_close}
@@ -285,9 +277,7 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
               	    	<td style="align:left;">
                         &nbsp;&nbsp;&nbsp;&nbsp;
               	    		{if $userID >0 && $gui->users[$userID] != ''}
-                        <img class="clickable" src="{$tlImages.remove}"
-                             onclick="doAction.value='doRemove';targetFeature.value={$tcase.feature_id[$platform_id]};targetUser.value={$userID};tc_exec_assignment.submit();"
-                             title="{$labels.remove}" /> 
+                        <span class="clickable" onclick="doAction.value='doRemove';targetFeature.value={$tcase.feature_id[$platform_id]};targetUser.value={$userID};tc_exec_assignment.submit();" title="{$labels.remove}">{$tlImages.remove}</span> 
                           {$gui->users[$userID]|escape}
                           {if $gui->testers[$userID] == ''}{$labels.can_not_execute}{/if} {* user is a Tester? *}
                         {/if}                          

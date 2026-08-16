@@ -46,24 +46,22 @@
                title="{$labels.btn_edit_testsuite}"></i>
           </button>
         
-          <button style="border:0;" name="move_testsuite_viewer" 
+          <button style="border:0;" name="move_testsuite_viewer"
             id="move_testsuite_viewer"
-            onclick="doAction.value='move_testsuite_viewer'"
+            onclick="doAction.value='move_testsuite_viewer'">
             <i class="fas fa-copy" title="{$labels.alt_move_cp_testsuite}"></i>
           </button>
 
-          <button style="border:0;" name="delete_testsuite" 
+          <button style="border:0;" name="delete_testsuite"
             id="delete_testsuite"
-            onclick="doAction.value='delete_testsuite'"
-            <i class="fas fa-times-circle" 
+            onclick="doAction.value='delete_testsuite'">
+            <i class="fas fa-times-circle"
                title="{$labels.alt_del_testsuite}"></i>
           </button>
 
-          <input type="image" src="{$tlImages.order_alpha}" name="reorder_testsuites_alpha" id="reorder_testsuites_alpha" 
-                 onclick="doAction.value='reorder_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">
+          <button type="submit" name="reorder_testsuites_alpha" id="reorder_testsuites_alpha" onclick="doAction.value='reorder_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">{$tlImages.order_alpha}</button>
           
-          <input type="image" src="{$tlImages.testcases_table_view}" name="testcases_table_view" id="testcases_table_view" 
-                 onclick="doAction.value='testcases_table_view'" title="{$labels.btn_testcases_table_view}">
+          <button type="submit" name="testcases_table_view" id="testcases_table_view" onclick="doAction.value='testcases_table_view'" title="{$labels.btn_testcases_table_view}">{$tlImages.testcases_table_view}</button>
 
           <span onclick="window.open('{$testSuiteDocAction}')" 
  title="{$labels.btn_gen_test_suite_spec_new_window}">{$tlImages.report}</span>
@@ -71,16 +69,16 @@
           <span onclick="window.open('{$testSuiteWordDocAction}')" 
  title="{$labels.btn_gen_test_suite_spec_word}">{$tlImages.report_word}</span>
 
-          <button style="border:0;" name="importItem" 
+          <button style="border:0;" name="importItem"
             id="importItem"
-            onclick="location='{$importToTSuiteAction}'"
+            onclick="location='{$importToTSuiteAction}'">
             <i class="fas fa-file-import"
               title="{$labels.btn_import_testsuite}"></i>
           </button>
 
-          <button style="border:0;" name="exportItem" 
+          <button style="border:0;" name="exportItem"
             id="exportItem"
-            onclick="location='{$tsuiteExportAction}'"
+            onclick="location='{$tsuiteExportAction}'">
             <i class="fas fa-file-export"
               title="{$labels.btn_export_testsuite}"></i>
           </button>
@@ -96,9 +94,7 @@
           <input type="hidden" name="doAction" id="doAction" value="" />
           <input type="hidden" name="containerID" value="{$gui->container_data.id}" />
 
-          <input type="image" src="{$tlImages.add}" 
-                 name="create_tc" id="create_tc" 
-                 onclick="doAction.value='create'" title="{$labels.btn_new_tc}">
+          <button type="submit" name="create_tc" id="create_tc" onclick="doAction.value='create'" title="{$labels.btn_new_tc}">{$tlImages.add}</button>
         </form>
 
         <form method="post" action="{$basehref}lib/testcases/containerEdit.php">
@@ -119,14 +115,11 @@
 
 
 
-          <input type="image" src="{$tlImages.move_copy}" name="move_testcases_viewer" id="move_testcases_viewer" 
-                 onclick="doAction.value='move_testcases_viewer'" title="{$labels.alt_move_cp_testcases}">
+          <button type="submit" name="move_testcases_viewer" id="move_testcases_viewer" onclick="doAction.value='move_testcases_viewer'" title="{$labels.alt_move_cp_testcases}">{$tlImages.move_copy}</button>
 
-          <input type="image" src="{$tlImages.delete}" name="delete_testcases" id="delete_testcases" 
-                 onclick="doAction.value='delete_testcases'" title="{$labels.btn_delete_testcases}">
+          <button type="submit" name="delete_testcases" id="delete_testcases" onclick="doAction.value='delete_testcases'" title="{$labels.btn_delete_testcases}">{$tlImages.delete}</button>
 
-          <input type="image" src="{$tlImages.reorder}" name="reorder_testcases" id="reorder_testcases" 
-                 onclick="doAction.value='reorder_testcases'" title="{$gui->btn_reorder_testcases}">
+          <button type="submit" name="reorder_testcases" id="reorder_testcases" onclick="doAction.value='reorder_testcases'" title="{$gui->btn_reorder_testcases}">{$tlImages.reorder}</button>
         </form>
 
         <form method="post" action="{$basehref}lib/testcases/tcEdit.php">

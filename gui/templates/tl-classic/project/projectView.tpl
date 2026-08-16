@@ -153,8 +153,7 @@ var del_action=fRoot+'{$deleteAction}';
              {$testproject.name|escape}
              <span class="api_info" style='display:none'>{$tlCfg->api->id_format|replace:"%s":$testproject.id}</span>
              {if $gsmarty_gui->show_icon_edit}
-                  <img title="{$labels.testproject_alt_edit}" alt="{$labels.testproject_alt_edit}"
-                       src="{$tlImages.edit}"/>
+                  <span title="{$labels.testproject_alt_edit}">{$tlImages.edit}</span>
               {/if}
            </a>
       </td>
@@ -178,44 +177,28 @@ var del_action=fRoot+'{$deleteAction}';
       *}
       <td class="clickable_icon">
         {if $testproject.opt->requirementsEnabled}
-            <input type="image" style="border:none" 
-                   title="{$labels.click_to_disable}"  alt="{$labels.click_to_disable}" 
-                   onClick = "doAction.value='disableRequirements';tprojectID.value={$testproject.id};"
-                   src="{$tlImages.on}"/>
+            <button type="submit" style="border:none" title="{$labels.click_to_disable}" alt="{$labels.click_to_disable}" onClick = "doAction.value='disableRequirements';tprojectID.value={$testproject.id};">{$tlImages.on}</button>
           {else}
-            <input type="image" style="border:none" 
-                   title="{$labels.click_to_enable}"  alt="{$labels.click_to_enable}" 
-                   onClick = "doAction.value='enableRequirements';tprojectID.value={$testproject.id};"
-                   src="{$tlImages.off}"/>
+            <button type="submit" style="border:none" title="{$labels.click_to_enable}" alt="{$labels.click_to_enable}" onClick = "doAction.value='enableRequirements';tprojectID.value={$testproject.id};">{$tlImages.off}</button>
           {/if}
       </td>
       <td class="clickable_icon">
         {if $testproject.active}
-            <input type="image" style="border:none" 
-                   title="{$labels.active_click_to_change}"  alt="{$labels.active_click_to_change}" 
-                   onClick = "doAction.value='setInactive';tprojectID.value={$testproject.id};"
-                   src="{$tlImages.on}"/>
+            <button type="submit" style="border:none" title="{$labels.active_click_to_change}" alt="{$labels.active_click_to_change}" onClick = "doAction.value='setInactive';tprojectID.value={$testproject.id};">{$tlImages.on}</button>
           {else}
-            <input type="image" style="border:none" 
-                   title="{$labels.inactive_click_to_change}"  alt="{$labels.inactive_click_to_change}" 
-                   onClick = "doAction.value='setActive';tprojectID.value={$testproject.id};"
-                   src="{$tlImages.off}"/>
+            <button type="submit" style="border:none" title="{$labels.inactive_click_to_change}" alt="{$labels.inactive_click_to_change}" onClick = "doAction.value='setActive';tprojectID.value={$testproject.id};">{$tlImages.off}</button>
           {/if}
       </td>
       <td class="clickable_icon">
         {if $testproject.is_public}
-            <img style="border:none"  title="{$labels.public}" alt="{$labels.public}" src="{$tlImages.choiceOn}" />
+            <span style="border:none" title="{$labels.public}">{$tlImages.choiceOn}</span>
           {else}
             &nbsp;
           {/if}
       </td>
       {if $gui->canManage == "yes"}
       <td class="clickable_icon">
-          <img style="border:none;cursor: pointer;"  alt="{$labels.testproject_alt_delete}"
-               title="{$labels.testproject_alt_delete}"
-               onclick="delete_confirmation({$testproject.id},'{$testproject.name|escape:'javascript'|escape}',
-                                          '{$del_msgbox_title}','{$warning_msg}');"
-               src="{$tlImages.delete}"/>
+          <span style="border:none;cursor: pointer;" title="{$labels.testproject_alt_delete}" onclick="delete_confirmation({$testproject.id},'{$testproject.name|escape:'javascript'|escape}', '{$del_msgbox_title}','{$warning_msg}');">{$tlImages.delete}</span>
       </td>
       {/if}
     </tr>
