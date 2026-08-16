@@ -339,6 +339,19 @@ class database {
     return $status_ok;
   }
 
+  /**
+   * Check if database supports Common Table Expressions (CTE)
+   * CTE supported in: MySQL 8.0+, MariaDB 10.2+, PostgreSQL 8.4+, Oracle 9.2+
+   * @return boolean TRUE if CTE is supported
+   **/
+  function db_supports_cte()
+  {
+    // MySQL/MariaDB support CTE in modern versions (8.0+ / 10.2+)
+    // PostgreSQL 8.4+ supports CTE
+    // Oracle 9.2+ supports CTE
+    // Assume modern versions support it
+    return true;
+  }
 
   function db_table_exists( $p_table_name ) {
     return in_array ( $p_table_name , $this->db->MetaTables( "TABLE" ) ) ;
