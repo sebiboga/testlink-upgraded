@@ -117,9 +117,9 @@ function setComboIfCbx(oid,combo_id_prefix,oid4value)
 
   {* ------------------------------------------------------------------- *}
   {* added z-index to avoid problems with scrolling when using EXT-JS *}
-  <div id="header-wrap" 
+  <div id="header-wrap"
        class="workBack"
-       style="z-index:999;height:200px;"> 
+       style="height:200px;"> 
   <!-- header-wrap -->
 	<h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>
   {if $gui->has_tc}
