@@ -26,8 +26,12 @@ $metricsMgr = new tlTestPlanMetrics($db);
 
 $tsInf = $metricsMgr->getStatusTotalsTSuiteDepth2ForRender($args->tplan_id,null,array('groupByPlatform' => 1));
 
-if(is_null($tsInf)) {
-	// no test cases -> no report
+// infoL2 only gets entries for test suites nested at least one level below a
+// top level suite. A flat test specification leaves it empty, and the
+// current(current()) below would then evaluate current(false) -> TypeError
+// on PHP 8. Treat "nothing to report on" the same as "no test cases".
+if(is_null($tsInf) || empty($tsInf->infoL2)) {
+	// no level 2 test suites -> no report
 	$gui->do_report['status_ok'] = 0;
 	$gui->do_report['msg'] = lang_get('report_tspec_has_no_tsuites');
 	tLog('Overall Metrics page: no test cases defined');
@@ -175,7 +179,11 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
   $gui->tplan_id = intval($argsObj->tplan_id);
 
   $gui->platformSet = $tplanMgr->getPlatforms($argsObj->tplan_id,array('outputFormat' => 'map'));
-  if( is_null($gui->platformSet) ) {
+  // getLinkedToTestplanAsMap() always returns an array, so for a test plan
+  // with no platforms it comes back empty and never null. Checking only for
+  // null left showPlatforms true with an empty set, and every per-platform
+  // foreach in the template iterated zero times -> empty report sections.
+  if( is_null($gui->platformSet) || count($gui->platformSet) == 0 ) {
   	$gui->platformSet = array('');
   	$gui->showPlatforms = false;
   } else {

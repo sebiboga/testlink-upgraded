@@ -132,7 +132,11 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr)
   $gui->tplan_id = intval($argsObj->tplan_id);
 
   $gui->platformSet = $tplanMgr->getPlatforms($argsObj->tplan_id,array('outputFormat' => 'map'));
-  if( is_null($gui->platformSet) ) {
+  // getLinkedToTestplanAsMap() always returns an array, so for a test plan
+  // with no platforms it comes back empty and never null. Checking only for
+  // null left showPlatforms true with an empty set, and every per-platform
+  // foreach in the template iterated zero times -> empty report sections.
+  if( is_null($gui->platformSet) || count($gui->platformSet) == 0 ) {
   	$gui->platformSet = array('');
   	$gui->showPlatforms = false;
   } else {

@@ -190,7 +190,9 @@ function gen_spec_view(&$db, $specViewType, $tobj_id, $id, $name, &$linked_items
   $idx = 0;
   $a_tcid = array();
   $a_tsuite_idx = array();
-  if (count($test_spec)) {
+  // getTestSpecFromNode() returns null when the filters leave nothing;
+  // count(null) is a TypeError on PHP 8.
+  if (!empty($test_spec)) {
     $cfg = array('node_types' => $hash_id_descr, 
                  'write_status' => $write_status,
                  'is_uncovered_view_type' => $is_uncovered_view_type);
@@ -341,7 +343,9 @@ $map_node_tccount, $filters=null, $options = null, $tproject_id = null)
 	$idx = 0;
 	$a_tcid = array();
 	$a_tsuite_idx = array();
-	if (count($test_spec)) {
+	// getTestSpecFromNode() returns null when the filters leave nothing;
+	// count(null) is a TypeError on PHP 8.
+	if (!empty($test_spec)) {
 		$cfg = array('node_types' => $hash_id_descr, 
                  'write_status' => $write_status,
 				         'is_uncovered_view_type' => $is_uncovered_view_type);
@@ -916,7 +920,15 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
             $test_spec = null;
           }
 
-          $setToRemove = array_diff_key($tcversionSet,$allowedSet);
+          // $allowedSet stays null when no execution_type / cfields filter is
+          // active, i.e. nothing has to be removed. On PHP 7 array_diff_key()
+          // just warned and returned null here, which the guard below absorbed;
+          // on PHP 8 it is a TypeError. Keep the "remove nothing" outcome --
+          // casting to (array) would instead diff against an empty set and
+          // wipe the whole test spec.
+          $setToRemove = is_null($allowedSet)
+                         ? null
+                         : array_diff_key($tcversionSet,$allowedSet);
           if( !is_null($setToRemove) &&  count($setToRemove) > 0 ) {
             foreach($setToRemove as $key => $value) {
               $tspecKey = $itemSet[$value['testcase_id']];  
@@ -1543,7 +1555,9 @@ function genSpecViewFlat(&$db, $specViewType, $tobj_id, $id, $name, &$linked_ite
   $idx = 0;
   $a_tcid = array();
   $a_tsuite_idx = array();
-  if(count($test_spec)) {
+  // getTestSpecFromNode() returns null when the filters leave nothing;
+  // count(null) is a TypeError on PHP 8.
+  if(!empty($test_spec)) {
     $cfg = array('node_types' => $hash_id_descr, 
                  'write_status' => $write_status,
                  'is_uncovered_view_type' => $is_uncovered_view_type);

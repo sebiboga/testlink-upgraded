@@ -82,10 +82,17 @@ foreach ($statusDisplayOrder as $x => $code) {
 
 
 // Generate statistics for each platform
-// Platforms are ordered by name  
-foreach ($rsu as $plat_id => $dataByContext) {
-  $gui->statistics = array();
+// Platforms are ordered by name
+//
+// Initialized outside the loop on purpose: initializeGui() leaves
+// $gui->statistics as a stdClass, and with no baseline saved yet $rsu is
+// empty, so re-initializing inside the loop left the template subscripting
+// an object -> "Cannot use object of type stdClass as array".
+// Doing it here also stops each platform from discarding the previous one.
+$gui->statistics = array();
+$gui->span = array();
 
+foreach ($rsu as $plat_id => $dataByContext) {
   $gui->statistics[$plat_id] = array();
   $gui->span[$plat_id] = array();
   
@@ -210,7 +217,11 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
   $gui->tplan_id = intval($argsObj->tplan_id);
 
   $gui->platformSet = $tplanMgr->getPlatforms($argsObj->tplan_id,array('outputFormat' => 'map'));
-  if( is_null($gui->platformSet) ) {
+  // getLinkedToTestplanAsMap() always returns an array, so for a test plan
+  // with no platforms it comes back empty and never null. Checking only for
+  // null left showPlatforms true with an empty set, and every per-platform
+  // foreach in the template iterated zero times -> empty report sections.
+  if( is_null($gui->platformSet) || count($gui->platformSet) == 0 ) {
   	$gui->platformSet = array('');
   	$gui->showPlatforms = false;
   } else {
