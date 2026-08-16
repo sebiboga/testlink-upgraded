@@ -1,0 +1,686 @@
+145e587e4 [app=3,other=1] LDAP Tests OK jumpcloud.com
+      cfg/const.inc.php,config.inc.php,lib/functions/doAuthorize.php,lib/functions/ldap_api.php
+424eac7a8 [app=5,other=4,thirdparty=1,vendor=1415] First Test using https://ldaprecord.com/
+      composer.json,composer.lock,config_db.inc.old.php,config_db.inc.php.8.2.4,lib/functions/doAuthorize.php,lib/functions/ldap_api.php,lib/plan/planEdit.php,lib/...
+5b8e7ec3c [app=3,dashio=4] requirements search fix
+      gui/javascript/testlink_library.js,lib/requirements/reqOverview.php,lib/requirements/reqSearch.php
+b542d82b3 [app=2] feature: openLinkedReqVersionWindow() added tproject_id
+      gui/javascript/testlink_library.js,lib/requirements/reqMonitorOverview.php
+959ecb074 [app=1,dashio=1] feature: https://testlink2-2023.youtrack.cloud/issue/TN2023-106/Entering-exceede
+      locale/en_GB/strings.txt
+5aefc55df [dashio=1] added missed tproject_id
+eeb28477c [app=1] added missed tproject_id
+      lib/requirements/reqCommands.class.php
+cebcfd6cf [app=1] tproject_id & tplan_id
+      lib/requirements/reqSpecCommands.class.php
+2dee80bcd [dashio=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-104/Start-Toggle-Monitor
+da4d82895 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Requirement-Specifica
+      lib/requirements/reqImport.php
+fbccb024f [app=1] missing ;
+      lib/requirements/reqCommands.class.php
+2e7fe2f66 [app=1] https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be-crea
+      lib/requirements/reqCommands.class.php
+2f5e876cb [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-46/Created-Requirement-S
+      lib/functions/requirement_spec_mgr.class.php
+0c1aae8ee [app=2] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-97/Unable-to-Import-Link
+      lib/functions/testproject.class.php,lib/plan/planImport.php
+2e800bcf5 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Importing-file-in-the
+      lib/functions/requirement_spec_mgr.class.php
+6bc314e35 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be
+      lib/requirements/reqCommands.class.php
+338372603 [app=1] fix: en_US https://testlink2-2023.youtrack.cloud/issue/TN2023-83/Clicking-on-Req
+      locale/en_US/strings.txt
+562f98d02 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-36/Test-Project-Clicking
+      lib/testcases/tcImport.php
+9b9096665 [app=1] fix: debug (var_dump) removed
+      lib/functions/specview.php
+f2b70fcf3 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-82/Menu-title-Search-Req
+      locale/en_US/strings.txt
+8da913f81 [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-84/Clicking-CreateLink-K
+      lib/keywords/keywordsEdit.php
+a4264b7ed [app=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-61/Issue-Tracker-Manegem
+      lib/issuetrackerintegration/issueTrackerInterface.class.php
+042274190 [other=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-100/Test-Case-Direct-Lin
+      linkto.php
+3edefbf73 [dashio=2] fix: change HTML input type for version field
+c064b6c1b [dashio=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-91/Search-test-cases-Ent
+189d94ecf [app=1] Update Linked Test Case Versions -> Update Linked TC Versions
+      locale/en_US/strings.txt
+ffac0d79d [dashio=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-102/Fatal-Error-When-Vie
+86bfbb5d9 [app=1,dashio=1] fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-98/Fatal-Error-When-View
+      gui/javascript/testlink_library.js
+07553b97a [dashio=1] feature: replace help image with fontawesome + changing cursor type
+c079fca55 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-106h added missing tproject
+a6304f6b8 [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-77/The-error-message-occurs
+      lib/keywords/keywordsAssign.php
+943949415 [app=2] https://testlink2-2023.youtrack.cloud/issue/TQ342023-87/Fatal-Error-When-Updatin
+      lib/usermanagement/usersAssign.php,locale/en_GB/strings.txt
+5e009eddf [app=2] changes for PHP 8.2.4
+      install/installUtils.php,lib/functions/configCheck.php
+f9feefea9 [other=1] code layout
+      config.inc.php
+b3d6c72dc [app=1] fixed requirements menu activation
+      lib/functions/common.php
+2ac6fb86f [app=1] missing localization show_calendar
+      locale/en_GB/strings.txt
+86733510d [app=2] firts -> first
+      locale/en_GB/strings.txt,locale/en_US/strings.txt
+54f830da2 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-67/Assign-Test-Plan-Roles-S
+1caaaeeb5 [dashio=1] fixed - https://testlink2-2023.youtrack.cloud/issue/TQ342023-69/Moving-between-t
+5aed12d0d [other=1] PHP8 - strftime() replaced with (new DateTimeImmutable())->format('Ymd-H:i:s');
+      config.inc.php
+a68f9b9db [app=1] Testcase bulk custom field update fixed
+      lib/testcases/containerEdit.php
+7a0b28a52 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-62/The-error-message-occurs
+df6c5577b [other=1] fixed error on notify global admins
+      firstLogin.php
+dafd3f777 [app=1] PHP 8 fixes
+      lib/functions/email_api.php
+20b448c57 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-63/The-error-occurs-after-c
+de51ac538 [app=2] https://testlink2-2023.youtrack.cloud/issue/TQ342023-61/The-error-message-occurs
+      lib/functions/testproject.class.php,lib/functions/tlKeyword.class.php
+1ac94fc46 [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-59/Tooltip-for-Jolly-OR-Fie
+      locale/en_GB/strings.txt
+63d319127 [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerabil
+      lib/testcases/tcSearch.php
+e6e6956f6 [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerabil
+      lib/search/searchCommands.class.php
+5a68cee15 [dashio=1] fix missing context (project & plan) in link
+e05e0ba6e [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-52/Import-Custom-field-show
+527daf839 [dashio=1] data tables fix combo for number of results to display
+010e173c1 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-38/Missing-values-in-the-Sh
+88ffcbae7 [app=2] Attachment message fix
+      lib/functions/common.php,lib/functions/tlAttachmentRepository.class.php
+d6eae26da [dashio=1,other=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-35/Missing-values-in-the-Sh
+      config.inc.php
+91f858a7d [app=1,dashio=1] search_words_placeholder improvements
+      locale/en_GB/strings.txt
+99f3b915e [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-17/Project-tree-shows-error
+      lib/plan/tc_exec_assignment.php
+3f6839d37 [app=1,dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-29
+      lib/functions/tlsmarty.inc.php
+d0c3806b6 [dashio=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-51
+71576103d [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-48/SQL-Injection-Vulnerabil
+      lib/search/searchCommands.class.php
+ac70cea9a [app=1] https://testlink2-2023.youtrack.cloud/issue/TQ342023-47/SQL-Injection-Vulnerabil
+      lib/testcases/tcSearch.php
+eaf398319 [app=3,dashio=4] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-14/The-Estimated-exec
+      lib/testcases/archiveData.php,lib/testcases/tcEdit.php,lib/testcases/testcaseCommands.class.php
+e5841f974 [dashio=1] Header Documentation
+86da69acd [app=1] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-25/The-keywords-are-n
+      lib/testcases/tcEdit.php
+29b6ee4ab [app=1,dashio=1] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-30/Not-able-to-delete
+      lib/usermanagement/rolesView.php
+7fa95e604 [app=2] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-26/The-error-occurs-a
+      lib/results/tcCreatedPerUser.php,lib/results/tcCreatedPerUserOnTestProject.php
+5c0ae8800 [app=1,dashio=1] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-21/TestSuite-error-me
+      lib/testcases/containerEdit.php
+39b887c6d [app=1] refactoring to avoid PHP8 issue (Countable)
+      lib/functions/tlTestPlanMetrics.class.php
+d3a4dda49 [app=1] issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-34/Editing-Custom-Def
+      lib/functions/cfield_mgr.class.php
+46c7b27fa [app=1] Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-12/Creating-Project-N
+      lib/project/projectEdit.php
+b7c03573a [app=1] issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-20 Upload File
+      lib/functions/attachments.inc.php
+a73c52b66 [app=1] Added information disclosure to semplify testing. To be removed before release
+      lib/functions/database.class.php
+99a5adef2 [dashio=1] #TL20PHP82202304-93 - youtrack - Assign-Test-Plan-Roles-Crash-trying-to-access-t
+79cf545bd [app=1] user management - fix expiration date mgmt
+      lib/usermanagement/usersEdit.php
+a86b8e347 [dashio=1] user mgmt user feedback using bootbox
+aecf49d4d [app=1] #TL20PHP82202304-72 - youtrack - issue saving value for date time custom field
+      lib/functions/cfield_mgr.class.php
+82f3fac2b [app=1] #TL20PHP82202304-63 - youtrack - Reports - Page cannot be accessed
+      lib/general/frmWorkArea.php
+ce3ac3e37 [app=2] #TL20PHP82202304-65 - youtrack - Test Case Design - Test Specifcation - Adding a
+      lib/functions/testsuite.class.php,lib/testcases/testcaseCommands.class.php
+5d46467a0 [app=1] #TL20PHP82202304-72 - youtrack - Fatal error appeared after defying 'Date' custo
+      lib/functions/date_api.php
+30730433f [app=4,dashio=2] search req spec fixes
+      lib/requirements/reqSearchForm.php,lib/requirements/reqSpecSearch.php,lib/requirements/reqSpecSearchForm.php,locale/en_GB/strings.txt
+bfc667346 [other=1] navbar update fixed
+      linkto.php
+705f16d0c [other=1] crash due to missing test project id fixed
+      linkto.php
+2fa28cef6 [app=2] sintax error fixed (missing ;)
+      lib/plan/planMilestonesEdit.php,lib/plan/planMilestonesView.php
+7a9e357b0 [app=1] #TL20PHP82202304-51 - youtrack - User "Expiration date "column False value
+      lib/usermanagement/usersEdit.php
+e5a429ff7 [dashio=1] #TL20PHP82202304-46 (youtrack) - Fatal error appeared when deleting a step in th
+8c3c759b3 [app=1,dashio=1] feature: test project prefix user hint regarding length
+      locale/en_GB/strings.txt
+4679c05f2 [app=1,dashio=1] Missing user feedback when project name and/or project prefix already exists
+      lib/project/projectEdit.php
+48263e1fb [thirdparty=1] bootbox upgrade to /**  * Bootbox.js — alert, confirm, prompt, and flexible dial
+5e1f88a44 [app=3,dashio=1] #0009246: Test Plan Management - Bulk Operations: set active / set inactive - FE
+      lib/functions/testplan.class.php,lib/plan/planEdit.php,locale/en_GB/strings.txt
+d633aa732 [app=1,dashio=1] TL20PHP82202304-11 - Quick Search - Leaving all fields blank results in error me
+      lib/testcases/tcSearch.php
+0e8e9730c [app=3] TL20PHP82202304-2 - Deleting last existing project results in error message
+      cfg/const.inc.php,lib/general/mainPage.php,lib/project/projectView.php
+a8ace4f2c [app=1] https://php.watch/versions/8.2/dynamic-properties-deprecated
+      lib/functions/logger.class.php
+4dbd2c29c [app=1] PHP 8.2 deprecated ${var} -> {$var} OK
+      lib/functions/string_api.php
+de7690285 [dashio=1] Data Tables usage refactored
+b57e32f58 [dashio=1] builds view DataTable with Filter and pagination length OK
+a28bf5cfd [dashio=1] keywords view DataTable with Filter and pagination length OK
+9c9bff147 [dashio=3] DataTables tpl documentation project view DataTable with Filter and pagination l
+066750fc8 [app=1] cfimport fixed
+      lib/cfields/cfieldsImport.php
+8030138cb [dashio=2] Fixed DataTableslengthMenu -> DataTablesLengthMenu
+126298a3c [app=1] implode() call fixed
+      lib/functions/testproject.class.php
+e5b51781c [app=1] crash due to missing ;
+      lib/plan/planUrgency.php
+5c5921a94 [dashio=3] DataTableslengthMenu  -> DataTablesLengthMenu
+1f18a86cc [app=1] temp file useless
+      gui/templates_c/dtb7jl5ps0vclhu89sqp5iqret-results.import
+ac8050589 [app=1] refactoring for template URL build
+      lib/testcases/testcaseCommands.class.php
+36b1eae99 [app=1] code layout
+      lib/testcases/archiveData.php
+38b48cc70 [dashio=1] context added
+1723846c8 [dashio=1] bad include fixed
+dfb6d72f3 [app=2,dashio=1] fix error 404 calling newest_tcversions fix PHP8 fatal errors
+      lib/general/frmWorkArea.php,lib/plan/newest_tcversions.php
+2f4257fee [thirdparty=1] Added missing third party package pace.js - Automatic page load progress bar
+0f96373c5 [app=1,thirdparty=1] Added missing third party package pace.js - Automatic page load progress bar
+      gui/templates_c/generateTestCaseNumber.lock
+b69ef9239 [app=2] typo errors fixed
+      lib/plan/planUpdateTC.php,lib/plan/planUrgency.php
+9be03e84b [thirdparty=172] Added missing third party package pace.js - Automatic page load progress bar
+8850e9557 [app=1] missing strings
+      locale/en_GB/strings.txt
+97ed70a55 [app=1] crash when accessing to test case from search due to missing test project id
+      lib/testcases/tcSearch.php
+051e2f26f [app=3] crash when accessing to test case from advanced search due to missing test proje
+      gui/javascript/testlink_library.js,lib/functions/testcase.class.php,lib/testcases/archiveData.php
+ef4c192d4 [app=1] cast to array to fix PHP8 errors
+      lib/search/search.php
+d88ae41ca [app=1] fix PHP8 Error
+      lib/search/searchCommands.class.php
+bc806d8df [app=1] coding style
+      lib/testcases/testcaseCommands.class.php
+16bf57ef8 [dashio=1] fixed typo error that generates warning
+a21ed9fd8 [app=1] fixed PHP Fatal error:  Uncaught TypeError: count(): Argument #1 ($value) must b
+      lib/testcases/containerEdit.php
+a0ffa0086 [app=1] fixed, there were missing pieces :(
+      lib/platforms/platformsAssign.php
+0a4b5a5c5 [dashio=1] Fix error due to Ext JS query method, replacing with JQuery
+2dd8ea7f7 [app=1] wip, now opens but menu disapears
+      lib/platforms/platformsAssign.php
+7cd27c6f9 [dashio=1] fix click on build name does not open build edit feature
+2e021c366 [dashio=1] fix label context -> enable_on_context
+b7de887fc [app=2,dashio=1] added missing attributes on cfieldsEdit.tpl
+      lib/cfields/cfieldsEdit.php,lib/functions/cfield_mgr.class.php
+793bb959a [app=2,dashio=1] added missing attributes on cfieldsEdit.tpl
+      lib/cfields/cfieldsEdit.php,lib/functions/cfield_mgr.class.php
+85b17edf8 [dashio=1] context added
+4383ab928 [app=1,dashio=1] add canManage check to draw to draw the Create Button
+      lib/functions/tlPlatform.class.php
+fccc2bf95 [app=1] change menu strings to solve overlapping https://gitlab.com/hitekschool/testlink
+      locale/en_GB/strings.txt
+f74dc118a [app=2] fix Uncaught TypeError: sizeof() fix Uncaught TypeError: count()
+      lib/events/eventviewer.php,lib/functions/object.class.php
+51531607b [app=1] PHP 8.1 helped to find bad count call
+      install/installNewDB.php
+eca1bdd61 [app=1] PHP 8.1 helped to find bad count call
+      install/installNewDB.php
+eb8cc3f6c [app=1] PHP 8.1 -> missing object creation -> CRASH
+      install/installUtils.php
+d69ca4252 [app=1,dashio=2] added global js variables tproject_id/tplan_id
+      gui/javascript/testlink_library.js
+07704257a [app=1] fix move/copy testsuite
+      lib/testcases/containerEdit.php
+f403f5fb7 [app=1] context added
+      lib/usermanagement/usersAssign.php
+4c9b9fed4 [app=1,dashio=1] context added
+      lib/usermanagement/rolesView.php
+2f7cdde48 [dashio=1] smarty warning fixed
+cee29054d [dashio=1] context added
+c4beac6c9 [dashio=1] replace images with awesome fonts
+a62decb44 [app=3] fix direct_link issue
+      lib/functions/testcase.class.php,lib/testcases/archiveData.php,lib/testcases/tcEdit.php
+7b68d1c23 [dashio=3] fix smarty warnings
+7a086cafc [dashio=1] code layout
+8060ce5d7 [dashio=1] fontawesome instead of button
+6f18cbffe [app=1] thrown on testproject == 0
+      lib/functions/testcase.class.php
+ab911f912 [app=1] missing testsuite_delete
+      locale/en_GB/strings.txt
+dda17ab7e [dashio=1] context added
+9da3054b4 [app=2,dashio=1] freeze
+      lib/testcases/tcEdit.php,lib/testcases/testcaseCommands.class.php
+ae65b9ca1 [app=1,dashio=1] tcPrint fixed
+      lib/testcases/tcPrint.php
+33655530c [dashio=1] fix
+5144b568e [dashio=1] change image with fontawesome
+983b1ea24 [app=2,dashio=2] copy ghost string to clipboard instead of show it
+      gui/javascript/testlink_library.js,locale/en_GB/strings.txt
+7e8d924fe [app=1] fixed
+      lib/testcases/tcCreateFromIssueMantisXML.php
+db9dce370 [app=1] fix warning
+      lib/functions/testcase.class.php
+18f6d9577 [app=1,dashio=1] copy test cases
+      lib/testcases/containerEdit.php
+5e2a51b89 [app=1] test case view bulk actions
+      lib/testcases/containerEdit.php
+e3d2b5dce [app=1] bad vars
+      lib/attachments/attachmentdownload.php
+3d3f31b4d [app=1] missing vars fixed
+      lib/functions/print.inc.php
+31de2dc12 [dashio=1] context added (tproject_id + tplan_id)
+d46d7a02d [app=1,dashio=1] pageTitle fix
+      lib/testcases/tcImport.php
+2cee0adce [app=1] missing var declaration
+      lib/functions/testsuite.class.php
+8ca8cc61d [app=1] smarty warnings fixed
+      lib/testcases/containerEdit.php
+d5234f644 [dashio=2] context
+46b7ad87a [app=2] test suite edit
+      lib/functions/testsuite.class.php,lib/testcases/containerEdit.php
+9e7e718fc [dashio=1] fix include path
+41f63073f [dashio=3] code layout
+e0c3b2867 [dashio=1] code layout
+5583625f6 [dashio=2] refactoring with include + replace images with fontawesome
+df53347fc [app=1,dashio=2] requirements WIP
+      lib/requirements/reqSpecView.php
+692e8236d [dashio=10] requirements WIP
+4ad18f9eb [app=2,dashio=3281] upgrade fontawesome from 4.7.0 to 6.2.0
+      gui/templates_c/dtb7jl5ps0vclhu89sqp5iqret-results.import,lib/functions/tlsmarty.inc.php
+62ca35192 [app=1] refactor each()
+      lib/functions/xml.inc.php
+289d6f507 [app=1] missing ;
+      lib/plan/tc_exec_assignment.php
+57962103e [app=1] refactor each()
+      lib/functions/xml.inc.php
+ca74a72b8 [app=1,dashio=1] test project id for context, added
+      lib/results/resultsImport.php
+af952622a [app=1] code cleanup
+      gui/javascript/test_automation.js
+56f8f4dbb [app=1] code layout
+      lib/execute/execSetResults.php
+1aed33baa [app=1] remove debud
+      lib/execute/execNavigator.php
+16fb00c4b [app=1] do not save in session issueTracker Object anymore, due to issues with CurlHandl
+      lib/functions/tlIssueTracker.class.php
+e7902d876 [app=1] bad var name $argsObj
+      lib/execute/execDashboard.php
+1f54211af [app=1,dashio=4,other=1] exec fixed partially
+      config.inc.php,lib/functions/tlsmarty.inc.php
+35ff4386f [app=4] code layout and minor PHP8 deprecated
+      lib/execute/execSetResults.php,lib/functions/specview.php,lib/functions/testplan.class.php,lib/plan/planUpdateTC.php
+2a0ac7725 [app=1] debug removed
+      lib/execute/execNavigator.php
+eae88ac20 [dashio=1] SMART SEARCH Fontawesome
+92619fd5e [app=3] fix aliens
+      lib/functions/testcase.class.php,lib/functions/tlIssueTracker.class.php,lib/functions/tree.class.php
+ec3d78038 [dashio=1] refactoring replace images with fontawesom
+1b6a9b4c9 [other=1] platformsView pagination config
+      config.inc.php
+8f8c77389 [dashio=1] SMART SEARCH
+b50b24648 [dashio=1] Look & Feel for delete keyword action
+d04bae53c [dashio=1] better sizing for delete col
+c647f3b8e [app=1,dashio=2] SMART SEARCH
+      gui/templates/conf/input_dimensions.conf
+d39acd3ed [dashio=2] docum remove class sort* for each cloned td
+31a8339be [app=5,dashio=2] changes from 1.9.20_fixed
+      lib/functions/cfield_mgr.class.php,lib/functions/testcase.class.php,lib/functions/testproject.class.php,lib/testcases/tcEdit.php,lib/testcases/testcaseComman...
+bad027eda [app=1] remove duplicated method
+      lib/functions/testproject.class.php
+0171c79c8 [app=1] test projects - changes from 1.9.20_fixed
+      lib/functions/testproject.class.php
+41d1d1582 [app=1] custom fields - changes from 1.9.20_fixed
+      lib/functions/cfield_mgr.class.php
+703e18bb2 [app=1] changes from 1.9.20_fixed
+      lib/testcases/testcaseCommands.class.php
+7bdea1586 [dashio=1] changes from 1.9.20_fixed
+8e8062ffc [app=1] create_function() removed on PHP8 got solution from Mantis 2.25.2 string_api.php
+      lib/functions/string_api.php
+ad080b236 [app=1] update with latest from 1.9.20_fixed
+      locale/en_GB/strings.txt
+3f5cb9745 [app=1] renderVariable() render also of keywords!!!
+      lib/functions/testcase.class.php
+53c52f012 [app=1] code layout
+      lib/testcases/archiveData.php
+d0d62f564 [app=1] new method getKeywordsAsMapByName()
+      lib/functions/testproject.class.php
+a5b790eab [app=1] fixed null access
+      lib/functions/tlPlatform.class.php
+2c847b363 [dashio=1] added !is_null() Checks to remove warnings
+ebfd5d6d1 [app=1] fixed null warnings
+      lib/functions/specview.php
+438a61d7a [app=1] fixed setting_testsgroupby
+      lib/functions/tlTestCaseFilterControl.class.php
+b8ffc9664 [app=2] build GUI issues fixed
+      lib/plan/buildEdit.php,lib/plan/buildView.php
+1cb3505fe [app=1] fix better handler management (this property can not exists)
+      lib/issuetrackerintegration/mantisrestInterface.class.php
+516e2c216 [app=1] added tproject_id to save it on URL calls code layout
+      lib/functions/testcase.class.php
+7cc366737 [app=1] docum + code layout
+      lib/testcases/tcEdit.php
+1732ef186 [app=1] missing l10n
+      locale/en_GB/strings.txt
+6bc71a455 [dashio=1,other=1] aliens
+      config.inc.php
+8e7fdba7d [app=2] fix create test case operation
+      lib/functions/testcase.class.php,lib/testcases/testcaseCommands.class.php
+e09310893 [app=4] missing col testcases_aliens.relation_type
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql,install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql,inst...
+04ef91a32 [app=1] code layout
+      lib/functions/database.class.php
+ed9b5180e [app=1] added mantis rest code layout
+      lib/functions/tlIssueTracker.class.php
+53893627d [app=1] - use initUserEnv() - code layout out
+      lib/testcases/tcEdit.php
+fcf333346 [app=1] code layout
+      lib/functions/testcase.class.php
+9fbc440fd [app=1] code layout
+      lib/testcases/testcaseCommands.class.php
+23a548ab6 [app=1] - block call to buildDirectWebLink() in create operation - code layout
+      lib/testcases/tcEdit.php
+a67d818c3 [app=1] fix missing var in tcEdit.php
+      lib/testcases/tcEdit.php
+1fcd3bc20 [dashio=1] fix labels.labels - wrong fix delete_testcases -> btn_delete_testcases
+727825e53 [dashio=1] added labels parameter in include
+362753b57 [dashio=1] refactoring
+6903c5b75 [dashio=1] interface improvement
+6f502b02d [dashio=1] interface improvement
+ada40edbd [dashio=1] added docum about stateSave removeClass() in cloned <th>
+96a511796 [dashio=2] keywords view - Data Column Filtering
+2c98ea4bd [dashio=1] Added logic to avoid initialization. This is usefult when using Fixed Header to 
+791add564 [dashio=1] documentation about DataTables include improvements
+85aef60f2 [other=1] Update README to show right version
+      README.md
+aac772a34 [app=4] update schema - testcase_aliens
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql,install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql,inst...
+0bd080c04 [app=2] testcase_aliens
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql,install/sql/mysql/testlink_create_tables.sql
+f6bfe8ce0 [app=1] update schema
+      install/sql/postgres/testlink_create_tables.sql
+6cf7f5818 [app=1] update schema
+      install/sql/mysql/testlink_create_tables.sql
+05fcc160f [app=1] platform - is_open
+      install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql
+ba385a8c3 [app=1] platform - is_open
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql
+85c495a1d [app=1] PHP min version updated to 7.4.27
+      lib/functions/configCheck.php
+2218af2ea [dashio=1] platform_open_for_exec
+5860fdedf [thirdparty=1] PHP 8 - each() removed
+796b0ceea [app=1] platform_open_for_exec
+      locale/en_GB/strings.txt
+f736df4c9 [app=1] hasRightOnProj()
+      lib/functions/tlUser.class.php
+ab8cfbf5e [app=1] add missing costant from 1.9.20_fixed
+      cfg/const.inc.php
+43b48ed81 [dashio=1] is_open attribute
+c2b894a49 [dashio=1] added data- attr for test automation
+d97ab8581 [app=1] hasRightOnProj()
+      lib/platforms/platformsView.php
+2b5ea140f [app=1] is_open attribute
+      lib/platforms/platformsImport.php
+eefa1af12 [app=1] is_open attribute
+      lib/platforms/platformsExport.php
+d709ae5d1 [app=1] is_open attribute
+      lib/platforms/platformsEdit.php
+323d2d64d [app=1] is_open attribute
+      lib/platforms/platformsAssign.php
+c1ed95036 [app=1] is_open attribute
+      lib/functions/tlPlatform.class.php
+129442671 [other=1] platform - new configuration
+      config.inc.php
+00c369549 [other=4,vendor=830] run composer to update packages
+      composer-require-all,composer-require-log,composer.json,composer.lock
+b4916d04f [other=1,vendor=954] remove all packages using composer, to update it
+      composer.lock
+fc43f7504 [other=1] composer.phar added
+      composer.phar
+c3b14ad70 [other=1] update composer platform php to 8.1.9
+      composer.json
+7b2ea5f06 [app=15,other=1,thirdparty=2] PHP8.1 deprecated functions - change strftime()/gmstrftime() @strftime()/@gmstrf
+      cfg/const.inc.php,config.inc.php,lib/api/xmlrpc/v1/test/TestlinkXMLRPCServerTest.php,lib/codetrackerintegration/stashrestInterface.class.php,lib/functions/cf...
+c98fd7076 [app=1] cast to array
+      lib/functions/testproject.class.php
+5bb3712a2 [app=2] Kint removed
+      lib/functions/common.php,lib/issuetrackerintegration/jiradbInterface.class.php
+c393871e6 [thirdparty=36] Kint removed
+54b56fa70 [app=1,other=2] random login background from unsplash
+      config.inc.php,lib/functions/tlsmarty.inc.php,login.php
+9d6013d4c [app=1,dashio=12,other=1] random login background
+      lib/functions/tlsmarty.inc.php,login.php
+8e9b53eda [app=3,dashio=1] custom fields
+      lib/functions/cfield_mgr.class.php,lib/functions/testplan.class.php,lib/plan/planEdit.php
+644cd490c [dashio=1,other=1] refactoring
+      config.inc.php
+8831193e2 [dashio=1,other=1] refactoring
+      config.inc.php
+31d6a176a [dashio=1] attachments OK
+f1357c60c [dashio=1] is_public fixed
+eb9b3691c [dashio=1] wip #2 -> Custom Fields still not managed
+c425e9754 [dashio=1] fix change do_action() -> defaultAction() to avoid issues with HTML input named 
+e1c78b06a [dashio=1] column width
+e21761bbe [dashio=1] use constant from input_dimensions.conf
+b9cf10a2d [app=2,dashio=2] wip - edit without custom fields
+      lib/plan/planEdit.php,lib/plan/planView.php
+a1d5e5a21 [app=1] added config
+      gui/templates/conf/input_dimensions.conf
+c17f9108c [dashio=1] fix toggle_navigation label
+4e57ba8f7 [thirdparty=2] PHP Compatibility - __construct()
+f88fa35a4 [dashio=1] refactoring
+d41feb741 [dashio=1] wip #5
+ba7a0d06a [dashio=1] wip #3
+9913b211b [dashio=1] wip #2
+546e8b5fe [dashio=1] wip #1
+ae3afe11b [app=1,dashio=1] fix
+      gui/templates/conf/input_dimensions.conf
+a9a097560 [dashio=2] refactoring
+e9b299cd2 [app=1] missing strings
+      locale/en_GB/strings.txt
+fd11ff2e2 [dashio=3] DataTables fix
+64f355977 [dashio=1] refactoring towards bootstrap
+818fd16b0 [dashio=1] fontawesome
+67c1499a5 [dashio=1] fontawesome
+4e1b0650f [dashio=1] debug commented
+41832b735 [app=1,dashio=1] refactoring / improvement
+      gui/templates/conf/input_dimensions.conf
+38fb6f4ed [app=1] missing hints
+      locale/en_GB/strings.txt
+491da993e [dashio=3] bootstrap transformation
+b8fca42a6 [dashio=1] use fontawesome wip #1
+38d4b69da [app=3,dashio=1] refactoring using fontawesome
+      lib/functions/tlsmarty.inc.php,lib/project/projectCommon.php,lib/project/projectView.php
+b5f4f29b7 [app=4,dashio=1] Create test project OK Delete test project OK Delete last project in System OK
+      lib/functions/tlsmarty.inc.php,lib/project/projectCommon.php,lib/project/projectEdit.php,lib/project/projectView.php
+6807cfe07 [app=1] syntax error
+      lib/project/projectCommon.php
+5b4d01914 [app=5,dashio=2,other=1] wip KO need review
+      index.php,lib/general/mainPage.php,lib/general/mainPageCommon.php,lib/project/projectCommon.php,lib/project/projectEdit.php,lib/project/projectView.php
+3d24d46e8 [app=4,dashio=1,other=1] wip 1
+      cfg/const.inc.php,index.php,lib/general/mainPage.php,lib/general/mainPageCommon.php,lib/project/projectEdit.php
+ebbd6971d [app=3,dashio=1] ok when first project and after delete last project ON TAB
+      lib/general/mainPage.php,lib/general/navBar.php,lib/project/projectEdit.php
+f05356677 [app=1] apply to stable code
+      install/sql/mysql/testlink_create_tables.sql
+52a9c2af3 [app=2] just to be able to install on Linux Fedora 32 with bitnami
+      lib/functions/configCheck.php,lib/functions/database.class.php
+4108f9614 [app=2,dashio=1,other=1] debugging
+      lib/project/projectEdit.php,lib/testcases/tcSearch.php,login.php
+846ed6d63 [app=1] minor comment
+      lib/project/projectEdit.php
+6ecaef2d7 [app=1] code layout
+      lib/general/mainPage.php
+6395ad714 [other=1] minor improvement in require() sequence
+      index.php
+758d5978d [dashio=1] code layout
+9ab3b7807 [dashio=1] improvement - Test Project Management -> list remove delete label
+fc3d21c2b [app=10,dashio=1] Merge branch '2.0.0-search-features-bootstrap' into 2.0.0-202020905-01
+      gui/fonts/Ruda/OFL.txt,gui/fonts/Ruda/README.txt,gui/fonts/Ruda/Ruda-VariableFont_wght.ttf,gui/fonts/Ruda/static/Ruda-Black.ttf,gui/fonts/Ruda/static/Ruda-Bo...
+158add4a4 [dashio=1] better layout
+8d76e24f6 [dashio=2] replace icon with fontawesome
+b0d8daf89 [dashio=1] some ID added to improve test automation
+6665d3be7 [dashio=1] try to set Ruda as default font family
+a5447eb21 [dashio=2] fix
+6e5369f3f [dashio=1] more fontawesome refactoring
+9ae795a3d [app=2,dashio=3] refactoring: replace icons with font awesome fix tprojectMgr -> tprojMgr fix: ba
+      lib/functions/tlsmarty.inc.php,lib/testcases/tcEdit.php
+606111d92 [app=6] checkRights() -> change to logic inside init_args()
+      lib/plan/newest_tcversions.php,lib/plan/planImport.php,lib/plan/planMilestonesView.php,lib/plan/planUpdateTC.php,lib/plan/planUrgency.php,lib/plan/planView.php
+0933d9b08 [app=3] checkRights() -> change to logic inside init_args()
+      lib/plan/planMilestonesEdit.php,lib/plan/planMilestonesView.php,lib/plan/tc_exec_unassign_all.php
+51ef9cf1b [app=2] checkRights() -> change to logic inside init_args()
+      lib/plan/tc_exec_assignment.php,lib/plan/tc_exec_unassign_all.php
+a449e2d3b [app=1] checkRights() -> change to logic inside init_args()
+      lib/plan/buildCopyExecTaskAssignment.php
+d6e780909 [app=3] checkRights() -> change to logic inside init_args()
+      lib/plan/buildCopyExecTaskAssignment.php,lib/plan/buildEdit.php,lib/plan/buildView.php
+341fdb030 [app=1] checkRights() -> change to logic inside init_args()
+      lib/plan/planEdit.php
+62295c114 [app=2] checkRights() -> change to logic inside init_args()
+      lib/plan/planEdit.php,lib/plan/planView.php
+f5bc34dd6 [app=1] from 1.9.20_fixed -> inventory issue
+      lib/functions/common.php
+ddeabcf89 [dashio=1] missing uri key
+c2dae7525 [app=5,other=1,thirdparty=1] feature: for MantisBT when adding an Alien Reference, call the TestSpec REST API
+      cfg/const.inc.php,config.inc.php,lib/functions/testcase.class.php,lib/issuetrackerintegration/issueTrackerInterface.class.php,lib/issuetrackerintegration/man...
+de01f1c00 [app=2] feature: alien relation type
+      lib/testcases/tcEdit.php,lib/testcases/testcaseCommands.class.php
+1866086bf [app=1] feature: alien relation type
+      lib/functions/testcase.class.php
+3cd0a2ad0 [app=1,dashio=1] feature: alien relation type
+      locale/en_GB/strings.txt
+1a6aa2836 [other=1] feature: alien relation type
+      config.inc.php
+b192e4605 [app=1] feature: alien relation type
+      cfg/const.inc.php
+d35f15930 [app=1] fix: logic to avoid crash when trying to add req link to a test case that has la
+      lib/functions/requirement_mgr.class.php
+80698645a [app=3] new class milestone.class.php, not on testplan.class.php
+      lib/functions/milestone.class.php,lib/plan/planMilestonesCommands.class.php,lib/plan/planMilestonesView.php
+e578afcec [app=14] new class build.class.php, not on testplan.class.php
+      lib/api/rest/v2/tlRestApi.class.php,lib/api/rest/v3/RestApi.class.php,lib/api/xmlrpc/v1/xmlrpc.class.php,lib/execute/execDashboard.php,lib/execute/execExport...
+673bbe58b [app=32] REST API
+      lib/api/rest/v3/RestApi.class.php,lib/api/rest/v3/core/routes.php,lib/api/rest/v3/index.php,lib/api/rest/v3/test/httpie-addPlatforms.sh,lib/api/rest/v3/test/...
+a86f34202 [other=2,vendor=74] Update to Slim4.4.0 (PHP > 7.1.x is needed)
+      composer.json,composer.lock
+1fa3f2f4a [app=1] to set the URI for testing
+      lib/api/rest/v3/test/setURI.sh
+bc58d7318 [app=2] test code removed
+      lib/api/rest/v3/World.class.php,lib/api/rest/v3/untitled.php
+2370e6697 [app=1] fix updateFromObject() Testplan
+      lib/functions/testplan.class.php
+682b23550 [app=61,other=2,vendor=423] Slim 4
+      composer.json,composer.lock,lib/api/rest/v3/.htaccess,lib/api/rest/v3/RestApi.class.php,lib/api/rest/v3/World.class.php,lib/api/rest/v3/core/routes.php,lib/a...
+df3da902f [thirdparty=3] slim2 removed
+57ad44c6d [app=1,thirdparty=16] slim2 removed
+      gui/templates_c/gboi1oaj6ncu9cdmjmjoflgkf9-importkeywords.iSerializationToXML
+10ce74cbc [app=5,dashio=1] saving wip work
+      lib/attachments/attachmentdownload.php,lib/functions/tlsmarty.inc.php,lib/plan/planEdit.php,lib/plan/planView.php,lib/plan/planViewUtils.php
+83ca1f6a9 [app=1] fix: aligned with testlink_1_9_20_fixed
+      lib/api/rest/v2/tlRestApi.class.php
+2858ca8ef [app=1] fix: buildTestCaseObj()
+      lib/api/rest/v2/tlRestApi.class.php
+0a0d7b346 [app=1] feature: added piece of logic related to Alien References
+      lib/functions/testplan.class.php
+e8074cf2b [app=1] feature: added piece of logic related to Alien References
+      lib/functions/testplan.class.php
+0f433b9c4 [app=1] fix delete platform link on tc spec (found in TESISQUARE production code)
+      lib/testcases/tcEdit.php
+b76723fe3 [app=1] missing version fixes (found in TESISQUARE production code)
+      lib/functions/testcase.class.php
+a4fab37b6 [app=1,dashio=1] fix: event viewer warnings
+      lib/plan/planView.php
+8965e69b9 [app=6,dashio=1] wip aliens
+      lib/functions/object.class.php,lib/functions/testcase.class.php,lib/testcases/archiveData.php,lib/testcases/tcEdit.php,lib/testcases/testcaseCommands.class.p...
+fcd214380 [app=1] alignment
+      lib/testcases/archiveData.php
+d17fa0b38 [app=2,dashio=5] wip
+      lib/functions/tlsmarty.inc.php,lib/testcases/tcEdit.php
+d42c1dfe1 [app=1] aligned aliens
+      lib/testcases/testcaseCommands.class.php
+89558dd10 [dashio=1] always draw the table to avoid DataTables warning
+4cc3d9ab8 [dashio=1] obsolete
+9fb5fd42f [app=3,dashio=175] reorganization
+      gui/templates_c/gboi1oaj6ncu9cdmjmjoflgkf9-importkeywords.iSerializationToXML,gui/templates_c/generateTestCaseNumber.lock,lib/functions/tlsmarty.inc.php
+01099fc58 [app=1] improvement - several template folders configured
+      lib/functions/tlsmarty.inc.php
+14900a037 [app=1] fix
+      locale/en_GB/strings.txt
+2e8e92a67 [dashio=2] Configure DataTables to sort by column 1 NOT 0 (0 -> first col)
+f14af7f8a [dashio=14] refactoring DataTables
+7872c839e [thirdparty=1] added missing DataTables plugin Minor implementation
+a8750e8a6 [dashio=1] fix path to resource
+111ef4d36 [app=6,dashio=184,thirdparty=6] something working
+      gui/themes/default/images/employee-badge.png,lib/XZ,lib/functions/renderGhostSummary.php,lib/project/projectCommon.php,lib/results/tcCreatedPerUser.php,lib/r...
+a357a1133 [app=174,dashio=5,other=10,thirdparty=438] something working
+      cfg/const.inc.php,config.inc.php,error.php,firstLogin.php,gui/niftycube/niftyCorners.css,gui/niftycube/niftycube.js,gui/themes/default/css/frame.css,gui/them...
+40fe79f3c [app=2,dashio=1] something working
+      lib/testcases/tcEdit.php,lib/testcases/testcaseCommands.class.php
+fcae45992 [app=1] new location for dashio specific support files
+      lib/functions/tlsmarty.inc.php
+2ad76c855 [dashio=4] new location for dashio specific support files
+219b2060b [dashio=1779] new location for dashio specific support files
+96c9ffc7b [app=1] remove return true that generates issue on some browsers
+      gui/javascript/testlink_library.js
+32d66e797 [app=1] aligned to dashio
+      lib/plan/tc_exec_assignment.php
+690f48d24 [app=1] align with aliens
+      lib/plan/tc_exec_assignment.php
+9a588491c [app=1] added aliens template definition
+      lib/functions/tlsmarty.inc.php
+6e0631cea [app=1] aligned to dashio
+      lib/functions/tree.class.php
+d6c58b473 [app=1] aligned to dashio
+      lib/results/topLevelSuitesBarChart.php
+70b805b1d [app=1] aligned to dashio
+      lib/results/uncoveredTestCases.php
+fbe0c41bc [app=1] aligned to dashio -> remove context from $_SESSION
+      lib/functions/users.inc.php
+884598735 [app=1] aligned to dashio
+      lib/usermanagement/usersAssign.php
+446db1acf [app=1] aligned to dashio
+      lib/usermanagement/usersView.php
+420cc6b6d [app=1] aligned to dashio
+      lib/testcases/scriptDelete.php
+55d2500d9 [app=1] file mode changed
+      lib/testcases/scriptAdd.php
+7a6c436dc [app=1] aligned to dashio
+      lib/functions/testproject.class.php
+71c2badb1 [dashio=445] 2.0.0 templates added (dashio)
+b91ffa882 [tl-classic=259] 1.9.x templates removed
+      gui/templates/tl-classic/DataTables.inc.tpl,gui/templates/tl-classic/attachment404.tpl,gui/templates/tl-classic/attachmentdelete.tpl,gui/templates/tl-classic...
+7f41a4882 [app=2] example
+      gui/templates/custom/testcases/steps_horizontal-custom.inc.tpl,gui/templates/custom/testcases/tcStepEdit-custom.tpl
+be9ba866d [app=1] wip
+      lib/testcases/archiveData.php
+695ece6d5 [app=2] align dashio
+      gui/javascript/checkboxes.js,gui/javascript/testlink_library.js
+272387bc8 [app=1] aligned to dashio
+      lib/testcases/archiveData.php
+35304d104 [app=1] wip
+      lib/project/project_req_spec_mgmt.php
+4a86168d2 [app=2] wip
+      lib/project/projectEdit.php,lib/project/projectView.php
+57a16a26a [app=1] feature: initContext() user & userID are initialized from $_SESSION
+      lib/functions/common.php
+176745ec6 [app=1] wip
+      locale/en_GB/strings.txt
+94efc047d [app=1] wip
+      locale/en_GB/strings.txt
+7aa1e73c4 [app=18] obsolete?
+      gui/drag_and_drop/css/context-menu.css,gui/drag_and_drop/css/drag-drop-folder-tree.css,gui/drag_and_drop/images/context-menu-gradient.gif,gui/drag_and_drop/i...
+475d55bb3 [app=2,other=1] feature: architectural change
+      cfg/const.inc.php,config.inc.php,lib/execute/execSetResults.php
+c8adfc878 [app=1] misplaced
+      cfg/custom_config.inc.php.example
+f0992d649 [app=1] git setup
+      cfg/.gitignore
+a3a830110 [app=7,other=5] feature: architetural change
+      cfg/custom_config.inc.php.example,cfg/custom_reports.cfg.php.example,cfg/samples/custom_config.inc.php.example,cfg/samples/custom_config.inc.php.example.gith...
+2a1bc4535 [app=1] fix (user contribution)
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql
+fac68e3aa [app=1] typo error
+      install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql

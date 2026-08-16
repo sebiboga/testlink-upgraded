@@ -597,6 +597,10 @@ abstract class tlDBObject extends tlObject implements iDBSerialization
       $items = self::bulkCreateObjectsFromDB($db,$ids,$className,$returnAsMap,$detailLevel);
     else
     {
+      if ($ids == null) {
+        return $items;
+      }
+
       for($i = 0;$i < sizeof((array)$ids);$i++)
       {
         $id = $ids[$i];

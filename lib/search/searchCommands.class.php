@@ -1011,22 +1011,20 @@ class searchCommands
 
 
     $mapTC = NULL;
-    if($doFilter)
-    {
-      $mixedFilter = $this->getFilters();
-      if ($filter)
-      {
+    if($doFilter) {
+      if ($filter) {
         $sqlPart2 .= implode("",$filter);
       }
       
-      if ($mixedFilter['dates4tc'])
+      $mixedFilter = $this->getFilters();
+      if ($mixedFilter != null && $mixedFilter['dates4tc'] != null)
       {
         $sqlPart2 .= implode("",$mixedFilter['dates4tc']);
       }
    
       $sql = $sqlFields . $sqlPart2 . $otherFilters;
 
-      //DEBUGecho __FUNCTION__ . '-' . __LINE__ . '-' . $sql .'<br>';
+      //DEBUG echo __FUNCTION__ . '-' . __LINE__ . '-' . $sql .'<br>';
       $mapTC = $db->fetchRowsIntoMap($sql,'testcase_id'); 
     }  
 

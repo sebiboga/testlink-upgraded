@@ -1,0 +1,400 @@
+145e587e4 LDAP Tests OK jumpcloud.com
+424eac7a8 First Test using https://ldaprecord.com/
+5b8e7ec3c requirements search fix
+b542d82b3 feature: openLinkedReqVersionWindow() added tproject_id
+959ecb074 feature: https://testlink2-2023.youtrack.cloud/issue/TN2023-106/Entering-exceeded-amount-of-characters-No-Red-Exclamation-mark-on-the-right-side-for-Document-ID-appears.
+5aefc55df added missed tproject_id
+eeb28477c added missed tproject_id
+cebcfd6cf tproject_id & tplan_id
+2dee80bcd fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-104/Start-Toggle-Monitoring-Requirements-can-not-performed-on-Bulk-Monitoring-Page.
+da4d82895 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Requirement-Specification-Importing-file-in-the-valid-format-throws-the-Exception.
+fbccb024f missing ;
+2e7fe2f66 https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be-created-from-Requirement.
+2f5e876cb fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-46/Created-Requirement-Specification-can-not-be-opened
+0c1aae8ee fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-97/Unable-to-Import-Links-to-Test-Cases-and-Platforms-in-Test-Plan-Projects
+2e800bcf5 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Importing-file-in-the-valid-format-on-Test-Project-Page-the-program-throws-the-Exception.
+6bc314e35 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be-created-from-Requirement.
+338372603 fix: en_US https://testlink2-2023.youtrack.cloud/issue/TN2023-83/Clicking-on-Requirement-Design-in-the-Navigation-Menu-of-the-Home-Page-Overview-word-is-shifted-to-the-second-line.
+562f98d02 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-36/Test-Project-Clicking-Export-button-throws-TypeError
+9b9096665 fix: debug (var_dump) removed
+f2b70fcf3 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-82/Menu-title-Search-Requirement-is-not-correct
+8da913f81 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-84/Clicking-CreateLink-Keyword-button-ERROR-ON-exec-query
+a4264b7ed fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-61/Issue-Tracker-Manegement-Fatal-error-Uncaught-TypeError-propertyexists-Argument-1
+042274190 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-100/Test-Case-Direct-Link-Error
+3edefbf73 fix: change HTML input type for version field
+c064b6c1b fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-91/Search-test-cases-Entering-invalid-input-in-version-field-gives-wrong-output
+189d94ecf Update Linked Test Case Versions -> Update Linked TC Versions
+ffac0d79d fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-102/Fatal-Error-When-Viewing-Execution-History-in-Set-Urgent-Tests
+86bfbb5d9 fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-98/Fatal-Error-When-Viewing-Execution-History-in-Add-Remove-Test-Cases
+07553b97a feature: replace help image with fontawesome + changing cursor type
+c079fca55 https://testlink2-2023.youtrack.cloud/issue/TQ342023-106h added missing tproject_id
+a6304f6b8 https://testlink2-2023.youtrack.cloud/issue/TQ342023-77/The-error-message-occurs-while-assigning-keywords
+943949415 https://testlink2-2023.youtrack.cloud/issue/TQ342023-87/Fatal-Error-When-Updating-User-Test-Plan-Roles-With-No-User-Records-Found
+5e009eddf changes for PHP 8.2.4
+f9feefea9 code layout
+b3d6c72dc fixed requirements menu activation
+2ac6fb86f missing localization show_calendar
+86733510d firts -> first
+54f830da2 https://testlink2-2023.youtrack.cloud/issue/TQ342023-67/Assign-Test-Plan-Roles-Search-results-do-not-display-admin-only-when-searched-using-word-admin
+1caaaeeb5 fixed - https://testlink2-2023.youtrack.cloud/issue/TQ342023-69/Moving-between-test-steps-shows-error
+5aed12d0d PHP8 - strftime() replaced with (new DateTimeImmutable())->format('Ymd-H:i:s');
+a68f9b9db Testcase bulk custom field update fixed
+7a0b28a52 https://testlink2-2023.youtrack.cloud/issue/TQ342023-62/The-error-message-occurs-after-clicking-on-the-Yes-button-on-the-Delete-relation-pop-up-window
+df6c5577b fixed error on notify global admins
+dafd3f777 PHP 8 fixes
+20b448c57 https://testlink2-2023.youtrack.cloud/issue/TQ342023-63/The-error-occurs-after-clicking-on-the-New-User-button
+de51ac538 https://testlink2-2023.youtrack.cloud/issue/TQ342023-61/The-error-message-occurs-after-clicking-on-the-CreateLink-button-on-the-Keyword-management-pop-up-page
+1ac94fc46 https://testlink2-2023.youtrack.cloud/issue/TQ342023-59/Tooltip-for-Jolly-OR-Field-in-Search-Test-Cases-Page-tooltip-lists-Actions-instead-of-Expected-Results.
+63d319127 https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerability-in-creationdatefrom-Field-of-Search-Test-Cases-Through-Browser-Terminal added validateDate()
+e6e6956f6 https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerability-in-creationdatefrom-Field-of-Search-Test-Cases-Through-Browser-Terminal added validateDate() method
+5a68cee15 fix missing context (project & plan) in link
+e05e0ba6e https://testlink2-2023.youtrack.cloud/issue/TQ342023-52/Import-Custom-field-showing-Not-Imported-along-with-Imported-in-Define-Custom-Fields
+527daf839 data tables fix combo for number of results to display
+010e173c1 https://testlink2-2023.youtrack.cloud/issue/TQ342023-38/Missing-values-in-the-Show-Entries-Drop-Down-List-Box-of-Platform-Management-page
+88ffcbae7 Attachment message fix
+d6eae26da https://testlink2-2023.youtrack.cloud/issue/TQ342023-35/Missing-values-in-the-Show-Entries-Drop-Down-List-Box-of-the-Issue-Trackers-page
+91f858a7d search_words_placeholder improvements
+99f3b915e https://testlink2-2023.youtrack.cloud/issue/TQ342023-17/Project-tree-shows-error-in-Assign-Test-Case-Execution-window
+3f6839d37 https://testlink2-2023.youtrack.cloud/issue/TQ342023-29
+d0c3806b6 https://testlink2-2023.youtrack.cloud/issue/TQ342023-51
+71576103d https://testlink2-2023.youtrack.cloud/issue/TQ342023-48/SQL-Injection-Vulnerability-in-Createdby-and-Editedby-Fields-of-Advanced-Search
+ac70cea9a https://testlink2-2023.youtrack.cloud/issue/TQ342023-47/SQL-Injection-Vulnerability-in-Createdby-and-Editedby-Fields-of-Search-Test-Cases
+eaf398319 Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-14/The-Estimated-exec.-min-field-accepts-letters-and-special-symbols
+e5841f974 Header Documentation
+86da69acd Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-25/The-keywords-are-not-assigned-to-the-test-case-after-clicking-on-the-arrow-to-assign-it-on-the-Create-test-case-tab
+29b6ee4ab Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-30/Not-able-to-delete-the-Duplicate-copy-of-User-Role-in-Role-Management  (CSRF Logic issue)
+7fa95e604 Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-26/The-error-occurs-after-clicking-on-the-Test-Spec-Design-button-on-the-Test-Project-Test-Cases-created-per-user
+5c0ae8800 Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-21/TestSuite-error-message-occurs-after-clicking-on-the-Yes-button-on-the-Remove-Keyword-pop-up-tab
+39b887c6d refactoring to avoid PHP8 issue (Countable)
+d3a4dda49 issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-34/Editing-Custom-Defined-value-gives-Fatal-error-in-editing-Test-Case - PHP8 compatibility
+46c7b27fa Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-12/Creating-Project-Name-same-as-already-existing-does-not-display-error-message
+b7c03573a issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-20 Upload File
+a73c52b66 Added information disclosure to semplify testing. To be removed before release
+99a5adef2 #TL20PHP82202304-93 - youtrack - Assign-Test-Plan-Roles-Crash-trying-to-access-the-feature
+79cf545bd user management - fix expiration date mgmt
+a86b8e347 user mgmt user feedback using bootbox
+aecf49d4d #TL20PHP82202304-72 - youtrack - issue saving value for date time custom field
+82f3fac2b #TL20PHP82202304-63 - youtrack - Reports - Page cannot be accessed
+ce3ac3e37 #TL20PHP82202304-65 - youtrack - Test Case Design - Test Specifcation - Adding a blank keyword causes error
+5d46467a0 #TL20PHP82202304-72 - youtrack - Fatal error appeared after defying 'Date' custom field
+30730433f search req spec fixes
+bfc667346 navbar update fixed
+705f16d0c crash due to missing test project id fixed
+2fa28cef6 sintax error fixed (missing ;)
+7a9e357b0 #TL20PHP82202304-51 - youtrack - User "Expiration date "column False value
+e5a429ff7 #TL20PHP82202304-46 (youtrack) - Fatal error appeared when deleting a step in the test case
+8c3c759b3 feature: test project prefix user hint regarding length
+4679c05f2 Missing user feedback when project name and/or project prefix already exists
+48263e1fb bootbox upgrade to /**  * Bootbox.js — alert, confirm, prompt, and flexible dialogs for the Bootstrap framework  * @version: 6.0.0  * @project: https://github.com/makeusabrew/bootbox  * @license: MIT http://bootboxjs.com/license.txt  */
+5e1f88a44 #0009246: Test Plan Management - Bulk Operations: set active / set inactive - FEATURE
+d633aa732 TL20PHP82202304-11 - Quick Search - Leaving all fields blank results in error message
+0e8e9730c TL20PHP82202304-2 - Deleting last existing project results in error message
+a8ace4f2c https://php.watch/versions/8.2/dynamic-properties-deprecated
+4dbd2c29c PHP 8.2 deprecated ${var} -> {$var} OK
+de7690285 Data Tables usage refactored
+b57e32f58 builds view DataTable with Filter and pagination length OK
+a28bf5cfd keywords view DataTable with Filter and pagination length OK
+9c9bff147 DataTables tpl documentation project view DataTable with Filter and pagination length OK
+066750fc8 cfimport fixed
+8030138cb Fixed DataTableslengthMenu -> DataTablesLengthMenu
+126298a3c implode() call fixed
+e5b51781c crash due to missing ;
+5c5921a94 DataTableslengthMenu  -> DataTablesLengthMenu
+1f18a86cc temp file useless
+ac8050589 refactoring for template URL build
+36b1eae99 code layout
+38b48cc70 context added
+1723846c8 bad include fixed
+dfb6d72f3 fix error 404 calling newest_tcversions fix PHP8 fatal errors
+2f4257fee Added missing third party package pace.js - Automatic page load progress bar
+0f96373c5 Added missing third party package pace.js - Automatic page load progress bar
+b69ef9239 typo errors fixed
+9be03e84b Added missing third party package pace.js - Automatic page load progress bar
+8850e9557 missing strings
+97ed70a55 crash when accessing to test case from search due to missing test project id
+051e2f26f crash when accessing to test case from advanced search due to missing test project id
+ef4c192d4 cast to array to fix PHP8 errors
+d88ae41ca fix PHP8 Error
+bc806d8df coding style
+16bf57ef8 fixed typo error that generates warning
+a21ed9fd8 fixed PHP Fatal error:  Uncaught TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given in containerEdit.php:179
+a0ffa0086 fixed, there were missing pieces :(
+0a4b5a5c5 Fix error due to Ext JS query method, replacing with JQuery
+2dd8ea7f7 wip, now opens but menu disapears
+7cd27c6f9 fix click on build name does not open build edit feature
+2e021c366 fix label context -> enable_on_context
+b7de887fc added missing attributes on cfieldsEdit.tpl
+793bb959a added missing attributes on cfieldsEdit.tpl
+85b17edf8 context added
+4383ab928 add canManage check to draw to draw the Create Button
+fccc2bf95 change menu strings to solve overlapping https://gitlab.com/hitekschool/testlink2.0php8.1testing/-/issues/8
+f74dc118a fix Uncaught TypeError: sizeof() fix Uncaught TypeError: count()
+51531607b PHP 8.1 helped to find bad count call
+eca1bdd61 PHP 8.1 helped to find bad count call
+eb8cc3f6c PHP 8.1 -> missing object creation -> CRASH
+d69ca4252 added global js variables tproject_id/tplan_id
+07704257a fix move/copy testsuite
+f403f5fb7 context added
+4c9b9fed4 context added
+2f7cdde48 smarty warning fixed
+cee29054d context added
+c4beac6c9 replace images with awesome fonts
+a62decb44 fix direct_link issue
+7b68d1c23 fix smarty warnings
+7a086cafc code layout
+8060ce5d7 fontawesome instead of button
+6f18cbffe thrown on testproject == 0
+ab911f912 missing testsuite_delete
+dda17ab7e context added
+9da3054b4 freeze
+ae65b9ca1 tcPrint fixed
+33655530c fix
+5144b568e change image with fontawesome
+983b1ea24 copy ghost string to clipboard instead of show it
+7e8d924fe fixed
+db9dce370 fix warning
+18f6d9577 copy test cases
+5e2a51b89 test case view bulk actions
+e3d2b5dce bad vars
+3d3f31b4d missing vars fixed
+31de2dc12 context added (tproject_id + tplan_id)
+d46d7a02d pageTitle fix
+2cee0adce missing var declaration
+8ca8cc61d smarty warnings fixed
+d5234f644 context
+46b7ad87a test suite edit
+9e7e718fc fix include path
+41f63073f code layout
+e0c3b2867 code layout
+5583625f6 refactoring with include + replace images with fontawesome
+df53347fc requirements WIP
+692e8236d requirements WIP
+4ad18f9eb upgrade fontawesome from 4.7.0 to 6.2.0
+62ca35192 refactor each()
+289d6f507 missing ;
+57962103e refactor each()
+ca74a72b8 test project id for context, added
+af952622a code cleanup
+56f8f4dbb code layout
+1aed33baa remove debud
+16fb00c4b do not save in session issueTracker Object anymore, due to issues with CurlHandle in PHP8
+e7902d876 bad var name $argsObj
+1f54211af exec fixed partially
+35ff4386f code layout and minor PHP8 deprecated
+2a0ac7725 debug removed
+eae88ac20 SMART SEARCH Fontawesome
+92619fd5e fix aliens
+ec3d78038 refactoring replace images with fontawesom
+1b6a9b4c9 platformsView pagination config
+8f8c77389 SMART SEARCH
+b50b24648 Look & Feel for delete keyword action
+d04bae53c better sizing for delete col
+c647f3b8e SMART SEARCH
+d39acd3ed docum remove class sort* for each cloned td
+31a8339be changes from 1.9.20_fixed
+bad027eda remove duplicated method
+0171c79c8 test projects - changes from 1.9.20_fixed
+41d1d1582 custom fields - changes from 1.9.20_fixed
+703e18bb2 changes from 1.9.20_fixed
+7bdea1586 changes from 1.9.20_fixed
+8e8062ffc create_function() removed on PHP8 got solution from Mantis 2.25.2 string_api.php
+ad080b236 update with latest from 1.9.20_fixed
+3f5cb9745 renderVariable() render also of keywords!!!
+53c52f012 code layout
+d0d62f564 new method getKeywordsAsMapByName()
+a5b790eab fixed null access
+2c847b363 added !is_null() Checks to remove warnings
+ebfd5d6d1 fixed null warnings
+438a61d7a fixed setting_testsgroupby
+b8ffc9664 build GUI issues fixed
+1cb3505fe fix better handler management (this property can not exists)
+516e2c216 added tproject_id to save it on URL calls code layout
+7cc366737 docum + code layout
+1732ef186 missing l10n
+6bc71a455 aliens
+8e7fdba7d fix create test case operation
+e09310893 missing col testcases_aliens.relation_type
+04ef91a32 code layout
+ed9b5180e added mantis rest code layout
+53893627d - use initUserEnv() - code layout out
+fcf333346 code layout
+9fbc440fd code layout
+23a548ab6 - block call to buildDirectWebLink() in create operation - code layout
+a67d818c3 fix missing var in tcEdit.php
+1fcd3bc20 fix labels.labels - wrong fix delete_testcases -> btn_delete_testcases
+727825e53 added labels parameter in include
+362753b57 refactoring
+6903c5b75 interface improvement
+6f502b02d interface improvement
+ada40edbd added docum about stateSave removeClass() in cloned <th>
+96a511796 keywords view - Data Column Filtering
+2c98ea4bd Added logic to avoid initialization. This is usefult when using Fixed Header to implement column filtering
+791add564 documentation about DataTables include improvements
+85aef60f2 Update README to show right version
+aac772a34 update schema - testcase_aliens
+0bd080c04 testcase_aliens
+f6bfe8ce0 update schema
+6cf7f5818 update schema
+05fcc160f platform - is_open
+ba385a8c3 platform - is_open
+85c495a1d PHP min version updated to 7.4.27
+2218af2ea platform_open_for_exec
+5860fdedf PHP 8 - each() removed
+796b0ceea platform_open_for_exec
+f736df4c9 hasRightOnProj()
+ab8cfbf5e add missing costant from 1.9.20_fixed
+43b48ed81 is_open attribute
+c2b894a49 added data- attr for test automation
+d97ab8581 hasRightOnProj()
+2b5ea140f is_open attribute
+eefa1af12 is_open attribute
+d709ae5d1 is_open attribute
+323d2d64d is_open attribute
+c1ed95036 is_open attribute
+129442671 platform - new configuration
+00c369549 run composer to update packages
+b4916d04f remove all packages using composer, to update it
+fc43f7504 composer.phar added
+c3b14ad70 update composer platform php to 8.1.9
+7b2ea5f06 PHP8.1 deprecated functions - change strftime()/gmstrftime() @strftime()/@gmstrftime()
+c98fd7076 cast to array
+5bb3712a2 Kint removed
+c393871e6 Kint removed
+54b56fa70 random login background from unsplash
+9d6013d4c random login background
+8e9b53eda custom fields
+644cd490c refactoring
+8831193e2 refactoring
+31d6a176a attachments OK
+f1357c60c is_public fixed
+eb9b3691c wip #2 -> Custom Fields still not managed
+c425e9754 fix change do_action() -> defaultAction() to avoid issues with HTML input named do_action.                           do_action.value='xx' didn't work!!
+e1c78b06a column width
+e21761bbe use constant from input_dimensions.conf
+b9cf10a2d wip - edit without custom fields
+a1d5e5a21 added config
+c17f9108c fix toggle_navigation label
+4e57ba8f7 PHP Compatibility - __construct()
+f88fa35a4 refactoring
+d41feb741 wip #5
+ba7a0d06a wip #3
+9913b211b wip #2
+546e8b5fe wip #1
+ae3afe11b fix
+a9a097560 refactoring
+e9b299cd2 missing strings
+fd11ff2e2 DataTables fix
+64f355977 refactoring towards bootstrap
+818fd16b0 fontawesome
+67c1499a5 fontawesome
+4e1b0650f debug commented
+41832b735 refactoring / improvement
+38fb6f4ed missing hints
+491da993e bootstrap transformation
+b8fca42a6 use fontawesome wip #1
+38d4b69da refactoring using fontawesome
+b5f4f29b7 Create test project OK Delete test project OK Delete last project in System OK
+6807cfe07 syntax error
+5b4d01914 wip KO need review
+3d24d46e8 wip 1
+ebbd6971d ok when first project and after delete last project ON TAB
+f05356677 apply to stable code
+52a9c2af3 just to be able to install on Linux Fedora 32 with bitnami
+4108f9614 debugging
+846ed6d63 minor comment
+6ecaef2d7 code layout
+6395ad714 minor improvement in require() sequence
+758d5978d code layout
+9ab3b7807 improvement - Test Project Management -> list remove delete label
+fc3d21c2b Merge branch '2.0.0-search-features-bootstrap' into 2.0.0-202020905-01
+158add4a4 better layout
+8d76e24f6 replace icon with fontawesome
+b0d8daf89 some ID added to improve test automation
+6665d3be7 try to set Ruda as default font family
+a5447eb21 fix
+6e5369f3f more fontawesome refactoring
+9ae795a3d refactoring: replace icons with font awesome fix tprojectMgr -> tprojMgr fix: bad include path & file
+606111d92 checkRights() -> change to logic inside init_args()
+0933d9b08 checkRights() -> change to logic inside init_args()
+51ef9cf1b checkRights() -> change to logic inside init_args()
+a449e2d3b checkRights() -> change to logic inside init_args()
+d6e780909 checkRights() -> change to logic inside init_args()
+341fdb030 checkRights() -> change to logic inside init_args()
+62295c114 checkRights() -> change to logic inside init_args()
+f5bc34dd6 from 1.9.20_fixed -> inventory issue
+ddeabcf89 missing uri key
+c2dae7525 feature: for MantisBT when adding an Alien Reference, call the TestSpec REST API Calls (is a MantisBT Plugin that I've developed)
+de01f1c00 feature: alien relation type
+1866086bf feature: alien relation type
+3cd0a2ad0 feature: alien relation type
+1a6aa2836 feature: alien relation type
+b192e4605 feature: alien relation type
+d35f15930 fix: logic to avoid crash when trying to add req link to a test case that has lates version INACTIVE (from 1.9.20 fixed)
+80698645a new class milestone.class.php, not on testplan.class.php
+e578afcec new class build.class.php, not on testplan.class.php
+673bbe58b REST API
+a86f34202 Update to Slim4.4.0 (PHP > 7.1.x is needed)
+1fa3f2f4a to set the URI for testing
+bc58d7318 test code removed
+2370e6697 fix updateFromObject() Testplan
+682b23550 Slim 4
+df3da902f slim2 removed
+57ad44c6d slim2 removed
+10ce74cbc saving wip work
+83ca1f6a9 fix: aligned with testlink_1_9_20_fixed
+2858ca8ef fix: buildTestCaseObj()
+0a0d7b346 feature: added piece of logic related to Alien References
+e8074cf2b feature: added piece of logic related to Alien References
+0f433b9c4 fix delete platform link on tc spec (found in TESISQUARE production code)
+b76723fe3 missing version fixes (found in TESISQUARE production code)
+a4fab37b6 fix: event viewer warnings
+8965e69b9 wip aliens
+fcd214380 alignment
+d17fa0b38 wip
+d42c1dfe1 aligned aliens
+89558dd10 always draw the table to avoid DataTables warning
+4cc3d9ab8 obsolete
+9fb5fd42f reorganization
+01099fc58 improvement - several template folders configured
+14900a037 fix
+2e8e92a67 Configure DataTables to sort by column 1 NOT 0 (0 -> first col)
+f14af7f8a refactoring DataTables
+7872c839e added missing DataTables plugin Minor implementation
+a8750e8a6 fix path to resource
+111ef4d36 something working
+a357a1133 something working
+40fe79f3c something working
+fcae45992 new location for dashio specific support files
+2ad76c855 new location for dashio specific support files
+219b2060b new location for dashio specific support files
+96c9ffc7b remove return true that generates issue on some browsers
+32d66e797 aligned to dashio
+690f48d24 align with aliens
+9a588491c added aliens template definition
+6e0631cea aligned to dashio
+d6c58b473 aligned to dashio
+70b805b1d aligned to dashio
+fbe0c41bc aligned to dashio -> remove context from $_SESSION
+884598735 aligned to dashio
+446db1acf aligned to dashio
+420cc6b6d aligned to dashio
+55d2500d9 file mode changed
+7a6c436dc aligned to dashio
+71c2badb1 2.0.0 templates added (dashio)
+b91ffa882 1.9.x templates removed
+7f41a4882 example
+be9ba866d wip
+695ece6d5 align dashio
+272387bc8 aligned to dashio
+35304d104 wip
+4a86168d2 wip
+57a16a26a feature: initContext() user & userID are initialized from $_SESSION
+176745ec6 wip
+94efc047d wip
+7aa1e73c4 obsolete?
+475d55bb3 feature: architectural change
+c8adfc878 misplaced
+f0992d649 git setup
+a3a830110 feature: architetural change
+2a1bc4535 fix (user contribution)
+fac68e3aa typo error

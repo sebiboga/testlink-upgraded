@@ -89,31 +89,31 @@ if( ($args->tproject_id > 0) && $args->doAction == 'doSearch') {
 }
         
 
-$mapTC = null;
-$mapTS = null;
-$mapRS = null;
-$mapRQ = null;
+$mapTC = [];
+$mapTS = [];
+$mapRS = [];
+$mapRQ = [];
 
 // Search on Test Suites
 if( $canUseTarget && ($args->ts_summary || $args->ts_title) ) {
-  $mapTS = $cmdMgr->searchTestSuites($targetSet,$canUseTarget);
+  $mapTS = (array)$cmdMgr->searchTestSuites($targetSet,$canUseTarget);
 }
 
 // Requirment SPECification
 if( $canUseTarget && ($args->rs_scope || $args->rs_title) ) {
-  $mapRS = $cmdMgr->searchReqSpec($targetSet,$canUseTarget);
+  $mapRS = (array)$cmdMgr->searchReqSpec($targetSet,$canUseTarget);
 } 
 
 // REQuirements
 if( $args->rq_scope || $args->rq_title || $args->rq_doc_id || ($req_cf_id > 0) ) {
-  $mapRQ = $cmdMgr->searchReq($targetSet,$canUseTarget,$req_cf_id);  
+  $mapRQ = (array)$cmdMgr->searchReq($targetSet,$canUseTarget,$req_cf_id);  
 } 
 
   
 $hasTestCases = (!is_null($tcaseSet) && count($tcaseSet) > 0);
 if( $hasTestCases ) {
   $emptyTestProject = false;
-  $mapTC = $cmdMgr->searchTestCases($tcaseSet,$targetSet,$canUseTarget,$tc_cf_id);
+  $mapTC = (array)$cmdMgr->searchTestCases($tcaseSet,$targetSet,$canUseTarget,$tc_cf_id);
 }  
 
 // Render Results

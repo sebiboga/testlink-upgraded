@@ -566,6 +566,9 @@ function checkPhpExtensions(&$errCounter) {
   if( version_compare(phpversion(), "7.4.2", ">=") ) {
     $mysqlExt = 'mysqli';
   } 
+  if( version_compare(phpversion(), "8.2.0", ">=") ) {
+    $mysqlExt = 'mysqlnd';
+  } 
   $checks[]=array('extension' => $mysqlExt,
                   'msg' => array('feedback' => 'MySQL Database', 'ok' => $td_ok, 'ko' => 'cannot be used') );
  

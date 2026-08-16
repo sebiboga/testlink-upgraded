@@ -1023,7 +1023,7 @@ class tlTestPlanMetrics extends testplan
     $safe_id = intval($id);  
     list($my,$builds,$sqlStm,$union,$platformSet) = $this->helperBuildSQLExecCounters($id, $filters, $opt);
 
-    if(is_null($builds) || count($builds) <= 0) {
+    if(is_null($builds) || is_array($builds) == false || count($builds) <= 0) {
       return null;  // >>---> Bye!
     }  
 

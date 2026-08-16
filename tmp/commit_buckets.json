@@ -1,0 +1,4593 @@
+[
+ {
+  "hash": "145e587e4",
+  "subject": "LDAP Tests OK jumpcloud.com",
+  "buckets": {
+   "app": 3,
+   "other": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "config.inc.php",
+   "lib/functions/doAuthorize.php",
+   "lib/functions/ldap_api.php"
+  ]
+ },
+ {
+  "hash": "424eac7a8",
+  "subject": "First Test using https://ldaprecord.com/",
+  "buckets": {
+   "other": 4,
+   "app": 5,
+   "thirdparty": 1,
+   "vendor": 1415
+  },
+  "app_files": [
+   "composer.json",
+   "composer.lock",
+   "config_db.inc.old.php",
+   "config_db.inc.php.8.2.4",
+   "lib/functions/doAuthorize.php",
+   "lib/functions/ldap_api.php",
+   "lib/plan/planEdit.php",
+   "lib/platforms/platformsAssign.php",
+   "lib/results/resultsByStatus.php"
+  ]
+ },
+ {
+  "hash": "5b8e7ec3c",
+  "subject": "requirements search fix",
+  "buckets": {
+   "app": 3,
+   "dashio": 4
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js",
+   "lib/requirements/reqOverview.php",
+   "lib/requirements/reqSearch.php"
+  ]
+ },
+ {
+  "hash": "b542d82b3",
+  "subject": "feature: openLinkedReqVersionWindow() added tproject_id",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js",
+   "lib/requirements/reqMonitorOverview.php"
+  ]
+ },
+ {
+  "hash": "959ecb074",
+  "subject": "feature: https://testlink2-2023.youtrack.cloud/issue/TN2023-106/Entering-exceeded-amount-of-characters-No-Red-Exclamation-mark-on-the-right-side-for-Document-ID-appears.",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "5aefc55df",
+  "subject": "added missed tproject_id",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "eeb28477c",
+  "subject": "added missed tproject_id",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqCommands.class.php"
+  ]
+ },
+ {
+  "hash": "cebcfd6cf",
+  "subject": "tproject_id & tplan_id",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqSpecCommands.class.php"
+  ]
+ },
+ {
+  "hash": "2dee80bcd",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-104/Start-Toggle-Monitoring-Requirements-can-not-performed-on-Bulk-Monitoring-Page.",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "da4d82895",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Requirement-Specification-Importing-file-in-the-valid-format-throws-the-Exception.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqImport.php"
+  ]
+ },
+ {
+  "hash": "fbccb024f",
+  "subject": "missing ;",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqCommands.class.php"
+  ]
+ },
+ {
+  "hash": "2e7fe2f66",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be-created-from-Requirement.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqCommands.class.php"
+  ]
+ },
+ {
+  "hash": "2f5e876cb",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-46/Created-Requirement-Specification-can-not-be-opened",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/requirement_spec_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "0c1aae8ee",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-97/Unable-to-Import-Links-to-Test-Cases-and-Platforms-in-Test-Plan-Projects",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php",
+   "lib/plan/planImport.php"
+  ]
+ },
+ {
+  "hash": "2e800bcf5",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-42/Importing-file-in-the-valid-format-on-Test-Project-Page-the-program-throws-the-Exception.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/requirement_spec_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "6bc314e35",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-79/Test-Cases-can-not-be-created-from-Requirement.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqCommands.class.php"
+  ]
+ },
+ {
+  "hash": "338372603",
+  "subject": "fix: en_US https://testlink2-2023.youtrack.cloud/issue/TN2023-83/Clicking-on-Requirement-Design-in-the-Navigation-Menu-of-the-Home-Page-Overview-word-is-shifted-to-the-second-line.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_US/strings.txt"
+  ]
+ },
+ {
+  "hash": "562f98d02",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-36/Test-Project-Clicking-Export-button-throws-TypeError",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcImport.php"
+  ]
+ },
+ {
+  "hash": "9b9096665",
+  "subject": "fix: debug (var_dump) removed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/specview.php"
+  ]
+ },
+ {
+  "hash": "f2b70fcf3",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-82/Menu-title-Search-Requirement-is-not-correct",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_US/strings.txt"
+  ]
+ },
+ {
+  "hash": "8da913f81",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-84/Clicking-CreateLink-Keyword-button-ERROR-ON-exec-query",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/keywords/keywordsEdit.php"
+  ]
+ },
+ {
+  "hash": "a4264b7ed",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-61/Issue-Tracker-Manegement-Fatal-error-Uncaught-TypeError-propertyexists-Argument-1",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/issuetrackerintegration/issueTrackerInterface.class.php"
+  ]
+ },
+ {
+  "hash": "042274190",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-100/Test-Case-Direct-Link-Error",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "linkto.php"
+  ]
+ },
+ {
+  "hash": "3edefbf73",
+  "subject": "fix: change HTML input type for version field",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c064b6c1b",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-91/Search-test-cases-Entering-invalid-input-in-version-field-gives-wrong-output",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "189d94ecf",
+  "subject": "Update Linked Test Case Versions -> Update Linked TC Versions",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_US/strings.txt"
+  ]
+ },
+ {
+  "hash": "ffac0d79d",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-102/Fatal-Error-When-Viewing-Execution-History-in-Set-Urgent-Tests",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "86bfbb5d9",
+  "subject": "fix: https://testlink2-2023.youtrack.cloud/issue/TN2023-98/Fatal-Error-When-Viewing-Execution-History-in-Add-Remove-Test-Cases",
+  "buckets": {
+   "app": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js"
+  ]
+ },
+ {
+  "hash": "07553b97a",
+  "subject": "feature: replace help image with fontawesome + changing cursor type",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c079fca55",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-106h added missing tproject_id",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a6304f6b8",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-77/The-error-message-occurs-while-assigning-keywords",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/keywords/keywordsAssign.php"
+  ]
+ },
+ {
+  "hash": "943949415",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-87/Fatal-Error-When-Updating-User-Test-Plan-Roles-With-No-User-Records-Found",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/usermanagement/usersAssign.php",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "5e009eddf",
+  "subject": "changes for PHP 8.2.4",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "install/installUtils.php",
+   "lib/functions/configCheck.php"
+  ]
+ },
+ {
+  "hash": "f9feefea9",
+  "subject": "code layout",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "b3d6c72dc",
+  "subject": "fixed requirements menu activation",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/common.php"
+  ]
+ },
+ {
+  "hash": "2ac6fb86f",
+  "subject": "missing localization show_calendar",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "86733510d",
+  "subject": "firts -> first",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt",
+   "locale/en_US/strings.txt"
+  ]
+ },
+ {
+  "hash": "54f830da2",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-67/Assign-Test-Plan-Roles-Search-results-do-not-display-admin-only-when-searched-using-word-admin",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "1caaaeeb5",
+  "subject": "fixed - https://testlink2-2023.youtrack.cloud/issue/TQ342023-69/Moving-between-test-steps-shows-error",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "5aed12d0d",
+  "subject": "PHP8 - strftime() replaced with (new DateTimeImmutable())->format('Ymd-H:i:s');",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "a68f9b9db",
+  "subject": "Testcase bulk custom field update fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "7a0b28a52",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-62/The-error-message-occurs-after-clicking-on-the-Yes-button-on-the-Delete-relation-pop-up-window",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "df6c5577b",
+  "subject": "fixed error on notify global admins",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "firstLogin.php"
+  ]
+ },
+ {
+  "hash": "dafd3f777",
+  "subject": "PHP 8 fixes",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/email_api.php"
+  ]
+ },
+ {
+  "hash": "20b448c57",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-63/The-error-occurs-after-clicking-on-the-New-User-button",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "de51ac538",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-61/The-error-message-occurs-after-clicking-on-the-CreateLink-button-on-the-Keyword-management-pop-up-page",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php",
+   "lib/functions/tlKeyword.class.php"
+  ]
+ },
+ {
+  "hash": "1ac94fc46",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-59/Tooltip-for-Jolly-OR-Field-in-Search-Test-Cases-Page-tooltip-lists-Actions-instead-of-Expected-Results.",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "63d319127",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerability-in-creationdatefrom-Field-of-Search-Test-Cases-Through-Browser-Terminal added validateDate()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcSearch.php"
+  ]
+ },
+ {
+  "hash": "e6e6956f6",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-64/SQL-Injection-Vulnerability-in-creationdatefrom-Field-of-Search-Test-Cases-Through-Browser-Terminal added validateDate() method",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/search/searchCommands.class.php"
+  ]
+ },
+ {
+  "hash": "5a68cee15",
+  "subject": "fix missing context (project & plan) in link",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "e05e0ba6e",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-52/Import-Custom-field-showing-Not-Imported-along-with-Imported-in-Define-Custom-Fields",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "527daf839",
+  "subject": "data tables fix combo for number of results to display",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "010e173c1",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-38/Missing-values-in-the-Show-Entries-Drop-Down-List-Box-of-Platform-Management-page",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "88ffcbae7",
+  "subject": "Attachment message fix",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/common.php",
+   "lib/functions/tlAttachmentRepository.class.php"
+  ]
+ },
+ {
+  "hash": "d6eae26da",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-35/Missing-values-in-the-Show-Entries-Drop-Down-List-Box-of-the-Issue-Trackers-page",
+  "buckets": {
+   "other": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "91f858a7d",
+  "subject": "search_words_placeholder improvements",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "99f3b915e",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-17/Project-tree-shows-error-in-Assign-Test-Case-Execution-window",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/tc_exec_assignment.php"
+  ]
+ },
+ {
+  "hash": "3f6839d37",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-29",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "d0c3806b6",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-51",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "71576103d",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-48/SQL-Injection-Vulnerability-in-Createdby-and-Editedby-Fields-of-Advanced-Search",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/search/searchCommands.class.php"
+  ]
+ },
+ {
+  "hash": "ac70cea9a",
+  "subject": "https://testlink2-2023.youtrack.cloud/issue/TQ342023-47/SQL-Injection-Vulnerability-in-Createdby-and-Editedby-Fields-of-Search-Test-Cases",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcSearch.php"
+  ]
+ },
+ {
+  "hash": "eaf398319",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-14/The-Estimated-exec.-min-field-accepts-letters-and-special-symbols",
+  "buckets": {
+   "dashio": 4,
+   "app": 3
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php",
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "e5841f974",
+  "subject": "Header Documentation",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "86da69acd",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-25/The-keywords-are-not-assigned-to-the-test-case-after-clicking-on-the-arrow-to-assign-it-on-the-Create-test-case-tab",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "29b6ee4ab",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-30/Not-able-to-delete-the-Duplicate-copy-of-User-Role-in-Role-Management  (CSRF Logic issue)",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/rolesView.php"
+  ]
+ },
+ {
+  "hash": "7fa95e604",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-26/The-error-occurs-after-clicking-on-the-Test-Spec-Design-button-on-the-Test-Project-Test-Cases-created-per-user",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/results/tcCreatedPerUser.php",
+   "lib/results/tcCreatedPerUserOnTestProject.php"
+  ]
+ },
+ {
+  "hash": "5c0ae8800",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-21/TestSuite-error-message-occurs-after-clicking-on-the-Yes-button-on-the-Remove-Keyword-pop-up-tab",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "39b887c6d",
+  "subject": "refactoring to avoid PHP8 issue (Countable)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlTestPlanMetrics.class.php"
+  ]
+ },
+ {
+  "hash": "d3a4dda49",
+  "subject": "issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-34/Editing-Custom-Defined-value-gives-Fatal-error-in-editing-Test-Case - PHP8 compatibility",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/cfield_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "46c7b27fa",
+  "subject": "Issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-12/Creating-Project-Name-same-as-already-existing-does-not-display-error-message",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/project/projectEdit.php"
+  ]
+ },
+ {
+  "hash": "b7c03573a",
+  "subject": "issue https://testlink2-2023.youtrack.cloud/issue/TQ342023-20 Upload File",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/attachments.inc.php"
+  ]
+ },
+ {
+  "hash": "a73c52b66",
+  "subject": "Added information disclosure to semplify testing. To be removed before release",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/database.class.php"
+  ]
+ },
+ {
+  "hash": "99a5adef2",
+  "subject": "#TL20PHP82202304-93 - youtrack - Assign-Test-Plan-Roles-Crash-trying-to-access-the-feature",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "79cf545bd",
+  "subject": "user management - fix expiration date mgmt",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/usersEdit.php"
+  ]
+ },
+ {
+  "hash": "a86b8e347",
+  "subject": "user mgmt user feedback using bootbox",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "aecf49d4d",
+  "subject": "#TL20PHP82202304-72 - youtrack - issue saving value for date time custom field",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/cfield_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "82f3fac2b",
+  "subject": "#TL20PHP82202304-63 - youtrack - Reports - Page cannot be accessed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/general/frmWorkArea.php"
+  ]
+ },
+ {
+  "hash": "ce3ac3e37",
+  "subject": "#TL20PHP82202304-65 - youtrack - Test Case Design - Test Specifcation - Adding a blank keyword causes error",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/testsuite.class.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "5d46467a0",
+  "subject": "#TL20PHP82202304-72 - youtrack - Fatal error appeared after defying 'Date' custom field",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/date_api.php"
+  ]
+ },
+ {
+  "hash": "30730433f",
+  "subject": "search req spec fixes",
+  "buckets": {
+   "dashio": 2,
+   "app": 4
+  },
+  "app_files": [
+   "lib/requirements/reqSearchForm.php",
+   "lib/requirements/reqSpecSearch.php",
+   "lib/requirements/reqSpecSearchForm.php",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "bfc667346",
+  "subject": "navbar update fixed",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "linkto.php"
+  ]
+ },
+ {
+  "hash": "705f16d0c",
+  "subject": "crash due to missing test project id fixed",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "linkto.php"
+  ]
+ },
+ {
+  "hash": "2fa28cef6",
+  "subject": "sintax error fixed (missing ;)",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/planMilestonesEdit.php",
+   "lib/plan/planMilestonesView.php"
+  ]
+ },
+ {
+  "hash": "7a9e357b0",
+  "subject": "#TL20PHP82202304-51 - youtrack - User \"Expiration date \"column False value",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/usersEdit.php"
+  ]
+ },
+ {
+  "hash": "e5a429ff7",
+  "subject": "#TL20PHP82202304-46 (youtrack) - Fatal error appeared when deleting a step in the test case",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "8c3c759b3",
+  "subject": "feature: test project prefix user hint regarding length",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "4679c05f2",
+  "subject": "Missing user feedback when project name and/or project prefix already exists",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/project/projectEdit.php"
+  ]
+ },
+ {
+  "hash": "48263e1fb",
+  "subject": "bootbox upgrade to /**  * Bootbox.js \u2014 alert, confirm, prompt, and flexible dialogs for the Bootstrap framework  * @version: 6.0.0  * @project: https://github.com/makeusabrew/bootbox  * @license: MIT http://bootboxjs.com/license.txt  */",
+  "buckets": {
+   "thirdparty": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "5e1f88a44",
+  "subject": "#0009246: Test Plan Management - Bulk Operations: set active / set inactive - FEATURE",
+  "buckets": {
+   "dashio": 1,
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/testplan.class.php",
+   "lib/plan/planEdit.php",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "d633aa732",
+  "subject": "TL20PHP82202304-11 - Quick Search - Leaving all fields blank results in error message",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcSearch.php"
+  ]
+ },
+ {
+  "hash": "0e8e9730c",
+  "subject": "TL20PHP82202304-2 - Deleting last existing project results in error message",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "lib/general/mainPage.php",
+   "lib/project/projectView.php"
+  ]
+ },
+ {
+  "hash": "a8ace4f2c",
+  "subject": "https://php.watch/versions/8.2/dynamic-properties-deprecated",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/logger.class.php"
+  ]
+ },
+ {
+  "hash": "4dbd2c29c",
+  "subject": "PHP 8.2 deprecated ${var} -> {$var} OK",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/string_api.php"
+  ]
+ },
+ {
+  "hash": "de7690285",
+  "subject": "Data Tables usage refactored",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b57e32f58",
+  "subject": "builds view DataTable with Filter and pagination length OK",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a28bf5cfd",
+  "subject": "keywords view DataTable with Filter and pagination length OK",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9c9bff147",
+  "subject": "DataTables tpl documentation project view DataTable with Filter and pagination length OK",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "066750fc8",
+  "subject": "cfimport fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/cfields/cfieldsImport.php"
+  ]
+ },
+ {
+  "hash": "8030138cb",
+  "subject": "Fixed DataTableslengthMenu -> DataTablesLengthMenu",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "126298a3c",
+  "subject": "implode() call fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "e5b51781c",
+  "subject": "crash due to missing ;",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/planUrgency.php"
+  ]
+ },
+ {
+  "hash": "5c5921a94",
+  "subject": "DataTableslengthMenu  -> DataTablesLengthMenu",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "1f18a86cc",
+  "subject": "temp file useless",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "gui/templates_c/dtb7jl5ps0vclhu89sqp5iqret-results.import"
+  ]
+ },
+ {
+  "hash": "ac8050589",
+  "subject": "refactoring for template URL build",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "36b1eae99",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "38b48cc70",
+  "subject": "context added",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "1723846c8",
+  "subject": "bad include fixed",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "dfb6d72f3",
+  "subject": "fix error 404 calling newest_tcversions fix PHP8 fatal errors",
+  "buckets": {
+   "dashio": 1,
+   "app": 2
+  },
+  "app_files": [
+   "lib/general/frmWorkArea.php",
+   "lib/plan/newest_tcversions.php"
+  ]
+ },
+ {
+  "hash": "2f4257fee",
+  "subject": "Added missing third party package pace.js - Automatic page load progress bar",
+  "buckets": {
+   "thirdparty": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "0f96373c5",
+  "subject": "Added missing third party package pace.js - Automatic page load progress bar",
+  "buckets": {
+   "app": 1,
+   "thirdparty": 1
+  },
+  "app_files": [
+   "gui/templates_c/generateTestCaseNumber.lock"
+  ]
+ },
+ {
+  "hash": "b69ef9239",
+  "subject": "typo errors fixed",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/planUpdateTC.php",
+   "lib/plan/planUrgency.php"
+  ]
+ },
+ {
+  "hash": "9be03e84b",
+  "subject": "Added missing third party package pace.js - Automatic page load progress bar",
+  "buckets": {
+   "thirdparty": 172
+  },
+  "app_files": []
+ },
+ {
+  "hash": "8850e9557",
+  "subject": "missing strings",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "97ed70a55",
+  "subject": "crash when accessing to test case from search due to missing test project id",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcSearch.php"
+  ]
+ },
+ {
+  "hash": "051e2f26f",
+  "subject": "crash when accessing to test case from advanced search due to missing test project id",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js",
+   "lib/functions/testcase.class.php",
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "ef4c192d4",
+  "subject": "cast to array to fix PHP8 errors",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/search/search.php"
+  ]
+ },
+ {
+  "hash": "d88ae41ca",
+  "subject": "fix PHP8 Error",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/search/searchCommands.class.php"
+  ]
+ },
+ {
+  "hash": "bc806d8df",
+  "subject": "coding style",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "16bf57ef8",
+  "subject": "fixed typo error that generates warning",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a21ed9fd8",
+  "subject": "fixed PHP Fatal error:  Uncaught TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given in containerEdit.php:179",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "a0ffa0086",
+  "subject": "fixed, there were missing pieces :(",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsAssign.php"
+  ]
+ },
+ {
+  "hash": "0a4b5a5c5",
+  "subject": "Fix error due to Ext JS query method, replacing with JQuery",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "2dd8ea7f7",
+  "subject": "wip, now opens but menu disapears",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsAssign.php"
+  ]
+ },
+ {
+  "hash": "7cd27c6f9",
+  "subject": "fix click on build name does not open build edit feature",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "2e021c366",
+  "subject": "fix label context -> enable_on_context",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b7de887fc",
+  "subject": "added missing attributes on cfieldsEdit.tpl",
+  "buckets": {
+   "dashio": 1,
+   "app": 2
+  },
+  "app_files": [
+   "lib/cfields/cfieldsEdit.php",
+   "lib/functions/cfield_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "793bb959a",
+  "subject": "added missing attributes on cfieldsEdit.tpl",
+  "buckets": {
+   "dashio": 1,
+   "app": 2
+  },
+  "app_files": [
+   "lib/cfields/cfieldsEdit.php",
+   "lib/functions/cfield_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "85b17edf8",
+  "subject": "context added",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "4383ab928",
+  "subject": "add canManage check to draw to draw the Create Button",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlPlatform.class.php"
+  ]
+ },
+ {
+  "hash": "fccc2bf95",
+  "subject": "change menu strings to solve overlapping https://gitlab.com/hitekschool/testlink2.0php8.1testing/-/issues/8",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "f74dc118a",
+  "subject": "fix Uncaught TypeError: sizeof() fix Uncaught TypeError: count()",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/events/eventviewer.php",
+   "lib/functions/object.class.php"
+  ]
+ },
+ {
+  "hash": "51531607b",
+  "subject": "PHP 8.1 helped to find bad count call",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/installNewDB.php"
+  ]
+ },
+ {
+  "hash": "eca1bdd61",
+  "subject": "PHP 8.1 helped to find bad count call",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/installNewDB.php"
+  ]
+ },
+ {
+  "hash": "eb8cc3f6c",
+  "subject": "PHP 8.1 -> missing object creation -> CRASH",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/installUtils.php"
+  ]
+ },
+ {
+  "hash": "d69ca4252",
+  "subject": "added global js variables tproject_id/tplan_id",
+  "buckets": {
+   "app": 1,
+   "dashio": 2
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js"
+  ]
+ },
+ {
+  "hash": "07704257a",
+  "subject": "fix move/copy testsuite",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "f403f5fb7",
+  "subject": "context added",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/usersAssign.php"
+  ]
+ },
+ {
+  "hash": "4c9b9fed4",
+  "subject": "context added",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/rolesView.php"
+  ]
+ },
+ {
+  "hash": "2f7cdde48",
+  "subject": "smarty warning fixed",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "cee29054d",
+  "subject": "context added",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c4beac6c9",
+  "subject": "replace images with awesome fonts",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a62decb44",
+  "subject": "fix direct_link issue",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php",
+   "lib/testcases/archiveData.php",
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "7b68d1c23",
+  "subject": "fix smarty warnings",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "7a086cafc",
+  "subject": "code layout",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "8060ce5d7",
+  "subject": "fontawesome instead of button",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "6f18cbffe",
+  "subject": "thrown on testproject == 0",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "ab911f912",
+  "subject": "missing testsuite_delete",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "dda17ab7e",
+  "subject": "context added",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9da3054b4",
+  "subject": "freeze",
+  "buckets": {
+   "dashio": 1,
+   "app": 2
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "ae65b9ca1",
+  "subject": "tcPrint fixed",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcPrint.php"
+  ]
+ },
+ {
+  "hash": "33655530c",
+  "subject": "fix",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "5144b568e",
+  "subject": "change image with fontawesome",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "983b1ea24",
+  "subject": "copy ghost string to clipboard instead of show it",
+  "buckets": {
+   "app": 2,
+   "dashio": 2
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "7e8d924fe",
+  "subject": "fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcCreateFromIssueMantisXML.php"
+  ]
+ },
+ {
+  "hash": "db9dce370",
+  "subject": "fix warning",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "18f6d9577",
+  "subject": "copy test cases",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "5e2a51b89",
+  "subject": "test case view bulk actions",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "e3d2b5dce",
+  "subject": "bad vars",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/attachments/attachmentdownload.php"
+  ]
+ },
+ {
+  "hash": "3d3f31b4d",
+  "subject": "missing vars fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/print.inc.php"
+  ]
+ },
+ {
+  "hash": "31de2dc12",
+  "subject": "context added (tproject_id + tplan_id)",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "d46d7a02d",
+  "subject": "pageTitle fix",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcImport.php"
+  ]
+ },
+ {
+  "hash": "2cee0adce",
+  "subject": "missing var declaration",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testsuite.class.php"
+  ]
+ },
+ {
+  "hash": "8ca8cc61d",
+  "subject": "smarty warnings fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "d5234f644",
+  "subject": "context",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "46b7ad87a",
+  "subject": "test suite edit",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/testsuite.class.php",
+   "lib/testcases/containerEdit.php"
+  ]
+ },
+ {
+  "hash": "9e7e718fc",
+  "subject": "fix include path",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "41f63073f",
+  "subject": "code layout",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "e0c3b2867",
+  "subject": "code layout",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "5583625f6",
+  "subject": "refactoring with include + replace images with fontawesome",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "df53347fc",
+  "subject": "requirements WIP",
+  "buckets": {
+   "dashio": 2,
+   "app": 1
+  },
+  "app_files": [
+   "lib/requirements/reqSpecView.php"
+  ]
+ },
+ {
+  "hash": "692e8236d",
+  "subject": "requirements WIP",
+  "buckets": {
+   "dashio": 10
+  },
+  "app_files": []
+ },
+ {
+  "hash": "4ad18f9eb",
+  "subject": "upgrade fontawesome from 4.7.0 to 6.2.0",
+  "buckets": {
+   "dashio": 3281,
+   "app": 2
+  },
+  "app_files": [
+   "gui/templates_c/dtb7jl5ps0vclhu89sqp5iqret-results.import",
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "62ca35192",
+  "subject": "refactor each()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/xml.inc.php"
+  ]
+ },
+ {
+  "hash": "289d6f507",
+  "subject": "missing ;",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/tc_exec_assignment.php"
+  ]
+ },
+ {
+  "hash": "57962103e",
+  "subject": "refactor each()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/xml.inc.php"
+  ]
+ },
+ {
+  "hash": "ca74a72b8",
+  "subject": "test project id for context, added",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/results/resultsImport.php"
+  ]
+ },
+ {
+  "hash": "af952622a",
+  "subject": "code cleanup",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "gui/javascript/test_automation.js"
+  ]
+ },
+ {
+  "hash": "56f8f4dbb",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/execute/execSetResults.php"
+  ]
+ },
+ {
+  "hash": "1aed33baa",
+  "subject": "remove debud",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/execute/execNavigator.php"
+  ]
+ },
+ {
+  "hash": "16fb00c4b",
+  "subject": "do not save in session issueTracker Object anymore, due to issues with CurlHandle in PHP8",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlIssueTracker.class.php"
+  ]
+ },
+ {
+  "hash": "e7902d876",
+  "subject": "bad var name $argsObj",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/execute/execDashboard.php"
+  ]
+ },
+ {
+  "hash": "1f54211af",
+  "subject": "exec fixed partially",
+  "buckets": {
+   "other": 1,
+   "dashio": 4,
+   "app": 1
+  },
+  "app_files": [
+   "config.inc.php",
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "35ff4386f",
+  "subject": "code layout and minor PHP8 deprecated",
+  "buckets": {
+   "app": 4
+  },
+  "app_files": [
+   "lib/execute/execSetResults.php",
+   "lib/functions/specview.php",
+   "lib/functions/testplan.class.php",
+   "lib/plan/planUpdateTC.php"
+  ]
+ },
+ {
+  "hash": "2a0ac7725",
+  "subject": "debug removed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/execute/execNavigator.php"
+  ]
+ },
+ {
+  "hash": "eae88ac20",
+  "subject": "SMART SEARCH Fontawesome",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "92619fd5e",
+  "subject": "fix aliens",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php",
+   "lib/functions/tlIssueTracker.class.php",
+   "lib/functions/tree.class.php"
+  ]
+ },
+ {
+  "hash": "ec3d78038",
+  "subject": "refactoring replace images with fontawesom",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "1b6a9b4c9",
+  "subject": "platformsView pagination config",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "8f8c77389",
+  "subject": "SMART SEARCH",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b50b24648",
+  "subject": "Look & Feel for delete keyword action",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "d04bae53c",
+  "subject": "better sizing for delete col",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c647f3b8e",
+  "subject": "SMART SEARCH",
+  "buckets": {
+   "app": 1,
+   "dashio": 2
+  },
+  "app_files": [
+   "gui/templates/conf/input_dimensions.conf"
+  ]
+ },
+ {
+  "hash": "d39acd3ed",
+  "subject": "docum remove class sort* for each cloned td",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "31a8339be",
+  "subject": "changes from 1.9.20_fixed",
+  "buckets": {
+   "dashio": 2,
+   "app": 5
+  },
+  "app_files": [
+   "lib/functions/cfield_mgr.class.php",
+   "lib/functions/testcase.class.php",
+   "lib/functions/testproject.class.php",
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "bad027eda",
+  "subject": "remove duplicated method",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "0171c79c8",
+  "subject": "test projects - changes from 1.9.20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "41d1d1582",
+  "subject": "custom fields - changes from 1.9.20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/cfield_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "703e18bb2",
+  "subject": "changes from 1.9.20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "7bdea1586",
+  "subject": "changes from 1.9.20_fixed",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "8e8062ffc",
+  "subject": "create_function() removed on PHP8 got solution from Mantis 2.25.2 string_api.php",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/string_api.php"
+  ]
+ },
+ {
+  "hash": "ad080b236",
+  "subject": "update with latest from 1.9.20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "3f5cb9745",
+  "subject": "renderVariable() render also of keywords!!!",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "53c52f012",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "d0d62f564",
+  "subject": "new method getKeywordsAsMapByName()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "a5b790eab",
+  "subject": "fixed null access",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlPlatform.class.php"
+  ]
+ },
+ {
+  "hash": "2c847b363",
+  "subject": "added !is_null() Checks to remove warnings",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "ebfd5d6d1",
+  "subject": "fixed null warnings",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/specview.php"
+  ]
+ },
+ {
+  "hash": "438a61d7a",
+  "subject": "fixed setting_testsgroupby",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlTestCaseFilterControl.class.php"
+  ]
+ },
+ {
+  "hash": "b8ffc9664",
+  "subject": "build GUI issues fixed",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/buildEdit.php",
+   "lib/plan/buildView.php"
+  ]
+ },
+ {
+  "hash": "1cb3505fe",
+  "subject": "fix better handler management (this property can not exists)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/issuetrackerintegration/mantisrestInterface.class.php"
+  ]
+ },
+ {
+  "hash": "516e2c216",
+  "subject": "added tproject_id to save it on URL calls code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "7cc366737",
+  "subject": "docum + code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "1732ef186",
+  "subject": "missing l10n",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "6bc71a455",
+  "subject": "aliens",
+  "buckets": {
+   "other": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "8e7fdba7d",
+  "subject": "fix create test case operation",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "e09310893",
+  "subject": "missing col testcases_aliens.relation_type",
+  "buckets": {
+   "app": 4
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql",
+   "install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql",
+   "install/sql/mysql/testlink_create_tables.sql",
+   "install/sql/postgres/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "04ef91a32",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/database.class.php"
+  ]
+ },
+ {
+  "hash": "ed9b5180e",
+  "subject": "added mantis rest code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlIssueTracker.class.php"
+  ]
+ },
+ {
+  "hash": "53893627d",
+  "subject": "- use initUserEnv() - code layout out",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "fcf333346",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "9fbc440fd",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "23a548ab6",
+  "subject": "- block call to buildDirectWebLink() in create operation - code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "a67d818c3",
+  "subject": "fix missing var in tcEdit.php",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "1fcd3bc20",
+  "subject": "fix labels.labels - wrong fix delete_testcases -> btn_delete_testcases",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "727825e53",
+  "subject": "added labels parameter in include",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "362753b57",
+  "subject": "refactoring",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "6903c5b75",
+  "subject": "interface improvement",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "6f502b02d",
+  "subject": "interface improvement",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "ada40edbd",
+  "subject": "added docum about stateSave removeClass() in cloned <th>",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "96a511796",
+  "subject": "keywords view - Data Column Filtering",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "2c98ea4bd",
+  "subject": "Added logic to avoid initialization. This is usefult when using Fixed Header to implement column filtering",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "791add564",
+  "subject": "documentation about DataTables include improvements",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "85aef60f2",
+  "subject": "Update README to show right version",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "README.md"
+  ]
+ },
+ {
+  "hash": "aac772a34",
+  "subject": "update schema - testcase_aliens",
+  "buckets": {
+   "app": 4
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql",
+   "install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql",
+   "install/sql/mysql/testlink_create_tables.sql",
+   "install/sql/postgres/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "0bd080c04",
+  "subject": "testcase_aliens",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql",
+   "install/sql/mysql/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "f6bfe8ce0",
+  "subject": "update schema",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/postgres/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "6cf7f5818",
+  "subject": "update schema",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/mysql/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "05fcc160f",
+  "subject": "platform - is_open",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/postgres/DB.1.9.20/step1/db_schema_update.sql"
+  ]
+ },
+ {
+  "hash": "ba385a8c3",
+  "subject": "platform - is_open",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql"
+  ]
+ },
+ {
+  "hash": "85c495a1d",
+  "subject": "PHP min version updated to 7.4.27",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/configCheck.php"
+  ]
+ },
+ {
+  "hash": "2218af2ea",
+  "subject": "platform_open_for_exec",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "5860fdedf",
+  "subject": "PHP 8 - each() removed",
+  "buckets": {
+   "thirdparty": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "796b0ceea",
+  "subject": "platform_open_for_exec",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "f736df4c9",
+  "subject": "hasRightOnProj()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlUser.class.php"
+  ]
+ },
+ {
+  "hash": "ab8cfbf5e",
+  "subject": "add missing costant from 1.9.20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php"
+  ]
+ },
+ {
+  "hash": "43b48ed81",
+  "subject": "is_open attribute",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c2b894a49",
+  "subject": "added data- attr for test automation",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "d97ab8581",
+  "subject": "hasRightOnProj()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsView.php"
+  ]
+ },
+ {
+  "hash": "2b5ea140f",
+  "subject": "is_open attribute",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsImport.php"
+  ]
+ },
+ {
+  "hash": "eefa1af12",
+  "subject": "is_open attribute",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsExport.php"
+  ]
+ },
+ {
+  "hash": "d709ae5d1",
+  "subject": "is_open attribute",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsEdit.php"
+  ]
+ },
+ {
+  "hash": "323d2d64d",
+  "subject": "is_open attribute",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/platforms/platformsAssign.php"
+  ]
+ },
+ {
+  "hash": "c1ed95036",
+  "subject": "is_open attribute",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlPlatform.class.php"
+  ]
+ },
+ {
+  "hash": "129442671",
+  "subject": "platform - new configuration",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "00c369549",
+  "subject": "run composer to update packages",
+  "buckets": {
+   "other": 4,
+   "vendor": 830
+  },
+  "app_files": [
+   "composer-require-all",
+   "composer-require-log",
+   "composer.json",
+   "composer.lock"
+  ]
+ },
+ {
+  "hash": "b4916d04f",
+  "subject": "remove all packages using composer, to update it",
+  "buckets": {
+   "other": 1,
+   "vendor": 954
+  },
+  "app_files": [
+   "composer.lock"
+  ]
+ },
+ {
+  "hash": "fc43f7504",
+  "subject": "composer.phar added",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "composer.phar"
+  ]
+ },
+ {
+  "hash": "c3b14ad70",
+  "subject": "update composer platform php to 8.1.9",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "composer.json"
+  ]
+ },
+ {
+  "hash": "7b2ea5f06",
+  "subject": "PHP8.1 deprecated functions - change strftime()/gmstrftime() @strftime()/@gmstrftime()",
+  "buckets": {
+   "app": 15,
+   "other": 1,
+   "thirdparty": 2
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "config.inc.php",
+   "lib/api/xmlrpc/v1/test/TestlinkXMLRPCServerTest.php",
+   "lib/codetrackerintegration/stashrestInterface.class.php",
+   "lib/functions/cfield_mgr.class.php",
+   "lib/functions/date_api.php",
+   "lib/functions/lang_api.php",
+   "lib/functions/logger.class.php",
+   "lib/functions/print.inc.php",
+   "lib/functions/testcase.class.php",
+   "lib/issuetrackerintegration/gforgesoapInterface.class.php",
+   "lib/issuetrackerintegration/jiraCommons.class.php",
+   "lib/requirements/reqOverview.php",
+   "lib/results/resultsMoreBuildsGUI.php",
+   "lib/results/tcCreatedPerUserGUI.php",
+   "lib/results/tcCreatedPerUserOnTestProject.php"
+  ]
+ },
+ {
+  "hash": "c98fd7076",
+  "subject": "cast to array",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "5bb3712a2",
+  "subject": "Kint removed",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/common.php",
+   "lib/issuetrackerintegration/jiradbInterface.class.php"
+  ]
+ },
+ {
+  "hash": "c393871e6",
+  "subject": "Kint removed",
+  "buckets": {
+   "thirdparty": 36
+  },
+  "app_files": []
+ },
+ {
+  "hash": "54b56fa70",
+  "subject": "random login background from unsplash",
+  "buckets": {
+   "other": 2,
+   "app": 1
+  },
+  "app_files": [
+   "config.inc.php",
+   "lib/functions/tlsmarty.inc.php",
+   "login.php"
+  ]
+ },
+ {
+  "hash": "9d6013d4c",
+  "subject": "random login background",
+  "buckets": {
+   "dashio": 12,
+   "app": 1,
+   "other": 1
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php",
+   "login.php"
+  ]
+ },
+ {
+  "hash": "8e9b53eda",
+  "subject": "custom fields",
+  "buckets": {
+   "dashio": 1,
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/cfield_mgr.class.php",
+   "lib/functions/testplan.class.php",
+   "lib/plan/planEdit.php"
+  ]
+ },
+ {
+  "hash": "644cd490c",
+  "subject": "refactoring",
+  "buckets": {
+   "other": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "8831193e2",
+  "subject": "refactoring",
+  "buckets": {
+   "other": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "31d6a176a",
+  "subject": "attachments OK",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "f1357c60c",
+  "subject": "is_public fixed",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "eb9b3691c",
+  "subject": "wip #2 -> Custom Fields still not managed",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c425e9754",
+  "subject": "fix change do_action() -> defaultAction() to avoid issues with HTML input named do_action.                           do_action.value='xx' didn't work!!",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "e1c78b06a",
+  "subject": "column width",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "e21761bbe",
+  "subject": "use constant from input_dimensions.conf",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b9cf10a2d",
+  "subject": "wip - edit without custom fields",
+  "buckets": {
+   "dashio": 2,
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/planEdit.php",
+   "lib/plan/planView.php"
+  ]
+ },
+ {
+  "hash": "a1d5e5a21",
+  "subject": "added config",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "gui/templates/conf/input_dimensions.conf"
+  ]
+ },
+ {
+  "hash": "c17f9108c",
+  "subject": "fix toggle_navigation label",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "4e57ba8f7",
+  "subject": "PHP Compatibility - __construct()",
+  "buckets": {
+   "thirdparty": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "f88fa35a4",
+  "subject": "refactoring",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "d41feb741",
+  "subject": "wip #5",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "ba7a0d06a",
+  "subject": "wip #3",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9913b211b",
+  "subject": "wip #2",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "546e8b5fe",
+  "subject": "wip #1",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "ae3afe11b",
+  "subject": "fix",
+  "buckets": {
+   "app": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "gui/templates/conf/input_dimensions.conf"
+  ]
+ },
+ {
+  "hash": "a9a097560",
+  "subject": "refactoring",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "e9b299cd2",
+  "subject": "missing strings",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "fd11ff2e2",
+  "subject": "DataTables fix",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "64f355977",
+  "subject": "refactoring towards bootstrap",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "818fd16b0",
+  "subject": "fontawesome",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "67c1499a5",
+  "subject": "fontawesome",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "4e1b0650f",
+  "subject": "debug commented",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "41832b735",
+  "subject": "refactoring / improvement",
+  "buckets": {
+   "app": 1,
+   "dashio": 1
+  },
+  "app_files": [
+   "gui/templates/conf/input_dimensions.conf"
+  ]
+ },
+ {
+  "hash": "38fb6f4ed",
+  "subject": "missing hints",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "491da993e",
+  "subject": "bootstrap transformation",
+  "buckets": {
+   "dashio": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b8fca42a6",
+  "subject": "use fontawesome wip #1",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "38d4b69da",
+  "subject": "refactoring using fontawesome",
+  "buckets": {
+   "dashio": 1,
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php",
+   "lib/project/projectCommon.php",
+   "lib/project/projectView.php"
+  ]
+ },
+ {
+  "hash": "b5f4f29b7",
+  "subject": "Create test project OK Delete test project OK Delete last project in System OK",
+  "buckets": {
+   "dashio": 1,
+   "app": 4
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php",
+   "lib/project/projectCommon.php",
+   "lib/project/projectEdit.php",
+   "lib/project/projectView.php"
+  ]
+ },
+ {
+  "hash": "6807cfe07",
+  "subject": "syntax error",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/project/projectCommon.php"
+  ]
+ },
+ {
+  "hash": "5b4d01914",
+  "subject": "wip KO need review",
+  "buckets": {
+   "dashio": 2,
+   "other": 1,
+   "app": 5
+  },
+  "app_files": [
+   "index.php",
+   "lib/general/mainPage.php",
+   "lib/general/mainPageCommon.php",
+   "lib/project/projectCommon.php",
+   "lib/project/projectEdit.php",
+   "lib/project/projectView.php"
+  ]
+ },
+ {
+  "hash": "3d24d46e8",
+  "subject": "wip 1",
+  "buckets": {
+   "app": 4,
+   "dashio": 1,
+   "other": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "index.php",
+   "lib/general/mainPage.php",
+   "lib/general/mainPageCommon.php",
+   "lib/project/projectEdit.php"
+  ]
+ },
+ {
+  "hash": "ebbd6971d",
+  "subject": "ok when first project and after delete last project ON TAB",
+  "buckets": {
+   "dashio": 1,
+   "app": 3
+  },
+  "app_files": [
+   "lib/general/mainPage.php",
+   "lib/general/navBar.php",
+   "lib/project/projectEdit.php"
+  ]
+ },
+ {
+  "hash": "f05356677",
+  "subject": "apply to stable code",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/mysql/testlink_create_tables.sql"
+  ]
+ },
+ {
+  "hash": "52a9c2af3",
+  "subject": "just to be able to install on Linux Fedora 32 with bitnami",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/configCheck.php",
+   "lib/functions/database.class.php"
+  ]
+ },
+ {
+  "hash": "4108f9614",
+  "subject": "debugging",
+  "buckets": {
+   "dashio": 1,
+   "app": 2,
+   "other": 1
+  },
+  "app_files": [
+   "lib/project/projectEdit.php",
+   "lib/testcases/tcSearch.php",
+   "login.php"
+  ]
+ },
+ {
+  "hash": "846ed6d63",
+  "subject": "minor comment",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/project/projectEdit.php"
+  ]
+ },
+ {
+  "hash": "6ecaef2d7",
+  "subject": "code layout",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/general/mainPage.php"
+  ]
+ },
+ {
+  "hash": "6395ad714",
+  "subject": "minor improvement in require() sequence",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "index.php"
+  ]
+ },
+ {
+  "hash": "758d5978d",
+  "subject": "code layout",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9ab3b7807",
+  "subject": "improvement - Test Project Management -> list remove delete label",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "fc3d21c2b",
+  "subject": "Merge branch '2.0.0-search-features-bootstrap' into 2.0.0-202020905-01",
+  "buckets": {
+   "app": 10,
+   "dashio": 1
+  },
+  "app_files": [
+   "gui/fonts/Ruda/OFL.txt",
+   "gui/fonts/Ruda/README.txt",
+   "gui/fonts/Ruda/Ruda-VariableFont_wght.ttf",
+   "gui/fonts/Ruda/static/Ruda-Black.ttf",
+   "gui/fonts/Ruda/static/Ruda-Bold.ttf",
+   "gui/fonts/Ruda/static/Ruda-ExtraBold.ttf",
+   "gui/fonts/Ruda/static/Ruda-Medium.ttf",
+   "gui/fonts/Ruda/static/Ruda-Regular.ttf",
+   "gui/fonts/Ruda/static/Ruda-SemiBold.ttf",
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "158add4a4",
+  "subject": "better layout",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "8d76e24f6",
+  "subject": "replace icon with fontawesome",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b0d8daf89",
+  "subject": "some ID added to improve test automation",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "6665d3be7",
+  "subject": "try to set Ruda as default font family",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a5447eb21",
+  "subject": "fix",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "6e5369f3f",
+  "subject": "more fontawesome refactoring",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9ae795a3d",
+  "subject": "refactoring: replace icons with font awesome fix tprojectMgr -> tprojMgr fix: bad include path & file",
+  "buckets": {
+   "dashio": 3,
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php",
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "606111d92",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 6
+  },
+  "app_files": [
+   "lib/plan/newest_tcversions.php",
+   "lib/plan/planImport.php",
+   "lib/plan/planMilestonesView.php",
+   "lib/plan/planUpdateTC.php",
+   "lib/plan/planUrgency.php",
+   "lib/plan/planView.php"
+  ]
+ },
+ {
+  "hash": "0933d9b08",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "lib/plan/planMilestonesEdit.php",
+   "lib/plan/planMilestonesView.php",
+   "lib/plan/tc_exec_unassign_all.php"
+  ]
+ },
+ {
+  "hash": "51ef9cf1b",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/tc_exec_assignment.php",
+   "lib/plan/tc_exec_unassign_all.php"
+  ]
+ },
+ {
+  "hash": "a449e2d3b",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/buildCopyExecTaskAssignment.php"
+  ]
+ },
+ {
+  "hash": "d6e780909",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "lib/plan/buildCopyExecTaskAssignment.php",
+   "lib/plan/buildEdit.php",
+   "lib/plan/buildView.php"
+  ]
+ },
+ {
+  "hash": "341fdb030",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/planEdit.php"
+  ]
+ },
+ {
+  "hash": "62295c114",
+  "subject": "checkRights() -> change to logic inside init_args()",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/plan/planEdit.php",
+   "lib/plan/planView.php"
+  ]
+ },
+ {
+  "hash": "f5bc34dd6",
+  "subject": "from 1.9.20_fixed -> inventory issue",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/common.php"
+  ]
+ },
+ {
+  "hash": "ddeabcf89",
+  "subject": "missing uri key",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "c2dae7525",
+  "subject": "feature: for MantisBT when adding an Alien Reference, call the TestSpec REST API Calls (is a MantisBT Plugin that I've developed)",
+  "buckets": {
+   "app": 5,
+   "other": 1,
+   "thirdparty": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "config.inc.php",
+   "lib/functions/testcase.class.php",
+   "lib/issuetrackerintegration/issueTrackerInterface.class.php",
+   "lib/issuetrackerintegration/mantisrestInterface.class.php",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "de01f1c00",
+  "subject": "feature: alien relation type",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "1866086bf",
+  "subject": "feature: alien relation type",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "3cd0a2ad0",
+  "subject": "feature: alien relation type",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "1a6aa2836",
+  "subject": "feature: alien relation type",
+  "buckets": {
+   "other": 1
+  },
+  "app_files": [
+   "config.inc.php"
+  ]
+ },
+ {
+  "hash": "b192e4605",
+  "subject": "feature: alien relation type",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php"
+  ]
+ },
+ {
+  "hash": "d35f15930",
+  "subject": "fix: logic to avoid crash when trying to add req link to a test case that has lates version INACTIVE (from 1.9.20 fixed)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/requirement_mgr.class.php"
+  ]
+ },
+ {
+  "hash": "80698645a",
+  "subject": "new class milestone.class.php, not on testplan.class.php",
+  "buckets": {
+   "app": 3
+  },
+  "app_files": [
+   "lib/functions/milestone.class.php",
+   "lib/plan/planMilestonesCommands.class.php",
+   "lib/plan/planMilestonesView.php"
+  ]
+ },
+ {
+  "hash": "e578afcec",
+  "subject": "new class build.class.php, not on testplan.class.php",
+  "buckets": {
+   "app": 14
+  },
+  "app_files": [
+   "lib/api/rest/v2/tlRestApi.class.php",
+   "lib/api/rest/v3/RestApi.class.php",
+   "lib/api/xmlrpc/v1/xmlrpc.class.php",
+   "lib/execute/execDashboard.php",
+   "lib/execute/execExport.php",
+   "lib/execute/execSetResults.php",
+   "lib/functions/build.class.php",
+   "lib/functions/code_testing/testplan.class.test.php",
+   "lib/functions/print.inc.php",
+   "lib/functions/testplan.class.php",
+   "lib/plan/buildCopyExecTaskAssignment.php",
+   "lib/plan/buildEdit.php",
+   "lib/plan/tc_exec_unassign_all.php",
+   "lib/results/resultsImport.php"
+  ]
+ },
+ {
+  "hash": "673bbe58b",
+  "subject": "REST API",
+  "buckets": {
+   "app": 32
+  },
+  "app_files": [
+   "lib/api/rest/v3/RestApi.class.php",
+   "lib/api/rest/v3/core/routes.php",
+   "lib/api/rest/v3/index.php",
+   "lib/api/rest/v3/test/httpie-addPlatforms.sh",
+   "lib/api/rest/v3/test/httpie-createBuild.sh",
+   "lib/api/rest/v3/test/httpie-createKeyword.sh",
+   "lib/api/rest/v3/test/httpie-createTestCase.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseB.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseExecution.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseWithSteps.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5B.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5C.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5D.sh",
+   "lib/api/rest/v3/test/httpie-createTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-createTestProject.sh",
+   "lib/api/rest/v3/test/httpie-createTestSuite.sh",
+   "lib/api/rest/v3/test/httpie-createTopTestSuite.sh",
+   "lib/api/rest/v3/test/httpie-getBuildsInTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-getOneTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestCasesInTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestPlansInTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestProjects.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanActive.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanInactive.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanNotes.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanPrivate.sh",
+   "lib/api/rest/v3/test/httpie-updateBuild.sh",
+   "lib/api/rest/v3/test/httpie-updateTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-whoAmI.sh",
+   "lib/api/rest/v3/test/json/createTestPlan.json",
+   "lib/api/rest/v3/test/json/createTestProject.json"
+  ]
+ },
+ {
+  "hash": "a86f34202",
+  "subject": "Update to Slim4.4.0 (PHP > 7.1.x is needed)",
+  "buckets": {
+   "other": 2,
+   "vendor": 74
+  },
+  "app_files": [
+   "composer.json",
+   "composer.lock"
+  ]
+ },
+ {
+  "hash": "1fa3f2f4a",
+  "subject": "to set the URI for testing",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/api/rest/v3/test/setURI.sh"
+  ]
+ },
+ {
+  "hash": "bc58d7318",
+  "subject": "test code removed",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/api/rest/v3/World.class.php",
+   "lib/api/rest/v3/untitled.php"
+  ]
+ },
+ {
+  "hash": "2370e6697",
+  "subject": "fix updateFromObject() Testplan",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testplan.class.php"
+  ]
+ },
+ {
+  "hash": "682b23550",
+  "subject": "Slim 4",
+  "buckets": {
+   "other": 2,
+   "app": 61,
+   "vendor": 423
+  },
+  "app_files": [
+   "composer.json",
+   "composer.lock",
+   "lib/api/rest/v3/.htaccess",
+   "lib/api/rest/v3/RestApi.class.php",
+   "lib/api/rest/v3/World.class.php",
+   "lib/api/rest/v3/core/routes.php",
+   "lib/api/rest/v3/index.php",
+   "lib/api/rest/v3/test/hippie-createTC-example.sh",
+   "lib/api/rest/v3/test/httpie-addPlatforms.sh",
+   "lib/api/rest/v3/test/httpie-createBuild.sh",
+   "lib/api/rest/v3/test/httpie-createKeyword.sh",
+   "lib/api/rest/v3/test/httpie-createTestCase.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseB.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseExecution.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseWithSteps.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5B.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5C.sh",
+   "lib/api/rest/v3/test/httpie-createTestCaseXL5D.sh",
+   "lib/api/rest/v3/test/httpie-createTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-createTestProject.sh",
+   "lib/api/rest/v3/test/httpie-createTestSuite.sh",
+   "lib/api/rest/v3/test/httpie-createTopTestSuite.sh",
+   "lib/api/rest/v3/test/httpie-getBuildsInTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-getOneTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestCasesInTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestPlansInTestProject.sh",
+   "lib/api/rest/v3/test/httpie-getTestProjects.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanActive.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanInactive.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanNotes.sh",
+   "lib/api/rest/v3/test/httpie-setTestPlanPrivate.sh",
+   "lib/api/rest/v3/test/httpie-updateBuild.sh",
+   "lib/api/rest/v3/test/httpie-updateTestPlan.sh",
+   "lib/api/rest/v3/test/httpie-whoAmI.sh",
+   "lib/api/rest/v3/test/json/README",
+   "lib/api/rest/v3/test/json/addPlatforms.json",
+   "lib/api/rest/v3/test/json/createBuild.json",
+   "lib/api/rest/v3/test/json/createKeyword.json",
+   "lib/api/rest/v3/test/json/createTestCaseExecution.json",
+   "lib/api/rest/v3/test/json/createTestPlan.json",
+   "lib/api/rest/v3/test/json/createTestProject.json",
+   "lib/api/rest/v3/test/json/createTestSuite.json",
+   "lib/api/rest/v3/test/json/createTopTestSuite.json",
+   "lib/api/rest/v3/test/json/setTestPlanActive.json",
+   "lib/api/rest/v3/test/json/setTestPlanInactive.json",
+   "lib/api/rest/v3/test/json/setTestPlanNotes.json",
+   "lib/api/rest/v3/test/json/setTestPlanPrivate.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCase.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseB.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseUsingAttrID.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseUsingAttrVerboseKey.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseWithSteps.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseXL5.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseXL5B.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseXL5C.json",
+   "lib/api/rest/v3/test/json/testcases/createTestCaseXL5D.json",
+   "lib/api/rest/v3/test/json/testcases/testCaseComplex.json",
+   "lib/api/rest/v3/test/json/testcases/testCaseComplex2.json",
+   "lib/api/rest/v3/test/json/updateBuild.json",
+   "lib/api/rest/v3/test/json/updateTestPlan.json",
+   "lib/api/rest/v3/test/xx",
+   "lib/api/rest/v3/untitled.php"
+  ]
+ },
+ {
+  "hash": "df3da902f",
+  "subject": "slim2 removed",
+  "buckets": {
+   "thirdparty": 3
+  },
+  "app_files": []
+ },
+ {
+  "hash": "57ad44c6d",
+  "subject": "slim2 removed",
+  "buckets": {
+   "app": 1,
+   "thirdparty": 16
+  },
+  "app_files": [
+   "gui/templates_c/gboi1oaj6ncu9cdmjmjoflgkf9-importkeywords.iSerializationToXML"
+  ]
+ },
+ {
+  "hash": "10ce74cbc",
+  "subject": "saving wip work",
+  "buckets": {
+   "dashio": 1,
+   "app": 5
+  },
+  "app_files": [
+   "lib/attachments/attachmentdownload.php",
+   "lib/functions/tlsmarty.inc.php",
+   "lib/plan/planEdit.php",
+   "lib/plan/planView.php",
+   "lib/plan/planViewUtils.php"
+  ]
+ },
+ {
+  "hash": "83ca1f6a9",
+  "subject": "fix: aligned with testlink_1_9_20_fixed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/api/rest/v2/tlRestApi.class.php"
+  ]
+ },
+ {
+  "hash": "2858ca8ef",
+  "subject": "fix: buildTestCaseObj()",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/api/rest/v2/tlRestApi.class.php"
+  ]
+ },
+ {
+  "hash": "0a0d7b346",
+  "subject": "feature: added piece of logic related to Alien References",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testplan.class.php"
+  ]
+ },
+ {
+  "hash": "e8074cf2b",
+  "subject": "feature: added piece of logic related to Alien References",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testplan.class.php"
+  ]
+ },
+ {
+  "hash": "0f433b9c4",
+  "subject": "fix delete platform link on tc spec (found in TESISQUARE production code)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "b76723fe3",
+  "subject": "missing version fixes (found in TESISQUARE production code)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testcase.class.php"
+  ]
+ },
+ {
+  "hash": "a4fab37b6",
+  "subject": "fix: event viewer warnings",
+  "buckets": {
+   "dashio": 1,
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/planView.php"
+  ]
+ },
+ {
+  "hash": "8965e69b9",
+  "subject": "wip aliens",
+  "buckets": {
+   "dashio": 1,
+   "app": 6
+  },
+  "app_files": [
+   "lib/functions/object.class.php",
+   "lib/functions/testcase.class.php",
+   "lib/testcases/archiveData.php",
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php",
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "fcd214380",
+  "subject": "alignment",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "d17fa0b38",
+  "subject": "wip",
+  "buckets": {
+   "dashio": 5,
+   "app": 2
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php",
+   "lib/testcases/tcEdit.php"
+  ]
+ },
+ {
+  "hash": "d42c1dfe1",
+  "subject": "aligned aliens",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "89558dd10",
+  "subject": "always draw the table to avoid DataTables warning",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "4cc3d9ab8",
+  "subject": "obsolete",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "9fb5fd42f",
+  "subject": "reorganization",
+  "buckets": {
+   "dashio": 175,
+   "app": 3
+  },
+  "app_files": [
+   "gui/templates_c/gboi1oaj6ncu9cdmjmjoflgkf9-importkeywords.iSerializationToXML",
+   "gui/templates_c/generateTestCaseNumber.lock",
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "01099fc58",
+  "subject": "improvement - several template folders configured",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "14900a037",
+  "subject": "fix",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "2e8e92a67",
+  "subject": "Configure DataTables to sort by column 1 NOT 0 (0 -> first col)",
+  "buckets": {
+   "dashio": 2
+  },
+  "app_files": []
+ },
+ {
+  "hash": "f14af7f8a",
+  "subject": "refactoring DataTables",
+  "buckets": {
+   "dashio": 14
+  },
+  "app_files": []
+ },
+ {
+  "hash": "7872c839e",
+  "subject": "added missing DataTables plugin Minor implementation",
+  "buckets": {
+   "thirdparty": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "a8750e8a6",
+  "subject": "fix path to resource",
+  "buckets": {
+   "dashio": 1
+  },
+  "app_files": []
+ },
+ {
+  "hash": "111ef4d36",
+  "subject": "something working",
+  "buckets": {
+   "dashio": 184,
+   "app": 6,
+   "thirdparty": 6
+  },
+  "app_files": [
+   "gui/themes/default/images/employee-badge.png",
+   "lib/XZ",
+   "lib/functions/renderGhostSummary.php",
+   "lib/project/projectCommon.php",
+   "lib/results/tcCreatedPerUser.php",
+   "lib/results/tcCreatedPerUserGUI.php"
+  ]
+ },
+ {
+  "hash": "a357a1133",
+  "subject": "something working",
+  "buckets": {
+   "app": 174,
+   "other": 10,
+   "dashio": 5,
+   "thirdparty": 438
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "config.inc.php",
+   "error.php",
+   "firstLogin.php",
+   "gui/niftycube/niftyCorners.css",
+   "gui/niftycube/niftycube.js",
+   "gui/themes/default/css/frame.css",
+   "gui/themes/default/css/testlink.css",
+   "index.php",
+   "install/installCheck.php",
+   "install/installUtils.php",
+   "install/sql/mysql/testlink_create_default_data.sql",
+   "install/sql/mysql/testlink_create_tables.sql",
+   "lib/ajax/dragdroprequirementnodes.php",
+   "lib/ajax/dragdroptprojectnodes.php",
+   "lib/ajax/getrequirementnodes.php",
+   "lib/ajax/gettprojectnodes.php",
+   "lib/api/rest/v2/tlRestApi.class.php",
+   "lib/api/xmlrpc/v1/sample_clients/php/clientCreateNTestCases.php",
+   "lib/api/xmlrpc/v1/sample_clients/php/clientGetTestCase.php",
+   "lib/api/xmlrpc/v1/sample_clients/php/clientGetTestCaseAttachments.php",
+   "lib/api/xmlrpc/v1/sample_clients/php/clientUploadTestCaseAttachment.php",
+   "lib/attachments/attachmentdownload.php",
+   "lib/cfields/cfieldsEdit.php",
+   "lib/cfields/cfieldsExport.php",
+   "lib/cfields/cfieldsImport.php",
+   "lib/cfields/cfieldsTprojectAssign.php",
+   "lib/cfields/cfieldsView.php",
+   "lib/codetrackers/codeTrackerEdit.php",
+   "lib/codetrackers/codeTrackerView.php",
+   "lib/execute/bugDelete.php",
+   "lib/execute/execDashboard.php",
+   "lib/execute/execHistory.php",
+   "lib/execute/execNavigator.php",
+   "lib/execute/execSetResults.php",
+   "lib/functions/assignment_mgr.class.php",
+   "lib/functions/attachments.inc.php",
+   "lib/functions/cfield_mgr.class.php",
+   "lib/functions/code_testing/testcase.class.test.php",
+   "lib/functions/configCheck.php",
+   "lib/functions/csrf.php",
+   "lib/functions/csv.inc.php",
+   "lib/functions/database.class.php",
+   "lib/functions/doAuthorize.php",
+   "lib/functions/events_inc.php",
+   "lib/functions/execTreeMenu.inc.php",
+   "lib/functions/files.inc.php",
+   "lib/functions/oauth_providers/google.php",
+   "lib/functions/object.class.php",
+   "lib/functions/opt_transfer.php",
+   "lib/functions/print.inc.php",
+   "lib/functions/reports.class.php",
+   "lib/functions/requirement_mgr.class.php",
+   "lib/functions/requirement_spec_mgr.class.php",
+   "lib/functions/roles.inc.php",
+   "lib/functions/testcase.class.php",
+   "lib/functions/testplan.class.php",
+   "lib/functions/testsuite.class.php",
+   "lib/functions/tlAttachment.class.php",
+   "lib/functions/tlAttachmentRepository.class.php",
+   "lib/functions/tlFilterControl.class.php",
+   "lib/functions/tlInventory.class.php",
+   "lib/functions/tlIssueTracker.class.php",
+   "lib/functions/tlKeyword.class.php",
+   "lib/functions/tlPlatform.class.php",
+   "lib/functions/tlRole.class.php",
+   "lib/functions/tlTestCaseFilterByRequirementControl.class.php",
+   "lib/functions/tlTestCaseFilterControl.class.php",
+   "lib/functions/tlTestPlanMetrics.class.php",
+   "lib/functions/treeMenu.inc.php",
+   "lib/general/frmWorkArea.php",
+   "lib/general/mainPage.php",
+   "lib/general/navBar.php",
+   "lib/inventory/deleteInventory.php",
+   "lib/inventory/getInventory.php",
+   "lib/inventory/inventoryView.php",
+   "lib/inventory/setInventory.php",
+   "lib/issuetrackerintegration/issueTrackerInterface.class.php",
+   "lib/issuetrackerintegration/jirarestInterface.class.php",
+   "lib/issuetrackerintegration/mantissoapInterface.class.php",
+   "lib/issuetrackerintegration/redminerestInterface.class.php",
+   "lib/issuetrackers/issueTrackerEdit.php",
+   "lib/issuetrackers/issueTrackerView.php",
+   "lib/keywords/keywordsAssign.php",
+   "lib/keywords/keywordsEdit.php",
+   "lib/keywords/keywordsEnv.php",
+   "lib/keywords/keywordsExport.php",
+   "lib/keywords/keywordsImport.php",
+   "lib/keywords/keywordsView.php",
+   "lib/plan/buildEdit.php",
+   "lib/plan/buildView.php",
+   "lib/plan/newest_tcversions.php",
+   "lib/plan/planAddTC.php",
+   "lib/plan/planAddTCNavigator.php",
+   "lib/plan/planEdit.php",
+   "lib/plan/planExport.php",
+   "lib/plan/planImport.php",
+   "lib/plan/planMilestonesCommands.class.php",
+   "lib/plan/planMilestonesEdit.php",
+   "lib/plan/planMilestonesView.php",
+   "lib/plan/planTCNavigator.php",
+   "lib/plan/planUpdateTC.php",
+   "lib/plan/planUrgency.php",
+   "lib/plan/planView.php",
+   "lib/plan/tc_exec_unassign_all.php",
+   "lib/platforms/platformsAssign.php",
+   "lib/platforms/platformsEdit.php",
+   "lib/platforms/platformsExport.php",
+   "lib/platforms/platformsImport.php",
+   "lib/platforms/platformsView.php",
+   "lib/project/projectEdit.php",
+   "lib/requirements/reqCommands.class.php",
+   "lib/requirements/reqCompareVersions.php",
+   "lib/requirements/reqCreateFromIssueMantisXML.php",
+   "lib/requirements/reqEdit.php",
+   "lib/requirements/reqExport.php",
+   "lib/requirements/reqImport.php",
+   "lib/requirements/reqOverview.php",
+   "lib/requirements/reqPrint.php",
+   "lib/requirements/reqSearch.php",
+   "lib/requirements/reqSearchForm.php",
+   "lib/requirements/reqSpecCommands.class.php",
+   "lib/requirements/reqSpecCompareRevisions.php",
+   "lib/requirements/reqSpecEdit.php",
+   "lib/requirements/reqSpecListTree.php",
+   "lib/requirements/reqSpecPrint.php",
+   "lib/requirements/reqSpecSearch.php",
+   "lib/requirements/reqSpecSearchForm.php",
+   "lib/requirements/reqSpecView.php",
+   "lib/requirements/reqSpecViewRevision.php",
+   "lib/requirements/reqTcAssign.php",
+   "lib/requirements/reqView.php",
+   "lib/requirements/reqViewRevision.php",
+   "lib/results/charts.php",
+   "lib/results/displayMgr.php",
+   "lib/results/execTimelineStats.php",
+   "lib/results/freeTestCases.php",
+   "lib/results/keywordBarChart.php",
+   "lib/results/metricsDashboard.php",
+   "lib/results/neverRunByPP.php",
+   "lib/results/overallPieChart.php",
+   "lib/results/platformPieChart.php",
+   "lib/results/printDocOptions.php",
+   "lib/results/printDocument.php",
+   "lib/results/priorityBarChart.php",
+   "lib/results/resultsBugs.php",
+   "lib/results/resultsByStatus.php",
+   "lib/results/resultsByTSuite.php",
+   "lib/results/resultsByTesterPerBuild.php",
+   "lib/results/resultsGeneral.php",
+   "lib/results/resultsImport.php",
+   "lib/results/resultsMoreBuilds.php",
+   "lib/results/resultsMoreBuildsGUI.php",
+   "lib/results/resultsNavigator.php",
+   "lib/results/resultsReqs.php",
+   "lib/results/resultsTC.php",
+   "lib/results/resultsTCFlat.php",
+   "lib/results/tcCreatedPerUserOnTestProject.php",
+   "lib/results/tcNotRunAnyPlatform.php",
+   "lib/results/testCasesWithCF.php",
+   "lib/results/testCasesWithoutTester.php",
+   "lib/results/testPlanWithCF.php",
+   "lib/search/search.php",
+   "lib/search/searchCommands.class.php",
+   "lib/search/searchMgmt.php",
+   "lib/testcases/containerEdit.php",
+   "lib/testcases/listTestCases.php",
+   "lib/testcases/tcAssign2Tplan.php",
+   "lib/testcases/tcAssignedToUser.php",
+   "lib/testcases/tcCompareVersions.php",
+   "lib/testcases/tcCreateFromIssue.php",
+   "lib/testcases/tcCreateFromIssueMantisXML.php",
+   "lib/testcases/tcExport.php",
+   "lib/testcases/tcImport.php",
+   "lib/testcases/tcPrint.php",
+   "lib/testcases/tcSearch.php",
+   "lib/testcases/tcSearchForm.php",
+   "lib/usermanagement/rolesEdit.php",
+   "linkto.php",
+   "lnl.php",
+   "login.php",
+   "logout.php",
+   "lostPassword.php",
+   "ltx.php"
+  ]
+ },
+ {
+  "hash": "40fe79f3c",
+  "subject": "something working",
+  "buckets": {
+   "dashio": 1,
+   "app": 2
+  },
+  "app_files": [
+   "lib/testcases/tcEdit.php",
+   "lib/testcases/testcaseCommands.class.php"
+  ]
+ },
+ {
+  "hash": "fcae45992",
+  "subject": "new location for dashio specific support files",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "2ad76c855",
+  "subject": "new location for dashio specific support files",
+  "buckets": {
+   "dashio": 4
+  },
+  "app_files": []
+ },
+ {
+  "hash": "219b2060b",
+  "subject": "new location for dashio specific support files",
+  "buckets": {
+   "dashio": 1779
+  },
+  "app_files": []
+ },
+ {
+  "hash": "96c9ffc7b",
+  "subject": "remove return true that generates issue on some browsers",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "gui/javascript/testlink_library.js"
+  ]
+ },
+ {
+  "hash": "32d66e797",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/tc_exec_assignment.php"
+  ]
+ },
+ {
+  "hash": "690f48d24",
+  "subject": "align with aliens",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/plan/tc_exec_assignment.php"
+  ]
+ },
+ {
+  "hash": "9a588491c",
+  "subject": "added aliens template definition",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tlsmarty.inc.php"
+  ]
+ },
+ {
+  "hash": "6e0631cea",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/tree.class.php"
+  ]
+ },
+ {
+  "hash": "d6c58b473",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/results/topLevelSuitesBarChart.php"
+  ]
+ },
+ {
+  "hash": "70b805b1d",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/results/uncoveredTestCases.php"
+  ]
+ },
+ {
+  "hash": "fbe0c41bc",
+  "subject": "aligned to dashio -> remove context from $_SESSION",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/users.inc.php"
+  ]
+ },
+ {
+  "hash": "884598735",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/usersAssign.php"
+  ]
+ },
+ {
+  "hash": "446db1acf",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/usermanagement/usersView.php"
+  ]
+ },
+ {
+  "hash": "420cc6b6d",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/scriptDelete.php"
+  ]
+ },
+ {
+  "hash": "55d2500d9",
+  "subject": "file mode changed",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/scriptAdd.php"
+  ]
+ },
+ {
+  "hash": "7a6c436dc",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/testproject.class.php"
+  ]
+ },
+ {
+  "hash": "71c2badb1",
+  "subject": "2.0.0 templates added (dashio)",
+  "buckets": {
+   "dashio": 445
+  },
+  "app_files": []
+ },
+ {
+  "hash": "b91ffa882",
+  "subject": "1.9.x templates removed",
+  "buckets": {
+   "tl-classic": 259
+  },
+  "app_files": [
+   "gui/templates/tl-classic/DataTables.inc.tpl",
+   "gui/templates/tl-classic/attachment404.tpl",
+   "gui/templates/tl-classic/attachmentdelete.tpl",
+   "gui/templates/tl-classic/attachments.inc.tpl",
+   "gui/templates/tl-classic/attachments_simple.inc.tpl",
+   "gui/templates/tl-classic/attachmentupload.tpl",
+   "gui/templates/tl-classic/bootstrap.inc.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsEdit.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsExport.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsImport.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsTprojectAssign.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsView.tpl",
+   "gui/templates/tl-classic/cfields/cfieldsViewControls.inc.tpl",
+   "gui/templates/tl-classic/classTester.tpl",
+   "gui/templates/tl-classic/codetrackers/codeTrackerEdit.tpl",
+   "gui/templates/tl-classic/codetrackers/codeTrackerView.tpl",
+   "gui/templates/tl-classic/custom_inc_head.tpl",
+   "gui/templates/tl-classic/drag_drop.inc.tpl",
+   "gui/templates/tl-classic/emailSent.tpl",
+   "gui/templates/tl-classic/error.tpl",
+   "gui/templates/tl-classic/error_icon.tpl",
+   "gui/templates/tl-classic/events/eventinfo.tpl",
+   "gui/templates/tl-classic/events/eventviewer.tpl",
+   "gui/templates/tl-classic/execute/add_issue_on_step.inc.tpl",
+   "gui/templates/tl-classic/execute/bugAdd.tpl",
+   "gui/templates/tl-classic/execute/bugDelete.tpl",
+   "gui/templates/tl-classic/execute/create_issue.inc.tpl",
+   "gui/templates/tl-classic/execute/editExecution.tpl",
+   "gui/templates/tl-classic/execute/execDashboard.tpl",
+   "gui/templates/tl-classic/execute/execExport.tpl",
+   "gui/templates/tl-classic/execute/execHistory.tpl",
+   "gui/templates/tl-classic/execute/execNavigator.tpl",
+   "gui/templates/tl-classic/execute/execNotes.tpl",
+   "gui/templates/tl-classic/execute/execSetResults.tpl",
+   "gui/templates/tl-classic/execute/execSetResultsBulk.inc.tpl",
+   "gui/templates/tl-classic/execute/execSetResultsRemoteExec.inc.tpl",
+   "gui/templates/tl-classic/execute/exec_tc_relations.inc.tpl",
+   "gui/templates/tl-classic/execute/getExecNotes.tpl",
+   "gui/templates/tl-classic/execute/inc_exec_controls.tpl",
+   "gui/templates/tl-classic/execute/inc_exec_img_controls.tpl",
+   "gui/templates/tl-classic/execute/inc_exec_show_tc_exec.tpl",
+   "gui/templates/tl-classic/execute/inc_exec_test_spec.tpl",
+   "gui/templates/tl-classic/execute/issueTrackerMetadata.inc.tpl",
+   "gui/templates/tl-classic/execute/issue_inputs_on_step.inc.tpl",
+   "gui/templates/tl-classic/frmInner.tpl",
+   "gui/templates/tl-classic/inc_attachments.tpl",
+   "gui/templates/tl-classic/inc_copyrightnotice.tpl",
+   "gui/templates/tl-classic/inc_del_onclick.tpl",
+   "gui/templates/tl-classic/inc_ext_js.tpl",
+   "gui/templates/tl-classic/inc_ext_table.tpl",
+   "gui/templates/tl-classic/inc_feedback.tpl",
+   "gui/templates/tl-classic/inc_filter_panel.tpl",
+   "gui/templates/tl-classic/inc_filter_panel_js.tpl",
+   "gui/templates/tl-classic/inc_gui_import_file.tpl",
+   "gui/templates/tl-classic/inc_head.tpl",
+   "gui/templates/tl-classic/inc_help.tpl",
+   "gui/templates/tl-classic/inc_jsCfieldsValidation.tpl",
+   "gui/templates/tl-classic/inc_jsCheckboxes.tpl",
+   "gui/templates/tl-classic/inc_jsPicker.tpl",
+   "gui/templates/tl-classic/inc_login_title.tpl",
+   "gui/templates/tl-classic/inc_msg_from_array.tpl",
+   "gui/templates/tl-classic/inc_refreshTree.tpl",
+   "gui/templates/tl-classic/inc_refreshTreeWithFilters.tpl",
+   "gui/templates/tl-classic/inc_reqView.tpl",
+   "gui/templates/tl-classic/inc_res_by_prio.tpl",
+   "gui/templates/tl-classic/inc_res_by_ts.tpl",
+   "gui/templates/tl-classic/inc_result_tproject_tplan.tpl",
+   "gui/templates/tl-classic/inc_show_bug_table.tpl",
+   "gui/templates/tl-classic/inc_show_hide_mgmt.tpl",
+   "gui/templates/tl-classic/inc_show_scripts_table.tpl",
+   "gui/templates/tl-classic/inc_tinymce_init.tpl",
+   "gui/templates/tl-classic/inc_tree_control.tpl",
+   "gui/templates/tl-classic/inc_update.tpl",
+   "gui/templates/tl-classic/infoWindow.tpl",
+   "gui/templates/tl-classic/inventory/inventoryView.tpl",
+   "gui/templates/tl-classic/issuetrackers/issueTrackerEdit.tpl",
+   "gui/templates/tl-classic/issuetrackers/issueTrackerView.tpl",
+   "gui/templates/tl-classic/keywords/keywordsAssign.tpl",
+   "gui/templates/tl-classic/keywords/keywordsEdit.tpl",
+   "gui/templates/tl-classic/keywords/keywordsExport.tpl",
+   "gui/templates/tl-classic/keywords/keywordsImport.tpl",
+   "gui/templates/tl-classic/keywords/keywordsView.tpl",
+   "gui/templates/tl-classic/login/firstLogin-model-marcobiedermann.tpl",
+   "gui/templates/tl-classic/login/firstLogin.tpl",
+   "gui/templates/tl-classic/login/login-model-marcobiedermann.tpl",
+   "gui/templates/tl-classic/login/lostPassword-model-marcobiedermann.tpl",
+   "gui/templates/tl-classic/login/lostPassword.tpl",
+   "gui/templates/tl-classic/main.tpl",
+   "gui/templates/tl-classic/mainPage.tpl",
+   "gui/templates/tl-classic/mainPageLeft.tpl",
+   "gui/templates/tl-classic/mainPageRight.tpl",
+   "gui/templates/tl-classic/navBar.tpl",
+   "gui/templates/tl-classic/noaccesstofeature.tpl",
+   "gui/templates/tl-classic/opt_transfer.inc.tpl",
+   "gui/templates/tl-classic/plan/buildEdit.tpl",
+   "gui/templates/tl-classic/plan/buildView.tpl",
+   "gui/templates/tl-classic/plan/inc_controls_planEdit.tpl",
+   "gui/templates/tl-classic/plan/newest_tcversions.tpl",
+   "gui/templates/tl-classic/plan/planAddTCNavigator.tpl",
+   "gui/templates/tl-classic/plan/planAddTC_m1.tpl",
+   "gui/templates/tl-classic/plan/planEdit.tpl",
+   "gui/templates/tl-classic/plan/planExport.tpl",
+   "gui/templates/tl-classic/plan/planImport.tpl",
+   "gui/templates/tl-classic/plan/planMilestonesEdit.tpl",
+   "gui/templates/tl-classic/plan/planMilestonesView.tpl",
+   "gui/templates/tl-classic/plan/planTCNavigator.tpl",
+   "gui/templates/tl-classic/plan/planUpdateTC.tpl",
+   "gui/templates/tl-classic/plan/planUrgency.tpl",
+   "gui/templates/tl-classic/plan/planView.labels.tpl",
+   "gui/templates/tl-classic/plan/planView.tpl",
+   "gui/templates/tl-classic/plan/tc_exec_assignment.tpl",
+   "gui/templates/tl-classic/plan/tc_exec_assignment_flat.tpl",
+   "gui/templates/tl-classic/plan/tc_exec_unassign_all.tpl",
+   "gui/templates/tl-classic/platforms/platformsAssign.tpl",
+   "gui/templates/tl-classic/platforms/platformsEdit.tpl",
+   "gui/templates/tl-classic/platforms/platformsExport.tpl",
+   "gui/templates/tl-classic/platforms/platformsImport.tpl",
+   "gui/templates/tl-classic/platforms/platformsView.tpl",
+   "gui/templates/tl-classic/platforms/platformsViewControls.inc.tpl",
+   "gui/templates/tl-classic/plugins/pluginView.tpl",
+   "gui/templates/tl-classic/project/fix_tplans.tpl",
+   "gui/templates/tl-classic/project/projectEdit.tpl",
+   "gui/templates/tl-classic/project/projectView.tpl",
+   "gui/templates/tl-classic/reqmgrsystems/reqMgrSystemEdit.tpl",
+   "gui/templates/tl-classic/reqmgrsystems/reqMgrSystemView.tpl",
+   "gui/templates/tl-classic/requirements/displayReqCoverageRO.inc.tpl",
+   "gui/templates/tl-classic/requirements/inc_btn_reqSpecView.tpl",
+   "gui/templates/tl-classic/requirements/inc_req_import_viewer.tpl",
+   "gui/templates/tl-classic/requirements/project_req_spec_mgmt.tpl",
+   "gui/templates/tl-classic/requirements/reqBulkMon.tpl",
+   "gui/templates/tl-classic/requirements/reqCompareVersions.tpl",
+   "gui/templates/tl-classic/requirements/reqCopy.tpl",
+   "gui/templates/tl-classic/requirements/reqCreateFromIssueMantisXML.tpl",
+   "gui/templates/tl-classic/requirements/reqCreateTestCases.tpl",
+   "gui/templates/tl-classic/requirements/reqEdit.tpl",
+   "gui/templates/tl-classic/requirements/reqExport.tpl",
+   "gui/templates/tl-classic/requirements/reqImport.tpl",
+   "gui/templates/tl-classic/requirements/reqMonitorOverview.tpl",
+   "gui/templates/tl-classic/requirements/reqMonitors.tpl",
+   "gui/templates/tl-classic/requirements/reqOverview.tpl",
+   "gui/templates/tl-classic/requirements/reqReorder.tpl",
+   "gui/templates/tl-classic/requirements/reqSearchForm.tpl",
+   "gui/templates/tl-classic/requirements/reqSearchResults.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecCompareRevisions.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecCopy.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecEdit.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecListTree.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecReorder.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecSearchForm.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecSearchResults.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecView.tpl",
+   "gui/templates/tl-classic/requirements/reqSpecViewRevision.tpl",
+   "gui/templates/tl-classic/requirements/reqTcAssign.tpl",
+   "gui/templates/tl-classic/requirements/reqTcBulkAssignment.tpl",
+   "gui/templates/tl-classic/requirements/reqViewRevisionRO.tpl",
+   "gui/templates/tl-classic/requirements/reqViewRevisionViewer.tpl",
+   "gui/templates/tl-classic/requirements/reqViewVersions.tpl",
+   "gui/templates/tl-classic/requirements/reqViewVersionsViewer.tpl",
+   "gui/templates/tl-classic/results/baselinel1l2.tpl",
+   "gui/templates/tl-classic/results/charts.tpl",
+   "gui/templates/tl-classic/results/execTimelineStats.tpl",
+   "gui/templates/tl-classic/results/freeTestCases.tpl",
+   "gui/templates/tl-classic/results/inc_results_show_table.tpl",
+   "gui/templates/tl-classic/results/metricsDashboard.tpl",
+   "gui/templates/tl-classic/results/neverRunByPP.tpl",
+   "gui/templates/tl-classic/results/neverRunByPPLauncher.tpl",
+   "gui/templates/tl-classic/results/printDocOptions.tpl",
+   "gui/templates/tl-classic/results/resultsBugs.tpl",
+   "gui/templates/tl-classic/results/resultsBuild.tpl",
+   "gui/templates/tl-classic/results/resultsByStatus.tpl",
+   "gui/templates/tl-classic/results/resultsByTSuite.tpl",
+   "gui/templates/tl-classic/results/resultsByTesterPerBuild.tpl",
+   "gui/templates/tl-classic/results/resultsGeneral.tpl",
+   "gui/templates/tl-classic/results/resultsImport.tpl",
+   "gui/templates/tl-classic/results/resultsMoreBuilds.tpl",
+   "gui/templates/tl-classic/results/resultsMoreBuildsGUI.tpl",
+   "gui/templates/tl-classic/results/resultsNavigator.tpl",
+   "gui/templates/tl-classic/results/resultsReqs.tpl",
+   "gui/templates/tl-classic/results/resultsTC.tpl",
+   "gui/templates/tl-classic/results/resultsTCAbsoluteLatest.tpl",
+   "gui/templates/tl-classic/results/resultsTCAbsoluteLatestLauncher.tpl",
+   "gui/templates/tl-classic/results/resultsTCFlatLauncher.tpl",
+   "gui/templates/tl-classic/results/resultsTCLauncher.tpl",
+   "gui/templates/tl-classic/results/show_table_qty_datetime.inc.tpl",
+   "gui/templates/tl-classic/results/show_table_with_exec_span.inc.tpl",
+   "gui/templates/tl-classic/results/tcCreatedPerUser.tpl",
+   "gui/templates/tl-classic/results/tcCreatedPerUserOnTestProject.tpl",
+   "gui/templates/tl-classic/results/tcCreatedPerUserOnTestProjectGUI.inc.tpl",
+   "gui/templates/tl-classic/results/tcNotRunAnyPlatform.tpl",
+   "gui/templates/tl-classic/results/testCasesWithCF.tpl",
+   "gui/templates/tl-classic/results/testCasesWithoutTester.tpl",
+   "gui/templates/tl-classic/results/testPlanWithCF.tpl",
+   "gui/templates/tl-classic/results/uncoveredTestCases.tpl",
+   "gui/templates/tl-classic/search/searchForm.tpl",
+   "gui/templates/tl-classic/search/searchGUI.inc.tpl",
+   "gui/templates/tl-classic/search/searchResults.tpl",
+   "gui/templates/tl-classic/searchForm.tpl",
+   "gui/templates/tl-classic/show_message.tpl",
+   "gui/templates/tl-classic/staticPage.tpl",
+   "gui/templates/tl-classic/testcases/attributes.inc.tpl",
+   "gui/templates/tl-classic/testcases/attributesLinear.inc.tpl",
+   "gui/templates/tl-classic/testcases/attributesLinearForViewer.inc.tpl",
+   "gui/templates/tl-classic/testcases/containerDelete.tpl",
+   "gui/templates/tl-classic/testcases/containerDeleteTC.tpl",
+   "gui/templates/tl-classic/testcases/containerEdit.tpl",
+   "gui/templates/tl-classic/testcases/containerMove.tpl",
+   "gui/templates/tl-classic/testcases/containerMoveTC.tpl",
+   "gui/templates/tl-classic/testcases/containerNew.tpl",
+   "gui/templates/tl-classic/testcases/containerOrder.tpl",
+   "gui/templates/tl-classic/testcases/containerOrderDnD.tpl",
+   "gui/templates/tl-classic/testcases/containerView.tpl",
+   "gui/templates/tl-classic/testcases/containerViewTestSuiteTextButtons.inc.tpl",
+   "gui/templates/tl-classic/testcases/inc_steps.tpl",
+   "gui/templates/tl-classic/testcases/inc_tcbody.tpl",
+   "gui/templates/tl-classic/testcases/inc_testsuite_viewer_ro.tpl",
+   "gui/templates/tl-classic/testcases/inc_testsuite_viewer_rw.tpl",
+   "gui/templates/tl-classic/testcases/keywords.inc.tpl",
+   "gui/templates/tl-classic/testcases/object_keywords.inc.tpl",
+   "gui/templates/tl-classic/testcases/platforms.inc.tpl",
+   "gui/templates/tl-classic/testcases/quickexec.inc.tpl",
+   "gui/templates/tl-classic/testcases/relations.inc.tpl",
+   "gui/templates/tl-classic/testcases/scriptAdd.tpl",
+   "gui/templates/tl-classic/testcases/scriptDelete.tpl",
+   "gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl",
+   "gui/templates/tl-classic/testcases/steps_vertical.inc.tpl",
+   "gui/templates/tl-classic/testcases/tcAssign2Tplan.tpl",
+   "gui/templates/tl-classic/testcases/tcAssignedToUser.tpl",
+   "gui/templates/tl-classic/testcases/tcBulkOp.tpl",
+   "gui/templates/tl-classic/testcases/tcCompareVersions.tpl",
+   "gui/templates/tl-classic/testcases/tcCreateFromIssueMantisXML.tpl",
+   "gui/templates/tl-classic/testcases/tcDelete.tpl",
+   "gui/templates/tl-classic/testcases/tcEdit.tpl",
+   "gui/templates/tl-classic/testcases/tcEdit_New_viewer.tpl",
+   "gui/templates/tl-classic/testcases/tcEdit_m2.tpl",
+   "gui/templates/tl-classic/testcases/tcExport.tpl",
+   "gui/templates/tl-classic/testcases/tcImport.tpl",
+   "gui/templates/tl-classic/testcases/tcMove.tpl",
+   "gui/templates/tl-classic/testcases/tcNew.tpl",
+   "gui/templates/tl-classic/testcases/tcReorder.tpl",
+   "gui/templates/tl-classic/testcases/tcSearchForm.tpl",
+   "gui/templates/tl-classic/testcases/tcSearchGUI.inc.tpl",
+   "gui/templates/tl-classic/testcases/tcSearchResults.tpl",
+   "gui/templates/tl-classic/testcases/tcStepEdit.tpl",
+   "gui/templates/tl-classic/testcases/tcStepEditViewer.tpl",
+   "gui/templates/tl-classic/testcases/tcTree.tpl",
+   "gui/templates/tl-classic/testcases/tcView.tpl",
+   "gui/templates/tl-classic/testcases/tcView_viewer.tpl",
+   "gui/templates/tl-classic/tree_control_add_tc_navigator.inc.tpl",
+   "gui/templates/tl-classic/usermanagement/menu.inc.tpl",
+   "gui/templates/tl-classic/usermanagement/rolesEdit.tpl",
+   "gui/templates/tl-classic/usermanagement/rolesView.tpl",
+   "gui/templates/tl-classic/usermanagement/tabsmenu.tpl",
+   "gui/templates/tl-classic/usermanagement/userInfo.tpl",
+   "gui/templates/tl-classic/usermanagement/usersAssign.tpl",
+   "gui/templates/tl-classic/usermanagement/usersEdit.tpl",
+   "gui/templates/tl-classic/usermanagement/usersExport.tpl",
+   "gui/templates/tl-classic/usermanagement/usersView.tpl",
+   "gui/templates/tl-classic/workAreaSimple.tpl",
+   "gui/templates/tl-classic/workframe.tpl"
+  ]
+ },
+ {
+  "hash": "7f41a4882",
+  "subject": "example",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "gui/templates/custom/testcases/steps_horizontal-custom.inc.tpl",
+   "gui/templates/custom/testcases/tcStepEdit-custom.tpl"
+  ]
+ },
+ {
+  "hash": "be9ba866d",
+  "subject": "wip",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "695ece6d5",
+  "subject": "align dashio",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "gui/javascript/checkboxes.js",
+   "gui/javascript/testlink_library.js"
+  ]
+ },
+ {
+  "hash": "272387bc8",
+  "subject": "aligned to dashio",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/testcases/archiveData.php"
+  ]
+ },
+ {
+  "hash": "35304d104",
+  "subject": "wip",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/project/project_req_spec_mgmt.php"
+  ]
+ },
+ {
+  "hash": "4a86168d2",
+  "subject": "wip",
+  "buckets": {
+   "app": 2
+  },
+  "app_files": [
+   "lib/project/projectEdit.php",
+   "lib/project/projectView.php"
+  ]
+ },
+ {
+  "hash": "57a16a26a",
+  "subject": "feature: initContext() user & userID are initialized from $_SESSION",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "lib/functions/common.php"
+  ]
+ },
+ {
+  "hash": "176745ec6",
+  "subject": "wip",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "94efc047d",
+  "subject": "wip",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "locale/en_GB/strings.txt"
+  ]
+ },
+ {
+  "hash": "7aa1e73c4",
+  "subject": "obsolete?",
+  "buckets": {
+   "app": 18
+  },
+  "app_files": [
+   "gui/drag_and_drop/css/context-menu.css",
+   "gui/drag_and_drop/css/drag-drop-folder-tree.css",
+   "gui/drag_and_drop/images/context-menu-gradient.gif",
+   "gui/drag_and_drop/images/dhtmlgoodies_folder.gif",
+   "gui/drag_and_drop/images/dhtmlgoodies_minus.gif",
+   "gui/drag_and_drop/images/dhtmlgoodies_plus.gif",
+   "gui/drag_and_drop/images/dhtmlgoodies_sheet.gif",
+   "gui/drag_and_drop/images/dragDrop_ind1.gif",
+   "gui/drag_and_drop/images/dragDrop_ind2.gif",
+   "gui/drag_and_drop/images/folder_close.gif",
+   "gui/drag_and_drop/images/folder_dots.gif",
+   "gui/drag_and_drop/images/folder_folder.gif",
+   "gui/drag_and_drop/images/folder_lastsub.gif",
+   "gui/drag_and_drop/images/folder_open.gif",
+   "gui/drag_and_drop/images/folder_sub.gif",
+   "gui/drag_and_drop/js/ajax.js",
+   "gui/drag_and_drop/js/context-menu.js",
+   "gui/drag_and_drop/js/drag-drop-folder-tree.js"
+  ]
+ },
+ {
+  "hash": "475d55bb3",
+  "subject": "feature: architectural change",
+  "buckets": {
+   "app": 2,
+   "other": 1
+  },
+  "app_files": [
+   "cfg/const.inc.php",
+   "config.inc.php",
+   "lib/execute/execSetResults.php"
+  ]
+ },
+ {
+  "hash": "c8adfc878",
+  "subject": "misplaced",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "cfg/custom_config.inc.php.example"
+  ]
+ },
+ {
+  "hash": "f0992d649",
+  "subject": "git setup",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "cfg/.gitignore"
+  ]
+ },
+ {
+  "hash": "a3a830110",
+  "subject": "feature: architetural change",
+  "buckets": {
+   "app": 7,
+   "other": 5
+  },
+  "app_files": [
+   "cfg/custom_config.inc.php.example",
+   "cfg/custom_reports.cfg.php.example",
+   "cfg/samples/custom_config.inc.php.example",
+   "cfg/samples/custom_config.inc.php.example.github_oauth",
+   "cfg/samples/custom_config.inc.php.github.testlinkOauthProvider",
+   "cfg/samples/custom_config.inc.php.google_oauth",
+   "cfg/samples/custom_reports.cfg.php.example",
+   "config.inc.php",
+   "custom_config.inc.php.example",
+   "custom_config.inc.php.example.github_oauth",
+   "custom_config.inc.php.github.testlinkOauthProvider",
+   "custom_config.inc.php.google_oauth"
+  ]
+ },
+ {
+  "hash": "2a1bc4535",
+  "subject": "fix (user contribution)",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql"
+  ]
+ },
+ {
+  "hash": "fac68e3aa",
+  "subject": "typo error",
+  "buckets": {
+   "app": 1
+  },
+  "app_files": [
+   "install/sql/alter_tables/1.9.20/mysql/DB.1.9.20/step1/db_schema_update.sql"
+  ]
+ }
+]
