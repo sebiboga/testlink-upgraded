@@ -6389,13 +6389,22 @@ class TestlinkXMLRPCServer extends IXR_Server {
                             'operation' => $op,
                             'step_number' => $si['step_number']
                     );
+                    $step_params = array(
+                        'step_number' => $si['step_number'],
+                        'actions' => $si['actions'],
+                        'expected_results' => $si['expected_results'],
+                        'execution_type' => $execution_type,
+                        'upload_on_execution_enabled' => isset( $si['upload_on_execution_enabled'] ) ? $si['upload_on_execution_enabled'] : 1,
+                        'upload_on_execution_mandatory' => isset( $si['upload_on_execution_mandatory'] ) ? $si['upload_on_execution_mandatory'] : 0
+                    );
+
                     switch($op) {
                         case 'update' :
-                            $this->tcaseMgr->update_step( $step_id, $si['step_number'], $si['actions'], $si['expected_results'], $execution_type );
+                            $this->tcaseMgr->update_step( $step_id, $step_params );
                             break;
 
                         case 'create' :
-                            $this->tcaseMgr->create_step( $tcversion_id, $si['step_number'], $si['actions'], $si['expected_results'], $execution_type );
+                            $this->tcaseMgr->create_step( $tcversion_id, $step_params );
                             break;
 
                         case 'push' :
@@ -6409,7 +6418,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                                 }
                             }
                             $this->tcaseMgr->set_step_number( $renumberedSet );
-                            $this->tcaseMgr->create_step( $tcversion_id, $si['step_number'], $si['actions'], $si['expected_results'], $execution_type );
+                            $this->tcaseMgr->create_step( $tcversion_id, $step_params );
                             break;
 
                         case 'skip' :

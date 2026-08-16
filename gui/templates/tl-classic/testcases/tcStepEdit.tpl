@@ -241,6 +241,10 @@ function validateForm(the_form,step_set,step_number_on_edit)
                 </select>
                 </td>
                 {/if}
+              <td>
+                <label><input type="checkbox" name="upload_on_execution_enabled" value="1" {if $gui->upload_on_execution_enabled}checked{/if} onchange="content_modified = true"> Enable Upload</label><br>
+                <label><input type="checkbox" name="upload_on_execution_mandatory" value="1" {if $gui->upload_on_execution_mandatory}checked{/if} onchange="content_modified = true"> Mandatory</label>
+              </td>
             {else}
               <td style="text-align:left;"><a href="{$hrefEditStep}{$step_info.id}">{$step_info.step_number}</a></td>
               <td ><a href="{$hrefEditStep}{$step_info.id}">{$step_info.actions}</a></td>
@@ -326,6 +330,10 @@ function validateForm(the_form,step_set,step_number_on_edit)
                 </select>
               </td>
               {/if}
+              <td>
+                <label><input type="checkbox" name="upload_on_execution_enabled" value="1" checked onchange="content_modified = true"> Enable Upload</label><br>
+                <label><input type="checkbox" name="upload_on_execution_mandatory" value="1" onchange="content_modified = true"> Mandatory</label>
+              </td>
           </tr>
         
         {else}

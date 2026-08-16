@@ -1675,6 +1675,8 @@ $TLS_can_not_edit_tc = "You can not edit this version because it has been execut
 $TLS_deactivate_this_tcversion = "Deactivate this version";
 $TLS_execution_type = 'Execution type';
 $TLS_execution_type_short_descr = 'Execution';
+$TLS_upload_on_execution_enabled = 'Enable upload on execution';
+$TLS_upload_on_execution_mandatory = 'Require upload on execution';
 $TLS_tcversion_is_inactive_msg = "This version is INACTIVE => will be not available to be included in a test plan";
 
 

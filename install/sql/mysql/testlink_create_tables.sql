@@ -468,13 +468,15 @@ CREATE TABLE /*prefix*/tcversions (
 ) DEFAULT CHARSET=utf8;
 
 
-CREATE TABLE /*prefix*/tcsteps (  
+CREATE TABLE /*prefix*/tcsteps (
   id int(10) unsigned NOT NULL,
   step_number INT NOT NULL DEFAULT '1',
   actions TEXT,
   expected_results TEXT,
   active tinyint(1) NOT NULL default '1',
   execution_type tinyint(1) NOT NULL default '1' COMMENT '1 -> manual, 2 -> automated',
+  upload_on_execution_enabled tinyint(1) NOT NULL default '1' COMMENT '1 -> enable upload UI for this step',
+  upload_on_execution_mandatory tinyint(1) NOT NULL default '0' COMMENT '1 -> require upload before saving execution result',
   PRIMARY KEY (id)
 ) DEFAULT CHARSET=utf8;
 

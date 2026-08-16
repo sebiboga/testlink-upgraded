@@ -698,10 +698,18 @@ class testcaseCommands {
                                   $guiObj->testcase['name'], $guiObj->testcase['version']); 
 
 
-    $new_step = $this->tcaseMgr->get_latest_step_number($argsObj->tcversion_id); 
+    $new_step = $this->tcaseMgr->get_latest_step_number($argsObj->tcversion_id);
     $new_step++;
-    $op = $this->tcaseMgr->create_step($argsObj->tcversion_id,$new_step,
-                                       $argsObj->steps,$argsObj->expected_results,$argsObj->exec_type);  
+
+    $step_params = array(
+      'step_number' => $new_step,
+      'actions' => $argsObj->steps,
+      'expected_results' => $argsObj->expected_results,
+      'execution_type' => $argsObj->exec_type,
+      'upload_on_execution_enabled' => isset($argsObj->upload_on_execution_enabled) ? $argsObj->upload_on_execution_enabled : 1,
+      'upload_on_execution_mandatory' => isset($argsObj->upload_on_execution_mandatory) ? $argsObj->upload_on_execution_mandatory : 0
+    );
+    $op = $this->tcaseMgr->create_step($argsObj->tcversion_id, $step_params);  
                               
     $guiObj->doExit = false;
     if( $op['status_ok'] )
@@ -818,8 +826,15 @@ class testcaseCommands {
                           $guiObj->testcase['tc_external_id'] . ':' . 
                           $guiObj->testcase['name'], $guiObj->testcase['version']); 
 
-    $op = $this->tcaseMgr->update_step($argsObj->step_id,$argsObj->step_number,$argsObj->steps,
-                                       $argsObj->expected_results,$argsObj->exec_type);    
+    $step_params = array(
+      'step_number' => $argsObj->step_number,
+      'actions' => $argsObj->steps,
+      'expected_results' => $argsObj->expected_results,
+      'execution_type' => $argsObj->exec_type,
+      'upload_on_execution_enabled' => isset($argsObj->upload_on_execution_enabled) ? $argsObj->upload_on_execution_enabled : 1,
+      'upload_on_execution_mandatory' => isset($argsObj->upload_on_execution_mandatory) ? $argsObj->upload_on_execution_mandatory : 0
+    );
+    $op = $this->tcaseMgr->update_step($argsObj->step_id, $step_params);    
 
     $this->tcaseMgr->update_last_modified($argsObj->tcversion_id,$argsObj->user_id);
     $this->initTestCaseBasicInfo($argsObj,$guiObj);

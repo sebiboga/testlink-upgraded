@@ -5771,11 +5771,25 @@ class testcase extends tlObjectWithAttachments {
      *
      *
      */
-  function create_step($tcversion_id,$step_number,$actions,$expected_results,
+  function create_step($tcversion_id,$step_number=null,$actions=null,$expected_results=null,
                          $execution_type=TESTCASE_EXECUTION_TYPE_MANUAL)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $ret = array();
+
+    // Support array signature for flexibility
+    if (is_array($step_number)) {
+      $params = $step_number;
+      $step_number = isset($params['step_number']) ? $params['step_number'] : 1;
+      $actions = isset($params['actions']) ? $params['actions'] : '';
+      $expected_results = isset($params['expected_results']) ? $params['expected_results'] : '';
+      $execution_type = isset($params['execution_type']) ? $params['execution_type'] : TESTCASE_EXECUTION_TYPE_MANUAL;
+      $upload_on_execution_enabled = isset($params['upload_on_execution_enabled']) ? $params['upload_on_execution_enabled'] : 1;
+      $upload_on_execution_mandatory = isset($params['upload_on_execution_mandatory']) ? $params['upload_on_execution_mandatory'] : 0;
+    } else {
+      $upload_on_execution_enabled = 1;
+      $upload_on_execution_mandatory = 0;
+    }
 
     // defensive programming
     $dummy = $this->db->prepare_int($execution_type);
@@ -5787,17 +5801,20 @@ class testcase extends tlObjectWithAttachments {
     $item = new stdClass();
     $item->actions = $actions;
     $item->expected_results = $expected_results;
-    $this->CKEditorCopyAndPasteCleanUp($item,$k2e); 
+    $this->CKEditorCopyAndPasteCleanUp($item,$k2e);
+
+    $upload_enabled = $this->db->prepare_int($upload_on_execution_enabled);
+    $upload_mandatory = $this->db->prepare_int($upload_on_execution_mandatory);
 
     $sql = "/* $debugMsg */ INSERT INTO {$this->tables['tcsteps']} " .
-           " (id,step_number,actions,expected_results,execution_type) " .
-           " VALUES({$item_id},{$step_number},'" . 
+           " (id,step_number,actions,expected_results,execution_type,upload_on_execution_enabled,upload_on_execution_mandatory) " .
+           " VALUES({$item_id},{$step_number},'" .
            $this->db->prepare_string($item->actions) . "','" .
-           $this->db->prepare_string($item->expected_results) . "', " . 
-           $this->db->prepare_int($dummy) . ")";
+           $this->db->prepare_string($item->expected_results) . "', " .
+           $this->db->prepare_int($dummy) . "," . $upload_enabled . "," . $upload_mandatory . ")";
 
     $result = $this->db->exec_query($sql);
-    $ret = array('msg' => 'ok', 'id' => $item_id, 'status_ok' => 1, 
+    $ret = array('msg' => 'ok', 'id' => $item_id, 'status_ok' => 1,
                  'sql' => $sql);
     if (!$result)
     {
@@ -5806,6 +5823,14 @@ class testcase extends tlObjectWithAttachments {
       $ret['id']=-1;
     }
     return $ret;
+  }
+
+  function uploadOnExecEnabledForUX($step) {
+    return isset($step['upload_on_execution_enabled']) ? $step['upload_on_execution_enabled'] : 1;
+  }
+
+  function uploadOnExecMandatoryForUX($step) {
+    return isset($step['upload_on_execution_mandatory']) ? $step['upload_on_execution_mandatory'] : 0;
   }
 
   /**
@@ -6033,23 +6058,43 @@ class testcase extends tlObjectWithAttachments {
      *
      *
      */
-  function update_step($step_id,$step_number,$actions,$expected_results,$execution_type)
+  function update_step($step_id,$step_number=null,$actions=null,$expected_results=null,$execution_type=null)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $ret = array();
+
+    // Support array signature for flexibility
+    if (is_array($step_number)) {
+      $params = $step_number;
+      $step_number = isset($params['step_number']) ? $params['step_number'] : 1;
+      $actions = isset($params['actions']) ? $params['actions'] : '';
+      $expected_results = isset($params['expected_results']) ? $params['expected_results'] : '';
+      $execution_type = isset($params['execution_type']) ? $params['execution_type'] : TESTCASE_EXECUTION_TYPE_MANUAL;
+      $upload_on_execution_enabled = isset($params['upload_on_execution_enabled']) ? $params['upload_on_execution_enabled'] : 1;
+      $upload_on_execution_mandatory = isset($params['upload_on_execution_mandatory']) ? $params['upload_on_execution_mandatory'] : 0;
+    } else {
+      if ($execution_type === null) $execution_type = TESTCASE_EXECUTION_TYPE_MANUAL;
+      $upload_on_execution_enabled = 1;
+      $upload_on_execution_mandatory = 0;
+    }
 
     $k2e = array('actions','expected_results');
     $item = new stdClass();
     $item->actions = $actions;
     $item->expected_results = $expected_results;
-    $this->CKEditorCopyAndPasteCleanUp($item,$k2e); 
+    $this->CKEditorCopyAndPasteCleanUp($item,$k2e);
+
+    $upload_enabled = $this->db->prepare_int($upload_on_execution_enabled);
+    $upload_mandatory = $this->db->prepare_int($upload_on_execution_mandatory);
 
     $sql = "/* $debugMsg */ UPDATE {$this->tables['tcsteps']} " .
            " SET step_number=" . $this->db->prepare_int($step_number) . "," .
            " actions='" . $this->db->prepare_string($item->actions) . "', " .
-           " expected_results='" . 
+           " expected_results='" .
            $this->db->prepare_string($item->expected_results) . "', " .
-           " execution_type = " . $this->db->prepare_int($execution_type)  .
+           " execution_type = " . $this->db->prepare_int($execution_type) . "," .
+           " upload_on_execution_enabled = " . $upload_enabled . "," .
+           " upload_on_execution_mandatory = " . $upload_mandatory .
            " WHERE id = " . $this->db->prepare_int($step_id);
 
     $result = $this->db->exec_query($sql);
