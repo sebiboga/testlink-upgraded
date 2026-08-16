@@ -554,6 +554,56 @@ class TLSmarty extends Smarty {
     return $dummy;
   }
 
+  /**
+   * Every template that draws the left side menu includes aside.tpl, which
+   * gates the whole menu on $gui->showMenu and builds its links from
+   * $gui->uri. Each page builds its own $gui and most of them never call
+   * initUserEnv(), so on those pages the sidebar rendered as an empty strip.
+   *
+   * Fill in only what the page left unset, right before rendering, so no
+   * page loses values it deliberately computed itself.
+   */
+  protected function addMenuContext() {
+    global $db;
 
+    $gui = $this->getTemplateVars('gui');
+    if( !is_object($gui) || !isset($_SESSION['currentUser']) || null == $db ) {
+      return;
+    }
 
-} 
+    // Page already provided the menu, leave it alone.
+    if( property_exists($gui,'showMenu') && null != $gui->showMenu ) {
+      return;
+    }
+
+    $ctx = new stdClass();
+    $ctx->tproject_id =
+      isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+    $ctx->tplan_id =
+      isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+
+    list($uxArgs,$ux) = initUserEnv($db,$ctx);
+
+    // grants is deliberately not copied: pages use it as an array while
+    // aside.tpl reads it as an object, and overwriting it here would break
+    // the page content that has already been built around the array form.
+    foreach( array('showMenu','activeMenu','uri','logo','whoami','access') as $prop ) {
+      if( property_exists($ux,$prop) &&
+          (!property_exists($gui,$prop) || null == $gui->$prop) ) {
+        $gui->$prop = $ux->$prop;
+      }
+    }
+
+    $this->assign('gui',$gui);
+  }
+
+  /**
+   * @see addMenuContext()
+   */
+  public function display($template = null, $cache_id = null,
+                          $compile_id = null, $parent = null) {
+    $this->addMenuContext();
+    parent::display($template,$cache_id,$compile_id,$parent);
+  }
+
+}

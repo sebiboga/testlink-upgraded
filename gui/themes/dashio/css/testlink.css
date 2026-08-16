@@ -1167,4 +1167,15 @@ div.form-border {
 	padding: 10px 14px;
 	margin: 10px 14px;
 }
+
+/* The user name inherits the global link colour (#005599), which against the
+   dark sidebar sits at roughly 1.4:1 contrast and is effectively invisible.
+   Recolour rather than boxing it - the logo card above is enough weight.
+   Yellow picks up the brand colour from the TestLink mark. */
+#sidebar .sidebar-menu > h4.centered a {
+	color: #f2c811;
+}
+#sidebar .sidebar-menu > h4.centered a:hover {
+	color: #ffe066;
+}
 /* ----- END ------------------------------------------------------------------------- */

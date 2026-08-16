@@ -23,7 +23,9 @@ editorType: used to understand if code for tinymce need to be loaded
 
 {$css = str_replace('default','dashio',$css)}
 {* ----- load CSS ----------------------------------------------- *} 
-	<style media="all" type="text/css">@import "{$css}";</style>
+	{* Version the URL so a theme change is picked up instead of being served
+	   from the browser cache after an upgrade *}
+	<style media="all" type="text/css">@import "{$css}?v={$tlVersion|escape:'url'}";</style>
 
 	{if $use_custom_css}
 	<style media="all" type="text/css">@import "{$custom_css}";</style>

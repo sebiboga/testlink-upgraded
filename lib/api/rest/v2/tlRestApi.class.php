@@ -269,7 +269,7 @@ class tlRestApi
     $options = array_merge(array('output' => 'rest'), (array)$opt);
     $op = array('status' => 'ok', 'message' => 'ok', 'item' => null);
     if(is_null($idCard)) {
-      $opOptions = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ",
+      $opOptions = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ", 'add_issuetracker' => true,
                           'add_reqmgrsystem' => true);
       $op['item'] = $this->tprojectMgr->get_accessible_for_user($this->userID,$opOptions);
     } else {
@@ -1022,8 +1022,9 @@ class tlRestApi
     $tcase->name = trim($obj->name);
     $tcase->testSuiteID = intval($obj->testSuite->id);
 
-    $gOpt = array('output' => 'array_of_map',
+    $gOpt = array('output' => 'array_of_map', 
                   'field_set' => 'prefix',
+                  'add_issuetracker' => false, 
                   'add_reqmgrsystem' => false);
 
 

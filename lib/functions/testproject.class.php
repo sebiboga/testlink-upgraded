@@ -470,10 +470,10 @@ args:
 function get_accessible_for_user($user_id,$opt = null,$filters = null) {
   $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
   $my = array();
-  $my['opt'] = array('output' => 'map',
-                     'order_by' => ' ORDER BY name ',
+  $my['opt'] = array('output' => 'map', 
+                     'order_by' => ' ORDER BY name ', 
                      'field_set' => 'full',
-                     'format' => 'std',
+                     'format' => 'std', 'add_issuetracker' => false, 
                      'add_codetracker' => false,
                      'add_reqmgrsystem' => false);
   $my['opt'] = array_merge($my['opt'],(array)$opt);
@@ -496,6 +496,13 @@ function get_accessible_for_user($user_id,$opt = null,$filters = null) {
 
   $itsql = '';
   $itf = '';
+  if($my['opt']['add_issuetracker']) {
+    $itsql = " LEFT OUTER JOIN {$this->tables['testproject_issuetracker']} AS TIT " .
+             " ON TIT.testproject_id  = TPROJ.id " .
+             " LEFT OUTER JOIN {$this->tables['issuetrackers']} AS ITMD " .
+             " ON ITMD.id = TIT.issuetracker_id ";     
+    $itf = ",ITMD.name AS itname,ITMD.type AS ittype";
+  }        
 
   $ctsql = '';
   $ctf = '';
@@ -1992,7 +1999,7 @@ function setPublicStatus($id,$status)
       $error .= lang_get('info_deleting_project_roles_fails');
     }
     
-    $xSQL = array('testproject_codetracker',
+    $xSQL = array('testproject_issuetracker','testproject_codetracker',
                   'testproject_reqmgrsystem');
     foreach($xSQL as $target)
     {

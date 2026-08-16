@@ -92,7 +92,8 @@ function initializeGui(&$dbHandler,&$argsObj) {
   }
 
   $tproject_mgr = new testproject($dbHandler);
-  $opt = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ",
+  $opt = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ", 
+               'add_issuetracker' => true,
                'add_codetracker' => true, 'add_reqmgrsystem' => true);
   $guiObj->tprojects = $tproject_mgr->get_accessible_for_user($argsObj->userID,$opt,$filters);
   $guiObj->pageTitle = lang_get('title_testproject_management');

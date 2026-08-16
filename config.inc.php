@@ -1189,6 +1189,14 @@ $tlCfg->exec_cfg->features->attachments->enabled = true;
 $tlCfg->exec_cfg->features->exec_duration = new stdClass();
 $tlCfg->exec_cfg->features->exec_duration->enabled = true;
 
+// Issue Tracker Integration Support
+// Only the YouTrack adapter was dropped (issue #368). Every other tracker -
+// GitHub Issues, JIRA, GitLab, Bugzilla, Mantis, Redmine and the rest - is
+// still supported, so this stays enabled. Set to false to turn all issue
+// tracker functionality off globally.
+$tlCfg->exec_cfg->features->issue_tracker = new stdClass();
+$tlCfg->exec_cfg->features->issue_tracker->enabled = true;
+
 $tlCfg->exec_cfg->issues = new stdClass();
 $tlCfg->exec_cfg->issues->tcase_level = new stdClass();
 $tlCfg->exec_cfg->issues->tcstep_level = new stdClass();

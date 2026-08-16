@@ -30,7 +30,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   {* This template carries its own <head> instead of including inc_head.tpl,
      so the TestLink theme stylesheet has to be pulled in explicitly. Without
      it none of the theme overrides apply to the dashboard or its sidebar. *}
-  <link rel="stylesheet" type="text/css" href="{$css|replace:'default':'dashio'}">
+  <link rel="stylesheet" type="text/css" href="{$css|replace:'default':'dashio'}?v={$tlVersion|escape:'url'}">
 </head>
 <body>
 {include file="aside.tpl"}
