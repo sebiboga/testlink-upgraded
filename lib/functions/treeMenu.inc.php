@@ -728,6 +728,15 @@ function renderTreeNode($level,&$node,$hash_id_descr,$linkto,$testCasePrefix,$op
 
   static $f2call;
   static $forbidden_parents;
+  static $needsTProjectID = array('ETS' => true, 'ET' => true);
+  static $rootTProjectID;
+
+  // The tree root is the test project node, so its id is the one ETS()/ET()
+  // expect as their first argument. Captured on every fresh render.
+  if( $level == 1 ) {
+    $rootTProjectID = isset($opt['tproject_id']) ? intval($opt['tproject_id'])
+                                                 : intval($node['id']);
+  }
 
   $testCasesIDList='';
 
@@ -804,7 +813,13 @@ function renderTreeNode($level,&$node,$hash_id_descr,$linkto,$testCasePrefix,$op
   } // switch 
 
   $node['position'] = isset($node['node_order']) ? $node['node_order'] : 0;
-  $node['href'] = "javascript:{$pfn}({$node['id']})";
+
+  // ETS() and ET() take the test project id as first argument, everything else
+  // (EP, TPROJECT_PT*, void) takes only the node id. The root of this tree is
+  // the test project, so its id is what those two need.
+  $node['href'] = isset($needsTProjectID[$pfn])
+                  ? "javascript:{$pfn}({$rootTProjectID},{$node['id']})"
+                  : "javascript:{$pfn}({$node['id']})";
   // -------------------------------------------------------------------------------  
   
   if (isset($node['childNodes']) && $node['childNodes'])

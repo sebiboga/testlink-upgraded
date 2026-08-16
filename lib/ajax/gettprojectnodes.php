@@ -49,9 +49,24 @@ echo json_encode($nodes);
  *
  *
  */
+/**
+ * Build the argument list for a tree node's javascript: href.
+ *
+ * ETS() and ET() take the test project id as their first argument; EP() and
+ * the TPROJECT_PT* print handlers take only the node id.
+ */
+function buildNodeJSArgs($jsFunction,$nodeID,$tprojectID)
+{
+  static $needsTProjectID = array('ETS' => true, 'ET' => true);
+
+  return isset($needsTProjectID[$jsFunction])
+         ? "(" . intval($tprojectID) . ",{$nodeID})"
+         : "({$nodeID})";
+}
+
 function display_children($dbHandler,$root_node,$parent,$filter_node,
-                          $tcprefix,$show_tcases = 1,$operation = 'manage',$helpText=array()) 
-{             
+                          $tcprefix,$show_tcases = 1,$operation = 'manage',$helpText=array())
+{
   static $showTestCaseID;
     
   $tables = tlObjectWithDB::getDBTables(array('tcversions','nodes_hierarchy','node_types'));
@@ -129,12 +144,14 @@ function display_children($dbHandler,$root_node,$parent,$filter_node,
           getAllTCasesID($row['id'],$items);
           $tcase_qty = sizeof($items);
 
-          $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
+          $path['href'] = "javascript:" . $js_function[$row['node_type']] .
+                          buildNodeJSArgs($js_function[$row['node_type']],$path['id'],$root_node);
           $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
         break;
-                
+
         case 'testcase':
-          $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
+          $path['href'] = "javascript:" . $js_function[$row['node_type']] .
+                          buildNodeJSArgs($js_function[$row['node_type']],$path['id'],$root_node);
           $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
           if(is_null($showTestCaseID))
           {
