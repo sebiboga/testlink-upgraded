@@ -22,7 +22,8 @@ editorType: used to understand if code for tinymce need to be loaded
 	<title>{$pageTitle|default:"TestLink"}</title>
 	<link rel="icon" href="{$basehref}{$smarty.const.TL_THEME_IMG_DIR}favicon.ico" type="image/x-icon" />
 	
-{* ----- load CSS ------------------------------------------------------------------- *} 
+{* ----- load CSS ------------------------------------------------------------------- *}
+	<link rel="stylesheet" href="{$basehref}gui/icons/font-awesome-4.5.0/css/font-awesome.min.css">
 	<style media="all" type="text/css">@import "{$css}";</style>
 
 	{if $use_custom_css}
