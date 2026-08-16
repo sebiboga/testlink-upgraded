@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Dropdown/Select Custom Field Example
+  A field with predefined dropdown options
+-->
+<field>
+  <name>priority</name>
+  <label>Test Priority</label>
+  <type>dropdown</type>
+  <possible_values>Critical,High,Medium,Low,Trivial</possible_values>
+  <default_value>Medium</default_value>
+  <active>1</active>
+  <enable_on_testcase>1</enable_on_testcase>
+  <enable_on_requirement>1</enable_on_requirement>
+  <description>Priority level for the test case or requirement</description>
+</field>

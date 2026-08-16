@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  XXE (XML External Entity) Attack Example - FOR EDUCATIONAL PURPOSES ONLY
+
+  WARNING: This file demonstrates a potential security vulnerability.
+  DO NOT use this in production systems. This is for security awareness
+  and educational purposes only.
+
+  XXE Vulnerability Explanation:
+  - XML External Entity (XXE) attacks exploit XML parsers
+  - Can allow attackers to read system files, cause DoS, or compromise servers
+  - This example demonstrates reading system files
+
+  Defense Mechanisms:
+  - Disable external entity loading in XML parser
+  - Use whitelist for allowed entities
+  - Validate XML before processing
+  - Update XML parsing libraries
+  - Use DTD validation with restrictions
+-->
+
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<testcase>
+  <id>1</id>
+  <name>XXE Attack Demonstration</name>
+  <description>This test case demonstrates an XXE vulnerability &xxe;</description>
+  <preconditions>None</preconditions>
+  <execution_type>manual</execution_type>
+  <status>active</status>
+</testcase>

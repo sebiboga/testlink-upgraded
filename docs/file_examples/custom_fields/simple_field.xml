@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Simple Custom Field Example
+  A basic text input field for test cases
+-->
+<field>
+  <name>severity</name>
+  <label>Test Severity</label>
+  <type>text</type>
+  <possible_values></possible_values>
+  <default_value>Medium</default_value>
+  <active>1</active>
+  <enable_on_testcase>1</enable_on_testcase>
+  <enable_on_requirement>0</enable_on_requirement>
+  <description>Indicates the severity level of the test</description>
+</field>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Keyword List Example
+  Multiple keywords for test case organization
+-->
+<keywords>
+  <keyword>
+    <text>smoke</text>
+    <description>Smoke testing - Critical path validation</description>
+  </keyword>
+  <keyword>
+    <text>regression</text>
+    <description>Regression testing - Verify no existing functionality broken</description>
+  </keyword>
+  <keyword>
+    <text>critical</text>
+    <description>Critical functionality that must work</description>
+  </keyword>
+  <keyword>
+    <text>ui</text>
+    <description>User interface and visual testing</description>
+  </keyword>
+  <keyword>
+    <text>security</text>
+    <description>Security and authentication testing</description>
+  </keyword>
+  <keyword>
+    <text>performance</text>
+    <description>Performance and load testing</description>
+  </keyword>
+  <keyword>
+    <text>api</text>
+    <description>REST/API endpoint testing</description>
+  </keyword>
+  <keyword>
+    <text>integration</text>
+    <description>Integration testing between modules</description>
+  </keyword>
+</keywords>

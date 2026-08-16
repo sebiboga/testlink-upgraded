@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Simple Requirement Example
+  A basic requirement specification
+-->
+<requirement>
+  <doc_id>REQ-001</doc_id>
+  <title>User Authentication System</title>
+  <description>
+    The system shall provide a secure user authentication mechanism.
+    Users must be able to login with username and password.
+    Passwords must be encrypted and securely stored.
+  </description>
+  <version>1.0</version>
+  <status>accepted</status>
+  <type>functional</type>
+  <author_id>1</author_id>
+  <created_on>2024-08-01</created_on>
+  <modified_on>2024-08-16</modified_on>
+</requirement>

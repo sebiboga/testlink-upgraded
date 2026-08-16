@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Platform List Example
+  Multiple testing environments/platforms
+-->
+<platforms>
+  <platform>
+    <name>Windows 10</name>
+    <notes>Windows 10 Enterprise Edition SP1</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>Windows 11</name>
+    <notes>Windows 11 Pro Edition</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>Ubuntu 22.04</name>
+    <notes>Ubuntu 22.04 LTS Server</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>Chrome Browser</name>
+    <notes>Google Chrome Latest Version</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>Firefox Browser</name>
+    <notes>Mozilla Firefox Latest Version</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>iOS 16</name>
+    <notes>Apple iOS 16.x</notes>
+    <is_active>1</is_active>
+  </platform>
+  <platform>
+    <name>Android 13</name>
+    <notes>Android 13.x</notes>
+    <is_active>1</is_active>
+  </platform>
+</platforms>

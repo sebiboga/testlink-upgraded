@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Single Test Result/Execution Example
+  A single test case execution result
+-->
+<execution>
+  <testcase_id>1</testcase_id>
+  <testcase_external_id>TC-001</testcase_external_id>
+  <plan_id>1</plan_id>
+  <build_id>1</build_id>
+  <platform_id>1</platform_id>
+  <status>p</status>
+  <!-- Status codes: p=passed, f=failed, b=blocked, w=wait -->
+  <execution_ts>2024-08-16 10:30:45</execution_ts>
+  <tester_id>2</tester_id>
+  <tester_name>tester1</tester_name>
+  <notes>Test executed successfully. All steps passed as expected.</notes>
+  <duration_seconds>120</duration_seconds>
+  <bugs>
+    <!-- Bug references (if any) -->
+  </bugs>
+</execution>

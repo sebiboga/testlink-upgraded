@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Test Case with Steps Example
+  A complete test case including detailed steps
+-->
+<testcase>
+  <id>2</id>
+  <external_id>TC-002</external_id>
+  <name>Login with Valid Credentials</name>
+  <description>Test login with correct username and password</description>
+  <preconditions>
+    - User account exists with username 'admin' and password 'password123'
+    - User is on the login page
+  </preconditions>
+  <postconditions>User is authenticated and on dashboard</postconditions>
+  <execution_type>manual</execution_type>
+  <status>active</status>
+  <steps>
+    <step>
+      <step_number>1</step_number>
+      <actions>Navigate to the login page</actions>
+      <expected_results>Login form is displayed with username and password fields</expected_results>
+      <execution_type>manual</execution_type>
+    </step>
+    <step>
+      <step_number>2</step_number>
+      <actions>Enter 'admin' in the username field</actions>
+      <expected_results>Text 'admin' appears in username field</expected_results>
+      <execution_type>manual</execution_type>
+    </step>
+    <step>
+      <step_number>3</step_number>
+      <actions>Enter 'password123' in the password field</actions>
+      <expected_results>Password is masked with asterisks</expected_results>
+      <execution_type>manual</execution_type>
+    </step>
+    <step>
+      <step_number>4</step_number>
+      <actions>Click the Login button</actions>
+      <expected_results>User is authenticated and redirected to dashboard</expected_results>
+      <execution_type>manual</execution_type>
+    </step>
+  </steps>
+  <keywords>
+    <keyword>smoke</keyword>
+    <keyword>critical</keyword>
+    <keyword>authentication</keyword>
+  </keywords>
+  <custom_fields>
+    <field>
+      <name>priority</name>
+      <value>Critical</value>
+    </field>
+    <field>
+      <name>severity</name>
+      <value>High</value>
+    </field>
+  </custom_fields>
+</testcase>

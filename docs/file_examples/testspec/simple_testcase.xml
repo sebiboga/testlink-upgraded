@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Simple Test Case Example
+  A basic test case with minimal information
+-->
+<testcase>
+  <id>1</id>
+  <external_id>TC-001</external_id>
+  <name>Verify User Login</name>
+  <description>This test verifies that a user can successfully login to the system</description>
+  <preconditions>User account exists in the system</preconditions>
+  <postconditions>User is logged in and on dashboard</postconditions>
+  <execution_type>manual</execution_type>
+  <status>active</status>
+  <version>1</version>
+  <author_id>1</author_id>
+  <created_on>2024-08-16</created_on>
+</testcase>
