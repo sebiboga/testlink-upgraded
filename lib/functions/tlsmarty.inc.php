@@ -123,6 +123,10 @@ class TLSmarty extends Smarty {
 
     $this->assign('dashioHomeURL', $basehref . $this->dashioHome);
 
+    // FontAwesome CSS location
+    $fontAwesomeHome = $basehref . $this->dashioHome . 'lib/fontawesome-free-6.2.0-web/';
+    $this->assign('fontawesomeHomeURL', $fontAwesomeHome);
+
     // ----------------------------------------------------------    
     $testproject_coloring = $tlCfg->gui->testproject_coloring;
     $testprojectColor = $tlCfg->gui->background_color ; 

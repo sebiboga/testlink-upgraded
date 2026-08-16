@@ -35,15 +35,19 @@ editorType: used to understand if code for tinymce need to be loaded
   
 	<style media="print" type="text/css">@import "{$basehref}{$smarty.const.TL_PRINT_CSS}";</style>
 
-{* ----- load javascripts libraries --------------------------- *} 
+{* ----- load jQuery FIRST before anything that depends on it ------- *}
+	<script type="text/javascript"
+    src="{$basehref}{$smarty.const.TL_JQUERY}" language="javascript"></script>
+
+{* ----- load javascripts libraries (after jQuery) --------------------------- *}
 	<script type="text/javascript" src="{$basehref}gui/javascript/testlink_library.js" language="javascript"></script>
 	<script type="text/javascript" src="{$basehref}gui/javascript/test_automation.js" language="javascript"></script>
-	
-	{if $jsValidate == "yes"} 
+
+	{if $jsValidate == "yes"}
 	<script type="text/javascript" src="{$basehref}gui/javascript/validate.js" language="javascript"></script>
     {include file="inc_jsCfieldsValidation.tpl"}
 	{/if}
-   
+
 	{if $editorType == 'tinymce'}
     <script type="text/javascript" language="javascript"
     	src="{$basehref}third_party/tinymce/jscripts/tiny_mce/tiny_mce.js"></script>
@@ -52,9 +56,6 @@ editorType: used to understand if code for tinymce need to be loaded
 
 
   <link rel="stylesheet" href="{$basehref}third_party/chosen/chosen.css">
-
-	<script type="text/javascript" 
-    src="{$basehref}{$smarty.const.TL_JQUERY}" language="javascript"></script>
 
 	<script type="text/javascript" src="{$basehref}third_party/chosen/chosen.jquery.js"></script>
  

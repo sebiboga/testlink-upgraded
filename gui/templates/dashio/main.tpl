@@ -11,8 +11,13 @@
 
   <!-- Favicons -->
   <link href="{$dashioHome}img/favicon.png" rel="icon">
-  <link href="{$dashioHome}img/apple-touch-icon.png" 
+  <link href="{$dashioHome}img/apple-touch-icon.png"
         rel="apple-touch-icon">
+
+  <!-- Load jQuery early so iframes can use it -->
+  <script type="text/javascript"
+          src="{$basehref}{$smarty.const.TL_JQUERY}"
+          language="javascript"></script>
 
   <link href="{$dashioHome}lib/bootstrap/css/bootstrap.min.css" rel="stylesheet">
   <link href="{$fontawesomeHomeURL}/css/all.css" rel="stylesheet" />
@@ -37,14 +42,10 @@
    </iframe>
   </section>
 
-  <script type="text/javascript" 
-          src="{$basehref}{$smarty.const.TL_JQUERY}"
-          language="javascript"></script>
-
   {$bs = "{$dashioHome}lib/"}
-  <!-- 
-  js placed at the end of the document so the pages 
-  load faster
+  <!--
+  js placed at the end of the document so the pages
+  load faster (jQuery already loaded in HEAD)
   -->
   <script src="{$bs}bootstrap/js/bootstrap.min.js"></script>
   <script class="include" type="text/javascript" src="{$bs}jquery.dcjqaccordion.2.7.js"></script>
