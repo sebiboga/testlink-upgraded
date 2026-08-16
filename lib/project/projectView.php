@@ -138,10 +138,12 @@ function initIntegrations(&$tprojSet,$tprojQty,&$tplEngine) {
       if($tprojSet[$idx][$short . 'name'] != '') {
         $ak = ($tprojSet[$idx][$item . '_tracker_enabled']) ? 
               'active' : 'inactive';
-        $tprojSet[$idx][$short . 'statusImg'] = 
-          ' <img title="' . $labels[$ak . '_integration'] . '" ' .
-          ' alt="' . $labels[$ak . '_integration'] . '" ' .
-          ' src="' . $imgSet[$ak] . '"/>';
+        // getImages() returns FontAwesome markup (<i class="fa ...">), not
+        // image paths. Emit it directly - wrapping it in <img src="..."> broke
+        // out of the attribute and leaked the rest of the tag as page text.
+        $tprojSet[$idx][$short . 'statusImg'] =
+          ' <span title="' . $labels[$ak . '_integration'] . '">' .
+          $imgSet[$ak] . '</span>';
       } 
     }
   }
