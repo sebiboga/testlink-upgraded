@@ -26,7 +26,11 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
   <link href="{$dashioHomeURL}css/style.css" rel="stylesheet">
   <link href="{$dashioHomeURL}css/style-responsive.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" href="{$basehref}gui/themes/default/css/frame.css">  
+  <link rel="stylesheet" type="text/css" href="{$basehref}gui/themes/default/css/frame.css">
+  {* This template carries its own <head> instead of including inc_head.tpl,
+     so the TestLink theme stylesheet has to be pulled in explicitly. Without
+     it none of the theme overrides apply to the dashboard or its sidebar. *}
+  <link rel="stylesheet" type="text/css" href="{$css|replace:'default':'dashio'}">
 </head>
 <body>
 {include file="aside.tpl"}
