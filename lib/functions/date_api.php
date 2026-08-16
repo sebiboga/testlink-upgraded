@@ -96,8 +96,8 @@ function create_date_selection_set($p_name, $p_format, $p_date=0, $options=null)
   $date_format = $localeDateFormat[$locale];
   $date_format_without_percent = str_replace('%', '', $date_format);
   
-  // if calender shall be shown on filter position has to be fixed to fully display
-  $calender_div_position = $opt['show_on_filters'] ? "fixed" : "absolute";
+  // if calendar shall be shown on filter position has to be fixed to fully display
+  $calendar_div_position = $opt['show_on_filters'] ? "fixed" : "absolute";
   
   $str_out='';
   $t_chars = preg_split('//', $p_format, -1, PREG_SPLIT_NO_EMPTY) ;
@@ -147,7 +147,7 @@ function create_date_selection_set($p_name, $p_format, $p_date=0, $options=null)
               'var xh = document.getElementById(\'' . $p_name . '_hour\'); if(xh!=null) xh.selectedIndex=-1;' .
               'var xm = document.getElementById(\'' . $p_name . '_minute\'); if(xm!=null) xm.selectedIndex=-1;' .
               'var xs = document.getElementById(\'' . $p_name . '_second\'); if(xs!=null) xs.selectedIndex=-1;" > ' .
-              '<div id="' . $p_name . '" style="position:' . $calender_div_position . ';z-index:1;"></div>';
+              '<div id="' . $p_name . '" style="position:' . $calendar_div_position . ';z-index:1;"></div>';
   
 
   // Here we work with the TIME PART, that exists only when we require TIMESTAMP

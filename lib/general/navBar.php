@@ -121,7 +121,7 @@ function initializeGui(&$db,&$args) {
   }
 
   if($gui->tproject_id <= 0 && !$args->newInstallation) {
-    // Well instead of this, try to get the firts test project 
+    // Well instead of this, try to get the first test project 
     // user is enabled to.
     if( 0 == $gui->TestProjectCount ) {
       throw new Exception("Can't work without Test Project ID", 1);

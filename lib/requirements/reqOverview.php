@@ -163,7 +163,7 @@ if(count($gui->reqIDs) > 0)  {
       
       // 20140914 - 
       // Because we can do this logic thoundands of times, I suppose it will cost less
-      // to do not use my other approach of firts assigning instead of using else.
+      // to do not use my other approach of first assigning instead of using else.
       // 
       // use html comment to sort properly by this column (extjs)
       if( !is_null($version['modification_ts']) && ($version['modification_ts'] != $cfg->neverModifiedTS) ) {
