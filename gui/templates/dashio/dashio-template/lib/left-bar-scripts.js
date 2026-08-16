@@ -1,17 +1,26 @@
 /* left-bar-scripts.js */
 /*---LEFT BAR ACCORDION----*/
-$(function() {
-  $('#nav-accordion').dcAccordion({
-    eventType: 'click',
-    autoClose: true,
-    saveState: true,
-    disableLink: true,
-    speed: 'slow',
-    showCount: false,
-    autoExpand: true,
-    classExpand: 'dcjq-current-parent'
-  });
-});
+function initAccordion() {
+  if (jQuery('#nav-accordion').length > 0) {
+    jQuery('#nav-accordion').dcAccordion({
+      eventType: 'click',
+      autoClose: true,
+      saveState: true,
+      disableLink: true,
+      speed: 'slow',
+      showCount: false,
+      autoExpand: true,
+      classExpand: 'dcjq-current-parent'
+    });
+  }
+}
+
+jQuery(document).ready(initAccordion);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAccordion);
+} else {
+  initAccordion();
+}
 
 var Script = function() {
 

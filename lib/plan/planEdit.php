@@ -165,14 +165,8 @@ switch ($args->do_action) {
     
     if(!$status_ok) {
       $args->opeOK = false;
-      // Just to remember
-      // the content displayed by $of->CreateHTML() -> $of->Value
-      $of->Value = $args->notes; 
-      //echo '<br>' . __LINE__;
+      $of->Value = $args->notes;
       $gui->notes = $of->CreateHTML();
-      echo 'die';
-      echo $gui->notes;
-      
     }
   break;
 
@@ -285,11 +279,8 @@ switch ($args->do_action) {
 
 if ($do_display) {
   $user_feedback = $gui->user_feedback;
-  echo $args->opeOK ? 'YES': 'NO';
-  echo '<br> test plan name >>' . $args->testplan_name . '<br>';
   $gui = initializeGui($db,$args,$editorCfg,$tproject_mgr);
   $gui->user_feedback = $user_feedback;
-  echo '<br>GUI test plan name>>' . $gui->testplan_name .'<br>';
 
   $gui->uploadOp = $uploadOp;
   if ($gui->doViewReload = ($template == 'planView.tpl')) {
@@ -297,7 +288,6 @@ if ($do_display) {
     $gui->getTestPlans = true;
     planViewGUIInit($db,$args,$gui,$tplan_mgr);
   }
-  echo $gui->testplan_name .'<br>';
 
   switch ($args->do_action) {
    case "edit":
@@ -306,11 +296,8 @@ if ($do_display) {
      getItemData($tplan_mgr,$gui,$of,$args->itemID);
    break;
   }
-   
+
   if ($createNotesHTML) {
-    // Just to remember
-    // the content displayed by $of->CreateHTML() -> $of->Value
-    echo '<b>' . __LINE__ . '</b>';
     $gui->notes = $of->CreateHTML();
   }
 
@@ -391,17 +378,20 @@ function init_args(&$dbH,&$tplanMgr)
   R_PARAMS($iParams,$args);
 
 
+  if (is_null($args->do_action)) {
+    $args->do_action = "list";
+  }
+
   // For certain actions this is the plan we are working on
   switch($args->do_action) {
     case "do_delete":
     case "do_update":
-    case "list":
     case 'setActive':
     case 'setInactive':
-    default:
       $checkItemID = true;
     break;
 
+    case "list":
     case "edit":
     case "create":
     case "do_create":
@@ -409,7 +399,11 @@ function init_args(&$dbH,&$tplanMgr)
     case 'deleteFile':
     case 'setActiveBulk':
     case 'setInactiveBulk':
-      $checkItemID = false;    
+      $checkItemID = false;
+    break;
+
+    default:
+      $checkItemID = false;
     break;
   }
 
