@@ -3773,5 +3773,7 @@ $TLS_multiple_entities_search = 'Search on multiple entities';
 $TLS_no_access_to_feature = 'You do not have enough rights to access the feature';
 
 $TLS_applyExecTypeChangeToAllSteps = "Apply To All Steps";
-$TLS_no_users_selected = "No users selected - nothing done"; 
+$TLS_no_users_selected = "No users selected - nothing done";
+$TLS_report_test_automation = "Report Test Automation Spec";
+$TLS_btn_report_test_automation = "Report Test Automation Spec";
 // ----- END ------------------------------------------------------------------
