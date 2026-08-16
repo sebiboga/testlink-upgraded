@@ -199,6 +199,9 @@ switch($args->doAction) {
 
     $smarty->assign('gui', $args);
     $smarty->assign('notes', $of->CreateHTML());
+    if (is_array($user_feedback)) {
+      $user_feedback = implode("<br>",$user_feedback);
+    }
     $smarty->assign('user_feedback', $user_feedback);
     $smarty->assign('feedback_type', $feedback_type);
     $smarty->display($templateCfg->template_dir . $template);

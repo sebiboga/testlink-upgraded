@@ -67,6 +67,12 @@ switch($args->edit) {
       }
     }
 
+    // The checkbox on UX to assign only to selected test cases is ALWAYS Visible
+    // This generates issue when NO filter was applied and the checkbox checked
+    if ($args->useFilteredSet && $filteredTC == null) {
+      $filteredTC = $tsuite_mgr->get_testcases_deep($args->id,'only_id');
+    }
+
     if ($args->onlyDirectChildren && $args->useFilteredSet) {
       // intersect
       $tcs = array_intersect($tsChildren, $filteredTC);

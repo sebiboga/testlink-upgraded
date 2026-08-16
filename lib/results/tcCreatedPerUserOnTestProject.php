@@ -138,7 +138,7 @@ function initializeGuiForResult(&$dbHandler,$argsObj,&$guiObj) {
         $cuRow[] = htmlspecialchars($tcase['path']);
         
         // Create linked icons
-        $edit_link = "<a href=\"javascript:openTCEditWindow({$tcase_id},{$tcversion_id});\">" .
+        $edit_link = "<a href=\"javascript:openTCEditWindow({$tcase_id},{$tcversion_id},{$guiObj->tproject_id});\">" .
                      "<img title=\"{$guiObj->l18n['design']}\" src=\"{$guiObj->images['edit']}\" /></a> ";
             
         $cuRow[] = "<!-- " . sprintf("%010d", $tcase['external_id']) . " -->" .

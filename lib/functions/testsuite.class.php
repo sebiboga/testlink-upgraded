@@ -1121,12 +1121,14 @@ class testsuite extends tlObjectWithAttachments
   
   */
   function addKeywords($id,$kw_ids) {
-    $status = 1;
-    $num_kws = sizeof($kw_ids);
-    for($idx = 0; $idx < $num_kws; $idx++) {
-      $status = $status && $this->addKeyword($id,$kw_ids[$idx]);
+    if ( $kw_ids != null && count($kw_ids) > 0 ) {
+      $status = 1;
+      $num_kws = sizeof($kw_ids);
+      for($idx = 0; $idx < $num_kws; $idx++) {
+        $status = $status && $this->addKeyword($id,$kw_ids[$idx]);
+      }
+      return $status;
     }
-    return($status);
   }
   
   

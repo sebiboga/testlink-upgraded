@@ -848,8 +848,17 @@ function openAssignmentOverviewWindow(user_id, build_id, tplan_id) {
  * @author Andreas Simon
  * @param tc_id
  */
-function openTCEditWindow(tcase_id,tcversion_id)  {
-  var url = "lib/testcases/archiveData.php?edit=testcase&id=" + tcase_id + "&tcversion_id=" + tcversion_id;
+function openTCEditWindow(tcase_id,tcversion_id,tproject_id)  {
+  var url = "lib/testcases/archiveData.php?edit=testcase&id=" + tcase_id;
+
+  if (tcversion_id !== undefined) {
+    url += "&tcversion_id=" + tcversion_id;
+  }
+
+  if (tproject_id !== undefined) {
+    url += "&tproject_id=" + tproject_id;
+  }
+
   var width = getCookie("TCEditPopupWidth");
   var height = getCookie("TCEditPopupHeight");
   
