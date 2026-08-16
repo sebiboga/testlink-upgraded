@@ -274,7 +274,7 @@ CREATE TABLE /*prefix*/inventory (
 	`ipaddress` VARCHAR(255)  NOT NULL ,
 	`content` TEXT NULL ,
 	`creation_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	`modification_ts` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	`modification_ts` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY (`id`),
 	KEY /*prefix*/inventory_idx1 (`testproject_id`)
 ) DEFAULT CHARSET=utf8; 
@@ -805,8 +805,8 @@ CREATE TABLE /*prefix*/baseline_l1l2_context (
   id int(10) unsigned NOT NULL AUTO_INCREMENT,
   testplan_id int(10) unsigned NOT NULL DEFAULT '0',
   platform_id int(10) unsigned NOT NULL DEFAULT '0',
-  begin_exec_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  end_exec_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  begin_exec_ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  end_exec_ts DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   creation_ts timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY udx1_context (testplan_id,platform_id,creation_ts)
