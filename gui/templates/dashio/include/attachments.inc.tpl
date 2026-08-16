@@ -89,14 +89,14 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
         <td style="vertical-align:middle;"><a href="lib/attachments/attachmentdownload.php?id={$info.id}" target="_blank" class="bold" title="{$labels.click_to_get_attachment}">
         {$my_link}</a> 
         {if $info.is_image} 
-          <img src="{$tlImages.eye}" style="border:none" title="{$labels.display_inline}" 
-               onclick="c4i = document.getElementById('inline_img_container_{$info.id}');
-               c4i.innerHTML=toogleImageURL('inline_img_container_{$info.id}',{$info.id});"/>
+          <span style="border:none" title="{$labels.display_inline}" 
+ onclick="c4i = document.getElementById('inline_img_container_{$info.id}');
+ c4i.innerHTML=toogleImageURL('inline_img_container_{$info.id}',{$info.id});">{$tlImages.eye}</span>
         {/if}
         - <span class="italic">{$info.file_name|escape} ({$info.file_size|escape} bytes, {$info.file_type|escape}) {localize_date d=$info.date_added|escape}</span>
         
           {if $info.is_image && $displayGhost}
-          <span><img src="{$tlImages.ghost_item}" title="{$labels.display_inline_string}" style="border:none" onclick="showHideByClass('span','ghost_' + {$info.id});"></span>
+          <span><span title="{$labels.display_inline_string}" style="border:none" onclick="showHideByClass('span','ghost_' + {$info.id});">{$tlImages.ghost_item}</span></span>
           <span class='ghost_{$info.id}' style='display:none'>{$info.inlineString}</span>
           {/if}
     
@@ -104,12 +104,12 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
         {if !$attach_downloadOnly}
           <a href="javascript:delete_confirmation({$info.id},'{$info.file_name|escape:'javascript'|escape}',
           '{$del_msgbox_title|escape:'javascript'|escape}','{$warning_msg|escape:'javascript'|escape}',jsCallDeleteFile);">
-            <img style="border:none;" alt="{$labels.alt_delete_attachment}"
-                                      title="{$labels.alt_delete_attachment}"
-                                      src="{$tlImages.delete}" /></a>
+            <span style="border:none;" 
+ title="{$labels.alt_delete_attachment}"
+>{$tlImages.delete}</span></a>
         {/if}
         {if isset($gui->showExternalAccessString) && $gui->showExternalAccessString}
-          <span><img src="{$tlImages.cog}" title="{$labels.display_ea_string}" style="border:none" onclick="showHideByClass('span','eas_' + {$info.id});"></span>
+          <span><span title="{$labels.display_ea_string}" style="border:none" onclick="showHideByClass('span','eas_' + {$info.id});">{$tlImages.cog}</span></span>
           <span class='eas_{$info.id}' style='display:none'>%%EXECATT:{$info.id}%%</span>
         {/if}  
         </td>
@@ -159,16 +159,16 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
                  name="uploadIt" id="uploadIt"
                  value="{$labels.btn_upload_file}"/>
       </form>
-      <img class="clickable" src="{$tlImages.activity}" 
-             title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">
+      <span class="clickable" 
+ title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">{$tlImages.activity}</span>
 
       {if $tlCfg->attachments->allowed_filenames_regexp != ''}
-        <img class="clickable" src="{$tlImages.activity}" 
-             title="{$labels.allowed_filenames_regexp}{$tlCfg->attachments->allowed_filenames_regexp}">      
+        <span class="clickable" 
+ title="{$labels.allowed_filenames_regexp}{$tlCfg->attachments->allowed_filenames_regexp}">{$tlImages.activity}</span>      
       {/if}
       {if $tlCfg->attachments->allowed_files != ''}
-        <img class="clickable" src="{$tlImages.activity}" 
-             title="{$labels.allowed_files}{$tlCfg->attachments->allowed_files}">  
+        <span class="clickable" 
+ title="{$labels.allowed_files}{$tlCfg->attachments->allowed_files}">{$tlImages.activity}</span>  
       {/if}
 
       {if $gui->fileUploadMsg != ''}

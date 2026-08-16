@@ -104,9 +104,9 @@ function check_action_precondition(container_id,action,msg) {
         <thead class="{#item_view_thead#}">
           <tr>
           <th data-orderable="false" class="clickable_icon">
-			         <img src="{$tlImages.toggle_all}"
-			              onclick='cs_all_checkbox_in_div("move_copy_checkboxes","tcaseSet_","add_value_memory");'
-                    title="{$labels.check_uncheck_all_checkboxes}" />
+			         <span 
+ onclick='cs_all_checkbox_in_div("move_copy_checkboxes","tcaseSet_","add_value_memory");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
 			    </th>
           <th>{$labels.th_test_case}</th>
           <th>{$labels.summary}</th>
@@ -122,12 +122,12 @@ function check_action_precondition(container_id,action,msg) {
                     <input type="checkbox" name="tcaseSet[{$tcinfo.tcversion_id}]" id="tcaseSet_{$tcinfo.tcid}" value="{$tcinfo.tcid}" />
                 </td>
                 <td>
-                    <img class="clickable" src="{$tlImages.history_small}"
-                         onclick="javascript:openExecHistoryWindow({$tcinfo.tcid});"
-                         title="{$labels.execution_history}" />
-                    <img class="clickable" src="{$tlImages.edit_icon}"
-                         onclick="javascript:openTCaseWindow({$tcinfo.tcid});"
-                         title="{$labels.design}" />
+                    <span class="clickable" 
+ onclick="javascript:openExecHistoryWindow({$tcinfo.tcid});"
+ title="{$labels.execution_history}">{$tlImages.history_small}</span>
+                    <span class="clickable" 
+ onclick="javascript:openTCaseWindow({$tcinfo.tcid});"
+ title="{$labels.design}">{$tlImages.edit_icon}</span>
                     {$gui->tcprefix|escape}{$tcinfo.tcexternalid|escape}{$gsmarty_gui->title_separator_1}{$tcinfo.tcname|escape}
                 </td>
                 <td style="width:60%;">

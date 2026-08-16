@@ -84,7 +84,7 @@ if(count($gui->reqIDSet) > 0)
     $result[] = $pathCache[$req['srs_id']];
         
     $edit_link = '<a href="javascript:openLinkedReqVersionWindow(' . $id . ',' . $req['version_id'] . ',' . $args->tproject_id . ')">' . 
-                 '<img title="' .$lbl['mixed']['requirement'] . '" src="' . $imgSet['edit'] . '" /></a> ';
+                 '<span title="' .$lbl['mixed']['requirement'] . '">' . $imgSet['edit'] . '</span></a> ';
       
     $result[] =  '<!-- ' . $title . ' -->' . $edit_link . $title;
           
@@ -266,14 +266,16 @@ function buildOnClick($args,$lbl,$imgSet)
   $ret = array();
   $ret['off']['open'] = '<!--monitored--><form method="POST" action="lib/requirements/reqMonitorOverview.php' .
                         "?action=off&tproject_id={$args->tproject_id}&req_id=";
-  $ret['off']['close'] = '"><input type="image" name="monitor_on" ' .
-                         ' title="'. $lbl['on2off']. '"' .
-                         ' src="' . $imgSet['on'] . '"/></form>';
+  // A submit button rather than <input type="image">: the icon set is
+  // FontAwesome markup now, so there is no image path to point src at.
+  $ret['off']['close'] = '"><button type="submit" name="monitor_on" ' .
+                         ' title="'. $lbl['on2off']. '">' .
+                         $imgSet['on'] . '</button></form>';
 
   $ret['on']['open'] = str_replace('=off','=on',$ret['off']['open']);
-  $ret['on']['close'] = '"><input type="image" name="monitor_off" ' .
-                         ' title="'. $lbl['off2on']. '"' .
-                         ' src="' . $imgSet['off'] . '"/></form>';
+  $ret['on']['close'] = '"><button type="submit" name="monitor_off" ' .
+                         ' title="'. $lbl['off2on']. '">' .
+                         $imgSet['off'] . '</button></form>';
  
 
   return $ret;

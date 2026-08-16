@@ -157,9 +157,9 @@ generate a list of TC for adding to Test Plan
             <tr style="background-color:blue;font-weight:bold;color:white">
   			     <td width="5" align="center">
                 {if $gui->full_control}
-  			          <img class="clickable" src="{$tlImages.toggle_all}"
-  			               onclick='cs_all_checkbox_in_div("{$div_id}","{$add_cb}","add_value_{$ts_id}");'
-                       title="{$labels.check_uncheck_all_checkboxes}" />
+  			          <span class="clickable" 
+ onclick='cs_all_checkbox_in_div("{$div_id}","{$add_cb}","add_value_{$ts_id}");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
       			    {else}
       			     &nbsp;
   		    	    {/if}
@@ -171,18 +171,18 @@ generate a list of TC for adding to Test Plan
              <td>{$labels.th_status}</td>
   			     {if $gui->priorityEnabled} <td>{$labels.importance}</td> {/if}
              		<td align="center">
-   				      <img src="{$tlImages.execution_order}" title="{$labels.execution_order}" />
+   				      <span title="{$labels.execution_order}">{$tlImages.execution_order}</span>
   				   	</td>
 
              {if $ts.linked_testcase_qty gt 0}
   				      <td>&nbsp;</td>
   				      <td>
-  				      <img class="clickable" src="{$tlImages.disconnect}" 
-                     onclick='cs_all_checkbox_in_div("{$div_id}","{$rm_cb}","rm_value_{$ts_id}");'
-                     title="{$labels.check_uncheck_all_for_remove}" />
+  				      <span class="clickable" 
+ onclick='cs_all_checkbox_in_div("{$div_id}","{$rm_cb}","rm_value_{$ts_id}");'
+ title="{$labels.check_uncheck_all_for_remove}">{$tlImages.disconnect}</span>
   				      </td>
   				      <td align="center">
-    				      <img src="{$tlImages.date}" title="{$labels.added_on_date}" />
+    				      <span title="{$labels.added_on_date}">{$tlImages.date}</span>
   				      </td>
              {/if}
             </tr>   
@@ -244,14 +244,14 @@ generate a list of TC for adding to Test Plan
                     {/if}
       			     
       			        <td>
-							<img class="clickable" src="{$tlImages.history_small}"
-							     onclick="javascript:openExecHistoryWindow({$tcase.id},undefined,{$gui->tproject_id});"
-							     title="{$labels.execution_history}" />
+							<span class="clickable" 
+ onclick="javascript:openExecHistoryWindow({$tcase.id},undefined,{$gui->tproject_id});"
+ title="{$labels.execution_history}">{$tlImages.history_small}</span>
 							<img class="clickable" src="{$smarty.const.TL_THEME_IMG_DIR}/edit_icon.png"
 							     onclick="javascript:openTCaseWindow({$tcase.id});"
 							     title="{$labels.design}" />
 							<span id="tooltip-{$tcID}">
-                <img src="{$tlImages.summary_small}">&nbsp;
+                <span>{$tlImages.summary_small}</span>&nbsp;
 								{$gui->testCasePrefix|escape}{$tcase.external_id}{$gsmarty_gui->title_separator_1}{$tcase.name|escape}
 							</span>
       			        </td>
@@ -360,7 +360,7 @@ generate a list of TC for adding to Test Plan
             	   			{/if}
             	   
                    			{if !is_null($tcase.executed) && $tcase.executed[0] eq 'yes'}&nbsp;&nbsp;&nbsp;
-   				                  <img src="{$tlImages.executed}" title="{$gui->warning_msg->executed}" />
+   				                  <span title="{$gui->warning_msg->executed}">{$tlImages.executed}</span>
                       		{/if}
                       		{if $is_active eq 0}&nbsp;&nbsp;&nbsp;{$labels.inactive_testcase}{/if}
             			  </td>
@@ -424,7 +424,7 @@ generate a list of TC for adding to Test Plan
             		    		&nbsp;&nbsp;
             	   			{/if}
                         	{if !is_null($tcase.executed) && isset($tcase.executed[$platform.id]) && $tcase.executed[$platform.id] eq 'yes'}&nbsp;&nbsp;&nbsp;
-   				                  <img src="{$tlImages.executed}" title="{$gui->warning_msg->executed}" />
+   				                  <span title="{$gui->warning_msg->executed}">{$tlImages.executed}</span>
                         	{/if}
 
                             {* TICKET 5294: it is not possible to remove an inactive tc version from a testplan with platforms *}

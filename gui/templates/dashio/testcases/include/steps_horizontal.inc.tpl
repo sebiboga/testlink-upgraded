@@ -19,12 +19,12 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   <tr>
     <th width="40px"><nobr>
     {if $edit_enabled && $steps != '' && !is_null($steps) && $args_frozen_version=="no"}
-      <img class="clickable" src="{$tlImages.reorder}" align="left"
-           title="{$inc_steps_labels.show_hide_reorder}"
-           onclick="showHideByClass('span','order_info');">
-      <img class="clickable" src="{$tlImages.ghost_item}" align="left"
-           title="{$inc_steps_labels.show_ghost_string}"
-           onclick="showHideByClass('tr','ghost');">
+      <span class="clickable" align="left"
+ title="{$inc_steps_labels.show_hide_reorder}"
+ onclick="showHideByClass('span','order_info');">{$tlImages.reorder}</span>
+      <span class="clickable" align="left"
+ title="{$inc_steps_labels.show_ghost_string}"
+ onclick="showHideByClass('tr','ghost');">{$tlImages.ghost_item}</span>
     {/if}
     {$inc_steps_labels.step_number}
     </th>
@@ -42,12 +42,12 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     {if $inExec}
       <th>{if $tlCfg->exec_cfg->steps_exec_notes_default == 'latest'}{$inc_steps_labels.latest_exec_notes}
           {else}{$inc_steps_labels.step_exec_notes}{/if}
-          <img class="clickable" src="{$tlImages.clear_notes}" 
-          onclick="javascript:clearTextAreaByClassName('step_note_textarea');" title="{$inc_steps_labels.clear_all_notes}"></th>
+          <span class="clickable" 
+ onclick="javascript:clearTextAreaByClassName('step_note_textarea');" title="{$inc_steps_labels.clear_all_notes}">{$tlImages.clear_notes}</span></th>
 
       <th>{$inc_steps_labels.step_exec_status}
-       <img class="clickable" src="{$tlImages.reset}" 
-          onclick="javascript:clearSelectByClassName('step_status');" title="{$inc_steps_labels.clear_all_status}"></th>
+       <span class="clickable" 
+ onclick="javascript:clearSelectByClassName('step_status');" title="{$inc_steps_labels.clear_all_status}">{$tlImages.reset}</span></th>
     {/if}    
 
 
@@ -82,18 +82,18 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
     {if $edit_enabled && $args_frozen_version=="no"}
     <td class="clickable_icon">
-      <img style="border:none;cursor: pointer;"
-           title="{$inc_steps_labels.delete_step}"
-           alt="{$inc_steps_labels.delete_step}"
-           onclick="delete_confirmation({$step_info.id},'{$step_info.step_number|escape:'javascript'|escape}',
-                                         '{$del_msgbox_title}','{$warning_msg}');"
-           src="{$tlImages.delete}"/>
+      <span style="border:none;cursor: pointer;"
+ title="{$inc_steps_labels.delete_step}"
+ 
+ onclick="delete_confirmation({$step_info.id},'{$step_info.step_number|escape:'javascript'|escape}',
+ '{$del_msgbox_title}','{$warning_msg}');"
+>{$tlImages.delete}</span>
     </td>
     
     <td class="clickable_icon">
-      <img style="border:none;cursor: pointer;"  title="{$inc_steps_labels.insert_step}"    
-           alt="{$inc_steps_labels.insert_step}"
-           onclick="launchInsertStep({$step_info.id});"    src="{$tlImages.insert_step}"/>
+      <span style="border:none;cursor: pointer;" title="{$inc_steps_labels.insert_step}" 
+ 
+ onclick="launchInsertStep({$step_info.id});">{$tlImages.insert_step}</span>
     </td>
     
     {/if}

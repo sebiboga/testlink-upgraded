@@ -111,21 +111,22 @@ if( $doIt )
           $ekk = sprintf($exec['common'],$tplan_id,$tcase['platform_id'],$tplan_id,$tcase['build_id'],
                          $tplan_id,$tcversion_id,$tplan_id);
           
-          $elk = sprintf($exec['passed'],$tplan_id) . $ekk . '&nbsp;' . sprintf($exec['failed'],$tplan_id ) . $ekk . '&nbsp;' . 
-                 sprintf($exec['blocked'],$tplan_id) . $ekk;
+          $elk = sprintf($exec['passed'],$tplan_id) . $ekk . $exec['endpassed'] . '&nbsp;' .
+                 sprintf($exec['failed'],$tplan_id ) . $ekk . $exec['endfailed'] . '&nbsp;' .
+                 sprintf($exec['blocked'],$tplan_id) . $ekk . $exec['endblocked'];
 
           $exec_link = "<a href=\"javascript:openExecutionWindow(" .
                        "{$tcase_id},{$tcversion_id},{$tcase['build_id']}," .
                        "{$tcase['testplan_id']},{$tcase['platform_id']},'{$whoiam}');\">" .
-                       "<img title=\"{$gui->l18n['execution']}\" src=\"{$imgSet['exec_icon']}\" /></a> ";
+                       "<span title=\"{$gui->l18n['execution']}\">{$imgSet['exec_icon']}</span></a> ";
         }
        
         $exec_history_link = "<a href=\"javascript:openExecHistoryWindow({$tcase_id});\">" .
-                             "<img title=\"{$gui->l18n['execution_history']}\" src=\"{$imgSet['history_small']}\" /></a> ";
+                             "<span title=\"{$gui->l18n['execution_history']}\">{$imgSet['history_small']}</span></a> ";
         
         
         $edit_link = "<a href=\"javascript:openTCEditWindow({$tcase_id});\">" .
-                     "<img title=\"{$gui->l18n['design']}\" src=\"{$imgSet['edit_icon']}\" /></a> ";
+                     "<span title=\"{$gui->l18n['design']}\">{$imgSet['edit_icon']}</span></a> ";
         
         $current_row[] = "<!-- " . sprintf("%010d", $tcase['tc_external_id']) . " -->" . $elk . $exec_history_link .
                          $exec_link . $edit_link . htmlspecialchars($tcase['prefix']) . $gui->glueChar . 
@@ -493,17 +494,23 @@ function getStatusGuiCfg()
  */
 function getQuickExecCfg($gui,$imgSet,$statusCode)
 {
-  $qexe['passed'] = "<img title=\"{$gui->l18n['quick_passed']}\" src=\"{$imgSet['exec_passed']}\" " .
-                    " onclick=\"result_%s.value='{$statusCode['passed']}';"; 
+  // <span> rather than <img>: the icon set is FontAwesome markup, so the glyph
+  // belongs inside the element, not in a src attribute. Each status opens the
+  // tag, 'common' closes the onclick and the opening tag, and 'end<status>'
+  // supplies the icon plus the closing tag.
+  $qexe['passed'] = "<span class=\"clickable\" title=\"{$gui->l18n['quick_passed']}\" " .
+                    " onclick=\"result_%s.value='{$statusCode['passed']}';";
+  $qexe['endpassed'] = $imgSet['exec_passed'] . '</span> ';
 
+  $qexe['failed'] = "<span class=\"clickable\" title=\"{$gui->l18n['quick_failed']}\" " .
+                    " onclick=\"result_%s.value='{$statusCode['failed']}';";
+  $qexe['endfailed'] = $imgSet['exec_failed'] . '</span> ';
 
-  $qexe['failed'] = "<img title=\"{$gui->l18n['quick_failed']}\" src=\"{$imgSet['exec_failed']}\" " .
-                    " onclick=\"result_%s.value='{$statusCode['failed']}';"; 
+  $qexe['blocked'] = "<span class=\"clickable\" title=\"{$gui->l18n['quick_blocked']}\" " .
+                     " onclick=\"result_%s.value='{$statusCode['blocked']}';";
+  $qexe['endblocked'] = $imgSet['exec_blocked'] . '</span> ';
 
-  $qexe['blocked'] = "<img title=\"{$gui->l18n['quick_blocked']}\" src=\"{$imgSet['exec_blocked']}\" " .
-                    " onclick=\"result_%s.value='{$statusCode['blocked']}';"; 
-
-  $qexe['common'] = 'pxi_%s.value=%s;bxi_%s.value=%s;tcvx_%s.value=%s;fog_%s.submit();" /> ';
+  $qexe['common'] = 'pxi_%s.value=%s;bxi_%s.value=%s;tcvx_%s.value=%s;fog_%s.submit();">';
 
   return $qexe;  
 }

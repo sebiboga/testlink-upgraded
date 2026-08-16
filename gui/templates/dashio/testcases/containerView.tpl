@@ -147,17 +147,17 @@ function jsCallDeleteFile(btn, text, o_id)
              id="reorder_testproject_testsuites_alpha" 
              onclick="doAction.value='reorder_testproject_testsuites_alpha'" title="{$labels.btn_reorder_testsuites_alpha}">
 
-      <img src="{$tlImages.import}" onclick="location='{$importToTProjectAction}'" title="{$labels.btn_import_testsuite}" />
+      <span onclick="location='{$importToTProjectAction}'" title="{$labels.btn_import_testsuite}">{$tlImages.import}</span>
 
       {if $gui->canDoExport}
-        <img src="{$tlImages.export}" onclick="location='{$tsuiteExportAction}'" title="{$labels.btn_export_all_testsuites}" />
+        <span onclick="location='{$tsuiteExportAction}'" title="{$labels.btn_export_all_testsuites}">{$tlImages.export}</span>
       {/if}
 
-      <img src="{$tlImages.report}" onclick="window.open('{$testSpecFullDocAction}')" 
-           title="{$labels.btn_gen_test_spec_new_window}" />
+      <span onclick="window.open('{$testSpecFullDocAction}')" 
+ title="{$labels.btn_gen_test_spec_new_window}">{$tlImages.report}</span>
 
-      <img src="{$tlImages.report_word}" onclick="window.open('{$testSpecFullWordDocAction}')" 
-           title="{$labels.btn_gen_test_spec_word}" />
+      <span onclick="window.open('{$testSpecFullWordDocAction}')" 
+ title="{$labels.btn_gen_test_spec_word}">{$tlImages.report_word}</span>
 
     </form>
     </fieldset>

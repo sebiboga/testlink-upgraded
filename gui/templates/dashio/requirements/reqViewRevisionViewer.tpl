@@ -48,7 +48,7 @@ viewer for requirement
 	  <tr>
 	  	<td class="bold" id="tooltip-{$args_req.target_id}" colspan="2">{$labels.version}
 	  	{$args_req.version} {$labels.revision} {$args_req.revision}
-	  	<img src="{$tlImages.log_message_small}" style="border:none" />
+	  	<span style="border:none">{$tlImages.log_message_small}</span>
 	  	</td>
 	  </tr>
 	{/if}

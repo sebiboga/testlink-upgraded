@@ -40,7 +40,7 @@ delete test case in test specification
 	  			        <td align="left">{$status.platform_name|escape}</td>
 	  			      {/if}
 	  				    <td style="width:4%;text-align:center;">
-	  				    {if $status.executed != ""}<img src="{$tlImages.checked}" />{/if}</td>
+	  				    {if $status.executed != ""}<span>{$tlImages.checked}</span>{/if}</td>
 	  				  </tr>
 	  			  {/foreach}
 	  			{/foreach}

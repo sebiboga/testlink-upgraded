@@ -23,8 +23,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
           <tr>
           <td style="width:10%;text-align:center;">{$version_info.version}</td>
           <td>{$version_info.tplan_name|escape}
-              <a href="{$execFeatureAction}" target="_parent" ><img class="clickable" src="{$tlImages.execute}" 
-                             title="{$qex_labels.goto_execute}" /></a>
+              <a href="{$execFeatureAction}" target="_parent" ><span class="clickable" 
+ title="{$qex_labels.goto_execute}">{$tlImages.execute}</span></a>
           </td>
           {if $gui->platforms != null}
             <td>

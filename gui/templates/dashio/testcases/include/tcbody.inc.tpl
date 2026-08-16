@@ -73,9 +73,9 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
             style="display:none">{$tco.ghost_preconditions}</span>    
 
       <div class="labelHolder">{$inc_tcbody_labels.preconditions}
-        <img class="clickable" src="{$tlImages.ghost_item}"
-             title="{$inc_tcbody_labels.click_to_copy_ghost_to_clipboard}"
-             onclick="copyAttrGhostString('{$spanid}');">
+        <span class="clickable" 
+ title="{$inc_tcbody_labels.click_to_copy_ghost_to_clipboard}"
+ onclick="copyAttrGhostString('{$spanid}');">{$tlImages.ghost_item}</span>
       </div>
       <div>{if $inc_tcbody_editor_type == 'none'}{$tco.preconditions|nl2br}{else}{$tco.preconditions}{/if}</div>
     {/if}

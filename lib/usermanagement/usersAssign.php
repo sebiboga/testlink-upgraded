@@ -72,8 +72,8 @@ switch($args->featureType) {
     {
       $accessKey = 'public';
     }  
-    $gui->tprojectAccessTypeImg = '<img src="' . $imgSet[$accessKey] . 
-                                  '" title="' . lang_get('access_' . $accessKey) . '" >';
+    $gui->tprojectAccessTypeImg = '<span title="' . lang_get('access_' . $accessKey) .
+                                  '">' . $imgSet[$accessKey] . '</span>';
   break;
 }
 
@@ -129,13 +129,13 @@ if(is_null($gui->features) || count($gui->features) == 0) {
   $accessKey = 'vorsicht';
   if( isset($gui->features[$gui->featureID]) ) {
     $accessKey = $gui->features[$gui->featureID]['is_public'] ? 'public' : 'private';
-    $gui->accessTypeImg = '<img src="' . $imgSet[$accessKey] . '" title="' . lang_get('access_' . $accessKey) . '" >';
+    $gui->accessTypeImg = '<span title="' . lang_get('access_' . $accessKey) . '">' . $imgSet[$accessKey] . '</span>';
   }  
-  $gui->accessTypeImg = '<img src="' . $imgSet[$accessKey] . '" title="' . lang_get('access_' . $accessKey) . '" >';
+  $gui->accessTypeImg = '<span title="' . lang_get('access_' . $accessKey) . '">' . $imgSet[$accessKey] . '</span>';
 }
 
-$gui->hintImg = '<img src="' . $imgSet['heads_up'] . '" title="' . 
-                lang_get('system_design_blocks_global_admin_change') . '" >';
+$gui->hintImg = '<span title="' . lang_get('system_design_blocks_global_admin_change') .
+                '">' . $imgSet['heads_up'] . '</span>';
 
 $smarty->assign('gui',$gui);
 $smarty->display($templateCfg->template_dir . $templateCfg->default_template);

@@ -91,9 +91,9 @@ function manageTracker(selectOID,targetOID)
 <h1 class="{#TITLE_CLASS#}">
   {$gui->pageTitle|escape} 
   {if $gui->mgt_view_events eq "yes" and $gui->itemID}
-    <img style="margin-left:5px;" class="clickable" src="{$tlImages.help}" 
-           onclick="showEventHistoryFor('{$gui->itemID}','testprojects')" 
-           alt="{$labels.show_event_history}" title="{$labels.show_event_history}"/>
+    <span style="margin-left:5px;" class="clickable" 
+ onclick="showEventHistoryFor('{$gui->itemID}','testprojects')" 
+ title="{$labels.show_event_history}">{$tlImages.help}</span>
   {/if}
 </h1>
 

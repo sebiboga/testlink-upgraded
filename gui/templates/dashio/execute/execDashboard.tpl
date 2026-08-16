@@ -61,8 +61,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   {if $gui->build_cfields != ''} <div id="cfields_build" class="custom_field_container">{$gui->build_cfields}</div>{/if}
   </div>
 
-  <img class="clickable" src="{$tlImages.cog}" title="{$labels.restAPIExecParameters}"
-       onclick="javascript:toggleShowHide('restAPI','inline');" />
+  <span class="clickable" title="{$labels.restAPIExecParameters}"
+ onclick="javascript:toggleShowHide('restAPI','inline');">{$tlImages.cog}</span>
 
   <div id="restAPI" style='display:none'>
   {$gui->RESTArgsJSON}  

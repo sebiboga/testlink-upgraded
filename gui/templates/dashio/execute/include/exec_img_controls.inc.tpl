@@ -47,8 +47,8 @@ Author : franciscom
 
               {if $tlCfg->exec_cfg->features->exec_duration->enabled}	
                 <br />	
-                <img src="{$tlImages.execution_duration}" 
-                       title="{$args_labels.execution_duration}">
+                <span 
+ title="{$args_labels.execution_duration}">{$tlImages.execution_duration}</span>
                 <input type="text" name="execution_duration" id="execution_duration"
                        size="{#EXEC_DURATION_SIZE#}" 
                        onkeyup="this.value=this.value.replace(/[^0-9]/g,'');"
@@ -59,8 +59,8 @@ Author : franciscom
                 <br />
                 {$addBR=0}
                 {if $tc_exec.assigned_user == ''}
-                 <img src="{$tlImages.assign_task}" 
-                       title="{$args_labels.assign_exec_task_to_me}">
+                 <span 
+ title="{$args_labels.assign_exec_task_to_me}">{$tlImages.assign_task}</span>
                   <input type="checkbox" name="assignTask"  id="assignTask"
                   {if $gui->assignTaskChecked} checked {/if}>
                   &nbsp;
@@ -68,8 +68,8 @@ Author : franciscom
 
                 {if $tlCfg->exec_cfg->exec_mode->new_exec == 'latest'}
                   {$addBR=1}
-                 <img src="{$tlImages.copy_attachments}" 
-                       title="{$args_labels.copy_attachments_from_latest_exec}">
+                 <span 
+ title="{$args_labels.copy_attachments_from_latest_exec}">{$tlImages.copy_attachments}</span>
                   <input type="checkbox" name="copyAttFromLEXEC"  id="copyAttFromLEXEC">
                   &nbsp;
                 {/if}
@@ -78,8 +78,8 @@ Author : franciscom
                 
                 {if $gui->tlCanCreateIssue}
                   {$addBR=1}
-                  <img src="{$tlImages.bug_create_into_bts}" 
-                       title="{$args_labels.bug_create_into_bts}">
+                  <span 
+ title="{$args_labels.bug_create_into_bts}">{$tlImages.bug_create_into_bts}</span>
                   <input type="checkbox" name="createIssue"  id="createIssue" 
                          onclick="javascript:toogleShowHide('issue_summary');
                          javascript:toogleRequiredOnShowHide('bug_summary');
@@ -105,10 +105,10 @@ Author : franciscom
                          id="hidden-submit-button"></button>
                  {foreach key=kode item=ikval from=$gui->execStatusIcons}
                    {$in = $ikval.img}
-                   <img src="{$tlImages.$in}" title="{$ikval.title}"
-                        name="fastExec{$kode}[{$tcversion_id}]"
-                        id="fastExec{$kode}_{$tcversion_id}"
-                        onclick="javascript:saveExecStatus({$tcvID},'{$kode}');">&nbsp;
+                   <span title="{$ikval.title}"
+ name="fastExec{$kode}[{$tcversion_id}]"
+ id="fastExec{$kode}_{$tcversion_id}"
+ onclick="javascript:saveExecStatus({$tcvID},'{$kode}');">{$tlImages.$in}</span>&nbsp;
                  {/foreach}  
                  <br />
                  <br />
@@ -117,10 +117,10 @@ Author : franciscom
                                       id="save_and_next" value="0">
                  {foreach key=kode item=ikval from=$gui->execStatusIconsNext}
                    {$in = $ikval.img}
-                   <img src="{$tlImages.$in}" title="{$ikval.title}"
-                        name="fastExecNext{$kode}[{$tcversion_id}]"
-                        id="fastExecNext{$kode}_{$tcversion_id}"
-                        onclick="javascript:saveExecStatus({$tcvID},'{$kode}','',1);">&nbsp;
+                   <span title="{$ikval.title}"
+ name="fastExecNext{$kode}[{$tcversion_id}]"
+ id="fastExecNext{$kode}_{$tcversion_id}"
+ onclick="javascript:saveExecStatus({$tcvID},'{$kode}','',1);">{$tlImages.$in}</span>&nbsp;
                  {/foreach}  
                  <br />
                  <br />

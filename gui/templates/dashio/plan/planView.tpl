@@ -120,8 +120,8 @@ var del_action=fRoot+'{$gui->actions->deleteAction}';
                       <a href="{$gui->actions->editAction}{$testplan.id}"> 
                         {$testplan.name|escape}
                         {if $gsmarty_gui->show_icon_edit}
-                            <img title="{$labels.testplan_alt_edit_tp}"  alt="{$labels.testplan_alt_edit_tp}" 
-                                  src="{$tlImages.edit}"/>
+                            <span title="{$labels.testplan_alt_edit_tp}" 
+>{$tlImages.edit}</span>
                         {/if}  
                       </a>
                   </td>
@@ -154,30 +154,30 @@ var del_action=fRoot+'{$gui->actions->deleteAction}';
                     {/if}
                   </td>
                   <td style="width:8%;">
-                      <img style="border:none;cursor: pointer;" 
-                          alt="{$labels.testplan_alt_delete_tp}"
-                        title="{$labels.testplan_alt_delete_tp}" 
-                        onclick="delete_confirmation({$testplan.id},'{$testplan.name|escape:'javascript'|escape}',
-                                                      '{$del_msgbox_title}','{$warning_msg}');"
-                        src="{$tlImages.delete}"/>
+                      <span style="border:none;cursor: pointer;" 
+ 
+ title="{$labels.testplan_alt_delete_tp}" 
+ onclick="delete_confirmation({$testplan.id},'{$testplan.name|escape:'javascript'|escape}',
+ '{$del_msgbox_title}','{$warning_msg}');"
+>{$tlImages.delete}</span>
                       <a href="{$gui->actions->exportAction}{$testplan.id}"> 
-                      <img style="border:none;cursor: pointer;" alt="{$labels.export_testplan_links}" 
-                          title="{$labels.export_testplan_links}" src="{$tlImages.export}"/>
+                      <span style="border:none;cursor: pointer;" 
+ title="{$labels.export_testplan_links}">{$tlImages.export}</span>
                       </a>     
                       <a href="{$gui->actions->importAction}{$testplan.id}"> 
-                      <img style="border:none;cursor: pointer;" alt="{$labels.import_testplan_links}" 
-                          title="{$labels.import_testplan_links}"  src="{$tlImages.import}"/>
+                      <span style="border:none;cursor: pointer;" 
+ title="{$labels.import_testplan_links}">{$tlImages.import}</span>
                       </a>     
 
                       {if $testplan.rights.testplan_user_role_assignment}
                         <a href="{$gui->actions->assignRolesAction}{$testplan.id}"> 
-                        <img style="border:none;cursor: pointer;" alt="{$labels.assign_roles}" 
-                            title="{$labels.assign_roles}"  src="{$tlImages.user}"/>
+                        <span style="border:none;cursor: pointer;" 
+ title="{$labels.assign_roles}">{$tlImages.user}</span>
                         </a>     
                       {/if}
                       <a href="{$gui->actions->gotoExecuteAction}{$testplan.id}"> 
-                      <img style="border:none;cursor: pointer;" alt="{$labels.execution}" 
-                          title="{$labels.execution}"  src="{$tlImages.execution}"/>
+                      <span style="border:none;cursor: pointer;" 
+ title="{$labels.execution}">{$tlImages.execution}</span>
                       </a>     
                   </td>
                 </tr>

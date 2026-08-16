@@ -47,7 +47,7 @@ function check_action_precondition(form_id,action){
 
     <div class="workBack">
       <h2>{$labels.req_title_bulk_assign}
-        <img src="{$tlImages.bulkOperation}" /></h2>
+        <span>{$tlImages.bulkOperation}</span></h2>
       <form id="SRS_switch" name="SRS_switch" method="post">
         <input type="hidden" name="form_token" id="form_token" value="{$gui->form_token}" />
  	      <input type="hidden" name="doAction" id="doAction" value="switchspec" />
@@ -62,7 +62,7 @@ function check_action_precondition(form_id,action){
     <div class="workBack">
       {if $gui->requirements != ""}
         {$reqSpecTitle = $gui->selectedReqSpecName}
-        <img src="{$tlImages.bulkOperation}" />{$gui->bulkassign_warning_msg}<br />
+        <span>{$tlImages.bulkOperation}</span>{$gui->bulkassign_warning_msg}<br />
 
         {if $gui->tcase_number > 0}
           <h2>{$gui->reqCountFeedback|escape} </h2>

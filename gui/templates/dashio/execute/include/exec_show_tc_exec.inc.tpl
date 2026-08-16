@@ -93,7 +93,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   		<div class="exec_history_title">
       {if $gui->issueTrackerIntegrationOn}
         <a style="font-weight:normal" target="_blank" href="{$gui->createIssueURL}">
-          <img src="{$tlImages.bug}" title="{$gui->accessToIssueTracker|escape}"> 
+          <span title="{$gui->accessToIssueTracker|escape}">{$tlImages.bug}</span> 
         </a>
       {/if}
 
@@ -135,7 +135,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
             <span style="background: white;padding: 6px 15px 6px 40px;">
                 <a href="javascript:open_bug_add_window({$gui->tproject_id},
                 {$gui->tplan_id},{$abs_last_exec.id},{$abs_last_exec.execution_id},0,'link')">
-                <img src="{$tlImages.bug_link_tl_to_bts}" title="{$labels.bug_link_tl_to_bts}" style="border:none" /></a>
+                <span title="{$labels.bug_link_tl_to_bts}" style="border:none">{$tlImages.bug_link_tl_to_bts}</span></a>
             </span>
           {/if}
 
@@ -248,20 +248,20 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   			  <td>
           {* Check also that Build is Open *}
   			  {if $can_edit_exec_notes && $tc_old_exec.build_is_open}
-  		      <img src="{$tlImages.note_edit}" style="vertical-align:middle" 
-  		           title="{$labels.edit_execution}" onclick="javascript: openExecEditWindow(
-  		           {$tc_old_exec.execution_id},{$tc_old_exec.id},{$gui->tplan_id},{$gui->tproject_id});">
+  		      <span style="vertical-align:middle" 
+ title="{$labels.edit_execution}" onclick="javascript: openExecEditWindow(
+ {$tc_old_exec.execution_id},{$tc_old_exec.id},{$gui->tplan_id},{$gui->tproject_id});">{$tlImages.note_edit}</span>
   		      {else}
   		         {if $can_edit_exec_notes}
-  		            <img src="{$tlImages.note_edit_greyed}" 
-  		                 style="vertical-align:middle" title="{$labels.closed_build}">
+  		            <span 
+ style="vertical-align:middle" title="{$labels.closed_build}">{$tlImages.note_edit_greyed}</span>
   		         {/if}
  			  {/if}
   			  {localize_timestamp ts=$tc_old_exec.execution_ts}
   			  </td>
 				  {if $gui->history_on == 0 || $cfg->exec_cfg->show_history_all_builds}
   				<td>{if !$tc_old_exec.build_is_open}
-  				    <img src="{$tlImages.lock}" title="{$labels.closed_build}">{/if}
+  				    <span title="{$labels.closed_build}">{$tlImages.lock}</span>{/if}
   				    {$tc_old_exec.build_name|escape}
   				</td>
   				{/if}
@@ -302,14 +302,14 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
           	   ($attachment_model->show_upload_column && $gui->history_on == 1 && 
           	    $tc_old_exec.build_is_open && $can_manage_attachments)}
       			  <td align="center"><a href="javascript:openFileUploadWindow({$tc_old_exec.execution_id},'executions')">
-      			    <img src="{$tlImages.upload}" title="{$labels.alt_attachment_mgmt}"
-      			         alt="{$labels.alt_attachment_mgmt}"
-      			         style="border:none" /></a>
+      			    <span title="{$labels.alt_attachment_mgmt}"
+ 
+ style="border:none">{$tlImages.upload}</span></a>
               </td>
 			  {else}
 			  	{if $attachment_model->show_upload_column && $can_manage_attachments}
 					<td align="center">
-						<img src="{$tlImages.upload_greyed}" title="{$labels.closed_build}">
+						<span title="{$labels.closed_build}">{$tlImages.upload_greyed}</span>
 					</td>
 				{/if}
   	      	  {/if}
@@ -319,17 +319,17 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
        		  {if $tc_old_exec.build_is_open}
        		    <a href="javascript:open_bug_add_window({$gui->tproject_id},
               {$gui->tplan_id},{$tc_old_exec.id},{$tc_old_exec.execution_id},0,'link')">
-       		    <img src="{$tlImages.bug_link_tl_to_bts}" title="{$labels.bug_link_tl_to_bts}" style="border:none" /></a>
+       		    <span title="{$labels.bug_link_tl_to_bts}" style="border:none">{$tlImages.bug_link_tl_to_bts}</span></a>
        		    &nbsp;&nbsp;
               {if $gui->tlCanCreateIssue}
        		  	  <a href="javascript:open_bug_add_window({$gui->tproject_id},{$gui->tplan_id},{$tc_old_exec.id},{$tc_old_exec.execution_id},0,'create')">
-      			    <img src="{$tlImages.bug_create_into_bts}" title="{$labels.bug_create_into_bts}" style="border:none" /></a>
+      			    <span title="{$labels.bug_create_into_bts}" style="border:none">{$tlImages.bug_create_into_bts}</span></a>
               {/if}
        		  {else}
-       		    <img src="{$tlImages.bug_link_tl_to_bts_disabled}" title="{$labels.bug_link_tl_to_bts}" style="border:none" /></a>
+       		    <span title="{$labels.bug_link_tl_to_bts}" style="border:none">{$tlImages.bug_link_tl_to_bts_disabled}</span></a>
        		    &nbsp;&nbsp;
               {if $gui->tlCanCreateIssue}
-       		  	  <img src="{$tlImages.bug_create_into_bts_disabled}" title="{$labels.bug_create_into_bts}" style="border:none" /></a>
+       		  	  <span title="{$labels.bug_create_into_bts}" style="border:none">{$tlImages.bug_create_into_bts_disabled}</span></a>
               {/if}
             {/if} 
        		  </td>
@@ -340,33 +340,33 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 	       		  	<td align="center">
     	         	<a href="javascript:confirm_and_submit(msg,'execSetResults','exec_to_delete',
              	                                       {$tc_old_exec.execution_id},'do_delete',1);">
-      			    <img src="{$tlImages.delete}" title="{$labels.img_title_delete_execution}"
-      			         style="border:none" /></a>
+      			    <span title="{$labels.img_title_delete_execution}"
+ style="border:none">{$tlImages.delete}</span></a>
       			 </td>
       			{else}
       				{if $can_delete_exec}
       					<td align="center">
-      						<img src="{$tlImages.delete_disabled}" title="{$labels.closed_build}">
+      						<span title="{$labels.closed_build}">{$tlImages.delete_disabled}</span>
       					</td>
       				{/if}
           		{/if}
 
        		<td class="icon_cell" align="center">
        		  {if $tc_old_exec.execution_run_type == $smarty.const.TESTCASE_EXECUTION_TYPE_MANUAL}
-      		    <img src="{$tlImages.testcase_execution_type_manual}" title="{$labels.execution_type_manual}"
-      		            style="border:none" />
+      		    <span title="{$labels.execution_type_manual}"
+ style="border:none">{$tlImages.testcase_execution_type_manual}</span>
        		  {else}
-      		    <img src="{$tlImages.testcase_execution_type_automatic}" title="{$labels.execution_type_auto}"
-      		            style="border:none" />
+      		    <span title="{$labels.execution_type_auto}"
+ style="border:none">{$tlImages.testcase_execution_type_automatic}</span>
        		  {/if}
           </td>
 
           {* CORTADO *}
           {if $tlCfg->exec_cfg->steps_exec }
             <td class="icon_cell" align="center">
-              <img src="{$tlImages.steps}" title="{$labels.access_test_steps_exec}"  
-                   onclick="javascript:openPrintPreview('exec',{$tc_old_exec.execution_id},
-                                                        null,null,'{$printExecutionAction}');"/>
+              <span title="{$labels.access_test_steps_exec}" 
+ onclick="javascript:openPrintPreview('exec',{$tc_old_exec.execution_id},
+ null,null,'{$printExecutionAction}');">{$tlImages.steps}</span>
             </td>
           {/if}
 
@@ -477,16 +477,16 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       {$tplan=$gui->tplan_id}
       {$metaMode="editOnExec&tplan_id=$tplan"}                    
       <a href="javascript:openTCaseWindow({$tc_exec.testcase_id},{$tc_exec.id},'{$metaMode}')">
-      <img src="{$tlImages.note_edit}"  title="{$labels.show_tcase_spec}">
+      <span title="{$labels.show_tcase_spec}">{$tlImages.note_edit}</span>
       </a>
     {/if}
     
     {$labels.title_test_case}&nbsp;{$gui->tcasePrefix|escape}{$cfg->testcase_cfg->glue_character}{$tc_exec.tc_external_id|escape} :: {$labels.version}: {$tc_exec.version} :: {$tc_exec.name|escape}
     <br />
         {if $tc_exec.assigned_user == ''}
-          <img src="{$tlImages.warning}" style="border:none" />&nbsp;{$labels.has_no_assignment}
+          <span style="border:none">{$tlImages.warning}</span>&nbsp;{$labels.has_no_assignment}
         {else}
-          <img src="{$tlImages.user}" style="border:none" />&nbsp;
+          <span style="border:none">{$tlImages.user}</span>&nbsp;
           {$labels.assigned_to}{$title_sep}{$tc_exec.assigned_user|escape}
         {/if}
     </div>

@@ -389,7 +389,7 @@
 
     {if $control->filters.filter_assigned_user}
     <tr>
-      <td>{$labels.filter_owner}<img src="{$tlImages.info_small}" title="{$labels.tester_works_with_settings}"></td>
+      <td>{$labels.filter_owner}<span title="{$labels.tester_works_with_settings}">{$tlImages.info_small}</span></td>
       <td>
 
       {if $control->advanced_filter_mode}

@@ -73,17 +73,17 @@ Smarty template - manage test case urgency
       {if $start}
         {$start = false}
           <td style="text-align: left;">
-            <img class="clickable" src="{$tlImages.history_small}"
-                 onclick="javascript:openExecHistoryWindow({$res.testcase_id},undefined,{$gui->tproject});"
-                 title="{$labels.execution_history}" />
-            <img class="clickable" src="{$tlImages.edit_icon}"
-                 onclick="javascript:openTCaseWindow({$res.testcase_id});"
-                 title="{$labels.design}" />
+            <span class="clickable" 
+ onclick="javascript:openExecHistoryWindow({$res.testcase_id},undefined,{$gui->tproject});"
+ title="{$labels.execution_history}">{$tlImages.history_small}</span>
+            <span class="clickable" 
+ onclick="javascript:openTCaseWindow({$res.testcase_id});"
+ title="{$labels.design}">{$tlImages.edit_icon}</span>
               {$res.tcprefix|escape}{$res.tc_external_id}{$gsmarty_gui->title_separator_1}{$res.name|escape}
           </td>
           <td style="text-align: left;">
               {if $res.assigned_to != ''}
-              <img src="{$tlImages.info_small}" title="{$res.first|escape} {$res.last|escape}"> {$res.assigned_to|escape} 
+              <span title="{$res.first|escape} {$res.last|escape}">{$tlImages.info_small}</span> {$res.assigned_to|escape} 
               {/if}
           </td>
 
@@ -116,7 +116,7 @@ Smarty template - manage test case urgency
           <td>&nbsp;</td>
           <td style="text-align: left;">
              {if $res.assigned_to != ''}
-               <img src="{$tlImages.info_small}" title="{$res.first|escape} {$res.last|escape}"> {$res.assigned_to|escape}
+               <span title="{$res.first|escape} {$res.last|escape}">{$tlImages.info_small}</span> {$res.assigned_to|escape}
                <br> &nbsp;  {* dirty way to improve layout ;( *}
              {/if}
           </td>

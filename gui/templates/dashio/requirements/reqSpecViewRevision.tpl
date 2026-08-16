@@ -74,7 +74,7 @@ function tip4log(itemID)
 	</tr>
 	  <tr>
 	  	<td class="bold" colspan="2" id="tooltip-{$gui->item.id}">{$labels.revision} {$gui->item.revision}
-	  		      			    <img src="{$tlImages.log_message_small}" style="border:none" /></a>
+	  		      			    <span style="border:none">{$tlImages.log_message_small}</span></a>
 
 	  	</td>
 	  </tr>

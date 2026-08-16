@@ -75,9 +75,9 @@ function validateForm(f)
   	  <div id="{$div_id}"  style="margin:0px 0px 0px {$ts.level}0px;">
   	    <h3 class="testlink">
         {if $item_number ==1}
-  	    <img src="{$tlImages.toggle_all}" border="0" alt="{$labels.check_uncheck_all}" 
-                   title="{$labels.check_uncheck_all}" 
-                   onclick="cs_all_checkbox_in_div('updateTcForm','{$update_cb}','update_all_value');" />
+  	    <span border="0" 
+ title="{$labels.check_uncheck_all}" 
+ onclick="cs_all_checkbox_in_div('updateTcForm','{$update_cb}','update_all_value');">{$tlImages.toggle_all}</span>
         {/if}
         {$ts.testsuite.name|escape} 
   	    </h3> 
@@ -90,8 +90,8 @@ function validateForm(f)
           <table border="0" cellspacing="0" cellpadding="2" style="font-size:small;" width="100%">
             <tr style="background-color:blue;font-weight:bold;color:white">
   			     <th class="clickable_icon">
-  			         <img src="{$tlImages.toggle_all}" title="{$labels.check_uncheck_all_checkboxes}"
-  			              onclick='cs_all_checkbox_in_div("{$div_id}","{$update_cb}","update_value_{$ts_id}");' />
+  			         <span title="{$labels.check_uncheck_all_checkboxes}"
+ onclick='cs_all_checkbox_in_div("{$div_id}","{$update_cb}","update_value_{$ts_id}");'>{$tlImages.toggle_all}</span>
   			     </th>
   			     <th style="width:45%">{$labels.th_test_case}</th>
   			     <th class="clickable_icon">{$labels.version}</th>
@@ -121,12 +121,12 @@ function validateForm(f)
         				    {/if}
       			      </td>
 					<td>
-						<img class="clickable" src="{$tlImages.history_small}"
-						     onclick="javascript:openExecHistoryWindow({$tcase.id});"
-						     title="{$labels.execution_history}" />
-						<img class="clickable" src="{$tlImages.edit}"
-						     onclick="javascript:openTCaseWindow({$tcase.id});"
-						     title="{$labels.design}" />
+						<span class="clickable" 
+ onclick="javascript:openExecHistoryWindow({$tcase.id});"
+ title="{$labels.execution_history}">{$tlImages.history_small}</span>
+						<span class="clickable" 
+ onclick="javascript:openTCaseWindow({$tcase.id});"
+ title="{$labels.design}">{$tlImages.edit}</span>
 						{$gui->testCasePrefix|escape}{$tcase.external_id|escape}{$gsmarty_gui->title_separator_1}{$tcase.name|escape}
       			      </td>
   

@@ -25,7 +25,7 @@ Purpose: show form for search through ...
   <table class="smallGrey" style="width:100%">
     <caption>{$labels.caption_search_form}</caption>
     <tr>
-     <td colspan="2"><img src="{$tlImages.info}"> {$labels.filter_mode_and} </td>
+     <td colspan="2"><span>{$tlImages.info}</span> {$labels.filter_mode_and} </td>
     </tr>
     <tr>
      <td colspan="2">{$gui->search_important_notice|escape}<br>{$labels.search_prefix_ignored|escape}</td>

@@ -113,9 +113,9 @@ function load_notes(panel,exec_id)
             </td>
           {if $tlCfg->exec_cfg->steps_exec }
             <td class="icon_cell" align="center">
-              <img src="{$tlImages.steps}" title="{$labels.access_test_steps_exec}"  
-                   onclick="javascript:openPrintPreview('exec',{$tcv_exec.execution_id},
-                                                        null,null,'{$printExecutionAction}');"/>
+              <span title="{$labels.access_test_steps_exec}" 
+ onclick="javascript:openPrintPreview('exec',{$tcv_exec.execution_id},
+ null,null,'{$printExecutionAction}');">{$tlImages.steps}</span>
             </td>
           {/if}
 

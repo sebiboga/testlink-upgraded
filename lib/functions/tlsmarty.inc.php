@@ -308,15 +308,17 @@ class TLSmarty extends Smarty {
     $this->tlImages = tlSmarty::getImageSet();
     $this->tlIMGTags = tlSmarty::getIMGTagsSet();
     
+    // getImageSet() returns FontAwesome markup, so these composites wrap the
+    // icon rather than pointing an <img> at it.
     $msg = lang_get('show_hide_api_info');
-    $this->tlImages['toggle_api_info'] =  "<img class=\"clickable\" title=\"{$msg}\" alt=\"{$msg}\" " .
+    $this->tlImages['toggle_api_info'] =  "<span class=\"clickable\" title=\"{$msg}\" " .
     								" onclick=\"showHideByClass('span','api_info');event.stopPropagation();\" " .
-    								" src=\"{$this->tlImages['api_info']}\" align=\"left\" />";
-    
+    								" align=\"left\">{$this->tlImages['api_info']}</span>";
+
     $msg = lang_get('show_hide_direct_link');
-    $this->tlImages['toggle_direct_link'] = "<img class=\"clickable\" title=\"{$msg}\" alt=\"{$msg}\" " .
+    $this->tlImages['toggle_direct_link'] = "<span class=\"clickable\" title=\"{$msg}\" " .
     						  		                      " onclick=\"showHideByClass('div','direct_link');event.stopPropagation();\" " .
-    						  		                      " src=\"{$this->tlImages['direct_link']}\" align=\"left\" />";
+    						  		                      " align=\"left\">{$this->tlImages['direct_link']}</span>";
     
     // Some useful values for Sort Table Engine
     $this->tlImages['sort_hint'] = '';
@@ -324,9 +326,8 @@ class TLSmarty extends Smarty {
     {
       case 'kryogenix.org':
         $sort_table_by_column = lang_get('sort_table_by_column');
-        $this->tlImages['sort_hint'] = "<img title=\"{$sort_table_by_column}\" " .
-        						                   " alt=\"{$sort_table_by_column}\" " .
-        						                   " src=\"{$this->tlImages['sort']}\" align=\"left\" />";
+        $this->tlImages['sort_hint'] = "<span title=\"{$sort_table_by_column}\" " .
+        						                   " align=\"left\">{$this->tlImages['sort']}</span>";
         
         $this->assign("noSortableColumnClass","sorttable_nosort");
       break;

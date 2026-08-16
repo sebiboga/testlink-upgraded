@@ -66,9 +66,9 @@ function validateForm(f)
   <table class="common">
     <tr><th>{$labels.th_rolename}
       {if $gui->grants->mgt_view_events eq "yes" && $gui->role->dbID}
-        <img src="{$tlImages.info}" alt="{$labels.show_event_history}"
-        title="{$labels.show_event_history}"        
-        onclick="showEventHistoryFor('{$gui->role->dbID}','roles');" />
+        <span 
+ title="{$labels.show_event_history}" 
+ onclick="showEventHistoryFor('{$gui->role->dbID}','roles');">{$tlImages.info}</span>
       {/if}
     </th></tr>
     <tr><td>

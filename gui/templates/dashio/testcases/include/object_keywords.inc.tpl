@@ -87,7 +87,7 @@ var pF_remove_keyword = remove_keyword;
                      '{$kw_link_item.keyword|escape:'javascript'}', 
                      remove_kw_msgbox_title, remove_kw_msgbox_msg, 
                      pF_remove_keyword);">
-           <img src="{$tlImages.delete}" title="{$kw_labels.img_title_remove_keyword}"  style="border:none" /></a>
+           <span title="{$kw_labels.img_title_remove_keyword}" style="border:none">{$tlImages.delete}</span></a>
            {/if}
            {$kw_link_item.keyword|escape}
             <br />

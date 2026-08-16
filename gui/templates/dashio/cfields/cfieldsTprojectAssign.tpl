@@ -59,9 +59,9 @@ Purpose: management Custom fields assignment to a test project
           <tr>
         		<th {$sortableNo} align="center"  
                 style="width: 5px;background-color:#005498;"> 
-        		    <img src="{$tlImages.toggle_all}"
-        		         onclick='cs_all_checkbox_in_div("assigned_cf","assigned_cfield","memory_assigned_cf");'
-                     title="{$labels.check_uncheck_all_checkboxes}" />
+        		    <span 
+ onclick='cs_all_checkbox_in_div("assigned_cf","assigned_cfield","memory_assigned_cf");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
         		</th>
         		<th width="40%">{$labels.name}</th>
         		<th width="40%">{$labels.label}</th>
@@ -160,9 +160,9 @@ Purpose: management Custom fields assignment to a test project
           <tr>
         		<th {$sortableNo} align="center"  
                 style="width: 5px;background-color:#005498;"> 
-        		    <img src="{$tlImages.toggle_all}"
-        		         onclick='cs_all_checkbox_in_div("free_cf","free_cfield","memory_free_cf");'
-                     title="{$labels.check_uncheck_all_checkboxes}" />
+        		    <span 
+ onclick='cs_all_checkbox_in_div("free_cf","free_cfield","memory_free_cf");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
         		</th>
         		<th>{$labels.name}</th>
         		<th>{$labels.label}</th>

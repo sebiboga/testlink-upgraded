@@ -86,13 +86,13 @@ var del_action=fRoot+'{$deleteAction}';
         {$milestone.medium_percentage|escape}</td>
 			{/if}
 			<td class="clickable_icon">
-				<img style="border:none;cursor: pointer;" 
-  				   title="{$labels.alt_delete_milestone}" 
-  				   alt="{$labels.alt_delete_milestone}" 
- 					   onclick="delete_confirmation({$milestone.id},
-             '{$milestone.name|escape:'javascript'|escape}',
- 					   '{$del_msgbox_title}','{$warning_msg}');"
-  				   src="{$tlImages.delete}"/>
+				<span style="border:none;cursor: pointer;" 
+ title="{$labels.alt_delete_milestone}" 
+ 
+ onclick="delete_confirmation({$milestone.id},
+ '{$milestone.name|escape:'javascript'|escape}',
+ '{$del_msgbox_title}','{$warning_msg}');"
+>{$tlImages.delete}</span>
   				</td>
 		</tr>
 		{/foreach}

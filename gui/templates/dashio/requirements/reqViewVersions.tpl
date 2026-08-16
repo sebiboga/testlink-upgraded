@@ -283,8 +283,8 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
         {$path_part|escape} /
       {/foreach}
   {/if}
-  <img class="clickable" src="{$tlImages.cog}" onclick="javascript:toogleShowHide('control_panel_{$latestReqVersionID}','inline');"
-       title="{$labels.actions}" />
+  <span class="clickable" onclick="javascript:toogleShowHide('control_panel_{$latestReqVersionID}','inline');"
+ title="{$labels.actions}">{$tlImages.cog}</span>
 
     {if !$gui->show_title }
       {$gui->current_version[idx][0].req_doc_id|escape}:{$gui->current_version[idx][0].title|escape}</h2>
@@ -416,8 +416,8 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
                   <img src="{$smarty.const.TL_THEME_IMG_DIR}/trash.png" 
                        title="{$labels.img_title_delete_relation}"  style="border:none" /></a>
 			{else}
-				  <img style="border:none;" 	alt="{$labels.img_title_delete_relation}"
-						title="{$labels.img_title_relation_frozen}"	src="{$tlImages.delete_disabled}" />
+				  <span style="border:none;" 
+ title="{$labels.img_title_relation_frozen}">{$tlImages.delete_disabled}</span>
 			{/if}
 		  {/if}
           </td>
@@ -485,9 +485,9 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
                  for versions different than Latest *}
               <div id="{$div_id}" class="workBack">
                
-                <img class="clickable" src="{$tlImages.cog}" 
-                  onclick="javascript:toogleShowHide('control_panel_{$reqVersionID}','inline');"
-                  title="{$labels.actions}" />
+                <span class="clickable" 
+ onclick="javascript:toogleShowHide('control_panel_{$reqVersionID}','inline');"
+ title="{$labels.actions}">{$tlImages.cog}</span>
 
               {* Req Version link to Test Case Version only
                  for Latest Req Version *} 

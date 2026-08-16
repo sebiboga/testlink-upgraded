@@ -265,9 +265,9 @@ function validateFormEstimatedExecDuration(the_form)
                 - do not know if there is info on smarty manuals
                 *}
 
-                <img class="clickable" src="{$tlImages.cog}" 
-                  onclick="javascript:toogleShowHide('tcView_viewer_tcase_control_panel_{$tcversion_id}','inline');"
-                  title="{$labels.actions}" />
+                <span class="clickable" 
+ onclick="javascript:toogleShowHide('tcView_viewer_tcase_control_panel_{$tcversion_id}','inline');"
+ title="{$labels.actions}">{$tlImages.cog}</span>
 
                 {* Setting args_can_do makes other versions READONLY *}
                 {* Be carefull IDX is OK ONLY for status_quo *}

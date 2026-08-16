@@ -48,15 +48,15 @@ if( $args->doIt )
 
 		// create linked icons
 		$exec_history_link = "<a href=\"javascript:openExecHistoryWindow({$item['tcase_id']});\">" .
-		                     "<img title=\"{$labels['execution_history']}\" src=\"{$imgSet['history_small']}\" /></a> ";
+		                     "<span title=\"{$labels['execution_history']}\">{$imgSet['history_small']}</span></a> ";
 		
 		$exec_link = "<a href=\"javascript:openExecutionWindow(" .
 		             "{$item['tcase_id']}, {$item['tcversion_id']}, {$item['builds_id']}, " .
 		             "{$args->tplan_id}, {$item['platform_id']});\">" .
-		             "<img title=\"{$labels['execution']}\" src=\"{$imgSet['exec_icon']}\" /></a> ";
+		             "<span title=\"{$labels['execution']}\">{$imgSet['exec_icon']}</span></a> ";
 
 		$edit_link = "<a href=\"javascript:openTCEditWindow({$item['tcase_id']});\">" .
-					 "<img title=\"{$labels['design']}\" src=\"{$imgSet['edit_icon']}\" /></a> ";
+					 "<span title=\"{$labels['design']}\">{$imgSet['edit_icon']}</span></a> ";
 
 		$tcaseName = buildExternalIdString($gui->tcasePrefix, $item['tc_external_id']) . ' : ' . $item['tcase_name'];
 

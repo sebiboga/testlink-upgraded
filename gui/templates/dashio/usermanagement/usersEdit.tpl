@@ -187,9 +187,9 @@ function managePasswordInputs(oid,targetSetOID)
       <legend class="x-fieldset-header x-unselectable" style="-moz-user-select: none;">
       {$labels.caption_user_details}
       {if $gui->grants->mgt_view_events eq "yes" && $user_id}
-      <img style="margin-left:5px;" class="clickable" src="{$tlImages.help}" 
-          onclick="showEventHistoryFor('{$user_id}','users')"
-          alt="{$labels.show_event_history}" title="{$labels.show_event_history}"/>
+      <span style="margin-left:5px;" class="clickable" 
+ onclick="showEventHistoryFor('{$user_id}','users')"
+ title="{$labels.show_event_history}">{$tlImages.help}</span>
       {/if}
       </legend>
       <table class="common">
@@ -291,12 +291,12 @@ function managePasswordInputs(oid,targetSetOID)
                   value="{$gui->user->expiration_date|escape}" size="{#DATE_PICKER#}"
                   onclick="showCal('expiration_date-cal','expiration_date','{$gsmarty_datepicker_format}');" readonly />
 
-            <img title="{$labels.show_calender}" src="{$tlImages.calendar}"
-                onclick="showCal('expiration_date-cal','expiration_date','{$gsmarty_datepicker_format}');" >
+            <span title="{$labels.show_calender}" 
+ onclick="showCal('expiration_date-cal','expiration_date','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
 
 
-            <img title="{$labels.clear_date}" src="{$tlImages.clear}"
-                  onclick="javascript:var x = document.getElementById('expiration_date'); x.value = '';" >
+            <span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('expiration_date'); x.value = '';">{$tlImages.clear}</span>
             <div id="expiration_date-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
 
           </td>

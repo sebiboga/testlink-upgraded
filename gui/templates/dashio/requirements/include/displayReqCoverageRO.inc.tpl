@@ -9,17 +9,17 @@ displayReqCoverageRO.inc.tpl
         <span>
         &nbsp;&nbsp; 
         {if $reqCovItem.is_obsolete ==1}
-        <img class="clickable" src="{$tlImages.heads_up}"
-             title="{$labels.obsolete}" />
+        <span class="clickable" 
+ title="{$labels.obsolete}">{$tlImages.heads_up}</span>
         {else}
           &nbsp;&nbsp;&nbsp; 
         {/if}
-        <img class="clickable" src="{$tlImages.history_small}"
-             onclick="javascript:openExecHistoryWindow({$reqCovItem.id});"
-             title="{$labels.execution_history}" />
-        <img class="clickable" src="{$tlImages.edit_icon}"
-             onclick="javascript:openTCaseWindow({$reqCovItem.id});"
-             title="{$labels.design}" />
+        <span class="clickable" 
+ onclick="javascript:openExecHistoryWindow({$reqCovItem.id});"
+ title="{$labels.execution_history}">{$tlImages.history_small}</span>
+        <span class="clickable" 
+ onclick="javascript:openTCaseWindow({$reqCovItem.id});"
+ title="{$labels.design}">{$tlImages.edit_icon}</span>
         {$args_gui->tcasePrefix|escape}{$args_gui->glueChar}
         {$reqCovItem.tc_external_id}{$args_gui->pieceSep}
         {$reqCovItem.tcase_name|escape} [{$labels.version} 

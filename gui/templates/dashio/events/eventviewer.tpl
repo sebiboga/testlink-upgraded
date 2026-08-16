@@ -143,10 +143,10 @@ fieldset
 			{$labels.label_startdate}:&nbsp;
 			<input type="text" name="startDate" id="startDate" value="{$gui->startDate}" 
 			       onclick="showCal('startDate-cal','startDate','{$gsmarty_datepicker_format}');" readonly/>
-			<img title="{$labels.show_calender}" src="{$tlImages.calendar}"
-			     onclick="showCal('startDate-cal','startDate','{$gsmarty_datepicker_format}');" >
-			<img title="{$labels.clear_date}" src="{$tlImages.clear}"
-			     onclick="javascript:var x = document.getElementById('startDate'); x.value = '';" >
+			<span title="{$labels.show_calender}" 
+ onclick="showCal('startDate-cal','startDate','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
+			<span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('startDate'); x.value = '';">{$tlImages.clear}</span>
 			<div id="startDate-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
 			
 			{$labels.label_enddate}:&nbsp;
@@ -154,10 +154,10 @@ fieldset
 			       name="endDate" id="endDate" 
 			       value="{$gui->endDate}" 
 			       onclick="showCal('endDate-cal','endDate','{$gsmarty_datepicker_format}');" readonly/>
-			<img title="{$labels.show_calender}" src="{$tlImages.calendar}"
-			     onclick="showCal('endDate-cal','endDate','{$gsmarty_datepicker_format}');" >
-			<img title="{$labels.clear_date}" src="{$tlImages.clear}"
-			     onclick="javascript:var x = document.getElementById('endDate'); x.value = '';" >
+			<span title="{$labels.show_calender}" 
+ onclick="showCal('endDate-cal','endDate','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
+			<span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('endDate'); x.value = '';">{$tlImages.clear}</span>
 			<div id="endDate-cal" style="position:absolute;width:240px;left:540px;z-index:1;"></div>
 			
 			<input class="{#BUTTON_CLASS#}" type="submit" 

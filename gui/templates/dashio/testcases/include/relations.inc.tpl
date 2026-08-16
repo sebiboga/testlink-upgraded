@@ -177,12 +177,12 @@ var pF_delete_relation = delete_relation;
             <a href="javascript:relation_delete_confirmation({$args_relations.item.testcase_id}, {$rx.id},{$gui->tproject_id}, 
                                                               delete_rel_msgbox_title, delete_rel_msgbox_msg, 
                                                               pF_delete_relation);">
-           <img src="{$tlImages.delete}" title="{$rel_labels.img_title_delete_relation}"  style="border:none" /></a>
+           <span title="{$rel_labels.img_title_delete_relation}" style="border:none">{$tlImages.delete}</span></a>
           </td>
 		  {else}
   		  <td align="center">
-  			<img style="border:none;" 	alt="{$cannotDelMsg}"
-  			   title="{$cannotDelMsg}"	src="{$tlImages.vorsicht}" />
+  			<span style="border:none;" 
+ title="{$cannotDelMsg}">{$tlImages.vorsicht}</span>
   		  </td>
 		  {/if}
         </tr>

@@ -65,11 +65,11 @@
           <input type="image" src="{$tlImages.testcases_table_view}" name="testcases_table_view" id="testcases_table_view" 
                  onclick="doAction.value='testcases_table_view'" title="{$labels.btn_testcases_table_view}">
 
-          <img src="{$tlImages.report}" onclick="window.open('{$testSuiteDocAction}')" 
-               title="{$labels.btn_gen_test_suite_spec_new_window}" />
+          <span onclick="window.open('{$testSuiteDocAction}')" 
+ title="{$labels.btn_gen_test_suite_spec_new_window}">{$tlImages.report}</span>
 
-          <img src="{$tlImages.report_word}" onclick="window.open('{$testSuiteWordDocAction}')" 
-               title="{$labels.btn_gen_test_suite_spec_word}" />
+          <span onclick="window.open('{$testSuiteWordDocAction}')" 
+ title="{$labels.btn_gen_test_suite_spec_word}">{$tlImages.report_word}</span>
 
           <button style="border:0;" name="importItem" 
             id="importItem"
@@ -133,10 +133,10 @@
           <input type="hidden" name="tproject_id" value="{$gui->tproject_id}" />
           <input type="hidden" name="form_token" id="form_token" value="{$gui->form_token}" />
           <input type="hidden" name="doAction" id="doAction" value="" />
-          <img src="{$tlImages.import}" onclick="location='{$importTestCasesAction}'" title="{$labels.btn_import_tc}" />
-          <img src="{$tlImages.export}" onclick="location='{$exportTestCasesAction}'" title="{$labels.btn_export_tc}" />
-          <img src="{$tlImages.create_from_xml}" onclick="location='{$createTCFromIssueMantisXMLAction}'" 
-               title="{$labels.btn_create_from_issue_xml}" />
+          <span onclick="location='{$importTestCasesAction}'" title="{$labels.btn_import_tc}">{$tlImages.import}</span>
+          <span onclick="location='{$exportTestCasesAction}'" title="{$labels.btn_export_tc}">{$tlImages.export}</span>
+          <span onclick="location='{$createTCFromIssueMantisXMLAction}'" 
+ title="{$labels.btn_create_from_issue_xml}">{$tlImages.create_from_xml}</span>
         </form>
       </fieldset>
   </div>  

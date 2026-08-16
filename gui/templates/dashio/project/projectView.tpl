@@ -106,8 +106,8 @@ var del_action=fRoot+'{$deleteAction}';
                      <a href="{$editAction}{$testproject.id}">
                      {$testproject.name|escape}
                      {if $gsmarty_gui->show_icon_edit}
-                          <img title="{$labels.testproject_alt_edit}" alt="{$labels.testproject_alt_edit}"
-                               src="{$tlImages.edit}"/>
+                          <span title="{$labels.testproject_alt_edit}" 
+>{$tlImages.edit}</span>
                       {/if}
                    </a>
               </td>

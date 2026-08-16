@@ -57,7 +57,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     {/if}
 
     {if $gui->issueTrackerCfg->tlCanAddIssueNote || $gui->user_action == 'create' || $gui->user_action == 'doCreate'}
-      <span class="label"><img src="{$tlImages.info}" title="{$labels.hint_bug_notes}">{$labels.notes}</span>
+      <span class="label"><span title="{$labels.hint_bug_notes}">{$tlImages.info}</span>{$labels.notes}</span>
         <textarea id="bug_notes" name="bug_notes" 
                   rows="{#BUGNOTES_ROWS#}" cols="{#BUGNOTES_COLS#}" >{$gui->bug_notes}</textarea>
     {/if}    

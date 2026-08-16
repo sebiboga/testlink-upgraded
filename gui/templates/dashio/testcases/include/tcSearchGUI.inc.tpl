@@ -22,8 +22,8 @@ Purpose: show form for search through test cases in test specification
   <div class="container-fluid" id="{$cfg_section}">
     <div class="row">
      <td colspan="8">
-     <img src="{$tlImages.info}" title =" {$labels.filter_mode_and} {$gui->search_important_notice|escape}.
-                                          {$labels.search_prefix_ignored|escape}">
+     <span title =" {$labels.filter_mode_and} {$gui->search_important_notice|escape}.
+ {$labels.search_prefix_ignored|escape}">{$tlImages.info}</span>
      </div>
     </div>
     <div class="row">
@@ -142,7 +142,7 @@ Purpose: show form for search through test cases in test specification
     </div>
 
      <div class="row">
-      <div class="col-sm-1 col-md-1 col-lg-1"><label>{$labels.jolly}</label><img src="{$tlImages.info}" title="{$labels.jolly_hint}"></div>
+      <div class="col-sm-1 col-md-1 col-lg-1"><label>{$labels.jolly}</label><span title="{$labels.jolly_hint}">{$tlImages.info}</span></div>
       <div class="col-sm-2 col-md-2 col-lg-2"><input type="text" name="jolly" id="jolly" 
       value="{$gui->jolly|escape}"
                  size="{#SUMMARY_SIZE#}" maxlength="{#SUMMARY_MAXLEN#}" /></div>

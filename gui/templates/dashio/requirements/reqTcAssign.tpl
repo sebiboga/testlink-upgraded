@@ -112,9 +112,9 @@ function refreshAndClose(tcase_id,callback) {
     <table class="simple_tableruler">
     	<tr>
       		<th align="center"  style="width: 5px;background-color:#005498;">
-      		    <img src="{$tlImages.toggle_all}"
-      		             onclick='cs_all_checkbox_in_div("div_assigned_req","assigned_req","memory_assigned_req");'
-      		             title="{$labels.check_uncheck_all_checkboxes}" />
+      		    <span 
+ onclick='cs_all_checkbox_in_div("div_assigned_req","assigned_req","memory_assigned_req");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
       		</th>
     		<th>{$labels.req_doc_id}</th>
     		<th>{$labels.req}</th>
@@ -197,10 +197,10 @@ function refreshAndClose(tcase_id,callback) {
       <table class="simple_tableruler">
       	<tr>
       		<th align="center"  style="width: 5px;background-color:#005498;">
-      		    <img src="{$tlImages.toggle_all}"
-      		             onclick='cs_all_checkbox_in_div("div_free_req",
-      		                                             "free_req","memory_free_req");'
-      		             title="{$labels.check_uncheck_all_checkboxes}" />
+      		    <span 
+ onclick='cs_all_checkbox_in_div("div_free_req",
+ "free_req","memory_free_req");'
+ title="{$labels.check_uncheck_all_checkboxes}">{$tlImages.toggle_all}</span>
       		</th>
       		<th>{lang_get s="req_doc_id"}</th>
       		<th>{lang_get s="req"}</th>

@@ -56,7 +56,7 @@ var warning_delete_attachment = "{lang_get s='warning_delete_attachment'}";
   {if $attach_show_upload_btn && !$attach_downloadOnly}
   <div  style="text-align:left;margin:3px;background:#CDE;padding: 3px 3px 3px 3px;border-style: groove;border-width: thin;">
       <label for="uploadedFile_[{$attach_id}]" class="labelHolder">{$labels.local_file} </label>
-      <img class="clickable" src="{$tlImages.activity}" title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">
+      <span class="clickable" title="{$labels.max_size_file_upload}: {$gui->import_limit} Bytes)">{$tlImages.activity}</span>
         <input type="file" name="uploadedFile[{$attach_id}][]" id="uploadedFile_{$attach_id}" multiple 
                size="{#UPLOAD_FILENAME_SIZE#}" />
         &nbsp;&nbsp;&nbsp;&nbsp;

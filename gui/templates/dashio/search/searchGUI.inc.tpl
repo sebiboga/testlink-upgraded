@@ -56,9 +56,9 @@ Purpose: show search form
     <td style="width: 2%"></td> 
     
     <td style="width: 30%" colspan="1" id="testCaseCell"> 
-      <img src="{$tlImages.toggle_all}" 
-           title="{$labels.check_uncheck_all_checkboxes}"
-           onclick='cs_all_checkbox_in_div("testCaseCell","tc_","mmTestCaseCell");'>
+      <span 
+ title="{$labels.check_uncheck_all_checkboxes}"
+ onclick='cs_all_checkbox_in_div("testCaseCell","tc_","mmTestCaseCell");'>{$tlImages.toggle_all}</span>
       <b>{$labels.testcase}</b><br>
       <input type="checkbox" name="tc_title" id="tc_title" value="1" {if $gui->tc_title}checked{/if}>{$labels.title}<br>
       <input type="checkbox" name="tc_summary" id="tc_summary" value="1" {if $gui->tc_summary}checked{/if}>{$labels.summary}<br>
@@ -73,9 +73,9 @@ Purpose: show search form
     </td>
 
     <td style="width: 30%" colspan="1" id="testSuiteCell"> 
-      <img src="{$tlImages.toggle_all}" 
-           title="{$labels.check_uncheck_all_checkboxes}"
-           onclick='cs_all_checkbox_in_div("testSuiteCell","ts_","mmTestSuiteCell");'>
+      <span 
+ title="{$labels.check_uncheck_all_checkboxes}"
+ onclick='cs_all_checkbox_in_div("testSuiteCell","ts_","mmTestSuiteCell");'>{$tlImages.toggle_all}</span>
       <b>{$labels.testsuite}</b><br>
       <input type="checkbox" name="ts_title" id="ts_title" value="1" {if $gui->ts_title}checked{/if}>{$labels.title}<br>
       <input type="checkbox" name="ts_summary" id="ts_summary" value="1" {if $gui->ts_summary}checked{/if}>{$labels.details}<br>
@@ -83,9 +83,9 @@ Purpose: show search form
     
     <td style="width: 20%" colspan="1" id="reqSpecCell"> 
       {if $gui->reqEnabled}
-      <img src="{$tlImages.toggle_all}" 
-           title="{$labels.check_uncheck_all_checkboxes}"
-           onclick='cs_all_checkbox_in_div("reqSpecCell","rs_","mmReqSpecCell");'>
+      <span 
+ title="{$labels.check_uncheck_all_checkboxes}"
+ onclick='cs_all_checkbox_in_div("reqSpecCell","rs_","mmReqSpecCell");'>{$tlImages.toggle_all}</span>
         <b>{$labels.req_specification}</b><br>
         <input type="checkbox" name="rs_title" id="rs_title" value="1" {if $gui->rs_title}checked{/if} >{$labels.title}<br>
         <input type="checkbox" name="rs_scope" id="rs_scope" value="1" {if $gui->rs_scope}checked{/if}>{$labels.scope}<br>
@@ -94,9 +94,9 @@ Purpose: show search form
 
     <td style="width: 30%" colspan="1" id="reqCell"> 
       {if $gui->reqEnabled}
-      <img src="{$tlImages.toggle_all}" 
-           title="{$labels.check_uncheck_all_checkboxes}"
-           onclick='cs_all_checkbox_in_div("reqCell","rq_","mmReqCell");'>
+      <span 
+ title="{$labels.check_uncheck_all_checkboxes}"
+ onclick='cs_all_checkbox_in_div("reqCell","rq_","mmReqCell");'>{$tlImages.toggle_all}</span>
         <b>{$labels.requirement}</b><br>
         <input type="checkbox" name="rq_title" id="rq_title"  value="1" {if $gui->rq_title}checked{/if}>{$labels.title}<br>
         <input type="checkbox" name="rq_scope" id="rq_scope"  value="1" {if $gui->rq_scope}checked{/if}>{$labels.scope}<br>
@@ -120,12 +120,12 @@ Purpose: show search form
       <input type="text" name="created_by" id="created_by" 
                  value="{$gui->created_by|escape}"
                  size="{#AUTHOR_SIZE#}" maxlength="{#TCNAME_MAXLEN#}"/>
-      <img src="{$tlImages.info_small}" title="{$labels.search_created_by_ph|escape}">
+      <span title="{$labels.search_created_by_ph|escape}">{$tlImages.info_small}</span>
 
       <br>{$labels.edited_by}
       <input type="text" name="edited_by" id ="edited_by" value="{$gui->edited_by|escape}"
                  size="{#AUTHOR_SIZE#}" maxlength="{#TCNAME_MAXLEN#}" />
-<img src="{$tlImages.info_small}" title="{$labels.search_created_by_ph|escape}">
+<span title="{$labels.search_created_by_ph|escape}">{$tlImages.info_small}</span>
 
       </td>
    
@@ -173,11 +173,11 @@ Purpose: show search form
                value="{$gui->creation_date_from|escape}" size="{#DATE_PICKER#}"
                onclick="showCal('creation_date_from-cal','creation_date_from','{$gsmarty_datepicker_format}');" readonly />
         
-        <img title="{$labels.show_calendar}" src="{$tlImages.calendar}"
-             onclick="showCal('creation_date_from-cal','creation_date_from','{$gsmarty_datepicker_format}');" >
+        <span title="{$labels.show_calendar}" 
+ onclick="showCal('creation_date_from-cal','creation_date_from','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
 
-        <img title="{$labels.clear_date}" src="{$tlImages.clear}"
-               onclick="javascript:var x = document.getElementById('creation_date_from'); x.value = '';" >
+        <span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('creation_date_from'); x.value = '';">{$tlImages.clear}</span>
         <div id="creation_date_from-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
 
        <br> 
@@ -186,10 +186,10 @@ Purpose: show search form
         <input type="text" name="creation_date_to" id="creation_date_to" value="{$gui->creation_date_to|escape}" 
                size="{#DATE_PICKER#}"
                onclick="showCal('creation_date_to-cal','creation_date_to','{$gsmarty_datepicker_format}');" readonly />
-        <img title="{$labels.show_calendar}" src="{$tlImages.calendar}"
-             onclick="showCal('creation_date_to-cal','creation_date_to','{$gsmarty_datepicker_format}');" >
-        <img title="{$labels.clear_date}" src="{$tlImages.clear}"
-               onclick="javascript:var x = document.getElementById('creation_date_to'); x.value = '';" >
+        <span title="{$labels.show_calendar}" 
+ onclick="showCal('creation_date_to-cal','creation_date_to','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
+        <span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('creation_date_to'); x.value = '';">{$tlImages.clear}</span>
         <div id="creation_date_to-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
   
       <br>
@@ -199,10 +199,10 @@ Purpose: show search form
         value="{$gui->modification_date_from|escape}" 
                size="{#DATE_PICKER#}"
                onclick="showCal('modification_date_from-cal','modification_date_from','{$gsmarty_datepicker_format}');" readonly />
-        <img title="{$labels.show_calendar}" src="{$tlImages.calendar}"
-             onclick="showCal('modification_date_from-cal','modification_date_from','{$gsmarty_datepicker_format}');" >
-        <img title="{$labels.clear_date}" src="{$tlImages.clear}"
-             onclick="javascript:var x = document.getElementById('modification_date_from'); x.value = '';" >
+        <span title="{$labels.show_calendar}" 
+ onclick="showCal('modification_date_from-cal','modification_date_from','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
+        <span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('modification_date_from'); x.value = '';">{$tlImages.clear}</span>
         <div id="modification_date_from-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
       <br>
 
@@ -212,10 +212,10 @@ Purpose: show search form
         value="{$gui->modification_date_to|escape}" 
                size="{#DATE_PICKER#}"
                onclick="showCal('modification_date_to-cal','modification_date_to','{$gsmarty_datepicker_format}');" readonly />
-        <img title="{$labels.show_calendar}" src="{$tlImages.calendar}"
-             onclick="showCal('modification_date_to-cal','modification_date_to','{$gsmarty_datepicker_format}');" >
-        <img title="{$labels.clear_date}" src="{$tlImages.clear}"
-             onclick="javascript:var x = document.getElementById('modification_date_to'); x.value = '';" >
+        <span title="{$labels.show_calendar}" 
+ onclick="showCal('modification_date_to-cal','modification_date_to','{$gsmarty_datepicker_format}');">{$tlImages.calendar}</span>
+        <span title="{$labels.clear_date}" 
+ onclick="javascript:var x = document.getElementById('modification_date_to'); x.value = '';">{$tlImages.clear}</span>
         <div id="modification_date_to-cal" style="position:absolute;width:240px;left:300px;z-index:1;"></div>
       </td>
 

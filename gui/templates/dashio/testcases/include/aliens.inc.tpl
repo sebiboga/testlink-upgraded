@@ -141,9 +141,9 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
                          '{$tcalien_link_item.name|escape:'javascript'}',
                          remove_alien_msgbox_title, remove_alien_msgbox_msg, 
                          pF_remove_alien);">
-              <img src="{$tlImages.delete}"
-                title="{$alien_labels.img_title_remove_alien}" 
-                style="border:none" /></a>
+              <span 
+ title="{$alien_labels.img_title_remove_alien}" 
+ style="border:none">{$tlImages.delete}</span></a>
             {/if}
         </td>
         <td style="padding:{$tdPad}">
