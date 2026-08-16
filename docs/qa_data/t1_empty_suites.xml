@@ -1,36 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Test Project with all test suites without test cases
-20100516 - franciscom
+  Empty Test Suites Example
+  Test project with suites but no test cases
+  Use for testing suite-only import functionality
 -->
-<testsuite name="" >
-<node_order><![CDATA[]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite><testsuite name="TS2 - no test cases" >
-<node_order><![CDATA[2]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite><testsuite name="TS3 - no test cases" >
-<node_order><![CDATA[3]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite><testsuite name="TS4 - no test cases" >
-<node_order><![CDATA[4]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1.1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite></testsuite><testsuite name="TS4.2 - no test cases" >
-<node_order><![CDATA[2]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite></testsuite>
+<testproject>
+  <name>Empty Suites Project</name>
+  <notes>Project with test suites but no test cases</notes>
+  <testsuites>
+    <testsuite>
+      <name>Authentication Suite</name>
+      <description>Tests for user authentication</description>
+      <testcases></testcases>
+    </testsuite>
+    <testsuite>
+      <name>User Management Suite</name>
+      <description>Tests for user profile management</description>
+      <testcases></testcases>
+    </testsuite>
+    <testsuite>
+      <name>Dashboard Suite</name>
+      <description>Tests for dashboard functionality</description>
+      <testcases></testcases>
+    </testsuite>
+  </testsuites>
+</testproject>

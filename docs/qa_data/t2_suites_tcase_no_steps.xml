@@ -1,70 +1,54 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-Test Project with:
-- some test suites without test cases
-- some test cases without steps/expected result
-20100516 - franciscom
+  Test Suites with Test Cases (No Steps)
+  Shows structure of test cases without detailed steps
+  Use for testing test case structure import
 -->
-<testsuite name="" >
-<node_order><![CDATA[]]></node_order>
-<details><![CDATA[]]> 
-</details>
-<testsuite name="TS1" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details>
-<testcase internalid="2213" name="TC1 - no steps">
-	<node_order><![CDATA[100]]></node_order>
-	<externalid><![CDATA[1]]></externalid>
-	<summary><![CDATA[]]></summary>
-	<preconditions><![CDATA[]]></preconditions>
-	<execution_type><![CDATA[1]]></execution_type>
-	<importance><![CDATA[2]]></importance>
-
-</testcase>
-
-<testcase internalid="2215" name="TC2 - no steps">
-	<node_order><![CDATA[101]]></node_order>
-	<externalid><![CDATA[2]]></externalid>
-	<summary><![CDATA[]]></summary>
-	<preconditions><![CDATA[]]></preconditions>
-	<execution_type><![CDATA[1]]></execution_type>
-	<importance><![CDATA[2]]></importance>
-
-</testcase>
-
-<testcase internalid="2217" name="TC3 - no steps">
-	<node_order><![CDATA[102]]></node_order>
-	<externalid><![CDATA[3]]></externalid>
-	<summary><![CDATA[]]></summary>
-	<preconditions><![CDATA[]]></preconditions>
-	<execution_type><![CDATA[1]]></execution_type>
-	<importance><![CDATA[2]]></importance>
-
-</testcase>
-
-<testsuite name="TS1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite><testsuite name="TS2 - no test cases" >
-<node_order><![CDATA[2]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite><testsuite name="TS3 - no test cases" >
-<node_order><![CDATA[3]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite><testsuite name="TS4 - no test cases" >
-<node_order><![CDATA[4]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details><testsuite name="TS4.1.1.1 - no test cases" >
-<node_order><![CDATA[1]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite></testsuite><testsuite name="TS4.2 - no test cases" >
-<node_order><![CDATA[2]]></node_order>
-<details><![CDATA[]]> 
-</details></testsuite></testsuite></testsuite>
+<testproject>
+  <name>Test Cases Without Steps Project</name>
+  <notes>Project with test suites and cases but no steps</notes>
+  <testsuites>
+    <testsuite>
+      <name>Core Features Suite</name>
+      <description>Tests for core system features</description>
+      <testcases>
+        <testcase>
+          <name>Feature 1 Basic Test</name>
+          <description>Test basic feature 1 functionality</description>
+          <preconditions>Feature 1 is accessible</preconditions>
+          <execution_type>manual</execution_type>
+        </testcase>
+        <testcase>
+          <name>Feature 2 Basic Test</name>
+          <description>Test basic feature 2 functionality</description>
+          <preconditions>Feature 2 is accessible</preconditions>
+          <execution_type>manual</execution_type>
+        </testcase>
+        <testcase>
+          <name>Feature 3 Integration Test</name>
+          <description>Test feature 3 with other features</description>
+          <preconditions>Features 1, 2, 3 are accessible</preconditions>
+          <execution_type>manual</execution_type>
+        </testcase>
+      </testcases>
+    </testsuite>
+    <testsuite>
+      <name>Advanced Features Suite</name>
+      <description>Tests for advanced system features</description>
+      <testcases>
+        <testcase>
+          <name>Advanced Feature 1 Test</name>
+          <description>Test advanced feature 1</description>
+          <preconditions>User has admin privileges</preconditions>
+          <execution_type>manual</execution_type>
+        </testcase>
+        <testcase>
+          <name>Advanced Feature 2 Test</name>
+          <description>Test advanced feature 2</description>
+          <preconditions>User has admin privileges</preconditions>
+          <execution_type>automated</execution_type>
+        </testcase>
+      </testcases>
+    </testsuite>
+  </testsuites>
+</testproject>
