@@ -414,8 +414,8 @@ function initProject(&$db,$hash_user_sel) {
       $tproject_id = $tproject_data['id'];
     }
   }
-  $tproject->setSessionProject($tproject_id);
-  
+  $_SESSION['testprojectID'] = $tproject_id;
+
   // set a Test Plan
   // Refresh test project id after call to setSessionProject
   $tproject_id = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
