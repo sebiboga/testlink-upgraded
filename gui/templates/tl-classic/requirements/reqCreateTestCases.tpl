@@ -171,7 +171,7 @@ function cs_all_coverage_in_div(div_id, input_id_prefix, default_id_prefix, memo
 													   value="{$gui->all_reqs[row].id}"/></td>{/if}
 			<td style="padding:2px;">
 				<img class="clickable" src="{$smarty.const.TL_THEME_IMG_DIR}/edit_icon.png"
-				     onclick="javascript:openLinkedReqWindow({$gui->all_reqs[row].id});"
+				     onclick="javascript:openLinkedReqWindow({$gui->all_reqs[row].id},{$gui->tproject_id});"
 				     title="{$labels.requirement}" />
 				{$gui->all_reqs[row].req_doc_id|escape}{$gsmarty_gui->title_separator_1}{$gui->all_reqs[row].title|escape}
 			</td>

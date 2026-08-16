@@ -180,7 +180,7 @@ Author : franciscom
         <td>
         <span class="bold">
          {$tlCfg->gui_separator_open}{$req_elem.req_spec_title}{$tlCfg->gui_separator_close}&nbsp;
-         <a href="javascript:openLinkedReqWindow({$req_elem.id})"  
+         <a href="javascript:openLinkedReqWindow({$req_elem.id},{$gui->tproject_id})"
             title="{$args_labels.click_to_open}">
           {$req_elem.req_doc_id|escape}{$tlCfg->gui_title_separator_1}{$req_elem.title|escape} [{$args_labels.version} {$req_elem.version}]
          </a>

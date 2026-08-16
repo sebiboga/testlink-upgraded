@@ -396,7 +396,7 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
         <tr>
           <td>{$relation.id}</td>
           <td class="bold"><nobr>{$relation.type_localized|escape}</nobr></td>
-          <td colspan="{$colspan}"><a href="javascript:openLinkedReqWindow({$relation.related_req.id})">
+          <td colspan="{$colspan}"><a href="javascript:openLinkedReqWindow({$relation.related_req.id},{$gui->tproject_id})">
             {$relation.related_req.req_doc_id|escape}:
             {$relation.related_req.title|escape}</a></td>
           <td><nobr>{$gui->reqStatus.$status|escape}</nobr></td>
