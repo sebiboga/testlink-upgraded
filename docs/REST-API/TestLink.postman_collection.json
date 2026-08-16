@@ -1,231 +1,761 @@
 {
-	"info": {
-		"_postman_id": "6f2d6cdd-59b9-474b-8acd-30d2751f0748",
-		"name": "TestLink",
-		"description": "Test Link Rest API, tested against localhost installation",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-	},
-	"item": [
-		{
-			"name": "Get All Test Projects",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"value": "b8359492ca233fd1ce55d6363cd026cf",
-						"type": "text"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/testprojects/133649",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"testprojects",
-						"133649"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Get ONE Test Project by DBID",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/testprojects/133649",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"testprojects",
-						"133649"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Get ONE Test Project by PREFIX",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/testprojects/OC",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"testprojects",
-						"OC"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "Get ONE Test Project by NAME",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/testprojects/LUCUBZ",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"testprojects",
-						"LUCUBZ"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "who ( just to understand API is working)",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/who",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"who"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "whoAmI ( just to understand API is working) Copy",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/whoAmI",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"whoAmI"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "superman ( just to understand API is working) Copy Copy",
-			"request": {
-				"method": "GET",
-				"header": [
-					{
-						"key": "APIKEY",
-						"type": "text",
-						"value": "b8359492ca233fd1ce55d6363cd026cf"
-					}
-				],
-				"url": {
-					"raw": "http://localhost/development/github/testlink-code/lib/api/rest/v2/superman",
-					"protocol": "http",
-					"host": [
-						"localhost"
-					],
-					"path": [
-						"development",
-						"github",
-						"testlink-code",
-						"lib",
-						"api",
-						"rest",
-						"v2",
-						"superman"
-					]
-				}
-			},
-			"response": []
-		}
-	]
+  "info": {
+    "name": "TestLink v1.9.20 REST API",
+    "description": "Complete REST API v3 collection for TestLink",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Get Current User (whoami)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/whoami",
+              "host": ["{{base_url}}"],
+              "path": ["whoami"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"admin\",\n  \"password\": \"admin\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/login",
+              "host": ["{{base_url}}"],
+              "path": ["login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/logout",
+              "host": ["{{base_url}}"],
+              "path": ["logout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Projects",
+      "item": [
+        {
+          "name": "List All Projects",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["projects"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Project by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/1",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Project",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Test Project\",\n  \"prefix\": \"NTP\",\n  \"notes\": \"Sample project created via API\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/projects",
+              "host": ["{{base_url}}"],
+              "path": ["projects"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Project",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Project Name\",\n  \"notes\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/projects/1",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Project",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/1",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Plans",
+      "item": [
+        {
+          "name": "List Project Plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/1/plans",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1", "plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Plan by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans/1",
+              "host": ["{{base_url}}"],
+              "path": ["plans", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Test Plan\",\n  \"project_id\": 1,\n  \"notes\": \"Test plan created via API\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/plans",
+              "host": ["{{base_url}}"],
+              "path": ["plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Test Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Plan Name\",\n  \"notes\": \"Updated plan description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/plans/1",
+              "host": ["{{base_url}}"],
+              "path": ["plans", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Test Plan",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/plans/1",
+              "host": ["{{base_url}}"],
+              "path": ["plans", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Cases",
+      "item": [
+        {
+          "name": "List Project Test Cases",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/1/testcases?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1", "testcases"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Test Case by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/testcases/1",
+              "host": ["{{base_url}}"],
+              "path": ["testcases", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Test Case",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Login Test Case\",\n  \"project_id\": 1,\n  \"suite_id\": 1,\n  \"description\": \"Test user login functionality\",\n  \"execution_type\": \"manual\",\n  \"steps\": [\n    {\n      \"actions\": \"Navigate to login page\",\n      \"expected_results\": \"Login form is displayed\"\n    },\n    {\n      \"actions\": \"Enter username: admin\",\n      \"expected_results\": \"Username field accepts input\"\n    },\n    {\n      \"actions\": \"Enter password: admin\",\n      \"expected_results\": \"Password field accepts input\"\n    },\n    {\n      \"actions\": \"Click Login button\",\n      \"expected_results\": \"User is logged in and redirected to dashboard\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/testcases",
+              "host": ["{{base_url}}"],
+              "path": ["testcases"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Test Case",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Test Case Name\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/testcases/1",
+              "host": ["{{base_url}}"],
+              "path": ["testcases", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Test Case",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/testcases/1",
+              "host": ["{{base_url}}"],
+              "path": ["testcases", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Test Execution",
+      "item": [
+        {
+          "name": "Record Execution Result",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"testcase_id\": 1,\n  \"plan_id\": 1,\n  \"build_id\": 1,\n  \"status\": \"passed\",\n  \"notes\": \"Test executed successfully\",\n  \"duration\": 120\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/execution/create",
+              "host": ["{{base_url}}"],
+              "path": ["execution", "create"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Execution by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/execution/1",
+              "host": ["{{base_url}}"],
+              "path": ["execution", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Execution History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/execution/history?testcase_id=1&plan_id=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["execution", "history"],
+              "query": [
+                {
+                  "key": "testcase_id",
+                  "value": "1"
+                },
+                {
+                  "key": "plan_id",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Builds",
+      "item": [
+        {
+          "name": "List Project Builds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/projects/1/builds",
+              "host": ["{{base_url}}"],
+              "path": ["projects", "1", "builds"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Build",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"project_id\": 1,\n  \"name\": \"Build 1.0\",\n  \"notes\": \"Initial release\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/builds",
+              "host": ["{{base_url}}"],
+              "path": ["builds"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Build",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Build 1.0.1\",\n  \"notes\": \"Patch release\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/builds/1",
+              "host": ["{{base_url}}"],
+              "path": ["builds", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users?limit=20&offset=0",
+              "host": ["{{base_url}}"],
+              "path": ["users"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/users/1",
+              "host": ["{{base_url}}"],
+              "path": ["users", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"login\": \"newuser\",\n  \"email\": \"newuser@example.com\",\n  \"first_name\": \"New\",\n  \"last_name\": \"User\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/users",
+              "host": ["{{base_url}}"],
+              "path": ["users"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Keywords",
+      "item": [
+        {
+          "name": "List Keywords",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/keywords",
+              "host": ["{{base_url}}"],
+              "path": ["keywords"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Keyword",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"keyword\": \"smoke\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/keywords",
+              "host": ["{{base_url}}"],
+              "path": ["keywords"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Custom Fields",
+      "item": [
+        {
+          "name": "List Custom Fields",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customfields",
+              "host": ["{{base_url}}"],
+              "path": ["customfields"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Custom Field by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{api_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customfields/1",
+              "host": ["{{base_url}}"],
+              "path": ["customfields", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://testlink/api/rest/v3",
+      "type": "string"
+    },
+    {
+      "key": "api_token",
+      "value": "your_api_token_here",
+      "type": "string"
+    }
+  ]
 }

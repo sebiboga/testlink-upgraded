@@ -1,0 +1,27 @@
+{
+  "collection": "TestLink.postman_collection.json",
+  "environment": "environment.json",
+  "timeout": 10000,
+  "timeoutRequest": 5000,
+  "timeoutScript": 5000,
+  "delay": 500,
+  "iterationCount": 1,
+  "reporters": [
+    "cli",
+    "html"
+  ],
+  "reporterOptions": {
+    "html": {
+      "export": "test-results.html",
+      "template": "newman-tpl.hbs",
+      "darkTheme": false
+    },
+    "cli": {
+      "showSuccessfulRequests": true,
+      "showFailures": true
+    }
+  },
+  "sslVerification": true,
+  "insecure": false,
+  "requestDelay": 100
+}
