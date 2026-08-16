@@ -1122,11 +1122,16 @@ class testcase extends tlObjectWithAttachments {
         $gui->currentVersionKeywords = 
           $this->getKeywords($tc_id,$currentVersionID);
 
-        $gui->currentVersionPlatforms = 
+        $gui->currentVersionPlatforms =
           $this->getPlatforms($tc_id,$currentVersionID);
 
-        $gui->currentVersionAliens = 
-          $this->getAliens($tc_id,$currentVersionID);
+        // Try to get aliens, but gracefully handle if tables don't exist
+        try {
+          $gui->currentVersionAliens =
+            $this->getAliens($tc_id,$currentVersionID);
+        } catch (Exception $e) {
+          $gui->currentVersionAliens = null;
+        }
 
         $whoami = array('tcase_id' => $tc_id, 
                         'tcversion_id' => $currentVersionID);
@@ -1262,9 +1267,14 @@ class testcase extends tlObjectWithAttachments {
             $gui->otherVersionsPlatforms[] = 
               $this->getPlatforms($version['testcase_id'],$version['id']);
 
-            $gui->otherVersionsAliens[] = 
-              $this->getAliens($version['testcase_id'],
-                               $version['id']);
+            // Try to get aliens, but gracefully handle if tables don't exist
+            try {
+              $gui->otherVersionsAliens[] =
+                $this->getAliens($version['testcase_id'],
+                                 $version['id']);
+            } catch (Exception $e) {
+              $gui->otherVersionsAliens[] = null;
+            }
 
           }
         } // Other versions exist

@@ -38,7 +38,7 @@ function initEnv(&$dbHandler)
   }  
 
   $tplan_mgr = new testplan($dbHandler);
-  $build_mgr = new build_mgr($dbHandler);
+  $build_mgr = new build($dbHandler);
   $info = $tplan_mgr->tree_manager->
             get_node_hierarchy_info($gui->tplan_id,null,array('nodeType' => 'testplan'));
 
