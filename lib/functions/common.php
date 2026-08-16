@@ -1737,7 +1737,6 @@ function getActions(&$gui,$baseURL) {
 
   $actions->keywordsView = "$bb/keywords/keywordsView.php?{$ctx}";
   $actions->platformsView = "$bb/platforms/platformsView.php?{$ctx}";
-  $actions->issueTrackerView = "$bb/issuetrackers/issueTrackerView.php?{$ctx}";
   $actions->codeTrackerView = "$bb/codetrackers/codeTrackerView.php?{$ctx}";
   $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
   $actions->reqMonOverView = "$bb/requirements/reqMonitorOverview.php?{$ctx}";
@@ -1861,7 +1860,6 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
 
   $r2cSame = array (
     'req_tcase_link_management','keyword_assignment',
-    'issuetracker_management','issuetracker_view',
     'codetracker_management','codetracker_view',
     'platform_management','platform_view',
     'cfield_management',
@@ -1932,7 +1930,7 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
  *
  */
 function getAccess(&$gui) {
-  $k2l = array('codetracker','issuetracker','platform');
+  $k2l = array('codetracker','platform');
   foreach($k2l as $ak) {
     $access[$ak] = 'no';
     $p_m = $ak . '_management';
@@ -1961,12 +1959,10 @@ function getMenuVisibility(&$gui)
     $showMenu['search'] = true;
   }
 
-  if($gui->tproject_id > 0  && 
+  if($gui->tproject_id > 0  &&
      ($gui->grants->cfield_assignment == "yes" ||
-      $gui->grants->cfield_management == "yes" || 
-      $gui->grants->issuetracker_management == "yes" || 
-      $gui->grants->codetracker_management == "yes" || 
-      $gui->grants->issuetracker_view == "yes" ||
+      $gui->grants->cfield_management == "yes" ||
+      $gui->grants->codetracker_management == "yes" ||
       $gui->grants->codetracker_view == "yes") ) {
     $showMenu['system'] = true;
   }

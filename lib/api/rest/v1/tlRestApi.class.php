@@ -203,7 +203,7 @@ class tlRestApi
     $op = array('status' => 'ok', 'message' => 'ok', 'item' => null);
     if(is_null($idCard))
     {
-      $opOptions = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ", 'add_issuetracker' => true,
+      $opOptions = array('output' => 'array_of_map', 'order_by' => " ORDER BY name ",
                           'add_reqmgrsystem' => true);
       $op['item'] = $this->tprojectMgr->get_accessible_for_user($this->userID,$opOptions);
     }  

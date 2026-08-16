@@ -1287,30 +1287,8 @@ class testcase extends tlObjectWithAttachments {
     $this->initShowGuiActions($gui);
     $tplCfg = templateConfiguration('tcView');
 
-    // Aliens are related to issuetracker
-    $sql = "/* $debugMsg */
-            SELECT issuetracker_id 
-            FROM {$this->tables['testproject_issuetracker']}
-            WHERE testproject_id = {$idCard->tproject_id}";
-
-    $rs = $this->db->get_recordset($sql);
     $gui->addAndLinkIsEnabled = 0;
-    if ($gui->hasIssueTracker = (null != $rs)) {
-      $system = new tlIssueTracker($this->db);
-      // 20220904 - $repo = $system->getInterfaceObject($this->tproject_id);
-      $repo = $system->getInterfaceObject($idCard->tproject_id);
-      $gui->addAndLinkIsEnabled = method_exists($repo,'addLink');
-
-      if ($gui->currentVersionAliens != null) {
-        $this->buildAlienBlob($gui->currentVersionAliens,$repo);
-      }
-      
-      if ($gui->otherVersionsAliens != null) {
-        foreach ($gui->otherVersionsAliens as $zzx => $elem) {
-          $this->buildAlienBlob($gui->otherVersionsAliens[$zzx],$repo);
-        }
-      }
-    }
+    $gui->hasIssueTracker = false;
 
     // simplest way to pass tproject_id on js calls
     $jsArgs = '';

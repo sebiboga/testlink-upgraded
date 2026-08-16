@@ -203,7 +203,6 @@ function getRightsCfg()
   $cfg->cfield_mgmt = config_get('rights_cf');
   $cfg->system_mgmt = config_get('rights_system');
   $cfg->platform_mgmt = config_get('rights_platforms');
-  $cfg->issuetracker_mgmt = config_get('rights_issuetrackers');
   $cfg->codetracker_mgmt = config_get('rights_codetrackers');
   $cfg->execution = config_get('rights_executions');
 

@@ -13,105 +13,10 @@ require_once('exec.inc.php');
 testlinkInitPage($db,false,false,"checkRights");
 
 $templateCfg = templateConfiguration();
-list($args,$gui,$its,$issueT) = initEnv($db);
+list($args,$gui) = initEnv($db);
+$its = null;
+$issueT = null;
 
-if( ($args->user_action == 'create' || $args->user_action == 'doCreate') && 
-    $gui->issueTrackerCfg->tlCanCreateIssue) {
-  // get matadata
-  $gui->issueTrackerMetaData = getIssueTrackerMetaData($its);
-  
-  switch($args->user_action) {
-    case 'create':
-     $dummy = generateIssueText($db,$args,$its); 
-     $gui->bug_summary = $dummy->summary;
-    break;
-
-    case 'doCreate':
-     $args->direct_link = getDirectLinkToExec($db,$args->exec_id);
-
-     $dummy = generateIssueText($db,$args,$its); 
-     $gui->bug_summary = $dummy->summary;
-
-     $aop = array('addLinkToTL' => $args->addLinkToTL,
-                  'addLinkToTLPrintView' => $args->addLinkToTLPrintView);
-
-     $ret = addIssue($db,$args,$its,$aop);
-     $gui->issueTrackerCfg->tlCanCreateIssue = $ret['status_ok'];
-     $gui->msg = $ret['msg'];
-    break;
-
-  }
-}  
-else if($args->user_action == 'link' || $args->user_action == 'add_note') {
-  // Well do not think is very elegant to check for $args->bug_id != ""
-  // to understand if user has pressed ADD Button
-  if(!is_null($issueT) && $args->bug_id != "") {
-  	$l18n = init_labels(array("error_wrong_BugID_format" => null,"error_bug_does_not_exist_on_bts" => null));
-
-    switch($args->user_action) {
-      case 'link':
-        $gui->msg = $l18n["error_wrong_BugID_format"];
-        if ($its->checkBugIDSyntax($args->bug_id)) {
-          $bugID = $its->normalizeBugID($args->bug_id);
-          if ($its->checkBugIDExistence($bugID)) {     
-            if (write_execution_bug($db,$args->exec_id, $bugID,$args->tcstep_id)) {
-              $gui->msg = lang_get("bug_added");
-              logAuditEvent(TLS("audit_executionbug_added",$args->bug_id),"CREATE",$args->exec_id,"executions");
-
-              // blank notes will not be added :).
-              if($gui->issueTrackerCfg->tlCanAddIssueNote)  {
-                $hasNotes = (strlen($gui->bug_notes) > 0);
-                // will do call to update issue Notes
-                if($args->addLinkToTL || $args->addLinkToTLPrintView) {
-                  $args->direct_link = getDirectLinkToExec($db,$args->exec_id);
-
-                  $aop = array('addLinkToTL' => $args->addLinkToTL,
-                               'addLinkToTLPrintView' => $args->addLinkToTLPrintView);
-
-                  $dummy = generateIssueText($db,$args,$its,$aop); 
-                  $gui->bug_notes = $dummy->description;
-                }  
-
-                if( $args->addLinkToTL || $args->addLinkToTLPrintView || 
-                    $hasNotes ) {
-                  $opt = new stdClass();
-                  $opt->reporter = $args->user->login;
-                  $opt->reporter_email = trim($args->user->emailAddress);
-                  if( '' == $opt->reporter_email ) {
-                    $opt->reporter_email = $opt->reporter;
-                  }
-
-                  $its->addNote($bugID,$gui->bug_notes,$opt);
-                }
-              }  
-            }
-          } else {
-            $gui->msg = sprintf($l18n["error_bug_does_not_exist_on_bts"],$gui->bug_id);
-          }  
-        }
-      break;
-      
-      case 'add_note':
-        // blank notes will not be added :).
-        $gui->msg = '';
-        if($gui->issueTrackerCfg->tlCanAddIssueNote && (strlen($gui->bug_notes) > 0) ) {
-          $opt = new stdClass();
-          $opt->reporter = $args->user->login;
-          $opt->reporter_email = trim($args->user->emailAddress);
-          if( '' == $opt->reporter_email ) {
-            $opt->reporter_email = $opt->reporter;
-          }
-          
-          $ope = $its->addNote($args->bug_id,$gui->bug_notes,$opt);
-
-          if( !$ope['status_ok'] ) {
-            $gui->msg = $ope['msg'];
-          }  
-        }  
-      break;
-    }
-  }
-}
 $smarty = new TLSmarty();
 $smarty->assign('gui',$gui);
 
@@ -120,17 +25,17 @@ $smarty->display($templateCfg->template_dir . $templateCfg->default_template);
 
 
 /**
- * 
- * 
+ *
+ *
  */
 function initEnv(&$dbHandler)
 {
   $uaWhiteList = array();
-  $uaWhiteList['elements'] = array('link','create','doCreate','add_note');
+  $uaWhiteList['elements'] = array('link');
   $uaWhiteList['lenght'] = array();
   foreach ($uaWhiteList['elements'] as $xmen) {
     $uaWhiteList['lenght'][] = strlen($xmen);
-  }  
+  }
   $user_action['maxLengh'] = max($uaWhiteList['lenght']);
   $user_action['minLengh'] = min($uaWhiteList['lenght']);
 
@@ -293,7 +198,7 @@ function getIssueTracker(&$dbHandler,$argsObj,&$guiObj)
   		$its = $it_mgr->getInterfaceObject($argsObj->tproject_id);
     
   		$guiObj->issueTrackerCfg->VerboseType = $issueTrackerCfg['verboseType'];
-  		$guiObj->issueTrackerCfg->VerboseID = $issueTrackerCfg['issuetracker_name'];
+  		$guiObj->issueTrackerCfg->VerboseID = '';
   		$guiObj->issueTrackerCfg->bugIDMaxLength = $its->getBugIDMaxLength();
   		$guiObj->issueTrackerCfg->createIssueURL = $its->getEnterBugURL();
       $guiObj->issueTrackerCfg->bugSummaryMaxLength = $its->getBugSummaryMaxLength();

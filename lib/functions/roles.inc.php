@@ -45,7 +45,6 @@ function init_global_rights_maps() {
   global $g_rights_users;
   global $g_rights_system;
   global $g_rights_platforms;
-  global $g_rights_issuetrackers;
   global $g_rights_codetrackers;
   global $g_rights_executions;
 
@@ -80,8 +79,6 @@ function init_global_rights_maps() {
           'desc_exec_assign_testcases' => null,
           'desc_platforms_view' => null,
           'desc_platforms_management' => null,
-          'desc_issuetrackers_view' => null,
-          'desc_issuetrackers_management' => null,
           'desc_codetrackers_view' => null,
           'desc_codetrackers_management' => null,
           'desc_mgt_modify_users' => null,
@@ -175,9 +172,6 @@ function init_global_rights_maps() {
   
   $g_rights_platforms = array("platform_view" => $l18n['desc_platforms_view'],
                               "platform_management" => $l18n['desc_platforms_management']);
-
-  $g_rights_issuetrackers = array("issuetracker_view" => $l18n['desc_issuetrackers_view'],
-                                  "issuetracker_management" => $l18n['desc_issuetrackers_management']);
 
   $g_rights_codetrackers = array("codetracker_view" => $l18n['desc_codetrackers_view'],
                                  "codetracker_management" => $l18n['desc_codetrackers_management']);

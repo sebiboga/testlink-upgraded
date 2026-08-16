@@ -8500,11 +8500,6 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if(! $status_ok) {
                 return $this->errors;
             }
-            if(! $this->userHasRight( "issuetracker_view", self::CHECK_PUBLIC_PRIVATE_ATTR )) {
-                $msg = sprintf( INSUFFICIENT_RIGHTS_STR );
-                $this->errors[] = new IXR_Error( INSUFFICIENT_RIGHTS, $msg_prefix . $msg );
-                return $this->errors;
-            }
         }
 
         $ret = null;

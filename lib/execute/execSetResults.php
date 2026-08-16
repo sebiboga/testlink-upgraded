@@ -1616,8 +1616,6 @@ function initializeGui(&$dbHandler,&$argsObj,&$cfgObj,&$tplanMgr,&$tcaseMgr,&$is
       $gui->issueTrackerCfg->editIssueAttr = intval($itsCfg->userinteraction);
 
       $gui->issueTrackerIntegrationOn = true;
-      $gui->accessToIssueTracker = lang_get('link_bts_create_bug') . 
-                                   "({$argsObj->itsCfg['issuetracker_name']})"; 
 
       $gui->createIssueURL = $issueTracker->getEnterBugURL();
       $gui->tlCanCreateIssue = method_exists($issueTracker,'addIssue') && $issueTracker->canCreateViaAPI();

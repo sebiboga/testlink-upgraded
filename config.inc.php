@@ -1187,13 +1187,6 @@ $tlCfg->exec_cfg->features->attachments->enabled = true;
 $tlCfg->exec_cfg->features->exec_duration = new stdClass();
 $tlCfg->exec_cfg->features->exec_duration->enabled = true;
 
-// Issue Tracker Integration Support - DISABLED
-// YouTrack/Issue tracker integration is being phased out.
-// Set to false to disable all issue tracker functionality globally.
-// See: https://github.com/sebiboga/testlink-upgraded/issues/367
-$tlCfg->exec_cfg->features->issue_tracker = new stdClass();
-$tlCfg->exec_cfg->features->issue_tracker->enabled = false;
-
 $tlCfg->exec_cfg->issues = new stdClass();
 $tlCfg->exec_cfg->issues->tcase_level = new stdClass();
 $tlCfg->exec_cfg->issues->tcstep_level = new stdClass();
