@@ -4292,7 +4292,11 @@ function getTCLatestVersionFilteredByPlatforms($tproject_id, $platform_id=0) {
       }
     }
     $environment = trim($ent,'&');
-    $ent .= "&itemID=";
+
+    // These URLs all target projectEdit.php, whose init_args() reads the
+    // project id from tprojectID. Emitting itemID left edit and delete
+    // resolving to project 0.
+    $ent .= "&tprojectID=";
 
     $act->deleteAction = "$cc=doDelete$ent";
     $act->editAction = "$cc=edit$ent";

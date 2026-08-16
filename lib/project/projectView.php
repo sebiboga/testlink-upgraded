@@ -101,6 +101,16 @@ function initializeGui(&$dbHandler,&$argsObj) {
   $cfg = getWebEditorCfg('testproject');
   $guiObj->editorType = $cfg['type'];
 
+  // projectView.tpl builds the row links from $gui->actions. Without it
+  // editAction is empty and the test project name renders as href="1", a
+  // path the web server rewrites to index.php, loading the whole
+  // application inside the content frame.
+  $actionsCtx = new stdClass();
+  $actionsCtx->tproject_id = $argsObj->tproject_id;
+  $actionsCtx->tplan_id =
+    isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+  $guiObj->actions = $tproject_mgr->getViewActions($actionsCtx);
+
   $guiObj->itemQty = count($guiObj->tprojects);
 
   if($guiObj->itemQty > 0) {
