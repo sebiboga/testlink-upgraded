@@ -261,6 +261,8 @@ abstract class tlObject implements iSerialization
                     'execution_tcsteps',
                     'executions',
                     'inventory',
+                    'issuetrackers',
+                    'testproject_issuetracker',
                     'codetrackers',
                     'testproject_codetracker',
                     'keywords',

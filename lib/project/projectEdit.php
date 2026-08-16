@@ -181,6 +181,10 @@ switch($args->doAction) {
       
     foreach($ui as $prop => $value) {
       $smarty->assign($prop,$value);
+      // projectEdit.tpl reads doActionValue, buttonValue and caption through
+      // $gui, and $args is what gets assigned as $gui below. Without this the
+      // form posts an empty doAction and the page dies on an empty template.
+      $args->$prop = $value;
     }
 
     $smarty->assign('gui', $args);
@@ -628,8 +632,6 @@ function create(&$argsObj,&$tprojectMgr)
   $gui->caption = lang_get('caption_new_tproject');
 
 
-
-  new dBug($gui);
 
   $gui->testprojects = $tprojectMgr->get_all(null,array('access_key' => 'id'));
   return $gui;

@@ -90,7 +90,24 @@ function get_home_url($opt)
     $t_host = 'localhost';
   }
 
-  $t_path = dirname( $_SERVER['PHP_SELF'] );
+  // SCRIPT_NAME excludes PATH_INFO, PHP_SELF does not. A web server that
+  // routes unknown paths through index.php reports them in PHP_SELF, and that
+  // garbage used to get baked into the base href stored in the session.
+  $t_script = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : $_SERVER['PHP_SELF'];
+  $t_path = dirname($t_script);
+
+  // Anchor on the TestLink installation root. Deriving the path from the
+  // running script yields '/lib/general' whenever a frame page is the one
+  // that creates the session, which breaks every relative asset URL.
+  if( defined('TL_ABS_PATH') && isset($_SERVER['DOCUMENT_ROOT']) ) {
+    $t_docRoot = realpath($_SERVER['DOCUMENT_ROOT']);
+    $t_tlRoot = realpath(TL_ABS_PATH);
+    if( $t_docRoot !== false && $t_tlRoot !== false &&
+        strpos($t_tlRoot,$t_docRoot) === 0 ) {
+      $t_path = str_replace('\\','/',substr($t_tlRoot,strlen($t_docRoot)));
+    }
+  }
+
   if ( '/' == $t_path || '\\' == $t_path ) {
     $t_path = '';
   }

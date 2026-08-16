@@ -168,9 +168,16 @@ function manageTracker(selectOID,targetOID)
       </tr>
       <tr>
         <td></td><td>
-          <input type="checkbox" id="optAutomation" name="optAutomation" 
+          <input type="checkbox" id="optAutomation" name="optAutomation"
                 {if $gui->projectOptions->automationEnabled} checked="checked" {/if} />
           {$labels.testproject_enable_automation}
+        </td>
+      </tr>
+      <tr>
+        <td></td><td>
+          <input type="checkbox" id="optInventory" name="optInventory"
+                {if $gui->projectOptions->inventoryEnabled} checked="checked" {/if} />
+          {$labels.testproject_enable_inventory}
         </td>
       </tr>
       <tr>

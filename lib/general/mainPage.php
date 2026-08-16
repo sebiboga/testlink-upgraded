@@ -189,6 +189,26 @@ foreach(array('EVENT_LEFTMENU_TOP',
   }
 }
 
+// The left side menu (aside.tpl) needs the full user UX environment:
+// showMenu (gates the whole menu), activeMenu, uri, logo, whoami and
+// grants as an object. mainPage.php builds $gui by hand, so take those
+// from initUserEnv(), the same way every other page rendering the menu does.
+// forceCreateProj sends an admin to test project creation when the system
+// has none yet, otherwise there is no menu entry to create the first one.
+$uxContext = new stdClass();
+$uxContext->tproject_id = $testprojectID;
+$uxContext->tplan_id = $testplanID;
+list($uxArgs,$ux) = initUserEnv($db,$uxContext,array('forceCreateProj' => true));
+
+// grants is overwritten on purpose: the code above uses it as an array,
+// aside.tpl reads it as an object. All array access is already done here.
+foreach(array('showMenu','activeMenu','uri','logo','whoami',
+              'grants','access','prjSet','zeroTestProjects') as $prop) {
+  if( property_exists($ux,$prop) ) {
+    $gui->$prop = $ux->$prop;
+  }
+}
+
 $tplKey = 'mainPage';
 $tpl = $tplKey . '.tpl';
 $tplCfg = config_get('tpl');

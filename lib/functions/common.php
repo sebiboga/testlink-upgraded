@@ -233,10 +233,19 @@ function setSessionTestPlan($tplan_info) {
  */
 function setPaths()
 {
+  // A stored base href that still contains a script name is corrupted: it was
+  // built from a request the web server routed through index.php. Left in the
+  // session it compounds on every navigation and breaks all asset URLs.
+  if (isset($_SESSION['basehref']) &&
+      strpos($_SESSION['basehref'],'.php/') !== false)
+  {
+    unset($_SESSION['basehref']);
+  }
+
   if (!isset($_SESSION['basehref']))
   {
     $_SESSION['basehref'] = get_home_url(array('force_https' => config_get('force_https')));
-  } 
+  }
 }
 
 

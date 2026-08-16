@@ -1,11 +1,11 @@
 <?php
-/* Smarty version 4.5.7, created on 2026-08-16 18:35:10
+/* Smarty version 4.5.7, created on 2026-08-16 18:39:12
   from 'C:\sebi\CLAUDE\testlink-upgraded\gui\templates\dashio\include\inc_head.tpl' */
 
 /* @var Smarty_Internal_Template $_smarty_tpl */
 if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
   'version' => '4.5.7',
-  'unifunc' => 'content_6a8202dec71dd0_58387518',
+  'unifunc' => 'content_6a8203d0618252_75215557',
   'has_nocache_code' => false,
   'file_dependency' => 
   array (
@@ -22,7 +22,7 @@ if ($_smarty_tpl->_decodeProperties($_smarty_tpl, array (
     'file:inc_tinymce_init.tpl' => 1,
   ),
 ),false)) {
-function content_6a8202dec71dd0_58387518 (Smarty_Internal_Template $_smarty_tpl) {
+function content_6a8203d0618252_75215557 (Smarty_Internal_Template $_smarty_tpl) {
 ?><!DOCTYPE html>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo $_smarty_tpl->tpl_vars['pageCharset']->value;?>
