@@ -40,7 +40,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     </div>
   {/if}
 
-  {if $tco.updater_id != ''}
+  {if $tco.updater_id != '' && $inc_tcbody_updater_userinfo != ''}
     <div class="row" style="display:none;" data-entity="createUpdate">
       {$inc_tcbody_labels.title_last_mod}&nbsp;{localize_timestamp ts=$tco.modification_ts}
       &nbsp;{$inc_tcbody_labels.by}&nbsp;{$inc_tcbody_updater_userinfo->getDisplayName()|escape}

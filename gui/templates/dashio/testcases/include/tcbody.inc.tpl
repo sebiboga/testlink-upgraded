@@ -26,7 +26,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     </tr>
   {/if}
   
- {if $tco.updater_id != ''}
+ {if $tco.updater_id != '' && $inc_tcbody_updater_userinfo != ''}
 	<tr class="time_stamp_creation" style="display:none;">
   		<td colspan="{$inc_tcbody_tableColspan}">
     		{$inc_tcbody_labels.title_last_mod}&nbsp;{localize_timestamp ts=$tco.modification_ts}
