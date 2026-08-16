@@ -394,8 +394,9 @@ function init_args(&$cfgObj,$otName,&$tcaseMgr) {
   $args->tcaseSteps = isset($_REQUEST['tcaseSteps']) ? $_REQUEST['tcaseSteps'] : null;
   
         
-  // from session
-  $args->testproject_id = $args->tproject_id = intval($_SESSION['testprojectID']);
+  // from URL parameter or session
+  $args->tproject_id = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : intval($_SESSION['testprojectID']);
+  $args->testproject_id = $args->tproject_id;
   
   $args->user = $_SESSION['currentUser'];  
   $args->user_id = intval($_SESSION['userID']);
@@ -636,8 +637,11 @@ function initializeGui(&$dbHandler,&$argsObj,$cfgObj,&$tcaseMgr,&$tprojMgr) {
     $guiObj->parent_info['description'] = lang_get($node_descr[$pnode_info['node_type_id']]);
   }
   
-  $guiObj->direct_link = $tcaseMgr->buildDirectWebLink($_SESSION['basehref'],$argsObj->tcase_id,
-                                                       $argsObj->testproject_id);
+  $guiObj->direct_link = null;
+  if ($argsObj->tcase_id > 0) {
+    $guiObj->direct_link = $tcaseMgr->buildDirectWebLink($_SESSION['basehref'],$argsObj->tcase_id,
+                                                         $argsObj->tproject_id);
+  }
 
   $guiObj->domainTCStatus = $argsObj->tcStatusCfg['code_label'];
   
