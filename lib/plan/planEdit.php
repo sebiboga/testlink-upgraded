@@ -488,7 +488,8 @@ function initializeGui(&$dbHandler,&$argsObj,&$editorCfg,&$tprojectMgr)
   $guiObj->userGrants->testplan_create = $argsObj->user->hasRight($dbHandler,"mgt_testplan_create",$argsObj->tproject_id);
   $guiObj->userGrants->mgt_view_events = $argsObj->user->hasRight($dbHandler,"mgt_view_events");
 
-  
+  $guiObj->createEnabled = $guiObj->userGrants->testplan_create;
+
   $guiObj->is_active = ($argsObj->active == 'on') ? 1 :0 ;
   $guiObj->is_public = ($argsObj->is_public == 'on') ? 1 :0 ;
 
