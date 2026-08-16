@@ -639,8 +639,12 @@ function initializeGui(&$dbHandler,&$argsObj,$cfgObj,&$tcaseMgr,&$tprojMgr) {
   
   $guiObj->direct_link = null;
   if ($argsObj->tcase_id > 0) {
-    $guiObj->direct_link = $tcaseMgr->buildDirectWebLink($_SESSION['basehref'],$argsObj->tcase_id,
-                                                         $argsObj->tproject_id);
+    // testcase::buildDirectWebLink() takes a context object, not positional args
+    $webLinkContext = new stdClass();
+    $webLinkContext->basehref = $_SESSION['basehref'];
+    $webLinkContext->id = $argsObj->tcase_id;
+    $webLinkContext->tproject_id = $argsObj->tproject_id;
+    $guiObj->direct_link = $tcaseMgr->buildDirectWebLink($webLinkContext);
   }
 
   $guiObj->domainTCStatus = $argsObj->tcStatusCfg['code_label'];

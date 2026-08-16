@@ -522,8 +522,12 @@ function send_mail_to_testers(&$dbHandler,&$tcaseMgr,&$guiObj,&$argsObj,$feature
           foreach($value as $tcase_id)
           {
             $email['body'] .= $flat_path[$tcase_id] . '<br />';  
-            $wl = $tcaseMgr->buildDirectWebLink($_SESSION['basehref'],$tcase_id,
-                                                $argsObj->testproject_id);
+            // testcase::buildDirectWebLink() takes a context object, not positional args
+            $webLinkContext = new stdClass();
+            $webLinkContext->basehref = $_SESSION['basehref'];
+            $webLinkContext->id = $tcase_id;
+            $webLinkContext->tproject_id = $argsObj->testproject_id;
+            $wl = $tcaseMgr->buildDirectWebLink($webLinkContext);
            
             $email['body'] .= '<a href="' . $wl . '">' . 
                               'direct link to test case spec ' .

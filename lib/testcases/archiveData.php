@@ -373,7 +373,12 @@ function processTestCase(&$dbHandler,$tplEngine,$args,&$gui,$grants,$cfg) {
 
     $opx = array();
     $gui->platforms = $platform_mgr->getAllAsMap();
-    $gui->direct_link = $item_mgr->buildDirectWebLink($_SESSION['basehref'],$args->id);
+    // testcase::buildDirectWebLink() takes a context object, not positional args
+    $webLinkContext = new stdClass();
+    $webLinkContext->basehref = $_SESSION['basehref'];
+    $webLinkContext->id = $args->id;
+    $webLinkContext->tproject_id = $args->tproject_id;
+    $gui->direct_link = $item_mgr->buildDirectWebLink($webLinkContext);
 
     $gui->id = $args->id;
 

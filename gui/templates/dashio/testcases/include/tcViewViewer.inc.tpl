@@ -432,15 +432,19 @@ viewer for test case in test specification
              inc_tcbody_editor_type=$gui->designEditorType
              inc_tcbody_cf=$args_cf}
     
+  {* tcbody.inc.tpl uses a div layout in this theme, so the steps templates -
+     which emit bare <tr> rows - need their own table wrapper. Without it the
+     browser drops the rows and the step text renders as a flat run of words. *}
   {if $args_testcase.steps != ''}
+    <table class="simple" style="width:100%;">
     {include file="{$tplConfig['steps.inc']}"
              layout=$gui->steps_results_layout
              edit_enabled=$edit_enabled
   		       args_frozen_version=$args_frozen_version
              ghost_control=true
              steps=$args_testcase.steps}
+    </table>
   {/if}
-</table>
 
 {if $edit_enabled && $args_frozen_version=="no"}
 <div {$addInfoDivStyle}>
