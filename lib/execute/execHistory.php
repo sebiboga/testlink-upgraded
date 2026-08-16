@@ -68,7 +68,7 @@ if(!is_null($gui->execSet) )
   $its = null;
   $tproject_mgr = new testproject($db);
   $info = $tproject_mgr->get_by_id($gui->tproject_id);
-  if($info['issue_tracker_enabled'])
+  if($info['issue_tracker_enabled'] && $GLOBALS['tlCfg']->exec_cfg->features->issue_tracker->enabled)
   {
     $gui->bugs = getIssues($db,$gui->execSet,$gui->tproject_id);
   } 

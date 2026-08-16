@@ -722,9 +722,9 @@ function init_args(&$dbHandler,$cfgObj) {
 
   // Issue Tracker --------------------------------------------------------------------------
   $bug_summary['minLengh'] = 1; 
-  $bug_summary['maxLengh'] = 1; 
+  $bug_summary['maxLengh'] = 1;
 
-  if( ($args->issue_tracker_enabled = $info['issue_tracker_enabled']) ) {
+  if( ($args->issue_tracker_enabled = $info['issue_tracker_enabled'] && $GLOBALS['tlCfg']->exec_cfg->features->issue_tracker->enabled) ) {
     $it_mgr = new tlIssueTracker($dbHandler);
     $args->itsCfg = $it_mgr->getLinkedTo($args->tproject_id);
     $its = $it_mgr->getInterfaceObject($args->tproject_id);

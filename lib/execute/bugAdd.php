@@ -280,11 +280,12 @@ function getIssueTracker(&$dbHandler,$argsObj,&$guiObj)
   $guiObj->issueTrackerCfg->VerboseID = '';
   $guiObj->issueTrackerCfg->VerboseType = '';
   $guiObj->issueTrackerCfg->bugIDMaxLength = 0;
-  $guiObj->issueTrackerCfg->bugSummaryMaxLength = 100; // MAGIC 
+  $guiObj->issueTrackerCfg->bugSummaryMaxLength = 100; // MAGIC
   $guiObj->issueTrackerCfg->tlCanCreateIssue = false;
   $guiObj->issueTrackerCfg->tlCanAddIssueNote = true;
 
-  if($info['issue_tracker_enabled']) {
+  // Issue tracker support is disabled globally (see config.inc.php)
+  if($info['issue_tracker_enabled'] && $GLOBALS['tlCfg']->exec_cfg->features->issue_tracker->enabled) {
   	$it_mgr = new tlIssueTracker($dbHandler);
   	$issueTrackerCfg = $it_mgr->getLinkedTo($argsObj->tproject_id);
     
