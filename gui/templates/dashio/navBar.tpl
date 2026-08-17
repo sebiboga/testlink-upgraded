@@ -125,6 +125,15 @@ The _top value of the target attribute specifies that the URL should open in the
 {/if}
 
           <li>&nbsp;</li>
+          {* The user lives here rather than in the menu so it stays visible
+             when the menu is collapsed to its icon rail, and so identity sits
+             with Logout. *}
+          {if isset($gui->whoami) && $gui->whoami != ''}
+            <li class="tlWhoami">
+              <a href="{$gui->uri->userInfo}" target="mainframe"
+                 title="{$gui->whoami|escape}">{$gui->whoami|escape}</a>
+            </li>
+          {/if}
           <li><a class="logout" href="{$gui->logout}" target="top">Logout</a></li>
 
         </ul>

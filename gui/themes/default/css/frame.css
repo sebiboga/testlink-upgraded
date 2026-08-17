@@ -25,6 +25,12 @@ iframe.navigationAside {
   border:0;
 }
 
+/* collapsed to icons - see body.rail in asideFrame.tpl */
+iframe.navigationAside.railed {
+  width:55px;
+  flex:0 0 55px;
+}
+
 iframe.siteContent {
   flex:1 1 auto;
   width:100%;

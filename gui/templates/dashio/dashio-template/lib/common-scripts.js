@@ -49,41 +49,19 @@ var Script = function() {
   /**
    *
    */
+  /**
+   * The menu has a frame of its own, so collapsing it means narrowing that
+   * frame to an icon rail, not hiding elements inside the content document as
+   * this used to do. The menu owns both halves of that state, so ask it.
+   *
+   * Addressed by name: the old frames[1] only pointed at the menu by accident
+   * of frame order.
+   */
   $('.fa-bars').click(function() {
-
-    var sidebar = window.parent.frames[1].document.getElementById('sidebar');
-    var sidebarUL = window.parent.frames[1].document.getElementById('nav-accordion');
-    var mainContent = window.parent.frames[1].document.getElementById('main-content');
-    var container = window.parent.frames[1].document.getElementById('container');
-
-
-    var JQsidebar = $(sidebar);
-    var JQsidebarUL = $(sidebarUL);
-    var JQmainContent = $(mainContent);
-    var JQcontainer = $(container);
-
-
-    //alert(sidebarUL);
-    if (JQsidebarUL.is(":visible") === true) {
-      JQmainContent.css({
-        'margin-left': '0px'
-      });
-      JQsidebar.css({
-        'margin-left': '-210px'
-      });
-      JQsidebarUL.hide();
-      JQcontainer.addClass("sidebar-closed");
-    } else {
-      JQmainContent.css({
-        'margin-left': '210px'
-      });
-      JQsidebarUL.show();
-      JQsidebar.css({
-        'margin-left': '0'
-      });
-      JQcontainer.removeClass("sidebar-closed");
+    var menu = window.parent.frames['asidebar'];
+    if (menu && typeof menu.tlSetRail === 'function') {
+      menu.tlSetRail(!menu.tlIsRailed());
     }
-
   });
 
   // custom scrollbar

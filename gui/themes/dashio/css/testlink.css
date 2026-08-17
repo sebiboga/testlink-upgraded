@@ -1168,14 +1168,23 @@ div.form-border {
 	margin: 10px 14px;
 }
 
-/* The user name inherits the global link colour (#005599), which against the
-   dark sidebar sits at roughly 1.4:1 contrast and is effectively invisible.
-   Recolour rather than boxing it - the logo card above is enough weight.
-   Yellow picks up the brand colour from the TestLink mark. */
-#sidebar .sidebar-menu > h4.centered a {
-	color: #f2c811;
+/* The user name sits in the title bar rather than here, so that it stays
+   visible when the menu collapses to its icon rail. It has the same problem
+   the sidebar had: left alone it takes the global link colour (#005599) plus
+   a border, which against the dark title bar reads as a stray grey box
+   instead of text. Yellow on hover picks up the brand colour from the
+   TestLink mark. */
+.top-menu li.tlWhoami a {
+	color: #f2f2f2;
+	background: none;
+	/* ul.top-menu > li > a boxes every entry with !important, which suits the
+	   Logout button but frames the user name in a stray outline. */
+	border: 0 !important;
+	padding: 5px 10px;
 }
-#sidebar .sidebar-menu > h4.centered a:hover {
-	color: #ffe066;
+.top-menu li.tlWhoami a:hover {
+	color: #f2c811;
+	border: 0 !important;
+	text-decoration: none;
 }
 /* ----- END ------------------------------------------------------------------------- */

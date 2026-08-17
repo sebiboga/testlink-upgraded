@@ -10,7 +10,8 @@ Left side menu
         <!-- sidebar menu start-->
         <ul class="sidebar-menu" id="nav-accordion">
           <p class="centered"><img src="{$gui->logo}" alt="TestLink"></p>
-          <h4 class="centered"><a href="{$gui->uri->userInfo}" target="mainframe">{$gui->whoami}</a></h4>
+          {* The user is shown in the title bar (navBar.tpl) so that it stays
+             visible when this menu collapses to its icon rail. *}
           {if $gui->showMenu != null}
             {if $gui->showMenu.dashboard == true}
             <li class="mt">
