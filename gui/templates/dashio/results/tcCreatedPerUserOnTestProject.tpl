@@ -10,7 +10,7 @@ Purpose: smarty template - Report of Test Cases created per tester
 {$cfg_section=$smarty.template|basename|replace:".tpl":"" }
 {config_load file="input_dimensions.conf" section=$cfg_section}
 
-{lang_get var='labels'  s='th_user,th_start_time,th_end_time,date,hour,submit_query,show_calender'}
+{lang_get var='labels'  s='th_user,th_start_time,th_end_time,date,hour,submit_query,show_calender,download_csv'}
 
 
 {include file="inc_head.tpl" openHead='yes'}

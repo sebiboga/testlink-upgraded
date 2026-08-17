@@ -1891,6 +1891,7 @@ $TLS_select_keyword_header = "Select Keyword";
 $TLS_select_last_result_header = "Show Executions of Status";
 $TLS_select_owner_header = "Assigned to";
 $TLS_submit_query = "Submit Query";
+$TLS_download_csv = "Download As CSV";
 $TLS_query_metrics_report = "Query Metrics Report";
 $TLS_enter_start_time = "Start Time";
 $TLS_enter_end_time = "End Time";

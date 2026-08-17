@@ -9,7 +9,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     <div class="workBack">
       <form action="lib/results/tcCreatedPerUserOnTestProject.php" method="post">
         <input type="hidden" id="tproject_id" name="tproject_id" value="{$gui->tproject_id|escape}" />
-        <input type="hidden" id="do_action" name="do_action" value="result" />
+        <input type="hidden" id="do_action" name="do_action" value="" />
         <div>
         <table class="{#item_view_table#}" id="item_view">
           <thead class="{#item_view_thead#}">
@@ -80,8 +80,14 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
         </div>
         <div>
                 <input class="{#BUTTON_CLASS#}" type="submit"
-                       name="doIt" id="doIt" 
-                       value="{$labels.submit_query}"/>
+                       name="doReport" id="doReport"
+                       value="{$labels.submit_query}"
+                       onclick="do_action.value='result'"/>
+
+                <input class="{#BUTTON_CLASS#}" type="submit"
+                       name="doExport" id="doExport"
+                       value="{$labels.download_csv}"
+                       onclick="do_action.value='csv'"/>
         </div>
       </form>
     </div>
