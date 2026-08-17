@@ -140,10 +140,41 @@ $(function() {ldelim}
 
   /* Long labels (e.g. "Requirement Specification Document") are truncated with
      an ellipsis - see testlink.css. Give each its untruncated text as a native
-     title so hovering still reveals it, without hand-editing every <a> above. */
+     title (keyboard/no-JS fallback) and, for the ones that actually overflow,
+     wrap the text so hovering can slide it left far enough to read in full -
+     see the ".menu-label" rules in testlink.css. */
   $('#sidebar ul.sidebar-menu ul.sub li a').each(function() {ldelim}
+    var $link = $(this);
+    var text = $link.text().trim();
     if (!this.title) {ldelim}
-      this.title = $(this).text().trim();
+      this.title = text;
+    {rdelim}
+    $link.html('<span class="menu-label">' + $('<div>').text(text).html() + '</span>');
+  {rdelim});
+
+  /* Every ul.sub starts display:none (the accordion only opens one section at a
+     time), so measuring widths in the loop above would see 0 for everything.
+     Force each closed one visible just long enough to measure its children,
+     then put it back - synchronous, so the browser never paints the in-between
+     state and nothing actually flashes open. */
+  $('#sidebar ul.sidebar-menu ul.sub').each(function() {ldelim}
+    var $sub = $(this);
+    var wasHidden = $sub.css('display') === 'none';
+    if (wasHidden) {ldelim}
+      $sub.css('display','block');
+    {rdelim}
+
+    $sub.find('> li > a').each(function() {ldelim}
+      var $label = $(this).children('.menu-label');
+      var overflow = $label[0].scrollWidth - this.clientWidth;
+      if (overflow > 0) {ldelim}
+        $label[0].style.setProperty('--menu-label-shift', (-overflow - 4) + 'px');
+        $label.addClass('menu-label-overflow');
+      {rdelim}
+    {rdelim});
+
+    if (wasHidden) {ldelim}
+      $sub.css('display','');
     {rdelim}
   {rdelim});
 {rdelim});

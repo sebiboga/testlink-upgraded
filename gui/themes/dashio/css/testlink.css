@@ -1233,11 +1233,25 @@ ul.sidebar-menu li a:focus:not(.active) {
    duplicate of a shorter label instead of the real one.
    Rather than let rows grow to fit wrapped text (uneven row heights, cramped for a
    210px rail), keep every row the same single-line height and truncate the label
-   with an ellipsis; a small script in asideFrame.tpl sets a native title attribute
-   with the full text so hovering still reveals it. */
+   with an ellipsis at rest. asideFrame.tpl wraps each label in a .menu-label span
+   and, for the ones measured to actually overflow, sets --menu-label-shift to how
+   far left it needs to slide to become fully readable; hovering (or focusing, for
+   keyboard users) plays that slide, and a native title attribute covers touch/no-JS. */
 ul.sidebar-menu li ul.sub li a {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
+}
+ul.sidebar-menu li ul.sub li a .menu-label {
+	display: inline-block;
+	transition: transform 0.6s ease;
+}
+ul.sidebar-menu li ul.sub li a:hover,
+ul.sidebar-menu li ul.sub li a:focus {
+	text-overflow: clip;
+}
+ul.sidebar-menu li ul.sub li a:hover .menu-label-overflow,
+ul.sidebar-menu li ul.sub li a:focus .menu-label-overflow {
+	transform: translateX(var(--menu-label-shift, 0px));
 }
 /* ----- END ------------------------------------------------------------------------- */
