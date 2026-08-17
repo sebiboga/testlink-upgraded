@@ -1157,15 +1157,15 @@ div.form-border {
 	float :left;
 }
 
-/* ----- Sidebar logo ------------------------------------------------------------------
-   The shipped navbar logo is the dark-text wordmark, designed for a light
-   background. On the dark sidebar it is unreadable, so give it a light card
-   to sit on instead of recolouring it, which would lose the brand yellow. */
-#sidebar .sidebar-menu > p.centered {
-	background: #fff;
-	border-radius: 6px;
-	padding: 10px 14px;
-	margin: 10px 14px;
+/* ----- Title bar brand mark ----------------------------------------------------------
+   The sidebar no longer carries a logo, so the white card that made the
+   dark-text wordmark readable there is gone with it. The title bar shows the
+   solo mark instead, which is bright enough to need no such treatment. */
+.header a.logo img.tlMark {
+	height: 24px;
+	width: auto;
+	vertical-align: middle;
+	margin-right: 8px;
 }
 
 /* The user name sits in the title bar rather than here, so that it stays

@@ -9,9 +9,9 @@ Left side menu
       <div id="sidebar" class="nav-collapse ">
         <!-- sidebar menu start-->
         <ul class="sidebar-menu" id="nav-accordion">
-          <p class="centered"><img src="{$gui->logo}" alt="TestLink"></p>
-          {* The user is shown in the title bar (navBar.tpl) so that it stays
-             visible when this menu collapses to its icon rail. *}
+          {* The brand mark and the user are both in the title bar
+             (navBar.tpl): they stay visible when this menu collapses to its
+             icon rail, and the mark is not worth repeating. *}
           {if $gui->showMenu != null}
             {if $gui->showMenu.dashboard == true}
             <li class="mt">

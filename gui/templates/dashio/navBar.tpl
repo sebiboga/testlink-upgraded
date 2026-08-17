@@ -45,8 +45,13 @@ The _top value of the target attribute specifies that the URL should open in the
       <div class="sidebar-toggle-box">
         <div class="fa fa-bars tooltips" data-placement="right" data-original-title="{$labels.toggle_navigation}"></div>
       </div>
-      <a class="logo" 
+      {* The solo mark, not the full logo: that one carries the word TestLink
+         in dark text for light backgrounds, so on this bar it would need the
+         same white card the sidebar needed. This is the only brand mark now,
+         the menu no longer repeats it. *}
+      <a class="logo"
          href="index.php?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}" target="{$topBrowsingContext}" title="{$labels.reload_main_view}">
+         <img class="tlMark" src="{$basehref}{$smarty.const.TL_THEME_IMG_DIR}tl-solo-logo-transparent-25.png" alt="">
          <b>TEST<span>LINK</span></b></a>
 
   <div class="top-menu">

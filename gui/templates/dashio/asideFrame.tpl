@@ -48,9 +48,6 @@ main frame and is built once per test project rather than once per page.
        frameset (iframe.navigationAside.railed), this only strips the menu
        back to its icons. Submenus are hidden rather than turned into
        flyouts: a flyout would be clipped at the frame boundary. */
-    body.rail .sidebar-menu > p.centered {ldelim}
-      display: none;
-    {rdelim}
     body.rail .sidebar-menu > li > a > span,
     body.rail .sidebar-menu > li > a .arrow {ldelim}
       display: none;
