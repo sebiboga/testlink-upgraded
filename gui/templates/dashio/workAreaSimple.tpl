@@ -1,10 +1,10 @@
-{* 
+{*
 TestLink Open Source Project - http://testlink.sourceforge.net/
-$Id: workAreaSimple.tpl,v 1.5 2009/05/18 20:22:10 schlundus Exp $
 Purpose: show workarea with simple structure title + content + link
+Dashio theme: renders inside mainframe iframe, so no need for full HTML structure
 *}
-{include file="inc_head.tpl"}
-
+<!DOCTYPE html>
+<html>
 <body>
 
 {if isset($title) && $title ne ''}
