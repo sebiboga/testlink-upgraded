@@ -21,7 +21,14 @@ Purpose: rendering of Ext Js table
                           multisort_button_tooltip, button_refresh, btn_reset_filters, caption_nav_filters"}
 
 {literal} <script type="text/javascript"> {/literal}
-var checkedImg = "{$tlImages.checked}";
+{* $tlImages.checked is HTML with double-quoted attributes
+   (<i class="fa fa-check" aria-hidden="true"></i>) - unescaped, its own
+   quotes close this JS string early and the token right after ('fa') is a
+   syntax error, which silently drops this whole script block including the
+   var declaration below. oneZeroImageRenderer() (further down this file)
+   then throws ReferenceError the first time a grid renders a row with a
+   checked/active value, aborting the grid's entire row template pass. *}
+var checkedImg = "{$tlImages.checked|escape:'javascript'}";
 {literal} </script> {/literal}
 
 {literal}

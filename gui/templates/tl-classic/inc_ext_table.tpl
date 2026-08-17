@@ -21,7 +21,9 @@ Purpose: rendering of Ext Js table
                           multisort_button_tooltip, button_refresh, btn_reset_filters, caption_nav_filters"}
 
 {literal} <script type="text/javascript"> {/literal}
-var checkedImg = "{$tlImages.checked}";
+{* see gui/templates/dashio/include/inc_ext_table.tpl for why this needs
+   escaping *}
+var checkedImg = "{$tlImages.checked|escape:'javascript'}";
 {literal} </script> {/literal}
 
 {literal}
