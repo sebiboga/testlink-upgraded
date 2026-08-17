@@ -22,15 +22,7 @@ editorType: used to understand if code for tinymce need to be loaded
 	<link rel="icon" href="{$basehref}{$smarty.const.TL_THEME_IMG_DIR}favicon.ico" type="image/x-icon" />
 
 {$css = str_replace('default','dashio',$css)}
-{* ----- load CSS ----------------------------------------------- *} 
-	{* Version the URL so a theme change is picked up instead of being served
-	   from the browser cache after an upgrade *}
-	<style media="all" type="text/css">@import "{$css}?v={$tlVersion|escape:'url'}";</style>
-
-	{if $use_custom_css}
-	<style media="all" type="text/css">@import "{$custom_css}";</style>
-	{/if}
-	
+{* ----- load CSS ----------------------------------------------- *}
 	{if $testproject_coloring eq 'background'}
   	<style type="text/css"> body {ldelim}background: {$testprojectColor};{rdelim}</style>
 	{/if}
@@ -106,6 +98,18 @@ editorType: used to understand if code for tinymce need to be loaded
 
   <link href="{$dashioHomeURL}css/style.css" rel="stylesheet">
   <link href="{$dashioHomeURL}css/style-responsive.css" rel="stylesheet">
+
+  {* Loaded last (after Bootstrap and the dashio-template CSS above) so its
+     overrides win for elements they both style, e.g. a plain h1/h2 - this
+     used to load first, near the top of <head>, so those overrides always
+     lost to Bootstrap's defaults at equal specificity. Version the URL so a
+     theme change is picked up instead of being served from the browser
+     cache after an upgrade. *}
+  <style media="all" type="text/css">@import "{$css}?v={$tlVersion|escape:'url'}";</style>
+
+  {if $use_custom_css}
+  <style media="all" type="text/css">@import "{$custom_css}";</style>
+  {/if}
 
   {* Scoped to the tree-navigator panels only (settings_panel/filter_panel/
      tree_div ids are unique to execNavigator.tpl, planTCNavigator.tpl,
