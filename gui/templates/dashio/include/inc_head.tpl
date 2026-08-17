@@ -63,11 +63,11 @@ editorType: used to understand if code for tinymce need to be loaded
  
   {$tproject_id = 0}
 	{$tplan_id = 0}
-	{if property_exists($gui,'tproject_id')}
+	{if isset($gui) && property_exists($gui,'tproject_id')}
 	  {$tproject_id = $gui->tproject_id}
 	{/if}
 
-	{if property_exists($gui,'tplan_id')}
+	{if isset($gui) && property_exists($gui,'tplan_id')}
 	  {$tplan_id = $gui->tplan_id}
 	{/if}
 

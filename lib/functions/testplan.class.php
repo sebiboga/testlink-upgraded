@@ -6100,12 +6100,19 @@ class testplan extends tlObjectWithAttachments
       return null;  
     }
 
+    // Only filter on a real platform id. The setting carries -1 for
+    // "no platform selected", and executions.platform_id stores 0 on a test
+    // plan without platforms, so -1 would make $sqlLEBBP match nothing:
+    // the exec union INNER JOINs it and returns no rows, while the not_run
+    // union is excluded by the real executions -> an executed test case
+    // disappears from the tree entirely.
+    // Same > 0 convention initGetLinkedForTree() already uses for TPTCV.
     $platform4EE = " ";
-    if( !is_null($my['filters']['platform_id']) )
+    if( !is_null($my['filters']['platform_id']) && $my['filters']['platform_id'] > 0 )
     {
       $platform4EE = " AND EE.platform_id = " . intval($my['filters']['platform_id']);
     }
-  
+
     $sqlLEBBP = " SELECT EE.tcversion_id,EE.testplan_id,EE.platform_id,EE.build_id," .
                 " MAX(EE.id) AS id " .
                 " FROM {$this->tables['executions']} EE " . 
