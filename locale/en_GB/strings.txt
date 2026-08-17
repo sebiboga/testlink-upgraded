@@ -3300,6 +3300,10 @@ $TLS_API_ROLE_SETTING_ERROR = "An error occurred while setting the role (role: %
 
 $TLS_max_num_of_chars = "Max. characters:";
 
+$TLS_activate_testplans = "Activate";
+$TLS_inactivate_testplans = "Deactivate";
+$TLS_no_testplan_checked = "Please select at least one Test Plan.";
+
 // ----- audit log entries -----
 $TLS_audit_login_succeeded = "Login for '{%1}' from '{%2}' succeeded";
 $TLS_audit_login_failed = "Login for '{%1}' from '{%2}' failed";
