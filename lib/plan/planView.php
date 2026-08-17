@@ -173,7 +173,18 @@ function initializeGui(&$dbHandler,$argsObj)
                      lang_get('testproject') . ' ' . $tproject_name;
   $cfg = getWebEditorCfg('testplan');
   $gui->editorType = $cfg['type'];
-  
+
+  // planView.tpl builds Create/Delete/Edit/Export/Import/Execute links and
+  // the form action entirely from $gui->actions. Without it every one of
+  // those renders as an empty URL, so e.g. the "Create" button just
+  // re-submits back to this same listing page, which has no do_action
+  // handling of its own (real creation happens in planEdit.php).
+  $actionsCtx = new stdClass();
+  $actionsCtx->tproject_id = $argsObj->tproject_id;
+  $actionsCtx->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+  $tplan_mgr = new testplan($dbHandler);
+  $gui->actions = $tplan_mgr->getViewActions($actionsCtx);
+
   return $gui;
 }
 
