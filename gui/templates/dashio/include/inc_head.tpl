@@ -106,7 +106,6 @@ editorType: used to understand if code for tinymce need to be loaded
 
   <link href="{$dashioHomeURL}css/style.css" rel="stylesheet">
   <link href="{$dashioHomeURL}css/style-responsive.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" href="{$basehref}gui/themes/default/css/frame.css">  
 
 {if $openHead == "no"} {* 'no' is default defined in config *}
 </head>
