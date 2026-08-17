@@ -29,8 +29,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 <div class="workBack">
   <div class="groupBtn">
     <form method="post">
-      {if $gui->userGrants->modify}
-      <input class="{#BUTTON_CLASS#}" type="button" 
+      {if $gui->grants->modify}
+      <input class="{#BUTTON_CLASS#}" type="button"
              id="new_req_spec" name="new_req_spec"
              value="{$labels.btn_new_req_spec}"
              onclick="location='{$req_spec_new_url}{$gui->tproject_id}'" />
@@ -41,8 +41,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
              value="{$labels.btn_export_all_reqspec}"
              onclick="location='{$req_export_url}{$gui->tproject_id}'" />
 
-      {if $gui->userGrants->modify}
-      <input class="{#BUTTON_CLASS#}" type="button" 
+      {if $gui->grants->modify}
+      <input class="{#BUTTON_CLASS#}" type="button"
              id="import_all" name="import_all"
              value="{$labels.btn_import}"
              onclick="location='{$req_import_url}{$gui->tproject_id}'" />

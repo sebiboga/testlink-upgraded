@@ -107,6 +107,32 @@ editorType: used to understand if code for tinymce need to be loaded
   <link href="{$dashioHomeURL}css/style.css" rel="stylesheet">
   <link href="{$dashioHomeURL}css/style-responsive.css" rel="stylesheet">
 
+  {* Scoped to the tree-navigator panels only (settings_panel/filter_panel/
+     tree_div ids are unique to execNavigator.tpl, planTCNavigator.tpl,
+     planAddTCNavigator.tpl, printDocOptions.tpl, tcTree.tpl and
+     reqSpecListTree.tpl). Softens their old ext-js "boxed panel" chrome so
+     they read as part of the same navigation column as the dashio aside
+     menu, rather than a second, differently-themed menu next to it.
+     Does not touch .x-panel-header/.x-panel-body elsewhere in the app. *}
+  <style media="all" type="text/css">
+  #settings_panel .x-panel-header,
+  #filter_panel .x-panel-header {
+    background: #f4f4f4;
+    border: none;
+    box-shadow: none;
+    font-weight: 600;
+    color: #555;
+  }
+  #settings_panel .x-panel-body,
+  #filter_panel .x-panel-body {
+    background: transparent;
+  }
+  #tree_div {
+    border: none !important;
+    background: transparent;
+  }
+  </style>
+
 {if $openHead == "no"} {* 'no' is default defined in config *}
 </head>
 {/if}

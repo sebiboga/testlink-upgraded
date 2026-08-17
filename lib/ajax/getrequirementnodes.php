@@ -135,18 +135,28 @@ function display_children($dbHandler,$root_node,$parent,$filter_node,
           $req_list = array();
           $treeMgr->getAllItemsID($row['id'],$req_list,$peerTypes);
 
-          $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
+          // REQ_SPEC_MGMT()/TPROJECT_PRS() need (tproject_id,id) - the other
+          // js functions reachable for this node type (ERS) only take (id).
+          $fnName = $js_function[$row['node_type']];
+          $fnArgs = in_array($fnName, array('REQ_SPEC_MGMT','TPROJECT_PRS'))
+                    ? "{$root_node},{$path['id']}" : "{$path['id']}";
+          $path['href'] = "javascript:" . $fnName . "({$fnArgs})";
           $path['text'] = htmlspecialchars($row['doc_id'] . ":") . $path['text'];
           $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];
           if(!is_null($req_list))
           {
             $item_qty = count($req_list);
-            $path['text'] .= " ({$item_qty})";   
+            $path['text'] .= " ({$item_qty})";
           }
         break;
 
         case 'requirement':
-          $path['href'] = "javascript:" . $js_function[$row['node_type']]. "({$path['id']})";
+          // REQ_MGMT()/TPROJECT_PRS() need (tproject_id,id) - ER()/
+          // openLinkedReqWindow() only take (id) (or tolerate a missing 2nd arg).
+          $fnName = $js_function[$row['node_type']];
+          $fnArgs = in_array($fnName, array('REQ_MGMT','TPROJECT_PRS'))
+                    ? "{$root_node},{$path['id']}" : "{$path['id']}";
+          $path['href'] = "javascript:" . $fnName . "({$fnArgs})";
           $path['text'] = htmlspecialchars($requirements[$row['id']]['doc_id'] . ":") . $path['text'];
           $path['leaf'] = true;
           $path['forbidden_parent'] = $forbidden_parent[$row['node_type']];

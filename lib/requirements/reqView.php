@@ -142,12 +142,12 @@ function initialize_gui(&$dbHandler,$argsObj,&$tproject_mgr,&$req_mgr) {
 
   // Same for all versions because we only use the FILE ID
   // need to be refactored  
-  $gui->delAttachmentURL = $_SESSION['basehref'] .  
-    $req_mgr->getDeleteAttachmentRelativeURL($gui->req_id,0);
-  
+  $gui->delAttachmentURL = $_SESSION['basehref'] .
+    $req_mgr->getDeleteAttachmentRelativeURL($gui->req_id,0,$argsObj->tproject_id);
+
   $gui->fileUploadURL = array();
-  $gui->fileUploadURL[$gui->req_version_id] = $_SESSION['basehref'] . 
-    $req_mgr->getFileUploadRelativeURL($gui->req_id, $gui->req_version_id);
+  $gui->fileUploadURL[$gui->req_version_id] = $_SESSION['basehref'] .
+    $req_mgr->getFileUploadRelativeURL($gui->req_id, $gui->req_version_id, $argsObj->tproject_id);
 
   $gui->log_target = null;
   $loop2do = count($gui->req_versions);

@@ -100,8 +100,8 @@ function initialize_gui(&$dbHandler,&$argsObj)
                       '&item=reqspec&id=' . urlencode($gui->req_spec['doc_id']);
 
 
-  $gui->fileUploadURL = $_SESSION['basehref'] . $req_spec_mgr->getFileUploadRelativeURL($gui->req_spec_id);
-  $gui->delAttachmentURL = $_SESSION['basehref'] . $req_spec_mgr->getDeleteAttachmentRelativeURL($gui->req_spec_id);
+  $gui->fileUploadURL = $_SESSION['basehref'] . $req_spec_mgr->getFileUploadRelativeURL($gui->req_spec_id, $argsObj->tproject_id);
+  $gui->delAttachmentURL = $_SESSION['basehref'] . $req_spec_mgr->getDeleteAttachmentRelativeURL($gui->req_spec_id, $argsObj->tproject_id);
   $gui->fileUploadMsg = '';
   $gui->import_limit = TL_REPOSITORY_MAXFILESIZE;
   
