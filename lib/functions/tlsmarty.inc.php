@@ -600,7 +600,9 @@ class TLSmarty extends Smarty {
     $this->assign('menuGrants',$menuGrants);
 
     if( $needsMenu ) {
-      foreach( array('showMenu','activeMenu','uri','logo','whoami','access') as $prop ) {
+      // aside.tpl gates Metrics Dashboard/Builds/Add-Remove Platforms/
+      // Milestones on $gui->countPlans > 0, so it has to be copied over too.
+      foreach( array('showMenu','activeMenu','uri','logo','whoami','access','countPlans') as $prop ) {
         if( property_exists($ux,$prop) &&
             (!property_exists($gui,$prop) || null == $gui->$prop) ) {
           $gui->$prop = $ux->$prop;
