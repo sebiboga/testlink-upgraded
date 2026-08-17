@@ -75,7 +75,11 @@ function importanceRenderer(val) {
 /* Unfortunately global coupling is needed to get the image */
 function oneZeroImageRenderer(val) {
   if(val == 1) {
-    return '<img src="' + checkedImg + '" />';
+    // checkedImg is itself a complete <i class="fa ..."> icon tag (see the
+    // Font Awesome migration in tlsmarty.inc.php), not an image URL - wrapping
+    // it in <img src="..."> broke the markup, since its own quotes closed the
+    // src attribute early and the browser parsed the rest as bogus attributes.
+    return checkedImg;
   } else {
     return '';
   }

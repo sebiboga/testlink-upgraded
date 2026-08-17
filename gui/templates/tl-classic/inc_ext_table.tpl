@@ -80,7 +80,9 @@ function importanceRenderer(val) {
 /* Unfortunately global coupling is needed to get the image */
 function oneZeroImageRenderer(val) {
   if(val == 1) {
-    return '<img src="' + checkedImg + '" />';
+    // see gui/templates/dashio/include/inc_ext_table.tpl - checkedImg is
+    // already a complete <i class="fa ..."> tag, not an image URL
+    return checkedImg;
   } else {
     return '';
   }
