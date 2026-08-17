@@ -61,22 +61,16 @@ The _top value of the target attribute specifies that the URL should open in the
           method="post">
        {$labels.testproject}
       <select style="font-size: 80%;position:relative; top:-1px;"
-        name="testproject" onchange="setHiddenField(this); this.form.submit();">
+        name="testproject" id="projectSelect" onchange="var v=this.value; document.getElementById('tproj').value=v; this.form.submit();">
           {foreach key=item_id item=tproject_name from=$gui->TestProjects}
           <option value="{$item_id}" title="{$tproject_name|escape}"
             {if $item_id == $gui->tproject_id} selected="selected" {/if}>
             {$tproject_name|truncate:#TESTPROJECT_TRUNCATE_SIZE#|escape}</option>
         {/foreach}
       </select>
-      <input type="hidden" name="tproject_id" id="hiddenProjectId" value="">
+      <input type="hidden" name="tproject_id" id="tproj" value="{$gui->tproject_id}">
     </form>
   </li>
-
-  <script type="text/javascript">
-  function setHiddenField(selectElement) {
-    document.getElementById('hiddenProjectId').value = selectElement.value;
-  }
-  </script>
 
   {* the place for test plans will be always displayed*}
   {if $gui->testPlans != null} 
