@@ -84,6 +84,28 @@ $tplEngine->display($tplCfg->template_dir . $tpl);
 
 
 /**
+ * Sets dialogName/bodyOnLoad/bodyOnUnload for the case where this page is
+ * opened embedded in another one (openByOther), mirroring the equivalent
+ * inline logic in keywordsView.php::init_args().
+ *
+ * initializeGui() reads these three properties off $args unconditionally
+ * (see $gui->dialogName = $args->dialogName; and its neighbours), so they
+ * have to exist here even when the page was not opened by another one.
+ */
+function setOpenByAnotherEnv(&$args) {
+  $args->dialogName = '';
+  $args->bodyOnLoad = '';
+  $args->bodyOnUnload = '';
+
+  if( $args->openByOther ) {
+    $args->dialogName = 'kw_dialog';
+    $args->bodyOnLoad = "dialog_onLoad($args->dialogName)";
+    $args->bodyOnUnload = "dialog_onUnload($args->dialogName)";
+  }
+}
+
+
+/**
  * @return object returns the arguments for the page
  */
 function initEnv(&$dbHandler) {
