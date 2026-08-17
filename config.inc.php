@@ -841,8 +841,8 @@ $tlCfg->gui->text_editor['preconditions'] = ['type' => 'ckeditor',
 $tlCfg->gui->text_editor['summary'] = ['type' => 'ckeditor',
 	                                   'toolbar' => 'Testlink',
                                        'configFile' => 'cfg/tl_ckeditor_config.js',
-                                       'height' => 600
-                                      ]; 
+                                       'height' => 100
+                                      ];
 
 
 
