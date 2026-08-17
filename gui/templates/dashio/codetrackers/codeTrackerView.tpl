@@ -29,7 +29,6 @@ var del_action=fRoot+'lib/codetrackers/codeTrackerEdit.php?doAction=doDelete&id=
 
 </head>
 <body {$body_onload}>
-  {include file="aside.tpl"}  
   <div id="main-content">
     <h1 class="title big-font">{$labels.title_codetracker_mgmt}</h1>
     <div class="workBack">

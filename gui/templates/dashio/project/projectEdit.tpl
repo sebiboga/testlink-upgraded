@@ -86,7 +86,6 @@ function manageTracker(selectOID,targetOID)
 <body onload="manageTracker('issue_tracker_id','issue_tracker_enabled');
       manageTracker('code_tracker_id','code_tracker_enabled');">
 
-{include file="aside.tpl"}
 <div id="main-content">
 <h1 class="{#TITLE_CLASS#}">
   {$gui->pageTitle|escape} 

@@ -106,7 +106,6 @@ function refreshLastUpdate (last_update) {
 </head>
 
 <body>
-{include file="aside.tpl"}
 
 <div id="main-content">
 <h1 class="{#TITLE_CLASS#}">{$labels.title_account_settings}</h1>

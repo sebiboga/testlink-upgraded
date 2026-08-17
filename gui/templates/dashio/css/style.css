@@ -399,7 +399,9 @@ ul.sidebar-menu li a.active i {
 
 /* MAIN CONTENT CONFIGURATION */
 #main-content {
-    margin-left: 210px;
+    /* The menu has a frame of its own (asideFrame.tpl), so content pages no
+       longer share a document with it and must not reserve its width. */
+    margin-left: 0;
 }
 
 .header, .footer {

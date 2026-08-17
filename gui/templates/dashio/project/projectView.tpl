@@ -54,7 +54,6 @@ var del_action=fRoot+'{$deleteAction}';
 </head>
 
 <body {$body_onload} style="background-color: #eaeaea">
-{include file="aside.tpl"}
 
 <div id="main-content">
   <h1 class="{#TITLE_CLASS#}">{$gui->pageTitle}</h1>

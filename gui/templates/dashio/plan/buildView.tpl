@@ -48,7 +48,6 @@ var del_action=fRoot+'{$deleteAction}';
 
 <body {$body_onload}>
 
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="{#TITLE_CLASS#}">{$labels.title_build_2}{$smarty.const.TITLE_SEP_TYPE3}{$labels.test_plan}{$smarty.const.TITLE_SEP}{$gui->tplan_name|escape}</h1>

@@ -56,7 +56,6 @@ var del_action=fRoot+'{$managerURL}'+'&doAction=do_delete&id=';
 
 </head>
 <body class="testlink" {$body_onload}>
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="{#TITLE_CLASS#}">{$labels.menu_manage_platforms}</h1>

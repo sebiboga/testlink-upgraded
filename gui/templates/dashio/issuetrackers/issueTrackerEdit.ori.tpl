@@ -71,7 +71,6 @@ function displayITSCfgExample(oid,displayOID)
 </head>
 
 <body>
-{include file="aside.tpl"}  
 
 <div id="main-content">
 <h1 class="title big-font">{$gui->main_descr|escape}</h1>

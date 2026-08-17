@@ -30,7 +30,6 @@ var del_action=fRoot+'lib/issuetrackers/issueTrackerEdit.php?doAction=doDelete&i
 
 </head>
 <body {$body_onload}>
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="title big-font">{$labels.title_issuetracker_mgmt}</h1>

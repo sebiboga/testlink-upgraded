@@ -60,7 +60,6 @@ Purpose: smarty template - create/edit Test Plan
     </script>
   {/if}
 
-  {include file="aside.tpl"}  
   <div id="main-content">
   	<h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>
 

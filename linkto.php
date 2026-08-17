@@ -80,6 +80,7 @@ if (!isset($_GET['load']))
       if( $hasRight ) {
         $gui = new stdClass();
         $gui->titleframe = 'lib/general/navBar.php?caller=linkto';
+        $gui->asideframe = 'lib/general/asideMenu.php';
         $gui->navbar_height = config_get('navbar_height');
         
         if( $args->tproject_id > 0)

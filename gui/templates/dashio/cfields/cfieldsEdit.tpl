@@ -64,7 +64,6 @@ This is done to simplify logic.
 
 
 <body onload="configure_cf_attr('combo_cf_node_type_id',js_enable_on_cfg,js_show_on_cfg);">
-  {include file="aside.tpl"}  
 
   <div id="main-content">
     <h1 class="title big-font">{$labels.title_cfields_mgmt}</h1>

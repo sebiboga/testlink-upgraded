@@ -61,7 +61,6 @@ var del_action=fRoot+'{$gui->actions->deleteAction}';
 </head>
 
 <body {$body_onload}>
-{include file="aside.tpl"}  
 <div id="main-content">
   <h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>
   {if $gui->user_feedback ne ""}

@@ -22,7 +22,6 @@ Purpose: smarty template - Edit a platform
 </head>
 
 <body>
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="{#TITLE_CLASS#}">{$gui->action_descr|escape}</h1>

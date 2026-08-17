@@ -33,13 +33,21 @@
 
 <body class="body-noscroll">
   <section id="container">
-   <iframe src="{$gui->titleframe}" id="titlebar" name="titlebar" 
+   <iframe src="{$gui->titleframe}" id="titlebar" name="titlebar"
            style="display: block;" class="navigationBar">
    </iframe>
 
-   <iframe src="{$gui->mainframe}" id="mainframe" name="mainframe" 
-           style="display: block;" class="siteContent">
-   </iframe>
+   {* The menu is a frame of its own so it survives navigation in the main
+      frame. Content pages no longer draw it - see asideFrame.tpl. *}
+   <div class="siteBody">
+     <iframe src="{$gui->asideframe}" id="asidebar" name="asidebar"
+             style="display: block;" class="navigationAside">
+     </iframe>
+
+     <iframe src="{$gui->mainframe}" id="mainframe" name="mainframe"
+             style="display: block;" class="siteContent">
+     </iframe>
+   </div>
   </section>
 
   {$bs = "{$dashioHome}lib/"}

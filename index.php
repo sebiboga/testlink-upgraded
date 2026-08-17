@@ -141,6 +141,7 @@ function initEnv() {
   $gui = new stdClass();
   $gui->title = lang_get('main_page_title');
   $gui->mainframe = $args->reqURI;
+  $gui->asideframe = 'lib/general/asideMenu.php';
   $gui->navbar_height = config_get('navbar_height');
 
   $sso = ($args->ssodisable ? '&ssodisable' : '');

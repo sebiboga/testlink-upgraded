@@ -31,7 +31,6 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
 </head>
 <body style="background-color: #eaeaea">
-{include file="aside.tpl"}  
 <div id="main-content">
 <h1 class="{#TITLE_CLASS#}">{$labels.title_cfields_mgmt}</h1>
 

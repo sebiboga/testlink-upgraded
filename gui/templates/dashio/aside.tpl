@@ -10,11 +10,11 @@ Left side menu
         <!-- sidebar menu start-->
         <ul class="sidebar-menu" id="nav-accordion">
           <p class="centered"><img src="{$gui->logo}" alt="TestLink"></p>
-          <h4 class="centered"><a href="{$gui->uri->userInfo}">{$gui->whoami}</a></h4>
+          <h4 class="centered"><a href="{$gui->uri->userInfo}" target="mainframe">{$gui->whoami}</a></h4>
           {if $gui->showMenu != null}
             {if $gui->showMenu.dashboard == true}
             <li class="mt">
-              <a class="{$gui->activeMenu.dashboard}" href="../project/projectView.php">
+              <a class="{$gui->activeMenu.dashboard}" href="{$gui->uri->projectView}" target="mainframe">
                 <i class="fa fa-dashboard"></i>
                 <span>Dashboard</span>
                 </a>
@@ -29,15 +29,15 @@ Left side menu
                 <ul class="sub">
                   <li>
                     <a id="quick_search"
-                      href="{$gui->uri->tcSearch}">{$labels.quick_search}</a>
+                      href="{$gui->uri->tcSearch}" target="mainframe">{$labels.quick_search}</a>
                   </li>
                   <li>
                     <a id="href_search_tc"
-                      href="{$gui->uri->tcSearch}">{$labels.href_search_tc}</a>
+                      href="{$gui->uri->tcSearch}" target="mainframe">{$labels.href_search_tc}</a>
                   </li>
                   <li>
                     <a id="advanced_search"
-                      href="{$gui->uri->fullTextSearch}">{$labels.advanced_search}</a>
+                      href="{$gui->uri->fullTextSearch}" target="mainframe">{$labels.advanced_search}</a>
                   </li>
                 </ul>
               </li>
@@ -52,24 +52,24 @@ Left side menu
                   {if $menuGrants->event_viewer == "yes"}
                     <li>
                     <a id="events"
-                        href="{$gui->uri->events}">{$labels.event_viewer}</a>
+                        href="{$gui->uri->events}" target="mainframe">{$labels.event_viewer}</a>
                     </li>
                   {/if}
                   {if $menuGrants->user_mgmt == "yes"}
                     <li>
-                      <a id="userMgmt" href="{$gui->uri->userMgmt}">{$labels.title_user_mgmt}</a>
+                      <a id="userMgmt" href="{$gui->uri->userMgmt}" target="mainframe">{$labels.title_user_mgmt}</a>
                     </li>
                   {/if}
 
                   {if $menuGrants->cfield_management == "yes"}
-                    <li><a id="cfieldsView" href="{$gui->uri->cfieldsView}">{$labels.href_cfields_management}</a>
+                    <li><a id="cfieldsView" href="{$gui->uri->cfieldsView}" target="mainframe">{$labels.href_cfields_management}</a>
                     </li>
                   {/if}
                   {if $gui->access.issuetracker == 'yes'}
-                    <li><a id="issueTrackerView" href="{$gui->uri->issueTrackerView}">{$labels.href_issuetracker_management}</a></li>
+                    <li><a id="issueTrackerView" href="{$gui->uri->issueTrackerView}" target="mainframe">{$labels.href_issuetracker_management}</a></li>
                   {/if}
                   {if $gui->access.codetracker == 'yes'}
-                    <li><a id="codeTrackerView" href="{$gui->uri->codeTrackerView}">{$labels.href_codetracker_management}</a></li>
+                    <li><a id="codeTrackerView" href="{$gui->uri->codeTrackerView}" target="mainframe">{$labels.href_codetracker_management}</a></li>
                   {/if}
                 </ul>
               </li>
@@ -82,23 +82,23 @@ Left side menu
                   </a>
                 <ul class="sub">
                   {if $menuGrants->project_edit == "yes"}
-                    <li><a id="projectView" href="{$gui->uri->projectView}">{$labels.href_tproject_management}</a></li>
+                    <li><a id="projectView" href="{$gui->uri->projectView}" target="mainframe">{$labels.href_tproject_management}</a></li>
                   {/if}
                   {if $menuGrants->tproject_user_role_assignment == "yes"}
-                    <li><a href="{$gui->uri->usersAssign}">{$labels.href_assign_user_roles}</a></li>
+                    <li><a href="{$gui->uri->usersAssign}" target="mainframe">{$labels.href_assign_user_roles}</a></li>
                   {/if}
                   {if $menuGrants->cfield_management == "yes"}
-                    <li><a href="{$gui->uri->cfAssignment}">{$labels.href_cfields_tproject_assign}</a></li>
+                    <li><a href="{$gui->uri->cfAssignment}" target="mainframe">{$labels.href_cfields_tproject_assign}</a></li>
                   {/if}
                   {if $menuGrants->keywords_view == "yes"}
-                    <li><a href="{$gui->uri->keywordsView}">{$labels.href_keywords_manage}</a></li>
+                    <li><a href="{$gui->uri->keywordsView}" target="mainframe">{$labels.href_keywords_manage}</a></li>
                   {/if}
                   {if $gui->access.platform == 'yes'}
-                    <li><a href="{$gui->uri->platformsView}">{$labels.href_platform_management}</a></li>
+                    <li><a href="{$gui->uri->platformsView}" target="mainframe">{$labels.href_platform_management}</a></li>
                   {/if}
 
                   {if $gui->countPlans > 0}
-                  <li><a href="{$gui->uri->metrics_dashboard}">{$labels.href_metrics_dashboard}</a>
+                  <li><a href="{$gui->uri->metrics_dashboard}" target="mainframe">{$labels.href_metrics_dashboard}</a>
                   </li>  
                   {/if}    
                 </ul>
@@ -111,17 +111,17 @@ Left side menu
                   <span>{$labels.requirements_design}</span>
                   </a>
                 <ul class="sub">
-                  <li><a href="{$gui->uri->reqSpecMgmt}">
+                  <li><a href="{$gui->uri->reqSpecMgmt}" target="mainframe">
                   {$labels.href_req_spec}</a></li>
-                  <li><a href="{$gui->uri->reqOverView}">{$labels.href_req_overview}</a></li>
-                  <li><a href="{$gui->uri->printReqSpec}">{$labels.href_print_req}</a></li>
-                  <li><a href="{$gui->uri->searchReq}">{$labels.href_search_req}</a></li>  
-                  <li><a href="{$gui->uri->searchReqSpec}">{$labels.href_search_req_spec}</a></li>  
+                  <li><a href="{$gui->uri->reqOverView}" target="mainframe">{$labels.href_req_overview}</a></li>
+                  <li><a href="{$gui->uri->printReqSpec}" target="mainframe">{$labels.href_print_req}</a></li>
+                  <li><a href="{$gui->uri->searchReq}" target="mainframe">{$labels.href_search_req}</a></li>  
+                  <li><a href="{$gui->uri->searchReqSpec}" target="mainframe">{$labels.href_search_req_spec}</a></li>  
                   {if $menuGrants->req_tcase_link_management == "yes"}
-                    <li><a href="{$gui->uri->assignReq}">{$labels.href_req_assign}</a></li>
+                    <li><a href="{$gui->uri->assignReq}" target="mainframe">{$labels.href_req_assign}</a></li>
                   {/if}
                   {if $menuGrants->monitor_req == "yes"}
-                    <li><a href="{$gui->uri->reqMonOverView}">{$labels.href_req_monitor_overview}</a></li>
+                    <li><a href="{$gui->uri->reqMonOverView}" target="mainframe">{$labels.href_req_monitor_overview}</a></li>
                   {/if}
                 </ul>
               </li>
@@ -133,7 +133,7 @@ Left side menu
                   <span>{$labels.tests_design}</span>
                   </a>
                 <ul class="sub">
-                  <li><a href="{$gui->uri->testSpec}">
+                  <li><a href="{$gui->uri->testSpec}" target="mainframe">
                   {if $menuGrants->modify_tc eq "yes"}
                     {lang_get s='href_edit_tc'}
                   {else}
@@ -141,15 +141,15 @@ Left side menu
                   {/if}</a></li>
                   
                   {if $menuGrants->view_tc == "yes"}
-                  <li><a href="{$gui->uri->tcSearch}">{$labels.href_search_tc}</a></li>
+                  <li><a href="{$gui->uri->tcSearch}" target="mainframe">{$labels.href_search_tc}</a></li>
                   {/if}
 
                   {if $gui->hasKeywords && 
                       $menuGrants->keyword_assignment == "yes"}
-                    <li><a href="{$gui->uri->keywordsAssign}">{$labels.href_keywords_assign}</a></li>
+                    <li><a href="{$gui->uri->keywordsAssign}" target="mainframe">{$labels.href_keywords_assign}</a></li>
                   {/if}
                   {if $menuGrants->modify_tc == 'yes'}
-                    <li><a href="{$gui->uri->tcCreatedUser}">{$labels.link_report_test_cases_created_per_user}</a></li>
+                    <li><a href="{$gui->uri->tcCreatedUser}" target="mainframe">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
                 </ul>
               </li>
@@ -162,7 +162,7 @@ Left side menu
                   </a>
                 <ul class="sub">
                   {if $menuGrants->mgt_testplan_create == "yes"}
-                  <li><a href="{$gui->uri->planView}">
+                  <li><a href="{$gui->uri->planView}" target="mainframe">
                   {$labels.href_plan_management}</a>
                   </li>
                   {/if}
@@ -170,36 +170,36 @@ Left side menu
                   {if $gui->uri->buildView != null 
                       && $menuGrants->testplan_create_build == "yes" 
                       && $gui->countPlans > 0}
-                    <li><a href="{$gui->uri->buildView}">{$labels.href_build_new}</a>
+                    <li><a href="{$gui->uri->buildView}" target="mainframe">{$labels.href_build_new}</a>
                     </li>  
                   {/if}    
 
                   {if $gui->uri->planAddTC != null}
-                    <li><a href="{$gui->uri->planAddTC}">{$labels.href_add_remove_test_cases}</a>
+                    <li><a href="{$gui->uri->planAddTC}" target="mainframe">{$labels.href_add_remove_test_cases}</a>
                     </li>  
                   {/if}
 
                   {if $gui->uri->platformAssign != null
                       && $menuGrants->testplan_add_remove_platforms == "yes" 
                       && $gui->countPlans > 0}
-                    <li><a href="{$gui->uri->platformAssign}">{$labels.href_platform_assign}</a>
+                    <li><a href="{$gui->uri->platformAssign}" target="mainframe">{$labels.href_platform_assign}</a>
                     </li>  
                   {/if}    
 
                   {if $gui->uri->setTestUrgency != null
                       && $menuGrants->testplan_set_urgent_testcases == "yes"}
-                    <li><a href="{$gui->uri->setTestUrgency}">{$labels.href_plan_assign_urgency}</a>
+                    <li><a href="{$gui->uri->setTestUrgency}" target="mainframe">{$labels.href_plan_assign_urgency}</a>
                   {/if}
 
                   {if $gui->uri->planUpdateTC != null
                       && $menuGrants->testplan_update_linked_testcase_versions == "yes"}
-                    <a href="{$gui->uri->planUpdateTC}">
+                    <a href="{$gui->uri->planUpdateTC}" target="mainframe">
                     {$labels.href_update_tplan}</a>
                   {/if} 
 
                   {if $gui->uri->showNewestTCV != null
                       && $menuGrants->testplan_show_testcases_newest_versions == "yes"}
-                    <a href="{$gui->uri->showNewestTCV}">{$labels.href_newest_tcversions}</a>
+                    <a href="{$gui->uri->showNewestTCV}" target="mainframe">{$labels.href_newest_tcversions}</a>
                   {/if} 
                 </ul>
               </li>
@@ -219,24 +219,24 @@ Left side menu
                   {/if}
 
                   {if $gui->uri->executeTest != null}
-                    <li><a href="{$gui->uri->executeTest}">
+                    <li><a href="{$gui->uri->executeTest}" target="mainframe">
                     {$lbx}</a></li>
                   {/if}
 
                   {if $gui->uri->assignTCVExecution != null}
-                    <li><a href="{$gui->uri->assignTCVExecution}">
+                    <li><a href="{$gui->uri->assignTCVExecution}" target="mainframe">
                     {$labels.href_tc_exec_assignment}</a></li>
                   {/if}
                     
                   {if $gui->uri->testcase_assignments != null
                       && $menuGrants->exec_testcases_assigned_to_me == "yes"}
-                    <li><a href="{$gui->uri->testcase_assignments}">{$labels.href_my_testcase_assignments}</a>
+                    <li><a href="{$gui->uri->testcase_assignments}" target="mainframe">{$labels.href_my_testcase_assignments}</a>
                   {/if} 
 
                   {if $gui->uri->milestonesView != null
                       && $menuGrants->testplan_milestone_overview == "yes" 
                       && $gui->countPlans > 0}
-                    <li><a href="{$gui->uri->milestonesView}" >{$labels.href_plan_mstones}</a></li>
+                    <li><a href="{$gui->uri->milestonesView}" target="mainframe" >{$labels.href_plan_mstones}</a></li>
                   {/if}
                 </ul>
               </li>
@@ -245,7 +245,7 @@ Left side menu
             {if $gui->showMenu.reports == true}
               <li>
                 <a class="{$gui->activeMenu.reports}" 
-                  href="{$gui->uri->showMetrics}">
+                  href="{$gui->uri->showMetrics}" target="mainframe">
                   <i class="fas fa-chart-line"></i>
                   <span>{$labels.reports}</span>
                 </a>

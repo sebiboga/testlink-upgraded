@@ -34,7 +34,6 @@ Purpose: management Custom fields assignment to a test project
 
 
 <body>
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="{#TITLE_CLASS#}">

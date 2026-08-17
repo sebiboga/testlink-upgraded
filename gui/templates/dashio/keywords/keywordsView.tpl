@@ -49,7 +49,6 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 </head>
 
 <body onLoad="{$gui->bodyOnLoad}" onUnload="{$gui->bodyOnUnload}" class="testlink">
-{include file="aside.tpl"}
 <div id="main-content">
 <h1 class="{#TITLE_CLASS#}">{$labels.menu_manage_keywords}</h1>
 

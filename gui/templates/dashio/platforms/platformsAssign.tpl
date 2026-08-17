@@ -82,7 +82,6 @@ Purpose: smarty template - assign platforms to testplans
 </head>
 
 <body {if $gui->can_do} onLoad="{$opt_cfg->js_ot_name}.init(document.forms[0])" {/if}>
-{include file="aside.tpl"}  
 
 <div id="main-content">
 <div class="workBack">

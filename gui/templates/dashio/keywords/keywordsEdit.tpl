@@ -36,7 +36,6 @@ function validateForm(f)
 </head>
 
 <body onLoad="{$gui->bodyOnLoad}" onUnload="{$gui->bodyOnUnload}">
-{include file="aside.tpl"}  
 <div id="main-content">
 
 <h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>

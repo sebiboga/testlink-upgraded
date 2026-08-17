@@ -34,7 +34,6 @@ var {$opt_cfg->js_ot_name} = new OptionTransfer("{$opt_cfg->from->name}","{$opt_
 >
 
 {if $gui->caller == ''}
-  {include file="aside.tpl"}
 {/if}
 
 {if $gui->caller == ''}

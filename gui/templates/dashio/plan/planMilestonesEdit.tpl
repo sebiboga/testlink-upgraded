@@ -102,7 +102,6 @@ function validateForm(f)
 </head>
 
 <body class="testlink">
-{include file="aside.tpl"}  
 <div id="main-content">
 <div class="workBack">
   {include file="inc_update.tpl" user_feedback=$gui->user_feedback}

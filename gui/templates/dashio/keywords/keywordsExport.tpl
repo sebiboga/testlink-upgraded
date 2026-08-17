@@ -30,7 +30,6 @@ function validateForm(f)
 
 
 <body>
-{include file="aside.tpl"}  
 <div id="main-content">
 <h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>
 

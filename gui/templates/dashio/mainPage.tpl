@@ -33,7 +33,6 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   <link rel="stylesheet" type="text/css" href="{$css|replace:'default':'dashio'}?v={$tlVersion|escape:'url'}">
 </head>
 <body>
-{include file="aside.tpl"}
     <section id="main-content">
       <section class="wrapper">
         <div class="row">
