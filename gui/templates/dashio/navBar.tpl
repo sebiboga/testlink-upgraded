@@ -53,7 +53,7 @@ The _top value of the target attribute specifies that the URL should open in the
         <ul class="nav pull-right top-menu">
 
 {* style="margin-top: 20px;padding-right: 30px;" *}
-{if $gui->testProjects != ""}
+{if $gui->TestProjects != ""}
   <li class="combo">
     <form style="display:inline" name="projectForm" 
           target="{$topBrowsingContext}" 
@@ -62,7 +62,7 @@ The _top value of the target attribute specifies that the URL should open in the
        {$labels.testproject}
       <select style="font-size: 80%;position:relative; top:-1px;" 
         name="tproject_id" onchange="this.form.submit();">
-          {foreach key=item_id item=tproject_name from=$gui->testProjects}
+          {foreach key=item_id item=tproject_name from=$gui->TestProjects}
           <option value="{$item_id}" title="{$tproject_name|escape}"
             {if $item_id == $gui->tproject_id} selected="selected" {/if}>
             {$tproject_name|truncate:#TESTPROJECT_TRUNCATE_SIZE#|escape}</option>
