@@ -72,6 +72,34 @@ $tplEngine->display('main.tpl');
 
 
 /**
+ * Work area to show after a test project switch.
+ *
+ * The test project selector targets _top, so choosing a project rebuilds the
+ * whole frameset here and the user would always land on the main page. Send
+ * them back to the work area they were in instead.
+ *
+ * Only features that depend on the test project alone are accepted. The ones
+ * getActions() guards behind a test plan reference the previous project's test
+ * plan, so they fall back to the main page, as does anything unknown: the
+ * feature is never echoed into the URL, only matched against this list.
+ */
+function getReturnWorkArea($feature) {
+  $mainPage = 'lib/general/mainPage.php';
+
+  if (!is_string($feature)) {
+    return $mainPage;
+  }
+
+  $tprojectScoped = array('editTc','keywordsAssign','assignReqs',
+                          'reqSpecMgmt','printReqSpec',
+                          'searchReq','searchReqSpec');
+
+  return in_array($feature,$tprojectScoped,true)
+         ? 'lib/general/frmWorkArea.php?feature=' . $feature
+         : $mainPage;
+}
+
+/**
  *
  *
  */
@@ -98,7 +126,10 @@ function initEnv() {
     }
   }
   if (null == $args->reqURI) {
-    $args->reqURI = 'lib/general/mainPage.php';
+    // read from _REQUEST as tproject_id below: the test project selector
+    // posts, and G_PARAMS() only looks at GET
+    $args->reqURI = getReturnWorkArea(isset($_REQUEST['returnFeature'])
+                                      ? $_REQUEST['returnFeature'] : null);
   }
   $args->reqURI = $_SESSION['basehref'] . $args->reqURI;
 
