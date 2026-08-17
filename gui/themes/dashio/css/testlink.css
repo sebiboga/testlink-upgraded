@@ -1208,3 +1208,18 @@ ul.top-menu > li > a.logout:hover {
 	text-decoration: none;
 }
 /* ----- END ------------------------------------------------------------------------- */
+
+/* ----- Sidebar top-level hover vs. active -----------------------------------------
+   The dashio template gives a top-level sidebar item (e.g. "System") the exact same
+   solid teal background for :hover/:focus as for .active ("this is the open
+   section"), so simply moving the mouse over an item made it look selected even
+   when it wasn't - that's what made the "why are two sections highlighted"
+   screenshot so confusing, since the mouse just happened to be resting there.
+   :not(.active) keeps the real active item's stronger solid-teal look intact even
+   while it's being hovered. */
+ul.sidebar-menu li a:hover:not(.active),
+ul.sidebar-menu li a:focus:not(.active) {
+	background: rgba(255, 255, 255, 0.08);
+	color: #fff;
+}
+/* ----- END ------------------------------------------------------------------------- */
