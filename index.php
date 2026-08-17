@@ -109,6 +109,12 @@ function initEnv() {
   $gui = new stdClass();
   $gui->title = lang_get('main_page_title');
   $gui->mainframe = $args->reqURI;
+  if($args->tproject_id > 0) {
+    $gui->mainframe .= "?tproject_id={$args->tproject_id}";
+    if($args->tplan_id > 0) {
+      $gui->mainframe .= "&tplan_id={$args->tplan_id}";
+    }
+  }
   $gui->navbar_height = config_get('navbar_height');
 
   $sso = ($args->ssodisable ? '&ssodisable' : '');
