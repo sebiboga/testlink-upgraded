@@ -22,6 +22,13 @@ main frame and is built once per test project rather than once per page.
   <link href="{$dashioHome}css/style.css" rel="stylesheet">
   <link href="{$dashioHome}css/style-responsive.css" rel="stylesheet">
 
+  {* The TestLink theme stylesheet carries the sidebar overrides - the white
+     card behind the logo and the yellow user name, both of which are
+     unreadable against the dark sidebar without it. Loaded last so those
+     overrides win over the dashio defaults. *}
+  <link rel="stylesheet" type="text/css"
+        href="{$css|replace:'default':'dashio'}?v={$tlVersion|escape:'url'}">
+
   <style type="text/css">
     /* The frame is exactly as wide as the menu, so drop the page chrome that
        assumes the menu shares a document with content. */
