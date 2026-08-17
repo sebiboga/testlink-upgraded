@@ -141,7 +141,16 @@ function event_callback($p_event, $p_callback, $p_plugin, $p_params = null) {
     global $g_plugin_cache;
     plugin_push_current( $p_plugin );
     if (method_exists($g_plugin_cache[$p_plugin], $p_callback)) {
-      $t_value = call_user_func_array(array($g_plugin_cache[$p_plugin], $p_callback), array_merge(array($p_event), $p_params));
+      // $p_params can be an associative array (e.g. execSetResults.php passes
+      // ['tplan_id' => ..., 'build_id' => ...] for EVENT_TESTRUN_DISPLAY).
+      // array_merge() keeps string keys, and PHP 8 reads string keys in a
+      // call_user_func_array() argument list as named arguments - callbacks
+      // like TLTest's testrun_display_block(), which take no declared
+      // parameters (they read func_get_args() instead), have no parameter
+      // named e.g. $tplan_id, so PHP 8 throws "Unknown named parameter"
+      // where PHP 7 just passed everything positionally. array_values()
+      // restores that positional-only behaviour.
+      $t_value = call_user_func_array(array($g_plugin_cache[$p_plugin], $p_callback), array_merge(array($p_event), array_values($p_params)));
     }
     plugin_pop_current();
 
