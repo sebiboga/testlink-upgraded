@@ -71,7 +71,7 @@ The _top value of the target attribute specifies that the URL should open in the
           action="index.php?action=projectChange"
           method="post">
        {$labels.testproject}
-      <select style="font-size: 80%;position:relative; top:-1px;"
+      <select style="font-size: 105%;position:relative; top:-1px;"
         name="testproject" id="projectSelect" onchange="switchTestProject(this);">
           {foreach key=item_id item=tproject_name from=$gui->TestProjects}
           <option value="{$item_id}" title="{$tproject_name|escape}"
