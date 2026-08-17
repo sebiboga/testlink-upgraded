@@ -60,10 +60,11 @@ if($redir2login) {
 
 
 // We arrive to these lines only if we are logged in
-// 
-// Calling testlinkInitPage() I'm doing what we do on navBar.php
-// navBar.php is called via main.tpl
-// testlinkInitPage($db,('initProject' == 'initProject'));
+//
+// The frameset must commit the requested test project to the session before
+// the iframes load: titlebar and mainframe issue independent requests, so a
+// project chosen here would otherwise be seen by only one of them.
+initProject($db,$_REQUEST);
 
 $tplEngine = new TLSmarty();
 $tplEngine->assign('gui', $gui);
@@ -109,12 +110,6 @@ function initEnv() {
   $gui = new stdClass();
   $gui->title = lang_get('main_page_title');
   $gui->mainframe = $args->reqURI;
-  if($args->tproject_id > 0) {
-    $gui->mainframe .= "?tproject_id={$args->tproject_id}";
-    if($args->tplan_id > 0) {
-      $gui->mainframe .= "&tplan_id={$args->tplan_id}";
-    }
-  }
   $gui->navbar_height = config_get('navbar_height');
 
   $sso = ($args->ssodisable ? '&ssodisable' : '');
