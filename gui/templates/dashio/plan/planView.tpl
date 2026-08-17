@@ -80,7 +80,7 @@ var del_action=fRoot+'{$gui->actions->deleteAction}';
           <input type="hidden" name="tproject_id" id="tproject_id" value="{$gui->tproject_id}">
           <input type="hidden" name="do_action" id="do_action" value="NONE">
 
-          {if $gui->createEnabled && !is_null($gui->tplans) &&  
+          {if $gui->grants->testplan_create && $gui->tproject_id > 0 && !is_null($gui->tplans) &&
               count($gui->tplans) > $tlCfg->gui->planView->itemQtyForTopButton}
                 <div class="page-content">
                   <input class="{#BUTTON_CLASS#}" type="submit" name="create_testplan_top" onClick="do_action.value='create'" value="{$labels.btn_testplan_create}" />
@@ -184,7 +184,7 @@ var del_action=fRoot+'{$gui->actions->deleteAction}';
             </tbody>
           </table>
 
-          {if $gui->createEnabled}
+          {if $gui->grants->testplan_create && $gui->tproject_id > 0}
                 <div class="page-content">
                   <input class="{#BUTTON_CLASS#}" type="submit" name="create_testplan_bottom" onClick="do_action.value='create'" value="{$labels.btn_testplan_create}" />
                   <input class="{#BUTTON_CLASS#}" type="submit" name="set_active_bottom" onClick="do_action.value='setActiveBulk'; return validateActiveInactiveBulk();" 
