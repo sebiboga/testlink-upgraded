@@ -301,8 +301,19 @@ abstract class tlFilterControl extends tlObjectWithDB
     
     $this->args->testproject_id = intval(isset($_SESSION['testprojectID']) ?
                                   $_SESSION['testprojectID'] : 0);
+
+    // $_SESSION['testprojectName'] is not written anywhere in the codebase,
+    // so this always fell through to the 0 default below - mirroring the
+    // fallback for testproject_id just above, which makes sense for an ID
+    // but not for a name. Every consumer of this value concatenates it
+    // straight into a display label (e.g. tlTestCaseFilterControl::
+    // build_tree_menu() builds "{name} ({count})" for the test spec tree
+    // root), so the tree root was always labelled "0 (N)" instead of the
+    // project name. Look it up instead of trusting a session key nothing
+    // sets.
     $this->args->testproject_name = isset($_SESSION['testprojectName']) ?
-                                    $_SESSION['testprojectName'] : 0;
+                                    $_SESSION['testprojectName'] :
+                                    testproject::getName($this->db, $this->args->testproject_id);
     
     $params = array();
     $params['setting_refresh_tree_on_action'] = array("POST", tlInputParameter::CB_BOOL);

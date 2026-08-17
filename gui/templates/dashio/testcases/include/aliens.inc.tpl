@@ -60,7 +60,15 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   </script>
 {/if}
 
+{* $tlCfg->aliens->moreColumns is not populated by any config in this
+   codebase (only the unrelated $tlCfg->testcase_cfg->aliens->relationsType
+   exists), so this is always null. count(null) is a fatal TypeError under
+   PHP 8; default to no extra columns, which is what an empty config would
+   mean anyway. *}
 {$moreCol = $tlCfg->aliens->moreColumns}
+{if !is_array($moreCol)}
+  {$moreCol = array()}
+{/if}
 
 <form method="post" action="{$basehref}lib/testcases/tcEdit.php">
   <input type="hidden" id="alf_doAction" name="doAction"
