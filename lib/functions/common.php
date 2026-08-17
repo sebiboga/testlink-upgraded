@@ -1527,9 +1527,32 @@ function tlSetCookie($ckObj) {
   foreach($ckObj as $prop => $value) {
     $stdCk->$prop = $value;
   }
-  
+
   setcookie($stdCk->name, $stdCk->value, $stdCk->expire,$stdCk->path,
             $stdCk->domain,$stdCk->secure,$stdCk->httponly);
+}
+
+
+/**
+ * Name of the cookie remembering whether the left side menu is collapsed.
+ * Written by the menu frame, read here.
+ */
+function menuRailCookieName() {
+  return config_get('cookie')->prefix . '_menuRail';
+}
+
+
+/**
+ * Is the left side menu collapsed to its icon rail?
+ *
+ * Kept in a cookie so the frameset and the menu can both be rendered already
+ * collapsed. Applying it from JavaScript after load would show the menu at
+ * full width first and then snap it shut, which is what a test project switch
+ * used to look like.
+ */
+function menuRailIsOn() {
+  $ck = menuRailCookieName();
+  return isset($_COOKIE[$ck]) && '1' == $_COOKIE[$ck];
 }
 
 

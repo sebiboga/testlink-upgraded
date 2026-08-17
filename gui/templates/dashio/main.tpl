@@ -40,8 +40,11 @@
    {* The menu is a frame of its own so it survives navigation in the main
       frame. Content pages no longer draw it - see asideFrame.tpl. *}
    <div class="siteBody">
+     {* Rendered collapsed straight away when it was left that way, rather
+        than snapping shut once the menu has loaded. *}
      <iframe src="{$gui->asideframe}" id="asidebar" name="asidebar"
-             style="display: block;" class="navigationAside">
+             style="display: block;"
+             class="navigationAside{if isset($gui->asideRailed) && $gui->asideRailed} railed{/if}">
      </iframe>
 
      <iframe src="{$gui->mainframe}" id="mainframe" name="mainframe"

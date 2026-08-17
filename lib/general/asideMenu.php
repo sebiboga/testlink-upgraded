@@ -22,4 +22,10 @@ testlinkInitPage($db,('initProject' == 'initProject'));
 // empty object is all that has to be handed over.
 $smarty = new TLSmarty();
 $smarty->assign('gui',new stdClass());
+
+// Render collapsed from the start when it was left that way, instead of
+// painting the menu at full width and then snapping it shut.
+$smarty->assign('railed',menuRailIsOn());
+$smarty->assign('menuRailCookie',menuRailCookieName());
+
 $smarty->display('asideFrame.tpl');

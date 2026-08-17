@@ -69,7 +69,7 @@ main frame and is built once per test project rather than once per page.
           src="{$basehref}{$smarty.const.TL_JQUERY}"
           language="javascript"></script>
 </head>
-<body>
+<body{if $railed} class="rail"{/if}>
 
 {include file="aside.tpl"}
 
@@ -98,6 +98,11 @@ function tlSetRail(on) {ldelim}
   if (frameEl) {ldelim}
     frameEl.className = on ? 'navigationAside railed' : 'navigationAside';
   {rdelim}
+
+  /* Remembered so a test project switch, which rebuilds the whole frameset,
+     comes back the way it was left. Read server side by menuRailIsOn(). */
+  document.cookie = '{$menuRailCookie}=' + (on ? '1' : '0') +
+                    ';path=/;max-age=' + (60 * 60 * 24 * 30);
 {rdelim}
 
 $(function() {ldelim}
