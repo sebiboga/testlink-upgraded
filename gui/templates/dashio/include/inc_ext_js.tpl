@@ -63,6 +63,11 @@ Purpose: include files for:
       <script type="text/javascript" src="{$basehref}{$ext_location}/ux/ToolbarReorderer.js" language="javascript"></script>
       <script type="text/javascript" src="{$basehref}{$ext_location}/ux/ToolbarDroppable.js" language="javascript"></script>
       <script type="text/javascript" src="{$basehref}{$ext_location}/ux/Exporter-all.js" language="javascript"></script>
+      {* Needed by TreePanelState in gui/javascript/tcTree.js to save/restore
+         which tree nodes are expanded. Present in the tl-classic theme's
+         copy of this template but dropped when the dashio theme was built;
+         without it the tree always reloads collapsed. *}
+      <script type="text/javascript" src="{$basehref}{$ext_location}/ux/LocalStorageProvider.js" language="javascript"></script>
       
       {* Grid Filters *}
       <script type="text/javascript" src="{$basehref}{$ext_location}/ux/gridfilters/menu/RangeMenu.js" language="javascript"></script>

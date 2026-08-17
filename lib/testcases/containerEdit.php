@@ -1154,12 +1154,22 @@ function initWebEditors($action,$itemType,$editorCfg) {
 
   $oWebEditor = array();
   $htmlNames = '';
-  if( isset($webEditorKeys[$accessKey]) ) {  
+  if( isset($webEditorKeys[$accessKey]) ) {
     $htmlNames = $webEditorKeys[$accessKey];
     foreach ($htmlNames as $key) {
       $oWebEditor[$key] = web_editor($key,$_SESSION['basehref'],$editorCfg);
     }
   }
+
+  // $editorCfg comes from the shared 'design' area (getWebEditorCfg('design')
+  // at the top of this file), also used by several read-only content
+  // displays (search results, execution results, print options) that may
+  // want the taller default. Override just the height here, scoped to the
+  // test suite Details editor, rather than shrinking 'design' globally.
+  if( isset($oWebEditor['details']) && isset($oWebEditor['details']->Editor) ) {
+    $oWebEditor['details']->Editor->config['height'] = 80;
+  }
+
   return array($oWebEditor,$htmlNames,$itemTemplateKey);
 }
 
