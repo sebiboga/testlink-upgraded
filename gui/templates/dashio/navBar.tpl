@@ -55,21 +55,28 @@ The _top value of the target attribute specifies that the URL should open in the
 {* style="margin-top: 20px;padding-right: 30px;" *}
 {if $gui->TestProjects != ""}
   <li class="combo">
-    <form style="display:inline" name="projectForm" 
-          target="{$topBrowsingContext}" 
-          action="index.php?action=projectChange" 
+    <form style="display:inline" name="projectForm"
+          target="{$topBrowsingContext}"
+          action="index.php?action=projectChange"
           method="post">
        {$labels.testproject}
       <select style="font-size: 80%;position:relative; top:-1px;"
-        name="testproject" onchange="this.form.submit();">
+        name="testproject" onchange="setHiddenField(this); this.form.submit();">
           {foreach key=item_id item=tproject_name from=$gui->TestProjects}
           <option value="{$item_id}" title="{$tproject_name|escape}"
             {if $item_id == $gui->tproject_id} selected="selected" {/if}>
             {$tproject_name|truncate:#TESTPROJECT_TRUNCATE_SIZE#|escape}</option>
         {/foreach}
       </select>
+      <input type="hidden" name="tproject_id" id="hiddenProjectId" value="">
     </form>
   </li>
+
+  <script type="text/javascript">
+  function setHiddenField(selectElement) {
+    document.getElementById('hiddenProjectId').value = selectElement.value;
+  }
+  </script>
 
   {* the place for test plans will be always displayed*}
   {if $gui->testPlans != null} 
