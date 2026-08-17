@@ -24,6 +24,19 @@ title bar + menu
 
   <link href="{$dashioHome}css/style.css" rel="stylesheet">
   <link href="{$dashioHome}css/style-responsive.css" rel="stylesheet">
+
+  {* .header is position:fixed, so it's out of normal flow and doesn't
+     contribute to html/body's content height in this frame; whatever
+     html/body's own background is shows through in any part of the
+     navigationBar iframe (sized to 10% of viewport height in frame.css)
+     that the fixed 60px header doesn't cover. Match it to the header so
+     there's no visible seam, with !important since the inline style on
+     body alone was not winning here. *}
+  <style type="text/css">
+  html, body {
+    background: #DEDEAD !important;
+  }
+  </style>
 </head>
 
 <!--
@@ -34,7 +47,7 @@ The _top value of the target attribute specifies that the URL should open in the
 -->
 {$topBrowsingContext = "_top"}
 
-<body style="min-width: 800px;">
+<body style="min-width: 800px; background: #DEDEAD; margin: 0;">
     <header class="header black-bg">
       <div class="sidebar-toggle-box">
         <div class="fa fa-bars tooltips" data-placement="right" data-original-title="{$labels.toggle_navigation}"></div>

@@ -39,9 +39,19 @@ main frame and is built once per test project rather than once per page.
       overflow-x: hidden;
       background: #2f323a;
     {rdelim}
+    /* #sidebar's height:100% (below) only resolves against a parent with
+       a definite height. body has one, but <aside> - the element actually
+       between body and #sidebar - didn't, so the percentage fell back to
+       auto and #sidebar collapsed to its content's height instead of
+       filling the frame. */
+    aside {ldelim}
+      display: block;
+      height: 100%;
+    {rdelim}
     #sidebar {ldelim}
       position: static;
       width: 100%;
+      height: 100%;
     {rdelim}
 
     /* Collapsed to an icon rail. The frame itself is narrowed by the
