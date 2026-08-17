@@ -137,6 +137,15 @@ $(function() {ldelim}
     autoExpand: true,
     classExpand: 'dcjq-current-parent'
   {rdelim});
+
+  /* Long labels (e.g. "Requirement Specification Document") are truncated with
+     an ellipsis - see testlink.css. Give each its untruncated text as a native
+     title so hovering still reveals it, without hand-editing every <a> above. */
+  $('#sidebar ul.sidebar-menu ul.sub li a').each(function() {ldelim}
+    if (!this.title) {ldelim}
+      this.title = $(this).text().trim();
+    {rdelim}
+  {rdelim});
 {rdelim});
 </script>
 </body>

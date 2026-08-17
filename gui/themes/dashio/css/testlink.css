@@ -1223,3 +1223,21 @@ ul.sidebar-menu li a:focus:not(.active) {
 	color: #fff;
 }
 /* ----- END ------------------------------------------------------------------------- */
+
+/* ----- Sidebar submenu labels too long for the 210px sidebar -----------------------
+   The dashio template fixes these links to one line: height:35px, line-height:35px.
+   A label too long for the sidebar (e.g. "Requirement Specification Document",
+   "Search Requirement Specifications", "Requirement Monitoring Overview") wrapped
+   onto a second line that the fixed-height box clipped and the next <li>'s opaque
+   background painted over - it silently disappeared, leaving what looked like a
+   duplicate of a shorter label instead of the real one.
+   Rather than let rows grow to fit wrapped text (uneven row heights, cramped for a
+   210px rail), keep every row the same single-line height and truncate the label
+   with an ellipsis; a small script in asideFrame.tpl sets a native title attribute
+   with the full text so hovering still reveals it. */
+ul.sidebar-menu li ul.sub li a {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* ----- END ------------------------------------------------------------------------- */
