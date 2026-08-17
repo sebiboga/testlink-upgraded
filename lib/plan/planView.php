@@ -161,8 +161,16 @@ function initializeGui(&$dbHandler,$argsObj)
   $gui->user_feedback = '';
   $gui->grants = new stdClass();
   $gui->grants->testplan_create = $argsObj->user->hasRight($dbHandler,"mgt_testplan_create",$argsObj->tproject_id);
-  $gui->main_descr = lang_get('testplan_title_tp_management'). " - " . 
-                     lang_get('testproject') . ' ' . $argsObj->tproject_name;
+
+  // $_SESSION['testprojectName'] isn't set on every navigation path that
+  // can reach this page, so fall back to a real DB lookup rather than
+  // showing a blank project name (same fix as issue #445).
+  $tproject_name = $argsObj->tproject_name;
+  if ($tproject_name == '') {
+    $tproject_name = testproject::getName($dbHandler, $argsObj->tproject_id);
+  }
+  $gui->main_descr = lang_get('testplan_title_tp_management'). " - " .
+                     lang_get('testproject') . ' ' . $tproject_name;
   $cfg = getWebEditorCfg('testplan');
   $gui->editorType = $cfg['type'];
   
