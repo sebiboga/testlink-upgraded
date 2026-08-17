@@ -1778,6 +1778,7 @@ function getActions(&$gui,$baseURL) {
   $actions->platformsView = "$bb/platforms/platformsView.php?{$ctx}";
   $actions->issueTrackerView = "$bb/issuetrackers/issueTrackerView.php?{$ctx}";
   $actions->codeTrackerView = "$bb/codetrackers/codeTrackerView.php?{$ctx}";
+  $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
   $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
   $actions->reqMonOverView = "$bb/requirements/reqMonitorOverview.php?{$ctx}";
   $actions->tcSearch = "$bb/testcases/tcSearch.php?doAction=userInput&{$ctx}";
@@ -1883,7 +1884,8 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
       'configuration' => "system_configuraton",
       'usergroups' => "mgt_view_usergroups",
       'event_viewer' => "events_mgt",
-      'user_mgmt' => "mgt_users"
+      'user_mgmt' => "mgt_users",
+      'plugin_management' => "mgt_plugins"
     );
       
   $r2cTranslate = 

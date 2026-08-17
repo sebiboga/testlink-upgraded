@@ -72,6 +72,9 @@ Left side menu
                   {if $gui->access.codetracker == 'yes'}
                     <li><a id="codeTrackerView" href="{$gui->uri->codeTrackerView}" target="mainframe">{$labels.href_codetracker_management}</a></li>
                   {/if}
+                  {if $menuGrants->plugin_management == "yes"}
+                    <li><a id="pluginView" href="{$gui->uri->pluginView}" target="mainframe">{$labels.title_plugins}</a></li>
+                  {/if}
                 </ul>
               </li>
             {/if}
@@ -96,6 +99,14 @@ Left side menu
                   {/if}
                   {if $gui->access.platform == 'yes'}
                     <li><a href="{$gui->uri->platformsView}" target="mainframe">{$labels.href_platform_management}</a></li>
+                  {/if}
+
+                  {* project_inventory_view/management come back as the string
+                     "yes" normally, but as int 1/0 when the test project has
+                     inventory explicitly enabled (see getGrantSetWithExit()) -
+                     check truthiness rather than an exact "yes" match. *}
+                  {if $menuGrants->project_inventory_view || $menuGrants->project_inventory_management}
+                    <li><a href="{$gui->uri->inventoryView}" target="mainframe">{$labels.href_inventory_management}</a></li>
                   {/if}
 
                   {if $gui->countPlans > 0}
