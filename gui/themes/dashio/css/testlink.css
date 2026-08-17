@@ -1157,6 +1157,10 @@ div.form-border {
 	float :left;
 }
 
+.header.black-bg {
+	background: #DEDEAD;
+}
+
 /* ----- Title bar brand mark ----------------------------------------------------------
    The sidebar no longer carries a logo, so the white card that made the
    dark-text wordmark readable there is gone with it. The title bar shows the
@@ -1175,12 +1179,28 @@ div.form-border {
    instead of text. Yellow on hover picks up the brand colour from the
    TestLink mark. */
 .top-menu li.tlWhoami a {
-	color: #f2f2f2;
+	color: #606468;
 	background: none;
 	/* ul.top-menu > li > a boxes every entry with !important, which suits the
 	   Logout button but frames the user name in a stray outline. */
 	border: 0 !important;
 	padding: 5px 10px;
+	margin-top: 15px;
+}
+
+/* Near-white text on the logout button's light teal background was low
+   contrast once the header stopped being dark. The generic
+   ul.top-menu > li > a:hover rule below also forces a transparent
+   background and light grey text with !important, which strips the teal
+   pill on hover and leaves light grey on the pale header - just as
+   unreadable. Both states need an explicit override here. */
+ul.top-menu > li > a.logout {
+	color: #22242a !important;
+}
+ul.top-menu > li > a.logout:hover {
+	color: #22242a !important;
+	background-color: #4ECDC4 !important;
+	border-color: #64c3c2 !important;
 }
 .top-menu li.tlWhoami a:hover {
 	color: #f2c811;

@@ -37,22 +37,15 @@ The _top value of the target attribute specifies that the URL should open in the
 <body style="min-width: 800px;">
     <header class="header black-bg">
       <div class="sidebar-toggle-box">
-        <a href="index.php?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}" 
-           target="{$topBrowsingContext}">
-        <div class="fas fa-sync tooltips" data-placement="right" data-original-title="{$labels.reload_main_view}"></div>
-        </a>
-      </div>
-      <div class="sidebar-toggle-box">
         <div class="fa fa-bars tooltips" data-placement="right" data-original-title="{$labels.toggle_navigation}"></div>
       </div>
-      {* The solo mark, not the full logo: that one carries the word TestLink
-         in dark text for light backgrounds, so on this bar it would need the
-         same white card the sidebar needed. This is the only brand mark now,
-         the menu no longer repeats it. *}
+      {* Full logo (word mark baked into the image) instead of the solo mark
+         plus a separate "TESTLINK" text label: now that the header
+         background matches the login page's, the same dark-text logo used
+         there reads fine here too. *}
       <a class="logo"
          href="index.php?tproject_id={$gui->tproject_id}&tplan_id={$gui->tplan_id}" target="{$topBrowsingContext}" title="{$labels.reload_main_view}">
-         <img class="tlMark" src="{$basehref}{$smarty.const.TL_THEME_IMG_DIR}tl-solo-logo-transparent-25.png" alt="">
-         <b>TEST<span>LINK</span></b></a>
+         <img class="tlMark" src="{$basehref}{$smarty.const.TL_THEME_IMG_DIR}tl-logo-transparent-25.png" alt="TestLink"></a>
 
   <div class="top-menu">
         <ul class="nav pull-right top-menu">
