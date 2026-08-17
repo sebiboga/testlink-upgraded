@@ -21,18 +21,6 @@ Left side menu
                 </a>
             </li>
             {/if}
-            {* Plugins can inject a link here via the EVENT_LEFTMENU_TOP hook
-               (see e.g. plugins/TLTest/TLTest.php's top_link()). event_signal()
-               returns one entry per plugin listening on the event, so this
-               needs a foreach the same way mainPageLeft.tpl (tl-classic)
-               does it, not direct href/label access. *}
-            {if isset($gui->plugins.EVENT_LEFTMENU_TOP)}
-              {foreach from=$gui->plugins.EVENT_LEFTMENU_TOP item=menu_item}
-                <li>
-                  <a href="{$menu_item.href}" target="mainframe">{$menu_item.label}</a>
-                </li>
-              {/foreach}
-            {/if}
             {if $gui->showMenu.search == true}
               <li class="sub-menu">
                 <a id="a_search" href="javascript:;" class="{$gui->activeMenu.search}">
@@ -83,9 +71,6 @@ Left side menu
                   {/if}
                   {if $gui->access.codetracker == 'yes'}
                     <li><a id="codeTrackerView" href="{$gui->uri->codeTrackerView}" target="mainframe">{$labels.href_codetracker_management}</a></li>
-                  {/if}
-                  {if $menuGrants->plugin_management == "yes"}
-                    <li><a id="pluginView" href="{$gui->uri->pluginView}" target="mainframe">{$labels.title_plugins}</a></li>
                   {/if}
                 </ul>
               </li>
@@ -275,12 +260,33 @@ Left side menu
                 </a>
               </li>
             {/if}
-            {if isset($gui->plugins.EVENT_LEFTMENU_BOTTOM)}
-              {foreach from=$gui->plugins.EVENT_LEFTMENU_BOTTOM item=menu_item}
-                <li>
-                  <a href="{$menu_item.href}" target="mainframe">{$menu_item.label}</a>
-                </li>
-              {/foreach}
+            {* Plugins can inject links via EVENT_LEFTMENU_TOP/BOTTOM and
+               EVENT_RIGHTMENU_TOP/BOTTOM (see e.g. plugins/TLTest/TLTest.php).
+               tl-classic spreads those across two separate page columns that
+               this single-rail sidebar has no equivalent of, so group
+               whatever any plugin registers - plus the plugin management
+               page itself, moved here from the System section since it's
+               the same subject - into one "Plugins" section instead of
+               floating loose links at the very top/bottom of the whole menu.
+               event_signal() returns one entry per plugin listening on a
+               given event, hence the nested foreach. *}
+            {if $gui->plugins|@count > 0 || $menuGrants->plugin_management == "yes"}
+              <li class="sub-menu">
+                <a href="javascript:;" class="{$gui->activeMenu.plugins}">
+                  <i class="fas fa-puzzle-piece"></i>
+                  <span>Plugins</span>
+                  </a>
+                <ul class="sub">
+                  {if $menuGrants->plugin_management == "yes"}
+                    <li><a id="pluginView" href="{$gui->uri->pluginView}" target="mainframe">{$labels.installed_plugins}</a></li>
+                  {/if}
+                  {foreach from=$gui->plugins item=eventLinks}
+                    {foreach from=$eventLinks item=menu_item}
+                      <li><a href="{$menu_item.href}" target="mainframe">{$menu_item.label}</a></li>
+                    {/foreach}
+                  {/foreach}
+                </ul>
+              </li>
             {/if}
           {/if}
         </ul>

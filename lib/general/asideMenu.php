@@ -22,13 +22,17 @@ testlinkInitPage($db,('initProject' == 'initProject'));
 // empty object is all that has to be handed over.
 $gui = new stdClass();
 
-// Plugins can inject links at the top/bottom of this menu (aside.tpl reads
-// $gui->plugins.EVENT_LEFTMENU_TOP/BOTTOM) - mainPage.php used to compute
-// this for the old single-frame layout, but that code went dead once the
-// menu got its own frame (issue #437) since mainPage.tpl no longer includes
-// aside.tpl. Recompute it here instead.
+// Plugins can inject links via these four events (aside.tpl groups them all
+// into one "Plugins" section) - mainPage.php used to compute this for the old
+// single-frame layout, but that code went dead once the menu got its own
+// frame (issue #437) since mainPage.tpl no longer includes aside.tpl.
+// Recompute it here instead. tl-classic spreads LEFTMENU_*/RIGHTMENU_* across
+// two separate page columns that dashio's single-rail sidebar has no
+// equivalent of, so they're merged into one list rather than dropping half
+// of them like the previous version of this file did.
 $gui->plugins = array();
-foreach(array('EVENT_LEFTMENU_TOP','EVENT_LEFTMENU_BOTTOM') as $menu_item) {
+foreach(array('EVENT_LEFTMENU_TOP','EVENT_LEFTMENU_BOTTOM',
+              'EVENT_RIGHTMENU_TOP','EVENT_RIGHTMENU_BOTTOM') as $menu_item) {
   $menu_content = event_signal($menu_item);
   if (!empty($menu_content)) {
     $gui->plugins[$menu_item] = $menu_content;
