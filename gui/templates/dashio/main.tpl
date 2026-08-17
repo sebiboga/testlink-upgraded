@@ -27,8 +27,68 @@
   <link rel="stylesheet" type="text/css" href="{$dashioHome}lib/gritter/css/jquery.gritter.css" />
   <link href="{$dashioHome}css/style.css" rel="stylesheet">
   <link href="{$dashioHome}css/style-responsive.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" 
+  <link rel="stylesheet" type="text/css"
         href="{$basehref}gui/themes/default/css/frame.css">
+
+  <script type="text/javascript">
+  // The aside menu is its own frame that only loads once (see asideFrame.tpl),
+  // so it has no way to know which page the mainframe is currently showing.
+  // Re-run this every time the mainframe navigates (its onload below) to mark
+  // the matching leaf <li> "active" - reuses the existing
+  // "ul.sub li.active a" style already used for other menu states.
+  function syncAsideActiveLink() {
+    var mainFrame = document.getElementById('mainframe');
+    var asideFrame = document.getElementById('asidebar');
+    if (!mainFrame || !asideFrame) {
+      return;
+    }
+
+    var mainWin, asideDoc;
+    try {
+      mainWin = mainFrame.contentWindow;
+      asideDoc = asideFrame.contentWindow.document;
+    } catch (e) {
+      return;
+    }
+
+    var mainUrl;
+    try {
+      mainUrl = new URL(mainWin.location.href);
+    } catch (e) {
+      return;
+    }
+    var mainPath = mainUrl.pathname;
+    // frmWorkArea.php is a shared entry point for many distinct features,
+    // so the path alone isn't enough to tell them apart.
+    var mainFeature = mainUrl.searchParams.get('feature');
+
+    var links = asideDoc.querySelectorAll('ul.sidebar-menu ul.sub li a[target="mainframe"]');
+    for (var i = 0; i < links.length; i++) {
+      var link = links[i];
+      var li = link.parentElement;
+      li.classList.remove('active');
+
+      var href = link.getAttribute('href');
+      if (!href) {
+        continue;
+      }
+      var linkUrl;
+      try {
+        linkUrl = new URL(href, mainWin.location.href);
+      } catch (e) {
+        continue;
+      }
+      if (linkUrl.pathname !== mainPath) {
+        continue;
+      }
+      if (mainPath.indexOf('frmWorkArea.php') !== -1 &&
+          linkUrl.searchParams.get('feature') !== mainFeature) {
+        continue;
+      }
+      li.classList.add('active');
+    }
+  }
+  </script>
 </head>
 
 <body class="body-noscroll">
@@ -48,7 +108,8 @@
      </iframe>
 
      <iframe src="{$gui->mainframe}" id="mainframe" name="mainframe"
-             style="display: block;" class="siteContent">
+             style="display: block;" class="siteContent"
+             onload="syncAsideActiveLink()">
      </iframe>
    </div>
   </section>
