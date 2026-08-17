@@ -20,8 +20,23 @@ testlinkInitPage($db,('initProject' == 'initProject'));
 // menuGrants. TLSmarty::addMenuContext() fills all of them from initUserEnv()
 // for any page that has not built them itself, which is the case here, so an
 // empty object is all that has to be handed over.
+$gui = new stdClass();
+
+// Plugins can inject links at the top/bottom of this menu (aside.tpl reads
+// $gui->plugins.EVENT_LEFTMENU_TOP/BOTTOM) - mainPage.php used to compute
+// this for the old single-frame layout, but that code went dead once the
+// menu got its own frame (issue #437) since mainPage.tpl no longer includes
+// aside.tpl. Recompute it here instead.
+$gui->plugins = array();
+foreach(array('EVENT_LEFTMENU_TOP','EVENT_LEFTMENU_BOTTOM') as $menu_item) {
+  $menu_content = event_signal($menu_item);
+  if (!empty($menu_content)) {
+    $gui->plugins[$menu_item] = $menu_content;
+  }
+}
+
 $smarty = new TLSmarty();
-$smarty->assign('gui',new stdClass());
+$smarty->assign('gui',$gui);
 
 // Render collapsed from the start when it was left that way, instead of
 // painting the menu at full width and then snapping it shut.

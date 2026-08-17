@@ -21,6 +21,18 @@ Left side menu
                 </a>
             </li>
             {/if}
+            {* Plugins can inject a link here via the EVENT_LEFTMENU_TOP hook
+               (see e.g. plugins/TLTest/TLTest.php's top_link()). event_signal()
+               returns one entry per plugin listening on the event, so this
+               needs a foreach the same way mainPageLeft.tpl (tl-classic)
+               does it, not direct href/label access. *}
+            {if isset($gui->plugins.EVENT_LEFTMENU_TOP)}
+              {foreach from=$gui->plugins.EVENT_LEFTMENU_TOP item=menu_item}
+                <li>
+                  <a href="{$menu_item.href}" target="mainframe">{$menu_item.label}</a>
+                </li>
+              {/foreach}
+            {/if}
             {if $gui->showMenu.search == true}
               <li class="sub-menu">
                 <a id="a_search" href="javascript:;" class="{$gui->activeMenu.search}">
@@ -262,6 +274,13 @@ Left side menu
                   <span>{$labels.reports}</span>
                 </a>
               </li>
+            {/if}
+            {if isset($gui->plugins.EVENT_LEFTMENU_BOTTOM)}
+              {foreach from=$gui->plugins.EVENT_LEFTMENU_BOTTOM item=menu_item}
+                <li>
+                  <a href="{$menu_item.href}" target="mainframe">{$menu_item.label}</a>
+                </li>
+              {/foreach}
             {/if}
           {/if}
         </ul>
