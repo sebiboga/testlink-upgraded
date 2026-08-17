@@ -402,11 +402,18 @@ function initProject(&$db,$hash_user_sel) {
 
   $ckObj = new stdClass();
   $ckCfg = config_get('cookie');
-  
+
   $tproject = new testproject($db);
   $user_sel = array("tplan_id" => 0, "tproject_id" => 0 );
   $user_sel["tproject_id"] = isset($hash_user_sel['testproject']) ? intval($hash_user_sel['testproject']) : 0;
+  // Also check for tproject_id parameter (used in URL navigation)
+  if($user_sel["tproject_id"] == 0 && isset($hash_user_sel['tproject_id'])) {
+    $user_sel["tproject_id"] = intval($hash_user_sel['tproject_id']);
+  }
   $user_sel["tplan_id"] = isset($hash_user_sel['testplan']) ? intval($hash_user_sel['testplan']) : 0;
+  if($user_sel["tplan_id"] == 0 && isset($hash_user_sel['tplan_id'])) {
+    $user_sel["tplan_id"] = intval($hash_user_sel['tplan_id']);
+  }
 
   $tproject_id = isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0;
 
