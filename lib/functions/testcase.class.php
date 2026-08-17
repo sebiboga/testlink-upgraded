@@ -486,8 +486,8 @@ class testcase extends tlObjectWithAttachments {
 
     $getOptions = [];
     $ret = [
-      'id' => -1,'
-      external_id' => 0, 
+      'id' => -1,
+      'external_id' => 0,
       'status_ok' => 1,
       'msg' => 'ok',
       'new_name' => '', 

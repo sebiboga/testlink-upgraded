@@ -3229,6 +3229,11 @@ $TLS_API_ITS_NOT_FOUND = "Unable to find the ITS %s.";
 
 $TLS_API_TSUITE_NOT_ON_TCASE_TPROJ = "Test Suite does not belong to Test Case's Test Project";
 
+$TLS_API_ROLE_NAME_DOESNOT_EXIST = "The role (role: %s) provided does not exist.";
+$TLS_API_ROLE_SETTING_ERROR = "An error occurred while setting the role (role: %s) for the user (userid: %s). Please check the log files.";
+
+$TLS_max_num_of_chars = "Max. characters:";
+
 // ----- audit log entries -----
 $TLS_audit_login_succeeded = "Login for '{%1}' from '{%2}' succeeded";
 $TLS_audit_login_failed = "Login for '{%1}' from '{%2}' failed";

@@ -2816,7 +2816,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
 
         if(! $this->_isTestModePresent()) {
             $this->errors[] = new IXR_ERROR( NO_TEST_MODE, NO_TEST_MODE_STR );
-            return false;
+            return $this->errors;
         } else {
             // TODO: should probably validate that this is a bool or t/f string
             $this->testMode = $this->args[self::$testModeParamName];
@@ -6744,7 +6744,10 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $name = trim( $this->args[self::$platformNameParamName] );
 
             $opx = array('accessKey' => 'name',
-                         'output' => 'allinfo');
+                         'output' => 'allinfo',
+                         'enable_on_design' => null,
+                         'enable_on_execution' => null,
+                         'is_open' => null);
 
             $itemSet = $this->platformMgr->getAllAsMap($opx);
             if(isset( $itemSet[$name] )) {
@@ -6866,10 +6869,16 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if( $this->user->globalRole->dbID == TL_ROLES_ADMIN || $this->user->login == $this->args[self::$userParamName] )
             {
                 $user_id = tlUser::doesUserExist( $this->dbObj, $this->args[self::$userParamName] );
+                if(!($status_ok = ! is_null( $user_id ))) {
+                    $msg = $messagePrefix . sprintf( NO_USER_BY_THIS_LOGIN_STR, $this->args[self::$userParamName] );
+                    $this->errors[] = new IXR_Error( NO_USER_BY_THIS_LOGIN, $msg );
+                }
             }
-            if(!($status_ok = ! is_null( $user_id ))) {
-                $msg = $msg_prefix . sprintf( NO_USER_BY_THIS_LOGIN_STR, $this->args[self::$userParamName] );
-                $this->errors[] = new IXR_Error( NO_USER_BY_THIS_LOGIN, $msg );
+            else
+            {
+                $status_ok = false;
+                $msg = $messagePrefix . "Only a site admin can look up a different user's login.";
+                $this->errors[] = new IXR_Error( INSUFFICIENT_RIGHTS, $msg );
             }
         }
 
@@ -6917,14 +6926,20 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if( $this->user->globalRole->dbID == TL_ROLES_ADMIN || $this->userID == $this->args[self::$userIDParamName] )
             {
                 $user = tlUser::getByID( $this->dbObj, $this->args[self::$userIDParamName] );
+                if(is_null( $user )) {
+                    $status_ok = false;
+                    $msg = $messagePrefix . sprintf( NO_USER_BY_THIS_ID_STR, $this->args[self::$userIDParamName] );
+                    $this->errors[] = new IXR_Error( NO_USER_BY_THIS_ID, $msg );
+                } else {
+                    $user->userApiKey = null;
+                    $ret[] = $user;
+                }
             }
-            if(is_null( $user )) {
+            else
+            {
                 $status_ok = false;
-                $msg = $messagePrefix . sprintf( NO_USER_BY_THIS_ID_STR, $this->args[self::$userIDParamName] );
-                $this->errors[] = new IXR_Error( NO_USER_BY_ID_LOGIN, $msg );
-            } else {
-                $user->userApiKey = null;
-                $ret[] = $user;
+                $msg = $messagePrefix . "Only a site admin can look up a different user's id.";
+                $this->errors[] = new IXR_Error( INSUFFICIENT_RIGHTS, $msg );
             }
         }
 
