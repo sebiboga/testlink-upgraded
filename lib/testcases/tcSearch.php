@@ -489,6 +489,13 @@ function initializeGui(&$argsObj,&$tprojectMgr)
   $gui->row_qty = 0;
   $gui->doSearch = ($argsObj->doAction == 'doSearch');
   $gui->tproject_id = intval($argsObj->tprojectID);
+
+  // tcSearchResults.tpl (dashio) only includes tcSearchGUI.inc.tpl when this is
+  // true, but nothing ever set it, so the filter form never rendered - just the
+  // page title. tl-classic's version includes the form unconditionally
+  // (before AND after a search), so match that rather than hiding it once
+  // doSearch is true.
+  $gui->drawSearchGui = true;
   
   // ----------------------------------------------------
   $gui->mainCaption = lang_get('testproject') . " " . $argsObj->tprojectName;
