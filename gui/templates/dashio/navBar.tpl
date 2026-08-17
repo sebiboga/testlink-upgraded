@@ -60,8 +60,8 @@ The _top value of the target attribute specifies that the URL should open in the
           action="index.php?action=projectChange" 
           method="post">
        {$labels.testproject}
-      <select style="font-size: 80%;position:relative; top:-1px;" 
-        name="tproject_id" onchange="this.form.submit();">
+      <select style="font-size: 80%;position:relative; top:-1px;"
+        name="testproject" onchange="this.form.submit();">
           {foreach key=item_id item=tproject_name from=$gui->TestProjects}
           <option value="{$item_id}" title="{$tproject_name|escape}"
             {if $item_id == $gui->tproject_id} selected="selected" {/if}>
