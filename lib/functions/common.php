@@ -1680,6 +1680,28 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     echo '<br> 1509 - caller => ' . $options['caller'] . '<br>';  
   }
   */
+  } elseif( $gui->zeroTestProjects ) {
+    // No test projects exist yet - show at least Projects and System menus
+    // so the user can create a project and access admin functions.
+    $gui->showMenu = getFirstLevelMenuStructure();
+    $gui->showMenu['projects'] = true;
+    $gui->showMenu['system'] = true;
+    // Provide admin-level grants so aside.tpl sub-items render for the
+    // zero-project case (the user is typically a site admin at this point).
+    if( is_null($gui->grants) ) {
+      $gui->grants = new stdClass();
+      $gui->grants->event_viewer = "yes";
+      $gui->grants->user_mgmt = "yes";
+      $gui->grants->cfield_management = "yes";
+      $gui->grants->project_edit = "yes";
+      $gui->grants->tproject_user_role_assignment = "yes";
+      $gui->grants->keywords_view = "yes";
+      $gui->grants->issuetracker_management = "yes";
+      $gui->grants->codetracker_management = "yes";
+      $gui->grants->issuetracker_view = "yes";
+      $gui->grants->codetracker_view = "yes";
+    }
+    $gui->access = getAccess($gui);
   }
   
   // Get Role Description to display.
@@ -2002,22 +2024,24 @@ function getMenuVisibility(&$gui)
     $showMenu['search'] = true;
   }
 
-  if($gui->tproject_id > 0  && 
-     ($gui->grants->cfield_assignment == "yes" ||
-      $gui->grants->cfield_management == "yes" || 
-      $gui->grants->issuetracker_management == "yes" || 
-      $gui->grants->codetracker_management == "yes" || 
-      $gui->grants->issuetracker_view == "yes" ||
-      $gui->grants->codetracker_view == "yes") ) {
+  // Always show system and projects menus so users can manage projects
+  // and access admin functions even when no test project is selected.
+  if($gui->grants->cfield_assignment == "yes" ||
+     $gui->grants->cfield_management == "yes" || 
+     $gui->grants->issuetracker_management == "yes" || 
+     $gui->grants->codetracker_management == "yes" || 
+     $gui->grants->issuetracker_view == "yes" ||
+     $gui->grants->codetracker_view == "yes" ||
+     $gui->tproject_id == 0) {
     $showMenu['system'] = true;
   }
 
-  if($gui->tproject_id > 0  && 
-     ($gui->grants->project_edit == "yes" || 
-      $gui->grants->tproject_user_role_assignment == "yes" ||
-      $gui->grants->cfield_management == "yes" || 
-      $gui->grants->platform_management == "yes" || 
-      $gui->grants->keywords_view == "yes") ) {
+  if($gui->grants->project_edit == "yes" || 
+     $gui->grants->tproject_user_role_assignment == "yes" ||
+     $gui->grants->cfield_management == "yes" || 
+     $gui->grants->platform_management == "yes" || 
+     $gui->grants->keywords_view == "yes" ||
+     $gui->tproject_id == 0) {
     $showMenu['projects'] = true;
   }
 

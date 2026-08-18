@@ -48,11 +48,13 @@ switch($args->doAction) {
     $template = $templateCfg->default_template;
     $ui = create($args,$tproject_mgr);
     $gui->testprojects = $ui->testprojects;
+    $gui->pageTitle = $ui->caption;
   break;
 
   case 'edit':
     $template = $templateCfg->default_template;
     $ui = edit($args,$tproject_mgr);
+    $gui->pageTitle = $ui->caption;
   break;
 
   case 'doCreate':
@@ -669,6 +671,7 @@ function create(&$argsObj,&$tprojectMgr)
   $gui->doActionValue = 'doCreate';
   $gui->buttonValue = lang_get('btn_create');
   $gui->caption = lang_get('caption_new_tproject');
+  $gui->pageTitle = lang_get('caption_new_tproject');
 
 
 
