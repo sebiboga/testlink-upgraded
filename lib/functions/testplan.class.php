@@ -146,6 +146,9 @@ class testplan extends tlObjectWithAttachments
     if ($result)
     {
       $id = $tplan_id;
+      // BUGFIX #499: Invalidate any stale caches for test plan lists
+      // Newly created test plans must be immediately visible in Execute Tests dropdown
+      clearstatcache();
     }
 
     return $id;
@@ -207,7 +210,12 @@ class testplan extends tlObjectWithAttachments
               $tproject_id . "," . 
               $active_status . "," . $public_status . ")";
     $result = $this->db->exec_query($sql);
-    return $result ? $id : 0;
+    if ($result) {
+      // BUGFIX #499: Invalidate any stale caches for test plan lists
+      clearstatcache();
+      return $id;
+    }
+    return 0;
   }
 
 
