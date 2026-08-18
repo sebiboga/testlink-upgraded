@@ -8,7 +8,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   var='labels'
   s='testplan,test_status_passed,test_status_failed,test_status_blocked,
      test_status_not_run,th_tc_total,th_completed,no_records_found,
-     tc_monthly_creation_rate_on_tproj,tc_monthly_creation_rate_on_tproj_hint'}
+     tc_monthly_creation_rate_on_tproj,tc_monthly_creation_rate_on_tproj_hint,
+     title_test_case_bugs,title_test_case_title,issue_summary,status'}
 
 
 <!DOCTYPE html>
@@ -77,45 +78,47 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
               </div>
             {/if}
 
-            {* Bugs/Issues widget: shows issues tested in the current plan *}
+            {* Third widget: bugs testers attached while executing this plan.
+               Absent entirely when nothing is linked, rather than drawing an
+               empty table that reads as "zero bugs found". *}
             {if $gui->bugsInfo != null}
-              <div class="border-head" style="margin-top: 30px; margin-bottom: 30px;">
+              <div class="border-head" style="margin-top: 30px;">
                 <h3 style="border-bottom: 0px; margin-bottom: 0px; padding-bottom: 0px;">
-                  Bugs/Issues Tested</h3>
+                  {$labels.title_test_case_bugs|escape}</h3>
                 <h5 style="border-bottom: 1px solid #c9cdd7; color:#7a7a7a;">
-                  Issues validated by this test plan</h5>
+                  {$labels.testplan|escape}: {$gui->dashboard->tplan_name|escape}</h5>
                 <br>
               </div>
-              <div class="row" style="margin: 0 auto; width: 100%; max-width: 700px;">
-                <div class="col-lg-12">
-                  {if count($gui->bugsInfo) > 0}
-                    <table class="table table-bordered table-striped">
-                      <thead>
-                        <tr>
-                          <th>Issue ID</th>
-                          <th>Description</th>
-                          <th>Status</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {foreach from=$gui->bugsInfo item=bug}
-                          <tr>
-                            <td><strong>{$bug.id|escape}</strong></td>
-                            <td>{$bug.description|escape}</td>
-                            <td>
-                              <span class="label" style="background-color: {$bug.color};">
-                                {$bug.status|escape}
-                              </span>
-                            </td>
-                          </tr>
-                        {/foreach}
-                      </tbody>
-                    </table>
-                  {else}
-                    <p style="color:#7a7a7a; padding: 10px 0;">No bugs linked to test cases in this plan.</p>
-                  {/if}
-                </div>
-              </div>
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th style="width: 12%;">{$labels.title_test_case_bugs|escape}</th>
+                    <th>{$labels.issue_summary|escape}</th>
+                    <th style="width: 12%;">{$labels.status|escape}</th>
+                    <th style="width: 32%;">{$labels.title_test_case_title|escape}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {foreach from=$gui->bugsInfo item=bug}
+                    <tr>
+                      <td>
+                        {if $bug.url != ''}
+                          <a href="{$bug.url|escape}" target="_blank" rel="noopener"><strong>{$bug.id|escape}</strong></a>
+                        {else}
+                          <strong>{$bug.id|escape}</strong>
+                        {/if}
+                      </td>
+                      <td>{$bug.title|escape}</td>
+                      <td>
+                        {if $bug.status != ''}
+                          <span class="label" style="background-color: {$bug.color|escape};">{$bug.status|escape}</span>
+                        {/if}
+                      </td>
+                      <td>{$bug.tcases|escape}</td>
+                    </tr>
+                  {/foreach}
+                </tbody>
+              </table>
             {/if}
 
             {* Second widget: test-project scoped, so it stands on its own and

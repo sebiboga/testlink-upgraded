@@ -218,8 +218,8 @@ $gui->dashboard = getDashboardData($db,$testprojectID,$testplanID,$gui);
 // it still has something to say before any plan exists.
 $gui->tcGrowth = getTestCaseGrowthData($db,$testprojectID);
 
-// Bugs tested widget. Shows issues/bugs covered by the test plan.
-$gui->bugsInfo = getBugsTestedData($db,$testplanID);
+// Third dashboard widget: bugs linked to this plan's executions.
+$gui->bugsInfo = getBugsTestedData($db,$testprojectID,$testplanID);
 
 $tplKey = 'mainPage';
 $tpl = $tplKey . '.tpl';
@@ -346,36 +346,82 @@ function getTestCaseGrowthData(&$dbHandler,$tprojectID)
 }
 
 /**
- * Get bugs/issues tested in the current test plan.
+ * Bugs linked to executions of the current test plan, one row per bug.
  *
- * Returns an array of bugs or null if none found.
+ * Reads execution_bugs (via getAllExecutionsWithBugs), so it reports what
+ * testers actually attached while executing rather than anything derived from
+ * the plan's name. Returns null when the plan has no linked bugs, so the
+ * template skips the widget entirely.
  */
-function getBugsTestedData(&$dbHandler, $tplanID)
+function getBugsTestedData(&$dbHandler,$tprojectID,$tplanID)
 {
-  if($tplanID <= 0) {
+  if($tprojectID <= 0 || $tplanID <= 0) {
     return null;
   }
 
   $tplanMgr = new testplan($dbHandler);
-  $tplanInfo = $tplanMgr->get_by_id($tplanID);
+  $rows = $tplanMgr->getAllExecutionsWithBugs($tplanID);
 
-  if(!$tplanInfo) {
+  if(empty($rows)) {
     return null;
   }
 
-  $planName = isset($tplanInfo['name']) ? trim($tplanInfo['name']) : '';
+  // A bug can be attached to several executions of several test cases; the
+  // widget lists each bug once, naming every test case that surfaced it.
+  $bugs = array();
+  foreach($rows as $row) {
+    $bugID = $row['bug_id'];
+    if(!isset($bugs[$bugID])) {
+      $bugs[$bugID] = array();
+    }
 
-  // Define bugs for each test plan based on its name
-  // Check for "Event Viewer" in the plan name as the key indicator
-  if(stripos($planName, 'Event Viewer') !== false) {
-    return array(
-      array('id' => '#500', 'description' => 'Test Plan selector never rendered', 'status' => 'Fixed', 'color' => '#5cb85c'),
-      array('id' => '#501', 'description' => 'User selections discarded on apply', 'status' => 'Fixed', 'color' => '#5cb85c'),
-      array('id' => '#502', 'description' => 'Dashboard crash on build-less plan', 'status' => 'Fixed', 'color' => '#5cb85c'),
-    );
+    $bugs[$bugID][$row['full_external_id'] . ':' . $row['name']] = true;
   }
 
-  return null;
+  // With a tracker configured the issue's real title and status come from it;
+  // without one all TestLink holds is the bare id typed at execution time.
+  $its = null;
+  $tprojectMgr = new testproject($dbHandler);
+  $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
+  if(!empty($tprojectInfo['issue_tracker_enabled'])) {
+    $itMgr = new tlIssueTracker($dbHandler);
+    $its = $itMgr->getInterfaceObject($tprojectID);
+  }
+
+  // Open issues are the ones still costing the team something, so they get the
+  // 'failed' red; anything the tracker reports as closed gets the 'passed'
+  // green. Same palette as the execution pie above.
+  $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
+
+  $dbo = array();
+  foreach($bugs as $bugID => $tcaseSet) {
+    $item = array('id' => $bugID,
+                  'tcases' => implode(', ',array_keys($tcaseSet)),
+                  'url' => '',
+                  'title' => '',
+                  'status' => '',
+                  'color' => '#8f8f8f');
+
+    if(is_object($its)) {
+      $issue = $its->getIssue($bugID);
+      if(is_object($issue)) {
+        $item['url'] = $issue->url;
+        // summary is "<title>:\n<body>" - the dashboard only has room for the
+        // title, and the body is a wall of text on most trackers.
+        $item['title'] = rtrim(strtok((string)$issue->summary,"\n"),':');
+        $item['status'] = (string)$issue->statusVerbose;
+
+        $key = strtolower($item['status']);
+        if(isset($statusColor[$key])) {
+          $item['color'] = $statusColor[$key];
+        }
+      }
+    }
+
+    $dbo[] = $item;
+  }
+
+  return $dbo;
 }
 
 /**
