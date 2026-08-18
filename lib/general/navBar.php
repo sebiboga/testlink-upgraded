@@ -147,24 +147,28 @@ function initializeGui(&$db,&$args) {
     $gui->tproject_id = 0;
   }
 
+  // navBar.tpl renders the test plan selector from these two, and it is the
+  // only place in the UI where the active test plan can be changed.
+  $gui->testPlans = null;
+  $gui->tplan_id = 0;
+
   if($gui->tproject_id) {
-    $testPlanSet = 
+    $testPlanSet =
       (array)$args->user->getAccessibleTestPlans($db,$gui->tproject_id);
     $gui->TestPlanCount = sizeof($testPlanSet);
 
     $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : null;
-    if( !is_null($tplanID) ) {
-      // Need to set this info on session 
+    if( !is_null($tplanID) && $gui->TestPlanCount > 0 ) {
+      // Need to set this info on session
       // with first Test Plan from $testPlanSet
       // if this test plan is present on $testPlanSet
       //    OK we will set it on $testPlanSet as selected one.
-      // else 
+      // else
       //    need to set test plan on session
       //
       $index=0;
       $testPlanFound=0;
-      $loop2do=count($testPlanSet);
-      for($idx=0; $idx < $loop2do; $idx++) {
+      for($idx=0; $idx < $gui->TestPlanCount; $idx++) {
         if( $testPlanSet[$idx]['id'] == $tplanID ) {
           $testPlanFound = 1;
           $index = $idx;
@@ -172,13 +176,18 @@ function initializeGui(&$db,&$args) {
         }
       }
 
-      if( $testPlanFound == 0 && is_array($testPlanSet) &&  count($testPlanSet) > 0) {
+      if( $testPlanFound == 0 ) {
         $tplanID = $testPlanSet[0]['id'];
-        setSessionTestPlan($testPlanSet[0]);      
-      } 
+        setSessionTestPlan($testPlanSet[0]);
+      }
       $testPlanSet[$index]['selected']=1;
+      $gui->tplan_id = $tplanID;
     }
-  } 
+
+    if( $gui->TestPlanCount > 0 ) {
+      $gui->testPlans = $testPlanSet;
+    }
+  }
 
   if ($gui->tproject_id && isset($args->user->tprojectRoles[$gui->tproject_id])) {
     // test project specific role applied
