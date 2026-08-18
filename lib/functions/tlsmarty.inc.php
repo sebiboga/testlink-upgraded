@@ -546,6 +546,7 @@ class TLSmarty extends Smarty {
                    ,'cog' => '<i class="fa fa-cog" aria-hidden="true"></i>'
                   );
 
+    $msg = lang_get('show_hide_direct_link');
     $dummy['toggle_direct_link'] = 
       "<i class=\"fas fa-link\" title=\"{$msg}\" alt=\"{$msg}\" " .
       " onclick=\"showHideByClass('div','direct_link');event.stopPropagation();\" " .
