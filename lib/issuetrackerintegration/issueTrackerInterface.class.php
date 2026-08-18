@@ -160,7 +160,7 @@ abstract class issueTrackerInterface
     // !!!!! The entire contents of the session will be lost.
     // http://stackoverflow.com/questions/1584725/quickly-convert-simplexmlobject-to-stdclass
     $this->cfg = json_decode(json_encode($this->cfg));
-    return $retval;
+    return true;
   }
 
   /**

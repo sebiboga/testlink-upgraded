@@ -152,8 +152,11 @@ class githubrestInterface extends issueTrackerInterface
       // I've tried to ask for users but get always ERROR from github (not able to understand why).
       try
       {
+        // getRepo() decodes a single JSON object, never a list: count() on it
+        // is a TypeError since PHP 8. A real repo carries an id, while
+        // GitHub's error payloads ({message,documentation_url}) do not.
         $items = $this->APIClient->getRepo();
-        $this->connected = count($items) > 0 ? true : false;
+        $this->connected = is_object($items) && property_exists($items,'id');
         unset($items);
       }
       catch(Exception $e)
