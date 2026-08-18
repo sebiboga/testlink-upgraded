@@ -11,38 +11,43 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 {include file="inc_ext_js.tpl" bResetEXTCss=1}
 {include file="inc_jsCheckboxes.tpl"}
 
-{if $gui->drawTree}
-  {if $gui->ajaxTree->loadFromChildren}
-    <script type="text/javascript">
-    /* space after { and before } to signal to smarty that is JS => do not process */
-    treeCfg = { tree_div_id:'tree_div',root_name:"",root_id:0,root_href:"",
-                loader:"", enableDD:false, dragDropBackEndUrl:'',children:"" };
-    </script>
-    <script type="text/javascript">
-    treeCfg.root_name = '{$gui->ajaxTree->root_node->name|escape:'javascript'}';
-    treeCfg.root_id = {$gui->ajaxTree->root_node->id};
-    treeCfg.root_href = '{$gui->ajaxTree->root_node->href}';
-    treeCfg.children = {$gui->ajaxTree->children}
-    treeCfg.cookiePrefix = '{$gui->ajaxTree->cookiePrefix}';
-    </script>
-    <script type="text/javascript" src='gui/javascript/execTree.js'></script>
+{* No $gui->drawTree guard here: printDocOptions.php always builds a complete
+   $gui->ajaxTree for every reachable doc type (unknown types exit earlier),
+   and handles the "no children" case itself by emitting '{}'. A guard on that
+   property was gating this whole block - including the execTree.js /
+   treebyloader.js include - and since nothing ever set it, tree_div below
+   stayed permanently empty and no report could be generated. tl-classic
+   renders this unconditionally. *}
+{if $gui->ajaxTree->loadFromChildren}
+  <script type="text/javascript">
+  /* space after { and before } to signal to smarty that is JS => do not process */
+  treeCfg = { tree_div_id:'tree_div',root_name:"",root_id:0,root_href:"",
+              loader:"", enableDD:false, dragDropBackEndUrl:'',children:"" };
+  </script>
+  <script type="text/javascript">
+  treeCfg.root_name = '{$gui->ajaxTree->root_node->name|escape:'javascript'}';
+  treeCfg.root_id = {$gui->ajaxTree->root_node->id};
+  treeCfg.root_href = '{$gui->ajaxTree->root_node->href}';
+  treeCfg.children = {$gui->ajaxTree->children}
+  treeCfg.cookiePrefix = '{$gui->ajaxTree->cookiePrefix}';
+  </script>
+  <script type="text/javascript" src='gui/javascript/execTree.js'></script>
 
-  {else}
-    <script type="text/javascript">
-    treeCfg = { tree_div_id:'tree_div',root_name:"",root_id:0,root_href:"",
-                 loader:"", enableDD:false, dragDropBackEndUrl:'' };
-    </script>
-    <script type="text/javascript">
-    treeCfg.loader = '{$gui->ajaxTree->loader}';
-    treeCfg.root_name = '{$gui->ajaxTree->root_node->name|escape:'javascript'}';
-    treeCfg.root_id = {$gui->ajaxTree->root_node->id};
-    treeCfg.root_href = '{$gui->ajaxTree->root_node->href}';
-    treeCfg.enableDD = '{$gui->ajaxTree->dragDrop->enabled}';
-    treeCfg.dragDropBackEndUrl = '{$gui->ajaxTree->dragDrop->BackEndUrl}';
-    treeCfg.cookiePrefix = '{$gui->ajaxTree->cookiePrefix}';
-    </script>
-    <script type="text/javascript" src='gui/javascript/treebyloader.js'></script>
-  {/if} 
+{else}
+  <script type="text/javascript">
+  treeCfg = { tree_div_id:'tree_div',root_name:"",root_id:0,root_href:"",
+               loader:"", enableDD:false, dragDropBackEndUrl:'' };
+  </script>
+  <script type="text/javascript">
+  treeCfg.loader = '{$gui->ajaxTree->loader}';
+  treeCfg.root_name = '{$gui->ajaxTree->root_node->name|escape:'javascript'}';
+  treeCfg.root_id = {$gui->ajaxTree->root_node->id};
+  treeCfg.root_href = '{$gui->ajaxTree->root_node->href}';
+  treeCfg.enableDD = '{$gui->ajaxTree->dragDrop->enabled}';
+  treeCfg.dragDropBackEndUrl = '{$gui->ajaxTree->dragDrop->BackEndUrl}';
+  treeCfg.cookiePrefix = '{$gui->ajaxTree->cookiePrefix}';
+  </script>
+  <script type="text/javascript" src='gui/javascript/treebyloader.js'></script>
 {/if}
 
 {if $gui->buildInfoSet != ''}
