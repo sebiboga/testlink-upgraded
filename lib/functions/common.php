@@ -441,10 +441,11 @@ function initProject(&$db,$hash_user_sel) {
   $ckObj->name = $ckCfg->prefix .  "TL_user{$_SESSION['userID']}_proj{$tproject_id}_testPlanId";
 
   if($user_sel["tplan_id"] != 0) {
+    $tplan_id = $user_sel["tplan_id"];
     $ckObj->value = $user_sel["tplan_id"];
     $ckObj->expire = time()+60*60*24*90;
     tlSetCookie($ckObj);
-  } 
+  }
   elseif (isset($_COOKIE[$ckObj->name])) {
     $tplan_id = intval($_COOKIE[$ckObj->name]);
   }
