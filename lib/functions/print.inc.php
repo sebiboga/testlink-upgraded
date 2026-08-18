@@ -128,16 +128,16 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
                  '<td>' . $req[$key]. "</td></tr>\n";
     }    
   }
-  
-  
-  if ($options['toc']) {
-    $options['tocCode'] .= '<p style="padding-left: ' . 
+
+
+  if (!empty($options['toc'])) {
+    $options['tocCode'] .= '<p style="padding-left: ' .
                              (15 * $reqLevel).'px;"><a href="#' . prefixToHTMLID('req'.$node['id']) . '">' .
                            $name . '</a></p>';
     $output .= '<a name="' . prefixToHTMLID('req'.$node['id']) . '"></a>';
   }
 
-  if ($options['req_author']) 
+  if (!empty($options['req_author'])) 
   {
     $output .= '<tr><td valign="top">' . 
                '<span class="label">'.$labels['author'].':</span></td>' .
@@ -180,7 +180,7 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
     }
   }            
   
-  if ($options['req_coverage'])  {
+  if (!empty($options['req_coverage']))  {
 
     // @since 1.9.18
     // Coverage Link REQV to TCV
@@ -193,17 +193,17 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
       $percentage = round(100 / $expected * $current, 2);
       $coverage = "{$percentage}% ({$current}/{$expected})";
     }
-      
+
     $output .= "<tr><td width=\"$firstColWidth\"><span class=\"label\">" . $labels['coverage'] .
                "</span></td>" . "<td>$coverage</td></tr>";
-  } 
-  
-  if ($options['req_scope']) 
+  }
+
+  if (!empty($options['req_scope'])) 
   {
     $output .= "<tr><td colspan=\"$tableColspan\"> <br/>" . $req['scope'] . "</td></tr>";
   }
     
-  if ($options['req_relations'])  {
+  if (!empty($options['req_relations']))  {
 
     // REQ relations are managed AT REQ level NOT REQV 
     $relations = $req_mgr->get_relations($req['id']);
@@ -232,7 +232,7 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
     }
   } 
   
-  if ($options['req_linked_tcs']) {
+  if (!empty($options['req_linked_tcs'])) {
 
     // @since 1.9.18
     // Coverage links REQV to TCV
@@ -252,7 +252,7 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
     }
   }
   
-  if ($options['req_cf']) 
+  if (!empty($options['req_cf']))
   {
     $childID = (is_null($revision) || $req['revision_id'] < 0) ? $req['version_id'] : $req['revision_id'];
     $linked_cf = $req_mgr->get_linked_cfields($req['id'], $childID);
@@ -393,7 +393,7 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
   $name = htmlspecialchars($spec['doc_id'] . $title_separator . $spec['title']);
   
   $docHeadingNumbering = '';
-  if ($options['headerNumbering']) {
+  if (!empty($options['headerNumbering'])) {
     $docHeadingNumbering = "$tocPrefix. ";
   }
   
@@ -421,7 +421,7 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
               $labels['revision'] . "</span></td><td> " . 
               $spec['revision'] . "</td></tr>\n";
   
-  if ($options['req_spec_author']) 
+  if (!empty($options['req_spec_author']))
   {
     // get author name for node
     $author = tlUser::getById($db, $spec['author_id']);
@@ -431,7 +431,7 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
                 htmlspecialchars($whois) . "</td></tr>\n";
   }
   
-  if ($options['req_spec_type']) 
+  if (!empty($options['req_spec_type']))
   {
     $output .= '<tr><td width="' . $firstColWidth . '"><span class="label">' . 
                $labels['type'] . "</span></td>" . "<td>";
@@ -447,7 +447,7 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
     $output .= "</td></tr>";
   }
   
-  if ($options['req_spec_overwritten_count_reqs']) {
+  if (!empty($options['req_spec_overwritten_count_reqs'])) {
     $current = $req_spec_mgr->get_requirements_count($spec_id);   // NEEDS REFACTOR
     $expected = $spec['total_req'];
     $coverage = $labels['not_aplicable'] . " ($current/0)";
@@ -461,12 +461,12 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
                "<td>" . $coverage . "</td></tr>";
   }
 
-  if ($options['req_spec_scope']) 
+  if (!empty($options['req_spec_scope']))
   {
     $output .= "<tr><td colspan=\"$tableColspan\">" . $spec['scope'] . "</td></tr>";
   }
   
-  if ($options['req_spec_cf']) 
+  if (!empty($options['req_spec_cf']))
   {
   
     $linked_cf = $req_spec_mgr->get_linked_cfields($who);
@@ -1091,7 +1091,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
   $name = htmlspecialchars($node['name']);
 
   $cfields = array('specScope' => null, 'execScope' => null);
-  if ($options['cfields']) {
+  if (!empty($options['cfields'])) {
     // Get custom fields that has specification scope
     // Custom Field values at Test Case VERSION Level
     foreach($st->locationFilters as $fkey => $fvalue) { 
@@ -1148,7 +1148,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
   $code .= "</th></tr>\n";
 
 
-  if ($options['author']) {
+  if (!empty($options['author'])) {
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top">' . 
              '<span class="label">'.$labels['author'].':</span></td>' .
              '<td colspan="' .  ($cfg['tableColspan']-1) . '">' . 
@@ -1178,11 +1178,11 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
     }
   }
 
-  if ($options['body'] || $options['summary']) {
+  if (!empty($options['body']) || !empty($options['summary'])) {
     $tcase_pieces = array('summary');
   }
     
-  if ($options['body']) {
+  if (!empty($options['body'])) {
     $tcase_pieces[] = 'preconditions';
   }
 
@@ -1427,7 +1427,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
 
 
   // collect REQ for Test Case Version
-  if ($options['requirement']) {
+  if (!empty($options['requirement'])) {
     // Coverage Links REQV to TCV
     $requirements = (array)$st->req_mgr->getActiveForTCVersion($tcVersionID);
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top"><span class="label">'. 
@@ -1451,7 +1451,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
   $requirements = null;
 
   // collect keywords for TC VERSION
-  if ($options['keyword']) {
+  if (!empty($options['keyword'])) {
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top"><span class="label">'. 
              $labels['keywords'].':</span></td>';
     $code .= '<td colspan="' . ($cfg['tableColspan']-1) . '">';
@@ -1469,7 +1469,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
   $kwSet = null;
 
   // collect platforms for TC VERSION
-  if ($options['platform']) {
+  if (!empty($options['platform'])) {
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top"><span class="label">'. 
              $labels['platforms'].':</span></td>';
     $code .= '<td colspan="' . ($cfg['tableColspan']-1) . '">';
@@ -1524,7 +1524,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
 
 
   // generate test results data for test report 
-  if ($options['passfail']) {  
+  if (!empty($options['passfail'])) {  
     $tsp = ($cfg['tableColspan']-1);
     $code .= '<tr style="' . "font-weight: bold;background: #EEE;text-align: left;" . 
              '">' . '<td width="' . $cfg['firstColWidth'] . '" valign="top">' . 
@@ -1742,7 +1742,7 @@ function renderTestSuiteNodeForPrinting(&$db,&$node,$env,&$options,$context,$toc
 
 
   // ----- get Test Suite text -----------------
-  if ($options['header']) {
+  if (!empty($options['header'])) {
 
     $tInfo = $tsuite_mgr->get_by_id($node['id'],$getOpt['getByID']);
     if ($tInfo['details'] != '') {
@@ -2114,7 +2114,7 @@ function renderPlatformHeading($tocPrefix, $platform,&$options)
   
   $out = '<h1 class="doclevel" id="' . prefixToHTMLID($tocPrefix) . "\">$tocPrefix. $lbl: $name</h1>";
   // platform description is enabled with test plan description option settings
-  if ($options['showPlatformNotes'])
+  if (!empty($options['showPlatformNotes']))
   {
     $out .= '<div class="txtlevel">' . ( $platformType == 'none' ? nl2br($platform['notes']) : $platform['notes'] ) . "</div>\n <br/>";
   }

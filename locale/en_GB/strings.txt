@@ -4095,4 +4095,29 @@ $TLS_testing_a_regression = 'Regression';
 $TLS_testing_a_requirement = 'Requirement';
 
 $TLS_alien_relTypeVerbose = ' ';
+
+// Missing localization strings
+$TLS_plugin_tl_test_config = 'Test Configuration Plugin';
+$TLS_title_res_by_l1l2_testsuite = 'Results by Test Suite';
+$TLS_title_res_by_l1l2_testsuitte = 'Results by Test Suite';
+$TLS_before_summary = 'Before Summary';
+$TLS_before_preconditions = 'Before Preconditions';
+$TLS_after_life = 'After Execution';
+$TLS_after_summary = 'After Summary';
+$TLS_after_seconditore = 'After Secondary';
+$TLS_hide_because_is_used_as_variable = 'Hide (used as variable)';
+$TLS_issuetracker_not_used_linked = 'Issue Tracker Not Used (Linked)';
+$TLS_show_hide_config_example = 'Show/Hide Config Example';
+$TLS_show_hide_linked_to_project = 'Show/Hide (Linked to Project)';
+$TLS_codetracker_not_used_linked = 'Code Tracker Not Used (Linked)';
+$TLS_automates_also = 'Also Automates';
+$TLS_is_automated_by = 'Is Automated By';
+$TLS_executed_me_and_after = 'Executed and After';
+$TLS_copy_ghost_string = 'Copy Ghost String';
+$TLS_img_title_remove_alert = 'Remove Alert';
+$TLS_createAlert = 'Create Alert';
+$TLS_img_title_remove_platform = 'Remove Platform';
+$TLS_remove_placeholder_map = 'Remove Placeholder Map';
+$TLS_remove_placeholder_title = 'Remove Placeholder';
+
 // ----- END -----------------------------------------------------
