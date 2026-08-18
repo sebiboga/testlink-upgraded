@@ -233,12 +233,20 @@ $smarty->display($tpl);
  * Execution status counters for the dashboard on the home page.
  *
  * Returns null when there is nothing worth drawing (no project, no test plan,
- * or a plan with no linked test cases) so the template can fall back to a
- * short "nothing to show yet" message instead of an empty chart.
+ * a plan with no builds, or a plan with no linked test cases) so the template
+ * can fall back to a short "nothing to show yet" message instead of an empty
+ * chart.
  */
 function getDashboardData(&$dbHandler,$tprojectID,$tplanID,$guiObj)
 {
   if($tprojectID <= 0 || $tplanID <= 0) {
+    return null;
+  }
+
+  // tlTestPlanMetrics throws on a plan with no builds rather than returning
+  // an empty result set, and a plan has none until the user creates one.
+  $tplanMgr = new testplan($dbHandler);
+  if($tplanMgr->getNumberOfBuilds($tplanID) == 0) {
     return null;
   }
 
