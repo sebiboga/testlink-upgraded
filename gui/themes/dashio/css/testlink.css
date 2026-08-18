@@ -110,13 +110,9 @@ h1, h1.title {
 	margin:			0px 0px 4px 0px;
 	padding: 		3px;
 	text-align: 	left;
-	font-size:		85%;
+	font-size:		140%;
 	font-weight:    bold;
 	font-family: 	'Ruda', sans-serif;
-}
-
-h1.big-font {
-	font-size: 140%;
 }
 
 h2 {

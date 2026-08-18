@@ -57,7 +57,7 @@ var del_action=fRoot+"lib/usermanagement/usersView.php?operation=disable&user=";
 <body>
 {if $gui->grants->user_mgmt == "yes"}
 
-  <h1 class="title">{$gui->main_title}</h1>
+  <h1 class="{#TITLE_CLASS#}">{$gui->main_title}</h1>
   {include file="usermanagement/menu.inc.tpl"}
   <div class="workBack">
 

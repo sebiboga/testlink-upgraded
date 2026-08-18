@@ -96,6 +96,9 @@ function initializeGui(&$dbHandler,&$argsObj) {
                'add_issuetracker' => true,
                'add_codetracker' => true, 'add_reqmgrsystem' => true);
   $guiObj->tprojects = $tproject_mgr->get_accessible_for_user($argsObj->userID,$opt,$filters);
+  if( is_null($guiObj->tprojects) ) {
+    $guiObj->tprojects = array();
+  }
   $guiObj->pageTitle = lang_get('title_testproject_management');
   
   $cfg = getWebEditorCfg('testproject');
