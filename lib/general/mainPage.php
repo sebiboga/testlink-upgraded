@@ -209,6 +209,10 @@ foreach(array('showMenu','activeMenu','uri','logo','whoami',
   }
 }
 
+// mainPage.tpl (dashio) draws a dashboard from $gui->dashboard. Nothing ever
+// built it, so the theme's main panel rendered empty except for its subtitle.
+$gui->dashboard = getDashboardData($db,$testprojectID,$testplanID,$gui);
+
 $tplKey = 'mainPage';
 $tpl = $tplKey . '.tpl';
 $tplCfg = config_get('tpl');
@@ -221,7 +225,76 @@ $smarty->display($tpl);
 
 
 /**
- * Get User Documentation 
+ * Execution status counters for the dashboard on the home page.
+ *
+ * Returns null when there is nothing worth drawing (no project, no test plan,
+ * or a plan with no linked test cases) so the template can fall back to a
+ * short "nothing to show yet" message instead of an empty chart.
+ */
+function getDashboardData(&$dbHandler,$tprojectID,$tplanID,$guiObj)
+{
+  if($tprojectID <= 0 || $tplanID <= 0) {
+    return null;
+  }
+
+  $metricsMgr = new tlTestPlanMetrics($dbHandler);
+  $rx = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanID,null,
+          array('groupByPlatform' => 1));
+  if(is_null($rx) || !property_exists($rx,'info') || is_null($rx->info)) {
+    return null;
+  }
+
+  $resultsCfg = config_get('results');
+  $dbo = new stdClass();
+  $dbo->total = 0;
+  $dbo->slices = array();
+
+  // Only the four statuses that make up a run: the rest ('all',
+  // 'not_available', 'unknown') are filter helpers, not execution outcomes.
+  $palette = array('passed' => '#4ECDC4', 'failed' => '#e6605e',
+                   'blocked' => '#f0ad4e', 'not_run' => '#8f8f8f');
+
+  foreach($palette as $statusVerbose => $color) {
+    $qty = 0;
+    // getStatusTotalsByTopLevelTestSuiteForRender() keys info by platform,
+    // then by test suite - sum every suite of every platform.
+    foreach($rx->info as $suiteSet) {
+      foreach($suiteSet as $suiteInfo) {
+        if(isset($suiteInfo['details'][$statusVerbose]['qty'])) {
+          $qty += intval($suiteInfo['details'][$statusVerbose]['qty']);
+        }
+      }
+    }
+
+    $lblKey = isset($resultsCfg['status_label'][$statusVerbose])
+              ? $resultsCfg['status_label'][$statusVerbose] : $statusVerbose;
+
+    $dbo->slices[$statusVerbose] = array('qty' => $qty, 'percentage' => 0,
+                                         'color' => $color,
+                                         'label' => lang_get($lblKey));
+    $dbo->total += $qty;
+  }
+
+  if($dbo->total == 0) {
+    return null;
+  }
+
+  $executed = $dbo->total - $dbo->slices['not_run']['qty'];
+  $dbo->executed = $executed;
+  $dbo->percentage_completed = number_format(100 * ($executed / $dbo->total),1);
+
+  foreach($dbo->slices as $statusVerbose => $slice) {
+    $dbo->slices[$statusVerbose]['percentage'] =
+      number_format(100 * ($slice['qty'] / $dbo->total),1);
+  }
+
+  $dbo->tplan_name = isset($_SESSION['testplanName']) ? $_SESSION['testplanName'] : '';
+
+  return $dbo;
+}
+
+/**
+ * Get User Documentation
  * based on contribution by Eugenia Drosdezki
  */
 function getUserDocumentation()

@@ -4,10 +4,10 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 *}
 {$cfg_section=$smarty.template|basename|replace:".tpl":"" }
 {config_load file="input_dimensions.conf" section=$cfg_section}
-{lang_get 
+{lang_get
   var='labels'
-  s='tc_monthly_creation_rate_on_tproj,
-     tc_monthly_creation_rate_on_tproj_hint'}
+  s='testplan,test_status_passed,test_status_failed,test_status_blocked,
+     test_status_not_run,th_tc_total,th_completed,no_records_found'}
 
 
 <!DOCTYPE html>
@@ -37,19 +37,44 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
       <section class="wrapper">
         <div class="row">
           <div class="col-lg-9 main-chart">
-            <!--CUSTOM CHART START -->
-            <div class="border-head">
-              <h3 style="border-bottom: 0px; 
-                         margin-bottom: 0px;
-                         padding-bottom: 0px;">{$gui->tc_monthly_creation_rate_on_tproj|escape}</h3>
-              <h5 style="border-bottom: 1px solid #c9cdd7;">{$labels.tc_monthly_creation_rate_on_tproj_hint|escape}</h5>
-              <br>
-            </div>
-            <div class="custom-bar-chart">
-              {$gui->dashboard->yAxis}
-              {$gui->dashboard->chart}
-            </div>
-            <!--custom chart end-->
+            {if $gui->dashboard == null}
+              <p style="color:#7a7a7a; padding: 20px 0;">{$labels.no_records_found|escape}</p>
+            {else}
+              <div class="border-head">
+                <h3 style="border-bottom: 0px; margin-bottom: 0px; padding-bottom: 0px;">
+                  {$labels.testplan|escape}: {$gui->dashboard->tplan_name|escape}</h3>
+                <h5 style="border-bottom: 1px solid #c9cdd7; color:#7a7a7a;">
+                  {$labels.th_completed|escape}: {$gui->dashboard->percentage_completed}%
+                  ({$gui->dashboard->executed}/{$gui->dashboard->total})</h5>
+                <br>
+              </div>
+
+              <div class="row">
+                <div class="col-lg-5">
+                  <canvas id="execStatusPie" width="260" height="260"></canvas>
+                </div>
+                <div class="col-lg-7">
+                  <table class="table table-bordered">
+                    <tbody>
+                      {foreach from=$gui->dashboard->slices item=slice}
+                        <tr>
+                          <td style="width:14px; background: {$slice.color};"></td>
+                          <td>{$slice.label|escape}</td>
+                          <td style="text-align:right;"><strong>{$slice.qty}</strong></td>
+                          <td style="text-align:right; color:#7a7a7a;">{$slice.percentage}%</td>
+                        </tr>
+                      {/foreach}
+                      <tr>
+                        <td></td>
+                        <td><strong>{$labels.th_tc_total|escape}</strong></td>
+                        <td style="text-align:right;"><strong>{$gui->dashboard->total}</strong></td>
+                        <td></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            {/if}
           </div>
           <!-- /col-lg-9 END SECTION MIDDLE -->
         </div>
@@ -96,5 +121,20 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   <script src="{$dashioHomeURL}lib/left-bar-scripts.js"></script>
 
   <!--script for this page-->
+  {if $gui->dashboard != null}
+    <script src="{$dashioHomeURL}lib/chart-master/Chart.js"></script>
+    <script type="text/javascript">
+    {* Chart.js shipped with dashio is v1: .Doughnut() taking {ldelim}value,color{rdelim}. *}
+    {* Zero-valued statuses are kept in the array - Chart.js just draws no
+       segment for them - so the separators stay trivially correct. *}
+    new Chart(document.getElementById("execStatusPie").getContext("2d")).Doughnut([
+      {foreach from=$gui->dashboard->slices item=slice name=sl}
+        {ldelim}value: {$slice.qty},
+         color: "{$slice.color}",
+         label: "{$slice.label|escape:'javascript'}"{rdelim}{if !$smarty.foreach.sl.last},{/if}
+      {/foreach}
+    ], {ldelim}segmentStrokeWidth: 1, percentageInnerCutout: 45{rdelim});
+    </script>
+  {/if}
 </body>
 </html>
