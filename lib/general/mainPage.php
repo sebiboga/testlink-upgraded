@@ -213,6 +213,10 @@ foreach(array('showMenu','activeMenu','uri','logo','whoami',
 // built it, so the theme's main panel rendered empty except for its subtitle.
 $gui->dashboard = getDashboardData($db,$testprojectID,$testplanID,$gui);
 
+// Second dashboard widget. Scoped to the test project, not the test plan, so
+// it still has something to say before any plan exists.
+$gui->tcGrowth = getTestCaseGrowthData($db,$testprojectID);
+
 $tplKey = 'mainPage';
 $tpl = $tplKey . '.tpl';
 $tplCfg = config_get('tpl');
@@ -291,6 +295,42 @@ function getDashboardData(&$dbHandler,$tprojectID,$tplanID,$guiObj)
   $dbo->tplan_name = isset($_SESSION['testplanName']) ? $_SESSION['testplanName'] : '';
 
   return $dbo;
+}
+
+/**
+ * Monthly test case growth for the second dashboard widget.
+ *
+ * Returns null when there is no project or the project has no test cases at
+ * all, so the template can skip the widget instead of drawing a flat row of
+ * zeros that tells the user nothing.
+ */
+function getTestCaseGrowthData(&$dbHandler,$tprojectID)
+{
+  if($tprojectID <= 0) {
+    return null;
+  }
+
+  $tprojectMgr = new testproject($dbHandler);
+  $monthly = $tprojectMgr->getTestCaseCreationMonthly($tprojectID,12);
+
+  if(array_sum($monthly) == 0) {
+    return null;
+  }
+
+  $gx = new stdClass();
+  $gx->labels = array();
+  $gx->values = array();
+  $gx->total = 0;
+  $gx->peak = 0;
+  foreach($monthly as $yearMonth => $qty) {
+    // 'YYYY-MM' -> 'Aug 26', short enough to fit 12 labels on one axis.
+    $gx->labels[] = date('M y',strtotime($yearMonth . '-01'));
+    $gx->values[] = $qty;
+    $gx->total += $qty;
+    $gx->peak = max($gx->peak,$qty);
+  }
+
+  return $gx;
 }
 
 /**

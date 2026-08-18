@@ -3664,6 +3664,68 @@ function getPublicAttr($id)
 
 
   /**
+   * Monthly test case counts for a test project, for the growth widget on the
+   * home page dashboard.
+   *
+   * A test case is counted in the month its LATEST version was created - that
+   * is what the widget's subtitle ("based on latest test case version creation
+   * date") promises.
+   *
+   * @param int $id test project id
+   * @param int $monthQty how many months to report, current month included
+   *
+   * @return array oldest -> newest, 'YYYY-MM' => qty. Months with no test case
+   *               are present with qty 0, so the caller can draw a continuous
+   *               time axis instead of one that silently skips empty months.
+   */
+  function getTestCaseCreationMonthly($id, $monthQty = 12)
+  {
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+
+    $monthQty = max(1,intval($monthQty));
+
+    $buckets = array();
+    for($idx = $monthQty - 1; $idx >= 0; $idx--) {
+      $buckets[date('Y-m',strtotime("-{$idx} month"))] = 0;
+    }
+
+    $target = array();
+    $this->get_all_testcases_id($id,$target);
+    if( count($target) == 0 ) {
+      return $buckets;
+    }
+    $inClause = implode(',',$target);
+
+    // Pick MAX(version) per test case, then read that version's creation_ts.
+    // Bucketing is done in PHP on purpose: extracting a month is spelled
+    // differently on MySQL, Postgres and MSSQL, and this keeps one portable
+    // query for all three.
+    $sql = " /* $debugMsg */ " .
+           " SELECT TCV.creation_ts " .
+           " FROM {$this->tables['tcversions']} TCV " .
+           " JOIN {$this->tables['nodes_hierarchy']} NHTCV ON NHTCV.id = TCV.id " .
+           " JOIN ( SELECT NHX.parent_id AS tcase_id, MAX(TCVX.version) AS max_version " .
+           "        FROM {$this->tables['tcversions']} TCVX " .
+           "        JOIN {$this->tables['nodes_hierarchy']} NHX ON NHX.id = TCVX.id " .
+           "        WHERE NHX.parent_id IN ({$inClause}) " .
+           "        GROUP BY NHX.parent_id ) LATEST " .
+           " ON LATEST.tcase_id = NHTCV.parent_id AND LATEST.max_version = TCV.version " .
+           " WHERE NHTCV.parent_id IN ({$inClause}) ";
+
+    $rs = (array)$this->db->get_recordset($sql);
+    foreach($rs as $row) {
+      // creation_ts is 'YYYY-MM-DD hh:mm:ss' on every supported dbms.
+      $month = substr($row['creation_ts'],0,7);
+      if( isset($buckets[$month]) ) {
+        $buckets[$month]++;
+      }
+    }
+
+    return $buckets;
+  }
+
+
+  /**
    *
    * @since 1.9.6
    *

@@ -7,7 +7,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 {lang_get
   var='labels'
   s='testplan,test_status_passed,test_status_failed,test_status_blocked,
-     test_status_not_run,th_tc_total,th_completed,no_records_found'}
+     test_status_not_run,th_tc_total,th_completed,no_records_found,
+     tc_monthly_creation_rate_on_tproj,tc_monthly_creation_rate_on_tproj_hint'}
 
 
 <!DOCTYPE html>
@@ -75,6 +76,19 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
                 </div>
               </div>
             {/if}
+
+            {* Second widget: test-project scoped, so it stands on its own and
+               is shown even when the execution pie above has no test plan. *}
+            {if $gui->tcGrowth != null}
+              <div class="border-head" style="margin-top: 30px;">
+                <h3 style="border-bottom: 0px; margin-bottom: 0px; padding-bottom: 0px;">
+                  {$labels.tc_monthly_creation_rate_on_tproj|escape}</h3>
+                <h5 style="border-bottom: 1px solid #c9cdd7; color:#7a7a7a;">
+                  {$labels.tc_monthly_creation_rate_on_tproj_hint|escape}</h5>
+                <br>
+              </div>
+              <canvas id="tcGrowthBar" width="700" height="220"></canvas>
+            {/if}
           </div>
           <!-- /col-lg-9 END SECTION MIDDLE -->
         </div>
@@ -127,8 +141,12 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   <script src="{$dashioHomeURL}lib/left-bar-scripts.js"></script>
 
   <!--script for this page-->
-  {if $gui->dashboard != null}
+  {* Loaded once for whichever dashboard widgets are on the page. *}
+  {if $gui->dashboard != null || $gui->tcGrowth != null}
     <script src="{$dashioHomeURL}lib/chart-master/Chart.js"></script>
+  {/if}
+
+  {if $gui->dashboard != null}
     <script type="text/javascript">
     {* Chart.js shipped with dashio is v1: .Doughnut() taking {ldelim}value,color{rdelim}. *}
     {* Zero-valued statuses are kept in the array - Chart.js just draws no
@@ -140,6 +158,20 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
          label: "{$slice.label|escape:'javascript'}"{rdelim}{if !$smarty.foreach.sl.last},{/if}
       {/foreach}
     ], {ldelim}segmentStrokeWidth: 1, percentageInnerCutout: 45{rdelim});
+    </script>
+  {/if}
+
+  {if $gui->tcGrowth != null}
+    <script type="text/javascript">
+    {* v1 .Bar() wants parallel labels[] / datasets[].data[] arrays. *}
+    new Chart(document.getElementById("tcGrowthBar").getContext("2d")).Bar({ldelim}
+      labels: [{foreach from=$gui->tcGrowth->labels item=lb name=lx}"{$lb|escape:'javascript'}"{if !$smarty.foreach.lx.last},{/if}{/foreach}],
+      datasets: [{ldelim}
+        fillColor: "rgba(78,205,196,0.55)",
+        strokeColor: "rgba(78,205,196,1)",
+        data: [{foreach from=$gui->tcGrowth->values item=qty name=vx}{$qty}{if !$smarty.foreach.vx.last},{/if}{/foreach}]
+      {rdelim}]
+    {rdelim}, {ldelim}scaleBeginAtZero: true, barValueSpacing: 6{rdelim});
     </script>
   {/if}
 </body>
