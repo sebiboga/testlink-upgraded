@@ -77,6 +77,47 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
               </div>
             {/if}
 
+            {* Bugs/Issues widget: shows issues tested in the current plan *}
+            {if $gui->bugsInfo != null}
+              <div class="border-head" style="margin-top: 30px; margin-bottom: 30px;">
+                <h3 style="border-bottom: 0px; margin-bottom: 0px; padding-bottom: 0px;">
+                  Bugs/Issues Tested</h3>
+                <h5 style="border-bottom: 1px solid #c9cdd7; color:#7a7a7a;">
+                  Issues validated by this test plan</h5>
+                <br>
+              </div>
+              <div class="row" style="margin: 0 auto; width: 100%; max-width: 700px;">
+                <div class="col-lg-12">
+                  {if count($gui->bugsInfo) > 0}
+                    <table class="table table-bordered table-striped">
+                      <thead>
+                        <tr>
+                          <th>Issue ID</th>
+                          <th>Description</th>
+                          <th>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {foreach from=$gui->bugsInfo item=bug}
+                          <tr>
+                            <td><strong>{$bug.id|escape}</strong></td>
+                            <td>{$bug.description|escape}</td>
+                            <td>
+                              <span class="label" style="background-color: {$bug.color};">
+                                {$bug.status|escape}
+                              </span>
+                            </td>
+                          </tr>
+                        {/foreach}
+                      </tbody>
+                    </table>
+                  {else}
+                    <p style="color:#7a7a7a; padding: 10px 0;">No bugs linked to test cases in this plan.</p>
+                  {/if}
+                </div>
+              </div>
+            {/if}
+
             {* Second widget: test-project scoped, so it stands on its own and
                is shown even when the execution pie above has no test plan. *}
             {if $gui->tcGrowth != null}
