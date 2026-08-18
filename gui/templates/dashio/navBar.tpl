@@ -36,6 +36,14 @@ title bar + menu
   html, body {
     background: #DEDEAD !important;
   }
+
+  {* Both selectors inherit .combo, so side by side they read as one
+     control. Give the test plan the 'blocked' amber from the results
+     palette so the two scopes are told apart at a glance. *}
+  .comboTestPlan {
+    background: #f0ad4e;
+    border-color: #dba044 !important;
+  }
   </style>
 </head>
 
@@ -110,8 +118,8 @@ The _top value of the target attribute specifies that the URL should open in the
   </script>
 
   {* the place for test plans will be always displayed*}
-  {if $gui->testPlans != null} 
-    <li class="combo">
+  {if $gui->testPlans != null}
+    <li class="combo comboTestPlan">
       <form style="display:inline" name="planForm" 
             target="{$topBrowsingContext}"
             action="index.php?action=planChange" 
