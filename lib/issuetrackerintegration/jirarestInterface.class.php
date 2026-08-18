@@ -142,16 +142,26 @@ class jirarestInterface extends issueTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $this->jiraCfg = array('username' => (string)trim($this->cfg->username),
-                   'password' => (string)trim($this->cfg->password),
+      $username = (string)trim($this->cfg->username);
+      $password = (string)trim($this->cfg->password);
+
+      // Silently skip connection if credentials are missing
+      if(empty($username) || empty($password))
+      {
+        $this->connected = false;
+        return;
+      }
+
+      $this->jiraCfg = array('username' => $username,
+                   'password' => $password,
                    'host' => (string)trim($this->cfg->uriapi));
-  	  
+
       $this->jiraCfg['proxy'] = config_get('proxy');
       if( !is_null($this->jiraCfg['proxy']) ) {
         if( is_null($this->jiraCfg['proxy']->host) ) {
           $this->jiraCfg['proxy'] = null;
-        }  
-      }  
+        }
+      }
 
       $this->APIClient = new JiraApi\Jira($this->jiraCfg);
 
@@ -167,7 +177,7 @@ class jirarestInterface extends issueTrackerInterface
           $this->statusDomain[$statusName] = $statusID;
         }
 
-        $this->defaultResolvedStatus = 
+        $this->defaultResolvedStatus =
           $this->support->initDefaultResolvedStatus($this->statusDomain);
       }  
     } catch(Exception $e) {

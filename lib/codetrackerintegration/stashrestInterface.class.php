@@ -96,18 +96,28 @@ class stashrestInterface extends codeTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $this->stashCfg = array('username' => (string)trim($this->cfg->username),
-                   'password' => (string)trim($this->cfg->password),
+      $username = (string)trim($this->cfg->username);
+      $password = (string)trim($this->cfg->password);
+
+      // Silently skip connection if credentials are missing
+      if(empty($username) || empty($password))
+      {
+        $this->connected = false;
+        return;
+      }
+
+      $this->stashCfg = array('username' => $username,
+                   'password' => $password,
                    'host' => (string)trim($this->cfg->uriapi));
-  	  
+
       $this->stashCfg['proxy'] = config_get('proxy');
       if( !is_null($this->stashCfg['proxy']) )
       {
         if( is_null($this->stashCfg['proxy']->host) )
         {
           $this->stashCfg['proxy'] = null;
-        }  
-      }  
+        }
+      }
 
 
       $this->APIClient = new StashApi\Stash($this->stashCfg);
@@ -119,7 +129,7 @@ class stashrestInterface extends codeTrackerInterface
         // if at least it exists.
         $pk = trim((string)$this->cfg->projectkey);
         $this->APIClient->getProject($pk);
-      }  
+      }
     }
     catch(Exception $e)
     {

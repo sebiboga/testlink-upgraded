@@ -420,8 +420,8 @@ function getGrants($dbHandler,$user,$tproject_id,$forceToNo=false)
   }
 
 
-  // check right ONLY if option is enables
-  if($_SESSION['testprojectOptions']->inventoryEnabled) {
+  // check right ONLY if option is enabled
+  if(isset($_SESSION['testprojectOptions']) && $_SESSION['testprojectOptions']->inventoryEnabled) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
       $grants[$r] = ($user->hasRight($dbHandler,$r,$tproject_id) == 'yes') ? 1 : 0;
