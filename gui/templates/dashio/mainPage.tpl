@@ -85,17 +85,23 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     <!--footer start-->
     <footer class="site-footer">
       <div class="text-center">
+        {* The vendor template's own "Copyrights Dashio - All Rights Reserved"
+           line claimed this installation for the theme author, which is wrong
+           for a GPL TestLink install and is NOT the attribution the template
+           licence asks for. Replaced with TestLink's own; the TemplateMag
+           credit below is the part the licence actually requires. *}
         <p>
-          &copy; Copyrights <strong>Dashio</strong>. All Rights Reserved
+          TestLink {$tlVersion|escape} &middot;
+          <a href="http://www.testlink.org/" target="_blank" rel="noopener">testlink.org</a>
         </p>
-        <div class="credits">
+        <div class="credits" style="font-size: 11px; opacity: 0.7;">
           <!--
             You are NOT allowed to delete the credit link to TemplateMag with free version.
             You can delete the credit link only if you bought the pro version.
             Buy the pro version with working PHP/AJAX contact form: https://templatemag.com/dashio-bootstrap-admin-template/
             Licensing information: https://templatemag.com/license/
           -->
-          Created with Dashio template by <a href="https://templatemag.com/">TemplateMag</a>
+          Created with Dashio template by <a href="https://templatemag.com/" target="_blank" rel="noopener">TemplateMag</a>
         </div>
         <a href="index.html#" class="go-top">
           <i class="fa fa-angle-up"></i>
