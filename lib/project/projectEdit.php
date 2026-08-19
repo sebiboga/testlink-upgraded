@@ -724,6 +724,17 @@ function initializeGui(&$dbHandler,$argsObj)
   $guiObj->canManage = $argsObj->user->hasRight($dbHandler,"mgt_modify_product");
   $guiObj->found = 'yes';
 
+  $guiObj->itemID = isset($argsObj->tprojectID) ? intval($argsObj->tprojectID) : 0;
+  $guiObj->tproject_id = $guiObj->itemID;
+  $guiObj->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+  $guiObj->mgt_view_events = $argsObj->user->hasRight($dbHandler, "mgt_view_events");
+
+  $tprojectMgr = new testproject($dbHandler);
+  $actionsCtx = new stdClass();
+  $actionsCtx->tproject_id = $guiObj->tproject_id;
+  $actionsCtx->tplan_id = $guiObj->tplan_id;
+  $guiObj->actions = $tprojectMgr->getViewActions($actionsCtx);
+
   $ent2loop = array('tlIssueTracker' => 'issueTrackers', 'tlCodeTracker' => 'codeTrackers',
                     'tlReqMgrSystem' => 'reqMgrSystems');
   
