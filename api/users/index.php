@@ -55,7 +55,7 @@ function userToJSON(tlUser $u) {
         'lastName' => $u->lastName,
         'email' => $u->emailAddress,
         'locale' => $u->locale,
-        'active' => $u->isActive ? true : false,
+        'active' => intval($u->isActive),
         'globalRoleID' => intval($u->globalRoleID),
         'globalRoleName' => $roleName,
         'authentication' => $u->authentication ?? '',
@@ -85,7 +85,7 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
                 'lastName' => $row['last'],
                 'email' => $row['email'],
                 'locale' => $row['locale'],
-                'active' => intval($row['active']) === 1,
+                'active' => intval($row['active']),
                 'globalRoleID' => intval($row['role_id']),
                 'globalRoleName' => $row['roleName'] ?? '',
                 'authentication' => $row['auth_method'] ?? '',
@@ -191,12 +191,15 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && isse
 
     $body = getBody();
     $active = $body['active'] ?? false;
-    $u->setActive($db, $active ? 1 : 0);
+    $newVal = $active ? 1 : 0;
+    $db->exec_query("UPDATE users SET active = {$newVal} WHERE id = " . intval($u->dbID));
     logAuditEvent("User '$u->login' " . ($active ? 'enabled' : 'disabled'), "UPDATE", $u->dbID, "users");
-    out(['status' => 'ok', 'item' => userToJSON($u)]);
+    $item = userToJSON($u);
+    $item['active'] = $newVal;
+    out(['status' => 'ok', 'item' => $item]);
 }
 
-// Route: DELETE /users/{id} - disable user (soft delete)
+// Route: DELETE /users/{id} - soft delete (active=2)
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     $id = intval($segments[0]);
     $u = tlUser::getByID($db, $id);
@@ -204,12 +207,14 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
 
     if ($u->dbID == $userId) {
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Cannot disable yourself']);
+        out(['status' => 'error', 'message' => 'Cannot delete yourself']);
     }
 
-    $u->setActive($db, 0);
-    logAuditEvent("User '$u->login' disabled", "UPDATE", $u->dbID, "users");
-    out(['status' => 'ok', 'item' => userToJSON($u)]);
+    $db->exec_query("UPDATE users SET active = 2 WHERE id = " . intval($u->dbID));
+    logAuditEvent("User '$u->login' deleted", "UPDATE", $u->dbID, "users");
+    $item = userToJSON($u);
+    $item['active'] = 2;
+    out(['status' => 'ok', 'item' => $item]);
 }
 
 http_response_code(404);

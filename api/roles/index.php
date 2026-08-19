@@ -61,7 +61,7 @@ function getAllRights($db) {
 if ($method === 'GET' && empty($segments)) {
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_FULL);
     $items = [];
-    $systemRoleId = config_get('last_system_role_id');
+    $systemRoleId = 3;
     foreach ($roles as $r) {
         if ($r->dbID == TL_ROLES_INHERITED) continue;
         $json = roleToJSON($r);
