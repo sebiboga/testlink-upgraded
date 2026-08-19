@@ -1635,6 +1635,8 @@ function initUserEnv(&$dbH, $context, $opt=null) {
   $gui->current_tproject_id = intval($args->current_tproject_id);
   $gui->tplan_id = intval($args->tplan_id);
 
+  $gui->countPlans = 0;
+
   if( $gui->tproject_id > 0 ) {
     // Force to avoid lot of processing
     $gui->hasTestCases = $gui->hasKeywords = true;
@@ -1687,6 +1689,7 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     $gui->showMenu = getFirstLevelMenuStructure();
     $gui->showMenu['projects'] = true;
     $gui->showMenu['system'] = true;
+    $gui->countPlans = 0;
     // Provide admin-level grants so aside.tpl sub-items render for the
     // zero-project case (the user is typically a site admin at this point).
     if( is_null($gui->grants) ) {
@@ -1701,6 +1704,9 @@ function initUserEnv(&$dbH, $context, $opt=null) {
       $gui->grants->codetracker_management = "yes";
       $gui->grants->issuetracker_view = "yes";
       $gui->grants->codetracker_view = "yes";
+      $gui->grants->plugin_management = "yes";
+      $gui->grants->project_inventory_view = "no";
+      $gui->grants->project_inventory_management = "no";
     }
     $gui->access = getAccess($gui);
   }
@@ -1975,6 +1981,8 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
 
   // check right ONLY if option is enabled
   $tprojOpt = $tprojMgr->getOptions($argsObj->tproject_id);
+  $grants['project_inventory_view'] = "no";
+  $grants['project_inventory_management'] = "no";
   if($tprojOpt->inventoryEnabled) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
@@ -2101,6 +2109,7 @@ function setSystemWideActiveMenuOFF()
 function getFirstLevelMenuStructure() 
 {
   return array('dashboard' => false,
+               'search' => false,
                'system'=> false,
                'projects' => false,
                'requirements_design' => false,
