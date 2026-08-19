@@ -133,6 +133,7 @@ switch($args->doAction) {
       
     $gui->pageTitle = lang_get('title_testproject_management');
     $gui->itemQty = $tprojQty = count($gui->tprojects);
+    $gui->projectCount = $gui->itemQty;
 
     if($gui->itemQty > 0) {
       $gui->pageTitle .= ' ' . sprintf(lang_get('available_test_projects'),$gui->itemQty);
