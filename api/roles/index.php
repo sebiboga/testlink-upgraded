@@ -31,7 +31,8 @@ if (is_null($currentUser)) {
 }
 
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = preg_replace('#^/api/roles#', '', $path);
+$path = preg_replace('#^/api/roles(/index\.php)?#', '', $path);
+$path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 

@@ -31,7 +31,8 @@ if (is_null($user)) {
 
 $em = tlEventManager::create($db);
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = preg_replace('#^/api/eventviewer#', '', $path);
+$path = preg_replace('#^/api/eventviewer(/index\.php)?#', '', $path);
+$path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 
 function out($data) { echo json_encode($data); exit; }

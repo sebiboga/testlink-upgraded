@@ -31,7 +31,8 @@ if (is_null($user)) {
 }
 
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = preg_replace('#^/api/users#', '', $path);
+$path = preg_replace('#^/api/users(/index\.php)?#', '', $path);
+$path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
@@ -64,12 +65,33 @@ function userToJSON(tlUser $u) {
 }
 
 // Route: GET /users - list all users
-if ($method === 'GET' && empty($segments)) {
-    $users = getAllUsersRoles($db);
+if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
+    $tables = tlObject::getDBTables(array('users', 'nodes_hierarchy', 'roles'));
+    $sql = "SELECT u.id, u.login, u.first, u.last, u.email, u.locale, " .
+           "u.active, u.role_id, u.auth_method, u.expiration_date, u.creation_ts, " .
+           "nh.name AS fullName, r.description AS roleName " .
+           "FROM {$tables['users']} u " .
+           "LEFT OUTER JOIN {$tables['nodes_hierarchy']} nh ON nh.id = u.id " .
+           "LEFT OUTER JOIN {$tables['roles']} r ON r.id = u.role_id " .
+           "ORDER BY u.login ASC";
+    $rows = $db->get_recordset($sql);
     $items = [];
-    if ($users) {
-        foreach ($users as $u) {
-            $items[] = userToJSON($u);
+    if ($rows) {
+        foreach ($rows as $row) {
+            $items[] = [
+                'id' => intval($row['id']),
+                'login' => $row['login'],
+                'firstName' => $row['first'],
+                'lastName' => $row['last'],
+                'email' => $row['email'],
+                'locale' => $row['locale'],
+                'active' => intval($row['active']) === 1,
+                'globalRoleID' => intval($row['role_id']),
+                'globalRoleName' => $row['roleName'] ?? '',
+                'authentication' => $row['auth_method'] ?? '',
+                'expirationDate' => $row['expiration_date'] ?? '',
+                'creation_ts' => $row['creation_ts'] ?? '',
+            ];
         }
     }
     out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
