@@ -1472,6 +1472,8 @@ function initializeGui(&$dbHandler,&$argsObj,&$cfgObj,&$tplanMgr,&$tcaseMgr,&$is
   
   $gui->issueSummaryForStep = null;
   $gui->addIssueOp = null;
+  $gui->uploadOp = null;
+  $gui->round_enabled = 1;
   $gui->allowStepAttachments = true;
   $gui->tlCanCreateIssue = !is_null($issueTracker) && method_exists($issueTracker,'addIssue');
   $gui->remoteExecFeedback = $gui->user_feedback = '';

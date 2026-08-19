@@ -112,7 +112,7 @@ if($do_display) {
   $tplan_linked_tcversions = getFilteredLinkedVersions($db,$args,$tplan_mgr,$tcase_mgr,array('addImportance' => true));
 
   // Add Test Cases to Test plan - Right pane does not honor custom field filter
-  $testCaseSet = $args->control_panel['filter_tc_id'];   
+  $testCaseSet = isset($args->control_panel['filter_tc_id']) ? $args->control_panel['filter_tc_id'] : null;
   if(!is_null($keywordsFilter) ) { 
     
     // With this pieces we implement the AND type of keyword filter.
@@ -418,7 +418,7 @@ function init_args(&$tproject_mgr)
 
   $args->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : intval($_SESSION['testplanID']);
   $args->tproject_id = intval($_SESSION['testprojectID']);
-  $args->tproject_name = $_SESSION['testprojectName'];
+  $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
 
   $args->object_id = isset($_REQUEST['id']) ? intval($_REQUEST['id']) : 0;
   $args->item_level = isset($_REQUEST['edit']) ? trim($_REQUEST['edit']) : null;

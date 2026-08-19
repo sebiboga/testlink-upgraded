@@ -97,7 +97,9 @@ function init_args() {
 
   $args->userID = $_SESSION['userID'];
   $args->user = $_SESSION['currentUser'];
-  $args->optReqs = $_SESSION['testprojectOptions']->requirementsEnabled;
+  $tprojOpts = isset($_SESSION['testprojectOptions']) ? $_SESSION['testprojectOptions'] : null;
+  $args->optReqs = (!is_null($tprojOpts) && isset($tprojOpts->requirementsEnabled)) 
+    ? $tprojOpts->requirementsEnabled : false;
   $args->checked_show_inactive_tplans = 
     $args->show_inactive_tplans ? 'checked="checked"' : 0;
   $args->show_only_active_tplans = !$args->show_inactive_tplans;

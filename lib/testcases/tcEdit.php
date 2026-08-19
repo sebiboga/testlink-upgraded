@@ -661,6 +661,9 @@ function initializeGui(&$dbHandler,&$argsObj,$cfgObj,&$tcaseMgr,&$tprojMgr) {
 
   $guiObj->codeTrackerEnabled = $tprojMgr->isCodeTrackerEnabled($guiObj->tproject_id);
 
+  $tprojectOpt = $tprojMgr->getOptions($argsObj->tproject_id);
+  $guiObj->tprojOpt = is_null($tprojectOpt) ? new stdClass() : $tprojectOpt;
+
   return $guiObj;
 }
 

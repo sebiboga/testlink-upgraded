@@ -26,6 +26,8 @@ $tproject_mgr = new testproject($db);
 $args = init_args();
 $gui = new stdClass();
 $gui->tcasePrefix = '';
+$gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$gui->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
  
 $gui->mainCaption = lang_get('testproject') . " " . $args->tprojectName;
 

@@ -153,7 +153,9 @@ function init_args(&$dbHandler) {
   $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
 
   $args->basehref = $_SESSION['basehref'];
-  $args->testprojectOptReqs = $_SESSION['testprojectOptions']->requirementsEnabled;
+  $tprojOpts = isset($_SESSION['testprojectOptions']) ? $_SESSION['testprojectOptions'] : null;
+  $args->testprojectOptReqs = (!is_null($tprojOpts) && isset($tprojOpts->requirementsEnabled)) 
+    ? $tprojOpts->requirementsEnabled : false;
   
 
   $args->format = is_null($args->format) ? FORMAT_HTML : $args->format;
@@ -201,6 +203,7 @@ function initializeGui(&$db,$args) {
         
   $gui = new stdClass();
   $gui->showOptionsCheckBoxes = $gui->showOptions = $args->showOptions;
+  $gui->warning = '';
 
   $gui->showHelpIcon = $args->showHelpIcon;
 

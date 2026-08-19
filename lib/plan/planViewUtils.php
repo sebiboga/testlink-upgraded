@@ -21,6 +21,10 @@
  */
 function planViewGUIInit(&$dbHandler, &$argsObj, &$guiObj, &$tplanMgr)
 {
+  if (!isset($guiObj->drawPlatformQtyColumn)) {
+    $guiObj->drawPlatformQtyColumn = false;
+  }
+
   if ($guiObj->getTestPlans) {
     $guiObj->tplans = $argsObj->user->getAccessibleTestPlans(
       $dbHandler, $argsObj->tproject_id, null,

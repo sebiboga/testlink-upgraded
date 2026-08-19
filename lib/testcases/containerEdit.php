@@ -262,6 +262,7 @@ if( $doIt ) {
       $gui->tproject_id = $args->tprojectID;
       $gui->containerID = $args->containerID;
       $gui->containerType = $level;
+      $gui->tplan_id = isset($args->tplan_id) ? $args->tplan_id : 0;
       $gui->refreshTree = $args->refreshTree;
       $gui->cancelActionJS = 'location.href=fRoot+' .
                              "'lib/testcases/archiveData.php?id=" . intval($args->containerID);

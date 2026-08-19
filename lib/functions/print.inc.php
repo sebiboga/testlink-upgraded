@@ -691,11 +691,18 @@ function renderFirstPage($doc_info)
     }
     
     $safePName = $_SESSION['basehref'] . TL_THEME_IMG_DIR . $docCfg->company_logo;
-    list($iWidth, $iHeight, $iType, $iAttr) = getimagesize($safePName);
-    $output .= '<p style="text-align: center;"><img alt="TestLink logo" ' .
-               'title="configure using $tlCfg->document_generator->company_logo" ' . 
-               ' width=' . $iWidth . ' height=' . $iHeight .
-               ' src="' . $safePName . '" /></p>';
+    $imgData = @getimagesize($safePName);
+    if ($imgData !== false) {
+      list($iWidth, $iHeight, $iType, $iAttr) = $imgData;
+      $output .= '<p style="text-align: center;"><img alt="TestLink logo" ' .
+                 'title="configure using $tlCfg->document_generator->company_logo" ' . 
+                 ' width=' . $iWidth . ' height=' . $iHeight .
+                 ' src="' . $safePName . '" /></p>';
+    } else {
+      $output .= '<p style="text-align: center;"><img alt="TestLink logo" ' .
+                 'title="configure using $tlCfg->document_generator->company_logo" ' . 
+                 ' src="' . $safePName . '" /></p>';
+    }
   }
   $output .= "</div>\n";
 
@@ -1391,7 +1398,10 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
 
   // Spacer
   $code .= '<tr><td colspan="' .  $cfg['tableColspan'] . '">' . "</td></tr>";
-  $code .= $cfields['specScope']['standard_location'] . $cfields['execScope'];
+  if (is_array($cfields)) {
+    $code .= (isset($cfields['specScope']['standard_location']) ? $cfields['specScope']['standard_location'] : '') .
+             (isset($cfields['execScope']) ? $cfields['execScope'] : '');
+  }
   
   // 
   $cfields = null;

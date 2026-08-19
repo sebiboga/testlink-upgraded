@@ -456,6 +456,9 @@ function initializeGui(&$dbHandler,&$argsObj,&$editorCfg,&$tprojectMgr)
   $guiObj->tproject_name = $argsObj->tproject_name;
   $guiObj->testplan_name = $argsObj->testplan_name;
   $guiObj->editorType = $editorCfg['type'];
+  $guiObj->drawPlatformQtyColumn = false;
+  $guiObj->doViewReload = false;
+  $guiObj->cfields = '';
 
   // ----------------------------------------------------- 
   $ctx = new stdClass();

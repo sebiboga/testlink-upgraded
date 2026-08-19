@@ -38,6 +38,8 @@ $gui = new stdClass();
 $gui->tcasePrefix = $tproject_mgr->getTestCasePrefix($args->tprojectID);
 $gui->tcasePrefix .= $tcase_cfg->glue_character;
 $gui->mainCaption = lang_get('testproject') . " " . $args->tprojectName;
+$gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$gui->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
 
 $enabled = 1;
 $no_filters = null;

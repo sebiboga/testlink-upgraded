@@ -63,6 +63,9 @@ function initializeGui(&$dbHandler,&$argsObj)
   $gui->modification_date_to = null;
   $gui->search_important_notice = sprintf(lang_get('search_important_notice'),$argsObj->tprojectName);
 
+  $tprojectOpt = $tproject_mgr->getOptions($argsObj->tprojectID);
+  $gui->tprojOpt = is_null($tprojectOpt) ? new stdClass() : $tprojectOpt;
+
   $gui->design_cf = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design($argsObj->tprojectID,cfield_mgr::ENABLED,null,'testcase');
 
   $gui->keywords = $tproject_mgr->getKeywords($argsObj->tprojectID);

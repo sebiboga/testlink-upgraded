@@ -173,7 +173,7 @@ function init_args($request_hash, $session_hash,$date_format,&$tplanMgr) {
   $args->testprojectID = intval($session_hash['testprojectID']);
   $args->tproject_id = intval($session_hash['testprojectID']);
 
-  $args->testprojectName = $session_hash['testprojectName'];
+  $args->testprojectName = isset($session_hash['testprojectName']) ? $session_hash['testprojectName'] : '';
   $args->userID = intval($session_hash['userID']);
 
   $args->exec_status_filter = 
@@ -340,7 +340,8 @@ function renderGui(&$smartyObj,&$argsObj,&$tplanMgr,&$buildMgr,$templateCfg,$owe
         // To create the CF columns we need to get the linked CF
         // Attention this is affected by changes in templates
         $guiObj->buildSet=$tplanMgr->get_builds($argsObj->tplan_id);
-        $availableCF = (array)$buildMgr->get_linked_cfields_at_design($guiObj->build,$guiObj->tproject_id);
+        $availableCF = (array)$buildMgr->get_linked_cfields_at_design(
+          isset($guiObj->build) ? $guiObj->build : null, $guiObj->tproject_id);
     
         $hasCF = count($availableCF);
         $guiObj->cfieldsColumns = null;
@@ -368,7 +369,8 @@ function renderGui(&$smartyObj,&$argsObj,&$tplanMgr,&$buildMgr,$templateCfg,$owe
         }
 
         $localeDateFormat = config_get('locales_date_format');
-        $localeDateFormat = $localeDateFormat[$args->user->locale];
+        $localeDateFormat = isset($argsObj->user->locale) && isset($localeDateFormat[$argsObj->user->locale]) 
+          ? $localeDateFormat[$argsObj->user->locale] : current($localeDateFormat);
         $initCFCol = true;
 
         foreach($guiObj->buildSet as $elemBuild) {

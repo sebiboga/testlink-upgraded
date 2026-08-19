@@ -55,6 +55,7 @@ function initializeGui(&$dbHandler, &$control, &$assignmentMgr)
   $gui = new stdClass();
   $gui->feature = $control->args->feature;
   $gui->tPlanID = $control->args->testplan_id;
+  $gui->tproject_id = isset($control->args->testproject_id) ? intval($control->args->testproject_id) : 0;
   $gui->title = lang_get('title_test_plan_navigator');
   $gui->src_workframe = '';
   $gui->additional_string = '';

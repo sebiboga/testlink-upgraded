@@ -34,6 +34,7 @@ function init_args(&$dbHandler) {
   $user = $_SESSION['currentUser'];
   $args = getKeywordsEnv($dbHandler,$user,$tproject_id);
   $args->tproject_id = $tproject_id;
+  $args->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
 
   $args->dialogName = '';
   $args->bodyOnLoad = $args->bodyOnUnload = '';       

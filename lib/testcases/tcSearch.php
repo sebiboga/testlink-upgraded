@@ -489,6 +489,8 @@ function initializeGui(&$argsObj,&$tprojectMgr)
   $gui->row_qty = 0;
   $gui->doSearch = ($argsObj->doAction == 'doSearch');
   $gui->tproject_id = intval($argsObj->tprojectID);
+  $tprojectOpt = $tprojectMgr->getOptions($argsObj->tprojectID);
+  $gui->tprojOpt = is_null($tprojectOpt) ? new stdClass() : $tprojectOpt;
 
   // tcSearchResults.tpl (dashio) only includes tcSearchGUI.inc.tpl when this is
   // true, but nothing ever set it, so the filter form never rendered - just the

@@ -64,6 +64,7 @@ function initializeGui($control)
 
   $gui = new stdClass();
   $gui->formAction = '';
+  $gui->tproject_id = isset($control->args->testproject_id) ? intval($control->args->testproject_id) : 0;
 
   $gui->req_spec_manager_url = "lib/requirements/reqSpecView.php";
   $gui->req_manager_url = "lib/requirements/reqView.php";
