@@ -107,6 +107,9 @@ function initEnv(&$dbHandler)
 
   $gui->basehref = $args->basehref; 
 
+  $gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+  $gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+
   $gui->highlight = initialize_tabsmenu();
   $gui->highlight->view_users = 1;
 

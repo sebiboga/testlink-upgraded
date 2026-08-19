@@ -116,6 +116,12 @@ function initializeGui(&$dbHandler,&$argsObj) {
 
   $guiObj->itemQty = count($guiObj->tprojects);
 
+  // projectView.tpl uses these in hidden fields and JS reload logic
+  $guiObj->tproject_id = $argsObj->tproject_id;
+  $guiObj->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+  $guiObj->projectCount = $guiObj->itemQty;
+  $guiObj->doViewReload = false;
+
   if($guiObj->itemQty > 0) {
     $guiObj->pageTitle .= ' ' . sprintf(lang_get('available_test_projects'),$guiObj->itemQty);
  

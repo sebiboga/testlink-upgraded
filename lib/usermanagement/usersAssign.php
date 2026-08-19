@@ -582,6 +582,8 @@ function initializeGui(&$dbHandler,$argsObj)
   $gui->roles_updated = '';
   $gui->tproject_name = $argsObj->testprojectName;
   $gui->featureType = $argsObj->featureType;
+  $gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+  $gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
   $gui->optRights = tlRole::getAll($dbHandler,null,null,null,tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
   $gui->features = null;
   $gui->featureID = null;

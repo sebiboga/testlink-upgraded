@@ -22,6 +22,16 @@ testlinkInitPage($db,('initProject' == 'initProject'));
 // empty object is all that has to be handed over.
 $gui = new stdClass();
 
+// aside.tpl checks $gui->hasKeywords to show/hide keyword assignment.
+// The old single-frame layout computed this in mainPage.php; since the
+// sidebar now has its own frame we need it here too.
+$tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$gui->hasKeywords = false;
+if($tprojectID > 0) {
+  $tproject_mgr = new testproject($db);
+  $gui->hasKeywords = $tproject_mgr->hasKeywords($tprojectID);
+}
+
 // Plugins can inject links via these four events (aside.tpl groups them all
 // into one "Plugins" section) - mainPage.php used to compute this for the old
 // single-frame layout, but that code went dead once the menu got its own

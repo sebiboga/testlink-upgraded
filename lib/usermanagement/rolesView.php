@@ -107,6 +107,8 @@ function initializeGui(&$db,&$args)
   $gui->role_id_replacement = config_get('role_replace_for_deleted_roles');
   $cfg = getWebEditorCfg('role');
   $gui->editorType = $cfg['type'];
+  $gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+  $gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
   
   return $gui;
 }
