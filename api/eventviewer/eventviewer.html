@@ -1,21 +1,10 @@
-<?php
-require_once("../../config.inc.php");
-require_once("common.php");
-testlinkInitPage($db, false, false, "checkRights");
-
-function checkRights(&$db, &$user, $action) {
-    return $user->hasRight($db, "mgt_view_events");
-}
-
-$tproject_id = intval($_SESSION['testprojectID'] ?? 0);
-$tplan_id = intval($_SESSION['testplanID'] ?? 0);
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Event Viewer</title>
-<link rel="stylesheet" href="<?php echo $tplCfg['templates_dir'] ?? '../..'; ?>/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
 <style>
@@ -53,8 +42,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   box-shadow: 0 1px 4px rgba(0,0,0,.08);
 }
 .chart-box h3 { margin: 0 0 14px; font-size: 15px; color: #22242a; }
+.chart-canvas-wrap { position: relative; max-height: 260px; }
 
 .table-wrap { padding: 0 24px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
 table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
 table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
@@ -72,13 +64,20 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 tr.shown { background: #f9fffe !important; }
 .detail-row { background: #f7fffe; }
 .detail-row td { padding: 0 !important; }
-.detail-content { padding: 14px 24px; border-top: 2px solid #4ECDC4; }
+.detail-content {
+  padding: 14px 24px; border-top: 2px solid #4ECDC4;
+}
 .detail-content table th { color: #555; font-weight: 600; width: 140px; font-size: 12px; }
 .detail-content table td { color: #333; font-size: 13px; }
 
-.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff;
+}
 
-td.details-control { cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 16px; }
+td.details-control {
+  cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 16px;
+}
 td.details-control:hover { color: #2d8e88; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
   background: #4ECDC4 !important; color: #fff !important; border: none !important;
@@ -115,11 +114,11 @@ td.details-control:hover { color: #2d8e88; }
 <div class="charts-row">
   <div class="chart-box">
     <h3>Events by Level</h3>
-    <div><canvas id="pieChart" width="280" height="260"></canvas></div>
+    <div class="chart-canvas-wrap"><canvas id="pieChart" width="280" height="260"></canvas></div>
   </div>
   <div class="chart-box">
     <h3>Events per Day (last 30 days)</h3>
-    <div><canvas id="lineChart" width="700" height="260"></canvas></div>
+    <div class="chart-canvas-wrap"><canvas id="lineChart" width="700" height="260"></canvas></div>
   </div>
 </div>
 
@@ -145,28 +144,23 @@ td.details-control:hover { color: #2d8e88; }
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
-<script src="../templates/dashio/lib/chart-master/Chart.js"></script>
+<script src="/gui/templates/dashio/lib/chart-master/Chart.js"></script>
 <script>
 var API = '/api/eventviewer/index.php';
+var qs = new URLSearchParams(window.location.search);
+var tproject_id = qs.get('tproject_id') || '';
+var tplan_id = qs.get('tplan_id') || '';
 var LEVEL_COLORS = {
   AUDIT: '#4ECDC4', ERROR: '#e6605e', WARNING: '#f0ad4e',
   INFO: '#3498db', DEBUG: '#8f8f8f', L18N: '#9b59b6'
 };
-var eventItems = [];
-var table = null, pieChart = null, lineChart = null;
+var table = null;
+var pieChart = null;
+var lineChart = null;
 
 $(function() {
   loadMeta();
   loadEvents();
-
-  $('#filterStart, #filterEnd').daterangepicker({
-    autoUpdateInput: false,
-    locale: { cancelLabel: 'Clear', format: 'DD/MM/YYYY' }
-  });
-  $('#filterStart, #filterEnd').on('apply.daterangepicker', function(ev, picker) {
-    $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
-  });
-  $('#filterStart, #filterEnd').on('cancel.daterangepicker', function() { $(this).val(''); });
 });
 
 function loadMeta() {
@@ -185,10 +179,23 @@ function loadMeta() {
   $.getJSON(API + '/events/meta/rights', function(r) {
     if (r.canDelete) $('#btnClear').show();
   });
+
+  $('input[id^="filter"]').each(function() {
+    $(this).daterangepicker({
+      autoUpdateInput: false,
+      locale: { cancelLabel: 'Clear', format: 'DD/MM/YYYY' }
+    });
+    $(this).on('apply.daterangepicker', function(ev, picker) {
+      $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+    });
+    $(this).on('cancel.daterangepicker', function() { $(this).val(''); });
+  });
 }
 
 function buildQuery() {
   var p = [];
+  if (tproject_id) p.push('tproject_id=' + tproject_id);
+  if (tplan_id) p.push('tplan_id=' + tplan_id);
   var levels = $('#filterLevel').val();
   if (levels && levels.length) p.push('logLevel=' + levels.join(','));
   var user = $('#filterUser').val();
@@ -203,7 +210,6 @@ function buildQuery() {
 function loadEvents() {
   var q = buildQuery();
   $.getJSON(API + '/events' + q, function(r) {
-    eventItems = r.items;
     renderTable(r.items);
     $('#footerText').text(r.total + ' events | Generated on ' + new Date().toLocaleString());
   });
@@ -212,7 +218,7 @@ function loadEvents() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); }
+  if (table) { table.destroy(); $('eventsTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, ev) {
     rows.push([
@@ -224,10 +230,15 @@ function renderTable(items) {
     ]);
   });
   table = $('#eventsTable').DataTable({
-    data: rows, order: [[1, 'desc']], pageLength: 25,
+    data: rows,
+    order: [[1, 'desc']],
+    pageLength: 25,
     columns: [
       { orderable: false, searchable: false },
-      null, null, null, null
+      { type: 'string' },
+      { orderable: true },
+      { orderable: true },
+      { orderable: false }
     ]
   });
 }
@@ -241,22 +252,25 @@ $('#eventsTable tbody').on('click', 'td.details-control', function() {
     $(this).text('+');
   } else {
     var idx = row.index();
-    var id = eventItems[idx] ? eventItems[idx].id : null;
-    if (!id) return;
-    $(this).text('-');
-    $.getJSON(API + '/events/' + id, function(d) {
-      var e = d.item;
-      var html = '<div class="detail-content"><table>';
-      html += '<tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
-      html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr>';
-      html += '<tr><th>Transaction</th><td>' + (e.transactionID ? '#'+e.transactionID : '-') + '</td></tr>';
-      html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
-      html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
-      html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
-      html += '</table></div>';
-      row.child(html, 'detail-row').show();
-      tr.addClass('shown');
+    var allData = table.rows().data();
+    var id = null;
+    $.getJSON(API + '/events', function(r) {
+      if (r.items[idx]) {
+        id = r.items[idx].id;
+        $.getJSON(API + '/events/' + id, function(d) {
+          var e = d.item;
+          var html = '<div class="detail-content"><table><tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
+          html += '<tr><th>Session ID</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
+          html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
+          html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
+          html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
+          html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
+          row.child(html, 'detail-row').show();
+          tr.addClass('shown');
+        });
+      }
     });
+    $(this).text('-');
   }
 });
 
@@ -265,18 +279,22 @@ function renderPie(items) {
   $.each(items, function(name, count) {
     data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name});
   });
-  if (pieChart) pieChart.destroy();
-  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'))
-    .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45});
+  if (pieChart) { pieChart.destroy(); }
+  var ctx = document.getElementById('pieChart').getContext('2d');
+  pieChart = new Chart(ctx).Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45});
 }
 
 function renderLine(labels, data) {
-  if (lineChart) lineChart.destroy();
-  lineChart = new Chart(document.getElementById('lineChart').getContext('2d')).Line({
+  if (lineChart) { lineChart.destroy(); }
+  var ctx = document.getElementById('lineChart').getContext('2d');
+  lineChart = new Chart(ctx).Line({
     labels: labels,
     datasets: [{
-      fillColor: 'rgba(78,205,196,0.2)', strokeColor: '#4ECDC4',
-      pointColor: '#4ECDC4', pointStrokeColor: '#fff', data: data
+      fillColor: 'rgba(78,205,196,0.2)',
+      strokeColor: '#4ECDC4',
+      pointColor: '#4ECDC4',
+      pointStrokeColor: '#fff',
+      data: data
     }]
   }, {scaleBeginAtZero: true, bezierCurve: true, datasetFill: true});
 }
