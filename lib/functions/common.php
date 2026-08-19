@@ -2001,8 +2001,9 @@ function getAccess(&$gui) {
     $access[$ak] = 'no';
     $p_m = $ak . '_management';
     $p_v = $ak . '_view';
-    if( 'yes' == $gui->grants->$p_m || 
-        'yes' == $gui->grants->$p_v ) {
+    $m_val = property_exists($gui->grants, $p_m) ? $gui->grants->$p_m : 'no';
+    $v_val = property_exists($gui->grants, $p_v) ? $gui->grants->$p_v : 'no';
+    if( 'yes' == $m_val || 'yes' == $v_val ) {
       $access[$ak] = 'yes';
     }
   }
