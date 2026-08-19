@@ -1791,7 +1791,7 @@ function getActions(&$gui,$baseURL) {
 
   $actions = new stdClass();
 
-  $actions->events = "/api/eventviewer/eventviewer.html?{$ctx}";
+  $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
   $actions->usersAssign = "$bb/usermanagement/usersAssign.php?{$ctx}&featureType=testproject&featureID=" . intval($gui->tproject_id);
 
   $actions->userMgmt = "$bb/usermanagement/usersView.php?{$ctx}" . 
