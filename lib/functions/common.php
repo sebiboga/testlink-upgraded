@@ -2112,6 +2112,7 @@ function getFirstLevelMenuStructure()
                'search' => false,
                'system'=> false,
                'projects' => false,
+               'plugins' => false,
                'requirements_design' => false,
                'tests_design' => false,
                'plans' => false,

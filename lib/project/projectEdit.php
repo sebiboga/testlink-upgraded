@@ -125,6 +125,7 @@ switch($args->doAction) {
     }  
 
     $gui->doAction = $reloadType;
+    $gui->doViewReload = ($reloadType == 'reloadNavBar');
     $opt = array('output' => 'array_of_map', 'order_by' => " ORDER BY nodes_hierarchy.name ",
                  'add_issuetracker' => $addIssueTracker, 'add_codetracker' => $addCodeTracker,
                  'add_reqmgrsystem' => $addReqMgrSystem);
