@@ -134,8 +134,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script>
 var API = '/api/roles/index.php';
 var table = null;
-var allRights = [];
 var rightsMap = {};
+
+function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -192,8 +193,8 @@ function renderTable(items) {
       : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ', \'' + r.name.replace(/'/g, "\\'") + '\')"></i>';
     rows.push([
       r.id,
-      r.name,
-      r.description || '',
+      esc(r.name),
+      esc(r.description || ''),
       rightTags || '<span style="color:#999;font-size:11px;">none</span>',
       typeBadge,
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' + deleteBtn

@@ -147,7 +147,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 // Route: DELETE /roles/{id} - delete role
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     $id = intval($segments[0]);
-    $systemRoleId = intval(config_get('last_system_role_id'));
+    $systemRoleId = 3;
     if ($id <= $systemRoleId) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Cannot delete system role']);
