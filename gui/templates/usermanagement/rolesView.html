@@ -94,7 +94,10 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
           <textarea id="editRoleDesc" class="form-control" rows="2" style="font-size:13px;"></textarea>
         </div>
         <div class="form-group">
-          <label style="font-size:12px;font-weight:600;">Rights * <span style="font-weight:400;color:#888;">(select at least one)</span></label>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <label style="font-size:12px;font-weight:600;margin:0;">Rights * <span style="font-weight:400;color:#888;">(select at least one)</span></label>
+            <a href="javascript:;" onclick="toggleAllRights()" style="font-size:12px;color:#4ECDC4;font-weight:600;">Select All</a>
+          </div>
           <div id="rightsContainer" class="rights-grid"></div>
         </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
@@ -209,6 +212,12 @@ function renderTable(items) {
       { orderable: false, searchable: false }
     ]
   });
+}
+
+function toggleAllRights() {
+  var boxes = $('#rightsContainer input[type="checkbox"]');
+  var allChecked = boxes.length === boxes.filter(':checked').length;
+  boxes.prop('checked', !allChecked);
 }
 
 function buildRightsCheckboxes(selectedRights) {
