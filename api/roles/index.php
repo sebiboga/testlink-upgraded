@@ -212,7 +212,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'name ASC']);
+    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
     $projectOpts = [];
     foreach ($projects as $p) {
         $projectOpts[] = ['id' => intval($p['id']), 'name' => $p['name']];
@@ -294,7 +294,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'name ASC']);
+    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
     $projectOpts = [];
     foreach ($projects as $p) {
         $projectOpts[] = ['id' => intval($p['id']), 'name' => $p['name']];
