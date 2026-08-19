@@ -60,6 +60,9 @@ Left side menu
                     <li>
                       <a id="userMgmt" href="{$gui->uri->userMgmt}" target="mainframe">{$labels.title_user_mgmt}</a>
                     </li>
+                    <li>
+                      <a href="{$gui->uri->rolesView}" target="mainframe">Role Management</a>
+                    </li>
                   {/if}
 
                   {if $menuGrants->cfield_management == "yes"}
@@ -174,6 +177,9 @@ Left side menu
                   <li><a href="{$gui->uri->planView}" target="mainframe">
                   {$labels.href_plan_management}</a>
                   </li>
+                  {if $gui->countPlans > 0}
+                    <li><a href="{$gui->uri->usersAssignPlan}" target="mainframe">Assign Test Plan Roles</a></li>
+                  {/if}
                   {/if}
 
                   {if $gui->uri->buildView != null 

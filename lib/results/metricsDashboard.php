@@ -242,7 +242,10 @@ function getMetrics(&$db,$userObj,$args, $result_cfg, $labels)
       $mm[$key]['overall'] = $metricsMgr->getExecCountersByExecStatus($key,null,
                                                                       array('getOnlyActiveTCVersions' => true));
 
-      $mm[$key]['overall']['active'] = $mm[$key]['overall']['total'];
+      if(!is_array($mm[$key]['overall'])) {
+        $mm[$key]['overall'] = array();
+      }
+      $mm[$key]['overall']['active'] = isset($mm[$key]['overall']['total']) ? $mm[$key]['overall']['total'] : 0;
 
       // compute executed
       $mm[$key]['overall']['executed'] = 0;

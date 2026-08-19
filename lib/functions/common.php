@@ -1792,10 +1792,13 @@ function getActions(&$gui,$baseURL) {
   $actions = new stdClass();
 
   $actions->events = "/gui/templates/eventviewer/eventviewer.html?{$ctx}";
-  $actions->usersAssign = "$bb/usermanagement/usersAssign.php?{$ctx}&featureType=testproject&featureID=" . intval($gui->tproject_id);
+  $actions->rolesView = "/gui/templates/usermanagement/rolesView.html?{$ctx}";
 
-  $actions->userMgmt = "$bb/usermanagement/usersView.php?{$ctx}" . 
-                       intval($gui->tproject_id);
+  $actions->usersAssign = "/gui/templates/usermanagement/usersAssignProject.html?{$ctx}";
+
+  $actions->usersAssignPlan = "/gui/templates/usermanagement/usersAssignPlan.html?{$ctx}";
+
+  $actions->userMgmt = "/gui/templates/usermanagement/usersView.html?{$ctx}";
 
   $actions->userInfo = "$bb/usermanagement/userInfo.php?{$ctx}";
   $actions->projectView = "$bb/project/projectView.php?{$ctx}";

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Test Project Roles</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.table-wrap { padding: 20px 24px; }
+.assign-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; border-collapse: collapse; }
+.assign-table thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; text-align: left; }
+.assign-table tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #eee; }
+.assign-table tbody tr:hover { background: #f0fffd; }
+.assign-table select { font-size: 13px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; }
+.changed { background: #fff3cd !important; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.changed-badge { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">Assign Test Project Roles <span>assign user roles within test projects</span></div>
+
+<div class="toolbar">
+  <label style="color:#aaa;font-size:13px;margin-right:4px;">Test Project:</label>
+  <select id="projectSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:250px;"></select>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> Save Changes</button>
+</div>
+
+<div class="table-wrap">
+  <table class="assign-table" id="assignTable">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>Login</th>
+        <th>Name</th>
+        <th style="width:220px;">Assigned Role</th>
+      </tr>
+    </thead>
+    <tbody id="assignBody"></tbody>
+  </table>
+  <div id="emptyMsg" style="display:none;padding:40px;text-align:center;color:#888;font-size:14px;">
+    <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
+    Select a test project above to manage role assignments.
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/roles/index.php';
+var currentProject = null;
+var originalData = {};
+var roles = [];
+
+$(function() {
+  var params = new URLSearchParams(window.location.search);
+  var tp = params.get('tproject_id');
+  loadProjects(tp);
+});
+
+function loadProjects(selectedId) {
+  $.getJSON(API + '/meta/tproject-roles?tproject_id=0', function(r) {
+    var sel = $('#projectSelect');
+    sel.append('<option value="">-- select project --</option>');
+    $.each(r.projects, function(i, p) {
+      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+    });
+    roles = r.roles || [];
+    if (selectedId) {
+      sel.val(selectedId);
+      loadUsers(selectedId);
+    }
+  });
+  $('#projectSelect').on('change', function() {
+    var pid = $(this).val();
+    if (pid) loadUsers(pid);
+    else { $('#assignBody').empty(); $('#emptyMsg').show(); }
+  });
+}
+
+function loadUsers(pid) {
+  currentProject = pid;
+  originalData = {};
+  $('#saveBtn').prop('disabled', true);
+  $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
+    roles = r.roles || roles;
+    var html = '';
+    $.each(r.items, function(i, u) {
+      var opts = '<option value="0">-- no role --</option>';
+      $.each(roles, function(j, role) {
+        var sel = u.roleID == role.id ? ' selected' : '';
+        opts += '<option value="' + role.id + '"' + sel + '>' + role.name + '</option>';
+      });
+      html += '<tr data-uid="' + u.id + '">' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + u.login + '</td>' +
+        '<td>' + u.name + '</td>' +
+        '<td><select onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select></td>' +
+      '</tr>';
+    });
+    if (!r.items.length) html = '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">No users in this project.</td></tr>';
+    $('#assignBody').html(html);
+    $('#emptyMsg').hide();
+    $('#footerText').text(r.items.length + ' users');
+  });
+}
+
+function onRoleChange(sel, uid, origRoleId) {
+  var newVal = parseInt(sel.value);
+  var changed = newVal !== origRoleId;
+  var tr = $(sel).closest('tr');
+  tr.toggleClass('changed', changed);
+  var badge = tr.find('.changed-badge');
+  if (changed && !badge.length) {
+    tr.find('td:eq(1)').append('<span class="changed-badge">modified</span>');
+  } else if (!changed) {
+    badge.remove();
+  }
+  updateSaveBtn();
+}
+
+function updateSaveBtn() {
+  $('#saveBtn').prop('disabled', !$('.changed').length);
+}
+
+function saveAssignments() {
+  var assignments = {};
+  $('#assignBody tr').each(function() {
+    var uid = $(this).data('uid');
+    var roleVal = parseInt($(this).find('select').val());
+    if (uid && roleVal > 0) assignments[uid] = roleVal;
+  });
+  $.ajax({
+    url: API + '/tproject-roles', type: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: parseInt(currentProject), assignments: assignments }),
+    success: function() { loadUsers(currentProject); }
+  });
+}
+</script>
+</body>
+</html>

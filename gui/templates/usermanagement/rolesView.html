@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Role Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-system { background: #888; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-custom { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.right-tag { display: inline-block; background: #e9ecef; color: #333; padding: 2px 7px; border-radius: 3px; font-size: 11px; margin: 1px 2px; }
+.right-tag.read { background: #d1ecf1; color: #0c5460; }
+.right-tag.write { background: #f8d7da; color: #721c24; }
+.right-tag.execute { background: #d4edda; color: #155724; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.danger { color: #e6605e; }
+.action-btn.danger:hover { color: #d04e4c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.rights-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; max-height: 300px; overflow-y: auto; padding: 4px; }
+.rights-grid label { font-size: 12px; font-weight: 400; cursor: pointer; padding: 4px 8px; border-radius: 3px; background: #f8f9fa; }
+.rights-grid label:hover { background: #e2e6ea; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">Role Management <span>manage roles and permissions</span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> Create Role</button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="rolesTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Rights</th>
+        <th>Type</th>
+        <th style="width:80px">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="roleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Create Role</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editRoleId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">Role Name *</label>
+          <input type="text" id="editRoleName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">Description</label>
+          <textarea id="editRoleDesc" class="form-control" rows="2" style="font-size:13px;"></textarea>
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:600;">Rights * <span style="font-weight:400;color:#888;">(select at least one)</span></label>
+          <div id="rightsContainer" class="rights-grid"></div>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveRole()" style="font-size:13px;">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="deleteMsg" style="font-size:13px;"></p>
+        <p id="deleteUsers" style="font-size:12px;color:#666;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;">Cancel</button>
+        <button type="button" class="btn-red" id="deleteBtn" style="font-size:13px;">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/roles/index.php';
+var table = null;
+var allRights = [];
+var rightsMap = {};
+
+$(function() { loadMeta(); loadRoles(); });
+
+function loadMeta() {
+  $.getJSON(API + '/meta/rights', function(r) {
+    allRights = r.items;
+    rightsMap = {};
+    $.each(r.items, function(i, right) { rightsMap[right.id] = right.description || right.name; });
+  });
+}
+
+function loadRoles() {
+  $.getJSON(API, function(r) {
+    renderTable(r.items);
+    $('#footerText').text(r.total + ' roles | Generated on ' + new Date().toLocaleString());
+  });
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#rolesTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, r) {
+    var rightTags = '';
+    if (r.rights && r.rights.length) {
+      $.each(r.rights, function(j, right) {
+        var cls = 'right-tag';
+        if (right.name && right.name.indexOf('execute') > -1) cls += ' execute';
+        else if (right.name && right.name.indexOf('write') > -1) cls += ' write';
+        else cls += ' read';
+        rightTags += '<span class="' + cls + '">' + (right.name || rightsMap[right.id] || right.id) + '</span>';
+      });
+    }
+    var typeBadge = r.isSystem
+      ? '<span class="badge-system">System</span>'
+      : '<span class="badge-custom">Custom</span>';
+    var deleteBtn = r.isSystem
+      ? ''
+      : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ', \'' + r.name.replace(/'/g, "\\'") + '\')"></i>';
+    rows.push([
+      r.id,
+      r.name,
+      r.description || '',
+      rightTags || '<span style="color:#999;font-size:11px;">none</span>',
+      typeBadge,
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' + deleteBtn
+    ]);
+  });
+  table = $('#rolesTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [
+      { width: 40 }, null, null, { orderable: false }, null,
+      { orderable: false, searchable: false }
+    ]
+  });
+}
+
+function buildRightsCheckboxes(selectedRights) {
+  var html = '';
+  $.each(allRights, function(i, right) {
+    var checked = '';
+    if (selectedRights && selectedRights.length) {
+      $.each(selectedRights, function(j, sr) { if (sr.id == right.id) checked = 'checked'; });
+    }
+    html += '<label><input type="checkbox" name="right" value="' + right.id + '" ' + checked + '> ' + (right.description || right.name || right.id) + '</label>';
+  });
+  return html;
+}
+
+function showCreateModal() {
+  $('#modalTitle').text('Create Role');
+  $('#editRoleId').val('');
+  $('#editRoleName').val('');
+  $('#editRoleDesc').val('');
+  $('#rightsContainer').html(buildRightsCheckboxes([]));
+  $('#modalError').hide();
+  $('#roleModal').modal('show');
+}
+
+function editRole(id) {
+  $.getJSON(API + '/' + id, function(r) {
+    var role = r.item;
+    $('#modalTitle').text('Edit Role: ' + role.name);
+    $('#editRoleId').val(role.id);
+    $('#editRoleName').val(role.name);
+    $('#editRoleDesc').val(role.description || '');
+    $('#rightsContainer').html(buildRightsCheckboxes(role.rights));
+    $('#modalError').hide();
+    $('#roleModal').modal('show');
+  });
+}
+
+function saveRole() {
+  var id = $('#editRoleId').val();
+  var rightIDs = [];
+  $('#rightsContainer input[name="right"]:checked').each(function() { rightIDs.push(parseInt($(this).val())); });
+
+  var data = {
+    name: $('#editRoleName').val().trim(),
+    description: $('#editRoleDesc').val().trim(),
+    rightIDs: rightIDs,
+  };
+
+  if (!data.name) {
+    $('#modalError').text('Role name is required.').show();
+    return;
+  }
+  if (!rightIDs.length) {
+    $('#modalError').text('Select at least one right.').show();
+    return;
+  }
+
+  var url = id ? API + '/' + id : API;
+  var type = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: type,
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function() { $('#roleModal').modal('hide'); loadRoles(); },
+    error: function(xhr) {
+      var msg = 'Error saving role';
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
+
+function confirmDelete(id, name) {
+  $.getJSON(API + '/' + id + '/users', function(r) {
+    var userCount = r.items.length;
+    var msg = 'Are you sure you want to delete role <b>' + name + '</b>?';
+    var userMsg = '';
+    if (userCount > 0) {
+      var loginList = $.map(r.items, function(u) { return u.login; }).join(', ');
+      userMsg = '<b>' + userCount + '</b> user(s) currently have this role: ' + loginList;
+    }
+    $('#deleteMsg').html(msg);
+    $('#deleteUsers').html(userMsg);
+    $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
+    $('#deleteModal').modal('show');
+  });
+}
+
+function doDelete(id) {
+  $.ajax({
+    url: API + '/' + id, type: 'DELETE',
+    success: function() { $('#deleteModal').modal('hide'); loadRoles(); },
+    error: function(xhr) {
+      var msg = 'Error deleting role';
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Test Plan Roles</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.toolbar select { font-size: 13px; padding: 5px 10px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; min-width: 220px; }
+.toolbar label { color: #aaa; font-size: 13px; }
+.table-wrap { padding: 20px 24px; }
+.assign-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; border-collapse: collapse; }
+.assign-table thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; text-align: left; }
+.assign-table tbody td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid #eee; }
+.assign-table tbody tr:hover { background: #f0fffd; }
+.assign-table select { font-size: 13px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; }
+.changed { background: #fff3cd !important; }
+.changed-badge { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-left: 6px; }
+.inherited-col { font-size: 12px; color: #666; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">Assign Test Plan Roles <span>assign user roles within test plans</span></div>
+
+<div class="toolbar">
+  <label>Test Project:</label>
+  <select id="projectSelect"></select>
+  <label style="margin-left:8px;">Test Plan:</label>
+  <select id="planSelect" disabled></select>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> Save Changes</button>
+</div>
+
+<div class="table-wrap">
+  <table class="assign-table" id="assignTable">
+    <thead>
+      <tr>
+        <th style="width:40px">#</th>
+        <th>Login</th>
+        <th>Name</th>
+        <th style="width:200px;">Inherited Role</th>
+        <th style="width:220px;">Plan Role Override</th>
+      </tr>
+    </thead>
+    <tbody id="assignBody"></tbody>
+  </table>
+  <div id="emptyMsg" style="display:none;padding:40px;text-align:center;color:#888;font-size:14px;">
+    <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
+    Select a test project and test plan above to manage role assignments.
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/roles/index.php';
+var currentProject = null;
+var currentPlan = null;
+var roles = [];
+
+$(function() {
+  var params = new URLSearchParams(window.location.search);
+  var tp = params.get('tproject_id');
+  loadProjects(tp);
+});
+
+function loadProjects(selectedId) {
+  $.getJSON(API + '/meta/tplan-roles?tproject_id=0&tplan_id=0', function(r) {
+    var sel = $('#projectSelect');
+    sel.append('<option value="">-- select project --</option>');
+    $.each(r.projects, function(i, p) {
+      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+    });
+    roles = r.roles || [];
+    if (selectedId) { sel.val(selectedId); loadPlans(selectedId); }
+  });
+  $('#projectSelect').on('change', function() {
+    var pid = $(this).val();
+    currentProject = pid;
+    if (pid) { loadPlans(pid); } else {
+      $('#planSelect').html('<option value="">-- select plan --</option>').prop('disabled', true);
+      $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+    }
+  });
+}
+
+function loadPlans(pid) {
+  $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
+    var sel = $('#planSelect');
+    sel.html('<option value="">-- select plan --</option>');
+    $.each(r.plans, function(i, p) {
+      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+    });
+    sel.prop('disabled', false);
+    $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
+  });
+  $('#planSelect').off('change').on('change', function() {
+    var planId = $(this).val();
+    if (planId) loadUsers(pid, planId);
+    else { $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true); }
+  });
+}
+
+function loadUsers(pid, planId) {
+  currentProject = pid; currentPlan = planId;
+  $('#saveBtn').prop('disabled', true);
+  $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=' + planId, function(r) {
+    roles = r.roles || roles;
+    var html = '';
+    $.each(r.items, function(i, u) {
+      var opts = '<option value="0">-- no override --</option>';
+      $.each(roles, function(j, role) {
+        var sel = u.roleID == role.id ? ' selected' : '';
+        opts += '<option value="' + role.id + '"' + sel + '>' + role.name + '</option>';
+      });
+      html += '<tr data-uid="' + u.id + '">' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + u.login + '</td>' +
+        '<td>' + u.name + '</td>' +
+        '<td class="inherited-col">' + u.inheritedRoleName + '</td>' +
+        '<td><select onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select></td>' +
+      '</tr>';
+    });
+    if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">No users in this project.</td></tr>';
+    $('#assignBody').html(html);
+    $('#emptyMsg').hide();
+    $('#footerText').text(r.items.length + ' users');
+  });
+}
+
+function onRoleChange(sel, uid, origRoleId) {
+  var changed = parseInt(sel.value) !== origRoleId;
+  var tr = $(sel).closest('tr');
+  tr.toggleClass('changed', changed);
+  var badge = tr.find('.changed-badge');
+  if (changed && !badge.length) {
+    tr.find('td:eq(1)').append('<span class="changed-badge">modified</span>');
+  } else if (!changed) { badge.remove(); }
+  $('#saveBtn').prop('disabled', !$('.changed').length);
+}
+
+function saveAssignments() {
+  var assignments = {};
+  $('#assignBody tr').each(function() {
+    var uid = $(this).data('uid');
+    var roleVal = parseInt($(this).find('select').val());
+    if (uid) assignments[uid] = roleVal;
+  });
+  $.ajax({
+    url: API + '/tplan-roles', type: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ tplan_id: parseInt(currentPlan), assignments: assignments }),
+    success: function() { loadUsers(currentProject, currentPlan); }
+  });
+}
+</script>
+</body>
+</html>

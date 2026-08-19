@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-outline { background: transparent; color: #4ECDC4; border: 1px solid #4ECDC4; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-outline:hover { background: #4ECDC4; color: #fff; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.danger { color: #e6605e; }
+.action-btn.danger:hover { color: #d04e4c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">User Management <span>manage users and roles</span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> Create User</button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="usersTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th>Login</th>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th style="width:100px">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="userModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Create User</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editUserId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">Login *</label>
+          <input type="text" id="editLogin" class="form-control" maxlength="30" style="font-size:13px;">
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;">First Name *</label>
+            <input type="text" id="editFirstName" class="form-control" maxlength="50" style="font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;">Last Name *</label>
+            <input type="text" id="editLastName" class="form-control" maxlength="50" style="font-size:13px;">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">Email *</label>
+          <input type="email" id="editEmail" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">Password <span id="pwLabel">(leave empty to keep)</span></label>
+          <input type="password" id="editPassword" class="form-control" style="font-size:13px;">
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;">Global Role *</label>
+            <select id="editRole" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;">Locale</label>
+            <select id="editLocale" class="form-control" style="font-size:13px;"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="font-size:12px;">
+            <input type="checkbox" id="editActive" checked> Active
+          </label>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveUser()" style="font-size:13px;">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/users/index.php';
+var table = null;
+var roleMap = {};
+var localeMap = [];
+
+$(function() { loadMeta(); loadUsers(); });
+
+function loadMeta() {
+  $.getJSON(API + '/meta/roles', function(r) {
+    var sel = $('#editRole');
+    sel.empty();
+    $.each(r.items, function(i, role) {
+      roleMap[role.id] = role.name;
+      sel.append('<option value="' + role.id + '">' + role.name + '</option>');
+    });
+  });
+  $.getJSON(API + '/meta/locales', function(r) {
+    localeMap = r.items;
+    var sel = $('#editLocale');
+    sel.empty();
+    $.each(r.items, function(i, loc) {
+      sel.append('<option value="' + loc.code + '">' + loc.name + '</option>');
+    });
+  });
+}
+
+function loadUsers() {
+  $.getJSON(API, function(r) {
+    renderTable(r.items);
+    $('#footerText').text(r.total + ' users | Generated on ' + new Date().toLocaleString());
+  });
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#usersTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, u) {
+    rows.push([
+      u.login,
+      u.firstName || '',
+      u.lastName || '',
+      u.email || '',
+      u.globalRoleName || '',
+      u.active ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>',
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
+      (u.active
+        ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
+        : '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>')
+    ]);
+  });
+  table = $('#usersTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [
+      null, null, null, null, null, null,
+      { orderable: false, searchable: false }
+    ]
+  });
+}
+
+function showCreateModal() {
+  $('#modalTitle').text('Create User');
+  $('#editUserId').val('');
+  $('#editLogin').val('').prop('readonly', false);
+  $('#editFirstName').val('');
+  $('#editLastName').val('');
+  $('#editEmail').val('');
+  $('#editPassword').val('');
+  $('#pwLabel').text('*');
+  $('#editRole').val($('#editRole option:first').val());
+  $('#editLocale').val('en_GB');
+  $('#editActive').prop('checked', true);
+  $('#modalError').hide();
+  $('#userModal').modal('show');
+}
+
+function editUser(id) {
+  $.getJSON(API + '/' + id, function(r) {
+    var u = r.item;
+    $('#modalTitle').text('Edit User: ' + u.login);
+    $('#editUserId').val(u.id);
+    $('#editLogin').val(u.login).prop('readonly', true);
+    $('#editFirstName').val(u.firstName);
+    $('#editLastName').val(u.lastName);
+    $('#editEmail').val(u.email);
+    $('#editPassword').val('');
+    $('#pwLabel').text('(leave empty to keep)');
+    $('#editRole').val(u.globalRoleID);
+    $('#editLocale').val(u.locale);
+    $('#editActive').prop('checked', u.active);
+    $('#modalError').hide();
+    $('#userModal').modal('show');
+  });
+}
+
+function saveUser() {
+  var id = $('#editUserId').val();
+  var data = {
+    login: $('#editLogin').val().trim(),
+    firstName: $('#editFirstName').val().trim(),
+    lastName: $('#editLastName').val().trim(),
+    email: $('#editEmail').val().trim(),
+    globalRoleID: parseInt($('#editRole').val()),
+    locale: $('#editLocale').val(),
+    active: $('#editActive').is(':checked'),
+  };
+  var pw = $('#editPassword').val();
+  if (pw) data.password = pw;
+
+  if (!data.login || !data.firstName || !data.lastName || !data.email) {
+    $('#modalError').text('Login, First Name, Last Name, and Email are required.').show();
+    return;
+  }
+
+  var url = id ? API + '/' + id : API;
+  var type = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: type,
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function() { $('#userModal').modal('hide'); loadUsers(); },
+    error: function(xhr) {
+      var msg = 'Error saving user';
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
+
+function toggleActive(id, active) {
+  var action = active ? 'enable' : 'disable';
+  if (!confirm('Are you sure you want to ' + action + ' this user?')) return;
+  $.ajax({
+    url: API + '/' + id + '/active', type: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({active: active}),
+    success: function() { loadUsers(); }
+  });
+}
+</script>
+</body>
+</html>
