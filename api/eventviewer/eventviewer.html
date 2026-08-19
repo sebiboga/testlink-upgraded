@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -76,9 +77,14 @@ tr.shown { background: #f9fffe !important; }
 }
 
 td.details-control span {
-  cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 16px;
+  cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 14px;
+  transition: transform 0.2s ease;
 }
 td.details-control span:hover { color: #2d8e88; }
+td.details-control span.shown { transform: rotate(90deg); }
+
+td.desc-expand { cursor: pointer; }
+td.desc-expand:hover { background: #f9fffe !important; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
   background: #4ECDC4 !important; color: #fff !important; border: none !important;
 }
@@ -237,25 +243,25 @@ function renderTable(items) {
     order: [[1, 'desc']],
     pageLength: 25,
     columns: [
-      { orderable: false, searchable: false, render: function(data) { return '<span class="details-control" data-id="' + data + '">+</span>'; } },
+      { orderable: false, searchable: false, render: function(data) { return '<span class="details-control" data-id="' + data + '"><i class="fa fa-chevron-right"></i></span>'; } },
       { type: 'string' },
       { orderable: true },
       { orderable: true },
-      { orderable: false }
+      { orderable: false, className: 'desc-expand' }
     ]
   });
 }
 
-$('#eventsTable tbody').on('click', 'span.details-control', function() {
-  var tr = $(this).closest('tr');
+function toggleRow(tr) {
   var row = table.row(tr);
+  var icon = tr.find('span.details-control');
   if (row.child.isShown()) {
     row.child.hide();
     tr.removeClass('shown');
-    $(this).text('+');
+    icon.removeClass('shown');
   } else {
-    var id = $(this).data('id');
-    $(this).text('-');
+    var id = icon.data('id');
+    icon.addClass('shown');
     $.getJSON(API + '/events/' + id, function(d) {
       var e = d.item;
       var html = '<div class="detail-content"><table><tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
@@ -268,6 +274,11 @@ $('#eventsTable tbody').on('click', 'span.details-control', function() {
       tr.addClass('shown');
     });
   }
+}
+
+$('#eventsTable tbody').on('click', 'span.details-control, td.desc-expand', function() {
+  var tr = $(this).closest('tr');
+  toggleRow(tr);
 });
 
 function renderPie(items) {
