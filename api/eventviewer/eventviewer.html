@@ -75,10 +75,10 @@ tr.shown { background: #f9fffe !important; }
   border-top: 1px solid #ddd; background: #fff;
 }
 
-td.details-control {
+td.details-control span {
   cursor: pointer; text-align: center; color: #4ECDC4; font-weight: 700; font-size: 16px;
 }
-td.details-control:hover { color: #2d8e88; }
+td.details-control span:hover { color: #2d8e88; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current {
   background: #4ECDC4 !important; color: #fff !important; border: none !important;
 }
@@ -114,7 +114,10 @@ td.details-control:hover { color: #2d8e88; }
 <div class="charts-row">
   <div class="chart-box">
     <h3>Events by Level</h3>
-    <div class="chart-canvas-wrap"><canvas id="pieChart" width="280" height="260"></canvas></div>
+    <div style="display:flex;align-items:center;gap:20px;">
+      <div><canvas id="pieChart" width="240" height="240"></canvas></div>
+      <div id="pieLegend" style="font-size:13px;line-height:2;"></div>
+    </div>
   </div>
   <div class="chart-box">
     <h3>Events per Day (last 30 days)</h3>
@@ -222,7 +225,7 @@ function renderTable(items) {
   var rows = [];
   $.each(items, function(i, ev) {
     rows.push([
-      '<span class="details-control">+</span>',
+      ev.id,
       ev.timestampFormatted,
       '<span class="level-badge level-' + ev.logLevel + '">' + ev.logLevel + '</span>',
       ev.userDisplayName || ev.userID || '-',
@@ -234,7 +237,7 @@ function renderTable(items) {
     order: [[1, 'desc']],
     pageLength: 25,
     columns: [
-      { orderable: false, searchable: false },
+      { orderable: false, searchable: false, render: function(data) { return '<span class="details-control" data-id="' + data + '">+</span>'; } },
       { type: 'string' },
       { orderable: true },
       { orderable: true },
@@ -243,7 +246,7 @@ function renderTable(items) {
   });
 }
 
-$('#eventsTable tbody').on('click', 'td.details-control', function() {
+$('#eventsTable tbody').on('click', 'span.details-control', function() {
   var tr = $(this).closest('tr');
   var row = table.row(tr);
   if (row.child.isShown()) {
@@ -251,37 +254,39 @@ $('#eventsTable tbody').on('click', 'td.details-control', function() {
     tr.removeClass('shown');
     $(this).text('+');
   } else {
-    var idx = row.index();
-    var allData = table.rows().data();
-    var id = null;
-    $.getJSON(API + '/events', function(r) {
-      if (r.items[idx]) {
-        id = r.items[idx].id;
-        $.getJSON(API + '/events/' + id, function(d) {
-          var e = d.item;
-          var html = '<div class="detail-content"><table><tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
-          html += '<tr><th>Session ID</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
-          html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
-          html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
-          html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
-          html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
-          row.child(html, 'detail-row').show();
-          tr.addClass('shown');
-        });
-      }
-    });
+    var id = $(this).data('id');
     $(this).text('-');
+    $.getJSON(API + '/events/' + id, function(d) {
+      var e = d.item;
+      var html = '<div class="detail-content"><table><tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
+      html += '<tr><th>Session ID</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
+      html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
+      html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
+      html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
+      html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
+      row.child(html, 'detail-row').show();
+      tr.addClass('shown');
+    });
   }
 });
 
 function renderPie(items) {
-  var data = [];
+  var data = [], total = 0;
+  $.each(items, function(name, count) { total += count; });
   $.each(items, function(name, count) {
-    data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name});
+    var pct = total > 0 ? Math.round(count / total * 100) : 0;
+    data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name + ' (' + count + ' / ' + pct + '%)'});
   });
-  if (pieChart) { pieChart.destroy(); }
-  var ctx = document.getElementById('pieChart').getContext('2d');
-  pieChart = new Chart(ctx).Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45});
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'))
+    .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45, animationEasing: "easeOutQuart"});
+  var html = '';
+  $.each(items, function(name, count) {
+    var pct = total > 0 ? Math.round(count / total * 100) : 0;
+    html += '<div><span style="display:inline-block;width:12px;height:12px;border-radius:2px;background:' + (LEVEL_COLORS[name]||'#ccc') + ';margin-right:6px;vertical-align:middle;"></span>';
+    html += '<span style="vertical-align:middle;">' + name + ': <b>' + count + '</b> (' + pct + '%)</span></div>';
+  });
+  $('#pieLegend').html(html);
 }
 
 function renderLine(labels, data) {
