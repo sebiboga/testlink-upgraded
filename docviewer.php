@@ -1,7 +1,7 @@
 <?php
 /**
  * TestLink Document Viewer
- * Opens PDF/documents inline in browser instead of downloading
+ * Serves PDFs directly to browser's native PDF viewer
  * Usage: docviewer.php?file=testlink_user_manual
  */
 
@@ -33,10 +33,29 @@ if (!file_exists($full_path)) {
   exit;
 }
 
+// Serve PDF with proper headers for browser native viewer
 header('Content-Type: application/pdf');
 header('Content-Disposition: inline; filename="' . basename($full_path) . '"');
-header('Content-Length: ' . filesize($full_path));
 header('Cache-Control: public, must-revalidate, max-age=0');
-header('Pragma: public');
+header('Accept-Ranges: bytes');
 
-readfile($full_path);
+// For large files, support range requests
+$file_size = filesize($full_path);
+if (isset($_SERVER['HTTP_RANGE'])) {
+  if (preg_match('/bytes=(\d+)-(\d*)/', $_SERVER['HTTP_RANGE'], $matches)) {
+    $start = intval($matches[1]);
+    $end = $matches[2] === '' ? $file_size - 1 : intval($matches[2]);
+
+    header('HTTP/1.1 206 Partial Content');
+    header("Content-Range: bytes $start-$end/$file_size");
+    header('Content-Length: ' . ($end - $start + 1));
+
+    $fp = fopen($full_path, 'rb');
+    fseek($fp, $start);
+    echo fread($fp, $end - $start + 1);
+    fclose($fp);
+  }
+} else {
+  header('Content-Length: ' . $file_size);
+  readfile($full_path);
+}
