@@ -2339,8 +2339,6 @@ $TLS_desc_platforms_view = 'Visualizza Piattaforme';
 
 // ----- pluginView.php -----       
 // ----- END ------------------------------------------------------------------
-?>
-
 
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Ricerca avanzata';
@@ -2384,3 +2382,5 @@ $TLS_title_documentation = 'Documentazione';
 // ----- plugin labels (were placeholder "undefined") -----------
 $TLS_installed_plugins = 'Plugin installati';
 $TLS_title_plugins = 'Plugin';
+
+?>

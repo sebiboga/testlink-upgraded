@@ -3147,8 +3147,6 @@ $TLS_hlp_results_by_tester_per_build_table = '';
 // ----- pluginView.php -----       
 
 // ----- END ------------------------------------------------------------------
-?>
-
 
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Búsqueda avanzada';
@@ -3182,3 +3180,5 @@ $TLS_title_dashboard = 'Panel de control';
 // ----- plugin labels (were placeholder "undefined") -----------
 $TLS_installed_plugins = 'Plugins instalados';
 $TLS_title_plugins = 'Plugins';
+
+?>

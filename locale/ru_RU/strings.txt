@@ -2744,8 +2744,6 @@ $TLS_warning_step_number_already_exists = " Step number %s already exists";
 
 // ----- pluginView.php -----       
 // ----- END ------------------------------------------------------------------
-?>
-
 
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Расширенный поиск';
@@ -2782,3 +2780,5 @@ $TLS_title_documentation = 'Документация';
 // ----- plugin labels (were placeholder "undefined") -----------
 $TLS_installed_plugins = 'Установленные плагины';
 $TLS_title_plugins = 'Плагины';
+
+?>
