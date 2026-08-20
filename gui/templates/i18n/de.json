@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "Neues Passwort darf nicht leer sein.",
   "profile.msg.passwordMismatch": "Neue Passwörter stimmen nicht überein.",
   "profile.msg.wrongPassword": "Altes Passwort ist falsch.",
-  "profile.msg.requiredFields": "Vorname, Nachname und E-Mail sind erforderlich."
+  "profile.msg.requiredFields": "Vorname, Nachname und E-Mail sind erforderlich.",
+
+  "header.customFields": "Benutzerdefinierte Felder",
+  "header.customFieldsSub": "Benutzerdefinierte Felder für Testfälle, Anforderungen und Pläne verwalten",
+  "cf.label": "Bezeichnung",
+  "cf.name": "Name",
+  "cf.type": "Typ",
+  "cf.active": "Aktiv",
+  "cf.inactive": "Inaktiv",
+  "cf.availableOn": "Verfügbar auf",
+  "cf.design": "Entwurf",
+  "cf.execution": "Ausführung",
+  "cf.testplanDesign": "Testplan-Entwurf",
+  "cf.nodeType": "Knotentyp",
+  "cf.possibleValues": "Mögliche Werte",
+  "cf.enableOn": "Aktivieren auf",
+  "cf.createCustomField": "Benutzerdefiniertes Feld erstellen",
+  "cf.editCustomField": "Benutzerdefiniertes Feld bearbeiten",
+  "cf.fieldsCount": "{n} benutzerdefinierte Felder",
+  "cf.validation.required": "Bezeichnung und Name sind erforderlich.",
+  "cf.msg.errorSave": "Fehler beim Speichern des benutzerdefinierten Felds",
+  "cf.msg.errorDelete": "Fehler beim Löschen des benutzerdefinierten Felds",
+  "cf.msg.confirmDelete": "Möchten Sie das benutzerdefinierte Feld wirklich löschen"
 }

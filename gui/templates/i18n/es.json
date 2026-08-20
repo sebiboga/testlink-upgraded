@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "La nueva contraseña no puede estar vacía.",
   "profile.msg.passwordMismatch": "Las nuevas contraseñas no coinciden.",
   "profile.msg.wrongPassword": "La contraseña antigua es incorrecta.",
-  "profile.msg.requiredFields": "Nombre, Apellido y Correo electrónico son obligatorios."
+  "profile.msg.requiredFields": "Nombre, Apellido y Correo electrónico son obligatorios.",
+
+  "header.customFields": "Campos personalizados",
+  "header.customFieldsSub": "administrar campos personalizados para casos de prueba, requisitos y planes",
+  "cf.label": "Etiqueta",
+  "cf.name": "Nombre",
+  "cf.type": "Tipo",
+  "cf.active": "Activo",
+  "cf.inactive": "Inactivo",
+  "cf.availableOn": "Disponible en",
+  "cf.design": "Diseño",
+  "cf.execution": "Ejecución",
+  "cf.testplanDesign": "Diseño del plan de prueba",
+  "cf.nodeType": "Tipo de nodo",
+  "cf.possibleValues": "Valores posibles",
+  "cf.enableOn": "Habilitar en",
+  "cf.createCustomField": "Crear campo personalizado",
+  "cf.editCustomField": "Editar campo personalizado",
+  "cf.fieldsCount": "{n} campos personalizados",
+  "cf.validation.required": "La etiqueta y el nombre son obligatorios.",
+  "cf.msg.errorSave": "Error al guardar el campo personalizado",
+  "cf.msg.errorDelete": "Error al eliminar el campo personalizado",
+  "cf.msg.confirmDelete": "¿Está seguro de que desea eliminar el campo personalizado"
 }

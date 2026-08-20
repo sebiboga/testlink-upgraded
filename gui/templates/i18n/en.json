@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "New password cannot be empty.",
   "profile.msg.passwordMismatch": "New passwords do not match.",
   "profile.msg.wrongPassword": "Old password is incorrect.",
-  "profile.msg.requiredFields": "First Name, Last Name, and Email are required."
+  "profile.msg.requiredFields": "First Name, Last Name, and Email are required.",
+
+  "header.customFields": "Custom Fields",
+  "header.customFieldsSub": "manage custom fields for test cases, requirements, and plans",
+  "cf.label": "Label",
+  "cf.name": "Name",
+  "cf.type": "Type",
+  "cf.active": "Active",
+  "cf.inactive": "Inactive",
+  "cf.availableOn": "Available On",
+  "cf.design": "Design",
+  "cf.execution": "Execution",
+  "cf.testplanDesign": "Test Plan Design",
+  "cf.nodeType": "Node Type",
+  "cf.possibleValues": "Possible Values",
+  "cf.enableOn": "Enable On",
+  "cf.createCustomField": "Create Custom Field",
+  "cf.editCustomField": "Edit Custom Field",
+  "cf.fieldsCount": "{n} custom fields",
+  "cf.validation.required": "Label and Name are required.",
+  "cf.msg.errorSave": "Error saving custom field",
+  "cf.msg.errorDelete": "Error deleting custom field",
+  "cf.msg.confirmDelete": "Are you sure you want to delete custom field"
 }

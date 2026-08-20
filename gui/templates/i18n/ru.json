@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "Новый пароль не может быть пустым.",
   "profile.msg.passwordMismatch": "Новые пароли не совпадают.",
   "profile.msg.wrongPassword": "Старый пароль неверен.",
-  "profile.msg.requiredFields": "Имя, Фамилия и Электронная почта обязательны."
+  "profile.msg.requiredFields": "Имя, Фамилия и Электронная почта обязательны.",
+
+  "header.customFields": "Пользовательские поля",
+  "header.customFieldsSub": "управление пользовательскими полями для тестов, требований и планов",
+  "cf.label": "Метка",
+  "cf.name": "Название",
+  "cf.type": "Тип",
+  "cf.active": "Активно",
+  "cf.inactive": "Неактивно",
+  "cf.availableOn": "Доступно на",
+  "cf.design": "Проектирование",
+  "cf.execution": "Выполнение",
+  "cf.testplanDesign": "Проектирование тестового плана",
+  "cf.nodeType": "Тип узла",
+  "cf.possibleValues": "Возможные значения",
+  "cf.enableOn": "Включить на",
+  "cf.createCustomField": "Создать пользовательское поле",
+  "cf.editCustomField": "Редактировать пользовательское поле",
+  "cf.fieldsCount": "{n} пользовательских полей",
+  "cf.validation.required": "Метка и Название обязательны.",
+  "cf.msg.errorSave": "Ошибка при сохранении пользовательского поля",
+  "cf.msg.errorDelete": "Ошибка при удалении пользовательского поля",
+  "cf.msg.confirmDelete": "Вы уверены, что хотите удалить пользовательское поле"
 }

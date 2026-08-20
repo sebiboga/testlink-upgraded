@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "Le nouveau mot de passe ne peut pas être vide.",
   "profile.msg.passwordMismatch": "Les nouveaux mots de passe ne correspondent pas.",
   "profile.msg.wrongPassword": "L'ancien mot de passe est incorrect.",
-  "profile.msg.requiredFields": "Prénom, Nom et E-mail sont requis."
+  "profile.msg.requiredFields": "Prénom, Nom et E-mail sont requis.",
+
+  "header.customFields": "Champs personnalisés",
+  "header.customFieldsSub": "gérer les champs personnalisés pour les cas de test, les exigences et les plans",
+  "cf.label": "Libellé",
+  "cf.name": "Nom",
+  "cf.type": "Type",
+  "cf.active": "Actif",
+  "cf.inactive": "Inactif",
+  "cf.availableOn": "Disponible sur",
+  "cf.design": "Conception",
+  "cf.execution": "Exécution",
+  "cf.testplanDesign": "Conception du plan de test",
+  "cf.nodeType": "Type de nœud",
+  "cf.possibleValues": "Valeurs possibles",
+  "cf.enableOn": "Activer sur",
+  "cf.createCustomField": "Créer un champ personnalisé",
+  "cf.editCustomField": "Modifier le champ personnalisé",
+  "cf.fieldsCount": "{n} champs personnalisés",
+  "cf.validation.required": "Le libellé et le nom sont requis.",
+  "cf.msg.errorSave": "Erreur lors de l'enregistrement du champ personnalisé",
+  "cf.msg.errorDelete": "Erreur lors de la suppression du champ personnalisé",
+  "cf.msg.confirmDelete": "Êtes-vous sûr de vouloir supprimer le champ personnalisé"
 }

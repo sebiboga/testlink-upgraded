@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "新密码不能为空。",
   "profile.msg.passwordMismatch": "新密码不匹配。",
   "profile.msg.wrongPassword": "旧密码不正确。",
-  "profile.msg.requiredFields": "名、姓和电子邮件为必填项。"
+  "profile.msg.requiredFields": "名、姓和电子邮件为必填项。",
+
+  "header.customFields": "自定义字段",
+  "header.customFieldsSub": "管理测试用例、需求和计划的自定义字段",
+  "cf.label": "标签",
+  "cf.name": "名称",
+  "cf.type": "类型",
+  "cf.active": "活跃",
+  "cf.inactive": "未激活",
+  "cf.availableOn": "可用位置",
+  "cf.design": "设计",
+  "cf.execution": "执行",
+  "cf.testplanDesign": "测试计划设计",
+  "cf.nodeType": "节点类型",
+  "cf.possibleValues": "可能的值",
+  "cf.enableOn": "启用位置",
+  "cf.createCustomField": "创建自定义字段",
+  "cf.editCustomField": "编辑自定义字段",
+  "cf.fieldsCount": "{n} 个自定义字段",
+  "cf.validation.required": "标签和名称为必填项。",
+  "cf.msg.errorSave": "保存自定义字段时出错",
+  "cf.msg.errorDelete": "删除自定义字段时出错",
+  "cf.msg.confirmDelete": "确定要删除自定义字段"
 }

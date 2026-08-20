@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "Parola noua nu poate fi goala.",
   "profile.msg.passwordMismatch": "Parolele noi nu coincid.",
   "profile.msg.wrongPassword": "Parola veche este incorecta.",
-  "profile.msg.requiredFields": "Prenume, Nume si Email sunt obligatorii."
+  "profile.msg.requiredFields": "Prenume, Nume si Email sunt obligatorii.",
+
+  "header.customFields": "Campuri Personalizate",
+  "header.customFieldsSub": "gestionare campuri personalizate pentru cazuri de test, cerinte si planuri",
+  "cf.label": "Eticheta",
+  "cf.name": "Nume",
+  "cf.type": "Tip",
+  "cf.active": "Activ",
+  "cf.inactive": "Inactiv",
+  "cf.availableOn": "Disponibil Pe",
+  "cf.design": "Design",
+  "cf.execution": "Executie",
+  "cf.testplanDesign": "Design Plan Test",
+  "cf.nodeType": "Tip Nod",
+  "cf.possibleValues": "Valori Posibile",
+  "cf.enableOn": "Activare Pe",
+  "cf.createCustomField": "Creaza Camp Personalizat",
+  "cf.editCustomField": "Editeaza Camp Personalizat",
+  "cf.fieldsCount": "{n} campuri personalizate",
+  "cf.validation.required": "Eticheta si Numele sunt obligatorii.",
+  "cf.msg.errorSave": "Eroare la salvarea campului personalizat",
+  "cf.msg.errorDelete": "Eroare la stergerea campului personalizat",
+  "cf.msg.confirmDelete": "Sunteti sigur ca doriti sa stergeti campul personalizat"
 }

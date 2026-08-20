@@ -1802,7 +1802,7 @@ function getActions(&$gui,$baseURL) {
   $actions->projectView = "$bb/project/projectView.php?{$ctx}";
 
   $actions->cfAssignment = "$bb/cfields/cfieldsTprojectAssign.php?{$ctx}";
-  $actions->cfieldsView = "$bb/cfields/cfieldsView.php?{$ctx}";  
+  $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
 
   $actions->keywordsView = "$bb/keywords/keywordsView.php?{$ctx}";
   $actions->platformsView = "$bb/platforms/platformsView.php?{$ctx}";

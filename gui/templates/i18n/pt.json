@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "A nova palavra-passe não pode estar vazia.",
   "profile.msg.passwordMismatch": "As novas palavras-passe não correspondem.",
   "profile.msg.wrongPassword": "A palavra-passe antiga está incorreta.",
-  "profile.msg.requiredFields": "Nome, Apelido e E-mail são obrigatórios."
+  "profile.msg.requiredFields": "Nome, Apelido e E-mail são obrigatórios.",
+
+  "header.customFields": "Campos personalizados",
+  "header.customFieldsSub": "gerir campos personalizados para casos de teste, requisitos e planos",
+  "cf.label": "Rótulo",
+  "cf.name": "Nome",
+  "cf.type": "Tipo",
+  "cf.active": "Ativo",
+  "cf.inactive": "Inativo",
+  "cf.availableOn": "Disponível em",
+  "cf.design": "Conceção",
+  "cf.execution": "Execução",
+  "cf.testplanDesign": "Conceção do plano de teste",
+  "cf.nodeType": "Tipo de nó",
+  "cf.possibleValues": "Valores possíveis",
+  "cf.enableOn": "Ativar em",
+  "cf.createCustomField": "Criar campo personalizado",
+  "cf.editCustomField": "Editar campo personalizado",
+  "cf.fieldsCount": "{n} campos personalizados",
+  "cf.validation.required": "O rótulo e o nome são obrigatórios.",
+  "cf.msg.errorSave": "Erro ao guardar o campo personalizado",
+  "cf.msg.errorDelete": "Erro ao eliminar o campo personalizado",
+  "cf.msg.confirmDelete": "Tem certeza de que deseja eliminar o campo personalizado"
 }

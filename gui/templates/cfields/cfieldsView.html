@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Fields</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.danger { color: #e6605e; }
+.action-btn.danger:hover { color: #d04e4c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.cf-checkbox-group { display: flex; gap: 16px; flex-wrap: wrap; }
+.cf-checkbox-group label { font-size: 13px; font-weight: 400; display: flex; align-items: center; gap: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="header.customFields">Custom Fields</span> <span data-i18n="header.customFieldsSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage custom fields for test cases, requirements, and plans</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="cfTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="cf.label">Label</th>
+        <th data-i18n="cf.name">Name</th>
+        <th data-i18n="cf.type">Type</th>
+        <th data-i18n="cf.active">Active</th>
+        <th data-i18n="cf.availableOn">Available On</th>
+        <th style="width:100px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="cfModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Create Custom Field</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCfId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.label">Label *</label>
+          <input type="text" id="editLabel" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.name">Name *</label>
+          <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="cf.type">Type *</label>
+            <select id="editType" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="cf.nodeType">Node Type *</label>
+            <select id="editNodeType" class="form-control" style="font-size:13px;"></select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.possibleValues">Possible Values</label>
+          <input type="text" id="editPossibleValues" class="form-control" style="font-size:13px;" placeholder="val1|val2|val3">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.enableOn">Enable On</label>
+          <div class="cf-checkbox-group">
+            <label><input type="checkbox" id="editEnableDesign" checked> <span data-i18n="cf.design">Design</span></label>
+            <label><input type="checkbox" id="editEnableExecution"> <span data-i18n="cf.execution">Execution</span></label>
+            <label><input type="checkbox" id="editEnableTestplanDesign"> <span data-i18n="cf.testplanDesign">Test Plan Design</span></label>
+          </div>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/cfields/index.php';
+var table = null;
+var typeMap = {};
+var nodeMap = {};
+var allItems = [];
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+    loadCfields();
+  });
+});
+
+function loadMeta() {
+  $.getJSON(API + '/meta/types', function(r) {
+    var sel = $('#editType');
+    sel.empty();
+    $.each(r.items, function(i, t) {
+      typeMap[t.id] = t.name;
+      sel.append('<option value="' + t.id + '">' + t.name + '</option>');
+    });
+  });
+  $.getJSON(API + '/meta/nodes', function(r) {
+    var sel = $('#editNodeType');
+    sel.empty();
+    $.each(r.items, function(i, n) {
+      nodeMap[n.id] = n.name;
+      sel.append('<option value="' + n.name + '">' + n.name + '</option>');
+    });
+  });
+}
+
+function loadCfields() {
+  $.getJSON(API, function(r) {
+    allItems = r.items;
+    renderTable(allItems);
+    $('#footerText').text(TLi18n.t('cf.fieldsCount', {n: allItems.length}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  });
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#cfTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, cf) {
+    var activeHtml = cf.active ? '<span class="badge-active">' + TLi18n.t('common.yes') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('common.no') + '</span>';
+    var available = [];
+    if (cf.enable_on_design) available.push(TLi18n.t('cf.design'));
+    if (cf.enable_on_execution) available.push(TLi18n.t('cf.execution'));
+    if (cf.enable_on_testplan_design) available.push(TLi18n.t('cf.testplanDesign'));
+    rows.push([
+      cf.label,
+      cf.name,
+      typeMap[cf.type] || cf.type,
+      activeHtml,
+      available.join(', ') || '-',
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editCf(' + cf.id + ')"></i>' +
+      '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteCf(' + cf.id + ', \'' + cf.name.replace(/'/g, "\\'") + '\')"></i>'
+    ]);
+  });
+  table = $('#cfTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [
+      null, null, null, null, null,
+      { orderable: false, searchable: false }
+    ]
+  });
+}
+
+function showCreateModal() {
+  $('#modalTitle').text(TLi18n.t('cf.createCustomField'));
+  $('#editCfId').val('');
+  $('#editLabel').val('');
+  $('#editName').val('').prop('readonly', false);
+  $('#editType').val($('#editType option:first').val());
+  $('#editNodeType').val($('#editNodeType option:first').val());
+  $('#editPossibleValues').val('');
+  $('#editEnableDesign').prop('checked', true);
+  $('#editEnableExecution').prop('checked', false);
+  $('#editEnableTestplanDesign').prop('checked', false);
+  $('#modalError').hide();
+  $('#cfModal').modal('show');
+}
+
+function editCf(id) {
+  $.getJSON(API + '/' + id, function(r) {
+    var cf = r.item;
+    $('#modalTitle').text(TLi18n.t('cf.editCustomField') + ': ' + cf.name);
+    $('#editCfId').val(cf.id);
+    $('#editLabel').val(cf.label);
+    $('#editName').val(cf.name).prop('readonly', true);
+    $('#editType').val(cf.type);
+    var nodeName = '';
+    $.each(nodeMap, function(id, name) {
+      if (parseInt(id) === cf.node_type_id) nodeName = name;
+    });
+    if (nodeName) $('#editNodeType').val(nodeName);
+    $('#editPossibleValues').val(cf.possible_values);
+    $('#editEnableDesign').prop('checked', cf.enable_on_design === 1);
+    $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
+    $('#editEnableTestplanDesign').prop('checked', cf.enable_on_testplan_design === 1);
+    $('#modalError').hide();
+    $('#cfModal').modal('show');
+  });
+}
+
+function saveCf() {
+  var id = $('#editCfId').val();
+  var data = {
+    label: $('#editLabel').val().trim(),
+    name: $('#editName').val().trim(),
+    type: parseInt($('#editType').val()),
+    node_type: $('#editNodeType').val(),
+    possible_values: $('#editPossibleValues').val().trim(),
+    enable_on_design: $('#editEnableDesign').is(':checked') ? 1 : 0,
+    enable_on_execution: $('#editEnableExecution').is(':checked') ? 1 : 0,
+    enable_on_testplan_design: $('#editEnableTestplanDesign').is(':checked') ? 1 : 0,
+  };
+
+  if (!data.label || !data.name) {
+    $('#modalError').text(TLi18n.t('cf.validation.required')).show();
+    return;
+  }
+
+  var url = id ? API + '/' + id : API;
+  var type = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: type,
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function() { $('#cfModal').modal('hide'); loadCfields(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('cf.msg.errorSave');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
+
+function deleteCf(id, name) {
+  if (!confirm(TLi18n.t('cf.msg.confirmDelete') + ' "' + name + '"?')) return;
+  $.ajax({
+    url: API + '/' + id, type: 'DELETE',
+    success: function() { loadCfields(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('cf.msg.errorDelete');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+</script>
+</body>
+</html>

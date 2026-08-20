@@ -141,5 +141,27 @@
   "profile.msg.passwordEmpty": "新しいパスワードは空にできません。",
   "profile.msg.passwordMismatch": "新しいパスワードが一致しません。",
   "profile.msg.wrongPassword": "古いパスワードが正しくありません。",
-  "profile.msg.requiredFields": "名、姓、メールは必須です。"
+  "profile.msg.requiredFields": "名、姓、メールは必須です。",
+
+  "header.customFields": "カスタムフィールド",
+  "header.customFieldsSub": "テストケース、要件、計画のカスタムフィールドを管理",
+  "cf.label": "ラベル",
+  "cf.name": "名前",
+  "cf.type": "タイプ",
+  "cf.active": "有効",
+  "cf.inactive": "無効",
+  "cf.availableOn": "利用可能場所",
+  "cf.design": "設計",
+  "cf.execution": "実行",
+  "cf.testplanDesign": "テスト計画設計",
+  "cf.nodeType": "ノードタイプ",
+  "cf.possibleValues": "可能な値",
+  "cf.enableOn": "有効にする場所",
+  "cf.createCustomField": "カスタムフィールド作成",
+  "cf.editCustomField": "カスタムフィールド編集",
+  "cf.fieldsCount": "{n} 件のカスタムフィールド",
+  "cf.validation.required": "ラベルと名前は必須です。",
+  "cf.msg.errorSave": "カスタムフィールドの保存中にエラーが発生しました",
+  "cf.msg.errorDelete": "カスタムフィールドの削除中にエラーが発生しました",
+  "cf.msg.confirmDelete": "カスタムフィールドを削除してもよろしいですか"
 }
