@@ -7,10 +7,19 @@
 require_once('../../config.inc.php');
 require_once('../../lib/functions/common.php');
 
-// Initialize
-testlinkInitPage($GLOBALS['db'], false, false, "checkRights");
-$user = $_SESSION['currentUser'];
+// Initialize - skip session check in API context, handle auth manually
 $db = $GLOBALS['db'];
+session_start();
+
+// Check if user is logged in
+if (!isset($_SESSION['currentUser']) || !$_SESSION['currentUser']) {
+  http_response_code(401);
+  header('Content-Type: application/json');
+  echo json_encode(['error' => 'Unauthorized']);
+  exit;
+}
+
+$user = $_SESSION['currentUser'];
 
 // Parse request
 $method = $_SERVER['REQUEST_METHOD'];
