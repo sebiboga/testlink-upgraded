@@ -42,9 +42,13 @@ $gui->tplan_name = isset($tplan_info['name']) ? $tplan_info['name'] : '';
 $gui->tplan_id=$args->tplan_id;
 $gui->tproject_name = $args->tproject_name;
 
-$linked_tcases = $tplan_mgr->get_linked_items_id($args->tplan_id);
+// Both getters return fetchRowsIntoMap(), which yields null - not an empty
+// array - when the query matches nothing. count(null) is fatal on PHP 8, and
+// the second case is the ordinary one: a plan whose linked test cases are all
+// already at their newest version.
+$linked_tcases = (array) $tplan_mgr->get_linked_items_id($args->tplan_id);
 $qty_linked = count($linked_tcases);
-$gui->testcases = $tplan_mgr->get_linked_and_newest_tcversions($args->tplan_id);
+$gui->testcases = (array) $tplan_mgr->get_linked_and_newest_tcversions($args->tplan_id);
 
 if($qty_linked)
 {

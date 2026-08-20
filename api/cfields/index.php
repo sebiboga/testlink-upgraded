@@ -230,5 +230,174 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Assignment of custom fields to a test project.
+//
+// Mirrors lib/cfields/cfieldsTprojectAssign.php. The legacy screen posted the
+// whole form back and diffed the checkboxes against hidden mirror inputs to
+// work out which rows changed; here the client sends the desired state and the
+// diffing happens below, against what is actually stored.
+// ---------------------------------------------------------------------------
+
+function assignTprojectId() {
+    $id = intval(getParam('tproject_id', 0));
+    if ($id <= 0) {
+        $id = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    return $id;
+}
+
+// GET /assignment?tproject_id=N - linked + available fields for one project
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
+    $tprojectId = assignTprojectId();
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test project selected']);
+    }
+
+    $tprojectName = '';
+    $tree = new tree($db);
+    $info = $tree->get_node_hierarchy_info($tprojectId, null, ['nodeType' => 'testproject']);
+    if (is_null($info)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+    $tprojectName = $info['name'];
+
+    $types = $cfield_mgr->get_available_types();
+    $nodes = [];
+    foreach ($cfield_mgr->get_allowed_nodes() as $verbose => $typeId) {
+        $nodes[$typeId] = lang_get($verbose);
+    }
+
+    // Display location only applies to design-time test case fields, which is
+    // why the legacy template hid the dropdown for execution-only fields.
+    $locations = [];
+    $rawLocations = $cfield_mgr->getLocations();
+    foreach (($rawLocations['testcase'] ?? []) as $code => $labelKey) {
+        $locations[] = ['code' => intval($code), 'label' => lang_get($labelKey)];
+    }
+
+    $linkedRaw = $cfield_mgr->get_linked_to_testproject($tprojectId);
+    $linked = [];
+    foreach ((array) $linkedRaw as $cf) {
+        $row = cfToJSON($cf);
+        $row['display_order'] = intval($cf['display_order'] ?? 0);
+        $row['location'] = intval($cf['location'] ?? 0);
+        $row['required'] = intval($cf['required'] ?? 0);
+        $row['monitorable'] = intval($cf['monitorable'] ?? 0);
+        $row['typeLabel'] = $types[$row['type']] ?? '';
+        $row['nodeLabel'] = $nodes[$row['node_type_id']] ?? '';
+        $row['supportsLocation'] =
+            ($row['node_description'] === 'testcase' && $row['enable_on_execution'] == 0);
+        $linked[] = $row;
+    }
+
+    $exclude = empty($linkedRaw) ? null : array_keys($linkedRaw);
+    $available = [];
+    foreach ((array) $cfield_mgr->get_all($exclude) as $cf) {
+        $row = cfToJSON($cf);
+        $row['typeLabel'] = $types[$row['type']] ?? '';
+        $row['nodeLabel'] = $nodes[$row['node_type_id']] ?? '';
+        $available[] = $row;
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject' => ['id' => $tprojectId, 'name' => $tprojectName],
+        'linked' => $linked,
+        'available' => $available,
+        'locations' => $locations,
+    ]);
+}
+
+// POST /assignment/link - attach fields to the project
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
+    && isset($segments[1]) && $segments[1] === 'link') {
+    $tprojectId = assignTprojectId();
+    $body = getBody();
+    $ids = array_values(array_filter(array_map('intval', (array) ($body['ids'] ?? []))));
+    if ($tprojectId <= 0 || !$ids) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing to assign']);
+    }
+
+    $cfield_mgr->link_to_testproject($tprojectId, $ids);
+    logAuditEvent(count($ids) . " custom field(s) assigned to test project {$tprojectId}",
+                  "ASSIGN", $tprojectId, "testprojects");
+    out(['status' => 'ok', 'count' => count($ids)]);
+}
+
+// POST /assignment/unlink - detach fields from the project
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assignment'
+    && isset($segments[1]) && $segments[1] === 'unlink') {
+    $tprojectId = assignTprojectId();
+    $body = getBody();
+    $ids = array_values(array_filter(array_map('intval', (array) ($body['ids'] ?? []))));
+    if ($tprojectId <= 0 || !$ids) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing to unassign']);
+    }
+
+    $cfield_mgr->unlink_from_testproject($tprojectId, $ids);
+    logAuditEvent(count($ids) . " custom field(s) unassigned from test project {$tprojectId}",
+                  "UNASSIGN", $tprojectId, "testprojects");
+    out(['status' => 'ok', 'count' => count($ids)]);
+}
+
+// PUT /assignment - save order, location and the three boolean attributes
+if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'assignment') {
+    $tprojectId = assignTprojectId();
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test project selected']);
+    }
+
+    $rows = (array) (getBody()['rows'] ?? []);
+    if (!$rows) {
+        out(['status' => 'ok', 'message' => 'No changes']);
+    }
+
+    $order = [];
+    $location = [];
+    $desired = ['active' => [], 'required' => [], 'monitorable' => []];
+
+    foreach ($rows as $row) {
+        $id = intval($row['id'] ?? 0);
+        if ($id <= 0) { continue; }
+        if (isset($row['display_order'])) { $order[$id] = intval($row['display_order']); }
+        if (isset($row['location']))      { $location[$id] = intval($row['location']); }
+        foreach (array_keys($desired) as $attr) {
+            if (isset($row[$attr])) { $desired[$attr][$id] = $row[$attr] ? 1 : 0; }
+        }
+    }
+
+    if ($order)    { $cfield_mgr->set_display_order($tprojectId, $order); }
+    if ($location) { $cfield_mgr->setDisplayLocation($tprojectId, $location); }
+
+    // Only flip what actually differs: these setters take a set of ids and one
+    // value, so a blind write would touch every row on every save.
+    $before = $cfield_mgr->getBooleanAttributes($tprojectId);
+    $setter = [
+        'active' => 'set_active_for_testproject',
+        'required' => 'setRequired',
+        'monitorable' => 'setMonitorable',
+    ];
+    foreach ($desired as $attr => $wanted) {
+        $on = $off = [];
+        foreach ($wanted as $id => $val) {
+            $now = intval($before[$id][$attr] ?? 0);
+            if ($val == 1 && $now == 0) { $on[] = $id; }
+            if ($val == 0 && $now == 1) { $off[] = $id; }
+        }
+        if ($on)  { $cfield_mgr->{$setter[$attr]}($tprojectId, $on, 1); }
+        if ($off) { $cfield_mgr->{$setter[$attr]}($tprojectId, $off, 0); }
+    }
+
+    logAuditEvent("Custom field assignment updated for test project {$tprojectId}",
+                  "SAVE", $tprojectId, "testprojects");
+    out(['status' => 'ok']);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
