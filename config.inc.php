@@ -733,7 +733,7 @@ $tlCfg->gui->round_corners->tc_spec = ENABLED;
  *    '%last%, %first%'          -> Cook John
  *    '%first% %last% %login%'    -> John Cook [ux555]
  **/
-$tlCfg->username_format = '%login%';
+$tlCfg->username_format = '%first% %last%';
 
 /** Configure the frame frmWorkArea navigator width */
 $tlCfg->frame_workarea_default_width = "30%";

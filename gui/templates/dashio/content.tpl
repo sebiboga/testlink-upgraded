@@ -3,7 +3,7 @@
         <!-- sidebar menu start-->
         <ul class="sidebar-menu" id="nav-accordion">
           <p class="centered"><a href="profile.html"><gui/templates/dashio/img/ src="gui/templates/dashio/img/ui-sam.jpg" class="gui/templates/dashio/img/-circle" width="80"></a></p>
-          <h5 class="centered">{$gui->whoami}</h5>
+          <h5 class="centered">{$gui->whoamiName}<br>{$gui->whoamiRole}</h5>
           <li class="mt">
             <a class="active" href="lib/project/projectView.php">
               <i class="fa fa-dashboard"></i>

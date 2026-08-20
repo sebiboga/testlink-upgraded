@@ -74,25 +74,25 @@ var originalData = {};
 var roles = [];
 
 $(function() {
-  TLi18n.load(function() {
-    TLi18n.apply();
-    TLi18n.initLocaleSwitcher('#localeSwitcher');
-  });
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
   var ctx = 'tproject_id=' + (tp || 0) + '&tplan_id=' + (params.get('tplan_id') || 0);
-  var tabs = [
-    { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
-    { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
-    { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx, active: true },
-    { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx }
-  ];
-  var html = '';
-  $.each(tabs, function(i, t) {
-    html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    var tabs = [
+      { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
+      { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
+      { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx, active: true },
+      { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx }
+    ];
+    var html = '';
+    $.each(tabs, function(i, t) {
+      html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
+    });
+    $('#tabsBar').html(html);
+    loadProjects(tp);
   });
-  $('#tabsBar').html(html);
-  loadProjects(tp);
 });
 
 function loadProjects(selectedId) {

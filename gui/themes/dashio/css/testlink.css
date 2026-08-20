@@ -1184,6 +1184,15 @@ div.form-border {
 	margin-top: 15px;
 }
 
+.tlWhoamiName {
+	font-weight: bold;
+}
+
+.tlWhoamiRole {
+	font-size: 0.85em;
+	color: #888;
+}
+
 /* Near-white text on the logout button's light teal background was low
    contrast once the header stopped being dark. The generic
    ul.top-menu > li > a:hover rule below also forces a transparent

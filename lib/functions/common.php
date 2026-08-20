@@ -1726,10 +1726,8 @@ function initUserEnv(&$dbH, $context, $opt=null) {
   $eRoleObj = $args->user->getEffectiveRole($dbH,$gui->tproject_id,$tplan_id);
   
   $cfg = config_get('gui');
-  $gui->whoami = $args->user->getDisplayName() . ' ' . 
-                 $cfg->role_separator_open . 
-                 $eRoleObj->getDisplayName() . 
-                 $cfg->role_separator_close;
+  $gui->whoamiName = $args->user->getDisplayName();
+  $gui->whoamiRole = $eRoleObj->getDisplayName();
 
   $gui->launcher = $_SESSION['basehref'] . 
     'lib/general/frmWorkArea.php';

@@ -197,9 +197,8 @@ function initializeGui(&$db,&$args) {
     // general role applied
     $testprojectRole = $args->user->globalRole->getDisplayName();
   } 
-  $gui->whoami = $args->user->getDisplayName() . ' ' . 
-                 $guiCfg->role_separator_open . 
-                 $testprojectRole . $guiCfg->role_separator_close;
+  $gui->whoamiName = $args->user->getDisplayName();
+  $gui->whoamiRole = $testprojectRole;
                    
 
   // only when the user has changed project 
