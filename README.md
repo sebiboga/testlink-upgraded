@@ -1,17 +1,58 @@
-# IMPORTANT NOTICE
-1.9.20 will be the last version of the 1.9.x family.  
+# TestLink Upgraded 2.0.1 [TEST] — WIP
 
-## Update 2025
-With the help of AI code has been refactored to:
-- test with PHP 8.x, currently 8.5.0 on Windows
-- update the excel package
-- resolve some PHP compatibilities issues.
+> **⚠️ This is a work-in-progress version. Not production-ready.**
 
-## Version 2.x
-Next TestLink version will 2.x with a new UX based on 
-the Dashio - Bootstrap Admin Template (https://templatemag.com/dashio-bootstrap-admin-template/)
-This was the idea but @20251206 I'm still working on it.
+## What's New in 2.x
 
+- **New Dashio UI** — Bootstrap-based admin template replacing the legacy Smarty layout
+- **Modern HTML screens** — Event Viewer, User Management, Role Management, Assign Project/Plan Roles (pure HTML+JS+CSS, no iframes, no PHP)
+- **BFF APIs** — Plain PHP REST endpoints for Event Viewer, Users, and Roles (no framework, session-based auth)
+- **PHP 8.x support** — All PHP 8.x warnings resolved (43+ unique warnings fixed)
+- **MariaDB 11.4** tested
+- **Chart.js** dashboards — Execution status pie chart, monthly test case growth bar chart
+- **Wiki documentation** — https://github.com/sebiboga/testlink-upgraded/wiki
+
+## System Requirements
+
+- PHP 8.1+
+- MySQL 5.7+ / MariaDB 11.4+
+- Web server: Apache 2.x or PHP built-in server (development)
+
+## Quick Start (Development)
+
+```bash
+cd /home/sebi/testlink
+fuser -k 8082/tcp
+nohup php -S 0.0.0.0:8082 -t . > /dev/null 2>&1 &
+# Open http://localhost:8082  (admin / admin)
+```
+
+## Login Credentials
+
+| User | Password | Role |
+|------|----------|------|
+| admin | admin | admin |
+| designer1 | (set on create) | test designer |
+| tester1 | (set on create) | tester |
+| senior1 | (set on create) | senior tester |
+| leader1 | (set on create) | leader |
+| guest1 | (set on create) | guest |
+
+## Documentation
+
+**Wiki:** https://github.com/sebiboga/testlink-upgraded/wiki
+
+Screens covered:
+- [Dashboard](https://github.com/sebiboga/testlink-upgraded/wiki/Dashboard) — Pie chart, bugs table, TC growth
+- [Header & Navigation](https://github.com/sebiboga/testlink-upgraded/wiki/Header-si-Navigare) — Project/plan selectors, sidebar
+- [Event Viewer](https://github.com/sebiboga/testlink-upgraded/wiki/Event-Viewer) — Log monitoring, charts, filters
+- [User Management](https://github.com/sebiboga/testlink-upgraded/wiki/Gestionarea-Utilizatorilor-si-Rolurilor-Nou) — Users, roles, assignments + BFF API reference
+
+## Legacy Information (1.9.x)
+
+For the original TestLink 1.9.x documentation, see the sections below.
+
+---
 
 # TestLink 1.9.20 Raijin - Read me
 
@@ -167,15 +208,11 @@ here:
 ## 3. System Requirements - server
 
 Server environment should consist of:
-- web-server: Apache 2.x
-- PHP > 5.5 It will be better if you use PHP 7.2.x 
-- PHP IMPORTANTE NOTICE: next TestLink Version will require minimum PHP 7.3.x
--       
+- web-server: Apache 2.x or PHP built-in server (development)
+- PHP 8.1+ (tested with 8.5.0)
 - DBMS
   - MySQL 5.7.x
-    - The `log_bin_trust_function_creators` option must be enabled.
-  - MariaDB 10.1.x
-    - The `log_bin_trust_function_creators` option must be enabled.
+  - MariaDB 11.4.x (recommended)
   - Postgres 9.x
   - MS-SQL 201x -> SUPPORT IS INCOMPLETE
 

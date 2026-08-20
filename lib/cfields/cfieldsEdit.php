@@ -14,6 +14,8 @@ $cfield_mgr = new cfield_mgr($db);
 $templateCfg = templateConfiguration();
 $args = init_args();
 $gui = initializeGui($cfield_mgr);
+$gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
 
 $result_msg = null;
