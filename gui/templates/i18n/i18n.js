@@ -159,9 +159,20 @@ var TLi18n = (function() {
   // entry, because the switcher picks a bundle rather than a TestLink locale.
   function buildLocaleSwitcher(currentLocale, items) {
     var html = '<select id="tl-locale-switcher" style="background:#333;color:#fff;border:1px solid #555;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">';
+
+    // When several locales share a bundle, show the one whose region matches
+    // the language (es_ES over es_AR, pt_PT over pt_BR) rather than whichever
+    // happens to come first.
+    var pick = {};
+    $.each(items || [], function(i, loc) {
+      var canonical = loc.code.length === 5 &&
+                      loc.code.substring(0, 2) === loc.code.substring(3).toLowerCase();
+      if (!pick[loc.short] || canonical) pick[loc.short] = loc;
+    });
+
     var seen = {};
     $.each(items || [], function(i, loc) {
-      if (seen[loc.short]) return;
+      if (seen[loc.short] || pick[loc.short].code !== loc.code) return;
       seen[loc.short] = true;
       var sel = loc.short === currentLocale ? ' selected' : '';
       html += '<option value="' + loc.short + '"' + sel + '>' + loc.name + '</option>';

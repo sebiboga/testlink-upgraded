@@ -284,7 +284,7 @@ $tlCfg->locales = array('cs_CZ' => 'Czech','de_DE' => 'German','en_GB' => 'Engli
                         'id_ID' => 'Indonesian','it_IT' => 'Italian','ja_JP' => 'Japanese',
                         'ko_KR' => 'Korean','nl_NL' => 'Dutch','pl_PL' => 'Polski',
                         'pt_BR' => 'Portuguese (Brazil)','pt_PT' => 'Portuguese',
-                        'ro_RO' => 'Rom&abreve;n&#259;','ru_RU' => 'Russian','zh_CN' => 'Chinese Simplified');
+                        'ro_RO' => 'Rom&acirc;n&#259;','ru_RU' => 'Russian','zh_CN' => 'Chinese Simplified');
 
 /** 
  * Format of date - see strftime() in PHP manual

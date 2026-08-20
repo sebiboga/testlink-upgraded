@@ -28,7 +28,9 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
   <link href="{$dashioHomeURL}css/style.css" rel="stylesheet">
   <link href="{$dashioHomeURL}css/style-responsive.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" href="{$basehref}gui/themes/default/css/frame.css">
+  {* frame.css lays out the frameset chrome and pins html/body to
+     height:100%;overflow:hidden. This is a content page inside a frame,
+     not a frameset, so including it clipped anything past the fold. *}
   {* This template carries its own <head> instead of including inc_head.tpl,
      so the TestLink theme stylesheet has to be pulled in explicitly. Without
      it none of the theme overrides apply to the dashboard or its sidebar. *}

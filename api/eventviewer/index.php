@@ -116,30 +116,62 @@ if ($method === 'GET' && $path === '/events/meta/rights') {
     ]);
 }
 
+// Aggregate in SQL. Loading every matching event as a full tlEvent object just
+// to count them exhausts PHP's memory limit once the log grows (the events
+// table reaches five figures quickly on a busy instance).
+function statsWhere($db, $users, $startTime, $endTime, $extraWhere = null) {
+    $t = tlObject::getDBTables(['events', 'transactions']);
+    $join = '';
+    if (!is_null($users) && $users !== '') {
+        $safe = implode(',', array_map('intval', explode(',', $users)));
+        if ($safe !== '') {
+            $join = " JOIN {$t['transactions']} T ON T.id = E.transaction_id" .
+                    " AND T.user_id IN ({$safe}) ";
+        }
+    }
+    $clauses = [];
+    if (!is_null($startTime)) { $clauses[] = 'E.fired_at >= ' . intval($startTime); }
+    if (!is_null($endTime))   { $clauses[] = 'E.fired_at <= ' . intval($endTime); }
+    if (!is_null($extraWhere)) { $clauses[] = $extraWhere; }
+    $where = $clauses ? ' WHERE ' . implode(' AND ', $clauses) : '';
+    return [$t['events'], $join, $where];
+}
+
 if ($method === 'GET' && $path === '/events/stats/byLevel') {
     [$logLevels, $users, $startTime, $endTime] = getFilters();
-    $events = $em->getEventsFor(null, null, null, null, -1, $startTime, $endTime, $users);
+    [$eventsTable, $join, $where] = statsWhere($db, $users, $startTime, $endTime);
+
     $counts = [];
     foreach (tlLogger::$logLevels as $name) { $counts[$name] = 0; }
-    foreach ((array) $events as $ev) {
-        $name = tlLogger::$logLevels[$ev->logLevel] ?? null;
-        if ($name) { $counts[$name]++; }
+
+    $sql = "SELECT E.log_level AS lvl, COUNT(*) AS qty" .
+           " FROM {$eventsTable} E {$join}{$where} GROUP BY E.log_level";
+    foreach ((array) $db->fetchRowsIntoMap($sql, 'lvl') as $lvl => $row) {
+        $name = tlLogger::$logLevels[$lvl] ?? null;
+        if ($name) { $counts[$name] = intval($row['qty']); }
     }
     out(['status' => 'ok', 'items' => $counts]);
 }
 
 if ($method === 'GET' && $path === '/events/stats/perDay') {
     [$logLevels, $users, $startTime, $endTime] = getFilters();
-    $events = $em->getEventsFor(null, null, null, null, -1, $startTime, $endTime, $users);
+
     $daily = [];
     $now = new DateTime();
     for ($i = 29; $i >= 0; $i--) {
         $d = clone $now; $d->modify("-{$i} days");
         $daily[$d->format('Y-m-d')] = 0;
     }
-    foreach ((array) $events as $ev) {
-        $date = date('Y-m-d', $ev->timestamp);
-        if (isset($daily[$date])) { $daily[$date]++; }
+
+    // Only the charted window has to come back from the database.
+    $windowStart = (clone $now)->modify('-29 days')->setTime(0, 0, 0)->getTimestamp();
+    [$eventsTable, $join, $where] =
+        statsWhere($db, $users, $startTime, $endTime, 'E.fired_at >= ' . $windowStart);
+
+    $sql = "SELECT DATE(FROM_UNIXTIME(E.fired_at)) AS d, COUNT(*) AS qty" .
+           " FROM {$eventsTable} E {$join}{$where} GROUP BY d";
+    foreach ((array) $db->fetchRowsIntoMap($sql, 'd') as $day => $row) {
+        if (isset($daily[$day])) { $daily[$day] = intval($row['qty']); }
     }
     out(['status' => 'ok', 'labels' => array_keys($daily), 'data' => array_values($daily)]);
 }
