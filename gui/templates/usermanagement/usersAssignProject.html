@@ -91,16 +91,18 @@ $(function() {
 });
 
 function loadProjects(selectedId) {
-  $.getJSON(API + '/meta/tproject-roles?tproject_id=0', function(r) {
+  $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0), function(r) {
     var sel = $('#projectSelect');
     sel.append('<option value="">-- select project --</option>');
     $.each(r.projects, function(i, p) {
       sel.append('<option value="' + p.id + '">' + p.name + '</option>');
     });
     roles = r.roles || [];
-    if (selectedId) {
+    if (selectedId && r.items && r.items.length) {
       sel.val(selectedId);
       loadUsers(selectedId);
+    } else {
+      $('#emptyMsg').show();
     }
   });
   $('#projectSelect').on('change', function() {

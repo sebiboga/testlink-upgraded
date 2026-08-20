@@ -291,15 +291,21 @@ function saveRole() {
 
 function confirmDelete(id, name) {
   $.getJSON(API + '/' + id + '/users', function(r) {
-    var userCount = r.items.length;
-    var msg = 'Are you sure you want to delete role <b>' + name + '</b>?';
+    var items = r.items || [];
+    var userCount = items.length;
+    var msg = 'Are you sure you want to delete role <b>' + esc(name) + '</b>?';
     var userMsg = '';
     if (userCount > 0) {
-      var loginList = $.map(r.items, function(u) { return u.login; }).join(', ');
+      var loginList = $.map(items, function(u) { return u.login; }).join(', ');
       userMsg = '<b>' + userCount + '</b> user(s) currently have this role: ' + loginList;
     }
     $('#deleteMsg').html(msg);
     $('#deleteUsers').html(userMsg);
+    $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
+    $('#deleteModal').modal('show');
+  }).fail(function() {
+    $('#deleteMsg').html('Are you sure you want to delete role <b>' + esc(name) + '</b>?');
+    $('#deleteUsers').html('');
     $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
     $('#deleteModal').modal('show');
   });

@@ -172,23 +172,21 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && isse
     $r = tlRole::getByID($db, $id, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
 
-    $users = $r->getAllUsersWithRole($db);
     $items = [];
-    if ($users) {
-        foreach ($users as $u) {
-            $items[] = ['id' => intval($u->dbID), 'login' => $u->login, 'name' => $u->getDisplayName()];
+    try {
+        $users = $r->getAllUsersWithRole($db);
+        if ($users) {
+            foreach ($users as $u) {
+                $items[] = ['id' => intval($u->dbID), 'login' => $u->login, 'name' => $u->getDisplayName()];
+            }
         }
-    }
+    } catch (\Throwable $e) {}
     out(['status' => 'ok', 'items' => $items]);
 }
 
 // Route: GET /roles/meta/tproject-roles?tproject_id=X - get test project role assignments
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'tproject-roles') {
     $tproject_id = intval(getParam('tproject_id'));
-    if (!$tproject_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tproject_id']); }
-
-    $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
-    $tprojectMgr = new testproject($db);
 
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
@@ -196,27 +194,34 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
-    $items = [];
-    if ($users) {
-        foreach ($users as $u) {
-            $u->readTestProjectRoles($db, $tproject_id);
-            $assignedRoleId = 0;
-            if (isset($u->tprojectRoles[$tproject_id])) {
-                $assignedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
-            }
-            $items[] = [
-                'id' => intval($u->dbID),
-                'login' => $u->login,
-                'name' => $u->getDisplayName(),
-                'roleID' => $assignedRoleId,
-            ];
+    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
+    $projectOpts = [];
+    if ($projects) {
+        foreach ($projects as $p) {
+            $pId = intval($p['id'] ?? $p->id ?? 0);
+            $pName = $p['name'] ?? $p->name ?? '';
+            if ($pId) $projectOpts[] = ['id' => $pId, 'name' => $pName];
         }
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
-    $projectOpts = [];
-    foreach ($projects as $p) {
-        $projectOpts[] = ['id' => intval($p['id']), 'name' => $p['name']];
+    $items = [];
+    if ($tproject_id) {
+        $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
+        if ($users) {
+            foreach ($users as $u) {
+                $u->readTestProjectRoles($db, $tproject_id);
+                $assignedRoleId = 0;
+                if (isset($u->tprojectRoles[$tproject_id])) {
+                    $assignedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
+                }
+                $items[] = [
+                    'id' => intval($u->dbID),
+                    'login' => $u->login,
+                    'name' => $u->getDisplayName(),
+                    'roleID' => $assignedRoleId,
+                ];
+            }
+        }
     }
 
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts]);
@@ -249,15 +254,14 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $tproject_id = intval(getParam('tproject_id'));
     $tplan_id = intval(getParam('tplan_id'));
 
-    $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
-
     $tprojectMgr = new testproject($db);
-    $tplanMgr = new testplan($db);
 
     $activeTestplans = $tprojectMgr->get_all_testplans($tproject_id, ['plan_status' => 1]);
     $planOpts = [];
-    foreach ($activeTestplans as $tp) {
-        $planOpts[] = ['id' => intval($tp['id']), 'name' => $tp['name']];
+    if ($activeTestplans) {
+        foreach ($activeTestplans as $tp) {
+            $planOpts[] = ['id' => intval($tp['id']), 'name' => $tp['name']];
+        }
     }
 
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
@@ -266,39 +270,46 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
-    $items = [];
-    if ($users && $tplan_id) {
-        foreach ($users as $u) {
-            $u->readTestProjectRoles($db, $tproject_id);
-            $u->readTestPlanRoles($db, $tplan_id);
-            $assignedRoleId = 0;
-            $inheritedRoleId = 0;
-            if (isset($u->tplanRoles[$tplan_id])) {
-                $assignedRoleId = intval($u->tplanRoles[$tplan_id]->dbID);
-            }
-            if (isset($u->tprojectRoles[$tproject_id])) {
-                $inheritedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
-            }
-            $inheritedRoleName = 'No';
-            if ($inheritedRoleId > 0 && $inheritedRoleId != TL_ROLES_INHERITED) {
-                $inheritedRole = tlRole::getByID($db, $inheritedRoleId, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
-                $inheritedRoleName = $inheritedRole ? $inheritedRole->getDisplayName() : '-';
-            }
-            $items[] = [
-                'id' => intval($u->dbID),
-                'login' => $u->login,
-                'name' => $u->getDisplayName(),
-                'roleID' => $assignedRoleId,
-                'inheritedRoleID' => $inheritedRoleId,
-                'inheritedRoleName' => $inheritedRoleName,
-            ];
+    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
+    $projectOpts = [];
+    if ($projects) {
+        foreach ($projects as $p) {
+            $pId = intval($p['id'] ?? $p->id ?? 0);
+            $pName = $p['name'] ?? $p->name ?? '';
+            if ($pId) $projectOpts[] = ['id' => $pId, 'name' => $pName];
         }
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
-    $projectOpts = [];
-    foreach ($projects as $p) {
-        $projectOpts[] = ['id' => intval($p['id']), 'name' => $p['name']];
+    $items = [];
+    if ($tplan_id) {
+        $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
+        if ($users) {
+            foreach ($users as $u) {
+                $u->readTestProjectRoles($db, $tproject_id);
+                $u->readTestPlanRoles($db, $tplan_id);
+                $assignedRoleId = 0;
+                $inheritedRoleId = 0;
+                if (isset($u->tplanRoles[$tplan_id])) {
+                    $assignedRoleId = intval($u->tplanRoles[$tplan_id]->dbID);
+                }
+                if (isset($u->tprojectRoles[$tproject_id])) {
+                    $inheritedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
+                }
+                $inheritedRoleName = 'No';
+                if ($inheritedRoleId > 0 && $inheritedRoleId != TL_ROLES_INHERITED) {
+                    $inheritedRole = tlRole::getByID($db, $inheritedRoleId, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
+                    $inheritedRoleName = $inheritedRole ? $inheritedRole->getDisplayName() : '-';
+                }
+                $items[] = [
+                    'id' => intval($u->dbID),
+                    'login' => $u->login,
+                    'name' => $u->getDisplayName(),
+                    'roleID' => $assignedRoleId,
+                    'inheritedRoleID' => $inheritedRoleId,
+                    'inheritedRoleName' => $inheritedRoleName,
+                ];
+            }
+        }
     }
 
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts]);
