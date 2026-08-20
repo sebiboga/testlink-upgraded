@@ -1800,7 +1800,7 @@ function getActions(&$gui,$baseURL) {
 
   $actions->userMgmt = "/gui/templates/usermanagement/usersView.html?{$ctx}";
 
-  $actions->userInfo = "$bb/usermanagement/userInfo.php?{$ctx}";
+  $actions->userInfo = "/gui/templates/usermanagement/userInfo.html?{$ctx}";
   $actions->projectView = "$bb/project/projectView.php?{$ctx}";
 
   $actions->cfAssignment = "$bb/cfields/cfieldsTprojectAssign.php?{$ctx}";

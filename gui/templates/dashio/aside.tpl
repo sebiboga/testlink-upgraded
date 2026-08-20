@@ -58,6 +58,9 @@ Left side menu
                   {/if}
                   {if $menuGrants->user_mgmt == "yes"}
                     <li>
+                      <a id="userInfo" href="{$gui->uri->userInfo}" target="mainframe"><i class="fa fa-user-circle"></i> User Profile</a>
+                    </li>
+                    <li>
                       <a id="userMgmt" href="{$gui->uri->userMgmt}" target="mainframe">{$labels.title_user_mgmt}</a>
                     </li>
                     <li>
