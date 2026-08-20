@@ -63,6 +63,12 @@ Left side menu
                     <li>
                       <a href="{$gui->uri->rolesView}" target="mainframe">Role Management</a>
                     </li>
+                    <li>
+                      <a href="{$gui->uri->usersAssign}" target="mainframe">Assign Test Project Roles</a>
+                    </li>
+                    <li>
+                      <a href="{$gui->uri->usersAssignPlan}" target="mainframe">Assign Test Plan Roles</a>
+                    </li>
                   {/if}
 
                   {if $menuGrants->cfield_management == "yes"}
