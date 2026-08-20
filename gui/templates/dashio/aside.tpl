@@ -95,7 +95,8 @@ Left side menu
                   </a>
                 <ul class="sub">
                   {if $menuGrants->project_edit == "yes"}
-                    <li><a id="projectView" href="{$gui->uri->projectView}" target="mainframe">{$labels.href_tproject_management}</a></li>
+                    <li><a id="projectView" href="gui/templates/projectsView.html" target="mainframe"><i class="fas fa-cog"></i> Project Management (New)</a></li>
+                    <li><a id="projectViewLegacy" href="{$gui->uri->projectView}" target="mainframe">{$labels.href_tproject_management}</a></li>
                   {/if}
                   {if $menuGrants->tproject_user_role_assignment == "yes"}
                     <li><a href="{$gui->uri->usersAssign}" target="mainframe">{$labels.href_assign_user_roles}</a></li>
