@@ -187,6 +187,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && isse
 // Route: GET /roles/meta/tproject-roles?tproject_id=X - get test project role assignments
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'tproject-roles') {
     $tproject_id = intval(getParam('tproject_id'));
+    $tprojectMgr = new testproject($db);
 
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
