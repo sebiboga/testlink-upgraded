@@ -38,7 +38,7 @@ $gui->tcasePrefix = $tcase_mgr->tproject_mgr->getTestCasePrefix($args->tproject_
                     $testcase_cfg->glue_character;
 
 $tplan_info = $tcase_mgr->get_by_id($args->tplan_id);
-$gui->tplan_name = $tplan_info['name'];
+$gui->tplan_name = isset($tplan_info['name']) ? $tplan_info['name'] : '';
 $gui->tplan_id=$args->tplan_id;
 $gui->tproject_name = $args->tproject_name;
 
@@ -97,7 +97,7 @@ function init_args()
     $args = new stdClass();
     $args->user_id = $_SESSION['userID'];
     $args->tproject_id = intval($_SESSION['testprojectID']);
-    $args->tproject_name = $_SESSION['testprojectName'];
+    $args->tproject_name = $_SESSION['testprojectName'] ?? '';
     
     $args->tplan_id = isset($_REQUEST['tplan_id']) ? $_REQUEST['tplan_id'] : $_SESSION['testplanID'];
     $args->tplan_id = intval($args->tplan_id);

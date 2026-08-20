@@ -113,7 +113,7 @@
 
       {if $control->settings.setting_build}
         <tr>
-          <td>{$control->settings.setting_build.label}</td>
+          <td>{$control->settings.setting_build.label|default:'Build'}</td>
           <td>
             <select name="setting_build" class="chosen-select" onchange="this.form.submit()">
             {html_options options=$control->settings.setting_build.items

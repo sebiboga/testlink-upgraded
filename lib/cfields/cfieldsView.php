@@ -13,11 +13,10 @@ testlinkInitPage($db,false,false,"checkRights");
 $gui = new stdClass();
 $templateCfg = templateConfiguration();
 
-$gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-$gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
-
 $cfield_mgr = new cfield_mgr($db);
 $gui = $cfield_mgr->initViewGUI();
+$gui->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$gui->tplan_id = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
 
 $smarty = new TLSmarty();
 $smarty->assign('gui',$gui);

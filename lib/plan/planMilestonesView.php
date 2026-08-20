@@ -90,8 +90,8 @@ function initialize_gui(&$dbHandler,&$argsObj) {
     $gui->itemsLive = $metrics->getMilestonesMetrics($gui->tplan_id,$gui->items);
   }  
 
-  $gui->managerURL = "lib/plan/planMilestonesEdit.php" .
-                     "?tproject_id=$gui->tproject&tplan_id=$gui->tplan_id";
+$gui->managerURL = "lib/plan/planMilestonesEdit.php" .
+                   "?tproject_id=$gui->tproject_id&tplan_id=$gui->tplan_id";
 
 	return $gui;
 }

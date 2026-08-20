@@ -22,7 +22,7 @@ Author: Francisco Mancardi
       <td align="center" width="50%">
          <div class="labelHolder">{$option_transfer->from->lbl}</div>
          {html_options name=$option_transfer->from->name 
-                       id=$option_transfer->from->id
+                       id=$option_transfer->from->name
                        size=$option_transfer->size 
                        style=$option_transfer->style 
                        multiple="yes"
@@ -46,7 +46,7 @@ Author: Francisco Mancardi
       <td align="center" width="50%">
          <div class="labelHolder">{$option_transfer->to->lbl}</div>
          {html_options name=$option_transfer->to->name 
-                       id=$option_transfer->to->id
+                       id=$option_transfer->to->name
                        size=$option_transfer->size 
                        style=$option_transfer->style 
                        multiple="yes"

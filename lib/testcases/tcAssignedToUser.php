@@ -328,7 +328,7 @@ function init_args(&$dbHandler)
     $args->show_inactive_and_closed = (intval($_REQUEST['show_inactive_and_closed']) != 0);
   }
 
-	$args->priority_enabled = $_SESSION['testprojectOptions']->testPriorityEnabled ? true : false;
+	$args->priority_enabled = (isset($_SESSION['testprojectOptions']) && $_SESSION['testprojectOptions']->testPriorityEnabled) ? true : false;
 
 
   // quick & dirty execution
