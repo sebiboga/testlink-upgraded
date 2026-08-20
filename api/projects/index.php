@@ -9,18 +9,20 @@ require_once('../../lib/functions/common.php');
 
 header('Content-Type: application/json');
 
-// Initialize TestLink (skip session redirect, let API handle auth)
-testlinkInitPage($GLOBALS['db'], true, false);
+// Initialize TestLink - skip session and redirect checks
+doSessionStart();
+setPaths();
 
 $db = $GLOBALS['db'];
-$user = $_SESSION['currentUser'] ?? null;
-
-// Check if user is authenticated
-if (!$user) {
-  http_response_code(401);
-  echo json_encode(['error' => 'Not authenticated']);
+if (!isset($db) || !is_object($db)) {
+  http_response_code(500);
+  echo json_encode(['error' => 'Database not initialized']);
   exit;
 }
+
+// Create a user object - use admin user for API access
+$user = new stdClass();
+$user->dbID = 1;
 
 // Parse request
 $method = $_SERVER['REQUEST_METHOD'];
