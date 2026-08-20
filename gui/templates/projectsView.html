@@ -311,15 +311,26 @@
       `).join('');
     }
 
-    // Load issue and code trackers
-    function loadTrackers() {
-      // This would normally load from an API endpoint
-      // For now, we'll populate with some common trackers
-      const issueTrackerSelect = document.getElementById('issue_tracker_id');
-      const codeTrackerSelect = document.getElementById('code_tracker_id');
+    let trackersLoaded = false;
 
-      // You can add predefined trackers here
-      // Or fetch from /api/trackers/ if needed
+    function fillTrackerSelect(selectId, trackers) {
+      const select = document.getElementById(selectId);
+      select.innerHTML = '<option value="0">-- None --</option>' +
+        trackers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+    }
+
+    // Load issue and code trackers into the dropdowns
+    function loadTrackers() {
+      if (trackersLoaded) return Promise.resolve();
+
+      return $.ajax({ url: '/api/trackers/', method: 'GET', dataType: 'json' })
+        .then(function(response) {
+          if (response.success) {
+            fillTrackerSelect('issue_tracker_id', response.issueTrackers);
+            fillTrackerSelect('code_tracker_id', response.codeTrackers);
+            trackersLoaded = true;
+          }
+        });
     }
 
     // Create project
@@ -327,9 +338,20 @@
       currentProjectId = null;
       document.getElementById('modalTitle').textContent = 'New Project';
       document.getElementById('projectForm').reset();
-      loadTrackers();
+      document.getElementById('active').checked = true;
+      document.getElementById('is_public').checked = true;
+      loadTrackers().then(function() {
+        document.getElementById('issue_tracker_id').value = '0';
+        document.getElementById('code_tracker_id').value = '0';
+      });
       document.getElementById('projectModal').classList.add('show');
     });
+
+    function selectTrackerByName(selectId, name) {
+      const select = document.getElementById(selectId);
+      const match = Array.from(select.options).find(o => o.text === name);
+      select.value = match ? match.value : '0';
+    }
 
     // Edit project
     function editProject(id) {
@@ -341,18 +363,19 @@
       document.getElementById('projectName').value = project.name;
       document.getElementById('projectDesc').value = project.description || '';
       document.getElementById('tcasePrefix').value = project.prefix || '';
-      document.getElementById('active').checked = project.isActive;
-      document.getElementById('is_public').checked = project.isPublic || false;
+      document.getElementById('active').checked = !!project.isActive;
+      document.getElementById('is_public').checked = !!project.isPublic;
+      document.getElementById('optReq').checked = !!project.optReq;
+      document.getElementById('optPriority').checked = !!project.optPriority;
+      document.getElementById('optAutomation').checked = !!project.optAutomation;
+      document.getElementById('optInventory').checked = !!project.optInventory;
+      document.getElementById('issue_tracker_enabled').checked = project.issueTracker.enabled;
+      document.getElementById('code_tracker_enabled').checked = project.codeTracker.enabled;
 
-      // Set tracker selections
-      if (project.issueTracker) {
-        document.getElementById('issue_tracker_enabled').checked = project.issueTracker.enabled;
-      }
-      if (project.codeTracker) {
-        document.getElementById('code_tracker_enabled').checked = project.codeTracker.enabled;
-      }
-
-      loadTrackers();
+      loadTrackers().then(function() {
+        selectTrackerByName('issue_tracker_id', project.issueTracker.name);
+        selectTrackerByName('code_tracker_id', project.codeTracker.name);
+      });
       document.getElementById('projectModal').classList.add('show');
     }
 
@@ -407,7 +430,7 @@
 
     // Delete project
     function confirmDelete(id, name) {
-      if (confirm(`Delete project "${name}"? This action cannot be undone.`)) {
+      if (confirm(`Deactivate project "${name}"? It will be hidden from active use but its test data is kept.`)) {
         $.ajax({
           url: `/api/projects/${id}`,
           method: 'DELETE',

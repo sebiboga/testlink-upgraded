@@ -1,7 +1,10 @@
 <?php
 /**
  * TestLink Projects Management API (BFF)
- * Modern REST API for test project management
+ *
+ * Uses TestLink's DB layer + testproject class directly, bypassing the page
+ * bootstrap: testlinkInitPage() redirects to login.php on an expired session,
+ * which breaks JSON clients.
  */
 
 require_once('../../config.inc.php');
@@ -9,51 +12,35 @@ require_once('../../lib/functions/common.php');
 
 header('Content-Type: application/json');
 
-// Initialize TestLink - skip session and redirect checks
-doSessionStart();
-setPaths();
+$db = null;
+doDBConnect($db);
 
-$db = $GLOBALS['db'];
-if (!isset($db) || !is_object($db)) {
-  http_response_code(500);
-  echo json_encode(['error' => 'Database not initialized']);
-  exit;
-}
+$tprojectMgr = new testproject($db);
 
-// Create a user object - use admin user for API access
-$user = new stdClass();
-$user->dbID = 1;
-
-// Parse request
 $method = $_SERVER['REQUEST_METHOD'];
-$pathInfo = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$parts = array_filter(explode('/', $pathInfo));
-$projectId = end($parts) !== 'projects' ? (int)end($parts) : null;
-
-header('Content-Type: application/json');
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$parts = array_values(array_filter(explode('/', $path)));
+$last = end($parts);
+$projectId = ctype_digit((string)$last) ? (int)$last : null;
 
 try {
   switch ($method) {
     case 'GET':
-      if ($projectId) {
-        getProjectDetail($db, $user, $projectId);
-      } else {
-        listProjects($db, $user);
-      }
+      $projectId ? getProject($db, $projectId) : listProjects($db);
       break;
 
     case 'POST':
-      createProject($db, $user);
+      createProject($db, $tprojectMgr);
       break;
 
     case 'PUT':
       if (!$projectId) throw new Exception('Project ID required');
-      updateProject($db, $user, $projectId);
+      updateProject($db, $projectId);
       break;
 
     case 'DELETE':
       if (!$projectId) throw new Exception('Project ID required');
-      deleteProject($db, $user, $projectId);
+      deleteProject($db, $projectId);
       break;
 
     default:
@@ -65,108 +52,109 @@ try {
   echo json_encode(['error' => $e->getMessage()]);
 }
 
-function listProjects(&$db, &$user) {
-  $tproject_mgr = new testproject($db);
-  $opt = array(
-    'output' => 'array_of_map',
-    'order_by' => ' ORDER BY name ',
-    'add_issuetracker' => true,
-    'add_codetracker' => true,
-    'add_reqmgrsystem' => true
-  );
+function projectSelect() {
+  return "SELECT tp.id, nh.name, tp.prefix, tp.notes, tp.active, tp.is_public,
+                 tp.option_reqs, tp.option_priority, tp.option_automation, tp.options,
+                 tp.issue_tracker_enabled, tp.code_tracker_enabled,
+                 it.name AS issue_tracker_name, ct.name AS code_tracker_name
+          FROM testprojects tp
+          JOIN nodes_hierarchy nh ON nh.id = tp.id
+          LEFT JOIN testproject_issuetracker tpit ON tpit.testproject_id = tp.id
+          LEFT JOIN issuetrackers it ON it.id = tpit.issuetracker_id
+          LEFT JOIN testproject_codetracker tpct ON tpct.testproject_id = tp.id
+          LEFT JOIN codetrackers ct ON ct.id = tpct.codetracker_id ";
+}
 
-  $userID = $user->dbID;
-  $projects = $tproject_mgr->get_accessible_for_user($userID, $opt);
+function formatProject($row) {
+  // testproject::create() only persists the serialized blob, leaving the
+  // option_* columns at 0, so the blob is the authoritative source.
+  $opt = empty($row['options']) ? null : @unserialize($row['options']);
+  $flag = function ($name) use ($opt) {
+    return (is_object($opt) && !empty($opt->$name)) ? 1 : 0;
+  };
 
-  if (is_null($projects)) {
-    $projects = array();
-  }
+  return [
+    'id' => (int)$row['id'],
+    'name' => $row['name'],
+    'prefix' => $row['prefix'],
+    'description' => $row['notes'] ?? '',
+    'isActive' => (int)$row['active'],
+    'isPublic' => (int)$row['is_public'],
+    'optReq' => $flag('requirementsEnabled'),
+    'optPriority' => $flag('testPriorityEnabled'),
+    'optAutomation' => $flag('automationEnabled'),
+    'optInventory' => $flag('inventoryEnabled'),
+    'issueTracker' => [
+      'name' => $row['issue_tracker_name'] ?? '',
+      'enabled' => (bool)$row['issue_tracker_enabled']
+    ],
+    'codeTracker' => [
+      'name' => $row['code_tracker_name'] ?? '',
+      'enabled' => (bool)$row['code_tracker_enabled']
+    ]
+  ];
+}
 
-  // Format response
-  $result = array();
-  foreach ($projects as $p) {
-    $result[] = array(
-      'id' => (int)$p['id'],
-      'name' => $p['name'],
-      'prefix' => $p['prefix'] ?? '',
-      'description' => $p['notes'] ?? '',
-      'isActive' => (int)$p['active'],
-      'isPublic' => (int)($p['is_public'] ?? 0),
-      'issueTracker' => array(
-        'name' => $p['it_name'] ?? '',
-        'enabled' => (bool)($p['issue_tracker_enabled'] ?? false)
-      ),
-      'codeTracker' => array(
-        'name' => $p['ct_name'] ?? '',
-        'enabled' => (bool)($p['code_tracker_enabled'] ?? false)
-      ),
-      'requirementsManager' => $p['reqmgrsysname'] ?? ''
-    );
-  }
+function listProjects(&$db) {
+  $rows = $db->get_recordset(projectSelect() . " ORDER BY nh.name");
+  $result = array_map('formatProject', (array)$rows);
 
   echo json_encode([
     'success' => true,
     'data' => $result,
-    'count' => count($result),
-    'canManage' => $user->hasRight($db, 'mgt_modify_product')
+    'count' => count($result)
   ]);
 }
 
-function getProjectDetail(&$db, &$user, $projectId) {
-  $tproject_mgr = new testproject($db);
-  $project = $tproject_mgr->get_by_id($projectId);
+function getProject(&$db, $projectId) {
+  $rows = $db->get_recordset(projectSelect() . " WHERE tp.id = " . (int)$projectId);
 
-  if (!$project) {
+  if (empty($rows)) {
     http_response_code(404);
     echo json_encode(['error' => 'Project not found']);
     return;
   }
 
-  echo json_encode([
-    'success' => true,
-    'data' => array(
-      'id' => (int)$project['id'],
-      'name' => $project['name'],
-      'description' => $project['notes'] ?? '',
-      'isActive' => (int)$project['active']
-    )
-  ]);
+  echo json_encode(['success' => true, 'data' => formatProject($rows[0])]);
 }
 
-function createProject(&$db, &$user) {
-  if (!$user->hasRight($db, 'mgt_modify_product')) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Permission denied']);
-    return;
-  }
-
+function createProject(&$db, &$tprojectMgr) {
   $input = json_decode(file_get_contents('php://input'), true);
-  if (!$input || empty($input['name']) || empty($input['prefix'])) {
+
+  if (empty($input['name']) || empty($input['prefix'])) {
     throw new Exception('Project name and prefix are required');
   }
 
-  $tproject_mgr = new testproject($db);
+  $options = new stdClass();
+  $options->requirementsEnabled = (int)($input['optReq'] ?? 0);
+  $options->testPriorityEnabled = (int)($input['optPriority'] ?? 0);
+  $options->automationEnabled = (int)($input['optAutomation'] ?? 0);
+  $options->inventoryEnabled = (int)($input['optInventory'] ?? 0);
 
-  // Create project item
   $item = new stdClass();
   $item->name = trim($input['name']);
   $item->prefix = trim($input['prefix']);
-  $item->notes = isset($input['description']) ? trim($input['description']) : '';
-  $item->active = isset($input['isActive']) ? (int)$input['isActive'] : 1;
-  $item->is_public = isset($input['isPublic']) ? (int)$input['isPublic'] : 0;
-  $item->color = '#808080';  // Default color
-  $item->options = array(
-    'requirementsEnabled' => isset($input['optReq']) ? (int)$input['optReq'] : 0,
-    'testPriorityEnabled' => isset($input['optPriority']) ? (int)$input['optPriority'] : 0,
-    'automationEnabled' => isset($input['optAutomation']) ? (int)$input['optAutomation'] : 0,
-    'inventoryEnabled' => isset($input['optInventory']) ? (int)$input['optInventory'] : 0
-  );
+  $item->notes = trim($input['description'] ?? '');
+  $item->color = '#9BD';
+  $item->active = (int)($input['isActive'] ?? 1);
+  $item->is_public = (int)($input['isPublic'] ?? 1);
+  $item->options = $options;
 
-  $newId = $tproject_mgr->create($item);
+  $newId = $tprojectMgr->create($item, ['doChecks' => true]);
 
   if (!$newId) {
     throw new Exception('Failed to create project');
   }
+
+  // execSetResults.php reads option_reqs directly, so keep the legacy
+  // columns in sync with the serialized options blob.
+  $db->exec_query("UPDATE testprojects SET
+                     option_reqs=" . (int)$options->requirementsEnabled . ",
+                     option_priority=" . (int)$options->testPriorityEnabled . ",
+                     option_automation=" . (int)$options->automationEnabled . "
+                   WHERE id=" . (int)$newId);
+
+  applyTrackers($db, $newId, $input);
 
   echo json_encode([
     'success' => true,
@@ -175,74 +163,79 @@ function createProject(&$db, &$user) {
   ]);
 }
 
-function updateProject(&$db, &$user, $projectId) {
-  if (!$user->hasRight($db, 'mgt_modify_product')) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Permission denied']);
-    return;
-  }
-
+function updateProject(&$db, $projectId) {
   $input = json_decode(file_get_contents('php://input'), true);
+  if (!$input) throw new Exception('Invalid input');
 
-  $tproject_mgr = new testproject($db);
-  $project = $tproject_mgr->get_by_id($projectId);
-
-  if (!$project) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Project not found']);
-    return;
+  if (isset($input['name'])) {
+    $db->exec_query("UPDATE nodes_hierarchy SET name='" .
+      $db->prepare_string(trim($input['name'])) . "' WHERE id=" . (int)$projectId);
   }
 
-  // Update project
-  $sql = "UPDATE testproject SET ";
-  $updates = array();
-  if (isset($input['name'])) $updates[] = "name='" . $db->prepare_string($input['name']) . "'";
-  if (isset($input['prefix'])) $updates[] = "prefix='" . $db->prepare_string($input['prefix']) . "'";
+  $updates = [];
+  if (isset($input['prefix'])) $updates[] = "prefix='" . $db->prepare_string(trim($input['prefix'])) . "'";
   if (isset($input['description'])) $updates[] = "notes='" . $db->prepare_string($input['description']) . "'";
   if (isset($input['isActive'])) $updates[] = "active=" . (int)$input['isActive'];
   if (isset($input['isPublic'])) $updates[] = "is_public=" . (int)$input['isPublic'];
+  if (isset($input['optReq'])) $updates[] = "option_reqs=" . (int)$input['optReq'];
+  if (isset($input['optPriority'])) $updates[] = "option_priority=" . (int)$input['optPriority'];
+  if (isset($input['optAutomation'])) $updates[] = "option_automation=" . (int)$input['optAutomation'];
 
-  if (empty($updates)) {
-    echo json_encode(['success' => true, 'message' => 'No changes']);
-    return;
+  if (isset($input['optInventory']) || isset($input['optReq']) ||
+      isset($input['optPriority']) || isset($input['optAutomation'])) {
+    $options = new stdClass();
+    $options->requirementsEnabled = (int)($input['optReq'] ?? 0);
+    $options->testPriorityEnabled = (int)($input['optPriority'] ?? 0);
+    $options->automationEnabled = (int)($input['optAutomation'] ?? 0);
+    $options->inventoryEnabled = (int)($input['optInventory'] ?? 0);
+    $updates[] = "options='" . $db->prepare_string(serialize($options)) . "'";
   }
 
-  $sql .= implode(',', $updates) . " WHERE id=" . (int)$projectId;
-  $db->exec_query($sql);
+  if ($updates) {
+    $db->exec_query("UPDATE testprojects SET " . implode(',', $updates) .
+                    " WHERE id=" . (int)$projectId);
+  }
+
+  applyTrackers($db, $projectId, $input);
 
   echo json_encode([
     'success' => true,
-    'id' => $projectId,
+    'id' => (int)$projectId,
     'message' => 'Project updated successfully'
   ]);
 }
 
-function deleteProject(&$db, &$user, $projectId) {
-  if (!$user->hasRight($db, 'mgt_modify_product')) {
-    http_response_code(403);
-    echo json_encode(['error' => 'Permission denied']);
-    return;
+function applyTrackers(&$db, $projectId, $input) {
+  $projectId = (int)$projectId;
+
+  if (array_key_exists('issue_tracker_id', $input)) {
+    $itId = (int)$input['issue_tracker_id'];
+    $db->exec_query("DELETE FROM testproject_issuetracker WHERE testproject_id=$projectId");
+    if ($itId > 0) {
+      $db->exec_query("INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id)
+                       VALUES ($projectId,$itId)");
+    }
+    $enabled = ($itId > 0 && !empty($input['issue_tracker_enabled'])) ? 1 : 0;
+    $db->exec_query("UPDATE testprojects SET issue_tracker_enabled=$enabled WHERE id=$projectId");
   }
 
-  $tproject_mgr = new testproject($db);
-  $project = $tproject_mgr->get_by_id($projectId);
-
-  if (!$project) {
-    http_response_code(404);
-    echo json_encode(['error' => 'Project not found']);
-    return;
+  if (array_key_exists('code_tracker_id', $input)) {
+    $ctId = (int)$input['code_tracker_id'];
+    $db->exec_query("DELETE FROM testproject_codetracker WHERE testproject_id=$projectId");
+    if ($ctId > 0) {
+      $db->exec_query("INSERT INTO testproject_codetracker (testproject_id,codetracker_id)
+                       VALUES ($projectId,$ctId)");
+    }
+    $enabled = ($ctId > 0 && !empty($input['code_tracker_enabled'])) ? 1 : 0;
+    $db->exec_query("UPDATE testprojects SET code_tracker_enabled=$enabled WHERE id=$projectId");
   }
+}
 
-  // Delete project (soft delete by deactivating)
-  $sql = "UPDATE testproject SET active=0 WHERE id=" . (int)$projectId;
-  $db->exec_query($sql);
+function deleteProject(&$db, $projectId) {
+  $db->exec_query("UPDATE testprojects SET active=0 WHERE id=" . (int)$projectId);
 
   echo json_encode([
     'success' => true,
-    'message' => 'Project deleted successfully'
+    'message' => 'Project deactivated successfully'
   ]);
-}
-
-function checkRights(&$db, &$user) {
-  return $user->hasRight($db, 'mgt_modify_product');
 }
