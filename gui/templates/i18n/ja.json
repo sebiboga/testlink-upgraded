@@ -242,5 +242,6 @@
   "cfa.msg.selectFirst": "まずフィールドを選択してください。",
   "cfa.msg.errorLoad": "割り当ての読み込みエラー",
   "cfa.msg.errorSave": "保存エラー",
-  "cfa.msg.noProject": "テストプロジェクトが未選択です。上部で選択してください。"
+  "cfa.msg.noProject": "テストプロジェクトが未選択です。上部で選択してください。",
+  "cfa.msg.unsaved": "未保存の変更"
 }

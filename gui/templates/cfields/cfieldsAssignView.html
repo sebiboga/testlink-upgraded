@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Custom Fields</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled, .btn-red:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.section { padding: 20px 24px 4px; }
+.section h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 10px; }
+.section h2 .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.table-wrap { padding: 0 24px 20px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+table.dataTable tbody tr.selected-row td { background: #eefaf9; }
+.cf-name { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.cf-name:hover { text-decoration: underline; }
+.order-input { width: 68px; padding: 3px 6px; font-size: 13px; border: 1px solid #ccc; border-radius: 3px; }
+.loc-select { padding: 3px 6px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px; max-width: 150px; }
+.muted { color: #999; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.dirty-note { color: #e0a800; font-size: 12px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="header.cfAssign">Assign Custom Fields</span>
+  <span data-i18n="header.cfAssignSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">choose which custom fields this test project uses</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="cfa.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <span class="dirty-note" id="dirtyNote"><i class="fa fa-circle" style="font-size:8px;vertical-align:middle"></i> <span data-i18n="cfa.msg.unsaved">unsaved changes</span></span>
+</div>
+
+<!-- Assigned -->
+<div class="section">
+  <h2><span data-i18n="cfa.assigned">Assigned Custom Fields</span><span class="count" id="assignedCount"></span></h2>
+</div>
+<div class="table-wrap">
+  <div id="assignedEmpty" class="empty" style="display:none" data-i18n="cfa.noAssigned">No custom fields assigned to this test project yet</div>
+  <table id="assignedTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:28px"><input type="checkbox" id="chkAllAssigned" title="Select all"></th>
+        <th data-i18n="cfa.name">Name</th>
+        <th data-i18n="cfa.label">Label</th>
+        <th data-i18n="cfa.type">Type</th>
+        <th data-i18n="cfa.availableOn">Available On</th>
+        <th data-orderable="false" data-i18n="cfa.displayOrder">Display Order</th>
+        <th data-orderable="false" data-i18n="cfa.location">Location</th>
+        <th data-orderable="false" style="width:60px" data-i18n="cfa.active">Active</th>
+        <th data-orderable="false" style="width:70px" data-i18n="cfa.required">Required</th>
+        <th data-orderable="false" style="width:80px" data-i18n="cfa.monitorable">Monitorable</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="section" style="padding-top:0">
+  <button class="btn-teal" id="btnSave" onclick="saveChanges()"><i class="fa fa-save"></i> <span data-i18n="cfa.saveChanges">Save Changes</span></button>
+  <button class="btn-red" id="btnUnassign" onclick="unassign()"><i class="fa fa-unlink"></i> <span data-i18n="cfa.unassign">Unassign</span></button>
+</div>
+
+<!-- Available -->
+<div class="section">
+  <h2><span data-i18n="cfa.available">Available Custom Fields</span><span class="count" id="availableCount"></span></h2>
+</div>
+<div class="table-wrap">
+  <div id="availableEmpty" class="empty" style="display:none" data-i18n="cfa.noAvailable">All custom fields are already assigned</div>
+  <table id="availableTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:28px"><input type="checkbox" id="chkAllAvailable" title="Select all"></th>
+        <th data-i18n="cfa.name">Name</th>
+        <th data-i18n="cfa.label">Label</th>
+        <th data-i18n="cfa.type">Type</th>
+        <th data-i18n="cfa.availableOn">Available On</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="section" style="padding-top:0;padding-bottom:20px">
+  <button class="btn-teal" id="btnAssign" onclick="assign()"><i class="fa fa-link"></i> <span data-i18n="cfa.assign">Assign</span></button>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script>
+var API = '/api/cfields/index.php';
+var tprojectId = 0;
+var locations = [];
+var assignedTbl = null, availableTbl = null;
+var dirty = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : s).html();
+}
+
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 2600));
+}
+
+function markDirty() {
+  dirty = true;
+  $('#dirtyNote').show();
+}
+
+function load() {
+  // Both tables are rebuilt from scratch, so drop any previous DataTables
+  // instance first - re-initialising over live rows throws.
+  if (assignedTbl) { assignedTbl.destroy(); assignedTbl = null; }
+  if (availableTbl) { availableTbl.destroy(); availableTbl = null; }
+
+  // Ask the BFF for its lang_get-resolved labels in the same language the
+  // bundle is using, so the whole screen speaks one language.
+  $.getJSON(API + '/assignment?tproject_id=' + tprojectId +
+            '&locale=' + encodeURIComponent(TLi18n.getLocale()))
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('cfa.msg.errorLoad'), true); return; }
+      locations = r.locations || [];
+      $('#tprojectName').text(r.tproject.name);
+      renderAssigned(r.linked || []);
+      renderAvailable(r.available || []);
+      // Rows are rebuilt, so the two header checkboxes must not stay ticked.
+      $('#chkAllAssigned, #chkAllAvailable').prop('checked', false);
+      dirty = false;
+      $('#dirtyNote').hide();
+      $('#footerInfo').text(r.linked.length + ' / ' + (r.linked.length + r.available.length));
+    })
+    .fail(function (xhr) {
+      var msg = (xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('cfa.msg.errorLoad');
+      if (xhr.status === 400) { msg = TLi18n.t('cfa.msg.noProject'); }
+      toast(msg, true);
+    });
+}
+
+function locationSelect(cf) {
+  // Display location is meaningless for execution-only fields, which is why
+  // the legacy screen left the cell blank for them.
+  if (!cf.supportsLocation) {
+    return '<span class="muted">' + esc(TLi18n.t('cfa.notApplicable')) + '</span>';
+  }
+  var h = '<select class="loc-select" data-id="' + cf.id + '">';
+  for (var i = 0; i < locations.length; i++) {
+    h += '<option value="' + locations[i].code + '"' +
+         (locations[i].code === cf.location ? ' selected' : '') + '>' +
+         esc(locations[i].label) + '</option>';
+  }
+  return h + '</select>';
+}
+
+function flag(cf, attr) {
+  return '<input type="checkbox" class="cf-flag" data-id="' + cf.id +
+         '" data-attr="' + attr + '"' + (cf[attr] == 1 ? ' checked' : '') + '>';
+}
+
+function renderAssigned(rows) {
+  var $b = $('#assignedTable tbody').empty();
+  $('#assignedCount').text('(' + rows.length + ')');
+  $('#assignedEmpty').toggle(rows.length === 0);
+  $('#assignedTable').toggle(rows.length > 0);
+  $('#btnSave, #btnUnassign').prop('disabled', rows.length === 0);
+
+  rows.forEach(function (cf) {
+    $b.append(
+      '<tr data-id="' + cf.id + '">' +
+      '<td><input type="checkbox" class="row-chk"></td>' +
+      '<td><a class="cf-name" target="_top" title="' + esc(TLi18n.t('cfa.editField')) +
+        '" href="/lib/cfields/cfieldsEdit.php?do_action=edit&cfield_id=' + cf.id + '">' +
+        esc(cf.name) + '</a></td>' +
+      '<td>' + esc(cf.label) + '</td>' +
+      '<td>' + esc(cf.typeLabel) + '</td>' +
+      '<td>' + esc(cf.nodeLabel) + '</td>' +
+      '<td><input type="number" class="order-input" data-id="' + cf.id +
+        '" value="' + cf.display_order + '"></td>' +
+      '<td>' + locationSelect(cf) + '</td>' +
+      '<td>' + flag(cf, 'active') + '</td>' +
+      '<td>' + flag(cf, 'required') + '</td>' +
+      '<td>' + flag(cf, 'monitorable') + '</td>' +
+      '</tr>');
+  });
+
+  if (rows.length) {
+    assignedTbl = $('#assignedTable').DataTable({
+      order: [[1, 'asc']], pageLength: 25, lengthChange: false,
+      columnDefs: [{ orderable: false, targets: 0 }]
+    });
+  }
+}
+
+function renderAvailable(rows) {
+  var $b = $('#availableTable tbody').empty();
+  $('#availableCount').text('(' + rows.length + ')');
+  $('#availableEmpty').toggle(rows.length === 0);
+  $('#availableTable').toggle(rows.length > 0);
+  $('#btnAssign').prop('disabled', rows.length === 0);
+
+  rows.forEach(function (cf) {
+    $b.append(
+      '<tr data-id="' + cf.id + '">' +
+      '<td><input type="checkbox" class="row-chk"></td>' +
+      '<td><a class="cf-name" target="_top" title="' + esc(TLi18n.t('cfa.editField')) +
+        '" href="/lib/cfields/cfieldsEdit.php?do_action=edit&cfield_id=' + cf.id + '">' +
+        esc(cf.name) + '</a></td>' +
+      '<td>' + esc(cf.label) + '</td>' +
+      '<td>' + esc(cf.typeLabel) + '</td>' +
+      '<td>' + esc(cf.nodeLabel) + '</td>' +
+      '</tr>');
+  });
+
+  if (rows.length) {
+    availableTbl = $('#availableTable').DataTable({
+      order: [[1, 'asc']], pageLength: 25, lengthChange: false,
+      columnDefs: [{ orderable: false, targets: 0 }]
+    });
+  }
+}
+
+// Selection ------------------------------------------------------------------
+
+function selectedIds(tableSel) {
+  var ids = [];
+  $(tableSel + ' tbody .row-chk:checked').each(function () {
+    ids.push(parseInt($(this).closest('tr').data('id'), 10));
+  });
+  return ids;
+}
+
+$(document).on('change', '#chkAllAssigned', function () {
+  $('#assignedTable tbody .row-chk').prop('checked', this.checked).trigger('change');
+});
+$(document).on('change', '#chkAllAvailable', function () {
+  $('#availableTable tbody .row-chk').prop('checked', this.checked).trigger('change');
+});
+$(document).on('change', '.row-chk', function () {
+  $(this).closest('tr').toggleClass('selected-row', this.checked);
+});
+$(document).on('change', '.cf-flag, .order-input, .loc-select', markDirty);
+
+// Actions --------------------------------------------------------------------
+
+function assign() {
+  var ids = selectedIds('#availableTable');
+  if (!ids.length) { toast(TLi18n.t('cfa.msg.selectFirst'), true); return; }
+  $.ajax({
+    url: API + '/assignment/link?tproject_id=' + tprojectId,
+    method: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ ids: ids })
+  }).done(function () {
+    toast(TLi18n.t('cfa.msg.assigned'));
+    load();
+  }).fail(function (xhr) {
+    toast((xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('cfa.msg.errorSave'), true);
+  });
+}
+
+function unassign() {
+  var ids = selectedIds('#assignedTable');
+  if (!ids.length) { toast(TLi18n.t('cfa.msg.selectFirst'), true); return; }
+  $.ajax({
+    url: API + '/assignment/unlink?tproject_id=' + tprojectId,
+    method: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ ids: ids })
+  }).done(function () {
+    toast(TLi18n.t('cfa.msg.unassigned'));
+    load();
+  }).fail(function (xhr) {
+    toast((xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('cfa.msg.errorSave'), true);
+  });
+}
+
+function saveChanges() {
+  // Send every assigned row, not just the visible DataTables page - the server
+  // diffs against stored state and only writes what actually changed.
+  var byId = {};
+  function row(id) {
+    if (!byId[id]) { byId[id] = { id: id }; }
+    return byId[id];
+  }
+
+  $('#assignedTable tbody .order-input').each(function () {
+    row(parseInt($(this).data('id'), 10)).display_order = parseInt(this.value, 10) || 0;
+  });
+  $('#assignedTable tbody .loc-select').each(function () {
+    row(parseInt($(this).data('id'), 10)).location = parseInt(this.value, 10) || 0;
+  });
+  $('#assignedTable tbody .cf-flag').each(function () {
+    row(parseInt($(this).data('id'), 10))[$(this).data('attr')] = this.checked ? 1 : 0;
+  });
+
+  var rows = Object.keys(byId).map(function (k) { return byId[k]; });
+  if (!rows.length) { return; }
+
+  $.ajax({
+    url: API + '/assignment?tproject_id=' + tprojectId,
+    method: 'PUT', contentType: 'application/json',
+    data: JSON.stringify({ rows: rows })
+  }).done(function () {
+    toast(TLi18n.t('cfa.msg.saved'));
+    load();
+  }).fail(function (xhr) {
+    toast((xhr.responseJSON && xhr.responseJSON.message) || TLi18n.t('cfa.msg.errorSave'), true);
+  });
+}
+</script>
+</body>
+</html>

@@ -276,5 +276,6 @@
   "cfa.msg.selectFirst": "Seleziona prima almeno un campo personalizzato.",
   "cfa.msg.errorLoad": "Errore nel caricamento delle assegnazioni",
   "cfa.msg.errorSave": "Errore nel salvataggio delle modifiche",
-  "cfa.msg.noProject": "Nessun progetto di test selezionato. Scegline uno nella barra in alto."
+  "cfa.msg.noProject": "Nessun progetto di test selezionato. Scegline uno nella barra in alto.",
+  "cfa.msg.unsaved": "modifiche non salvate"
 }

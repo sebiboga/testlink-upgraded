@@ -276,5 +276,6 @@
   "cfa.msg.selectFirst": "Selecteaza mai intai cel putin un camp personalizat.",
   "cfa.msg.errorLoad": "Eroare la incarcarea atribuirilor",
   "cfa.msg.errorSave": "Eroare la salvarea modificarilor",
-  "cfa.msg.noProject": "Niciun proiect de test selectat. Alege unul din bara de sus."
+  "cfa.msg.noProject": "Niciun proiect de test selectat. Alege unul din bara de sus.",
+  "cfa.msg.unsaved": "modificari nesalvate"
 }

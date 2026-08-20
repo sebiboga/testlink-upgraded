@@ -239,6 +239,25 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
 // diffing happens below, against what is actually stored.
 // ---------------------------------------------------------------------------
 
+// The modern screens pick a language through TLi18n (short code: 'ro'), which
+// is independent of $_SESSION['locale'] driving the Smarty pages. Without this
+// the JSON labels below would come back in the session language while the rest
+// of the page renders in the one the user picked - German column headers on a
+// Romanian screen. Map the short code onto a TestLink locale and let lang_get
+// resolve against it; fall back to the session when the client says nothing.
+function assignLocale() {
+    $short = preg_replace('/[^a-z]/', '', strtolower((string) getParam('locale', '')));
+    if ($short === '' || strlen($short) !== 2) {
+        return null;
+    }
+    foreach (array_keys((array) config_get('locales')) as $code) {
+        if (strpos(strtolower($code), $short) === 0) {
+            return $code;
+        }
+    }
+    return null;
+}
+
 function assignTprojectId() {
     $id = intval(getParam('tproject_id', 0));
     if ($id <= 0) {
@@ -264,10 +283,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
     }
     $tprojectName = $info['name'];
 
+    $lang = assignLocale();
     $types = $cfield_mgr->get_available_types();
     $nodes = [];
     foreach ($cfield_mgr->get_allowed_nodes() as $verbose => $typeId) {
-        $nodes[$typeId] = lang_get($verbose);
+        $nodes[$typeId] = lang_get($verbose, $lang);
     }
 
     // Display location only applies to design-time test case fields, which is
@@ -275,7 +295,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assignment') {
     $locations = [];
     $rawLocations = $cfield_mgr->getLocations();
     foreach (($rawLocations['testcase'] ?? []) as $code => $labelKey) {
-        $locations[] = ['code' => intval($code), 'label' => lang_get($labelKey)];
+        $locations[] = ['code' => intval($code), 'label' => lang_get($labelKey, $lang)];
     }
 
     $linkedRaw = $cfield_mgr->get_linked_to_testproject($tprojectId);

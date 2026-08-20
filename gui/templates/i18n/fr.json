@@ -276,5 +276,6 @@
   "cfa.msg.selectFirst": "Selectionnez d abord au moins un champ personnalise.",
   "cfa.msg.errorLoad": "Erreur lors du chargement des affectations",
   "cfa.msg.errorSave": "Erreur lors de l enregistrement",
-  "cfa.msg.noProject": "Aucun projet de test selectionne. Choisissez-en un dans la barre du haut."
+  "cfa.msg.noProject": "Aucun projet de test selectionne. Choisissez-en un dans la barre du haut.",
+  "cfa.msg.unsaved": "modifications non enregistrees"
 }

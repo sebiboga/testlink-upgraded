@@ -276,5 +276,6 @@
   "cfa.msg.selectFirst": "Waehlen Sie zuerst mindestens ein Benutzerfeld aus.",
   "cfa.msg.errorLoad": "Fehler beim Laden der Zuweisungen",
   "cfa.msg.errorSave": "Fehler beim Speichern der Aenderungen",
-  "cfa.msg.noProject": "Kein Testprojekt ausgewaehlt. Waehlen Sie zuerst eines in der Kopfzeile."
+  "cfa.msg.noProject": "Kein Testprojekt ausgewaehlt. Waehlen Sie zuerst eines in der Kopfzeile.",
+  "cfa.msg.unsaved": "ungespeicherte Aenderungen"
 }

@@ -242,5 +242,6 @@
   "cfa.msg.selectFirst": "请先选择至少一个自定义字段。",
   "cfa.msg.errorLoad": "加载分配出错",
   "cfa.msg.errorSave": "保存更改出错",
-  "cfa.msg.noProject": "未选择测试项目。请先在顶部选择。"
+  "cfa.msg.noProject": "未选择测试项目。请先在顶部选择。",
+  "cfa.msg.unsaved": "未保存的更改"
 }

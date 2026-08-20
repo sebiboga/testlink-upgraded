@@ -276,5 +276,6 @@
   "cfa.msg.selectFirst": "Select at least one custom field first.",
   "cfa.msg.errorLoad": "Error loading custom field assignment",
   "cfa.msg.errorSave": "Error saving changes",
-  "cfa.msg.noProject": "No test project selected. Pick one in the top bar first."
+  "cfa.msg.noProject": "No test project selected. Pick one in the top bar first.",
+  "cfa.msg.unsaved": "unsaved changes"
 }
