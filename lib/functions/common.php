@@ -1806,8 +1806,8 @@ function getActions(&$gui,$baseURL) {
 
   $actions->keywordsView = "$bb/keywords/keywordsView.php?{$ctx}";
   $actions->platformsView = "$bb/platforms/platformsView.php?{$ctx}";
-  $actions->issueTrackerView = "$bb/issuetrackers/issueTrackerView.php?{$ctx}";
-  $actions->codeTrackerView = "$bb/codetrackers/codeTrackerView.php?{$ctx}";
+  $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
+  $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
   $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
   $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
   $actions->reqMonOverView = "$bb/requirements/reqMonitorOverview.php?{$ctx}";

@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Issue Trackers</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.danger { color: #e6605e; }
+.action-btn.danger:hover { color: #d04e4c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="header.issueTrackers">Issue Trackers</span> <span data-i18n="header.issueTrackersSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage issue tracker integrations</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="it.createTracker">Create Issue Tracker</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="trackersTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="it.name">Name</th>
+        <th data-i18n="it.type">Type</th>
+        <th data-i18n="it.serverUrl">Server URL</th>
+        <th data-i18n="it.active">Active</th>
+        <th style="width:100px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<div class="modal fade" id="trackerModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Create Issue Tracker</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editTrackerId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="it.name">Name *</label>
+          <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="it.type">Type *</label>
+          <select id="editType" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="it.cfg">Configuration (XML)</label>
+          <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<issuetracker>&#10;  &lt;uribase&gt;...&lt;/uribase&gt;&#10;  &lt;apikey&gt;...&lt;/apikey&gt;&#10;&lt;/issuetracker&gt;"></textarea>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveTracker()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/issuetracker/index.php';
+var table = null;
+var typeMap = {};
+var allItems = [];
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+    loadTrackers();
+  });
+});
+
+function loadMeta() {
+  $.getJSON(API + '/meta/types', function(r) {
+    var sel = $('#editType');
+    sel.empty();
+    var enabled = [];
+    $.each(r.items, function(i, t) {
+      typeMap[t.code] = t;
+      if (t.enabled) enabled.push(t);
+    });
+    enabled.sort(function(a, b) {
+      var order = {'github':1,'gitlab':2,'jira':3,'redmine':4,'bugzilla':5,'mantis':6,'trac':7,'fogbugz':8,'kaiten':9,'gforge':10};
+      return (order[a.type]||99) - (order[b.type]||99);
+    });
+    $.each(enabled, function(i, t) {
+      sel.append('<option value="' + t.code + '">' + t.label + '</option>');
+    });
+  });
+}
+
+function loadTrackers() {
+  $.getJSON(API, function(r) {
+    allItems = r.items;
+    renderTable(allItems);
+    $('#footerText').text(TLi18n.t('it.trackersCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  });
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#trackersTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, t) {
+    var cfgUrl = '';
+    if (t.cfg) {
+      var m = t.cfg.match(/<uribase>(.*?)<\/uribase>/);
+      if (m) cfgUrl = m[1];
+    }
+    rows.push([
+      t.name,
+      t.typeDescr || t.typeLabel,
+      cfgUrl,
+      '<span class="badge-active">Active</span>',
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editTracker(' + t.id + ')"></i>' +
+      '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteTracker(' + t.id + ', \'' + (t.name || '').replace(/'/g, "\\'") + '\')"></i>'
+    ]);
+  });
+  table = $('#trackersTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [
+      null, null, null, null,
+      { orderable: false, searchable: false }
+    ]
+  });
+}
+
+function showCreateModal() {
+  $('#modalTitle').text(TLi18n.t('it.createTracker'));
+  $('#editTrackerId').val('');
+  $('#editName').val('');
+  $('#editType').val($('#editType option:first').val());
+  $('#editCfg').val('');
+  $('#modalError').hide();
+  $('#trackerModal').modal('show');
+}
+
+function editTracker(id) {
+  $.getJSON(API + '/' + id, function(r) {
+    var t = r.item;
+    $('#modalTitle').text(TLi18n.t('it.editTracker') + ': ' + t.name);
+    $('#editTrackerId').val(t.id);
+    $('#editName').val(t.name);
+    $('#editType').val(t.type);
+    $('#editCfg').val(t.cfg || '');
+    $('#modalError').hide();
+    $('#trackerModal').modal('show');
+  });
+}
+
+function saveTracker() {
+  var id = $('#editTrackerId').val();
+  var data = {
+    name: $('#editName').val().trim(),
+    type: parseInt($('#editType').val()),
+    cfg: $('#editCfg').val()
+  };
+
+  if (!data.name) {
+    $('#modalError').text(TLi18n.t('it.validation.required')).show();
+    return;
+  }
+
+  var url = id ? API + '/' + id : API;
+  var type = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: type,
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function() { $('#trackerModal').modal('hide'); loadTrackers(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('it.msg.errorSave');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
+
+function deleteTracker(id, name) {
+  if (!confirm(TLi18n.t('it.msg.confirmDelete') + ' "' + name + '"?')) return;
+  $.ajax({
+    url: API + '/' + id, type: 'DELETE',
+    success: function() { loadTrackers(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('it.msg.errorDelete');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+</script>
+</body>
+</html>
