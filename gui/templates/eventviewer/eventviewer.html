@@ -169,10 +169,12 @@ var pieChart = null;
 var lineChart = null;
 
 $(function() {
-  TLi18n.apply();
-  TLi18n.initLocaleSwitcher('#localeSwitcher');
-  loadMeta();
-  loadEvents();
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+    loadEvents();
+  });
 });
 
 function loadMeta() {

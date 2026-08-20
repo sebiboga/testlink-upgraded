@@ -156,10 +156,12 @@ $(function() {
     html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
   });
   $('#tabsBar').html(html);
-  TLi18n.apply();
-  TLi18n.initLocaleSwitcher('#localeSwitcher');
-  loadMeta();
-  loadRoles();
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+    loadRoles();
+  });
 });
 
 function loadMeta() {
