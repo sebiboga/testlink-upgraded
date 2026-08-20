@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "Русский", "code": "ru" },
-
+  "_meta": {
+    "name": "Русский",
+    "code": "ru"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "Управление пользователями",
   "tab.roleManagement": "Управление ролями",
   "tab.assignProjectRoles": "Назначение ролей тестового проекта",
   "tab.assignPlanRoles": "Назначение ролей тестового плана",
-
   "common.cancel": "Отмена",
   "common.save": "Сохранить",
   "common.delete": "Удалить",
@@ -21,7 +21,6 @@
   "common.confirm": "Подтвердить",
   "common.error": "Ошибка",
   "common.search": "Поиск",
-
   "header.eventViewer": "Просмотр событий",
   "header.eventViewerSub": "мониторинг журналов в реальном времени",
   "header.userManagement": "Управление пользователями",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "назначение ролей пользователей в тестовых планах",
   "header.userProfile": "Профиль пользователя",
   "header.userProfileSub": "настройки учётной записи и предпочтения",
-
   "ev.logLevels": "Уровни журнала",
   "ev.user": "Пользователь",
   "ev.allUsers": "Все пользователи",
@@ -54,7 +52,6 @@
   "ev.activity": "Деятельность",
   "ev.eventsCount": "{n} событий",
   "ev.confirmDelete": "Удалить события, соответствующие текущим фильтрам?",
-
   "user.login": "Логин",
   "user.firstName": "Имя",
   "user.lastName": "Фамилия",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} пользователей",
   "user.validation.required": "Логин, Имя, Фамилия и Электронная почта обязательны.",
   "user.error.save": "Ошибка при сохранении пользователя",
-
   "role.id": "ID",
   "role.name": "Название",
   "role.description": "Описание",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "Выберите хотя бы одно право.",
   "role.error.save": "Ошибка при сохранении роли",
   "role.error.delete": "Ошибка при удалении роли",
-
   "assign.testProject": "Тестовый проект:",
   "assign.testPlan": "Тестовый план:",
   "assign.saveChanges": "Сохранить изменения",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "Назначенная роль",
   "assign.inheritedRole": "Унаследованная роль",
   "assign.planRoleOverride": "Переопределение роли плана",
-
   "profile.personalData": "Личные данные",
   "profile.firstName": "Имя",
   "profile.lastName": "Фамилия",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "Никогда не входил",
   "profile.noFailedLogins": "Нет неудачных входов",
   "profile.accountSettings": "Настройки учётной записи",
-
   "profile.msg.profileUpdated": "Профиль обновлён",
   "profile.msg.passwordChanged": "Пароль успешно изменён",
   "profile.msg.apiKeyGenerated": "API-ключ сгенерирован",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "Новые пароли не совпадают.",
   "profile.msg.wrongPassword": "Старый пароль неверен.",
   "profile.msg.requiredFields": "Имя, Фамилия и Электронная почта обязательны.",
-
   "header.customFields": "Пользовательские поля",
   "header.customFieldsSub": "управление пользовательскими полями для тестов, требований и планов",
   "cf.label": "Метка",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "Ошибка при сохранении пользовательского поля",
   "cf.msg.errorDelete": "Ошибка при удалении пользовательского поля",
   "cf.msg.confirmDelete": "Вы уверены, что хотите удалить пользовательское поле",
-
   "header.codeTrackers": "Трекеры кода",
   "header.codeTrackersSub": "управление интеграциями трекеров исходного кода",
   "ct.name": "Название",
@@ -188,5 +179,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "Управление тест-проектами",
+  "header.projectsSub": "создание и управление тест-проектами",
+  "proj.id": "ID",
+  "proj.name": "Название проекта",
+  "proj.prefix": "Префикс",
+  "proj.prefixHint": "Префикс (используется для ID тест-кейса)",
+  "proj.description": "Описание",
+  "proj.issueTracker": "Трекер задач",
+  "proj.codeTracker": "Трекер кода",
+  "proj.status": "Статус",
+  "proj.active": "Активен",
+  "proj.inactive": "Неактивен",
+  "proj.public": "Публичный",
+  "proj.features": "Возможности",
+  "proj.enableRequirements": "Включить требования",
+  "proj.enablePriority": "Включить приоритет",
+  "proj.enableAutomation": "Включить автоматизацию",
+  "proj.enableInventory": "Включить инвентаризацию",
+  "proj.issueTrackerIntegration": "Интеграция трекера задач",
+  "proj.codeTrackerIntegration": "Интеграция трекера кода",
+  "proj.enabled": "Включено",
+  "proj.availability": "Доступность",
+  "proj.basicInfo": "Основная информация",
+  "proj.createProject": "Создать тест-проект",
+  "proj.editProject": "Редактировать тест-проект",
+  "proj.searchPlaceholder": "Поиск проектов по названию...",
+  "proj.noProjects": "Проекты не найдены",
+  "proj.noProjectsHint": "Создайте свой первый тест-проект",
+  "proj.validation.required": "Название проекта и префикс обязательны.",
+  "proj.msg.errorLoad": "Ошибка загрузки проектов",
+  "proj.msg.errorSave": "Ошибка сохранения проекта",
+  "proj.msg.errorDelete": "Ошибка деактивации проекта",
+  "proj.msg.confirmDelete": "Деактивировать проект \"{name}\"? Он будет скрыт, но тестовые данные сохранятся.",
+  "common.edit": "Изменить"
 }

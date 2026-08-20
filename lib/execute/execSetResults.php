@@ -716,7 +716,10 @@ function init_args(&$dbHandler,$cfgObj) {
 
   $tproject_mgr = new testproject($dbHandler);
   $info = $tproject_mgr->get_by_id($args->tproject_id);
-  $args->reqEnabled = intval($info['option_reqs']);
+  // Read from the serialized options, not the option_reqs column: neither
+  // testproject::create() nor update() ever writes that column, so it is 0
+  // for every project regardless of the configured setting.
+  $args->reqEnabled = empty($info['opt']->requirementsEnabled) ? 0 : 1;
 
   unset($tproject_mgr);  
 

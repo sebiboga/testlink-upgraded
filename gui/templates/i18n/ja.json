@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "日本語", "code": "ja" },
-
+  "_meta": {
+    "name": "日本語",
+    "code": "ja"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "ユーザー管理",
   "tab.roleManagement": "ロール管理",
   "tab.assignProjectRoles": "テストプロジェクトのロール割り当て",
   "tab.assignPlanRoles": "テスト計画のロール割り当て",
-
   "common.cancel": "キャンセル",
   "common.save": "保存",
   "common.delete": "削除",
@@ -21,7 +21,6 @@
   "common.confirm": "確認",
   "common.error": "エラー",
   "common.search": "検索",
-
   "header.eventViewer": "イベントビューア",
   "header.eventViewerSub": "リアルタイムログ監視",
   "header.userManagement": "ユーザー管理",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "テスト計画内のユーザーロール割り当て",
   "header.userProfile": "ユーザープロフィール",
   "header.userProfileSub": "アカウント設定と個人設定",
-
   "ev.logLevels": "ログレベル",
   "ev.user": "ユーザー",
   "ev.allUsers": "全ユーザー",
@@ -54,7 +52,6 @@
   "ev.activity": "アクティビティ",
   "ev.eventsCount": "{n} 件のイベント",
   "ev.confirmDelete": "現在のフィルターに一致するイベントを削除しますか？",
-
   "user.login": "ログイン",
   "user.firstName": "名",
   "user.lastName": "姓",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} 人のユーザー",
   "user.validation.required": "ログイン、名、姓、メールは必須です。",
   "user.error.save": "ユーザーの保存中にエラーが発生しました",
-
   "role.id": "ID",
   "role.name": "名前",
   "role.description": "説明",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "少なくとも1つの権限を選択してください。",
   "role.error.save": "ロールの保存中にエラーが発生しました",
   "role.error.delete": "ロールの削除中にエラーが発生しました",
-
   "assign.testProject": "テストプロジェクト：",
   "assign.testPlan": "テスト計画：",
   "assign.saveChanges": "変更を保存",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "割り当てられたロール",
   "assign.inheritedRole": "継承されたロール",
   "assign.planRoleOverride": "計画ロールの上書き",
-
   "profile.personalData": "個人情報",
   "profile.firstName": "名",
   "profile.lastName": "姓",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "ログイン履歴なし",
   "profile.noFailedLogins": "失敗したログインなし",
   "profile.accountSettings": "アカウント設定",
-
   "profile.msg.profileUpdated": "プロフィールが更新されました",
   "profile.msg.passwordChanged": "パスワードが正常に変更されました",
   "profile.msg.apiKeyGenerated": "APIキーが生成されました",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "新しいパスワードが一致しません。",
   "profile.msg.wrongPassword": "古いパスワードが正しくありません。",
   "profile.msg.requiredFields": "名、姓、メールは必須です。",
-
   "header.customFields": "カスタムフィールド",
   "header.customFieldsSub": "テストケース、要件、計画のカスタムフィールドを管理",
   "cf.label": "ラベル",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "カスタムフィールドの保存中にエラーが発生しました",
   "cf.msg.errorDelete": "カスタムフィールドの削除中にエラーが発生しました",
   "cf.msg.confirmDelete": "カスタムフィールドを削除してもよろしいですか",
-
   "header.codeTrackers": "コードトラッカー",
   "header.codeTrackersSub": "ソースコードトラッカーの統合を管理",
   "ct.name": "名前",
@@ -188,5 +179,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "テストプロジェクト管理",
+  "header.projectsSub": "テストプロジェクトの作成と管理",
+  "proj.id": "ID",
+  "proj.name": "プロジェクト名",
+  "proj.prefix": "プレフィックス",
+  "proj.prefixHint": "プレフィックス（テストケースIDに使用）",
+  "proj.description": "説明",
+  "proj.issueTracker": "課題トラッカー",
+  "proj.codeTracker": "コードトラッカー",
+  "proj.status": "ステータス",
+  "proj.active": "有効",
+  "proj.inactive": "無効",
+  "proj.public": "公開",
+  "proj.features": "機能",
+  "proj.enableRequirements": "要件を有効化",
+  "proj.enablePriority": "優先度を有効化",
+  "proj.enableAutomation": "自動化を有効化",
+  "proj.enableInventory": "インベントリを有効化",
+  "proj.issueTrackerIntegration": "課題トラッカー連携",
+  "proj.codeTrackerIntegration": "コードトラッカー連携",
+  "proj.enabled": "有効",
+  "proj.availability": "利用可否",
+  "proj.basicInfo": "基本情報",
+  "proj.createProject": "テストプロジェクトを作成",
+  "proj.editProject": "テストプロジェクトを編集",
+  "proj.searchPlaceholder": "プロジェクト名で検索...",
+  "proj.noProjects": "プロジェクトが見つかりません",
+  "proj.noProjectsHint": "最初のテストプロジェクトを作成してください",
+  "proj.validation.required": "プロジェクト名とプレフィックスは必須です。",
+  "proj.msg.errorLoad": "プロジェクトの読み込みエラー",
+  "proj.msg.errorSave": "プロジェクトの保存エラー",
+  "proj.msg.errorDelete": "プロジェクトの無効化エラー",
+  "proj.msg.confirmDelete": "プロジェクト「{name}」を無効化しますか？非表示になりますがテストデータは保持されます。",
+  "common.edit": "編集"
 }

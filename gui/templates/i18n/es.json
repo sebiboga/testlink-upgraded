@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "Español", "code": "es" },
-
+  "_meta": {
+    "name": "Español",
+    "code": "es"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "Gestión de usuarios",
   "tab.roleManagement": "Gestión de roles",
   "tab.assignProjectRoles": "Asignar roles del proyecto de prueba",
   "tab.assignPlanRoles": "Asignar roles del plan de prueba",
-
   "common.cancel": "Cancelar",
   "common.save": "Guardar",
   "common.delete": "Eliminar",
@@ -21,7 +21,6 @@
   "common.confirm": "Confirmar",
   "common.error": "Error",
   "common.search": "Buscar",
-
   "header.eventViewer": "Visor de eventos",
   "header.eventViewerSub": "monitoreo de registros en tiempo real",
   "header.userManagement": "Gestión de usuarios",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "asignar roles de usuario dentro de planes de prueba",
   "header.userProfile": "Perfil de usuario",
   "header.userProfileSub": "configuración de cuenta y preferencias",
-
   "ev.logLevels": "Niveles de registro",
   "ev.user": "Usuario",
   "ev.allUsers": "Todos los usuarios",
@@ -54,7 +52,6 @@
   "ev.activity": "Actividad",
   "ev.eventsCount": "{n} eventos",
   "ev.confirmDelete": "¿Eliminar eventos que coincidan con los filtros actuales?",
-
   "user.login": "Usuario",
   "user.firstName": "Nombre",
   "user.lastName": "Apellido",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} usuarios",
   "user.validation.required": "Usuario, Nombre, Apellido y Correo electrónico son obligatorios.",
   "user.error.save": "Error al guardar el usuario",
-
   "role.id": "ID",
   "role.name": "Nombre",
   "role.description": "Descripción",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "Seleccione al menos un permiso.",
   "role.error.save": "Error al guardar el rol",
   "role.error.delete": "Error al eliminar el rol",
-
   "assign.testProject": "Proyecto de prueba:",
   "assign.testPlan": "Plan de prueba:",
   "assign.saveChanges": "Guardar cambios",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "Rol asignado",
   "assign.inheritedRole": "Rol heredado",
   "assign.planRoleOverride": "Sustitución del rol del plan",
-
   "profile.personalData": "Datos personales",
   "profile.firstName": "Nombre",
   "profile.lastName": "Apellido",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "Nunca inició sesión",
   "profile.noFailedLogins": "No hay inicios de sesión fallidos",
   "profile.accountSettings": "Configuración de cuenta",
-
   "profile.msg.profileUpdated": "Perfil actualizado",
   "profile.msg.passwordChanged": "Contraseña cambiada exitosamente",
   "profile.msg.apiKeyGenerated": "Clave API generada",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "Las nuevas contraseñas no coinciden.",
   "profile.msg.wrongPassword": "La contraseña antigua es incorrecta.",
   "profile.msg.requiredFields": "Nombre, Apellido y Correo electrónico son obligatorios.",
-
   "header.customFields": "Campos personalizados",
   "header.customFieldsSub": "administrar campos personalizados para casos de prueba, requisitos y planes",
   "cf.label": "Etiqueta",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "Error al guardar el campo personalizado",
   "cf.msg.errorDelete": "Error al eliminar el campo personalizado",
   "cf.msg.confirmDelete": "¿Está seguro de que desea eliminar el campo personalizado",
-
   "header.issueTrackers": "Rastreadores de incidencias",
   "header.issueTrackersSub": "gestionar integraciones de rastreadores de incidencias",
   "it.name": "Nombre",
@@ -199,7 +190,6 @@
   "it.pbz": "PBZ",
   "it.notepad": "Notepad",
   "it.nevernotify": "Nunca notificar",
-
   "header.codeTrackers": "Rastreadores de código",
   "header.codeTrackersSub": "gestionar integraciones de rastreadores de código fuente",
   "ct.name": "Nombre",
@@ -223,5 +213,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "Gestión de proyectos de prueba",
+  "header.projectsSub": "crear y gestionar proyectos de prueba",
+  "proj.id": "ID",
+  "proj.name": "Nombre del proyecto",
+  "proj.prefix": "Prefijo",
+  "proj.prefixHint": "Prefijo (usado para el ID del caso de prueba)",
+  "proj.description": "Descripción",
+  "proj.issueTracker": "Gestor de incidencias",
+  "proj.codeTracker": "Gestor de código",
+  "proj.status": "Estado",
+  "proj.active": "Activo",
+  "proj.inactive": "Inactivo",
+  "proj.public": "Público",
+  "proj.features": "Funcionalidades",
+  "proj.enableRequirements": "Habilitar requisitos",
+  "proj.enablePriority": "Habilitar prioridad",
+  "proj.enableAutomation": "Habilitar automatización",
+  "proj.enableInventory": "Habilitar inventario",
+  "proj.issueTrackerIntegration": "Integración del gestor de incidencias",
+  "proj.codeTrackerIntegration": "Integración del gestor de código",
+  "proj.enabled": "Habilitado",
+  "proj.availability": "Disponibilidad",
+  "proj.basicInfo": "Información básica",
+  "proj.createProject": "Crear proyecto de prueba",
+  "proj.editProject": "Editar proyecto de prueba",
+  "proj.searchPlaceholder": "Buscar proyectos por nombre...",
+  "proj.noProjects": "No se encontraron proyectos",
+  "proj.noProjectsHint": "Cree su primer proyecto de prueba para comenzar",
+  "proj.validation.required": "El nombre del proyecto y el prefijo son obligatorios.",
+  "proj.msg.errorLoad": "Error al cargar los proyectos",
+  "proj.msg.errorSave": "Error al guardar el proyecto",
+  "proj.msg.errorDelete": "Error al desactivar el proyecto",
+  "proj.msg.confirmDelete": "¿Desactivar el proyecto \"{name}\"? Se ocultará pero se conservarán sus datos de prueba.",
+  "common.edit": "Editar"
 }

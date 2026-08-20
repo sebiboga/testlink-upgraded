@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "Romana", "code": "ro" },
-
+  "_meta": {
+    "name": "Romana",
+    "code": "ro"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "Gestionare Utilizatori",
   "tab.roleManagement": "Gestionare Roluri",
   "tab.assignProjectRoles": "Atribuire Roluri Proiect",
   "tab.assignPlanRoles": "Atribuire Roluri Plan",
-
   "common.cancel": "Anuleaza",
   "common.save": "Salveaza",
   "common.delete": "Sterge",
@@ -21,7 +21,6 @@
   "common.confirm": "Confirma",
   "common.error": "Eroare",
   "common.search": "Cauta",
-
   "header.eventViewer": "Vizualizare Evenimente",
   "header.eventViewerSub": "monitorizare logs in timp real",
   "header.userManagement": "Gestionare Utilizatori",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "atribuire roluri utilizatori in cadrul planurilor",
   "header.userProfile": "Profil Utilizator",
   "header.userProfileSub": "setari cont si preferinte",
-
   "ev.logLevels": "Niveluri Log",
   "ev.user": "Utilizator",
   "ev.allUsers": "Toti utilizatorii",
@@ -54,7 +52,6 @@
   "ev.activity": "Activitate",
   "ev.eventsCount": "{n} evenimente",
   "ev.confirmDelete": "Stergeti evenimentele corespunzatoare filtrelor curente?",
-
   "user.login": "Utilizator",
   "user.firstName": "Prenume",
   "user.lastName": "Nume",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} utilizatori",
   "user.validation.required": "Utilizator, Prenume, Nume si Email sunt obligatorii.",
   "user.error.save": "Eroare la salvarea utilizatorului",
-
   "role.id": "ID",
   "role.name": "Nume",
   "role.description": "Descriere",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "Selecteaza cel putin un drept.",
   "role.error.save": "Eroare la salvarea rolului",
   "role.error.delete": "Eroare la stergerea rolului",
-
   "assign.testProject": "Proiect:",
   "assign.testPlan": "Plan:",
   "assign.saveChanges": "Salveaza Modificarile",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "Rol Atribuit",
   "assign.inheritedRole": "Rol Mostenit",
   "assign.planRoleOverride": "Suprascriere Rol Plan",
-
   "profile.personalData": "Date Personale",
   "profile.firstName": "Prenume",
   "profile.lastName": "Nume",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "Nu s-a autentificat niciodata",
   "profile.noFailedLogins": "Nicio autentificare esuata",
   "profile.accountSettings": "Setari Cont",
-
   "profile.msg.profileUpdated": "Profil actualizat",
   "profile.msg.passwordChanged": "Parola schimbata cu succes",
   "profile.msg.apiKeyGenerated": "Cheie API generata",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "Parolele noi nu coincid.",
   "profile.msg.wrongPassword": "Parola veche este incorecta.",
   "profile.msg.requiredFields": "Prenume, Nume si Email sunt obligatorii.",
-
   "header.customFields": "Campuri Personalizate",
   "header.customFieldsSub": "gestionare campuri personalizate pentru cazuri de test, cerinte si planuri",
   "cf.label": "Eticheta",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "Eroare la salvarea campului personalizat",
   "cf.msg.errorDelete": "Eroare la stergerea campului personalizat",
   "cf.msg.confirmDelete": "Sunteti sigur ca doriti sa stergeti campul personalizat",
-
   "header.issueTrackers": "Urmatoare Probleme",
   "header.issueTrackersSub": "gestionare integrari urmatoare probleme",
   "it.name": "Nume",
@@ -199,7 +190,6 @@
   "it.pbz": "PBZ",
   "it.notepad": "Notepad",
   "it.nevernotify": "Niciodata Notificare",
-
   "header.codeTrackers": "Urmatoare Cod",
   "header.codeTrackersSub": "gestionare integrari urmatoare sursa cod",
   "ct.name": "Nume",
@@ -223,5 +213,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "Gestionare Proiecte de Test",
+  "header.projectsSub": "creeaza si gestioneaza proiecte de test",
+  "proj.id": "ID",
+  "proj.name": "Nume Proiect",
+  "proj.prefix": "Prefix",
+  "proj.prefixHint": "Prefix (folosit pentru ID-ul cazului de test)",
+  "proj.description": "Descriere",
+  "proj.issueTracker": "Urmator Probleme",
+  "proj.codeTracker": "Urmator Cod",
+  "proj.status": "Stare",
+  "proj.active": "Activ",
+  "proj.inactive": "Inactiv",
+  "proj.public": "Public",
+  "proj.features": "Functionalitati",
+  "proj.enableRequirements": "Activeaza Cerinte",
+  "proj.enablePriority": "Activeaza Prioritate",
+  "proj.enableAutomation": "Activeaza Automatizare",
+  "proj.enableInventory": "Activeaza Inventar",
+  "proj.issueTrackerIntegration": "Integrare Urmator Probleme",
+  "proj.codeTrackerIntegration": "Integrare Urmator Cod",
+  "proj.enabled": "Activat",
+  "proj.availability": "Disponibilitate",
+  "proj.basicInfo": "Informatii de baza",
+  "proj.createProject": "Creaza Proiect de Test",
+  "proj.editProject": "Editeaza Proiect de Test",
+  "proj.searchPlaceholder": "Cauta proiecte dupa nume...",
+  "proj.noProjects": "Niciun proiect gasit",
+  "proj.noProjectsHint": "Creaza primul tau proiect de test pentru a incepe",
+  "proj.validation.required": "Numele proiectului si prefixul sunt obligatorii.",
+  "proj.msg.errorLoad": "Eroare la incarcarea proiectelor",
+  "proj.msg.errorSave": "Eroare la salvarea proiectului",
+  "proj.msg.errorDelete": "Eroare la dezactivarea proiectului",
+  "proj.msg.confirmDelete": "Dezactivati proiectul \"{name}\"? Va fi ascuns din uzul activ, dar datele de test sunt pastrate.",
+  "common.edit": "Editeaza"
 }

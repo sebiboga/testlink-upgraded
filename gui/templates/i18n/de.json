@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "Deutsch", "code": "de" },
-
+  "_meta": {
+    "name": "Deutsch",
+    "code": "de"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "Benutzerverwaltung",
   "tab.roleManagement": "Rollenverwaltung",
   "tab.assignProjectRoles": "Testprojektrollen zuweisen",
   "tab.assignPlanRoles": "Testplanrollen zuweisen",
-
   "common.cancel": "Abbrechen",
   "common.save": "Speichern",
   "common.delete": "Löschen",
@@ -21,7 +21,6 @@
   "common.confirm": "Bestätigen",
   "common.error": "Fehler",
   "common.search": "Suchen",
-
   "header.eventViewer": "Ereignisanzeige",
   "header.eventViewerSub": "Echtzeit-Logüberwachung",
   "header.userManagement": "Benutzerverwaltung",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "Benutzerrollen innerhalb von Testplänen zuweisen",
   "header.userProfile": "Benutzerprofil",
   "header.userProfileSub": "Kontoeinstellungen und Präferenzen",
-
   "ev.logLevels": "Logstufen",
   "ev.user": "Benutzer",
   "ev.allUsers": "Alle Benutzer",
@@ -54,7 +52,6 @@
   "ev.activity": "Aktivität",
   "ev.eventsCount": "{n} Ereignisse",
   "ev.confirmDelete": "Ereignisse löschen, die den aktuellen Filtern entsprechen?",
-
   "user.login": "Login",
   "user.firstName": "Vorname",
   "user.lastName": "Nachname",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} Benutzer",
   "user.validation.required": "Login, Vorname, Nachname und E-Mail sind erforderlich.",
   "user.error.save": "Fehler beim Speichern des Benutzers",
-
   "role.id": "ID",
   "role.name": "Name",
   "role.description": "Beschreibung",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "Wählen Sie mindestens ein Recht aus.",
   "role.error.save": "Fehler beim Speichern der Rolle",
   "role.error.delete": "Fehler beim Löschen der Rolle",
-
   "assign.testProject": "Testprojekt:",
   "assign.testPlan": "Testplan:",
   "assign.saveChanges": "Änderungen speichern",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "Zugewiesene Rolle",
   "assign.inheritedRole": "Geerbte Rolle",
   "assign.planRoleOverride": "Planrollen-Überschreibung",
-
   "profile.personalData": "Persönliche Daten",
   "profile.firstName": "Vorname",
   "profile.lastName": "Nachname",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "Nie angemeldet",
   "profile.noFailedLogins": "Keine fehlgeschlagenen Anmeldungen",
   "profile.accountSettings": "Kontoeinstellungen",
-
   "profile.msg.profileUpdated": "Profil aktualisiert",
   "profile.msg.passwordChanged": "Passwort erfolgreich geändert",
   "profile.msg.apiKeyGenerated": "API-Schlüssel generiert",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "Neue Passwörter stimmen nicht überein.",
   "profile.msg.wrongPassword": "Altes Passwort ist falsch.",
   "profile.msg.requiredFields": "Vorname, Nachname und E-Mail sind erforderlich.",
-
   "header.customFields": "Benutzerdefinierte Felder",
   "header.customFieldsSub": "Benutzerdefinierte Felder für Testfälle, Anforderungen und Pläne verwalten",
   "cf.label": "Bezeichnung",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "Fehler beim Speichern des benutzerdefinierten Felds",
   "cf.msg.errorDelete": "Fehler beim Löschen des benutzerdefinierten Felds",
   "cf.msg.confirmDelete": "Möchten Sie das benutzerdefinierte Feld wirklich löschen",
-
   "header.issueTrackers": "Issue-Tracker",
   "header.issueTrackersSub": "Issue-Tracker-Integrationen verwalten",
   "it.name": "Name",
@@ -199,7 +190,6 @@
   "it.pbz": "PBZ",
   "it.notepad": "Notepad",
   "it.nevernotify": "Nie Benachrichtigen",
-
   "header.codeTrackers": "Code-Tracker",
   "header.codeTrackersSub": "Code-Tracker-Integrationen verwalten",
   "ct.name": "Name",
@@ -223,5 +213,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "Testprojektverwaltung",
+  "header.projectsSub": "Testprojekte erstellen und verwalten",
+  "proj.id": "ID",
+  "proj.name": "Projektname",
+  "proj.prefix": "Präfix",
+  "proj.prefixHint": "Präfix (für Testfall-ID verwendet)",
+  "proj.description": "Beschreibung",
+  "proj.issueTracker": "Issue-Tracker",
+  "proj.codeTracker": "Code-Tracker",
+  "proj.status": "Status",
+  "proj.active": "Aktiv",
+  "proj.inactive": "Inaktiv",
+  "proj.public": "Öffentlich",
+  "proj.features": "Funktionen",
+  "proj.enableRequirements": "Anforderungen aktivieren",
+  "proj.enablePriority": "Priorität aktivieren",
+  "proj.enableAutomation": "Automatisierung aktivieren",
+  "proj.enableInventory": "Inventar aktivieren",
+  "proj.issueTrackerIntegration": "Issue-Tracker-Integration",
+  "proj.codeTrackerIntegration": "Code-Tracker-Integration",
+  "proj.enabled": "Aktiviert",
+  "proj.availability": "Verfügbarkeit",
+  "proj.basicInfo": "Grundinformationen",
+  "proj.createProject": "Testprojekt erstellen",
+  "proj.editProject": "Testprojekt bearbeiten",
+  "proj.searchPlaceholder": "Projekte nach Namen suchen...",
+  "proj.noProjects": "Keine Projekte gefunden",
+  "proj.noProjectsHint": "Erstellen Sie Ihr erstes Testprojekt",
+  "proj.validation.required": "Projektname und Präfix sind erforderlich.",
+  "proj.msg.errorLoad": "Fehler beim Laden der Projekte",
+  "proj.msg.errorSave": "Fehler beim Speichern des Projekts",
+  "proj.msg.errorDelete": "Fehler beim Deaktivieren des Projekts",
+  "proj.msg.confirmDelete": "Projekt \"{name}\" deaktivieren? Es wird ausgeblendet, die Testdaten bleiben erhalten.",
+  "common.edit": "Bearbeiten"
 }

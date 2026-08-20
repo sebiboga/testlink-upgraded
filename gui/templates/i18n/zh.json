@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "中文", "code": "zh" },
-
+  "_meta": {
+    "name": "中文",
+    "code": "zh"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "用户管理",
   "tab.roleManagement": "角色管理",
   "tab.assignProjectRoles": "分配测试项目角色",
   "tab.assignPlanRoles": "分配测试计划角色",
-
   "common.cancel": "取消",
   "common.save": "保存",
   "common.delete": "删除",
@@ -21,7 +21,6 @@
   "common.confirm": "确认",
   "common.error": "错误",
   "common.search": "搜索",
-
   "header.eventViewer": "事件查看器",
   "header.eventViewerSub": "实时日志监控",
   "header.userManagement": "用户管理",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "在测试计划中分配用户角色",
   "header.userProfile": "用户资料",
   "header.userProfileSub": "账户设置和偏好设置",
-
   "ev.logLevels": "日志级别",
   "ev.user": "用户",
   "ev.allUsers": "所有用户",
@@ -54,7 +52,6 @@
   "ev.activity": "活动",
   "ev.eventsCount": "{n} 个事件",
   "ev.confirmDelete": "删除与当前筛选条件匹配的事件？",
-
   "user.login": "登录名",
   "user.firstName": "名",
   "user.lastName": "姓",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} 个用户",
   "user.validation.required": "登录名、名、姓和电子邮件为必填项。",
   "user.error.save": "保存用户时出错",
-
   "role.id": "ID",
   "role.name": "名称",
   "role.description": "描述",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "至少选择一个权限。",
   "role.error.save": "保存角色时出错",
   "role.error.delete": "删除角色时出错",
-
   "assign.testProject": "测试项目：",
   "assign.testPlan": "测试计划：",
   "assign.saveChanges": "保存更改",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "已分配角色",
   "assign.inheritedRole": "继承角色",
   "assign.planRoleOverride": "计划角色覆盖",
-
   "profile.personalData": "个人资料",
   "profile.firstName": "名",
   "profile.lastName": "姓",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "从未登录",
   "profile.noFailedLogins": "没有登录失败记录",
   "profile.accountSettings": "账户设置",
-
   "profile.msg.profileUpdated": "个人资料已更新",
   "profile.msg.passwordChanged": "密码修改成功",
   "profile.msg.apiKeyGenerated": "API密钥已生成",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "新密码不匹配。",
   "profile.msg.wrongPassword": "旧密码不正确。",
   "profile.msg.requiredFields": "名、姓和电子邮件为必填项。",
-
   "header.customFields": "自定义字段",
   "header.customFieldsSub": "管理测试用例、需求和计划的自定义字段",
   "cf.label": "标签",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "保存自定义字段时出错",
   "cf.msg.errorDelete": "删除自定义字段时出错",
   "cf.msg.confirmDelete": "确定要删除自定义字段",
-
   "header.codeTrackers": "代码追踪器",
   "header.codeTrackersSub": "管理源代码追踪器集成",
   "ct.name": "名称",
@@ -188,5 +179,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "测试项目管理",
+  "header.projectsSub": "创建和管理测试项目",
+  "proj.id": "ID",
+  "proj.name": "项目名称",
+  "proj.prefix": "前缀",
+  "proj.prefixHint": "前缀（用于测试用例 ID）",
+  "proj.description": "描述",
+  "proj.issueTracker": "问题跟踪器",
+  "proj.codeTracker": "代码跟踪器",
+  "proj.status": "状态",
+  "proj.active": "启用",
+  "proj.inactive": "停用",
+  "proj.public": "公开",
+  "proj.features": "功能",
+  "proj.enableRequirements": "启用需求",
+  "proj.enablePriority": "启用优先级",
+  "proj.enableAutomation": "启用自动化",
+  "proj.enableInventory": "启用库存",
+  "proj.issueTrackerIntegration": "问题跟踪器集成",
+  "proj.codeTrackerIntegration": "代码跟踪器集成",
+  "proj.enabled": "已启用",
+  "proj.availability": "可用性",
+  "proj.basicInfo": "基本信息",
+  "proj.createProject": "创建测试项目",
+  "proj.editProject": "编辑测试项目",
+  "proj.searchPlaceholder": "按名称搜索项目...",
+  "proj.noProjects": "未找到项目",
+  "proj.noProjectsHint": "创建您的第一个测试项目",
+  "proj.validation.required": "项目名称和前缀为必填项。",
+  "proj.msg.errorLoad": "加载项目出错",
+  "proj.msg.errorSave": "保存项目出错",
+  "proj.msg.errorDelete": "停用项目出错",
+  "proj.msg.confirmDelete": "停用项目“{name}”？它将被隐藏，但测试数据会保留。",
+  "common.edit": "编辑"
 }

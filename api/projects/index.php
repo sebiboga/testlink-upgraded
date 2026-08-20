@@ -54,8 +54,7 @@ try {
 
 function projectSelect() {
   return "SELECT tp.id, nh.name, tp.prefix, tp.notes, tp.active, tp.is_public,
-                 tp.option_reqs, tp.option_priority, tp.option_automation, tp.options,
-                 tp.issue_tracker_enabled, tp.code_tracker_enabled,
+                 tp.options, tp.issue_tracker_enabled, tp.code_tracker_enabled,
                  it.name AS issue_tracker_name, ct.name AS code_tracker_name
           FROM testprojects tp
           JOIN nodes_hierarchy nh ON nh.id = tp.id
@@ -66,8 +65,8 @@ function projectSelect() {
 }
 
 function formatProject($row) {
-  // testproject::create() only persists the serialized blob, leaving the
-  // option_* columns at 0, so the blob is the authoritative source.
+  // The serialized blob is the single source of truth for feature flags;
+  // the option_* columns are vestigial and never written (see #525).
   $opt = empty($row['options']) ? null : @unserialize($row['options']);
   $flag = function ($name) use ($opt) {
     return (is_object($opt) && !empty($opt->$name)) ? 1 : 0;
@@ -146,14 +145,6 @@ function createProject(&$db, &$tprojectMgr) {
     throw new Exception('Failed to create project');
   }
 
-  // execSetResults.php reads option_reqs directly, so keep the legacy
-  // columns in sync with the serialized options blob.
-  $db->exec_query("UPDATE testprojects SET
-                     option_reqs=" . (int)$options->requirementsEnabled . ",
-                     option_priority=" . (int)$options->testPriorityEnabled . ",
-                     option_automation=" . (int)$options->automationEnabled . "
-                   WHERE id=" . (int)$newId);
-
   applyTrackers($db, $newId, $input);
 
   echo json_encode([
@@ -177,10 +168,6 @@ function updateProject(&$db, $projectId) {
   if (isset($input['description'])) $updates[] = "notes='" . $db->prepare_string($input['description']) . "'";
   if (isset($input['isActive'])) $updates[] = "active=" . (int)$input['isActive'];
   if (isset($input['isPublic'])) $updates[] = "is_public=" . (int)$input['isPublic'];
-  if (isset($input['optReq'])) $updates[] = "option_reqs=" . (int)$input['optReq'];
-  if (isset($input['optPriority'])) $updates[] = "option_priority=" . (int)$input['optPriority'];
-  if (isset($input['optAutomation'])) $updates[] = "option_automation=" . (int)$input['optAutomation'];
-
   if (isset($input['optInventory']) || isset($input['optReq']) ||
       isset($input['optPriority']) || isset($input['optAutomation'])) {
     $options = new stdClass();

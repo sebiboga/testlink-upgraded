@@ -1,13 +1,13 @@
 {
-  "_meta": { "name": "English", "code": "en" },
-
+  "_meta": {
+    "name": "English",
+    "code": "en"
+  },
   "app.version": "2.0.1 [TEST]",
-
   "tab.userManagement": "User Management",
   "tab.roleManagement": "Role Management",
   "tab.assignProjectRoles": "Assign Test Project Roles",
   "tab.assignPlanRoles": "Assign Test Plan Roles",
-
   "common.cancel": "Cancel",
   "common.save": "Save",
   "common.delete": "Delete",
@@ -21,7 +21,6 @@
   "common.confirm": "Confirm",
   "common.error": "Error",
   "common.search": "Search",
-
   "header.eventViewer": "Event Viewer",
   "header.eventViewerSub": "real-time log monitoring",
   "header.userManagement": "User Management",
@@ -34,7 +33,6 @@
   "header.assignPlanRolesSub": "assign user roles within test plans",
   "header.userProfile": "User Profile",
   "header.userProfileSub": "account settings and preferences",
-
   "ev.logLevels": "Log Levels",
   "ev.user": "User",
   "ev.allUsers": "All users",
@@ -54,7 +52,6 @@
   "ev.activity": "Activity",
   "ev.eventsCount": "{n} events",
   "ev.confirmDelete": "Delete events matching current filters?",
-
   "user.login": "Login",
   "user.firstName": "First Name",
   "user.lastName": "Last Name",
@@ -71,7 +68,6 @@
   "user.usersCount": "{n} users",
   "user.validation.required": "Login, First Name, Last Name, and Email are required.",
   "user.error.save": "Error saving user",
-
   "role.id": "ID",
   "role.name": "Name",
   "role.description": "Description",
@@ -92,7 +88,6 @@
   "role.validation.rightsRequired": "Select at least one right.",
   "role.error.save": "Error saving role",
   "role.error.delete": "Error deleting role",
-
   "assign.testProject": "Test Project:",
   "assign.testPlan": "Test Plan:",
   "assign.saveChanges": "Save Changes",
@@ -106,7 +101,6 @@
   "assign.assignedRole": "Assigned Role",
   "assign.inheritedRole": "Inherited Role",
   "assign.planRoleOverride": "Plan Role Override",
-
   "profile.personalData": "Personal Data",
   "profile.firstName": "First Name",
   "profile.lastName": "Last Name",
@@ -129,7 +123,6 @@
   "profile.neverLogged": "Never logged in",
   "profile.noFailedLogins": "No failed logins",
   "profile.accountSettings": "Account Settings",
-
   "profile.msg.profileUpdated": "Profile updated",
   "profile.msg.passwordChanged": "Password changed successfully",
   "profile.msg.apiKeyGenerated": "API key generated",
@@ -142,7 +135,6 @@
   "profile.msg.passwordMismatch": "New passwords do not match.",
   "profile.msg.wrongPassword": "Old password is incorrect.",
   "profile.msg.requiredFields": "First Name, Last Name, and Email are required.",
-
   "header.customFields": "Custom Fields",
   "header.customFieldsSub": "manage custom fields for test cases, requirements, and plans",
   "cf.label": "Label",
@@ -164,7 +156,6 @@
   "cf.msg.errorSave": "Error saving custom field",
   "cf.msg.errorDelete": "Error deleting custom field",
   "cf.msg.confirmDelete": "Are you sure you want to delete custom field",
-
   "header.issueTrackers": "Issue Trackers",
   "header.issueTrackersSub": "manage issue tracker integrations",
   "it.name": "Name",
@@ -199,7 +190,6 @@
   "it.pbz": "PBZ",
   "it.notepad": "Notepad",
   "it.nevernotify": "Never Notify",
-
   "header.codeTrackers": "Code Trackers",
   "header.codeTrackersSub": "manage source code tracker integrations",
   "ct.name": "Name",
@@ -223,5 +213,39 @@
   "ct.gitlab": "GitLab",
   "ct.gitea": "Gitea",
   "ct.gogs": "Gogs",
-  "ct.bitbucket": "Bitbucket"
+  "ct.bitbucket": "Bitbucket",
+  "header.projects": "Test Project Management",
+  "header.projectsSub": "create and manage test projects",
+  "proj.id": "ID",
+  "proj.name": "Project Name",
+  "proj.prefix": "Prefix",
+  "proj.prefixHint": "Prefix (used for Test case ID)",
+  "proj.description": "Description",
+  "proj.issueTracker": "Issue Tracker",
+  "proj.codeTracker": "Code Tracker",
+  "proj.status": "Status",
+  "proj.active": "Active",
+  "proj.inactive": "Inactive",
+  "proj.public": "Public",
+  "proj.features": "Features",
+  "proj.enableRequirements": "Enable Requirements",
+  "proj.enablePriority": "Enable Priority",
+  "proj.enableAutomation": "Enable Automation",
+  "proj.enableInventory": "Enable Inventory",
+  "proj.issueTrackerIntegration": "Issue Tracker Integration",
+  "proj.codeTrackerIntegration": "Code Tracker Integration",
+  "proj.enabled": "Enabled",
+  "proj.availability": "Availability",
+  "proj.basicInfo": "Basic Information",
+  "proj.createProject": "Create Test Project",
+  "proj.editProject": "Edit Test Project",
+  "proj.searchPlaceholder": "Search projects by name...",
+  "proj.noProjects": "No projects found",
+  "proj.noProjectsHint": "Create your first test project to get started",
+  "proj.validation.required": "Project name and prefix are required.",
+  "proj.msg.errorLoad": "Error loading projects",
+  "proj.msg.errorSave": "Error saving project",
+  "proj.msg.errorDelete": "Error deactivating project",
+  "proj.msg.confirmDelete": "Deactivate project \"{name}\"? It will be hidden from active use but its test data is kept.",
+  "common.edit": "Edit"
 }

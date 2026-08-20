@@ -83,37 +83,37 @@
     <div class="header">
       <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-          <h1>Test Project Management</h1>
-          <p style="margin: 8px 0 0 0; opacity: 0.9;">Create and manage test projects</p>
+          <h1 data-i18n="header.projects">Test Project Management</h1>
+          <p style="margin: 8px 0 0 0; opacity: 0.9;" data-i18n="header.projectsSub">Create and manage test projects</p>
         </div>
         <div class="header-actions">
           <button class="btn btn-primary" id="createBtn">
-            <i class="fas fa-plus"></i> New Project
+            <i class="fas fa-plus"></i> <span data-i18n="proj.createProject">New Project</span>
           </button>
         </div>
       </div>
     </div>
 
     <div class="search-box">
-      <input type="text" id="searchInput" placeholder="Search projects by name...">
+      <input type="text" id="searchInput" data-i18n-placeholder="proj.searchPlaceholder" placeholder="Search projects by name...">
     </div>
 
     <table class="table" id="projectsTable">
       <thead>
         <tr>
-          <th>ID</th>
-          <th>Project Name</th>
-          <th>Prefix</th>
-          <th>Issue Tracker</th>
-          <th>Code Tracker</th>
-          <th>Status</th>
-          <th>Actions</th>
+          <th data-i18n="proj.id">ID</th>
+          <th data-i18n="proj.name">Project Name</th>
+          <th data-i18n="proj.prefix">Prefix</th>
+          <th data-i18n="proj.issueTracker">Issue Tracker</th>
+          <th data-i18n="proj.codeTracker">Code Tracker</th>
+          <th data-i18n="proj.status">Status</th>
+          <th data-i18n="common.actions">Actions</th>
         </tr>
       </thead>
       <tbody id="projectsBody">
         <tr>
           <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
-            <i class="fas fa-spinner fa-spin"></i> Loading projects...
+            <i class="fas fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span>
           </td>
         </tr>
       </tbody>
@@ -121,8 +121,8 @@
 
     <div class="empty-state" id="emptyState" style="display: none;">
       <i class="fas fa-folder-open"></i>
-      <h3>No projects found</h3>
-      <p>Create your first test project to get started</p>
+      <h3 data-i18n="proj.noProjects">No projects found</h3>
+      <p data-i18n="proj.noProjectsHint">Create your first test project to get started</p>
     </div>
   </div>
 
@@ -130,27 +130,27 @@
   <div class="modal" id="projectModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2 id="modalTitle">New Project</h2>
+        <h2 id="modalTitle" data-i18n="proj.createProject">New Project</h2>
         <button class="close-btn" onclick="closeModal()">&times;</button>
       </div>
 
       <form id="projectForm">
         <!-- Basic Information -->
         <div class="form-section">
-          <div class="form-section-title">Basic Information</div>
+          <div class="form-section-title" data-i18n="proj.basicInfo">Basic Information</div>
           <div class="form-row">
             <div class="form-group">
-              <label for="projectName">Project Name *</label>
+              <label for="projectName"><span data-i18n="proj.name">Project Name</span> *</label>
               <input type="text" id="projectName" required>
             </div>
             <div class="form-group">
-              <label for="tcasePrefix">Test Case Prefix *</label>
+              <label for="tcasePrefix"><span data-i18n="proj.prefixHint">Test Case Prefix</span> *</label>
               <input type="text" id="tcasePrefix" required>
             </div>
           </div>
           <div class="form-row full">
             <div class="form-group">
-              <label for="projectDesc">Description</label>
+              <label for="projectDesc" data-i18n="proj.description">Description</label>
               <textarea id="projectDesc"></textarea>
             </div>
           </div>
@@ -158,90 +158,90 @@
 
         <!-- Features -->
         <div class="form-section">
-          <div class="form-section-title">Features</div>
+          <div class="form-section-title" data-i18n="proj.features">Features</div>
           <div class="checkbox-group">
             <div class="checkbox-item">
               <input type="checkbox" id="optReq" name="optReq">
-              <label for="optReq">Enable Requirements</label>
+              <label for="optReq" data-i18n="proj.enableRequirements">Enable Requirements</label>
             </div>
             <div class="checkbox-item">
               <input type="checkbox" id="optPriority" name="optPriority">
-              <label for="optPriority">Enable Priority</label>
+              <label for="optPriority" data-i18n="proj.enablePriority">Enable Priority</label>
             </div>
             <div class="checkbox-item">
               <input type="checkbox" id="optAutomation" name="optAutomation">
-              <label for="optAutomation">Enable Automation</label>
+              <label for="optAutomation" data-i18n="proj.enableAutomation">Enable Automation</label>
             </div>
             <div class="checkbox-item">
               <input type="checkbox" id="optInventory" name="optInventory">
-              <label for="optInventory">Enable Inventory</label>
+              <label for="optInventory" data-i18n="proj.enableInventory">Enable Inventory</label>
             </div>
           </div>
         </div>
 
         <!-- Issue Tracker Integration -->
         <div class="form-section">
-          <div class="form-section-title">Issue Tracker Integration</div>
+          <div class="form-section-title" data-i18n="proj.issueTrackerIntegration">Issue Tracker Integration</div>
           <div class="form-row full">
             <div class="form-group">
-              <label for="issue_tracker_id">Issue Tracker</label>
+              <label for="issue_tracker_id" data-i18n="proj.issueTracker">Issue Tracker</label>
               <select id="issue_tracker_id" name="issue_tracker_id">
-                <option value="0">-- None --</option>
+                <option value="0" data-i18n="common.none">None</option>
               </select>
             </div>
           </div>
           <div class="checkbox-item">
             <input type="checkbox" id="issue_tracker_enabled" name="issue_tracker_enabled">
-            <label for="issue_tracker_enabled">Enabled</label>
+            <label for="issue_tracker_enabled" data-i18n="proj.enabled">Enabled</label>
           </div>
         </div>
 
         <!-- Code Tracker Integration -->
         <div class="form-section">
-          <div class="form-section-title">Code Tracker Integration</div>
+          <div class="form-section-title" data-i18n="proj.codeTrackerIntegration">Code Tracker Integration</div>
           <div class="form-row full">
             <div class="form-group">
-              <label for="code_tracker_id">Code Tracker</label>
+              <label for="code_tracker_id" data-i18n="proj.codeTracker">Code Tracker</label>
               <select id="code_tracker_id" name="code_tracker_id">
-                <option value="0">-- None --</option>
+                <option value="0" data-i18n="common.none">None</option>
               </select>
             </div>
           </div>
           <div class="checkbox-item">
             <input type="checkbox" id="code_tracker_enabled" name="code_tracker_enabled">
-            <label for="code_tracker_enabled">Enabled</label>
+            <label for="code_tracker_enabled" data-i18n="proj.enabled">Enabled</label>
           </div>
         </div>
 
         <!-- Availability -->
         <div class="form-section">
-          <div class="form-section-title">Availability</div>
+          <div class="form-section-title" data-i18n="proj.availability">Availability</div>
           <div class="checkbox-group">
             <div class="checkbox-item">
               <input type="checkbox" id="active" name="active">
-              <label for="active">Active</label>
+              <label for="active" data-i18n="proj.active">Active</label>
             </div>
             <div class="checkbox-item">
               <input type="checkbox" id="is_public" name="is_public">
-              <label for="is_public">Public</label>
+              <label for="is_public" data-i18n="proj.public">Public</label>
             </div>
           </div>
         </div>
 
         <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Project</button>
+          <button type="button" class="btn btn-secondary" onclick="closeModal()" data-i18n="common.cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" data-i18n="common.save">Save Project</button>
         </div>
       </form>
     </div>
   </div>
 
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="/gui/templates/i18n/i18n.js"></script>
 
   <script>
     let currentProjectId = null;
     let projectsData = [];
-
     // Load projects
     function loadProjects() {
       $.ajax({
@@ -255,7 +255,7 @@
           }
         },
         error: function() {
-          alert('Error loading projects');
+          alert(TLi18n.t('proj.msg.errorLoad'));
         }
       });
     }
@@ -282,28 +282,28 @@
               <span class="integration-badge ${p.issueTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
                 ${p.issueTracker.name}
               </span>
-            ` : '<span class="integration-badge integration-disabled">None</span>'}
+            ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
           </td>
           <td>
             ${p.codeTracker && p.codeTracker.name ? `
               <span class="integration-badge ${p.codeTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
                 ${p.codeTracker.name}
               </span>
-            ` : '<span class="integration-badge integration-disabled">None</span>'}
+            ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
           </td>
           <td>
             <span class="status-badge ${p.isActive ? 'status-active' : 'status-inactive'}">
-              ${p.isActive ? 'Active' : 'Inactive'}
+              ${p.isActive ? TLi18n.t('proj.active') : TLi18n.t('proj.inactive')}
             </span>
-            ${p.isPublic ? '<span class="status-badge badge-public" style="margin-left: 4px;">Public</span>' : ''}
+            ${p.isPublic ? `<span class="status-badge badge-public" style="margin-left: 4px;">${TLi18n.t('proj.public')}</span>` : ''}
           </td>
           <td>
             <div class="actions">
               <button class="action-btn edit-btn" onclick="editProject(${p.id})">
-                <i class="fas fa-edit"></i> Edit
+                <i class="fas fa-edit"></i> ${TLi18n.t('common.edit')}
               </button>
               <button class="action-btn delete-btn" onclick="confirmDelete(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
-                <i class="fas fa-trash"></i> Delete
+                <i class="fas fa-trash"></i> ${TLi18n.t('common.delete')}
               </button>
             </div>
           </td>
@@ -315,7 +315,7 @@
 
     function fillTrackerSelect(selectId, trackers) {
       const select = document.getElementById(selectId);
-      select.innerHTML = '<option value="0">-- None --</option>' +
+      select.innerHTML = `<option value="0">-- ${TLi18n.t('common.none')} --</option>` +
         trackers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
     }
 
@@ -336,7 +336,7 @@
     // Create project
     document.getElementById('createBtn').addEventListener('click', function() {
       currentProjectId = null;
-      document.getElementById('modalTitle').textContent = 'New Project';
+      document.getElementById('modalTitle').textContent = TLi18n.t('proj.createProject');
       document.getElementById('projectForm').reset();
       document.getElementById('active').checked = true;
       document.getElementById('is_public').checked = true;
@@ -359,7 +359,8 @@
       if (!project) return;
 
       currentProjectId = id;
-      document.getElementById('modalTitle').textContent = 'Edit Project';
+      document.getElementById('modalTitle').textContent =
+        TLi18n.t('proj.editProject');
       document.getElementById('projectName').value = project.name;
       document.getElementById('projectDesc').value = project.description || '';
       document.getElementById('tcasePrefix').value = project.prefix || '';
@@ -387,8 +388,12 @@
       const prefix = document.getElementById('tcasePrefix').value.trim();
       const description = document.getElementById('projectDesc').value.trim();
 
-      if (!name || !prefix) {
-        alert('Project name and prefix are required');
+      if (!name) {
+        alert(TLi18n.t('proj.validation.required'));
+        return;
+      }
+      if (!prefix) {
+        alert(TLi18n.t('proj.validation.required'));
         return;
       }
 
@@ -422,7 +427,7 @@
           }
         },
         error: function(xhr) {
-          const error = xhr.responseJSON?.error || 'Error saving project';
+          const error = xhr.responseJSON?.error || TLi18n.t('proj.msg.errorSave');
           alert(error);
         }
       });
@@ -430,7 +435,7 @@
 
     // Delete project
     function confirmDelete(id, name) {
-      if (confirm(`Deactivate project "${name}"? It will be hidden from active use but its test data is kept.`)) {
+      if (confirm(TLi18n.t('proj.msg.confirmDelete', {name: name}))) {
         $.ajax({
           url: `/api/projects/${id}`,
           method: 'DELETE',
@@ -440,7 +445,7 @@
             }
           },
           error: function() {
-            alert('Error deleting project');
+            alert(TLi18n.t('proj.msg.errorDelete'));
           }
         });
       }
@@ -469,8 +474,10 @@
       if (e.target === this) closeModal();
     });
 
-    // Load on page load
-    loadProjects();
+    TLi18n.load(function() {
+      TLi18n.apply();
+      loadProjects();
+    });
   </script>
 </body>
 </html>
