@@ -22,7 +22,7 @@ title bar + menu
   
 <div class="menu_title">
 
-  <span class="bold">{$gui->whoami|escape}</span>
+  <span class="bold">{$gui->whoamiName|escape}<br>{$gui->whoamiRole|escape}</span>
   <span>&nbsp;&nbsp;&nbsp;<a href='lib/usermanagement/userInfo.php' target="mainframe" accesskey="i"
           tabindex="6"><span title="{$labels.title_edit_personal_data}">{$tlImages.account}</span></a>
         <a href="{$gui->logout}" target="_parent" accesskey="q">
