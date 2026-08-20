@@ -303,6 +303,27 @@ Left side menu
                 </ul>
               </li>
             {/if}
+
+            <li class="sub-menu">
+              <a href="javascript:;" class="{$gui->activeMenu.documentation}">
+                <i class="fas fa-book"></i>
+                <span>Documentation</span>
+                </a>
+              <ul class="sub">
+                <li><strong style="padding-left: 10px; font-size: 11px; color: #999;">📘 Main Documentation</strong></li>
+                <li><a href="docs/testlink_user_manual.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> User Manual</a></li>
+                <li><a href="docs/testlink_installation_manual.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Installation Manual</a></li>
+
+                <li><strong style="padding-left: 10px; font-size: 11px; color: #999; margin-top: 10px;">📚 Reference Guides</strong></li>
+                <li><a href="docs/tl-file-formats.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> File Formats</a></li>
+                <li><a href="docs/excel2TestLink.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Excel Import</a></li>
+                <li><a href="docs/Configuration_of_FCKEditor_and_CKFinder.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> FCKEditor Config</a></li>
+                <li><a href="docs/tl-bts-howto.pdf" target="_blank" rel="noopener"><i class="fas fa-file-pdf"></i> Bug Tracking HowTo</a></li>
+
+                <li><strong style="padding-left: 10px; font-size: 11px; color: #999; margin-top: 10px;">🌐 Online Resources</strong></li>
+                <li><a href="https://github.com/sebiboga/testlink-upgraded/wiki" target="_blank" rel="noopener"><i class="fas fa-globe"></i> GitHub Wiki (40 pages)</a></li>
+              </ul>
+            </li>
           {/if}
         </ul>
         <!-- sidebar menu end-->
