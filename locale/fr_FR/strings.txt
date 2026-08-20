@@ -4064,3 +4064,26 @@ $TLS_after_title = "Après le titre";
 $TLS_after_summary = "Après le résumé";
 $TLS_after_preconditions = "Après les pré-conditions";
 // ----- END -----------------------------------------------------
+
+
+// ----- aside.tpl / navBar.tpl - navigation labels ---------------
+$TLS_advanced_search = 'Recherche avancée';
+$TLS_doc_bug_tracking_howto = 'Guide de suivi des anomalies';
+$TLS_doc_excel_import = 'Import Excel';
+$TLS_doc_fckeditor_config = 'Configuration FCKEditor';
+$TLS_doc_file_formats = 'Formats de fichier';
+$TLS_doc_github_wiki = 'Wiki GitHub (40 pages)';
+$TLS_doc_installation_manual = 'Manuel d installation';
+$TLS_doc_user_manual = 'Manuel utilisateur';
+$TLS_href_assign_tplan_roles = 'Attribuer les rôles du plan de test';
+$TLS_href_assign_tproject_roles = 'Attribuer les rôles du projet de test';
+$TLS_href_user_profile = 'Profil utilisateur';
+$TLS_projects = 'Projets';
+$TLS_quick_search = 'Recherche rapide';
+$TLS_reports = 'Rapports';
+$TLS_requirements_design = 'Conception des exigences';
+$TLS_search = 'Recherche';
+$TLS_system = 'Système';
+$TLS_testcase_execution = 'Exécution des cas de test';
+$TLS_tests_design = 'Conception des cas de test';
+$TLS_title_dashboard = 'Tableau de bord';

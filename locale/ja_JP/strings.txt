@@ -4498,3 +4498,25 @@ $TLS_on_exec = '実行';
 $TLS_note_platform_filter = 'テストケースは次のプラットフォームでフィルターされます';
 $TLS_testers_qty = 'テスト者の数';
 // ----- END ------------------------------------------------------------------
+
+// ----- aside.tpl / navBar.tpl - navigation labels ---------------
+$TLS_advanced_search = '詳細検索';
+$TLS_doc_bug_tracking_howto = 'バグ追跡ガイド';
+$TLS_doc_excel_import = 'Excel インポート';
+$TLS_doc_fckeditor_config = 'FCKEditor 設定';
+$TLS_doc_file_formats = 'ファイル形式';
+$TLS_doc_github_wiki = 'GitHub Wiki（40 ページ）';
+$TLS_doc_installation_manual = 'インストールマニュアル';
+$TLS_doc_user_manual = 'ユーザーマニュアル';
+$TLS_href_assign_tplan_roles = 'テスト計画のロール割り当て';
+$TLS_href_assign_tproject_roles = 'テストプロジェクトのロール割り当て';
+$TLS_href_user_profile = 'ユーザープロファイル';
+$TLS_projects = 'プロジェクト';
+$TLS_quick_search = 'クイック検索';
+$TLS_reports = 'レポート';
+$TLS_requirements_design = '要件設計';
+$TLS_search = '検索';
+$TLS_system = 'システム';
+$TLS_testcase_execution = 'テストケース実行';
+$TLS_tests_design = 'テストケース設計';
+$TLS_title_dashboard = 'ダッシュボード';

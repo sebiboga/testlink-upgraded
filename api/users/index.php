@@ -136,7 +136,9 @@ if ($method === 'POST' && empty($segments)) {
     $u->locale = $body['locale'] ?? config_get('default_language');
     $u->isActive = ($body['active'] ?? true) ? 1 : 0;
     $u->authentication = $body['authentication'] ?? '';
-    $u->setPassword(md5($body['password'] ?? ''));
+    // setPassword() runs the value through password_hash() itself - hashing
+    // here too would store bcrypt(md5(pwd)), which login can never verify.
+    $u->setPassword($body['password'] ?? '');
 
     $result = $u->writeToDB($db);
     if ($result >= tl::OK) {
@@ -166,7 +168,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
     if (isset($body['locale'])) $u->locale = $body['locale'];
     if (isset($body['active'])) $u->isActive = $body['active'] ? 1 : 0;
     if (isset($body['authentication'])) $u->authentication = $body['authentication'];
-    if (!empty($body['password'])) $u->setPassword(md5($body['password']));
+    if (!empty($body['password'])) $u->setPassword($body['password']);
 
     $result = $u->writeToDB($db);
     if ($result >= tl::OK) {

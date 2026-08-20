@@ -153,32 +153,31 @@ var TLi18n = (function() {
     $('html').attr('lang', _locale.substring(0, 2));
   }
 
-  function buildLocaleSwitcher(currentLocale) {
-    var locales = [
-      { code: 'en', label: 'English' },
-      { code: 'ro', label: 'Romana' },
-      { code: 'de', label: 'Deutsch' },
-      { code: 'fr', label: 'Francais' },
-      { code: 'es', label: 'Espanol' },
-      { code: 'it', label: 'Italiano' },
-      { code: 'pt', label: 'Portugues' },
-      { code: 'ru', label: 'Русский' },
-      { code: 'ja', label: '日本語' },
-      { code: 'zh', label: '中文' }
-    ];
+  // The locale list comes from /api/userinfo/locales - the same endpoint the
+  // profile form uses - so the two dropdowns always offer the same languages.
+  // Locales sharing a bundle code (en_GB/en_US, pt_PT/pt_BR) collapse to one
+  // entry, because the switcher picks a bundle rather than a TestLink locale.
+  function buildLocaleSwitcher(currentLocale, items) {
     var html = '<select id="tl-locale-switcher" style="background:#333;color:#fff;border:1px solid #555;border-radius:4px;padding:4px 8px;font-size:12px;cursor:pointer;">';
-    $.each(locales, function(i, loc) {
-      var sel = loc.code === currentLocale ? ' selected' : '';
-      html += '<option value="' + loc.code + '"' + sel + '>' + loc.label + '</option>';
+    var seen = {};
+    $.each(items || [], function(i, loc) {
+      if (seen[loc.short]) return;
+      seen[loc.short] = true;
+      var sel = loc.short === currentLocale ? ' selected' : '';
+      html += '<option value="' + loc.short + '"' + sel + '>' + loc.name + '</option>';
     });
     html += '</select>';
     return html;
   }
 
   function initLocaleSwitcher(containerSelector) {
-    var sw = buildLocaleSwitcher(_locale);
     if (containerSelector) {
-      $(containerSelector).prepend('<span style="margin-right:8px;">' + sw + '</span>');
+      $.getJSON('/api/userinfo/locales')
+        .done(function(r) {
+          var items = (r && r.items) ? r.items : [];
+          $(containerSelector).prepend('<span style="margin-right:8px;">' +
+            buildLocaleSwitcher(_locale, items) + '</span>');
+        });
     }
     $(document).on('change', '#tl-locale-switcher', function() {
       var newLoc = $(this).val();

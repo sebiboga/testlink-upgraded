@@ -1,0 +1,98 @@
+<?php
+/**
+ * TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * Romanian (ro_RO) strings (en_GB is default development language)
+ *
+ * Partial translation: lang_get() falls back to en_GB for every key that is
+ * not defined here, so this file only needs the strings actually translated.
+ * See the wiki page "Adding a new language" before extending it.
+ *
+ * @package TestLink
+ */
+
+$TLS_STRINGFILE_CHARSET = "UTF-8";
+
+// ----- aside.tpl / navBar.tpl - main navigation ------------------
+$TLS_search = 'Căutare';
+$TLS_system = 'Sistem';
+$TLS_system_config = 'Sistem';
+$TLS_projects = 'Proiecte';
+$TLS_requirements_design = 'Proiectare cerințe';
+$TLS_tests_design = 'Proiectare cazuri de test';
+$TLS_testcase_execution = 'Execuție cazuri de test';
+$TLS_reports = 'Rapoarte';
+$TLS_title_plugins = 'Plugin-uri';
+$TLS_title_documentation = 'Documentație';
+$TLS_title_dashboard = 'Tablou de bord';
+$TLS_quick_search = 'Căutare rapidă';
+$TLS_advanced_search = 'Căutare avansată';
+$TLS_href_search_tc = 'Căutare cazuri de test';
+$TLS_href_search_req = 'Căutare cerințe';
+$TLS_href_search_req_spec = 'Căutare specificații cerințe';
+$TLS_event_viewer = 'Vizualizator evenimente';
+$TLS_href_user_profile = 'Profil utilizator';
+$TLS_title_user_mgmt = 'Gestionare utilizatori';
+$TLS_href_user_management = 'Gestionare utilizatori';
+$TLS_href_roles_management = 'Gestionare roluri';
+$TLS_href_assign_tproject_roles = 'Atribuire roluri proiect de test';
+$TLS_href_assign_tplan_roles = 'Atribuire roluri plan de test';
+$TLS_href_assign_user_roles = 'Atribuire roluri utilizator';
+$TLS_href_admin_modules = 'Configurare sistem';
+$TLS_href_cfields_management = 'Definire câmpuri personalizate';
+$TLS_href_issuetracker_management = 'Gestionare Issue Tracker';
+$TLS_href_codetracker_management = 'Gestionare Code Tracker';
+$TLS_href_reqmgrsystem_management = 'Gestionare sistem de cerințe';
+$TLS_title_product_mgmt = 'Proiect de test';
+$TLS_href_tproject_management = 'Gestionare proiecte de test';
+$TLS_href_cfields_tproject_assign = 'Atribuire câmpuri personalizate';
+$TLS_href_keywords_manage = 'Gestionare cuvinte cheie';
+$TLS_href_keywords_assign = 'Atribuire cuvinte cheie';
+$TLS_href_platform_management = 'Gestionare platforme';
+$TLS_href_platform_assign = 'Adaugă / Elimină platforme';
+$TLS_href_inventory = 'Inventar';
+$TLS_href_inventory_management = 'Gestionare inventar';
+$TLS_href_metrics_dashboard = 'Tablou de bord metrici';
+$TLS_title_requirements = 'Cerințe';
+$TLS_href_req_spec = 'Specificație cerințe';
+$TLS_href_req_overview = 'Prezentare cerințe';
+$TLS_href_req_assign = 'Atribuire cerințe';
+$TLS_href_req_monitor_overview = 'Prezentare monitorizare cerințe';
+$TLS_href_print_req = 'Document specificație cerințe';
+$TLS_title_test_spec = 'Specificație de test';
+$TLS_href_edit_tc = 'Specificație de test';
+$TLS_href_browse_tc = 'Răsfoire cazuri de test';
+$TLS_href_print_tc = 'Document specificație de test';
+$TLS_href_upd_mod_tc = 'Actualizare cazuri de test modificate';
+$TLS_href_newest_tcversions = 'Afișează cele mai noi versiuni ale cazurilor de test';
+$TLS_title_test_plan_mgmt = 'Plan de test';
+$TLS_href_plan_management = 'Gestionare planuri de test';
+$TLS_title_test_case_suite = 'Conținut plan de test';
+$TLS_href_add_remove_test_cases = 'Adaugă / Elimină cazuri de test';
+$TLS_href_update_tplan = 'Actualizare versiuni cazuri de test asociate';
+$TLS_href_build_new = 'Build-uri / Versiuni';
+$TLS_href_plan_mstones = 'Jaloane';
+$TLS_href_plan_define_priority = 'Prioritate plan de test';
+$TLS_href_plan_assign_urgency = 'Setează teste urgente';
+$TLS_href_tc_exec_assignment = 'Atribuire execuție cazuri de test';
+$TLS_title_test_execution = 'Execuție teste';
+$TLS_href_execute_test = 'Execută teste';
+$TLS_href_exec_ro_access = 'Acces execuție teste (doar citire)';
+$TLS_href_my_testcase_assignments = 'Cazuri de test atribuite mie';
+$TLS_href_rep_and_metrics = 'Rapoarte și metrici de test';
+$TLS_link_report_test_cases_created_per_user = 'Cazuri de test create per utilizator';
+$TLS_installed_plugins = 'Plugin-uri instalate';
+$TLS_doc_user_manual = 'Manual de utilizare';
+$TLS_doc_installation_manual = 'Manual de instalare';
+$TLS_doc_file_formats = 'Formate de fișiere';
+$TLS_doc_excel_import = 'Import Excel';
+$TLS_doc_fckeditor_config = 'Configurare FCKEditor';
+$TLS_doc_bug_tracking_howto = 'Ghid urmărire defecte';
+$TLS_doc_github_wiki = 'Wiki GitHub (40 pagini)';
+$TLS_current_test_plan = 'Plan de test curent';
+$TLS_testplan_role = 'Rol plan de test ';
+$TLS_msg_no_rights_for_tp = '<br /> Nu aveți permisiuni pentru niciun plan de test ACTIV';
+$TLS_ok = 'OK';
+
+// ----- END -----------------------------------------------------

@@ -25,7 +25,11 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
    href_build_new,href_plan_mstones,href_plan_define_priority,
    href_metrics_dashboard,href_add_remove_test_cases,
    href_exec_ro_access,testcase_execution,event_viewer,reports,
-   search,quick_search,advanced_search,installed_plugins'}
+   search,quick_search,advanced_search,installed_plugins,
+   title_dashboard,href_user_profile,href_assign_tproject_roles,
+   href_assign_tplan_roles,doc_user_manual,doc_installation_manual,
+   doc_file_formats,doc_excel_import,doc_fckeditor_config,
+   doc_bug_tracking_howto,doc_github_wiki'}
 
 {* make labels available to parent/includer template *}
 {assign var="labels" value=$l10n scope=parent}

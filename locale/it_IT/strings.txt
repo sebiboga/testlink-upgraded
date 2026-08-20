@@ -2338,19 +2338,49 @@ $TLS_desc_platforms_management = 'Gestione Piattaforme';
 $TLS_desc_platforms_view = 'Visualizza Piattaforme';
 
 // ----- pluginView.php -----       
-$TLS_title_plugins = "undefined";
-$TLS_title_plugin_mgmt = "undefined";
-$TLS_th_plugin = "undefined";
-$TLS_th_plugin_description = "undefined";
-$TLS_th_plugin_version = "undefined";
-$TLS_installed_plugins = "undefined";
-$TLS_available_plugins = "undefined";
-$TLS_plugin_uninstalled = "undefined";
-$TLS_plugin_installed = "undefined";
-$TLS_confirm_install_header = "undefined";
-$TLS_confirm_install_text = "undefined";
-$TLS_confirm_uninstall_header = "undefined";
-$TLS_confirm_uninstall_text = "undefined";
-$TLS_desc_mgt_plugins = "undefined";
 // ----- END ------------------------------------------------------------------
 ?>
+
+
+// ----- aside.tpl / navBar.tpl - navigation labels ---------------
+$TLS_advanced_search = 'Ricerca avanzata';
+$TLS_current_test_plan = 'Piano di test corrente';
+$TLS_doc_bug_tracking_howto = 'Guida al tracciamento dei bug';
+$TLS_doc_excel_import = 'Importazione Excel';
+$TLS_doc_fckeditor_config = 'Configurazione FCKEditor';
+$TLS_doc_file_formats = 'Formati di file';
+$TLS_doc_github_wiki = 'Wiki GitHub (40 pagine)';
+$TLS_doc_installation_manual = 'Manuale di installazione';
+$TLS_doc_user_manual = 'Manuale utente';
+$TLS_href_assign_tplan_roles = 'Assegna ruoli piano di test';
+$TLS_href_assign_tproject_roles = 'Assegna ruoli progetto di test';
+$TLS_href_codetracker_management = 'Gestione Code Tracker';
+$TLS_href_exec_ro_access = 'Accesso in sola lettura all esecuzione';
+$TLS_href_inventory = 'Inventario';
+$TLS_href_inventory_management = 'Gestione inventario';
+$TLS_href_issuetracker_management = 'Gestione Issue Tracker';
+$TLS_href_platform_assign = 'Aggiungi / Rimuovi piattaforme';
+$TLS_href_platform_management = 'Gestione piattaforme';
+$TLS_href_print_req = 'Documento specifica requisiti';
+$TLS_href_req_monitor_overview = 'Panoramica monitoraggio requisiti';
+$TLS_href_req_overview = 'Panoramica requisiti';
+$TLS_href_reqmgrsystem_management = 'Gestione sistema requisiti';
+$TLS_href_search_req = 'Cerca requisiti';
+$TLS_href_search_req_spec = 'Cerca specifiche requisiti';
+$TLS_href_user_profile = 'Profilo utente';
+$TLS_link_report_test_cases_created_per_user = 'Casi di test creati per utente';
+$TLS_projects = 'Progetti';
+$TLS_quick_search = 'Ricerca rapida';
+$TLS_reports = 'Report';
+$TLS_requirements_design = 'Progettazione requisiti';
+$TLS_search = 'Cerca';
+$TLS_system = 'Sistema';
+$TLS_system_config = 'Sistema';
+$TLS_testcase_execution = 'Esecuzione casi di test';
+$TLS_tests_design = 'Progettazione casi di test';
+$TLS_title_dashboard = 'Cruscotto';
+$TLS_title_documentation = 'Documentazione';
+
+// ----- plugin labels (were placeholder "undefined") -----------
+$TLS_installed_plugins = 'Plugin installati';
+$TLS_title_plugins = 'Plugin';

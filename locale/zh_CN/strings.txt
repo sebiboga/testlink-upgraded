@@ -4098,3 +4098,27 @@ $TLS_search_created_by_ph = '登录名、姓、名中查询';
 $TLS_multiple_entities_search = '搜索多个实例';
 $TLS_no_access_to_feature = '您没有权限使用该功能，请联系TestLink系统管理员。';
 // ----- END ------------------------------------------------------------------
+
+
+// ----- aside.tpl / navBar.tpl - navigation labels ---------------
+$TLS_advanced_search = '高级搜索';
+$TLS_doc_bug_tracking_howto = '缺陷跟踪指南';
+$TLS_doc_excel_import = 'Excel 导入';
+$TLS_doc_fckeditor_config = 'FCKEditor 配置';
+$TLS_doc_file_formats = '文件格式';
+$TLS_doc_github_wiki = 'GitHub Wiki（40 页）';
+$TLS_doc_installation_manual = '安装手册';
+$TLS_doc_user_manual = '用户手册';
+$TLS_href_assign_tplan_roles = '分配测试计划角色';
+$TLS_href_assign_tproject_roles = '分配测试项目角色';
+$TLS_href_codetracker_management = '代码跟踪器管理';
+$TLS_href_user_profile = '用户资料';
+$TLS_projects = '项目';
+$TLS_quick_search = '快速搜索';
+$TLS_reports = '报表';
+$TLS_requirements_design = '需求设计';
+$TLS_search = '搜索';
+$TLS_system = '系统';
+$TLS_testcase_execution = '测试用例执行';
+$TLS_tests_design = '测试用例设计';
+$TLS_title_dashboard = '仪表盘';

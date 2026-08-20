@@ -66,11 +66,29 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
 }
 
 // Route: GET /userinfo/locales - available locales
+//
+// Single source of truth for every locale dropdown in the app: the profile
+// form (PHP/Smarty pages) and TLi18n's switcher (modern JS pages) both render
+// this list, so they can no longer drift apart.
+//
+// 'short' is the i18n bundle code (en_GB -> en); 'hasBundle'/'hasStrings' say
+// whether the modern JS bundle and the PHP strings file actually exist, so a
+// caller can tell a fully translated locale from one that falls back.
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'locales') {
     $locales = config_get('locales');
     $items = [];
     if (is_array($locales)) {
-        foreach ($locales as $k => $v) { $items[] = ['code' => $k, 'name' => $v]; }
+        $root = realpath(dirname(__FILE__) . '/../..');
+        foreach ($locales as $k => $v) {
+            $short = substr($k, 0, 2);
+            $items[] = [
+                'code' => $k,
+                'name' => html_entity_decode($v, ENT_QUOTES, 'UTF-8'),
+                'short' => $short,
+                'hasBundle' => is_file($root . '/gui/templates/i18n/' . $short . '.json'),
+                'hasStrings' => is_file($root . '/locale/' . $k . '/strings.txt')
+            ];
+        }
     }
     out(['status' => 'ok', 'items' => $items]);
 }

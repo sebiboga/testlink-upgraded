@@ -17,7 +17,7 @@ Left side menu
             <li class="mt">
               <a class="{$gui->activeMenu.dashboard}" href="{$gui->uri->projectView}" target="mainframe">
                 <i class="fa fa-dashboard"></i>
-                <span>Dashboard</span>
+                <span>{$labels.title_dashboard}</span>
                 </a>
             </li>
             {/if}
@@ -58,19 +58,19 @@ Left side menu
                   {/if}
                   {if $menuGrants->user_mgmt == "yes"}
                     <li>
-                      <a id="userInfo" href="{$gui->uri->userInfo}" target="mainframe"><i class="fa fa-user-circle"></i> User Profile</a>
+                      <a id="userInfo" href="{$gui->uri->userInfo}" target="mainframe"><i class="fa fa-user-circle"></i> {$labels.href_user_profile}</a>
                     </li>
                     <li>
                       <a id="userMgmt" href="{$gui->uri->userMgmt}" target="mainframe">{$labels.title_user_mgmt}</a>
                     </li>
                     <li>
-                      <a href="{$gui->uri->rolesView}" target="mainframe">Role Management</a>
+                      <a href="{$gui->uri->rolesView}" target="mainframe">{$labels.href_roles_management}</a>
                     </li>
                     <li>
-                      <a href="{$gui->uri->usersAssign}" target="mainframe">Assign Test Project Roles</a>
+                      <a href="{$gui->uri->usersAssign}" target="mainframe">{$labels.href_assign_tproject_roles}</a>
                     </li>
                     <li>
-                      <a href="{$gui->uri->usersAssignPlan}" target="mainframe">Assign Test Plan Roles</a>
+                      <a href="{$gui->uri->usersAssignPlan}" target="mainframe">{$labels.href_assign_tplan_roles}</a>
                     </li>
                   {/if}
 
@@ -187,7 +187,7 @@ Left side menu
                   {$labels.href_plan_management}</a>
                   </li>
                   {if $gui->countPlans > 0}
-                    <li><a href="{$gui->uri->usersAssignPlan}" target="mainframe">Assign Test Plan Roles</a></li>
+                    <li><a href="{$gui->uri->usersAssignPlan}" target="mainframe">{$labels.href_assign_tplan_roles}</a></li>
                   {/if}
                   {/if}
 
@@ -289,7 +289,7 @@ Left side menu
               <li class="sub-menu">
                 <a href="javascript:;" class="{$gui->activeMenu.plugins}">
                   <i class="fas fa-puzzle-piece"></i>
-                  <span>Plugins</span>
+                  <span>{$labels.title_plugins}</span>
                   </a>
                 <ul class="sub">
                   {if $menuGrants->plugin_management == "yes"}
@@ -307,16 +307,16 @@ Left side menu
             <li class="sub-menu">
               <a href="javascript:;" class="{$gui->activeMenu.documentation}">
                 <i class="fas fa-book"></i>
-                <span>Documentation</span>
+                <span>{$labels.title_documentation}</span>
                 </a>
               <ul class="sub">
-                <li><a href="viewer.php?file=testlink_user_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> User Manual</a></li>
-                <li><a href="viewer.php?file=testlink_installation_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Installation Manual</a></li>
-                <li><a href="viewer.php?file=tl_file_formats" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> File Formats</a></li>
-                <li><a href="viewer.php?file=excel2testlink" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Excel Import</a></li>
-                <li><a href="viewer.php?file=fckeditor_config" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> FCKEditor Config</a></li>
-                <li><a href="viewer.php?file=tl_bts_howto" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Bug Tracking HowTo</a></li>
-                <li><a href="https://github.com/sebiboga/testlink-upgraded/wiki" target="_blank" rel="noopener"><i class="fas fa-globe" style="margin-right: 6px; color: #3498db;"></i> GitHub Wiki (40 pages)</a></li>
+                <li><a href="viewer.php?file=testlink_user_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_user_manual}</a></li>
+                <li><a href="viewer.php?file=testlink_installation_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_installation_manual}</a></li>
+                <li><a href="viewer.php?file=tl_file_formats" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_file_formats}</a></li>
+                <li><a href="viewer.php?file=excel2testlink" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_excel_import}</a></li>
+                <li><a href="viewer.php?file=fckeditor_config" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_fckeditor_config}</a></li>
+                <li><a href="viewer.php?file=tl_bts_howto" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_bug_tracking_howto}</a></li>
+                <li><a href="https://github.com/sebiboga/testlink-upgraded/wiki" target="_blank" rel="noopener"><i class="fas fa-globe" style="margin-right: 6px; color: #3498db;"></i> {$labels.doc_github_wiki}</a></li>
               </ul>
             </li>
           {/if}

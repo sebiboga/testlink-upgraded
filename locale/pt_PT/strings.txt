@@ -4204,3 +4204,17 @@ $TLS_show_calendar = "Show calendar";
 
 $TLS_no_users_selected = "Sem utilizadores seleccionados - não se fez nada"; 
 // ----- END -----------------------------------------------------------------------
+
+
+// ----- aside.tpl / navBar.tpl - navigation labels ---------------
+$TLS_doc_bug_tracking_howto = 'Guia de rastreio de erros';
+$TLS_doc_excel_import = 'Importação Excel';
+$TLS_doc_fckeditor_config = 'Configuração do FCKEditor';
+$TLS_doc_file_formats = 'Formatos de ficheiro';
+$TLS_doc_github_wiki = 'Wiki do GitHub (40 páginas)';
+$TLS_doc_installation_manual = 'Manual de instalação';
+$TLS_doc_user_manual = 'Manual do utilizador';
+$TLS_href_assign_tplan_roles = 'Atribuir funções do plano de teste';
+$TLS_href_assign_tproject_roles = 'Atribuir funções do projeto de teste';
+$TLS_href_user_profile = 'Perfil de utilizador';
+$TLS_title_dashboard = 'Painel';
