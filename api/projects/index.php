@@ -77,7 +77,7 @@ function listProjects(&$db, &$user) {
       'id' => (int)$p['id'],
       'name' => $p['name'],
       'description' => $p['notes'] ?? '',
-      'isActive' => (int)$p['is_active'],
+      'isActive' => (int)$p['active'],
       'issueTracker' => array(
         'name' => $p['it_name'] ?? '',
         'enabled' => (bool)($p['issue_tracker_enabled'] ?? false)
