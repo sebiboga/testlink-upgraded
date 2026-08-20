@@ -43,7 +43,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 </head>
 <body>
 
-<div class="header">User Profile <span>account settings and preferences</span></div>
+<div class="header"><span data-i18n="header.userProfile">User Profile</span> <span data-i18n="header.userProfileSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">account settings and preferences</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="content">
 
@@ -51,98 +51,98 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
   <!-- Personal Data -->
   <div class="card">
-    <div class="card-header"><i class="fa fa-user"></i> Personal Data</div>
+    <div class="card-header"><i class="fa fa-user"></i> <span data-i18n="profile.personalData">Personal Data</span></div>
     <div class="card-body">
       <div class="form-group" style="margin-bottom:12px;">
-        <label>Login</label>
+        <label data-i18n="user.login">Login</label>
         <input type="text" id="login" class="readonly" readonly>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>First Name *</label>
+          <label data-i18n="profile.firstName">First Name *</label>
           <input type="text" id="firstName" maxlength="30">
         </div>
         <div class="form-group">
-          <label>Last Name *</label>
+          <label data-i18n="profile.lastName">Last Name *</label>
           <input type="text" id="lastName" maxlength="30">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Email *</label>
+          <label data-i18n="profile.email">Email *</label>
           <input type="email" id="email" maxlength="100">
         </div>
         <div class="form-group">
-          <label>Locale</label>
+          <label data-i18n="profile.locale">Locale</label>
           <select id="locale"></select>
         </div>
       </div>
       <div class="form-group" style="margin-bottom:0;">
-        <label>Role</label>
+        <label data-i18n="profile.role">Role</label>
         <input type="text" id="roleName" class="readonly" readonly>
       </div>
       <div class="btn-group">
-        <button class="btn-teal" onclick="saveProfile()"><i class="fa fa-save"></i> Save</button>
+        <button class="btn-teal" onclick="saveProfile()"><i class="fa fa-save"></i> <span data-i18n="profile.save">Save</span></button>
       </div>
     </div>
   </div>
 
   <!-- Change Password -->
   <div class="card">
-    <div class="card-header"><i class="fa fa-lock"></i> Change Password</div>
+    <div class="card-header"><i class="fa fa-lock"></i> <span data-i18n="profile.changePassword">Change Password</span></div>
     <div class="card-body">
       <div id="pwAlert" class="alert"></div>
       <div class="form-group" style="margin-bottom:12px;">
-        <label>Current Password</label>
+        <label data-i18n="profile.currentPassword">Current Password</label>
         <input type="password" id="oldPassword">
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>New Password</label>
+          <label data-i18n="profile.newPassword">New Password</label>
           <input type="password" id="newPassword">
         </div>
         <div class="form-group">
-          <label>Confirm New Password</label>
+          <label data-i18n="profile.confirmNewPassword">Confirm New Password</label>
           <input type="password" id="newPasswordCheck">
         </div>
       </div>
       <div class="btn-group">
-        <button class="btn-teal" onclick="changePassword()"><i class="fa fa-key"></i> Change Password</button>
+        <button class="btn-teal" onclick="changePassword()"><i class="fa fa-key"></i> <span data-i18n="profile.changePassword">Change Password</span></button>
       </div>
     </div>
   </div>
 
   <!-- API Key -->
   <div class="card">
-    <div class="card-header"><i class="fa fa-key"></i> API Interface</div>
+    <div class="card-header"><i class="fa fa-key"></i> <span data-i18n="profile.apiInterface">API Interface</span></div>
     <div class="card-body">
       <div id="apiKeyAlert" class="alert"></div>
-      <label style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">Your API Key</label>
+      <label data-i18n="profile.yourApiKey" style="font-size:12px;font-weight:600;color:#555;display:block;margin-bottom:6px;">Your API Key</label>
       <div class="apikey-display">
         <span id="apiKeyValue">loading...</span>
         <i class="fa fa-copy copy-btn" title="Copy to clipboard" onclick="copyApiKey()"></i>
       </div>
       <div class="btn-group">
-        <button class="btn-outline" onclick="generateApiKey()"><i class="fa fa-refresh"></i> Generate New Key</button>
+        <button class="btn-outline" onclick="generateApiKey()"><i class="fa fa-refresh"></i> <span data-i18n="profile.generateNewKey">Generate New Key</span></button>
       </div>
     </div>
   </div>
 
   <!-- Login History -->
   <div class="card">
-    <div class="card-header"><i class="fa fa-history"></i> Login History</div>
+    <div class="card-header"><i class="fa fa-history"></i> <span data-i18n="profile.loginHistory">Login History</span></div>
     <div class="card-body">
       <div style="margin-bottom:16px;">
-        <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:0 0 8px 0;"><i class="fa fa-check-circle" style="color:#4ECDC4;"></i> Successful Logins</h4>
+        <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:0 0 8px 0;"><i class="fa fa-check-circle" style="color:#4ECDC4;"></i> <span data-i18n="profile.successfulLogins">Successful Logins</span></h4>
         <table class="login-history-table">
-          <thead><tr><th>Timestamp</th><th>Description</th></tr></thead>
+          <thead><tr><th data-i18n="profile.timestamp">Timestamp</th><th data-i18n="profile.description">Description</th></tr></thead>
           <tbody id="successfulLogins"><tr><td colspan="2" style="color:#888;">Loading...</td></tr></tbody>
         </table>
       </div>
       <div>
-        <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:0 0 8px 0;"><i class="fa fa-times-circle" style="color:#e6605e;"></i> Failed Logins</h4>
+        <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:0 0 8px 0;"><i class="fa fa-times-circle" style="color:#e6605e;"></i> <span data-i18n="profile.failedLogins">Failed Logins</span></h4>
         <table class="login-history-table">
-          <thead><tr><th>Timestamp</th><th>Description</th></tr></thead>
+          <thead><tr><th data-i18n="profile.timestamp">Timestamp</th><th data-i18n="profile.description">Description</th></tr></thead>
           <tbody id="failedLogins"><tr><td colspan="2" style="color:#888;">Loading...</td></tr></tbody>
         </table>
       </div>
@@ -151,14 +151,17 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 </div>
 
-<div class="footer">TLU 2.0.1 [TEST] &middot; Account Settings</div>
+<div class="footer">TLU 2.0.1 [TEST] &middot; <span data-i18n="profile.accountSettings">Account Settings</span></div>
 
+<script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
 var API = '/api/userinfo/index.php';
 var profileData = null;
 
-$(function() {
+TLi18n.load(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
   loadProfile();
   loadLocales();
   loadLoginHistory();
@@ -205,15 +208,15 @@ function saveProfile() {
     locale: $('#locale').val()
   };
   if (!data.firstName || !data.lastName || !data.email) {
-    showAlert('error', 'First Name, Last Name, and Email are required.');
+    showAlert('error', TLi18n.t('profile.msg.requiredFields'));
     return;
   }
   $.ajax({
     url: API, type: 'PUT',
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function(r) { showAlert('ok', r.message || 'Profile updated'); },
+    success: function(r) { showAlert('ok', r.message || TLi18n.t('profile.msg.profileUpdated')); },
     error: function(xhr) {
-      var msg = 'Error saving profile';
+      var msg = TLi18n.t('profile.msg.errorProfile');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       showAlert('error', msg);
     }
@@ -224,21 +227,21 @@ function changePassword() {
   var oldPw = $('#oldPassword').val();
   var newPw = $('#newPassword').val();
   var newPw2 = $('#newPasswordCheck').val();
-  if (!oldPw) { showAlert('error', 'Current password is required.', 'pwAlert'); return; }
-  if (!newPw) { showAlert('error', 'New password cannot be empty.', 'pwAlert'); return; }
-  if (newPw !== newPw2) { showAlert('error', 'New passwords do not match.', 'pwAlert'); return; }
+  if (!oldPw) { showAlert('error', TLi18n.t('profile.msg.passwordRequired'), 'pwAlert'); return; }
+  if (!newPw) { showAlert('error', TLi18n.t('profile.msg.newPasswordEmpty'), 'pwAlert'); return; }
+  if (newPw !== newPw2) { showAlert('error', TLi18n.t('profile.msg.passwordsNoMatch'), 'pwAlert'); return; }
   $.ajax({
     url: API + '/password', type: 'PUT',
     contentType: 'application/json',
     data: JSON.stringify({ oldPassword: oldPw, newPassword: newPw }),
     success: function(r) {
-      showAlert('ok', r.message || 'Password changed', 'pwAlert');
+      showAlert('ok', r.message || TLi18n.t('profile.msg.passwordChanged'), 'pwAlert');
       $('#oldPassword').val('');
       $('#newPassword').val('');
       $('#newPasswordCheck').val('');
     },
     error: function(xhr) {
-      var msg = 'Error changing password';
+      var msg = TLi18n.t('profile.msg.errorPassword');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       showAlert('error', msg, 'pwAlert');
     }
@@ -251,10 +254,10 @@ function generateApiKey() {
     contentType: 'application/json',
     success: function(r) {
       $('#apiKeyValue').text(r.apiKey);
-      showAlert('ok', r.message || 'API key generated', 'apiKeyAlert');
+      showAlert('ok', r.message || TLi18n.t('profile.msg.apiKeyGenerated'), 'apiKeyAlert');
     },
     error: function(xhr) {
-      var msg = 'Error generating API key';
+      var msg = TLi18n.t('profile.msg.errorApiKey');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       showAlert('error', msg, 'apiKeyAlert');
     }
@@ -265,7 +268,7 @@ function copyApiKey() {
   var key = $('#apiKeyValue').text();
   if (navigator.clipboard) {
     navigator.clipboard.writeText(key);
-    showAlert('ok', 'API key copied to clipboard');
+    showAlert('ok', TLi18n.t('profile.msg.apiKeyCopied'));
   }
 }
 
@@ -283,7 +286,7 @@ function loadLoginHistory() {
         okHtml += '<tr><td class="timestamp">' + formatTimestamp(e.timestamp) + '</td><td>' + (e.description || '') + '</td></tr>';
       });
     } else {
-      okHtml = '<tr><td colspan="2" style="color:#888;">Never logged in</td></tr>';
+      okHtml = '<tr><td colspan="2" style="color:#888;">' + TLi18n.t('profile.neverLogged') + '</td></tr>';
     }
     $('#successfulLogins').html(okHtml);
 
@@ -293,7 +296,7 @@ function loadLoginHistory() {
         failHtml += '<tr><td class="timestamp">' + formatTimestamp(e.timestamp) + '</td><td>' + (e.description || '') + '</td></tr>';
       });
     } else {
-      failHtml = '<tr><td colspan="2" style="color:#888;">No failed logins</td></tr>';
+      failHtml = '<tr><td colspan="2" style="color:#888;">' + TLi18n.t('profile.noFailedLogins') + '</td></tr>';
     }
     $('#failedLogins').html(failHtml);
   });

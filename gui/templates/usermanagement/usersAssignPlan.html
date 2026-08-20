@@ -34,17 +34,17 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 </head>
 <body>
 
-<div class="header">Assign Test Plan Roles <span>assign user roles within test plans</span></div>
+<div class="header"><span data-i18n="header.assignPlanRoles">Assign Test Plan Roles</span> <span data-i18n="header.assignPlanRolesSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">assign user roles within test plans</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="tabs-bar" id="tabsBar"></div>
 
 <div class="toolbar">
-  <label>Test Project:</label>
+  <label data-i18n="assign.testProject">Test Project:</label>
   <select id="projectSelect"></select>
-  <label style="margin-left:8px;">Test Plan:</label>
+  <label style="margin-left:8px;" data-i18n="assign.testPlan">Test Plan:</label>
   <select id="planSelect" disabled></select>
   <span style="flex:1"></span>
-  <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> Save Changes</button>
+  <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled data-i18n="assign.saveChanges"><i class="fa fa-save"></i> Save Changes</button>
 </div>
 
 <div class="table-wrap">
@@ -52,15 +52,15 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <thead>
       <tr>
         <th style="width:40px">#</th>
-        <th>Login</th>
-        <th>Name</th>
-        <th style="width:200px;">Inherited Role</th>
-        <th style="width:220px;">Plan Role Override</th>
+        <th data-i18n="user.login">Login</th>
+        <th data-i18n="user.lastName">Name</th>
+        <th style="width:200px;" data-i18n="assign.inheritedRole">Inherited Role</th>
+        <th style="width:220px;" data-i18n="assign.planRoleOverride">Plan Role Override</th>
       </tr>
     </thead>
     <tbody id="assignBody"></tbody>
   </table>
-  <div id="emptyMsg" style="display:none;padding:40px;text-align:center;color:#888;font-size:14px;">
+  <div id="emptyMsg" style="display:none;padding:40px;text-align:center;color:#888;font-size:14px;" data-i18n="assign.emptyPlan">
     <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
     Select a test project and test plan above to manage role assignments.
   </div>
@@ -68,6 +68,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="footer" id="footerText"></div>
 
+<script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
@@ -76,15 +77,17 @@ var currentProject = null;
 var currentPlan = null;
 var roles = [];
 
-$(function() {
+TLi18n.load(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
   var ctx = 'tproject_id=' + (tp || 0) + '&tplan_id=' + (params.get('tplan_id') || 0);
   var tabs = [
-    { label: 'User Management', url: 'usersView.html?' + ctx },
-    { label: 'Role Management', url: 'rolesView.html?' + ctx },
-    { label: 'Assign Test Project Roles', url: 'usersAssignProject.html?' + ctx },
-    { label: 'Assign Test Plan Roles', url: 'usersAssignPlan.html?' + ctx, active: true }
+    { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
+    { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
+    { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx },
+    { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx, active: true }
   ];
   var html = '';
   $.each(tabs, function(i, t) {
@@ -97,7 +100,7 @@ $(function() {
 function loadProjects(selectedId) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=0&tplan_id=0', function(r) {
     var sel = $('#projectSelect');
-    sel.append('<option value="">-- select project --</option>');
+    sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
     $.each(r.projects, function(i, p) {
       sel.append('<option value="' + p.id + '">' + p.name + '</option>');
     });
@@ -108,7 +111,7 @@ function loadProjects(selectedId) {
     var pid = $(this).val();
     currentProject = pid;
     if (pid) { loadPlans(pid); } else {
-      $('#planSelect').html('<option value="">-- select plan --</option>').prop('disabled', true);
+      $('#planSelect').html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>').prop('disabled', true);
       $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
     }
   });
@@ -117,7 +120,7 @@ function loadProjects(selectedId) {
 function loadPlans(pid) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=0', function(r) {
     var sel = $('#planSelect');
-    sel.html('<option value="">-- select plan --</option>');
+    sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
     $.each(r.plans, function(i, p) {
       sel.append('<option value="' + p.id + '">' + p.name + '</option>');
     });
@@ -138,7 +141,7 @@ function loadUsers(pid, planId) {
     roles = r.roles || roles;
     var html = '';
     $.each(r.items, function(i, u) {
-      var opts = '<option value="0">-- no override --</option>';
+      var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
       $.each(roles, function(j, role) {
         var sel = u.roleID == role.id ? ' selected' : '';
         opts += '<option value="' + role.id + '"' + sel + '>' + role.name + '</option>';
@@ -151,10 +154,10 @@ function loadUsers(pid, planId) {
         '<td><select onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select></td>' +
       '</tr>';
     });
-    if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">No users in this project.</td></tr>';
+    if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
     $('#assignBody').html(html);
     $('#emptyMsg').hide();
-    $('#footerText').text(r.items.length + ' users');
+    $('#footerText').text(TLi18n.t('user.usersCount', {n: r.items.length}));
   });
 }
 
@@ -164,7 +167,7 @@ function onRoleChange(sel, uid, origRoleId) {
   tr.toggleClass('changed', changed);
   var badge = tr.find('.changed-badge');
   if (changed && !badge.length) {
-    tr.find('td:eq(1)').append('<span class="changed-badge">modified</span>');
+    tr.find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
   } else if (!changed) { badge.remove(); }
   $('#saveBtn').prop('disabled', !$('.changed').length);
 }
