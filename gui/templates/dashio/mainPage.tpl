@@ -190,6 +190,10 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   {* Loaded once for whichever dashboard widgets are on the page. *}
   {if $gui->dashboard != null || $gui->tcGrowth != null}
     <script src="{$dashioHomeURL}lib/chart-master/Chart.js"></script>
+    {* dashioHomeURL points at the dashio-template/ copy of the lib dir;
+       the tooltip helper is kept in one place and shared with the
+       modern screens, so reference it absolutely. *}
+    <script src="{$basehref}gui/templates/dashio/lib/tl-pie-tooltip.js"></script>
   {/if}
 
   {if $gui->dashboard != null}
@@ -197,13 +201,18 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     {* Chart.js shipped with dashio is v1: .Doughnut() taking {ldelim}value,color{rdelim}. *}
     {* Zero-valued statuses are kept in the array - Chart.js just draws no
        segment for them - so the separators stay trivially correct. *}
-    new Chart(document.getElementById("execStatusPie").getContext("2d")).Doughnut([
+    var execStatusSlices = [
       {foreach from=$gui->dashboard->slices item=slice name=sl}
         {ldelim}value: {$slice.qty},
          color: "{$slice.color}",
          label: "{$slice.label|escape:'javascript'}"{rdelim}{if !$smarty.foreach.sl.last},{/if}
       {/foreach}
-    ], {ldelim}segmentStrokeWidth: 1, percentageInnerCutout: 45{rdelim});
+    ];
+    var execStatusCanvas = document.getElementById("execStatusPie");
+    new Chart(execStatusCanvas.getContext("2d"))
+      .Doughnut(execStatusSlices, {ldelim}segmentStrokeWidth: 1, percentageInnerCutout: 45{rdelim});
+    {* Bundled Chart.js v1 has no tooltips - see tl-pie-tooltip.js *}
+    TLPieTooltip.attach(execStatusCanvas, execStatusSlices, {ldelim}percentageInnerCutout: 45{rdelim});
     </script>
   {/if}
 

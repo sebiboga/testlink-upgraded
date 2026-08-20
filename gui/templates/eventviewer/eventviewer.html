@@ -156,6 +156,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
 <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="/gui/templates/dashio/lib/chart-master/Chart.js"></script>
+<script src="/gui/templates/dashio/lib/tl-pie-tooltip.js"></script>
 <script>
 var API = '/api/eventviewer/index.php';
 var qs = new URLSearchParams(window.location.search);
@@ -291,12 +292,13 @@ function renderPie(items) {
   var data = [], total = 0;
   $.each(items, function(name, count) { total += count; });
   $.each(items, function(name, count) {
-    var pct = total > 0 ? Math.round(count / total * 100) : 0;
-    data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name + ' (' + count + ' / ' + pct + '%)'});
+    data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name});
   });
   if (pieChart) { pieChart.clear(); pieChart = null; }
-  pieChart = new Chart(document.getElementById('pieChart').getContext('2d'))
+  var pieCanvas = document.getElementById('pieChart');
+  pieChart = new Chart(pieCanvas.getContext('2d'))
     .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45, animationEasing: "easeOutQuart"});
+  TLPieTooltip.attach(pieCanvas, data, {percentageInnerCutout: 45});
   var html = '';
   $.each(items, function(name, count) {
     var pct = total > 0 ? Math.round(count / total * 100) : 0;
