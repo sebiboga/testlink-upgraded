@@ -22,7 +22,10 @@ TLU: TestLink Upgraded 2.0.1
 │   └── Custom Fields (22)
 ├── API (15)
 ├── Installation (16)
-└── Login (23)
+├── Login (23)
+├── i18n / Localization (24)
+├── Custom Fields Modernized (25)
+└── Header Fix #523 (26)
 ```
 
 ---
@@ -865,6 +868,173 @@ TLU: TestLink Upgraded 2.0.1
 
 ---
 
+## 13. i18n / Localization (Suite ID: 24)
+
+### TC-13.1: Event Viewer Locale Switcher Changes All Labels
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in, Event Viewer page open.
+- **Steps:**
+  1. Open Event Viewer.  
+     *Expected:* Page loads with locale from user profile (e.g. Romana for sebiboga).
+  2. Select "English" from locale switcher dropdown.  
+     *Expected:* Page reloads with `?locale=en`, all labels change to English: "Event Viewer", "Log Levels", "Apply", "Clear Events".
+  3. Select "Romana" from dropdown.  
+     *Expected:* Page reloads, all labels change to Romanian: "Vizualizare Evenimente", "Niveluri Log", "Aplica", "Sterge Evenimente".
+
+### TC-13.2: User Profile Locale Determines Default Language
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User sebiboga has locale set to "Romana" in profile.
+- **Steps:**
+  1. Clear browser localStorage (`tl_locale`).  
+     *Expected:* No cached locale.
+  2. Navigate to Event Viewer without `?locale=` param.  
+     *Expected:* Page loads in Romanian automatically (from profile DB), not English.
+  3. Verify locale switcher shows "Romana" selected.
+
+### TC-13.3: URL Locale Param Overrides Profile
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** User has locale Romana in profile.
+- **Steps:**
+  1. Navigate to Event Viewer with `?locale=en`.  
+     *Expected:* Page loads in English despite profile being Romana.
+  2. Verify locale switcher shows "English" selected.
+
+### TC-13.4: All 10 Locales Present in Switcher
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Any modernized page open.
+- **Steps:**
+  1. Open locale switcher dropdown.  
+     *Expected:* 10 options visible: English, Romana, Deutsch, Francais, Espanol, Italiano, Portugues, Русский, 日本語, 中文.
+  2. Select each non-English locale one by one.  
+     *Expected:* All labels translate correctly for each locale.
+
+### TC-13.5: All 6 Modernized Pages Have Locale Switcher
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in.
+- **Steps:**
+  1. Navigate to each page and verify locale switcher is present:
+     - Event Viewer  
+     - User Management  
+     - Role Management  
+     - Assign Project Roles  
+     - Assign Plan Roles  
+     - Custom Fields  
+     *Expected:* All 6 pages show the locale switcher dropdown in the header.
+
+### TC-13.6: Locale Switcher Persists Across Pages
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** User is on Event Viewer in English.
+- **Steps:**
+  1. Switch to "Romana" on Event Viewer.  
+     *Expected:* Page reloads in Romanian.
+  2. Navigate to User Management via aside menu.  
+     *Expected:* User Management also loads in Romanian (URL contains `?locale=ro`).
+
+---
+
+## 14. Custom Fields Modernized (Suite ID: 25)
+
+### TC-14.1: Custom Fields Page Loads Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in as admin.
+- **Steps:**
+  1. Click "Custom Fields" in aside menu System section.  
+     *Expected:* cfieldsView.html loads in mainframe, no PHP warnings or JS errors.
+  2. Verify table shows existing custom fields.
+
+### TC-14.2: Create Custom Field
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Admin is logged in.
+- **Steps:**
+  1. Click "+ Creaza Camp Personalizat" button.  
+     *Expected:* Modal opens with form fields: Label, Name, Type, Node Type, etc.
+  2. Fill in Label="TC Field", Name="tc_field", Type="string", Node Type="testcase", check "Design".  
+     *Expected:* Form accepts input.
+  3. Click Save.  
+     *Expected:* Modal closes, new field appears in table, count increases.
+
+### TC-14.3: Edit Custom Field
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Custom field "tc_field" exists.
+- **Steps:**
+  1. Click Edit (pencil icon) on "tc_field" row.  
+     *Expected:* Modal opens with current values pre-filled.
+  2. Change Label to "TC Field Updated".  
+     *Expected:* Input accepts change.
+  3. Click Save.  
+     *Expected:* Table shows updated label.
+
+### TC-14.4: Delete Custom Field
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Custom field "tc_field" exists.
+- **Steps:**
+  1. Click Delete (trash icon) on "tc_field" row.  
+     *Expected:* Confirmation modal appears.
+  2. Confirm deletion.  
+     *Expected:* Field removed from table, count decreases.
+
+### TC-14.5: Custom Fields i18n in All Locales
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Custom Fields page open.
+- **Steps:**
+  1. Switch locale to Romana.  
+     *Expected:* Header shows "Campuri Personalizate", button "Creaza Camp Personalizat", columns "Eticheta", "Nume", "Tip", "Activ", "Disponibil Pe".
+  2. Switch to Deutsch.  
+     *Expected:* All labels translated to German.
+
+### TC-14.6: Custom Fields Table Sorting and Search
+- **Priority:** Low
+- **Importance:** Low
+- **Preconditions:** Multiple custom fields exist.
+- **Steps:**
+  1. Click "Label" column header.  
+     *Expected:* Table sorts by label ascending/descending.
+  2. Type in search box.  
+     *Expected:* Table filters rows matching search text.
+
+---
+
+## 15. Header Display Fix #523 (Suite ID: 26)
+
+### TC-15.1: Header Shows Full Name Not Login
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User admin has firstName="Testlink", lastName="Administrator".
+- **Steps:**
+  1. Login as admin.  
+     *Expected:* Header shows "Testlink Administrator" (first + last name), NOT "admin".
+  2. Check role is displayed below the name.  
+     *Expected:* Role name (e.g. "administrator") shown on separate line below full name.
+
+### TC-15.2: Header Updates for Different Users
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** User sebiboga exists with custom name.
+- **Steps:**
+  1. Login as sebiboga.  
+     *Expected:* Header shows sebiboga's first + last name and role on separate lines.
+
+### TC-15.3: Sidebar Also Shows Full Name
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** User is logged in.
+- **Steps:**
+  1. Look at sidebar bottom section.  
+     *Expected:* Full name displayed (not login), with role below it.
+
+---
+
 ## Discovered Bugs
 
 ### BUG-2: "Still Valid Login" Message is Confusing and Potentially Blocks Users
@@ -897,7 +1067,10 @@ TLU: TestLink Upgraded 2.0.1
 | Installation | 3 | 2 | 1 | 0 |
 | Login | 9 | 5 | 3 | 1 |
 | User Profile | 11 | 5 | 5 | 1 |
-| **TOTAL** | **73** | **42** | **27** | **4** |
+| i18n / Localization | 6 | 3 | 3 | 0 |
+| Custom Fields (Modernized) | 6 | 2 | 3 | 1 |
+| Header Fix #523 | 3 | 1 | 2 | 0 |
+| **TOTAL** | **88** | **52** | **35** | **5** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |
