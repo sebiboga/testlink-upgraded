@@ -1,3 +1,14 @@
+<?php
+/**
+ * TestLink Projects Management - Modern UI
+ * PHP wrapper to ensure TestLink session is initialized
+ */
+require_once('../../config.inc.php');
+require_once('../../lib/functions/common.php');
+
+// Initialize TestLink with proper session handling
+testlinkInitPage($GLOBALS['db']);
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>

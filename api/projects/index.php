@@ -7,19 +7,20 @@
 require_once('../../config.inc.php');
 require_once('../../lib/functions/common.php');
 
-// Initialize - skip session check in API context, handle auth manually
-$db = $GLOBALS['db'];
-session_start();
+header('Content-Type: application/json');
 
-// Check if user is logged in
-if (!isset($_SESSION['currentUser']) || !$_SESSION['currentUser']) {
+// Initialize TestLink (skip session redirect, let API handle auth)
+testlinkInitPage($GLOBALS['db'], true, false);
+
+$db = $GLOBALS['db'];
+$user = $_SESSION['currentUser'] ?? null;
+
+// Check if user is authenticated
+if (!$user) {
   http_response_code(401);
-  header('Content-Type: application/json');
-  echo json_encode(['error' => 'Unauthorized']);
+  echo json_encode(['error' => 'Not authenticated']);
   exit;
 }
-
-$user = $_SESSION['currentUser'];
 
 // Parse request
 $method = $_SERVER['REQUEST_METHOD'];
@@ -85,8 +86,10 @@ function listProjects(&$db, &$user) {
     $result[] = array(
       'id' => (int)$p['id'],
       'name' => $p['name'],
+      'prefix' => $p['prefix'] ?? '',
       'description' => $p['notes'] ?? '',
       'isActive' => (int)$p['active'],
+      'isPublic' => (int)($p['is_public'] ?? 0),
       'issueTracker' => array(
         'name' => $p['it_name'] ?? '',
         'enabled' => (bool)($p['issue_tracker_enabled'] ?? false)
@@ -136,15 +139,28 @@ function createProject(&$db, &$user) {
   }
 
   $input = json_decode(file_get_contents('php://input'), true);
-  if (!$input || empty($input['name'])) {
-    throw new Exception('Project name is required');
+  if (!$input || empty($input['name']) || empty($input['prefix'])) {
+    throw new Exception('Project name and prefix are required');
   }
 
   $tproject_mgr = new testproject($db);
-  $newId = $tproject_mgr->create(
-    trim($input['name']),
-    isset($input['description']) ? trim($input['description']) : ''
+
+  // Create project item
+  $item = new stdClass();
+  $item->name = trim($input['name']);
+  $item->prefix = trim($input['prefix']);
+  $item->notes = isset($input['description']) ? trim($input['description']) : '';
+  $item->active = isset($input['isActive']) ? (int)$input['isActive'] : 1;
+  $item->is_public = isset($input['isPublic']) ? (int)$input['isPublic'] : 0;
+  $item->color = '#808080';  // Default color
+  $item->options = array(
+    'requirementsEnabled' => isset($input['optReq']) ? (int)$input['optReq'] : 0,
+    'testPriorityEnabled' => isset($input['optPriority']) ? (int)$input['optPriority'] : 0,
+    'automationEnabled' => isset($input['optAutomation']) ? (int)$input['optAutomation'] : 0,
+    'inventoryEnabled' => isset($input['optInventory']) ? (int)$input['optInventory'] : 0
   );
+
+  $newId = $tproject_mgr->create($item);
 
   if (!$newId) {
     throw new Exception('Failed to create project');
@@ -179,8 +195,10 @@ function updateProject(&$db, &$user, $projectId) {
   $sql = "UPDATE testproject SET ";
   $updates = array();
   if (isset($input['name'])) $updates[] = "name='" . $db->prepare_string($input['name']) . "'";
+  if (isset($input['prefix'])) $updates[] = "prefix='" . $db->prepare_string($input['prefix']) . "'";
   if (isset($input['description'])) $updates[] = "notes='" . $db->prepare_string($input['description']) . "'";
   if (isset($input['isActive'])) $updates[] = "active=" . (int)$input['isActive'];
+  if (isset($input['isPublic'])) $updates[] = "is_public=" . (int)$input['isPublic'];
 
   if (empty($updates)) {
     echo json_encode(['success' => true, 'message' => 'No changes']);
