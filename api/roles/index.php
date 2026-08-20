@@ -198,8 +198,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
     $projectOpts = [];
     if ($projects) {
-        foreach ($projects as $p) {
-            $pId = intval($p['id'] ?? $p->id ?? 0);
+        foreach ($projects as $pId => $p) {
+            $pId = intval($pId);
             $pName = $p['name'] ?? $p->name ?? '';
             if ($pId) $projectOpts[] = ['id' => $pId, 'name' => $pName];
         }
@@ -274,8 +274,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
     $projectOpts = [];
     if ($projects) {
-        foreach ($projects as $p) {
-            $pId = intval($p['id'] ?? $p->id ?? 0);
+        foreach ($projects as $pId => $p) {
+            $pId = intval($pId);
             $pName = $p['name'] ?? $p->name ?? '';
             if ($pId) $projectOpts[] = ['id' => $pId, 'name' => $pName];
         }
