@@ -114,7 +114,7 @@ function getProjectDetail(&$db, &$user, $projectId) {
       'id' => (int)$project['id'],
       'name' => $project['name'],
       'description' => $project['notes'] ?? '',
-      'isActive' => (int)$project['is_active']
+      'isActive' => (int)$project['active']
     )
   ]);
 }
@@ -171,7 +171,7 @@ function updateProject(&$db, &$user, $projectId) {
   $updates = array();
   if (isset($input['name'])) $updates[] = "name='" . $db->prepare_string($input['name']) . "'";
   if (isset($input['description'])) $updates[] = "notes='" . $db->prepare_string($input['description']) . "'";
-  if (isset($input['isActive'])) $updates[] = "is_active=" . (int)$input['isActive'];
+  if (isset($input['isActive'])) $updates[] = "active=" . (int)$input['isActive'];
 
   if (empty($updates)) {
     echo json_encode(['success' => true, 'message' => 'No changes']);
@@ -205,7 +205,7 @@ function deleteProject(&$db, &$user, $projectId) {
   }
 
   // Delete project (soft delete by deactivating)
-  $sql = "UPDATE testproject SET is_active=0 WHERE id=" . (int)$projectId;
+  $sql = "UPDATE testproject SET active=0 WHERE id=" . (int)$projectId;
   $db->exec_query($sql);
 
   echo json_encode([
