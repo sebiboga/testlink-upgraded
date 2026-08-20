@@ -310,12 +310,12 @@ Left side menu
                 <span>Documentation</span>
                 </a>
               <ul class="sub">
-                <li><a href="viewer.php?file=testlink_user_manual" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> User Manual</a></li>
-                <li><a href="viewer.php?file=testlink_installation_manual" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Installation Manual</a></li>
-                <li><a href="viewer.php?file=tl_file_formats" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> File Formats</a></li>
-                <li><a href="viewer.php?file=excel2testlink" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Excel Import</a></li>
-                <li><a href="viewer.php?file=fckeditor_config" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> FCKEditor Config</a></li>
-                <li><a href="viewer.php?file=tl_bts_howto" target="_blank" rel="noopener"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Bug Tracking HowTo</a></li>
+                <li><a href="viewer.php?file=testlink_user_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> User Manual</a></li>
+                <li><a href="viewer.php?file=testlink_installation_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Installation Manual</a></li>
+                <li><a href="viewer.php?file=tl_file_formats" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> File Formats</a></li>
+                <li><a href="viewer.php?file=excel2testlink" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Excel Import</a></li>
+                <li><a href="viewer.php?file=fckeditor_config" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> FCKEditor Config</a></li>
+                <li><a href="viewer.php?file=tl_bts_howto" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> Bug Tracking HowTo</a></li>
                 <li><a href="https://github.com/sebiboga/testlink-upgraded/wiki" target="_blank" rel="noopener"><i class="fas fa-globe" style="margin-right: 6px; color: #3498db;"></i> GitHub Wiki (40 pages)</a></li>
               </ul>
             </li>
