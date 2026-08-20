@@ -59,11 +59,7 @@ var TLi18n = (function() {
     var fromUrl = params.get('locale');
     if (fromUrl) return mapLocale(fromUrl) || 'en';
 
-    // 2. localStorage (user's manual choice)
-    var fromStorage = localStorage.getItem('tl_locale');
-    if (fromStorage) return fromStorage;
-
-    // Will be resolved async in step 3 — return null to signal "need profile lookup"
+    // Will be resolved async — return null to signal "need profile lookup"
     return null;
   }
 
@@ -94,8 +90,6 @@ var TLi18n = (function() {
         if (r.status === 'ok' && r.item && r.item.locale) {
           var mapped = mapLocale(r.item.locale);
           if (mapped) {
-            // Also save to localStorage so we don't need to fetch again next time
-            localStorage.setItem('tl_locale', mapped);
             callback(mapped);
             return;
           }
