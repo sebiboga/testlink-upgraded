@@ -460,7 +460,8 @@ function doUpdate($argsObj,&$tprojectMgr,$sessionTprojectID)
   $op->template = null;
   $op->reloadType = 'none';
 
-  $oldObjData = $tprojectMgr->get_by_id($argsObj->tprojectID);
+  $tprojectID = $argsObj->tprojectID > 0 ? $argsObj->tprojectID : $sessionTprojectID;
+  $oldObjData = $tprojectMgr->get_by_id($tprojectID);
   $op->oldName = $oldObjData['name'];
 
   $check_op = crossChecks($argsObj,$tprojectMgr);
