@@ -92,41 +92,41 @@ td.desc-expand:hover { background: #f9fffe !important; }
 </head>
 <body>
 
-<div class="header">Event Viewer <span>real-time log monitoring</span></div>
+<div class="header"><span data-i18n="header.eventViewer">Event Viewer</span> <span data-i18n="header.eventViewerSub">real-time log monitoring</span><div id="localeSwitcher" style="float:right;"></div></div>
 
 <div class="filters">
   <div class="filter-group">
-    <label>Log Levels</label>
+    <label data-i18n="ev.logLevels">Log Levels</label>
     <select id="filterLevel" multiple size="4"></select>
   </div>
   <div class="filter-group">
-    <label>User</label>
-    <select id="filterUser"><option value="">All users</option></select>
+    <label data-i18n="ev.user">User</label>
+    <select id="filterUser"><option value="" data-i18n="ev.allUsers">All users</option></select>
   </div>
   <div class="filter-group">
-    <label>From</label>
+    <label data-i18n="ev.from">From</label>
     <input type="text" id="filterStart" placeholder="dd/mm/yyyy">
   </div>
   <div class="filter-group">
-    <label>To</label>
+    <label data-i18n="ev.to">To</label>
     <input type="text" id="filterEnd" placeholder="dd/mm/yyyy">
   </div>
   <div class="filter-group" style="display:flex;gap:8px;">
-    <button class="btn-teal" onclick="applyFilters()">Apply</button>
-    <button class="btn-red" id="btnClear" onclick="clearEvents()" style="display:none">Clear Events</button>
+    <button class="btn-teal" onclick="applyFilters()" data-i18n="ev.apply">Apply</button>
+    <button class="btn-red" id="btnClear" onclick="clearEvents()" style="display:none" data-i18n="ev.clearEvents">Clear Events</button>
   </div>
 </div>
 
 <div class="charts-row">
   <div class="chart-box">
-    <h3>Events by Level</h3>
+    <h3 data-i18n="ev.eventsByLevel">Events by Level</h3>
     <div style="display:flex;align-items:center;gap:20px;">
       <div><canvas id="pieChart" width="240" height="240"></canvas></div>
       <div id="pieLegend" style="font-size:13px;line-height:2;"></div>
     </div>
   </div>
   <div class="chart-box">
-    <h3>Events per Day (last 30 days)</h3>
+    <h3 data-i18n="ev.eventsPerDay">Events per Day (last 30 days)</h3>
     <div class="chart-canvas-wrap"><canvas id="lineChart" width="700" height="260"></canvas></div>
   </div>
 </div>
@@ -136,10 +136,10 @@ td.desc-expand:hover { background: #f9fffe !important; }
     <thead>
       <tr>
         <th style="width:30px"></th>
-        <th>Timestamp</th>
-        <th>Level</th>
-        <th>User</th>
-        <th>Description</th>
+        <th data-i18n="ev.timestamp">Timestamp</th>
+        <th data-i18n="ev.level">Level</th>
+        <th data-i18n="ev.user">User</th>
+        <th data-i18n="ev.description">Description</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -148,6 +148,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
 
 <div class="footer" id="footerText"></div>
 
+<script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
@@ -168,6 +169,8 @@ var pieChart = null;
 var lineChart = null;
 
 $(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
   loadMeta();
   loadEvents();
 });
@@ -192,7 +195,7 @@ function loadMeta() {
   $('input[id^="filter"]').each(function() {
     $(this).daterangepicker({
       autoUpdateInput: false,
-      locale: { cancelLabel: 'Clear', format: 'DD/MM/YYYY' }
+      locale: { cancelLabel: TLi18n.t('common.cancel'), format: 'DD/MM/YYYY' }
     });
     $(this).on('apply.daterangepicker', function(ev, picker) {
       $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
@@ -220,7 +223,7 @@ function loadEvents() {
   var q = buildQuery();
   $.getJSON(API + '/events' + q, function(r) {
     renderTable(r.items);
-    $('#footerText').text(r.total + ' events | Generated on ' + new Date().toLocaleString());
+    $('#footerText').text(TLi18n.t('ev.eventsCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   });
   $.getJSON(API + '/events/stats/byLevel' + q, function(r) { renderPie(r.items); });
   $.getJSON(API + '/events/stats/perDay' + q, function(r) { renderLine(r.labels, r.data); });
@@ -264,12 +267,12 @@ function toggleRow(tr) {
     icon.addClass('shown');
     $.getJSON(API + '/events/' + id, function(d) {
       var e = d.item;
-      var html = '<div class="detail-content"><table><tr><th>Source</th><td>' + (e.source||'-') + '</td></tr>';
-      html += '<tr><th>Session ID</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
-      html += '<tr><th>Object Type</th><td>' + (e.objectType||'-') + '</td></tr>';
-      html += '<tr><th>Object ID</th><td>' + (e.objectID||'-') + '</td></tr>';
-      html += '<tr><th>Activity</th><td>' + (e.activityCode||'-') + '</td></tr>';
-      html += '<tr><th>Timestamp</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
+      var html = '<div class="detail-content"><table><tr><th>' + TLi18n.t('ev.source') + '</th><td>' + (e.source||'-') + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.sessionId') + '</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.objectType') + '</th><td>' + (e.objectType||'-') + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.objectId') + '</th><td>' + (e.objectID||'-') + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.activity') + '</th><td>' + (e.activityCode||'-') + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.timestamp') + '</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
       row.child(html, 'detail-row').show();
       tr.addClass('shown');
     });
@@ -318,7 +321,7 @@ function renderLine(labels, data) {
 function applyFilters() { loadEvents(); }
 
 function clearEvents() {
-  if (!confirm('Delete events matching current filters?')) return;
+  if (!confirm(TLi18n.t('ev.confirmDelete'))) return;
   var levels = $('#filterLevel').val();
   var body = levels && levels.length ? JSON.stringify({logLevel: levels.map(Number)}) : '{}';
   $.ajax({

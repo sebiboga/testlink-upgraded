@@ -42,12 +42,12 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 </head>
 <body>
 
-<div class="header">User Management <span>manage users and roles</span></div>
+<div class="header"><span data-i18n="header.userManagement">User Management</span> <span data-i18n="header.userManagementSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage users and roles</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="tabs-bar" id="tabsBar"></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> Create User</button>
+  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="user.createUser">Create User</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -56,13 +56,13 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   <table id="usersTable" class="display" style="width:100%">
     <thead>
       <tr>
-        <th>Login</th>
-        <th>First Name</th>
-        <th>Last Name</th>
-        <th>Email</th>
-        <th>Role</th>
-        <th>Status</th>
-        <th style="width:100px">Actions</th>
+        <th data-i18n="user.login">Login</th>
+        <th data-i18n="user.firstName">First Name</th>
+        <th data-i18n="user.lastName">Last Name</th>
+        <th data-i18n="user.email">Email</th>
+        <th data-i18n="user.role">Role</th>
+        <th data-i18n="user.status">Status</th>
+        <th style="width:100px" data-i18n="common.actions">Actions</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -82,34 +82,34 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       <div class="modal-body">
         <input type="hidden" id="editUserId">
         <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;">Login *</label>
+          <label style="font-size:12px;font-weight:600;" data-i18n="user.login">Login *</label>
           <input type="text" id="editLogin" class="form-control" maxlength="30" style="font-size:13px;">
         </div>
         <div style="display:flex;gap:12px;">
           <div class="form-group" style="margin-bottom:12px;flex:1;">
-            <label style="font-size:12px;font-weight:600;">First Name *</label>
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.firstName">First Name *</label>
             <input type="text" id="editFirstName" class="form-control" maxlength="50" style="font-size:13px;">
           </div>
           <div class="form-group" style="margin-bottom:12px;flex:1;">
-            <label style="font-size:12px;font-weight:600;">Last Name *</label>
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.lastName">Last Name *</label>
             <input type="text" id="editLastName" class="form-control" maxlength="50" style="font-size:13px;">
           </div>
         </div>
         <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;">Email *</label>
+          <label style="font-size:12px;font-weight:600;" data-i18n="user.email">Email *</label>
           <input type="email" id="editEmail" class="form-control" maxlength="100" style="font-size:13px;">
         </div>
         <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;">Password <span id="pwLabel">(leave empty to keep)</span></label>
+          <label style="font-size:12px;font-weight:600;" data-i18n="user.password">Password <span id="pwLabel">(leave empty to keep)</span></label>
           <input type="password" id="editPassword" class="form-control" style="font-size:13px;">
         </div>
         <div style="display:flex;gap:12px;">
           <div class="form-group" style="margin-bottom:12px;flex:1;">
-            <label style="font-size:12px;font-weight:600;">Global Role *</label>
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.globalRole">Global Role *</label>
             <select id="editRole" class="form-control" style="font-size:13px;"></select>
           </div>
           <div class="form-group" style="margin-bottom:12px;flex:1;">
-            <label style="font-size:12px;font-weight:600;">Locale</label>
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.locale">Locale</label>
             <select id="editLocale" class="form-control" style="font-size:13px;"></select>
           </div>
         </div>
@@ -121,13 +121,14 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;">Cancel</button>
-        <button type="button" class="btn-teal" onclick="saveUser()" style="font-size:13px;">Save</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveUser()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
   </div>
 </div>
 
+<script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
@@ -143,16 +144,18 @@ $(function() {
   var p = new URLSearchParams(window.location.search);
   var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
   var tabs = [
-    { label: 'User Management', url: 'usersView.html?' + ctx, active: true },
-    { label: 'Role Management', url: 'rolesView.html?' + ctx },
-    { label: 'Assign Test Project Roles', url: 'usersAssignProject.html?' + ctx },
-    { label: 'Assign Test Plan Roles', url: 'usersAssignPlan.html?' + ctx }
+    { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx, active: true },
+    { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
+    { label: TLi18n.t('tab.assignProjectRoles'), url: 'usersAssignProject.html?' + ctx },
+    { label: TLi18n.t('tab.assignPlanRoles'), url: 'usersAssignPlan.html?' + ctx }
   ];
   var html = '';
   $.each(tabs, function(i, t) {
     html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
   });
   $('#tabsBar').html(html);
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
   loadMeta();
   loadUsers();
 });
@@ -181,7 +184,7 @@ function loadUsers() {
     allItems = r.items;
     renderTable(allItems);
     var visible = allItems.filter(function(u) { return u.active != 2; }).length;
-    $('#footerText').text(visible + ' users | Generated on ' + new Date().toLocaleString());
+    $('#footerText').text(TLi18n.t('user.usersCount', {n: visible}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   });
 }
 
@@ -218,7 +221,7 @@ function renderTable(items) {
 }
 
 function showCreateModal() {
-  $('#modalTitle').text('Create User');
+  $('#modalTitle').text(TLi18n.t('user.createUser'));
   $('#editUserId').val('');
   $('#editLogin').val('').prop('readonly', false);
   $('#editFirstName').val('');
@@ -236,7 +239,7 @@ function showCreateModal() {
 function editUser(id) {
   $.getJSON(API + '/' + id, function(r) {
     var u = r.item;
-    $('#modalTitle').text('Edit User: ' + u.login);
+    $('#modalTitle').text(TLi18n.t('user.editUser') + ': ' + u.login);
     $('#editUserId').val(u.id);
     $('#editLogin').val(u.login).prop('readonly', true);
     $('#editFirstName').val(u.firstName);
@@ -267,7 +270,7 @@ function saveUser() {
   if (pw) data.password = pw;
 
   if (!data.login || !data.firstName || !data.lastName || !data.email) {
-    $('#modalError').text('Login, First Name, Last Name, and Email are required.').show();
+    $('#modalError').text(TLi18n.t('user.validation.required')).show();
     return;
   }
 
@@ -278,7 +281,7 @@ function saveUser() {
     contentType: 'application/json', data: JSON.stringify(data),
     success: function() { $('#userModal').modal('hide'); loadUsers(); },
     error: function(xhr) {
-      var msg = 'Error saving user';
+      var msg = TLi18n.t('user.error.save');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       $('#modalError').text(msg).show();
     }
@@ -291,7 +294,7 @@ function deleteUser(id, login) {
     url: API + '/' + id, type: 'DELETE',
     success: function() { loadUsers(); },
     error: function(xhr) {
-      var msg = 'Error deleting user';
+      var msg = TLi18n.t('user.error.delete');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       alert(msg);
     }
