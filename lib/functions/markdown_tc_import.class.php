@@ -52,6 +52,7 @@ class markdownTcImport
 
         $currentSuite = null;
         $currentCase = null;
+        $currentSuiteKey = -1;
         $inSteps = false;
         $inCodeFence = false;
 
@@ -84,7 +85,9 @@ class markdownTcImport
                     'id' => isset($m[3]) ? intval($m[3]) : 0,
                     'cases' => [],
                 ];
-                $result['suites'][] = &$currentSuite;
+                self::flushPending($result, $currentSuiteKey, $currentCase);
+                $result['suites'][] = $currentSuite;
+                $currentSuiteKey = count($result['suites']) - 1;
                 $currentCase = null;
                 $inSteps = false;
                 continue;
@@ -99,6 +102,7 @@ class markdownTcImport
                     ];
                     continue;
                 }
+                self::flushPending($result, $currentSuiteKey, $currentCase);
                 $currentCase = [
                     'tcId' => trim($m[1]),
                     'title' => trim($m[2]),
@@ -109,7 +113,7 @@ class markdownTcImport
                     'expectedResult' => '',
                     'line' => $lineNo,
                 ];
-                $currentSuite['cases'][] = &$currentCase;
+                // pending case is flushed when the next section starts (or EOF)
                 $result['caseCount']++;
                 $inSteps = false;
                 continue;
@@ -187,9 +191,22 @@ class markdownTcImport
                 $currentCase['preconditions'] .= "\n" . trim($line);
             }
         }
+        self::flushPending($result, $currentSuiteKey, $currentCase);
         unset($currentSuite, $currentCase);
 
         return $result;
+    }
+
+    /**
+     * Append a finished case (plain value copy) into its suite exactly once,
+     * when the next section starts or the document ends.
+     */
+    private static function flushPending(&$result, $suiteKey, &$case) {
+        if ($case !== null && $suiteKey >= 0
+            && isset($result['suites'][$suiteKey])) {
+            $result['suites'][$suiteKey]['cases'][] = $case;
+        }
+        $case = null;
     }
 
     /**
