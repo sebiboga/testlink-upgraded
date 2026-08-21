@@ -2114,6 +2114,7 @@ function getFirstLevelMenuStructure()
                'system'=> false,
                'projects' => false,
                'plugins' => false,
+               'documentation' => false,
                'requirements_design' => false,
                'tests_design' => false,
                'plans' => false,
