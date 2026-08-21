@@ -1874,3 +1874,40 @@ issue title — the `IN ()` query is the test-case search count query
 (tcSearch.php / api/search/index.php); both call sites guarded. Discovered
 during testing (pre-existing, out of scope): mainPage.php lines 102/105 emit
 PHP 8.x warnings when switching projects — filed separately.
+
+## 30. Inventory Management Screen (`inventoryView.html` + `api/inventory`) (Suite ID: 37)
+
+**Screen:** Projects → Inventory management (`gui/templates/inventory/inventoryView.html`,
+BFF `api/inventory/index.php`, replaces `lib/inventory/inventoryView.php` +
+`getInventory.php` + `setInventory.php` + `deleteInventory.php` +
+`lib/ajax/getUsersWithRight.php`).
+
+**Fixture:** fresh DB import; test project "Inventory Project" (prefix INVP)
+created via projectsView.html with *Enable Inventory* checked
+(`options.inventoryEnabled=1`); user tester1 (role tester, no inventory rights).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Aside menu shows "Inventory management" link only when inventory enabled + right present; href = `/gui/templates/inventory/inventoryView.html?tproject_id=1&tplan_id=0` | PASS |
+| 2 | Screen loads: header, locale switcher, project context, toolbar Create button, empty state "No device defined." | PASS |
+| 3 | Create modal opens with Host name*, IP Address, Owner combo (admin default = current user, "(no owner)" option), Purpose/Hardware/Notes textareas | PASS |
+| 4 | Save with empty name → inline error "The device cannot have an empty name.", no request sent | PASS |
+| 5 | Create test-server-01 / 192.168.10.25 / purpose / hw / notes → toast "Device created successfully.", row rendered with all columns, audit event `audit_inventory_created` in DB | PASS |
+| 6 | Owner login resolved from user id (BFF bug found & fixed: `array_column()` reindexed logins — commit d0d578400) | PASS |
+| 7 | Edit via name click: modal prefilled (title "Edit the device data"), rename to build-server-01 + owner "(no owner)" → update OK, grid refreshed, owner shows "-" | PASS |
+| 8 | Duplicate name case-insensitive (BUILD-SERVER-01) → server error -1 mapped to localized message, modal stays open | PASS |
+| 9 | Invalid IP 999.1.1.1 blocked client-side after fix (octet range check; legacy Ext vtype accepted it — tightened, commit 3382949e6 parent) | PASS |
+| 10 | Duplicate IP (192.168.10.25 on second device) → server error -4 localized message | PASS |
+| 11 | Delete flow: confirm modal shows device name; Cancel keeps device; Confirm deletes → toast, grid refresh, audit event `audit_inventory_deleted` | PASS |
+| 12 | Double-click row opens edit modal prefilled (legacy rowdblclick parity) | PASS |
+| 13 | DataTables search filters rows | PASS |
+| 14 | Locale switcher → Română: all labels/tooltips/messages translated (inv.* keys present in all 10 bundles, JSON valid) | PASS |
+| 15 | Permission path (tester1, role tester): aside hides link; direct URL → list GET 403 → "You do not have appropriate rights..." shown in place of grid, Create hidden; POST via API → 403 NO_RIGHTS | PASS |
+| 16 | Admin (rights holder): owners endpoint returns users with `project_inventory_view` + "(no owner)" entry (getUsersWithRight.php parity) | PASS |
+| 17 | Event Viewer after suite: only AUDIT entries (logins, inventory create/delete); zero new Error/Warning from the new screen | PASS |
+
+**Actual result:** 17/17 PASS.
+
+**Notes:** two bugs found and fixed during the run (owner login lookup,
+403/empty-state cosmetics). Pre-existing legacy warning about missing locale
+key `testproject_prefix_hint` discovered during testing → filed as issue #549.
