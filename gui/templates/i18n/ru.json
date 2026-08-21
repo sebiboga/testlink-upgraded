@@ -437,5 +437,7 @@
   "searchAdv.colName": "Название",
   "searchAdv.colDocId": "ID документа",
   "searchAdv.warnNeedCheckbox": "Отметьте хотя бы одно поле для поиска.",
-  "searchAdv.warnNeedCriteria": "Введите текст поиска или хотя бы один дополнительный фильтр."
+  "searchAdv.warnNeedCriteria": "Введите текст поиска или хотя бы один дополнительный фильтр.",
+  "searchAdv.reqStatus": "Статус требования",
+  "searchAdv.tcWKFStatus": "Статус тест-кейса"
 }

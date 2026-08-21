@@ -471,5 +471,7 @@
   "searchAdv.colName": "Nom",
   "searchAdv.colDocId": "ID du document",
   "searchAdv.warnNeedCheckbox": "Cochez au moins un champ à rechercher.",
-  "searchAdv.warnNeedCriteria": "Saisissez un texte de recherche ou au moins un filtre supplémentaire."
+  "searchAdv.warnNeedCriteria": "Saisissez un texte de recherche ou au moins un filtre supplémentaire.",
+  "searchAdv.reqStatus": "Statut de l'exigence",
+  "searchAdv.tcWKFStatus": "Statut du cas de test"
 }

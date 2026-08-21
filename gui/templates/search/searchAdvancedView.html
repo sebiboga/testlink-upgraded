@@ -138,6 +138,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <label for="custom_field_value" data-i18n="search.customFieldValue">Custom field value</label>
       <input type="text" class="form-control" id="custom_field_value" maxlength="20">
     </div>
+    <div class="form-group" id="grpReqStatus" style="display:none">
+      <label for="reqStatus" data-i18n="searchAdv.reqStatus">Requirement status</label>
+      <select class="form-control" id="reqStatus"></select>
+    </div>
+    <div class="form-group">
+      <label for="tcWKFStatus" data-i18n="searchAdv.tcWKFStatus">Test case status</label>
+      <select class="form-control" id="tcWKFStatus"></select>
+    </div>
     <div class="form-group">
       <label for="creation_date_from" data-i18n="search.creationDateFrom">Creation date from</label>
       <input type="date" class="form-control" id="creation_date_from">
@@ -293,6 +301,21 @@ function loadContext() {
       if (r.requirementsEnabled) {
         $('#grpReqSpec').show();
         $('#grpReq').show();
+        if (r.reqStatusDomain && r.reqStatusDomain.length > 0) {
+          $('#grpReqStatus').show();
+          $('#reqStatus').append('<option value="">&nbsp;</option>');
+          $.each(r.reqStatusDomain, function (i, s) {
+            $('#reqStatus').append('<option value="' + s.code + '">' + esc(s.label) + '</option>');
+          });
+        }
+      }
+
+      // test case working status domain (same source as legacy)
+      if (r.statusDomain) {
+        $('#tcWKFStatus').append('<option value="0">&nbsp;</option>');
+        $.each(r.statusDomain, function (i, s) {
+          $('#tcWKFStatus').append('<option value="' + s.code + '">' + esc(s.label) + '</option>');
+        });
       }
 
       // prefill from URL params (deep link support)
@@ -342,7 +365,9 @@ function doSearch() {
   var kw = parseInt($('#keyword_id').val() || '0', 10);
   var cfid = parseInt($('#custom_field_id').val() || '0', 10);
   var cfv = $.trim($('#custom_field_value').val());
-  if (target === '' && kw <= 0 && cfid <= 0 && cfv === '' &&
+  var hasDate = ['creation_date_from','creation_date_to','modification_date_from','modification_date_to']
+    .some(function (k) { return $('#' + k).val() !== ''; });
+  if (target === '' && kw <= 0 && cfid <= 0 && cfv === '' && !hasDate &&
       $('#created_by').val().trim() === '' && $('#edited_by').val().trim() === '') {
     $('#warnBox').text(TLi18n.t('searchAdv.warnNeedCriteria')).show();
     return;
@@ -350,9 +375,12 @@ function doSearch() {
   if (target !== '') q.set('target', target);
   q.set('and_or', $('#and_or').val());
 
-  ['tc_title','tc_summary','tc_preconditions','tc_steps','tc_expected_results','tc_id',
-   'ts_title','ts_summary','rs_title','rs_scope','rq_title','rq_scope','rq_doc_id']
-  .forEach(function (k) {
+  var cbKeys = ['tc_title','tc_summary','tc_preconditions','tc_steps','tc_expected_results','tc_id',
+   'ts_title','ts_summary'];
+  if (ctx.requirementsEnabled) {
+    cbKeys = cbKeys.concat(['rs_title','rs_scope','rq_title','rq_scope','rq_doc_id']);
+  }
+  cbKeys.forEach(function (k) {
     q.set(k, document.getElementById(k).checked ? '1' : '0');
   });
 
@@ -360,6 +388,10 @@ function doSearch() {
     var v = $.trim($('#' + k).val());
     if (v !== '') q.set(k, v);
   });
+  var wkf = parseInt($('#tcWKFStatus').val() || '0', 10);
+  if (wkf > 0) q.set('tcWKFStatus', wkf);
+  var rqst = $('#reqStatus').val();
+  if (rqst) q.set('reqStatus', rqst);
   if (kw > 0) q.set('keyword_id', kw);
   if (cfid > 0) q.set('custom_field_id', cfid);
 
@@ -398,8 +430,11 @@ function renderResults(r) {
     $('#warnBox').text(warningText(r.warning)).show();
   }
 
-  $('#resultsHead').show();
-  $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
+  // keep the results header for real result sets only
+  $('#resultsHead').toggle(!r.warning);
+  if (!r.warning) {
+    $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
+  }
 
   renderTC(r.testcases || []);
   renderSimple('secTS', r.testsuites || [], function (row) {
@@ -420,7 +455,7 @@ function renderResults(r) {
   var total = (r.testcases||[]).length + (r.testsuites||[]).length +
               (r.reqspecs||[]).length + (r.requirements||[]).length;
   $('#noResults').toggle(total === 0 && !r.warning);
-  $('#footerInfo').text(total === 0 ? '' : TLi18n.t('search.matchCount', {n: total}));
+  $('#footerInfo').text(!r.warning && total > 0 ? TLi18n.t('search.matchCount', {n: total}) : '');
 }
 
 function renderTC(rows) {
@@ -460,10 +495,9 @@ function renderRQ(rows) {
   var $tb = $('#secRQ tbody').empty();
   $('#secRQ').toggle(rows.length > 0);
   $.each(rows, function (i, row) {
-    var vr = row.version > 0 ? ' [v' + row.version + '.' + row.revision + ']' : '';
     var name = row.req_id > 0
       ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqEdit(' + row.req_id + ')">' +
-        esc(row.name) + vr + '</a>'
+        esc(row.name) + '</a>'
       : esc(row.name);
     $tb.append('<tr>' +
       '<td>' + esc(row.req_doc_id) + '</td>' +

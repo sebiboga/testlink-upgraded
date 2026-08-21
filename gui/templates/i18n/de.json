@@ -471,5 +471,7 @@
   "searchAdv.colName": "Name",
   "searchAdv.colDocId": "Dokument-ID",
   "searchAdv.warnNeedCheckbox": "Bitte mindestens ein zu durchsuchendes Feld auswählen.",
-  "searchAdv.warnNeedCriteria": "Bitte einen Suchtext oder mindestens einen weiteren Filter eingeben."
+  "searchAdv.warnNeedCriteria": "Bitte einen Suchtext oder mindestens einen weiteren Filter eingeben.",
+  "searchAdv.reqStatus": "Anforderungsstatus",
+  "searchAdv.tcWKFStatus": "Testfallstatus"
 }

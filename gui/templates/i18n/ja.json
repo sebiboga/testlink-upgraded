@@ -437,5 +437,7 @@
   "searchAdv.colName": "名前",
   "searchAdv.colDocId": "ドキュメントID",
   "searchAdv.warnNeedCheckbox": "検索対象のフィールドを少なくとも1つ選択してください。",
-  "searchAdv.warnNeedCriteria": "検索テキストまたは追加フィルターを1つ以上入力してください。"
+  "searchAdv.warnNeedCriteria": "検索テキストまたは追加フィルターを1つ以上入力してください。",
+  "searchAdv.reqStatus": "要件のステータス",
+  "searchAdv.tcWKFStatus": "テストケースのステータス"
 }

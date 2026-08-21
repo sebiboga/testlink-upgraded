@@ -437,5 +437,7 @@
   "searchAdv.colName": "名称",
   "searchAdv.colDocId": "文档 ID",
   "searchAdv.warnNeedCheckbox": "请至少勾选一个要搜索的字段。",
-  "searchAdv.warnNeedCriteria": "请输入搜索文本或至少一个附加筛选条件。"
+  "searchAdv.warnNeedCriteria": "请输入搜索文本或至少一个附加筛选条件。",
+  "searchAdv.reqStatus": "需求状态",
+  "searchAdv.tcWKFStatus": "测试用例状态"
 }

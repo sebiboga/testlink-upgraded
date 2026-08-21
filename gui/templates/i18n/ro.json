@@ -471,5 +471,7 @@
   "searchAdv.colName": "Nume",
   "searchAdv.colDocId": "ID document",
   "searchAdv.warnNeedCheckbox": "Bifați cel puțin un câmp în care să se caute.",
-  "searchAdv.warnNeedCriteria": "Introduceți un text de căutare sau cel puțin un filtru suplimentar."
+  "searchAdv.warnNeedCriteria": "Introduceți un text de căutare sau cel puțin un filtru suplimentar.",
+  "searchAdv.reqStatus": "Starea cerinței",
+  "searchAdv.tcWKFStatus": "Starea cazului de test"
 }

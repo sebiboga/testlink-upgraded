@@ -114,8 +114,6 @@ if ($action === 'context') {
         }
     }
 
-    // custom fields linked to requirement at design time (advanced search
-    // offers TC and REQ custom fields in the same dropdown, like legacy)
     $customFieldsReq = [];
     $optReq = $tproject_mgr->getOptions($tprojectId);
     if (!empty($optReq->requirementsEnabled)) {
@@ -142,6 +140,13 @@ if ($action === 'context') {
     $opt = $tproject_mgr->getOptions($tprojectId);
     $opt = is_null($opt) ? new stdClass() : $opt;
 
+    // status domain for requirements (advanced search req status filter)
+    $reqCfg = config_get('req_cfg');
+    $reqStatusDomain = [];
+    foreach (init_labels($reqCfg->status_labels) as $code => $lbl) {
+        $reqStatusDomain[] = ['code' => $code, 'label' => $lbl];
+    }
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => $info['name']],
@@ -150,6 +155,7 @@ if ($action === 'context') {
         'customFields' => $customFields,
         'customFieldsReq' => $customFieldsReq,
         'statusDomain' => $statusDomain,
+        'reqStatusDomain' => $reqStatusDomain,
         'importanceEnabled' => !empty($opt->testPriorityEnabled),
         'requirementsEnabled' => !empty($opt->requirementsEnabled),
         'maxQtyForDisplay' => intval($tcaseCfg->search->max_qty_for_display),
@@ -407,6 +413,13 @@ if ($action === 'search') {
 if ($action === 'fulltext') {
     require_once(__DIR__ . '/../../lib/search/searchCommands.class.php');
 
+    // project existence check, same as the context action
+    $info = $tproject_mgr->get_by_id($tprojectId);
+    if (!$info) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
     // feed legacy initArgs() through $_REQUEST exactly like the old form POST
     $cbKeys = array('rq_scope', 'rq_title', 'rq_doc_id', 'rs_scope', 'rs_title',
         'tc_summary', 'tc_title', 'tc_steps', 'tc_expected_results',
@@ -427,6 +440,12 @@ if ($action === 'fulltext') {
     $_REQUEST['keyword_id'] = intval(getParam('keyword_id'));
     $_REQUEST['custom_field_id'] = intval(getParam('custom_field_id'));
     $_REQUEST['custom_field_value'] = getParam('custom_field_value');
+    $_REQUEST['tcWKFStatus'] = intval(getParam('tcWKFStatus'));
+    // requirement status domain is letter-coded (D/R/W/...) - keep as string,
+    // length is capped by legacy R_PARAMS(STRING_N,0,1)
+    $_REQUEST['reqStatus'] = substr(getParam('reqStatus'), 0, 1);
+    // legacy reqType filtering is broken upstream (lib/search/search.php:74
+    // strips 'RQ' from the wrong property), so the parameter is not offered
     $_REQUEST['doAction'] = 'doSearch';
     $_REQUEST['tproject_id'] = $tprojectId;
 
@@ -434,6 +453,13 @@ if ($action === 'fulltext') {
     $cmdMgr->initEnv();
     $args = $cmdMgr->getArgs();
     $gui = $cmdMgr->getGui();
+
+    // the legacy engine expects these gui properties; the old controllers
+    // got them from template-time initialization, feed them explicitly here
+    // (avoids PHP 8.x "undefined property" warnings and broken CF type switch)
+    $gui->cf_types = $tproject_mgr->cfield_mgr->custom_field_types;
+    $gui->design_cf_rq = isset($gui->design_cf_req) ? $gui->design_cf_req : null;
+
     $cmdMgr->initSchema();
     $treeMgr = $tproject_mgr->tree_manager;
 
@@ -508,13 +534,14 @@ if ($action === 'fulltext') {
         $pathInfo = $treeMgr->get_full_path_verbose($tcase_set, $pathOptions);
         foreach ($mapTC as $rec) {
             $tcid = intval($rec['testcase_id']);
+            $extId = isset($rec['tc_external_id']) ? intval($rec['tc_external_id']) : 0;
             $tcRows[] = [
                 'testcase_id' => $tcid,
                 'name' => (string)$rec['name'],
                 'summary' => (string)$rec['summary'],
                 'version' => isset($rec['version']) ? intval($rec['version']) : 0,
-                'tc_external_id' => isset($rec['tc_external_id']) ? intval($rec['tc_external_id']) : 0,
-                'full_external_id' => $prefix . $rec['tc_external_id'],
+                'tc_external_id' => $extId,
+                'full_external_id' => $prefix . $extId,
                 'path' => isset($pathInfo[$tcid]) ? $pathInfo[$tcid] : '',
             ];
         }
@@ -548,13 +575,12 @@ if ($action === 'fulltext') {
         $reqPathInfo = $treeMgr->get_full_path_verbose($req_set, $pathOptions);
         foreach ($mapRQ as $rid => $rec) {
             $rec = (array)$rec;
+            // searchReq()'s SELECT does not return version/revision, do not fake them
             $rqRows[] = [
                 'req_id' => intval($rec['req_id'] ?? $rid),
                 'req_doc_id' => (string)($rec['req_doc_id'] ?? ''),
                 'name' => (string)($rec['name'] ?? ''),
                 'scope' => (string)($rec['scope'] ?? ''),
-                'version' => isset($rec['version']) ? intval($rec['version']) : 0,
-                'revision' => isset($rec['revision']) ? intval($rec['revision']) : 0,
                 'path' => isset($reqPathInfo[$rid]) ? $reqPathInfo[$rid] : '',
             ];
         }
