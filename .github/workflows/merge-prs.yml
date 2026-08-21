@@ -28,7 +28,7 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           PRS=$(gh pr list --repo "$REPO" --state open --json number,headRefName,author \
-                --jq '.[] | select(.headRefName | startswith("fix/")) | select(.author.login == "github-actions[bot]") | .number')
+                --jq '.[] | select(.headRefName | startswith("fix/")) | select(.author.login == "github-actions[bot]" or .author.login == "sebiboga") | .number')
           if [ -z "$PRS" ]; then
             echo "no open agent PRs — nothing to do"
             exit 0
