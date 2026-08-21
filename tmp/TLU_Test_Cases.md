@@ -1911,3 +1911,37 @@ created via projectsView.html with *Enable Inventory* checked
 **Notes:** two bugs found and fixed during the run (owner login lookup,
 403/empty-state cosmetics). Pre-existing legacy warning about missing locale
 key `testproject_prefix_hint` discovered during testing → filed as issue #549.
+
+## 31. Regression — Issue #549: missing locale key `testproject_prefix_hint` (Suite ID: 38)
+
+**Precondition:** fresh DB import (events table empty), user admin/admin with
+locale en_GB; no test projects needed (repro works on any projectEdit render).
+
+**Repro steps (pre-fix):**
+1. Log in as admin → `GET /lib/project/projectView.php` (0 test projects ⇒
+   renders `projectEdit.tpl` create path) or `GET /lib/project/projectEdit.php?doAction=create`.
+2. Inspect `events` table / Event Viewer.
+
+**Observed pre-fix:** one WARNING entry (`log_level=32`, source LOCALIZATION):
+`string 'testproject_prefix_hint' is not localized for locale 'en_GB'`;
+tooltip on the Test case prefix field rendered empty.
+
+**Expected post-fix:** key defined in ALL 19 bundles (en_GB…zh_CN); tooltip
+renders the hint text in the user's own locale; zero LOCALIZATION warnings for
+`testproject_prefix_hint` in the Event Viewer, for en_GB and for other locales
+(no " - using en_GB" fallback warnings either).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: render projectEdit.tpl via projectView.php → WARNING `testproject_prefix_hint ... 'en_GB'` logged once per session | PASS (reproduced) |
+| 2 | Post-fix: new session, render projectView.php + projectEdit.php?doAction=create → events table contains ZERO `testproject_prefix_hint` entries | PASS |
+| 3 | Post-fix: prefix-field info icon renders `title="Up to 16 characters allowed, but we recommend using at most five"` | PASS |
+| 4 | Locale de_DE: same render → German hint `Bis zu 16 Zeichen sind erlaubt...`, zero LOCALIZATION warnings | PASS |
+| 5 | All 19 `locale/*/strings.txt` pass `php -l`; insertion byte-preserving (cs_CZ windows-1250 kept, CRLF bundles kept CRLF) | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Notes:** while reproducing, 3 pre-existing E_WARNING entries from the
+projectView.php→projectEdit.tpl path (undefined properties found /
+mgt_view_events / tprojectName) surfaced — unrelated to this i18n bug, filed
+as issue #550.
