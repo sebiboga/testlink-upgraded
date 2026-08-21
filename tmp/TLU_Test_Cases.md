@@ -1437,3 +1437,44 @@ carry the key (empty string when inactive, matching the other first-level entrie
      GitHub wiki).
 - **Actual result (post-fix):** PASS — asidebar renders
   "System Projects Plugins Documentation" with all seven doc links intact.
+
+## 19. Regression — Issue #531: keywords BFF ArgumentCountError 500 on testproject::getName() (Suite ID: 30)
+
+**Issue:** https://github.com/sebiboga/testlink-upgraded/issues/531
+`GET /api/keywords/index.php?tproject_id=<real id>` returned HTTP 500
+(`ArgumentCountError: Too few arguments to function testproject::getName()`)
+because `api/keywords/index.php:138` called `->getName()` as an instance method,
+while `testproject::getName(&$dbh, $id)` is **static** and takes the DB handle
+first. Empty `tproject_id=0` requests short-circuited earlier (400), masking the
+bug.
+
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged-in session (admin/admin); a real test project exists
+  (fixture: project id 1 "Repro Project 531" inserted into `testprojects` +
+  `nodes_hierarchy`).
+- **Steps (pre-fix repro):**
+  1. `curl -b <session> 'http://localhost:8082/api/keywords/index.php?tproject_id=1'`
+     *Pre-fix result:* HTTP 500 ArgumentCountError; Keyword Management screen
+     fails to load its table.
+- **Expected post-fix behavior:**
+  1. Same request returns HTTP 200 with
+     `"tproject":{"id":1,"name":"Repro Project 531"}`.
+  2. Keyword Management screen (`gui/templates/keywords/keywordsView.html`)
+     loads, shows the project name in the title and renders the keywords table.
+  3. CRUD flows on the same endpoint still work (create keyword, list, delete).
+- **Fix state:** The corrected call
+  `testproject::getName($db, $tproject_id)` is already present at
+  `api/keywords/index.php:138` (landed in commit `e9da5834c`, which replaced the
+  buggy instance call introduced in `626e03ac5`). This run re-verified the fix
+  end to end and closed the issue.
+- **Actual result (post-fix):** PASS —
+  * list with real project id → HTTP 200, correct project name;
+  * POST create keyword → `{"status":"ok","id":1}`;
+  * list again → item rendered (`critical`, usage 0, deletable);
+  * unknown project id → HTTP 200 with `"name":null` (no fatal);
+  * UI screen loads with title "Repro Project 531 - Keyword Management" and the
+    table shows 1 entry;
+  * Event Viewer: no new Error/Warning entries from these flows. (An unrelated
+    pre-existing E_WARNING at `common.php:1987` fired during main-page load and
+    was filed as issue #533.)
