@@ -1731,3 +1731,29 @@ Search items caused by `syncAsideActiveLink()` matching links by pathname only
 | 7 | Result row link opens modern TC viewer `/gui/templates/testcases/tcView.html?tcase_id=...` (not legacy archiveData.php) | PASS |
 | 8 | Full search screen unchanged: all criteria fields render, AND-mode notices present | PASS |
 | 9 | i18n keys (`search.quickCaption`, `quickField`, `quickPlaceholder`, `quickHint`, `quickEmpty`) present in all 10 bundles, json.tool valid ×10 | PASS |
+
+## 26. Regression — Issue #543: locale bundles contained wrong-language content
+
+**Scope:** `gui/templates/i18n/{pt,ro,ru}.json` — the `tcview.*` blocks were
+rotated one file off during parallel bundle edits (pt held Romanian, ro held
+Russian, ru held Chinese; zh had its own correct copy duplicated into ru).
+Fix: rotated blocks back to their bundles, authored fresh European Portuguese
+translations for all 56 keys, added `tools/lint_i18n.py` CI guard.
+
+**Precondition:** fresh DB; project "I18N Demo" (IDEMO), TC "Language Switch
+Test" (IDEMO-1); screen `gui/templates/testcases/tcView.html`.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: select **Portuguese** in locale switcher → UI rendered Romanian ("Vizualizator de cazuri de test", "Versiune 1 ULTIMĂ") | PASS (bug present) |
+| 2 | Data audit pre-fix: pt.json tcview.header = RO text, ro.json = RU text, ru.json = ZH text; en/de/es/fr/it/ja/zh correct; only tcview.* block affected (56 keys × 3 files) | PASS (bug confirmed) |
+| 3 | Post-fix: Portuguese → "Visualizador de casos de teste", "A carregar o caso de teste...", "Histórico de execução" — genuine pt-PT, no diacritic contamination | PASS |
+| 4 | Post-fix: Română → "Vizualizator de cazuri de test", "Editează versiunea", "Istoric execuții"; zero Cyrillic in rendered page | PASS |
+| 5 | Post-fix: Russian → "Просмотр тест-кейса", "Редактировать версию", "История выполнения"; zero CJK in rendered page | PASS |
+| 6 | zh_CN / ja_JP / en_GB unchanged and correct ("测试用例查看器" / "テストケースビューア" / "Test Case Viewer") | PASS |
+| 7 | Key parity: all 10 bundles expose exactly the same 56 tcview.* keys | PASS |
+| 8 | All 10 bundles valid JSON (`python3 -m json.tool`) | PASS |
+| 9 | `tools/lint_i18n.py` exits 0 on fixed tree; verified it flags the PRE-FIX tree (56 Cyrillic errors ro.json, 56 CJK errors ru.json, 31 diacritic errors pt.json) — guard would have caught this bug | PASS |
+| 10 | Event Viewer after testing: no new Error/Warning entries from the viewer or language switching | PASS |
+
+**Actual result:** 10/10 PASS.
