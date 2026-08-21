@@ -245,6 +245,15 @@ jobs:
           PROMPT+="When in doubt, proceed with the safest action for production."
 
           BEFORE_SHA="$(git rev-parse HEAD)"
+          PRODUCED() {
+            # content-based: real file changes (committed OR dirty), immune to
+            # SHA shifts caused by concurrent pushes to the default branch
+            [ "$(git rev-parse HEAD)" != "$BEFORE_SHA" ] && \
+              git diff --name-only "$BEFORE_SHA" HEAD -- . ':(exclude).github' \
+                ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode' | grep -q . && return 0
+            git status --porcelain -- . ':(exclude).github' ':(exclude)tmp/wiki-repo' \
+              ':(exclude)tmp/opencode' | grep -q .
+          }
           for ATTEMPT in 1 2; do
             RUN_PROMPT="$PROMPT"
             if [ "$ATTEMPT" = "2" ]; then
@@ -256,8 +265,8 @@ jobs:
             opencode run "$RUN_PROMPT" \
               --dangerously-skip-permissions \
               --print-logs
-            # did the attempt produce anything? (local commits OR uncommitted files)
-            if [ "$(git rev-parse HEAD)" != "$BEFORE_SHA" ] || git status --porcelain | grep -q .; then
+            # did the attempt produce anything? (real file changes only)
+            if PRODUCED; then
               echo "attempt $ATTEMPT produced work — continuing"
               break
             fi
@@ -302,13 +311,17 @@ jobs:
         if: always()
         run: |
           BEFORE_SHA="$(cat .ci_before_sha 2>/dev/null || echo unknown)"
-          AFTER_SHA="$(git rev-parse HEAD)"
-          DIRTY="$(git status --porcelain -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode' | head -1)"
-          if [ "$BEFORE_SHA" != "unknown" ] && [ "$AFTER_SHA" = "$BEFORE_SHA" ] && [ -z "$DIRTY" ]; then
-            echo "::error::opencode produced NO commits and NO file changes — this run is a FAILURE, not a success"
-            exit 1
+          if [ "$BEFORE_SHA" != "unknown" ]; then
+            # content-based: did any REAL file change vs the tree the run started on?
+            # (immune to SHA shifts from concurrent pushes + fallback rebase)
+            CHANGED="$(git diff --name-only "$BEFORE_SHA" HEAD -- . ':(exclude).github' ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode' | head -1)"
+            DIRTY="$(git status --porcelain -- . ':(exclude).github' ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode' | head -1)"
+            if [ -z "$CHANGED" ] && [ -z "$DIRTY" ]; then
+              echo "::error::opencode produced NO commits and NO file changes — this run is a FAILURE, not a success"
+              exit 1
+            fi
+            echo "delivery verified: real changes present (e.g. $CHANGED$DIRTY)"
           fi
-          echo "delivery verified: $BEFORE_SHA -> $AFTER_SHA"
 
       - name: Upload opencode session logs & server log (post-mortem)
         # available even when the run fails — the main source for learning what
