@@ -400,13 +400,13 @@ function renderResults(r) {
 }
 
 function openTcEdit(tcaseId, tcversionId) {
-  var url = 'lib/testcases/archiveData.php?edit=testcase&id=' + tcaseId +
+  var url = '/lib/testcases/archiveData.php?edit=testcase&id=' + tcaseId +
             '&tcversion_id=' + tcversionId + '&tproject_id=' + tprojectId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
 function openExecHistory(tcaseId) {
-  var url = 'lib/execute/execHistory.php?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
+  var url = '/lib/execute/execHistory.php?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
