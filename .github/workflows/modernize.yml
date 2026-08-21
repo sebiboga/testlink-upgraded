@@ -25,7 +25,6 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  id-token: write
 
 jobs:
   modernize:
@@ -144,6 +143,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         with:
           model: ${{ inputs.model || 'anthropic/claude-sonnet-4-5' }}
+          # workaround for anomalyco/opencode#37823: OIDC app-token exchange
+          # fails on new immutable sub format -> use GITHUB_TOKEN instead
+          use_github_token: true
           prompt: |
             You are continuing the TestLink 2.0.1 modernization project in this repository.
 
