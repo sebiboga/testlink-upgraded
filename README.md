@@ -47,6 +47,7 @@ Screens covered:
 - [Header & Navigation](https://github.com/sebiboga/testlink-upgraded/wiki/Header-si-Navigare) — Project/plan selectors, sidebar
 - [Event Viewer](https://github.com/sebiboga/testlink-upgraded/wiki/Event-Viewer) — Log monitoring, charts, filters
 - [User Management](https://github.com/sebiboga/testlink-upgraded/wiki/Gestionarea-Utilizatorilor-si-Rolurilor-Nou) — Users, roles, assignments + BFF API reference
+- [Custom Fields](https://github.com/sebiboga/testlink-upgraded/wiki/Campuri-Personalizate) — Define/assign fields, edit modal, BFF API (docs also in `docs/WIKI-CUSTOM-FIELDS.md`)
 
 ## Legacy Information (1.9.x)
 

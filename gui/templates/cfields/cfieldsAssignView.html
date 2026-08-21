@@ -110,16 +110,69 @@ table.dataTable tbody tr.selected-row td { background: #eefaf9; }
 <div class="footer" id="footerInfo"></div>
 <div class="toast" id="toast"></div>
 
+<!-- Edit Custom Field Modal -->
+<div class="modal fade" id="cfModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Edit Custom Field</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editCfId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.label">Label *</label>
+          <input type="text" id="editLabel" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.name">Name *</label>
+          <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div style="display:flex;gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="cf.type">Type *</label>
+            <select id="editType" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="cf.nodeType">Node Type *</label>
+            <select id="editNodeType" class="form-control" style="font-size:13px;"></select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.possibleValues">Possible Values</label>
+          <input type="text" id="editPossibleValues" class="form-control" style="font-size:13px;" placeholder="val1|val2|val3">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="cf.enableOn">Enable On</label>
+          <div class="cf-checkbox-group">
+            <label><input type="checkbox" id="editEnableDesign" checked> <span data-i18n="cf.design">Design</span></label>
+            <label><input type="checkbox" id="editEnableExecution"> <span data-i18n="cf.execution">Execution</span></label>
+            <label><input type="checkbox" id="editEnableTestplanDesign"> <span data-i18n="cf.testplanDesign">Test Plan Design</span></label>
+          </div>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveCf()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/cfields/index.php';
 var tprojectId = 0;
 var locations = [];
 var assignedTbl = null, availableTbl = null;
 var dirty = false;
+var typeMap = {};
+var nodeMap = {};
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -127,9 +180,93 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
     load();
   });
+
+  // Keep the Enable On checkboxes consistent with the legacy rule:
+  // enabling on execution implies showing there, so the pair moves together.
+  $('#editEnableExecution').on('change', function () {
+    if (this.checked) { $('#editEnableDesign').prop('checked', true); }
+  });
 });
+
+function loadMeta() {
+  $.getJSON(API + '/meta/types', function (r) {
+    var sel = $('#editType').empty();
+    $.each(r.items, function (i, t) {
+      typeMap[t.id] = t.name;
+      sel.append('<option value="' + t.id + '">' + esc(t.name) + '</option>');
+    });
+  });
+  $.getJSON(API + '/meta/nodes', function (r) {
+    var sel = $('#editNodeType').empty();
+    $.each(r.items, function (i, n) {
+      nodeMap[n.id] = n.name;
+      sel.append('<option value="' + esc(n.name) + '">' + esc(n.name) + '</option>');
+    });
+  });
+}
+
+// Edit modal -----------------------------------------------------------------
+
+function editCf(id) {
+  $.getJSON(API + '/' + id, function (r) {
+    var cf = r.item;
+    $('#modalTitle').text(TLi18n.t('cf.editCustomField') + ': ' + cf.name);
+    $('#editCfId').val(cf.id);
+    $('#editLabel').val(cf.label);
+    $('#editName').val(cf.name).prop('readonly', true);
+    $('#editType').val(cf.type);
+    var nodeName = '';
+    $.each(nodeMap, function (nid, name) {
+      if (parseInt(nid, 10) === cf.node_type_id) nodeName = name;
+    });
+    if (nodeName) { $('#editNodeType').val(nodeName); }
+    $('#editPossibleValues').val(cf.possible_values);
+    $('#editEnableDesign').prop('checked', cf.enable_on_design === 1);
+    $('#editEnableExecution').prop('checked', cf.enable_on_execution === 1);
+    $('#editEnableTestplanDesign').prop('checked', cf.enable_on_testplan_design === 1);
+    $('#modalError').hide();
+    $('#cfModal').modal('show');
+  }).fail(function () {
+    toast(TLi18n.t('cfa.msg.errorLoad'), true);
+  });
+}
+
+function saveCf() {
+  var id = $('#editCfId').val();
+  var data = {
+    label: $('#editLabel').val().trim(),
+    name: $('#editName').val().trim(),
+    type: parseInt($('#editType').val(), 10),
+    node_type: $('#editNodeType').val(),
+    possible_values: $('#editPossibleValues').val().trim(),
+    enable_on_design: $('#editEnableDesign').is(':checked') ? 1 : 0,
+    enable_on_execution: $('#editEnableExecution').is(':checked') ? 1 : 0,
+    enable_on_testplan_design: $('#editEnableTestplanDesign').is(':checked') ? 1 : 0
+  };
+
+  if (!data.label || !data.name) {
+    $('#modalError').text(TLi18n.t('cf.validation.required')).show();
+    return;
+  }
+
+  $.ajax({
+    url: API + '/' + id, type: 'PUT',
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function () {
+      $('#cfModal').modal('hide');
+      toast(TLi18n.t('cfa.msg.saved'));
+      load();
+    },
+    error: function (xhr) {
+      var msg = TLi18n.t('cf.msg.errorSave');
+      try { msg = JSON.parse(xhr.responseText).message; } catch (e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
 
 function esc(s) {
   return $('<div>').text(s == null ? '' : s).html();
@@ -206,8 +343,8 @@ function renderAssigned(rows) {
     $b.append(
       '<tr data-id="' + cf.id + '">' +
       '<td><input type="checkbox" class="row-chk"></td>' +
-      '<td><a class="cf-name" target="_top" title="' + esc(TLi18n.t('cfa.editField')) +
-        '" href="/lib/cfields/cfieldsEdit.php?do_action=edit&cfield_id=' + cf.id + '">' +
+      '<td><a class="cf-name" href="javascript:void(0)" title="' + esc(TLi18n.t('cfa.editField')) +
+        '" onclick="editCf(' + cf.id + ')">' +
         esc(cf.name) + '</a></td>' +
       '<td>' + esc(cf.label) + '</td>' +
       '<td>' + esc(cf.typeLabel) + '</td>' +
@@ -240,8 +377,8 @@ function renderAvailable(rows) {
     $b.append(
       '<tr data-id="' + cf.id + '">' +
       '<td><input type="checkbox" class="row-chk"></td>' +
-      '<td><a class="cf-name" target="_top" title="' + esc(TLi18n.t('cfa.editField')) +
-        '" href="/lib/cfields/cfieldsEdit.php?do_action=edit&cfield_id=' + cf.id + '">' +
+      '<td><a class="cf-name" href="javascript:void(0)" title="' + esc(TLi18n.t('cfa.editField')) +
+        '" onclick="editCf(' + cf.id + ')">' +
         esc(cf.name) + '</a></td>' +
       '<td>' + esc(cf.label) + '</td>' +
       '<td>' + esc(cf.typeLabel) + '</td>' +
