@@ -211,6 +211,14 @@ function load() {
     .fail(function (xhr) {
       var msg = TLi18n.t('common.error');
       try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      if (xhr.status === 403) {
+        // no project_inventory_view right - say it in place of the grid
+        $('#devCount').text('');
+        $('#devEmpty').text(TLi18n.t('inv.msg.noRights')).show();
+        $('#devTable').closest('.dataTables_wrapper').hide();
+        $('#footerInfo').text('');
+        return;
+      }
       toast(msg, true);
     });
 }
@@ -224,7 +232,9 @@ function render(items) {
   itemsCache = items;
   $('#devCount').text('(' + items.length + ')');
   $('#devEmpty').toggle(items.length === 0);
-  $('#devTable').toggle(items.length > 0);
+  // hide the whole DataTables wrapper (search box + pagination included)
+  $('#devTable').toggle(items.length > 0)
+    .closest('.dataTables_wrapper').toggle(items.length > 0);
   $('#footerInfo').text(items.length > 0
     ? items.length + ' ' + TLi18n.t('inv.devicesCount')
     : '');
@@ -342,6 +352,7 @@ function errorCodeToMessage(code, fallback) {
 }
 
 function saveDevice() {
+  $('#devModalError').hide();
   var id = $('#editDevId').val();
   var name = $.trim($('#editDevName').val());
   var ip = $.trim($('#editDevIp').val());
@@ -350,7 +361,9 @@ function saveDevice() {
     showError($('#devModalError'), TLi18n.t('inv.msg.nameEmpty'));
     return;
   }
-  if (ip !== '' && !/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) {
+  // full IPv4: four numeric octets 0-255 (legacy Ext vtype accepted 999.999.9.9)
+  var ipv4 = /^((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+  if (ip !== '' && !ipv4.test(ip)) {
     showError($('#devModalError'), TLi18n.t('inv.msg.badIp'));
     return;
   }
