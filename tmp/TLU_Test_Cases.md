@@ -1478,3 +1478,51 @@ bug.
   * Event Viewer: no new Error/Warning entries from these flows. (An unrelated
     pre-existing E_WARNING at `common.php:1987` fired during main-page load and
     was filed as issue #533.)
+
+## 20. Regression — Issue #534: platforms BFF export ArgumentCountError 500 on default filename (Suite ID: 31)
+
+**Issue:** https://github.com/sebiboga/testlink-upgraded/issues/534
+`GET /api/platforms/index.php/export?tproject_id=<real id>` **without** a
+`filename` query param returned HTTP 500 (`ArgumentCountError: Too few arguments
+to function testproject::getName()`) because `api/platforms/index.php:369`
+called `$tproject_mgr->getName($tproject_id)` as an instance method, while
+`testproject::getName(&$dbh, $id)` is **static** and takes the DB handle first.
+Same pattern as #531. The Platform Management screen itself always sends a
+filename, so only direct API consumers hit the fatal.
+
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged-in session (admin/admin); a real test project exists
+  (fixture: project id 1 "Demo Project" inserted into `testprojects` +
+  `nodes_hierarchy`, with a properly serialized `options` value).
+- **Steps (pre-fix repro):**
+  1. `curl -b <session> 'http://localhost:8082/api/platforms/index.php/export?tproject_id=1'`
+     *Pre-fix result:* HTTP 500, empty body (display_errors off);
+     `ArgumentCountError: Too few arguments to function testproject::getName()`.
+- **Expected post-fix behavior:**
+  1. Same request returns HTTP 200 with `Content-Disposition: attachment;
+     filename="DemoProject-platforms.xml"` (spaces stripped from project name,
+     matching legacy `platformsExport.php doExport()`).
+  2. Explicit `&filename=custom.xml` still honored verbatim.
+  3. Export of a project with platforms yields the legacy ADODB_XML document
+     `<platforms><platform>...` incl. `is_open`.
+  4. UI export button on `gui/templates/platforms/platformsView.html?tproject_id=1`
+     downloads with HTTP 200.
+  5. Sibling BFF routes unaffected (list/create/delete).
+  6. Event Viewer gains no new Error/Warning entries.
+- **Fix state:** Fixed in this run — replaced the instance call with the static
+  call `testproject::getName($db, $tproject_id)` at `api/platforms/index.php:369`,
+  mirroring the #531 fix in `api/keywords/index.php:138`.
+- **Actual result (post-fix):** PASS —
+  * export without filename → HTTP 200, `filename="DemoProject-platforms.xml"`;
+  * export with `filename=custom.xml` → HTTP 200, custom name kept;
+  * after creating platform "RegPlatform": export body is valid ADODB_XML with
+    `<platform><name><![CDATA[RegPlatform]]>…<is_open><![CDATA[1]]>`;
+  * UI modal "Export Platforms" → download request
+    `/api/platforms/index.php/export?tproject_id=1&filename=DemoProject-platforms.xml`
+    → HTTP 200;
+  * list/create/delete routes re-tested → all HTTP 200;
+  * Event Viewer clean (only pre-existing audit login notices; the 4×
+    E_WARNING at `common.php:1987` seen mid-run were caused by the initial
+    hand-inserted fixture having NULL `options` and are the already-tracked
+    open issue #533 — not introduced by this fix).
