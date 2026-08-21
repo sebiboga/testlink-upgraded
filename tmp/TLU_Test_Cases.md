@@ -1777,3 +1777,41 @@ Test" (IDEMO-1); screen `gui/templates/testcases/tcView.html`.
 
 **Notes:** parser reference-aliasing bug fixed pre-testing (#545); legacy parity
 options implemented per lib/testcases/tcImport.php rules.
+
+## 28. Advanced Search Screen (`searchAdvancedView.html` + `api/search` fulltext)
+
+**Screen:** `gui/templates/search/searchAdvancedView.html` — legacy
+`lib/search/searchMgmt.php` + `lib/search/search.php` (aside: Search → Advanced Search)
+**BFF:** `api/search/index.php?action=fulltext` (reuses legacy `searchCommands` engine)
+**Fixture:** project "AdvSearch Demo" (ADVS, id 9010, reqs enabled); suites
+Alpha Suite/Beta Suite; TC ADVS-1 "Login works" (summary+precondition+step contain
+"alpha", keyword `smoke`, CF `cf_alpha=alphavalue`), TC ADVS-2 "Checkout flow"
+(step expected_results contains "zebra"); req spec RS-ADVS ("alpha" in scope);
+requirement REQ-ALPHA-1 ("alpha" in scope); MariaDB UDF `UDFStripHTMLTags`
+recreated (was missing from fresh import — blocks legacy advanced search too)
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | BFF fulltext target="alpha" OR across all 14 field flags → count=4: TC ADVS-1 (path Alpha Suite), TS Alpha Suite, RS Adv Req Spec [r1], REQ REQ-ALPHA-1 | PASS |
+| 2 | AND/OR terms: target="alpha zebra" OR → 5 matches incl. ADVS-2 via step expected_results; same target AND → no_records_found warning | PASS |
+| 3 | tc_steps vs tc_expected_results scoping: "cart"+steps → ADVS-2; "zebra"+expected_results → ADVS-2; "zebra"+steps only → 0 | PASS |
+| 4 | Keyword filter alone (keyword_id=801, empty text) → only ADVS-1 | PASS |
+| 5 | Custom field filter (cf_alpha/alphavalue) → only "Login works"; unknown CF id → 400 | PASS |
+| 6 | created_by=admin → both TCs; edited_by honored via TCV.updater_id join | PASS |
+| 7 | Validation parity: zero checkboxes → HTTP 400 need_checkbox (UI shows localized warnbox before calling API) | PASS |
+| 8 | Empty everything → client-side guard "enter search text or filter" (legacy would dump all latest versions; guard kept as UX safety, API keeps legacy semantics when called directly with and_or present) | PASS |
+| 9 | Date filters: creation_date_to=past excludes both fresh TCversions (dates4tc applied); date-to=tomorrow includes them. RQ dates ignored — verified dead code upstream too (`dates4rq` never consumed in searchCommands.class.php) → exact legacy parity | PASS |
+| 10 | UI render: header + project name, AND/OR select, 4 checkbox groups (req groups auto-hidden when reqs disabled), keyword/CF dropdowns populated from context action | PASS |
+| 11 | Results UI: per-entity sectioned tables, path column, external-id links open tcView popup, edit/history icon buttons present, match counter "(4 matches)" | PASS |
+| 12 | Reset button clears form, hides sections/results/warnbox, re-checks all checkboxes | PASS |
+| 13 | Deep-link prefill: ?target=&and_or=and URL params populate the form | PASS |
+| 14 | i18n: locale=de renders "Erweiterte Suche"/"Testfälle"/"Suchtext"/"(4 Treffer)"; en/fr/es spot-checked; 18 new searchAdv.* keys present in ALL 10 bundles; all bundles pass json.tool | PASS |
+| 15 | Aside link switched: common.php `$actions->fullTextSearch` now targets searchAdvancedView.html (legacy searchMgmt.php unreachable from menu) | PASS |
+| 16 | Permission gate: mgt_view_tc enforced by shared BFF auth block (403 without right) — same rule as quick/tcSearch screens | PASS |
+| 17 | Event Viewer after all tests: no new ERROR/WARNING entries (only audit/info rows) | PASS |
+
+**Actual result:** 17/17 PASS.
+**Environment fix (not a code bug):** fresh DB import lacks the MySQL function
+`UDFStripHTMLTags` which legacy advanced search requires (`$tlCfg->UDFStripHTMLTags=true`);
+recreated it from install/sql/mysql/testlink_create_udf0.sql. Candidate follow-up:
+document or auto-provision during install.
