@@ -124,7 +124,7 @@ if ($method === 'GET' && count($segments) === 0) {
     $items = [];
     if (!is_null($data)) {
         foreach ($data as $row) {
-            $items[] = itemToJSON($row, is_null($users) ? [] : array_column($users, 'login'));
+            $items[] = itemToJSON($row, is_null($users) ? [] : array_column($users, 'login', 'id'));
         }
     }
 
