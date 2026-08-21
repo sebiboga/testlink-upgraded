@@ -254,8 +254,10 @@ function render(items) {
 
     var action = '';
     if (canManage) {
-      action = '<button class="del-btn" title="' + esc(TLi18n.t('inv.altDelete')) +
-               '" onclick="confirmDelete(' + d.id + ',\'' + esc(d.name).replace(/'/g,"\\'") + '\')">' +
+      // no device data inside the handler attribute - avoids any
+      // attribute/JS-context escaping pitfalls (XSS)
+      action = '<button class="del-btn" data-del="' + parseInt(d.id, 10) +
+               '" title="' + esc(TLi18n.t('inv.altDelete')) + '">' +
                '<i class="fas fa-trash-alt"></i></button>';
     }
     return [nameCell, ipCell, cellOrDash(d.purpose), cellOrDash(d.hardware),
@@ -353,6 +355,8 @@ function errorCodeToMessage(code, fallback) {
 
 function saveDevice() {
   $('#devModalError').hide();
+  var $btn = $('#devModal .btn-teal');
+  if ($btn.prop('disabled')) { return; } // in-flight guard (double-click)
   var id = $('#editDevId').val();
   var name = $.trim($('#editDevName').val());
   var ip = $.trim($('#editDevIp').val());
@@ -385,6 +389,7 @@ function saveDevice() {
     req = $.ajax({ url: API, method: 'POST', contentType: 'application/json', data: payload });
   }
 
+  $btn.prop('disabled', true);
   req.done(function (r) {
     if (r.status === 'ok') {
       $('#devModal').modal('hide');
@@ -402,12 +407,23 @@ function saveDevice() {
       return;
     }
     showError($('#devModalError'), errorCodeToMessage(r.error_code, r.message));
+  }).always(function () {
+    $btn.prop('disabled', false);
   });
 }
 
 function showError($el, msgText) {
   $el.text(msgText).show();
 }
+
+// delete buttons: delegated handler resolves the device from itemsCache
+$(document).on('click', '#devTable .del-btn', function () {
+  var id = parseInt($(this).data('del'), 10);
+  var dev = null;
+  itemsCache.forEach(function (d) { if (d.id === id) { dev = d; } });
+  if (!dev) { return; }
+  confirmDelete(dev.id, dev.name);
+});
 
 function confirmDelete(id, name) {
   deleteTarget = id;
@@ -418,6 +434,9 @@ function confirmDelete(id, name) {
 
 function doDelete() {
   if (!deleteTarget) return;
+  var $btn = $('#delModal .btn-red');
+  if ($btn.prop('disabled')) { return; } // in-flight guard (double-click)
+  $btn.prop('disabled', true);
   $.ajax({
     url: API + '/' + deleteTarget + '?tproject_id=' + tprojectId,
     method: 'DELETE'
@@ -426,7 +445,8 @@ function doDelete() {
     if (r.status === 'ok') {
       toast(TLi18n.t('inv.msg.deleted'));
     } else {
-      toast(r.message || TLi18n.t('common.error'), true);
+      toast(r.error_code === 'NOT_FOUND' ? TLi18n.t('common.error')
+            : TLi18n.t('inv.msg.dbFails'), true);
     }
     load();
   }).fail(function (xhr) {
@@ -434,8 +454,11 @@ function doDelete() {
     var r = {};
     try { r = JSON.parse(xhr.responseText); } catch(e) {}
     toast(xhr.status === 403 ? TLi18n.t('inv.msg.noRights')
-          : (r.message || TLi18n.t('common.error')), true);
+          : xhr.status === 404 ? TLi18n.t('common.error')
+          : TLi18n.t('inv.msg.dbFails'), true);
     load();
+  }).always(function () {
+    $btn.prop('disabled', false);
   });
 }
 </script>
