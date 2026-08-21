@@ -2025,3 +2025,38 @@ found==0 branch + only call setSessionTestPlan()/mark selected when a plan
 was resolved). Unrelated template warnings seen during fixture creation
 (planEdit.tpl / planView.tpl compiled templates) were already open under
 issue "E_WARNING Multiple missing \$gui properties in templates".
+
+## 34. Regression — Issue #547: fresh DB import lacks MySQL function UDFStripHTMLTags — advanced search fails with DB Access Error (Suite ID: 41)
+
+**Precondition**
+- Freshly imported TestLink DB via CI flow (schema + default data only, no stored functions).
+- At least one test project with one test suite whose details/title contain the search word
+  (search short-circuits on a fully empty project and never reaches the UDF query).
+
+**Repro (pre-fix)**
+1. Login admin/admin → ASIDE > Search > Advanced search (`lib/search/searchMgmt.php?tproject_id=1`).
+2. Type `alpha`, keep Test Suite Title/Details checked, click Find.
+3. OBSERVED PRE-FIX: page dies with "DB Access Error - debug_print_backtrace() OUTPUT START";
+   stack: search.php(99) -> searchCommands::searchTestSuites -> database::exec_query fails with
+   `FUNCTION testlink.UDFStripHTMLTags does not exist` (error 1305).
+   Direct SQL check also failed: `SELECT UDFStripHTMLTags('<b>x</b>')` -> ERROR 1305.
+   Same failure hits modernized BFF `api/search/index.php?action=fulltext`
+   (it reuses legacy `searchCommands::searchTestSuites/searchReqSpec/searchReq/searchTestCases`).
+
+**Expected post-fix behavior**
+- CI import provisions `UDFStripHTMLTags()` from `install/sql/mysql/testlink_create_udf0.sql`
+  (fix-bug.yml + modernize.yml), asserted via information_schema.routines.
+- Advanced search returns results / "no records found" — never DB Access Error.
+
+**Executed steps & result (post-fix)**
+1. Provisioned UDF on current DB exactly as the new CI step does
+   (`sed 's|YOUR_TL_DBNAME|testlink|g' install/sql/mysql/testlink_create_udf0.sql | mysql …`) → OK,
+   `SELECT UDFStripHTMLTags('<b>hello</b>')` returns `hello`.
+2. Legacy UI: advanced search for `alpha` → result table lists Test Suite "AlphaSuite /
+   alpha details content"; no DB Access Error. PASS.
+3. Modernized BFF: GET `/api/search/index.php?action=fulltext&tproject_id=1&target=alpha&and_or=or&ts_summary=1`
+   → HTTP 200 `{status:"ok", testsuites:[{id:10,name:"AlphaSuite",...}]}`. PASS.
+4. Event Viewer: no new ERROR/WARNING entries after the flows above. PASS.
+
+**Result: 4/4 PASS** (fix verified on both legacy screen and modernized API; root cause was the
+CI import skipping install/sql/mysql/testlink_create_udf0.sql).
