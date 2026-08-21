@@ -1666,3 +1666,49 @@ int 1/0 in `getGrantSetWithExit()` (disabled path, blindfolded path,
 zero-testprojects path) and in `mainPage.php::getGrants()` (which now reads
 live options via `testproject::getOptions()` instead of the never-written
 legacy `$_SESSION['testprojectOptions']` key).
+
+---
+
+## 24. Test Case Viewer (read-only popup) — Modernized (Suite ID: 35)
+
+**Screen:** `gui/templates/testcases/tcView.html` — read-only view of one test
+case with ALL its versions; opened when clicking a test case from the
+modernized quick-search results (replaces legacy
+`lib/testcases/archiveData.php?edit=testcase&id=…` → `tcView_viewer.tpl`).
+
+- **Area:** `lib/testcases/archiveData.php` +
+  `gui/templates/dashio/testcases/tcView_viewer.tpl` (1.9.20).
+- **BFF API:** `api/testcases/index.php` (`action=context`, `action=view`),
+  session-based auth, rights checked against the OWNING test project (a case
+  may belong to a project different from the session one, like legacy).
+- **Precondition:** fresh DB seeded with project "Demo Project" (prefix DMP),
+  suite "General Suite", TC "Login works" (DMP-1) with 2 versions
+  (v1 inactive+edited, v2 active with 2 steps, keywords smoke/login,
+  requirement REQ-1 coverage on v2), TC "Logout works" (DMP-2, automated),
+  keywords, requirement spec RS-1/REQ-1, test plan "Demo Plan";
+  second user `viewer`/`admin` with role "<no rights>".
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | BFF `action=view&tcase_id=12` returns identity (DMP-1), path "General Suite / Login works", parent suite name, both versions ordered latest-first | PASS |
+| 2 | Version payload completeness: summary/preconditions HTML, importance, status, execution type, estimated duration, author/updater display names, creation/modification timestamps, active/is_open flags, has_been_executed | PASS |
+| 3 | Steps table rendered per version (v2: 2 steps with actions/expected results; v1: "This version has no steps.") | PASS |
+| 4 | Keywords per version as chips (v2: smoke, login; v1: none) | PASS |
+| 5 | Requirements section shown only when requirementsEnabled + mgt_view_req; REQ Spec Login : REQ-1 (ver. 1) : REQ-1 Login listed under v2 only | PASS |
+| 6 | Badges: Latest on newest version only; Active/Inactive and Open/Frozen reflect DB flags; importance + execution type badges honor project options | PASS |
+| 7 | Action buttons visibility for admin: Edit Version shown (v2 open, not executed); Compare Versions form shown (2 versions); Add to Test Plan appears once a plan exists; Export posts testcase_id+tcversion_id to tcExport.php?tproject_id=… | PASS |
+| 8 | Edit Version button opens legacy `tcEdit.php?doAction=edit&testcase_id=12&tcversion_id=14&tproject_id=10` popup → full edit form renders (title, summary, preconditions, assigned keywords) — required fixing issue #539 first | PASS |
+| 9 | Execution History button targets `/lib/execute/execHistory.php?tcase_id=12&tproject_id=10` (HTTP 200) | PASS |
+| 10 | Export form POST verified HTTP 200 only WITH tproject_id on query string (bug found & fixed in same run) | PASS |
+| 11 | Compare Versions form POSTs testcase_id to `tcCompareVersions.php` (HTTP 200) | PASS |
+| 12 | Print uses window.print() (print CSS hides header/toolbar/footer/actions) | PASS |
+| 13 | Deep link `?tcase_id=12&tcversion_id=13`: requested version card first, export/edit target v13, info banner "This test case version is inactive.", Latest badge NOT on v1 (bug found & fixed: latest computed over ALL versions) | PASS |
+| 14 | Unknown id `?tcase_id=999` → error box "Test case not found." (BFF 404) | PASS |
+| 15 | Missing id → error box "No test case id was provided." | PASS |
+| 16 | Permission path: user `viewer` (role <no rights>) on owning project → BFF 403 "No permission"; screen shows error box | PASS |
+| 17 | i18n: all labels/badges/messages translated via TLi18n; locale switcher EN→DE re-renders ("Testfall-Anzeige", "Zusammenfassung", "Aktiv"); keys present in ALL 10 bundles (en,de,es,fr,it,ja,pt,ro,ru,zh), each bundle validated with `python3 -m json.tool` | PASS |
+| 18 | Link switch: search results row click now opens `gui/templates/testcases/tcView.html?tcase_id=…&tcversion_id=…&tproject_id=…` instead of legacy archiveData.php | PASS |
+| 19 | Event Viewer after testing: no new errors/warnings from the viewer itself; warnings observed come from LEGACY popups reached through it (tcAssign2Tplan `$gui->tplans`, tcPrint null params) — filed as issue #541; get_path() NULL crash filed and fixed as #539 | PASS |
+
+**Actual result:** 19/19 PASS after in-run fixes (#539 tree::get_path PHP 8
+crash, export tproject_id, hasTestPlans/latest-version BFF fixes).
