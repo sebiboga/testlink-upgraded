@@ -1911,3 +1911,19 @@ created via projectsView.html with *Enable Inventory* checked
 **Notes:** two bugs found and fixed during the run (owner login lookup,
 403/empty-state cosmetics). Pre-existing legacy warning about missing locale
 key `testproject_prefix_hint` discovered during testing → filed as issue #549.
+
+**Review round (post code-review fixes, commits c2a667287/5db5edc68/786e1ec7a):**
+
+| # | Test | Result |
+|---|------|--------|
+| R1 | XSS probe: device named `');alert(document.cookie)//x` created via UI renders as plain text, no JS executes; delete via delegated data-del handler works | PASS |
+| R2 | Same hardening applied to keywordsView.html delete button | PASS |
+| R3 | Server-side length caps: 400-char name truncated to legacy cap (create OK), no DB error | PASS |
+| R4 | PUT without machineOwner preserves existing owner_id (no silent reassignment to editor) | PASS |
+| R5 | DELETE/PUT on nonexistent or foreign-project device id → clean `404 NOT_FOUND` JSON (was 422 + PHP warning path via tlInventory undefined $result) | PASS |
+| R6 | POST create returns new device id (`{"status":"ok","id":N}`), keywords BFF convention | PASS |
+| R7 | In-flight guards: double-click Save/Delete fires a single request | PASS |
+| R8 | Full UI CRUD regression after fixes (create → edit prefilled → rename → delete exact target) | PASS |
+| R9 | Event Viewer after review round: zero new Error/Warning (only pre-existing #549 warning) | PASS |
+
+**Actual result:** 9/9 PASS. Review verdict findings all addressed.
