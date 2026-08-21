@@ -67,20 +67,21 @@ function itemToJSON($row, $logins) {
     ];
 }
 
-$tproject_id = 0;
-
 // ---------------------------------------------------------------------------
 // GET /owners?tproject_id=N - users holding the inventory view right,
 // same data as lib/ajax/getUsersWithRight.php?right=project_inventory_view
 // (incl. the trailing "no owner" empty entry)
 // ---------------------------------------------------------------------------
 if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'owners') {
+    // stricter than the legacy ajax (which only required the requested right):
+    // the owner combo is only used inside the manage modal, so management
+    // right is required here too
     if (!$user->hasRight($db, 'project_inventory_management')) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
     $tproject_id = needTprojectId();
-    // user must have the requested right too (same security rule as legacy ajax)
+    // user must hold the requested right on the project as well
     if (!$user->hasRight($db, 'project_inventory_view', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
@@ -155,9 +156,14 @@ if ($method === 'POST' && count($segments) === 0) {
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHTS']);
     }
-    $tproject_id = needTprojectId(getBody());
+    $body = getBody();
+    $tproject_id = needTprojectId($body);
 
-    $op = saveDevice($db, $userId, $tproject_id, 0);
+    $op = saveDevice($db, $userId, $tproject_id, 0, $body);
+    if (is_array($op)) {
+        // create success - report the new id like the keywords BFF does
+        out(['status' => 'ok', 'id' => intval($op['id'])]);
+    }
     if ($op >= tl::OK) {
         out(['status' => 'ok']);
     }
@@ -175,10 +181,20 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHTS']);
     }
-    $tproject_id = needTprojectId(getBody());
+    $body = getBody();
+    $tproject_id = needTprojectId($body);
     $machineId = intval($segments[0]);
 
-    $op = saveDevice($db, $userId, $tproject_id, $machineId);
+    // defense-in-depth: the row must belong to the addressed test project
+    // (legacy UPDATE was scoped by id only) and must exist
+    $existing = fetchDeviceRow($db, $tproject_id, $machineId);
+    if (is_null($existing)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Device not found',
+             'error_code' => 'NOT_FOUND']);
+    }
+
+    $op = saveDevice($db, $userId, $tproject_id, $machineId, $body, $existing);
     if ($op >= tl::OK) {
         out(['status' => 'ok']);
     }
@@ -196,8 +212,19 @@ if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
              'error_code' => 'NO_RIGHTS']);
     }
     $tproject_id = needTprojectId();
+    $machineId = intval($segments[0]);
+
+    // pre-check existence/ownership: legacy deleteInventory() hit an undefined
+    // variable when the row did not exist in this project (PHP warning +
+    // misleading "Delete failed")
+    if (is_null(fetchDeviceRow($db, $tproject_id, $machineId))) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Device not found',
+             'error_code' => 'NOT_FOUND']);
+    }
+
     $tlIs = new tlInventory($tproject_id, $db);
-    $result = $tlIs->deleteInventory(intval($segments[0]));
+    $result = $tlIs->deleteInventory($machineId);
     if ($result == tl::OK) {
         out(['status' => 'ok']);
     }
@@ -213,24 +240,52 @@ out(['status' => 'error', 'message' => 'Not found']);
 // ---------------------------------------------------------------------------
 
 /**
+ * Fetch one inventory row of a test project (null when missing or foreign).
+ * Legacy writeToDB()/deleteFromDB() scoped queries by id only, so this is a
+ * cheap defense-in-depth check the class does not provide.
+ */
+function fetchDeviceRow(&$db, $tproject_id, $machineId) {
+    $tables = tlObjectWithDB::getDBTables('inventory');
+    $sql = "SELECT id, owner_id FROM {$tables['inventory']}" .
+           " WHERE id = " . intval($machineId) .
+           " AND testproject_id = " . intval($tproject_id);
+    return $db->fetchFirstRow($sql);
+}
+
+/**
  * Create or update through tlInventory::setInventory(), keeping the exact
  * legacy validation chain (empty name -> duplicate name (case-insensitive)
  * -> duplicate IP -> DB write).
  *
- * @return int tl::OK or one of tlInventory error constants
+ * Field length caps mirror legacy setInventory.php init_args()
+ * (name 255, ip 50, notes/purpose/hw 2000 - R_PARAMS truncated there).
+ *
+ * @return int|array tl::OK, or one of tlInventory error constants;
+ *         on create success returns ['id' => N]
  */
-function saveDevice(&$db, $currentUserId, $tproject_id, $machineId) {
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
+function saveDevice(&$db, $currentUserId, $tproject_id, $machineId, $body,
+                    $existingRow = null) {
 
     $data = new stdClass();
     $data->machineID = $machineId;
-    $data->machineName = trim((string)($body['machineName'] ?? ''));
-    $data->machineIp = trim((string)($body['machineIp'] ?? ''));
-    $data->machineOwner = intval($body['machineOwner'] ?? $currentUserId);
-    $data->machineNotes = (string)($body['machineNotes'] ?? '');
-    $data->machinePurpose = (string)($body['machinePurpose'] ?? '');
-    $data->machineHw = (string)($body['machineHw'] ?? '');
+    $data->machineName = mb_substr(trim((string)($body['machineName'] ?? '')), 0, 255);
+    $data->machineIp = mb_substr(trim((string)($body['machineIp'] ?? '')), 0, 50);
+    if ($machineId > 0 && !array_key_exists('machineOwner', $body)) {
+        // update without explicit owner: preserve current ownership
+        // (create defaults to the logged-in user, like the legacy form)
+        $data->machineOwner = $existingRow ? intval($existingRow['owner_id']) : $currentUserId;
+    } else {
+        $data->machineOwner = intval($body['machineOwner'] ?? $currentUserId);
+    }
+    $data->machineNotes = mb_substr((string)($body['machineNotes'] ?? ''), 0, 2000);
+    $data->machinePurpose = mb_substr((string)($body['machinePurpose'] ?? ''), 0, 2000);
+    $data->machineHw = mb_substr((string)($body['machineHw'] ?? ''), 0, 2000);
 
     $tlIs = new tlInventory($tproject_id, $db);
-    return $tlIs->setInventory($data);
+    $result = $tlIs->setInventory($data);
+    if ($result >= tl::OK && $machineId == 0) {
+        $cur = $tlIs->getCurrentData();
+        return ['id' => intval($cur->machineID)];
+    }
+    return $result;
 }
