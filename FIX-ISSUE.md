@@ -72,22 +72,36 @@ rules in AGENTS.md (they apply to every run).
 - Commit+push after EACH phase, small conventional messages, immediately pushed:
   (1) the fix itself, (2) the regression test suite, (3) docs+wiki.
 
-## 7. Close the issue only when proven fixed
+## 7. Land the fix via Pull Request
 
-- Verified error-free → CLOSE the issue with a final comment that documents:
-  * Root cause (what exactly was wrong and where)
-  * Fix approach — the method used and why it was chosen
-  * Files changed + commit hash(es)
-  * Verification steps performed (repro gone, regressions run, Event Viewer clean)
-  * Regression test case ID from `tmp/TLU_Test_Cases.md`
-- Could not reproduce / needs product decision / too large → do NOT close.
-  Post a detailed comment: symptom, root-cause analysis so far, suggested fix,
-  what blocks it. Leave it open.
+- Open a PR from your `fix/issue-<n>-<slug>` branch (see §8) with:
+  * Title: `fix: <one-line summary> (issue #<n>)`
+  * Body: root cause, approach (+ alternatives rejected), files changed,
+    verification steps, regression test case ID, and the line `Fixes #<n>`
+- Then TRY to merge it yourself: `gh pr merge --squash --delete-branch`.
+  If blocked by conflicts → fetch + rebase your branch on the updated default
+  branch (you own it) and retry.
+- Only if you still cannot land it cleanly: leave the PR open with a clear
+  status comment and finish. A scheduled merge-bot workflow will pick it up
+  later; if it stays unmergeable, a human reviews it.
+- The issue closes AUTOMATICALLY when the PR merges (`Fixes #<n>`).
+  Do NOT close the issue manually while its PR is still open.
+- Could not reproduce / needs product decision / too large → do NOT open a
+  speculative PR. Post a detailed comment on the issue: symptom, root-cause
+  analysis so far, suggested fix, what blocks it. Leave it open.
 
 ## 8. Git & time discipline
 
-- NEVER `git stash`, NEVER force-push. If a push is rejected:
-  `git fetch && git rebase -X theirs origin/<branch>` then retry.
+- Work on YOUR OWN branch only: create `fix/issue-<n>-<short-slug>` at the
+  start and write its name into `.ci_branch`. NEVER push to the default branch.
+- NEVER `git stash`, NEVER force-push to the default branch. If a push of YOUR
+  branch is rejected: `git fetch && git rebase -X theirs origin/<your-branch>`
+  then retry — force-with-lease is allowed only on your own agent branch.
+- AWARENESS: other CI agents may run concurrently (the modernize workflow
+  pushes intermediate commits to the default branch). You are an AI — decide
+  your own strategy. Useful checks before push/merge:
+  `gh api repos/$GITHUB_REPOSITORY/actions/workflows/modernize.yml/runs?status=in_progress`
+  and `gh pr list`. Fetch + rebase whenever the default branch moved.
 - `config_db.inc.php` is gitignored — never stage or commit it.
 - The unix epoch of your hard deadline is in `.ci_deadline_epoch`. When fewer
   than 10 minutes remain: stop starting new work, commit+push everything done,

@@ -1,0 +1,63 @@
+name: Merge bot PRs (safety net)
+
+# Safety net for the fix-bug workflow: if the agent could not land its own PR
+# (conflicts at run time, deadline hit), this workflow periodically retries.
+# Deterministic plumbing on purpose — no AI needed here. Runs every hour.
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 * * * *" # every hour; GitHub may delay scheduled runs under load
+
+concurrency:
+  group: merge-prs
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Try to merge open agent PRs
+        run: |
+          REPO="${{ github.repository }}"
+          PRS=$(gh pr list --repo "$REPO" --state open --json number,headRefName,author \
+                --jq '.[] | select(.headRefName | startswith("fix/")) | select(.author.login == "github-actions[bot]") | .number')
+          if [ -z "$PRS" ]; then
+            echo "no open agent PRs — nothing to do"
+            exit 0
+          fi
+          for PR in $PRS; do
+            echo "::group::PR #$PR"
+            STATE=$(gh pr view "$PR" --repo "$REPO" --json mergeable,mergeStateStatus \
+                    --jq '"\(.mergeable) \(.mergeStateStatus)"')
+            echo "state: $STATE"
+            if [ "$STATE" = "MERGEABLE CLEAN" ]; then
+              if gh pr merge "$PR" --repo "$REPO" --squash --delete-branch; then
+                echo "merged #$PR"
+                echo "::endgroup::"
+                continue
+              fi
+            fi
+            # base moved since the PR was opened: bring the base into the branch
+            # server-side, then retry once
+            echo "not clean — attempting branch update from base"
+            gh pr update-branch "$PR" --repo "$REPO" || true
+            sleep 10
+            STATE=$(gh pr view "$PR" --repo "$REPO" --json mergeable,mergeStateStatus \
+                    --jq '"\(.mergeable) \(.mergeStateStatus)"')
+            if [ "$STATE" = "MERGEABLE CLEAN" ]; then
+              gh pr merge "$PR" --repo "$REPO" --squash --delete-branch \
+                && echo "merged #$PR after base update" \
+                || echo "::warning::merge failed for #$PR"
+            else
+              echo "::warning::PR #$PR still not mergeable ($STATE) — leaving it for the next pass or human review"
+            fi
+            echo "::endgroup::"
+          done
