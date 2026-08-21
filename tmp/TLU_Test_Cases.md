@@ -1526,3 +1526,57 @@ filename, so only direct API consumers hit the fatal.
     E_WARNING at `common.php:1987` seen mid-run were caused by the initial
     hand-inserted fixture having NULL `options` and are the already-tracked
     open issue #533 — not introduced by this fix).
+
+## 21. Regression — Issue #533: E_WARNING "Attempt to read property inventoryEnabled on false" at common.php:1987 (Suite ID: 32)
+
+**Root cause:** `getGrantSetWithExit()` did
+`if($tprojOpt->inventoryEnabled)` without guarding the result of
+`testproject::getOptions()`. That method returns `false` when the serialized
+blob in `testprojects.options` fails `unserialize()` (e.g. NULL/corrupt
+options — how the issue was first observed during the #531/#534 runs), and an
+empty `(object)[]` when no row matches the id (no project selected /
+nonexistent id). Dereferencing `->inventoryEnabled` on either raised
+E_WARNING, 4× per main page load (initUserEnv runs getGrantSetWithExit for
+both the page and the menu context).
+
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Logged-in session (admin/admin); MariaDB up; at least one
+  test project exists (fixture: project id 1 "Repro Project 533" inserted into
+  `nodes_hierarchy` + `testprojects` with a valid serialized `options` blob).
+- **Steps (pre-fix repro):**
+  1. Set `testprojects.options` of project 1 to a corrupt serialized string.
+  2. `curl -b <session> http://localhost:8082/lib/general/mainPage.php`
+     *Pre-fix result:* 4 new rows in `events` with `log_level=2`:
+     `E_WARNING Attempt to read property "inventoryEnabled" on false - in
+     lib/functions/common.php - Line 1987` (plus 4× sibling
+     `unserialize(): Error at offset` warnings from
+     testproject.class.php:3897 caused by the same corrupt blob).
+- **Expected post-fix behavior:**
+  1. Same request logs **zero** events at `common.php:1987`; grants for
+     `project_inventory_view`/`project_inventory_management` stay `"no"`.
+  2. With a VALID options blob and `inventoryEnabled=true`: aside menu still
+     renders the Inventory link and `lib/inventory/inventoryView.php` loads
+     HTTP 200 (grant path unaffected by the guard).
+  3. With `inventoryEnabled=false`: grants stay `"no"` exactly as before the
+     fix (aside.tpl truthiness quirk that still renders the link is
+     pre-existing, filed separately).
+  4. Nonexistent project id (`mainPage.php?tproject_id=999`, which bypasses
+     the auto-select at common.php:1625): `getOptions()` returns `(object)[]`
+     → old code raised `Undefined property` E_WARNING, new code is silent.
+  5. Event Viewer gains no new Error/Warning entries overall.
+- **Fix state:** Fixed in this run — guard changed to
+  `if( !empty($tprojOpt->inventoryEnabled) )` at
+  `lib/functions/common.php:1990` (empty() never warns on false or on a
+  missing property, unlike the issue's suggested `$tprojOpt && ...` which
+  would still warn on the `(object)[]` case). Code-review subagent: PASS.
+- **Actual result (post-fix):** PASS —
+  * corrupt-blob load → 0 events referencing common.php:1987 (only the
+    out-of-scope unserialize warnings from the deliberately corrupt fixture
+    remain, gone once a valid blob is restored);
+  * valid blob + inventory enabled → Inventory link present in
+    `asideMenu.php` output, `inventoryView.php` → HTTP 200;
+  * inventory disabled → grants remain `"no"` (identical to pre-fix);
+  * `?tproject_id=999` load → HTTP 200, zero warnings;
+  * `events` table truncated before tests → 0 rows with `log_level=2` after
+    the full pass.
