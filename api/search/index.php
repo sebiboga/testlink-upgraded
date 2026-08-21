@@ -325,8 +325,11 @@ if ($action === 'search') {
                 $map = $db->fetchRowsIntoMap($sqlFields . $sqlPart2, 'testcase_id');
                 if (!is_null($map)) {
                     $options = array('output_format' => 'path_as_string');
+                    // get_full_path_verbose() takes its 1st arg by reference,
+                    // so it needs a real variable (avoids E_NOTICE)
+                    $tcaseSet = array_keys($map);
                     $pathInfo = $tproject_mgr->tree_manager->get_full_path_verbose(
-                        array_keys($map), $options);
+                        $tcaseSet, $options);
                     foreach ($map as $rec) {
                         $tcid = $rec['testcase_id'];
                         $rows[] = [
