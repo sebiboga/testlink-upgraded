@@ -1980,3 +1980,48 @@ project through that form works and lands on the populated list view.
 projectEdit.tpl with a gui object that was never built for it (root cause:
 projectView.php::initializeGui() sets neither found / mgt_view_events /
 tprojectName nor any of the ~15 further properties the tpl form branch reads).
+
+## 33. Regression — Issue #548: mainPage.php E_WARNINGs (lines 102/105) when switching to a test project without test plans (Suite ID: 40)
+
+**Precondition:** fresh DB import; user admin/admin; two test projects —
+"Alpha" (id 1) with one active public test plan "Plan A" (id 2), "Beta"
+(id 3) with **no** test plans.
+
+**Repro steps (pre-fix):**
+1. Log in as admin, select project Alpha (session `testplanID` = 2).
+2. Request `lib/general/mainPage.php?tproject_id=3` (project switch to
+   planless Beta — same request the nav-bar selector issues).
+3. Inspect Event Viewer / `events` table (`log_level=2`).
+
+**Observed pre-fix:** three E_WARNING entries per switch:
+`Undefined array key 0 - mainPage.php - Line 102`,
+`Trying to access array offset on null - mainPage.php - Line 102`,
+`Undefined array key 0 - mainPage.php - Line 105`.
+Root cause: `initProject()` cannot resolve a test plan for the new project,
+so the stale session `testplanID` survives while `$arrPlans` (accessible
+plans of the NEW project) is empty; lines 102/105 then read offset 0 of an
+empty array.
+
+**Expected post-fix:** switching to a planless project logs zero warnings;
+the stale session test plan is dropped (`setSessionTestPlan(null)` clears
+`$_SESSION['testplanID']/['testplanName']`, local `$testplanID = 0`); the
+main page renders its no-dashboard empty state; switching back to a project
+that HAS plans auto-selects its first accessible plan; all previously healthy
+paths (found==1 match, found==0 non-empty fallback, no plan in session)
+behave unchanged.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: Alpha selected → `mainPage.php?tproject_id=3` → events 13/14/15 logged (2× line 102, 1× line 105) | PASS (reproduced) |
+| 2 | Post-fix: same switch via direct URL and via nav-bar selector (frameset flow) → events table contains ZERO new entries | PASS |
+| 3 | Post-fix: after switching to Beta, a bare `mainPage.php` request renders the `no_records_found` empty state and logs nothing (stale session plan cleared by `setSessionTestPlan(null)`) | PASS |
+| 4 | Regression: Beta → Alpha switch (found==0, non-empty fallback path) → Plan A auto-selected, nav bar shows Test Plan "Plan A", Reports link carries `tproject_id=1&tplan_id=2` | PASS |
+| 5 | Regression: `index.php?tproject_id=1&tplan_id=2` reload (found==1 path) → Plan A stays selected; full UI round-trip Alpha→Beta→Alpha→bare mainPage ends with zero new events (max id stays 15) | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Notes:** fix is confined to lib/general/mainPage.php (guard around the
+found==0 branch + only call setSessionTestPlan()/mark selected when a plan
+was resolved). Unrelated template warnings seen during fixture creation
+(planEdit.tpl / planView.tpl compiled templates) were already open under
+issue "E_WARNING Multiple missing \$gui properties in templates".
