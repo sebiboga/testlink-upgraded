@@ -2060,3 +2060,27 @@ issue "E_WARNING Multiple missing \$gui properties in templates".
 
 **Result: 4/4 PASS** (fix verified on both legacy screen and modernized API; root cause was the
 CI import skipping install/sql/mysql/testlink_create_udf0.sql).
+
+### Suite 34b — final fix round: application-level graceful degradation (commit d041ca9fe+)
+
+**Approach change**: pushing changes under `.github/workflows/` is not possible with the CI bot
+token (GitHub rejects pushes touching workflow files without `workflows` permission), so the
+primary landed fix is application-level: `searchCommands::getStripTagsUDF()` checks
+`information_schema.routines` once per request and returns `''` when
+`UDFStripHTMLTags()` is absent → search SQL falls back to plain `LIKE`
+(same semantics as upstream option `$tlCfg->UDFStripHTMLTags=false`, CHANGELOG 0008674).
+The CI provisioning patch for both workflows is provided in issue #547's closing comment.
+`docs/db_sample/restore_sample.sh|.bat` UDF provisioning steps remain part of this branch.
+
+**Executed steps & result**
+1. Dropped the function (`DROP FUNCTION IF EXISTS UDFStripHTMLTags;`) → legacy advanced search
+   POST → HTTP 200, NO "DB Access Error", result row "AlphaSuite / alpha details content"
+   found via plain LIKE. PASS.
+2. Recreated the function from testlink_create_udf0.sql → legacy advanced search POST via
+   browser form → HTTP 200, no error, AlphaSuite found (full UDF-stripping mode). PASS.
+3. Modernized BFF fulltext with function present → HTTP 200 `{status:"ok", testsuites:[1]}`. PASS.
+4. Event Viewer: only event #8 (the intentional pre-fix reproduction ERROR); no new
+   Error/Warning entries from post-fix flows. PASS.
+5. `php -l lib/search/searchCommands.class.php` clean; 4 call sites converted.
+
+**Result: 5/5 PASS**

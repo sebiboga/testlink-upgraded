@@ -93,12 +93,13 @@ validation paths, locale switching, aside link switch, Event Viewer clean).
 
 Environment note: a fresh database import lacks the MySQL function
 `UDFStripHTMLTags`, which makes **both legacy and modernized** advanced search
-fail with a DB access error. **Fixed in issue #547**: both CI workflows
-(`fix-bug.yml`, `modernize.yml`) now provision the function from
-`install/sql/mysql/testlink_create_udf0.sql` right after the default-data
-import and assert its presence via `information_schema.routines`; the sample-db
-restore scripts (`docs/db_sample/restore_sample.sh` / `.bat`) provision it too,
-so advanced search works out of the box on every CI fresh import.
-Note for self-managed MySQL 8 servers with binary logging enabled: creating
-routines additionally needs `SUPER` or `log_bin_trust_function_creators=1`
-(MariaDB used by this project's CI has binary logging off).
+fail with a DB access error. **Fixed in issue #547**: `searchCommands` now
+probes `information_schema.routines` and automatically falls back to plain
+`LIKE` matching when the function is absent — identical semantics to upstream
+option `$tlCfg->UDFStripHTMLTags=false`. Deployments that want HTML stripping
+should provision it from `install/sql/mysql/testlink_create_udf0.sql`
+(the sample-db restore scripts `docs/db_sample/restore_sample.sh` / `.bat`
+do this automatically). Note for self-managed MySQL 8 servers with binary
+logging enabled: creating routines additionally needs `SUPER` or
+`log_bin_trust_function_creators=1` (MariaDB used by this project's CI has
+binary logging off).
