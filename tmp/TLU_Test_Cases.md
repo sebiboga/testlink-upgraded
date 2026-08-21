@@ -1580,3 +1580,47 @@ both the page and the menu context).
   * `?tproject_id=999` load → HTTP 200, zero warnings;
   * `events` table truncated before tests → 0 rows with `log_level=2` after
     the full pass.
+
+## 22. Quick Test Case Search — Modernized (Suite ID: 33)
+
+**Screen:** ASIDE > Search > "Quick search" / "Search Test Cases"
+(`gui/templates/search/searchView.html`, BFF `api/search/index.php`;
+replaces legacy `lib/search/searchForm.php` + `lib/testcases/tcSearch.php`
+quick-search form `gui/templates/dashio/search/searchForm.tpl`).
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged in as admin/admin; fixture project id 1
+  "Search Fixture Project" (prefix SFP) created via XML-RPC API with 3 test
+  cases in suite "Alpha Suite": SFP-1 "Login with valid credentials"
+  (importance High), SFP-2 "Logout flow check" (Medium), SFP-3 "Password
+  recovery email" (Low); keyword "smoke" assigned to SFP-1.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Aside menu shows Search section; both "Quick search" and "Search Test Cases" point to `/gui/templates/search/searchView.html?tproject_id=1&tplan_id=0` | PASS |
+| 2 | Screen loads inside mainframe; header shows project name; toolbar context shows project; locale switcher present | PASS |
+| 3 | Form renders all legacy criteria: TC ID (prefilled with prefix `SFP-`), Version, Title, Created by, Edited by, Summary, Preconditions, Steps, Expected results, Creation date from/to, Modification date from/to, Importance (project has priority enabled), Status domain (7 statuses from server), Keyword dropdown (smoke), Requirement document ID (project has requirements enabled) | PASS |
+| 4 | AND-mode notice + important notice ("Search is done ONLY on test project 'Search Fixture Project'") + prefix-ignored notice rendered | PASS |
+| 5 | Search by Title "login" → 1 match: SFP-1 [v1] :: Login with valid credentials, path "Alpha Suite", summary text, version column | PASS |
+| 6 | Search by TC ID `SFP-2` → SFP-2 found (full external id accepted) | PASS |
+| 7 | Search by bare external number `3` → SFP-3 found (prefix auto-completed) | PASS |
+| 8 | Search by nonexistent TC ID `SFP-999` → warning box "Test case does not exist." | PASS |
+| 9 | Search by keyword smoke → only SFP-1 | PASS |
+| 10 | Search by Steps "recovery" → SFP-3 (steps LIKE works) | PASS |
+| 11 | Search by Summary "email" → SFP-3; Expected results "dashboard" → SFP-1; Preconditions no-match → empty result set | PASS |
+| 12 | Created by "admin" → 3 matches (author login LIKE) | PASS |
+| 13 | Status=Draft + Importance=Medium combined (AND) → SFP-2 only | PASS |
+| 14 | Version=1 → 3 matches | PASS |
+| 15 | Creation date range = today (converted to configured format dd/mm/yyyy) → 3 matches | PASS |
+| 16 | Empty criteria → all 3 test cases, no warning | PASS |
+| 17 | Results table columns: Test Suite / Test Case / Summary / Version / actions; DataTable sort + search box functional | PASS |
+| 18 | Row title link opens test case editor popup `archiveData.php?edit=testcase&id=..&tcversion_id=..&tproject_id=..` — page renders the test case view (bug #1 relative-path 404 fixed) | PASS |
+| 19 | Action icons: edit popup + execution history popup (`execHistory.php?tcase_id=..`) both load without fatal errors | PASS |
+| 20 | Reset button clears all fields, restores `SFP-` prefix, hides results and warnings | PASS |
+| 21 | Permission path: user with role "<no rights>" calling BFF context/search → HTTP 403 "No permission"; aside hides Search section for such users (legacy getMenuVisibility rule untouched) | PASS |
+| 22 | i18n: all labels via TLi18n keys; keys added to ALL 10 bundles (en/ro/de/fr/es/it/pt/ru/ja/zh); JSON validated | PASS |
+| 23 | Event Viewer: BFF E_NOTICE "Only variables should be passed by reference" at api/search/index.php:329 found during testing (bug #2) — fixed (assign array_keys to variable before by-ref call); re-test produced zero new Error/Warning events | PASS |
+
+**Bugs found & fixed during this suite:** #1 popup links used relative paths →
+404 under `/gui/templates/search/` (fixed with absolute paths);
+#2 E_NOTICE from by-reference argument in BFF path resolution (fixed).
