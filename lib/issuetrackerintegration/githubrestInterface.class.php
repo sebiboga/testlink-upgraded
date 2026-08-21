@@ -236,7 +236,10 @@ class githubrestInterface extends issueTrackerInterface
             $issue->summary .= "\n[Note $key]: $note->body";
           }
         }
-        $issue->isResolved = $this->state == 'closed'; 
+        // The decoded GitHub payload ($jsonObj) carries the state;
+        // $this->state does not exist on this class and always evaluated
+        // to null, forcing isResolved to false for every issue.
+        $issue->isResolved = ((string)$jsonObj->state == 'closed');
       }
     }
     catch(Exception $e)
