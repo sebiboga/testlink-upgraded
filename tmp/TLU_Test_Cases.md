@@ -1624,3 +1624,13 @@ quick-search form `gui/templates/dashio/search/searchForm.tpl`).
 **Bugs found & fixed during this suite:** #1 popup links used relative paths →
 404 under `/gui/templates/search/` (fixed with absolute paths);
 #2 E_NOTICE from by-reference argument in BFF path resolution (fixed).
+
+## Suite 23 — Quick Search vs Search Test Cases (differentiated links)
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | ASIDE → Search → Quick search | searchView.html?mode=quick: single field + hint, full grid hidden | PASS |
+| 2 | Quick: type "tc1" → Find | 1 match: P2-1 [v1] :: tc1 (name search) | PASS |
+| 3 | Quick: type "P2-1" → Find | 1 match via targetTestCase (ID pattern) | PASS |
+| 4 | Quick: empty input → Find | toast error (search.quickEmpty) | PASS |
+| 5 | ASIDE → Search → Search Test Cases | full form with all criteria fields | PASS |
+| 6 | i18n keys in all 10 bundles | json.tool valid ×10 | PASS |
