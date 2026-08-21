@@ -1817,7 +1817,7 @@ function getActions(&$gui,$baseURL) {
   $actions->assignReq = "$bb/general/frmWorkArea.php?feature=assignReqs&{$ctx}";
   $actions->inventoryView = "$bb/inventory/inventoryView.php?{$ctx}";
 
-  $actions->fullTextSearch = "$bb/search/searchMgmt.php?{$ctx}";
+  $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
   $actions->metrics_dashboard =  
     "$bb/results/metricsDashboard.php?{$ctx}";
