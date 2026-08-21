@@ -3,6 +3,8 @@ name: Modernize one screen (opencode)
 # One run = ONE screen modernized end-to-end, following AGENTS.md.
 # Trigger manually from the Actions tab; optionally name the screen,
 # otherwise opencode picks the next unmodernized ASIDE screen top-to-bottom.
+# Pattern borrowed from sebiboga/AI-Factory-job-seeker-ro-spider (ai-factory.yml):
+# plain opencode CLI + headless Chrome CDP, no GitHub App/OIDC exchange.
 
 on:
   workflow_dispatch:
@@ -14,7 +16,7 @@ on:
       model:
         description: 'opencode model (provider/model)'
         required: false
-        default: 'anthropic/claude-sonnet-4-5'
+        default: 'opencode/big-pickle'
   # schedule:
   #   - cron: "0 4 * * *"   # optional: one screen per day, uncomment to enable
 
@@ -30,6 +32,11 @@ jobs:
   modernize:
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      SCREEN_INPUT: ${{ inputs.screen }}
+      MODEL_INPUT: ${{ inputs.model }}
 
     services:
       mariadb:
@@ -49,11 +56,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           # keep persisted credentials so opencode can commit & push per AGENTS.md rule 16
           persist-credentials: true
+
+      - name: Setup Node.js (for opencode CLI + MCP servers)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -109,72 +121,89 @@ jobs:
             "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git" \
             tmp/wiki-repo || echo "(wiki not initialized yet — agent will create it)"
 
-      - name: Generate opencode config (permissions + headless Chrome MCP)
+      - name: Install Chrome
         run: |
-          cat > opencode.json <<'EOF'
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub \
+            | sudo gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg]" \
+            "http://dl.google.com/linux/chrome/deb/ stable main" \
+            | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq google-chrome-stable
+
+      - name: Start Chrome with remote debugging
+        run: |
+          google-chrome --remote-debugging-port=9222 --headless --no-sandbox \
+            --disable-dev-shm-usage --disable-gpu &
+          sleep 3
+
+      - name: Install opencode CLI
+        run: npm install -g opencode-ai
+
+      - name: Configure opencode.json
+        run: |
+          cat > opencode.json << 'OPNCFG'
           {
             "$schema": "https://opencode.ai/config.json",
-            "permission": {
-              "edit": "allow",
-              "bash": "allow",
-              "webfetch": "allow"
-            },
+            "model": "${{ inputs.model || 'opencode/big-pickle' }}",
+            "instructions": ["AGENTS.md"],
             "mcp": {
               "chrome-devtools": {
                 "type": "local",
-                "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--headless=true"],
-                "enabled": true
+                "command": ["npx", "-y", "chrome-devtools-mcp@latest", "--browser-url=http://127.0.0.1:9222"]
               }
             }
           }
-          EOF
+          OPNCFG
 
-      - name: Install opencode CLI
-        run: |
-          curl -fsSL https://opencode.ai/install | bash
-          echo "$HOME/.opencode/bin" >> "$GITHUB_PATH"
-          opencode --version || true
+      - name: Verify gh auth
+        run: gh auth status
 
       - name: Run opencode — modernize exactly ONE screen
-        uses: anomalyco/opencode/github@latest
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_TOKEN: ${{ github.token }}
-        with:
-          model: ${{ inputs.model || 'anthropic/claude-sonnet-4-5' }}
-          # workaround for anomalyco/opencode#37823: OIDC app-token exchange
-          # fails on new immutable sub format -> use GITHUB_TOKEN instead
-          use_github_token: true
-          prompt: |
-            You are continuing the TestLink 2.0.1 modernization project in this repository.
+        timeout-minutes: 100
+        run: |
+          PROMPT="You are continuing the TestLink 2.0.1 modernization project in this repository. "
+          PROMPT+="Read AGENTS.md in the repo root FIRST and follow ALL its rules strictly. "
+          PROMPT+="Environment already prepared on this machine: "
+          PROMPT+="TestLink app running at http://localhost:8082 (PHP built-in server, docroot = repo root); "
+          PROMPT+="login admin/admin; "
+          PROMPT+="MariaDB at 127.0.0.1:3306, database testlink, user testlink, password testlink "
+          PROMPT+="(inspect data with: mysql -h 127.0.0.1 -utestlink -ptestlink testlink); "
+          PROMPT+="GitHub Wiki clone at tmp/wiki-repo/ (origin authenticated via token in remote URL); "
+          PROMPT+="gh CLI authenticated through GH_TOKEN (use it for issues); "
+          PROMPT+="headless Chrome available through the chrome-devtools MCP tools "
+          PROMPT+="(navigate to http://localhost:8082/index.php, log in admin/admin, "
+          PROMPT+="content screens load inside iframes: navBar / asideMenu / mainframe); "
+          PROMPT+="config_db.inc.php is gitignored: NEVER commit it. "
+          if [ -n "${SCREEN_INPUT}" ]; then
+            PROMPT+="Task: modernize exactly ONE screen: ${SCREEN_INPUT}. "
+          else
+            PROMPT+="Task: choose the NEXT unmodernized screen by walking the ASIDE menu top to bottom "
+            PROMPT+="(screens already modernized exist as gui/templates/**/*.html backed by api/** BFF endpoints; "
+            PROMPT+="anything still pointing to lib/**.php is legacy) and modernize exactly that ONE screen. "
+          fi
+          PROMPT+="Execute the full AGENTS.md cycle for that single screen only: "
+          PROMPT+="investigate legacy code -> BFF API -> HTML+JS+CSS screen -> i18n keys in ALL locale bundles -> "
+          PROMPT+="switch aside/common links -> browser-test every button/modal/permission path -> "
+          PROMPT+="append a numbered test suite to tmp/TLU_Test_Cases.md and run it -> "
+          PROMPT+="update wiki page + docs/ mirror WITH screenshots -> check Event Viewer for new errors/warnings -> "
+          PROMPT+="log any bugs as GitHub issues -> code review subagent over the changes -> apply fixes -> "
+          PROMPT+="commit and push to the current branch. "
+          PROMPT+="STOP after that one screen is complete. Do NOT start another screen. "
+          PROMPT+="All steps must be executed autonomously — no user interaction is allowed. "
+          PROMPT+="When in doubt, proceed with the safest action for production."
 
-            FIRST read AGENTS.md in the repo root and follow ALL its rules strictly.
+          opencode run "$PROMPT" \
+            --dangerously-skip-permissions \
+            --print-logs
 
-            Environment already prepared on this machine:
-            - TestLink app running at http://localhost:8082 (PHP built-in server, docroot = repo root)
-            - Login credentials: admin / admin
-            - MariaDB at 127.0.0.1:3306, database `testlink`, user `testlink`, password `testlink`
-              (inspect data with: mysql -h 127.0.0.1 -utestlink -ptestlink testlink)
-            - GitHub Wiki clone at tmp/wiki-repo/ (origin authenticated via the token in the remote URL)
-            - gh CLI authenticated through GH_TOKEN (use it for issues)
-            - Headless Chrome available through the chrome-devtools MCP tools
-              (navigate to http://localhost:8082/index.php, log in admin/admin,
-               content screens load inside iframes: navBar / asideMenu / mainframe)
-            - config_db.inc.php is skip-worktree'd: NEVER commit it
-
-            Task: modernize exactly ONE screen: ${{ inputs.screen }}
-            If the screen name above is empty, choose the NEXT unmodernized screen by walking
-            the ASIDE menu top to bottom. Screens already modernized exist as
-            gui/templates/**/*.html backed by api/** BFF endpoints; anything still pointing
-            to lib/**.php is legacy.
-
-            Execute the full AGENTS.md cycle for that single screen only:
-            investigate legacy code -> BFF API -> HTML+JS+CSS screen -> i18n keys in ALL
-            locale bundles -> switch aside/common links -> browser-test every button/modal/
-            permission path -> append a numbered test suite to tmp/TLU_Test_Cases.md and run it ->
-            update wiki page + docs/ mirror WITH screenshots -> check Event Viewer for new
-            errors/warnings -> log any bugs as GitHub issues -> code review subagent over the
-            changes -> apply fixes -> commit and push to the current branch.
-
-            STOP after that one screen is complete. Do NOT start another screen.
+      - name: Fallback commit of any leftover agent changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A -- . ':(exclude)tmp/wiki-repo'
+          if ! git diff --staged --quiet; then
+            git commit -m "chore(opencode): leftover changes from screen modernization run"
+            git pull origin "${GITHUB_REF_NAME}" --rebase -X theirs && git push origin "HEAD:${GITHUB_REF_NAME}"
+          else
+            echo "Nothing left to commit"
+          fi
