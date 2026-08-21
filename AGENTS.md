@@ -66,3 +66,10 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     with a subagent over the screen's changes (HTML/JS/CSS + BFF API); apply
     any required fixes, then commit and push — locally and to the repository
     (`sebiboga/testlink-upgraded`).
+
+17. **Time-box bug fixing to ~8 minutes.** If fixing an issue (or a batch of
+    issues) is estimated to take longer than 8 minutes: fix at least 1 bug,
+    file new GitHub Issues for everything that remains — each with proper
+    documentation (symptom, repro steps, root cause, suggested fix) — then
+    move on with modernization. New screens will surface further fixes anyway;
+    do not stall progress on long debugging sessions.
