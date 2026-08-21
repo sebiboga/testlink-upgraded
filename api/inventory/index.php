@@ -140,6 +140,7 @@ if ($method === 'GET' && count($segments) === 0) {
             'canManage' => (bool)$user->hasRight($db, 'project_inventory_management', $tproject_id),
             'canView' => true,
         ],
+        'user' => ['id' => intval($userId)],
     ]);
 }
 
