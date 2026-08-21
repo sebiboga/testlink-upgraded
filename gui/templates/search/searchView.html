@@ -454,7 +454,7 @@ function renderResults(r) {
 }
 
 function openTcEdit(tcaseId, tcversionId) {
-  var url = '/lib/testcases/archiveData.php?edit=testcase&id=' + tcaseId +
+  var url = '/gui/templates/testcases/tcView.html?tcase_id=' + tcaseId +
             '&tcversion_id=' + tcversionId + '&tproject_id=' + tprojectId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
