@@ -1804,7 +1804,7 @@ function getActions(&$gui,$baseURL) {
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
 
-  $actions->keywordsView = "$bb/keywords/keywordsView.php?{$ctx}";
+  $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
   $actions->platformsView = "$bb/platforms/platformsView.php?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";

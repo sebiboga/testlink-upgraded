@@ -1035,7 +1035,164 @@ TLU: TestLink Upgraded 2.0.1
 
 ---
 
-## Discovered Bugs
+## 16. Assign Custom Fields — Modernized (Suite ID: 27)
+
+> **Run 2026-08-21 (browser + curl):** 14/14 PASS. Note: TC-16.8 first run failed due to wrong
+> assumed initial state (Execution was pre-checked from an earlier manual save); retest passed.
+> TC-16.12 confirmed after iframe navigation completed (switcher reloads frame with ?locale=ro).
+> State restored after run: Rol label=rol, design=1 exec=1 tpd=1, display_order=1; field1 unassigned.
+
+**Screen:** `gui/templates/cfields/cfieldsAssignView.html` · **API:** `/api/cfields/index.php`  
+**Path:** Projects > Assign Custom Fields
+
+### TC-16.1: Assign Custom Fields Page Loads Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in as admin. At least one test project exists.
+- **Steps:**
+  1. Open aside menu > Projects > "Assign Custom Fields".  
+     *Expected:* cfieldsAssignView.html loads inside the mainframe shell (navbar + sidebar visible), no PHP warnings or JS console errors.
+  2. Verify header shows "Assign Custom Fields" with subtitle and locale switcher.
+  3. Verify toolbar shows current Test Project name.
+
+### TC-16.2: Assigned Table Shows All Columns
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Current test project has at least one custom field assigned (e.g. "Rol").
+- **Steps:**
+  1. Inspect the "Assigned Custom Fields" table columns.  
+     *Expected:* Columns present: checkbox, Name, Label, Type, Available On, Display Order, Location, Active, Required, Monitorable.
+  2. Verify row data matches the assigned field definition.  
+     *Expected:* e.g. Rol / rol / string / Test Plan, order input shows stored value, checkboxes reflect stored flags.
+
+### TC-16.3: Available Table Shows Unassigned Fields Only
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** At least one custom field exists that is NOT assigned to the current project (e.g. "field1").
+- **Steps:**
+  1. Inspect the "Available Custom Fields" table.  
+     *Expected:* Lists only fields not yet linked to this project; no overlap with Assigned table.
+  2. Compare counts in both section headings.  
+     *Expected:* "(n)" counts match rendered row counts; footer shows "assigned / total".
+
+### TC-16.4: Assign Field to Test Project
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Field "field1" is in Available table.
+- **Steps:**
+  1. Check the row checkbox for "field1" in Available table.  
+     *Expected:* Row highlights (selected-row class).
+  2. Click "Assign".  
+     *Expected:* Success toast appears; tables reload; "field1" moves from Available to Assigned; counts update.
+
+### TC-16.5: Unassign Field From Test Project
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Field "field1" is assigned (from TC-16.4).
+- **Steps:**
+  1. Check the row checkbox for "field1" in Assigned table.
+  2. Click "Unassign".  
+     *Expected:* Success toast; tables reload; "field1" returns to Available table.
+
+### TC-16.6: Save Changes Persists Order, Location and Flags
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Field "Rol" is assigned to the project.
+- **Steps:**
+  1. Change Display Order to 5, toggle Required ON, set Location if selectable.  
+     *Expected:* "unsaved changes" indicator appears in toolbar.
+  2. Click "Save Changes".  
+     *Expected:* Toast "Changes saved"; dirty indicator clears.
+  3. Reload the page (F5).  
+     *Expected:* Values persisted: order=5, Required checked.
+  4. Restore original values and Save again.  
+     *Expected:* State restored.
+
+### TC-16.7: Edit Modal Opens From Field Name Link
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Field "Rol" visible in Assigned table.
+- **Steps:**
+  1. Click the field name "Rol" in the Assigned table.  
+     *Expected:* Bootstrap modal "Edit Custom Field: Rol" opens INSIDE the content frame; user stays in context (navbar + sidebar still visible); NO navigation to legacy cfieldsEdit.php.
+  2. Verify modal fields are pre-filled: Label="rol", Name="Rol" (read-only), Type="string", Node Type="testplan", Enable On checkboxes reflect stored flags.
+  3. Click Cancel.  
+     *Expected:* Modal closes; page state unchanged.
+
+### TC-16.8: Edit Modal Saves Changes Via API
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Modal open for field "Rol" (from TC-16.7).
+- **Steps:**
+  1. Change Label to "rol_editat", check Execution under Enable On.  
+     *Expected:* Inputs accept changes.
+  2. Click Save.  
+     *Expected:* Modal closes; toast confirms; PUT request to /api/cfields/{id} returns 200; tables refresh showing updated label.
+  3. Open the modal again.  
+     *Expected:* New values persisted (Label="rol_editat", Execution checked).
+  4. Restore original values (Label="rol") and Save.  
+     *Expected:* State restored.
+
+### TC-16.9: Edit Modal Validation - Empty Label
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Modal open for any field.
+- **Steps:**
+  1. Clear the Label input completely.
+  2. Click Save.  
+     *Expected:* Inline error shown in modal ("required" message); modal stays open; no API call made.
+  3. Click Cancel to dismiss.
+
+### TC-16.10: Edit Modal From Available Table Also Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Field "field1" present in Available table.
+- **Steps:**
+  1. Click "field1" name in Available table.  
+     *Expected:* Same edit modal opens pre-filled with field1's data (node type testcase).
+
+### TC-16.11: Unsaved Assignment Edits Survive Modal Cancel
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Field "Rol" assigned.
+- **Steps:**
+  1. Change Display Order to 9 (dirty indicator appears).
+  2. Click field name to open edit modal, then click Cancel.  
+     *Expected:* Modal closes; order input still shows 9; dirty indicator still visible.
+  3. Reload page without saving.  
+     *Expected:* Order reverts to stored value (unsaved change discarded).
+
+### TC-16.12: Locale Switcher Translates Screen
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Page open.
+- **Steps:**
+  1. Switch locale to Română.  
+     *Expected:* Header, column headers and buttons translate (e.g. "Câmpuri Personalizate Alocate").
+  2. Switch back to English (wide/UK).  
+     *Expected:* Labels return to English.
+
+### TC-16.13: Tables Sorting and Search
+- **Priority:** Low
+- **Importance:** Low
+- **Preconditions:** Multiple fields assigned.
+- **Steps:**
+  1. Click "Name" column header.  
+     *Expected:* Rows sort ascending/descending.
+  2. Type in the Search box.  
+     *Expected:* Rows filter live; clearing restores full list.
+
+### TC-16.14: API Returns 401 Without Session
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** None (curl/http client).
+- **Steps:**
+  1. GET /api/cfields/index.php/assignment?tproject_id=1 without cookies.  
+     *Expected:* HTTP 401 with JSON {"status":"error","message":"Not authenticated"}.
+
+---
+
+
 
 ### BUG-2: "Still Valid Login" Message is Confusing and Potentially Blocks Users
 - **Severity:** Medium
@@ -1070,7 +1227,8 @@ TLU: TestLink Upgraded 2.0.1
 | i18n / Localization | 6 | 3 | 3 | 0 |
 | Custom Fields (Modernized) | 6 | 2 | 3 | 1 |
 | Header Fix #523 | 3 | 1 | 2 | 0 |
-| **TOTAL** | **88** | **52** | **35** | **5** |
+| Assign Custom Fields (Modernized) | 14 | 8 | 5 | 1 |
+| **TOTAL** | **102** | **60** | **40** | **6** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |

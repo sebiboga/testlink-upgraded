@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Keyword Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.section { padding: 20px 24px 4px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.kw-name { font-weight: 700; color: #2d8e88; text-decoration: none; cursor: pointer; }
+.kw-name:hover { text-decoration: underline; }
+.kw-name.plain { color: #22242a; cursor: default; }
+.kw-name.plain:hover { text-decoration: none; }
+.usage-badge { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+.notes-cell { color: #555; max-width: 520px; white-space: pre-wrap; }
+.del-btn { background: none; border: none; color: #e6605e; cursor: pointer; font-size: 15px; padding: 2px 6px; }
+.del-btn:hover { color: #c53f3d; }
+.lock-btn { background: none; border: none; color: #bbb; font-size: 14px; padding: 2px 6px; cursor: help; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-group label { font-size: 12px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="header.kwManage">Keyword Management</span>
+  <span class="sub" data-i18n="header.kwManageSub">create, edit and delete keywords for this test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="kw.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreate" onclick="openCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="kw.createKeyword">Create Keyword</span></button>
+  <button class="btn-teal" id="btnAssign" onclick="goAssign()" style="display:none"><i class="fa fa-tags"></i> <span data-i18n="kw.assignKwToTc">Assign Keywords to Test Cases</span></button>
+  <button class="btn-teal" id="btnImport" onclick="openImport()" style="display:none"><i class="fa fa-file-import"></i> <span data-i18n="kw.import">Import</span></button>
+  <button class="btn-teal" id="btnExport" onclick="openExport()" style="display:none"><i class="fa fa-file-export"></i> <span data-i18n="kw.export">Export</span></button>
+</div>
+
+<div class="section">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;"><span data-i18n="header.kwManage">Keyword Management</span><span class="count" id="kwCount" style="font-weight:400;color:#888;font-size:13px;margin-left:6px;"></span></h2>
+</div>
+<div class="table-wrap">
+  <div id="kwEmpty" class="empty" style="display:none" data-i18n="kw.noKeywords">No keywords defined for this test project yet</div>
+  <table id="kwTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:30%" data-i18n="kw.keyword">Keyword</th>
+        <th data-i18n="kw.notes">Notes</th>
+        <th style="width:90px" data-i18n="kw.usage">Usage</th>
+        <th data-orderable="false" style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit Keyword Modal -->
+<div class="modal fade" id="kwModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kwModalTitle">Create Keyword</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editKwId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="editKwName" data-i18n="kw.nameLabel">Name *</label>
+          <input type="text" id="editKwName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="editKwNotes" data-i18n="kw.notesLabel">Notes</label>
+          <textarea id="editKwNotes" class="form-control" rows="4" style="font-size:13px;"></textarea>
+        </div>
+        <div id="kwModalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveKw()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="kw.import">Import</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="importType" data-i18n="kw.format">Format *</label>
+          <select id="importType" class="form-control" style="font-size:13px;">
+            <option value="xml" data-i18n="kw.xml">XML</option>
+            <option value="csv" data-i18n="kw.csv">CSV</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="importFile" data-i18n="kw.chooseFileLabel">File *</label>
+          <input type="file" id="importFile" class="form-control" style="font-size:13px;" accept=".xml,.csv,text/csv,application/xml,text/xml">
+        </div>
+        <div style="color:#888;font-size:12px;" id="fileSizeNote"></div>
+        <div id="importError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="doImport()" style="font-size:13px;" data-i18n="kw.upload">Upload file</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="kw.export">Export</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="exportType" data-i18n="kw.format">Format *</label>
+          <select id="exportType" class="form-control" style="font-size:13px;" onchange="exportTypeChanged()">
+            <option value="xml" data-i18n="kw.xml">XML</option>
+            <option value="csv" data-i18n="kw.csv">CSV</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="exportFilename" data-i18n="kw.fileName">File name *</label>
+          <input type="text" id="exportFilename" class="form-control" maxlength="255" style="font-size:13px;" value="keywords.xml">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="doExport()" style="font-size:13px;" data-i18n="kw.export">Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/keywords/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var canManage = false;
+var canAssign = false;
+var kwTbl = null;
+var deleteTarget = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#fileSizeNote').text(TLi18n.t('kw.maxFileSize'));
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function showError($el, msgKeyOrText) {
+  // map tlKeyword error codes to localized messages when the API sends one
+  $el.text(msgKeyOrText).show();
+}
+
+function errorCodeToMessage(code, fallback) {
+  switch (parseInt(code, 10)) {
+    case -1: return TLi18n.t('kw.charNotAllowed');
+    case -2: return TLi18n.t('kw.emptyNotAllowed');
+    case -4: return TLi18n.t('kw.alreadyExists');
+    case -8: return TLi18n.t('kw.updateFails');
+  }
+  return fallback || TLi18n.t('kw.updateFails');
+}
+
+function load() {
+  $.getJSON(API + '/?tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      canManage = r.rights.canManage;
+      canAssign = r.rights.canAssign;
+      $('#tprojectName').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('header.kwManage');
+      $('#btnCreate').toggle(canManage);
+      $('#btnImport').toggle(canManage);
+      $('#btnExport').toggle(canManage && r.items.length > 0);
+      $('#btnAssign').toggle(canAssign && r.items.length > 0);
+
+      render(r.items);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function render(items) {
+  $('#kwCount').text('(' + items.length + ')');
+  $('#kwEmpty').toggle(items.length === 0);
+  $('#kwTable').toggle(items.length > 0);
+
+  if (kwTbl) { kwTbl.destroy(); $('#kwTable tbody').empty(); }
+
+  var rows = items.map(function (k) {
+    var nameCell;
+    if (canManage) {
+      nameCell = '<a class="kw-name" href="javascript:void(0)" onclick="editKw(' + k.id + ')">' + esc(k.name) + '</a>';
+    } else {
+      nameCell = '<span class="kw-name plain">' + esc(k.name) + '</span>';
+    }
+    nameCell += '<span class="usage-badge" title="' + esc(TLi18n.t('kw.tcvWithKw')) + '">' + k.tcv_qty + '</span>';
+
+    var notes = esc(k.notes) || '<span class="muted">-</span>';
+
+    var action = '';
+    if (canManage) {
+      if (k.deletable) {
+        action = '<button class="del-btn" title="' + esc(TLi18n.t('kw.deleteKeyword')) +
+                 '" onclick="confirmDelete(' + k.id + ',\'' + esc(k.name).replace(/'/g,"\\'") + '\')">' +
+                 '<i class="fas fa-minus-circle"></i></button>';
+      } else {
+        var reason = k.block_reason === 'EXECUTED' ? TLi18n.t('kw.lockedExecuted') : TLi18n.t('kw.lockedFrozen');
+        action = '<span class="lock-btn" title="' + esc(reason) + '"><i class="fas fa-lock"></i></span>';
+      }
+    }
+
+    return [nameCell, notes, k.tcv_qty, action];
+  });
+
+  kwTbl = $('#kwTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 2, className: 'text-center', width: '90px' },
+      { targets: 3, orderable: false }
+    ]
+  });
+}
+
+function openCreate() {
+  $('#editKwId').val('');
+  $('#editKwName').val('');
+  $('#editKwNotes').val('');
+  $('#kwModalError').hide();
+  $('#kwModalTitle').text(TLi18n.t('kw.createKeyword'));
+  $('#kwModal').modal('show');
+}
+
+function editKw(id) {
+  $.getJSON(API + '/' + id)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      $('#editKwId').val(r.item.id);
+      $('#editKwName').val(r.item.name);
+      $('#editKwNotes').val(r.item.notes);
+      $('#kwModalError').hide();
+      $('#kwModalTitle').text(TLi18n.t('kw.editKeyword') + ': ' + r.item.name);
+      $('#kwModal').modal('show');
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function saveKw() {
+  var id = $('#editKwId').val();
+  var name = $.trim($('#editKwName').val());
+  var notes = $.trim($('#editKwNotes').val());
+
+  if (name === '') {
+    showError($('#kwModalError'), TLi18n.t('kw.emptyNotAllowed'));
+    return;
+  }
+  if (/("|,)/.test(name)) {
+    showError($('#kwModalError'), TLi18n.t('kw.charNotAllowed'));
+    return;
+  }
+
+  var req;
+  if (id) {
+    req = $.ajax({
+      url: API + '/' + id,
+      method: 'PUT',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: tprojectId, name: name, notes: notes })
+    });
+  } else {
+    req = $.ajax({
+      url: API,
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({ tproject_id: tprojectId, name: name, notes: notes })
+    });
+  }
+
+  req.done(function (r) {
+    if (r.status === 'ok') {
+      $('#kwModal').modal('hide');
+      toast(TLi18n.t('kw.msg.saved'));
+      load();
+    } else {
+      showError($('#kwModalError'), errorCodeToMessage(r.error_code, r.message));
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    showError($('#kwModalError'), errorCodeToMessage(r.error_code, r.message));
+  });
+}
+
+function confirmDelete(id, name) {
+  deleteTarget = id;
+  $('#delTitle').text(TLi18n.t('common.delete'));
+  $('#delMsg').html('<b>' + esc(name) + '</b><br>' + esc(TLi18n.t('kw.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  $.ajax({
+    url: API + '/' + deleteTarget + '?tproject_id=' + tprojectId,
+    method: 'DELETE'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(TLi18n.t('kw.msg.deleted'));
+    } else {
+      toast(r.message || TLi18n.t('common.error'), true);
+    }
+    load();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+
+function goAssign() {
+  window.location.href = 'lib/general/frmWorkArea.php?feature=keywordsAssign&tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
+}
+
+function openImport() {
+  $('#importError').hide();
+  $('#importFile').val('');
+  $('#importModal').modal('show');
+}
+
+function doImport() {
+  var fileInput = document.getElementById('importFile');
+  if (!fileInput.files.length) {
+    $('#importError').text(TLi18n.t('kw.chooseFile')).show();
+    return;
+  }
+  var fd = new FormData();
+  fd.append('tproject_id', tprojectId);
+  fd.append('type', $('#importType').val());
+  fd.append('uploadedFile', fileInput.files[0]);
+
+  $.ajax({
+    url: API + '/import',
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      $('#importModal').modal('hide');
+      toast(TLi18n.t('kw.msg.imported'));
+      load();
+    } else {
+      $('#importError').text(r.message || TLi18n.t('kw.wrongFile')).show();
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    $('#importError').text(
+      r.error_code === 'NO_FILE' ? TLi18n.t('kw.chooseFile') :
+      r.error_code === 'WRONG_FORMAT' ? TLi18n.t('kw.wrongFile') :
+      r.message || TLi18n.t('common.error')
+    ).show();
+  });
+}
+
+function openExport() {
+  exportTypeChanged();
+  $('#exportModal').modal('show');
+}
+
+function exportTypeChanged() {
+  var t = $('#exportType').val();
+  var f = $('#exportFilename').val();
+  var ext = t === 'csv' ? '.csv' : '.xml';
+  if (!f || /\.(xml|csv)$/i.test(f)) {
+    $('#exportFilename').val(f ? f.replace(/\.(xml|csv)$/i, ext) : (t === 'csv' ? 'keywords.csv' : 'keywords.xml'));
+  }
+}
+
+function doExport() {
+  var t = $('#exportType').val();
+  var f = $.trim($('#exportFilename').val()) || (t === 'csv' ? 'keywords.csv' : 'keywords.xml');
+  window.location.href = API + '/export?tproject_id=' + tprojectId + '&type=' + t + '&filename=' + encodeURIComponent(f);
+  $('#exportModal').modal('hide');
+}
+</script>
+</body>
+</html>
