@@ -69,8 +69,8 @@ Insertion was done **byte/encoding-preserving** to keep the diffs minimal:
 |---|---|---|
 | cs_CZ | windows-1250 (not UTF-8!) | after `$TLS_testproject_prefix` |
 | de_DE, es_ES, pl_PL | CRLF line endings | after `$TLS_testproject_prefix` |
-| fi_FI, it_IT | partial bundles | before `?>` |
-| id_ID, ko_KR, ro_RO | partial bundles | before `// ----- END` marker |
+| fi_FI | partial bundle | before `?>` |
+| id_ID, it_IT, ko_KR, ro_RO | partial bundles | before `// ----- END` marker |
 | all others | UTF-8 / LF | after `$TLS_testproject_prefix` |
 
 ## Verification
