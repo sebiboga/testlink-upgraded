@@ -1,0 +1,5 @@
+[Fri Aug 21 07:32:49 2026] PHP Warning:  JIT is incompatible with third party extensions that override zend_execute_ex(). JIT disabled. in Unknown on line 0
+[Fri Aug 21 07:32:49 2026] PHP 8.3.33 Development Server (http://127.0.0.1:8082) started
+[Fri Aug 21 07:32:51 2026] 127.0.0.1:57636 Accepted
+[Fri Aug 21 07:32:51 2026] 127.0.0.1:57636 [200]: GET /login.php
+[Fri Aug 21 07:32:51 2026] 127.0.0.1:57636 Closing
