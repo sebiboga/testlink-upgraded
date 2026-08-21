@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Viewer</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header .tcid { background: rgba(255,255,255,.2); border-radius: 4px; padding: 2px 10px; font-size: 14px; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .path { color: #ccc; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
+.version-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.version-card.inactive-version { opacity: .75; }
+.vc-head { background: #22242a; color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.vc-head h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+.badge-tl { font-size: 11px; font-weight: 600; border-radius: 10px; padding: 3px 10px; text-transform: uppercase; letter-spacing: .5px; }
+.badge-active { background: #2ecc71; color: #fff; }
+.badge-inactive { background: #95a5a6; color: #fff; }
+.badge-open { background: #3498db; color: #fff; }
+.badge-frozen { background: #e67e22; color: #fff; }
+.badge-latest { background: #4ECDC4; color: #fff; }
+.badge-executed { background: #9b59b6; color: #fff; }
+.badge-importance { background: #444; color: #ffd97d; }
+.vc-body { padding: 16px 20px; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 20px; margin-bottom: 14px; }
+.meta-item { font-size: 12px; color: #666; }
+.meta-item b { display: block; color: #22242a; font-size: 12.5px; }
+.rich-field { border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #333; background: #fafafa; margin-bottom: 12px; min-height: 20px; }
+.field-label { font-size: 12px; font-weight: 700; color: #22242a; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+table.steps { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.steps thead th { background: #22242a; color: #fff; font-size: 12.5px; padding: 9px 12px; text-align: left; }
+table.steps tbody td { padding: 9px 12px; border-bottom: 1px solid #eee; vertical-align: top; color: #333; }
+table.steps tbody tr:nth-child(even) { background: #fafafa; }
+.step-num { font-weight: 700; color: #2d8e88; width: 60px; }
+.chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 0 6px 6px 0; }
+.kv-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.kv-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.kv-table td:first-child { font-weight: 700; color: #555; width: 240px; }
+.att-item, .req-item, .rel-item { font-size: 13px; color: #333; padding: 5px 0; border-bottom: 1px dashed #eee; }
+.att-item i, .req-item i, .rel-item i { color: #4ECDC4; margin-right: 8px; }
+.none-text { color: #999; font-style: italic; font-size: 13px; }
+.section { margin-top: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading { margin: 40px auto; text-align: center; color: #888; font-size: 14px; }
+@media print {
+  .header, .toolbar, .footer, .actions-bar, .toast { display: none !important; }
+  body { background: #fff; }
+  .version-card { box-shadow: none; margin: 0 0 12px; page-break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcview.header">Test Case Viewer</span>
+  <span class="tcid" id="extId">-</span>
+  <span class="sub" id="tcName"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcview.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="path"><i class="fa fa-sitemap"></i> <span id="tcPath">-</span></span>
+  <span style="flex:1"></span>
+  <div class="actions-bar" id="actionsBar" style="display:flex;gap:10px;flex-wrap:wrap;">
+    <button class="btn-teal" id="btnEdit" style="display:none;" onclick="openTcEdit()"><i class="fa fa-pen"></i> <span data-i18n="tcview.editVersion">Edit Version</span></button>
+    <button class="btn-dark" onclick="openExecHistory()"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="tcview.execHistory">Execution History</span></button>
+    <button class="btn-dark" id="btnAdd2Tplan" style="display:none;" onclick="openAdd2Tplan()"><i class="fa fa-clipboard-list"></i> <span data-i18n="tcview.addToTestPlans">Add to Test Plan</span></button>
+    <form id="exportForm" method="post" action="/lib/testcases/tcExport.php" target="_blank" style="display:inline;">
+      <input type="hidden" name="testcase_id" id="expTcaseId">
+      <input type="hidden" name="tcversion_id" id="expTcversionId">
+      <button class="btn-dark" type="submit"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
+    </form>
+    <form id="compareForm" method="post" action="/lib/testcases/tcCompareVersions.php" target="_blank" style="display:none;">
+      <input type="hidden" name="testcase_id" id="cmpTcaseId">
+      <button class="btn-dark" type="submit"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
+    </form>
+    <button class="btn-dark" onclick="window.print()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
+  </div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="infobox" id="infoBox"></div>
+<div class="errorbox" id="errorBox"></div>
+<div class="loading" id="loadingBox"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcview.loading">Loading test case...</span></div>
+
+<div id="versionsWrap"></div>
+
+<div class="version-card section" id="relationsCard" style="display:none;">
+  <div class="vc-head"><h2><i class="fa fa-diagram-project"></i> <span data-i18n="tcview.relations">Relations with other test cases</span></h2></div>
+  <div class="vc-body" id="relationsBody"></div>
+</div>
+
+<div class="footer">
+  <span data-i18n="tcview.footer">TestLink 2.0.1 - Test Case Viewer (read-only). Editing operations are available in the Test Specification.</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = null;
+var data = null;
+var currentVersion = null;
+
+$(function () {
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  loadView();
+});
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function loadView() {
+  $('#loadingBox').show();
+  var tcaseId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
+  var tcversionId = parseInt(qs('tcversion_id') || '0', 10);
+  if (!tcaseId && tcversionId > 0) { tcaseId = tcversionId; tcversionId = 0; }
+  if (!(tcaseId > 0)) {
+    showError(TLi18n.t('tcview.errNoId'));
+    return;
+  }
+  $.get('/api/testcases/index.php', { action: 'view', tcase_id: tcaseId, tcversion_id: tcversionId })
+    .done(function (r) {
+      $('#loadingBox').hide();
+      if (r.status !== 'ok') { showError(r.message || TLi18n.t('tcview.errLoad')); return; }
+      data = r;
+      render();
+    })
+    .fail(function (xhr) {
+      $('#loadingBox').hide();
+      var msg = TLi18n.t('tcview.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showError(msg);
+    });
+}
+
+function showError(msg) {
+  $('#errorBox').html('<i class="fa fa-triangle-exclamation" style="color:#e6605e;font-size:22px;"></i><br>' + esc(msg)).show();
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 3500));
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function render() {
+  document.title = data.tcase.name + ' - ' + TLi18n.t('tcview.header');
+  $('#extId').text(data.fullExternalId);
+  $('#tcName').text(data.tcase.name);
+  $('#tprojectName').text(data.tproject.name);
+  $('#tcPath').text(data.path || '-');
+
+  // pick requested version or latest as "current"
+  currentVersion = data.versions[0];
+  for (var i = 0; i < data.versions.length; i++) {
+    if (data.requestedTcversionId && data.versions[i].tcversion_id === data.requestedTcversionId) {
+      currentVersion = data.versions[i];
+    }
+  }
+
+  renderActions();
+  renderBanners();
+
+  var wrap = $('#versionsWrap');
+  wrap.empty();
+  data.versions.forEach(function (v) { wrap.append(renderVersion(v)); });
+
+  renderRelations();
+}
+
+function canEditCurrent() {
+  if (!data.grants.mgt_modify_tc) return false;
+  if (!currentVersion.is_open) return false;
+  if (currentVersion.has_been_executed && !data.canEditExecuted) return false;
+  return true;
+}
+
+function renderActions() {
+  $('#btnEdit').toggle(canEditCurrent());
+  $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
+  $('#expTcaseId').val(data.tcase.id);
+  $('#expTcversionId').val(currentVersion.tcversion_id);
+  if (data.versions.length > 1) {
+    $('#cmpTcaseId').val(data.tcase.id);
+    $('#compareForm').show();
+  }
+}
+
+function renderBanners() {
+  var warns = [];
+  var infos = [];
+  if (!currentVersion.active) infos.push(TLi18n.t('tcview.inactiveVersion'));
+  if (!currentVersion.is_open) infos.push(TLi18n.t('tcview.frozenVersion'));
+  if (currentVersion.has_been_executed) {
+    if (data.canEditExecuted) {
+      infos.push(TLi18n.t('tcview.executedCanEdit'));
+    } else {
+      warns.push(TLi18n.t('tcview.executedNoEdit'));
+    }
+  }
+  if (!canEditCurrent() && data.grants.mgt_modify_tc && currentVersion.is_open
+      && !currentVersion.has_been_executed) {
+    warns.push('');
+  }
+  if (warns.filter(Boolean).length) {
+    $('#warnBox').html(warns.filter(Boolean).map(esc).join('<br>')).show();
+  } else {
+    $('#warnBox').hide();
+  }
+  if (infos.length) {
+    $('#infoBox').html(infos.map(esc).join('<br>')).show();
+  } else {
+    $('#infoBox').hide();
+  }
+}
+
+function importanceLabel(code) {
+  switch (code) {
+    case 3: return TLi18n.t('tcview.importanceHigh');
+    case 2: return TLi18n.t('tcview.importanceMedium');
+    case 1: return TLi18n.t('tcview.importanceLow');
+  }
+  return String(code);
+}
+
+function executionTypeLabel(code) {
+  switch (code) {
+    case 2: return TLi18n.t('tcview.execTypeAutomated');
+    case 1: return TLi18n.t('tcview.execTypeManual');
+  }
+  return String(code);
+}
+
+function statusLabel(code) {
+  var key = 'tcview.status' + code;
+  var lbl = TLi18n.t(key);
+  return (lbl === key) ? String(code) : lbl;
+}
+
+function renderVersion(v) {
+  var h = '';
+  h += '<div class="version-card' + (v.active ? '' : ' inactive-version') + '" id="version_' + v.tcversion_id + '">';
+  h += '<div class="vc-head">';
+  h += '<h2>' + esc(TLi18n.t('tcview.version')) + ' ' + v.version
+    + (v.is_latest ? ' &nbsp;<span class="badge-tl badge-latest">' + esc(TLi18n.t('tcview.latest')) + '</span>' : '')
+    + '</h2>';
+  h += '<span class="badge-tl ' + (v.active ? 'badge-active' : 'badge-inactive') + '">'
+    + esc(v.active ? TLi18n.t('tcview.active') : TLi18n.t('tcview.inactive')) + '</span>';
+  h += '<span class="badge-tl ' + (v.is_open ? 'badge-open' : 'badge-frozen') + '">'
+    + esc(v.is_open ? TLi18n.t('tcview.open') : TLi18n.t('tcview.frozen')) + '</span>';
+  if (v.has_been_executed) {
+    h += '<span class="badge-tl badge-executed">' + esc(TLi18n.t('tcview.executed')) + '</span>';
+  }
+  if (data.testPriorityEnabled) {
+    h += '<span class="badge-tl badge-importance">' + esc(importanceLabel(v.importance)) + '</span>';
+  }
+  h += '<span class="badge-tl badge-importance">' + esc(executionTypeLabel(v.execution_type)) + '</span>';
+  if (v.status !== 1) {
+    h += '<span class="badge-tl badge-importance">' + esc(statusLabel(v.status)) + '</span>';
+  }
+  h += '</div>';
+
+  h += '<div class="vc-body">';
+
+  // meta grid
+  h += '<div class="meta-grid">';
+  h += metaItem(TLi18n.t('tcview.author'), v.author);
+  h += metaItem(TLi18n.t('tcview.createdOn'), fmtDate(v.creation_ts));
+  if (v.updater) {
+    h += metaItem(TLi18n.t('tcview.lastEditedBy'), v.updater);
+    h += metaItem(TLi18n.t('tcview.lastEditedOn'), fmtDate(v.modification_ts));
+  }
+  if (data.automationEnabled) {
+    h += metaItem(TLi18n.t('tcview.executionType'), executionTypeLabel(v.execution_type));
+  }
+  if (v.estimated_exec_duration !== null && v.estimated_exec_duration !== undefined) {
+    h += metaItem(TLi18n.t('tcview.estimatedDuration'), v.estimated_exec_duration + ' min');
+  }
+  h += metaItem(TLi18n.t('tcview.testsuite'), data.testsuite.name);
+  h += '</div>';
+
+  // summary + preconditions
+  h += '<div class="field-label">' + esc(TLi18n.t('tcview.summary')) + '</div>';
+  h += '<div class="rich-field">' + (v.summary || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+  h += '<div class="field-label">' + esc(TLi18n.t('tcview.preconditions')) + '</div>';
+  h += '<div class="rich-field">' + (v.preconditions || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+
+  // steps
+  h += '<div class="field-label">' + esc(TLi18n.t('tcview.steps')) + '</div>';
+  if (v.steps.length) {
+    h += '<table class="steps"><thead><tr>'
+      + '<th style="width:60px;">#</th>'
+      + '<th>' + esc(TLi18n.t('tcview.stepActions')) + '</th>'
+      + '<th>' + esc(TLi18n.t('tcview.stepExpectedResults')) + '</th>'
+      + '</tr></thead><tbody>';
+    v.steps.forEach(function (st) {
+      h += '<tr><td class="step-num">' + st.step_number + '</td>'
+        + '<td>' + (st.actions || '') + '</td>'
+        + '<td>' + (st.expected_results || '') + '</td></tr>';
+    });
+    h += '</tbody></table>';
+  } else {
+    h += '<span class="none-text">' + esc(TLi18n.t('tcview.noSteps')) + '</span>';
+  }
+
+  // keywords
+  h += '<div class="field-label">' + esc(TLi18n.t('tcview.keywords')) + '</div>';
+  if (v.keywords.length) {
+    h += '<div>' + v.keywords.map(function (k) {
+      return '<span class="chip">' + esc(k.name) + '</span>';
+    }).join('') + '</div>';
+  } else {
+    h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
+  }
+
+  // custom fields
+  if (v.customFields.length) {
+    h += '<div class="field-label">' + esc(TLi18n.t('tcview.customFields')) + '</div>';
+    h += '<table class="kv-table">';
+    v.customFields.forEach(function (cf) {
+      h += '<tr><td>' + esc(cf.label) + '</td><td>'
+        + (cf.value !== '' ? esc(cf.value) : '<span class="none-text">' + esc(TLi18n.t('tcview.notSet')) + '</span>')
+        + '</td></tr>';
+    });
+    h += '</table>';
+  }
+
+  // attachments
+  h += '<div class="field-label">' + esc(TLi18n.t('tcview.attachments')) + '</div>';
+  if (v.attachments.length) {
+    v.attachments.forEach(function (a) {
+      h += '<div class="att-item"><i class="fa fa-paperclip"></i>' + esc(a.title || a.file_name)
+        + ' <span style="color:#999;font-size:11px;">(' + esc(a.file_name) + ', '
+        + Math.round(a.file_size / 1024) + ' KB)</span></div>';
+    });
+  } else {
+    h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
+  }
+
+  // requirements
+  if (data.requirementsEnabled && data.grants.mgt_view_req) {
+    h += '<div class="field-label">' + esc(TLi18n.t('tcview.requirements')) + '</div>';
+    var reqs = data.requirements[v.tcversion_id] || [];
+    if (reqs.length) {
+      reqs.forEach(function (rq) {
+        h += '<div class="req-item"><i class="fa fa-bookmark"></i>'
+          + esc(rq.req_spec_title ? rq.req_spec_title + ' : ' : '')
+          + esc(rq.req_doc_id) + ' (' + esc(TLi18n.t('tcview.versionShort')) + ' ' + rq.version + ') : '
+          + esc(rq.title) + '</div>';
+      });
+    } else {
+      h += '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>';
+    }
+  }
+
+  h += '</div></div>';
+  return $(h);
+}
+
+function metaItem(label, value) {
+  return '<div class="meta-item">' + esc(label) + '<b>' + esc(value === '' || value == null ? '-' : value) + '</b></div>';
+}
+
+function renderRelations() {
+  if (!data.relations || !data.relations.length) return;
+  var h = '';
+  data.relations.forEach(function (rel) {
+    h += '<div class="rel-item"><i class="fa fa-link"></i>'
+      + esc(rel.is_source ? rel.type : rel.type)
+      + ': ' + esc(rel.related_tcase_name || ('#' + rel.related_tcase_id))
+      + '</div>';
+  });
+  $('#relationsBody').html(h);
+  $('#relationsCard').show();
+}
+
+function fmtDate(ts) {
+  if (!ts || ts.indexOf('0000') === 0) return '-';
+  return ts;
+}
+
+function openTcEdit() {
+  var url = '/lib/testcases/tcEdit.php?doAction=edit&testcase_id=' + data.tcase.id
+    + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openExecHistory() {
+  var url = '/lib/execute/execHistory.php?tcase_id=' + data.tcase.id
+    + '&tproject_id=' + data.tproject.id;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openAdd2Tplan() {
+  var url = '/lib/testcases/tcAssign2Tplan.php?tcase_id=' + data.tcase.id
+    + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+</script>
+</body>
+</html>
