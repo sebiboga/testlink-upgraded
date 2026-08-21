@@ -554,5 +554,180 @@ if ($action === 'view') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// POST ?action=import_md&tproject_id=N[&dry_run=1]
+// Body: markdown=<structured md text>  OR multipart file field "uploadedFile"
+// Imports test cases from the CI-agent Markdown format (see
+// tmp/TLU_Test_Cases.md) using the markdownTcImport parser.
+// Requires mgt_modify_tc. dry_run=1 reports what WOULD happen without writes.
+// ---------------------------------------------------------------------------
+if ($action === 'import_md') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'Use POST']);
+    }
+    $tprojectId = getIntParam('tproject_id');
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    if (!$info) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+    if (!$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $markdown = '';
+    if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
+      $markdown = file_get_contents($_FILES['uploadedFile']['tmp_name']);
+    } elseif (isset($_REQUEST['markdown'])) {
+      $markdown = strval($_REQUEST['markdown']);
+    }
+    if (trim($markdown) === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No markdown content posted (use "markdown" field or "uploadedFile" upload)']);
+    }
+
+    $dryRun = intval($_REQUEST['dry_run'] ?? 0) === 1;
+
+    $parser = new markdownTcImport();
+    $parsed = $parser->parse($markdown);
+    if ($parsed['caseCount'] === 0 && count($parsed['suites']) === 0) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No suites or test cases recognized in markdown',
+             'parserErrors' => $parser->errors]);
+    }
+
+    // warn (but do not fail) when the file names a different project than the
+    // one targeted — caller decides precedence, server just reports the clash
+    $mdProject = trim($parsed['meta']['project'] ?? '');
+    $projectMismatch = ($mdProject !== '' && $mdProject !== strval($info['name']))
+        ? ['file' => $mdProject, 'target' => strval($info['name'])] : null;
+
+    $suitesIndex = getProjectSuites($db, $tprojectId);
+    $tsuiteMgr = new testsuite($db);
+
+    $created = []; $skipped = []; $failed = [];
+    $suitesCreated = []; $suitesMatched = [];
+
+    // existing case names per suite id (for duplicate skip)
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'node_types'));
+    $tcTypeId = intval($suitesIndex['types']['testcase'] ?? -1);
+    $existingCasesBySuite = [];
+    if (!$dryRun || true) {
+        $rows = $db->get_recordset(
+            "SELECT NH.parent_id AS suite_id, NH.name FROM {$tables['nodes_hierarchy']} NH " .
+            "WHERE NH.node_type_id = {$tcTypeId}");
+        if (!is_null($rows)) {
+            foreach ($rows as $r) {
+                $key = strtolower(trim(strval($r['name'])));
+                $existingCasesBySuite[intval($r['suite_id'])][$key] = intval($r['parent_id']) ? true : true;
+            }
+        }
+    }
+
+    foreach ($parsed['suites'] as $suite) {
+        $suiteName = trim(strval($suite['name']));
+        if ($suiteName === '' || count($suite['cases']) === 0) {
+            continue;
+        }
+        $key = strtolower($suiteName);
+        if (isset($suitesIndex['byName'][$key])) {
+            $suiteId = intval($suitesIndex['byName'][$key]);
+            $suitesMatched[] = $suiteName;
+        } else {
+            if ($dryRun) {
+                $suiteId = 0; // would be created
+                $suitesCreated[] = $suiteName;
+            } else {
+                $ret = $tsuiteMgr->create(intval($tprojectId), $suiteName,
+                    'Imported from markdown' . ($parser->errors || true ? '' : ''),
+                    null, testsuite::CHECK_DUPLICATE_NAME, 'block');
+                if (!$ret || !isset($ret['id']) || intval($ret['id']) <= 0) {
+                    foreach ($suite['cases'] as $c) {
+                        $failed[] = ['tcId' => $c['tcId'], 'title' => $c['title'],
+                                     'error' => 'Cannot create test suite: ' . $suiteName];
+                    }
+                    continue;
+                }
+                $suiteId = intval($ret['id']);
+                $suitesIndex['byName'][$key] = $suiteId;
+                $suitesCreated[] = $suiteName;
+            }
+        }
+
+        foreach ($suite['cases'] as $c) {
+            $title = trim(strval($c['title']));
+            $nameKey = strtolower($title);
+            $dupHere = isset($existingCasesBySuite[$suiteId][$nameKey]);
+            if ($dupHere) {
+                $skipped[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                              'reason' => 'duplicate title in target suite'];
+                continue;
+            }
+            if ($dryRun) {
+                $created[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                              'suite' => $suiteName,
+                              'importance' => intval($c['importance']),
+                              'steps' => count($c['steps'])];
+                $existingCasesBySuite[$suiteId][$nameKey] = true;
+                continue;
+            }
+            try {
+                $steps = array_map(function($s) {
+                    return ['step_number' => $s['step_number'],
+                            'actions' => $s['actions'],
+                            'expected_results' => $s['expected_results'],
+                            'execution_type' => TESTCASE_EXECUTION_TYPE_MANUAL];
+                }, is_array($c['steps']) ? $c['steps'] : []);
+                $ret = $tcaseMgr->create($suiteId, $title, '', strval($c['preconditions']),
+                    $steps, intval($userId), '', testcase::DEFAULT_ORDER,
+                    testcase::AUTOMATIC_ID, TESTCASE_EXECUTION_TYPE_MANUAL,
+                    intval($c['importance']));
+                $ok = is_array($ret)
+                    ? (isset($ret['status_ok']) ? intval($ret['status_ok']) : 1)
+                    : (isset($ret->status_ok) ? intval($ret->status_ok) : 0);
+                if ($ok) {
+                    $newId = is_array($ret) ? intval($ret['id']) : intval($ret->id);
+                    $created[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                  'suite' => $suiteName, 'id' => $newId];
+                    $existingCasesBySuite[$suiteId][$nameKey] = true;
+                } else {
+                    $msg = is_array($ret) ? strval($ret['msg'] ?? 'create failed')
+                                          : strval($ret->msg ?? 'create failed');
+                    $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title, 'error' => $msg];
+                }
+            } catch (Exception $e) {
+                $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                             'error' => $e->getMessage()];
+            }
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'dry_run' => $dryRun,
+        'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
+        'projectMismatch' => $projectMismatch,
+        'meta' => $parsed['meta'],
+        'suitesCreated' => $suitesCreated,
+        'suitesMatched' => $suitesMatched,
+        'createdCount' => count($created),
+        'skippedCount' => count($skipped),
+        'failedCount' => count($failed),
+        'created' => $created,
+        'skipped' => $skipped,
+        'failed' => $failed,
+        'parserErrors' => $parser->errors,
+    ]);
+}
+
 http_response_code(400);
 out(['status' => 'error', 'message' => 'Bad request']);
