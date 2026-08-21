@@ -110,10 +110,10 @@ Left side menu
                     <li><a href="{$gui->uri->platformsView}" target="mainframe">{$labels.href_platform_management}</a></li>
                   {/if}
 
-                  {* project_inventory_view/management come back as the string
-                     "yes" normally, but as int 1/0 when the test project has
-                     inventory explicitly enabled (see getGrantSetWithExit()) -
-                     check truthiness rather than an exact "yes" match. *}
+                  {* project_inventory_view/management are always int 1/0:
+                     1 only when the test project has inventory enabled AND
+                     the user holds the right (see getGrantSetWithExit() /
+                     mainPage getGrants()). Truthiness check is safe. *}
                   {if $menuGrants->project_inventory_view || $menuGrants->project_inventory_management}
                     <li><a href="{$gui->uri->inventoryView}" target="mainframe">{$labels.href_inventory_management}</a></li>
                   {/if}
