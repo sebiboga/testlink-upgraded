@@ -366,7 +366,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'export') {
 
     $filename = basename(getParam('filename', ''));
     if ($filename === '') {
-        $tname = str_ireplace(" ", "", $tproject_mgr->getName($tproject_id));
+        $tname = str_ireplace(" ", "", testproject::getName($db, $tproject_id));
         $filename = $tname . '-platforms.xml';
     }
 
