@@ -31,14 +31,22 @@ rules in AGENTS.md (they apply to every run).
 - If the real fix turns out to be large (architecture change), do NOT attempt
   it: implement nothing or the smallest safe mitigation, document findings, and
   leave the issue open (see §7).
+- If your fix touches user-facing strings/labels/messages: i18n is mandatory —
+  add keys to ALL locale bundles (`gui/templates/i18n/*.json`), no hardcoded text.
+- If the fix touches a modernized screen (gui/templates/**/*.html or api/**):
+  follow the existing Dashio patterns of the previously modernized screens.
 
 ## 4. Verify error-free
 
 - Re-run your reproduction: the original symptom must be gone.
 - Quick regression pass over the affected area/screen (the flows that share the
-  code you touched).
+  code you touched). If `tmp/TLU_Test_Cases.md` already has suites covering that
+  area, re-run their steps too.
 - Check the Event Viewer screen / `events` table: your fix must not introduce
   new Error/Warning entries.
+- If while testing you discover NEW bugs: log each one as a new GitHub issue
+  with symptom, repro steps and root-cause hypothesis — never fix them silently,
+  never expand this run's scope.
 
 ## 5. Regression test case (mandatory)
 
@@ -47,19 +55,28 @@ rules in AGENTS.md (they apply to every run).
   (pre-fix), expected post-fix behavior, and the actual result you observed.
 - Execute it and record PASS/FAIL honestly.
 
-## 6. Document the fix
+## 6. Document the fix — the HOW, not just the WHAT
 
+- The documentation must explain the APPROACH: root cause, the method you chose
+  to fix it, why that method (and what alternatives you rejected), and which
+  files changed.
 - Update the relevant page in the GitHub Wiki clone at `tmp/wiki-repo/`
   (origin is authenticated). If the bug touched UI, attach a fresh screenshot
   taken via chrome-devtools MCP saved into `tmp/wiki-repo/`.
 - Mirror the same documentation into `docs/` (without image lines).
+- Run a CODE REVIEW subagent over your full diff before pushing; apply its
+  findings, then push.
 - Commit+push after EACH phase, small conventional messages, immediately pushed:
   (1) the fix itself, (2) the regression test suite, (3) docs+wiki.
 
 ## 7. Close the issue only when proven fixed
 
-- Verified error-free → close the issue with a comment containing: root cause,
-  the fix (commit hash), verification steps performed, and the test case ID.
+- Verified error-free → CLOSE the issue with a final comment that documents:
+  * Root cause (what exactly was wrong and where)
+  * Fix approach — the method used and why it was chosen
+  * Files changed + commit hash(es)
+  * Verification steps performed (repro gone, regressions run, Event Viewer clean)
+  * Regression test case ID from `tmp/TLU_Test_Cases.md`
 - Could not reproduce / needs product decision / too large → do NOT close.
   Post a detailed comment: symptom, root-cause analysis so far, suggested fix,
   what blocks it. Leave it open.
