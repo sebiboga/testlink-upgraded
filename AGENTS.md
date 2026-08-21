@@ -25,7 +25,9 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 5. **Rewrite for 2.0.1 with Dashio integration.** Reimplement ALL legacy
    functionality (nothing dropped) using the Dashio look & feel: shell layout,
    DataTables, Bootstrap modals, teal/dark/red palette, same visual patterns as
-   already-modernized screens (e.g. `cfieldsAssignView.html`).
+   already-modernized screens (e.g. `cfieldsAssignView.html`). Before starting a
+   new screen, always check how the previously modernized screens were
+   implemented and reuse their patterns/conventions.
 
 6. **Update the project docs/Wiki mirror.** Document each modernized screen in
    `docs/` (mirror of the wiki page, without image lines).
@@ -55,3 +57,7 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 14. **Regression testing per ASIDE section.** After finishing a whole parent
     section of the ASIDE menu (a chapter of items, not each single item), run a
     regression pass over that section plus previously modernized screens.
+
+15. **Fix all open GitHub Issues before moving on.** Fix, repair and implement
+    everything mentioned in GitHub Issues, verify each fix works error-free,
+    then continue with the next screen.
