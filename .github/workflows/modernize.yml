@@ -62,6 +62,11 @@ jobs:
           # keep persisted credentials so opencode can commit & push per AGENTS.md rule 16
           persist-credentials: true
 
+      - name: Configure git identity (agent commits need it)
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
       - name: Setup Node.js (for opencode CLI + MCP servers)
         uses: actions/setup-node@v4
         with:
@@ -188,6 +193,8 @@ jobs:
           PROMPT+="update wiki page + docs/ mirror WITH screenshots -> check Event Viewer for new errors/warnings -> "
           PROMPT+="log any bugs as GitHub issues -> code review subagent over the changes -> apply fixes -> "
           PROMPT+="commit and push to the current branch. "
+          PROMPT+="Git push policy: NEVER use git stash and NEVER force-push; "
+          PROMPT+="if a push is rejected, run git fetch + git rebase -X theirs origin/<branch> and retry the push. "
           PROMPT+="STOP after that one screen is complete. Do NOT start another screen. "
           PROMPT+="IMPORTANT: investigation alone is NOT acceptable. You must actually CREATE the BFF API file, "
           PROMPT+="the HTML screen file and the i18n keys, switch the aside/common links, and COMMIT+PUSH your work "
@@ -202,12 +209,31 @@ jobs:
 
       - name: Fallback commit of any leftover agent changes
         run: |
+          set -e
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          BRANCH="${GITHUB_REF_NAME}"
           git add -A -- . ':(exclude)tmp/wiki-repo'
           if ! git diff --staged --quiet; then
             git commit -m "chore(opencode): leftover changes from screen modernization run"
-            git pull origin "${GITHUB_REF_NAME}" --rebase -X theirs && git push origin "HEAD:${GITHUB_REF_NAME}"
-          else
-            echo "Nothing left to commit"
           fi
+          # guarantee the push succeeds: sync with remote keeping OUR (agent) work,
+          # retry on races, escalate to force-with-lease / force only at the end
+          ok=0
+          for i in 1 2 3; do
+            git fetch origin "$BRANCH"
+            if git rev-parse "origin/$BRANCH" >/dev/null 2>&1 && \
+               ! git merge-base --is-ancestor "origin/$BRANCH" HEAD; then
+              echo "::group::rebase onto origin/$BRANCH (attempt $i)"
+              git rebase -X theirs "origin/$BRANCH" || { git rebase --abort; continue; }
+              echo "::endgroup::"
+            fi
+            if git push origin "HEAD:$BRANCH"; then ok=1; break; fi
+            sleep 5
+          done
+          if [ "$ok" != "1" ]; then
+            echo "::warning::normal push failed, escalating"
+            git push --force-with-lease origin "HEAD:$BRANCH" \
+              || git push --force origin "HEAD:$BRANCH"
+          fi
+          echo "push done"
