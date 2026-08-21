@@ -130,6 +130,49 @@ triggering a warning. Alternatives rejected: template-level `isset()` guards
 (leave the data model incomplete; every future consumer of `activeMenu` would
 need its own guard) and per-controller assignment (easy to miss on new pages).
 
+### Fixed: E_WARNING "Attempt to read property inventoryEnabled on false" (Issue #533)
+
+**Symptom.** Loading the main page / nav bar right after login logged 4
+identical events per load:
+
+```
+E_WARNING
+Attempt to read property "inventoryEnabled" on false
+in lib/functions/common.php - Line 1987
+```
+
+**Root cause.** `getGrantSetWithExit()` in `lib/functions/common.php` fetched
+the test project options and dereferenced them unguarded:
+
+```php
+$tprojOpt = $tprojMgr->getOptions($argsObj->tproject_id);
+...
+if($tprojOpt->inventoryEnabled) {
+```
+
+`testproject::getOptions()` returns **`false`** when the serialized blob in
+`testprojects.options` cannot be `unserialize()`d (NULL/corrupt options — how
+this was first observed while regression-testing issues #531/#534, whose
+hand-inserted DB fixtures carried a NULL `options` value), and an **empty
+`(object)[]`** when no `testprojects` row matches the id (no project selected,
+nonexistent id). PHP 8 turns the property read on either into an E_WARNING
+which TestLink records in the `events` table. The warning fired up to 4× per
+page load because `initUserEnv()` runs `getGrantSetWithExit()` for both the
+page context and the menu context.
+
+**Fix approach.** Guard the dereference at the consumer:
+`if( !empty($tprojOpt->inventoryEnabled) )`. `empty()` never raises a warning
+on `false` or on a missing property, and treats both as "inventory disabled",
+which is exactly the semantics the surrounding code already implements (the
+grants default to `"no"` right above the guard). Alternative rejected: the
+issue's suggested `$tprojOpt && $tprojOpt->inventoryEnabled` — the `&&` does
+not help for the `(object)[]` case because an empty object is truthy, so the
+"Undefined property" warning would still fire for loads with no matching
+project row. Hardening `getOptions()` itself was considered but rejected as
+scope creep: its other call site (`common.php:1745`) already guards with
+`isset()`, and other consumers rely on the current return shapes.
+
+**Files changed:** `lib/functions/common.php` (one condition + comment).
 
 ---
 
