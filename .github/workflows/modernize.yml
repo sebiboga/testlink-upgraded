@@ -242,7 +242,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           BRANCH="${GITHUB_REF_NAME}"
-          git add -A -- . ':(exclude)tmp/wiki-repo'
+          git add -A -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode'
           if ! git diff --staged --quiet; then
             git commit -m "chore(opencode): leftover changes from screen modernization run"
           fi
