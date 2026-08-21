@@ -98,12 +98,25 @@ if($testplanID > 0) {
   }
   if( $found == 0 ) {
     // update test plan id
-    $index = 0;
-    $testplanID = $arrPlans[$index]['id'];
+    if(count($arrPlans) > 0) {
+      $index = 0;
+      $testplanID = $arrPlans[$index]['id'];
+    } 
+    else {
+      // Session still points at a Test Plan of ANOTHER Test Project while
+      // the newly selected one has no accessible Test Plans. Nothing can be
+      // selected here: drop the stale session plan instead of reading
+      // offset 0 of an empty array (PHP 8.x turns this into E_WARNINGs,
+      // see GitHub issue #548). setSessionTestPlan(null) clears the keys.
+      $testplanID = 0;
+      setSessionTestPlan(null);
+    }
   } 
 
-  setSessionTestPlan($arrPlans[$index]);         
-  $arrPlans[$index]['selected']=1;
+  if($testplanID > 0) {
+    setSessionTestPlan($arrPlans[$index]);         
+    $arrPlans[$index]['selected']=1;
+  }
 }
 
 $gui->testplanRole = null;
