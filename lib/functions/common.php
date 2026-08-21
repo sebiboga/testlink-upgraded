@@ -1811,7 +1811,7 @@ function getActions(&$gui,$baseURL) {
   $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
   $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
   $actions->reqMonOverView = "$bb/requirements/reqMonitorOverview.php?{$ctx}";
-  $actions->tcSearch = "$bb/testcases/tcSearch.php?doAction=userInput&{$ctx}";
+  $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcCreatedUser = "$bb/results/tcCreatedPerUserOnTestProject.php?do_action=uinput&{$ctx}";
   $actions->assignReq = "$bb/general/frmWorkArea.php?feature=assignReqs&{$ctx}";
   $actions->inventoryView = "$bb/inventory/inventoryView.php?{$ctx}";
