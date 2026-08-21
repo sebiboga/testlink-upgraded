@@ -1624,3 +1624,45 @@ quick-search form `gui/templates/dashio/search/searchForm.tpl`).
 **Bugs found & fixed during this suite:** #1 popup links used relative paths →
 404 under `/gui/templates/search/` (fixed with absolute paths);
 #2 E_NOTICE from by-reference argument in BFF path resolution (fixed).
+
+## 23. Regression — Issue #535: aside.tpl shows Inventory menu link even when inventory is disabled or user lacks the right ("no" grant is truthy) (Suite ID: 34)
+
+- **Area:** Legacy aside menu (`gui/templates/dashio/aside.tpl`) + grant getters
+  (`lib/functions/common.php::getGrantSetWithExit()`,
+  `lib/general/mainPage.php::getGrants()`).
+- **Precondition:** Logged-in session; test project id 1 "InvRepro" (prefix IRR)
+  created via project edit form; second user `noinv`/`nodemo123` with default
+  role "test designer" (has NO `project_inventory_view` /
+  `project_inventory_management` rights).
+- **Pre-fix symptom:** With `inventoryEnabled = 0` in the serialized
+  `testprojects.options` blob, `lib/general/asideMenu.php` still rendered the
+  "Inventory management" link, because `getGrantSetWithExit()` initialized
+  both inventory grants to the string `"no"` (truthy in PHP/Smarty) and
+  aside.tpl gated the entry with a bare truthiness check.
+
+**Repro steps (pre-fix):**
+1. As admin create/select any test project.
+2. Disable inventory:
+   `UPDATE testprojects SET options=REPLACE(options,'i:1;}','i:0;}') WHERE id=1;`
+3. GET `lib/general/asideMenu.php` → "Inventory management" link still present.
+
+**Expected post-fix behavior:** Inventory grants are always int 1/0 — link
+renders ONLY when the project has inventory enabled AND the user holds one of
+the two rights; hidden otherwise (all 4 combinations below).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: inventory disabled + admin → asideMenu.php still contains `inventoryView` link (bug confirmed before fix) | PASS (bug reproduced) |
+| 2 | Post-fix: inventory disabled + admin → no `inventoryView` link in asideMenu.php; rest of Projects sub-menu intact (Platform Management etc. still render) | PASS |
+| 3 | Post-fix: inventory enabled + admin (has rights) → `inventoryView` link present again | PASS |
+| 4 | Post-fix: inventory enabled + user `noinv` (lacks both rights) → no `inventoryView` link; Projects section renders normally for that user | PASS |
+| 5 | Post-fix: inventory disabled + user `noinv` → no `inventoryView` link | PASS |
+| 6 | Regression: `lib/inventory/inventoryView.php?tproject_id=1` loads HTTP 200 for admin when feature enabled | PASS |
+| 7 | Regression: `lib/general/mainPage.php` loads HTTP 200 for admin and `noinv` after getGrants() normalization (no fatal/warning output) | PASS |
+| 8 | Event Viewer: no new Error/Warning events caused by fix verification flows (only pre-existing unrelated `testproject_prefix_hint` localization warning from fixture setup, filed separately) | PASS |
+
+**Actual result:** All post-fix checks PASS. Fix normalizes the two grants to
+int 1/0 in `getGrantSetWithExit()` (disabled path, blindfolded path,
+zero-testprojects path) and in `mainPage.php::getGrants()` (which now reads
+live options via `testproject::getOptions()` instead of the never-written
+legacy `$_SESSION['testprojectOptions']` key).
