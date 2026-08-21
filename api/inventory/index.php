@@ -188,7 +188,7 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
     // defense-in-depth: the row must belong to the addressed test project
     // (legacy UPDATE was scoped by id only) and must exist
     $existing = fetchDeviceRow($db, $tproject_id, $machineId);
-    if (is_null($existing)) {
+    if (empty($existing)) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Device not found',
              'error_code' => 'NOT_FOUND']);
@@ -217,7 +217,7 @@ if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
     // pre-check existence/ownership: legacy deleteInventory() hit an undefined
     // variable when the row did not exist in this project (PHP warning +
     // misleading "Delete failed")
-    if (is_null(fetchDeviceRow($db, $tproject_id, $machineId))) {
+    if (empty(fetchDeviceRow($db, $tproject_id, $machineId))) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Device not found',
              'error_code' => 'NOT_FOUND']);
