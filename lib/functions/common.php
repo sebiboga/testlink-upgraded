@@ -1815,7 +1815,7 @@ function getActions(&$gui,$baseURL) {
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
   $actions->tcCreatedUser = "$bb/results/tcCreatedPerUserOnTestProject.php?do_action=uinput&{$ctx}";
   $actions->assignReq = "$bb/general/frmWorkArea.php?feature=assignReqs&{$ctx}";
-  $actions->inventoryView = "$bb/inventory/inventoryView.php?{$ctx}";
+  $actions->inventoryView = "/gui/templates/inventory/inventoryView.html?{$ctx}";
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
