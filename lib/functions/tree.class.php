@@ -482,7 +482,10 @@ class tree extends tlObject
 
       // only continue if this $node isn't the root node
       // (that's the node with no parent)
-      if ($row['parent_id'] != '' && $row['id'] != $to_node_id) {
+      // intval() guard: PHP 8 mysqli returns parent_id as STRING '0' for
+      // root nodes, so the legacy loose compare ('0' != '') kept recursing
+      // up to id=0 and wiped the whole path (get_path() returned NULL).
+      if (intval($row['parent_id']) > 0 && $row['id'] != $to_node_id) {
         // the last part of the path to $node, is the name
         // of the parent of $node
         switch($format) {
