@@ -13,6 +13,7 @@
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
+require_once(__DIR__ . '/../../lib/functions/markdown_tc_import.class.php');
 
 doSessionStart();
 
@@ -65,6 +66,58 @@ function getParentChain($dbHandler, $nodesTable, $nodeId) {
         $cur = $next;
     }
     return array_reverse($chain);
+}
+
+/**
+ * Collect every testsuite node of a project (any depth) via BFS over
+ * nodes_hierarchy (tree_manager helpers proved unreliable in this code base).
+ */
+function getProjectSuites($dbHandler, $tprojectId) {
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'node_types'));
+    $typeRows = $dbHandler->get_recordset(
+        "SELECT id, description FROM {$tables['node_types']} " .
+        "WHERE description IN ('testproject','testsuite','testcase')");
+    if (is_null($typeRows)) {
+        return ['byId' => [], 'byName' => [], 'childMap' => [], 'types' => []];
+    }
+    $types = [];
+    foreach ($typeRows as $tr) {
+        $types[$tr['description']] = intval($tr['id']);
+    }
+
+    $allRows = $dbHandler->get_recordset(
+        "SELECT id, parent_id, name, node_type_id FROM {$tables['nodes_hierarchy']}");
+    $childMap = [];
+    if (!is_null($allRows)) {
+        foreach ($allRows as $r) {
+            $childMap[intval($r['parent_id'])][] = $r;
+        }
+    }
+
+    $byId = [];
+    $byName = [];
+    $queue = [intval($tprojectId)];
+    $seen = [intval($tprojectId) => true];
+    while (count($queue) > 0) {
+        $cur = array_shift($queue);
+        foreach ($childMap[$cur] ?? [] as $child) {
+            $cid = intval($child['id']);
+            if (isset($seen[$cid])) {
+                continue;
+            }
+            $seen[$cid] = true;
+            if (intval($child['node_type_id']) === ($types['testsuite'] ?? -1)) {
+                $byId[$cid] = $child;
+                $key = strtolower(trim(strval($child['name'])));
+                if ($key !== '' && !isset($byName[$key])) {
+                    $byName[$key] = $cid;
+                }
+                $queue[] = $cid;
+            }
+        }
+    }
+    return ['byId' => $byId, 'byName' => $byName,
+            'childMap' => $childMap, 'types' => $types];
 }
 
 $action = $_GET['action'] ?? '';
