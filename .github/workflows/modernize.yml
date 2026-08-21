@@ -89,8 +89,12 @@ jobs:
           define('DB_NAME', 'testlink');
           define('DB_TABLE_PREFIX', '');
           EOF
-          # local CI config must never leak into commits made by the agent
-          git update-index --skip-worktree config_db.inc.php
+          # config_db.inc.php is already in .gitignore; belt & suspenders so the
+          # agent can never stage it even if .gitignore changes mid-run
+          grep -qx 'config_db.inc.php' .gitignore || echo 'config_db.inc.php' >> .git/info/exclude
+          if git ls-files --error-unmatch config_db.inc.php >/dev/null 2>&1; then
+            git update-index --skip-worktree config_db.inc.php
+          fi
 
       - name: Prepare writable dirs and start TestLink (PHP built-in server)
         run: |
