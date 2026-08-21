@@ -61,3 +61,8 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 15. **Fix all open GitHub Issues before moving on.** Fix, repair and implement
     everything mentioned in GitHub Issues, verify each fix works error-free,
     then continue with the next screen.
+
+16. **Code review before every commit.** Before committing, run a code review
+    with a subagent over the screen's changes (HTML/JS/CSS + BFF API); apply
+    any required fixes, then commit and push — locally and to the repository
+    (`sebiboga/testlink-upgraded`).
