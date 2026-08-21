@@ -1396,3 +1396,44 @@ TLU: TestLink Upgraded 2.0.1
 | ID | Severity | Component | Description |
 |---|---|---|---|
 | BUG-2 | Medium | login.php | "Still valid login" message blocks direct login, requires 2 steps |
+
+---
+
+## 18. Regression — Issue #532: E_WARNING "Undefined array key documentation" in aside.tpl (Suite ID: 29)
+
+**Root cause:** `aside.tpl` (line 308) reads `$gui->activeMenu.documentation` for the
+Documentation section's CSS class, but `getFirstLevelMenuStructure()`
+(`lib/functions/common.php`) — the source of every `activeMenu`/`showMenu` map built by
+`setSystemWideActiveMenuOFF()` / `getMenuVisibility()` / `initUserEnv()` — did not define a
+`documentation` key. Every shell page load therefore raised
+`E_WARNING Undefined array key "documentation"` in the compiled aside template, recorded in
+the Event Viewer.
+
+**Fix:** Added `'documentation' => false` to `getFirstLevelMenuStructure()` so all menu maps
+carry the key (empty string when inactive, matching the other first-level entries).
+
+### TC-18.1: No E_WARNING on shell page load
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Fresh DB (`events` table empty). User admin/admin exists.
+- **Steps (pre-fix repro):**
+  1. Login as admin; open main page / any screen with the aside menu.
+     *Pre-fix result:* `events` table gains an entry with
+     `E_WARNING Undefined array key "documentation" ... aside.tpl.php`.
+  2. Post-fix: repeat login + main page load.
+     *Expected:* no new Error/Warning entries in `events`.
+- **Actual result (post-fix):** PASS — after applying the fix, full shell loads with and
+  without a selected test project produced zero new events of level Error/Warning;
+  only pre-existing audit/localization notices remained.
+
+### TC-18.2: Documentation section still renders in the aside menu
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged in as admin.
+- **Steps:**
+  1. Load any shell page and inspect the asidebar frame.
+     *Expected:* "Documentation" section present with its sub-items (user manual,
+     installation manual, file formats, excel import, fckeditor config, BTS howto,
+     GitHub wiki).
+- **Actual result (post-fix):** PASS — asidebar renders
+  "System Projects Plugins Documentation" with all seven doc links intact.
