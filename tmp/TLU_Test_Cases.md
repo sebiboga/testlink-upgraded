@@ -1832,3 +1832,45 @@ document or auto-provision during install.
 
 **Actual result:** 9/9 PASS. Accepted scope cut documented in docs: legacy
 reqType filter omitted (upstream code is broken — searches wrong property).
+## 29. Regression — Issue #544: execHistory SQL error on empty IN () + E_WARNING Array to string conversion in execHistory.tpl (Suite ID: 36)
+
+**Precondition:** fresh DB. Fixtures: project "Project Two" (P2, id 1) with
+suite TS1 → case "TC A" (P2-1, tcversion id 4); test plan TP1 (id 5, active,
+public); build B1 (id 1); one execution of P2-1 v1 in TP1/B1, status Passed.
+Second project "Empty Proj" (EP, id 6) with NO test cases.
+
+**Repro (pre-fix):**
+1. Login admin, select Project Two, open `tcView.html?tcase_id=3`, click
+   **Execution History** → page renders but Event Viewer gains
+   `E_WARNING Array to string conversion ... execHistory.tpl.php - Line 230`
+   (the cfexec per-execution value is echoed as an array).
+2. Select Empty Proj and run Quick Search (`tcSearch.php doSearch` /
+   `api/search?action=search`) → Event Viewer gains
+   `1064 SQL syntax error ... NH_TCV.parent_id IN ()` —
+   `get_all_testcases_id()` returns `[]` (not null) for a case-less project,
+   so the old `!is_null()` guard built an empty IN clause.
+
+**Expected post-fix:** no SQL error, no warnings; search on empty project
+returns the clean "empty testproject" state; exec history renders rows with
+custom-field cells as strings.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro A: execHistory.php?tcase_id=3 → event #10 `Array to string conversion` at compiled line 230; page prints literal "Array" | PASS (bug present) |
+| 2 | Pre-fix repro B: tcSearch doSearch on EP → event #15 `1064 ... near ')' ... COUNT(DISTINCT(NH_TC.id)) ... IN ()`; api/search on EP → event #16 same 1064 | PASS (bug present) |
+| 3 | Post-fix: execHistory.php?tcase_id=3 (session project = Project Two) → HTTP 200, row TP1/B1/admin/Passed rendered, zero new Error/Warning events | PASS |
+| 4 | Post-fix: execHistory with session project = Empty Proj (execution belongs to non-accessible plan) → HTTP 200, no warning (isset() guard on grants->exec_edit_notes) | PASS |
+| 5 | Post-fix: tcSearch doSearch on EP → HTTP 200, "empty testproject" feedback, no 1064 | PASS |
+| 6 | Post-fix: api/search?action=search on EP → JSON {"status":"ok","count":0,"warning":"empty_testproject"}, no 1064 | PASS |
+| 7 | Regression: tcSearch doSearch name=TC on Project Two → finds TC A | PASS |
+| 8 | Regression: api/search name=TC on Project Two → count=1, full_external_id P2-1 | PASS |
+| 9 | UI flow: tcView.html → Execution History toolbar button → popup renders history table; "Display only active test plans" checkbox toggles without errors | PASS |
+| 10 | Event Viewer after all tests: only audit/info entries (login), zero new Error/Warning | PASS |
+
+**Actual result:** 10/10 PASS.
+
+**Notes:** root cause of cluster 1 was misattributed to execHistory.php in the
+issue title — the `IN ()` query is the test-case search count query
+(tcSearch.php / api/search/index.php); both call sites guarded. Discovered
+during testing (pre-existing, out of scope): mainPage.php lines 102/105 emit
+PHP 8.x warnings when switching projects — filed separately.
