@@ -1945,3 +1945,38 @@ renders the hint text in the user's own locale; zero LOCALIZATION warnings for
 projectView.php→projectEdit.tpl path (undefined properties found /
 mgt_view_events / tprojectName) surfaced — unrelated to this i18n bug, filed
 as issue #550.
+
+## 32. Regression — Issue #550: E_WARNING spam when projectView.php renders projectEdit.tpl (0 test projects) (Suite ID: 39)
+
+**Precondition:** fresh DB import (`testprojects` table empty, `events` table
+empty), user admin/admin, right `mgt_modify_product`.
+
+**Repro steps (pre-fix):**
+1. Log in as admin → open `lib/project/projectView.php`.
+2. Inspect the rendered page and the `events` table.
+
+**Observed pre-fix:** page showed only the heading plus the template error
+branch text (`<< >> Error:`) — no create form; 3 E_WARNING entries
+(`log_level=2`) per render: undefined `stdClass::$mgt_view_events`,
+`stdClass::$found`, `stdClass::$tprojectName` in compiled projectEdit.tpl.
+
+**Expected post-fix:** `projectView.php` with 0 accessible test projects hands
+over to the regular create screen (`projectEdit.php?doAction=create`); the full
+create form renders; zero E_WARNING entries for the whole flow; creating a test
+project through that form works and lands on the populated list view.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: render projectView.php with 0 projects → 3 E_WARNING entries + error-branch garbage instead of form | PASS (reproduced) |
+| 2 | Post-fix: same URL → JS redirect to `projectEdit.php?doAction=create`, heading "Create a new project", complete create form (name/prefix/description/features/trackers/availability) | PASS |
+| 3 | Post-fix: events table contains ZERO E_WARNING entries for the render | PASS |
+| 4 | End-to-end: create "Issue550 Verification Project" (prefix I550V) through the redirected form → lands on list view showing 1 entry, audit event only | PASS |
+| 5 | Fixture removed → re-render projectView.php with 0 projects again → redirect + form + still zero E_WARNING entries | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Notes:** fix delegates to `redirect($_SESSION['basehref'] .
+'lib/project/projectEdit.php?doAction=create')` instead of launching
+projectEdit.tpl with a gui object that was never built for it (root cause:
+projectView.php::initializeGui() sets neither found / mgt_view_events /
+tprojectName nor any of the ~15 further properties the tpl form branch reads).
