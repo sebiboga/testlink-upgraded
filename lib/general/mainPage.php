@@ -511,12 +511,24 @@ function getGrants($dbHandler,$user,$tproject_id,$forceToNo=false)
   }
 
 
-  // check right ONLY if option is enabled
-  if(isset($_SESSION['testprojectOptions']) && $_SESSION['testprojectOptions']->inventoryEnabled) {
+  // check right ONLY if option is enabled.
+  // Read the LIVE test project options from DB: the legacy
+  // $_SESSION['testprojectOptions'] key is never written in this codebase,
+  // so the old isset() check always failed and the grants kept the raw
+  // 'yes'/'no' strings from hasRight() - 'no' is truthy, which made
+  // mainPageLeft.tpl render the Inventory link while inventory was disabled.
+  // Inventory grants are ALWAYS int 1/0 (same convention as
+  // getGrantSetWithExit()).
+  $tprojMgr = new testproject($dbHandler);
+  $tprojOpt = $tprojMgr->getOptions($tproject_id);
+  if( !empty($tprojOpt->inventoryEnabled) ) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
       $grants[$r] = ($user->hasRight($dbHandler,$r,$tproject_id) == 'yes') ? 1 : 0;
     }
+  } else {
+    $grants['project_inventory_view'] = 0;
+    $grants['project_inventory_management'] = 0;
   }
 
   return $grants;  

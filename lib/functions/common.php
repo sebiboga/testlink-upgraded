@@ -1705,8 +1705,8 @@ function initUserEnv(&$dbH, $context, $opt=null) {
       $gui->grants->issuetracker_view = "yes";
       $gui->grants->codetracker_view = "yes";
       $gui->grants->plugin_management = "yes";
-      $gui->grants->project_inventory_view = "no";
-      $gui->grants->project_inventory_management = "no";
+      $gui->grants->project_inventory_view = 0;
+      $gui->grants->project_inventory_management = 0;
     }
     $gui->access = getAccess($gui);
   }
@@ -1959,6 +1959,10 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     foreach($r2cSame as $rr) {
       $grants[$rr] = 'no';
     }
+    // inventory grants must stay int 1/0 (see below) - 'no' is truthy and
+    // would make aside.tpl render the Inventory link
+    $grants['project_inventory_view'] = 0;
+    $grants['project_inventory_management'] = 0;
     return (object)$grants;      
   }  
   
@@ -1985,8 +1989,10 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
   // getOptions() returns false when the serialized options blob can not be
   // unserialized, and an empty object when the test project id does not exist
   // (e.g. no test project selected). Guard before dereferencing.
-  $grants['project_inventory_view'] = "no";
-  $grants['project_inventory_management'] = "no";
+  // Inventory grants are ALWAYS int 1/0 (never the string 'no', which is
+  // truthy and made templates render the link while inventory was disabled).
+  $grants['project_inventory_view'] = 0;
+  $grants['project_inventory_management'] = 0;
   if( !empty($tprojOpt->inventoryEnabled) ) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
