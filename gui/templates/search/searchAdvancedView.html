@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Advanced Search</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.target-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; padding: 16px 20px 4px; }
+.target-row .form-group { flex: 1; min-width: 280px; margin: 0; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+.check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px 22px; padding: 12px 20px 4px; }
+.check-group { border: 1px solid #e5e5e5; border-radius: 6px; padding: 10px 12px; }
+.check-group > h4 { font-size: 12px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 6px; }
+.check-group label.cb { display: block; font-size: 12.5px; color: #444; font-weight: 400; margin: 3px 0; cursor: pointer; }
+.check-group label.cb input { margin-right: 6px; vertical-align: -2px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 22px; padding: 12px 20px 6px; }
+.actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.res-section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 12px 24px; overflow: hidden; }
+.res-section h3 { background: #22242a; color: #fff; font-size: 13.5px; font-weight: 700; margin: 0; padding: 9px 16px; }
+.res-section h3 i { margin-right: 7px; color: #4ECDC4; }
+.res-section table { width: 100%; border-collapse: collapse; }
+.res-section thead th { background: #fafafa; color: #555; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; text-align: left; padding: 8px 16px; border-bottom: 1px solid #eee; }
+.res-section tbody td { padding: 8px 16px; font-size: 13px; border-bottom: 1px solid #f2f2f2; vertical-align: top; color: #444; }
+.tc-link, .plain-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.tc-link:hover, .plain-link:hover { text-decoration: underline; }
+.path-cell { color: #777; font-size: 12px; }
+.snippet { color: #555; max-width: 520px; display: block; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="searchAdv.header">Advanced Search</span>
+  <span class="sub"><span data-i18n="search.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="search.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-red" id="btnReset" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="search.reset">Reset</span></button>
+</div>
+
+<div class="panel">
+  <div class="panel-head" data-i18n="searchAdv.formCaption">Search criteria</div>
+  <div class="notice">
+    <i class="fa fa-info-circle"></i>
+    <span data-i18n="searchAdv.notice">Search is done only on the current test project. Multiple words are searched as separate terms.</span><br>
+    <span data-i18n="searchAdv.noticeAndOr">Choose whether the search terms must all match (AND) or any of them (OR).</span>
+  </div>
+  <div class="target-row">
+    <div class="form-group">
+      <label for="target" data-i18n="searchAdv.target">Search text</label>
+      <input type="text" class="form-control" id="target" maxlength="200">
+    </div>
+    <div class="form-group" style="flex:0 0 160px;">
+      <label for="and_or" data-i18n="searchAdv.andOrTitle">Term combination</label>
+      <select class="form-control" id="and_or">
+        <option value="or" data-i18n="searchAdv.andOrOr">OR (any term)</option>
+        <option value="and" data-i18n="searchAdv.andOrAnd">AND (all terms)</option>
+      </select>
+    </div>
+  </div>
+  <div class="check-grid">
+    <div class="check-group">
+      <h4 data-i18n="searchAdv.grpTestCase">Test Cases</h4>
+      <label class="cb"><input type="checkbox" id="tc_title" value="1" checked><span data-i18n="search.title">Title</span></label>
+      <label class="cb"><input type="checkbox" id="tc_summary" value="1" checked><span data-i18n="search.summary">Summary</span></label>
+      <label class="cb"><input type="checkbox" id="tc_preconditions" value="1" checked><span data-i18n="search.preconditions">Preconditions</span></label>
+      <label class="cb"><input type="checkbox" id="tc_steps" value="1" checked><span data-i18n="search.steps">Steps</span></label>
+      <label class="cb"><input type="checkbox" id="tc_expected_results" value="1" checked><span data-i18n="search.expectedResults">Expected results</span></label>
+      <label class="cb"><input type="checkbox" id="tc_id" value="1" checked><span data-i18n="search.tcid">Test Case ID</span></label>
+    </div>
+    <div class="check-group">
+      <h4 data-i18n="searchAdv.grpTestSuite">Test Suites</h4>
+      <label class="cb"><input type="checkbox" id="ts_title" value="1" checked><span data-i18n="search.title">Title</span></label>
+      <label class="cb"><input type="checkbox" id="ts_summary" value="1" checked><span data-i18n="searchAdv.details">Details</span></label>
+    </div>
+    <div class="check-group" id="grpReqSpec" style="display:none">
+      <h4 data-i18n="searchAdv.grpReqSpec">Requirement Specifications</h4>
+      <label class="cb"><input type="checkbox" id="rs_title" value="1" checked><span data-i18n="search.title">Title</span></label>
+      <label class="cb"><input type="checkbox" id="rs_scope" value="1" checked><span data-i18n="searchAdv.scope">Scope</span></label>
+    </div>
+    <div class="check-group" id="grpReq" style="display:none">
+      <h4 data-i18n="searchAdv.grpRequirement">Requirements</h4>
+      <label class="cb"><input type="checkbox" id="rq_title" value="1" checked><span data-i18n="search.title">Title</span></label>
+      <label class="cb"><input type="checkbox" id="rq_scope" value="1" checked><span data-i18n="searchAdv.scope">Scope</span></label>
+      <label class="cb"><input type="checkbox" id="rq_doc_id" value="1" checked><span data-i18n="search.requirementDocId">Requirement document ID</span></label>
+    </div>
+  </div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="created_by" data-i18n="search.createdBy">Created by</label>
+      <input type="text" class="form-control" id="created_by" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="edited_by" data-i18n="search.editedBy">Edited by</label>
+      <input type="text" class="form-control" id="edited_by" maxlength="50">
+    </div>
+    <div class="form-group" id="grpKeyword" style="display:none">
+      <label for="keyword_id" data-i18n="search.keyword">Keyword</label>
+      <select class="form-control" id="keyword_id"></select>
+    </div>
+    <div class="form-group" id="grpCustomField" style="display:none">
+      <label for="custom_field_id" data-i18n="search.customField">Custom field</label>
+      <select class="form-control" id="custom_field_id"></select>
+    </div>
+    <div class="form-group" id="grpCustomFieldValue" style="display:none">
+      <label for="custom_field_value" data-i18n="search.customFieldValue">Custom field value</label>
+      <input type="text" class="form-control" id="custom_field_value" maxlength="20">
+    </div>
+    <div class="form-group">
+      <label for="creation_date_from" data-i18n="search.creationDateFrom">Creation date from</label>
+      <input type="date" class="form-control" id="creation_date_from">
+    </div>
+    <div class="form-group">
+      <label for="creation_date_to" data-i18n="search.creationDateTo">Creation date to</label>
+      <input type="date" class="form-control" id="creation_date_to">
+    </div>
+    <div class="form-group">
+      <label for="modification_date_from" data-i18n="search.modificationDateFrom">Modification date from</label>
+      <input type="date" class="form-control" id="modification_date_from">
+    </div>
+    <div class="form-group">
+      <label for="modification_date_to" data-i18n="search.modificationDateTo">Modification date to</label>
+      <input type="date" class="form-control" id="modification_date_to">
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="search.btnFind">Find</span></button>
+    <button class="btn-red" onclick="resetForm()"><span data-i18n="search.reset">Reset</span></button>
+  </div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="empty" id="noResults" data-i18n="search.noResults">No records match the given criteria.</div>
+
+<div class="results-head" id="resultsHead" style="display:none">
+  <h2><span data-i18n="search.results">Search results</span><span class="count" id="matchCount"></span></h2>
+</div>
+
+<div class="res-section" id="secTC" style="display:none">
+  <h3><i class="fas fa-flask-vial"></i><span data-i18n="searchAdv.grpTestCase">Test Cases</span></h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:20%" data-i18n="search.colPath">Test Suite</th>
+        <th style="width:28%" data-i18n="search.colTestCase">Test Case</th>
+        <th data-i18n="search.colSummary">Summary</th>
+        <th data-orderable="false" style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="res-section" id="secTS" style="display:none">
+  <h3><i class="fas fa-folder-tree"></i><span data-i18n="searchAdv.grpTestSuite">Test Suites</span></h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%" data-i18n="searchAdv.colName">Name</th>
+        <th data-i18n="searchAdv.details">Details</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="res-section" id="secRS" style="display:none">
+  <h3><i class="fas fa-file-lines"></i><span data-i18n="searchAdv.grpReqSpec">Requirement Specifications</span></h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:30%" data-i18n="searchAdv.colName">Name</th>
+        <th data-i18n="searchAdv.scope">Scope</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="res-section" id="secRQ" style="display:none">
+  <h3><i class="fas fa-prescription-bottle"></i><span data-i18n="searchAdv.grpRequirement">Requirements</span></h3>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:22%" data-i18n="searchAdv.colDocId">Document ID</th>
+        <th style="width:26%" data-i18n="searchAdv.colName">Name</th>
+        <th data-i18n="searchAdv.scope">Scope</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/search/index.php';
+var tprojectId = 0;
+var ctx = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadContext();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function stripHtml(s) {
+  return String(s == null ? '' : s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function loadContext() {
+  $.getJSON(API + '?action=context&tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      ctx = r;
+      $('#tprojectName').text(r.tproject.name);
+      $('#tprojectName2').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('searchAdv.header');
+
+      // keywords
+      if (r.keywords.length > 0) {
+        $('#grpKeyword').show();
+        $('#keyword_id').append('<option value="0">&nbsp;</option>');
+        $.each(r.keywords, function (i, k) {
+          $('#keyword_id').append('<option value="' + k.id + '">' + esc(k.name) + '</option>');
+        });
+      }
+
+      // custom fields: test case + requirement design cfs in one dropdown
+      var cfs = (r.customFields || []).concat(r.customFieldsReq || []);
+      if (cfs.length > 0) {
+        $('#grpCustomField').show();
+        $('#grpCustomFieldValue').show();
+        $('#custom_field_id').append('<option value="0">&nbsp;</option>');
+        $.each(cfs, function (i, cf) {
+          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+        });
+      }
+
+      // requirement sections only when the feature is enabled on the project
+      if (r.requirementsEnabled) {
+        $('#grpReqSpec').show();
+        $('#grpReq').show();
+      }
+
+      // prefill from URL params (deep link support)
+      ['target','created_by','edited_by','keyword_id','custom_field_id',
+       'custom_field_value'].forEach(function (k) {
+        var v = p.get(k);
+        if (v !== null && v !== '') { $('#' + k).val(v); }
+      });
+      var ao = p.get('and_or');
+      if (ao === 'and' || ao === 'or') { $('#and_or').val(ao); }
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+// convert yyyy-mm-dd (date input) to the server's configured format e.g. dd/mm/yyyy
+function fmtDate(iso, phpFormat) {
+  if (!iso) return '';
+  var parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return phpFormat
+    .replace('%Y', parts[0])
+    .replace('%m', parts[1])
+    .replace('%d', parts[2]);
+}
+
+function doSearch() {
+  if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
+  $('#warnBox').hide();
+
+  var anyCheck = false;
+  $('input[type=checkbox][id^=tc_],input[type=checkbox][id^=ts_],input[type=checkbox][id^=rs_],input[type=checkbox][id^=rq_]')
+    .each(function () { if (this.checked) { anyCheck = true; } });
+  if (!anyCheck) {
+    $('#warnBox').text(TLi18n.t('searchAdv.warnNeedCheckbox')).show();
+    return;
+  }
+
+  var q = new URLSearchParams();
+  q.set('action', 'fulltext');
+  q.set('tproject_id', tprojectId);
+
+  var target = $.trim($('#target').val());
+  var kw = parseInt($('#keyword_id').val() || '0', 10);
+  var cfid = parseInt($('#custom_field_id').val() || '0', 10);
+  var cfv = $.trim($('#custom_field_value').val());
+  if (target === '' && kw <= 0 && cfid <= 0 && cfv === '' &&
+      $('#created_by').val().trim() === '' && $('#edited_by').val().trim() === '') {
+    $('#warnBox').text(TLi18n.t('searchAdv.warnNeedCriteria')).show();
+    return;
+  }
+  if (target !== '') q.set('target', target);
+  q.set('and_or', $('#and_or').val());
+
+  ['tc_title','tc_summary','tc_preconditions','tc_steps','tc_expected_results','tc_id',
+   'ts_title','ts_summary','rs_title','rs_scope','rq_title','rq_scope','rq_doc_id']
+  .forEach(function (k) {
+    q.set(k, document.getElementById(k).checked ? '1' : '0');
+  });
+
+  ['created_by','edited_by','custom_field_value'].forEach(function (k) {
+    var v = $.trim($('#' + k).val());
+    if (v !== '') q.set(k, v);
+  });
+  if (kw > 0) q.set('keyword_id', kw);
+  if (cfid > 0) q.set('custom_field_id', cfid);
+
+  [['creation_date_from'],['creation_date_to'],
+   ['modification_date_from'],['modification_date_to']].forEach(function (pair) {
+    var v = $('#' + pair[0]).val();
+    if (v) q.set(pair[0], fmtDate(v, ctx.dateFormat));
+  });
+
+  $('#btnFind').prop('disabled', true);
+  $.getJSON(API + '?' + q.toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      if (msg === 'need_checkbox') { msg = TLi18n.t('searchAdv.warnNeedCheckbox'); }
+      if (msg === 'need_criteria') { msg = TLi18n.t('searchAdv.warnNeedCriteria'); }
+      toast(msg, true);
+    })
+    .always(function () { $('#btnFind').prop('disabled', false); });
+}
+
+function warningText(key) {
+  switch (key) {
+    case 'empty_testproject': return TLi18n.t('search.warnEmptyProject');
+    case 'no_records_found': return TLi18n.t('search.noResults');
+  }
+  return key;
+}
+
+function renderResults(r) {
+  if (r.warning) {
+    $('#warnBox').text(warningText(r.warning)).show();
+  }
+
+  $('#resultsHead').show();
+  $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
+
+  renderTC(r.testcases || []);
+  renderSimple('secTS', r.testsuites || [], function (row) {
+    var name = row.id > 0
+      ? '<a class="plain-link" href="javascript:void(0)" onclick="openTsEdit(' + row.id + ')">' + esc(row.name) + '</a>'
+      : esc(row.name);
+    return [esc(row.name), '<span class="snippet">' + esc(stripHtml(row.details)) + '</span>'].map(function(v,i){ return i===0?name:v; });
+  });
+  renderSimple('secRS', r.reqspecs || [], function (row) {
+    var name = row.req_spec_id > 0
+      ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqSpecEdit(' + row.req_spec_id + ')">' +
+        esc(row.name) + ' [r' + row.revision + ']</a>'
+      : esc(row.name);
+    return [name, '<span class="snippet">' + esc(stripHtml(row.scope)) + '</span>'];
+  });
+  renderRQ(r.requirements || []);
+
+  var total = (r.testcases||[]).length + (r.testsuites||[]).length +
+              (r.reqspecs||[]).length + (r.requirements||[]).length;
+  $('#noResults').toggle(total === 0 && !r.warning);
+  $('#footerInfo').text(total === 0 ? '' : TLi18n.t('search.matchCount', {n: total}));
+}
+
+function renderTC(rows) {
+  var $tb = $('#secTC tbody').empty();
+  $('#secTC').toggle(rows.length > 0);
+  $.each(rows, function (i, row) {
+    var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
+                  row.testcase_id + ')">' +
+                  esc(row.full_external_id) + ' [v' + row.version + '] :: ' + esc(row.name) + '</a>';
+    $tb.append('<tr>' +
+      '<td class="path-cell">' + esc(row.path) + '</td>' +
+      '<td>' + tcLabel + '</td>' +
+      '<td><span class="snippet">' + esc(stripHtml(row.summary)) + '</span></td>' +
+      '<td>' +
+        '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
+          '" onclick="openTcEdit(' + row.testcase_id + ')"><i class="fas fa-pen-to-square"></i></button>' +
+        '<button class="icon-btn hist" title="' + esc(TLi18n.t('search.execHistory')) +
+          '" onclick="openExecHistory(' + row.testcase_id + ')"><i class="fas fa-clock-rotate-left"></i></button>' +
+      '</td>' +
+    '</tr>');
+  });
+}
+
+function renderSimple(secId, rows, mapFn) {
+  var $tb = $('#' + secId + ' tbody').empty();
+  $('#' + secId).toggle(rows.length > 0);
+  $.each(rows, function (i, row) {
+    var cells = mapFn(row);
+    var html = '<tr>';
+    $.each(cells, function (j, c) { html += '<td>' + c + '</td>'; });
+    html += '</tr>';
+    $tb.append(html);
+  });
+}
+
+function renderRQ(rows) {
+  var $tb = $('#secRQ tbody').empty();
+  $('#secRQ').toggle(rows.length > 0);
+  $.each(rows, function (i, row) {
+    var vr = row.version > 0 ? ' [v' + row.version + '.' + row.revision + ']' : '';
+    var name = row.req_id > 0
+      ? '<a class="plain-link" href="javascript:void(0)" onclick="openReqEdit(' + row.req_id + ')">' +
+        esc(row.name) + vr + '</a>'
+      : esc(row.name);
+    $tb.append('<tr>' +
+      '<td>' + esc(row.req_doc_id) + '</td>' +
+      '<td>' + name + '<br><span class="path-cell">' + esc(row.path) + '</span></td>' +
+      '<td><span class="snippet">' + esc(stripHtml(row.scope)) + '</span></td>' +
+    '</tr>');
+  });
+}
+
+function openTcEdit(tcaseId) {
+  var url = '/gui/templates/testcases/tcView.html?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openExecHistory(tcaseId) {
+  var url = '/lib/execute/execHistory.php?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openTsEdit(tsId) {
+  var url = '/lib/testcases/archiveData.php?edit=testsuite&id=' + tsId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openReqSpecEdit(rsId) {
+  var url = '/lib/requirements/reqSpecEdit.php?req_spec_id=' + rsId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openReqEdit(reqId) {
+  var url = '/lib/requirements/reqEdit.php?requirement_id=' + reqId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function resetForm() {
+  $('#warnBox').hide();
+  $('#resultsHead').hide();
+  $('#noResults').hide();
+  $('.res-section').hide();
+  $('.panel input[type=text],.panel input[type=date]').val('');
+  $('.panel select').val('0');
+  $('.check-group input[type=checkbox]').prop('checked', true);
+  $('#and_or').val('or');
+  $('#footerInfo').text('');
+}
+</script>
+</body>
+</html>
