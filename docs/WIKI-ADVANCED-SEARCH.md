@@ -39,6 +39,8 @@ MySQL function `UDFStripHTMLTags` (same as legacy).
 | Created by / Edited by | `LIKE` on author/updater login, first or last name |
 | Keyword | exact keyword id (dropdown shown when the project has keywords) |
 | Custom field + value | design-time custom fields for test cases AND requirements in one dropdown; date/datetime values converted like legacy, everything else `LIKE` |
+| Test case status | Draft … Final domain on the latest tcversion (`tcWKFStatus`) |
+| Requirement status | D/R/W/F/I/V/N/O domain on the latest requirement version (`reqStatus`, shown when requirements are enabled) |
 | Creation date from/to | range on `tcversions.creation_ts` ("to" includes 23:59:59); dates sent in the project's configured date format |
 | Modification date from/to | range on `tcversions.modification_ts` |
 
@@ -51,7 +53,12 @@ Legacy parity notes:
   (`searchCommands.class.php`), so this screen inherits the same behavior;
 * an entirely empty search returns all latest test case versions server-side
   (legacy semantics kept in the API); the UI asks for at least one criterion
-  before sending.
+  before sending;
+* the legacy *requirement type* filter is **not** offered: upstream never
+  delivers it to the engine correctly (`lib/search/search.php:74` strips the
+  `RQ` prefix from the wrong property, so the generated SQL can never match);
+* requirement field checkboxes are only submitted when requirements are
+  enabled on the project (legacy omitted the inputs entirely).
 
 ## Results
 

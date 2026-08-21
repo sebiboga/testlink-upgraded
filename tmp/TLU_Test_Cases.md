@@ -1815,3 +1815,20 @@ recreated (was missing from fresh import — blocks legacy advanced search too)
 `UDFStripHTMLTags` which legacy advanced search requires (`$tlCfg->UDFStripHTMLTags=true`);
 recreated it from install/sql/mysql/testlink_create_udf0.sql. Candidate follow-up:
 document or auto-provision during install.
+
+### Suite 28b — code-review round (commit 1d2cb161f)
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | CF filter through legacy engine with `cf_types`/`design_cf_rq` fed explicitly: no PHP 8.3 undefined-property warnings, date/datetime CF switch reachable | PASS |
+| 2 | Requirements disabled → rs_*/rq_* flags not sent, requirement groups hidden; enabled → visible + reqStatus dropdown populated (D/R/W/F/I/V/N/O) | PASS |
+| 3 | reqStatus=D matches fixture req (status letter domain), reqStatus=V excludes it; intval clobber bug fixed | PASS |
+| 4 | tcWKFStatus=1 keeps matching tcversion (status=1); 8-option domain rendered | PASS |
+| 5 | Date-range-only search now allowed client-side (dates count as criteria) | PASS |
+| 6 | Warning responses hide the results header + match counter (no stale "(N matches)") | PASS |
+| 7 | Invalid tproject_id → HTTP 404 Test project not found (existence check added) | PASS |
+| 8 | RQ rows no longer fake version=0/revision=0 fields | PASS |
+| 9 | Full regression of suite 28 flows after fixes: alpha → 4 sections / 4 matches; OR/AND terms; reset; locale switch | PASS |
+
+**Actual result:** 9/9 PASS. Accepted scope cut documented in docs: legacy
+reqType filter omitted (upstream code is broken — searches wrong property).
