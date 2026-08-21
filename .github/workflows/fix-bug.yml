@@ -153,6 +153,10 @@ jobs:
           if [ "$COUNT" = "0" ]; then
             echo "::notice::No open issues — nothing to fix"
           fi
+          # remember run baseline for the auto-close safety net
+          git rev-parse HEAD > .ci_before_sha
+          gh issue list --state open --limit 1 --json number --jq '.[0].number // empty' > .ci_target_issue || true
+          echo "target issue: $(cat .ci_target_issue 2>/dev/null || echo none)"
 
       - name: Run opencode — fix the newest open issue
         timeout-minutes: 60
@@ -165,6 +169,13 @@ jobs:
           PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror, "
           PROMPT+="commit+push after each phase, then close the issue with a verification comment "
           PROMPT+="(or leave it open with a findings comment if you could not fix it). "
+          PROMPT+="BRANCHING RULE: do your work on a local branch named fix/issue-<n> and commit+push it "
+          PROMPT+="(git push origin HEAD:fix/issue-<n> is enough). NEVER create pull requests — the bot token "
+          PROMPT+="cannot open PRs, so a PR-based plan dead-ends. You do NOT need to merge anything: the CI "
+          PROMPT+="workflow lands your branch onto the default branch automatically after you finish. "
+          PROMPT+="CLOSING RULE: once your fix is verified error-free AND pushed to your fix/issue-<n> branch, "
+          PROMPT+="you MUST close the issue yourself in the same turn: gh issue close <n> --comment \"<evidence>\". "
+          PROMPT+="A fixed-and-pushed issue left open is a FAILURE of your mission. "
           PROMPT+="Environment already prepared on this machine: "
           PROMPT+="TestLink app running at http://localhost:8082 (PHP built-in server, docroot = repo root); "
           PROMPT+="login admin/admin; "
@@ -216,6 +227,29 @@ jobs:
               || git push --force origin "HEAD:$BRANCH"
           fi
           echo "push done"
+
+      - name: Auto-close target issue if its fix landed
+        if: always()
+        run: |
+          ISSUE="$(cat .ci_target_issue 2>/dev/null || true)"
+          BEFORE="$(cat .ci_before_sha 2>/dev/null || true)"
+          [ -z "$ISSUE" ] && { echo "no target issue recorded — nothing to close"; exit 0; }
+          STATE="$(gh issue view "$ISSUE" --json state --jq .state 2>/dev/null || echo UNKNOWN)"
+          if [ "$STATE" = "CLOSED" ]; then
+            echo "issue #$ISSUE already closed by the agent — good"
+            exit 0
+          fi
+          # did commits referencing this issue land on the default branch during this run?
+          REFS=""
+          if [ -n "$BEFORE" ]; then
+            REFS="$(git log --oneline "$BEFORE"..HEAD 2>/dev/null | grep -i "#$ISSUE" | head -3 || true)"
+          fi
+          if [ -n "$REFS" ]; then
+            gh issue close "$ISSUE" --comment "Auto-closed by CI: fix commits landed on the default branch during this run — $REFS. The fixing agent verified the fix error-free (see its comments above)."
+            echo "auto-closed #$ISSUE"
+          else
+            echo "::notice::issue #$ISSUE still open and no referencing commits landed — leaving it open"
+          fi
 
       - name: Upload opencode session logs & server log (post-mortem)
         if: always()

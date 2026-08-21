@@ -76,36 +76,35 @@ rules in AGENTS.md (they apply to every run).
 - Commit+push after EACH phase, small conventional messages, immediately pushed:
   (1) the fix itself, (2) the regression test suite, (3) docs+wiki.
 
-## 7. Land the fix via Pull Request
+## 7. Land the fix (NO pull requests)
 
-- Open a PR from your `fix/issue-<n>-<slug>` branch (see §8) with:
-  * Title: `fix: <one-line summary> (issue #<n>)`
-  * Body: root cause, approach (+ alternatives rejected), files changed,
-    verification steps, regression test case ID, and the line `Fixes #<n>`
-- Then TRY to merge it yourself: `gh pr merge --squash --delete-branch`.
-  If blocked by conflicts → fetch + rebase your branch on the updated default
-  branch (you own it) and retry.
-- Only if you still cannot land it cleanly: leave the PR open with a clear
-  status comment and finish. A scheduled merge-bot workflow will pick it up
-  later; if it stays unmergeable, a human reviews it.
-- The issue closes AUTOMATICALLY when the PR merges (`Fixes #<n>`).
-  Do NOT close the issue manually while its PR is still open.
-- Could not reproduce / needs product decision / too large → do NOT open a
-  speculative PR. Post a detailed comment on the issue: symptom, root-cause
-  analysis so far, suggested fix, what blocks it. Leave it open.
+- You work on your own branch `fix/issue-<n>-<slug>` (see §8) and push it:
+  `git push origin HEAD:fix/issue-<n>-<slug>`.
+- NEVER create a pull request — the bot token cannot open PRs, so any PR
+  plan dead-ends. You do NOT merge anything yourself either.
+- The CI workflow lands your branch onto the default branch automatically
+  after you finish (rebase + push with escalation). Your job ends at a
+  clean, pushed, verified branch.
+- CLOSE THE ISSUE YOURSELF once the fix is verified error-free AND pushed:
+  `gh issue close <n> --comment "<verification evidence>"`.
+  A fixed-and-pushed issue left open is a FAILURE of your mission.
+- Could not reproduce / needs product decision / too large → do NOT close.
+  Post a detailed comment on the issue: symptom, root-cause analysis so far,
+  suggested fix, what blocks it. Leave it open.
 
 ## 8. Git & time discipline
 
 - Work on YOUR OWN branch only: create `fix/issue-<n>-<short-slug>` at the
-  start and write its name into `.ci_branch`. NEVER push to the default branch.
+  start. Push it as `fix/issue-<n>-<short-slug>`; never push to the default
+  branch yourself — the CI workflow does that landing for you.
 - NEVER `git stash`, NEVER force-push to the default branch. If a push of YOUR
   branch is rejected: `git fetch && git rebase -X theirs origin/<your-branch>`
   then retry — force-with-lease is allowed only on your own agent branch.
 - AWARENESS: other CI agents may run concurrently (the modernize workflow
   pushes intermediate commits to the default branch). You are an AI — decide
-  your own strategy. Useful checks before push/merge:
+  your own strategy. Useful check before finishing:
   `gh api repos/$GITHUB_REPOSITORY/actions/workflows/modernize.yml/runs?status=in_progress`
-  and `gh pr list`. Fetch + rebase whenever the default branch moved.
+  Fetch + rebase onto the default branch whenever it moved.
 - `config_db.inc.php` is gitignored — never stage or commit it.
 - The GitHub Wiki clone (`tmp/wiki-repo/`) is SHARED — another agent may push
   to it while you work. If its push is rejected:
