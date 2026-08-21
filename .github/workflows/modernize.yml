@@ -189,6 +189,10 @@ jobs:
           PROMPT+="log any bugs as GitHub issues -> code review subagent over the changes -> apply fixes -> "
           PROMPT+="commit and push to the current branch. "
           PROMPT+="STOP after that one screen is complete. Do NOT start another screen. "
+          PROMPT+="IMPORTANT: investigation alone is NOT acceptable. You must actually CREATE the BFF API file, "
+          PROMPT+="the HTML screen file and the i18n keys, switch the aside/common links, and COMMIT+PUSH your work "
+          PROMPT+="before you finish. Do not end your turn with only a plan or a summary — keep calling tools until "
+          PROMPT+="the screen is fully implemented, tested and pushed. "
           PROMPT+="All steps must be executed autonomously — no user interaction is allowed. "
           PROMPT+="When in doubt, proceed with the safest action for production."
 
