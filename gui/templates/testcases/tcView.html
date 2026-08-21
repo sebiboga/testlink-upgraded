@@ -123,8 +123,11 @@ var data = null;
 var currentVersion = null;
 
 $(function () {
-  TLi18n.initLocaleSwitcher('#localeSwitcher');
-  loadView();
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadView();
+  });
 });
 
 function qs(name) {
@@ -207,6 +210,8 @@ function canEditCurrent() {
 function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
+  // legacy tcExport.php expects tproject_id on the query string
+  $('#exportForm').attr('action', '/lib/testcases/tcExport.php?tproject_id=' + data.tproject.id);
   $('#expTcaseId').val(data.tcase.id);
   $('#expTcversionId').val(currentVersion.tcversion_id);
   if (data.versions.length > 1) {
