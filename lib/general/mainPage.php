@@ -493,6 +493,10 @@ function getGrants($dbHandler,$user,$tproject_id,$forceToNo=false)
           'exec_ro_access' => 'exec_ro_access');
  if ($forceToNo) {
     $grants = array_fill_keys(array_keys($right2check), 'no');
+    // inventory grants must stay int 1/0 (see below) - 'no' is truthy and
+    // would make templates render the Inventory link
+    $grants['project_inventory_view'] = 0;
+    $grants['project_inventory_management'] = 0;
     return $grants;      
  }  
   
