@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Test Cases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 22px; padding: 16px 20px 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+textarea.form-control { height: auto; }
+.input-group-text { font-size: 12px; background: #eefaf9; color: #2d8e88; border-color: #ccc; }
+.actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.table-wrap { padding: 8px 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.tc-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.tc-link:hover { text-decoration: underline; }
+.path-cell { color: #555; max-width: 320px; }
+.summary-cell { color: #555; max-width: 480px; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.icon-btn.hist { color: #888; }
+.icon-btn.hist:hover { color: #555; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="search.header">Search Test Cases</span>
+  <span class="sub"><span data-i18n="search.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="search.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-red" id="btnReset" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="search.reset">Reset</span></button>
+</div>
+
+<div class="panel">
+  <div class="panel-head" data-i18n="search.formCaption">Search criteria</div>
+  <div class="notice">
+    <i class="fa fa-info-circle"></i>
+    <span data-i18n="search.filterModeAnd">All criteria are combined with a logical AND.</span><br>
+    <span id="importantNotice"></span><br>
+    <span data-i18n="search.prefixIgnored">The test project prefix in the "Test Case ID" field is ignored during the search.</span>
+  </div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="targetTestCase" data-i18n="search.tcid">Test Case ID</label>
+      <div class="input-group">
+        <span class="input-group-text" id="prefixAddon">-</span>
+        <input type="text" class="form-control" id="targetTestCase" maxlength="30">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="version" data-i18n="search.version">Version</label>
+      <input type="number" min="1" step="1" class="form-control" id="version">
+    </div>
+    <div class="form-group">
+      <label for="name" data-i18n="search.title">Title</label>
+      <input type="text" class="form-control" id="name" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="created_by" data-i18n="search.createdBy">Created by</label>
+      <input type="text" class="form-control" id="created_by" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="edited_by" data-i18n="search.editedBy">Edited by</label>
+      <input type="text" class="form-control" id="edited_by" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="summary" data-i18n="search.summary">Summary</label>
+      <input type="text" class="form-control" id="summary" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="preconditions" data-i18n="search.preconditions">Preconditions</label>
+      <input type="text" class="form-control" id="preconditions" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="steps" data-i18n="search.steps">Steps</label>
+      <input type="text" class="form-control" id="steps" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="expected_results" data-i18n="search.expectedResults">Expected results</label>
+      <input type="text" class="form-control" id="expected_results" maxlength="50">
+    </div>
+    <div class="form-group">
+      <label for="creation_date_from" data-i18n="search.creationDateFrom">Creation date from</label>
+      <input type="date" class="form-control" id="creation_date_from">
+    </div>
+    <div class="form-group">
+      <label for="creation_date_to" data-i18n="search.creationDateTo">Creation date to</label>
+      <input type="date" class="form-control" id="creation_date_to">
+    </div>
+    <div class="form-group">
+      <label for="modification_date_from" data-i18n="search.modificationDateFrom">Modification date from</label>
+      <input type="date" class="form-control" id="modification_date_from">
+    </div>
+    <div class="form-group">
+      <label for="modification_date_to" data-i18n="search.modificationDateTo">Modification date to</label>
+      <input type="date" class="form-control" id="modification_date_to">
+    </div>
+    <div class="form-group" id="grpImportance" style="display:none">
+      <label for="importance" data-i18n="search.importance">Importance</label>
+      <select class="form-control" id="importance"></select>
+    </div>
+    <div class="form-group">
+      <label for="status" data-i18n="search.status">Status</label>
+      <select class="form-control" id="status"></select>
+    </div>
+    <div class="form-group" id="grpKeyword" style="display:none">
+      <label for="keyword_id" data-i18n="search.keyword">Keyword</label>
+      <select class="form-control" id="keyword_id"></select>
+    </div>
+    <div class="form-group" id="grpCustomField" style="display:none">
+      <label for="custom_field_id" data-i18n="search.customField">Custom field</label>
+      <select class="form-control" id="custom_field_id"></select>
+    </div>
+    <div class="form-group" id="grpCustomFieldValue" style="display:none">
+      <label for="custom_field_value" data-i18n="search.customFieldValue">Custom field value</label>
+      <input type="text" class="form-control" id="custom_field_value" maxlength="20">
+    </div>
+    <div class="form-group" id="grpReqDocId" style="display:none">
+      <label for="requirement_doc_id" data-i18n="search.requirementDocId" title="">Requirement document ID</label>
+      <input type="text" class="form-control" id="requirement_doc_id" maxlength="32">
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="search.btnFind">Find</span></button>
+    <button class="btn-red" onclick="resetForm()"><span data-i18n="search.reset">Reset</span></button>
+  </div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="results-head" id="resultsHead" style="display:none">
+  <h2><span data-i18n="search.results">Search results</span><span class="count" id="matchCount"></span></h2>
+</div>
+<div class="empty" id="noResults" data-i18n="search.noResults">No test cases match the given criteria.</div>
+<div class="table-wrap" id="resultsWrap" style="display:none">
+  <table id="resTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:22%" data-i18n="search.colPath">Test Suite</th>
+        <th style="width:26%" data-i18n="search.colTestCase">Test Case</th>
+        <th data-i18n="search.colSummary">Summary</th>
+        <th style="width:70px" data-i18n="search.colVersion">Version</th>
+        <th data-orderable="false" style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/search/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var ctx = null;
+var resTbl = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadContext();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function loadContext() {
+  $.getJSON(API + '?action=context&tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      ctx = r;
+      $('#tprojectName').text(r.tproject.name);
+      $('#tprojectName2').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('search.header');
+      $('#prefixAddon').text(r.tcasePrefix);
+      $('#targetTestCase').val(r.tcasePrefix);
+      $('#importantNotice').text(TLi18n.t('search.importantNotice', {tproject: r.tproject.name}));
+      $('#requirement_doc_id').attr('title', TLi18n.t('search.typeLike'));
+
+      // importance (only when priority enabled for this project)
+      if (r.importanceEnabled) {
+        $('#grpImportance').show();
+        $('#importance').append('<option value="0"></option>');
+        $('#importance').append('<option value="3">' + esc(TLi18n.t('search.highImportance')) + '</option>');
+        $('#importance').append('<option value="2">' + esc(TLi18n.t('search.mediumImportance')) + '</option>');
+        $('#importance').append('<option value="1">' + esc(TLi18n.t('search.lowImportance')) + '</option>');
+      }
+
+      // status domain comes localized from the server (same source as legacy)
+      $('#status').append('<option value="0"></option>');
+      $.each(r.statusDomain, function (i, s) {
+        $('#status').append('<option value="' + s.code + '">' + esc(s.label) + '</option>');
+      });
+
+      // keywords
+      if (r.keywords.length > 0) {
+        $('#grpKeyword').show();
+        $('#keyword_id').append('<option value="0">&nbsp;</option>');
+        $.each(r.keywords, function (i, k) {
+          $('#keyword_id').append('<option value="' + k.id + '">' + esc(k.name) + '</option>');
+        });
+      }
+
+      // custom fields
+      if (r.customFields.length > 0) {
+        $('#grpCustomField').show();
+        $('#grpCustomFieldValue').show();
+        $('#custom_field_id').append('<option value="0">&nbsp;</option>');
+        $.each(r.customFields, function (i, cf) {
+          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+        });
+      }
+
+      // requirement doc id filter
+      if (r.requirementsEnabled) {
+        $('#grpReqDocId').show();
+      }
+
+      // prefill from URL params (deep link support)
+      ['targetTestCase','version','name','created_by','edited_by','summary',
+       'preconditions','steps','expected_results','keyword_id','custom_field_id',
+       'custom_field_value','requirement_doc_id','importance','status'].forEach(function (k) {
+        var v = p.get(k);
+        if (v !== null && v !== '' && document.getElementById(k)) {
+          $('#' + k).val(v);
+        }
+      });
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+// convert yyyy-mm-dd (date input) to the server's configured format e.g. dd/mm/yyyy
+function fmtDate(iso, phpFormat) {
+  if (!iso) return '';
+  var parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return phpFormat
+    .replace('%Y', parts[0])
+    .replace('%m', parts[1])
+    .replace('%d', parts[2]);
+}
+
+function doSearch() {
+  $('#warnBox').hide();
+  var q = new URLSearchParams();
+  q.set('action', 'search');
+  q.set('tproject_id', tprojectId);
+
+  var tcid = $.trim($('#targetTestCase').val());
+  if (tcid !== '' && tcid !== ctx.tcasePrefix) q.set('targetTestCase', tcid);
+  if ($('#version').val()) q.set('version', $('#version').val());
+  var textFields = ['name','created_by','edited_by','summary','preconditions','steps',
+                    'expected_results','custom_field_value','requirement_doc_id'];
+  $.each(textFields, function (i, k) {
+    var v = $.trim($('#' + k).val());
+    if (v !== '') q.set(k, v);
+  });
+  ['importance','status','keyword_id','custom_field_id'].forEach(function (k) {
+    var v = parseInt($('#' + k).val() || '0', 10);
+    if (v > 0) q.set(k, v);
+  });
+  [['creation_date_from','creation_date_from'],['creation_date_to','creation_date_to'],
+   ['modification_date_from','modification_date_from'],['modification_date_to','modification_date_to']]
+  .forEach(function (pair) {
+    var v = $('#' + pair[0]).val();
+    if (v) q.set(pair[1], fmtDate(v, ctx.dateFormat));
+  });
+
+  $('#btnFind').prop('disabled', true);
+  $.getJSON(API + '?' + q.toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    })
+    .always(function () { $('#btnFind').prop('disabled', false); });
+}
+
+function warningText(key) {
+  switch (key) {
+    case 'testcase_does_not_exists': return TLi18n.t('search.warnTcDoesNotExist');
+    case 'empty_testproject': return TLi18n.t('search.warnEmptyProject');
+    case 'no_records_found': return TLi18n.t('search.noResults');
+    case 'too_wide_search_criteria': return TLi18n.t('search.warnTooWide');
+  }
+  return key;
+}
+
+function stripHtml(s) {
+  var txt = String(s == null ? '' : s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  return txt;
+}
+
+function renderResults(r) {
+  if (r.warning) {
+    $('#warnBox').text(warningText(r.warning)).show();
+  }
+
+  $('#resultsHead').show();
+  $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
+
+  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+
+  if (!r.rows || r.rows.length === 0) {
+    $('#resultsWrap').hide();
+    $('#noResults').toggle(!r.warning || r.warning === 'no_records_found');
+    $('#footerInfo').text('');
+    return;
+  }
+  $('#noResults').hide();
+  $('#resultsWrap').show();
+
+  var rows = r.rows.map(function (row) {
+    var path = esc(row.path);
+    var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
+                  row.testcase_id + ',' + row.tcversion_id + ')">' +
+                  esc(row.full_external_id) + ' [v' + row.version + '] :: ' + esc(row.name) + '</a>';
+    var summary = esc(stripHtml(row.summary));
+    var actions =
+      '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
+        '" onclick="openTcEdit(' + row.testcase_id + ',' + row.tcversion_id + ')"><i class="fas fa-pen-to-square"></i></button>' +
+      '<button class="icon-btn hist" title="' + esc(TLi18n.t('search.execHistory')) +
+        '" onclick="openExecHistory(' + row.testcase_id + ')"><i class="fas fa-clock-rotate-left"></i></button>';
+    return [path, tcLabel, summary, row.version, actions];
+  });
+
+  resTbl = $('#resTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 3, className: 'text-center', width: '70px' },
+      { targets: 4, orderable: false }
+    ]
+  });
+  $('#footerInfo').text(TLi18n.t('search.matchCount', {n: r.count}));
+}
+
+function openTcEdit(tcaseId, tcversionId) {
+  var url = 'lib/testcases/archiveData.php?edit=testcase&id=' + tcaseId +
+            '&tcversion_id=' + tcversionId + '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openExecHistory(tcaseId) {
+  var url = 'lib/execute/execHistory.php?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function resetForm() {
+  $('#warnBox').hide();
+  $('#resultsHead').hide();
+  $('#resultsWrap').hide();
+  $('#noResults').hide();
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  $('.panel').find('input[type=text],input[type=number],input[type=date]').val('');
+  $('select').val('0');
+  $('#targetTestCase').val(ctx ? ctx.tcasePrefix : '');
+  $('#footerInfo').text('');
+}
+</script>
+</body>
+</html>
