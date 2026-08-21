@@ -174,6 +174,56 @@ scope creep: its other call site (`common.php:1745`) already guards with
 
 **Files changed:** `lib/functions/common.php` (one condition + comment).
 
+### Fixed: Inventory menu link always visible in aside menu (Issue #535)
+
+**Symptom.** The sidebar ("aside") menu rendered the "Inventory management"
+link for every user in every project context, even when
+
+- the test project had `inventoryEnabled = 0` in its serialized `options`
+  blob, or
+- the user held neither `project_inventory_view` nor
+  `project_inventory_management`.
+
+**Root cause.** `getGrantSetWithExit()` (`lib/functions/common.php`)
+initialized both inventory grants to the **string** `"no"` when inventory was
+disabled, and `aside.tpl` gated the entry with a bare truthiness check:
+
+```
+{if $menuGrants->project_inventory_view || $menuGrants->project_inventory_management}
+```
+
+In PHP/Smarty any non-empty string is truthy, so `"no"` passed the check and
+the link always rendered. The same latent pattern existed in
+`lib/general/mainPage.php::getGrants()`, which read the test project options
+from `$_SESSION['testprojectOptions']` — a session key that is never written
+anywhere in this codebase — so its grants kept the raw `'yes'/'no'` strings
+from `hasRight()` and the legacy `tl-classic/mainPageLeft.tpl` truthiness
+check had the identical bug.
+
+**Fix approach.** Normalize instead of hardening every template check: both
+grant getters now yield these two grants as **int 1/0 only** — `1` solely
+when the project has inventory enabled AND the user holds the right, `0`
+otherwise (disabled feature, blind-folded user, zero-testprojects fallback).
+The existing truthiness checks in `aside.tpl` / `mainPageLeft.tpl` then behave
+correctly with no template logic changes; only an outdated explanatory comment
+in `aside.tpl` was updated. Alternatives rejected: strict comparisons in the
+templates (`== "yes" || === 1`) — they fix aside.tpl but leave mainPage's
+dead-session-key path showing the link for entitled users while the feature
+is disabled, and they push the value-convention knowledge onto every future
+template; normalizing at the source keeps one convention for all consumers,
+matching what `getGrantSetWithExit()` already did for the enabled branch.
+
+**Files changed:** `lib/functions/common.php`
+(`getGrantSetWithExit()`: disabled-path defaults `"no"` → `0`, blind-folded
+early-return zeroes the two grants, zero-testprojects fallback `"no"` → `0`);
+`lib/general/mainPage.php` (`getGrants()`: reads live options via
+`testproject::getOptions()` and zeroes the grants when inventory is off);
+`gui/templates/dashio/aside.tpl` (comment only).
+
+Verified matrix (asideMenu.php): disabled+admin → hidden; enabled+admin →
+visible; enabled+user-without-rights → hidden; disabled+user-without-rights →
+hidden.
+
 ---
 
 ## 6. How Context Propagates
