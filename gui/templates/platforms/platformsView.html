@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Platform Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.section { padding: 20px 24px 4px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.plat-name { font-weight: 700; color: #2d8e88; text-decoration: none; cursor: pointer; }
+.plat-name:hover { text-decoration: underline; }
+.plat-name.plain { color: #22242a; cursor: default; }
+.plat-name.plain:hover { text-decoration: none; }
+.api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
+.notes-cell { color: #555; max-width: 480px; }
+.toggle-btn { background: none; border: none; padding: 2px 6px; font-size: 16px; cursor: pointer; line-height: 1; }
+.toggle-btn.on { color: #2d8e88; }
+.toggle-btn.off { color: #bbb; }
+.toggle-btn:disabled { cursor: not-allowed; opacity: .5; }
+.del-btn { background: none; border: none; color: #e6605e; cursor: pointer; font-size: 15px; padding: 2px 6px; }
+.del-btn:hover { color: #c53f3d; }
+.lock-btn { background: none; border: none; color: #bbb; font-size: 14px; padding: 2px 6px; cursor: help; }
+.linked-badge { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-group label { font-size: 12px; font-weight: 600; }
+.flag-check { margin-right: 18px; font-size: 13px; font-weight: 400; }
+.ev-btn { background: none; border: none; color: #b8860b; font-size: 13px; cursor: pointer; padding: 0; }
+.ev-btn:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="header.platManage">Platform Management</span>
+  <span class="sub" data-i18n="header.platManageSub">create, edit and delete platforms for this test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pl.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreate" onclick="openCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="pl.createPlatform">Create Platform</span></button>
+  <button class="btn-teal" id="btnImport" onclick="openImport()" style="display:none"><i class="fa fa-file-import"></i> <span data-i18n="pl.import">Import</span></button>
+  <button class="btn-teal" id="btnExport" onclick="openExport()" style="display:none"><i class="fa fa-file-export"></i> <span data-i18n="pl.export">Export</span></button>
+</div>
+
+<div class="section">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;"><span data-i18n="header.platManage">Platform Management</span><span class="count" id="platCount" style="font-weight:400;color:#888;font-size:13px;margin-left:6px;"></span></h2>
+</div>
+<div class="table-wrap">
+  <div id="platEmpty" class="empty" style="display:none" data-i18n="pl.noPlatforms">No platforms defined for this test project yet</div>
+  <table id="platTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:28%" data-i18n="pl.platform">Platform</th>
+        <th data-i18n="pl.notes">Notes</th>
+        <th data-orderable="false" style="width:90px" data-i18n="pl.onDesign">On Design</th>
+        <th data-orderable="false" style="width:90px" data-i18n="pl.onExec">On Execution</th>
+        <th data-orderable="false" style="width:110px" data-i18n="pl.openForExec">Open for Execution</th>
+        <th data-orderable="false" style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit Platform Modal -->
+<div class="modal fade" id="platModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="platModalTitle">Create Platform</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPlatId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="editPlatName" data-i18n="pl.nameLabel">Name *</label>
+          <input type="text" id="editPlatName" class="form-control" maxlength="75" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="editPlatNotes" data-i18n="pl.notesLabel">Notes</label>
+          <textarea id="editPlatNotes" class="form-control" rows="3" style="font-size:13px;"></textarea>
+        </div>
+        <div class="form-group" style="margin-bottom:4px;">
+          <label class="flag-check"><input type="checkbox" id="editOnDesign" value="1"> <span data-i18n="pl.onDesign">On Design</span></label>
+          <label class="flag-check"><input type="checkbox" id="editOnExec" value="1"> <span data-i18n="pl.onExec">On Execution</span></label>
+          <label class="flag-check"><input type="checkbox" id="editIsOpen" value="1"> <span data-i18n="pl.openForExec">Open for Execution</span></label>
+        </div>
+        <div style="margin-top:10px;display:none;" id="evHistoryWrap">
+          <button type="button" class="ev-btn" onclick="showEventHistory()"><i class="fa fa-history"></i> <span data-i18n="pl.showEventHistory">Show event history</span></button>
+        </div>
+        <div id="platModalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="savePlat()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;background:#e6605e;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import Modal -->
+<div class="modal fade" id="importModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="pl.import">Import</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label data-i18n="pl.format">Format *</label>
+          <input type="text" class="form-control" style="font-size:13px;background:#eee;" value="XML" disabled>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="importFile" data-i18n="pl.chooseFileLabel">File *</label>
+          <input type="file" id="importFile" class="form-control" style="font-size:13px;" accept=".xml,application/xml,text/xml">
+        </div>
+        <div style="color:#888;font-size:12px;" id="fileSizeNote"></div>
+        <div id="importError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="doImport()" style="font-size:13px;" data-i18n="pl.upload">Upload file</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Export Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="pl.export">Export</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label data-i18n="pl.format">Format *</label>
+          <input type="text" class="form-control" style="font-size:13px;background:#eee;" value="XML" disabled>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="exportFilename" data-i18n="pl.fileName">File name *</label>
+          <input type="text" id="exportFilename" class="form-control" maxlength="255" style="font-size:13px;" value="platforms.xml">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="doExport()" style="font-size:13px;" data-i18n="pl.export">Export</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<form id="eventhistory" target="_blank" method="POST" action="/lib/events/eventviewer.php" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="platforms">
+</form>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/platforms/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var canManage = false;
+var canViewEvents = false;
+var platTbl = null;
+var deleteTarget = null;
+var tprojectNameForExport = '';
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#fileSizeNote').text(TLi18n.t('pl.maxFileSize'));
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function errorCodeToMessage(code, fallback) {
+  switch (parseInt(code, 10)) {
+    case -2: return TLi18n.t('pl.emptyNotAllowed');
+    case -4: return TLi18n.t('pl.alreadyExists');
+    case -8: return TLi18n.t('pl.updateFails');
+  }
+  return fallback || TLi18n.t('pl.updateFails');
+}
+
+function load() {
+  $.getJSON(API + '/?tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      canManage = r.rights.canManage;
+      canViewEvents = r.rights.canViewEvents;
+      $('#tprojectName').text(r.tproject.name);
+      tprojectNameForExport = r.tproject.name;
+      document.title = r.tproject.name + ' - ' + TLi18n.t('header.platManage');
+      $('#btnCreate').toggle(canManage);
+      $('#btnImport').toggle(canManage);
+      $('#btnExport').toggle(true);
+
+      render(r.items);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function render(items) {
+  $('#platCount').text('(' + items.length + ')');
+  $('#platEmpty').toggle(items.length === 0);
+  $('#platTable').toggle(items.length > 0);
+
+  if (platTbl) { platTbl.destroy(); $('#platTable tbody').empty(); }
+
+  var rows = items.map(function (p) {
+    var apiTitle = TLi18n.t('pl.apiId').replace('{id}', p.id);
+    var nameCell = '<i class="fas fa-cubes api-id" title="' + esc(apiTitle) + '"></i>';
+    if (canManage) {
+      nameCell += '<a class="plat-name" href="javascript:void(0)" onclick="editPlat(' + p.id + ')">' + esc(p.name) + '</a>';
+    } else {
+      nameCell += '<span class="plat-name plain">' + esc(p.name) + '</span>';
+    }
+    nameCell += '<span class="linked-badge" title="' + esc(TLi18n.t('pl.linkedTo')) + '">' +
+                p.linked_count + '</span>';
+
+    // legacy strips tags + truncates notes to 120 chars in the list view
+    var notesPlain = String(p.notes == null ? '' : p.notes).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (notesPlain.length > 120) { notesPlain = notesPlain.substring(0, 120) + '...'; }
+    var notes = notesPlain ? esc(notesPlain) : '<span class="muted">-</span>';
+
+    var action = '';
+    if (canManage) {
+      if (p.deletable) {
+        action = '<button class="del-btn" title="' + esc(TLi18n.t('pl.deletePlatform')) +
+                 '" onclick="confirmDelete(' + p.id + ',\'' + esc(p.name).replace(/'/g,"\\'") + '\')">' +
+                 '<i class="fas fa-minus-circle"></i></button>';
+      } else {
+        action = '<span class="lock-btn" title="' + esc(TLi18n.t('pl.cannotDelete')) + '"><i class="fas fa-heart"></i></span>';
+      }
+    }
+
+    return [
+      nameCell,
+      notes,
+      flagToggle(p.id, 'enable_on_design', p.enable_on_design),
+      flagToggle(p.id, 'enable_on_execution', p.enable_on_execution),
+      flagToggle(p.id, 'is_open', p.is_open),
+      action
+    ];
+  });
+
+  platTbl = $('#platTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: [2, 3, 4], className: 'text-center', orderable: false },
+      { targets: 5, orderable: false }
+    ]
+  });
+}
+
+function flagToggle(id, field, value) {
+  var on = parseInt(value, 10) == 1;
+  var cls = on ? 'on' : 'off';
+  var icon = on ? 'fa-toggle-on' : 'fa-toggle-off';
+  var titleKey = on ? 'pl.clickToDeactivate' : 'pl.clickToActivate';
+  var titleAttr = canManage ? ' title="' + esc(TLi18n.t(titleKey)) + '"' : '';
+  return '<button class="toggle-btn ' + cls + '"' + titleAttr +
+         (canManage ? ' onclick="toggleFlag(' + id + ',\'' + field + '\',' + (on ? 0 : 1) + ')"' : ' disabled') +
+         '><i class="fas ' + icon + '"></i></button>';
+}
+
+function toggleFlag(id, field, value) {
+  $.ajax({
+    url: API + '/' + id + '/flags',
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: tprojectId, field: field, value: value })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); }
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+
+function openCreate() {
+  $('#editPlatId').val('');
+  $('#editPlatName').val('');
+  $('#editPlatNotes').val('');
+  $('#editOnDesign').prop('checked', true);
+  $('#editOnExec').prop('checked', true);
+  $('#editIsOpen').prop('checked', true);
+  $('#evHistoryWrap').hide();
+  $('#platModalError').hide();
+  $('#platModalTitle').text(TLi18n.t('pl.createPlatform'));
+  $('#platModal').modal('show');
+}
+
+function editPlat(id) {
+  $.getJSON(API + '/' + id)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      $('#editPlatId').val(r.item.id);
+      $('#editPlatName').val(r.item.name);
+      $('#editPlatNotes').val(r.item.notes);
+      $('#editOnDesign').prop('checked', r.item.enable_on_design == 1);
+      $('#editOnExec').prop('checked', r.item.enable_on_execution == 1);
+      $('#editIsOpen').prop('checked', r.item.is_open == 1);
+      $('#evHistoryWrap').toggle(canViewEvents);
+      $('#platModalError').hide();
+      $('#platModalTitle').text(TLi18n.t('pl.editPlatform') + ': ' + r.item.name);
+      $('#platModal').modal('show');
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function savePlat() {
+  var id = $('#editPlatId').val();
+  var name = $.trim($('#editPlatName').val());
+  var body = {
+    tproject_id: tprojectId,
+    name: name,
+    notes: $('#editPlatNotes').val(),
+    enable_on_design: $('#editOnDesign').is(':checked') ? 1 : 0,
+    enable_on_execution: $('#editOnExec').is(':checked') ? 1 : 0,
+    is_open: $('#editIsOpen').is(':checked') ? 1 : 0
+  };
+
+  if (name === '') {
+    showError($('#platModalError'), TLi18n.t('pl.emptyNotAllowed'));
+    return;
+  }
+
+  var req;
+  if (id) {
+    req = $.ajax({ url: API + '/' + id, method: 'PUT', contentType: 'application/json', data: JSON.stringify(body) });
+  } else {
+    req = $.ajax({ url: API, method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+  }
+
+  req.done(function (r) {
+    if (r.status === 'ok') {
+      $('#platModal').modal('hide');
+      toast(TLi18n.t('pl.msg.saved'));
+      load();
+    } else {
+      showError($('#platModalError'), errorCodeToMessage(r.error_code, r.message));
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    showError($('#platModalError'), errorCodeToMessage(r.error_code, r.message));
+  });
+}
+
+function showError($el, msgKeyOrText) {
+  $el.text(msgKeyOrText).show();
+}
+
+function confirmDelete(id, name) {
+  deleteTarget = id;
+  $('#delTitle').text(TLi18n.t('common.delete'));
+  $('#delMsg').html('<b>' + esc(name) + '</b><br>' + esc(TLi18n.t('pl.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  $.ajax({
+    url: API + '/' + deleteTarget + '?tproject_id=' + tprojectId,
+    method: 'DELETE'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(TLi18n.t('pl.msg.deleted'));
+    } else {
+      toast(r.message || TLi18n.t('common.error'), true);
+    }
+    load();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+
+function showEventHistory() {
+  var id = $('#editPlatId').val();
+  if (!id) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
+}
+
+function openImport() {
+  $('#importError').hide();
+  $('#importFile').val('');
+  $('#importModal').modal('show');
+}
+
+function doImport() {
+  var fileInput = document.getElementById('importFile');
+  if (!fileInput.files.length) {
+    $('#importError').text(TLi18n.t('pl.chooseFile')).show();
+    return;
+  }
+  var fd = new FormData();
+  fd.append('tproject_id', tprojectId);
+  fd.append('uploadedFile', fileInput.files[0]);
+
+  $.ajax({
+    url: API + '/import',
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      $('#importModal').modal('hide');
+      toast(TLi18n.t('pl.msg.imported')
+        .replace('{imported}', r.imported).replace('{updated}', r.updated));
+      load();
+    } else {
+      $('#importError').text(r.message || TLi18n.t('pl.wrongFile')).show();
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    $('#importError').text(
+      r.error_code === 'NO_FILE' ? TLi18n.t('pl.chooseFile') :
+      r.error_code === 'WRONG_FORMAT' ? TLi18n.t('pl.wrongFile') :
+      r.message || TLi18n.t('common.error')
+    ).show();
+  });
+}
+
+function openExport() {
+  // legacy default filename: <TestProjectName>-platforms.xml (spaces stripped)
+  var def = (tprojectNameForExport || '').replace(/\s+/g, '') + '-platforms.xml';
+  $('#exportFilename').val(def);
+  $('#exportModal').modal('show');
+}
+
+function doExport() {
+  var f = $.trim($('#exportFilename').val()) ||
+          (tprojectNameForExport || '').replace(/\s+/g, '') + '-platforms.xml';
+  window.location.href = API + '/export?tproject_id=' + tprojectId + '&filename=' + encodeURIComponent(f);
+  $('#exportModal').modal('hide');
+}
+</script>
+</body>
+</html>

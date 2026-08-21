@@ -135,7 +135,7 @@ if ($method === 'GET' && count($segments) === 0) {
     out([
         'status' => 'ok',
         'items' => $items,
-        'tproject' => ['id' => $tproject_id, 'name' => $tproject_mgr->getName($tproject_id)],
+        'tproject' => ['id' => $tproject_id, 'name' => testproject::getName($db, $tproject_id)],
         'rights' => [
             'canManage' => (bool)$user->hasRight($db, 'mgt_modify_key', $tproject_id),
             'canAssign' => (bool)$user->hasRight($db, 'keyword_assignment', $tproject_id),

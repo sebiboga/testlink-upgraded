@@ -9,6 +9,11 @@ function checkRights(&$db, &$user, $action) {
 
 $tproject_id = intval($_SESSION['testprojectID'] ?? 0);
 $tplan_id = intval($_SESSION['testplanID'] ?? 0);
+
+// Optional per-object drill-down (e.g. "Show event history" from a screen
+// posts object_id/object_type); filters charts and table to that object.
+$objectId = intval($_REQUEST['object_id'] ?? 0);
+$objectType = preg_replace('/[^a-zA-Z0-9_]/', '', strval($_REQUEST['object_type'] ?? ''));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -87,7 +92,12 @@ td.details-control:hover { color: #2d8e88; }
 </head>
 <body>
 
-<div class="header">Event Viewer <span>real-time log monitoring</span></div>
+<div class="header">Event Viewer <span>real-time log monitoring</span><?php
+if ($objectId > 0 && $objectType !== '') {
+    echo '<span style="display:inline-block;margin-left:12px;background:#e6605e;border-radius:4px;padding:2px 10px;">'
+       . 'filtered by object: ' . htmlspecialchars($objectType) . ' #' . $objectId . '</span>';
+}
+?></div>
 
 <div class="filters">
   <div class="filter-group">
@@ -148,6 +158,10 @@ td.details-control:hover { color: #2d8e88; }
 <script src="../templates/dashio/lib/chart-master/Chart.js"></script>
 <script>
 var API = '/api/eventviewer/index.php';
+var OBJECT_FILTER = {
+  objectId: <?php echo json_encode($objectId > 0 ? $objectId : null); ?>,
+  objectType: <?php echo json_encode($objectType !== '' ? $objectType : null); ?>
+};
 var LEVEL_COLORS = {
   AUDIT: '#4ECDC4', ERROR: '#e6605e', WARNING: '#f0ad4e',
   INFO: '#3498db', DEBUG: '#8f8f8f', L18N: '#9b59b6'
@@ -197,6 +211,8 @@ function buildQuery() {
   if (start) p.push('startDate=' + encodeURIComponent(start.split(' - ')[0]));
   var end = $('#filterEnd').val();
   if (end) p.push('endDate=' + encodeURIComponent(end.split(' - ').pop()));
+  if (OBJECT_FILTER.objectId) p.push('objectId=' + OBJECT_FILTER.objectId);
+  if (OBJECT_FILTER.objectType) p.push('objectType=' + encodeURIComponent(OBJECT_FILTER.objectType));
   return p.length ? '?' + p.join('&') : '';
 }
 

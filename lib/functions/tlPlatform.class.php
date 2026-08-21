@@ -558,11 +558,12 @@ class tlPlatform extends tlObjectWithDB
   {
     $debugMsg = '/* Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__ . '*/ ';
     $pid = intval(is_null($tproject_id) ? $this->tproject_id : $tproject_id);
-    
+
     $sql = " SELECT id FROM {$this->tables['platforms']} " .
            " WHERE id = " . intval($id) . " AND testproject_id=" . $pid;
     $dummy =  $this->db->fetchRowsIntoMap($sql,'id');
-    return isset($dummy['id']);
+    // fetchRowsIntoMap() keys rows by the id column VALUE => non-empty map means ownership
+    return !is_null($dummy) && count($dummy) > 0;
   }  
 
   public function isLinkedToTestplan($id,$testplan_id)

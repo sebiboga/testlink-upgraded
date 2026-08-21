@@ -1208,6 +1208,167 @@ TLU: TestLink Upgraded 2.0.1
 
 ---
 
+## 17. Platform Management — Modernized (Suite ID: 28)
+
+> **Run 2026-08-21 (browser + curl):** 18/18 PASS after fixes.
+> Fixes applied during run: `tlPlatform::belongsToTestProject()` always-false check
+> (isset on map keyed by id value), keywords API static `testproject::getName()` misuse
+> (ArgumentCountError 500), flags endpoint parse error + inverted on/off map,
+> missing i18n keys `pl.editPlatform` / `pl.chooseFileLabel`, disabled toggles no longer
+> show actionable tooltips. Event Viewer gained object_id/object_type filter support
+> (legacy parity for "Show event history" drill-down).
+> State left: platforms Windows/macOS remain; testplan "Master Plan" (id=10) links platform 1;
+> viewer/platform_viewer role created for permission tests.
+
+**Screen:** `gui/templates/platforms/platformsView.html` · **API:** `/api/platforms/index.php`  
+**Path:** Test Project > Platform Management
+
+### TC-17.1: Screen Loads Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged in as admin with platform_management right. At least one test project exists.
+- **Steps:**
+  1. Open aside menu > Test Project > "Platform Management".
+     *Expected:* platformsView.html loads in mainframe shell, no PHP warnings or JS console errors.
+  2. Verify header shows title + subtitle + locale switcher + current Test Project name.
+
+### TC-17.2: Empty State Message
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Test project has no platforms.
+- **Steps:**
+  1. Load screen with zero platforms.
+     *Expected:* Info panel "No platforms defined..." instead of table; Create button still available.
+
+### TC-17.3: Create Platform — Valid Data
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click "+ Create Platform", fill name "Windows 11 + Chrome" and notes, keep all flags checked, Save.
+     *Expected:* Modal closes, toast "Platform saved", row appears with `[ID: n]` icon, linked badge 0, all three toggles Active.
+
+### TC-17.4: Create Platform — Duplicate Name Rejected
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Create a second platform with an existing name.
+     *Expected:* Error toast "A platform with this name already exists in this test project"; modal stays open; HTTP 422 E_NAMEALREADYEXISTS.
+
+### TC-17.5: Create Platform — Empty Name Rejected
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Create with empty name (spaces only).
+     *Expected:* Error toast "Empty platform name is not allowed"; HTTP 422 E_NAMELENGTH.
+
+### TC-17.6: Flag Toggles Persist
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click each toggle (On Design / On Execution / Open for Execution) in the list.
+     *Expected:* Icon flips immediately, toast confirms, DB value updated (verified via curl PUT /{id}/flags and re-GET).
+
+### TC-17.7: Edit Platform Prefills and Saves
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click platform name link.
+     *Expected:* Modal titled "Edit Platform: <name>" with name, notes, flag checkboxes prefilled from stored values.
+  2. Change notes, Save.
+     *Expected:* Toast, row notes updated.
+
+### TC-17.8: Rename to Existing Name Rejected
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Edit platform A, set its name to platform B's name, Save.
+     *Expected:* 422 duplicate-name error (guard legacy update() lacked).
+
+### TC-17.9: Export Default Filename and XML Format
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click Export Platforms.
+     *Expected:* Filename input prefilled `<TestProjectNameNoSpaces>-platforms.xml`.
+  2. Download.
+     *Expected:* ADODB_XML document identical in structure to legacy export (`<platforms><platform>` CDATA name/notes/flags).
+
+### TC-17.10: Import Creates and Updates by Name
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Import XML containing one new platform and one existing name with changed notes/flags.
+     *Expected:* Toast "Platforms imported: 1 new, 1 updated"; new row appears; existing row's notes/flags reflect file.
+
+### TC-17.11: Delete Unlinked Platform
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Click delete (minus-circle) on unlinked platform, Cancel first.
+     *Expected:* Cancel closes modal, row remains.
+  2. Delete again, confirm.
+     *Expected:* Row removed, toast "Platform deleted".
+
+### TC-17.12: Linked Platform Cannot Be Deleted
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Platform linked to at least one test plan (testplan_platforms row).
+- **Steps:**
+  1. Inspect Actions cell of linked platform.
+     *Expected:* Heart (lock) icon with tooltip warning_cannot_delete_platform instead of delete button.
+  2. Call DELETE via API.
+     *Expected:* HTTP 422 DELETE_BLOCKED with message that platform is used by testplans.
+
+### TC-17.13: Event History Drill-Down
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Admin has mgt_view_events.
+- **Steps:**
+  1. Open edit modal, click "Show event history".
+     *Expected:* Event Viewer opens in new tab with red badge "filtered by object: platforms #<id>"; charts/table scoped to that object (0 rows when no object-scoped events exist).
+
+### TC-17.14: Aside Menu Link Targets New Screen
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. In shell, inspect aside menu entry href and click it.
+     *Expected:* Points to `/gui/templates/platforms/platformsView.html?tproject_id=...&tplan_id=...` and loads inside mainframe.
+
+### TC-17.15: Locale Switcher Translates All Labels
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Switch locale to Română.
+     *Expected:* Page reloads with ?locale=ro; title, subtitle, buttons, column headers, toggle tooltips translated (Gestionare Platforme etc.). Switch back to English restores.
+
+### TC-17.16: Search and Column Sorting
+- **Priority:** Low
+- **Importance:** Low
+- **Steps:**
+  1. Type partial platform name in search box.
+     *Expected:* Table filters to matching rows; clearing restores.
+  2. Click Platform header twice.
+     *Expected:* Ascending then descending order.
+
+### TC-17.17: View-Only User Gets Read-Only UI
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User with role granting only platform_view.
+- **Steps:**
+  1. Log in as viewer, open screen.
+     *Expected:* Create/Import buttons hidden; Export visible; names are plain text (not links); toggles disabled without actionable tooltip; heart/delete replaced by nothing destructive.
+  2. Call POST/PUT/DELETE/import endpoints with viewer session.
+     *Expected:* All return HTTP 403 "No permission".
+
+### TC-17.18: Unauthenticated API Access Returns 401
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Call GET and POST on `/api/platforms/index.php` without session cookie.
+     *Expected:* HTTP 401 for both.
+
+---
+
 ## Summary
 
 | Suite | Test Cases | High | Medium | Low |
@@ -1228,7 +1389,8 @@ TLU: TestLink Upgraded 2.0.1
 | Custom Fields (Modernized) | 6 | 2 | 3 | 1 |
 | Header Fix #523 | 3 | 1 | 2 | 0 |
 | Assign Custom Fields (Modernized) | 14 | 8 | 5 | 1 |
-| **TOTAL** | **102** | **60** | **40** | **6** |
+| Platform Management (Modernized) | 18 | 11 | 5 | 2 |
+| **TOTAL** | **120** | **71** | **45** | **8** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |

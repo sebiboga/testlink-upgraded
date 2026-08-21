@@ -41,6 +41,7 @@ function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 
 function getFilters() {
     $logLevels = $users = $startTime = $endTime = null;
+    $objectId = $objectType = null;
 
     $rl = getParam('logLevel');
     if ($rl !== null) {
@@ -66,7 +67,12 @@ function getFilters() {
         if ($d) { $endTime = strtotime($d['month'] . '/' . $d['day'] . '/' . $d['year'] . ', 23:59:59'); }
     }
 
-    return [$logLevels, $users, $startTime, $endTime];
+    $oid = getParam('objectId');
+    if ($oid !== null && $oid !== '') { $objectId = intval($oid); }
+    $oty = getParam('objectType');
+    if ($oty !== null && $oty !== '') { $objectType = preg_replace('/[^a-zA-Z0-9_]/', '', $oty); }
+
+    return [$logLevels, $users, $startTime, $endTime, $objectId, $objectType];
 }
 
 function eventToJSON(tlEvent $event, &$db) {
@@ -119,7 +125,7 @@ if ($method === 'GET' && $path === '/events/meta/rights') {
 // Aggregate in SQL. Loading every matching event as a full tlEvent object just
 // to count them exhausts PHP's memory limit once the log grows (the events
 // table reaches five figures quickly on a busy instance).
-function statsWhere($db, $users, $startTime, $endTime, $extraWhere = null) {
+function statsWhere($db, $users, $startTime, $endTime, $extraWhere = null, $objectId = null, $objectType = null) {
     $t = tlObject::getDBTables(['events', 'transactions']);
     $join = '';
     if (!is_null($users) && $users !== '') {
@@ -132,14 +138,19 @@ function statsWhere($db, $users, $startTime, $endTime, $extraWhere = null) {
     $clauses = [];
     if (!is_null($startTime)) { $clauses[] = 'E.fired_at >= ' . intval($startTime); }
     if (!is_null($endTime))   { $clauses[] = 'E.fired_at <= ' . intval($endTime); }
+    if (!is_null($objectId))  { $clauses[] = 'E.object_id = ' . intval($objectId); }
+    if (!is_null($objectType)) {
+        $safeType = $db->prepare_string($objectType);
+        $clauses[] = "E.object_type = '{$safeType}'";
+    }
     if (!is_null($extraWhere)) { $clauses[] = $extraWhere; }
     $where = $clauses ? ' WHERE ' . implode(' AND ', $clauses) : '';
     return [$t['events'], $join, $where];
 }
 
 if ($method === 'GET' && $path === '/events/stats/byLevel') {
-    [$logLevels, $users, $startTime, $endTime] = getFilters();
-    [$eventsTable, $join, $where] = statsWhere($db, $users, $startTime, $endTime);
+    [$logLevels, $users, $startTime, $endTime, $objectId, $objectType] = getFilters();
+    [$eventsTable, $join, $where] = statsWhere($db, $users, $startTime, $endTime, null, $objectId, $objectType);
 
     $counts = [];
     foreach (tlLogger::$logLevels as $name) { $counts[$name] = 0; }
@@ -154,7 +165,7 @@ if ($method === 'GET' && $path === '/events/stats/byLevel') {
 }
 
 if ($method === 'GET' && $path === '/events/stats/perDay') {
-    [$logLevels, $users, $startTime, $endTime] = getFilters();
+    [$logLevels, $users, $startTime, $endTime, $objectId, $objectType] = getFilters();
 
     $daily = [];
     $now = new DateTime();
@@ -166,7 +177,7 @@ if ($method === 'GET' && $path === '/events/stats/perDay') {
     // Only the charted window has to come back from the database.
     $windowStart = (clone $now)->modify('-29 days')->setTime(0, 0, 0)->getTimestamp();
     [$eventsTable, $join, $where] =
-        statsWhere($db, $users, $startTime, $endTime, 'E.fired_at >= ' . $windowStart);
+        statsWhere($db, $users, $startTime, $endTime, 'E.fired_at >= ' . $windowStart, $objectId, $objectType);
 
     $sql = "SELECT DATE(FROM_UNIXTIME(E.fired_at)) AS d, COUNT(*) AS qty" .
            " FROM {$eventsTable} E {$join}{$where} GROUP BY d";
@@ -203,9 +214,11 @@ if ($method === 'GET' && preg_match('#^/events/(\d+)$#', $path, $m)) {
 }
 
 if ($method === 'GET' && ($path === '/events' || $path === '/events/')) {
-    [$logLevels, $users, $startTime, $endTime] = getFilters();
+    [$logLevels, $users, $startTime, $endTime, $objectId, $objectType] = getFilters();
     $limit = intval(getParam('limit', 500));
-    $events = $em->getEventsFor($logLevels, null, null, null, $limit, $startTime, $endTime, $users);
+    $objectIDs = is_null($objectId) ? null : [$objectId];
+    $objectTypes = is_null($objectType) ? null : [$objectType];
+    $events = $em->getEventsFor($logLevels, $objectIDs, $objectTypes, null, $limit, $startTime, $endTime, $users);
     $items = [];
     foreach ((array) $events as $ev) { $items[] = eventToJSON($ev, $db); }
     out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
