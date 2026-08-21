@@ -1714,6 +1714,7 @@ $TLS_testproject_alt_requirement_feature = "Požadavky povoleny";
 $TLS_testproject_alt_edit = "Upravit testovací projekt";
 $TLS_testproject_txt_empty_list = "Testovací projekty nejsou definovány!";
 $TLS_testproject_prefix = 'Prefix (used for Test case ID)';
+$TLS_testproject_prefix_hint = 'Up to 16 characters allowed, but we recommend using at most five';
 $TLS_warning_empty_tcase_prefix = "Oznacení ID testovacího prípadu musí být vyplneno!";
 $TLS_warning_empty_tproject_name = "Název testovacího projektu musí být vyplnen!";
 

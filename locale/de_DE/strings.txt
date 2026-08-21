@@ -1600,6 +1600,7 @@ $TLS_testproject_alt_requirement_feature = "Anforderungsmanagement aktiviert";
 $TLS_testproject_alt_edit = "Testprojekt editieren";
 $TLS_testproject_txt_empty_list = "Es sind keine Testprojekte definiert!";
 $TLS_testproject_prefix = 'Präfix (wird für Testfall ID verwendet)';
+$TLS_testproject_prefix_hint = 'Bis zu 16 Zeichen sind erlaubt, wir empfehlen jedoch höchstens fünf zu verwenden';
 $TLS_warning_empty_tcase_prefix = "Testfall Präfix darf nicht leer sein!";
 $TLS_warning_empty_tproject_name = "Der Name eines Testprojektes darf nicht leer sein!";
 

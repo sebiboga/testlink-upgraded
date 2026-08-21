@@ -2338,6 +2338,8 @@ $TLS_desc_platforms_management = 'Gestione Piattaforme';
 $TLS_desc_platforms_view = 'Visualizza Piattaforme';
 
 // ----- pluginView.php -----       
+
+$TLS_testproject_prefix_hint = 'Sono consentiti fino a 16 caratteri, ma si consiglia di usarne al massimo cinque';
 // ----- END ------------------------------------------------------------------
 
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------

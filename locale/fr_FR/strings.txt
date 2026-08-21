@@ -1654,6 +1654,7 @@ $TLS_testproject_alt_requirement_feature = "Gestion des exigences activées";
 $TLS_testproject_alt_edit = "Modifier le projet";
 $TLS_testproject_txt_empty_list = "Aucun projet défini";
 $TLS_testproject_prefix = "Préfixe (utilisé pour l’ID des fiches de test)";
+$TLS_testproject_prefix_hint = "16 caractères au maximum sont autorisés, mais nous vous conseillons d'en utiliser au plus cinq";
 $TLS_warning_empty_tcase_prefix = "Le préfixe d’ID de fiches de test est obligatoire.";
 $TLS_warning_empty_tproject_name = "Le nom de projet est obligatoire.";
 

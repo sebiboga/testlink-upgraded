@@ -2116,4 +2116,6 @@ $TLS_time_charts_title = "Time Charts";
 
 // ----- pluginView.php -----       
 //-----   END ------------------------------------------------------------------
+
+$TLS_testproject_prefix_hint = 'Enintään 16 merkkiä on sallittu, mutta suosittelemme käyttämään enintään viittä';
 ?>
