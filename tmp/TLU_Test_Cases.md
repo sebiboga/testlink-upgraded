@@ -1597,7 +1597,7 @@ quick-search form `gui/templates/dashio/search/searchForm.tpl`).
 
 | # | Test | Result |
 |---|------|--------|
-| 1 | Aside menu shows Search section; both "Quick search" and "Search Test Cases" point to `/gui/templates/search/searchView.html?tproject_id=1&tplan_id=0` | PASS |
+| 1 | Aside menu shows Search section; "Quick search" points to `/gui/templates/search/searchQuickView.html` and "Search Test Cases" to `/gui/templates/search/searchView.html` (separate screens since the one-file-per-screen rework) | PASS |
 | 2 | Screen loads inside mainframe; header shows project name; toolbar context shows project; locale switcher present | PASS |
 | 3 | Form renders all legacy criteria: TC ID (prefilled with prefix `SFP-`), Version, Title, Created by, Edited by, Summary, Preconditions, Steps, Expected results, Creation date from/to, Modification date from/to, Importance (project has priority enabled), Status domain (7 statuses from server), Keyword dropdown (smoke), Requirement document ID (project has requirements enabled) | PASS |
 | 4 | AND-mode notice + important notice ("Search is done ONLY on test project 'Search Fixture Project'") + prefix-ignored notice rendered | PASS |
@@ -1712,3 +1712,22 @@ modernized quick-search results (replaces legacy
 
 **Actual result:** 19/19 PASS after in-run fixes (#539 tree::get_path PHP 8
 crash, export tproject_id, hasTestPlans/latest-version BFF fixes).
+
+## 25. Quick Search — separate screen + ASIDE highlight fix
+
+**Screen:** ASIDE > Search > "Quick search" (`searchQuickView.html`)
+**Scope:** one-file-per-screen rework; fixes double-highlight of the first two
+Search items caused by `syncAsideActiveLink()` matching links by pathname only
+(both items shared `searchView.html`).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | New standalone screen `gui/templates/search/searchQuickView.html` exists (self-contained HTML+JS+CSS, TLi18n, mini-form: single field + Find button, results table, toast errors) | PASS |
+| 2 | `common.php` routes `tcQuickSearch` to `/gui/templates/search/searchQuickView.html?tproject_id=2&tplan_id=4` while `tcSearch` keeps `/gui/templates/search/searchView.html` | PASS |
+| 3 | `main.tpl` restored to pathname-only highlight logic (no mode hacks); each Search item now has a unique path so exactly one item activates | PASS |
+| 4 | Click "Quick search" in ASIDE → ONLY "Quick search" is highlighted (`quick:true, full:false`) | PASS |
+| 5 | Click "Search Test Cases" in ASIDE → ONLY that item highlighted (`quick:false, full:true`) | PASS |
+| 6 | Quick search for "tc1" → 1 result row (P2-1 [v1] :: tc1) | PASS |
+| 7 | Result row link opens modern TC viewer `/gui/templates/testcases/tcView.html?tcase_id=...` (not legacy archiveData.php) | PASS |
+| 8 | Full search screen unchanged: all criteria fields render, AND-mode notices present | PASS |
+| 9 | i18n keys (`search.quickCaption`, `quickField`, `quickPlaceholder`, `quickHint`, `quickEmpty`) present in all 10 bundles, json.tool valid ×10 | PASS |

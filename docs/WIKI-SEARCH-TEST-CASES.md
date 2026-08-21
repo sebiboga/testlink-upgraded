@@ -101,3 +101,42 @@ header.
   first, then the row fetch capped at the display limit.
 * All user input is escaped through `$db->prepare_string()` before being placed
   into LIKE clauses (same hardening as the 1.9.20 security fixes).
+
+---
+
+# Quick Search — Separate Screen (one file per screen)
+
+**URL:** `gui/templates/search/searchQuickView.html?tproject_id=<id>&tplan_id=<id>`
+**BFF API:** same `api/search/index.php` (`action=tcQuickSearch`)
+**Replaces:** the shared-screen approach where both Search items pointed to
+`searchView.html`.
+
+## Why a separate file
+The ASIDE highlight logic (`syncAsideActiveLink()` in `main.tpl`) matches menu
+links by pathname. While both Search items shared one screen, BOTH were
+highlighted at the same time. Each screen now has its own file, so exactly one
+item is active — consistent with every other ASIDE section.
+
+## What it does
+A focused mini-form for fast lookups inside the current test project:
+
+* single input field accepting either a **title fragment** (`LIKE %value%`) or
+  a **test case ID** (full external ID like `P2-1`, or bare number
+  auto-completed with the project prefix);
+* results table (external ID, version, title, path) rendered as a DataTable;
+* clicking a result opens the **modernized TC viewer**
+  (`gui/templates/testcases/tcView.html`), not the legacy popup;
+* empty input → toast error; no matches → inline "no results" message;
+* self-contained page: own CSS, TLi18n localization, Dashio header/toolbar.
+
+## Routing
+`lib/functions/common.php` builds both URIs:
+
+```
+$actions->tcSearch      = "/gui/templates/search/searchView.html?{$ctx}";
+$actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
+```
+
+## i18n keys
+`search.quickCaption`, `search.quickField`, `search.quickPlaceholder`,
+`search.quickHint`, `search.quickEmpty` — present in all locale bundles.
