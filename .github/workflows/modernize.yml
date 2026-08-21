@@ -138,7 +138,7 @@ jobs:
       - name: Start Chrome with remote debugging
         run: |
           google-chrome --remote-debugging-port=9222 --headless --no-sandbox \
-            --disable-dev-shm-usage --disable-gpu &
+            --disable-dev-shm-usage --disable-gpu --remote-allow-origins='*' &
           sleep 3
 
       - name: Install opencode CLI
@@ -195,6 +195,10 @@ jobs:
           PROMPT+="commit and push to the current branch. "
           PROMPT+="Git push policy: NEVER use git stash and NEVER force-push; "
           PROMPT+="if a push is rejected, run git fetch + git rebase -X theirs origin/<branch> and retry the push. "
+          PROMPT+="MCP failure policy: if a chrome-devtools MCP call fails with 'Request timed out' (-32001) or any error, "
+          PROMPT+="retry it AT MOST once; before retrying, reset the browser with chrome-devtools_navigate_page to "
+          PROMPT+="http://localhost:8082/index.php and log back in. If it still fails, SKIP that step (e.g. leave a "
+          PROMPT+="'TODO: screenshot' note in the wiki page) and move on — NEVER loop on the same failing MCP call. "
           PROMPT+="STOP after that one screen is complete. Do NOT start another screen. "
           PROMPT+="IMPORTANT: investigation alone is NOT acceptable. You must actually CREATE the BFF API file, "
           PROMPT+="the HTML screen file and the i18n keys, switch the aside/common links, and COMMIT+PUSH your work "
