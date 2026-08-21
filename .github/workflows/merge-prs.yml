@@ -58,6 +58,16 @@ jobs:
                 || echo "::warning::merge failed for #$PR"
             else
               echo "::warning::PR #$PR still not mergeable ($STATE) — leaving it for the next pass or human review"
+              # a bot PR that conflicts with base is stale garbage (its content
+              # usually already landed via another path) — close it instead of
+              # retrying forever every hour
+              AUTHOR=$(gh pr view "$PR" --repo "$REPO" --json author --jq .author.login)
+              if [ "$AUTHOR" = "github-actions[bot]" ]; then
+                gh pr close "$PR" --repo "$REPO" \
+                  --comment "Auto-closed by merge safety net: unmergeable ($STATE) after branch update — the fix content most likely already landed on the default branch through another commit. Verify and reopen if needed." \
+                  || true
+                echo "closed stale bot PR #$PR"
+              fi
             fi
             echo "::endgroup::"
           done
