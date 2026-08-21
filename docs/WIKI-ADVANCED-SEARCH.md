@@ -93,5 +93,8 @@ validation paths, locale switching, aside link switch, Event Viewer clean).
 
 Environment note: a fresh database import lacks the MySQL function
 `UDFStripHTMLTags`, which makes **both legacy and modernized** advanced search
-fail with a DB access error. Recreate it from
-`install/sql/mysql/testlink_create_udf0.sql` (adjust the `USE` statement).
+fail with a DB access error. **Fixed in issue #547**: both CI workflows
+(`fix-bug.yml`, `modernize.yml`) now provision the function from
+`install/sql/mysql/testlink_create_udf0.sql` right after the default-data
+import and assert its presence via `information_schema.routines`, so advanced
+search works out of the box on every fresh import.
