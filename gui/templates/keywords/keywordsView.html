@@ -197,6 +197,7 @@ var tprojectId = 0;
 var tplanId = 0;
 var canManage = false;
 var canAssign = false;
+var itemsCache = [];
 var kwTbl = null;
 var deleteTarget = null;
 
@@ -262,6 +263,7 @@ function load() {
 }
 
 function render(items) {
+  itemsCache = items;
   $('#kwCount').text('(' + items.length + ')');
   $('#kwEmpty').toggle(items.length === 0);
   $('#kwTable').toggle(items.length > 0);
@@ -282,8 +284,10 @@ function render(items) {
     var action = '';
     if (canManage) {
       if (k.deletable) {
+        // no keyword data inside the handler attribute - avoids any
+        // attribute/JS-context escaping pitfalls (XSS)
         action = '<button class="del-btn" title="' + esc(TLi18n.t('kw.deleteKeyword')) +
-                 '" onclick="confirmDelete(' + k.id + ',\'' + esc(k.name).replace(/'/g,"\\'") + '\')">' +
+                 '" data-del="' + parseInt(k.id, 10) + '">' +
                  '<i class="fas fa-minus-circle"></i></button>';
       } else {
         var reason = k.block_reason === 'EXECUTED' ? TLi18n.t('kw.lockedExecuted') : TLi18n.t('kw.lockedFrozen');
@@ -373,6 +377,15 @@ function saveKw() {
     showError($('#kwModalError'), errorCodeToMessage(r.error_code, r.message));
   });
 }
+
+// delete buttons: delegated handler resolves the keyword from the loaded set
+$(document).on('click', '#kwTable .del-btn', function () {
+  var id = parseInt($(this).data('del'), 10);
+  var kw = null;
+  itemsCache.forEach(function (k) { if (k.id === id) { kw = k; } });
+  if (!kw) { return; }
+  confirmDelete(kw.id, kw.name);
+});
 
 function confirmDelete(id, name) {
   deleteTarget = id;
