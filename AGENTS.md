@@ -16,6 +16,8 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 3. **i18n is mandatory.** Every screen uses the client-side `TLi18n` module
    (`gui/templates/i18n/i18n.js`). All labels, titles, placeholders and messages
    get keys in ALL locale bundles (`en.json`, `ro.json`, ...). No hardcoded strings.
+   Validate every touched bundle before committing (`python3 -m json.tool <file>`
+   ) — parallel CI agents append keys to the same files.
 
 4. **Investigate the legacy screen first.** Before writing any code, read the
    legacy PHP controller (`lib/...`) and Smarty template
@@ -33,7 +35,9 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
    `docs/` (mirror of the wiki page, without image lines).
 
 7. **Update the GitHub Wiki.** Push the same documentation to
-   `sebiboga/testlink-upgraded.wiki` (local clone: `tmp/wiki-repo/`).
+   `sebiboga/testlink-upgraded.wiki` (local clone: `tmp/wiki-repo/`). The wiki
+   clone is SHARED with concurrent CI agents — if a push is rejected:
+   `git pull --rebase origin master` and retry.
 
 8. **Test the new screen.** Exercise every button, form, modal, permission path
    and error state in the browser before considering the screen done.
@@ -52,7 +56,9 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     were generated (`Event Viewer` screen / `events` table); handle anything found.
 
 13. **Keep GitHub Issues clean.** Verify each issue's fix actually works; close
-    issues only when the solution is confirmed error-free.
+    issues only when the solution is confirmed error-free. In the CI flow the
+    fix PR contains `Fixes #<n>`, so the issue closes automatically at merge —
+    only put that line in a PR whose fix you have verified.
 
 14. **Regression testing per ASIDE section.** After finishing a whole parent
     section of the ASIDE menu (a chapter of items, not each single item), run a
@@ -73,3 +79,17 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     documentation (symptom, repro steps, root cause, suggested fix) — then
     move on with modernization. New screens will surface further fixes anyway;
     do not stall progress on long debugging sessions.
+
+18. **The CI factory (GitHub Actions).** Three autonomous workflows run on this
+    repo — be aware of them and never fight them:
+    - `fix-bug.yml` (every 2h): picks the NEWEST open issue, fixes it on its own
+      `fix/*` branch, opens a PR with `Fixes #<n>`, tries to self-merge.
+      Rulebook: `FIX-ISSUE.md`.
+    - `merge-prs.yml` (hourly): safety net that squash-merges open `fix/*` PRs.
+    - `modernize.yml` (manual): one screen per run, pushes intermediate commits
+      directly to the default branch.
+    Coordination etiquette: the default branch can move at any time from CI
+    merges — `git fetch && git rebase` before starting local work and before
+    every push; NEVER force-push or manually merge/delete `fix/*` branches or
+    agent PRs unless cleaning up after a confirmed failure; do not close issues
+    that have an open agent PR.

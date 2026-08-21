@@ -224,6 +224,7 @@ jobs:
           PROMPT+="gh api repos/\$GITHUB_REPOSITORY/actions/workflows/fix-bug.yml/runs?status=in_progress, "
           PROMPT+="open agent PRs via gh pr list --state open. If activity is detected, prefer fetching+rebasing "
           PROMPT+="right before your push, or deferring that push to your next phase commit — your call. "
+          PROMPT+="The wiki clone tmp/wiki-repo is shared too: if its push is rejected, git pull --rebase origin master and retry. "
           PROMPT+="Never silently discard another agent's work."
           PROMPT+="MCP failure policy: if a chrome-devtools MCP call fails with 'Request timed out' (-32001) or any error, "
           PROMPT+="retry it AT MOST once; before retrying, reset the browser with chrome-devtools_navigate_page to "

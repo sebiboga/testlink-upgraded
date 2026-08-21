@@ -47,6 +47,10 @@ rules in AGENTS.md (they apply to every run).
   area, re-run their steps too.
 - Check the Event Viewer screen / `events` table: your fix must not introduce
   new Error/Warning entries.
+- If you touched any i18n JSON bundle (`gui/templates/i18n/*.json`), validate
+  every touched file before committing:
+  `python3 -m json.tool <file> > /dev/null` — invalid JSON must never reach a
+  commit or a PR (parallel agents append keys to the same bundles).
 - If while testing you discover NEW bugs: log each one as a new GitHub issue
   with symptom, repro steps and root-cause hypothesis — never fix them silently,
   never expand this run's scope.
@@ -103,6 +107,9 @@ rules in AGENTS.md (they apply to every run).
   `gh api repos/$GITHUB_REPOSITORY/actions/workflows/modernize.yml/runs?status=in_progress`
   and `gh pr list`. Fetch + rebase whenever the default branch moved.
 - `config_db.inc.php` is gitignored — never stage or commit it.
+- The GitHub Wiki clone (`tmp/wiki-repo/`) is SHARED — another agent may push
+  to it while you work. If its push is rejected:
+  `cd tmp/wiki-repo && git pull --rebase origin master && git push` and retry.
 - The unix epoch of your hard deadline is in `.ci_deadline_epoch`. When fewer
   than 10 minutes remain: stop starting new work, commit+push everything done,
   and write a final summary stating whether the issue was fixed or left open.
