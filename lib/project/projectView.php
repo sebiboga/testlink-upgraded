@@ -25,8 +25,12 @@ list($gui,$smarty) = initializeGui($db,$args);
 $template2launch = $templateCfg->default_template;
 if(!is_null($gui->tprojects) || $args->doAction=='list') {  
   if( $gui->itemQty == 0 ) {
-    $template2launch = "projectEdit.tpl"; 
-    $gui->doAction = "create";
+    // Zero accessible test projects: hand over to the regular create screen.
+    // Launching projectEdit.tpl from here with this minimal gui triggered
+    // E_WARNING spam ($gui->found / mgt_view_events / tprojectName were
+    // never set) and rendered the template's error branch instead of the
+    // create form.
+    redirect($_SESSION['basehref'] . 'lib/project/projectEdit.php?doAction=create');
   } 
 }
 
