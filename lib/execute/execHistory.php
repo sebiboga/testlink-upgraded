@@ -43,7 +43,7 @@ $testPlanSet =
                                              array('active' => $args->onlyActiveTestPlans));
 
 $gui->grants = new stdClass();
-$gui->grants->exec_edit_notes = null;   
+$gui->grants->exec_edit_notes = array();
 $filters['testplan_id'] = null;
 foreach($testPlanSet as $rx)
 {
@@ -164,8 +164,8 @@ function getCustomFields(&$tcaseMgr,&$execSet)
     {
       $exec_id = $execSet[$tcvid][$idx]['execution_id'];
       $tplan_id = $execSet[$tcvid][$idx]['testplan_id'];
-      $dummy = (array)$tcaseMgr->html_table_of_custom_field_values($tcvid,'execution',null,$exec_id,$tplan_id);
-      $cf[$exec_id] = (count($dummy) > 0) ? $dummy : '';
+      $dummy = $tcaseMgr->html_table_of_custom_field_values($tcvid,'execution',null,$exec_id,$tplan_id);
+      $cf[$exec_id] = ($dummy != '') ? $dummy : '';
     } 
   }
   return $cf;

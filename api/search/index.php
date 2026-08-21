@@ -212,7 +212,7 @@ if ($action === 'search') {
     } else {
         $a_tcid = null;
         $tproject_mgr->get_all_testcases_id($tprojectId, $a_tcid);
-        if (!is_null($a_tcid)) {
+        if (!is_null($a_tcid) && count($a_tcid) > 0) {
             $filter['by_tc_id'] = " AND NH_TCV.parent_id IN (" . implode(",", $a_tcid) . ") ";
         } else {
             $emptyTestProject = true;

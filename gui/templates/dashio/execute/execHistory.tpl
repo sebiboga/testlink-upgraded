@@ -76,7 +76,7 @@ function load_notes(panel,exec_id)
           {cycle values='#eeeeee,#d0d0d0' assign="bg_color"}
           <tr style="border-top:1px solid black; background-color: {$bg_color}">
             <td>
-              {if $gui->grants->exec_edit_notes[$tcv_exec.testplan_id]}
+              {if isset($gui->grants->exec_edit_notes[$tcv_exec.testplan_id]) && $gui->grants->exec_edit_notes[$tcv_exec.testplan_id]}
                 <img src="{$smarty.const.TL_THEME_IMG_DIR}/note_edit.png" style="vertical-align:middle" 
                      title="{$labels.edit_execution}" onclick="javascript: openExecEditWindow(
                      {$tcv_exec.execution_id},{$tcv_exec.id},{$tcv_exec.testplan_id},{$gui->tproject_id});">

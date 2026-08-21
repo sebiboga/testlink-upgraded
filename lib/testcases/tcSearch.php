@@ -65,7 +65,7 @@ if ($args->tprojectID && $args->doAction == 'doSearch') {
   else {
     $tproject_mgr->get_all_testcases_id($args->tprojectID,$a_tcid);
 
-    if(!is_null($a_tcid)) {
+    if(!is_null($a_tcid) && count($a_tcid) > 0) {
       $filter['by_tc_id'] = " AND NH_TCV.parent_id IN (" . implode(",",$a_tcid) . ") ";
     }  
     else {
