@@ -30,7 +30,7 @@ Left side menu
                 <ul class="sub">
                   <li>
                     <a id="quick_search"
-                      href="{$gui->uri->tcSearch}" target="mainframe">{$labels.quick_search}</a>
+                      href="{$gui->uri->tcQuickSearch}" target="mainframe">{$labels.quick_search}</a>
                   </li>
                   <li>
                     <a id="href_search_tc"

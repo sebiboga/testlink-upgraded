@@ -66,14 +66,28 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 </div>
 
 <div class="panel">
-  <div class="panel-head" data-i18n="search.formCaption">Search criteria</div>
-  <div class="notice">
+  <div class="panel-head" id="panelCaption" data-i18n="search.formCaption">Search criteria</div>
+  <div class="notice" id="fullNotice">
     <i class="fa fa-info-circle"></i>
     <span data-i18n="search.filterModeAnd">All criteria are combined with a logical AND.</span><br>
     <span id="importantNotice"></span><br>
     <span data-i18n="search.prefixIgnored">The test project prefix in the "Test Case ID" field is ignored during the search.</span>
   </div>
-  <div class="form-grid">
+  <div class="notice" id="quickNotice" style="display:none">
+    <i class="fa fa-info-circle"></i>
+    <span data-i18n="search.quickHint">Type a test case ID (e.g. TP-1) or a word from the title.</span>
+  </div>
+  <div class="form-grid" id="quickGrid" style="display:none">
+    <div class="form-group">
+      <label for="quickText" data-i18n="search.quickField">Search test cases</label>
+      <div class="input-group">
+        <span class="input-group-text"><i class="fa fa-search"></i></span>
+        <input type="text" class="form-control" id="quickText" maxlength="100"
+               onkeydown="if(event.key==='Enter')doSearch()">
+      </div>
+    </div>
+  </div>
+  <div class="form-grid" id="fullGrid">
     <div class="form-group">
       <label for="targetTestCase" data-i18n="search.tcid">Test Case ID</label>
       <div class="input-group">
@@ -195,6 +209,17 @@ var tprojectId = 0;
 var tplanId = 0;
 var ctx = null;
 var resTbl = null;
+var QUICK = new URLSearchParams(window.location.search).get('mode') === 'quick';
+
+function applyMode() {
+  if (!QUICK) return;
+  $('#panelCaption').text(TLi18n.t('search.quickCaption'));
+  $('#fullNotice').hide();
+  $('#quickNotice').show();
+  $('#fullGrid').hide();
+  $('#quickGrid').show();
+  $('#quickText').attr('placeholder', TLi18n.t('search.quickPlaceholder'));
+}
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -203,6 +228,7 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    applyMode();
     loadContext();
   });
 });
@@ -301,6 +327,7 @@ function fmtDate(iso, phpFormat) {
 
 function doSearch() {
   if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
+  if (QUICK) { doQuickSearch(); return; }
   $('#warnBox').hide();
   var q = new URLSearchParams();
   q.set('action', 'search');
@@ -326,6 +353,32 @@ function doSearch() {
     if (v) q.set(pair[1], fmtDate(v, ctx.dateFormat));
   });
 
+  $('#btnFind').prop('disabled', true);
+  $.getJSON(API + '?' + q.toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    })
+    .always(function () { $('#btnFind').prop('disabled', false); });
+}
+
+function doQuickSearch() {
+  var v = $.trim($('#quickText').val());
+  if (v === '') { toast(TLi18n.t('search.quickEmpty'), true); return; }
+  var q = new URLSearchParams();
+  q.set('action', 'search');
+  q.set('tproject_id', tprojectId);
+  // a test case ID (prefix-number or plain number) searches by ID, anything else by title
+  if (/^[A-Za-z0-9]+-\d+$/.test(v) || /^\d+$/.test(v)) {
+    q.set('targetTestCase', v);
+  } else {
+    q.set('name', v);
+  }
   $('#btnFind').prop('disabled', true);
   $.getJSON(API + '?' + q.toString())
     .done(function (r) {
@@ -420,6 +473,7 @@ function resetForm() {
   $('.panel').find('input[type=text],input[type=number],input[type=date]').val('');
   $('.panel select').val('0');
   $('#targetTestCase').val(ctx ? ctx.tcasePrefix : '');
+  $('#quickText').val('');
   $('#footerInfo').text('');
 }
 </script>
