@@ -96,5 +96,9 @@ Environment note: a fresh database import lacks the MySQL function
 fail with a DB access error. **Fixed in issue #547**: both CI workflows
 (`fix-bug.yml`, `modernize.yml`) now provision the function from
 `install/sql/mysql/testlink_create_udf0.sql` right after the default-data
-import and assert its presence via `information_schema.routines`, so advanced
-search works out of the box on every fresh import.
+import and assert its presence via `information_schema.routines`; the sample-db
+restore scripts (`docs/db_sample/restore_sample.sh` / `.bat`) provision it too,
+so advanced search works out of the box on every CI fresh import.
+Note for self-managed MySQL 8 servers with binary logging enabled: creating
+routines additionally needs `SUPER` or `log_bin_trust_function_creators=1`
+(MariaDB used by this project's CI has binary logging off).

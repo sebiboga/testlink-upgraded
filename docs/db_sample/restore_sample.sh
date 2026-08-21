@@ -162,6 +162,19 @@ fi
 mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" < "$DEFAULT_DATA_FILE"
 print_success "Default data loaded"
 
+# Provision stored function UDFStripHTMLTags() required by advanced search
+# (issue #547) - plain schema+data dumps do not carry stored functions.
+print_info "Provisioning stored function UDFStripHTMLTags..."
+UDF_FILE="$SCRIPT_DIR/../install/sql/mysql/testlink_create_udf0.sql"
+if [ ! -f "$UDF_FILE" ]; then
+    print_error "UDF file not found: $UDF_FILE"
+    exit 1
+fi
+
+sed "s|YOUR_TL_DBNAME|$DB_NAME|g" "$UDF_FILE" \
+    | mysql -h "$DB_HOST" -u "$DB_USER" -p"$DB_PASS" "$DB_NAME"
+print_success "Stored function UDFStripHTMLTags provisioned"
+
 # Load sample data
 print_info "Loading sample data..."
 SAMPLE_DATA_FILE="$SCRIPT_DIR/testlink_sample_data.sql"
