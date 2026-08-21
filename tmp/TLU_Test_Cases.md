@@ -1757,3 +1757,23 @@ Test" (IDEMO-1); screen `gui/templates/testcases/tcView.html`.
 | 10 | Event Viewer after testing: no new Error/Warning entries from the viewer or language switching | PASS |
 
 **Actual result:** 10/10 PASS.
+
+## 27. MD Test Case Import API (`api/testcasesimport`)
+
+**Endpoint:** `POST /api/testcasesimport/?action=import_md&tproject_id=N`
+**Options:** `dry_run=1`, `hit_criteria=name`, `action_on_hit=skip|create_new_version`
+**Fixture:** scratch project "MD Import Fixture" (MIF, id 29) created via `api/projects`
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Test A dry_run: synthetic MD (1 suite/2 cases) → status ok, createdCount=2, suitesCreated=[Alpha Suite]; DB node count for project UNCHANGED | PASS |
+| 2 | Test B real import → createdCount=2 with real ids (31, 36); DB shows 1 testsuite + 2 testcase nodes under project, tcversions + tcsteps present | PASS |
+| 3 | Test C idempotency: re-import same file → skippedCount=2, createdCount=0, suite matched | PASS |
+| 4 | Test D action_on_hit=create_new_version → newVersionCount=2; tcversions per case = 2 (4 total for the two cases) | PASS |
+| 5 | Test E full real file tmp/TLU_Test_Cases.md dry_run → 120 would-be-created (122 minus 2 already imported), 17 suites, parserErrors=0, projectMismatch {file:"TLU...", target:"MD Import Fixture"} reported | PASS |
+| 6 | Test F permissions: user noinv (role "no rights") → HTTP 403 {"No permission"} | PASS |
+| 7 | Test G size limit: 3MB payload > import_file_max_size_bytes (800000) → HTTP 413 with clear message | PASS |
+| 8 | Event Viewer after all tests: zero new ERROR/WARNING entries (only audit info: logins, project created) | PASS |
+
+**Notes:** parser reference-aliasing bug fixed pre-testing (#545); legacy parity
+options implemented per lib/testcases/tcImport.php rules.
