@@ -10,3 +10,4 @@ upload_area/**
 # CI/opencode artifacts
 opencode.json
 tmp/php_server.log
+.ci_deadline_epoch
