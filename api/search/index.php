@@ -8,6 +8,11 @@
  * (TestLink 1.9.20 quick "Search Test Cases" behavior):
  * search is done ONLY ON CURRENT test project, all text criteria are
  * AND-ed (LIKE '%value%'), result cap = testcase_cfg.search.max_qty_for_display.
+ *
+ * Also mirrors lib/search/searchMgmt.php + lib/search/search.php
+ * ("Advanced Search" / fullTextSearch): one free-text target searched across
+ * test cases, test suites, requirement specs and requirements, terms combined
+ * with AND/OR, reusing the legacy searchCommands class for exact parity.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -109,6 +114,24 @@ if ($action === 'context') {
         }
     }
 
+    // custom fields linked to requirement at design time (advanced search
+    // offers TC and REQ custom fields in the same dropdown, like legacy)
+    $customFieldsReq = [];
+    $optReq = $tproject_mgr->getOptions($tprojectId);
+    if (!empty($optReq->requirementsEnabled)) {
+        $designCfReq = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design(
+            $tprojectId, cfield_mgr::ENABLED, null, 'requirement');
+        if (!is_null($designCfReq)) {
+            foreach ($designCfReq as $cf_id => $cf) {
+                $customFieldsReq[] = [
+                    'id' => intval($cf_id),
+                    'label' => $cf['label'],
+                    'type' => intval($cf['type']),
+                ];
+            }
+        }
+    }
+
     // status domain: {code: localized label}, same source as legacy
     $dummy = getConfigAndLabels('testCaseStatus', 'code');
     $statusDomain = [];
@@ -125,6 +148,7 @@ if ($action === 'context') {
         'tcasePrefix' => $prefix,
         'keywords' => $keywords,
         'customFields' => $customFields,
+        'customFieldsReq' => $customFieldsReq,
         'statusDomain' => $statusDomain,
         'importanceEnabled' => !empty($opt->testPriorityEnabled),
         'requirementsEnabled' => !empty($opt->requirementsEnabled),
@@ -368,6 +392,191 @@ if ($action === 'search') {
         'count' => $count,
         'rows' => $rows,
         'warning' => $warning,
+        'tcasePrefix' => $prefix,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=fulltext&tproject_id=N&target=...&and_or=and|or&<flags+filters>
+// Legacy "Advanced Search" (lib/search/searchMgmt.php -> searchGUI.inc.tpl ->
+// lib/search/search.php): single free-text searched across test cases,
+// test suites, requirement specs and requirements. Word terms are combined
+// with AND/OR; author/keyword/custom field/date filters refine the match.
+// Reuses the legacy searchCommands engine for exact parity.
+// ---------------------------------------------------------------------------
+if ($action === 'fulltext') {
+    require_once(__DIR__ . '/../../lib/search/searchCommands.class.php');
+
+    // feed legacy initArgs() through $_REQUEST exactly like the old form POST
+    $cbKeys = array('rq_scope', 'rq_title', 'rq_doc_id', 'rs_scope', 'rs_title',
+        'tc_summary', 'tc_title', 'tc_steps', 'tc_expected_results',
+        'tc_preconditions', 'tc_id', 'ts_summary', 'ts_title');
+    foreach ($cbKeys as $k) {
+        unset($_REQUEST[$k]);
+        if (getParam($k) === '1') {
+            $_REQUEST[$k] = '1';
+        }
+    }
+    $_REQUEST['target'] = getParam('target');
+    $_REQUEST['and_or'] = (getParam('and_or') === 'and') ? 'and' : 'or';
+    foreach (array('created_by', 'edited_by', 'creation_date_from',
+                   'creation_date_to', 'modification_date_from',
+                   'modification_date_to') as $k) {
+        $_REQUEST[$k] = getParam($k);
+    }
+    $_REQUEST['keyword_id'] = intval(getParam('keyword_id'));
+    $_REQUEST['custom_field_id'] = intval(getParam('custom_field_id'));
+    $_REQUEST['custom_field_value'] = getParam('custom_field_value');
+    $_REQUEST['doAction'] = 'doSearch';
+    $_REQUEST['tproject_id'] = $tprojectId;
+
+    $cmdMgr = new searchCommands($db);
+    $cmdMgr->initEnv();
+    $args = $cmdMgr->getArgs();
+    $gui = $cmdMgr->getGui();
+    $cmdMgr->initSchema();
+    $treeMgr = $tproject_mgr->tree_manager;
+
+    // same validation flow as lib/search/search.php
+    if (!$args->oneCheck) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'need_checkbox']);
+    }
+
+    // cleanUpTarget() lives in lib/search/search.php, replicate here
+    $targetSet = array();
+    $ts = preg_replace('/ {2,}/', ' ', trim((string)$args->target));
+    foreach (explode(' ', $ts) as $val) {
+        $val = trim($val);
+        if ($val !== '') {
+            $targetSet[] = $db->prepare_string($val);
+        }
+    }
+    $canUseTarget = count($targetSet) > 0;
+
+    if (!$canUseTarget && !$args->oneValueOK) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'need_criteria']);
+    }
+
+    // custom field belongs to test cases or requirements?
+    $tc_cf_id = null;
+    $req_cf_id = 0;
+    if ($args->custom_field_id > 0) {
+        if (isset($gui->design_cf_tc[$args->custom_field_id])) {
+            $tc_cf_id = intval($args->custom_field_id);
+        }
+        if (isset($gui->design_cf_req[$args->custom_field_id])) {
+            $req_cf_id = intval($args->custom_field_id);
+        }
+    }
+
+    $emptyTestProject = true;
+
+    // Search on Test Suites
+    $mapTS = [];
+    if ($canUseTarget && ($args->ts_summary || $args->ts_title)) {
+        $mapTS = (array)$cmdMgr->searchTestSuites($targetSet, $canUseTarget);
+    }
+
+    // Requirement SPECifications
+    $mapRS = [];
+    if ($canUseTarget && ($args->rs_scope || $args->rs_title)) {
+        $mapRS = (array)$cmdMgr->searchReqSpec($targetSet, $canUseTarget);
+    }
+
+    // REQuirements
+    $mapRQ = [];
+    if ($args->rq_scope || $args->rq_title || $args->rq_doc_id || $req_cf_id > 0) {
+        $mapRQ = (array)$cmdMgr->searchReq($targetSet, $canUseTarget, $req_cf_id);
+    }
+
+    // Test Cases
+    $mapTC = [];
+    $tcaseSet = $cmdMgr->getTestCaseIDSet($tprojectId);
+    if (!is_null($tcaseSet) && count($tcaseSet) > 0) {
+        $emptyTestProject = false;
+        $mapTC = (array)$cmdMgr->searchTestCases($tcaseSet, $targetSet, $canUseTarget, $tc_cf_id);
+    }
+
+    $prefix = $tproject_mgr->getTestCasePrefix($tprojectId) . $glue;
+    $pathOptions = array('output_format' => 'path_as_string');
+
+    $tcRows = [];
+    if (count($mapTC) > 0) {
+        $tcase_set = array_keys($mapTC);
+        $pathInfo = $treeMgr->get_full_path_verbose($tcase_set, $pathOptions);
+        foreach ($mapTC as $rec) {
+            $tcid = intval($rec['testcase_id']);
+            $tcRows[] = [
+                'testcase_id' => $tcid,
+                'name' => (string)$rec['name'],
+                'summary' => (string)$rec['summary'],
+                'version' => isset($rec['version']) ? intval($rec['version']) : 0,
+                'tc_external_id' => isset($rec['tc_external_id']) ? intval($rec['tc_external_id']) : 0,
+                'full_external_id' => $prefix . $rec['tc_external_id'],
+                'path' => isset($pathInfo[$tcid]) ? $pathInfo[$tcid] : '',
+            ];
+        }
+    }
+
+    $tsRows = [];
+    foreach ($mapTS as $rec) {
+        $rec = (array)$rec;
+        $tsid = intval($rec['id'] ?? 0);
+        $tsRows[] = [
+            'id' => $tsid,
+            'name' => (string)($rec['name'] ?? ''),
+            'details' => (string)($rec['details'] ?? ''),
+        ];
+    }
+
+    $rsRows = [];
+    foreach ($mapRS as $rec) {
+        $rec = (array)$rec;
+        $rsRows[] = [
+            'req_spec_id' => intval($rec['req_spec_id'] ?? 0),
+            'name' => (string)($rec['name'] ?? ''),
+            'revision' => isset($rec['revision']) ? intval($rec['revision']) : 0,
+            'scope' => (string)($rec['scope'] ?? ''),
+        ];
+    }
+
+    $rqRows = [];
+    if (count($mapRQ) > 0) {
+        $req_set = array_keys($mapRQ);
+        $reqPathInfo = $treeMgr->get_full_path_verbose($req_set, $pathOptions);
+        foreach ($mapRQ as $rid => $rec) {
+            $rec = (array)$rec;
+            $rqRows[] = [
+                'req_id' => intval($rec['req_id'] ?? $rid),
+                'req_doc_id' => (string)($rec['req_doc_id'] ?? ''),
+                'name' => (string)($rec['name'] ?? ''),
+                'scope' => (string)($rec['scope'] ?? ''),
+                'version' => isset($rec['version']) ? intval($rec['version']) : 0,
+                'revision' => isset($rec['revision']) ? intval($rec['revision']) : 0,
+                'path' => isset($reqPathInfo[$rid]) ? $reqPathInfo[$rid] : '',
+            ];
+        }
+    }
+
+    $total = count($tcRows) + count($tsRows) + count($rsRows) + count($rqRows);
+
+    $warning = '';
+    if ($emptyTestProject) {
+        $warning = 'empty_testproject';
+    } elseif ($total == 0) {
+        $warning = 'no_records_found';
+    }
+
+    out([
+        'status' => 'ok',
+        'warning' => $warning,
+        'count' => $total,
+        'testcases' => $tcRows,
+        'testsuites' => $tsRows,
+        'reqspecs' => $rsRows,
+        'requirements' => $rqRows,
         'tcasePrefix' => $prefix,
     ]);
 }
