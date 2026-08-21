@@ -6,6 +6,9 @@ name: Fix latest bug (opencode)
 
 on:
   workflow_dispatch: {}
+  schedule:
+    # every 2 hours (UTC); GitHub may delay scheduled runs under load
+    - cron: "0 */2 * * *"
 
 concurrency:
   group: fix-bug
@@ -142,22 +145,23 @@ jobs:
           }
           OPNCFG
 
-      - name: Verify gh auth and that open issues exist
+      - name: Verify gh auth and count open issues
+        id: issues
         run: |
           gh auth status
           COUNT=$(gh issue list --state open --limit 200 --json number --jq 'length')
           echo "open issues: $COUNT"
-          if [ "$COUNT" = "0" ]; then
-            echo "::notice::No open issues — nothing to fix"
-          fi
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Run opencode — fix the newest open issue
+        if: steps.issues.outputs.count != '0'
         timeout-minutes: 60
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
           PROMPT+="Read AGENTS.md and FIX-ISSUE.md in the repo root FIRST and follow ALL their rules strictly. "
-          PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh, "
+          PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh "
+          PROMPT+"(skip an issue whose latest comment is a github-actions[bot] 'could not fix' note — take the next newest), "
           PROMPT+="reproduce it, root-cause it, apply the minimal fix, verify error-free, write the regression "
           PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror, "
           PROMPT+="commit+push after each phase, then close the issue with a verification comment "

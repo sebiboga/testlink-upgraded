@@ -14,6 +14,9 @@ rules in AGENTS.md (they apply to every run).
 - Read the FULL body (and all comments) with `gh issue view <number> --comments`.
 - If there are NO open issues: report that and stop cleanly. Do not invent work.
 - Skip pull requests automatically (`gh issue list` already excludes them).
+- If the newest open issue's latest comment is from `github-actions[bot]` saying
+  it could not be fixed / was left open, SKIP it and take the next newest —
+  never burn a run re-attempting the same stuck issue.
 
 ## 2. Reproduce before you fix
 
