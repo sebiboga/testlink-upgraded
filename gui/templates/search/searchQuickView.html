@@ -228,7 +228,7 @@ function renderResults(r) {
     var path = esc(row.path);
     var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
                   row.testcase_id + ',' + row.tcversion_id + ')">' +
-                  esc(row.full_external_id) + ' [v' + row.version + '] :: ' + esc(row.name) + '</a>';
+                  esc(row.full_external_id) + ' [v' + esc(row.version) + '] :: ' + esc(row.name) + '</a>';
     var summary = esc(stripHtml(row.summary));
     var actions =
       '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
