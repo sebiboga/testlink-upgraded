@@ -249,9 +249,16 @@ if ($action === 'view') {
         }
     }
 
+    // latest version number must be computed over ALL versions,
+    // even when the payload was filtered to a single requested version
     $latestVersionNumber = 0;
-    foreach ($versionsRaw as $vr) {
-        $latestVersionNumber = max($latestVersionNumber, intval($vr['version']));
+    $tvTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
+    $lvRow = $db->fetchFirstRow(
+        " SELECT MAX(TCV.version) AS vmax FROM {$tvTables['tcversions']} TCV " .
+        " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " WHERE NH.parent_id = {$tcaseId}");
+    if (!is_null($lvRow) && isset($lvRow['vmax'])) {
+        $latestVersionNumber = intval($lvRow['vmax']);
     }
 
     $versions = [];
@@ -449,6 +456,18 @@ if ($action === 'view') {
         // relations not available
     }
 
+    // test plans available on this project (for "Add to test plan" button)
+    $hasTestPlans = false;
+    $tpTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'testplans'));
+    $sql = " SELECT COUNT(0) AS qty FROM {$tpTables['testplans']} TP " .
+           " JOIN {$tpTables['nodes_hierarchy']} NH ON NH.id = TP.id " .
+           " WHERE NH.parent_id = " . intval($tprojectId);
+    try {
+        $hasTestPlans = intval($db->fetchOneValue($sql)) > 0;
+    } catch (Exception $e) {
+        $hasTestPlans = false;
+    }
+
     $grants = [];
     foreach (array('mgt_modify_tc', 'mgt_view_req', 'testcase_freeze',
                    'keyword_assignment', 'req_tcase_link_management',
@@ -477,6 +496,7 @@ if ($action === 'view') {
         'automationEnabled' => !empty($opt->automationEnabled),
         'relations' => $relations,
         'grants' => $grants,
+        'hasTestPlans' => $hasTestPlans,
         'requestedTcversionId' => $tcversionId,
     ]);
 }
