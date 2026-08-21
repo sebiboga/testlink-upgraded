@@ -37,7 +37,8 @@ if (is_null($user)) {
 function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = '') {
     $v = $_GET[$key] ?? $default;
-    return is_string($v) ? trim($v) : $v;
+    // reject non-string params (e.g. ?name[]=x) to avoid PHP TypeErrors
+    return is_string($v) ? trim($v) : '';
 }
 
 // same sanitize the legacy applies to targetTestCase (remove blanks/html/parens)
@@ -51,7 +52,11 @@ function validateSearchDate($dateToValidate, $format = 'Y-m-d') {
 }
 
 $action = $_GET['action'] ?? '';
-$tprojectId = intval($_GET['tproject_id'] ?? ($_SESSION['testprojectID'] ?? 0));
+$tprojectId = intval($_GET['tproject_id'] ?? 0);
+if ($tprojectId <= 0) {
+    // legacy fallback: absent or invalid id -> session test project
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+}
 
 if ($tprojectId <= 0) {
     http_response_code(400);
@@ -346,7 +351,7 @@ if ($action === 'search') {
                 }
             } else {
                 $warning = 'too_wide_search_criteria';
-                $count = 0;
+                // keep the real count (legacy showed row_qty with the warning)
                 $rows = [];
             }
         }

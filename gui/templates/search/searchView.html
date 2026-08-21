@@ -300,6 +300,7 @@ function fmtDate(iso, phpFormat) {
 }
 
 function doSearch() {
+  if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
   $('#warnBox').hide();
   var q = new URLSearchParams();
   q.set('action', 'search');
@@ -417,7 +418,7 @@ function resetForm() {
   $('#noResults').hide();
   if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
   $('.panel').find('input[type=text],input[type=number],input[type=date]').val('');
-  $('select').val('0');
+  $('.panel select').val('0');
   $('#targetTestCase').val(ctx ? ctx.tcasePrefix : '');
   $('#footerInfo').text('');
 }
