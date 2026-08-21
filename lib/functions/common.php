@@ -1982,9 +1982,12 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
 
   // check right ONLY if option is enabled
   $tprojOpt = $tprojMgr->getOptions($argsObj->tproject_id);
+  // getOptions() returns false when the serialized options blob can not be
+  // unserialized, and an empty object when the test project id does not exist
+  // (e.g. no test project selected). Guard before dereferencing.
   $grants['project_inventory_view'] = "no";
   $grants['project_inventory_management'] = "no";
-  if($tprojOpt->inventoryEnabled) {
+  if( !empty($tprojOpt->inventoryEnabled) ) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
       $grants[$r] = 
