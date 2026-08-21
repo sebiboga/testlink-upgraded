@@ -6,9 +6,6 @@ name: Fix latest bug (opencode)
 
 on:
   workflow_dispatch: {}
-  schedule:
-    # every 2 hours (UTC); GitHub may delay scheduled runs under load
-    - cron: "0 */2 * * *"
 
 concurrency:
   group: fix-bug
@@ -17,32 +14,9 @@ concurrency:
 permissions:
   contents: write
   issues: write
-  pull-requests: write
 
 jobs:
-  # cheap triage job: ~10s. If there is nothing to fix, the expensive
-  # environment (MariaDB container, PHP, Chrome, opencode) never starts.
-  triage:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      count: ${{ steps.issues.outputs.count }}
-      newest: ${{ steps.issues.outputs.newest }}
-    steps:
-      - name: Count open issues
-        id: issues
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          COUNT=$(gh issue list --repo "${{ github.repository }}" --state open --limit 200 --json number --jq 'length')
-          NEWEST=$(gh issue list --repo "${{ github.repository }}" --state open --limit 200 --json number,title,createdAt --jq 'sort_by(.createdAt) | last | .number')
-          echo "open issues: $COUNT (newest: #$NEWEST)"
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
-          echo "newest=$NEWEST" >> "$GITHUB_OUTPUT"
-
   fix-bug:
-    needs: triage
-    if: needs.triage.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -168,8 +142,14 @@ jobs:
           }
           OPNCFG
 
-      - name: Verify gh auth
-        run: gh auth status
+      - name: Verify gh auth and that open issues exist
+        run: |
+          gh auth status
+          COUNT=$(gh issue list --state open --limit 200 --json number --jq 'length')
+          echo "open issues: $COUNT"
+          if [ "$COUNT" = "0" ]; then
+            echo "::notice::No open issues — nothing to fix"
+          fi
 
       - name: Run opencode — fix the newest open issue
         timeout-minutes: 60
@@ -177,21 +157,11 @@ jobs:
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
           PROMPT+="Read AGENTS.md and FIX-ISSUE.md in the repo root FIRST and follow ALL their rules strictly. "
-          PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh "
-          PROMPT+="(skip an issue whose latest comment is a github-actions[bot] 'could not fix' note — take the next newest), "
+          PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh, "
           PROMPT+="reproduce it, root-cause it, apply the minimal fix, verify error-free, write the regression "
-          PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror. "
-          PROMPT+="BRANCH + PR WORKFLOW (mandatory): at the start create your own branch "
-          PROMPT+"fix/issue-<n>-<short-slug> and write its name into .ci_branch; make ALL commits there. "
-          PROMPT+="NEVER push to the default branch directly. Before opening the PR: git fetch origin and "
-          PROMPT+="rebase your branch onto origin/<default branch> if it moved — you own this branch, so "
-          PROMPT+="resolve any conflicts yourself with full context. Then open a Pull Request via gh pr create "
-          PROMPT+"(title 'fix: <summary> (issue #<n>)', body = root cause, approach, verification, test case ID, "
-          PROMPT+="and the line 'Fixes #<n>'). Then TRY to merge it yourself: gh pr merge --squash --delete-branch. "
-          PROMPT+="If merge is blocked by conflicts, rebase your branch on the updated default branch and retry. "
-          PROMPT+="Only if you still cannot land it cleanly, leave the PR open with a clear status comment and finish. "
-          PROMPT+="The issue closes AUTOMATICALLY when the PR merges (Fixes #<n>) — do not close it manually while "
-          PROMPT+="the PR is open; if you leave the PR unmerged, post your findings on the issue and leave it open. "
+          PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror, "
+          PROMPT+="commit+push after each phase, then close the issue with a verification comment "
+          PROMPT+="(or leave it open with a findings comment if you could not fix it). "
           PROMPT+="Environment already prepared on this machine: "
           PROMPT+="TestLink app running at http://localhost:8082 (PHP built-in server, docroot = repo root); "
           PROMPT+="login admin/admin; "
@@ -204,11 +174,6 @@ jobs:
           PROMPT+="(navigate to http://localhost:8082/index.php, log in admin/admin, "
           PROMPT+="content screens load inside iframes: navBar / asideMenu / mainframe); "
           PROMPT+="config_db.inc.php is gitignored: NEVER commit it. "
-          PROMPT+="AWARENESS: other CI agents may run at the same time (the modernize workflow pushes "
-          PROMPT+="intermediate commits to the default branch). You are an AI — no deterministic waiting is "
-          PROMPT+="imposed on you; check the world and decide your own strategy: in-progress runs via "
-          PROMPT+="gh api repos/\$GITHUB_REPOSITORY/actions/workflows/modernize.yml/runs?status=in_progress, "
-          PROMPT+="open PRs via gh pr list. Fetch+rebase before push/merge whenever the default branch moved. "
           PROMPT+="MCP failure policy: at most one retry per failed MCP call, reset browser first; "
           PROMPT+="if it still fails, skip that step and move on — never loop on a failing call. "
           PROMPT+="TIME BUDGET: hard deadline epoch is in .ci_deadline_epoch; when fewer than 10 minutes remain, "
@@ -225,20 +190,14 @@ jobs:
           set -e
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          # the agent records its working branch in .ci_branch; NEVER push the default branch
-          BRANCH="$(cat .ci_branch 2>/dev/null || true)"
-          if [ -z "$BRANCH" ]; then
-            echo "::warning::no .ci_branch recorded — agent never created its branch, nothing to push safely"
-            exit 0
-          fi
-          echo "fallback target branch: $BRANCH"
+          BRANCH="${GITHUB_REF_NAME}"
           git add -A -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode'
           if ! git diff --staged --quiet; then
             git commit -m "fix(opencode): leftover changes from bug-fix run"
           fi
           ok=0
           for i in 1 2 3; do
-            git fetch origin "$BRANCH" || true
+            git fetch origin "$BRANCH"
             if git rev-parse "origin/$BRANCH" >/dev/null 2>&1 && \
                ! git merge-base --is-ancestor "origin/$BRANCH" HEAD; then
               echo "::group::rebase onto origin/$BRANCH (attempt $i)"
@@ -249,7 +208,7 @@ jobs:
             sleep 5
           done
           if [ "$ok" != "1" ]; then
-            echo "::warning::normal push failed, escalating on agent-owned branch $BRANCH"
+            echo "::warning::normal push failed, escalating"
             git push --force-with-lease origin "HEAD:$BRANCH" \
               || git push --force origin "HEAD:$BRANCH"
           fi
