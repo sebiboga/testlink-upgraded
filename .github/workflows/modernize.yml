@@ -218,6 +218,9 @@ jobs:
             --print-logs
 
       - name: Fallback commit of any leftover agent changes
+        # MUST run even if the opencode step failed/timed out — otherwise all
+        # agent work stays only on the ephemeral runner and is lost
+        if: always()
         run: |
           set -e
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
