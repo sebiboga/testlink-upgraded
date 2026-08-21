@@ -1750,6 +1750,7 @@ $TLS_testproject_alt_requirement_feature = "启用的产品需求";
 $TLS_testproject_alt_edit = "编辑测试项目";
 $TLS_testproject_txt_empty_list = "对不起，你还没有定义测试项目!";
 $TLS_testproject_prefix = '前缀(在测试用例标示中使用)';
+$TLS_testproject_prefix_hint = '允许最多16个字符，但建议最多使用5个字符';
 $TLS_warning_empty_tcase_prefix = "测试用例标识不能为空!";
 $TLS_warning_empty_tproject_name = "测试产品的名称不能为空！";
 

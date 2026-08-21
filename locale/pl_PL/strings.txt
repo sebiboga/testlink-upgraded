@@ -1679,6 +1679,7 @@ $TLS_testproject_alt_requirement_feature = "Wymagania włączone";
 $TLS_testproject_alt_edit = "Edytuj projekt testowy";
 $TLS_testproject_txt_empty_list = "Nie ma zdefiniowanych projektów!";
 $TLS_testproject_prefix = "Prefiks (używany dla przypadków testowych)";
+$TLS_testproject_prefix_hint = 'Dozwolone jest do 16 znaków, ale zalecamy użycie co najwyżej pięciu';
 $TLS_warning_empty_tcase_prefix = "ID przypadku nie może być puste!";
 $TLS_warning_empty_tproject_name = "Nazwa projektu nie może być pusta!";
 

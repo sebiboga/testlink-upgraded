@@ -2853,5 +2853,7 @@ $TLS_caption_testCasesWithoutTester = $TLS_link_report_tcases_without_tester;
 $TLS_all_testcases_have_tester = 'All Test Cases have Tester Assigned';
 
 // ----- pluginView.php -----       
+
+$TLS_testproject_prefix_hint = 'Hingga 16 karakter diizinkan, tetapi kami menyarankan untuk menggunakan maksimal lima';
 // ----- END ------------------------------------------------------------------
 ?>

@@ -1826,6 +1826,7 @@ $TLS_testproject_alt_requirement_feature = "要件管理機能有効";
 $TLS_testproject_alt_edit = "テストプロジェクトの編集";
 $TLS_testproject_txt_empty_list = "定義されたテストプロジェクトがありません!";
 $TLS_testproject_prefix = 'テストケースIDプレフィックス';
+$TLS_testproject_prefix_hint = '16文字まで許可されていますが、最大5文字程度の使用を推奨します';
 $TLS_warning_empty_tcase_prefix = "テストケースプレフィックスは空欄にできません!";
 $TLS_warning_empty_tproject_name = "テストプロジェクト名は空欄にできません!";
 

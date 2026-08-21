@@ -1312,6 +1312,7 @@ $TLS_testproject_alt_requirement_feature = "Requirements enabled";
 $TLS_testproject_alt_edit = "Edit Test Project";
 $TLS_testproject_txt_empty_list = "There are no Test Projects defined!";
 $TLS_testproject_prefix = 'Prefix (used for Test case ID)';
+$TLS_testproject_prefix_hint = 'Допускается до 16 символов, но рекомендуем использовать не более пяти';
 $TLS_warning_empty_tcase_prefix = "Test Case ID prefix cannot be empty!";
 $TLS_warning_empty_tproject_name = "Название программного продукта не может быть пустым!";
 

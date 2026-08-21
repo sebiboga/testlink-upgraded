@@ -95,4 +95,6 @@ $TLS_testplan_role = 'Rol plan de test ';
 $TLS_msg_no_rights_for_tp = '<br /> Nu aveți permisiuni pentru niciun plan de test ACTIV';
 $TLS_ok = 'OK';
 
+
+$TLS_testproject_prefix_hint = 'Sunt permise până la 16 caractere, dar recomandăm să folosiți cel mult cinci';
 // ----- END -----------------------------------------------------

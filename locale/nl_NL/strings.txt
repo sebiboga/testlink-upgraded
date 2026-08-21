@@ -1745,6 +1745,7 @@ $TLS_testproject_alt_requirement_feature = 'Vereisten actief';
 $TLS_testproject_alt_edit = 'Wijzig Test Project';
 $TLS_testproject_txt_empty_list = 'Er zijn geen testprojecten gedefinieerd!';
 $TLS_testproject_prefix = 'Prefix (voor testcase ID)';
+$TLS_testproject_prefix_hint = 'Er zijn maximaal 16 tekens toegestaan, maar wij adviseren er hoogstens vijf te gebruiken';
 $TLS_warning_empty_tcase_prefix = 'Testcase ID prefix mag niet leeg zijn!';
 $TLS_warning_empty_tproject_name = "Test project naam kan niet leeg zijn!";
 

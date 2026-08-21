@@ -1388,6 +1388,7 @@ $TLS_testproject_alt_requirement_feature = "Requerimientos habilitados";
 $TLS_testproject_alt_edit = "Editar Proyecto";
 $TLS_testproject_txt_empty_list = "No hay Proyectos definidos!";
 $TLS_testproject_prefix = 'Prefijo (usado para el ID de los Casos de prueba)';
+$TLS_testproject_prefix_hint = 'Se permiten 16 caracteres, pero recomendamos usar como máximo cinco';
 $TLS_warning_empty_tcase_prefix = 'El prefijo del caso de prueba no puede estar vacío!';
 $TLS_warning_empty_tproject_name = 'El nombre del proyecto no puede estar vacío!';
 
