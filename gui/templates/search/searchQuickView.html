@@ -4,7 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Search Test Cases</title>
+<title>Quick Search</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -26,7 +26,6 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 22px; padding: 16px 20px 6px; }
 .form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
 .form-control { font-size: 13px; height: 34px; }
-textarea.form-control { height: auto; }
 .input-group-text { font-size: 12px; background: #eefaf9; color: #2d8e88; border-color: #ccc; }
 .actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
 .results-head { padding: 14px 24px 0; }
@@ -54,7 +53,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 <body>
 
 <div class="header">
-  <span data-i18n="search.header">Search Test Cases</span>
+  <span data-i18n="search.quickCaption">Quick search</span>
   <span class="sub"><span data-i18n="search.inProject">in test project</span> <b id="tprojectName">-</b></span>
   <span id="localeSwitcher" style="float:right;"></span>
 </div>
@@ -66,92 +65,19 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 </div>
 
 <div class="panel">
-  <div class="panel-head" data-i18n="search.formCaption">Search criteria</div>
+  <div class="panel-head" data-i18n="search.quickCaption">Quick search</div>
   <div class="notice">
     <i class="fa fa-info-circle"></i>
-    <span data-i18n="search.filterModeAnd">All criteria are combined with a logical AND.</span><br>
-    <span id="importantNotice"></span><br>
-    <span data-i18n="search.prefixIgnored">The test project prefix in the "Test Case ID" field is ignored during the search.</span>
+    <span data-i18n="search.quickHint">Type a test case ID (e.g. TP-1) or a word from the title.</span>
   </div>
   <div class="form-grid">
     <div class="form-group">
-      <label for="targetTestCase" data-i18n="search.tcid">Test Case ID</label>
+      <label for="quickText" data-i18n="search.quickField">Search test cases</label>
       <div class="input-group">
-        <span class="input-group-text" id="prefixAddon">-</span>
-        <input type="text" class="form-control" id="targetTestCase" maxlength="30">
+        <span class="input-group-text"><i class="fa fa-search"></i></span>
+        <input type="text" class="form-control" id="quickText" maxlength="100"
+               onkeydown="if(event.key==='Enter')doSearch()">
       </div>
-    </div>
-    <div class="form-group">
-      <label for="version" data-i18n="search.version">Version</label>
-      <input type="number" min="1" step="1" class="form-control" id="version">
-    </div>
-    <div class="form-group">
-      <label for="name" data-i18n="search.title">Title</label>
-      <input type="text" class="form-control" id="name" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="created_by" data-i18n="search.createdBy">Created by</label>
-      <input type="text" class="form-control" id="created_by" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="edited_by" data-i18n="search.editedBy">Edited by</label>
-      <input type="text" class="form-control" id="edited_by" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="summary" data-i18n="search.summary">Summary</label>
-      <input type="text" class="form-control" id="summary" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="preconditions" data-i18n="search.preconditions">Preconditions</label>
-      <input type="text" class="form-control" id="preconditions" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="steps" data-i18n="search.steps">Steps</label>
-      <input type="text" class="form-control" id="steps" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="expected_results" data-i18n="search.expectedResults">Expected results</label>
-      <input type="text" class="form-control" id="expected_results" maxlength="50">
-    </div>
-    <div class="form-group">
-      <label for="creation_date_from" data-i18n="search.creationDateFrom">Creation date from</label>
-      <input type="date" class="form-control" id="creation_date_from">
-    </div>
-    <div class="form-group">
-      <label for="creation_date_to" data-i18n="search.creationDateTo">Creation date to</label>
-      <input type="date" class="form-control" id="creation_date_to">
-    </div>
-    <div class="form-group">
-      <label for="modification_date_from" data-i18n="search.modificationDateFrom">Modification date from</label>
-      <input type="date" class="form-control" id="modification_date_from">
-    </div>
-    <div class="form-group">
-      <label for="modification_date_to" data-i18n="search.modificationDateTo">Modification date to</label>
-      <input type="date" class="form-control" id="modification_date_to">
-    </div>
-    <div class="form-group" id="grpImportance" style="display:none">
-      <label for="importance" data-i18n="search.importance">Importance</label>
-      <select class="form-control" id="importance"></select>
-    </div>
-    <div class="form-group">
-      <label for="status" data-i18n="search.status">Status</label>
-      <select class="form-control" id="status"></select>
-    </div>
-    <div class="form-group" id="grpKeyword" style="display:none">
-      <label for="keyword_id" data-i18n="search.keyword">Keyword</label>
-      <select class="form-control" id="keyword_id"></select>
-    </div>
-    <div class="form-group" id="grpCustomField" style="display:none">
-      <label for="custom_field_id" data-i18n="search.customField">Custom field</label>
-      <select class="form-control" id="custom_field_id"></select>
-    </div>
-    <div class="form-group" id="grpCustomFieldValue" style="display:none">
-      <label for="custom_field_value" data-i18n="search.customFieldValue">Custom field value</label>
-      <input type="text" class="form-control" id="custom_field_value" maxlength="20">
-    </div>
-    <div class="form-group" id="grpReqDocId" style="display:none">
-      <label for="requirement_doc_id" data-i18n="search.requirementDocId" title="">Requirement document ID</label>
-      <input type="text" class="form-control" id="requirement_doc_id" maxlength="32">
     </div>
   </div>
   <div class="actions">
@@ -203,6 +129,7 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#quickText').attr('placeholder', TLi18n.t('search.quickPlaceholder'));
     loadContext();
   });
 });
@@ -226,60 +153,7 @@ function loadContext() {
       ctx = r;
       $('#tprojectName').text(r.tproject.name);
       $('#tprojectName2').text(r.tproject.name);
-      document.title = r.tproject.name + ' - ' + TLi18n.t('search.header');
-      $('#prefixAddon').text(r.tcasePrefix);
-      $('#targetTestCase').val(r.tcasePrefix);
-      $('#importantNotice').text(TLi18n.t('search.importantNotice', {tproject: r.tproject.name}));
-      $('#requirement_doc_id').attr('title', TLi18n.t('search.typeLike'));
-
-      // importance (only when priority enabled for this project)
-      if (r.importanceEnabled) {
-        $('#grpImportance').show();
-        $('#importance').append('<option value="0"></option>');
-        $('#importance').append('<option value="3">' + esc(TLi18n.t('search.highImportance')) + '</option>');
-        $('#importance').append('<option value="2">' + esc(TLi18n.t('search.mediumImportance')) + '</option>');
-        $('#importance').append('<option value="1">' + esc(TLi18n.t('search.lowImportance')) + '</option>');
-      }
-
-      // status domain comes localized from the server (same source as legacy)
-      $('#status').append('<option value="0"></option>');
-      $.each(r.statusDomain, function (i, s) {
-        $('#status').append('<option value="' + s.code + '">' + esc(s.label) + '</option>');
-      });
-
-      // keywords
-      if (r.keywords.length > 0) {
-        $('#grpKeyword').show();
-        $('#keyword_id').append('<option value="0">&nbsp;</option>');
-        $.each(r.keywords, function (i, k) {
-          $('#keyword_id').append('<option value="' + k.id + '">' + esc(k.name) + '</option>');
-        });
-      }
-
-      // custom fields
-      if (r.customFields.length > 0) {
-        $('#grpCustomField').show();
-        $('#grpCustomFieldValue').show();
-        $('#custom_field_id').append('<option value="0">&nbsp;</option>');
-        $.each(r.customFields, function (i, cf) {
-          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
-        });
-      }
-
-      // requirement doc id filter
-      if (r.requirementsEnabled) {
-        $('#grpReqDocId').show();
-      }
-
-      // prefill from URL params (deep link support)
-      ['targetTestCase','version','name','created_by','edited_by','summary',
-       'preconditions','steps','expected_results','keyword_id','custom_field_id',
-       'custom_field_value','requirement_doc_id','importance','status'].forEach(function (k) {
-        var v = p.get(k);
-        if (v !== null && v !== '' && document.getElementById(k)) {
-          $('#' + k).val(v);
-        }
-      });
+      document.title = r.tproject.name + ' - ' + TLi18n.t('search.quickCaption');
     })
     .fail(function (xhr) {
       var msg = TLi18n.t('common.error');
@@ -288,44 +162,20 @@ function loadContext() {
     });
 }
 
-// convert yyyy-mm-dd (date input) to the server's configured format e.g. dd/mm/yyyy
-function fmtDate(iso, phpFormat) {
-  if (!iso) return '';
-  var parts = iso.split('-');
-  if (parts.length !== 3) return iso;
-  return phpFormat
-    .replace('%Y', parts[0])
-    .replace('%m', parts[1])
-    .replace('%d', parts[2]);
-}
-
 function doSearch() {
   if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
   $('#warnBox').hide();
+  var v = $.trim($('#quickText').val());
+  if (v === '') { toast(TLi18n.t('search.quickEmpty'), true); return; }
   var q = new URLSearchParams();
   q.set('action', 'search');
   q.set('tproject_id', tprojectId);
-
-  var tcid = $.trim($('#targetTestCase').val());
-  if (tcid !== '' && tcid !== ctx.tcasePrefix) q.set('targetTestCase', tcid);
-  if ($('#version').val()) q.set('version', $('#version').val());
-  var textFields = ['name','created_by','edited_by','summary','preconditions','steps',
-                    'expected_results','custom_field_value','requirement_doc_id'];
-  $.each(textFields, function (i, k) {
-    var v = $.trim($('#' + k).val());
-    if (v !== '') q.set(k, v);
-  });
-  ['importance','status','keyword_id','custom_field_id'].forEach(function (k) {
-    var v = parseInt($('#' + k).val() || '0', 10);
-    if (v > 0) q.set(k, v);
-  });
-  [['creation_date_from','creation_date_from'],['creation_date_to','creation_date_to'],
-   ['modification_date_from','modification_date_from'],['modification_date_to','modification_date_to']]
-  .forEach(function (pair) {
-    var v = $('#' + pair[0]).val();
-    if (v) q.set(pair[1], fmtDate(v, ctx.dateFormat));
-  });
-
+  // a test case ID (prefix-number or plain number) searches by ID, anything else by title
+  if (/^[A-Za-z0-9]+-\d+$/.test(v) || /^\d+$/.test(v)) {
+    q.set('targetTestCase', v);
+  } else {
+    q.set('name', v);
+  }
   $('#btnFind').prop('disabled', true);
   $.getJSON(API + '?' + q.toString())
     .done(function (r) {
@@ -417,9 +267,7 @@ function resetForm() {
   $('#resultsWrap').hide();
   $('#noResults').hide();
   if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
-  $('.panel').find('input[type=text],input[type=number],input[type=date]').val('');
-  $('.panel select').val('0');
-  $('#targetTestCase').val(ctx ? ctx.tcasePrefix : '');
+  $('#quickText').val('');
   $('#footerInfo').text('');
 }
 </script>

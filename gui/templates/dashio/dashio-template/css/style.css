@@ -332,6 +332,13 @@ ul.sidebar-menu li ul.sub li a {
     color: #aeb2b7;
 }
 
+/* keep visited submenu links visually identical to unvisited ones —
+   otherwise the browser's :visited color makes every already-opened
+   screen look "selected" in the aside menu */
+ul.sidebar-menu li ul.sub li a:visited {
+    color: #aeb2b7;
+}
+
 ul.sidebar-menu li ul.sub li a:hover {
 	color: white;
 	background: transparent;
