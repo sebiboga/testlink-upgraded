@@ -19,7 +19,29 @@ permissions:
   issues: write
 
 jobs:
+  # cheap triage job: ~10s. If there is nothing to fix, the expensive
+  # environment (MariaDB container, PHP, Chrome, opencode) never starts.
+  triage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      count: ${{ steps.issues.outputs.count }}
+      newest: ${{ steps.issues.outputs.newest }}
+    steps:
+      - name: Count open issues
+        id: issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COUNT=$(gh issue list --repo "${{ github.repository }}" --state open --limit 200 --json number --jq 'length')
+          NEWEST=$(gh issue list --repo "${{ github.repository }}" --state open --limit 200 --json number,title,createdAt --jq 'sort_by(.createdAt) | last | .number')
+          echo "open issues: $COUNT (newest: #$NEWEST)"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "newest=$NEWEST" >> "$GITHUB_OUTPUT"
+
   fix-bug:
+    needs: triage
+    if: needs.triage.outputs.count != '0'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -145,16 +167,10 @@ jobs:
           }
           OPNCFG
 
-      - name: Verify gh auth and count open issues
-        id: issues
-        run: |
-          gh auth status
-          COUNT=$(gh issue list --state open --limit 200 --json number --jq 'length')
-          echo "open issues: $COUNT"
-          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+      - name: Verify gh auth
+        run: gh auth status
 
       - name: Run opencode — fix the newest open issue
-        if: steps.issues.outputs.count != '0'
         timeout-minutes: 60
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
