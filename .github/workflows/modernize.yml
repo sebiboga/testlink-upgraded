@@ -170,6 +170,7 @@ jobs:
         run: |
           # record the hard deadline so the agent can pace itself
           date -d '+95 minutes' +%s > "$DEADLINE_EPOCH_FILE"
+          git rev-parse HEAD > .ci_before_sha
           PROMPT="You are continuing the TestLink 2.0.1 modernization project in this repository. "
           PROMPT+="Read AGENTS.md in the repo root FIRST and follow ALL its rules strictly. "
           PROMPT+="Environment already prepared on this machine: "
@@ -235,12 +236,33 @@ jobs:
           PROMPT+="the HTML screen file and the i18n keys, switch the aside/common links, and COMMIT+PUSH your work "
           PROMPT+="before you finish. Do not end your turn with only a plan or a summary — keep calling tools until "
           PROMPT+="the screen is fully implemented, tested and pushed. "
+          PROMPT+="DELIVERABLE CONTRACT — you may END YOUR TURN only when ALL of these exist (verify with ls/grep "
+          PROMPT+="yourself right before finishing; if any is missing, CONTINUE WORKING instead of summarizing): "
+          PROMPT+="(a) gui/templates/<area>/<screen>.html created, (b) api/<area>/index.php created, "
+          PROMPT+="(c) i18n keys present in ALL locale bundles, (d) aside link switched in lib/functions/common.php, "
+          PROMPT+="(e) test suite appended to tmp/TLU_Test_Cases.md. An investigation-only turn counts as a FAILED run. "
           PROMPT+="All steps must be executed autonomously — no user interaction is allowed. "
           PROMPT+="When in doubt, proceed with the safest action for production."
 
-          opencode run "$PROMPT" \
-            --dangerously-skip-permissions \
-            --print-logs
+          BEFORE_SHA="$(git rev-parse HEAD)"
+          for ATTEMPT in 1 2; do
+            RUN_PROMPT="$PROMPT"
+            if [ "$ATTEMPT" = "2" ]; then
+              echo "::warning::attempt 1 produced nothing — retrying with escalation"
+              RUN_PROMPT="CRITICAL: your previous attempt ended after ONLY investigating the codebase, without "
+              RUN_PROMPT+="creating a single file or commit. That attempt is recorded as FAILED. Forget analysis; "
+              RUN_PROMPT+="this is your FINAL attempt: write the code NOW, file by file, per the DELIVERABLE CONTRACT. $PROMPT"
+            fi
+            opencode run "$RUN_PROMPT" \
+              --dangerously-skip-permissions \
+              --print-logs
+            # did the attempt produce anything? (local commits OR uncommitted files)
+            if [ "$(git rev-parse HEAD)" != "$BEFORE_SHA" ] || git status --porcelain | grep -q .; then
+              echo "attempt $ATTEMPT produced work — continuing"
+              break
+            fi
+            echo "::warning::attempt $ATTEMPT produced no commits and no file changes"
+          done
 
       - name: Fallback commit of any leftover agent changes
         # MUST run even if the opencode step failed/timed out — otherwise all
@@ -275,6 +297,18 @@ jobs:
               || git push --force origin "HEAD:$BRANCH"
           fi
           echo "push done"
+
+      - name: Verify delivery (fail loudly on an empty run)
+        if: always()
+        run: |
+          BEFORE_SHA="$(cat .ci_before_sha 2>/dev/null || echo unknown)"
+          AFTER_SHA="$(git rev-parse HEAD)"
+          DIRTY="$(git status --porcelain -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode' | head -1)"
+          if [ "$BEFORE_SHA" != "unknown" ] && [ "$AFTER_SHA" = "$BEFORE_SHA" ] && [ -z "$DIRTY" ]; then
+            echo "::error::opencode produced NO commits and NO file changes — this run is a FAILURE, not a success"
+            exit 1
+          fi
+          echo "delivery verified: $BEFORE_SHA -> $AFTER_SHA"
 
       - name: Upload opencode session logs & server log (post-mortem)
         # available even when the run fails — the main source for learning what

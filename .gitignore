@@ -12,3 +12,4 @@ opencode.json
 tmp/php_server.log
 .ci_deadline_epoch
 .ci_branch
+.ci_before_sha
