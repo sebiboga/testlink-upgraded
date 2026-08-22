@@ -691,7 +691,8 @@ function renderFirstPage($doc_info)
     }
     
     $safePName = $_SESSION['basehref'] . TL_THEME_IMG_DIR . $docCfg->company_logo;
-    $imgData = @getimagesize($safePName);
+    // fix #570: read size from local file; getimagesize($url) self-deadlocks single-worker runtimes
+    $imgData = @getimagesize(TL_ABS_PATH . TL_THEME_IMG_DIR . $docCfg->company_logo);
     if ($imgData !== false) {
       list($iWidth, $iHeight, $iType, $iAttr) = $imgData;
       $output .= '<p style="text-align: center;"><img alt="TestLink logo" ' .
