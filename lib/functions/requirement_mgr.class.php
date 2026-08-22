@@ -582,7 +582,9 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
       }  
     } 
     
-    if( $checkNotify && $this->notifyOn[__FUNCTION__] ) {
+    if( $checkNotify && is_array($this->notifyOn)
+        && isset($this->notifyOn[__FUNCTION__])
+        && $this->notifyOn[__FUNCTION__] ) {
       // Need to save data before delete
       $set2del = $this->getByIDBulkLatestVersionRevision($id);
       if( !is_null($set2del) ) {
