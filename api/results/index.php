@@ -18,6 +18,7 @@
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
+require_once('users.inc.php');
 
 doSessionStart();
 
