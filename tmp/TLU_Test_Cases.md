@@ -2749,3 +2749,29 @@ Post-fix regression: delete modal opens/cancels via delegation, notes render san
 
 **Follow-up discovered during this suite (out of scope, filed with repro+root cause):**
 - #586 pChart PHP4-style constructor never runs under PHP 8 (`function pChart()` no longer treated as `__construct`) → `$this->Picture` stays NULL and every chart screen (topLevelSuitesBarChart etc.) fatals with imagecolorallocate TypeError **even on fully populated plans**.
+
+## Regression — Issue #587: getExecTimeSpan() undefined $fieldList + null map on zero-execution plans (resultsByTSuite exec-span path)
+
+**Precondition:** admin logged in at http://localhost:8082; fresh-DB fixture via SQL: project 900001 `FIX587 Project`, plan 900002 `FIX587 Plan`, build 900003 `B1`, nested suites TS TOP(900004) > TS CHILD(900005), TC-1 v1 (tcversion 900007) linked through testplan_tcversions id=900008, **zero rows in `executions`**. Session cookie reused for curl checks.
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/resultsByTSuite.php?tplan_id=900002&tproject_id=900001&format=0`.
+2. Inspect `events` table for new E_WARNING entries.
+
+**Observed pre-fix:** HTTP 200 but exactly 4 new events:
+1. `Undefined variable $fieldList` — tlTestPlanMetrics.class.php:3657 (fires on EVERY call, even with executions: `$fieldList .= implode(...)` never initialized);
+2. `Trying to access array offset on null` — resultsByTSuite.php:72 (`$span[$args->tplan_id]` when `fetchRowsIntoMap()` returned NULL because the aggregate SELECT over an empty `executions` set yields no rows);
+3./4. `Trying to access array offset on null` ×2 from compiled `show_table_with_exec_span.inc.tpl.php` lines 39/42 (template reads `$gui->spanByPlatform[$platId]['begin'|'end']` where `[0] => null` was stored).
+
+**Expected post-fix:** zero new Error/Warning events on every load path; with executions present the First/Latest Execution span renders as before; per-platform span shows only for platforms having executions; no behavior change elsewhere.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | Zero-executions load → HTTP 200, **0 new events** (was 4) | PASS |
+| 2 | Positive regression: INSERT one execution (2026-08-20 10:00:00, status p, platform_id 0) → same URL renders "First Execution on: 20/08/2026 10:00:00" + "Latest Execution on: …", **0 new events** (the $fieldList warning used to fire here too) | PASS |
+| 3 | Multi-platform edge: platforms P-Busy(900008, has execution)/P-Idle(900009, none) linked to plan, link row updated to platform 900008 → "Results on Platform: P-Busy" section renders with correct span dates, **0 new events**, isset() guard covers the missing-per-platform-key shape | PASS |
+| 4 | Browser pass (headless Chrome, admin/admin): report page renders fully incl. platform sections and span block; Event Viewer shows only the normal AUDIT login event (level 16), no Error/Warning | PASS |
+| 5 | Code review subagent over full diff: PASS (no required findings); two pre-existing adjacent defects found and filed instead of fixed in-scope: #588 (dashio partial missing property_exists guard → warning from baselinel1l2 pages), #589 (saveForBaseline null-span deref + empty baseline insert on zero-exec plans) | PASS |
+
+**Fix commit:** 6dd9f7e9b on branch fix/issue-587.
