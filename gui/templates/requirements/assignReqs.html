@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Requirements</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-dark { background: #3a3d46; color: #ddd; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; color: #fff; }
+.tabbtn { background: transparent; color: #bbb; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.tabbtn.active { background: #4ECDC4; border-color: #4ECDC4; color: #fff; }
+.notice { margin: 12px 0 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.denybox { margin: 20px 24px; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; }
+.split { display: flex; gap: 20px; margin: 16px 24px; align-items: flex-start; }
+.picker { width: 360px; flex: none; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.picker-head { padding: 10px 14px; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 700; color: #22242a; }
+.picker-search { width: 100%; border: none; border-bottom: 1px solid #eee; padding: 9px 14px; font-size: 13px; outline: none; }
+.picker-list { max-height: 64vh; overflow-y: auto; }
+.pitem { padding: 9px 14px; border-bottom: 1px solid #f4f4f4; cursor: pointer; font-size: 13px; }
+.pitem:hover { background: #f4fbfa; }
+.pitem.sel { background: #4ECDC4; color: #fff; }
+.pitem .p-title { font-weight: 700; }
+.pitem .p-sub { color: #888; font-size: 11px; margin-top: 2px; word-break: break-all; }
+.pitem.sel .p-sub { color: #eafffd; }
+.work { flex: 1; min-width: 0; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.badge-ver { background: #22242a; color: #fff; font-size: 11px; border-radius: 10px; padding: 2px 10px; font-weight: 600; }
+.badge-exec { background: #e6605e; color: #fff; font-size: 11px; border-radius: 10px; padding: 2px 10px; font-weight: 600; display:none; }
+.panel-body { padding: 16px 20px; }
+.form-row { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.form-row label { font-size: 12px; font-weight: 700; color: #444; }
+select.form-control, .form-control { font-size: 13px; height: 34px; width: auto; min-width: 260px; }
+.warnbox { background: #fdf6e3; border: 1px solid #f0e0b0; color: #8a6d3b; border-radius: 6px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+.execwarn { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.msel-grid { display: grid; grid-template-columns: 1fr 130px 1fr; gap: 12px; align-items: start; }
+.msel-box label { font-size: 12px; font-weight: 700; color: #444; display: block; margin-bottom: 6px; }
+.msel-box select { width: 100%; height: 300px; font-size: 13px; border: 1px solid #ccc; border-radius: 5px; padding: 6px; }
+.msel-box select option { padding: 4px 6px; }
+.mid-btns { display: flex; flex-direction: column; gap: 10px; padding-top: 30px; }
+.count-tag { color: #888; font-weight: 400; font-size: 11px; }
+.empty-note { color: #999; font-size: 12px; padding: 6px 2px; }
+.actions-row { display: flex; gap: 10px; margin-top: 16px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
+.toast.err { background: #e6605e; }
+#mainArea { display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="reqAssign.title">Assign Requirements to Test Cases</span>
+  <span class="sub"><span data-i18n="reqAssign.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar" id="toolbar" style="display:none">
+  <button class="tabbtn active" id="tabTc" onclick="setMode('tc')"><i class="fa fa-vial"></i> <span data-i18n="reqAssign.modeTestCase">Test Case</span></button>
+  <button class="tabbtn" id="tabBulk" onclick="setMode('bulk')"><i class="fa fa-layer-group"></i> <span data-i18n="reqAssign.modeBulkSuite">Test Suite (Bulk)</span></button>
+  <span style="flex:1"></span>
+  <span class="ctx"><span data-i18n="reqAssign.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+</div>
+
+<div class="denybox" id="denyBox" style="display:none"><i class="fa fa-lock"></i> <span data-i18n="reqAssign.noPermission"></span></div>
+<div class="denybox" id="errBox" style="display:none"><i class="fa fa-triangle-exclamation"></i> <span data-i18n="reqAssign.loadError"></span></div>
+
+<div id="mainArea">
+<div class="split">
+
+  <div class="picker">
+    <div class="picker-head" id="pickerTitle">Test cases</div>
+    <input type="text" class="picker-search" id="pickerSearch" oninput="renderPicker()">
+    <div class="picker-list" id="pickerList"></div>
+  </div>
+
+  <div class="work">
+    <!-- ============ TEST CASE MODE ============ -->
+    <div id="tcPane">
+      <div class="panel">
+        <div class="panel-head">
+          <i class="fa fa-vial" style="color:#4ECDC4"></i>
+          <span id="tcTitle" style="color:#999;font-weight:400"><span data-i18n="reqAssign.pickTestCase">Select a test case from the list</span></span>
+          <span class="badge-ver" id="tcVerBadge" style="display:none"></span>
+          <span class="badge-exec" id="tcExecBadge" data-i18n="reqAssign.executedBadge">executed</span>
+        </div>
+        <div class="panel-body">
+          <div class="notice" id="noSpecNotice" style="display:none">
+            <i class="fa fa-info-circle"></i> <span data-i18n="reqAssign.noReqSpecs"></span>
+          </div>
+          <div class="warnbox execwarn" id="execWarn"><i class="fa fa-triangle-exclamation"></i> <span data-i18n="reqAssign.executedWarning"></span></div>
+
+          <div id="tcWorkArea">
+            <div class="form-row">
+              <label for="specSelTc" data-i18n="reqAssign.reqSpec">Requirement Specification:</label>
+              <select class="form-control" id="specSelTc" onchange="onSpecChange('tc')"></select>
+            </div>
+
+            <div class="msel-grid">
+              <div class="msel-box">
+                <label><span data-i18n="reqAssign.unassigned">Free Requirements</span> <span class="count-tag" id="cntUnassigned"></span></label>
+                <select id="selUnassigned" multiple></select>
+                <div class="empty-note" id="emptyUnassigned" style="display:none" data-i18n="reqAssign.noReqsOnSpec"></div>
+              </div>
+              <div class="mid-btns">
+                <button class="btn-teal" onclick="doAssign()">&gt;&gt; <span data-i18n="reqAssign.assignBtn">Assign</span></button>
+                <button class="btn-red" onclick="doUnassign()">&lt;&lt; <span data-i18n="reqAssign.unassignBtn">Unassign</span></button>
+              </div>
+              <div class="msel-box">
+                <label><span data-i18n="reqAssign.assigned">Assigned Requirements</span> <span class="count-tag" id="cntAssigned"></span></label>
+                <select id="selAssigned" multiple></select>
+                <div class="empty-note" id="emptyAssigned" style="display:none" data-i18n="reqAssign.emptyAssigned"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ BULK SUITE MODE ============ -->
+    <div id="bulkPane" style="display:none">
+      <div class="panel">
+        <div class="panel-head">
+          <i class="fa fa-layer-group" style="color:#4ECDC4"></i>
+          <span id="bulkTitle" style="color:#999;font-weight:400"><span data-i18n="reqAssign.pickSuite">Select a test suite from the list</span></span>
+        </div>
+        <div class="panel-body">
+          <div class="notice" id="noSpecNoticeBulk" style="display:none">
+            <i class="fa fa-info-circle"></i> <span data-i18n="reqAssign.noReqSpecs"></span>
+          </div>
+          <div class="warnbox" id="bulkWarn"></div>
+
+          <div id="bulkWorkArea">
+            <div class="form-row">
+              <label for="specSelBulk" data-i18n="reqAssign.reqSpec">Requirement Specification:</label>
+              <select class="form-control" id="specSelBulk" onchange="onSpecChange('bulk')"></select>
+            </div>
+
+            <div class="msel-grid">
+              <div class="msel-box">
+                <label><span data-i18n="reqAssign.bulkRequirements">Requirements</span> <span class="count-tag" id="cntBulkReqs"></span></label>
+                <select id="selBulkReqs" multiple></select>
+                <div class="empty-note" id="emptyBulk" style="display:none" data-i18n="reqAssign.noReqsOnSpec"></div>
+              </div>
+              <div class="mid-btns" style="padding-left:6px">
+                <button class="btn-red" id="btnBulk" onclick="doBulkAssign()" disabled><i class="fa fa-bolt"></i> <span data-i18n="reqAssign.bulkAssignBtn">Bulk Assign</span></button>
+              </div>
+              <div class="msel-box">
+                <label data-i18n="reqAssign.bulkTargets">Affected Test Cases</label>
+                <select id="selBulkTargets" multiple disabled></select>
+                <div class="empty-note" id="emptyBulkTargets" style="display:none" data-i18n="reqAssign.bulkNoTcases"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var tprojectId = 0;
+var canManage = false;
+var mode = 'tc';
+
+var tcaseItems = [];
+var tsuiteItems = [];
+var reqSpecs = [];
+var selTcaseId = 0;
+var selTsuiteId = 0;
+var bulkQty = 0;
+var bulkName = '';
+
+function pget(k) {
+  return new URLSearchParams(window.location.search).get(k);
+}
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+function apiGet(route, params, cb) {
+  $.getJSON(API + route, params || {}).done(function(d){ cb(d); })
+   .fail(function(xhr){ cb(null, xhr); });
+}
+function apiPost(route, body, cb) {
+  $.ajax({url: API + route, method: 'POST', contentType: 'application/json',
+    data: JSON.stringify(body)}).done(function(d){ cb(d); })
+   .fail(function(xhr){ cb(null, xhr); });
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+TLi18n.load(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  $('#pickerSearch').attr('placeholder', TLi18n.t('reqAssign.searchPlaceholder'));
+  tprojectId = parseInt(pget('tproject_id') || '0', 10);
+  if (!tpidGuard()) return;
+  loadContext();
+});
+
+function tpidGuard() {
+  if (!tprojectId || tprojectId <= 0) { $('#errBox').show(); return false; }
+  return true;
+}
+
+function loadContext() {
+  apiGet('/context', {tproject_id: tprojectId}, function(d) {
+    if (!d || d.status !== 'ok') { $('#errBox').show(); return; }
+    $('#tprojectName').text(d.tproject_name);
+    $('#tprojectName2').text(d.tproject_name);
+    canManage = !!(d.rights && d.rights.req_tcase_link_management);
+    if (!canManage) {
+      $('#denyBox').show();
+      $('#toolbar').hide();
+      $('#mainArea').hide();
+      $('#footerInfo').html(esc(TLi18n.t('reqAssign.testProject')) + ': ' + esc(d.tproject_name));
+      return;
+    }
+    $('#toolbar').show();
+    $('#mainArea').show();
+    boot();
+  });
+}
+
+function boot() {
+  apiGet('/reqspecs', {tproject_id: tprojectId}, function(d) {
+    reqSpecs = (d && d.items) ? d.items : [];
+    var hasSpecs = reqSpecs.length > 0;
+    $('#noSpecNotice').toggle(!hasSpecs);
+    $('#noSpecNoticeBulk').toggle(!hasSpecs);
+    $('#tcWorkArea').toggle(hasSpecs);
+    $('#bulkWorkArea').toggle(hasSpecs);
+    fillSpecSelect($('#specSelTc'));
+    fillSpecSelect($('#specSelBulk'));
+    loadPickerData();
+  });
+}
+
+function fillSpecSelect($sel) {
+  $sel.empty();
+  $.each(reqSpecs, function(i, s) {
+    $sel.append($('<option>').val(s.id).text(s.name));
+  });
+}
+
+function setMode(m) {
+  mode = m;
+  $('#tabTc').toggleClass('active', m === 'tc');
+  $('#tabBulk').toggleClass('active', m === 'bulk');
+  $('#tcPane').toggle(m === 'tc');
+  $('#bulkPane').toggle(m === 'bulk');
+  loadPickerData();
+}
+
+function loadPickerData() {
+  if (mode === 'tc') {
+    apiGet('/testcases', {tproject_id: tprojectId}, function(d) {
+      tcaseItems = (d && d.items) ? d.items : [];
+      renderPicker();
+    });
+  } else {
+    apiGet('/testsuites', {tproject_id: tprojectId}, function(d) {
+      tsuiteItems = (d && d.items) ? d.items : [];
+      renderPicker();
+    });
+  }
+}
+
+function pickerFiltered() {
+  var q = ($('#pickerSearch').val() || '').toLowerCase();
+  var src = (mode === 'tc') ? tcaseItems : tsuiteItems;
+  if (!q) return src;
+  return src.filter(function(it) {
+    return ((it.name || '').toLowerCase().indexOf(q) >= 0 ||
+            (it.path || '').toLowerCase().indexOf(q) >= 0 ||
+            (it.full_external_id || '').toLowerCase().indexOf(q) >= 0);
+  });
+}
+
+function renderPicker() {
+  if (mode === 'tc') {
+    $('#pickerTitle').html('<i class="fa fa-list"></i> ' + esc(TLi18n.t('reqAssign.colTestCase')));
+    var items = pickerFiltered();
+    var html = items.map(function(it) {
+      var selCls = it.id === selTcaseId ? ' sel' : '';
+      return '<div class="pitem' + selCls + '" onclick="pickItem(' + it.id + ')">' +
+        '<div class="p-title">' + esc(it.name) +
+        (it.full_external_id ? ' <span style="color:#2d8e88">[' + esc(it.full_external_id) + ']</span>' : '') +
+        '</div><div class="p-sub">' + esc(it.path || '') + '</div></div>';
+    }).join('');
+    $('#pickerList').html(items.length ? html :
+      '<div class="empty-note" style="padding:14px">' + esc(TLi18n.t('reqAssign.nothingFound')) + '</div>');
+  } else {
+    $('#pickerTitle').html('<i class="fa fa-folder-tree"></i> ' + esc(TLi18n.t('reqAssign.modeBulkSuite')));
+    var items = pickerFiltered();
+    var html = items.map(function(it) {
+      var selCls = it.id === selTsuiteId ? ' sel' : '';
+      return '<div class="pitem' + selCls + '" onclick="pickItem(' + it.id + ')">' +
+        '<div class="p-title">' + esc(it.name) + '</div>' +
+        '<div class="p-sub">' + esc(it.path || '') + '</div></div>';
+    }).join('');
+    $('#pickerList').html(items.length ? html :
+      '<div class="empty-note" style="padding:14px">' + esc(TLi18n.t('reqAssign.nothingFound')) + '</div>');
+  }
+}
+
+function pickItem(id) {
+  if (mode === 'tc') {
+    selTcaseId = id;
+    loadTcaseInfo(id);
+  } else {
+    selTsuiteId = id;
+    loadSuiteBulk(id);
+  }
+  renderPicker();
+}
+
+/* ================= TEST CASE MODE ================= */
+function loadTcaseInfo(tcid) {
+  $('#tcTitle').css('color', '#999').text(TLi18n.t('reqAssign.loading'));
+  $('#tcWorkArea').hide();
+  apiGet('/tcase-info', {id: tcid}, function(d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    var it = d.item;
+    $('#tcTitle').css('color', '#22242a').text(
+      (it.full_external_id ? '[' + it.full_external_id + '] ' : '') + it.name);
+    $('#tcVerBadge').show().text(TLi18n.t('reqAssign.versionShort') + ' ' + it.version);
+    $('#execWarn').toggle(!!it.executed);
+    $('#tcExecBadge').toggle(!!it.executed);
+    $('#tcWorkArea').show();
+    loadReqPanel();
+  });
+}
+
+function curSpec(m) {
+  var v = parseInt((m === 'tc' ? $('#specSelTc') : $('#specSelBulk')).val() || '0', 10);
+  return v;
+}
+
+function onSpecChange(m) {
+  if (m === 'tc' && selTcaseId > 0) { loadReqPanel(); }
+  if (m === 'bulk' && selTsuiteId > 0) { loadBulkReqs(); }
+}
+
+function loadReqPanel() {
+  var specId = curSpec('tc');
+  if (!specId || !selTcaseId) return;
+  apiGet('/reqs', {req_spec_id: specId, tcase_id: selTcaseId}, function(d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    fillMsel('#selUnassigned', d.unassigned, 'id', null);
+    fillMselAssigned(d.assigned);
+    $('#cntUnassigned').text('(' + d.unassigned.length + ')');
+    $('#cntAssigned').text('(' + d.assigned.length + ')');
+    $('#emptyUnassigned').toggle(d.unassigned.length === 0);
+    $('#emptyAssigned').toggle(d.assigned.length === 0);
+  });
+}
+
+function optLabel(r) {
+  return r.doc_id + ' - ' + r.title + (r.version ? ' (v' + r.version + ')' : '');
+}
+
+function fillMsel(selSel, arr, idKey, linkKey) {
+  var $s = $(selSel);
+  $s.empty();
+  $.each(arr, function(i, r) {
+    var val = linkKey ? r[linkKey] : r[idKey];
+    $s.append($('<option>').val(val).text(optLabel(r)));
+  });
+}
+
+function fillMselAssigned(arr) {
+  var $s = $('#selAssigned');
+  $s.empty();
+  $.each(arr, function(i, r) {
+    $s.append($('<option>').val(r.link_id != null ? r.link_id : ('r' + r.id)).text(optLabel(r)));
+  });
+}
+
+function doAssign() {
+  var ids = $('#selUnassigned').val() || [];
+  if (!ids.length) { toast(TLi18n.t('reqAssign.selectOneReq'), true); return; }
+  apiPost('/assign', {tcase_id: selTcaseId, req_ids: ids.map(Number)}, function(d, err) {
+    if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    if (d.failed && d.failed.length) {
+      toast(TLi18n.t('reqAssign.assignFailed').replace('{ids}', d.failed.join(', ')), true);
+    } else {
+      toast(TLi18n.t('reqAssign.assignDone').replace('{n}', d.assigned_qty));
+    }
+    loadReqPanel();
+  });
+}
+
+function doUnassign() {
+  var vals = $('#selAssigned').val() || [];
+  var links = vals.filter(function(v){ return String(v).charAt(0) !== 'r'; }).map(Number);
+  if (!links.length) { toast(TLi18n.t('reqAssign.selectOneLink'), true); return; }
+  apiPost('/unassign', {link_ids: links}, function(d, err) {
+    if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    if (d.failed && d.failed.length) {
+      toast(TLi18n.t('reqAssign.unassignFailed').replace('{ids}', d.failed.join(', ')), true);
+    } else {
+      toast(TLi18n.t('reqAssign.unassignDone').replace('{n}', d.unassigned_qty));
+    }
+    loadReqPanel();
+  });
+}
+
+/* ================= BULK SUITE MODE ================= */
+function loadSuiteBulk(sid) {
+  $('#bulkTitle').css('color', '#999').text(TLi18n.t('reqAssign.loading'));
+  $('#bulkWorkArea').hide();
+  apiGet('/suite-tcases', {tsuite_id: sid}, function(d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    var it = pickerFiltered().filter(function(x){ return x.id === sid; })[0] || {};
+    bulkQty = d.qty;
+    bulkName = it.name || '';
+    $('#bulkTitle').css('color', '#22242a').text(bulkName);
+    // targets preview
+    var $s = $('#selBulkTargets');
+    $s.empty();
+    $.each(d.items, function(i, tc) {
+      $s.append($('<option>').val(tc.id).text(tc.name));
+    });
+    $('#emptyBulkTargets').toggle(d.qty === 0);
+    $('#btnBulk').prop('disabled', d.qty === 0);
+    var warn = $('#bulkWarn');
+    if (d.qty > 0) {
+      warn.show().html('<i class="fa fa-triangle-exclamation"></i> ' +
+        esc(TLi18n.t('reqAssign.bulkWarning')
+          .replace('{n}', d.qty).replace('{name}', bulkName)));
+    } else {
+      warn.show().html('<i class="fa fa-info-circle"></i> ' + esc(TLi18n.t('reqAssign.bulkNoTcases')));
+    }
+    $('#bulkWorkArea').show();
+    loadBulkReqs();
+  });
+}
+
+function loadBulkReqs() {
+  var specId = curSpec('bulk');
+  if (!specId) return;
+  apiGet('/reqs', {req_spec_id: specId}, function(d) {
+    if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    fillMsel('#selBulkReqs', d.all, 'id', null);
+    $('#cntBulkReqs').text('(' + d.all.length + ')');
+    $('#emptyBulk').toggle(d.all.length === 0);
+  });
+}
+
+function doBulkAssign() {
+  var reqIds = ($('#selBulkReqs').val() || []).map(Number);
+  if (!reqIds.length) { toast(TLi18n.t('reqAssign.selectOneReq'), true); return; }
+  if (!confirm(TLi18n.t('reqAssign.bulkConfirm')
+      .replace('{r}', reqIds.length).replace('{n}', bulkQty))) { return; }
+  apiPost('/bulkassign', {tsuite_id: selTsuiteId, req_ids: reqIds}, function(d, err) {
+    if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    toast(TLi18n.t('reqAssign.bulkDone').replace('{n}', d.assigned_qty));
+  });
+}
+
+$(function(){
+  $('#footerInfo').text('TestLink 2.0.1 - Assign Requirements');
+});
+</script>
+</body>
+</html>
