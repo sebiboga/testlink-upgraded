@@ -536,5 +536,20 @@
   "exechist.customFields": "Campos personalizados",
   "exechist.attachments": "Adjuntos",
   "exechist.bugs": "Incidencias",
-  "exechist.none": "Nada que mostrar"
+  "exechist.none": "Nada que mostrar",
+  "header.reqMonitorOverview": "Resumen de Monitorización de Requisitos",
+  "header.reqMonitorOverviewSub": "suscribirse / cancelar suscripción a notificaciones de cambios de requisitos",
+  "rmo.refresh": "Actualizar",
+  "rmo.colSpecPath": "Espec. Req.",
+  "rmo.colTitle": "Título",
+  "rmo.colCreatedOn": "Creado el",
+  "rmo.colMonitor": "Monitorizar",
+  "rmo.colAction": "Acción",
+  "rmo.noRequirements": "Este proyecto de pruebas no tiene requisitos.",
+  "rmo.editRequirement": "Abrir requisito",
+  "rmo.turnOn": "Activar monitorización",
+  "rmo.turnOff": "Desactivar monitorización",
+  "rmo.itemsCount": "{n} requisito(s), {m} monitorizados",
+  "rmo.msg.errorLoad": "Error al cargar los requisitos.",
+  "rmo.msg.errorToggle": "Error al cambiar el estado de monitorización."
 }

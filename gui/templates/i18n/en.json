@@ -536,5 +536,20 @@
   "exechist.customFields": "Custom Fields",
   "exechist.attachments": "Attachments",
   "exechist.bugs": "Bugs",
-  "exechist.none": "Nothing to show"
+  "exechist.none": "Nothing to show",
+  "header.reqMonitorOverview": "Requirements Monitor Overview",
+  "header.reqMonitorOverviewSub": "subscribe / unsubscribe to requirement change notifications",
+  "rmo.refresh": "Refresh",
+  "rmo.colSpecPath": "Req. Spec",
+  "rmo.colTitle": "Title",
+  "rmo.colCreatedOn": "Created On",
+  "rmo.colMonitor": "Monitor",
+  "rmo.colAction": "Action",
+  "rmo.noRequirements": "This test project has no requirements.",
+  "rmo.editRequirement": "Open requirement",
+  "rmo.turnOn": "Turn on monitoring",
+  "rmo.turnOff": "Turn off monitoring",
+  "rmo.itemsCount": "{n} requirement(s), {m} monitored",
+  "rmo.msg.errorLoad": "Failed to load requirements.",
+  "rmo.msg.errorToggle": "Failed to change monitor state."
 }

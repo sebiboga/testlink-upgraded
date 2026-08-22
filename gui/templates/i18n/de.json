@@ -536,5 +536,20 @@
   "exechist.customFields": "Benutzerdefinierte Felder",
   "exechist.attachments": "Anhänge",
   "exechist.bugs": "Fehler",
-  "exechist.none": "Nichts anzuzeigen"
+  "exechist.none": "Nichts anzuzeigen",
+  "header.reqMonitorOverview": "Anforderungen-Monitor Übersicht",
+  "header.reqMonitorOverviewSub": "Benachrichtigungen über Änderungen an Anforderungen abonnieren / abbestellen",
+  "rmo.refresh": "Aktualisieren",
+  "rmo.colSpecPath": "Anf. Spez.",
+  "rmo.colTitle": "Titel",
+  "rmo.colCreatedOn": "Erstellt am",
+  "rmo.colMonitor": "Überwachen",
+  "rmo.colAction": "Aktion",
+  "rmo.noRequirements": "Dieses Testprojekt hat keine Anforderungen.",
+  "rmo.editRequirement": "Anforderung öffnen",
+  "rmo.turnOn": "Überwachung einschalten",
+  "rmo.turnOff": "Überwachung ausschalten",
+  "rmo.itemsCount": "{n} Anforderung(en), {m} überwacht",
+  "rmo.msg.errorLoad": "Anforderungen konnten nicht geladen werden.",
+  "rmo.msg.errorToggle": "Überwachungsstatus konnte nicht geändert werden."
 }

@@ -536,5 +536,20 @@
   "exechist.customFields": "Câmpuri personalizate",
   "exechist.attachments": "Atașamente",
   "exechist.bugs": "Bug-uri",
-  "exechist.none": "Nimic de afișat"
+  "exechist.none": "Nimic de afișat",
+  "header.reqMonitorOverview": "Prezentare generală monitorizare cerințe",
+  "header.reqMonitorOverviewSub": "abonare / dezabonare la notificările de modificare a cerințelor",
+  "rmo.refresh": "Reîmprospătează",
+  "rmo.colSpecPath": "Spec. Cerință",
+  "rmo.colTitle": "Titlu",
+  "rmo.colCreatedOn": "Creat la",
+  "rmo.colMonitor": "Monitorizare",
+  "rmo.colAction": "Acțiune",
+  "rmo.noRequirements": "Acest proiect de test nu are cerințe.",
+  "rmo.editRequirement": "Deschide cerința",
+  "rmo.turnOn": "Activează monitorizarea",
+  "rmo.turnOff": "Dezactivează monitorizarea",
+  "rmo.itemsCount": "{n} cerințe, {m} monitorizate",
+  "rmo.msg.errorLoad": "Încărcarea cerințelor a eșuat.",
+  "rmo.msg.errorToggle": "Modificarea stării de monitorizare a eșuat."
 }

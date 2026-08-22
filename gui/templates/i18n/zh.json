@@ -536,5 +536,20 @@
   "exechist.customFields": "自定义字段",
   "exechist.attachments": "附件",
   "exechist.bugs": "缺陷",
-  "exechist.none": "暂无内容"
+  "exechist.none": "暂无内容",
+  "header.reqMonitorOverview": "需求监控总览",
+  "header.reqMonitorOverviewSub": "订阅/取消订阅需求变更通知",
+  "rmo.refresh": "刷新",
+  "rmo.colSpecPath": "需求规格",
+  "rmo.colTitle": "标题",
+  "rmo.colCreatedOn": "创建时间",
+  "rmo.colMonitor": "监控",
+  "rmo.colAction": "操作",
+  "rmo.noRequirements": "此测试项目没有需求。",
+  "rmo.editRequirement": "打开需求",
+  "rmo.turnOn": "开启监控",
+  "rmo.turnOff": "关闭监控",
+  "rmo.itemsCount": "共 {n} 条需求，{m} 条监控中",
+  "rmo.msg.errorLoad": "加载需求失败。",
+  "rmo.msg.errorToggle": "更改监控状态失败。"
 }

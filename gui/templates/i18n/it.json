@@ -536,5 +536,20 @@
   "exechist.customFields": "Campi personalizzati",
   "exechist.attachments": "Allegati",
   "exechist.bugs": "Bug",
-  "exechist.none": "Nulla da mostrare"
+  "exechist.none": "Nulla da mostrare",
+  "header.reqMonitorOverview": "Panoramica Monitoraggio Requisiti",
+  "header.reqMonitorOverviewSub": "sottoscrivi / annulla sottoscrizione alle notifiche di modifica dei requisiti",
+  "rmo.refresh": "Aggiorna",
+  "rmo.colSpecPath": "Spec. Req.",
+  "rmo.colTitle": "Titolo",
+  "rmo.colCreatedOn": "Creato il",
+  "rmo.colMonitor": "Monitora",
+  "rmo.colAction": "Azione",
+  "rmo.noRequirements": "Questo progetto di test non ha requisiti.",
+  "rmo.editRequirement": "Apri requisito",
+  "rmo.turnOn": "Attiva monitoraggio",
+  "rmo.turnOff": "Disattiva monitoraggio",
+  "rmo.itemsCount": "{n} requisito(i), {m} monitorati",
+  "rmo.msg.errorLoad": "Impossibile caricare i requisiti.",
+  "rmo.msg.errorToggle": "Impossibile modificare lo stato di monitoraggio."
 }

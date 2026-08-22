@@ -536,5 +536,20 @@
   "exechist.customFields": "Пользовательские поля",
   "exechist.attachments": "Вложения",
   "exechist.bugs": "Ошибки",
-  "exechist.none": "Нечего показывать"
+  "exechist.none": "Нечего показывать",
+  "header.reqMonitorOverview": "Обзор мониторинга требований",
+  "header.reqMonitorOverviewSub": "подписка / отписка от уведомлений об изменениях требований",
+  "rmo.refresh": "Обновить",
+  "rmo.colSpecPath": "Спец. требования",
+  "rmo.colTitle": "Название",
+  "rmo.colCreatedOn": "Создано",
+  "rmo.colMonitor": "Мониторинг",
+  "rmo.colAction": "Действие",
+  "rmo.noRequirements": "В этом тестовом проекте нет требований.",
+  "rmo.editRequirement": "Открыть требование",
+  "rmo.turnOn": "Включить мониторинг",
+  "rmo.turnOff": "Отключить мониторинг",
+  "rmo.itemsCount": "Требований: {n}, под мониторингом: {m}",
+  "rmo.msg.errorLoad": "Не удалось загрузить требования.",
+  "rmo.msg.errorToggle": "Не удалось изменить состояние мониторинга."
 }

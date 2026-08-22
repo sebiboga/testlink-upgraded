@@ -536,5 +536,20 @@
   "exechist.customFields": "Champs personnalisés",
   "exechist.attachments": "Pièces jointes",
   "exechist.bugs": "Anomalies",
-  "exechist.none": "Rien à afficher"
+  "exechist.none": "Rien à afficher",
+  "header.reqMonitorOverview": "Vue d'ensemble de la surveillance des exigences",
+  "header.reqMonitorOverviewSub": "s'abonner / se désabonner aux notifications de changement d'exigences",
+  "rmo.refresh": "Rafraîchir",
+  "rmo.colSpecPath": "Spec. Exig.",
+  "rmo.colTitle": "Titre",
+  "rmo.colCreatedOn": "Créé le",
+  "rmo.colMonitor": "Surveiller",
+  "rmo.colAction": "Action",
+  "rmo.noRequirements": "Ce projet de test n'a aucune exigence.",
+  "rmo.editRequirement": "Ouvrir l'exigence",
+  "rmo.turnOn": "Activer la surveillance",
+  "rmo.turnOff": "Désactiver la surveillance",
+  "rmo.itemsCount": "{n} exigence(s), {m} surveillée(s)",
+  "rmo.msg.errorLoad": "Échec du chargement des exigences.",
+  "rmo.msg.errorToggle": "Échec du changement de l'état de surveillance."
 }

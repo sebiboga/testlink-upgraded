@@ -536,5 +536,20 @@
   "exechist.customFields": "カスタムフィールド",
   "exechist.attachments": "添付ファイル",
   "exechist.bugs": "バグ",
-  "exechist.none": "表示するものがありません"
+  "exechist.none": "表示するものがありません",
+  "header.reqMonitorOverview": "要件監視オーバービュー",
+  "header.reqMonitorOverviewSub": "要件変更通知の購読／解除",
+  "rmo.refresh": "更新",
+  "rmo.colSpecPath": "要件仕様",
+  "rmo.colTitle": "タイトル",
+  "rmo.colCreatedOn": "作成日時",
+  "rmo.colMonitor": "監視",
+  "rmo.colAction": "操作",
+  "rmo.noRequirements": "このテストプロジェクトには要件がありません。",
+  "rmo.editRequirement": "要件を開く",
+  "rmo.turnOn": "監視を有効にする",
+  "rmo.turnOff": "監視を無効にする",
+  "rmo.itemsCount": "要件 {n} 件（監視中 {m} 件）",
+  "rmo.msg.errorLoad": "要件の読み込みに失敗しました。",
+  "rmo.msg.errorToggle": "監視状態の変更に失敗しました。"
 }
