@@ -46,9 +46,18 @@ function getPercentage($denominator, $numerator, $round_precision) {
     return ($numerator > 0) ? round(($denominator / $numerator) * 100, $round_precision) : 0;
 }
 
+function resolveTprojectId() {
+    // explicit ?tproject_id= wins (like legacy R_PARAMS), else session project
+    $tid = intval($_GET['tproject_id'] ?? 0);
+    if ($tid <= 0) {
+        $tid = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    return $tid;
+}
+
 function checkDashboardRights(&$db, &$user) {
     $context = new stdClass();
-    $context->tproject_id = intval($_SESSION['testprojectID'] ?? 0);
+    $context->tproject_id = resolveTprojectId();
     $context->tplan_id = null;
     $context->getAccessAttr = false;
     $checkOrMode = array('testplan_metrics', 'testplan_execute');
@@ -75,7 +84,7 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
 
-    $tproject_id = intval($_SESSION['testprojectID'] ?? 0);
+    $tproject_id = resolveTprojectId();
     if ($tproject_id <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'No test project selected']);
