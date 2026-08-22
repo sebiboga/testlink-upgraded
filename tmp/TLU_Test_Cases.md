@@ -2652,3 +2652,32 @@ Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined p
 **Fix:** `(array)` cast on `get_recordset()` result + `$finalset = array()` init (testplan.class.php:2141-2161) — same pattern as `get_parenttestsuites()`.
 
 **Follow-up discovered during this suite (out of scope):** with the crash gone, the resultsGeneral render path surfaces 3 pre-existing downstream E_WARNINGs on empty plans (tlTestPlanMetrics.class.php:1259 undefined key `tsuites`, :1383/:1393 property read on null from getStatusTotalsByItemForRender returning [null,null]). Filed separately.
+
+## 48. Modernization — Test Plan Management screen (planView) (Suite ID: 54)
+
+**Refs:** GitHub issue #576 · Files: `gui/templates/plans/planView.html`, `api/plans/index.php`, i18n keys `pv.*`/`header.planManage*` in 10 bundles, aside switch in `lib/functions/common.php`
+
+**Pre-conditions:** fresh DB, admin/admin, test project "Demo Project" (id=1, prefix DP) created via UI; no platforms initially.
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | Aside menu → Test Plan section → "Test Plan Management" points to `/gui/templates/plans/planView.html?tproject_id=1&tplan_id=0` and loads in mainframe | PASS |
+| 2 | Empty state: header/sub i18n'd, toolbar shows Test Project name, Create/Bulk buttons visible for admin, "No test plans exist…" message shown | PASS |
+| 3 | "+ Create Test Plan" navigates to legacy `planEdit.php?do_action=create`; created "Plan Alpha" via legacy form; returning to screen lists it with counts 0/0 | PASS |
+| 4 | **BUG-1 fixed**: BFF action URLs were relative (`lib/plan/…`) → resolved against `/gui/templates/plans/` → 404. Made root-absolute in BFF (`viewActions()`); create/edit/export/import/assignRoles/gotoExecute all HTTP 200 afterwards | PASS |
+| 5 | **BUG-2 fixed**: unquoted jQuery attribute selectors `th[data-i18n=pv.tcQty]` threw "Syntax error, unrecognized expression", aborting `load()` before `render()` — table never populated. Quoted selectors fix rendering | PASS |
+| 6 | Active toggle per row: off→on with toast "Test plan activated"; on→off with toast "Test plan deactivated"; DB `testplans.active` follows | PASS |
+| 7 | Bulk: select 2 plans → Inactivate → toast "2 test plan(s) deactivated", both toggles off; Activate → both on | PASS |
+| 8 | Bulk with zero selection → toast "Please select at least one test plan", API returns 422 NO_SELECTION | PASS |
+| 9 | Delete modal: confirm text shows plan name + warning; Cancel keeps plan; Confirm deletes ("Plan Beta" gone, toast "Test plan deleted", count updated, audit event `audit_testplan_deleted` written) | PASS |
+| 10 | Per-row legacy links resolve 200: planEdit edit, planExport, planImport, usersAssign (featureType=testplan), frmWorkArea executeTest | PASS |
+| 11 | Permission path: guest user `noperm` → direct GET `/api/plans/index.php/?tproject_id=1` = 403 "No permission"; aside does not render the link (menu grant gated, same as legacy checkRights) | PASS |
+| 12 | **BUG-3 fixed**: DataTables alert "Requested unknown parameter '8'" when Platforms column hidden via CSS while rows carried 8 cells vs 9 headers; column visibility now managed by stable CSS class `hide-plat` + always-populated cells | PASS |
+| 13 | Platforms column dynamic path: platform "Chrome" added via BFF → reload shows Platforms column with per-plan qty; hidden again for projects without platforms | PASS |
+| 14 | Re-render stability: toggle/bulk/delete each trigger full reload — columns stay correct across DataTables destroy/init cycles | PASS |
+| 15 | i18n: locale switcher → Română renders "Management Planuri de Test / creează, activează…"; keys exist in all 10 bundles (`pv.*` ×32 + `header.planManage*` ×2), all bundles pass `json.tool` | PASS |
+| 16 | Event Viewer: no new ERROR/WARNING events during entire suite (only AUDIT logins/logouts/deletes) | PASS |
+
+**Bugs found & fixed during this suite:** BUG-1 (commit 05d9cb312), BUG-2 (commit 423cd66ce), BUG-3 (commits 7006a3f7d + a9866a0cf). All verified post-fix.
+
+**Screenshots:** wiki `Test-Plan-Management.md` (normal state, delete modal, ro locale).
