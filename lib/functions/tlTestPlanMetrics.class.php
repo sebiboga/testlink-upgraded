@@ -1635,10 +1635,15 @@ class tlTestPlanMetrics extends testplan
 
     }
     $dx = $this->tree_manager->get_full_path_verbose($keySet,array('output_format' => 'stairway2heaven'));
-    for($idx=0; $idx < $loop2do; $idx++) {
-      $exec['tsuites'][$exec['tsuites_full'][$idx]['id']] = $dx['flat'][$exec['tsuites_full'][$idx]['id']];
+    // issue #561: helper may return NULL (empty key set / unresolvable paths)
+    if (!is_array($dx)) {
+      $dx = array('flat' => array(), 'staircase' => array());
     }
-    $exec['staircase'] = $dx['staircase'];
+    for($idx=0; $idx < $loop2do; $idx++) {
+      $sid = $exec['tsuites_full'][$idx]['id'];
+      $exec['tsuites'][$sid] = isset($dx['flat'][$sid]) ? $dx['flat'][$sid] : '';
+    }
+    $exec['staircase'] = isset($dx['staircase']) ? $dx['staircase'] : array();
     
     unset($dx);
     unset($keySet);

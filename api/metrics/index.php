@@ -146,7 +146,8 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
             $neurus = $metricsMgr->getExecCountersByPlatformExecStatus($key, null,
                         array('getPlatformSet' => true, 'getOnlyActiveTCVersions' => true));
 
-            foreach ($neurus['with_tester'] as $platform_id => $pinfo) {
+            if (is_array($neurus) && isset($neurus['with_tester']) && is_array($neurus['with_tester'])) {
+              foreach ($neurus['with_tester'] as $platform_id => $pinfo) {
                 $row = array(
                     'tplan_id' => intval($key),
                     'tplan_name' => $tpinfo['name'],
@@ -176,6 +177,7 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
                 $overall['executed'] += $row['executed'];
                 $overall['active'] += $row['active'];
                 $rows[] = $row;
+              }
             }
             $total['executed'] += $overall['executed'];
             $total['active'] += $overall['active'];
