@@ -100,10 +100,14 @@ switch ($doc_info->type) {
     $tplan_mgr = new testplan($db);
     $tplan_info = $tplan_mgr->get_by_id($args->tplan_id);
 
+    $doc_info->build_name = '';
+    $doc_info->build_notes = '';
     if($args->build_id > 0) {
       $xx = $tplan_mgr->get_builds($args->tplan_id,null,null,array('buildID' => $args->build_id));
-      $doc_info->build_name = htmlspecialchars($xx[$args->build_id]['name']);
-      $doc_info->build_notes = $xx[$args->build_id]['notes'];
+      if( !is_null($xx) && isset($xx[$args->build_id]) ) {
+        $doc_info->build_name = htmlspecialchars($xx[$args->build_id]['name']);
+        $doc_info->build_notes = $xx[$args->build_id]['notes'];
+      }
     }  
 
     $doc_info->testplan_name = htmlspecialchars($tplan_info['name']);
