@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Search Requirement Specifications</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px 22px; padding: 16px 20px 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+textarea.form-control { height: auto; min-height: 68px; }
+.actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.table-wrap { padding: 8px 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.rs-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.rs-link:hover { text-decoration: underline; }
+.path-cell { color: #555; max-width: 320px; }
+.rev-link { color: #2d8e88; text-decoration: none; margin-right: 8px; white-space: nowrap; }
+.rev-link:hover { text-decoration: underline; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="reqspecsearch.header">Search Requirement Specifications</span>
+  <span class="sub"><span data-i18n="reqspecsearch.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="reqspecsearch.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-red" id="btnReset" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="reqspecsearch.reset">Reset</span></button>
+</div>
+
+<div class="panel">
+  <div class="panel-head" data-i18n="reqspecsearch.formCaption">Search criteria</div>
+  <div class="notice">
+    <i class="fa fa-info-circle"></i>
+    <span data-i18n="reqspecsearch.filterModeAnd">All criteria are combined with a logical AND.</span><br>
+    <span id="importantNotice"></span>
+  </div>
+  <div class="form-grid">
+    <div class="form-group" id="grpDocId" style="display:none">
+      <label for="doc_id" data-i18n="reqspecsearch.docId">Doc ID</label>
+      <input type="text" class="form-control" id="doc_id" maxlength="32">
+    </div>
+    <div class="form-group">
+      <label for="name" data-i18n="reqspecsearch.title">Title</label>
+      <input type="text" class="form-control" id="name" maxlength="100">
+    </div>
+    <div class="form-group">
+      <label for="reqSpecType" data-i18n="reqspecsearch.type">Type</label>
+      <select class="form-control" id="reqSpecType"></select>
+    </div>
+    <div class="form-group" style="grid-column: span 2;">
+      <label for="scope" data-i18n="reqspecsearch.scope">Scope</label>
+      <textarea class="form-control" id="scope" rows="3"></textarea>
+    </div>
+    <div class="form-group">
+      <label for="log_message" data-i18n="reqspecsearch.logMessage">Log message</label>
+      <input type="text" class="form-control" id="log_message" maxlength="200">
+    </div>
+    <div class="form-group" id="grpCustomField" style="display:none">
+      <label for="custom_field_id" data-i18n="reqspecsearch.customField">Custom field</label>
+      <select class="form-control" id="custom_field_id"></select>
+    </div>
+    <div class="form-group" id="grpCustomFieldValue" style="display:none">
+      <label for="custom_field_value" data-i18n="reqspecsearch.customFieldValue">Custom field value</label>
+      <input type="text" class="form-control" id="custom_field_value" maxlength="20">
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn-teal" id="btnFind" onclick="doSearch()"><i class="fa fa-search"></i> <span data-i18n="reqspecsearch.btnFind">Find</span></button>
+    <button class="btn-red" onclick="resetForm()"><span data-i18n="reqspecsearch.reset">Reset</span></button>
+  </div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="results-head" id="resultsHead" style="display:none">
+  <h2><span data-i18n="reqspecsearch.results">Search results</span><span class="count" id="matchCount"></span></h2>
+</div>
+<div class="empty" id="noResults" data-i18n="reqspecsearch.noResults">No requirement specifications match the given criteria.</div>
+<div class="table-wrap" id="resultsWrap" style="display:none">
+  <table id="resTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:28%" data-i18n="reqspecsearch.colPath">Path</th>
+        <th style="width:34%" data-i18n="reqspecsearch.colReqSpec">Requirement Specification</th>
+        <th data-i18n="reqspecsearch.colRevisions">Revisions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var ctx = null;
+var resTbl = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadContext();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function loadContext() {
+  $.getJSON(API + '/reqspec-context?tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      ctx = r;
+      $('#tprojectName').text(r.tproject.name);
+      $('#tprojectName2').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('reqspecsearch.header');
+      $('#importantNotice').text(TLi18n.t('reqspecsearch.searchingIn', {tproject: r.tproject.name}));
+
+      // type domain comes localized from the server (same source as legacy)
+      $('#reqSpecType').append('<option value="notype">' + esc(TLi18n.t('reqspecsearch.anyType')) + '</option>');
+      $.each(r.types, function (i, t) {
+        $('#reqSpecType').append('<option value="' + esc(t.code) + '">' + esc(t.label) + '</option>');
+      });
+
+      // Doc ID filter is offered only when the project has req specs
+      if (r.hasReqSpecs) {
+        $('#grpDocId').show();
+      }
+
+      // custom fields linked to requirement_spec at design time
+      if (r.customFields.length > 0) {
+        $('#grpCustomField').show();
+        $('#grpCustomFieldValue').show();
+        $('#custom_field_id').append('<option value="0">&nbsp;</option>');
+        $.each(r.customFields, function (i, cf) {
+          $('#custom_field_id').append('<option value="' + cf.id + '">' + esc(cf.label) + '</option>');
+        });
+      }
+
+      // prefill from URL params (deep link support)
+      ['doc_id','name','reqSpecType','scope','log_message','custom_field_id',
+       'custom_field_value'].forEach(function (k) {
+        var v = p.get(k);
+        if (v !== null && v !== '' && document.getElementById(k)) {
+          $('#' + k).val(v);
+        }
+      });
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function doSearch() {
+  if (!ctx) { toast(TLi18n.t('common.error'), true); return; }
+  $('#warnBox').hide();
+  var q = new URLSearchParams();
+  q.set('tproject_id', tprojectId);
+
+  var textFields = ['doc_id','name','scope','log_message','custom_field_value'];
+  $.each(textFields, function (i, k) {
+    var v = $.trim($('#' + k).val());
+    if (v !== '') q.set(k, v);
+  });
+  var typeVal = $.trim($('#reqSpecType').val());
+  if (typeVal !== '' && typeVal !== 'notype') q.set('reqSpecType', typeVal);
+  var cfId = parseInt($('#custom_field_id').val() || '0', 10);
+  if (cfId > 0) q.set('custom_field_id', cfId);
+
+  $('#btnFind').prop('disabled', true);
+  $.getJSON(API + '/reqspec-search?' + q.toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    })
+    .always(function () { $('#btnFind').prop('disabled', false); });
+}
+
+function warningText(key) {
+  switch (key) {
+    case 'no_records_found': return TLi18n.t('reqspecsearch.noResults');
+    case 'too_wide_search_criteria': return TLi18n.t('reqspecsearch.warnTooWide');
+  }
+  return key;
+}
+
+function stripHtml(s) {
+  return String(s == null ? '' : s).replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function renderResults(r) {
+  if (r.warning) {
+    $('#warnBox').text(warningText(r.warning)).show();
+  }
+
+  $('#resultsHead').show();
+  $('#matchCount').text('(' + TLi18n.t('reqspecsearch.matchCount', {n: r.count}) + ')');
+
+  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+
+  if (!r.rows || r.rows.length === 0) {
+    $('#resultsWrap').hide();
+    $('#noResults').toggle(!r.warning || r.warning === 'no_records_found');
+    $('#footerInfo').text('');
+    return;
+  }
+  $('#noResults').hide();
+  $('#resultsWrap').show();
+
+  var rows = r.rows.map(function (row) {
+    var path = '<span class="path-cell">' + esc(stripHtml(row.path)) + '</span>';
+    var rsLabel = '<button class="icon-btn" title="' + esc(TLi18n.t('reqspecsearch.edit')) +
+        '" onclick="openReqSpec(' + row.req_spec_id + ')"><i class="fas fa-pen-to-square"></i></button> ' +
+      '<a class="rs-link" href="javascript:void(0)" onclick="openReqSpec(' + row.req_spec_id + ')">' +
+        esc(row.doc_id) + ':' + esc(row.name) + '</a>';
+    var revs = row.revisions.map(function (rv) {
+      return '<a class="rev-link" href="javascript:void(0)" title="' +
+        esc(TLi18n.t('reqspecsearch.openOnNewWindow')) +
+        '" onclick="openReqSpecRevision(' + rv.revision_id + ')">' +
+        esc(TLi18n.t('reqspecsearch.revisionTag')) + rv.revision + '</a>';
+    }).join('');
+    return [path, rsLabel, revs];
+  });
+
+  resTbl = $('#resTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 2, orderable: false }
+    ]
+  });
+  $('#footerInfo').text(TLi18n.t('reqspecsearch.matchCount', {n: r.count}));
+}
+
+// same targets as the legacy JS helpers openLinkedReqSpecWindow() /
+// openReqSpecRevisionWindow() in gui/javascript/testlink_library.js
+function openReqSpec(reqSpecId) {
+  var url = '/lib/requirements/reqSpecView.php?req_spec_id=' + reqSpecId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openReqSpecRevision(revisionId) {
+  var url = '/lib/requirements/reqSpecViewRevision.php?item_id=' + revisionId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function resetForm() {
+  $('#warnBox').hide();
+  $('#resultsHead').hide();
+  $('#resultsWrap').hide();
+  $('#noResults').hide();
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  $('.panel').find('input[type=text],textarea').val('');
+  $('#reqSpecType').val('notype');
+  $('#custom_field_id').val('0');
+  $('#footerInfo').text('');
+}
+</script>
+</body>
+</html>
