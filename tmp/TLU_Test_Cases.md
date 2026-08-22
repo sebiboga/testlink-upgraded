@@ -2507,3 +2507,40 @@ http://localhost:8082.
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+22 keys each),
 `tmp/add_rov_i18n.py`, `api/reqspec/index.php` (#569 fix).
 
+
+## 46. Modernization — Requirement Specification Management screen (reqSpecMgmt) (Suite ID: 52)
+
+**Screen:** `gui/templates/requirements/reqSpecMgmt.html` +
+`api/reqspec/index.php` (BFF: options/specs/reqs CRUD).
+Legacy reference: `lib/requirements/reqSpecListTree.php` (feature
+`reqSpecMgmt` via frmWorkArea, ExtJS tree, rights `mgt_view_req` /
+`mgt_modify_req`).
+
+**Precondition:** fresh DB; test project id 1 "ReqSpec Demo" (prefix RSD,
+requirements enabled) created via UI; user id 2 `noinv` (global role
+guest = no req rights). Admin logged in at http://localhost:8082.
+**Files changed:** `gui/templates/requirements/reqSpecMgmt.html`,
+`api/reqspec/index.php`, `lib/functions/common.php` (aside link switch),
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ru,zh,ro}.json` (+42 keys each),
+`lib/functions/requirement_mgr.class.php` (#572 fix).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Aside menu "Requirements Design → Requirement Specification" opens modern screen with context (`tproject_id`) | PASS |
+| 2 | Empty state message shown when project has no specs; Create Spec button hidden for view-only (canManage=false) | PASS |
+| 3 | Create Spec modal: localized type domain (Section/URS/SRS), defaults applied | PASS |
+| 4 | Create spec RS-1 "Functional Requirements" (URS, expected 5, scope HTML) → toast "Specification saved", row appears with doc id, type badge, author, timestamp | PASS |
+| 5 | Spec title link opens Requirements panel below; panel header shows spec name and count | PASS |
+| 6 | Create requirement REQ-1 (Valid, Use Case, coverage 2) via modal → toast "Requirement saved", row in reqs table | PASS |
+| 7 | Create REQ-2 + REQ-3 via BFF → list refresh shows all rows, spec "Reqs" badge updates to count | PASS |
+| 8 | Duplicate doc id rejected: create_req with existing REQ-1 in same spec → HTTP 400 "Duplicated document id REQ-1" | PASS |
+| 9 | Edit requirement (title change + status D→V) applies to latest version; toast + refreshed row | PASS |
+| 10 | Edit specification (title v2, expected 10) → row updated after save | PASS |
+| 11 | Delete requirement confirm modal lists title + ALL-versions warning; delete removes row, updates counts/badge | PASS |
+| 12 | Delete spec confirm modal warns about ALL its requirements; delete_deep leaves no orphans (req_specs=0, requirements=0, req_versions=0, revisions=0 verified in DB) | PASS |
+| 13 | Rights: unauthenticated API call → HTTP 401 "Not authenticated" (credentials omitted) | PASS |
+| 14 | Rights: guest user `noinv` → options/specs/create_spec all HTTP 403 "not authorized"; screen shows error toast, no Create buttons rendered server-side state canManage=false | PASS |
+| 15 | i18n: locale switcher ro_RO renders all rs.* labels in Romanian (header, sub-title, toolbar, empty state, document.title); rs.* keys present in ALL 10 bundles (json.tool valid) | PASS |
+| 16 | Event Viewer: #572 E_WARNING (array offset on null, requirement_mgr.class.php:585) fixed — create+delete throwaway req produces NO new events (fix commit 37fe239f) | PASS |
+
+**Result: 16 / 16 PASS** (1 bug found & fixed during testing: #572)
