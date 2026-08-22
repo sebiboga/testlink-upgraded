@@ -38,6 +38,21 @@ if( is_null($node) )
   exit();
 }
 
+// deep link that carries no project context (no session project and no
+// tproject_id request param): derive the owning project from the test case
+// tree path, so rendering never runs against tproject_id=0
+// (testproject::get_by_id(0) throws)
+if( $args->tproject_id <= 0 )
+{
+  $path2root = $tree_mgr->get_path($args->tcase_id);
+  if( !is_null($path2root) && count($path2root) > 0 )
+  {
+    // get_path() excludes the tree root: parent_id of its first element
+    // is the owning test project id (same approach as testcase::getPrefix())
+    $args->tproject_id = intval($path2root[0]['parent_id']);
+  }
+}
+
 $node['tcversion_id'] = $args->tcversion_id;
 $gui = initializeGui($args,$node);
 

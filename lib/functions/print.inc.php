@@ -2322,9 +2322,14 @@ function initStaticRenderTestCaseForPrinting(&$dbH,$tcaseID,$ctx,$cfg) {
 
 
   $things->its = null;
-  $tprojectID = isset($ctx['tproject_id']) ? $ctx['tproject_id'] : 0;
-  $info = $things->tproject_mgr->get_by_id($tprojectID);
-  if($info['issue_tracker_enabled']) {
+  $tprojectID = isset($ctx['tproject_id']) ? intval($ctx['tproject_id']) : 0;
+  // guard: get_by_id(0) throws and a missing project returns null
+  $info = null;
+  if($tprojectID > 0) {
+    $info = $things->tproject_mgr->get_by_id($tprojectID);
+  }
+  if(!is_null($info) && isset($info['issue_tracker_enabled']) &&
+     $info['issue_tracker_enabled']) {
     $it_mgr = new tlIssueTracker($dbH);
     $things->its = $it_mgr->getInterfaceObject($tprojectID);
     unset($it_mgr);
