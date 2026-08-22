@@ -2262,49 +2262,35 @@ TestLink running at http://localhost:8082.
 `exechist.footer` are referenced by execHistory.html but missing from ALL 10
 bundles (lint only checks parity vs en.json) → filed as issue #557.
 
-## 41. Modernization — Test Cases Created Per User report (`tcCreatedPerUserOnTestProject`) (Suite ID: 48)
+## 41. Modernization — Print Requirement Specification screen (printReqSpec) (Suite ID: 48)
 
-**Scope:** new Dashio screen `gui/templates/results/tcCreatedPerUserOnTestProject.html`
-+ BFF `api/results/index.php` (endpoints `/meta`, `/report`, `/csv`), aside link
-switched in `lib/functions/common.php` ($actions->tcCreatedUser).
+**Screen:** `gui/templates/requirements/printReqSpec.html` + `api/requirements/index.php`
+(`action=print_init` / `action=print_tree`). Document generation stays in legacy
+`lib/results/printDocument.php` (same URL contract the 1.9.20 tree JS used:
+`type=reqspec&level=testproject|reqspec&id=<id>&tproject_id=<tpid>&format=<0|4>&<opt>=y|n...`).
 
-**Fixtures:** fresh DB → project *QA Demo* (id 1001, prefix QAD) via SQL; suites
-*Suite A/B*; test cases QAD-1..QAD-3 authored by admin with creation_ts
-2026-08-01/05/10, importance high/medium/low; QAD-4 authored by tester1
-(2026-08-12). Users: admin + tester1.
+**Fixtures:** test project `PrintReq Demo` (prefix PRD, requirements enabled, id=2);
+req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
+`PRS-2 Reporting Requirements` (empty); admin/admin session.
 
-| # | Step / check | Result |
-|---|------|--------|
-| 1 | Aside menu → Test Case Design → **Test Cases created per User** opens the new HTML screen in mainframe (URL contains `.html?tproject_id=1001`) | PASS |
-| 2 | Screen header shows localized title "Test Cases Created Per User", project name "QA Demo" in header + toolbar; document.title set | PASS |
-| 3 | User drop-down contains **Any** + all users (Testlink Administrator, Tina Tester) from BFF `/meta` | PASS |
-| 4 | Defaults from `reportsCfg`: start = today-7d 00:00 (2026-08-15), end = today current hour (2026-08-22 09:00) | PASS |
-| 5 | Show report with default window (no fixtures inside) → "Report results(0)" + empty state "No records found." | PASS |
-| 6 | Start date 2026-08-01 → Show report → 4 rows; columns User / Test Suite / Test Case / Importance / Created / Last Modification / actions; importance badges low/medium/high; stats footer "Generated on … · 4 rows, 2 users, 4 test cases" | PASS |
-| 7 | User filter = Tina Tester → exactly 1 row (QAD-4, tester1); back to Any → 4 rows | PASS |
-| 8 | Hour boundary: start 2026-08-01 00:00, end 2026-08-05 **00** → only QAD-1 (window `[start HH:00:00, end HH:59:59]`, legacy semantics) | PASS |
-| 9 | TC name link and pen icon open the Test Case Viewer (`tcView.html?tcase_id&tcversion_id&tproject_id`) in a new window | PASS |
-| 10 | Download CSV → HTTP 200, `text/csv`, attachment filename; header row matches legacy columns (User, Test Suite, Test Case, Importance, Created on, Last modified on, Start Time, End Time); importance rendered "(3) High" etc.; filter dates in last two columns | PASS |
-| 11 | CSV button click path in browser (blob download via fetch) executes without console errors | PASS |
-| 12 | Reset button restores defaults (Any user, default dates/hours) and hides results | PASS |
-| 13 | Locale switcher → Română (`?locale=ro`): "Cazuri de test create per utilizator", "Utilizator", "Afișează raportul", "Oricare"; `tcPerUser.impHigh` = "ridicată" | PASS |
-| 14 | Rights/auth: unauthenticated GET `/report` → HTTP 401 JSON error | PASS |
-| 15 | i18n parity: all 26 `tcPerUser.*` keys present in ALL 10 bundles (en,ro,de,es,fr,it,pt,ru,ja,zh); every bundle passes `python3 -m json.tool` | PASS |
-| 16 | Legacy regression: dashio aside link no longer points to `lib/results/tcCreatedPerUserOnTestProject.php`; tl-classic theme untouched | PASS |
+| # | Step / verification | Result |
+|---|---------------------|--------|
+| 1 | BFF `print_init`: returns hasProject, project name/ctx, canGenerate right (`testplan_metrics` — same check as printDocument.php), formats (HTML=0, MS Word=4), doc options (toc/headerNumbering unchecked) and reqSpec options with legacy defaults (req_spec_scope=y, req_scope=y) | PASS |
+| 2 | BFF `print_tree`: root specs of project with docId + requirement counts; nested-spec recursion supported; siblings sorted by name (SQL uses `requirements.srs_id` — initial version used non-existent `req_spec_id` and was fixed before testing) | PASS |
+| 3 | Screen loads via direct URL `?tproject_id=2`: header shows project name, toolbar ctx, hint box, tree with virtual whole-project row + 2 spec rows `[PRS-1] 2 requirement(s)` / `[PRS-2] 0 requirement(s)`, format select (HTML/MS Word), both checkbox groups with correct defaults, footer counters "2 requirement specification(s) · 2 requirement(s)" | PASS |
+| 4 | i18n EN: all labels resolved from en.json `printReq.*` (37 keys), no raw keys visible | PASS |
+| 5 | i18n DE runtime: locale switcher → `?locale=de` reload renders "Anforderungsspezifikation drucken", "Inhaltsverzeichnis", "Gesamtes Projektdokument drucken" | PASS |
+| 6 | Click spec node "Login Module Requirements" → new tab opens `printDocument.php?type=reqspec&level=reqspec&id=3&tproject_id=2&format=0&toc=n&...&req_scope=y&...`; document contains header block and both requirements REQ-1/REQ-2 | PASS |
+| 7 | Toggle "Table of contents" on → click "Print whole project document" → new tab `level=testproject&id=2&toc=y&...`; document shows "Table Of Contents" with links to PRS-1, REQ-1, REQ-2, PRS-2 and renders both specs | PASS |
+| 8 | Options parity: all 16 checkboxes map 1:1 to legacy printDocOptions class values (toc, headerNumbering + 14 reqSpec opts); unchecked sent as `n`, checked as `y` (initPrintOpt contract) | PASS |
+| 9 | Aside link integration: `asideMenu.php` now emits `/gui/templates/requirements/printReqSpec.html?tproject_id=2&tplan_id=0` for "Print Requirements" (common.php switch after workArea loop so launcher mapping is overridden) | PASS |
+| 10 | Shared BFF router integrity: other screens' REST routes (/meta, /overview, /monitor-overview, /monitor POST) still routed; broken leftover `$action === 'init'` remnant (undefined `$tid`, dead `return`) removed; `cfg/reports.cfg.php` require added for FORMAT_* constants (was fatal 500 without it) | PASS |
+| 11 | JSON validity of all 10 locale bundles after key insert (`python3 -m json.tool`) | PASS |
+| 12 | Known cosmetic legacy bug observed in generated doc header: "Printed by TestLink on %22/%44/%2026" — strftime config issue in document generator, pre-existing, not introduced by this screen (see GitHub issue) | OBSERVED (filed) |
 
-**Bugs found & fixed during this suite**
-- BFF fatal (500 on `/meta`): missing `require_once('users.inc.php')` → fixed,
-  commit `fix(results-bff): include users.inc.php for getUsersForHtmlOptions()`.
-- i18n keys + aside link clobbered by a parallel CI merge → restored, commit
-  `fix(i18n): restore tcPerUser keys + aside link lost in concurrent merge`.
+**Actual result:** 11/12 PASS + 1 pre-existing legacy cosmetic bug filed separately.
 
-**Fixture note:** initial SQL fixture missed the `nodes_hierarchy` rows for the
-four tcversion nodes (type `testcase_version`), so `get_all_testcases_id()` saw
-the cases but the version join returned NULL — data issue in the fixture, not a
-product bug.
-
-**Event Viewer after testing:** only audit login entry + 2 E_WARNING rows
-caused by my own `php -r` CLI diagnostics ("Command line code"), none produced
-by the screen or BFF. No app errors.
-
-**Actual result:** 16/16 PASS.
+**Files changed:** `api/requirements/index.php`,
+`gui/templates/requirements/printReqSpec.html`,
+`gui/templates/i18n/{en,de,es,fr,it,pt,ro,ru,ja,zh}.json` (+37 `printReq.*`),
+`lib/functions/common.php` (aside link switch).
