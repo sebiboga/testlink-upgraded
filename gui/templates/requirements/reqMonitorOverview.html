@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirements Monitor Overview</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-on { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-off { background: #999; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 15px; border: none; background: none; padding: 0; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.on { color: #e6b34d; }
+.action-btn.on:hover { color: #cf9a2e; }
+.title-link { color: #22242a; text-decoration: none; font-weight: 600; }
+.title-link:hover { color: #3dbdb5; text-decoration: underline; }
+.docid { color: #888; font-size: 11px; margin-right: 6px; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="header.reqMonitorOverview">Requirements Monitor Overview</span> <span class="sub" data-i18n="header.reqMonitorOverviewSub">subscribe / unsubscribe to requirement change notifications</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="rmo.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="projectInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <div id="emptyState" class="empty-state" style="display:none;" data-i18n="rmo.noRequirements">This test project has no requirements.</div>
+  <table id="rmoTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="rmo.colSpecPath">Req. Spec</th>
+        <th data-i18n="rmo.colTitle">Title</th>
+        <th data-i18n="rmo.colCreatedOn">Created On</th>
+        <th data-i18n="rmo.colMonitor">Monitor</th>
+        <th style="width:110px" data-i18n="rmo.colAction">Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<!-- Error Modal -->
+<div class="modal fade" id="errModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="common.error">Error</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body"><p id="errModalText" style="font-size:13px;color:#c0392b;"></p></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var table = null;
+var allItems = [];
+var tprojectId = 0;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadData();
+  });
+});
+
+function showError(msg) {
+  $('#errModalText').text(msg);
+  $('#errModal').modal('show');
+}
+
+function loadData() {
+  $('#emptyState').hide();
+  if (table) { table.clear().draw(); }
+
+  $.getJSON(API + '/monitor-overview?tprojectId=' + tprojectId, function(r) {
+    allItems = r.items || [];
+    tprojectId = r.tproject_id || tprojectId;
+    if (allItems.length === 0) {
+      $('#rmoTable').hide();
+      $('#emptyState').show();
+    } else {
+      $('#emptyState').hide();
+      $('#rmoTable').show();
+      renderTable(allItems);
+    }
+    var monCount = allItems.filter(function(x) { return x.monitored; }).length;
+    $('#projectInfo').text(r.tproject_name || '');
+    $('#footerText').text(
+      TLi18n.t('rmo.itemsCount', {n: allItems.length, m: monCount}) +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('rmo.msg.errorLoad');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showError(msg);
+  });
+}
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#rmoTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, req) {
+    var created = '';
+    if (req.creation_ts && req.creation_ts.indexOf('0000') !== 0) {
+      var d = new Date(String(req.creation_ts).replace(' ', 'T'));
+      if (!isNaN(d.getTime())) {
+        created = d.toLocaleString() + ' (' + esc(req.author) + ')';
+      } else {
+        created = esc(req.creation_ts) + ' (' + esc(req.author) + ')';
+      }
+    }
+
+    // title cell: edit icon + doc-id + title, like legacy openLinkedReqVersionWindow
+    var editLink = '<a href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')" title="' +
+                   esc(TLi18n.t('rmo.editRequirement')) + '"><span class="action-btn"><i class="fa fa-pen-to-square"></i></span></a> ';
+    var titleCell = '<!-- ' + esc(req.req_doc_id + ' * ' + req.title) + ' -->' +
+                    '<span class="docid">' + esc(req.req_doc_id) + '</span>' + editLink +
+                    '<a class="title-link" href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')">' +
+                    esc(req.title) + '</a>';
+
+    // monitor state badge
+    var stateHtml = req.monitored
+      ? '<span class="badge-on">' + TLi18n.t('common.yes') + '</span>'
+      : '<span class="badge-off">' + TLi18n.t('common.no') + '</span>';
+
+    // toggle button: monitored -> click turns OFF, else turns ON
+    var toggleBtn = req.monitored
+      ? '<button class="action-btn on" style="color:#e6b34d" onclick="setMonitor(' + req.id + ',\'off\')" title="' +
+        esc(TLi18n.t('rmo.turnOff')) + '"><i class="fa fa-bell-slash"></i></button>'
+      : '<button class="action-btn" onclick="setMonitor(' + req.id + ',\'on\')" title="' +
+        esc(TLi18n.t('rmo.turnOn')) + '"><i class="fa fa-bell"></i></button>';
+
+    rows.push([esc(req.spec_path), titleCell, '<!--' + esc(req.creation_ts) + '-->' + created, stateHtml, toggleBtn]);
+  });
+
+  table = $('#rmoTable').DataTable({
+    data: rows,
+    columnDefs: [{ orderable: false, targets: 4 }, { orderData: 2, targets: 2 }],
+    order: [[0, 'asc']],
+    pageLength: 25,
+    language: {
+      search: '', searchPlaceholder: TLi18n.t('common.search'),
+      emptyTable: TLi18n.t('common.none'), zeroRecords: TLi18n.t('common.none')
+    }
+  });
+}
+
+function openReq(id, versionId) {
+  window.open('/lib/requirements/reqView.php?item=' + id + '&version_id=' + versionId +
+              '&tproject_id=' + tprojectId, '_blank');
+}
+
+function setMonitor(id, action) {
+  $.ajax({
+    url: API + '/monitor', type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({reqId: id, action: action, tprojectId: tprojectId}),
+    success: function(r) {
+      $.each(allItems, function(i, x) {
+        if (x.id === id) { x.monitored = r.monitored; }
+      });
+      renderTable(allItems);
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('rmo.msg.errorToggle');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      showError(msg);
+    }
+  });
+}
+</script>
+</body>
+</html>
