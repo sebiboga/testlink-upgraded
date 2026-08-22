@@ -697,6 +697,7 @@ if ($method === 'GET' && count($segments) === 2 &&
                     $tvId = intval($fr['tcversion_id']);
                     $linkedByVersion[$tvId][] = [
                         'feature_id' => intval($fr['feature_id']),
+                        'tcversion_id' => $tvId,
                         'platform_id' => intval($fr['platform_id']),
                         'node_order' => intval($fr['node_order']),
                         'executed_qty' => intval($fr['executed_qty']),

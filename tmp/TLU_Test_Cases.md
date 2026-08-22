@@ -2870,3 +2870,28 @@ Post-fix regression: delete modal opens/cancels via delegation, notes render san
 **Result: 12/12 PASS** (run 2026-08-22, browser + curl).
 
 **Refs:** GitHub issue #591 · Files: `api/_guard.php` (new), `lib/functions/common.php` (doSessionStart hardening), all 22 × `api/*/index.php`
+
+## 50. Modernization — Add/Remove Test Cases screen (planAddTCView) (Suite ID: 56)
+Refs #593 · Date: 2026-08-22 · Env: fresh DB, project PADT (id 1), plan "Release 1.0" (id 19), suites Checkout/Payments with 4 TCs imported via api/testcasesimport
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen loads + rights | Open /gui/templates/plans/planAddTCView.html?tproject_id=1 as admin | Header, toolbar, suite tree w/ linked/total badges render | PASS |
+| 2 | i18n en | Observe all labels | No raw paddtc.* keys; English strings shown | PASS |
+| 3 | i18n ro switch | Locale switcher → Română | ?locale=ro; "Adauga / Elimina Cazuri de Test"; buttons translated | PASS |
+| 4 | Suite navigation | Click Checkout in tree | Table lists 2 TCs w/ external ids PADT-1/PADT-2; header counts + badge | PASS |
+| 5 | Link state display | tc4 already linked | Row highlighted, pill "linked", chip "v1 #order", order input enabled | PASS |
+| 6 | Unlinked row UI | tc8 not linked | Pill "not linked", version select enabled (v1), order disabled, remove "-" | PASS |
+| 7 | ADD link | Tick add on tc8 → Save changes | Toast "1 added, 0 removed"; badge 2/2; DB testplan_tcversions +1 | PASS |
+| 8 | REORDER | Order tc4=5 → Save execution order | Toast saved; reload keeps 5; DB node_order updated | PASS |
+| 9 | REMOVE link | Tick rm chip tc8 → Save | Toast "...1 removed"; badge 1/2; DB row deleted | PASS |
+| 10 | Executed-link guard (has right) | Insert execution for tc4; tick chip → Save | Confirm modal lists executed TCs; OK removes link AND cascades execution delete | PASS |
+| 11 | Nothing selected | Save with no checkboxes | Error toast; server 422 NO_SELECTION path exists | PASS |
+| 12 | Keyword filter | Keyword 'smoke' only on tc4; filter by it | Tree badges recount; only "Guest checkout works" listed; reset restores | PASS |
+| 13 | Auth guard (API) | planaddtc/init without session | HTTP 401 Not authenticated | PASS |
+| 14 | Rights guard | canPlan=false path | noAccess msg shown; testplan_planning enforced on every endpoint | PASS (code-path + 403 handlers; no low-rights user fixture) |
+| 15 | Event Viewer | events table after run | Zero new ERROR/WARNING rows | PASS |
+
+Bugs found & fixed while executing:
+- BFF container endpoint omitted tcversion_id in link rows -> chips showed "v?" and remove/reorder payloads broke. Fixed in api/plans/index.php.
+- Concurrent fix/issue-556 merge broke JSON syntax (missing comma) in ALL 10 locale bundles -> whole i18n layer dead. Repaired (commit after review).

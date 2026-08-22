@@ -351,7 +351,6 @@ function renderContainer(){
         +'v'+verOf(it,l.tcversion_id)+(pname?' &middot; '+esc(pname):'')
         +(l.node_order>0?' <span class="ord">#'+parseInt(l.node_order,10)+'</span>':'')
         +(l.executed_qty>0?' <i class="fas fa-vial" title="'+esc(TLi18n.t('paddtc.executed'))+'"></i>':'')
-        +(it.newest_available && it.newest_available>l.tcversion_id ? '' : '')
         +'</label>';
     }).join('');
 
