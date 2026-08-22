@@ -293,7 +293,22 @@ function checkSessionValid(&$db, $redirect=true)
 function doSessionStart($setPaths=false) {
 
   if( PHP_SESSION_NONE == session_status() ) {
-    session_set_cookie_params(99999);
+    // Harden the session cookie: HttpOnly (no JS access) + SameSite=Lax
+    // (blocks cross-site POST riding the cookie), secure auto on HTTPS.
+    $secure = !empty($_SERVER['HTTPS']) &&
+              strcasecmp((string)$_SERVER['HTTPS'], 'off') !== 0;
+    if( PHP_VERSION_ID >= 70300 ) {
+      session_set_cookie_params(array(
+        'lifetime' => 99999,
+        'path' => '/',
+        'secure' => (bool)$secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+      ));
+    } else {
+      // PHP < 7.3 has no array API / samesite support
+      session_set_cookie_params(99999, '/', '', (bool)$secure, true);
+    }
   }
   
   if(!isset($_SESSION)) {
