@@ -915,7 +915,7 @@ function arPathOfNode($nodes, $id) {
 function arLatestTCVersion($db, $tcaseId) {
     $tcaseId = intval($tcaseId);
     $rows = $db->get_recordset(
-        " SELECT TCV.id AS tcversion_id, TCV.version, TCV.active, TCV.open, TCV.tc_external_id" .
+        " SELECT TCV.id AS tcversion_id, TCV.version, TCV.active, TCV.tc_external_id" .
         " FROM nodes_hierarchy NH JOIN tcversions TCV ON TCV.id = NH.id " .
         " WHERE NH.parent_id = {$tcaseId} ORDER BY TCV.version DESC");
     if (is_null($rows) || count($rows) == 0) { return null; }
