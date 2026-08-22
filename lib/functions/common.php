@@ -1884,6 +1884,7 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
+  $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
 
   $gui->uri = $actions;
