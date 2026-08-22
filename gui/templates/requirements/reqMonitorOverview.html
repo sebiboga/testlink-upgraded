@@ -191,8 +191,9 @@ function renderTable(items) {
 }
 
 function openReq(id, versionId) {
-  window.open('/lib/requirements/reqView.php?item=' + id + '&version_id=' + versionId +
-              '&tproject_id=' + tprojectId, '_blank');
+  window.open('/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' + id +
+              '&req_version_id=' + versionId + '&tproject_id=' + tprojectId,
+              'reqView' + id, 'width=800,height=600,resizable=yes,scrollbars=yes');
 }
 
 function setMonitor(id, action) {
