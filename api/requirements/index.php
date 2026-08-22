@@ -1,14 +1,36 @@
 <?php
 /**
- * Requirements BFF API
+ * Requirements BFF API - shared router
  * URL: /api/requirements/
  * Plain PHP, no framework, no compilation
  *
- * Serves the Requirements Overview screen (reqOverview).
+ * Serves TWO modernized screens:
+ *
+ * A) Print Requirements Spec document navigator (?action=init | ?action=tree)
+ *    Mirrors lib/results/printDocOptions.php?type=reqspec (TestLink 1.9.20
+ *    "Print Requirement Specification" screen):
+ *     - returns current test project context + rights (same right that
+ *       lib/results/printDocument.php enforces: 'testplan_metrics')
+ *     - returns the print option checkbox set (printDocOptions class,
+ *       doc + reqSpec sets) with their default checked state
+ *     - returns output formats (FORMAT_HTML / FORMAT_MSWORD)
+ *     - returns the requirement specification tree of the project
+ *       (equivalent of lib/ajax/getrequirementnodes.php with
+ *       show_children=0&operation=print)
+ *    Document GENERATION itself stays in the legacy controller
+ *    lib/results/printDocument.php - the modern screen just navigates.
+ *
+ * B) Requirements Monitor Overview (path routed):
+ *      GET  /api/requirements/index.php/monitor-overview?tprojectId=N
+ *           -> all project requirements + monitored flag of current user
+ *      POST /api/requirements/index.php/monitor
+ *           -> {reqId, action:'on'|'off'} subscribe/unsubscribe notifications
+ *    Mirrors lib/requirements/reqMonitorOverview.php (right: 'mgt_view_req').
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
+require_once('requirements.inc.php');
 
 doSessionStart();
 
@@ -45,20 +67,174 @@ $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
 function out($data) { echo json_encode($data); exit; }
-function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
+function getParam($key, $default = '') {
+    $v = $_GET[$key] ?? $default;
+    return is_string($v) ? trim($v) : '';
+}
+function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
-$tproject_mgr = new testproject($db);
-$req_mgr = new requirement_mgr($db);
-$cfield_mgr = new cfield_mgr($db);
+$tprojectId = intval($_GET['tproject_id'] ?? 0);
+if ($tprojectId <= 0) {
+    // same fallback the legacy navigator does: session test project
+    $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+}
+
+$tprojectMgr = new testproject($db);
+$reqMgr = new requirement_mgr($db);
+
+$method = $_SERVER['REQUEST_METHOD'];
+$path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = preg_replace('#^/api/requirements(/index\.php)?#', '', $path);
+$path = '/' . trim($path, '/');
+$segments = array_values(array_filter(explode('/', $path)));
 
 /**
- * Resolve project context: query param wins, session is fallback.
+ * Resolve target test project for monitor-overview endpoints:
+ * explicit query/body param wins, falls back to session project.
  */
-function resolveTprojectId() {
-    global $tproject_mgr;
-    $tid = intval(getParam('tproject_id', 0));
-    if ($tid <= 0) {
-        $tid = intval($_SESSION['testprojectID'] ?? 0);
+function resolveMonitorTprojectId($tprojectMgr) {
+    $tpid = intval($_GET['tprojectId'] ?? 0);
+    if ($tpid <= 0) {
+        $body = getBody();
+        $tpid = intval($body['tprojectId'] ?? 0);
+    }
+    if ($tpid <= 0) {
+        $tpid = intval($_GET['tproject_id'] ?? 0);
+    }
+    if ($tpid <= 0) {
+        $tpid = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tpid <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test project is mandatory']);
+    }
+    $item = $tprojectMgr->get_by_id($tpid);
+    if (!$item) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+    return [$tpid, $item];
+}
+
+// ---------------------------------------------------------------------------
+// Route: GET /monitor-overview - list all requirements with monitor state
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'monitor-overview') {
+
+    list($mTpid, $mItem) = resolveMonitorTprojectId($tprojectMgr);
+
+    if (!$user->hasRightOnProj($db, 'mgt_view_req', $mTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $reqIDSet = $tprojectMgr->get_all_requirement_ids($mTpid);
+    $items = [];
+    if (!is_null($reqIDSet) && count($reqIDSet) > 0) {
+        $reqSet = $reqMgr->getByIDBulkLatestVersionRevision(
+            $reqIDSet, ['outputFormat' => 'mapOfArray']);
+        $monitoredSet = $reqMgr->getMonitoredByUser($userId, $mTpid);
+
+        $pathCache = [];
+        foreach ($reqIDSet as $id) {
+            if (!isset($reqSet[$id]) || !isset($reqSet[$id][0])) {
+                continue;
+            }
+            $req = $reqSet[$id][0];
+
+            // req spec path (cached per spec)
+            $srsId = intval($req['srs_id']);
+            if (!isset($pathCache[$srsId])) {
+                $pathNames = [];
+                $pset = $reqMgr->tree_mgr->get_path($srsId);
+                if (is_array($pset)) {
+                    foreach ($pset as $p) {
+                        $pathNames[] = $p['name'];
+                    }
+                }
+                $pathCache[$srsId] = implode(' / ', $pathNames);
+            }
+
+            $items[] = [
+                'id' => intval($req['id']),
+                'req_doc_id' => $req['req_doc_id'],
+                'title' => $req['title'],
+                'srs_id' => $srsId,
+                'spec_path' => $pathCache[$srsId],
+                'version_id' => intval($req['version_id']),
+                'version' => intval($req['version']),
+                'creation_ts' => $req['creation_ts'],
+                'author' => $req['author'],
+                'monitored' => isset($monitoredSet[$req['id']]),
+            ];
+        }
+    }
+
+    usort($items, function ($a, $b) {
+        return strcmp($a['spec_path'], $b['spec_path']) ?: strcasecmp($a['title'], $b['title']);
+    });
+
+    out([
+        'status' => 'ok',
+        'items' => $items,
+        'total' => count($items),
+        'tproject_id' => $mTpid,
+        'tproject_name' => $mItem['name'],
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// Route: POST /monitor - subscribe/unsubscribe current user on a requirement
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'monitor') {
+
+    list($mTpid, $mDummy) = resolveMonitorTprojectId($tprojectMgr);
+
+    if (!$user->hasRightOnProj($db, 'mgt_view_req', $mTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $body = getBody();
+    $reqId = intval($body['reqId'] ?? 0);
+    $action = trim($body['action'] ?? '');
+
+    if ($reqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'reqId invalid']);
+    }
+    if (!in_array($action, ['on', 'off'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'action must be on|off']);
+    }
+
+    // requirement must exist inside this project
+    $reqInfo = $reqMgr->get_by_id($reqId);
+    if (!$reqInfo || intval($reqInfo['tproject_id']) !== $mTpid) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement not found in this project']);
+    }
+
+    if ($action === 'on') {
+        $reqMgr->monitorOn($reqId, $userId, $mTpid);
+    } else {
+        $reqMgr->monitorOff($reqId, $userId, $mTpid);
+    }
+
+    $monitoredSet = $reqMgr->getMonitoredByUser($userId, $mTpid);
+    out([
+        'status' => 'ok',
+        'reqId' => $reqId,
+        'action' => $action,
+        'monitored' => isset($monitoredSet[$reqId]),
+    ]);
+}
+
+$action = $_GET['action'] ?? '';
+
+if ($action === 'init') {
+    if ($tprojectId <= 0) {
+        out(['status' => 'ok', 'hasProject' => false]);
     }
     if ($tid <= 0) {
         http_response_code(400);
