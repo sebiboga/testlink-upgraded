@@ -2895,3 +2895,30 @@ Refs #593 · Date: 2026-08-22 · Env: fresh DB, project PADT (id 1), plan "Relea
 Bugs found & fixed while executing:
 - BFF container endpoint omitted tcversion_id in link rows -> chips showed "v?" and remove/reorder payloads broke. Fixed in api/plans/index.php.
 - Concurrent fix/issue-556 merge broke JSON syntax (missing comma) in ALL 10 locale bundles -> whole i18n layer dead. Repaired (commit after review).
+
+## Regression — Issue #595: authentication on api/projects + api/trackers BFF routes
+
+**Precondition:** fresh DB; admin/admin; second user `noperm595` with role `<no rights>` (role_id 3) created via SQL (`password_hash('nopass595', PASSWORD_DEFAULT)`); cookie jars for both via curl form login.
+
+**Pre-fix repro:** `curl -X POST -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' -d '{"name":"UNAUTH_PROBE_595","prefix":"UP595"}' http://localhost:8082/api/projects/` → HTTP 200 `{"success":true,"id":1,...}` with NO session at all. Same for PUT (renamed project) and DELETE (deactivated it). GET list leaked every project to anonymous callers.
+
+| # | Step | Expected | Result |
+|---|------|----------|--------|
+| 1 | Anonymous GET /api/projects/ | 401 {"status":"error","message":"Not authenticated"} | PASS |
+| 2 | Anonymous GET /api/projects/{id} | 401 | PASS |
+| 3 | Anonymous POST /api/projects/ (with XRW header, as any network client can send) | 401 | PASS |
+| 4 | Anonymous PUT /api/projects/{id} | 401 | PASS |
+| 5 | Anonymous DELETE /api/projects/{id} | 401 | PASS |
+| 6 | Anonymous GET /api/trackers/ | 401 | PASS |
+| 7 | Garbage PHPSESSID cookie → GET /api/projects/ | 401 (session bootstrap works, no fatal) | PASS |
+| 8 | Login as noperm595 → GET projects, POST create, GET trackers | 403 {"status":"error","message":"No permission"} on all three (mgt_modify_product enforced) | PASS |
+| 9 | Admin curl CRUD: POST create "AUTH_TEST_595" → id; PUT rename+deactivate; DELETE | All HTTP 200 success JSON; DB rows reflect changes | PASS |
+| 10 | Browser: projectsView.html as admin — list loads, Create modal (tracker dropdowns load from /api/trackers/), Save → row appears; Edit rename+uncheck Active → Save; Delete → confirm dialog → deactivate succeeds | Full UI flow functional through new auth layer (jQuery sends session cookie + XRW automatically); network log all 200; zero console errors | PASS |
+| 11 | CSRF guard still layered ON TOP of auth: authed POST without proof headers → 403 Forbidden JSON; hostile `Origin: http://evil.example` without XRW → 403 | Guard intact (defense in depth preserved) | PASS |
+| 12 | Event Viewer after the whole suite | Zero new ERROR/WARNING events | PASS |
+
+**Result: 12/12 PASS** (run 2026-08-22, browser + curl).
+
+**Refs:** GitHub issue #595 · Files: `api/projects/index.php`, `api/trackers/index.php`
+
+**Notes:** screen's DELETE is a *deactivate* by design (row stays listed as Inactive) — legacy parity, out of scope here. DB re-import happened mid-run (fixtures recreated). Probe rows cleaned up afterwards.
