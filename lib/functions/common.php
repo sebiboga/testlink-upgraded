@@ -1878,6 +1878,9 @@ function getActions(&$gui,$baseURL) {
     $actions->$wp = $gui->workArea->$wp;
   }
 
+  // Modernized screens (Dashio standalone pages)
+  $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
+
   $gui->uri = $actions;
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
