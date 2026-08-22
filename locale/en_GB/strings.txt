@@ -4048,6 +4048,8 @@ $TLS_saveForBaseline = 'Save to create baseline';
 $TLS_baseline_saved_ok = 'Baseline saved';
 $TLS_baseline_l1l2 = 'Baselines Level 1 & Level 2 Test Suites';
 $TLS_baselineTimestamp = 'Baseline taken on:';
+// lib/results/resultsByTSuite.php (Refs #589)
+$TLS_baseline_save_no_executions = 'Baseline NOT saved: the test plan has no execution records yet. Execute at least one test case, then save the baseline again.';
 $TLS_on_design = 'On Design';
 $TLS_on_exec = 'On Execution';
 $TLS_note_platform_filter = 'Test Cases are filtered by following platforms';

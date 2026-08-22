@@ -634,6 +634,9 @@ $TLS_title_downloading_attachment = "Downloading attachment";
 $TLS_error_print_doc_title = "Document generation error";
 $TLS_error_print_doc_missing_testplan = "The requested document can not be generated: the test plan is missing, unknown or does not belong to the selected test project. Please open the document again from the application navigation.";
 
+// ----- lib/results/resultsByTSuite.php (Refs #589) -----
+$TLS_baseline_save_no_executions = 'Baseline NOT saved: the test plan has no execution records yet. Execute at least one test case, then save the baseline again.';
+
 
 // ----- gui/templates/attachmentdelete.tpl -----
 $TLS_deleting_was_ok = "Attachment was deleted!";

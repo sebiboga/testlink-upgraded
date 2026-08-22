@@ -88,38 +88,59 @@ if(is_null($tsInf) || empty($tsInf->infoL2)) {
 } 
 
 if ($args->doAction == 'saveForBaseline') {
-  foreach ($gui->dataByPlatform->testsuites as $platID => $elem) {
-    // Context
-    $span = $gui->spanByPlatform[$platID];
-    $tables = tlObject::getDBTables(array('baseline_l1l2_context',
-                                          'baseline_l1l2_details'));
-    $sql = "INSERT INTO {$tables['baseline_l1l2_context']}
-            (testplan_id,platform_id,begin_exec_ts,end_exec_ts)
-            VALUES({$span['testplan_id']},
-                   {$platID}," .
-            "'" . $span['begin'] . "'," .
-            "'" . $span['end'] . "')";
-    $db->exec_query($sql);
-    $context_id = $db->insert_id($tables['baseline_l1l2_context']);
-
-    $cfg = config_get('results');
-    $verboseCode = $cfg['status_code'];
-
-    foreach ($elem as $l2_id => $info) {
-      foreach ($info['details'] as $verbose => $figures) {
-        $exec_status = "'" . $verboseCode[$verbose] . "'";
-
-        $sql = "INSERT INTO {$tables['baseline_l1l2_details']}
-                (context_id,top_tsuite_id,child_tsuite_id,
-                 status,qty,total_tc)
-                VALUES($context_id,{$info['parent_id']},$l2_id,
-                       $exec_status,{$figures['qty']},
-                       {$info['total_tc']})";
-        $db->exec_query($sql);
+  // A test plan with zero executions has no execution time span
+  // (getExecTimeSpan() returns null / null entries). Dereferencing the span
+  // raised E_WARNINGs and interpolated empty values into the
+  // baseline_l1l2_context INSERT -> skip the save and tell the user why.
+  $gui->baselineSaved = false;
+  if( isset($gui->dataByPlatform) && !is_null($gui->dataByPlatform) ) {
+    $savedSomething = false;
+    foreach ($gui->dataByPlatform->testsuites as $platID => $elem) {
+      // no execution records for this platform => nothing to baseline
+      if( !isset($gui->spanByPlatform[$platID]) ||
+          is_null($gui->spanByPlatform[$platID]) ) {
+        continue;
       }
+
+      // Context
+      $span = $gui->spanByPlatform[$platID];
+      $tables = tlObject::getDBTables(array('baseline_l1l2_context',
+                                            'baseline_l1l2_details'));
+      $sql = "INSERT INTO {$tables['baseline_l1l2_context']}
+              (testplan_id,platform_id,begin_exec_ts,end_exec_ts)
+              VALUES({$span['testplan_id']},
+                     {$platID}," .
+              "'" . $span['begin'] . "'," .
+              "'" . $span['end'] . "')";
+      $db->exec_query($sql);
+      $context_id = $db->insert_id($tables['baseline_l1l2_context']);
+
+      $cfg = config_get('results');
+      $verboseCode = $cfg['status_code'];
+
+      foreach ($elem as $l2_id => $info) {
+        foreach ($info['details'] as $verbose => $figures) {
+          $exec_status = "'" . $verboseCode[$verbose] . "'";
+
+          $sql = "INSERT INTO {$tables['baseline_l1l2_details']}
+                  (context_id,top_tsuite_id,child_tsuite_id,
+                   status,qty,total_tc)
+                  VALUES($context_id,{$info['parent_id']},$l2_id,
+                         $exec_status,{$figures['qty']},
+                         {$info['total_tc']})";
+          $db->exec_query($sql);
+        }
+      }
+      $savedSomething = true;
+    }
+
+    if( $savedSomething ) {
+      $gui->baselineSaved = true;
+    } else {
+      $gui->do_report['status_ok'] = 0;
+      $gui->do_report['msg'] = lang_get('baseline_save_no_executions');
     }
   }
-  $gui->baselineSaved = true;
 }
 
 $timerOff = microtime(true);
