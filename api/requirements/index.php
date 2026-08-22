@@ -927,9 +927,9 @@ function arCoverageLinksForTCVersion($db, $tcaseId, $tcversionId) {
     $tcaseId = intval($tcaseId);
     $tcversionId = intval($tcversionId);
     $rows = $db->get_recordset(
-        " SELECT RCOV.id AS link_id, RCOV.link_status, RQV.req_id " .
+        " SELECT RCOV.id AS link_id, RCOV.link_status, NHRV.parent_id AS req_id " .
         " FROM req_coverage RCOV " .
-        " JOIN req_versions RQV ON RQV.id = RCOV.req_version_id " .
+        " JOIN nodes_hierarchy NHRV ON NHRV.id = RCOV.req_version_id " .
         " WHERE RCOV.testcase_id = {$tcaseId} AND RCOV.tcversion_id = {$tcversionId}");
     $ret = [];
     if (!is_null($rows)) {
