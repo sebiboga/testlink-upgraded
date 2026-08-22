@@ -3373,6 +3373,14 @@ class tlTestPlanMetrics extends testplan
     list($rx,$staircase) = 
       $this->getStatusTotalsByItemForRender($id,'tsuite',$filters,$opt);
 
+    // issue #583: on a plan with zero linked test cases $rx is NULL =>
+    // dereferencing it below raised an E_WARNING (property on null) and,
+    // on PHP 8, a fatal TypeError (array_keys(null)). Caller
+    // resultsByTSuite.php already handles the null contract.
+    if( is_null($rx) ) {
+      return null;
+    }
+
     // ??? $key2loop = array_keys($rx->info);
     $template = array('type' => 'tsuite', 
                       'name' => '',
