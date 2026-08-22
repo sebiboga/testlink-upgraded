@@ -262,6 +262,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
     out([
         'status' => 'ok',
         'meta' => $meta,
+        'tproject_name' => $tproject_mgr->get_name($tid),
         'items' => $rows,
         'total' => count($rows),
         'all_versions' => (bool)$allVersions,
