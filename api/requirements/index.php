@@ -209,8 +209,13 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'monitor') {
     }
 
     // requirement must exist inside this project
-    $reqInfo = $reqMgr->get_by_id($reqId);
-    if (!$reqInfo || intval($reqInfo['tproject_id']) !== $mTpid) {
+    $rt = tlObjectWithDB::getDBTables(array('requirements', 'req_specs'));
+    $sql = " SELECT REQ.id AS req_id, RS.testproject_id " .
+           " FROM {$rt['requirements']} REQ " .
+           " JOIN {$rt['req_specs']} RS ON RS.id = REQ.srs_id " .
+           " WHERE REQ.id = " . intval($reqId);
+    $reqRs = $db->get_recordset($sql);
+    if (!$reqRs || intval($reqRs[0]['testproject_id']) !== $mTpid) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Requirement not found in this project']);
     }
