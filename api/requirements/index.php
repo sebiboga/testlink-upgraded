@@ -160,7 +160,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'monitor-overvi
 
     list($mTpid, $mItem) = resolveMonitorTprojectId($tprojectMgr);
 
-    if (!$user->hasRightOnProj($db, 'mgt_view_req', $mTpid)) {
+    // hasRightOnProj() ignores any extra arg (checks the SESSION project only),
+    // so pass the REQUESTED project explicitly to hasRight()
+    if (!$user->hasRight($db, 'mgt_view_req', $mTpid)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -227,7 +229,8 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'monitor') {
 
     list($mTpid, $mDummy) = resolveMonitorTprojectId($tprojectMgr);
 
-    if (!$user->hasRightOnProj($db, 'mgt_view_req', $mTpid)) {
+    // same as above: check the requested project, not the session one
+    if (!$user->hasRight($db, 'mgt_view_req', $mTpid)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }

@@ -115,7 +115,6 @@ function updateFooter() {
 
 function loadData() {
   $('#emptyState').hide();
-  if (table) { table.clear().draw(); }
 
   $.getJSON(API + '/monitor-overview?tprojectId=' + tprojectId, function(r) {
     allItems = r.items || [];
@@ -138,49 +137,73 @@ function loadData() {
 }
 
 function esc(s) {
-  return $('<div>').text(s == null ? '' : String(s)).html();
+  // also escape quotes: output is used inside double-quoted title="..." attrs
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// build one DataTables row object (used by initial render AND single-row toggle updates)
+function buildRowObject(req) {
+  var created = '';
+  if (req.creation_ts && req.creation_ts.indexOf('0000') !== 0) {
+    var d = new Date(String(req.creation_ts).replace(' ', 'T'));
+    if (!isNaN(d.getTime())) {
+      created = d.toLocaleString() + ' (' + esc(req.author) + ')';
+    } else {
+      created = esc(req.creation_ts) + ' (' + esc(req.author) + ')';
+    }
+  }
+
+  // title cell: edit icon + doc-id + title, like legacy openLinkedReqVersionWindow
+  var editLink = '<a href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')" title="' +
+                 esc(TLi18n.t('rmo.editRequirement')) + '"><span class="action-btn"><i class="fa fa-pen-to-square"></i></span></a> ';
+  var titleCell = '<span class="docid">' + esc(req.req_doc_id) + '</span>' + editLink +
+                  '<a class="title-link" href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')">' +
+                  esc(req.title) + '</a>';
+
+  // monitor state badge
+  var stateHtml = req.monitored
+    ? '<span class="badge-on">' + TLi18n.t('common.yes') + '</span>'
+    : '<span class="badge-off">' + TLi18n.t('common.no') + '</span>';
+
+  // toggle button: monitored -> click turns OFF, else turns ON
+  var toggleBtn = req.monitored
+    ? '<button class="action-btn on" style="color:#e6b34d" onclick="setMonitor(' + req.id + ',\'off\')" title="' +
+      esc(TLi18n.t('rmo.turnOff')) + '"><i class="fa fa-bell-slash"></i></button>'
+    : '<button class="action-btn" onclick="setMonitor(' + req.id + ',\'on\')" title="' +
+      esc(TLi18n.t('rmo.turnOn')) + '"><i class="fa fa-bell"></i></button>';
+
+  return {
+    reqId: req.id,
+    specPath: esc(req.spec_path),
+    title: titleCell,
+    createdTs: String(req.creation_ts || ''),   // raw "YYYY-MM-DD HH:MM:SS" -> chronological sort key
+    created: created,
+    monitorState: stateHtml,
+    action: toggleBtn
+  };
 }
 
 function renderTable(items) {
   if (table) { table.destroy(); $('#rmoTable tbody').empty(); }
-  var rows = [];
-  $.each(items, function(i, req) {
-    var created = '';
-    if (req.creation_ts && req.creation_ts.indexOf('0000') !== 0) {
-      var d = new Date(String(req.creation_ts).replace(' ', 'T'));
-      if (!isNaN(d.getTime())) {
-        created = d.toLocaleString() + ' (' + esc(req.author) + ')';
-      } else {
-        created = esc(req.creation_ts) + ' (' + esc(req.author) + ')';
-      }
-    }
-
-    // title cell: edit icon + doc-id + title, like legacy openLinkedReqVersionWindow
-    var editLink = '<a href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')" title="' +
-                   esc(TLi18n.t('rmo.editRequirement')) + '"><span class="action-btn"><i class="fa fa-pen-to-square"></i></span></a> ';
-    var titleCell = '<!-- ' + esc(req.req_doc_id + ' * ' + req.title) + ' -->' +
-                    '<span class="docid">' + esc(req.req_doc_id) + '</span>' + editLink +
-                    '<a class="title-link" href="javascript:void(0)" onclick="openReq(' + req.id + ',' + req.version_id + ')">' +
-                    esc(req.title) + '</a>';
-
-    // monitor state badge
-    var stateHtml = req.monitored
-      ? '<span class="badge-on">' + TLi18n.t('common.yes') + '</span>'
-      : '<span class="badge-off">' + TLi18n.t('common.no') + '</span>';
-
-    // toggle button: monitored -> click turns OFF, else turns ON
-    var toggleBtn = req.monitored
-      ? '<button class="action-btn on" style="color:#e6b34d" onclick="setMonitor(' + req.id + ',\'off\')" title="' +
-        esc(TLi18n.t('rmo.turnOff')) + '"><i class="fa fa-bell-slash"></i></button>'
-      : '<button class="action-btn" onclick="setMonitor(' + req.id + ',\'on\')" title="' +
-        esc(TLi18n.t('rmo.turnOn')) + '"><i class="fa fa-bell"></i></button>';
-
-    rows.push([esc(req.spec_path), titleCell, '<!--' + esc(req.creation_ts) + '-->' + created, stateHtml, toggleBtn]);
-  });
+  var rows = $.map(items, function(req) { return [buildRowObject(req)]; });
 
   table = $('#rmoTable').DataTable({
     data: rows,
-    columnDefs: [{ orderable: false, targets: 4 }, { orderData: 2, targets: 2 }],
+    rowId: 'reqId',
+    columns: [
+      {data: 'specPath'},
+      {data: 'title'},
+      { // display the localized string, sort/filter on the raw timestamp
+        data: 'created',
+        render: function(d, type, row) { return type === 'display' ? d : row.createdTs; }
+      },
+      {data: 'monitorState'},
+      {data: 'action'}
+    ],
+    columnDefs: [
+      {orderable: false, targets: 4}
+    ],
     order: [[0, 'asc']],
     pageLength: 25,
     language: {
@@ -202,11 +225,19 @@ function setMonitor(id, action) {
     contentType: 'application/json',
     data: JSON.stringify({reqId: id, action: action, tprojectId: tprojectId}),
     success: function(r) {
+      var updated = null;
       $.each(allItems, function(i, x) {
-        if (x.id === id) { x.monitored = r.monitored; }
+        if (x.id === id) { x.monitored = r.monitored; updated = x; }
       });
-      renderTable(allItems);
       updateFooter();
+      // update only the toggled row, keep paging + filter state
+      if (table && updated) {
+        var row = table.row('#' + id);
+        if (row.length) { row.data(buildRowObject(updated)); table.draw(false); }
+        else { renderTable(allItems); }
+      } else if (updated) {
+        renderTable(allItems);
+      }
     },
     error: function(xhr) {
       var msg = TLi18n.t('rmo.msg.errorToggle');
