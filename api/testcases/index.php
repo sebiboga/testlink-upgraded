@@ -695,8 +695,10 @@ if ($action === 'get') {
     $tvTables = tlObjectWithDB::getDBTables(
         array('nodes_hierarchy', 'tcversions', 'tcsteps', 'executions'));
     $lvRow = $db->fetchFirstRow(
-        " SELECT TCV.* FROM {$tvTables['tcversions']} TCV " .
+        " SELECT TCV.*, NHT.name AS tc_name, NHT.parent_id AS suite_id " .
+        " FROM {$tvTables['tcversions']} TCV " .
         " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " JOIN {$tvTables['nodes_hierarchy']} NHT ON NHT.id = NH.parent_id " .
         " WHERE NH.parent_id = {$tcaseId} " .
         " ORDER BY TCV.version DESC LIMIT 1");
     if (is_null($lvRow)) {
@@ -770,7 +772,7 @@ if ($action === 'get') {
             'id' => $tcaseId,
             'tcversion_id' => $tcversionId,
             'version' => intval($lvRow['version'] ?? 0),
-            'name' => strval($lvRow['name'] ?? ''),
+            'name' => strval($lvRow['tc_name'] ?? ''),
             'summary' => strval($lvRow['summary'] ?? ''),
             'preconditions' => strval($lvRow['preconditions'] ?? ''),
             'importance' => intval($lvRow['importance'] ?? 2),
@@ -780,7 +782,7 @@ if ($action === 'get') {
             'is_open' => intval($lvRow['is_open'] ?? 1),
             'external_id' => intval($lvRow['tc_external_id'] ?? 0),
             'estimatedExecDuration' => strval($lvRow['estimated_exec_duration'] ?? ''),
-            'parent_id' => intval($lvRow['parent_id'] ?? 0),
+            'parent_id' => intval($lvRow['suite_id'] ?? 0),
         ],
         'steps' => $steps,
         'keywordsAssigned' => $assignedKw,
