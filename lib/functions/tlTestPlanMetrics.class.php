@@ -1023,7 +1023,9 @@ class tlTestPlanMetrics extends testplan
     $safe_id = intval($id);  
     list($my,$builds,$sqlStm,$union,$platformSet) = $this->helperBuildSQLExecCounters($id, $filters, $opt);
 
-    if(is_null($builds) || is_array($builds) == false || count($builds) <= 0) {
+    // issue #559: $builds is the stdClass built by helperGetExecCounters(),
+    // so is_array() was always false and this method always returned null
+    if(is_null($builds->idSet) || count($builds->idSet) <= 0) {
       return null;  // >>---> Bye!
     }  
 
