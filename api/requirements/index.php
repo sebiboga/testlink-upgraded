@@ -817,8 +817,11 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'reqspec-sea
         $maxQty = intval(config_get('req_cfg')->search->max_qty_for_display);
         if ($count <= $maxQty) {
             $options = array('output_format' => 'path_as_string');
+            // get_full_path_verbose() takes its 1st arg by reference,
+            // so it needs a real variable (avoids E_NOTICE)
+            $rspecSet = array_keys($grouped);
             $pathInfo = $tprojectMgr->tree_manager->get_full_path_verbose(
-                array_keys($grouped), $options);
+                $rspecSet, $options);
             foreach ($grouped as $rspecId => $rec) {
                 $rec['path'] = isset($pathInfo[$rspecId]) ? $pathInfo[$rspecId] : '';
                 $rows[] = $rec;
