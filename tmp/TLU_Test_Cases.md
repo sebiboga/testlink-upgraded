@@ -2330,3 +2330,45 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
 `gui/templates/testcases/testSpec.html`,
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+61 `tspec.*`),
 `lib/functions/common.php` (aside link switch).
+
+## 43. Modernization — Assign Keywords to Test Cases screen (keywordsAssign) (Suite ID: 50)
+
+**Screen:** `gui/templates/keywords/keywordsAssign.html` + `api/keywords/assign.php`
+(REST routes `/context`, `/suites`, `/tcases`, `/keywords`, POST `/case`, POST `/suite`).
+Mirrors legacy `lib/keywords/keywordsAssign.php`: option-transfer assignment on the
+latest active version; case level = replace semantics (`setKeywords`); suite level =
+add/remove/removeAll over deep subtree or direct children with executed-version skip;
+executed guard driven by `testproject_add_remove_keywords_executed_tcversions`
+/ `testproject_edit_executed_testcases`; right gate `keyword_assignment`.
+
+**Fixtures:** test project `KWA Demo Project` (prefix KWA, id=2); keywords
+alpha/beta/gamma/delta; `Suite A` (id 3) → `Suite B` (id 4, nested); cases
+Case A1 (5, alpha pre-assigned), Case A2 (8), Case B1 (13); test plan
+`KWA Test Plan` (16) + Build 1 + Platform 1; execution row for tcversion 14
+(Case B1 v1) to trigger the executed guard; users `kwauser/kwapass`
+(role "KWA Assigner" = keyword_assignment only) and `norights/norights`
+(role "<no rights>" on project).
+
+| # | Step / verification | Result |
+|---|---------------------|--------|
+| 1 | BFF `/context`: returns tproject_id/name, canAssign (`keyword_assignment`), canEditExecuted (both executed-edit rights OR-ed) — admin true/true, kwauser true/false, norights false/false | PASS |
+| 2 | BFF `/suites` flat dotted-path list; `/tcases?scope=deep` includes nested Case B1 under Suite A, `&scope=direct` returns only direct children | PASS |
+| 3 | BFF `/keywords?tcase_id=`: available = all project kws sorted, assigned = latest active version map, hasBeenExecuted=true for Case B1 after fixture execution | PASS |
+| 4 | Aside link integration: asideMenu emits `/gui/templates/keywords/keywordsAssign.html?tproject_id=2&tplan_id=16` for "Assign Keywords" (common.php switch after workArea loop overrides launcher URL) | PASS |
+| 5 | Case mode: suite select loads cases, first case auto-selected and its assigned keywords render in right box immediately (bug found during testing: auto-select previously left boxes empty — fixed in ad429bae7) | PASS |
+| 6 | Transfer arrows > >> < << move options between boxes with sorted re-render; hint text tracks target count ("N keyword(s) will replace...") | PASS |
+| 7 | Save (case): POST `/case` replaces full set — moved beta+delta right, Save → DB `testcase_keywords` rows match exactly; toast "Keywords updated"; boxes re-rendered from server state | PASS |
+| 8 | Remove via move-left + Save: gamma moved left then Save → row deleted from DB (replace semantics parity with legacy `setKeywords`) | PASS |
+| 9 | Suite mode Add: Suite B deep + delta staged → "Keywords added to 1 test case(s)", DB row created for Case B1 | PASS |
+| 10 | Suite mode Remove All: Suite A deep → "All keywords removed from 3 test case(s)" (deep scope correctly includes nested B1); table empty afterwards | PASS |
+| 11 | Suite mode Remove selected: whole right box is the removal payload (legacy opt-transfer semantics — selection inside the box is irrelevant); gamma+delta removed from Case B1 as staged; hint box documents this behavior | PASS |
+| 12 | Scope radio reflected in subtitle ("Test Suite :: ...Suite B (direct)" vs "(deep)") | PASS |
+| 13 | Executed-block path (kwauser): Case B1 shows "executed" badge, blocked note rendered, Save disabled; admin (with edit-executed rights) sees no block — matches legacy canAddRemoveKWFromExecuted | PASS |
+| 14 | No-rights path (norights): note "You do not have the right..." shown; pickers, transfer boxes and all action buttons hidden | PASS |
+| 15 | i18n EN runtime: header/subtitle/hints/toasts resolved from en.json `kwa.*` (26 keys); keys present in all 10 bundles after restore (concurrent bot rewrite clobbered them once — re-applied in 29991d3c6); `python3 -m json.tool` valid on all bundles | PASS |
+| 16 | Known race note for testers: post-operation both boxes reset (modernized convenience); staging a set then clicking another action before re-staging yields "Select at least one keyword first" — stale-note cosmetic issue fixed in 620bd5269 | PASS |
+
+**Files changed:** `api/keywords/assign.php`,
+`gui/templates/keywords/keywordsAssign.html`,
+`gui/templates/i18n/{en,de,es,fr,it,pt,ro,ru,ja,zh}.json` (+26 `kwa.*`),
+`lib/functions/common.php` (aside link switch).
