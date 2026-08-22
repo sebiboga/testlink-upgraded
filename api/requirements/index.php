@@ -446,5 +446,204 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Route: GET /reqspec-context - everything the Search Requirement
+// Specifications form needs to render.
+// Mirrors lib/requirements/reqSpecSearchForm.php
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'reqspec-context') {
+    $tpid = needTprojectId();
+
+    // menu visibility rule (common.php getMenuVisibility): searchReqSpec needs
+    // view_req_spec -> 'mgt_view_req' right string
+    if (!$user->hasRight($db, 'mgt_view_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $info = $tproject_mgr->get_by_id($tpid);
+    if (!$info) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    // req spec type domain, localized the same way as the legacy form
+    $reqSpecCfg = config_get('req_spec_cfg');
+    $types = [];
+    foreach (init_labels($reqSpecCfg->type_labels) as $code => $lbl) {
+        $types[] = ['code' => (string)$code, 'label' => $lbl];
+    }
+
+    // custom fields linked to requirement_spec at design time (enabled only)
+    $customFields = [];
+    $designCf = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design(
+        $tpid, cfield_mgr::ENABLED, null, 'requirement_spec');
+    if (!is_null($designCf)) {
+        foreach ($designCf as $cf_id => $cf) {
+            $customFields[] = [
+                'id' => intval($cf_id),
+                'label' => $cf['label'],
+                'type' => intval($cf['type']),
+            ];
+        }
+    }
+
+    // legacy form shows Doc ID filter only when the project HAS req specs
+    // (testproject::GET_NOT_EMPTY_REQSPEC)
+    $reqSpecSet = $tproject_mgr->getOptionReqSpec(
+        $tpid, testproject::GET_NOT_EMPTY_REQSPEC);
+
+    $opt = $tproject_mgr->getOptions($tpid);
+
+    out([
+        'status' => 'ok',
+        'tproject' => ['id' => $tpid, 'name' => $info['name']],
+        'types' => $types,
+        'customFields' => $customFields,
+        'hasReqSpecs' => !is_null($reqSpecSet) && count($reqSpecSet) > 0,
+        'requirementsEnabled' => !empty($opt->requirementsEnabled),
+        'maxQtyForDisplay' => intval(config_get('req_cfg')->search->max_qty_for_display),
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// Route: GET /reqspec-search - run the Search Requirement Specifications.
+// Mirrors lib/requirements/reqSpecSearch.php: LIKE '%value%' criteria AND-ed
+// against req_specs_revisions (+ nodes_hierarchy for name), type exact match,
+// custom field values joined on the REVISION node id; result cap =
+// req_cfg.search.max_qty_for_display -> 'too_wide_search_criteria' warning.
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'reqspec-search') {
+    $tpid = needTprojectId();
+
+    if (!$user->hasRight($db, 'mgt_view_req', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // string/int param helpers local to this endpoint (reject array params)
+    $reqspecStr = function ($key, $default = '') {
+        $v = $_GET[$key] ?? $default;
+        return is_string($v) ? trim($v) : $default;
+    };
+
+    $tables = tlObjectWithDB::getDBTables(array(
+        'cfield_design_values', 'nodes_hierarchy', 'req_specs', 'req_specs_revisions'));
+
+    $docId = $reqspecStr('doc_id');
+    $name = $reqspecStr('name');
+    $type = $reqspecStr('reqSpecType', 'notype');
+    $scope = $reqspecStr('scope');
+    $logMessage = $reqspecStr('log_message');
+    $cfId = intval($_GET['custom_field_id'] ?? 0);
+    $cfValue = $reqspecStr('custom_field_value');
+
+    $filter = null;
+    $join = null;
+
+    if ($docId !== '') {
+        $safe = $db->prepare_string($docId);
+        $filter['by_id'] = " AND RSPECREV.doc_id like '%{$safe}%' ";
+    }
+
+    if ($name !== '') {
+        $safe = $db->prepare_string($name);
+        $filter['by_name'] = " AND NHRSPEC.name like '%{$safe}%' ";
+    }
+
+    if ($type !== '' && $type !== 'notype') {
+        $safe = $db->prepare_string($type);
+        $filter['by_type'] = " AND RSPECREV.type='{$safe}' ";
+    }
+
+    if ($scope !== '') {
+        $safe = $db->prepare_string($scope);
+        $filter['by_scope'] = " AND RSPECREV.scope like '%{$safe}%' ";
+    }
+
+    if ($logMessage !== '') {
+        $safe = $db->prepare_string($logMessage);
+        $filter['by_log_message'] = " AND RSPECREV.log_message like '%{$safe}%' ";
+    }
+
+    if ($cfId > 0) {
+        $designCf = $tproject_mgr->cfield_mgr->get_linked_cfields_at_design(
+            $tpid, cfield_mgr::ENABLED, null, 'requirement_spec');
+        if (is_null($designCf) || !isset($designCf[$cfId])) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Unknown custom field']);
+        }
+        $join['by_custom_field'] = " JOIN {$tables['cfield_design_values']} CFD " .
+                       " ON CFD.node_id=RSPECREV.id ";
+        $safeVal = $db->prepare_string($cfValue);
+        $filter['by_custom_field'] = " AND CFD.field_id=" . intval($cfId) .
+                                     " AND CFD.value like '%{$safeVal}%' ";
+    }
+
+    $sql = " SELECT NHRSPEC.name, NHRSPEC.id, RSPEC.doc_id, RSPECREV.id AS revision_id, RSPECREV.revision " .
+           " FROM {$tables['req_specs']} RSPEC JOIN {$tables['req_specs_revisions']} RSPECREV " .
+           " ON RSPEC.id=RSPECREV.parent_id " .
+           " JOIN {$tables['nodes_hierarchy']} NHRSPEC " .
+           " ON NHRSPEC.id = RSPEC.id ";
+
+    if (!is_null($join)) {
+        $sql .= implode("", $join);
+    }
+
+    $sql .= " AND RSPEC.testproject_id = {$tpid} ";
+
+    if (!is_null($filter)) {
+        $sql .= implode("", $filter);
+    }
+
+    $sql .= ' ORDER BY NHRSPEC.id ASC, RSPECREV.revision DESC ';
+
+    $rs = $db->exec_query($sql);
+    $grouped = [];
+    $count = 0;
+    while ($row = $db->fetch_array($rs)) {
+        $rspecId = intval($row['id']);
+        if (!isset($grouped[$rspecId])) {
+            $grouped[$rspecId] = [
+                'req_spec_id' => $rspecId,
+                'doc_id' => $row['doc_id'],
+                'name' => $row['name'],
+                'revisions' => [],
+            ];
+            $count++;
+        }
+        $grouped[$rspecId]['revisions'][] = [
+            'revision_id' => intval($row['revision_id']),
+            'revision' => intval($row['revision']),
+        ];
+    }
+
+    $rows = [];
+    $warning = '';
+    if ($count > 0) {
+        $maxQty = intval(config_get('req_cfg')->search->max_qty_for_display);
+        if ($count <= $maxQty) {
+            $options = array('output_format' => 'path_as_string');
+            $pathInfo = $tproject_mgr->tree_manager->get_full_path_verbose(
+                array_keys($grouped), $options);
+            foreach ($grouped as $rspecId => $rec) {
+                $rec['path'] = isset($pathInfo[$rspecId]) ? $pathInfo[$rspecId] : '';
+                $rows[] = $rec;
+            }
+        } else {
+            $warning = 'too_wide_search_criteria';
+        }
+    } else {
+        $warning = 'no_records_found';
+    }
+
+    out([
+        'status' => 'ok',
+        'count' => $count,
+        'rows' => $rows,
+        'warning' => $warning,
+    ]);
+}
+
 http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Unknown endpoint']);
