@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirements Overview</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.switch-label { color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-frozen { background: #3598dc; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-open { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.cov-ok { color: #27ae60; font-weight: 700; }
+.cov-low { color: #e6605e; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 15px; }
+.notes { padding: 0 24px 20px; color: #777; font-size: 12px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.info-line { color: #aaa; font-size: 12px; margin-left: auto; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="header.reqOverview">Requirements Overview</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <label class="switch-label"><input type="checkbox" id="allVersions"> <span data-i18n="ro.showAllVersionsBtn">Show all versions</span></label>
+  <button class="btn-teal" onclick="loadOverview()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span class="info-line" id="infoLine"></span>
+</div>
+
+<div class="table-wrap" id="tableWrap" style="display:none;">
+  <table id="reqTable" class="display" style="width:100%">
+    <thead><tr id="headRow"></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="empty-state" id="emptyState" style="display:none;"></div>
+
+<div class="notes" id="notesBlock" style="display:none;">
+  <p data-i18n="ro.notesReqOverview"></p>
+  <p data-i18n="ro.hlpCoverageTable"></p>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var TPROJECT_ID = 0;
+var META = null;
+var table = null;
+// Legacy parity (reqOverview.php init_args): an explicit all_versions request
+// param wins; when omitted the server falls back to $_SESSION['all_versions'].
+// After the first explicit toggle every subsequent call sends the param again.
+var explicitAllVersions = null;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0);
+  if (p.has('all_versions')) {
+    explicitAllVersions = p.get('all_versions') === '1';
+    $('#allVersions').prop('checked', explicitAllVersions);
+  }
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadOverview();
+  });
+  $('#allVersions').on('change', function() {
+    explicitAllVersions = $(this).is(':checked');
+    loadOverview();
+  });
+});
+
+function loadOverview() {
+  var url = API + '/overview?tproject_id=' + TPROJECT_ID;
+  if (explicitAllVersions !== null) {
+    url += '&all_versions=' + ($('#allVersions').is(':checked') ? '1' : '0');
+  }
+  $.getJSON(url, function(r) {
+    META = r.meta;
+    $('#allVersions').prop('checked', !!r.all_versions);
+    $('#projName').text(' - ' + (r.tproject_name || ('#' + r.meta.tproject_id)));
+    renderTable(r.items);
+    var info = TLi18n.t(r.all_versions ? 'ro.allVersionsDisplayed' : 'ro.latestVersionDisplayed');
+    $('#infoLine').text(info + ' | ' + TLi18n.t('ro.countRows', {n: r.total}));
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString() +
+      (r.elapsed_seconds ? ' (' + r.elapsed_seconds + ' s)' : ''));
+    if (r.error) alert(r.error);
+  }).fail(function(xhr) {
+    var msg = 'Error';
+    try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+    $('#emptyState').show().text(msg);
+    $('#tableWrap').hide();
+    $('#emptyState').attr('data-i18n', null);
+  });
+}
+
+function renderTable(items) {
+  if (!items.length) {
+    $('#tableWrap').hide();
+    $('#notesBlock').hide();
+    $('#emptyState').show().attr('data-i18n', 'ro.noRequirements')
+      .text(TLi18n.t('ro.noRequirements'));
+    return;
+  }
+  $('#emptyState').hide();
+  $('#notesBlock').show();
+
+  // build columns dynamically depending on cfg flags and linked custom fields
+  var cols = [
+    {key: 'spec_path'},
+    {key: 'display_title'},
+    {key: 'version_tag'},
+    {key: 'created_on'},
+    {key: 'modified_on'},
+    {key: 'frozen'}
+  ];
+  if (META.expected_coverage_management) cols.push({key: 'coverage'});
+  cols.push({key: 'type'}, {key: 'status'});
+  if (META.relations_enabled) cols.push({key: 'relations'});
+  $.each(META.cfields || [], function(i, cf) { cols.push({key: 'cf:' + cf.name}); });
+
+  var headRow = $('#headRow').empty();
+  $.each(cols, function(i, c) {
+    var k = c.key.indexOf('cf:') === 0 ? null : 'ro.col.' + c.key;
+    headRow.append('<th' + (k ? ' data-i18n="' + k + '"' : '') + '>' +
+      (k ? TLi18n.t(k) : $('<div>').text(c.key.substr(3)).html()) + '</th>');
+  });
+
+  if (table) { table.destroy(); $('#reqTable tbody').empty(); }
+
+  var rows = [];
+  $.each(items, function(i, it) {
+    var created = fmtTs(it.creation_ts_raw);
+    var modified = it.modified_never ? TLi18n.t('ro.never')
+      : fmtTs(it.modification_ts_raw) + ' (' + escapeHtml(it.modifier || '') + ')';
+    var row = [
+      escapeHtml(it.spec_path),
+      '<i class="fa fa-edit action-btn" title="' + TLi18n.t('ro.openReq') + '" onclick="openReq(' +
+        it.req_id + ',' + it.version_id + ')"></i>' +
+        '<a href="javascript:void(0)" onclick="openReq(' + it.req_id + ',' + it.version_id + ')">' +
+        escapeHtml(it.display_title) + '</a>',
+      '[v' + it.version + 'r' + it.revision + ']',
+      escapeHtml(created) + ' (' + escapeHtml(it.author || '') + ')',
+      modified,
+      it.frozen
+        ? '<span class="badge-frozen">' + TLi18n.t('common.yes') + '</span>'
+        : '<span class="badge-open">' + TLi18n.t('common.no') + '</span>'
+    ];
+    if (META.expected_coverage_management) {
+      var cov;
+      if (it.coverage_pct !== null && it.coverage_pct !== undefined) {
+        cov = '<span class="' + (it.coverage_pct >= 100 ? 'cov-ok' : 'cov-low') + '">' +
+              it.coverage_pct.toFixed(2).replace(/\.00$/, '') + '%</span> (' +
+              it.coverage_qty + '/' + it.expected_coverage + ')';
+      } else {
+        cov = TLi18n.t('ro.notApplicable') + ' (' + (it.coverage_qty || 0) + '/0)';
+      }
+      row.push(cov);
+    }
+    row.push(escapeHtml((META.type_labels[it.type] || '')));
+    row.push(escapeHtml((META.status_labels[it.status] || '')));
+    if (META.relations_enabled) row.push(it.relations_qty);
+    $.each(META.cfields || [], function(j, cf) {
+      var v = (it.cfields && it.cfields[cf.name] !== undefined) ? String(it.cfields[cf.name]) : '';
+      row.push('<span style="white-space:normal;word-break:break-word;">' + escapeHtml(v) + '</span>');
+    });
+    rows.push(row);
+  });
+
+  // default sort: coverage desc when available, else status desc (same as legacy)
+  var covIdx = cols.findIndex(function(c) { return c.key === 'coverage'; });
+  var orderIdx = covIdx >= 0 ? covIdx : cols.findIndex(function(c) { return c.key === 'status'; });
+
+  table = $('#reqTable').DataTable({
+    data: rows,
+    order: [[orderIdx, 'desc']],
+    pageLength: 25,
+    lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+    columnDefs: [{targets: '_all', defaultContent: ''}]
+  });
+}
+
+function openReq(reqId, versionId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' + reqId +
+    '&req_version_id=' + versionId + '&tproject_id=' + TPROJECT_ID,
+    'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function fmtTs(ts) {
+  if (!ts) return '-';
+  var d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString();
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>

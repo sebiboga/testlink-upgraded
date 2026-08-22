@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Cases Created Per User</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.form-grid { display: grid; grid-template-columns: minmax(240px,1fr) minmax(230px,1fr) minmax(230px,1fr); gap: 14px 22px; padding: 16px 20px 6px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+.datetime-pair { display: flex; gap: 8px; }
+.datetime-pair select.hourSel { width: 84px; }
+.actions { padding: 10px 20px 18px; display: flex; gap: 10px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.table-wrap { padding: 8px 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.user-cell { font-weight: 700; color: #22242a; white-space: nowrap; }
+.tc-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.tc-link:hover { text-decoration: underline; }
+.path-cell { color: #555; max-width: 320px; font-size: 12px; }
+.ts-cell { white-space: nowrap; color: #444; }
+.badge-imp { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-imp.low { background: #6c757d; }
+.badge-imp.medium { background: #e0a800; }
+.badge-imp.high { background: #e6605e; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 5px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcPerUser.caption">Test Cases Created Per User</span>
+  <span class="sub"><span data-i18n="tcPerUser.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcPerUser.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-red" onclick="resetForm()"><i class="fa fa-eraser"></i> <span data-i18n="common.reset">Reset</span></button>
+</div>
+
+<div class="panel" id="formPanel">
+  <div class="panel-head" data-i18n="tcPerUser.filterHead">Report filter</div>
+  <div class="notice">
+    <i class="fa fa-info-circle"></i>
+    <span data-i18n="tcPerUser.hint">Shows every test case version created by the selected user within the given time window.</span>
+  </div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="userSelect" data-i18n="tcPerUser.user">User</label>
+      <select class="form-control" id="userSelect"></select>
+    </div>
+    <div class="form-group">
+      <label data-i18n="tcPerUser.startDate">Start date / hour</label>
+      <div class="datetime-pair">
+        <input type="date" class="form-control" id="startDate">
+        <select class="form-control hourSel" id="startHour"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label data-i18n="tcPerUser.endDate">End date / hour</label>
+      <div class="datetime-pair">
+        <input type="date" class="form-control" id="endDate">
+        <select class="form-control hourSel" id="endHour"></select>
+      </div>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="btn-teal" id="btnShow" onclick="doQuery('report')"><i class="fa fa-chart-column"></i> <span data-i18n="tcPerUser.btnShow">Show report</span></button>
+    <button class="btn-teal" id="btnCsv" onclick="doQuery('csv')"><i class="fa fa-file-csv"></i> <span data-i18n="tcPerUser.btnCsv">Download CSV</span></button>
+  </div>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="results-head" id="resultsHead" style="display:none">
+  <h2><span data-i18n="tcPerUser.results">Report results</span><span class="count" id="matchCount"></span></h2>
+</div>
+<div class="empty" id="noResults" data-i18n="tcPerUser.noRecords">No records found.</div>
+<div class="table-wrap" id="resultsWrap" style="display:none">
+  <table id="resTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:12%" data-i18n="tcPerUser.colUser">User</th>
+        <th style="width:22%" data-i18n="tcPerUser.colPath">Test Suite</th>
+        <th style="width:26%" data-i18n="tcPerUser.colTestCase">Test Case</th>
+        <th style="width:90px" data-i18n="tcPerUser.colImportance">Importance</th>
+        <th style="width:120px" data-i18n="tcPerUser.colCreated">Created</th>
+        <th style="width:130px" data-i18n="tcPerUser.colLastMod">Last Modification</th>
+        <th data-orderable="false" style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/results/index.php';
+var tprojectId = 0;
+var meta = null;
+var resTbl = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  fillHours('#startHour');
+  fillHours('#endHour');
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function fillHours(sel) {
+  var $s = $(sel);
+  for (var h = 0; h <= 23; h++) {
+    $s.append($('<option>').val(h).text(('0' + h).slice(-2) + ':00'));
+  }
+}
+
+function impLabel(code) {
+  switch (code) {
+    case 3: return TLi18n.t('tcPerUser.impHigh');
+    case 2: return TLi18n.t('tcPerUser.impMedium');
+    default: return TLi18n.t('tcPerUser.impLow');
+  }
+}
+
+function loadMeta() {
+  $.getJSON(API + '/meta?tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      meta = r;
+      $('#tprojectName').text(r.tprojectName || '-');
+      $('#tprojectName2').text(r.tprojectName || '-');
+      document.title = r.tprojectName + ' - ' + TLi18n.t('tcPerUser.caption');
+      if (!r.canView) {
+        $('#warnBox').text(TLi18n.t('tcPerUser.noRights')).show();
+        $('#formPanel').hide();
+        return;
+      }
+      var $u = $('#userSelect');
+      $u.append($('<option>').val(0).text(TLi18n.t('tcPerUser.anyUser')));
+      (r.users || []).forEach(function (u) {
+        $u.append($('<option>').val(u.id).text(u.name));
+      });
+      if (r.defaults) {
+        $('#startDate').val(r.defaults.startDate);
+        $('#endDate').val(r.defaults.endDate);
+        $('#startHour').val(String(r.defaults.startHour));
+        if ($('#endHour option[value="' + r.defaults.endHour + '"]').length) {
+          $('#endHour').val(String(r.defaults.endHour));
+        }
+      }
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function currentQuery() {
+  var q = new URLSearchParams();
+  q.set('user_id', $('#userSelect').val() || '0');
+  if ($('#startDate').val()) {
+    q.set('start_date', $('#startDate').val());
+    q.set('start_hour', $('#startHour').val() || '0');
+  }
+  if ($('#endDate').val()) {
+    q.set('end_date', $('#endDate').val());
+    q.set('end_hour', $('#endHour').val() || '23');
+  }
+  return q;
+}
+
+function doQuery(kind) {
+  $('#warnBox').hide();
+  var btn = kind === 'csv' ? $('#btnCsv') : $('#btnShow');
+  btn.prop('disabled', true);
+  if (kind === 'csv') {
+    downloadCsv().always(function () { btn.prop('disabled', false); });
+    return;
+  }
+  $.getJSON(API + '/report?' + currentQuery().toString())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    })
+    .always(function () { btn.prop('disabled', false); });
+}
+
+function downloadCsv() {
+  var d = $.Deferred();
+  fetch(API + '/csv?' + currentQuery().toString(), { credentials: 'same-origin' })
+    .then(function (resp) {
+      if (!resp.ok) { throw new Error('http ' + resp.status); }
+      return resp.blob();
+    })
+    .then(function (blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'tc_created_per_user_' + tprojectId + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      d.resolve();
+    })
+    .catch(function () {
+      toast(TLi18n.t('common.error'), true);
+      d.reject();
+    });
+  return d.promise();
+}
+
+function renderResults(r) {
+  $('#resultsHead').show();
+  $('#matchCount').text('(' + r.totalRows + ')');
+
+  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+
+  if (!r.rows || r.rows.length === 0) {
+    $('#resultsWrap').hide();
+    $('#noResults').show();
+    $('#footerInfo').text('');
+    return;
+  }
+  $('#noResults').hide();
+  $('#resultsWrap').show();
+
+  var rows = r.rows.map(function (row) {
+    var user = '<span class="user-cell">' + esc(row.login) + '</span>';
+    var path = '<span class="path-cell">' + esc(row.path) + '</span>';
+    var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
+                  row.tcaseId + ',' + row.tcversionId + ')">' +
+                  esc(row.externalId) + ' : ' + esc(row.name) +
+                  ' [v' + esc(row.version) + ']</a>';
+    var imp = '<span class="badge-imp ' + ['low','medium','high'][Math.min(Math.max(row.importance,1),3)-1] + '">' +
+              esc(impLabel(row.importance)) + '</span>';
+    var created = '<span class="ts-cell">' + esc(row.creationTs || '-') + '</span>';
+    var modified = '<span class="ts-cell">' + esc(row.modificationTs || '-') + '</span>';
+    var actions =
+      '<button class="icon-btn" title="' + esc(TLi18n.t('tcPerUser.editTC')) +
+        '" onclick="openTcEdit(' + row.tcaseId + ',' + row.tcversionId + ')"><i class="fas fa-pen-to-square"></i></button>';
+    return [user, path, tcLabel, imp, created, modified, actions];
+  });
+
+  // legacy table is grouped by user and sorted by test suite
+  resTbl = $('#resTable').DataTable({
+    destroy: true,
+    data: rows,
+    order: [[0, 'asc'], [1, 'asc']],
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 3, className: 'text-center' },
+      { targets: 6, orderable: false }
+    ]
+  });
+
+  $('#footerInfo').html(
+    esc(TLi18n.t('common.generatedOn')) + ': ' + esc(r.generatedOn) +
+    ' &middot; ' + esc(TLi18n.t('tcPerUser.stats', {rows: r.totalRows, users: r.distinctUsers, cases: r.distinctCases}))
+  );
+}
+
+function openTcEdit(tcaseId, tcversionId) {
+  var url = '/gui/templates/testcases/tcView.html?tcase_id=' + tcaseId +
+            '&tcversion_id=' + tcversionId + '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function resetForm() {
+  $('#warnBox').hide();
+  $('#resultsHead').hide();
+  $('#resultsWrap').hide();
+  $('#noResults').hide();
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  $('#footerInfo').text('');
+  $('#userSelect').val('0');
+  if (meta && meta.defaults) {
+    $('#startDate').val(meta.defaults.startDate);
+    $('#endDate').val(meta.defaults.endDate);
+    $('#startHour').val(String(meta.defaults.startHour));
+    $('#endHour').val(String(meta.defaults.endHour));
+  }
+}
+</script>
+</body>
+</html>

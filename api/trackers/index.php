@@ -6,6 +6,8 @@
 
 require_once('../../config.inc.php');
 require_once('../../lib/functions/common.php');
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
 
 header('Content-Type: application/json');
 

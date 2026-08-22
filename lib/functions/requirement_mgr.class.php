@@ -352,7 +352,7 @@ function create($srs_id,$reqdoc_id,$title, $scope, $user_id,
     $log_message = lang_get('req_created_automatic_log');
   }
   
-  $tproject_id = is_null($tproject_id) ? $this->tree_mgr->getTreeRoot($srs_id) : $tproject_id;
+  $tproject_id = is_null($tproject_id) ? req_tproject_id_for_node($this->db,$srs_id) : $tproject_id;
 
   $result = array( 'id' => 0, 'status_ok' => 0, 'msg' => 'ko');
   $my['options'] = array('quickAndDirty' => false);
@@ -444,7 +444,7 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
   $srs_id=$req['srs_id'];
     
     // try to avoid function calls when data is available on caller
-  $tproject_id = is_null($tproject_id) ? $this->tree_mgr->getTreeRoot($srs_id): $tproject_id;
+  $tproject_id = is_null($tproject_id) ? req_tproject_id_for_node($this->db,$srs_id) : $tproject_id;
 
   if ($this->internal_links->enable ) 
   {
@@ -582,7 +582,9 @@ function update($id,$version_id,$reqdoc_id,$title, $scope, $user_id, $status, $t
       }  
     } 
     
-    if( $checkNotify && $this->notifyOn[__FUNCTION__] ) {
+    if( $checkNotify && is_array($this->notifyOn)
+        && isset($this->notifyOn[__FUNCTION__])
+        && $this->notifyOn[__FUNCTION__] ) {
       // Need to save data before delete
       $set2del = $this->getByIDBulkLatestVersionRevision($id);
       if( !is_null($set2del) ) {
@@ -916,7 +918,7 @@ function create_tc_from_requirement($mixIdReq,$srs_id, $user_id, $tproject_id = 
   $reqSet = is_array($mixIdReq) ? $mixIdReq : array($mixIdReq);
     
   if( is_null($tproject_id) || $tproject_id == 0 ) {
-    $tproject_id = $this->tree_mgr->getTreeRoot($srs_id);
+    $tproject_id = req_tproject_id_for_node($this->db,$srs_id);
   }
     
   if ( $this->reqCfg->use_req_spec_as_testsuite_name ) {

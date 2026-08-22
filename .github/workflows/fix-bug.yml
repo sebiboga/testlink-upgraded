@@ -145,26 +145,36 @@ jobs:
           }
           OPNCFG
 
-      - name: Verify gh auth and that open issues exist
+      - name: Verify gh auth and triage the target issue (bugs only)
         run: |
           gh auth status
-          COUNT=$(gh issue list --state open --limit 200 --json number --jq 'length')
-          echo "open issues: $COUNT"
-          if [ "$COUNT" = "0" ]; then
-            echo "::notice::No open issues — nothing to fix"
+          # TRIAGE: newest open issue that does NOT carry a work-type label.
+          # enhancement/task/investigation/documentation belong to modernize.yml.
+          TARGET=$(gh issue list --state open --limit 200 --json number,title,labels \
+            --jq 'map(select([.labels[].name] | any(. == "enhancement" or . == "task" or . == "investigation" or . == "documentation") | not))
+                  | .[0].number // empty')
+          echo "$TARGET" > .ci_target_issue || true
+          if [ -z "$TARGET" ]; then
+            echo "::notice::No open bug issues (non-enhancement/task) — nothing to fix"
+            echo "HAS_TARGET=0" >> "$GITHUB_ENV"
+          else
+            TITLE=$(gh issue view "$TARGET" --json title --jq .title)
+            echo "target issue: #$TARGET — $TITLE"
+            echo "HAS_TARGET=1" >> "$GITHUB_ENV"
           fi
           # remember run baseline for the auto-close safety net
           git rev-parse HEAD > .ci_before_sha
-          gh issue list --state open --limit 1 --json number --jq '.[0].number // empty' > .ci_target_issue || true
-          echo "target issue: $(cat .ci_target_issue 2>/dev/null || echo none)"
 
-      - name: Run opencode — fix the newest open issue
+      - name: Run opencode — fix the newest open bug issue
+        if: env.HAS_TARGET == '1'
         timeout-minutes: 60
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
           PROMPT+="Read AGENTS.md and FIX-ISSUE.md in the repo root FIRST and follow ALL their rules strictly. "
           PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh, "
+          PROMPT+="skipping any issue labeled enhancement/task/investigation/documentation — those belong to "
+          PROMPT+="the modernize workflow, not to you. "
           PROMPT+="reproduce it, root-cause it, apply the minimal fix, verify error-free, write the regression "
           PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror, "
           PROMPT+="commit+push after each phase, then close the issue with a verification comment "
@@ -205,7 +215,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           BRANCH="${GITHUB_REF_NAME}"
-          git add -A -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode'
+          git add -A
           if ! git diff --staged --quiet; then
             git commit -m "fix(opencode): leftover changes from bug-fix run"
           fi

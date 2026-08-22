@@ -1023,7 +1023,9 @@ class tlTestPlanMetrics extends testplan
     $safe_id = intval($id);  
     list($my,$builds,$sqlStm,$union,$platformSet) = $this->helperBuildSQLExecCounters($id, $filters, $opt);
 
-    if(is_null($builds) || is_array($builds) == false || count($builds) <= 0) {
+    // issue #559: $builds is the stdClass built by helperGetExecCounters(),
+    // so is_array() was always false and this method always returned null
+    if(is_null($builds->idSet) || count($builds->idSet) <= 0) {
       return null;  // >>---> Bye!
     }  
 
@@ -1254,7 +1256,10 @@ class tlTestPlanMetrics extends testplan
       break;
     }
 
-    if( !is_null($metrics) && !is_null($metrics[$setKey]) > 0) {
+    // issue #579: e.g. getExecCountersByTestSuiteExecStatus() does NOT set
+    // the 'tsuites' key when the plan has no linked test cases => unguarded
+    // read raised an E_WARNING "Undefined array key".
+    if( !is_null($metrics) && isset($metrics[$setKey]) && !is_null($metrics[$setKey])) {
       $renderObj = new stdClass();
       $renderObj->info = array(); 
 
@@ -1368,6 +1373,14 @@ class tlTestPlanMetrics extends testplan
   {
 
     list($rx,$staircase) = $this->getStatusTotalsByItemForRender($id,'tsuite',$filters,$opt);
+
+    // issue #579: on a plan with zero linked test cases $rx is NULL =>
+    // dereferencing it below raised E_WARNINGs and, on PHP 8, a fatal
+    // TypeError (array_keys(null)). Callers (resultsGeneral.php,
+    // mainPage.php) already handle the null contract.
+    if( is_null($rx) ) {
+      return null;
+    }
 
     // ??? $key2loop = array_keys($rx->info);
     $template = array('type' => 'tsuite', 'name' => '','total_tc' => 0,
@@ -1633,10 +1646,15 @@ class tlTestPlanMetrics extends testplan
 
     }
     $dx = $this->tree_manager->get_full_path_verbose($keySet,array('output_format' => 'stairway2heaven'));
-    for($idx=0; $idx < $loop2do; $idx++) {
-      $exec['tsuites'][$exec['tsuites_full'][$idx]['id']] = $dx['flat'][$exec['tsuites_full'][$idx]['id']];
+    // issue #561: helper may return NULL (empty key set / unresolvable paths)
+    if (!is_array($dx)) {
+      $dx = array('flat' => array(), 'staircase' => array());
     }
-    $exec['staircase'] = $dx['staircase'];
+    for($idx=0; $idx < $loop2do; $idx++) {
+      $sid = $exec['tsuites_full'][$idx]['id'];
+      $exec['tsuites'][$sid] = isset($dx['flat'][$sid]) ? $dx['flat'][$sid] : '';
+    }
+    $exec['staircase'] = isset($dx['staircase']) ? $dx['staircase'] : array();
     
     unset($dx);
     unset($keySet);
@@ -3355,6 +3373,14 @@ class tlTestPlanMetrics extends testplan
     list($rx,$staircase) = 
       $this->getStatusTotalsByItemForRender($id,'tsuite',$filters,$opt);
 
+    // issue #583: on a plan with zero linked test cases $rx is NULL =>
+    // dereferencing it below raised an E_WARNING (property on null) and,
+    // on PHP 8, a fatal TypeError (array_keys(null)). Caller
+    // resultsByTSuite.php already handles the null contract.
+    if( is_null($rx) ) {
+      return null;
+    }
+
     // ??? $key2loop = array_keys($rx->info);
     $template = array('type' => 'tsuite', 
                       'name' => '',
@@ -3628,7 +3654,7 @@ class tlTestPlanMetrics extends testplan
    */
   function getExecTimeSpan($id,$context) {
 
-    $fieldList .= implode(',', $context);
+    $fieldList = implode(',', $context);
  
     $sql = "SELECT MIN(execution_ts) AS begin,
             MAX(execution_ts) AS end, {$fieldList}

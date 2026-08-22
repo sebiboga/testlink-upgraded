@@ -400,11 +400,14 @@ class requirement_spec_mgr extends tlObjectWithAttachments
 		$title=trim_and_limit($item['name']);
    	$doc_id=trim_and_limit($item['doc_id']);
      
-   	$path = (array)$this->tree_mgr->get_path($item['id']); 
-   	$tproject_id = $path[0]['parent_id'];
+   	$path = (array)$this->tree_mgr->get_path($item['id']);
+   	// get_path() excludes the tree root (the testproject node), so deriving
+   	// the testproject id from $path[0]['parent_id'] yields NULL/0 for specs
+   	// hanging directly off a test project; walk the hierarchy instead.
+   	$tproject_id = req_tproject_id_for_node($this->db, intval($item['id']));
    	$last_idx=count($path)-1;
-   	$parent_id = $last_idx==0 ? null : $path[$last_idx]['parent_id'];
-   	$chk=$this->check_main_data($title,$doc_id,$path[0]['parent_id'],$parent_id,$item['id']);
+   	$parent_id = $last_idx<1 ? null : $path[$last_idx]['parent_id'];
+   	$chk=$this->check_main_data($title,$doc_id,$tproject_id,$parent_id,$item['id']);
     
     
    	if ($chk['status_ok'] || $my['options']['skip_controls'])

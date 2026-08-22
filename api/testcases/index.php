@@ -16,6 +16,10 @@ require_once('common.php');
 
 doSessionStart();
 
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+
+
 header('Content-Type: application/json');
 
 $db = new database(DB_TYPE);
@@ -123,6 +127,7 @@ $action = $_GET['action'] ?? '';
 
 $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
+$tcaseCfg = config_get('testcase_cfg');
 
 // ---------------------------------------------------------------------------
 // GET ?action=context&tproject_id=N
@@ -184,7 +189,7 @@ if ($action === 'context') {
         ],
         'hasTestPlans' => $hasTestPlans,
         'grants' => $grants,
-        'canEditExecuted' => intval(config_get('testcase_cfg')->canEditExecuted),
+        'canEditExecuted' => intval($tcaseCfg->canEditExecuted ?? 0),
         'dateFormat' => config_get('date_format'),
     ]);
 }
@@ -551,6 +556,452 @@ if ($action === 'view') {
         'hasTestPlans' => $hasTestPlans,
         'requestedTcversionId' => $tcversionId,
     ]);
+}
+
+// ---------------------------------------------------------------------------
+// Test Specification screen (editTc/testSpec): tree + editor.
+// Mirrors lib/testcases/tcEdit.php + lib/ajax/gettprojectnodes.php (1.9.20)
+// ---------------------------------------------------------------------------
+
+function getJsonBody() {
+    $raw = file_get_contents('php://input');
+    $j = json_decode($raw, true);
+    return is_array($j) ? $j : [];
+}
+
+function jout($data, $code = 200) {
+    http_response_code($code);
+    out($data);
+}
+
+/**
+ * Resolve owning test project of any node via parent chain.
+ */
+function owningProjectOf($dbHandler, $tprojectMgr, $nodeId) {
+    $nh = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $chain = getParentChain($dbHandler, $nh['nodes_hierarchy'], $nodeId);
+    if (empty($chain)) {
+        return null;
+    }
+    $root = $chain[0];
+    if (intval($root['node_type_id']) != 1) {
+        return null;
+    }
+    return intval($root['id']);
+}
+
+if ($action === 'tree') {
+    $tprojectId = getIntParam('tproject_id');
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        jout(['status' => 'error', 'message' => 'Invalid test project id'], 400);
+    }
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    if (!$info) {
+        jout(['status' => 'error', 'message' => 'Test project not found'], 404);
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        jout(['status' => 'error', 'message' => 'No permission'], 403);
+    }
+
+    $tables = tlObjectWithDB::getDBTables(
+        array('nodes_hierarchy', 'node_types', 'tcversions'));
+    $typeRows = $db->get_recordset(
+        "SELECT id, description FROM {$tables['node_types']} " .
+        "WHERE description IN ('testproject','testsuite','testcase')");
+    $types = [];
+    foreach ((array)$typeRows as $tr) {
+        $types[$tr['description']] = intval($tr['id']);
+    }
+    $tsuiteType = $types['testsuite'] ?? 2;
+    $tcaseType = $types['testcase'] ?? 3;
+
+    $allRows = $db->get_recordset(
+        "SELECT id, parent_id, name, node_type_id, node_order " .
+        "FROM {$tables['nodes_hierarchy']} ORDER BY node_order, id");
+    $childMap = [];
+    $nodesById = [];
+    if (!is_null($allRows)) {
+        foreach ($allRows as $r) {
+            $nid = intval($r['id']);
+            $nodesById[$nid] = $r;
+            $childMap[intval($r['parent_id'])][] = $nid;
+        }
+    }
+
+    // test case aggregates: version count, external id, active flag
+    $tcAgg = [];
+    $rsAgg = $db->get_recordset(
+        " SELECT NH.parent_id AS tcase_id, COUNT(TCV.id) AS nver, " .
+        " MAX(TCV.tc_external_id) AS extid, MAX(TCV.version) AS vmax, " .
+        " MIN(TCV.active) AS ever_active " .
+        "FROM {$tables['tcversions']} TCV " .
+        " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " GROUP BY NH.parent_id");
+    if (!is_null($rsAgg)) {
+        foreach ($rsAgg as $ra) {
+            $tcAgg[intval($ra['tcase_id'])] = $ra;
+        }
+    }
+
+    // iterative subtree walk (BFS) building nested structure
+    $build = function($pid) use (&$build, $childMap, $nodesById,
+                                $tsuiteType, $tcaseType, $tcAgg) {
+        $suites = [];
+        $testcases = [];
+        foreach ($childMap[$pid] ?? [] as $cid) {
+            $n = $nodesById[$cid];
+            $ntype = intval($n['node_type_id']);
+            if ($ntype === $tsuiteType) {
+                $suites[] = [
+                    'type' => 'testsuite',
+                    'id' => $cid,
+                    'name' => strval($n['name']),
+                    'children' => $build($cid),
+                ];
+            } elseif ($ntype === $tcaseType) {
+                $agg = $tcAgg[$cid] ?? null;
+                $testcases[] = [
+                    'type' => 'testcase',
+                    'id' => $cid,
+                    'name' => strval($n['name']),
+                    'external_id' => intval($agg['extid'] ?? 0),
+                    'versions' => intval($agg['nver'] ?? 0),
+                    'active' => intval($agg['ever_active'] ?? 1) > 0,
+                ];
+            }
+        }
+        usort($suites, function($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        return ['suites' => $suites, 'testcases' => $testcases];
+    };
+
+    jout([
+        'status' => 'ok',
+        'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
+        'tree' => $build($tprojectId),
+    ]);
+}
+
+if ($action === 'get') {
+    $tcaseId = getIntParam('tcase_id');
+    if ($tcaseId <= 0) {
+        jout(['status' => 'error', 'message' => 'Invalid test case id'], 400);
+    }
+    $tprojectId = owningProjectOf($db, $tprojectMgr, $tcaseId);
+    if (is_null($tprojectId)) {
+        jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        jout(['status' => 'error', 'message' => 'No permission'], 403);
+    }
+
+    $tvTables = tlObjectWithDB::getDBTables(
+        array('nodes_hierarchy', 'tcversions', 'tcsteps', 'executions'));
+    $lvRow = $db->fetchFirstRow(
+        " SELECT TCV.*, NHT.name AS tc_name, NHT.parent_id AS suite_id " .
+        " FROM {$tvTables['tcversions']} TCV " .
+        " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " JOIN {$tvTables['nodes_hierarchy']} NHT ON NHT.id = NH.parent_id " .
+        " WHERE NH.parent_id = {$tcaseId} " .
+        " ORDER BY TCV.version DESC LIMIT 1");
+    if (is_null($lvRow)) {
+        // fall back to manager API (handles schema variants)
+        $basic = $tcaseMgr->get_basic_info($tcaseId, null);
+        if (is_null($basic)) {
+            jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+        }
+        $firstV = reset($basic);
+        $lvRow = $db->fetchFirstRow(
+            " SELECT * FROM {$tvTables['tcversions']} WHERE id = " .
+            intval($firstV['tcversion_id']));
+        if (is_null($lvRow)) {
+            jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+        }
+    }
+    $tcversionId = intval($lvRow['id']);
+
+    $execRs = $db->get_recordset(
+        "SELECT DISTINCT tcversion_id FROM {$tvTables['executions']} " .
+        "WHERE tcversion_id = {$tcversionId}");
+    $executed = !is_null($execRs) && count($execRs) > 0;
+
+    $steps = [];
+    $stepRs = $db->get_recordset(
+        " SELECT TCS.id, TCS.step_number, TCS.actions, TCS.expected_results, " .
+        " TCS.execution_type " .
+        "FROM {$tvTables['tcsteps']} TCS " .
+        " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCS.id " .
+        " WHERE NH.parent_id = {$tcversionId} " .
+        " ORDER BY TCS.step_number");
+    if (!is_null($stepRs)) {
+        foreach ($stepRs as $sr) {
+            $steps[] = [
+                'step_number' => intval($sr['step_number']),
+                'actions' => strval($sr['actions']),
+                'expected_results' => strval($sr['expected_results']),
+                'execution_type' => intval($sr['execution_type']),
+            ];
+        }
+    }
+
+    $assignedKw = [];
+    try {
+        $kwMap = $tcaseMgr->get_keywords_map($tcaseId, $tcversionId);
+        if (!is_null($kwMap)) {
+            foreach ($kwMap as $kid => $kr) {
+                $assignedKw[intval($kid)] = strval(
+                    is_array($kr) ? ($kr['keyword'] ?? '') : $kr);
+            }
+        }
+    } catch (Exception $e) {
+        $assignedKw = [];
+    }
+
+    $projKw = [];
+    try {
+        $pk = $tprojectMgr->getKeywords($tprojectId);
+        if (!is_null($pk)) {
+            foreach ($pk as $kid => $kr) {
+                $projKw[intval($kid)] = strval(is_array($kr) ? ($kr['keyword'] ?? '') : $kr);
+            }
+        }
+    } catch (Exception $e) {
+        $projKw = [];
+    }
+
+    jout([
+        'status' => 'ok',
+        'tcase' => [
+            'id' => $tcaseId,
+            'tcversion_id' => $tcversionId,
+            'version' => intval($lvRow['version'] ?? 0),
+            'name' => strval($lvRow['tc_name'] ?? ''),
+            'summary' => strval($lvRow['summary'] ?? ''),
+            'preconditions' => strval($lvRow['preconditions'] ?? ''),
+            'importance' => intval($lvRow['importance'] ?? 2),
+            'execution_type' => intval($lvRow['execution_type'] ?? 1),
+            'status' => intval($lvRow['status'] ?? 1),
+            'active' => intval($lvRow['active'] ?? 1),
+            'is_open' => intval($lvRow['is_open'] ?? 1),
+            'external_id' => intval($lvRow['tc_external_id'] ?? 0),
+            'estimatedExecDuration' => strval($lvRow['estimated_exec_duration'] ?? ''),
+            'parent_id' => intval($lvRow['suite_id'] ?? 0),
+        ],
+        'steps' => $steps,
+        'keywordsAssigned' => $assignedKw,
+        'keywordsProject' => $projKw,
+        'executed' => $executed,
+    ]);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
+    $body = getJsonBody();
+
+    $writeGrants = ['mgt_modify_tc'];
+    $checkWrite = function($nodeId) use ($db, $user, $tprojectMgr) {
+        $tprojectId = owningProjectOf($db, $tprojectMgr, intval($nodeId));
+        if (is_null($tprojectId)) {
+            jout(['status' => 'error', 'message' => 'Node not found'], 404);
+        }
+        if (!$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+            jout(['status' => 'error',
+                  'message' => 'Requires permission: modify test cases'], 403);
+        }
+        return $tprojectId;
+    };
+
+    $normSteps = function($rawSteps, $execType) {
+        $out = [];
+        $num = 0;
+        foreach ((array)$rawSteps as $st) {
+            if (!is_array($st)) { continue; }
+            $actions = trim(strval($st['actions'] ?? ''));
+            $expected = trim(strval($st['expected_results'] ?? ''));
+            if ($actions === '' && $expected === '') { continue; }
+            $num++;
+            $out[] = [
+                'step_number' => $num,
+                'actions' => $actions,
+                'expected_results' => $expected,
+                'execution_type' => intval($execType),
+            ];
+        }
+        return $out;
+    };
+
+    $kwString = function($rawKw) {
+        $ids = [];
+        foreach ((array)$rawKw as $kid) {
+            if (intval($kid) > 0) { $ids[] = intval($kid); }
+        }
+        return count($ids) ? implode(',', $ids) : '';
+    };
+
+    // POST ?action=suite_create {parent_id,name}
+    if ($action === 'suite_create') {
+        $parentId = intval($body['parent_id'] ?? 0);
+        $name = trim(strval($body['name'] ?? ''));
+        if ($parentId <= 0 || $name === '') {
+            jout(['status' => 'error', 'message' => 'Missing suite parent or name'], 400);
+        }
+        $tprojectId = $checkWrite($parentId);
+        $tsuiteMgr = new testsuite($db);
+        $ret = $tsuiteMgr->create($parentId, $name, '');
+        $newId = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
+        if ($newId <= 0) {
+            jout(['status' => 'error', 'message' => 'Create failed'], 500);
+        }
+        jout(['status' => 'ok', 'id' => $newId, 'message' => 'Suite created']);
+    }
+
+    // POST ?action=suite_update {id,name}
+    if ($action === 'suite_update') {
+        $sid = intval($body['id'] ?? 0);
+        $name = trim(strval($body['name'] ?? ''));
+        if ($sid <= 0 || $name === '') {
+            jout(['status' => 'error', 'message' => 'Missing suite id or name'], 400);
+        }
+        $tprojectId = $checkWrite($sid);
+        $tsuiteMgr = new testsuite($db);
+        $info = $tsuiteMgr->get_by_id($sid);
+        $details = is_array($info) ? strval($info['details'] ?? '') : '';
+        $tsuiteMgr->update($sid, $name, $details, null);
+        jout(['status' => 'ok', 'message' => 'Suite updated']);
+    }
+
+    // POST ?action=suite_delete {id}
+    if ($action === 'suite_delete') {
+        $sid = intval($body['id'] ?? 0);
+        if ($sid <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing suite id'], 400);
+        }
+        $tprojectId = $checkWrite($sid);
+        $tsuiteMgr = new testsuite($db);
+        $ret = $tsuiteMgr->delete($sid);
+        jout(['status' => 'ok', 'message' => 'Suite deleted', 'result' => $ret]);
+    }
+
+    // POST ?action=create {parent_id,name,summary,preconditions,steps[],
+    //                      importance,execution_type,keywords[]}
+    if ($action === 'create') {
+        $parentId = intval($body['parent_id'] ?? 0);
+        $name = trim(strval($body['name'] ?? ''));
+        if ($parentId <= 0 || $name === '') {
+            jout(['status' => 'error', 'message' => 'Missing parent suite or name'], 400);
+        }
+        $tprojectId = $checkWrite($parentId);
+        $execType = intval($body['execution_type'] ?? TESTCASE_EXECUTION_TYPE_MANUAL);
+        $importance = intval($body['importance'] ?? 2);
+        $summary = strval($body['summary'] ?? '');
+        $preconds = strval($body['preconditions'] ?? '');
+        $steps = $normSteps($body['steps'] ?? [], $execType);
+        $kwIds = $kwString($body['keywords'] ?? []);
+
+        $ret = $tcaseMgr->create($parentId, $name, $summary, $preconds, $steps,
+                                 intval($user->dbID ?? $userId), $kwIds,
+                                 testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
+                                 $execType, $importance);
+        $newId = 0;
+        if (is_array($ret)) {
+            if (isset($ret['status_ok']) && !$ret['status_ok']) {
+                jout(['status' => 'error',
+                      'message' => strval($ret['msg'] ?? 'Create failed')], 400);
+            }
+            $newId = intval($ret['id'] ?? 0);
+        } else {
+            $newId = intval($ret);
+        }
+        if ($newId <= 0) {
+            jout(['status' => 'error', 'message' => 'Create failed'], 500);
+        }
+        jout(['status' => 'ok', 'id' => $newId, 'message' => 'Test case created']);
+    }
+
+    // POST ?action=update {tcase_id,name,summary,preconditions,steps[],
+    //                      importance,execution_type,keywords[]}
+    // Updates the LATEST version (legacy doUpdate behavior).
+    if ($action === 'update') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+
+        $tvTables2 = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions', 'executions'));
+        $lvRow = $db->fetchFirstRow(
+            " SELECT TCV.* FROM {$tvTables2['tcversions']} TCV " .
+            " JOIN {$tvTables2['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId} " .
+            " ORDER BY TCV.version DESC LIMIT 1");
+        if (is_null($lvRow)) {
+            jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+        }
+        $tcversionId = intval($lvRow['id']);
+
+        $execRs = $db->get_recordset(
+            "SELECT id FROM {$tvTables2['executions']} WHERE tcversion_id = {$tcversionId}");
+        if (!is_null($execRs) && count($execRs) > 0
+            && !$user->hasRight($db, 'testproject_edit_executed_testcases', $tprojectId)
+            && !(($tcaseCfg->canEditExecuted ?? 0) > 0)) {
+            jout(['status' => 'error',
+                  'message' => 'This version has executions: editing requires special permission'],
+                 403);
+        }
+
+        $name = trim(strval($body['name'] ?? ''));
+        if ($name === '') {
+            jout(['status' => 'error', 'message' => 'Name must not be empty'], 400);
+        }
+        $execType = intval($body['execution_type'] ?? $lvRow['execution_type']);
+        $importance = intval($body['importance'] ?? $lvRow['importance']);
+        $summary = strval($body['summary'] ?? '');
+        $preconds = strval($body['preconditions'] ?? '');
+        $steps = $normSteps($body['steps'] ?? [], $execType);
+        $kwIds = $kwString($body['keywords'] ?? []);
+
+        $ret = $tcaseMgr->update($tcaseId, $tcversionId, $name, $summary,
+                                 $preconds, $steps,
+                                 intval($user->dbID ?? $userId), $kwIds,
+                                 intval($lvRow['node_order'] ?? testcase::DEFAULT_ORDER),
+                                 $execType, $importance);
+        if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
+            jout(['status' => 'error',
+                  'message' => strval($ret['msg'] ?? 'Update failed')], 400);
+        }
+        jout(['status' => 'ok', 'message' => 'Test case saved',
+              'tcversion_id' => $tcversionId]);
+    }
+
+    // POST ?action=delete {tcase_id}  -> removes ALL versions (legacy doDelete)
+    if ($action === 'delete') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $checkWrite($tcaseId);
+        $ret = $tcaseMgr->delete($tcaseId);
+        jout(['status' => 'ok', 'message' => 'Test case deleted', 'result' => $ret]);
+    }
+
+    // POST ?action=create_version {tcase_id}  -> new version cloned from latest
+    if ($action === 'create_version') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $checkWrite($tcaseId);
+        $ret = $tcaseMgr->create_new_version($tcaseId, intval($user->dbID ?? $userId));
+        $newTcv = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
+        if ($newTcv <= 0) {
+            jout(['status' => 'error', 'message' => 'Version creation failed'], 500);
+        }
+        jout(['status' => 'ok', 'tcversion_id' => $newTcv,
+              'message' => 'New version created']);
+    }
+
+    jout(['status' => 'error', 'message' => 'Bad request'], 400);
 }
 
 http_response_code(400);
