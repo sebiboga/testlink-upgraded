@@ -2450,3 +2450,60 @@ Pre-existing warnings observed during testing but NOT caused by this screen:
 common.php:2072 and `$tproject_id` in reqSpecViewButtons.inc.tpl (legacy
 reqSpecView deep link) — filed as issue #567.
 
+## 45. Modernization — Requirement Overview screen (reqOverview) (Suite ID: 51)
+
+**Screen:** `gui/templates/requirements/reqOverview.html` +
+`api/requirements/index.php` (BFF route `GET /overview`).
+Legacy reference: `lib/requirements/reqOverview.php` (right `mgt_view_req`,
+ExtJS table, latest/all versions toggle persisted in session).
+
+**Precondition:** fresh DB; fixtures via BFF (`api/projects`,
+`api/reqspec`): test project id 1 "ReqOverview Demo" (prefix `ROV`,
+requirements enabled), req specs id 2 "Login Module" (`ROV-SPEC-1`) and
+id 4 "Reporting" (`ROV-SPEC-2`); requirements ROV-REQ-1 "Password policy"
+(V, feature, exp 5), ROV-REQ-2 "OAuth2 login" (V, interface, exp 2),
+ROV-REQ-3 "Remember me" (D, use case, exp 1), ROV-REQ-4 "PDF export"
+(V, informational, exp 3), ROV-REQ-5 "Audit log" (D, feature, exp 2,
+frozen via `is_open=0`), ROV-REQ-6 "CSV export" (V, feature, exp 1);
+empty project id 18 "Empty Proj ROV" (prefix `EMP`); user id 2 `noinv`
+(global role guest = no `mgt_view_req`). Admin logged in at
+http://localhost:8082.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | BFF list as admin: `GET /api/requirements/index.php/overview?tproject_id=1` → `status ok`, `total 6`, meta flags `expected_coverage_management:true`, `relations_enabled:true`, type/status label maps, empty project → `items []` | PASS |
+| 2 | Screen load `?tproject_id=1`: header "Requirements Overview - ReqOverview Demo", info line "Latest version displayed \| 6 row(s)", notes block, footer "Generated on … (0.01 s)" | PASS |
+| 3 | Table columns: Req. Specification / Requirement / Version / Creation date / Last update / Frozen / Coverage / Type / Status / Relations; rows carry spec path ("Login Module"), `[v1r1]` tag, author "(Testlink Administrator)", type/status labels resolved | PASS |
+| 4 | Frozen badge: ROV-REQ-5 shows blue "Yes" badge, all others teal "No" | PASS |
+| 5 | Coverage column: all rows "0% (0/N)" red class (no linked test cases yet) — matches legacy counter logic | PASS |
+| 6 | All-versions toggle: check → reload → info line "All versions displayed"; **session persistence**: plain reload of the page without `all_versions` param keeps the checked state (legacy parity with `$_SESSION['all_versions']`) | PASS |
+| 7 | Refresh button re-fetches overview, footer timestamp updates | PASS |
+| 8 | Deep link: title/edit pen opens popup `/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=10&req_version_id=11&tproject_id=1` (captured `window.open` args) | PASS |
+| 9 | i18n EN: every visible string from bundle, no hardcoded text | PASS |
+| 10 | i18n DE (`?locale=de`): header "Anforderungsübersicht", columns "Anforderungsspezifikation / Anforderung / Version / Erstellungsdatum …", notes translated | PASS |
+| 11 | Empty project: `?tproject_id=18` → empty state "There are no requirements defined for this test project.", table hidden | PASS |
+| 12 | Permission path: login `noinv` (guest) → direct API call HTTP 403 `{"status":"error","message":"No permission"}`; screen shows "No permission" in empty state, table hidden | PASS |
+| 13 | Aside integration: shell menu Requirements Design → "Requirement Overview" points to modern `.html?tproject_id=1&tplan_id=0` and loads inside mainframe | PASS |
+| 14 | Event Viewer after all flows: no new Error/Warning rows caused by this screen | PASS |
+
+**Actual result:** 14/14 PASS.
+
+**Bugs found & fixed while testing**
+- `api/reqspec/index.php` `create_spec` attached specs to tree parent **0**
+  instead of the test project node — specs were orphaned and invisible to
+  every tree walk (`get_all_requirement_ids()` → Requirement Overview showed
+  nothing). Fixed to pass `$tproject_id` as parent (legacy parity with
+  `reqSpecCommands.class.php`), fixture rows repaired. Filed as issue #569.
+- All-versions toggle was always sent explicitly from the checkbox, so a
+  plain page reload reset the user's choice instead of restoring
+  `$_SESSION['all_versions']` like legacy `init_args()` does. Screen now omits
+  the param until the user toggles and syncs the checkbox from the server
+  response.
+
+**Files changed:** `gui/templates/requirements/reqOverview.html`,
+`lib/functions/common.php` (aside link switch),
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+22 keys each),
+`tmp/add_rov_i18n.py`, `api/reqspec/index.php` (#569 fix).
+
