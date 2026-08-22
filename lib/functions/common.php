@@ -1809,7 +1809,8 @@ function getActions(&$gui,$baseURL) {
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
   $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
-  $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
+  // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
+  $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
