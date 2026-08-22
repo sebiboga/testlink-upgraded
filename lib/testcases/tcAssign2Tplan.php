@@ -32,6 +32,7 @@ $gui->platformSet = $tplan_mgr->getPlatforms($args->tplan_id,$getOpt);
 
 $options['output'] = 'essential';
 $tcase_all_info = $tcase_mgr->get_by_id($args->tcase_id,testcase::ALL_VERSIONS,null,$options);
+$version = null;
 
 if( !is_null($tcase_all_info) )
 {
@@ -174,8 +175,10 @@ function init_args()
 
   // if any piece of context is missing => we will display nothing instead of crashing WORK TO BE DONE
   $args = new stdClass();
-  $args->tplan_id = isset($_REQUEST['tplan_id']) ? $_REQUEST['tplan_id'] : $_SESSION['testplanID'];
-  $args->tproject_id = isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] : $_SESSION['testprojectID'];
+  $args->tplan_id = isset($_REQUEST['tplan_id']) ? $_REQUEST['tplan_id'] :
+                    (isset($_SESSION['testplanID']) ? $_SESSION['testplanID'] : 0);
+  $args->tproject_id = isset($_REQUEST['tproject_id']) ? $_REQUEST['tproject_id'] :
+                       (isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0);
   
   $args->tproject_id = intval($args->tproject_id);
   $args->tplan_id = intval($args->tplan_id);
@@ -204,6 +207,8 @@ function initializeGui($argsObj)
   $guiObj->tcase_id=$argsObj->tcase_id;
   $guiObj->tcversion_id=$argsObj->tcversion_id;
   $guiObj->can_do=false;
+  // template dereferences this property even when there are no test plans to display
+  $guiObj->tplans = null;
   $guiObj->item_sep=config_get('gui')->title_separator_2;
   $guiObj->cancelActionJS = 'location.href=fRoot+' . "'" . "lib/testcases/archiveData.php?" .
                             'edit=testcase&id=' . intval($argsObj->tcase_id) . "'"; 

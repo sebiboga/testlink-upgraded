@@ -20,7 +20,24 @@ $templateCfg = templateConfiguration();
 
 $tree_mgr = new tree($db);
 $args = init_args();
-$node = $tree_mgr->get_node_hierarchy_info($args->tcase_id);
+
+// validate incoming test case id: stop with a clean localized message instead of
+// running into PHP 8 warnings and SQL errors downstream
+// (e.g. testproject::getTestCasePrefix(null))
+$node = null;
+if( $args->tcase_id > 0 )
+{
+  $node = $tree_mgr->get_node_hierarchy_info($args->tcase_id);
+}
+
+if( is_null($node) )
+{
+  echo renderHTMLHeader(lang_get('test_case'),$_SESSION['basehref'],SINGLE_TESTCASE,
+                        array('gui/javascript/testlink_library.js'));
+  echo '<body><div class="workBack">' . htmlspecialchars(lang_get('testcase_does_not_exists')) . '</div></body></html>';
+  exit();
+}
+
 $node['tcversion_id'] = $args->tcversion_id;
 $gui = initializeGui($args,$node);
 
@@ -65,9 +82,14 @@ function init_args()
   $args = new stdClass();
   $args->tcase_id = intval(isset($_REQUEST['testcase_id']) ? intval($_REQUEST['testcase_id']) : 0);
   $args->tcversion_id = intval(isset($_REQUEST['tcversion_id']) ? intval($_REQUEST['tcversion_id']) : 0);
-  $args->tproject_id = intval(isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0);
 
-  $args->tproject_name = $_SESSION['testprojectName'];
+  $args->tproject_id = intval(isset($_SESSION['testprojectID']) ? $_SESSION['testprojectID'] : 0);
+  if( $args->tproject_id <= 0 && isset($_REQUEST['tproject_id']) )
+  {
+    $args->tproject_id = intval($_REQUEST['tproject_id']);
+  }
+
+  $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
   $args->goback_url=isset($_REQUEST['goback_url']) ? $_REQUEST['goback_url'] : null;
 
 
