@@ -1819,8 +1819,8 @@ function getActions(&$gui,$baseURL) {
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
-  $actions->metrics_dashboard =  
-    "$bb/results/metricsDashboard.php?{$ctx}";
+  $actions->metrics_dashboard =
+    "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
 
   $pp = $bb . '/plan';
