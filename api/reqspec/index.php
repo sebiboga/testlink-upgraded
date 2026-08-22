@@ -224,7 +224,10 @@ if ($method === 'POST' && $action === 'create_spec') {
     if ($docId === '') { badRequest('Document ID cannot be empty'); }
     if ($title === '') { badRequest(lang_get('warning_empty_req_title')); }
 
-    $op = $reqSpecMgr->create($tproject_id, 0, $docId, $title, $scope,
+    // Specs attach directly to the test project node (same as legacy
+    // reqSpecCommands root-level create). Parent 0 leaves the node orphaned:
+    // get_all_requirement_ids() and every tree walk never find it. Refs #569
+    $op = $reqSpecMgr->create($tproject_id, $tproject_id, $docId, $title, $scope,
                               $countReq, $userId, $type);
     if (!$op['status_ok']) {
         badRequest($op['msg']);
