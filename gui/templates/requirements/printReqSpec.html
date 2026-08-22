@@ -156,7 +156,7 @@ function warn(msg) {
 }
 
 function loadInit() {
-  $.getJSON(API, { action: 'init', tproject_id: tprojectId }, function (r) {
+  $.getJSON(API, { action: 'print_init', tproject_id: tprojectId }, function (r) {
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
     init = r;
     if (!r.hasProject) {
@@ -214,7 +214,7 @@ function renderOptions(sel, opts) {
 
 function loadTree() {
   if (!init || !init.hasProject) { return; }
-  $.getJSON(API, { action: 'tree', tproject_id: tprojectId }, function (r) {
+  $.getJSON(API, { action: 'print_tree', tproject_id: tprojectId }, function (r) {
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
     renderTree(r);
     $('#footerInfo').html(
