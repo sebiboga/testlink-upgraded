@@ -293,7 +293,22 @@ function checkSessionValid(&$db, $redirect=true)
 function doSessionStart($setPaths=false) {
 
   if( PHP_SESSION_NONE == session_status() ) {
-    session_set_cookie_params(99999);
+    // Harden the session cookie: HttpOnly (no JS access) + SameSite=Lax
+    // (blocks cross-site POST riding the cookie), secure auto on HTTPS.
+    $secure = !empty($_SERVER['HTTPS']) &&
+              strcasecmp((string)$_SERVER['HTTPS'], 'off') !== 0;
+    if( PHP_VERSION_ID >= 70300 ) {
+      session_set_cookie_params(array(
+        'lifetime' => 99999,
+        'path' => '/',
+        'secure' => (bool)$secure,
+        'httponly' => true,
+        'samesite' => 'Lax',
+      ));
+    } else {
+      // PHP < 7.3 has no array API / samesite support
+      session_set_cookie_params(99999, '/', '', (bool)$secure, true);
+    }
   }
   
   if(!isset($_SESSION)) {
@@ -1821,6 +1836,13 @@ function getActions(&$gui,$baseURL) {
   // Test Specification (editTc) modernized screen - tree & editor
   $actions->testSpec = "/gui/templates/testcases/testSpec.html?{$ctx}";
 
+  // Add/Remove Test Cases modernized screen (Dashio standalone page) - Refs #593
+  if ($tplan_id > 0) {
+    $actions->planAddTC = "/gui/templates/plans/planAddTCView.html?{$ctx}";
+  } else {
+    $actions->planAddTC = null;
+  }
+
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
   $actions->metrics_dashboard =
@@ -1828,7 +1850,8 @@ function getActions(&$gui,$baseURL) {
 
 
   $pp = $bb . '/plan';
-  $actions->planView = "$pp/planView.php?{$ctx}";
+  // Test Plan Management modernized screen (Dashio standalone page) - Refs #576
+  $actions->planView = "/gui/templates/plans/planView.html?{$ctx}";
 
   $actions->buildView = null;
   $actions->mileView = null;
@@ -1836,7 +1859,8 @@ function getActions(&$gui,$baseURL) {
   $actions->milestonesView = null;
   $actions->testcase_assignments = null;
   if ($tplan_id >0) {
-    $actions->buildView = "$pp/buildView.php?{$ctx}";
+    // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
+    $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
     $actions->mileView = "$pp/planMilestonesView.php?{$ctx}";
     $actions->platformAssign = "$bb/platforms/platformsAssign.php?{$ctx}";
     $actions->milestonesView = "$bb/plan/planMilestonesView.php?{$ctx}";
@@ -1861,7 +1885,9 @@ function getActions(&$gui,$baseURL) {
   $gui->workArea->showMetrics = null;
   
   if ($tplan_id >0) {
-    $gui->workArea->planAddTC = "planAddTC&{$ctx}";
+    // planAddTC switched to the modernized HTML screen above (workArea entry
+    // stays null so the frmWorkArea launcher no longer overwrites the link)
+    $gui->workArea->planAddTC = null;
     $gui->workArea->executeTest = "executeTest&{$ctx}";
     $gui->workArea->setTestUrgency = "test_urgency&{$ctx}";
     $gui->workArea->planUpdateTC = "planUpdateTC&{$ctx}";

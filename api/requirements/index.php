@@ -35,6 +35,10 @@ require_once('requirements.inc.php');
 
 doSessionStart();
 
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+
+
 header('Content-Type: application/json');
 
 $db = new database(DB_TYPE);

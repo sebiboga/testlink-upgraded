@@ -19,6 +19,10 @@ require_once(__DIR__ . '/../../third_party/adodb_xml/class.ADODB_XML.php');
 
 doSessionStart();
 
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+
+
 header('Content-Type: application/json');
 
 $db = new database(DB_TYPE);

@@ -2138,7 +2138,10 @@ class testplan extends tlObjectWithAttachments
          " GROUP BY NHTSUITE.name,NHTSUITE.id,NHTSUITE.parent_id " .
          " ORDER BY NHTSUITE.name" ;
     
-    $recordset = $this->db->get_recordset($sql);
+    // issue #577: get_recordset() returns NULL when the test plan has no
+    // linked tcversions => foreach() on null + undefined $finalset for usort().
+    // Cast to array (same pattern as get_parenttestsuites()).
+    $recordset = (array)$this->db->get_recordset($sql);
     
     // Now the recordset contains testsuites that have child test cases.
     // However there could potentially be testsuites that only have grandchildren/greatgrandchildren
@@ -2151,6 +2154,7 @@ class testplan extends tlObjectWithAttachments
     
     // At this point there may be duplicates
     $dup_track = array();
+    $finalset = array();
     foreach($superset as $value)
     {
       if (!array_key_exists($value['id'],$dup_track))

@@ -26,6 +26,24 @@ $topText = '';
 $doc_data = new stdClass(); // gather content and tests related data
 
 list($args,$tproject_mgr,$decode) = init_args($db);
+
+// Refs #573: plan-based documents need a valid test plan that belongs to the
+// active test project. Deep links / stale bookmarks without docTestPlanId
+// must fail gracefully instead of crashing later with SQL + E_WARNING events.
+$planBasedDocTypes = array(DOC_TEST_PLAN_DESIGN,DOC_TEST_PLAN_EXECUTION,
+                           DOC_TEST_PLAN_EXECUTION_ON_BUILD);
+if (in_array($args->doc_type,$planBasedDocTypes,true)) {
+  $tplanMgrChk = new testplan($db);
+  $tplanChk = ($args->tplan_id > 0) ?
+    $tplanMgrChk->get_by_id($args->tplan_id,array('output' => 'minimun')) : null;
+
+  if (is_null($tplanChk) || !isset($tplanChk['tproject_id']) ||
+      $tplanChk['tproject_id'] != $args->tproject_id) {
+    renderGracefulExit(lang_get('error_print_doc_missing_testplan'));
+    exit;
+  }
+}
+
 $tree_manager = &$tproject_mgr->tree_manager;
 list($doc_info,$my) = initEnv($db,$args,$tproject_mgr,$args->user_id);
 
@@ -82,10 +100,14 @@ switch ($doc_info->type) {
     $tplan_mgr = new testplan($db);
     $tplan_info = $tplan_mgr->get_by_id($args->tplan_id);
 
+    $doc_info->build_name = '';
+    $doc_info->build_notes = '';
     if($args->build_id > 0) {
       $xx = $tplan_mgr->get_builds($args->tplan_id,null,null,array('buildID' => $args->build_id));
-      $doc_info->build_name = htmlspecialchars($xx[$args->build_id]['name']);
-      $doc_info->build_notes = $xx[$args->build_id]['notes'];
+      if( !is_null($xx) && isset($xx[$args->build_id]) ) {
+        $doc_info->build_name = htmlspecialchars($xx[$args->build_id]['name']);
+        $doc_info->build_notes = $xx[$args->build_id]['notes'];
+      }
     }  
 
     $doc_info->testplan_name = htmlspecialchars($tplan_info['name']);
@@ -344,6 +366,21 @@ function init_args(&$dbHandler) {
   $dcd['status_code_descr'] = array_flip($dcd['status_descr_code']);
 
   return array($args,$tproject_mgr,$dcd);
+}
+
+
+/**
+ * Refs #573: render a minimal graceful error page and stop, used when
+ * mandatory parameters for the requested document are missing/invalid.
+ */
+function renderGracefulExit($message) {
+  echo '<!DOCTYPE html><html><head><meta charset="UTF-8">' .
+       '<title>TestLink</title></head><body>' .
+       '<div style="font-family:sans-serif;margin:40px auto;max-width:640px;">' .
+       '<h2>' . htmlspecialchars(lang_get('error_print_doc_title')) . '</h2>' .
+       '<p>' . htmlspecialchars($message) . '</p>' .
+       '</div></body></html>';
+  flush();
 }
 
 

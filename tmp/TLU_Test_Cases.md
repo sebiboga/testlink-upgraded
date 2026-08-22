@@ -2580,3 +2580,293 @@ admin session at http://localhost:8082; stock single-worker `php -S` runtime.
 - Five legacy attachment `getimagesize()` call sites (print.inc.php:290,1309,1528,1634,1790)
   call `list()` on the result without a `!== false` guard → PHP 8 undefined-offset
   warnings if an attached image file is corrupt/missing.
+
+## 47. Regression — Issue #574: print.inc.php unguarded getimagesize() on attachments (Suite ID: 53)
+
+**Area:** legacy document generation (`lib/results/printDocument.php` →
+`lib/functions/print.inc.php`). **Fix commit:** ab5833b67.
+
+**Precondition:** fresh DB; fixtures created via XML-RPC API (admin
+script_key): test project `Bug574Proj` (id 1, prefix B574), test plan
+`Bug574Plan` (id 2), build B1, suite `Bug574Suite` (id 3, tree root
+`nodes_hierarchy/3`), test case B574-1 `Bug574Case` (tcid 4, tcversion 5)
+linked to the plan. Two PNG image attachments inserted directly
+(`attachments` rows + files under `upload_area/`):
+- attach id 1 → `tcversions/5/att574tc.png` (400×300)
+- attach id 2 → `nodes_hierarchy/3/att574suite.png` (200×100)
+
+Admin session at http://localhost:8082. Events table snapshot taken
+(`SELECT MAX(id) FROM events`) to detect new entries per step.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix baseline (file present): Test Plan Report `printDocument.php?tproject_id=1&docTestPlanId=2&type=testreport&level=testproject&id=1` renders TC attachment `<img>` with width=400 height=300; no new events | PASS |
+| 2 | Pre-fix repro A (file deleted): same URL → E_WARNING event "getimagesize(...att574tc.png): Failed to open stream ... print.inc.php - Line 1522" AND malformed markup `<img width="height=" src=...>` | PASS |
+| 3 | Pre-fix repro B (file replaced by garbage bytes): no getimagesize warning but SAME malformed `<img width="height=">` output (silent false) | PASS |
+| 4 | Post-fix corrupt file: report renders clean `<img src=...>` WITHOUT width/height attributes; ZERO new events | PASS |
+| 5 | Post-fix missing file: identical clean fallback; ZERO new events | PASS |
+| 6 | Post-fix healthy file restored: dimensions back (`width="400" height="300"`); ZERO new events | PASS |
+| 7 | Suite-attachment site (renderTestSuiteNodeForPrinting): Test Spec doc `printDocument.php?type=testspec&level=testsuite&id=3&allOptionsOn=1` renders suite img id=2 width=200 height=100 | PASS |
+| 8 | Site 5 broken (suite file removed): clean `<img>` fallback, ZERO new events; healthy file restored afterwards | PASS |
+| 9 | php -l print.inc.php clean after all edits (5 guarded sites) | PASS |
+
+**Result: 9 / 9 PASS** — sites verified end-to-end: line 1522-class
+(TC attachment, renderTestCaseForPrinting) and line 1783-class (suite
+attachment, renderTestSuiteNodeForPrinting) in all three file states;
+remaining three sites share the identical mechanical guard (code-reviewed).
+Note: pre-fix events 1-7 in the fresh DB stem from XML-RPC fixture creation
+(pre-existing API warnings, out of scope for this issue).
+
+## Regression — Issue #573: printDocument.php missing docTestPlanId renders raw DB Access Error page
+
+**Precondition:** admin logged in at http://localhost:8082; ≥1 test project (fixture: id=1 "Repro Project") with ≥1 test plan (fixture: id=2 "Repro Plan"); note baseline of events table.
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/printDocument.php?type=testplan&level=testproject&id=1&tproject_id=1` (no `docTestPlanId`).
+2. Observe response body and Event Viewer / events table.
+Pre-fix result: HTTP 200 raw "DB Access Error - debug_print_backtrace()" page (`testplan->getLinkedStaticView(0)` → `testcase->getTestCasePrefix(NULL)`, SQL 1064) + 1 ERROR and multiple E_WARNING events (printDocument.php L91/L92, testplan.class.php L6804, testcase.class.php L2158).
+
+**Expected post-fix:** graceful localized page ("Document generation error" + explanation), no backtrace, no new ERROR/E_WARNING events sourced to printDocument.php.
+
+**Actual result (post-fix): PASS**
+- Missing docTestPlanId → graceful page ✓
+- docTestPlanId=99999 (unknown plan) → graceful page ✓
+- Plan from a different project than session test project → graceful page ✓
+- Valid docTestPlanId=2 → document generated ("Repro Plan" content) for type=testplan, testreport, testreport_onbuild, legacy alias type=test_plan ✓
+- type=testspec (plan not required) → unaffected ✓
+- Events table: no new entries sourced to printDocument.php after the fix ✓
+
+**Fix commit:** 34302f8ee on branch fix/issue-573. Follow-up pre-existing bug found during this suite: #575 (onbuild without build_id E_WARNINGs in print.inc.php — separate code path).
+
+## Regression — Issue #575: printDocument.php testreport_onbuild without build_id logs E_WARNINGs (undefined build_name/build_notes)
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 "Repro Project #575" (options serialized with testPriorityEnabled=1), test plan id=2 "Repro Plan #575" (same project), build id=10 "Build B1" on plan 2; note baseline of events table (cleared before each step).
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/printDocument.php?type=testreport_onbuild&level=testproject&id=1&tproject_id=1&docTestPlanId=2` (no `build_id`).
+2. Observe Event Viewer / events table.
+Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined property: stdClass::$build_name` (print.inc.php L741), `$build_name` (L2317), `$build_notes` (L2319).
+
+**Expected post-fix:** document renders with an empty "Build:" label and ZERO new E_WARNING/E_ERROR events; valid build_id still prints the build name/notes; invalid build_id degrades gracefully.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | No build_id → doc 200, "Build:" empty label, 0 warning events | PASS |
+| 2 | build_id=10 → doc shows "Build: Build B1", 0 warning events | PASS |
+| 3 | build_id=9999 (invalid) → doc 200, graceful empty label, 0 warning events (pre-fix hazard: array-offset warnings) | PASS |
+| 4 | Regression type=testplan & type=testreport (shared case block) → both render 200, 0 warnings | PASS |
+| 5 | php -l printDocument.php clean after edit | PASS |
+
+**Fix commit:** de0ab88af on branch fix/issue-575.
+
+**Note discovered during this suite:** generating the same document through the full browser session on a plan with NO linked test cases surfaced an unrelated pre-existing bug — `testplan::get_testsuites()` foreach-on-null E_WARNINGs (testplan.class.php:2147/2154). Filed as #577, out of scope for #575.
+
+## Regression — Issue #577: testplan::get_testsuites() foreach-on-null on plans without linked test cases
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 `FixProj` (options = serialized stdClass w/ requirementsEnabled/testPriorityEnabled/automationEnabled/inventoryEnabled), root testsuite id=2, test plan id=3 `EmptyPlan` (zero rows in testplan_tcversions), build id=4 `B1` on plan 3 (needed by helperGetExecCounters for on-build reports). Clear events table before each step.
+
+**Repro steps (pre-fix):**
+1. Direct call: CLI/web probe `$tplanMgr->get_testsuites(3)` on empty plan.
+2. UI path: browser session → `GET /lib/results/printDocument.php?type=testreport_onbuild&level=testproject&id=1&tproject_id=1&docTestPlanId=3&format=0`.
+3. Check Event Viewer / `events` table.
+
+**Observed pre-fix:** 2× E_WARNING `foreach() argument must be of type array|object, null given` at lib/functions/testplan.class.php:2147 and :2154; direct invocation additionally aborts with uncaught `TypeError: usort(): Argument #1 ($array) must be of type array, null given` at line 2164 → truncated HTTP 500 response (web) / fatal (CLI). Root cause: `get_recordset()` returns NULL for zero rows and `$finalset` was never initialized.
+
+**Expected post-fix:** document renders; zero new Error/Warning events; `get_testsuites()` returns `array()` for empty plans and the full suite set (case suites + ancestors, name-sorted) for populated plans.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | Empty plan direct probe → returns `array(0) {}`, no warnings, no fatal | PASS |
+| 2 | printDocument testreport_onbuild via browser on empty plan → doc renders ("testreport_onbuild EmptyPlan"), 0 new events | PASS |
+| 3 | tlTestPlanMetrics::getExecCountersByTestSuiteExecStatus(3) full chain → metrics array with `tsuites_full=[]`, HTTP 200, DONE reached, 0 events | PASS |
+| 4 | Positive regression: link TC-1 (suite TS-A id=5 under Root id=2) to plan 3 → get_testsuites(3) returns `[Root Suite(2), TS-A(5)]` sorted by name | PASS |
+| 5 | resultsGeneral.php?tplan_id=3&format=0 → original 2147/2154 warnings + usort crash gone | PASS |
+
+**Fix:** `(array)` cast on `get_recordset()` result + `$finalset = array()` init (testplan.class.php:2141-2161) — same pattern as `get_parenttestsuites()`.
+
+**Follow-up discovered during this suite (out of scope):** with the crash gone, the resultsGeneral render path surfaces 3 pre-existing downstream E_WARNINGs on empty plans (tlTestPlanMetrics.class.php:1259 undefined key `tsuites`, :1383/:1393 property read on null from getStatusTotalsByItemForRender returning [null,null]). Filed separately.
+
+## 48. Modernization — Test Plan Management screen (planView) (Suite ID: 54)
+
+**Refs:** GitHub issue #576 · Files: `gui/templates/plans/planView.html`, `api/plans/index.php`, i18n keys `pv.*`/`header.planManage*` in 10 bundles, aside switch in `lib/functions/common.php`
+
+**Pre-conditions:** fresh DB, admin/admin, test project "Demo Project" (id=1, prefix DP) created via UI; no platforms initially.
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | Aside menu → Test Plan section → "Test Plan Management" points to `/gui/templates/plans/planView.html?tproject_id=1&tplan_id=0` and loads in mainframe | PASS |
+| 2 | Empty state: header/sub i18n'd, toolbar shows Test Project name, Create/Bulk buttons visible for admin, "No test plans exist…" message shown | PASS |
+| 3 | "+ Create Test Plan" navigates to legacy `planEdit.php?do_action=create`; created "Plan Alpha" via legacy form; returning to screen lists it with counts 0/0 | PASS |
+| 4 | **BUG-1 fixed**: BFF action URLs were relative (`lib/plan/…`) → resolved against `/gui/templates/plans/` → 404. Made root-absolute in BFF (`viewActions()`); create/edit/export/import/assignRoles/gotoExecute all HTTP 200 afterwards | PASS |
+| 5 | **BUG-2 fixed**: unquoted jQuery attribute selectors `th[data-i18n=pv.tcQty]` threw "Syntax error, unrecognized expression", aborting `load()` before `render()` — table never populated. Quoted selectors fix rendering | PASS |
+| 6 | Active toggle per row: off→on with toast "Test plan activated"; on→off with toast "Test plan deactivated"; DB `testplans.active` follows | PASS |
+| 7 | Bulk: select 2 plans → Inactivate → toast "2 test plan(s) deactivated", both toggles off; Activate → both on | PASS |
+| 8 | Bulk with zero selection → toast "Please select at least one test plan", API returns 422 NO_SELECTION | PASS |
+| 9 | Delete modal: confirm text shows plan name + warning; Cancel keeps plan; Confirm deletes ("Plan Beta" gone, toast "Test plan deleted", count updated, audit event `audit_testplan_deleted` written) | PASS |
+| 10 | Per-row legacy links resolve 200: planEdit edit, planExport, planImport, usersAssign (featureType=testplan), frmWorkArea executeTest | PASS |
+| 11 | Permission path: guest user `noperm` → direct GET `/api/plans/index.php/?tproject_id=1` = 403 "No permission"; aside does not render the link (menu grant gated, same as legacy checkRights) | PASS |
+| 12 | **BUG-3 fixed**: DataTables alert "Requested unknown parameter '8'" when Platforms column hidden via CSS while rows carried 8 cells vs 9 headers; column visibility now managed by stable CSS class `hide-plat` + always-populated cells | PASS |
+| 13 | Platforms column dynamic path: platform "Chrome" added via BFF → reload shows Platforms column with per-plan qty; hidden again for projects without platforms | PASS |
+| 14 | Re-render stability: toggle/bulk/delete each trigger full reload — columns stay correct across DataTables destroy/init cycles | PASS |
+| 15 | i18n: locale switcher → Română renders "Management Planuri de Test / creează, activează…"; keys exist in all 10 bundles (`pv.*` ×32 + `header.planManage*` ×2), all bundles pass `json.tool` | PASS |
+| 16 | Event Viewer: no new ERROR/WARNING events during entire suite (only AUDIT logins/logouts/deletes) | PASS |
+
+**Bugs found & fixed during this suite:** BUG-1 (commit 05d9cb312), BUG-2 (commit 423cd66ce), BUG-3 (commits 7006a3f7d + a9866a0cf). All verified post-fix.
+
+**Screenshots:** wiki `Test-Plan-Management.md` (normal state, delete modal, ro locale).
+## Regression — Issue #579: tlTestPlanMetrics 3x E_WARNING + PHP 8.3 fatal on empty-plan report path
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 `Issue579 Project` (prefix I579), test plan id=11 `Issue579 EmptyPlan` with build id=12 `Issue579 Build` and ZERO rows in testplan_tcversions (build required — helperGetExecCounters throws "Can not work with empty build set" otherwise, that throw is pre-existing separate behavior); second plan id=30 `Issue579 EmptyPlan2` + build id=31 kept caseless for the final check.
+
+**Repro steps (pre-fix):**
+1. Browser session → `GET /lib/results/resultsGeneral.php?tplan_id=11&format=0`.
+2. Check Event Viewer / `events` table and tmp/php_server.log.
+
+**Observed pre-fix:** HTTP 500. Event Viewer got exactly the 3 reported E_WARNINGs at 17:16:23 — `Undefined array key "tsuites"` (tlTestPlanMetrics.class.php:1259), `Attempt to read property "colDefinition" on null` (:1383), `Attempt to read property "info" on null` (:1393) — and then, because resultsGeneral.php passes `groupByPlatform=1`, PHP 8.3 escalated :1393 into `Uncaught TypeError: array_keys(): Argument #1 ($array) must be of type array, null given` → fatal. Root cause: `getExecCountersByTestSuiteExecStatus()` never sets `$exec['tsuites']` when `get_testsuites()` returns an empty set (`$loop2do=0`), so `getStatusTotalsByItemForRender()` bails leaving `$renderObj=null`, which the caller dereferenced unguarded.
+
+**Expected post-fix:** page renders its "no test cases" branch (`report_tspec_has_no_tsuites`) with HTTP 200; zero new tlTestPlanMetrics events; non-empty plans keep rendering full statistics; all callers of `getStatusTotalsByTopLevelTestSuiteForRender()` stay warning-free.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | resultsGeneral.php?tplan_id=11&format=0 (empty plan) → 200, "There are no Test Suites defined…" branch, 0 metrics events in `events` table, no fatal in php_server.log | PASS |
+| 2 | Positive regression: link TC v1 (suite `I579 Suite` id=13) to plan 11 → same URL renders "Results by Top Level Test Suite" with I579 Suite Total=1 Not Run=1 100.0% | PASS |
+| 3 | lib/general/mainPage.php dashboard (caller of the fixed method, incl. its no-builds guard) → 200, 0 new events | PASS |
+| 4 | topLevelSuitesBarChart canDraw null-guard reviewed in place (screen itself still blocked by pre-existing getRootTestSuites() array_keys(null), filed as #580 — fires at line 57 BEFORE the guarded call) | PASS |
+| 5 | php -l on both touched files clean; code-review subagent APPROVE (truth table of rewritten condition identical for keyword/platform/priority_level paths) | PASS |
+
+**Fix commit:** edcae5f3e on branch fix/issue-579.
+
+**Follow-ups discovered during this suite (out of scope, each filed with repro+root cause):**
+- #580 `testplan::getRootTestSuites()` array_keys(null) TypeError → topLevelSuitesBarChart 500 on case-less plans.
+- #581 resultsGeneral.php:248 `testPriorityEnabled on false` when testprojects.options is empty.
+- #582 resultsGeneral.php:63 foreach($items2loop) undefined on platform-less plans + template/controller name mismatch `$gui->tprojOpt` vs `$gui->testprojectOptions`.
+- #583 `getStatusTotalsTSuiteDepth2ForRender()` same null-deref pattern (:3389/:3403, resultsByTSuite.php path) found by code review.
+
+### Suite 54b — code-review round (commits f3f2c1faa, 779ebfb11; issue #584 filed)
+
+| # | Finding (review) | Fix | Verify |
+|---|---|---|---|
+| R1 | BLOCKER: `bulk-active` ownership check ineffective — `testplan::get_by_id()` 2nd arg is an options array, cross-project ids passed → explicit `testproject_id` comparison now | PASS |
+| R2 | BLOCKER: stored XSS via plan name in inline `onclick` (entity decode re-injects quotes in JS context) → deleted button now carries only `data-del-id`; name resolved from API payload via delegated handler | PASS |
+| R3 | BLOCKER: notes regex sanitizer bypassable (`<script src=…` unclosed, `/onerror=` no-whitespace) → DOMPurify.sanitize(); payload test: script+onerror stripped, benign `<b>` kept | PASS |
+| R4 | MAJOR: assign-roles link used `itemID=` but usersAssign.php reads `featureID=` → fixed in BFF action map | PASS |
+| R5 | NIT: PUT /{id}/active route lacked ctype_digit validation (DELETE had it) → added | PASS |
+| R6 | MAJOR parity gap: legacy custom-field columns absent from modern screen → deferred, filed as #584 (labeled bug) with repro + suggested fix | FILED |
+| R7 | MINOR: explicit CSRF origin validation — deferred: would break legit non-browser API clients and diverges from all sibling BFF endpoints; noted on #576 for repo-wide decision | NOTED |
+
+Post-fix regression: delete modal opens/cancels via delegation, notes render sanitized, table/columns/toggles unchanged. Event Viewer: still zero new Error/Warning events.
+
+## Regression — Issue #583: getStatusTotalsTSuiteDepth2ForRender() null deref + array_keys(null) TypeError on empty plan (resultsByTSuite.php path)
+
+**Precondition:** admin logged in at http://localhost:8082 (PHP 8.3); fresh-DB fixture created via SQL: test project id=900001 `Issue583Proj` (prefix I583), test plan id=900002 `Issue583Plan` with build id=900003 `Build B1` and ZERO rows in testplan_tcversions (build required — without it `helperGetExecCounters()` throws "Can not work with empty build set", a separate pre-existing guard that masks the reported path). Session cookie reused for curl A/B checks; direct-call harness used to expose the exact fatal (page itself exits silently when the `format` request param is missing — see Discovery D3).
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/resultsByTSuite.php?tplan_id=900002&format=0`.
+2. Same URL through a harness calling `tlTestPlanMetrics::getStatusTotalsTSuiteDepth2ForRender(900002,null,['groupByPlatform'=>1])` with display_errors on.
+
+**Observed pre-fix:** step 1 → HTTP 500, zero-byte body (`display_errors` off in this SAPI context). Step 2 → first `E_WARNING Attempt to read property "colDefinition" on null` (tlTestPlanMetrics.class.php:3389), then `Uncaught TypeError: array_keys(): Argument #1 ($array) must be type array, null given` (:3403) → matches issue report exactly. Root cause: on a plan whose builds exist but which has no linked test cases, `getExecCountersByTestSuiteExecStatus()` never sets `$exec['tsuites']`, so `getStatusTotalsByItemForRender('tsuite')` returns `[null, …]` (the same null contract fixed for `getStatusTotalsByTopLevelTestSuiteForRender()` in #579); `getStatusTotalsTSuiteDepth2ForRender()` dereferenced `$rx` unguarded.
+
+**Expected post-fix:** method returns NULL early; page renders its "no level 2 suites" branch (`report_tspec_has_no_tsuites`) with HTTP 200; populated plans keep rendering the L1/L2 statistics table; sibling metrics screens unaffected.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | Harness call returns NULL (no warning/fatal); resultsByTSuite.php?tplan_id=900002&format=0 → HTTP 200 + "There are no Test Suites defined…no report can be created" branch | PASS |
+| 2 | A/B proof: temporarily restoring HEAD version of tlTestPlanMetrics.class.php → same URL gives HTTP 500 / 0 bytes; re-applying fix → HTTP 200 again | PASS |
+| 3 | Positive regression: linked TC v1 under nested suites TS TOP(900004) > TS CHILD(900005) via testplan_tcversions → same URL renders full report (TS CHILD / TS TOP rows, Not Run column), HTTP 200, no fatals | PASS |
+| 4 | Sibling screens sharing getStatusTotalsByItemForRender(): resultsGeneral.php?tplan_id=900002&format=0 → HTTP 200, no warnings; mainPage.php dashboard unaffected | PASS |
+| 5 | php -l clean; Event Viewer shows no new Error/Warning events from the touched code path during all steps | PASS |
+
+**Fix commit:** b6d6d4eab on branch fix/issue-583.
+
+**Follow-up discovered during this suite (out of scope, filed with repro+root cause):**
+- #586 pChart PHP4-style constructor never runs under PHP 8 (`function pChart()` no longer treated as `__construct`) → `$this->Picture` stays NULL and every chart screen (topLevelSuitesBarChart etc.) fatals with imagecolorallocate TypeError **even on fully populated plans**.
+
+## Regression — Issue #587: getExecTimeSpan() undefined $fieldList + null map on zero-execution plans (resultsByTSuite exec-span path)
+
+**Precondition:** admin logged in at http://localhost:8082; fresh-DB fixture via SQL: project 900001 `FIX587 Project`, plan 900002 `FIX587 Plan`, build 900003 `B1`, nested suites TS TOP(900004) > TS CHILD(900005), TC-1 v1 (tcversion 900007) linked through testplan_tcversions id=900008, **zero rows in `executions`**. Session cookie reused for curl checks.
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/resultsByTSuite.php?tplan_id=900002&tproject_id=900001&format=0`.
+2. Inspect `events` table for new E_WARNING entries.
+
+**Observed pre-fix:** HTTP 200 but exactly 4 new events:
+1. `Undefined variable $fieldList` — tlTestPlanMetrics.class.php:3657 (fires on EVERY call, even with executions: `$fieldList .= implode(...)` never initialized);
+2. `Trying to access array offset on null` — resultsByTSuite.php:72 (`$span[$args->tplan_id]` when `fetchRowsIntoMap()` returned NULL because the aggregate SELECT over an empty `executions` set yields no rows);
+3./4. `Trying to access array offset on null` ×2 from compiled `show_table_with_exec_span.inc.tpl.php` lines 39/42 (template reads `$gui->spanByPlatform[$platId]['begin'|'end']` where `[0] => null` was stored).
+
+**Expected post-fix:** zero new Error/Warning events on every load path; with executions present the First/Latest Execution span renders as before; per-platform span shows only for platforms having executions; no behavior change elsewhere.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | Zero-executions load → HTTP 200, **0 new events** (was 4) | PASS |
+| 2 | Positive regression: INSERT one execution (2026-08-20 10:00:00, status p, platform_id 0) → same URL renders "First Execution on: 20/08/2026 10:00:00" + "Latest Execution on: …", **0 new events** (the $fieldList warning used to fire here too) | PASS |
+| 3 | Multi-platform edge: platforms P-Busy(900008, has execution)/P-Idle(900009, none) linked to plan, link row updated to platform 900008 → "Results on Platform: P-Busy" section renders with correct span dates, **0 new events**, isset() guard covers the missing-per-platform-key shape | PASS |
+| 4 | Browser pass (headless Chrome, admin/admin): report page renders fully incl. platform sections and span block; Event Viewer shows only the normal AUDIT login event (level 16), no Error/Warning | PASS |
+| 5 | Code review subagent over full diff: PASS (no required findings); two pre-existing adjacent defects found and filed instead of fixed in-scope: #588 (dashio partial missing property_exists guard → warning from baselinel1l2 pages), #589 (saveForBaseline null-span deref + empty baseline insert on zero-exec plans) | PASS |
+
+**Fix commit:** 6dd9f7e9b on branch fix/issue-587.
+
+## 49. Modernization — Builds & Releases screen (buildsView) (Suite ID: 55)
+
+**Refs:** GitHub issue #585 · Files: `gui/templates/plans/buildsView.html`, `api/builds/index.php`, i18n keys `bv.*` + `common.forbidden` in 10 bundles, aside switch in `lib/functions/common.php`
+
+**Pre-conditions:** fresh DB; fixtures inserted via SQL: test project "Build Demo Project" (id=101, prefix BDP), test plan "Release Plan A" (id=102); admin/admin.
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | Aside menu → Test Plan section → "Builds / Releases" points to `/gui/templates/plans/buildsView.html?tproject_id=101&tplan_id=102` (verified by fetching asideMenu.php with project+plan context) | PASS |
+| 2 | Screen loads standalone: teal header i18n'd, toolbar shows Test Plan name "Release Plan A", Create Build button visible for admin | PASS |
+| 3 | Empty state: "No builds are defined for this test plan yet", DataTable renders 0 rows without JS errors | PASS |
+| 4 | Create Build modal: name/notes/active/open/release date fields; copy-assignments block hidden when plan has no builds yet (legacy parity: source_build.build_count == 0) | PASS |
+| 5 | Create "Build 1.0" with HTML notes `<b>First</b> build…` + release date 2026-09-01 → toast "Build created"; row shows name, sanitized bold notes, localized "Sep 1, 2026"; DB row: active=1, is_open=1 | PASS |
+| 6 | Active toggle off→on / on→off via POST /{id}/flags; toasts "Build deactivated"/"Build activated"; DB `builds.active` follows | PASS |
+| 7 | Open (lock) toggle close→open: closing stamps `closed_on_date=2026-08-22` (today) and is_open=0; opening resets closed_on_date=NULL and is_open=1 — exact legacy setClosed/setOpen + setClosedOnDate parity | PASS |
+| 8 | Edit modal prefill: GET /1 returns all fields; title "Edit Build: Build 1.0"; notes rendered back as text (`<b>` stripped to plain on edit input); release date prefilled ISO; active/open checkbox state matches DB; copy block hidden on edit | PASS |
+| 9 | Duplicate-name crosscheck: create second build named "Build 1.0" → HTTP 409, red toast "A build with that name already exists in this test plan: Build 1.0", modal stays open — legacy warning_duplicate_build parity | PASS |
+| 10 | Copy-options block: after first build exists, create-modal shows "Copy tester assignments from build:" + source select populated newest-first with assignment counts ("Build 1.0 (0)") + exec-status multi-select from results config (localized labels) | PASS |
+| 11 | Create "Build 1.1" → appears in table; count header updates to (2) | PASS |
+| 12 | Delete flow: trash icon opens confirm modal with build name + legacy warning_delete_build text; Confirm → DELETE /2, toast "Build deleted", row gone, count (1) | PASS |
+| 13 | API authz: unauthenticated GET /api/builds/?tplan_id=102 → 401 JSON "Not authenticated"; unknown route/method → 404 JSON error (after session check) | PASS |
+| 14 | Audit trail: events table has CREATE ×2 + DELETE entries with object_type='builds' and GUI source, mirroring legacy logAuditEvent calls | PASS |
+| 15 | Event Viewer: no new ERROR/WARNING events during the whole suite (only AUDIT) | PASS |
+| 16 | i18n: all `bv.*` keys present in ALL 10 locale bundles (941 keys each, parity verified programmatically); bundles pass `python3 -m json.tool` | PASS |
+
+**Bugs found & fixed during this suite:** one gap caught during development (missing btnCreate click handler wiring) fixed before first browser run.
+
+**Screenshots:** wiki `Builds-and-Releases.md` (list view, create modal, edit modal).
+
+### Suite 55 addendum — post-review fixes re-verified
+| # | Step | Result |
+|---|------|--------|
+| 17 | **BUG-1 fixed**: `build::update()` unconditionally wipes `closed_on_date`; BFF now preserves the historical closure date on non-transition saves (open→closed stamps today, closed→open clears, still-closed restores). Edit-save of a closed build keeps `2026-08-22` | PASS |
+| 18 | Source build validated against target plan (cross-plan assignment cloning blocked) — code-reviewed fix, negative path returns 400 | PASS (code path) |
+
+## Regression — Issue #591: BFF CSRF guard on mutating routes + hardened session cookie
+
+**Precondition:** fresh DB; SQL fixture: project 900001 "I591Proj" (prefix I591), plan 900002 "I591Plan", build 900003 "BuildB1"; admin/admin logged in; cookie jar for curl.
+
+**Pre-fix repro:** `curl -b jar -X POST -d '{"active":0}' http://localhost:8082/api/builds/index.php/900003/flags` → HTTP 200, DB flipped even with NO Origin/Referer/X-Requested-With AND with hostile `Origin: http://evil.example`; login Set-Cookie was bare (`path=/` only, no HttpOnly/SameSite).
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | POST /{id}/flags with NO proof headers → 403 JSON "Forbidden: missing or mismatched same-origin proof"; DB row unchanged | PASS |
+| 2 | Same POST with hostile `Origin: http://evil.example` → 403 | PASS |
+| 3 | Same POST with hostile `Referer: http://evil.example/attack.html` → 403 | PASS |
+| 4 | Same POST with `X-Requested-With: XMLHttpRequest` → 200 {"status":"ok"}, DB updated | PASS |
+| 5 | Same POST with same-origin `Origin: http://localhost:8082` → 200 | PASS |
+| 6 | Same POST with same-origin Referer → 200 | PASS |
+| 7 | GET endpoints unaffected without headers (GET ?tplan_id=900002 → 200) | PASS |
+| 8 | Guard active on every BFF area: POST to /api/users/ without proof → 403 | PASS |
+| 9 | Login Set-Cookie now `PHPSESSID=…; path=/; HttpOnly; SameSite=Lax` (Max-Age 99999 preserved) | PASS |
+| 10 | Browser regression, buildsView.html?tplan_id=900002 (jQuery $.ajax sends XRW automatically): Active toggle → toast "Build activated"; edit + save → "Build saved" (notes persisted in table); create "BuildB2" → "Build created" (count header 2); delete BuildB2 → "Build deleted" (count header 1) | PASS |
+| 11 | Legacy flows unaffected by cookie hardening: curl form login (csrfguard tokens) → authenticated BFF GET works; mainPage shell renders | PASS |
+| 12 | Event Viewer: no new ERROR/WARNING events during the suite (only AUDIT) | PASS |
+
+**Result: 12/12 PASS** (run 2026-08-22, browser + curl).
+
+**Refs:** GitHub issue #591 · Files: `api/_guard.php` (new), `lib/functions/common.php` (doSessionStart hardening), all 22 × `api/*/index.php`
