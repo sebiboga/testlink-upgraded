@@ -2294,3 +2294,50 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
 `gui/templates/requirements/printReqSpec.html`,
 `gui/templates/i18n/{en,de,es,fr,it,pt,ro,ru,ja,zh}.json` (+37 `printReq.*`),
 `lib/functions/common.php` (aside link switch).
+
+---
+
+## 42. Modernization — Metrics Dashboard screen (metricsDashboard) (Suite ID: 49)
+
+**Date:** 2026-08-22
+**Screen:** `gui/templates/results/metricsDashboard.html` + `api/metrics/index.php`
+(`GET /meta/rights`, `GET /dashboard`). Replaces legacy `lib/results/metricsDashboard.php`
+(ExtJS progress bars + tlExtTable) with Dashio-styled progress bars and a DataTable.
+
+**Fixtures:** test project `Metrics Demo Project` (id=105, prefix MDP) via `tmp/fixtures.php`:
+plan A `Master Plan` (active, platforms Linux+Windows, 2 active builds, 6 TCs linked to both
+platforms; Linux: p,f,-,b,p,p / Windows: p,p,p,b,b,b), plan B `Simple Plan` (active, no
+platforms, 1 build, 2 TCs: passed + not run), plan C `Old Plan` (INACTIVE, 3 TCs, first
+passed), empty project `Metrics Empty Project` (id=121); restricted user `norights`
+(global role `<no rights>`, password admin).
+
+| # | Step / verification | Result |
+|---|---------------------|--------|
+| 1 | BFF auth: unauthenticated `GET /dashboard` → 401 JSON `{status:error}` | PASS |
+| 2 | BFF rights: `GET /meta/rights` as admin → canView=true (testplan_metrics OR testplan_execute check, same OR-mode as legacy checkRights) | PASS |
+| 3 | BFF data: platform branch mirrors legacy getExecCountersByPlatformExecStatus — Master Plan/Linux row: active=6, not_run=1 (16.67%), p=3 (50%), f=1 (16.67%), b=1 (16.67%), progress 83.33%; Windows: active=6, p=3, b=3, progress 100% | PASS |
+| 4 | BFF data: no-platform branch — Simple Plan: active=2, not_run=1, passed=1, progress 50%, platform_name=null → UI renders localized "n/a" | PASS |
+| 5 | Totals parity: project metrics Overall progress 85.71% [12/14] with default filter (active plans only): executed 5(Linux)+6(Win)+1(Simple)=12 of 14 active links | PASS |
+| 6 | Screen render: teal Dashio header, toolbar checkbox "Show only active test plans" checked by default, Public link button, both sections, DataTable sorted by Progress % desc, footer "Generated on <ts>" | PASS |
+| 7 | show_only_active toggle OFF → Old Plan appears (active=3, passed=1, 33.33%) and totals recompute to [13/17] 76.47%; session-persisted tri-state like legacy (`show_only_active_hidden` semantics preserved server-side) | PASS |
+| 8 | Public link toggle → box shows/hides on click; href = `lnl.php?type=metricsdashboard&apikey=<project key>` (legacy direct_link parity). BUG FOUND during test: button had no click handler wired — fixed in same run | PASS (after fix) |
+| 9 | i18n EN: all labels resolved from en.json `md.*` (21 keys) incl. dynamic status columns Not Run/Passed/Failed/Blocked (+% variants) | PASS |
+| 10 | i18n DE runtime: `?locale=de` renders "Metrik-Dashboard", "Nur aktive Testpläne anzeigen", "Projektfortschritt", "Testplan-Fortschritt", "Erstellt am ..." | PASS |
+| 11 | Locale bundles: md.* keys appended to ALL 10 bundles (en,de,es,fr,it,ja,pt,ro,ru,zh); `python3 -m json.tool` valid for each; concurrent-agent conflict during rebase resolved keeping BOTH key sets | PASS |
+| 12 | Warning state: dashboard for empty project id=121 → yellow user_feedback "No test plans available for the current test project!", content hidden. BUG FOUND: BFF ignored `?tproject_id=` param and used session project (data of wrong project shown) — fixed to honor param like legacy R_PARAMS | PASS (after fix) |
+| 13 | Permission path: login as `norights` (role `<no rights>`) → red error "You do not have the rights needed...", content hidden; API returns 403 for `/dashboard` | PASS |
+| 14 | Aside integration: asideMenu emits `/gui/templates/results/metricsDashboard.html?tproject_id=105&tplan_id=118`; clicking loads the modernized screen inside mainframe | PASS |
+| 15 | Table interactions: DataTables search filters rows ("Linux" → Master Plan rows only), sort indicators present, page length select works | PASS |
+| 16 | Legacy bug fixed en route (issue #559): `tlTestPlanMetrics::getExecCountersByExecStatus()` always returned NULL because it tested `is_array($builds)` against the stdClass from helperGetExecCounters() — every plan WITHOUT platforms showed zeros on legacy AND new screen. Guard now checks `$builds->idSet`; verified counters return {total:2,not_run:1,passed:1} | PASS |
+| 17 | Event Viewer: initial pass logged E_WARNINGs — (a) foreach-on-null in api/metrics/index.php line 130 when a platform-plan's counters come back null → guarded; (b) pre-existing PHP8 warnings at tlTestPlanMetrics lines 1637/1639/1641 (`$dx['flat']`/`$dx['staircase']` on null from get_full_path_verbose) filed as issue #561 and fixed with null-safe guards. Post-fix dashboard loads produce NO new Error/Warning events | PASS |
+| 18 | Screenshots: default view, all-plans view, German locale captured into wiki repo | PASS |
+
+**Actual result:** 18/18 PASS after 3 fixes applied during testing (public-link handler;
+tproject_id param honoring; null guards #559/#561). Issues filed: #559 (fixed here),
+#561 (fixed here).
+
+**Files changed:** `api/metrics/index.php`,
+`gui/templates/results/metricsDashboard.html`,
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+21 `md.*`),
+`lib/functions/common.php` (aside link switch),
+`lib/functions/tlTestPlanMetrics.class.php` (issues #559/#561).
