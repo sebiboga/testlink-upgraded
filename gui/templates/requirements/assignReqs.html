@@ -347,7 +347,7 @@ function loadTcaseInfo(tcid) {
   $('#tcTitle').css('color', '#999').text(TLi18n.t('reqAssign.loading'));
   $('#tcWorkArea').hide();
   apiGet('/assign-tcase-info', {id: tcid}, function(d) {
-    if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    if (!d || !d.item || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     var it = d.item;
     $('#tcTitle').css('color', '#22242a').text(
       (it.full_external_id ? '[' + it.full_external_id + '] ' : '') + it.name);

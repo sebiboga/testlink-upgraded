@@ -979,6 +979,11 @@ function arReqRowToJSON($row) {
 // GET /context?tproject_id=N - project info + rights for assignReqs screen
 if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'context') {
     $tpid = needTprojectId();
+    if (!$user->hasRight($db, 'mgt_view_req', $tpid) &&
+        !$user->hasRight($db, 'req_tcase_link_management', $tpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
     $info = $tprojectMgr->get_by_id($tpid);
     if (is_null($info) || !is_array($info) || !isset($info['id'])) {
         http_response_code(404);
@@ -1152,7 +1157,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-reqs
 if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-reqs') {
     $body = getBody();
     $tcase_id = intval(isset($body['tcase_id']) ? $body['tcase_id'] : 0);
-    $reqIds = array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : []));
+    $reqIds = array_values(array_filter(array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : [])), function ($v) { return $v > 0; }));
     if ($tcase_id <= 0 || count($reqIds) === 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Nothing selected']);
@@ -1181,7 +1186,7 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-req
 // POST /unassign-reqs {link_ids[]} - legacy delReqVersionTCVersionLinkByID()
 if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'unassign-reqs') {
     $body = getBody();
-    $linkIds = array_map('intval', (array)(isset($body['link_ids']) ? $body['link_ids'] : []));
+    $linkIds = array_values(array_filter(array_map('intval', (array)(isset($body['link_ids']) ? $body['link_ids'] : [])), function ($v) { return $v > 0; }));
     if (count($linkIds) === 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Nothing selected']);
@@ -1195,7 +1200,14 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'unassign-r
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Link(s) not found']);
     }
-    arNeedManageRight($user, $db, arOwnerProjectId($db, intval($row[0]['testcase_id'])));
+    $seen = [];
+    foreach ($row as $r) {
+        $tcid = intval($r['testcase_id']);
+        if ($tcid > 0 && !isset($seen[$tcid])) {
+            $seen[$tcid] = true;
+            arNeedManageRight($user, $db, arOwnerProjectId($db, $tcid));
+        }
+    }
 
     $reqMgr3 = new requirement_mgr($db);
     $failed = [];
@@ -1240,7 +1252,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-suit
 if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-bulk') {
     $body = getBody();
     $tsuite_id = intval(isset($body['tsuite_id']) ? $body['tsuite_id'] : 0);
-    $reqIds = array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : []));
+    $reqIds = array_values(array_filter(array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : [])), function ($v) { return $v > 0; }));
     if ($tsuite_id <= 0 || count($reqIds) === 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Nothing selected']);
