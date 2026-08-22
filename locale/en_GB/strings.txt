@@ -637,6 +637,10 @@ $TLS_tcexec_latest_exec_result = "Latest Exec Result";
 $TLS_error_attachment_not_found = "Error: Attachment not found!";
 $TLS_title_downloading_attachment = "Downloading attachment";
 
+// ----- lib/results/printDocument.php (Refs #573) -----
+$TLS_error_print_doc_title = "Document generation error";
+$TLS_error_print_doc_missing_testplan = "The requested document can not be generated: the test plan is missing, unknown or does not belong to the selected test project. Please open the document again from the application navigation.";
+
 
 // ----- gui/templates/attachmentdelete.tpl -----
 $TLS_deleting_was_ok = "Attachment was deleted!";
