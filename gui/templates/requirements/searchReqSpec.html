@@ -139,9 +139,9 @@ var tprojectId = 0;
 var tplanId = 0;
 var ctx = null;
 var resTbl = null;
+var p = new URLSearchParams(window.location.search);
 
 $(function () {
-  var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
   TLi18n.load(function () {
