@@ -332,6 +332,18 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && !isse
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
     $chronoStart = microtime(true);
     $tid = resolveTprojectId();
+
+    // legacy reqOverview.php requires strictly mgt_view_req on the requested
+    // project (hasRightOnProj() ignores extra args, pass it explicitly)
+    if (!$user->hasRight($db, 'mgt_view_req', $tid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    if (!$tprojectMgr->get_by_id($tid)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
     $meta = buildMeta($tid);
 
     $allVersionsParam = getParam('all_versions', '');
@@ -426,7 +438,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
                     foreach ($cfByVer[$version['version_id']] as $cf) {
                         $vType = isset($cfieldMgr->custom_field_types[$cf['type']])
                             ? $cfieldMgr->custom_field_types[$cf['type']] : 'string';
-                        $value = preg_replace('!\s+!', ' ', htmlspecialchars($cf['value'], ENT_QUOTES));
+                        // raw value: the client escapes it (double-encoding
+                        // here rendered e.g. A&B as A&amp;B)
+                        $value = preg_replace('!\s+!', ' ', $cf['value']);
                         if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && $value != 0) {
                             $format = config_get($vType);
                             $value = tlStrftime($format, intval($value));

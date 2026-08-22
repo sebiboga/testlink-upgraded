@@ -155,7 +155,7 @@ function renderTable(items) {
   $.each(items, function(i, it) {
     var created = fmtTs(it.creation_ts_raw);
     var modified = it.modified_never ? TLi18n.t('ro.never')
-      : fmtTs(it.modification_ts_raw) + ' (' + (it.modifier || '') + ')';
+      : fmtTs(it.modification_ts_raw) + ' (' + escapeHtml(it.modifier || '') + ')';
     var row = [
       escapeHtml(it.spec_path),
       '<i class="fa fa-edit action-btn" title="' + TLi18n.t('ro.openReq') + '" onclick="openReq(' +
