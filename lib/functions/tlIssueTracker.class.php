@@ -670,7 +670,9 @@ class tlIssueTracker extends tlObject
   function getInterfaceObject($tprojectID)
   {
     $issueT = $this->getLinkedTo($tprojectID);
-    $name = $issueT['issuetracker_name'];
+    // guard: project may have issue_tracker_enabled=1 but NO tracker linked,
+    // then getLinkedTo() returns null and PHP8 warns on array offset access
+    $name = !is_null($issueT) ? $issueT['issuetracker_name'] : '';
 
     // since PHP8 curl handle is an Object, then can not be serialized
     $goodForSession = false;
