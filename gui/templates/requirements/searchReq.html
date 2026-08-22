@@ -310,6 +310,20 @@ function doSearch() {
     .always(function () { $('#btnFind').prop('disabled', false); });
 }
 
+function destroyTable() {
+  if (resTbl) {
+    try { resTbl.destroy(true); } catch (e) { /* already destroyed */ }
+    resTbl = null;
+  }
+  // destroy(true) may remove the table node - always restore the shell
+  $('#resultsWrap').html(
+    '<table id="resTable" class="display" style="width:100%"><thead><tr>' +
+    '<th style="width:26%">' + esc(TLi18n.t('reqsearch.colPath')) + '</th>' +
+    '<th style="width:44%">' + esc(TLi18n.t('reqsearch.colRequirement')) + '</th>' +
+    '<th>' + esc(TLi18n.t('reqsearch.colVersions')) + '</th>' +
+    '</tr></thead><tbody></tbody></table>');
+}
+
 function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + TLi18n.t('reqsearch.matchCount', {n: r.row_qty}) + ')');
@@ -317,8 +331,6 @@ function renderResults(r) {
   if (r.too_wide) {
     $('#warnBox').text(TLi18n.t('reqsearch.warnTooWide', {max: r.max_results})).show();
   }
-
-  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
 
   if (!r.results || r.results.length === 0) {
     $('#resultsWrap').hide();
@@ -328,6 +340,7 @@ function renderResults(r) {
   }
   $('#noResults').hide();
   $('#resultsWrap').show();
+  destroyTable();
 
   var rows = r.results.map(function (row) {
     var path = '<span class="path-cell">' + esc(row.path) + '</span>';
@@ -386,7 +399,7 @@ function resetForm() {
   $('#resultsHead').hide();
   $('#resultsWrap').hide();
   $('#noResults').hide();
-  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
+  destroyTable();
   $('.panel').find('input[type=text],input[type=number],input[type=date],textarea').val('');
   $('#reqStatus').val('');
   $('#reqType').val('');
