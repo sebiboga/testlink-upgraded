@@ -107,13 +107,18 @@ function needManageRight($tproject_id) {
  * Spec must exist AND belong to test project in context.
  */
 function needOwnedSpec($specId, $tproject_id) {
-    global $reqSpecMgr;
-    $rec = $reqSpecMgr->get_by_id($specId);
-    if (!$rec || intval($rec['testproject_id']) !== intval($tproject_id)) {
+    global $reqSpecMgr, $db;
+    // requirement_spec_mgr::get_by_id() fatals when the spec does not exist
+    // (get_last_child_info() returns null -> E_WARNING + broken SQL), so
+    // probe existence with a plain query first. Refs #569
+    $rows = $db->get_recordset(
+        'SELECT testproject_id FROM ' . $reqSpecMgr->object_table .
+        ' WHERE id = ' . intval($specId));
+    if (!$rows || intval($rows[0]['testproject_id']) !== intval($tproject_id)) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Requirement specification not found']);
     }
-    return $rec;
+    return $reqSpecMgr->get_by_id($specId);
 }
 
 function badRequest($msg) {
