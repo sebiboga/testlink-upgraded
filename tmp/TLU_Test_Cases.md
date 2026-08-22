@@ -2545,3 +2545,38 @@ guest = no req rights). Admin logged in at http://localhost:8082.
 | 17 | Code-review BLOCKER fixed: stored XSS via inline onclick titles — handlers now take ids only, titles resolved from caches; planted title `');alert(document.cookie);//` does NOT execute on click/delete-confirm, UI renders it literally, normal flows unaffected | PASS |
 
 **Result: 17 / 17 PASS** (2 issues found & fixed during testing: #572 E_WARNING, review-BLOCKER stored XSS)
+---
+
+## Regression — Issue #570: document/report generation 60s self-fetch deadlock (printDocument)
+
+> **Run 2026-08-22 (curl + browser).** Root cause: `renderFirstPage()` in
+> `lib/functions/print.inc.php` passed a full URL (`$_SESSION['basehref'] . logo`)
+> to `getimagesize()`, making PHP fetch the document logo over HTTP from the same
+> server that was busy serving the print request — a deterministic self-deadlock
+> lasting `default_socket_timeout` (exactly ~60s per generation, any dataset size).
+> Fix (landed as e85ee1db8, independently reproduced/verified by agent run of the
+> same day): measure dimensions from the local file `TL_ABS_PATH . TL_THEME_IMG_DIR . $logo`;
+> the URL remains only as the emitted `<img src>`.
+
+**Precondition:** fresh DB; project "Bug570Proj" (prefix B570) + test plan "smoke"
+(id 2, zero linked cases) + empty suite "Suite A" (node id 3) created via UI/SQL;
+admin session at http://localhost:8082; stock single-worker `php -S` runtime.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro (for the record): timed curl `printDocument?type=testplan&level=testproject&id=2&tproject_id=1&docTestPlanId=2` | **60.15s**, HTTP 200, logo `<img>` WITHOUT width/height (getimagesize timed out → fallback branch) — symptom confirmed |
+| 2 | T1 post-fix: same request via real UI flow (printDocOptions form submit in mainframe) | **42ms wall** (`performance.timing`), title "testplan smoke", doc_title rendered | PASS
+| 3 | T2 post-fix: suite-level doc `level=testsuite&id=3` | **24ms**, HTTP 200 | PASS
+| 4 | testspec doc `type=testspec&level=testproject&id=1` | **18ms**, HTTP 200 | PASS
+| 5 | T3 content integrity: logo now carries `width=231 height=56` (success branch taken from local file); body/CSS/footer sections present; size same order as baseline | PASS |
+| 6 | T4 Event Viewer: valid generations produce NO new Error/Warning events (events table checked before/after) | PASS |
+| 7 | T5 regression sanity: app shell, navBar, tree options page (printDocOptions), resultsNavigator all load instantly; no other print-path behavior changed | PASS |
+
+**Result: 7 / 7 PASS.** Generation time **60s → <50ms**, stable across 5+ runs and 3 doc types.
+
+**Side findings (filed separately, out of scope for #570):**
+- `printDocument.php` with missing mandatory params (e.g. no `docTestPlanId`) → raw
+  DB Access Error page + E_WARNING/SQL-error events logged instead of graceful handling.
+- Five legacy attachment `getimagesize()` call sites (print.inc.php:290,1309,1528,1634,1790)
+  call `list()` on the result without a `!== false` guard → PHP 8 undefined-offset
+  warnings if an attached image file is corrupt/missing.
