@@ -21,7 +21,9 @@ on:
   #   - cron: "0 4 * * *"   # optional: one screen per day, uncomment to enable
 
 concurrency:
-  group: modernize
+  # per-screen group: parallel runs of DIFFERENT screens proceed simultaneously,
+  # while re-runs of the SAME screen still queue up (never cancel in-progress)
+  group: modernize-${{ inputs.screen || 'auto' }}
   cancel-in-progress: false
 
 permissions:
