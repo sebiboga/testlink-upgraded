@@ -1545,13 +1545,19 @@ function reqBuildSearchSql(&$dbHandler, &$argsObj) {
     // value format: e.g. "3_destination" / "2_source" / "4"
     if (!is_null($argsObj->relation_type)) {
         $dummy = explode('_', $argsObj->relation_type);
-        $rel_type = $dummy[0];
-        $side = isset($dummy[1])
-            ? " RR.{$dummy[1]}_id = NH_REQ.id "
-            : " RR.source_id = NH_REQ.id OR RR.destination_id = NH_REQ.id ";
-        $from['ver']['relation_type'] =
-            " JOIN {$tables['req_relations']} RR ON ($side) AND RR.relation_type = {$rel_type} ";
-        $from['rev']['relation_type'] = $from['ver']['relation_type'];
+        $rel_type = intval($dummy[0]);
+        $validSides = array('source', 'destination');
+        if ($rel_type <= 0) {
+            // invalid/missing relation type id - ignore this filter
+            $argsObj->relation_type = null;
+        } else {
+            $side = (isset($dummy[1]) && in_array($dummy[1], $validSides))
+                ? " RR.{$dummy[1]}_id = NH_REQ.id "
+                : " RR.source_id = NH_REQ.id OR RR.destination_id = NH_REQ.id ";
+            $from['ver']['relation_type'] =
+                " JOIN {$tables['req_relations']} RR ON ($side) AND RR.relation_type = {$rel_type} ";
+            $from['rev']['relation_type'] = $from['ver']['relation_type'];
+        }
     }
 
     if ($argsObj->custom_field_id > 0) {
@@ -1628,7 +1634,14 @@ function reqLocalizeDateToIso($localizedDate) {
     $dateFormat = config_get('date_format');
     $l10ndate = split_localized_date(trim($localizedDate), $dateFormat);
     if (is_array($l10ndate)) {
-        return $l10ndate['year'] . "-" . $l10ndate['month'] . "-" . $l10ndate['day'];
+        // hard cast every component: output is interpolated into SQL
+        $y = intval($l10ndate['year']);
+        $m = intval($l10ndate['month']);
+        $d = intval($l10ndate['day']);
+        if ($y <= 0 || !checkdate($m, $d, $y)) {
+            return null;
+        }
+        return sprintf('%04d-%02d-%02d', $y, $m, $d);
     }
     return null;
 }
