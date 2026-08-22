@@ -817,8 +817,6 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'reqspec-sea
     ]);
 }
 
-http_response_code(404);
-
 // ===========================================================================
 // C) Assign Requirements to Test Cases (assignReqs screen)
 // Mirrors lib/requirements/reqTcAssign.php (TestLink 1.9.20 behavior):
@@ -1245,4 +1243,5 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-bul
          'tcase_qty' => count((array)$tcaseSet)]);
 }
 
+http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Unknown endpoint']);
