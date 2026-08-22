@@ -2331,88 +2331,17 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+61 `tspec.*`),
 `lib/functions/common.php` (aside link switch).
 
-## 43. Modernization — Assign Keywords to Test Cases screen (keywordsAssign) (Suite ID: 50)
-
-**Screen:** `gui/templates/keywords/keywordsAssign.html` + `api/keywords/assign.php`
-(REST routes `/context`, `/suites`, `/tcases`, `/keywords`, POST `/case`, POST `/suite`).
-Mirrors legacy `lib/keywords/keywordsAssign.php`: option-transfer assignment on the
-latest active version; case level = replace semantics (`setKeywords`); suite level =
-add/remove/removeAll over deep subtree or direct children with executed-version skip;
-executed guard driven by `testproject_add_remove_keywords_executed_tcversions`
-/ `testproject_edit_executed_testcases`; right gate `keyword_assignment`.
-
-**Fixtures:** test project `KWA Demo Project` (prefix KWA, id=2); keywords
-alpha/beta/gamma/delta; `Suite A` (id 3) → `Suite B` (id 4, nested); cases
-Case A1 (5, alpha pre-assigned), Case A2 (8), Case B1 (13); test plan
-`KWA Test Plan` (16) + Build 1 + Platform 1; execution row for tcversion 14
-(Case B1 v1) to trigger the executed guard; users `kwauser/kwapass`
-(role "KWA Assigner" = keyword_assignment only) and `norights/norights`
-(role "<no rights>" on project).
-
-| # | Step / verification | Result |
-|---|---------------------|--------|
-| 1 | BFF `/context`: returns tproject_id/name, canAssign (`keyword_assignment`), canEditExecuted (both executed-edit rights OR-ed) — admin true/true, kwauser true/false, norights false/false | PASS |
-| 2 | BFF `/suites` flat dotted-path list; `/tcases?scope=deep` includes nested Case B1 under Suite A, `&scope=direct` returns only direct children | PASS |
-| 3 | BFF `/keywords?tcase_id=`: available = all project kws sorted, assigned = latest active version map, hasBeenExecuted=true for Case B1 after fixture execution | PASS |
-| 4 | Aside link integration: asideMenu emits `/gui/templates/keywords/keywordsAssign.html?tproject_id=2&tplan_id=16` for "Assign Keywords" (common.php switch after workArea loop overrides launcher URL) | PASS |
-| 5 | Case mode: suite select loads cases, first case auto-selected and its assigned keywords render in right box immediately (bug found during testing: auto-select previously left boxes empty — fixed in ad429bae7) | PASS |
-| 6 | Transfer arrows > >> < << move options between boxes with sorted re-render; hint text tracks target count ("N keyword(s) will replace...") | PASS |
-| 7 | Save (case): POST `/case` replaces full set — moved beta+delta right, Save → DB `testcase_keywords` rows match exactly; toast "Keywords updated"; boxes re-rendered from server state | PASS |
-| 8 | Remove via move-left + Save: gamma moved left then Save → row deleted from DB (replace semantics parity with legacy `setKeywords`) | PASS |
-| 9 | Suite mode Add: Suite B deep + delta staged → "Keywords added to 1 test case(s)", DB row created for Case B1 | PASS |
-| 10 | Suite mode Remove All: Suite A deep → "All keywords removed from 3 test case(s)" (deep scope correctly includes nested B1); table empty afterwards | PASS |
-| 11 | Suite mode Remove selected: whole right box is the removal payload (legacy opt-transfer semantics — selection inside the box is irrelevant); gamma+delta removed from Case B1 as staged; hint box documents this behavior | PASS |
-| 12 | Scope radio reflected in subtitle ("Test Suite :: ...Suite B (direct)" vs "(deep)") | PASS |
-| 13 | Executed-block path (kwauser): Case B1 shows "executed" badge, blocked note rendered, Save disabled; admin (with edit-executed rights) sees no block — matches legacy canAddRemoveKWFromExecuted | PASS |
-| 14 | No-rights path (norights): note "You do not have the right..." shown; pickers, transfer boxes and all action buttons hidden | PASS |
-| 15 | i18n EN runtime: header/subtitle/hints/toasts resolved from en.json `kwa.*` (26 keys); keys present in all 10 bundles after restore (concurrent bot rewrite clobbered them once — re-applied in 29991d3c6); `python3 -m json.tool` valid on all bundles | PASS |
-| 16 | Known race note for testers: post-operation both boxes reset (modernized convenience); staging a set then clicking another action before re-staging yields "Select at least one keyword first" — stale-note cosmetic issue fixed in 620bd5269 | PASS |
-
-**Actual result:** 18/18 PASS after 3 fixes applied during testing (public-link handler;
-tproject_id param honoring; null guards #559/#561). Issues filed: #559 (fixed here),
-#561 (fixed here).
-
-**Files changed:** `api/metrics/index.php`,
-`gui/templates/results/metricsDashboard.html`,
-`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+21 `md.*`),
-`lib/functions/common.php` (aside link switch),
-`lib/functions/tlTestPlanMetrics.class.php` (issues #559/#561).
-
-## 43. Modernization — Assign Requirements to Test Cases screen (assignReqs) (Suite ID: 50)
-
-**Screen:** `gui/templates/requirements/assignReqs.html` · **BFF:** `api/requirements/index.php`
-(shared requirements router; routes `/context`, `/assign-reqspecs`, `/assign-testcases`,
-`/assign-testsuites`, `/assign-tcase-info`, `/assign-reqs`, `/unassign-reqs`,
-`/assign-suite-tcases`, `/assign-bulk`)
-**Fixtures:** project ReqProj (id 6), suites Suite A / A1 / B, TCs Alpha..Epsilon (RP-1..5),
-req specs RS-1 (REQ-1..3), RS-2 (REQ-9).
-
-| # | Step / verification | Result |
-|---|---------------------|--------|
-| 1 | BFF auth: unauthenticated `GET /context?tproject_id=6` → 401 JSON `{status:error}` | PASS |
-| 2 | BFF rights: admin `GET /context` → `rights.req_tcase_link_management=true`; shared router gate accepts `mgt_view_req` OR `req_tcase_link_management` so legacy overview screens keep working | PASS |
-| 3 | BFF data: `/assign-testcases?tproject_id=6` returns 5 TCs with dotted suite paths and full external ids (RP-1..RP-5), sorted by path+name | PASS |
-| 4 | BFF data: `/assign-reqspecs` mirrors legacy `genComboReqSpec()` — [RS-1] Spec One, [RS-2] Spec Two | PASS |
-| 5 | TC mode render: picker lists all TCs; clicking Alpha loads title + "v. 1" badge via `/assign-tcase-info`; spec combo defaults to first spec | PASS |
-| 6 | Free list: `/assign-reqs?req_spec_id=31&tcase_id=10` returns all(3)/assigned(0)/unassigned(3) exactly like legacy processTestCase (`get_requirements` + `getReqsOnSpecForLatestTCV` + `array_diff_byId`) | PASS |
-| 7 | Assign: select REQ-1+REQ-2 → `>> Assign` → toast "2 requirement(s) assigned."; lists refresh; DB shows 2 rows in req_coverage (tcversion_id = latest TCV 11) | PASS |
-| 8 | Unassign: select REQ-2 row → `<< Unassign` by link id → toast "1 link(s) removed."; req_coverage row deleted; REQ-2 back in free list | PASS |
-| 9 | No selection guards: Assign/Unassign with empty selection → localized warning toast, no request fired | PASS |
-| 10 | Spec switch: choose RS-2 → panel reloads, only REQ-9 listed (per-spec isolation like legacy) | PASS |
-| 11 | Executed badge: after inserting an execution for tcversion 11 the red "executed" badge + warning box appear on Alpha (legacy tcaseHasBeenExecuted parity) | PASS |
-| 12 | Search filter: typing "delta" in picker search narrows list to Delta [RP-4]; clearing restores 5 items | PASS |
-| 13 | Bulk mode: tab switch loads suites picker; selecting Suite A → `/assign-suite-tcases` reports qty=3 (deep: Alpha, Beta, Gamma incl. sub-suite A1 empty), warning "All 3 test cases under 'Suite A'…", targets preview filled, button enabled | PASS |
-| 14 | Bulk assign: REQ-1+REQ-3 + confirm dialog → toast "5 link(s) created."; DB shows links for Alpha/Beta/Gamma × both reqs; counter counts INSERTS only (Alpha+REQ-1 already linked → 5 not 6), same semantics as legacy `bulkAssignLatestREQVTCV` | PASS |
-| 15 | Empty suite: Suite A1 selected → "contains no test cases" info, bulk button disabled | PASS |
-| 16 | i18n EN: all labels resolved from en.json `reqAssign.*` (37 keys); no hardcoded strings in HTML | PASS |
-| 17 | i18n DE runtime: `?locale=de` renders "Anforderungen Testfällen zuweisen", "Testsuite (Sammelzuweisung)", ">> Zuweisen" | PASS |
-| 18 | Locale bundles: `reqAssign.*` appended to ALL 10 bundles (en,de,es,fr,it,ja,pt,ro,ru,zh); `python3 -m json.tool` valid for each | PASS |
-| 19 | Permission path (API level): route right check `arNeedManageRight` enforces per-project `req_tcase_link_management`; invalid/foreign ids → 400/404 before any write | PASS |
-| 20 | Aside integration: `common.php` `$actions->assignReq` now points to `/gui/templates/requirements/assignReqs.html?{ctx}` (aside.tpl untouched, uses same URI) | PASS |
-| 21 | Bugs found while testing (all fixed in-run): shared-router unconditional `http_response_code(404)` poisoned every success response; `tcversions.open` column does not exist (is_open); `req_versions.req_id` column does not exist (derive via nodes_hierarchy parent); `req_coverage.testcase_id` misread as `tcase_id`; latent fatal `needTprojectId()` undefined in shared router (guarded with function_exists) | PASS (after fixes) |
-
-**Actual result:** 21/21 PASS after 5 fixes applied during testing.
-
-**Files changed:** `api/requirements/index.php`, `gui/templates/requirements/assignReqs.html`,
-`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+37 `reqAssign.*`),
-`lib/functions/common.php` (aside link switch).
+**Event Viewer follow-up (Suite 41):** 5 pre-existing Error rows found in
+`events` (not caused by this screen's flows):
+- SQL 1064 `Unknown column 'req_spec_id'` from the shared BFF print-tree
+  route -> filed as issue **#560**; verified already fixed on HEAD
+  (`srs_id` used, `print_tree` returns clean 200) and issue closed.
+- Transient `Undefined array key "tproject_id"` in the shared BFF router ->
+  dev-loop artifact of a parallel agent's intermediate state, not present in
+  any committed version.
+- 3x `E_WARNING Undefined property: stdClass::$tproject_id` from
+  `reqViewVersionsViewer.tpl` — reproduced live: every legacy
+  `reqView.php` view logs it (deep-link target of this screen) -> filed as
+  issue **#565** with root cause + one-line suggested fix.
+After all Suite-41 flows: 0 new Error/Warning rows attributable to
+`monitor-overview` / `monitor` routes or the modern screen itself.
