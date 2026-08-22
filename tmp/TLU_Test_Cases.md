@@ -2709,3 +2709,17 @@ Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined p
 - #581 resultsGeneral.php:248 `testPriorityEnabled on false` when testprojects.options is empty.
 - #582 resultsGeneral.php:63 foreach($items2loop) undefined on platform-less plans + template/controller name mismatch `$gui->tprojOpt` vs `$gui->testprojectOptions`.
 - #583 `getStatusTotalsTSuiteDepth2ForRender()` same null-deref pattern (:3389/:3403, resultsByTSuite.php path) found by code review.
+
+### Suite 54b — code-review round (commits f3f2c1faa, 779ebfb11; issue #584 filed)
+
+| # | Finding (review) | Fix | Verify |
+|---|---|---|---|
+| R1 | BLOCKER: `bulk-active` ownership check ineffective — `testplan::get_by_id()` 2nd arg is an options array, cross-project ids passed → explicit `testproject_id` comparison now | PASS |
+| R2 | BLOCKER: stored XSS via plan name in inline `onclick` (entity decode re-injects quotes in JS context) → deleted button now carries only `data-del-id`; name resolved from API payload via delegated handler | PASS |
+| R3 | BLOCKER: notes regex sanitizer bypassable (`<script src=…` unclosed, `/onerror=` no-whitespace) → DOMPurify.sanitize(); payload test: script+onerror stripped, benign `<b>` kept | PASS |
+| R4 | MAJOR: assign-roles link used `itemID=` but usersAssign.php reads `featureID=` → fixed in BFF action map | PASS |
+| R5 | NIT: PUT /{id}/active route lacked ctype_digit validation (DELETE had it) → added | PASS |
+| R6 | MAJOR parity gap: legacy custom-field columns absent from modern screen → deferred, filed as #584 (labeled bug) with repro + suggested fix | FILED |
+| R7 | MINOR: explicit CSRF origin validation — deferred: would break legit non-browser API clients and diverges from all sibling BFF endpoints; noted on #576 for repo-wide decision | NOTED |
+
+Post-fix regression: delete modal opens/cancels via delegation, notes render sanitized, table/columns/toggles unchanged. Event Viewer: still zero new Error/Warning events.
