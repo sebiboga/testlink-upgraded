@@ -2084,3 +2084,25 @@ The CI provisioning patch for both workflows is provided in issue #547's closing
 5. `php -l lib/search/searchCommands.class.php` clean; 4 call sites converted.
 
 **Result: 5/5 PASS**
+
+## 35. Regression — Issue #542: Execution History screen modernization (Suite ID: 42)
+
+**Precondition:** project "Execution History Demo" (EXH), TC EXH-1 "Login works"
+with 3 executions (Build 1.0 passed / Build 2.0 failed+bug BUG-1234 in active
+"History Plan", Build 0.9 passed in INACTIVE "Archived Plan"), EXH-3 never executed.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | `api/execute/index.php?action=history&tcase_id=3` → HTTP 200, 3 executions (all plans), fullExternalId EXH-1, localized status labels, notes/bugs/platform present | PASS |
+| 2 | Same + `only_active_test_plans=1` → 2 executions (Archived Plan excluded) | PASS |
+| 3 | Modern screen `gui/templates/execute/execHistory.html?tcase_id=3` renders header EXH-1, filters panel, platform column, 3 rows with status badges (PASSED green/FAILED red/BLOCKED orange), manual/automated icons | PASS |
+| 4 | Detail toggle shows execution notes + bug BUG-1234 per row | PASS |
+| 5 | Status filter Failed → 1 row; date-from filter → 1 row; Reset → 3 rows (blank All options fixed during testing) | PASS |
+| 6 | onlyActiveTestPlans checkbox reloads from server → 2 rows | PASS |
+| 7 | Never-executed TC (tcase_id=9) → warning "never been executed", empty table | PASS |
+| 8 | Entry points repointed: tcView.html toolbar button + 3 modern search views open the modern screen | PASS |
+| 9 | Event Viewer: no new Error/Warning entries after all flows above | PASS |
+
+**Actual result:** 9/9 PASS.
