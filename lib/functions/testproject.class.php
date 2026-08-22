@@ -339,7 +339,7 @@ public function get_by_id($id, $opt=null)
 
   $condition = "testprojects.id=". intval($id);
   $result = $this->getTestProject($condition,$opt);
-  return $result[0];
+  return $result != null ? $result[0] : null;
 }
 
 
