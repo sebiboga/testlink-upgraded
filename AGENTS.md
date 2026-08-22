@@ -94,11 +94,14 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     agent PRs unless cleaning up after a confirmed failure; do not close issues
     that have an open agent PR.
 
-19. **One tracking issue per screen.** Before modernizing a screen, make sure
-    an open issue exists for it on `sebiboga/testlink-upgraded`
-    (label `enhancement`, title `Modernize: <screen>` / or the feature's own
-    enhancement). All commits, pushes, docs and test suites reference that
-    number (`Refs #<n>`). Enhancements are NEVER picked by `fix-bug.yml`.
+19. **One tracking issue per screen — created FIRST.** The VERY FIRST action of
+    any modernization session (before exploring the codebase or writing a line)
+    is: check whether the screen has an open tracking issue on
+    `sebiboga/testlink-upgraded`; if NOT, create it INSTANTLY
+    (`gh issue create --label enhancement --title "Modernize: <screen>"`) and
+    post your plan as its first comment. We must know EXACTLY what every agent
+    works on at all times. All commits, pushes, docs and test suites reference
+    that number (`Refs #<n>`). Enhancements are NEVER picked by `fix-bug.yml`.
 
 20. **Progress checkpoints (~20 min) in the ticket.** While working a screen,
     post a comment on its tracking issue at least every ~20 minutes AND at
