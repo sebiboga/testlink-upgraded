@@ -2922,3 +2922,26 @@ Bugs found & fixed while executing:
 **Refs:** GitHub issue #595 · Files: `api/projects/index.php`, `api/trackers/index.php`
 
 **Notes:** screen's DELETE is a *deactivate* by design (row stays listed as Inactive) — legacy parity, out of scope here. DB re-import happened mid-run (fixtures recreated). Probe rows cleaned up afterwards.
+
+## Regression — Issue #590: package.json / yarn.lock sync verification
+
+**Precondition:** repo root clean (`git status` shows no changes to `package.json`, `yarn.lock`, `node_modules/`); Yarn Classic 1.22.22 + Node v20.20.2 available.
+
+**Verification request:** confirm lockfile sync WITHOUT modifying any files (`yarn install --frozen-lockfile` is the authoritative check — it hard-fails with "Your lockfile needs to be updated" when out of sync).
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Files exist | `ls package.json yarn.lock` | Both present at repo root | PASS |
+| 2 | Manifest content | Read package.json | Exactly 1 dependency: `tablednd ^1.0.3` | PASS |
+| 3 | Lockfile sync | Compare yarn.lock vs manifest | Single entry `tablednd@^1.0.3 → 1.0.3`; exact match, zero drift | PASS |
+| 4 | Frozen-lockfile install | `yarn install --frozen-lockfile` | Exit 0 in 0.23s; no resolution needed → lockfile in sync | PASS |
+| 5 | No files modified | `git status` / `git diff -- package.json yarn.lock` | Empty diff on both manifests | PASS |
+| 6 | node_modules integrity | Inspect node_modules/tablednd | Plugin v1.0.3 present (dist JS incl. jquery.tablednd.min.js); vendored & tracked in git (33 files) | PASS |
+| 7 | Yarn version requirement | `head -3 yarn.lock` + `yarn --version` | Lockfile v1 format → Yarn Classic required; verified with 1.22.22 | PASS |
+| 8 | CI usage scan | grep workflows for `yarn` | No workflow runs `yarn install` (works because node_modules is committed) | PASS |
+
+**Result: 8/8 PASS** (run 2026-08-22).
+
+**Refs:** GitHub issue #590 · Files: none changed (verification only, per issue instruction)
+
+**Notes:** `node_modules/.yarn-integrity` is tracked and was generated on macOS (`systemParams: darwin-x64-72`); on Linux yarn regenerates it as `linux-x64-115`. Harmless runtime metadata, restored untouched per the issue's no-modification rule.
