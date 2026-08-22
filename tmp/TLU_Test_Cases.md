@@ -2775,3 +2775,9 @@ Post-fix regression: delete modal opens/cancels via delegation, notes render san
 | 5 | Code review subagent over full diff: PASS (no required findings); two pre-existing adjacent defects found and filed instead of fixed in-scope: #588 (dashio partial missing property_exists guard → warning from baselinel1l2 pages), #589 (saveForBaseline null-span deref + empty baseline insert on zero-exec plans) | PASS |
 
 **Fix commit:** 6dd9f7e9b on branch fix/issue-587.
+
+### Suite 55 addendum — post-review fixes re-verified
+| # | Step | Result |
+|---|------|--------|
+| 17 | **BUG-1 fixed**: `build::update()` unconditionally wipes `closed_on_date`; BFF now preserves the historical closure date on non-transition saves (open→closed stamps today, closed→open clears, still-closed restores). Edit-save of a closed build keeps `2026-08-22` | PASS |
+| 18 | Source build validated against target plan (cross-plan assignment cloning blocked) — code-reviewed fix, negative path returns 400 | PASS (code path) |
