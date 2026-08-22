@@ -262,6 +262,7 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
         'tproject_name' => $tproject_name,
         'show_only_active' => $selection,
         'show_platforms' => $show_platforms,
+        'show_test_plan_status' => (bool)config_get('metrics_dashboard')->show_test_plan_status,
         'status_set' => array_keys($statusSetForDisplay),
         'direct_link' => $directLink,
         'warning' => (!$hasPlans || count($rows) == 0) ? 'no_testplans_available' : '',
