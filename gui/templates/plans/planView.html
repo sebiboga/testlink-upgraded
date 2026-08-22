@@ -82,7 +82,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
         <th data-orderable="false" data-i18n="pv.notes">Notes</th>
         <th style="width:80px" data-i18n="pv.tcQty" title="">Test Cases</th>
         <th style="width:70px" data-i18n="pv.buildQty" title="">Builds</th>
-        <th id="thPlatformQty" style="width:90px; display:none" data-i18n="pv.platformQty">Platforms</th>
+        <th id="thPlatformQty" style="width:90px" data-i18n="pv.platformQty">Platforms</th>
         <th data-orderable="false" style="width:80px" data-i18n="pv.activeCol">Active</th>
         <th data-orderable="false" style="width:70px" data-i18n="pv.publicCol">Public</th>
         <th data-orderable="false" style="width:190px"></th>
@@ -124,6 +124,7 @@ var canManage = false;
 var tplanTbl = null;
 var deleteTarget = null;
 var ACTIONS = {};
+var drawPlatQty = false;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -178,8 +179,9 @@ function load() {
       $('#btnInactivateBulk').toggle(canManage);
 
       if (r.draw_platform_qty_column) {
-        $('#thPlatformQty').show().attr('title', TLi18n.t('pv.helpPlatformQty'));
+        $('#thPlatformQty').attr('title', TLi18n.t('pv.helpPlatformQty'));
       }
+      drawPlatQty = !!r.draw_platform_qty_column;
       $('th[data-i18n="pv.tcQty"]').attr('title', TLi18n.t('pv.helpTcQty'));
       $('th[data-i18n="pv.buildQty"]').attr('title', TLi18n.t('pv.helpBuildQty'));
 
@@ -240,9 +242,7 @@ function render(items) {
       '<span class="qty-cell">' + tp.tcase_qty + '</span>',
       '<span class="qty-cell">' + tp.build_qty + '</span>'
     ];
-    if ($('#thPlatformQty').is(':visible')) {
-      row.push('<span class="qty-cell">' + (tp.platform_qty || 0) + '</span>');
-    }
+    row.push('<span class="qty-cell">' + (tp.platform_qty || 0) + '</span>');
     row.push(activeToggle(tp.id, tp.active));
     row.push('<span class="' + (tp.is_public ? 'pub-yes fa-check-circle fas' : 'pub-no fas fa-times-circle') +
              '" title="' + esc(TLi18n.t('pv.publicCol')) + '"></span>');
@@ -250,6 +250,7 @@ function render(items) {
     return row;
   });
 
+  var platIdx = $('#tplanTable thead tr').children().index($('#thPlatformQty'));
   tplanTbl = $('#tplanTable').DataTable({
     destroy: true,
     data: rows,
@@ -257,6 +258,7 @@ function render(items) {
     columnDefs: [
       { targets: 0, className: 'text-center', orderable: false },
       { targets: 2, orderable: false },
+      { targets: platIdx, visible: drawPlatQty },
       { targets: -3, className: 'text-center', orderable: false },
       { targets: -2, className: 'text-center', orderable: false },
       { targets: -1, orderable: false }
