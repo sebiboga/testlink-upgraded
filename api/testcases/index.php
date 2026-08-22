@@ -123,6 +123,7 @@ $action = $_GET['action'] ?? '';
 
 $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
+$tcaseCfg = config_get('testcase_cfg');
 
 // ---------------------------------------------------------------------------
 // GET ?action=context&tproject_id=N
@@ -184,7 +185,7 @@ if ($action === 'context') {
         ],
         'hasTestPlans' => $hasTestPlans,
         'grants' => $grants,
-        'canEditExecuted' => intval(config_get('testcase_cfg')->canEditExecuted),
+        'canEditExecuted' => intval($tcaseCfg->canEditExecuted ?? 0),
         'dateFormat' => config_get('date_format'),
     ]);
 }
@@ -939,7 +940,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             "SELECT id FROM {$tvTables2['executions']} WHERE tcversion_id = {$tcversionId}");
         if (!is_null($execRs) && count($execRs) > 0
             && !$user->hasRight($db, 'testproject_edit_executed_testcases', $tprojectId)
-            && !intval(config_get('testcase_cfg')->canEditExecuted)) {
+            && !(($tcaseCfg->canEditExecuted ?? 0) > 0)) {
             jout(['status' => 'error',
                   'message' => 'This version has executions: editing requires special permission'],
                  403);
