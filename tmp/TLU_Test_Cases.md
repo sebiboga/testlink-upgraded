@@ -2331,7 +2331,7 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+61 `tspec.*`),
 `lib/functions/common.php` (aside link switch).
 
-**Event Viewer follow-up (Suite 41):** 5 pre-existing Error rows found in
+**Event Viewer follow-up (Requirements Monitor Overview suite):** 5 pre-existing Error rows found in
 `events` (not caused by this screen's flows):
 - SQL 1064 `Unknown column 'req_spec_id'` from the shared BFF print-tree
   route -> filed as issue **#560**; verified already fixed on HEAD
@@ -2345,3 +2345,52 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
   issue **#565** with root cause + one-line suggested fix.
 After all Suite-41 flows: 0 new Error/Warning rows attributable to
 `monitor-overview` / `monitor` routes or the modern screen itself.
+
+## 44. Modernization — Requirements Monitor Overview screen (Suite ID: 50)
+
+**Screen:** `gui/templates/requirements/reqMonitorOverview.html` +
+`api/requirements/index.php` (BFF routes `monitor-overview`, `monitor`).
+Legacy reference: `lib/requirements/reqMonitorOverview.php` (right
+`mgt_view_req`, ExtJS table, monitor on/off via POST forms).
+
+**Precondition:** fresh DB; fixture created via SQL: test project id 1000
+"ReqMon Project" (prefix `RMP`, requirements enabled), req spec id 1001
+"System Requirements" (`RMP-SRS-1`) with spec revision node 1002,
+requirements 1010 "Login functionality" (`RMP-REQ-1`, v-node 1011),
+1020 "Export to PDF" (`RMP-REQ-2`, v-node 1021), 1030 "Session timeout"
+(`RMP-REQ-3`, v-node 1031); user id 2 `mon_limited` (role tester = no
+`mgt_view_req`). Admin logged in at http://localhost:8082.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | BFF list: `GET /api/requirements/index.php/monitor-overview?tprojectId=1000` as admin → `status ok`, 3 items with `req_doc_id`, `title`, `spec_path` "System Requirements", `version_id`, `creation_ts`, `author` "Testlink Administrator", `monitored:false`; anonymous call → 401 Not authenticated | PASS |
+| 2 | Screen load `?tproject_id=1000`: header + sub rendered, DataTables shows 3 rows sorted by Req Spec, columns Req. Spec / Title / Created On / Monitor / Action; footer "3 requirement(s), 0 monitored"; project name "ReqMon Project" in toolbar | PASS |
+| 3 | Monitor ON: click bell icon on RMP-REQ-1 → badge flips to Yes, icon becomes bell-slash with title "Turn off monitoring", footer count updates to "1 monitored" without reload; `req_monitor` row `(1010,1,1000)` verified in DB | PASS |
+| 4 | Monitor OFF: click bell-slash → badge back to No, bell icon, `req_monitor` empty again | PASS |
+| 5 | Toggle persistence: state reloaded from server after Refresh button click — matches DB | PASS |
+| 6 | Deep link: edit pen / title link opens legacy `reqView.php?showReqSpecTitle=1&requirement_id=1020&req_version_id=1021&tproject_id=1000` popup → renders "Requirement : Export to PDF" version 1 revision 1 (bug found during testing: first implementation used wrong param names `item`/`version_id` → DB Access Error; fixed) | PASS |
+| 7 | Filter: type "Export" in search box → "Showing 1 to 1 of 3 entries (filtered from 3 total entries)" | PASS |
+| 8 | i18n EN: all labels from bundle, no hardcoded strings visible | PASS |
+| 9 | i18n DE (`?locale=de_DE`): header "Anforderungen-Monitor Übersicht", columns "Anf. Spez./Titel/Erstellt am/Überwachen/Aktion", footer "3 Anforderung(en), 0 überwacht" | PASS |
+| 10 | Permission path: login `mon_limited` (tester role, no mgt_view_req) → error modal "No permission", table stays empty; direct API call returns 403 | PASS |
+| 11 | Aside integration: shell menu Requirements Design → "Requirement Monitoring Overview" points to modern `.html?tproject_id=1000&tplan_id=0` and loads inside mainframe | PASS |
+| 12 | Event Viewer after all flows: only audit login/logout entries, 0 new Error/Warning rows | PASS |
+
+**Actual result:** 12/12 PASS.
+
+**Bugs found & fixed while testing**
+- BFF toggle returned "Requirement not found": validation used
+  `requirement_mgr::get_by_id()` whose rows carry no `tproject_id`;
+  replaced with a `requirements ⋈ req_specs` join check.
+- Footer "monitored" count went stale after toggling (only recomputed on
+  full reload); extracted `updateFooter()` and called it after each toggle.
+- Deep links used invented `item=`/`version_id=` params; legacy
+  `openLinkedReqVersionWindow()` expects `requirement_id=`/`req_version_id=`
+  (+ `showReqSpecTitle=1`) — aligned.
+
+**Files changed:** `gui/templates/requirements/reqMonitorOverview.html`,
+`api/requirements/index.php` (shared router also serving printReqSpec),
+`lib/functions/common.php` (aside link switch),
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+15 keys each).
