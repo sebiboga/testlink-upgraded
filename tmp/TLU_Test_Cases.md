@@ -2581,3 +2581,24 @@ attachment, renderTestSuiteNodeForPrinting) in all three file states;
 remaining three sites share the identical mechanical guard (code-reviewed).
 Note: pre-fix events 1-7 in the fresh DB stem from XML-RPC fixture creation
 (pre-existing API warnings, out of scope for this issue).
+
+## Regression — Issue #573: printDocument.php missing docTestPlanId renders raw DB Access Error page
+
+**Precondition:** admin logged in at http://localhost:8082; ≥1 test project (fixture: id=1 "Repro Project") with ≥1 test plan (fixture: id=2 "Repro Plan"); note baseline of events table.
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/printDocument.php?type=testplan&level=testproject&id=1&tproject_id=1` (no `docTestPlanId`).
+2. Observe response body and Event Viewer / events table.
+Pre-fix result: HTTP 200 raw "DB Access Error - debug_print_backtrace()" page (`testplan->getLinkedStaticView(0)` → `testcase->getTestCasePrefix(NULL)`, SQL 1064) + 1 ERROR and multiple E_WARNING events (printDocument.php L91/L92, testplan.class.php L6804, testcase.class.php L2158).
+
+**Expected post-fix:** graceful localized page ("Document generation error" + explanation), no backtrace, no new ERROR/E_WARNING events sourced to printDocument.php.
+
+**Actual result (post-fix): PASS**
+- Missing docTestPlanId → graceful page ✓
+- docTestPlanId=99999 (unknown plan) → graceful page ✓
+- Plan from a different project than session test project → graceful page ✓
+- Valid docTestPlanId=2 → document generated ("Repro Plan" content) for type=testplan, testreport, testreport_onbuild, legacy alias type=test_plan ✓
+- type=testspec (plan not required) → unaffected ✓
+- Events table: no new entries sourced to printDocument.php after the fix ✓
+
+**Fix commit:** 34302f8ee on branch fix/issue-573. Follow-up pre-existing bug found during this suite: #575 (onbuild without build_id E_WARNINGs in print.inc.php — separate code path).
