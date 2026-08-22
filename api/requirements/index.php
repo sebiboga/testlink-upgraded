@@ -930,7 +930,7 @@ function arCoverageLinksForTCVersion($db, $tcaseId, $tcversionId) {
         " SELECT RCOV.id AS link_id, RCOV.link_status, RQV.req_id " .
         " FROM req_coverage RCOV " .
         " JOIN req_versions RQV ON RQV.id = RCOV.req_version_id " .
-        " WHERE RCOV.tcase_id = {$tcaseId} AND RCOV.tcversion_id = {$tcversionId}");
+        " WHERE RCOV.testcase_id = {$tcaseId} AND RCOV.tcversion_id = {$tcversionId}");
     $ret = [];
     if (!is_null($rows)) {
         foreach ($rows as $r) {
@@ -1165,7 +1165,7 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'unassign-r
 
     $inLinks = implode(',', $linkIds);
     $row = $db->get_recordset(
-        " SELECT DISTINCT RCOV.tcase_id FROM req_coverage RCOV" .
+        " SELECT DISTINCT RCOV.testcase_id FROM req_coverage RCOV" .
         " WHERE RCOV.id IN ({$inLinks})");
     if (is_null($row) || count($row) === 0) {
         http_response_code(404);
