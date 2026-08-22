@@ -2602,3 +2602,25 @@ Pre-fix result: HTTP 200 raw "DB Access Error - debug_print_backtrace()" page (`
 - Events table: no new entries sourced to printDocument.php after the fix ✓
 
 **Fix commit:** 34302f8ee on branch fix/issue-573. Follow-up pre-existing bug found during this suite: #575 (onbuild without build_id E_WARNINGs in print.inc.php — separate code path).
+
+## Regression — Issue #575: printDocument.php testreport_onbuild without build_id logs E_WARNINGs (undefined build_name/build_notes)
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 "Repro Project #575" (options serialized with testPriorityEnabled=1), test plan id=2 "Repro Plan #575" (same project), build id=10 "Build B1" on plan 2; note baseline of events table (cleared before each step).
+
+**Repro steps (pre-fix):**
+1. `GET /lib/results/printDocument.php?type=testreport_onbuild&level=testproject&id=1&tproject_id=1&docTestPlanId=2` (no `build_id`).
+2. Observe Event Viewer / events table.
+Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined property: stdClass::$build_name` (print.inc.php L741), `$build_name` (L2317), `$build_notes` (L2319).
+
+**Expected post-fix:** document renders with an empty "Build:" label and ZERO new E_WARNING/E_ERROR events; valid build_id still prints the build name/notes; invalid build_id degrades gracefully.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | No build_id → doc 200, "Build:" empty label, 0 warning events | PASS |
+| 2 | build_id=10 → doc shows "Build: Build B1", 0 warning events | PASS |
+| 3 | build_id=9999 (invalid) → doc 200, graceful empty label, 0 warning events (pre-fix hazard: array-offset warnings) | PASS |
+| 4 | Regression type=testplan & type=testreport (shared case block) → both render 200, 0 warnings | PASS |
+| 5 | php -l printDocument.php clean after edit | PASS |
+
+**Fix commit:** de0ab88af on branch fix/issue-575.
