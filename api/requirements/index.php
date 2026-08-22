@@ -81,6 +81,23 @@ if ($tprojectId <= 0) {
 
 $tprojectMgr = new testproject($db);
 $reqMgr = new requirement_mgr($db);
+$cfieldMgr = new cfield_mgr($db);
+
+/**
+ * Resolve test project id for the Overview endpoints:
+ * explicit query param wins, session project is the fallback.
+ */
+function resolveTprojectId() {
+    $tpid = intval($_GET['tproject_id'] ?? 0);
+    if ($tpid <= 0) {
+        $tpid = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tpid <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test project selected']);
+    }
+    return $tpid;
+}
 
 $method = $_SERVER['REQUEST_METHOD'];
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -241,18 +258,19 @@ if ($action === 'init') {
     if ($tprojectId <= 0) {
         out(['status' => 'ok', 'hasProject' => false]);
     }
-    if ($tid <= 0) {
-        http_response_code(400);
-        out(['status' => 'error', 'message' => 'No test project selected']);
-    }
-    return $tid;
+    out([
+        'status' => 'ok',
+        'hasProject' => true,
+        'tproject_id' => $tprojectId,
+        'tproject_name' => testproject::getName($db, $tprojectId),
+    ]);
 }
 
 /**
  * Meta block: cfg flags, custom field columns and localized label maps.
  */
 function buildMeta($tproject_id) {
-    global $cfield_mgr, $req_mgr;
+    global $cfieldMgr;
 
     $reqCfg = config_get('req_cfg');
     $charsetCfg = config_get('charset');
@@ -271,15 +289,15 @@ function buildMeta($tproject_id) {
     }
 
     // custom fields linked at design time for requirement nodes, ordered by name
-    $cfMap = (array)$cfield_mgr->get_linked_cfields_at_design($tproject_id, 1, null, 'requirement', null, 'name');
+    $cfMap = (array)$cfieldMgr->get_linked_cfields_at_design($tproject_id, 1, null, 'requirement', null, 'name');
     $cfields = [];
     foreach ($cfMap as $name => $cf) {
         $cfields[] = [
             'name' => $name,
             'label' => htmlentities($cf['label'], ENT_QUOTES, $charsetCfg),
             'type' => intval($cf['type']),
-            'verbose_type' => isset($cfield_mgr->custom_field_types[$cf['type']])
-                ? $cfield_mgr->custom_field_types[$cf['type']] : 'string',
+            'verbose_type' => isset($cfieldMgr->custom_field_types[$cf['type']])
+                ? $cfieldMgr->custom_field_types[$cf['type']] : 'string',
         ];
     }
 
@@ -305,24 +323,24 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
     $tid = resolveTprojectId();
     $meta = buildMeta($tid);
 
-    $allVersionsParam = getParam('all_versions', null);
-    if (!is_null($allVersionsParam)) {
+    $allVersionsParam = getParam('all_versions', '');
+    if ($allVersionsParam !== '') {
         $allVersions = ($allVersionsParam === '1' || $allVersionsParam === 'true');
         $_SESSION['all_versions'] = $allVersions;
     } else {
         $allVersions = isset($_SESSION['all_versions']) ? $_SESSION['all_versions'] : false;
     }
 
-    $reqIDs = $tproject_mgr->get_all_requirement_ids($tid);
+    $reqIDs = $tprojectMgr->get_all_requirement_ids($tid);
     $rows = [];
     $elapsed = 0;
 
     if (!empty($reqIDs)) {
         if ($allVersions) {
-            $reqSet = $req_mgr->get_by_id($reqIDs, requirement_mgr::ALL_VERSIONS, null,
+            $reqSet = $reqMgr->get_by_id($reqIDs, requirement_mgr::ALL_VERSIONS, null,
                 ['output_format' => 'mapOfArray']);
         } else {
-            $reqSet = $req_mgr->getByIDBulkLatestVersionRevision($reqIDs, ['outputFormat' => 'mapOfArray']);
+            $reqSet = $reqMgr->getByIDBulkLatestVersionRevision($reqIDs, ['outputFormat' => 'mapOfArray']);
         }
 
         // version set for bulk custom field fetch / coverage counters (same as legacy)
@@ -337,17 +355,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
 
         $coverageSet = null;
         if ($meta['expected_coverage_management']) {
-            $coverageSet = $req_mgr->getLatestReqVersionCoverageCounterSet($reqVersionSet);
+            $coverageSet = $reqMgr->getLatestReqVersionCoverageCounterSet($reqVersionSet);
         }
 
         $relationCounters = null;
         if ($meta['relations_enabled']) {
-            $relationCounters = $req_mgr->getRelationsCounters($reqIDs);
+            $relationCounters = $reqMgr->getRelationsCounters($reqIDs);
         }
 
         $cfByVer = [];
         if (count($meta['cfields']) > 0) {
-            $cfByVer = (array)$req_mgr->get_linked_cfields(null, $reqVersionSet, $tid,
+            $cfByVer = (array)$reqMgr->get_linked_cfields(null, $reqVersionSet, $tid,
                 ['access_key' => 'node_id']);
         }
 
@@ -362,7 +380,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
             // reqspec path cached per srs_id (same as legacy)
             $srsId = $req[0]['srs_id'];
             if (!isset($pathCache[$srsId])) {
-                $p = $req_mgr->tree_mgr->get_path($srsId);
+                $p = $reqMgr->tree_mgr->get_path($srsId);
                 $names = [];
                 foreach ($p as $nodeInfo) {
                     $names[] = $nodeInfo['name'];
@@ -395,8 +413,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
                 $cfValues = [];
                 if (count($meta['cfields']) > 0 && isset($cfByVer[$version['version_id']])) {
                     foreach ($cfByVer[$version['version_id']] as $cf) {
-                        $vType = isset($cfield_mgr->custom_field_types[$cf['type']])
-                            ? $cfield_mgr->custom_field_types[$cf['type']] : 'string';
+                        $vType = isset($cfieldMgr->custom_field_types[$cf['type']])
+                            ? $cfieldMgr->custom_field_types[$cf['type']] : 'string';
                         $value = preg_replace('!\s+!', ' ', htmlspecialchars($cf['value'], ENT_QUOTES));
                         if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && $value != 0) {
                             $format = config_get($vType);
