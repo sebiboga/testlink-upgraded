@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution History</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header .tcid { background: rgba(255,255,255,.2); border-radius: 4px; padding: 2px 10px; font-size: 14px; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px 20px; padding: 16px 20px 6px; align-items: end; }
+.form-group label { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.form-control { font-size: 13px; height: 34px; }
+.actions { padding: 8px 20px 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.chk-line { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #444; padding-bottom: 6px; }
+.table-wrap { padding: 8px 24px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 7px 14px; font-size: 13px; vertical-align: middle; }
+.badge-status { display: inline-block; border-radius: 10px; padding: 3px 12px; font-size: 12px; font-weight: 600; color: #fff; text-transform: uppercase; }
+.st-passed { background: #2ecc71; } .st-failed { background: #e6605e; }
+.st-blocked { background: #e67e22; } .st-other { background: #95a5a6; }
+.detail-row > td { background: #fafafa !important; padding: 12px 22px !important; border-top: 1px dashed #ddd; }
+.detail-block { margin-bottom: 8px; }
+.detail-label { font-size: 11px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.notes-box { border: 1px solid #eee; border-radius: 6px; background: #fff; padding: 8px 12px; font-size: 13px; color: #333; }
+.kv-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.kv-table td { padding: 4px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.kv-table td:first-child { font-weight: 700; color: #555; width: 220px; }
+.att-item, .bug-item { font-size: 13px; color: #333; padding: 3px 0; }
+.att-item i, .bug-item i { color: #4ECDC4; margin-right: 8px; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
+.none-text { color: #999; font-style: italic; font-size: 13px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
+.loading { margin: 40px auto; text-align: center; color: #888; font-size: 14px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="exechist.header">Execution History</span>
+  <span class="tcid" id="extId">-</span>
+  <span class="sub" id="tcName"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="exechist.testCase">Test Case</span> <b id="tcCtx">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" onclick="loadHistory()"><i class="fa fa-rotate"></i> <span data-i18n="exechist.refresh">Refresh</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="errorbox" id="errorBox"></div>
+<div class="loading" id="loadingBox"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="exechist.loading">Loading execution history...</span></div>
+
+<div class="panel" id="filterPanel" style="display:none;">
+  <div class="panel-head" data-i18n="exechist.filters">Filters</div>
+  <div class="form-grid">
+    <div class="form-group">
+      <label for="fltBuild" data-i18n="exechist.build">Build</label>
+      <select class="form-control" id="fltBuild"></select>
+    </div>
+    <div class="form-group">
+      <label for="fltTester" data-i18n="exechist.tester">Tester</label>
+      <select class="form-control" id="fltTester"></select>
+    </div>
+    <div class="form-group">
+      <label for="fltStatus" data-i18n="exechist.status">Status</label>
+      <select class="form-control" id="fltStatus"></select>
+    </div>
+    <div class="form-group">
+      <label for="fltDateFrom" data-i18n="exechist.dateFrom">Date from</label>
+      <input type="date" class="form-control" id="fltDateFrom">
+    </div>
+    <div class="form-group">
+      <label for="fltDateTo" data-i18n="exechist.dateTo">Date to</label>
+      <input type="date" class="form-control" id="fltDateTo">
+    </div>
+  </div>
+  <div class="actions">
+    <div class="chk-line">
+      <input type="checkbox" id="onlyActiveTestPlans" onchange="loadHistory()">
+      <label for="onlyActiveTestPlans" style="margin:0;" data-i18n="exechist.onlyActiveTestPlans">Display only active test plans</label>
+    </div>
+    <button class="btn-teal" onclick="applyFilters()"><i class="fa fa-filter"></i> <span data-i18n="exechist.apply">Apply</span></button>
+    <button class="btn-dark" onclick="resetFilters()"><i class="fa fa-eraser"></i> <span data-i18n="exechist.reset">Reset</span></button>
+  </div>
+</div>
+
+<div class="results-head" id="resultsHead" style="display:none;">
+  <h2><span data-i18n="exechist.executions">Executions</span><span class="count" id="matchCount"></span></h2>
+</div>
+
+<div class="table-wrap" id="resultsWrap" style="display:none;">
+  <table id="histTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="exechist.colDateTimeRun">Date/Time of run</th>
+        <th data-i18n="exechist.colTestPlan">Test Plan</th>
+        <th data-i18n="exechist.colBuild">Build</th>
+        <th id="thPlatform" style="display:none;" data-i18n="exechist.colPlatform">Platform</th>
+        <th data-i18n="exechist.colTester">Executed by</th>
+        <th data-i18n="exechist.colStatus">Status</th>
+        <th data-i18n="exechist.colVersion">Version</th>
+        <th data-i18n="exechist.colRunMode">Run mode</th>
+        <th data-orderable="false" style="width:110px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span data-i18n="exechist.footer">TestLink 2.0.1 - Execution History (read-only). Editing operations open the legacy screens.</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/execute/index.php';
+var tprojectId = 0;
+var data = null;
+var filtered = [];
+var resTbl = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadHistory();
+  });
+});
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function showError(msg) {
+  $('#loadingBox').hide();
+  $('#errorBox').html('<i class="fa fa-triangle-exclamation" style="color:#e6605e;font-size:22px;"></i><br>' + esc(msg)).show();
+}
+
+function loadHistory() {
+  $('#errorBox').hide();
+  $('#warnBox').hide();
+  $('#resultsWrap').hide();
+  $('#resultsHead').hide();
+  $('#filterPanel').hide();
+  $('#loadingBox').show();
+
+  var tcaseId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
+  if (!(tcaseId > 0)) { showError(TLi18n.t('exechist.errNoId')); return; }
+
+  var url = API + '?action=history&tcase_id=' + tcaseId
+    + ($('#onlyActiveTestPlans').prop('checked') ? '&only_active_test_plans=1' : '');
+  $.get(url)
+    .done(function (r) {
+      $('#loadingBox').hide();
+      if (r.status !== 'ok') { showError(r.message || TLi18n.t('exechist.errLoad')); return; }
+      finish(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('exechist.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showError(msg);
+    });
+}
+
+function finish(r) {
+  data = r;
+  document.title = data.fullExternalId + ' - ' + TLi18n.t('exechist.header');
+  $('#extId').text(data.fullExternalId);
+  $('#tcName').text(data.tcase.name);
+  $('#tcCtx').text(data.fullExternalId);
+
+  if (data.neverExecuted) {
+    $('#warnBox').html('<i class="fa fa-circle-info"></i> ' + esc(TLi18n.t('exechist.neverExecuted'))).show();
+  }
+
+  $('#filterPanel').show();
+  populateFilterOptions();
+  applyFilters();
+}
+
+function populateFilterOptions() {
+  var builds = {}, testers = {}, statuses = {};
+  (data.executions || []).forEach(function (e) {
+    builds[e.build_id] = e.build_name;
+    if (e.tester_login) testers[e.tester_login] = e.tester_name || e.tester_login;
+    statuses[e.status_code] = e.status_label;
+  });
+  var fill = function ($sel, map) {
+    var cur = $sel.val();
+    $sel.find('option:not(:first)').remove();
+    Object.keys(map).forEach(function (k) {
+      $sel.append('<option value="' + esc(k) + '">' + esc(map[k]) + '</option>');
+    });
+    $sel.val(cur);
+  };
+  fill($('#fltBuild'), builds);
+  fill($('#fltTester'), testers);
+  fill($('#fltStatus'), statuses);
+  $('#thPlatform').toggle(!!data.displayPlatformCol);
+}
+
+function applyFilters() {
+  var fb = $('#fltBuild').val(), ft = $('#fltTester').val(),
+      fs = $('#fltStatus').val(),
+      df = $('#fltDateFrom').val() ? new Date($('#fltDateFrom').val()) : null,
+      dt = $('#fltDateTo').val() ? new Date($('#fltDateTo').val()) : null;
+  if (dt) dt.setHours(23, 59, 59);
+
+  filtered = (data.executions || []).filter(function (e) {
+    if (fb && e.build_id != fb) return false;
+    if (ft && e.tester_login !== ft) return false;
+    if (fs && e.status_code !== fs) return false;
+    var ts = new Date(String(e.execution_ts).replace(' ', 'T'));
+    if (df && ts < df) return false;
+    if (dt && ts > dt) return false;
+    return true;
+  });
+
+  renderTable();
+}
+
+function resetFilters() {
+  $('#fltBuild,#fltTester,#fltStatus,#fltDateFrom,#fltDateTo').each(function () {
+    if (this.tagName === 'SELECT') this.selectedIndex = 0; else this.value = '';
+  });
+  applyFilters();
+}
+
+function statusBadge(e) {
+  var cls = 'st-other';
+  switch (e.status_suffix) {
+    case 'passed': cls = 'st-passed'; break;
+    case 'failed': cls = 'st-failed'; break;
+    case 'blocked': cls = 'st-blocked'; break;
+  }
+  return '<span class="badge-status ' + cls + '">' + esc(e.status_label) + '</span>';
+}
+
+function renderTable() {
+  $('#resultsHead').show();
+  $('#matchCount').text('(' + filtered.length + ')');
+
+  var h = '';
+  filtered.forEach(function (e, idx) {
+    var tester = e.tester_login ? esc(e.tester_name)
+      : '<span class="none-text">' + esc(TLi18n.t('exechist.deletedUser')) + '</span>';
+    var actions =
+      '<button class="icon-btn dark" title="' + esc(TLi18n.t('exechist.toggleDetails'))
+        + '" onclick="toggleDetails(' + idx + ')"><i class="fas fa-comment-dots"></i></button>'
+      + '<button class="icon-btn" title="' + esc(TLi18n.t('exechist.printPreview'))
+        + '" onclick="openExecPrint(' + e.execution_id + ')"><i class="fas fa-print"></i></button>'
+      + (e.can_edit_notes
+        ? '<button class="icon-btn" title="' + esc(TLi18n.t('exechist.editExecution'))
+          + '" onclick="openEditExecution(' + e.execution_id + ',' + e.tcversion_id + ','
+          + e.testplan_id + ')"><i class="fas fa-pen-to-square"></i></button>' : '');
+
+    h += '<tr>';
+    h += '<td style="white-space:nowrap;">' + esc(fmtTs(e.execution_ts)) + '</td>';
+    h += '<td>' + esc(e.testplan_name) + '</td>';
+    h += '<td>' + esc(e.build_name) + '</td>';
+    if (data.displayPlatformCol) h += '<td>' + esc(e.platform_name || '-') + '</td>';
+    h += '<td title="' + esc(e.tester_login || '') + '">' + tester + '</td>';
+    h += '<td class="text-center">' + statusBadge(e) + '</td>';
+    h += '<td class="text-center">' + e.tcversion_number + '</td>';
+    var runLbl = e.run_type === 'automated' ? TLi18n.t('exechist.runAuto') : TLi18n.t('exechist.runManual');
+    h += '<td><i class="fas ' + (e.run_type === 'automated' ? 'fa-robot' : 'fa-user')
+      + '" style="color:#555;padding-right:6px;"></i>' + esc(runLbl) + '</td>';
+    h += '<td class="text-right" style="white-space:nowrap;">' + actions + '</td>';
+    h += '</tr>';
+    h += '<tr class="detail-row" id="detail_' + idx + '" style="display:none;"><td colspan="'
+      + (data.displayPlatformCol ? 9 : 8) + '">' + renderDetail(e) + '</td></tr>';
+  });
+
+  $('#histTable tbody').html(h);
+  if (!filtered.length && !data.neverExecuted) {
+    $('#histTable tbody').html('<tr><td colspan="9" class="none-text text-center">'
+      + esc(TLi18n.t('search.noResults')) + '</td></tr>');
+  }
+  $('#resultsWrap').show();
+}
+
+function renderDetail(e) {
+  var h = '';
+  if (e.notes !== '') {
+    h += '<div class="detail-block"><div class="detail-label">'
+      + esc(TLi18n.t('exechist.execNotes')) + '</div>'
+      + '<div class="notes-box">' + e.notes + '</div></div>';
+  }
+  if (e.customFields.length) {
+    h += '<div class="detail-block"><div class="detail-label">'
+      + esc(TLi18n.t('exechist.customFields')) + '</div><table class="kv-table">';
+    e.customFields.forEach(function (cf) {
+      h += '<tr><td>' + esc(cf.label) + '</td><td>' + esc(cf.value) + '</td></tr>';
+    });
+    h += '</table></div>';
+  }
+  if (e.attachments.length) {
+    h += '<div class="detail-block"><div class="detail-label">'
+      + esc(TLi18n.t('exechist.attachments')) + '</div>';
+    e.attachments.forEach(function (a) {
+      h += '<div class="att-item"><i class="fa fa-paperclip"></i><a href="/' + a.download_url
+        + '" target="_blank">' + esc(a.title || a.file_name) + '</a> <span style="color:#999;font-size:11px;">('
+        + Math.round(a.file_size / 1024) + ' KB)</span></div>';
+    });
+    h += '</div>';
+  }
+  if (e.bugs.length) {
+    h += '<div class="detail-block"><div class="detail-label">'
+      + esc(TLi18n.t('exechist.bugs')) + '</div>';
+    e.bugs.forEach(function (b) {
+      h += '<div class="bug-item"><i class="fa fa-bug"></i>'
+        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + '</div>';
+    });
+    h += '</div>';
+  }
+  if (h === '') {
+    h = '<span class="none-text">' + esc(TLi18n.t('exechist.none')) + '</span>';
+  }
+  return h;
+}
+
+function toggleDetails(idx) {
+  $('#detail_' + idx).toggle();
+}
+
+function fmtTs(ts) {
+  return String(ts == null ? '' : ts).substring(0, 16);
+}
+
+function openExecPrint(execId) {
+  window.open('/lib/execute/execPrint.php?id=' + execId, '_blank',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function openEditExecution(execId, tcversionId, tplanId) {
+  window.open('/lib/execute/editExecution.php?exec_id=' + execId
+    + '&tcversion_id=' + tcversionId + '&tplan_id=' + tplanId
+    + '&tproject_id=' + tprojectId, 'execution_notes',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+</script>
+</body>
+</html>

@@ -513,7 +513,7 @@ function openTcEdit(tcaseId) {
 }
 
 function openExecHistory(tcaseId) {
-  var url = '/lib/execute/execHistory.php?tcase_id=' + tcaseId + '&tproject_id=' + tprojectId;
+  var url = '/gui/templates/execute/execHistory.html?tcase_id=' + tcaseId + (tprojectId ? '&tproject_id=' + tprojectId : '');
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
