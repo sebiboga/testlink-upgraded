@@ -2165,3 +2165,30 @@ simulate a fresh-session deep link.
 - `lib/functions/print.inc.php` `initStaticRenderTestCaseForPrinting()`:
   only call `get_by_id()` when `$tprojectID > 0` and null-guard `$info`
   before reading `issue_tracker_enabled` (defense-in-depth for any caller).
+
+## 38. Regression — Issue #554: testproject::get_by_id() E_WARNING array-offset-on-null for nonexistent positive id (Suite ID: 45)
+
+**Precondition:** fresh DB; one test project exists (fixture: node 1
+"ReproProj554", `testprojects` row prefix `RP554`); PHP CLI bootstrap
+(`config.inc.php` + `common.php`, `testlinkInitPage($db,false,true)`).
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: `$tprojMgr->get_by_id(99999999)` (positive, nonexistent) → returns NULL but logs E_WARNING to `events`: "Trying to access array offset on null … testproject.class.php - Line 342" (`get_recordset()` yields null for zero rows; line 342 does `return $result[0];`) | PASS (reproduced) |
+| 2 | Post-fix same call → clean `NULL` return, **zero** new rows in `events` | PASS |
+| 3 | Positive path intact: `get_by_id(1)` (existing fixture) → full record array with `name=ReproProj554`; callers unaffected | PASS |
+| 4 | Sibling methods unchanged: `get_by_prefix('RP554')` → row; `get_by_name('ReproProj554')` → row (their guards already existed) | PASS |
+| 5 | Event Viewer after all flows: 0 Error/Warning entries | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Root cause fixed**
+- `lib/functions/testproject.class.php` `get_by_id()`: unguarded array
+  dereference `$result[0]` when `getTestProject()` returns the empty/null
+  recordset of a nonexistent positive id. Minimal fix mirrors the existing
+  guard convention already used in the same class by
+  `get_by_prefix()` (line ~360): `return $result != null ? $result[0] : null;`
+  Callers already treat null as project-not-found (guard added in
+  `print.inc.php initStaticRenderTestCaseForPrinting()` during the #552 fix).
