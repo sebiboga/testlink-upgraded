@@ -2394,3 +2394,59 @@ requirements 1010 "Login functionality" (`RMP-REQ-1`, v-node 1011),
 `api/requirements/index.php` (shared router also serving printReqSpec),
 `lib/functions/common.php` (aside link switch),
 `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+15 keys each).
+## 43. Modernization — Search Requirement Specifications screen (searchReqSpec) (Suite ID: 50)
+
+**Date:** 2026-08-22 · **Branch:** sebiboga · **Tester:** ox-alpha (CI agent)
+**Target:** `gui/templates/requirements/searchReqSpec.html` +
+`api/requirements/index.php` routes `GET /reqspec-context`, `GET /reqspec-search`
+**Legacy reference:** `lib/requirements/reqSpecSearchForm.php` +
+`lib/requirements/reqSpecSearch.php` (1.9.20)
+**Right:** `mgt_view_req` on the current test project
+**Fixtures:** project "ReqSpec Search Demo" (id 1, prefix RSD, reqs enabled);
+spec RSD-SPEC-001 "Payment Subsystem Spec" rev1+rev2 (rev2 scope/log mention
+chargebacks); spec RSD-SPEC-002 "User Interface Guidelines"; requirements
+RSD-REQ-001/002 under SPEC-001, RSD-REQ-010 under SPEC-002.
+
+| # | Test | Expected | Result |
+|---|------|----------|--------|
+| 1 | Open screen with `tproject_id=1` as admin | Header shows project name; Type domain localized (Section/User Req Spec/System Req Spec + "Any"); notice "search ONLY on project X" | PASS |
+| 2 | Doc ID filter visibility rule | Shown only when the project has req specs containing requirements (`getOptionReqSpec(GET_NOT_EMPTY_REQSPEC)`) — hidden before fixtures had requirements, visible after | PASS |
+| 3 | Search Title="Payment" | 1 row: RSD-SPEC-001::Payment Subsystem Spec with revision links rev.2 + rev.1 (revision DESC), count "(Matches: 1)" | PASS |
+| 4 | Revision links order + target | rev links ordered DESC (legacy `ORDER BY id ASC, revision DESC`); each opens `reqSpecViewRevision.php?item_id=<revision_id>` in popup — HTTP 200, no Fatal | PASS |
+| 5 | Edit icon / title link | Opens `reqSpecView.php?req_spec_id=2` popup — HTTP 200, no Fatal | PASS |
+| 6 | Scope="chargebacks" | Only spec1 **rev.2** matches (scope searched per REVISION like legacy), count 1 | PASS |
+| 7 | Log message="chargebacks" | Only spec1 rev.2 matches | PASS |
+| 8 | Type="User Requirement Specification" | Only RSD-SPEC-002 matches (exact type match on revision) | PASS |
+| 9 | AND combination mismatch: Title="Payment" + Doc ID="RSD-SPEC-002" | 0 rows; warning box "No requirement specifications match the given criteria."; empty-state box shown | PASS |
+| 10 | Doc ID LIKE partial: doc_id="002" | RSD-SPEC-002 matches (LIKE %value%) | PASS |
+| 11 | Reset buttons (toolbar + form) | All fields cleared, type back to "Any", results/warnings hidden | PASS |
+| 12 | Deep-link prefill: `?doc_id=RSD-SPEC-002&scope=accessibility` then Find | Fields prefilled; AND search returns only spec2 | PASS (after fix, see bug A) |
+| 13 | Locale switch `locale=ro` | Header "Cautare specificatii de cerinte", button "Cauta", "Oricare" option; DataTables still functional | PASS |
+| 14 | Permission path: user `lowviewer` (role = no rights) opens screen | Context API → HTTP 403 `No permission`; red toast displayed; aside does NOT render the menu entry for this user | PASS |
+| 15 | Result cap behavior | `max_qty_for_display`=200 returned by context; >200 grouped specs would trigger legacy `too_wide_search_criteria` warning instead of rows (code path mirrors legacy; not triggered with fixture volume) | PASS (code-reviewed) |
+
+### Bugs found & fixed during this suite
+
+* **A — Deep-link prefill dead:** `URLSearchParams` was created inside the
+  document-ready closure while `loadContext()` referenced it from outer scope
+  → ReferenceError at prefill step, fields stayed empty.
+  Fixed by hoisting the instance to script scope
+  (commit `fix(requirements): searchReqSpec deep-link prefill…`).
+* **B — E_NOTICE in event viewer:** `get_full_path_verbose(array_keys(…))`
+  passes an expression to a by-reference parameter → repeated E_NOTICE rows
+  (events #12–#23). Fixed by assigning `array_keys($grouped)` to a variable
+  first; verified 0 new event rows afterwards
+  (commit `fix(requirements): pass real variable to get_full_path_verbose()…`).
+* **C — i18n keys clobbered by concurrent merge:** another agent's i18n commit
+  rewrote all bundles without `reqspecsearch.*`; restored via upsert commit
+  `fix(i18n): restore reqspecsearch.* keys lost in concurrent i18n merge`.
+
+### Event Viewer check
+
+After all Suite-43 flows: **0 new Error/Warning rows** attributable to
+`reqspec-context` / `reqspec-search` routes or the modern screen itself.
+Pre-existing warnings observed during testing but NOT caused by this screen:
+`Undefined property stdClass::$tproject_user_role_assignment` in
+common.php:2072 and `$tproject_id` in reqSpecViewButtons.inc.tpl (legacy
+reqSpecView deep link) — filed as issue #567.
+
