@@ -536,7 +536,7 @@
   "exechist.customFields": "自定义字段",
   "exechist.attachments": "附件",
   "exechist.bugs": "缺陷",
-  "exechist.none": "暂无内容"
+  "exechist.none": "暂无内容",
   "exechist.header": "Execution History",
   "exechist.testCase": "Test Case",
   "exechist.refresh": "Refresh",

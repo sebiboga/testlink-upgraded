@@ -536,7 +536,7 @@
   "exechist.customFields": "Пользовательские поля",
   "exechist.attachments": "Вложения",
   "exechist.bugs": "Ошибки",
-  "exechist.none": "Нечего показывать"
+  "exechist.none": "Нечего показывать",
   "exechist.header": "実行履歴",
   "exechist.testCase": "テストケース",
   "exechist.refresh": "更新",

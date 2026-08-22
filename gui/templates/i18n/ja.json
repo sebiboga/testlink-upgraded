@@ -536,7 +536,7 @@
   "exechist.customFields": "カスタムフィールド",
   "exechist.attachments": "添付ファイル",
   "exechist.bugs": "バグ",
-  "exechist.none": "表示するものがありません"
+  "exechist.none": "表示するものがありません",
   "exechist.header": "执行历史",
   "exechist.testCase": "测试用例",
   "exechist.refresh": "刷新",

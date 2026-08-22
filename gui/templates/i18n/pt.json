@@ -536,7 +536,7 @@
   "exechist.customFields": "Campos personalizados",
   "exechist.attachments": "Anexos",
   "exechist.bugs": "Bugs",
-  "exechist.none": "Nada a exibir"
+  "exechist.none": "Nada a exibir",
   "exechist.header": "История выполнения",
   "exechist.testCase": "Тест-кейс",
   "exechist.refresh": "Обновить",
