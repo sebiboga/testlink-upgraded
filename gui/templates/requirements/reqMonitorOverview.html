@@ -106,6 +106,13 @@ function showError(msg) {
   $('#errModal').modal('show');
 }
 
+function updateFooter() {
+  var monCount = allItems.filter(function(x) { return x.monitored; }).length;
+  $('#footerText').text(
+    TLi18n.t('rmo.itemsCount', {n: allItems.length, m: monCount}) +
+    ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+}
+
 function loadData() {
   $('#emptyState').hide();
   if (table) { table.clear().draw(); }
@@ -121,11 +128,8 @@ function loadData() {
       $('#rmoTable').show();
       renderTable(allItems);
     }
-    var monCount = allItems.filter(function(x) { return x.monitored; }).length;
     $('#projectInfo').text(r.tproject_name || '');
-    $('#footerText').text(
-      TLi18n.t('rmo.itemsCount', {n: allItems.length, m: monCount}) +
-      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    updateFooter();
   }).fail(function(xhr) {
     var msg = TLi18n.t('rmo.msg.errorLoad');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
@@ -201,6 +205,7 @@ function setMonitor(id, action) {
         if (x.id === id) { x.monitored = r.monitored; }
       });
       renderTable(allItems);
+      updateFooter();
     },
     error: function(xhr) {
       var msg = TLi18n.t('rmo.msg.errorToggle');
