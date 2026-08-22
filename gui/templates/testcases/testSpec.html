@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; font-size: 13px; }
+.header { background: #4ECDC4; color: #fff; padding: 12px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d34f4d; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.main { display: flex; height: calc(100vh - 108px); min-height: 300px; }
+.tree-pane { width: 340px; min-width: 260px; background: #fff; border-right: 1px solid #ddd; overflow-y: auto; padding: 12px; flex-shrink: 0; }
+.detail-pane { flex: 1; overflow-y: auto; padding: 16px 24px; }
+.tree-search { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; margin-bottom: 10px; }
+.tree-root { font-weight: 700; color: #22242a; font-size: 14px; padding: 4px 0; }
+.tree ul { list-style: none; padding-left: 16px; margin: 0; }
+.tree li { padding: 1px 0; }
+.tree-node { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 4px; cursor: pointer; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tree-node:hover { background: #eefaf9; }
+.tree-node.selected { background: #4ECDC4; color: #fff; }
+.tree-node .toggler { width: 14px; text-align: center; color: #888; cursor: pointer; flex-shrink: 0; }
+.tree-node.selected .toggler { color: #fff; }
+.tree-node i.fa-folder { color: #f0ad4e; }
+.tree-node i.fa-flask, .tree-node i.fa-vial { color: #5bc0de; }
+.tree-node.selected i { color: #fff; }
+.tree-node .extid { font-size: 11px; opacity: .65; margin-left: auto; }
+.tree-node.inactive-tc { opacity: .55; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-head h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+.badge-tl { font-size: 11px; font-weight: 600; border-radius: 10px; padding: 3px 10px; text-transform: uppercase; letter-spacing: .5px; background: #4ECDC4; color: #fff; }
+.badge-gray { background: #95a5a6; }
+.badge-purple { background: #9b59b6; }
+.badge-gold { background: #444; color: #ffd97d; }
+.card-body { padding: 16px 20px; }
+.meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px 20px; margin-bottom: 14px; }
+.meta-item { font-size: 12px; color: #666; }
+.meta-item b { display: block; color: #22242a; font-size: 12.5px; }
+.field-label { font-size: 12px; font-weight: 700; color: #22242a; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: .5px; }
+.rich-field { border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; font-size: 13px; color: #333; background: #fafafa; margin-bottom: 8px; min-height: 20px; }
+table.steps { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.steps thead th { background: #22242a; color: #fff; font-size: 12.5px; padding: 8px 12px; text-align: left; }
+table.steps tbody td { padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: top; color: #333; }
+table.steps tbody tr:nth-child(even) { background: #fafafa; }
+.step-num { font-weight: 700; color: #2d8e88; width: 50px; }
+.chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 0 6px 6px 0; }
+.none-text { color: #999; font-style: italic; }
+.form-control2 { width: 100%; max-width: 720px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }
+textarea.form-control2 { min-height: 80px; resize: vertical; }
+.form-row { margin-bottom: 12px; }
+.kw-list { max-width: 720px; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; background: #fafafa; }
+.kw-item { display: inline-block; margin: 0 14px 6px 0; font-size: 13px; }
+.step-editor td textarea { width: 100%; min-height: 54px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12.5px; }
+.placeholder-box { text-align: center; color: #999; margin-top: 60px; font-size: 14px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 9000; }
+.modal-box { background: #fff; border-radius: 8px; width: 480px; max-width: 94vw; box-shadow: 0 6px 30px rgba(0,0,0,.3); overflow: hidden; }
+.modal-head { background: #22242a; color: #fff; padding: 11px 18px; font-weight: 700; font-size: 14px; }
+.modal-body { padding: 18px; font-size: 13px; color: #333; }
+.modal-foot { padding: 12px 18px; border-top: 1px solid #eee; text-align: right; display: flex; gap: 10px; justify-content: flex-end; }
+.count-pill { background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 8px; font-size: 11px; }
+.loading { text-align: center; color: #888; padding: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-diagram-project"></i>
+  <span data-i18n="tspec.header">Test Specification</span>
+  <span class="sub"><span data-i18n="tspec.testProject">Test Project</span>: <span id="tprojectName">-</span></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal btn-sm" id="btnNewTc" onclick="openCreateTc()" style="display:none;"><i class="fa fa-plus"></i> <span data-i18n="tspec.newTc">New Test Case</span></button>
+  <button class="btn-dark btn-sm" id="btnNewSuite" onclick="openSuiteCreate()" style="display:none;"><i class="fa fa-folder-plus"></i> <span data-i18n="tspec.newSuite">New Test Suite</span></button>
+  <button class="btn-dark btn-sm" id="btnRenameSuite" onclick="openSuiteRename()" style="display:none;"><i class="fa fa-pen"></i> <span data-i18n="tspec.renameSuite">Rename Suite</span></button>
+  <button class="btn-red btn-sm" id="btnDelSuite" onclick="askDeleteSuite()" style="display:none;"><i class="fa fa-trash"></i> <span data-i18n="tspec.deleteSuite">Delete Suite</span></button>
+  <span style="flex:1"></span>
+  <span class="ctx"><b id="treeCounts">-</b></span>
+</div>
+
+<div class="main">
+  <div class="tree-pane">
+    <input type="text" class="tree-search" id="treeFilter" oninput="filterTree()" data-i18n-ph="tspec.filterPlaceholder" placeholder="Filter by name...">
+    <div class="loading" id="treeLoading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tspec.loadingTree">Loading tree...</span></div>
+    <div class="tree" id="treeBox" style="display:none;"></div>
+  </div>
+  <div class="detail-pane" id="detailPane">
+    <div class="placeholder-box" id="placeholder">
+      <i class="fa fa-hand-pointer" style="font-size:28px;display:block;margin-bottom:10px;"></i>
+      <span data-i18n="tspec.selectHint">Select a test suite or test case from the tree.</span>
+    </div>
+    <div id="suiteView" style="display:none;"></div>
+    <div id="tcView" style="display:none;"></div>
+    <div id="editView" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- suite create/rename modal -->
+<div class="modal-overlay" id="suiteModal">
+  <div class="modal-box">
+    <div class="modal-head" id="suiteModalTitle">Test suite</div>
+    <div class="modal-body">
+      <div class="field-label"><span data-i18n="tspec.suiteName">Name</span> *</div>
+      <input type="text" class="form-control2" id="suiteNameInput" maxlength="200">
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="closeModal('suiteModal')" data-i18n="tspec.cancel">Cancel</button>
+      <button class="btn-teal btn-sm" onclick="submitSuiteModal()" data-i18n="tspec.save">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- confirm modal -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <div class="modal-head" id="confirmTitle">Confirm</div>
+    <div class="modal-body" id="confirmText"></div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="closeModal('confirmModal')" data-i18n="tspec.cancel">Cancel</button>
+      <button class="btn-red btn-sm" id="confirmYesBtn" data-i18n="tspec.confirmDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = null;
+var grants = {};
+var treeData = null;
+var selected = null;
+var editMode = null;
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    init();
+  });
+});
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function t(key) { return TLi18n.t(key); }
+
+function toast(msg, isErr) {
+  var $tt = $('#toast');
+  $tt.text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($tt.data('tm'));
+  $tt.data('tm', setTimeout(function () { $tt.hide(); }, 3500));
+}
+
+function apiGet(action, params) {
+  return $.get('/api/testcases/index.php', $.extend({ action: action }, params || {}))
+    .then(function (r) {
+      if (!r || r.status !== 'ok') { throw new Error((r && r.message) || t('tspec.errRequest')); }
+      return r;
+    });
+}
+
+function apiPost(action, body) {
+  return $.ajax({
+    url: '/api/testcases/index.php?action=' + encodeURIComponent(action),
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(body || {})
+  }).then(function (r) {
+    if (!r || r.status !== 'ok') { throw new Error((r && r.message) || t('tspec.errRequest')); }
+    return r;
+  });
+}
+
+function closeModal(id) { $('#' + id).hide(); }
+
+function init() {
+  ctx = { tproject_id: parseInt(qs('tproject_id') || '0', 10) };
+  apiGet('context').then(function (r) {
+    ctx.tproject_id = parseInt(r.tproject.id, 10);
+    $('#tprojectName').text(r.tproject.name);
+    document.title = r.tproject.name + ' - ' + t('tspec.header');
+    grants = r.grants || {};
+    refreshGrantsUi();
+    return loadTree();
+  }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
+
+  $('#confirmYesBtn').on('click', function () {
+    closeModal('confirmModal');
+    if (window.__confirmCb) { window.__confirmCb(); window.__confirmCb = null; }
+  });
+}
+
+function refreshGrantsUi() {
+  var canMod = !!grants['mgt_modify_tc'];
+  $('#btnNewSuite').toggle(canMod);
+  updateContextButtons();
+}
+
+function updateContextButtons() {
+  var canMod = !!grants['mgt_modify_tc'];
+  var isSuite = selected && selected.type === 'testsuite';
+  var rootSelected = !selected;
+  $('#btnNewTc').toggle(canMod);
+  $('#btnRenameSuite').toggle(canMod && isSuite);
+  $('#btnDelSuite').toggle(canMod && isSuite);
+  if ($('#btnNewSuite').length && canMod) {
+    $('#btnNewSuite').toggle(true);
+  }
+  if (!isSuite) {
+    $('#btnRenameSuite,#btnDelSuite').hide();
+  } else {
+    $('#btnRenameSuite,#btnDelSuite').toggle(canMod);
+  }
+}
+
+function loadTree() {
+  $('#treeLoading').show(); $('#treeBox').hide();
+  return apiGet('tree', { tproject_id: ctx.tproject_id }).then(function (r) {
+    treeData = r.tree;
+    $('#tprojectName').text(r.tproject.name);
+    renderTree();
+    $('#treeLoading').hide(); $('#treeBox').show();
+    var deepId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
+    if (deepId > 0) {
+      selectNode('testcase', deepId);
+    }
+  }).catch(function (e) {
+    $('#treeLoading').hide();
+    toast(e.message || t('tspec.errLoad'), true);
+  });
+}
+
+function findNode(type, id, node) {
+  node = node || treeData;
+  var list = type === 'testsuite' ? node.suites : node.testcases;
+  var other = type === 'testsuite' ? node.testcases : node.suites;
+  for (var i = 0; i < (list || []).length; i++) {
+    if (parseInt(list[i].id, 10) === parseInt(id, 10)) { return list[i]; }
+  }
+  for (var j = 0; j < (node.suites || []).length; j++) {
+    var found = findNode(type, id, node.suites[j].children);
+    if (found) { return found; }
+  }
+  return null;
+}
+
+function renderTree() {
+  var h = '<div class="tree-root"><i class="fa fa-database"></i> ' +
+          esc($('#tprojectName').text()) + '</div>';
+  h += renderSuites(treeData, []);
+  var tcCount = countNodes(treeData).tc;
+  var suiteCount = countNodes(treeData).suites;
+  $('#treeCounts').text(suiteCount + ' ' + t('tspec.suitesWord') + ' · ' + tcCount + ' ' + t('tspec.casesWord'));
+  $('#treeBox').html(h);
+}
+
+function countNodes(node) {
+  var out = { suites: 0, tc: (node.testcases || []).length };
+  (node.suites || []).forEach(function (s) {
+    out.suites++;
+    var sub = countNodes(s.children);
+    out.suites += sub.suites;
+    out.tc += sub.tc;
+  });
+  return out;
+}
+
+function renderSuites(node, path) {
+  var h = '<ul>';
+  (node.suites || []).forEach(function (s) {
+    var p = path.concat([s.name]);
+    var sub = countNodes(s.children);
+    h += '<li>' +
+      '<div class="tree-node suite-node" data-id="' + s.id + '" data-path="' + esc(p.join(' / ')) + '" onclick="selectNode(\'testsuite\',' + s.id + ')">' +
+        '<span class="toggler" onclick="toggleBranch(event,this)"><i class="fa fa-chevron-down"></i></span>' +
+        '<i class="fa fa-folder"></i> <span class="node-name">' + esc(s.name) + '</span>' +
+        ' <span class="count-pill">' + (sub.tc + countDirectTc(s)) + '</span>' +
+      '</div>' + renderSuites(s.children, p) + '</li>';
+  });
+  (node.testcases || []).forEach(function (tc) {
+    h += '<li><div class="tree-node tc-node' + (tc.active ? '' : ' inactive-tc') + '" data-id="' + tc.id + '" data-name="' + esc(tc.name.toLowerCase()) + '" onclick="selectNode(\'testcase\',' + tc.id + ')">' +
+      '<span class="toggler"></span><i class="fa fa-flask"></i> <span class="node-name">' + esc(tc.name) + '</span>' +
+      (tc.external_id > 0 ? '<span class="extid">' + tc.external_id + '</span>' : '') +
+    '</div></li>';
+  });
+  h += '</ul>';
+  return (node.suites || []).length || (node.testcases || []).length ? h : '';
+}
+
+function countDirectTc(s) {
+  return 0;
+}
+
+function toggleBranch(ev, el) {
+  ev.stopPropagation();
+  var $ul = $(el).closest('li').children('ul').first();
+  if ($ul.length) {
+    $ul.toggle();
+    $(el).find('i').toggleClass('fa-chevron-down fa-chevron-right');
+  }
+}
+
+function filterTree() {
+  var q = $('#treeFilter').val().toLowerCase().trim();
+  $('#treeBox .tc-node').each(function () {
+    var match = !q || ($(this).data('name') || '').indexOf(q) >= 0;
+    $(this).toggle(match);
+  });
+  $('#treeBox .suite-node').each(function () {
+    if (!q) { $(this).show(); return; }
+    var nm = ($(this).find('.node-name').text() || '').toLowerCase();
+    $(this).toggle(nm.indexOf(q) >= 0);
+  });
+}
+
+function markSelected() {
+  $('.tree-node').removeClass('selected');
+  if (selected) {
+    var cls = selected.type === 'testsuite' ? '.suite-node' : '.tc-node';
+    $(cls + '[data-id="' + selected.id + '"]').addClass('selected');
+  }
+  updateContextButtons();
+}
+
+function selectNode(type, id) {
+  selected = { type: type, id: parseInt(id, 10) };
+  markSelected();
+  hideAllPanes();
+  if (type === 'testsuite') {
+    showSuiteView();
+  } else {
+    loadTcView(id);
+  }
+}
+
+function hideAllPanes() {
+  $('#placeholder,#suiteView,#tcView,#editView').hide();
+}
+
+function showSuiteView() {
+  var s = findNode('testsuite', selected.id);
+  if (!s) { toast(t('tspec.errNotFound'), true); return; }
+  var canMod = !!grants['mgt_modify_tc'];
+  var cnt = countNodes(s.children);
+  var h = '<div class="card"><div class="card-head">' +
+    '<h2><i class="fa fa-folder-open"></i> ' + esc(s.name) + '</h2>' +
+    '<span class="badge-tl badge-gray" style="background:#555;">test suite</span></div>' +
+    '<div class="card-body">' +
+    '<div class="meta-grid">' +
+      '<div class="meta-item"><b>' + t('tspec.path') + '</b>' + esc($('.suite-node[data-id="' + s.id + '"]').data('path') || '-') + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.subSuites') + '</b>' + cnt.suites + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.testCases') + '</b>' + cnt.tc + '</div>' +
+    '</div>';
+  if ((s.children.testcases || []).length === 0 && (s.children.suites || []).length === 0) {
+    h += '<p class="none-text"><i class="fa fa-circle-info"></i> ' + t('tspec.emptySuite') + '</p>';
+  }
+  if (canMod) {
+    h += '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">' +
+      '<button class="btn-teal btn-sm" onclick="openCreateTc()"><i class="fa fa-plus"></i> ' + t('tspec.newTcHere') + '</button>' +
+      '<button class="btn-dark btn-sm" onclick="openSuiteCreate()"><i class="fa fa-folder-plus"></i> ' + t('tspec.newSubSuite') + '</button>' +
+      '<button class="btn-dark btn-sm" onclick="openSuiteRename()"><i class="fa fa-pen"></i> ' + t('tspec.renameSuite') + '</button>' +
+      '<button class="btn-red btn-sm" onclick="askDeleteSuite()"><i class="fa fa-trash"></i> ' + t('tspec.deleteSuite') + '</button>' +
+    '</div>';
+  }
+  h += '</div></div>';
+  $('#suiteView').html(h).show();
+}
+
+function importanceLabel(v) {
+  switch (parseInt(v, 10)) {
+    case 3: return t('tspec.importanceHigh');
+    case 1: return t('tspec.importanceLow');
+    default: return t('tspec.importanceMedium');
+  }
+}
+
+function execTypeLabel(v) {
+  return parseInt(v, 10) === 2 ? t('tspec.execTypeAutomated') : t('tspec.execTypeManual');
+}
+
+function loadTcView(tcaseId) {
+  $('#tcView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
+  apiGet('get', { tcase_id: tcaseId }).then(function (r) {
+    renderTcView(r);
+  }).catch(function (e) {
+    $('#tcView').html('<div class="placeholder-box">' + esc(e.message || t('tspec.errLoad')) + '</div>');
+  });
+}
+
+function renderTcView(r) {
+  var tc = r.tcase;
+  var canMod = !!grants['mgt_modify_tc'];
+  var kwHtml = '';
+  var kwKeys = Object.keys(r.keywordsAssigned || {});
+  if (kwKeys.length) {
+    kwKeys.forEach(function (kid) { kwHtml += '<span class="chip">' + esc(r.keywordsAssigned[kid]) + '</span>'; });
+  } else {
+    kwHtml = '<span class="none-text">' + t('tspec.noKeywords') + '</span>';
+  }
+
+  var stepsHtml = '<p class="none-text">' + t('tspec.noSteps') + '</p>';
+  if ((r.steps || []).length) {
+    stepsHtml = '<table class="steps"><thead><tr>' +
+      '<th style="width:50px;">#</th><th>' + t('tspec.stepActions') + '</th><th>' + t('tspec.expectedResults') + '</th>' +
+      '</tr></thead><tbody>';
+    r.steps.forEach(function (st) {
+      stepsHtml += '<tr><td class="step-num">' + st.step_number + '</td>' +
+        '<td>' + esc(st.actions) + '</td><td>' + esc(st.expected_results) + '</td></tr>';
+    });
+    stepsHtml += '</tbody></table>';
+  }
+
+  var h = '<div class="card"><div class="card-head">' +
+    '<h2><i class="fa fa-flask"></i> ' + esc(tc.name) + '</h2>' +
+    '<span class="badge-tl">' + t('tspec.versionShort') + ' ' + tc.version + '</span>' +
+    (tc.external_id > 0 ? '<span class="badge-tl badge-gray">#' + tc.external_id + '</span>' : '') +
+    (r.executed ? '<span class="badge-tl badge-purple">' + t('tspec.executed') + '</span>' : '') +
+    (!tc.active ? '<span class="badge-tl badge-gray">' + t('tspec.inactive') + '</span>' : '') +
+    '</div><div class="card-body">' +
+    '<div class="meta-grid">' +
+      '<div class="meta-item"><b>' + t('tspec.importance') + '</b>' + importanceLabel(tc.importance) + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.executionType') + '</b>' + execTypeLabel(tc.execution_type) + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.testCaseId') + '</b>' + tc.id + '</div>' +
+    '</div>' +
+    '<div class="field-label">' + t('tspec.summary') + '</div>' +
+    '<div class="rich-field">' + (esc(tc.summary) || '<span class="none-text">-</span>') + '</div>' +
+    '<div class="field-label">' + t('tspec.preconditions') + '</div>' +
+    '<div class="rich-field">' + (esc(tc.preconditions) || '<span class="none-text">-</span>') + '</div>' +
+    '<div class="field-label">' + t('tspec.steps') + '</div>' + stepsHtml +
+    '<div class="field-label">' + t('tspec.keywords') + '</div><div>' + kwHtml + '</div>';
+
+  if (canMod) {
+    h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
+      '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
+      '<button class="btn-dark btn-sm" onclick="createNewVersion(' + tc.id + ')"><i class="fa fa-code-branch"></i> ' + t('tspec.newVersion') + '</button>' +
+      '<button class="btn-dark btn-sm" onclick="window.open(\'/gui/templates/testcases/tcView.html?tcase_id=' + tc.id + '\',\'_blank\')"><i class="fa fa-eye"></i> ' + t('tspec.fullViewer') + '</button>' +
+      '<button class="btn-red btn-sm" onclick="askDeleteTc(' + tc.id + ')"><i class="fa fa-trash"></i> ' + t('tspec.deleteTc') + '</button>' +
+    '</div>';
+  }
+  h += '</div></div>';
+  $('#tcView').html(h).show();
+}
+
+function collectForm() {
+  var steps = [];
+  $('#stepRows tr').each(function (i, tr) {
+    var a = $(tr).find('.st-actions').val();
+    var e = $(tr).find('.st-expected').val();
+    if ((a && a.trim()) || (e && e.trim())) {
+      steps.push({ actions: a || '', expected_results: e || '' });
+    }
+  });
+  var kws = [];
+  $('#kwList input:checked').each(function () { kws.push(parseInt($(this).val(), 10)); });
+  return {
+    name: $('#tcNameInput').val(),
+    summary: $('#tcSummaryInput').val(),
+    preconditions: $('#tcPrecondInput').val(),
+    execution_type: parseInt($('#tcExecTypeSel').val(), 10),
+    importance: parseInt($('#tcImportanceSel').val(), 10),
+    steps: steps,
+    keywords: kws
+  };
+}
+
+function formHtml(data, kwProject) {
+  var assigned = {};
+  (data.keywordsAssigned && Object.keys(data.keywordsAssigned)).forEach(function (k) { assigned[k] = true; });
+  var steps = data.steps || [];
+  var h = '<div class="card"><div class="card-head"><h2><i class="fa fa-pen-to-square"></i> ' +
+    (editMode === 'create' ? t('tspec.createTc') : t('tspec.editTc')) + '</h2></div><div class="card-body">' +
+
+    '<div class="form-row"><div class="field-label">' + t('tspec.tcName') + ' *</div>' +
+    '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '"></div>' +
+
+    '<div class="form-row" style="display:flex;gap:24px;max-width:720px;">' +
+      '<div style="flex:1;"><div class="field-label">' + t('tspec.importance') + '</div>' +
+      '<select class="form-control2" id="tcImportanceSel">' +
+        '<option value="3"' + (parseInt(data.importance, 10) === 3 ? ' selected' : '') + '>' + t('tspec.importanceHigh') + '</option>' +
+        '<option value="2"' + (parseInt(data.importance, 10) !== 3 && parseInt(data.importance, 10) !== 1 ? ' selected' : '') + '>' + t('tspec.importanceMedium') + '</option>' +
+        '<option value="1"' + (parseInt(data.importance, 10) === 1 ? ' selected' : '') + '>' + t('tspec.importanceLow') + '</option>' +
+      '</select></div>' +
+      '<div style="flex:1;"><div class="field-label">' + t('tspec.executionType') + '</div>' +
+      '<select class="form-control2" id="tcExecTypeSel">' +
+        '<option value="1"' + (parseInt(data.execution_type, 10) !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
+        '<option value="2"' + (parseInt(data.execution_type, 10) === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
+      '</select></div>' +
+    '</div>' +
+
+    '<div class="form-row"><div class="field-label">' + t('tspec.summary') + '</div>' +
+    '<textarea class="form-control2" id="tcSummaryInput">' + esc(data.summary || '') + '</textarea></div>' +
+
+    '<div class="form-row"><div class="field-label">' + t('tspec.preconditions') + '</div>' +
+    '<textarea class="form-control2" id="tcPrecondInput">' + esc(data.preconditions || '') + '</textarea></div>' +
+
+    '<div class="form-row"><div class="field-label">' + t('tspec.steps') + '</div>' +
+    '<table class="steps step-editor" style="max-width:1000px;"><thead><tr>' +
+      '<th style="width:46px;">#</th><th style="width:40%;">' + t('tspec.stepActions') + '</th>' +
+      '<th style="width:40%;">' + t('tspec.expectedResults') + '</th><th style="width:36px;"></th>' +
+    '</tr></thead><tbody id="stepRows">';
+  if (!steps.length) { steps.push({ actions: '', expected_results: '' }); }
+  steps.forEach(function (st, ix) {
+    h += stepRowHtml(ix + 1, st.actions, st.expected_results);
+  });
+  h += '</tbody></table>' +
+    '<button class="btn-dark btn-sm" style="margin-top:8px;" onclick="addStepRow()"><i class="fa fa-plus"></i> ' + t('tspec.addStep') + '</button></div>' +
+
+    '<div class="form-row"><div class="field-label">' + t('tspec.keywords') + '</div><div class="kw-list" id="kwList">';
+  var pk = Object.keys(kwProject || {});
+  if (pk.length) {
+    pk.forEach(function (kid) {
+      h += '<label class="kw-item"><input type="checkbox" value="' + kid + '"' + (assigned[kid] ? ' checked' : '') + '> ' + esc(kwProject[kid]) + '</label>';
+    });
+  } else {
+    h += '<span class="none-text">' + t('tspec.noProjKeywords') + '</span>';
+  }
+  h += '</div></div>' +
+
+    '<div style="margin-top:14px;display:flex;gap:10px;">' +
+      '<button class="btn-teal btn-sm" onclick="saveForm()"><i class="fa fa-floppy-disk"></i> ' + t('tspec.save') + '</button>' +
+      '<button class="btn-dark btn-sm" onclick="cancelEdit()" data-i18n="tspec.cancel">' + t('tspec.cancel') + '</button>' +
+    '</div></div></div>';
+  return h;
+}
+
+function stepRowHtml(num, actions, expected) {
+  return '<tr>' +
+    '<td class="step-num">' + num + '</td>' +
+    '<td><textarea class="st-actions">' + esc(actions || '') + '</textarea></td>' +
+    '<td><textarea class="st-expected">' + esc(expected || '') + '</textarea></td>' +
+    '<td><button class="btn-red btn-sm" title="' + t('tspec.removeStep') + '" onclick="$(this).closest(\'tr\').remove();renumberSteps()"><i class="fa fa-xmark"></i></button></td>' +
+  '</tr>';
+}
+
+function addStepRow() {
+  var n = $('#stepRows tr').length + 1;
+  $('#stepRows').append(stepRowHtml(n, '', ''));
+}
+
+function renumberSteps() {
+  $('#stepRows tr').each(function (i, tr) {
+    $(tr).find('.step-num').text(i + 1);
+  });
+}
+
+function openCreateTc() {
+  var parentId = selected && selected.type === 'testsuite'
+    ? selected.id : (treeData.rootSuiteId || 0);
+  if (!selected || selected.type !== 'testsuite') {
+    var firstSuite = (treeData.suites || [])[0];
+    parentId = firstSuite ? firstSuite.id : 0;
+    if (!parentId) { toast(t('tspec.errNoSuite'), true); return; }
+  }
+  editMode = { mode: 'create', parent_id: parentId };
+  hideAllPanes();
+  $('#editView').html(formHtml({}, {})).show();
+}
+
+function openEditTc(tcaseId) {
+  apiGet('get', { tcase_id: tcaseId }).then(function (r) {
+    editMode = { mode: 'update', tcase_id: r.tcase.id };
+    hideAllPanes();
+    $('#editView').html(formHtml({
+      name: r.tcase.name,
+      summary: r.tcase.summary,
+      preconditions: r.tcase.preconditions,
+      importance: r.tcase.importance,
+      execution_type: r.tcase.execution_type,
+      steps: r.steps,
+      keywordsAssigned: r.keywordsAssigned
+    }, r.keywordsProject)).show();
+  }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
+}
+
+function cancelEdit() {
+  hideAllPanes();
+  if (selected && selected.type === 'testcase') { loadTcView(selected.id); }
+  else if (selected && selected.type === 'testsuite') { showSuiteView(); }
+  else { $('#placeholder').show(); }
+}
+
+function saveForm() {
+  var fd = collectForm();
+  if (!fd.name.trim()) { toast(t('tspec.errNameRequired'), true); return; }
+  var req;
+  if (editMode.mode === 'create') {
+    fd.parent_id = editMode.parent_id;
+    req = apiPost('create', fd);
+  } else {
+    fd.tcase_id = editMode.tcase_id;
+    req = apiPost('update', fd);
+  }
+  req.then(function (r) {
+    toast(r.message || t('tspec.saved'));
+    return loadTree();
+  }).then(function () {
+    if (editMode.mode === 'create') {
+      cancelEdit();
+    } else {
+      selectNode('testcase', editMode.tcase_id);
+    }
+  }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+}
+
+function createNewVersion(tcaseId) {
+  askConfirm(t('tspec.confirmNewVersion'), function () {
+    apiPost('create_version', { tcase_id: tcaseId }).then(function (r) {
+      toast(r.message || t('tspec.saved'));
+      loadTree();
+      selectNode('testcase', tcaseId);
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  });
+}
+
+function askDeleteTc(tcaseId) {
+  askConfirm(t('tspec.confirmDelTc'), function () {
+    apiPost('delete', { tcase_id: tcaseId }).then(function (r) {
+      toast(r.message || t('tspec.deleted'));
+      selected = null;
+      hideAllPanes();
+      $('#placeholder').show();
+      loadTree();
+      updateContextButtons();
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  });
+}
+
+function askDeleteSuite() {
+  if (!selected || selected.type !== 'testsuite') { return; }
+  var sid = selected.id;
+  var cnt = countNodes(findNode('testsuite', sid).children);
+  var extra = (cnt.suites + cnt.tc) > 0
+    ? ' ' + t('tspec.confirmDelSuiteNonEmpty') : '';
+  askConfirm(t('tspec.confirmDelSuite') + extra, function () {
+    apiPost('suite_delete', { id: sid }).then(function (r) {
+      toast(r.message || t('tspec.deleted'));
+      selected = null;
+      hideAllPanes();
+      $('#placeholder').show();
+      loadTree();
+      updateContextButtons();
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  });
+}
+
+function openSuiteCreate() {
+  var parentId = selected && selected.type === 'testsuite' ? selected.id : ctx.tproject_id;
+  $('#suiteModalTitle').text(t('tspec.newSuite'));
+  $('#suiteNameInput').val('');
+  $('#suiteModal').data('mode', 'create').data('parent', parentId).show();
+  $('#suiteNameInput').focus();
+}
+
+function openSuiteRename() {
+  if (!selected || selected.type !== 'testsuite') { return; }
+  var s = findNode('testsuite', selected.id);
+  $('#suiteModalTitle').text(t('tspec.renameSuite'));
+  $('#suiteNameInput').val(s ? s.name : '');
+  $('#suiteModal').data('mode', 'rename').data('parent', selected.id).show();
+  $('#suiteNameInput').focus();
+}
+
+function submitSuiteModal() {
+  var mode = $('#suiteModal').data('mode');
+  var name = $('#suiteNameInput').val().trim();
+  if (!name) { toast(t('tspec.errNameRequired'), true); return; }
+  var req;
+  if (mode === 'create') {
+    req = apiPost('suite_create', { parent_id: $('#suiteModal').data('parent'), name: name });
+  } else {
+    req = apiPost('suite_update', { id: selected.id, name: name });
+  }
+  req.then(function (r) {
+    closeModal('suiteModal');
+    toast(r.message || t('tspec.saved'));
+    return loadTree();
+  }).then(function () {
+    if (selected && selected.type === 'testsuite') { showSuiteView(); }
+  }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+}
+
+function askConfirm(text, cb) {
+  $('#confirmText').text(text);
+  window.__confirmCb = cb;
+  $('#confirmModal').show();
+}
+</script>
+</body>
+</html>
