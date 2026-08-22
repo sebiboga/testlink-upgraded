@@ -1817,6 +1817,9 @@ function getActions(&$gui,$baseURL) {
   $actions->assignReq = "$bb/general/frmWorkArea.php?feature=assignReqs&{$ctx}";
   $actions->inventoryView = "/gui/templates/inventory/inventoryView.html?{$ctx}";
 
+  // Test Specification (editTc) modernized screen - tree & editor
+  $actions->testSpec = "/gui/templates/testcases/testSpec.html?{$ctx}";
+
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
   $actions->metrics_dashboard =
@@ -1844,8 +1847,10 @@ function getActions(&$gui,$baseURL) {
     "lib/general/frmWorkArea.php?feature=";
 
   $gui->workArea = new stdClass();
-  $gui->workArea->testSpec = "editTc&{$ctx}";
-
+  // testSpec is switched to the modernized HTML screen above (workArea entry
+  // removed so the frmWorkArea launcher no longer overwrites the link)
+  $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
+  
   $gui->workArea->planAddTC = null;
   $gui->workArea->executeTest = null;
   $gui->workArea->setTestUrgency = null;
