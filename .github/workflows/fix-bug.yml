@@ -215,7 +215,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           BRANCH="${GITHUB_REF_NAME}"
-          git add -A -- . ':(exclude)tmp/opencode'
+          git add -A
           if ! git diff --staged --quiet; then
             git commit -m "fix(opencode): leftover changes from bug-fix run"
           fi

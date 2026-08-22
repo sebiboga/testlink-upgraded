@@ -25,6 +25,7 @@ tmp/sess_*.txt
 tmp/noinv_*.txt
 tmp/vw.out
 tmp/wiki-repo/
+tmp/opencode/
 tmp/wiki/
 tmp/ci_investigate/
 tmp/ci_run.log
