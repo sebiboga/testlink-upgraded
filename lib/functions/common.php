@@ -1813,7 +1813,7 @@ function getActions(&$gui,$baseURL) {
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
-  $actions->tcCreatedUser = "$bb/results/tcCreatedPerUserOnTestProject.php?do_action=uinput&{$ctx}";
+  $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";
   $actions->assignReq = "/gui/templates/requirements/assignReqs.html?{$ctx}";
   $actions->inventoryView = "/gui/templates/inventory/inventoryView.html?{$ctx}";
 
