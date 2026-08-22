@@ -2,13 +2,20 @@
 /**
  * TestLink Projects Management API (BFF)
  *
- * Uses TestLink's DB layer + testproject class directly, bypassing the page
- * bootstrap: testlinkInitPage() redirects to login.php on an expired session,
- * which breaks JSON clients.
+ * Auth model (same as legacy projectEdit.php): every route of this endpoint
+ * operates on test projects, which legacy gates behind the
+ * "Test Project Management" screen -> requires mgt_modify_product.
+ *
+ * We still bypass testlinkInitPage() (it redirects to login.php on an expired
+ * session, which breaks JSON clients) and do the standard BFF bootstrap
+ * instead: session start + CSRF guard + explicit 401/403 JSON responses.
  */
 
-require_once('../../config.inc.php');
-require_once('../../lib/functions/common.php');
+require_once(__DIR__ . '/../../config.inc.php');
+require_once('common.php');
+
+doSessionStart();
+
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
@@ -16,6 +23,26 @@ header('Content-Type: application/json');
 
 $db = null;
 doDBConnect($db);
+
+$userId = $_SESSION['userID'] ?? null;
+if (!$userId || $userId <= 0) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+    exit;
+}
+
+$user = tlUser::getByID($db, $userId);
+if (is_null($user)) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'User not found']);
+    exit;
+}
+
+if (!$user->hasRight($db, 'mgt_modify_product')) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'No permission']);
+    exit;
+}
 
 $tprojectMgr = new testproject($db);
 
