@@ -2222,3 +2222,42 @@ one test case node id 2 "TC for issue 553" with tcversion id 3
   NULL); the `!is_null($issueT)` check existed only further down (~line 685).
   Minimal fix per issue suggestion:
   `$name = !is_null($issueT) ? $issueT['issuetracker_name'] : '';`
+
+## 40. Regression — Issue #556: exechist.* blocks rotated across all 10 locale bundles + it.* block missing in ja/pt/ru/zh (Suite ID: 47)
+
+**Precondition:** repo HEAD before fix; `tools/lint_i18n.py` available;
+TestLink running at http://localhost:8082.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: `python3 tools/lint_i18n.py` → 60+ language-signature ERRORs (RO diacritics in en.json, Cyrillic in pt.json, kana/CJK in ru.json …) and WARN "34 key(s) missing vs en.json" for exactly ja/pt/ru/zh; `grep '"exechist.header"' gui/templates/i18n/en.json` → `"Istoric execuții"` (RO text in EN bundle) | PASS (reproduced) |
+| 2 | Apply fix (reverse rotation: new_file[i] = old_file[i-1] along cycle en→ro→de→es→fr→it→pt→ru→ja→zh; author 34 missing `header.issueTrackers*`+`it.*` keys for ja/pt/ru/zh inserted before `header.codeTrackers`) → re-run lint: **0 warnings / 0 errors** | PASS |
+| 3 | JSON validity: `python3 -m json.tool` on all 10 bundles → all clean | PASS |
+| 4 | Rotation spot-check: `exechist.header` = Execution History (en) / Istoric execuții (ro) / Ausführungshistorie (de) / Historial de ejecuciones (es) / Historique d'exécution (fr) / Storico esecuzioni (it) / Histórico de execuções (pt) / История выполнения (ru) / 実行履歴 (ja) / 执行历史 (zh); lint language-signature checks confirm no cross-contamination in any of the 34 keys × 10 bundles | PASS |
+| 5 | Runtime EN: open `gui/templates/execute/execHistory.html` → header renders "Execution History" (pre-fix it rendered RO "Istoric execuții") | PASS |
+| 6 | Runtime JA: same screen with `?locale=ja` → 実行履歴 / テストケース / 更新 (pre-fix ja.json held Chinese text) | PASS |
+| 7 | New it.* keys runtime: `gui/templates/issuetracker/issuetrackerView.html?locale=ja` → 課題トラッカー / 課題トラッカー連携の管理 / 名前 / 種別 / サーバーURL / 有効 / 「+ 課題トラッカーを作成」 / "0 件の課題トラッカー" — no raw key names except pre-existing gap logged as #557 | PASS |
+| 8 | Event Viewer after all flows (`events` table): only the audit login entry; 0 new Error/Warning rows | PASS |
+
+**Actual result:** 8/8 PASS.
+
+**Root cause fixed**
+- Rotation: parallel CI agents appending to the shared locale bundles wrote
+  each bundle's new `exechist.*` block into the *next* file of the locale
+  cycle `[en→ro→de→es→fr→it→pt→ru→ja→zh]`, shifting every block by one
+  position. Fix reverses the rotation (`new_file[i] = old_file[i-1]`),
+  swapping whole contiguous 34-line blocks at text level so formatting stays
+  byte-identical (all blocks sit at EOF, last line comma-free).
+- Missing keys: the `it.*` issue-tracker block + `header.issueTrackers*`
+  were authored for en/ro/de/es/fr/it only. Fix authors proper translations
+  for ja/pt/ru/zh following each bundle's existing terminology conventions
+  (コードトラッカー→課題トラッカー, Rastreadores de código→rastreadores de
+  problemas, Трекеры кода→трекеры задач, 代码追踪器→问题跟踪器).
+
+**Files changed:** `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ru,ja,zh}.json`.
+
+**Follow-up found while testing:** `exechist.colBuild`, `exechist.colStatus`,
+`exechist.footer` are referenced by execHistory.html but missing from ALL 10
+bundles (lint only checks parity vs en.json) → filed as issue #557.
