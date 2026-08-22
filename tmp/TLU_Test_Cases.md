@@ -2132,3 +2132,36 @@ TC 30 "TC 541" v1 (tcversion id 40, external I541-100). Admin session
 - `lib/testcases/tcAssign2Tplan.php`: `$gui->tplans` never initialized when the project has no active test plans (template `{if $gui->tplans}` reads undefined property under PHP 8); `$_SESSION['testplanID']`/`$_SESSION['testprojectID']` dereferenced without isset guards in `init_args()`; `$version` could be undefined when the requested tcversion does not match.
 - `gui/templates/dashio/testcases/tcAssign2Tplan.tpl`: include param typo `DataTableslengthMenu=$ll` instead of `DataTablesLengthMenu=$ll` → undefined-variable warnings inside DataTables.inc.tpl.
 - `lib/testcases/tcPrint.php`: dereferenced `$_SESSION['testprojectName']` unguarded; ignored the documented `tproject_id` request param as fallback; continued rendering with a null node when the test case id was invalid/missing, cascading into `print.inc.php` `$node['id']`, `testcase.class.php::getPrefix()` (`$path2root[0]` on null) and SQL error `SELECT prefix FROM testprojects WHERE id = <empty>` — now bails out early with a localized message.
+
+## 37. Regression — Issue #552: tcPrint.php valid testcase without project context → get_by_id(0) throw/warning (Suite ID: 44)
+
+**Precondition:** fresh DB; admin user; fixtures created directly in DB:
+project node 1000 "FIX Project" (testprojects row, prefix `FIX`,
+issue_tracker_enabled=0), suite 1001 under it, TC 1002 v2003… (external
+1002) under the suite, plus TC 1003 (external 1003, external id 1003)
+**directly under the project root**. Crafted PHP session
+(`userID=1`, `lastActivity=now`, NO `testprojectID` key) used via curl to
+simulate a fresh-session deep link.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: `GET /lib/testcases/tcPrint.php?testcase_id=1002&tcversion_id=2002` with no project context → HTTP **500**, page body is a raw `debug_print_backtrace()` dump rooted at `testproject->get_by_id(0)` (print.inc.php:2326 ← print.inc.php:951 ← tcPrint.php:64); `get_by_id(0)` throws because `null == $id` loosely matches 0 | PASS (reproduced) |
+| 2 | Post-fix same request → HTTP 200, full printable page "Test Case FIX-1002: TC-fix552 [Version: 1]"; zero new events | PASS |
+| 3 | Edge: TC directly under project root (`testcase_id=1003`) → HTTP 200, "Test Case FIX-1003: TC-root552" (derivation via `path2root[0]['parent_id']` correct when path's first element IS the testcase) | PASS |
+| 4 | Invalid id `testcase_id=999999` → HTTP 200 clean localized "does not exist" message (#541 behavior preserved), zero events | PASS |
+| 5 | `issue_tracker_enabled=1` on project + valid request → HTTP 200, no throw; residual E_WARNING at tlIssueTracker.class.php:673 (flag enabled but no tracker linked) filed as NEW issue #553, out of scope | PASS (new issue filed) |
+| 6 | Normal browser flow: real login (session auto-selects project) → same URL renders print popup correctly (screenshots in wiki page) | PASS |
+| 7 | Event Viewer after all flows: 0 Error/Warning entries | PASS |
+
+**Actual result:** 7/7 PASS.
+
+**Root cause fixed**
+- `lib/testcases/tcPrint.php`: when neither session nor REQUEST yields a
+  project, derive it from the test case tree path
+  (`tree::get_path()` → first element's `parent_id`; get_path excludes the
+  tree root — same convention as `testcase::getPrefix()`).
+- `lib/functions/print.inc.php` `initStaticRenderTestCaseForPrinting()`:
+  only call `get_by_id()` when `$tprojectID > 0` and null-guard `$info`
+  before reading `issue_tracker_enabled` (defense-in-depth for any caller).
