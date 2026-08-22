@@ -1002,4 +1002,31 @@ function req_link_replace($dbHandler, $scope, $tprojectID)
   return $scope;
 }
 
-?>
+/**
+ * Derive the test project id for any tree node by walking up nodes_hierarchy
+ * until the root (testproject) node is reached.
+ *
+ * Why not tree::getTreeRoot(): the root (testproject) node itself has no parent
+ * registered in nodes_hierarchy, and tree::_get_path() never includes it in the
+ * returned path. getTreeRoot() therefore returns NULL/0 or a wrong ancestor id,
+ * which made req_link_replace() crash with a DB access error whenever
+ * $tlCfg->internal_links->enable was TRUE.
+ */
+function req_tproject_id_for_node(&$dbHandler,$nodeId)
+{
+  $cursor = intval($nodeId);
+  for ($guard = 0; $guard < 64 && $cursor > 0; $guard++) {
+    $rs = $dbHandler->get_recordset(
+      "SELECT id,parent_id FROM nodes_hierarchy WHERE id={$cursor}");
+    if (!$rs) {
+      return 0;
+    }
+    $parentId = intval($rs[0]['parent_id']);
+    if ($parentId <= 0) {
+      // cursor IS the tree root (the test project node)
+      return $cursor;
+    }
+    $cursor = $parentId;
+  }
+  return 0;
+}
