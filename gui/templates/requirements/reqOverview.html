@@ -70,23 +70,37 @@ var API = '/api/requirements/index.php';
 var TPROJECT_ID = 0;
 var META = null;
 var table = null;
+// Legacy parity (reqOverview.php init_args): an explicit all_versions request
+// param wins; when omitted the server falls back to $_SESSION['all_versions'].
+// After the first explicit toggle every subsequent call sends the param again.
+var explicitAllVersions = null;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
   TPROJECT_ID = parseInt(p.get('tproject_id') || 0);
-  $('#allVersions').prop('checked', p.get('all_versions') === '1');
+  if (p.has('all_versions')) {
+    explicitAllVersions = p.get('all_versions') === '1';
+    $('#allVersions').prop('checked', explicitAllVersions);
+  }
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadOverview();
   });
-  $('#allVersions').on('change', loadOverview);
+  $('#allVersions').on('change', function() {
+    explicitAllVersions = $(this).is(':checked');
+    loadOverview();
+  });
 });
 
 function loadOverview() {
-  $.getJSON(API + '/overview?tproject_id=' + TPROJECT_ID +
-            '&all_versions=' + ($('#allVersions').is(':checked') ? '1' : '0'), function(r) {
+  var url = API + '/overview?tproject_id=' + TPROJECT_ID;
+  if (explicitAllVersions !== null) {
+    url += '&all_versions=' + ($('#allVersions').is(':checked') ? '1' : '0');
+  }
+  $.getJSON(url, function(r) {
     META = r.meta;
+    $('#allVersions').prop('checked', !!r.all_versions);
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.meta.tproject_id)));
     renderTable(r.items);
     var info = TLi18n.t(r.all_versions ? 'ro.allVersionsDisplayed' : 'ro.latestVersionDisplayed');
