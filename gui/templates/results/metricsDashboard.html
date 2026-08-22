@@ -141,6 +141,9 @@ $(function() {
     $('#showOnlyActive').on('change', function() {
       loadDashboard($('#showOnlyActive').is(':checked') ? 1 : 0);
     });
+    $('#btnDirectLink').on('click', function() {
+      $('#directLinkBox').toggle();
+    });
     loadRightsAndDashboard();
   });
 });
