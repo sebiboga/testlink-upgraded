@@ -105,7 +105,7 @@ function viewActions($tproject_id, $tplan_id = 0) {
         'importAction'  => '/lib/plan/planImport.php?' . $ent . '&tplan_id=',
         'assignRolesAction' =>
             '/lib/usermanagement/usersAssign.php?featureType=testplan&' .
-            $ent . '&itemID=',
+            $ent . '&featureID=',
         'gotoExecuteAction' =>
             '/lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
     ];
@@ -198,7 +198,8 @@ if ($method === 'GET' && count($segments) === 0) {
 // PUT /{id}/active - single toggle (legacy do_action=setActive|setInactive)
 // body: tproject_id, active=0|1
 // ---------------------------------------------------------------------------
-if ($method === 'PUT' && isset($segments[1]) && $segments[1] === 'active') {
+if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0]) &&
+    isset($segments[1]) && $segments[1] === 'active') {
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
@@ -255,10 +256,12 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'bulk-activ
     $tplanMgr = new testplan($db);
 
     // keep only plans that really live inside the context project
+    // (testplan::get_by_id() 2nd arg is an options array - passing
+    // tproject_id there is silently ignored, so compare explicitly)
     $owned = [];
     foreach ($ids as $id) {
-        $info = $tplanMgr->get_by_id($id, $tproject_id);
-        if ($info) {
+        $info = $tplanMgr->get_by_id($id);
+        if ($info && intval($info['testproject_id']) == $tproject_id) {
             $owned[] = $id;
         }
     }
