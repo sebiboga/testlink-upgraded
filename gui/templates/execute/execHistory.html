@@ -232,7 +232,8 @@ function populateFilterOptions() {
   });
   var fill = function ($sel, map) {
     var cur = $sel.val();
-    $sel.find('option:not(:first)').remove();
+    $sel.empty();
+    $sel.append('<option value=""></option>');
     Object.keys(map).forEach(function (k) {
       $sel.append('<option value="' + esc(k) + '">' + esc(map[k]) + '</option>');
     });
