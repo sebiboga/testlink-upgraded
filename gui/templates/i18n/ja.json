@@ -940,5 +940,7 @@
   "bv.msg.activated": "ビルドを有効化しました",
   "bv.msg.deactivated": "ビルドを無効化しました",
   "bv.msg.opened": "ビルドをオープンしました",
-  "bv.msg.closed": "ビルドをクローズしました"
+  "bv.msg.closed": "ビルドをクローズしました",
+  "bv.msg.cannotAdd": "ビルドを追加できません",
+  "bv.msg.cannotUpdate": "ビルドを更新できません"
 }

@@ -940,5 +940,7 @@
   "bv.msg.activated": "构建已启用",
   "bv.msg.deactivated": "构建已停用",
   "bv.msg.opened": "构建已打开",
-  "bv.msg.closed": "构建已关闭"
+  "bv.msg.closed": "构建已关闭",
+  "bv.msg.cannotAdd": "无法添加构建",
+  "bv.msg.cannotUpdate": "无法更新构建"
 }

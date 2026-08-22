@@ -940,5 +940,7 @@
   "bv.msg.activated": "Сборка активирована",
   "bv.msg.deactivated": "Сборка деактивирована",
   "bv.msg.opened": "Сборка открыта",
-  "bv.msg.closed": "Сборка закрыта"
+  "bv.msg.closed": "Сборка закрыта",
+  "bv.msg.cannotAdd": "Сборка не может быть добавлена",
+  "bv.msg.cannotUpdate": "Сборка не может быть обновлена"
 }

@@ -940,5 +940,7 @@
   "bv.msg.activated": "Build ativado",
   "bv.msg.deactivated": "Build desativado",
   "bv.msg.opened": "Build aberto",
-  "bv.msg.closed": "Build fechado"
+  "bv.msg.closed": "Build fechado",
+  "bv.msg.cannotAdd": "Não é possível adicionar o build",
+  "bv.msg.cannotUpdate": "Não é possível atualizar o build"
 }

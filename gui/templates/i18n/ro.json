@@ -940,5 +940,7 @@
   "bv.msg.activated": "Build activat",
   "bv.msg.deactivated": "Build dezactivat",
   "bv.msg.opened": "Build deschis",
-  "bv.msg.closed": "Build închis"
+  "bv.msg.closed": "Build închis",
+  "bv.msg.cannotAdd": "Build-ul nu poate fi adăugat",
+  "bv.msg.cannotUpdate": "Build-ul nu poate fi actualizat"
 }
