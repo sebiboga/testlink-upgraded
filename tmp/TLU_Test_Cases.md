@@ -2262,51 +2262,49 @@ TestLink running at http://localhost:8082.
 `exechist.footer` are referenced by execHistory.html but missing from ALL 10
 bundles (lint only checks parity vs en.json) → filed as issue #557.
 
-## 41. Modernization — Requirements Monitor Overview screen (Suite ID: 48)
+## 41. Modernization — Test Cases Created Per User report (`tcCreatedPerUserOnTestProject`) (Suite ID: 48)
 
-**Screen:** `gui/templates/requirements/reqMonitorOverview.html` +
-`api/requirements/index.php` (BFF routes `monitor-overview`, `monitor`).
-Legacy reference: `lib/requirements/reqMonitorOverview.php` (right
-`mgt_view_req`, ExtJS table, monitor on/off via POST forms).
+**Scope:** new Dashio screen `gui/templates/results/tcCreatedPerUserOnTestProject.html`
++ BFF `api/results/index.php` (endpoints `/meta`, `/report`, `/csv`), aside link
+switched in `lib/functions/common.php` ($actions->tcCreatedUser).
 
-**Precondition:** fresh DB; fixture created via SQL: test project id 1000
-"ReqMon Project" (prefix `RMP`, requirements enabled), req spec id 1001
-"System Requirements" (`RMP-SRS-1`) with spec revision node 1002,
-requirements 1010 "Login functionality" (`RMP-REQ-1`, v-node 1011),
-1020 "Export to PDF" (`RMP-REQ-2`, v-node 1021), 1030 "Session timeout"
-(`RMP-REQ-3`, v-node 1031); user id 2 `mon_limited` (role tester = no
-`mgt_view_req`). Admin logged in at http://localhost:8082.
+**Fixtures:** fresh DB → project *QA Demo* (id 1001, prefix QAD) via SQL; suites
+*Suite A/B*; test cases QAD-1..QAD-3 authored by admin with creation_ts
+2026-08-01/05/10, importance high/medium/low; QAD-4 authored by tester1
+(2026-08-12). Users: admin + tester1.
 
-**Steps & results**
-
-| # | Test | Result |
+| # | Step / check | Result |
 |---|------|--------|
-| 1 | BFF list: `GET /api/requirements/index.php/monitor-overview?tprojectId=1000` as admin → `status ok`, 3 items with `req_doc_id`, `title`, `spec_path` "System Requirements", `version_id`, `creation_ts`, `author` "Testlink Administrator", `monitored:false`; anonymous call → 401 Not authenticated | PASS |
-| 2 | Screen load `?tproject_id=1000`: header + sub rendered, DataTables shows 3 rows sorted by Req Spec, columns Req. Spec / Title / Created On / Monitor / Action; footer "3 requirement(s), 0 monitored"; project name "ReqMon Project" in toolbar | PASS |
-| 3 | Monitor ON: click bell icon on RMP-REQ-1 → badge flips to Yes, icon becomes bell-slash with title "Turn off monitoring", footer count updates to "1 monitored" without reload; `req_monitor` row `(1010,1,1000)` verified in DB | PASS |
-| 4 | Monitor OFF: click bell-slash → badge back to No, bell icon, `req_monitor` empty again | PASS |
-| 5 | Toggle persistence: state reloaded from server after Refresh button click — matches DB | PASS |
-| 6 | Deep link: edit pen / title link opens legacy `reqView.php?showReqSpecTitle=1&requirement_id=1020&req_version_id=1021&tproject_id=1000` popup → renders "Requirement : Export to PDF" version 1 revision 1 (bug found during testing: first implementation used wrong param names `item`/`version_id` → DB Access Error; fixed) | PASS |
-| 7 | Filter: type "Export" in search box → "Showing 1 to 1 of 3 entries (filtered from 3 total entries)" | PASS |
-| 8 | i18n EN: all labels from bundle, no hardcoded strings visible | PASS |
-| 9 | i18n DE (`?locale=de_DE`): header "Anforderungen-Monitor Übersicht", columns "Anf. Spez./Titel/Erstellt am/Überwachen/Aktion", footer "3 Anforderung(en), 0 überwacht" | PASS |
-| 10 | Permission path: login `mon_limited` (tester role, no mgt_view_req) → error modal "No permission", table stays empty; direct API call returns 403 | PASS |
-| 11 | Aside integration: shell menu Requirements Design → "Requirement Monitoring Overview" points to modern `.html?tproject_id=1000&tplan_id=0` and loads inside mainframe | PASS |
-| 12 | Event Viewer after all flows: only audit login/logout entries, 0 new Error/Warning rows | PASS |
+| 1 | Aside menu → Test Case Design → **Test Cases created per User** opens the new HTML screen in mainframe (URL contains `.html?tproject_id=1001`) | PASS |
+| 2 | Screen header shows localized title "Test Cases Created Per User", project name "QA Demo" in header + toolbar; document.title set | PASS |
+| 3 | User drop-down contains **Any** + all users (Testlink Administrator, Tina Tester) from BFF `/meta` | PASS |
+| 4 | Defaults from `reportsCfg`: start = today-7d 00:00 (2026-08-15), end = today current hour (2026-08-22 09:00) | PASS |
+| 5 | Show report with default window (no fixtures inside) → "Report results(0)" + empty state "No records found." | PASS |
+| 6 | Start date 2026-08-01 → Show report → 4 rows; columns User / Test Suite / Test Case / Importance / Created / Last Modification / actions; importance badges low/medium/high; stats footer "Generated on … · 4 rows, 2 users, 4 test cases" | PASS |
+| 7 | User filter = Tina Tester → exactly 1 row (QAD-4, tester1); back to Any → 4 rows | PASS |
+| 8 | Hour boundary: start 2026-08-01 00:00, end 2026-08-05 **00** → only QAD-1 (window `[start HH:00:00, end HH:59:59]`, legacy semantics) | PASS |
+| 9 | TC name link and pen icon open the Test Case Viewer (`tcView.html?tcase_id&tcversion_id&tproject_id`) in a new window | PASS |
+| 10 | Download CSV → HTTP 200, `text/csv`, attachment filename; header row matches legacy columns (User, Test Suite, Test Case, Importance, Created on, Last modified on, Start Time, End Time); importance rendered "(3) High" etc.; filter dates in last two columns | PASS |
+| 11 | CSV button click path in browser (blob download via fetch) executes without console errors | PASS |
+| 12 | Reset button restores defaults (Any user, default dates/hours) and hides results | PASS |
+| 13 | Locale switcher → Română (`?locale=ro`): "Cazuri de test create per utilizator", "Utilizator", "Afișează raportul", "Oricare"; `tcPerUser.impHigh` = "ridicată" | PASS |
+| 14 | Rights/auth: unauthenticated GET `/report` → HTTP 401 JSON error | PASS |
+| 15 | i18n parity: all 26 `tcPerUser.*` keys present in ALL 10 bundles (en,ro,de,es,fr,it,pt,ru,ja,zh); every bundle passes `python3 -m json.tool` | PASS |
+| 16 | Legacy regression: dashio aside link no longer points to `lib/results/tcCreatedPerUserOnTestProject.php`; tl-classic theme untouched | PASS |
 
-**Actual result:** 12/12 PASS.
+**Bugs found & fixed during this suite**
+- BFF fatal (500 on `/meta`): missing `require_once('users.inc.php')` → fixed,
+  commit `fix(results-bff): include users.inc.php for getUsersForHtmlOptions()`.
+- i18n keys + aside link clobbered by a parallel CI merge → restored, commit
+  `fix(i18n): restore tcPerUser keys + aside link lost in concurrent merge`.
 
-**Bugs found & fixed while testing**
-- BFF toggle returned "Requirement not found": validation used
-  `requirement_mgr::get_by_id()` whose rows carry no `tproject_id`;
-  replaced with a `requirements ⋈ req_specs` join check.
-- Footer "monitored" count went stale after toggling (only recomputed on
-  full reload); extracted `updateFooter()` and called it after each toggle.
-- Deep links used invented `item=`/`version_id=` params; legacy
-  `openLinkedReqVersionWindow()` expects `requirement_id=`/`req_version_id=`
-  (+ `showReqSpecTitle=1`) — aligned.
+**Fixture note:** initial SQL fixture missed the `nodes_hierarchy` rows for the
+four tcversion nodes (type `testcase_version`), so `get_all_testcases_id()` saw
+the cases but the version join returned NULL — data issue in the fixture, not a
+product bug.
 
-**Files changed:** `gui/templates/requirements/reqMonitorOverview.html`,
-`api/requirements/index.php` (shared router also serving printReqSpec),
-`lib/functions/common.php` (aside link switch),
-`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+15 keys each).
+**Event Viewer after testing:** only audit login entry + 2 E_WARNING rows
+caused by my own `php -r` CLI diagnostics ("Command line code"), none produced
+by the screen or BFF. No app errors.
+
+**Actual result:** 16/16 PASS.
