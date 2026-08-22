@@ -2106,3 +2106,29 @@ with 3 executions (Build 1.0 passed / Build 2.0 failed+bug BUG-1234 in active
 | 9 | Event Viewer: no new Error/Warning entries after all flows above | PASS |
 
 **Actual result:** 9/9 PASS.
+
+## 36. Regression — Issue #541: legacy popups from TC viewer emit PHP 8 warnings (tcAssign2Tplan $tplans, tcPrint null params) (Suite ID: 43)
+
+**Precondition:** fresh DB; project "Issue541 Proj" (I541), suite "Suite A",
+TC 30 "TC 541" v1 (tcversion id 40, external I541-100). Admin session
+(browser + curl cookie jar).
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: `GET /lib/testcases/tcAssign2Tplan.php?tcase_id=30&tcversion_id=40&tproject_id=10` with NO test plans in project → events logged: E_WARNING `Undefined array key "testplanID"` (line 177), `Undefined array key "DataTablesLengthMenu"` + `Attempt to read property "value" on null` (DataTables.inc.tpl compiled line 41), `Undefined property: stdClass::$tplans` (compiled tcAssign2Tplan.tpl.php line 75) | PASS (reproduced) |
+| 2 | Pre-fix repro: `GET /lib/testcases/tcPrint.php?show_mode=print&tcase_id=30&tcversion_id=40&tproject_id=10` → events #6–#13 exactly as reported (`testprojectName` line 70, `name` lines 92/93, `id` print.inc.php 930/951, testcase.class.php 2158 ×2, SQL error 1064 from `getTestCasePrefix(null)`); page HTTP 200 but garbage | PASS (reproduced) |
+| 3 | Post-fix step 1 request again → HTTP 200, page shows title "Test Case:TC 541" and localized "There are no Test Plans defined for this Test Project"; **zero** new events | PASS |
+| 4 | Post-fix tcPrint bad-params request again → HTTP 200, clean page "Test Case does not exist" (existing i18n key, en_GB fallback for locales missing it); **zero** new events | PASS |
+| 5 | Positive path: create plan TP 541 + platform P1 linked → same tcAssign2Tplan URL renders checkbox row `add2tplanid[50][60]`, version 1, TP 541 / P1, Add + Cancel buttons; identity "I541-100:TC 541" | PASS |
+| 6 | Positive path: `GET /lib/testcases/tcPrint.php?show_mode=&testcase_id=30&tcversion_id=40` (param names used by legacy openPrintPreview/ltcp.php) → full printable TC page with I541-100 content; zero events | PASS |
+| 7 | Real user flow via browser: modern TC viewer (`tcView.html?tcase_id=30…`) → button "Add to Test Plan" opens popup rendering the assignment form correctly (screenshot wiki) | PASS |
+| 8 | Event Viewer after all flows: only audit-level login entry; no Error/Warning entries | PASS |
+
+**Actual result:** 8/8 PASS.
+
+**Root causes fixed**
+- `lib/testcases/tcAssign2Tplan.php`: `$gui->tplans` never initialized when the project has no active test plans (template `{if $gui->tplans}` reads undefined property under PHP 8); `$_SESSION['testplanID']`/`$_SESSION['testprojectID']` dereferenced without isset guards in `init_args()`; `$version` could be undefined when the requested tcversion does not match.
+- `gui/templates/dashio/testcases/tcAssign2Tplan.tpl`: include param typo `DataTableslengthMenu=$ll` instead of `DataTablesLengthMenu=$ll` → undefined-variable warnings inside DataTables.inc.tpl.
+- `lib/testcases/tcPrint.php`: dereferenced `$_SESSION['testprojectName']` unguarded; ignored the documented `tproject_id` request param as fallback; continued rendering with a null node when the test case id was invalid/missing, cascading into `print.inc.php` `$node['id']`, `testcase.class.php::getPrefix()` (`$path2root[0]` on null) and SQL error `SELECT prefix FROM testprojects WHERE id = <empty>` — now bails out early with a localized message.
