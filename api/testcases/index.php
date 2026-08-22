@@ -630,7 +630,7 @@ if ($action === 'tree') {
     $tcAgg = [];
     $rsAgg = $db->get_recordset(
         " SELECT NH.parent_id AS tcase_id, COUNT(TCV.id) AS nver, " .
-        " MAX(TCV.tcexternalid) AS extid, MAX(TCV.version) AS vmax, " .
+        " MAX(TCV.tc_external_id) AS extid, MAX(TCV.version) AS vmax, " .
         " MIN(TCV.active) AS ever_active " .
         "FROM {$tables['tcversions']} TCV " .
         " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
@@ -778,7 +778,7 @@ if ($action === 'get') {
             'status' => intval($lvRow['status'] ?? 1),
             'active' => intval($lvRow['active'] ?? 1),
             'is_open' => intval($lvRow['is_open'] ?? 1),
-            'external_id' => intval($lvRow['tcexternalid'] ?? 0),
+            'external_id' => intval($lvRow['tc_external_id'] ?? 0),
             'estimatedExecDuration' => strval($lvRow['estimated_exec_duration'] ?? ''),
             'parent_id' => intval($lvRow['parent_id'] ?? 0),
         ],
