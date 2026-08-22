@@ -11,7 +11,7 @@ show_table_with_exec_span.inc.tpl
 {if $args_column_definition != ""}
 
 <h2>{$args_title|escape}</h2>
-{if null != $gui->spanByPlatform}
+{if null != $gui->spanByPlatform && isset($gui->spanByPlatform[$platId])}
   {$labels.firstExec}
   {$gui->spanByPlatform[$platId]['begin']|date_format:$gsmarty_timestamp_format}<br>
   {$labels.latestExec}{$gui->spanByPlatform[$platId]['end']|date_format:$gsmarty_timestamp_format}<br>

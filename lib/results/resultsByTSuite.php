@@ -66,10 +66,13 @@ if(is_null($tsInf) || empty($tsInf->infoL2)) {
   }
   $span = $metricsMgr->getExecTimeSpan($args->tplan_id,$execContext);
   
+  // getExecTimeSpan() returns NULL when the test plan has no executions at
+  // all (aggregate query yields no rows) -> guard the map read instead of
+  // dereferencing a null offset.
   if ($gui->hasPlatforms) {
-    $gui->spanByPlatform = $span[$args->tplan_id];
+    $gui->spanByPlatform = isset($span[$args->tplan_id]) ? $span[$args->tplan_id] : null;
   } else {
-    $gui->spanByPlatform[0] = $span[$args->tplan_id];
+    $gui->spanByPlatform[0] = isset($span[$args->tplan_id]) ? $span[$args->tplan_id] : null;
   }
 
   // reorder data according test suite name
