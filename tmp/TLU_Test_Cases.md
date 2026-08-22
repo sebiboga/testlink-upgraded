@@ -2681,3 +2681,31 @@ Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined p
 **Bugs found & fixed during this suite:** BUG-1 (commit 05d9cb312), BUG-2 (commit 423cd66ce), BUG-3 (commits 7006a3f7d + a9866a0cf). All verified post-fix.
 
 **Screenshots:** wiki `Test-Plan-Management.md` (normal state, delete modal, ro locale).
+## Regression — Issue #579: tlTestPlanMetrics 3x E_WARNING + PHP 8.3 fatal on empty-plan report path
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 `Issue579 Project` (prefix I579), test plan id=11 `Issue579 EmptyPlan` with build id=12 `Issue579 Build` and ZERO rows in testplan_tcversions (build required — helperGetExecCounters throws "Can not work with empty build set" otherwise, that throw is pre-existing separate behavior); second plan id=30 `Issue579 EmptyPlan2` + build id=31 kept caseless for the final check.
+
+**Repro steps (pre-fix):**
+1. Browser session → `GET /lib/results/resultsGeneral.php?tplan_id=11&format=0`.
+2. Check Event Viewer / `events` table and tmp/php_server.log.
+
+**Observed pre-fix:** HTTP 500. Event Viewer got exactly the 3 reported E_WARNINGs at 17:16:23 — `Undefined array key "tsuites"` (tlTestPlanMetrics.class.php:1259), `Attempt to read property "colDefinition" on null` (:1383), `Attempt to read property "info" on null` (:1393) — and then, because resultsGeneral.php passes `groupByPlatform=1`, PHP 8.3 escalated :1393 into `Uncaught TypeError: array_keys(): Argument #1 ($array) must be of type array, null given` → fatal. Root cause: `getExecCountersByTestSuiteExecStatus()` never sets `$exec['tsuites']` when `get_testsuites()` returns an empty set (`$loop2do=0`), so `getStatusTotalsByItemForRender()` bails leaving `$renderObj=null`, which the caller dereferenced unguarded.
+
+**Expected post-fix:** page renders its "no test cases" branch (`report_tspec_has_no_tsuites`) with HTTP 200; zero new tlTestPlanMetrics events; non-empty plans keep rendering full statistics; all callers of `getStatusTotalsByTopLevelTestSuiteForRender()` stay warning-free.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | resultsGeneral.php?tplan_id=11&format=0 (empty plan) → 200, "There are no Test Suites defined…" branch, 0 metrics events in `events` table, no fatal in php_server.log | PASS |
+| 2 | Positive regression: link TC v1 (suite `I579 Suite` id=13) to plan 11 → same URL renders "Results by Top Level Test Suite" with I579 Suite Total=1 Not Run=1 100.0% | PASS |
+| 3 | lib/general/mainPage.php dashboard (caller of the fixed method, incl. its no-builds guard) → 200, 0 new events | PASS |
+| 4 | topLevelSuitesBarChart canDraw null-guard reviewed in place (screen itself still blocked by pre-existing getRootTestSuites() array_keys(null), filed as #580 — fires at line 57 BEFORE the guarded call) | PASS |
+| 5 | php -l on both touched files clean; code-review subagent APPROVE (truth table of rewritten condition identical for keyword/platform/priority_level paths) | PASS |
+
+**Fix commit:** edcae5f3e on branch fix/issue-579.
+
+**Follow-ups discovered during this suite (out of scope, each filed with repro+root cause):**
+- #580 `testplan::getRootTestSuites()` array_keys(null) TypeError → topLevelSuitesBarChart 500 on case-less plans.
+- #581 resultsGeneral.php:248 `testPriorityEnabled on false` when testprojects.options is empty.
+- #582 resultsGeneral.php:63 foreach($items2loop) undefined on platform-less plans + template/controller name mismatch `$gui->tprojOpt` vs `$gui->testprojectOptions`.
+- #583 `getStatusTotalsTSuiteDepth2ForRender()` same null-deref pattern (:3389/:3403, resultsByTSuite.php path) found by code review.
