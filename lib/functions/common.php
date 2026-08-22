@@ -1845,8 +1845,7 @@ function getActions(&$gui,$baseURL) {
 
   $gui->workArea = new stdClass();
   $gui->workArea->testSpec = "editTc&{$ctx}";
-  $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
-  
+
   $gui->workArea->planAddTC = null;
   $gui->workArea->executeTest = null;
   $gui->workArea->setTestUrgency = null;
@@ -1882,6 +1881,8 @@ function getActions(&$gui,$baseURL) {
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
 
   $gui->uri = $actions;
+  $actions->keywordsAssign =
+    "/gui/templates/keywords/keywordsAssign.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;
