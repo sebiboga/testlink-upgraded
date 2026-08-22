@@ -205,7 +205,7 @@ jobs:
           PROMPT+="switch aside/common links -> browser-test every button/modal/permission path -> "
           PROMPT+="append a numbered test suite to tmp/TLU_Test_Cases.md and run it -> "
           PROMPT+="update wiki page + docs/ mirror WITH screenshots -> check Event Viewer for new errors/warnings -> "
-          PROMPT+="log any bugs as GitHub issues -> code review subagent over the changes -> apply fixes -> "
+          PROMPT+="log any bugs as GitHub issues (MANDATORY: create them with --label bug, the CI triage depends on it) -> code review subagent over the changes -> apply fixes -> "
           PROMPT+="commit and push to the current branch. "
           PROMPT+="COMMIT+PUSH AFTER EVERY PHASE — mandatory, one small conventional commit pushed immediately at each milestone: "
           PROMPT+="(1) BFF API written -> commit+push; "

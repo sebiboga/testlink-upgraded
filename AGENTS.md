@@ -49,8 +49,11 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 10. **Screenshots in the GitHub Wiki.** Every wiki page update includes current
     screenshots of the modernized screen (normal states + key interactions).
 
-11. **Bugs go to GitHub Issues.** Any bug found while testing (legacy or new)
-    is logged as an issue on `sebiboga/testlink-upgraded` with repro steps.
+11. **Bugs go to GitHub Issues — labeled `bug`.** Any bug found while testing
+    (legacy or new) is logged as an issue on `sebiboga/testlink-upgraded` with
+    repro steps, ALWAYS created with the `bug` label
+    (`gh issue create --label bug ...`). Never file an unlabeled bug report:
+    the CI triage depends on labels.
 
 12. **Check the Event Viewer.** After testing, verify no new Error/Warning entries
     were generated (`Event Viewer` screen / `events` table); handle anything found.
@@ -121,4 +124,4 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     open issue that does NOT carry a work-type label (`enhancement`, `task`,
     `investigation`, `documentation`). Screens/features/enhancements belong to
     `modernize.yml`. When creating issues, ALWAYS label them correctly so the
-    triage works; bug reports get `bug` where possible.
+    triage works; bug reports ALWAYS get `bug`.

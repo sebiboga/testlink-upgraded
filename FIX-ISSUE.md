@@ -56,7 +56,8 @@ follow ALL rules in AGENTS.md (they apply to every run).
   commit or a PR (parallel agents append keys to the same bundles).
 - If while testing you discover NEW bugs: log each one as a new GitHub issue
   with symptom, repro steps and root-cause hypothesis — never fix them silently,
-  never expand this run's scope.
+  never expand this run's scope. ALWAYS create them with the `bug` label
+  (`gh issue create --label bug ...`) — unlabeled bugs break the CI triage.
 
 ## 5. Regression test case (mandatory)
 
