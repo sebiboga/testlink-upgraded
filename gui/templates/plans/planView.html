@@ -46,6 +46,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .modal-title { font-size: 16px; font-weight: 700; }
+table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none !important; }
 </style>
 </head>
 <body>
@@ -250,7 +251,7 @@ function render(items) {
     return row;
   });
 
-  var platIdx = $('#tplanTable thead tr').children().index($('#thPlatformQty'));
+  $('#tplanTable').toggleClass('hide-plat', !drawPlatQty);
   tplanTbl = $('#tplanTable').DataTable({
     destroy: true,
     data: rows,
@@ -258,7 +259,6 @@ function render(items) {
     columnDefs: [
       { targets: 0, className: 'text-center', orderable: false },
       { targets: 2, orderable: false },
-      { targets: platIdx, visible: drawPlatQty },
       { targets: -3, className: 'text-center', orderable: false },
       { targets: -2, className: 'text-center', orderable: false },
       { targets: -1, orderable: false }
