@@ -2,9 +2,9 @@
 /**
  * Shared security middleware for all BFF entry points (api/<area>/index.php).
  *
- * bffSameOriginGuard() is the central CSRF defense-in-depth for mutating
- * verbs (POST/PUT/DELETE/PATCH): a request is only accepted when it carries
- * proof of same-origin, i.e. one of:
+ * bffSameOriginGuard() is the central CSRF defense-in-depth for every
+ * non-safe verb (POST/PUT/DELETE/PATCH/...): a request is only accepted
+ * when it carries proof of same-origin, i.e. one of:
  *   - header X-Requested-With: XMLHttpRequest (jQuery $.ajax same-origin,
  *     dropzone and fetch() wrappers all send it), or
  *   - an Origin / Referer whose host+port authority matches HTTP_HOST.
@@ -15,16 +15,23 @@
  * session cookie, including same-site subdomain and top-level form posts.
  */
 
-function bffRejectForbidden() {
+if (count(get_included_files()) === 1) {
     http_response_code(403);
-    if (!headers_sent()) {
-        header('Content-Type: application/json; charset=utf-8');
-    }
-    echo json_encode(array(
+    exit;
+}
+
+function bffRejectForbidden() {
+    $json = json_encode(array(
         'status' => 'error',
         'message' => 'Forbidden: missing or mismatched same-origin proof ' .
                      '(CSRF protection)',
     ));
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=utf-8');
+        header('X-Content-Type-Options: nosniff');
+        http_response_code(403);
+    }
+    echo $json;
     exit;
 }
 
