@@ -2192,3 +2192,33 @@ simulate a fresh-session deep link.
   `get_by_prefix()` (line ~360): `return $result != null ? $result[0] : null;`
   Callers already treat null as project-not-found (guard added in
   `print.inc.php initStaticRenderTestCaseForPrinting()` during the #552 fix).
+
+## 39. Regression — Issue #553: tlIssueTracker::getInterfaceObject() E_WARNING array-offset-on-null when project has issue_tracker_enabled=1 but no tracker linked (Suite ID: 46)
+
+**Precondition:** fresh DB; fixture created via UI: test project id 1
+"IT553 Project" (prefix `IT553`), `testprojects.issue_tracker_enabled=1`
+set via SQL (no row in `issuetrackers` / `testproject_issuetracker`),
+one test case node id 2 "TC for issue 553" with tcversion id 3
+(external id 1). Print entry point:
+`lib/testcases/tcPrint.php?testcase_id=2&tproject_id=1`.
+
+**Steps & results**
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix repro: open tcPrint.php for the fixture TC → `events` gains `E_WARNING Trying to access array offset on null … tlIssueTracker.class.php - Line 673` (`$name = $issueT['issuetracker_name'];` runs before the existing `!is_null($issueT)` branch) | PASS (reproduced) |
+| 2 | Post-fix same print flow → page renders full single-TC print view ("Test Case IT553-1: TC for issue 553 [Version : 1]", summary/preconditions/keywords sections), **zero** new rows in `events` | PASS |
+| 3 | Positive path intact: link a tracker via SQL (`issuetrackers` type 15 redmine-rest + `testproject_issuetracker` row), repeat print → interface object instantiated, page renders, **zero** new events | PASS |
+| 4 | Negative path restored: remove link rows again, repeat print → still warning-free | PASS |
+| 5 | Caller audit: all 17 `getInterfaceObject()` call sites (print.inc.php, execSetResults, resultsBugs, bugAdd, mainPage, api/execute/index.php, …) share the fixed method → all covered by the same guard; behavior in linked-tracker case unchanged | PASS |
+| 6 | Event Viewer after all flows: 0 Error/Warning entries | PASS |
+
+**Actual result:** 6/6 PASS.
+
+**Root cause fixed**
+- `lib/functions/tlIssueTracker.class.php` `getInterfaceObject()`: line 673
+  dereferenced `$issueT['issuetracker_name']` while `$issueT` is NULL whenever
+  the project flag is on but no tracker is linked (`getLinkedTo()` returns
+  NULL); the `!is_null($issueT)` check existed only further down (~line 685).
+  Minimal fix per issue suggestion:
+  `$name = !is_null($issueT) ? $issueT['issuetracker_name'] : '';`
