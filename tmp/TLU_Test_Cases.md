@@ -2775,3 +2775,38 @@ Post-fix regression: delete modal opens/cancels via delegation, notes render san
 | 5 | Code review subagent over full diff: PASS (no required findings); two pre-existing adjacent defects found and filed instead of fixed in-scope: #588 (dashio partial missing property_exists guard → warning from baselinel1l2 pages), #589 (saveForBaseline null-span deref + empty baseline insert on zero-exec plans) | PASS |
 
 **Fix commit:** 6dd9f7e9b on branch fix/issue-587.
+
+## 49. Modernization — Builds & Releases screen (buildsView) (Suite ID: 55)
+
+**Refs:** GitHub issue #585 · Files: `gui/templates/plans/buildsView.html`, `api/builds/index.php`, i18n keys `bv.*` + `common.forbidden` in 10 bundles, aside switch in `lib/functions/common.php`
+
+**Pre-conditions:** fresh DB; fixtures inserted via SQL: test project "Build Demo Project" (id=101, prefix BDP), test plan "Release Plan A" (id=102); admin/admin.
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | Aside menu → Test Plan section → "Builds / Releases" points to `/gui/templates/plans/buildsView.html?tproject_id=101&tplan_id=102` (verified by fetching asideMenu.php with project+plan context) | PASS |
+| 2 | Screen loads standalone: teal header i18n'd, toolbar shows Test Plan name "Release Plan A", Create Build button visible for admin | PASS |
+| 3 | Empty state: "No builds are defined for this test plan yet", DataTable renders 0 rows without JS errors | PASS |
+| 4 | Create Build modal: name/notes/active/open/release date fields; copy-assignments block hidden when plan has no builds yet (legacy parity: source_build.build_count == 0) | PASS |
+| 5 | Create "Build 1.0" with HTML notes `<b>First</b> build…` + release date 2026-09-01 → toast "Build created"; row shows name, sanitized bold notes, localized "Sep 1, 2026"; DB row: active=1, is_open=1 | PASS |
+| 6 | Active toggle off→on / on→off via POST /{id}/flags; toasts "Build deactivated"/"Build activated"; DB `builds.active` follows | PASS |
+| 7 | Open (lock) toggle close→open: closing stamps `closed_on_date=2026-08-22` (today) and is_open=0; opening resets closed_on_date=NULL and is_open=1 — exact legacy setClosed/setOpen + setClosedOnDate parity | PASS |
+| 8 | Edit modal prefill: GET /1 returns all fields; title "Edit Build: Build 1.0"; notes rendered back as text (`<b>` stripped to plain on edit input); release date prefilled ISO; active/open checkbox state matches DB; copy block hidden on edit | PASS |
+| 9 | Duplicate-name crosscheck: create second build named "Build 1.0" → HTTP 409, red toast "A build with that name already exists in this test plan: Build 1.0", modal stays open — legacy warning_duplicate_build parity | PASS |
+| 10 | Copy-options block: after first build exists, create-modal shows "Copy tester assignments from build:" + source select populated newest-first with assignment counts ("Build 1.0 (0)") + exec-status multi-select from results config (localized labels) | PASS |
+| 11 | Create "Build 1.1" → appears in table; count header updates to (2) | PASS |
+| 12 | Delete flow: trash icon opens confirm modal with build name + legacy warning_delete_build text; Confirm → DELETE /2, toast "Build deleted", row gone, count (1) | PASS |
+| 13 | API authz: unauthenticated GET /api/builds/?tplan_id=102 → 401 JSON "Not authenticated"; unknown route/method → 404 JSON error (after session check) | PASS |
+| 14 | Audit trail: events table has CREATE ×2 + DELETE entries with object_type='builds' and GUI source, mirroring legacy logAuditEvent calls | PASS |
+| 15 | Event Viewer: no new ERROR/WARNING events during the whole suite (only AUDIT) | PASS |
+| 16 | i18n: all `bv.*` keys present in ALL 10 locale bundles (941 keys each, parity verified programmatically); bundles pass `python3 -m json.tool` | PASS |
+
+**Bugs found & fixed during this suite:** one gap caught during development (missing btnCreate click handler wiring) fixed before first browser run.
+
+**Screenshots:** wiki `Builds-and-Releases.md` (list view, create modal, edit modal).
+
+### Suite 55 addendum — post-review fixes re-verified
+| # | Step | Result |
+|---|------|--------|
+| 17 | **BUG-1 fixed**: `build::update()` unconditionally wipes `closed_on_date`; BFF now preserves the historical closure date on non-transition saves (open→closed stamps today, closed→open clears, still-closed restores). Edit-save of a closed build keeps `2026-08-22` | PASS |
+| 18 | Source build validated against target plan (cross-plan assignment cloning blocked) — code-reviewed fix, negative path returns 400 | PASS (code path) |

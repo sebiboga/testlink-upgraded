@@ -19,7 +19,7 @@ require_once('common.php');
 
 doSessionStart();
 
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=utf-8');
 
 $db = new database(DB_TYPE);
 doDBConnect($db);
@@ -45,7 +45,6 @@ $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
 function out($data) { echo json_encode($data); exit; }
-function getParam($key, $default = null) { return $_GET[$key] ?? ($_POST[$key] ?? $default); }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
 function needTplanId() {
@@ -75,6 +74,12 @@ function resolveTplan(&$db, $tplanId) {
         'tplan_name' => $info['name'],
         'tproject_id' => intval($info['parent_id']),
     ];
+}
+
+/** Project display name for audit entries - resolved from ctx, not session. */
+function tprojectName(&$tp, $tprojectId) {
+    $info = $tp->tree_manager->get_node_hierarchy_info(intval($tprojectId));
+    return is_null($info) ? '' : $info['name'];
 }
 
 function canManage(&$user, &$db, $tprojectId) {
@@ -275,7 +280,12 @@ if ($method === 'POST' && count($segments) === 0) {
     $oBuild->release_candidate = strField($body, 'release_candidate');
     $oBuild->is_active = $isActive;
     $oBuild->is_open = $isOpen;
-    $buildID = $buildMgr->createFromObject($oBuild);
+    try {
+        $buildID = $buildMgr->createFromObject($oBuild);
+    } catch (Exception $ex) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'cannot_add_build']);
+    }
 
     if (!$buildID) {
         http_response_code(500);
@@ -288,9 +298,16 @@ if ($method === 'POST' && count($segments) === 0) {
     }
 
     // Copy tester assignments from source build (legacy behavior).
+    // Security: the source build MUST belong to this test plan, otherwise a
+    // user could clone assignments (user ids) from a plan of another project.
     $copyAssign = !empty($body['copy_tester_assignments']);
     $sourceBuildId = intval($body['source_build_id'] ?? 0);
     if ($copyAssign && $sourceBuildId > 0) {
+        $src = $buildMgr->get_by_id($sourceBuildId);
+        if (is_null($src) || intval($src['testplan_id']) !== $tplanId) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid source build']);
+        }
         $statusFilter = isset($body['exec_status_filter']) &&
                         is_array($body['exec_status_filter'])
             ? array_map('strval', $body['exec_status_filter']) : null;
@@ -305,7 +322,7 @@ if ($method === 'POST' && count($segments) === 0) {
     }
 
     logAuditEvent(TLS('audit_build_created',
-        $_SESSION['testprojectName'] ?? '', $ctx['tplan_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
         'CREATE', $buildID, 'builds');
 
     out(['status' => 'ok', 'id' => intval($buildID)]);
@@ -326,17 +343,24 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
+    if (!array_key_exists('active', $body) && !array_key_exists('open', $body)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing to change']);
+    }
     if (array_key_exists('active', $body)) {
         if ((bool)$body['active']) { $buildMgr->setActive($buildId); }
         else { $buildMgr->setInactive($buildId); }
     }
     if (array_key_exists('open', $body)) {
-        if ((bool)$body['open']) {
+        // stamp/clear closure date only on real transitions (legacy parity)
+        $wasOpen = intval($b['is_open']) === 1;
+        $nowOpen = (bool)$body['open'];
+        if ($nowOpen) {
             $buildMgr->setOpen($buildId);
-            $buildMgr->setClosedOnDate($buildId, null);
+            if (!$wasOpen) { $buildMgr->setClosedOnDate($buildId, null); }
         } else {
             $buildMgr->setClosed($buildId);
-            $buildMgr->setClosedOnDate($buildId, date('Y-m-d'));
+            if ($wasOpen) { $buildMgr->setClosedOnDate($buildId, date('Y-m-d')); }
         }
     }
     out(['status' => 'ok']);
@@ -363,6 +387,8 @@ function copyTesterAssignments(&$tp, $tplanId, $srcId, $dstId, $userId, $statusF
     foreach ($platformSet as $platform_id => $pname) {
         $glf = array('filters' => array('platform_id' => $platform_id));
         foreach ($statusFilter as $ec) {
+            // ignore unknown status codes silently (avoid E_WARNING noise)
+            if (!isset($execVerboseDomain[$ec])) { continue; }
             if ($execVerboseDomain[$ec] === 'not_run') {
                 $tcaseSet = $tp->getHitsNotRunForBuildAndPlatform(
                     $tplanId, $platform_id, $srcId);
@@ -456,15 +482,25 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         http_response_code(500);
         out(['status' => 'error', 'message' => 'cannot_update_build']);
     }
-    // Legacy do_update: closing stamps closed_on_date with today.
-    if (empty($attr['is_open'])) {
+    // Legacy do_update semantics: build::update() unconditionally resets
+    // closed_on_date to NULL (latent behavior of the class), so we must
+    // restore/adjust afterwards:
+    //   open->closed : stamp today
+    //   closed->open : clear
+    //   still closed : preserve the historical closure date
+    $wasOpen = intval($b['is_open']) === 1;
+    $nowOpen = !empty($attr['is_open']);
+    if ($wasOpen && !$nowOpen) {
         $buildMgr->setClosedOnDate($buildId, date('Y-m-d'));
-    } else {
+    } elseif (!$wasOpen && $nowOpen) {
         $buildMgr->setClosedOnDate($buildId, null);
+    } elseif (!$nowOpen) {
+        $hist = isset($b['closed_on_date']) ? substr((string)$b['closed_on_date'], 0, 10) : '';
+        $buildMgr->setClosedOnDate($buildId, ($hist !== '') ? $hist : null);
     }
 
     logAuditEvent(TLS('audit_build_saved',
-        $_SESSION['testprojectName'] ?? '', $ctx['tplan_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
         'SAVE', $buildId, 'builds');
 
     out(['status' => 'ok']);
@@ -498,7 +534,7 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
         out(['status' => 'error', 'message' => 'cannot_delete_build']);
     }
     logAuditEvent(TLS('audit_build_deleted',
-        $_SESSION['testprojectName'] ?? '', $ctx['tplan_name'], $b['name']),
+        tprojectName($ctx['tplan_mgr'], $ctx['tproject_id']), $ctx['tplan_name'], $b['name']),
         'DELETE', $buildId, 'builds');
 
     out(['status' => 'ok']);
