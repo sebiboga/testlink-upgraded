@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.section { padding: 20px 24px 4px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.tplan-name { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.tplan-name:hover { text-decoration: underline; }
+.api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
+.notes-cell { color: #555; max-width: 420px; }
+.qty-cell { text-align: center; width: 70px; }
+.toggle-btn { background: none; border: none; padding: 2px 6px; font-size: 16px; cursor: pointer; line-height: 1; }
+.toggle-btn.on { color: #2d8e88; }
+.toggle-btn.off { color: #bbb; }
+.toggle-btn:disabled { cursor: not-allowed; opacity: .5; }
+.pub-yes { color: #2d8e88; font-size: 14px; }
+.pub-no { color: #ccc; font-size: 14px; }
+.act-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 6px; color: #6c757d; }
+.act-btn:hover { color: #22242a; }
+.act-btn.del { color: #e6605e; }
+.act-btn.del:hover { color: #c53f3d; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="header.planManage">Test Plan Management</span>
+  <span class="sub" data-i18n="header.planManageSub">create, activate and manage the test plans of this test project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pv.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreate" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="pv.createTestPlan">Create Test Plan</span></button>
+  <button class="btn-dark" id="btnActivateBulk" onclick="bulkActive(1)" style="display:none"><i class="fa fa-toggle-on"></i> <span data-i18n="pv.activatePlans">Activate Test Plans</span></button>
+  <button class="btn-dark" id="btnInactivateBulk" onclick="bulkActive(0)" style="display:none"><i class="fa fa-toggle-off"></i> <span data-i18n="pv.inactivatePlans">Inactivate Test Plans</span></button>
+</div>
+
+<div class="section">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;"><span data-i18n="header.planManage">Test Plan Management</span><span class="count" id="tplanCount" style="font-weight:400;color:#888;font-size:13px;margin-left:6px;"></span></h2>
+</div>
+
+<div id="noTproject" class="table-wrap" style="display:none">
+  <div class="empty" data-i18n="pv.noTestProject">There are currently no test projects defined!</div>
+</div>
+
+<div class="table-wrap">
+  <div id="tplanEmpty" class="empty" style="display:none" data-i18n="pv.empty">No test plans exist for this test project yet</div>
+  <table id="tplanTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:30px" data-orderable="false"><input type="checkbox" id="chkAll"></th>
+        <th style="width:22%" data-i18n="pv.name">Name</th>
+        <th data-orderable="false" data-i18n="pv.notes">Notes</th>
+        <th style="width:80px" data-i18n="pv.tcQty" title="">Test Cases</th>
+        <th style="width:70px" data-i18n="pv.buildQty" title="">Builds</th>
+        <th id="thPlatformQty" style="width:90px; display:none" data-i18n="pv.platformQty">Platforms</th>
+        <th data-orderable="false" style="width:80px" data-i18n="pv.activeCol">Active</th>
+        <th data-orderable="false" style="width:70px" data-i18n="pv.publicCol">Public</th>
+        <th data-orderable="false" style="width:190px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;background:#e6605e;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/plans/index.php';
+var tprojectId = 0;
+var canManage = false;
+var tplanTbl = null;
+var deleteTarget = null;
+var ACTIONS = {};
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#chkAll').on('change', function () {
+    $('#tplanTable tbody input[type=checkbox]').prop('checked', $(this).is(':checked'));
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function actionUrl(key, id) {
+  var base = ACTIONS[key] || '';
+  return base + (base.indexOf('=') === base.length - 1 ? encodeURIComponent(id) : '');
+}
+
+function load() {
+  if (tprojectId <= 0) {
+    $('#noTproject').show();
+    $('.toolbar').hide();
+    return;
+  }
+  $.getJSON(API + '/?tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      canManage = r.rights.canManage;
+      ACTIONS = r.actions || {};
+      $('#tprojectName').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('header.planManage');
+
+      $('#btnCreate').toggle(canManage);
+      $('#btnCreate').off('click').on('click', function () {
+        window.location.href = ACTIONS.createAction || '#';
+      });
+      $('#btnActivateBulk').toggle(canManage);
+      $('#btnInactivateBulk').toggle(canManage);
+
+      if (r.draw_platform_qty_column) {
+        $('#thPlatformQty').show().attr('title', TLi18n.t('pv.helpPlatformQty'));
+      }
+      $('th[data-i18n=pv.tcQty]').attr('title', TLi18n.t('pv.helpTcQty'));
+      $('th[data-i18n=pv.buildQty]').attr('title', TLi18n.t('pv.helpBuildQty'));
+
+      render(r.items);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function render(items) {
+  $('#tplanCount').text('(' + items.length + ')');
+  $('#tplanEmpty').toggle(items.length === 0);
+  $('#tplanTable').toggle(items.length > 0);
+  $('#footerInfo').text(items.length ?
+    TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString() : '');
+
+  if (tplanTbl) { tplanTbl.destroy(); $('#tplanTable tbody').empty(); }
+
+  var rows = items.map(function (tp) {
+    var apiTitle = TLi18n.t('pv.apiId').replace('{id}', tp.id);
+    var chkCell = '<input type="checkbox" class="row-chk" value="' + tp.id + '"' +
+                  (canManage ? '' : ' disabled') + '>';
+    var nameCell = '<i class="fas fa-cubes api-id" title="' + esc(apiTitle) + '"></i>';
+    nameCell += '<a class="tplan-name" href="' + esc(actionUrl('editAction', tp.id)) +
+                '" title="' + esc(TLi18n.t('pv.editPlan')) + '">' + esc(tp.name) + '</a>';
+
+    // legacy list view renders notes as stored HTML (rich editor); keep it
+    // but strip script vectors defensively
+    var notes = String(tp.notes == null ? '' : tp.notes)
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+    notes = notes ? notes.replace(/\n/g, '<br>') : '<span style="color:#ccc">-</span>';
+
+    var action = '';
+    if (canManage) {
+      action += '<button class="act-btn del" title="' + esc(TLi18n.t('pv.deletePlan')) +
+                '" onclick="confirmDelete(' + tp.id + ',\'' + esc(tp.name).replace(/'/g,"\\'") + '\')">' +
+                '<i class="fas fa-trash-alt"></i></button>';
+    }
+    action += '<a class="act-btn" href="' + esc(actionUrl('exportAction', tp.id)) +
+              '" title="' + esc(TLi18n.t('pv.exportLinks')) + '"><i class="fas fa-file-export"></i></a>';
+    action += '<a class="act-btn" href="' + esc(actionUrl('importAction', tp.id)) +
+              '" title="' + esc(TLi18n.t('pv.importLinks')) + '"><i class="fas fa-file-import"></i></a>';
+    if (tp.rights && tp.rights.assign_roles) {
+      action += '<a class="act-btn" href="' + esc(actionUrl('assignRolesAction', tp.id)) +
+                '" title="' + esc(TLi18n.t('pv.assignRoles')) + '"><i class="fas fa-user-shield"></i></a>';
+    }
+    action += '<a class="act-btn" href="' + esc(actionUrl('gotoExecuteAction', tp.id)) +
+              '" title="' + esc(TLi18n.t('pv.execution')) + '"><i class="fas fa-play-circle"></i></a>';
+
+    var row = [
+      chkCell,
+      nameCell,
+      notes,
+      '<span class="qty-cell">' + tp.tcase_qty + '</span>',
+      '<span class="qty-cell">' + tp.build_qty + '</span>'
+    ];
+    if ($('#thPlatformQty').is(':visible')) {
+      row.push('<span class="qty-cell">' + (tp.platform_qty || 0) + '</span>');
+    }
+    row.push(activeToggle(tp.id, tp.active));
+    row.push('<span class="' + (tp.is_public ? 'pub-yes fa-check-circle fas' : 'pub-no fas fa-times-circle') +
+             '" title="' + esc(TLi18n.t('pv.publicCol')) + '"></span>');
+    row.push(action);
+    return row;
+  });
+
+  tplanTbl = $('#tplanTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 0, className: 'text-center', orderable: false },
+      { targets: 2, orderable: false },
+      { targets: -3, className: 'text-center', orderable: false },
+      { targets: -2, className: 'text-center', orderable: false },
+      { targets: -1, orderable: false }
+    ]
+  });
+}
+
+function activeToggle(id, value) {
+  var on = parseInt(value, 10) == 1;
+  var cls = on ? 'on' : 'off';
+  var icon = on ? 'fa-toggle-on' : 'fa-toggle-off';
+  var titleKey = on ? 'pv.clickToDeactivate' : 'pv.clickToActivate';
+  var titleAttr = canManage ? ' title="' + esc(TLi18n.t(titleKey)) + '"' : '';
+  return '<button class="toggle-btn ' + cls + '"' + titleAttr +
+         (canManage ? ' onclick="setActive(' + id + ',' + (on ? 0 : 1) + ')"' : ' disabled') +
+         '><i class="fas ' + icon + '"></i></button>';
+}
+
+function setActive(id, value) {
+  $.ajax({
+    url: API + '/' + id + '/active',
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: tprojectId, active: value })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); }
+    else { toast(value ? TLi18n.t('pv.msg.activated') : TLi18n.t('pv.msg.deactivated')); }
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+
+function bulkActive(value) {
+  var ids = $('#tplanTable tbody input.row-chk:checked').map(function(){ return parseInt(this.value,10); }).get();
+  if (!ids.length) {
+    toast(TLi18n.t('pv.noSelection'), true);
+    return;
+  }
+  $.ajax({
+    url: API + '/bulk-active',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: tprojectId, ids: ids, active: value })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); }
+    else { toast(value ?
+      TLi18n.t('pv.msg.bulkActivated').replace('{n}', r.updated) :
+      TLi18n.t('pv.msg.bulkDeactivated').replace('{n}', r.updated)); }
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.error_code === 'NO_SELECTION' ? TLi18n.t('pv.noSelection') :
+          r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+
+function confirmDelete(id, name) {
+  deleteTarget = id;
+  $('#delTitle').text(TLi18n.t('common.delete'));
+  $('#delMsg').html('<b>' + esc(name) + '</b><br>' + esc(TLi18n.t('pv.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  $.ajax({
+    url: API + '/' + deleteTarget + '?tproject_id=' + tprojectId,
+    method: 'DELETE'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(TLi18n.t('pv.msg.deleted'));
+    } else {
+      toast(r.message || TLi18n.t('common.error'), true);
+    }
+    load();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+    load();
+  });
+}
+</script>
+</body>
+</html>
