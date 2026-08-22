@@ -1,18 +1,21 @@
 # FIX-ISSUE.md — Rules for Autonomous Bug Fixing (opencode)
 
-Mission: fix exactly ONE bug per run — the NEWEST open GitHub issue — end to end,
-then stop. This file is the authoritative rulebook for that run. Also follow ALL
-rules in AGENTS.md (they apply to every run).
+Mission: fix exactly ONE bug per run — the NEWEST open GitHub bug issue — end
+to end, then stop. This file is the authoritative rulebook for that run. Also
+follow ALL rules in AGENTS.md (they apply to every run).
 
 ## 1. Pick the issue yourself
 
-- You receive NO input. Find the newest open issue:
+- You receive NO input. Find the newest open BUG issue. TRIAGE IS MANDATORY:
+  SKIP any issue labeled `enhancement`, `task`, `investigation` or
+  `documentation` — those belong to the modernize workflow, not to you:
 
-      gh issue list --state open --limit 200 --json number,title,createdAt \
-        --jq 'sort_by(.createdAt) | last'
+      gh issue list --state open --limit 200 --json number,title,labels,createdAt \
+        --jq 'map(select([.labels[].name] | any(. == "enhancement" or . == "task" or . == "investigation" or . == "documentation") | not)) | first'
 
 - Read the FULL body (and all comments) with `gh issue view <number> --comments`.
-- If there are NO open issues: report that and stop cleanly. Do not invent work.
+- If there are NO open bug issues after triage: report that and stop cleanly.
+  Do not invent work. Do not "fix" enhancements.
 - Skip pull requests automatically (`gh issue list` already excludes them).
 - If the newest open issue's latest comment is from `github-actions[bot]` saying
   it could not be fixed / was left open, SKIP it and take the next newest —

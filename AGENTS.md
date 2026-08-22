@@ -93,3 +93,29 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     every push; NEVER force-push or manually merge/delete `fix/*` branches or
     agent PRs unless cleaning up after a confirmed failure; do not close issues
     that have an open agent PR.
+
+19. **One tracking issue per screen.** Before modernizing a screen, make sure
+    an open issue exists for it on `sebiboga/testlink-upgraded`
+    (label `enhancement`, title `Modernize: <screen>` / or the feature's own
+    enhancement). All commits, pushes, docs and test suites reference that
+    number (`Refs #<n>`). Enhancements are NEVER picked by `fix-bug.yml`.
+
+20. **Progress checkpoints (~20 min) in the ticket.** While working a screen,
+    post a comment on its tracking issue at least every ~20 minutes AND at
+    every push, always with the same sections:
+    - **DONE** — what landed since last update (commit hashes + files)
+    - **DISCOVERIES** — root causes found, gotchas, decisions taken
+    - **PLAN** — ordered next steps (the implementation strategy)
+    - **RESUME** — exact state needed to continue: env/commands/credentials,
+      what is verified vs pending
+    - **FILES** — mapping file → purpose within this screen's modernization
+    Goal: any agent (human or Actions) resumes from the ticket without
+    re-exploring the codebase from zero. On session start, READ the issue
+    comments + `tmp/TODO.md` FIRST and continue the existing plan — do not
+    reinvent the strategy.
+
+21. **Issue triage: bugs only for fix-bug.** `fix-bug.yml` picks the newest
+    open issue that does NOT carry a work-type label (`enhancement`, `task`,
+    `investigation`, `documentation`). Screens/features/enhancements belong to
+    `modernize.yml`. When creating issues, ALWAYS label them correctly so the
+    triage works; bug reports get `bug` where possible.
