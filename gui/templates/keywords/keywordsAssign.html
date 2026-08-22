@@ -243,6 +243,8 @@ function loadCases() {
       $.each(list, function (i, tc) {
         $c.append($('<option>').val(tc.id).text(tc.name));
       });
+      $c.val(list[0].id);
+      loadCaseState();
     })
     .fail(function () { toast(TLi18n.t('common.error'), true); });
 }
