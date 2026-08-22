@@ -81,4 +81,5 @@ Filed separately with repro steps, root cause and suggested fix:
 ## Files changed
 
 * `lib/functions/tlTestPlanMetrics.class.php` — early null return in
-  `getStatusTotalsTSuiteDepth2ForRender()` (~3376)
+  `getStatusTotalsTSuiteDepth2ForRender()` (:3380-3382; the quoted
+  :3389/:3403 are pre-fix line numbers)
