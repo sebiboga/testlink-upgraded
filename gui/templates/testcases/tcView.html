@@ -420,7 +420,7 @@ function openTcEdit() {
 }
 
 function openExecHistory() {
-  var url = '/lib/execute/execHistory.php?tcase_id=' + data.tcase.id
+  var url = '/gui/templates/execute/execHistory.html?tcase_id=' + data.tcase.id
     + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }

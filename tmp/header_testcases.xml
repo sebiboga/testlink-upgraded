@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testcases>
+  <!-- ===== HEADER TEST SUITE ===== -->
+  <testsuite name="Header">
+    <testsuite name="Project Selector">
+      <testcase>
+        <name>Project Selector Displays All Accessible Projects</name>
+        <summary><![CDATA[<p>Verify that the project selector dropdown in the header displays all test projects the logged-in user has access to.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li><li>Admin has access to multiple test projects (P2, P3, TLU, TP)</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Observe the header area and locate the "Test Project" dropdown</p>]]></actions>
+            <expected_results><![CDATA[<p>The dropdown is visible and contains "Test Project" label</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Click the project selector dropdown</p>]]></actions>
+            <expected_results><![CDATA[<p>Dropdown opens showing all projects: P2:Project Two, P3:Project Three, TLU:TLU: TestLink Upgraded 2.0.1, TP:Test Project</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>Verify each option has correct format: Prefix:Full Name</p>]]></actions>
+            <expected_results><![CDATA[<p>All options follow the naming convention and display correctly</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>Current Project Is Pre-selected in Header</name>
+        <summary><![CDATA[<p>Verify that the project currently active is pre-selected (highlighted) in the project selector dropdown.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li><li>Currently active project is TLU:TLU: TestLink Upgraded 2.0.1</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Observe the project selector dropdown in the header</p>]]></actions>
+            <expected_results><![CDATA[<p>The dropdown shows "TLU:TLU: TestLink Upgraded 2.0.1" as the selected/visible value</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Open the dropdown and verify the selected attribute</p>]]></actions>
+            <expected_results><![CDATA[<p>The TLU option has the "selected" state, matching the currently active test project</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>Switch Test Project Changes Context</name>
+        <summary><![CDATA[<p>Verify that selecting a different project from the header dropdown reloads the application with the new project context.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li><li>Currently in TLU project</li><li>Admin has access to P2:Project Two</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Note the current project name in the dropdown (TLU)</p>]]></actions>
+            <expected_results><![CDATA[<p>TLU project is displayed</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Open the project selector dropdown and select "P2:Project Two"</p>]]></actions>
+            <expected_results><![CDATA[<p>The application reloads</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>After reload, check the project selector dropdown value</p>]]></actions>
+            <expected_results><![CDATA[<p>"P2:Project Two" is now displayed as selected. The entire application context (tree, content) now shows P2 data.</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>Switch Project Preserves Feature Context</name>
+        <summary><![CDATA[<p>Verify that when switching projects via the header dropdown, the application attempts to return to the same feature/page type in the new project (e.g., if on Test Specification, remain on Test Specification).</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li><li>Currently in TLU project on Test Specification page</li><li>Admin has access to TP:Test Project</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Navigate to Test Specification (editTc feature)</p>]]></actions>
+            <expected_results><![CDATA[<p>Test Specification tree is displayed in the left panel</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Switch to TP:Test Project via the header dropdown</p>]]></actions>
+            <expected_results><![CDATA[<p>Application reloads</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>Check if the main content area shows Test Specification for TP project</p>]]></actions>
+            <expected_results><![CDATA[<p>The page returns to Test Specification (or the closest equivalent) in the new project context, instead of the default dashboard</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+    <testsuite name="Logo">
+      <testcase>
+        <name>Logo Click Reloads Main View</name>
+        <summary><![CDATA[<p>Verify that clicking the TestLink logo in the header navigates back to the main dashboard/index page for the current project.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li><li>Currently on any sub-page (e.g., Test Specification)</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Navigate away from the main dashboard to any sub-page (e.g., Test Specification, Event Viewer)</p>]]></actions>
+            <expected_results><![CDATA[<p>Sub-page content is displayed in the main frame</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Click the TestLink logo in the top-left corner of the header</p>]]></actions>
+            <expected_results><![CDATA[<p>The page navigates to index.php, showing the main dashboard for the current project</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>Verify the URL contains the correct tproject_id parameter</p>]]></actions>
+            <expected_results><![CDATA[<p>URL matches index.php?tproject_id=X where X is the current project ID</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>Logo Image Loads Without Broken Image</name>
+        <summary><![CDATA[<p>Verify the TestLink logo image in the header loads correctly without any 404 or broken image icon.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Low</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Inspect the header area visually</p>]]></actions>
+            <expected_results><![CDATA[<p>The TestLink logo image (tl-logo-transparent-25.png) is fully visible and not broken</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+    <testsuite name="User Info">
+      <testcase>
+        <name>Header Displays Logged-In User Info</name>
+        <summary><![CDATA[<p>Verify that the header displays the logged-in user's username and role in the format "username [role]".</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User "admin" with role "admin" is logged in</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>After login, observe the top-right area of the header</p>]]></actions>
+            <expected_results><![CDATA[<p>Text "admin [admin]" is displayed as a clickable link</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Verify the element has a tooltip/title attribute</p>]]></actions>
+            <expected_results><![CDATA[<p>The title attribute shows "admin [admin]"</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>User Info Link Opens Profile Page</name>
+        <summary><![CDATA[<p>Verify that clicking the user info link in the header opens the user profile/info page within the main content frame.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Click on "admin [admin]" link in the header</p>]]></actions>
+            <expected_results><![CDATA[<p>The main content frame loads userInfo.php showing user profile details (login, role, email, etc.)</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Verify the URL contains tproject_id parameter</p>]]></actions>
+            <expected_results><![CDATA[<p>URL is userInfo.php?tproject_id=X&tplan_id=0</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+    <testsuite name="Logout">
+      <testcase>
+        <name>Logout Terminates Session and Redirects</name>
+        <summary><![CDATA[<p>Verify that clicking Logout terminates the user session and redirects to the login page.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in as admin</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Click the "Logout" link in the header</p>]]></actions>
+            <expected_results><![CDATA[<p>The session is terminated and the login page is displayed</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Try to navigate back to the application using browser back button</p>]]></actions>
+            <expected_results><![CDATA[<p>User cannot access protected content; login page is shown instead</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>Verify cookies/session are cleared</p>]]></actions>
+            <expected_results><![CDATA[<p>Session cookie is expired or removed</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>Logout Link Uses Correct Target</name>
+        <summary><![CDATA[<p>Verify the Logout link uses target="top" to break out of all iframes when logging out.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Inspect the Logout link in the header HTML</p>]]></actions>
+            <expected_results><![CDATA[<p>The Logout link has target="top" and href="logout.php?viewer="</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+    <testsuite name="Sidebar Toggle">
+      <testcase>
+        <name>Sidebar Toggle Collapses Navigation</name>
+        <summary><![CDATA[<p>Verify that clicking the hamburger icon (fa-bars) in the header toggles the left sidebar navigation between collapsed and expanded states.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in</li><li>Sidebar is initially visible/expanded</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Observe the left sidebar is visible with menu items</p>]]></actions>
+            <expected_results><![CDATA[<p>Sidebar is expanded showing: System, Projects, Requirements Design, Test Case Design, Test Plan, Plugins</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Click the hamburger icon (fa-bars) in the header</p>]]></actions>
+            <expected_results><![CDATA[<p>The sidebar collapses/hides, giving more space to the main content area</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>3</step_number>
+            <actions><![CDATA[<p>Click the hamburger icon again</p>]]></actions>
+            <expected_results><![CDATA[<p>The sidebar expands back to its original state showing all menu items</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+    <testsuite name="Smoke Tests">
+      <testcase>
+        <name>All Header Elements Present After Fresh Login</name>
+        <summary><![CDATA[<p>Smoke test: Verify that all header elements are present and visible immediately after login.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is on the login page</li><li>Valid credentials available (admin/admin)</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>High</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Login with valid credentials (admin / admin)</p>]]></actions>
+            <expected_results><![CDATA[<p>Login successful, main application loads</p>]]></expected_results>
+          </step>
+          <step>
+            <step_number>2</step_number>
+            <actions><![CDATA[<p>Verify the following header elements are present:</p><ul><li>Hamburger toggle icon</li><li>TestLink logo</li><li>"Test Project" label</li><li>Project selector dropdown</li><li>User info link (admin [admin])</li><li>Logout link</li></ul>]]></actions>
+            <expected_results><![CDATA[<p>All 6 header elements are visible and functional in the header bar</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+      <testcase>
+        <name>CSRF Token Present in Project Switch Form</name>
+        <summary><![CDATA[<p>Verify that the project switch form includes CSRF protection tokens to prevent cross-site request forgery.</p>]]></summary>
+        <preconditions><![CDATA[<ol><li>User is logged in</li></ol>]]></preconditions>
+        <status>Draft</status>
+        <importance>Medium</importance>
+        <execution_type>Manual</execution_type>
+        <steps>
+          <step>
+            <step_number>1</step_number>
+            <actions><![CDATA[<p>Inspect the HTML source of the header's project switch form</p>]]></actions>
+            <expected_results><![CDATA[<p>Form contains hidden fields: CSRFName and CSRFToken with valid values</p>]]></expected_results>
+          </step>
+        </steps>
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testcases>

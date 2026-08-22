@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metrics Dashboard</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+
+.header {
+  background: #4ECDC4; color: #fff; padding: 14px 24px;
+  font-size: 20px; font-weight: 700; letter-spacing: 1px;
+}
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+
+.toolbar {
+  background: #22242a; padding: 14px 24px; display: flex; gap: 20px;
+  align-items: center; flex-wrap: wrap;
+}
+.toolbar label.chk { color: #ccc; font-size: 13px; cursor: pointer; margin: 0; }
+.toolbar label.chk input { margin-right: 6px; vertical-align: middle; cursor: pointer; }
+.btn-linkish { background: transparent; border: none; color: #4ECDC4; cursor: pointer;
+  font-size: 13px; padding: 0; }
+.btn-linkish:hover { color: #3dbdb5; text-decoration: underline; }
+.direct_link { color: #ccc; font-size: 12px; word-break: break-all; }
+.direct_link a { color: #4ECDC4; }
+
+.section { background: #fff; border-radius: 8px; padding: 20px 24px; margin: 20px 24px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.section h2 { margin: 0 0 18px; font-size: 16px; color: #22242a;
+  border-bottom: 2px solid #4ECDC4; padding-bottom: 8px; display: inline-block; }
+
+.progress-row { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; max-width: 760px; }
+.progress-row .lbl { width: 170px; font-size: 13px; color: #333; text-align: right; flex-shrink: 0; }
+.progress-track { flex: 1; height: 22px; background: #eee; border-radius: 11px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 11px; min-width: 2px;
+  transition: width .4s ease; position: relative; }
+.progress-fill span {
+  position: absolute; left: 10px; top: 0; line-height: 22px;
+  font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap;
+}
+.progress-count { font-size: 12px; color: #777; flex-shrink: 0; min-width: 90px; }
+
+.table-wrap { padding: 0; }
+table.dataTable thead th { background: #22242a !important; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+  background: #4ECDC4 !important; color: #fff !important; border: none !important;
+}
+
+.tplan-cell b { color: #22242a; }
+.tplan-subline { font-size: 11px; color: #888; margin-top: 4px; line-height: 1.6; }
+
+.minibar { height: 16px; background: #eee; border-radius: 8px; overflow: hidden;
+  position: relative; min-width: 80px; }
+.minibar .fill { height: 100%; background: #4ECDC4; border-radius: 8px; min-width: 2px; }
+.minibar span { position: absolute; left: 8px; top: 0; line-height: 16px;
+  font-size: 10px; font-weight: 700; color: #333; }
+
+.user_feedback {
+  margin: 30px 24px; background: #fcf8e3; color: #8a6d3b; border: 1px solid #faebcc;
+  border-radius: 6px; padding: 18px 24px; font-size: 14px;
+}
+.error_feedback {
+  margin: 30px 24px; background: #f2dede; color: #a94442; border: 1px solid #ebccd1;
+  border-radius: 6px; padding: 18px 24px; font-size: 14px;
+}
+.note { color: #888; font-style: italic; font-size: 12px; margin-top: 12px; }
+.footer {
+  padding: 12px 24px; color: #888; font-size: 12px;
+  border-top: 1px solid #ddd; background: #fff; margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="header.metricsDashboard">Metrics Dashboard</span> <span data-i18n="header.metricsDashboardSub">execution progress overview</span><div id="localeSwitcher" style="float:right;"></div></div>
+
+<div class="toolbar">
+  <label class="chk">
+    <input type="checkbox" id="showOnlyActive" checked>
+    <span data-i18n="md.showOnlyActive">Show only active test plans</span>
+  </label>
+  <button class="btn-linkish" id="btnDirectLink"><i class="fa fa-link"></i> <span data-i18n="md.directLink">Public link</span></button>
+  <div class="direct_link" id="directLinkBox" style="display:none"></div>
+</div>
+
+<div id="warningBox" class="user_feedback" style="display:none"></div>
+<div id="errorBox" class="error_feedback" style="display:none"></div>
+<div id="content" style="display:none">
+
+  <div class="section">
+    <h2 data-i18n="md.projectProgress">Test Project Progress</h2>
+    <div id="projectMetrics"></div>
+    <p class="note" data-i18n="md.infoProgress">Progress is relative to the number of active test cases linked to the test plans.</p>
+  </div>
+
+  <div class="section">
+    <h2 data-i18n="md.testPlanProgress">Test Plan Progress</h2>
+    <div class="table-wrap">
+      <table id="plansTable" class="display" style="width:100%">
+        <thead><tr id="plansHead"></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <p class="note" data-i18n="md.infoTable">Only active builds are taken into account.</p>
+  </div>
+
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script>
+var API = '/api/metrics/index.php';
+var qs = new URLSearchParams(window.location.search);
+var tproject_id = qs.get('tproject_id') || '';
+var table = null;
+var STATUS_COLORS = {
+  not_run: '#8f8f8f', passed: '#5cb85c',
+  failed: '#e6605e', blocked: '#f0ad4e'
+};
+var STATUS_KEYS = {
+  not_run: 'md.statusNotRun', passed: 'md.statusPassed',
+  failed: 'md.statusFailed', blocked: 'md.statusBlocked'
+};
+var dashboard = null;
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#showOnlyActive').on('change', function() {
+      loadDashboard($('#showOnlyActive').is(':checked') ? 1 : 0);
+    });
+    $('#btnDirectLink').on('click', function() {
+      $('#directLinkBox').toggle();
+    });
+    loadRightsAndDashboard();
+  });
+});
+
+function statusLabel(key) {
+  if (STATUS_KEYS[key]) return TLi18n.t(STATUS_KEYS[key]);
+  return key.charAt(0).toUpperCase() + key.slice(1);
+}
+function statusColor(key) { return STATUS_COLORS[key] || '#ccc'; }
+
+function showMsg(sel, key) {
+  $(sel).text(TLi18n.t(key)).show();
+  $('#content').hide();
+}
+
+function loadRightsAndDashboard() {
+  $.getJSON(API + '/meta/rights', function(r) {
+    if (!r.canView) {
+      showMsg('#errorBox', 'md.msg.noRights');
+      return;
+    }
+    loadDashboard(null);
+  }).fail(function() {
+    showMsg('#errorBox', 'common.error');
+  });
+}
+
+function loadDashboard(showOnlyActive) {
+  var p = [];
+  if (tproject_id) p.push('tproject_id=' + tproject_id);
+  if (showOnlyActive !== null) p.push('show_only_active=' + showOnlyActive);
+  $.getJSON(API + '/dashboard' + (p.length ? '?' + p.join('&') : ''), function(r) {
+    if (r.status !== 'ok') {
+      showMsg('#errorBox', 'common.error');
+      return;
+    }
+    dashboard = r;
+    $('#showOnlyActive').prop('checked', !!r.show_only_active);
+    $('#directLinkBox').html('<a href="' + r.direct_link + '" target="_blank">' + r.direct_link + '</a>');
+    if (r.warning) {
+      showMsg('#warningBox', 'md.noTestPlans');
+      $('#footerText').text('');
+      return;
+    }
+    $('#warningBox').hide();
+    $('#errorBox').hide();
+    $('#content').show();
+    renderProjectMetrics(r);
+    renderTable(r);
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + r.generated_on);
+  }).fail(function(xhr) {
+    showMsg('#errorBox', xhr.status === 403 ? 'md.msg.noRights' : 'common.error');
+  });
+}
+
+function renderProjectMetrics(r) {
+  var total = computeTotals(r);
+  var active = total.active;
+  var html = '';
+  $.each(r.project_metrics, function(i, m) {
+    var isExecuted = m.key === 'executed';
+    var lbl = isExecuted ? TLi18n.t('md.overallProgress')
+                         : statusLabel(m.key) ;
+    if (isExecuted) lbl += ' (' + TLi18n.t('md.progressAbsolute') + ')';
+    var qty = isExecuted ? total.executed : (total[m.key] || 0);
+    var color = isExecuted ? '#4ECDC4' : statusColor(m.key);
+    html += '<div class="progress-row">'
+         +   '<div class="lbl">' + lbl + '</div>'
+         +   '<div class="progress-track"><div class="progress-fill" style="width:' + m.value + '%;background:' + color + ';">'
+         +     '<span>' + m.value + '%</span></div></div>'
+         +   '<div class="progress-count">[' + qty + '/' + active + ']</div>'
+         + '</div>';
+  });
+  $('#projectMetrics').html(html);
+}
+
+function computeTotals(r) {
+  var t = { active: 0, executed: 0 };
+  $.each(r.status_set, function(i, k) { t[k] = 0; });
+  $.each(r.testplans, function(i, row) {
+    t.active += row.active;
+    t.executed += row.executed;
+    $.each(row.statuses || {}, function(k, s) { t[k] = (t[k] || 0) + s.qty; });
+    if (row.overall && row.platform_name === null) {
+      // no-platform rows already carry statuses in overall
+      $.each(row.overall.statuses || {}, function(k, q) { t[k] = (t[k] || 0) + q; });
+    }
+  });
+  return t;
+}
+
+function renderTable(r) {
+  if (table) { table.destroy(); $('#plansTable tbody').empty(); $('#plansHead').empty(); }
+
+  var head = [];
+  head.push('<th data-i18n="md.testPlan">Test Plan</th>');
+  if (r.show_platforms) head.push('<th data-i18n="md.platform">Platform</th>');
+  head.push('<th data-i18n="md.activeTCs">Active TCs</th>');
+  $.each(r.status_set, function(i, k) {
+    head.push('<th>' + statusLabel(k) + '</th>');
+    head.push('<th>' + statusLabel(k) + ' %</th>');
+  });
+  head.push('<th data-i18n="md.progress">Progress %</th>');
+  $('#plansHead').html(head.join(''));
+  TLi18n.apply();
+
+  var rows = [];
+  var lastPlan = null;
+  $.each(r.testplans, function(i, row) {
+    var planCell = '<div class="tplan-cell"><b>' + $('<div>').text(row.tplan_name).html() + '</b>';
+    if (r.show_test_plan_status && row.overall) {
+      var sub = [];
+      sub.push(TLi18n.t('md.overallProgress') + ': ' + row.overall.progress + '%');
+      planCell += '<div class="tplan-subline">' + sub.join(' &middot; ') + '</div>';
+    }
+    planCell += '</div>';
+    var cells = [planCell];
+    if (r.show_platforms) {
+      cells.push(row.platform_name === null ? TLi18n.t('md.notApplicable') : $('<div>').text(row.platform_name).html());
+    }
+    cells.push(row.active);
+    $.each(r.status_set, function(j, k) {
+      var st = (row.statuses && row.statuses[k]) ? row.statuses[k] :
+               ((row.overall && row.overall.statuses && typeof row.overall.statuses[k] !== 'undefined') ?
+                 { qty: row.overall.statuses[k], pct: row.active > 0 ? Math.round(row.overall.statuses[k] / row.active * 100 * 100) / 100 : 0 } :
+                 { qty: 0, pct: 0 });
+      cells.push(st.qty);
+      cells.push(st.pct);
+    });
+    var pct = (typeof row.progress !== 'undefined') ? row.progress :
+              ((row.overall) ? row.overall.progress : 0);
+    cells.push('<div class="minibar"><div class="fill" style="width:' + pct + '%"></div><span>' + pct + '%</span></div>');
+    rows.push(cells);
+  });
+
+  var cols = [{ type: 'string' }];
+  if (r.show_platforms) cols.push({ type: 'string' });
+  cols.push({ type: 'num' });
+  $.each(r.status_set, function(i, k) {
+    cols.push({ type: 'num' });
+    cols.push({ type: 'num' });
+  });
+  cols.push({ orderable: false, searchable: false });
+
+  table = $('#plansTable').DataTable({
+    data: rows,
+    columns: cols,
+    order: [[cols.length - 2, 'desc']],
+    pageLength: 25
+  });
+}
+</script>
+</body>
+</html>

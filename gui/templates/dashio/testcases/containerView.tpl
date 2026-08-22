@@ -38,8 +38,8 @@ View test specification containers
 {$tplan_id = $gui->tplan_id}
 
 
-{$tcImportAction="lib/testcases/tcImport.php?containerID=$container_id"}
-{$importToTProjectAction="$basehref$tcImportAction&bIntoProject=1&useRecursion=1&tproject_id=$tproject_id"}
+{$tcImportAction="gui/templates/testcases/tcImport.html?containerID=$container_id&tproject_id=$tproject_id"}
+{$importToTProjectAction="$basehref$tcImportAction&intoProject=1&useRecursion=1"}
 {$importToTSuiteAction="$basehref$tcImportAction&useRecursion=1"}
 {$importTestCasesAction="$basehref$tcImportAction"}
 {$tcExportAction="lib/testcases/tcExport.php?tproject_id=$tproject_id&containerID=$container_id&amp;form_token=$ft"}

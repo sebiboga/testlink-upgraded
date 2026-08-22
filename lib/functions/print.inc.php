@@ -285,25 +285,32 @@ function renderReqForPrinting(&$db,$node, &$options, $tocPrefix, $reqLevel, $tpr
       $safeFileName = htmlspecialchars($fitem['file_name']);
       if($fitem['is_image']) {
         $output .= "<li>" . $safeFileName . "</li>";
-        
-        $pathname = $repoDir . $item['file_path'];
-        list($iWidth, $iHeight, $iT, $iA) = getimagesize($pathname);
 
-        // Sorry by MAGIC Numbers
-        if($iWidth > 900 or $iHeight > 700) {
-          if($iWidth > $iHeight) {
-            $imgDiff = round($iWidth / 600);
-          } else {
-            $imgDiff = round($iHeight / 450);
+        // fix #574: wrong loop variable made path always invalid
+        $pathname = $repoDir . $fitem['file_path'];
+        // fix #574: getimagesize() returns false for missing/corrupt files
+        $imgData = @getimagesize($pathname);
+        if ($imgData !== false) {
+          list($iWidth, $iHeight, $iT, $iA) = $imgData;
+
+          // Sorry by MAGIC Numbers
+          if($iWidth > 900 or $iHeight > 700) {
+            if($iWidth > $iHeight) {
+              $imgDiff = round($iWidth / 600);
+            } else {
+              $imgDiff = round($iHeight / 450);
+            }
+            $iWidth = $iWidth/$imgDiff;
+            $iHeight = $iHeight/$imgDiff;
           }
-          $iWidth = $iWidth/$imgDiff;
-          $iHeight = $iHeight/$imgDiff;
+          // ---
+
+          $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+        } else {
+          $iDim = '';
         }
-        // ---
 
-
-        $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
-        $output .= '<li>' . '<img ' . $iDim . 
+        $output .= '<li>' . '<img ' . $iDim .
                    ' src="' . $basehref . $cmout . '">';
 
       } else {
@@ -691,7 +698,8 @@ function renderFirstPage($doc_info)
     }
     
     $safePName = $_SESSION['basehref'] . TL_THEME_IMG_DIR . $docCfg->company_logo;
-    $imgData = @getimagesize($safePName);
+    // fix #570: read size from local file; getimagesize($url) self-deadlocks single-worker runtimes
+    $imgData = @getimagesize(TL_ABS_PATH . TL_THEME_IMG_DIR . $docCfg->company_logo);
     if ($imgData !== false) {
       list($iWidth, $iHeight, $iType, $iAttr) = $imgData;
       $output .= '<p style="text-align: center;"><img alt="TestLink logo" ' .
@@ -1299,23 +1307,30 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
                     if($fitem['is_image']) {
                       $code .= "<li>{$safeFileName}</li>";
                       $pathname = $st->repoDir . $fitem['file_path'];
-                      list($iWidth, $iHeight, $iT, $iA) = getimagesize($pathname);
+                      // fix #574: getimagesize() returns false for missing/corrupt files
+                      $imgData = @getimagesize($pathname);
+                      if ($imgData !== false) {
+                        list($iWidth, $iHeight, $iT, $iA) = $imgData;
 
-                      // Sorry by MAGIC Numbers
-                      if($iWidth > 900 or $iHeight > 700) {
-                        if($iWidth > $iHeight) {
-                          $imgDiff = round($iWidth / 600);
-                        } else {
-                          $imgDiff = round($iHeight / 450);
+                        // Sorry by MAGIC Numbers
+                        if($iWidth > 900 or $iHeight > 700) {
+                          if($iWidth > $iHeight) {
+                            $imgDiff = round($iWidth / 600);
+                          } else {
+                            $imgDiff = round($iHeight / 450);
+                          }
+                          $iWidth = $iWidth/$imgDiff;
+                          $iHeight = $iHeight/$imgDiff;
                         }
-                        $iWidth = $iWidth/$imgDiff;
-                        $iHeight = $iHeight/$imgDiff;
+
+                        $iDim = ' width=' . $iWidth .
+                                ' height=' . $iHeight;
+                      } else {
+                        $iDim = '';
                       }
 
-                      $iDim = ' width=' . $iWidth . 
-                              ' height=' . $iHeight;
-                      $code .= '<li><img ' . $iDim . 
-                               ' src="' . $env->base_href . 
+                      $code .= '<li><img ' . $iDim .
+                               ' src="' . $env->base_href .
                                $cmout . '">';
                     } else {
                       $code .= '<li><a href="' . $env->base_href . $cmout .  
@@ -1518,10 +1533,16 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
 
       if($item['is_image']) {
         $pathname = $st->repoDir . $item['file_path'];
-        list($iWidth, $iHeight, $iT, $iA) = getimagesize($pathname);
+        // fix #574: getimagesize() returns false for missing/corrupt files
+        $imgData = @getimagesize($pathname);
+        if ($imgData !== false) {
+          list($iWidth, $iHeight, $iT, $iA) = $imgData;
+          $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+        } else {
+          $iDim = '';
+        }
 
-        $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
-        $code .= '<li>' . '<img ' . $iDim . 
+        $code .= '<li>' . '<img ' . $iDim .
                  ' src="' . $env->base_href . $cmout . '"> </li>';
       } else {
         $code .= '<li>' . '<a href="' . $env->base_href . $cmout . 
@@ -1623,24 +1644,31 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
           if($fitem['is_image']) {
             $code .= "<li>{$safeFileName}</li>";
 
-            $pathname = $st->repoDir . $item['file_path'];
-            list($iWidth, $iHeight, $iT, $iA) = getimagesize($pathname);
+            // fix #574: wrong loop variable made path always invalid
+            $pathname = $st->repoDir . $fitem['file_path'];
+            // fix #574: getimagesize() returns false for missing/corrupt files
+            $imgData = @getimagesize($pathname);
+            if ($imgData !== false) {
+              list($iWidth, $iHeight, $iT, $iA) = $imgData;
 
-            // Sorry by MAGIC Numbers
-            if($iWidth > 900 or $iHeight > 700) {
-              if($iWidth > $iHeight) {
-                $imgDiff = round($iWidth / 600);
-              } else {
-                $imgDiff = round($iHeight / 450);
+              // Sorry by MAGIC Numbers
+              if($iWidth > 900 or $iHeight > 700) {
+                if($iWidth > $iHeight) {
+                  $imgDiff = round($iWidth / 600);
+                } else {
+                  $imgDiff = round($iHeight / 450);
+                }
+                $iWidth = $iWidth/$imgDiff;
+                $iHeight = $iHeight/$imgDiff;
               }
-              $iWidth = $iWidth/$imgDiff;
-              $iHeight = $iHeight/$imgDiff;
+              // ---
+
+              $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+            } else {
+              $iDim = '';
             }
-            // ---
 
-
-            $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
-            $code .= '<li>' . '<img ' . $iDim . 
+            $code .= '<li>' . '<img ' . $iDim .
                      ' src="' . $env->base_href . $cmout . '"> </li>';
           } else {
             $code .= '<li>' . '<a href="' . $env->base_href . $cmout . 
@@ -1780,9 +1808,16 @@ function renderTestSuiteNodeForPrinting(&$db,&$node,$env,&$options,$context,$toc
 
         if($item['is_image'])  {
           $pathname = $repoDir . $item['file_path'];
-          list($iWidth, $iHeight, $iT, $iA) = getimagesize($pathname);
-          $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
-          $code .= '<li>' . '<img ' . $iDim . 
+          // fix #574: getimagesize() returns false for missing/corrupt files
+          $imgData = @getimagesize($pathname);
+          if ($imgData !== false) {
+            list($iWidth, $iHeight, $iT, $iA) = $imgData;
+            $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+          } else {
+            $iDim = '';
+          }
+
+          $code .= '<li>' . '<img ' . $iDim .
                    ' src="' . $env->base_href . $cmout . '"> </li>';
         } else {
           $code .= '<li>' . '<a href="' . $env->base_href . $cmout . 
@@ -2322,9 +2357,14 @@ function initStaticRenderTestCaseForPrinting(&$dbH,$tcaseID,$ctx,$cfg) {
 
 
   $things->its = null;
-  $tprojectID = isset($ctx['tproject_id']) ? $ctx['tproject_id'] : 0;
-  $info = $things->tproject_mgr->get_by_id($tprojectID);
-  if($info['issue_tracker_enabled']) {
+  $tprojectID = isset($ctx['tproject_id']) ? intval($ctx['tproject_id']) : 0;
+  // guard: get_by_id(0) throws and a missing project returns null
+  $info = null;
+  if($tprojectID > 0) {
+    $info = $things->tproject_mgr->get_by_id($tprojectID);
+  }
+  if(!is_null($info) && isset($info['issue_tracker_enabled']) &&
+     $info['issue_tracker_enabled']) {
     $it_mgr = new tlIssueTracker($dbH);
     $things->its = $it_mgr->getInterfaceObject($tprojectID);
     unset($it_mgr);

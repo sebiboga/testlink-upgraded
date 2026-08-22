@@ -1809,22 +1809,27 @@ function getActions(&$gui,$baseURL) {
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
   $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
-  $actions->reqOverView = "$bb/requirements/reqOverview.php?{$ctx}";
-  $actions->reqMonOverView = "$bb/requirements/reqMonitorOverview.php?{$ctx}";
+  // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
+  $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
+  $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
-  $actions->tcCreatedUser = "$bb/results/tcCreatedPerUserOnTestProject.php?do_action=uinput&{$ctx}";
-  $actions->assignReq = "$bb/general/frmWorkArea.php?feature=assignReqs&{$ctx}";
+  $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";
+  $actions->assignReq = "/gui/templates/requirements/assignReqs.html?{$ctx}";
   $actions->inventoryView = "/gui/templates/inventory/inventoryView.html?{$ctx}";
+
+  // Test Specification (editTc) modernized screen - tree & editor
+  $actions->testSpec = "/gui/templates/testcases/testSpec.html?{$ctx}";
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
-  $actions->metrics_dashboard =  
-    "$bb/results/metricsDashboard.php?{$ctx}";
+  $actions->metrics_dashboard =
+    "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
 
   $pp = $bb . '/plan';
-  $actions->planView = "$pp/planView.php?{$ctx}";
+  // Test Plan Management modernized screen (Dashio standalone page) - Refs #576
+  $actions->planView = "/gui/templates/plans/planView.html?{$ctx}";
 
   $actions->buildView = null;
   $actions->mileView = null;
@@ -1832,7 +1837,8 @@ function getActions(&$gui,$baseURL) {
   $actions->milestonesView = null;
   $actions->testcase_assignments = null;
   if ($tplan_id >0) {
-    $actions->buildView = "$pp/buildView.php?{$ctx}";
+    // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
+    $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
     $actions->mileView = "$pp/planMilestonesView.php?{$ctx}";
     $actions->platformAssign = "$bb/platforms/platformsAssign.php?{$ctx}";
     $actions->milestonesView = "$bb/plan/planMilestonesView.php?{$ctx}";
@@ -1844,7 +1850,8 @@ function getActions(&$gui,$baseURL) {
     "lib/general/frmWorkArea.php?feature=";
 
   $gui->workArea = new stdClass();
-  $gui->workArea->testSpec = "editTc&{$ctx}";
+  // testSpec is switched to the modernized HTML screen above (workArea entry
+  // removed so the frmWorkArea launcher no longer overwrites the link)
   $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
   
   $gui->workArea->planAddTC = null;
@@ -1878,7 +1885,15 @@ function getActions(&$gui,$baseURL) {
     $actions->$wp = $gui->workArea->$wp;
   }
 
+  // Modernized screens (Dashio standalone pages)
+  $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
+  $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
+  $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
+
   $gui->uri = $actions;
+  $actions->keywordsAssign =
+    "/gui/templates/keywords/keywordsAssign.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;

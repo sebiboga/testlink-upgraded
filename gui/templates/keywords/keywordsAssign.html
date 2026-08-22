@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Keywords to Test Cases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar label.ctl { color:#aaa; font-size:12px; margin:0 6px 0 0; }
+select.form-control-sm, input.form-control-sm { font-size:13px; height:31px; padding:3px 8px; width:auto; min-width:220px; display:inline-block; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-red:disabled { opacity: .45; cursor: not-allowed; }
+.section { padding: 20px 24px 4px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.subtitle { font-size:14px; color:#2d8e88; font-weight:700; }
+.badge-executed { background:#fdecea; color:#c53f3d; border:1px solid #f5c6c4; border-radius:10px; padding:0 8px; font-size:11px; font-weight:700; }
+.ot-wrap { display:flex; gap:16px; align-items:flex-start; padding: 8px 24px 8px; flex-wrap:wrap; }
+.ot-box { flex:1; min-width:280px; max-width:520px; background:#fff; border-radius:8px; box-shadow:0 1px 4px rgba(0,0,0,.08); overflow:hidden; }
+.ot-box h4 { background:#22242a; color:#fff; font-size:13px; margin:0; padding:9px 14px; font-weight:600; }
+.ot-box select { width:100%; border:none; outline:none; height:300px; padding:8px; font-size:13px; font-family:'Ruda',sans-serif; }
+.ot-box select option { padding:4px 6px; }
+.ot-mid { display:flex; flex-direction:column; gap:8px; padding-top:60px; }
+.ot-btn { background:#22242a; color:#fff; border:none; border-radius:4px; width:44px; height:32px; cursor:pointer; font-size:13px; }
+.ot-btn:hover { background:#4ECDC4; }
+.ot-btn:disabled { opacity:.35; cursor:not-allowed; }
+.actions { padding: 10px 24px 20px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+.msg-note { font-size:13px; color:#b8860b; background:#fdf6e3; border:1px solid #f0e2bb; border-radius:6px; padding:8px 12px; display:none; }
+.empty { background:#fff; border-radius:8px; padding:26px; text-align:center; color:#888; font-size:13px; box-shadow:0 1px 4px rgba(0,0,0,.08); margin:10px 24px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; position:fixed; bottom:0; left:0; right:0; }
+.toast { position: fixed; right: 20px; bottom: 60px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.radio-scope { color:#ccc; font-size:12px; display:inline-flex; align-items:center; gap:5px; margin-right:12px; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="kwa.title">Assign Keywords to Test Cases</span>
+  <span class="sub" data-i18n="kwa.subtitle">attach or detach keywords on the latest active version</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="kw.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <label class="ctl" for="levelSel" data-i18n="kwa.target">Target level</label>
+  <select id="levelSel" class="form-control form-control-sm">
+    <option value="testcase" data-i18n="kwa.levelTestCase">Test Case</option>
+    <option value="testsuite" data-i18n="kwa.levelTestSuite">Test Suite</option>
+  </select>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnSaveCase" style="display:none"><i class="fa fa-floppy-disk"></i> <span data-i18n="common.save">Save</span></button>
+  <button class="btn-teal" id="btnSuiteAdd" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="kwa.btnAdd">Add to Test Cases</span></button>
+  <button class="btn-red" id="btnSuiteRemove" style="display:none"><i class="fa fa-minus"></i> <span data-i18n="kwa.btnRemove">Remove from Test Cases</span></button>
+  <button class="btn-red" id="btnSuiteRemoveAll" style="display:none"><i class="fa fa-trash"></i> <span data-i18n="kwa.btnRemoveAll">Remove All</span></button>
+</div>
+
+<div class="section" id="pickRow">
+  <div id="suitePickWrap" style="display:inline-block;">
+    <label class="ctl" for="suiteSel" data-i18n="kwa.testSuite">Test Suite</label>
+    <select id="suiteSel" class="form-control form-control-sm"></select>
+    <label class="radio-scope" id="scopeDeepWrap"><input type="radio" name="scope" value="deep" checked><span data-i18n="kwa.scopeDeep">entire subtree</span></label>
+    <label class="radio-scope" id="scopeDirectWrap"><input type="radio" name="scope" value="direct"><span data-i18n="kwa.scopeDirect">only direct children</span></label>
+  </div>
+  <div id="casePickWrap" style="display:none;">
+    <label class="ctl" for="caseSel" data-i18n="kwa.testCase">Test Case</label>
+    <select id="caseSel" class="form-control form-control-sm" style="min-width:320px;"></select>
+    <span class="badge-executed" id="execBadge" style="display:none;" data-i18n="kwa.executed">executed</span>
+  </div>
+  <span class="subtitle" id="subtitle"></span>
+</div>
+
+<div class="msg-note" id="noteBox" style="margin:0 24px;"></div>
+
+<div class="empty" id="noKwEmpty" style="display:none" data-i18n="kwa.noKeywordsInProject">No keywords are defined for this test project yet</div>
+
+<div class="ot-wrap" id="otWrap" style="display:none;">
+  <div class="ot-box">
+    <h4 data-i18n="kwa.availableKeywords">Available Keywords</h4>
+    <select id="availBox" multiple size="15"></select>
+  </div>
+  <div class="ot-mid">
+    <button class="ot-btn" id="mvRight" title="-&gt;"><i class="fa fa-angle-right"></i></button>
+    <button class="ot-btn" id="mvRightAll" title="&gt;&gt;"><i class="fa fa-angle-double-right"></i></button>
+    <button class="ot-btn" id="mvLeft" title="&lt;"><i class="fa fa-angle-left"></i></button>
+    <button class="ot-btn" id="mvLeftAll" title="&lt;&lt;"><i class="fa fa-angle-double-left"></i></button>
+  </div>
+  <div class="ot-box">
+    <h4 id="targetTitle" data-i18n="kwa.assignedKeywords">Assigned Keywords</h4>
+    <select id="targetBox" multiple size="15"></select>
+  </div>
+</div>
+
+<div class="actions">
+  <span id="hintText" style="color:#888;font-size:12px;"></span>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/keywords/assign.php';
+var tprojectId = 0;
+var tplanId = 0;
+var canAssign = false;
+var canEditExecuted = false;
+var availableKw = [];
+var executedFlag = false;
+var currentLevel = 'testcase';
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    init();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function note(msgKey) {
+  var $n = $('#noteBox');
+  if (!msgKey) { $n.hide(); return; }
+  $n.text(TLi18n.t(msgKey)).show();
+}
+
+function init() {
+  $.getJSON(API + '/context' + (tprojectId ? '?tproject_id=' + tprojectId : ''))
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      tprojectId = r.tproject_id;
+      canAssign = !!r.canAssign;
+      canEditExecuted = !!r.canEditExecuted;
+      $('#tprojectName').text(r.tproject_name || '-');
+      if (!canAssign) {
+        note('kwa.noRights');
+        $('#otWrap,#pickRow,.actions button').hide();
+        return;
+      }
+      loadSuites();
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function loadSuites() {
+  $.getJSON(API + '/suites?tproject_id=' + tprojectId)
+    .done(function (r) {
+      var $s = $('#suiteSel').empty();
+      $.each(r.suites || [], function (i, s) {
+        $s.append($('<option>').val(s.id).text(s.name));
+      });
+      bindEvents();
+      applyLevel();
+      refreshAvailable();
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function bindEvents() {
+  $('#levelSel').on('change', function () {
+    currentLevel = this.value;
+    applyLevel();
+  });
+  $('#suiteSel').on('change', function () {
+    if (currentLevel === 'testcase') { loadCases(); } else { clearBoxes(); updateSubtitle(); }
+  });
+  $('input[name=scope]').on('change', function () {
+    if (currentLevel === 'testsuite') { clearBoxes(); updateSubtitle(); }
+  });
+  $('#caseSel').on('change', loadCaseState);
+  $('#mvRight').on('click', function () { transfer('#availBox', '#targetBox', false); });
+  $('#mvRightAll').on('click', function () { transfer('#availBox', '#targetBox', true); });
+  $('#mvLeft').on('click', function () { transfer('#targetBox', '#availBox', false); });
+  $('#mvLeftAll').on('click', function () { transfer('#targetBox', '#availBox', true); });
+  $('#btnSaveCase').on('click', saveCase);
+  $('#btnSuiteAdd').on('click', function () { suiteOp('add'); });
+  $('#btnSuiteRemove').on('click', function () { suiteOp('remove'); });
+  $('#btnSuiteRemoveAll').on('click', function () { suiteOp('removeall'); });
+}
+
+function applyLevel() {
+  var isCase = currentLevel === 'testcase';
+  $('#casePickWrap').toggle(isCase);
+  $('#scopeDeepWrap,#scopeDirectWrap').toggle(!isCase);
+  $('#btnSaveCase').toggle(isCase);
+  $('#btnSuiteAdd,#btnSuiteRemove,#btnSuiteRemoveAll').toggle(!isCase);
+  $('#targetTitle').text(TLi18n.t(isCase ? 'kwa.assignedKeywords' : 'kwa.selectedKeywords'));
+  if (isCase) {
+    loadCases();
+  } else {
+    $('#execBadge').hide();
+    clearBoxes();
+    updateSubtitle();
+  }
+}
+
+function scopeVal() {
+  return $('input[name=scope]:checked').val() || 'deep';
+}
+
+function loadCases() {
+  var sid = parseInt($('#suiteSel').val() || '0', 10);
+  var $c = $('#caseSel').empty().append($('<option>').val('').text(TLi18n.t('common.loading')));
+  $('#execBadge').hide();
+  clearBoxes();
+  updateSubtitle();
+  if (!sid) { $c.empty(); return; }
+  $.getJSON(API + '/tcases?tsuite_id=' + sid + '&scope=deep')
+    .done(function (r) {
+      $c.empty();
+      var list = r.tcases || [];
+      if (!list.length) {
+        $c.append($('<option>').val('').text(TLi18n.t('kwa.noTestCases')));
+        return;
+      }
+      $.each(list, function (i, tc) {
+        $c.append($('<option>').val(tc.id).text(tc.name));
+      });
+      $c.val(list[0].id);
+      loadCaseState();
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function refreshAvailable() {
+  $.getJSON(API + '/keywords?tproject_id=' + tprojectId)
+    .done(function (r) {
+      availableKw = r.available || [];
+      $('#noKwEmpty').toggle(availableKw.length === 0);
+      $('#otWrap').toggle(availableKw.length > 0 && canAssign);
+      renderBoxes([], []);
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function fillBox(sel, items) {
+  var $b = $(sel).empty();
+  $.each(items, function (i, k) {
+    $b.append($('<option>').val(k.id).text(k.kw));
+  });
+}
+
+function renderBoxes(avail, target) {
+  fillBox('#availBox', avail);
+  fillBox('#targetBox', target);
+  updateHint();
+}
+
+function boxItems(sel) {
+  var out = [];
+  $(sel).find('option').each(function () {
+    out.push({ id: parseInt($(this).val(), 10), kw: $(this).text() });
+  });
+  return out;
+}
+
+function transfer(fromSel, toSel, all) {
+  var $opts = all ? $(fromSel).find('option') : $(fromSel).find('option:selected');
+  $opts.each(function () { $(toSel).append($(this)); });
+  sortBox(toSel);
+  sortBox(fromSel);
+  updateHint();
+}
+
+function sortBox(sel) {
+  var items = boxItems(sel);
+  items.sort(function (a, b) { return a.kw.localeCompare(b.kw); });
+  fillBox(sel, items);
+}
+
+function updateHint() {
+  var n = $('#targetBox option').length;
+  if (currentLevel === 'testcase') {
+    $('#hintText').text(n
+      ? TLi18n.t('kwa.hintSave').replace('%d', n)
+      : TLi18n.t('kwa.hintNone'));
+  } else {
+    $('#hintText').text(TLi18n.t(currentLevel === 'testsuite' ? 'kwa.hintSuite' : ''));
+  }
+}
+
+function updateSubtitle() {
+  var txt = '';
+  if (currentLevel === 'testsuite') {
+    var sn = $('#suiteSel option:selected').text();
+    if (sn) { txt = TLi18n.t('kwa.testSuite') + ' :: ' + sn + ' (' + scopeVal() + ')'; }
+  } else {
+    var cn = $('#caseSel option:selected').text();
+    if ($('#caseSel').val()) { txt = TLi18n.t('kwa.testCase') + ' :: ' + cn; }
+  }
+  $('#subtitle').text(txt);
+}
+
+function clearBoxes() {
+  note(null);
+  renderBoxes(availableKw.slice(), []);
+}
+
+function loadCaseState() {
+  var cid = parseInt($('#caseSel').val() || '0', 10);
+  clearBoxes();
+  $('#execBadge').hide();
+  executedFlag = false;
+  updateSubtitle();
+  if (!cid) { return; }
+  $.getJSON(API + '/keywords?tproject_id=' + tprojectId + '&tcase_id=' + cid)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      executedFlag = !!r.hasBeenExecuted;
+      var assignedIds = {};
+      $.each(r.assigned || [], function (i, k) { assignedIds[k.id] = k; });
+      var avail = [], assigned = [];
+      $.each(availableKw, function (i, k) {
+        if (assignedIds[k.id]) { assigned.push(assignedIds[k.id]); }
+        else { avail.push(k); }
+      });
+      renderBoxes(avail, assigned);
+      var blocked = executedFlag && !canEditExecuted;
+      $('#execBadge').toggle(executedFlag);
+      $('#btnSaveCase').prop('disabled', blocked);
+      note(blocked ? 'kwa.executedBlocked' : null);
+    })
+    .fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function saveCase() {
+  var cid = parseInt($('#caseSel').val() || '0', 10);
+  if (!cid) { return; }
+  if (executedFlag && !canEditExecuted) { note('kwa.executedBlocked'); return; }
+  var kws = boxItems('#targetBox').map(function (k) { return k.id; });
+  $('#btnSaveCase').prop('disabled', true);
+  $.post(API + '/case', JSON.stringify({
+      tproject_id: tprojectId, tcase_id: cid, keywords: kws
+    }), null, 'json')
+    .done(function (r) {
+      $('#btnSaveCase').prop('disabled', false);
+      if (r.status === 'blocked') { note('kwa.executedBlocked'); return; }
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      toast(TLi18n.t('kwa.savedOk'));
+      loadCaseState();
+    })
+    .fail(function (xhr) {
+      $('#btnSaveCase').prop('disabled', false);
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    });
+}
+
+function suiteOp(mode) {
+  var sid = parseInt($('#suiteSel').val() || '0', 10);
+  if (!sid) { return; }
+  var kws = mode === 'removeall' ? [] : boxItems('#targetBox').map(function (k) { return k.id; });
+  if ((mode === 'add' || mode === 'remove') && !kws.length) { note('kwa.selectKwFirst'); return; }
+  $('.actions button').prop('disabled', true);
+  $.post(API + '/suite', JSON.stringify({
+      tproject_id: tprojectId, tsuite_id: sid, scope: scopeVal(),
+      mode: mode, keywords: kws
+    }), null, 'json')
+    .done(function (r) {
+      $('.actions button').prop('disabled', false);
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      var key = mode === 'add' ? 'kwa.addedOk' : (mode === 'remove' ? 'kwa.removedOk' : 'kwa.removeAllOk');
+      var msg = TLi18n.t(key).replace('%d', r.updated);
+      if (r.skipped_executed > 0) {
+        msg += ' ' + TLi18n.t('kwa.skippedExecuted').replace('%d', r.skipped_executed);
+      }
+      toast(msg);
+      clearBoxes();
+      if (currentLevel === 'testcase') { loadCaseState(); }
+    })
+    .fail(function (xhr) {
+      $('.actions button').prop('disabled', false);
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    });
+}
+</script>
+</body>
+</html>

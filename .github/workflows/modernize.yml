@@ -21,7 +21,9 @@ on:
   #   - cron: "0 4 * * *"   # optional: one screen per day, uncomment to enable
 
 concurrency:
-  group: modernize
+  # per-screen group: parallel runs of DIFFERENT screens proceed simultaneously,
+  # while re-runs of the SAME screen still queue up (never cancel in-progress)
+  group: modernize-${{ inputs.screen || 'auto' }}
   cancel-in-progress: false
 
 permissions:
@@ -194,11 +196,16 @@ jobs:
             PROMPT+="anything still pointing to lib/**.php is legacy) and modernize exactly that ONE screen. "
           fi
           PROMPT+="Execute the full AGENTS.md cycle for that single screen only: "
-          PROMPT+="investigate legacy code -> BFF API -> HTML+JS+CSS screen -> i18n keys in ALL locale bundles -> "
+          PROMPT+="STEP 0 — MANDATORY, BEFORE ANY exploration or code: ensure the screen's tracking issue "
+          PROMPT+="exists on GitHub Issues (label 'enhancement'). If it does not exist, CREATE IT INSTANTLY "
+          PROMPT+="(gh issue create --label enhancement --title 'Modernize: <screen>') and post your initial "
+          PROMPT+="plan as its first comment. You MUST announce the issue number in the run output before "
+          PROMPT+="touching any file. Every commit references it (Refs #<n>). "
+          PROMPT+="Then: investigate legacy code -> BFF API -> HTML+JS+CSS screen -> i18n keys in ALL locale bundles -> "
           PROMPT+="switch aside/common links -> browser-test every button/modal/permission path -> "
           PROMPT+="append a numbered test suite to tmp/TLU_Test_Cases.md and run it -> "
           PROMPT+="update wiki page + docs/ mirror WITH screenshots -> check Event Viewer for new errors/warnings -> "
-          PROMPT+="log any bugs as GitHub issues -> code review subagent over the changes -> apply fixes -> "
+          PROMPT+="log any bugs as GitHub issues (MANDATORY: create them with --label bug, the CI triage depends on it) -> code review subagent over the changes -> apply fixes -> "
           PROMPT+="commit and push to the current branch. "
           PROMPT+="COMMIT+PUSH AFTER EVERY PHASE — mandatory, one small conventional commit pushed immediately at each milestone: "
           PROMPT+="(1) BFF API written -> commit+push; "
@@ -211,6 +218,12 @@ jobs:
           PROMPT+="RESUME RULE: before writing any code for the assigned screen, inspect git log and the existing files — "
           PROMPT+="if a previous run already built parts of this screen (BFF file, HTML screen, i18n keys, link switches), "
           PROMPT+="KEEP them and CONTINUE from where that work stopped; never rebuild from zero what is already committed. "
+          PROMPT+="PROGRESS CHECKPOINTS (AGENTS.md rule 20) — MANDATORY, time-boxed: post a comment on the tracking "
+          PROMPT+="issue AT LEAST every ~20 minutes of work AND at every push, ALWAYS with these sections: "
+          PROMPT+="'DONE' (what landed: commit hashes + files), 'DISCOVERIES' (root causes, gotchas, decisions), "
+          PROMPT+="'PLAN' (ordered next steps / current strategy), 'RESUME' (exact state + env needed to continue, "
+          PROMPT+="verified vs pending), 'FILES' (file -> purpose mapping). Everything must be documented in the "
+          PROMPT+="enhancement issue so any other agent can resume from the ticket without re-exploring the repo. "
           PROMPT+="If the run is about to hit its time limit, stop cleanly, commit+push whatever is done and report what remains. "
           PROMPT+="TIME BUDGET: the unix epoch of your hard deadline is in the file .ci_deadline_epoch — check it "
           PROMPT+="periodically (date +%s; cat .ci_deadline_epoch). When fewer than 15 minutes remain, STOP starting "
@@ -287,7 +300,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           BRANCH="${GITHUB_REF_NAME}"
-          git add -A -- . ':(exclude)tmp/wiki-repo' ':(exclude)tmp/opencode'
+          git add -A
           if ! git diff --staged --quiet; then
             git commit -m "chore(opencode): leftover changes from screen modernization run"
           fi

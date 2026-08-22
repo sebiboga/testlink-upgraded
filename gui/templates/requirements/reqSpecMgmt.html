@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Specification Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.section { padding: 20px 24px 4px; }
+.section h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.spec-name { font-weight: 700; color: #2d8e88; text-decoration: none; cursor: pointer; }
+.spec-name:hover { text-decoration: underline; }
+.spec-name.plain { color: #2d8e88; }
+.doc-id { color: #666; font-family: monospace; margin-right: 6px; }
+.req-count-badge { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+.type-badge { display: inline-block; background: #eef2fb; color: #55679c; border: 1px solid #ccd6ee; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+.status-badge { display: inline-block; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; border: 1px solid transparent; }
+.st-V { background: #e6f7ec; color: #1e7e46; border-color:#bfe6cf; }
+.st-D { background: #fdf3dc; color: #9a7204; border-color:#efe0ac; }
+.st-R { background: #eef2fb; color: #55679c; border-color:#ccd6ee; }
+.st-W { background: #fbeee0; color: #a05a21; border-color:#eed6bd; }
+.st-F { background: #eceaf9; color: #5b50a8; border-color:#d4cff0; }
+.st-I { background: #e6f7ec; color: #157347; border-color:#bfe6cf; }
+.st-N { background: #eee; color: #777; border-color:#ddd; }
+.st-O { background: #fdeaea; color: #b45452; border-color:#f3cccc; }
+.muted { color: #aaa; }
+.updated-cell { color: #888; font-size: 12px; white-space: nowrap; }
+.edit-btn { background: none; border: none; color: #2d8e88; cursor: pointer; font-size: 14px; padding: 2px 6px; }
+.del-btn { background: none; border: none; color: #e6605e; cursor: pointer; font-size: 15px; padding: 2px 6px; }
+.del-btn:hover { color: #c53f3d; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-group label { font-size: 12px; font-weight: 600; }
+#reqPanel { display: none; margin-top: 18px; }
+.panel-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.hint { color: #999; font-size: 12px; margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="rs.header">Requirement Specification Management</span>
+  <span class="sub" data-i18n="rs.headerSub">browse, create, edit and delete requirement specifications</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rs.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
+</div>
+
+<div class="section">
+  <h2><span data-i18n="rs.header">Requirement Specification Management</span><span class="count" id="specCount"></span></h2>
+  <div class="hint" data-i18n="rs.selectSpecHint">click a specification title to manage its requirements</div>
+</div>
+<div class="table-wrap">
+  <div id="specEmpty" class="empty" style="display:none" data-i18n="rs.noSpecs">No requirement specifications defined for this test project yet</div>
+  <table id="specTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:12%" data-i18n="rs.colDocId">Doc ID</th>
+        <th data-i18n="rs.colTitle">Title</th>
+        <th style="width:14%" data-i18n="rs.colType">Type</th>
+        <th style="width:70px" data-orderable="false" data-i18n="rs.colReqs">Reqs</th>
+        <th style="width:70px" data-i18n="rs.colTotalReq">Expected</th>
+        <th style="width:110px" data-i18n="rs.colAuthor">Author</th>
+        <th style="width:130px" data-i18n="rs.colUpdated">Last Update</th>
+        <th data-orderable="false" style="width:80px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Requirements of selected spec -->
+<div id="reqPanel">
+  <div class="section">
+    <div class="panel-head">
+      <h2><span data-i18n="rs.reqsOf">Requirements of</span> <b id="reqPanelSpecName" style="color:#2d8e88;"></b><span class="count" id="reqCount"></span></h2>
+      <span style="flex:1"></span>
+      <button class="btn-teal" id="btnCreateReq" onclick="openReqCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createReq">Create Requirement</span></button>
+      <button class="btn-teal" style="background:#22242a;" onclick="closeReqPanel()"><i class="fa fa-times"></i> <span data-i18n="rs.closeReqs">Close</span></button>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <div id="reqEmpty" class="empty" style="display:none" data-i18n="rs.noReqs">No requirements in this specification yet</div>
+    <table id="reqTable" class="display" style="width:100%">
+      <thead>
+        <tr>
+          <th style="width:12%" data-i18n="rs.colDocId">Doc ID</th>
+          <th data-i18n="rs.colTitle">Title</th>
+          <th style="width:100px" data-i18n="rs.colStatus">Status</th>
+          <th style="width:14%" data-i18n="rs.colType">Type</th>
+          <th style="width:60px" data-i18n="rs.colVersion">Ver</th>
+          <th style="width:80px" data-i18n="rs.colCoverage">Coverage</th>
+          <th style="width:110px" data-i18n="rs.colAuthor">Author</th>
+          <th data-orderable="false" style="width:80px"></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit Specification Modal -->
+<div class="modal fade" id="specModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="specModalTitle">Specification</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editSpecId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="specDocId" data-i18n="rs.docIdLabel">Document ID *</label>
+          <input type="text" id="specDocId" class="form-control" maxlength="64" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="specTitle" data-i18n="rs.titleLabel">Title *</label>
+          <input type="text" id="specTitle" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="specType" data-i18n="rs.specTypeLabel">Specification Type</label>
+          <select id="specType" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="specCountReq" data-i18n="rs.countReqLabel">Expected number of requirements</label>
+          <input type="number" id="specCountReq" class="form-control" min="0" value="0" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:4px;">
+          <label for="specScope" data-i18n="rs.scopeLabel">Scope</label>
+          <textarea id="specScope" class="form-control" rows="4" style="font-size:13px;"></textarea>
+        </div>
+        <div id="specModalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveSpec()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create/Edit Requirement Modal -->
+<div class="modal fade" id="reqModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reqModalTitle">Requirement</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editReqId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="reqDocId" data-i18n="rs.reqDocIdLabel">Requirement Doc ID *</label>
+          <input type="text" id="reqDocId" class="form-control" maxlength="64" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="reqTitle" data-i18n="rs.titleLabel">Title *</label>
+          <input type="text" id="reqTitle" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="reqStatus" data-i18n="rs.reqStatusLabel">Status</label>
+          <select id="reqStatus" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="reqType" data-i18n="rs.reqTypeLabel">Requirement Type</label>
+          <select id="reqType" class="form-control" style="font-size:13px;"></select>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label for="reqExpectedCoverage" data-i18n="rs.expectedCoverageLabel">Expected coverage</label>
+          <input type="number" id="reqExpectedCoverage" class="form-control" min="1" value="1" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:4px;">
+          <label for="reqScope" data-i18n="rs.scopeLabel">Scope</label>
+          <textarea id="reqScope" class="form-control" rows="4" style="font-size:13px;"></textarea>
+        </div>
+        <div id="reqModalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveReq()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;background:#e6605e;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqspec/index.php';
+var tprojectId = 0;
+var canManage = false;
+var specTbl = null;
+var reqTbl = null;
+var deleteTarget = null;   // {type:'spec'|'req', id:N}
+var options = null;
+var specsCache = [];
+var reqsCache = [];
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function loadOptions(cb) {
+  $.getJSON(API + '?action=options&tproject_id=' + tprojectId, function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+    options = r;
+    canManage = !!r.rights.manage;
+    cb();
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    toast(msg, true);
+  });
+}
+
+function fillSelect($sel, map, defaultCode) {
+  $sel.empty();
+  $.each(map || {}, function (code, label) {
+    $sel.append($('<option>', { value: code, text: label }));
+  });
+  if (defaultCode !== undefined && map && map[defaultCode] !== undefined) {
+    $sel.val(defaultCode);
+  }
+}
+
+function load() {
+  loadOptions(function () {
+    $('#tprojectName').text(options.tproject_name || '-');
+    document.title = (options.tproject_name || '') + ' - ' + TLi18n.t('rs.header');
+    $('#btnCreateSpec').toggle(canManage);
+    renderDomains();
+    loadSpecs();
+  });
+}
+
+function renderDomains() {
+  if (!options) return;
+  fillSelect($('#specType'), options.specTypes, options.defaultSpecType);
+  fillSelect($('#reqStatus'), options.reqStatuses, options.defaultReqStatus);
+  fillSelect($('#reqType'), options.reqTypes, options.defaultReqType);
+}
+
+function loadSpecs() {
+  $.getJSON(API + '?action=specs&tproject_id=' + tprojectId, function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+    specsCache = r.specs || [];
+    renderSpecs(specsCache);
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    toast(msg, true);
+  });
+}
+
+function renderSpecs(items) {
+  $('#specCount').text('(' + items.length + ')');
+  $('#specEmpty').toggle(items.length === 0);
+  $('#specTable').toggle(items.length > 0);
+
+  if (specTbl) { specTbl.destroy(); $('#specTable tbody').empty(); }
+
+  var rows = items.map(function (s) {
+    // ids only in inline handlers - titles are resolved from specsCache
+    // inside the handlers (stored-XSS-safe, review #571)
+    var titleCell = '<span class="doc-id">' + esc(s.doc_id) + '</span>' +
+                    '<a class="spec-name" href="javascript:void(0)" onclick="selectSpec(' + s.id + ')">' +
+                    esc(s.title) + '</a>';
+
+    var action = '';
+    if (canManage) {
+      action =
+        '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editSpec')) +
+        '" onclick="openSpecEdit(' + s.id + ')"><i class="fas fa-pen"></i></button>' +
+        '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteSpec')) +
+        '" onclick="confirmDeleteSpec(' + s.id + ')">' +
+        '<i class="fas fa-minus-circle"></i></button>';
+    } else {
+      action = '<span class="muted"><i class="fas fa-eye" title="' + esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
+    }
+
+    return [
+      '<span class="doc-id">' + esc(s.doc_id) + '</span>',
+      titleCell,
+      '<span class="type-badge">' + esc(specTypeLabel(s.type)) + '</span>',
+      '<span class="req-count-badge">' + s.req_count + '</span>',
+      s.total_req,
+      esc(s.author || '-'),
+      '<span class="updated-cell">' + esc(fmtDate(s.modification_ts)) + '</span>',
+      action
+    ];
+  });
+
+  specTbl = $('#specTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: [3, 4], className: 'text-center' },
+      { targets: 7, orderable: false, className: 'text-center' }
+    ]
+  });
+}
+
+function specTypeLabel(code) {
+  if (!options) { return code; }
+  return options.specTypes[String(code)] || code;
+}
+function reqTypeLabel(code) {
+  if (!options) { return code; }
+  return options.reqTypes[String(code)] || code;
+}
+function reqStatusLabel(code) {
+  if (!options) { return code; }
+  return options.reqStatuses[String(code)] || code;
+}
+
+function fmtDate(ts) {
+  if (!ts || ts.indexOf('0000-00-00') === 0) { return '-'; }
+  return ts.replace('T', ' ').substring(0, 16);
+}
+
+// ------------------------------------------------ requirements panel -------
+function selectSpec(id) {
+  var title = currentSpecTitle(id);
+  $('#reqPanelSpecName').text(title);
+  $('#reqPanel').data('spec-id', id).show();
+  $('#btnCreateReq').toggle(canManage);
+  loadReqs(id);
+}
+
+function closeReqPanel() {
+  $('#reqPanel').hide().removeData('spec-id');
+}
+
+function currentSpecId() {
+  return parseInt($('#reqPanel').data('spec-id') || '0', 10);
+}
+
+function currentSpecTitle(id) {
+  var found = null;
+  $.each(specsCache, function (i, s) {
+    if (parseInt(s.id,10) === parseInt(id,10)) { found = s; return false; }
+  });
+  return found ? found.title : '';
+}
+
+function loadReqs(specId) {
+  $.getJSON(API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId, function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+    renderReqs(r.requirements || []);
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    toast(msg, true);
+  });
+}
+
+function renderReqs(items) {
+  reqsCache = items || [];
+  $('#reqCount').text('(' + items.length + ')');
+  $('#reqEmpty').toggle(items.length === 0);
+  $('#reqTable').toggle(items.length > 0);
+
+  if (reqTbl) { reqTbl.destroy(); $('#reqTable tbody').empty(); }
+
+  var rows = items.map(function (q) {
+    var action = '';
+    if (canManage) {
+      action =
+        '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editReq')) +
+        '" onclick="openReqEdit(' + q.id + ')"><i class="fas fa-pen"></i></button>' +
+        '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteReq')) +
+        '" onclick="confirmDeleteReq(' + q.id + ')">' +
+        '<i class="fas fa-minus-circle"></i></button>';
+    } else {
+      action = '<span class="muted"><i class="fas fa-eye"></i></span>';
+    }
+    var scopePlain = String(q.scope == null ? '' : q.scope).replace(/<[^>]*>/g, ' ').replace(/\s+/g,' ').trim();
+
+    return [
+      '<span class="doc-id">' + esc(q.req_doc_id) + '</span>',
+      '<a class="spec-name" href="javascript:void(0)" onclick="openReqEdit(' + q.id + ')" title="' + esc(scopePlain.substring(0,300)) + '">' + esc(q.title) + '</a>',
+      '<span class="status-badge st-' + esc(q.status) + '" title="' + esc(reqStatusLabel(q.status)) + '">' + esc(reqStatusLabel(q.status)) + '</span>',
+      '<span class="type-badge">' + esc(reqTypeLabel(q.type)) + '</span>',
+      q.version,
+      q.expected_coverage,
+      esc(q.author || '-'),
+      action
+    ];
+  });
+
+  reqTbl = $('#reqTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: [4, 5], className: 'text-center' },
+      { targets: 7, orderable: false, className: 'text-center' }
+    ]
+  });
+}
+
+// ------------------------------------------------------------ spec CRUD ----
+function openSpecCreate() {
+  $('#editSpecId').val('');
+  $('#specDocId').val('');
+  $('#specTitle').val('');
+  $('#specCountReq').val(0);
+  $('#specScope').val('');
+  $('#specType').val(options.defaultSpecType);
+  $('#specModalError').hide();
+  $('#specModalTitle').text(TLi18n.t('rs.createSpec'));
+  $('#specModal').modal('show');
+}
+
+function openSpecEdit(id) {
+  var s = null;
+  $.each(specsCache, function (i, it) {
+    if (parseInt(it.id,10) === parseInt(id,10)) { s = it; return false; }
+  });
+  if (!s) { toast(TLi18n.t('common.error'), true); return; }
+  $('#editSpecId').val(s.id);
+  $('#specDocId').val(s.doc_id);
+  $('#specTitle').val(s.title);
+  $('#specCountReq').val(s.total_req);
+  $('#specScope').val(s.scope);
+  $('#specType').val(String(s.type));
+  $('#specModalError').hide();
+  $('#specModalTitle').text(TLi18n.t('rs.editSpec'));
+  $('#specModal').modal('show');
+}
+
+function saveSpec() {
+  var id = $('#editSpecId').val();
+  var docId = $.trim($('#specDocId').val());
+  var title = $.trim($('#specTitle').val());
+
+  if (docId === '') { showError($('#specModalError'), TLi18n.t('rs.msg.docIdRequired')); return; }
+  if (title === '') { showError($('#specModalError'), TLi18n.t('rs.msg.titleRequired')); return; }
+
+  var body = {
+    tproject_id: tprojectId,
+    doc_id: docId,
+    title: title,
+    type: $('#specType').val(),
+    total_req: parseInt($('#specCountReq').val() || '0', 10),
+    scope: $('#specScope').val()
+  };
+
+  var req;
+  if (id) {
+    req = $.ajax({ url: API + '?action=update_spec&id=' + encodeURIComponent(id),
+                   method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+  } else {
+    req = $.ajax({ url: API + '?action=create_spec',
+                   method: 'POST', contentType: 'application/json', data: JSON.stringify(body) });
+  }
+
+  req.done(function (r) {
+    if (r.status === 'ok') {
+      $('#specModal').modal('hide');
+      toast(TLi18n.t('rs.msg.saved'));
+      loadSpecs();
+    } else {
+      showError($('#specModalError'), r.message || TLi18n.t('common.error'));
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    showError($('#specModalError'), r.message || TLi18n.t('common.error'));
+  });
+}
+
+function confirmDeleteSpec(id) {
+  deleteTarget = { type: 'spec', id: id };
+  $('#delTitle').text(TLi18n.t('rs.deleteSpec'));
+  $('#delMsg').html('<b>' + esc(currentSpecTitle(id)) + '</b><br>' +
+                    esc(TLi18n.t('rs.deleteSpecConfirm')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  var isSpec = deleteTarget.type === 'spec';
+  var url = API + '?action=delete_' + (isSpec ? 'spec' : 'req') +
+            '&id=' + encodeURIComponent(deleteTarget.id) + '&tproject_id=' + tprojectId;
+  $.ajax({ url: url, method: 'POST' }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(isSpec ? TLi18n.t('rs.msg.deleted') : TLi18n.t('rs.msg.reqDeleted'));
+    } else {
+      toast(r.message || TLi18n.t('common.error'), true);
+    }
+    if (isSpec) {
+      if (currentSpecId() === deleteTarget.id) { closeReqPanel(); }
+      loadSpecs();
+    } else {
+      loadReqs(currentSpecId());
+      loadSpecs();
+    }
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(r.message || TLi18n.t('common.error'), true);
+  });
+}
+
+// ------------------------------------------------------------ req CRUD -----
+function openReqCreate() {
+  $('#editReqId').val('');
+  $('#reqDocId').val('');
+  $('#reqTitle').val('');
+  $('#reqScope').val('');
+  $('#reqExpectedCoverage').val(1);
+  $('#reqStatus').val(options.defaultReqStatus);
+  $('#reqType').val(options.defaultReqType);
+  $('#reqModalError').hide();
+  $('#reqModalTitle').text(TLi18n.t('rs.createReq'));
+  $('#reqModal').modal('show');
+}
+
+function openReqEdit(id) {
+  var specId = currentSpecId();
+  if (!specId) { return; }
+  $.getJSON(API + '?action=reqs&spec_id=' + specId + '&tproject_id=' + tprojectId, function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+    var q = null;
+    $.each(r.requirements || [], function (i, it) {
+      if (parseInt(it.id,10) === parseInt(id,10)) { q = it; return false; }
+    });
+    if (!q) { toast(TLi18n.t('common.error'), true); return; }
+    $('#editReqId').val(q.id);
+    $('#reqDocId').val(q.req_doc_id);
+    $('#reqTitle').val(q.title);
+    $('#reqScope').val(q.scope);
+    $('#reqExpectedCoverage').val(q.expected_coverage);
+    $('#reqStatus').val(String(q.status));
+    $('#reqType').val(String(q.type));
+    $('#reqModalError').hide();
+    $('#reqModalTitle').text(TLi18n.t('rs.editReq'));
+    $('#reqModal').modal('show');
+  }).fail(function () { toast(TLi18n.t('common.error'), true); });
+}
+
+function saveReq() {
+  var id = $('#editReqId').val();
+  var specId = currentSpecId();
+  if (!specId) { return; }
+  var docId = $.trim($('#reqDocId').val());
+  var title = $.trim($('#reqTitle').val());
+
+  if (docId === '') { showError($('#reqModalError'), TLi18n.t('rs.msg.docIdRequired')); return; }
+  if (title === '') { showError($('#reqModalError'), TLi18n.t('rs.msg.titleRequired')); return; }
+
+  var body = {
+    tproject_id: tprojectId,
+    spec_id: specId,
+    req_doc_id: docId,
+    title: title,
+    status: $('#reqStatus').val(),
+    type: $('#reqType').val(),
+    expected_coverage: parseInt($('#reqExpectedCoverage').val() || '1', 10),
+    scope: $('#reqScope').val()
+  };
+
+  var url = id ? API + '?action=update_req&id=' + encodeURIComponent(id)
+               : API + '?action=create_req';
+  $.ajax({ url: url, method: 'POST', contentType: 'application/json', data: JSON.stringify(body) })
+    .done(function (r) {
+      if (r.status === 'ok') {
+        $('#reqModal').modal('hide');
+        toast(TLi18n.t('rs.msg.reqSaved'));
+        loadReqs(specId);
+        loadSpecs();
+      } else {
+        showError($('#reqModalError'), r.message || TLi18n.t('common.error'));
+      }
+    })
+    .fail(function (xhr) {
+      var r = {};
+      try { r = JSON.parse(xhr.responseText); } catch(e) {}
+      showError($('#reqModalError'), r.message || TLi18n.t('common.error'));
+    });
+}
+
+function confirmDeleteReq(id) {
+  deleteTarget = { type: 'req', id: id };
+  var title = '';
+  $.each(reqsCache, function (i, it) {
+    if (parseInt(it.id,10) === parseInt(id,10)) { title = it.title; return false; }
+  });
+  $('#delTitle').text(TLi18n.t('rs.deleteReq'));
+  $('#delMsg').html('<b>' + esc(title) + '</b><br>' +
+                    esc(TLi18n.t('rs.deleteReqConfirm')));
+  $('#delModal').modal('show');
+}
+
+function showError($el, msg) {
+  $el.text(msg).show();
+}
+</script>
+</body>
+</html>

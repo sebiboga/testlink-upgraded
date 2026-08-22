@@ -133,6 +133,27 @@ if errorlevel 1 (
 )
 echo [OK] Default data loaded
 
+REM Provision stored function UDFStripHTMLTags() required by advanced search
+REM (issue #547) - plain schema+data dumps do not carry stored functions.
+echo [*] Provisioning stored function UDFStripHTMLTags...
+set UDF_FILE=%SCRIPT_DIR%..\..\install\sql\mysql\testlink_create_udf0.sql
+if not exist "%UDF_FILE%" (
+    echo [ERROR] UDF file not found: %UDF_FILE%
+    pause
+    exit /b 1
+)
+set TMP_UDF_SQL=%TEMP%\tl_udf_%RANDOM%.sql
+powershell -NoProfile -Command "(Get-Content -LiteralPath '%UDF_FILE%') -replace 'YOUR_TL_DBNAME','%DB_NAME%' | Set-Content -LiteralPath '%TMP_UDF_SQL%'"
+type "%TMP_UDF_SQL%" | mysql -h %DB_HOST% -u %DB_USER% -p%DB_PASS% %DB_NAME%
+if errorlevel 1 (
+    del "%TMP_UDF_SQL%" >nul 2>&1
+    echo [ERROR] Failed to provision stored function UDFStripHTMLTags
+    pause
+    exit /b 1
+)
+del "%TMP_UDF_SQL%" >nul 2>&1
+echo [OK] Stored function UDFStripHTMLTags provisioned
+
 REM Load sample data
 echo [*] Loading sample data...
 set SAMPLE_DATA_FILE=%SCRIPT_DIR%testlink_sample_data.sql

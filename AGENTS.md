@@ -49,8 +49,11 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
 10. **Screenshots in the GitHub Wiki.** Every wiki page update includes current
     screenshots of the modernized screen (normal states + key interactions).
 
-11. **Bugs go to GitHub Issues.** Any bug found while testing (legacy or new)
-    is logged as an issue on `sebiboga/testlink-upgraded` with repro steps.
+11. **Bugs go to GitHub Issues — labeled `bug`.** Any bug found while testing
+    (legacy or new) is logged as an issue on `sebiboga/testlink-upgraded` with
+    repro steps, ALWAYS created with the `bug` label
+    (`gh issue create --label bug ...`). Never file an unlabeled bug report:
+    the CI triage depends on labels.
 
 12. **Check the Event Viewer.** After testing, verify no new Error/Warning entries
     were generated (`Event Viewer` screen / `events` table); handle anything found.
@@ -93,3 +96,32 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     every push; NEVER force-push or manually merge/delete `fix/*` branches or
     agent PRs unless cleaning up after a confirmed failure; do not close issues
     that have an open agent PR.
+
+19. **One tracking issue per screen — created FIRST.** The VERY FIRST action of
+    any modernization session (before exploring the codebase or writing a line)
+    is: check whether the screen has an open tracking issue on
+    `sebiboga/testlink-upgraded`; if NOT, create it INSTANTLY
+    (`gh issue create --label enhancement --title "Modernize: <screen>"`) and
+    post your plan as its first comment. We must know EXACTLY what every agent
+    works on at all times. All commits, pushes, docs and test suites reference
+    that number (`Refs #<n>`). Enhancements are NEVER picked by `fix-bug.yml`.
+
+20. **Progress checkpoints (~20 min) in the ticket.** While working a screen,
+    post a comment on its tracking issue at least every ~20 minutes AND at
+    every push, always with the same sections:
+    - **DONE** — what landed since last update (commit hashes + files)
+    - **DISCOVERIES** — root causes found, gotchas, decisions taken
+    - **PLAN** — ordered next steps (the implementation strategy)
+    - **RESUME** — exact state needed to continue: env/commands/credentials,
+      what is verified vs pending
+    - **FILES** — mapping file → purpose within this screen's modernization
+    Goal: any agent (human or Actions) resumes from the ticket without
+    re-exploring the codebase from zero. On session start, READ the issue
+    comments + `tmp/TODO.md` FIRST and continue the existing plan — do not
+    reinvent the strategy.
+
+21. **Issue triage: bugs only for fix-bug.** `fix-bug.yml` picks the newest
+    open issue that does NOT carry a work-type label (`enhancement`, `task`,
+    `investigation`, `documentation`). Screens/features/enhancements belong to
+    `modernize.yml`. When creating issues, ALWAYS label them correctly so the
+    triage works; bug reports ALWAYS get `bug`.

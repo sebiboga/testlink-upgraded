@@ -68,6 +68,35 @@ class searchCommands
 
 
   /**
+   * Name of the stored function used to strip HTML tags on text matching,
+   * honoring both the configuration flag and the real presence of the
+   * function on the connected schema. Fresh DB imports may lack it
+   * (dumps do not carry stored routines) and running the search SQL with
+   * a missing function ends in a fatal DB Access Error; in that case we
+   * degrade to plain LIKE matching, same as $tlCfg->UDFStripHTMLTags=false.
+   * @return string UDF name or empty string when it must not be used
+   */
+  function getStripTagsUDF()
+  {
+    static $udfOK = null;
+    if( is_null($udfOK) )
+    {
+      $udfOK = false;
+      if( config_get('UDFStripHTMLTags') )
+      {
+        $sql = "SELECT COUNT(*) AS qty FROM information_schema.routines " .
+               "WHERE routine_schema = DATABASE() " .
+               "AND routine_name = 'UDFStripHTMLTags' " .
+               "AND routine_type = 'FUNCTION'";
+        $qty = intval($this->db->fetchFirstRowSingleColumn($sql,'qty'));
+        $udfOK = ($qty > 0);
+      }
+    }
+    return $udfOK ? 'UDFStripHTMLTags' : '';
+  }
+
+
+  /**
    *
    */
   function getTestCaseIDSet($tproject_id)
@@ -514,8 +543,7 @@ class searchCommands
     $args = &$this->args;
     $db = &$this->db;
 
-    $cfg = config_get('UDFStripHTMLTags');
-    $udf = $cfg ? 'UDFStripHTMLTags' : '';
+    $udf = $this->getStripTagsUDF();
 
     $mapRSpec = null;
     $sql = "SELECT RSRV.name, RSRV.scope, LRSR.req_spec_id, RSRV.id," .
@@ -573,8 +601,7 @@ class searchCommands
     $tables = &$this->tables;
     $views = &$this->views;
 
-    $cfg = config_get('UDFStripHTMLTags');
-    $udf = $cfg ? 'UDFStripHTMLTags' : '';
+    $udf = $this->getStripTagsUDF();
 
 
     $reqSet = $this->getReqIDSet($args->tproject_id);
@@ -735,8 +762,7 @@ class searchCommands
     $db = &$this->db;
     $tables = &$this->tables;
     $views = &$this->views;
-    $cfg = config_get('UDFStripHTMLTags');
-    $udf = $cfg ? 'UDFStripHTMLTags' : '';
+    $udf = $this->getStripTagsUDF();
 
     $mapTS = null;
     $tsuiteSet = $this->getTestSuiteIDSet($args->tproject_id);
@@ -811,8 +837,7 @@ class searchCommands
     $db = &$this->db;
     $tables = &$this->tables;
     $views = &$this->views;
-    $cfg = config_get('UDFStripHTMLTags');
-    $udf = $cfg ? 'UDFStripHTMLTags' : '';
+    $udf = $this->getStripTagsUDF();
 
 
     $from['tc_steps'] = "";

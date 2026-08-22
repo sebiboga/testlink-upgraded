@@ -102,6 +102,53 @@ $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
 
 // ---------------------------------------------------------------------------
+// GET ?action=info[&tproject_id=N][&containerID=N]
+// Context for the modernized import screen: names, size limit, grant.
+// ---------------------------------------------------------------------------
+if ($action === 'info') {
+    $tprojectId = getIntParam('tproject_id');
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    if (!$info) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    $containerId = getIntParam('containerID');
+    if ($containerId <= 0) {
+        $containerId = $tprojectId;
+    }
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $cRow = $db->get_recordset(
+        "SELECT id, parent_id, name FROM {$tables['nodes_hierarchy']} " .
+        "WHERE id = " . intval($containerId));
+    $container = ['id' => $tprojectId, 'name' => strval($info['name']),
+                  'isProject' => true];
+    if (!is_null($cRow) && count($cRow) === 1) {
+        $isProj = (intval($cRow[0]['parent_id']) === 0)
+            || ($containerId === $tprojectId);
+        $container = ['id' => intval($cRow[0]['id']),
+                      'name' => strval($cRow[0]['name']),
+                      'isProject' => $isProj];
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
+        'container' => $container,
+        'maxUploadBytes' => intval(config_get('import_file_max_size_bytes')),
+        'grants' => ['mgt_modify_tc'
+            => $user->hasRight($db, 'mgt_modify_tc', $tprojectId) ? 1 : 0],
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // POST ?action=import_md&tproject_id=N[&dry_run=1][&hit_criteria=name]
 //      [&action_on_hit=skip|create_new_version]
 // Body: markdown=<text> form field OR multipart file field "uploadedFile"

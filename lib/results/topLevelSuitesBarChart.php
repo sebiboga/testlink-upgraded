@@ -56,7 +56,8 @@ function getDataAndScale(&$dbHandler,$argsObj)
 
   $dataSet = $metricsMgr->getRootTestSuites($argsObj->tplan_id,$argsObj->tproject_id);
   $dummy = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($argsObj->tplan_id);
-  $obj->canDraw = !is_null($dummy->info);
+  // issue #579: method now returns NULL on plans with no linked test cases
+  $obj->canDraw = !is_null($dummy) && !is_null($dummy->info);
     
 	if( property_exists($argsObj,'debug') )
 	{
