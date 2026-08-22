@@ -2945,3 +2945,22 @@ Bugs found & fixed while executing:
 **Refs:** GitHub issue #590 · Files: none changed (verification only, per issue instruction)
 
 **Notes:** `node_modules/.yarn-integrity` is tracked and was generated on macOS (`systemParams: darwin-x64-72`); on Linux yarn regenerates it as `linux-x64-115`. Harmless runtime metadata, restored untouched per the issue's no-modification rule.
+
+## Regression — Issue #589: resultsByTSuite.php saveForBaseline on zero-execution plan
+
+**Precondition:** fresh DB; fixtures created via SQL as admin: project `FixProject589` (id 1), plan `Plan589` (id 10), top suite `TopSuite` (100) + child suite `ChildSuite` (110), TC-589 v1 (201) linked to plan, build `Build589` (300); **zero executions**; session cookie jar via curl form login (admin/admin).
+
+**Pre-fix repro:** `curl -b cj.txt "http://localhost:8082/lib/results/resultsByTSuite.php?tplan_id=10&tproject_id=1&format=0&doAction=saveForBaseline"` → page dies with **DB Access Error** (`database->exec_query()` backtrace at resultsByTSuite.php:102) because `$span['testplan_id']`/`['begin']`/`['end']` are null-offset reads that interpolate empty strings → SQL 1064. Event Viewer gains 3× E_WARNING "Trying to access array offset on null" + 1× DATABASE ERROR.
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Zero-execution save | Hit URL above on plan with linked L2 suites, no executions | HTTP 200 report page; localized message "Baseline NOT saved: the test plan has no execution records yet..."; NO rows in baseline_l1l2_context / baseline_l1l2_details | PASS |
+| 2 | Event Viewer after case 1 | `SELECT ... FROM events WHERE id>5` | Zero new ERROR/WARNING events | PASS |
+| 3 | Happy path still works | Insert one execution ('p', platform 0); hit save URL again | context row with real begin/end exec timestamps + n/p/f/b detail rows written | PASS |
+| 4 | Mixed platforms (one executed, one not) | Add PlatA(400)/PlatB(401); execution only on PlatA; save | Context row ONLY for platform 400 with real timestamps; platform 401 skipped silently; no warnings; success path (no error message) | PASS |
+| 5 | Executions exist but not on any planned platform | Execution on platform 0 while plan has only explicit platforms | Message shown, nothing written, no events | PASS |
+| 6 | i18n keys present | grep locale bundles | `$TLS_baseline_save_no_executions` in en_GB + en_US; other locales fall back to en_GB via lang_get() | PASS |
+
+**Result: 6/6 PASS** (run 2026-08-22, curl against http://localhost:8082).
+
+**Refs:** GitHub issue #589 · Files: `lib/results/resultsByTSuite.php`, `locale/en_GB/strings.txt`, `locale/en_US/strings.txt`
