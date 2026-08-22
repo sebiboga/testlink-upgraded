@@ -2624,3 +2624,5 @@ Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined p
 | 5 | php -l printDocument.php clean after edit | PASS |
 
 **Fix commit:** de0ab88af on branch fix/issue-575.
+
+**Note discovered during this suite:** generating the same document through the full browser session on a plan with NO linked test cases surfaced an unrelated pre-existing bug — `testplan::get_testsuites()` foreach-on-null E_WARNINGs (testplan.class.php:2147/2154). Filed as #577, out of scope for #575.
