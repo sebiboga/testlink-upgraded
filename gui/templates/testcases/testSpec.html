@@ -203,7 +203,8 @@ function closeModal(id) { $('#' + id).hide(); }
 
 function init() {
   ctx = { tproject_id: parseInt(qs('tproject_id') || '0', 10) };
-  apiGet('context').then(function (r) {
+  var cParams = ctx.tproject_id > 0 ? { tproject_id: ctx.tproject_id } : {};
+  apiGet('context', cParams).then(function (r) {
     ctx.tproject_id = parseInt(r.tproject.id, 10);
     $('#tprojectName').text(r.tproject.name);
     document.title = r.tproject.name + ' - ' + t('tspec.header');
