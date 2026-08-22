@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add / Remove Test Cases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #aaa; font-size: 12px; margin: 0; }
+.toolbar select { background: #353b48; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 5px 8px; font-size: 13px; max-width: 240px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #353b48; color: #fff; border: 1px solid #555; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.layout { display: flex; gap: 16px; padding: 16px 24px; align-items: flex-start; }
+.panel-suites { width: 300px; min-width: 260px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel-suites h3 { background: #22242a; color: #fff; margin: 0; padding: 10px 14px; font-size: 13px; letter-spacing: .5px; }
+.tree { list-style: none; margin: 0; padding: 6px 0; max-height: 60vh; overflow-y: auto; }
+.tree li { padding: 7px 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; font-size: 13px; border-left: 3px solid transparent; }
+.tree li:hover { background: #f4fbfa; }
+.tree li.sel { background: #e8f8f7; border-left-color: #4ECDC4; font-weight: 700; color: #2d8e88; }
+.tree .lname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-qty { background: #eee; color: #555; border-radius: 10px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
+.badge-qty .lnk { color: #23756f; font-weight: 700; }
+.panel-main { flex: 1; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; min-width: 0; }
+.panel-main > h3 { background: #22242a; color: #fff; margin: 0; padding: 10px 14px; font-size: 13px; letter-spacing: .5px; display:flex; justify-content: space-between; align-items:center; }
+.panel-main h3 .cnt { color:#9aa; font-weight:400; }
+table.tcs { width: 100%; border-collapse: collapse; }
+table.tcs th { background: #fafafa; color: #444; text-align: left; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid #eee; white-space: nowrap; }
+table.tcs td { padding: 7px 10px; font-size: 13px; border-bottom: 1px solid #f1f1f1; vertical-align: middle; }
+tr.linked-row td { background: #f3fbfa; }
+.tc-name { font-weight: 700; color: #2d8e88; }
+.ext-id { color: #999; font-size: 11px; margin-left: 6px; }
+.newest-warn { color: #d38b0c; font-size: 11px; margin-left: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 1px solid #bfe5e2; border-radius: 12px; padding: 1px 8px; margin: 1px 4px 1px 0; font-size: 12px; white-space: nowrap; }
+.chip.executed { border-color: #eec1bf; background: #fdf4f3; }
+.chip .ord { color: #999; font-size: 11px; }
+select.vsel, select.psel { max-width: 170px; }
+input.order-in { width: 58px; padding: 3px 6px; border: 1px solid #ccc; border-radius: 4px; }
+.st-pill { font-size: 11px; border-radius: 10px; padding: 2px 9px; white-space: nowrap; }
+.st-linked { background: #dff3f1; color: #23756f; }
+.st-open { background: #f0f0f0; color: #777; }
+.actions-bar { padding: 12px 14px; border-top: 1px solid #eee; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.assign-panel { margin: 0 14px 10px; background: #fbfbfb; border: 1px dashed #ddd; border-radius: 6px; padding: 10px 12px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.assign-panel label { font-size: 12px; color: #666; margin: 0; }
+.assign-panel select { padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.empty { padding: 26px; text-align: center; color: #888; font-size: 13px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+@media (max-width: 1100px) { .layout { flex-direction: column; } .panel-suites { width: 100%; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="paddtc.title">Add / Remove Test Cases</span>
+  <span class="sub" data-i18n="paddtc.subTitle">link test case versions into the test plan and manage their execution order</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <label><span data-i18n="pv.testProject">Test Project</span>: <b id="tprojectName" style="color:#fff">-</b></label>
+  <label for="tplanSel" data-i18n="paddtc.testPlan">Test Plan</label>
+  <select id="tplanSel"></select>
+  <label for="kwSel" data-i18n="paddtc.keywordFilter">Keyword filter</label>
+  <select id="kwSel"></select>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload"><i class="fas fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div id="noAccess" class="empty" style="display:none" data-i18n="paddtc.noPermission">You do not have the rights to manage this test plan.</div>
+
+<div class="layout" id="mainLayout" style="display:none">
+  <div class="panel-suites">
+    <h3><i class="fas fa-folder-tree"></i> <span data-i18n="paddtc.suites">Test Suites</span></h3>
+    <div id="suitesEmpty" class="empty" style="display:none" data-i18n="paddtc.noSuites">No test suites in this test project yet</div>
+    <ul class="tree" id="suiteTree"></ul>
+  </div>
+
+  <div class="panel-main">
+    <h3>
+      <span><i class="fas fa-list-check"></i> <span id="suiteTitle">-</span> <span class="cnt" id="suiteCount"></span></span>
+      <span class="badge-qty" style="background:#333;color:#ccc"><span class="lnk" id="hdrLinked">0</span>/<span id="hdrTotal">0</span></span>
+    </h3>
+
+    <div id="assignPanel" class="assign-panel" style="display:none">
+      <label><i class="fas fa-user-check"></i> <span data-i18n="paddtc.assignNewTo">Assign newly added test cases to tester</span></label>
+      <select id="testerID"></select>
+      <label data-i18n="paddtc.build">Build</label>
+      <select id="buildID"></select>
+    </div>
+
+    <div id="tcsEmpty" class="empty" style="display:none" data-i18n="paddtc.emptySuite">No test cases in this suite</div>
+    <div style="overflow-x:auto">
+    <table class="tcs" id="tcTable" style="display:none">
+      <thead>
+        <tr>
+          <th style="width:36px"><input type="checkbox" id="chkAllAdd" title=""></th>
+          <th data-i18n="paddtc.colTc">Test Case</th>
+          <th data-i18n="paddtc.version" style="width:150px">Version to add</th>
+          <th id="thPlat" data-i18n="paddtc.platforms" style="width:160px;display:none">Platforms</th>
+          <th data-i18n="paddtc.execOrder" style="width:90px">Exec. order</th>
+          <th data-i18n="paddtc.removeAction" style="width:230px">Remove links</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnSave"><i class="fas fa-floppy-disk"></i> <span data-i18n="paddtc.saveChanges">Save changes</span></button>
+      <button class="btn-dark" id="btnReorder"><i class="fas fa-arrow-down-1-9"></i> <span data-i18n="paddtc.saveOrder">Save execution order</span></button>
+      <span id="saveHint" style="color:#999;font-size:12px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="rmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="paddtc.confirmRemoveTitle">Confirm removal</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="rmMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnRmConfirm" style="font-size:13px;background:#e6605e;color:#fff;border:none;" data-i18n="common.ok">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/plans/index.php';
+var tprojectId = parseInt(new URLSearchParams(location.search).get('tproject_id') || '0', 10);
+var INIT = null;
+var curSuiteId = 0;
+var CONTAINER = null;
+
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function toast(m,isErr){var $t=$('#toast').text(m).toggleClass('err',!!isErr).show();clearTimeout($t.data('tm'));$t.data('tm',setTimeout(function(){$t.hide();},3500));}
+
+$(function(){
+  TLi18n.load(function(){
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    boot();
+  });
+  $('#btnReload').on('click', boot);
+  $('#tplanSel').on('change', function(){ planChanged(); });
+  $('#kwSel').on('change', loadSuites);
+  $('#chkAllAdd').on('change', function(){ $('input.addchk').prop('checked', $(this).is(':checked')); });
+  $('#suiteTree').on('click','li[data-suite]',function(){ openSuite(parseInt(this.getAttribute('data-suite'),10)); });
+  $('#btnSave').on('click', doSave);
+  $('#btnReorder').on('click', doReorder);
+});
+
+function boot(){
+  $.getJSON(API + '/planaddtc/init?tproject_id=' + tprojectId)
+    .done(function(r){
+      if(r.status!=='ok'){ toast(TLi18n.t('common.error'),true); return; }
+      INIT = r;
+      if(!r.rights.canPlan){
+        $('#mainLayout').hide();
+        $('#noAccess').show();
+        return;
+      }
+      $('#noAccess').hide();
+      $('#mainLayout').show();
+      $('#tprojectName').text(r.tproject.name);
+      document.title = r.tproject.name + ' - ' + TLi18n.t('paddtc.title');
+      var $sel=$('#tplanSel').empty();
+      (r.plans||[]).forEach(function(p){
+        $sel.append('<option value="'+p.id+'"'+(p.id===r.tplan_id?' selected':'')+'>'+esc(p.name)+'</option>');
+      });
+      var $kw=$('#kwSel').empty().append('<option value="">'+esc(TLi18n.t('paddtc.kwAll'))+'</option>');
+      (r.keywords||[]).forEach(function(k){
+        $kw.append('<option value="'+k.id+'">'+esc(k.keyword)+'</option>');
+      });
+      renderAssignPanel();
+      loadSuites();
+    })
+    .fail(function(xhr){
+      var msg=TLi18n.t('common.error');
+      try{ msg=JSON.parse(xhr.responseText).message||msg; }catch(e){}
+      toast(msg,true);
+    });
+}
+
+function currentPlanId(){ return parseInt($('#tplanSel').val() || '0', 10); }
+
+function planChanged(){
+  var pid = currentPlanId();
+  // re-init scoped to the chosen plan (rights/platforms/builds/testers change per plan)
+  $.getJSON(API + '/planaddtc/init?tproject_id=' + tprojectId + '&tplan_id=' + pid)
+    .done(function(r){
+      if(r.status!=='ok'){ toast(TLi18n.t('common.error'),true); return; }
+      INIT = r;
+      if(!r.rights.canPlan){ $('#mainLayout').hide(); $('#noAccess').show(); return; }
+      $('#noAccess').hide(); $('#mainLayout').show();
+      renderAssignPanel();
+      loadSuites();
+    })
+    .fail(function(){ toast(TLi18n.t('common.error'),true); });
+}
+
+function renderAssignPanel(){
+  var r = INIT || {};
+  var testers = r.testers || {};
+  var builds = r.builds || {};
+  var tKeys = Object.keys(testers).filter(function(k){ return k!=='' && testers[k]; });
+  var bKeys = Object.keys(builds).filter(function(k){ return k!==''; });
+  if(!(r.rights && r.rights.canAssignExecTask) || !tKeys.length || !bKeys.length){
+    $('#assignPanel').hide();
+    return;
+  }
+  var $t=$('#testerID').empty().append('<option value="0">'+esc(TLi18n.t('paddtc.noTester'))+'</option>');
+  tKeys.forEach(function(k){ $t.append('<option value="'+parseInt(k,10)+'">'+esc(testers[k])+'</option>'); });
+  var $b=$('#buildID').empty();
+  bKeys.forEach(function(k){
+    var sel = parseInt(k,10)===parseInt(r.default_build_id,10) ? ' selected' : '';
+    $b.append('<option value="'+parseInt(k,10)+'"'+sel+'>'+esc(builds[k])+'</option>');
+  });
+  $('#assignPanel').show();
+}
+
+function kwParam(){
+  return $('#kwSel').val() ? '&keyword_id='+encodeURIComponent($('#kwSel').val()) : '';
+}
+
+function loadSuites(){
+  var pid = currentPlanId();
+  if(pid<=0){ return; }
+  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+pid+kwParam())
+    .done(function(r){
+      if(r.status!=='ok'){ return; }
+      renderSuites(r.items||[]);
+    })
+    .fail(function(){ toast(TLi18n.t('common.error'),true); });
+}
+
+function renderSuites(items){
+  var $tree=$('#suiteTree').empty();
+  $('#suitesEmpty').toggle(items.length===0);
+  items.forEach(function(s){
+    var $li=$('<li>').attr('data-suite',s.id)
+      .append($('<span class="lname">').text(s.name))
+      .append($('<span class="badge-qty">')
+        .append($('<span class="lnk">').text(s.deep_linked_qty))
+        .append(document.createTextNode('/'+s.deep_total_qty)));
+    $tree.append($li);
+  });
+  if(curSuiteId){
+    var stillThere = items.filter(function(s){return s.id===curSuiteId;}).length>0;
+    if(stillThere){ openSuite(curSuiteId); }
+    else if(items.length){ openSuite(items[0].id); }
+    else { $('#tcTable').hide(); $('#tcsEmpty').show(); $('#suiteTitle').text('-'); }
+  } else if(items.length){
+    openSuite(items[0].id);
+  }
+}
+
+function openSuite(suiteId){
+  curSuiteId=suiteId;
+  $('#suiteTree li').removeClass('sel');
+  $('#suiteTree li[data-suite="'+suiteId+'"]').addClass('sel');
+  var pid=currentPlanId();
+  $.getJSON(API + '/planaddtc/container?tproject_id='+tprojectId+'&tplan_id='+pid+'&container_id='+suiteId+kwParam())
+    .done(function(r){
+      if(r.status!=='ok'){ toast(TLi18n.t('common.error'),true); return; }
+      CONTAINER=r;
+      renderContainer();
+    })
+    .fail(function(){ toast(TLi18n.t('common.error'),true); });
+}
+
+function versionLabel(v){ return 'v'+v.version; }
+
+function renderContainer(){
+  var r=CONTAINER;
+  var hasPlat=(r.platforms||[]).length>0;
+  $('#thPlat').toggle(hasPlat);
+  $('#suiteTitle').text(r.container.name);
+  var $tb=$('#tcTable tbody').empty();
+  var items=r.items||[];
+  $('#tcsEmpty').toggle(items.length===0);
+  $('#tcTable').toggle(items.length>0);
+  var linkedTotal=0;
+  items.forEach(function(it){
+    linkedTotal += it.links.length ? 1 : 0;
+    var newestLinkedVid=0;
+    it.links.forEach(function(l){
+      it.versions.forEach(function(v){ if(v.tcversion_id===l.tcversion_id){ newestLinkedVid=Math.max(newestLinkedVid,v.version); }});
+    });
+    var isLinked=it.links.length>0;
+
+    // version select: default = newest ACTIVE version, or linked one when linked
+    var defVid=0, defVer=-1;
+    it.versions.forEach(function(v){ if(v.active==1 && v.version>defVer){defVer=v.version;defVid=v.tcversion_id;} });
+    it.links.forEach(function(l){ defVid=l.tcversion_id; });
+
+    var vsel='<select class="vsel" data-tc="'+it.tc_id+'">';
+    it.versions.slice().sort(function(a,b){return b.version-a.version;}).forEach(function(v){
+      var dis = (v.active!=1 && !(it.links.some(function(l){return l.tcversion_id===v.tcversion_id;})));
+      vsel+='<option value="'+v.tcversion_id+'"'+(dis?' disabled':'')+(v.tcversion_id===defVid?' selected':'')+'>'
+          +'v'+v.version+(v.active!=1?' ('+esc(TLi18n.t('paddtc.inactive'))+')':'')+'</option>';
+    });
+    vsel+='</select>';
+
+    var platCell='-';
+    if(hasPlat){
+      platCell='<select class="psel" multiple size="1" data-tc="'+it.tc_id+'" title="'+esc(TLi18n.t('paddtc.platforms'))+'">';
+      (r.platforms||[]).forEach(function(p){ platCell+='<option value="'+p.id+'" selected>'+esc(p.name)+'</option>'; });
+      platCell+='</select>';
+    }
+
+    var ordVal='';
+    var ordInput='<input class="order-in" type="number" data-tc="'+it.tc_id+'" value="" min="0" disabled>';
+    if(isLinked){
+      var firstOrd=it.links[0].node_order;
+      ordVal=firstOrd;
+      ordInput='<input class="order-in" type="number" data-tc="'+it.tc_id+'" value="'+parseInt(firstOrd,10)+'" min="0">';
+    }
+
+    // remove chips: one checkbox per existing link
+    var rmChips=it.links.map(function(l){
+      var pname='';
+      if(l.platform_id>0){
+        var pf=(CONTAINER.platforms||[]).filter(function(x){return x.id===l.platform_id;})[0];
+        pname=pf?pf.name:('#'+l.platform_id);
+      }
+      var execTag=l.executed_qty>0?' executed':'';
+      return '<label class="chip'+execTag+'">'
+        +'<input type="checkbox" class="rmchk" data-tc="'+it.tc_id+'" data-tv="'+l.tcversion_id+'" data-pl="'+l.platform_id+'">'
+        +'v'+verOf(it,l.tcversion_id)+(pname?' &middot; '+esc(pname):'')
+        +(l.node_order>0?' <span class="ord">#'+parseInt(l.node_order,10)+'</span>':'')
+        +(l.executed_qty>0?' <i class="fas fa-vial" title="'+esc(TLi18n.t('paddtc.executed'))+'"></i>':'')
+        +(it.newest_available && it.newest_available>l.tcversion_id ? '' : '')
+        +'</label>';
+    }).join('');
+
+    var statusPill=isLinked
+      ? '<span class="st-pill st-linked">'+esc(TLi18n.t('paddtc.linked'))+'</span>'
+      : '<span class="st-pill st-open">'+esc(TLi18n.t('paddtc.notLinked'))+'</span>';
+    var newerWarn=it.newest_available
+      ? '<i class="fas fa-triangle-exclamation newest-warn" title="'+esc(TLi18n.t('paddtc.newerVersion'))+'"></i>'
+      : '';
+
+    var $tr=$('<tr'+(isLinked?' class="linked-row"':'')+'>').html(
+        '<td>'+(isLinked?'':'<input type="checkbox" class="addchk" data-tc="'+it.tc_id+'">')+'</td>'+
+        '<td><span class="tc-name">'+esc(it.name)+'</span><span class="ext-id">'+esc(it.full_external_id)+'</span><br>'+statusPill+newerWarn+'</td>'+
+        '<td>'+(isLinked?'':vsel)+'</td>'+
+        '<td>'+(isLinked?'':platCell)+'</td>'+
+        '<td>'+ordInput+'</td>'+
+        '<td>'+(rmChips||'-')+'</td>');
+    $tb.append($tr);
+  });
+  $('#suiteCount').text('('+items.length+')');
+  $('#hdrLinked').text(linkedTotal);
+  $('#hdrTotal').text(linkedCountFromSuites());
+  $('#footerInfo').text(TLi18n.t('common.generatedOn')+' '+new Date().toLocaleString());
+}
+
+function verOf(it,tvid){
+  var v=(it.versions.filter(function(x){return x.tcversion_id===tvid;})[0]||{version:'?'}).version;
+  return v;
+}
+function linkedCountFromSuites(){
+  var s=$('#suiteTree li.sel .lnk').first().text();
+  return parseInt(s||'0',10);
+}
+
+function collectSelection(){
+  var add={},remove={};
+  var hasPlat=(CONTAINER.platforms||[]).length>0;
+  $('input.addchk:checked').each(function(){
+    var tc=this.getAttribute('data-tc');
+    var vid=parseInt($('select.vsel[data-tc="'+tc+'"]').val(),10);
+    if(!vid){ return; }
+    if(hasPlat){
+      var ps=$('select.psel[data-tc="'+tc+'"]').val()||[];
+      ps.forEach(function(pl){ add[tc]=add[tc]||{}; add[tc][pl]=vid; });
+    } else {
+      add[tc]={"0":vid};
+    }
+  });
+  $('input.rmchk:checked').each(function(){
+    var tc=this.getAttribute('data-tc');
+    var tv=parseInt(this.getAttribute('data-tv'),10);
+    var pl=parseInt(this.getAttribute('data-pl'),10);
+    remove[tc]=remove[tc]||{}; remove[tc][pl]=tv;
+  });
+  return {add:add,remove:remove};
+}
+
+function doSave(){
+  if(!INIT || !INIT.rights.canPlan){ return; }
+  var sel=collectSelection();
+  if(Object.keys(sel.add).length===0 && Object.keys(sel.remove).length===0){
+    toast(TLi18n.t('paddtc.nothingSelected'),true);
+    return;
+  }
+  // legacy warning: removing EXECUTED links needs confirmation/right
+  var execList=[];
+  Object.keys(sel.remove).forEach(function(tc){
+    Object.keys(sel.remove[tc]).forEach(function(pl){
+      var vid=sel.remove[tc][pl];
+      (CONTAINER.items||[]).forEach(function(it){
+        if(String(it.tc_id)===String(tc)){
+          it.links.forEach(function(l){
+            if(l.tcversion_id===vid && l.platform_id===parseInt(pl,10) && l.executed_qty>0){ execList.push(it.name); }
+          });
+        }
+      });
+    });
+  });
+  if(execList.length && !INIT.rights.canRemoveExecuted){
+    toast(TLi18n.t('paddtc.errExecuted'),true);
+    return;
+  }
+  if(execList.length){
+    $('#rmMsg').html('<b>'+esc(TLi18n.t('paddtc.warnExecuted'))+'</b><br>'+execList.map(esc).join('<br>'));
+    $('#rmModal').modal('show');
+    $('#btnRmConfirm').off('click').on('click',function(){
+      $('#rmModal').modal('hide');
+      sendSave(sel);
+    });
+    return;
+  }
+  sendSave(sel);
+}
+
+function sendSave(sel){
+  sel.tproject_id=tprojectId;
+  sel.tplan_id=currentPlanId();
+  var tester=parseInt($('#testerID').val()||'0',10);
+  var build=parseInt($('#buildID').val()||'0',10);
+  if($('#assignPanel').is(':visible') && tester>0){ sel.testerID=tester; sel.build_id=build; }
+  $('#btnSave').prop('disabled',true);
+  $.ajax({url:API+'/planaddtc/save',method:'POST',contentType:'application/json',data:JSON.stringify(sel)})
+    .done(function(r){
+      if(r.status==='ok'){
+        toast(TLi18n.t('paddtc.msg.saved').replace('{a}',r.added).replace('{r}',r.removed));
+      } else { toast(r.message||TLi18n.t('common.error'),true); }
+      refreshAfterSave();
+    })
+    .fail(function(xhr){
+      var rr={}; try{rr=JSON.parse(xhr.responseText);}catch(e){}
+      toast(rr.message||TLi18n.t('common.error'),true);
+    })
+    .always(function(){ $('#btnSave').prop('disabled',false); });
+}
+
+function doReorder(){
+  var order={};
+  $('input.order-in:not(:disabled)').each(function(){
+    var tc=this.getAttribute('data-tc');
+    var val=parseInt($(this).val(),10);
+    if(isNaN(val)){ return; }
+    // map tc -> currently linked version ids of that row
+    (CONTAINER.items||[]).forEach(function(it){
+      if(String(it.tc_id)===String(tc)){
+        it.links.forEach(function(l){ order[l.tcversion_id]=val; });
+      }
+    });
+  });
+  if(Object.keys(order).length===0){ toast(TLi18n.t('paddtc.msg.noOrder'),true); return; }
+  $.ajax({url:API+'/planaddtc/reorder',method:'POST',contentType:'application/json',
+    data:JSON.stringify({tproject_id:tprojectId,tplan_id:currentPlanId(),order:order})})
+    .done(function(r){
+      if(r.status==='ok'){ toast(TLi18n.t('paddtc.msg.orderSaved')); openSuite(curSuiteId); }
+      else { toast(r.message||TLi18n.t('common.error'),true); }
+    })
+    .fail(function(xhr){ var rr={};try{rr=JSON.parse(xhr.responseText);}catch(e){}
+      toast(rr.message||TLi18n.t('common.error'),true); });
+}
+
+function refreshAfterSave(){
+  $.getJSON(API + '/planaddtc/suites?tproject_id='+tprojectId+'&tplan_id='+currentPlanId()+kwParam())
+    .done(function(r){ if(r.status==='ok'){ renderSuitesKeepSel(r.items||[]); } });
+  openSuite(curSuiteId);
+}
+function renderSuitesKeepSel(items){
+  var $tree=$('#suiteTree').empty();
+  $('#suitesEmpty').toggle(items.length===0);
+  items.forEach(function(s){
+    var $li=$('<li>').attr('data-suite',s.id).toggleClass('sel',s.id===curSuiteId)
+      .append($('<span class="lname">').text(s.name))
+      .append($('<span class="badge-qty">')
+        .append($('<span class="lnk">').text(s.deep_linked_qty))
+        .append(document.createTextNode('/'+s.deep_total_qty)));
+    $tree.append($li);
+  });
+}
+</script>
+</body>
+</html>

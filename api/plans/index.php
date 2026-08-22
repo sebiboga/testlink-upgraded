@@ -419,6 +419,8 @@ if ($method === 'GET' && count($segments) === 2 &&
     $tplan_id = intval(getParam('tplan_id', 0));
     $platforms = [];
     $builds = [];
+    $testers = [];
+    $canAssignExecTask = false;
     if ($tplan_id > 0) {
         $platSet = $tplanMgr->getPlatforms($tplan_id);
         if (!is_null($platSet)) {
@@ -436,6 +438,19 @@ if ($method === 'GET' && count($segments) === 2 &&
 
     $ctxRights = $tplan_id > 0 ?
         planAddTcRights($user, $db, $tproject_id, $tplan_id) : $rights0;
+    // legacy header block: assign freshly added test cases to a tester
+    if ($ctxRights['canAssignExecTask'] && $tplan_id > 0) {
+        $testers = getTestersForHtmlOptions($db, $tplan_id,
+            $tprojectMgr->get_by_id($tproject_id));
+        if (is_null($testers)) {
+            $testers = new stdClass();
+        }
+        // newest open build preselected like legacy init_build_selector()
+        $bkeys = array_keys((array)$builds);
+        $defaultBuild = count($bkeys) ? intval(end($bkeys)) : 0;
+    } else {
+        $defaultBuild = 0;
+    }
 
     out([
         'status' => 'ok',
@@ -449,6 +464,8 @@ if ($method === 'GET' && count($segments) === 2 &&
         'keywords' => $keywords,
         'platforms' => $platforms,
         'builds' => $builds,
+        'testers' => $testers,
+        'default_build_id' => $defaultBuild,
         'rights' => $ctxRights,
         'ext_id_glue' => (string)$glueChar,
     ]);
