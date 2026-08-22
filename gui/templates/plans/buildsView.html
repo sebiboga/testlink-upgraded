@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Builds &amp; Releases</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.section { padding: 20px 24px 4px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.build-name { font-weight: 700; color: #2d8e88; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-size: 13px; }
+.build-name:hover { text-decoration: underline; }
+.api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
+.notes-cell { color: #555; max-width: 420px; }
+.rdate-cell { white-space: nowrap; width: 110px; }
+.toggle-btn { background: none; border: none; padding: 2px 6px; font-size: 16px; cursor: pointer; line-height: 1; }
+.toggle-btn.on { color: #2d8e88; }
+.toggle-btn.off { color: #bbb; }
+.toggle-btn.lock-on { color: #e6605e; }
+.act-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 6px; color: #6c757d; }
+.act-btn:hover { color: #22242a; }
+.act-btn.del { color: #e6605e; }
+.act-btn.del:hover { color: #c53f3d; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control, .form-control:focus { font-size: 13px; }
+.chk-row label { font-weight: 400; font-size: 13px; color: #333; margin-left: 6px; cursor: pointer; }
+.copy-block { background: #f7f9f9; border: 1px solid #e3e8e8; border-radius: 6px; padding: 12px 14px; margin-top: 10px; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="bv.header">Builds &amp; Releases Management</span>
+  <span class="sub" data-i18n="bv.headerSub">create and manage the builds of this test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="bv.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreate"><i class="fa fa-plus"></i> <span data-i18n="bv.createBuild">Create Build</span></button>
+</div>
+
+<div class="section">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;"><span data-i18n="bv.existing">Existing Builds</span><span class="count" id="buildCount" style="font-weight:400;color:#888;font-size:13px;margin-left:6px;"></span></h2>
+</div>
+
+<div class="table-wrap">
+  <div id="buildEmpty" class="empty" style="display:none" data-i18n="bv.noBuilds">No builds are defined for this test plan yet</div>
+  <table id="buildTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:22%" data-i18n="bv.colName">Build</th>
+        <th data-orderable="false" data-i18n="bv.colNotes">Notes</th>
+        <th style="width:110px" data-orderable="false" data-i18n="bv.colReleaseDate">Release Date</th>
+        <th data-orderable="false" style="width:80px" data-i18n="bv.colActive">Active</th>
+        <th data-orderable="false" style="width:80px" data-i18n="bv.colOpen">Open</th>
+        <th data-orderable="false" style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="buildForm" onsubmit="return false;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle">Build</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;">
+        <input type="hidden" id="fId" value="">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="fName" data-i18n="bv.enterBuildName">Build name</label>
+          <input type="text" class="form-control" id="fName" maxlength="100" required>
+          <div class="hint" data-i18n="bv.nameHint">must be unique within the test plan</div>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="fNotes" data-i18n="bv.enterBuildNotes">Build notes</label>
+          <textarea class="form-control" id="fNotes" rows="4"></textarea>
+        </div>
+        <div class="row">
+          <div class="col-sm-4">
+            <div class="form-group chk-row">
+              <label><input type="checkbox" id="fActive" checked> <span data-i18n="bv.activeLabel">Active</span></label>
+            </div>
+          </div>
+          <div class="col-sm-8">
+            <div class="form-group chk-row">
+              <label><input type="checkbox" id="fOpen" checked> <span data-i18n="bv.openLabel">Open</span></label>
+              <div class="hint" data-i18n="bv.closureHint">closing a build stamps today as closure date</div>
+            </div>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:6px;">
+          <label class="form-label" for="fReleaseDate" data-i18n="bv.releaseDate">Release date</label>
+          <input type="date" class="form-control" id="fReleaseDate" style="max-width:200px;">
+        </div>
+
+        <div class="copy-block" id="copyBlock" style="display:none;">
+          <div class="chk-row" style="margin-bottom:8px;">
+            <label><input type="checkbox" id="fCopyAssignments">
+              <span data-i18n="bv.copyTesterAssignments">Copy tester assignments</span></label>
+          </div>
+          <div class="form-group" id="srcBlock" style="margin-bottom:10px;display:none;">
+            <label class="form-label" for="fSourceBuild" data-i18n="bv.assignmentSourceBuild">Assignment source build</label>
+            <select class="form-control" id="fSourceBuild" style="max-width:340px;"></select>
+          </div>
+          <div class="form-group" id="statusBlock" style="margin-bottom:0;display:none;">
+            <label class="form-label" data-i18n="bv.withExecStatus">with execution status</label>
+            <select class="form-control" id="fExecStatus" multiple size="5" style="max-width:340px;"></select>
+            <div class="hint" data-i18n="bv.execStatusHint">leave empty to copy all assignments</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveBuild()" data-i18n="common.save">Save</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;background:#e6605e;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/builds/index.php';
+var tplanId = 0;
+var canManage = true;
+var buildTbl = null;
+var deleteTarget = null;
+var lastData = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  // XSS-safe delegation: the build name is resolved from the API payload,
+  // never taken from inline handlers/DOM data
+  $('#buildTable').on('click', '[data-del-id]', function () {
+    var id = parseInt(this.getAttribute('data-del-id'), 10);
+    var b = findBuild(id);
+    if (b) { confirmDelete(b); }
+  });
+  $('#buildTable').on('click', '[data-edit-id]', function () {
+    var id = parseInt(this.getAttribute('data-edit-id'), 10);
+    var b = findBuild(id);
+    if (b) { openEdit(b); }
+  });
+  $('#buildTable').on('click', '[data-flag-id]', function () {
+    var el = this;
+    var id = parseInt(el.getAttribute('data-flag-id'), 10);
+    var kind = el.getAttribute('data-flag-kind');
+    var next = parseInt(el.getAttribute('data-flag-next'), 10);
+    setFlag(id, kind, next);
+  });
+
+  $('#fCopyAssignments').on('change', function () {
+    var on = $(this).is(':checked') && $('#fSourceBuild option').length > 0;
+    $('#srcBlock').toggle(on);
+    $('#statusBlock').toggle(on);
+  });
+
+  $('#btnCreate').on('click', openCreate);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function findBuild(id) {
+  return (lastData && lastData.builds || []).filter(function (x) { return x.id === id; })[0];
+}
+
+/** Map server error codes onto localized messages */
+function errText(r) {
+  var map = {
+    warning_duplicate_build: 'bv.msg.duplicateName',
+    invalid_release_date: 'bv.msg.invalidReleaseDate',
+    cannot_delete_build_no_exec_delete: 'bv.msg.cannotDeleteNoExecDelete',
+    cannot_delete_build: 'bv.msg.cannotDelete',
+    empty_field_no: 'bv.msg.emptyName',
+    'Insufficient rights': 'common.forbidden'
+  };
+  var key = map[r.message] || null;
+  var txt = key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error'));
+  if (r.detail && key === 'bv.msg.duplicateName') { txt += ': ' + r.detail; }
+  if (r.detail && key === 'bv.msg.cannotDeleteNoExecDelete') { txt = txt.replace('{name}', r.detail); }
+  return txt;
+}
+
+function load() {
+  if (tplanId <= 0) {
+    $('#buildEmpty').show();
+    $('.toolbar').hide();
+    return;
+  }
+  $.getJSON(API + '/?tplan_id=' + tplanId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      lastData = r;
+      canManage = r.rights.canManage;
+      $('#tplanName').text(r.tplan.name);
+      document.title = r.tplan.name + ' - ' + TLi18n.t('bv.header');
+
+      $('#btnCreate').toggle(canManage);
+
+      fillCopyOptions(r.source_builds, r.exec_status_options);
+      render(r.builds);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function fillCopyOptions(sourceBuilds, execStatusOptions) {
+  var $sel = $('#fSourceBuild').empty();
+  (sourceBuilds || []).forEach(function (b) {
+    $sel.append('<option value="' + b.id + '">' + esc(b.name + ' (' + b.assignments + ')') + '</option>');
+  });
+  var $st = $('#fExecStatus').empty();
+  (execStatusOptions || []).forEach(function (s) {
+    $st.append('<option value="' + esc(s.code) + '">' + esc(s.label) + '</option>');
+  });
+  $('#copyBlock').toggle(canManage && (sourceBuilds || []).length > 0);
+}
+
+function render(builds) {
+  $('#buildCount').text('(' + builds.length + ')');
+  $('#buildEmpty').toggle(builds.length === 0);
+  $('#buildTable').toggle(builds.length > 0);
+  $('#footerInfo').text(builds.length ?
+    TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString() : '');
+
+  if (buildTbl) { buildTbl.destroy(); $('#buildTable tbody').empty(); }
+
+  var rows = builds.map(function (b) {
+    var apiTitle = TLi18n.t('bv.apiId').replace('{id}', b.id);
+    var nameCell = '<i class="fas fa-cubes api-id" title="' + esc(apiTitle) + '"></i>';
+    if (canManage) {
+      nameCell += '<button class="build-name" data-edit-id="' + b.id +
+                  '" title="' + esc(TLi18n.t('bv.altEdit')) + '">' + esc(b.name) + '</button>';
+    } else {
+      nameCell += '<span style="font-weight:700">' + esc(b.name) + '</span>';
+    }
+
+    // legacy list view renders notes as stored HTML (rich editor); sanitize
+    var clean = DOMPurify.sanitize(String(b.notes == null ? '' : b.notes));
+    var notes = clean.trim()
+      ? clean.replace(/\n/g, '<br>') : '<span style="color:#ccc">-</span>';
+
+    var rdate = b.release_date
+      ? '<span class="rdate-cell">' + esc(localizeDate(b.release_date)) + '</span>'
+      : '<span class="rdate-cell" style="color:#ccc">-</span>';
+
+    var action = '';
+    if (canManage) {
+      action += '<button class="act-btn del" title="' + esc(TLi18n.t('bv.altDelete')) +
+                '" data-del-id="' + parseInt(b.id, 10) + '">' +
+                '<i class="fas fa-minus-circle"></i></button>';
+    }
+    return [nameCell, notes, rdate,
+            activeToggle(b), openToggle(b), action];
+  });
+
+  buildTbl = $('#buildTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: 2, className: 'text-center' },
+      { targets: -3, className: 'text-center', orderable: false },
+      { targets: -2, className: 'text-center', orderable: false },
+      { targets: -1, orderable: false, className: 'text-center' }
+    ]
+  });
+}
+
+/** legacy localize_date d=release_date */
+function localizeDate(iso) {
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) { return iso; }
+  try {
+    return d.toLocaleDateString(document.documentElement.lang || undefined,
+                                { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) { return iso; }
+}
+
+function activeToggle(b) {
+  var on = parseInt(b.active, 10) == 1;
+  var cls = on ? 'on' : 'off';
+  var icon = on ? 'fa-toggle-on' : 'fa-toggle-off';
+  var titleKey = on ? 'bv.inactiveClickToChange' : 'bv.activeClickToChange';
+  var titleAttr = canManage ? ' title="' + esc(TLi18n.t(titleKey)) + '"' : '';
+  return '<button class="toggle-btn ' + cls + '"' + titleAttr +
+         (canManage ? ' data-flag-id="' + b.id + '" data-flag-kind="active" data-flag-next="' + (on ? 0 : 1) + '"'
+                    : ' disabled') +
+         '><i class="fas ' + icon + '"></i></button>';
+}
+
+function openToggle(b) {
+  var on = parseInt(b.is_open, 10) == 1;
+  var icon = on ? 'fa-lock-open' : 'fa-lock';
+  var cls = on ? 'on' : 'off lock-on';
+  var titleKey = on ? 'bv.clickToSetClosed' : 'bv.clickToSetOpen';
+  var titleAttr = canManage ? ' title="' + esc(TLi18n.t(titleKey)) + '"' : '';
+  return '<button class="toggle-btn ' + cls + '"' + titleAttr +
+         (canManage ? ' data-flag-id="' + b.id + '" data-flag-kind="open" data-flag-next="' + (on ? 0 : 1) + '"'
+                    : ' disabled') +
+         '><i class="fas ' + icon + '"></i></button>';
+}
+
+function setFlag(id, kind, value) {
+  $.ajax({
+    url: API + '/' + id + '/flags',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tplan_id: tplanId, active: kind === 'active' ? value : undefined,
+                           open: kind === 'open' ? value : undefined })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(errText(r), true); }
+    else if (kind === 'active') { toast(value ? TLi18n.t('bv.msg.activated') : TLi18n.t('bv.msg.deactivated')); }
+    else { toast(value ? TLi18n.t('bv.msg.opened') : TLi18n.t('bv.msg.closed')); }
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(errText(r), true);
+    load();
+  });
+}
+
+function openCreate() {
+  $('#editTitle').text(TLi18n.t('bv.titleCreate'));
+  $('#fId').val('');
+  $('#fName').val('');
+  $('#fNotes').val('');
+  $('#fReleaseDate').val('');
+  $('#fActive').prop('checked', true);
+  $('#fOpen').prop('checked', true);
+  $('#fCopyAssignments').prop('checked', false);
+  $('#srcBlock,#statusBlock').hide();
+  $('#copyBlock').toggle($('#fSourceBuild option').length > 0);
+  $('#editModal').modal('show');
+}
+
+function openEdit(b) {
+  $('#editTitle').text(TLi18n.t('bv.titleEdit') + ': ' + b.name);
+  $('#fId').val(b.id);
+  $('#fName').val(b.name);
+  $('#fNotes').val(String(b.notes == null ? '' : b.notes.replace(/<br\s*\/?>/gi, '\n')));
+  $('#fReleaseDate').val(b.release_date || '');
+  $('#fActive').prop('checked', parseInt(b.active, 10) == 1);
+  $('#fOpen').prop('checked', parseInt(b.is_open, 10) == 1);
+  $('#copyBlock').hide();
+  $('#editModal').modal('show');
+}
+
+function saveBuild() {
+  var id = $('#fId').val();
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('bv.msg.emptyName'), true); return; }
+  var body = {
+    tplan_id: tplanId,
+    name: name,
+    notes: $('#fNotes').val(),
+    release_date: $('#fReleaseDate').val() || '',
+    active: $('#fActive').is(':checked') ? 1 : 0,
+    open: $('#fOpen').is(':checked') ? 1 : 0
+  };
+  var url = API + (id ? '/' + id : '');
+  if (!id) {
+    body.copy_tester_assignments = $('#fCopyAssignments').is(':checked') ? 1 : 0;
+    body.source_build_id = parseInt($('#fSourceBuild').val() || '0', 10);
+    var st = $('#fExecStatus').val() || [];
+    if (body.copy_tester_assignments && st.length) { body.exec_status_filter = st; }
+  }
+  $.ajax({
+    url: url,
+    method: id ? 'PUT' : 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(body)
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(errText(r), true); return; }
+    $('#editModal').modal('hide');
+    toast(TLi18n.t(id ? 'bv.msg.saved' : 'bv.msg.created'));
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(errText(r), true);
+  });
+}
+
+function confirmDelete(b) {
+  deleteTarget = b.id;
+  $('#delTitle').text(TLi18n.t('common.delete'));
+  $('#delMsg').html('<b>' + esc(b.name) + '</b><br>' + esc(TLi18n.t('bv.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  $.ajax({
+    url: API + '/' + deleteTarget + '?tplan_id=' + tplanId,
+    method: 'DELETE'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(TLi18n.t('bv.msg.deleted'));
+    } else {
+      toast(errText(r), true);
+    }
+    load();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(errText(r), true);
+    load();
+  });
+}
+</script>
+</body>
+</html>

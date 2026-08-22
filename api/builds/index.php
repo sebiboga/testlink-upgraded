@@ -167,12 +167,24 @@ if ($method === 'GET' && count($segments) === 0) {
         }
     }
 
+    // Localized execution statuses for the "copy with exec status" filter
+    // (legacy initializeGui(): results config + lang_get()).
+    $resultsCfg = config_get('results');
+    $execStatusOptions = [];
+    foreach ($resultsCfg['status_label_for_exec_ui'] as $kv => $vl) {
+        $execStatusOptions[] = [
+            'code' => $resultsCfg['status_code'][$kv],
+            'label' => lang_get($vl),
+        ];
+    }
+
     out([
         'status' => 'ok',
         'tplan' => ['id' => $tplanId, 'name' => $ctx['tplan_name'],
                     'tproject_id' => $ctx['tproject_id']],
         'builds' => $items,
         'source_builds' => $srcItems,
+        'exec_status_options' => $execStatusOptions,
         'other_plans_count' => $siblingPlans,
         'rights' => [
             'canManage' => true,
