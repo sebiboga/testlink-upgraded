@@ -14,3 +14,18 @@ tmp/php_server.log
 .ci_branch
 .ci_before_sha
 tmp/wiki-repo
+
+# local scratch / secrets / heavy dirs (never commit)
+tl200/
+tmp/chrome-profile/
+tmp/chrome.log
+tmp/cookie*.txt
+tmp/*cookies*.txt
+tmp/sess_*.txt
+tmp/noinv_*.txt
+tmp/vw.out
+tmp/wiki-repo/
+tmp/wiki/
+tmp/ci_investigate/
+tmp/ci_run.log
+tmp/ci_run_full.log
