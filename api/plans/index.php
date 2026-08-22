@@ -91,21 +91,23 @@ function rowAssignRolesRight($user, $db, $tproject_id, $hasRole) {
  * Legacy action URL builder - mirrors testplan::getViewActions() so the
  * modern list keeps working with the still-legacy sub screens
  * (planEdit/planExport/planImport/usersAssign/frmWorkArea).
+ * URLs are root-absolute: the HTML screen lives under /gui/templates/plans/
+ * so relative paths would resolve against the wrong directory.
  */
 function viewActions($tproject_id, $tplan_id = 0) {
     $ent = "tproject_id=" . intval($tproject_id) . "&tplan_id=" . intval($tplan_id);
     $entProj = "tproject_id=" . intval($tproject_id);
     return [
-        'managerURL'    => 'lib/plan/planEdit.php?' . $ent,
-        'createAction'  => 'lib/plan/planEdit.php?do_action=create&' . $ent,
-        'editAction'    => 'lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
-        'exportAction'  => 'lib/plan/planExport.php?' . $ent . '&tplan_id=',
-        'importAction'  => 'lib/plan/planImport.php?' . $ent . '&tplan_id=',
+        'managerURL'    => '/lib/plan/planEdit.php?' . $ent,
+        'createAction'  => '/lib/plan/planEdit.php?do_action=create&' . $ent,
+        'editAction'    => '/lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
+        'exportAction'  => '/lib/plan/planExport.php?' . $ent . '&tplan_id=',
+        'importAction'  => '/lib/plan/planImport.php?' . $ent . '&tplan_id=',
         'assignRolesAction' =>
-            'lib/usermanagement/usersAssign.php?featureType=testplan&' .
-            $ent . '&itemID=',
+            '/lib/usermanagement/usersAssign.php?featureType=testplan&' .
+            $ent . '&featureID=',
         'gotoExecuteAction' =>
-            'lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
+            '/lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
     ];
 }
 
@@ -196,7 +198,8 @@ if ($method === 'GET' && count($segments) === 0) {
 // PUT /{id}/active - single toggle (legacy do_action=setActive|setInactive)
 // body: tproject_id, active=0|1
 // ---------------------------------------------------------------------------
-if ($method === 'PUT' && isset($segments[1]) && $segments[1] === 'active') {
+if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0]) &&
+    isset($segments[1]) && $segments[1] === 'active') {
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
@@ -253,10 +256,12 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'bulk-activ
     $tplanMgr = new testplan($db);
 
     // keep only plans that really live inside the context project
+    // (testplan::get_by_id() 2nd arg is an options array - passing
+    // tproject_id there is silently ignored, so compare explicitly)
     $owned = [];
     foreach ($ids as $id) {
-        $info = $tplanMgr->get_by_id($id, $tproject_id);
-        if ($info) {
+        $info = $tplanMgr->get_by_id($id);
+        if ($info && intval($info['testproject_id']) == $tproject_id) {
             $owned[] = $id;
         }
     }

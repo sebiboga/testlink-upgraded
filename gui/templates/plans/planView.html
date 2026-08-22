@@ -46,6 +46,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .modal-title { font-size: 16px; font-weight: 700; }
+table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none !important; }
 </style>
 </head>
 <body>
@@ -82,7 +83,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
         <th data-orderable="false" data-i18n="pv.notes">Notes</th>
         <th style="width:80px" data-i18n="pv.tcQty" title="">Test Cases</th>
         <th style="width:70px" data-i18n="pv.buildQty" title="">Builds</th>
-        <th id="thPlatformQty" style="width:90px; display:none" data-i18n="pv.platformQty">Platforms</th>
+        <th id="thPlatformQty" style="width:90px" data-i18n="pv.platformQty">Platforms</th>
         <th data-orderable="false" style="width:80px" data-i18n="pv.activeCol">Active</th>
         <th data-orderable="false" style="width:70px" data-i18n="pv.publicCol">Public</th>
         <th data-orderable="false" style="width:190px"></th>
@@ -114,6 +115,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
@@ -124,6 +126,8 @@ var canManage = false;
 var tplanTbl = null;
 var deleteTarget = null;
 var ACTIONS = {};
+var drawPlatQty = false;
+var lastItems = [];
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -136,6 +140,14 @@ $(function () {
 
   $('#chkAll').on('change', function () {
     $('#tplanTable tbody input[type=checkbox]').prop('checked', $(this).is(':checked'));
+  });
+
+  // delete buttons carry no inline data (XSS-safe delegation); the plan name
+  // is resolved from the API payload, never from the DOM
+  $('#tplanTable').on('click', '[data-del-id]', function () {
+    var id = parseInt(this.getAttribute('data-del-id'), 10);
+    var tp = lastItems.filter(function (x) { return x.id === id; })[0];
+    if (tp) { confirmDelete(id, tp.name); }
   });
 });
 
@@ -178,10 +190,11 @@ function load() {
       $('#btnInactivateBulk').toggle(canManage);
 
       if (r.draw_platform_qty_column) {
-        $('#thPlatformQty').show().attr('title', TLi18n.t('pv.helpPlatformQty'));
+        $('#thPlatformQty').attr('title', TLi18n.t('pv.helpPlatformQty'));
       }
-      $('th[data-i18n=pv.tcQty]').attr('title', TLi18n.t('pv.helpTcQty'));
-      $('th[data-i18n=pv.buildQty]').attr('title', TLi18n.t('pv.helpBuildQty'));
+      drawPlatQty = !!r.draw_platform_qty_column;
+      $('th[data-i18n="pv.tcQty"]').attr('title', TLi18n.t('pv.helpTcQty'));
+      $('th[data-i18n="pv.buildQty"]').attr('title', TLi18n.t('pv.helpBuildQty'));
 
       render(r.items);
     })
@@ -193,6 +206,7 @@ function load() {
 }
 
 function render(items) {
+  lastItems = items;
   $('#tplanCount').text('(' + items.length + ')');
   $('#tplanEmpty').toggle(items.length === 0);
   $('#tplanTable').toggle(items.length > 0);
@@ -209,17 +223,16 @@ function render(items) {
     nameCell += '<a class="tplan-name" href="' + esc(actionUrl('editAction', tp.id)) +
                 '" title="' + esc(TLi18n.t('pv.editPlan')) + '">' + esc(tp.name) + '</a>';
 
-    // legacy list view renders notes as stored HTML (rich editor); keep it
-    // but strip script vectors defensively
-    var notes = String(tp.notes == null ? '' : tp.notes)
-      .replace(/<script[\s\S]*?<\/script>/gi, '')
-      .replace(/\son\w+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-    notes = notes ? notes.replace(/\n/g, '<br>') : '<span style="color:#ccc">-</span>';
+    // legacy list view renders notes as stored HTML (rich editor); sanitize
+    // with DOMPurify (regex stripping was bypassable)
+    var clean = DOMPurify.sanitize(String(tp.notes == null ? '' : tp.notes));
+    var notes = clean.trim()
+      ? clean.replace(/\n/g, '<br>') : '<span style="color:#ccc">-</span>';
 
     var action = '';
     if (canManage) {
       action += '<button class="act-btn del" title="' + esc(TLi18n.t('pv.deletePlan')) +
-                '" onclick="confirmDelete(' + tp.id + ',\'' + esc(tp.name).replace(/'/g,"\\'") + '\')">' +
+                '" data-del-id="' + parseInt(tp.id, 10) + '">' +
                 '<i class="fas fa-trash-alt"></i></button>';
     }
     action += '<a class="act-btn" href="' + esc(actionUrl('exportAction', tp.id)) +
@@ -240,9 +253,7 @@ function render(items) {
       '<span class="qty-cell">' + tp.tcase_qty + '</span>',
       '<span class="qty-cell">' + tp.build_qty + '</span>'
     ];
-    if ($('#thPlatformQty').is(':visible')) {
-      row.push('<span class="qty-cell">' + (tp.platform_qty || 0) + '</span>');
-    }
+    row.push('<span class="qty-cell">' + (tp.platform_qty || 0) + '</span>');
     row.push(activeToggle(tp.id, tp.active));
     row.push('<span class="' + (tp.is_public ? 'pub-yes fa-check-circle fas' : 'pub-no fas fa-times-circle') +
              '" title="' + esc(TLi18n.t('pv.publicCol')) + '"></span>');
@@ -250,6 +261,7 @@ function render(items) {
     return row;
   });
 
+  $('#tplanTable').toggleClass('hide-plat', !drawPlatQty);
   tplanTbl = $('#tplanTable').DataTable({
     destroy: true,
     data: rows,
