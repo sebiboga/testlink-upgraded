@@ -1171,7 +1171,7 @@ if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'unassign-r
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Link(s) not found']);
     }
-    arNeedManageRight($user, $db, arOwnerProjectId($db, intval($row[0]['tcase_id'])));
+    arNeedManageRight($user, $db, arOwnerProjectId($db, intval($row[0]['testcase_id'])));
 
     $reqMgr3 = new requirement_mgr($db);
     $failed = [];
