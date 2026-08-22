@@ -2545,3 +2545,39 @@ guest = no req rights). Admin logged in at http://localhost:8082.
 | 17 | Code-review BLOCKER fixed: stored XSS via inline onclick titles — handlers now take ids only, titles resolved from caches; planted title `');alert(document.cookie);//` does NOT execute on click/delete-confirm, UI renders it literally, normal flows unaffected | PASS |
 
 **Result: 17 / 17 PASS** (2 issues found & fixed during testing: #572 E_WARNING, review-BLOCKER stored XSS)
+
+## 47. Regression — Issue #574: print.inc.php unguarded getimagesize() on attachments (Suite ID: 53)
+
+**Area:** legacy document generation (`lib/results/printDocument.php` →
+`lib/functions/print.inc.php`). **Fix commit:** ab5833b67.
+
+**Precondition:** fresh DB; fixtures created via XML-RPC API (admin
+script_key): test project `Bug574Proj` (id 1, prefix B574), test plan
+`Bug574Plan` (id 2), build B1, suite `Bug574Suite` (id 3, tree root
+`nodes_hierarchy/3`), test case B574-1 `Bug574Case` (tcid 4, tcversion 5)
+linked to the plan. Two PNG image attachments inserted directly
+(`attachments` rows + files under `upload_area/`):
+- attach id 1 → `tcversions/5/att574tc.png` (400×300)
+- attach id 2 → `nodes_hierarchy/3/att574suite.png` (200×100)
+
+Admin session at http://localhost:8082. Events table snapshot taken
+(`SELECT MAX(id) FROM events`) to detect new entries per step.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Pre-fix baseline (file present): Test Plan Report `printDocument.php?tproject_id=1&docTestPlanId=2&type=testreport&level=testproject&id=1` renders TC attachment `<img>` with width=400 height=300; no new events | PASS |
+| 2 | Pre-fix repro A (file deleted): same URL → E_WARNING event "getimagesize(...att574tc.png): Failed to open stream ... print.inc.php - Line 1522" AND malformed markup `<img width="height=" src=...>` | PASS |
+| 3 | Pre-fix repro B (file replaced by garbage bytes): no getimagesize warning but SAME malformed `<img width="height=">` output (silent false) | PASS |
+| 4 | Post-fix corrupt file: report renders clean `<img src=...>` WITHOUT width/height attributes; ZERO new events | PASS |
+| 5 | Post-fix missing file: identical clean fallback; ZERO new events | PASS |
+| 6 | Post-fix healthy file restored: dimensions back (`width="400" height="300"`); ZERO new events | PASS |
+| 7 | Suite-attachment site (renderTestSuiteNodeForPrinting): Test Spec doc `printDocument.php?type=testspec&level=testsuite&id=3&allOptionsOn=1` renders suite img id=2 width=200 height=100 | PASS |
+| 8 | Site 5 broken (suite file removed): clean `<img>` fallback, ZERO new events; healthy file restored afterwards | PASS |
+| 9 | php -l print.inc.php clean after all edits (5 guarded sites) | PASS |
+
+**Result: 9 / 9 PASS** — sites verified end-to-end: line 1522-class
+(TC attachment, renderTestCaseForPrinting) and line 1783-class (suite
+attachment, renderTestSuiteNodeForPrinting) in all three file states;
+remaining three sites share the identical mechanical guard (code-reviewed).
+Note: pre-fix events 1-7 in the fresh DB stem from XML-RPC fixture creation
+(pre-existing API warnings, out of scope for this issue).
