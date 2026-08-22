@@ -2295,49 +2295,38 @@ req specs `PRS-1 Login Module Requirements` (2 requirements: REQ-1, REQ-2) and
 `gui/templates/i18n/{en,de,es,fr,it,pt,ro,ru,ja,zh}.json` (+37 `printReq.*`),
 `lib/functions/common.php` (aside link switch).
 
----
+## 42. Modernization — Test Specification screen: test case tree & editor (editTc/testSpec) (Suite ID: 49)
 
-## 42. Modernization — Metrics Dashboard screen (metricsDashboard) (Suite ID: 49)
-
+**Screen:** `gui/templates/testcases/testSpec.html` · **BFF:** `api/testcases/index.php`
+(actions `tree`, `get`, POST `create`/`update`/`delete`/`create_version`/`suite_create`/`suite_update`/`suite_delete`)
 **Date:** 2026-08-22
-**Screen:** `gui/templates/results/metricsDashboard.html` + `api/metrics/index.php`
-(`GET /meta/rights`, `GET /dashboard`). Replaces legacy `lib/results/metricsDashboard.php`
-(ExtJS progress bars + tlExtTable) with Dashio-styled progress bars and a DataTable.
 
-**Fixtures:** test project `Metrics Demo Project` (id=105, prefix MDP) via `tmp/fixtures.php`:
-plan A `Master Plan` (active, platforms Linux+Windows, 2 active builds, 6 TCs linked to both
-platforms; Linux: p,f,-,b,p,p / Windows: p,p,p,b,b,b), plan B `Simple Plan` (active, no
-platforms, 1 build, 2 TCs: passed + not run), plan C `Old Plan` (INACTIVE, 3 TCs, first
-passed), empty project `Metrics Empty Project` (id=121); restricted user `norights`
-(global role `<no rights>`, password admin).
+| # | Test | Result |
+|---|------|--------|
+| 1 | BFF auth guard: unauthenticated request to `action=tree` returns HTTP 401 JSON error | PASS |
+| 2 | Screen loads via `?tproject_id=1`: header shows project name, locale switcher, toolbar buttons gated by grants, tree root "QA Project", counts line, hint box | PASS |
+| 3 | Suite create via toolbar modal ("Login Module") → appears in tree with count pill 0; toast feedback; counts update to "1 suites · 0 cases" | PASS |
+| 4 | Suite selection → detail card shows path/sub-suite/test-case counters + action buttons; empty-suite hint shown | PASS |
+| 5 | TC create form opens from suite view ("New Test Case Here") with name/importance/execution type/summary/preconditions/steps editor/keywords section | PASS |
+| 6 | TC create with 2 steps → saved via POST `create`; tree updates to "1 suites · 1 cases"; TC node shows external id | PASS |
+| 7 | TC detail view: name, VER badge, external id badge, importance/execution-type/ID meta grid, summary, preconditions, numbered steps table, keywords block, action bar | PASS |
+| 8 | TC edit → form pre-filled incl. both steps; rename + summary edit → POST `update`; view re-renders with new data; toast "Test case saved" | PASS |
+| 9 | Create New Version → confirm modal → POST `create_version` → view shows VER. 2 | PASS |
+| 10 | Deep link `?tproject_id=1&tcase_id=12` selects and renders sacrificial TC directly | PASS |
+| 11 | Delete TC via UI confirm modal → POST `delete` removes all versions; tree count decrements; panel resets to placeholder | PASS |
+| 12 | Suite rename modal prefilled with current name → renamed node visible in tree after save | PASS |
+| 13 | Delete suite confirm warns when suite non-empty; suite removed from tree | PASS |
+| 14 | Tree filter input hides non-matching test case nodes live | PASS |
+| 15 | i18n EN: all labels resolved from en.json `tspec.*` (61 keys), no raw keys visible | PASS |
+| 16 | i18n RO runtime: `?locale=ro_RO` renders "Specificație de test", placeholder "Filtrează după nume...", button "Caz de test nou" | PASS |
+| 17 | All 10 locale bundles valid JSON (`python3 -m json.tool`) with the 61 `tspec.*` keys present in each | PASS |
+| 18 | Aside link integration: `common.php` emits `/gui/templates/testcases/testSpec.html?tproject_id=N&tplan_id=M` for the workArea testSpec entry (workArea launcher mapping removed so it is not overwritten) | PASS |
+| 19 | Permission path: BFF write actions require `mgt_modify_tc` (403 otherwise — enforced server-side by `$checkWrite`); context/tree/get require login (401) | PASS |
+| 20 | Event Viewer: no new Error/Warning entries from this screen after fixes (bugs found & fixed during testing: wrong `tcexternalid` column name; missing keywords-map guard on create form; missing TC name join for get action; PHP8 warning on undefined `canEditExecuted` cfg property) | PASS |
 
-| # | Step / verification | Result |
-|---|---------------------|--------|
-| 1 | BFF auth: unauthenticated `GET /dashboard` → 401 JSON `{status:error}` | PASS |
-| 2 | BFF rights: `GET /meta/rights` as admin → canView=true (testplan_metrics OR testplan_execute check, same OR-mode as legacy checkRights) | PASS |
-| 3 | BFF data: platform branch mirrors legacy getExecCountersByPlatformExecStatus — Master Plan/Linux row: active=6, not_run=1 (16.67%), p=3 (50%), f=1 (16.67%), b=1 (16.67%), progress 83.33%; Windows: active=6, p=3, b=3, progress 100% | PASS |
-| 4 | BFF data: no-platform branch — Simple Plan: active=2, not_run=1, passed=1, progress 50%, platform_name=null → UI renders localized "n/a" | PASS |
-| 5 | Totals parity: project metrics Overall progress 85.71% [12/14] with default filter (active plans only): executed 5(Linux)+6(Win)+1(Simple)=12 of 14 active links | PASS |
-| 6 | Screen render: teal Dashio header, toolbar checkbox "Show only active test plans" checked by default, Public link button, both sections, DataTable sorted by Progress % desc, footer "Generated on <ts>" | PASS |
-| 7 | show_only_active toggle OFF → Old Plan appears (active=3, passed=1, 33.33%) and totals recompute to [13/17] 76.47%; session-persisted tri-state like legacy (`show_only_active_hidden` semantics preserved server-side) | PASS |
-| 8 | Public link toggle → box shows/hides on click; href = `lnl.php?type=metricsdashboard&apikey=<project key>` (legacy direct_link parity). BUG FOUND during test: button had no click handler wired — fixed in same run | PASS (after fix) |
-| 9 | i18n EN: all labels resolved from en.json `md.*` (21 keys) incl. dynamic status columns Not Run/Passed/Failed/Blocked (+% variants) | PASS |
-| 10 | i18n DE runtime: `?locale=de` renders "Metrik-Dashboard", "Nur aktive Testpläne anzeigen", "Projektfortschritt", "Testplan-Fortschritt", "Erstellt am ..." | PASS |
-| 11 | Locale bundles: md.* keys appended to ALL 10 bundles (en,de,es,fr,it,ja,pt,ro,ru,zh); `python3 -m json.tool` valid for each; concurrent-agent conflict during rebase resolved keeping BOTH key sets | PASS |
-| 12 | Warning state: dashboard for empty project id=121 → yellow user_feedback "No test plans available for the current test project!", content hidden. BUG FOUND: BFF ignored `?tproject_id=` param and used session project (data of wrong project shown) — fixed to honor param like legacy R_PARAMS | PASS (after fix) |
-| 13 | Permission path: login as `norights` (role `<no rights>`) → red error "You do not have the rights needed...", content hidden; API returns 403 for `/dashboard` | PASS |
-| 14 | Aside integration: asideMenu emits `/gui/templates/results/metricsDashboard.html?tproject_id=105&tplan_id=118`; clicking loads the modernized screen inside mainframe | PASS |
-| 15 | Table interactions: DataTables search filters rows ("Linux" → Master Plan rows only), sort indicators present, page length select works | PASS |
-| 16 | Legacy bug fixed en route (issue #559): `tlTestPlanMetrics::getExecCountersByExecStatus()` always returned NULL because it tested `is_array($builds)` against the stdClass from helperGetExecCounters() — every plan WITHOUT platforms showed zeros on legacy AND new screen. Guard now checks `$builds->idSet`; verified counters return {total:2,not_run:1,passed:1} | PASS |
-| 17 | Event Viewer: initial pass logged E_WARNINGs — (a) foreach-on-null in api/metrics/index.php line 130 when a platform-plan's counters come back null → guarded; (b) pre-existing PHP8 warnings at tlTestPlanMetrics lines 1637/1639/1641 (`$dx['flat']`/`$dx['staircase']` on null from get_full_path_verbose) filed as issue #561 and fixed with null-safe guards. Post-fix dashboard loads produce NO new Error/Warning events | PASS |
-| 18 | Screenshots: default view, all-plans view, German locale captured into wiki repo | PASS |
+**Actual result:** 20/20 PASS (4 bugs found during testing were fixed and re-verified inline).
 
-**Actual result:** 18/18 PASS after 3 fixes applied during testing (public-link handler;
-tproject_id param honoring; null guards #559/#561). Issues filed: #559 (fixed here),
-#561 (fixed here).
-
-**Files changed:** `api/metrics/index.php`,
-`gui/templates/results/metricsDashboard.html`,
-`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+21 `md.*`),
-`lib/functions/common.php` (aside link switch),
-`lib/functions/tlTestPlanMetrics.class.php` (issues #559/#561).
+**Files changed:** `api/testcases/index.php`,
+`gui/templates/testcases/testSpec.html`,
+`gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json` (+61 `tspec.*`),
+`lib/functions/common.php` (aside link switch).
