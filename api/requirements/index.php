@@ -485,6 +485,25 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
 // ?type=reqspec). Document generation stays in lib/results/printDocument.php.
 // ---------------------------------------------------------------------------
 
+/**
+ * Requirements-enabled flag from a testproject get_by_id() record:
+ * 'opt' can be a stdClass (unserialized options blob) or an array
+ * depending on the stored value; fall back to the legacy option_reqs column.
+ */
+if (!function_exists('projReqsEnabled')) {
+    function projReqsEnabled($proj)
+    {
+        $opt = isset($proj['opt']) ? $proj['opt'] : null;
+        if (is_object($opt) && isset($opt->requirementsEnabled)) {
+            return intval($opt->requirementsEnabled) > 0;
+        }
+        if (is_array($opt) && isset($opt['requirementsEnabled'])) {
+            return intval($opt['requirementsEnabled']) > 0;
+        }
+        return !isset($proj['option_reqs']) || intval($proj['option_reqs']) > 0;
+    }
+}
+
 if ($action === 'print_init') {
     if ($tprojectId <= 0) {
         out(['status' => 'ok', 'hasProject' => false]);
@@ -534,8 +553,7 @@ if ($action === 'print_init') {
         'hasProject' => true,
         'tproject_id' => $tprojectId,
         'tproject_name' => $proj['name'],
-        'requirements_enabled' => isset($proj['opt']) && isset($proj['opt']['requirementsEnabled'])
-            ? intval($proj['opt']['requirementsEnabled']) > 0 : true,
+        'requirements_enabled' => projReqsEnabled($proj),
         'canGenerate' => (bool)$canGenerate,
         'reqQty' => $reqQty,
         'formats' => $formats,
