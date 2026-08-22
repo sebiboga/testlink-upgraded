@@ -2626,3 +2626,29 @@ Pre-fix result: HTTP 200 document rendered, but 3 E_WARNING events: `Undefined p
 **Fix commit:** de0ab88af on branch fix/issue-575.
 
 **Note discovered during this suite:** generating the same document through the full browser session on a plan with NO linked test cases surfaced an unrelated pre-existing bug — `testplan::get_testsuites()` foreach-on-null E_WARNINGs (testplan.class.php:2147/2154). Filed as #577, out of scope for #575.
+
+## Regression — Issue #577: testplan::get_testsuites() foreach-on-null on plans without linked test cases
+
+**Precondition:** admin logged in at http://localhost:8082; fixture: test project id=1 `FixProj` (options = serialized stdClass w/ requirementsEnabled/testPriorityEnabled/automationEnabled/inventoryEnabled), root testsuite id=2, test plan id=3 `EmptyPlan` (zero rows in testplan_tcversions), build id=4 `B1` on plan 3 (needed by helperGetExecCounters for on-build reports). Clear events table before each step.
+
+**Repro steps (pre-fix):**
+1. Direct call: CLI/web probe `$tplanMgr->get_testsuites(3)` on empty plan.
+2. UI path: browser session → `GET /lib/results/printDocument.php?type=testreport_onbuild&level=testproject&id=1&tproject_id=1&docTestPlanId=3&format=0`.
+3. Check Event Viewer / `events` table.
+
+**Observed pre-fix:** 2× E_WARNING `foreach() argument must be of type array|object, null given` at lib/functions/testplan.class.php:2147 and :2154; direct invocation additionally aborts with uncaught `TypeError: usort(): Argument #1 ($array) must be of type array, null given` at line 2164 → truncated HTTP 500 response (web) / fatal (CLI). Root cause: `get_recordset()` returns NULL for zero rows and `$finalset` was never initialized.
+
+**Expected post-fix:** document renders; zero new Error/Warning events; `get_testsuites()` returns `array()` for empty plans and the full suite set (case suites + ancestors, name-sorted) for populated plans.
+
+**Actual result (post-fix): PASS**
+| # | Step | Result |
+|---|------|--------|
+| 1 | Empty plan direct probe → returns `array(0) {}`, no warnings, no fatal | PASS |
+| 2 | printDocument testreport_onbuild via browser on empty plan → doc renders ("testreport_onbuild EmptyPlan"), 0 new events | PASS |
+| 3 | tlTestPlanMetrics::getExecCountersByTestSuiteExecStatus(3) full chain → metrics array with `tsuites_full=[]`, HTTP 200, DONE reached, 0 events | PASS |
+| 4 | Positive regression: link TC-1 (suite TS-A id=5 under Root id=2) to plan 3 → get_testsuites(3) returns `[Root Suite(2), TS-A(5)]` sorted by name | PASS |
+| 5 | resultsGeneral.php?tplan_id=3&format=0 → original 2147/2154 warnings + usort crash gone | PASS |
+
+**Fix:** `(array)` cast on `get_recordset()` result + `$finalset = array()` init (testplan.class.php:2141-2161) — same pattern as `get_parenttestsuites()`.
+
+**Follow-up discovered during this suite (out of scope):** with the crash gone, the resultsGeneral render path surfaces 3 pre-existing downstream E_WARNINGs on empty plans (tlTestPlanMetrics.class.php:1259 undefined key `tsuites`, :1383/:1393 property read on null from getStatusTotalsByItemForRender returning [null,null]). Filed separately.
