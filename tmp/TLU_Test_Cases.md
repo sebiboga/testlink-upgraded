@@ -2210,7 +2210,7 @@ one test case node id 2 "TC for issue 553" with tcversion id 3
 | 2 | Post-fix same print flow → page renders full single-TC print view ("Test Case IT553-1: TC for issue 553 [Version : 1]", summary/preconditions/keywords sections), **zero** new rows in `events` | PASS |
 | 3 | Positive path intact: link a tracker via SQL (`issuetrackers` type 15 redmine-rest + `testproject_issuetracker` row), repeat print → interface object instantiated, page renders, **zero** new events | PASS |
 | 4 | Negative path restored: remove link rows again, repeat print → still warning-free | PASS |
-| 5 | Caller audit: all 17 `getInterfaceObject()` call sites (print.inc.php, execSetResults, resultsBugs, bugAdd, mainPage, api/execute/index.php, …) share the fixed method → all covered by the same guard; behavior in linked-tracker case unchanged | PASS |
+| 5 | Caller audit: all 12 live `getInterfaceObject()` call sites of `tlIssueTracker` (print.inc.php, execSetResults, resultsBugs, resultsByStatus, execHistory, bugAdd, testcaseCommands, mainPage, api/execute/index.php, …) share the fixed method → all covered by the same guard; behavior in linked-tracker case unchanged | PASS |
 | 6 | Event Viewer after all flows: 0 Error/Warning entries | PASS |
 
 **Actual result:** 6/6 PASS.
