@@ -3654,7 +3654,7 @@ class tlTestPlanMetrics extends testplan
    */
   function getExecTimeSpan($id,$context) {
 
-    $fieldList .= implode(',', $context);
+    $fieldList = implode(',', $context);
  
     $sql = "SELECT MIN(execution_ts) AS begin,
             MAX(execution_ts) AS end, {$fieldList}

@@ -1837,7 +1837,8 @@ function getActions(&$gui,$baseURL) {
   $actions->milestonesView = null;
   $actions->testcase_assignments = null;
   if ($tplan_id >0) {
-    $actions->buildView = "$pp/buildView.php?{$ctx}";
+    // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
+    $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
     $actions->mileView = "$pp/planMilestonesView.php?{$ctx}";
     $actions->platformAssign = "$bb/platforms/platformsAssign.php?{$ctx}";
     $actions->milestonesView = "$bb/plan/planMilestonesView.php?{$ctx}";
