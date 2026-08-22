@@ -1828,7 +1828,8 @@ function getActions(&$gui,$baseURL) {
 
 
   $pp = $bb . '/plan';
-  $actions->planView = "$pp/planView.php?{$ctx}";
+  // Test Plan Management modernized screen (Dashio standalone page) - Refs #576
+  $actions->planView = "/gui/templates/plans/planView.html?{$ctx}";
 
   $actions->buildView = null;
   $actions->mileView = null;
