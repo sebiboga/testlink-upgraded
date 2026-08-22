@@ -2810,3 +2810,28 @@ Post-fix regression: delete modal opens/cancels via delegation, notes render san
 |---|------|--------|
 | 17 | **BUG-1 fixed**: `build::update()` unconditionally wipes `closed_on_date`; BFF now preserves the historical closure date on non-transition saves (open→closed stamps today, closed→open clears, still-closed restores). Edit-save of a closed build keeps `2026-08-22` | PASS |
 | 18 | Source build validated against target plan (cross-plan assignment cloning blocked) — code-reviewed fix, negative path returns 400 | PASS (code path) |
+
+## Regression — Issue #591: BFF CSRF guard on mutating routes + hardened session cookie
+
+**Precondition:** fresh DB; SQL fixture: project 900001 "I591Proj" (prefix I591), plan 900002 "I591Plan", build 900003 "BuildB1"; admin/admin logged in; cookie jar for curl.
+
+**Pre-fix repro:** `curl -b jar -X POST -d '{"active":0}' http://localhost:8082/api/builds/index.php/900003/flags` → HTTP 200, DB flipped even with NO Origin/Referer/X-Requested-With AND with hostile `Origin: http://evil.example`; login Set-Cookie was bare (`path=/` only, no HttpOnly/SameSite).
+
+| # | Step | Result |
+|---|------|--------|
+| 1 | POST /{id}/flags with NO proof headers → 403 JSON "Forbidden: missing or mismatched same-origin proof"; DB row unchanged | PASS |
+| 2 | Same POST with hostile `Origin: http://evil.example` → 403 | PASS |
+| 3 | Same POST with hostile `Referer: http://evil.example/attack.html` → 403 | PASS |
+| 4 | Same POST with `X-Requested-With: XMLHttpRequest` → 200 {"status":"ok"}, DB updated | PASS |
+| 5 | Same POST with same-origin `Origin: http://localhost:8082` → 200 | PASS |
+| 6 | Same POST with same-origin Referer → 200 | PASS |
+| 7 | GET endpoints unaffected without headers (GET ?tplan_id=900002 → 200) | PASS |
+| 8 | Guard active on every BFF area: POST to /api/users/ without proof → 403 | PASS |
+| 9 | Login Set-Cookie now `PHPSESSID=…; path=/; HttpOnly; SameSite=Lax` (Max-Age 99999 preserved) | PASS |
+| 10 | Browser regression, buildsView.html?tplan_id=900002 (jQuery $.ajax sends XRW automatically): Active toggle → toast "Build activated"; edit + save → "Build saved" (notes persisted in table); create "BuildB2" → "Build created" (count header 2); delete BuildB2 → "Build deleted" (count header 1) | PASS |
+| 11 | Legacy flows unaffected by cookie hardening: curl form login (csrfguard tokens) → authenticated BFF GET works; mainPage shell renders | PASS |
+| 12 | Event Viewer: no new ERROR/WARNING events during the suite (only AUDIT) | PASS |
+
+**Result: 12/12 PASS** (run 2026-08-22, browser + curl).
+
+**Refs:** GitHub issue #591 · Files: `api/_guard.php` (new), `lib/functions/common.php` (doSessionStart hardening), all 22 × `api/*/index.php`
