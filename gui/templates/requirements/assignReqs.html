@@ -250,7 +250,7 @@ function loadContext() {
 }
 
 function boot() {
-  apiGet('/reqspecs', {tproject_id: tprojectId}, function(d) {
+  apiGet('/assign-reqspecs', {tproject_id: tprojectId}, function(d) {
     reqSpecs = (d && d.items) ? d.items : [];
     var hasSpecs = reqSpecs.length > 0;
     $('#noSpecNotice').toggle(!hasSpecs);
@@ -281,12 +281,12 @@ function setMode(m) {
 
 function loadPickerData() {
   if (mode === 'tc') {
-    apiGet('/testcases', {tproject_id: tprojectId}, function(d) {
+    apiGet('/assign-testcases', {tproject_id: tprojectId}, function(d) {
       tcaseItems = (d && d.items) ? d.items : [];
       renderPicker();
     });
   } else {
-    apiGet('/testsuites', {tproject_id: tprojectId}, function(d) {
+    apiGet('/assign-testsuites', {tproject_id: tprojectId}, function(d) {
       tsuiteItems = (d && d.items) ? d.items : [];
       renderPicker();
     });
@@ -346,7 +346,7 @@ function pickItem(id) {
 function loadTcaseInfo(tcid) {
   $('#tcTitle').css('color', '#999').text(TLi18n.t('reqAssign.loading'));
   $('#tcWorkArea').hide();
-  apiGet('/tcase-info', {id: tcid}, function(d) {
+  apiGet('/assign-tcase-info', {id: tcid}, function(d) {
     if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     var it = d.item;
     $('#tcTitle').css('color', '#22242a').text(
@@ -372,7 +372,7 @@ function onSpecChange(m) {
 function loadReqPanel() {
   var specId = curSpec('tc');
   if (!specId || !selTcaseId) return;
-  apiGet('/reqs', {req_spec_id: specId, tcase_id: selTcaseId}, function(d) {
+  apiGet('/assign-reqs', {req_spec_id: specId, tcase_id: selTcaseId}, function(d) {
     if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     fillMsel('#selUnassigned', d.unassigned, 'id', null);
     fillMselAssigned(d.assigned);
@@ -407,7 +407,7 @@ function fillMselAssigned(arr) {
 function doAssign() {
   var ids = $('#selUnassigned').val() || [];
   if (!ids.length) { toast(TLi18n.t('reqAssign.selectOneReq'), true); return; }
-  apiPost('/assign', {tcase_id: selTcaseId, req_ids: ids.map(Number)}, function(d, err) {
+  apiPost('/assign-reqs', {tcase_id: selTcaseId, req_ids: ids.map(Number)}, function(d, err) {
     if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     if (d.failed && d.failed.length) {
       toast(TLi18n.t('reqAssign.assignFailed').replace('{ids}', d.failed.join(', ')), true);
@@ -422,7 +422,7 @@ function doUnassign() {
   var vals = $('#selAssigned').val() || [];
   var links = vals.filter(function(v){ return String(v).charAt(0) !== 'r'; }).map(Number);
   if (!links.length) { toast(TLi18n.t('reqAssign.selectOneLink'), true); return; }
-  apiPost('/unassign', {link_ids: links}, function(d, err) {
+  apiPost('/unassign-reqs', {link_ids: links}, function(d, err) {
     if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     if (d.failed && d.failed.length) {
       toast(TLi18n.t('reqAssign.unassignFailed').replace('{ids}', d.failed.join(', ')), true);
@@ -437,7 +437,7 @@ function doUnassign() {
 function loadSuiteBulk(sid) {
   $('#bulkTitle').css('color', '#999').text(TLi18n.t('reqAssign.loading'));
   $('#bulkWorkArea').hide();
-  apiGet('/suite-tcases', {tsuite_id: sid}, function(d) {
+  apiGet('/assign-suite-tcases', {tsuite_id: sid}, function(d) {
     if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     var it = pickerFiltered().filter(function(x){ return x.id === sid; })[0] || {};
     bulkQty = d.qty;
@@ -467,7 +467,7 @@ function loadSuiteBulk(sid) {
 function loadBulkReqs() {
   var specId = curSpec('bulk');
   if (!specId) return;
-  apiGet('/reqs', {req_spec_id: specId}, function(d) {
+  apiGet('/assign-reqs', {req_spec_id: specId}, function(d) {
     if (!d || d.status !== 'ok') { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     fillMsel('#selBulkReqs', d.all, 'id', null);
     $('#cntBulkReqs').text('(' + d.all.length + ')');
@@ -480,7 +480,7 @@ function doBulkAssign() {
   if (!reqIds.length) { toast(TLi18n.t('reqAssign.selectOneReq'), true); return; }
   if (!confirm(TLi18n.t('reqAssign.bulkConfirm')
       .replace('{r}', reqIds.length).replace('{n}', bulkQty))) { return; }
-  apiPost('/bulkassign', {tsuite_id: selTsuiteId, req_ids: reqIds}, function(d, err) {
+  apiPost('/assign-bulk', {tsuite_id: selTsuiteId, req_ids: reqIds}, function(d, err) {
     if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
     toast(TLi18n.t('reqAssign.bulkDone').replace('{n}', d.assigned_qty));
   });

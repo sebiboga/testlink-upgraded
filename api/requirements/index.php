@@ -54,8 +54,10 @@ if (is_null($user)) {
     exit;
 }
 
-// Legacy reqOverview.php rights check
-if (!$user->hasRight($db, 'mgt_view_req')) {
+// Legacy reqOverview.php rights check - shared router serves several
+// requirement screens: allow either the overview right or the
+// assignReqs management right (each route enforces its own right too).
+if (!$user->hasRight($db, 'mgt_view_req') && !$user->hasRight($db, 'req_tcase_link_management')) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'No permission']);
     exit;
@@ -132,6 +134,23 @@ function resolveMonitorTprojectId($tprojectMgr) {
         out(['status' => 'error', 'message' => 'Test project not found']);
     }
     return [$tpid, $item];
+}
+
+
+// The reqspec-context / reqspec-search routes call needTprojectId(); define it
+// here if this router is deployed standalone (other api/* dirs have their own).
+if (!function_exists('needTprojectId')) {
+    function needTprojectId() {
+        $id = intval($_GET['tproject_id'] ?? 0);
+        if ($id <= 0) {
+            $id = intval($_SESSION['testprojectID'] ?? 0);
+        }
+        if ($id <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid test project id']);
+        }
+        return $id;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -798,370 +817,432 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'reqspec-sea
     ]);
 }
 
+http_response_code(404);
 
 // ===========================================================================
-// C) Search Requirements (path routed) - modernized searchReq screen.
-// Mirrors lib/requirements/reqSearchForm.php + reqSearch.php (1.9.20):
-// - search ONLY on current test project; text criteria AND-ed (LIKE '%v%')
-// - versions AND revisions searched (UNION), results grouped by requirement
-// - result cap = req_cfg.search.max_qty_for_display
+// C) Assign Requirements to Test Cases (assignReqs screen)
+// Mirrors lib/requirements/reqTcAssign.php (TestLink 1.9.20 behavior):
+//  - testcase mode : assign/unassign requirements to a single test case
+//    (latest version) - processTestCase() + doSingleTestCaseOperation()
+//  - testsuite mode: bulk assign requirements to every test case deep under
+//    a suite - doBulkAssignment()/bulkAssignLatestREQVTCV()
+// Whole feature requires 'req_tcase_link_management' on the project
+// (legacy pageAccessCheck with rightsAnd = ['req_tcase_link_management']).
 // ===========================================================================
 
-function getStrParam($key, $default = '') {
-    foreach ([$_GET[$key] ?? null, $_POST[$key] ?? null] as $v) {
-        if (is_string($v)) {
-            $v = trim($v);
-            return strlen($v) > 0 ? $v : $default;
-        }
+function arNeedManageRight($user, $db, $tproject_id) {
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
-    return $default;
-}
-function getIntParam($key, $default = 0) {
-    foreach ([$_GET[$key] ?? null, $_POST[$key] ?? null] as $v) {
-        if (!is_null($v) && !is_array($v) && trim((string)$v) !== '') {
-            return intval(trim((string)$v));
-        }
-    }
-    return $default;
-}
-
-// Route: GET /search-context - everything the Search Requirements form needs
-if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'search-context') {
-    list($tpid, $info) = resolveMonitorTprojectId($tprojectMgr);
-
-    if (!$user->hasRight($db, 'mgt_view_req', $tpid)) {
+    if (!$user->hasRight($db, 'req_tcase_link_management', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
+    return $tproject_id;
+}
 
-    $tcaseCfg = config_get('testcase_cfg');
-    $prefix = $tprojectMgr->getTestCasePrefix($tpid) . $tcaseCfg->glue_character;
-
-    // requirement doc ids exist? (legacy filter_by.requirement_doc_id)
-    $reqSpecSet = $tprojectMgr->getOptionReqSpec($tpid, testproject::GET_NOT_EMPTY_REQSPEC);
-    $filterByDocId = !is_null($reqSpecSet);
-
-    $meta = buildMeta($tpid);
-    $reqCfg = config_get('req_cfg');
-
-    // type domain: same source as legacy form
-    $types = [];
-    foreach ($meta['type_labels'] as $code => $lbl) {
-        $types[] = ['code' => (string)$code, 'label' => $lbl];
+/** node_types description => id map */
+function arNodeTypeMap($db) {
+    static $map = null;
+    if ($map !== null) { return $map; }
+    $map = [];
+    $rows = $db->get_recordset("SELECT id,description FROM node_types");
+    if (!is_null($rows)) {
+        foreach ($rows as $r) { $map[$r['description']] = intval($r['id']); }
     }
+    return $map;
+}
 
-    // status domain
-    $statusDomain = [];
-    foreach ($meta['status_labels'] as $code => $lbl) {
-        $statusDomain[] = ['code' => (string)$code, 'label' => $lbl];
+/** walk up nodes_hierarchy until the testproject root; 0 if not found */
+function arOwnerProjectId($db, $nodeId) {
+    $ntm = arNodeTypeMap($db);
+    $cursor = intval($nodeId);
+    $guard = 0;
+    while ($cursor > 0 && $guard++ < 200) {
+        $row = $db->get_recordset(
+            "SELECT parent_id,node_type_id FROM nodes_hierarchy WHERE id={$cursor}");
+        if (is_null($row) || !isset($row[0])) { break; }
+        if (intval($row[0]['node_type_id']) === $ntm['testproject']) { return $cursor; }
+        $cursor = intval($row[0]['parent_id']);
     }
+    return 0;
+}
 
-    // relation type select (only if relations enabled)
-    $relationItems = [];
-    if (!empty($meta['relations_enabled'])) {
-        $relSel = $reqMgr->init_relation_type_select();
-        $items = $relSel['items'];
-        // equal relations appear twice (xxx_source / xxx_destination):
-        // keep single entry keyed by numeric type like legacy form does
-        foreach ($relSel['equal_relations'] as $key => $oldkey) {
-            $new_key = (int)str_replace("_source", "", $oldkey);
-            $items[$new_key] = $relSel['items'][$oldkey];
-            unset($items[$oldkey]);
+/** breadth-first collection of all descendant nodes of $rootId */
+function arSubtreeNodes($db, $rootId) {
+    $nodes = [$rootId => ['id' => intval($rootId), 'name' => null,
+                          'parent_id' => 0, 'node_type_id' => 0]];
+    $frontier = [intval($rootId)];
+    while (count($frontier)) {
+        $in = implode(',', array_map('intval', $frontier));
+        $rows = $db->get_recordset(
+            "SELECT id,name,parent_id,node_type_id FROM nodes_hierarchy WHERE parent_id IN ({$in})");
+        $frontier = [];
+        if (!is_null($rows)) {
+            foreach ($rows as $r) {
+                $nid = intval($r['id']);
+                if (!isset($nodes[$nid])) {
+                    $nodes[$nid] = ['id' => $nid, 'name' => $r['name'],
+                                    'parent_id' => intval($r['parent_id']),
+                                    'node_type_id' => intval($r['node_type_id'])];
+                    $frontier[] = $nid;
+                }
+            }
         }
-        foreach ($items as $k => $lbl) {
-            $relationItems[] = ['id' => (string)$k, 'label' => $lbl];
+    }
+    $ri = $db->get_recordset(
+        "SELECT name,parent_id,node_type_id FROM nodes_hierarchy WHERE id=" . intval($rootId));
+    if (!is_null($ri) && isset($ri[0])) {
+        $nodes[$rootId]['name'] = $ri[0]['name'];
+        $nodes[$rootId]['parent_id'] = intval($ri[0]['parent_id']);
+        $nodes[$rootId]['node_type_id'] = intval($ri[0]['node_type_id']);
+    }
+    return $nodes;
+}
+
+/** dotted path from project root to node (root excluded) */
+function arPathOfNode($nodes, $id) {
+    $parts = [];
+    $cur = $id;
+    while (isset($nodes[$cur]) && $nodes[$cur]['parent_id'] > 0
+           && isset($nodes[$nodes[$cur]['parent_id']])) {
+        $parts[] = $nodes[$cur]['name'];
+        $cur = $nodes[$cur]['parent_id'];
+    }
+    return implode(' / ', array_reverse($parts));
+}
+
+/** latest tcversion row for a testcase id */
+function arLatestTCVersion($db, $tcaseId) {
+    $tcaseId = intval($tcaseId);
+    $rows = $db->get_recordset(
+        " SELECT TCV.id AS tcversion_id, TCV.version, TCV.active, TCV.open, TCV.tc_external_id" .
+        " FROM nodes_hierarchy NH JOIN tcversions TCV ON TCV.id = NH.id " .
+        " WHERE NH.parent_id = {$tcaseId} ORDER BY TCV.version DESC");
+    if (is_null($rows) || count($rows) == 0) { return null; }
+    return $rows[0];
+}
+
+/** req_coverage links of a tcase+tcversion pair keyed by req_id */
+function arCoverageLinksForTCVersion($db, $tcaseId, $tcversionId) {
+    $tcaseId = intval($tcaseId);
+    $tcversionId = intval($tcversionId);
+    $rows = $db->get_recordset(
+        " SELECT RCOV.id AS link_id, RCOV.link_status, RQV.req_id " .
+        " FROM req_coverage RCOV " .
+        " JOIN req_versions RQV ON RQV.id = RCOV.req_version_id " .
+        " WHERE RCOV.tcase_id = {$tcaseId} AND RCOV.tcversion_id = {$tcversionId}");
+    $ret = [];
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $ret[intval($r['req_id'])] = [
+                'link_id' => intval($r['link_id']),
+                'link_status' => intval($r['link_status']),
+            ];
         }
     }
+    return $ret;
+}
 
+function arReqRowToJSON($row) {
+    return [
+        'id' => intval($row['id']),
+        'doc_id' => isset($row['req_doc_id']) ? $row['req_doc_id'] : '',
+        'title' => isset($row['title']) ? $row['title'] : '',
+        'version' => isset($row['version']) ? intval($row['version']) : null,
+    ];
+}
+
+// GET /context?tproject_id=N - project info + rights for assignReqs screen
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'context') {
+    $tpid = needTprojectId();
+    $info = $tprojectMgr->get_by_id($tpid);
+    if (is_null($info) || !is_array($info) || !isset($info['id'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
     out([
         'status' => 'ok',
-        'context' => [
-            'tproject_id' => $tpid,
-            'tproject_name' => $info['name'],
-            'tcase_prefix' => $prefix,
-            'max_results' => intval(config_get('req_cfg')->search->max_qty_for_display),
+        'tproject_id' => intval($tpid),
+        'tproject_name' => $info['name'],
+        'rights' => [
+            'req_tcase_link_management' =>
+                (bool)$user->hasRight($db, 'req_tcase_link_management', $tpid),
         ],
-        'filters' => [
-            'requirement_doc_id' => $filterByDocId,
-            'expected_coverage' => $meta['expected_coverage_management'],
-            'relation_type' => $meta['relations_enabled'],
-            'design_scope_custom_fields' => count($meta['cfields']) > 0,
-        ],
-        'custom_fields' => $meta['cfields'],
-        'types' => $types,
-        'statuses' => $statusDomain,
-        'relation_types' => $relationItems,
     ]);
 }
 
-// Route: GET /search - run the Search Requirements
-if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'search') {
-    list($tpid, $dummyInfo) = resolveMonitorTprojectId($tprojectMgr);
+// GET /assign-reqspecs?tproject_id=N - requirement spec combo (genComboReqSpec)
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-reqspecs') {
+    $tpid = needTprojectId();
+    arNeedManageRight($user, $db, $tpid);
 
-    if (!$user->hasRight($db, 'mgt_view_req', $tpid)) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No permission']);
-    }
-
-    $args = new stdClass();
-
-    $strnull = ['requirement_document_id', 'name', 'scope', 'reqStatus',
-                'version', 'tcid', 'reqType', 'relation_type',
-                'creation_date_from', 'creation_date_to', 'log_message',
-                'modification_date_from', 'modification_date_to'];
-    foreach ($strnull as $keyvar) {
-        $args->$keyvar = getStrParam($keyvar, '');
-        if ($args->$keyvar === '') {
-            $args->$keyvar = null;
+    $combo = $tprojectMgr->genComboReqSpec($tpid, 'dotted', "&nbsp;");
+    $items = [];
+    if (!is_null($combo)) {
+        foreach ($combo as $rid => $rname) {
+            $items[] = ['id' => intval($rid),
+                        'name' => trim(str_replace('&nbsp;', ' ', $rname))];
         }
     }
+    out(['status' => 'ok', 'items' => $items]);
+}
 
-    $int0 = ['custom_field_id', 'coverage'];
-    foreach ($int0 as $keyvar) {
-        $args->$keyvar = getIntParam($keyvar, 0);
+// GET /assign-testcases?tproject_id=N - flat picker list (replaces tree launcher)
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-testcases') {
+    $tpid = needTprojectId();
+    arNeedManageRight($user, $db, $tpid);
+
+    $ntm = arNodeTypeMap($db);
+    $nodes = arSubtreeNodes($db, $tpid);
+    $prefix = '';
+    $pj = $tprojectMgr->get_by_id($tpid);
+    if (!is_null($pj) && is_array($pj) && isset($pj['prefix'])) { $prefix = $pj['prefix']; }
+
+    $items = [];
+    foreach ($nodes as $nid => $n) {
+        if ($n['node_type_id'] !== $ntm['testcase']) { continue; }
+        $latest = arLatestTCVersion($db, $nid);
+        $extId = is_null($latest) ? '' : strval($latest['tc_external_id']);
+        $items[] = [
+            'id' => $nid,
+            'name' => $n['name'],
+            'full_external_id' => ($prefix !== '' ? $prefix . '-' : '') . $extId,
+            'external_id' => $extId,
+            'version' => is_null($latest) ? null : intval($latest['version']),
+            'path' => arPathOfNode($nodes, $nid),
+        ];
     }
+    usort($items, function ($a, $b) {
+        return strcmp($a['path'] . '~~' . $a['name'], $b['path'] . '~~' . $b['name']);
+    });
+    out(['status' => 'ok', 'items' => $items]);
+}
 
-    $args->userID = intval($userId);
-    $args->tprojectID = $tpid;
+// GET /assign-testsuites?tproject_id=N - flat suite list (bulk mode picker)
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-testsuites') {
+    $tpid = needTprojectId();
+    arNeedManageRight($user, $db, $tpid);
 
-    $sql = reqBuildSearchSql($db, $args);
-    $map = (array)$db->fetchRowsIntoMap($sql, 'id', database::CUMULATIVE);
-
-    // dont show requirements from different testprojects than the selected one
-    if (count($map)) {
-        foreach (array_keys($map) as $item) {
-            $pid = $tprojectMgr->tree_manager->getTreeRoot($item);
-            if ($pid != $tpid) {
-                unset($map[$item]);
-            }
-        }
+    $ntm = arNodeTypeMap($db);
+    $nodes = arSubtreeNodes($db, $tpid);
+    $items = [];
+    foreach ($nodes as $nid => $n) {
+        if ($n['node_type_id'] !== $ntm['testsuite'] || $nid == $tpid) { continue; }
+        $items[] = ['id' => $nid, 'name' => $n['name'],
+                    'path' => arPathOfNode($nodes, $nid)];
     }
+    usort($items, function ($a, $b) { return strcmp($a['path'], $b['path']); });
+    out(['status' => 'ok', 'items' => $items]);
+}
 
-    $rowQty = count($map);
-    $maxDisplay = intval(config_get('req_cfg')->search->max_qty_for_display);
-
-    $resultSet = [];
-    $tooWide = false;
-    if ($rowQty > 0) {
-        if ($rowQty <= $maxDisplay) {
-            $req_set = array_keys($map);
-            $options = ['output_format' => 'path_as_string'];
-            $pathInfo = $tprojectMgr->tree_manager->get_full_path_verbose($req_set, $options);
-
-            $charset = config_get('charset');
-            foreach ($map as $req_id => $itemSet) {
-                $rfx = $itemSet[0];
-
-                $matches = [];
-                $seen = [];
-                foreach ($itemSet as $rx) {
-                    // de-duplicate identical version|revision pairs
-                    $tag = $rx['version'] . '|' . $rx['revision'];
-                    if (isset($seen[$tag])) { continue; }
-                    $seen[$tag] = true;
-                    $matches[] = [
-                        'version_id' => intval($rx['version_id']),
-                        'version' => intval($rx['version']),
-                        'revision_id' => intval($rx['revision_id']),
-                        'revision' => intval($rx['revision']),
-                    ];
-                }
-
-                $path = '';
-                if (isset($pathInfo[$rfx['id']])) {
-                    $p = $pathInfo[$rfx['id']];
-                    $path = is_array($p) ? implode(" / ", $p) : (string)$p;
-                }
-
-                $resultSet[] = [
-                    'req_id' => intval($rfx['id']),
-                    'req_doc_id' => htmlentities($rfx['req_doc_id'], ENT_QUOTES, $charset),
-                    'name' => htmlentities($rfx['name'], ENT_QUOTES, $charset),
-                    'path' => htmlentities($path, ENT_QUOTES, $charset),
-                    'matches' => $matches,
-                ];
-            }
-        } else {
-            $tooWide = true;
-        }
+// GET /assign-tcase-info?id=N - latest version info (legacy processTestCase)
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-tcase-info') {
+    $tcase_id = intval(getParam('id', 0));
+    if ($tcase_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test case id']);
     }
+    arNeedManageRight($user, $db, arOwnerProjectId($db, $tcase_id));
 
+    $nh = $db->get_recordset(
+        "SELECT name,parent_id FROM nodes_hierarchy WHERE id={$tcase_id}");
+    if (is_null($nh) || !isset($nh[0])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case not found']);
+    }
+    $latest = arLatestTCVersion($db, $tcase_id);
+    if (is_null($latest)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case has no versions']);
+    }
+    $executed = $db->fetchFirstRowSingleColumn(
+        "SELECT COUNT(*) AS cnt FROM executions WHERE tcversion_id=" .
+        intval($latest['tcversion_id']), 'cnt');
     out([
         'status' => 'ok',
-        'row_qty' => $rowQty,
-        'too_wide' => $tooWide,
-        'max_results' => $maxDisplay,
-        'results' => $resultSet,
+        'item' => [
+            'id' => $tcase_id,
+            'name' => $nh[0]['name'],
+            'tcversion_id' => intval($latest['tcversion_id']),
+            'version' => intval($latest['version']),
+            'executed' => intval($executed) > 0,
+        ],
     ]);
 }
 
-// ---------------------------------------------------------------------------
-// Reimplementation of legacy build_search_sql() from lib/requirements/reqSearch.php
-// (kept verbatim in behavior: UNION over req_versions + req_revisions)
-// ---------------------------------------------------------------------------
-function reqBuildSearchSql(&$dbHandler, &$argsObj) {
-    $tables = tlObjectWithDB::getDBTables([
-        'cfield_design_values', 'nodes_hierarchy', 'req_specs', 'req_relations',
-        'req_versions', 'req_revisions', 'requirements', 'req_coverage', 'tcversions'
-    ]);
+// GET /assign-reqs?req_spec_id=N&tcase_id=X(optional)
+// legacy processTestCase(): get_requirements() on spec +
+// getReqsOnSpecForLatestTCV() assigned + array_diff_byId() unassigned
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-reqs') {
+    $spec_id = intval(getParam('req_spec_id', 0));
+    if ($spec_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid requirement spec id']);
+    }
+    arNeedManageRight($user, $db, arOwnerProjectId($db, $spec_id));
 
-    $filter = ['ver' => null, 'rev' => null];
-    $from   = ['ver' => null, 'rev' => null];
+    $reqSpecMgr = new requirement_spec_mgr($db);
+    $all = $reqSpecMgr->get_requirements($spec_id);
+    $allOut = [];
+    if (!is_null($all)) {
+        foreach ($all as $r) { $allOut[] = arReqRowToJSON($r); }
+    }
 
-    // date filters (localized input -> ISO, with hh:mm:ss boundaries)
-    $date_fields = ['creation_ts' => 'ts', 'modification_ts' => 'ts'];
-    $date_keys = ['date_from' => '>=', 'date_to' => '<='];
-    foreach ($date_fields as $fx => $needle) {
-        foreach ($date_keys as $fk => $op) {
-            $fkey = str_replace($needle, $fk, $fx);
-            if ($argsObj->$fkey) {
-                $iso = reqLocalizeDateToIso($argsObj->$fkey);
-                if (!is_null($iso)) {
-                    $hhmmss = ('from' == substr($fkey, -4)) ? ' 00:00:00' : ' 23:59:59';
-                    $iso .= $hhmmss;
-                    $filter['ver'][$fkey] = " AND REQV.$fx $op '{$iso}' ";
-                    $filter['rev'][$fkey] = " AND REQR.$fx $op '{$iso}' ";
+    $assignedOut = [];
+    $unassignedOut = $allOut;
+
+    $tcase_id = intval(getParam('tcase_id', 0));
+    if ($tcase_id > 0) {
+        $latest = arLatestTCVersion($db, $tcase_id);
+        if (!is_null($latest)) {
+            $fx = ['link_status' => [LINK_TC_REQ_OPEN, LINK_TC_REQ_CLOSED_BY_EXEC]];
+            $assigned = $reqSpecMgr->getReqsOnSpecForLatestTCV($spec_id, $tcase_id, null, $fx);
+
+            $links = arCoverageLinksForTCVersion($db, $tcase_id, $latest['tcversion_id']);
+            $assignedIds = [];
+            if (!is_null($assigned)) {
+                foreach ($assigned as $r) {
+                    $j = arReqRowToJSON($r);
+                    $j['link_id'] = isset($links[intval($r['id'])])
+                        ? $links[intval($r['id'])]['link_id'] : null;
+                    $j['link_status'] = isset($links[intval($r['id'])])
+                        ? $links[intval($r['id'])]['link_status'] : null;
+                    $assignedIds[] = intval($j['id']);
+                    $assignedOut[] = $j;
                 }
             }
+            // legacy array_diff_byId()
+            $unassignedOut = array_values(array_filter($allOut,
+                function ($r) use ($assignedIds) {
+                    return !in_array(intval($r['id']), $assignedIds);
+                }));
         }
     }
 
-    // LIKE filters
-    $likeKeys = [
-        'name'                   => ['name'       => ['ver' => "NH_REQ", 'rev' => "REQR"]],
-        'requirement_document_id'=> ['req_doc_id' => ['ver' => 'REQ',    'rev' => 'REQR']],
-        'scope'                  => ['scope'      => ['ver' => 'REQV',   'rev' => 'REQR']],
-        'log_message'            => ['log_message'=> ['ver' => 'REQV',   'rev' => 'REQR']],
-    ];
-
-    foreach ($likeKeys as $key => $fcfg) {
-        if ($argsObj->$key) {
-            $value = $dbHandler->prepare_string($argsObj->$key);
-            $field = key($fcfg);
-            foreach ($fcfg[$field] as $table => $alias) {
-                $filter[$table][$field] = " AND {$alias}.{$field} like '%{$value}%' ";
-            }
-        }
-    }
-
-    // exact char filters
-    $char_keys = [
-        'reqType'   => ['type'   => ['ver' => "REQV", 'rev' => "REQR"]],
-        'reqStatus' => ['status' => ['ver' => 'REQV', 'rev' => 'REQR']],
-    ];
-
-    foreach ($char_keys as $key => $fcfg) {
-        if ($argsObj->$key) {
-            $value = $dbHandler->prepare_string($argsObj->$key);
-            $field = key($fcfg);
-            foreach ($fcfg[$field] as $table => $alias) {
-                $filter[$table][$field] = " AND {$alias}.{$field} = '{$value}' ";
-            }
-        }
-    }
-
-    if ($argsObj->version !== null && $argsObj->version != '') {
-        $version = $dbHandler->prepare_int($argsObj->version);
-        $filter['ver']['version'] = " AND REQV.version = {$version} ";
-    }
-
-    if ($argsObj->coverage > 0) {
-        // search by expected coverage of testcases
-        $coverage = $dbHandler->prepare_int($argsObj->coverage);
-        $filter['ver']['coverage'] = " AND REQV.expected_coverage = {$coverage} ";
-        $filter['rev']['coverage'] = " AND REQR.expected_coverage = {$coverage} ";
-    }
-
-    // Complex processing: relation type
-    // value format: e.g. "3_destination" / "2_source" / "4"
-    if (!is_null($argsObj->relation_type)) {
-        $dummy = explode('_', $argsObj->relation_type);
-        $rel_type = $dummy[0];
-        $side = isset($dummy[1])
-            ? " RR.{$dummy[1]}_id = NH_REQ.id "
-            : " RR.source_id = NH_REQ.id OR RR.destination_id = NH_REQ.id ";
-        $from['ver']['relation_type'] =
-            " JOIN {$tables['req_relations']} RR ON ($side) AND RR.relation_type = {$rel_type} ";
-        $from['rev']['relation_type'] = $from['ver']['relation_type'];
-    }
-
-    if ($argsObj->custom_field_id > 0) {
-        $cfield_id = $dbHandler->prepare_int($argsObj->custom_field_id);
-        $cfValue = isset($argsObj->custom_field_value) ? (string)$argsObj->custom_field_value : '';
-        $cfield_value = $dbHandler->prepare_string($cfValue);
-        $from['ver']['custom_field'] =
-            " JOIN {$tables['cfield_design_values']} CFD ON CFD.node_id = REQV.id ";
-        $from['rev']['custom_field'] =
-            " JOIN {$tables['cfield_design_values']} CFD ON CFD.node_id = REQR.id ";
-        $filter['ver']['custom_field'] =
-            " AND CFD.field_id = {$cfield_id} AND CFD.value like '%{$cfield_value}%' ";
-        $filter['rev']['custom_field'] = $filter['ver']['custom_field'];
-    }
-
-    if ($argsObj->tcid != "" && !is_null($argsObj->tcid)) {
-        // search for reqs linked to this testcase (by external id)
-        $tcid = trim(str_replace(config_get('testcase_cfg')->glue_character, "", $argsObj->tcid));
-        $tcid = $dbHandler->prepare_string($tcid);
-        if ($tcid != '') {
-            $filter['ver']['tcid'] = " AND TCV.tc_external_id = '{$tcid}' ";
-
-            $from['ver']['tcid'] =
-                " JOIN {$tables['req_coverage']} RC ON RC.req_version_id = NH_REQV.id " .
-                " JOIN {$tables['nodes_hierarchy']} NH_TCV ON NH_TCV.id = RC.tcversion_id " .
-                " JOIN {$tables['tcversions']} TCV ON TCV.id = NH_TCV.id ";
-            $from['rev']['tcid'] = $from['ver']['tcid'];
-        }
-    }
-
-    // STEP 1 - search on REQ Versions
-    $common = " SELECT NH_REQ.name, REQ.id, REQ.req_doc_id,";
-    $sql = $common .
-        " REQV.id as version_id, REQV.version, REQV.revision, -1 AS revision_id " .
-        " FROM {$tables['requirements']} REQ " .
-        " JOIN {$tables['nodes_hierarchy']} NH_REQ ON NH_REQ.id=REQ.id " .
-        " JOIN {$tables['nodes_hierarchy']} NH_REQV ON NH_REQV.parent_id = NH_REQ.id " .
-        " JOIN {$tables['req_versions']} REQV ON REQV.id=NH_REQV.id ";
-
-    foreach (['from', 'filter'] as $vv) {
-        $ref = &$$vv;
-        if (!is_null($ref['ver'])) {
-            $sql .= ($vv == 'filter') ? ' WHERE 1=1 ' : '';
-            $sql .= implode("", $ref['ver']);
-        }
-    }
-    $stm['ver'] = $sql;
-
-    // STEP 2 - search on REQ Revisions (UNION)
-    $sql4Union = $common .
-        " REQR.parent_id AS version_id, REQV.version, REQR.revision, REQR.id AS revision_id " .
-        " FROM {$tables['requirements']} REQ " .
-        " JOIN {$tables['nodes_hierarchy']} NH_REQ ON NH_REQ.id=REQ.id " .
-        " JOIN {$tables['nodes_hierarchy']} NH_REQV ON NH_REQV.parent_id = NH_REQ.id " .
-        " JOIN {$tables['req_versions']} REQV ON REQV.id=NH_REQV.id " .
-        " JOIN {$tables['req_revisions']} REQR ON REQR.parent_id=REQV.id ";
-
-    foreach (['from', 'filter'] as $vv) {
-        $ref = &$$vv;
-        if (!is_null($ref['rev'])) {
-            $sql4Union .= ($vv == 'filter') ? ' WHERE 1=1 ' : '';
-            $sql4Union .= implode("", $ref['rev']);
-        }
-    }
-
-    $sql = $stm['ver'] . " UNION ({$sql4Union}) ORDER BY id ASC, version DESC, revision DESC ";
-    return $sql;
+    usort($assignedOut, function ($a, $b) { return strcmp($a['doc_id'], $b['doc_id']); });
+    out(['status' => 'ok', 'all' => $allOut, 'assigned' => $assignedOut,
+         'unassigned' => $unassignedOut]);
 }
 
-/**
- * Convert a localized date (per configured date_format) to ISO Y-m-d.
- */
-function reqLocalizeDateToIso($localizedDate) {
-    $dateFormat = config_get('date_format');
-    $l10ndate = split_localized_date(trim($localizedDate), $dateFormat);
-    if (is_array($l10ndate)) {
-        return $l10ndate['year'] . "-" . $l10ndate['month'] . "-" . $l10ndate['day'];
+// POST /assign-reqs {tcase_id, req_ids[]} - legacy doAction=assign/assign_to_tcase()
+if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-reqs') {
+    $body = getBody();
+    $tcase_id = intval(isset($body['tcase_id']) ? $body['tcase_id'] : 0);
+    $reqIds = array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : []));
+    if ($tcase_id <= 0 || count($reqIds) === 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing selected']);
     }
-    return null;
+    arNeedManageRight($user, $db, arOwnerProjectId($db, $tcase_id));
+
+    $tcaseMgr = new testcase($db);
+    $tcase = $tcaseMgr->get_by_id($tcase_id);
+    if (is_null($tcase) || count($tcase) == 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case not found']);
+    }
+
+    $reqMgr2 = new requirement_mgr($db);
+    $failed = [];
+    foreach ($reqIds as $rid) {
+        // legacy: assign_to_tcase() links the requirement's LATEST version to
+        // the test case's LATEST version
+        $res = $reqMgr2->assign_to_tcase($rid, $tcase_id, $userId);
+        if (!$res) { $failed[] = $rid; }
+    }
+    out(['status' => 'ok', 'failed' => $failed,
+         'assigned_qty' => count($reqIds) - count($failed)]);
 }
 
+// POST /unassign-reqs {link_ids[]} - legacy delReqVersionTCVersionLinkByID()
+if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'unassign-reqs') {
+    $body = getBody();
+    $linkIds = array_map('intval', (array)(isset($body['link_ids']) ? $body['link_ids'] : []));
+    if (count($linkIds) === 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing selected']);
+    }
 
+    $inLinks = implode(',', $linkIds);
+    $row = $db->get_recordset(
+        " SELECT DISTINCT RCOV.tcase_id FROM req_coverage RCOV" .
+        " WHERE RCOV.id IN ({$inLinks})");
+    if (is_null($row) || count($row) === 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Link(s) not found']);
+    }
+    arNeedManageRight($user, $db, arOwnerProjectId($db, intval($row[0]['tcase_id'])));
+
+    $reqMgr3 = new requirement_mgr($db);
+    $failed = [];
+    foreach ($linkIds as $lid) {
+        $res = $reqMgr3->delReqVersionTCVersionLinkByID($lid);
+        if (!$res) { $failed[] = $lid; }
+    }
+    out(['status' => 'ok', 'failed' => $failed,
+         'unassigned_qty' => count($linkIds) - count($failed)]);
+}
+
+// GET /assign-suite-tcases?tsuite_id=N - deep tcase set (bulk warning/targets)
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-suite-tcases') {
+    $tsuite_id = intval(getParam('tsuite_id', 0));
+    if ($tsuite_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test suite id']);
+    }
+    arNeedManageRight($user, $db, arOwnerProjectId($db, $tsuite_id));
+
+    $outItems = [];
+    $ids = null;
+    if (class_exists('testsuite')) {
+        $tsMgr = new testsuite($db);
+        $ids = $tsMgr->get_testcases_deep($tsuite_id, 'only_id');
+    }
+    if (!is_null($ids) && count($ids)) {
+        $in = implode(',', array_map('intval', $ids));
+        $rows = $db->get_recordset("SELECT id,name FROM nodes_hierarchy WHERE id IN ({$in})");
+        if (!is_null($rows)) {
+            foreach ($rows as $r) {
+                $outItems[] = ['id' => intval($r['id']), 'name' => $r['name']];
+            }
+        }
+        usort($outItems, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+    }
+    out(['status' => 'ok', 'qty' => count($outItems), 'items' => $outItems]);
+}
+
+// POST /assign-bulk {tsuite_id, req_ids[], tcase_ids[](optional)}
+// legacy doAction=bulkassign -> bulkAssignLatestREQVTCV()
+if ($method === 'POST' && count($segments) === 1 && $segments[0] === 'assign-bulk') {
+    $body = getBody();
+    $tsuite_id = intval(isset($body['tsuite_id']) ? $body['tsuite_id'] : 0);
+    $reqIds = array_map('intval', (array)(isset($body['req_ids']) ? $body['req_ids'] : []));
+    if ($tsuite_id <= 0 || count($reqIds) === 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Nothing selected']);
+    }
+    arNeedManageRight($user, $db, arOwnerProjectId($db, $tsuite_id));
+
+    $tcaseSet = [];
+    if (class_exists('testsuite')) {
+        $tsMgr = new testsuite($db);
+        $tcaseSet = (array)$tsMgr->get_testcases_deep($tsuite_id, 'only_id');
+    }
+    // optional explicit subset (legacy intersects with the tree filter selection)
+    $explicit = array_map('intval', (array)(isset($body['tcase_ids']) ? $body['tcase_ids'] : []));
+    if (count($explicit) > 0) {
+        $tcaseSet = array_intersect($tcaseSet, $explicit);
+    }
+
+    $counter = 0;
+    if (!is_null($tcaseSet) && count($tcaseSet)) {
+        $reqMgr4 = new requirement_mgr($db);
+        $counter = $reqMgr4->bulkAssignLatestREQVTCV($reqIds, $tcaseSet, $userId);
+    }
+    out(['status' => 'ok', 'assigned_qty' => intval($counter),
+         'tcase_qty' => count((array)$tcaseSet)]);
+}
+
+echo json_encode(['status' => 'error', 'message' => 'Unknown endpoint']);
