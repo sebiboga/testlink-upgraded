@@ -344,6 +344,22 @@ function planAddTcNeedCtx(&$body, &$tplanMgr) {
     return [$tproject_id, $tplan_id, $info];
 }
 
+// true when nodeId sits inside the tproject subtree (walks parents up)
+function planAddTcInProject(&$db, $nh, $nodeId, $tproject_id) {
+    $walker = intval($nodeId);
+    $steps = 0;
+    while ($walker > 0 && $steps++ < 50) {
+        if ($walker == intval($tproject_id)) {
+            return true;
+        }
+        $rowP = $db->fetchRowsIntoMap(
+            "SELECT parent_id FROM {$nh} WHERE id = {$walker}", 'parent_id');
+        $keys = array_keys((array)$rowP);
+        $walker = count($keys) ? intval($keys[0]) : 0;
+    }
+    return false;
+}
+
 // keyword filter: comma separated keyword ids -> IN(...) list or ''
 function planAddTcKeywordList() {
     $raw = trim((string)(getParam('keyword_id', $_POST['keyword_id'] ?? '')));
@@ -417,6 +433,14 @@ if ($method === 'GET' && count($segments) === 2 &&
     }
 
     $tplan_id = intval(getParam('tplan_id', 0));
+    // plan picker must never leak other projects' plan data
+    if ($tplan_id > 0) {
+        $own = $tplanMgr->get_by_id($tplan_id);
+        if (!$own || intval($own['testproject_id']) != $tproject_id) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Test plan not found']);
+        }
+    }
     $platforms = [];
     $builds = [];
     $testers = [];
@@ -490,6 +514,14 @@ if ($method === 'GET' && count($segments) === 2 &&
     $rootId = intval(getParam('container_id', $tproject_id));
     if ($rootId <= 0) {
         $rootId = $tproject_id;
+    }
+    // recursion root must live inside this project (no cross-project walk)
+    if ($rootId != $tproject_id) {
+        $prow = planAddTcInProject($db, $nh, $rootId, $tproject_id);
+        if (!$prow) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Container not found']);
+        }
     }
 
     $sql = "WITH RECURSIVE subtree AS ( " .
@@ -847,6 +879,17 @@ if ($method === 'POST' && count($segments) === 2 &&
         return true;
     }
 
+    // every test case must live inside the target project
+    function planAddTcPairsInProject($db, $nh, $pairs, $tproject_id) {
+        foreach ($pairs as $p) {
+            list($tcId,,) = $p;
+            if (!planAddTcInProject($db, $nh, intval($tcId), $tproject_id)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     $addPairs = planAddTcNormalize($add);
     $remPairs = planAddTcNormalize($remove);
     if (!planAddTcValidatePairs($db, $nh, $tcv, $addPairs) ||
@@ -854,6 +897,13 @@ if ($method === 'POST' && count($segments) === 2 &&
         http_response_code(400);
         out(['status' => 'error',
              'message' => 'Invalid test case/version combination']);
+    }
+    // no cross-project linking: both sets must belong to this project
+    if (!planAddTcPairsInProject($db, $nh, $addPairs, $tproject_id) ||
+        !planAddTcPairsInProject($db, $nh, $remPairs, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'Test case does not belong to this project']);
     }
 
     // adds must target ACTIVE versions (legacy shows only active for adding)
@@ -893,16 +943,32 @@ if ($method === 'POST' && count($segments) === 2 &&
     $addedFeatures = null;
     try {
         if (count($addPairs) > 0) {
+            // drop pairs already linked (legacy filtered duplicates via
+            // getFilteredLinkedVersions; blind re-link would dup features)
+            $have = [];
+            $dup = $db->fetchColumnsIntoMap("SELECT CONCAT(tcversion_id, '_', " .
+                "COALESCE(platform_id,0)) AS k FROM {$tpv} " .
+                "WHERE testplan_id = {$tplan_id}", 'k', 'k');
+            foreach ((array)$dup as $k => $v) {
+                $have[$k] = true;
+            }
+            $fresh = [];
             $itemsToLink = ['tcversion' => [], 'platform' => [], 'items' => []];
             foreach ($addPairs as $p) {
                 list($tcId, $platId, $tvId) = $p;
+                if (isset($have[$tvId . '_' . $platId])) {
+                    continue;
+                }
+                $fresh[] = $p;
                 $itemsToLink['tcversion'][$tcId] = $tvId;
                 $itemsToLink['platform'][$platId] = $platId;
                 $itemsToLink['items'][$tcId][$platId] = $tvId;
             }
-            $addedFeatures = $tplanMgr->link_tcversions($tplan_id,
-                $itemsToLink, intval($user->dbID));
-            $added = count($addPairs);
+            if (count($fresh) > 0) {
+                $addedFeatures = $tplanMgr->link_tcversions($tplan_id,
+                    $itemsToLink, intval($user->dbID));
+            }
+            $added = count($fresh);
         }
         if (count($remPairs) > 0) {
             $itemsToUnlink = ['tcversion' => [], 'platform' => [], 'items' => []];

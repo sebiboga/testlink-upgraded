@@ -313,7 +313,6 @@ function renderContainer(){
     // version select: default = newest ACTIVE version, or linked one when linked
     var defVid=0, defVer=-1;
     it.versions.forEach(function(v){ if(v.active==1 && v.version>defVer){defVer=v.version;defVid=v.tcversion_id;} });
-    it.links.forEach(function(l){ defVid=l.tcversion_id; });
 
     var vsel='<select class="vsel" data-tc="'+it.tc_id+'">';
     it.versions.slice().sort(function(a,b){return b.version-a.version;}).forEach(function(v){
@@ -326,7 +325,7 @@ function renderContainer(){
     var platCell='-';
     if(hasPlat){
       platCell='<select class="psel" multiple size="1" data-tc="'+it.tc_id+'" title="'+esc(TLi18n.t('paddtc.platforms'))+'">';
-      (r.platforms||[]).forEach(function(p){ platCell+='<option value="'+p.id+'" selected>'+esc(p.name)+'</option>'; });
+      (r.platforms||[]).forEach(function(p){ platCell+='<option value="'+p.id+'">'+esc(p.name)+'</option>'; });
       platCell+='</select>';
     }
 

@@ -1876,7 +1876,6 @@ function getActions(&$gui,$baseURL) {
   // removed so the frmWorkArea launcher no longer overwrites the link)
   $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
   
-  $gui->workArea->planAddTC = null;
   $gui->workArea->executeTest = null;
   $gui->workArea->setTestUrgency = null;
   $gui->workArea->planUpdateTC = null;
@@ -1885,9 +1884,8 @@ function getActions(&$gui,$baseURL) {
   $gui->workArea->showMetrics = null;
   
   if ($tplan_id >0) {
-    // planAddTC switched to the modernized HTML screen above (workArea entry
-    // stays null so the frmWorkArea launcher no longer overwrites the link)
-    $gui->workArea->planAddTC = null;
+    // planAddTC switched to the modernized HTML screen above (no workArea
+    // entry here: the launcher copy-back below must not overwrite the link)
     $gui->workArea->executeTest = "executeTest&{$ctx}";
     $gui->workArea->setTestUrgency = "test_urgency&{$ctx}";
     $gui->workArea->planUpdateTC = "planUpdateTC&{$ctx}";
