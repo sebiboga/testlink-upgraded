@@ -241,6 +241,7 @@ var reqTbl = null;
 var deleteTarget = null;   // {type:'spec'|'req', id:N}
 var options = null;
 var specsCache = [];
+var reqsCache = [];
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -324,10 +325,11 @@ function renderSpecs(items) {
   if (specTbl) { specTbl.destroy(); $('#specTable tbody').empty(); }
 
   var rows = items.map(function (s) {
+    // ids only in inline handlers - titles are resolved from specsCache
+    // inside the handlers (stored-XSS-safe, review #571)
     var titleCell = '<span class="doc-id">' + esc(s.doc_id) + '</span>' +
-                    '<a class="spec-name" href="javascript:void(0)" onclick="selectSpec(' + s.id +
-                    ',\'' + esc(s.title).replace(/'/g,"\\'") + '\')">' + esc(s.title) + '</a>';
-    var scopePlain = String(s.scope == null ? '' : s.scope).replace(/<[^>]*>/g, ' ').replace(/\s+/g,' ').trim();
+                    '<a class="spec-name" href="javascript:void(0)" onclick="selectSpec(' + s.id + ')">' +
+                    esc(s.title) + '</a>';
 
     var action = '';
     if (canManage) {
@@ -335,7 +337,7 @@ function renderSpecs(items) {
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editSpec')) +
         '" onclick="openSpecEdit(' + s.id + ')"><i class="fas fa-pen"></i></button>' +
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteSpec')) +
-        '" onclick="confirmDeleteSpec(' + s.id + ',\'' + esc(s.title).replace(/'/g,"\\'") + '\')">' +
+        '" onclick="confirmDeleteSpec(' + s.id + ')">' +
         '<i class="fas fa-minus-circle"></i></button>';
     } else {
       action = '<span class="muted"><i class="fas fa-eye" title="' + esc(TLi18n.t('rs.viewOnly')) + '"></i></span>';
@@ -383,7 +385,8 @@ function fmtDate(ts) {
 }
 
 // ------------------------------------------------ requirements panel -------
-function selectSpec(id, title) {
+function selectSpec(id) {
+  var title = currentSpecTitle(id);
   $('#reqPanelSpecName').text(title);
   $('#reqPanel').data('spec-id', id).show();
   $('#btnCreateReq').toggle(canManage);
@@ -418,6 +421,7 @@ function loadReqs(specId) {
 }
 
 function renderReqs(items) {
+  reqsCache = items || [];
   $('#reqCount').text('(' + items.length + ')');
   $('#reqEmpty').toggle(items.length === 0);
   $('#reqTable').toggle(items.length > 0);
@@ -431,7 +435,7 @@ function renderReqs(items) {
         '<button class="edit-btn" title="' + esc(TLi18n.t('rs.editReq')) +
         '" onclick="openReqEdit(' + q.id + ')"><i class="fas fa-pen"></i></button>' +
         '<button class="del-btn" title="' + esc(TLi18n.t('rs.deleteReq')) +
-        '" onclick="confirmDeleteReq(' + q.id + ',\'' + esc(q.title).replace(/'/g,"\\'") + '\')">' +
+        '" onclick="confirmDeleteReq(' + q.id + ')">' +
         '<i class="fas fa-minus-circle"></i></button>';
     } else {
       action = '<span class="muted"><i class="fas fa-eye"></i></span>';
@@ -532,10 +536,11 @@ function saveSpec() {
   });
 }
 
-function confirmDeleteSpec(id, title) {
+function confirmDeleteSpec(id) {
   deleteTarget = { type: 'spec', id: id };
   $('#delTitle').text(TLi18n.t('rs.deleteSpec'));
-  $('#delMsg').html('<b>' + esc(title) + '</b><br>' + esc(TLi18n.t('rs.deleteSpecConfirm')));
+  $('#delMsg').html('<b>' + esc(currentSpecTitle(id)) + '</b><br>' +
+                    esc(TLi18n.t('rs.deleteSpecConfirm')));
   $('#delModal').modal('show');
 }
 
@@ -644,10 +649,15 @@ function saveReq() {
     });
 }
 
-function confirmDeleteReq(id, title) {
+function confirmDeleteReq(id) {
   deleteTarget = { type: 'req', id: id };
+  var title = '';
+  $.each(reqsCache, function (i, it) {
+    if (parseInt(it.id,10) === parseInt(id,10)) { title = it.title; return false; }
+  });
   $('#delTitle').text(TLi18n.t('rs.deleteReq'));
-  $('#delMsg').html('<b>' + esc(title) + '</b><br>' + esc(TLi18n.t('rs.deleteReqConfirm')));
+  $('#delMsg').html('<b>' + esc(title) + '</b><br>' +
+                    esc(TLi18n.t('rs.deleteReqConfirm')));
   $('#delModal').modal('show');
 }
 
