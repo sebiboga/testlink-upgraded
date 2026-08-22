@@ -91,21 +91,23 @@ function rowAssignRolesRight($user, $db, $tproject_id, $hasRole) {
  * Legacy action URL builder - mirrors testplan::getViewActions() so the
  * modern list keeps working with the still-legacy sub screens
  * (planEdit/planExport/planImport/usersAssign/frmWorkArea).
+ * URLs are root-absolute: the HTML screen lives under /gui/templates/plans/
+ * so relative paths would resolve against the wrong directory.
  */
 function viewActions($tproject_id, $tplan_id = 0) {
     $ent = "tproject_id=" . intval($tproject_id) . "&tplan_id=" . intval($tplan_id);
     $entProj = "tproject_id=" . intval($tproject_id);
     return [
-        'managerURL'    => 'lib/plan/planEdit.php?' . $ent,
-        'createAction'  => 'lib/plan/planEdit.php?do_action=create&' . $ent,
-        'editAction'    => 'lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
-        'exportAction'  => 'lib/plan/planExport.php?' . $ent . '&tplan_id=',
-        'importAction'  => 'lib/plan/planImport.php?' . $ent . '&tplan_id=',
+        'managerURL'    => '/lib/plan/planEdit.php?' . $ent,
+        'createAction'  => '/lib/plan/planEdit.php?do_action=create&' . $ent,
+        'editAction'    => '/lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
+        'exportAction'  => '/lib/plan/planExport.php?' . $ent . '&tplan_id=',
+        'importAction'  => '/lib/plan/planImport.php?' . $ent . '&tplan_id=',
         'assignRolesAction' =>
-            'lib/usermanagement/usersAssign.php?featureType=testplan&' .
+            '/lib/usermanagement/usersAssign.php?featureType=testplan&' .
             $ent . '&itemID=',
         'gotoExecuteAction' =>
-            'lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
+            '/lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
     ];
 }
 
