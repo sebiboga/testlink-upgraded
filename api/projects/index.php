@@ -64,12 +64,12 @@ try {
 
     case 'PUT':
       if (!$projectId) throw new Exception('Project ID required');
-      updateProject($db, $projectId);
+      updateProject($db, $tprojectMgr, $projectId);
       break;
 
     case 'DELETE':
       if (!$projectId) throw new Exception('Project ID required');
-      deleteProject($db, $projectId);
+      deleteProject($db, $tprojectMgr, $projectId);
       break;
 
     default:
@@ -146,6 +146,86 @@ function getProject(&$db, $projectId) {
   echo json_encode(['success' => true, 'data' => formatProject($rows[0])]);
 }
 
+/**
+ * Legacy parity: projectEdit.php::crossChecks() — name syntax check plus
+ * duplicate name/prefix detection. $excludeId is the project being updated
+ * (null on create), mirroring the " testprojects.id <> X" SQL filter legacy
+ * passes to get_by_name()/get_by_prefix().
+ */
+function crossChecksBFF(&$tprojectMgr, $name, $prefix, $excludeId = null) {
+  $op = $tprojectMgr->checkName($name);
+  if (!$op['status_ok']) {
+    throw new Exception($op['msg']);
+  }
+
+  $filter = null;
+  if (!is_null($excludeId)) {
+    $filter = ' testprojects.id <> ' . (int)$excludeId;
+  }
+
+  if ($tprojectMgr->get_by_name($name, $filter)) {
+    throw new Exception(sprintf(lang_get('error_product_name_duplicate'), $name));
+  }
+
+  $rs = $tprojectMgr->get_by_prefix($prefix, $filter);
+  if (!is_null($rs)) {
+    throw new Exception(sprintf(lang_get('error_tcase_prefix_exists'), $prefix));
+  }
+}
+
+function buildOptions($input) {
+  // Same defaults legacy create() applies when checkboxes are absent:
+  // priority + automation ON, requirements + inventory OFF.
+  $options = new stdClass();
+  $options->requirementsEnabled = isset($input['optReq'])
+    ? (int)(bool)$input['optReq'] : 0;
+  $options->testPriorityEnabled = isset($input['optPriority'])
+    ? (int)(bool)$input['optPriority'] : 1;
+  $options->automationEnabled = isset($input['optAutomation'])
+    ? (int)(bool)$input['optAutomation'] : 1;
+  $options->inventoryEnabled = isset($input['optInventory'])
+    ? (int)(bool)$input['optInventory'] : 0;
+  return $options;
+}
+
+/**
+ * Legacy parity: link/unlink through tlIssueTracker / tlCodeTracker managers
+ * (like doCreate/doUpdate in projectEdit.php) instead of raw SQL against the
+ * link tables, and flip the enabled flag via setIssueTrackerEnabled() /
+ * setCodeTrackerEnabled().
+ */
+function applyTrackers(&$db, &$tprojectMgr, $projectId, $input) {
+  $projectId = (int)$projectId;
+
+  if (array_key_exists('issue_tracker_id', $input)) {
+    $itId = (int)$input['issue_tracker_id'];
+    $itMgr = new tlIssueTracker($db);
+    $linked = $itMgr->getLinkedTo($projectId);
+    if (!is_null($linked)) {
+      $itMgr->unlink($linked['issuetracker_id'], $linked['testproject_id']);
+    }
+    if ($itId > 0) {
+      $itMgr->link($itId, $projectId);
+    }
+    $tprojectMgr->setIssueTrackerEnabled(
+      $projectId, ($itId > 0 && !empty($input['issue_tracker_enabled'])) ? 1 : 0);
+  }
+
+  if (array_key_exists('code_tracker_id', $input)) {
+    $ctId = (int)$input['code_tracker_id'];
+    $ctMgr = new tlCodeTracker($db);
+    $linked = $ctMgr->getLinkedTo($projectId);
+    if (!is_null($linked)) {
+      $ctMgr->unlink($linked['codetracker_id'], $linked['testproject_id']);
+    }
+    if ($ctId > 0) {
+      $ctMgr->link($ctId, $projectId);
+    }
+    $tprojectMgr->setCodeTrackerEnabled(
+      $projectId, ($ctId > 0 && !empty($input['code_tracker_enabled'])) ? 1 : 0);
+  }
+}
+
 function createProject(&$db, &$tprojectMgr) {
   $input = json_decode(file_get_contents('php://input'), true);
 
@@ -153,28 +233,26 @@ function createProject(&$db, &$tprojectMgr) {
     throw new Exception('Project name and prefix are required');
   }
 
-  $options = new stdClass();
-  $options->requirementsEnabled = (int)($input['optReq'] ?? 0);
-  $options->testPriorityEnabled = (int)($input['optPriority'] ?? 0);
-  $options->automationEnabled = (int)($input['optAutomation'] ?? 0);
-  $options->inventoryEnabled = (int)($input['optInventory'] ?? 0);
-
   $item = new stdClass();
   $item->name = trim($input['name']);
   $item->prefix = trim($input['prefix']);
   $item->notes = trim($input['description'] ?? '');
   $item->color = '#9BD';
-  $item->active = (int)($input['isActive'] ?? 1);
-  $item->is_public = (int)($input['isPublic'] ?? 1);
-  $item->options = $options;
+  $item->active = isset($input['isActive']) ? (int)(bool)$input['isActive'] : 1;
+  $item->is_public = isset($input['isPublic']) ? (int)(bool)$input['isPublic'] : 1;
+  $item->options = buildOptions($input);
 
-  $newId = $tprojectMgr->create($item, ['doChecks' => true]);
+  crossChecksBFF($tprojectMgr, $item->name, $item->prefix);
+
+  $newId = $tprojectMgr->create($item, ['doChecks' => false]);
 
   if (!$newId) {
     throw new Exception('Failed to create project');
   }
 
-  applyTrackers($db, $newId, $input);
+  applyTrackers($db, $tprojectMgr, $newId, $input);
+
+  logAuditProject($item->name, $newId, 'CREATE', 'audit_testproject_saved');
 
   echo json_encode([
     'success' => true,
@@ -183,75 +261,102 @@ function createProject(&$db, &$tprojectMgr) {
   ]);
 }
 
-function updateProject(&$db, $projectId) {
+function updateProject(&$db, &$tprojectMgr, $projectId) {
   $input = json_decode(file_get_contents('php://input'), true);
   if (!$input) throw new Exception('Invalid input');
 
-  if (isset($input['name'])) {
-    $db->exec_query("UPDATE nodes_hierarchy SET name='" .
-      $db->prepare_string(trim($input['name'])) . "' WHERE id=" . (int)$projectId);
+  $projectId = (int)$projectId;
+  $current = $tprojectMgr->get_by_id($projectId);
+  if (is_null($current) || !$current) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Project not found']);
+    return;
   }
 
-  $updates = [];
-  if (isset($input['prefix'])) $updates[] = "prefix='" . $db->prepare_string(trim($input['prefix'])) . "'";
-  if (isset($input['description'])) $updates[] = "notes='" . $db->prepare_string($input['description']) . "'";
-  if (isset($input['isActive'])) $updates[] = "active=" . (int)$input['isActive'];
-  if (isset($input['isPublic'])) $updates[] = "is_public=" . (int)$input['isPublic'];
-  if (isset($input['optInventory']) || isset($input['optReq']) ||
-      isset($input['optPriority']) || isset($input['optAutomation'])) {
-    $options = new stdClass();
-    $options->requirementsEnabled = (int)($input['optReq'] ?? 0);
-    $options->testPriorityEnabled = (int)($input['optPriority'] ?? 0);
-    $options->automationEnabled = (int)($input['optAutomation'] ?? 0);
-    $options->inventoryEnabled = (int)($input['optInventory'] ?? 0);
-    $updates[] = "options='" . $db->prepare_string(serialize($options)) . "'";
+  $name = array_key_exists('name', $input)
+    ? trim($input['name']) : trim($current['name']);
+  $prefix = array_key_exists('prefix', $input)
+    ? trim($input['prefix']) : trim($current['prefix']);
+
+  if ($name === '' || $prefix === '') {
+    throw new Exception('Project name and prefix are required');
   }
 
-  if ($updates) {
-    $db->exec_query("UPDATE testprojects SET " . implode(',', $updates) .
-                    " WHERE id=" . (int)$projectId);
-  }
+  crossChecksBFF($tprojectMgr, $name, $prefix, $projectId);
 
-  applyTrackers($db, $projectId, $input);
+  // Partial updates (e.g. active toggle) only touch what was sent; fields not
+  // present keep their stored values read from get_by_id() above.
+  $notes = array_key_exists('description', $input)
+    ? $input['description'] : $current['notes'];
+  $active = array_key_exists('isActive', $input)
+    ? (int)(bool)$input['isActive'] : (int)$current['active'];
+  $isPublic = array_key_exists('isPublic', $input)
+    ? (int)(bool)$input['isPublic'] : (int)$current['is_public'];
+
+  $optKeys = ['optReq','optPriority','optAutomation','optInventory'];
+  $hasOpt = false;
+  foreach ($optKeys as $k) {
+    if (array_key_exists($k, $input)) { $hasOpt = true; break; }
+  }
+  $options = $hasOpt ? buildOptions($input)
+    : @unserialize($current['options']);
+
+  // Legacy parity: doUpdate() -> tprojectMgr::update() + activate()
+  $ok = $tprojectMgr->update($projectId, $name, '#9BD', $notes,
+                             $options, $active, $prefix, $isPublic);
+  if (!$ok) {
+    throw new Exception('Failed to update project');
+  }
+  $tprojectMgr->activate($projectId, $active);
+
+  applyTrackers($db, $tprojectMgr, $projectId, $input);
+
+  logAuditProject($name, $projectId, 'UPDATE', 'audit_testproject_saved');
 
   echo json_encode([
     'success' => true,
-    'id' => (int)$projectId,
+    'id' => $projectId,
     'message' => 'Project updated successfully'
   ]);
 }
 
-function applyTrackers(&$db, $projectId, $input) {
-  $projectId = (int)$projectId;
-
-  if (array_key_exists('issue_tracker_id', $input)) {
-    $itId = (int)$input['issue_tracker_id'];
-    $db->exec_query("DELETE FROM testproject_issuetracker WHERE testproject_id=$projectId");
-    if ($itId > 0) {
-      $db->exec_query("INSERT INTO testproject_issuetracker (testproject_id,issuetracker_id)
-                       VALUES ($projectId,$itId)");
-    }
-    $enabled = ($itId > 0 && !empty($input['issue_tracker_enabled'])) ? 1 : 0;
-    $db->exec_query("UPDATE testprojects SET issue_tracker_enabled=$enabled WHERE id=$projectId");
-  }
-
-  if (array_key_exists('code_tracker_id', $input)) {
-    $ctId = (int)$input['code_tracker_id'];
-    $db->exec_query("DELETE FROM testproject_codetracker WHERE testproject_id=$projectId");
-    if ($ctId > 0) {
-      $db->exec_query("INSERT INTO testproject_codetracker (testproject_id,codetracker_id)
-                       VALUES ($projectId,$ctId)");
-    }
-    $enabled = ($ctId > 0 && !empty($input['code_tracker_enabled'])) ? 1 : 0;
-    $db->exec_query("UPDATE testprojects SET code_tracker_enabled=$enabled WHERE id=$projectId");
-  }
+function logAuditProject($name, $id, $code, $msgKey) {
+  $event = new stdClass();
+  $event->message = TLS($msgKey, $name);
+  $event->logLevel = 'AUDIT';
+  $event->source = 'GUI';
+  $event->objectID = (int)$id;
+  $event->objectType = 'testprojects';
+  $event->code = $code;
+  logEvent($event);
 }
 
-function deleteProject(&$db, $projectId) {
-  $db->exec_query("UPDATE testprojects SET active=0 WHERE id=" . (int)$projectId);
+function deleteProject(&$db, &$tprojectMgr, $projectId) {
+  $projectId = (int)$projectId;
+  $current = $tprojectMgr->get_by_id($projectId);
+  if (is_null($current) || !$current) {
+    http_response_code(404);
+    echo json_encode(['error' => 'Project not found']);
+    return;
+  }
+
+  // Legacy parity: doDelete() runs the full cascade delete
+  // (test plans, cases, keywords, attachments...), NOT a soft deactivate.
+  $op = $tprojectMgr->delete($projectId);
+
+  if (empty($op['status_ok'])) {
+    http_response_code(409);
+    echo json_encode([
+      'error' => lang_get('info_product_not_deleted_check_log') . ' ' .
+                 ($op['msg'] ?? '')
+    ]);
+    return;
+  }
+
+  logAuditProject($current['name'], $projectId, 'DELETE', 'audit_testproject_saved');
 
   echo json_encode([
     'success' => true,
-    'message' => 'Project deactivated successfully'
+    'message' => sprintf(lang_get('test_project_deleted'), $current['name'])
   ]);
 }
