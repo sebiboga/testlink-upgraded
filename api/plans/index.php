@@ -1413,7 +1413,9 @@ function updTcItems($db, $tplan_id, $tcprefix)
            " LVER.version AS linked_version, LVER.active AS linked_active," .
            " LVER.tc_external_id," .
            " NHA.parent_id AS tc_id, NHC.name AS tc_name," .
-           " NTC.parent_id AS tsuite_id, NTC.name AS tsuite_name" .
+           " NTC.id AS tsuite_id, NTC.name AS tsuite_name," .
+           " NSIB.id AS sib_tcv, V.version AS sib_version," .
+           " V.active AS sib_active" .
            " FROM {$tbl['testplan_tcversions']} T" .
            " JOIN {$tbl['nodes_hierarchy']} NHA ON NHA.id = T.tcversion_id" .
            " JOIN {$tbl['nodes_hierarchy']} NHC ON NHC.id = NHA.parent_id" .
