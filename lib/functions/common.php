@@ -1869,7 +1869,12 @@ function getActions(&$gui,$baseURL) {
       "$bb/testcases/tcAssignedToUser.php?{$ctx}";
   }
 
-  $launcher = $_SESSION['basehref'] . 
+  // Refs #609: initialize up-front so aside rendering with no active test
+  // plan (tplan_id = 0) reads a defined property instead of emitting an
+  // E_WARNING "Undefined property: stdClass::$setTestUrgency" on every page.
+  $actions->setTestUrgency = null;
+
+  $launcher = $_SESSION['basehref'] .
     "lib/general/frmWorkArea.php?feature=";
 
   $gui->workArea = new stdClass();
