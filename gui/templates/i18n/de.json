@@ -1123,5 +1123,7 @@
   "plugin.msg.noPermission": "Sie haben keine Berechtigung, Plugins zu verwalten.",
   "proj.toggleActive": "Aktiv-Status umschalten",
   "proj.activate": "Aktivieren",
-  "proj.deactivate": "Deaktivieren"
+  "proj.deactivate": "Deaktivieren",
+  "proj.reqMgrIntegration": "Anforderungsmanagement-Integration",
+  "proj.reqMgrSystem": "Anforderungsmanagementsystem"
 }

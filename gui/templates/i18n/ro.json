@@ -1123,5 +1123,7 @@
   "plugin.msg.noPermission": "Nu aveți permisiunea de a gestiona modulele.",
   "proj.toggleActive": "Comută starea activă",
   "proj.activate": "Activează",
-  "proj.deactivate": "Dezactivează"
+  "proj.deactivate": "Dezactivează",
+  "proj.reqMgrIntegration": "Integrarea managementului cerințelor",
+  "proj.reqMgrSystem": "Sistem de management al cerințelor"
 }

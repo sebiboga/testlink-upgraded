@@ -1123,5 +1123,7 @@
   "plugin.msg.noPermission": "У вас нет прав для управления плагинами.",
   "proj.toggleActive": "Переключить активность",
   "proj.activate": "Активировать",
-  "proj.deactivate": "Деактивировать"
+  "proj.deactivate": "Деактивировать",
+  "proj.reqMgrIntegration": "Интеграция управления требованиями",
+  "proj.reqMgrSystem": "Система управления требованиями"
 }

@@ -59,12 +59,12 @@ try {
       break;
 
     case 'POST':
-      createProject($db, $tprojectMgr);
+      createProject($db, $tprojectMgr, $user);
       break;
 
     case 'PUT':
       if (!$projectId) throw new Exception('Project ID required');
-      updateProject($db, $tprojectMgr, $projectId);
+      updateProject($db, $tprojectMgr, $user, $projectId);
       break;
 
     case 'DELETE':
@@ -76,6 +76,9 @@ try {
       http_response_code(405);
       echo json_encode(['error' => 'Method not allowed']);
   }
+} catch (BFFServerError $e) {
+  http_response_code(500);
+  echo json_encode(['error' => $e->getMessage()]);
 } catch (Exception $e) {
   http_response_code(400);
   echo json_encode(['error' => $e->getMessage()]);
@@ -83,14 +86,18 @@ try {
 
 function projectSelect() {
   return "SELECT tp.id, nh.name, tp.prefix, tp.notes, tp.active, tp.is_public,
-                 tp.options, tp.issue_tracker_enabled, tp.code_tracker_enabled,
-                 it.name AS issue_tracker_name, ct.name AS code_tracker_name
+                 tp.color, tp.options, tp.issue_tracker_enabled,
+                 tp.code_tracker_enabled, tp.reqmgr_integration_enabled,
+                 it.name AS issue_tracker_name, ct.name AS code_tracker_name,
+                 rm.name AS reqmgrsystem_name
           FROM testprojects tp
           JOIN nodes_hierarchy nh ON nh.id = tp.id
           LEFT JOIN testproject_issuetracker tpit ON tpit.testproject_id = tp.id
           LEFT JOIN issuetrackers it ON it.id = tpit.issuetracker_id
           LEFT JOIN testproject_codetracker tpct ON tpct.testproject_id = tp.id
-          LEFT JOIN codetrackers ct ON ct.id = tpct.codetracker_id ";
+          LEFT JOIN codetrackers ct ON ct.id = tpct.codetracker_id
+          LEFT JOIN testproject_reqmgrsystem tprm ON tprm.testproject_id = tp.id
+          LEFT JOIN reqmgrsystems rm ON rm.id = tprm.reqmgrsystem_id ";
 }
 
 function formatProject($row) {
@@ -119,6 +126,10 @@ function formatProject($row) {
     'codeTracker' => [
       'name' => $row['code_tracker_name'] ?? '',
       'enabled' => (bool)$row['code_tracker_enabled']
+    ],
+    'reqMgrSystem' => [
+      'name' => $row['reqmgrsystem_name'] ?? '',
+      'enabled' => (bool)($row['reqmgr_integration_enabled'] ?? 0)
     ]
   ];
 }
@@ -173,6 +184,13 @@ function crossChecksBFF(&$tprojectMgr, $name, $prefix, $excludeId = null) {
   }
 }
 
+/**
+ * Server-fault marker: exceptions of this type map to HTTP 500 instead of
+ * the generic validation 400, so clients can distinguish bad input from
+ * backend failures.
+ */
+class BFFServerError extends Exception {}
+
 function buildOptions($input) {
   // Same defaults legacy create() applies when checkboxes are absent:
   // priority + automation ON, requirements + inventory OFF.
@@ -189,10 +207,44 @@ function buildOptions($input) {
 }
 
 /**
- * Legacy parity: link/unlink through tlIssueTracker / tlCodeTracker managers
- * (like doCreate/doUpdate in projectEdit.php) instead of raw SQL against the
- * link tables, and flip the enabled flag via setIssueTrackerEnabled() /
- * setCodeTrackerEnabled().
+ * Parse the stored options blob; corrupt/empty blobs fall back to legacy
+ * create defaults instead of letting serialize(false) ('b:0;') wipe all
+ * four feature flags on the next update.
+ */
+function parseStoredOptions($blob) {
+  $opt = empty($blob) ? null : @unserialize($blob);
+  if ($opt === false || !is_object($opt)) {
+    return buildOptions([]);
+  }
+  return $opt;
+}
+
+/**
+ * Partial-options semantics: start from the stored flags and override ONLY
+ * the keys present in $input (an API client sending {optInventory:1} must
+ * not silently reset the other three to create defaults).
+ */
+function mergeOptions($storedOpt, $input) {
+  $map = array(
+    'optReq'        => 'requirementsEnabled',
+    'optPriority'   => 'testPriorityEnabled',
+    'optAutomation' => 'automationEnabled',
+    'optInventory'  => 'inventoryEnabled',
+  );
+  foreach ($map as $key => $prop) {
+    if (array_key_exists($key, $input)) {
+      $storedOpt->$prop = (int)(bool)$input[$key];
+    }
+  }
+  return $storedOpt;
+}
+
+/**
+ * Legacy parity: link/unlink through tlIssueTracker / tlCodeTracker /
+ * tlReqMgrSystem managers (like doCreate/doUpdate in projectEdit.php)
+ * instead of raw SQL against the link tables, and flip the enabled flags
+ * via setIssueTrackerEnabled()/setCodeTrackerEnabled()/
+ * setReqMgrIntegrationEnabled().
  */
 function applyTrackers(&$db, &$tprojectMgr, $projectId, $input) {
   $projectId = (int)$projectId;
@@ -224,9 +276,36 @@ function applyTrackers(&$db, &$tprojectMgr, $projectId, $input) {
     $tprojectMgr->setCodeTrackerEnabled(
       $projectId, ($ctId > 0 && !empty($input['code_tracker_enabled'])) ? 1 : 0);
   }
+
+  if (array_key_exists('reqmgrsystem_id', $input)) {
+    $rmId = (int)$input['reqmgrsystem_id'];
+    $rmMgr = new tlReqMgrSystem($db);
+    $linked = $rmMgr->getLinkedTo($projectId);
+    if (!is_null($linked)) {
+      $rmMgr->unlink($linked['reqmgrsystem_id'], $linked['testproject_id']);
+    }
+    if ($rmId > 0) {
+      $rmMgr->link($rmId, $projectId);
+    }
+    $tprojectMgr->setReqMgrIntegrationEnabled(
+      $projectId, ($rmId > 0 && !empty($input['reqmgr_integration_enabled'])) ? 1 : 0);
+  }
 }
 
-function createProject(&$db, &$tprojectMgr) {
+/**
+ * Legacy parity (doCreate/doUpdate): making a project private must never
+ * lock its manager out — add the user's global role as project-specific
+ * role unless one already exists.
+ */
+function protectFromLockout(&$db, &$tprojectMgr, &$user, $projectId, $isPublic) {
+  if (!$isPublic
+      && !tlUser::hasRoleOnTestProject($db, $user->dbID, $projectId)) {
+    $tprojectMgr->addUserRole($user->dbID, $projectId,
+                              $user->globalRole->dbID);
+  }
+}
+
+function createProject(&$db, &$tprojectMgr, &$user) {
   $input = json_decode(file_get_contents('php://input'), true);
 
   if (empty($input['name']) || empty($input['prefix'])) {
@@ -247,12 +326,14 @@ function createProject(&$db, &$tprojectMgr) {
   $newId = $tprojectMgr->create($item, ['doChecks' => false]);
 
   if (!$newId) {
-    throw new Exception('Failed to create project');
+    throw new BFFServerError('Failed to create project');
   }
 
   applyTrackers($db, $tprojectMgr, $newId, $input);
+  protectFromLockout($db, $tprojectMgr, $user, $newId, $item->is_public);
 
-  logAuditProject($item->name, $newId, 'CREATE', 'audit_testproject_saved');
+  // NOTE: no extra AUDIT event here — testproject::create() already logs
+  // audit_testproject_created (legacy doCreate doesn't log twice either).
 
   echo json_encode([
     'success' => true,
@@ -261,7 +342,7 @@ function createProject(&$db, &$tprojectMgr) {
   ]);
 }
 
-function updateProject(&$db, &$tprojectMgr, $projectId) {
+function updateProject(&$db, &$tprojectMgr, &$user, $projectId) {
   $input = json_decode(file_get_contents('php://input'), true);
   if (!$input) throw new Exception('Invalid input');
 
@@ -298,18 +379,35 @@ function updateProject(&$db, &$tprojectMgr, $projectId) {
   foreach ($optKeys as $k) {
     if (array_key_exists($k, $input)) { $hasOpt = true; break; }
   }
-  $options = $hasOpt ? buildOptions($input)
-    : @unserialize($current['options']);
+  // Start from the stored flags (guarded against corrupt blobs) and apply
+  // only the keys actually sent.
+  $options = $hasOpt
+    ? mergeOptions(parseStoredOptions($current['options']), $input)
+    : parseStoredOptions($current['options']);
 
-  // Legacy parity: doUpdate() -> tprojectMgr::update() + activate()
-  $ok = $tprojectMgr->update($projectId, $name, '#9BD', $notes,
+  // Legacy parity: doUpdate() -> tprojectMgr::update() + activate();
+  // preserve the stored color instead of overwriting it on every PUT.
+  $color = !empty($current['color']) ? $current['color'] : '#9BD';
+  $ok = $tprojectMgr->update($projectId, $name, $color, $notes,
                              $options, $active, $prefix, $isPublic);
   if (!$ok) {
-    throw new Exception('Failed to update project');
+    throw new BFFServerError('Failed to update project');
   }
   $tprojectMgr->activate($projectId, $active);
 
   applyTrackers($db, $tprojectMgr, $projectId, $input);
+  protectFromLockout($db, $tprojectMgr, $user, $projectId, $isPublic);
+
+  // Legacy parity: doUpdate() explicitly logs audit_testproject_saved
+  // (testproject::update() itself is silent).
+  $event = new stdClass();
+  $event->message = TLS('audit_testproject_saved', $name);
+  $event->logLevel = 'AUDIT';
+  $event->source = 'GUI';
+  $event->objectID = $projectId;
+  $event->objectType = 'testprojects';
+  $event->code = 'UPDATE';
+  logEvent($event);
 
   logAuditProject($name, $projectId, 'UPDATE', 'audit_testproject_saved');
 
@@ -318,17 +416,6 @@ function updateProject(&$db, &$tprojectMgr, $projectId) {
     'id' => $projectId,
     'message' => 'Project updated successfully'
   ]);
-}
-
-function logAuditProject($name, $id, $code, $msgKey) {
-  $event = new stdClass();
-  $event->message = TLS($msgKey, $name);
-  $event->logLevel = 'AUDIT';
-  $event->source = 'GUI';
-  $event->objectID = (int)$id;
-  $event->objectType = 'testprojects';
-  $event->code = $code;
-  logEvent($event);
 }
 
 function deleteProject(&$db, &$tprojectMgr, $projectId) {
@@ -353,7 +440,8 @@ function deleteProject(&$db, &$tprojectMgr, $projectId) {
     return;
   }
 
-  logAuditProject($current['name'], $projectId, 'DELETE', 'audit_testproject_saved');
+  // NOTE: no extra AUDIT event — testproject::delete() already logs
+  // audit_testproject_deleted (legacy doDelete doesn't log twice either).
 
   echo json_encode([
     'success' => true,

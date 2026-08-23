@@ -215,6 +215,23 @@
           </div>
         </div>
 
+        <!-- Requirement Management System Integration -->
+        <div class="form-section">
+          <div class="form-section-title" data-i18n="proj.reqMgrIntegration">Requirement Management Integration</div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="reqmgrsystem_id" data-i18n="proj.reqMgrSystem">Requirement Management System</label>
+              <select id="reqmgrsystem_id" name="reqmgrsystem_id">
+                <option value="0" data-i18n="common.none">None</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="reqmgr_integration_enabled" name="reqmgr_integration_enabled">
+            <label for="reqmgr_integration_enabled" data-i18n="proj.enabled">Enabled</label>
+          </div>
+        </div>
+
         <!-- Availability -->
         <div class="form-section">
           <div class="form-section-title" data-i18n="proj.availability">Availability</div>
@@ -348,10 +365,10 @@
     function fillTrackerSelect(selectId, trackers) {
       const select = document.getElementById(selectId);
       select.innerHTML = `<option value="0">-- ${TLi18n.t('common.none')} --</option>` +
-        trackers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+        trackers.map(t => `<option value="${parseInt(t.id,10)}">${esc(t.name)}</option>`).join('');
     }
 
-    // Load issue and code trackers into the dropdowns
+    // Load issue/code trackers + req mgmt systems into the dropdowns
     function loadTrackers() {
       if (trackersLoaded) return Promise.resolve();
 
@@ -360,6 +377,7 @@
           if (response.success) {
             fillTrackerSelect('issue_tracker_id', response.issueTrackers);
             fillTrackerSelect('code_tracker_id', response.codeTrackers);
+            fillTrackerSelect('reqmgrsystem_id', response.reqMgrSystems || []);
             trackersLoaded = true;
           }
         });
@@ -375,6 +393,7 @@
       loadTrackers().then(function() {
         document.getElementById('issue_tracker_id').value = '0';
         document.getElementById('code_tracker_id').value = '0';
+        document.getElementById('reqmgrsystem_id').value = '0';
       });
       document.getElementById('projectModal').classList.add('show');
     });
@@ -408,6 +427,8 @@
       loadTrackers().then(function() {
         selectTrackerByName('issue_tracker_id', project.issueTracker.name);
         selectTrackerByName('code_tracker_id', project.codeTracker.name);
+        selectTrackerByName('reqmgrsystem_id',
+          project.reqMgrSystem ? project.reqMgrSystem.name : '');
       });
       document.getElementById('projectModal').classList.add('show');
     }
@@ -444,7 +465,9 @@
         issue_tracker_id: parseInt(document.getElementById('issue_tracker_id').value) || 0,
         issue_tracker_enabled: document.getElementById('issue_tracker_enabled').checked ? 1 : 0,
         code_tracker_id: parseInt(document.getElementById('code_tracker_id').value) || 0,
-        code_tracker_enabled: document.getElementById('code_tracker_enabled').checked ? 1 : 0
+        code_tracker_enabled: document.getElementById('code_tracker_enabled').checked ? 1 : 0,
+        reqmgrsystem_id: parseInt(document.getElementById('reqmgrsystem_id').value) || 0,
+        reqmgr_integration_enabled: document.getElementById('reqmgr_integration_enabled').checked ? 1 : 0
       };
 
       $.ajax({

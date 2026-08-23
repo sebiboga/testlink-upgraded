@@ -1123,5 +1123,7 @@
   "plugin.msg.noPermission": "您没有管理插件的权限。",
   "proj.toggleActive": "切换激活状态",
   "proj.activate": "激活",
-  "proj.deactivate": "停用"
+  "proj.deactivate": "停用",
+  "proj.reqMgrIntegration": "需求管理集成",
+  "proj.reqMgrSystem": "需求管理系统"
 }

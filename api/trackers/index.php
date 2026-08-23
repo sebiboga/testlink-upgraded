@@ -42,6 +42,7 @@ if (!$user->hasRight($db, 'mgt_modify_product')) {
 
 $issueTrackers = (array)$db->get_recordset("SELECT id, name, type FROM issuetrackers ORDER BY name");
 $codeTrackers = (array)$db->get_recordset("SELECT id, name, type FROM codetrackers ORDER BY name");
+$reqMgrSystems = (array)$db->get_recordset("SELECT id, name, type FROM reqmgrsystems ORDER BY name");
 
 $asList = function ($rows) {
   return array_map(function ($r) {
@@ -52,5 +53,6 @@ $asList = function ($rows) {
 echo json_encode([
   'success' => true,
   'issueTrackers' => $asList($issueTrackers),
-  'codeTrackers' => $asList($codeTrackers)
+  'codeTrackers' => $asList($codeTrackers),
+  'reqMgrSystems' => $asList($reqMgrSystems)
 ]);

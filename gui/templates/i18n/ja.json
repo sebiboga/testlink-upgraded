@@ -1123,5 +1123,7 @@
   "plugin.msg.noPermission": "プラグインを管理する権限がありません。",
   "proj.toggleActive": "アクティブ状態を切り替え",
   "proj.activate": "有効化",
-  "proj.deactivate": "無効化"
+  "proj.deactivate": "無効化",
+  "proj.reqMgrIntegration": "要件管理統合",
+  "proj.reqMgrSystem": "要件管理システム"
 }
