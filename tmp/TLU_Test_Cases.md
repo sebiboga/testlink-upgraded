@@ -3421,3 +3421,10 @@ fix verified at commit of branch `fix/issue-628`).
 body — bare POST returned 405), 06c16aa22 (prime `$g_plugin_cache` before
 `plugin_uninstall()` — legacy fatal fired AFTER the DELETE, producing a 500 +
 silently deleted registration).
+
+**Suite 636 addendum — code-review fixes re-validated (75fc73cb4):** data-op
+delegated buttons (attribute-injection hardening), orphaned-row uninstall path,
+localized 401/403 banners, feedback cleared only on explicit Refresh, uninstall
+response name restored. Re-run: install + uninstall via UI buttons PASS with
+correct localized feedback; unknown id → 404; refresh clears banner; final
+cycle produced **0 new events** in `events` table (verified `MAX(id)` unchanged).

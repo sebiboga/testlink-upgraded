@@ -31,6 +31,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 7 | System — Custom Fields | `cfields/cfieldsView.html` | api/cfields | |
 | 8 | System — Issue Tracker Mgmt | `issuetracker/issuetrackerView.html` | api/issuetracker | |
 | 9 | System — Code Tracker Mgmt | `codetracker/codetrackerView.html` | api/codetracker | |
+| 9b | System — Plugin Management ✅ (#636) | `plugins/pluginView.html` | api/plugins | right `mgt_plugins` |
 | 10 | Product — Test Project Mgmt | `projectsView.html` | api/projects | |
 | 11 | Product — Assign User Roles | `usermanagement/usersAssignProject.html` | api/users | same as #5 |
 | 12 | Product — Assign Custom Fields | `cfields/cfieldsAssignView.html` | api/cfields | |
@@ -88,7 +89,7 @@ Extra modernized feature (not an ASIDE entry):
 | 5 | Newest TC Versions | launcher `newest_tcversions` | `testplan_show_testcases_newest_versions` | |
 | 6 | Test Plan Milestones | `lib/plan/planMilestonesView.php` | `testplan_milestone_overview` | |
 | 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done |
-| 8 | Plugin Management | `lib/plugins/pluginView.php` | `plugin_management` | |
+| 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):
 - Documentation section (viewer.php PDF links, GitHub wiki link).
