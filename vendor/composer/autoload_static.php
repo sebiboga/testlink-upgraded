@@ -22,6 +22,7 @@ class ComposerStaticInit056ad17c9fe5d65b7d3c5047fc89f77e
     public static $prefixLengthsPsr4 = array (
         'S' => 
         array (
+            'Slim\\Psr7\\' => 10,
             'Symfony\\Polyfill\\Php80\\' => 23,
             'Symfony\\Polyfill\\Mbstring\\' => 26,
             'Symfony\\Contracts\\Translation\\' => 30,
@@ -30,6 +31,7 @@ class ComposerStaticInit056ad17c9fe5d65b7d3c5047fc89f77e
         ),
         'P' => 
         array (
+            'PhpOffice\\PhpSpreadsheet\\' => 25,
             'Psr\\SimpleCache\\' => 16,
             'Psr\\Log\\' => 8,
             'Psr\\Http\\Server\\' => 16,
@@ -45,8 +47,19 @@ class ComposerStaticInit056ad17c9fe5d65b7d3c5047fc89f77e
         ),
         'L' => 
         array (
+            'Laminas\\Diactoros\\' => 18,
             'League\\OAuth2\\Client\\' => 21,
             'LdapRecord\\' => 11,
+        ),
+        'M' => 
+        array (
+            'Matrix\\' => 7,
+            'MyCLabs\\Enum\\' => 13,
+        ),
+        'N' => 
+        array (
+            'Nyholm\\Psr7\\' => 12,
+            'Nyholm\\Psr7Server\\' => 18,
         ),
         'I' => 
         array (
@@ -62,15 +75,69 @@ class ComposerStaticInit056ad17c9fe5d65b7d3c5047fc89f77e
         'F' => 
         array (
             'FastRoute\\' => 10,
+            'Fig\\Http\\Message\\' => 17,
         ),
         'C' => 
         array (
             'Carbon\\Doctrine\\' => 16,
             'Carbon\\' => 7,
+            'Composer\\Pcre\\' => 14,
+        ),
+        'Z' => 
+        array (
+            'ZipStream\\' => 10,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
+        'PhpOffice\\PhpSpreadsheet\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet',
+        ),
+        'Composer\\Pcre\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/composer/pcre/src',
+        ),
+        'Complex\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/markbaker/complex/classes/src',
+        ),
+        'Matrix\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/markbaker/matrix/classes/src',
+        ),
+        'MyCLabs\\Enum\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/myclabs/php-enum/src',
+        ),
+        'ZipStream\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
+        ),
+        'Nyholm\\Psr7\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/nyholm/psr7/src',
+        ),
+        'Nyholm\\Psr7Server\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/nyholm/psr7-server/src',
+        ),
+        'Slim\\Psr7\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/slim/psr7/src',
+        ),
+        'Laminas\\Diactoros\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/laminas/laminas-diactoros/src',
+        ),
+        'Http\\Factory\\Guzzle\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/http-interop/http-factory-guzzle/src',
+        ),
+        'Fig\\Http\\Message\\' => 
+        array (
+            0 => __DIR__ . '/..' . '/fig/http-message-util/src',
+        ),
         'Symfony\\Polyfill\\Php80\\' => 
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
