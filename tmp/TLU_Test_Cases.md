@@ -3511,3 +3511,29 @@ Export URL pattern: `/lib/results/<screen>.php?tplan_id=1002&tproject_id=1001&fo
 
 **Known independent failure not regressed:** testAutomationSpec.php direct export → HTTP 500 on empty plan
 (pre-existing, verified unrelated via git diff; filed as #642 during this run).
+
+## Suite 429 — Regression — Issue #429: login page fatal `property_exists(): Argument #1 ($object_or_class) must be of type object|string, null given` (inc_head.tpl)
+
+**Refs:** #429 · branch `fix/issue-429` · fix landed pre-verification in commit `01b11e300`
+**Files under test:** `gui/templates/dashio/include/inc_head.tpl` (lines 58, 62 — `isset($gui) &&` guards)
+**Precondition:** fresh DB import; PHP 8.3.33; app at http://localhost:8082.
+This is a VERIFICATION suite: the fix was already on the default branch but the issue was never
+verified/closed. Suite proves both the failure mechanism and that the landed guard eliminates it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Mechanism repro on this PHP build (pre-fix code shape) | `php -r 'property_exists(null,"x");'` wrapped in try/catch | TypeError with byte-identical message to issue report | PASS |
+| 2 | Smarty harness — unguarded pattern (pre-fix inc_head.tpl:66) | render tpl `{if property_exists($gui,"tproject_id")}…{/if}` with no `$gui` assigned via repo's vendor/smarty | FATAL TypeError property_exists … null given | PASS |
+| 3 | Smarty harness — guarded pattern (post-fix inc_head.tpl:58/62) | render tpl `{if isset($gui) && property_exists($gui,"tproject_id")}…{/if}` with no `$gui` | renders OK, no error | PASS |
+| 4 | Landed fix present on default branch | `git show 01b11e300 -- gui/templates/dashio/include/inc_head.tpl`; grep current file | `isset($gui) &&` present at lines 58 and 62 | PASS |
+| 5 | Login GET clean post-fix | curl `/login.php` | HTTP 200, complete form HTML, 0 matches for fatal/TypeError/Uncaught | PASS |
+| 6 | Login POST flow (browser) | navigate /login.php, fill admin/admin, click Log in | redirect to index.php main frame; navBar + asideMenu + mainframe all load | PASS |
+| 7 | inc_head-consuming screen still renders with real gui object | open projectEdit.php?doAction=create post-login | "Create a new project" page fully rendered | PASS |
+| 8 | Session-expired render path | GET `/login.php?note=expired` | HTTP 200, clean page, 0 fatal strings | PASS |
+| 9 | Logout → login page cycle (browser) | click Logout from navBar | clean login form (`note=logout`) | PASS |
+| 10 | Event Viewer clean for whole matrix | `SELECT id,log_level FROM events ORDER BY id` after all tests | only AUDIT entries (16): login succeeded + user logout; zero Error/Warning rows | PASS |
+
+**Residual risk documented (not a defect):** ~40 further unguarded `property_exists($gui,…)`
+sites across dashio/tl-classic templates are unreachable with null `$gui` — each template also
+dereferences `$gui->…` unconditionally elsewhere and all current controllers assign a gui object
+(see issue #429 root-cause comment for full list).
