@@ -1,0 +1,177 @@
+name: Close done enhancements (housekeeping)
+
+# Closes stale `enhancement` tracking issues ("Modernize: <screen>") whose page
+# is ALREADY modernized — they tend to stay open after the work lands.
+#
+# An issue is closed ONLY when ALL of these hold (fail-safe by design):
+#   1. it is NOT referenced anywhere in the "IN PROGRESS" section of
+#      docs/MODERNIZATION-STATUS.md (pages still being worked are never touched);
+#   2. its age is >= min_age_hours (default 24h) so actively-worked fresh
+#      issues are never closed mid-flight;
+#   3. it matches a row of the "DONE" table — either via its number in the
+#      Ref column, or via a camelCase identifier from its title
+#      (e.g. planView, setTestUrgency) appearing in that row;
+#   4. at least one .html screen path from the matched DONE row actually
+#      exists under gui/templates/.
+#
+# Anything ambiguous stays open. Use workflow_dispatch with dry_run=true to
+# preview decisions without closing anything.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Log decisions but do NOT close any issue"
+        type: boolean
+        default: false
+      min_age_hours:
+        description: "Minimum issue age (hours) before auto-close is allowed"
+        type: string
+        default: "24"
+  schedule:
+    # daily at 04:40 UTC — offset from all other workflows
+    - cron: "40 4 * * *"
+
+concurrency:
+  group: close-done-enhancements
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  housekeeping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+      DRY_RUN: ${{ github.event_name == 'schedule' && 'false' || (inputs.dry_run && 'true' || 'false') }}
+      MIN_AGE_HOURS: ${{ github.event_name == 'schedule' && '24' || (inputs.min_age_hours || '24') }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Triage open enhancement issues against the modernization inventory
+        run: |
+          python3 - <<'PYEOF'
+          import datetime, json, os, re, subprocess, sys
+
+          STATUS_FILE = "docs/MODERNIZATION-STATUS.md"
+          REPO = os.environ["GITHUB_REPOSITORY"]
+          DRY_RUN = os.environ.get("DRY_RUN", "false").strip().lower() == "true"
+          MIN_AGE_HOURS = float(os.environ.get("MIN_AGE_HOURS", "24") or "24")
+
+          def gh(*args):
+              p = subprocess.run(["gh", *args], capture_output=True, text=True)
+              if p.returncode != 0:
+                  print(p.stdout); print(p.stderr, file=sys.stderr)
+                  raise SystemExit(f"gh {' '.join(args)} failed")
+              return p.stdout
+
+          text = open(STATUS_FILE, encoding="utf-8").read()
+
+          def section(start, end):
+              s = text.find(start)
+              if s == -1:
+                  return ""
+              e = text.find(end, s + len(start))
+              return text[s:] if e == -1 else text[s:e]
+
+          done_sec = section("## ✅ DONE", "## 🔄")
+          wip_sec  = section("## 🔄 IN PROGRESS", "## ⬜")
+
+          # DONE rows only (lines starting with "|") — prose notes under the
+          # section may mention WIP issue numbers and must not count as done.
+          done_rows = []
+          for line in done_sec.splitlines():
+              if line.strip().startswith("|"):
+                  refs  = {int(x) for x in re.findall(r"#(\d+)", line)}
+                  htmls = re.findall(r"`([A-Za-z0-9_./-]+\.html)`", line)
+                  done_rows.append({"refs": refs, "htmls": htmls, "text": line})
+
+          wip_refs = {int(x) for x in re.findall(r"#(\d+)", wip_sec)}
+
+          issues = json.loads(gh("issue", "list",
+              "--repo", REPO, "--state", "open", "--label", "enhancement",
+              "--limit", "200", "--json", "number,title,createdAt"))
+
+          now = datetime.datetime.now(datetime.timezone.utc)
+          closures, skips = [], []
+
+          for it in issues:
+              n, title = it["number"], it["title"]
+              created = datetime.datetime.fromisoformat(it["createdAt"].replace("Z", "+00:00"))
+              age_h = (now - created).total_seconds() / 3600
+
+              if n in wip_refs:
+                  skips.append((n, title, f"referenced in IN PROGRESS section of {STATUS_FILE}"))
+                  continue
+              if age_h < MIN_AGE_HOURS:
+                  skips.append((n, title, f"age {age_h:.1f}h < min {MIN_AGE_HOURS}h"))
+                  continue
+
+              row, how = None, None
+              for r in done_rows:
+                  if n in r["refs"]:
+                      row, how = r, "issue number in DONE table Ref column"
+                      break
+              if row is None:
+                  # fallback: specific identifiers only (camelCase tokens such
+                  # as planView / setTestUrgency). Generic lowercase words like
+                  # "report" or "management" are deliberately ignored.
+                  tokens = {t.lower() for t in re.findall(r"\b[A-Za-z]*[a-z][A-Z][A-Za-z0-9]*\b", title)}
+                  for r in done_rows:
+                      low = r["text"].lower()
+                      hit = [t for t in tokens if t in low]
+                      if hit:
+                          row, how = r, f"title identifier match ({', '.join(sorted(hit))})"
+                          break
+
+              if row is None:
+                  skips.append((n, title, "no DONE-table match"))
+                  continue
+
+              present = [p for p in row["htmls"]
+                         if os.path.isfile(os.path.join("gui/templates", p))]
+              if not present:
+                  skips.append((n, title,
+                      f"matched DONE row but none of {row['htmls']} exists on disk — not confident"))
+                  continue
+
+              closures.append((n, title, how, present))
+
+          lines = ["### Enhancement auto-close report", ""]
+          if DRY_RUN:
+              lines.append("**DRY RUN** — nothing was closed.")
+          lines += ["", "| Issue | Decision | Reason |", "|---|---|---|"]
+          for n, title, why in skips:
+              lines.append(f"| #{n} {title} | left open | {why} |")
+          for n, title, how, htmls in closures:
+              lines.append(f"| #{n} {title} | "
+                           + ("WOULD close" if DRY_RUN else "closed")
+                           + f" | {how}; verified `{', '.join(htmls)}` |")
+
+          summary = "\n".join(lines)
+          print(summary)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write(summary + "\n")
+
+          for n, title, how, htmls in closures:
+              if DRY_RUN:
+                  continue
+              comment = (
+                  f"Auto-closed by CI (`close-done-enhancements.yml`): the screen tracked by this "
+                  f"issue is already modernized.\n\n"
+                  f"- Listed as **DONE** in `{STATUS_FILE}` (match: {how})\n"
+                  f"- Verified on disk: {', '.join('`gui/templates/' + h + '`' for h in htmls)}\n\n"
+                  f"If this closure is wrong (e.g. the modernization is incomplete), please reopen "
+                  f"the issue with details."
+              )
+              gh("issue", "close", str(n), "--repo", REPO,
+                 "--reason", "completed", "--comment", comment)
+
+          print(f"\ndone: {len(closures)} closed{' (dry run)' if DRY_RUN else ''}, {len(skips)} skipped")
+          PYEOF
