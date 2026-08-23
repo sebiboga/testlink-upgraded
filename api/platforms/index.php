@@ -471,5 +471,190 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
          'skipped' => $skipped]);
 }
 
+// ---------------------------------------------------------------------------
+// GET /assign?tproject_id=N[&tplan_id=M] - platform assignment screen data
+// Mirrors lib/platforms/platformsAssign.php initializeGui() + init_option_panels().
+// Right required: testplan_add_remove_platforms (checkPageAccess).
+//
+// Left pane  = available platforms: getAllAsMap(config_get('platforms')->allowedOnAssign)
+//              minus the linked ones.
+// Right pane = linked platforms (getLinkedToTestplanAsMap) + per-platform count of
+//              linked test cases (testplan::count_testcases) - used by the UI to
+//              block unlinking platforms that still have linked TC versions.
+// fixNeeded / unknownQty mirror countLinkedTCVersionsByPlatform()[platform_id=0]:
+// linked TC versions still on platform_id=0 ("unknown platform").
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assign' && !isset($segments[1])) {
+    $tproject_id = needTprojectId();
+    if (!$user->hasRight($db, 'testplan_add_remove_platforms', $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tplan_id = intval(getParam('tplan_id', 0));
+    out(assignPayload($db, $user, $tproject_id, $tplan_id));
+}
+
+// ---------------------------------------------------------------------------
+// POST /assign - link/unlink platforms on a test plan
+// body: tproject_id, tplan_id, add:[ids], remove:[ids], mode:'save'|'save_tcv'
+// Mirrors legacy doAssignPlatforms / doAssignAndLinkTCV:
+//   - linkToTestplan(add) + unlinkFromTestplan(remove)
+//   - when TC versions are still linked to platform 0 (fixNeeded) and exactly ONE
+//     platform was added -> changeLinkedTCVersionsPlatform(tplan, 0, added)
+//   - mode save_tcv historically intended copyLinkFromPlatformToPlatform(), but that
+//     method does not exist and its inputs (onRightSide/to_select_box) were never
+//     populated in 1.9.20, so both actions only ever link/unlink. Kept as alias for
+//     API compatibility with the button.
+// Server-side guard mirrors the legacy client-side rule: platforms with linked
+// test cases can never be unlinked.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assign' && !isset($segments[1])) {
+    $body = getBody();
+    $tproject_id = intval($body['tproject_id'] ?? 0);
+    $tplan_id = intval($body['tplan_id'] ?? 0);
+    if ($tproject_id <= 0 || $tplan_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project or test plan id']);
+    }
+    if (!$user->hasRight($db, 'testplan_add_remove_platforms', $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $mgr = platMgrFor($tproject_id);
+    $tplan_mgr = new testplan($db);
+
+    $tplan = $tplan_mgr->get_by_id($tplan_id);
+    if (!isset($tplan['id']) || intval($tplan['testproject_id']) != $tproject_id) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+
+    $add = array_values(array_filter(array_map('intval', (array)($body['add'] ?? []))));
+    $remove = array_values(array_filter(array_map('intval', (array)($body['remove'] ?? []))));
+
+    // qty BEFORE the operations, like legacy line order
+    $qtyByPlatform = $tplan_mgr->countLinkedTCVersionsByPlatform($tplan_id);
+    $fixNeeded = isset($qtyByPlatform[0]['qty']) && intval($qtyByPlatform[0]['qty']) > 0;
+
+    // every platform must belong to this project
+    foreach (array_merge($add, $remove) as $pid) {
+        needOwnedPlatform($mgr, $pid, $tproject_id);
+    }
+
+    // legacy transferLeft() refuses to move platforms with linked TCs out of the
+    // right pane -> enforce the same server-side so remove lists stay clean.
+    foreach ($remove as $pid) {
+        if ($tplan_mgr->count_testcases($tplan_id, $pid) > 0) {
+            $p = $mgr->getPlatform($pid);
+            http_response_code(422);
+            out([
+                'status' => 'error',
+                'message' => sprintf('%s has linked test cases and cannot be removed', $p['name']),
+                'error_code' => 'PLATFORM_HAS_LINKED_TCVS',
+            ]);
+        }
+    }
+
+    if ($add !== []) {
+        $op = $mgr->linkToTestplan($add, $tplan_id);
+        if ($op != tl::OK) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Linking platform failed']);
+        }
+    }
+    if ($remove !== []) {
+        $op = $mgr->unlinkFromTestplan($remove, $tplan_id);
+        if ($op != tl::OK) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Unlinking platform failed']);
+        }
+    }
+
+    // legacy doAssignPlatforms: single add fixes the "unknown platform" links
+    $reassigned = false;
+    if ($fixNeeded && count($add) == 1) {
+        $tplan_mgr->changeLinkedTCVersionsPlatform($tplan_id, 0, intval($add[0]));
+        $reassigned = true;
+    }
+
+    $payload = assignPayload($db, $user, $tproject_id, $tplan_id);
+    $payload['reassignedUnknownPlatform'] = $reassigned;
+    out($payload);
+}
+
+/**
+ * Shared payload builder for GET/POST /assign.
+ */
+function assignPayload($db, $user, $tproject_id, $tplan_id) {
+    global $db;
+
+    $mgr = platMgrFor($tproject_id);
+    $tplan_mgr = new testplan($db);
+
+    $tplans = [];
+    $rows = $GLOBALS['tproject_mgr']->get_all_testplans($tproject_id);
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $tplans[] = ['id' => intval($r['id']), 'name' => (string)$r['name'],
+                         'active' => intval($r['active']), 'is_open' => intval($r['is_open'])];
+        }
+    }
+
+    $available = [];
+    $assigned = [];
+    $fixNeeded = false;
+    $unknownQty = 0;
+    $tplanName = null;
+
+    if ($tplan_id > 0) {
+        $tplan = $tplan_mgr->get_by_id($tplan_id);
+        if (isset($tplan['id']) && intval($tplan['testproject_id']) == $tproject_id) {
+            $tplanName = (string)$tplan['name'];
+
+            $qtyByPlatform = $tplan_mgr->countLinkedTCVersionsByPlatform($tplan_id);
+            $unknownQty = isset($qtyByPlatform[0]['qty']) ? intval($qtyByPlatform[0]['qty']) : 0;
+            $fixNeeded = ($unknownQty > 0);
+
+            // left pane source set - exact legacy config_get('platforms')->allowedOnAssign
+            $fromMap = $mgr->getAllAsMap(config_get('platforms')->allowedOnAssign);
+            $linkedMap = $mgr->getLinkedToTestplanAsMap($tplan_id);
+
+            foreach ((array)$linkedMap as $pid => $pname) {
+                $count = intval($tplan_mgr->count_testcases($tplan_id, $pid));
+                $row = $mgr->getPlatform($pid);
+                $assigned[] = [
+                    'id' => intval($pid),
+                    'name' => (string)$row['name'],
+                    'is_open' => intval($row['is_open']),
+                    'displayName' => (string)$pname,
+                    'linkedCount' => $count,
+                ];
+                unset($fromMap[$pid]);
+            }
+            foreach ((array)$fromMap as $pid => $pname) {
+                $available[] = ['id' => intval($pid), 'name' => (string)$pname];
+            }
+        } else {
+            $tplan_id = 0;
+        }
+    }
+
+    return [
+        'status' => 'ok',
+        'tproject' => ['id' => $tproject_id, 'name' => testproject::getName($db, $tproject_id)],
+        'tplan' => $tplan_id > 0 ? ['id' => $tplan_id, 'name' => $tplanName] : null,
+        'tplans' => $tplans,
+        'available' => $available,
+        'assigned' => $assigned,
+        'fixNeeded' => $fixNeeded,
+        'unknownQty' => $unknownQty,
+        'rights' => [
+            'canAssign' => (bool)$user->hasRight($db, 'testplan_add_remove_platforms', $tproject_id),
+        ],
+    ];
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
