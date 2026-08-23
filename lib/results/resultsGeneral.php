@@ -581,9 +581,8 @@ function initLblSpreadsheet() {
            array('testsuite' => null,
                  'testcase_qty' => null,'keyword' => null, 
                  'platform' => null,'priority' => null,
-                 'priority_level' => null,
                  'build' => null,'testplan' => null, 
-                 'testproject' => null,'not_run' => null,
+                 'testproject' => null,
                  'completed_perc' => 'trep_comp_perc',
                  'generated_by_TestLink_on' => null));
   return $lbl;
