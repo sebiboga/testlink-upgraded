@@ -79,6 +79,13 @@ foreach ($statusDisplayOrder as $x => $code) {
                    'top_tsuite_id','child_tsuite_id');
   $rsu = $db->fetchRowsIntoMap4l($sql,$keyCols,true);
 
+  // fetchRowsIntoMap4l() returns NULL when the plan has no saved baseline
+  // yet; iterating null raised "E_WARNING foreach() argument must be of
+  // type array|object, null given" on every no-baseline render. (#427)
+  if( is_null($rsu) ) {
+    $rsu = array();
+  }
+
 
 
 // Generate statistics for each platform
