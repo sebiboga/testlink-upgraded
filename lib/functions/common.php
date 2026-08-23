@@ -1889,7 +1889,18 @@ function getActions(&$gui,$baseURL) {
     $actions->mileView = "$pp/planMilestonesView.php?{$ctx}";
     // Assign Platforms to Test Plan modernized screen (Dashio standalone page) - Refs #603
     $actions->platformAssign = "/gui/templates/platforms/platformsAssign.html?{$ctx}";
-    $actions->milestonesView = "$bb/plan/planMilestonesView.php?{$ctx}";
+    // Test Plan Milestones modernized screen (Dashio standalone page) - Refs #647.
+    // The BFF enforces the legacy controller right (testplan_planning) on every
+    // route; aside visibility stays gated by menuGrants below.
+    if (!isset($actions->mileView)) {
+      $actions->mileView =
+        "/gui/templates/plans/planMilestones.html?{$ctx}";
+    }
+    $actions->milestonesView =
+      "/gui/templates/plans/planMilestones.html?{$ctx}";
+    // milestonesView switched to the modernized HTML screen above (Refs #647);
+    // the legacy planMilestonesView.php launcher entry is removed so it cannot
+    // overwrite the link.
     $actions->testcase_assignments =  
       "$bb/testcases/tcAssignedToUser.php?{$ctx}";
   }
