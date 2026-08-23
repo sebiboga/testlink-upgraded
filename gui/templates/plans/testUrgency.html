@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Test Urgency</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 220px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.btn-high { background: #e6605e; } .btn-high:hover { background: #d54f4d; }
+.btn-med { background: #f0ad4e; } .btn-med:hover { background: #df9d3e; }
+.btn-low { background: #6c9bd1; } .btn-low:hover { background: #5b8ac0; }
+.layout { display: flex; gap: 18px; padding: 18px 24px 8px; align-items: stretch; flex-wrap: wrap; }
+.suitePane { flex: 0 0 320px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; min-height: 360px; max-height: 70vh; }
+.suitePane h3 { margin: 0; padding: 11px 14px; background: #22242a; color: #fff; font-size: 13px; letter-spacing: .5px; }
+.suitePane h3 .cnt { float: right; opacity: .75; font-weight: 400; }
+.suitePane ul { list-style: none; margin: 0; padding: 6px 0; overflow-y: auto; flex: 1; }
+.suitePane ul li { padding: 8px 14px; font-size: 13px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.suitePane ul li:hover { background: #f4fbfb; }
+.suitePane ul li.sel { background: #e0f5f4; border-left-color: #4ECDC4; font-weight: 700; }
+.suitePane ul li.empty-li { cursor: default; color: #aaa; font-style: italic; }
+.suitePane ul li.empty-li:hover { background: none; }
+.urg-badge { font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 9px; color: #fff; white-space: nowrap; }
+.urg-badge.u-h { background: #e6605e; } .urg-badge.u-m { background: #f0ad4e; } .urg-badge.u-l { background: #6c9bd1; }
+.urg-badge.u-x { background: #95a5a6; }
+.mainPane { flex: 1 1 520px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; }
+.mainPane .paneHead { background: #22242a; color: #fff; font-size: 13px; letter-spacing: .5px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.mainPane .paneHead .suiteBtns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mainPane .paneHead .suiteBtns .lbl { opacity: .8; font-weight: 400; font-size: 12px; }
+.tableWrap { overflow: auto; flex: 1; }
+table.tcs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tcs th { background: #fafafa; text-align: left; padding: 9px 12px; border-bottom: 2px solid #eee; font-size: 12px; color: #555; white-space: nowrap; }
+table.tcs th.c, table.tcs td.c { text-align: center; }
+table.tcs td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.tcs tr:hover td { background: #f7fdfd; }
+.tcname { font-weight: 600; }
+.tclinks { margin-right: 8px; white-space: nowrap; }
+.tclinks a { color: #4ECDC4; margin-right: 6px; font-size: 13px; text-decoration: none; }
+.tclinks a:hover { color: #3dbdb5; }
+.radioOpt { white-space: nowrap; margin-right: 10px; cursor: pointer; font-size: 12.5px; }
+.radioOpt input { vertical-align: middle; margin-right: 3px; }
+.prio-tag { font-weight: 700; border-radius: 10px; padding: 2px 10px; font-size: 11.5px; color: #fff; display: inline-block; }
+.prio-tag.p-h { background: #e6605e; } .prio-tag.p-m { background: #f0ad4e; } .prio-tag.p-l { background: #6c9bd1; }
+.actions { display: flex; gap: 12px; padding: 12px 14px; align-items: center; border-top: 1px solid #eee; flex-wrap: wrap; }
+.hintline { font-size: 12px; color: #888; }
+.desc { padding: 10px 14px 16px; font-size: 12px; color: #777; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="turg.header">Set Test Urgency</span>
+  <span class="sub" data-i18n="turg.headerSub">assign urgency to test cases of this test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="turg.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><label for="tplanSel" data-i18n="turg.testPlan">Test Plan</label>:</span>
+  <select id="tplanSel"></select>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
+</div>
+
+<div class="empty" id="noTplan" style="display:none" data-i18n="turg.noTestplan">Please select a test plan</div>
+
+<div id="workArea" style="display:none;">
+  <div class="layout">
+    <div class="suitePane">
+      <h3><span data-i18n="turg.suites">Test Suites</span><span class="cnt" id="suiteCount"></span></h3>
+      <ul id="suiteList"></ul>
+    </div>
+    <div class="mainPane">
+      <div class="paneHead">
+        <span id="selSuiteName" class="tcname">-</span>
+        <span class="suiteBtns">
+          <span class="lbl" data-i18n="turg.setSuiteUrgencyTs">Set urgency for test suite:</span>
+          <button class="btn-teal btn-high" id="btnSuiteHigh" data-urgency="3" data-i18n="turg.high">High</button>
+          <button class="btn-teal btn-med" id="btnSuiteMed" data-urgency="2" data-i18n="turg.medium">Medium</button>
+          <button class="btn-teal btn-low" id="btnSuiteLow" data-urgency="1" data-i18n="turg.low">Low</button>
+        </span>
+      </div>
+      <div class="tableWrap">
+        <table class="tcs">
+          <thead>
+            <tr>
+              <th data-i18n="turg.colTestcase">Test Case</th>
+              <th data-i18n="turg.colAssignedTo">Assigned To</th>
+              <th class="c" data-i18n="turg.colImportance">Importance</th>
+              <th class="c" colspan="3" data-i18n="turg.colUrgency">Urgency</th>
+              <th class="c" data-i18n="turg.colPriority">Priority</th>
+            </tr>
+          </thead>
+          <tbody id="tcRows"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="btn-teal" id="btnSaveTcs"><i class="fa fa-floppy-disk"></i> <span data-i18n="turg.btnSetUrgencyTc">Set Urgency for Test Cases</span></button>
+        <span class="hintline" id="dirtyHint" style="display:none;" data-i18n="turg.unsavedHint">unsaved changes</span>
+      </div>
+      <div class="desc" data-i18n="turg.description">description</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/plans/index.php';
+var tplanId = 0;
+var tprojectId = 0;
+var selSuiteId = 0;
+var currentItems = [];
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#tplanSel').on('change', function () {
+    tplanId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    load();
+  });
+  $('#btnReload').on('click', load);
+
+  $('#suiteList').on('click', 'li[data-id]', function () {
+    selectSuite(parseInt($(this).attr('data-id'), 10));
+  });
+
+  $('.suiteBtns button').on('click', function () {
+    doSetSuiteUrgency(parseInt($(this).attr('data-urgency'), 10));
+  });
+
+  $(document).on('change', 'input[type=radio]', markDirty);
+
+  $('#btnSaveTcs').on('click', doSaveTcs);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tproject_id', String(tprojectId || ''));
+  url.searchParams.set('tplan_id', String(tplanId || ''));
+  window.history.replaceState({}, '', url);
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('common.error');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  toast(msg, true);
+}
+
+function load() {
+  if (tplanId <= 0 && tprojectId <= 0) {
+    // bare deep-link: recover through the first accessible project
+    $.getJSON('/api/projects/index.php').done(function (r) {
+      var items = (r && (r.data || r.items)) || [];
+      if (items.length) {
+        tprojectId = parseInt(items[0].id, 10);
+        load();
+      } else {
+        $('#noTplan').show();
+        $('#workArea').hide();
+      }
+    }).fail(function () { apiFail.apply(null, arguments); });
+    return;
+  }
+  $.get(API + '/urgency?tproject_id=' + tprojectId + '&tplan_id=' + tplanId)
+    .done(render)
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function render(r) {
+  if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+  tprojectId = parseInt(r.tproject.id, 10);
+  $('#tprojectName').text(r.tproject.name);
+
+  var $sel = $('#tplanSel').empty();
+  ((r.tplans || []).length ? r.tplans : [{id:0,name:'-'}]).forEach(function (tp) {
+    $sel.append('<option value="' + tp.id + '">' + esc(tp.name) + '</option>');
+  });
+  if (r.tplan && r.tplan.id > 0) { $sel.val(String(r.tplan.id)); }
+  else { tplanId = parseInt($sel.val() || '0', 10); }
+
+  var hasPlan = !!(r.tplan && r.tplan.id > 0);
+  $('#noTplan').toggle(!hasPlan);
+  $('#workArea').toggle(hasPlan);
+  document.title = hasPlan
+    ? r.tplan.name + ' - ' + TLi18n.t('turg.header')
+    : TLi18n.t('turg.header');
+  if (!hasPlan) {
+    $('#footerInfo').text('');
+    return;
+  }
+
+  renderSuites(r.suites || []);
+}
+
+function urgBadgeClass(u) {
+  return u === 3 ? 'u-h' : (u === 2 ? 'u-m' : (u === 1 ? 'u-l' : 'u-x'));
+}
+function urgBadgeLabel(u) {
+  return u === 3 ? TLi18n.t('turg.high')
+       : u === 2 ? TLi18n.t('turg.medium')
+       : u === 1 ? TLi18n.t('turg.low')
+       : TLi18n.t('turg.mixed');
+}
+
+function renderSuites(suites) {
+  var $ul = $('#suiteList').empty();
+  $('#suiteCount').text('(' + suites.length + ')');
+  if (!suites.length) {
+    $ul.append('<li class="empty-li">' + esc(TLi18n.t('turg.noSuites')) + '</li>');
+    $('#selSuiteName').text('-');
+    currentItems = [];
+    renderRows([]);
+    return;
+  }
+  var foundSel = false;
+  suites.forEach(function (s) {
+    $ul.append('<li data-id="' + s.id + '"' + (s.id === selSuiteId ? ' class="sel"' : '') + '>'
+      + '<span>' + esc(s.name) + '</span>'
+      + '<span><span class="badge-tcs" style="color:#b58900;font-size:12px;margin-right:6px;">'
+      + s.tc_qty + '</span>'
+      + '<span class="urg-badge ' + urgBadgeClass(s.urgency) + '">' + esc(urgBadgeLabel(s.urgency)) + '</span></span>'
+      + '</li>');
+    if (s.id === selSuiteId) { foundSel = true; }
+  });
+  if (!foundSel) { selectSuite(parseInt(suites[0].id, 10)); }
+}
+
+function selectSuite(suiteId) {
+  selSuiteId = suiteId;
+  $('#suiteList li').removeClass('sel');
+  $('#suiteList li[data-id=' + suiteId + ']').addClass('sel');
+  var $name = $('#suiteList li[data-id=' + suiteId + '] span:first');
+  $('#selSuiteName').text($name.length ? $name.text() : '-');
+
+  $.get(API + '/urgency/suite?tplan_id=' + tplanId + '&tproject_id=' + tprojectId
+        + '&tsuite_id=' + suiteId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      currentItems = r.items || [];
+      renderRows(currentItems);
+      $('#dirtyHint').hide();
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function levelTag(v) { return v === 3 ? 'p-h' : (v === 2 ? 'p-m' : 'p-l'); }
+function levelLabel(v) {
+  return v === 3 ? TLi18n.t('turg.levelHigh')
+       : v === 2 ? TLi18n.t('turg.levelMedium')
+       : TLi18n.t('turg.levelLow');
+}
+
+function renderRows(items) {
+  var $tb = $('#tcRows').empty();
+  if (!items.length) {
+    $tb.append('<tr><td colspan="7" style="text-align:center;color:#aaa;padding:22px;">'
+      + esc(TLi18n.t('turg.suiteEmpty')) + '</td></tr>');
+    $('#footerInfo').text('');
+    return;
+  }
+  items.forEach(function (it) {
+    var radio = function (val, lblKey) {
+      return '<label class="radioOpt"><input type="radio" name="urg_' + it.tcversion_id
+        + '" value="' + val + '"' + (it.urgency === val ? ' checked="checked"' : '')
+        + '> ' + esc(TLi18n.t(lblKey)) + '</label>';
+    };
+    $tb.append('<tr>'
+      + '<td><span class="tclinks">'
+      + '<a href="/gui/templates/testcases/tcView.html?tcase_id=' + it.testcase_id
+      +   '&tproject_id=' + tprojectId + '" target="_blank" title="' + esc(TLi18n.t('turg.design')) + '">'
+      +   '<i class="fas fa-pen-to-square"></i></a>'
+      + '<a href="/gui/templates/execute/execHistory.html?tcase_id=' + it.testcase_id
+      +   '&tproject_id=' + tprojectId + '" target="_blank" title="' + esc(TLi18n.t('turg.executionHistory')) + '">'
+      +   '<i class="fas fa-clock-rotate-left"></i></a>'
+      + '</span><span class="tcname">' + esc(it.fullExternalId) + '</span>: '
+      + esc(it.name) + '</td>'
+      + '<td>' + esc(it.assigned_to || '') + '</td>'
+      + '<td class="c">' + esc(levelLabel(it.importance)) + '</td>'
+      + '<td colspan="3" class="c">'
+      +   radio(3, 'turg.high') + radio(2, 'turg.medium') + radio(1, 'turg.low')
+      + '</td>'
+      + '<td class="c"><span class="prio-tag ' + levelTag(it.priority_level) + '">'
+      +   esc(levelLabel(it.priority_level)) + ' (' + it.priority_value + ')</span></td>'
+      + '</tr>');
+  });
+  $('#footerInfo').text(items.length + ' '
+    + TLi18n.t('turg.footerTcases'));
+}
+
+function markDirty() { $('#dirtyHint').show(); }
+
+function doSetSuiteUrgency(urgency) {
+  if (selSuiteId <= 0 || tplanId <= 0) { return; }
+  $.ajax({
+    url: API + '/urgency/suite',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      tplan_id: tplanId, tproject_id: tprojectId,
+      tsuite_id: selSuiteId, urgency: urgency
+    })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('turg.feedbackOk'));
+    } else {
+      toast(TLi18n.t('turg.feedbackFail'), true);
+    }
+    load();
+  }).fail(function (xhr) { apiFail(xhr); });
+}
+
+function doSaveTcs() {
+  if (tplanId <= 0 || !currentItems.length) { return; }
+  var items = {};
+  currentItems.forEach(function (it) {
+    var $r = $('input[name=urg_' + it.tcversion_id + ']:checked');
+    if ($r.length) { items[it.tcversion_id] = parseInt($r.val(), 10); }
+  });
+  $.ajax({
+    url: API + '/urgency/tcases',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tplan_id: tplanId, tproject_id: tprojectId, items: items })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('turg.feedbackOk'));
+      $('#dirtyHint').hide();
+    } else {
+      toast(TLi18n.t('turg.feedbackFail'), true);
+    }
+    selectSuite(selSuiteId);
+  }).fail(function (xhr) { apiFail(xhr); });
+}
+</script>
+</body>
+</html>
