@@ -3018,3 +3018,36 @@ Bugs found & fixed while executing:
 | 7 | testAutomationSpec.php any format | page renders | **FAIL** — separate bug: specview.php:860 array_keys(null) via get_last_active_version() returning null; filed as its own issue |
 
 **Result: 6/7 PASS** (run 2026-08-23). Remaining FAIL tracked in a dedicated issue.
+
+## 57. Modernization — Assign Platforms to Test Plan screen (platformsAssign) (Suite ID: 57)
+
+**Tracking:** GitHub issue #603 · **Files:** `api/platforms/index.php` (GET/POST /assign), `gui/templates/platforms/platformsAssign.html`, i18n `passign.*` in all 10 bundles, aside switch in `lib/functions/common.php`
+
+**Precondition:** fresh DB; fixtures recreated per run — project `PA Demo Project` (id 1), plan `PA Plan One` (id 2), platforms Linux-Prod (1) / Windows-QA (2) / Docker-Staging (3), one TC in Suite A (tcversion_id 5), one `testplan_tcversions` row (plan 2, tcv 5, platform_id 0 = "unknown platform" state). Session: headless Chrome, admin/admin.
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen loads with context | Open `/gui/templates/platforms/platformsAssign.html?tproject_id=1&tplan_id=2` | Header, toolbar w/ project + plan selector, dual panes render; Available=Linux-Prod,Windows-QA,Docker-Staging; Assigned empty; no banner | PASS |
+| 2 | Add + Save links platform | Select Linux-Prod → `>` → Save | toast saved; DB `testplan_platforms` gains row (2,1); pane refresh shows Linux-Prod assigned | PASS |
+| 3 | fixNeeded banner | Link a TC version with platform_id=0 (SQL fixture), reload screen | Yellow "Warning/Critical … test case versions without platform assignment" banner visible | PASS |
+| 4 | Single-add auto reassign | Select Docker-Staging → `>` → Save | `testplan_tcversions.platform_id` flips 0→3; banner disappears; Docker badge "(Used in 1 testcases)" appears | PASS |
+| 5 | Client unlink guard | Select Docker-Staging (linkedCount>0) → `<` | Warning modal "Platform is in use" opens; item stays in Assigned; nothing moved | PASS |
+| 6 | Warning renders HTML breaks | Inspect modal body after fix b7da46529 | Message renders line breaks (`<br>` applied), no literal `<br/>` text | PASS |
+| 7 | save_tcv alias links platforms | Select Windows-QA → `>` → "Save and assign linked test cases…" | Row (2,2) created in `testplan_platforms`; all 3 platforms now assigned | PASS |
+| 8 | Unlink platform without TCs | Select Linux-Prod (0 linked) → `<` → Save | Row (2,1) deleted from `testplan_platforms`; pane updates | PASS |
+| 9 | Server-side guard | In-page fetch POST /assign {remove:[3]} | HTTP 422 `{error_code:"PLATFORM_HAS_LINKED_TCVS"}`; DB unchanged | PASS |
+| 10 | No-tplan legacy message | Open bare URL `/gui/templates/platforms/platformsAssign.html` | Fallback auto-picks first accessible project; plan selector populated; message "There is no Test Plan selected." shown until user picks a plan | PASS |
+| 11 | Locale switch (de) | Open with `&locale=de` | Header "Plattformen zum Testplan zuordnen", panes "Verfügbare/Zugeordnete Plattformen", badge "(in 1 Testfällen verwendet)" | PASS |
+| 12 | Aside link switched | Load index.php, inspect asidebar frame | `platformAssign` item href = `/gui/templates/platforms/platformsAssign.html?tproject_id=…&tplan_id=…` | PASS |
+| 13 | Event Viewer clean + idempotent save | After fixes (93d30a080, be872380f): reload screen ×3, triple-click Save, check events + DB | No new E_WARNING rows; no duplicate testplan_platforms rows despite triple submit | PASS |
+
+**Bugs found & fixed during this suite (each own commit):**
+- 4de9cfb77 — btnAdd passed selector string → TypeError, move-right dead
+- b7da46529 — unlink warning showed literal `<br/>` (data-i18n escapes)
+- d483b51ad + 9499df451 — bare deep-link dead-ended; fallback used wrong projects API envelope
+- 93d30a080 — E_WARNING spam: get_all_testplans() has no is_open key
+- be872380f — review hardening: idempotent double-submit, orphaned-row skip
+
+**Result: 13/13 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
+
+**Notes:** legacy third button *Enable/Disable selected* omitted intentionally — repo-wide grep proves no server handler ever existed (dead UI). Legacy "Save & assign to TCV" extra logic was unreachable upstream (`copyLinkFromPlatformToPlatform()` undefined, inputs never posted); modern `mode=save_tcv` kept as documented alias performing link/unlink.
