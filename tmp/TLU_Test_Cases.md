@@ -3078,3 +3078,35 @@ radios with computed priority = importance × urgency).
 | 10 | Permission path — unauthenticated BFF GET/POST → 401; user `lowpriv` (no rights role) → 403 on /urgency, /urgency/suite GET+POST | PASS |
 | 11 | Aside integration: aside menu entry points at testUrgency.html inside app shell, click loads screen into mainframe iframe; mainPage 200 | PASS |
 | 12 | Event Viewer: zero new Error/Warning events during the whole test window (after fixing self-inflicted fixture options serialization; unrelated to screen code) | PASS |
+
+## 59. Regression — Issue #419: Execution navigator emits EXDS(,N) — JS syntax error leaves execution tree empty (Suite ID: 59)
+
+**Area:** Test Case Execution → Execute Tests (`lib/execute/execNavigator.php`
++ `gui/templates/dashio/execute/execNavigator.tpl`) · **Refs #419**
+
+**Precondition:** project with suites/cases linked to a plan and at least one
+build (fixtures: `tmp/fixtures_419.php` — project "EXDS Demo Project", plan
+"EXDS Plan", build "EXDS Build 1", cases EXD-1/2/3).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Bootstrap call well-formed | Load `lib/execute/execNavigator.php?setting_testplan=18&tproject_id=6&tplan_id=18`, regex the inline script for `EXDS(...)` | Emits `EXDS(6,18);` — no empty first argument | PASS |
+| 2 | No JS syntax error | Check DevTools console after load | No `Uncaught SyntaxError: Unexpected token ','`, no `treeCfg is not defined`; `typeof treeCfg === 'object'` | PASS |
+| 3 | Tree built | Inspect `#tree_div.innerHTML.length` | > 0 (observed 1941 chars); root node present | PASS |
+| 4 | Full user flow | index.php → aside **Test Case Execution → Execute Tests** | Navigator loads in mainframe iframe with Settings/Filters + tree; workframe loads execDashboard | PASS |
+| 5 | Tree content complete | Expand tree (`tree.expandAll()`) | Root "EXDS Demo Project / EXDS Plan (3)" + suites + all 3 cases (EXD-1:Case T1, EXD-2:Case C1, EXD-3:Case C2) | PASS |
+| 6 | Case clickable → execution form | Click tree case link `ST(9,10)` | `execSetResults.php?version_id=10&level=testcase&id=9...` loads in workframe with execution form present | PASS |
+| 7 | Event Viewer clean for #419 flow | Query events table after full flow | No new Error/Warning caused by the navigator bootstrap itself (only pre-existing unrelated E_WARNINGs in execSetResults templates — filed separately) | PASS |
+
+**Root cause / fix note:** `initializeGui()` in
+`lib/execute/execNavigator.php` never assigned `$gui->tproject_id`, so Smarty
+rendered `EXDS(,18);` in `execNavigator.tpl:57`. The whole inline `<script>`
+block failed to parse, killing `treeCfg` and the `Ext.onReady()` handler that
+builds the tree. Fix (already on default branch since commit `857555dad`,
+2026-08-17): `$gui->tproject_id = intval($control->args->testproject_id);`.
+
+**Result: 7/7 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
+
+**Bugs discovered during this suite (filed separately, NOT part of #419):**
+- chosen.jquery.js loads before jQuery in `frmInner.tpl`/`workbench.tpl` → console ReferenceError on every workarea load (no functional impact found)
+- E_WARNING trio when rendering an execution form (`round_enabled` undefined in execSetResults.tpl:141, null property read, null array access in exec_show_tc_exec.inc.tpl)
