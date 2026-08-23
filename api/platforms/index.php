@@ -563,11 +563,17 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'assign' && !i
             http_response_code(422);
             out([
                 'status' => 'error',
-                'message' => sprintf('%s has linked test cases and cannot be removed', $p['name']),
+                'message' => sprintf('%s has linked test cases and cannot be removed',
+                                     is_array($p) ? $p['name'] : '#'.$pid),
                 'error_code' => 'PLATFORM_HAS_LINKED_TCVS',
             ]);
         }
     }
+
+    // linkToTestplan() is a plain INSERT without duplicate protection -
+    // drop ids that are already linked so double submits stay idempotent
+    $alreadyLinked = array_map('intval', array_keys((array)$mgr->getLinkedToTestplanAsMap($tplan_id)));
+    $add = array_values(array_diff($add, $alreadyLinked));
 
     if ($add !== []) {
         $op = $mgr->linkToTestplan($add, $tplan_id);
@@ -637,6 +643,9 @@ function assignPayload($db, $user, $tproject_id, $tplan_id) {
             foreach ((array)$linkedMap as $pid => $pname) {
                 $count = intval($tplan_mgr->count_testcases($tplan_id, $pid));
                 $row = $mgr->getPlatform($pid);
+                if (!is_array($row)) {
+                    continue; // platform row vanished mid-flight - skip instead of warning
+                }
                 $assigned[] = [
                     'id' => intval($pid),
                     'name' => (string)$row['name'],

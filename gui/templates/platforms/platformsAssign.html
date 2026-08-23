@@ -334,12 +334,17 @@ function diffPanes() {
   return { add: add, remove: remove };
 }
 
+var saving = false;
+
 function doSave(mode) {
+  if (saving) { return; }
   var d = diffPanes();
   if (!d.add.length && !d.remove.length) {
     toast(TLi18n.t('passign.msg.nothing'));
     return;
   }
+  saving = true;
+  $('#btnSave, #btnSaveTcv').prop('disabled', true);
   $.ajax({
     url: API + '/assign',
     method: 'POST',
@@ -363,6 +368,9 @@ function doSave(mode) {
     var key = map[r.error_code] || null;
     toast(key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error')), true);
     load();
+  }).always(function () {
+    saving = false;
+    $('#btnSave, #btnSaveTcv').prop('disabled', false);
   });
 }
 </script>
