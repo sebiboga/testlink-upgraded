@@ -857,7 +857,12 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
         break;
         
         default:
-          $tcvidSet = array_keys($tcversionSet);
+          // get_last_active_version() returns NULL when none of the target
+          // test cases has an ACTIVE version => array_keys(null) was a
+          // fatal TypeError on PHP 8. Treat as an already-empty result:
+          // nothing can match any of the following filters either.
+          $emptySet = is_null($tcversionSet) || count($tcversionSet) == 0;
+          $tcvidSet = $emptySet ? array() : array_keys($tcversionSet);
           foreach($tcvidSet as $zx) {
             $tcidSet[$tcversionSet[$zx]['testcase_id']] = $zx;  
           }  
@@ -865,7 +870,6 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
           $options = null;
           $doFilter = true;
           $allowedSet = null;
-          $emptySet = false;
 
           // a first clean will not be bad, ok may be we are going to do more 
           // loops that needed, but think logic will be more clear 
@@ -876,7 +880,7 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
             }
           }
 
-          if ($useFilter['execution_type']) {
+          if (!$emptySet && $useFilter['execution_type']) {
             // Potential Performance ISSUE
             $allowedSet = $tcaseMgr->filter_tcversions_by_exec_type($tcvidSet,$filters['execution_type'],$options);
 

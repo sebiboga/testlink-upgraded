@@ -6289,6 +6289,35 @@ class testcase extends tlObjectWithAttachments {
     return $recordset;
   }
 
+  /**
+   * Latest Test Case Version info for a SET of test cases.
+   * get_by_id() can only apply self::LATEST_VERSION to ONE test case id,
+   * this variant works on a set and keeps the newest version row
+   * (MAX tcversion id) of each test case.
+   *
+   * @param mixed $idSet single test case id or array of test case ids
+   *
+   * @return array rows with same structure as get_by_id(),
+   *               NULL when nothing found
+   */
+  function getLTCVInfo($idSet,$filters=null,$options=null) {
+    // ascending TCV.id => the last row read for each test case
+    // is the latest version
+    $opt = array('order_by' => ' ORDER BY NHTCV.parent_id ASC, TCV.id ASC ');
+    $rs = $this->get_by_id((array)$idSet,self::ALL_VERSIONS,$filters,$opt);
+
+    if( is_null($rs) || count($rs) == 0 ) {
+      return null;
+    }
+
+    $latest = array();
+    foreach($rs as $row) {
+      $latest[$row['testcase_id']] = $row;
+    }
+
+    return $latest;
+  }
+
 
   /**
    *
