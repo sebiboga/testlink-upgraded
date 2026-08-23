@@ -53,7 +53,10 @@ $path = isset($_GET['action']) ? $_GET['action'] : '';
 // field in the JSON body (mirrors legacy pluginView.php form parameter).
 $body = [];
 if ($method === 'POST') {
-  $body = json_decode(file_get_contents('php://input'), true) ?? [];
+  $body = json_decode(file_get_contents('php://input'), true);
+  if (!is_array($body)) {
+    $body = [];
+  }
   if ($path === '') {
     $path = trim((string)($body['operation'] ?? ''));
   }
@@ -94,26 +97,38 @@ switch ("$method $path") {
     if ($id <= 0) {
       bffFail(400, 'Invalid plugin id');
     }
+    $tables = tlObjectWithDB::getDBTables(array('plugins'));
+    $t_row = $db->fetchFirstRow('SELECT basename FROM ' . $tables['plugins'] .
+      ' WHERE id=' . $id);
+    if (!$t_row) {
+      bffFail(404, 'Plugin not found');
+    }
+    $basename = (string)$t_row['basename'];
     // Legacy plugin_uninstall() reads the plugin instance from
     // $g_plugin_cache, which in a full page render gets populated by
     // get_all_installed_plugins()/plugin_register(). A bare BFF request has
     // an empty cache and would fatal AFTER the plugins row was deleted.
-    // Prime the cache explicitly, then uninstall.
+    // Prime the cache explicitly when the plugin files still exist.
     foreach (get_all_installed_plugins() as $p) {
-      if ((int)$p['id'] === $id) {
-        plugin_register($p['name'], false);
+      if ((string)$p['name'] === $basename) {
+        plugin_register($basename, false);
         break;
       }
     }
-    try {
-      $t_basename = plugin_uninstall($id);
-    } catch (Throwable $e) {
-      bffFail(500, 'Uninstall failed: ' . $e->getMessage());
+    global $g_plugin_cache;
+    if (isset($g_plugin_cache[$basename])) {
+      try {
+        plugin_uninstall($id);
+      } catch (Throwable $e) {
+        bffFail(500, 'Uninstall failed: ' . $e->getMessage());
+      }
+    } else {
+      // Plugin files no longer on disk: get_all_installed_plugins() skips
+      // such rows so the cache cannot be primed. Remove the registration
+      // directly instead of the legacy fatal-after-DELETE path.
+      $db->exec_query('DELETE FROM ' . $tables['plugins'] . ' WHERE id=' . $id);
     }
-    if ($t_basename === null || $t_basename === '') {
-      bffFail(404, 'Plugin not found');
-    }
-    echo json_encode(['status' => 'ok', 'success' => true, 'message' => 'plugin_uninstalled', 'name' => (string)$t_basename]);
+    echo json_encode(['status' => 'ok', 'success' => true, 'message' => 'plugin_uninstalled', 'name' => $basename]);
     exit;
 
   default:

@@ -46,7 +46,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="header"><span data-i18n="plugin.header">Plugin Management</span> <span data-i18n="plugin.headerSub">install and uninstall TestLink plugins</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -98,7 +98,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       <div class="modal-body" id="confirmText" style="font-size:13px;"></div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" id="confirmOk" style="font-size:13px;">OK</button>
+        <button type="button" class="btn-teal" id="confirmOk" style="font-size:13px;" data-i18n="common.ok">OK</button>
       </div>
     </div>
   </div>
@@ -128,15 +128,23 @@ function showFeedback(kind, msg) {
   el.attr('class', kind).text(msg);
 }
 
-function loadData() {
+$(document).on('click', '#refreshBtn', function() { loadData(true); });
+
+function loadData(clearFeedback) {
   $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
     renderInstalled(r.installed || []);
     renderAvailable(r.available || []);
     $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
     $('#footerInfo').text('');
   }).fail(function(xhr) {
-    var msg = TLi18n.t('plugin.msg.loadError');
-    try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+    var msg;
+    if (xhr.status === 401 || xhr.status === 403) {
+      msg = TLi18n.t('plugin.msg.noPermission');
+    } else {
+      msg = TLi18n.t('plugin.msg.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    }
     showFeedback('err', msg);
     if (xhr.status === 403) {
       $('.table-wrap, .section-title').hide();
@@ -157,7 +165,7 @@ function renderInstalled(items) {
       esc(p.description),
       esc(p.version),
       statusBadge,
-      '<button class="action-btn danger" onclick="askUninstall(' + p.id + ', \'' + esc(p.name).replace(/'/g, "\\'") + '\')">' +
+      '<button class="action-btn danger" data-op="uninstall" data-id="' + p.id + '" data-name="' + esc(p.name) + '">' +
         '<i class="fa fa-power-off"></i> ' + TLi18n.t('plugin.uninstall') + '</button>'
     ]);
   });
@@ -178,7 +186,7 @@ function renderAvailable(items) {
       esc(p.name),
       esc(p.description),
       esc(p.version),
-      '<button class="action-btn teal" onclick="askInstall(\'' + esc(p.name).replace(/'/g, "\\'") + '\')">' +
+      '<button class="action-btn teal" data-op="install" data-name="' + esc(p.name) + '">' +
         '<i class="fa fa-download"></i> ' + TLi18n.t('plugin.install') + '</button>'
     ]);
   });
@@ -194,6 +202,16 @@ function renderAvailable(items) {
 function esc(s) {
   return $('<div>').text(s == null ? '' : String(s)).html();
 }
+
+$(document).on('click', '.action-btn[data-op]', function() {
+  var op = $(this).data('op');
+  var name = String($(this).data('name'));
+  if (op === 'install') {
+    askInstall(name);
+  } else {
+    askUninstall(parseInt($(this).data('id'), 10), name);
+  }
+});
 
 function askInstall(name) {
   pendingOp = { op: 'install', name: name };
@@ -230,8 +248,13 @@ $('#confirmOk').on('click', function() {
     },
     error: function(xhr) {
       $('#confirmModal').modal('hide');
-      var msg = TLi18n.t('plugin.msg.opError');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      var msg;
+      if (xhr.status === 401 || xhr.status === 403) {
+        msg = TLi18n.t('plugin.msg.noPermission');
+      } else {
+        msg = TLi18n.t('plugin.msg.opError');
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      }
       showFeedback('err', msg);
     }
   });
