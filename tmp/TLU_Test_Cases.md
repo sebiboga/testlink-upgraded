@@ -3422,35 +3422,25 @@ body — bare POST returned 405), 06c16aa22 (prime `$g_plugin_cache` before
 `plugin_uninstall()` — legacy fatal fired AFTER the DELETE, producing a 500 +
 silently deleted registration).
 
-**Suite 636 addendum — code-review fixes re-validated (75fc73cb4):** data-op
-delegated buttons (attribute-injection hardening), orphaned-row uninstall path,
-localized 401/403 banners, feedback cleared only on explicit Refresh, uninstall
-response name restored. Re-run: install + uninstall via UI buttons PASS with
-correct localized feedback; unknown id → 404; refresh clears banner; final
-cycle produced **0 new events** in `events` table (verified `MAX(id)` unchanged).
+---
 
-## Suite 635 — Regression — Issue #635: displayMgr.php:72 E_WARNING + HTTP 500 when report URL carries a nonexistent tplan_id
+## Suite 426 — Regression — Issue #426: 8 dashio templates missing (tl-classic-only) ⇒ fatal errors
 
-**Refs:** #635 · branch `fix/issue-635` · commits 97f01db27, c773394ba
-**Files under test:** `lib/results/displayMgr.php` (`initArgsForReports()`), `gui/templates/dashio/workAreaSimple.tpl`
+**Date:** 2026-08-23 · **Env:** http://localhost:8082, admin/admin, MariaDB testlink (fresh import + fixtures: project id=1 "I426 Demo", plan id=2 "I426 Plan", build id=10, platform id=20)
 
-**Precondition:** fresh DB import; admin session at http://localhost:8082
-(curl cookie jar or browser login admin/admin). No test plans needed for R1/R2;
-fixture project 9001 / plan 9002 / build 9003 via SQL for R3.
+**Precondition:** all 8 dashio templates exist (`results/baselinel1l2.tpl`, `results/resultsTCAbsoluteLatest.tpl`, `results/resultsTCAbsoluteLatestLauncher.tpl`, `results/testAutomationSpec.tpl`, `plan/tc_exec_assignment.tpl`, `inventory/inventoryView.tpl`, `reqmgrsystems/reqMgrSystemView.tpl`, `reqmgrsystems/reqMgrSystemEdit.tpl`).
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | Poisoned plan id (primary repro) | GET `/lib/results/resultsByTSuite.php?tplan_id=999999&tproject_id=1&format=0` | HTTP 200 info page "Document generation error" + missing-testplan message; no E_WARNING in events | PASS |
-| 2 | Shared-path sweep | Same poisoned URL × resultsGeneral, resultsTC, neverRunByPP, baselinel1l2, execTimelineStats, testAutomationSpec | All HTTP 200 with same graceful page (initArgsForReports guards all 7) | PASS |
-| 3 | Absent tplan_id | GET `/lib/results/resultsByTSuite.php?format=0` (no tplan_id param → id 0) | HTTP 200 graceful page (get_by_id(0)=null handled by same guard) | PASS |
-| 4 | Valid plan unchanged | SQL fixture project 9001 / plan 9002 / build 9003; GET resultsByTSuite + resultsGeneral with tplan_id=9002 | HTTP 200 real report pages ("Metrics by Level 1 & Level 2 Test Suites") | PASS |
-| 5 | Template null-safety (checkpoint-2 fix) | Render workAreaSimple.tpl via any guard hit; diff events before/after request | Zero new events — `{if isset($link_to_op)...}` kills the PHP-8 undefined-key/null-property warnings seen pre-fix | PASS |
-| 6 | Event viewer after suite | `SELECT … FROM events ORDER BY id DESC` around the run | Only audit-level records + pre-existing #630 fixture-induced warning (resultsGeneral.php:251, bare options column); zero displayMgr.php:72 recurrences | PASS |
+| 1 | Original mechanism repro | Temporarily move `dashio/inventory/inventoryView.tpl` away; GET `/lib/inventory/inventoryView.php`; restore | HTTP 500 with Smarty `Unable to load template 'file:inventory/inventoryView.tpl'`; after restore HTTP 200 | PASS |
+| 2 | Baselines L1&L2 report | GET `baselinel1l2.php?tplan_id=2&tproject_id=1&format=0` | HTTP 200, page renders, no fatal | PASS |
+| 3 | Absolute Latest launcher | GET `resultsTCAbsoluteLatest.php?tplan_id=2&tproject_id=1&doAction=choose` | HTTP 200, launcher form renders (launcher tpl present) | PASS |
+| 4 | Absolute Latest matrix | GET `…doAction=result&platform_id=20&format=0` (plan HAS builds) | HTTP 200, matrix renders | PASS |
+| 5 | Assign TC Execution screen | GET `tc_exec_assignment.php?tplan_id=2&tproject_id=1&doAction=std&level=testsuite&build_id=10` (real entry = frmWorkArea feature frame; bare call without `level` shows legacy instructions redirect by design) | HTTP 200, assignment UI renders | PASS |
+| 6 | Inventory view | GET `inventoryView.php` | HTTP 200, renders | PASS |
+| 7 | Req. Mgmt System view | GET `reqMgrSystemView.php` | HTTP 200, renders | PASS |
+| 8 | Req. Mgmt System edit/create | GET `reqMgrSystemEdit.php?doAction=create` | HTTP 200, form renders | PASS |
+| 9 | Test Automation Spec report | GET `testAutomationSpec.php?tplan_id=2&tproject_id=1&format=0` | Template loads (no `Unable to load template`); page still 500s via specview.php:807 → owned by #604 | PASS (template part) / tracked (#604) |
+| 10 | Event Viewer clean | Query `events` after browser-context runs | No new Error/Warning entries | PASS |
 
-**Result: 6/6 PASS** (run 2026-08-23, curl + headless Chrome + mysql against http://localhost:8082).
-
-**Known adjacent defects deliberately NOT fixed here:** #634 (valid plan without
-builds still fatals 500 inside tlTestPlanMetrics — separate owner), #630
-(resultsGeneral.php:251 tprojOpt warnings — pre-existing, triggered here only
-by the minimal SQL fixture).
-
+**Result: 10/10 executed as designed — PASS.** Residual non-template defects filed separately: #637, #638.
