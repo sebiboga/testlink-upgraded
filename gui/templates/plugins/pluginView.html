@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plugins</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.table-wrap { padding: 0 24px 10px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #999; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { border: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #fff; }
+.action-btn.teal { background: #4ECDC4; }
+.action-btn.teal:hover { background: #3dbdb5; }
+.action-btn.danger { background: #e6605e; }
+.action-btn.danger:hover { background: #d04e4c; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.ok { display:block; background: #e7f9f2; color: #1e8e5a; border: 1px solid #bfe8d6; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+.empty-hint { padding: 4px 24px 16px 24px; color: #888; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="plugin.header">Plugin Management</span> <span data-i18n="plugin.headerSub">install and uninstall TestLink plugins</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="section-title"><i class="fa fa-plug" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="plugin.installed">Installed Plugins</span></div>
+<div class="table-wrap">
+  <table id="installedTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:22%" data-i18n="plugin.name">Plugin</th>
+        <th data-i18n="plugin.description">Description</th>
+        <th style="width:12%" data-i18n="plugin.version">Version</th>
+        <th style="width:10%" data-i18n="plugin.status">Status</th>
+        <th style="width:120px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="empty-hint" id="installedEmpty" style="display:none;" data-i18n="plugin.noInstalled">No plugins installed.</div>
+
+<div class="section-title"><i class="fa fa-box-open" style="color:#e6605e;margin-right:6px;"></i><span data-i18n="plugin.available">Available Plugins</span></div>
+<div class="table-wrap">
+  <table id="availableTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:22%" data-i18n="plugin.name">Plugin</th>
+        <th data-i18n="plugin.description">Description</th>
+        <th style="width:12%" data-i18n="plugin.version">Version</th>
+        <th style="width:120px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+<div class="empty-hint" id="availableEmpty" style="display:none;" data-i18n="plugin.noAvailable">No additional plugins available on disk.</div>
+
+<div class="footer" id="footerText"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmTitle">Confirm</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="confirmText" style="font-size:13px;"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="confirmOk" style="font-size:13px;">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/plugins/index.php?action=list';
+var installedTable = null;
+var availableTable = null;
+var pendingOp = null;
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadData();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+function loadData() {
+  $.getJSON(API, function(r) {
+    renderInstalled(r.installed || []);
+    renderAvailable(r.available || []);
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#footerInfo').text('');
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('plugin.msg.loadError');
+    try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+    showFeedback('err', msg);
+    if (xhr.status === 403) {
+      $('.table-wrap, .section-title').hide();
+      $('#footerInfo').text(TLi18n.t('plugin.msg.noPermission'));
+    }
+  });
+}
+
+function renderInstalled(items) {
+  if (installedTable) { installedTable.destroy(); $('#installedTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, p) {
+    var statusBadge = p.enabled
+      ? '<span class="badge-active">' + TLi18n.t('plugin.enabled') + '</span>'
+      : '<span class="badge-inactive">' + TLi18n.t('plugin.disabled') + '</span>';
+    rows.push([
+      esc(p.name),
+      esc(p.description),
+      esc(p.version),
+      statusBadge,
+      '<button class="action-btn danger" onclick="askUninstall(' + p.id + ', \'' + esc(p.name).replace(/'/g, "\\'") + '\')">' +
+        '<i class="fa fa-power-off"></i> ' + TLi18n.t('plugin.uninstall') + '</button>'
+    ]);
+  });
+  installedTable = $('#installedTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [null, null, null, null, { orderable: false, searchable: false }]
+  });
+  $('#installedEmpty').toggle(items.length === 0);
+}
+
+function renderAvailable(items) {
+  if (availableTable) { availableTable.destroy(); $('#availableTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, p) {
+    rows.push([
+      esc(p.name),
+      esc(p.description),
+      esc(p.version),
+      '<button class="action-btn teal" onclick="askInstall(\'' + esc(p.name).replace(/'/g, "\\'") + '\')">' +
+        '<i class="fa fa-download"></i> ' + TLi18n.t('plugin.install') + '</button>'
+    ]);
+  });
+  availableTable = $('#availableTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: [null, null, null, { orderable: false, searchable: false }]
+  });
+  $('#availableEmpty').toggle(items.length === 0);
+}
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function askInstall(name) {
+  pendingOp = { op: 'install', name: name };
+  $('#confirmTitle').text(TLi18n.t('plugin.confirmInstallHeader'));
+  $('#confirmText').text(TLi18n.t('plugin.confirmInstallText', {name: name}));
+  $('#confirmOk').attr('class', 'btn-teal');
+  $('#confirmModal').modal('show');
+}
+
+function askUninstall(id, name) {
+  pendingOp = { op: 'uninstall', id: id, name: name };
+  $('#confirmTitle').text(TLi18n.t('plugin.confirmUninstallHeader'));
+  $('#confirmText').text(TLi18n.t('plugin.confirmUninstallText', {name: name}));
+  $('#confirmOk').attr('class', 'btn-red');
+  $('#confirmModal').modal('show');
+}
+
+$('#confirmOk').on('click', function() {
+  if (!pendingOp) return;
+  var body = pendingOp.op === 'install'
+    ? { operation: 'install', pluginName: pendingOp.name }
+    : { operation: 'uninstall', pluginId: pendingOp.id };
+  $.ajax({
+    url: '/api/plugins/index.php',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(body),
+    success: function(r) {
+      $('#confirmModal').modal('hide');
+      showFeedback('ok', r.message === 'plugin_uninstalled'
+        ? TLi18n.t('plugin.msg.uninstalled', {name: r.name})
+        : TLi18n.t('plugin.msg.installed', {name: r.name}));
+      loadData();
+    },
+    error: function(xhr) {
+      $('#confirmModal').modal('hide');
+      var msg = TLi18n.t('plugin.msg.opError');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      showFeedback('err', msg);
+    }
+  });
+});
+</script>
+</body>
+</html>
