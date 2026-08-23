@@ -204,6 +204,7 @@ var prioEnabled = true;
 var msTbl = null;
 var rptTbl = null;
 var deleteTarget = null;
+var deleteTargetName = '';
 var lastData = null;
 
 $(function () {
@@ -479,6 +480,7 @@ function saveMilestone() {
 
 function confirmDelete(m) {
   deleteTarget = parseInt(m.id, 10);
+  deleteTargetName = m.name;
   $('#delTitle').text(TLi18n.t('common.delete'));
   $('#delMsg').html('<b>' + esc(m.name) + '</b><br>' + esc(TLi18n.t('ms.deleteConfirmMsg')));
   $('#delModal').modal('show');
@@ -492,7 +494,7 @@ function doDelete() {
   }).done(function (r) {
     $('#delModal').modal('hide');
     if (r.status === 'ok') {
-      toast(TLi18n.t('ms.msg.deleted'));
+      toast(TLi18n.t('ms.msg.deleted').replace('{name}', deleteTargetName));
     } else {
       toast(errText(r), true);
     }
