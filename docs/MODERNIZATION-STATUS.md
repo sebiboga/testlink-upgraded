@@ -59,6 +59,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 34 | Plans — Assign Platforms to Plan | `platforms/platformsAssign.html` | api/platforms | #603 |
 | 35 | Execution — Execution History | `execute/execHistory.html` | api/execute | |
 | 36 | Plans — Set Test Urgency | `plans/testUrgency.html` | api/plans | #605 |
+| 37 | Plans — Show Newest TC Versions | `plans/showNewestTcVersions.html` | api/plans | #643 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
@@ -86,7 +87,7 @@ Extra modernized feature (not an ASIDE entry):
 | 2 | Assign Test Case Execution | launcher `tc_exec_assignment` | `testplan_execute` | Tester→TC assignment form |
 | 3 | My Test Case Assignments | `lib/testcases/tcAssignedToUser.php` | `testplan_execute` (RO variant: `href_exec_ro_access`) | |
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
-| 5 | Newest TC Versions | launcher `newest_tcversions` | `testplan_show_testcases_newest_versions` | |
+
 | 6 | Test Plan Milestones | `lib/plan/planMilestonesView.php` | `testplan_milestone_overview` | |
 | 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done |
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
