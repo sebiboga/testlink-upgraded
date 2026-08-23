@@ -84,7 +84,7 @@ Extra modernized feature (not an ASIDE entry):
 | 1 | **Execute Tests** (main execution screen) | launcher `executeTest` → lib/execution | `testplan_execute` | Biggest remaining item; execHistory (#35) already feeds from it |
 | 2 | Assign Test Case Execution | launcher `tc_exec_assignment` | `testplan_execute` | Tester→TC assignment form |
 | 3 | My Test Case Assignments | `lib/testcases/tcAssignedToUser.php` | `testplan_execute` (RO variant: `href_exec_ro_access`) | |
-| 4 | Update Linked TC Versions | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
+| 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 | 5 | Newest TC Versions | launcher `newest_tcversions` | `testplan_show_testcases_newest_versions` | |
 | 6 | Test Plan Milestones | `lib/plan/planMilestonesView.php` | `testplan_milestone_overview` | |
 | 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done |
