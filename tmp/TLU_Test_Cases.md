@@ -3489,3 +3489,22 @@ Report URL: `/lib/results/testAutomationSpec.php?tproject_id=1&tplan_id=7&format
 | 5 | Shared path smoke via genSpecView() | GET `/lib/plan/planAddTC.php?edit=testsuite&id=2&tplan_id=7&tproject_id=1` | HTTP 200, table lists I428-1..I428-3 | PASS |
 | 6 | Event Viewer clean | `SELECT id FROM events WHERE fired_at > <last pre-run id>` after tests 3-5 | zero new Error/Warning rows | PASS |
 | 7 | Follow-up warnings (#641) fixed on same render | render report ×2, check events for `$tplan_name` / `"platforms"` / null-deref warnings | none emitted (previously events ids 38-42) | PASS |
+
+### Suite 640 addendum — code-review fixes re-verified (137f24711)
+
+Review verdict was 0 blockers / 2 majors / 7 minors; majors + actionable minors
+fixed and re-executed:
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 22 | Tracker option names escaped (MAJOR-1) | Insert issuetracker named `</option><img src=x onerror=…>`, open Create modal | Option text rendered literally via esc(); no injected element | PASS |
+| 23 | Private-project lockout protection (MAJOR-2) | Create project isPublic=0 as admin | user_testproject_roles row (admin, global role 8) written; legacy parity with doCreate/doUpdate | PASS |
+| 24 | Stored color preserved on PUT (MINOR-3) | UPDATE testprojects SET color, then toggleActive | color column unchanged after partial update | PASS |
+| 25 | Single AUDIT events (MINOR-4) | create + delete a project; inspect events tail | exactly one audit_testproject_created / _deleted per action (manager logs it; BFF no longer double-logs); update still logs audit_testproject_saved once like doUpdate | PASS |
+| 26 | Corrupt options blob guarded (MINOR-5) | UPDATE testprojects SET options='' then GET/PUT project | flags fall back to defaults; no serialize(false) wipe | PASS |
+| 27 | Partial-options semantics (MINOR-6) | POST {optInventory:1,optPriority:0}; then PUT {optInventory:0} | only inventory flips; priority stays 0, automation stays default 1 | PASS |
+| 28 | Server-fault mapping (MINOR-8) | forced DB failure path | BFFServerError → HTTP 500; validation errors stay 400 | PASS |
+| 29 | Req-mgmt-system parity (MINOR-9) | /api/trackers/ now returns reqMgrSystems; edit modal shows Requirement Management Integration section; select+Enabled persist via tlReqMgrSystem link/unlink + setReqMgrIntegrationEnabled | reqMgrSystem badge/name round-trips through GET list/one | PASS |
+| 30 | Known-not-fixed: non-transactional cascade delete residue (MINOR-7) | review-only note | inherited from legacy doDelete(); documented in wiki page Legacy parity notes | NOTE |
+
+**Result: 9 PASS / 1 documented NOTE** (re-run 2026-08-23).
