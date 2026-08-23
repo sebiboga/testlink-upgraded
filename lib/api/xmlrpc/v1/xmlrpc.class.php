@@ -2181,6 +2181,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $item->color = '';
 
             $its = null;
+            $itsOK = false;
             if($optional[self::$itsNameParamName] != "") {
                 $this->itsMgr = new tlIssueTracker( $this->dbObj );
                 $its = $this->getIssueTrackerSystem( $this->args, 'internal' );
@@ -4385,6 +4386,10 @@ class TestlinkXMLRPCServer extends IXR_Server {
                     }
                 }
             }
+        }
+
+        if( !isset( $args[self::$detailsParamName] ) ) {
+            $args[self::$detailsParamName] = null;
         }
 
         if($status_ok) {
