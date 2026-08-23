@@ -3051,3 +3051,30 @@ Bugs found & fixed while executing:
 **Result: 13/13 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
 
 **Notes:** legacy third button *Enable/Disable selected* omitted intentionally — repo-wide grep proves no server handler ever existed (dead UI). Legacy "Save & assign to TCV" extra logic was unreachable upstream (`copyLinkFromPlatformToPlatform()` undefined, inputs never posted); modern `mode=save_tcv` kept as documented alias performing link/unlink.
+
+## 58. Modernization — Set Test Urgency screen (testUrgency) (Suite ID: 58)
+
+**Screen:** `gui/templates/plans/testUrgency.html` · **BFF:** `api/plans/index.php`
+routes `/urgency`, `/urgency/suite` (GET/POST), `/urgency/tcases` (POST) · **Refs #605**
+**Legacy parity target:** `lib/plan/planUrgency.php` + `planUrgency.tpl`
+(rights: `testplan_planning` rightsAnd; suite urgency buttons; per-TC urgency
+radios with computed priority = importance × urgency).
+
+> **Run 2026-08-23 (browser + curl + SQL):** 12/12 PASS (3 defects found during
+> the run were fixed in-run: protected `$tables` access fatal, stale TC table
+> after suite set, getActions() fatal on mainPage).
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Context render: project name, plan selector, suites pane w/ TC counts and urgency badges (Alpha=3 TCs "mixed", Beta=1 TC "Medium") | PASS |
+| 2 | Suite table data parity: tcprefix+external id+name, assigned_to, importance label, urgency radio preselection, computed priority tag (Medium(4)/High(9)/Low(1) = imp×urg) | PASS |
+| 3 | Suite urgency button High → toast ok, badge flips mixed→High, DB `testplan_tcversions.urgency`=3 for all suite tcversions | PASS |
+| 4 | After suite set, open TC table refreshes (radios re-checked to new values) — bug fixed in-run (`1fb9497f6`) | PASS |
+| 5 | Per-TC change UD-3 Low→High + "Set Urgency for Test Cases" → toast ok, dirty hint clears, DB row updated | PASS |
+| 6 | Suite urgency Low on Alpha → all rows urgency=1, priorities recomputed (Low(2)/Medium(3)/Low(1)) | PASS |
+| 7 | Suite switch (Beta): single row rendered with correct urgency Medium preselected | PASS |
+| 8 | Locale switch ro: header/buttons/badges translated (turg.* bundle), page reloads with ?locale=ro | PASS |
+| 9 | Deep-link recovery: bare `/gui/templates/plans/testUrgency.html` recovers first accessible project and renders | PASS |
+| 10 | Permission path — unauthenticated BFF GET/POST → 401; user `lowpriv` (no rights role) → 403 on /urgency, /urgency/suite GET+POST | PASS |
+| 11 | Aside integration: aside menu entry points at testUrgency.html inside app shell, click loads screen into mainframe iframe; mainPage 200 | PASS |
+| 12 | Event Viewer: zero new Error/Warning events during the whole test window (after fixing self-inflicted fixture options serialization; unrelated to screen code) | PASS |
