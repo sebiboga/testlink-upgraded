@@ -382,9 +382,12 @@ function initTopMenu(&$db)
 
           if( isset($element['imgKey']) )
           {
-           $_SESSION['testprojectTopMenu'] .= '<img src="' . $imageSet[$element['imgKey']] . '"' .
-             ' title="' . lang_get($element['label']) . '">'; 
-          }  
+           // imageSet entries hold FontAwesome markup (<i class="fa ...">),
+           // not image paths - emit as element content, never into src=""
+           // (Refs #423).
+           $_SESSION['testprojectTopMenu'] .= '<span title="' . lang_get($element['label']) . '">' .
+             $imageSet[$element['imgKey']] . '</span>';
+          }
           else
           {
            $_SESSION['testprojectTopMenu'] .= 

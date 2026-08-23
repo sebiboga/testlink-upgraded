@@ -617,19 +617,22 @@ function featureLinks($lbl,$img)
   $links = array();
 
   // %s => test case id
+  // imgSet entries hold FontAwesome markup (<i class="fa ...">), not image
+  // paths - they must be emitted as element content, never into src=""
+  // (Refs #423, same family as reports.class.php / projectView.php).
   $links['exec_history'] = '<a href="javascript:openExecHistoryWindow(%s);" >' .
-                       '<img title="' . $lbl['execution_history'] . '" ' .
-                       'src="' . $img['history_small'] . '" /></a> ';
+                       '<span title="' . $lbl['execution_history'] . '">' .
+                       $img['history_small'] . '</span></a> ';
 
   // tcase_id,tcversion_id,build_id,tplan_id,platform_id
   $links['exec'] = '<a href="javascript:openExecutionWindow(%s,%s,%s,%s,%s);" >' .
-             '<img title="' . $lbl['execution'] .'" ' .
-             'src="' . $img['exec_icon'] . '" /></a> ';
+             '<span title="' . $lbl['execution'] . '">' .
+             $img['exec_icon'] . '</span></a> ';
 
   // %s => test case id
   $links['edit'] = '<a href="javascript:openTCEditWindow(%s);" >' .
-          '<img title="' . $lbl['design'] . '" '. 
-            'src="' . $img['edit_icon'] . '" /></a> ';
+          '<span title="' . $lbl['design'] . '">' .
+            $img['edit_icon'] . '</span></a> ';
 
 
   $links['full'] = $links['exec_history'] . $links['exec'] . $links['edit'];

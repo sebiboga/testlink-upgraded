@@ -546,8 +546,10 @@ function buildDataSet(&$db,&$args,&$gui,&$exec,$labels,$forceFormat=null)
   $dlink = '<a href="' . str_replace(" ", "%20", $args->basehref) . 
            'linkto.php?tprojectPrefix=' . urlencode($args->prefix) . '&item=testcase&id=';  
 
-  $hist_img_tag = '<img title="' . $labels['history'] . '"' . ' src="' . $gui->img->history . '" /></a> ';
-  $edit_img_tag = '<img title="' . $labels['design'] . '"' . ' src="' . $gui->img->edit . '" /></a> ';
+  // imgSet entries hold FontAwesome markup (<i class="fa ...">), not image
+  // paths - emit as element content, never into src="" (Refs #423).
+  $hist_img_tag = '<span title="' . $labels['history'] . '">' . $gui->img->history . '</span></a> ';
+  $edit_img_tag = '<span title="' . $labels['design'] . '">' . $gui->img->edit . '</span></a> ';
 
   $metrics = $exec['metrics'];
   $latestExecution = $exec['latestExec'];
@@ -657,7 +659,7 @@ function buildDataSet(&$db,&$args,&$gui,&$exec,$labels,$forceFormat=null)
               $r4build['text'] = "<a href=\"javascript:openExecutionWindow(" .
                                  "{$tcaseID}, {$rf[$buildID]['tcversion_id']}, {$buildID}, " .
                                  "{$args->tplan_id}, {$platformID});\">" .
-                                  "<img title=\"{$labels['execution']}\" src=\"{$gui->img->exec}\" /></a> ";
+                                 "<span title=\"{$labels['execution']}\">{$gui->img->exec}</span></a> ";
             }  
     
             $r4build['text'] .= $labels[$rf[$buildID]['status']] .

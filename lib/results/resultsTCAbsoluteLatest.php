@@ -463,12 +463,14 @@ function buildDataSet(&$db,&$args,&$gui,&$metrics,$labels,$forceFormat=null)
   $dlink = '<a href="' . str_replace(" ", "%20", $args->basehref) . 
            'linkto.php?tprojectPrefix=' . urlencode($args->prefix) . '&item=testcase&id=';  
 
-  $hist_img_tag = '<img title="';
-  $edit_img_tag = '<img title="';
-  $hist_img_tag .= $labels['history'] . '"' . ' src="' . $gui->img->history;
-  $edit_img_tag .= $labels['design'] . '"' . ' src="' . $gui->img->edit;
-  $hist_img_tag .= '" /></a> ';
-  $edit_img_tag .= '" /></a> ';
+  // imgSet entries hold FontAwesome markup (<i class="fa ...">), not image
+  // paths - emit as element content, never into src="" (Refs #423).
+  $hist_img_tag = '<span title="';
+  $edit_img_tag = '<span title="';
+  $hist_img_tag .= $labels['history'] . '">' . $gui->img->history;
+  $edit_img_tag .= $labels['design'] . '">' . $gui->img->edit;
+  $hist_img_tag .= '</span></a> ';
+  $edit_img_tag .= '</span></a> ';
   
 
   $cols = $args->cols;

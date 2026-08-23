@@ -3324,3 +3324,24 @@ directly — same code path used by the legacy UI controller and the XMLRPC/REST
 
 **Result: 5/5 PASS** (2026-08-23, PHP CLI against MariaDB testlink @127.0.0.1;
 fix verified at commit of branch `fix/issue-628`).
+
+## Suite 63 — Regression — Issue #423: FontAwesome markup injected into `img src=""` (reports navigator + matrix icon builders)
+
+**Precondition:** fresh DB; fixtures `php tmp/fixtures_423.php` (project RPT423 id 19, plan Plan423 id 24, TC R423-1, build B1, linked). Login admin/admin. App at http://localhost:8082.
+
+**Repro (pre-fix):** reintroduce legacy mask in `reports.class.php` (`src="' . $imgSet['link_to_report'] . '"`) → navigator entries render `Test Plan Report " align="center" />`, browser invents attributes `fa="" fa-link"=""`. Same corruption live on Test Result Matrix rows (`<img title="Execution history" src="<i class=…`).
+
+**Post-fix expected:** icons render as `<span title="…"><i class="fa …"></i></span>` element content; no `align=`/attribute-soup text anywhere; anchors and toggles work.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | resultsNavigator.php left pane | no garbage, 15 toggle icons | ✅ PASS |
+| 2 | Click toggle icon | direct_link div shows lnl.php URL | ✅ PASS |
+| 3 | Click report name | report opens (#631 tracks frame-target) | ✅ PASS |
+| 4 | Test Result Matrix | 5 clean glyph spans, 0 broken img | ✅ PASS |
+| 5 | Absolute Latest Execution Matrix | renders, no corrupted markup | ✅ PASS |
+| 6 | Failed/Blocked/Not run | empty state (fixture); featureLinks CLI harness: exact span markup, no `src=` injection | ✅ PASS |
+| 7 | TCs without Tester Assignment | 2 glyph spans rendered | ✅ PASS |
+| 8 | Event Viewer | no warnings from touched pages (resultsGeneral ones pre-existing → #630) | ✅ PASS |
+
+**Result: PASS (8/8).** Fix commits on `fix/issue-423`.
