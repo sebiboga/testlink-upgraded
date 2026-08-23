@@ -231,6 +231,22 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
   $gui->hasPlatforms = count($gui->platformSet) >= 1 && 
                        !isset($gui->platformSet[0]);
 
+  // The dashio template reads these unconditionally: without them every
+  // render raised 4 E_WARNINGs (undefined property) and the toolbar
+  // email/spreadsheet forms posted to an empty action.
+  // Mirrors resultsByTSuite.php initializeGui().
+  $base = 'lib/results/baselinel1l2.php';
+  $gui->basehref = $_SESSION['basehref'];
+  $common = $gui->basehref . $base . "?tplan_id={$gui->tplan_id}" .
+            "&tproject_id={$gui->tproject_id}&format=";
+
+  $gui->baselineSaved = false;
+  $gui->actionSendMail = $common . FORMAT_MAIL_HTML;
+  $gui->actionSpreadsheet = $common . FORMAT_XLS . "&spreadsheet=1";
+
+  $gui->mailFeedBack = new stdClass();
+  $gui->mailFeedBack->msg = '';
+
   return $gui;
 }
 
