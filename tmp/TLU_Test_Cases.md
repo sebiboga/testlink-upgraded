@@ -3365,19 +3365,21 @@ fix verified at commit of branch `fix/issue-628`).
 
 **Result: PASS (6/6).** Fix verified on default branch commit `764d625e1`; verification run on branch `fix/issue-424`.
 
-## Suite 65 — Regression — Issue #633: resultsGeneral E_WARNINGs on no-platform plans (undefined $items2loop + $gui->tprojOpt mismatch)
+## Suite 65 — Regression — Issue #425: Metrics by Level 1 & Level 2 Test Suites fatal TypeError on a flat test specification
 
-**Precondition:** fresh DB; fixtures `php tmp/fixtures_424.php` (project RPT424 id 1, plan Plan424 id 9, **no platforms**, priorities disabled) and `php tmp/fixtures_633_r2.php` (project RPT633 id 19, plan Plan633 id 27 **with platform PLAT-633 linked**, `testPriorityEnabled=1`, TCs linked+executed on the platform). Login admin/admin. App at http://localhost:8082.
+**Precondition:** fresh DB; fixtures `php tmp/fixtures_425.php` (project RPT425 id 1 — **FLAT spec**: single top level suite "Flat Suite" id 2 with TC-pass id 3 + TC-fail id 6, NO sub-suites; plan Plan425 id 9 without platforms, build B1, both TCs linked platform-less, executions 1 PASSED + 1 FAILED) and `php tmp/fixtures_425n.php` (positive-path control RPT425N id 10: Top > Child suite, NTCs, plan id 19, build, executed). Login admin/admin via `tl_login/tl_password` POST to /login.php. App at http://localhost:8082 (PHP 8.3.33). Pre-fix binary reproduced from worktree `764d625e1^` (`857555dad`) served at :8083.
 
-**Repro (pre-fix):** GET `lib/results/resultsGeneral.php?tplan_id=9&format=0` → HTTP 200 but events gain log_level=2 rows: `Undefined variable $items2loop` (resultsGeneral.php:63), `foreach() argument must be of type array|object, null given`, `Undefined property: stdClass::$tprojOpt` ×2 + `Attempt to read property "testPriorityEnabled" on null` ×2 (dashio tpl lines 179/247).
+**Repro (pre-fix, measured):** GET `/lib/results/resultsByTSuite.php?tplan_id=9&tproject_id=1&format=0` → **HTTP 500, 0 bytes**; PHP stderr: `PHP Fatal error: Uncaught TypeError: current(): Argument #1 ($array) must be of type array, false given in .../lib/results/resultsByTSuite.php:47`. Mechanism confirmed standalone: `php -r 'var_dump(current(current([])));'` → same TypeError on PHP 8.
 
-**Post-fix expected:** zero new warnings; priority sections hidden when `testPriorityEnabled=0`; still rendered when enabled with platforms.
+**Root cause:** flat spec ⇒ `infoL2` stays `array()`; old guard `!is_null()` passes for empty arrays ⇒ `current(current(array()))` = `current(false)` = PHP 8 TypeError. Fix (already on default branch in commit `764d625e1`): route empty `infoL2` through existing no-data branch — resultsByTSuite.php:33 `if(is_null($tsInf) || empty($tsInf->infoL2))`.
 
 | # | Step | Expected | Actual |
 |---|---|---|---|
-| 1 | GET resultsGeneral?tplan_id=9&format=0 | HTTP 200; headings = General Test Plan Metrics / Overall Build Status / Results by Top Level Test Suite; NO priority/platform headings; MAX(events.id) unchanged | ✅ PASS |
-| 2 | GET resultsGeneral?tplan_id=27&format=0 (platform plan) | HTTP 200; "Results by Platform" AND "Results by priority" render; PLAT-633 appears in platform section; zero new warning events | ✅ PASS |
-| 3 | XLS export format=3 for plans 9 and 27 | HTTP 200 both, no fatal, no new events | ✅ PASS |
-| 4 | Event Viewer after all steps | new entries are audit-only (log_level 16); no Error/Warning from touched pages | ✅ PASS |
+| 1 | R1: resultsByTSuite.php?tplan_id=9&tproject_id=1&format=0 (flat spec, post-fix default branch) | HTTP 200; graceful "There are no Test Suites defined for Test Project…" message under title "Metrics by Level 1 & Level 2 Test Suites"; zero Fatal/TypeError | ✅ PASS |
+| 2 | R2: same page ?tplan_id=19&tproject_id=10 (nested control) | HTTP 200, full L1/L2 table renders ("Child Suite", Passed/Failed columns, percentages) | ✅ PASS |
+| 3 | Mechanism probe: `php -r 'var_dump(current(current([])));'` on PHP 8.3 | Uncaught TypeError current(false) — proves reported chain | ✅ PASS |
+| 4 | R3a: empty plan WITH build, no linked TCs (?tplan_id=21&tproject_id=1) | HTTP 200 graceful no-data branch (guard's is_null arm) | ✅ PASS |
+| 5 | R3b: plan with ZERO builds (?tplan_id=20&tproject_id=1) | expected graceful; ACTUAL HTTP 500 uncaught Exception helperGetExecCounters (tlTestPlanMetrics.class.php:1806) — out of #425 scope, filed as **#634** | ⚠️ FAIL → new issue #634 |
+| 6 | R4: Event Viewer after steps 1–4 | no NEW Error/Warning from post-fix valid-input requests (only entries from pre-fix worktree repro + invalid-id probe → **#635**) | ✅ PASS |
 
-**Result: PASS (4/4).** Fix commits on branch `fix/issue-633`.
+**Result: PASS 5/6 — primary symptom FIXED and verified; step 5 is a separate latent defect (zero-build plans), tracked as #634, deliberately not fixed under this issue.** Cosmetic follow-up from issue body (dedicated `report_has_no_l2_tsuites` locale string) deferred by design. Verification run on branch `fix/issue-425`; fix itself landed in `764d625e1`.
