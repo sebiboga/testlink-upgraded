@@ -3296,3 +3296,31 @@ http://localhost:8082.
 | 7 | Event Viewer after pass | Diff events table before/after suite | No new ERROR/WARNING attributable to these screens (only fixture-script E_WARNINGs pre-filed as #628) | PASS |
 
 **Result: 7/7 PASS** (headless Chrome + mysql against http://localhost:8082, 2026-08-23).
+
+---
+
+## Suite 62 — Regression — Issue #628: E_WARNING "Undefined array key execution_type" at testcase.class.php:804
+
+**Date:** 2026-08-23 · **Branch:** `fix/issue-628` ·
+**Root cause:** `testcase::createVersion()` read the optional per-step key
+`$item->steps[$jdx]['execution_type']` unguarded (line 804); under PHP 8 every
+TC created with steps lacking that key (CLI/import fixtures, REST-style payloads)
+logged one `E_WARNING` into `events`, although the value was functionally masked
+by `create_step()`'s own default (line 5775) and sanitize (line 5796).
+**Fix:** `isset()?:TESTCASE_EXECUTION_TYPE_MANUAL` guard at line 804 (same idiom
+as :5786/:6072).
+
+**Precondition:** fresh DB. Drivers: `php tmp/repro_628.php` (repro, pre-fix),
+`php tmp/regr_628.php` (post-fix matrix). Both bootstrap TestLink classes
+directly — same code path used by the legacy UI controller and the XMLRPC/REST API.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro (pre-fix baseline) | `php tmp/repro_628.php`: create project REP628 → suite → 2 TCs whose steps carry only step_number/actions/expected_results; diff events table vs baseline id | Exactly one new `level=2` event per TC: `E_WARNING Undefined array key "execution_type" ... Line 804` | PASS (events 8,9 on fresh DB) |
+| 2 | Missing key post-fix | `php tmp/regr_628.php` CASE1: create TC with steps lacking execution_type | Step row stored with `execution_type=1` (MANUAL); zero new `log_level<=4` events | PASS (`execution_type:"1"`, `NO_ERROR_WARNING_EVENTS`) |
+| 3 | Explicit value preserved | CASE2: step with explicit `execution_type=2` | Stored as `2`; no warnings | PASS (`execution_type:"2"`) |
+| 4 | Invalid value sanitize unchanged | CASE3: step with `execution_type=99` | `create_step()` sanitize keeps behavior: stored as `1`; no warnings | PASS (`execution_type:"1"`) |
+| 5 | Event Viewer after matrix | Diff events table before/after whole suite (log_level ≤ 4) | No Error/Warning entries attributable to the fix or the drivers | PASS |
+
+**Result: 5/5 PASS** (2026-08-23, PHP CLI against MariaDB testlink @127.0.0.1;
+fix verified at commit of branch `fix/issue-628`).

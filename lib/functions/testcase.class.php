@@ -801,7 +801,9 @@ class testcase extends tlObjectWithAttachments {
                            $item->steps[$jdx]['step_number'],
                            $item->steps[$jdx]['actions'],
                            $item->steps[$jdx]['expected_results'],
-                           $item->steps[$jdx]['execution_type']);
+                           isset($item->steps[$jdx]['execution_type'])
+                             ? $item->steps[$jdx]['execution_type']
+                             : TESTCASE_EXECUTION_TYPE_MANUAL);
       }
     }
 
