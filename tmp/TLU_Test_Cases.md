@@ -3345,3 +3345,22 @@ fix verified at commit of branch `fix/issue-628`).
 | 8 | Event Viewer | no warnings from touched pages (resultsGeneral ones pre-existing → #630) | ✅ PASS |
 
 **Result: PASS (8/8).** Fix commits on `fix/issue-423`.
+
+## Suite 64 — Regression — Issue #424: empty platform set blanked every per-platform report section
+
+**Precondition:** fresh DB; fixture `php tmp/fixtures_424.php` (project RPT424 id 1, suite "Suite 1", TC-pass + TC-fail, plan Plan424 id 9 with **no platforms**, build B1, both TCs linked platform-less and executed once: PASSED + FAILED). Login admin/admin. App at http://localhost:8082. NOTE: pages require `format=0` when called directly (displayMgr.php exits silently otherwise).
+
+**Repro (pre-fix, `git checkout 764d625e1^ -- lib/results/resultsGeneral.php`):** request resultsGeneral → bogus "Results by Platform" section present; "Results by Top Level Test Suite" = heading only, zero rows; by-Priority/by-Keyword sections absent.
+
+**Post-fix expected:** no platform section; per-platform sections fall back to fakePlatform and show data.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | resultsGeneral.php?tplan_id=9&format=0 | sections = Overall Build Status + Results by Top Level Test Suite; row `Suite 1 \| Total 2 \| Not Run 0 \| Passed 1 (50%) \| Failed 1 (50%) \| Completed 100%`; NO "Results by Platform" | ✅ PASS |
+| 2 | resultsByTSuite.php same params | HTTP 200, graceful no-L2-data message (#425 behavior), no fatal | ✅ PASS |
+| 3 | baselinel1l2.php same params | HTTP 200, general-info header renders, no fatal (baseline-less warning tracked in #427) | ✅ PASS |
+| 4 | execTimelineStats.php same params | date-stats table renders (`Qty 2 \| 2026-08-23 \| testers 1`) | ✅ PASS |
+| 5 | Add platform to plan (testplan_platforms), rerun resultsGeneral | HTTP 200, Suite 1 row intact; non-empty set takes unchanged else-branch | ✅ PASS |
+| 6 | Event Viewer | new events limited to separately-filed latent warnings (#632, #633, #427 comment); none from the #424 guard change itself | ✅ PASS |
+
+**Result: PASS (6/6).** Fix verified on default branch commit `764d625e1`; verification run on branch `fix/issue-424`.
