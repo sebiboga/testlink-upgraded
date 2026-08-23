@@ -3627,3 +3627,19 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | errText coverage | simulate create_failed/notFound responses | mapped to new ms.msg.createFailed/updateFailed/notFound keys in all 10 bundles | PASS |
 
 **Result: Suite 647a — 6/6 PASS** (commits 192da14a1)
+
+## Regression — Issue #646: xmlrpc API E_WARNING noise ($itsOK :2200, details :4403)
+
+**Precondition:** devKey set for admin (`users.script_key`); `events` truncated so every row is attributable. Endpoint: `POST http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Pre-fix reproduction | createTestProject w/o itsname; createTestSuite w/o details | E_WARNING `$itsOK` :2200 + `Undefined array key "details"` :4403 in events (log_level=2), ops still status=true | PASS (reproduced, events id 2/3) |
+| 1 | createTestProject w/o itsname (primary) | struct {devKey, testprojectname, testcaseprefix} only | status=true; ZERO new log_level=2 rows | PASS |
+| 2 | createTestProject unknown itsname | add itsname='NoSuchITS' | clean IXR_Error 13000, no crash | PASS |
+| 3 | createTestSuite w/o details (primary) | struct {devKey, testprojectid, testsuitename} only | status=true; ZERO new log_level=2 rows | PASS |
+| 4 | createTestSuite WITH details | details='Regression details text R4' | status=true; DB `testsuites.details` equals input verbatim | PASS |
+| 5 | suite action=update w/o details | testsuiteid + action=update, no details key | status=true, no warning from raw read at xmlrpc.class.php:4398 | PASS |
+| 6 | bad devKey negative path | devKey=BADKEY on createTestProject | clean 'invalid developer key' fault | PASS |
+
+**Result: Suite 646 — 7/7 PASS** (cases 1–6 post-fix; case 0 = pre-fix reproduction recorded for evidence)
