@@ -34,6 +34,10 @@ if($tplan_mgr->count_testcases($args->tplan_id) > 0)
   $metricsMgr = new tlTestPlanMetrics($db);
   $metrics = $metricsMgr->getNotRunWoTesterAssigned($args->tplan_id,null,null,
                                                     array('output' => 'array', 'ignoreBuild' => true));
+  // issue #634: plan without builds => no metrics, empty result set
+  if( is_null($metrics) ) {
+    $metrics = array();
+  }
 
   if(($gui->row_qty = count($metrics)) > 0)
   {

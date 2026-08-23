@@ -98,8 +98,9 @@ function getDataAndScale(&$dbHandler,$argsObj)
   $obj->xAxis->values = $items;
   $obj->xAxis->serieName = 'Serie8';
   $obj->series_color = null;
-    
-  foreach($totals as $status => $values)
+
+  // issue #634: totals stays null when there is nothing to draw
+  foreach((array)$totals as $status => $values)
   {
     $obj->chart_data[] = $values;
     $obj->series_label[] = lang_get($resultsCfg['status_label'][$status]);

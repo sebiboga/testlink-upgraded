@@ -177,6 +177,11 @@ class tlTestPlanMetrics extends testplan
 
     // get amount of test cases for each execution result + total amount of test cases
     $planMetrics = $this->getExecCountersByExecStatus($tplanID);
+    if( is_null($planMetrics) ) {
+      // issue #634: plan without builds => nothing to count; report
+      // zero milestones instead of computing percentages against null
+      return array();
+    }
 
     $milestones =  is_null($milestoneSet) ? $this->get_milestones($tplanID) : $milestoneSet;
 
@@ -1719,6 +1724,11 @@ class tlTestPlanMetrics extends testplan
     $my['opt'] = array_merge($my['opt'], (array)$opt);
     $safe_id = intval($id);
     list($my,$builds,$sqlStm,$union) = $this->helperBuildSQLTestSuiteExecCounters($id, $filters, $my['opt']);
+    if( is_null($union) ) {
+      // issue #634: plan without builds => empty matrix, same shape as a
+      // plan whose builds have zero linked test cases
+      return array('metrics' => array(), 'latestExec' => null);
+    }
 
     $sql =  " /* {$debugMsg} UNION WITH ALL CLAUSE */ " .
             " {$union['exec']} UNION ALL {$union['not_run']} ";
@@ -2851,6 +2861,11 @@ class tlTestPlanMetrics extends testplan
     $my['opt'] = array_merge($my['opt'], (array)$opt);
     $safe_id = intval($id);
     list($my,$builds,$sqlStm,$union) = $this->helperBuildSQLTestSuiteExecCounters($id, $filters, $my['opt']);
+    if( is_null($union) ) {
+      // issue #634: plan without builds => empty matrix, same shape as a
+      // plan whose builds have zero linked test cases
+      return array('metrics' => array(), 'latestExec' => null);
+    }
 
     $sql =  " /* {$debugMsg} UNION WITH ALL CLAUSE */ " .
             " {$union['exec']} UNION ALL {$union['not_run']} ";

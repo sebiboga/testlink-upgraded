@@ -259,8 +259,9 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
 
 
   // hmm need to understand if this can be removed
-  if ($guiObj->matrixCfg->buildColumns['latestBuildOnLeft'])
-  {
+  if ($guiObj->matrixCfg->buildColumns['latestBuildOnLeft'] &&
+      !is_null($guiObj->buildInfoSet)) {
+    // issue #634: array_reverse(null) is a TypeError on PHP 8
     $guiObj->buildInfoSet = array_reverse($guiObj->buildInfoSet);
   }
   // -------------------------------------------------------------------------------

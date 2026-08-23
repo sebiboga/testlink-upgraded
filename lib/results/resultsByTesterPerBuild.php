@@ -46,6 +46,11 @@ $metricsMgr = new tlTestPlanMetrics($db);
 $statusCfg = $metricsMgr->getStatusConfig();
 $metrics = $metricsMgr->getStatusTotalsByBuildUAForRender($args->tplan_id,
                                                           array('processClosedBuilds' => $args->show_closed_builds));
+// issue #634: plan without builds => no metrics to render
+if( is_null($metrics) ) {
+  $metrics = new stdClass();
+  $metrics->info = array();
+}
 $matrix = $metrics->info;
 
 // Here need to work, because all queries consider ONLY ACTIVE STATUS
