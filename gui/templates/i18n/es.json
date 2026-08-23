@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "No hay suites de pruebas en este proyecto.",
   "tpr.noContext": "No se ha seleccionado proyecto / plan de pruebas.",
   "tpr.errNoRights": "No tiene permiso para generar informes (testplan_metrics).",
-  "tpr.errLoad": "Error al cargar datos del servidor."
+  "tpr.errLoad": "Error al cargar datos del servidor.",
+  "tpr.docTitle.testreport": "Informe de pruebas",
+  "tpr.docTitle.testreportOnBuild": "Informe de pruebas por build",
+  "tpr.buildsSection": "Informes por build",
+  "tpr.buildReport": "Informe del build:"
 }

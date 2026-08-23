@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "Nessuna suite di test in questo progetto.",
   "tpr.noContext": "Nessun progetto / piano di test selezionato.",
   "tpr.errNoRights": "Non hai il permesso di generare report (testplan_metrics).",
-  "tpr.errLoad": "Caricamento dati dal server non riuscito."
+  "tpr.errLoad": "Caricamento dati dal server non riuscito.",
+  "tpr.docTitle.testreport": "Report di test",
+  "tpr.docTitle.testreportOnBuild": "Report di test per build",
+  "tpr.buildsSection": "Report per build",
+  "tpr.buildReport": "Report sul build:"
 }

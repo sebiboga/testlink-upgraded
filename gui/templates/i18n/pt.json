@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "Não há suítes de testes neste projeto.",
   "tpr.noContext": "Nenhum projeto / plano de testes selecionado.",
   "tpr.errNoRights": "Sem permissão para gerar relatórios (testplan_metrics).",
-  "tpr.errLoad": "Falha ao carregar dados do servidor."
+  "tpr.errLoad": "Falha ao carregar dados do servidor.",
+  "tpr.docTitle.testreport": "Relatório de testes",
+  "tpr.docTitle.testreportOnBuild": "Relatório de testes por build",
+  "tpr.buildsSection": "Relatórios por build",
+  "tpr.buildReport": "Relatório do build:"
 }

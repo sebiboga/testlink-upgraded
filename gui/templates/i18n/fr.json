@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "Aucune suite de tests dans ce projet.",
   "tpr.noContext": "Aucun projet / plan de test sélectionné.",
   "tpr.errNoRights": "Vous n'avez pas le droit de générer des rapports (testplan_metrics).",
-  "tpr.errLoad": "Échec du chargement des données du serveur."
+  "tpr.errLoad": "Échec du chargement des données du serveur.",
+  "tpr.docTitle.testreport": "Rapport de test",
+  "tpr.docTitle.testreportOnBuild": "Rapport de test par build",
+  "tpr.buildsSection": "Rapports par build",
+  "tpr.buildReport": "Rapport sur le build :"
 }

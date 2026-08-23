@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "このプロジェクトにテストスイートがありません。",
   "tpr.noContext": "テストプロジェクト／テスト計画が選択されていません。",
   "tpr.errNoRights": "レポート生成の権限がありません (testplan_metrics)。",
-  "tpr.errLoad": "サーバーからのデータ読み込みに失敗しました。"
+  "tpr.errLoad": "サーバーからのデータ読み込みに失敗しました。",
+  "tpr.docTitle.testreport": "テストレポート",
+  "tpr.docTitle.testreportOnBuild": "ビルド別テストレポート",
+  "tpr.buildsSection": "ビルド別レポート",
+  "tpr.buildReport": "ビルドのレポート:"
 }

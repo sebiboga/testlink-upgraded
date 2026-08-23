@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "Keine Testsuiten in diesem Projekt.",
   "tpr.noContext": "Kein Testprojekt / Testplan ausgewählt.",
   "tpr.errNoRights": "Sie dürfen keine Berichte erzeugen (testplan_metrics).",
-  "tpr.errLoad": "Laden der Daten vom Server fehlgeschlagen."
+  "tpr.errLoad": "Laden der Daten vom Server fehlgeschlagen.",
+  "tpr.docTitle.testreport": "Testbericht",
+  "tpr.docTitle.testreportOnBuild": "Testbericht pro Build",
+  "tpr.buildsSection": "Berichte pro Build",
+  "tpr.buildReport": "Bericht zum Build:"
 }

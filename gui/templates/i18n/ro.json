@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "Nu există suite de teste în acest proiect.",
   "tpr.noContext": "Niciun proiect / plan de testare selectat.",
   "tpr.errNoRights": "Nu aveți permisiunea de a genera rapoarte (testplan_metrics).",
-  "tpr.errLoad": "Încărcarea datelor de pe server a eșuat."
+  "tpr.errLoad": "Încărcarea datelor de pe server a eșuat.",
+  "tpr.docTitle.testreport": "Raport de testare",
+  "tpr.docTitle.testreportOnBuild": "Raport de testare pe build",
+  "tpr.buildsSection": "Rapoarte pe build",
+  "tpr.buildReport": "Raport pe build:"
 }

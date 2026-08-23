@@ -105,6 +105,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="opt-group-label" data-i18n="tpr.testSpecContent">Test case content</div>
       <div id="testSpecOptList"></div>
 
+      <div class="opt-group-label" id="buildSection" style="display:none;" data-i18n="tpr.buildsSection">Per-build reports</div>
+      <div id="buildLinkList"></div>
+
       <div class="opts-actions">
         <button class="btn-teal" onclick="printWholePlan()"><i class="fa fa-print"></i> <span data-i18n="tpr.btnPrintWholePlan">Print whole test plan report</span></button>
         <button class="btn-dark" onclick="printSelected()"><i class="fa fa-file-alt"></i> <span data-i18n="tpr.btnPrintSelected">Print selected suite</span></button>
@@ -126,6 +129,7 @@ var API = '/api/reports/index.php';
 var PRINT_URL = '/lib/results/printDocument.php';
 var tprojectId = 0;
 var tplanId = 0;
+var docType = 'testplan';
 var canGenerate = true;
 var selectedSuite = null;   // null => whole test plan
 var init = null;
@@ -134,6 +138,10 @@ $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  var t = p.get('type');
+  if (['testplan','testreport','testreport_onbuild'].indexOf(t) >= 0) {
+    docType = t;
+  }
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -159,7 +167,7 @@ function warn(msg) {
 }
 
 function loadInit() {
-  $.getJSON(API, { action: 'tp_report_init', tproject_id: tprojectId, tplan_id: tplanId }, function (r) {
+  $.getJSON(API, { action: 'tp_report_init', tproject_id: tprojectId, tplan_id: tplanId, type: docType }, function (r) {
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
     if (!r.hasContext) {
       warn(TLi18n.t('tpr.noContext'));
@@ -172,11 +180,14 @@ function loadInit() {
     canGenerate = !!r.canGenerate;
     $('#tplanName').text(r.tplan_name);
     $('#tprojectName').text(r.tproject_name);
-    document.title = r.tplan_name + ' - ' + TLi18n.t('tpr.header');
+    var title = TLi18n.t(r.doc_title_key);
+    $('.header > span[data-i18n="tpr.header"]').text(title);
+    document.title = r.tplan_name + ' - ' + title;
 
     renderFormats(r.formats);
     renderOptions('#docOptList', r.docOptions);
     renderOptions('#testSpecOptList', r.testSpecOptions);
+    renderBuilds(r.builds || []);
 
     if (!canGenerate) {
       warn(TLi18n.t('tpr.errNoRights'));
@@ -210,6 +221,25 @@ function renderOptions(sel, opts) {
     $item.append($cb).append($lb);
     $box.append($item);
   });
+}
+
+function renderBuilds(builds) {
+  var $sec = $('#buildSection');
+  if (!builds.length) { $sec.hide(); return; }
+  var $list = $('#buildLinkList').empty();
+  builds.forEach(function (b) {
+    $list.append(
+      $('<div>', { 'class': 'opt-item' }).append(
+        $('<a>', {
+          href: b.report_url,
+          target: '_blank',
+          text: TLi18n.t('tpr.buildReport', { n: '' }) + ' ' + b.name,
+          css: { color: '#2d8e88', fontWeight: 600 }
+        }).prepend('<i class="fa fa-file-alt" style="margin-right:6px;"></i>')
+      )
+    );
+  });
+  $sec.show();
 }
 
 function loadTree() {
@@ -290,7 +320,7 @@ function collectOpts() {
 
 function docUrl(level, id) {
   return PRINT_URL +
-    '?type=testplan&level=' + level + '&id=' + id +
+    '?type=' + docType + '&level=' + level + '&id=' + id +
     '&docTestPlanId=' + tplanId +
     '&tproject_id=' + tprojectId +
     '&format=' + parseInt($('#formatSel').val() || '0', 10) +

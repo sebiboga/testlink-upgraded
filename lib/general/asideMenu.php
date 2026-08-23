@@ -64,10 +64,17 @@ if($tplanID > 0) {
       if(strpos(',' . $rptItem['format'], 'format_html') === false) {
         continue;
       }
-      // Refs #608 - Test Plan Report has its own modernized screen
-      if($rptItem['title'] == 'link_report_test_plan') {
+      // Refs #608/#607 - the three plan-document report types share one
+      // modernized navigator screen, switched by the type query argument.
+      $modernTypes = array(
+          'link_report_test_plan'           => 'testplan',
+          'link_report_test_report'         => 'testreport',
+          'link_report_test_report_on_build'=> 'testreport_onbuild',
+      );
+      if(isset($modernTypes[$rptItem['title']])) {
         $hrefR = 'gui/templates/results/testPlanReport.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}" .
+                 '&type=' . $modernTypes[$rptItem['title']];
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }

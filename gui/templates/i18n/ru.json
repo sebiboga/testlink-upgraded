@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "В этом проекте нет тест-сюитов.",
   "tpr.noContext": "Не выбран тест-проект / тест-план.",
   "tpr.errNoRights": "Нет прав на формирование отчётов (testplan_metrics).",
-  "tpr.errLoad": "Не удалось загрузить данные с сервера."
+  "tpr.errLoad": "Не удалось загрузить данные с сервера.",
+  "tpr.docTitle.testreport": "Отчёт по тестированию",
+  "tpr.docTitle.testreportOnBuild": "Отчёт по тестированию для сборки",
+  "tpr.buildsSection": "Отчёты по сборкам",
+  "tpr.buildReport": "Отчёт по сборке:"
 }

@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "No test suites in this project.",
   "tpr.noContext": "No test project / test plan selected.",
   "tpr.errNoRights": "You have no permission to generate reports (testplan_metrics).",
-  "tpr.errLoad": "Failed to load data from server."
+  "tpr.errLoad": "Failed to load data from server.",
+  "tpr.docTitle.testreport": "Test Report",
+  "tpr.docTitle.testreportOnBuild": "Test Report on build",
+  "tpr.buildsSection": "Per-build reports",
+  "tpr.buildReport": "Report on build:"
 }

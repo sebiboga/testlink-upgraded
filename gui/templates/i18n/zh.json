@@ -1051,5 +1051,9 @@
   "tpr.emptyTree": "此项目中没有测试套件。",
   "tpr.noContext": "未选择测试项目/测试计划。",
   "tpr.errNoRights": "您没有生成报告的权限 (testplan_metrics)。",
-  "tpr.errLoad": "从服务器加载数据失败。"
+  "tpr.errLoad": "从服务器加载数据失败。",
+  "tpr.docTitle.testreport": "测试报告",
+  "tpr.docTitle.testreportOnBuild": "按构建的测试报告",
+  "tpr.buildsSection": "按构建的报告",
+  "tpr.buildReport": "构建报告："
 }

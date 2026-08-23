@@ -71,6 +71,21 @@ $tprojectId = intval(getParam('tproject_id', 0));
 $tplanId = intval(getParam('tplan_id', 0));
 $action = getParam('action');
 
+// Document types sharing this navigator screen - values are the exact
+// strings lib/results/printDocument.php expects in its type argument
+// (DOC_TEST_PLAN_DESIGN / _EXECUTION / _EXECUTION_ON_BUILD).
+$validTypes = ['testplan', 'testreport', 'testreport_onbuild'];
+$docType = getParam('type', 'testplan');
+if (!in_array($docType, $validTypes, true)) {
+    $docType = 'testplan';
+}
+// i18n key resolved client-side for the screen/document title
+$titleKeys = [
+    'testplan' => 'tpr.header',
+    'testreport' => 'tpr.docTitle.testreport',
+    'testreport_onbuild' => 'tpr.docTitle.testreportOnBuild',
+];
+
 $tprojectMgr = new testproject($db);
 $tplanMgr = new testplan($db);
 
@@ -112,6 +127,25 @@ if ($action === 'tp_report_init') {
         ['id' => FORMAT_MSWORD, 'key' => 'tpr.formatWord'],
     ];
 
+    // DOC_TEST_PLAN_EXECUTION_ON_BUILD: legacy printDocOptions offers a
+    // direct report link per build (lnl.php with the plan api key).
+    $builds = [];
+    if ($docType === 'testreport_onbuild') {
+        $buildInfoSet = $tplanMgr->get_builds($tplanId);
+        if (!is_null($buildInfoSet)) {
+            foreach ($buildInfoSet as $bid => $binfo) {
+                $builds[] = [
+                    'id' => intval($bid),
+                    'name' => $binfo['name'],
+                    'report_url' => 'lnl.php?apikey=' . $tplanInfo['api_key'] .
+                        '&tproject_id=' . $tprojectId .
+                        '&tplan_id=' . $tplanId .
+                        '&type=testreport_onbuild&build_id=' . intval($bid),
+                ];
+            }
+        }
+    }
+
     out([
         'status' => 'ok',
         'hasContext' => true,
@@ -119,10 +153,13 @@ if ($action === 'tp_report_init') {
         'tplan_id' => $tplanId,
         'tproject_name' => $proj['name'],
         'tplan_name' => $tplanInfo['name'],
+        'doc_type' => $docType,
+        'doc_title_key' => $titleKeys[$docType],
         'canGenerate' => true,
         'formats' => $formats,
         'docOptions' => $docOptions,
         'testSpecOptions' => $testSpecOptions,
+        'builds' => $builds,
     ]);
 }
 
