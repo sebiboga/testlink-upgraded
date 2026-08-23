@@ -1919,7 +1919,6 @@ function getActions(&$gui,$baseURL) {
     // planAddTC switched to the modernized HTML screen above (no workArea
     // entry here: the launcher copy-back below must not overwrite the link)
     $gui->workArea->executeTest = "executeTest&{$ctx}";
-    $gui->workArea->showNewestTCV = "newest_tcversions&{$ctx}";
     $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
     $gui->workArea->showMetrics = "showMetrics&{$ctx}";
     // Set Test Urgency modernized screen (Dashio standalone page) - Refs #605
@@ -1958,6 +1957,16 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id > 0) {
     $actions->planUpdateTC =
       "/gui/templates/plans/planUpdateTC.html?{$ctx}";
+  }
+
+  // Show Newest Test Case Versions modernized screen (Dashio standalone
+  // page) - Refs #643. Assigned after the workArea launcher copy-back above
+  // (launcher entry removed) so the copy-back cannot overwrite the link.
+  // Read-only report; the BFF enforces the legacy controller right
+  // (testplan_planning) server-side on every route.
+  if ($tplan_id > 0) {
+    $actions->showNewestTCV =
+      "/gui/templates/plans/showNewestTcVersions.html?{$ctx}";
   }
 
   $gui->uri = $actions;
