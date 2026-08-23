@@ -18,7 +18,7 @@ Dashio theme: renders inside mainframe iframe, so no need for full HTML structur
 {/if}
 
 {* 20060809 - franciscom - if user can solve the problem give him/her the url *}
-{if $link_to_op ne ''}
+{if isset($link_to_op) && $link_to_op ne ''}
   <p><a href="{$basehref}{$link_to_op}">{$hint_text}</a>
 {/if}
 	
