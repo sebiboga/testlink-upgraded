@@ -2964,3 +2964,20 @@ Bugs found & fixed while executing:
 **Result: 6/6 PASS** (run 2026-08-22, curl against http://localhost:8082).
 
 **Refs:** GitHub issue #589 · Files: `lib/results/resultsByTSuite.php`, `locale/en_GB/strings.txt`, `locale/en_US/strings.txt`
+
+## Regression — Issue #588: dashio show_table_with_exec_span.inc.tpl missing property_exists guard
+
+**Precondition:** fresh DB; fixtures via SQL as admin: project `M588 Project` (900001), plan `M588 Plan` (900002), suites `TS TOP` (900003) > `TS CHILD` (900004); one `baseline_l1l2_context` row (platform_id 0, real begin/end/creation ts) + 3 `baseline_l1l2_details` rows (n/p/f). For the positive path: TC-1 v1 (900011) linked to plan, build B1 (900003), one execution ('p', platform 0). Session: headless Chrome, admin/admin, Dashio theme.
+
+**Pre-fix repro:** open `lib/results/baselinel1l2.php?tplan_id=900002&format=0` → page renders HTTP 200 with baseline metrics, but Event Viewer gains **1× E_WARNING "Undefined property: stdClass::$spanByPlatform"** from compiled `show_table_with_exec_span.inc.tpl.php` (dashio partial line 14 reads the property without the `property_exists` clause tl-classic has).
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Warning gone on baselinel1l2 | Reload baselinel1l2.php?tplan_id=900002&format=0 after fix | Page renders identical metrics table; NO new "Undefined property: stdClass::$spanByPlatform" event | PASS |
+| 2 | Positive path intact on resultsByTSuite | Open resultsByTSuite.php?tplan_id=900002&format=0 (controller DOES set spanByPlatform) | "First Execution on / Latest Execution on" dates still render above the suite table | PASS |
+| 3 | No new events on positive path | Check events after case 2 | Zero new Error/Warning rows | PASS |
+| 4 | Theme parity | Diff guard condition vs tl-classic copy | Both partials now start `{if property_exists($gui,'spanByPlatform') && null != $gui->spanByPlatform && isset($gui->spanByPlatform[$platId])}` | PASS |
+
+**Result: 4/4 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
+
+**Refs:** GitHub issue #588 · Files: `gui/templates/dashio/results/show_table_with_exec_span.inc.tpl`
