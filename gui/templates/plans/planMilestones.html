@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Milestones</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.section { padding: 20px 24px 4px; }
+.table-wrap { padding: 0 24px 8px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: middle; }
+.ms-name { font-weight: 700; color: #2d8e88; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font-size: 13px; }
+.ms-name:hover { text-decoration: underline; }
+.api-id { cursor: help; color: #999; font-size: 12px; margin-right: 6px; }
+.date-cell { white-space: nowrap; width: 120px; }
+.pct-cell { text-align: right; white-space: nowrap; }
+.act-btn { background: none; border: none; cursor: pointer; font-size: 15px; padding: 2px 6px; color: #6c757d; }
+.act-btn:hover { color: #22242a; }
+.act-btn.del { color: #e6605e; }
+.act-btn.del:hover { color: #c53f3d; }
+.badge-pass { background: #2ecc71; color: #fff; font-size: 12px; border-radius: 10px; padding: 3px 9px; }
+.badge-fail { background: #e6605e; color: #fff; font-size: 12px; border-radius: 10px; padding: 3px 9px; }
+.expected { color: #888; font-size: 12px; white-space: nowrap; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.form-label { display: block; font-size: 12px; font-weight: 700; color: #353b48; margin-bottom: 4px; }
+.form-control, .form-control:focus { font-size: 13px; }
+.hint { font-size: 11px; color: #888; margin-top: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ms.header">Test Plan Milestones</span>
+  <span class="sub" data-i18n="ms.headerSub">target dates and completion goals for this test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="ms.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnCreate"><i class="fa fa-plus"></i> <span data-i18n="ms.createMilestone">New Milestone</span></button>
+</div>
+
+<div class="section">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;"><span data-i18n="ms.existing">Existing Milestones</span><span class="count" id="msCount" style="font-weight:400;color:#888;font-size:13px;margin-left:6px;"></span></h2>
+</div>
+
+<div class="table-wrap">
+  <div id="msEmpty" class="empty" style="display:none" data-i18n="ms.noMilestones">No milestones are defined for this test plan yet</div>
+  <table id="msTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th style="width:26%" data-i18n="ms.colName">Name</th>
+        <th style="width:130px" data-i18n="ms.colTargetDate">Target Date</th>
+        <th style="width:130px" data-orderable="false" data-i18n="ms.colStartDate">Start Date</th>
+        <th id="thHighPct" style="width:110px" data-i18n="ms.colHighPct">High Priority %</th>
+        <th id="thMediumPct" style="width:110px" data-i18n="ms.colMediumPct">Medium Priority %</th>
+        <th id="thLowPct" style="width:110px" data-i18n="ms.colLowPct">Low Priority %</th>
+        <th data-orderable="false" style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="section" id="reportSection" style="display:none">
+  <h2 style="font-size:15px;font-weight:700;color:#22242a;margin:0;" data-i18n="ms.reportTitle">Milestone Report</h2>
+</div>
+
+<div class="table-wrap" id="reportWrap" style="display:none">
+  <table id="reportTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="ms.colMilestone">Milestone</th>
+        <th data-i18n="ms.colHighResult">High Priority<br>Expected %</th>
+        <th data-i18n="ms.colMediumResult">Medium Priority<br>Expected %</th>
+        <th data-i18n="ms.colLowResult">Low Priority<br>Expected %</th>
+        <th style="width:90px" data-i18n="ms.colOverall">Overall %</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="msForm" onsubmit="return false;">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editTitle">Milestone</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;">
+        <input type="hidden" id="fId" value="">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label class="form-label" for="fName" data-i18n="ms.enterName">Milestone name</label>
+          <input type="text" class="form-control" id="fName" maxlength="100" required>
+          <div class="hint" data-i18n="ms.nameHint">must be unique within the test plan</div>
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" for="fTargetDate" data-i18n="ms.targetDate">Target date</label>
+              <input type="date" class="form-control" id="fTargetDate" required>
+              <div class="hint" data-i18n="ms.targetHint">must not be in the past</div>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group" style="margin-bottom:12px;">
+              <label class="form-label" for="fStartDate" data-i18n="ms.startDate">Start date</label>
+              <input type="date" class="form-control" id="fStartDate">
+              <div class="hint" data-i18n="ms.startHint">optional</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" id="prioPctRow">
+          <div class="col-sm-4">
+            <div class="form-group" style="margin-bottom:6px;">
+              <label class="form-label" for="fHighPct" data-i18n="ms.highPct">High priority % (A)</label>
+              <input type="number" min="0" max="100" class="form-control" id="fHighPct" value="0">
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="form-group" style="margin-bottom:6px;">
+              <label class="form-label" for="fMediumPct" data-i18n="ms.mediumPct">Medium priority % (B)</label>
+              <input type="number" min="0" max="100" class="form-control" id="fMediumPct" value="0">
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="form-group" style="margin-bottom:6px;">
+              <label class="form-label" for="fLowPct" data-i18n="ms.lowPct">Low priority % (C)</label>
+              <input type="number" min="0" max="100" class="form-control" id="fLowPct" value="0">
+            </div>
+          </div>
+        </div>
+        <div class="row" id="singlePctRow" style="display:none">
+          <div class="col-sm-6">
+            <div class="form-group" style="margin-bottom:6px;">
+              <label class="form-label" for="fMediumOnlyPct" data-i18n="ms.percTcases">% of test cases expected to pass</label>
+              <input type="number" min="0" max="100" class="form-control" id="fMediumOnlyPct" value="0">
+            </div>
+          </div>
+        </div>
+        <div class="hint" data-i18n="ms.dateOrderHint">the start date must not be after the target date</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveMilestone()" data-i18n="common.save">Save</button>
+      </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="delTitle">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:13px;" id="delMsg"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-red" onclick="doDelete()" style="font-size:13px;background:#e6605e;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-weight:600;" data-i18n="common.delete">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/milestones/index.php';
+var tplanId = 0;
+var canManage = true;
+var prioEnabled = true;
+var msTbl = null;
+var rptTbl = null;
+var deleteTarget = null;
+var lastData = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  // XSS-safe delegation: the milestone object is resolved from the API
+  // payload, never taken from inline handlers/DOM data
+  $('#msTable').on('click', '[data-del-id]', function () {
+    var id = parseInt(this.getAttribute('data-del-id'), 10);
+    var m = findMilestone(id);
+    if (m) { confirmDelete(m); }
+  });
+  $('#msTable').on('click', '[data-edit-id]', function () {
+    var id = parseInt(this.getAttribute('data-edit-id'), 10);
+    var m = findMilestone(id);
+    if (m) { openEdit(m); }
+  });
+
+  $('#btnCreate').on('click', openCreate);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function findMilestone(id) {
+  return (lastData && lastData.data && lastData.data.milestones || [])
+    .filter(function (x) { return parseInt(x.id, 10) === id; })[0];
+}
+
+/** Map server error codes onto localized messages */
+function errText(r) {
+  var map = {
+    milestone_name_already_exists: 'ms.msg.duplicateName',
+    warning_invalid_date: 'ms.msg.invalidDate',
+    warning_milestone_date: 'ms.msg.pastTargetDate',
+    warning_target_before_start: 'ms.msg.targetBeforeStart',
+    warning_empty_milestone_name: 'ms.msg.emptyName',
+    warning_invalid_percentage: 'ms.msg.invalidPercentage',
+    'Insufficient rights': 'common.forbidden'
+  };
+  var key = map[r.message] || null;
+  var txt = key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error'));
+  if (r.detail && key === 'ms.msg.duplicateName') { txt += ': ' + r.detail; }
+  return txt;
+}
+
+function load() {
+  if (tplanId <= 0) {
+    $('#msEmpty').show();
+    $('.toolbar').hide();
+    return;
+  }
+  $.getJSON(API + '/list?tplan_id=' + tplanId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      lastData = r;
+      canManage = !!(r.rights && r.rights.canManage);
+      prioEnabled = !!r.data.testPriorityEnabled;
+      $('#tplanName').text(r.data.tplan_name);
+      document.title = r.data.tplan_name + ' - ' + TLi18n.t('ms.header');
+
+      $('#btnCreate').toggle(canManage);
+      $('#thHighPct').toggle(prioEnabled);
+      $('#thMediumPct').toggle(prioEnabled);
+      $('#thLowPct').toggle(prioEnabled);
+
+      render(r.data.milestones || [], r.data.metrics || []);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function pctCell(v) {
+  return '<td class="pct-cell">' + esc(String(v == null ? 0 : v)) + ' %</td>';
+}
+
+function render(milestones, metrics) {
+  $('#msCount').text('(' + milestones.length + ')');
+  $('#msEmpty').toggle(milestones.length === 0);
+  $('#msTable').toggle(milestones.length > 0);
+  $('#footerInfo').text(milestones.length ?
+    TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString() : '');
+
+  if (msTbl) { msTbl.destroy(); $('#msTable tbody').empty(); }
+
+  var rows = milestones.map(function (m) {
+    var apiTitle = TLi18n.t('ms.apiId').replace('{id}', m.id);
+    var nameCell = '<i class="fas fa-flag api-id" title="' + esc(apiTitle) + '"></i>';
+    if (canManage) {
+      nameCell += '<button class="ms-name" data-edit-id="' + parseInt(m.id, 10) +
+                  '" title="' + esc(TLi18n.t('ms.altEdit')) + '">' + esc(m.name) + '</button>';
+    } else {
+      nameCell += '<span style="font-weight:700">' + esc(m.name) + '</span>';
+    }
+
+    var td = m.target_date ? '<span class="date-cell">' + esc(m.target_date) + '</span>'
+                           : '<span class="date-cell" style="color:#ccc">-</span>';
+
+    var sdCell = '<span class="date-cell" style="color:#ccc">-</span>';
+    if (m.start_date && m.start_date !== '' && m.start_date !== '0000-00-00') {
+      sdCell = '<span class="date-cell">' + esc(m.start_date) + '</span>';
+    }
+
+    var action = '';
+    if (canManage) {
+      action += '<button class="act-btn del" title="' +
+                esc(TLi18n.t('ms.altDelete')) + '" data-del-id="' +
+                parseInt(m.id, 10) + '"><i class="fas fa-minus-circle"></i></button>';
+    }
+
+    if (prioEnabled) {
+      return [nameCell, td, sdCell,
+              pctCell(m.high_percentage), pctCell(m.medium_percentage),
+              pctCell(m.low_percentage), action];
+    }
+    // legacy parity: priorities disabled -> only the medium column is shown
+    return [nameCell, td, sdCell, pctCell(m.medium_percentage),
+            '', '', action];
+  });
+
+  msTbl = $('#msTable').DataTable({
+    destroy: true,
+    data: rows,
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [
+      { targets: prioEnabled ? [3, 4, 5] : [3], className: 'text-center' },
+      { targets: prioEnabled ? [] : [4, 5], visible: false },
+      { targets: prioEnabled ? [6] : [6], orderable: false }
+    ]
+  });
+
+  renderReport(metrics);
+}
+
+/**
+ * Live milestone metrics - same numbers as legacy title_report_milestones:
+ * per-priority achieved % vs expected % (red when incomplete), overall %.
+ */
+function renderReport(metrics) {
+  $('#reportSection').toggle(metrics.length > 0);
+  $('#reportWrap').toggle(metrics.length > 0);
+  if (!metrics.length) { return; }
+
+  if (rptTbl) { rptTbl.destroy(); $('#reportTable tbody').empty(); }
+
+  function cell(res, total, resultPct, expectedPct, incomplete) {
+    var cls = incomplete ? 'badge-fail' : 'badge-pass';
+    var inner = '<span class="' + cls + '">' + esc(String(resultPct)) + ' %</span>' +
+      ' <span class="expected">(' + esc(String(res)) + '/' + esc(String(total)) +
+      ') ' + esc(String(expectedPct)) + ' %</span>';
+    return inner;
+  }
+
+  var rows = metrics.map(function (res) {
+    var label = esc(res.name) + ' <span class="expected">';
+    if (res.start_date && res.start_date !== '0000-00-00') {
+      label += TLi18n.t('ms.from') + ' ' + esc(res.start_date) + ' ';
+    }
+    label += TLi18n.t('ms.until') + ' ' + esc(res.target_date) + '</span>';
+
+    return [
+      label,
+      cell(res.results['3'], res.tcs_priority['3'], res.result_high_percentage,
+           res.high_percentage, res.high_incomplete),
+      cell(res.results['2'], res.tcs_priority['2'], res.result_medium_percentage,
+           res.medium_percentage, res.medium_incomplete),
+      cell(res.results['1'], res.tcs_priority['1'], res.result_low_percentage,
+           res.low_percentage, res.low_incomplete),
+      '<b>' + esc(String(res.percentage_completed)) + ' %</b>'
+    ];
+  });
+
+  rptTbl = $('#reportTable').DataTable({
+    destroy: true,
+    data: rows,
+    searching: false,
+    paging: false,
+    info: false,
+    language: { search: '' }
+  });
+}
+
+function openCreate() {
+  $('#editTitle').text(TLi18n.t('ms.createMilestone'));
+  $('#fId').val('');
+  $('#fName').val('');
+  $('#fTargetDate').val('');
+  $('#fStartDate').val('');
+  $('#fHighPct').val('0');
+  $('#fMediumPct').val('0');
+  $('#fLowPct').val('0');
+  $('#fMediumOnlyPct').val('0');
+  togglePctFields();
+  $('#editModal').modal('show');
+}
+
+function openEdit(m) {
+  $('#editTitle').text(TLi18n.t('ms.editTitle').replace('{name}', m.name));
+  $('#fId').val(m.id);
+  $('#fName').val(m.name);
+  $('#fTargetDate').val(m.target_date || '');
+  $('#fStartDate').val(
+    (!m.start_date || m.start_date === '0000-00-00') ? '' : m.start_date);
+  $('#fHighPct').val(m.high_percentage == null ? 0 : m.high_percentage);
+  $('#fMediumPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
+  $('#fLowPct').val(m.low_percentage == null ? 0 : m.low_percentage);
+  $('#fMediumOnlyPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
+  togglePctFields();
+  $('#editModal').modal('show');
+}
+
+/** Legacy parity: project without priority mgmt edits only the medium %. */
+function togglePctFields() {
+  $('#prioPctRow').toggle(prioEnabled);
+  $('#singlePctRow').toggle(!prioEnabled);
+}
+
+function saveMilestone() {
+  var id = $('#fId').val();
+  var name = $.trim($('#fName').val());
+  if (!name) { toast(TLi18n.t('ms.msg.emptyName'), true); return; }
+  var target = $('#fTargetDate').val();
+  if (!target) { toast(TLi18n.t('ms.msg.invalidDate'), true); return; }
+
+  var body = {
+    name: name,
+    target_date: target,
+    start_date: $('#fStartDate').val(),
+    high_percentage: parseInt($('#fHighPct').val() || '0', 10),
+    medium_percentage: parseInt($('#fMediumPct').val() || '0', 10),
+    low_percentage: parseInt($('#fLowPct').val() || '0', 10)
+  };
+  if (!prioEnabled) {
+    body.high_percentage = 0;
+    body.low_percentage = 0;
+    body.medium_percentage = parseInt($('#fMediumOnlyPct').val() || '0', 10);
+  }
+
+  $.ajax({
+    url: id ? API + '/update/' + encodeURIComponent(id) : API + '/create?tplan_id=' + tplanId,
+    method: id ? 'PUT' : 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(body)
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(errText(r), true); return; }
+    $('#editModal').modal('hide');
+    toast(TLi18n.t(id ? 'ms.msg.saved' : 'ms.msg.created').replace('{name}', name));
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(errText(r), true);
+  });
+}
+
+function confirmDelete(m) {
+  deleteTarget = parseInt(m.id, 10);
+  $('#delTitle').text(TLi18n.t('common.delete'));
+  $('#delMsg').html('<b>' + esc(m.name) + '</b><br>' + esc(TLi18n.t('ms.deleteConfirmMsg')));
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTarget) return;
+  $.ajax({
+    url: API + '/delete/' + deleteTarget,
+    method: 'DELETE'
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(TLi18n.t('ms.msg.deleted'));
+    } else {
+      toast(errText(r), true);
+    }
+    load();
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    toast(errText(r), true);
+    load();
+  });
+}
+</script>
+</body>
+</html>
