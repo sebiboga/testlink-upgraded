@@ -1894,12 +1894,11 @@ function getActions(&$gui,$baseURL) {
     $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
     $gui->workArea->showMetrics = "showMetrics&{$ctx}";
     // Set Test Urgency modernized screen (Dashio standalone page) - Refs #605
-    // Same grant gate the aside.tpl uses for this menu entry; the BFF itself
-    // enforces the legacy controller right (testplan_planning).
-    if ($args->user->hasRight($dbH,'testplan_set_urgent_testcases',$gui->tproject_id)) {
-      $actions->setTestUrgency =
-        "/gui/templates/plans/testUrgency.html?{$ctx}";
-    }
+    // Menu visibility is gated by aside.tpl via menuGrants
+    // (testplan_set_urgent_testcases); the BFF enforces the legacy controller
+    // right (testplan_planning) server-side on every route.
+    $actions->setTestUrgency =
+      "/gui/templates/plans/testUrgency.html?{$ctx}";
   }
 
   $gui->workArea->reqSpecMgmt = "reqSpecMgmt&{$ctx}";
