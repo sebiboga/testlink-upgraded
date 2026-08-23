@@ -3904,5 +3904,9 @@ $TLS_img_title_remove_keyword = "Klikni pro smazání tohoto klícového slova.";
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = 'Report automatizace testù';
-
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'is executed together with';
+$TLS_remove_plat_msgbox_title = 'Remove Platform';
+$TLS_remove_plat_msgbox_msg = 'Do you want to remove all executions linked to this platform?';
+$TLS_img_title_remove_platform = 'Remove Platform';
 ?>

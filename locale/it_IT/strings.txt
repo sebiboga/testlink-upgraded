@@ -2386,5 +2386,9 @@ $TLS_installed_plugins = 'Plugin installati';
 $TLS_title_plugins = 'Plugin';
 
 $TLS_report_test_automation = 'Report automazione dei test';
-
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'viene eseguito insieme a';
+$TLS_remove_plat_msgbox_title = 'Rimuovi Piattaforma';
+$TLS_remove_plat_msgbox_msg = 'Vuoi rimuovere tutte le esecuzioni collegate a questa piattaforma?';
+$TLS_img_title_remove_platform = 'Rimuovi Piattaforma';
 ?>

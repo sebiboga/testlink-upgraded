@@ -3812,5 +3812,9 @@ $TLS_display_inline ="Pokaż w linii";
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = 'Raport automatyzacji testów';
-
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'jest wykonywany razem z';
+$TLS_remove_plat_msgbox_title = 'Usuń platformę';
+$TLS_remove_plat_msgbox_msg = 'Czy chcesz usunąć wszystkie wykonania powiązane z tą platformą?';
+$TLS_img_title_remove_platform = 'Usuń platformę';
 ?>

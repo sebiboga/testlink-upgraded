@@ -4088,3 +4088,8 @@ $TLS_system = 'Système';
 $TLS_testcase_execution = 'Exécution des cas de test';
 $TLS_tests_design = 'Conception des cas de test';
 $TLS_title_dashboard = 'Tableau de bord';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'est exécuté en même temps que';
+$TLS_remove_plat_msgbox_title = 'Supprimer la Plateforme';
+$TLS_remove_plat_msgbox_msg = 'Voulez-vous supprimer toutes les exécutions liées à cette plateforme ?';
+$TLS_img_title_remove_platform = 'Supprimer la Plateforme';

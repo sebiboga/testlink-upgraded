@@ -2120,5 +2120,9 @@ $TLS_time_charts_title = "Time Charts";
 $TLS_testproject_prefix_hint = 'Enintään 16 merkkiä on sallittu, mutta suosittelemme käyttämään enintään viittä';
 
 $TLS_report_test_automation = 'Testiautomaatioraportti';
-
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'suoritetaan yhdessä kohteen kanssa';
+$TLS_remove_plat_msgbox_title = 'Poista alusta';
+$TLS_remove_plat_msgbox_msg = 'Haluatko poistaa kaikki tähän alustaan liittyvät suoritukset?';
+$TLS_img_title_remove_platform = 'Poista alusta';
 ?>

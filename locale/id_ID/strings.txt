@@ -2858,5 +2858,9 @@ $TLS_testproject_prefix_hint = 'Hingga 16 karakter diizinkan, tetapi kami menyar
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = 'Laporan otomatisasi pengujian';
-
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'dieksekusi bersama dengan';
+$TLS_remove_plat_msgbox_title = 'Hapus Platform';
+$TLS_remove_plat_msgbox_msg = 'Apakah Anda ingin menghapus semua eksekusi yang terkait dengan platform ini?';
+$TLS_img_title_remove_platform = 'Hapus Platform';
 ?>

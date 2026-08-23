@@ -100,3 +100,8 @@ $TLS_testproject_prefix_hint = 'Sunt permise până la 16 caractere, dar recoman
 // ----- END -----------------------------------------------------
 
 $TLS_report_test_automation = 'Raport de automatizare a testării';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'este executat împreună cu';
+$TLS_remove_plat_msgbox_title = 'Elimină platforma';
+$TLS_remove_plat_msgbox_msg = 'Doriți să eliminați toate execuțiile legate de această platformă?';
+$TLS_img_title_remove_platform = 'Elimină platforma';

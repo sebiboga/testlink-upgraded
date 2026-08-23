@@ -4039,3 +4039,8 @@ $TLS_btn_stop_mon = 'Stop Monitoring';
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = 'Testautomatiseringsrapport';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'wordt samen uitgevoerd met';
+$TLS_remove_plat_msgbox_title = 'Platform verwijderen';
+$TLS_remove_plat_msgbox_msg = 'Wilt u alle aan dit platform gekoppelde uitvoeringen verwijderen?';
+$TLS_img_title_remove_platform = 'Platform verwijderen';

@@ -4218,3 +4218,5 @@ $TLS_href_assign_tplan_roles = 'Atribuir funções do plano de teste';
 $TLS_href_assign_tproject_roles = 'Atribuir funções do projeto de teste';
 $TLS_href_user_profile = 'Perfil de utilizador';
 $TLS_title_dashboard = 'Painel';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = 'é executado em conjunto com';

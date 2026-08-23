@@ -4125,3 +4125,8 @@ $TLS_tests_design = '测试用例设计';
 $TLS_title_dashboard = '仪表盘';
 
 $TLS_report_test_automation = '测试自动化报告';
+// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
+$TLS_executed_me_and_also = '与之一同执行';
+$TLS_remove_plat_msgbox_title = '移除平台';
+$TLS_remove_plat_msgbox_msg = '是否要移除与此平台关联的所有执行结果？';
+$TLS_img_title_remove_platform = '移除平台';
