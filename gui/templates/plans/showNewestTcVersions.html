@@ -100,27 +100,48 @@ var tplanId = 0;
 var tprojectId = 0;
 var tcprefix = '';
 var lastData = null;
+var loadSeq = 0; // review #643 f5: drop stale responses
+
+function parseCtx(v) {
+  var n = parseInt(v || '0', 10);
+  return (isFinite(n) && n > 0) ? n : 0;
+}
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
-  tplanId = parseInt(p.get('tplan_id') || '0', 10);
-  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseCtx(p.get('tplan_id'));
+  tprojectId = parseCtx(p.get('tproject_id'));
 
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher') || null;
     TLi18n.apply();
-    load();
+    bootstrap();
   });
 
   $('#tplanSel').on('change', function () {
-    tplanId = parseInt($(this).val() || '0', 10);
-    if (!isFinite(tplanId) || tplanId < 0) { tplanId = 0; }
+    tplanId = parseCtx($(this).val());
     syncUrl();
     load();
   });
   $('#btnReload').on('click', load);
 });
+
+// review #643 f4: no context in URL -> auto-pick first accessible project
+// (same fallback as planUpdateTC.html)
+function bootstrap() {
+  if (tprojectId > 0) { load(); return; }
+  $.getJSON('/api/projects/index.php')
+    .done(function (r) {
+      var list = (r && r.data) ? r.data : [];
+      if (list.length > 0) {
+        tprojectId = parseInt(list[0].id, 10) || 0;
+        syncUrl();
+      }
+      load();
+    })
+    .fail(function () { load(); });
+}
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -145,10 +166,20 @@ function apiFail(xhr) {
   if (xhr && xhr.status === 403) { showState(TLi18n.t('common.forbidden'), true); return; }
   if (xhr && xhr.status === 401) { window.location.href = '/login.php'; return; }
   var msg = TLi18n.t('common.error');
+  var code = null;
   try {
     var r = JSON.parse(xhr.responseText);
-    if (r && r.message) { msg = esc(r.message); }
+    if (r && r.message) { msg = r.message; } // showState() escapes
+    if (r && r.error_code) { code = r.error_code; }
   } catch (e) {}
+  // review #643 f3: stale bookmark (plan moved/deleted) must not dead-end;
+  // fall back to the picker like legacy always rendered the selector
+  if (code === 'BAD_TPLAN' && tprojectId > 0) {
+    tplanId = 0;
+    syncUrl();
+    load();
+    return;
+  }
   showState(msg, true);
 }
 
@@ -250,6 +281,7 @@ function render(data) {
 }
 
 function load() {
+  var seq = ++loadSeq;
   hideState();
   $('#mainPane').hide();
   showState(TLi18n.t('common.loading'), false);
@@ -259,6 +291,7 @@ function load() {
     dataType: 'json',
     data: { tproject_id: tprojectId, tplan_id: tplanId },
     success: function (r) {
+      if (seq !== loadSeq) { return; } // stale response
       if (r.status !== 'ok' ||
           ['ok','no-linked','all-current','pick'].indexOf(r.state) < 0) {
         toast(TLi18n.t('common.error'), true);
@@ -267,6 +300,7 @@ function load() {
       render(r);
     },
     error: function (xhr) {
+      if (seq !== loadSeq) { return; }
       apiFail(xhr);
     }
   });

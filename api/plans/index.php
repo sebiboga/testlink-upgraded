@@ -1840,8 +1840,9 @@ if ($method === 'GET' && count($segments) === 1 &&
 
     $tplans = [];
     $rows = $user->getAccessibleTestPlans($db, $tproject_id, null,
-        ['output' => 'mapfull', 'active' => null]);
+        ['output' => 'mapfull', 'active' => ACTIVE]);  // review #643 f2: legacy default filters inactive
     foreach ((array)$rows as $r) {
+        if (!intval($r['active'])) { continue; }  // belt & braces
         $tplans[] = [
             'id' => intval($r['id']),
             'name' => (string)$r['name'],
