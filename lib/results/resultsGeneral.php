@@ -44,7 +44,10 @@ if(is_null($tsInf)) {
     $metricsMgr->getStatusTotalsByKeywordForRender($args->tplan_id,null, array('groupByPlatform' => 1) );
 
 	$gui->statistics->keywords = !is_null($keywordsMetrics) ? $keywordsMetrics->info : null; 
-                              
+
+	// only appended when the plan has platforms, but consumed unconditionally
+	// by the foreach() below -> always start from an empty array
+	$items2loop = array();
 	if( $gui->showPlatforms ) {
 		$items2loop[] = 'platform';
 		$platformMetrics = $metricsMgr->getStatusTotalsByPlatformForRender($args->tplan_id);

@@ -176,7 +176,7 @@ Purpose: smarty template - show Test Results and Metrics
            args_column_data=$gui->statistics->assigned_testers} *}
 
 
-    {if $gui->tprojOpt->testPriorityEnabled}
+    {if $gui->testprojectOptions->testPriorityEnabled}
       <h1 class="{#TITLE_CLASS#}">{$labels.title_res_by_prio}</h1>
       {foreach from=$platforms key=platId item=pname}
         {if isset($gui->statistics->priorities[$platId]) }
@@ -244,7 +244,7 @@ Purpose: smarty template - show Test Results and Metrics
 
   	{* ----- results by milestones / priorities ------------ *}
 
-	{if $gui->tprojOpt->testPriorityEnabled}
+	{if $gui->testprojectOptions->testPriorityEnabled}
 		{if $gui->statistics->milestones != ""}
 
 			<h2>{$labels.title_report_milestones}</h2>
