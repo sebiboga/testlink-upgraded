@@ -3544,3 +3544,25 @@ not a defect of the fix.
 | R3 | BAD_TPLAN fallback | API error_code BAD_TPLAN → screen resets tplan_id=0 and renders picker instead of dead end | PASS |
 | R4 | No-context bootstrap | URL without params auto-picks first accessible project (`/api/projects/`) like planUpdateTC | PASS |
 | R5 | Stale-response guard + NaN parse guards + single-escape error path | JS syntax OK (node Function parse); rapid switches drop out-of-order responses | PASS |
+
+## Suite 644 — Regression — Issue #644: LOCALIZATION warnings on every tcView render (remove_plat_msgbox_title/msg + executed_me_and_also missing from all locales)
+
+**Refs:** #644 · branch `fix/issue-644-localization-warnings` · commit 7430ce208
+**Files under test:** `locale/*/strings.txt` (19 bundles)
+**Precondition:** fresh DB; fixtures via `php tmp/fixtures_644.php` + `php tmp/fixtures_644b.php`
+(project LOC626→LOC644, TC-644 id=28 v29, platform PLAT-644 linked, EXECUTE_TOGETHER relation to TC-644B);
+admin session at http://localhost:8082. NOTE: lang_api dedupes missing-key warnings per user session
+(`$_SESSION['missingL18N']`), so every verification render below uses a FRESH login/cookie jar.
+URL: `/lib/testcases/archiveData.php?edit=testcase&id=28&show_mode=show`
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Primary repro — pre-fix | curl login en_GB; GET URL; query events log_level=32 | 3× LOCALIZATION events per first render: remove_plat_msgbox_title / remove_plat_msgbox_msg / executed_me_and_also (observed ids 25/34/35 @20:35:18) | PASS (reproduced) |
+| 2 | Syntax gate post-fix | `php -l` on all 19 locale/*/strings.txt | every bundle parses | PASS |
+| 3 | Key coverage gate | grep `^\s*\$TLS_<key>\s*=` for the 4 keys × 19 bundles | 76/76 present | PASS |
+| 4 | Encoding gate | iconv UTF-8 check on all touched files; cs_CZ stays ISO-8859-2 | no encoding corruption | PASS |
+| 5 | Post-fix en_GB render | fresh en_GB session; GET URL with pre-render event watermark (id>54) | HTTP 200; **0** new level-32 events; HTML contains `var remove_plat_msgbox_title = 'Remove Platform'`, full msg string, `is executed together with` ×2; zero raw key names visible | PASS |
+| 6 | Post-fix de_DE render | set admin locale de_DE; fresh session; GET URL | localized texts rendered (`Plattform entfernen` ×2, `zusammen ausgeführt mit` ×2); **0** new level-32 events referencing any of the 4 keys; locale restored to en_GB afterwards | PASS |
+| 7 | Event Viewer clean | `SELECT … WHERE log_level IN (1,2,32)` for events created by steps 5–6 | only pre-existing unrelated warnings (#520/#529 scope); none attributable to this fix | PASS |
+
+**Result: Suite 644 — 7/7 PASS**
