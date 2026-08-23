@@ -166,6 +166,10 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr)
  */
 function createSpreadsheet($gui,$args,&$tplanMgr) 
 {
+  // XLS export: statistics sections may be absent depending on report
+  // configuration; default them to avoid null-reference fatals below.
+  xlsDefaultStatsSections($gui);
+
   $lbl = initLblSpreadsheet();
   $cellRange = setCellRangeSpreadsheet();
   $style = initStyleSpreadsheet();
@@ -318,7 +322,7 @@ function initStyleSpreadsheet() {
           'startcolor' => array( 'argb' => 'DCDCDCDC'))
     );
 
-  return $style;
+  return xlsNormalizeLegacyStyles($style);
 }  
 
 /**

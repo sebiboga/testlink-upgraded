@@ -236,3 +236,97 @@ function flushHttpHeader($format, $doc_kind = 0)
   }  
   flush();
 }
+
+/**
+ * Default the statistics sections consumed by report XLS exporters.
+ *
+ * The createSpreadsheet() implementations bind their data sources by
+ * reference (e.g. $gui->statistics->priorities). When a section was not
+ * computed for the current report configuration (priority/keywords
+ * disabled, no platforms, empty plan) the property does not exist and the
+ * reference silently becomes null, fatalling count()/foreach() later on.
+ */
+function xlsDefaultStatsSections(&$guiObj)
+{
+  $sections = array('platform','overallBuildStatus','overalBuildStatus',
+                    'buildByPlatMetrics','testsuites','priorities',
+                    'keywords','testers','milestones');
+
+  if (!isset($guiObj->statistics) || !is_object($guiObj->statistics)) {
+    // some controllers build statistics as a plain array for the HTML
+    // template; the spreadsheet exporter only consumes object sections.
+    $guiObj->statistics = new stdClass();
+  }
+
+  foreach ($sections as $section) {
+    if (!isset($guiObj->statistics->$section) ||
+        is_scalar($guiObj->statistics->$section)) {
+      $guiObj->statistics->$section = array();
+    }
+  }
+}
+
+/**
+ * Convert legacy PHPExcel-flavoured style arrays into PhpSpreadsheet keys.
+ *
+ * PhpSpreadsheet silently ignores 'style', 'outline', 'vertical', 'type'
+ * and 'startcolor', so exported sheets lost their borders and fills after
+ * the PHPExcel -> PhpSpreadsheet switch. 'outline' is expanded to the four
+ * explicit edges; inside-only separators ('vertical'/'horizontal') have no
+ * range equivalent and are dropped.
+ */
+function xlsNormalizeLegacyStyles(array $styles)
+{
+  foreach ($styles as $key => $s) {
+    if (!is_array($s)) {
+      continue;
+    }
+
+    if (isset($s['fill']) && is_array($s['fill'])) {
+      if (array_key_exists('type', $s['fill']) &&
+          !array_key_exists('fillType', $s['fill'])) {
+        $s['fill']['fillType'] = $s['fill']['type'];
+      }
+      unset($s['fill']['type']);
+
+      if (array_key_exists('startcolor', $s['fill']) &&
+          !array_key_exists('startColor', $s['fill'])) {
+        $s['fill']['startColor'] = $s['fill']['startcolor'];
+      }
+      unset($s['fill']['startcolor']);
+    }
+
+    if (isset($s['borders']) && is_array($s['borders'])) {
+      $borders = array();
+      foreach ($s['borders'] as $edge => $cfg) {
+        if (!is_array($cfg)) {
+          continue;
+        }
+        if (array_key_exists('style', $cfg)) {
+          $cfg = array('borderStyle' => $cfg['style']);
+        }
+        switch ($edge) {
+          case 'outline':
+            foreach (array('left','right','top','bottom') as $side) {
+              if (!isset($borders[$side])) {
+                $borders[$side] = $cfg;
+              }
+            }
+            break;
+
+          case 'vertical':
+          case 'horizontal':
+            break;
+
+          default:
+            $borders[$edge] = $cfg;
+        }
+      }
+      $s['borders'] = $borders;
+    }
+
+    $styles[$key] = $s;
+  }
+
+  return $styles;
+}

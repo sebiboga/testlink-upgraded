@@ -610,7 +610,7 @@ function initStyleSpreadsheet() {
                            'fill' => array('type' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
                                            'startcolor' => array( 'argb' => 'FF9999FF'))
                            );
-  return $style;
+  return xlsNormalizeLegacyStyles($style);
 }  
 
 /**

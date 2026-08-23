@@ -508,7 +508,7 @@ function initStyleSpreadsheet() {
                                            'startcolor' => array( 'argb' => 'FF9999FF'))
                            );
 
-  return $sty;
+  return xlsNormalizeLegacyStyles($sty);
 }
 
 /**
