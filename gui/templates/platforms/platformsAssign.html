@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Platforms to Test Plan</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 220px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.warn-banner { margin: 16px 24px 0; background: #fff3cd; border: 1px solid #f0d47a; color: #7a5c00; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.panes { display: flex; gap: 18px; padding: 18px 24px 8px; align-items: stretch; flex-wrap: wrap; }
+.pane { flex: 1 1 380px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; min-height: 320px; }
+.pane h3 { margin: 0; padding: 11px 14px; background: #22242a; color: #fff; font-size: 13px; letter-spacing: .5px; }
+.pane h3 .cnt { float: right; opacity: .75; font-weight: 400; }
+.pane ul { list-style: none; margin: 0; padding: 6px 0; overflow-y: auto; flex: 1; }
+.pane ul li { padding: 7px 14px; font-size: 13px; cursor: pointer; border-left: 3px solid transparent; }
+.pane ul li:hover { background: #f4fbfb; }
+.pane ul li.sel { background: #e0f5f4; border-left-color: #4ECDC4; font-weight: 700; }
+.pane ul li .badge-tcs { color: #b58900; font-weight: 400; font-size: 12px; margin-left: 6px; }
+.pane ul li .closed-tag { color: #c53f3d; font-weight: 700; font-size: 11px; margin-right: 6px; }
+.pane ul li.empty-li { cursor: default; color: #aaa; font-style: italic; }
+.pane ul li.empty-li:hover { background: none; }
+.mid { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding-top: 40px; }
+.mid button { white-space: nowrap; }
+.actions { display: flex; gap: 12px; padding: 6px 24px 18px; align-items: center; flex-wrap: wrap; }
+.hintline { font-size: 12px; color: #888; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-body { font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="passign.header">Assign Platforms to Test Plan</span>
+  <span class="sub" data-i18n="passign.headerSub">link or unlink the platforms of this test plan</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="passign.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><label for="tplanSel" data-i18n="passign.testPlan">Test Plan</label>:</span>
+  <select id="tplanSel"></select>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
+</div>
+
+<div class="warn-banner" id="fixBanner"><i class="fa fa-triangle-exclamation"></i> <span data-i18n="passign.unknownPlatform">unknown platform banner</span></div>
+
+<div class="empty" id="noTplan" style="display:none" data-i18n="passign.noTestplan">Please select a test plan</div>
+
+<div id="assignArea" style="display:none;">
+  <div class="panes">
+    <div class="pane">
+      <h3><span data-i18n="passign.availablePlatforms">Available Platforms</span><span class="cnt" id="availCount"></span></h3>
+      <ul id="availList"></ul>
+    </div>
+    <div class="mid">
+      <button class="btn-teal" id="btnAddAll">&raquo;</button>
+      <button class="btn-teal" id="btnAdd">&nbsp;&gt;&nbsp;</button>
+      <button class="btn-dark" id="btnRemove">&nbsp;&lt;&nbsp;</button>
+      <button class="btn-dark" id="btnRemoveAll">&laquo;</button>
+    </div>
+    <div class="pane">
+      <h3><span data-i18n="passign.assignedPlatforms">Assigned Platforms</span><span class="cnt" id="asgCount"></span></h3>
+      <ul id="asgList"></ul>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn-teal" id="btnSave"><i class="fa fa-floppy-disk"></i> <span data-i18n="common.save">Save</span></button>
+    <button class="btn-teal" id="btnSaveTcv"><i class="fa fa-link"></i> <span data-i18n="passign.saveAndTcv">Save and assign linked test cases to the platforms</span></button>
+    <span class="hintline" data-i18n="passign.workingCopyHint">changes are applied when you save</span>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<!-- Unlink warning modal (legacy Ext.Msg.alert parity) -->
+<div class="modal fade" id="unlinkWarnModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="passign.warnTitle">Warning</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" data-i18n="passign.warnMsg">platform has linked test cases</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.ok">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/platforms/index.php';
+var tplanId = 0;
+var tprojectId = 0;
+var canAssign = true;
+var lastData = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#availList').on('click', 'li[data-id]', function () { $(this).toggleClass('sel'); });
+  $('#asgList').on('click', 'li[data-id]', function () { $(this).toggleClass('sel'); });
+
+  $('#tplanSel').on('change', function () {
+    var id = parseInt($(this).val() || '0', 10);
+    var url = new URL(window.location.href);
+    url.searchParams.set('tplan_id', String(id));
+    window.history.replaceState({}, '', url);
+    tplanId = id;
+    load();
+  });
+
+  $('#btnReload').on('click', load);
+  $('#btnAdd').on('click', function () { moveSelected('#availList li.sel', '#asgList'); });
+  $('#btnAddAll').on('click', function () {
+    if ($('#availList li[data-id]').length === 0) return;
+    moveSelected($('#availList li[data-id]').removeClass('sel'), '#asgList');
+  });
+  $('#btnRemoveAll').on('click', function () {
+    if ($('#asgList li[data-id]').length === 0) return;
+    tryMoveLeft($('#asgList li[data-id]').toArray());
+  });
+  $('#btnRemove').on('click', function () {
+    var sel = $('#asgList li.sel');
+    if (!sel.length) return;
+    tryMoveLeft(sel.toArray());
+  });
+
+  $('#btnSave').on('click', function () { doSave('save'); });
+  $('#btnSaveTcv').on('click', function () { doSave('save_tcv'); });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function load() {
+  $.getJSON(API + '/assign?tplan_id=' + tplanId + (tprojectId > 0 ? '&tproject_id=' + tprojectId : ''))
+    .done(render)
+    .fail(function (xhr) {
+      var msg = TLi18n.t('common.error');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      toast(msg, true);
+    });
+}
+
+function render(r) {
+  if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+  lastData = r;
+  canAssign = r.rights.canAssign;
+  tprojectId = parseInt(r.tproject.id, 10);
+
+  $('#tprojectName').text(r.tproject.name);
+
+  // test plan selector
+  var $sel = $('#tplanSel').empty();
+  if ((r.tplans || []).length) {
+    r.tplans.forEach(function (tp) {
+      $sel.append('<option value="' + tp.id + '">' + esc(tp.name) + '</option>');
+    });
+    if (r.tplan) { $sel.val(String(r.tplan.id)); }
+    else { tplanId = parseInt($sel.val() || '0', 10); }
+  } else {
+    $sel.append('<option value="0">-</option>');
+  }
+
+  $('#noTplan').toggle(!(r.tplan && r.tplan.id > 0));
+  $('#assignArea').toggle(!!(r.tplan && r.tplan.id > 0));
+  $('#fixBanner').toggle(!!r.fixNeeded);
+  $('.mid, .actions').toggle(canAssign);
+
+  if (!(r.tplan && r.tplan.id > 0)) {
+    document.title = TLi18n.t('passign.header');
+    $('#footerInfo').text('');
+    return;
+  }
+
+  document.title = r.tplan.name + ' - ' + TLi18n.t('passign.header');
+
+  var closedTag = '<span class="closed-tag">' + esc(TLi18n.t('passign.closedForExec')) + '</span>';
+  var $av = $('#availList').empty();
+  if (!(r.available || []).length) {
+    $av.append('<li class="empty-li">' + esc(TLi18n.t('passign.noneAvailable')) + '</li>');
+  } else {
+    r.available.forEach(function (p) {
+      $av.append('<li data-id="' + p.id + '">' + esc(p.name) + '</li>');
+    });
+  }
+
+  var $as = $('#asgList').empty();
+  if (!(r.assigned || []).length) {
+    $as.append('<li class="empty-li">' + esc(TLi18n.t('passign.noneAssigned')) + '</li>');
+  } else {
+    r.assigned.forEach(function (p) {
+      var badge = p.linkedCount > 0
+        ? '<span class="badge-tcs">' + esc(TLi18n.t('passign.linkedCount').replace('%d', p.linkedCount)) + '</span>'
+        : '';
+      var tag = p.is_open ? '' : closedTag;
+      $as.append('<li data-id="' + p.id + '">' + tag + esc(p.name) + badge + '</li>');
+    });
+  }
+
+  $('#availCount').text('(' + (r.available || []).length + ')');
+  $('#asgCount').text('(' + (r.assigned || []).length + ')');
+
+  // keep URL in sync with the selected plan
+  var url = new URL(window.location.href);
+  url.searchParams.set('tplan_id', String(r.tplan.id));
+  if (tprojectId > 0) { url.searchParams.set('tproject_id', String(tprojectId)); }
+  window.history.replaceState({}, '', url);
+
+  $('#footerInfo').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+}
+
+/** move DOM li elements into a pane list (working copy, unsaved) */
+function moveSelected($items, targetSel) {
+  if (!$items.length) return;
+  $(targetSel).find('li.empty-li').remove();
+  $items.detach().removeClass('sel').each(function () {
+    $(targetSel).append(this);
+  });
+  refreshCounts();
+}
+
+/**
+ * legacy transferLeft(): refuse removal of platforms that have linked TCs.
+ * Shows the warning modal and aborts instead of moving anything.
+ */
+function tryMoveLeft(liEls) {
+  var blocked = [];
+  var free = [];
+  liEls.forEach(function (li) {
+    var id = parseInt(li.getAttribute('data-id'), 10);
+    var rec = (lastData.assigned || []).filter(function (x) { return x.id === id; })[0];
+    if (rec && rec.linkedCount > 0) { blocked.push(rec); }
+    else { free.push(li); }
+  });
+
+  if (blocked.length) {
+    $('#unlinkWarnModal').modal('show');
+    blocked.forEach(function (li) { $('#asgList li[data-id="' + li.id + '"]').removeClass('sel'); });
+    return;
+  }
+  if (free.length) {
+    moveSelected($(free), '#availList');
+    if (!$('#asgList li[data-id]').length) {
+      $('#asgList').append('<li class="empty-li">' + esc(TLi18n.t('passign.noneAssigned')) + '</li>');
+    }
+  }
+  if (!$('#availList li[data-id]').length) {
+    $('#availList').append('<li class="empty-li">' + esc(TLi18n.t('passign.noneAvailable')) + '</li>');
+  }
+}
+
+function refreshCounts() {
+  var counts = { '#availList': $('#availList li[data-id]').length,
+                 '#asgList': $('#asgList li[data-id]').length };
+  ['#availList', '#asgList'].forEach(function (sel) {
+    if (counts[sel] === 0 && $(sel + ' li.empty-li').length === 0) {
+      $(sel).append('<li class="empty-li">' +
+        esc(TLi18n.t(sel === '#availList' ? 'passign.noneAvailable' : 'passign.noneAssigned')) +
+        '</li>');
+    }
+    if (counts[sel] > 0) { $(sel + ' li.empty-li').remove(); }
+  });
+  $('#availCount').text('(' + counts['#availList'] + ')');
+  $('#asgCount').text('(' + counts['#asgList'] + ')');
+}
+
+/** diff the working copy against lastData -> add/remove id sets */
+function diffPanes() {
+  var nowAvail = $('#availList li[data-id]').map(function () { return parseInt(this.getAttribute('data-id'), 10); }).get();
+  var nowAsg = $('#asgList li[data-id]').map(function () { return parseInt(this.getAttribute('data-id'), 10); }).get();
+  var origAvail = {};
+  (lastData.available || []).forEach(function (p) { origAvail[p.id] = 1; });
+  var origAsg = {};
+  (lastData.assigned || []).forEach(function (p) { origAsg[p.id] = 1; });
+
+  var add = nowAsg.filter(function (id) { return !origAsg[id]; });
+  var remove = nowAvail.filter(function (id) { return !origAvail[id]; });
+  return { add: add, remove: remove };
+}
+
+function doSave(mode) {
+  var d = diffPanes();
+  if (!d.add.length && !d.remove.length) {
+    toast(TLi18n.t('passign.msg.nothing'));
+    return;
+  }
+  $.ajax({
+    url: API + '/assign',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      tproject_id: tprojectId,
+      tplan_id: parseInt($('#tplanSel').val(), 10),
+      add: d.add,
+      remove: d.remove,
+      mode: mode
+    })
+  }).done(function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); load(); return; }
+    toast(TLi18n.t('passign.msg.saved') +
+          (r.reassignedUnknownPlatform ? ' ' + TLi18n.t('passign.msg.reassigned') : ''));
+    load();
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    var map = { PLATFORM_HAS_LINKED_TCVS: 'passign.warnMsg' };
+    var key = map[r.error_code] || null;
+    toast(key ? TLi18n.t(key) : (r.message || TLi18n.t('common.error')), true);
+    load();
+  });
+}
+</script>
+</body>
+</html>

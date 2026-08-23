@@ -485,13 +485,25 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'import') {
 // linked TC versions still on platform_id=0 ("unknown platform").
 // ---------------------------------------------------------------------------
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'assign' && !isset($segments[1])) {
-    $tproject_id = needTprojectId();
+    $tproject_id = intval(getParam('tproject_id', 0));
+    $tplan_id = intval(getParam('tplan_id', 0));
+
+    // allow arriving with only the tplan context (deep link) - derive the project
+    if ($tproject_id <= 0 && $tplan_id > 0) {
+        $tplan0 = (new testplan($db))->get_by_id($tplan_id);
+        if (isset($tplan0['id'])) {
+            $tproject_id = intval($tplan0['testproject_id']);
+        }
+    }
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
     if (!$user->hasRight($db, 'testplan_add_remove_platforms', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
 
-    $tplan_id = intval(getParam('tplan_id', 0));
     out(assignPayload($db, $user, $tproject_id, $tplan_id));
 }
 
