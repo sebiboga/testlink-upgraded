@@ -3614,3 +3614,16 @@ URL: `/gui/templates/plans/planMilestones.html?tproject_id=1&tplan_id=2`
 Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.png`, `Test-Plan-Milestones-delete-modal.png` (wiki repo).
 
 **Result: Suite 647 — 18/18 PASS**
+
+## Suite 647a — Code-review fixes re-verification (#647)
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | No-priority header alignment (review major) | project 10 (testPriorityEnabled=0), plan 11 → screen | 4 visible columns, medium header relabeled "Completed tests [0-100%]" via DataTable API, body row "M1 / Mar 31, 2027 / - / 75 %" aligned | PASS |
+| 2 | Priority layout unchanged after refactor | plan 2 render | 7 headers H/M/L labels intact; row + metrics report identical to Suite 647 #11 | PASS |
+| 3 | Localized dates (review minor) | both plans | "Dec 31, 2026" style display in table + report from/until | PASS |
+| 4 | Strict route matching | `/update/12abc`, `/update/1/x` | fall through to 404 Unknown route (ctype_digit + count check) | PASS |
+| 5 | Duplicate name → 409 (convention) | POST create duplicate | HTTP 409 `milestone_name_already_exists` | PASS |
+| 6 | errText coverage | simulate create_failed/notFound responses | mapped to new ms.msg.createFailed/updateFailed/notFound keys in all 10 bundles | PASS |
+
+**Result: Suite 647a — 6/6 PASS** (commits 192da14a1)
