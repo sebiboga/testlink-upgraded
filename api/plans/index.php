@@ -1795,5 +1795,147 @@ if ($method === 'POST' && count($segments) === 2 &&
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Show Newest Test Case Versions screen (modernized newest_tcversions.php)
+// Refs #643
+//
+// READ-ONLY screen, exactly like legacy lib/plan/newest_tcversions.php:
+// for every test case linked to the plan whose LINKED version is older than
+// the newest ACTIVE version, show linked vs newest + compare/design/history
+// links. There is NO write operation on this screen in 1.9.20 (the actual
+// "update" lives in planUpdateTC), so the BFF exposes a single GET.
+//
+// Rights: legacy checkRights() runs pageAccessCheck with rightsAnd =
+// ['testplan_planning'] -> same contract here, server-side on every request.
+// ---------------------------------------------------------------------------
+function ntcvRights($user, $db, $tproject_id) {
+    return (bool)$user->hasRight($db, 'testplan_planning', $tproject_id);
+}
+
+if ($method === 'GET' && count($segments) === 1 &&
+    $segments[0] === 'newest-versions') {
+    // context-only mode: tplan_id=0 with valid tproject_id still delivers the
+    // plan picker payload (same contract as update-linked, see #624)
+    $tplan_id = intval($_GET['tplan_id'] ?? 0);
+    $tproject_id = intval($_GET['tproject_id'] ?? 0);
+
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id',
+             'error_code' => 'NO_TPROJECT']);
+    }
+    $tprojMgr = new testproject($db);
+    if (is_null($tprojMgr->get_by_id($tproject_id))) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id',
+             'error_code' => 'NO_TPROJECT']);
+    }
+    if (!ntcvRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission',
+             'error_code' => 'NO_RIGHTS']);
+    }
+
+    $tplanMgr = new testplan($db);
+
+    $tplans = [];
+    $rows = $user->getAccessibleTestPlans($db, $tproject_id, null,
+        ['output' => 'mapfull', 'active' => null]);
+    foreach ((array)$rows as $r) {
+        $tplans[] = [
+            'id' => intval($r['id']),
+            'name' => (string)$r['name'],
+            'active' => intval($r['active']),
+            'is_public' => intval($r['is_public']),
+        ];
+    }
+
+    $tcaseMgr = new testcase($db);
+    $testcaseCfg = config_get('testcase_cfg');
+    $prefix = $tcaseMgr->tproject_mgr->getTestCasePrefix($tproject_id) .
+              $testcaseCfg->glue_character;
+
+    $tproject_name = trim((string)($_SESSION['testprojectName'] ?? ''));
+    if ($tproject_name === '') {
+        $tproject_name = testproject::getName($db, $tproject_id);
+    }
+
+    if ($tplan_id <= 0) {
+        out([
+            'status' => 'ok',
+            'state' => 'pick',
+            'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
+            'tplans' => $tplans,
+            'tplan' => null,
+            'tcprefix' => $prefix,
+            'linked_count' => 0,
+            'items' => [],
+        ]);
+    }
+
+    $info = $tplanMgr->get_by_id($tplan_id);
+    if (is_null($info) || intval($info['parent_id']) !== $tproject_id) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not in project',
+             'error_code' => 'BAD_TPLAN']);
+    }
+
+    // legacy parity: get_linked_items_id()/get_linked_and_newest_tcversions()
+    // return null (not []) when nothing matches - count(null) is fatal on
+    // PHP 8 (see #528); cast to array like the legacy controller does now.
+    $linkedItems = (array)$tplanMgr->get_linked_items_id($tplan_id);
+    $linkedCount = count($linkedItems);
+
+    $items = [];
+    if ($linkedCount > 0) {
+        $newestMap =
+          (array)$tplanMgr->get_linked_and_newest_tcversions($tplan_id);
+        if (count($newestMap) > 0) {
+            // suite placement, same path building as legacy controller:
+            // drop root node, append trailing separator
+            $treeMgr = new tree($db);
+            $pathInfo =
+              $treeMgr->get_full_path_verbose(array_keys($newestMap));
+            foreach ($newestMap as $tcId => $tc) {
+                $path = isset($pathInfo[$tcId]) ? $pathInfo[$tcId] : [];
+                unset($path[0]);
+                $path[] = '';
+                $items[] = [
+                    'tc_id' => intval($tc['tc_id']),
+                    'tcversion_id' => intval($tc['tcversion_id']),
+                    'newest_tcversion_id' =>
+                        intval($tc['newest_tcversion_id']),
+                    'tc_external_id' => intval($tc['tc_external_id']),
+                    'name' => (string)$tc['name'],
+                    'version' => intval($tc['version']),
+                    'newest_version' => intval($tc['newest_version']),
+                    'path' => implode(' / ', $path),
+                ];
+            }
+        }
+    }
+
+    usort($items, function ($a, $b) {
+        return $a['tc_id'] <=> $b['tc_id'];
+    });
+
+    out([
+        'status' => 'ok',
+        // pick | no-linked | all-current | ok  (legacy gui states)
+        'state' => count($items) > 0 ? 'ok'
+                 : ($linkedCount === 0 ? 'no-linked' : 'all-current'),
+        'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
+        'tplans' => $tplans,
+        'tplan' => [
+            'id' => intval($info['id']),
+            'name' => (string)$info['name'],
+            'active' => intval($info['active']),
+        ],
+        'tcprefix' => $prefix,
+        'linked_count' => $linkedCount,
+        'items' => $items,
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
