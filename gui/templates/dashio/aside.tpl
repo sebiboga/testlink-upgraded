@@ -267,12 +267,16 @@ Left side menu
             {/if}
 
             {if $gui->showMenu.reports == true}
-              <li>
-                <a class="{$gui->activeMenu.reports}" 
-                  href="{$gui->uri->showMetrics}" target="mainframe">
+              <li class="sub-menu">
+                <a href="javascript:;" class="{$gui->activeMenu.reports}">
                   <i class="fas fa-chart-line"></i>
                   <span>{$labels.reports}</span>
-                </a>
+                  </a>
+                <ul class="sub">
+                  {foreach from=$gui->reportsMenu item=rptItem}
+                    <li><a href="{$rptItem.href}" target="mainframe">{$rptItem.name}</a></li>
+                  {/foreach}
+                </ul>
               </li>
             {/if}
             {* Plugins can inject links via EVENT_LEFTMENU_TOP/BOTTOM and
