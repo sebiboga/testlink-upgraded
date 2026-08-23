@@ -164,6 +164,9 @@ if ($method === 'GET' && $path === '/list') {
 
     out([
         'status' => 'ok',
+        'rights' => [
+            'canManage' => canManage($user, $db, $ctx['tproject_id']),
+        ],
         'data' => [
             'tplan_id' => $tplanId,
             'tplan_name' => $ctx['tplan_name'],
@@ -220,21 +223,29 @@ if ($method === 'POST' && ($path === '/create')) {
         out(['status' => 'error', 'message' => 'warning_target_before_start']);
     }
 
-    list($lowPct, $err) = pctField($body, 'low_percentage');
+    list($highPct, $err) = pctField($body, 'high_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
     list($mediumPct, $err) = pctField($body, 'medium_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
-    list($highPct, $err) = pctField($body, 'high_percentage');
+    list($lowPct, $err) = pctField($body, 'low_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
 
+    // Legacy parity note: milestone::create()/update() write their arguments
+    // into DB columns (a,b,c) while get_all_by_testplan() aliases
+    // a AS high_percentage / b AS medium / c AS low. The legacy edit form
+    // feeds the "High priority %" input into the low_priority argument
+    // (planMilestonesEdit.tpl labels th_perc_a_prio but posts it as
+    // low_priority_tcases). To reproduce the same USER-VISIBLE round-trip
+    // (enter X under High -> read back X as high_percentage), the body values
+    // are mapped exactly like the legacy controller does.
     $mi = new stdClass();
     $mi->tplan_id = $tplanId;
     $mi->name = $name;
     $mi->target_date = $targetDate;
     $mi->start_date = $startDate;
-    $mi->low_priority = $lowPct;
+    $mi->low_priority = $highPct;
     $mi->medium_priority = $mediumPct;
-    $mi->high_priority = $highPct;
+    $mi->high_priority = $lowPct;
 
     $newId = $milestoneMgr->create($mi);
     if ($newId <= 0) {
@@ -301,11 +312,11 @@ if (($method === 'POST' || $method === 'PUT') && isset($segments[0]) &&
         out(['status' => 'error', 'message' => 'warning_target_before_start']);
     }
 
-    list($lowPct, $err) = pctField($body, 'low_percentage');
+    list($highPct, $err) = pctField($body, 'high_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
     list($mediumPct, $err) = pctField($body, 'medium_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
-    list($highPct, $err) = pctField($body, 'high_percentage');
+    list($lowPct, $err) = pctField($body, 'low_percentage');
     if ($err !== null) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
 
     // Optional start date -> default timestamp, BUGID 3907 parity.
@@ -313,8 +324,10 @@ if (($method === 'POST' || $method === 'PUT') && isset($segments[0]) &&
         $startDate = '0000-00-00';
     }
 
+    // Same argument mapping as the create route (legacy user-visible
+    // round-trip parity - see the comment there).
     $ok = $milestoneMgr->update($id, $name, $targetDate, $startDate,
-                                $lowPct, $mediumPct, $highPct);
+                                $highPct, $mediumPct, $lowPct);
     if (!$ok) {
         http_response_code(500);
         out(['status' => 'error', 'message' => 'milestone_update_failed']);
