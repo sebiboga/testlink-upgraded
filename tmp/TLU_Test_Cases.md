@@ -3490,21 +3490,24 @@ Report URL: `/lib/results/testAutomationSpec.php?tproject_id=1&tplan_id=7&format
 | 6 | Event Viewer clean | `SELECT id FROM events WHERE fired_at > <last pre-run id>` after tests 3-5 | zero new Error/Warning rows | PASS |
 | 7 | Follow-up warnings (#641) fixed on same render | render report ×2, check events for `$tplan_name` / `"platforms"` / null-deref warnings | none emitted (previously events ids 38-42) | PASS |
 
-### Suite 640 addendum — code-review fixes re-verified (137f24711)
+## Suite 639 — Regression — Issue #639: XLS exports fired 2 L18N events ('priority_level'/'not_run' not localized)
 
-Review verdict was 0 blockers / 2 majors / 7 minors; majors + actionable minors
-fixed and re-executed:
+**Refs:** #639 · branch `fix/issue-639-xls-l18n-dead-labels` · commit c40723aab
+**Files under test:** `lib/results/{baselinel1l2,resultsByTSuite,resultsGeneral,testAutomationSpec}.php` (`initLblSpreadsheet()` only)
+**Precondition:** fresh DB import; admin session at http://localhost:8082.
+Fixtures: project id=1001 "BugFix639 Project" (options = serialized stdClass), plan id=1002
+"BugFix639 Plan", no baseline data / no linked TCs needed.
+Export URL pattern: `/lib/results/<screen>.php?tplan_id=1002&tproject_id=1001&format=1&spreadsheet=1`
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 22 | Tracker option names escaped (MAJOR-1) | Insert issuetracker named `</option><img src=x onerror=…>`, open Create modal | Option text rendered literally via esc(); no injected element | PASS |
-| 23 | Private-project lockout protection (MAJOR-2) | Create project isPublic=0 as admin | user_testproject_roles row (admin, global role 8) written; legacy parity with doCreate/doUpdate | PASS |
-| 24 | Stored color preserved on PUT (MINOR-3) | UPDATE testprojects SET color, then toggleActive | color column unchanged after partial update | PASS |
-| 25 | Single AUDIT events (MINOR-4) | create + delete a project; inspect events tail | exactly one audit_testproject_created / _deleted per action (manager logs it; BFF no longer double-logs); update still logs audit_testproject_saved once like doUpdate | PASS |
-| 26 | Corrupt options blob guarded (MINOR-5) | UPDATE testprojects SET options='' then GET/PUT project | flags fall back to defaults; no serialize(false) wipe | PASS |
-| 27 | Partial-options semantics (MINOR-6) | POST {optInventory:1,optPriority:0}; then PUT {optInventory:0} | only inventory flips; priority stays 0, automation stays default 1 | PASS |
-| 28 | Server-fault mapping (MINOR-8) | forced DB failure path | BFFServerError → HTTP 500; validation errors stay 400 | PASS |
-| 29 | Req-mgmt-system parity (MINOR-9) | /api/trackers/ now returns reqMgrSystems; edit modal shows Requirement Management Integration section; select+Enabled persist via tlReqMgrSystem link/unlink + setReqMgrIntegrationEnabled | reqMgrSystem badge/name round-trips through GET list/one | PASS |
-| 30 | Known-not-fixed: non-transactional cascade delete residue (MINOR-7) | review-only note | inherited from legacy doDelete(); documented in wiki page Legacy parity notes | NOTE |
+| 1 | Primary repro pre-fix | curl login; GET baselinel1l2 export URL | valid XLS **+ 2 L18N events** `priority_level`/`not_run` not localized | PASS (reproduced, events id 4–5) |
+| 2 | Post-fix baselinel1l2 export | same GET after fix | HTTP 200, valid CDFV2 .xls, **0 new L18N events** | PASS |
+| 3 | Post-fix resultsByTSuite export | GET sibling export URL | HTTP 200, valid XLS, 0 new L18N events | PASS |
+| 4 | Post-fix resultsGeneral export | GET sibling export URL | HTTP 200, valid XLS, 0 new L18N events | PASS |
+| 5 | Remaining labels still localized in workbook | extract strings from exp_baselinel1l2.xls | `Test Project/Test Plan/Build/Not Run/Passed/Failed/Blocked/Completed [%]/Test Case #` present; no raw `priority_level`/`not_run` keys | PASS |
+| 6 | UI path — report screen export button | open report page (format=0), click "Export Data as spreadsheet" | POST `format=3&spreadsheet=1` → HTTP 200, no new events | PASS |
+| 7 | Event Viewer clean for the fixed screens | `SELECT … FROM events WHERE log_level IN (2,32)` after steps 2–6 | zero new rows from these requests | PASS |
 
-**Result: 9 PASS / 1 documented NOTE** (re-run 2026-08-23).
+**Known independent failure not regressed:** testAutomationSpec.php direct export → HTTP 500 on empty plan
+(pre-existing, verified unrelated via git diff; filed as #642 during this run).
