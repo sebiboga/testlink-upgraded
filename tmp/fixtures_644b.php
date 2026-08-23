@@ -26,7 +26,7 @@ $projId = 0;
 foreach ((array)$old as $row) { $projId = intval($row['id']); break; }
 echo "project=$projId\n";
 
-// find suite 27 (Suite 644)
+// find the suite of project LOC644 by name
 $rs = $db->get_recordset("SELECT id FROM nodes_hierarchy WHERE name='Suite 644' LIMIT 1");
 $idS1 = intval($rs[0]['id']);
 

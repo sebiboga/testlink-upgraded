@@ -11,7 +11,6 @@ doDBConnect($db);
 $tprojMgr = new testproject($db);
 $tsuiteMgr = new testsuite($db);
 $tcaseMgr = new testcase($db);
-$platMgr = new tlPlatform($db, $tprojMgr->db->db->database); // placeholder, replaced below
 
 // idempotency: drop previous run's project if present
 $old = $tprojMgr->get_by_name('LOC644');
