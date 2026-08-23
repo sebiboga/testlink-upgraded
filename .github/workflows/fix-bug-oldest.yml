@@ -137,7 +137,7 @@ jobs:
           {
             "$schema": "https://opencode.ai/config.json",
             "model": "opencode/big-pickle",
-            "instructions": ["AGENTS.md", "FIX-ISSUE.md"],
+            "instructions": ["AGENTS.md", "FIX-ISSUE.md", "ISSUES.md"],
             "mcp": {
               "chrome-devtools": {
                 "type": "local",
@@ -173,11 +173,17 @@ jobs:
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
-          PROMPT+="Read AGENTS.md and FIX-ISSUE.md in the repo root FIRST and follow ALL their rules strictly. "
+          PROMPT+="Read AGENTS.md, FIX-ISSUE.md and ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
           PROMPT+="FIX-ISSUE.md is your mission rulebook with ONE override for this run: pick the OLDEST "
           PROMPT+="open GitHub issue yourself via gh (sort by creation date ascending), "
           PROMPT+="skipping any issue labeled enhancement/task/investigation/documentation — those belong to "
           PROMPT+="the modernize workflow, not to you. "
+          PROMPT+="ISSUES.md IS BINDING — DOCUMENTATION IS THE DELIVERABLE: post an INVESTIGATION comment "
+          PROMPT+="(environment + exact repro steps + measured evidence) BEFORE touching any code; then a ROOT CAUSE "
+          PROMPT+="comment (file:line chain, blast radius, fix plan); then ONE '## 🔧 FIX checkpoint N/M' comment "
+          PROMPT+="immediately after EACH implemented step (template in ISSUES.md §4). Close ONLY with ISSUES.md §6 "
+          PROMPT+="evidence: commit hashes, diff summary, VERIFIED vs REMAINING checklist, RESUME block — never a naked "
+          PROMPT+="close. Undocumented work counts as NOT DONE even if the code works. "
           PROMPT+="reproduce it, root-cause it, apply the minimal fix, verify error-free, write the regression "
           PROMPT+="test case in tmp/TLU_Test_Cases.md, document in wiki (tmp/wiki-repo/) + docs/ mirror, "
           PROMPT+="commit+push after each phase, then close the issue with a verification comment "
