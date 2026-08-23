@@ -3512,58 +3512,26 @@ Export URL pattern: `/lib/results/<screen>.php?tplan_id=1002&tproject_id=1001&fo
 **Known independent failure not regressed:** testAutomationSpec.php direct export → HTTP 500 on empty plan
 (pre-existing, verified unrelated via git diff; filed as #642 during this run).
 
-## Suite 429 — Regression — Issue #429: login page fatal `property_exists(): Argument #1 ($object_or_class) must be of type object|string, null given` (inc_head.tpl)
+## Suite 642 — Regression — Issue #642: testAutomationSpec.php direct export HTTP 500 + foreach-null E_WARNING (specview.php:792) on empty spec
 
-**Refs:** #429 · branch `fix/issue-429` · fix landed pre-verification in commit `01b11e300`
-**Files under test:** `gui/templates/dashio/include/inc_head.tpl` (lines 58, 62 — `isset($gui) &&` guards)
-**Precondition:** fresh DB import; PHP 8.3.33; app at http://localhost:8082.
-This is a VERIFICATION suite: the fix was already on the default branch but the issue was never
-verified/closed. Suite proves both the failure mechanism and that the landed guard eliminates it.
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Mechanism repro on this PHP build (pre-fix code shape) | `php -r 'property_exists(null,"x");'` wrapped in try/catch | TypeError with byte-identical message to issue report | PASS |
-| 2 | Smarty harness — unguarded pattern (pre-fix inc_head.tpl:66) | render tpl `{if property_exists($gui,"tproject_id")}…{/if}` with no `$gui` assigned via repo's vendor/smarty | FATAL TypeError property_exists … null given | PASS |
-| 3 | Smarty harness — guarded pattern (post-fix inc_head.tpl:58/62) | render tpl `{if isset($gui) && property_exists($gui,"tproject_id")}…{/if}` with no `$gui` | renders OK, no error | PASS |
-| 4 | Landed fix present on default branch | `git show 01b11e300 -- gui/templates/dashio/include/inc_head.tpl`; grep current file | `isset($gui) &&` present at lines 58 and 62 | PASS |
-| 5 | Login GET clean post-fix | curl `/login.php` | HTTP 200, complete form HTML, 0 matches for fatal/TypeError/Uncaught | PASS |
-| 6 | Login POST flow (browser) | navigate /login.php, fill admin/admin, click Log in | redirect to index.php main frame; navBar + asideMenu + mainframe all load | PASS |
-| 7 | inc_head-consuming screen still renders with real gui object | open projectEdit.php?doAction=create post-login | "Create a new project" page fully rendered | PASS |
-| 8 | Session-expired render path | GET `/login.php?note=expired` | HTTP 200, clean page, 0 fatal strings | PASS |
-| 9 | Logout → login page cycle (browser) | click Logout from navBar | clean login form (`note=logout`) | PASS |
-| 10 | Event Viewer clean for whole matrix | `SELECT id,log_level FROM events ORDER BY id` after all tests | only AUDIT entries (16): login succeeded + user logout; zero Error/Warning rows | PASS |
-
-**Residual risk documented (not a defect):** ~40 further unguarded `property_exists($gui,…)`
-sites across dashio/tl-classic templates are unreachable with null `$gui` — each template also
-dereferences `$gui->…` unconditionally elsewhere and all current controllers assign a gui object
-(see issue #429 root-cause comment for full list).
-
-## Suite 643 — Show Newest Test Case Versions screen (showNewestTcVersions.html) modernization
-
-**Refs:** #643 · branch `sebiboga` · commits 9d1da3f7c (BFF), 2d494e1e5 (screen), 104fecdd3 (i18n+link switch)
-**Files under test:** `api/plans/index.php` (GET /newest-versions), `gui/templates/plans/showNewestTcVersions.html`, `lib/functions/common.php` (link switch)
-**Precondition:** fresh DB; admin/admin session at http://localhost:8082.
-Fixtures: project id=1 "NTCV Demo Project" (prefix NTCV); plan id=2 "Plan Alpha"; plan id=19 "Plan Beta" (empty);
-MD-imported suite "Login Suite" with TC-1.1 Valid login (tc_id=4, v1 tcv=5, fixture-added v2 tcv=18 active),
-TC-1.2 Invalid password (id=9), TC-1.3 Logout (id=14) — all linked to Plan Alpha at v1, platform_id=0.
-User `noinv`/`noinv123` with global role guest.
+**Refs:** #642 · branch `fix/issue-642` · commits (see issue close comment)
+**Files under test:** `lib/functions/specview.php` (`getTestSpecFromNode()`), `locale/*/strings.txt`
+**Precondition:** fresh DB import; admin session at http://localhost:8082.
+Fixtures (SQL): empty project id=1001 "ISSUE642-PROJECT" (prefix I642, zero suites/TCs) + plan id=1002;
+full project id=2001 "I642-FULL" with suite id=2002 and AUTO TCs 2003/2005 (tcversions 2004/2006,
+execution_type=2, active=1) + plan id=2007. Admin user locale en_GB unless stated.
+URL pattern: `/lib/results/testAutomationSpec.php?tplan_id=<p>&tproject_id=<j>&format=1&spreadsheet=1`
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | BFF happy path | GET `/api/plans/index.php/newest-versions?tproject_id=1&tplan_id=2` (admin fetch) | HTTP 200, status ok, state "ok", linked_count 3, one item: tc_id 4, linked version 1, newest version 2, path "Login Suite / ", tcprefix "NTCV-" | PASS |
-| 2 | Screen renders table | open showNewestTcVersions.html?tproject_id=1&tplan_id=2 | header + toolbar + 1 row: history/design icons, path, NTCV-1 + name, ver-tag 1 vs newest-tag 2, Compare button with legacy tcCompareVersions URL (version_left=1&version_right=2) | PASS |
-| 3 | All-current state | unlink tc4 v1 (planaddtc/save remove), reload screen | state box "All linked Test Case Versions are already the newest available!", no PHP warning (legacy count(null) fatal #528 parity) | PASS |
-| 4 | Restore link | re-add {4:{'0':5}}, reload | state back to "ok", row visible again | PASS |
-| 5 | No-linked state | select Plan Beta in dropdown | "There are no Test Cases linked to this Test Plan!", URL syncs tplan_id=19 | PASS |
-| 6 | Pick mode (no tplan_id) | open screen without tplan_id / API tplan_id=0 | state "Please select a test plan.", dropdown lists both accessible plans; API state=pick | PASS |
-| 7 | Invalid contexts | API tplan_id=999 → HTTP 400 BAD_TPLAN; tproject_id=999 → HTTP 400 NO_TPROJECT | both rejected before any data access | PASS |
-| 8 | Permission denied (BFF) | same GET as noinv (guest) in isolated session | HTTP 403 error_code NO_RIGHTS | PASS |
-| 9 | Permission denied (UI) | noinv opens the screen URL | error stateBox "Insufficient rights" with red icon; aside menu does NOT contain the Show Newest Versions link for guest | PASS |
-| 10 | Aside integration | admin shell → Test Plan Management section click "Show Test Cases Newest Versions" | loads showNewestTcVersions.html inside mainframe iframe with correct context params | PASS |
-| 11 | Popup links live | HEAD/fetch compare + design + history targets from the rendered row | tcCompareVersions.php 200, archiveData.php readonly 200, execHistory.html 200 (switched from legacy execHistory.php for consistency with tcView.html) | PASS |
-| 12 | Locale switch | locale switcher → Română | labels become "Afișează cele mai noi versiuni de cazuri de test"/"Versiune legată"/"Compară"; switched back en OK | PASS |
-| 13 | i18n completeness | ntcv.* keys present in all 9 bundles (en ro de fr ru pt es ja zh), python3 -m json.tool each bundle | 9/9 valid JSON, identical key sets | PASS |
-| 14 | NaN hardening | change handler with missing option value | tplanId guarded (isFinite, >=0) — commit included | PASS |
-| 15 | Event Viewer | inspect events fired during test window (log_level >= 2) | NO new errors from this screen; 3 pre-existing L18N warnings found from legacy platforms.inc.tpl include → filed as issue **#644** (bug label) | PASS |
+| 1 | Primary repro — empty project, pre-fix | curl login; GET URL for tplan 1002/tproj 1001 | HTTP 500 + events: L18N `report_test_automation` missing + E_WARNING foreach(null) specview.php:792; CLI harness fatal `count(): null given` at specview.php:810 | PASS (reproduced) |
+| 2 | Post-fix — empty project direct export | same GET after fix | HTTP 200, graceful empty view ("Test Automation Report", no rows), zero new Error/Warning/L18N events | PASS |
+| 3 | i18n key present everywhere | PHP-include all 19 `locale/*/strings.txt`, check `$TLS_report_test_automation`; grep pre-existing bundles (en_US/fr_FR/pt_BR/pt_PT untouched) | every bundle parses & defines the key | PASS |
+| 4 | Localized title renders | fresh session en_GB → title "Test Automation Report"; switch admin locale to ro_RO, fresh session → "Raport de automatizare a testării"; restore locale | correct localized titles; `report_test_automation` absent from per-session missing-key list in both locales | PASS |
+| 5 | Non-empty project WITH auto TCs | GET URL tplan 2007/tproj 2001 (exec_type=2 versions active) | HTTP 200, both AUTO testcase rows rendered, no new events | PASS |
+| 6 | Non-empty project with NO auto TCs | set tcversions 2004/2006 execution_type=1, re-GET | HTTP 200, empty result set, no new events; restore exec_type=2 | PASS |
+| 7 | Event Viewer clean across matrix | `SELECT … FROM events WHERE log_level IN (2,32)` after tests 2–6 | zero new rows attributable to these requests | PASS |
 
-**Result: 15/15 PASS** — screen complete. Independent legacy bug filed: #644.
+**Note:** an isolated stale-opcode race was observed once during development (E_WARNING event logged by
+the very first request racing the file edit); a clean request minutes later produced none — not reproducible,
+not a defect of the fix.
