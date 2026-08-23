@@ -778,10 +778,15 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
 
 
   if( $applyFilters ) {
-    $key2loop = array_keys($test_spec);
+    // $test_spec can be null (empty/deleted spec) and $itemSet used to stay
+    // null when the subtree contained NO testcase nodes at all =>
+    // foreach()/count() over null is a fatal TypeError on PHP 8. An empty
+    // $itemSet simply means "nothing to filter": the (suite-only) spec is
+    // returned unchanged and callers already treat it as an empty view.
+    $key2loop = is_null($test_spec) ? array() : array_keys($test_spec);
     
     // first step: generate list of TEST CASE NODES
-    $itemSet = null ;
+    $itemSet = array();
     foreach($key2loop as $key) {
       if( ($test_spec[$key]['node_type_id'] == $filters['tcase_node_type_id']) ) {
         $itemSet[$test_spec[$key]['id']] = $key; 
