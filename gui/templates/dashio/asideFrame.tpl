@@ -52,6 +52,23 @@ main frame and is built once per test project rather than once per page.
       position: static;
       width: 100%;
       height: 100%;
+      /* The full report list under ASIDE > Reports makes the menu taller
+         than the viewport - let the rail scroll instead of clipping
+         (issue #612). */
+      overflow-y: auto;
+      overflow-x: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: #546678 transparent;
+    {rdelim}
+    #sidebar::-webkit-scrollbar {ldelim}
+      width: 6px;
+    {rdelim}
+    #sidebar::-webkit-scrollbar-track {ldelim}
+      background: transparent;
+    {rdelim}
+    #sidebar::-webkit-scrollbar-thumb {ldelim}
+      background: #546678;
+      border-radius: 3px;
     {rdelim}
 
     /* Collapsed to an icon rail. The frame itself is narrowed by the

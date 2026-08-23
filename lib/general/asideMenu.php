@@ -32,6 +32,50 @@ if($tprojectID > 0) {
   $gui->hasKeywords = $tproject_mgr->hasKeywords($tprojectID);
 }
 
+// Reports sub-menu (Reports center modernization, step 1) - Refs #607.
+// Mirrors the gate logic of tlReports::get_list_reports() as used by
+// lib/results/resultsNavigator.php: enabled=all|req|bts + format_html filter,
+// rendered under the ASIDE "Reports" entry instead of a lone metrics link.
+// Entries keep their legacy generator URL; screens that get modernized
+// counterparts switch their href here (test_plan => testPlanReport, #608).
+$gui->reportsMenu = array();
+$tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+if($tplanID > 0) {
+  // reports_list lives in its own cfg file that legacy report pages
+  // require explicitly - it is NOT part of the default config load.
+  require_once('../../cfg/reports.cfg.php');
+  $reportsCfg = config_get('reports_list');
+  if(!is_null($reportsCfg) && (is_array($reportsCfg) || is_object($reportsCfg))) {
+    $baseHrefR = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '';
+    $tprojOptsR = isset($_SESSION['testprojectOptions'])
+      ? $_SESSION['testprojectOptions'] : null;
+    $reqEnabledR = (!is_null($tprojOptsR)
+      && !empty($tprojOptsR->requirementsEnabled));
+
+    $btsEnabledR = $tproject_mgr->isIssueTrackerEnabled($tprojectID);
+
+    foreach($reportsCfg as $rptItem) {
+      $okR = ($rptItem['enabled'] == 'all')
+        || (($rptItem['enabled'] == 'req') && $reqEnabledR)
+        || (($rptItem['enabled'] == 'bts') && $btsEnabledR);
+      if(!$okR) {
+        continue;
+      }
+      if(strpos(',' . $rptItem['format'], 'format_html') === false) {
+        continue;
+      }
+      // Refs #608 - switched to the modernized screen when
+      // gui/templates/results/testPlanReport.html is available.
+      $hrefR = $baseHrefR . $rptItem['url'];
+      $gui->reportsMenu[] = array(
+        'key' => $rptItem['title'],
+        'name' => lang_get($rptItem['title']),
+        'href' => $hrefR,
+      );
+    }
+  }
+}
+
 // Plugins can inject links via these four events (aside.tpl groups them all
 // into one "Plugins" section) - mainPage.php used to compute this for the old
 // single-frame layout, but that code went dead once the menu got its own
