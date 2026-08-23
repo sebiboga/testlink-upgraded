@@ -87,7 +87,7 @@ function initEnv(&$dbHandler)
   $localeDateFormat = config_get('locales_date_format');
   $localeDateFormat = $localeDateFormat[$_SESSION['currentUser']->locale];
 
-  foreach($gui->buildSet as $elemBuild) {
+  foreach(($gui->buildSet ?? []) as $elemBuild) {
     // ---------------------------------------------------------------------------------------------  
     $idk = current($elemBuild);
     if ($hasCF) {
