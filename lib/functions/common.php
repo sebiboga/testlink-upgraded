@@ -1599,7 +1599,12 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     }
   }
 
-  $args->user = $_SESSION['currentUser'];
+  // Refs #609 hardening: normalize the session user. A stale/partial session
+  // can carry a null or __PHP_Incomplete_Class payload here; every consumer
+  // below (prjSet, tplanSet, effective role, grants builder) expects either a
+  // usable tlUser or null, never a broken object.
+  $args->user = ($_SESSION['currentUser'] ?? null) instanceof tlUser
+    ? $_SESSION['currentUser'] : null;
   $k2l = array( 'tproject_id' => 0, 
                 'current_tproject_id' => 0,
                 'tplan_id' => 0);
@@ -1618,7 +1623,9 @@ function initUserEnv(&$dbH, $context, $opt=null) {
                'field_set' => $guiCfg->tprojects_combo_format,
                'order_by' => $guiCfg->tprojects_combo_order_by);
 
-  $gui->prjSet = $tprjMgr->get_accessible_for_user($args->user->dbID, $opx);
+  // Refs #609 hardening: no usable session user => no accessible projects.
+  $gui->prjSet = ($args->user !== null)
+    ? $tprjMgr->get_accessible_for_user($args->user->dbID, $opx) : null;
   $gui->prjQtyWholeSystem = $tprjMgr->getItemCount();
   $gui->zeroTestProjects = ($gui->prjQtyWholeSystem == 0);
   $args->zeroTestProjects = $gui->zeroTestProjects; 
@@ -1660,8 +1667,11 @@ function initUserEnv(&$dbH, $context, $opt=null) {
 
     // get Test Plans available for the user 
     // $gpOpt = array('output' => 'map');
+    // Refs #609 hardening: null-safe when the session user is unusable.
     $gpOpt = null;
-    $gui->tplanSet = (array)$args->user->getAccessibleTestPlans($dbH,$args->tproject_id,$gpOpt);
+    $gui->tplanSet = ($args->user !== null)
+      ? (array)$args->user->getAccessibleTestPlans($dbH,$args->tproject_id,$gpOpt)
+      : array();
     $gui->countPlans = count($gui->tplanSet);
   
     /* 20191212 - will remove because have created issues
@@ -1738,11 +1748,16 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     $tplan_id = null;      
   } 
 
-  $eRoleObj = $args->user->getEffectiveRole($dbH,$gui->tproject_id,$tplan_id);
-  
-  $cfg = config_get('gui');
-  $gui->whoamiName = $args->user->getDisplayName();
-  $gui->whoamiRole = $eRoleObj->getDisplayName();
+  // Refs #609 hardening: fall back to an anonymous-looking identity when the
+  // session user is unusable, instead of fataling on method calls on null.
+  if( $args->user !== null ) {
+    $eRoleObj = $args->user->getEffectiveRole($dbH,$gui->tproject_id,$tplan_id);
+    $gui->whoamiName = $args->user->getDisplayName();
+    $gui->whoamiRole = $eRoleObj->getDisplayName();
+  } else {
+    $gui->whoamiName = '';
+    $gui->whoamiRole = '';
+  }
 
   $gui->launcher = $_SESSION['basehref'] . 
     'lib/general/frmWorkArea.php';
@@ -1945,7 +1960,10 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
   $options = array_merge($options,(array)$opt);
 
   if ($options['forceCreateProj'] && $argsObj->zeroTestProjects) {
-    if ($argsObj->user->hasRight($dbHandler,'mgt_modify_product')) {
+    // Refs #609 hardening: no usable session user => cannot have
+    // mgt_modify_product, skip the admin redirect instead of fataling.
+    if ($argsObj->user !== null &&
+        $argsObj->user->hasRight($dbHandler,'mgt_modify_product')) {
       redirect($_SESSION['basehref'] . 
         'lib/project/projectEdit.php?doAction=create');
       exit();
@@ -2002,7 +2020,9 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     'exec_edit_notes','exec_delete','exec_ro_access',
     'exec_testcases_assigned_to_me','exec_assign_testcases');
 
-  if( ($forceToNo = $argsObj->userIsBlindFolded) ) {
+  // Refs #609 hardening: an unusable session user holds no rights at all -
+  // reuse the same all-'no' grant shape as the blind-folded case.
+  if( ($forceToNo = ($argsObj->userIsBlindFolded || $argsObj->user === null)) ) {
     $tr = array_merge($systemWideRights, $r2cTranslate);
     $grants = array_fill_keys(array_keys($tr), 'no');
 
