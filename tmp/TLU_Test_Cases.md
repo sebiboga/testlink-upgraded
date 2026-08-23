@@ -3663,16 +3663,18 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 
 **Result: Suite 432 — 10/10 PASS** (case 0 = pre-fix reproduction recorded for evidence)
 
-## Regression — Issue #649: codeTrackerInterface::setCfg truthiness check falsely treats empty-root XML config as parse failure
+## Regression — Issue #434: Duplicate TestLink header from dashio workAreaSimple.tpl
 
-**Precondition:** CLI bootstrap (`config.inc.php` + `common.php`, `doDBConnect()`); concrete interface `stashrestInterface` instantiated exactly as `tlCodeTracker::getInterfaceObject()` does. Pre-fix repro evidence: events id 1/2 (ERROR "Failure loading XML STRING" on valid XML) + `setCfg()==false`. Fix commit cb7238aa3.
+**Precondition:** dashio theme active; app at `http://localhost:8082` (PHP 8.3.33); fix under test = commit `9eba4f88f` already on default branch (this suite VERIFIES it and closes #434). Template render path exercised via `firstLogin.php` self-signup-disabled branch (`$tlCfg->user_self_signup = FALSE` set temporarily through untracked `custom_config.inc.php`, deleted afterwards).
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 0 | Pre-fix reproduction | `new stashrestInterface('stashrest', '<codetracker></codetracker>', 'repro-649')` | (pre-fix) setCfg()=false, connected=false, 2x ERROR event "Failure loading XML STRING" with NO libxml detail | PASS (reproduced; events id 1/2 @23:37:18) |
-| 1 | R1 empty-root valid XML (primary) | same construction post-fix; re-run setCfg() | NO ERROR event; setCfg()=true; connected=false via silent credential skip in stashrest connect() (by design for missing creds) | PASS |
-| 2 | R2 valid full config unchanged | `<codetracker><username>u</username><password>p</password><uribase>http://example.com</uribase></codetracker>` | setCfg()=true, zero new events — behavior identical to pre-fix | PASS |
-| 3 | R3 real parse failures still reported | `<codetracker<` malformed | setCfg()=false + ERROR event WITH libxml detail ("error parsing attribute name") | PASS |
-| 4 | Event attribution check | delta on events during suite | only rows attributable to this suite: R1 WARNINGs = pre-existing unguarded reads filed as #651 (not the #649 defect); no new "Failure loading XML STRING" for valid XML anywhere post-fix | PASS |
+| 0 | Pre-fix reproduction | Restore `9eba4f88f~1` version of workAreaSimple.tpl locally → GET /firstLogin.php → measure HTML → revert template | (pre-fix) full `<head>` injected inside iframe: `<title>TestLink</title>`, `<base href>`, favicon, testlink_library.js = duplicate header chrome | PASS (reproduced: 3165 bytes, 1 head, all 3 artifacts present) |
+| 1 | Post-fix minimal render (primary) | GET /firstLogin.php with current tree + self-signup off | Minimal doc only: 0 `<head>` tags, 0 `<title>`, 0 inc_head artifacts, exactly 1 `<h1 class="title">`; body = title + workBack content + back link | PASS (234 bytes, all counts zero, single h1) |
+| 2 | Template source state | Inspect gui/templates/dashio/workAreaSimple.tpl + git ancestry | No `{include file="inc_head.tpl"}`; commit 9eba4f88f is ancestor of HEAD | PASS |
+| 3 | Compiled cache hygiene | grep templates_c compiled files for workAreaSimple | No compiled artifact referencing inc_head | PASS |
+| 4 | Legacy Code Tracker view | Browser: /lib/codetrackers/codeTrackerView.php | Single `<h1>Code Trackers</h1>`, no stacked header | PASS |
+| 5 | Modernized Code Trackers screen | Browser: /gui/templates/codetracker/codetrackerView.html | 1 `<head>`, no duplicated header/nav elements | PASS |
+| 6 | Working tree integrity | git status after fixture toggles | Only intended docs/test files modified; custom_config.inc.php absent; tpl byte-identical to HEAD | PASS |
 
-**Result: Suite 649 — 5/5 PASS** (case 0 = pre-fix reproduction recorded for evidence)
+**Result: Suite 434 — 7/7 PASS** (case 0 = pre-fix reproduction recorded for evidence)
