@@ -180,7 +180,7 @@ function load() {
   // deep link without any context: recover by using the first accessible project
   if (tplanId <= 0 && tprojectId <= 0) {
     $.getJSON('/api/projects/index.php').done(function (r) {
-      var items = (r && r.items) || [];
+      var items = (r && (r.data || r.items)) || [];
       if (items.length) {
         tprojectId = parseInt(items[0].id, 10);
         load();
