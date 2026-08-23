@@ -3422,9 +3422,36 @@ body — bare POST returned 405), 06c16aa22 (prime `$g_plugin_cache` before
 `plugin_uninstall()` — legacy fatal fired AFTER the DELETE, producing a 500 +
 silently deleted registration).
 
+<<<<<<< HEAD
 **Suite 636 addendum — code-review fixes re-validated (75fc73cb4):** data-op
 delegated buttons (attribute-injection hardening), orphaned-row uninstall path,
 localized 401/403 banners, feedback cleared only on explicit Refresh, uninstall
 response name restored. Re-run: install + uninstall via UI buttons PASS with
 correct localized feedback; unknown id → 404; refresh clears banner; final
 cycle produced **0 new events** in `events` table (verified `MAX(id)` unchanged).
+
+## Suite 635 — Regression — Issue #635: displayMgr.php:72 E_WARNING + HTTP 500 when report URL carries a nonexistent tplan_id
+
+**Refs:** #635 · branch `fix/issue-635` · commits 97f01db27, <template-fix-sha>
+**Files under test:** `lib/results/displayMgr.php` (`initArgsForReports()`), `gui/templates/dashio/workAreaSimple.tpl`
+
+**Precondition:** fresh DB import; admin session at http://localhost:8082
+(curl cookie jar or browser login admin/admin). No test plans needed for R1/R2;
+fixture project 9001 / plan 9002 / build 9003 via SQL for R3.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Poisoned plan id (primary repro) | GET `/lib/results/resultsByTSuite.php?tplan_id=999999&tproject_id=1&format=0` | HTTP 200 info page "Document generation error" + missing-testplan message; no E_WARNING in events | PASS |
+| 2 | Shared-path sweep | Same poisoned URL × resultsGeneral, resultsTC, neverRunByPP, baselinel1l2, execTimelineStats, testAutomationSpec | All HTTP 200 with same graceful page (initArgsForReports guards all 7) | PASS |
+| 3 | Absent tplan_id | GET `/lib/results/resultsByTSuite.php?format=0` (no tplan_id param → id 0) | HTTP 200 graceful page (get_by_id(0)=null handled by same guard) | PASS |
+| 4 | Valid plan unchanged | SQL fixture project 9001 / plan 9002 / build 9003; GET resultsByTSuite + resultsGeneral with tplan_id=9002 | HTTP 200 real report pages ("Metrics by Level 1 & Level 2 Test Suites") | PASS |
+| 5 | Template null-safety (checkpoint-2 fix) | Render workAreaSimple.tpl via any guard hit; diff events before/after request | Zero new events — `{if isset($link_to_op)...}` kills the PHP-8 undefined-key/null-property warnings seen pre-fix | PASS |
+| 6 | Event viewer after suite | `SELECT … FROM events ORDER BY id DESC` around the run | Only audit-level records + pre-existing #630 fixture-induced warning (resultsGeneral.php:251, bare options column); zero displayMgr.php:72 recurrences | PASS |
+
+**Result: 6/6 PASS** (run 2026-08-23, curl + headless Chrome + mysql against http://localhost:8082).
+
+**Known adjacent defects deliberately NOT fixed here:** #634 (valid plan without
+builds still fatals 500 inside tlTestPlanMetrics — separate owner), #630
+(resultsGeneral.php:251 tprojOpt warnings — pre-existing, triggered here only
+by the minimal SQL fixture).
+
