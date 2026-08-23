@@ -1154,16 +1154,18 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
     // setSuiteUrgency() touches (tcversion.parent(testcase).parent(suite)).
     $suites = [];
     if ($tplan_id > 0) {
+        $tbl = tlObjectWithDB::getDBTables(
+            ['testplan_tcversions', 'nodes_hierarchy']);
         $sql = " SELECT NSU.id AS tsuite_id, NSU.name AS tsuite_name," .
                " NSU.node_order, COUNT(DISTINCT NTC.id) AS tc_qty," .
                " COUNT(DISTINCT TPTCV.tcversion_id) AS tcv_qty," .
                " MIN(TPTCV.urgency) AS urg_min, MAX(TPTCV.urgency) AS urg_max" .
-               " FROM {$tplanMgr->tables['testplan_tcversions']} TPTCV" .
-               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NHA" .
+               " FROM {$tbl['testplan_tcversions']} TPTCV" .
+               " JOIN {$tbl['nodes_hierarchy']} NHA" .
                " ON NHA.id = TPTCV.tcversion_id" .
-               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NTC" .
+               " JOIN {$tbl['nodes_hierarchy']} NTC" .
                " ON NTC.id = NHA.parent_id" .
-               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NSU" .
+               " JOIN {$tbl['nodes_hierarchy']} NSU" .
                " ON NSU.id = NTC.parent_id" .
                " WHERE TPTCV.testplan_id = " . intval($tplan_id) .
                " GROUP BY NSU.id, NSU.name, NSU.node_order" .
