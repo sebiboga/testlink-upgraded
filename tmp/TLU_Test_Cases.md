@@ -3432,7 +3432,7 @@ cycle produced **0 new events** in `events` table (verified `MAX(id)` unchanged)
 
 ## Suite 635 — Regression — Issue #635: displayMgr.php:72 E_WARNING + HTTP 500 when report URL carries a nonexistent tplan_id
 
-**Refs:** #635 · branch `fix/issue-635` · commits 97f01db27, <template-fix-sha>
+**Refs:** #635 · branch `fix/issue-635` · commits 97f01db27, c773394ba
 **Files under test:** `lib/results/displayMgr.php` (`initArgsForReports()`), `gui/templates/dashio/workAreaSimple.tpl`
 
 **Precondition:** fresh DB import; admin session at http://localhost:8082
