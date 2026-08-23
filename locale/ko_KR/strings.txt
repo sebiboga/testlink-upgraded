@@ -2412,4 +2412,7 @@ $TLS_time_charts_title 		= "Time Charts";
 
 $TLS_testproject_prefix_hint = '최대 16자까지 허용되지만, 최대 5자 사용을 권장합니다';
 // ----- END ------------------------------------------------------------------
+
+$TLS_report_test_automation = '테스트 자동화 보고서';
+
 ?>

@@ -4038,3 +4038,4 @@ $TLS_btn_start_mon = 'Start Monitoring';
 $TLS_btn_stop_mon = 'Stop Monitoring';
 // ----- END ------------------------------------------------------------------
 
+$TLS_report_test_automation = 'Testautomatiseringsrapport';

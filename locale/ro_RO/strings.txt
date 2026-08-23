@@ -98,3 +98,5 @@ $TLS_ok = 'OK';
 
 $TLS_testproject_prefix_hint = 'Sunt permise până la 16 caractere, dar recomandăm să folosiți cel mult cinci';
 // ----- END -----------------------------------------------------
+
+$TLS_report_test_automation = 'Raport de automatizare a testării';

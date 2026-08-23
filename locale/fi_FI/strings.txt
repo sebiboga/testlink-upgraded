@@ -2118,4 +2118,7 @@ $TLS_time_charts_title = "Time Charts";
 //-----   END ------------------------------------------------------------------
 
 $TLS_testproject_prefix_hint = 'Enintään 16 merkkiä on sallittu, mutta suosittelemme käyttämään enintään viittä';
+
+$TLS_report_test_automation = 'Testiautomaatioraportti';
+
 ?>

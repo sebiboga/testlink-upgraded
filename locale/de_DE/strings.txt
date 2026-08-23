@@ -3679,4 +3679,6 @@ $TLS_title_dashboard = 'Dashboard';
 $TLS_installed_plugins = 'Installierte Plugins';
 $TLS_title_plugins = 'Plugins';
 
+$TLS_report_test_automation = 'Testautomatisierungsbericht';
+
 ?>

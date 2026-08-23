@@ -2385,4 +2385,6 @@ $TLS_title_documentation = 'Documentazione';
 $TLS_installed_plugins = 'Plugin installati';
 $TLS_title_plugins = 'Plugin';
 
+$TLS_report_test_automation = 'Report automazione dei test';
+
 ?>

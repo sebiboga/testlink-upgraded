@@ -4521,3 +4521,5 @@ $TLS_system = 'システム';
 $TLS_testcase_execution = 'テストケース実行';
 $TLS_tests_design = 'テストケース設計';
 $TLS_title_dashboard = 'ダッシュボード';
+
+$TLS_report_test_automation = 'テスト自動化レポート';

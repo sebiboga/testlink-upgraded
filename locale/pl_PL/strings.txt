@@ -3810,4 +3810,7 @@ $TLS_display_inline ="Pokaż w linii";
 
 // ----- pluginView.php -----       
 // ----- END ------------------------------------------------------------------
+
+$TLS_report_test_automation = 'Raport automatyzacji testów';
+
 ?>

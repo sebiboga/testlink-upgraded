@@ -2856,4 +2856,7 @@ $TLS_all_testcases_have_tester = 'All Test Cases have Tester Assigned';
 
 $TLS_testproject_prefix_hint = 'Hingga 16 karakter diizinkan, tetapi kami menyarankan untuk menggunakan maksimal lima';
 // ----- END ------------------------------------------------------------------
+
+$TLS_report_test_automation = 'Laporan otomatisasi pengujian';
+
 ?>

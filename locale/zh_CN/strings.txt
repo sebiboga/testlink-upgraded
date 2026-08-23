@@ -4123,3 +4123,5 @@ $TLS_system = '系统';
 $TLS_testcase_execution = '测试用例执行';
 $TLS_tests_design = '测试用例设计';
 $TLS_title_dashboard = '仪表盘';
+
+$TLS_report_test_automation = '测试自动化报告';

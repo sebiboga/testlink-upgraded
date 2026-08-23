@@ -2782,4 +2782,6 @@ $TLS_title_documentation = 'Документация';
 $TLS_installed_plugins = 'Установленные плагины';
 $TLS_title_plugins = 'Плагины';
 
+$TLS_report_test_automation = 'Отчёт по автоматизации тестирования';
+
 ?>

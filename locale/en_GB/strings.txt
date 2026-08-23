@@ -4141,3 +4141,5 @@ $TLS_doc_bug_tracking_howto = 'Bug Tracking HowTo';
 $TLS_doc_github_wiki = 'GitHub Wiki (40 pages)';
 
 // ----- END -----------------------------------------------------
+
+$TLS_report_test_automation = 'Test Automation Report';

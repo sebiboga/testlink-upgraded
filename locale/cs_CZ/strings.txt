@@ -3902,4 +3902,7 @@ $TLS_remove_kw_msgbox_msg = "Skutecne smazat klícové slovo %i?";
 $TLS_img_title_remove_keyword = "Klikni pro smazání tohoto klícového slova.";
 
 // ----- END ------------------------------------------------------------------
+
+$TLS_report_test_automation = 'Report automatizace testù';
+
 ?>
