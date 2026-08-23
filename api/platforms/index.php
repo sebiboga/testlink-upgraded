@@ -610,7 +610,8 @@ function assignPayload($db, $user, $tproject_id, $tplan_id) {
     if (!is_null($rows)) {
         foreach ($rows as $r) {
             $tplans[] = ['id' => intval($r['id']), 'name' => (string)$r['name'],
-                         'active' => intval($r['active']), 'is_open' => intval($r['is_open'])];
+                         'active' => intval($r['active'] ?? 0),
+                         'is_open' => intval($r['is_open'] ?? 0)];
         }
     }
 
