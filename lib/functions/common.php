@@ -1841,7 +1841,10 @@ function getActions(&$gui,$baseURL) {
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
-  $actions->pluginView = "$bb/plugins/pluginView.php?{$ctx}";
+  // Plugin Management modernized screen (Dashio standalone page) - Refs #636.
+  // Legacy right (mgt_plugins) is enforced by the BFF on every route; the
+  // legacy controller lib/plugins/pluginView.php keeps the same check.
+  $actions->pluginView = "/gui/templates/plugins/pluginView.html?{$ctx}";
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
