@@ -3643,3 +3643,22 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | bad devKey negative path | devKey=BADKEY on createTestProject | clean 'invalid developer key' fault | PASS |
 
 **Result: Suite 646 — 7/7 PASS** (cases 1–6 post-fix; case 0 = pre-fix reproduction recorded for evidence)
+
+## Regression — Issue #432: Code Tracker Configuration requires XML without documentation
+
+**Precondition:** logged in admin/admin; screen `gui/templates/codetracker/codetrackerView.html` + BFF `api/codetracker/index.php`; no fixtures required beyond those created in-suite.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Pre-fix reproduction | Create modal → name set → paste plain URL `https://github.com/...` into Configuration → Save | (pre-fix) raw internal error `Source:tlCodeTracker::checkXMLCfg - Failure loading XML STRING Start tag expected, '<' not found` shown; POST 400 | PASS (reproduced; screenshot issue-432-before.png) |
+| 1 | Help text + example visible | Open create modal | Persistent help line "Configuration must be valid XML. Example format:" + `<pre>` example `<codetracker><uribase>…</uribase><apikey>…</apikey></codetracker>` below field; placeholder matches example | PASS |
+| 2 | Plain URL blocked client-side | cfg = plain URL → Save | Friendly i18n message `ct.validation.xmlFormat`; modal stays open; NO network POST fired | PASS |
+| 3 | Valid XML accepted | cfg = `<codetracker><uribase>https://git.example.com/</uribase></codetracker>` → Save | HTTP 200, row appears in table | PASS |
+| 4 | Empty-root XML accepted (backend defect B) | cfg = `<codetracker></codetracker>` → Save | Accepted — SimpleXMLElement with empty root must not be judged by truthiness (`$cfg === false` fix); pre-fix it was rejected with empty libxml detail | PASS |
+| 5 | Duplicate name surfaces real error (backend defect A) | Create second tracker reusing an existing name with valid non-empty cfg → Save | Modal stays open, error `name already exists`; pre-fix: phantom HTTP 200 "ok" with empty item id=0 and NO insert (create() clobbered $ret via `$ret = $this->checkXMLCfg(...)`) | PASS |
+| 6 | Edit path broken XML mapped friendly | Edit existing tracker → cfg `<codestracker><uribase>broken` → Save | Friendly `ct.validation.xmlFormat` message; internal `Source:` signature never rendered | PASS |
+| 7 | Other 400s keep real messages | duplicate-name case (see #5) shows server msg verbatim, not the XML hint | Non-XML errors unmapped | PASS |
+| 8 | i18n coverage | `ct.cfgHelp`, `ct.validation.xmlFormat` present in en/de/es/fr/it/ja/pt/ro/ru/zh | All 10 bundles valid JSON (`python3 -m json.tool`), +2 keys each | PASS |
+| 9 | Event Viewer clean | delta on events log_level=2 during all suite steps | Zero new Error/Warning rows | PASS |
+
+**Result: Suite 432 — 10/10 PASS** (case 0 = pre-fix reproduction recorded for evidence)
