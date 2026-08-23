@@ -3447,22 +3447,23 @@ silently deleted registration).
 
 ## Suite 427 — Regression — Issue #427: baselinel1l2.php E_WARNING "foreach() argument must be of type array|object, null given" when plan has no saved baseline
 
-**Refs:** #427 · branch `fix/issue-427` · commit 6504fc15b
-**Files under test:** `lib/results/baselinel1l2.php` (null-guard after `fetchRowsIntoMap4l()`, line ~81)
 
-**Precondition:** fresh DB import; admin session at http://localhost:8082 (curl cookie jar via POST `/login.php` `tl_login=admin&tl_password=admin`). Fixtures: `php tmp/fixtures_427.php` (project RPT427 id 1, plan Plan427A id 6, no platforms, no baseline) and `php tmp/fixtures_427b.php` (project RPT427B id 7, plans Plan427B id 10 / Plan427C id 11, platforms P-ONE/P-TWO, baseline rows in `baseline_l1l2_context`+`_details`: passed qty 7 / not_run qty 3 / total 10 per top→child pair).
+## Suite 634 — Regression — Issue #634: resultsByTSuite.php (and other report controllers) HTTP 500 "Can not work with empty build set" when test plan has zero builds
+
+**Refs:** #634 · branch `fix/issue-634` · commits 4bf7c9166, 46f6998dc
+**Files under test:** `lib/functions/tlTestPlanMetrics.class.php` (`helperGetExecCounters()` + 12 caller guards), `lib/results/resultsTC.php`, `resultsTCFlat.php`, `keywordBarChart.php`, `topLevelSuitesBarChart.php`, `overallPieChart.php`
+
+**Precondition:** fresh DB import; admin session at http://localhost:8082.
+SQL fixture: project `RPT634` id=9001; plan `Plan634NoBuild` id=9002 with **0 rows in `builds`**;
+control plan `Plan634WithBuild` id=9003 with build 7001. Both plans have zero linked test cases.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | No-baseline render (primary repro) | GET `/lib/results/baselinel1l2.php?tplan_id=6&tproject_id=1&format=0`; diff `events` MAX(id) before/after | HTTP 200 header-only report; **zero new Error/Warning events** (pre-fix: E_WARNING foreach at line 95, events row id 3) | PASS |
-| 2 | Multi-platform accumulator | GET same URL with `tplan_id=10&tproject_id=7&format=0` | HTTP 200; BOTH `<h2>Results on Platform: P-ONE</h2>` and `P-TWO</h2>` metric tables present with 70%/30% percentages — earlier platforms are NOT discarded by loop iterations (issue-body defect 2) | PASS |
-| 3 | Single-platform render | GET same URL with `tplan_id=11&tproject_id=7&format=0` | HTTP 200; single P-ONE section renders | PASS |
-| 4 | XLS export on touched path | GET `tplan_id=6&tproject_id=7&format=1&spreadsheet=1` | HTTP 200 valid .xls download; no fatal from the normalized `$rsu` path | PASS |
-| 5 | Event viewer after suite | `SELECT … FROM events WHERE log_level IN (1,2,4) ORDER BY id DESC` around the run | Zero new Error/Warning rows for baselinel1l2.php (only pre-existing L18N level-32 notices → filed as #639, separate bug) | PASS |
+| 1 | Primary repro — zero-build plan on resultsByTSuite (pre-fix: HTTP 500, 0 bytes, fatal `tlTestPlanMetrics.class.php:1806`) | GET `/lib/results/resultsByTSuite.php?tplan_id=9002&tproject_id=9001&format=0` | HTTP 200 graceful page with no-data message ("There are no Test Suites defined…") | PASS |
+| 2 | Report screen sweep on zero-build plan | Same URL pattern × resultsGeneral, resultsByTesterPerBuild, resultsByStatus?type=notrun, metricsDashboard | All HTTP 200, real pages rendered | PASS |
+| 3 | Execution matrix screens on zero-build plan | GET resultsTC + resultsTCFlat with tplan_id=9002 | HTTP 200 (pre-fix: fatal count(null)/end(null) in controllers) | PASS |
+| 4 | Charts skip pChart when nothing to chart | GET keywordBarChart + overallPieChart with tplan_id=9002 | HTTP 200 empty body (no pChart call), no E_WARNING in events | PASS |
+| 5 | Control — plan WITH build unchanged | Full sweep × plan 9003 | All HTML report screens HTTP 200 identical to pre-fix behavior | PASS |
+| 6 | Event Viewer clean for this run | `SELECT … FROM events` joined to my session after full matrix | Zero new Error/Warning entries from this session | PASS |
+| 7 | Known independent failures not regressed | topLevelSuitesBarChart × both plans; charts × plan 9003 | Fails identically before/after via pre-existing tracked bugs #580/#586 (build-set independent) — no new failure mode introduced | PASS |
 
-**Result: 5/5 PASS** (run 2026-08-23, curl + mysql against http://localhost:8082).
-
-**Historical note:** the original issue body's fatal ("Cannot use object of type
-stdClass as array" at compiled-template :140) and the per-iteration accumulator
-reset were already mitigated by run #424 (hoisted `$gui->statistics`/`$gui->span`
-init to lines 92–93); this suite closes the remaining null-`$rsu` hole.
