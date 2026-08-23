@@ -49,6 +49,16 @@ if (!$user->hasRight($db, 'mgt_plugins')) {
 $method = $_SERVER['REQUEST_METHOD'];
 $path = isset($_GET['action']) ? $_GET['action'] : '';
 
+// POST operations may arrive either as ?action=… or with an "operation"
+// field in the JSON body (mirrors legacy pluginView.php form parameter).
+$body = [];
+if ($method === 'POST') {
+  $body = json_decode(file_get_contents('php://input'), true) ?? [];
+  if ($path === '') {
+    $path = trim((string)($body['operation'] ?? ''));
+  }
+}
+
 switch ("$method $path") {
   case 'GET list':
     $installed = get_all_installed_plugins();
@@ -62,7 +72,6 @@ switch ("$method $path") {
     exit;
 
   case 'POST install':
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
     $name = trim((string)($body['pluginName'] ?? ''));
     if ($name === '' || !preg_match('/^[A-Za-z0-9_]+$/', $name)) {
       bffFail(400, 'Invalid plugin name');
@@ -81,7 +90,6 @@ switch ("$method $path") {
     exit;
 
   case 'POST uninstall':
-    $body = json_decode(file_get_contents('php://input'), true) ?? [];
     $id = intval($body['pluginId'] ?? 0);
     if ($id <= 0) {
       bffFail(400, 'Invalid plugin id');
