@@ -3110,3 +3110,42 @@ builds the tree. Fix (already on default branch since commit `857555dad`,
 **Bugs discovered during this suite (filed separately, NOT part of #419):**
 - chosen.jquery.js loads before jQuery in `frmInner.tpl`/`workbench.tpl` → console ReferenceError on every workarea load (no functional impact found)
 - E_WARNING trio when rendering an execution form (`round_enabled` undefined in execSetResults.tpl:141, null property read, null array access in exec_show_tc_exec.inc.tpl)
+
+## 60. Regression — Issue #420: platform filter sentinel -1 never matches DB value 0 → "No data available" (Suite ID: 60)
+
+**Area:** Test Case Execution → Execute Tests (`lib/execute/execSetResults.php`)
+· **Refs #420**
+
+**Precondition:** test plan **without platforms**, ≥1 linked TC, ≥1 build.
+Fixtures (fresh empty DB, recreated via SQL since the import is wiped per run):
+project id=1 "Issue420 Project" (prefix I420) → suite id=2 → case id=3
+"I420-1" (tcversion id=4) → plan id=5 "Issue420 Plan"
+(`testplan_tcversions(5,4,platform_id=0)`) → build id=1 "Build 1".
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Sentinel really travels | Login admin → `lib/execute/execNavigator.php?tplan_id=5` → expand tree → click `I420-1` leaf | Exec frame URL contains `setting_platform=-1` (UI sentinel, verbatim) | PASS |
+| 2 | Execution form renders (V1) | Observe right pane after click | Full execution form: TC body "Test Case I420-1 :: Version : 1", Summary, Notes textarea, file upload, pass/fail/blocked controls — **NOT** `No data available` | PASS |
+| 3 | Save status (V2) | Click span title="Click to set to passed" (`saveExecStatus(4,'p',...)`) | Form POST accepted, page reloads without error | PASS |
+| 4 | Read-back current build (V3) | Observe reloaded pane | `Latest execution (current build): Build 1 ... Status : Passed` | PASS |
+| 5 | DB convention respected (V4) | `SELECT platform_id,status FROM executions;` | `{platform_id:0, status:'p'}` — stored under the DB's no-platform value 0, not -1 | PASS |
+| 6 | Sentinel audit (V5) | `grep -rn "platform_id.*=>\s*-1\|setting_platform=-1" lib/ gui/` | Exactly one declaration (`execSetResults.php:2295`) neutralized by normalization `execSetResults.php:2318-2320`; no other leak path in lib/ or gui/ | PASS |
+
+**Root cause / fix note:** `init_args()` declared the UI sentinel
+`'platform_id' => -1` while `testplan_tcversions.platform_id` /
+`executions.platform_id` store **0** for platform-less plans; downstream queries
+compared directly (`AND TPTCV.platform_id = -1` → 0 rows → `$gui->map_last_exec`
+stays null → template prints `no_data_available`). Fix (on default branch since
+commit `857555dad`, verified live this run): normalize once at parse time in
+`lib/execute/execSetResults.php:2318-2320`
+(`if($argsObj->platform_id < 0) { $argsObj->platform_id = 0; }`).
+
+**Result: 6/6 PASS** (run 2026-08-23, headless Chrome + MariaDB against
+http://localhost:8082, default branch @ `4cb3bd6ec`).
+
+**Event Viewer note:** no new errors from this flow beyond the pre-existing
+execution-form E_WARNING trio already recorded in Suite 59 (round_enabled /
+null property / null array access — unrelated to the platform sentinel). The
+SQL syntax error event at 07:09 was self-inflicted by an incomplete hand-made
+fixture (testsuites row missing), documented on the issue and not reproducible
+with UI-created data.
