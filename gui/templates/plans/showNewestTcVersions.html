@@ -115,6 +115,7 @@ $(function () {
 
   $('#tplanSel').on('change', function () {
     tplanId = parseInt($(this).val() || '0', 10);
+    if (!isFinite(tplanId) || tplanId < 0) { tplanId = 0; }
     syncUrl();
     load();
   });
@@ -183,7 +184,7 @@ function designUrl(it) {
        + '&tplan_id=' + tplanId;
 }
 function execHistoryUrl(it) {
-  return '/lib/execute/execHistory.php?tcase_id=' + it.tc_id
+  return '/gui/templates/execute/execHistory.html?tcase_id=' + it.tc_id
        + '&tproject_id=' + tprojectId;
 }
 function compareUrl(it) {

@@ -3537,3 +3537,33 @@ verified/closed. Suite proves both the failure mechanism and that the landed gua
 sites across dashio/tl-classic templates are unreachable with null `$gui` — each template also
 dereferences `$gui->…` unconditionally elsewhere and all current controllers assign a gui object
 (see issue #429 root-cause comment for full list).
+
+## Suite 643 — Show Newest Test Case Versions screen (showNewestTcVersions.html) modernization
+
+**Refs:** #643 · branch `sebiboga` · commits 9d1da3f7c (BFF), 2d494e1e5 (screen), 104fecdd3 (i18n+link switch)
+**Files under test:** `api/plans/index.php` (GET /newest-versions), `gui/templates/plans/showNewestTcVersions.html`, `lib/functions/common.php` (link switch)
+**Precondition:** fresh DB; admin/admin session at http://localhost:8082.
+Fixtures: project id=1 "NTCV Demo Project" (prefix NTCV); plan id=2 "Plan Alpha"; plan id=19 "Plan Beta" (empty);
+MD-imported suite "Login Suite" with TC-1.1 Valid login (tc_id=4, v1 tcv=5, fixture-added v2 tcv=18 active),
+TC-1.2 Invalid password (id=9), TC-1.3 Logout (id=14) — all linked to Plan Alpha at v1, platform_id=0.
+User `noinv`/`noinv123` with global role guest.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF happy path | GET `/api/plans/index.php/newest-versions?tproject_id=1&tplan_id=2` (admin fetch) | HTTP 200, status ok, state "ok", linked_count 3, one item: tc_id 4, linked version 1, newest version 2, path "Login Suite / ", tcprefix "NTCV-" | PASS |
+| 2 | Screen renders table | open showNewestTcVersions.html?tproject_id=1&tplan_id=2 | header + toolbar + 1 row: history/design icons, path, NTCV-1 + name, ver-tag 1 vs newest-tag 2, Compare button with legacy tcCompareVersions URL (version_left=1&version_right=2) | PASS |
+| 3 | All-current state | unlink tc4 v1 (planaddtc/save remove), reload screen | state box "All linked Test Case Versions are already the newest available!", no PHP warning (legacy count(null) fatal #528 parity) | PASS |
+| 4 | Restore link | re-add {4:{'0':5}}, reload | state back to "ok", row visible again | PASS |
+| 5 | No-linked state | select Plan Beta in dropdown | "There are no Test Cases linked to this Test Plan!", URL syncs tplan_id=19 | PASS |
+| 6 | Pick mode (no tplan_id) | open screen without tplan_id / API tplan_id=0 | state "Please select a test plan.", dropdown lists both accessible plans; API state=pick | PASS |
+| 7 | Invalid contexts | API tplan_id=999 → HTTP 400 BAD_TPLAN; tproject_id=999 → HTTP 400 NO_TPROJECT | both rejected before any data access | PASS |
+| 8 | Permission denied (BFF) | same GET as noinv (guest) in isolated session | HTTP 403 error_code NO_RIGHTS | PASS |
+| 9 | Permission denied (UI) | noinv opens the screen URL | error stateBox "Insufficient rights" with red icon; aside menu does NOT contain the Show Newest Versions link for guest | PASS |
+| 10 | Aside integration | admin shell → Test Plan Management section click "Show Test Cases Newest Versions" | loads showNewestTcVersions.html inside mainframe iframe with correct context params | PASS |
+| 11 | Popup links live | HEAD/fetch compare + design + history targets from the rendered row | tcCompareVersions.php 200, archiveData.php readonly 200, execHistory.html 200 (switched from legacy execHistory.php for consistency with tcView.html) | PASS |
+| 12 | Locale switch | locale switcher → Română | labels become "Afișează cele mai noi versiuni de cazuri de test"/"Versiune legată"/"Compară"; switched back en OK | PASS |
+| 13 | i18n completeness | ntcv.* keys present in all 9 bundles (en ro de fr ru pt es ja zh), python3 -m json.tool each bundle | 9/9 valid JSON, identical key sets | PASS |
+| 14 | NaN hardening | change handler with missing option value | tplanId guarded (isFinite, >=0) — commit included | PASS |
+| 15 | Event Viewer | inspect events fired during test window (log_level >= 2) | NO new errors from this screen; 3 pre-existing L18N warnings found from legacy platforms.inc.tpl include → filed as issue **#644** (bug label) | PASS |
+
+**Result: 15/15 PASS** — screen complete. Independent legacy bug filed: #644.
