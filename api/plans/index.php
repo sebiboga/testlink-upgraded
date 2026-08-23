@@ -1483,12 +1483,12 @@ function updTcItems($db, $tplan_id, $tcprefix)
     }
 
     // finalize: sort targets oldest -> newest, flag already-latest rows
-    // legacy get_linked_and_newest_tcversions() semantics (testplan.class.php):
-    // candidates = ACTIVE siblings with node id > linked node id;
-    // newest = max-id candidate; updatable only if its VERSION number is
-    // greater than the linked version number (id order != version order,
-    // e.g. after imports). Non-updatable active siblings stay available as
-    // manual targets (tideUpForGUI() parity).
+    // EXACT legacy get_linked_and_newest_tcversions() semantics
+    // (testplan.class.php): newest = MAX node id among ACTIVE siblings with
+    // node id > linked id; updatable only if that candidate's VERSION number
+    // is greater than the linked version number (id order != version order,
+    // e.g. after imports). Keeps bulk preview == bulk action. Non-updatable
+    // active siblings stay available as manual targets (tideUpForGUI parity).
     foreach ($items as $tcid => $it) {
         usort($items[$tcid]['targets'], function ($a, $b) {
             return $a['id'] <=> $b['id'];
@@ -1497,15 +1497,17 @@ function updTcItems($db, $tplan_id, $tcprefix)
         $newestVer = 0;
         foreach ($items[$tcid]['targets'] as $t) {
             if ($t['id'] > $it['linked_tcversion_id'] &&
-                $t['version'] > $it['linked_version'] &&
                 $t['id'] > $newestId) {
                 $newestId = intval($t['id']);
                 $newestVer = intval($t['version']);
             }
         }
-        $items[$tcid]['newest_tcversion_id'] = $newestId;
-        $items[$tcid]['newest_version'] = $newestVer;
-        $items[$tcid]['is_latest'] = ($newestId === 0);
+        $updatable = ($newestId > 0) &&
+            ($it['linked_version'] < $newestVer);
+        $items[$tcid]['newest_tcversion_id'] =
+            $updatable ? $newestId : 0;
+        $items[$tcid]['newest_version'] = $updatable ? $newestVer : 0;
+        $items[$tcid]['is_latest'] = !$updatable;
     }
 
     return array_values($items);
