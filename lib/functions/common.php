@@ -1909,7 +1909,6 @@ function getActions(&$gui,$baseURL) {
     // planAddTC switched to the modernized HTML screen above (no workArea
     // entry here: the launcher copy-back below must not overwrite the link)
     $gui->workArea->executeTest = "executeTest&{$ctx}";
-    $gui->workArea->planUpdateTC = "planUpdateTC&{$ctx}";
     $gui->workArea->showNewestTCV = "newest_tcversions&{$ctx}";
     $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
     $gui->workArea->showMetrics = "showMetrics&{$ctx}";
@@ -1939,6 +1938,17 @@ function getActions(&$gui,$baseURL) {
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
+
+  // Update Linked Test Case Versions modernized screen (Dashio standalone
+  // page) - Refs #619. Assigned after the workArea launcher copy-back above so
+  // the (now removed) planUpdateTC launcher entry cannot overwrite it; menu
+  // visibility is gated by aside.tpl via menuGrants
+  // (testplan_update_linked_testcase_versions), the BFF enforces the legacy
+  // controller right (testplan_planning) server-side on every route.
+  if ($tplan_id > 0) {
+    $actions->planUpdateTC =
+      "/gui/templates/plans/planUpdateTC.html?{$ctx}";
+  }
 
   $gui->uri = $actions;
   $actions->keywordsAssign =

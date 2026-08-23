@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Update Linked Test Case Versions</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 220px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.layout { display: flex; gap: 18px; padding: 18px 24px 8px; align-items: stretch; flex-wrap: wrap; }
+.suitePane { flex: 0 0 320px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; min-height: 360px; max-height: 70vh; }
+.suitePane h3 { margin: 0; padding: 11px 14px; background: #22242a; color: #fff; font-size: 13px; letter-spacing: .5px; }
+.suitePane h3 .cnt { float: right; opacity: .75; font-weight: 400; }
+.suitePane ul { list-style: none; margin: 0; padding: 6px 0; overflow-y: auto; flex: 1; }
+.suitePane ul li { padding: 8px 14px; font-size: 13px; cursor: pointer; border-left: 3px solid transparent; display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.suitePane ul li:hover { background: #f4fbfb; }
+.suitePane ul li.sel { background: #e0f5f4; border-left-color: #4ECDC4; font-weight: 700; }
+.suitePane ul li.empty-li { cursor: default; color: #aaa; font-style: italic; }
+.suitePane ul li.empty-li:hover { background: none; }
+.upd-badge { font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 9px; color: #fff; white-space: nowrap; }
+.upd-badge.u-ready { background: #e6605e; }
+.upd-badge.u-latest { background: #2ecc71; }
+.mainPane { flex: 1 1 560px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; }
+.mainPane .paneHead { background: #22242a; color: #fff; font-size: 13px; letter-spacing: .5px; padding: 11px 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.mainPane .paneHead .suiteBtns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tableWrap { overflow: auto; flex: 1; }
+table.tcs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tcs th { background: #fafafa; text-align: left; padding: 9px 12px; border-bottom: 2px solid #eee; font-size: 12px; color: #555; white-space: nowrap; }
+table.tcs th.c, table.tcs td.c { text-align: center; }
+table.tcs td { padding: 8px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.tcs tr:hover td { background: #f7fdfd; }
+.tcname { font-weight: 600; }
+.tclinks { margin-right: 8px; white-space: nowrap; }
+.tclinks a { color: #4ECDC4; margin-right: 6px; font-size: 13px; text-decoration: none; }
+.tclinks a:hover { color: #3dbdb5; }
+.ver-tag { display: inline-block; background: #eef6f6; color: #227d76; border-radius: 10px; padding: 2px 10px; font-size: 11.5px; font-weight: 700; }
+.ver-tag.newest { background: #e8f9f0; color: #1e8e4e; }
+select.targetSel { font-size: 12.5px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; min-width: 130px; }
+.st-badge { font-size: 11px; font-weight: 700; border-radius: 10px; padding: 2px 10px; white-space: nowrap; display: inline-block; }
+.st-badge.latest { background: #e8f9f0; color: #1e8e4e; }
+.st-badge.ready { background: #fdecea; color: #c0392b; }
+.st-badge.inactive { background: #fef5e7; color: #b9770e; }
+.exec-info { color: #888; font-size: 12px; }
+.actions { display: flex; gap: 12px; padding: 12px 14px; align-items: center; border-top: 1px solid #eee; flex-wrap: wrap; }
+.hintline { font-size: 12px; color: #888; }
+.desc { padding: 10px 14px 16px; font-size: 12px; color: #777; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; z-index: 10000; align-items: center; justify-content: center; }
+.modal-box { background: #fff; border-radius: 8px; width: 92%; max-width: 520px; box-shadow: 0 8px 30px rgba(0,0,0,.3); overflow: hidden; }
+.modal-box .mh { background: #22242a; color: #fff; padding: 12px 16px; font-size: 14px; font-weight: 700; }
+.modal-box .mb { padding: 18px 16px; font-size: 13px; color: #444; line-height: 1.55; }
+.modal-box .mb ul { margin: 8px 0 0; padding-left: 20px; max-height: 220px; overflow-y: auto; }
+.modal-box .mf { padding: 12px 16px; border-top: 1px solid #eee; text-align: right; display: flex; gap: 8px; justify-content: flex-end; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="uptc.header">Update Linked Test Case Versions</span>
+  <span class="sub" data-i18n="uptc.headerSub">test plan</span>
+  <span id="tplanNameBadge" style="float:right;font-size:13px;font-weight:400;opacity:.9;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="uptc.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><label for="tplanSel" data-i18n="uptc.testPlan">Test Plan</label>:</span>
+  <select id="tplanSel"></select>
+  <span class="ctx" id="linkedInfo"></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
+  <button class="btn-teal" id="btnAllLatest"><i class="fa fa-wand-magic-sparkles"></i> <span data-i18n="uptc.btnUpdateAllLatest">Update ALL to latest version</span></button>
+</div>
+
+<div class="empty" id="stateBox" style="display:none;"></div>
+
+<div id="workArea" style="display:none;">
+  <div class="layout">
+    <div class="suitePane">
+      <h3><span data-i18n="uptc.suites">Test Suites</span><span class="cnt" id="suiteCount"></span></h3>
+      <ul id="suiteList"></ul>
+    </div>
+    <div class="mainPane">
+      <div class="paneHead">
+        <span id="selSuiteName" class="tcname">-</span>
+        <span class="suiteBtns">
+          <label style="font-weight:400;font-size:12px;"><input type="checkbox" id="chkAllSel"> <span data-i18n="uptc.checkUpdatable">check updatable</span></label>
+          <button class="btn-teal btn-high" id="btnUpdateSelected"><i class="fa fa-arrows-rotate"></i> <span data-i18n="uptc.btnUpdateSelected">Update Selected</span></button>
+        </span>
+      </div>
+      <div class="tableWrap">
+        <table class="tcs">
+          <thead>
+            <tr>
+              <th class="c" data-i18n="uptc.colUpdate">Update</th>
+              <th data-i18n="uptc.colTestcase">Test Case</th>
+              <th class="c" data-i18n="uptc.colLinkedVersion">Linked Version</th>
+              <th class="c" data-i18n="uptc.colNewestVersion">Newest Active Version</th>
+              <th class="c" data-i18n="uptc.colTargetVersion">Target Version</th>
+              <th class="c" data-i18n="uptc.colStatus">Status</th>
+              <th class="c" data-i18n="uptc.colExecuted">Executed</th>
+            </tr>
+          </thead>
+          <tbody id="tcRows"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="btn-teal btn-high" id="btnUpdateSelected2"><i class="fa fa-arrows-rotate"></i> <span data-i18n="uptc.btnUpdateSelected">Update Selected</span></button>
+        <span class="hintline" data-i18n="uptc.selectionHint">only rows with a chosen target version are updated</span>
+      </div>
+      <div class="desc" data-i18n="uptc.description">description</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal-box">
+    <div class="mh" id="mTitle">-</div>
+    <div class="mb" id="mBody">-</div>
+    <div class="mf">
+      <button class="btn-dark" id="mCancel" data-i18n="common.cancel">Cancel</button>
+      <button class="btn-teal" id="mConfirm"><i class="fa fa-check"></i> <span data-i18n="uptc.confirmGo">Confirm update</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/plans/index.php';
+var tplanId = 0;
+var tprojectId = 0;
+var selSuiteId = 0;
+var currentItems = [];
+var currentSuites = [];
+var busy = false;
+var pendingAction = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher') || null;
+    TLi18n.apply();
+    load();
+  });
+
+  $('#tplanSel').on('change', function () {
+    tplanId = parseInt($(this).val() || '0', 10);
+    selSuiteId = 0;
+    syncUrl();
+    load();
+  });
+  $('#btnReload').on('click', load);
+
+  $('#suiteList').on('click', 'li[data-id]', function () {
+    renderSuiteRows(parseInt($(this).attr('data-id'), 10));
+  });
+
+  $('#chkAllSel').on('change', function () {
+    var on = $(this).prop('checked');
+    $('#tcRows input.row-chk:not(:disabled)').prop('checked', on);
+    if (on) {
+      $('#tcRows select.targetSel').each(function () {
+        if (!$(this).val()) {
+          $(this).val($(this).find('option:last').val() || '');
+        }
+      });
+    }
+  });
+
+  $('#btnUpdateSelected').on('click', doUpdateSelected);
+  $('#btnUpdateSelected2').on('click', doUpdateSelected);
+  $('#btnAllLatest').on('click', doUpdateAllLatest);
+
+  $('#mCancel').on('click', closeModal);
+  $('#mConfirm').on('click', confirmModal);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tproject_id', String(tprojectId || ''));
+  url.searchParams.set('tplan_id', String(tplanId || ''));
+  window.history.replaceState({}, '', url);
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('common.error');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  toast(msg, true);
+}
+
+function fmt(key, params) {
+  var s = TLi18n.t(key) || key;
+  Object.keys(params || {}).forEach(function (k) {
+    s = s.split('{' + k + '}').join(params[k]);
+  });
+  return s;
+}
+
+function load() {
+  if (tprojectId <= 0 && tplanId <= 0) {
+    $.getJSON('/api/projects/index.php').done(function (r) {
+      var items = (r && (r.data || r.items)) || [];
+      if (items.length) {
+        tprojectId = parseInt(items[0].id, 10);
+        load();
+      } else {
+        showState(TLi18n.t('uptc.noTestplan'));
+      }
+    }).fail(function () { apiFail.apply(null, arguments); });
+    return;
+  }
+  $.get(API + '/update-linked?tproject_id=' + tprojectId + '&tplan_id=' + tplanId)
+    .done(render)
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function showState(msg) {
+  $('#stateBox').text(msg).show();
+  $('#workArea').hide();
+  $('#footerInfo').text('');
+}
+
+function render(r) {
+  if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+  tprojectId = parseInt(r.tproject.id, 10);
+  $('#tprojectName').text(r.tproject.name);
+
+  var $sel = $('#tplanSel').empty();
+  ((r.tplans || []).length ? r.tplans : [{id:0,name:'-'}]).forEach(function (tp) {
+    $sel.append('<option value="' + tp.id + '">' + esc(tp.name) + '</option>');
+  });
+  if (r.tplan && r.tplan.id > 0) { $sel.val(String(r.tplan.id)); }
+
+  var hasPlan = !!(r.tplan && r.tplan.id > 0);
+  $('#tplanNameBadge').text(hasPlan ? r.tplan.name : '');
+  document.title = hasPlan
+    ? r.tplan.name + ' - ' + TLi18n.t('uptc.header')
+    : TLi18n.t('uptc.header');
+
+  if (!hasPlan) { showState(TLi18n.t('uptc.noTestplan')); return; }
+
+  // overall states from legacy messages
+  if (r.state === 'empty') {
+    showState(TLi18n.t('uptc.emptyPlan'));
+    return;
+  }
+  $('#stateBox').hide();
+
+  currentItems = r.items || [];
+  currentSuites = r.suites || [];
+
+  $('#linkedInfo').text(fmt('uptc.linkedCount', {n: r.linked_count}));
+
+  // bulk button disabled when nothing updatable
+  var updatableTotal = currentItems.filter(function (it) { return !it.is_latest; }).length;
+
+  if (r.state === 'latest' || updatableTotal === 0) {
+    // every linked case already on its newest active version
+    $('#workArea').show();
+    renderSuites(currentSuites);
+    renderSuiteRows(selSuiteId && suiteExists(selSuiteId) ? selSuiteId
+      : (currentSuites.length ? currentSuites[0].id : 0));
+    showStateBox(TLi18n.t('uptc.noNewerVersions'), false);
+    $('#btnAllLatest').prop('disabled', false);
+    return;
+  }
+  hideStateBox();
+
+  $('#workArea').show();
+  renderSuites(currentSuites);
+  var target = selSuiteId && suiteExists(selSuiteId)
+    ? selSuiteId : (currentSuites.length ? currentSuites[0].id : 0);
+  renderSuiteRows(target);
+}
+
+function suiteExists(sid) {
+  return currentSuites.some(function (s) { return s.id === sid; });
+}
+
+// small info banner under toolbar for "all latest" state
+function showStateBox(msg, isErr) {
+  var $b = $('#stateBox');
+  $b.text(msg).css('color', isErr ? '#c0392b' : '#888').show();
+}
+function hideStateBox() { $('#stateBox').hide(); }
+
+function badgeFor(qty) {
+  return qty > 0
+    ? '<span class="upd-badge u-ready">' + qty + '</span>'
+    : '<span class="upd-badge u-latest"><i class="fa fa-check"></i></span>';
+}
+
+function renderSuites(suites) {
+  var $ul = $('#suiteList').empty();
+  $('#suiteCount').text('(' + suites.length + ')');
+  if (!suites.length) {
+    $ul.append('<li class="empty-li">' + esc(TLi18n.t('uptc.noSuites')) + '</li>');
+    return;
+  }
+  suites.forEach(function (s) {
+    $ul.append('<li data-id="' + s.id + '">'
+      + '<span>' + esc(s.name) + '</span>'
+      + '<span><span style="color:#999;font-size:12px;margin-right:6px;">'
+      + s.tc_qty + '</span>' + badgeFor(s.updatable_qty) + '</span>'
+      + '</li>');
+  });
+}
+
+function renderSuiteRows(suiteId) {
+  selSuiteId = suiteId;
+  $('#suiteList li').removeClass('sel');
+  $('#suiteList li[data-id=' + suiteId + ']').addClass('sel');
+  var $nameEl = $('#suiteList li[data-id=' + suiteId + '] span:first');
+  $('#selSuiteName').text($nameEl.length ? $nameEl.text() : '-');
+  $('#chkAllSel').prop('checked', false);
+
+  var rows = currentItems.filter(function (it) {
+    return !suiteId || it.tsuite_id === suiteId;
+  });
+  var $tb = $('#tcRows').empty();
+  if (!rows.length) {
+    $tb.append('<tr><td colspan="7" style="text-align:center;color:#aaa;padding:22px;">'
+      + esc(TLi18n.t('uptc.suiteEmpty')) + '</td></tr>');
+    $('#footerInfo').text(rows.length + ' ');
+    return;
+  }
+
+  rows.forEach(function (it) {
+    var chk = '';
+    var selCtl = '<span class="exec-info">-</span>';
+    var status;
+    if (it.is_latest) {
+      status = '<span class="st-badge latest"><i class="fa fa-check"></i> '
+        + esc(TLi18n.t('uptc.statusLatest')) + '</span>';
+    } else if (!it.linked_active) {
+      status = '<span class="st-badge inactive">' + esc(TLi18n.t('uptc.statusLinkedInactive')) + '</span>';
+    } else {
+      status = '<span class="st-badge ready">' + esc(TLi18n.t('uptc.statusUpdatable')) + '</span>';
+      chk = '<input type="checkbox" class="row-chk" data-tcid="' + it.testcase_id + '">';
+    }
+
+    if (it.targets.length) {
+      var opts = '<option value="">--</option>';
+      it.targets.forEach(function (t) {
+        opts += '<option value="' + t.id + '">' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + t.version
+          + (t.id === it.newest_tcversion_id ? ' (' + esc(TLi18n.t('uptc.newestTag')) + ')' : '')
+          + '</option>';
+      });
+      selCtl = '<select class="targetSel" data-tcid="' + it.testcase_id + '"' + (it.is_latest ? '' : '') + '>'
+        + opts + '</select>';
+    }
+
+    var newestCell = it.newest_version > 0
+      ? '<span class="ver-tag newest">' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.newest_version + '</span>'
+      : '<span class="exec-info">-</span>';
+
+    $tb.append('<tr>'
+      + '<td class="c">' + chk + '</td>'
+      + '<td><span class="tclinks">'
+      +   '<a href="/gui/templates/testcases/tcView.html?tcase_id=' + it.testcase_id
+      +     '&tproject_id=' + tprojectId + '" target="_blank" title="' + esc(TLi18n.t('uptc.design')) + '">'
+      +     '<i class="fas fa-pen-to-square"></i></a>'
+      +   '<a href="/gui/templates/execute/execHistory.html?tcase_id=' + it.testcase_id
+      +     '&tproject_id=' + tprojectId + '" target="_blank" title="' + esc(TLi18n.t('uptc.executionHistory')) + '">'
+      +     '<i class="fas fa-clock-rotate-left"></i></a>'
+      + '</span><span class="tcname">' + esc(it.fullExternalId) + '</span>: '
+      + esc(it.name) + '</td>'
+      + '<td class="c"><span class="ver-tag">' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.linked_version + '</span></td>'
+      + '<td class="c">' + newestCell + '</td>'
+      + '<td class="c">' + selCtl + '</td>'
+      + '<td class="c">' + status + '</td>'
+      + '<td class="c">'
+      +   (it.executed_qty > 0
+            ? '<span class="exec-info"><i class="fa fa-play"></i> ' + it.executed_qty + '</span>'
+            : '<span class="exec-info">-</span>')
+      + '</td>'
+      + '</tr>');
+  });
+
+  $('#footerInfo').text(rows.length + ' ' + TLi18n.t('uptc.footerTcases'));
+}
+
+function closeModal() { $('#modalMask').hide(); pendingAction = null; }
+
+function openModal(titleKey, bodyHtml) {
+  $('#mTitle').text(TLi18n.t(titleKey));
+  $('#mBody').html(bodyHtml);
+  $('#modalMask').css('display', 'flex');
+}
+
+function collectSelection() {
+  var items = {};
+  $('#tcRows tr').each(function () {
+    var $chk = $(this).find('input.row-chk');
+    if (!$chk.length || !$chk.prop('checked')) { return; }
+    var tcid = $chk.attr('data-tcid');
+    var $opt = $(this).find('select.targetSel');
+    var newTcv = $opt.length ? parseInt($opt.val() || '0', 10) : 0;
+    if (newTcv > 0) { items[tcid] = newTcv; }
+  });
+  return items;
+}
+
+function doUpdateSelected() {
+  if (busy || tplanId <= 0) { return; }
+  var items = collectSelection();
+  var n = Object.keys(items).length;
+  if (n === 0) {
+    toast(TLi18n.t('uptc.noSelection'), true);
+    return;
+  }
+  var list = '<ul>';
+  Object.keys(items).forEach(function (tcid) {
+    var it = currentItems.filter(function (x) {
+      return String(x.testcase_id) === String(tcid); })[0];
+    if (it) {
+      var tgt = it.targets.filter(function (t) {
+        return t.id === items[tcid]; })[0];
+      list += '<li><b>' + esc(it.fullExternalId) + '</b>: '
+        + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.linked_version
+        + ' &rarr; ' + esc(TLi18n.t('uptc.versionLabel')) + ' '
+        + (tgt ? tgt.version : '?') + '</li>';
+    }
+  });
+  list += '</ul>';
+  pendingAction = function () { postSelected(items); };
+  openModal('uptc.confirmTitle',
+    '<p>' + fmt('uptc.confirmSelected', {n: n}) + '</p>' + list);
+}
+
+function postSelected(items) {
+  busy = true;
+  $.ajax({
+    url: API + '/update-linked/selected',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tplan_id: tplanId, tproject_id: tprojectId, items: items })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(fmt('uptc.feedbackUpdated', {n: r.updated}));
+    } else {
+      toast(TLi18n.t('uptc.feedbackFail'), true);
+    }
+    load();
+  }).fail(function (xhr) { apiFail(xhr); })
+  .always(function () { busy = false; });
+}
+
+function doUpdateAllLatest() {
+  if (busy || tplanId <= 0) { return; }
+  var updatable = currentItems.filter(function (it) { return !it.is_latest; });
+  var list = '<ul>';
+  updatable.slice(0, 50).forEach(function (it) {
+    list += '<li><b>' + esc(it.fullExternalId) + '</b>: '
+      + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.linked_version
+      + ' &rarr; ' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.newest_version + '</li>';
+  });
+  if (updatable.length > 50) {
+    list += '<li>&hellip;</li>';
+  }
+  list += '</ul>';
+  pendingAction = postLatest;
+  openModal('uptc.confirmTitle',
+    '<p>' + fmt('uptc.confirmAllLatest', {n: updatable.length}) + '</p>' + list);
+}
+
+function postLatest() {
+  busy = true;
+  $.ajax({
+    url: API + '/update-linked/latest',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tplan_id: tplanId, tproject_id: tprojectId })
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      if (r.updated > 0) {
+        toast(fmt('uptc.feedbackUpdated', {n: r.updated}));
+      } else {
+        toast(TLi18n.t('uptc.feedbackAlreadyLatest'));
+      }
+    } else {
+      toast(TLi18n.t('uptc.feedbackFail'), true);
+    }
+    load();
+  }).fail(function (xhr) { apiFail(xhr); })
+  .always(function () { busy = false; });
+}
+
+function confirmModal() {
+  if (pendingAction) {
+    var fn = pendingAction;
+    pendingAction = null;
+    closeModal();
+    fn();
+  } else {
+    closeModal();
+  }
+}
+</script>
+</body>
+</html>

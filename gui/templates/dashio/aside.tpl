@@ -217,9 +217,9 @@ Left side menu
 
                   {if $gui->uri->planUpdateTC != null
                       && $menuGrants->testplan_update_linked_testcase_versions == "yes"}
-                    <a href="{$gui->uri->planUpdateTC}" target="mainframe">
-                    {$labels.href_update_tplan}</a>
-                  {/if} 
+                    <li><a href="{$gui->uri->planUpdateTC}" target="mainframe">
+                    {$labels.href_update_tplan}</a></li>
+                  {/if}
 
                   {if $gui->uri->showNewestTCV != null
                       && $menuGrants->testplan_show_testcases_newest_versions == "yes"}
