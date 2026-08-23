@@ -1063,5 +1063,299 @@ if ($method === 'POST' && count($segments) === 2 &&
     out(['status' => 'ok', 'updated' => count($order)]);
 }
 
+// ---------------------------------------------------------------------------
+// Set Test Urgency (modernized planUrgency.php screen) - Refs #605
+// legacy rights: checkRights() rightsAnd testplan_planning on every request
+// ---------------------------------------------------------------------------
+
+/**
+ * Legacy planUrgency.php checkRights(): page AND all mutations live behind
+ * "testplan_planning" (rightsAnd semantics -> no OR fallback).
+ */
+function urgencyRights($user, $db, $tproject_id) {
+    return (bool)$user->hasRight($db, 'testplan_planning', $tproject_id);
+}
+
+function urgencyNeedCtx($body, $tplanMgr) {
+    $tplan_id = intval($body['tplan_id'] ?? ($_GET['tplan_id'] ?? 0));
+    $tproject_id = intval($body['tproject_id'] ?? ($_GET['tproject_id'] ?? 0));
+    if ($tplan_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id',
+             'error_code' => 'NO_TPLAN']);
+    }
+    if ($tproject_id <= 0) {
+        $info = $tplanMgr->get_by_id($tplan_id);
+        $tproject_id = intval($info['testproject_id'] ?? 0);
+    }
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id',
+             'error_code' => 'NO_TPROJECT']);
+    }
+    return [$tproject_id, $tplan_id];
+}
+
+// GET /urgency?tproject_id=&tplan_id=
+// context for the screen: accessible plans selector + suites of the active
+// plan that have directly-linked test cases (setSuiteUrgency scope), with
+// their current linked-tcversion urgency summary.
+if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'urgency') {
+    $tproject_id = intval($_GET['tproject_id'] ?? 0);
+    if ($tproject_id <= 0) {
+        $tproject_id = needTprojectId();
+    }
+    if (!urgencyRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tplanMgr = new testPlanUrgency($db);
+
+    $tplans = [];
+    $rows = $user->getAccessibleTestPlans($db, $tproject_id, null,
+        ['output' => 'mapfull', 'active' => null]);
+    foreach ((array)$rows as $r) {
+        $tplans[] = [
+            'id' => intval($r['id']),
+            'name' => (string)$r['name'],
+            'active' => intval($r['active']),
+            'is_public' => intval($r['is_public']),
+        ];
+    }
+
+    $tplan_id = intval($_GET['tplan_id'] ?? 0);
+    $tplanInfo = null;
+    if ($tplan_id > 0) {
+        $info = $tplanMgr->get_by_id($tplan_id);
+        if (!is_null($info) && intval($info['parent_id']) == $tproject_id) {
+            $tplanInfo = [
+                'id' => intval($info['id']),
+                'name' => (string)$info['name'],
+                'active' => intval($info['active']),
+                'is_open' => isset($info['is_open']) ? intval($info['is_open']) : 1,
+            ];
+        } else {
+            $tplan_id = 0;
+        }
+    }
+    if ($tplan_id <= 0 && count($tplans) > 0) {
+        $tplan_id = intval($tplans[0]['id']);
+        $info = $tplanMgr->get_by_id($tplan_id);
+        $tplanInfo = [
+            'id' => $tplan_id,
+            'name' => (string)$info['name'],
+            'active' => intval($info['active']),
+            'is_open' => isset($info['is_open']) ? intval($info['is_open']) : 1,
+        ];
+    }
+
+    // Suites holding DIRECTLY linked test cases - exactly the set
+    // setSuiteUrgency() touches (tcversion.parent(testcase).parent(suite)).
+    $suites = [];
+    if ($tplan_id > 0) {
+        $sql = " SELECT NSU.id AS tsuite_id, NSU.name AS tsuite_name," .
+               " NSU.node_order, COUNT(DISTINCT NTC.id) AS tc_qty," .
+               " COUNT(DISTINCT TPTCV.tcversion_id) AS tcv_qty," .
+               " MIN(TPTCV.urgency) AS urg_min, MAX(TPTCV.urgency) AS urg_max" .
+               " FROM {$tplanMgr->tables['testplan_tcversions']} TPTCV" .
+               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NHA" .
+               " ON NHA.id = TPTCV.tcversion_id" .
+               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NTC" .
+               " ON NTC.id = NHA.parent_id" .
+               " JOIN {$tplanMgr->tables['nodes_hierarchy']} NSU" .
+               " ON NSU.id = NTC.parent_id" .
+               " WHERE TPTCV.testplan_id = " . intval($tplan_id) .
+               " GROUP BY NSU.id, NSU.name, NSU.node_order" .
+               " ORDER BY NSU.node_order";
+        $rs = $db->fetchRowsIntoMap($sql, 'tsuite_id');
+        foreach ((array)$rs as $sid => $s) {
+            $suites[] = [
+                'id' => intval($sid),
+                'name' => (string)$s['tsuite_name'],
+                'node_order' => intval($s['node_order']),
+                'tc_qty' => intval($s['tc_qty']),
+                'tcv_qty' => intval($s['tcv_qty']),
+                // 0 == mixed urgencies among linked tcversions
+                'urgency' =>
+                    intval($s['urg_min']) === intval($s['urg_max'])
+                        ? intval($s['urg_min']) : 0,
+            ];
+        }
+    }
+
+    $tproject_name = trim((string)($_SESSION['testprojectName'] ?? ''));
+    if ($tproject_name === '') {
+        $tproject_name = testproject::getName($db, $tproject_id);
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
+        'tplans' => $tplans,
+        'tplan' => $tplanInfo,
+        'suites' => $suites,
+        'rights' => ['canManage' => true],
+    ]);
+}
+
+// GET /urgency/suite?tplan_id=&tsuite_id=[&platform_id=]
+// test cases directly under one suite with their per-plan urgency,
+// importance, computed priority level and tester assignments.
+// Assignments are resolved against the latest ACTIVE build of the plan
+// (legacy resolved them from the execution-tree session build setting).
+if ($method === 'GET' && count($segments) === 2 &&
+    $segments[0] === 'urgency' && $segments[1] === 'suite') {
+    list($tproject_id, $tplan_id) =
+        urgencyNeedCtx($_GET, new testplan($db));
+    if (!urgencyRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $tsuite_id = intval($_GET['tsuite_id'] ?? 0);
+    if ($tsuite_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid suite id',
+             'error_code' => 'NO_SUITE']);
+    }
+
+    $tplanMgr = new testPlanUrgency($db);
+    $platform_id = intval($_GET['platform_id'] ?? 0);
+
+    // latest active build drives the tester-assignment join (build4testers)
+    $build4testers = 0;
+    $bset = $tplanMgr->get_builds($tplan_id, 1, 1);
+    if (!is_null($bset) && count($bset) > 0) {
+        $bk = array_keys($bset);
+        $build4testers = intval($bk[0]);
+    }
+
+    $context = new stdClass();
+    $context->tplan_id = $tplan_id;
+    $context->tsuite_id = $tsuite_id;
+    $context->tproject_id = $tproject_id;
+    $context->platform_id = $platform_id;
+
+    $raw = $tplanMgr->getSuiteUrgency(
+        $context,
+        ['build4testers' => $build4testers],
+        null
+    );
+
+    // CUMULATIVE map: tcversion_id => [row per platform]; merge to one UI row
+    $items = [];
+    foreach ((array)$raw as $tcversion_id => $rowsSet) {
+        if (!is_array($rowsSet) || count($rowsSet) == 0) {
+            continue;
+        }
+        $first = reset($rowsSet);
+        $assigned = [];
+        foreach ($rowsSet as $res) {
+            $who = trim((string)($res['assigned_to'] ?? ''));
+            if ($who !== '' && !in_array($who, $assigned)) {
+                $assigned[] = $who;
+            }
+        }
+        $urgencies = [];
+        foreach ($rowsSet as $res) {
+            $urgencies[intval($res['urgency'])] = true;
+        }
+        $urgency = count($urgencies) === 1 ? intval($first['urgency'])
+                                           : max(array_keys($urgencies));
+        $importance = intval($first['importance']);
+        $items[] = [
+            'tcversion_id' => intval($tcversion_id),
+            'testcase_id' => intval($first['testcase_id']),
+            'name' => (string)$first['name'],
+            'tcprefix' => (string)$first['tcprefix'],
+            'tc_external_id' => intval($first['tc_external_id']),
+            'fullExternalId' =>
+                (string)$first['tcprefix'] . (string)$first['tc_external_id'],
+            'urgency' => $urgency,
+            'importance' => $importance,
+            'priority_level' => priority_to_level($importance * $urgency),
+            'priority_value' => $importance * $urgency,
+            'assigned_to' => implode(', ', $assigned),
+            'platform_qty' => count($rowsSet),
+        ];
+    }
+
+    usort($items, function ($a, $b) { return $a['tcversion_id'] <=> $b['tcversion_id']; });
+
+    out([
+        'status' => 'ok',
+        'items' => $items,
+        'build4testers' => $build4testers,
+    ]);
+}
+
+// POST /urgency/suite  body: {tplan_id[, tproject_id], tsuite_id, urgency}
+// legacy doProcess() suite branch -> setSuiteUrgency()
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'urgency' && $segments[1] === 'suite') {
+    $body = getBody();
+    list($tproject_id, $tplan_id) = urgencyNeedCtx($body, new testplan($db));
+    if (!urgencyRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $tsuite_id = intval($body['tsuite_id'] ?? 0);
+    $urgency = intval($body['urgency'] ?? 0);
+    if ($tsuite_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid suite id',
+             'error_code' => 'NO_SUITE']);
+    }
+    if (!in_array($urgency, [LOW, MEDIUM, HIGH], true)) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Invalid urgency value',
+             'error_code' => 'BAD_URGENCY']);
+    }
+    $tplanMgr = new testPlanUrgency($db);
+    $ret = $tplanMgr->setSuiteUrgency($tplan_id, $tsuite_id, $urgency);
+    out([
+        'status' => ($ret === OK || $ret === tl::OK) ? 'ok' : 'error',
+        'feedback_type' => ($ret === OK || $ret === tl::OK) ? 'ok' : 'fail',
+    ]);
+}
+
+// POST /urgency/tcases  body: {tplan_id[, tproject_id], items:{tcversion_id:urgency}}
+// legacy doProcess() per-testcase branch -> setTestUrgency() loop
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'urgency' && $segments[1] === 'tcases') {
+    $body = getBody();
+    list($tproject_id, $tplan_id) = urgencyNeedCtx($body, new testplan($db));
+    if (!urgencyRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $items = [];
+    foreach ((array)($body['items'] ?? []) as $tvId => $urg) {
+        $tvId = intval($tvId);
+        $urg = intval($urg);
+        if ($tvId > 0 && in_array($urg, [LOW, MEDIUM, HIGH], true)) {
+            $items[$tvId] = $urg;
+        }
+    }
+    if (count($items) == 0) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No urgency changes provided',
+             'error_code' => 'NO_SELECTION']);
+    }
+    $tplanMgr = new testPlanUrgency($db);
+    $failed = 0;
+    foreach ($items as $tvId => $urg) {
+        $ret = $tplanMgr->setTestUrgency($tplan_id, $tvId, $urg);
+        if (!($ret === OK || $ret === tl::OK)) {
+            $failed++;
+        }
+    }
+    out([
+        'status' => $failed === 0 ? 'ok' : 'error',
+        'updated' => count($items) - $failed,
+        'failed' => $failed,
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
