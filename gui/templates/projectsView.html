@@ -43,6 +43,8 @@
     .action-btn { padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; }
     .edit-btn { background: #3498db; color: white; }
     .edit-btn:hover { background: #2980b9; }
+    .toggle-btn { background: #2c3e50; color: white; }
+    .toggle-btn:hover { background: #1a252f; }
     .delete-btn { background: #e74c3c; color: white; }
     .delete-btn:hover { background: #c0392b; }
 
@@ -242,6 +244,15 @@
   <script>
     let currentProjectId = null;
     let projectsData = [];
+
+    // Escape user-controlled values before injecting into HTML strings
+    // (project names / prefixes / tracker names are free text).
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
     // Load projects
     function loadProjects() {
       $.ajax({
@@ -275,19 +286,19 @@
       tbody.innerHTML = projectsData.map(p => `
         <tr>
           <td>#${p.id}</td>
-          <td><strong>${p.name}</strong></td>
-          <td>${p.prefix || '-'}</td>
+          <td><strong>${esc(p.name)}</strong></td>
+          <td>${esc(p.prefix) || '-'}</td>
           <td>
             ${p.issueTracker && p.issueTracker.name ? `
               <span class="integration-badge ${p.issueTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
-                ${p.issueTracker.name}
+                ${esc(p.issueTracker.name)}
               </span>
             ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
           </td>
           <td>
             ${p.codeTracker && p.codeTracker.name ? `
               <span class="integration-badge ${p.codeTracker.enabled ? 'integration-enabled' : 'integration-disabled'}">
-                ${p.codeTracker.name}
+                ${esc(p.codeTracker.name)}
               </span>
             ` : `<span class="integration-badge integration-disabled">${TLi18n.t('common.none')}</span>`}
           </td>
@@ -302,13 +313,34 @@
               <button class="action-btn edit-btn" onclick="editProject(${p.id})">
                 <i class="fas fa-edit"></i> ${TLi18n.t('common.edit')}
               </button>
-              <button class="action-btn delete-btn" onclick="confirmDelete(${p.id}, '${p.name.replace(/'/g, "\\'")}')">
+              <button class="action-btn toggle-btn" onclick="toggleActive(${p.id})" title="${TLi18n.t('proj.toggleActive')}">
+                <i class="fas fa-toggle-${p.isActive ? 'on' : 'off'}"></i> ${p.isActive ? TLi18n.t('proj.deactivate') : TLi18n.t('proj.activate')}
+              </button>
+              <button class="action-btn delete-btn" onclick="confirmDelete(${p.id})">
                 <i class="fas fa-trash"></i> ${TLi18n.t('common.delete')}
               </button>
             </div>
           </td>
         </tr>
       `).join('');
+    }
+
+    // Legacy parity: active/inactive click-to-change toggle
+    function toggleActive(id) {
+      const project = projectsData.find(p => p.id === id);
+      if (!project) return;
+      $.ajax({
+        url: `/api/projects/${id}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        data: JSON.stringify({ isActive: project.isActive ? 0 : 1 }),
+        success: function(response) {
+          if (response.success) loadProjects();
+        },
+        error: function(xhr) {
+          alert(xhr.responseJSON?.error || TLi18n.t('proj.msg.errorSave'));
+        }
+      });
     }
 
     let trackersLoaded = false;
@@ -433,9 +465,12 @@
       });
     });
 
-    // Delete project
-    function confirmDelete(id, name) {
-      if (confirm(TLi18n.t('proj.msg.confirmDelete', {name: name}))) {
+    // Delete project — legacy does a full cascade delete, so the confirm
+    // must be explicit about irreversibility.
+    function confirmDelete(id) {
+      const project = projectsData.find(p => p.id === id);
+      if (!project) return;
+      if (confirm(TLi18n.t('proj.msg.confirmDelete', {name: project.name}))) {
         $.ajax({
           url: `/api/projects/${id}`,
           method: 'DELETE',
@@ -444,8 +479,8 @@
               loadProjects();
             }
           },
-          error: function() {
-            alert(TLi18n.t('proj.msg.errorDelete'));
+          error: function(xhr) {
+            alert(xhr.responseJSON?.error || TLi18n.t('proj.msg.errorDelete'));
           }
         });
       }

@@ -245,8 +245,8 @@
   "proj.validation.required": "プロジェクト名とプレフィックスは必須です。",
   "proj.msg.errorLoad": "プロジェクトの読み込みエラー",
   "proj.msg.errorSave": "プロジェクトの保存エラー",
-  "proj.msg.errorDelete": "プロジェクトの無効化エラー",
-  "proj.msg.confirmDelete": "プロジェクト「{name}」を無効化しますか？非表示になりますがテストデータは保持されます。",
+  "proj.msg.errorDelete": "プロジェクトの削除中にエラーが発生しました",
+  "proj.msg.confirmDelete": "テストプロジェクト「{name}」を削除しますか？すべてのテスト計画、テストケース、実行結果および関連データが完全に削除されます。この操作は元に戻せません。",
   "common.edit": "編集",
   "header.cfAssign": "カスタムフィールドの割り当て",
   "header.cfAssignSub": "このテストプロジェクトで使うフィールドを選択",
@@ -1120,5 +1120,8 @@
   "plugin.msg.uninstalled": "プラグイン「{name}」をアンインストールしました。",
   "plugin.msg.loadError": "プラグイン一覧の読み込みに失敗しました。",
   "plugin.msg.opError": "操作に失敗しました。",
-  "plugin.msg.noPermission": "プラグインを管理する権限がありません。"
+  "plugin.msg.noPermission": "プラグインを管理する権限がありません。",
+  "proj.toggleActive": "アクティブ状態を切り替え",
+  "proj.activate": "有効化",
+  "proj.deactivate": "無効化"
 }

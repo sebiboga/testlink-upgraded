@@ -1832,7 +1832,11 @@ function getActions(&$gui,$baseURL) {
   $actions->userMgmt = "/gui/templates/usermanagement/usersView.html?{$ctx}";
 
   $actions->userInfo = "/gui/templates/usermanagement/userInfo.html?{$ctx}";
-  $actions->projectView = "$bb/project/projectView.php?{$ctx}";
+  // Test Project Management modernized screen (Dashio standalone page) -
+  // Refs #640. Legacy right (mgt_modify_product) is enforced by the BFF on
+  // every route; the legacy controller lib/project/projectView.php keeps the
+  // same check.
+  $actions->projectView = "/gui/templates/projectsView.html?{$ctx}";
 
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";

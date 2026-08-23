@@ -245,8 +245,8 @@
   "proj.validation.required": "O nome do projeto e o prefixo são obrigatórios.",
   "proj.msg.errorLoad": "Erro ao carregar os projetos",
   "proj.msg.errorSave": "Erro ao guardar o projeto",
-  "proj.msg.errorDelete": "Erro ao desativar o projeto",
-  "proj.msg.confirmDelete": "Desativar o projeto \"{name}\"? Será ocultado, mas os dados de teste serão mantidos.",
+  "proj.msg.errorDelete": "Erro ao eliminar o projeto",
+  "proj.msg.confirmDelete": "Eliminar o projeto de teste \"{name}\"? TODOS os planos de teste, casos de teste, execuções e dados relacionados serão eliminados permanentemente. Esta ação não pode ser desfeita.",
   "common.edit": "Editar",
   "header.cfAssign": "Atribuir campos personalizados",
   "header.cfAssignSub": "escolher que campos personalizados este projeto de teste usa",
@@ -1120,5 +1120,8 @@
   "plugin.msg.uninstalled": "O plugin \"{name}\" foi desinstalado.",
   "plugin.msg.loadError": "Erro ao carregar a lista de plugins.",
   "plugin.msg.opError": "Falha na operação.",
-  "plugin.msg.noPermission": "Você não tem permissão para gerenciar plugins."
+  "plugin.msg.noPermission": "Você não tem permissão para gerenciar plugins.",
+  "proj.toggleActive": "Alternar estado ativo",
+  "proj.activate": "Ativar",
+  "proj.deactivate": "Desativar"
 }

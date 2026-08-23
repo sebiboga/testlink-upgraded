@@ -245,8 +245,8 @@
   "proj.validation.required": "项目名称和前缀为必填项。",
   "proj.msg.errorLoad": "加载项目出错",
   "proj.msg.errorSave": "保存项目出错",
-  "proj.msg.errorDelete": "停用项目出错",
-  "proj.msg.confirmDelete": "停用项目“{name}”？它将被隐藏，但测试数据会保留。",
+  "proj.msg.errorDelete": "删除项目时出错",
+  "proj.msg.confirmDelete": "删除测试项目“{name}”？其所有测试计划、测试用例、执行记录及相关数据将被永久删除，且无法恢复。",
   "common.edit": "编辑",
   "header.cfAssign": "分配自定义字段",
   "header.cfAssignSub": "选择本测试项目使用的自定义字段",
@@ -1120,5 +1120,8 @@
   "plugin.msg.uninstalled": "插件“{name}”已卸载。",
   "plugin.msg.loadError": "加载插件列表失败。",
   "plugin.msg.opError": "操作失败。",
-  "plugin.msg.noPermission": "您没有管理插件的权限。"
+  "plugin.msg.noPermission": "您没有管理插件的权限。",
+  "proj.toggleActive": "切换激活状态",
+  "proj.activate": "激活",
+  "proj.deactivate": "停用"
 }

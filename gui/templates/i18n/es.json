@@ -245,8 +245,8 @@
   "proj.validation.required": "El nombre del proyecto y el prefijo son obligatorios.",
   "proj.msg.errorLoad": "Error al cargar los proyectos",
   "proj.msg.errorSave": "Error al guardar el proyecto",
-  "proj.msg.errorDelete": "Error al desactivar el proyecto",
-  "proj.msg.confirmDelete": "¿Desactivar el proyecto \"{name}\"? Se ocultará pero se conservarán sus datos de prueba.",
+  "proj.msg.errorDelete": "Error al eliminar el proyecto",
+  "proj.msg.confirmDelete": "¿Eliminar el proyecto de pruebas \"{name}\"? TODOS sus planes de prueba, casos de prueba, ejecuciones y datos relacionados se eliminarán permanentemente. No se puede deshacer.",
   "common.edit": "Editar",
   "header.cfAssign": "Asignar campos personalizados",
   "header.cfAssignSub": "elegir que campos personalizados usa este proyecto de prueba",
@@ -1120,5 +1120,8 @@
   "plugin.msg.uninstalled": "El plugin «{name}» ha sido desinstalado.",
   "plugin.msg.loadError": "Error al cargar la lista de plugins.",
   "plugin.msg.opError": "La operación falló.",
-  "plugin.msg.noPermission": "No tiene permiso para gestionar plugins."
+  "plugin.msg.noPermission": "No tiene permiso para gestionar plugins.",
+  "proj.toggleActive": "Cambiar estado activo",
+  "proj.activate": "Activar",
+  "proj.deactivate": "Desactivar"
 }
