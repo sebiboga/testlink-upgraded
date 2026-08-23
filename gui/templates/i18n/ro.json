@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} urmatoare cod",
   "ct.type": "Tip",
   "ct.validation.required": "Numele este obligatoriu.",
+  "ct.cfgHelp": "Configurația trebuie să fie XML valid. Exemplu de format:",
+  "ct.validation.xmlFormat": "Configurația trebuie să fie în format XML. Trebuie să înceapă cu '<' și să folosească taguri XML valide, de ex. <codetracker><uribase>...</uribase></codetracker>.",
   "ev.activity": "Activitate",
   "ev.allUsers": "Toti utilizatorii",
   "ev.apply": "Aplica",

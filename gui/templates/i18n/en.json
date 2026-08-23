@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} code trackers",
   "ct.type": "Type",
   "ct.validation.required": "Name is required.",
+  "ct.cfgHelp": "Configuration must be valid XML. Example format:",
+  "ct.validation.xmlFormat": "Configuration must be in XML format. It must start with '<' and use valid XML tags, e.g. <codetracker><uribase>...</uribase></codetracker>.",
   "ev.activity": "Activity",
   "ev.allUsers": "All users",
   "ev.apply": "Apply",

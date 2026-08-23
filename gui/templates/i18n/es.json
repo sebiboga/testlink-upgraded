@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} rastreadores de código",
   "ct.type": "Tipo",
   "ct.validation.required": "El nombre es obligatorio.",
+  "ct.cfgHelp": "La configuración debe ser XML válido. Formato de ejemplo:",
+  "ct.validation.xmlFormat": "La configuración debe estar en formato XML. Debe comenzar con '<' y usar etiquetas XML válidas, p. ej. <codetracker><uribase>...</uribase></codetracker>.",
   "ev.activity": "Actividad",
   "ev.allUsers": "Todos los usuarios",
   "ev.apply": "Aplicar",

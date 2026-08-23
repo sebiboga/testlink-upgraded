@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} 个代码追踪器",
   "ct.type": "类型",
   "ct.validation.required": "名称为必填项。",
+  "ct.cfgHelp": "配置必须是有效的 XML。格式示例：",
+  "ct.validation.xmlFormat": "配置必须为 XML 格式。必须以 '<' 开头并使用有效的 XML 标签，例如 <codetracker><uribase>...</uribase></codetracker>。",
   "ev.activity": "活动",
   "ev.allUsers": "所有用户",
   "ev.apply": "应用",

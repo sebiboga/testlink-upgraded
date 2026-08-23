@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} трекеров кода",
   "ct.type": "Тип",
   "ct.validation.required": "Название обязательно.",
+  "ct.cfgHelp": "Конфигурация должна быть корректным XML. Пример формата:",
+  "ct.validation.xmlFormat": "Конфигурация должна быть в формате XML. Она должна начинаться с '<' и использовать корректные XML-теги, напр. <codetracker><uribase>...</uribase></codetracker>.",
   "ev.activity": "Деятельность",
   "ev.allUsers": "Все пользователи",
   "ev.apply": "Применить",

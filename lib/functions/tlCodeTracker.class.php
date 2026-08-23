@@ -141,10 +141,12 @@ class tlCodeTracker extends tlObject
     // allow empty config
     if(strlen($xlmCfg) > 0)
     {  
-      $ret = $this->checkXMLCfg($xlmCfg);
-      if(!$ret['status_ok'])
+      // do NOT overwrite $ret with the checker's success array:
+      // $ret must keep carrying the duplicate-name failure state.
+      $xmlCheck = $this->checkXMLCfg($xlmCfg);
+      if(!$xmlCheck['status_ok'])
       {  
-        return $ret;  // >>>---> Bye!
+        return $xmlCheck;  // >>>---> Bye!
       }  
     }
 
@@ -686,7 +688,10 @@ class tlCodeTracker extends tlObject
     try 
     {
       $cfg = simplexml_load_string($xmlCfg);
-      if (!$cfg) 
+      // identity check against false: a SimpleXMLElement with an EMPTY root
+      // element (<codetracker></codetracker>) casts to boolean FALSE in PHP,
+      // so a truthiness test wrongly reported valid XML as a parse failure.
+      if ($cfg === false) 
       {
         $op['status_ok'] = false;
         $op['msg'] = $signature . " - Failure loading XML STRING\n";

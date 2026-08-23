@@ -150,6 +150,8 @@
   "ct.trackersCount": "{n} 件のコードトラッカー",
   "ct.type": "タイプ",
   "ct.validation.required": "名前は必須です。",
+  "ct.cfgHelp": "設定は有効なXMLである必要があります。書式例：",
+  "ct.validation.xmlFormat": "設定はXML形式である必要があります。'<' で始まり、有効なXMLタグを使用する必要があります。例：<codetracker><uribase>...</uribase></codetracker>",
   "ev.activity": "アクティビティ",
   "ev.allUsers": "全ユーザー",
   "ev.apply": "適用",
