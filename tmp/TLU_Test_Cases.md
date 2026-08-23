@@ -2981,3 +2981,20 @@ Bugs found & fixed while executing:
 **Result: 4/4 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
 
 **Refs:** GitHub issue #588 · Files: `gui/templates/dashio/results/show_table_with_exec_span.inc.tpl`
+
+## Regression — Issue #601: dashio baselinel1l2.tpl reads 4 undefined $gui props
+
+**Precondition:** fresh DB; fixture via `php tmp/fixtures_bll.php` (admin): project `BLL Demo Project` (1), plan `BLL Plan` (2), suites Top Suite One (3) > Child Suite A (4); one `baseline_l1l2_context` row (platform 0, 2026-08-20..21) + one `baseline_l1l2_details` row ('p', qty 3, total 5). Session: headless Chrome, admin/admin, Dashio theme.
+
+**Pre-fix repro:** open `lib/results/baselinel1l2.php?tplan_id=2&format=0` → page renders, but events table gains **4 E_WARNINGs**: Undefined property stdClass::$baselineSaved / $actionSendMail / $actionSpreadsheet / $mailFeedBack from compiled baselinel1l2.tpl.php (lines ~72/87/98/108).
+
+| # | Case | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Zero warnings on plain render | Open baselinel1l2.php?tplan_id=2&format=0 | Page renders metrics table; NO new "Undefined property" events for baselineSaved/actionSendMail/actionSpreadsheet/mailFeedBack | PASS |
+| 2 | Toolbar forms have real actions | Inspect form actions in DOM | send_by_email_to_me → ...baselinel1l2.php?tplan_id=2&tproject_id=1&format=6; exportSpreadsheet → ...format=3&spreadsheet=1 | PASS |
+| 3 | Email format path clean | GET same URL with format=6 | Renders without fatal; zero new Error/Warning events | PASS |
+| 4 | Event Viewer after all cases | SELECT * FROM events WHERE id > <pre-fix max> | Only events attributable to pre-existing XLS-export bug (#602); none caused by this fix's render paths | PASS |
+
+**Result: 4/4 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
+
+**Refs:** GitHub issue #601 · Files: `lib/results/baselinel1l2.php`
