@@ -3364,3 +3364,20 @@ fix verified at commit of branch `fix/issue-628`).
 | 6 | Event Viewer | new events limited to separately-filed latent warnings (#632, #633, #427 comment); none from the #424 guard change itself | ✅ PASS |
 
 **Result: PASS (6/6).** Fix verified on default branch commit `764d625e1`; verification run on branch `fix/issue-424`.
+
+## Suite 65 — Regression — Issue #633: resultsGeneral E_WARNINGs on no-platform plans (undefined $items2loop + $gui->tprojOpt mismatch)
+
+**Precondition:** fresh DB; fixtures `php tmp/fixtures_424.php` (project RPT424 id 1, plan Plan424 id 9, **no platforms**, priorities disabled) and `php tmp/fixtures_633_r2.php` (project RPT633 id 19, plan Plan633 id 27 **with platform PLAT-633 linked**, `testPriorityEnabled=1`, TCs linked+executed on the platform). Login admin/admin. App at http://localhost:8082.
+
+**Repro (pre-fix):** GET `lib/results/resultsGeneral.php?tplan_id=9&format=0` → HTTP 200 but events gain log_level=2 rows: `Undefined variable $items2loop` (resultsGeneral.php:63), `foreach() argument must be of type array|object, null given`, `Undefined property: stdClass::$tprojOpt` ×2 + `Attempt to read property "testPriorityEnabled" on null` ×2 (dashio tpl lines 179/247).
+
+**Post-fix expected:** zero new warnings; priority sections hidden when `testPriorityEnabled=0`; still rendered when enabled with platforms.
+
+| # | Step | Expected | Actual |
+|---|---|---|---|
+| 1 | GET resultsGeneral?tplan_id=9&format=0 | HTTP 200; headings = General Test Plan Metrics / Overall Build Status / Results by Top Level Test Suite; NO priority/platform headings; MAX(events.id) unchanged | ✅ PASS |
+| 2 | GET resultsGeneral?tplan_id=27&format=0 (platform plan) | HTTP 200; "Results by Platform" AND "Results by priority" render; PLAT-633 appears in platform section; zero new warning events | ✅ PASS |
+| 3 | XLS export format=3 for plans 9 and 27 | HTTP 200 both, no fatal, no new events | ✅ PASS |
+| 4 | Event Viewer after all steps | new entries are audit-only (log_level 16); no Error/Warning from touched pages | ✅ PASS |
+
+**Result: PASS (4/4).** Fix commits on branch `fix/issue-633`.
