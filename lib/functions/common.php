@@ -1878,7 +1878,8 @@ function getActions(&$gui,$baseURL) {
   $gui->workArea->keywordsAssign = "keywordsAssign&{$ctx}";
   
   $gui->workArea->executeTest = null;
-  $gui->workArea->setTestUrgency = null;
+  // setTestUrgency switched to the modernized HTML screen below (no workArea
+  // entry: the launcher copy-back below must not overwrite the link)
   $gui->workArea->planUpdateTC = null;
   $gui->workArea->showNewestTCV = null;
   $gui->workArea->assignTCVExecution = null;
@@ -1888,11 +1889,17 @@ function getActions(&$gui,$baseURL) {
     // planAddTC switched to the modernized HTML screen above (no workArea
     // entry here: the launcher copy-back below must not overwrite the link)
     $gui->workArea->executeTest = "executeTest&{$ctx}";
-    $gui->workArea->setTestUrgency = "test_urgency&{$ctx}";
     $gui->workArea->planUpdateTC = "planUpdateTC&{$ctx}";
     $gui->workArea->showNewestTCV = "newest_tcversions&{$ctx}";
     $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
     $gui->workArea->showMetrics = "showMetrics&{$ctx}";
+    // Set Test Urgency modernized screen (Dashio standalone page) - Refs #605
+    // Same grant gate the aside.tpl uses for this menu entry; the BFF itself
+    // enforces the legacy controller right (testplan_planning).
+    if ($args->user->hasRight($dbH,'testplan_set_urgent_testcases',$gui->tproject_id)) {
+      $actions->setTestUrgency =
+        "/gui/templates/plans/testUrgency.html?{$ctx}";
+    }
   }
 
   $gui->workArea->reqSpecMgmt = "reqSpecMgmt&{$ctx}";
