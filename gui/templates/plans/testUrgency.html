@@ -133,6 +133,7 @@ var tplanId = 0;
 var tprojectId = 0;
 var selSuiteId = 0;
 var currentItems = [];
+var busy = false;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -334,7 +335,8 @@ function renderRows(items) {
 function markDirty() { $('#dirtyHint').show(); }
 
 function doSetSuiteUrgency(urgency) {
-  if (selSuiteId <= 0 || tplanId <= 0) { return; }
+  if (busy || selSuiteId <= 0 || tplanId <= 0) { return; }
+  busy = true;
   $.ajax({
     url: API + '/urgency/suite',
     method: 'POST',
@@ -352,11 +354,13 @@ function doSetSuiteUrgency(urgency) {
     // refresh context (suite badges) AND the open test case table
     load();
     selectSuite(selSuiteId);
-  }).fail(function (xhr) { apiFail(xhr); });
+  }).fail(function (xhr) { apiFail(xhr); })
+  .always(function () { busy = false; });
 }
 
 function doSaveTcs() {
-  if (tplanId <= 0 || !currentItems.length) { return; }
+  if (busy || tplanId <= 0 || !currentItems.length) { return; }
+  busy = true;
   var items = {};
   currentItems.forEach(function (it) {
     var $r = $('input[name=urg_' + it.tcversion_id + ']:checked');
@@ -375,7 +379,8 @@ function doSaveTcs() {
       toast(TLi18n.t('turg.feedbackFail'), true);
     }
     selectSuite(selSuiteId);
-  }).fail(function (xhr) { apiFail(xhr); });
+  }).fail(function (xhr) { apiFail(xhr); })
+  .always(function () { busy = false; });
 }
 </script>
 </body>
