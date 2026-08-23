@@ -64,9 +64,13 @@ if($tplanID > 0) {
       if(strpos(',' . $rptItem['format'], 'format_html') === false) {
         continue;
       }
-      // Refs #608 - switched to the modernized screen when
-      // gui/templates/results/testPlanReport.html is available.
-      $hrefR = $baseHrefR . $rptItem['url'];
+      // Refs #608 - Test Plan Report has its own modernized screen
+      if($rptItem['title'] == 'link_report_test_plan') {
+        $hrefR = 'gui/templates/results/testPlanReport.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      } else {
+        $hrefR = $baseHrefR . $rptItem['url'];
+      }
       $gui->reportsMenu[] = array(
         'key' => $rptItem['title'],
         'name' => lang_get($rptItem['title']),
