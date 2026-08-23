@@ -183,7 +183,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
      
 
     {* --------------------------------------------------------------- *}
-    {if $gui->other_execs.$tcversion_id}
+    {if $gui->other_execs && $gui->other_execs.$tcversion_id}
       {$my_colspan=$attachment_model->num_cols}
 
       {* CORTADO *}

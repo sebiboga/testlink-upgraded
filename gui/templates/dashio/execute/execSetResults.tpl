@@ -138,7 +138,7 @@ file_upload_ko,pleaseOpenTSuite'}
                                    '{$tsd_val_for_hidden_list}');
               {/if}
 
-              {if $round_enabled}Nifty('div.exec_additional_info');{/if}
+              {if $gui->round_enabled}Nifty('div.exec_additional_info');{/if}
               {if #ROUND_TC_SPEC#}Nifty('div.exec_test_spec');{/if}
               {if #ROUND_EXEC_HISTORY#}Nifty('div.exec_history');{/if}
               {if #ROUND_TC_TITLE#}Nifty('div.exec_tc_title');{/if}"
