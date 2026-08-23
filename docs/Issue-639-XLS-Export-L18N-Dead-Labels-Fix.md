@@ -26,7 +26,7 @@ noise plus raw tag-prefixed keys as fallback label values.
    `'priority_level' => null` and `'not_run' => null`.
 3. `lib/functions/lang_api.php:317-325` — `init_labels()` resolves a `null`
    label as `lang_get($key)`.
-4. `lib/functions/lang_api.php:135` — neither `$TLS_priority_level` nor
+4. `lib/functions/lang_api.php:137` — neither `$TLS_priority_level` nor
    `$TLS_not_run` exists in **any** of the 19 locale bundles (only
    `$TLS_test_status_not_run`, locale/en_GB/strings.txt:324), so each lookup
    logged a `logL18NWarningEvent`.
