@@ -143,7 +143,7 @@ $(function () {
   });
 
   $('#btnReload').on('click', load);
-  $('#btnAdd').on('click', function () { moveSelected('#availList li.sel', '#asgList'); });
+  $('#btnAdd').on('click', function () { moveSelected($('#availList li.sel'), '#asgList'); });
   $('#btnAddAll').on('click', function () {
     if ($('#availList li[data-id]').length === 0) return;
     moveSelected($('#availList li[data-id]').removeClass('sel'), '#asgList');
