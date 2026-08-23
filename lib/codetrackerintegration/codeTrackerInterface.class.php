@@ -103,7 +103,10 @@ abstract class codeTrackerInterface
     try 
     {
       $this->cfg = simplexml_load_string($xmlCfg);
-      if (!$this->cfg) 
+      // identity check against false: a SimpleXMLElement with an EMPTY root
+      // element (<codetracker></codetracker>) casts to boolean FALSE in PHP,
+      // so a truthiness test wrongly reported valid XML as a parse failure.
+      if ($this->cfg === false) 
       {
         $msg = $signature . " - Failure loading XML STRING\n";
         foreach(libxml_get_errors() as $error) 
