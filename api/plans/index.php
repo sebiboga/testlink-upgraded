@@ -1389,6 +1389,10 @@ function updTcNeedCtx($src, $user, $db) {
     $tproject_id = intval($src['tproject_id'] ?? 0);
     if ($tproject_id <= 0) {
         $tproject_id = intval($info['parent_id']);
+    } else if ($tproject_id !== intval($info['parent_id'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not in project',
+             'error_code' => 'NO_TPROJECT']);
     }
     if ($tproject_id <= 0) {
         http_response_code(400);

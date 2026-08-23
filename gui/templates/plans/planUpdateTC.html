@@ -85,6 +85,7 @@ select.targetSel { font-size: 12.5px; padding: 4px 6px; border: 1px solid #ccc; 
   <span class="ctx" id="linkedInfo"></span>
   <span style="flex:1"></span>
   <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
+  <span id="localeSwitcher"></span>
   <button class="btn-teal" id="btnAllLatest"><i class="fa fa-wand-magic-sparkles"></i> <span data-i18n="uptc.btnUpdateAllLatest">Update ALL to latest version</span></button>
 </div>
 
@@ -386,7 +387,7 @@ function renderSuiteRows(suiteId) {
           + (t.id === it.newest_tcversion_id && !it.is_latest ? ' (' + esc(TLi18n.t('uptc.newestTag')) + ')' : '')
           + '</option>';
       });
-      selCtl = '<select class="targetSel" data-tcid="' + it.testcase_id + '"' + (it.is_latest ? '' : '') + '>'
+      selCtl = '<select class="targetSel" data-tcid="' + it.testcase_id + '">'
         + opts + '</select>';
       chk = '<input type="checkbox" class="row-chk" data-tcid="' + it.testcase_id + '">';
     }
