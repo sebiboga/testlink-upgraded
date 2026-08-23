@@ -1359,5 +1359,370 @@ if ($method === 'POST' && count($segments) === 2 &&
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Update Linked Test Case Versions screen (modernized planUpdateTC.php)
+// Refs #619
+//
+// Rights: legacy lib/plan/planUpdateTC.php checkRights() runs pageAccessCheck
+// with rightsAnd = ['testplan_planning'], menu visibility is gated separately
+// by testplan_update_linked_testcase_versions (aside.tpl). Same contract here:
+// every route requires testplan_planning server-side.
+// ---------------------------------------------------------------------------
+function updTcRights($user, $db, $tproject_id) {
+    return (bool)$user->hasRight($db, 'testplan_planning', $tproject_id);
+}
+
+function updTcNeedCtx($src, $user, $db) {
+    $tplan_id = intval($src['tplan_id'] ?? 0);
+    if ($tplan_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id',
+             'error_code' => 'NO_TPLAN']);
+    }
+    $tplanMgr = new testplan($db);
+    $info = $tplanMgr->get_by_id($tplan_id);
+    if (is_null($info)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id',
+             'error_code' => 'NO_TPLAN']);
+    }
+    $tproject_id = intval($src['tproject_id'] ?? 0);
+    if ($tproject_id <= 0) {
+        $tproject_id = intval($info['parent_id']);
+    }
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id',
+             'error_code' => 'NO_TPROJECT']);
+    }
+    return [$tproject_id, $tplan_id];
+}
+
+/**
+ * All linked tcversions of the plan (optionally of ONE test case), each with
+ * its available ACTIVE target versions (siblings != linked), execution count
+ * on the linked version and suite placement. Mirrors what legacy
+ * processTestPlan()/processTestSuite()/tideUpForGUI() fed into the Smarty view.
+ */
+function updTcItems($db, $tplan_id, $tcprefix)
+{
+    $tbl = tlObjectWithDB::getDBTables(
+        ['testplan_tcversions', 'nodes_hierarchy', 'tcversions', 'executions']);
+
+    $sql = " SELECT T.tcversion_id AS linked_tcv," .
+           " LVER.version AS linked_version, LVER.active AS linked_active," .
+           " LVER.tc_external_id," .
+           " NHA.parent_id AS tc_id, NHC.name AS tc_name," .
+           " NTC.parent_id AS tsuite_id, NTC.name AS tsuite_name" .
+           " FROM {$tbl['testplan_tcversions']} T" .
+           " JOIN {$tbl['nodes_hierarchy']} NHA ON NHA.id = T.tcversion_id" .
+           " JOIN {$tbl['nodes_hierarchy']} NHC ON NHC.id = NHA.parent_id" .
+           " JOIN {$tbl['nodes_hierarchy']} NTC ON NTC.id = NHC.parent_id" .
+           " JOIN {$tbl['tcversions']} LVER ON LVER.id = T.tcversion_id" .
+           " LEFT JOIN {$tbl['nodes_hierarchy']} NSIB" .
+           " ON NSIB.parent_id = NHA.parent_id AND NSIB.id <> T.tcversion_id" .
+           " LEFT JOIN {$tbl['tcversions']} V ON V.id = NSIB.id" .
+           " WHERE T.testplan_id = " . intval($tplan_id) .
+           " ORDER BY NTC.name, NHC.name";
+
+    $rows = $db->get_recordset($sql);
+
+    // executions on the LINKED versions inside this plan (informational)
+    $execQty = [];
+    $esql = " SELECT tcversion_id, COUNT(*) AS qty" .
+            " FROM {$tbl['executions']}" .
+            " WHERE testplan_id = " . intval($tplan_id) .
+            " GROUP BY tcversion_id";
+    foreach ((array)$db->get_recordset($esql) as $e) {
+        $execQty[intval($e['tcversion_id'])] = intval($e['qty']);
+    }
+
+    $items = [];
+    foreach ((array)$rows as $r) {
+        $tcid = intval($r['tc_id']);
+        if (!isset($items[$tcid])) {
+            $extId = intval($r['tc_external_id']);
+            $it = [
+                'testcase_id' => $tcid,
+                'name' => (string)$r['tc_name'],
+                'fullExternalId' => $tcprefix . $extId,
+                'tsuite_id' => intval($r['tsuite_id']),
+                'tsuite_name' => (string)$r['tsuite_name'],
+                'linked_tcversion_id' => intval($r['linked_tcv']),
+                'linked_version' => intval($r['linked_version']),
+                'linked_active' => intval($r['linked_active']),
+                'executed_qty' => isset($execQty[intval($r['linked_tcv'])])
+                    ? $execQty[intval($r['linked_tcv'])] : 0,
+                'targets' => [],
+                'newest_tcversion_id' => 0,
+                'newest_version' => 0,
+            ];
+            $items[$tcid] = $it;
+        }
+        // collect ACTIVE sibling versions as update candidates
+        // (legacy tideUpForGUI(): canUpdateVersion counts active versions)
+        if (!is_null($r['sib_tcv']) && intval($r['sib_tcv']) > 0 &&
+            intval($r['sib_active']) === 1) {
+            $items[$tcid]['targets'][] = [
+                'id' => intval($r['sib_tcv']),
+                'version' => intval($r['sib_version']),
+            ];
+            if (intval($r['sib_tcv']) >
+                $items[$tcid]['newest_tcversion_id']) {
+                $items[$tcid]['newest_tcversion_id'] = intval($r['sib_tcv']);
+                $items[$tcid]['newest_version'] =
+                    intval($r['sib_version']);
+            }
+        }
+    }
+
+    // finalize: sort targets oldest -> newest, flag already-latest rows
+    foreach ($items as $tcid => $it) {
+        usort($items[$tcid]['targets'], function ($a, $b) {
+            return $a['id'] <=> $b['id'];
+        });
+        $items[$tcid]['is_latest'] =
+            count($it['targets']) === 0 ||
+            $it['newest_tcversion_id'] <= $it['linked_tcversion_id'];
+    }
+
+    return array_values($items);
+}
+
+// GET /update-linked?tproject_id=&tplan_id=
+// screen context: accessible plans selector, suites holding linked test
+// cases (with updatable counts) and the full linked-item detail set.
+if ($method === 'GET' && count($segments) === 1 &&
+    $segments[0] === 'update-linked') {
+    list($tproject_id, $tplan_id) = updTcNeedCtx($_GET, $user, $db);
+    if (!updTcRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tplanMgr = new testplan($db);
+
+    $tplans = [];
+    $rows = $user->getAccessibleTestPlans($db, $tproject_id, null,
+        ['output' => 'mapfull', 'active' => null]);
+    foreach ((array)$rows as $r) {
+        $tplans[] = [
+            'id' => intval($r['id']),
+            'name' => (string)$r['name'],
+            'active' => intval($r['active']),
+            'is_public' => intval($r['is_public']),
+        ];
+    }
+
+    $tplanInfo = null;
+    $info = $tplanMgr->get_by_id($tplan_id);
+    if (!is_null($info) && intval($info['parent_id']) == $tproject_id) {
+        $tplanInfo = [
+            'id' => intval($info['id']),
+            'name' => (string)$info['name'],
+            'active' => intval($info['active']),
+        ];
+    } else {
+        $tplan_id = 0;
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not in project',
+             'error_code' => 'BAD_TPLAN']);
+    }
+
+    // test case prefix (legacy initializeGui())
+    $tcaseMgr = new testcase($db);
+    $tcprefix = $tcaseMgr->tproject_mgr->getTestCasePrefix($tproject_id);
+    $tcCfg = config_get('testcase_cfg');
+    $tcprefix .= $tcCfg->glue_character;
+
+    $items = updTcItems($db, $tplan_id, $tcprefix);
+    $linkedCount = intval($tplanMgr->getLinkedCount($tplan_id));
+
+    // suite summary derived from the item set
+    $suites = [];
+    foreach ($items as $it) {
+        $sid = $it['tsuite_id'];
+        if (!isset($suites[$sid])) {
+            $suites[$sid] = [
+                'id' => $sid,
+                'name' => $it['tsuite_name'],
+                'tc_qty' => 0,
+                'updatable_qty' => 0,
+            ];
+        }
+        $suites[$sid]['tc_qty']++;
+        if (!$it['is_latest']) {
+            $suites[$sid]['updatable_qty']++;
+        }
+    }
+    usort($suites, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+
+    // overall screen state (legacy messages)
+    $state = 'ready';
+    if ($linkedCount === 0) {
+        $state = 'empty';          // lang_get('testplan_seems_empty')
+    } else if (count($items) === 0) {
+        $state = 'latest';         // lang_get('no_newest_version_of_linked_tcversions')
+    }
+
+    $tproject_name = trim((string)($_SESSION['testprojectName'] ?? ''));
+    if ($tproject_name === '') {
+        $tproject_name = testproject::getName($db, $tproject_id);
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
+        'tplans' => $tplans,
+        'tplan' => $tplanInfo,
+        'suites' => array_values($suites),
+        'items' => $items,
+        'linked_count' => $linkedCount,
+        'state' => $state,
+        'rights' => [
+            'canManage' => updTcRights($user, $db, $tproject_id),
+            'menu_grant' =>
+                (bool)$user->hasRight($db,
+                    'testplan_update_linked_testcase_versions', $tproject_id),
+        ],
+    ]);
+}
+
+// POST /update-linked/selected  body: {tproject_id,tplan_id,items:{tc_id:new_tcv_id}}
+// legacy doUpdate(): remap testplan_tcversions + executions +
+// cfield_execution_values to the user-chosen new version.
+// Server-side validation per pair (client form values are never trusted):
+//   - the test case must still be linked to the plan
+//   - the target must be an ACTIVE version of the SAME test case
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'update-linked' && $segments[1] === 'selected') {
+    $body = getBody();
+    list($tproject_id, $tplan_id) = updTcNeedCtx($body, $user, $db);
+    if (!updTcRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $req = [];
+    foreach ((array)($body['items'] ?? []) as $tcid => $newTcv) {
+        $tcid = intval($tcid);
+        $newTcv = intval($newTcv);
+        if ($tcid > 0 && $newTcv > 0) {
+            $req[$tcid] = $newTcv;
+        }
+    }
+    if (count($req) === 0) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'No selection provided',
+             'error_code' => 'NO_SELECTION']);
+    }
+
+    $tbl = tlObjectWithDB::getDBTables(
+        ['testplan_tcversions', 'nodes_hierarchy', 'tcversions',
+         'executions', 'cfield_execution_values']);
+
+    $updated = 0;
+    $skipped = 0;
+    foreach ($req as $tcid => $newTcv) {
+        // current linked version of THIS test case in THIS plan
+        $cur = $db->fetchFirstRow(
+            " SELECT T.tcversion_id AS ltcv" .
+            " FROM {$tbl['testplan_tcversions']} T" .
+            " JOIN {$tbl['nodes_hierarchy']} NHA ON NHA.id = T.tcversion_id" .
+            " WHERE T.testplan_id = " . intval($tplan_id) .
+            " AND NHA.parent_id = " . intval($tcid));
+        if (is_null($cur) || !isset($cur['ltcv'])) {
+            $skipped++;
+            continue;
+        }
+        $ltcv = intval($cur['ltcv']);
+        if ($ltcv === $newTcv) {
+            $skipped++;      // nothing to change
+            continue;
+        }
+        // target must be an ACTIVE sibling version of the same test case
+        $chk = $db->fetchFirstRow(
+            " SELECT COUNT(*) AS q" .
+            " FROM {$tbl['nodes_hierarchy']} NH" .
+            " JOIN {$tbl['tcversions']} TV ON TV.id = NH.id" .
+            " WHERE NH.parent_id = " . intval($tcid) .
+            " AND NH.id = " . intval($newTcv) .
+            " AND TV.active = 1");
+        if (intval($chk['q']) === 0) {
+            $skipped++;
+            continue;
+        }
+
+        // legacy doUpdate(): three-table remap, old version read live above
+        foreach ([$tbl['testplan_tcversions'], $tbl['executions'],
+                  $tbl['cfield_execution_values']] as $table2update) {
+            $sql = " UPDATE {$table2update}" .
+                   " SET tcversion_id = " . intval($newTcv) .
+                   " WHERE tcversion_id = " . intval($ltcv) .
+                   " AND testplan_id = " . intval($tplan_id);
+            $db->exec_query($sql);
+        }
+        $updated++;
+    }
+
+    out([
+        'status' => 'ok',
+        'updated' => $updated,
+        'skipped' => $skipped,
+        // legacy feedback lang_get('tplan_updated')
+        'feedback_key' => 'tplan_updated',
+    ]);
+}
+
+// POST /update-linked/latest  body: {tproject_id,tplan_id}
+// legacy doBulkUpdateToLatest(): every linked tcversion whose newest ACTIVE
+// version differs gets remapped across the same three tables.
+if ($method === 'POST' && count($segments) === 2 &&
+    $segments[0] === 'update-linked' && $segments[1] === 'latest') {
+    $body = getBody();
+    list($tproject_id, $tplan_id) = updTcNeedCtx($body, $user, $db);
+    if (!updTcRights($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tplanMgr = new testplan($db);
+    $linkedItems = $tplanMgr->get_linked_items_id($tplan_id);
+    if (is_null($linkedItems)) {
+        // legacy: lang_get('no_testcase_available')
+        out(['status' => 'ok', 'updated' => 0,
+             'feedback_key' => 'no_testcase_available']);
+    }
+
+    $items = $tplanMgr->get_linked_and_newest_tcversions($tplan_id);
+    $qty = 0;
+    foreach ((array)$items as $value) {
+        if (intval($value['newest_tcversion_id']) !=
+            intval($value['tcversion_id'])) {
+            $newtcversion = intval($value['newest_tcversion_id']);
+            $tcversionID = intval($value['tcversion_id']);
+            $tbl = tlObjectWithDB::getDBTables(
+                ['testplan_tcversions', 'executions',
+                 'cfield_execution_values']);
+            foreach ($tbl as $table2update) {
+                $sql = " UPDATE {$table2update}" .
+                       " SET tcversion_id = " . intval($newtcversion) .
+                       " WHERE tcversion_id = " . intval($tcversionID) .
+                       " AND testplan_id = " . intval($tplan_id);
+                $db->exec_query($sql);
+            }
+            $qty++;
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'updated' => $qty,
+        // legacy: all_versions_where_latest | num_of_updated
+        'feedback_key' => $qty == 0 ? 'all_versions_where_latest'
+                                    : 'num_of_updated',
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
