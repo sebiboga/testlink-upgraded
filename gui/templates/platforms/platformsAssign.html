@@ -126,6 +126,8 @@ $(function () {
 
   TLi18n.load(function () {
     TLi18n.apply();
+    // legacy message carries <br/> tags - render as HTML (bundle content, trusted)
+    $('#unlinkWarnModal .modal-body').html(TLi18n.t('passign.warnMsg'));
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     load();
   });
