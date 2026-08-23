@@ -1061,6 +1061,7 @@
   "uptc.testProject": "Proyecto de Pruebas",
   "uptc.testPlan": "Plan de Pruebas",
   "uptc.noTestplan": "Seleccione un plan de pruebas",
+  "uptc.noPermission": "No tiene permiso para utilizar esta función.",
   "uptc.suites": "Suites de Pruebas",
   "uptc.noSuites": "No hay casos de prueba vinculados en este plan",
   "uptc.suiteEmpty": "No hay casos de prueba vinculados en esta suite",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "El plan de pruebas no tiene casos de prueba vinculados.",
   "uptc.noNewerVersions": "Todas las versiones vinculadas ya son las más recientes disponibles.",
   "uptc.linkedCount": "Casos de prueba vinculados: {n}",
-  "uptc.footerTcases": "caso(s) de prueba"
+  "uptc.footerTcases": "caso(s) de prueba",
+  "uptc.description": "Elija una versión destino para los casos de prueba vinculados que desee actualizar, marque su fila y pulse Actualizar Selección; o use Actualizar TODO para llevar cada versión vinculada no reciente a su versión activa más reciente. Las asignaciones de ejecución se actualizan automáticamente (se remapean testplan_tcversions, ejecuciones y valores de campos personalizados de ejecución)."
 }

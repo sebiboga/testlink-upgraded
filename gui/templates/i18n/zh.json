@@ -1061,6 +1061,7 @@
   "uptc.testProject": "测试项目",
   "uptc.testPlan": "测试计划",
   "uptc.noTestplan": "请选择一个测试计划",
+  "uptc.noPermission": "您没有使用此功能的权限。",
   "uptc.suites": "测试套件",
   "uptc.noSuites": "此计划中没有已链接的测试用例",
   "uptc.suiteEmpty": "此套件中没有已链接的测试用例",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "该测试计划没有已链接的测试用例。",
   "uptc.noNewerVersions": "所有已链接版本均已是最新的可用版本。",
   "uptc.linkedCount": "已链接测试用例：{n}",
-  "uptc.footerTcases": "个测试用例"
+  "uptc.footerTcases": "个测试用例",
+  "uptc.description": "为要更新的已链接测试用例选择目标版本，勾选对应行后点击“更新所选”；或使用“全部更新到最新版本”将每个非最新的链接版本移动到其最新有效版本。执行分配会自动跟随（重新映射 testplan_tcversions、执行记录和自定义字段执行值）。"
 }

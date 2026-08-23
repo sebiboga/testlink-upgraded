@@ -1061,6 +1061,7 @@
   "uptc.testProject": "Test Project",
   "uptc.testPlan": "Test Plan",
   "uptc.noTestplan": "Please select a test plan",
+  "uptc.noPermission": "You do not have permission to use this feature.",
   "uptc.suites": "Test Suites",
   "uptc.noSuites": "No linked test cases in this plan",
   "uptc.suiteEmpty": "No linked test cases in this suite",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "Test plan has no linked test cases.",
   "uptc.noNewerVersions": "All linked test case versions are already the newest available.",
   "uptc.linkedCount": "Linked test cases: {n}",
-  "uptc.footerTcases": "test case(s)"
+  "uptc.footerTcases": "test case(s)",
+  "uptc.description": "Pick a target version for the linked test cases you want to update, tick their row and press Update Selected; or use Update ALL to move every non-latest linked version to its newest active version. Execution assignments follow automatically (testplan_tcversions, executions and custom field execution values are remapped)."
 }

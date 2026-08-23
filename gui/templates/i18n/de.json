@@ -1061,6 +1061,7 @@
   "uptc.testProject": "Testprojekt",
   "uptc.testPlan": "Testplan",
   "uptc.noTestplan": "Bitte einen Testplan auswählen",
+  "uptc.noPermission": "Sie haben keine Berechtigung, diese Funktion zu verwenden.",
   "uptc.suites": "Testsuiten",
   "uptc.noSuites": "Keine verknüpften Testfälle in diesem Plan",
   "uptc.suiteEmpty": "Keine verknüpften Testfälle in dieser Suite",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "Der Testplan hat keine verknüpften Testfälle.",
   "uptc.noNewerVersions": "Alle verknüpften Versionen sind bereits die neuesten verfügbaren.",
   "uptc.linkedCount": "Verknüpfte Testfälle: {n}",
-  "uptc.footerTcases": "Testfall/Testfälle"
+  "uptc.footerTcases": "Testfall/Testfälle",
+  "uptc.description": "Wählen Sie eine Zielversion für die zu aktualisierenden verknüpften Testfälle, markieren Sie die Zeile und klicken Sie auf Auswahl aktualisieren; oder nutzen Sie ALLES aktualisieren, um jede nicht-neueste verknüpfte Version auf die neueste aktive Version zu setzen. Ausführungszuweisungen folgen automatisch (testplan_tcversions, Ausführungen und benutzerdefinierte Ausführungsfeldwerte werden umgemappt)."
 }

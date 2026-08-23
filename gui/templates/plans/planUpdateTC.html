@@ -220,6 +220,8 @@ function syncUrl() {
 }
 
 function apiFail(xhr) {
+  if (xhr && xhr.status === 403) { showState(TLi18n.t('uptc.noPermission')); return; }
+  if (xhr && xhr.status === 401) { window.location.href = '/login.php'; return; }
   var msg = TLi18n.t('common.error');
   try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
   toast(msg, true);
@@ -373,21 +375,23 @@ function renderSuiteRows(suiteId) {
       status = '<span class="st-badge inactive">' + esc(TLi18n.t('uptc.statusLinkedInactive')) + '</span>';
     } else {
       status = '<span class="st-badge ready">' + esc(TLi18n.t('uptc.statusUpdatable')) + '</span>';
-      chk = '<input type="checkbox" class="row-chk" data-tcid="' + it.testcase_id + '">';
     }
 
+    // legacy parity: any row with available active versions can be
+    // re-linked to a user-chosen version (tideUpForGUI updateTarget)
     if (it.targets.length) {
       var opts = '<option value="">--</option>';
       it.targets.forEach(function (t) {
         opts += '<option value="' + t.id + '">' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + t.version
-          + (t.id === it.newest_tcversion_id ? ' (' + esc(TLi18n.t('uptc.newestTag')) + ')' : '')
+          + (t.id === it.newest_tcversion_id && !it.is_latest ? ' (' + esc(TLi18n.t('uptc.newestTag')) + ')' : '')
           + '</option>';
       });
       selCtl = '<select class="targetSel" data-tcid="' + it.testcase_id + '"' + (it.is_latest ? '' : '') + '>'
         + opts + '</select>';
+      chk = '<input type="checkbox" class="row-chk" data-tcid="' + it.testcase_id + '">';
     }
 
-    var newestCell = it.newest_version > 0
+    var newestCell = !it.is_latest && it.newest_version > 0
       ? '<span class="ver-tag newest">' + esc(TLi18n.t('uptc.versionLabel')) + ' ' + it.newest_version + '</span>'
       : '<span class="exec-info">-</span>';
 

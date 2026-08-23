@@ -1061,6 +1061,7 @@
   "uptc.testProject": "Proiect de Test",
   "uptc.testPlan": "Plan de Testare",
   "uptc.noTestplan": "Selectați un plan de testare",
+  "uptc.noPermission": "Nu aveți permisiunea de a utiliza această funcționalitate.",
   "uptc.suites": "Suite de Test",
   "uptc.noSuites": "Nu există cazuri de test legate în acest plan",
   "uptc.suiteEmpty": "Nu există cazuri de test legate în această suită",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "Planul de testare nu are cazuri de test legate.",
   "uptc.noNewerVersions": "Toate versiunile legate sunt deja cele mai noi disponibile.",
   "uptc.linkedCount": "Cazuri de test legate: {n}",
-  "uptc.footerTcases": "caz(uri) de test"
+  "uptc.footerTcases": "caz(uri) de test",
+  "uptc.description": "Alegeți versiunea țintă pentru cazurile de test legate pe care doriți să le actualizați, bifați rândul și apăsați Actualizează Selecția; sau folosiți Actualizează TOATE pentru a muta fiecare versiune legată neactualizată la cea mai nouă versiune activă. Alocările de execuție se actualizează automat (se remapează testplan_tcversions, execuțiile și valorile câmpurilor personalizate de execuție)."
 }

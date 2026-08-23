@@ -1061,6 +1061,7 @@
   "uptc.testProject": "Projet de Test",
   "uptc.testPlan": "Plan de Test",
   "uptc.noTestplan": "Veuillez sélectionner un plan de test",
+  "uptc.noPermission": "Vous n'avez pas la permission d'utiliser cette fonctionnalité.",
   "uptc.suites": "Suites de Test",
   "uptc.noSuites": "Aucun cas de test lié dans ce plan",
   "uptc.suiteEmpty": "Aucun cas de test lié dans cette suite",
@@ -1093,5 +1094,6 @@
   "uptc.emptyPlan": "Le plan de test n'a aucun cas de test lié.",
   "uptc.noNewerVersions": "Toutes les versions liées sont déjà les plus récentes disponibles.",
   "uptc.linkedCount": "Cas de test liés : {n}",
-  "uptc.footerTcases": "cas de test"
+  "uptc.footerTcases": "cas de test",
+  "uptc.description": "Choisissez une version cible pour les cas de test liés à mettre à jour, cochez leur ligne et cliquez sur Mettre à jour la sélection ; ou utilisez Tout mettre à jour pour passer chaque version liée non récente à sa version active la plus récente. Les affectations d'exécution suivent automatiquement (testplan_tcversions, exécutions et valeurs de champs personnalisés d'exécution sont remappés)."
 }
