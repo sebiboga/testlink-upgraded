@@ -3582,3 +3582,35 @@ URL: `/lib/testcases/archiveData.php?edit=testcase&id=28&show_mode=show`
 | 5 | Event Viewer delta from exec-tree path | inspect `events` after tests 2–3 | zero new Error/Warning entries attributable to the tree query / exec form data path (`$refreshTree` warning = pre-existing tracked #620, fired only on the token-less direct GET) | PASS |
 
 Screenshots: `Issue-430-exec-tree-populated-platform-sentinel.png`, `Issue-430-exec-form-platform-sentinel-fixed.png` (wiki repo).
+
+## Suite 647 — Modernization — Test Plan Milestones screen (milestonesView / planMilestonesView)
+
+**Refs:** #647 · branch `sebiboga` · commits f4604b8fc (BFF), 6d2f9d1f1 (screen), 7ecce2b7c (i18n+aside switch), 487fc7fe1 (pct parity fix), dd1d8e000 (toast fix), 222c3cb3d (forbidden key)
+**Files under test:** `gui/templates/plans/planMilestones.html`, `api/milestones/index.php`, `lib/functions/common.php`, `gui/templates/i18n/*.json` (10 bundles)
+**Precondition:** fresh DB; fixtures created via UI/API during the run: project **MS Demo**(id=1, priority enabled), plan **MS Plan**(id=2), build **B1**(id=1) via `/api/builds/`, TC-MS-1 (importance=HIGH, tcversion 5) + TC-MS-2 (MEDIUM, tcversion 8) via `/api/testcasesimport/?action=import_md`, linked to plan (testplan_tcversions urgency=2), 1 execution `(build 1, tcversion 5, status p, ts 2026-10-15)` inside milestone window. Milestone **Alpha Release**(id=1): target 2026-12-31, start 2026-09-01, H80/M60/L40.
+URL: `/gui/templates/plans/planMilestones.html?tproject_id=1&tplan_id=2`
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Empty state | open URL with no milestones | toolbar + "There are no Milestones for this Test Plan!", report section hidden | PASS |
+| 2 | Create milestone | New Milestone → Alpha Release / 2026-12-31 / 2026-09-01 / H80 M60 L40 → Save | modal closes, toast "was created", row shows dates and 80/60/40 % | PASS |
+| 3 | Pct round-trip parity | edit existing milestone, re-enter H80/L40, save, reload | values persist as entered (legacy form-field swap reproduced in BFF mapping, commit 487fc7fe1) | PASS |
+| 4 | Duplicate name rejected | POST create with name "Alpha Release" | HTTP 400 `milestone_name_already_exists`, toast localized | PASS |
+| 5 | Past target date rejected | create with target 2020-01-01 | HTTP 400 `warning_milestone_date` | PASS |
+| 6 | Target before start rejected | target 2026-10-01, start 2026-11-01 | HTTP 400 `warning_target_before_start` | PASS |
+| 7 | Percentage range enforced | medium_percentage 150 | HTTP 400 `warning_invalid_percentage` | PASS |
+| 8 | Empty name rejected | name "" | HTTP 400 `warning_empty_milestone_name`; client-side blocks too | PASS |
+| 9 | Delete flow | delete icon on temp milestone → confirm modal shows name + warning → Delete | audit `audit_milestone_deleted` written, row removed, localized toast with interpolated name | PASS |
+| 10 | Metrics report renders (no executions) | plan has build B1 but no executions in window | red badges 0 % vs expected 80/60/40, overall 100 % (tc_total=0 legacy get_percentage behavior) | PASS |
+| 11 | Metrics report renders (with execution) | execution p on HIGH TC at 2026-10-15 (inside start/target window) | High = green badge 100 % (1/1) vs expected 80 %, Medium red 0 % (0/1), Low 0 % (0/0), Overall 50 % — matches tlTestPlanMetrics::getMilestonesMetrics exactly | PASS |
+| 12 | Execution outside window excluded | same execution dated before start_date | not counted (getPrioritizedResults window filter, legacy parity) | PASS |
+| 13 | Priorities-disabled layout | project without testPriorityEnabled | single "% of test cases" input in modal (hidden high/low posted as 0 like legacy); only Medium column in table | PASS (code-path verified; BFF flag from testprojects.options) |
+| 14 | i18n coverage | TLi18n bundles de/ro spot-check + ?locale=de full render | German header "Meilensteine des Testplans", "Neuer Meilenstein", localized column headers; all ms.* keys present in all 10 bundles (45 keys × 10, json.tool valid) | PASS |
+| 15 | Aside link switch | shell index.php?tproject_id=1&tplan_id=2 → aside "Milestones" click | href = planMilestones.html?tproject_id=1&tplan_id=2, loads into mainframe | PASS |
+| 16 | Permission path (deny) | login designer/pass123 (role 7, no testplan_planning) → open screen | every API route returns HTTP 403 `Insufficient rights`; UI toast common.forbidden; create button hidden (rights.canManage=false) | PASS |
+| 17 | Audit trail | events table after create/update/delete | `audit_milestone_created/saved/deleted` entries with tplan+milestone names | PASS |
+| 18 | Event Viewer clean | delta on events log_level=2 during all suite steps | zero new warnings/errors attributable to planMilestones.html or api/milestones (only pre-existing #622 legacy planEdit/planView warnings from fixture setup) | PASS |
+
+Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.png`, `Test-Plan-Milestones-delete-modal.png` (wiki repo).
+
+**Result: Suite 647 — 18/18 PASS**
