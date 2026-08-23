@@ -1,10 +1,10 @@
 name: Modernize one screen (opencode)
 
 # One run = ONE screen modernized end-to-end, following AGENTS.md.
-# Trigger manually from the Actions tab; optionally name the screen,
-# otherwise opencode picks the next unmodernized ASIDE screen top-to-bottom.
-# Pattern borrowed from sebiboga/AI-Factory-job-seeker-ro-spider (ai-factory.yml):
-# plain opencode CLI + headless Chrome CDP, no GitHub App/OIDC exchange.
+# Runs AUTOMATICALLY every 3 hours (empty input = next unmodernized ASIDE
+# screen top-to-bottom); can also be triggered manually with an explicit
+# screen/model. Pattern borrowed from sebiboga/AI-Factory-job-seeker-ro-spider
+# (ai-factory.yml): plain opencode CLI + headless Chrome CDP, no App/OIDC.
 
 on:
   workflow_dispatch:
@@ -17,8 +17,9 @@ on:
         description: 'opencode model (provider/model)'
         required: false
         default: 'opencode/big-pickle'
-  # schedule:
-  #   - cron: "0 4 * * *"   # optional: one screen per day, uncomment to enable
+  schedule:
+    # every 3 hours; minute offset avoids the fix-bug pair (:00/:30 every 2h)
+    - cron: "15 */3 * * *"
 
 concurrency:
   # per-screen group: parallel runs of DIFFERENT screens proceed simultaneously,
