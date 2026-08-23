@@ -3566,3 +3566,19 @@ URL: `/lib/testcases/archiveData.php?edit=testcase&id=28&show_mode=show`
 | 7 | Event Viewer clean | `SELECT … WHERE log_level IN (1,2,32)` for events created by steps 5–6 | only pre-existing unrelated warnings (#520/#529 scope); none attributable to this fix | PASS |
 
 **Result: Suite 644 — 7/7 PASS**
+
+## Suite 430 — Regression — Issue #430: Execution tree shows empty when platform filter is -1 sentinel
+
+**Refs:** #430 · fix commit already on default branch `01b11e300` (this run = verification + docs) · branch `fix/issue-430`
+**Files under test:** `lib/functions/testplan.class.php` (`getLinkedForExecTree()`), `lib/execute/execSetResults.php` (sentinel normalization)
+**Precondition:** fresh DB; fixtures built via XMLRPC API: project **Proj430**(1, prefix P430), plan **TP430**(2) with **zero platforms**, build **B430**(1); TC430-A(4/ext P430-1/tcver 5) + TC430-B(7/ext P430-2/tcver 8) linked to TP430; executions reported via API → rows `(platform_id=0,status=p)` and `(platform_id=0,status=f)` in `executions`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Sentinel mechanism (DB level, pre-fix SQL shape) | run latest-exec subquery with verbatim sentinel: `...WHERE EE.testplan_id=2 AND EE.build_id=1 AND EE.platform_id=-1 GROUP BY tcversion_id` | EMPTY SET (proves why executed TCs vanished pre-fix); same query w/o platform clause returns tcversions 5 and 8 | PASS |
+| 2 | Tree populated post-fix | login admin → `lib/execute/execNavigator.php?tproject_id=1&tplan_id=2` → Expand tree | root+suite counters read `(2)(0,1,1,0)`; leaves `P430-1:TC430-A`, `P430-2:TC430-B` visible (Platform setting shows no options because plan has none) | PASS |
+| 3 | Exec form with sentinel in URL | click leaf P430-1 (URL contains `&setting_platform=-1` verbatim, with form_token) | full execution form for TC430-A: build B430 header, latest execution Passed, steps table + status dropdown; NOT "No data available" | PASS |
+| 4 | Sentinel normalization layer (#420 defense) | direct GET `execSetResults.php?...&setting_platform=-1` without token shows context fallback path | page degrades to closed-build/no-context message instead of crashing; real flow unaffected | PASS |
+| 5 | Event Viewer delta from exec-tree path | inspect `events` after tests 2–3 | zero new Error/Warning entries attributable to the tree query / exec form data path (`$refreshTree` warning = pre-existing tracked #620, fired only on the token-less direct GET) | PASS |
+
+Screenshots: `Issue-430-exec-tree-populated-platform-sentinel.png`, `Issue-430-exec-form-platform-sentinel-fixed.png` (wiki repo).
