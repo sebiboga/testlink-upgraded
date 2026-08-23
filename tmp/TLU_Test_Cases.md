@@ -3535,3 +3535,12 @@ URL pattern: `/lib/results/testAutomationSpec.php?tplan_id=<p>&tproject_id=<j>&f
 **Note:** an isolated stale-opcode race was observed once during development (E_WARNING event logged by
 the very first request racing the file edit); a clean request minutes later produced none — not reproducible,
 not a defect of the fix.
+
+### Suite 643 addendum — code-review fixes re-verified (commit 9a2fd900a)
+| # | Test | Expected | Result |
+|---|------|----------|--------|
+| R1 | `it.json` ntcv.* parity | 18/18 keys present; parity assert across ALL **10** bundles passes | PASS |
+| R2 | Active-only plan picker (legacy `getAccessibleTestPlans` default) | inactive Plan Alpha hidden while active=0; shown after activation | PASS |
+| R3 | BAD_TPLAN fallback | API error_code BAD_TPLAN → screen resets tplan_id=0 and renders picker instead of dead end | PASS |
+| R4 | No-context bootstrap | URL without params auto-picks first accessible project (`/api/projects/`) like planUpdateTC | PASS |
+| R5 | Stale-response guard + NaN parse guards + single-escape error path | JS syntax OK (node Function parse); rapid switches drop out-of-order responses | PASS |
