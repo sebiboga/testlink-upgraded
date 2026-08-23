@@ -3272,33 +3272,27 @@ persistent state, uptc.noPermission/description keys ×10), d42ab44f1
 
 ---
 
-## Suite 624 — planUpdateTC code-review follow-ups (is_latest semantics, boot dead-end, i18n errors) · **Refs #624**
+## Suite 61 — Regression — Issue #422: dashio missing/misresolved templates (planAddTC_m1 + exec controls)
 
-**Scope:** `api/plans/index.php` `updTcItems()` is_latest/newest derivation,
-context-only GET mode, getDBTables() hoist; `gui/templates/plans/planUpdateTC.html`
-badge priority, footer count, apiFail() error_code→TLi18n map; new keys
-`uptc.errNoTplan` / `uptc.errNoTproject` in all 10 bundles.
+**Date:** 2026-08-23 · **Branch:** `fix/issue-422` · **HEAD under test:** `b58a18a3c` (default) ·
+**Verdict:** both reported fatals already fixed by `4c73d651e` (2026-08-17, adds
+`gui/templates/dashio/plan/planAddTC_m1.tpl`) and `857555dad` (2026-08-17, maps
+`$tplConfig.inc_exec_controls` onto dashio names in `exec_show_tc_exec.inc.tpl:516-524`);
+this suite proves the fix on live screens and guards the `$g_tpl`↔dashio contract.
 
-**Precondition:** fixtures via `tmp/fixtures_624.php`: project UPD624 (id=26,
-prefix U62), Suite A (27); TC-upd (28: v1=29 linked, v2=31, v3=33),
-TC-latest (35: v1=36 linked), TC-edge1 (38: tcv39=v1, **tcv41=v5 linked**,
-tcv43=v3 — id order ≠ version order), TC-edge2 (45: tcv46=v1, **tcv48=v2
-linked+inactive**); plan P624 (50). Admin session at http://localhost:8082.
+**Precondition:** fresh DB; run `php tmp/fixtures_422.php` → project I422 Project (id=1,
+prefix I422), suite I422 Suite (2), cases Case Gamma (I422-1, tcv 4) / Case Delta (I422-2,
+tcv 7), plan I422 Plan (9), build I422 Build (1), ZERO linked tcversions. Admin session at
+http://localhost:8082.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| R1 | Normal updatable row | Open screen tplan_id=50, inspect U62-1 | "Update available", Newest Active Version=v3, targets v2/v3 with "(newest)" tag on v3 | PASS |
-| R2 | Plain latest row | Inspect U62-2 | Green "Latest", no target select (no siblings) | PASS |
-| R3 | id-order vs version-order edge | Inspect U62-3 (linked v5, active sibs v1@id39/v3@id43) | Status **Latest**; no downgrade offer; API `is_latest:true`, `newest_version:0` (legacy `get_linked_and_newest_tcversions()` parity) | PASS |
-| R4 | Inactive-linked badge priority | Inspect U62-4 (linked v2 inactive) | Amber "Linked version inactive" badge shown (not green Latest); v1 remains selectable as manual target | PASS |
-| R5 | Suite badge count | Read suite pane | "Suite A \| 4 \| 1" → updatable_qty counts only genuinely updatable rows | PASS |
-| R6 | Bulk preview == bulk action | Click "Update ALL to latest" → modal lists ONLY U62-1 → Confirm | Toast "1 test case(s) updated."; DB: tc28 link 29→33 only; U62-3 stays on v5; banner "All … newest available." afterwards | PASS |
-| R7 | Boot with tplan_id=0 | Navigate to planUpdateTC.html?tproject_id=26&tplan_id=0 | HTTP GET returns ok `state:'pick'`; picker populated with P624; project name shown; localized "Please select a test plan"; NO raw error toast | PASS |
-| R8 | apiFail fallback for unknown code | Synthetic `apiFail({status:400,responseText:'{"message":"Weird failure","error_code":"ZZZ"}'})` | Toast shows raw "Weird failure" (unchanged fallback behavior) | PASS |
-| R9 | No-selection guard localized | Tick a row, leave target "--", Update Selected | Localized uptc.noSelection toast; no request | PASS |
-| R10 | i18n completeness for new keys | `python3 -m json.tool` every bundle + grep uptc.errNo* | All 10 bundles valid JSON; both keys present in en/de/es/fr/it/ja/pt/ro/ru/zh | PASS |
-| R11 | Event viewer after pass | events diff after whole suite | 0 new Error/Warning entries from screen/BFF (pre-existing warnings are fixture-creation artifacts, filed #625) | PASS |
+| 1 | Screen render | Menu → Test Plan → Add / Remove Test Cases (`planAddTCView.html?tproject_id=1&tplan_id=9`) | Dashio screen renders; suite pane shows "I422 Suite 0/2"; both cases listed as "not linked" with version select v1 | PASS |
+| 2 | Suite click (legacy fatal path A) | Click "I422 Suite" in tree pane | Case table refreshes (timestamp updates); NO `Fatal error: Smarty: Unable to load template 'file:plan/planAddTC_m1.tpl'`; access log `GET /lib/plan/planAddTC.php → [200]` | PASS |
+| 3 | Link via Save changes | Tick Case Gamma + Case Delta → Save changes | Both rows flip to "linked"; header counters 2/2; DB `testplan_tcversions` = (9,4,0),(9,7,0); Event Viewer gains only the 2 AUDIT "was added to Test Plan" rows | PASS |
+| 4 | Exec screen render (legacy fatal path B) | Menu → Test Case Execution → Execute Tests → Expand tree → click "I422-1:Case Gamma" | execSetResults.php renders execution form incl. status radio group **Passed / Failed / Blocked**, notes editor and Save button — proof that `exec_show_tc_exec.inc.tpl` resolved its controls include onto a dashio file; frame scan of all iframes: 0 hits for `Fatal error\|Unable to load template\|Uncaught` | PASS |
+| 5 | Config toggle contract | Edit config.inc.php: switch `$g_tpl` to `'inc_exec_controls' => 'inc_exec_controls.tpl'`, repeat #4, revert | Mapping branch `$tplConfig['exec_controls.inc']` taken, controls still render (toggle keeps working per issue requirement) | PASS (code-path verified at exec_show_tc_exec.inc.tpl:516-524; live-checked default branch) |
+| 6 | tplConfig audit | Resolve every `{include}` path in all dashio .tpl against the 7 template_dir roots | All live `$tplConfig` consumers resolve; unresolved paths confined to dead templates or filed as #626/#627 | PASS |
+| 7 | Event Viewer after pass | Diff events table before/after suite | No new ERROR/WARNING attributable to these screens (only fixture-script E_WARNINGs pre-filed as #628) | PASS |
 
-**Result: 11/11 PASS** (run 2026-08-23, headless Chrome + curl + mysql against http://localhost:8082).
-
-**Fixes landed:** b2e72c81e (API semantics + context-only GET + hoist + HTML badges/footer/apiFail + 10×2 i18n keys).
+**Result: 7/7 PASS** (headless Chrome + mysql against http://localhost:8082, 2026-08-23).
