@@ -1862,7 +1862,8 @@ function getActions(&$gui,$baseURL) {
     // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
     $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
     $actions->mileView = "$pp/planMilestonesView.php?{$ctx}";
-    $actions->platformAssign = "$bb/platforms/platformsAssign.php?{$ctx}";
+    // Assign Platforms to Test Plan modernized screen (Dashio standalone page) - Refs #603
+    $actions->platformAssign = "/gui/templates/platforms/platformsAssign.html?{$ctx}";
     $actions->milestonesView = "$bb/plan/planMilestonesView.php?{$ctx}";
     $actions->testcase_assignments =  
       "$bb/testcases/tcAssignedToUser.php?{$ctx}";
