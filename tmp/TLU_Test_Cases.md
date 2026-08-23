@@ -3467,3 +3467,48 @@ control plan `Plan634WithBuild` id=9003 with build 7001. Both plans have zero li
 | 6 | Event Viewer clean for this run | `SELECT … FROM events` joined to my session after full matrix | Zero new Error/Warning entries from this session | PASS |
 | 7 | Known independent failures not regressed | topLevelSuitesBarChart × both plans; charts × plan 9003 | Fails identically before/after via pre-existing tracked bugs #580/#586 (build-set independent) — no new failure mode introduced | PASS |
 
+
+## Suite 640 — projectView (Test Project Management) · **Refs #640**
+
+**Scope:** modernized screen `gui/templates/projectsView.html` + REST BFF
+`api/projects/index.php` (`GET list/one`, `POST create`, `PUT update`,
+`DELETE delete`; legacy parity: `lib/project/projectView.php` +
+`lib/project/projectEdit.php` doCreate/doUpdate/doDelete, right
+`mgt_modify_product`, crossChecks dup name/prefix, cascade delete,
+issue/code tracker link-unlink via managers, AUDIT events).
+
+**Precondition:** fresh DB; admin session at http://localhost:8082
+(curl login POST /login.php tl_login/tl_password). Low-rights user `peon`
+(role_id=3 "no rights") for the permission path. Issue tracker fixture
+`Redmine Test` (type 15 REDMINE rest).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen render (empty state) | Navigate to `/gui/templates/projectsView.html` as admin | Header "Test Project Management", table with empty state "No projects found" / hint | PASS |
+| 2 | Create modal fields | Click "Create Test Project" | Modal with Basic Info (name*, prefix*, description), Features checkboxes, Issue/Code tracker selects + Enabled flags, Active/Public defaults checked | PASS |
+| 3 | Required-field validation | Submit with empty name+prefix | Localized alert "Project name and prefix are required."; modal stays open | PASS |
+| 4 | Create OK | Fill name=Alpha Project prefix=ALP, optReq+optPriority on, Save | Row `#id` renders with name, ALP, none/none badges, Active+Public badges; DB rows in nodes_hierarchy+testprojects with options blob requirementsEnabled=1,testPriorityEnabled=1 | PASS |
+| 5 | Edit prefill + save | Edit Alpha Project, change description, re-check Active, save | Modal prefilled from row data incl. feature flags & active=false after earlier toggle; after save GET shows updated description + isActive=1 | PASS |
+| 6 | Duplicate name rejected | POST create name=Alpha Project prefix=XYZ | HTTP 400 legacy message "There's already Test Project named Alpha Project." | PASS |
+| 7 | Duplicate prefix rejected | POST create name=Other prefix=ALP | HTTP 400 legacy message "Test Case ID prefix ALP already exists" | PASS |
+| 8 | Active toggle (legacy click-to-change parity) | Row button Deactivate → then Activate | Status badge flips Active↔Inactive without reload; PUT body `{isActive}` partial update keeps all other fields | PASS |
+| 9 | Tracker link via managers | Insert issuetrackers row 'Redmine Test' (type 15), edit project, select it + Enabled, save | testproject_issuetracker row written by tlIssueTracker::link(), issue_tracker_enabled=1, badge shows "Redmine Test" enabled styling | PASS |
+| 10 | Search filter | Type "alpha" into search box | Only matching row visible; clearing restores all rows | PASS |
+| 11 | XSS escaping | Create project named `<script>alert(1)</script>X` | Name renders as literal text; no `<script>` element injected into DOM (esc() helper) | PASS |
+| 12 | Delete confirm text warns data loss | Click Delete on XSS project | Confirm dialog states ALL test plans/cases/executions permanently deleted, cannot be undone | PASS |
+| 13 | Delete OK = real cascade | Accept confirm | Project removed from list AND nodes_hierarchy/testprojects rows gone (legacy tprojectMgr->delete() cascade, not soft-deactivate); audit_testproject_deleted event logged | PASS |
+| 14 | Delete cancel keeps project | Dismiss confirm | Row remains, no DELETE request fired | PASS |
+| 15 | Delete of missing id | DELETE `/api/projects/999999` | HTTP 404 JSON "Project not found" | PASS |
+| 16 | Permission denied (BFF) | Login as `peon` (role "no rights"), GET+POST BFF | HTTP 403 JSON `{"status":"error","message":"No permission"}` | PASS |
+| 17 | Unauthenticated access blocked | BFF call without session cookie | HTTP 401 "Not authenticated" | PASS |
+| 18 | Modal close paths | Cancel button; backdrop click | Both close the modal and reset currentProjectId | PASS |
+| 19 | i18n completeness | All `proj.*`/`header.projects*` keys present in en,de,es,fr,it,ja,pt,ro,ru,zh; new toggle keys everywhere; bundles valid JSON | 0 missing key/bundle pairs; `python3 -m json.tool` clean ×10 | PASS |
+| 20 | Aside link switched | getActions() in lib/functions/common.php serves `$actions->projectView` | href = `/gui/templates/projectsView.html?tproject_id=…&tplan_id=…` (no legacy lib/project/projectView.php link left in menu) | PASS |
+| 21 | Event viewer after pass | events diff after whole suite | 24 events, all log_level 16 (AUDIT) — zero ERROR/WARNING from screen or BFF | PASS |
+
+**Result: 21/21 PASS** (run 2026-08-23, headless Chrome + curl + mysql against http://localhost:8082).
+
+**Fixes landed during this suite's development:** ff4937525 (BFF legacy parity:
+real cascade delete replacing soft-deactivate, crossChecks dup checks,
+tracker managers, AUDIT events), 74d2fe9ae (XSS-escaped rendering, active
+toggle, corrected delete-confirm i18n, aside switch).
