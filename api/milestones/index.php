@@ -87,7 +87,7 @@ function canManage(&$user, &$db, $tprojectId) {
 
 function deny() {
     http_response_code(403);
-    out(['status' => 'error', 'message' => 'Insufficient rights (testplan_planning required)']);
+    out(['status' => 'error', 'message' => 'Insufficient rights']);
 }
 
 /** Validate ISO date (YYYY-MM-DD); empty allowed only when $required=false. */
