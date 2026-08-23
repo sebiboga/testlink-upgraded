@@ -3149,3 +3149,49 @@ null property / null array access — unrelated to the platform sentinel). The
 SQL syntax error event at 07:09 was self-inflicted by an incomplete hand-made
 fixture (testsuites row missing), documented on the issue and not reproducible
 with UI-created data.
+
+## 61. Regression — Issue #614: E_WARNING trio when rendering an execution form (round_enabled / null property / null array offset) (Suite ID: 61)
+
+**Area:** Test Case Execution → Execute Tests (`lib/execute/execSetResults.php`)
+· **Refs #614 · Fixes verified on branch `fix/issue-614`**
+
+**Precondition:** project + plan + linked cases + build. Fixtures via
+`php tmp/fixtures_614.php` (idempotent CLI script, committed with the fix):
+project "I614 Project" (prefix I614) → suite "I614 Suite" → cases
+"Case Alpha"/"Case Beta" (tcversions 11/14) → plan "I614 Plan" (id 16,
+`testplan_tcversions` links on platform_id=0) → build "I614 Build" (id 1).
+Project options must include `automationEnabled` etc. (script sets all four;
+an empty options object produces unrelated `$tprojOpt->automationEnabled`
+warnings — fixture artifact, not a product bug).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state | (pre-fix) load exec form directly or via tree | Event Viewer gains: `Undefined array key "round_enabled"` (compiled execSetResults.tpl.php:182), `Attempt to read property "value" on null` (same line — same expression), `Trying to access array offset on null` (compiled exec_show_tc_exec.inc.tpl.php:244) | PASS (reproduced, events 23–25) |
+| 2 | round_enabled fixed | Clear events → reload execution form | No `Undefined array key "round_enabled"`, no `property "value" on null`; compiled tpl reads `$gui->round_enabled` | PASS |
+| 3 | other_execs guard (first run) | Open a never-executed case (Case Beta) | No `Trying to access array offset on null` from exec_show_tc_exec.inc.tpl; page renders "Not Tested Yet" block normally | PASS |
+| 4 | Real UI flow clean | execNavigator → expand tree → click case leaf (form_token flow) | Zero new Error/Warning events during render | PASS |
+| 5 | Save still works (post-save path) | Click status icon span `fastExecf_11` ("Click to set to failed") | Execution saved (executions row status 'f', audit_exec_saved event), page re-renders through patched `{if $gui->other_execs && …}` branch with history table | PASS |
+| 6 | History rendering intact | Observe post-save pane + click "Show complete execution history" toggle | Latest-execution header + `table.exec_history` rows present; no new warnings | PASS |
+| 7 | Move-to-next intact | Click "Move to Next Test Case" | Navigates to next case without saving (legacy behavior preserved); no new warnings | PASS |
+
+**Root cause / fix note:** (1) `execSetResults.tpl:141` read top-level
+`$round_enabled`, but PHP only ever assigns `$gui->round_enabled = 1`
+(`initializeGui()`, execSetResults.php:1479) — Smarty compiled it to
+`tpl_vars['round_enabled']->value`, producing BOTH the undefined-key and the
+null-property warning from one expression. Fixed to `{if $gui->round_enabled}`.
+(2) `exec_show_tc_exec.inc.tpl:186` evaluated `$gui->other_execs.$tcversion_id`
+while `$gui->other_execs` is explicitly initialized to null
+(execSetResults.php:408) and stays null whenever history is off / no prior
+execution exists (`getOtherExecutions()` returns null) → array-offset-on-null.
+Fixed with a short-circuit null guard:
+`{if $gui->other_execs && $gui->other_execs.$tcversion_id}`.
+
+**Result: 7/7 PASS** (run 2026-08-23, headless Chrome + MariaDB against
+http://localhost:8082, branch `fix/issue-614` @ `9bf22dd20`).
+
+**Bugs discovered during this suite (filed separately, NOT part of #614):**
+- #620 — E_WARNING `Undefined property: stdClass::$refreshTree` at
+  execSetResults.php:2338 when the form is reached without prior navigator
+  load (direct URL/bookmark); not reachable via standard navigation.
+- #621 — i18n notices `file_upload_step_exec_ok` / `file_upload_step_exec_ko`
+  not localized for en_GB on step-execution save.
