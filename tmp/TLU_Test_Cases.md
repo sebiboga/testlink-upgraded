@@ -3383,3 +3383,41 @@ fix verified at commit of branch `fix/issue-628`).
 | 6 | R4: Event Viewer after steps 1–4 | no NEW Error/Warning from post-fix valid-input requests (only entries from pre-fix worktree repro + invalid-id probe → **#635**) | ✅ PASS |
 
 **Result: PASS 5/6 — primary symptom FIXED and verified; step 5 is a separate latent defect (zero-build plans), tracked as #634, deliberately not fixed under this issue.** Cosmetic follow-up from issue body (dedicated `report_has_no_l2_tsuites` locale string) deferred by design. Verification run on branch `fix/issue-425`; fix itself landed in `764d625e1`.
+
+## Suite 636 — pluginView (Plugin Management) · **Refs #636**
+
+**Scope:** modernized screen `gui/templates/plugins/pluginView.html` + REST BFF
+`api/plugins/index.php` (`GET ?action=list`, `POST operation=install`,
+`POST operation=uninstall`; legacy parity: `lib/plugins/pluginView.php`
+`plugin_register+plugin_init+plugin_install` / `plugin_uninstall`, right
+`mgt_plugins`).
+
+**Precondition:** fresh DB; repo ships one plugin dir `plugins/TLTest`
+("Test Plugin" v1.0). Admin session at http://localhost:8082. Low-rights user
+`plugtest` (role_id=4 test designer, no `mgt_plugins`) for the permission path.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen render (empty state) | Menu → System → "Installed Plugins" link (`pluginView`) | Dashio header "Plugin Management", Installed table empty with hint "No plugins installed.", Available table lists TLTest / Test Plugin / 1.0 with Install button, footer "Generated on …" | PASS |
+| 2 | Install confirm modal | Click Install on TLTest | Modal "Install Plugin" + text 'Do you really want to install the plugin "TLTest"?' | PASS |
+| 3 | Cancel install | Press Cancel in modal | Modal closes; TLTest stays in Available only | PASS |
+| 4 | Install OK | Re-open modal, press OK | Success feedback 'Plugin "TLTest" has been installed.'; row moves to Installed table with Enabled badge + Uninstall button; Available shows empty hint | PASS |
+| 5 | DB state after install | `SELECT * FROM plugins` | One row basename=TLTest enabled=1 | PASS |
+| 6 | Uninstall confirm modal | Click Uninstall on installed TLTest | Modal "Uninstall Plugin" + text warning that all data will be removed | PASS |
+| 7 | Uninstall OK | Press OK | Feedback 'Plugin "TLTest" has been uninstalled.'; TLTest back under Available; plugins table empty | PASS |
+| 8 | Refresh button | Press Refresh in toolbar | Both tables reloaded from BFF without page reload | PASS |
+| 9 | BFF routing regression | POST `/api/plugins/index.php` body `{operation:…}` (no `?action=`) | 200 OK — operation inferred from JSON body (was 405 before fix 36d421e55) | PASS |
+| 10 | Uninstall of unknown id | POST uninstall pluginId=9999 | HTTP 404 JSON error "Plugin not found" (no partial state change) | PASS |
+| 11 | Permission denied (BFF) | Login as `plugtest` (test designer), GET/POST BFF | HTTP 403 JSON `{"status":"error","message":"No permission"}` | PASS |
+| 12 | Permission denied (screen) | `plugtest` opens the screen URL | Localized persistent message "You do not have permission to manage plugins."; table sections hidden | PASS |
+| 13 | i18n locale switcher | Reload screen with `?locale=ro_RO` | Header "Gestionare module", sections "Module instalate"/"Module disponibile", buttons "Instalează"/"Dezinstalează", hint "Nu există module instalate." | PASS |
+| 14 | i18n completeness | All `plugin.*` keys referenced by HTML present in en,ro,de,es,fr,it,pt,ru,ja,zh bundles; all bundles valid JSON | 0 missing key/bundle pairs; `python3 -m json.tool` clean on 10 bundles | PASS |
+| 15 | Aside link switched | Load index.php as admin; inspect asidebar frame link #pluginView | href = `/gui/templates/plugins/pluginView.html?tproject_id=…&tplan_id=…` (no legacy lib/plugins/pluginView.php anywhere in menu) | PASS |
+| 16 | Event viewer after pass | events diff after whole suite | Only audit-level login records (incl. expected audit_login_failed from the deliberate wrong-password step); zero ERROR/WARNING entries from this screen/BFF | PASS |
+
+**Result: 16/16 PASS** (run 2026-08-23, headless Chrome + mysql against http://localhost:8082).
+
+**Fixes landed during testing:** 36d421e55 (POST operation inferred from JSON
+body — bare POST returned 405), 06c16aa22 (prime `$g_plugin_cache` before
+`plugin_uninstall()` — legacy fatal fired AFTER the DELETE, producing a 500 +
+silently deleted registration).
