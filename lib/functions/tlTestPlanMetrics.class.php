@@ -283,9 +283,13 @@ class tlTestPlanMetrics extends testplan
   function getExecCountersByBuildExecStatus($id, $filters=null, $opt=null) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);
-    list($my,$builds,$sqlStm) = 
-      $this->helperGetExecCounters($safe_id, $filters, $opt);
-    
+    $helperSet = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
+
     $fields = "";    
     if( $my['opt']['groupByPlatform'] ) {
       $fields = ",platform_id";
@@ -559,8 +563,12 @@ class tlTestPlanMetrics extends testplan
   function getExecCountersByKeywordExecStatus($id, $filters=null, $opt=null) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);
-    list($my,$builds,$sqlStm) = 
-      $this->helperGetExecCounters($safe_id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
     
     
     // may be too brute force but ...
@@ -755,7 +763,12 @@ class tlTestPlanMetrics extends testplan
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);  
-    list($my,$builds,$sqlStm,$union,$platformSet) = $this->helperBuildSQLExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperBuildSQLExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm,$union,$platformSet) = $helperSet;
 
     $add2key = '';
     $addOnWhere = '';
@@ -815,7 +828,12 @@ class tlTestPlanMetrics extends testplan
   function getExecCountersByPriorityExecStatus($id, $filters=null, $opt=null) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
   
     // Due to PLATFORMS we will have MULTIPLIER EFFECT
     $fields = "";    
@@ -1021,7 +1039,12 @@ class tlTestPlanMetrics extends testplan
   function getExecCountersByExecStatus($id, $filters=null, $opt=null) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);  
-    list($my,$builds,$sqlStm,$union,$platformSet) = $this->helperBuildSQLExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperBuildSQLExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm,$union,$platformSet) = $helperSet;
 
     // issue #559: $builds is the stdClass built by helperGetExecCounters(),
     // so is_array() was always false and this method always returned null
@@ -1068,7 +1091,12 @@ class tlTestPlanMetrics extends testplan
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($safe_id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
 
     // Last Executions By Build and Platform (LEBBP)
     // Please remember that Platforms (when exists) has Multiplier effect on test cases
@@ -1341,7 +1369,9 @@ class tlTestPlanMetrics extends testplan
     
     // How to return things
     if($returnArray) {
-      return array($renderObj,$metrics['staircase']);
+      // issue #634: $metrics is null on a plan without builds =>
+      // reading the offset raised an E_WARNING, return null instead
+      return array($renderObj, is_null($metrics) ? null : $metrics['staircase']);
     } else {
       unset($metrics);
       return $renderObj;
@@ -1540,7 +1570,12 @@ class tlTestPlanMetrics extends testplan
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $safe_id = intval($id);
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
 
     $fields = "";    
     if( $my['opt']['groupByPlatform'] ) {
@@ -1801,9 +1836,14 @@ class tlTestPlanMetrics extends testplan
     }
     
     // =========================================================
-    // Emergency Exit !!!
+    // issue #634: a test plan with ZERO builds has legitimately
+    // nothing to count => signal "no data" to the caller by
+    // returning null instead of throwing an uncaught exception
+    // that rendered every report screen as HTTP 500 / blank page.
+    // Callers guard this null and their own render wrappers
+    // already implement the graceful no-data branch.
     if ( is_null($bi->idSet) ) {
-        throw new Exception(__METHOD__ . " - Can not work with empty build set");
+        return null;
     }
     // =========================================================
     
@@ -1935,14 +1975,12 @@ class tlTestPlanMetrics extends testplan
   function helperBuildSQLExecCounters($id, $filters=null, $opt=null)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-    try
-    {
-      list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
-    }
-    catch(Exception $e)
-    {
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
       return null;
     }
+    list($my,$builds,$sqlStm) = $helperSet;
 
 
     $safe_id = intval($id);  
@@ -2071,7 +2109,12 @@ class tlTestPlanMetrics extends testplan
     $my['opt'] = array_merge($my['opt'], (array)$opt);
 
 
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
 
     $safe_id = intval($id);  
 
@@ -2219,7 +2262,12 @@ class tlTestPlanMetrics extends testplan
   function getExecutionsByStatus($id,$status,$filters=null,$opt=null)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
     
     // particular options
     $options = array('output' => 'map', 
@@ -2335,7 +2383,12 @@ class tlTestPlanMetrics extends testplan
   function getNotRunWithTesterAssigned($id,$filters=null,$opt=null)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
 
     
     // particular options
@@ -2472,7 +2525,12 @@ class tlTestPlanMetrics extends testplan
   function getNotRunWOTesterAssigned($id,$buildSet=null,$filters=null,$opt=null)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
     list($safe_id,$buildsCfg,$sqlLEX) = $this->helperGetHits($id,null,$buildSet,
                                                              array('ignorePlatform' => true));
     // particular options
@@ -3285,7 +3343,12 @@ class tlTestPlanMetrics extends testplan
     $my['opt'] = array_merge($my['opt'], (array)$opt);
 
 
-    list($my,$builds,$sqlStm) = $this->helperGetExecCounters($id, $filters, $opt);
+    $helperSet = $this->helperGetExecCounters($id, $filters, $opt);
+    if( is_null($helperSet) ) {
+      // issue #634: plan without builds => no metrics to compute
+      return null;
+    }
+    list($my,$builds,$sqlStm) = $helperSet;
 
     $safe_id = intval($id);  
 
