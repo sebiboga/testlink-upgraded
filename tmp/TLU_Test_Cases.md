@@ -3195,3 +3195,37 @@ http://localhost:8082, branch `fix/issue-614` @ `9bf22dd20`).
   load (direct URL/bookmark); not reachable via standard navigation.
 - #621 — i18n notices `file_upload_step_exec_ok` / `file_upload_step_exec_ko`
   not localized for en_GB on step-execution save.
+
+## 62. Regression — Issue #421: buildView.php fatal `build_mgr` + E_WARNING on empty plan (Suite ID: 62)
+
+**Area:** Test Plan → Builds/Releases (`lib/plan/buildView.php`,
+`lib/plan/buildEdit.php`, `gui/templates/dashio/plan/buildView.tpl`) · **Refs #421**
+
+**Precondition:** fresh DB; fixtures created via UI: project "Bug421 Project"
+(id=1, prefix B421), plans "Bug421 Test Plan" (id=2, gets 1 build) and
+"Empty Plan" (id=3, zero builds). Event-table baseline recorded before each
+assertion (`SELECT MAX(id) FROM events`).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | No fatal on view | Open `lib/plan/buildView.php?tproject_id=1&tplan_id=2` | Page renders "Build management - Test Plan : Bug421 Test Plan"; NO `Class "build_mgr" not found` fatal (fixed by commit `4c73d651e`: line 41 uses real class `build`) | PASS |
+| 2 | Empty-state render | Same URL while zero builds existed (pre-fix state) | Empty-state message + Create button shown; pre-fix this fired `E_WARNING foreach() ... null given - buildView.php Line 90` (event id=12 proves symptom) | PASS |
+| 3 | R2 create build | Create → Title `1.0` → Save | Build persisted; listed in buildView table (Title/Description/Release date/Active/Open) | PASS |
+| 4 | R1 empty-plan clean after fix (`6ac0e88c6`) | Open `buildView.php?...&tplan_id=3` (zero builds); diff events vs baseline 13 | Renders "No builds are defined within this Test Plan!"; **zero** events from buildView.php — the only new events (14–30) came from planView.tpl/planEdit.tpl (different screens, filed as #622) | PASS |
+| 5 | R3 populated view | Re-open buildView for tplan_id=2 with ≥1 build | Table lists build `1.0`; no warnings (zero events > 30 after final loads) | PASS |
+| 6 | R4 edit link | Click title link of build `1.0` | `buildEdit.php?do_action=edit...&build_id=1` opens prefilled (Title=1.0, Active+Open checked), Save/Cancel present | PASS |
+| 7 | R5 Event Viewer | Query `events` for id > 30 after whole pass | No rows at all — Builds screens produce no Error/Warning post-fix | PASS |
+| 8 | Syntax gate | `php -l lib/plan/buildView.php` | `No syntax errors detected` | PASS |
+
+**Root cause / fix note:** original fatal was fixed upstream by `4c73d651e`
+(`new build_mgr` → `new build` at `lib/plan/buildView.php:41`; class declared
+`lib/functions/build.class.php:26`). This run closed the residual gap:
+`get_builds()` returns NULL for a plan with zero builds
+(`lib/functions/testplan.class.php:2250` → `fetchRowsIntoMap` no-rows) and
+line 90 iterated it unguarded. Fix `6ac0e88c6`:
+`foreach(($gui->buildSet ?? []) as $elemBuild)`.
+
+**Result: 8/8 PASS** (run 2026-08-23, headless Chrome against http://localhost:8082).
+
+**Bugs discovered during this suite (filed separately, NOT part of #421):**
+- #622 — planView.tpl / planEdit.tpl repeated E_WARNINGs on Test Plan Management screens.
