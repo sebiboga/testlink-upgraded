@@ -3229,3 +3229,43 @@ line 90 iterated it unguarded. Fix `6ac0e88c6`:
 
 **Bugs discovered during this suite (filed separately, NOT part of #421):**
 - #622 — planView.tpl / planEdit.tpl repeated E_WARNINGs on Test Plan Management screens.
+
+---
+
+## Suite 619 — planUpdateTC (Update Linked Test Case Versions) · **Refs #619**
+
+**Scope:** modernized screen `gui/templates/plans/planUpdateTC.html` + REST BFF
+`api/plans/index.php` routes `GET /update-linked`, `POST /update-linked/selected`,
+`POST /update-linked/latest` (legacy parity: `lib/plan/planUpdateTC.php`
+`doUpdate()` 3-table remap + `doBulkUpdateToLatest()`).
+
+**Precondition:** fixtures via `tmp/fixtures_619.php`: project UPD619 (id=34,
+prefix UPD), suites Suite A (35) / Suite B (36); TC-one (37: v1=38, v2=40),
+TC-two (42: v1=43, v2=45, v3=47 — all active), TC-three (49: v1=50); plan PlanU
+(52) with build B1, all 3 TCs linked; empty plan PlanE (53). Admin session at
+http://localhost:8082. Low-rights user `uptc_no` (role_id=3) for permission path.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen render | Menu → Test Plan Management → "Update Linked Test Case Versions" (tplan_id=52) | Dashio shell, header w/ project+plan context, suite pane (Suite A=2, Suite B=1 badges), table with columns TC / Linked Version / Newest Active Version / Target Version / Status / Executed; footer count "3 test case(s)" across suites | PASS |
+| 2 | Suite switching | Click Suite B in left pane | Table shows only UPD-3 (TC-three, version 1, Latest badge) | PASS |
+| 3 | Check updatable | Press "check updatable" in suite pane toolbar | Non-latest rows auto-ticked and their target selects prefilled with newest active version | PASS |
+| 4 | Update Selected → chosen non-newest target | Tick UPD-2 (linked v3), pick target "version 2", Update Selected → modal lists "UPD-2: version 3 → version 2" → Confirm | Toast "1 test case(s) updated."; DB: testplan_tcversions link moved 47→45 | PASS |
+| 5 | 3-table remap (executions follow) | Pre-seed execution row on linked tcv of UPD-1 (tcv 40); update UPD-1 linked v2 → target v1 via modal | executions row remapped tcv 40→38 AND testplan_tcversions 40→38 (same pattern covers cfield_execution_values) | PASS |
+| 6 | Update ALL to latest | Press "Update ALL to latest version" → confirm modal lists every non-latest pair | Toast reports updated count; all rows show Latest badge; banner "All linked test case versions are already the newest available." afterwards; DB links = MAX(active sibling id) per case | PASS |
+| 7 | No-selection guard | Press "Update Selected" with no ticks/targets | Error toast "No rows selected or no target version chosen."; no request sent | PASS |
+| 8 | Cancel confirm modal | Open Update Selected modal → Cancel | Modal closes without any change (links unchanged) | PASS |
+| 9 | Empty plan state | Open screen with tplan_id=53 (PlanE, zero links) | State box "Test plan has no linked test cases.", work area hidden | PASS |
+| 10 | Permission denied (BFF) | Login as `uptc_no`, GET `/api/plans/index.php/update-linked?...` | HTTP 403 JSON `{"status":"error","message":"No permission"}` | PASS |
+| 11 | Permission denied (screen) | Same user opens the screen URL | Persistent localized error state "You do not have permission to use this feature." (not a transient toast) | PASS |
+| 12 | Permission denied (menu gate) | `uptc_no` loads mainPage.php | ASIDE contains zero `planUpdateTC` links (gate right `testplan_update_linked_testcase_versions`) | PASS |
+| 13 | Cross-project IDOR guard | Valid admin session: GET `/update-linked?tproject_id=1&tplan_id=52` (plan belongs to project 34) | HTTP 400 `NO_TPROJECT` "Test plan not in project"; valid pair returns 200 (added by review fix d42ab44f1) | PASS |
+| 14 | i18n completeness | Programmatic check of all `uptc.*` keys referenced in HTML against en,ro,de,es,fr,it,ja,pt,ru,zh bundles | 0 missing key/bundle pairs (verified by code-review subagent) | PASS |
+| 15 | Event viewer after pass | `SELECT ... FROM events` diff after whole suite | Only pre-existing legacy warnings from OTHER pages (planView.tpl/common.php grants, filed #624-class issues); no events attributable to this screen/BFF | PASS |
+
+**Result: 15/15 PASS** (run 2026-08-23, headless Chrome + curl against http://localhost:8082).
+
+**Fixes landed during testing:** e2cb5bcb2 (BFF SELECT missing sibling cols +
+wrong tsuite_id), eccb0a30e (legacy-parity re-link on latest rows, 403
+persistent state, uptc.noPermission/description keys ×10), d42ab44f1
+(cross-project IDOR validation, locale switcher container).
