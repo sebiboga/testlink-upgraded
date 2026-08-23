@@ -36,7 +36,12 @@ if( property_exists($args,'debug') )
 	new dBug($info);
 	die();
 }
-createChart($info,$cfg);
+if( $info->canDraw ) {
+  createChart($info,$cfg);
+}
+// issue #634: nothing to chart (e.g. test plan without builds) =>
+// do not hand empty data to pChart; emit an empty response instead
+// (charts are consumed inside <img> tags)
 
 
 /*

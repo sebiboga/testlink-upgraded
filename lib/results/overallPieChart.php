@@ -28,6 +28,12 @@ $tplan_mgr = new testplan($db);
 
 $metricsMgr = new tlTestPlanMetrics($db);
 $totals = $metricsMgr->getExecCountersByExecStatus($args->tplan_id);
+if( is_null($totals) ) {
+  // issue #634: test plan without builds => nothing to chart;
+  // emit an empty response instead of feeding null to pChart
+  // (charts are consumed inside <img> tags)
+  die();
+}
 unset($totals['total']);
 
 $values = array();

@@ -252,7 +252,10 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
   $guiObj->matrixCfg  = config_get('resultMatrixReport');
   $guiObj->buildInfoSet = $tplanMgr->get_builds($argsObj->tplan_id, testplan::ACTIVE_BUILDS,null,
                                                 array('orderBy' => $guiObj->matrixCfg->buildOrderByClause)); 
-  $guiObj->activeBuildsQty = count($guiObj->buildInfoSet);
+  // issue #634: a plan without builds returns null here =>
+  // count(null) is a TypeError on PHP 8
+  $guiObj->activeBuildsQty = is_null($guiObj->buildInfoSet) ? 
+                             0 : count($guiObj->buildInfoSet);
 
 
   // hmm need to understand if this can be removed
@@ -457,8 +460,14 @@ function setUpBuilds(&$args,&$gui)
   }
 
   $args->builds->latest = new stdClass();
-  $args->builds->latest->id = end($args->builds->idSet);
-  $args->builds->latest->name = $gui->buildInfoSet[$args->builds->latest->id]['name'];
+  if( is_null($args->builds->idSet) || is_null($gui->buildInfoSet) ) {
+    // issue #634: plan without builds => no latest build to point to
+    $args->builds->latest->id = null;
+    $args->builds->latest->name = null;
+  } else {
+    $args->builds->latest->id = end($args->builds->idSet);
+    $args->builds->latest->name = $gui->buildInfoSet[$args->builds->latest->id]['name'];
+  }
 }
 
 

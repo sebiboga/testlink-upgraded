@@ -133,6 +133,10 @@ function checkRights(&$db,&$user,$context = null)
  */
 function buildMatrix(&$guiObj,&$argsObj,$forceFormat=null) {  
   $buildIDSet = $argsObj->builds->idSet;
+  if( is_null($buildIDSet) ) {
+    // issue #634: plan without builds => iterate nothing
+    $buildIDSet = array();
+  }
   $latestBuild = $argsObj->builds->latest;
 
   $lbl = init_labels(['title_test_suite_name' => null,
@@ -325,7 +329,10 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
   $guiObj->matrixCfg  = config_get('resultMatrixReport');
   $guiObj->buildInfoSet = $tplanMgr->get_builds($argsObj->tplan_id, testplan::ACTIVE_BUILDS,null,
                                                 array('orderBy' => $guiObj->matrixCfg->buildOrderByClause)); 
-  $guiObj->activeBuildsQty = count($guiObj->buildInfoSet);
+  // issue #634: a plan without builds returns null here =>
+  // count(null) is a TypeError on PHP 8
+  $guiObj->activeBuildsQty = is_null($guiObj->buildInfoSet) ? 
+                             0 : count($guiObj->buildInfoSet);
 
 
   // hmm need to understand if this can be removed
@@ -362,6 +369,10 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
  */
 function createSpreadsheet($gui,$args,$media) {
   $buildIDSet = $args->builds->idSet;
+  if( is_null($buildIDSet) ) {
+    // issue #634: plan without builds => iterate nothing
+    $buildIDSet = array();
+  }
   $latestBuild = $args->builds->latest;
 
   $lbl = initLblSpreadsheet();
@@ -526,8 +537,14 @@ function setUpBuilds(&$args,&$gui) {
   }
 
   $args->builds->latest = new stdClass();
-  $args->builds->latest->id = end($args->builds->idSet);
-  $args->builds->latest->name = $gui->buildInfoSet[$args->builds->latest->id]['name'];
+  if( is_null($args->builds->idSet) || is_null($gui->buildInfoSet) ) {
+    // issue #634: plan without builds => no latest build to point to
+    $args->builds->latest->id = null;
+    $args->builds->latest->name = null;
+  } else {
+    $args->builds->latest->id = end($args->builds->idSet);
+    $args->builds->latest->name = $gui->buildInfoSet[$args->builds->latest->id]['name'];
+  }
 }
 
 
