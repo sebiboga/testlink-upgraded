@@ -94,7 +94,25 @@ switch ("$method $path") {
     if ($id <= 0) {
       bffFail(400, 'Invalid plugin id');
     }
-    $t_basename = plugin_uninstall($id);
+    // Legacy plugin_uninstall() reads the plugin instance from
+    // $g_plugin_cache, which in a full page render gets populated by
+    // get_all_installed_plugins()/plugin_register(). A bare BFF request has
+    // an empty cache and would fatal AFTER the plugins row was deleted.
+    // Prime the cache explicitly, then uninstall.
+    foreach (get_all_installed_plugins() as $p) {
+      if ((int)$p['id'] === $id) {
+        plugin_register($p['name'], false);
+        break;
+      }
+    }
+    try {
+      $t_basename = plugin_uninstall($id);
+    } catch (Throwable $e) {
+      bffFail(500, 'Uninstall failed: ' . $e->getMessage());
+    }
+    if ($t_basename === null || $t_basename === '') {
+      bffFail(404, 'Plugin not found');
+    }
     echo json_encode(['status' => 'ok', 'success' => true, 'message' => 'plugin_uninstalled', 'name' => (string)$t_basename]);
     exit;
 
