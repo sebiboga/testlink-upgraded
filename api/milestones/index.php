@@ -132,7 +132,8 @@ $milestoneMgr = new milestone($db);
 if ($method === 'GET' && $path === '/list') {
     $tplanId = needTplanId();
     $ctx = resolveTplan($db, $tplanId);
-    if (!canManage($user, $db, $ctx['tproject_id'])) {
+    $mayManage = canManage($user, $db, $ctx['tproject_id']);
+    if (!$mayManage) {
         deny();
     }
 
@@ -155,17 +156,14 @@ if ($method === 'GET' && $path === '/list') {
     $tprojMgr = new testproject($db);
     $tprojOpt = $tprojMgr->getOptions($ctx['tproject_id']);
     $priorityEnabled = false;
-    if (!is_null($tprojOpt) && isset($tprojOpt->options) &&
-        isset($tprojOpt->options->testPriorityEnabled)) {
-        $priorityEnabled = (bool)$tprojOpt->options->testPriorityEnabled;
-    } elseif (!is_null($tprojOpt) && isset($tprojOpt->testPriorityEnabled)) {
+    if (!is_null($tprojOpt) && isset($tprojOpt->testPriorityEnabled)) {
         $priorityEnabled = (bool)$tprojOpt->testPriorityEnabled;
     }
 
     out([
         'status' => 'ok',
         'rights' => [
-            'canManage' => canManage($user, $db, $ctx['tproject_id']),
+            'canManage' => $mayManage,
         ],
         'data' => [
             'tplan_id' => $tplanId,
@@ -194,7 +192,7 @@ if ($method === 'POST' && ($path === '/create')) {
 
     // Legacy parity: unique name inside the test plan.
     if ($milestoneMgr->check_name_existence($tplanId, $name)) {
-        http_response_code(400);
+        http_response_code(409);
         out(['status' => 'error', 'message' => 'milestone_name_already_exists',
              'detail' => $name]);
     }
@@ -260,8 +258,8 @@ if ($method === 'POST' && ($path === '/create')) {
          'message' => sprintf(lang_get('milestone_created'), $name)]);
 }
 
-if (($method === 'POST' || $method === 'PUT') && isset($segments[0]) &&
-    $segments[0] === 'update' && isset($segments[1])) {
+if (($method === 'POST' || $method === 'PUT') && count($segments) === 2 &&
+    $segments[0] === 'update' && ctype_digit($segments[1])) {
     $id = intval($segments[1]);
     $dummy = $milestoneMgr->get_by_id($id);
     if (is_null($dummy) || !isset($dummy[$id])) {
@@ -282,7 +280,7 @@ if (($method === 'POST' || $method === 'PUT') && isset($segments[0]) &&
     }
 
     if ($milestoneMgr->check_name_existence(intval($original['testplan_id']), $name, $id)) {
-        http_response_code(400);
+        http_response_code(409);
         out(['status' => 'error', 'message' => 'milestone_name_already_exists',
              'detail' => $name]);
     }
@@ -339,8 +337,8 @@ if (($method === 'POST' || $method === 'PUT') && isset($segments[0]) &&
     out(['status' => 'ok', 'message' => 'ok']);
 }
 
-if (($method === 'POST' || $method === 'DELETE') && isset($segments[0]) &&
-    $segments[0] === 'delete' && isset($segments[1])) {
+if (($method === 'POST' || $method === 'DELETE') && count($segments) === 2 &&
+    $segments[0] === 'delete' && ctype_digit($segments[1])) {
     $id = intval($segments[1]);
     $dummy = $milestoneMgr->get_by_id($id);
     if (is_null($dummy) || !isset($dummy[$id])) {

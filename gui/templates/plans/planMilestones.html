@@ -258,6 +258,9 @@ function errText(r) {
     warning_target_before_start: 'ms.msg.targetBeforeStart',
     warning_empty_milestone_name: 'ms.msg.emptyName',
     warning_invalid_percentage: 'ms.msg.invalidPercentage',
+    milestone_create_failed: 'ms.msg.createFailed',
+    milestone_update_failed: 'ms.msg.updateFailed',
+    'Milestone not found': 'ms.msg.notFound',
     'Insufficient rights': 'common.forbidden'
   };
   var key = map[r.message] || null;
@@ -282,9 +285,6 @@ function load() {
       document.title = r.data.tplan_name + ' - ' + TLi18n.t('ms.header');
 
       $('#btnCreate').toggle(canManage);
-      $('#thHighPct').toggle(prioEnabled);
-      $('#thMediumPct').toggle(prioEnabled);
-      $('#thLowPct').toggle(prioEnabled);
 
       render(r.data.milestones || [], r.data.metrics || []);
     })
@@ -297,6 +297,16 @@ function load() {
 
 function pctCell(v) {
   return '<td class="pct-cell">' + esc(String(v == null ? 0 : v)) + ' %</td>';
+}
+
+/** Localized date display (legacy used gsmarty_date_format). */
+function localizeDate(iso) {
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) { return iso; }
+  try {
+    return d.toLocaleDateString(document.documentElement.lang || undefined,
+                                { year: 'numeric', month: 'short', day: 'numeric' });
+  } catch (e) { return iso; }
 }
 
 function render(milestones, metrics) {
@@ -318,12 +328,12 @@ function render(milestones, metrics) {
       nameCell += '<span style="font-weight:700">' + esc(m.name) + '</span>';
     }
 
-    var td = m.target_date ? '<span class="date-cell">' + esc(m.target_date) + '</span>'
+    var td = m.target_date ? '<span class="date-cell">' + esc(localizeDate(m.target_date)) + '</span>'
                            : '<span class="date-cell" style="color:#ccc">-</span>';
 
     var sdCell = '<span class="date-cell" style="color:#ccc">-</span>';
     if (m.start_date && m.start_date !== '' && m.start_date !== '0000-00-00') {
-      sdCell = '<span class="date-cell">' + esc(m.start_date) + '</span>';
+      sdCell = '<span class="date-cell">' + esc(localizeDate(m.start_date)) + '</span>';
     }
 
     var action = '';
@@ -350,9 +360,23 @@ function render(milestones, metrics) {
     columnDefs: [
       { targets: prioEnabled ? [3, 4, 5] : [3], className: 'text-center' },
       { targets: prioEnabled ? [] : [4, 5], visible: false },
-      { targets: prioEnabled ? [6] : [6], orderable: false }
+      { targets: [6], orderable: false }
     ]
   });
+
+  // legacy parity: with priorities disabled the medium column header becomes
+  // the generic "% of test cases" label (th_perc_testcases); relabel through
+  // the DataTable API so header/body visibility stays in sync
+  $('#msTable thead th:eq(0)').text(TLi18n.t('ms.colName'));
+  $(msTbl.column(1).header()).text(TLi18n.t('ms.colTargetDate'));
+  $(msTbl.column(2).header()).text(TLi18n.t('ms.colStartDate'));
+  if (prioEnabled) {
+    $(msTbl.column(3).header()).text(TLi18n.t('ms.colHighPct'));
+    $(msTbl.column(4).header()).text(TLi18n.t('ms.colMediumPct'));
+    $(msTbl.column(5).header()).text(TLi18n.t('ms.colLowPct'));
+  } else {
+    $(msTbl.column(3).header()).text(TLi18n.t('ms.percTcases'));
+  }
 
   renderReport(metrics);
 }
@@ -379,9 +403,9 @@ function renderReport(metrics) {
   var rows = metrics.map(function (res) {
     var label = esc(res.name) + ' <span class="expected">';
     if (res.start_date && res.start_date !== '0000-00-00') {
-      label += TLi18n.t('ms.from') + ' ' + esc(res.start_date) + ' ';
+      label += TLi18n.t('ms.from') + ' ' + esc(localizeDate(res.start_date)) + ' ';
     }
-    label += TLi18n.t('ms.until') + ' ' + esc(res.target_date) + '</span>';
+    label += TLi18n.t('ms.until') + ' ' + esc(localizeDate(res.target_date)) + '</span>';
 
     return [
       label,
