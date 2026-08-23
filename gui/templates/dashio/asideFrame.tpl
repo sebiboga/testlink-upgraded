@@ -70,6 +70,13 @@ main frame and is built once per test project rather than once per page.
       background: #546678;
       border-radius: 3px;
     {rdelim}
+    /* Last opened sub-menu entry stays highlighted; the sidebar frame does
+       not reload on content navigation, so server-side activeMenu classes
+       cannot mark it (#617). */
+    #sidebar ul.sidebar-menu ul.sub li a.tl-sub-selected {ldelim}
+      color: #4ECDC4;
+      background: rgba(78, 205, 196, .12);
+    {rdelim}
 
     /* Collapsed to an icon rail. The frame itself is narrowed by the
        frameset (iframe.navigationAside.railed), this only strips the menu
@@ -142,7 +149,51 @@ $(function() {ldelim}
       ev.stopImmediatePropagation();
       tlSetRail(false);
     {rdelim}
+    else {ldelim}
+      /* After the accordion finishes opening the section, bring it to the
+         top of the scrolled rail so every entry stays in sight even when
+         the list is long (e.g. Reports with all its reports) (#617). */
+      var li = this.parentNode;
+      setTimeout(function() {ldelim}
+        var sub = li.querySelector('ul.sub');
+        if (!sub || sub.style.display === 'none') {ldelim}
+          return; // collapsed again - nothing to show
+        {rdelim}
+        var sb = document.getElementById('sidebar');
+        if (!sb || sb.scrollHeight <= sb.clientHeight) {ldelim}
+          return;
+        {rdelim}
+        var top = li.getBoundingClientRect().top -
+                  sb.getBoundingClientRect().top + sb.scrollTop;
+        sb.scrollTo({ldelim}top: Math.max(0, top - 6), behavior: 'smooth'{rdelim});
+      {rdelim}, 650); // matches the accordion's 'slow'
+    {rdelim}
   {rdelim});
+
+  /* Remember which sub-menu entry was last opened: the menu lives in its own
+     frame, so navigating the content frame does not reload the sidebar and
+     nothing would otherwise stay highlighted (Reports entries, #617). */
+  var selKey = 'tlAsideSelected';
+  function tlMarkSelected($a) {ldelim}
+    $('#sidebar ul.sidebar-menu ul.sub li a')
+      .removeClass('tl-sub-selected');
+    if ($a && $a.length) {ldelim}
+      $a.addClass('tl-sub-selected');
+      try {ldelim} localStorage.setItem(selKey, $a.attr('href')); {rdelim}
+      catch(e) {ldelim}{rdelim}
+    {rdelim}
+  {rdelim}
+  $('#sidebar ul.sidebar-menu ul.sub li a').on('click', function() {ldelim}
+    tlMarkSelected($(this));
+  {rdelim});
+  try {ldelim}
+    var prev = localStorage.getItem(selKey);
+    if (prev) {ldelim}
+      tlMarkSelected($('#sidebar ul.sidebar-menu ul.sub li a[href="' + prev + '"]'));
+    {rdelim}
+  {rdelim} catch(e) {ldelim}{rdelim}
+
+
 
   $('#nav-accordion').dcAccordion({ldelim}
     eventType: 'click',
