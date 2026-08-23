@@ -699,7 +699,10 @@ function getTestSpecFromNode(&$dbHandler,&$tcaseMgr,&$linkedItems,$masterContain
   ];
 
   $zeroNullCheckFilter = array('execution_type' => false);
-  $useFilter = array('keyword_id' => false, 'platform_id' => false) 
+  // 'platforms' is read at line ~794; declare it here so reads on paths
+  // that never write it do not raise E_WARNING "Undefined array key".
+  $useFilter = array('keyword_id' => false, 'platform_id' => false,
+                     'platforms' => false)
                + $nullCheckFilter + $zeroNullCheckFilter;
 
   $applyFilters = false;
@@ -1772,7 +1775,9 @@ function buildSkeletonFlat($branchRootID,$name,$config,&$test_spec,&$platforms)
       //    |__ TCZ1
       //
       //               
-      if( $tcase_memory['parent_id'] != $current['parent_id'] )
+      // null-check FIRST: $tcase_memory starts as null and the sibling
+      // buildSkeleton() (line ~1195) uses the same order.
+      if( is_null($tcase_memory) || $tcase_memory['parent_id'] != $current['parent_id'] )
       {
         if( !is_null($tcase_memory) )
         {

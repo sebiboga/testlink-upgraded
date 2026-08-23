@@ -81,6 +81,12 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
 
   $gui->tproject_name = testproject::getName($dbHandler,$argsObj->tproject_id);
 
+  // buildMailCfg() reads tplan_name; initArgsForReports() has already
+  // validated that tplan_id exists and belongs to the project. On the
+  // remote/apikey access path $tplanMgr stays null — fall back to ''.
+  $tplanInfo = is_object($tplanMgr) ? $tplanMgr->get_by_id($argsObj->tplan_id) : null;
+  $gui->tplan_name = is_null($tplanInfo) ? '' : $tplanInfo['name'];
+
   return $gui;
 }
 
