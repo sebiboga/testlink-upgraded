@@ -69,6 +69,13 @@ function initArgsForReports(&$dbHandler) {
 
     $tplanMgr = new testplan($dbHandler);
     $tplan = $tplanMgr->get_by_id($args->tplan_id);
+    if (is_null($tplan)) {
+      // unknown/stale tplan_id on the report URL: stop gracefully instead of
+      // dereferencing null (E_WARNING) and dying on the uncaught exception below
+      require_once(__DIR__ . '/../functions/info.inc.php');
+      displayInfo(lang_get('error_print_doc_title'),
+                  lang_get('error_print_doc_missing_testplan'));
+    }
     $args->tproject_id = $tplan['testproject_id'];
   }
 
