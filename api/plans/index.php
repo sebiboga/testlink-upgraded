@@ -1483,13 +1483,29 @@ function updTcItems($db, $tplan_id, $tcprefix)
     }
 
     // finalize: sort targets oldest -> newest, flag already-latest rows
+    // legacy get_linked_and_newest_tcversions() semantics (testplan.class.php):
+    // candidates = ACTIVE siblings with node id > linked node id;
+    // newest = max-id candidate; updatable only if its VERSION number is
+    // greater than the linked version number (id order != version order,
+    // e.g. after imports). Non-updatable active siblings stay available as
+    // manual targets (tideUpForGUI() parity).
     foreach ($items as $tcid => $it) {
         usort($items[$tcid]['targets'], function ($a, $b) {
             return $a['id'] <=> $b['id'];
         });
-        $items[$tcid]['is_latest'] =
-            count($it['targets']) === 0 ||
-            $it['newest_tcversion_id'] <= $it['linked_tcversion_id'];
+        $newestId = 0;
+        $newestVer = 0;
+        foreach ($items[$tcid]['targets'] as $t) {
+            if ($t['id'] > $it['linked_tcversion_id'] &&
+                $t['version'] > $it['linked_version'] &&
+                $t['id'] > $newestId) {
+                $newestId = intval($t['id']);
+                $newestVer = intval($t['version']);
+            }
+        }
+        $items[$tcid]['newest_tcversion_id'] = $newestId;
+        $items[$tcid]['newest_version'] = $newestVer;
+        $items[$tcid]['is_latest'] = ($newestId === 0);
     }
 
     return array_values($items);
@@ -1500,6 +1516,53 @@ function updTcItems($db, $tplan_id, $tcprefix)
 // cases (with updatable counts) and the full linked-item detail set.
 if ($method === 'GET' && count($segments) === 1 &&
     $segments[0] === 'update-linked') {
+    // context-only mode (#624): tplan_id=0 with a valid tproject_id must
+    // still deliver the plan picker payload instead of a dead-end 400
+    $tplan_id = intval($_GET['tplan_id'] ?? 0);
+    $tproject_id = intval($_GET['tproject_id'] ?? 0);
+    if ($tplan_id <= 0) {
+        if ($tproject_id <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid test project id',
+                 'error_code' => 'NO_TPROJECT']);
+        }
+        $tprojMgr = new testproject($db);
+        if (is_null($tprojMgr->get_by_id($tproject_id))) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid test project id',
+                 'error_code' => 'NO_TPROJECT']);
+        }
+        if (!updTcRights($user, $db, $tproject_id)) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'No permission']);
+        }
+        $rows = $user->getAccessibleTestPlans($db, $tproject_id, null,
+            ['output' => 'mapfull', 'active' => null]);
+        $tplans = [];
+        foreach ((array)$rows as $r) {
+            $tplans[] = [
+                'id' => intval($r['id']),
+                'name' => (string)$r['name'],
+                'active' => intval($r['active']),
+                'is_public' => intval($r['is_public']),
+            ];
+        }
+        $tproject_name = trim((string)($_SESSION['testprojectName'] ?? ''));
+        if ($tproject_name === '') {
+            $tproject_name = testproject::getName($db, $tproject_id);
+        }
+        out([
+            'status' => 'ok',
+            'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
+            'tplans' => $tplans,
+            'tplan' => null,
+            'suites' => [],
+            'items' => [],
+            'linked_count' => 0,
+            'state' => 'pick',
+        ]);
+    }
+
     list($tproject_id, $tplan_id) = updTcNeedCtx($_GET, $user, $db);
     if (!updTcRights($user, $db, $tproject_id)) {
         http_response_code(403);
@@ -1701,15 +1764,15 @@ if ($method === 'POST' && count($segments) === 2 &&
     }
 
     $items = $tplanMgr->get_linked_and_newest_tcversions($tplan_id);
+    // hoisted out of the per-item loop (#624 finding 5)
+    $tbl = tlObjectWithDB::getDBTables(
+        ['testplan_tcversions', 'executions', 'cfield_execution_values']);
     $qty = 0;
     foreach ((array)$items as $value) {
         if (intval($value['newest_tcversion_id']) !=
             intval($value['tcversion_id'])) {
             $newtcversion = intval($value['newest_tcversion_id']);
             $tcversionID = intval($value['tcversion_id']);
-            $tbl = tlObjectWithDB::getDBTables(
-                ['testplan_tcversions', 'executions',
-                 'cfield_execution_values']);
             foreach ($tbl as $table2update) {
                 $sql = " UPDATE {$table2update}" .
                        " SET tcversion_id = " . intval($newtcversion) .

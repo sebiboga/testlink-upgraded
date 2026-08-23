@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "versión",
   "uptc.newestTag": "más reciente",
   "uptc.design": "Abrir en Especificación de Tests",
+  "uptc.errNoTplan": "Plan de pruebas no válido.",
+  "uptc.errNoTproject": "Proyecto de pruebas no válido o plan de pruebas no pertenece a este proyecto.",
   "uptc.executionHistory": "Historial de Ejecución",
   "uptc.confirmTitle": "Confirmar actualización",
   "uptc.confirmSelected": "¿Actualizar {n} caso(s) de prueba seleccionados a las versiones destino elegidas?",

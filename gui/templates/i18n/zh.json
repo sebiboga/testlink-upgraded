@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "版本",
   "uptc.newestTag": "最新",
   "uptc.design": "在测试用例设计中打开",
+  "uptc.errNoTplan": "无效的测试计划。",
+  "uptc.errNoTproject": "无效的测试项目，或测试计划不属于该项目。",
   "uptc.executionHistory": "执行历史",
   "uptc.confirmTitle": "确认更新",
   "uptc.confirmSelected": "将选中的 {n} 个测试用例更新到所选目标版本？",

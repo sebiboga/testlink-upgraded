@@ -224,7 +224,21 @@ function apiFail(xhr) {
   if (xhr && xhr.status === 403) { showState(TLi18n.t('uptc.noPermission')); return; }
   if (xhr && xhr.status === 401) { window.location.href = '/login.php'; return; }
   var msg = TLi18n.t('common.error');
-  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  try {
+    var r = JSON.parse(xhr.responseText);
+    // server error_code -> localized toast (#624); raw message as fallback
+    var codeMap = {
+      NO_TPLAN: 'uptc.errNoTplan',
+      BAD_TPLAN: 'uptc.errNoTproject',
+      NO_TPROJECT: 'uptc.errNoTproject',
+      NO_SELECTION: 'uptc.noSelection'
+    };
+    if (r.error_code && codeMap[r.error_code]) {
+      msg = TLi18n.t(codeMap[r.error_code]);
+    } else if (r.message) {
+      msg = r.message;
+    }
+  } catch(e) {}
   toast(msg, true);
 }
 
@@ -361,7 +375,7 @@ function renderSuiteRows(suiteId) {
   if (!rows.length) {
     $tb.append('<tr><td colspan="7" style="text-align:center;color:#aaa;padding:22px;">'
       + esc(TLi18n.t('uptc.suiteEmpty')) + '</td></tr>');
-    $('#footerInfo').text(rows.length + ' ');
+    $('#footerInfo').text('0 ' + TLi18n.t('uptc.footerTcases'));
     return;
   }
 
@@ -369,11 +383,12 @@ function renderSuiteRows(suiteId) {
     var chk = '';
     var selCtl = '<span class="exec-info">-</span>';
     var status;
-    if (it.is_latest) {
+    if (!it.linked_active) {
+      // inactive linked version outranks the Latest badge (#624)
+      status = '<span class="st-badge inactive">' + esc(TLi18n.t('uptc.statusLinkedInactive')) + '</span>';
+    } else if (it.is_latest) {
       status = '<span class="st-badge latest"><i class="fa fa-check"></i> '
         + esc(TLi18n.t('uptc.statusLatest')) + '</span>';
-    } else if (!it.linked_active) {
-      status = '<span class="st-badge inactive">' + esc(TLi18n.t('uptc.statusLinkedInactive')) + '</span>';
     } else {
       status = '<span class="st-badge ready">' + esc(TLi18n.t('uptc.statusUpdatable')) + '</span>';
     }

@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "Version",
   "uptc.newestTag": "neueste",
   "uptc.design": "In Testfallspezifikation öffnen",
+  "uptc.errNoTplan": "Ungültiger Testplan.",
+  "uptc.errNoTproject": "Ungültiges Testprojekt oder Testplan gehört nicht zu diesem Projekt.",
   "uptc.executionHistory": "Ausführungshistorie",
   "uptc.confirmTitle": "Aktualisierung bestätigen",
   "uptc.confirmSelected": "{n} ausgewählte(n) Testfall/Testfälle auf die gewählten Zielversionen aktualisieren?",

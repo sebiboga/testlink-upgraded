@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "版",
   "uptc.newestTag": "最新",
   "uptc.design": "テスト仕様で開く",
+  "uptc.errNoTplan": "テスト計画が無効です。",
+  "uptc.errNoTproject": "テストプロジェクトが無効、またはテスト計画がこのプロジェクトに属していません。",
   "uptc.executionHistory": "実行履歴",
   "uptc.confirmTitle": "更新の確認",
   "uptc.confirmSelected": "選択した{n}件のテストケースを選択した対象版へ更新しますか？",

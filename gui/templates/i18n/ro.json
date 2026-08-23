@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "versiunea",
   "uptc.newestTag": "cea mai nouă",
   "uptc.design": "Deschide în Specificația de Test",
+  "uptc.errNoTplan": "Plan de test invalid.",
+  "uptc.errNoTproject": "Proiect de test invalid sau planul de test nu aparține acestui proiect.",
   "uptc.executionHistory": "Istoric Execuție",
   "uptc.confirmTitle": "Confirmați actualizarea",
   "uptc.confirmSelected": "Actualizați {n} caz(uri) de test selectate la versiunile țintă alese?",

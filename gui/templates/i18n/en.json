@@ -1082,6 +1082,8 @@
   "uptc.versionLabel": "version",
   "uptc.newestTag": "newest",
   "uptc.design": "Open in Test Specification",
+  "uptc.errNoTplan": "Invalid test plan.",
+  "uptc.errNoTproject": "Invalid test project, or test plan not in this project.",
   "uptc.executionHistory": "Execution History",
   "uptc.confirmTitle": "Confirm update",
   "uptc.confirmSelected": "Update {n} selected test case(s) to the chosen target versions?",
