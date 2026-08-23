@@ -349,7 +349,9 @@ function doSetSuiteUrgency(urgency) {
     } else {
       toast(TLi18n.t('turg.feedbackFail'), true);
     }
+    // refresh context (suite badges) AND the open test case table
     load();
+    selectSuite(selSuiteId);
   }).fail(function (xhr) { apiFail(xhr); });
 }
 
