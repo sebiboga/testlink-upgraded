@@ -3835,4 +3835,87 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | R6 sibling consumers untouched | inspect platformsAssign.php:39 and api/platforms/index.php:550/635 call sites | All already isset()-guarded; no code change needed or made there | PASS |
 | 7 | R7 syntax gate | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php` | No syntax errors | PASS |
 
-**Result: Suite 663 — 7/7 PASS** — Side discovery while building fixture via `tl.createTestCase`+`tl.addTestCaseToTestPlan`: documented step key `expectedresults` triggers E_WARNING "Undefined array key expected_results" at testcase.class.php:803 and links with platform_id=0 — matches open #661; no duplicate filed.
+**Result: Suite 63 — 16/16 PASS**
+
+**Bugs found & fixed during this suite**
+- #662-a: init read vestigial `$tprojInfo['option_platforms']` column →
+  E_WARNING in Event Viewer on every load. Fixed by reading the serialized
+  options blob (`platformsEnabled`) defensively.
+- (#621 surfaced again): every step-level save emitted
+  `file_upload_step_exec_ok/ko is not localized for en_GB`. Added
+  `locale/en_GB/custom_strings.txt` defining both keys — then extended to all
+  server locales missing them after code review.
+- Review-round regression caught in verification: step-ID ownership query
+  initially used nonexistent `tcsteps.parent_id`; corrected to join
+  `nodes_hierarchy` (DB Access Error page otherwise).
+
+**Known scope decisions (v1)**: attachments-at-execution and bug linking are
+not part of the first cut of the execution form; execution custom fields render
+in Execution History but not yet in the form. Tracked as follow-up work on
+issue #662.
+
+## Suite 664 — Regression — Issue #664: XMLRPC createTestProject E_WARNING "Undefined array key" (lines 2230-2231) when required params are omitted
+
+**Area:** XMLRPC API `tl.createTestProject` (`lib/api/xmlrpc/v1/xmlrpc.class.php`,
+`_checkCreateTestProjectRequest()`) · **Date:** 2026-08-24
+
+Fixtures: admin user with `users.script_key='664reprokey664reprokey664repro'`;
+events table baseline recorded before each run. Endpoint:
+`http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 664.1 | Pre-fix repro | POST createTestProject with members `name=Foo`, `prefix=foo` (wrong names) | PRE-FIX: response IXR_Error 7001 BUT events gains 2 E_WARNING rows "Undefined array key testprojectname/testcaseprefix" lines 2230/2231 — reproduced as reported | PASS (repro confirmed) |
+| 664.2 | Wrong param names post-fix | same call after fix | 7001 returned; ZERO new E_WARNING events rows | PASS |
+| 664.3 | Required params omitted entirely post-fix | POST with only devKey member | 7001 returned; ZERO new E_WARNING rows | PASS |
+| 664.4 | Empty prefix contract preserved | valid `testprojectname`, empty `testcaseprefix` | IXR_Error 7004 (prefix empty) — unchanged API contract; no warnings | PASS |
+| 664.5 | Happy path unaffected | valid name+prefix ("Issue664 Happy Project"/I664) | status=true, project id returned, row in `testprojects`, audit event `audit_testproject_created`; no warnings | PASS |
+| 664.6 | Duplicate name contract preserved | repeat V5 name | IXR_Error 7002 TESTPROJECTNAME_EXISTS; no warnings | PASS |
+
+**Root cause & fix:** direct `$this->args[...]` reads at
+xmlrpc.class.php:2230-2231 without presence guard ⇒ PHP 8 E_WARNING on absent
+keys, logged to Event Viewer. Minimal fix: null-coalescing reads (`?? null`);
+downstream validation (`checkNameSintax(null)` → 7001, `!empty(null)` → 7004)
+produces byte-identical responses. Commit `fcf0370cb`.
+
+## Regression — Issue #460: tl.updateTestSuiteCustomFieldDesignValue only ever updates/reports the first custom field passed
+
+**Precondition**: fresh DB; API devKey for `admin` set (`users.script_key`);
+fixtures: test project `Proj460` id=1, test suite `Suite460` id=2 (both via
+XMLRPC), custom fields `CF_ALPHA` id=10 and `CF_BETA` id=11 — string type,
+enabled on design, linked to project 1 and to node type testsuite
+(rows in `custom_fields`, `cfield_testprojects`, `cfield_node_types`);
+`SELECT COUNT(*) FROM cfield_design_values WHERE node_id=2` = 0.
+
+**Repro steps (pre-fix)** — POST XMLRPC
+`tl.updateTestSuiteCustomFieldDesignValue` with
+`{devKey, testprojectid:1, testsuiteid:2,
+customfields:{"CF_ALPHA":"value-A","CF_BETA":"value-B"}}`.
+Observed pre-fix: response `[ok CF_ALPHA processed]` only;
+DB row only `10|value-A`. Second field silently dropped.
+Variant with `{"UNKNOWN_CF":"x","CF_ALPHA":"second-never-run"}` returned
+only the `ko` entry and never attempted `CF_ALPHA`.
+
+**Expected post-fix**: one `{status,msg}` entry per input field (contract at
+xmlrpc.class.php lines 8236-8249); every linked field written to
+`cfield_design_values`; unlinked names reported as `ko` without aborting
+later entries; empty map → `[]`; error paths unchanged.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 460.R1 | two valid fields | 2× ok; rows 10→A1, 11→B1 | resp `[ok,ok]`; db `10 A1 | 11 B1` | PASS |
+| 460.R2 | unknown first + valid second | ko + ok; valid row written | resp `[ko,ok]`; db `10 A2` | PASS |
+| 460.R3 | single valid field | unchanged vs legacy single-field path | resp `[ok CF_BETA]`; db updated | PASS |
+| 460.R4 | empty customfields map | clean `[]`, no E_WARNING | `[]` | PASS |
+| 460.R5a | missing param | code 200 required-param error | code 200 | PASS |
+| 460.R5b | nonexistent project | code 7000 | code 7000 | PASS |
+| 460.R5c | invalid devKey | code 2000 | code 2000 | PASS |
+| 460.EV | Event Viewer delta during suite | no new Error/Warning | events table: 1 AUDIT row only (fixture audit) | PASS |
+
+**Fix under test**: commit 7b8a7dd35 — move `return $ret;` after the
+`foreach` in `updateTestSuiteCustomFieldDesignValue()` +
+initialize `$ret = array();` (parity with `updateBuildCustomFieldsValues()`).
+
+**Result: PASS**
