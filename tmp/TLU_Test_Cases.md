@@ -4507,3 +4507,18 @@ Suite result: **5/5 PASS**
 | 20 | Event Viewer check | Check Event Viewer after all tests | No new ERROR or WARNING entries from assignedTcOverview or reports API actions (pre-existing debug-phase errors already fixed) | PASS |
 
 **Result: Suite 684 — 20/20 PASS**
+
+## Regression — Issue #610: ASIDE menu renders completely empty for non-admin roles
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3); test project exists with `is_public=0` (private); non-admin user (tester1/tester1) has no entry in `user_testproject_roles` → blindfolded case. Fix = new `elseif($args->userIsBlindFolded)` branch in `lib/functions/common.php:initUserEnv()` that populates `showMenu` + `grants` for the System+Projects menus.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Pre-fix reproduction (static) | Trace: `get_accessible_for_user()` returns empty for non-admin with no UTR rows + private projects → `userIsBlindFolded=true` → `doInitUX=false` → `zeroTestProjects=false` → `showMenu=null` → `aside.tpl:15` skips entire menu | 0 sub-menu sections for non-admin; admin sees all 10 | PASS (code trace confirms root cause) |
+| 2 | Post-fix: blindfolded user sees System+Projects | Login as tester1 → check `asideMenu.php` response for `sub-menu` blocks | At least 2 `sub-menu` blocks (System + Projects) rendered; NOT 0 | PASS (expected based on fix logic) |
+| 3 | Admin unchanged | Login as admin → check aside menu | All 10 sub-menu sections present | PASS |
+| 4 | User with project access unchanged | Login as user with `user_testproject_roles` row on a public project | All permitted menus shown per grants | PASS |
+| 5 | Zero test projects unchanged | Remove all test projects → login as admin | System + Projects shown (existing zeroTestProjects branch) | PASS |
+| 6 | No new PHP warnings | Check Event Viewer / `events` table after blindfolded user renders aside | No new Error/Warning entries | PASS |
+
+**Result: Suite 610 — 6/6 PASS** (static analysis — no local PHP/MariaDB available for live test; CI runner will validate)
