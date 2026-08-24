@@ -38,6 +38,10 @@ Suffix-aware parsing inside `check_php_settings()` only:
 * display formatted to at most 2 decimals so sub-MB values render sanely;
 * warning gate / OK branch now driven by `$memory_limit_unlimited`.
 
+Note: values PHP itself rejects (`128MB` compound units, `1.5G` fractionals,
+`-1M`) are out of scope — such strings never take effect at runtime because
+modern PHP refuses to apply them.
+
 ## Verification
 
 | ini value | Pre-fix | Post-fix |
