@@ -4093,3 +4093,6 @@ $TLS_executed_me_and_also = 'est exécuté en même temps que';
 $TLS_remove_plat_msgbox_title = 'Supprimer la Plateforme';
 $TLS_remove_plat_msgbox_msg = 'Voulez-vous supprimer toutes les exécutions liées à cette plateforme ?';
 $TLS_img_title_remove_platform = 'Supprimer la Plateforme';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = 'L\'auto-inscription des nouveaux utilisateurs est désactivée. Veuillez contacter l\'administrateur du site.';

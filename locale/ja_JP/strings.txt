@@ -4528,3 +4528,6 @@ $TLS_executed_me_and_also = 'と一緒に実行される';
 $TLS_remove_plat_msgbox_title = 'プラットフォームを削除';
 $TLS_remove_plat_msgbox_msg = 'このプラットフォームにリンクされたすべての実行結果を削除しますか？';
 $TLS_img_title_remove_platform = 'プラットフォームを削除';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = '新規ユーザーの自己登録は無効になっています。サイト管理者に連絡してください。';

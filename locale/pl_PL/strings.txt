@@ -3818,3 +3818,6 @@ $TLS_remove_plat_msgbox_title = 'Usuń platformę';
 $TLS_remove_plat_msgbox_msg = 'Czy chcesz usunąć wszystkie wykonania powiązane z tą platformą?';
 $TLS_img_title_remove_platform = 'Usuń platformę';
 ?>
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = 'Samodzielna rejestracja nowych użytkowników jest wyłączona. Skontaktuj się z administratorem witryny.';

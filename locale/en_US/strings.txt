@@ -3827,3 +3827,6 @@ $TLS_remove_placeholder_map = 'Remove Placeholder Map';
 $TLS_remove_placeholder_title = 'Remove Placeholder';
 
 // ----- END ------------------------------------------------------------------
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = 'New user self-registration is disabled on this site. Please contact your site administrator.';

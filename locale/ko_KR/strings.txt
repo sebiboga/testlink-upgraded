@@ -2419,4 +2419,7 @@ $TLS_executed_me_and_also = '함께 실행됨';
 $TLS_remove_plat_msgbox_title = '플랫폼 제거';
 $TLS_remove_plat_msgbox_msg = '이 플랫폼에 연결된 모든 실행 결과를 제거하시겠습니까?';
 $TLS_img_title_remove_platform = '플랫폼 제거';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = '신규 사용자의 셀프 등록이 비활성화되어 있습니다. 사이트 관리자에게 문의하십시오.';
 ?>

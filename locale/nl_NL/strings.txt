@@ -4044,3 +4044,6 @@ $TLS_executed_me_and_also = 'wordt samen uitgevoerd met';
 $TLS_remove_plat_msgbox_title = 'Platform verwijderen';
 $TLS_remove_plat_msgbox_msg = 'Wilt u alle aan dit platform gekoppelde uitvoeringen verwijderen?';
 $TLS_img_title_remove_platform = 'Platform verwijderen';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = 'Zelfregistratie van nieuwe gebruikers is uitgeschakeld. Neem contact op met de beheerder van de site.';

@@ -4130,3 +4130,6 @@ $TLS_executed_me_and_also = '与之一同执行';
 $TLS_remove_plat_msgbox_title = '移除平台';
 $TLS_remove_plat_msgbox_msg = '是否要移除与此平台关联的所有执行结果？';
 $TLS_img_title_remove_platform = '移除平台';
+
+// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
+$TLS_error_self_signup_disabled = '新用户自助注册已被禁用，请联系站点管理员。';
