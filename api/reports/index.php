@@ -400,5 +400,170 @@ if ($action === 'metrics_general') {
     out($payload);
 }
 
+if ($action === 'metrics_by_tsuite') {
+    // Results by Test Suite - mirrors lib/results/resultsByTSuite.php
+    // (Refs #671). Figures come from the very same
+    // tlTestPlanMetrics::getStatusTotalsTSuiteDepth2ForRender() call the
+    // legacy controller makes, so numbers stay 1:1. Right gate
+    // ('testplan_metrics') already enforced above.
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
+    // the session/project context (same pattern as metrics_general above).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Platform set decides whether every "* on platform X" section renders
+    // and whether the execution time span groups by platform. Empty set =>
+    // fakePlatform '' with implicit key 0 (legacy initializeGui() contract).
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+    if ($showPlatforms) {
+        natsort($platformSet);
+    } else {
+        $platformSet = [0 => ''];
+    }
+    $hasPlatforms = $showPlatforms;
+
+    // Same metrics call as the legacy controller (groupByPlatform => 1).
+    // NULL or an empty infoL2 means there is nothing to report on: a plan
+    // with no linked test cases OR a flat test specification whose test
+    // cases all sit directly under level-1 suites (no level-2 children).
+    $tsInf = $metricsMgr->getStatusTotalsTSuiteDepth2ForRender(
+        $tplanId, null, ['groupByPlatform' => 1]);
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => false,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'platform_set' => $platformSet,
+        // legacy lib/results/resultsByTSuite.php endpoints kept for the two
+        // toolbar buttons - mail/spreadsheet generation stays legacy.
+        // Root-relative (sibling convention, see generalMetrics.html):
+        // the page lives under /gui/templates/results/.
+        'send_mail_url' => '/lib/results/resultsByTSuite.php?format=' .
+            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
+            '&tproject_id=' . $tprojectId,
+        'export_xls_url' => '/lib/results/resultsByTSuite.php?format=' .
+            FORMAT_XLS . '&tplan_id=' . $tplanId .
+            '&tproject_id=' . $tprojectId . '&spreadsheet=1',
+    ];
+
+    if (!is_null($tsInf) && !empty($tsInf->infoL2)) {
+        $payload['hasData'] = true;
+
+        // Column definition: exact copy of the legacy loop over the FIRST
+        // data row's details - one qty + one [%] column per execution
+        // status, labels resolved server-side through lang_get() so the
+        // session locale applies (legacy used Smarty lang_get too).
+        $firstRow = current(current($tsInf->infoL2));
+        $columns = [];
+        if (isset($firstRow['details'])) {
+            $cfgResults = config_get('results');
+            foreach ($firstRow['details'] as $statusVerbose => $value) {
+                $lbl = isset($cfgResults['status_label'][$statusVerbose])
+                    ? lang_get($cfgResults['status_label'][$statusVerbose])
+                    : $statusVerbose;
+                $columns[$statusVerbose] = [
+                    'qty' => $lbl,
+                    'percentage' => '[%]',
+                ];
+            }
+        }
+        $payload['columns'] = $columns;
+
+        // Execution time span (First/Latest execution header of every
+        // table). getExecTimeSpan() returns NULL when the plan has no
+        // executions at all -> guard instead of dereferencing.
+        $execContext = ['testplan_id'];
+        if ($hasPlatforms) {
+            $execContext[] = 'platform_id';
+        }
+        $span = $metricsMgr->getExecTimeSpan($tplanId, $execContext);
+
+        $spanOut = [];
+        if ($hasPlatforms) {
+            if (!is_null($span) && isset($span[$tplanId])) {
+                foreach ($span[$tplanId] as $platIdS => $sp) {
+                    $spanOut[$platIdS] = [
+                        'begin' => is_null($sp['begin']) ? null :
+                            localize_dateOrTimeStamp(null, $dummy,
+                                'timestamp_format', $sp['begin']),
+                        'end' => is_null($sp['end']) ? null :
+                            localize_dateOrTimeStamp(null, $dummy,
+                                'timestamp_format', $sp['end']),
+                    ];
+                }
+            }
+        } else {
+            $one = (isset($span[$tplanId]) && !is_null($span[$tplanId]))
+                ? $span[$tplanId] : null;
+            $spanOut[0] = [
+                'begin' => (is_null($one) || is_null($one['begin'])) ? null :
+                    localize_dateOrTimeStamp(null, $dummy,
+                        'timestamp_format', $one['begin']),
+                'end' => (is_null($one) || is_null($one['end'])) ? null :
+                    localize_dateOrTimeStamp(null, $dummy,
+                        'timestamp_format', $one['end']),
+            ];
+        }
+        $payload['span'] = $spanOut;
+
+        // Rows: reorder every platform's block following the natural case
+        // sort of the test suite NAMES (legacy natcasesort(idNameMap)).
+        $nameMap = $tsInf->idNameMap;
+        natcasesort($nameMap);
+        $sortedKeys = array_keys($nameMap);
+
+        $suites = [];
+        foreach ($tsInf->infoL2 as $platIdS => $elem) {
+            $rows = [];
+            foreach ($sortedKeys as $itemID) {
+                if (isset($elem[$itemID])) {
+                    $row = $elem[$itemID];
+                    $rows[$itemID] = [
+                        'name' => $row['name'],
+                        'total_tc' => intval($row['total_tc']),
+                        'percentage_completed' =>
+                            $row['percentage_completed'],
+                        'details' => $row['details'],
+                    ];
+                }
+            }
+            $suites[$platIdS] = $rows;
+        }
+        $payload['suites'] = $suites;
+    }
+
+    $payload['elapsed_time'] =
+        round(microtime(true) - $timerOn, 2);
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
