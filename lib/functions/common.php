@@ -1711,8 +1711,33 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     echo '<br> 1509 - caller => ' . $options['caller'] . '<br>';  
   }
   */
+  } elseif( $args->userIsBlindFolded ) {
+    // Projects exist but the user cannot access any (blindfolded).
+    // Show at least System + Projects so the user can see the interface
+    // and request access — same pattern as the zero-project case.
+    $gui->showMenu = getFirstLevelMenuStructure();
+    $gui->showMenu['projects'] = true;
+    $gui->showMenu['system'] = true;
+    $gui->countPlans = 0;
+    if( is_null($gui->grants) ) {
+      $gui->grants = new stdClass();
+      $gui->grants->event_viewer = "yes";
+      $gui->grants->user_mgmt = "yes";
+      $gui->grants->cfield_management = "yes";
+      $gui->grants->project_edit = "yes";
+      $gui->grants->tproject_user_role_assignment = "yes";
+      $gui->grants->keywords_view = "yes";
+      $gui->grants->issuetracker_management = "yes";
+      $gui->grants->codetracker_management = "yes";
+      $gui->grants->issuetracker_view = "yes";
+      $gui->grants->codetracker_view = "yes";
+      $gui->grants->plugin_management = "yes";
+      $gui->grants->project_inventory_view = 0;
+      $gui->grants->project_inventory_management = 0;
+    }
+    $gui->access = getAccess($gui);
   } elseif( $gui->zeroTestProjects ) {
-    // No test projects exist yet - show at least Projects and System menus
+    // No test projects exist - show at least Projects and System menus
     // so the user can create a project and access admin functions.
     $gui->showMenu = getFirstLevelMenuStructure();
     $gui->showMenu['projects'] = true;
