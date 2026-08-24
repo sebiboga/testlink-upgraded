@@ -69,38 +69,44 @@ jobs:
 
           gh auth status
 
-          # Fetch ALL remote branches (not just the default)
-          echo "=== fetching all remotes ==="
-          git fetch origin
-          git remote -v
-          echo "=== all remote branches ==="
-          git branch -r
-          echo "=== branch count ==="
-          git branch -r | wc -l
-
           # If a specific branch was requested, use it
           TARGET="${{ github.event.inputs.target_branch }}"
           if [ -n "$TARGET" ]; then
-            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$TARGET" 2>/dev/null || echo "0")
-            if [ "$AHEAD" = "0" ]; then
+            # Use GitHub API to verify the branch has unmerged commits
+            COMPARE=$(gh api "repos/$REPO/compare/$DEFAULT_BRANCH...$TARGET" --jq '.ahead_by' 2>/dev/null || echo "0")
+            if [ "$COMPARE" = "0" ]; then
               echo "::error::Branch $TARGET has no unmerged commits or does not exist"
               exit 1
             fi
             echo "TARGET_BRANCH=$TARGET" >> "$GITHUB_ENV"
             echo "HAS_TARGET=1" >> "$GITHUB_ENV"
-            echo "selected branch: $TARGET (+$AHEAD ahead)"
+            echo "selected branch: $TARGET (+$COMPARE ahead)"
             exit 0
           fi
 
           # Auto-select: oldest non-default branch with unmerged commits
+          # Use gh api to list all branches and check ahead status
           OLDEST=""
           OLDEST_AGE=999999
 
-          for BRANCH in $(git branch -r | grep -v "origin/$DEFAULT_BRANCH" | grep -v 'HEAD' | sed 's|origin/||;s|^[[:space:]]*||'); do
-            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH" 2>/dev/null || echo "0")
+          # Fetch the list of branches (paginate if needed)
+          BRANCHES=$(gh api "repos/$REPO/branches?per_page=100" --jq '.[].name' 2>/dev/null)
+          echo "Found branches via API:"
+          echo "$BRANCHES"
+
+          for BRANCH in $BRANCHES; do
+            # Skip the default branch
+            if [ "$BRANCH" = "$DEFAULT_BRANCH" ]; then
+              continue
+            fi
+
+            # Check how many commits ahead of default
+            AHEAD=$(gh api "repos/$REPO/compare/$DEFAULT_BRANCH...$BRANCH" --jq '.ahead_by' 2>/dev/null || echo "0")
             if [ "$AHEAD" = "0" ]; then
               continue
             fi
+
+            echo "$BRANCH is +$AHEAD ahead"
 
             # Extract issue number if present (fix/issue-N pattern)
             ISSUE_NUM=$(echo "$BRANCH" | grep -oP 'fix/issue-\K[0-9]+' | head -1)
@@ -109,16 +115,21 @@ jobs:
             if [ -n "$ISSUE_NUM" ]; then
               STATE=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json state --jq .state 2>/dev/null || echo "UNKNOWN")
               if [ "$STATE" = "OPEN" ]; then
-                echo "skipping $BRANCH — issue #$ISSUE_NUM still OPEN (active work)"
+                echo "  skipping $BRANCH — issue #$ISSUE_NUM still OPEN (active work)"
                 continue
               fi
+              echo "  issue #$ISSUE_NUM is $STATE"
             fi
 
             # Use commit timestamp as age (oldest first)
-            AGE=$(git log -1 --format="%at" "origin/$BRANCH" 2>/dev/null || echo "0")
-            if [ "$AGE" -lt "$OLDEST_AGE" ] && [ "$AGE" -gt "0" ]; then
-              OLDEST_AGE=$AGE
-              OLDEST=$BRANCH
+            AGE=$(gh api "repos/$REPO/commits?sha=$BRANCH&per_page=1" --jq '.[0].commit.committer.date' 2>/dev/null || echo "")
+            if [ -n "$AGE" ]; then
+              # Convert ISO date to epoch for comparison
+              AGE_EPOCH=$(date -d "$AGE" +%s 2>/dev/null || echo "0")
+              if [ "$AGE_EPOCH" -gt "0" ] && [ "$AGE_EPOCH" -lt "$OLDEST_AGE" ]; then
+                OLDEST_AGE=$AGE_EPOCH
+                OLDEST=$BRANCH
+              fi
             fi
           done
 
@@ -138,6 +149,9 @@ jobs:
         run: |
           BRANCH="${TARGET_BRANCH}"
           ISSUE_NUM=$(echo "$BRANCH" | grep -oP 'fix/issue-\K[0-9]+' | head -1 || echo "")
+
+          # Fetch the branch locally so opencode can work with it
+          git fetch origin "$BRANCH"
 
           PROMPT="You are merging a stale branch into the default branch (sebiboga). "
           PROMPT+="Read MERGE-STALE-BRANCHES.md in the repo root FIRST and follow ALL its rules strictly. "
