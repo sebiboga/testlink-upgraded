@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Test Case Assignments</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 200px; max-width: 320px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.btn-mode { border-radius: 20px; padding: 6px 14px; }
+.btn-mode.active { background: #4ECDC4; color: #fff; }
+.toolbar label.chk { color: #ccc; font-size: 12.5px; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
+.mainWrap { margin: 18px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; margin-bottom: 60px; }
+.tableWrap { overflow: auto; max-height: calc(100vh - 260px); }
+table.tcs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tcs th { background: #fafafa; text-align: left; padding: 9px 12px; border-bottom: 2px solid #eee; font-size: 12px; color: #555; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+table.tcs td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.tcs tr:hover td { background: #f7fdfd; }
+tr.suiteRow td { background: #22242a; color: #fff; font-weight: 700; font-size: 12.5px; letter-spacing: .4px; padding: 8px 12px; border-bottom: none; }
+.tcname { font-weight: 600; }
+.tcver { color: #888; font-size: 11.5px; white-space: nowrap; }
+.tcext { color: #1d6a66; font-family: monospace; font-size: 12px; }
+.suitepath { color: #777; font-size: 12px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowacts a, .rowacts button.qr { color: #4ECDC4; margin-right: 8px; font-size: 13px; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; }
+.rowacts a:hover, .rowacts button.qr:hover { color: #3dbdb5; }
+.rowacts button.qr.qp:hover { color: #2e8b57; }
+.rowacts button.qr.qf:hover { color: #e6605e; }
+.rowacts button.qr.qb:hover { color: #f0ad4e; }
+.status-chip { display: inline-block; border-radius: 10px; padding: 2px 10px; font-size: 11.5px; font-weight: 700; color: #fff; white-space: nowrap; }
+.st-passed { background: #2e8b57; } .st-failed { background: #e6605e; }
+.st-blocked { background: #f0ad4e; } .st-not_run { background: #95a5a6; }
+.prio-tag { font-weight: 700; border-radius: 10px; padding: 2px 10px; font-size: 11.5px; color: #fff; display: inline-block; }
+.prio-tag.p-h { background: #e6605e; } .prio-tag.p-m { background: #f0ad4e; } .prio-tag.p-l { background: #6c9bd1; }
+.days-old { color: #a33f3d; font-weight: 700; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
+.footer { padding: 10px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; }
+.toast { position: fixed; right: 20px; bottom: 60px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span id="hdrTitle" data-i18n="tca.header">My Test Case Assignments</span>
+  <span class="sub" id="hdrCtx"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tca.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+
+  <button class="btn-dark btn-mode active" id="btnModeMe" data-i18n="tca.modeMe">Assigned to me</button>
+  <button class="btn-dark btn-mode" id="btnModeAll" data-i18n="tca.modeAll">All users (overview)</button>
+
+  <span class="ctx"><label for="tplanSel" data-i18n="tca.testPlan">Test plan</label>:</span>
+  <select id="tplanSel"></select>
+
+  <label class="chk"><input type="checkbox" id="cbClosedBuilds">
+    <span data-i18n="tca.showClosedBuilds">Show also assignments on closed builds</span></label>
+
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnReload"><i class="fa fa-rotate-right"></i>&nbsp;<span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="empty" id="noRecords" style="display:none" data-i18n="tca.noRecords">No test cases assigned.</div>
+<div class="mainWrap" id="workArea" style="display:none;">
+  <div class="tableWrap" id="groupsHolder"></div>
+</div>
+
+<div class="footer"><span id="footerInfo"></span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/tcassignments/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var showAllUsers = false;
+var ctxInfo = null;
+var lastData = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  showAllUsers = p.get('show_all_users') === '1';
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    applyModeButtons();
+    loadInit();
+  });
+
+  $('#btnModeMe').on('click', function () { setMode(false); });
+  $('#btnModeAll').on('click', function () { setMode(true); });
+  $('#tplanSel').on('change', function () {
+    tplanId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    loadRows();
+  });
+  $('#cbClosedBuilds').on('change', function () { loadRows(); });
+  $('#btnReload').on('click', function () { loadRows(); });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('common.error');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  toast(msg, true);
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tproject_id', String(tprojectId || ''));
+  url.searchParams.set('tplan_id', String(tplanId || ''));
+  url.searchParams.set('show_all_users', showAllUsers ? '1' : '0');
+  window.history.replaceState({}, '', url);
+}
+
+function setMode(all) {
+  if (showAllUsers === all) { return; }
+  showAllUsers = all;
+  applyModeButtons();
+  syncUrl();
+  loadRows();
+}
+
+function applyModeButtons() {
+  $('#btnModeMe').toggleClass('active', !showAllUsers);
+  $('#btnModeAll').toggleClass('active', showAllUsers);
+}
+
+/* --------------------------------------------------------------- */
+
+function loadInit() {
+  if (tprojectId <= 0) {
+    $.getJSON('/api/projects/index.php').done(function (r) {
+      var its = (r && (r.data || r.items)) || [];
+      if (its.length) { tprojectId = parseInt(its[0].id, 10); }
+      loadInit();
+    }).fail(function () { apiFail.apply(null, arguments); });
+    return;
+  }
+  $.get(API + '?action=init&tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { apiFail(r); return; }
+      ctxInfo = r.data;
+      $('#tprojectName').text(ctxInfo.tproject.name);
+      $('#cbClosedBuilds').prop('checked', !!ctxInfo.showClosedBuilds);
+
+      // legacy page titles:
+      // overview -> "Assignment Overview (%s)" / mine -> "... (%s, %s)"
+      updateTitle('');
+
+      var $sel = $('#tplanSel').empty();
+      $sel.append('<option value="0">' + esc(TLi18n.t('tca.allTestPlans')) + '</option>');
+      (ctxInfo.plans || []).forEach(function (tp) {
+        var lbl = tp.name + (tp.active ? '' : ' (' + TLi18n.t('tca.inactive') + ')');
+        $sel.append('<option value="' + tp.id + '">' + esc(lbl) + '</option>');
+      });
+      if (tplanId > 0) { $sel.val(String(tplanId)); }
+      loadRows();
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function updateTitle(planName) {
+  var proj = ctxInfo ? ctxInfo.tproject.name : '';
+  var me = ctxInfo && ctxInfo.me ? ctxInfo.me.login : '';
+  if (showAllUsers) {
+    $('#hdrTitle').text(TLi18n.t('tca.headerOverview'));
+    $('#hdrCtx').text(proj);
+  } else {
+    $('#hdrTitle').text(TLi18n.t('tca.header'));
+    $('#hdrCtx').text(proj + ' · ' + me);
+  }
+}
+
+function statusLabel(key) {
+  var kmap = {
+    passed: 'tca.stPassed', failed: 'tca.stFailed',
+    blocked: 'tca.stBlocked', not_run: 'tca.stNotRun'
+  };
+  return TLi18n.t(kmap[key] || key);
+}
+
+function prioLabel(level) {
+  var m = { low: 'tca.prioLow', medium: 'tca.prioMedium', high: 'tca.prioHigh' };
+  return TLi18n.t(m[level] || level);
+}
+
+function loadRows() {
+  var qs = 'action=rows&tproject_id=' + tprojectId +
+           '&tplan_id=' + tplanId +
+           '&show_all_users=' + (showAllUsers ? '1' : '0');
+  if ($('#cbClosedBuilds').length) {
+    qs += '&show_closed_builds=' + ($('#cbClosedBuilds').prop('checked') ? '1' : '0');
+  }
+  $.get(API + '?' + qs)
+    .done(function (r) {
+      if (!r || r.status !== 'ok') { apiFail(r); return; }
+      renderGroups(r.data);
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function renderGroups(data) {
+  lastData = data;
+  var $h = $('#groupsHolder').empty();
+  var total = 0;
+
+  (data.groups || []).forEach(function (g) {
+    total += g.rows.length;
+    if (g.rows.length === 0) { return; }
+
+    var html = '<table class="tcs"><thead><tr>';
+    if (showAllUsers) { html += '<th>' + esc(TLi18n.t('tca.colUser')) + '</th>'; }
+    html += '<th>' + esc(TLi18n.t('tca.colBuild')) + '</th>' +
+            '<th>' + esc(TLi18n.t('tca.colSuite')) + '</th>' +
+            '<th>' + esc(TLi18n.t('tca.colTestCase')) + '</th>';
+    if (g.show_platforms) { html += '<th>' + esc(TLi18n.t('tca.colPlatform')) + '</th>'; }
+    if (data.priorityEnabled) { html += '<th>' + esc(TLi18n.t('tca.colPriority')) + '</th>'; }
+    html += '<th>' + esc(TLi18n.t('tca.colStatus')) + '</th>';
+    if (showAllUsers) { html += '<th>' + esc(TLi18n.t('tca.colTester')) + '</th>'; }
+    html += '<th>' + esc(TLi18n.t('tca.colDueSince')) + '</th>' +
+            '</tr></thead><tbody>';
+
+    html += '<tr class="suiteRow"><td colspan="' + colCount(g, data) + '">' +
+            esc(TLi18n.t('tca.colTestplan')) + ': ' + esc(g.tplan_name) + '</td></tr>';
+
+    g.rows.forEach(function (row) {
+      html += buildRow(row, g, data);
+    });
+    html += '</tbody></table><br>';
+    $h.append(html);
+  });
+
+  if (total === 0) {
+    $('#noRecords').show();
+    $('#workArea').hide();
+  } else {
+    $('#noRecords').hide();
+    $('#workArea').show();
+  }
+
+  bindRowActions();
+
+  var now = new Date();
+  $('#footerInfo').html(
+    esc(TLi18n.t('common.generatedOn')) + ' ' +
+    now.toLocaleString() +
+    ' &middot; ' + total + ' ' + esc(TLi18n.t('tca.assignmentsCount')));
+}
+
+function colCount(g, data) {
+  var n = 3; // build, suite, testcase
+  if (showAllUsers) { n++; }
+  if (g.show_platforms) { n++; }
+  if (data.priorityEnabled) { n++; }
+  n++; // status
+  if (showAllUsers) { n++; }
+  n++; // due since
+  return n;
+}
+
+function buildRow(row, g, data) {
+  var h = '<tr data-id="' + row.testcase_id + '" data-tcv="' + row.tcversion_id + '" data-b="' + row.build_id + '" data-p="' + row.platform_id + '">';
+
+  if (showAllUsers) { h += '<td>' + esc(row.user_login) + '</td>'; }
+  h += '<td>' + esc(row.build_name) + '</td>';
+  h += '<td class="suitepath" title="' + esc(row.suite_path) + '">' + esc(row.suite_path) + '</td>';
+
+  h += '<td class="rowacts">';
+  if (row.can_exec) {
+    h += '<button class="qr qp" data-res="passed" title="' + esc(TLi18n.t('tca.quickPassed')) + '"><i class="fa fa-circle-check"></i></button> ' +
+         '<button class="qr qf" data-res="failed" title="' + esc(TLi18n.t('tca.quickFailed')) + '"><i class="fa fa-circle-xmark"></i></button> ' +
+         '<button class="qr qb" data-res="blocked" title="' + esc(TLi18n.t('tca.quickBlocked')) + '"><i class="fa fa-ban"></i></button> ';
+  }
+  h += '<a href="#" class="lnkExec" title="' + esc(TLi18n.t('tca.execution')) + '"><i class="fas fa-play"></i></a> ' +
+       '<a href="#" class="lnkHist" title="' + esc(TLi18n.t('tca.executionHistory')) + '"><i class="fas fa-clock-rotate-left"></i></a> ' +
+       '<a href="#" class="lnkEdit" title="' + esc(TLi18n.t('tca.design')) + '"><i class="fas fa-pen-to-square"></i></a> ';
+
+  h += '<!-- ' + String(row.external_id).padStart(10, '0') + ' -->' +
+       '<span class="tcext">' + esc(row.prefix) + '-' + row.external_id + '</span> : ' +
+       '<span class="tcname">' + esc(row.name) + '</span> ' +
+       '<span class="tcver">(v' + esc(row.version) + ')</span></td>';
+
+  if (g.show_platforms) { h += '<td>' + esc(row.platform_name || '-') + '</td>'; }
+
+  if (data.priorityEnabled) {
+    h += '<td><!--' + esc(row.priority_level.charAt(0)) + '--><span class="prio-tag p-' +
+         esc(row.priority_level.charAt(0)) + '">' + esc(prioLabel(row.priority_level)) + '</span></td>';
+  }
+
+  h += '<td><span class="status-chip st-' + esc(row.status_key) + '">' +
+       esc(statusLabel(row.status_key)) + '</span></td>';
+
+  if (showAllUsers) { h += '<td>' + esc(row.tester_login || '-') + '</td>'; }
+
+  h += '<td>';
+  if (row.days_since !== null && row.days_since !== undefined) {
+    var d = parseInt(row.days_since, 10);
+    h += (d > 30 ? '<span class="days-old">' + d + '</span>' : d);
+  }
+  h += '</td></tr>';
+  return h;
+}
+
+function bindRowActions() {
+  $('.lnkExec').off('click').on('click', function (ev) {
+    ev.preventDefault();
+    var $tr = $(this).closest('tr');
+    var tcv = $tr.data('tcv'), b = $tr.data('b'), p = $tr.data('p');
+    var g = groupOfRow($tr);
+    var url = '/lib/execute/execSetResults.php?version_id=' + tcv +
+              '&level=testcase&id=' + $tr.data('id') +
+              '&tplan_id=' + g + '&setting_build=' + b +
+              '&setting_platform=' + p + '&caller=tcAssignedToMe';
+    window.open(url, '_blank');
+  });
+  $('.lnkHist').off('click').on('click', function (ev) {
+    ev.preventDefault();
+    var tcid = $(this).closest('tr').data('id');
+    window.open('/lib/execute/execHistory.php?tcase_id=' + tcid +
+                '&tproject_id=' + tprojectId, '_blank');
+  });
+  $('.lnkEdit').off('click').on('click', function (ev) {
+    ev.preventDefault();
+    var tcid = $(this).closest('tr').data('id');
+    window.open('/lib/testcases/archiveData.php?edit=testcase&id=' + tcid +
+                '&tproject_id=' + tprojectId, '_blank',
+                'width=1000,height=700,resizable=yes,scrollbars=yes');
+  });
+  $('button.qr').off('click').on('click', function () {
+    quickResult($(this));
+  });
+}
+
+// resolve the test plan of a row by walking back to its group table
+function groupOfRow($tr) {
+  var idx = $('#groupsHolder table').index($tr.closest('table'));
+  if (lastData && lastData.groups && lastData.groups[idx]) {
+    return lastData.groups[idx].tplan_id;
+  }
+  return tplanId;
+}
+
+function collectIds($btn) {
+  var $tr = $btn.closest('tr');
+  return {
+    tplan_id: groupOfRow($tr),
+    platform_id: parseInt($tr.data('p'), 10),
+    build_id: parseInt($tr.data('b'), 10),
+    tcversion_id: parseInt($tr.data('tcv'), 10)
+  };
+}
+
+function quickResult($btn) {
+  var ids = collectIds($btn);
+  var res = $btn.data('res');
+  $.ajax({
+    url: API + '?action=quick_result',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      tproject_id: tprojectId,
+      tplan_id: ids.tplan_id,
+      platform_id: ids.platform_id,
+      build_id: ids.build_id,
+      tcversion_id: ids.tcversion_id,
+      result: res
+    })
+  }).done(function (r) {
+    if (r && r.status === 'ok') {
+      toast(TLi18n.t(res === 'passed' ? 'quick_passed'
+                   : res === 'failed' ? 'quick_failed' : 'quick_blocked'));
+      loadRows();
+    } else { apiFail(r); }
+  }).fail(function (xhr) { apiFail(xhr); });
+}
+</script>
+</body>
+</html>
