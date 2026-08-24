@@ -4273,7 +4273,10 @@ unchanged; #666 default path intact.
 | 672.R5 | steps element not a struct ('garbage' string) | clean errors naming both keys, no fatal | as expected | PASS |
 | 672.RG666.R1 | misnamed `expectedresults` key (old #666 case, now WITH required keys) | Success! with '' stored (no behavior change from this fix) | Success! id 28; '' stored; delta warns 0 | PASS |
 | 672.RG666.R3 | correct expected_results verbatim | value stored verbatim | 'VERBATIM666' in tcsteps | PASS |
-| 672.EV | Event Viewer across whole matrix | 0 new Error/Warning rows | COUNT(*) WHERE log_level IN (1,2) → 0 | PASS |
+| 672.RV1 | step_number='abc' (review finding: raw SQL interpolation) | clean error "numeric value required"; no crash, no events | as expected | PASS |
+| 672.RV2 | step_number='2' as numeric string (no false rejection) | Success!, step created | id 36 Success! | PASS |
+| 672.RV3 | steps sent as scalar string 'junk' (review finding: bypassed validation) | clean error "array of structs required" | as expected | PASS |
+| 672.EV | Event Viewer across whole matrix | 0 new Error/Warning rows | COUNT(*) WHERE log_level IN (1,2) → 0 (only #629's known empty-steps warning in the dedicated observation case, excluded from this count) | PASS |
 
-**Result: PASS (8/8)**
+**Result: PASS (11/11)**
 

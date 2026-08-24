@@ -28,18 +28,20 @@ during code review of #666's fix (which guarded only `expected_results`).
 1. `xmlrpc.class.php` `createTestCase()` validates only top-level params
    (`author`, `summary`, presence of `steps`) and forwards the steps array raw
    to `tcaseMgr->create()` at :2563.
-2. `testcase.class.php:800-810` loop casts each step to array and reads
+2. `testcase.class.php:800-810` loop (casting the first step to array only when it
+   arrives as an object, :794-798) reads
    `$item->steps[$jdx]['step_number']` (:801) and `['actions']` (:802) without
    any guard; `expected_results`/`execution_type` ARE guarded (isset ternaries).
 3. `create_step()` interpolates the NULLs straight into the INSERT
-   (`VALUES({$item_id},{$step_number},'...')` → broken SQL), `exec_query()`
+   (undefined-key reads interpolate as empty strings → `VALUES(16,,…)` → broken
+   SQL; the `NULL` args show in the backtrace frame), `exec_query()`
    fails, TestLink fatals mid-response at testcase.class.php:5820.
 
 ## Blast radius
 
 | Call site | Exposure |
 |-----------|----------|
-| xmlrpc.class.php:2563 → `create()` (tl.createTestCase) | primary path — the ONLY caller forwarding client-controlled raw steps |
+| xmlrpc.class.php:~2582 → `create()` (tl.createTestCase) | primary path — the ONLY caller forwarding client-controlled raw steps |
 | requirement_mgr.class.php:1066, tcImport.php:459, tcCreateFromIssue*.php, testcaseCommands.class.php:334, api/testcasesimport/index.php:361, api/testcases/index.php:902 | build steps server-side with all keys (verified `$normSteps` in the BFF) — unaffected |
 
 ## Approach — validate the API contract at the boundary
@@ -65,6 +67,19 @@ contract violations. Reuses the existing MISSING_REQUIRED_PARAMETER(200)
 constant pair, consistent with all other parameter checks in this class.
 API error strings are server-side English constants, not UI locale strings —
 no i18n bundle change.
+
+## Code-review hardening (same fix)
+
+The review subagent flagged two residual gaps of the same crash family, closed in
+the same block:
+
+* non-numeric `step_number` (e.g. `"abc"`) passed presence-only validation and was
+  interpolated raw into the INSERT → same 1064 fatal. Now rejected unless
+  `is_numeric()` (numeric strings like `"2"` still accepted);
+* a scalar `steps` param (not an array of structs) silently bypassed validation and
+  created a zero-step version. Now rejected with an explicit error.
+
+Empty `steps: []` keeps its pre-existing behavior — tracked separately as #629.
 
 ## Verification
 
