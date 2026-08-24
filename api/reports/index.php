@@ -85,6 +85,18 @@ function getParam($key, $default = '') {
     return is_string($v) ? trim($v) : '';
 }
 
+// Exact copy of the legacy resultsByTesterPerBuild.php minutes2HHMMSS()
+// algorithm: bcmul() first (decimal minutes lose precision through plain
+// float math), integer operators afterwards, HH:MM:SS output.
+function minutesToHHMMSS($minutes) {
+    $min2sec = bcmul($minutes, 60);
+    $hh = floor($min2sec / 3600);
+    $mmss = ($min2sec % 3600);
+    $mm = floor($mmss / 60);
+    $ss = ($mmss % 60);
+    return sprintf('%02d:%02d:%02d', $hh, $mm, $ss);
+}
+
 $tprojectId = intval(getParam('tproject_id', 0));
 $tplanId = intval(getParam('tplan_id', 0));
 $action = getParam('action');
@@ -764,6 +776,161 @@ if ($action === 'metrics_baseline_l1l2') {
         'export_xls_url' => '/lib/results/baselinel1l2.php?format=' .
             FORMAT_XLS . '&tplan_id=' . $tplanId .
             '&tproject_id=' . $tprojectId . '&spreadsheet=1',
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ];
+    out($payload);
+}
+
+if ($action === 'metrics_by_tester_per_build') {
+    // Results by Tester per Build report - mirrors
+    // lib/results/resultsByTesterPerBuild.php (Refs #677). Calls the very
+    // same tlTestPlanMetrics::getStatusTotalsByBuildUAForRender() the legacy
+    // controller uses (identical per-build/user matrix, status config order,
+    // number_format() rounding), rebuilds the per-build progress rollup with
+    // the exact legacy math and formats durations through the same
+    // minutes2HHMMSS() algorithm. Right gate ('testplan_metrics') enforced
+    // above + contextual re-check below.
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
+    // the session/project context (same pattern as metrics_baseline_l1l2).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // show_closed_builds toggle - same session persistence contract as the
+    // legacy controller ($_SESSION['reports_show_closed_builds']): value
+    // present in the request updates the session, otherwise the stored
+    // choice applies.
+    $showClosed = false;
+    if (isset($_SESSION['reports_show_closed_builds'])) {
+        $showClosed = (bool)$_SESSION['reports_show_closed_builds'];
+    }
+    $scbParam = $_GET['show_closed_builds'] ?? null;
+    if ($scbParam !== null) {
+        $showClosed = (bool)intval($scbParam);
+        $_SESSION['reports_show_closed_builds'] = $showClosed;
+    }
+
+    // Legacy short-circuit: no open builds while the closed-builds view is
+    // not requested -> warning instead of a table.
+    $openBuildsQty = $tplanMgr->getNumberOfBuilds($tplanId, null,
+        testplan::OPEN_BUILDS);
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $statusCfg = $metricsMgr->getStatusConfig();
+
+    $buildsOut = [];
+    $warningKey = '';
+    if ($openBuildsQty <= 0 && !$showClosed) {
+        $warningKey = 'no_open_builds';
+    } else {
+        $metrics = $metricsMgr->getStatusTotalsByBuildUAForRender($tplanId,
+            ['processClosedBuilds' => $showClosed]);
+        // issue #634 parity: plan without builds => no metrics to render
+        $matrix = is_null($metrics) ? [] : (array)$metrics->info;
+
+        $option = $showClosed ? null : testplan::GET_OPEN_BUILD;
+        $buildSet = $metricsMgr->get_builds($tplanId,
+            testplan::GET_ACTIVE_BUILD, $option);
+        $names = tlUser::getNames($db);
+
+        foreach ($matrix as $buildId => $buildExecMap) {
+            // Per-build rollup: exact copy of the legacy loop
+            // (resultsByTesterPerBuild.php lines ~62-87), guarded against
+            // division by zero for builds whose only rows have total 0.
+            $bTotal = 0;
+            $bExecuted = 0;
+            $bTime = 0;
+            foreach ($buildExecMap as $userId => $statistics) {
+                $bTotal += $statistics['total'];
+                $bExecuted += ($statistics['total'] -
+                    $statistics['not_run']['count']);
+                $bTime += $statistics['total_time'];
+            }
+            $bProgress = ($bTotal > 0)
+                ? round(($bExecuted / $bTotal) * 100, 2) : 0;
+
+            $usersOut = [];
+            foreach ($buildExecMap as $userId => $statistics) {
+                $statuses = [];
+                foreach ($statusCfg as $verboseStatus => $code) {
+                    $statuses[$verboseStatus] = [
+                        'count' => intval($statistics[$verboseStatus]['count']),
+                        'percentage' => $statistics[$verboseStatus]['percentage'],
+                    ];
+                }
+                $usersOut[] = [
+                    'user_id' => intval($userId),
+                    'login' => isset($names[$userId]['login'])
+                        ? $names[$userId]['login'] : '',
+                    'total' => intval($statistics['total']),
+                    'statuses' => $statuses,
+                    'progress' => $statistics['progress'],
+                    'total_time' =>
+                        minutesToHHMMSS($statistics['total_time']),
+                ];
+            }
+
+            $buildName = isset($buildSet[$buildId]['name'])
+                ? $buildSet[$buildId]['name'] : '';
+            $buildsOut[] = [
+                'id' => intval($buildId),
+                'name' => $buildName,
+                'progress' => $bProgress,
+                'total_time' => minutesToHHMMSS($bTime),
+                'users' => $usersOut,
+            ];
+        }
+        if (count($buildsOut) === 0) {
+            $warningKey = 'no_testers_per_build';
+        }
+    }
+
+    // Column headers: one qty + one [%] column per execution status in the
+    // results-config display order, labels resolved server-side via
+    // lang_get() so the session locale applies (same approach as the
+    // baseline_l1l2 action).
+    $cfgResults = config_get('results');
+    $columns = [];
+    foreach ($statusCfg as $verboseStatus => $code) {
+        $label = lang_get($cfgResults['status_label'][$verboseStatus]);
+        $columns[] = ['key' => $verboseStatus, 'label' => $label];
+    }
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => count($buildsOut) > 0,
+        'warning_key' => $warningKey,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_closed_builds' => $showClosed,
+        'columns' => $columns,
+        'builds' => $buildsOut,
+        // user link target kept on the legacy controller (assignment
+        // overview popup behaviour unchanged)
+        'assignment_url' => '/lib/testcases/tcAssignedToUser.php',
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ];
     out($payload);
