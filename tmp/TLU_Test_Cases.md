@@ -4233,3 +4233,47 @@ steps.
 
 **Result: PASS**
 
+
+---
+
+## Regression — Issue #672: api createTestCase unguarded $steps[$jdx]['step_number']/['actions'] reads (testcase.class.php:801-802) — E_WARNING + SQL 1064 crash + orphan rows
+
+**Date**: 2026-08-24 · **Branch**: `fix/issue-672` · **Fix commit**: `2c6c444df`
+
+**Area**: XML-RPC API `tl.createTestCase` (`lib/api/xmlrpc/v1/xmlrpc.class.php`, validation
+added after top-level param checks ~:2520). Root cause: XMLRPC layer forwards client steps
+raw into `testcase::create()` whose loop reads `steps[jdx]['step_number']`/`['actions']`
+unguarded (sibling keys were guarded by #666). Measured impact pre-fix was WORSE than the
+report's "warning noise": NULL step_number/actions produced a malformed INSERT
+(SQL 1064 in create_step), TestLink died mid-response with the "DB Access Error" HTML page
+(XML-RPC response destroyed, IXR client gets "parse error. not well formed"), and the
+already-inserted TC + tcversion rows were left orphaned with zero steps.
+
+**Precondition**: fresh DB; `UPDATE users SET script_key='672devkey672devkey672devkey672'
+WHERE id=1`; project Proj672FIX (id 18, prefix P67X) + suite TSFIX (id 19) created via the
+API; `TRUNCATE events`.
+
+**Repro steps (pre-fix)**: `tl.createTestCase` with
+`steps:[{expected_results:'er only'}]` → events gains E_WARNING ×2 (lines 801/802) +
+exec_query ERROR row; HTTP response = HTML backtrace `create_step(16, NULL, NULL, ...)`;
+client error "parse error. not well formed"; `nodes_hierarchy` keeps an orphan TC.
+
+**Expected post-fix**: omitted contract keys → clean `IXR_Error(200)` naming
+`steps[<i>]-><key>`, ZERO new warn/error events, NO DB rows left behind; valid payloads
+unchanged; #666 default path intact.
+
+**Execution matrix (post-fix, live http://localhost:8082, IXR client)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 672.R1 | step omits BOTH keys | 2× clean error naming steps[0]->step_number & ->actions; no events lvl≤2; no nodes rows | exactly that; nodes_hierarchy has no such TC | PASS |
+| 672.R2 | step omits only `actions` | single clean error naming actions; no DB rows | as expected | PASS |
+| 672.R3 | well-formed single step | Success!; tcsteps row persisted | id 20; step(1,'do x','see y') in tcsteps | PASS |
+| 672.R4 | multi-step w/o expected_results (#666 path) | Success!, both steps created, '' default for missing expected | id 23; steps (1,'a1',''),(2,'a2','e2') | PASS |
+| 672.R5 | steps element not a struct ('garbage' string) | clean errors naming both keys, no fatal | as expected | PASS |
+| 672.RG666.R1 | misnamed `expectedresults` key (old #666 case, now WITH required keys) | Success! with '' stored (no behavior change from this fix) | Success! id 28; '' stored; delta warns 0 | PASS |
+| 672.RG666.R3 | correct expected_results verbatim | value stored verbatim | 'VERBATIM666' in tcsteps | PASS |
+| 672.EV | Event Viewer across whole matrix | 0 new Error/Warning rows | COUNT(*) WHERE log_level IN (1,2) → 0 | PASS |
+
+**Result: PASS (8/8)**
+
