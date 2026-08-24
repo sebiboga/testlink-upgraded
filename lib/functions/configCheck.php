@@ -566,7 +566,7 @@ function check_php_settings(&$errCounter)
   }
   $final_msg .=  "<tr><td>Checking maximal allowed memory (Parameter memory_limit)</td>";
   // -1 means "unlimited memory" => always acceptable
-  if(!$memory_limit_unlimited && $memory_limit < $memory_limit_recommended)
+  if($memory_limit != -1 && $memory_limit < $memory_limit_recommended)
   {
     $final_msg .= "<td><span class='tab-warning'>{$memory_limit_display} MegaBytes - " .
                   "We suggest {$memory_limit_recommended} MB" .
@@ -574,8 +574,8 @@ function check_php_settings(&$errCounter)
   }
   else
   {
-    $ok_mem_msg = $memory_limit_unlimited ? 'OK (unlimited)' :
-                  'OK ('.$memory_limit_display.' MegaBytes)';
+    $ok_mem_msg = ($memory_limit == -1) ? 'OK (unlimited)' :
+                  'OK ('.$memory_limit.' MegaBytes)';
     $final_msg .= '<td><span class="tab-success">' . $ok_mem_msg . '</span></td></tr>';
   }
   $final_msg .= "<tr><td>Checking if Register Globals is disabled</td>";
