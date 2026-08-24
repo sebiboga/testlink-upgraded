@@ -4134,3 +4134,58 @@ the Event Viewer. All events #2–#21 persisted in this session were created by 
 agent's first-draft fixture scripts during reproduction setup, before the fix.
 
 **Result: PASS**
+## Suite 618 — Modernized General Test Plan Metrics screen (generalMetrics.html + api/reports metrics_general)
+
+**Screen**: `gui/templates/results/generalMetrics.html` — Reports → "General Test Plan Metrics"
+(replaces legacy `lib/results/resultsGeneral.php` HTML view; mail/XLS generation stays on the
+legacy controller endpoints). BFF: `api/reports/index.php?action=metrics_general` reusing the very
+same `tlTestPlanMetrics` render methods as legacy. Right gate: `testplan_metrics` (403 otherwise).
+
+**Precondition**: fixtures via SQL — project 6001 MetricsProj (`testPriorityEnabled=1`),
+plan 6100 MP Plan, platforms P1/P2, builds B1/B2, suites SuiteAlpha/SuiteBeta, 12 TCs ×
+2 platforms = 24 links, 17 executions spread p/f/b/n across builds+platforms, keywords
+smoke(2)/regression(3), milestone Sprint M1 (goals 40/50/60), tester assignments for
+build sections; empty plan 6102 Empty Plan; users noinv(guest), norights(<no rights>).
+Session: admin/admin via browser; curl cookie jars for API paths.
+
+**Execution matrix (live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 618.T1 | BFF happy path admin | status ok, hasData true, all section payloads present, platform_set natsorted | ok; suites/keywords/platform/priorities/overall_build_status/build_by_platform/milestones all present | PASS |
+| 618.T2 | Screen render via direct URL | header + ctx names; 7 sections: by Platform / Overall Build Status / Build per Platform / Top Level Suites / Priority / Keyword / Milestones(prio variant) | all 7 rendered with correct rows (P1 12=3n+6p+2f+1b; B1 8; Alpha P1 7 …) | PASS |
+| 618.T3 | Numbers parity vs legacy HTML view | same totals/statuses as resultsGeneral.php?format=0 | spot-checked: platform/suite/build figures identical (B1→8, B2→4) | PASS |
+| 618.T4 | Milestones priority variant | High/Med/Low columns with result/goal pairs + overall; medium_incomplete flagged red | 80.0% (8/10)/60%, 25.0% (1/4)/50% red, 50.0% (5/10)/40%, 58.3% | PASS |
+| 618.T5 | Priority section gated by project option | renders only when testPriorityEnabled | absent when options NULL (first run), present after enabling | PASS |
+| 618.T6 | Refresh button | reloads metrics without page nav | 7 sections rebuilt | PASS |
+| 618.T7 | Locale switcher → ro | all labels from ro bundle | header "Metrici generale pentru Planul de Testare", 7 sections translated | PASS |
+| 618.T8 | XLS export button (legacy POST) | valid .xls download, correct mime/filename | 200 application/vnd.ms-excel, Composite Document File 10240 bytes | PASS |
+| 618.T9 | Send-by-e-mail button (legacy POST) | HTTP 200 legacy flow preserved | 200, empty body (displayReport mail path) | PASS |
+| 618.T10 | ASIDE integration | Reports menu entry href → generalMetrics.html?tproject_id=&tplan_id=; loads in mainframe | link live, screen loads inside iframe with full context | PASS |
+| 618.T11 | Empty plan state (6102) | hasData false → rgm.noTsuites message, no sections | empty box shown, 0 sections | PASS |
+| 618.T12 | Missing ids | 400 Missing test plan id (tplan_id=0) | 400 + JSON error | PASS |
+| 618.T13 | Rights gate — user without right (norights, <no rights>) | 403 No permission | 403 {"message":"No permission"} | PASS |
+| 618.T14 | Guest user WITH testplan_metrics (noinv) allowed | 200 full report (same right set as legacy grants guest here) | 200 ok | PASS |
+| 618.T15 | i18n completeness | rgm.* keys ×43 in ALL 10 bundles; python3 -m json.tool valid each | en/ro/de/fr/es/it/pt/ru/ja/zh +43 each, all valid | PASS |
+| 618.T16 | Event Viewer delta during testing | no new Error/Warning from modern screen/BFF | only audit logins; found pre-existing legacy bug #670 (fixed separately, see below) | PASS |
+
+**Bug surfaced & fixed during this suite**: E_WARNING `Undefined array key "total_tc"`
+in legacy `inc_results_show_table.tpl` build tables — issue **#670**, fixed in commit
+"fix(legacy): inc_results_show_table honors args_column_for_total…" (Fixes #670);
+post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
+
+**Result: PASS**
+
+### Suite 618 addendum — code review fixes re-verification (commit 81a2957cc)
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 618.R1 | platform-less plan (6103, builds present) | suites/priority/keyword tables render under implicit key 0; no platform notice | 3 sections rendered, SuiteAlpha row correct | PASS |
+| 618.R2 | platform-less plan without builds | hasData=false → empty state (legacy #634 parity) | empty box shown | PASS |
+| 618.R3 | mail/XLS form actions | resolve to /lib/results/resultsGeneral.php (not /gui/templates/results/lib/...) | absolute URLs correct in DOM | PASS |
+| 618.R4 | Completed [%] final column | appended on every table carrying percentage_completed | header + 75.0% cell for P1 | PASS |
+| 618.R5 | build feedback note per section | exactly ONE note after per-platform block | 1 note in "Results by Build" | PASS |
+| 618.R6 | contextual rights re-check (hasRight w/ tproject+tplan context) | admin still 200; norights still 403 | 200 / 403 confirmed post-change | PASS |
+| 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
+
+**Result: PASS (addendum 7/7)**
