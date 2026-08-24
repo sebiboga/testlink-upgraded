@@ -1358,7 +1358,7 @@
   "rgm.elapsedSeconds": "Vergangene Sekunden:",
   "rgm.thCompletedPerc": "Abgeschlossen [%]",
   "rgm.infoGenTestRep": "Dieser Bericht zeigt die allgemeinen Metriken des ausgewählten Testplans: Ergebnisse nach Plattform, Build-Status, Top-Suiten, Prioritäts- und Stichwort-Aufschlüsselung sowie den Meilensteinbericht.",
-  "rbs.header": "Ergebnisse nach Test Suite",
+  "rbs.header": "Kennzahlen nach Test Suiten der Ebene 1 und 2",
   "rbs.forPlan": "für Testplan",
   "rbs.testProject": "Testprojekt",
   "rbs.btnSendEmail": "Mir selbst per E-Mail senden",

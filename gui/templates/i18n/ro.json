@@ -1358,7 +1358,7 @@
   "rgm.elapsedSeconds": "Secunde scurse:",
   "rgm.thCompletedPerc": "Completat [%]",
   "rgm.infoGenTestRep": "Acest raport arată metricile generale ale planului de testare selectat: rezultate pe platformă, starea build-urilor, suite de nivel superior, defalcare pe priorități și cuvinte cheie plus raportul jaloanelor.",
-  "rbs.header": "Rezultate pe Suite de Teste",
+  "rbs.header": "Indicatori pe Suite de Teste de Nivelul 1 și 2",
   "rbs.forPlan": "pentru planul de testare",
   "rbs.testProject": "Proiect de Test",
   "rbs.btnSendEmail": "Trimite-mi pe e-mail",

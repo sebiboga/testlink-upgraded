@@ -1358,7 +1358,7 @@
   "rgm.elapsedSeconds": "経過秒数:",
   "rgm.thCompletedPerc": "完了率 [%]",
   "rgm.infoGenTestRep": "このレポートは選択したテスト計画の総合メトリクスを示します: プラットフォーム別結果、ビルド状態、最上位スイート、優先度とキーワードの内訳、およびマイルストーンレポート。",
-  "rbs.header": "テストスイート別の結果",
+  "rbs.header": "レベル1・レベル2テストスイート別のメトリクス",
   "rbs.forPlan": "対象テスト計画",
   "rbs.testProject": "テストプロジェクト",
   "rbs.btnSendEmail": "自分にメールで送信",

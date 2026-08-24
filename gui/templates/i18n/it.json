@@ -1358,7 +1358,7 @@
   "rgm.elapsedSeconds": "Secondi trascorsi:",
   "rgm.thCompletedPerc": "Completato [%]",
   "rgm.infoGenTestRep": "Questo report mostra le metriche generali del piano selezionato: risultati per piattaforma, stato delle build, suite di primo livello, dettaglio per priorità e parola chiave, più il report delle milestone.",
-  "rbs.header": "Risultati per Test Suite",
+  "rbs.header": "Metriche per Test Suite di Livello 1 e Livello 2",
   "rbs.forPlan": "per il piano di test",
   "rbs.testProject": "Progetto di test",
   "rbs.btnSendEmail": "Invia a me stesso via email",

@@ -1358,7 +1358,7 @@
   "rgm.elapsedSeconds": "耗时秒数:",
   "rgm.thCompletedPerc": "已完成 [%]",
   "rgm.infoGenTestRep": "本报告显示所选测试计划的总体度量：按平台的结果、构建状态、顶层套件、优先级和关键字明细，以及里程碑报告。",
-  "rbs.header": "按测试套件统计结果",
+  "rbs.header": "按一级与二级测试套件的指标",
   "rbs.forPlan": "针对测试计划",
   "rbs.testProject": "测试项目",
   "rbs.btnSendEmail": "通过电子邮件发送给自己",
