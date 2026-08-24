@@ -1,0 +1,169 @@
+name: Merge stale branches
+
+# Merges useful work from ANY stale non-default branch into sebiboga.
+# Uses opencode (AI) to analyze each branch, cherry-pick valuable commits,
+# verify correctness, and clean up. One branch per run.
+#
+# Follows the rulebook in MERGE-STALE-BRANCHES.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Specific branch to merge (e.g. chore/cleanup-19). Leave empty for oldest."
+        required: false
+        default: ""
+  schedule:
+    - cron: "0 * * * *" # every hour
+
+concurrency:
+  group: merge-stale
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  merge-stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GITHUB_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Configure git identity
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install opencode CLI
+        run: npm install -g opencode-ai
+
+      - name: Configure opencode.json
+        run: |
+          cat > opencode.json << 'OPNCFG'
+          {
+            "$schema": "https://opencode.ai/config.json",
+            "model": "opencode/big-pickle",
+            "instructions": ["AGENTS.md", "MERGE-STALE-BRANCHES.md"]
+          }
+          OPNCFG
+
+      - name: Find the stale branch to merge
+        run: |
+          REPO="${{ github.repository }}"
+          DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
+          gh auth status
+          git fetch --all --prune 2>/dev/null || true
+
+          # If a specific branch was requested, use it
+          TARGET="${{ github.event.inputs.target_branch }}"
+          if [ -n "$TARGET" ]; then
+            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$TARGET" 2>/dev/null || echo "0")
+            if [ "$AHEAD" = "0" ]; then
+              echo "::error::Branch $TARGET has no unmerged commits or does not exist"
+              exit 1
+            fi
+            echo "TARGET_BRANCH=$TARGET" >> "$GITHUB_ENV"
+            echo "HAS_TARGET=1" >> "$GITHUB_ENV"
+            echo "selected branch: $TARGET (+$AHEAD ahead)"
+            exit 0
+          fi
+
+          # Auto-select: oldest non-default branch with unmerged commits
+          OLDEST=""
+          OLDEST_AGE=999999
+
+          for BRANCH in $(git branch -r | grep -v "origin/$DEFAULT_BRANCH" | grep -v 'HEAD' | sed 's|origin/||;s|^[[:space:]]*||'); do
+            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH" 2>/dev/null || echo "0")
+            if [ "$AHEAD" = "0" ]; then
+              continue
+            fi
+
+            # Extract issue number if present (fix/issue-N pattern)
+            ISSUE_NUM=$(echo "$BRANCH" | grep -oP 'fix/issue-\K[0-9]+' | head -1)
+
+            # If issue exists and is still OPEN, this is active work — skip
+            if [ -n "$ISSUE_NUM" ]; then
+              STATE=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json state --jq .state 2>/dev/null || echo "UNKNOWN")
+              if [ "$STATE" = "OPEN" ]; then
+                echo "skipping $BRANCH — issue #$ISSUE_NUM still OPEN (active work)"
+                continue
+              fi
+            fi
+
+            # Use commit timestamp as age (oldest first)
+            AGE=$(git log -1 --format="%at" "origin/$BRANCH" 2>/dev/null || echo "0")
+            if [ "$AGE" -lt "$OLDEST_AGE" ] && [ "$AGE" -gt "0" ]; then
+              OLDEST_AGE=$AGE
+              OLDEST=$BRANCH
+            fi
+          done
+
+          if [ -z "$OLDEST" ]; then
+            echo "::notice::No stale branches found (all either fully merged or issues still open)"
+            echo "HAS_TARGET=0" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          echo "TARGET_BRANCH=$OLDEST" >> "$GITHUB_ENV"
+          echo "HAS_TARGET=1" >> "$GITHUB_ENV"
+          echo "selected branch: $OLDEST"
+
+      - name: Run opencode — analyze, cherry-pick, verify
+        if: env.HAS_TARGET == '1'
+        timeout-minutes: 60
+        run: |
+          BRANCH="${TARGET_BRANCH}"
+          ISSUE_NUM=$(echo "$BRANCH" | grep -oP 'fix/issue-\K[0-9]+' | head -1 || echo "")
+
+          PROMPT="You are merging a stale branch into the default branch (sebiboga). "
+          PROMPT+="Read MERGE-STALE-BRANCHES.md in the repo root FIRST and follow ALL its rules strictly. "
+          PROMPT+="The branch to process is: origin/$BRANCH "
+
+          if [ -n "$ISSUE_NUM" ]; then
+            PROMPT+="The associated GitHub issue is: #$ISSUE_NUM "
+          fi
+
+          PROMPT+="STEPS (follow in order): "
+          PROMPT+="1. ANALYZE: List unique commits on the branch vs sebiboga. "
+          PROMPT+="   Read the issue body if an issue exists. "
+          PROMPT+="   Categorize each commit (CODE FIX / DOCS / TEST / FEAT / CONFIG / TEMP). "
+          PROMPT+="2. CHECK: Are the changes already on sebiboga? (grep for issue number, key function names, diff file content). "
+          PROMPT+="   If yes, only cherry-pick what's missing. "
+          PROMPT+="3. CHERRY-PICK: Start a local branch from sebiboga. Cherry-pick useful commits one by one. "
+          PROMPT+="   Skip TEMP commits and anything already on sebiboga. Resolve conflicts by preferring sebiboga. "
+          PROMPT+="4. VERIFY (MANDATORY): Before deleting, you MUST prove no work was lost: "
+          PROMPT+="   a. Count unique commits, confirm every non-TEMP commit was cherry-picked. "
+          PROMPT+="   b. git diff to confirm no CODE FIX or FEAT changes remain on the branch that aren't on sebiboga. "
+          PROMPT+="   c. For each changed file, verify it exists on sebiboga. "
+          PROMPT+="   d. Run syntax checks (php -l, python3 -m json.tool, node --check). "
+          PROMPT+="   If ANY check fails, DO NOT delete the branch. Post a comment explaining what's blocked. "
+          PROMPT+="5. PUSH: Push to origin sebiboga. "
+          PROMPT+="6. COMMENT: Post a comment on the issue (if exists) with what was landed, what was skipped, and verification results. "
+          PROMPT+="7. DELETE: Only after ALL verification passes: git push origin --delete $BRANCH "
+          PROMPT+="STOP after this one branch. Do not process another."
+
+          opencode run "$PROMPT" \
+            --dangerously-skip-permissions \
+            --print-logs
+
+      - name: Summary
+        run: |
+          if [ "${{ env.HAS_TARGET }}" != "1" ]; then
+            echo "No stale branches to process — clean slate!"
+          else
+            echo "Processed branch: ${{ env.TARGET_BRANCH }}"
+          fi
