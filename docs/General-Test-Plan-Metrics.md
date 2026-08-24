@@ -37,8 +37,8 @@ endpoints (document/mail/XLS generation stays in `lib/results/resultsGeneral.php
 | **Header** | Teal Dashio header "General Test Plan Metrics — for test plan X" with locale switcher |
 | **Toolbar** | Dark bar: test project context, *Send test report by e-mail* (legacy POST), *Export data as spreadsheet* (legacy POST), *Refresh* |
 | **Notice** | "Important Notice" platform-relationship box shown only when the plan has platforms (legacy `important_notice`) |
-| **Report sections** | One white card per metrics section, each rendering the classic first-column / TOTAL / per-status qty + [%] table layout with server-localized status labels |
-| **Footer** | "Generated on \<timestamp\> · Elapsed seconds: n" |
+| **Report sections** | One white card per metrics section, each rendering the classic first-column / TOTAL / per-status qty + [%] table layout with server-localized status labels, ending in the legacy final **Completed [%]** column |
+| **Footer** | Legacy `info_gen_test_rep` description line + "Generated on \<timestamp\> · Elapsed seconds: n" |
 
 ## 2. Report Sections
 
@@ -92,6 +92,9 @@ The locale switcher in the header switches bundles live:
 
 - context: `tproject_name`, `tplan_name`
 - flags: `has_data`, `show_platforms`, `priority_enabled`, ordered `platform_set`
+- platform-less plans: `platform_set` comes back as `{"0":""}` (legacy implicit key 0,
+  matching `TPTCV.platform_id = 0` rows) and the per-suite/priority/keyword tables
+  still render without any "on platform" sub-sections
 - per-section payloads `{info, columns}` reusing the exact render objects of
   `tlTestPlanMetrics` → numbers are 1:1 with legacy
 - legacy export URLs: `send_mail_url`, `export_xls_url`
