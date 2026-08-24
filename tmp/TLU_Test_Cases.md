@@ -4361,3 +4361,22 @@ Environment: repo root @ sebiboga (fe3c9f458), app http://localhost:8082, fresh 
 | 11 | Event Viewer after test window | SELECT ... FROM events WHERE id > last pre-test id | Only AUDIT login/logout entries; zero new Error/Warning from the modern screen/BFF (ids 15-16 E_WARNING predate testing; caused by agent CLI probe misusing tlUser constructor, not by app code) | PASS |
 
 Suite result: **11/11 PASS**
+
+## Suite 676 — Sysinfo memory_limit ini-shorthand parsing (install/util/sysinfo.php checkMemoryLimits) — Refs #676
+Environment: repo root @ fix/issue-676 (2aa436403), PHP 8.3.33. Repro method: CLI harness extracting the REAL `checkMemoryLimits()` from `install/util/sysinfo.php` source, executed as `php -d memory_limit=<v> harness.php install/util/sysinfo.php` per value (live HTTP repro blocked by separate fatal #678 — screen 500s on every request, pre-existing). Main dev instance :8082 untouched.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state (issue symptom) | Harness @ parent commit with `-d memory_limit=1G` | memory_status ERROR ("Memory: 1G ...") | PASS (reproduced) |
+| 2 | Extra pre-fix failure modes | Harness @ parent with `-d memory_limit=-1` and `268435456` | -1→ERROR (wrong: unlimited), bytes 256MB→OK (wrong: inflated) — both misclassified pre-fix | PASS (documented) |
+| 3 | G suffix: 1G post-fix | Harness @ fix with `-d memory_limit=1G` | memory_status OK | PASS |
+| 4 | M boundaries unchanged | Harness with 1024M / 512M / 511M / 256M / 255M / 128M | OK / OK / WARN / WARN / ERROR / ERROR (thresholds untouched) | PASS |
+| 5 | Sentinel -1 post-fix | Harness with `-d memory_limit=-1` | memory_status OK (unlimited acceptable) | PASS |
+| 6 | Bare-bytes default branch | Harness with 268435456 (=256MB) and 536870912 (=512MB) | WARN / OK | PASS |
+| 7 | K suffix | Harness with 2097152K (=2048MB) | OK | PASS |
+| 8 | Syntax gate | php -l install/util/sysinfo.php | No syntax errors | PASS |
+| 9 | Code review subagent | Full-diff review vs configCheck.php:515-552 reference pattern | PASS verdict; no drive-by changes; thresholds/message byte-identical | PASS |
+| 10 | Main app regression | curl :8082/login.php | HTTP 200 | PASS |
+| 11 | Event Viewer after test window | SELECT COUNT(*) FROM events WHERE log_level IN (2,4) | 0 rows → no new Error/Warning entries | PASS |
+
+Suite result: **11/11 PASS**
