@@ -2081,6 +2081,10 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     foreach($r2cSame as $rr) {
       $grants[$rr] = 'no';
     }
+    // getMenuVisibility() reads this key unconditionally (see issue #674):
+    // the fast path must return the SAME object shape as the normal path
+    // below, where the key is initialized at 'no' before being evaluated.
+    $grants['tproject_user_role_assignment'] = 'no';
     // inventory grants must stay int 1/0 (see below) - 'no' is truthy and
     // would make aside.tpl render the Inventory link
     $grants['project_inventory_view'] = 0;
