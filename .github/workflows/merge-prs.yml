@@ -1,8 +1,12 @@
-name: Merge bot PRs (safety net)
+name: Merge bot PRs + cleanup stale branches
 
-# Safety net for the fix-bug workflow: if the agent could not land its own PR
-# (conflicts at run time, deadline hit), this workflow periodically retries.
-# Deterministic plumbing on purpose — no AI needed here. Runs every hour.
+# Safety net for the fix-bug workflow:
+# 1. Merges open agent PRs (squash + delete branch)
+# 2. Closes stale unmergeable bot PRs
+# 3. Deletes fully-merged fix/* branches (content preserved on default branch)
+# 4. Flags orphaned fix/* branches (issue closed, unmerged commits remain)
+#
+# Runs every hour. No AI needed — pure deterministic plumbing.
 
 on:
   workflow_dispatch: {}
@@ -16,6 +20,7 @@ concurrency:
 permissions:
   contents: write
   pull-requests: write
+  issues: read
 
 jobs:
   merge:
@@ -24,6 +29,11 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
+      - name: Checkout (need git for branch diff checks)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Try to merge open agent PRs
         run: |
           REPO="${{ github.repository }}"
@@ -58,9 +68,6 @@ jobs:
                 || echo "::warning::merge failed for #$PR"
             else
               echo "::warning::PR #$PR still not mergeable ($STATE) — leaving it for the next pass or human review"
-              # a bot PR that conflicts with base is stale garbage (its content
-              # usually already landed via another path) — close it instead of
-              # retrying forever every hour
               AUTHOR=$(gh pr view "$PR" --repo "$REPO" --json author --jq .author.login)
               if [ "$AUTHOR" = "github-actions[bot]" ]; then
                 gh pr close "$PR" --repo "$REPO" \
@@ -71,3 +78,70 @@ jobs:
             fi
             echo "::endgroup::"
           done
+
+      - name: Delete fully-merged fix/* branches
+        run: |
+          REPO="${{ github.repository }}"
+          git fetch --all --prune 2>/dev/null || true
+
+          DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
+          echo "default branch: $DEFAULT_BRANCH"
+
+          DELETED=0
+          FAILED=0
+
+          # Iterate remote fix/* branches; skip if not fully merged
+          for BRANCH in $(git branch -r | grep 'origin/fix/' | sed 's|origin/||;s|^[[:space:]]*||'); do
+            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH" 2>/dev/null || echo "0")
+            if [ "$AHEAD" != "0" ]; then
+              continue  # has unmerged commits — skip
+            fi
+            # Fully merged — safe to delete
+            if git push origin --delete "$BRANCH" 2>/dev/null; then
+              echo "deleted merged branch: $BRANCH"
+              DELETED=$((DELETED + 1))
+            else
+              echo "::warning::failed to delete $BRANCH"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+
+          echo "branch cleanup: $DELETED deleted, $FAILED failed"
+
+      - name: Flag orphaned fix/* branches (issue closed, unmerged commits)
+        run: |
+          REPO="${{ github.repository }}"
+          git fetch --all --prune 2>/dev/null || true
+
+          DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
+          ORPHANS=0
+
+          for BRANCH in $(git branch -r | grep 'origin/fix/' | sed 's|origin/||;s|^[[:space:]]*||'); do
+            AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH" 2>/dev/null || echo "0")
+            if [ "$AHEAD" = "0" ]; then
+              continue  # fully merged — already handled above
+            fi
+
+            # Extract issue number from branch name (fix/issue-<N> or fix/issue-<N>-slug)
+            ISSUE_NUM=$(echo "$BRANCH" | grep -oP 'fix/issue-\K[0-9]+' | head -1)
+            if [ -z "$ISSUE_NUM" ]; then
+              continue  # not an issue branch
+            fi
+
+            STATE=$(gh issue view "$ISSUE_NUM" --repo "$REPO" --json state --jq .state 2>/dev/null || echo "UNKNOWN")
+            if [ "$STATE" = "CLOSED" ]; then
+              ORPHANS=$((ORPHANS + 1))
+              echo "::warning::ORPHAN: $BRANCH — issue #$ISSUE_NUM is CLOSED but branch has $AHEAD unmerged commits (needs human review)"
+            fi
+          done
+
+          if [ "$ORPHANS" = "0" ]; then
+            echo "no orphaned branches found"
+          else
+            echo "::warning::$ORPHANS orphaned branches found (issue closed, unmerged commits remain — manual review needed)"
+          fi
+
+      - name: Summary
+        run: |
+          REMAINING=$(git branch -r | grep 'origin/fix/' | wc -l)
+          echo "remaining fix/* branches: $REMAINING"
