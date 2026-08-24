@@ -54,7 +54,8 @@ line. Sibling patterns available:
 
 ## Approach — derive the id from the case id (minimal)
 
-Chosen fix (+2 lines at :3521, immediately before the sprintf):
+Chosen fix (+2 lines inserted after old :3521; they land as post-fix lines
+:3522-3523, immediately before the sprintf):
 
 ```php
 $dummy = $this->tcaseMgr->getExternalID( $tcase_id, $tproject_id );
@@ -65,11 +66,12 @@ Why this way:
 
 - Mirrors the in-file sibling pattern (`checkTestCaseAncestry()`), so the code
   stays consistent with how the same variable is computed elsewhere.
-- Passes the already-in-scope `$tproject_id`: `testcase::getExternalID()`
-  (lib/functions/testcase.class.php:5697-5721) keeps a *static*
-  prefix/root cache (:5699-5707); calling it without a project can reuse
-  another project's cached prefix on multi-project API servers. Supplying
-  `$tproject_id` sidesteps that entirely.
+- Passes the already-in-scope `$tproject_id` (assigned at :3486 before this
+  block, and validated by `checkTestCaseAncestry()` just above): supplying it
+  lets `getExternalID()`'s static prefix/root cache
+  (lib/functions/testcase.class.php:5699-5707) resolve without the redundant
+  tree-walk query that `getPrefix($id, null)` performs when no project is
+  given, and keeps same-project repeat calls on correct cache hits.
 - The `isset` guard covers `getExternalID()` returning `[]` when the case has
   no last version info (testcase.class.php:5714-5715).
 
