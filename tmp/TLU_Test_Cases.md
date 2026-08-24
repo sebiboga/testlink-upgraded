@@ -4173,3 +4173,22 @@ R5 — documented honestly in issue #668 checkpoint 2/2; final commit `bda84f3bc
 Event Viewer screenshot: `tmp/wiki-repo/images/issue-668-eventviewer-after-fix.png`.
 
 **Result: PASS**
+
+## Suite 671 — Results by Test Suite screen (resultsByTSuite.html + api/reports metrics_by_tsuite) — Refs #671
+Environment: fresh DB, fixtures seeded via `tmp/seed_rbs.php` — project "RBS Demo" (tproject_id=1), plans: RBS Plan (id=2, platforms Linux+Windows, build B1, 8 TCs across L1/L2/L3 suites, mixed executions), RBS Empty (id=100, no links), RBS NoPlat (id=200, platform_id=0 links + executions).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF happy path w/ platforms | GET `/api/reports/?action=metrics_by_tsuite&tplan_id=2&tproject_id=1` | 200; hasData=true; show_platforms=true; columns = Not Run/Passed/Failed/Blocked labels; suites grouped per platform with L1:L2 rows sorted by name; span per platform | PASS |
+| 2 | Screen render (platforms) | Open `resultsByTSuite.html?tproject_id=1&tplan_id=2` as admin | Header + plan/project names; Important-notice banner visible; 2 sections ("Results on Platform: Linux/Windows"); tables: L1-L2 / Total / 4 statuses qty+[%] / Completed [%]; depth-3 chain G Leaf aggregates into G Mid row | PASS |
+| 3 | Exec span dates | Observe First/Latest execution lines under each table | Human-readable locale date (e.g. "8/24/2026, 1:51:15 PM"), NOT strftime placeholders like "%24/%51/%2026" | PASS (after fix 498b0267e) |
+| 4 | Screen render (no platforms) | Open screen for tplan_id=200 | No notice banner; NO per-platform subtitles; single table under implicit key 0; span key 0 rendered | PASS |
+| 5 | Empty state | Open screen for tplan_id=100 (plan without linked TCs) | Empty box with rbs.noTsuites message; no tables; footer hidden | PASS |
+| 6 | Export XLS | Click "Export data as spreadsheet" | HTTP 200 download `TestLink_GTMP_RBS Demo_RBS Plan.xls` (application/vnd.ms-excel attachment); legacy generator reused | PASS |
+| 7 | Send report by e-mail | POST sendByEmail to legacy resultsByTSuite.php | HTTP 200, feedback page, no DB Access Error/fatal | PASS |
+| 8 | Permission path (403) | Log in rbsnoperm (role "<no rights>", id=2), open screen tplan_id=2 | BFF returns HTTP 403; warnbox shows "Insufficient rights"; no sections rendered | PASS |
+| 9 | Aside menu switch | Admin → ASIDE → Reports → click report entry (link_report_by_tsuite) | Link href = gui/templates/results/resultsByTSuite.html?tproject_id=1&tplan_id=2; screen opens inside mainframe with 2 sections | PASS |
+| 10 | i18n completeness | `grep rbs.` over all 10 bundles + python json.tool validation | 17 rbs.* keys present in en/de/es/fr/it/ja/pt/ro/ru/zh; all bundles valid JSON | PASS |
+| 11 | Event Viewer clean | Truncate events; exercise BFF x3 plans + screen render + XLS export | events WHERE log_level IN (1,2) → 0 new Error/Warning entries | PASS (4 E_WARNINGs found & fixed pre-verification: leftover `$dummy` arg from removed localize_dateOrTimeStamp calls) |
+
+Suite result: **11/11 PASS**
