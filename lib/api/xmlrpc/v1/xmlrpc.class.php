@@ -4973,7 +4973,6 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $platform_name = null;
             $platform_id = null;
             if($name_exists) {
-                $this->errors[] = $platformInfo;
                 $platform_name = $this->args[self::$platformNameParamName];
                 $status = in_array( $this->args[self::$platformNameParamName], $platformInfo );
             } else {
