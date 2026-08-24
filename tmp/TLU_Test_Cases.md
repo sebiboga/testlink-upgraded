@@ -4087,58 +4087,50 @@ all other call shapes unchanged.
 
 **Result: PASS**
 
-## Suite 618 — Modernized General Test Plan Metrics screen (generalMetrics.html + api/reports metrics_general)
+---
 
-**Screen**: `gui/templates/results/generalMetrics.html` — Reports → "General Test Plan Metrics"
-(replaces legacy `lib/results/resultsGeneral.php` HTML view; mail/XLS generation stays on the
-legacy controller endpoints). BFF: `api/reports/index.php?action=metrics_general` reusing the very
-same `tlTestPlanMetrics` render methods as legacy. Right gate: `testplan_metrics` (403 otherwise).
+## Regression — Issue #669: xmlrpc _insertResultToDB() raw interpolation of $version_number into INSERT — null kills the whole XML-RPC request via exec_query() die()
 
-**Precondition**: fixtures via SQL — project 6001 MetricsProj (`testPriorityEnabled=1`),
-plan 6100 MP Plan, platforms P1/P2, builds B1/B2, suites SuiteAlpha/SuiteBeta, 12 TCs ×
-2 platforms = 24 links, 17 executions spread p/f/b/n across builds+platforms, keywords
-smoke(2)/regression(3), milestone Sprint M1 (goals 40/50/60), tester assignments for
-build sections; empty plan 6102 Empty Plan; users noinv(guest), norights(<no rights>).
-Session: admin/admin via browser; curl cookie jars for API paths.
+**Date**: 2026-08-24 · **Branch**: `fix/issue-669`
 
-**Execution matrix (live server http://localhost:8082)**:
+**Area**: XML-RPC API (`lib/api/xmlrpc/v1/xmlrpc.class.php`), `_insertResultToDB()`.
+Root cause: `$version_number = $this->versionNumber;` (null-capable since #667 made
+null a first-class state at `_checkTCIDAndTPIDValid()` :1390-1391) flowed raw into the
+executions INSERT string interpolation (:1848). With null, SQL renders `, , ` →
+MySQL 1064. Aggravator: `database::exec_query()` **die()s** on failed queries
+(`lib/functions/database.class.php:218`), so the whole `tl.reportTCResult` response is
+killed mid-request with no IXR_Error — and the buffered logger never commits on die(),
+leaving no trace in the Event Viewer. Fix = validate + intval before composition;
+unresolved version returns 0 (existing failure convention of the `$executionID == 0`
+caller flow at :2743/:2747).
+
+**Precondition**: fresh DB; fixtures via managers (`tmp/fixtures_669.php`):
+project UPD669(24), tcase 26, tcversion_id 27 (version 1), tplan 29 (Plan669),
+build 2; admin devKey set in `users.script_key`. Repro/verify harness:
+`php tmp/repro_669.php <build_id> <tplan_id> <tcversion_id>` — invokes the REAL
+protected `_insertResultToDB()` via ReflectionMethod (constructor skipped).
+
+**Repro steps (pre-fix)**:
+1. `php tmp/repro_669.php 2 29 27` → CASE A (versionNumber=1): insert OK, id=3.
+2. CASE B (versionNumber=null): process DIES inside `_insertResultToDB()` at
+   xmlrpc.class.php:1850 (backtrace: `database->exec_query()`); "CASE B" output line
+   never printed; `SELECT COUNT(*) FROM executions` unchanged at 1.
+
+**Expected post-fix**: R2 must not terminate the process — return 0, write nothing;
+valid-version path and live API path unchanged; zero new Error/Warning events.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
 
 | # | Case | Expected | Actual | Verdict |
 |---|------|----------|--------|---------|
-| 618.T1 | BFF happy path admin | status ok, hasData true, all section payloads present, platform_set natsorted | ok; suites/keywords/platform/priorities/overall_build_status/build_by_platform/milestones all present | PASS |
-| 618.T2 | Screen render via direct URL | header + ctx names; 7 sections: by Platform / Overall Build Status / Build per Platform / Top Level Suites / Priority / Keyword / Milestones(prio variant) | all 7 rendered with correct rows (P1 12=3n+6p+2f+1b; B1 8; Alpha P1 7 …) | PASS |
-| 618.T3 | Numbers parity vs legacy HTML view | same totals/statuses as resultsGeneral.php?format=0 | spot-checked: platform/suite/build figures identical (B1→8, B2→4) | PASS |
-| 618.T4 | Milestones priority variant | High/Med/Low columns with result/goal pairs + overall; medium_incomplete flagged red | 80.0% (8/10)/60%, 25.0% (1/4)/50% red, 50.0% (5/10)/40%, 58.3% | PASS |
-| 618.T5 | Priority section gated by project option | renders only when testPriorityEnabled | absent when options NULL (first run), present after enabling | PASS |
-| 618.T6 | Refresh button | reloads metrics without page nav | 7 sections rebuilt | PASS |
-| 618.T7 | Locale switcher → ro | all labels from ro bundle | header "Metrici generale pentru Planul de Testare", 7 sections translated | PASS |
-| 618.T8 | XLS export button (legacy POST) | valid .xls download, correct mime/filename | 200 application/vnd.ms-excel, Composite Document File 10240 bytes | PASS |
-| 618.T9 | Send-by-e-mail button (legacy POST) | HTTP 200 legacy flow preserved | 200, empty body (displayReport mail path) | PASS |
-| 618.T10 | ASIDE integration | Reports menu entry href → generalMetrics.html?tproject_id=&tplan_id=; loads in mainframe | link live, screen loads inside iframe with full context | PASS |
-| 618.T11 | Empty plan state (6102) | hasData false → rgm.noTsuites message, no sections | empty box shown, 0 sections | PASS |
-| 618.T12 | Missing ids | 400 Missing test plan id (tplan_id=0) | 400 + JSON error | PASS |
-| 618.T13 | Rights gate — user without right (norights, <no rights>) | 403 No permission | 403 {"message":"No permission"} | PASS |
-| 618.T14 | Guest user WITH testplan_metrics (noinv) allowed | 200 full report (same right set as legacy grants guest here) | 200 ok | PASS |
-| 618.T15 | i18n completeness | rgm.* keys ×43 in ALL 10 bundles; python3 -m json.tool valid each | en/ro/de/fr/es/it/pt/ru/ja/zh +43 each, all valid | PASS |
-| 618.T16 | Event Viewer delta during testing | no new Error/Warning from modern screen/BFF | only audit logins; found pre-existing legacy bug #670 (fixed separately, see below) | PASS |
+| 669.R1 | harness CASE A versionNumber=1 | id>0, row written | id=6, rows 0→1 | PASS |
+| 669.R2 | harness CASE B versionNumber=null (the bug) | no die(), returns 0, no row | returned 0, ErrorNo=0, count stays 1 | PASS |
+| 669.R3 | live `tl.reportTCResult {devKey, testplanid:29, testcaseid:26, buildid:2, status:"p", notes}` over HTTP | Success!, executions row with correct tcversion_number=1 | status=true, id=5; row 5: `tcversion_id=27, tcversion_number=1`, notes stored (rerun in R4: id=7 same) | PASS |
+| 669.R4 | Event Viewer delta across full matrix rerun | watermark MAX(events.id) unchanged, 0 new ERROR/WARNING | watermark 26 before AND after; `COUNT(id>26 AND log_level IN (1,2))`=0 | PASS |
 
-**Bug surfaced & fixed during this suite**: E_WARNING `Undefined array key "total_tc"`
-in legacy `inc_results_show_table.tpl` build tables — issue **#670**, fixed in commit
-"fix(legacy): inc_results_show_table honors args_column_for_total…" (Fixes #670);
-post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
+**Notes**: pre-fix repro also proved the die() path loses its own DB ERROR log entry
+(logger transaction never committed) — production hits would have been invisible in
+the Event Viewer. All events #2–#21 persisted in this session were created by this
+agent's first-draft fixture scripts during reproduction setup, before the fix.
 
 **Result: PASS**
-
-### Suite 618 addendum — code review fixes re-verification (commit 81a2957cc)
-
-| # | Case | Expected | Actual | Verdict |
-|---|------|----------|--------|---------|
-| 618.R1 | platform-less plan (6103, builds present) | suites/priority/keyword tables render under implicit key 0; no platform notice | 3 sections rendered, SuiteAlpha row correct | PASS |
-| 618.R2 | platform-less plan without builds | hasData=false → empty state (legacy #634 parity) | empty box shown | PASS |
-| 618.R3 | mail/XLS form actions | resolve to /lib/results/resultsGeneral.php (not /gui/templates/results/lib/...) | absolute URLs correct in DOM | PASS |
-| 618.R4 | Completed [%] final column | appended on every table carrying percentage_completed | header + 75.0% cell for P1 | PASS |
-| 618.R5 | build feedback note per section | exactly ONE note after per-platform block | 1 note in "Results by Build" | PASS |
-| 618.R6 | contextual rights re-check (hasRight w/ tproject+tplan context) | admin still 200; norights still 403 | 200 / 403 confirmed post-change | PASS |
-| 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
-
-**Result: PASS (addendum 7/7)**
