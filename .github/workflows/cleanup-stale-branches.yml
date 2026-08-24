@@ -1,0 +1,129 @@
+name: Cleanup stale fix/* branches
+
+# Deletes remote fix/* branches that are either:
+#   1. Fully merged into the default branch (safe to delete — content is preserved)
+#   2. Associated with a CLOSED GitHub issue (orphaned — fix landed by other means)
+#
+# Runs daily at 04:00 UTC + on-demand. Dry-run by default; set DRY_RUN=false
+# to actually delete. Also handles the fix-bug bot's own branch cleanup after
+# the CI lands its commits onto the default branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run — list only, do not delete"
+        required: false
+        default: "true"
+        type: boolean
+  schedule:
+    - cron: "0 4 * * *" # daily at 04:00 UTC
+
+concurrency:
+  group: cleanup-branches
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: read
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  DRY_RUN: ${{ inputs.dry_run || 'true' }}
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Delete fully-merged fix/* branches
+        run: |
+          REPO="${{ github.repository }}"
+          DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
+          echo "default branch: $DEFAULT_BRANCH"
+
+          MERGED=$(gh api "repos/$REPO/branches" --paginate --jq \
+            '.[].name' | grep '^fix/' | while read BRANCH; do
+              # Check if branch is fully merged
+              BEHIND=$(git rev-list --count "origin/$BRANCH..origin/$DEFAULT_BRANCH" 2>/dev/null || echo "0")
+              AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH" 2>/dev/null || echo "0")
+              if [ "$AHEAD" = "0" ] && [ "$BEHIND" -gt 0 ]; then
+                echo "$BRANCH"
+              fi
+            done)
+
+          if [ -z "$MERGED" ]; then
+            echo "no fully-merged fix/* branches found — nothing to clean"
+            exit 0
+          fi
+
+          COUNT=$(echo "$MERGED" | wc -l)
+          echo "::notice::$COUNT fully-merged fix/* branches found"
+          echo "$MERGED"
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::notice::DRY RUN — no branches deleted. Set DRY_RUN=false to actually delete."
+            exit 0
+          fi
+
+          DELETED=0
+          FAILED=0
+          for BRANCH in $MERGED; do
+            if git push origin --delete "$BRANCH" 2>/dev/null; then
+              echo "deleted $BRANCH"
+              DELETED=$((DELETED + 1))
+            else
+              echo "::warning::failed to delete $BRANCH"
+              FAILED=$((FAILED + 1))
+            fi
+          done
+          echo "done: $DELETED deleted, $FAILED failed"
+
+      - name: Delete orphaned fix/* branches (issue CLOSED)
+        run: |
+          REPO="${{ github.repository }}"
+
+          # Get closed issues that have fix/* branches
+          CLOSED_ISSUES=$(gh issue list --repo "$REPO" --state closed --limit 500 --json number \
+            --jq '.[].number')
+
+          if [ -z "$CLOSED_ISSUES" ]; then
+            echo "no closed issues — skipping orphan check"
+            exit 0
+          fi
+
+          ORPHANS=0
+          for ISSUE_NUM in $CLOSED_ISSUES; do
+            # Look for a matching fix/issue-<N> branch
+            BRANCH_NAME="fix/issue-${ISSUE_NUM}"
+            BRANCH_EXISTS=$(git branch -r --list "origin/$BRANCH_NAME" 2>/dev/null | head -1)
+            if [ -n "$BRANCH_EXISTS" ]; then
+              # Check if it has unmerged commits
+              AHEAD=$(git rev-list --count "origin/$DEFAULT_BRANCH..origin/$BRANCH_NAME" 2>/dev/null || echo "0")
+              if [ "$AHEAD" = "0" ]; then
+                # Fully merged — skip (handled by the merged branch cleanup above)
+                continue
+              fi
+              # Has unmerged commits but issue is closed — flag it
+              ORPHANS=$((ORPHANS + 1))
+              echo "ORPHAN: $BRANCH_NAME (issue #$ISSUE_NUM closed, $AHEAD unmerged commits)"
+              if [ "$DRY_RUN" != "true" ]; then
+                echo "::warning::$BRANCH_NAME has unmerged commits but issue #$ISSUE_NUM is closed — skipping auto-delete (needs human review)"
+              fi
+            fi
+          done
+
+          if [ "$ORPHANS" = "0" ]; then
+            echo "no orphaned branches found"
+          else
+            echo "::warning::$ORPHANS orphaned branches found (issue closed but branch has unmerged commits — needs manual review)"
+          fi
+
+      - name: Summary
+        run: |
+          REPO="${{ github.repository }}"
+          REMAINING=$(gh api "repos/$REPO/branches" --paginate --jq '.[].name' | grep '^fix/' | wc -l)
+          echo "remaining fix/* branches after cleanup: $REMAINING"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::notice::This was a DRY RUN. Re-run with DRY_RUN=false to actually delete branches."
+          fi
