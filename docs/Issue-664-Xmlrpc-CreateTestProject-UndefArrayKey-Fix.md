@@ -42,9 +42,10 @@ silent notices; this repo runs PHP 8 where they are logged E_WARNINGs.
 ## Blast radius
 
 - Single method: `_checkCreateTestProjectRequest()` is called only from
-  `createTestProject()` (grep: 1 call site, :2141).
-- Every other required-param path in this file already guards reads via
-  `_isParamPresent()` or explicit `isset()`.
+  `createTestProject()` (grep: 1 call site, dynamic dispatch at :2142).
+- Other required-param paths guard presence via check helpers
+  (`_isParamPresent()`, `isset()`, or upstream validators such as
+  `_isTestSuiteIDPresent()`); the two reads fixed here had none.
 
 ## Approach — minimal null-safe reads
 
