@@ -2519,6 +2519,25 @@ class TestlinkXMLRPCServer extends IXR_Server {
             }
         }
 
+        // steps is an array of structs: each one MUST carry the keys
+        // testcase::create()/create_step() read unguarded (testcase.class.php ~801-802),
+        // otherwise E_WARNING + broken INSERT (SQL 1064) crash the call mid-flight.
+        if($status_ok && isset( $this->args[self::$stepsParamName] ) &&
+           is_array( $this->args[self::$stepsParamName] )) {
+            $stepKeys2check = array('step_number', 'actions');
+            foreach( $this->args[self::$stepsParamName] as $sdx => $rawStep ) {
+                $step = (array)$rawStep;
+                foreach( $stepKeys2check as $reqKey ) {
+                    if(! array_key_exists( $reqKey, $step )) {
+                        $status_ok = false;
+                        $msg = $msg_prefix . sprintf( MISSING_REQUIRED_PARAMETER_STR,
+                          "steps[{$sdx}]->{$reqKey}" );
+                        $this->errors[] = new IXR_Error( MISSING_REQUIRED_PARAMETER, $msg );
+                    }
+                }
+            }
+        }
+
         if($status_ok) {
             $author_id = tlUser::doesUserExist( $this->dbObj, $this->args[self::$authorLoginParamName] );
             if(!($status_ok = ! is_null( $author_id ))) {
