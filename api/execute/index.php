@@ -426,6 +426,16 @@ if ($action === 'init') {
         ];
     }
 
+    // feature flags live in the serialized options blob (the option_* columns
+    // are vestigial and never written - see #525); read them defensively so a
+    // missing/unserializable blob can never raise an E_WARNING here (#662)
+    $tprojOptions = null;
+    if (!empty($tprojInfo['options'])) {
+        $tprojOptions = @unserialize($tprojInfo['options']);
+    }
+    $platformFeature = is_object($tprojOptions)
+        && !empty($tprojOptions->platformsEnabled);
+
     out([
         'status' => 'ok',
         'tproject' => [
@@ -439,8 +449,7 @@ if ($action === 'init') {
         'builds' => $builds,
         'default_build_id' => $defaultBuildId,
         'platforms' => $platforms,
-        'platform_feature_enabled'
-            => intval($tprojInfo['option_platforms']) === 1,
+        'platform_feature_enabled' => $platformFeature,
         'statuses' => $statuses,
     ]);
 }
