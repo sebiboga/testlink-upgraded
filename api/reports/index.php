@@ -507,16 +507,16 @@ if ($action === 'metrics_by_tsuite') {
         $span = $metricsMgr->getExecTimeSpan($tplanId, $execContext);
 
         $spanOut = [];
+        // RAW timestamps on purpose: localize_dateOrTimeStamp()/strftime
+        // placeholders break under this PHP 8 runtime (see bug #563 - dates
+        // rendered literally like "%24/%51/%2026"). The client formats them
+        // with toLocaleString() instead.
         if ($hasPlatforms) {
             if (!is_null($span) && isset($span[$tplanId])) {
                 foreach ($span[$tplanId] as $platIdS => $sp) {
                     $spanOut[$platIdS] = [
-                        'begin' => is_null($sp['begin']) ? null :
-                            localize_dateOrTimeStamp(null, $dummy,
-                                'timestamp_format', $sp['begin']),
-                        'end' => is_null($sp['end']) ? null :
-                            localize_dateOrTimeStamp(null, $dummy,
-                                'timestamp_format', $sp['end']),
+                        'begin' => $sp['begin'],
+                        'end' => $sp['end'],
                     ];
                 }
             }
@@ -524,12 +524,8 @@ if ($action === 'metrics_by_tsuite') {
             $one = (isset($span[$tplanId]) && !is_null($span[$tplanId]))
                 ? $span[$tplanId] : null;
             $spanOut[0] = [
-                'begin' => (is_null($one) || is_null($one['begin'])) ? null :
-                    localize_dateOrTimeStamp(null, $dummy,
-                        'timestamp_format', $one['begin']),
-                'end' => (is_null($one) || is_null($one['end'])) ? null :
-                    localize_dateOrTimeStamp(null, $dummy,
-                        'timestamp_format', $one['end']),
+                'begin' => is_null($one) ? null : $one['begin'],
+                'end' => is_null($one) ? null : $one['end'],
             ];
         }
         $payload['span'] = $spanOut;

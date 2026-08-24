@@ -185,15 +185,23 @@ function renderAll(r) {
 // First/Latest execution header of one table (legacy
 // results/show_table_with_exec_span.inc.tpl). Platforms with zero
 // executions are simply absent from the span map -> skip the line.
+// Timestamps come raw from the BFF and are formatted here - the legacy
+// strftime path renders placeholders literally under PHP 8 (bug #563).
 function execSpanHtml(r, platId) {
   if (!r.span || !r.span.hasOwnProperty(platId)) { return ''; }
   var sp = r.span[platId];
-  var h = '<div class="exec-span">';
-  if (sp.begin) {
-    h += '<i class="fa fa-play-circle"></i> ' + esc(TLi18n.t('rbs.firstExec')) + ' <b>' + esc(sp.begin) + '</b>';
+  function fmt(v) {
+    if (!v) { return ''; }
+    var d = new Date(String(v).replace(' ', 'T'));
+    return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
   }
-  if (sp.end) {
-    h += '<span class="lat"><i class="fa fa-stop-circle"></i> ' + esc(TLi18n.t('rbs.latestExec')) + ' <b>' + esc(sp.end) + '</b></span>';
+  var h = '<div class="exec-span">';
+  var begin = fmt(sp.begin), end = fmt(sp.end);
+  if (begin) {
+    h += '<i class="fa fa-play-circle"></i> ' + esc(TLi18n.t('rbs.firstExec')) + ' <b>' + esc(begin) + '</b>';
+  }
+  if (end) {
+    h += '<span class="lat"><i class="fa fa-stop-circle"></i> ' + esc(TLi18n.t('rbs.latestExec')) + ' <b>' + esc(end) + '</b></span>';
   }
   return h + '</div>';
 }
