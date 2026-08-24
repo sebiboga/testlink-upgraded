@@ -273,5 +273,117 @@ if ($action === 'tp_report_tree') {
     ]);
 }
 
+if ($action === 'metrics_general') {
+    // General Test Plan Metrics - mirrors lib/results/resultsGeneral.php
+    // (Refs #618). All figures come from the very same tlTestPlanMetrics
+    // render methods the legacy controller calls, so numbers stay 1:1.
+    // Right gate ('testplan_metrics') already enforced above.
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Platform set decides whether every "* on platform" section renders
+    // (same rule as initializeGui(): empty set => fakePlatform '' +
+    // showPlatforms=false).
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+    if ($showPlatforms) {
+        natsort($platformSet);
+    } else {
+        $platformSet = ['' => ''];
+    }
+
+    $projOpts = $proj['opt'] ?? null;
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+    // Top Level Suite totals - null means the plan has no linked test cases
+    // at all => whole report collapses to the legacy empty-state message
+    // ('report_tspec_has_no_tsuites').
+    $tsInf = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender(
+        $tplanId, null, ['groupByPlatform' => 1]);
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => !is_null($tsInf),
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'priority_enabled' => $priorityEnabled,
+        // legacy lib/results/resultsGeneral.php endpoints kept for the two
+        // export buttons - document/mail/spreadsheet generation stays legacy
+        'send_mail_url' => 'lib/results/resultsGeneral.php?format=' .
+            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId,
+        'export_xls_url' => 'lib/results/resultsGeneral.php?format=' .
+            FORMAT_XLS . '&tplan_id=' . $tplanId . '&spreadsheet=1',
+    ];
+
+    if (!is_null($tsInf)) {
+        $kwInf = $metricsMgr->getStatusTotalsByKeywordForRender(
+            $tplanId, null, ['groupByPlatform' => 1]);
+
+        $section = function($renderObj) {
+            if (is_null($renderObj)) {
+                return null;
+            }
+            return [
+                'info' => isset($renderObj->info) ? $renderObj->info : null,
+                'columns' => isset($renderObj->colDefinition) ? $renderObj->colDefinition : null,
+            ];
+        };
+
+        $payload['suites'] = $section($tsInf);
+        $payload['keywords'] = $section($kwInf);
+        $payload['platform'] = $showPlatforms
+            ? $section($metricsMgr->getStatusTotalsByPlatformForRender($tplanId))
+            : null;
+
+        if ($priorityEnabled) {
+            $payload['priorities'] = $section(
+                $metricsMgr->getStatusTotalsByPriorityForRender(
+                    $tplanId, null,
+                    ['getOnlyAssigned' => false, 'groupByPlatform' => 1]));
+        }
+
+        // Overall Build Status + Build-per-platform (same calls, same order
+        // as the legacy controller).
+        $payload['overall_build_status'] = $section(
+            $metricsMgr->getOverallBuildStatusForRender($tplanId));
+        $payload['build_by_platform'] =
+            $section($metricsMgr->getBuildByPlatStatusForRender($tplanId));
+
+        // Milestones & Priority report (only when the plan defines some).
+        $milestonesList = $tplanMgr->get_milestones($tplanId);
+        if (!empty($milestonesList)) {
+            $mm = $metricsMgr->getMilestonesMetrics($tplanId, $milestonesList);
+            $payload['milestones'] = is_null($mm) ? null : $mm;
+        }
+    }
+
+    $payload['elapsed_time'] =
+        round(microtime(true) - $timerOn, 2);
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
