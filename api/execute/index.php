@@ -8,7 +8,15 @@
  * lists ALL executions of one test case (every version), filtered by the
  * test plans the current user can access, with notes, execution-level
  * custom fields, attachments and linked bugs per execution.
- * Read-only: no state changing operation is exposed here.
+ *
+ * Since #662 this API ALSO backs the modernized Execute Tests screen
+ * (gui/templates/execute/execTest.html), mirroring the legacy
+ * lib/execute/execNavigator.php + execSetResults.php flow:
+ *   ?action=init      - context for one test plan: builds/platforms/grants
+ *   ?action=tcList    - linked test case versions + latest exec status
+ *   ?action=tcDetails - version details incl. steps + prior execution
+ *   POST ?action=save - write an execution (status/notes/step results),
+ *                       reusing legacy write_execution() from exec.inc.php
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -292,6 +300,570 @@ if ($action === 'history') {
         'neverExecuted' => $neverExecuted,
         'displayPlatformCol' => count($platformSet) > 0,
         'dateFormat' => config_get('date_format'),
+    ]);
+}
+
+// ===========================================================================
+// Execute Tests screen (Refs #662)
+// ===========================================================================
+
+require_once('testplan.class.php');
+require_once('testcase.class.php');
+require_once('testproject.class.php');
+
+/**
+ * Resolve + validate the (tproject, tplan) context for the Execute Tests
+ * screen. The plan MUST be one of the user's accessible test plans, exactly
+ * like legacy execSetResults/init_args() does.
+ */
+function execTestResolveContext($db, $user, $tplanId) {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing tplan_id']);
+    }
+    $tplanMgr = new testplan($db);
+
+    $planInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($planInfo) || !isset($planInfo['name'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+
+    // owning test project = parent of the test plan node
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $rs = $db->get_recordset(
+        "SELECT parent_id FROM {$tables['nodes_hierarchy']} WHERE id = {$tplanId}");
+    $tprojectId = (!is_null($rs) && count($rs) > 0)
+        ? intval($rs[0]['parent_id']) : 0;
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    // access check: plan must be in the user's accessible set for the project
+    $accessible = (array)$user->getAccessibleTestPlans($db, $tprojectId, null, null);
+    $found = false;
+    foreach ($accessible as $ap) {
+        if (intval($ap['id']) === $tplanId) { $found = true; break; }
+    }
+    if (!$found) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Access to this test plan denied']);
+    }
+    return [$tplanMgr, $tplanId, $tprojectId, strval($planInfo['name'])];
+}
+
+if ($action === 'init') {
+    $tplanId = getIntParam('tplan_id');
+    list($tplanMgr, , $tprojectId, $tplanName) =
+        execTestResolveContext($db, $user, $tplanId);
+    $tprojectMgr = new testproject($db);
+    $tprojInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($tprojInfo)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    $canExecute = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
+    $roAccess = $user->hasRight($db, 'exec_ro_access', $tprojectId, $tplanId);
+    if (!$canExecute && !$roAccess) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    // builds of the plan (all of them; UI filters active+open for execution,
+    // same as legacy execSetResults which only offers active & open builds)
+    $builds = [];
+    $defaultBuildId = 0;
+    $rawBuilds = $tplanMgr->get_builds($tplanId);
+    if (!is_null($rawBuilds)) {
+        foreach ($rawBuilds as $bid => $b) {
+            $isActive = intval($b['active']) === 1;
+            $isOpen = intval($b['is_open']) === 1;
+            $builds[] = [
+                'id' => intval($b['id']),
+                'name' => strval($b['name']),
+                'active' => $isActive,
+                'open' => $isOpen,
+                'executable' => ($isActive && $isOpen),
+                'release_date' => isset($b['release_date'])
+                    ? strval($b['release_date']) : '',
+            ];
+            if ($isActive && $isOpen
+                && intval($b['id']) > $defaultBuildId) {
+                // legacy default = newest active+open build (highest id wins,
+                // matching the ORDER BY id DESC used by execSetResults)
+                $defaultBuildId = intval($b['id']);
+            }
+        }
+    }
+    usort($builds, function ($a, $b) { return $a['id'] < $b['id'] ? 1 : -1; });
+
+    // platforms linked to the plan
+    $platforms = [];
+    try {
+        $rawPlatforms = $tplanMgr->getPlatforms($tplanId);
+        if (!is_null($rawPlatforms)) {
+            foreach ($rawPlatforms as $p) {
+                $platforms[] = [
+                    'id' => intval($p['id']),
+                    'name' => strval($p['name']),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $platforms = [];
+    }
+
+    // execution status vocabulary (same source as legacy localize_tc_status)
+    $resultsCfg = config_get('results');
+    $statuses = [];
+    foreach ($resultsCfg['code_status'] as $code => $suffix) {
+        $statuses[] = [
+            'code' => strval($code),
+            'suffix' => strval($suffix),
+            'label' => lang_get('test_status_' . $suffix),
+        ];
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject' => [
+            'id' => $tprojectId,
+            'name' => strval($tprojInfo['name']),
+            'prefix' => strval($tprojInfo['prefix']),
+        ],
+        'tplan' => ['id' => $tplanId, 'name' => $tplanName],
+        'grants' => ['can_execute' => $canExecute ? 1 : 0,
+                     'ro_access' => $roAccess ? 1 : 0],
+        'builds' => $builds,
+        'default_build_id' => $defaultBuildId,
+        'platforms' => $platforms,
+        'platform_feature_enabled'
+            => intval($tprojInfo['option_platforms']) === 1,
+        'statuses' => $statuses,
+    ]);
+}
+
+if ($action === 'tcList') {
+    $tplanId = getIntParam('tplan_id');
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    $canExecute = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
+    $roAccess = $user->hasRight($db, 'exec_ro_access', $tprojectId, $tplanId);
+    if (!$canExecute && !$roAccess) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $buildId = getIntParam('build_id');
+    $platformId = getIntParam('platform_id');   // 0 / missing => no-platform mode
+    $search = trim(strval($_GET['q'] ?? ''));
+
+    $tables = tlObjectWithDB::getDBTables(array(
+        'testplan_tcversions', 'nodes_hierarchy', 'tcversions', 'executions'));
+
+    $sql = "SELECT NHTC.id AS tcase_id, NHTC.name AS tcase_name," .
+           " NHTCV.parent_id AS tsuite_id, TPTCV.tcversion_id," .
+           " TCV.version, TCV.active, TCV.tc_external_id, TCV.importance," .
+           " TCV.execution_type" .
+           " FROM {$tables['testplan_tcversions']} TPTCV" .
+           " JOIN {$tables['nodes_hierarchy']} NHTCV" .
+           " ON NHTCV.id = TPTCV.tcversion_id" .
+           " JOIN {$tables['nodes_hierarchy']} NHTC" .
+           " ON NHTC.id = NHTCV.parent_id" .
+           " JOIN {$tables['tcversions']} TCV ON TCV.id = TPTCV.tcversion_id" .
+           " WHERE TPTCV.testplan_id = {$tplanId}" .
+           " ORDER BY NHTC.node_order, NHTC.id, TCV.version DESC";
+
+    $rows = $db->get_recordset($sql);
+    if (is_null($rows)) { $rows = []; }
+
+    // keep only the LATEST version of each test case that is linked to the
+    // plan (legacy execution tree shows one entry per linked version set;
+    // execSetResults executes the newest linked version by default)
+    $latestByTcase = [];
+    foreach ($rows as $r) {
+        $tid = intval($r['tcase_id']);
+        if (!isset($latestByTcase[$tid])
+            || intval($r['version']) > intval($latestByTcase[$tid]['version'])) {
+            $latestByTcase[$tid] = $r;
+        }
+    }
+
+    // latest execution status per tcversion on the selected build/platform
+    $execMap = [];
+    if ($buildId > 0 && count($latestByTcase) > 0) {
+        $tcvIds = array_map(function ($r) {
+            return intval($r['tcversion_id']); }, array_values($latestByTcase));
+        // plans without platforms store platform_id = 0 on executions
+        $storedPlatform = $platformId > 0 ? $platformId : 0;
+        $tcvSet = implode(',', $tcvIds);
+        $sqlE =
+            "SELECT E.tcversion_id, E.status, E.id AS execution_id," .
+            " E.notes, E.execution_ts, E.tester_id, U.login AS tester_login" .
+            " FROM {$tables['executions']} E" .
+            " LEFT JOIN users U ON U.id = E.tester_id" .
+            " JOIN (SELECT MAX(id) AS max_id FROM {$tables['executions']}" .
+            "       WHERE testplan_id = {$tplanId}" .
+            "       AND build_id = {$buildId}" .
+            "       AND platform_id = {$storedPlatform}" .
+            "       AND tcversion_id IN ({$tcvSet})" .
+            "       GROUP BY tcversion_id) X ON X.max_id = E.id";
+        $ers = $db->get_recordset($sqlE);
+        if (!is_null($ers)) {
+            foreach ($ers as $er) {
+                $execMap[intval($er['tcversion_id'])] = [
+                    'execution_id' => intval($er['execution_id']),
+                    'status' => strval($er['status']),
+                    'notes' => strval($er['notes']),
+                    'execution_ts' => strval($er['execution_ts']),
+                    'tester_login' => strval($er['tester_login']),
+                ];
+            }
+        }
+    }
+
+    // suite paths (for grouping display), resolved through the tree manager
+    $pathMap = [];
+    try {
+        $tsuiteIds = array_values(array_unique(array_map(function ($r) {
+            return intval($r['tsuite_id']); }, array_values($latestByTcase))));
+        if (count($tsuiteIds) > 0) {
+            $treePaths = $tplanMgr->tree_manager->get_full_path_verbose($tsuiteIds);
+            if (!is_null($treePaths)) {
+                foreach ($treePaths as $sid => $parts) {
+                    $parts = is_array($parts) ? $parts : [$parts];
+                    $pathMap[$sid] = implode(' / ', array_map('strval', $parts));
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // cosmetic only - keep empty
+    }
+
+    $prefixGlue = config_get('testcase_cfg')->glue_character;
+
+    // real prefix fetch (single query, reused for every row)
+    $tprojectMgr = new testproject($db);
+    $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+
+    $items = [];
+    foreach ($latestByTcase as $tid => $r) {
+        $ext = intval($r['tc_external_id']);
+        $fullExtId = ($ext > 0) ? ($prefix . $prefixGlue . $ext) : '';
+        $tcvId = intval($r['tcversion_id']);
+        $prior = isset($execMap[$tcvId]) ? $execMap[$tcvId] : null;
+        $haystack = strtolower($fullExtId . ' ' . strval($r['tcase_name']));
+        if ($search !== ''
+            && strpos($haystack, strtolower($search)) === false) {
+            continue;
+        }
+        $items[] = [
+            'tcase_id' => intval($r['tcase_id']),
+            'tcase_name' => strval($r['tcase_name']),
+            'tcversion_id' => $tcvId,
+            'version' => intval($r['version']),
+            'active' => intval($r['active']),
+            'full_external_id' => $fullExtId,
+            'importance' => intval($r['importance']),
+            'execution_type' => intval($r['execution_type']),
+            'tsuite_id' => intval($r['tsuite_id']),
+            'tsuite_path' => isset($pathMap[$r['tsuite_id']])
+                ? $pathMap[$r['tsuite_id']] : '',
+            'last_execution' => $prior,
+        ];
+    }
+
+    usort($items, function ($a, $b) {
+        return strcasecmp($a['tcase_name'], $b['tcase_name']);
+    });
+
+    out(['status' => 'ok', 'count' => count($items), 'items' => $items]);
+}
+
+if ($action === 'tcDetails') {
+    $tplanId = getIntParam('tplan_id');
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    $canExecute = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
+    $roAccess = $user->hasRight($db, 'exec_ro_access', $tprojectId, $tplanId);
+    if (!$canExecute && !$roAccess) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcaseId = getIntParam('tcase_id');
+    $tcversionId = getIntParam('tcversion_id');
+    $buildId = getIntParam('build_id');
+    $platformId = getIntParam('platform_id');
+    if ($tcaseId <= 0 || $tcversionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing tcase_id/tcversion_id']);
+    }
+
+    $tcaseMgr = new testcase($db);
+    $basic = $tcaseMgr->tree_manager->get_node_hierarchy_info($tcaseId);
+    if (is_null($basic)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test case not found']);
+    }
+    // the requested version must belong to this test case AND be linked to
+    // the current plan (same guarantee execSetResults relies on)
+    $tables = tlObjectWithDB::getDBTables(array(
+        'tcversions', 'testplan_tcversions', 'nodes_hierarchy'));
+    $vr = $db->get_recordset(
+        "SELECT V.id, V.version, V.active, V.summary, V.preconditions," .
+        " V.importance, V.execution_type, V.tc_external_id," .
+        " NH.parent_id" .
+        " FROM {$tables['tcversions']} V" .
+        " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = V.id" .
+        " WHERE V.id = {$tcversionId}");
+    if (is_null($vr) || count($vr) == 0
+        || intval($vr[0]['parent_id']) !== $tcaseId) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Version does not belong to test case']);
+    }
+    $linkRs = $db->get_recordset(
+        "SELECT id FROM {$tables['testplan_tcversions']}" .
+        " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}");
+    if (is_null($linkRs) || count($linkRs) == 0) {
+        http_response_code(404);
+        out(['status' => 'error',
+             'message' => 'This version is not linked to the test plan']);
+    }
+    $vinfo = $vr[0];
+
+    // steps of the version
+    $steps = [];
+    try {
+        $stepRows = $tcaseMgr->get_steps($tcversionId);
+        if (!is_null($stepRows)) {
+            foreach ($stepRows as $st) {
+                $steps[] = [
+                    'id' => intval($st['id']),
+                    'step_number' => intval($st['step_number']),
+                    'actions' => strval($st['actions']),
+                    'expected_results' => strval($st['expected_results']),
+                ];
+            }
+            usort($steps, function ($a, $b) {
+                return $a['step_number'] - $b['step_number'];
+            });
+        }
+    } catch (Exception $e) {
+        $steps = [];
+    }
+
+    // latest execution of THIS version on THIS build(+platform), with the
+    // recorded step-level results (partial execution feature)
+    $prior = null;
+    $priorSteps = [];
+    if ($buildId > 0) {
+        $execTables = tlObjectWithDB::getDBTables(array(
+            'executions', 'execution_tcsteps', 'users'));
+        $storedPlatform = $platformId > 0 ? $platformId : 0;
+        $er = $db->get_recordset(
+            "SELECT E.id AS execution_id, E.status, E.notes, E.execution_ts," .
+            " E.tester_id, U.login AS tester_login" .
+            " FROM {$execTables['executions']} E" .
+            " LEFT JOIN {$execTables['users']} U ON U.id = E.tester_id" .
+            " WHERE E.testplan_id = {$tplanId}" .
+            " AND E.build_id = {$buildId}" .
+            " AND E.platform_id = {$storedPlatform}" .
+            " AND E.tcversion_id = {$tcversionId}" .
+            " ORDER BY E.id DESC");
+        if (!is_null($er) && count($er) > 0) {
+            $prior = [
+                'execution_id' => intval($er[0]['execution_id']),
+                'status' => strval($er[0]['status']),
+                'notes' => strval($er[0]['notes']),
+                'execution_ts' => strval($er[0]['execution_ts']),
+                'tester_login' => strval($er[0]['tester_login']),
+            ];
+            $sr = $db->get_recordset(
+                "SELECT tcstep_id, notes, status" .
+                " FROM {$execTables['execution_tcsteps']}" .
+                " WHERE execution_id = " . intval($er[0]['execution_id']));
+            if (!is_null($sr)) {
+                foreach ($sr as $srow) {
+                    $priorSteps[intval($srow['tcstep_id'])] = [
+                        'notes' => strval($srow['notes']),
+                        'status' => strval($srow['status']),
+                    ];
+                }
+            }
+        }
+    }
+
+    $tprojectMgr = new testproject($db);
+    $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+    $ext = intval($vinfo['tc_external_id']);
+    $glue = config_get('testcase_cfg')->glue_character;
+
+    out([
+        'status' => 'ok',
+        'tcase' => ['id' => $tcaseId, 'name' => strval($basic['name'])],
+        'version' => [
+            'id' => $tcversionId,
+            'number' => intval($vinfo['version']),
+            'active' => intval($vinfo['active']),
+            'summary' => strval($vinfo['summary']),
+            'preconditions' => strval($vinfo['preconditions']),
+            'importance' => intval($vinfo['importance']),
+            'execution_type' => intval($vinfo['execution_type']),
+            'full_external_id' =>
+                $prefix . $glue . ($ext > 0 ? $ext : ''),
+        ],
+        'steps' => $steps,
+        'prior_execution' => $prior,
+        'prior_step_results' => $priorSteps,
+    ]);
+}
+
+// POST ?action=save  (JSON body)
+// Writes ONE execution row through legacy write_execution(), so every side
+// effect of a manual execution (req-link freezing, relation closing,
+// step partial-execution rows, custom field values) keeps working.
+if ($action === 'save') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    // WRITE right required here (exec_ro_access is NOT enough)
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcaseId = intval($payload['tcase_id'] ?? 0);
+    $tcversionId = intval($payload['tcversion_id'] ?? 0);
+    $versionNumber = intval($payload['version_number'] ?? 0);
+    $buildId = intval($payload['build_id'] ?? 0);
+    $platformId = intval($payload['platform_id'] ?? -1); // -1 = plan has none
+    $statusCode = strtolower(trim(strval($payload['status'] ?? '')));
+    $notes = strval($payload['notes'] ?? '');
+    $stepsIn = isset($payload['steps']) && is_array($payload['steps'])
+        ? $payload['steps'] : [];
+
+    if ($tcaseId <= 0 || $tcversionId <= 0 || $versionNumber <= 0) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Missing tcase_id/tcversion_id/version_number']);
+    }
+
+    $resultsCfg = config_get('results');
+    // payload carries STATUS CODES ('p','f','b','n',...) exactly as served
+    // by ?action=init -> statuses[].code
+    if (!isset($resultsCfg['code_status'][$statusCode])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid status code']);
+    }
+
+    // build must belong to the plan and be executable (active+open), exactly
+    // what the legacy UI offered; closed/inactive builds are rejected here
+    $validBuild = false;
+    $rawBuilds = $tplanMgr->get_builds($tplanId);
+    if (!is_null($rawBuilds)) {
+        foreach ($rawBuilds as $bid => $b) {
+            if (intval($bid) === $buildId
+                && intval($b['active']) === 1 && intval($b['is_open']) === 1) {
+                $validBuild = true;
+                break;
+            }
+        }
+    }
+    if (!$validBuild) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Invalid or non-executable build for this plan']);
+    }
+
+    // version must still be linked to the plan
+    $lt = tlObjectWithDB::getDBTables(array('testplan_tcversions'));
+    $lr = $db->get_recordset(
+        "SELECT id FROM {$lt['testplan_tcversions']}" .
+        " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}");
+    if (is_null($lr) || count($lr) == 0) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Version is not linked to this test plan']);
+    }
+
+    $notRun = $resultsCfg['status_code']['not_run'];
+    if ($statusCode === $notRun) {
+        // legacy parity: write_execution() ignores not_run results entirely
+        out(['status' => 'ok', 'saved' => false, 'reason' => 'not_run']);
+    }
+
+    // shape the data exactly the way exec.inc.php:write_execution() expects
+    $execSign = new stdClass();
+    $execSign->tproject_id = $tprojectId;
+    $execSign->tplan_id = $tplanId;
+    $execSign->build_id = $buildId;
+    $execSign->platform_id = $platformId;
+    $execSign->user_id = $userId;
+
+    $execData = array();
+    $execData['statusSingle'][$tcversionId] = $statusCode;
+    $execData['tc_version'][$tcversionId] = $tcaseId;
+    $execData['version_number'][$tcversionId] = $versionNumber;
+    // write_execution() applies prepare_string() itself for single saves
+    $execData['notes'][$tcversionId] = trim($notes);
+
+    // step-level results: keys are STEP IDS (like legacy step_notes[] inputs)
+    if (count($stepsIn) > 0) {
+        $stepNotes = array();
+        $stepStatus = array();
+        foreach ($stepsIn as $sid => $sv) {
+            $sid = intval($sid);
+            if ($sid <= 0) { continue; }
+            $sn = isset($sv['notes']) ? strval($sv['notes']) : '';
+            $ss = isset($sv['status'])
+                ? strtolower(trim(strval($sv['status']))) : $notRun;
+            if (!isset($resultsCfg['code_status'][$ss])) { $ss = $notRun; }
+            $stepNotes[$sid] = $sn;
+            $stepStatus[$sid] = $ss; // code, passed through unchanged
+        }
+        if (count($stepNotes) > 0) {
+            $execData['step_notes'] = $stepNotes;
+            $execData['step_status'] = $stepStatus;
+            // deleteStepsPartialExec() reads the request superglobal
+            $_REQUEST['step_notes'] = $stepNotes;
+        }
+    }
+
+    $issueTracker = null;
+    write_execution($db, $execSign, $execData, $issueTracker);
+
+    // read back the fresh execution row for the response
+    $et = tlObjectWithDB::getDBTables(array('executions'));
+    $storedPlatform = $platformId > 0 ? $platformId : 0;
+    $fr = $db->get_recordset(
+        "SELECT id, execution_ts FROM {$et['executions']}" .
+        " WHERE testplan_id = {$tplanId} AND build_id = {$buildId}" .
+        " AND platform_id = {$storedPlatform}" .
+        " AND tcversion_id = {$tcversionId}" .
+        " ORDER BY id DESC");
+    $newExecId = (!is_null($fr) && count($fr) > 0)
+        ? intval($fr[0]['id']) : 0;
+    $newTs = (!is_null($fr) && count($fr) > 0)
+        ? strval($fr[0]['execution_ts']) : '';
+
+    out([
+        'status' => 'ok',
+        'saved' => true,
+        'execution_id' => $newExecId,
+        'execution_ts' => $newTs,
+        'recorded_status' => $statusCode,
     ]);
 }
 
