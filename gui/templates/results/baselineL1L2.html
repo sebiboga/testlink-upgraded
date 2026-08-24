@@ -240,7 +240,9 @@ function statTable(rows, columns) {
       h += '<td>' + esc(d.qty) + ' <span class="pct ' + (bad ? 'bad' : '') +
         '">' + esc(d.percentage) + '%</span></td>';
     });
-    h += '<td class="tot">' + esc(row.percentage_completed) + '%</td>';
+    // total_tc == 0 snapshots carry the legacy -1 sentinel - render as '-'
+    h += '<td class="tot">' + (row.percentage_completed >= 0
+      ? esc(row.percentage_completed) + '%' : '-') + '</td>';
     h += '</tr>';
   });
   h += '</tbody></table>';
