@@ -1376,7 +1376,13 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $this->tcVersionID = key( $info );
             $dummy = current( $info );
             $plat = is_null( $platform_id ) ? 0 : $platform_id;
-            $this->versionNumber = $dummy[$tplan_id][$plat]['version'];
+            if( !isset($dummy[$tplan_id][$plat]) ) {
+                // no platform filter requested but link stored under concrete platform id(s):
+                // every entry belongs to the same tcversion, first entry has the right version
+                $plat = (int)key( $dummy[$tplan_id] );
+            }
+            $this->versionNumber = isset($dummy[$tplan_id][$plat]['version']) ?
+                $dummy[$tplan_id][$plat]['version'] : null;
         } else {
             $tplan_info = $this->tplanMgr->get_by_id( $tplan_id );
             $tcase_info = $this->tcaseMgr->get_by_id( $tcase_id, testcase::ALL_VERSIONS, null, array(
