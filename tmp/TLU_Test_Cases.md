@@ -4295,3 +4295,43 @@ Environment: fresh DB, fixtures seeded via `tmp/seed_rbs.php` (project "RBS Demo
 Suite result: **13/13 PASS**
 
 ---
+
+## Suite 674 — Regression — Issue #674: E_WARNING "Undefined property: stdClass::$tproject_user_role_assignment" on restricted-user login (common.php:2182)
+
+**Precondition**: fresh DB. Fixture: user `anonfix674` (role_id=3 `<no rights>`, active,
+MD5 password, cookie_string populated) with ZERO rows in `user_testproject_roles` /
+`user_testplan_roles`; one test project (id=1, prefix PRIV674) WITH its
+`nodes_hierarchy` row (direct SQL INSERT must add BOTH rows, else the project is
+invisible to everyone incl. admin and the state changes meaning). App at
+http://localhost:8082.
+
+**Repro steps (pre-fix)**:
+1. Insert private project + restricted user; baseline `MAX(events.id)` noted.
+2. Browser → login.php → log in as `anonfix674`.
+3. `SELECT id,log_level,description FROM events WHERE id > <baseline>` → one row
+   log_level=2: `E_WARNING Undefined property: stdClass::$tproject_user_role_assignment
+   - in .../lib/functions/common.php - Line 2182`, transaction entry_point =
+   `/lib/general/mainPage.php`.
+
+**Expected post-fix behavior**: login succeeds with ONLY audit events (logout/login);
+no Error/Warning entries; page + aside render exactly as before the fix (fix touches
+grants object shape only).
+
+**Execution matrix (post-fix, live server)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 674.R1 | anonfix674 login, project present & inaccessible (private) | only audit events, no E_WARNING | events id=5/6 then re-run 16/17: audits only | PASS |
+| 674.R2 | A/B causality: original common.php swapped in, same login | warning RE-fires (proves fix is the cause) | event id=9 fired again on original file; clean after restore | PASS |
+| 674.R3 | admin login, project present | normal menu path unaffected, aside renders 4 top items, no warnings | liCount=4 via asideMenu.php probe; events audits only | PASS |
+| 674.R4 | anonfix674 login, ZERO projects | zeroTestProjects branch intact: System/Projects/Documentation visible | aside shows the 3 sections; no warnings | PASS |
+| 674.R5 | aside rendering parity blind-folded state | identical pre/post fix | `<ul id="nav-accordion">` liCount=0 in BOTH variants (A/B) — fix changes log outcome only | PASS |
+| 674.R6 | Event Viewer after all flows | zero new Error/Warning (`log_level<>16`) | empty result set post-fix | PASS |
+
+**Fix under test**: commit `8b17cd4cd` — `getGrantSetWithExit()` blind-folded fast path
+(lib/functions/common.php ~2085) now initializes `$grants['tproject_user_role_assignment']
+= 'no'` so both return paths emit identical shapes; getMenuVisibility() reads it
+unconditionally. Code review subagent PASS (parity + full unguarded-read cross-check:
+no other missing keys).
+
+**Result: 6/6 PASS**
