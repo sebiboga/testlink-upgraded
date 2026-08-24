@@ -64,6 +64,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 39 | Execution — Execute Tests ✅ (#662) | `execute/execTest.html` | api/execute (init/tcList/tcDetails/save) | rights `testplan_execute` / RO `exec_ro_access`; reuses legacy write_execution() |
 | 40 | Reports — Results by Test Suite ✅ (#671) | `results/resultsByTSuite.html` | api/reports (metrics_by_tsuite) | right `testplan_metrics`; baseline save action lives here |
 | 41 | Reports — Baselines L1 & L2 ✅ (#673) | `results/baselineL1L2.html` | api/reports (metrics_baseline_l1l2) | right `testplan_metrics`; reads baseline_l1l2_context/details |
+| 42 | Reports — Results by Tester per Build ✅ (#677) | `results/resultsByTesterPerBuild.html` | api/reports (metrics_by_tester_per_build) | right `testplan_metrics`; reuses getStatusTotalsByBuildUAForRender(); legacy show_closed_builds session contract |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
@@ -91,7 +92,7 @@ Extra modernized feature (not an ASIDE entry):
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 
 | 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |
-| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671, `results/resultsByTSuite.html` + `api/reports metrics_by_tsuite`)**; test plan/test report docs via testPlanReport.html (#608); general metrics via generalMetrics.html (#618); **Baselines L1 & L2 done (#673, `results/baselineL1L2.html` + `api/reports metrics_baseline_l1l2`)** — next: resultsByTesterPerBuild and the remaining report pages |
+| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671, `results/resultsByTSuite.html` + `api/reports metrics_by_tsuite`)**; test plan/test report docs via testPlanReport.html (#608); general metrics via generalMetrics.html (#618); **Baselines L1 & L2 done (#673, `results/baselineL1L2.html` + `api/reports metrics_baseline_l1l2`)**; **Results by Tester per Build done (#677, `results/resultsByTesterPerBuild.html` + `api/reports metrics_by_tester_per_build`)** — next: the remaining report pages |
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):
