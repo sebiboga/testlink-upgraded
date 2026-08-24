@@ -32,16 +32,17 @@ warning row above.
    `platformLinkOp($args,$op,$messagePrefix)` backs both public methods:
    `tl.addPlatformToTestPlan` (`:6827`) and `tl.removePlatformFromTestPlan`
    (`:6841`).
-2. `:6964` — `$status_ok` is the guard variable; error paths set it false at
-   `:6979-6981` (unknown platform) and `:7013-7015` (unlink blocked by linked
-   TC versions); `_runChecks()` failures (auth/testplanid) also leave it
-   false.
-3. `:7020-7022` — success path returns early (`if($status_ok) return $ret;`).
-4. `:7024` — `if(! $tatus_ok) { return $this->errors; }` — `$tatus_ok`
-   (missing the `s`) is never assigned anywhere in the tree (verified:
-   exactly one grep hit).
-5. Under PHP ≥8 the read raises E_WARNING; TestLink's own handler
-   `watchPHPErrors` (`lib/functions/logger.class.php:1483`) persists it into
+ 2. `:6964` — `$status_ok` is the guard variable; error paths set it false at
+    `:6982` (unknown platform) and `:7012` (unlink blocked by linked
+    TC versions); `_runChecks()` failures (auth/testplanid) also leave it
+    false.
+ 3. `:7020-7022` — success path returns early (`if($status_ok) return $ret;`).
+ 4. `:7024` — `if(! $tatus_ok) { return $this->errors; }` — `$tatus_ok`
+    (missing the `s`) is never assigned anywhere in the tree (verified:
+    exactly one grep hit).
+ 5. Under PHP ≥8 the read raises E_WARNING; TestLink's own handler
+    `watchPHPErrors` (defined at `lib/functions/logger.class.php:1407`,
+    registered via `set_error_handler` at `:1483`) persists it into
    `events`. Control flow was never wrong — when line 7024 is reached
    `$status_ok` is always false and `!null === true`, so the payload stayed
    correct. The damage is pure event-log pollution on EVERY failure mode of
