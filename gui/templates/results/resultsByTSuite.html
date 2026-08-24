@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results by Test Suite</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-dark:hover { background: #3d4049; color: #fff; }
+.notice { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; display: none; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 6px 20px 14px; overflow-x: auto; }
+.sub-title { font-size: 13px; font-weight: 700; color: #2d8e88; margin: 14px 0 4px; }
+.exec-span { font-size: 12px; color: #667; margin: 8px 0 4px; }
+.exec-span b { color: #22242a; }
+.exec-span .lat { margin-left: 16px; }
+table.metrics { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.metrics th { background: #22242a; color: #fff; padding: 7px 10px; text-align: right; white-space: nowrap; font-size: 12px; }
+table.metrics th:first-child { text-align: left; border-top-left-radius: 6px; }
+table.metrics td { padding: 6px 10px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap; }
+table.metrics td:first-child { text-align: left; font-weight: 600; color: #33363f; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+table.metrics tr:hover td { background: #f4fbfa; }
+td.tot { font-weight: 700; color: #22242a; }
+.pct { display: inline-block; min-width: 46px; margin-left: 6px; font-size: 11px; border-radius: 8px; padding: 0 7px; background: #eefaf9; color: #2d8e88; font-weight: 600; }
+.pct.bad { background: #fdecea; color: #b94a48; }
+.note { color: #888; font-style: italic; font-size: 12px; margin: 10px 2px 2px; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-sitemap" style="margin-right:8px;"></i><span data-i18n="rbs.header">Results by Test Suite</span>
+  <span class="sub"><span data-i18n="rbs.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rbs.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <form id="mailForm" method="POST" target="_blank" style="display:inline;">
+    <input type="hidden" name="sendByEmail" value="1">
+    <button type="submit" class="btn-dark" id="btnMail" title=""><i class="fa fa-envelope"></i> <span data-i18n="rbs.btnSendEmail">Send by email to myself</span></button>
+  </form>
+  <form id="xlsForm" method="POST" target="_blank" style="display:inline;">
+    <button type="submit" class="btn-dark" id="btnXls" title=""><i class="fa fa-file-excel"></i> <span data-i18n="rbs.btnExportXls">Export as spreadsheet</span></button>
+  </form>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="notice" id="platNotice">
+  <i class="fa fa-info-circle"></i> <b data-i18n="rbs.importantNotice">Important Notice:</b>
+  <span data-i18n="rbs.platformRelationship">Test cases are counted per platform relationship.</span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="reportArea"></div>
+
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reports/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', loadReport);
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+function loadReport() {
+  $('#emptyBox').hide();
+  $('#reportArea').empty();
+  $('#loadingBox').show();
+  $.getJSON(API, { action: 'metrics_by_tsuite', tproject_id: tprojectId, tplan_id: tplanId }, function (r) {
+    $('#loadingBox').hide();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    tprojectId = r.tproject_id;
+    tplanId = r.tplan_id;
+    $('#tprojectName').text(r.tproject_name);
+    $('#tplanName').text(r.tplan_name);
+    document.title = r.tplan_name + ' - ' + TLi18n.t('rbs.header');
+    // legacy export endpoints (mail/XLS generation stays legacy)
+    $('#mailForm').attr('action', r.send_mail_url);
+    $('#xlsForm').attr('action', r.export_xls_url);
+
+    // platforms present => legacy "important notice" banner about the
+    // test case / platform relationship counting rule
+    $('#platNotice').toggle(!!r.show_platforms);
+
+    if (!r.hasData) {
+      // flat spec or plan without linked test cases - same message as legacy
+      $('#emptyBox').html('<i class="fa fa-inbox"></i>' + esc(TLi18n.t('rbs.noTsuites'))).show();
+      return;
+    }
+
+    renderAll(r);
+    $('#footerInfo').html(
+      esc(TLi18n.t('rbs.infoGenTestRep')) + '<br>' +
+      esc(TLi18n.t('rbs.generatedBy')) + ' ' + new Date().toLocaleString() +
+      ' &middot; ' + esc(TLi18n.t('rbs.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    var msg = TLi18n.t('rbs.errLoad');
+    if (xhr.status === 403) { msg = TLi18n.t('common.forbidden'); }
+    warn(msg);
+    toast(msg, true);
+  });
+}
+
+function renderAll(r) {
+  var $area = $('#reportArea').empty();
+
+  // ordered [{id,name}] - BFF already natsorted it like initializeGui();
+  // platform-less plans come back as {"0":""} (legacy implicit key 0)
+  var platOrder = [];
+  var set = r.platform_set || {};
+  Object.keys(set).forEach(function (k) { platOrder.push({ id: k, name: set[k] }); });
+
+  platOrder.forEach(function (pl) {
+    if (!r.suites.hasOwnProperty(pl.id)) { return; }
+    var title = pl.name === ''
+      ? '' : '<div class="sub-title">' + esc(TLi18n.t('rbs.onPlatform')) +
+             ' ' + esc(pl.name) + '</div>';
+    $area.append(section(title, execSpanHtml(r, pl.id) +
+      statTable(r.suites[pl.id], r.columns)));
+  });
+}
+
+// First/Latest execution header of one table (legacy
+// results/show_table_with_exec_span.inc.tpl). Platforms with zero
+// executions are simply absent from the span map -> skip the line.
+function execSpanHtml(r, platId) {
+  if (!r.span || !r.span.hasOwnProperty(platId)) { return ''; }
+  var sp = r.span[platId];
+  var h = '<div class="exec-span">';
+  if (sp.begin) {
+    h += '<i class="fa fa-play-circle"></i> ' + esc(TLi18n.t('rbs.firstExec')) + ' <b>' + esc(sp.begin) + '</b>';
+  }
+  if (sp.end) {
+    h += '<span class="lat"><i class="fa fa-stop-circle"></i> ' + esc(TLi18n.t('rbs.latestExec')) + ' <b>' + esc(sp.end) + '</b></span>';
+  }
+  return h + '</div>';
+}
+
+/**
+ * Same columns as legacy results/show_table_with_exec_span.inc.tpl:
+ * L1-L2 suite | TOTAL | per-status qty | per-status [%] | Completed [%]
+ * Column headers use the server-provided localized status labels.
+ */
+function statTable(rows, columns) {
+  var rowArr = Object.keys(rows).map(function (k) { return rows[k]; });
+  if (rowArr.length === 0) { return '<p class="note">' + esc(TLi18n.t('common.no')) + '</p>'; }
+
+  var statuses = columns ? Object.keys(columns) : [];
+
+  var h = '<table class="metrics"><thead><tr><th>' +
+    esc(TLi18n.t('rbs.l1l2')) + '</th><th>' + esc(TLi18n.t('rbs.thTcTotal')) + '</th>';
+  statuses.forEach(function (st) {
+    var lbl = (columns && columns[st] && columns[st].qty) ? columns[st].qty : st;
+    h += '<th colspan="2">' + esc(lbl) + '</th>';
+  });
+  h += '<th>' + esc(TLi18n.t('rbs.thCompletedPerc')) + '</th>';
+  h += '</tr></thead><tbody>';
+
+  rowArr.forEach(function (row) {
+    h += '<tr><td>' + esc(row.name || '') + '</td>' +
+         '<td class="tot">' + esc(row.total_tc) + '</td>';
+    statuses.forEach(function (st) {
+      var d = (row.details && row.details[st]) ? row.details[st] : { qty: 0, percentage: 0 };
+      var bad = parseFloat(d.percentage) > 0 && st !== 'passed' && st !== 'not_run';
+      h += '<td>' + esc(d.qty) + ' <span class="pct ' + (bad ? 'bad' : '') +
+        '">' + esc(d.percentage) + '%</span></td>';
+    });
+    h += '<td class="tot">' + esc(row.percentage_completed || 0) + '%</td>';
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+// wrap body html into a panel section; the title carries the optional
+// per-platform subtitle inside the body (legacy prints it above the span)
+function section(titleHtml, bodyHtml) {
+  var head = titleHtml === '' ? '' :
+    '<div class="section-head"><i class="fa fa-sitemap"></i><span>' + titleHtml + '</span></div>';
+  return $('<div class="section">' + head +
+    '<div class="section-body">' + bodyHtml + '</div></div>');
+}
+</script>
+</body>
+</html>
