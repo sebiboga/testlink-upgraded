@@ -1967,6 +1967,17 @@ function getActions(&$gui,$baseURL) {
       "/gui/templates/plans/planUpdateTC.html?{$ctx}";
   }
 
+  // Assign Test Case Execution modernized screen (Dashio standalone page)
+  // - Refs #655. Assigned after the workArea launcher copy-back above so the
+  // assignTCVExecution launcher entry cannot overwrite the link; the BFF
+  // enforces the legacy controller right (exec_assign_testcases) on every
+  // route, aside visibility stays gated by menuGrants in aside.tpl
+  // (exec_assign_testcases).
+  if ($tplan_id > 0) {
+    $actions->assignTCVExecution =
+      "/gui/templates/execute/tcExecAssignment.html?{$ctx}";
+  }
+
   // Show Newest Test Case Versions modernized screen (Dashio standalone
   // page) - Refs #643. Assigned after the workArea launcher copy-back above
   // (launcher entry removed) so the copy-back cannot overwrite the link.
