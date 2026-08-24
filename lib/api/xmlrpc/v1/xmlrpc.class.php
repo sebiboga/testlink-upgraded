@@ -6642,7 +6642,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
         if($status_ok) {
             if(! $this->_isParamPresent( self::$executionTypeParamName )) {
                 $status_ok = false;
-                $msg = sprintf( MISSING_REQUIRED_PARAMETER_STR, self::$customFieldsParamName );
+                $msg = sprintf( MISSING_REQUIRED_PARAMETER_STR, self::$executionTypeParamName );
                 $this->errors[] = new IXR_Error( MISSING_REQUIRED_PARAMETER, $msg );
             }
         }
