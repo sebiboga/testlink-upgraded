@@ -4046,4 +4046,43 @@ as **#666**. No new Error/Warning attributable to this change.
 | 475.S1 | navBar shows project "I475:Issue475 Project" + plan "Issue475 Plan" | auto-selected after login | both comboboxes show fixture values | PASS |
 | 475.EV | Event Viewer delta across matrix | no new Error/Warning | events count stable at 33 pre/post re-test | PASS |
 
+---
+
+## Regression — Issue #667: xmlrpc _checkTCIDAndTPIDValid() 2x E_WARNING on no-platform getLastExecutionResult when TC linked under a specific platform
+
+**Date**: 2026-08-24 · **Branch**: `fix/issue-667` · **Fix commit**: `d44bdfa07`
+
+**Area**: XML-RPC API (`lib/api/xmlrpc/v1/xmlrpc.class.php`), helper
+`_checkTCIDAndTPIDValid()` lines 1361–1395. Root cause: with no platform filter,
+`$plat` defaults to `0`, but links created under a platform are keyed by the real
+platform id in the `get_linked_versions()` map (testcase.class.php re-keys level 3
+by `$element['platform_id']`). Fix = if key `[0]` absent, fall back to first
+available platform entry (same tcversion ⇒ identical version number); guard final read.
+
+**Precondition**: fresh DB; admin devKey (`users.script_key`); fixtures via API:
+project 13, plan 14, platform 5 linked to plan, case 16 / tcversion 17 linked via
+`addTestCaseToTestPlan {platformid:5}` (row confirmed `platform_id=5`);
+harness: hand-rolled XML-RPC client. Warning counter =
+`events WHERE description LIKE '%xmlrpc.class.php - Line 1379%'`.
+
+**Repro steps (pre-fix)**:
+1. `tl.getLastExecutionResult {devKey, testplanid:14, testcaseid:16}` — NO platform param.
+2. Response `[{"id":-1}]` (success), but events gain:
+   `E_WARNING Undefined array key 0 … Line 1379` + `E_WARNING Trying to access
+   array offset on null … Line 1379` (measured as events #7/#8; baseline count 2).
+
+**Expected post-fix**: same successful response, ZERO new line-1379 warnings;
+all other call shapes unchanged.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 667.R1 | no-platform call + link under platform 5 (the bug) | success `[id]=>-1`, warning delta 0 | `[{"id":-1}]`, delta 0 | PASS |
+| 667.R2 | no-platform call + legacy platform-less link (fresh project/plan/case, link without platform; DB row `platform_id=0`) | success, delta 0 (legacy `[0]` path intact) | `[{"id":-1}]`, delta 0 | PASS |
+| 667.R3 | call WITH `platformid=5` | success, delta 0 | `[{"id":-1}]`, delta 0 | PASS |
+| 667.R4 | unlinked TC (fresh case, never added to plan) | clean IXR_Error 3030, delta 0 | error 3030, delta 0 | PASS |
+| 667.R5 | `reportTCResult {platformid:5, buildname:"AutoBuild-667", status:"p"}` end-to-end (`_insertResultToDB()` consumes `versionNumber`) | Success! + executions row with correct `tcversion_number` | exec id 1/2 rows: `tcversion_id=17, tcversion_number=1, status=p`; delta 0 | PASS |
+| 667.EV | Event Viewer delta across matrix | no new Error/Warning types | only audit entries + pre-existing unrelated `fetchRowsIntoMap exec_id` E_USER_NOTICE family (pre-fix event #9) | PASS |
+
 **Result: PASS**
