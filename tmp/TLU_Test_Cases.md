@@ -4189,3 +4189,31 @@ post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
 | 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
 
 **Result: PASS (addendum 7/7)**
+
+---
+
+## Suite 481 — Regression — Issue #481: PHP 8.4+ E_DEPRECATED "Implicitly marking parameter $domain as nullable" in vendor/symfony/translation on every page load
+
+**Precondition**: symfony/translation v6.4.0 committed under `vendor/`; the deprecation fires only on **PHP ≥ 8.4**, so verification uses a static scanner (`tmp/repro-issue-481.php`) that applies exactly the engine's condition (parameter type not explicitly nullable + default null) and emits the byte-identical E_DEPRECATED message; local runtime is PHP 8.3.33.
+
+**Repro steps (pre-fix)**:
+1. `php tmp/repro-issue-481.php vendor/symfony/translation/Resources/functions.php`
+   → `Deprecated: Implicitly marking parameter $domain as nullable is deprecated, the explicit nullable type must be used instead in vendor/symfony/translation/Resources/functions.php on line 18` (exit=1).
+2. Structural: `vendor/composer/autoload_files.php:15` includes that functions file on EVERY request → warning printed on every page load for PHP 8.4 users.
+
+**Fix**: explicit nullable at `vendor/symfony/translation/Resources/functions.php:18` (`?string $domain = null`), plus composer-overwrite guard `tools/patch_vendor_php84.php` hooked into `composer.json` post-install-cmd/post-update-cmd (idempotent re-application after any `composer install/update`).
+
+**Execution matrix (post-fix, live server http://localhost:8082, branch fix/issue-481)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 481.R1 | scanner on patched functions.php | exit 0, 0 findings | `0 implicitly-nullable parameter(s)` exit=0 | PASS |
+| 481.R2 | `php -l` on patched file | No syntax errors | No syntax errors detected | PASS |
+| 481.R3 | behavioral: require autoload, call `\Symfony\Component\Translation\t('hello %name%', [...], 'messages')` | TranslatableMessage returned, domain kept | `TranslatableMessage: hello %name% / domain=messages` | PASS |
+| 481.R4 | overwrite simulation: sed signature back to broken form → run guard → rescan; run guard again | guard re-patches; second run no-op; scanner clean | `patched …$domain is now explicitly nullable`, scanner exit=0, then `already patched — nothing to do` | PASS |
+| 481.R5 | app boots: GET /login.php (HTTP) + browser login admin/admin through index.php shell (navBar / asideMenu / mainframe iframes) | HTTP 200, all frames render, zero "Deprecated" text | HTTP 200 in 0.07s; login OK; navBar+asideMenu+mainframe rendered; no Deprecated strings | PASS |
+| 481.R6 | Event Viewer delta across full matrix | no new Error/Warning rows | events table: only row id=1 log_level=16 (audit login_succeeded); console shows only pre-existing Chrome/jQuery-2.2.4 unload-deprecation issue, unrelated to PHP | PASS |
+
+**Notes**: wider blast radius measured but intentionally out of scope per minimal-fix rule: scanner reports 51 further implicit-nullables across symfony translation(+contracts), e.g. TranslatorBagInterface.php:28 — they surface lazily and would be fixed wholesale by upgrading the dependency (~v6.4.8+). Guard script fail-safe branches verified by code path: missing package → skip exit 0; upstream signature changed → skip exit 0.
+
+**Result: Suite 481 — 6/6 PASS**
