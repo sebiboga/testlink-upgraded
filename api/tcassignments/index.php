@@ -137,12 +137,13 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
     $priorityEnabled = !empty($opt['testPriorityEnabled']);
 
     // active plans first, then inactive ones (legacy default filters them out)
+    // get_all_testplans() does not fetch is_open -> do not read it (E_WARNING)
     $planSet = $tprojectMgr->get_all_testplans($tproject_id);
     $plans = [];
     foreach ((array)$planSet as $pid => $tp) {
         $plans[] = ['id' => intval($pid), 'name' => $tp['name'],
-                    'active' => intval($tp['active']) ? true : false,
-                    'is_open' => intval($tp['is_open']) ? true : false];
+                    'active' => intval($tp['active'] ?? 0) ? true : false,
+                    'is_public' => intval($tp['is_public'] ?? 0) ? true : false];
     }
 
     // users with assignments potential: overview column shows logins
