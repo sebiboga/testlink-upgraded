@@ -3734,3 +3734,18 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 7 | Event Viewer clean for new template | Watermark `SELECT MAX(id) FROM events` → 2 fresh renders of plain GET → re-query | No new events rows caused by the new template | PASS (max stayed 9) |
 
 **Result: Suite 654 — 8/8 PASS**
+
+## Regression — Issue #656: firstLogin.php?viewer=new — 3x E_WARNING per render (2x Undefined property pwdInputMaxLength + Undefined array key "login")
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); fix = `firstLogin.php:72` assigns `$gui->pwdInputMaxLength = config_get('loginPagePasswordMaxLenght')`; both copies of `login/firstLogin-model-marcobiedermann.tpl` (dashio + tl-classic) fetch `login` in the `lang_get` list. Baseline: events table had exactly 3 pre-fix E_WARNING rows (ids 1–3, log_level 2).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Primary symptom gone | `curl -sS -o /dev/null -w %{http_code} "http://localhost:8082/firstLogin.php?viewer=new"` after stale compiled template purge → re-query events | HTTP 200; 0 new events (was 3 E_WARNING/render pre-fix) | PASS |
+| 2 | Plain GET unchanged | `curl -w %{http_code} http://localhost:8082/firstLogin.php` | 200; 0 new events | PASS |
+| 3 | Rendered HTML sane | grep response of viewer=new for title + maxlength | `<title>Login</title>` non-empty; exactly 2 password inputs with `maxlength="40"` | PASS |
+| 4 | Mismatch error path | POST doEditUser=1 login=rgxuser password≠password2 viewer=new | Form redisplayed with "The two passwords entered did not match…"; no user row created; 0 new Error/Warning events | PASS |
+| 5 | Happy-path signup | POST matching passwords → check users + events + redirect target | user created (users.id=2 rgxuser); response contains `login.php?note=first`; only new event is log_level 16 AUDIT (`audit_users_self_signup`) | PASS |
+| 6 | Browser render | chrome-devtools navigate to viewer=new + screenshot + Event Viewer re-query | Page renders clean (title tab "Login"); screenshot docs/screenshots/issue-656-firstlogin-viewer-new-clean.png; still 0 new warnings incl. this render | PASS |
+
+**Result: Suite 656 — 6/6 PASS** — Side observation: self-signup accepts duplicate emails → filed as #657.
