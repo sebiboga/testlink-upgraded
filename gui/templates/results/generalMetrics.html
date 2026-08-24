@@ -214,7 +214,8 @@ function renderAll(r) {
   }
 
   // Milestones & priority report (two legacy variants)
-  if (r.milestones && r.milestones.length) {
+  if (r.milestones && (Array.isArray(r.milestones)
+      ? r.milestones.length : Object.keys(r.milestones).length)) {
     $area.append(milestonesSection(r.milestones, r.priority_enabled));
   }
 }
@@ -284,6 +285,7 @@ function statTable(rows, columns, firstNameKey, totalKey, showPct) {
 
   function cellTotal(row) {
     if (row[totalKey] != null) { return row[totalKey]; }
+    if (row.total_tc != null) { return row.total_tc; }
     if (row.total != null) { return row.total; }
     var s = 0;
     if (row.details) { Object.keys(row.details).forEach(function (st) {
@@ -322,6 +324,8 @@ function nameKeyOf(firstNameKey) {
 
 /* Milestones report - two variants exactly like the legacy template */
 function milestonesSection(list, prioEnabled) {
+  // getMilestonesMetrics() comes back as an id-keyed map, not a list
+  if (!Array.isArray(list)) { list = Object.keys(list).map(function (k) { return list[k]; }); }
   var h = '<table class="metrics"><thead><tr>';
   h += '<th>' + esc(TLi18n.t('rgm.thMilestone')) + '</th>';
   if (prioEnabled) {
