@@ -3767,3 +3767,24 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 9 | Sibling sanity createBuild | `tl.createBuild` {devKey, testplanid:99999} | `(createBuild) - The Test Plan ID (99999) provided does not exist!` | PASS |
 
 **Result: Suite 457 — 9/9 PASS** — Side observations: `setTestCaseTestSuite()` renders `"() - "` from `$ret['operation']` undefined key → filed as #658; `$tcase_external_id` used undefined at :3522 → filed as #659.
+
+## Modernize — Issue #660: My Test Case Assignments screen (tcAssignedToUser → gui/templates/execute/tcAssignments.html + api/tcassignments)
+
+**Precondition:** app `http://localhost:8082` (admin/admin); fixture `php tmp/fixtures_660.php` (project LOC660 id=35, plans Plan660A active / Plan660B inactive, builds BUILD-OPEN/BUILD-CLOSED, platform PLAT-X, TCs alpha/beta/gamma/delta with execution assignments for admin+tester1, prior execution on alpha). BFF routes: GET `/api/tcassignments/index.php/init|rows`, POST `/quick_result`. Screen: `/gui/templates/execute/tcAssignments.html`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF init context | `GET init?tproject_id=35` as admin | status ok; tproject name/priorityEnabled=true; 2 plans (A active, B inactive flag); users list; showClosedBuilds from session | PASS |
+| 2 | Default "assigned to me" rows | open tcAssignments.html?tproject_id=35 | header "My Test Case Assignments · LOC660 · admin"; only Plan660A group; only own assignment TC-alpha (Passed, Low prio, 45 days) | PASS |
+| 3 | Overview mode toggle | click "All users (overview)" | User + Tester columns appear; 2 rows in plan A (admin/alpha, tester1/beta@PLAT-X High); gamma hidden (closed build) | PASS |
+| 4 | Show closed builds | enable checkbox | gamma row appears on BUILD-CLOSED; footer count 3 assignments; session persists flag server-side | PASS |
+| 5 | Inactive plan explicit selection | plan select → Plan660B (inactive) | TC-delta shown despite inactive plan (explicit selection overrides tplan-status filter); no platform column (plan has none) | PASS |
+| 6 | Quick result write | click failed quick icon on own row (alpha) | toast localized; status chip flips to Failed; executions table gets new row (status 'f', tester_id=1, correct version_number/tplan/build/platform) | PASS |
+| 7 | exec_mode=assigned_to_me parity | inspect other-user rows as admin (config exec_mode->tester='assigned_to_me') | no quick P/F/B buttons on rows assigned to other users; exec/history/design links still present | PASS |
+| 8 | Row action popups | capture window.open targets for exec/history/design icons | execSetResults.php?version_id&level=testcase&id&tplan_id&setting_build&setting_platform&caller=... ; execHistory.php?tcase_id&tproject_id ; archiveData.php?edit=testcase&id&tproject_id — all load w/o fatal | PASS |
+| 9 | Rights gate (no right) | login tester1 (no exec_testcases_assigned_to_me), call init/rows | HTTP 403 JSON "Insufficient rights" on every route; aside link hidden via menuGrants | PASS |
+| 10 | i18n all bundles | `python3 -m json.tool` each of 10 bundles; switch locale to ro_RO | all valid JSON; ro shows "Test Case-urile Mele Alocate", "Suită de test", "Stare", chip "Eșuat" | PASS |
+| 11 | Event Viewer clean | watermark events before/after full pass | zero new E_WARNING/Error rows after fix commit (was: 3x "Undefined array key is_open" line 145 — fixed) | PASS |
+| 12 | Aside link switch | index.php → Execution section as admin | "Test Cases Assigned to Me" href = /gui/templates/execute/tcAssignments.html?tproject_id=35&tplan_id=50; loads inside mainframe with data | PASS |
+
+**Result: Suite 660 — 12/12 PASS**
