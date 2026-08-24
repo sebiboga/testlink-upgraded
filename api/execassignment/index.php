@@ -53,7 +53,11 @@ $path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
-function out($data) { echo json_encode($data); exit; }
+function out($data, $code = 200) {
+    http_response_code($code);
+    echo json_encode($data);
+    exit;
+}
 function bffBody() {
     static $body = null;
     if ($body === null) {
@@ -149,8 +153,11 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
     $buildSet = $tplanMgr->get_builds($tplan_id, 1, 1);
     $builds = [];
     foreach ((array)$buildSet as $bid => $binfo) {
+        // get_builds() exposes 'is_open' only; closed == !is_open
+        $closed = isset($binfo['is_closed'])
+            ? intval($binfo['is_closed']) : intval(empty($binfo['is_open']));
         $builds[] = ['id' => intval($bid), 'name' => (string)$binfo['name'],
-                     'closed' => intval($binfo['is_closed'])];
+                     'closed' => $closed];
     }
 
     $tprojMgr = new testproject($db);
@@ -160,8 +167,15 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
         $priorityEnabled = (bool)$tprojOpt->testPriorityEnabled;
     }
 
+    // get_tplan_effective_role() needs the FULL tproject record, not a
+    // minimal ['id','name'] array — otherwise tplan-scoped role resolution
+    // silently drops users and the tester pickers end up empty.
+    $tprojFull = $tprojMgr->get_by_id($tproject_id);
+    if (is_null($tprojFull)) {
+        out(['status' => 'error', 'message' => 'testproject not found'], 404);
+    }
     $allUsers = tlUser::getAll($db, null, "id", null);
-    $testerMap = getTestersForHtmlOptions($db, $tplan_id, $tprojInfo,
+    $testerMap = getTestersForHtmlOptions($db, $tplan_id, $tprojFull,
                                           $allUsers);
     $testers = [];
     foreach ((array)$testerMap as $tid => $label) {
