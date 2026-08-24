@@ -69,6 +69,7 @@ $smarty = new TLSmarty();
 
 // we get info about THE DEFAULT AUTHENTICATION METHOD
 $gui->external_password_mgmt = tlUser::isPasswordMgtExternal(); 
+$gui->pwdInputMaxLength = config_get('loginPagePasswordMaxLenght');
 $gui->message = $message;
 $smarty->assign('gui',$gui);
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 {config_load file="input_dimensions.conf" section="login"}
 {lang_get var="labels"
-          s='login_name,password,password_again,first_name,last_name,e_mail,
+          s='login,login_name,password,password_again,first_name,last_name,e_mail,
              password_mgmt_is_external,btn_add_user_data,link_back_to_login'}
 
 <html >
