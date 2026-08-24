@@ -4295,43 +4295,19 @@ Environment: fresh DB, fixtures seeded via `tmp/seed_rbs.php` (project "RBS Demo
 Suite result: **13/13 PASS**
 
 ---
+## Suite 484 — Installer PHP-configuration checks (configCheck.php + scripts/devserver.sh) — Refs #484
+Environment: fresh DB; server restarted through the new launcher `scripts/devserver.sh 8082` (PHP 8.3.33 built-in, `-d max_execution_time=120 -d session.gc_maxlifetime=2880 -d memory_limit=64M`). Pre-fix baseline measured on the same machine with bare `php -S` (gc_maxlifetime=1440 → 24 min warning, max_execution_time=30 → warning, memory_limit=-1 → false "-1 MegaBytes" warning).
 
-## Suite 674 — Regression — Issue #674: E_WARNING "Undefined property: stdClass::$tproject_user_role_assignment" on restricted-user login (common.php:2182)
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state | curl install/installCheck.php under bare `php -S` (no -d flags) | 3 tab-warning rows: session idle "24 minutes ... Short. Consider to extend.", max_execution_time "30 seconds - We suggest 120", memory_limit "-1 MegaBytes - We suggest 64 MB" | PASS (reproduced) |
+| 2 | Restart via launcher | `scripts/devserver.sh 8082`; confirm process cmdline carries all three -d overrides | Server up; login.php HTTP 200 | PASS |
+| 3 | Session idle row post-fix | curl install/installCheck.php | tab-success "48 minutes and 0 seconds - (OK)" (2880s > 30-min threshold) | PASS |
+| 4 | max_execution_time row post-fix | same request | tab-success "OK (120 seconds)" | PASS |
+| 5 | memory_limit row post-fix | same request | tab-success "OK (64 MegaBytes)" | PASS |
+| 6 | Sentinel path: unlimited memory | CLI harness calling check_php_settings() with runtime memory_limit=-1 | Row reads "OK (unlimited)", no tab-warning for memory | PASS |
+| 7 | Sentinel path: no exec limit | Same harness with max_execution_time=0 (CLI default) | Row reads "OK (no limit)", no warning | PASS |
+| 8 | App regression after restart | Browser: login admin/admin → main shell renders (navBar/asideMenu/mainframe iframes) | Login OK; shell + default frame load without errors | PASS |
+| 9 | Event Viewer after test window | SELECT from events table | Only AUDIT login event (level 16); zero new Error/Warning entries | PASS |
 
-**Precondition**: fresh DB. Fixture: user `anonfix674` (role_id=3 `<no rights>`, active,
-MD5 password, cookie_string populated) with ZERO rows in `user_testproject_roles` /
-`user_testplan_roles`; one test project (id=1, prefix PRIV674) WITH its
-`nodes_hierarchy` row (direct SQL INSERT must add BOTH rows, else the project is
-invisible to everyone incl. admin and the state changes meaning). App at
-http://localhost:8082.
-
-**Repro steps (pre-fix)**:
-1. Insert private project + restricted user; baseline `MAX(events.id)` noted.
-2. Browser → login.php → log in as `anonfix674`.
-3. `SELECT id,log_level,description FROM events WHERE id > <baseline>` → one row
-   log_level=2: `E_WARNING Undefined property: stdClass::$tproject_user_role_assignment
-   - in .../lib/functions/common.php - Line 2182`, transaction entry_point =
-   `/lib/general/mainPage.php`.
-
-**Expected post-fix behavior**: login succeeds with ONLY audit events (logout/login);
-no Error/Warning entries; page + aside render exactly as before the fix (fix touches
-grants object shape only).
-
-**Execution matrix (post-fix, live server)**:
-
-| # | Case | Expected | Actual | Verdict |
-|---|------|----------|--------|---------|
-| 674.R1 | anonfix674 login, project present & inaccessible (private) | only audit events, no E_WARNING | events id=5/6 then re-run 16/17: audits only | PASS |
-| 674.R2 | A/B causality: original common.php swapped in, same login | warning RE-fires (proves fix is the cause) | event id=9 fired again on original file; clean after restore | PASS |
-| 674.R3 | admin login, project present | normal menu path unaffected, aside renders 4 top items, no warnings | liCount=4 via asideMenu.php probe; events audits only | PASS |
-| 674.R4 | anonfix674 login, ZERO projects | zeroTestProjects branch intact: System/Projects/Documentation visible | aside shows the 3 sections; no warnings | PASS |
-| 674.R5 | aside rendering parity blind-folded state | identical pre/post fix | `<ul id="nav-accordion">` liCount=0 in BOTH variants (A/B) — fix changes log outcome only | PASS |
-| 674.R6 | Event Viewer after all flows | zero new Error/Warning (`log_level<>16`) | empty result set post-fix | PASS |
-
-**Fix under test**: commit `8b17cd4cd` — `getGrantSetWithExit()` blind-folded fast path
-(lib/functions/common.php ~2085) now initializes `$grants['tproject_user_role_assignment']
-= 'no'` so both return paths emit identical shapes; getMenuVisibility() reads it
-unconditionally. Code review subagent PASS (parity + full unguarded-read cross-check:
-no other missing keys).
-
-**Result: 6/6 PASS**
+Suite result: **9/9 PASS**
