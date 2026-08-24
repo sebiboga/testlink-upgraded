@@ -592,5 +592,182 @@ if ($action === 'metrics_by_tsuite') {
     out($payload);
 }
 
+if ($action === 'metrics_baseline_l1l2') {
+    // Baselines L1 & L2 report - mirrors lib/results/baselinel1l2.php
+    // (Refs #673). Reads the SAVED baseline snapshots straight from
+    // baseline_l1l2_context / baseline_l1l2_details exactly like the
+    // legacy controller's SQL (same joins, same ORDER BY), rebuilds the
+    // per-status qty/[%] matrix with the very same results-config status
+    // display order and computes percentage_completed the same way
+    // ((total - not_run) / total * 100). Right gate ('testplan_metrics')
+    // already enforced above.
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
+    // the session/project context (same pattern as metrics_general above).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Platform set decides whether every "* on platform X" section renders
+    // and whether the platform relationship notice shows. Empty set =>
+    // fakePlatform '' with implicit key 0 (legacy initializeGui() contract).
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+    if ($showPlatforms) {
+        natsort($platformSet);
+    } else {
+        $platformSet = [0 => ''];
+    }
+
+    // Column definition: exact copy of the legacy loop over the results
+    // config display order - one qty + one [%] column per execution status,
+    // labels resolved server-side through lang_get() so the session locale
+    // applies (legacy did lang_get() in initializeGui flow too).
+    $cfgResults = config_get('results');
+    $codeToStatus = array_flip($cfgResults['status_code']);
+    $columns = [];
+    foreach ($cfgResults['status_order'] as $statusCode) {
+        $verbose = $codeToStatus[$statusCode];
+        $columns[$verbose] = [
+            'qty' => lang_get($cfgResults['status_label'][$verbose]),
+            'percentage' => '[%]',
+        ];
+    }
+
+    // Same SQL as the legacy controller (baselinel1l2.php lines ~62-75):
+    // newest snapshot first, suites alphabetical inside each snapshot.
+    $tbl = tlObject::getDBTables([
+        'baseline_l1l2_context', 'baseline_l1l2_details', 'nodes_hierarchy',
+    ]);
+    $sql = "SELECT context_id,BLDT.id AS detail_id, " .
+        "testplan_id,platform_id, " .
+        "begin_exec_ts,end_exec_ts,creation_ts, " .
+        "top_tsuite_id,child_tsuite_id,status,qty,total_tc, " .
+        "TS_TOP.name AS top_name, TS_CHI.name AS child_name " .
+        "FROM {$tbl['baseline_l1l2_context']} BLC " .
+        "JOIN {$tbl['baseline_l1l2_details']} BLDT " .
+        "ON BLDT.context_id = BLC.id " .
+        "JOIN {$tbl['nodes_hierarchy']} AS TS_TOP " .
+        "ON TS_TOP.id = top_tsuite_id " .
+        "JOIN {$tbl['nodes_hierarchy']} AS TS_CHI " .
+        "ON TS_CHI.id = child_tsuite_id " .
+        "WHERE BLC.testplan_id = {$tplanId} " .
+        "ORDER BY BLC.creation_ts DESC, top_name ASC, child_name ASC";
+    $rsu = $db->fetchRowsIntoMap4l($sql,
+        ['platform_id', 'context_id', 'top_tsuite_id', 'child_tsuite_id'], true);
+    if (is_null($rsu)) {
+        $rsu = [];
+    }
+
+    // Build the report structure. Emitted as ORDERED LISTS everywhere order
+    // matters: JS Object.keys() re-sorts integer-like JSON object keys
+    // numerically ascending, which would destroy both the natsort platform
+    // section order and the creation_ts DESC snapshot order (same lesson as
+    // #671).
+    $platBlocks = [];
+    $hasData = false;
+    foreach ($platformSet as $platId => $platName) {
+        $snapshotsOut = [];
+        if (isset($rsu[$platId])) {
+            foreach ($rsu[$platId] as $contextId => $dataByTop) {
+                $first = current(current($dataByTop))[0];
+                $snap = [
+                    // RAW timestamps: client formats with toLocaleString()
+                    // (strftime placeholders break under PHP 8, bug #563)
+                    'context_id' => intval($contextId),
+                    'begin' => $first['begin_exec_ts'],
+                    'end' => $first['end_exec_ts'],
+                    'baseline_ts' => $first['creation_ts'],
+                    'rows' => [],
+                ];
+                foreach ($dataByTop as $topId => $dataByChild) {
+                    foreach ($dataByChild as $childId => $dataX) {
+                        $dfx = $dataX[0];
+                        $details = [];
+                        foreach ($columns as $verbose => $v) {
+                            $details[$verbose] =
+                                ['qty' => 0, 'percentage' => 0];
+                        }
+                        foreach ($dataX as $xmen) {
+                            $pp = ($dfx['total_tc'] > 0)
+                                ? round(($xmen['qty'] / $dfx['total_tc']) * 100, 1)
+                                : 0;
+                            $details[$codeToStatus[$xmen['status']]] = [
+                                'qty' => intval($xmen['qty']),
+                                'percentage' => $pp,
+                            ];
+                        }
+                        $percCompleted = -1;
+                        if ($dfx['total_tc'] > 0) {
+                            $percCompleted = round(
+                                (($dfx['total_tc'] -
+                                    $details['not_run']['qty']) /
+                                    $dfx['total_tc']) * 100, 1);
+                        }
+                        $snap['rows'][] = [
+                            'name' => $dfx['top_name'] . ':' .
+                                $dfx['child_name'],
+                            'total_tc' => intval($dfx['total_tc']),
+                            'percentage_completed' => $percCompleted,
+                            'details' => $details,
+                        ];
+                    }
+                }
+                $snapshotsOut[] = $snap;
+                $hasData = true;
+            }
+        }
+        $platBlocks[] = [
+            'id' => (string)$platId,
+            'name' => $platName,
+            'snapshots' => $snapshotsOut,
+        ];
+    }
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => $hasData,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'columns' => $columns,
+        'platform_blocks' => $platBlocks,
+        // legacy lib/results/baselinel1l2.php endpoints kept for the two
+        // toolbar buttons - mail/spreadsheet generation stays legacy.
+        // Root-relative (sibling convention, see resultsByTSuite.html):
+        // the page lives under /gui/templates/results/.
+        'send_mail_url' => '/lib/results/baselinel1l2.php?format=' .
+            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
+            '&tproject_id=' . $tprojectId,
+        'export_xls_url' => '/lib/results/baselinel1l2.php?format=' .
+            FORMAT_XLS . '&tplan_id=' . $tplanId .
+            '&tproject_id=' . $tprojectId . '&spreadsheet=1',
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ];
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
