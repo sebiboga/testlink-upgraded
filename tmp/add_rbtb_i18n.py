@@ -5,6 +5,7 @@ exist; preserves each bundle's existing formatting (indent / ascii-escaping /
 trailing newline).
 """
 import json
+import re
 import os
 import sys
 
@@ -180,8 +181,14 @@ def main():
         with open(path, encoding='utf-8') as f:
             raw = f.read()
         data = json.loads(raw)
-        ensure_ascii = '\\u' in raw
-        indent = 2 if raw.startswith('{\n  "') else 4
+        # detect formatting from the raw bytes: \uXXXX escapes only (a bare
+        # '\u' inside a value would false-positive), indent via first key line
+        ensure_ascii = re.search(r'\\u[0-9a-fA-F]{4}', raw) is not None
+        m_indent = re.match(r'^\{\n(\s+)"', raw)
+        if m_indent is None:
+            raise SystemExit('%s.json: unrecognized formatting - aborting '
+                             'instead of reformatting the bundle' % loc)
+        indent = len(m_indent.group(1))
         tnl = raw.endswith('\n')
         added = []
         for key, tr in K.items():

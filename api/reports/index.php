@@ -882,8 +882,9 @@ if ($action === 'metrics_by_tester_per_build') {
                 }
                 $usersOut[] = [
                     'user_id' => intval($userId),
+                    // deleted/renamed users must not render an empty cell
                     'login' => isset($names[$userId]['login'])
-                        ? $names[$userId]['login'] : '',
+                        ? $names[$userId]['login'] : ('user_' . intval($userId)),
                     'total' => intval($statistics['total']),
                     'statuses' => $statuses,
                     'progress' => $statistics['progress'],
