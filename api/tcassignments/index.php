@@ -207,10 +207,13 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'rows') {
     $tplanId = intval(getParam('tplan_id', 0));
     $tplanParam = ($tplanId > 0) ? [$tplanId] : testcase::ALL_TESTPLANS;
 
-    // initFilters() parity
+    // initFilters() parity; an explicit tplan selection overrides the
+    // tplan-status filter (same spirit as legacy build_id handling:
+    // "show assignments regardless of build and tplan status")
     $filters = [];
     $filters['tplan_status'] =
-        ($showInactiveTplans || $buildId > 0) ? 'all' : 'active';
+        ($tplanId > 0 || $showInactiveTplans || $buildId > 0)
+            ? 'all' : 'active';
     $filters['build_status'] = 'open';
     if ($showClosedBuilds && $buildId <= 0) { $filters['build_status'] = 'all'; }
     if ($buildId > 0) {

@@ -168,7 +168,7 @@ function loadInit() {
     }).fail(function () { apiFail.apply(null, arguments); });
     return;
   }
-  $.get(API + '?action=init&tproject_id=' + tprojectId)
+  $.get(API + '/init?tproject_id=' + tprojectId)
     .done(function (r) {
       if (!r || r.status !== 'ok') { apiFail(r); return; }
       ctxInfo = r.data;
@@ -217,13 +217,13 @@ function prioLabel(level) {
 }
 
 function loadRows() {
-  var qs = 'action=rows&tproject_id=' + tprojectId +
+  var qs = 'tproject_id=' + tprojectId +
            '&tplan_id=' + tplanId +
            '&show_all_users=' + (showAllUsers ? '1' : '0');
   if ($('#cbClosedBuilds').length) {
     qs += '&show_closed_builds=' + ($('#cbClosedBuilds').prop('checked') ? '1' : '0');
   }
-  $.get(API + '?' + qs)
+  $.get(API + '/rows?' + qs)
     .done(function (r) {
       if (!r || r.status !== 'ok') { apiFail(r); return; }
       renderGroups(r.data);
@@ -386,7 +386,7 @@ function quickResult($btn) {
   var ids = collectIds($btn);
   var res = $btn.data('res');
   $.ajax({
-    url: API + '?action=quick_result',
+    url: API + '/quick_result',
     method: 'POST',
     contentType: 'application/json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
