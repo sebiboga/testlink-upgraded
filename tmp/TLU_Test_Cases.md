@@ -4311,3 +4311,21 @@ Environment: fresh DB; server restarted through the new launcher `scripts/devser
 | 9 | Event Viewer after test window | SELECT from events table | Only AUDIT login event (level 16); zero new Error/Warning entries | PASS |
 
 Suite result: **9/9 PASS**
+
+## Suite 675 — Installer memory_limit ini-shorthand parsing (configCheck.php check_php_settings) — Refs #675
+Environment: repo root @ fix/issue-675 (12d10e954). Repro servers: `php -d memory_limit=1G -S 127.0.0.1:8083` (post-fix code) and worktree of pre-fix commit 3a8354da5 served at `127.0.0.1:8084` with same flag; main dev instance :8082 untouched (memory_limit=-1).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state | curl install/installCheck.php on :8084 (`memory_limit=1G`, commit 3a8354da5) | tab-warning "1 MegaBytes - We suggest 64 MB" | PASS (reproduced) |
+| 2 | G suffix: 1G | CLI harness check_php_settings() with `-d memory_limit=1G` | tab-success "OK (1024 MegaBytes)", no warning | PASS |
+| 3 | G suffix: 2G | Same harness with 2G | tab-success "OK (2048 MegaBytes)" | PASS |
+| 4 | M suffix unchanged | Harness with 512M / 64M | "OK (512 MegaBytes)" / "OK (64 MegaBytes)" identical to pre-fix behavior | PASS |
+| 5 | Sentinel -1 unchanged | Harness with -1 | "OK (unlimited)" (#484 behavior preserved) | PASS |
+| 6 | K branch end-to-end | Harness with 131072K (=128 MB) and 65536K (=64 MB) | "OK (128 MegaBytes)" / "OK (64 MegaBytes)" | PASS |
+| 7 | Bare-bytes default branch | Harness with 134217728 (=128 MB as bytes) | "OK (128 MegaBytes)" | PASS |
+| 8 | Live HTTP post-fix | curl install/installCheck.php on :8083 (`memory_limit=1G`) | tab-success "OK (1024 MegaBytes)" | PASS |
+| 9 | Main app regression | :8082 login.php HTTP status + installCheck memory row (-1) | HTTP 200; row reads "OK (unlimited)" | PASS |
+| 10 | Event Viewer after test window | `SELECT ... FROM events WHERE creation_ts > NOW() - INTERVAL 2 HOUR` | Zero rows → no new Error/Warning entries | PASS |
+
+Suite result: **10/10 PASS**
