@@ -54,14 +54,20 @@ $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
 function out($data) { echo json_encode($data); exit; }
-function getBody() {
-    $raw = file_get_contents('php://input');
-    $j = json_decode($raw, true);
-    return is_array($j) ? $j : [];
+function bffBody() {
+    static $body = null;
+    if ($body === null) {
+        $j = json_decode(file_get_contents('php://input'), true);
+        $body = is_array($j) ? $j : [];
+    }
+    return $body;
 }
+function getBody() { return bffBody(); }
 function getParam($key, $default = null) {
     if (isset($_GET[$key])) { return $_GET[$key]; }
     if (isset($_POST[$key])) { return $_POST[$key]; }
+    $body = bffBody();
+    if (isset($body[$key])) { return $body[$key]; }
     return $default;
 }
 
@@ -148,11 +154,10 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
     }
 
     $tprojMgr = new testproject($db);
-    $tprojInfo = $tprojMgr->get_by_id($tproject_id);
+    $tprojOpt = $tprojMgr->getOptions($tproject_id);
     $priorityEnabled = false;
-    if (!is_null($tprojInfo) && isset($tprojInfo->opt) &&
-        isset($tprojInfo->opt->testPriorityEnabled)) {
-        $priorityEnabled = (bool)$tprojInfo->opt->testPriorityEnabled;
+    if (!is_null($tprojOpt) && isset($tprojOpt->testPriorityEnabled)) {
+        $priorityEnabled = (bool)$tprojOpt->testPriorityEnabled;
     }
 
     $allUsers = tlUser::getAll($db, null, "id", null);
