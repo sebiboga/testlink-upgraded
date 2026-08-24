@@ -800,7 +800,9 @@ class testcase extends tlObjectWithAttachments {
         $this->create_step($tcase_version_id,
                            $item->steps[$jdx]['step_number'],
                            $item->steps[$jdx]['actions'],
-                           $item->steps[$jdx]['expected_results'],
+                           isset($item->steps[$jdx]['expected_results'])
+                             ? $item->steps[$jdx]['expected_results']
+                             : '',
                            isset($item->steps[$jdx]['execution_type'])
                              ? $item->steps[$jdx]['execution_type']
                              : TESTCASE_EXECUTION_TYPE_MANUAL);
