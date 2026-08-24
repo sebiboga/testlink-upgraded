@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Results by Tester per Build</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.chk { color: #ccc; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; user-select: none; }
+.chk input { accent-color: #4ECDC4; width: 15px; height: 15px; cursor: pointer; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-head .bmeta b { color: #2d8e88; }
+.section-body { padding: 6px 20px 14px; overflow-x: auto; }
+table.metrics { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.metrics th { background: #22242a; color: #fff; padding: 7px 10px; text-align: right; white-space: nowrap; font-size: 12px; }
+table.metrics th:nth-child(1), table.metrics th:nth-child(2) { text-align: left; }
+table.metrics th:first-child { border-top-left-radius: 6px; }
+table.metrics td { padding: 6px 10px; border-bottom: 1px solid #eee; text-align: right; white-space: nowrap; }
+table.metrics td:nth-child(1), table.metrics td:nth-child(2) { text-align: left; }
+table.metrics td:first-child { font-weight: 600; color: #33363f; }
+table.metrics tr:hover td { background: #f4fbfa; }
+td.tot { font-weight: 700; color: #22242a; }
+.pct { display: inline-block; min-width: 46px; margin-left: 6px; font-size: 11px; border-radius: 8px; padding: 0 7px; background: #eefaf9; color: #2d8e88; font-weight: 600; }
+.pct.bad { background: #fdecea; color: #b94a48; }
+a.userlink { color: #2d8e88; text-decoration: none; border-bottom: 1px dotted #2d8e88; cursor: pointer; }
+a.userlink:hover { color: #4ECDC4; }
+.progbar { display: inline-block; width: 70px; height: 8px; background: #eee; border-radius: 4px; margin-right: 8px; vertical-align: middle; overflow: hidden; }
+.progbar span { display: block; height: 100%; background: #4ECDC4; border-radius: 4px; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-users" style="margin-right:8px;"></i><span data-i18n="rbtb.header">Results by Tester per Build</span>
+  <span class="sub"><span data-i18n="rbtb.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rbtb.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <label class="chk"><input type="checkbox" id="showClosed"> <span data-i18n="rbtb.showClosedBuilds">Show closed builds</span></label>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reports/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var assignmentUrl = '/lib/testcases/tcAssignedToUser.php';
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    // keep last checkbox choice across reloads (legacy stored it in the
+    // session; sessionStorage plays the same role client side)
+    var saved = sessionStorage.getItem('rbtb_show_closed_builds');
+    if (saved === '1' || saved === '0') { $('#showClosed').prop('checked', saved === '1'); }
+    $('#showClosed').on('change', function () {
+      sessionStorage.setItem('rbtb_show_closed_builds', this.checked ? '1' : '0');
+      loadReport();
+    });
+    $('#btnRefresh').on('click', loadReport);
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+function loadReport() {
+  $('#emptyBox').hide();
+  $('#reportArea').empty();
+  $('#loadingBox').show();
+  $.getJSON(API, {
+    action: 'metrics_by_tester_per_build',
+    tproject_id: tprojectId,
+    tplan_id: tplanId,
+    show_closed_builds: $('#showClosed').prop('checked') ? 1 : 0
+  }, function (r) {
+    $('#loadingBox').hide();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    tprojectId = r.tproject_id;
+    tplanId = r.tplan_id;
+    assignmentUrl = r.assignment_url;
+    $('#tprojectName').text(r.tproject_name);
+    $('#tplanName').text(r.tplan_name);
+    document.title = r.tplan_name + ' - ' + TLi18n.t('rbtb.header');
+
+    // legacy short-circuit warnings, same messages as the controller
+    if (r.warning_key === 'no_open_builds') {
+      renderEmpty(TLi18n.t('rbtb.noOpenBuilds'));
+      return;
+    }
+    if (!r.hasData || r.warning_key === 'no_testers_per_build') {
+      renderEmpty(TLi18n.t('rbtb.noTestersPerBuild'));
+      return;
+    }
+
+    renderAll(r);
+    $('#footerInfo').html(
+      esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString() +
+      ' &middot; ' + esc(TLi18n.t('rbtb.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    var msg = TLi18n.t('rbtb.errLoad');
+    if (xhr.status === 403) { msg = TLi18n.t('common.forbidden'); }
+    else if (xhr.status === 401) { msg = TLi18n.t('common.forbidden'); }
+    warn(msg);
+    toast(msg, true);
+  });
+}
+
+function renderEmpty(msgHtml) {
+  $('#reportArea').empty();
+  $('#emptyBox').html('<i class="fa fa-inbox"></i>' + msgHtml).show();
+}
+
+// One panel section per build - replaces the legacy ext table grouping on
+// the Build column; the section head carries the exact legacy first-row
+// text: "<build> - progress_absolute <p>% - total_time_hhmmss <t>".
+// Rows are ordered by progress desc (legacy ext table default sort).
+function renderAll(r) {
+  var $area = $('#reportArea').empty();
+  r.builds.forEach(function (b) {
+    var head =
+      esc(b.name) +
+      '<span class="bmeta">' +
+      esc(TLi18n.t('rbtb.progressAbsolute')) + ' <b>' + esc(b.progress) + '%</b>' +
+      ' &nbsp;&middot;&nbsp; ' +
+      esc(TLi18n.t('rbtb.totalTime')) + ' <b>' + esc(b.total_time) + '</b>' +
+      '</span>';
+    $area.append(section(head, statTable(b, r.columns)));
+  });
+}
+
+function statTable(build, columns) {
+  var users = build.users.slice().sort(function (a, b) {
+    return parseFloat(b.progress) - parseFloat(a.progress);
+  });
+
+  var h = '<table class="metrics"><thead><tr>' +
+    '<th>' + esc(TLi18n.t('rbtb.thUser')) + '</th>' +
+    '<th>' + esc(TLi18n.t('rbtb.thTcAssigned')) + '</th>';
+  columns.forEach(function (col) {
+    h += '<th colspan="2">' + esc(col.label) + '</th>';
+  });
+  h += '<th>' + esc(TLi18n.t('rbtb.thProgress')) + '</th>' +
+       '<th>' + esc(TLi18n.t('rbtb.totalTime')) + '</th>' +
+       '</tr></thead><tbody>';
+
+  users.forEach(function (u) {
+    h += '<tr>' +
+      '<td>' + userLink(u, build.id) + '</td>' +
+      '<td class="tot">' + esc(u.total) + '</td>';
+    columns.forEach(function (col) {
+      var d = (u.statuses && u.statuses[col.key]) ? u.statuses[col.key] : { count: 0, percentage: 0 };
+      var bad = parseFloat(d.percentage) > 0 && col.key !== 'passed' && col.key !== 'not_run';
+      h += '<td>' + esc(d.count) +
+           ' <span class="pct ' + (bad ? 'bad' : '') + '">' + esc(d.percentage) + '%</span></td>';
+    });
+    h += '<td>' + progressBar(u.progress) + esc(u.progress) + '%</td>' +
+         '<td>' + esc(u.total_time) + '</td>' +
+         '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+// Same popup target as the legacy openAssignmentOverviewWindow()
+// (testlink_library.js): tcAssignedToUser.php scoped to user+build+plan,
+// resizable 800x600 popup.
+function userLink(u, buildId) {
+  var url = assignmentUrl +
+    '?user_id=' + encodeURIComponent(u.user_id) +
+    '&build_id=' + encodeURIComponent(buildId) +
+    '&tplan_id=' + encodeURIComponent(tplanId);
+  return '<a class="userlink" href="' + esc(url) + '" ' +
+    'onclick="window.open(this.href,\'assignment_overview\',\'width=800,height=600,left=100,top=100,resizable=yes,scrollbars=yes\');return false;">' +
+    esc(u.login) + '</a>';
+}
+
+function progressBar(p) {
+  var v = Math.max(0, Math.min(100, parseFloat(p) || 0));
+  return '<span class="progbar"><span style="width:' + v + '%"></span></span>';
+}
+
+// wrap body html into a panel section; head html is pre-escaped by caller
+function section(headHtml, bodyHtml) {
+  return $('<div class="section">' +
+    '<div class="section-head"><i class="fa fa-cubes"></i><span>' + headHtml + '</span></div>' +
+    '<div class="section-body">' + bodyHtml + '</div></div>');
+}
+</script>
+</body>
+</html>
