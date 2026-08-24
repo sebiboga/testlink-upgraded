@@ -4016,3 +4016,34 @@ path, filed separately as **#667**; createTestCase step-key warning already open
 as **#666**. No new Error/Warning attributable to this change.
 
 **Result: PASS**
+
+---
+
+## Suite 475 — Regression — Issue #475: addMenuContext() drops $gui->countPlans, hiding Metrics Dashboard/Builds/Platforms/Milestones menu links
+
+**Precondition**:
+- App at http://localhost:8082, login `admin/admin`.
+- DB freshly imported; fixtures: testproject id=99001 "Issue475 Project" (prefix I475, `options` PHP-serialized `a:0:{}`), testplan id=99002 "Issue475 Plan" (active, parent 99001).
+- Code state: commit f61665f4e present (adds `'countPlans'` to the copy list in `TLSmarty::addMenuContext()`, `lib/functions/tlsmarty.inc.php:606`).
+
+**Repro steps (pre-fix)**:
+1. Remove `'countPlans'` from the copy list at tlsmarty.inc.php:606 (working tree only).
+2. Log in, open main frame (`index.php?caller=login&viewer=`), enumerate all `<a>` in the `asideMenu.php` iframe.
+3. Observe Projects / Test Plan / Test Case Execution sections.
+
+**Expected post-fix**: with ≥1 accessible active test plan selected, ALL of these links render:
+- Projects → **Metrics Dashboard** (aside.tpl:121)
+- Test Plan → **Assign Test Plan Roles** (aside.tpl:189) and **Builds / Releases** (aside.tpl:194–196) and **Add / Remove Platforms** (aside.tpl:206–208)
+- Test Case Execution → **Milestones** (aside.tpl:260–262)
+
+**Execution matrix (live server http://localhost:8082, 2026-08-24)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 475.R1 | fix present, plan exists | 4 gated links visible | DOM query: all four targets `true` | PASS |
+| 475.R2 | fix token reverted (A/B) | 4 links hidden (original bug) | none of the four present in enumerated link list | PASS |
+| 475.R3 | fix restored + reload | 4 links visible again | `{"Metrics Dashboard":true,"Builds / Releases":true,"Add / Remove Platforms":true,"Milestones":true}` | PASS |
+| 475.S1 | navBar shows project "I475:Issue475 Project" + plan "Issue475 Plan" | auto-selected after login | both comboboxes show fixture values | PASS |
+| 475.EV | Event Viewer delta across matrix | no new Error/Warning | events count stable at 33 pre/post re-test | PASS |
+
+**Result: PASS**
