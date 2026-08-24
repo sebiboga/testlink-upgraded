@@ -1,0 +1,20 @@
+<?php
+/**
+ * ♔ TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * Custom strings for ko_KR.
+ * Fixes #621 / #662: 'file_upload_step_exec_ok' and
+ * 'file_upload_step_exec_ko' are emitted by exec.inc.php write_execution()
+ * on every step-level save but were missing from this bundle, raising
+ * "string ... is not localized" notices in the Event Viewer on each save.
+ *
+ * @filesource	locale/ko_KR/custom_strings.txt
+ * @package 	TestLink
+ *
+ **/
+
+$TLS_file_upload_step_exec_ok = '파일 업로드 성공 - 테스트 케이스 단계: %step% <br> <b> %filename%</b>';
+$TLS_file_upload_step_exec_ko = '파일 업로드 실패 - 테스트 케이스 단계: %step% <br> <b> %filename%</b>';
+
+?>

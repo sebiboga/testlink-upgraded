@@ -467,7 +467,8 @@ if ($action === 'tcList') {
 
     $buildId = getIntParam('build_id');
     $platformId = getIntParam('platform_id');   // 0 / missing => no-platform mode
-    $search = trim(strval($_GET['q'] ?? ''));
+    $rawQ = $_GET['q'] ?? '';
+    $search = is_string($rawQ) ? trim($rawQ) : '';
 
     $tables = tlObjectWithDB::getDBTables(array(
         'testplan_tcversions', 'nodes_hierarchy', 'tcversions', 'executions'));
@@ -828,13 +829,32 @@ if ($action === 'save') {
     // write_execution() applies prepare_string() itself for single saves
     $execData['notes'][$tcversionId] = trim($notes);
 
-    // step-level results: keys are STEP IDS (like legacy step_notes[] inputs)
+    // step-level results: keys are STEP IDS (like legacy step_notes[] inputs);
+    // every submitted id must belong to THIS version (tcsteps.parent_id),
+    // otherwise forged ids could touch unrelated partial-execution rows
     if (count($stepsIn) > 0) {
         $stepNotes = array();
         $stepStatus = array();
+        $wanted = array_map('intval', array_keys($stepsIn));
+        $validStepIds = array();
+        if (count($wanted) > 0) {
+            // NOTE: tcsteps is not part of tlObjectWithDB's table dictionary
+            // (exec.inc.php references it as DB_TABLE_PREFIX.'tcsteps' too);
+            // the step -> tcversion relation lives in nodes_hierarchy
+            $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+            $tcstepsTable = DB_TABLE_PREFIX . 'tcsteps';
+            $stRs = $db->get_recordset(
+                "SELECT S.id FROM {$tcstepsTable} S" .
+                " JOIN {$nhTables['nodes_hierarchy']} NH ON NH.id = S.id" .
+                " WHERE NH.parent_id = {$tcversionId}" .
+                " AND S.id IN (" . implode(',', $wanted) . ")");
+            if (!is_null($stRs)) {
+                foreach ($stRs as $sr) { $validStepIds[intval($sr['id'])] = 1; }
+            }
+        }
         foreach ($stepsIn as $sid => $sv) {
             $sid = intval($sid);
-            if ($sid <= 0) { continue; }
+            if ($sid <= 0 || !isset($validStepIds[$sid])) { continue; }
             $sn = isset($sv['notes']) ? strval($sv['notes']) : '';
             $ss = isset($sv['status'])
                 ? strtolower(trim(strval($sv['status']))) : $notRun;

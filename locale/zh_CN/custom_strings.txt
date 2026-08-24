@@ -1,0 +1,20 @@
+<?php
+/**
+ * ♔ TestLink Open Source Project - http://testlink.sourceforge.net/
+ * This script is distributed under the GNU General Public License 2 or later.
+ *
+ * Custom strings for zh_CN.
+ * Fixes #621 / #662: 'file_upload_step_exec_ok' and
+ * 'file_upload_step_exec_ko' are emitted by exec.inc.php write_execution()
+ * on every step-level save but were missing from this bundle, raising
+ * "string ... is not localized" notices in the Event Viewer on each save.
+ *
+ * @filesource	locale/zh_CN/custom_strings.txt
+ * @package 	TestLink
+ *
+ **/
+
+$TLS_file_upload_step_exec_ok = '文件上传成功 - 测试用例步骤: %step% <br> <b> %filename%</b>';
+$TLS_file_upload_step_exec_ko = '文件上传失败 - 测试用例步骤: %step% <br> <b> %filename%</b>';
+
+?>

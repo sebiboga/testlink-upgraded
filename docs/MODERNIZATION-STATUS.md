@@ -10,7 +10,7 @@
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 37 |
+| DONE (modernized) | 40 |
 | IN PROGRESS | 1 |
 | TODO (still legacy) | 7 |
 
@@ -61,6 +61,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 36 | Plans — Set Test Urgency | `plans/testUrgency.html` | api/plans | #605 |
 | 37 | Plans — Show Newest TC Versions | `plans/showNewestTcVersions.html` | api/plans | #643 |
 | 38 | Execution — Test Plan Milestones ✅ (#647) | `plans/planMilestones.html` | api/milestones | right `testplan_planning` (controller parity) |
+| 39 | Execution — Execute Tests ✅ (#662) | `execute/execTest.html` | api/execute (init/tcList/tcDetails/save) | rights `testplan_execute` / RO `exec_ro_access`; reuses legacy write_execution() |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
@@ -84,9 +85,7 @@ Extra modernized feature (not an ASIDE entry):
 
 | Priority | Screen | Legacy entry point | Right gate | Notes |
 |---|---|---|---|---|
-| 1 | **Execute Tests** (main execution screen) | launcher `executeTest` → lib/execution | `testplan_execute` | Biggest remaining item; execHistory (#35) already feeds from it |
-| 2 | Assign Test Case Execution | launcher `tc_exec_assignment` | `testplan_execute` | Tester→TC assignment form |
-| 3 | My Test Case Assignments | `lib/testcases/tcAssignedToUser.php` | `testplan_execute` (RO variant: `href_exec_ro_access`) | |
+~~1–3~~ done by CI: tcExecAssignment (#655), tcAssignments (#660) and Execute Tests (#662). Next: Reports center. |
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 
 | 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |

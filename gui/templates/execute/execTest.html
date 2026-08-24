@@ -364,7 +364,20 @@ function openCase(tcaseId, tcversionId) {
     .fail(function (xhr) { toast(apiErr(xhr, 'exe.errDetails'), true); });
 }
 
-var STATUS_ORDER = ['n', 'p', 'f', 'b'];
+// status buttons follow the configured vocabulary (like legacy), with
+// Not Run first, then the usual order; 'all' is a filter pseudo-code only
+function statusCodesForForm() {
+  var codes = [];
+  ((initData && initData.statuses) || []).forEach(function (st) {
+    if (st.suffix !== 'all') codes.push(st.code);
+  });
+  var pref = ['n', 'p', 'f', 'b'];
+  codes.sort(function (a, b) {
+    var ia = pref.indexOf(a), ib = pref.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+  return codes;
+}
 
 function renderForm() {
   var v = current.version, tc = current.tcase;
@@ -400,7 +413,7 @@ function renderForm() {
   }
 
   h += '<label class="flbl">' + esc(TLi18n.t('exe.status')) + '</label><div class="status-row">';
-  STATUS_ORDER.forEach(function (code) {
+  statusCodesForForm().forEach(function (code) {
     var st = statusLabelFor(code);
     h += '<button type="button" class="st-btn ' + esc(code) + '" data-code="' + esc(code) + '">'
       + esc(st ? st.label : code) + '</button>';
@@ -427,7 +440,7 @@ function renderForm() {
         + '<td class="step-actions">' + esc(st.actions) + '</td>'
         + '<td class="step-expected">' + esc(st.expected_results) + '</td>'
         + '<td><select class="step-status"' + (roMode ? ' disabled' : '') + '>';
-      STATUS_ORDER.forEach(function (code) {
+      statusCodesForForm().forEach(function (code) {
         var lab = statusLabelFor(code);
         h += '<option value="' + esc(code) + '"'
           + (priorSt.status === code ? ' selected' : '') + '>'
@@ -461,8 +474,9 @@ function renderForm() {
   });
   resetFormInputs(true);
 }
-
-function resetFormInputs(keepPrior) {
+// keepPast: true on first render (restore the recorded prior step results,
+// like the legacy form), false when the user presses Reset
+function resetFormInputs(keepPast) {
   if (roMode) return;
   $('.st-btn').removeClass('active');
   var defCode = current && current.prior_execution
@@ -470,13 +484,12 @@ function resetFormInputs(keepPrior) {
   if (!statusLabelFor(defCode)) defCode = 'n';
   $('.st-btn[data-code="' + defCode + '"]').addClass('active');
 
-  var priorNotes = (keepPastNotes() && current.prior_execution)
-    ? current.prior_execution.notes : '';
-  $('#execNotes').val(priorNotes);
+  $('#execNotes').val((keepPast && current.prior_execution)
+    ? current.prior_execution.notes : '');
 
   (current.steps || []).forEach(function (st) {
     var row = $('tr[data-stepid="' + st.id + '"]');
-    if (keepPastNotes()) {
+    if (keepPast) {
       var pr = (current.prior_step_results || {})[st.id] || {};
       row.find('.step-status').val(pr.status || 'n');
       row.find('.step-notes').val(pr.notes || '');
@@ -486,8 +499,6 @@ function resetFormInputs(keepPrior) {
     }
   });
 }
-
-function keepPastNotes() { return false; }
 
 function saveExecution() {
   if (roMode || !(curBuildId() > 0)) {
