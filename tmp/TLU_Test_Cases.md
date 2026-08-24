@@ -3695,6 +3695,29 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 
 **Result: Suite 653 — 7/7 PASS** (case 0 = pre-fix reproduction recorded for evidence; case 6 documents the separately-filed blocker #654)
 
+## Regression — Issue #655: Modernize tcExecAssignment (Assign Test Case Execution)
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); fixture built by `php tmp/fixture_ea.php` (project "EA Demo", plan "EA Plan", builds B1/B2, platforms Chrome/Firefox, TCs EAD-1..3 linked on both platforms, users admin / etester(tester) / eplain(no rights)); screen `gui/templates/execute/tcExecAssignment.html` + BFF `api/execassignment/index.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Screen load & data render | Open `/gui/templates/execute/tcExecAssignment.html?tproject_id=1&tplan_id=26` as admin | Toolbar (plan/build/platform), bulk bar, suite-grouped table; 6 rows (3 TC × 2 platforms); priority badges High(6)/Medium(4)/Low(2); pre-assignment etester chip on EAD-1/Chrome/B1; "6 rows" footer | PASS |
+| 2 | Tester pickers populated | Inspect #bulkTesters + each row select | Both testers listed (admin, Ella Tester); legacy parity via getTestersForHtmlOptions | PASS (after BFF fix: full tproject record must be passed to get_tplan_effective_role, else tplan-scoped resolution silently drops users) |
+| 3 | Row checkbox counter | Check rows 1 and 3 | Header counter shows "2 checked" | PASS |
+| 4 | Bulk apply | Select Ella Tester in #bulkTesters → Apply to selected rows | Only checked rows' per-row selects get tester 2 preselected | PASS |
+| 5 | Save assignments | Save Assignments → reload | POST /assign persisted; chips rendered for EAD-1/Chrome + EAD-2/Chrome; checkboxes cleared; toast "Assignments saved" | PASS |
+| 6 | Per-user remove (chip ×) | Click × on a chip | DELETE of single (feature,user) pair via POST /remove; toast "Assignment(s) removed"; chip gone after reload | PASS |
+| 7 | Bulk user remove | Check row of remaining chip → pick user in #bulkTesters → Remove Assignments | POST /bulkuserremove removes that user from checked features; chips = 0 | PASS |
+| 8 | Remove ALL w/ confirm modal | Check all 6 rows → Remove ALL → modal text → confirm | Modal: "6 test case(s) will lose every tester assignment…"; confirm → POST /removeall; all chips gone; toast "All assignments removed for the checked cases" | PASS (screenshot ea_removeall_modal.png) |
+| 9 | Send link by mail | Pick user → Send link by mail | POST /sendlink returns ok; toast "Execution planning link sent" (mail body suppressed when no SMTP configured — notifyAssignees gated on smtp_host) | PASS |
+| 10 | Build switch | Switch build to B2 | Items reload; assigned column empty (no B2 assignments); switching back to B1 reflects persisted state | PASS |
+| 11 | Platform filter | Filter platform Chrome | Only Chrome rows (3 + suite header); Firefox rows hidden | PASS |
+| 12 | i18n ro_RO | Locale switcher → Română | Buttons/headers translated ("Salvează Atribuirile", "Elimină TOATE atribuirile…", "Atribuit lui"); tea.* keys present in all 10 JSON bundles | PASS |
+| 13 | Rights enforcement | curl BFF routes as eplain (role: no rights) | HTTP 403 Insufficient rights (`exec_assign_testcases` checked on every route); unauthenticated → 401 | PASS |
+| 14 | Event Viewer hygiene | Run flows → check Event Viewer | No new ERROR entries from screen paths; found+fixed WARNING `Undefined array key is_closed` (BFF used non-existent key from get_builds()) — re-test clean | PASS (after fix commit) |
+
+**Result: Suite 655 — 14/14 PASS**
+
 ## Regression — Issue #654: dashio theme missing login/firstLogin.tpl (HTTP 500 on plain GET /firstLogin.php when user_self_signup=TRUE)
 
 **Precondition:** app at `http://localhost:8082` (PHP 8.3.33); default config (`$tlCfg->user_self_signup = TRUE`, `config.inc.php:590`); fix under test = new file `gui/templates/dashio/login/firstLogin.tpl` (Dashio-styled signup card modeled on `login-dashio.tpl`, functional parity with `tl-classic/login/firstLogin.tpl`). No PHP changes.
