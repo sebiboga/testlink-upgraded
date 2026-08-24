@@ -4134,86 +4134,42 @@ the Event Viewer. All events #2–#21 persisted in this session were created by 
 agent's first-draft fixture scripts during reproduction setup, before the fix.
 
 **Result: PASS**
-## Suite 618 — Modernized General Test Plan Metrics screen (generalMetrics.html + api/reports metrics_general)
-
-**Screen**: `gui/templates/results/generalMetrics.html` — Reports → "General Test Plan Metrics"
-(replaces legacy `lib/results/resultsGeneral.php` HTML view; mail/XLS generation stays on the
-legacy controller endpoints). BFF: `api/reports/index.php?action=metrics_general` reusing the very
-same `tlTestPlanMetrics` render methods as legacy. Right gate: `testplan_metrics` (403 otherwise).
-
-**Precondition**: fixtures via SQL — project 6001 MetricsProj (`testPriorityEnabled=1`),
-plan 6100 MP Plan, platforms P1/P2, builds B1/B2, suites SuiteAlpha/SuiteBeta, 12 TCs ×
-2 platforms = 24 links, 17 executions spread p/f/b/n across builds+platforms, keywords
-smoke(2)/regression(3), milestone Sprint M1 (goals 40/50/60), tester assignments for
-build sections; empty plan 6102 Empty Plan; users noinv(guest), norights(<no rights>).
-Session: admin/admin via browser; curl cookie jars for API paths.
-
-**Execution matrix (live server http://localhost:8082)**:
-
-| # | Case | Expected | Actual | Verdict |
-|---|------|----------|--------|---------|
-| 618.T1 | BFF happy path admin | status ok, hasData true, all section payloads present, platform_set natsorted | ok; suites/keywords/platform/priorities/overall_build_status/build_by_platform/milestones all present | PASS |
-| 618.T2 | Screen render via direct URL | header + ctx names; 7 sections: by Platform / Overall Build Status / Build per Platform / Top Level Suites / Priority / Keyword / Milestones(prio variant) | all 7 rendered with correct rows (P1 12=3n+6p+2f+1b; B1 8; Alpha P1 7 …) | PASS |
-| 618.T3 | Numbers parity vs legacy HTML view | same totals/statuses as resultsGeneral.php?format=0 | spot-checked: platform/suite/build figures identical (B1→8, B2→4) | PASS |
-| 618.T4 | Milestones priority variant | High/Med/Low columns with result/goal pairs + overall; medium_incomplete flagged red | 80.0% (8/10)/60%, 25.0% (1/4)/50% red, 50.0% (5/10)/40%, 58.3% | PASS |
-| 618.T5 | Priority section gated by project option | renders only when testPriorityEnabled | absent when options NULL (first run), present after enabling | PASS |
-| 618.T6 | Refresh button | reloads metrics without page nav | 7 sections rebuilt | PASS |
-| 618.T7 | Locale switcher → ro | all labels from ro bundle | header "Metrici generale pentru Planul de Testare", 7 sections translated | PASS |
-| 618.T8 | XLS export button (legacy POST) | valid .xls download, correct mime/filename | 200 application/vnd.ms-excel, Composite Document File 10240 bytes | PASS |
-| 618.T9 | Send-by-e-mail button (legacy POST) | HTTP 200 legacy flow preserved | 200, empty body (displayReport mail path) | PASS |
-| 618.T10 | ASIDE integration | Reports menu entry href → generalMetrics.html?tproject_id=&tplan_id=; loads in mainframe | link live, screen loads inside iframe with full context | PASS |
-| 618.T11 | Empty plan state (6102) | hasData false → rgm.noTsuites message, no sections | empty box shown, 0 sections | PASS |
-| 618.T12 | Missing ids | 400 Missing test plan id (tplan_id=0) | 400 + JSON error | PASS |
-| 618.T13 | Rights gate — user without right (norights, <no rights>) | 403 No permission | 403 {"message":"No permission"} | PASS |
-| 618.T14 | Guest user WITH testplan_metrics (noinv) allowed | 200 full report (same right set as legacy grants guest here) | 200 ok | PASS |
-| 618.T15 | i18n completeness | rgm.* keys ×43 in ALL 10 bundles; python3 -m json.tool valid each | en/ro/de/fr/es/it/pt/ru/ja/zh +43 each, all valid | PASS |
-| 618.T16 | Event Viewer delta during testing | no new Error/Warning from modern screen/BFF | only audit logins; found pre-existing legacy bug #670 (fixed separately, see below) | PASS |
-
-**Bug surfaced & fixed during this suite**: E_WARNING `Undefined array key "total_tc"`
-in legacy `inc_results_show_table.tpl` build tables — issue **#670**, fixed in commit
-"fix(legacy): inc_results_show_table honors args_column_for_total…" (Fixes #670);
-post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
-
-**Result: PASS**
-
-### Suite 618 addendum — code review fixes re-verification (commit 81a2957cc)
-
-| # | Case | Expected | Actual | Verdict |
-|---|------|----------|--------|---------|
-| 618.R1 | platform-less plan (6103, builds present) | suites/priority/keyword tables render under implicit key 0; no platform notice | 3 sections rendered, SuiteAlpha row correct | PASS |
-| 618.R2 | platform-less plan without builds | hasData=false → empty state (legacy #634 parity) | empty box shown | PASS |
-| 618.R3 | mail/XLS form actions | resolve to /lib/results/resultsGeneral.php (not /gui/templates/results/lib/...) | absolute URLs correct in DOM | PASS |
-| 618.R4 | Completed [%] final column | appended on every table carrying percentage_completed | header + 75.0% cell for P1 | PASS |
-| 618.R5 | build feedback note per section | exactly ONE note after per-platform block | 1 note in "Results by Build" | PASS |
-| 618.R6 | contextual rights re-check (hasRight w/ tproject+tplan context) | admin still 200; norights still 403 | 200 / 403 confirmed post-change | PASS |
-| 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
-
-**Result: PASS (addendum 7/7)**
 
 ---
 
-## Suite 481 — Regression — Issue #481: PHP 8.4+ E_DEPRECATED "Implicitly marking parameter $domain as nullable" in vendor/symfony/translation on every page load
+## Suite 668 — Regression — Issue #668: spurious E_USER_NOTICE 'missing column:exec_id' from fetchRowsIntoMap on never-executed getLastExecutionResult
 
-**Precondition**: symfony/translation v6.4.0 committed under `vendor/`; the deprecation fires only on **PHP ≥ 8.4**, so verification uses a static scanner (`tmp/repro-issue-481.php`) that applies exactly the engine's condition (parameter type not explicitly nullable + default null) and emits the byte-identical E_DEPRECATED message; local runtime is PHP 8.3.33.
+**Area**: XML-RPC API (`getLastExecutionResult`) + `database::fetchRowsIntoMap()` NULL-aggregate guard.
+**Fix under test**: `HAVING exec_id IS NOT NULL` appended LAST (after optional build/platform filters) to the `SELECT MAX(id) AS exec_id` query in `getLastExecutionResult` (lib/api/xmlrpc/v1/xmlrpc.class.php:1630-1646), commits `e20b0bb7e` → `bda84f3bc`.
 
-**Repro steps (pre-fix)**:
-1. `php tmp/repro-issue-481.php vendor/symfony/translation/Resources/functions.php`
-   → `Deprecated: Implicitly marking parameter $domain as nullable is deprecated, the explicit nullable type must be used instead in vendor/symfony/translation/Resources/functions.php on line 18` (exit=1).
-2. Structural: `vendor/composer/autoload_files.php:15` includes that functions file on EVERY request → warning printed on every page load for PHP 8.4 users.
+**Precondition**: fresh DB; admin devKey set in `users.script_key`; fixtures created live via XML-RPC:
+project 3 `Issue668ProjB` (prefix I668B), plan 4 `Issue668PlanB`, build `B1-668` (id 1),
+top-level suite 100 (inserted into nodes_hierarchy+testsuites; API cannot parent a suite
+under a project — observed, separate concern), case 101 (linked, external I668B-1) and
+fresh case 104 (external I668B-2, never executed). Events watermark = 5.
 
-**Fix**: explicit nullable (`?string`) at three signatures — `Resources/functions.php:18` (`t()` $domain), `TranslatableMessage.php:26` (`__construct()` $domain), `TranslatableMessage.php:53` (`trans()` $locale; the direct callee chain of t(), caught by code review + rescan) — plus composer-overwrite guard `tools/patch_vendor_php84.php` hooked into `composer.json` post-install-cmd/post-update-cmd (idempotent re-application of all three after any `composer install/update`).
+**Repro steps (pre-fix)**: `tl.getLastExecutionResult {devKey, testplanid:4, testcaseid:101}`
+with zero rows in `executions` for the case → response `[{"id":-1}]` BUT event logged:
+`E_USER_NOTICE database/fetchRowsIntoMap - missing column:exec_id - SQL: SELECT MAX(id)...`
+(database.class.php:679). Root cause: MariaDB returns one row with NULL for MAX() on empty
+set; PHP `isset($row['exec_id'])` is false for NULL values.
 
-**Execution matrix (post-fix, live server http://localhost:8082, branch fix/issue-481)**:
+**Expected post-fix**: identical `[{"id":-1}]` response with ZERO new events on all paths;
+executed paths return real/latest execution unchanged; build/platform-filtered paths still valid SQL.
+
+**Execution matrix (post-fix, live http://localhost:8082)**:
 
 | # | Case | Expected | Actual | Verdict |
 |---|------|----------|--------|---------|
-| 481.R1 | scanner on the 3 patched signatures (functions.php + TranslatableMessage.php) | exit 0, 0 findings | `0 implicitly-nullable parameter(s)` exit=0 | PASS |
-| 481.R2 | `php -l` on patched file | No syntax errors | No syntax errors detected | PASS |
-| 481.R3 | behavioral: require autoload, call `\Symfony\Component\Translation\t('hello %name%', [...], 'messages')` | TranslatableMessage returned, domain kept | `TranslatableMessage: hello %name% / domain=messages` | PASS |
-| 481.R4 | overwrite simulation: sed all 3 signatures back to broken form → run guard → rescan; run guard again | guard re-patches all 3; second run no-op; scanner clean | 3× `patched …` lines, scanner exit=0, then 3× `already patched — nothing to do`; behavioral re-check `t()->trans()` via IdentityTranslator → `hello World` | PASS |
-| 481.R5 | app boots: GET /login.php (HTTP) + browser login admin/admin through index.php shell (navBar / asideMenu / mainframe iframes) | HTTP 200, all frames render, zero "Deprecated" text | HTTP 200 in 0.07s; login OK; navBar+asideMenu+mainframe rendered; no Deprecated strings | PASS |
-| 481.R6 | Event Viewer delta across full matrix | no new Error/Warning rows | events table: only row id=1 log_level=16 (audit login_succeeded); console shows only pre-existing Chrome/jQuery-2.2.4 unload-deprecation issue, unrelated to PHP | PASS |
+| 668.R1 | fresh never-executed case 104 → getLastExecutionResult | id=-1, 0 new events | `[{"id":-1}]`, events 5→5 | PASS |
+| 668.R2 | getAllExecutionsResults never-executed | id=-1, no notice | `[{"id":-1}]` | PASS |
+| 668.R3 | reportTCResult pass then re-query | real exec row returned | id=3, status p, full field set | PASS |
+| 668.R4 | second execution (fail) → MAX semantics preserved | latest returned | id=4, status f, notes 'second run' | PASS |
+| 668.R5 | build-filtered query (buildname=B1-668) | valid SQL, hit on build 1 | id=4, build_id=1 (caught 1054 'Unknown column build_id in HAVING' on intermediate commit e20b0bb7e — HAVING was appended before optional filters; fixed in bda84f3bc by appending HAVING last) | PASS |
+| 668.R6 | Event Viewer delta across entire matrix + UI check | watermark 5 unchanged, no ERROR/WARNING | events count 5 after matrix; UI shows only AUDIT entries post-fix | PASS |
 
-**Notes**: wider blast radius measured but intentionally out of scope per minimal-fix rule: scanner reports 51 further implicit-nullables across symfony translation(+contracts), e.g. TranslatorBagInterface.php:28 — they surface lazily and would be fixed wholesale by upgrading the dependency (~v6.4.8+). Guard script fail-safe branches verified by code path: missing package → skip exit 0; upstream signature changed → skip exit 0.
+**Notes**: intermediate commit `e20b0bb7e` produced two ERROR events (1054 in HAVING) during
+R5 — documented honestly in issue #668 checkpoint 2/2; final commit `bda84f3bc` clean.
+Event Viewer screenshot: `tmp/wiki-repo/images/issue-668-eventviewer-after-fix.png`.
 
-**Result: Suite 481 — 6/6 PASS**
+**Result: PASS**
