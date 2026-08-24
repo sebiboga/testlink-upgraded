@@ -330,6 +330,9 @@ if ($action === 'metrics_general') {
         'tplan_name' => $tplanInfo['name'],
         'show_platforms' => $showPlatforms,
         'priority_enabled' => $priorityEnabled,
+        // ordered platform list ([id => name]) so the client renders the
+        // "* on platform X" sections in the same natsort order as legacy
+        'platform_set' => $platformSet,
         // legacy lib/results/resultsGeneral.php endpoints kept for the two
         // export buttons - document/mail/spreadsheet generation stays legacy
         'send_mail_url' => 'lib/results/resultsGeneral.php?format=' .

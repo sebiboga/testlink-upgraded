@@ -75,6 +75,12 @@ if($tplanID > 0) {
         $hrefR = 'gui/templates/results/testPlanReport.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}" .
                  '&type=' . $modernTypes[$rptItem['title']];
+      // Refs #618 - General Test Plan Metrics (resultsGeneral) modernized;
+      // the BFF (api/reports metrics_general action) reuses the very same
+      // tlTestPlanMetrics render methods and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_general_tp_metrics') {
+        $hrefR = 'gui/templates/results/generalMetrics.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
