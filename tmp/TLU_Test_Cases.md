@@ -3974,30 +3974,45 @@ assigned vs `$tsuiteid` read in `userHasRight()` fallback block
 
 ---
 
-## Regression — Issue #665: xmlrpc userHasRight() $tsuitid/$tsuiteid typo (2x E_WARNING per contextless call)
+## Suite 462 — Regression — Issue #462: checkPlatformIdentity() stray `$platformInfo` dump in errors[] on the platformname path
 
-**Precondition**: fresh DB; fixture user `bugrepro665` (script_key `f665aaaa00000000deadbeef0000f665`),
-role switched 3 (`no rights`) → 4 (`test designer`) mid-suite; admin script_key provisioned;
-fixtures created via admin API: project Bug665Proj id=1 (prefix B665), SuiteA id=2, CaseB id=3.
-All calls POSTed to http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php; `events` table count
-checked around every call.
+**Area**: XML-RPC API (`lib/api/xmlrpc/v1/xmlrpc.php`), helper `checkPlatformIdentity()`
+(xmlrpc.class.php:4942). Fix = delete unconditional `$this->errors[] = $platformInfo;`
+at former line 4976 (commit `d31210b22`, branch `fix/issue-462`).
 
-**Repro steps (pre-fix)**: one contextless call —
-`tl.createPlatform` with devKey-only struct → events gained rows
-`E_WARNING Undefined variable $tsuiteid - Line 478` and `- Line 481`
-(xmlrpc.class.php:477 assigned the misspelled `$tsuitid`).
+**Precondition**: fresh DB; admin devKey set (`users.script_key`); fixtures via API:
+project 5 `PROJ462_*`, plan 6 `TP462`, platforms `PLAT_A`(id 2, linked to plan)
++`PLAT_B`(3, unlinked) with enable_on_design/enable_on_execution=1,
+suite 7, case 8 linked to plan with platformid=2, build B1.
+Harness: minimal hand-rolled XML-RPC client (no php-xmlrpc ext), one struct param.
 
-**Expected post-fix**: no warnings on ANY rights-check path; context resolution
-(suite-id / case-id fallbacks) keeps working; INSUFFICIENT_RIGHTS semantics unchanged.
+**Repro steps (pre-fix)**:
+1. `tl.getLastExecutionResult {testplanid:6, testcaseid:8, platformname:"NO_SUCH_PLATFORM"}`
+   → client received `[{"2":"PLAT_A"}, {"code":"3040",...}]` — raw platform map
+   dumped as element [0] next to the real IXR_Error.
+2. Valid `platformname:"PLAT_A"` → success result; dump happened but invisible
+   (success returns `$resultInfo` not `$this->errors`).
+
+**Expected post-fix**: failure path returns exactly ONE well-formed IXR_Error;
+success paths unchanged; all 8 calling methods unaffected otherwise.
 
 **Execution matrix (post-fix, live server http://localhost:8082)**:
 
 | # | Case | Expected | Actual | Verdict |
 |---|------|----------|--------|---------|
-| 665.R1 | contextless `tl.createPlatform`, role 3 | IXR_Error 2010 INSUFFICIENT_RIGHTS (tprojectid 0, tplanid -1); 0 new events | code 2010 "...test project id: 0, test plan id: -1"; events 2→2 | PASS |
-| 665.R2 | `tl.getTestSuiteAttachments` testsuiteid=2 only, role 3 | denial message embeds RESOLVED tprojectid=1 (suite path); 0 new events | "right mgt_view_tc, test project id: 1"; events 4→4 (pre-fix: ≥1 warning) | PASS |
-| 665.R3 | `tl.getTestCaseAttachments` testcaseid=3 only, role 3 | resolved tprojectid=1 via else-branch; 0 new events | "test project id: 1"; events 4→4 | PASS |
-| 665.R4 | R2/R3 repeated with role 4 (designer) | success responses, no data; 0 warnings | empty attachment structs; events 4→4 | PASS |
-| 665.R5 | testsuiteid + testprojectid both in args | fallback block skipped; success; 0 warnings | success; events 4→4 | PASS |
+| 462.M1 | unknown `platformname` on getLastExecutionResult | exactly 1 error: IXR 3040, no map | `[{"code":"3040","message":"Platform (name=NO_SUCH_PLATFORM/id=)…"}]` | PASS |
+| 462.M2 | valid `platformname:"PLAT_A"` | success result array | full execution row returned | PASS |
+| 462.M3a | no platform param (optional here) | success | execution row returned | PASS |
+| 462.M3b | reportTCResult w/o any platform param | single MISSING_REQUIRED_PARAMETER(200), no dump | `{"code":"200","message":"…platformname OR platformid is required…"}` | PASS |
+| 462.M4 | unknown `platformid:999` (numeric path untouched) | single IXR 3040 | 1 element, code 3040 | PASS |
+| 462.M4b | same via getAllExecutionsResults | single IXR 3040 | 1 element, code 3040 | PASS |
+| 462.M5 | end-to-end reportTCResult w/ valid platformname + buildname B1, status p | Success! + execution recorded | `"message":"Success!"`, exec id increments each run | PASS |
+| 462.M5b | getLastExecutionResult w/ platformname afterwards | recorded execution visible | row id matches M5 | PASS |
+| 462.EV | Event Viewer delta across matrix | 0 NEW warnings attributable to fix | only pre-existing #667/#666 families fire (verified pre-fix too); none from deleted line | PASS* |
+
+\* Events audit: identical E_WARNING pairs at xmlrpc.class.php:1379 fired BEFORE
+the fix commit as well (11:56–11:57 vs post-fix 12:01+) → pre-existing legacy
+path, filed separately as **#667**; createTestCase step-key warning already open
+as **#666**. No new Error/Warning attributable to this change.
 
 **Result: PASS**
