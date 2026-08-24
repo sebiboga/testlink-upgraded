@@ -3789,17 +3789,17 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 
 **Result: Suite 660 — 12/12 PASS**
 
-## Regression — Issue #659: addTestCaseToTestPlan() $tcase_external_id undefined at xmlrpc.class.php:3522 (E_WARNING on version-mismatch branch)
+## Regression — Issue #458: tl.setTestCaseExecutionType names the wrong parameter in its missing-parameter error
 
-**Precondition:** app `http://localhost:8082` (PHP 8.3); admin devKey set (`users.script_key`); fixtures via XMLRPC API (hand-built envelopes): project id=1 prefix `I659`, plan id=2 "Issue659 plan", suite id=3, test case id=4 = `I659-1` version 1. Fix = commit `98fac3e3b` (derive external id via `$this->tcaseMgr->getExternalID($tcase_id, $tproject_id)` before the sprintf). Baseline pre-fix: fault 5051 message rendered `(addTestCaseToTestPlan) - Version (99) does not exist for Test Case (:issue659_tc).` + events row `E_WARNING Undefined variable $tcase_external_id ... Line 3522`.
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); devKey set for `admin` (`users.script_key`); fixtures via XMLRPC on fresh DB — project `Issue458Proj` id=1 prefix `I458`, suite `TS458` id=2, test case `I458-1` (tcid=3, version=1). Endpoint `POST /lib/api/xmlrpc/v1/xmlrpc.php`. Fix = commit `3478f3010` (`xmlrpc.class.php:6643`: message token `customFieldsParamName` → `executionTypeParamName`). Pre-fix baseline measured: omitted-`executiontype` call returns code 200 with `Parameter customfields is required, but has not been provided`.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | Pre-fix symptom documented | Call `tl.addTestCaseToTestPlan` {devKey, testprojectid:1, testplanid:2, testcaseexternalid:'I659-1', version:99} before fix; query events | Fault code 5051 with empty external-id slot `(:issue659_tc)`; E_WARNING at xmlrpc.class.php:3522 in events | PASS (measured pre-fix, events id=2 @ 08:59:52) |
-| 2 | R1 post-fix message carries external id | Same call after fix | Fault 5051, message `Version (99) does not exist for Test Case (I659-1:issue659_tc).`; NO new E_WARNING row | PASS |
-| 3 | R2 valid version links | `tl.addTestCaseToTestPlan` {..., version:1} | Success response; `testplan_tcversions` gains 1 link row | PASS (link_rows=1) |
-| 4 | R3 ancestry branch untouched | project-2 case O659-1 vs project-1 plan | Fault 7007 `Test Case (O659-1:other_proj_tc) does not belong to Test Project ...` unchanged | PASS |
-| 5 | Event Viewer clean across all runs | watermark events before/after R1-R3 | Zero new log_level=2 rows (only benign audit id=3) | PASS |
-| 6 | Syntax gate | `php -l xmlrpc.class.php` | No syntax errors detected | PASS |
+| 1 | Pre-fix symptom documented | Before fix: `tl.setTestCaseExecutionType` {devKey, testprojectid:1, testcaseexternalid:I458-1, version:1} — executiontype omitted | Message names wrong param `customfields` | PASS (measured pre-fix) |
+| 2 | R1 correct parameter named | Post-fix: same call as #1 | Code 200; message exactly `Parameter executiontype is required, but has not been provided` | PASS |
+| 3 | R2 happy path intact | `tl.setTestCaseExecutionType` {…, executiontype:2} | Success struct echoes args; DB tcversions row gets `execution_type=2`; then repeat with :1 → `execution_type=1` | PASS |
+| 4 | R3 sibling customfields methods unchanged | `tl.updateTestCaseCustomFieldDesignValue` {devKey, testprojectid:1, testcaseexternalid:I458-1, version:1} without customfields | Still reports `Parameter customfields is required...` (lines 6569/8263/8358 pairing untouched) | PASS |
+| 5 | R4 zero new Event Viewer rows | Watermark events COUNT before/after all post-fix calls in this suite | No new Error/Warning rows from this method's error path | PASS (count stayed 2) |
+| 6 | R5 static cleanliness | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php` + grep all `_isParamPresent` sites pair check-vs-message token | Syntax OK; only site 6641/6643 changed and now consistent; 6569/8263/8358 still customfields-paired | PASS |
 
-**Result: Suite 659 — 6/6 PASS**
+**Result: Suite 458 — 6/6 PASS** — Side observation while creating fixtures: XMLRPC `createTestCase` drops step `expectedresults` key → E_WARNING + empty expected_results persisted → filed as #661.
