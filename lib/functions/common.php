@@ -1883,6 +1883,17 @@ function getActions(&$gui,$baseURL) {
   $actions->platformAssign = null;
   $actions->milestonesView = null;
   $actions->testcase_assignments = null;
+
+  // testcase_assignments switched to the modernized HTML screen (Refs #660);
+  // the BFF (api/tcassignments) enforces the legacy menu right
+  // (exec_testcases_assigned_to_me) server-side on every route. Legacy shows
+  // this entry whenever the right exists (screen works across ALL plans with
+  // no active plan selected), so it stays OUTSIDE the tplan_id guard below.
+  if (!empty($_SESSION['userID'])) {
+    $actions->testcase_assignments =
+      "/gui/templates/execute/tcAssignments.html?{$ctx}";
+  }
+
   if ($tplan_id >0) {
     // Builds & Releases modernized screen (Dashio standalone page) - Refs #585
     $actions->buildView = "/gui/templates/plans/buildsView.html?{$ctx}";
@@ -1895,14 +1906,6 @@ function getActions(&$gui,$baseURL) {
     $actions->mileView = "/gui/templates/plans/planMilestones.html?{$ctx}";
     $actions->milestonesView =
       "/gui/templates/plans/planMilestones.html?{$ctx}";
-    // milestonesView switched to the modernized HTML screen above (Refs #647);
-    // the legacy planMilestonesView.php launcher entry is removed so it cannot
-    // overwrite the link.
-    // testcase_assignments switched to the modernized HTML screen (Refs #660);
-    // the BFF (api/tcassignments) enforces the legacy menu right
-    // (exec_testcases_assigned_to_me) server-side on every route.
-    $actions->testcase_assignments =
-      "/gui/templates/execute/tcAssignments.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test

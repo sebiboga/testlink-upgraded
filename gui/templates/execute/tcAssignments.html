@@ -130,9 +130,14 @@ function toast(msg, isErr) {
   $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
 }
 
-function apiFail(xhr) {
+function apiFail(objOrXhr) {
   var msg = TLi18n.t('common.error');
-  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  try {
+    // accept both a parsed JSON body (.done handlers) and an xhr (.fail)
+    var body = (objOrXhr && typeof objOrXhr.responseText === 'string')
+      ? JSON.parse(objOrXhr.responseText) : objOrXhr;
+    if (body && body.message) { msg = body.message; }
+  } catch(e) {}
   toast(msg, true);
 }
 
@@ -163,7 +168,12 @@ function loadInit() {
   if (tprojectId <= 0) {
     $.getJSON('/api/projects/index.php').done(function (r) {
       var its = (r && (r.data || r.items)) || [];
-      if (its.length) { tprojectId = parseInt(its[0].id, 10); }
+      if (!its.length) {
+        // no visible project: stop instead of recursing forever
+        $('#noRecords').show();
+        return;
+      }
+      tprojectId = parseInt(its[0].id, 10);
       loadInit();
     }).fail(function () { apiFail.apply(null, arguments); });
     return;
@@ -177,7 +187,7 @@ function loadInit() {
 
       // legacy page titles:
       // overview -> "Assignment Overview (%s)" / mine -> "... (%s, %s)"
-      updateTitle('');
+      updateTitle();
 
       var $sel = $('#tplanSel').empty();
       $sel.append('<option value="0">' + esc(TLi18n.t('tca.allTestPlans')) + '</option>');
@@ -191,7 +201,7 @@ function loadInit() {
     .fail(function (xhr) { apiFail(xhr); });
 }
 
-function updateTitle(planName) {
+function updateTitle() {
   var proj = ctxInfo ? ctxInfo.tproject.name : '';
   var me = ctxInfo && ctxInfo.me ? ctxInfo.me.login : '';
   if (showAllUsers) {
@@ -240,7 +250,7 @@ function renderGroups(data) {
     total += g.rows.length;
     if (g.rows.length === 0) { return; }
 
-    var html = '<table class="tcs"><thead><tr>';
+    var html = '<table class="tcs" data-tplan="' + g.tplan_id + '"><thead><tr>';
     if (showAllUsers) { html += '<th>' + esc(TLi18n.t('tca.colUser')) + '</th>'; }
     html += '<th>' + esc(TLi18n.t('tca.colBuild')) + '</th>' +
             '<th>' + esc(TLi18n.t('tca.colSuite')) + '</th>' +
@@ -342,7 +352,8 @@ function bindRowActions() {
     var url = '/lib/execute/execSetResults.php?version_id=' + tcv +
               '&level=testcase&id=' + $tr.data('id') +
               '&tplan_id=' + g + '&setting_build=' + b +
-              '&setting_platform=' + p + '&caller=tcAssignedToMe';
+              '&setting_platform=' + p + '&caller=' +
+              (showAllUsers ? 'tcAssignedToUser' : 'tcAssignedToMe');
     window.open(url, '_blank');
   });
   $('.lnkHist').off('click').on('click', function (ev) {
@@ -363,13 +374,10 @@ function bindRowActions() {
   });
 }
 
-// resolve the test plan of a row by walking back to its group table
+// resolve the test plan of a row from its group table marker
 function groupOfRow($tr) {
-  var idx = $('#groupsHolder table').index($tr.closest('table'));
-  if (lastData && lastData.groups && lastData.groups[idx]) {
-    return lastData.groups[idx].tplan_id;
-  }
-  return tplanId;
+  var v = $tr.closest('table').data('tplan');
+  return (v !== undefined && v !== null) ? parseInt(v, 10) : tplanId;
 }
 
 function collectIds($btn) {

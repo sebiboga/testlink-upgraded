@@ -89,8 +89,10 @@ function canView(&$user, &$db, $tproject_id) {
 
 /** Legacy right needed to write results (exec icons parity). */
 function canExecute(&$user, &$db, $tproject_id, $tplan_id) {
+    // 5th arg $getAccess=true = legacy parity (tcAssignedToUser.php):
+    // without it the private-asset checks in tlUser::hasRight are skipped
     return (bool)$user->hasRight($db, 'testplan_execute',
-        $tproject_id, $tplan_id);
+        $tproject_id, $tplan_id, true);
 }
 
 function deny() {
@@ -133,7 +135,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
         out(['status' => 'error', 'message' => 'Test project not found']);
     }
 
-    $opt = is_object($info['opt']) ? (array)$info['opt'] : (array)$info['opt'];
+    $opt = (array)$info['opt'];
     $priorityEnabled = !empty($opt['testPriorityEnabled']);
 
     // active plans first, then inactive ones (legacy default filters them out)
@@ -235,12 +237,12 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'rows') {
             "SELECT name,id FROM {$tables['nodes_hierarchy']} " .
             "WHERE id IN (" . implode(',', $tplanIds) . ")", 'id');
 
-        $statusCodes = $resultsCfg['status_code'];
+    $statusCodes = $resultsCfg['status_code'];
+    $tplanMgrTmp = new testplan($db);
 
-        foreach ($rs as $tplan_id => $tcaseSet) {
-            $hasExecRight = canExecute($user, $db, $tproject_id, $tplan_id);
+    foreach ($rs as $tplan_id => $tcaseSet) {
+        $hasExecRight = canExecute($user, $db, $tproject_id, $tplan_id);
 
-            $tplanMgrTmp = new testplan($db);
             $platformMap = $tplanMgrTmp->getPlatforms($tplan_id,
                 ['outputFormat' => 'map']);
             // legacy checks !is_null(); an empty map means the plan has no
@@ -343,9 +345,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'rows') {
         'showAllUsers' => $showAllUsers,
         'showClosedBuilds' => $showClosedBuilds,
         'glueChar' => $glueChar,
-        'statusKeys' => array_values(array_unique(
-            array_merge(array_values($resultsCfg['status_label']),
-                        ['not_run', 'passed', 'failed', 'blocked']))),
+        'statusKeys' => array_keys($statusCodes),
     ]]);
 }
 
