@@ -1,7 +1,7 @@
 # Issue 667 — `_checkTCIDAndTPIDValid()`: 2× E_WARNING on EVERY successful no-platform `getLastExecutionResult` when TC linked under a specific platform
 
 **Issue:** [#667](https://github.com/sebiboga/testlink-upgraded/issues/667)
-**Branch:** `fix/issue-667` · **Commit:** `d44bdfa07` (fix, +7/−1) + `e85f342fe` (regression suite)
+**Branch:** `fix/issue-667` · **Commit:** `e5f7ddfd0` (fix, +7/−1) + `d091787be` (regression suite)
 **Status:** FIXED & VERIFIED (2026-08-24)
 
 ## Symptom
