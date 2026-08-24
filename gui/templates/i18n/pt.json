@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Este relatório mostra os marcos definidos para este plano, com o progresso geral face à meta do marco.",
   "rgm.elapsedSeconds": "Segundos decorridos:",
   "rgm.thCompletedPerc": "Concluído [%]",
-  "rgm.infoGenTestRep": "Este relatório mostra as métricas gerais do plano selecionado: resultados por plataforma, estado dos builds, suítes de nível superior, detalhe por prioridade e palavra-chave, além do relatório de marcos."
+  "rgm.infoGenTestRep": "Este relatório mostra as métricas gerais do plano selecionado: resultados por plataforma, estado dos builds, suítes de nível superior, detalhe por prioridade e palavra-chave, além do relatório de marcos.",
+  "rbs.header": "Resultados por Suíte de Testes",
+  "rbs.forPlan": "para o plano de testes",
+  "rbs.testProject": "Projeto de testes",
+  "rbs.btnSendEmail": "Enviar para mim por e-mail",
+  "rbs.btnExportXls": "Exportar dados como folha de cálculo",
+  "rbs.importantNotice": "Aviso importante",
+  "rbs.platformRelationship": "Foram adicionadas plataformas a este plano de testes. Um caso de teste atribuído a várias plataformas é contado uma vez por plataforma.",
+  "rbs.onPlatform": "Resultados na plataforma:",
+  "rbs.firstExec": "Primeira execução em:",
+  "rbs.latestExec": "Última execução em:",
+  "rbs.l1l2": "Pai : Filha (Suítes de Teste)",
+  "rbs.thTcTotal": "Total",
+  "rbs.thCompletedPerc": "Concluído [%]",
+  "rbs.noTsuites": "Não há suítes de teste de nível 2 com casos de teste vinculados definidos para este plano de testes - nada a relatar.",
+  "rbs.infoGenTestRep": "Métricas do estado de execução agregadas por suítes de teste pai e filhas.",
+  "rbs.elapsedSeconds": "Tempo de processamento (segundos):",
+  "rbs.errLoad": "Falha ao carregar métricas."
 }

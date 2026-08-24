@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Dieser Bericht zeigt die für diesen Testplan definierten Meilensteine mit dem Gesamtfortschritt gegenüber dem Meilensteinziel.",
   "rgm.elapsedSeconds": "Vergangene Sekunden:",
   "rgm.thCompletedPerc": "Abgeschlossen [%]",
-  "rgm.infoGenTestRep": "Dieser Bericht zeigt die allgemeinen Metriken des ausgewählten Testplans: Ergebnisse nach Plattform, Build-Status, Top-Suiten, Prioritäts- und Stichwort-Aufschlüsselung sowie den Meilensteinbericht."
+  "rgm.infoGenTestRep": "Dieser Bericht zeigt die allgemeinen Metriken des ausgewählten Testplans: Ergebnisse nach Plattform, Build-Status, Top-Suiten, Prioritäts- und Stichwort-Aufschlüsselung sowie den Meilensteinbericht.",
+  "rbs.header": "Ergebnisse nach Test Suite",
+  "rbs.forPlan": "für Testplan",
+  "rbs.testProject": "Testprojekt",
+  "rbs.btnSendEmail": "Mir selbst per E-Mail senden",
+  "rbs.btnExportXls": "Daten als Tabellendokument exportieren",
+  "rbs.importantNotice": "Wichtiger Hinweis",
+  "rbs.platformRelationship": "Diesem Testplan wurden Plattformen hinzugefügt. Ein Testfall, der mehreren Plattformen zugeordnet ist, wird pro Plattform einmal gezählt.",
+  "rbs.onPlatform": "Ergebnisse auf Plattform:",
+  "rbs.firstExec": "Erste Ausführung am:",
+  "rbs.latestExec": "Letzte Ausführung am:",
+  "rbs.l1l2": "Übergeordnet : Untergeordnet (Test Suiten)",
+  "rbs.thTcTotal": "Gesamt",
+  "rbs.thCompletedPerc": "Abgeschlossen [%]",
+  "rbs.noTsuites": "Für diesen Testplan sind keine Test Suiten der Ebene 2 mit verknüpften Testfällen vorhanden - es gibt nichts zu berichten.",
+  "rbs.infoGenTestRep": "Kennzahlen zum Ausführungsstatus aggregiert nach Test Suiten der obersten und untergeordneten Ebene.",
+  "rbs.elapsedSeconds": "Verarbeitungszeit (Sekunden):",
+  "rbs.errLoad": "Metriken konnten nicht geladen werden."
 }

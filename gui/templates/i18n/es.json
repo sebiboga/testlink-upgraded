@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Este informe muestra los hitos definidos para este plan, con el progreso global frente al objetivo del hito.",
   "rgm.elapsedSeconds": "Segundos transcurridos:",
   "rgm.thCompletedPerc": "Completado [%]",
-  "rgm.infoGenTestRep": "Este informe muestra las métricas generales del plan seleccionado: resultados por plataforma, estado de builds, suites de primer nivel, desglose por prioridad y palabra clave, además del informe de hitos."
+  "rgm.infoGenTestRep": "Este informe muestra las métricas generales del plan seleccionado: resultados por plataforma, estado de builds, suites de primer nivel, desglose por prioridad y palabra clave, además del informe de hitos.",
+  "rbs.header": "Resultados por Suite de Pruebas",
+  "rbs.forPlan": "para el plan de pruebas",
+  "rbs.testProject": "Proyecto de pruebas",
+  "rbs.btnSendEmail": "Enviarme por correo electrónico",
+  "rbs.btnExportXls": "Exportar datos como hoja de cálculo",
+  "rbs.importantNotice": "Aviso importante",
+  "rbs.platformRelationship": "Se han añadido plataformas a este plan de pruebas. Un caso de prueba asignado a varias plataformas se cuenta una vez por plataforma.",
+  "rbs.onPlatform": "Resultados en la plataforma:",
+  "rbs.firstExec": "Primera ejecución el:",
+  "rbs.latestExec": "Última ejecución el:",
+  "rbs.l1l2": "Principal : Hija (Suites de Pruebas)",
+  "rbs.thTcTotal": "Total",
+  "rbs.thCompletedPerc": "Completado [%]",
+  "rbs.noTsuites": "No hay suites de pruebas de nivel 2 con casos de prueba vinculados definidos para este plan de pruebas - no hay nada que informar.",
+  "rbs.infoGenTestRep": "Métricas del estado de ejecución agregadas por suites de pruebas de nivel superior e hijas.",
+  "rbs.elapsedSeconds": "Tiempo de procesamiento (segundos):",
+  "rbs.errLoad": "Error al cargar las métricas."
 }

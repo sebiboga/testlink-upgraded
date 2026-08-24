@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "このレポートは、この計画に定義されたマイルストーンと、目標に対する全体的な進捗を示します。",
   "rgm.elapsedSeconds": "経過秒数:",
   "rgm.thCompletedPerc": "完了率 [%]",
-  "rgm.infoGenTestRep": "このレポートは選択したテスト計画の総合メトリクスを示します: プラットフォーム別結果、ビルド状態、最上位スイート、優先度とキーワードの内訳、およびマイルストーンレポート。"
+  "rgm.infoGenTestRep": "このレポートは選択したテスト計画の総合メトリクスを示します: プラットフォーム別結果、ビルド状態、最上位スイート、優先度とキーワードの内訳、およびマイルストーンレポート。",
+  "rbs.header": "テストスイート別の結果",
+  "rbs.forPlan": "対象テスト計画",
+  "rbs.testProject": "テストプロジェクト",
+  "rbs.btnSendEmail": "自分にメールで送信",
+  "rbs.btnExportXls": "データをスプレッドシート形式でエクスポート",
+  "rbs.importantNotice": "重要な注意事項",
+  "rbs.platformRelationship": "このテストプランにはプラットフォームが追加されています。複数のプラットフォームに割り当てられたテストケースは、プラットフォームごとに1回カウントされます。",
+  "rbs.onPlatform": "プラットフォーム別の結果:",
+  "rbs.firstExec": "最初の実行日時:",
+  "rbs.latestExec": "最新の実行日時:",
+  "rbs.l1l2": "親 : 子 (テストスイート)",
+  "rbs.thTcTotal": "合計",
+  "rbs.thCompletedPerc": "完了率 [%]",
+  "rbs.noTsuites": "このテストプランにはリンクされたテストケースを持つレベル2のテストスイートがありません - 報告するデータがありません。",
+  "rbs.infoGenTestRep": "トップレベルおよび子テストスイートごとに集計された実行ステータスのメトリクス。",
+  "rbs.elapsedSeconds": "処理時間（秒）:",
+  "rbs.errLoad": "メトリクスの読み込みに失敗しました。"
 }

@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Questo report mostra le milestone definite per questo piano, con l'avanzamento complessivo rispetto all'obiettivo della milestone.",
   "rgm.elapsedSeconds": "Secondi trascorsi:",
   "rgm.thCompletedPerc": "Completato [%]",
-  "rgm.infoGenTestRep": "Questo report mostra le metriche generali del piano selezionato: risultati per piattaforma, stato delle build, suite di primo livello, dettaglio per priorità e parola chiave, più il report delle milestone."
+  "rgm.infoGenTestRep": "Questo report mostra le metriche generali del piano selezionato: risultati per piattaforma, stato delle build, suite di primo livello, dettaglio per priorità e parola chiave, più il report delle milestone.",
+  "rbs.header": "Risultati per Test Suite",
+  "rbs.forPlan": "per il piano di test",
+  "rbs.testProject": "Progetto di test",
+  "rbs.btnSendEmail": "Invia a me stesso via email",
+  "rbs.btnExportXls": "Esporta i dati come foglio di calcolo",
+  "rbs.importantNotice": "Avviso importante",
+  "rbs.platformRelationship": "Sono state aggiunte piattaforme a questo piano di test. Un test case assegnato a più piattaforme viene contato una volta per piattaforma.",
+  "rbs.onPlatform": "Risultati sulla piattaforma:",
+  "rbs.firstExec": "Prima esecuzione il:",
+  "rbs.latestExec": "Ultima esecuzione il:",
+  "rbs.l1l2": "Principale : Figlia (Test Suite)",
+  "rbs.thTcTotal": "Totale",
+  "rbs.thCompletedPerc": "Completato [%]",
+  "rbs.noTsuites": "Non ci sono suite di test di livello 2 con test case collegati definiti per questo piano di test - niente da riferire.",
+  "rbs.infoGenTestRep": "Metriche dello stato di esecuzione aggregate per suite di test padre e figlie.",
+  "rbs.elapsedSeconds": "Tempo di elaborazione (secondi):",
+  "rbs.errLoad": "Caricamento delle metriche non riuscito."
 }

@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "This Report shows milestones defined for this test plan, showing overall completion progress against the milestone goal.",
   "rgm.elapsedSeconds": "Elapsed seconds:",
   "rgm.thCompletedPerc": "Completed [%]",
-  "rgm.infoGenTestRep": "This report shows the general test plan metrics for the selected test plan: results by platform, build status, top level suites, priority and keyword breakdowns plus the milestone report."
+  "rgm.infoGenTestRep": "This report shows the general test plan metrics for the selected test plan: results by platform, build status, top level suites, priority and keyword breakdowns plus the milestone report.",
+  "rbs.header": "Results by Test Suite",
+  "rbs.forPlan": "for test plan",
+  "rbs.testProject": "Test Project",
+  "rbs.btnSendEmail": "Send by email to myself",
+  "rbs.btnExportXls": "Export data as spreadsheet",
+  "rbs.importantNotice": "Important Notice",
+  "rbs.platformRelationship": "Platforms have been added to this test plan. A test case assigned to several platforms is counted once per platform.",
+  "rbs.onPlatform": "Results on Platform:",
+  "rbs.firstExec": "First Execution on:",
+  "rbs.latestExec": "Latest Execution on:",
+  "rbs.l1l2": "Top : Child (Test Suites)",
+  "rbs.thTcTotal": "Total",
+  "rbs.thCompletedPerc": "Completed [%]",
+  "rbs.noTsuites": "There are no Level 2 Test Suites with linked Test Cases defined for this Test Plan - nothing to report on.",
+  "rbs.infoGenTestRep": "Execution status metrics aggregated by top-level and child test suites.",
+  "rbs.elapsedSeconds": "Processing time (seconds):",
+  "rbs.errLoad": "Failed to load metrics."
 }

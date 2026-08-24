@@ -81,6 +81,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_general_tp_metrics') {
         $hrefR = 'gui/templates/results/generalMetrics.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #671 - Results by Test Suite (resultsByTSuite) modernized;
+      // the BFF (api/reports metrics_by_tsuite action) reuses the very same
+      // tlTestPlanMetrics::getStatusTotalsTSuiteDepth2ForRender() call and
+      // enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_by_tsuite') {
+        $hrefR = 'gui/templates/results/resultsByTSuite.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }

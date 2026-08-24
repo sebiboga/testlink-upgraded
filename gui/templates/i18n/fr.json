@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Ce rapport montre les jalons définis pour ce plan de test, avec l'avancement global comparé à l'objectif du jalon.",
   "rgm.elapsedSeconds": "Secondes écoulées :",
   "rgm.thCompletedPerc": "Terminé [%]",
-  "rgm.infoGenTestRep": "Ce rapport montre les métriques générales du plan de test sélectionné : résultats par plateforme, statut des builds, suites de premier niveau, ventilations par priorité et mot-clé, plus le rapport des jalons."
+  "rgm.infoGenTestRep": "Ce rapport montre les métriques générales du plan de test sélectionné : résultats par plateforme, statut des builds, suites de premier niveau, ventilations par priorité et mot-clé, plus le rapport des jalons.",
+  "rbs.header": "Résultats par suite de tests",
+  "rbs.forPlan": "pour le plan de test",
+  "rbs.testProject": "Projet de test",
+  "rbs.btnSendEmail": "M'envoyer par e-mail",
+  "rbs.btnExportXls": "Exporter les données au format tableur",
+  "rbs.importantNotice": "Remarque importante",
+  "rbs.platformRelationship": "Des plateformes ont été ajoutées à ce plan de test. Un cas de test affecté à plusieurs plateformes est compté une fois par plateforme.",
+  "rbs.onPlatform": "Résultats sur la plateforme :",
+  "rbs.firstExec": "Première exécution le :",
+  "rbs.latestExec": "Dernière exécution le :",
+  "rbs.l1l2": "Parent : Enfant (suites de tests)",
+  "rbs.thTcTotal": "Total",
+  "rbs.thCompletedPerc": "Terminé [%]",
+  "rbs.noTsuites": "Aucune suite de tests de niveau 2 avec des cas de test liés n'est définie pour ce plan de test - rien à signaler.",
+  "rbs.infoGenTestRep": "Indicateurs du statut d'exécution agrégés par suites de tests parent et enfant.",
+  "rbs.elapsedSeconds": "Temps de traitement (secondes) :",
+  "rbs.errLoad": "Échec du chargement des métriques."
 }

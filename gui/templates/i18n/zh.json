@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "本报告显示该计划定义的里程碑，以及相对里程碑目标的总体进度。",
   "rgm.elapsedSeconds": "耗时秒数:",
   "rgm.thCompletedPerc": "已完成 [%]",
-  "rgm.infoGenTestRep": "本报告显示所选测试计划的总体度量：按平台的结果、构建状态、顶层套件、优先级和关键字明细，以及里程碑报告。"
+  "rgm.infoGenTestRep": "本报告显示所选测试计划的总体度量：按平台的结果、构建状态、顶层套件、优先级和关键字明细，以及里程碑报告。",
+  "rbs.header": "按测试套件统计结果",
+  "rbs.forPlan": "针对测试计划",
+  "rbs.testProject": "测试项目",
+  "rbs.btnSendEmail": "通过电子邮件发送给自己",
+  "rbs.btnExportXls": "导出数据为电子表格",
+  "rbs.importantNotice": "重要提示",
+  "rbs.platformRelationship": "此测试计划已添加平台。分配给多个平台的测试用例将按每个平台各计一次。",
+  "rbs.onPlatform": "平台上的结果:",
+  "rbs.firstExec": "首次执行时间:",
+  "rbs.latestExec": "最近执行时间:",
+  "rbs.l1l2": "顶层 : 子级（测试套件）",
+  "rbs.thTcTotal": "合计",
+  "rbs.thCompletedPerc": "已完成 [%]",
+  "rbs.noTsuites": "此测试计划没有定义包含已关联测试用例的二级测试套件——无可报告的内容。",
+  "rbs.infoGenTestRep": "按顶层与子测试套件汇总的执行状态指标。",
+  "rbs.elapsedSeconds": "处理时间（秒）：",
+  "rbs.errLoad": "加载度量数据失败。"
 }

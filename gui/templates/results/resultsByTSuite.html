@@ -152,7 +152,7 @@ function loadReport() {
     renderAll(r);
     $('#footerInfo').html(
       esc(TLi18n.t('rbs.infoGenTestRep')) + '<br>' +
-      esc(TLi18n.t('rbs.generatedBy')) + ' ' + new Date().toLocaleString() +
+      esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString() +
       ' &middot; ' + esc(TLi18n.t('rbs.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
   }).fail(function (xhr) {
     $('#loadingBox').hide();

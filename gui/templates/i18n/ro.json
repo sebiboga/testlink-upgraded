@@ -1357,5 +1357,22 @@
   "rgm.infoMilestonesNoPrio": "Acest raport afișează jaloanele definite pentru acest plan, cu progresul general față de obiectivul jalonului.",
   "rgm.elapsedSeconds": "Secunde scurse:",
   "rgm.thCompletedPerc": "Completat [%]",
-  "rgm.infoGenTestRep": "Acest raport arată metricile generale ale planului de testare selectat: rezultate pe platformă, starea build-urilor, suite de nivel superior, defalcare pe priorități și cuvinte cheie plus raportul jaloanelor."
+  "rgm.infoGenTestRep": "Acest raport arată metricile generale ale planului de testare selectat: rezultate pe platformă, starea build-urilor, suite de nivel superior, defalcare pe priorități și cuvinte cheie plus raportul jaloanelor.",
+  "rbs.header": "Rezultate pe Suite de Teste",
+  "rbs.forPlan": "pentru planul de testare",
+  "rbs.testProject": "Proiect de Test",
+  "rbs.btnSendEmail": "Trimite-mi pe e-mail",
+  "rbs.btnExportXls": "Exportă datele ca foaie de calcul",
+  "rbs.importantNotice": "Notă importantă",
+  "rbs.platformRelationship": "Platforme au fost adăugate acestui plan de teste. Un caz de test atribuit mai multor platforme este numărat o dată per platformă.",
+  "rbs.onPlatform": "Rezultate pe platforma:",
+  "rbs.firstExec": "Prima execuție la:",
+  "rbs.latestExec": "Ultima execuție la:",
+  "rbs.l1l2": "Părinte : Copil (Suite de Teste)",
+  "rbs.thTcTotal": "Total",
+  "rbs.thCompletedPerc": "Completat [%]",
+  "rbs.noTsuites": "Nu există suite de teste de nivel 2 cu cazuri de test legate definite pentru acest plan de teste - nimic de raportat.",
+  "rbs.infoGenTestRep": "Valori ale stării de execuție agregate pe suite de teste părinte și copil.",
+  "rbs.elapsedSeconds": "Timp de procesare (secunde):",
+  "rbs.errLoad": "Încărcarea metricilor a eșuat."
 }
