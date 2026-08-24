@@ -7,6 +7,12 @@ $Id: inc_results_show_table.tpl,v 1.1 2008/03/03 18:53:20 franciscom Exp $
 {$args_first_column_header=$args_first_column_header|default:"first column"}
 {$args_show_percentage=$args_show_percentage|default:true}
 
+{* Refs #670: rows do not always carry total_tc - build status tables pass
+   args_column_for_total='total_assigned', so the requested key must win.
+   Same convention as show_table_qty_datetime.inc.tpl. *}
+{$colForTotal=$args_column_for_total|default:"total_tc"}
+{if $colForTotal == ''}{$colForTotal='total_tc'}{/if}
+
 {if $args_column_definition != ""}
 
 <h2 class="big-font">{$args_title|escape}</h2>
@@ -26,7 +32,7 @@ $Id: inc_results_show_table.tpl,v 1.1 2008/03/03 18:53:20 franciscom Exp $
  {foreach item=res from=$args_column_data}
   	<tr>
   	<td style="text-align: left;">{$res.$args_first_column_key|escape}</td>
-  	<td style="text-align: right;padding-right:10px;">{$res.total_tc}</td>
+  	<td style="text-align: right;padding-right:10px;">{$res.$colForTotal}</td>
       {foreach item=the_column from=$res.details}
           <td style="text-align: right;padding-right:10px;">{$the_column.qty}</td>
         {if $args_show_percentage}
