@@ -41,13 +41,25 @@ but was expected to be reverted by any later `composer install`.
 
 ## Fix
 
-1. **Minimal patch** — `vendor/symfony/translation/Resources/functions.php:18`:
-   `string $domain = null` → `?string $domain = null`.
+Code review caught that the *direct callee* of the patched `t()` —
+`TranslatableMessage::__construct()` — carried the exact same implicit-nullable
+signature, and the scanner then found a third one on the actual localization
+path (`TranslatableMessage::trans()`, `$locale`). Patching only functions.php
+would have fixed the autoload-time warning but left every page that *uses*
+translation deprecating on PHP ≥ 8.4. Final patch set (all explicit nullable):
+
+1. `vendor/symfony/translation/Resources/functions.php:18` — `t()` `$domain`
+2. `vendor/symfony/translation/TranslatableMessage.php:26` — `__construct()` `$domain`
+3. `vendor/symfony/translation/TranslatableMessage.php:53` — `trans()` `$locale`
+
 2. **Composer-overwrite guard** — new idempotent script
    `tools/patch_vendor_php84.php`, wired into `composer.json`
-   `scripts.post-install-cmd` + `post-update-cmd`. Re-applies the patch after any
-   `composer install/update`; fail-safe: missing package → skip exit 0; upstream
-   signature changed → skip exit 0; already patched → no-op exit 0.
+   `scripts.post-install-cmd` + `post-update-cmd`, re-applying all three
+   signatures after any `composer install/update`; fail-safe: missing file →
+   skip exit 0; upstream signature changed → skip exit 0; already patched →
+   no-op exit 0; write failure → exit 1 (loud, per code-review finding).
+   Review hardening applied: strict `strpos !== false` checks, checked
+   `file_put_contents`, per-entry parameter labels in output.
 
 ## Verification (reproduction & regression matrix)
 
@@ -64,7 +76,7 @@ Post-fix matrix (suite 481 in `tmp/TLU_Test_Cases.md`, 6/6 PASS):
 
 | # | Case | Result |
 |---|------|--------|
-| R1 | scanner on patched file | 0 findings, exit 0 |
+| R1 | scanner on all 3 patched signatures | 0 findings, exit 0 |
 | R2 | php -l | clean |
 | R3 | behavioral: autoload + call `t()` | TranslatableMessage returned, domain kept |
 | R4 | overwrite simulation: revert signature → guard re-patch → idempotent second run | PASS |
@@ -83,3 +95,4 @@ This issue's scope was the every-page-load warning; that is fixed and verified.
 
 - `d0b5d13ae` — fix(vendor): symfony/translation t() implicit nullable -> explicit ?string (PHP 8.4 deprecation)
 - `1a4552569` — fix(tools): composer post-install/update guard re-applies PHP 8.4 symfony/translation patch
+- review round: TranslatableMessage __construct/trans signatures added to vendor patch + guard; guard hardened (strict strpos, write-failure exit 1)
