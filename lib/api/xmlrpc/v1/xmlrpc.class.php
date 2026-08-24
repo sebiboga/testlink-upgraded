@@ -7021,7 +7021,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             }
         }
 
-        if(! $tatus_ok) {
+        if(! $status_ok) {
             return $this->errors;
         }
     }
