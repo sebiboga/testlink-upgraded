@@ -474,7 +474,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
         // Some APIs only provide TestSuiteID or TestCaseID, look up TestProjectID
         if ($tprojectid <= 0 && $tplanid == -1) {
             // Try using TestSuiteID to get TestProjectID
-            $tsuitid = intval( isset( $context[self::$testSuiteIDParamName] ) ? $context[self::$testSuiteIDParamName] : 0 );
+            $tsuiteid = intval( isset( $context[self::$testSuiteIDParamName] ) ? $context[self::$testSuiteIDParamName] : 0 );
             if($tsuiteid == 0 && isset( $this->args[self::$testSuiteIDParamName] )) {
                 $tsuiteid = intval( $this->args[self::$testSuiteIDParamName] );
             }
