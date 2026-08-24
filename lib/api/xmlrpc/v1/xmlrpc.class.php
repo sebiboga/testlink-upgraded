@@ -3519,6 +3519,8 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if(is_null( $target_tcversion ) || count( $target_tcversion ) != 1) {
                 $status_ok = false;
                 $tcase_info = $this->tcaseMgr->get_by_id( $tcase_id );
+                $dummy = $this->tcaseMgr->getExternalID( $tcase_id, $tproject_id );
+                $tcase_external_id = isset( $dummy[0] ) ? $dummy[0] : '';
                 $msg = sprintf( TCASE_VERSION_NUMBER_KO_STR, $version_number, $tcase_external_id, $tcase_info[0]['name'] );
                 $this->errors[] = new IXR_Error( TCASE_VERSION_NUMBER_KO, $messagePrefix . $msg );
             }
