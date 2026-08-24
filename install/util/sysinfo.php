@@ -79,8 +79,27 @@ function checkMemoryLimits() {
     $upload_max = ini_get('upload_max_filesize');
     $post_max = ini_get('post_max_size');
 
-    // Parse memory limit
-    $limitValue = intval($limit);
+    // Parse memory limit (ini shorthand: -1 unlimited, G/M/K suffixes, or raw bytes) → MB
+    $raw = strtolower(trim($limit));
+    if ($raw === '-1') {
+        $limitValue = PHP_INT_MAX; // unlimited memory => always acceptable
+    } else {
+        $memoryValue = (float)$raw;
+        switch (substr($raw, -1)) {
+            case 'g':
+                $limitValue = $memoryValue * 1024;
+                break;
+            case 'm':
+                $limitValue = $memoryValue;
+                break;
+            case 'k':
+                $limitValue = $memoryValue / 1024;
+                break;
+            default:
+                $limitValue = $memoryValue / (1024 * 1024);
+                break;
+        }
+    }
     $minMemory = 256; // 256 MB minimum
     $recommended = 512; // 512 MB recommended
 
