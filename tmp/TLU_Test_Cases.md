@@ -4329,3 +4329,17 @@ Environment: repo root @ fix/issue-675 (12d10e954). Repro servers: `php -d memor
 | 10 | Event Viewer after test window | `SELECT ... FROM events WHERE creation_ts > NOW() - INTERVAL 2 HOUR` | Zero rows → no new Error/Warning entries | PASS |
 
 Suite result: **10/10 PASS**
+
+## Suite 488 — Zero-test-project grant builder hardening (common.php getGrantSetWithExit) — Refs #488
+Environment: fresh DB import (0 rows in `testprojects`, `events` wiped for a clean baseline); app at http://localhost:8082 (PHP built-in server); admin/admin; branch fix/issue-488 @ 1357fc21e. Event measurement: `SELECT COUNT(*) FROM events WHERE log_level IN (2,4)` (2=WARNING, 4=ERROR); logging health canary: AUDIT(16)/INFO(1) rows must appear during the pass.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Original symptom absent | Browser login → index.php renders navBar+asideMenu+projectEdit create redirect; direct mainPage.php | All frames render; 0 WARNING/ERROR events (issue reported 286 warnings pre-fix) | PASS |
+| 2 | Authenticated sweep, zero projects | cURL login (`tl_login/tl_password/tl_login_btn`) → GET index, navBar, asideMenu, mainPage, projectEdit?doAction=create, usersView, rolesView, pluginView, eventviewer, cfieldsView, issueTrackerView/Edit, codeTrackerView | Every page returns full authenticated content; events delta 0 WARNING/ERROR | PASS |
+| 3 | Logging health canary (guard vs false PASS) | After sweep, check events table has ANY rows | AUDIT(16)/INFO(1) rows present → proves 0-warning result is meaningful, not a dead logger | PASS |
+| 4 | Grant builder handler fix live | Same sweep on fixed code — the two changed lines run on EVERY page load via getGrantSetWithExit() | No fatal "call to member function on null", no behavior change in grants (aside shows System/Projects/Plugins/Documentation for admin) | PASS |
+| 5 | Non-zero-project branch regression | UI-create project "Issue488 Verification Project" (prefix I488) → index.php → verify navBar combo + full aside menu set → delete project via projectEdit.php?doAction=doDelete&tprojectID=1 | Project created/selected; aside shows Search/System/Projects/Req Design/Test Design/Test Plan/Plugins/Docs; delete returns system to 0 projects; 0 WARNING/ERROR across lifecycle | PASS |
+| 6 | Syntax gate | php -l lib/functions/common.php | No syntax errors | PASS |
+
+Suite result: **6/6 PASS**
