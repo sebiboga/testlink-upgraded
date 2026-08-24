@@ -4380,3 +4380,19 @@ Environment: repo root @ fix/issue-676 (2aa436403), PHP 8.3.33. Repro method: CL
 | 11 | Event Viewer after test window | SELECT COUNT(*) FROM events WHERE log_level IN (2,4) | 0 rows → no new Error/Warning entries | PASS |
 
 Suite result: **11/11 PASS**
+
+## Suite 495 — mainPage.php `Undefined array key "testprojectOptions"` regression — Refs #495
+Environment: repo root @ fix/issue-495 (parent a5e29c1ec), app http://localhost:8082, fresh DB (`events` empty at start), admin/admin via headless Chrome. Fix under test is the ALREADY-LANDED chain `38c7d6f16` → `3071beefb` → `3266f4329`+`8748128fb`; this suite verifies the reported symptom stays dead across every mainPage path.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Baseline clean logger | `SELECT COUNT(*) FROM events` before any navigation | 0 rows | PASS |
+| 2 | Blind-folded path (no testproject in session) | Fresh login admin/admin; index.php loads navBar/asideMenu; getGrants() runs with tproject_id=0 → redirect to projectEdit.php?doAction=create | Create-project form renders; 0 WARNING(2)/ERROR(4) events | PASS |
+| 3 | First test project creation via UI | Fill Name "Issue495 Project" / Prefix I495 → Create | Project id=1 created; audit event only; no warnings | PASS |
+| 4 | mainPage render with active project | Navigate index.php?tproject_id=1&tplan_id=0; mainframe loads lib/general/mainPage.php | Page renders; aside menu full; 0 new WARNING/ERROR events | PASS |
+| 5 | Reload / project-switch path | Navigate the same URL again (updateMainPage flow) | Identical clean result; events delta 0 WARNING/ERROR | PASS |
+| 6 | Guarded-access static sweep | `grep -n '\$_SESSION\[' lib/general/mainPage.php` | Every `testprojectOptions` access wrapped in isset() (lines 187-189); getGrants() reads live options from DB (lines 530-550), no raw session read remains | PASS |
+| 7 | Logging health canary | Confirm AUDIT(16) rows exist after the pass (login_succeeded, testproject_created) | Rows present → zero-warning result meaningful, not a dead logger | PASS |
+| 8 | Final Event Viewer sweep | `SELECT ... FROM events WHERE log_level<>16` | ONLY ids 3+4 = deliberate freeTestCases.php repro for sibling issue #679; ZERO events sourced from mainPage.php | PASS |
+
+Suite result: **8/8 PASS**
