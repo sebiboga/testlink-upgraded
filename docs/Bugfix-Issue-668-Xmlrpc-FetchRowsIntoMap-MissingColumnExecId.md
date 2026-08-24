@@ -68,6 +68,10 @@ $sql = " SELECT MAX(id) AS exec_id FROM {$this->tables['executions']} "
 $sql .= " HAVING exec_id IS NOT NULL";   // MUST come last
 ```
 
+Note (portability): `HAVING exec_id IS NOT NULL` references the SELECT alias,
+which MariaDB/MySQL accept on implicit-aggregate queries; PostgreSQL would require
+`HAVING MAX(id) IS NOT NULL`. Fine for this project's MariaDB target.
+
 Placement matters: `build_id`/`platform_id` filters are concatenated AFTER the base
 string, so the HAVING clause is appended LAST. The first attempt embedded it in the
 base string producing `... HAVING exec_id IS NOT NULL AND build_id = 1` → MariaDB
