@@ -3821,76 +3821,18 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 
 **Result: Suite 459 — 8/8 PASS** — Side discoveries while building fixtures: (a) every SUCCESSFUL `removePlatformFromTestPlan` of a platform without linked TC versions writes 2× E_WARNING "Trying to access array offset on null" at line 7008 → filed as #663; (b) `createTestProject` with omitted/misnamed params writes E_WARNING "Undefined array key" at lines 2230-2231 → filed as #664. Both out of scope here.
 
-## 63. Execute Tests screen modernization (Refs #662) (Suite ID: 63)
+## Regression — Issue #663: platformLinkOp() unlink branch reads qty off null countLinkedTCVersionsByPlatform() result — 2x E_WARNING on every successful removePlatformFromTestPlan
 
-**Screen:** `gui/templates/execute/execTest.html` · **BFF:** `api/execute/index.php`
-(init / tcList / tcDetails / save) · **Right:** `testplan_execute` (write),
-`exec_ro_access` (read-only variant) · **Date:** 2026-08-24
-
-Fixtures: project `ExecTest Project` (id1, prefix ETP), plan `Exec Plan` (id2,
-public), suite `Alpha Suite`, TC-Alpha ETP-1 v1 (2 steps), TC-Beta ETP-2 v1,
-build B1 id1 active+open, build B2-closed id2 inactive-open, platform Linux
-linked to plan. Users: admin (admin role), rotester (role `RO Exec Viewer`
-with only `exec_ro_access`).
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); devKey set for `admin` (`users.script_key=MD5('admin')`); endpoint `POST /lib/api/xmlrpc/v1/xmlrpc.php`. Fix = commit `e3d1c1eea` (`lib/api/xmlrpc/v1/xmlrpc.class.php:7007-7015`: `$hitsQty = isset($hits[$platform['id']]['qty']) ? intval(...) : 0;` used in both the `== 0` check and the PLATFORM_REMOVETC_NEEDED_BEFORE_UNLINK sprintf). Pre-fix baseline measured: `tl.removePlatformFromTestPlan` of a linked platform with ZERO TC versions returned correct `{operation: unlink, msg: 'unlink done'}` BUT wrote 2× `E_WARNING Trying to access array offset on null - Line 7008` into `events` (table truncated to 0 before, 2 rows after). Fixtures via XMLRPC API: project id=1 prefix `I663_1787568724`, plan id=2, platform id=1 `I663_1787568724 plat`, suite id=5, testcase `I663_1787568724-1` tcversion_id=7.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 63.1 | BFF init context | GET `?action=init&tplan_id=2` with admin session | status ok; tproject/tplan names, builds w/ executable flag, default_build_id=1, platforms=[Linux], grants.can_execute=1 | PASS |
-| 63.2 | tcList latest versions + prior status | GET `?action=tcList&tplan_id=2&build_id=1&platform_id=1` | 2 items, full external ids ETP-1/ETP-2, suite path resolved, last_execution null before save | PASS |
-| 63.3 | tcDetails steps + summary | GET `?action=tcDetails&...tcase_id=4&tcversion_id=5` | version block (summary/preconditions/importance/external id), 2 ordered steps with actions+expected | PASS |
-| 63.4 | Save execution incl. step results | POST save {status:'p', notes, steps:{6:p+note,7:n}} | execution row written via write_execution (executions + execution_tcsteps); not_run step NOT stored | PASS |
-| 63.5 | Screen boot + context | open execTest.html?tproject_id=1&tplan_id=2 logged as admin | header shows plan/project, toolbar filled, list renders 2 rows w/ statuses, no console errors | PASS |
-| 63.6 | Case selection → form | click TC-Beta row | form shows meta (ETP-2/v1/importance), summary, preconditions, status buttons from config vocabulary (Not Run default), notes, step table w/ per-step result+notes, Save/Reset | PASS |
-| 63.7 | Full UI save flow | select Failed + step Passed w/ note + notes → Save | toast "Execution saved.", list auto-refresh shows Failed badge + new timestamp; DB rows correct | PASS |
-| 63.8 | Status filter | Result = Never executed → only unexecuted rows; clear → all | filtering correct incl. empty-state message | PASS |
-| 63.9 | Text search | type "beta" | only ETP-2 listed; clearing restores both rows | PASS |
-| 63.10 | Not-run guard | set status Not Run → Save | info toast "not recorded", no new executions row (count unchanged) — legacy parity | PASS |
-| 63.11 | Closed-build guard | pick B2-closed ("(closed)" suffix) → save attempt | error toast "Invalid or non-executable build for this plan"; nothing written | PASS |
-| 63.12 | Read-only path | login rotester (only exec_ro_access) → same URL | RO banner shown, inputs+Save disabled; direct API POST save returns 403 | PASS |
-| 63.13 | i18n switch | switch locale to Română | header "Execută teste", closed-build label "(închis)" from exe.* keys | PASS |
-| 63.14 | Forged step-ID rejection (review fix) | POST save with steps {9999:f, 6:b} | only step 6 written; foreign id silently dropped; no DB error page | PASS |
-| 63.15 | Prior step-results restore (review fix) | reopen a case that has prior execution w/ step results + notes | form prefills prior step status/notes and prior execution notes; Reset clears them | PASS |
-| 63.16 | Event Viewer after testing | events table delta during session | NO new Error/Warning entries after fixes 662-a/662-b/review round | PASS |
+| 1 | R1 primary bug case | link plat 1 → plan 2; truncate events; `tl.removePlatformFromTestPlan {devKey, testplanid:2, platformname:'I663_1787568724 plat'}` with zero TC versions on the platform | `{unlink done}`; events COUNT stays 0 (pre-fix: +2) | PASS |
+| 2 | R2 nothing-to-do path | repeat unlink when platform NOT linked | `{operation: unlink, msg: 'nothing to do', linkStatus: false}`; no new events | PASS |
+| 3 | R3 refusal path intact | re-link; set testplan_tcversions.platform_id=1 (tcversion 7); truncate; unlink again | Code 12001 PLATFORM_REMOVETC_NEEDED_BEFORE_UNLINK; message says "used by 1 test case(s)" ($hitsQty substitution correct); no new events | PASS |
+| 4 | R4 unknown platform unchanged | `tl.removePlatformFromTestPlan {..., platformname:NO_SUCH_PLATFORM_XYZ}` | Code 235 PLATFORM_NAME_DOESNOT_EXIST; no new events | PASS |
+| 5 | R5 link op unaffected | `tl.addPlatformToTestPlan` after unlink | `{link done}`; no new events | PASS |
+| 6 | R6 sibling consumers untouched | inspect platformsAssign.php:39 and api/platforms/index.php:550/635 call sites | All already isset()-guarded; no code change needed or made there | PASS |
+| 7 | R7 syntax gate | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php` | No syntax errors | PASS |
 
-**Result: Suite 63 — 16/16 PASS**
-
-**Bugs found & fixed during this suite**
-- #662-a: init read vestigial `$tprojInfo['option_platforms']` column →
-  E_WARNING in Event Viewer on every load. Fixed by reading the serialized
-  options blob (`platformsEnabled`) defensively.
-- (#621 surfaced again): every step-level save emitted
-  `file_upload_step_exec_ok/ko is not localized for en_GB`. Added
-  `locale/en_GB/custom_strings.txt` defining both keys — then extended to all
-  server locales missing them after code review.
-- Review-round regression caught in verification: step-ID ownership query
-  initially used nonexistent `tcsteps.parent_id`; corrected to join
-  `nodes_hierarchy` (DB Access Error page otherwise).
-
-**Known scope decisions (v1)**: attachments-at-execution and bug linking are
-not part of the first cut of the execution form; execution custom fields render
-in Execution History but not yet in the form. Tracked as follow-up work on
-issue #662.
-
-## Suite 664 — Regression — Issue #664: XMLRPC createTestProject E_WARNING "Undefined array key" (lines 2230-2231) when required params are omitted
-
-**Area:** XMLRPC API `tl.createTestProject` (`lib/api/xmlrpc/v1/xmlrpc.class.php`,
-`_checkCreateTestProjectRequest()`) · **Date:** 2026-08-24
-
-Fixtures: admin user with `users.script_key='664reprokey664reprokey664repro'`;
-events table baseline recorded before each run. Endpoint:
-`http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php`.
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 664.1 | Pre-fix repro | POST createTestProject with members `name=Foo`, `prefix=foo` (wrong names) | PRE-FIX: response IXR_Error 7001 BUT events gains 2 E_WARNING rows "Undefined array key testprojectname/testcaseprefix" lines 2230/2231 — reproduced as reported | PASS (repro confirmed) |
-| 664.2 | Wrong param names post-fix | same call after fix | 7001 returned; ZERO new E_WARNING events rows | PASS |
-| 664.3 | Required params omitted entirely post-fix | POST with only devKey member | 7001 returned; ZERO new E_WARNING rows | PASS |
-| 664.4 | Empty prefix contract preserved | valid `testprojectname`, empty `testcaseprefix` | IXR_Error 7004 (prefix empty) — unchanged API contract; no warnings | PASS |
-| 664.5 | Happy path unaffected | valid name+prefix ("Issue664 Happy Project"/I664) | status=true, project id returned, row in `testprojects`, audit event `audit_testproject_created`; no warnings | PASS |
-| 664.6 | Duplicate name contract preserved | repeat V5 name | IXR_Error 7002 TESTPROJECTNAME_EXISTS; no warnings | PASS |
-
-**Root cause & fix:** direct `$this->args[...]` reads at
-xmlrpc.class.php:2230-2231 without presence guard ⇒ PHP 8 E_WARNING on absent
-keys, logged to Event Viewer. Minimal fix: null-coalescing reads (`?? null`);
-downstream validation (`checkNameSintax(null)` → 7001, `!empty(null)` → 7004)
-produces byte-identical responses. Commit `fcf0370cb`.
+**Result: Suite 663 — 7/7 PASS** — Side discovery while building fixture via `tl.createTestCase`+`tl.addTestCaseToTestPlan`: documented step key `expectedresults` triggers E_WARNING "Undefined array key expected_results" at testcase.class.php:803 and links with platform_id=0 — matches open #661; no duplicate filed.
