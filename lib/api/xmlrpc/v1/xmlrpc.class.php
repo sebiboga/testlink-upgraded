@@ -8471,11 +8471,15 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 $msg = $msg_prefix . sprintf( TPROJECT_PREFIX_DOESNOT_EXIST_STR, $pfx );
                 $this->errors[] = new IXR_Error( TPROJECT_PREFIX_DOESNOT_EXIST, $msg );
             } else {
-                $ctx[self::$testProjectIDParamName] = $dummy['id'];
+                $ctx[self::$testProjectIDParamName] = $tproj['id'];
             }
         }
 
-        if($status_ok && $this->userHasRight( "mgt_view_tc", self::CHECK_PUBLIC_PRIVATE_ATTR, $ctx )) {
+        if($status_ok && !$this->userHasRight( "mgt_view_tc", self::CHECK_PUBLIC_PRIVATE_ATTR, $ctx )) {
+            return $this->errors;
+        }
+
+        if($status_ok) {
             $opt = array(
                     'recursive' => false,
                     'exclude_testcases' => true
@@ -8490,7 +8494,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $ni = array();
             if(! is_null( $items ) &&($l2d = count( $items )) > 0) {
                 $tg = $this->args[self::$testSuiteNameParamName];
-                for($ydx = 0; $ydx <= $l2d; $ydx ++) {
+                for($ydx = 0; $ydx < $l2d; $ydx ++) {
                     if(strcmp( $items[$ydx]['name'], $tg ) == 0) {
                         unset( $items[$ydx]['tcversion_id'] );
                         $ni[] = $items[$ydx];
