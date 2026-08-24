@@ -65,8 +65,18 @@ jobs:
         run: |
           REPO="${{ github.repository }}"
           DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
+          echo "default branch: $DEFAULT_BRANCH"
+
           gh auth status
-          git fetch --all --prune 2>/dev/null || true
+
+          # Fetch ALL remote branches (not just the default)
+          echo "=== fetching all remotes ==="
+          git fetch origin
+          git remote -v
+          echo "=== all remote branches ==="
+          git branch -r
+          echo "=== branch count ==="
+          git branch -r | wc -l
 
           # If a specific branch was requested, use it
           TARGET="${{ github.event.inputs.target_branch }}"
