@@ -3788,3 +3788,18 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 12 | Aside link switch | index.php → Execution section as admin | "Test Cases Assigned to Me" href = /gui/templates/execute/tcAssignments.html?tproject_id=35&tplan_id=50; loads inside mainframe with data | PASS |
 
 **Result: Suite 660 — 12/12 PASS**
+
+## Regression — Issue #659: addTestCaseToTestPlan() $tcase_external_id undefined at xmlrpc.class.php:3522 (E_WARNING on version-mismatch branch)
+
+**Precondition:** app `http://localhost:8082` (PHP 8.3); admin devKey set (`users.script_key`); fixtures via XMLRPC API (hand-built envelopes): project id=1 prefix `I659`, plan id=2 "Issue659 plan", suite id=3, test case id=4 = `I659-1` version 1. Fix = commit `98fac3e3b` (derive external id via `$this->tcaseMgr->getExternalID($tcase_id, $tproject_id)` before the sprintf). Baseline pre-fix: fault 5051 message rendered `(addTestCaseToTestPlan) - Version (99) does not exist for Test Case (:issue659_tc).` + events row `E_WARNING Undefined variable $tcase_external_id ... Line 3522`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Pre-fix symptom documented | Call `tl.addTestCaseToTestPlan` {devKey, testprojectid:1, testplanid:2, testcaseexternalid:'I659-1', version:99} before fix; query events | Fault code 5051 with empty external-id slot `(:issue659_tc)`; E_WARNING at xmlrpc.class.php:3522 in events | PASS (measured pre-fix, events id=2 @ 08:59:52) |
+| 2 | R1 post-fix message carries external id | Same call after fix | Fault 5051, message `Version (99) does not exist for Test Case (I659-1:issue659_tc).`; NO new E_WARNING row | PASS |
+| 3 | R2 valid version links | `tl.addTestCaseToTestPlan` {..., version:1} | Success response; `testplan_tcversions` gains 1 link row | PASS (link_rows=1) |
+| 4 | R3 ancestry branch untouched | project-2 case O659-1 vs project-1 plan | Fault 7007 `Test Case (O659-1:other_proj_tc) does not belong to Test Project ...` unchanged | PASS |
+| 5 | Event Viewer clean across all runs | watermark events before/after R1-R3 | Zero new log_level=2 rows (only benign audit id=3) | PASS |
+| 6 | Syntax gate | `php -l xmlrpc.class.php` | No syntax errors detected | PASS |
+
+**Result: Suite 659 — 6/6 PASS**
