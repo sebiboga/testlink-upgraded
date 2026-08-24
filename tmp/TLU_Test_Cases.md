@@ -4343,3 +4343,21 @@ Environment: fresh DB import (0 rows in `testprojects`, `events` wiped for a cle
 | 6 | Syntax gate | php -l lib/functions/common.php | No syntax errors | PASS |
 
 Suite result: **6/6 PASS**
+## Suite 677 — Results by Tester per Build screen (resultsByTesterPerBuild.html + api/reports metrics_by_tester_per_build) — Refs #677
+Environment: repo root @ sebiboga (fe3c9f458), app http://localhost:8082, fresh DB. Fixtures: `php tmp/fixtures_rbtb.php` (project RBTP id 1, plan 21 w/ open build 1 + closed build 2, TCs RBTC1-6, users testerA/testerB/noinv, 8 assignments, 6 executions with durations); `php tmp/fixtures_rbtb_noopen.php` (plan 22 w/ only closed build 3).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF happy path data parity | GET api/reports ?action=metrics_by_tester_per_build&tplan_id=21 (admin session) | status ok; Build Open One progress 83.33%, total_time 01:43:36; testerA row: 4 assigned / 2 passed(50%) / 2 failed(50%) / progress 100.0% / 00:58:30; testerB row: 2 assigned / 1 not_run / 1 blocked(50%) / 50.0% / 00:45:06 | PASS (matches legacy math incl. bcmul HHMMSS) |
+| 2 | Screen render | Open resultsByTesterPerBuild.html?tproject_id=1&tplan_id=21 as admin | header/toolbar/plan+project names; one section per build = legacy ext-table group; columns User/Assigned/status qty+% pairs/Progress/Total time; rows sorted by progress desc (testerA first) | PASS |
+| 3 | Show closed builds toggle | Check the toggle | reload triggers; second section "Build Closed Two - Progress 50% - 00:30:00" with testerA row (1 not run / 1 passed / 50.0%) appears | PASS |
+| 4 | Toggle persistence (session contract) | Reload page after toggling on (sessionStorage mirrors legacy $_SESSION['reports_show_closed_builds']) | checkbox restored checked; both builds still shown | PASS |
+| 5 | no_open_builds warning | Open screen for plan 22 (only a closed build), toggle off | warnbox "There are no open builds", no table — legacy short-circuit message | PASS |
+| 6 | no_testers_per_build warning | Plan 22 with toggle ON (closed build has no assignments) | empty box "There are no tester assignments to OPEN builds in this testplan." | PASS |
+| 7 | User assignment popup | Click testerA link in Build Closed Two section | popup opens lib/testcases/tcAssignedToUser.php?user_id=2&build_id=2&tplan_id=21 listing RBTC1 Passed + RBTC2 Not Run under Build Closed Two (legacy behavior preserved) | PASS |
+| 8 | Locale switcher | Switch locale to Română on the screen | header "Rezultate pe tester per build", checkbox "Afișează build-urile închise", table headers localized (rbtb.* from all bundles load) | PASS |
+| 9 | Permission path (no rights) | Login as noinv (role <no rights>), open screen URL for plan 21 | BFF returns HTTP 403; screen shows warnbox + toast "Insufficient rights"; no data rendered | PASS |
+| 10 | ASIDE link switch | Admin → Reports ASIDE section → "Results by Tester per Build" entry | entry points to gui/templates/results/resultsByTesterPerBuild.html?tproject_id=1&tplan_id=21 and loads in mainframe inside app shell | PASS |
+| 11 | Event Viewer after test window | SELECT ... FROM events WHERE id > last pre-test id | Only AUDIT login/logout entries; zero new Error/Warning from the modern screen/BFF (ids 15-16 E_WARNING predate testing; caused by agent CLI probe misusing tlUser constructor, not by app code) | PASS |
+
+Suite result: **11/11 PASS**
