@@ -4128,3 +4128,17 @@ in legacy `inc_results_show_table.tpl` build tables — issue **#670**, fixed in
 post-fix matrix re-run clean (T3/T8 repeated, zero new warnings).
 
 **Result: PASS**
+
+### Suite 618 addendum — code review fixes re-verification (commit 81a2957cc)
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 618.R1 | platform-less plan (6103, builds present) | suites/priority/keyword tables render under implicit key 0; no platform notice | 3 sections rendered, SuiteAlpha row correct | PASS |
+| 618.R2 | platform-less plan without builds | hasData=false → empty state (legacy #634 parity) | empty box shown | PASS |
+| 618.R3 | mail/XLS form actions | resolve to /lib/results/resultsGeneral.php (not /gui/templates/results/lib/...) | absolute URLs correct in DOM | PASS |
+| 618.R4 | Completed [%] final column | appended on every table carrying percentage_completed | header + 75.0% cell for P1 | PASS |
+| 618.R5 | build feedback note per section | exactly ONE note after per-platform block | 1 note in "Results by Build" | PASS |
+| 618.R6 | contextual rights re-check (hasRight w/ tproject+tplan context) | admin still 200; norights still 403 | 200 / 403 confirmed post-change | PASS |
+| 618.R7 | footer info note (rgm.infoGenTestRep ×10 bundles) | legacy info_gen_test_rep line above Generated-on | rendered; bundles valid JSON, +2 keys each | PASS |
+
+**Result: PASS (addendum 7/7)**
