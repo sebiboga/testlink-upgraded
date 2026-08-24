@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Test Case Execution</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 200px; max-width: 320px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled, .btn-dark:disabled { opacity: .45; cursor: not-allowed; }
+.btn-dark { background: #353b48; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2c313a; }
+.btn-red { background: #e6605e; } .btn-red:hover { background: #d54f4d; }
+.bulkbar { background: #fff; margin: 18px 24px -6px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 12px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.bulkbar label.blk { font-size: 12px; color: #555; display: flex; gap: 6px; align-items: center; }
+.bulkbar select.multi { min-width: 230px; height: 62px; font-size: 12.5px; padding: 3px; border-radius: 4px; border: 1px solid #ccc; }
+.mailOpt { font-size: 12.5px; color: #444; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.mainWrap { margin: 18px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.tableWrap { overflow: auto; max-height: calc(100vh - 330px); }
+table.tcs { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.tcs th { background: #fafafa; text-align: left; padding: 9px 12px; border-bottom: 2px solid #eee; font-size: 12px; color: #555; white-space: nowrap; position: sticky; top: 0; z-index: 2; }
+table.tcs th.c, table.tcs td.c { text-align: center; }
+table.tcs td { padding: 7px 12px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.tcs tr:hover td { background: #f7fdfd; }
+tr.suiteRow td { background: #22242a; color: #fff; font-weight: 700; font-size: 12.5px; letter-spacing: .4px; padding: 8px 12px; border-bottom: none; }
+.tcname { font-weight: 600; }
+.tcver { color: #888; font-size: 11.5px; white-space: nowrap; }
+.tclinks { margin-right: 8px; white-space: nowrap; }
+.tclinks a { color: #4ECDC4; margin-right: 7px; font-size: 13px; text-decoration: none; }
+.tclinks a:hover { color: #3dbdb5; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: #eef7f7; border: 1px solid #bfe5e3; color: #1d6a66; border-radius: 12px; padding: 2px 9px; font-size: 11.5px; margin: 1px 4px 1px 0; }
+.chip button { border: none; background: none; color: #e6605e; cursor: pointer; font-size: 12px; padding: 0; line-height: 1; }
+.chip.nonTester { background: #fdf0ef; border-color: #f2c4c2; color: #a33f3d; }
+select.testerSel { width: 95%; min-width: 170px; height: 56px; font-size: 12.5px; border: 1px solid #ccc; border-radius: 4px; padding: 2px; }
+.prio-tag { font-weight: 700; border-radius: 10px; padding: 2px 10px; font-size: 11.5px; color: #fff; display: inline-block; }
+.prio-tag.p-h { background: #e6605e; } .prio-tag.p-m { background: #f0ad4e; } .prio-tag.p-l { background: #6c9bd1; }
+.hintline { font-size: 12px; color: #888; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 24px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; position: fixed; bottom: 0; left: 0; right: 0; }
+.toast { position: fixed; right: 20px; bottom: 60px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-title { font-size: 15px; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tea.header">Assign Test Case Execution</span>
+  <span class="sub" id="hdrCtx"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tea.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><label for="tplanSel" data-i18n="tea.testPlan">Test Plan</label>:</span>
+  <select id="tplanSel"></select>
+  <span class="ctx"><label for="buildSel" data-i18n="tea.build">Build</label>:</span>
+  <select id="buildSel"></select>
+  <span class="ctx" id="platFilterWrap" style="display:none;">
+    <label for="platFilterSel" data-i18n="tea.platform">Platform</label>:
+    <select id="platFilterSel"></select>
+  </span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnReload" title="reload"><i class="fa fa-rotate-right"></i></button>
+</div>
+
+<div class="empty" id="noTplan" style="display:none" data-i18n="tea.noTestplan">Please select a test plan with linked test cases</div>
+
+<div id="workArea" style="display:none;">
+  <div class="bulkbar">
+    <span class="blk"><i class="fas fa-users" style="color:#4ECDC4;"></i>&nbsp;<span data-i18n="tea.bulkAction">Bulk user action</span></span>
+    <select id="bulkTesters" class="multi" multiple size="2"></select>
+    <button class="btn-teal" id="btnBulkApply" data-i18n="tea.btnApply">Apply to selected rows</button>
+    <button class="btn-dark" id="btnSave" data-i18n="tea.btnSave">Save Assignments</button>
+    <button class="btn-dark btn-red" id="btnBulkRemove" data-i18n="tea.btnBulkRemove">Remove Assignments</button>
+    <button class="btn-dark btn-red" id="btnRemoveAll" data-i18n="tea.btnRemoveAll">Remove ALL assignments of checked cases</button>
+    <button class="btn-dark" id="btnSendLink" data-i18n="tea.btnSendLink">Send link by mail</button>
+    <label class="mailOpt"><input type="checkbox" id="sendMail">
+      <span data-i18n="tea.sendMailToTester">send mail to tester(s)</span></label>
+    <span class="hintline" id="checkCount"></span>
+  </div>
+
+  <div class="mainWrap">
+    <div class="tableWrap">
+      <table class="tcs">
+        <thead>
+          <tr>
+            <th class="c" style="width:34px;"><input type="checkbox" id="cbAll" title=""></th>
+            <th data-i18n="tea.colTestCase">Test Case (version)</th>
+            <th id="thPlatform" data-i18n="tea.colPlatform" style="display:none;">Platform</th>
+            <th class="c" id="thPriority" data-i18n="tea.colPriority" style="display:none;">Priority</th>
+            <th data-i18n="tea.colAssigned">Assigned to</th>
+            <th data-i18n="tea.colAssign">Assign to</th>
+          </tr>
+        </thead>
+        <tbody id="tcRows"></tbody>
+      </table>
+      <div class="empty" id="noItems" style="display:none;box-shadow:none;margin:0;" data-i18n="tea.noItems">No test cases linked to this test plan</div>
+      <div class="empty" id="noBuilds" style="display:none;box-shadow:none;margin:0;" data-i18n="tea.noBuilds">This test plan has no active open build — assignments need one.</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="removeAllModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ramTitle"></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span>&times;</span></button>
+      </div>
+      <div class="modal-body" id="ramBody" style="font-size:13px;"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-danger" id="btnRemoveAllConfirm" data-i18n="tea.confirmRemoveAll">Remove all assignments</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/execassignment/index.php';
+var tplanId = 0;
+var tprojectId = 0;
+var buildId = 0;
+var ctx = null;
+var items = [];
+var busy = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#ramTitle').text(TLi18n.t('tea.confirmRemoveAllTitle'));
+    $('#cbAll').attr('title', TLi18n.t('tea.checkUncheckAll'));
+    loadPlans();
+  });
+
+  $('#tplanSel').on('change', function () {
+    tplanId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    initCtx();
+  });
+  $('#buildSel').on('change', function () {
+    buildId = parseInt($(this).val() || '0', 10);
+    loadItems();
+  });
+  $('#platFilterSel').on('change', function () {
+    loadItems();
+  });
+  $('#btnReload').on('click', function () { loadItems(); });
+
+  // check/uncheck all visible checkboxes
+  $('#cbAll').on('change', function () {
+    var on = $(this).prop('checked');
+    $('input.rowcb').each(function () {
+      if (!$(this).prop('disabled')) { $(this).prop('checked', on); }
+    });
+    updateCheckCount();
+  });
+  $(document).on('change', 'input.rowcb', updateCheckCount);
+
+  // legacy parity: touching the tester combo auto-checks the row checkbox
+  $(document).on('change', 'select.testerSel', function () {
+    var cb = $(this).closest('tr').find('input.rowcb');
+    if ($(this).val() && $(this).val().length) { cb.prop('checked', true); }
+    updateCheckCount();
+  });
+
+  $('#btnBulkApply').on('click', doBulkApply);
+  $('#btnSave').on('click', doSave);
+  $('#btnBulkRemove').on('click', doBulkUserRemove);
+  $('#btnRemoveAll').on('click', askRemoveAll);
+  $('#btnRemoveAllConfirm').on('click', doRemoveAll);
+  $('#btnSendLink').on('click', doSendLink);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tproject_id', String(tprojectId || ''));
+  url.searchParams.set('tplan_id', String(tplanId || ''));
+  window.history.replaceState({}, '', url);
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('common.error');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  toast(msg, true);
+}
+
+function checkedCount() { return $('input.rowcb:checked').length; }
+
+function updateCheckCount() {
+  var n = checkedCount();
+  $('#checkCount').text(n > 0 ? n + ' ' + TLi18n.t('tea.checkedCases') : '');
+}
+
+/* --------------------------------------------------------------- */
+
+function loadPlans() {
+  if (tprojectId <= 0) {
+    $.getJSON('/api/projects/index.php').done(function (r) {
+      var its = (r && (r.data || r.items)) || [];
+      if (its.length) { tprojectId = parseInt(its[0].id, 10); }
+      loadPlans();
+    }).fail(function () { apiFail.apply(null, arguments); });
+    return;
+  }
+  $.get('/api/plans/index.php?tproject_id=' + tprojectId)
+    .done(function (r) {
+      var plans = [];
+      if (Array.isArray(r)) { plans = r; }
+      else if (r && Array.isArray(r.items)) { plans = r.items; }
+      else if (r && Array.isArray(r.data)) { plans = r.data; }
+      var $sel = $('#tplanSel').empty();
+      plans.forEach(function (tp) {
+        $sel.append('<option value="' + tp.id + '">' + esc(tp.name) + '</option>');
+      });
+      if (!$sel.val()) {
+        $sel.append('<option value="0">-</option>');
+      }
+      if (tplanId <= 0) { tplanId = parseInt($sel.val() || '0', 10); }
+      else { $sel.val(String(tplanId)); }
+      syncUrl();
+      initCtx();
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function initCtx() {
+  if (tplanId <= 0) {
+    $('#noTplan').show(); $('#workArea').hide(); return;
+  }
+  $.get(API + '/init?tproject_id=' + tprojectId + '&tplan_id=' + tplanId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      ctx = r;
+      $('#noTplan').hide();
+      $('#workArea').show();
+      $('#tprojectName').text(r.tproject.name);
+      $('#hdrCtx').text(r.tplan.name);
+
+      var $bs = $('#buildSel').empty();
+      ((r.builds || []).length ? r.builds : [{id:0,name:'-'}]).forEach(function (b) {
+        $bs.append('<option value="' + b.id + '">' + esc(b.name) + '</option>');
+      });
+      buildId = parseInt($bs.val() || '0', 10);
+      if (!(r.builds || []).length) { $bs.val('0'); buildId = 0; }
+
+      var $ts = $('#bulkTesters').empty();
+      (r.testers || []).forEach(function (t) {
+        $ts.append('<option value="' + t.id + '">' + esc(t.label) + '</option>');
+      });
+
+      var showPlat = !!r.usePlatforms && (r.platforms || []).length > 0;
+      $('#platFilterWrap').toggle(showPlat);
+      $('#thPlatform').toggle(showPlat);
+      var $pf = $('#platFilterSel').empty();
+      $pf.append('<option value="0">' + esc(TLi18n.t('tea.allPlatforms')) + '</option>');
+      (r.platforms || []).forEach(function (pl) {
+        $pf.append('<option value="' + pl.id + '">' + esc(pl.name) + '</option>');
+      });
+
+      var showPrio = !!r.priorityEnabled;
+      $('#thPriority').toggle(showPrio);
+
+      document.title = TLi18n.t('tea.header');
+      loadItems();
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function loadItems() {
+  if (tplanId <= 0 || !ctx) { return; }
+  var plat = parseInt($('#platFilterSel').val() || '0', 10);
+  $.get(API + '/items?tproject_id=' + tprojectId + '&tplan_id=' + tplanId +
+        '&build_id=' + buildId + '&platform_id=' + plat)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+      items = r.items || [];
+      renderRows(items);
+    })
+    .fail(function (xhr) { apiFail(xhr); });
+}
+
+function prioTag(it) {
+  var cls = it.priority_level === 'high' ? 'p-h'
+          : it.priority_level === 'medium' ? 'p-m' : 'p-l';
+  var lbl = it.priority_level === 'high' ? TLi18n.t('tea.prioHigh')
+          : it.priority_level === 'medium' ? TLi18n.t('tea.prioMedium')
+          : TLi18n.t('tea.prioLow');
+  return '<span class="prio-tag ' + cls + '">' + esc(lbl) +
+         ' (' + it.priority_value + ')</span>';
+}
+
+function renderRows(list) {
+  var $tb = $('#tcRows').empty();
+  $('#cbAll').prop('checked', false);
+  updateCheckCount();
+
+  var hasBuilds = (ctx.builds || []).length > 0;
+  $('#noBuilds').toggle(!hasBuilds && list.length > 0);
+  $('#noItems').toggle(list.length === 0);
+  $('.bulkbar').toggle(hasBuilds && list.length > 0);
+  $('#footerInfo').text(list.length + ' ' + TLi18n.t('tea.footerRows'));
+
+  if (!list.length || !hasBuilds) { return; }
+
+  var showPlat = !!ctx.usePlatforms && (ctx.platforms || []).length > 0;
+  var showPrio = !!ctx.priorityEnabled;
+  var lastSuite = null;
+  var platNames = {};
+  (ctx.platforms || []).forEach(function (p) { platNames[p.id] = p.name; });
+
+  list.forEach(function (it) {
+    if (it.tsuite_name !== lastSuite) {
+      lastSuite = it.tsuite_name;
+      $tb.append('<tr class="suiteRow"><td colspan="6">' +
+        esc(lastSuite || '-') + '</td></tr>');
+    }
+
+    var fullId = esc(ctx.testCasePrefix + it.external_id);
+    var chips = '';
+    if (!it.assigned.length) {
+      chips = '<span style="color:#bbb;">—</span>';
+    } else {
+      it.assigned.forEach(function (a) {
+        chips += '<span class="chip">' + esc(a.label) +
+          '<button type="button" class="rmOne" data-feature="' + it.feature_id +
+          '" data-user="' + a.user_id + '" title="' +
+          esc(TLi18n.t('tea.removeAssignment')) + '">&times;</button></span>';
+      });
+    }
+
+    var selOpts = '';
+    (ctx.testers || []).forEach(function (t) {
+      selOpts += '<option value="' + t.id + '">' + esc(t.label) + '</option>';
+    });
+
+    $tb.append('<tr>' +
+      '<td class="c"><input type="checkbox" class="rowcb" data-tc="' + it.tcase_id +
+        '" data-plat="' + it.platform_id + '"' +
+        (!hasBuilds ? ' disabled' : '') + '></td>' +
+      '<td><span class="tclinks">' +
+        '<a href="/gui/templates/testcases/tcView.html?tcase_id=' + it.tcase_id +
+          '&tproject_id=' + tprojectId + '" target="_blank" title="' +
+          esc(TLi18n.t('tea.design')) + '"><i class="fas fa-pen-to-square"></i></a>' +
+        '<a href="/gui/templates/execute/execHistory.html?tcase_id=' + it.tcase_id +
+          '&tproject_id=' + tprojectId + '" target="_blank" title="' +
+          esc(TLi18n.t('tea.executionHistory')) + '"><i class="fas fa-clock-rotate-left"></i></a>' +
+        '</span><span class="tcname">' + fullId + '</span>: ' + esc(it.tcase_name) +
+        ' <span class="tcver">(v' + it.version + ')</span></td>' +
+      (showPlat ? '<td>' + esc(platNames[it.platform_id] || ('#' + it.platform_id)) + '</td>' : '') +
+      (showPrio ? '<td class="c">' + prioTag(it) + '</td>' : '') +
+      '<td>' + chips + '</td>' +
+      '<td><select class="testerSel" multiple size="2" data-feature="' + it.feature_id +
+        '" data-tc="' + it.tcase_id + '" data-plat="' + it.platform_id +
+        '" data-tcv="' + it.tcversion_id + '">' + selOpts + '</select></td>' +
+      '</tr>');
+  });
+}
+
+function collectChecked() {
+  var out = [];
+  $('input.rowcb:checked').each(function () {
+    var tc = $(this).attr('data-tc');
+    var plat = $(this).attr('data-plat');
+    var $sel = $('select.testerSel[data-tc="' + tc + '"][data-plat="' + plat + '"]');
+    out.push({
+      feature_id: parseInt($sel.attr('data-feature'), 10),
+      tcase_id: parseInt(tc, 10),
+      tcversion_id: parseInt($sel.attr('data-tcv'), 10),
+      platform_id: parseInt(plat, 10),
+      user_ids: ($sel.val() || []).map(Number)
+    });
+  });
+  return out;
+}
+
+function post(action, payload, okMsg) {
+  if (busy) { return; }
+  busy = true;
+  $.ajax({
+    url: API + '/' + action,
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      var m = okMsg;
+      if (r.mail && r.mail.skipped) {
+        m += ' (' + TLi18n.t('tea.mailSkipped') + ')';
+      }
+      toast(m);
+    } else {
+      toast(TLi18n.t('common.error'), true);
+    }
+    loadItems();
+  }).fail(function (xhr) { apiFail(xhr); })
+  .always(function () { busy = false; });
+}
+
+function commonPayload(extra) {
+  return $.extend({
+    tproject_id: tprojectId,
+    tplan_id: tplanId,
+    build_id: buildId,
+    send_mail: $('#sendMail').prop('checked')
+  }, extra || {});
+}
+
+function warnNone() {
+  toast(TLi18n.t('tea.warnNoSelection'), true);
+}
+
+function doBulkApply() {
+  if (!checkedCount()) { warnNone(); return; }
+  var uids = ($('#bulkTesters').val() || []).map(Number);
+  if (!uids.length) { toast(TLi18n.t('tea.warnNoUser'), true); return; }
+  collectChecked().forEach(function (it) {
+    var $sel = $('select.testerSel[data-tc="' + it.tcase_id + '"][data-plat="' +
+                 it.platform_id + '"]');
+    $sel.val(uids.map(String));
+  });
+  toast(TLi18n.t('tea.feedbackApplied'));
+}
+
+function doSave() {
+  if (!checkedCount()) { warnNone(); return; }
+  var assignments = collectChecked().filter(function (it) {
+    return it.user_ids.length > 0;
+  });
+  if (!assignments.length) {
+    toast(TLi18n.t('tea.warnNoUser'), true);
+    return;
+  }
+  post('assign', commonPayload({assignments: assignments}),
+       TLi18n.t('tea.feedbackSaved'));
+}
+
+function doBulkUserRemove() {
+  if (!checkedCount()) { warnNone(); return; }
+  var uids = ($('#bulkTesters').val() || []).map(Number);
+  if (!uids.length) { toast(TLi18n.t('tea.warnNoUser'), true); return; }
+  var fids = [];
+  collectChecked().forEach(function (it) { fids.push(it.feature_id); });
+  post('bulkuserremove', commonPayload({
+    feature_ids: fids, user_ids: uids
+  }), TLi18n.t('tea.feedbackRemoved'));
+}
+
+function askRemoveAll() {
+  if (!checkedCount()) { warnNone(); return; }
+  $('#ramBody').text(checkedCount() + ' ' +
+    TLi18n.t('tea.confirmRemoveAllBody'));
+  $('#removeAllModal').modal('show');
+}
+
+function doRemoveAll() {
+  var fids = [];
+  collectChecked().forEach(function (it) { fids.push(it.feature_id); });
+  $('#removeAllModal').modal('hide');
+  post('removeall', commonPayload({feature_ids: fids}),
+       TLi18n.t('tea.feedbackRemovedAll'));
+}
+
+function doSendLink() {
+  var uids = ($('#bulkTesters').val() || []).map(Number);
+  if (!uids.length) { toast(TLi18n.t('tea.warnNoUser'), true); return; }
+  post('sendlink', commonPayload({user_ids: uids}),
+       TLi18n.t('tea.feedbackLinkSent'));
+}
+
+// per-assigned-user remove icon (legacy doAction='doRemove')
+$(document).on('click', 'button.rmOne', function () {
+  var feature = parseInt($(this).attr('data-feature'), 10);
+  var uid = parseInt($(this).attr('data-user'), 10);
+  post('remove', commonPayload({feature_id: feature, user_id: uid}),
+       TLi18n.t('tea.feedbackRemoved'));
+});
+</script>
+</body>
+</html>
