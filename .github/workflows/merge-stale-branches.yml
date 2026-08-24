@@ -87,7 +87,7 @@ jobs:
           # Auto-select: oldest non-default branch with unmerged commits
           # Use gh api to list all branches and check ahead status
           OLDEST=""
-          OLDEST_AGE=999999
+          OLDEST_AGE=9999999999999
 
           # Fetch the list of branches (paginate if needed)
           BRANCHES=$(gh api "repos/$REPO/branches?per_page=100" --jq '.[].name' 2>/dev/null)
