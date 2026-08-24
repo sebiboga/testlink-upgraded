@@ -4191,3 +4191,45 @@ Re-appended after a concurrent CI merge dropped the original entry (commit 7ddbb
 | 11 | Event Viewer clean | Truncate events; exercise BFF x3 plans + screen render + XLS export | events WHERE log_level IN (1,2) → 0 new Error/Warning entries | PASS (4 E_WARNINGs found & fixed pre-verification: leftover `$dummy` arg from removed localize_dateOrTimeStamp calls) |
 
 Suite result: **11/11 PASS**
+
+---
+
+## Regression — Issue #666: api createTestCase unguarded $steps[$jdx]['expected_results'] read at testcase.class.php:803 — E_WARNING when step omits/misnames the key
+
+**Date**: 2026-08-24 · **Branch**: `fix/issue-666`
+
+**Area**: XML-RPC API → `testcase::create()` step loop (`lib/functions/testcase.class.php:800-810`).
+Root cause: `$item->steps[$jdx]['expected_results']` passed to `create_step()` with no
+isset guard while sibling `execution_type` (:804-806) IS guarded. PHP 8 logs each
+missing-key read as E_WARNING into `events` (log_level=2, source GUI). Step data is not
+lost — impact is warning noise per step. Fix = mirror the execution_type guard style,
+defaulting to `''`.
+
+**Precondition**: fresh DB. Fixture: `UPDATE users SET script_key='admin' WHERE id=1`;
+project `Issue666Proj` (id 1), suite `Suite666` (id 2) created via `tl.createTestProject`
+/ `tl.createTestSuite` (devKey admin). Baseline warn-event count = 1 (pre-fix repro row).
+
+**Repro steps (pre-fix)**:
+1. `POST http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php` → `tl.createTestCase`
+   (testsuiteid 2, authorlogin admin) with steps struct using misnamed key
+   `expectedresults`.
+2. API returns Success! BUT events gains:
+   `E_WARNING Undefined array key "expected_results" - .../testcase.class.php - Line 803`.
+3. Control call with correct `expected_results` → no new warning (count stays 1).
+
+**Expected post-fix**: all four matrix cases return Success!, ZERO new warn events for
+misnamed/omitted keys; correct-key value persisted verbatim; mixed multi-step creates all
+steps.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 666.R1 | step with misnamed `expectedresults` key (the bug) | Success!, delta 0 warns, expected stored as '' | Success!, total warn rows stay 1, '' stored | PASS |
+| 666.R2 | step without any expected key | Success!, delta 0 warns | Success!, delta 0, '' stored | PASS |
+| 666.R3 | correct `expected_results` key | Success!, value persisted verbatim | `CORRECT POST-FIX VALUE` in tcsteps | PASS |
+| 666.R4 | multi-step mix (correct + omitted) | both steps created, delta 0 warns | steps 1(E1)+2('') created, delta 0 | PASS |
+| 666.EV | Event Viewer across full matrix | no new Error/Warning types | only audit info + pre-fix row #2 remain | PASS |
+
+**Result: PASS**
+
