@@ -400,8 +400,8 @@ function quickResult($btn) {
     })
   }).done(function (r) {
     if (r && r.status === 'ok') {
-      toast(TLi18n.t(res === 'passed' ? 'quick_passed'
-                   : res === 'failed' ? 'quick_failed' : 'quick_blocked'));
+      toast(TLi18n.t(res === 'passed' ? 'tca.stPassed'
+                   : res === 'failed' ? 'tca.stFailed' : 'tca.stBlocked'));
       loadRows();
     } else { apiFail(r); }
   }).fail(function (xhr) { apiFail(xhr); });
