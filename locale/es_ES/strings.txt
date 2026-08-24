@@ -3821,7 +3821,6 @@ $TLS_executed_me_and_also = 'se ejecuta junto con';
 $TLS_remove_plat_msgbox_title = 'Eliminar Plataforma';
 $TLS_remove_plat_msgbox_msg = '¿Desea eliminar todas las ejecuciones vinculadas a esta plataforma?';
 $TLS_img_title_remove_platform = 'Eliminar Plataforma';
-?>
-
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = 'El autorregistro de nuevos usuarios está deshabilitado. Por favor contacte al administrador del sitio.';
+?>
