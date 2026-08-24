@@ -4234,49 +4234,42 @@ steps.
 **Result: PASS**
 
 
----
+## Regression — Issue #483: aside menu empty when no test project exists (verification pass + real-grants hardening)
 
-## Regression — Issue #672: api createTestCase unguarded $steps[$jdx]['step_number']/['actions'] reads (testcase.class.php:801-802) — E_WARNING + SQL 1064 crash + orphan rows
+**Precondition**: fresh DB, `testprojects` empty (`SELECT COUNT(*) FROM testprojects` = 0).
+Users: `admin/admin` (role admin), fixture user `guest483/admin` (role guest,
+`cookie_string` MUST be populated when inserting via SQL — `index.php:29-39` compares the
+browser auth cookie against the DB value and otherwise bounces to login.php; locale `en_GB`
+to avoid unrelated i18n fallback warnings).
 
-**Date**: 2026-08-24 · **Branch**: `fix/issue-672` · **Fix commit**: `2c6c444df`
+**Repro steps (pre-fix, per issue #483 report of 2026-08-18)**:
+1. Delete all test projects → login → aside sidebar renders completely empty.
+2. Main frame redirects to create-project form but its `<h1>` title is empty.
 
-**Area**: XML-RPC API `tl.createTestCase` (`lib/api/xmlrpc/v1/xmlrpc.class.php`, validation
-added after top-level param checks ~:2520). Root cause: XMLRPC layer forwards client steps
-raw into `testcase::create()` whose loop reads `steps[jdx]['step_number']`/`['actions']`
-unguarded (sibling keys were guarded by #666). Measured impact pre-fix was WORSE than the
-report's "warning noise": NULL step_number/actions produced a malformed INSERT
-(SQL 1064 in create_step), TestLink died mid-response with the "DB Access Error" HTML page
-(XML-RPC response destroyed, IXR client gets "parse error. not well formed"), and the
-already-inserted TC + tcversion rows were left orphaned with zero steps.
+**Expected post-fix behavior**:
+1. Admin at zero projects: aside shows System/Projects/Plugins/Documentation with full
+   sub-items; mainframe redirects to `projectEdit.php?doAction=create`; `<h1>` reads
+   "Create a new project".
+2. Non-admin (guest) at zero projects: only REAL global-role items render — no hardcoded
+   admin sub-items (User Management, Role Management, Event Viewer, Issue/Code Tracker Mgmt).
+3. Creating the first project restores the normal full menu for both roles.
+4. Zero new Error/Warning events across all cases.
 
-**Precondition**: fresh DB; `UPDATE users SET script_key='672devkey672devkey672devkey672'
-WHERE id=1`; project Proj672FIX (id 18, prefix P67X) + suite TSFIX (id 19) created via the
-API; `TRUNCATE events`.
-
-**Repro steps (pre-fix)**: `tl.createTestCase` with
-`steps:[{expected_results:'er only'}]` → events gains E_WARNING ×2 (lines 801/802) +
-exec_query ERROR row; HTTP response = HTML backtrace `create_step(16, NULL, NULL, ...)`;
-client error "parse error. not well formed"; `nodes_hierarchy` keeps an orphan TC.
-
-**Expected post-fix**: omitted contract keys → clean `IXR_Error(200)` naming
-`steps[<i>]-><key>`, ZERO new warn/error events, NO DB rows left behind; valid payloads
-unchanged; #666 default path intact.
-
-**Execution matrix (post-fix, live http://localhost:8082, IXR client)**:
+**Execution matrix (post-fix, live server http://localhost:8082)**:
 
 | # | Case | Expected | Actual | Verdict |
 |---|------|----------|--------|---------|
-| 672.R1 | step omits BOTH keys | 2× clean error naming steps[0]->step_number & ->actions; no events lvl≤2; no nodes rows | exactly that; nodes_hierarchy has no such TC | PASS |
-| 672.R2 | step omits only `actions` | single clean error naming actions; no DB rows | as expected | PASS |
-| 672.R3 | well-formed single step | Success!; tcsteps row persisted | id 20; step(1,'do x','see y') in tcsteps | PASS |
-| 672.R4 | multi-step w/o expected_results (#666 path) | Success!, both steps created, '' default for missing expected | id 23; steps (1,'a1',''),(2,'a2','e2') | PASS |
-| 672.R5 | steps element not a struct ('garbage' string) | clean errors naming both keys, no fatal | as expected | PASS |
-| 672.RG666.R1 | misnamed `expectedresults` key (old #666 case, now WITH required keys) | Success! with '' stored (no behavior change from this fix) | Success! id 28; '' stored; delta warns 0 | PASS |
-| 672.RG666.R3 | correct expected_results verbatim | value stored verbatim | 'VERBATIM666' in tcsteps | PASS |
-| 672.RV1 | step_number='abc' (review finding: raw SQL interpolation) | clean error "numeric value required"; no crash, no events | as expected | PASS |
-| 672.RV2 | step_number='2' as numeric string (no false rejection) | Success!, step created | id 36 Success! | PASS |
-| 672.RV3 | steps sent as scalar string 'junk' (review finding: bypassed validation) | clean error "array of structs required" | as expected | PASS |
-| 672.EV | Event Viewer across whole matrix | 0 new Error/Warning rows | COUNT(*) WHERE log_level IN (1,2) → 0 (only #629's known empty-steps warning in the dedicated observation case, excluded from this count) | PASS |
+| 483.R1 | admin login, zero projects | 4 sections + sub-items + redirect + h1 title | System(9)/Projects(5)/Plugins(2)/Documentation(7), redirect OK, "Create a new project" h1 | PASS |
+| 483.R2 | admin creates first project via form | project created, navBar updated, full menu after reload | "Regression 483" id=1, projectView "(1 Test Projects)" | PASS |
+| 483.R3 | guest483 login, zero projects | no admin sub-items, only real-rights entries | System anchor empty / Projects: Keyword Management only / Documentation; NO User/Role Mgmt, Event Viewer, Plugins | PASS |
+| 483.R4 | guest483 with one project existing | normal per-rights menu, no redirect loop | Search/Projects/Test Case Design/Documentation per guest rights | PASS |
+| 483.R5 | Event Viewer across R1-R4 | zero new Error/Warning | en_US-fixture warnings disappeared after locale→en_GB; final delta 0 events | PASS |
 
-**Result: PASS (11/11)**
+**Fix under test**: commit `88360663a` — `lib/functions/common.php` initUserEnv()
+zeroTestProjects branch computes grants via
+`getGrantSetWithExit(..., array('forceCreateProj' => false))` instead of the previous
+hardcoded admin set (+6/−18). The original Aug-18 symptom (empty aside + missing h1) had
+already been repaired by earlier work present on the default branch; this run VERIFIED it
+end-to-end and removed the residual grant over-exposure introduced by that fix.
 
+**Result: PASS**
