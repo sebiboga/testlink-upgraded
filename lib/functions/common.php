@@ -1718,24 +1718,12 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     $gui->showMenu['projects'] = true;
     $gui->showMenu['system'] = true;
     $gui->countPlans = 0;
-    // Provide admin-level grants so aside.tpl sub-items render for the
-    // zero-project case (the user is typically a site admin at this point).
-    if( is_null($gui->grants) ) {
-      $gui->grants = new stdClass();
-      $gui->grants->event_viewer = "yes";
-      $gui->grants->user_mgmt = "yes";
-      $gui->grants->cfield_management = "yes";
-      $gui->grants->project_edit = "yes";
-      $gui->grants->tproject_user_role_assignment = "yes";
-      $gui->grants->keywords_view = "yes";
-      $gui->grants->issuetracker_management = "yes";
-      $gui->grants->codetracker_management = "yes";
-      $gui->grants->issuetracker_view = "yes";
-      $gui->grants->codetracker_view = "yes";
-      $gui->grants->plugin_management = "yes";
-      $gui->grants->project_inventory_view = 0;
-      $gui->grants->project_inventory_management = 0;
-    }
+    // Real grants from the user's global role - NOT hardcoded admin rights.
+    // forceCreateProj=false: the create-project redirect is the mainframe's
+    // job (doInitUX path); the aside must render, never redirect.
+    // Refs #483
+    $gui->grants = getGrantSetWithExit($dbH,$args,$tprjMgr,
+                                       array('forceCreateProj' => false));
     $gui->access = getAccess($gui);
   }
   
