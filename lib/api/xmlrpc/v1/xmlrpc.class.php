@@ -1810,7 +1810,12 @@ class TestlinkXMLRPCServer extends IXR_Server {
         $status = $this->args[self::$statusParamName];
         $testplan_id = $this->args[self::$testPlanIDParamName];
         $tcversion_id = $this->tcVersionID;
-        $version_number = $this->versionNumber;
+        // unresolved version must never reach SQL composition: exec_query() die()s on bad SQL
+        $version_number = ( ! is_null( $this->versionNumber ) && is_numeric( $this->versionNumber ) ) ?
+            intval( $this->versionNumber ) : 0;
+        if( $version_number <= 0 ) {
+            return 0;
+        }
 
         $tester_id = is_null( $user_id ) ? $this->userID : $user_id;
         $execTimeStamp = is_null( $exec_ts ) ? $this->dbObj->db_now() : $exec_ts;
