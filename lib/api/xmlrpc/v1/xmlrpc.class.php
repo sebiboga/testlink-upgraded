@@ -3495,7 +3495,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 $status_ok = false;
                 $tproject_info = $this->tprojectMgr->get_by_id( $tproject_id );
                 $msg = sprintf( TPLAN_TPROJECT_KO_STR, $tplan_info['name'], $tplan_id, $tproject_info['name'], $tproject_id );
-                $this->errors[] = new IXR_Error( TPLAN_TPROJECT_KO, $msg_prefix . $msg );
+                $this->errors[] = new IXR_Error( TPLAN_TPROJECT_KO, $messagePrefix . $msg );
             }
         }
 
@@ -3505,7 +3505,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $status_ok = $ret['status_ok'];
 
             if(! $ret['status_ok']) {
-                $this->errors[] = new IXR_Error( $ret['error_code'], $msg_prefix . $ret['error_msg'] );
+                $this->errors[] = new IXR_Error( $ret['error_code'], $messagePrefix . $ret['error_msg'] );
             }
         }
 
@@ -3520,7 +3520,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 $status_ok = false;
                 $tcase_info = $this->tcaseMgr->get_by_id( $tcase_id );
                 $msg = sprintf( TCASE_VERSION_NUMBER_KO_STR, $version_number, $tcase_external_id, $tcase_info[0]['name'] );
-                $this->errors[] = new IXR_Error( TCASE_VERSION_NUMBER_KO, $msg_prefix . $msg );
+                $this->errors[] = new IXR_Error( TCASE_VERSION_NUMBER_KO, $messagePrefix . $msg );
             }
         }
 
@@ -3570,7 +3570,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                     }
                 } else {
                     $msg = sprintf( MISSING_PLATFORMID_BUT_NEEDED_STR, $tplan_info['name'], $tplan_id );
-                    $this->errors[] = new IXR_Error( MISSING_PLATFORMID_BUT_NEEDED, $msg_prefix . $msg );
+                    $this->errors[] = new IXR_Error( MISSING_PLATFORMID_BUT_NEEDED, $messagePrefix . $msg );
                     $status_ok = false;
                 }
             }
@@ -3624,7 +3624,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                         if($linkExists) {
                             $platform_name = $rs[$target_tcversion[$version_number]['id']][$platform_id]['name'];
                             $msg = sprintf( LINKED_FEATURE_ALREADY_EXISTS_STR, $tplan_info['name'], $tplan_id, $platform_name, $platform_id );
-                            $this->errors[] = new IXR_Error( LINKED_FEATURE_ALREADY_EXISTS, $msg_prefix . $msg );
+                            $this->errors[] = new IXR_Error( LINKED_FEATURE_ALREADY_EXISTS, $messagePrefix . $msg );
                             $status_ok = false;
                         }
                     } else {
@@ -3647,7 +3647,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                     if(! $doLink) {
                         $doLink = false;
                         $msg = sprintf( OTHER_VERSION_IS_ALREADY_LINKED_STR, $other_version, $version_number, $tplan_info['name'], $tplan_id );
-                        $this->errors[] = new IXR_Error( OTHER_VERSION_IS_ALREADY_LINKED, $msg_prefix . $msg );
+                        $this->errors[] = new IXR_Error( OTHER_VERSION_IS_ALREADY_LINKED, $messagePrefix . $msg );
                         $status_ok = false;
                     }
                 }
@@ -5172,7 +5172,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $tplanInfo = $this->tplanMgr->get_by_id( $tplanID );
             $items = $this->tplanMgr->getPlatforms( $tplanID );
             if(!($status_ok = ! is_null( $items ))) {
-                $msg = sprintf( $messagePrefix . TESTPLAN_HAS_NO_PLATFORMS_STR, $tplanInfo['name'] );
+                $msg = sprintf( $msg_prefix . TESTPLAN_HAS_NO_PLATFORMS_STR, $tplanInfo['name'] );
                 $this->errors[] = new IXR_Error( TESTPLAN_HAS_NO_PLATFORMS, $msg );
             }
         }
@@ -5584,7 +5584,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
 
         // Mandatory Parameters
         $prm = self::$versionNumberParamName;
-        $statusOK = $this->_isParamPresent( $prm, $msgPrefix, self::SET_ERROR );
+        $statusOK = $this->_isParamPresent( $prm, $msg_prefix, self::SET_ERROR );
 
         if($statusOK) {
           $checkFunctions = array('authenticate',
@@ -7209,6 +7209,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
     /**
      */
     function updateTestCaseGetTCVID($tcaseID) {
+        $msg_prefix = "(" . __FUNCTION__ . ") - ";
         $status_ok = true;
         $tcversion_id = - 1;
 
@@ -7257,7 +7258,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
         if($ret['status_ok']) {
             $ret['info'] = current( $this->tprojectMgr->get_by_name( $name ) );
         } else {
-            $msg = $msg_prefix . sprintf( TESTPROJECTNAME_DOESNOT_EXIST_STR, $name );
+            $msg = $msgPrefix . sprintf( TESTPROJECTNAME_DOESNOT_EXIST_STR, $name );
             $this->errors[] = new IXR_Error( TESTPROJECTNAME_DOESNOT_EXIST, $msg );
         }
         return $ret;
@@ -7401,7 +7402,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if(! $this->_isParamPresent( self::$platformIDParamName, $msg_prefix ) && ! $this->_isParamPresent( self::$platformNameParamName, $msg_prefix )) {
                 $status_ok = false;
                 $pname = self::$platformNameParamName . ' OR ' . self::$platformIDParamName;
-                $msg = $messagePrefix . sprintf( MISSING_REQUIRED_PARAMETER_STR, $pname );
+                $msg = $msg_prefix . sprintf( MISSING_REQUIRED_PARAMETER_STR, $pname );
                 $this->errors[] = new IXR_Error( MISSING_REQUIRED_PARAMETER, $msg );
             } else {
                 // get platform_id and check it
@@ -7668,7 +7669,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
             if(! $this->_isParamPresent( self::$platformIDParamName, $msg_prefix ) && ! $this->_isParamPresent( self::$platformNameParamName, $msg_prefix )) {
                 $status_ok = false;
                 $pname = self::$platformNameParamName . ' OR ' . self::$platformIDParamName;
-                $msg = $messagePrefix . sprintf( MISSING_REQUIRED_PARAMETER_STR, $pname );
+                $msg = $msg_prefix . sprintf( MISSING_REQUIRED_PARAMETER_STR, $pname );
                 $this->errors[] = new IXR_Error( MISSING_REQUIRED_PARAMETER, $msg );
             } else {
                 // get platform_id and check it
@@ -8765,7 +8766,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 'checkTestSuiteID'
         );
 
-        $status_ok = $this->_runChecks( $checkFunctions, $msg_prefix );
+        $status_ok = $this->_runChecks( $checkFunctions, $msgPrefix );
         if($status_ok) {
             // Test Case & Test Suite belongs to same Test Project?
             $tcaseTProj = $this->args[self::$testProjectIDParamName] = intval( $this->tcaseMgr->getTestProjectFromTestCase( $this->args[self::$testCaseIDParamName], null ) );
