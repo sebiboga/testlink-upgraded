@@ -4135,60 +4135,39 @@ agent's first-draft fixture scripts during reproduction setup, before the fix.
 
 **Result: PASS**
 
----
+## Regression — Issue #482: installer pre-flight check misses mbstring/openssl/pdo_mysql and never blocks on a missing REQUIRED extension
 
-## Suite 668 — Regression — Issue #668: spurious E_USER_NOTICE 'missing column:exec_id' from fetchRowsIntoMap on never-executed getLastExecutionResult
+**Precondition**: repo at fix/issue-482 (commit 1d47fc827), PHP 8.3.33 CLI server on http://localhost:8082,
+all required extensions loaded (healthy host). Harness for missing-extension simulation:
+`tmp/repro_482.php` — extracts the REAL `checkPhpExtensions()` from `lib/functions/configCheck.php`,
+swaps only the `extension_loaded()` probe for a simulator, then asserts coverage + blocking behavior.
 
-**Area**: XML-RPC API (`getLastExecutionResult`) + `database::fetchRowsIntoMap()` NULL-aggregate guard.
-**Fix under test**: `HAVING exec_id IS NOT NULL` appended LAST (after optional build/platform filters) to the `SELECT MAX(id) AS exec_id` query in `getLastExecutionResult` (lib/api/xmlrpc/v1/xmlrpc.class.php:1630-1646), commits `e20b0bb7e` → `bda84f3bc`.
+**Repro steps (pre-fix)**:
+1. `curl -s "http://localhost:8082/install/installCheck.php?type=new"` → extension table lists ONLY
+   Postgres/MySQL/MSSQL/GD/LDAP/JSON/cURL — no row ever mentions mbstring, openssl or pdo_mysql.
+2. `grep -E "mbstring|openssl|pdo_mysql" README.md` → no match; System Requirements documents zero extensions.
+3. Static check of `checkPhpExtensions()` (`lib/functions/configCheck.php`): `$errCounter` never incremented
+   for ANY missing extension → installer always shows Continue even when a hard requirement is absent.
+4. On a host without mbstring the installer would pass, then the first runtime page fatals with
+   `Call to undefined function mb_substr()` (215+ hard mb_*() call sites outside third_party).
 
-**Precondition**: fresh DB; admin devKey set in `users.script_key`; fixtures created live via XML-RPC:
-project 3 `Issue668ProjB` (prefix I668B), plan 4 `Issue668PlanB`, build `B1-668` (id 1),
-top-level suite 100 (inserted into nodes_hierarchy+testsuites; API cannot parent a suite
-under a project — observed, separate concern), case 101 (linked, external I668B-1) and
-fresh case 104 (external I668B-2, never executed). Events watermark = 5.
+**Expected post-fix**: all 7 issue-required extensions probed on the pre-flight page; REQUIRED tier
+(mysqli/mysqlnd, mbstring, openssl) renders red `FAILED - REQUIRED EXTENSION MISSING!`, increments
+`$errCounter` so installCheck.php blocks with "cannot continue"; recommended/optional tier keeps warning
+severity with apt package hints; healthy host shows all OK + Continue; README gains PHP Extensions section;
+zero new Error/Warning events.
 
-**Repro steps (pre-fix)**: `tl.getLastExecutionResult {devKey, testplanid:4, testcaseid:101}`
-with zero rows in `executions` for the case → response `[{"id":-1}]` BUT event logged:
-`E_USER_NOTICE database/fetchRowsIntoMap - missing column:exec_id - SQL: SELECT MAX(id)...`
-(database.class.php:679). Root cause: MariaDB returns one row with NULL for MAX() on empty
-set; PHP `isset($row['exec_id'])` is false for NULL values.
-
-**Expected post-fix**: identical `[{"id":-1}]` response with ZERO new events on all paths;
-executed paths return real/latest execution unchanged; build/platform-filtered paths still valid SQL.
-
-**Execution matrix (post-fix, live http://localhost:8082)**:
+**Execution matrix (post-fix, live server http://localhost:8082)**:
 
 | # | Case | Expected | Actual | Verdict |
 |---|------|----------|--------|---------|
-| 668.R1 | fresh never-executed case 104 → getLastExecutionResult | id=-1, 0 new events | `[{"id":-1}]`, events 5→5 | PASS |
-| 668.R2 | getAllExecutionsResults never-executed | id=-1, no notice | `[{"id":-1}]` | PASS |
-| 668.R3 | reportTCResult pass then re-query | real exec row returned | id=3, status p, full field set | PASS |
-| 668.R4 | second execution (fail) → MAX semantics preserved | latest returned | id=4, status f, notes 'second run' | PASS |
-| 668.R5 | build-filtered query (buildname=B1-668) | valid SQL, hit on build 1 | id=4, build_id=1 (caught 1054 'Unknown column build_id in HAVING' on intermediate commit e20b0bb7e — HAVING was appended before optional filters; fixed in bda84f3bc by appending HAVING last) | PASS |
-| 668.R6 | Event Viewer delta across entire matrix + UI check | watermark 5 unchanged, no ERROR/WARNING | events count 5 after matrix; UI shows only AUDIT entries post-fix | PASS |
-
-**Notes**: intermediate commit `e20b0bb7e` produced two ERROR events (1054 in HAVING) during
-R5 — documented honestly in issue #668 checkpoint 2/2; final commit `bda84f3bc` clean.
-Event Viewer screenshot: `tmp/wiki-repo/images/issue-668-eventviewer-after-fix.png`.
+| 482.R1 | healthy host: GET /install/installCheck.php?type=new | HTTP 200; rows for mysqli+mbstring+openssl marked [REQUIRED] all OK; pdo_mysql/gd/ldap/curl/pgsql/mssql/json rows present; Continue offered | HTTP 200; 10 extension rows, 3 [REQUIRED] OK, "Your system is prepared..." + Continue | PASS |
+| 482.R2 | harness healthy host | errCounter=0, no tab-error markup, all required rows labeled | errCounter=0, no tab-error | PASS |
+| 482.R3 | harness host WITHOUT mbstring | REQUIRED failure markup + apt hint + errCounter≥1 (blocks) | markup rendered, `sudo apt install php-mbstring` shown, errCounter=1 | PASS |
+| 482.R4 | harness host WITHOUT openssl | same as R3 | markup rendered, errCounter=1 | PASS |
+| 482.R5 | harness host WITHOUT curl (recommended) | warning only, errCounter stays 0 | tab-warning rendered, errCounter=0 | PASS |
+| 482.R6 | harness host WITHOUT mysqlnd (PHP≥8.2 DB driver) | errCounter≥1 via version-dependent probe | errCounter=1 | PASS |
+| 482.R7 | Event Viewer delta across full matrix | 0 new Error/Warning events | `events` table empty before and after (0 rows, log_level IN (1,2,4,8) last 30 min = 0) | PASS |
+| 482.R8 | README documentation | PHP Extensions section with required/recommended table + apt one-liner | present under System Requirements | PASS |
 
 **Result: PASS**
-
-## Suite 671 — Results by Test Suite screen (resultsByTSuite.html + api/reports metrics_by_tsuite) — Refs #671
-Environment: fresh DB, fixtures seeded via `tmp/seed_rbs.php` — project "RBS Demo" (tproject_id=1), plans: RBS Plan (id=2, platforms Linux+Windows, build B1, 8 TCs across L1/L2/L3 suites, mixed executions), RBS Empty (id=100, no links), RBS NoPlat (id=200, platform_id=0 links + executions).
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | BFF happy path w/ platforms | GET `/api/reports/?action=metrics_by_tsuite&tplan_id=2&tproject_id=1` | 200; hasData=true; show_platforms=true; columns = Not Run/Passed/Failed/Blocked labels; suites grouped per platform with L1:L2 rows sorted by name; span per platform | PASS |
-| 2 | Screen render (platforms) | Open `resultsByTSuite.html?tproject_id=1&tplan_id=2` as admin | Header + plan/project names; Important-notice banner visible; 2 sections ("Results on Platform: Linux/Windows"); tables: L1-L2 / Total / 4 statuses qty+[%] / Completed [%]; depth-3 chain G Leaf aggregates into G Mid row | PASS |
-| 3 | Exec span dates | Observe First/Latest execution lines under each table | Human-readable locale date (e.g. "8/24/2026, 1:51:15 PM"), NOT strftime placeholders like "%24/%51/%2026" | PASS (after fix 498b0267e) |
-| 4 | Screen render (no platforms) | Open screen for tplan_id=200 | No notice banner; NO per-platform subtitles; single table under implicit key 0; span key 0 rendered | PASS |
-| 5 | Empty state | Open screen for tplan_id=100 (plan without linked TCs) | Empty box with rbs.noTsuites message; no tables; footer hidden | PASS |
-| 6 | Export XLS | Click "Export data as spreadsheet" | HTTP 200 download `TestLink_GTMP_RBS Demo_RBS Plan.xls` (application/vnd.ms-excel attachment); legacy generator reused | PASS |
-| 7 | Send report by e-mail | POST sendByEmail to legacy resultsByTSuite.php | HTTP 200, feedback page, no DB Access Error/fatal | PASS |
-| 8 | Permission path (403) | Log in rbsnoperm (role "<no rights>", id=2), open screen tplan_id=2 | BFF returns HTTP 403; warnbox shows "Insufficient rights"; no sections rendered | PASS |
-| 9 | Aside menu switch | Admin → ASIDE → Reports → click report entry (link_report_by_tsuite) | Link href = gui/templates/results/resultsByTSuite.html?tproject_id=1&tplan_id=2; screen opens inside mainframe with 2 sections | PASS |
-| 10 | i18n completeness | `grep rbs.` over all 10 bundles + python json.tool validation | 17 rbs.* keys present in en/de/es/fr/it/ja/pt/ro/ru/zh; all bundles valid JSON | PASS |
-| 11 | Event Viewer clean | Truncate events; exercise BFF x3 plans + screen render + XLS export | events WHERE log_level IN (1,2) → 0 new Error/Warning entries | PASS (4 E_WARNINGs found & fixed pre-verification: leftover `$dummy` arg from removed localize_dateOrTimeStamp calls) |
-
-Suite result: **11/11 PASS**
