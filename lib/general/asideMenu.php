@@ -88,6 +88,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_by_tsuite') {
         $hrefR = 'gui/templates/results/resultsByTSuite.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #673 - Baselines L1 & L2 (baselinel1l2) modernized;
+      // the BFF (api/reports metrics_baseline_l1l2 action) reads the very
+      // same baseline_l1l2_context/details rows as the legacy controller
+      // and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'baseline_l1l2') {
+        $hrefR = 'gui/templates/results/baselineL1L2.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
