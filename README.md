@@ -18,6 +18,31 @@
 - MySQL 5.7+ / MariaDB 11.4+
 - Web server: Apache 2.x or PHP built-in server (development)
 
+### PHP Extensions
+
+TestLink requires the following PHP extensions. The installer pre-flight check
+(`install/index.php` → *New installation*) verifies them and **blocks the setup**
+when a required one is missing.
+
+| Extension | Status | Why it is needed |
+|-----------|----------|------------------|
+| `mysqli` / `mysqlnd` | **required** | Database connectivity (MySQL/MariaDB) |
+| `mbstring` | **required** | Multibyte string handling used throughout the code base |
+| `openssl` | **required** | TLS protected connections (e.g. SMTP mailing via PHPMailer) |
+| `gd` | recommended | Graph rendering (charts); feature is disabled without it |
+| `curl` | recommended | REST integration with issue trackers |
+| `ldap` | recommended | LDAP authentication (internal auth works as fallback) |
+| `pdo_mysql` | optional | Not used by the core itself; expected by common PHP tooling |
+
+Install on Ubuntu/Debian:
+
+```bash
+sudo apt install php-mysql php-mbstring php-openssl php-gd php-ldap php-curl php-xml php-zip
+```
+
+The full environment report (loaded extensions, PHP settings, permissions) is also
+available anytime at [`install/util/sysinfo.php`](install/util/sysinfo.php).
+
 ## Quick Start (Development)
 
 ```bash

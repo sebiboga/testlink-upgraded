@@ -557,109 +557,151 @@ function check_php_settings(&$errCounter)
 }
 
 
-/** 
+/**
  * Check availability of PHP extensions
- * 
+ *
+ * Extensions are grouped in two tiers:
+ *  - REQUIRED: TestLink cannot run without them (MySQL/MariaDB driver, mbstring,
+ *    openssl). A missing one increments &$errCounter so the installer blocks.
+ *  - RECOMMENDED/OPTIONAL: feature-level dependencies (gd, curl, ldap, pdo_mysql,
+ *    alternate DB drivers) reported as warnings only, like they always were.
+ *
  * @param integer &$errCounter pointer to error counter
  * @return string html table rows
  * @author Martin Havlat
- * @todo martin: Do we require "Checking DOM XML support"? It seems that we use internal library.
- *      if (function_exists('domxml_open_file'))
  */
 function checkPhpExtensions(&$errCounter) {
- 
-  $cannot_use='cannot be used';
+
   $td_ok = "<td><span class='tab-success'>OK</span></td></tr>\n";
   $td_failed = '<td><span class="tab-warning">Failed! %s %s.</span></td></tr>';
-  
+  $td_required_failed = '<td><span class="tab-error">FAILED - REQUIRED EXTENSION MISSING! %s %s.</span></td></tr>';
+
   $msg_support='<tr><td>Checking %s </td>';
   $checks=array();
 
-  // Database extensions  
-  $checks[]=array('extension' => 'pgsql',
-                  'msg' => array('feedback' => 'Postgres Database', 'ok' => $td_ok, 'ko' => 'cannot be used') );
+  // ------------------------------------------------------------------
+  // REQUIRED extensions
+  // ------------------------------------------------------------------
 
   $mysqlExt = 'mysql';
   if( version_compare(phpversion(), "7.4.2", ">=") ) {
     $mysqlExt = 'mysqli';
-  } 
+  }
   if( version_compare(phpversion(), "8.2.0", ">=") ) {
     $mysqlExt = 'mysqlnd';
-  } 
-  $checks[]=array('extension' => $mysqlExt,
-                  'msg' => array('feedback' => 'MySQL Database', 'ok' => $td_ok, 'ko' => 'cannot be used') );
- 
-  // ----------------------------------------------------------------------------    
+  }
+  $checks[]=array('extension' => $mysqlExt,'required' => true,
+                  'msg' => array('feedback' => 'MySQL Database (mysqli)',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. Without the MySQL/MariaDB driver it is IMPOSSIBLE to use TestLink." .
+                            " Install e.g. on Debian/Ubuntu with: sudo apt install php-mysql") );
+
+  $checks[]=array('extension' => 'mbstring','required' => true,
+                  'msg' => array('feedback' => 'Multibyte Strings (mbstring)',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. TestLink calls mb_*() functions (mb_substr, mb_strlen, " .
+                            "mb_convert_encoding, ...) throughout its code and will crash with fatal errors." .
+                            " Install e.g. on Debian/Ubuntu with: sudo apt install php-mbstring") );
+
+  $checks[]=array('extension' => 'openssl','required' => true,
+                  'msg' => array('feedback' => 'OpenSSL',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. Required for TLS protected connections (e.g. SMTP mailing via PHPMailer)." .
+                            " Install e.g. on Debian/Ubuntu with: sudo apt install php-openssl") );
+
+  // ------------------------------------------------------------------
+  // RECOMMENDED extensions (feature level, non blocking)
+  // ------------------------------------------------------------------
+
+  $checks[]=array('extension' => 'gd','required' => false,
+                  'msg' => array('feedback' => 'GD Graphic library',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled.<br>Graph rendering requires it. This feature will be disabled." .
+                            " It's recommended to install it (sudo apt install php-gd).") );
+
+  $checks[]=array('extension' => 'ldap','required' => false,
+                  'msg' => array('feedback' => 'LDAP library',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. LDAP authentication cannot be used. " .
+                            "(default internal authentication will work) (sudo apt install php-ldap)"));
+
+  $checks[]=array('extension' => 'curl','required' => false,
+                  'msg' => array('feedback' => 'cURL library',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. You MUST install it to use REST Integration with issue trackers." .
+                            " (sudo apt install php-curl)"));
+
+  $checks[]=array('extension' => 'pdo_mysql','required' => false,
+                  'msg' => array('feedback' => 'PDO MySQL driver',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. Not used by the TestLink core itself, but expected by many" .
+                            " PHP environments/tools; comes together with mysqli (sudo apt install php-mysql)."));
+
+  // ------------------------------------------------------------------
+  // OPTIONAL database drivers / libraries
+  // ------------------------------------------------------------------
+
+  $checks[]=array('extension' => 'pgsql','required' => false,
+                  'msg' => array('feedback' => 'Postgres Database (optional)',
+                    'ok' => $td_ok,
+                    'ko' => 'cannot be used (only needed if you choose PostgreSQL as DBMS)') );
+
+  // ----------------------------------------------------------------------------
   // special check for MSSQL
   $isPHPGTE7 = version_compare(phpversion(), "7.0.0", ">=");
 
   $extid = 'mssql';
   if(PHP_OS == 'WINNT' || $isPHPGTE7 ) {
-    // Faced this problem when testing XAMPP 1.7.7 on Windows 7 with MSSQL 2008 Express
-    // From PHP MANUAL - reganding mssql_* functions
-    // These functions allow you to access MS SQL Server database.
-    // This extension is not available anymore on Windows with PHP 5.3 or later.
-    // SQLSRV, an alternative driver for MS SQL is available from Microsoft:
-    // http://msdn.microsoft.com/en-us/sqlserver/ff657782.aspx.       
-    //
-    // Second Time: (2018) 
-    // When using PHP 7 or up
-    // Help from Bitnami
-    // PHP 7 does not support mssql anymore. 
-    // The PECL extension recommended is to use the "sqlsrv" module 
-    // but you will need to compile it on your own.
-    //
-    //    
-    // PHP_VERSION_ID is available as of PHP 5.2.7
+    // mssql_* functions do not exist on PHP 7 or later;
+    // the PECL sqlsrv module is the replacement there.
     if ( defined('PHP_VERSION_ID') && PHP_VERSION_ID >= 50300 ) {
       $extid = 'sqlsrv';
-    } 
+    }
 
     if ( $isPHPGTE7 ) {
       $extid = 'sqlsrv';
-    } 
+    }
 
-  }  
-  $checks[] = array('extension' => $extid,
-                    'msg' => array('feedback' => 'MSSQL Database', 'ok' => $td_ok, 'ko' => 'cannot be used') );    
-  // ---------------------------------------------------------------------------------------------------------
+  }
+  $checks[] = array('extension' => $extid,'required' => false,
+                    'msg' => array('feedback' => 'MSSQL Database (optional)',
+                      'ok' => $td_ok,
+                      'ko' => 'cannot be used (only needed if you choose MSSQL as DBMS)') );
+  // -------------------------------------------------------------------------------------------
 
-  
-  $checks[]=array('extension' => 'gd',
-                  'msg' => array('feedback' => 'GD Graphic library', 'ok' => $td_ok, 
-                                 'ko' => " not enabled.<br>Graph rendering requires it. This feature will be disabled." .
-                                         " It's recommended to install it.") );
-  
-  $checks[]=array('extension' => 'ldap',
-                  'msg' => array('feedback' => 'LDAP library', 'ok' => $td_ok, 
-                                 'ko' => " not enabled. LDAP authentication cannot be used. " .
-                                         "(default internal authentication will works)"));
-  
-  $checks[]=array('extension' => 'json',
-                  'msg' => array('feedback' => 'JSON library', 'ok' => $td_ok, 
-                                 'ko' => " not enabled. You MUST install it to use EXT-JS tree component. "));
-  
-  $checks[]=array('extension' => 'curl',
-                  'msg' => array('feedback' => 'cURL library', 'ok' => $td_ok, 
-                                 'ko' => " not enabled. You MUST install it to use REST Integration with issue trackers. "));
+  $checks[]=array('extension' => 'json','required' => false,
+                  'msg' => array('feedback' => 'JSON library',
+                    'ok' => $td_ok,
+                    'ko' => " not enabled. Bundled and always enabled since PHP 8.0." .
+                            " You MUST install it on older PHP versions."));
 
   $out='';
   foreach($checks as $test)
   {
-    $out .= sprintf($msg_support,$test['msg']['feedback']);
+    $label = isset($test['required']) && $test['required'] ? '[REQUIRED] ' : '';
+    $out .= sprintf($msg_support,$label . $test['msg']['feedback']);
     if( extension_loaded($test['extension']) )
     {
       $msg=$test['msg']['ok'];
     }
     else
     {
-      $msg=sprintf($td_failed,$test['msg']['feedback'],$test['msg']['ko']);  
+      if( isset($test['required']) && $test['required'] )
+      {
+        // missing REQUIRED extension must block the installation
+        $errCounter++;
+        $msg=sprintf($td_required_failed,$test['msg']['feedback'],$test['msg']['ko']);
+      }
+      else
+      {
+        $msg=sprintf($td_failed,$test['msg']['feedback'],$test['msg']['ko']);
+      }
     }
     $out .= $msg;
   }
 
   return $out;
-}  
+}
 
 
 
