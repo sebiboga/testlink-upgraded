@@ -851,7 +851,9 @@ if ($action === 'metrics_by_tester_per_build') {
         $option = $showClosed ? null : testplan::GET_OPEN_BUILD;
         $buildSet = $metricsMgr->get_builds($tplanId,
             testplan::GET_ACTIVE_BUILD, $option);
-        $names = tlUser::getNames($db);
+        // tlUser::getNames() is an INSTANCE method (legacy calls it on its
+        // own tlUser object) - reuse the authenticated $user instance.
+        $names = $user->getNames($db);
 
         foreach ($matrix as $buildId => $buildExecMap) {
             // Per-build rollup: exact copy of the legacy loop
