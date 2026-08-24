@@ -519,7 +519,36 @@ function check_php_settings(&$errCounter)
   $max_execution_time_recommended = 120;
   $max_execution_time = intval(ini_get('max_execution_time'));
   $memory_limit_recommended = 64;
-  $memory_limit = intval(str_ireplace('M','',ini_get('memory_limit')));
+  $memory_limit_raw = strtolower(trim(ini_get('memory_limit')));
+  $memory_limit_unlimited = false;
+  if($memory_limit_raw === '-1')
+  {
+    $memory_limit_unlimited = true;
+    $memory_limit = -1;
+  }
+  else
+  {
+    $memory_value = (float)$memory_limit_raw;
+    switch(substr($memory_limit_raw,-1))
+    {
+      case 'g':
+        $memory_limit = $memory_value * 1024;
+      break;
+
+      case 'm':
+        $memory_limit = $memory_value;
+      break;
+
+      case 'k':
+        $memory_limit = $memory_value / 1024;
+      break;
+
+      default:
+        $memory_limit = $memory_value / (1024 * 1024);
+      break;
+    }
+  }
+  $memory_limit_display = rtrim(rtrim(number_format($memory_limit,2,'.',''),'0'),'.');
 
   $final_msg = '<tr><td>Checking max. execution time (Parameter max_execution_time)</td>';
   // 0 means "no time limit" => always acceptable
@@ -537,16 +566,16 @@ function check_php_settings(&$errCounter)
   }
   $final_msg .=  "<tr><td>Checking maximal allowed memory (Parameter memory_limit)</td>";
   // -1 means "unlimited memory" => always acceptable
-  if($memory_limit != -1 && $memory_limit < $memory_limit_recommended)
+  if(!$memory_limit_unlimited && $memory_limit < $memory_limit_recommended)
   {
-    $final_msg .= "<td><span class='tab-warning'>$memory_limit MegaBytes - " .
+    $final_msg .= "<td><span class='tab-warning'>{$memory_limit_display} MegaBytes - " .
                   "We suggest {$memory_limit_recommended} MB" .
                   " in order to manage hundred of test cases</span></td></tr>";
   }
   else
   {
-    $ok_mem_msg = ($memory_limit == -1) ? 'OK (unlimited)' :
-                  'OK ('.$memory_limit.' MegaBytes)';
+    $ok_mem_msg = $memory_limit_unlimited ? 'OK (unlimited)' :
+                  'OK ('.$memory_limit_display.' MegaBytes)';
     $final_msg .= '<td><span class="tab-success">' . $ok_mem_msg . '</span></td></tr>';
   }
   $final_msg .= "<tr><td>Checking if Register Globals is disabled</td>";
