@@ -2127,10 +2127,14 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     }
   }
 
+  // Refs #488: use the function parameter $dbHandler - the old code passed
+  // UNDEFINED locals ($dbH/$db), which only worked because hasRight() takes
+  // the handler by reference (silent null autovivification) and never
+  // dereferences it when $getAccess=false.
   $grants['tproject_user_role_assignment'] = "no";
-  if( $argsObj->user->hasRight($dbH,"testproject_user_role_assignment",
+  if( $argsObj->user->hasRight($dbHandler,"testproject_user_role_assignment",
     $argsObj->tproject_id,-1) == "yes" ||
-      $argsObj->user->hasRight($db,"user_role_assignment",null,-1) == "yes" ) {
+      $argsObj->user->hasRight($dbHandler,"user_role_assignment",null,-1) == "yes" ) {
       $grants['tproject_user_role_assignment'] = "yes";
   }
   return (object)$grants;  
