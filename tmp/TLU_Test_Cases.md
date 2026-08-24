@@ -3919,3 +3919,55 @@ later entries; empty map → `[]`; error paths unchanged.
 initialize `$ret = array();` (parity with `updateBuildCustomFieldsValues()`).
 
 **Result: PASS**
+
+---
+
+## Suite #461 — xmlrpc `tl.getTestSuite()`: rights context from undefined `$dummy`, loop off-by-one, swallowed INSUFFICIENT_RIGHTS
+
+**Fix under test**: commit 15d9f2ec6 (branch fix/issue-461) —
+`lib/api/xmlrpc/v1/xmlrpc.class.php` `getTestSuite()`:
+(1) rights-check context built from `$tproj['id']` instead of never-assigned
+`$dummy['id']` (:8474); (2) name-match loop bound `$ydx < $l2d` instead of
+`$ydx <= $l2d` (:8493); (3) rights denial returns the
+`IXR_Error(INSUFFICIENT_RIGHTS)` appended by `userHasRight()` via the file's
+existing idiom (cf. `getIssueTrackerSystem()`) instead of returning undefined
+`$ni` (empty response, error swallowed).
+
+**Precondition**: fresh DB; fixtures created via API with admin devKey:
+project `Issue461 Project` (id=1, prefix I461, is_public toggled per case),
+suites `ReproSuite461`(node 2), `OtherSuite461`(node 3); user `i461user`
+(id=2, script_key user461devkey); role rows inserted in
+`user_testproject_roles` as needed. Evidence channel: `events` table delta
+(`log_level IN (2,3)` = Error/Warning) around each call.
+
+**Repro steps (pre-fix)**: POST `tl.getTestSuite {devKey, prefix, testsuitename}`
+to http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php.
+Observed pre-fix: admin call → correct struct BUT 4 E_WARNINGs per call
+(`Undefined variable $dummy` + `array offset on null` @ :8474;
+`Undefined array key N` + `array offset on null` @ :8494);
+user with only project-level mgt_view_tc → **empty string** response
+(`Undefined variable $ni`) despite entitled;
+global-guest-only user on PRIVATE project → **suite data leaked**
+(public/private gate bypassed because context id = 0).
+
+**Expected post-fix**: suite struct for entitled callers with 0 warnings;
+project-level grants honored; private project denies global-only users with
+proper IXR error; unknown-prefix and no-match paths unchanged; zero new
+Error/Warning events.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 461.R1 | admin devKey, name match | suite struct; 0 new warnings | struct w/ `<string>ReproSuite461</string>`; warn=0 | PASS |
+| 461.R2 | i461user: global `<no rights>`(3) + project role `test designer`(4) on proj 1 | ALLOWED via project grant; struct; 0 warnings | struct returned; warn=0 (pre-fix: empty string) | PASS |
+| 461.R3 | i461user: global `guest`(5), NO project role, project is_public=0 | DENIED, IXR_Error 2010 INSUFFICIENT_RIGHTS, no data | code 2010 "…right mgt_view_tc, test project id: 1…"; no data; warn=0 (pre-fix: LEAK) | PASS |
+| 461.R4 | unknown prefix `NOPE` | IXR_Error 7013 TPROJECT_PREFIX_DOESNOT_EXIST | code 7013; warn=0 | PASS |
+| 461.R5 | name matches nothing | empty array, no data, 0 warnings | `<array><data></data></array>` len=161; warn=0 | PASS |
+| 461.EV | Event Viewer delta across R1–R5 | 0 new Error/Warning rows | events table delta = 0 | PASS |
+
+**Related defect found during repro, filed separately**: #665 — `$tsuitid`
+assigned vs `$tsuiteid` read in `userHasRight()` fallback block
+(xmlrpc.class.php:477-481). Not fixed in this run (out of scope).
+
+**Result: PASS**
