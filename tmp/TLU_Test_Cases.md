@@ -4273,3 +4273,25 @@ already been repaired by earlier work present on the default branch; this run VE
 end-to-end and removed the residual grant over-exposure introduced by that fix.
 
 **Result: PASS**
+## Suite 673 — Baselines L1 & L2 screen (baselineL1L2.html + api/reports metrics_baseline_l1l2) — Refs #673
+Environment: fresh DB, fixtures seeded via `tmp/seed_rbs.php` (project "RBS Demo" tproject_id=1, RBS Plan id=2 with platforms Linux+Windows, build B1, L1/L2/L3 suites + mixed executions) plus `BLL Empty Plan` (id=34, no baseline); baselines created through the REAL legacy save path (resultsByTSuite.php?doAction=saveForBaseline) → baseline_l1l2_context ids 1 (Windows), 2 (Linux), second save → 2 snapshots/platform; no-rights user `nobl` / role 3.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Baseline save via legacy flow | GET resultsByTSuite.php?tplan_id=2&tproject_id=1&format=fake&doAction=saveForBaseline as admin | Rows inserted into baseline_l1l2_context (+details) for BOTH platforms (plat 1 + plat 2), begin/end exec ts populated | PASS |
+| 2 | BFF happy path | GET `/api/reports/?action=metrics_baseline_l1l2&tplan_id=2&tproject_id=1` | 200; hasData=true; show_platforms=true; columns = 4 status labels in results-config display order; platform_blocks ordered [Linux,Windows] each with snapshots newest-first (creation_ts DESC); rows carry name top:child, total_tc, per-status qty/%, completed % | PASS |
+| 3 | Screen render w/ platforms | Open `baselineL1L2.html?tproject_id=1&tplan_id=2` | Header "Baselines Level 1 & Level 2 Test Suites"; project/plan names filled; Important-notice banner visible; sections "Results on Platform: Linux/Windows"; each shows 2 snapshot blocks ("Baseline taken on: <ts>" + First/Latest exec line) + table L1-L2/Total/statuses/Completed[%]; Windows row Alpha One = n1/p0/f1/b1 of 3, completed 66.7% (DB parity) | PASS |
+| 4 | Multi-snapshot ordering | Save a second baseline, reload screen | Each platform section renders TWO snapshot tables; newest snapshot listed FIRST (legacy ORDER BY creation_ts DESC preserved) | PASS |
+| 5 | Empty state (no baseline) | Open screen for tplan_id=34 (plan without saved baseline) | Empty box: bll.noBaseline message pointing to the Results-by-Test-Suite save action; notice banner hidden (plan without platforms); no tables | PASS |
+| 6 | Export XLS | POST legacy export_xls_url (format=3&spreadsheet=1) in authenticated session | HTTP 200, content-type application/vnd.ms-excel, body starts with OLE2 magic d0cf11e0 (valid .xls download) — suspected fatal from unguarded `$gui->statistics->platform` reads did NOT materialize (file generates) | PASS |
+| 7 | Send by email | POST legacy send_mail_url (format=6&sendByEmail=1) | HTTP 200 HTML feedback page, no DB Access Error/fatal | PASS |
+| 8 | Permission path (403) | Log in nobl ("<no rights>"), call BFF + open screen for tplan_id=2 | BFF HTTP 403 {"No permission"}; screen warnbox "Insufficient rights" + toast; zero sections rendered | PASS |
+| 9 | Aside menu switch | Admin shell → ASIDE → Reports → "Baselines Level 1 & Level 2 Test Suites" | href = gui/templates/results/baselineL1L2.html?tproject_id=1&tplan_id=2; opens in mainframe with 2 sections / 12 rows | PASS |
+| 10 | Refresh button | Click toolbar Refresh on the loaded screen | Report re-fetches and re-renders identically (2 sections, 12 rows) | PASS |
+| 11 | Locale switcher | Switch locale to Romanian on the loaded screen | Header becomes "Linii de bază Suite de Nivel 1 și Nivel 2 pentru planul de testare RBS Plan" (bll.* resolved from ro.json) | PASS |
+| 12 | i18n completeness | grep bll.* over all 10 bundles + python json.tool validation | 18 bll.* keys present in en/de/es/fr/it/ja/pt/ro/ru/zh; all bundles valid JSON | PASS |
+| 13 | Event Viewer | Review events table after the whole test window | No new Error/Warning from BFF/screen/XLS/mail paths. ONE pre-existing E_WARNING found on the LOGIN path (common.php:2182 undefined $tproject_user_role_assignment for restricted roles) → filed as issue #674 | PASS (1 unrelated bug filed #674) |
+
+Suite result: **13/13 PASS**
+
+---
