@@ -3971,3 +3971,33 @@ assigned vs `$tsuiteid` read in `userHasRight()` fallback block
 (xmlrpc.class.php:477-481). Not fixed in this run (out of scope).
 
 **Result: PASS**
+
+---
+
+## Regression — Issue #665: xmlrpc userHasRight() $tsuitid/$tsuiteid typo (2x E_WARNING per contextless call)
+
+**Precondition**: fresh DB; fixture user `bugrepro665` (script_key `f665aaaa00000000deadbeef0000f665`),
+role switched 3 (`no rights`) → 4 (`test designer`) mid-suite; admin script_key provisioned;
+fixtures created via admin API: project Bug665Proj id=1 (prefix B665), SuiteA id=2, CaseB id=3.
+All calls POSTed to http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php; `events` table count
+checked around every call.
+
+**Repro steps (pre-fix)**: one contextless call —
+`tl.createPlatform` with devKey-only struct → events gained rows
+`E_WARNING Undefined variable $tsuiteid - Line 478` and `- Line 481`
+(xmlrpc.class.php:477 assigned the misspelled `$tsuitid`).
+
+**Expected post-fix**: no warnings on ANY rights-check path; context resolution
+(suite-id / case-id fallbacks) keeps working; INSUFFICIENT_RIGHTS semantics unchanged.
+
+**Execution matrix (post-fix, live server http://localhost:8082)**:
+
+| # | Case | Expected | Actual | Verdict |
+|---|------|----------|--------|---------|
+| 665.R1 | contextless `tl.createPlatform`, role 3 | IXR_Error 2010 INSUFFICIENT_RIGHTS (tprojectid 0, tplanid -1); 0 new events | code 2010 "...test project id: 0, test plan id: -1"; events 2→2 | PASS |
+| 665.R2 | `tl.getTestSuiteAttachments` testsuiteid=2 only, role 3 | denial message embeds RESOLVED tprojectid=1 (suite path); 0 new events | "right mgt_view_tc, test project id: 1"; events 4→4 (pre-fix: ≥1 warning) | PASS |
+| 665.R3 | `tl.getTestCaseAttachments` testcaseid=3 only, role 3 | resolved tprojectid=1 via else-branch; 0 new events | "test project id: 1"; events 4→4 | PASS |
+| 665.R4 | R2/R3 repeated with role 4 (designer) | success responses, no data; 0 warnings | empty attachment structs; events 4→4 | PASS |
+| 665.R5 | testsuiteid + testprojectid both in args | fallback block skipped; success; 0 warnings | success; events 4→4 | PASS |
+
+**Result: PASS**
