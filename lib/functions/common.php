@@ -1898,8 +1898,11 @@ function getActions(&$gui,$baseURL) {
     // milestonesView switched to the modernized HTML screen above (Refs #647);
     // the legacy planMilestonesView.php launcher entry is removed so it cannot
     // overwrite the link.
-    $actions->testcase_assignments =  
-      "$bb/testcases/tcAssignedToUser.php?{$ctx}";
+    // testcase_assignments switched to the modernized HTML screen (Refs #660);
+    // the BFF (api/tcassignments) enforces the legacy menu right
+    // (exec_testcases_assigned_to_me) server-side on every route.
+    $actions->testcase_assignments =
+      "/gui/templates/execute/tcAssignments.html?{$ctx}";
   }
 
   // Refs #609: initialize up-front so aside rendering with no active test
