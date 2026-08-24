@@ -54,11 +54,29 @@ if (is_null($user)) {
 }
 
 // The right lib/results/printDocument.php requires before generating any
-// test report document.
+// test report document. Legacy checkRights() consults per-project roles
+// too (hasRightOnProj()), while a null-context hasRight() call only sees
+// the GLOBAL role - so users holding the right ONLY through a project role
+// must not be rejected here. Fail closed: reject unless the global right
+// exists or the request's own project/plan context grants it; every action
+// additionally re-checks contextually once ids are resolved.
 if (!$user->hasRight($db, 'testplan_metrics')) {
-    http_response_code(403);
-    echo json_encode(['status' => 'error', 'message' => 'No permission']);
-    exit;
+    $ctxProject = intval(getParam('tproject_id', 0));
+    $ctxPlan = intval(getParam('tplan_id', 0));
+    $ctxOk = false;
+    if ($ctxProject > 0 || $ctxPlan > 0) {
+        try {
+            $ctxOk = $user->hasRight($db, 'testplan_metrics',
+                $ctxProject, $ctxPlan);
+        } catch (Exception $e) {
+            $ctxOk = false;
+        }
+    }
+    if (!$ctxOk) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
 }
 
 function out($data) { echo json_encode($data); exit; }
@@ -462,6 +480,14 @@ if ($action === 'metrics_by_tsuite') {
         'tplan_name' => $tplanInfo['name'],
         'show_platforms' => $showPlatforms,
         'platform_set' => $platformSet,
+        // same natsort order as platform_set, but as an ordered [{id,name}]
+        // list - JS re-sorts integer-like object keys numerically, which
+        // would break the legacy natsort(platform names) section order
+        'platform_order' => array_map(
+            function ($id) use ($platformSet) {
+                return ['id' => (string)$id, 'name' => $platformSet[$id]];
+            },
+            array_keys($platformSet)),
         // legacy lib/results/resultsByTSuite.php endpoints kept for the two
         // toolbar buttons - mail/spreadsheet generation stays legacy.
         // Root-relative (sibling convention, see generalMetrics.html):
@@ -532,6 +558,10 @@ if ($action === 'metrics_by_tsuite') {
 
         // Rows: reorder every platform's block following the natural case
         // sort of the test suite NAMES (legacy natcasesort(idNameMap)).
+        // Emitted as ORDERED LISTS, not id-keyed maps: JSON integer-like
+        // keys come back as objects and JS Object.keys() re-sorts them
+        // numerically ascending, which would destroy the name ordering
+        // this report exists for.
         $nameMap = $tsInf->idNameMap;
         natcasesort($nameMap);
         $sortedKeys = array_keys($nameMap);
@@ -542,7 +572,8 @@ if ($action === 'metrics_by_tsuite') {
             foreach ($sortedKeys as $itemID) {
                 if (isset($elem[$itemID])) {
                     $row = $elem[$itemID];
-                    $rows[$itemID] = [
+                    $rows[] = [
+                        'id' => intval($itemID),
                         'name' => $row['name'],
                         'total_tc' => intval($row['total_tc']),
                         'percentage_completed' =>

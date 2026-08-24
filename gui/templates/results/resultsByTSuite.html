@@ -166,17 +166,20 @@ function loadReport() {
 function renderAll(r) {
   var $area = $('#reportArea').empty();
 
-  // ordered [{id,name}] - BFF already natsorted it like initializeGui();
-  // platform-less plans come back as {"0":""} (legacy implicit key 0)
-  var platOrder = [];
-  var set = r.platform_set || {};
-  Object.keys(set).forEach(function (k) { platOrder.push({ id: k, name: set[k] }); });
+  // ordered [{id,name}] - BFF emits platform_order as a real array because
+  // JS re-sorts integer-like object keys numerically (would break the
+  // legacy natsort section order); falls back to the platform_set map
+  var platOrder = r.platform_order;
+  if (!platOrder || !platOrder.length) {
+    platOrder = [];
+    var set = r.platform_set || {};
+    Object.keys(set).forEach(function (k) { platOrder.push({ id: k, name: set[k] }); });
+  }
 
   platOrder.forEach(function (pl) {
     if (!r.suites.hasOwnProperty(pl.id)) { return; }
     var title = pl.name === ''
-      ? '' : '<div class="sub-title">' + esc(TLi18n.t('rbs.onPlatform')) +
-             ' ' + esc(pl.name) + '</div>';
+      ? '' : TLi18n.t('rbs.onPlatform') + ' ' + pl.name;
     $area.append(section(title, execSpanHtml(r, pl.id) +
       statTable(r.suites[pl.id], r.columns)));
   });
@@ -242,11 +245,12 @@ function statTable(rows, columns) {
   return h;
 }
 
-// wrap body html into a panel section; the title carries the optional
-// per-platform subtitle inside the body (legacy prints it above the span)
-function section(titleHtml, bodyHtml) {
-  var head = titleHtml === '' ? '' :
-    '<div class="section-head"><i class="fa fa-sitemap"></i><span>' + titleHtml + '</span></div>';
+// wrap body html into a panel section; title is escaped here ONCE and
+// rendered in the section head (plain string, like generalMetrics.html)
+function section(titleText, bodyHtml) {
+  var head = titleText === '' ? '' :
+    '<div class="section-head"><i class="fa fa-sitemap"></i><span>' +
+    esc(titleText) + '</span></div>';
   return $('<div class="section">' + head +
     '<div class="section-body">' + bodyHtml + '</div></div>');
 }
