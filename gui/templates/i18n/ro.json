@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Încărcarea metricilor a eșuat.",
   "bll.header": "Linii de bază Suite de Nivel 1 și Nivel 2",
   "bll.noBaseline": "Nu a fost salvată încă nicio linie de bază pentru acest plan de testare. Folosiți acțiunea „Salvează linia de bază” din raportul pe suite de nivel 1 și 2 pentru a crea una.",
-  "bll.baselineSavedAt": "Linie de bază salvată la:"
+  "bll.baselineSavedAt": "Linie de bază salvată la:",
+  "rbtb.header": "Rezultate pe tester per build",
+  "rbtb.forPlan": "pentru planul de test",
+  "rbtb.testProject": "Proiect de test",
+  "rbtb.showClosedBuilds": "Afișează build-urile închise",
+  "rbtb.noOpenBuilds": "Nu există build-uri deschise",
+  "rbtb.noTestersPerBuild": "Nu există atribuiri de testeri către build-uri DESCHISE în acest plan de test.",
+  "rbtb.progressAbsolute": "Progres",
+  "rbtb.totalTime": "Timp total (hh:mm:ss)",
+  "rbtb.thUser": "Utilizator",
+  "rbtb.thTcAssigned": "Atribuite",
+  "rbtb.thProgress": "Progres [%]",
+  "rbtb.elapsedSeconds": "Secunde scurse:",
+  "rbtb.errLoad": "Încărcarea raportului a eșuat."
 }

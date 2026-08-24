@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Falha ao carregar métricas.",
   "bll.header": "Linhas Base de Suítes de Nível 1 e Nível 2",
   "bll.noBaseline": "Ainda não foi guardada nenhuma linha base para este plano de teste. Use a ação 'Guardar linha base' no relatório por suítes de nível 1 e 2 para criar uma.",
-  "bll.baselineSavedAt": "Linha base criada em:"
+  "bll.baselineSavedAt": "Linha base criada em:",
+  "rbtb.header": "Resultados por testador por build",
+  "rbtb.forPlan": "para o plano de teste",
+  "rbtb.testProject": "Projeto de teste",
+  "rbtb.showClosedBuilds": "Mostrar builds fechados",
+  "rbtb.noOpenBuilds": "Não há builds abertos",
+  "rbtb.noTestersPerBuild": "Não há atribuições de testadores a builds ABERTOS neste plano de teste.",
+  "rbtb.progressAbsolute": "Progresso",
+  "rbtb.totalTime": "Tempo total (hh:mm:ss)",
+  "rbtb.thUser": "Usuário",
+  "rbtb.thTcAssigned": "Atribuídos",
+  "rbtb.thProgress": "Progresso [%]",
+  "rbtb.elapsedSeconds": "Segundos decorridos:",
+  "rbtb.errLoad": "Falha ao carregar o relatório."
 }

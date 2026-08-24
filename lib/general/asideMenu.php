@@ -95,6 +95,14 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'baseline_l1l2') {
         $hrefR = 'gui/templates/results/baselineL1L2.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #677 - Results by Tester per Build (resultsByTesterPerBuild)
+      // modernized; the BFF (api/reports metrics_by_tester_per_build action)
+      // reuses the very same
+      // tlTestPlanMetrics::getStatusTotalsByBuildUAForRender() call and
+      // enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_by_tester_per_build') {
+        $hrefR = 'gui/templates/results/resultsByTesterPerBuild.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }

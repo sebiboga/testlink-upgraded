@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Error al cargar las métricas.",
   "bll.header": "Líneas base de Suites de Nivel 1 y Nivel 2",
   "bll.noBaseline": "Todavía no se ha guardado ninguna línea base para este plan de pruebas. Use la acción 'Guardar línea base' del informe de métricas por suites de nivel 1 y 2 para crear una.",
-  "bll.baselineSavedAt": "Línea base tomada el:"
+  "bll.baselineSavedAt": "Línea base tomada el:",
+  "rbtb.header": "Resultados por tester por build",
+  "rbtb.forPlan": "para el plan de pruebas",
+  "rbtb.testProject": "Proyecto de pruebas",
+  "rbtb.showClosedBuilds": "Mostrar builds cerrados",
+  "rbtb.noOpenBuilds": "No hay builds abiertos",
+  "rbtb.noTestersPerBuild": "No hay asignaciones de testers a builds ABIERTOS en este plan de pruebas.",
+  "rbtb.progressAbsolute": "Progreso",
+  "rbtb.totalTime": "Tiempo total (hh:mm:ss)",
+  "rbtb.thUser": "Usuario",
+  "rbtb.thTcAssigned": "Asignados",
+  "rbtb.thProgress": "Progreso [%]",
+  "rbtb.elapsedSeconds": "Segundos transcurridos:",
+  "rbtb.errLoad": "No se pudo cargar el informe."
 }

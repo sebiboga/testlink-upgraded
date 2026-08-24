@@ -1392,5 +1392,18 @@
   "bll.errLoad": "加载度量数据失败。",
   "bll.header": "基线：一级与二级测试套件",
   "bll.noBaseline": "此测试计划尚未保存基线。请使用“按测试套件结果”报告中的“保存基线”操作来创建。",
-  "bll.baselineSavedAt": "基线创建于："
+  "bll.baselineSavedAt": "基线创建于：",
+  "rbtb.header": "每个构建按测试员的结果",
+  "rbtb.forPlan": "测试计划：",
+  "rbtb.testProject": "测试项目",
+  "rbtb.showClosedBuilds": "显示已关闭的构建",
+  "rbtb.noOpenBuilds": "没有打开的构建",
+  "rbtb.noTestersPerBuild": "此测试计划中没有向打开的构建分配测试员。",
+  "rbtb.progressAbsolute": "进度",
+  "rbtb.totalTime": "总时间（时:分:秒）",
+  "rbtb.thUser": "用户",
+  "rbtb.thTcAssigned": "已分配",
+  "rbtb.thProgress": "进度 [%]",
+  "rbtb.elapsedSeconds": "经过秒数：",
+  "rbtb.errLoad": "加载报告失败。"
 }

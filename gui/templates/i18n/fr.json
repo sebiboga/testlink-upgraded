@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Échec du chargement des métriques.",
   "bll.header": "Baselines des séquences de tests de niveau 1 & 2",
   "bll.noBaseline": "Aucune baseline n'a encore été enregistrée pour ce plan de test. Utilisez l'action « Enregistrer la baseline » du rapport par séquences de niveau 1 et 2 pour en créer une.",
-  "bll.baselineSavedAt": "Baseline prise le :"
+  "bll.baselineSavedAt": "Baseline prise le :",
+  "rbtb.header": "Résultats par testeur par build",
+  "rbtb.forPlan": "pour le plan de test",
+  "rbtb.testProject": "Projet de test",
+  "rbtb.showClosedBuilds": "Afficher les builds fermés",
+  "rbtb.noOpenBuilds": "Il n'y a aucun build ouvert",
+  "rbtb.noTestersPerBuild": "Il n'y a aucune affectation de testeur aux builds OUVERTS dans ce plan de test.",
+  "rbtb.progressAbsolute": "Progression",
+  "rbtb.totalTime": "Temps total (hh:mm:ss)",
+  "rbtb.thUser": "Utilisateur",
+  "rbtb.thTcAssigned": "Affectés",
+  "rbtb.thProgress": "Progression [%]",
+  "rbtb.elapsedSeconds": "Secondes écoulées :",
+  "rbtb.errLoad": "Échec du chargement du rapport."
 }

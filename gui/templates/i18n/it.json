@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Caricamento delle metriche non riuscito.",
   "bll.header": "Baseline Suite di Livello 1 e Livello 2",
   "bll.noBaseline": "Nessuna baseline ancora salvata per questo piano di test. Usare l'azione 'Salva baseline' nel report per suite di livello 1 e 2 per crearne una.",
-  "bll.baselineSavedAt": "Baseline creata il:"
+  "bll.baselineSavedAt": "Baseline creata il:",
+  "rbtb.header": "Risultati per tester per build",
+  "rbtb.forPlan": "per il piano di test",
+  "rbtb.testProject": "Progetto di test",
+  "rbtb.showClosedBuilds": "Mostra build chiusi",
+  "rbtb.noOpenBuilds": "Non ci sono build aperti",
+  "rbtb.noTestersPerBuild": "Non ci sono assegnazioni di tester a build APERTI in questo piano di test.",
+  "rbtb.progressAbsolute": "Avanzamento",
+  "rbtb.totalTime": "Tempo totale (hh:mm:ss)",
+  "rbtb.thUser": "Utente",
+  "rbtb.thTcAssigned": "Assegnati",
+  "rbtb.thProgress": "Avanzamento [%]",
+  "rbtb.elapsedSeconds": "Secondi trascorsi:",
+  "rbtb.errLoad": "Impossibile caricare il report."
 }

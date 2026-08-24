@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Metriken konnten nicht geladen werden.",
   "bll.header": "Baseline Level 1 & Level 2 Testsuiten",
   "bll.noBaseline": "Für diesen Testplan wurde noch keine Baseline gespeichert. Verwenden Sie die Aktion 'Baseline speichern' im Bericht 'Metriken nach Testsuiten Level 1 & 2', um eine anzulegen.",
-  "bll.baselineSavedAt": "Baseline erstellt am:"
+  "bll.baselineSavedAt": "Baseline erstellt am:",
+  "rbtb.header": "Ergebnisse nach Tester pro Build",
+  "rbtb.forPlan": "für Testplan",
+  "rbtb.testProject": "Testprojekt",
+  "rbtb.showClosedBuilds": "Geschlossene Builds anzeigen",
+  "rbtb.noOpenBuilds": "Es gibt keine offenen Builds",
+  "rbtb.noTestersPerBuild": "In diesem Testplan gibt es keine Tester-Zuweisungen zu OFFENEN Builds.",
+  "rbtb.progressAbsolute": "Fortschritt",
+  "rbtb.totalTime": "Gesamtzeit (hh:mm:ss)",
+  "rbtb.thUser": "Benutzer",
+  "rbtb.thTcAssigned": "Zugewiesen",
+  "rbtb.thProgress": "Fortschritt [%]",
+  "rbtb.elapsedSeconds": "Vergangene Sekunden:",
+  "rbtb.errLoad": "Bericht konnte nicht geladen werden."
 }

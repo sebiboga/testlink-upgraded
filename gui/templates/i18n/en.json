@@ -1392,5 +1392,18 @@
   "bll.errLoad": "Failed to load metrics.",
   "bll.header": "Baselines Level 1 & Level 2 Test Suites",
   "bll.noBaseline": "No baseline has been saved for this test plan yet. Use the 'Save baseline' action on the Results by Test Suite report to create one.",
-  "bll.baselineSavedAt": "Baseline taken on:"
+  "bll.baselineSavedAt": "Baseline taken on:",
+  "rbtb.header": "Results by Tester per Build",
+  "rbtb.forPlan": "for test plan",
+  "rbtb.testProject": "Test Project",
+  "rbtb.showClosedBuilds": "Show closed builds",
+  "rbtb.noOpenBuilds": "There are no open builds",
+  "rbtb.noTestersPerBuild": "There are no tester assignments to OPEN builds in this testplan.",
+  "rbtb.progressAbsolute": "Progress",
+  "rbtb.totalTime": "Total time (hh:mm:ss)",
+  "rbtb.thUser": "User",
+  "rbtb.thTcAssigned": "Assigned",
+  "rbtb.thProgress": "Progress [%]",
+  "rbtb.elapsedSeconds": "Elapsed seconds:",
+  "rbtb.errLoad": "Failed to load the report."
 }

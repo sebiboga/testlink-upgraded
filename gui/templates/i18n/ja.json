@@ -1392,5 +1392,18 @@
   "bll.errLoad": "メトリクスの読み込みに失敗しました。",
   "bll.header": "レベル１・レベル２ テストスイートのベースライン",
   "bll.noBaseline": "このテストプランにはまだベースラインが保存されていません。「結果（トップレベルテストスイート別）」レポートの「ベースラインを保存」から作成してください。",
-  "bll.baselineSavedAt": "ベースライン取得日時:"
+  "bll.baselineSavedAt": "ベースライン取得日時:",
+  "rbtb.header": "ビルド別テスターの結果",
+  "rbtb.forPlan": "テスト計画:",
+  "rbtb.testProject": "テストプロジェクト",
+  "rbtb.showClosedBuilds": "終了したビルドを表示",
+  "rbtb.noOpenBuilds": "オープンなビルドがありません",
+  "rbtb.noTestersPerBuild": "このテスト計画には、オープンなビルドへのテスターの割り当てがありません。",
+  "rbtb.progressAbsolute": "進捗",
+  "rbtb.totalTime": "合計時間 (hh:mm:ss)",
+  "rbtb.thUser": "ユーザー",
+  "rbtb.thTcAssigned": "割り当て済み",
+  "rbtb.thProgress": "進捗 [%]",
+  "rbtb.elapsedSeconds": "経過秒:",
+  "rbtb.errLoad": "レポートの読み込みに失敗しました。"
 }
