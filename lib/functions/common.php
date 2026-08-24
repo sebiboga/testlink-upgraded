@@ -1932,7 +1932,6 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id >0) {
     // planAddTC switched to the modernized HTML screen above (no workArea
     // entry here: the launcher copy-back below must not overwrite the link)
-    $gui->workArea->executeTest = "executeTest&{$ctx}";
     $gui->workArea->assignTCVExecution = "tc_exec_assignment&{$ctx}";
     $gui->workArea->showMetrics = "showMetrics&{$ctx}";
     // Set Test Urgency modernized screen (Dashio standalone page) - Refs #605
@@ -1992,6 +1991,17 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id > 0) {
     $actions->showNewestTCV =
       "/gui/templates/plans/showNewestTcVersions.html?{$ctx}";
+  }
+
+  // Execute Tests modernized screen (Dashio standalone page) - Refs #662.
+  // Replaces the legacy frmWorkArea executeTest launcher (execNavigator +
+  // execSetResults); the BFF (api/execute) enforces the legacy controller
+  // rights server-side on every route: testplan_execute for writing results,
+  // exec_ro_access for the read-only variant, aside visibility stays gated by
+  // menuGrants in aside.tpl.
+  if ($tplan_id > 0) {
+    $actions->executeTest =
+      "/gui/templates/execute/execTest.html?{$ctx}";
   }
 
   $gui->uri = $actions;

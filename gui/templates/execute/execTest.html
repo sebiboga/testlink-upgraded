@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execute Tests</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.header .ctxbadge { background: rgba(255,255,255,.2); border-radius: 4px; padding: 2px 10px; font-size: 14px; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color:#aaa; font-size: 12px; margin-right: 5px; }
+.toolbar select, .toolbar input { height: 32px; font-size: 13px; border-radius: 4px; border: 1px solid #555; background: #31343c; color: #eee; padding: 0 8px; }
+.toolbar input::placeholder { color: #888; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.layout { display: flex; gap: 16px; align-items: flex-start; margin: 16px 24px; }
+.left-pane { flex: 1 1 46%; min-width: 380px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.right-pane { flex: 1 1 54%; min-width: 420px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.pane-head { padding: 12px 18px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display:flex; align-items:center; }
+.pane-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+table.tc-list { width: 100%; border-collapse: collapse; }
+table.tc-list thead th { background: #22242a; color: #fff; font-size: 12.5px; padding: 9px 12px; text-align: left; position: sticky; top: 0; }
+table.tc-list tbody td { padding: 7px 12px; font-size: 13px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.tc-list tbody tr { cursor: pointer; }
+table.tc-list tbody tr:hover { background: #f4fbfb; }
+table.tc-list tbody tr.selected { background: #d9f3f1; box-shadow: inset 3px 0 0 #4ECDC4; }
+.ext-id { font-weight: 700; color: #22242a; white-space: nowrap; }
+.suite-path { display:block; color: #999; font-size: 11px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.badge-status { display: inline-block; border-radius: 10px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; color: #fff; text-transform: uppercase; white-space: nowrap; }
+.st-passed { background: #2ecc71; } .st-failed { background: #e6605e; }
+.st-blocked { background: #e67e22; } .st-notrun { background: #95a5a6; } .st-other { background: #7f8c8d; }
+.last-exec { color: #777; font-size: 11.5px; white-space: nowrap; }
+.form-body { padding: 16px 20px 20px; }
+.form-title { font-size: 17px; font-weight: 700; color: #22242a; margin-bottom: 2px; }
+.form-meta { color: #888; font-size: 12.5px; margin-bottom: 12px; }
+.form-meta i { color: #4ECDC4; margin-right: 4px; }
+.desc-block { margin-bottom: 12px; }
+.desc-label { font-size: 11px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+.desc-box { border: 1px solid #eee; border-radius: 6px; background: #fafafa; padding: 8px 12px; font-size: 13px; color: #333; white-space: pre-wrap; }
+.status-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 14px; }
+.st-btn { border: 2px solid transparent; border-radius: 5px; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; opacity: .55; }
+.st-btn.active { opacity: 1; border-color: #22242a; box-shadow: 0 0 0 2px rgba(78,205,196,.45); }
+.st-btn.n { background: #95a5a6; } .st-btn.p { background: #2ecc71; }
+.st-btn.f { background: #e6605e; } .st-btn.b { background: #e67e22; }
+.st-btn.x { background: #7f8c8d; } .st-btn.u { background: #34495e; }
+textarea.form-control { min-height: 74px; font-size: 13px; }
+label.flbl { font-size: 12px; font-weight: 600; color: #444; display: block; margin-bottom: 4px; }
+.steps-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.steps-table th { background: #f5f5f5; color: #444; font-size: 11.5px; text-transform: uppercase; letter-spacing:.4px; padding: 7px 8px; text-align:left; border-bottom: 2px solid #eee; }
+.steps-table td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; font-size: 12.5px; vertical-align: top; }
+.steps-table .step-actions, .steps-table .step-expected { white-space: pre-wrap; }
+.steps-table select, .steps-table input[type=text] { width: 100%; font-size: 12.5px; height: 30px; border: 1px solid #ddd; border-radius: 4px; padding: 2px 6px; }
+.save-row { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+.prior-box { background: #fdf6ec; border: 1px solid #f0e0c8; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; color: #7a6540; margin-bottom: 12px; }
+.ro-banner { margin: 12px 24px 0; background: #fff8e1; border: 1px solid #ffe08a; color: #8a6d1a; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
+.loading { margin: 40px auto; text-align: center; color: #888; font-size: 14px; }
+.none-text { color: #999; font-style: italic; font-size: 13px; }
+.empty-form { padding: 40px; text-align: center; color: #aaa; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 4px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+@media (max-width: 1100px) { .layout { flex-direction: column; } .left-pane, .right-pane { width: 100%; min-width: 0; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="exe.header">Execute Tests</span>
+  <span class="ctxbadge" id="planBadge">-</span>
+  <span class="sub" id="projName"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar" id="toolbar" style="display:none;">
+  <span><label for="selBuild" data-i18n="exe.build">Build</label></span>
+  <select id="selBuild"></select>
+  <span id="platWrap" style="display:none;"><label for="selPlatform" data-i18n="exe.platform">Platform</label></span>
+  <select id="selPlatform" style="display:none;"></select>
+  <span><label for="selStatusFilter" data-i18n="exe.statusFilter">Result</label></span>
+  <select id="selStatusFilter"></select>
+  <input type="text" id="txtSearch" data-i18n-placeholder="exe.searchPlaceholder" placeholder="Search test case..." style="min-width:180px;">
+  <button class="btn-teal" onclick="loadList()"><i class="fa fa-rotate"></i> <span data-i18n="exe.refresh">Refresh</span></button>
+</div>
+
+<div class="ro-banner" id="roBanner"></div>
+<div class="warnbox" id="warnBox"></div>
+<div class="errorbox" id="errorBox"></div>
+<div class="loading" id="loadingBox"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="exe.loading">Loading execution context...</span></div>
+
+<div class="layout" id="layout" style="display:none;">
+  <div class="left-pane">
+    <div class="pane-head"><i class="fas fa-list-check" style="color:#4ECDC4;margin-right:8px;"></i>
+      <span data-i18n="exe.testCases">Test Cases</span><span class="count" id="caseCount"></span></div>
+    <div style="max-height: 70vh; overflow-y:auto;">
+      <table class="tc-list">
+        <thead>
+          <tr>
+            <th data-i18n="exe.colTestCase">Test Case</th>
+            <th style="width:120px;" data-i18n="exe.colLastExec">Last execution</th>
+            <th style="width:110px;" data-i18n="exe.colStatus">Status</th>
+          </tr>
+        </thead>
+        <tbody id="tcRows"></tbody>
+      </table>
+    </div>
+    <div style="padding:10px 16px;border-top:1px solid #f0f0f0;">
+      <span class="none-text" id="listEmpty" style="display:none;" data-i18n="exe.noCases">No linked test cases match the current filters.</span>
+    </div>
+  </div>
+
+  <div class="right-pane" id="rightPane">
+    <div class="pane-head"><i class="fas fa-gamepad" style="color:#4ECDC4;margin-right:8px;"></i>
+      <span data-i18n="exe.executionForm">Execute</span></div>
+    <div class="empty-form" id="formEmpty"><i class="fas fa-arrow-left" style="margin-right:8px;"></i><span data-i18n="exe.pickCase">Pick a test case from the list to execute it.</span></div>
+    <div class="form-body" id="formBody" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span data-i18n="exe.footer">TestLink 2.0.1 - Execute Tests</span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/execute/index.php';
+var ctx = {
+  tprojectId: parseInt(new URLSearchParams(window.location.search).get('tproject_id') || '0', 10),
+  tplanId: parseInt(new URLSearchParams(window.location.search).get('tplan_id') || '0', 10)
+};
+var initData = null;
+var listItems = [];
+var current = null; // selected case details
+var roMode = false;
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    boot();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function showError(msg) {
+  $('#loadingBox').hide();
+  $('#layout').hide();
+  $('#errorBox').html('<i class="fa fa-triangle-exclamation" style="color:#e6605e;font-size:22px;"></i><br>' + esc(msg)).show();
+}
+
+function apiErr(xhr, fallbackKey) {
+  var msg = TLi18n.t(fallbackKey);
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+  return msg;
+}
+
+function boot() {
+  if (!(ctx.tplanId > 0)) {
+    showError(TLi18n.t('exe.selectPlanHint'));
+    return;
+  }
+  $.get(API + '?action=init&tplan_id=' + ctx.tplanId + '&tproject_id=' + ctx.tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { showError(r.message || TLi18n.t('exe.errInit')); return; }
+      initData = r;
+      roMode = !r.grants.can_execute;
+      document.title = r.tplan.name + ' - ' + TLi18n.t('exe.header');
+      $('#planBadge').text(r.tplan.name);
+      $('#projName').text(r.tproject.name);
+      fillToolbar();
+      $('#toolbar').show();
+      $('#layout').show();
+      $('#loadingBox').hide();
+      if (!r.grants.can_execute && r.grants.ro_access) {
+        $('#roBanner').html('<i class="fa fa-eye"></i> ' + esc(TLi18n.t('exe.readOnly'))).show();
+      }
+      loadList();
+    })
+    .fail(function (xhr) { showError(apiErr(xhr, 'exe.errInit')); });
+}
+
+function fillToolbar() {
+  var $b = $('#selBuild').empty();
+  (initData.builds || []).forEach(function (b) {
+    var lbl = b.name + (b.executable ? '' : (' (' + TLi18n.t('exe.closedBuild') + ')'));
+    $b.append('<option value="' + b.id + '"' + (b.id === initData.default_build_id ? ' selected' : '')
+      + '>' + esc(lbl) + '</option>');
+  });
+
+  var plats = initData.platforms || [];
+  if (plats.length > 0) {
+    var $p = $('#selPlatform').empty();
+    plats.forEach(function (pl) {
+      $p.append('<option value="' + pl.id + '">' + esc(pl.name) + '</option>');
+    });
+    $('#platWrap').add('#selPlatform').show();
+  }
+
+  var $sf = $('#selStatusFilter');
+  $sf.append('<option value=""></option>');
+  $sf.append('<option value="__none">' + esc(TLi18n.t('exe.neverExecuted')) + '</option>');
+  (initData.statuses || []).forEach(function (st) {
+    if (st.suffix === 'all' || st.code === 'n') return;
+    $sf.append('<option value="' + esc(st.code) + '">' + esc(st.label) + '</option>');
+  });
+
+  $('#selBuild').on('change', function () { resetSelection(); loadList(); });
+  $('#selPlatform').on('change', function () { resetSelection(); loadList(); });
+  $('#selStatusFilter').on('change', function () { renderList(); });
+  $('#txtSearch').on('input', debounce(renderList, 250));
+}
+
+function debounce(fn, ms) {
+  var tm;
+  return function () { clearTimeout(tm); tm = setTimeout(fn, ms); };
+}
+
+function curBuildId() { return parseInt($('#selBuild').val() || '0', 10); }
+function curPlatformId() {
+  var v = $('#selPlatform').val();
+  return v ? parseInt(v, 10) : -1; // -1 => plan without platforms (stored as 0)
+}
+
+function resetSelection() {
+  current = null;
+  $('#formBody').hide().empty();
+  $('#formEmpty').show();
+}
+
+function loadList() {
+  $('#warnBox').hide();
+  var url = API + '?action=tcList&tplan_id=' + ctx.tplanId
+    + '&build_id=' + curBuildId()
+    + '&platform_id=' + curPlatformId()
+    + '&q=' + encodeURIComponent($('#txtSearch').val() || '');
+  $.get(url)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('exe.errList'), true); return; }
+      listItems = r.items || [];
+      renderList();
+    })
+    .fail(function (xhr) { toast(apiErr(xhr, 'exe.errList'), true); });
+}
+
+function statusBadgeClass(code, suffix) {
+  switch (suffix || '') {
+    case 'passed': return 'st-passed';
+    case 'failed': return 'st-failed';
+    case 'blocked': return 'st-blocked';
+    case 'not_run': return 'st-notrun';
+  }
+  return 'st-other';
+}
+
+function itemStatus(it) {
+  return it.last_execution ? it.last_execution.status : null;
+}
+
+function statusLabelFor(code) {
+  var sts = (initData && initData.statuses) || [];
+  for (var i = 0; i < sts.length; i++) {
+    if (sts[i].code === code) return sts[i];
+  }
+  return null;
+}
+
+function renderBadge(code) {
+  if (!code) {
+    return '<span class="badge-status st-notrun">' + esc(TLi18n.t('exe.neverExecutedShort')) + '</span>';
+  }
+  var st = statusLabelFor(code);
+  var suffix = st ? st.suffix : '';
+  return '<span class="badge-status ' + statusBadgeClass(code, suffix) + '">'
+    + esc(st ? st.label : code) + '</span>';
+}
+
+function renderList() {
+  var q = ($('#txtSearch').val() || '').toLowerCase();
+  var sf = $('#selStatusFilter').val();
+
+  var visible = listItems.filter(function (it) {
+    if (q !== ''
+      && (it.tcase_name + ' ' + it.full_external_id + ' ' + (it.tsuite_path || ''))
+          .toLowerCase().indexOf(q) === -1) return false;
+    if (sf) {
+      var code = itemStatus(it);
+      if (sf === '__none') { if (code) return false; }
+      else if (code !== sf) return false;
+    }
+    return true;
+  });
+
+  var h = '';
+  visible.forEach(function (it) {
+    var sel = current && current.version && current.tcase.id === it.tcase_id ? ' class="selected"' : '';
+    h += '<tr data-tcid="' + it.tcase_id + '" data-tcvid="' + it.tcversion_id + '"' + sel + '>';
+    h += '<td><span class="ext-id">' + esc(it.full_external_id) + '</span>'
+      + ' <span style="font-weight:600;">' + esc(it.tcase_name) + '</span> '
+      + '<span style="color:#bbb;font-size:11px;">v' + it.version + '</span>';
+    if (it.tsuite_path) h += '<span class="suite-path" title="' + esc(it.tsuite_path) + '">' + esc(it.tsuite_path) + '</span>';
+    h += '</td>';
+    h += '<td><span class="last-exec">'
+      + (it.last_execution ? esc(fmtTs(it.last_execution.execution_ts)) : '-')
+      + '</span></td>';
+    h += '<td>' + renderBadge(itemStatus(it)) + '</td>';
+    h += '</tr>';
+  });
+
+  $('#tcRows').html(h);
+  $('#caseCount').text('(' + visible.length + ')');
+  $('#listEmpty').toggle(visible.length === 0);
+
+  $('#tcRows tr').off('click').on('click', function () {
+    openCase(parseInt($(this).data('tcid'), 10), parseInt($(this).data('tcvid'), 10));
+  });
+}
+
+function fmtTs(ts) {
+  return String(ts == null ? '' : ts).substring(0, 16);
+}
+
+function importanceLabel(imp) {
+  if (imp >= 3) return 'exe.importanceHigh';
+  if (imp <= 1) return 'exe.importanceLow';
+  return 'exe.importanceMedium';
+}
+
+function openCase(tcaseId, tcversionId) {
+  $('#tcRows tr').removeClass('selected');
+  $.get(API + '?action=tcDetails&tplan_id=' + ctx.tplanId
+      + '&tproject_id=' + ctx.tprojectId
+      + '&tcase_id=' + tcaseId + '&tcversion_id=' + tcversionId
+      + '&build_id=' + curBuildId() + '&platform_id=' + curPlatformId())
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('exe.errDetails'), true); return; }
+      current = r;
+      renderForm();
+      $('#tcRows tr[data-tcid="' + tcaseId + '"]').addClass('selected');
+    })
+    .fail(function (xhr) { toast(apiErr(xhr, 'exe.errDetails'), true); });
+}
+
+var STATUS_ORDER = ['n', 'p', 'f', 'b'];
+
+function renderForm() {
+  var v = current.version, tc = current.tcase;
+  var prior = current.prior_execution;
+
+  var meta = '<i class="fas fa-hashtag"></i>' + esc(v.full_external_id)
+    + ' &nbsp;<i class="fas fa-code-branch"></i>v' + v.number
+    + ' &nbsp;<i class="fas fa-signal"></i>' + esc(TLi18n.t(importanceLabel(v.importance)));
+  if (v.execution_type === 2) {
+    meta += ' &nbsp;<i class="fas fa-robot"></i>' + esc(TLi18n.t('exe.runAuto'));
+  }
+
+  var h = '<div class="form-title">' + esc(tc.name) + '</div>';
+  h += '<div class="form-meta">' + meta + '</div>';
+
+  if (prior) {
+    var pst = statusLabelFor(prior.status);
+    h += '<div class="prior-box"><i class="fas fa-clock-rotate-left"></i> '
+      + esc(TLi18n.t('exe.priorExecution')) + ': <b>' + esc(pst ? pst.label : prior.status) + '</b>'
+      + ' @ ' + esc(fmtTs(prior.execution_ts))
+      + (prior.tester_login ? ' &middot; ' + esc(prior.tester_login) : '')
+      + (prior.notes ? '<br>' + esc(prior.notes) : '')
+      + '</div>';
+  }
+
+  if (v.summary) {
+    h += '<div class="desc-block"><div class="desc-label">' + esc(TLi18n.t('exe.summary'))
+      + '</div><div class="desc-box">' + esc(v.summary) + '</div></div>';
+  }
+  if (v.preconditions) {
+    h += '<div class="desc-block"><div class="desc-label">' + esc(TLi18n.t('exe.preconditions'))
+      + '</div><div class="desc-box">' + esc(v.preconditions) + '</div></div>';
+  }
+
+  h += '<label class="flbl">' + esc(TLi18n.t('exe.status')) + '</label><div class="status-row">';
+  STATUS_ORDER.forEach(function (code) {
+    var st = statusLabelFor(code);
+    h += '<button type="button" class="st-btn ' + esc(code) + '" data-code="' + esc(code) + '">'
+      + esc(st ? st.label : code) + '</button>';
+  });
+  h += '</div>';
+
+  h += '<label class="flbl" for="execNotes">' + esc(TLi18n.t('exe.notes')) + '</label>';
+  h += '<textarea id="execNotes" class="form-control"'
+    + (roMode ? ' disabled' : '') + '></textarea>';
+
+  if ((current.steps || []).length > 0) {
+    h += '<label class="flbl" style="margin-top:14px;">' + esc(TLi18n.t('exe.steps')) + '</label>';
+    h += '<table class="steps-table"><thead><tr>'
+      + '<th style="width:26px;">#</th>'
+      + '<th>' + esc(TLi18n.t('exe.stepActions')) + '</th>'
+      + '<th>' + esc(TLi18n.t('exe.stepExpected')) + '</th>'
+      + '<th style="width:130px;">' + esc(TLi18n.t('exe.stepResult')) + '</th>'
+      + '<th style="width:170px;">' + esc(TLi18n.t('exe.stepNotes')) + '</th>'
+      + '</tr></thead><tbody>';
+    current.steps.forEach(function (st) {
+      var priorSt = (current.prior_step_results || {})[st.id] || {};
+      h += '<tr data-stepid="' + st.id + '">'
+        + '<td>' + st.step_number + '</td>'
+        + '<td class="step-actions">' + esc(st.actions) + '</td>'
+        + '<td class="step-expected">' + esc(st.expected_results) + '</td>'
+        + '<td><select class="step-status"' + (roMode ? ' disabled' : '') + '>';
+      STATUS_ORDER.forEach(function (code) {
+        var lab = statusLabelFor(code);
+        h += '<option value="' + esc(code) + '"'
+          + (priorSt.status === code ? ' selected' : '') + '>'
+          + esc(lab ? lab.label : code) + '</option>';
+      });
+      h += '</select></td>'
+        + '<td><input type="text" class="step-notes" value="' + esc(priorSt.notes || '') + '"'
+        + (roMode ? ' disabled' : '') + '></td>'
+        + '</tr>';
+    });
+    h += '</tbody></table>';
+  }
+
+  h += '<div class="save-row">';
+  h += '<button class="btn-teal" onclick="saveExecution()"'
+    + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+    + '><i class="fa fa-floppy-disk"></i> <span data-i18n="exe.save">Save execution</span></button>';
+  h += '<button class="btn-dark" onclick="resetFormInputs()"'
+    + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+    + '><i class="fa fa-eraser"></i> <span data-i18n="exe.reset">Reset</span></button>';
+  h += '</div>';
+
+  $('#formBody').html(h).show();
+  $('#formEmpty').hide();
+  TLi18n.apply($('#formBody')[0]);
+
+  $('.st-btn').on('click', function () {
+    if (roMode) return;
+    $('.st-btn').removeClass('active');
+    $(this).addClass('active');
+  });
+  resetFormInputs(true);
+}
+
+function resetFormInputs(keepPrior) {
+  if (roMode) return;
+  $('.st-btn').removeClass('active');
+  var defCode = current && current.prior_execution
+    ? current.prior_execution.status : 'n';
+  if (!statusLabelFor(defCode)) defCode = 'n';
+  $('.st-btn[data-code="' + defCode + '"]').addClass('active');
+
+  var priorNotes = (keepPastNotes() && current.prior_execution)
+    ? current.prior_execution.notes : '';
+  $('#execNotes').val(priorNotes);
+
+  (current.steps || []).forEach(function (st) {
+    var row = $('tr[data-stepid="' + st.id + '"]');
+    if (keepPastNotes()) {
+      var pr = (current.prior_step_results || {})[st.id] || {};
+      row.find('.step-status').val(pr.status || 'n');
+      row.find('.step-notes').val(pr.notes || '');
+    } else {
+      row.find('.step-status').val('n');
+      row.find('.step-notes').val('');
+    }
+  });
+}
+
+function keepPastNotes() { return false; }
+
+function saveExecution() {
+  if (roMode || !(curBuildId() > 0)) {
+    toast(TLi18n.t('exe.errNoBuild'), true);
+    return;
+  }
+  var activeBtn = $('.st-btn.active');
+  if (activeBtn.length === 0) {
+    toast(TLi18n.t('exe.pickStatusFirst'), true);
+    return;
+  }
+  var payload = {
+    tplan_id: ctx.tplanId,
+    tproject_id: ctx.tprojectId,
+    tcase_id: current.tcase.id,
+    tcversion_id: current.version.id,
+    version_number: current.version.number,
+    build_id: curBuildId(),
+    platform_id: curPlatformId(),
+    status: activeBtn.data('code'),
+    notes: $('#execNotes').val() || '',
+    steps: {}
+  };
+  $('tr[data-stepid]').each(function () {
+    var $row = $(this);
+    payload.steps[String($row.data('stepid'))] = {
+      status: $row.find('.step-status').val(),
+      notes: $row.find('.step-notes').val()
+    };
+  });
+
+  var $btn = $('.save-row .btn-teal').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=save',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(payload)
+  })
+  .done(function (r) {
+    if (r.status === 'ok' && r.saved) {
+      toast(TLi18n.t('exe.savedOk'));
+      loadList();
+    } else if (r.status === 'ok' && r.reason === 'not_run') {
+      toast(TLi18n.t('exe.notRunInfo'), true);
+    } else {
+      toast(r.message || TLi18n.t('exe.errSave'), true);
+    }
+  })
+  .fail(function (xhr) { toast(apiErr(xhr, 'exe.errSave'), true); })
+  .always(function () { $btn.prop('disabled', false); });
+}
+</script>
+</body>
+</html>
