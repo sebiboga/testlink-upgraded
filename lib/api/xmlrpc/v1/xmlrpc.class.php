@@ -2227,8 +2227,8 @@ class TestlinkXMLRPCServer extends IXR_Server {
      */
     protected function _checkCreateTestProjectRequest($msg_prefix) {
         $status_ok = $this->authenticate();
-        $name = $this->args[self::$testProjectNameParamName];
-        $prefix = $this->args[self::$testCasePrefixParamName];
+        $name = $this->args[self::$testProjectNameParamName] ?? null;
+        $prefix = $this->args[self::$testCasePrefixParamName] ?? null;
 
         if($status_ok) {
             $check_op = $this->tprojectMgr->checkNameSintax( $name );
