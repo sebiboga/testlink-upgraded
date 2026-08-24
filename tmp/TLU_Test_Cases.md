@@ -3870,3 +3870,27 @@ with only `exec_ro_access`).
 not part of the first cut of the execution form; execution custom fields render
 in Execution History but not yet in the form. Tracked as follow-up work on
 issue #662.
+
+## Suite 664 — Regression — Issue #664: XMLRPC createTestProject E_WARNING "Undefined array key" (lines 2230-2231) when required params are omitted
+
+**Area:** XMLRPC API `tl.createTestProject` (`lib/api/xmlrpc/v1/xmlrpc.class.php`,
+`_checkCreateTestProjectRequest()`) · **Date:** 2026-08-24
+
+Fixtures: admin user with `users.script_key='664reprokey664reprokey664repro'`;
+events table baseline recorded before each run. Endpoint:
+`http://localhost:8082/lib/api/xmlrpc/v1/xmlrpc.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 664.1 | Pre-fix repro | POST createTestProject with members `name=Foo`, `prefix=foo` (wrong names) | PRE-FIX: response IXR_Error 7001 BUT events gains 2 E_WARNING rows "Undefined array key testprojectname/testcaseprefix" lines 2230/2231 — reproduced as reported | PASS (repro confirmed) |
+| 664.2 | Wrong param names post-fix | same call after fix | 7001 returned; ZERO new E_WARNING events rows | PASS |
+| 664.3 | Required params omitted entirely post-fix | POST with only devKey member | 7001 returned; ZERO new E_WARNING rows | PASS |
+| 664.4 | Empty prefix contract preserved | valid `testprojectname`, empty `testcaseprefix` | IXR_Error 7004 (prefix empty) — unchanged API contract; no warnings | PASS |
+| 664.5 | Happy path unaffected | valid name+prefix ("Issue664 Happy Project"/I664) | status=true, project id returned, row in `testprojects`, audit event `audit_testproject_created`; no warnings | PASS |
+| 664.6 | Duplicate name contract preserved | repeat V5 name | IXR_Error 7002 TESTPROJECTNAME_EXISTS; no warnings | PASS |
+
+**Root cause & fix:** direct `$this->args[...]` reads at
+xmlrpc.class.php:2230-2231 without presence guard ⇒ PHP 8 E_WARNING on absent
+keys, logged to Event Viewer. Minimal fix: null-coalescing reads (`?? null`);
+downstream validation (`checkNameSintax(null)` → 7001, `!empty(null)` → 7004)
+produces byte-identical responses. Commit `fcf0370cb`.
