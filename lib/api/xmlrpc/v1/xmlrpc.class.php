@@ -8291,6 +8291,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
         if($status_ok) {
             $cfSet = $args[self::$customFieldsParamName];
             $itemID = $args[self::$testSuiteIDParamName];
+            $ret = array();
 
             foreach( $cfSet as $cfName => $cfValue ) {
                 // $accessKey = "custom_field_" . $item['id'] . <field_type_id>_<cfield_id>
@@ -8312,9 +8313,8 @@ class TestlinkXMLRPCServer extends IXR_Server {
                             'msg' => 'Custom Field:' . $cfName . ' skipped '
                     );
                 }
-
-                return $ret;
             }
+            return $ret;
         } else {
             return $this->errors;
         }
