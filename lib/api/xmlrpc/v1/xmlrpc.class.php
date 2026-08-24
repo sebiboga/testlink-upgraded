@@ -1627,7 +1627,10 @@ class TestlinkXMLRPCServer extends IXR_Server {
 
         if($status_ok) {
 
-            $sql = " SELECT MAX(id) AS exec_id FROM {$this->tables['executions']} " . " WHERE testplan_id = {$this->args[self::$testPlanIDParamName]} " . " AND tcversion_id IN(" . " SELECT id FROM {$this->tables['nodes_hierarchy']} " . " WHERE parent_id = {$this->args[self::$testCaseIDParamName]})";
+            // HAVING filters out the single NULL row MariaDB returns for MAX()
+            // on an empty set; otherwise fetchRowsIntoMap() hits its
+            // isset()-on-NULL guard and logs a spurious 'missing column' notice.
+            $sql = " SELECT MAX(id) AS exec_id FROM {$this->tables['executions']} " . " WHERE testplan_id = {$this->args[self::$testPlanIDParamName]} " . " AND tcversion_id IN(" . " SELECT id FROM {$this->tables['nodes_hierarchy']} " . " WHERE parent_id = {$this->args[self::$testCaseIDParamName]})" . " HAVING exec_id IS NOT NULL";
 
             if(! is_null( $execContext['build_id'] )) {
                 $sql .= " AND build_id = " . intval( $execContext['build_id'] );
