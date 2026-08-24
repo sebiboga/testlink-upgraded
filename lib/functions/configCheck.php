@@ -517,12 +517,13 @@ function checkEmailConfig()
 function check_php_settings(&$errCounter)
 {
   $max_execution_time_recommended = 120;
-  $max_execution_time = ini_get('max_execution_time');
+  $max_execution_time = intval(ini_get('max_execution_time'));
   $memory_limit_recommended = 64;
   $memory_limit = intval(str_ireplace('M','',ini_get('memory_limit')));
 
   $final_msg = '<tr><td>Checking max. execution time (Parameter max_execution_time)</td>';
-  if($max_execution_time < $max_execution_time_recommended)
+  // 0 means "no time limit" => always acceptable
+  if($max_execution_time != 0 && $max_execution_time < $max_execution_time_recommended)
   {
     $final_msg .=  "<td><span class='tab-warning'>{$max_execution_time} seconds - " .
                    "We suggest {$max_execution_time_recommended} " .
@@ -530,10 +531,13 @@ function check_php_settings(&$errCounter)
   }
   else
   {
-    $final_msg .= '<td><span class="tab-success">OK ('.$max_execution_time.' seconds)</span></td></tr>';
+    $ok_exec_msg = ($max_execution_time == 0) ? 'OK (no limit)' :
+                   'OK ('.$max_execution_time.' seconds)';
+    $final_msg .= '<td><span class="tab-success">' . $ok_exec_msg . '</span></td></tr>';
   }
   $final_msg .=  "<tr><td>Checking maximal allowed memory (Parameter memory_limit)</td>";
-  if($memory_limit < $memory_limit_recommended)
+  // -1 means "unlimited memory" => always acceptable
+  if($memory_limit != -1 && $memory_limit < $memory_limit_recommended)
   {
     $final_msg .= "<td><span class='tab-warning'>$memory_limit MegaBytes - " .
                   "We suggest {$memory_limit_recommended} MB" .
@@ -541,7 +545,9 @@ function check_php_settings(&$errCounter)
   }
   else
   {
-    $final_msg .= '<td><span class="tab-success">OK ('.$memory_limit.' MegaBytes)</span></td></tr>';
+    $ok_mem_msg = ($memory_limit == -1) ? 'OK (unlimited)' :
+                  'OK ('.$memory_limit.' MegaBytes)';
+    $final_msg .= '<td><span class="tab-success">' . $ok_mem_msg . '</span></td></tr>';
   }
   $final_msg .= "<tr><td>Checking if Register Globals is disabled</td>";
   if(ini_get('register_globals')) 

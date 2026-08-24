@@ -47,9 +47,20 @@ available anytime at [`install/util/sysinfo.php`](install/util/sysinfo.php).
 
 ```bash
 cd /home/sebi/testlink
-fuser -k 8082/tcp
-nohup php -S 0.0.0.0:8082 -t . > /dev/null 2>&1 &
+scripts/devserver.sh 8082
 # Open http://localhost:8082  (admin / admin)
+```
+
+The launcher starts the PHP built-in server with the settings the installer
+expects (`max_execution_time=120`, `session.gc_maxlifetime=2880`,
+`memory_limit=64M`) — see [scripts/devserver.sh](scripts/devserver.sh) and
+[docs/Bugfix-Issue-484-PHP-Config-Installer-Warnings.md](docs/Bugfix-Issue-484-PHP-Config-Installer-Warnings.md).
+Equivalent php.ini values if you use a real web server instead:
+
+```ini
+max_execution_time = 120
+session.gc_maxlifetime = 2880
+memory_limit = 64M
 ```
 
 ## Login Credentials
