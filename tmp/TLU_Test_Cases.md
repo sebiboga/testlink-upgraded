@@ -3803,3 +3803,45 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | R5 static cleanliness | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php` + grep all `_isParamPresent` sites pair check-vs-message token | Syntax OK; only site 6641/6643 changed and now consistent; 6569/8263/8358 still customfields-paired | PASS |
 
 **Result: Suite 458 — 6/6 PASS** — Side observation while creating fixtures: XMLRPC `createTestCase` drops step `expectedresults` key → E_WARNING + empty expected_results persisted → filed as #661.
+
+## 63. Execute Tests screen modernization (Refs #662) (Suite ID: 63)
+
+**Screen:** `gui/templates/execute/execTest.html` · **BFF:** `api/execute/index.php`
+(init / tcList / tcDetails / save) · **Right:** `testplan_execute` (write),
+`exec_ro_access` (read-only variant) · **Date:** 2026-08-24
+
+Fixtures: project `ExecTest Project` (id1, prefix ETP), plan `Exec Plan` (id2,
+public), suite `Alpha Suite`, TC-Alpha ETP-1 v1 (2 steps), TC-Beta ETP-2 v1,
+build B1 id1 active+open, build B2-closed id2 inactive-open, platform Linux
+linked to plan. Users: admin (admin role), rotester (role `RO Exec Viewer`
+with only `exec_ro_access`).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 63.1 | BFF init context | GET `?action=init&tplan_id=2` with admin session | status ok; tproject/tplan names, builds w/ executable flag, default_build_id=1, platforms=[Linux], grants.can_execute=1 | PASS |
+| 63.2 | tcList latest versions + prior status | GET `?action=tcList&tplan_id=2&build_id=1&platform_id=1` | 2 items, full external ids ETP-1/ETP-2, suite path resolved, last_execution null before save | PASS |
+| 63.3 | tcDetails steps + summary | GET `?action=tcDetails&...tcase_id=4&tcversion_id=5` | version block (summary/preconditions/importance/external id), 2 ordered steps with actions+expected | PASS |
+| 63.4 | Save execution incl. step results | POST save {status:'p', notes, steps:{6:p+note,7:n}} | execution row written via write_execution (executions + execution_tcsteps); not_run step NOT stored | PASS |
+| 63.5 | Screen boot + context | open execTest.html?tproject_id=1&tplan_id=2 logged as admin | header shows plan/project, toolbar filled, list renders 2 rows w/ statuses, no console errors | PASS |
+| 63.6 | Case selection → form | click TC-Beta row | form shows meta (ETP-2/v1/importance), summary, preconditions, 4 status buttons (Not Run default), notes, step table w/ per-step result+notes, Save/Reset | PASS |
+| 63.7 | Full UI save flow | select Failed + step Passed w/ note + notes → Save | toast "Execution saved.", list auto-refresh shows Failed badge + new timestamp; DB rows correct | PASS |
+| 63.8 | Status filter | Result = Never executed → only unexecuted rows; clear → all | filtering correct incl. empty-state message | PASS |
+| 63.9 | Text search | type "beta" | only ETP-2 listed; clearing restores both rows | PASS |
+| 63.10 | Not-run guard | set status Not Run → Save | info toast "not recorded", no new executions row (count unchanged) — legacy parity | PASS |
+| 63.11 | Closed-build guard | pick B2-closed ("(closed)" suffix) → save attempt | error toast "Invalid or non-executable build for this plan"; nothing written | PASS |
+| 63.12 | Read-only path | login rotester (only exec_ro_access) → same URL | RO banner shown, inputs+Save disabled; direct API POST save returns 403 | PASS |
+| 63.13 | i18n switch | switch locale to Română | header "Execută teste", closed-build label "(închis)" from exe.* keys | PASS |
+| 63.14 | Event Viewer after testing | events table delta during session | NO new Error/Warning from the screen after fixes 662-a/662-b (option_platforms blob read; en_GB custom strings) | PASS |
+
+**Bugs found & fixed during this suite**
+- #662-a: init read vestigial `$tprojInfo['option_platforms']` column →
+  E_WARNING in Event Viewer on every load. Fixed by reading the serialized
+  options blob (`platformsEnabled`) defensively.
+- (#621 surfaced again): every step-level save emitted
+  `file_upload_step_exec_ok/ko is not localized for en_GB`. Added
+  `locale/en_GB/custom_strings.txt` defining both keys.
+
+**Known scope decisions (v1)**: attachments-at-execution and bug linking are
+not part of the first cut of the execution form (legacy execSetResults offers
+them); execution custom fields render in Execution History but not yet in the
+form. Tracked as follow-up work on issue #662.
