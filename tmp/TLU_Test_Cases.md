@@ -3749,3 +3749,21 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | Browser render | chrome-devtools navigate to viewer=new + screenshot + Event Viewer re-query | Page renders clean (title tab "Login"); screenshot docs/screenshots/issue-656-firstlogin-viewer-new-clean.png; still 0 new warnings incl. this render | PASS |
 
 **Result: Suite 656 — 6/6 PASS** — Side observation: self-signup accepts duplicate emails → filed as #657.
+
+## Regression — Issue #457: XML-RPC error messages lose "(method) - " prefix ($msg_prefix/$messagePrefix/$msgPrefix typos) + E_WARNING spam in Event Viewer
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); devKey set for `admin` (`users.script_key`); endpoint `POST /lib/api/xmlrpc/v1/xmlrpc.php` with one struct param; fix = commit `59279b726` (12 renamed prefix refs across 7 methods + local declaration in `updateTestCaseGetTCVID()`). Baseline pre-fix: fault strings missing prefixes on affected paths; events table had exactly 2 E_WARNING rows (`Undefined variable $msg_prefix ... Line 7260`) from the reproduction calls.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Pre-fix symptom documented | Before fix: call `tl.uploadTestCaseAttachment` {devKey} (no version) and `tl.getTestProjectByName` {devKey, testprojectname:NO_SUCH_PROJECT_XYZ}; compare with reference `tl.getTestPlanPlatforms` {devKey} | Bug calls return UNPREFIXED messages; reference returns `(getTestPlanPlatforms) - Parameter testplanid is required...`; 2x E_WARNING rows at line 7260 in events | PASS (measured pre-fix) |
+| 2 | R1 uploadTestCaseAttachment prefixed | Post-fix: same call as #1 first bug call | Message starts `(uploadTestCaseAttachment) - ` | PASS |
+| 3 | R2 getTestProjectByName prefixed | Post-fix: same call as #1 second bug call | Message starts `(getTestProjectByName) - ` | PASS |
+| 4 | R3 reference path unchanged | `tl.getTestPlanPlatforms` {devKey} no tplanid | Still `(getTestPlanPlatforms) - Parameter testplanid is required...` | PASS |
+| 5 | R4 zero new Event Viewer rows | Watermark events COUNT before/after all post-fix API calls in this suite | No new Error/Warning rows | PASS (count stayed 2) |
+| 6 | R5 static cleanliness | `php -l xmlrpc.class.php` + scripted function-scope scan of $msg_prefix/$messagePrefix/$msgPrefix | Syntax OK; 0 functions with undefined prefix uses | PASS |
+| 7 | addTestCaseToTestPlan prefix plumbing | `tl.addTestCaseToTestPlan` {devKey} (no testprojectid) | `(addTestCaseToTestPlan) - No testprojectid provided.` | PASS |
+| 8 | getTestCaseAssignedTester prefix plumbing | `tl.getTestCaseAssignedTester` {devKey, testplanid:99999, testcaseexternalid:NOPFX-1} | `(getTestCaseAssignedTester) - The Test Plan ID (99999) provided does not exist!` | PASS |
+| 9 | Sibling sanity createBuild | `tl.createBuild` {devKey, testplanid:99999} | `(createBuild) - The Test Plan ID (99999) provided does not exist!` | PASS |
+
+**Result: Suite 457 — 9/9 PASS** — Side observations: `setTestCaseTestSuite()` renders `"() - "` from `$ret['operation']` undefined key → filed as #658; `$tcase_external_id` used undefined at :3522 → filed as #659.
