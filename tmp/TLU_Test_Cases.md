@@ -3678,3 +3678,19 @@ Screenshots: `Test-Plan-Milestones-main.png`, `Test-Plan-Milestones-edit-modal.p
 | 6 | Working tree integrity | git status after fixture toggles | Only intended docs/test files modified; custom_config.inc.php absent; tpl byte-identical to HEAD | PASS |
 
 **Result: Suite 434 — 7/7 PASS** (case 0 = pre-fix reproduction recorded for evidence)
+
+## Regression — Issue #653: error_self_signup_disabled key missing from ALL locale bundles (LOCALIZE: placeholder on signup-disabled page)
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3.33); fix = commit `2c4d89119` adding `$TLS_error_self_signup_disabled` to 19/19 `locale/*/strings.txt`; self-signup disabled temporarily via untracked `custom_config.inc.php` (`$tlCfg->user_self_signup = FALSE;`), deleted after the suite.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Pre-fix reproduction | `custom_config.inc.php` with signup=FALSE → `curl http://localhost:8082/firstLogin.php` | (pre-fix) body contains literal `LOCALIZE: error_self_signup_disabled` under `TestLink ::: Fatal Error` h1 + Back-to-login link | PASS (reproduced verbatim) |
+| 1 | Post-fix primary symptom gone | Same request against fixed tree | Localized sentence rendered, ZERO occurrences of `LOCALIZE:` in response | PASS ("New user self-registration is disabled on this site. Please contact your site administrator.") |
+| 2 | Key coverage all bundles | `grep -rln error_self_signup_disabled locale/*/strings.txt \| wc -l` | 19 of 19 locale dirs contain the key | PASS (19) |
+| 3 | Syntax gate all touched files | `php -l locale/<loc>/strings.txt` ×19 | All pass; no parse errors from insertion before trailing `?>` | PASS (19/19) |
+| 4 | lang_get fallback path correct | Confirm mechanism: missing key → `TL_LOCALIZE_TAG . key` (lang_api.php:118); with key present → string returned | Behavior consistent before/after; no code change needed | PASS |
+| 5 | No event pollution | `SELECT COUNT(*) FROM events` after suite | 0 new Error/Warning rows (signup-disabled branch runs session-less; L18N warning gated by isset($_SESSION)) | PASS |
+| 6 | Default-config path unaffected by THIS fix | Remove custom_config.inc.php → GET /firstLogin.php (signup=TRUE) | Signup form should render — BLOCKED by pre-existing defect #654 (dashio `login/firstLogin.tpl` missing, Smarty fatal) verified identical on pristine worktree HEAD 020283511 → NOT caused by this fix; tracked as #654 | PASS (fix-neutral; #654 filed) |
+
+**Result: Suite 653 — 7/7 PASS** (case 0 = pre-fix reproduction recorded for evidence; case 6 documents the separately-filed blocker #654)
