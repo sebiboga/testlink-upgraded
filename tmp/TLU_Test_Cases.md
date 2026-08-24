@@ -4311,3 +4311,35 @@ Environment: fresh DB; server restarted through the new launcher `scripts/devser
 | 9 | Event Viewer after test window | SELECT from events table | Only AUDIT login event (level 16); zero new Error/Warning entries | PASS |
 
 Suite result: **9/9 PASS**
+
+## Suite 675 — Installer memory_limit ini-shorthand parsing (configCheck.php check_php_settings) — Refs #675
+Environment: repo root @ fix/issue-675 (12d10e954). Repro servers: `php -d memory_limit=1G -S 127.0.0.1:8083` (post-fix code) and worktree of pre-fix commit 3a8354da5 served at `127.0.0.1:8084` with same flag; main dev instance :8082 untouched (memory_limit=-1).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state | curl install/installCheck.php on :8084 (`memory_limit=1G`, commit 3a8354da5) | tab-warning "1 MegaBytes - We suggest 64 MB" | PASS (reproduced) |
+| 2 | G suffix: 1G | CLI harness check_php_settings() with `-d memory_limit=1G` | tab-success "OK (1024 MegaBytes)", no warning | PASS |
+| 3 | G suffix: 2G | Same harness with 2G | tab-success "OK (2048 MegaBytes)" | PASS |
+| 4 | M suffix unchanged | Harness with 512M / 64M | "OK (512 MegaBytes)" / "OK (64 MegaBytes)" identical to pre-fix behavior | PASS |
+| 5 | Sentinel -1 unchanged | Harness with -1 | "OK (unlimited)" (#484 behavior preserved) | PASS |
+| 6 | K branch end-to-end | Harness with 131072K (=128 MB) and 65536K (=64 MB) | "OK (128 MegaBytes)" / "OK (64 MegaBytes)" | PASS |
+| 7 | Bare-bytes default branch | Harness with 134217728 (=128 MB as bytes) | "OK (128 MegaBytes)" | PASS |
+| 8 | Live HTTP post-fix | curl install/installCheck.php on :8083 (`memory_limit=1G`) | tab-success "OK (1024 MegaBytes)" | PASS |
+| 9 | Main app regression | :8082 login.php HTTP status + installCheck memory row (-1) | HTTP 200; row reads "OK (unlimited)" | PASS |
+| 10 | Event Viewer after test window | `SELECT ... FROM events WHERE creation_ts > NOW() - INTERVAL 2 HOUR` | Zero rows → no new Error/Warning entries | PASS |
+
+Suite result: **10/10 PASS**
+
+## Suite 488 — Zero-test-project grant builder hardening (common.php getGrantSetWithExit) — Refs #488
+Environment: fresh DB import (0 rows in `testprojects`, `events` wiped for a clean baseline); app at http://localhost:8082 (PHP built-in server); admin/admin; branch fix/issue-488 @ 1357fc21e. Event measurement: `SELECT COUNT(*) FROM events WHERE log_level IN (2,4)` (2=WARNING, 4=ERROR); logging health canary: AUDIT(16)/INFO(1) rows must appear during the pass.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Original symptom absent | Browser login → index.php renders navBar+asideMenu+projectEdit create redirect; direct mainPage.php | All frames render; 0 WARNING/ERROR events (issue reported 286 warnings pre-fix) | PASS |
+| 2 | Authenticated sweep, zero projects | cURL login (`tl_login/tl_password/tl_login_btn`) → GET index, navBar, asideMenu, mainPage, projectEdit?doAction=create, usersView, rolesView, pluginView, eventviewer, cfieldsView, issueTrackerView/Edit, codeTrackerView | Every page returns full authenticated content; events delta 0 WARNING/ERROR | PASS |
+| 3 | Logging health canary (guard vs false PASS) | After sweep, check events table has ANY rows | AUDIT(16)/INFO(1) rows present → proves 0-warning result is meaningful, not a dead logger | PASS |
+| 4 | Grant builder handler fix live | Same sweep on fixed code — the two changed lines run on EVERY page load via getGrantSetWithExit() | No fatal "call to member function on null", no behavior change in grants (aside shows System/Projects/Plugins/Documentation for admin) | PASS |
+| 5 | Non-zero-project branch regression | UI-create project "Issue488 Verification Project" (prefix I488) → index.php → verify navBar combo + full aside menu set → delete project via projectEdit.php?doAction=doDelete&tprojectID=1 | Project created/selected; aside shows Search/System/Projects/Req Design/Test Design/Test Plan/Plugins/Docs; delete returns system to 0 projects; 0 WARNING/ERROR across lifecycle | PASS |
+| 6 | Syntax gate | php -l lib/functions/common.php | No syntax errors | PASS |
+
+Suite result: **6/6 PASS**
