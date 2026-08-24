@@ -89,7 +89,7 @@ Extra modernized feature (not an ASIDE entry):
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 
 | 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |
-| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done |
+| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671, `results/resultsByTSuite.html` + `api/reports metrics_by_tsuite`)**; test plan/test report docs via testPlanReport.html (#608); general metrics via generalMetrics.html (#618) |
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):
