@@ -1355,5 +1355,7 @@
   "rgm.until": "まで",
   "rgm.infoMilestonesPrio": "このレポートは、この計画に定義されたマイルストーンと、各目標に対する優先度別の進捗を示します。",
   "rgm.infoMilestonesNoPrio": "このレポートは、この計画に定義されたマイルストーンと、目標に対する全体的な進捗を示します。",
-  "rgm.elapsedSeconds": "経過秒数:"
+  "rgm.elapsedSeconds": "経過秒数:",
+  "rgm.thCompletedPerc": "完了率 [%]",
+  "rgm.infoGenTestRep": "このレポートは選択したテスト計画の総合メトリクスを示します: プラットフォーム別結果、ビルド状態、最上位スイート、優先度とキーワードの内訳、およびマイルストーンレポート。"
 }

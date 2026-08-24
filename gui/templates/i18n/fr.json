@@ -1355,5 +1355,7 @@
   "rgm.until": "au",
   "rgm.infoMilestonesPrio": "Ce rapport montre les jalons définis pour ce plan de test, avec l'avancement par priorité comparé à l'objectif de chaque jalon.",
   "rgm.infoMilestonesNoPrio": "Ce rapport montre les jalons définis pour ce plan de test, avec l'avancement global comparé à l'objectif du jalon.",
-  "rgm.elapsedSeconds": "Secondes écoulées :"
+  "rgm.elapsedSeconds": "Secondes écoulées :",
+  "rgm.thCompletedPerc": "Terminé [%]",
+  "rgm.infoGenTestRep": "Ce rapport montre les métriques générales du plan de test sélectionné : résultats par plateforme, statut des builds, suites de premier niveau, ventilations par priorité et mot-clé, plus le rapport des jalons."
 }

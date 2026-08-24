@@ -1355,5 +1355,7 @@
   "rgm.until": "bis",
   "rgm.infoMilestonesPrio": "Dieser Bericht zeigt die für diesen Testplan definierten Meilensteine inklusive des prioritätengestützten Fortschritts gegenüber dem Zielwert.",
   "rgm.infoMilestonesNoPrio": "Dieser Bericht zeigt die für diesen Testplan definierten Meilensteine mit dem Gesamtfortschritt gegenüber dem Meilensteinziel.",
-  "rgm.elapsedSeconds": "Vergangene Sekunden:"
+  "rgm.elapsedSeconds": "Vergangene Sekunden:",
+  "rgm.thCompletedPerc": "Abgeschlossen [%]",
+  "rgm.infoGenTestRep": "Dieser Bericht zeigt die allgemeinen Metriken des ausgewählten Testplans: Ergebnisse nach Plattform, Build-Status, Top-Suiten, Prioritäts- und Stichwort-Aufschlüsselung sowie den Meilensteinbericht."
 }

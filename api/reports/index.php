@@ -298,15 +298,25 @@ if ($action === 'metrics_general') {
         out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
 
+    // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
+    // the session/project context, so users holding the right ONLY through a
+    // per-project role must pass here too (the global check above is just
+    // the cheap first gate).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
     // Platform set decides whether every "* on platform" section renders
     // (same rule as initializeGui(): empty set => fakePlatform '' +
-    // showPlatforms=false).
+    // showPlatforms=false). Legacy array('') carries implicit key 0, matching
+    // TPTCV.platform_id = 0 rows of platform-less plans - keep int key 0.
     $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
     $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
     if ($showPlatforms) {
         natsort($platformSet);
     } else {
-        $platformSet = ['' => ''];
+        $platformSet = [0 => ''];
     }
 
     $projOpts = $proj['opt'] ?? null;
@@ -334,10 +344,12 @@ if ($action === 'metrics_general') {
         // "* on platform X" sections in the same natsort order as legacy
         'platform_set' => $platformSet,
         // legacy lib/results/resultsGeneral.php endpoints kept for the two
-        // export buttons - document/mail/spreadsheet generation stays legacy
-        'send_mail_url' => 'lib/results/resultsGeneral.php?format=' .
+        // export buttons - document/mail/spreadsheet generation stays legacy.
+        // Root-relative (sibling convention, see testPlanReport.html
+        // PRINT_URL): the page lives under /gui/templates/results/.
+        'send_mail_url' => '/lib/results/resultsGeneral.php?format=' .
             FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId,
-        'export_xls_url' => 'lib/results/resultsGeneral.php?format=' .
+        'export_xls_url' => '/lib/results/resultsGeneral.php?format=' .
             FORMAT_XLS . '&tplan_id=' . $tplanId . '&spreadsheet=1',
     ];
 

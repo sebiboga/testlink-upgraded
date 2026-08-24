@@ -1355,5 +1355,7 @@
   "rgm.until": "until",
   "rgm.infoMilestonesPrio": "This Report shows milestones defined for this test plan, including priority-based progress against each milestone's expected goal.",
   "rgm.infoMilestonesNoPrio": "This Report shows milestones defined for this test plan, showing overall completion progress against the milestone goal.",
-  "rgm.elapsedSeconds": "Elapsed seconds:"
+  "rgm.elapsedSeconds": "Elapsed seconds:",
+  "rgm.thCompletedPerc": "Completed [%]",
+  "rgm.infoGenTestRep": "This report shows the general test plan metrics for the selected test plan: results by platform, build status, top level suites, priority and keyword breakdowns plus the milestone report."
 }

@@ -1355,5 +1355,7 @@
   "rgm.until": "hasta",
   "rgm.infoMilestonesPrio": "Este informe muestra los hitos definidos para este plan, incluido el progreso por prioridad frente al objetivo de cada hito.",
   "rgm.infoMilestonesNoPrio": "Este informe muestra los hitos definidos para este plan, con el progreso global frente al objetivo del hito.",
-  "rgm.elapsedSeconds": "Segundos transcurridos:"
+  "rgm.elapsedSeconds": "Segundos transcurridos:",
+  "rgm.thCompletedPerc": "Completado [%]",
+  "rgm.infoGenTestRep": "Este informe muestra las métricas generales del plan seleccionado: resultados por plataforma, estado de builds, suites de primer nivel, desglose por prioridad y palabra clave, además del informe de hitos."
 }

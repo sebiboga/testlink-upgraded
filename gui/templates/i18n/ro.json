@@ -1355,5 +1355,7 @@
   "rgm.until": "până la",
   "rgm.infoMilestonesPrio": "Acest raport afișează jaloanele definite pentru acest plan, inclusiv progresul pe priorități față de obiectivul fiecărui jalon.",
   "rgm.infoMilestonesNoPrio": "Acest raport afișează jaloanele definite pentru acest plan, cu progresul general față de obiectivul jalonului.",
-  "rgm.elapsedSeconds": "Secunde scurse:"
+  "rgm.elapsedSeconds": "Secunde scurse:",
+  "rgm.thCompletedPerc": "Completat [%]",
+  "rgm.infoGenTestRep": "Acest raport arată metricile generale ale planului de testare selectat: rezultate pe platformă, starea build-urilor, suite de nivel superior, defalcare pe priorități și cuvinte cheie plus raportul jaloanelor."
 }

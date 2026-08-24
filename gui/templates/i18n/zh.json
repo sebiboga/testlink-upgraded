@@ -1355,5 +1355,7 @@
   "rgm.until": "到",
   "rgm.infoMilestonesPrio": "本报告显示该计划定义的里程碑，包括相对每个里程碑目标的分优先级进度。",
   "rgm.infoMilestonesNoPrio": "本报告显示该计划定义的里程碑，以及相对里程碑目标的总体进度。",
-  "rgm.elapsedSeconds": "耗时秒数:"
+  "rgm.elapsedSeconds": "耗时秒数:",
+  "rgm.thCompletedPerc": "已完成 [%]",
+  "rgm.infoGenTestRep": "本报告显示所选测试计划的总体度量：按平台的结果、构建状态、顶层套件、优先级和关键字明细，以及里程碑报告。"
 }

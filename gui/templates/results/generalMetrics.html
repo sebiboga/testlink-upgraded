@@ -145,9 +145,11 @@ function loadReport() {
     }
 
     renderAll(r);
-    var gen = TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString();
-    $('#footerInfo').html(esc(gen) + ' &middot; ' +
-      esc(TLi18n.t('rgm.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
+    $('#footerInfo').html(
+      '<span style="display:block;margin-bottom:2px;">' +
+      esc(TLi18n.t('rgm.infoGenTestRep')) + '</span>' +
+      esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString() +
+      ' &middot; ' + esc(TLi18n.t('rgm.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
   }).fail(function (xhr) {
     $('#loadingBox').hide();
     var msg = TLi18n.t('rgm.errLoad');
@@ -190,9 +192,10 @@ function renderAll(r) {
         ' ' + esc(pname) + '</div>';
       html += statTable(r.build_by_platform.info[platId],
         r.build_by_platform.columns, 'rgm.thBuild', 'total_assigned', true);
-      html += '<p class="note">' + esc(TLi18n.t('rgm.buildMetricsFeedback')) + '</p>';
     });
     if (html !== '') {
+      // legacy prints the feedback note ONCE after the per-platform block
+      html += '<p class="note">' + esc(TLi18n.t('rgm.buildMetricsFeedback')) + '</p>';
       $area.append(section(TLi18n.t('rgm.resBuild'), 'fa-layer-group', html));
     }
   }
@@ -221,11 +224,12 @@ function renderAll(r) {
 }
 
 function platformOrder(r) {
-  // ordered [{id,name}] - BFF already natsorted it like initializeGui()
+  // ordered [{id,name}] - BFF already natsorted it like initializeGui();
+  // platform-less plans come back as {"0":""} (legacy implicit key 0)
   var out = [];
   var set = r.platform_set || {};
   Object.keys(set).forEach(function (k) { out.push({ id: k, name: set[k] }); });
-  if (out.length === 0) { out.push({ id: '', name: '' }); }
+  if (out.length === 0) { out.push({ id: '0', name: '' }); }
   return out;
 }
 
@@ -283,6 +287,12 @@ function statTable(rows, columns, firstNameKey, totalKey, showPct) {
   if (columns) { statuses = Object.keys(columns); }
   else if (rowArr[0].details) { statuses = Object.keys(rowArr[0].details); }
 
+  // legacy tables end with a final "Completed [%]" column
+  // (inc_results_show_table.tpl trep_comp_perc / percentage_completed)
+  var showCompleted = rowArr.some(function (r) {
+    return r.percentage_completed !== undefined && r.percentage_completed !== null;
+  });
+
   function cellTotal(row) {
     if (row[totalKey] != null) { return row[totalKey]; }
     if (row.total_tc != null) { return row.total_tc; }
@@ -299,6 +309,7 @@ function statTable(rows, columns, firstNameKey, totalKey, showPct) {
     var lbl = (columns && columns[st] && columns[st].qty) ? columns[st].qty : st;
     h += '<th colspan="' + (showPct ? 2 : 1) + '">' + esc(lbl) + '</th>';
   });
+  if (showCompleted) { h += '<th>' + esc(TLi18n.t('rgm.thCompletedPerc')) + '</th>'; }
   h += '</tr></thead><tbody>';
 
   rowArr.forEach(function (row) {
@@ -311,6 +322,7 @@ function statTable(rows, columns, firstNameKey, totalKey, showPct) {
       h += '<td>' + esc(d.qty) + (showPct ? ' <span class="pct ' + (bad ? 'bad' : '') +
         '">' + esc(d.percentage) + '%</span>' : '') + '</td>';
     });
+    if (showCompleted) { h += '<td class="tot">' + esc(row.percentage_completed || 0) + '%</td>'; }
     h += '</tr>';
   });
   h += '</tbody></table>';

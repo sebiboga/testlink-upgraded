@@ -1355,5 +1355,7 @@
   "rgm.until": "até",
   "rgm.infoMilestonesPrio": "Este relatório mostra os marcos definidos para este plano, incluindo o progresso por prioridade face à meta de cada marco.",
   "rgm.infoMilestonesNoPrio": "Este relatório mostra os marcos definidos para este plano, com o progresso geral face à meta do marco.",
-  "rgm.elapsedSeconds": "Segundos decorridos:"
+  "rgm.elapsedSeconds": "Segundos decorridos:",
+  "rgm.thCompletedPerc": "Concluído [%]",
+  "rgm.infoGenTestRep": "Este relatório mostra as métricas gerais do plano selecionado: resultados por plataforma, estado dos builds, suítes de nível superior, detalhe por prioridade e palavra-chave, além do relatório de marcos."
 }

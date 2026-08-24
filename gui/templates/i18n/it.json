@@ -1355,5 +1355,7 @@
   "rgm.until": "al",
   "rgm.infoMilestonesPrio": "Questo report mostra le milestone definite per questo piano, inclusi i progressi per priorità rispetto all'obiettivo di ciascuna.",
   "rgm.infoMilestonesNoPrio": "Questo report mostra le milestone definite per questo piano, con l'avanzamento complessivo rispetto all'obiettivo della milestone.",
-  "rgm.elapsedSeconds": "Secondi trascorsi:"
+  "rgm.elapsedSeconds": "Secondi trascorsi:",
+  "rgm.thCompletedPerc": "Completato [%]",
+  "rgm.infoGenTestRep": "Questo report mostra le metriche generali del piano selezionato: risultati per piattaforma, stato delle build, suite di primo livello, dettaglio per priorità e parola chiave, più il report delle milestone."
 }
