@@ -7005,12 +7005,15 @@ class TestlinkXMLRPCServer extends IXR_Server {
                         // If there are test case versions linked to test plan, that use
                         // this platform, operation(as happens on GUI) can not be done
                         $hits = $this->tplanMgr->countLinkedTCVersionsByPlatform( $testPlanID,( array ) $platform['id'] );
-                        if($hits[$platform['id']]['qty'] == 0) {
+                        // fetchRowsIntoMap() returns null when the GROUP BY matches no row
+                        // (platform linked but zero TC versions use it)
+                        $hitsQty = isset($hits[$platform['id']]['qty']) ? intval($hits[$platform['id']]['qty']) : 0;
+                        if($hitsQty == 0) {
                             $this->platformMgr->unlinkFromTestplan( $platform['id'], $testPlanID );
                             $ret['msg'] = 'unlink done';
                         } else {
                             $status_ok = false;
-                            $msg = $messagePrefix . sprintf( PLATFORM_REMOVETC_NEEDED_BEFORE_UNLINK_STR, $platName, $hits[$platform['id']]['qty'] );
+                            $msg = $messagePrefix . sprintf( PLATFORM_REMOVETC_NEEDED_BEFORE_UNLINK_STR, $platName, $hitsQty );
                             $this->errors[] = new IXR_Error( PLATFORM_REMOVETC_NEEDED_BEFORE_UNLINK, $msg );
                         }
                     }
