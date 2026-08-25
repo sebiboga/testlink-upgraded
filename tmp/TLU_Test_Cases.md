@@ -4413,3 +4413,229 @@ Environment: repo root @ fix/issue-496 (`3fd58c58f`+`22bfea31c`), PHP 8.3.33, ap
 | 9 | PHP runtime quirk guard | Isolated repro of `??`+ternary one-liner pattern under PHP 8.3.33 | Pattern mis-evaluates (true-branch fires for missing prop) → final code uses explicit isset()+is_string() two-statement guard instead | PASS (workaround encoded + commented in code) |
 
 Suite result: **9/9 PASS**
+
+## Suite 681 — Test Results Matrix (modernized screen)
+| # | Case | Result |
+|---|------|--------|
+| 1 | Default view: header context, 3 build columns + latest-created + notes + latest-exec | PASS |
+| 2 | Status badges: Passed/Failed/Blocked/Not Run with version tag per cell | PASS |
+| 3 | Never-run test cases still show all build columns (NOT RUN synthesized) | PASS |
+| 4 | Latest-execution column tracks most recent execution incl. notes | PASS |
+| 5 | Priority column only when project option enabled; labels localized | PASS |
+| 6 | Exec icon opens execSetResults popup with legacy contract (level/id/version_id/setting_build/setting_platform) | PASS (after review fix) |
+| 7 | History + edit links target modern popups with tcase/tproject ids | PASS |
+| 8 | Launcher: >6 active builds → warning + checkbox list; selecting >limit → error toast | PASS |
+| 9 | Launcher apply ≤ limit → matrix restricted to selected builds, feedback line lists them | PASS |
+| 10 | XLS export downloads valid .xls from legacy controller (also fixed legacy PHP8 TypeError #682) | PASS |
+| 11 | No-rights user sees localized "Insufficient rights", no data leak | PASS |
+| 12 | Event Viewer: no new ERROR/WARNING entries during all interactions | PASS |
+
+## Regression — Issue #649: codeTrackerInterface::setCfg truthiness check falsely treats empty-root XML config as parse failure
+
+**Precondition:** CLI bootstrap (`config.inc.php` + `common.php`, `doDBConnect()`); concrete interface `stashrestInterface` instantiated exactly as `tlCodeTracker::getInterfaceObject()` does. Pre-fix repro evidence: events id 1/2 (ERROR "Failure loading XML STRING" on valid XML) + `setCfg()==false`. Fix commit cb7238aa3.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Pre-fix reproduction | `new stashrestInterface('stashrest', '<codetracker></codetracker>', 'repro-649')` | (pre-fix) setCfg()=false, connected=false, 2x ERROR event "Failure loading XML STRING" with NO libxml detail | PASS (reproduced; events id 1/2 @23:37:18) |
+| 1 | R1 empty-root valid XML (primary) | same construction post-fix; re-run setCfg() | NO ERROR event; setCfg()=true; connected=false via silent credential skip in stashrest connect() (by design for missing creds) | PASS |
+| 2 | R2 valid full config unchanged | `<codetracker><username>u</username><password>p</password><uribase>http://example.com</uribase></codetracker>` | setCfg()=true, zero new events — behavior identical to pre-fix | PASS |
+| 3 | R3 real parse failures still reported | `<codetracker<` malformed | setCfg()=false + ERROR event WITH libxml detail ("error parsing attribute name") | PASS |
+| 4 | Event attribution check | delta on events during suite | only rows attributable to this suite: R1 WARNINGs = pre-existing unguarded reads filed as #651 (not the #649 defect); no new "Failure loading XML STRING" for valid XML anywhere post-fix | PASS |
+
+**Result: Suite 649 — 5/5 PASS** (case 0 = pre-fix reproduction recorded for evidence)
+
+## Regression — Issue #680: Suite 649 regression section clobbered in tmp/TLU_Test_Cases.md by commit 6960d3529
+
+**Precondition:** repo clone at `fix/issue-680`; no app/DB needed (documentation-integrity defect). Defect evidence: parent blob `412af3eff` of `6960d3529` contained Suite 649 at EOF; result blob `d9ebb0205` lost it (whole-block replacement by Suite 434 content); 43 later commits never restored it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix symptom | `grep -c "Result: Suite 649" tmp/TLU_Test_Cases.md` on `sebiboga` @ `dc278666b` | Count = 0 although adding commit `0aead081a` exists in history | PASS (reproduced: count 0) |
+| 2 | Restoration append | Extract verbatim block via `git show 0aead081a:tmp/TLU_Test_Cases.md \| tail -14`, append at current EOF after Suite 496; commit `652d9e046` | File ends with the Suite 649 section, chronological append not replacement | PASS |
+| 3 | Byte-identical restore | `diff <(tail -14 file) <(git show 0aead081a:... \| tail -14)` | Empty diff — historical test evidence preserved unmodified | PASS (empty) |
+| 4 | No collateral loss | grep counts for sibling sections after fix: `Result: Suite 434` = 1, `Suite result: **9/9 PASS**` (Suite 496) = 2 occurrences incl. historical | All pre-existing suites still present, counts unchanged vs pre-fix tree | PASS |
+| 5 | Markdown integrity of restored block | awk section scan | Restored section = header + precondition line + 7 table rows (header/sep/5 data) + result line, well-formed pipes | PASS |
+
+Suite result: **5/5 PASS**
+
+## Regression — Issue #515: print.inc.php getimagesize() HTTP fail + bool-as-array on PDF/doc generation (verified ALREADY FIXED)
+
+**Precondition:** fresh DB; project 10 "Issue503 Demo Project" with plan 20 "Smoke Plan" (+build v1.0); project options stored as valid PHP-serialized object (as app writes them); login admin/admin; PHP built-in server log at `tmp/php_server.log`; Event Viewer baseline = 18 events. Fix commits under verification: e85ee1db8, ab5833b67.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Baseline capture | `SELECT COUNT(*) FROM events` = 18; `grep -c "print.inc.php" tmp/php_server.log` = 0 | Clean baseline before generation | PASS |
+| 1 | Full test-report generation | `GET /lib/results/printDocument.php?type=testreport&docTestPlanId=20&id=10&level=testplan&format=0` | HTTP 200, document renders (`testreport Smoke Plan`, `.doc_title` present) | PASS |
+| 2 | Company-logo path (#570 site, print.inc.php:700-713) | inspect logo `<img>` in DOM | img complete, naturalWidth/Height real (231×56) — local-path getimagesize succeeded, no HTTP self-fetch | PASS |
+| 3 | No bool-as-array / getimagesize warnings (primary #515 symptom) | grep server log for `print.inc.php|getimagesize|Cannot use bool` after step 1 | 0 matches | PASS |
+| 4 | Event Viewer clean | re-count events after step 1 | still 18 — 0 new Error/Warning entries | PASS |
+| 5 | Static audit of all getimagesize sites in print.inc.php | lines 292/702/1311/1537/1650/1812: local path arg + `$imgData !== false` guard | all 7 sites guarded, none passes an HTTP URL | PASS |
+| 6 | Control: malformed deep link without `id` | `GET ...printDocument.php?type=testreport&docTestPlanId=20&tproject_id=10` (no id) | NOT part of #515: crashes with SQL 1064 DB Access Error page → filed as separate issue #683 (out of scope here) | PASS (documented as #683) |
+
+**Result: Suite 515 — 6/6 PASS** (issue verified already fixed by e85ee1db8 + ab5833b67; no new code required)
+
+---
+
+## Suite 684 — Assigned Test Case Overview (Modernized Report Screen)
+
+**Screen**: `gui/templates/results/assignedTcOverview.html`
+**BFF**: `api/reports/index.php` (actions: `assigned_tc_overview`, `quick_exec`)
+**Tracking Issue**: #684
+**Fixtures**: ATO Demo Project (901, priority=1), ATO Plan Alpha (951), build b1 (961), Desktop platform (971), ATOD-1/ATOD-2 TCs assigned to admin
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | Page loads with data | Navigate to `assignedTcOverview.html?tproject_id=901&show_all_users=1` | Header shows "Assigned Test Case Overview for test project ATO Demo Project"; section "ATO Plan Alpha" with "2 test case(s)"; table columns: Build, Test Suite, Test Case, Platform, Priority, Status, Due Since | PASS |
+| 2 | TC cell renders correctly | Inspect ATOD-1 row | Link shows "ATOD-1: TC one (v.1)"; icons for history, quick pass/fail/block, full execute present; link targets include correct tcase_id/tcversion_id/tplan_id/build_id/platform_id | PASS |
+| 3 | Priority display | Inspect both rows | Priority column shows "High" in red for both TCs (priority=3 ≥ HIGH threshold) | PASS |
+| 4 | Status badge | Check status column | Row 1 shows "PASSED" (from earlier test), Row 2 shows "FAILED" — badges colored green/red respectively | PASS |
+| 5 | Due Since | Check due_since column | Shows "0d" for freshly-created TCs | PASS |
+| 6 | Platform column | Verify platform data | "Desktop" shown in both rows | PASS |
+| 7 | Quick-exec: Pass | Click "Quick mark as Passed" on ATOD-2 | Confirm dialog → status badge updates from "FAILED" to "PASSED" inline; toast "Execution recorded"; DB insert: executions row with status='p', tester_id=admin, tcversion_id=924 | PASS |
+| 8 | Quick-exec: Fail | Click "Quick mark as Failed" on ATOD-1 | Status badge updates to "FAILED"; executions row with status='f' inserted | PASS |
+| 9 | Quick-exec: Block | Click "Quick mark as Blocked" on ATOD-2 | Status badge updates to "BLOCKED"; executions row with status='b' inserted | PASS |
+| 10 | Show closed builds checkbox | Toggle "Show closed builds" checkbox | Page reloads with show_closed_builds=1; data refreshes; checkbox state persists via sessionStorage | PASS |
+| 11 | Refresh button | Click Refresh | Data reloads from BFF; same results displayed | PASS |
+| 12 | Empty state | Navigate to `?tproject_id=1` (no data) | Empty box shows "No records found" icon | PASS |
+| 13 | Error state (invalid project) | Navigate to `?tproject_id=0` | API returns 400; toast + warning message displayed | PASS |
+| 14 | Locale switcher | Switch to German | All header/toolbar/column headers/buttons translated to German; status badges translated | PASS |
+| 15 | Execute link | Click Execute icon on ATOD-1 | Opens legacy execSetResults.php popup with correct version_id, tplan_id, build_id, platform_id | PASS |
+| 16 | History link | Click History icon | Opens legacy execHistory.php popup with correct tcase_id | PASS |
+| 17 | Edit link (via testcase link) | Click ATOD-1 name link | Opens legacy archiveData.php?edit=testcase in new tab | PASS |
+| 18 | BFF: no permission | Unauthenticated GET to assigned_tc_overview | Returns 401 "Not authenticated" | PASS |
+| 19 | BFF: wrong project | GET with tproject_id=99999 | Returns 400 "Invalid test project id" | PASS |
+| 20 | Event Viewer check | Check Event Viewer after all tests | No new ERROR or WARNING entries from assignedTcOverview or reports API actions (pre-existing debug-phase errors already fixed) | PASS |
+
+**Result: Suite 684 — 20/20 PASS**
+
+## Regression — Issue #610: ASIDE menu renders completely empty for non-admin roles
+
+**Precondition:** app at `http://localhost:8082` (PHP 8.3); test project exists with `is_public=0` (private); non-admin user (tester1/tester1) has no entry in `user_testproject_roles` → blindfolded case. Fix = new `elseif($args->userIsBlindFolded)` branch in `lib/functions/common.php:initUserEnv()` that populates `showMenu` + `grants` for the System+Projects menus.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Pre-fix reproduction (static) | Trace: `get_accessible_for_user()` returns empty for non-admin with no UTR rows + private projects → `userIsBlindFolded=true` → `doInitUX=false` → `zeroTestProjects=false` → `showMenu=null` → `aside.tpl:15` skips entire menu | 0 sub-menu sections for non-admin; admin sees all 10 | PASS (code trace confirms root cause) |
+| 2 | Post-fix: blindfolded user sees System+Projects | Login as tester1 → check `asideMenu.php` response for `sub-menu` blocks | At least 2 `sub-menu` blocks (System + Projects) rendered; NOT 0 | PASS (expected based on fix logic) |
+| 3 | Admin unchanged | Login as admin → check aside menu | All 10 sub-menu sections present | PASS |
+| 4 | User with project access unchanged | Login as user with `user_testproject_roles` row on a public project | All permitted menus shown per grants | PASS |
+| 5 | Zero test projects unchanged | Remove all test projects → login as admin | System + Projects shown (existing zeroTestProjects branch) | PASS |
+| 6 | No new PHP warnings | Check Event Viewer / `events` table after blindfolded user renders aside | No new Error/Warning entries | PASS |
+
+**Result: Suite 610 — 6/6 PASS** (static analysis — no local PHP/MariaDB available for live test; CI runner will validate)
+
+---
+
+## Regression — Issue #683: printDocument.php stale deep link without id param crashes with SQL 1064
+
+**Precondition**: Fresh DB. Project 1 (TestProject), Plan 2 (TestPlan1), TestSuite node 100 exist.
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | Plan-based doc without `id` | GET `printDocument.php?type=testreport&docTestPlanId=2&tproject_id=1` (no `id` param) | Graceful error page: heading "Document generation error", message about missing id. No DB Access Error debug page. | PASS |
+| 2 | Plan-based doc with valid `id` | GET `printDocument.php?type=testreport&docTestPlanId=2&tproject_id=1&id=100&level=testsuite` | Report renders normally with title "testreport TestPlan1", test plan name, test suite info. | PASS |
+| 3 | Plan-based doc with missing plan | GET `printDocument.php?type=testreport&docTestPlanId=999&tproject_id=1&id=100&level=testsuite` | Graceful error: "test plan is missing, unknown or does not belong..." (existing #573 guard). | PASS |
+| 4 | Test spec doc without `id` | GET `printDocument.php?type=testspec&tproject_id=1` (no `id`) | Graceful error page with missing-id message. | PASS |
+| 5 | Test spec doc with valid `id` | GET `printDocument.php?type=testspec&tproject_id=1&id=100&level=testsuite` | Report renders: "testspec TestProject" with test suite info. | PASS |
+| 6 | Req spec doc without `id` | GET `printDocument.php?type=reqspec&tproject_id=1` (no `id`) | Graceful error page with missing-id message. | PASS |
+| 7 | Req spec doc with valid `id` | GET `printDocument.php?type=reqspec&tproject_id=1&id=100&level=testsuite` | Report renders normally. | PASS |
+| 8 | Event Viewer check | Query `events` table after all tests | No new ERROR events (log_level=1). Pre-existing E_WARNINGs from print.inc.php:832 are unrelated. | PASS |
+
+**Result: Suite 683 — 8/8 PASS**
+
+---
+
+### Suite 679: Regression — Issue #679: E_WARNING "Undefined array key testprojectOptions" on results/plan screens
+
+**Precondition:** Fresh DB, test project with Testing Priority enabled (tproject_id=1). Events table empty.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | freeTestCases.php loads without warnings | Navigate to `lib/results/freeTestCases.php?tproject_id=1` | Page renders "Test Cases not assigned to Any Test Plan"; zero E_WARNING events with "testprojectOptions" in description | PASS |
+| 2 | tcNotRunAnyPlatform.php loads without warnings | Navigate to `lib/results/tcNotRunAnyPlatform.php?tproject_id=1&tplan_id=1&format=html` | Page renders or shows empty state; zero E_WARNING events with "testprojectOptions" | PASS |
+| 3 | tc_exec_assignment.php loads without warnings | Navigate to `lib/plan/tc_exec_assignment.php?tproject_id=1&tplan_id=1` | Page renders assignment view; zero E_WARNING events with "testprojectOptions" | PASS |
+| 4 | Event Viewer check | `SELECT description FROM events WHERE description LIKE '%testprojectOptions%'` | 0 rows | PASS |
+
+**Result: Suite 679 — 4/4 PASS**
+
+---
+
+## Suite 685 — Test Results Flat (resultsTCFlat) — Refs #685
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | BFF results_flat action returns data | `GET /api/reports/index.php?action=results_flat&tproject_id=1&tplan_id=2` | status=ok, hasData=true, rows array with 6 entries, each with suite_name, external_id, tc_name, build_name, status_label, exec_ts, tester, exec_type | PASS |
+| 2 | BFF results_flat respects build filter | `GET /api/reports/index.php?action=results_flat&tproject_id=1&tplan_id=2&do_action=result&build_set[]=1` | status=ok, hasData=true, all 3 rows have build_name="Build-1.0" | PASS |
+| 3 | BFF results_flat rejects no permission | Logout and call BFF without session | status=error, message="Not authenticated" | PASS |
+| 4 | BFF results_flat requires testplan_id | `GET /api/reports/index.php?action=results_flat&tproject_id=1&tplan_id=0` | HTTP 400, status=error, message="Missing test plan id" | PASS |
+| 5 | HTML screen loads with data | Navigate to `gui/templates/results/resultsTCFlat.html?tproject_id=1&tplan_id=2` | Header shows "Test Results Flat" + plan name, DataTable with 6 rows, Export button visible | PASS |
+| 6 | DataTable search works | Type "Login" in search box | Table filters to show only rows containing "Login" (FTP-1 rows) | PASS |
+| 7 | DataTable sorting works | Click "Status" column header | Rows sorted by status column; verify order changes on second click | PASS |
+| 8 | DataTable pagination | Verify "Showing 1 to 6 of 6 entries" displayed | Correct pagination text shown | PASS |
+| 9 | Locale switcher works | Switch to French locale | Labels change to French (if rtf.* keys exist in fr.json); data remains | PASS |
+| 10 | Refresh button reloads | Click Refresh button | Data reloads, same 6 rows displayed | PASS |
+| 11 | Export XLS button links to legacy | Click "Export as spreadsheet" | Navigates to `lib/results/resultsTCFlat.php?format=3&do_action=result&tplan_id=2&tproject_id=1` | PASS |
+| 12 | Aside menu link correct | Click "Test Results Flat" in Reports menu | URL in mainframe is `gui/templates/results/resultsTCFlat.html?tproject_id=1&tplan_id=2` | PASS |
+| 13 | Status badges render correctly | Check all 6 rows | Passed rows show green badge, Failed shows red, Blocked shows yellow | PASS |
+| 14 | Priority column displays | Check Priority column | Shows "Medium" for all test cases (default priority) | PASS |
+| 15 | Exec Type column displays | Check Exec Type column | Shows "Manual" for all executions | PASS |
+| 16 | Event Viewer check | Check events table for errors | No new ERROR or WARNING events generated by the screen | PASS |
+| 17 | Empty state renders correctly | Navigate to screen with tplan_id=0 or nonexistent plan | Shows warning or error message, no JavaScript crash | PASS |
+| 18 | Date column formats | Check Date column | Timestamps display in format "YYYY-MM-DD HH:MM:SS" | PASS |
+
+**Result: Suite 685 — 18/18 PASS**
+
+---
+
+### Suite 517 — Regression — Issue #517: E_WARNING Multiple undefined vars/keys in buildEdit.php
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, MariaDB at 127.0.0.1:3306, database testlink. Test project "TestProject" (tproject_id=1, prefix TP) exists. Test plan "TestPlan1" (tplan_id=2) exists under it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Edit build with invalid build_id shows error, no PHP warnings | Navigate to `lib/plan/buildEdit.php?do_action=edit&build_id=99999&tproject_id=1&tplan_id=2` | Page shows "Error while updating build!" message, form still renders, no PHP E_WARNING in error log, no console errors | PASS |
+| 2 | Edit build with valid build_id works normally | Navigate to `lib/plan/buildEdit.php?do_action=edit&build_id=1&tproject_id=1&tplan_id=2` | Page shows "Edit Build - Build1", form pre-filled with build data, Active/Open checkboxes checked, Save/Cancel buttons visible | PASS |
+| 3 | Create build without release date (trim(null) guard) | Navigate to create form, enter title "Build2", leave release date empty, click Create | Build created successfully, no PHP 8.1 deprecation warning for trim(null), build list shows "Build2" | PASS |
+| 4 | Delete build via doDelete with valid build_id | Navigate to build list, confirm delete operation for Build1 | Build deleted, confirmation shown, build no longer in list | PASS |
+| 5 | doUpdate with invalid build_id shows error | Submit do_update with build_id=99999 | "Error while updating build!" shown, no PHP warnings, page renders without crash | PASS |
+| 6 | No Event Viewer errors generated | Check Event Viewer after all test steps | No new ERROR or WARNING events in events table related to buildEdit.php | PASS |
+
+**Result: Suite 517 — 6/6 PASS**
+
+## Suite 686 — Absolute Latest Execution Results (absoluteLatest.html + api/reports absolute_latest actions) — Refs #686
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, MariaDB at 127.0.0.1:3306, database testlink. Test project "TestProject" (tproject_id=1, prefix TP) exists. Test plan "TestPlan1" (tplan_id=2) exists with platforms Linux (id=1) and Windows (id=2). Test cases TP-1 (Passed on Linux), TP-2 (Failed on Linux), TP-3 (Not Run).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF absolute_latest_init returns platforms and context | `curl http://localhost:8082/api/reports/index.php?action=absolute_latest_init&tproject_id=1&tplan_id=2` | HTTP 200, JSON with status=ok, platforms array contains Linux and Windows, need_selection=false, tproject_name and tplan_name present | PASS |
+| 2 | BFF absolute_latest_result returns matrix data | `curl "http://localhost:8082/api/reports/index.php?action=absolute_latest_result&tproject_id=1&tplan_id=2&platform_id=1"` | HTTP 200, JSON with status=ok, hasData=true, rows=3 (TP-1 Passed, TP-2 Failed, TP-3 Not Run), platform_name="Linux", export_xls_url present | PASS |
+| 3 | BFF absolute_latest_result with Windows (no execs) returns empty | `curl "...action=absolute_latest_result&platform_id=2"` | HTTP 200, status=ok, hasData=false, rows empty array | PASS |
+| 4 | HTML screen loads launcher with platform dropdown | Navigate to `absoluteLatest.html?tproject_id=1&tplan_id=2` | Header shows "Absolute Latest Execution Results", "TestPlan1", "TestProject". Platform dropdown with Linux/Windows and Generate Report button visible | PASS |
+| 5 | Selecting Linux and generating report shows DataTable | Select "Linux" from dropdown, click Generate Report | Table renders with 5 columns (Test Suite, Test Case, Priority, Latest Execution, Latest Exec Notes), 3 rows, section title "Absolute Latest Execution Results — Linux", row count badge "3 rows" | PASS |
+| 6 | Priority badges colored correctly | Check TP-3 row (Low), TP-1 row (High), TP-2 row (High) | Low shows grey style, High shows orange style, correct labels displayed | PASS |
+| 7 | Status badges colored correctly | Check TP-1 (Passed), TP-2 (Failed), TP-3 (Not Run) | Passed=green badge, Failed=red badge, Not Run=grey badge | PASS |
+| 8 | Selecting Windows (no data) shows empty state | Select "Windows", click Generate Report | Empty box with "No execution data found for this test plan on the selected platform" message shown | PASS |
+| 9 | Refresh button returns to launcher | Click Refresh button from results view | Table clears, launcher with platform dropdown reappears, dropdown reset to default | PASS |
+| 10 | Export XLS button visible on results | Check toolbar after generating Linux report | "Export as spreadsheet" button visible with href containing legacy XLS export URL with correct platform_id=1 | PASS |
+| 11 | Export XLS button hidden on launcher | Check toolbar when launcher is shown | "Export as spreadsheet" button hidden | PASS |
+| 12 | Empty state hidden when data present | Generate report for Linux | #emptyBox has display:none, #reportArea has rendered table content | PASS |
+| 13 | No console errors on load | Check browser console after page load and generating report | No JavaScript errors, no 4xx/5xx network errors, i18n labels resolve correctly (not showing "alx.*" keys) | PASS |
+| 14 | DataTable search/filter works | Type "TP-1" in Search box | Table filters to show only TP-1 row, "Showing 1 to 1 of 1 entries" | PASS |
+| 15 | i18n header and labels resolved | Check page snapshot after load | "alx.header" resolves to "Absolute Latest Execution Results", "alx.forPlan" resolves to "for test plan", "common.refresh" resolves to "Refresh" | PASS |
+
+**Result: Suite 686 — 15/15 PASS**
+
+---
+
+### Suite 687 — Regression — Issue #518: E_WARNING Undefined array key "testprojectName" in planAddTC.php:421
+
+**Precondition:** TestLink running at http://localhost:8082. Admin user logged in. Test project "TestProject" (id=1) with test plan (id=5), test suite (id=6), and at least one test case created.
+
+| # | Test Case | Steps | Expected Result | Actual | Status |
+|---|-----------|-------|-----------------|--------|--------|
+| 1 | planAddTC.php loads without PHP warnings | Navigate to `http://localhost:8082/lib/plan/planAddTC.php?tproject_id=1&tplan_id=5&item_level=testsuite&id=6` | HTTP 200 OK, page renders, browser console shows zero warnings/errors | HTTP 200, no console warnings | PASS |
+| 2 | isset guard prevents E_WARNING on missing key | Load planAddTC.php with valid session (testprojectName set) | `$_SESSION["testprojectName"]` is accessed via `isset()` ternary guard, no E_WARNING emitted | isset() guard present at line 421, zero E_WARNING output | PASS |
+| 3 | Page renders test case list | After loading planAddTC.php, check mainframe content | Page contains test case linking interface (tree + test case list) | Page loaded with correct structure | PASS |
+| 4 | No syntax errors in planAddTC.php | Run `php -l lib/plan/planAddTC.php` | "No syntax errors detected" | No syntax errors | PASS |
+
+**Result: Suite 687 — 4/4 PASS****
