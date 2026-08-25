@@ -140,8 +140,7 @@ function notifyGlobalAdmins(&$dbHandler,&$userObj)
     $tables = tlObject::getDBTables('users');
     $sql = " SELECT id,email FROM {$tables['users']} " .
            " WHERE login IN('" . implode("','", $cfg->userSignUp->to->users) . "')";
-           echo '<br>' . __LINE__; 
-           $userSet = $dbHandler->fetchRowsIntoMap($sql,'id');
+    $userSet = $dbHandler->fetchRowsIntoMap($sql,'id');
     if(!is_null($userSet))
     {
       foreach($userSet as $userID => $elem)

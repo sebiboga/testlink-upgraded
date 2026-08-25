@@ -126,7 +126,7 @@ switch($args->light) {
       default:
         $needle = 'list_tc_';
         $nl = strlen($needle);
-        if(strpos($key,$needle) !== FALSE) {
+        if(strpos($args->type,$needle) !== FALSE) {
           $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
                    "&format={$args->format}";
           $what2launch = $cfg['url'] ."&apikey=$args->apikey{$param}";
