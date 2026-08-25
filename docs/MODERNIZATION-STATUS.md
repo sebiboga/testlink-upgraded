@@ -98,6 +98,7 @@ Extra modernized feature (not an ASIDE entry):
 
 Not modernization targets (stay as-is by design):
 - Documentation section (tools/viewer.php PDF links, GitHub wiki link).
+- `plugin.php` (root) — plugin page router, stays in root by convention. No plugins installed (`gui/plugins/` empty), but plugin system expects `plugin.php?page=name/page` in root. Called only from `lib/functions/plugin_api.php:69` (`plugin_page()` helper).
 - Login/logout/install pages (already themed where needed).
 
 ---
