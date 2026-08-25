@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Results Matrix</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 6px 20px 14px; overflow-x: auto; }
+table.matrix { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.matrix th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 12px; position: sticky; top: 0; }
+table.matrix td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.matrix tr:hover td { background: #f4fbfa; }
+td.suitecell { color: #667; font-size: 11.5px; max-width: 220px; word-break: break-word; }
+td.tccell { white-space: nowrap; }
+.tclinks a { color: #2d8e88; margin-right: 6px; text-decoration: none; }
+.tclinks a:hover { color: #4ECDC4; }
+.tcid { font-weight: 600; color: #33363f; }
+.badge-st { display: inline-block; min-width: 62px; text-align: center; font-size: 11px; font-weight: 600; border-radius: 9px; padding: 2px 8px; margin-right: 4px; white-space: nowrap; }
+.st-passed   { background: #e5f7e3; color: #2e7d32; }
+.st-failed   { background: #fdecea; color: #c0392b; }
+.st-blocked  { background: #fff4dd; color: #b9770e; }
+.st-not_run  { background: #eceff1; color: #607d8b; }
+.st-skipped  { background: #ede7f6; color: #5e35b1; }
+.st-unknown  { background: #eceff1; color: #607d8b; }
+.ver { color: #99a; font-size: 11px; }
+.execico { color: #4ECDC4; cursor: pointer; margin-left: 3px; }
+.execico:hover { color: #2d8e88; }
+.notecell { max-width: 260px; word-break: break-word; color: #556; font-size: 12px; }
+.prio-highest { color: #c0392b; font-weight: 700; }
+.prio-high    { color: #e67e22; font-weight: 700; }
+.prio-medium  { color: #b9770e; }
+.prio-low     { color: #607d8b; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.footer p.info { margin: 6px 0 0; font-style: italic; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.launcher { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; padding: 18px 22px; }
+.launcher h3 { margin: 0 0 6px; font-size: 16px; color: #22242a; }
+.launcher .hint { color: #888; font-size: 12.5px; margin-bottom: 12px; }
+.bgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px 18px; margin-bottom: 14px; }
+.bgrid label { font-size: 13px; color: #334; cursor: pointer; display: flex; align-items: center; gap: 7px; }
+.bgrid input { accent-color: #4ECDC4; }
+.feedbackline { margin: 12px 24px 0; color: #667; font-size: 12.5px; display: none; }
+.feedbackline b { color: #2d8e88; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table-cells" style="margin-right:8px;"></i><span data-i18n="rsm.header">Test Results Matrix</span>
+  <span class="sub"><span data-i18n="rsm.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rsm.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="btnXls"><i class="fa fa-file-excel"></i> <span data-i18n="rsm.btnExportXls">Export as Spreadsheet</span></button>
+  <button class="btn-ghost" id="btnMail"><i class="fa fa-envelope"></i> <span data-i18n="rsm.btnSendEmail">Send spreadsheet by email</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="feedbackline" id="feedbackLine"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="launcherBox" class="launcher" style="display:none;"></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reports/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var exportUrls = { xls: '', mail: '' };
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', loadReport);
+    $('#btnXls').on('click', function () { legacyDownload(exportUrls.xls); });
+    $('#btnMail').on('click', function () {
+      if (!exportUrls.mail) { toast(TLi18n.t('rsm.errLoad'), true); return; }
+      window.open(exportUrls.mail, 'avoidPageRefreshWhenSendindMail');
+      toast(TLi18n.t('rsm.mailQueued'));
+    });
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+// XLS generation stays on the legacy controller - trigger it like the
+// legacy form submit did (GET works too, R_PARAMS reads $_REQUEST).
+function legacyDownload(url) {
+  if (!url) { return; }
+  var f = document.createElement('form');
+  f.method = 'POST';
+  f.action = url;
+  document.body.appendChild(f);
+  f.submit();
+  setTimeout(function(){ f.remove(); }, 5000);
+}
+
+function loadReport(opts) {
+  opts = opts || {};
+  $('#emptyBox').hide();
+  $('#launcherBox').hide();
+  $('#reportArea').empty();
+  $('#loadingBox').show();
+  var q = {
+    action: 'metrics_results_matrix',
+    tproject_id: tprojectId,
+    tplan_id: tplanId
+  };
+  var url = API + '?action=metrics_results_matrix&tproject_id=' +
+    encodeURIComponent(tprojectId) + '&tplan_id=' + encodeURIComponent(tplanId);
+  if (opts.buildSet && opts.buildSet.length) {
+    url += '&do_action=result';
+    opts.buildSet.forEach(function (bid) {
+      url += '&build_set%5B%5D=' + encodeURIComponent(bid);
+    });
+  }
+  $.getJSON(url, function (r) {
+    $('#loadingBox').hide();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    tprojectId = r.tproject_id;
+    tplanId = r.tplan_id;
+    exportUrls.xls = r.export_xls_url || '';
+    exportUrls.mail = r.send_mail_url || '';
+    $('#tprojectName').text(r.tproject_name);
+    $('#tplanName').text(r.tplan_name);
+    document.title = r.tplan_name + ' - ' + TLi18n.t('rsm.header');
+
+    if (r.filter_applied && r.filter_feedback.length) {
+      $('#feedbackLine').html(
+        esc(TLi18n.t('rsm.builds')) + ': <b>' +
+        r.filter_feedback.map(esc).join(', ') + '</b>').show();
+    } else {
+      $('#feedbackLine').hide();
+    }
+
+    if (r.need_build_selection) {
+      renderLauncher(r);
+      return;
+    }
+    if (!r.hasData) {
+      renderEmpty(TLi18n.t('rsm.noData'));
+      finishFooter(r);
+      return;
+    }
+    renderMatrix(r);
+    finishFooter(r);
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    var msg = TLi18n.t('rsm.errLoad');
+    if (xhr.status === 403 || xhr.status === 401) { msg = TLi18n.t('common.forbidden'); }
+    warn(msg);
+    toast(msg, true);
+  });
+}
+
+function finishFooter(r) {
+  $('#footerInfo').html(
+    esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString() +
+    ' &middot; ' + esc(TLi18n.t('rbtb.elapsedSeconds')) + ' ' + esc(r.elapsed_time) +
+    '<p class="info">' + esc(TLi18n.t('rsm.infoReport')) + '</p>');
+}
+
+// Legacy launcher (resultsTCLauncher.tpl): when active builds exceed
+// buildQtyLimit the user must pick <= limit builds before the matrix renders.
+function renderLauncher(r) {
+  var h = '<h3><i class="fa fa-filter" style="color:#4ECDC4;margin-right:7px;"></i>' +
+    esc(TLi18n.t('rsm.selectBuilds')) + '</h3>' +
+    '<div class="hint">' +
+    esc(TLi18n.t('rsm.tooMuchData')) + '<br>' +
+    esc(TLi18n.t('rsm.tooMuchBuilds')
+        .replace('%1', r.active_builds_qty)
+        .replace('%2', r.build_qty_limit)) +
+    '</div><div class="bgrid">';
+  (r.builds || []).forEach(function (b) {
+    h += '<label><input type="checkbox" class="bsel" value="' + b.id + '"> ' +
+         esc(b.name) + '</label>';
+  });
+  h += '</div><button class="btn-teal" id="btnApplySel"><i class="fa fa-check"></i> ' +
+       esc(TLi18n.t('rsm.applySelection')) + '</button>';
+  $('#launcherBox').html(h).show();
+  $('#btnApplySel').on('click', function () {
+    var sel = [];
+    $('.bsel:checked').each(function () { sel.push($(this).val()); });
+    if (!sel.length) { toast(TLi18n.t('rsm.warnNoBuilds'), true); return; }
+    if (sel.length > r.build_qty_limit) {
+      toast(TLi18n.t('rsm.tooMuchBuilds')
+        .replace('%1', sel.length).replace('%2', r.build_qty_limit), true);
+      return;
+    }
+    loadReport({ buildSet: sel });
+  });
+}
+
+function renderMatrix(r) {
+  var prioLabels = r.priority_labels || {};
+  var showPlat = !!r.show_platforms;
+  var showPrio = !!r.test_priority_enabled;
+
+  var h = '<table class="matrix"><thead><tr>';
+  r.columns.forEach(function (col) {
+    h += '<th>' + esc(col.label) + '</th>';
+  });
+  h += '</tr></thead><tbody>';
+
+  r.rows.forEach(function (row) {
+    h += '<tr>';
+    // column order mirrors the server-side descriptor exactly;
+    // per-build cells arrive pre-ordered to match the build columns.
+    var cellIdx = 0;
+    r.columns.forEach(function (col) {
+      switch (col.key) {
+        case 'suite_name':
+          h += '<td class="suitecell">' + esc(row.suite_name) + '</td>';
+          break;
+        case 'tcname':
+          h += '<td class="tccell">' + tcLinks(row) + '</td>';
+          break;
+        case 'platform_name':
+          h += '<td>' + esc(row.platform_name || '') + '</td>';
+          break;
+        case 'priority': {
+          var lvl = row.priority_level || 0;
+          var plbl = prioLabels[lvl] || lvl;
+          var pc = lvl == 3 ? 'prio-highest' : (lvl == 2 ? 'prio-high' : (lvl == 1 ? 'prio-low' : ''));
+          h += '<td><span class="' + pc + '">' + esc(plbl) + '</span></td>';
+          break;
+        }
+        case 'result_on_latest':
+          h += '<td>' + statusBadge(row.result_on_latest) + '</td>';
+          break;
+        case 'note_on_latest':
+          h += '<td class="notecell">' + esc(row.note_on_latest || '') + '</td>';
+          break;
+        case 'last_exec':
+          h += '<td>' + statusBadge(row.last_exec) + '</td>';
+          break;
+        case 'latest_notes':
+          h += '<td class="notecell">' + esc(row.latest_notes || '') + '</td>';
+          break;
+        default:
+          if (col.key.indexOf('build_') === 0) {
+            var cell = (row.cells && row.cells[cellIdx]) ? row.cells[cellIdx] : null;
+            cellIdx++;
+            h += '<td>' + buildCell(row, col, cell) + '</td>';
+          } else {
+            h += '<td></td>';
+          }
+      }
+    });
+    h += '</tr>';
+  });
+
+  h += '</tbody></table>';
+  $('#reportArea').html(
+    '<div class="section"><div class="section-head">' +
+    '<i class="fa fa-table-cells"></i><span>' + esc(TLi18n.t('rsm.header')) + '</span>' +
+    '<span class="bmeta">' + r.rows.length + '</span></div>' +
+    '<div class="section-body">' + h + '</div></div>');
+}
+
+// One cell per build column: status badge + version + optional execute icon
+// (legacy addOpAccess behaviour - GUI access always shows it).
+function buildCell(row, col, cell) {
+  if (!cell) { return '-'; }
+  var h = '<span class="badge-st st-' + esc(cell.status_code) + '">' +
+          esc(cell.status_label) +
+          ' <span class="ver">v' + esc(cell.version) + '</span></span>';
+  var url = '/lib/execute/execSetResults.php?tcase_id=' +
+    encodeURIComponent(row.tcase_id) +
+    '&tcversion_id=' + encodeURIComponent(cell.tcversion_id) +
+    '&build_id=' + encodeURIComponent(col.build_id) +
+    '&tplan_id=' + encodeURIComponent(tplanId) +
+    '&tproject_id=' + encodeURIComponent(tprojectId);
+  h += ' <a class="execico" title="' + esc(TLi18n.t('rsm.execIconTitle')) +
+       '" href="' + esc(url) + '" onclick="window.open(this.href,\'exec_popup\',\'width=1024,height=750,left=80,top=80,resizable=yes,scrollbars=yes\');return false;"><i class="fas fa-play-circle"></i></a>';
+  return h;
+}
+
+// Test case cell: history + design links (legacy openExecHistoryWindow /
+// openTCEditWindow popups) followed by "PREFIX-id: name".
+function tcLinks(row) {
+  var histUrl = '/gui/templates/execute/execHistory.html?tcase_id=' +
+    encodeURIComponent(row.tcase_id) + '&tproject_id=' + encodeURIComponent(tprojectId);
+  var editUrl = '/gui/templates/testcases/tcView.html?tcase_id=' +
+    encodeURIComponent(row.tcase_id) + '&tproject_id=' + encodeURIComponent(tprojectId);
+  return '<span class="tclinks">' +
+    '<a href="' + esc(histUrl) + '" title="' +
+      esc(TLi18n.t('rsm.historyTitle')) + '" ' +
+      'onclick="window.open(this.href,\'history_popup\',\'width=900,height=650,left=100,top=100,resizable=yes,scrollbars=yes\');return false;"><i class="fas fa-clock-rotate-left"></i></a>' +
+    '<a href="' + esc(editUrl) + '" title="' +
+      esc(TLi18n.t('rsm.designTitle')) + '" target="_blank"><i class="fas fa-pen-to-square"></i></a>' +
+    '</span><span class="tcid">' + esc(row.external_id) + '</span>: ' +
+    esc(row.tcname);
+}
+
+function renderEmpty(msgHtml) {
+  $('#reportArea').empty();
+  $('#emptyBox').html('<i class="fa fa-inbox"></i>' + msgHtml).show();
+}
+</script>
+</body>
+</html>
