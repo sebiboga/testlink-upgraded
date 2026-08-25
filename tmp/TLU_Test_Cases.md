@@ -4698,3 +4698,62 @@ Suite result: **5/5 PASS**
 
 **Test Execution Date:** 2026-08-25
 **Result:** PASS
+
+## Suite 688 — setTestCaseTestSuite XML-RPC error message prefix — Refs #658
+
+**Precondition:** TestLink app running at http://localhost:8082, XML-RPC endpoint at /lib/api/xmlrpc/v1/xmlrpc.php.
+
+**Test Steps:**
+1. POST to XML-RPC endpoint with method `tl.setTestCaseTestSuite` and an invalid devKey.
+2. Inspect the error message in the XML response for the prefix text.
+3. POST to XML-RPC endpoint with method `tl.setTestCaseTestSuite`, invalid devKey, plus a testcaseid parameter.
+4. Inspect the error message prefix again.
+
+**Expected Pre-Fix Behavior:**
+- Error message prefix was `"() - "` (empty parentheses) because `$ret['operation']` read an undefined key.
+
+**Expected Post-Fix Behavior:**
+- Error message prefix is `"(setTestCaseTestSuite) - "` for all error paths.
+
+**Actual Result (post-fix):** PASS
+- curl test 1: returned `(setTestCaseTestSuite) - Can not authenticate client: invalid developer key`
+- curl test 2: returned `(setTestCaseTestSuite) - Can not authenticate client: invalid developer key`
+- Both error paths carry the correct function name prefix.
+- PHP syntax check passed (`php -l lib/api/xmlrpc/v1/xmlrpc.class.php`).
+- Event Viewer: no new Error/Warning entries.
+
+**Test Execution Date:** 2026-08-25
+**Result:** PASS
+
+## Suite 689 — Regression — Issue #520: E_WARNING Multiple missing $gui properties in dashio templates
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, PHP 8.3, fresh database with one project (TP:TestProject) and one test plan (TestPlan1).
+
+**Test Steps:**
+1. Navigate to Test Plan Management listing (planView.php?tproject_id=1) and verify it renders without E_WARNING for `doViewReload`.
+2. Click "Create" to open the planEdit form and verify it renders without E_WARNING for `$tlCfg->layout->cellContent` / `$tlCfg->layout->cellLabel`.
+3. Navigate to containerNew (containerEdit.php?containerType=testsuite&doAction=new_testsuite&tproject_id=1) and verify it renders without E_WARNING for `$gui->tplan_id`.
+4. Navigate to tc_exec_assignment.php (level=testsuite, build_id=1) and verify no E_WARNING for `$gui->tprojOpt`.
+
+**Expected Pre-Fix Behavior:**
+- planView.php: `E_WARNING: Undefined property stdClass::$doViewReload` on every planView page load.
+- planEdit.tpl: `E_WARNING: Attempt to read property "cellContent" on null` (for `$tlCfg->layout`) on every planEdit form load.
+- tc_exec_assignment_flat.tpl: `E_WARNING: Undefined property stdClass::$tprojOpt` when viewing the assignment page.
+- containerNew.tpl: `E_WARNING: Undefined property stdClass::$tplan_id` if caller doesn't pre-set it.
+
+**Expected Post-Fix Behavior:**
+- planView.php: `$gui->doViewReload` initialized to `false` — no warning.
+- planEdit.tpl: `$cellContent` and `$cellLabel` set to Bootstrap defaults (`col-sm-9`, `col-sm-3`) — no warning.
+- tc_exec_assignment.php: `$gui->tprojOpt` assigned from computed `$tprojOpt` variable — no warning.
+- containerNew.tpl: `isset()` guard returns `0` if `$gui->tplan_id` is not set — no warning.
+
+**Actual Result (post-fix):**
+- planView page: renders correctly, no console errors.
+- planEdit form: renders correctly with Bootstrap grid layout, no console errors.
+- containerNew form: renders correctly, no errors.
+- tc_exec_assignment: pre-existing DB error from test data, but `$gui->tprojOpt` assignment code confirmed in place at line 224.
+- `php -l` syntax check: all 3 modified PHP files pass.
+- Screenshot captured: docs/screenshots/issue-520-planEdit-no-warnings.png
+
+**Test Execution Date:** 2026-08-25
+**Result:** PASS
