@@ -640,7 +640,10 @@ function buildDataSet(&$db,&$args,&$gui,&$exec,$labels,$forceFormat=null)
 
         foreach($args->builds->idSet as $buildID)
         {
-          $r4build['text'] = "";
+          // issue #682: do NOT pre-init $r4build here - on the XLS format
+          // $r4build becomes a STRING below, and writing ['text'] on a
+          // string is a PHP 8 TypeError from the 2nd build onwards.
+          // The non-XLS branch initializes its own array shape.
 
           if( $fo == FORMAT_XLS)
           {
