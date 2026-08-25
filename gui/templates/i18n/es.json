@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Enviar hoja de calculo por correo",
   "nr.selectPlatforms": "Seleccionar plataformas a incluir",
   "nr.btnGenerate": "Generar informe",
-  "nr.noNeverRun": "Todos los casos de prueba han sido ejecutados al menos una vez."
+  "nr.noNeverRun": "Todos los casos de prueba han sido ejecutados al menos una vez.",
+  "nr.elapsedSeconds": "Segundos transcurridos"
 }

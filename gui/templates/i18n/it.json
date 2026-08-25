@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Invia foglio di calcolo via email",
   "nr.selectPlatforms": "Seleziona le piattaforme da includere",
   "nr.btnGenerate": "Genera report",
-  "nr.noNeverRun": "Tutti i casi di test sono stati eseguiti almeno una volta."
+  "nr.noNeverRun": "Tutti i casi di test sono stati eseguiti almeno una volta.",
+  "nr.elapsedSeconds": "Secondi trascorsi"
 }

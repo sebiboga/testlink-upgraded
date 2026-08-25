@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "通过邮件发送电子表格",
   "nr.selectPlatforms": "选择要包含的平台",
   "nr.btnGenerate": "生成报告",
-  "nr.noNeverRun": "所有测试用例均已至少执行过一次。"
+  "nr.noNeverRun": "所有测试用例均已至少执行过一次。",
+  "nr.elapsedSeconds": "经过秒数"
 }

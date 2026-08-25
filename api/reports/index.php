@@ -2463,7 +2463,7 @@ if ($action === 'never_run_result') {
     $pathCache = [];
     $rowsOut = [];
     if (!is_null($metrics) && count($metrics) > 0) {
-        foreach ($metrics as &$elem) {
+        foreach ($metrics as $elem) {
             $tcId = $elem['tcase_id'];
 
             if (!isset($pathCache[$tcId])) {
@@ -2496,6 +2496,11 @@ if ($action === 'never_run_result') {
     $sendMailUrl = '/lib/results/neverRunByPP.php?format=' . FORMAT_MAIL_HTML .
         '&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId .
         '&doAction=result';
+    if (!empty($platSet)) {
+        foreach ($platSet as $ps) {
+            $sendMailUrl .= '&platSet%5B%5D=' . $ps;
+        }
+    }
 
     $infoMsg = lang_get('info_notrun_tc_report');
 

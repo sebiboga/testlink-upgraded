@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Envoyer le tableur par email",
   "nr.selectPlatforms": "Selectionner les plateformes a inclure",
   "nr.btnGenerate": "Generer le rapport",
-  "nr.noNeverRun": "Tous les cas de test ont ete executes au moins une fois."
+  "nr.noNeverRun": "Tous les cas de test ont ete executes au moins une fois.",
+  "nr.elapsedSeconds": "Secondes ecoulees"
 }

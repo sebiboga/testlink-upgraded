@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "スプレッドシートをメールで送信",
   "nr.selectPlatforms": "含めるプラットフォームを選択",
   "nr.btnGenerate": "レポートを作成",
-  "nr.noNeverRun": "すべてのテストケースが少なくとも1回実行されています。"
+  "nr.noNeverRun": "すべてのテストケースが少なくとも1回実行されています。",
+  "nr.elapsedSeconds": "経過秒数"
 }

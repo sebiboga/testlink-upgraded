@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Tabelle per E-Mail senden",
   "nr.selectPlatforms": "Plattformen auswaehlen",
   "nr.btnGenerate": "Bericht erstellen",
-  "nr.noNeverRun": "Alle Testfaelle wurden mindestens einmal ausgefuehrt."
+  "nr.noNeverRun": "Alle Testfaelle wurden mindestens einmal ausgefuehrt.",
+  "nr.elapsedSeconds": "Vergangene Sekunden"
 }

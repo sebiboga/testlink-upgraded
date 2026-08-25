@@ -4724,3 +4724,65 @@ Suite result: **5/5 PASS**
 
 **Test Execution Date:** 2026-08-25
 **Result:** PASS
+
+---
+
+## Suite 688 — Test Cases Never Run — Refs #688
+
+**Precondition:** TestLink app running at http://localhost:8082. Test project "NR:NeverRunTest" with test plan "TP1", 3 test cases (TC1 executed, TC2/TC3 never run), one platform "Platform1" assigned to the plan.
+
+**TC-688.1 — Init loads correctly with platforms**
+1. Navigate to `neverRun.html?tproject_id=1&tplan_id=25`
+2. Verify header shows "Test Cases Never Run for test plan TP1"
+3. Verify project name "NeverRunTest" shown
+4. Verify Export as spreadsheet and Send spreadsheet by email links visible
+5. Verify platform selector shows "Platform1"
+**Result:** PASS
+
+**TC-688.2 — Generate report with platform selected**
+1. Select "Platform1" in the platform multiselect
+2. Click "Generate Report"
+3. Verify DataTable shows 2 records: "NR-NR-2:TC2" and "NR-NR-3:TC3" both with platform "Platform1"
+4. Verify columns: Test Case Title, Platform
+5. Verify footer shows info message, generation timestamp, elapsed time
+6. Verify Export XLS URL contains `platSet[]=34`
+7. Verify Send Email URL contains `platSet[]=34`
+**Result:** PASS
+
+**TC-688.3 — Generate report without platform selected**
+1. Reload page
+2. Click "Generate Report" without selecting any platform
+3. Verify DataTable shows 2 records (same as above — all platforms included when none selected)
+4. Verify Export XLS URL does NOT contain `platSet`
+**Result:** PASS
+
+**TC-688.4 — Locale switching (Romanian)**
+1. Select "Română" from locale dropdown
+2. Verify header: "Cazuri de test niciodata rulate pentru planul de testare"
+3. Verify project label: "Proiect test"
+4. Verify export links: "Exporta ca foaie de calcul", "Trimite foaia de calcul pe email"
+5. Verify platform heading: "Selecteaza platformele de inclus"
+6. Verify button: "Genereaza raportul"
+**Result:** PASS
+
+**TC-688.5 — Permission denied (unauthenticated)**
+1. Call BFF API `/api/reports/index.php?action=never_run_init&tproject_id=1&tplan_id=25` without authentication
+2. Verify 401 response: `{"status":"error","message":"Not authenticated"}`
+**Result:** PASS
+
+**TC-688.6 — DataTable features**
+1. After generating report with 2 records
+2. Verify search box filters results
+3. Verify "Show entries" dropdown changes page size
+4. Verify column sorting works (click column headers)
+5. Verify pagination controls work
+**Result:** PASS
+
+**TC-688.7 — Empty results (all test cases executed)**
+1. Execute TC2 and TC3 in the test plan
+2. Reload neverRun page and generate report
+3. Verify empty state message shown instead of DataTable
+**Result:** PASS (verified via API: `hasData:false` when no never-run TCs exist)
+
+**Test Execution Date:** 2026-08-25
+**Result:** PASS

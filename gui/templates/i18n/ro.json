@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Trimite foaia de calcul pe email",
   "nr.selectPlatforms": "Selecteaza platformele de inclus",
   "nr.btnGenerate": "Genereaza raportul",
-  "nr.noNeverRun": "Toate cazurile de test au fost rulate cel putin o data."
+  "nr.noNeverRun": "Toate cazurile de test au fost rulate cel putin o data.",
+  "nr.elapsedSeconds": "Secunde scurse"
 }

@@ -1541,5 +1541,6 @@
   "nr.btnSendEmail": "Enviar planilha por email",
   "nr.selectPlatforms": "Selecionar plataformas a incluir",
   "nr.btnGenerate": "Gerar relatorio",
-  "nr.noNeverRun": "Todos os casos de teste foram executados pelo menos uma vez."
+  "nr.noNeverRun": "Todos os casos de teste foram executados pelo menos uma vez.",
+  "nr.elapsedSeconds": "Segundos decorridos"
 }
