@@ -4836,3 +4836,26 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 | 15 | Toast notification | Screen loads successfully | "Loaded" toast appears briefly at bottom-right | PASS |
 
 **Result: 15/15 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
+
+---
+
+## Regression — Issue #657: Self-signup duplicate email accepted without validation
+
+**Precondition:** TestLink running at http://localhost:8082, self-signup enabled, fresh database.
+
+**Root cause:** `tlUser::checkDetails()` validated login uniqueness but never checked email uniqueness. The static method `doesUserExistByEmail()` existed but was never called. No error constant or i18n string existed for duplicate email.
+
+**Fix:** Added `E_EMAILALREADYEXISTS` constant (-1024) in `tlUser.class.php`, email uniqueness check in `checkDetails()`, error case in `getUserErrorMessage()`, i18n key `email_already_used` in all 19 locale bundles, and result-check wrapper in `firstLogin.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Self-signup with duplicate email rejected | POST to `firstLogin.php` with `doEditUser=1`, `login=testuser1`, `email=dup@test.com`, valid password. POST again with `login=testuser2`, same `email=dup@test.com` | Second POST returns 200 with error div: "This email address is already in use, please use another one." | PASS |
+| 2 | Self-signup with unique email succeeds | POST with unique email `unique@test.com` | Redirect to `login.php?note=first` (HTTP 200 + JS redirect script) | PASS |
+| 3 | Self-signup with duplicate login rejected | POST with existing login `testuser1`, new email | Returns error "Login/User name is already in use" | PASS |
+| 4 | Self-signup with empty email rejected | POST with empty `email` field | Returns error "You can't use an empty Email address!" | PASS |
+| 5 | Browser: duplicate email error displayed | Navigate to `firstLogin.php?viewer=new`, fill form with `test@example.com`, submit | Error message "This email address is already in use, please use another one." visible on page | PASS |
+| 6 | DB verification | `SELECT id,login,email FROM users` after tests | No two users share the same email address | PASS |
+| 7 | No duplicate user created | Check `users` table after duplicate POST | Only 1 row for the duplicate email attempt (not 2) | PASS |
+| 8 | Event Viewer clean | `SELECT * FROM events` after all tests | Only CREATE audit entries, no ERROR or WARNING level events | PASS |
+
+**Result: 8/8 PASS** (2026-08-25, curl + headless Chrome + mysql against http://localhost:8082)
