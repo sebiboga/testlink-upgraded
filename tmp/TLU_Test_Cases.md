@@ -4429,3 +4429,17 @@ Suite result: **9/9 PASS**
 | 10 | XLS export downloads valid .xls from legacy controller (also fixed legacy PHP8 TypeError #682) | PASS |
 | 11 | No-rights user sees localized "Insufficient rights", no data leak | PASS |
 | 12 | Event Viewer: no new ERROR/WARNING entries during all interactions | PASS |
+
+## Regression — Issue #649: codeTrackerInterface::setCfg truthiness check falsely treats empty-root XML config as parse failure
+
+**Precondition:** CLI bootstrap (`config.inc.php` + `common.php`, `doDBConnect()`); concrete interface `stashrestInterface` instantiated exactly as `tlCodeTracker::getInterfaceObject()` does. Pre-fix repro evidence: events id 1/2 (ERROR "Failure loading XML STRING" on valid XML) + `setCfg()==false`. Fix commit cb7238aa3.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Pre-fix reproduction | `new stashrestInterface('stashrest', '<codetracker></codetracker>', 'repro-649')` | (pre-fix) setCfg()=false, connected=false, 2x ERROR event "Failure loading XML STRING" with NO libxml detail | PASS (reproduced; events id 1/2 @23:37:18) |
+| 1 | R1 empty-root valid XML (primary) | same construction post-fix; re-run setCfg() | NO ERROR event; setCfg()=true; connected=false via silent credential skip in stashrest connect() (by design for missing creds) | PASS |
+| 2 | R2 valid full config unchanged | `<codetracker><username>u</username><password>p</password><uribase>http://example.com</uribase></codetracker>` | setCfg()=true, zero new events — behavior identical to pre-fix | PASS |
+| 3 | R3 real parse failures still reported | `<codetracker<` malformed | setCfg()=false + ERROR event WITH libxml detail ("error parsing attribute name") | PASS |
+| 4 | Event attribution check | delta on events during suite | only rows attributable to this suite: R1 WARNINGs = pre-existing unguarded reads filed as #651 (not the #649 defect); no new "Failure loading XML STRING" for valid XML anywhere post-fix | PASS |
+
+**Result: Suite 649 — 5/5 PASS** (case 0 = pre-fix reproduction recorded for evidence)
