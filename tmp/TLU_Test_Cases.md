@@ -4396,3 +4396,20 @@ Environment: repo root @ fix/issue-495 (parent a5e29c1ec), app http://localhost:
 | 8 | Final Event Viewer sweep | `SELECT ... FROM events WHERE log_level<>16` | ONLY ids 3+4 = deliberate freeTestCases.php repro for sibling issue #679; ZERO events sourced from mainPage.php | PASS |
 
 Suite result: **8/8 PASS**
+
+## Suite 496 — REST tracker interfaces: no event-log noise/fatal on incomplete credentials — Refs #496
+Environment: repo root @ fix/issue-496 (`3fd58c58f`+`22bfea31c`), PHP 8.3.33, app http://localhost:8082, MariaDB testlink (fresh import; fixtures created by this suite: project 9001 'Issue496Proj', issuetrackers id=501 type 7 jirarest, codetrackers id=601 type 1 stashrest, both linked to 9001). Harness `/tmp/opencode/matrix-496.php` drives the real production path `tlIssueTracker::getInterfaceObject(9001)` / `tlCodeTracker::getInterfaceObject(9001)` (= mainPage.php:401 / execSetResults.php:753 behavior).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix symptom | Parent of fix commit `38c7d6f16^` files swapped in; harness run with missing-creds cfg | events += 2 ERROR "Missing or Empty username - unable to continue" (jira+stash) + 4 E_WARNING undefined property lines 145/146/99/100 | PASS (reproduced exactly as reported) |
+| 2 | HEAD guard insufficient (missing elements) | Restore HEAD files; harness variant A | No ERROR events anymore, but 4 E_WARNING remain → landed fix 38c7d6f16 incomplete | PASS (documented) |
+| 3 | Empty-element variant at HEAD | cfg `<username></username><password></password>`; harness variant B pre-fix-of-this-run | Uncaught TypeError trim(SimpleXMLElement/stdClass) fatal — bypasses catch(Exception) | PASS (reproduced) |
+| 4 | Fix: variant A post-fix | Harness A_missing × {jira,stash} | connected=false; **0 new events**; no fatal | PASS |
+| 5 | Fix: variant B post-fix | Harness B_empty × {jira,stash} | connected=false; **0 new events**; no fatal | PASS |
+| 6 | Fix: variant C post-fix | Valid creds + unroutable host (dead-host path must stay graceful) | connected=false; **0 new events**; no fatal | PASS |
+| 7 | Browser end-to-end | Login admin/admin; active project I496P; load mainPage (mainPage.php:401 path); open Event Viewer UI | Only AUDIT login row; zero ERROR/WARNING rows | PASS |
+| 8 | Syntax gate | php -l on both touched class files | No syntax errors | PASS |
+| 9 | PHP runtime quirk guard | Isolated repro of `??`+ternary one-liner pattern under PHP 8.3.33 | Pattern mis-evaluates (true-branch fires for missing prop) → final code uses explicit isset()+is_string() two-statement guard instead | PASS (workaround encoded + commented in code) |
+
+Suite result: **9/9 PASS**
