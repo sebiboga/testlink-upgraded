@@ -1942,6 +1942,12 @@ $tlCfg->tree_filter_cfg->requirements->automatic_tree_refresh = ENABLED;
 $tlCfg->tplanDesign->hideTestCaseWithStatusIn = array($tlCfg->testCaseStatus['obsolete'] => 'obsolete',
                             $tlCfg->testCaseStatus['future'] => 'future' );
 
+/* [Test Case Design - Workflow Status Display Hints]
+ * Maps workflow status verbose codes to lang-key labels.
+ * When a TC has a matching status, the label is shown as an overlay hint on tcView.
+ * Empty array = no hints shown (default). */
+$tlCfg->testCaseStatusDisplayHintOnTestDesign = array();
+
 // ----------------------------------------------------------------------------
 /* [MISC FUNCTIONALITY] */
 
