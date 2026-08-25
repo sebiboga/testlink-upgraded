@@ -4757,3 +4757,24 @@ Suite result: **5/5 PASS**
 
 **Test Execution Date:** 2026-08-25
 **Result:** PASS
+
+## Regression — Issue #522: E_WARNING Trying to access array offset on null in metricsDashboard.php:245 (verified ALREADY FIXED)
+
+**Refs:** #522 · **Branch:** `fix/issue-522-metrics-null-array` · **Date:** 2026-08-25
+**Fix commit:** `d3200a115` (Aug 19, 2026) — `is_array()` + `isset()` guard at lines 245-248.
+**Files under test:** `lib/results/metricsDashboard.php` (lines 240-248, the `else` branch of `getMetrics()`)
+
+**Precondition:** fresh DB import; admin session at http://localhost:8082.
+Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero builds**, zero linked TCs, no platforms. This is the exact scenario triggering the code path where `getExecCountersByExecStatus()` returns null.
+
+**Root cause (pre-fix):** `metricsDashboard.php:245` was `$mm[$key]["overall"]["active"] = $mm[$key]["overall"]["total"];` — when `getExecCountersByExecStatus()` returns null (no builds/TCs), PHP 8 triggers `E_WARNING Trying to access array offset on value of type null`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Metrics Dashboard render (no builds) | GET `lib/results/metricsDashboard.php` with test plan having zero builds | HTTP 200; page shows "Test Plan Progress" table with empty row; zero E_WARNING in console and events table | PASS |
+| 2 | Metrics Dashboard render (with builds) | Create build + link TC + execute, reload metrics dashboard | HTTP 200; full data rendered with progress percentages; zero new warnings | PASS |
+| 3 | Mixed plans (some with builds, some without) | Two test plans: one with builds+TCs, one without; load dashboard | HTTP 200; both plans render correctly; only the no-build plan shows zero progress | PASS |
+| 4 | Events table clean | `SELECT * FROM events WHERE source LIKE "%metricsDashboard%"` after all tests | Zero rows — no warnings from metricsDashboard.php | PASS |
+| 5 | PHP syntax check | `php -l lib/results/metricsDashboard.php` | "No syntax errors detected" | PASS |
+
+**Result: 5/5 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
