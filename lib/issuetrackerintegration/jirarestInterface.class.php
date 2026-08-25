@@ -142,8 +142,8 @@ class jirarestInterface extends issueTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $username = (string)trim($this->cfg->username);
-      $password = (string)trim($this->cfg->password);
+      $username = trim((string)($this->cfg->username ?? ''));
+      $password = trim((string)($this->cfg->password ?? ''));
 
       // Silently skip connection if credentials are missing
       if(empty($username) || empty($password))
