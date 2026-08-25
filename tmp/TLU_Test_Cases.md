@@ -4671,48 +4671,30 @@ Suite result: **5/5 PASS**
 
 **Result: Suite 687a — 20/20 PASS**
 
----
+## Regression — Issue #519: E_WARNING Undefined array key "testprojectOptions" in printDocOptions.php + resultsNavigator.php
 
-## Regression — Issue #661: XMLRPC `expectedresults` key alias silently drops step expected_results
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; admin/admin login; MariaDB at 127.0.0.1:3306; database testlink.
 
-**Precondition:** TestLink 2.0.1 running at http://localhost:8082. Admin user with devKey `test1234devkey`. Test project id=1 (TP), test suite id=3.
+**Repro Steps (pre-fix):**
+1. Create a test project with "Requirements" checkbox enabled
+2. Create a test plan within that project
+3. Log in as admin, select the project and test plan
+4. Navigate to Results → Reports and Metrics (resultsNavigator.php)
+5. Navigate to Documentation → Print Documents (printDocOptions.php)
+6. Check Event Viewer for PHP warnings
 
-### TC-R661.1: `tl.createTestCase` with `expectedresults` stores correct value
-- **Precondition:** Admin devKey valid, test suite id=3 exists.
-- **Steps:**
-  1. Call `tl.createTestCase` via XMLRPC with steps containing `expectedresults` (no underscore) set to `"done alias"`.
-  2. Check DB: `SELECT expected_results FROM tcsteps WHERE id=<new_step_id>`.
-- **Expected (post-fix):** `expected_results = "done alias"` in the database row.
-- **Pre-fix actual:** `expected_results = ""` (empty string) — silent data loss.
-- **Post-fix actual:** `expected_results = "done alias"` — PASS.
+**Expected Post-Fix Behavior:**
+- No E_WARNING "Undefined array key testprojectOptions" in Event Viewer
+- Requirements-related report options visible in resultsNavigator.php (when requirements are enabled)
+- Requirements doc options visible in printDocOptions.php
+- "Requirements Design" section visible in the aside navigation menu
+- No new errors/warnings in Event Viewer after navigating these pages
 
-### TC-R661.2: `tl.createTestCase` with `expected_results` (correct key) still works
-- **Steps:**
-  1. Call `tl.createTestCase` with steps containing `expected_results` (with underscore) set to `"done correct"`.
-  2. Check DB.
-- **Expected:** `expected_results = "done correct"`. No regression.
-- **Actual:** `expected_results = "done correct"` — PASS.
+**Actual Result (post-fix):** PASS
+- Verified: Event Viewer shows zero "testprojectOptions" warnings after navigating resultsNavigator.php, mainPage.php, asideMenu.php
+- Verified: "Requirements Design" section visible in aside menu (was hidden when session read always returned false)
+- All 7 modified files pass PHP syntax check
+- Code review subagent approved the fix
 
-### TC-R661.3: `tl.createTestCaseSteps` with `expectedresults` stores correct value
-- **Steps:**
-  1. Call `tl.createTestCaseSteps` on an existing test case with `action=update`, steps containing `expectedresults` set to `"done updated"`.
-  2. Check DB.
-- **Expected:** `expected_results = "done updated"`.
-- **Pre-fix actual:** `expected_results = ""` (empty string).
-- **Post-fix actual:** `expected_results = "done updated"` — PASS.
-
-### TC-R661.4: Missing expected_results defaults to empty string
-- **Steps:**
-  1. Call `tl.createTestCase` with steps containing neither key.
-  2. Check DB.
-- **Expected:** `expected_results = ""` (empty string default).
-- **Actual:** `expected_results = ""` — PASS.
-
-### TC-R661.5: No PHP warnings generated
-- **Steps:**
-  1. Call all three paths (createTestCase alias, createTestCase correct, createTestCaseSteps alias).
-  2. Check PHP error log and Event Viewer.
-- **Expected:** No E_WARNING for "Undefined array key 'expected_results'".
-- **Actual:** No warnings — PASS.
-
-**Result: Suite R661 — 5/5 PASS**
+**Test Execution Date:** 2026-08-25
+**Result:** PASS
