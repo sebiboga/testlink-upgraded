@@ -4413,3 +4413,19 @@ Environment: repo root @ fix/issue-496 (`3fd58c58f`+`22bfea31c`), PHP 8.3.33, ap
 | 9 | PHP runtime quirk guard | Isolated repro of `??`+ternary one-liner pattern under PHP 8.3.33 | Pattern mis-evaluates (true-branch fires for missing prop) → final code uses explicit isset()+is_string() two-statement guard instead | PASS (workaround encoded + commented in code) |
 
 Suite result: **9/9 PASS**
+
+## Suite 681 — Test Results Matrix (modernized screen)
+| # | Case | Result |
+|---|------|--------|
+| 1 | Default view: header context, 3 build columns + latest-created + notes + latest-exec | PASS |
+| 2 | Status badges: Passed/Failed/Blocked/Not Run with version tag per cell | PASS |
+| 3 | Never-run test cases still show all build columns (NOT RUN synthesized) | PASS |
+| 4 | Latest-execution column tracks most recent execution incl. notes | PASS |
+| 5 | Priority column only when project option enabled; labels localized | PASS |
+| 6 | Exec icon opens execSetResults popup with legacy contract (level/id/version_id/setting_build/setting_platform) | PASS (after review fix) |
+| 7 | History + edit links target modern popups with tcase/tproject ids | PASS |
+| 8 | Launcher: >6 active builds → warning + checkbox list; selecting >limit → error toast | PASS |
+| 9 | Launcher apply ≤ limit → matrix restricted to selected builds, feedback line lists them | PASS |
+| 10 | XLS export downloads valid .xls from legacy controller (also fixed legacy PHP8 TypeError #682) | PASS |
+| 11 | No-rights user sees localized "Insufficient rights", no data leak | PASS |
+| 12 | Event Viewer: no new ERROR/WARNING entries during all interactions | PASS |
