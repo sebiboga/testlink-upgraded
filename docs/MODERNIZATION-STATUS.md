@@ -97,7 +97,7 @@ Extra modernized feature (not an ASIDE entry):
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):
-- Documentation section (viewer.php PDF links, GitHub wiki link).
+- Documentation section (lib/docs/viewer.php PDF links, GitHub wiki link).
 - Login/logout/install pages (already themed where needed).
 
 ---
