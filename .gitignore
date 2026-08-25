@@ -30,3 +30,4 @@ tmp/wiki/
 tmp/ci_investigate/
 tmp/ci_run.log
 tmp/ci_run_full.log
+node_modules/
