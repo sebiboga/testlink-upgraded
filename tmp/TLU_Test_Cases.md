@@ -4778,3 +4778,32 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 | 5 | PHP syntax check | `php -l lib/results/metricsDashboard.php` | "No syntax errors detected" | PASS |
 
 **Result: 5/5 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
+
+---
+
+### Suite 690 — Test Cases Without Tester (casesWithoutTester) — Refs #689
+
+**Screen:** `gui/templates/results/casesWithoutTester.html`
+**BFF:** `api/reports/index.php?action=cases_without_tester`
+**Legacy:** `lib/results/testCasesWithoutTester.php`
+**Rights:** `testplan_metrics`
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF API returns data | GET `/api/reports/index.php?action=cases_without_tester&tproject_id=1&tplan_id=2` with test plan having 3 unexecuted/unassigned TCs | JSON with `status=ok`, `hasData=true`, `rows` array of 3 items, each with `suite_path`, `external_id`, `name`, `summary`, `priority_level` | PASS |
+| 2 | Screen renders DataTable | Navigate to `casesWithoutTester.html?tproject_id=1&tplan_id=2` | Header shows "Test Cases Without Tester for test plan CWT Test Plan"; toolbar shows "Test Project: CWT Test Project"; DataTable shows 3 rows with correct Test Suite paths, CWT-prefixed IDs, names and summaries; Match count: 3 | PASS |
+| 3 | Priority column displayed | Same screen as #2, project has `option_priority=1` | Priority column visible with badges (high/medium/low); values match urgency from DB | PASS |
+| 4 | Platform column displayed (when applicable) | Create plan with linked platform, reload screen | Platform column appears in the DataTable | PASS |
+| 5 | Empty state: all TCs have testers | Assign tester to all TCs, reload screen | Empty state message: "All test cases have a tester assigned" with check icon | PASS |
+| 6 | Empty state: no TCs linked | Use test plan with zero linked TCs | Empty state message: "No test cases linked to this test plan." | PASS |
+| 7 | No permission | Call BFF API without `testplan_metrics` right | HTTP 403, JSON `{status: "error", message: "No permission"}` | PASS |
+| 8 | Missing parameters | Call BFF with `tplan_id=0` | HTTP 400, JSON `{status: "error", message: "Missing test plan id"}` | PASS |
+| 9 | Aside link wired | Click "Test Cases Without Tester" in Reports sub-menu | Navigates to `casesWithoutTester.html?tproject_id=X&tplan_id=Y` (not legacy `testCasesWithoutTester.php`) | PASS |
+| 10 | i18n keys present | Check all locale bundles | All `cwt.*` keys present in `en.json`, `ro.json`, `de.json`, `fr.json`, `es.json`, `it.json`, `pt.json`, `ru.json`, `ja.json`, `zh.json` | PASS |
+| 11 | No console errors | Check browser console after loading screen | Zero JS errors or warnings | PASS |
+| 12 | Event Viewer clean | Query `events` table after screen load | No new ERROR or WARNING level events related to this screen | PASS |
+| 13 | DataTable sorting | Click "Test Suite" column header | Rows sorted alphabetically by suite path; click "Test Case" header sorts by TC name | PASS |
+| 14 | DataTable search/filter | Type "Login" in filter box | Only the "Test Case 1 - Login" row remains visible; clear filter shows all 3 rows | PASS |
+| 15 | Elapsed time displayed | Check footer area | Footer shows "Elapsed seconds: 0.XX" (non-zero, reasonable) | PASS |
+
+**Result: 15/15 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
