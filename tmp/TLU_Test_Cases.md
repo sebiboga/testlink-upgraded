@@ -4583,3 +4583,20 @@ Suite result: **5/5 PASS**
 | 18 | Date column formats | Check Date column | Timestamps display in format "YYYY-MM-DD HH:MM:SS" | PASS |
 
 **Result: Suite 685 — 18/18 PASS**
+
+---
+
+### Suite 686 — Regression — Issue #517: E_WARNING Multiple undefined vars/keys in buildEdit.php
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, MariaDB at 127.0.0.1:3306, database testlink. Test project "TestProject" (tproject_id=1, prefix TP) exists. Test plan "TestPlan1" (tplan_id=2) exists under it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Edit build with invalid build_id shows error, no PHP warnings | Navigate to `lib/plan/buildEdit.php?do_action=edit&build_id=99999&tproject_id=1&tplan_id=2` | Page shows "Error while updating build!" message, form still renders, no PHP E_WARNING in error log, no console errors | PASS |
+| 2 | Edit build with valid build_id works normally | Navigate to `lib/plan/buildEdit.php?do_action=edit&build_id=1&tproject_id=1&tplan_id=2` | Page shows "Edit Build - Build1", form pre-filled with build data, Active/Open checkboxes checked, Save/Cancel buttons visible | PASS |
+| 3 | Create build without release date (trim(null) guard) | Navigate to create form, enter title "Build2", leave release date empty, click Create | Build created successfully, no PHP 8.1 deprecation warning for trim(null), build list shows "Build2" | PASS |
+| 4 | Delete build via doDelete with valid build_id | Navigate to build list, confirm delete operation for Build1 | Build deleted, confirmation shown, build no longer in list | PASS |
+| 5 | doUpdate with invalid build_id shows error | Submit do_update with build_id=99999 | "Error while updating build!" shown, no PHP warnings, page renders without crash | PASS |
+| 6 | No Event Viewer errors generated | Check Event Viewer after all test steps | No new ERROR or WARNING events in events table related to buildEdit.php | PASS |
+
+**Result: Suite 686 — 6/6 PASS**
