@@ -4670,3 +4670,49 @@ Suite result: **5/5 PASS**
 | 20 | Aside menu links correct | Check asideMenu.php switches for link_report_failed, link_report_blocked_tcs, link_report_not_run | Each links to resultsByStatus.html with correct status param (failed/blocked/not_run) and tproject_id/tplan_id | PASS |
 
 **Result: Suite 687a — 20/20 PASS**
+
+---
+
+## Regression — Issue #661: XMLRPC `expectedresults` key alias silently drops step expected_results
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082. Admin user with devKey `test1234devkey`. Test project id=1 (TP), test suite id=3.
+
+### TC-R661.1: `tl.createTestCase` with `expectedresults` stores correct value
+- **Precondition:** Admin devKey valid, test suite id=3 exists.
+- **Steps:**
+  1. Call `tl.createTestCase` via XMLRPC with steps containing `expectedresults` (no underscore) set to `"done alias"`.
+  2. Check DB: `SELECT expected_results FROM tcsteps WHERE id=<new_step_id>`.
+- **Expected (post-fix):** `expected_results = "done alias"` in the database row.
+- **Pre-fix actual:** `expected_results = ""` (empty string) — silent data loss.
+- **Post-fix actual:** `expected_results = "done alias"` — PASS.
+
+### TC-R661.2: `tl.createTestCase` with `expected_results` (correct key) still works
+- **Steps:**
+  1. Call `tl.createTestCase` with steps containing `expected_results` (with underscore) set to `"done correct"`.
+  2. Check DB.
+- **Expected:** `expected_results = "done correct"`. No regression.
+- **Actual:** `expected_results = "done correct"` — PASS.
+
+### TC-R661.3: `tl.createTestCaseSteps` with `expectedresults` stores correct value
+- **Steps:**
+  1. Call `tl.createTestCaseSteps` on an existing test case with `action=update`, steps containing `expectedresults` set to `"done updated"`.
+  2. Check DB.
+- **Expected:** `expected_results = "done updated"`.
+- **Pre-fix actual:** `expected_results = ""` (empty string).
+- **Post-fix actual:** `expected_results = "done updated"` — PASS.
+
+### TC-R661.4: Missing expected_results defaults to empty string
+- **Steps:**
+  1. Call `tl.createTestCase` with steps containing neither key.
+  2. Check DB.
+- **Expected:** `expected_results = ""` (empty string default).
+- **Actual:** `expected_results = ""` — PASS.
+
+### TC-R661.5: No PHP warnings generated
+- **Steps:**
+  1. Call all three paths (createTestCase alias, createTestCase correct, createTestCaseSteps alias).
+  2. Check PHP error log and Event Viewer.
+- **Expected:** No E_WARNING for "Undefined array key 'expected_results'".
+- **Actual:** No warnings — PASS.
+
+**Result: Suite R661 — 5/5 PASS**

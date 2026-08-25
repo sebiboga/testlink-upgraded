@@ -2543,6 +2543,18 @@ class TestlinkXMLRPCServer extends IXR_Server {
                     $this->errors[] = new IXR_Error( MISSING_REQUIRED_PARAMETER, $msg );
                 }
             }
+
+            // Normalize alternate key spellings so that documented aliases
+            // (e.g. 'expectedresults' used by XML import & sample clients)
+            // map to the canonical key the testcase manager expects.
+            foreach( $this->args[self::$stepsParamName] as $sdx => $rawStep ) {
+                $step = (array)$rawStep;
+                if( ! isset( $step['expected_results'] ) &&
+                     isset( $step['expectedresults'] ) ) {
+                    $this->args[self::$stepsParamName][$sdx]['expected_results'] =
+                        $this->args[self::$stepsParamName][$sdx]['expectedresults'];
+                }
+            }
         } else if($status_ok && isset( $this->args[self::$stepsParamName] ) &&
                   ! is_array( $this->args[self::$stepsParamName] )) {
             $status_ok = false;
@@ -6414,6 +6426,18 @@ class TestlinkXMLRPCServer extends IXR_Server {
 
                 $resultInfo['stepSet'] = $stepSet;
                 $resultInfo['stepNumberIDSet'] = $stepNumberIDSet;
+
+                // Normalize alternate key spellings so that documented aliases
+                // (e.g. 'expectedresults' used by XML import & sample clients)
+                // map to the canonical key the testcase manager expects.
+                foreach( $this->args[self::$stepsParamName] as $sdx => $rawStep ) {
+                    $step = (array)$rawStep;
+                    if( ! isset( $step['expected_results'] ) &&
+                         isset( $step['expectedresults'] ) ) {
+                        $this->args[self::$stepsParamName][$sdx]['expected_results'] =
+                            $this->args[self::$stepsParamName][$sdx]['expectedresults'];
+                    }
+                }
 
                 foreach( $this->args[self::$stepsParamName] as $si ) {
                     $execution_type = isset( $si['execution_type'] ) ? $si['execution_type'] : TESTCASE_EXECUTION_TYPE_MANUAL;
