@@ -2544,7 +2544,7 @@ if ($action === 'never_run_init') {
         }
     }
 
-    $exportUrl = "lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
+    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
         "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
 
     out([
@@ -2666,7 +2666,7 @@ if ($action === 'never_run_result') {
     $proj = new testproject($db);
     $projInfo = $proj->get_by_id($tprojectId);
 
-    $exportUrl = "lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
+    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
         "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
 
     out([
