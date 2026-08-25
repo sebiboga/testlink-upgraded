@@ -2073,5 +2073,275 @@ if ($action === 'absolute_latest_result') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Results by Status report — Failed / Blocked / Not Run
+// Modernizes lib/results/resultsByStatus.php as reached from the Reports
+// sub-menu entries list_tc_failed, list_tc_blocked, list_tc_not_run
+// (?type=f|b|n). Every test case with a tester assigned is listed with its
+// last execution on the relevant status. For Not Run: shows assigned users
+// instead of tester/date/notes/bugs. Right gate: 'testplan_metrics' — the
+// same right the legacy screen enforces through checkRights().
+// ---------------------------------------------------------------------------
+if ($action === 'by_status') {
+    $statusType = getParam('status', 'failed');
+    $validStatuses = ['failed', 'blocked', 'not_run'];
+    if (!in_array($statusType, $validStatuses, true)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid status type']);
+    }
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing project or plan id']);
+    }
+
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $timerOn = microtime(true);
+    $resultsCfg = config_get('results');
+    $statusCodeMap = $resultsCfg['status_code'];
+    $statusCode = $statusCodeMap[$statusType]; // 'f','b','n'
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $tcaseMgr = new testcase($db);
+
+    $showPlatforms = false;
+    $platformMap = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    if (!is_null($platformMap) && count($platformMap) > 0) {
+        $showPlatforms = true;
+        natsort($platformMap);
+    }
+
+    $buildMap = $tplanMgr->get_builds_for_html_options($tplanId);
+
+    $userNames = getUsersForHtmlOptions($db);
+
+    $isNotRun = ($statusType === 'not_run');
+    if ($isNotRun) {
+        $opt = ['output' => 'array'];
+        $metrics = $metricsMgr->getNotRunWithTesterAssigned($tplanId, null, $opt);
+    } else {
+        $opt = ['output' => 'mapByExecID', 'getOnlyAssigned' => true];
+        $metrics = $metricsMgr->getExecutionsByStatus($tplanId, $statusCode, null, $opt);
+    }
+
+    $warningMsg = '';
+    $title = lang_get('list_of_' . $statusType);
+    $reportContext = lang_get('info_only_with_tester_assignment');
+    $infoMsg = '';
+    if ($isNotRun) {
+        $infoMsg = lang_get('info_notrun_tc_report');
+    } else {
+        $infoMsg = lang_get('info_' . $statusType . '_tc_report');
+    }
+
+    $rows = [];
+    $withoutBugsCounter = 0;
+    $bugInterfaceOn = false;
+    $its = null;
+
+    if (!$isNotRun) {
+        $projInfo = $tprojectMgr->get_by_id($tprojectId);
+        $bugInterfaceOn = !empty($projInfo['issue_tracker_enabled']);
+        if ($bugInterfaceOn) {
+            $itMgr = new tlIssueTracker($db);
+            $its = $itMgr->getInterfaceObject($tprojectId);
+            unset($itMgr);
+        }
+    }
+
+    $pathCache = [];
+    $levelCache = [];
+    $topCache = [];
+    $nameCache = ['build' => []];
+    if (!is_null($buildMap)) {
+        foreach ($buildMap as $bid => $bname) {
+            $nameCache['build'][$bid] = $bname;
+        }
+    }
+    if ($showPlatforms) {
+        $nameCache['platform'] = [];
+        foreach ($platformMap as $pid => $pname) {
+            $nameCache['platform'][$pid] = $pname;
+        }
+    }
+
+    if (!is_null($metrics) && count($metrics) > 0) {
+        // Custom fields on execution (failed/blocked only)
+        $cfSet = null;
+        $cfOnExec = null;
+        if (!$isNotRun) {
+            $cfSet = $tcaseMgr->cfield_mgr->get_linked_cfields_at_execution(
+                $tprojectId, true, 'testcase');
+            $execKeys = array_keys($metrics);
+            if (count($cfSet) > 0 && count($execKeys) > 0) {
+                $cfOnExec = $tcaseMgr->cfield_mgr->get_linked_cfields_at_execution(
+                    $tprojectId, true, 'testcase', null, $execKeys);
+            }
+        }
+
+        foreach ($metrics as $execID => $exec) {
+            $tcId = $exec['tcase_id'];
+
+            if (!isset($pathCache[$tcId])) {
+                $dummy = $tcaseMgr->getPathLayered(array($tcId));
+                $pathCache[$tcId] = $dummy[$exec['tsuite_id']]['value'];
+                $levelCache[$tcId] = $dummy[$exec['tsuite_id']]['level'];
+                $ky = current(array_keys($dummy));
+                $topCache[$tcId] = $ky;
+            }
+
+            $row = [
+                'suite_name' => $pathCache[$tcId],
+                'test_title' => $exec['full_external_id'] . ':' . $exec['name'],
+                'version' => $exec['tcversion_number'],
+            ];
+
+            if ($showPlatforms) {
+                $row['platform'] = isset($nameCache['platform'][$exec['platform_id']])
+                    ? $nameCache['platform'][$exec['platform_id']] : '';
+            }
+
+            $row['build'] = isset($nameCache['build'][$exec['build_id']])
+                ? $nameCache['build'][$exec['build_id']] : '';
+
+            if ($isNotRun) {
+                $assignedUsers = isset($exec['user_id']) ? $exec['user_id'] : [];
+                if (!is_array($assignedUsers)) {
+                    $assignedUsers = [$assignedUsers];
+                }
+                natsort($assignedUsers);
+                $testerParts = [];
+                foreach ($assignedUsers as $uid) {
+                    if (isset($userNames, $userNames[$uid])) {
+                        $testerParts[] = htmlspecialchars($userNames[$uid]);
+                    } else {
+                        $testerParts[] = sprintf(lang_get('deleted_user'), $uid);
+                    }
+                }
+                $row['tester'] = implode(', ', $testerParts);
+                $row['notes'] = isset($exec['summary']) ? $exec['summary'] : '';
+            } else {
+                $testerId = $exec['tester_id'];
+                if ($testerId == 0) {
+                    $row['tester'] = lang_get('nobody');
+                } elseif (isset($userNames[$testerId])) {
+                    $row['tester'] = htmlspecialchars($userNames[$testerId]);
+                } else {
+                    $row['tester'] = sprintf(lang_get('deleted_user'), $testerId);
+                }
+                $row['tester'] = htmlspecialchars($row['tester']);
+                $row['execution_ts'] = $exec['execution_ts'];
+                $row['notes'] = strip_tags($exec['execution_notes']);
+
+                // Custom fields
+                if (!is_null($cfSet) && !is_null($cfOnExec)) {
+                    foreach ($cfSet as $cfID => $cfDef) {
+                        if (isset($cfOnExec[$execID][$cfID]) && !is_null($cfOnExec[$execID][$cfID])) {
+                            $row['cf_' . $cfID] = $tcaseMgr->cfield_mgr->string_custom_field_value(
+                                $cfOnExec[$execID][$cfID], null);
+                        } else {
+                            $row['cf_' . $cfID] = '';
+                        }
+                    }
+                }
+
+                // Bug tracking
+                $row['bugs'] = [];
+                if ($bugInterfaceOn && $its && $exec['status'] != $statusCodeMap['not_run']) {
+                    $bugSet = get_bugs_for_exec($db, $its, $exec['executions_id'], ['id', 'summary']);
+                    if (count($bugSet) == 0) {
+                        $withoutBugsCounter++;
+                    }
+                    foreach ($bugSet as $bug) {
+                        $row['bugs'][] = [
+                            'id' => $bug['id'],
+                            'link' => $bug['link_to_bts'] ?? ('#' . $bug['id']),
+                        ];
+                    }
+                }
+            }
+
+            $rows[] = $row;
+        }
+    }
+
+    $warningMsgKey = 'no_' . $statusType . '_with_tester';
+    if (count($rows) === 0) {
+        $warningMsg = lang_get($warningMsgKey);
+    }
+
+    // XLS export URLs (legacy controller handles XLS/email generation)
+    $xlsBase = '/lib/results/resultsByStatus.php?tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId . '&type=' . $statusCode;
+
+    $bugsMsg = '';
+    if (!$isNotRun) {
+        $bugsMsg = lang_get('th_bugs_not_linked');
+        // Check report config for misc.bugs_not_linked
+        require_once(__DIR__ . '/../../cfg/reports.cfg.php');
+        $rptCfg = config_get('reports_list');
+        $needle = 'list_tc_';
+        foreach ($rptCfg as $key => $val) {
+            if (strpos($key, $needle) !== false) {
+                $verbose = substr($key, strlen($needle));
+                if ($verbose === $statusType) {
+                    if (isset($val['misc']['bugs_not_linked']) && !$val['misc']['bugs_not_linked']) {
+                        $bugsMsg = '';
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    $cfColumns = [];
+    if (!$isNotRun && !is_null($cfSet)) {
+        foreach ($cfSet as $cfID => $cfDef) {
+            $cfColumns[] = ['id' => $cfID, 'label' => $cfDef['label']];
+        }
+    }
+
+    $infoXls = lang_get('info_xls_report_results_by_status');
+
+    out([
+        'status' => 'ok',
+        'hasData' => count($rows) > 0,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'status_type' => $statusType,
+        'title' => $title,
+        'report_context' => $reportContext,
+        'info_msg' => $infoMsg,
+        'info_xls_report' => $infoXls,
+        'warning_msg' => $warningMsg,
+        'show_platforms' => $showPlatforms,
+        'bug_interface_on' => $bugInterfaceOn,
+        'without_bugs_counter' => $withoutBugsCounter,
+        'bugs_msg' => $bugsMsg,
+        'cf_columns' => $cfColumns,
+        'rows' => $rows,
+        'export_xls_url' => $xlsBase . '&format=' . FORMAT_XLS . '&exportSpreadSheet_x=1',
+        'send_mail_url' => $xlsBase . '&format=' . FORMAT_MAIL_HTML . '&sendSpreadSheetByMail_x=1',
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
