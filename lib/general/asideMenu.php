@@ -103,6 +103,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_by_tester_per_build') {
         $hrefR = 'gui/templates/results/resultsByTesterPerBuild.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #681 - Test Results Matrix (resultsTC) modernized;
+      // the BFF (api/reports metrics_results_matrix action) reuses the very
+      // same tlTestPlanMetrics::getExecStatusMatrix() call and enforces
+      // testplan_metrics; XLS/email export stays on the legacy controller.
+      } else if($rptItem['title'] == 'link_report_test') {
+        $hrefR = 'gui/templates/results/resultsMatrix.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
