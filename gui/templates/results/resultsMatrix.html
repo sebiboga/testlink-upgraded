@@ -245,6 +245,15 @@ function renderLauncher(r) {
   });
 }
 
+// Status badge for the derived columns (result on latest build, last exec):
+// no per-build execute icon here - execution happens from build columns.
+function statusBadge(cell) {
+  if (!cell) { return '<span class="badge-st st-not_run">-</span>'; }
+  return '<span class="badge-st st-' + esc(cell.status_code) + '">' +
+    esc(cell.status_label) + ' <span class="ver">v' + esc(cell.version) +
+    '</span></span>';
+}
+
 function renderMatrix(r) {
   var prioLabels = r.priority_labels || {};
   var showPlat = !!r.show_platforms;
