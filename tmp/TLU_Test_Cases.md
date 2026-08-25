@@ -4343,3 +4343,73 @@ Environment: fresh DB import (0 rows in `testprojects`, `events` wiped for a cle
 | 6 | Syntax gate | php -l lib/functions/common.php | No syntax errors | PASS |
 
 Suite result: **6/6 PASS**
+## Suite 677 — Results by Tester per Build screen (resultsByTesterPerBuild.html + api/reports metrics_by_tester_per_build) — Refs #677
+Environment: repo root @ sebiboga (fe3c9f458), app http://localhost:8082, fresh DB. Fixtures: `php tmp/fixtures_rbtb.php` (project RBTP id 1, plan 21 w/ open build 1 + closed build 2, TCs RBTC1-6, users testerA/testerB/noinv, 8 assignments, 6 executions with durations); `php tmp/fixtures_rbtb_noopen.php` (plan 22 w/ only closed build 3).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF happy path data parity | GET api/reports ?action=metrics_by_tester_per_build&tplan_id=21 (admin session) | status ok; Build Open One progress 83.33%, total_time 01:43:36; testerA row: 4 assigned / 2 passed(50%) / 2 failed(50%) / progress 100.0% / 00:58:30; testerB row: 2 assigned / 1 not_run / 1 blocked(50%) / 50.0% / 00:45:06 | PASS (matches legacy math incl. bcmul HHMMSS) |
+| 2 | Screen render | Open resultsByTesterPerBuild.html?tproject_id=1&tplan_id=21 as admin | header/toolbar/plan+project names; one section per build = legacy ext-table group; columns User/Assigned/status qty+% pairs/Progress/Total time; rows sorted by progress desc (testerA first) | PASS |
+| 3 | Show closed builds toggle | Check the toggle | reload triggers; second section "Build Closed Two - Progress 50% - 00:30:00" with testerA row (1 not run / 1 passed / 50.0%) appears | PASS |
+| 4 | Toggle persistence (session contract) | Reload page after toggling on (sessionStorage mirrors legacy $_SESSION['reports_show_closed_builds']) | checkbox restored checked; both builds still shown | PASS |
+| 5 | no_open_builds warning | Open screen for plan 22 (only a closed build), toggle off | warnbox "There are no open builds", no table — legacy short-circuit message | PASS |
+| 6 | no_testers_per_build warning | Plan 22 with toggle ON (closed build has no assignments) | empty box "There are no tester assignments to OPEN builds in this testplan." | PASS |
+| 7 | User assignment popup | Click testerA link in Build Closed Two section | popup opens lib/testcases/tcAssignedToUser.php?user_id=2&build_id=2&tplan_id=21 listing RBTC1 Passed + RBTC2 Not Run under Build Closed Two (legacy behavior preserved) | PASS |
+| 8 | Locale switcher | Switch locale to Română on the screen | header "Rezultate pe tester per build", checkbox "Afișează build-urile închise", table headers localized (rbtb.* from all bundles load) | PASS |
+| 9 | Permission path (no rights) | Login as noinv (role <no rights>), open screen URL for plan 21 | BFF returns HTTP 403; screen shows warnbox + toast "Insufficient rights"; no data rendered | PASS |
+| 10 | ASIDE link switch | Admin → Reports ASIDE section → "Results by Tester per Build" entry | entry points to gui/templates/results/resultsByTesterPerBuild.html?tproject_id=1&tplan_id=21 and loads in mainframe inside app shell | PASS |
+| 11 | Event Viewer after test window | SELECT ... FROM events WHERE id > last pre-test id | Only AUDIT login/logout entries; zero new Error/Warning from the modern screen/BFF (ids 15-16 E_WARNING predate testing; caused by agent CLI probe misusing tlUser constructor, not by app code) | PASS |
+
+Suite result: **11/11 PASS**
+
+## Suite 676 — Sysinfo memory_limit ini-shorthand parsing (install/util/sysinfo.php checkMemoryLimits) — Refs #676
+Environment: repo root @ fix/issue-676 (2aa436403), PHP 8.3.33. Repro method: CLI harness extracting the REAL `checkMemoryLimits()` from `install/util/sysinfo.php` source, executed as `php -d memory_limit=<v> harness.php install/util/sysinfo.php` per value (live HTTP repro blocked by separate fatal #678 — screen 500s on every request, pre-existing). Main dev instance :8082 untouched.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix state (issue symptom) | Harness @ parent commit with `-d memory_limit=1G` | memory_status ERROR ("Memory: 1G ...") | PASS (reproduced) |
+| 2 | Extra pre-fix failure modes | Harness @ parent with `-d memory_limit=-1` and `268435456` | -1→ERROR (wrong: unlimited), bytes 256MB→OK (wrong: inflated) — both misclassified pre-fix | PASS (documented) |
+| 3 | G suffix: 1G post-fix | Harness @ fix with `-d memory_limit=1G` | memory_status OK | PASS |
+| 4 | M boundaries unchanged | Harness with 1024M / 512M / 511M / 256M / 255M / 128M | OK / OK / WARN / WARN / ERROR / ERROR (thresholds untouched) | PASS |
+| 5 | Sentinel -1 post-fix | Harness with `-d memory_limit=-1` | memory_status OK (unlimited acceptable) | PASS |
+| 6 | Bare-bytes default branch | Harness with 268435456 (=256MB) and 536870912 (=512MB) | WARN / OK | PASS |
+| 7 | K suffix | Harness with 2097152K (=2048MB) | OK | PASS |
+| 8 | Syntax gate | php -l install/util/sysinfo.php | No syntax errors | PASS |
+| 9 | Code review subagent | Full-diff review vs configCheck.php:515-552 reference pattern | PASS verdict; no drive-by changes; thresholds/message byte-identical | PASS |
+| 10 | Main app regression | curl :8082/login.php | HTTP 200 | PASS |
+| 11 | Event Viewer after test window | SELECT COUNT(*) FROM events WHERE log_level IN (2,4) | 0 rows → no new Error/Warning entries | PASS |
+
+Suite result: **11/11 PASS**
+
+## Suite 495 — mainPage.php `Undefined array key "testprojectOptions"` regression — Refs #495
+Environment: repo root @ fix/issue-495 (parent a5e29c1ec), app http://localhost:8082, fresh DB (`events` empty at start), admin/admin via headless Chrome. Fix under test is the ALREADY-LANDED chain `38c7d6f16` → `3071beefb` → `3266f4329`+`8748128fb`; this suite verifies the reported symptom stays dead across every mainPage path.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Baseline clean logger | `SELECT COUNT(*) FROM events` before any navigation | 0 rows | PASS |
+| 2 | Blind-folded path (no testproject in session) | Fresh login admin/admin; index.php loads navBar/asideMenu; getGrants() runs with tproject_id=0 → redirect to projectEdit.php?doAction=create | Create-project form renders; 0 WARNING(2)/ERROR(4) events | PASS |
+| 3 | First test project creation via UI | Fill Name "Issue495 Project" / Prefix I495 → Create | Project id=1 created; audit event only; no warnings | PASS |
+| 4 | mainPage render with active project | Navigate index.php?tproject_id=1&tplan_id=0; mainframe loads lib/general/mainPage.php | Page renders; aside menu full; 0 new WARNING/ERROR events | PASS |
+| 5 | Reload / project-switch path | Navigate the same URL again (updateMainPage flow) | Identical clean result; events delta 0 WARNING/ERROR | PASS |
+| 6 | Guarded-access static sweep | `grep -n '\$_SESSION\[' lib/general/mainPage.php` | Every `testprojectOptions` access wrapped in isset() (lines 187-189); getGrants() reads live options from DB (lines 530-550), no raw session read remains | PASS |
+| 7 | Logging health canary | Confirm AUDIT(16) rows exist after the pass (login_succeeded, testproject_created) | Rows present → zero-warning result meaningful, not a dead logger | PASS |
+| 8 | Final Event Viewer sweep | `SELECT ... FROM events WHERE log_level<>16` | ONLY ids 3+4 = deliberate freeTestCases.php repro for sibling issue #679; ZERO events sourced from mainPage.php | PASS |
+
+Suite result: **8/8 PASS**
+
+## Suite 496 — REST tracker interfaces: no event-log noise/fatal on incomplete credentials — Refs #496
+Environment: repo root @ fix/issue-496 (`3fd58c58f`+`22bfea31c`), PHP 8.3.33, app http://localhost:8082, MariaDB testlink (fresh import; fixtures created by this suite: project 9001 'Issue496Proj', issuetrackers id=501 type 7 jirarest, codetrackers id=601 type 1 stashrest, both linked to 9001). Harness `/tmp/opencode/matrix-496.php` drives the real production path `tlIssueTracker::getInterfaceObject(9001)` / `tlCodeTracker::getInterfaceObject(9001)` (= mainPage.php:401 / execSetResults.php:753 behavior).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix symptom | Parent of fix commit `38c7d6f16^` files swapped in; harness run with missing-creds cfg | events += 2 ERROR "Missing or Empty username - unable to continue" (jira+stash) + 4 E_WARNING undefined property lines 145/146/99/100 | PASS (reproduced exactly as reported) |
+| 2 | HEAD guard insufficient (missing elements) | Restore HEAD files; harness variant A | No ERROR events anymore, but 4 E_WARNING remain → landed fix 38c7d6f16 incomplete | PASS (documented) |
+| 3 | Empty-element variant at HEAD | cfg `<username></username><password></password>`; harness variant B pre-fix-of-this-run | Uncaught TypeError trim(SimpleXMLElement/stdClass) fatal — bypasses catch(Exception) | PASS (reproduced) |
+| 4 | Fix: variant A post-fix | Harness A_missing × {jira,stash} | connected=false; **0 new events**; no fatal | PASS |
+| 5 | Fix: variant B post-fix | Harness B_empty × {jira,stash} | connected=false; **0 new events**; no fatal | PASS |
+| 6 | Fix: variant C post-fix | Valid creds + unroutable host (dead-host path must stay graceful) | connected=false; **0 new events**; no fatal | PASS |
+| 7 | Browser end-to-end | Login admin/admin; active project I496P; load mainPage (mainPage.php:401 path); open Event Viewer UI | Only AUDIT login row; zero ERROR/WARNING rows | PASS |
+| 8 | Syntax gate | php -l on both touched class files | No syntax errors | PASS |
+| 9 | PHP runtime quirk guard | Isolated repro of `??`+ternary one-liner pattern under PHP 8.3.33 | Pattern mis-evaluates (true-branch fires for missing prop) → final code uses explicit isset()+is_string() two-statement guard instead | PASS (workaround encoded + commented in code) |
+
+Suite result: **9/9 PASS**
