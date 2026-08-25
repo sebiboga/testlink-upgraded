@@ -142,8 +142,20 @@ class jirarestInterface extends issueTrackerInterface
   	  // CRITIC NOTICE for developers
   	  // $this->cfg is a simpleXML Object, then seems very conservative and safe
   	  // to cast properties BEFORE using it.
-      $username = trim((string)($this->cfg->username ?? ''));
-      $password = trim((string)($this->cfg->password ?? ''));
+      // null-safe credential extraction: cfg went through
+      // json_decode(json_encode(simplexml)), then a MISSING element is an
+      // undefined property and an EMPTY element (<username></username>) is a
+      // stdClass with no properties - both must yield '' without PHP8 warnings.
+      // NOTE: do NOT merge into one ?? ternary expression - miscompiles on this
+      // runtime (PHP 8.3.33 evaluates the true-branch of the ternary anyway).
+      $username = '';
+      if (isset($this->cfg->username) && is_string($this->cfg->username)) {
+        $username = trim($this->cfg->username);
+      }
+      $password = '';
+      if (isset($this->cfg->password) && is_string($this->cfg->password)) {
+        $password = trim($this->cfg->password);
+      }
 
       // Silently skip connection if credentials are missing
       if(empty($username) || empty($password))
