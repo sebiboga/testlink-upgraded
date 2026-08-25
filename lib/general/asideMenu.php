@@ -152,6 +152,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_never_run') {
         $hrefR = 'gui/templates/results/neverRun.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #689 - Test Cases Without Tester (tcases_without_tester)
+      // modernized; the BFF (api/reports cases_without_tester action) reuses
+      // the very same tlTestPlanMetrics::getNotRunWoTesterAssigned() call and
+      // enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_tcases_without_tester') {
+        $hrefR = 'gui/templates/results/casesWithoutTester.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
