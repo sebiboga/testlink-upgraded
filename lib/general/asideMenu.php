@@ -133,6 +133,19 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_test_absolute_latest_exec') {
         $hrefR = 'gui/templates/results/absoluteLatest.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #687 - Results by Status (failed/blocked/not_run) modernized;
+      // the BFF (api/reports by_status action) reuses the very same
+      // tlTestPlanMetrics::getExecutionsByStatus() /
+      // getNotRunWithTesterAssigned() calls and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_failed') {
+        $hrefR = 'gui/templates/results/resultsByStatus.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=failed";
+      } else if($rptItem['title'] == 'link_report_blocked_tcs') {
+        $hrefR = 'gui/templates/results/resultsByStatus.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=blocked";
+      } else if($rptItem['title'] == 'link_report_not_run') {
+        $hrefR = 'gui/templates/results/resultsByStatus.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=not_run";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
