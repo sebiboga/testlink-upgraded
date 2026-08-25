@@ -4808,3 +4808,24 @@ Test fixture: XML codetracker configs with varying levels of completeness.
 | 12 | Events table clean | `SELECT * FROM events` after all tests | Zero new E_WARNING rows from stashrestInterface | PASS |
 
 **Result: 12/12 PASS** (2026-08-25, PHP CLI + mysql against localhost)
+
+## Suite 530 — Regression — Issue #530: tlPlatform::belongsToTestProject() always returns false
+
+**Refs:** #530 · fix commit e9da5834c (already on default branch) · branch `fix/issue-530`
+**Files under test:** `lib/functions/tlPlatform.class.php` (`belongsToTestProject()` :557-567), `api/platforms/index.php` (`needOwnedPlatform()` :81-86)
+
+**Root cause:** `fetchRowsIntoMap($sql, 'id')` returns a map keyed by the platform's actual id value (e.g. `[999 => [...]]`), but the old code checked `isset($dummy['id'])` — looking for the literal string key `'id'`, which never exists. Always returned `false`. Fixed to `!is_null($dummy) && count($dummy) > 0`.
+
+**Precondition:** fresh DB; admin session at http://localhost:8082. Created test project id=1 "TestProject530", inserted platform id=999 with testproject_id=1.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Platform belongs to project | PHP CLI: `$platMgr->belongsToTestProject(999, 1)` | Returns TRUE | PASS |
+| 2 | Platform wrong project | PHP CLI: `$platMgr->belongsToTestProject(999, 999)` | Returns FALSE | PASS |
+| 3 | Non-existent platform | PHP CLI: `$platMgr->belongsToTestProject(12345, 1)` | Returns FALSE | PASS |
+| 4 | BFF API gate — valid ownership | `needOwnedPlatform($platMgr, 999, 1)` | Access granted (no 404) | PASS |
+| 5 | BFF API gate — wrong project | `needOwnedPlatform($platMgr, 999, 999)` | 404 returned | PASS |
+| 6 | Old code confirmed buggy | `git show 9a362993d:lib/functions/tlPlatform.class.php` had `isset($dummy['id'])` | Confirmed incorrect | PASS |
+| 7 | Event Viewer clean | No new Error/Warning events from test script | Zero new rows | PASS |
+
+**Result: 7/7 PASS** (2026-08-25, PHP CLI + mysql against http://localhost:8082)
