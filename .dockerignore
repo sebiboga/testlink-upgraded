@@ -2,3 +2,16 @@
 .env.example
 docker-compose.yml
 Dockerfile
+vendor/
+node_modules/
+tl200/
+.git/
+.gitignore
+logs/
+upload_area/
+*.phar
+tmp/
+composer.phar
+php.ini
+.squash.yml
+docs/
