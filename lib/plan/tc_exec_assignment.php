@@ -221,6 +221,7 @@ $gui->support_array = array_keys($gui->items);
 
 $tproject_mgr2 = new testproject($db);
 $tprojOpt = $tproject_mgr2->getOptions($args->tproject_id);
+$gui->tprojOpt = is_object($tprojOpt) ? $tprojOpt : new stdClass();
 $gui->testPriorityEnabled = isset($tprojOpt->testPriorityEnabled) ? $tprojOpt->testPriorityEnabled : false;
 if ($gui->testPriorityEnabled) 
 {

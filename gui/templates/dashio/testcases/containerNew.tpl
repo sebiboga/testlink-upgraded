@@ -41,7 +41,7 @@ Purpose: smarty template - create containers
   <div style="font-weight: bold;">
     <div>
       <input type="hidden" name="containerType" id="containerType" value="{$gui->containerType}"/>
-      <input type="hidden" name="tplan_id" id="tplan_id" value="{$gui->tplan_id}"/>
+      <input type="hidden" name="tplan_id" id="tplan_id" value="{if isset($gui->tplan_id)}{$gui->tplan_id}{else}0{/if}"/>
       <input type="hidden" name="tproject_id" id="tproject_id" value="{$gui->tproject_id}"/>
 
       {if $gui->containerType == "testsuite"}

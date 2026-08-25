@@ -185,6 +185,8 @@ function initializeGui(&$dbHandler,$argsObj)
   $tplan_mgr = new testplan($dbHandler);
   $gui->actions = $tplan_mgr->getViewActions($actionsCtx);
 
+  $gui->doViewReload = false;
+
   return $gui;
 }
 
