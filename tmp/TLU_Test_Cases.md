@@ -4624,3 +4624,26 @@ Suite result: **5/5 PASS**
 | 15 | i18n header and labels resolved | Check page snapshot after load | "alx.header" resolves to "Absolute Latest Execution Results", "alx.forPlan" resolves to "for test plan", "common.refresh" resolves to "Refresh" | PASS |
 
 **Result: Suite 686 — 15/15 PASS**
+
+---
+
+## Regression — Issue #678: sysinfo.php fatal 'Cannot redeclare checkPhpExtensions()' — screen 500s (collides case-insensitively with configCheck.php)
+
+**Environment:** repo root @ fix/issue-678, PHP 8.3.33, MariaDB 127.0.0.1:3306.
+**Root cause:** `sysinfo.php` defines `checkPHPVersion()` and `checkPHPExtensions()` which collide case-insensitively with `configCheck.php:858` and `configCheck.php:608` respectively (PHP function names are case-insensitive). The include chain `sysinfo.php:26` → `config.inc.php` → `configCheck.php` triggers a Fatal error before any output.
+**Fix:** Renamed to `sysinfo_checkPHPVersion()` and `sysinfo_checkPHPExtensions()` in `install/util/sysinfo.php`.
+
+| # | Test Case | Steps | Expected Result | Actual Result |
+|---|-----------|-------|-----------------|---------------|
+| 1 | HTTP status code | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/install/util/sysinfo.php` | 200 | PASS |
+| 2 | PHP syntax gate | `php -l install/util/sysinfo.php` | No syntax errors | PASS |
+| 3 | All sections render | `curl -s http://localhost:8082/install/util/sysinfo.php \| grep -o '<h2>[^<]*</h2>'` | All 7 sections present (PHP Information, PHP Extensions, Memory & Execution Limits, Database Connection, Server Environment, File Permissions, footer) | PASS |
+| 4 | PHP Information section shows version | Check "PHP Information" section contains version row | Version table row present with "8.3.33" or similar | PASS |
+| 5 | PHP Extensions section lists extensions | Check "PHP Extensions" section lists at least mysqli, gd, mbstring | Extension table rows present | PASS |
+| 6 | Memory & Execution Limits section | Check limits section has memory_limit, max_execution_time rows | Limit rows present with values | PASS |
+| 7 | Server Environment section | Check server info section has OS, Server Software rows | Environment rows present | PASS |
+| 8 | File Permissions section | Check file permissions table has config.inc.php, gui/templates, lib, install rows | Permission rows present | PASS |
+| 9 | No new PHP errors | `php -l install/util/sysinfo.php` and check no FATAL in output | No errors | PASS |
+| 10 | configCheck.php functions still work | Verify `checkPhpExtensions()` and `checkPhpVersion()` still defined in configCheck.php | Both functions present at expected lines | PASS |
+
+**Result: Regression Suite #678 — 10/10 PASS**
