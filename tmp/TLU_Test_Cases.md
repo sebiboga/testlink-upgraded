@@ -5003,3 +5003,25 @@ Issue tracker enabled on the test project.
 ---
 
 ### Result: Suite 35 — Issue #695 — 15/15 PASS (date TBD)
+
+---
+
+## 36. Regression — Issue #714: Expand .dockerignore (critically incomplete)
+
+### TC-36.1: .dockerignore Excludes Non-Essential Paths
+- **Priority:** Major
+- **Importance:** High
+- **Preconditions:** Repository cloned, Docker available.
+- **Steps:**
+  1. Check current `.dockerignore` content.
+     *Expected:* Contains 17 entries including `.env`, `.env.example`, `docker-compose.yml`, `Dockerfile`, `vendor/`, `node_modules/`, `tl200/`, `.git/`, `.gitignore`, `logs/`, `upload_area/`, `*.phar`, `tmp/`, `composer.phar`, `php.ini`, `.squash.yml`, `docs/`.
+  2. Verify excluded paths exist in repository.
+     *Expected:* `.git/` (114M), `vendor/` (28M), `tmp/` (29M), `docs/` (11M), `composer.phar` (2.2M) present.
+  3. Verify Dockerfile uses `COPY . .` (line 20).
+     *Expected:* Line exists, confirming .dockerignore is critical.
+  4. Run `docker build .` (if Docker available).
+     *Expected:* Build completes successfully, excluded files not in context.
+  5. Verify image contents with `docker run --rm <image> ls /var/www/testlink`.
+     *Expected:* `vendor/`, `.git/`, `tmp/`, `docs/` NOT present; `api/`, `gui/`, `config.inc.php` present.
+
+### Result: 5/5 PASS — Issue #714 fixed (2026-08-25)
