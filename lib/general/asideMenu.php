@@ -126,6 +126,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_test_flat') {
         $hrefR = 'gui/templates/results/resultsTCFlat.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #686 - Absolute Latest Execution Results (absoluteLatest)
+      // modernized; the BFF (api/reports absolute_latest_init/result actions)
+      // reuses the very same tlTestPlanMetrics::getLatestExecOnSinglePlatformMatrix()
+      // and getNeverRunOnSinglePlatform() calls and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_test_absolute_latest_exec') {
+        $hrefR = 'gui/templates/results/absoluteLatest.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
