@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assigned Test Case Overview</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+body{background:#f2f2f2;font-family:'Ruda',sans-serif;margin:0;padding:0}
+.header{background:#4ECDC4;color:#fff;padding:14px 24px;font-size:20px;font-weight:700;letter-spacing:1px}
+.header span.sub{font-size:13px;font-weight:400;opacity:.8;margin-left:12px}
+.toolbar{background:#22242a;padding:12px 24px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.toolbar .ctx{color:#aaa;font-size:12px}
+.toolbar .ctx b{color:#fff}
+.btn-teal{background:#4ECDC4;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px}
+.btn-teal:hover{background:#3dbdb5}
+.chk{color:#ccc;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;user-select:none}
+.chk input{accent-color:#4ECDC4;width:15px;height:15px;cursor:pointer}
+.warnbox{margin:12px 24px 0;background:#fdecea;border:1px solid #f5c6cb;color:#b94a48;border-radius:6px;padding:10px 14px;font-size:13px;display:none}
+.section{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin:16px 24px 0;overflow:hidden}
+.section-head{padding:13px 20px;border-bottom:1px solid #eee;font-size:15px;font-weight:700;color:#22242a;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.section-head i{color:#4ECDC4}
+.section-head .bmeta{font-size:12px;font-weight:400;color:#667;margin-left:auto}
+.section-body{padding:6px 0;overflow-x:auto}
+table.ato{width:100%;border-collapse:collapse;font-size:13px}
+table.ato th{background:#22242a;color:#fff;padding:7px 10px;text-align:left;white-space:nowrap;font-size:12px;position:sticky;top:0}
+table.ato td{padding:6px 10px;border-bottom:1px solid #eee;white-space:nowrap;vertical-align:middle}
+table.ato tr:hover td{background:#f4fbfa}
+table.ato td.tc-cell{white-space:normal;min-width:220px}
+.badge-st{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;text-transform:uppercase}
+.badge-p{background:#d4edda;color:#155724}
+.badge-f{background:#fdecea;color:#b94a48}
+.badge-b{background:#fff3cd;color:#856404}
+.badge-n{background:#e2e3e5;color:#383d41}
+.age{font-size:12px;color:#667}
+.prio-h{color:#b94a48;font-weight:700}
+.prio-m{color:#e67e22;font-weight:600}
+.prio-l{color:#27ae60;font-weight:600}
+a.tlink{color:#2d8e88;text-decoration:none;border-bottom:1px dotted #2d8e88}
+a.tlink:hover{color:#4ECDC4}
+a.icon-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;color:#667;text-decoration:none;font-size:13px}
+a.icon-btn:hover{background:#4ECDC4;color:#fff}
+a.icon-btn.qe{color:#4ECDC4}
+a.icon-btn.qe:hover{background:#22242a;color:#fff}
+.empty{background:#fff;border-radius:8px;padding:30px;text-align:center;color:#888;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin:16px 24px}
+.empty i{font-size:34px;color:#4ECDC4;display:block;margin-bottom:10px}
+.footer{padding:12px 24px;color:#888;font-size:12px;border-top:1px solid #ddd;background:#fff;margin-top:16px}
+.toast{position:fixed;right:20px;bottom:20px;background:#22242a;color:#fff;padding:10px 16px;border-radius:5px;font-size:13px;display:none;z-index:9999;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+.toast.err{background:#e6605e}
+.toast.ok{background:#4ECDC4}
+.spin{text-align:center;color:#888;font-size:13px;padding:40px 24px}
+.spin i{font-size:22px;color:#4ECDC4;animation:spin 1s linear infinite;display:inline-block;margin-bottom:8px}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-user-check" style="margin-right:8px;"></i><span data-i18n="ato.header">Assigned Test Case Overview</span>
+  <span class="sub"><span data-i18n="ato.forProject">for test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="ato.testProject">Test Project</span>: <b id="tprojectNameTb">-</b></span>
+  <label class="chk"><input type="checkbox" id="showClosed"> <span data-i18n="ato.showClosedBuilds">Show closed builds</span></label>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+<div id="reportArea"></div>
+<div class="empty" id="emptyBox" style="display:none;"></div>
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reports/index.php';
+var tprojectId = 0;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    var saved = sessionStorage.getItem('ato_show_closed_builds');
+    if (saved === '1' || saved === '0') { $('#showClosed').prop('checked', saved === '1'); }
+    $('#showClosed').on('change', function () {
+      sessionStorage.setItem('ato_show_closed_builds', this.checked ? '1' : '0');
+      loadReport();
+    });
+    $('#btnRefresh').on('click', loadReport);
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, type) {
+  var $t = $('#toast').text(msg).removeClass('err ok').addClass(type || '').show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+function loadReport() {
+  $('#emptyBox').hide();
+  $('#reportArea').empty();
+  $('#loadingBox').show();
+  $.getJSON(API, {
+    action: 'assigned_tc_overview',
+    tproject_id: tprojectId,
+    show_all_users: 1,
+    show_inactive_and_closed: 1,
+    show_closed_builds: $('#showClosed').prop('checked') ? 1 : 0
+  }, function (r) {
+    $('#loadingBox').hide();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), 'err'); return; }
+    tprojectId = r.tproject_id;
+    $('#tprojectName').text(r.tproject_name);
+    $('#tprojectNameTb').text(r.tproject_name);
+    document.title = r.tproject_name + ' - ' + TLi18n.t('ato.header');
+
+    if (!r.hasData || !r.tplans || r.tplans.length === 0) {
+      renderEmpty(TLi18n.t('ato.noRecords'));
+      return;
+    }
+    renderAll(r);
+    $('#footerInfo').html(
+      esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString());
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    var msg = TLi18n.t('ato.errLoad');
+    if (xhr.status === 403) { msg = TLi18n.t('common.forbidden'); }
+    else if (xhr.status === 401) { msg = TLi18n.t('common.forbidden'); }
+    warn(msg);
+    toast(msg, 'err');
+  });
+}
+
+function renderEmpty(msgHtml) {
+  $('#reportArea').empty();
+  $('#emptyBox').html('<i class="fa fa-inbox"></i>' + msgHtml).show();
+}
+
+function renderAll(r) {
+  var $area = $('#reportArea').empty();
+  r.tplans.forEach(function (plan) {
+    if (!plan.rows || plan.rows.length === 0) return;
+    var cols = planColumns(plan);
+    var head = esc(plan.name) +
+      '<span class="bmeta">' +
+      esc(TLi18n.t('ato.rowCount', {0: String(plan.rows.length)})) +
+      '</span>';
+    $area.append(sectionHtml(head, planTable(plan, cols)));
+  });
+}
+
+function planColumns(plan) {
+  var cols = [];
+  if (true) cols.push({key:'build_name',label:TLi18n.t('ato.thBuild')});
+  cols.push({key:'suite_path',label:TLi18n.t('ato.thTestSuite')});
+  cols.push({key:'tc',label:TLi18n.t('ato.thTestCase'),cls:'tc-cell'});
+  if (plan.show_platforms) cols.push({key:'platform_name',label:TLi18n.t('ato.thPlatform')});
+  if (plan.priority_enabled) cols.push({key:'priority',label:TLi18n.t('ato.thPriority')});
+  cols.push({key:'status',label:TLi18n.t('ato.thStatus')});
+  cols.push({key:'due_since',label:TLi18n.t('ato.thDueSince')});
+  return cols;
+}
+
+function planTable(plan, cols) {
+  var h = '<table class="ato"><thead><tr>';
+  cols.forEach(function(c){ h += '<th>' + esc(c.label) + '</th>'; });
+  h += '</tr></thead><tbody>';
+  plan.rows.forEach(function(row){
+    h += '<tr>';
+    cols.forEach(function(c){
+      h += '<td' + (c.cls ? ' class="'+esc(c.cls)+'"' : '') + '>';
+      h += cellHtml(row, c.key, plan);
+      h += '</td>';
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  return h;
+}
+
+function cellHtml(row, key, plan) {
+  switch(key){
+    case 'build_name': return esc(row.build_name);
+    case 'suite_path': return esc(row.suite_path);
+    case 'tc': return tcCell(row);
+    case 'platform_name': return esc(row.platform_name || '');
+    case 'priority': return prioHtml(row);
+    case 'status': return statusBadge(row.status);
+    case 'due_since': return '<span class="age">' + esc(row.age_days) + 'd</span>';
+  }
+  return '';
+}
+
+function tcCell(r) {
+  var tcUrl = '/lib/testcases/archiveData.php?edit=testcase&id=' + r.tc_id;
+  var histUrl = '/lib/execute/execHistory.php?tcase_id=' + r.tc_id + '&tproject_id=' + tprojectId;
+  var execUrl = '/lib/execute/execSetResults.php?version_id=' + r.tcversion_id +
+                '&level=testcase&id=' + r.tc_id + '&tplan_id=' + r.tplan_id +
+                '&setting_build=' + r.build_id + '&setting_platform=' + (r.platform_id||0) +
+                '&caller=assignedTcOverview';
+  var label = esc(r.prefix) + '-' + esc(r.tc_external_id) + ': ' + esc(r.name) + ' <span style="color:#888;font-size:11px;">(v.' + esc(r.version) + ')</span>';
+  var h = '<a class="tlink" href="' + esc(tcUrl) + '" target="_blank">' + label + '</a>';
+  h += ' <a class="icon-btn" href="' + esc(histUrl) + '" target="_blank" title="' + esc(TLi18n.t('ato.titleHistory')) + '"><i class="fa fa-clock"></i></a>';
+  if (r.can_exec) {
+    h += quickIcons(r);
+    h += ' <a class="icon-btn" href="' + esc(execUrl) + '" target="_blank" title="' + esc(TLi18n.t('ato.titleExecution')) + '"><i class="fa fa-play"></i></a>';
+  }
+  return h;
+}
+
+function quickIcons(r) {
+  var base = function(result) {
+    return 'javascript:void(0)';
+  };
+  var h = '';
+  ['p','f','b'].forEach(function(code){
+    var tip = code === 'p' ? TLi18n.t('ato.quickPassed') : code === 'f' ? TLi18n.t('ato.quickFailed') : TLi18n.t('ato.quickBlocked');
+    var icon = code === 'p' ? 'fa-check-circle' : code === 'f' ? 'fa-times-circle' : 'fa-ban';
+    h += ' <a class="icon-btn qe" href="javascript:void(0)" title="' + esc(tip) + '" ' +
+         'onclick="quickExec(' + r.tplan_id + ',' + (r.platform_id||0) + ',' + r.build_id + ',' + r.tcversion_id + ',\'' + code + '\',this);return false;">' +
+         '<i class="fa ' + icon + '"></i></a>';
+  });
+  return h;
+}
+
+function prioHtml(r) {
+  var lvl = r.priority_level || 'low';
+  var cls = lvl === 'high' ? 'prio-h' : lvl === 'medium' ? 'prio-m' : 'prio-l';
+  var txt = lvl === 'high' ? TLi18n.t('ato.priorityHigh') : lvl === 'medium' ? TLi18n.t('ato.priorityMedium') : TLi18n.t('ato.priorityLow');
+  return '<span class="' + cls + '">' + esc(txt) + '</span>';
+}
+
+function statusBadge(code) {
+  var cls = 'badge-n';
+  if (code === 'p') cls = 'badge-p';
+  else if (code === 'f') cls = 'badge-f';
+  else if (code === 'b') cls = 'badge-b';
+  var map = {p:'ato.statusPassed',f:'ato.statusFailed',b:'ato.statusBlocked',n:'ato.statusNotRun'};
+  var txt = TLi18n.t(map[code] || map['n']);
+  return '<span class="badge-st ' + cls + '">' + esc(txt) + '</span>';
+}
+
+function quickExec(tplanId, platformId, buildId, tcversionId, code, el) {
+  if (!confirm(TLi18n.t('ato.confirmExec'))) return;
+  $.ajax({
+    url: API + '?action=quick_exec',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      tplan_id: tplanId,
+      platform_id: platformId,
+      build_id: buildId,
+      tcversion_id: tcversionId,
+      result: code
+    }),
+    success: function(r) {
+      if (r.status === 'ok') {
+        toast(TLi18n.t('ato.quickExecSuccess'), 'ok');
+        var row = $(el).closest('tr');
+        var statusCell = row.find('td:last').prev();
+        statusCell.html(statusBadge(code));
+      } else {
+        toast(r.message || TLi18n.t('common.error'), 'err');
+      }
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('ato.errLoad');
+      if (xhr.status === 403) msg = TLi18n.t('common.forbidden');
+      toast(msg, 'err');
+    }
+  });
+}
+
+function sectionHtml(headHtml, bodyHtml) {
+  return '<div class="section">' +
+    '<div class="section-head"><i class="fa fa-users"></i><span>' + headHtml + '</span></div>' +
+    '<div class="section-body">' + bodyHtml + '</div></div>';
+}
+</script>
+</body>
+</html>

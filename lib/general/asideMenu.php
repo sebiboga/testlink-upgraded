@@ -110,6 +110,15 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_test') {
         $hrefR = 'gui/templates/results/resultsMatrix.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #684 - Assigned Test Case Overview (tcAssignedToUser) modernized;
+      // the BFF (api/reports assigned_tc_overview action) reuses
+      // testcase::get_assigned_to_user() with last-exec status per row;
+      // show_all_users=1+show_inactive_and_closed=1 is the legacy reports
+      // variant that shows the "overview for all users" perspective.
+      } else if($rptItem['title'] == 'link_assigned_tc_overview') {
+        $hrefR = 'gui/templates/results/assignedTcOverview.html' .
+                 "?tproject_id={$tprojectID}" .
+                 "&show_all_users=1&show_inactive_and_closed=1";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
