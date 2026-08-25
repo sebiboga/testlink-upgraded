@@ -226,6 +226,14 @@ function edit(&$argsObj,&$buildMgr,$dateFormat) {
   $op->buttonCfg = new stdClass();
   $op->buttonCfg->name = "do_update";
   $op->buttonCfg->value = lang_get('btn_save');
+
+  if (!$binfo) {
+    $op->notes = '';
+    $op->user_feedback = lang_get("cannot_update_build");
+    $op->status_ok = 0;
+    return $op;
+  }
+
   $op->notes = $binfo['notes'];
   $op->user_feedback = '';
   $op->status_ok = 1;
@@ -291,7 +299,12 @@ function doDelete(&$dbHandler,&$argsObj,&$buildMgr,&$tplanMgr) {
   $op->buttonCfg = null;
 
   $build = $buildMgr->get_by_id($argsObj->build_id);
-  
+
+  if (!$build) {
+    $op->user_feedback = lang_get("cannot_delete_build");
+    return $op;
+  }
+
   $qty = $tplanMgr->getExecCountOnBuild($argsObj->tplan_id,$argsObj->build_id);
   if($qty > 0 && !$argsObj->user->hasRightOnProj($dbHandler,'exec_delete'))
   {
@@ -563,6 +576,12 @@ function doUpdate(&$argsObj,&$buildMgr,&$tplanMgr,$dateFormat)
   $op->buttonCfg = null;
 
   $oldObjData = $buildMgr->get_by_id($argsObj->build_id);
+
+  if (!$oldObjData) {
+    $op->user_feedback = lang_get("cannot_update_build");
+    return $op;
+  }
+
   $oldname = $oldObjData['name'];
 
   $check = crossChecks($argsObj,$tplanMgr,$dateFormat);
