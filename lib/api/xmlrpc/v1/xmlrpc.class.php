@@ -8836,8 +8836,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 "message" => GENERAL_SUCCESS_STR
         );
 
-        $operation = $ret['operation'];
-        $msgPrefix = "({$operation}) - ";
+        $msgPrefix = "(" . __FUNCTION__ . ") - ";
         $debug_info = null;
 
         $this->_setArgs( $args );
