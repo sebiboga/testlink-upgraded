@@ -2426,8 +2426,8 @@ if ($action === 'tcases_with_cf') {
 
             // Get test suite path
             $pathData = $tcaseMgr->getPathLayered([$row['tcase_id']]);
-            $pathItem = end($pathData);
-            $suitePath = $pathItem ? $pathItem['value'] : '';
+            $pathItem = is_array($pathData) && count($pathData) > 0 ? end($pathData) : null;
+            $suitePath = is_array($pathItem) && isset($pathItem['value']) ? $pathItem['value'] : '';
 
             $externalId = buildExternalIdString($tcasePrefix, $row['tc_external_id']);
 
