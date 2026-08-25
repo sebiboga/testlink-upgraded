@@ -4443,3 +4443,17 @@ Suite result: **9/9 PASS**
 | 4 | Event attribution check | delta on events during suite | only rows attributable to this suite: R1 WARNINGs = pre-existing unguarded reads filed as #651 (not the #649 defect); no new "Failure loading XML STRING" for valid XML anywhere post-fix | PASS |
 
 **Result: Suite 649 — 5/5 PASS** (case 0 = pre-fix reproduction recorded for evidence)
+
+## Regression — Issue #680: Suite 649 regression section clobbered in tmp/TLU_Test_Cases.md by commit 6960d3529
+
+**Precondition:** repo clone at `fix/issue-680`; no app/DB needed (documentation-integrity defect). Defect evidence: parent blob `412af3eff` of `6960d3529` contained Suite 649 at EOF; result blob `d9ebb0205` lost it (whole-block replacement by Suite 434 content); 43 later commits never restored it.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro pre-fix symptom | `grep -c "Result: Suite 649" tmp/TLU_Test_Cases.md` on `sebiboga` @ `dc278666b` | Count = 0 although adding commit `0aead081a` exists in history | PASS (reproduced: count 0) |
+| 2 | Restoration append | Extract verbatim block via `git show 0aead081a:tmp/TLU_Test_Cases.md \| tail -14`, append at current EOF after Suite 496; commit `652d9e046` | File ends with the Suite 649 section, chronological append not replacement | PASS |
+| 3 | Byte-identical restore | `diff <(tail -14 file) <(git show 0aead081a:... \| tail -14)` | Empty diff — historical test evidence preserved unmodified | PASS (empty) |
+| 4 | No collateral loss | grep counts for sibling sections after fix: `Result: Suite 434` = 1, `Suite result: **9/9 PASS**` (Suite 496) = 2 occurrences incl. historical | All pre-existing suites still present, counts unchanged vs pre-fix tree | PASS |
+| 5 | Markdown integrity of restored block | awk section scan | Restored section = header + precondition line + 7 table rows (header/sep/5 data) + result line, well-formed pipes | PASS |
+
+Suite result: **5/5 PASS**
