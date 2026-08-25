@@ -4586,7 +4586,7 @@ Suite result: **5/5 PASS**
 
 ---
 
-### Suite 686 — Regression — Issue #517: E_WARNING Multiple undefined vars/keys in buildEdit.php
+### Suite 517 — Regression — Issue #517: E_WARNING Multiple undefined vars/keys in buildEdit.php
 
 **Precondition:** TestLink 2.0.1 running at http://localhost:8082, MariaDB at 127.0.0.1:3306, database testlink. Test project "TestProject" (tproject_id=1, prefix TP) exists. Test plan "TestPlan1" (tplan_id=2) exists under it.
 
@@ -4599,4 +4599,28 @@ Suite result: **5/5 PASS**
 | 5 | doUpdate with invalid build_id shows error | Submit do_update with build_id=99999 | "Error while updating build!" shown, no PHP warnings, page renders without crash | PASS |
 | 6 | No Event Viewer errors generated | Check Event Viewer after all test steps | No new ERROR or WARNING events in events table related to buildEdit.php | PASS |
 
-**Result: Suite 686 — 6/6 PASS**
+**Result: Suite 517 — 6/6 PASS**
+
+## Suite 686 — Absolute Latest Execution Results (absoluteLatest.html + api/reports absolute_latest actions) — Refs #686
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, MariaDB at 127.0.0.1:3306, database testlink. Test project "TestProject" (tproject_id=1, prefix TP) exists. Test plan "TestPlan1" (tplan_id=2) exists with platforms Linux (id=1) and Windows (id=2). Test cases TP-1 (Passed on Linux), TP-2 (Failed on Linux), TP-3 (Not Run).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF absolute_latest_init returns platforms and context | `curl http://localhost:8082/api/reports/index.php?action=absolute_latest_init&tproject_id=1&tplan_id=2` | HTTP 200, JSON with status=ok, platforms array contains Linux and Windows, need_selection=false, tproject_name and tplan_name present | PASS |
+| 2 | BFF absolute_latest_result returns matrix data | `curl "http://localhost:8082/api/reports/index.php?action=absolute_latest_result&tproject_id=1&tplan_id=2&platform_id=1"` | HTTP 200, JSON with status=ok, hasData=true, rows=3 (TP-1 Passed, TP-2 Failed, TP-3 Not Run), platform_name="Linux", export_xls_url present | PASS |
+| 3 | BFF absolute_latest_result with Windows (no execs) returns empty | `curl "...action=absolute_latest_result&platform_id=2"` | HTTP 200, status=ok, hasData=false, rows empty array | PASS |
+| 4 | HTML screen loads launcher with platform dropdown | Navigate to `absoluteLatest.html?tproject_id=1&tplan_id=2` | Header shows "Absolute Latest Execution Results", "TestPlan1", "TestProject". Platform dropdown with Linux/Windows and Generate Report button visible | PASS |
+| 5 | Selecting Linux and generating report shows DataTable | Select "Linux" from dropdown, click Generate Report | Table renders with 5 columns (Test Suite, Test Case, Priority, Latest Execution, Latest Exec Notes), 3 rows, section title "Absolute Latest Execution Results — Linux", row count badge "3 rows" | PASS |
+| 6 | Priority badges colored correctly | Check TP-3 row (Low), TP-1 row (High), TP-2 row (High) | Low shows grey style, High shows orange style, correct labels displayed | PASS |
+| 7 | Status badges colored correctly | Check TP-1 (Passed), TP-2 (Failed), TP-3 (Not Run) | Passed=green badge, Failed=red badge, Not Run=grey badge | PASS |
+| 8 | Selecting Windows (no data) shows empty state | Select "Windows", click Generate Report | Empty box with "No execution data found for this test plan on the selected platform" message shown | PASS |
+| 9 | Refresh button returns to launcher | Click Refresh button from results view | Table clears, launcher with platform dropdown reappears, dropdown reset to default | PASS |
+| 10 | Export XLS button visible on results | Check toolbar after generating Linux report | "Export as spreadsheet" button visible with href containing legacy XLS export URL with correct platform_id=1 | PASS |
+| 11 | Export XLS button hidden on launcher | Check toolbar when launcher is shown | "Export as spreadsheet" button hidden | PASS |
+| 12 | Empty state hidden when data present | Generate report for Linux | #emptyBox has display:none, #reportArea has rendered table content | PASS |
+| 13 | No console errors on load | Check browser console after page load and generating report | No JavaScript errors, no 4xx/5xx network errors, i18n labels resolve correctly (not showing "alx.*" keys) | PASS |
+| 14 | DataTable search/filter works | Type "TP-1" in Search box | Table filters to show only TP-1 row, "Showing 1 to 1 of 1 entries" | PASS |
+| 15 | i18n header and labels resolved | Check page snapshot after load | "alx.header" resolves to "Absolute Latest Execution Results", "alx.forPlan" resolves to "for test plan", "common.refresh" resolves to "Refresh" | PASS |
+
+**Result: Suite 686 — 15/15 PASS**
