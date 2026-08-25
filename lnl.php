@@ -134,7 +134,7 @@ switch($args->light) {
       
           $awl = config_get('accessWithoutLogin');
           if( !isset($awl[$args->type]) ) {
-            echo 'ABORTING - UNKNOWN TYPE:' . $args->type;
+            echo 'ABORTING - UNKNOWN TYPE:' . htmlspecialchars($args->type, ENT_QUOTES, 'UTF-8');
             die(); 
           }
           
