@@ -356,6 +356,7 @@ function renderGui(&$smartyObj,&$argsObj,&$tplanMgr,&$buildMgr,$templateCfg,$owe
         // 4. else look for TL_BUILDVIEW_HIDECOL
         //
         $ppfx = $tplanMgr->tproject_mgr->getTestCasePrefix($guiObj->tproject_id);
+        $col2hide = array();
         $suffixSet = ['_' . $ppfx, ''];
         foreach($suffixSet as $suf) {
           $gopt['name'] = 'TL_BUILDVIEW_HIDECOL' . $suf;
@@ -639,7 +640,7 @@ function crossChecks($argsObj,&$tplanMgr,$dateFormat)
   {
     
     // BUGID 3716
-    $rdate = trim($argsObj->release_date_original);
+    $rdate = trim($argsObj->release_date_original ?? '');
     
     // TODO: comment
     $date_array = split_localized_date($rdate,$dateFormat);
