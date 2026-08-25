@@ -112,7 +112,6 @@ For the original TestLink 1.9.x documentation, see the sections below.
 16. [User cries: I WANT HELP !!!](#16-user-cries-i-want-help-)
 17. [Use Mantis documentation](#17-use-mantis-documentation)
 18. [Link to GITORIOUS COMMITS](#18-link-to-gitorious-commits)
-19. [Running Testlink using Docker](./docker/README.md)
 
 ## 1. Introduction
 
@@ -261,11 +260,6 @@ ATTENTION: we have not enough resources to test on all kind of browsers.
            Right now development is done using Chrome & Firefox.
 
 ## 4. Installation & SECURITY
-
-### With containers
-use [README.containers.md](README.containers.md)
-
-### Without containers
 
 The following details the basic steps for installation on any system.
 Instructions may seem unix-centric but should work on Windows systems.
