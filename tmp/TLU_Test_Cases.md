@@ -5437,3 +5437,43 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 - Test Suite: Test Suite NR (ts_id=10)
 - Test Cases: TC NeverRun 1 (tcv_id=14, platform A), TC NeverRun 2 (tcv_id=15, platform B), TC Executed (tcv_id=13, platform A, status=passed)
 - Executions: 1 execution for TC Executed on Platform A
+
+---
+
+### Regression — Issue #704: Multiple PHP undefined variable / wrong return / debug echo bugs
+
+**Precondition:** TestLink installed, database accessible, PHP 7.4+
+
+#### Test Case 1 — lnl.php:129 undefined $key
+- **Pre-requisite:** API key configured, accessWithoutLogin feature active
+- **Steps:**
+  1. Construct URL: `lnl.php?light=green&type=list_tc_my_custom_report&apikey=<valid_key>`
+  2. Access the URL
+- **Expected:** The default case in `switch($args->type)` executes with `$args->type` properly matched against `list_tc_` prefix. No PHP warning for undefined `$key`.
+- **Actual (post-fix):** `$args->type` is correctly used in `strpos()`. No warnings.
+
+#### Test Case 2 — linkto.php:243 return boolean instead of object
+- **Pre-requisite:** None (can test with invalid testcase URL)
+- **Steps:**
+  1. Access: `linkto.php?testcase=INVALID_NOSPLIT` (no glue character)
+  2. Observe page response
+- **Expected:** `init_args()` returns `$args` object (with `status_ok=false`), caller handles gracefully. No fatal error on property access of boolean.
+- **Actual (post-fix):** Returns `$args` object. Caller checks `$args->status_ok` (false) and does not proceed. No PHP fatal error.
+
+#### Test Case 3 — lostPassword.php:53 undefined $note
+- **Pre-requisite:** None
+- **Steps:**
+  1. Access: `lostPassword.php?viewer=new`
+  2. Check PHP error log for "Undefined variable $note"
+- **Expected:** No PHP warning for undefined variable `$note`. The condition uses `$gui->note` which is properly set.
+- **Actual (post-fix):** No PHP warning. `$gui->note` checked correctly.
+
+#### Test Case 4 — firstLogin.php:143 debug echo
+- **Pre-requisite:** None
+- **Steps:**
+  1. Access: `firstLogin.php?viewer=new`
+  2. Check HTTP response body
+- **Expected:** No `<br>143` debug output in HTML
+- **Actual (post-fix):** No debug output detected in response.
+
+**Result:** All 4 tests PASS
