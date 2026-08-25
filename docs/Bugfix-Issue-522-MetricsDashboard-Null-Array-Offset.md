@@ -3,9 +3,9 @@
 ## Problem
 
 PHP 8.x emits `E_WARNING: Trying to access array offset on null` when loading the
-Metrics Dashboard (`lib/results/metricsDashboard.php`) for a test plan that has
-**no platforms AND no builds** (or no active TC versions). The warning occurs on
-every page load of the dashboard under this condition.
+Metrics Dashboard (`lib/results/metricsDashboard.php`) for a test plan that has no
+builds (or no active TC versions). The warning occurs on every page load of the
+dashboard under this condition.
 
 ## Root Cause
 
@@ -27,9 +27,7 @@ Under PHP 8, accessing an array offset on `null` triggers `E_WARNING`.
 
 ## Fix
 
-Applied in commit `d3200a115` (Aug 19, 2026) — note: this fix was bundled into
-a larger feature commit ("feat: User Management + Role Management BFF APIs and
-HTML pages"), not a standalone bugfix commit. Two guards added at lines 245-248:
+Applied in commit `d3200a115` (Aug 19, 2026). Two guards added at lines 245-248:
 
 1. **`is_array()` guard** — If `getExecCountersByExecStatus()` returns null or a
    non-array, replace with an empty array.
