@@ -2349,5 +2349,171 @@ if ($action === 'by_status') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Test Cases Never Run by Platform (Refs #688)
+// Modernizes lib/results/neverRunByPP.php as reached from the Reports sub-menu
+// entry link_report_never_run: test cases that were never executed across ALL
+// active builds in the test plan, grouped by platform. Two-step flow:
+//   never_run_init  → context + platforms + export URLs
+//   never_run_result → data rows (optionally filtered by selected platforms)
+// Right gate: 'testplan_metrics' — the same right the legacy screen enforces
+// through checkRights() via resultsNavigator.php.
+// ---------------------------------------------------------------------------
+if ($action === 'never_run_init') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+    $platforms = [];
+    if ($showPlatforms) {
+        foreach ($platformSet as $pid => $pname) {
+            $platforms[] = ['id' => intval($pid), 'name' => $pname];
+        }
+    }
+
+    $exportXlsUrl = '/lib/results/neverRunByPP.php?format=' . FORMAT_XLS .
+        '&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId .
+        '&doAction=result';
+    $sendMailUrl = '/lib/results/neverRunByPP.php?format=' . FORMAT_MAIL_HTML .
+        '&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId .
+        '&doAction=result';
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'platforms' => $platforms,
+        'export_xls_url' => $exportXlsUrl,
+        'send_mail_url' => $sendMailUrl,
+    ]);
+}
+
+if ($action === 'never_run_result') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Platform filter — optional array of selected platform IDs
+    $platSet = [];
+    if (isset($_GET['platSet']) && is_array($_GET['platSet'])) {
+        foreach ($_GET['platSet'] as $ps) {
+            $pv = intval($ps);
+            if ($pv > 0) {
+                $platSet[] = $pv;
+            }
+        }
+    }
+
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $metrics = $metricsMgr->getNeverRunByPlatform($tplanId,
+        !empty($platSet) ? $platSet : null);
+
+    $tcaseMgr = new testcase($db);
+    $tcCfg = config_get('testcase_cfg');
+    $fullPrefix = $proj['prefix'] . $tcCfg->glue_character;
+
+    // Build row data — faithful port of legacy neverRunByPP.php post-processing
+    $pathCache = [];
+    $rowsOut = [];
+    if (!is_null($metrics) && count($metrics) > 0) {
+        foreach ($metrics as &$elem) {
+            $tcId = $elem['tcase_id'];
+
+            if (!isset($pathCache[$tcId])) {
+                $du = $tcaseMgr->getPathLayered([$tcId]);
+                if (!empty($du) && isset($du[$elem['tsuite_id']])) {
+                    $pathCache[$tcId] = $du[$elem['tsuite_id']]['value'];
+                } else {
+                    $pathCache[$tcId] = $elem['name'] ?? 'Unknown';
+                }
+            }
+
+            $rowsOut[] = [
+                'suite_name' => $pathCache[$tcId],
+                'test_title' => $fullPrefix . $elem['full_external_id'] .
+                    ':' . $elem['name'],
+                'tcase_id' => intval($tcId),
+                'platform_name' => $elem['platform_name'] ?? '',
+            ];
+        }
+    }
+
+    $exportXlsUrl = '/lib/results/neverRunByPP.php?format=' . FORMAT_XLS .
+        '&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId .
+        '&doAction=result';
+    if (!empty($platSet)) {
+        foreach ($platSet as $ps) {
+            $exportXlsUrl .= '&platSet%5B%5D=' . $ps;
+        }
+    }
+    $sendMailUrl = '/lib/results/neverRunByPP.php?format=' . FORMAT_MAIL_HTML .
+        '&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId .
+        '&doAction=result';
+
+    $infoMsg = lang_get('info_notrun_tc_report');
+
+    out([
+        'status' => 'ok',
+        'hasData' => count($rowsOut) > 0,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'info_msg' => $infoMsg,
+        'rows' => $rowsOut,
+        'export_xls_url' => $exportXlsUrl,
+        'send_mail_url' => $sendMailUrl,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
