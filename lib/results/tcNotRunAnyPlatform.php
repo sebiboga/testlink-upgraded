@@ -113,7 +113,9 @@ if ($lastResultMap != null && $platforms_active)
 					$rowArray[$cols['tsuite']] = $suiteName;
 					$rowArray[$cols['link']] = $args->format != FORMAT_HTML ? $mail_link : $tcLink;
 
-					if($_SESSION['testprojectOptions']->testPriorityEnabled)
+					$tprojOpt = $tproject_mgr->getOptions($args->tproject_id);
+					$priorityEnabled = isset($tprojOpt->testPriorityEnabled) ? $tprojOpt->testPriorityEnabled : false;
+					if($priorityEnabled)
 					{
 						$dummy = $tplan_mgr->getPriority($args->tplan_id, array('tcversion_id' => $tcase['tcversion_id']));
 						$rowArray[$cols['priority']] = $dummy[$tcase['tcversion_id']]['priority_level'];
@@ -154,7 +156,7 @@ if ($lastResultMap != null && $platforms_active)
 // create and show the table only if we have data to display
 if ($gui->number_of_not_run_testcases) 
 {
-	$gui->tableSet[] = buildMatrix($gui->matrix, $args->format);
+	$gui->tableSet[] = buildMatrix($gui->matrix, $args->format, $args->tproject_id);
 }
 
 if ($platforms_active) 
@@ -208,12 +210,17 @@ function checkRights(&$db,&$user)
  *
  *
  */
-function buildMatrix($dataSet, $format)
+function buildMatrix($dataSet, $format, $tproject_id)
 {
+	global $db;
 	$columns = array(array('title_key' => 'title_test_suite_name', 'width' => 100),
 	                 array('title_key' => 'title_test_case_title', 'width' => 150));
 
-	if($_SESSION['testprojectOptions']->testPriorityEnabled)
+	$tprojMgr = new testproject($db);
+	$tprojOpt = $tprojMgr->getOptions($tproject_id);
+	$priorityEnabled = isset($tprojOpt->testPriorityEnabled) ? $tprojOpt->testPriorityEnabled : false;
+
+	if($priorityEnabled)
 	{
 		$columns[] = array('title_key' => 'priority', 'type' => 'priority', 'width' => 40);
 	}
@@ -225,7 +232,7 @@ function buildMatrix($dataSet, $format)
 		$matrix->setGroupByColumnName(lang_get('title_test_suite_name'));
 		$matrix->sortDirection = 'DESC';
 
-		if($_SESSION['testprojectOptions']->testPriorityEnabled)
+		if($priorityEnabled)
 		{
 			$matrix->addCustomBehaviour('priority', array('render' => 'priorityRenderer', 'filter' => 'Priority'));
 			//sort by priority

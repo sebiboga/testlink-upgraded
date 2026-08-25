@@ -219,7 +219,10 @@ $gui->items_qty = is_null($gui->items) ? 0 : count($gui->items);
 $gui->has_tc = $out['num_tc'] > 0 ? 1:0;
 $gui->support_array = array_keys($gui->items);
 
-if ($_SESSION['testprojectOptions']->testPriorityEnabled) 
+$tproject_mgr2 = new testproject($db);
+$tprojOpt = $tproject_mgr2->getOptions($args->tproject_id);
+$gui->testPriorityEnabled = isset($tprojOpt->testPriorityEnabled) ? $tprojOpt->testPriorityEnabled : false;
+if ($gui->testPriorityEnabled) 
 {
   $cfg = config_get('priority');
   $gui->priority_labels = init_labels($cfg["code_label"]);

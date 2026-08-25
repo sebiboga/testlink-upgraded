@@ -22,7 +22,8 @@ $tcase_cfg = config_get('testcase_cfg');
 $args = init_args();
 $tproject_mgr = new testproject($db);
 
-$priorityMgmtEnabled = $_SESSION['testprojectOptions']->testPriorityEnabled;
+$tprojOpt = $tproject_mgr->getOptions($args->tproject_id);
+$priorityMgmtEnabled = isset($tprojOpt->testPriorityEnabled) ? $tprojOpt->testPriorityEnabled : false;
 
 $msg_key = 'all_testcases_has_testplan';
 $edit_img = TL_THEME_IMG_DIR . "edit_icon.png";

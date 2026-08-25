@@ -172,7 +172,7 @@ function setComboIfCbx(oid,combo_id_prefix,value_to_assign)
               {if $gui->platforms != ''}
 			      	  <th>{$labels.platform}</th>
               {/if}	
-			      	{if $session['testprojectOptions']->testPriorityEnabled}
+			      	{if $gui->testPriorityEnabled}
 			      	  <th align="center">{$labels.priority}</th>
 			      	{/if}
               <th style="align:left;">&nbsp;&nbsp;{$labels.assigned_to}</th>
@@ -218,7 +218,7 @@ function setComboIfCbx(oid,combo_id_prefix,value_to_assign)
   			      	        <td>{$gui->platforms[$platform_id]|escape}</td>
                       {/if}	
 
-              	    	{if $session['testprojectOptions']->testPriorityEnabled}
+              	    	{if $gui->testPriorityEnabled}
               	    		<td align="center">
                         {if isset($gui->priority_labels[$tcase.priority])}{$gui->priority_labels[$tcase.priority]}{/if}</td>
               	    	{/if}
@@ -226,7 +226,7 @@ function setComboIfCbx(oid,combo_id_prefix,value_to_assign)
                     {else}
                         <td>&nbsp;</td><td>&nbsp;</td>
                         {if $gui->platforms != ''}<td>&nbsp;</td>{/if} 
-                        {if $session['testprojectOptions']->testPriorityEnabled}<td>&nbsp;</td>{/if}
+                        {if $gui->testPriorityEnabled}<td>&nbsp;</td>{/if}
                     {/if} {* do it JUST ON first iteration *}
 
               	    	<td style="align:left;">
