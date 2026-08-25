@@ -23,7 +23,7 @@ Purpose: management Custom fields assignment to a test project
 {$dataAttrDataTable = 'data-view'}
 {include file="DataTables.inc.tpl" 
          DataTablesSelector="[$dataAttrDataTable]"
-         DataTableslengthMenu=$ll}
+         DataTablesLengthMenu=$ll}
 </head>                  
 
 {$sortableNo = 'data-orderable="false"'}

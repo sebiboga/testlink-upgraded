@@ -25,7 +25,7 @@ Purpose:
 
 {$ll = '[25, 50, 75, -1], [25, 50, 75, "All"]'}
 {include file="DataTables.inc.tpl" 
-         DataTablesSelector="#item_view" DataTableslengthMenu=$ll}
+         DataTablesSelector="#item_view" DataTablesLengthMenu=$ll}
 
 <script type="text/javascript">
 {if !$gui->testCasesTableView}
