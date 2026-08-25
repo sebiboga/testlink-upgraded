@@ -3,13 +3,13 @@
 Five GitHub Actions workflows run this repository with minimal human input.
 They coordinate through awareness (each agent can inspect the others' state)
 rather than hard locks. This document mirrors the wiki page; the authoritative
-rulebooks are `AGENTS.md` and `FIX-ISSUE.md`.
+rulebooks are `ai/AGENTS.md` and `ai/FIX-ISSUE.md`.
 
 ## The five workflows
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `fix-bug.yml` | schedule every 2h + manual | Picks the NEWEST open issue, fixes it end-to-end on its own `fix/issue-<n>-<slug>` branch, opens a PR containing `Fixes #<n>`, tries to self-merge (squash). Rulebook: `FIX-ISSUE.md`. |
+| `fix-bug.yml` | schedule every 2h + manual | Picks the NEWEST open issue, fixes it end-to-end on its own `fix/issue-<n>-<slug>` branch, opens a PR containing `Fixes #<n>`, tries to self-merge (squash). Rulebook: `ai/FIX-ISSUE.md`. |
 | `fix-bug-oldest.yml` | schedule every 2h (+30min offset) + manual | Twin of `fix-bug.yml` targeting the OLDEST open bug issue — the backlog is drained from both ends. |
 | `merge-prs.yml` | hourly | Safety net: squash-merges open `fix/*` PRs authored by the bot, after attempting a base update when the default branch moved. |
 | `modernize.yml` | manual, one screen per run | Modernizes one legacy screen (BFF API + HTML screen + i18n), pushes intermediate commits directly to the default branch. |

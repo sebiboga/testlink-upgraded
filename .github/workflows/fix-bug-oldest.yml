@@ -3,7 +3,7 @@ name: Fix oldest bug (opencode)
 # One run = ONE bug fixed end-to-end: the OLDEST open GitHub issue.
 # Twin of fix-bug.yml (which targets the NEWEST) — together they drain the
 # backlog from both ends. No inputs on purpose — the agent picks the issue
-# itself (see FIX-ISSUE.md). Same environment pattern as modernize.yml.
+# itself (see ai/FIX-ISSUE.md). Same environment pattern as modernize.yml.
 
 on:
   workflow_dispatch: {}
@@ -137,7 +137,7 @@ jobs:
           {
             "$schema": "https://opencode.ai/config.json",
             "model": "opencode/big-pickle",
-            "instructions": ["AGENTS.md", "FIX-ISSUE.md", "ISSUES.md"],
+            "instructions": ["ai/AGENTS.md", "ai/FIX-ISSUE.md", "ai/ISSUES.md"],
             "mcp": {
               "chrome-devtools": {
                 "type": "local",
@@ -173,8 +173,8 @@ jobs:
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
-          PROMPT+="Read AGENTS.md, FIX-ISSUE.md and ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
-          PROMPT+="FIX-ISSUE.md is your mission rulebook with ONE override for this run: pick the OLDEST "
+          PROMPT+="Read ai/AGENTS.md, ai/FIX-ISSUE.md and ai/ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
+          PROMPT+="ai/FIX-ISSUE.md is your mission rulebook with ONE override for this run: pick the OLDEST "
           PROMPT+="open GitHub issue yourself via gh (sort by creation date ascending), "
           PROMPT+="skipping any issue labeled enhancement/task/investigation/documentation — those belong to "
           PROMPT+="the modernize workflow, not to you. "

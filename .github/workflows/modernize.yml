@@ -1,6 +1,6 @@
 name: Modernize one screen (opencode)
 
-# One run = ONE screen modernized end-to-end, following AGENTS.md.
+# One run = ONE screen modernized end-to-end, following ai/AGENTS.md.
 # Runs AUTOMATICALLY every 3 hours (empty input = next unmodernized ASIDE
 # screen top-to-bottom); can also be triggered manually with an explicit
 # screen/model. Pattern borrowed from sebiboga/AI-Factory-job-seeker-ro-spider
@@ -153,7 +153,7 @@ jobs:
           {
             "$schema": "https://opencode.ai/config.json",
             "model": "${{ inputs.model || 'opencode/big-pickle' }}",
-            "instructions": ["AGENTS.md"],
+            "instructions": ["ai/AGENTS.md"],
             "mcp": {
               "chrome-devtools": {
                 "type": "local",
@@ -175,7 +175,7 @@ jobs:
           date -d '+95 minutes' +%s > "$DEADLINE_EPOCH_FILE"
           git rev-parse HEAD > .ci_before_sha
           PROMPT="You are continuing the TestLink 2.0.1 modernization project in this repository. "
-          PROMPT+="Read AGENTS.md in the repo root FIRST and follow ALL its rules strictly. "
+          PROMPT+="Read ai/AGENTS.md in the repo root FIRST and follow ALL its rules strictly. "
           PROMPT+="Environment already prepared on this machine: "
           PROMPT+="TestLink app running at http://localhost:8082 (PHP built-in server, docroot = repo root); "
           PROMPT+="login admin/admin; "
@@ -196,7 +196,7 @@ jobs:
             PROMPT+="(screens already modernized exist as gui/templates/**/*.html backed by api/** BFF endpoints; "
             PROMPT+="anything still pointing to lib/**.php is legacy) and modernize exactly that ONE screen. "
           fi
-          PROMPT+="Execute the full AGENTS.md cycle for that single screen only: "
+          PROMPT+="Execute the full ai/AGENTS.md cycle for that single screen only: "
           PROMPT+="STEP 0 — MANDATORY, BEFORE ANY exploration or code: ensure the screen's tracking issue "
           PROMPT+="exists on GitHub Issues (label 'enhancement'). If it does not exist, CREATE IT INSTANTLY "
           PROMPT+="(gh issue create --label enhancement --title 'Modernize: <screen>') and post your initial "
@@ -219,7 +219,7 @@ jobs:
           PROMPT+="RESUME RULE: before writing any code for the assigned screen, inspect git log and the existing files — "
           PROMPT+="if a previous run already built parts of this screen (BFF file, HTML screen, i18n keys, link switches), "
           PROMPT+="KEEP them and CONTINUE from where that work stopped; never rebuild from zero what is already committed. "
-          PROMPT+="PROGRESS CHECKPOINTS (AGENTS.md rule 20) — MANDATORY, time-boxed: post a comment on the tracking "
+          PROMPT+="PROGRESS CHECKPOINTS (ai/AGENTS.md rule 20) — MANDATORY, time-boxed: post a comment on the tracking "
           PROMPT+="issue AT LEAST every ~20 minutes of work AND at every push, ALWAYS with these sections: "
           PROMPT+="'DONE' (what landed: commit hashes + files), 'DISCOVERIES' (root causes, gotchas, decisions), "
           PROMPT+="'PLAN' (ordered next steps / current strategy), 'RESUME' (exact state + env needed to continue, "

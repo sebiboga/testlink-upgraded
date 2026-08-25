@@ -2,7 +2,7 @@
 
 Mission: fix exactly ONE bug per run — the NEWEST open GitHub bug issue — end
 to end, then stop. This file is the authoritative rulebook for that run. Also
-follow ALL rules in AGENTS.md (they apply to every run).
+follow ALL rules in ai/AGENTS.md (they apply to every run).
 
 ## 1. Pick the issue yourself
 

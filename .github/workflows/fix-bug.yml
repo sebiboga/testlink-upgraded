@@ -1,7 +1,7 @@
 name: Fix latest bug (opencode)
 
 # One run = ONE bug fixed end-to-end: the NEWEST open GitHub issue.
-# No inputs on purpose — the agent picks the issue itself (see FIX-ISSUE.md).
+# No inputs on purpose — the agent picks the issue itself (see ai/FIX-ISSUE.md).
 # Same environment pattern as modernize.yml.
 
 on:
@@ -135,7 +135,7 @@ jobs:
           {
             "$schema": "https://opencode.ai/config.json",
             "model": "opencode/big-pickle",
-            "instructions": ["AGENTS.md", "FIX-ISSUE.md", "ISSUES.md"],
+            "instructions": ["ai/AGENTS.md", "ai/FIX-ISSUE.md", "ai/ISSUES.md"],
             "mcp": {
               "chrome-devtools": {
                 "type": "local",
@@ -171,8 +171,8 @@ jobs:
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are fixing bugs in this TestLink 2.0.1 repository. "
-          PROMPT+="Read AGENTS.md, FIX-ISSUE.md and ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
-          PROMPT+="FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh, "
+          PROMPT+="Read ai/AGENTS.md, ai/FIX-ISSUE.md and ai/ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
+          PROMPT+="ai/FIX-ISSUE.md is your mission rulebook: pick the NEWEST open GitHub issue yourself via gh, "
           PROMPT+="skipping any issue labeled enhancement/task/investigation/documentation — those belong to "
           PROMPT+="the modernize workflow, not to you. "
           PROMPT+="ISSUES.md IS BINDING — DOCUMENTATION IS THE DELIVERABLE: post an INVESTIGATION comment "

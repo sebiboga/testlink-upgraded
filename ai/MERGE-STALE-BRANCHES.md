@@ -5,7 +5,7 @@
 that merges those stale branches safely into the default branch `sebiboga`.
 
 **Reference:** Every step must be documented on the source branch's issue, following
-the same pattern as ISSUES.md.
+the same pattern as ai/ISSUES.md.
 
 ---
 

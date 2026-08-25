@@ -87,7 +87,7 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     repo — be aware of them and never fight them:
     - `fix-bug.yml` (every 2h): picks the NEWEST open issue, fixes it on its own
       `fix/*` branch, opens a PR with `Fixes #<n>`, tries to self-merge.
-      Rulebook: `FIX-ISSUE.md`.
+      Rulebook: `ai/FIX-ISSUE.md`.
     - `merge-prs.yml` (hourly): safety net that squash-merges open `fix/*` PRs.
     - `modernize.yml` (manual): one screen per run, pushes intermediate commits
       directly to the default branch.

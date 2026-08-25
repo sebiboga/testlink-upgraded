@@ -57,7 +57,7 @@ jobs:
           {
             "$schema": "https://opencode.ai/config.json",
             "model": "opencode/big-pickle",
-            "instructions": ["AGENTS.md", "MERGE-STALE-BRANCHES.md"]
+            "instructions": ["ai/AGENTS.md", "ai/MERGE-STALE-BRANCHES.md"]
           }
           OPNCFG
 
