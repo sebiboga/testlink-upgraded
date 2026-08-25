@@ -1068,10 +1068,12 @@ if ($action === 'metrics_results_matrix') {
 
     // Status vocabulary resolved server-side so the session locale applies
     // (legacy did lang_get() in initializeGui()/buildDataSet()).
+    // results cfg maps VERBOSE => CODE (passed => p); label lookup is by
+    // verbose, cell indexing is by code.
     $cfgResults = config_get('results');
     $statusLabels = [];
-    foreach ($cfgResults['status_code'] as $statusCode => $verbose) {
-        $statusLabels[$statusCode] =
+    foreach ($cfgResults['status_code'] as $verbose => $scode) {
+        $statusLabels[$scode] =
             lang_get($cfgResults['status_label'][$verbose]);
     }
     $notRunCode = $cfgResults['status_code']['not_run'];
