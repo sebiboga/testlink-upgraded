@@ -4839,23 +4839,16 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 
 ---
 
-## Regression — Issue #657: Self-signup duplicate email accepted without validation
+## Suite 529 — Regression — Issue #529: Undefined config option `testCaseStatusDisplayHintOnTestDesign` warning on every tcView render
 
-**Precondition:** TestLink running at http://localhost:8082, self-signup enabled, fresh database.
-
-**Root cause:** `tlUser::checkDetails()` validated login uniqueness but never checked email uniqueness. The static method `doesUserExistByEmail()` existed but was never called. No error constant or i18n string existed for duplicate email.
-
-**Fix:** Added `E_EMAILALREADYEXISTS` constant (-1024) in `tlUser.class.php`, email uniqueness check in `checkDetails()`, error case in `getUserErrorMessage()`, i18n key `email_already_used` in all 19 locale bundles, and result-check wrapper in `firstLogin.php`.
+**Precondition:** Fresh DB import, TestProject + TestSuite + TestCase (id=3) created, admin/admin logged in.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | Self-signup with duplicate email rejected | POST to `firstLogin.php` with `doEditUser=1`, `login=testuser1`, `email=dup@test.com`, valid password. POST again with `login=testuser2`, same `email=dup@test.com` | Second POST returns 200 with error div: "This email address is already in use, please use another one." | PASS |
-| 2 | Self-signup with unique email succeeds | POST with unique email `unique@test.com` | Redirect to `login.php?note=first` (HTTP 200 + JS redirect script) | PASS |
-| 3 | Self-signup with duplicate login rejected | POST with existing login `testuser1`, new email | Returns error "Login/User name is already in use" | PASS |
-| 4 | Self-signup with empty email rejected | POST with empty `email` field | Returns error "You can't use an empty Email address!" | PASS |
-| 5 | Browser: duplicate email error displayed | Navigate to `firstLogin.php?viewer=new`, fill form with `test@example.com`, submit | Error message "This email address is already in use, please use another one." visible on page | PASS |
-| 6 | DB verification | `SELECT id,login,email FROM users` after tests | No two users share the same email address | PASS |
-| 7 | No duplicate user created | Check `users` table after duplicate POST | Only 1 row for the duplicate email attempt (not 2) | PASS |
-| 8 | Event Viewer clean | `SELECT * FROM events` after all tests | Only CREATE audit entries, no ERROR or WARNING level events | PASS |
+| 1 | Pre-fix repro | Query events after tcView render | Event with `description` containing `testCaseStatusDisplayHintOnTestDesign` at level 2 (WARNING) | PASS (event #13 confirmed pre-fix) |
+| 2 | Post-fix: config option defined | After fix: clear events, render tcView (`archiveData.php?edit=testcase&id=3&show_mode=show&tproject_id=1`), query `events WHERE description LIKE '%testCaseStatusDisplayHintOnTestDesign%'` | 0 rows | PASS |
+| 3 | Post-fix: tcView still renders | After fix: tcView loads without crash | HTTP 200, page renders correctly | PASS |
+| 4 | Post-fix: no new warning types | After fix: query all events from tcView render | Same event categories as before (fixture-data warnings only), no new WARNING types | PASS |
+| 5 | Post-fix: config_get resolves | PHP: `config_get('testCaseStatusDisplayHintOnTestDesign')` returns empty array | Returns `array()`, no WARNING logged | PASS |
 
-**Result: 8/8 PASS** (2026-08-25, curl + headless Chrome + mysql against http://localhost:8082)
+**Result: 5/5 PASS** (2026-08-25, curl + mysql against http://localhost:8082)
