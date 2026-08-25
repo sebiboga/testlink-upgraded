@@ -4807,3 +4807,32 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 | 15 | Elapsed time displayed | Check footer area | Footer shows "Elapsed seconds: 0.XX" (non-zero, reasonable) | PASS |
 
 **Result: 15/15 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
+
+---
+
+### Suite 691 — Graphical Charts (charts_basic) — Refs #690
+
+**Screen:** `gui/templates/results/charts.html`
+**BFF:** `api/reports/index.php?action=charts_data`
+**Legacy:** `lib/results/charts.php` + 4 pChart PNG generators
+**Rights:** `testplan_metrics`
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF API returns chart data | GET `/api/reports/index.php?action=charts_data&tproject_id=1&tplan_id=2` | JSON `status=ok`, `charts.overall` has labels/values/colors arrays, `charts.platforms` is array, `charts.by_keyword` and `charts.by_suite` have labels+datasets | PASS |
+| 2 | Overall pie chart renders | Navigate to `charts.html?tproject_id=1&tplan_id=2` | Header shows "Graphical Charts for test plan CWT Test Plan"; toolbar shows "Test Project: CWT Test Project"; "Overall Metrics" section visible with pie chart canvas | PASS |
+| 3 | Per-platform pie charts | Test plan with linked platforms, reload screen | "Overall Metrics by Platform" section appears with one pie chart card per platform | PASS |
+| 4 | Keyword bar chart renders | Test plan with keywords linked to TCs | "Results by Keyword" section visible with stacked bar chart | PASS |
+| 5 | Suite bar chart renders | Test plan with TCs linked | "Results by Top-Level Test Suite" section visible with stacked bar chart showing suite names | PASS |
+| 6 | Empty state: no data | Test plan with zero TCs | All chart sections hidden, empty message "No chart data available" displayed | PASS |
+| 7 | No permission | Call BFF without `testplan_metrics` right | HTTP 403, JSON `{status: "error", message: "No permission"}` | PASS |
+| 8 | Missing parameters | Call BFF with `tplan_id=0` | HTTP 400, JSON error "Missing test plan id" | PASS |
+| 9 | Aside link wired | Click "Charts" in Reports sub-menu | Navigates to `charts.html?tproject_id=X&tplan_id=Y` (not legacy `charts.php`) | PASS |
+| 10 | i18n keys present | Check all locale bundles | All `charts.*` keys present in `en.json`, `ro.json`, `de.json`, `fr.json`, `es.json`, `it.json`, `pt.json`, `ru.json`, `ja.json`, `zh.json` | PASS |
+| 11 | No console errors | Check browser console after loading screen | Zero JS errors or warnings | PASS |
+| 12 | Event Viewer clean | Query `events` table after screen load | No new ERROR or WARNING level events related to this screen | PASS |
+| 13 | Locale switcher | Click locale dropdown, select different language | Screen re-renders with translated labels; chart tooltips update | PASS |
+| 14 | Elapsed time displayed | Check footer area | Footer shows "Elapsed seconds: 0.XX" (non-zero, reasonable) | PASS |
+| 15 | Toast notification | Screen loads successfully | "Loaded" toast appears briefly at bottom-right | PASS |
+
+**Result: 15/15 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
