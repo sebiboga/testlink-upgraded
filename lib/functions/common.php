@@ -2149,8 +2149,23 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
   if( !empty($tprojOpt->inventoryEnabled) ) {
     $invr = array('project_inventory_view','project_inventory_management');
     foreach($invr as $r){
-      $grants[$r] = 
-        ($argsObj->user->hasRight($dbHandler,$r) == 'yes') ? 1 : 0;
+      $grants[$r] = 0;
+      if ($argsObj->user !== null) {
+        // hasRight() strips inventory rights from project roles because they
+        // live in $g_propRights_global (propagation model). Check the
+        // project role directly so project-level assignments work.
+        $has = ($argsObj->user->hasRight($dbHandler,$r) == 'yes');
+        if (!$has && $argsObj->tproject_id > 0
+            && isset($argsObj->user->tprojectRoles[$argsObj->tproject_id])) {
+          $pr = $argsObj->user->tprojectRoles[$argsObj->tproject_id];
+          if (!empty($pr->rights) && is_array($pr->rights)) {
+            foreach ($pr->rights as $ro) {
+              if ($ro->name === $r) { $has = true; break; }
+            }
+          }
+        }
+        if ($has) { $grants[$r] = 1; }
+      }
     }
   }
 
