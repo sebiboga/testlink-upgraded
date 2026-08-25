@@ -2632,5 +2632,178 @@ if ($action === 'cases_without_tester') {
     ]);
 }
 
+// ── Charts: aggregated data for client-side rendering ── Refs #690
+// Returns pie/bar chart data in JSON for the modernized charts.html screen.
+// Reuses the same tlTestPlanMetrics calls the legacy pChart scripts made.
+if ($action === 'charts_data') {
+    $timerOn = microtime(true);
+
+    $tplanId = isset($_GET['tplan_id']) ? intval($_GET['tplan_id']) : 0;
+    $tprojectId = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test project id']);
+    }
+
+    $tplanMgr = new testplan($db);
+    $projMgr = new testproject($db);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    $proj = $projMgr->get_by_id($tprojectId);
+
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    if (!$proj) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check: same pattern as other BFF actions
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $resultsCfg = config_get('results');
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // ── Status colors (from cfg/const.inc.php) ──
+    $statusColors = isset($resultsCfg['charts']['status_colour'])
+        ? $resultsCfg['charts']['status_colour'] : [];
+    $statusOrder = ['not_run', 'passed', 'failed', 'blocked'];
+
+    $colorMap = [];
+    foreach ($statusOrder as $s) {
+        if (isset($statusColors[$s])) {
+            $hex = $statusColors[$s];
+            $r = hexdec(substr($hex, 0, 2));
+            $g = hexdec(substr($hex, 2, 2));
+            $b = hexdec(substr($hex, 4, 2));
+            $colorMap[$s] = "rgb($r,$g,$b)";
+        }
+    }
+
+    // ── 1. Overall metrics (pie chart) ──
+    $overallPie = ['labels' => [], 'values' => [], 'colors' => []];
+    $totals = $metricsMgr->getExecCountersByExecStatus($tplanId);
+    if (!is_null($totals)) {
+        unset($totals['total']);
+        foreach ($statusOrder as $s) {
+            if (isset($totals[$s])) {
+                $overallPie['labels'][] = lang_get($resultsCfg['status_label'][$s]);
+                $overallPie['values'][] = intval($totals[$s]);
+                $overallPie['colors'][] = isset($colorMap[$s]) ? $colorMap[$s] : '#999';
+            }
+        }
+    }
+
+    // ── 2. Per-platform metrics (one pie per platform) ──
+    $platformPies = [];
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    if (!is_null($platformSet)) {
+        $platformData = $metricsMgr->getStatusTotalsByPlatformForRender($tplanId);
+        if (!is_null($platformData) && isset($platformData->info)) {
+            foreach ($platformSet as $pid => $pinfo) {
+                $entry = ['name' => $pinfo['name'], 'labels' => [], 'values' => [], 'colors' => []];
+                if (isset($platformData->info[$pid]['details'])) {
+                    foreach ($statusOrder as $s) {
+                        if (isset($platformData->info[$pid]['details'][$s])) {
+                            $d = $platformData->info[$pid]['details'][$s];
+                            $entry['labels'][] = lang_get($resultsCfg['status_label'][$s]);
+                            $entry['values'][] = intval($d['qty']);
+                            $entry['colors'][] = isset($colorMap[$s]) ? $colorMap[$s] : '#999';
+                        }
+                    }
+                }
+                $platformPies[] = $entry;
+            }
+        }
+    }
+
+    // ── 3. Results by keyword (stacked bar) ──
+    $keywordBar = ['labels' => [], 'datasets' => []];
+    $kwData = $metricsMgr->getStatusTotalsByKeywordForRender($tplanId);
+    if (!is_null($kwData) && isset($kwData->info) && count($kwData->info) > 0) {
+        // Sort alphabetically by keyword name
+        $nameMap = [];
+        foreach ($kwData->info as $kwId => $elem) {
+            $nameMap[$elem['name']] = $kwId;
+        }
+        ksort($nameMap);
+
+        $dsByStatus = [];
+        foreach ($nameMap as $kwName => $kwId) {
+            $keywordBar['labels'][] = $kwName;
+            foreach ($kwData->info[$kwId]['details'] as $s => $d) {
+                $dsByStatus[$s][] = intval($d['qty']);
+            }
+        }
+        foreach ($statusOrder as $s) {
+            if (isset($dsByStatus[$s])) {
+                $keywordBar['datasets'][] = [
+                    'label' => lang_get($resultsCfg['status_label'][$s]),
+                    'data' => $dsByStatus[$s],
+                    'backgroundColor' => isset($colorMap[$s]) ? $colorMap[$s] : '#999',
+                ];
+            }
+        }
+    }
+
+    // ── 4. Results by top-level suite (stacked bar) ──
+    $suiteBar = ['labels' => [], 'datasets' => []];
+    $rootSuites = $metricsMgr->getRootTestSuites($tplanId, $tprojectId);
+    $suiteData = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanId);
+    if (!is_null($suiteData) && isset($suiteData->info) && !is_null($rootSuites)) {
+        $nameMap = array_flip($rootSuites);
+        ksort($nameMap);
+
+        $dsByStatus = [];
+        foreach ($nameMap as $suiteName => $suiteId) {
+            if (isset($suiteData->info[$suiteId])) {
+                $suiteBar['labels'][] = $suiteName;
+                foreach ($suiteData->info[$suiteId]['details'] as $s => $d) {
+                    $dsByStatus[$s][] = intval($d['qty']);
+                }
+            }
+        }
+        foreach ($statusOrder as $s) {
+            if (isset($dsByStatus[$s])) {
+                $suiteBar['datasets'][] = [
+                    'label' => lang_get($resultsCfg['status_label'][$s]),
+                    'data' => $dsByStatus[$s],
+                    'backgroundColor' => isset($colorMap[$s]) ? $colorMap[$s] : '#999',
+                ];
+            }
+        }
+    }
+
+    // ── 5. Check GD availability (for legacy fallback messaging) ──
+    $gdOk = function_exists('gd_info');
+
+    out([
+        'status' => 'ok',
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'has_platforms' => !is_null($platformSet) && count($platformSet) > 0,
+        'gd_available' => $gdOk,
+        'charts' => [
+            'overall' => $overallPie,
+            'platforms' => $platformPies,
+            'by_keyword' => $keywordBar,
+            'by_suite' => $suiteBar,
+        ],
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

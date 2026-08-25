@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Charts</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 16px 20px 20px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.chart-box { flex: 1 1 100%; max-width: 600px; min-width: 320px; }
+.chart-box canvas { width: 100% !important; max-height: 400px; }
+.chart-box-title { font-size: 13px; font-weight: 600; color: #333; margin-bottom: 8px; }
+.platform-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; }
+.platform-card { border: 1px solid #eee; border-radius: 6px; padding: 12px; }
+.platform-card h5 { margin: 0 0 8px; font-size: 13px; color: #333; }
+.platform-card canvas { width: 100% !important; max-height: 260px; }
+.empty { text-align: center; color: #888; font-size: 14px; padding: 40px 20px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-chart-pie" style="margin-right:8px;"></i>
+  <span data-i18n="charts.header">Graphical Charts</span>
+  <span class="sub"><span data-i18n="charts.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="charts.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="loadingBox" class="spin">
+  <i class="fa fa-spinner"></i><br>
+  <span data-i18n="charts.loading">Loading charts...</span>
+</div>
+
+<div id="warnBox" class="section" style="display:none;margin:16px 24px;">
+  <div style="padding:14px 20px;color:#b94a48;background:#fdecea;border-radius:8px;">
+    <i class="fa fa-exclamation-triangle"></i> <span id="warnMsg"></span>
+  </div>
+</div>
+
+<div id="chartsContainer" style="display:none;">
+
+  <!-- Overall Metrics Pie -->
+  <div class="section" id="secOverall">
+    <div class="section-head">
+      <i class="fa fa-chart-pie"></i>
+      <span data-i18n="charts.overallMetrics">Overall Metrics</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-box">
+        <canvas id="chartOverall"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-Platform Pies -->
+  <div class="section" id="secPlatforms" style="display:none;">
+    <div class="section-head">
+      <i class="fa fa-chart-pie"></i>
+      <span data-i18n="charts.platformMetrics">Overall Metrics by Platform</span>
+    </div>
+    <div class="section-body">
+      <div class="platform-grid" id="platformGrid"></div>
+    </div>
+  </div>
+
+  <!-- Results by Keyword Bar -->
+  <div class="section" id="secKeyword">
+    <div class="section-head">
+      <i class="fa fa-chart-bar"></i>
+      <span data-i18n="charts.resultsByKeyword">Results by Keyword</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-box" style="max-width:800px;">
+        <canvas id="chartKeyword"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results by Top-Level Suite Bar -->
+  <div class="section" id="secSuite">
+    <div class="section-head">
+      <i class="fa fa-chart-bar"></i>
+      <span data-i18n="charts.resultsBySuite">Results by Top-Level Test Suite</span>
+    </div>
+    <div class="section-body">
+      <div class="chart-box" style="max-width:800px;">
+        <canvas id="chartSuite"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer" id="footerBar" style="display:none;">
+  <span data-i18n="charts.elapsedSeconds">Elapsed seconds</span>: <span id="elapsedTime">-</span>
+</div>
+
+<div class="toast" id="toastBox"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
+var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+
+function toast(msg, isErr) {
+  var $t = $('#toastBox').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+
+TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher'); });
+</script>
+<script>
+(function() {
+  'use strict';
+
+  function esc(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  function renderPie(canvasId, labels, values, colors) {
+    var ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: labels,
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 1 }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { position: 'right', labels: { font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: function(c) {
+                var total = c.dataset.data.reduce(function(a,b){return a+b;}, 0);
+                var pct = total > 0 ? ((c.raw / total) * 100).toFixed(1) : 0;
+                return c.label + ': ' + c.raw + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  function renderStackedBar(canvasId, labels, datasets) {
+    var ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    return new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        scales: {
+          x: { stacked: true, ticks: { font: { size: 11 } } },
+          y: { stacked: true, beginAtZero: true, ticks: { font: { size: 11 }, stepSize: 1 } }
+        },
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 12 } } }
+        }
+      }
+    });
+  }
+
+  function showEmpty(containerId) {
+    var el = document.getElementById(containerId);
+    if (el) el.style.display = 'none';
+  }
+
+  // ── Load data ──
+  if (!tplan_id || !tproject_id) {
+    document.getElementById('loadingBox').style.display = 'none';
+    document.getElementById('warnBox').style.display = 'block';
+    document.getElementById('warnMsg').textContent = 'Missing test plan or project id.';
+    return;
+  }
+
+  $.ajax({
+    url: '/api/reports/index.php',
+    data: { action: 'charts_data', tproject_id: tproject_id, tplan_id: tplan_id },
+    dataType: 'json',
+    success: function(d) {
+      document.getElementById('loadingBox').style.display = 'none';
+      if (d.status === 'error') {
+        document.getElementById('warnBox').style.display = 'block';
+        document.getElementById('warnMsg').textContent = d.message;
+        return;
+      }
+
+      document.getElementById('tplanName').textContent = d.tplan_name || '-';
+      document.getElementById('tprojectName').textContent = d.tproject_name || '-';
+
+      var charts = d.charts || {};
+      var hasAny = false;
+
+      // Overall pie
+      if (charts.overall && charts.overall.labels && charts.overall.labels.length > 0) {
+        renderPie('chartOverall', charts.overall.labels, charts.overall.values, charts.overall.colors);
+        hasAny = true;
+      } else {
+        showEmpty('secOverall');
+      }
+
+      // Platform pies
+      if (charts.platforms && charts.platforms.length > 0) {
+        document.getElementById('secPlatforms').style.display = 'block';
+        var grid = document.getElementById('platformGrid');
+        charts.platforms.forEach(function(p, idx) {
+          var card = document.createElement('div');
+          card.className = 'platform-card';
+          var h5 = document.createElement('h5');
+          h5.textContent = p.name;
+          card.appendChild(h5);
+          var cvs = document.createElement('canvas');
+          cvs.id = 'chartPlat' + idx;
+          card.appendChild(cvs);
+          grid.appendChild(card);
+          if (p.labels && p.labels.length > 0) {
+            renderPie(cvs.id, p.labels, p.values, p.colors);
+            hasAny = true;
+          }
+        });
+      }
+
+      // Keyword bar
+      if (charts.by_keyword && charts.by_keyword.labels && charts.by_keyword.labels.length > 0) {
+        renderStackedBar('chartKeyword', charts.by_keyword.labels, charts.by_keyword.datasets);
+        hasAny = true;
+      } else {
+        showEmpty('secKeyword');
+      }
+
+      // Suite bar
+      if (charts.by_suite && charts.by_suite.labels && charts.by_suite.labels.length > 0) {
+        renderStackedBar('chartSuite', charts.by_suite.labels, charts.by_suite.datasets);
+        hasAny = true;
+      } else {
+        showEmpty('secSuite');
+      }
+
+      if (!hasAny) {
+        var msg = document.createElement('div');
+        msg.className = 'empty';
+        msg.innerHTML = '<i class="fa fa-chart-pie"></i><span data-i18n="charts.noData">No chart data available for this test plan.</span>';
+        document.getElementById('chartsContainer').appendChild(msg);
+      }
+
+      document.getElementById('chartsContainer').style.display = 'block';
+      document.getElementById('footerBar').style.display = 'block';
+      document.getElementById('elapsedTime').textContent = d.elapsed_time || '-';
+      toast(t('common.loaded', 'Loaded'));
+    },
+    error: function() {
+      document.getElementById('loadingBox').style.display = 'none';
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+})();
+</script>
+</body>
+</html>

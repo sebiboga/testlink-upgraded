@@ -1550,5 +1550,15 @@
   "cwt.allHaveTester": "All test cases have a tester assigned.",
   "cwt.matchCount": "Match count",
   "cwt.testCases": "test cases",
-  "cwt.elapsedSeconds": "Elapsed seconds"
+  "cwt.elapsedSeconds": "Elapsed seconds",
+  "charts.header": "Grafice",
+  "charts.forPlan": "pentru planul de testare",
+  "charts.testProject": "Proiect de testare",
+  "charts.overallMetrics": "Metrici generale",
+  "charts.platformMetrics": "Metrici generale pe platformă",
+  "charts.resultsByKeyword": "Rezultate după cuvânt cheie",
+  "charts.resultsBySuite": "Rezultate după suită de nivel superior",
+  "charts.noData": "Nu există date pentru grafice în acest plan de testare.",
+  "charts.loading": "Se încarcă graficele...",
+  "charts.elapsedSeconds": "Secunde consumate"
 }

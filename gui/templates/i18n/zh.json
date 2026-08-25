@@ -1550,5 +1550,15 @@
   "cwt.allHaveTester": "All test cases have a tester assigned.",
   "cwt.matchCount": "Match count",
   "cwt.testCases": "test cases",
-  "cwt.elapsedSeconds": "Elapsed seconds"
+  "cwt.elapsedSeconds": "Elapsed seconds",
+  "charts.header": "图表",
+  "charts.forPlan": "测试计划",
+  "charts.testProject": "测试项目",
+  "charts.overallMetrics": "总体指标",
+  "charts.platformMetrics": "按平台划分的总体指标",
+  "charts.resultsByKeyword": "按关键字的结果",
+  "charts.resultsBySuite": "按顶层测试套件的结果",
+  "charts.noData": "此测试计划没有可用的图表数据。",
+  "charts.loading": "加载图表中...",
+  "charts.elapsedSeconds": "已用秒数"
 }

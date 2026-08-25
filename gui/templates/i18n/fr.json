@@ -1550,5 +1550,15 @@
   "cwt.allHaveTester": "All test cases have a tester assigned.",
   "cwt.matchCount": "Match count",
   "cwt.testCases": "test cases",
-  "cwt.elapsedSeconds": "Elapsed seconds"
+  "cwt.elapsedSeconds": "Elapsed seconds",
+  "charts.header": "Graphiques",
+  "charts.forPlan": "pour le plan de test",
+  "charts.testProject": "Projet de test",
+  "charts.overallMetrics": "Métriques globales",
+  "charts.platformMetrics": "Métriques globales par plateforme",
+  "charts.resultsByKeyword": "Résultats par mot-clé",
+  "charts.resultsBySuite": "Résultats par suite de test de niveau supérieur",
+  "charts.noData": "Aucune donnée graphique disponible pour ce plan de test.",
+  "charts.loading": "Chargement des graphiques...",
+  "charts.elapsedSeconds": "Secondes écoulées"
 }

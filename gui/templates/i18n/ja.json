@@ -1550,5 +1550,15 @@
   "cwt.allHaveTester": "All test cases have a tester assigned.",
   "cwt.matchCount": "Match count",
   "cwt.testCases": "test cases",
-  "cwt.elapsedSeconds": "Elapsed seconds"
+  "cwt.elapsedSeconds": "Elapsed seconds",
+  "charts.header": "グラフ",
+  "charts.forPlan": "テストプラン",
+  "charts.testProject": "テストプロジェクト",
+  "charts.overallMetrics": "全体のメトリクス",
+  "charts.platformMetrics": "プラットフォーム別全体メトリクス",
+  "charts.resultsByKeyword": "キーワード別結果",
+  "charts.resultsBySuite": "トップレベルテストスイート別結果",
+  "charts.noData": "このテストプランのグラフデータはありません。",
+  "charts.loading": "グラフを読み込み中...",
+  "charts.elapsedSeconds": "経過秒数"
 }
