@@ -2243,7 +2243,7 @@ if ($action === 'by_status') {
         $row['test_title'] = $exec['full_external_id'] . ':' . $exec['name'];
         $row['testcase_id'] = intval($exec['tcase_id']);
         $row['tcversion_id'] = intval($exec['tcversion_id']);
-        $row['executions_id'] = intval($exec['executions_id']);
+        $row['executions_id'] = isset($exec['executions_id']) ? intval($exec['executions_id']) : 0;
         $row['build_id'] = intval($exec['build_id']);
         $row['platform_id'] = intval($exec['platform_id']);
         $row['tcase_id'] = intval($exec['tcase_id']);
