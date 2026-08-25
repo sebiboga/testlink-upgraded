@@ -98,6 +98,15 @@ function t(key, fallback) {
   var v = TLi18n.t(key);
   return (v && v !== key) ? v : (fallback || key);
 }
+function openExecHistory(tcId) {
+  window.open('/lib/requirements/reqMilestones.php?requirement_id=0&tcase_id=' + tcId, 'execHistory_' + tcId, 'width=800,height=600');
+}
+function openExecute(tcId, tcverId) {
+  window.open('/lib/execute/execSetResults.php?tcase_id=' + tcId + '&tcversion_id=' + tcverId + '&tproject_id=' + tproject_id + '&tplan_id=' + tplan_id, 'execute_' + tcId, 'width=900,height=700');
+}
+function openTCEdit(tcId) {
+  window.open('/lib/testcases/archiveData.php?edit=testcase&id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
+}
 function statusBadge(status, label) {
   var cls = 'status-other';
   if (status === 'p') cls = 'status-passed';
@@ -125,6 +134,7 @@ function loadData() {
       }
       $('#tplanName').text(d.tplan_name || '-');
       $('#tprojectName').text(d.tproject_name || '-');
+      document.title = t('tcwcf.header', 'Test Cases with Custom Fields') + ' — ' + (d.tplan_name || '');
 
       if (d.warning_msg && !d.hasData) {
         $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + esc(d.warning_msg)).show();
@@ -145,7 +155,11 @@ function loadData() {
         { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
         { title: t('testcase', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
-            return '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tcase_name);
+            var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tcase_name);
+            links += ' <a class="exec-link" href="#" onclick="openExecHistory(' + row.tcase_id + '); return false;" title="' + t('tcwcf.execHistory', 'Execution History') + '"><i class="fa fa-history"></i></a>';
+            links += ' <a class="exec-link" href="#" onclick="openExecute(' + row.tcase_id + ',' + row.tcversion_id + '); return false;" title="' + t('tcwcf.execute', 'Execute') + '"><i class="fa fa-play"></i></a>';
+            links += ' <a class="exec-link" href="#" onclick="openTCEdit(' + row.tcase_id + '); return false;" title="' + t('tcwcf.editTC', 'Edit Test Case') + '"><i class="fa fa-pencil"></i></a>';
+            return links;
           }
         },
         { title: t('tcwcf.version', 'Version'), data: 'tcversion_number', orderable: true }
@@ -181,6 +195,10 @@ function loadData() {
         '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
       $('#reportArea').html(html);
       $('#countBadge').text(d.rows.length + ' ' + t('tcwcf.executions', 'executions'));
+
+      if ($.fn.DataTable.isDataTable('#dtResults')) {
+        $('#dtResults').DataTable().destroy();
+      }
 
       $('#dtResults').DataTable({
         data: d.rows,

@@ -2353,6 +2353,7 @@ if ($action === 'tcases_with_cf') {
     $tprojId = $tprojectId;
 
     if ($tplanId <= 0) {
+        http_response_code(400);
         out(['status' => 'error', 'message' => 'No test plan selected']);
         exit;
     }
@@ -2360,7 +2361,14 @@ if ($action === 'tcases_with_cf') {
     $tplanMgr = new testplan($db);
     $tplanInfo = $tplanMgr->get_by_id($tplanId);
     if (!$tplanInfo) {
+        http_response_code(400);
         out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
         exit;
     }
 
@@ -2437,6 +2445,17 @@ if ($action === 'tcases_with_cf') {
                 $cfValues[$cfRow['name']] = $cfieldMgr->string_custom_field_value($cfRow, null);
             }
 
+            // Filter: skip rows where both notes and all CF values are empty (legacy parity)
+            $hasValue = !empty($row['exec_notes']);
+            if (!$hasValue) {
+                foreach ($cfValues as $cfVal) {
+                    if (!empty($cfVal)) { $hasValue = true; break; }
+                }
+            }
+            if (!$hasValue) {
+                continue;
+            }
+
             $rows[] = [
                 'tcase_id' => intval($row['tcase_id']),
                 'tcversion_id' => intval($row['tcversion_id']),
@@ -2453,7 +2472,7 @@ if ($action === 'tcases_with_cf') {
                 'execution_ts' => $row['execution_ts'] ?? '',
                 'exec_status' => $row['exec_status'] ?? '',
                 'exec_status_label' => $statusLabels[$row['exec_status']] ?? $row['exec_status'],
-                'exec_notes' => $row['exec_notes'] ?? '',
+                'exec_notes' => strip_tags($row['exec_notes'] ?? ''),
                 'cfields' => $cfValues,
             ];
         }
