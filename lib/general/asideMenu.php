@@ -132,46 +132,6 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_test_absolute_latest_exec') {
         $hrefR = 'gui/templates/results/absoluteLatest.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
-      // Refs #687 - Results by Status (failed/blocked/not_run) modernized;
-      // the BFF (api/reports by_status action) reuses the very same
-      // tlTestPlanMetrics::getExecutionsByStatus() /
-      // getNotRunWithTesterAssigned() calls and enforces testplan_metrics.
-      } else if($rptItem['title'] == 'link_report_failed') {
-        $hrefR = 'gui/templates/results/resultsByStatus.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=failed";
-      } else if($rptItem['title'] == 'link_report_blocked_tcs') {
-        $hrefR = 'gui/templates/results/resultsByStatus.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=blocked";
-      } else if($rptItem['title'] == 'link_report_not_run') {
-        $hrefR = 'gui/templates/results/resultsByStatus.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=not_run";
-      // Refs #688 - Test Cases Never Run (neverRunByPP) modernized;
-      // the BFF (api/reports never_run_init/never_run_result actions) reuses
-      // the very same tlTestPlanMetrics::getNeverRunByPlatform() call and
-      // enforces testplan_metrics.
-      } else if($rptItem['title'] == 'link_report_never_run') {
-        $hrefR = 'gui/templates/results/neverRun.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
-      // Refs #689 - Test Cases Without Tester (tcases_without_tester)
-      // modernized; the BFF (api/reports cases_without_tester action) reuses
-      // the very same tlTestPlanMetrics::getNotRunWoTesterAssigned() call and
-      // enforces testplan_metrics.
-      } else if($rptItem['title'] == 'link_report_tcases_without_tester') {
-        $hrefR = 'gui/templates/results/casesWithoutTester.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
-      // Refs #690 - Graphical Charts (charts_basic) modernized;
-      // the BFF (api/reports charts_data action) returns JSON data for
-      // client-side Chart.js rendering instead of server-side pChart PNGs.
-      } else if($rptItem['title'] == 'link_charts') {
-        $hrefR = 'gui/templates/results/charts.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
-      // Refs #691 - Requirements Coverage (resultsReqs) modernized;
-      // the BFF (api/reports metrics_results_reqs action) reuses the very same
-      // requirement_mgr::getAllByContext() + evaluate_req() calls and enforces
-      // testplan_metrics.
-      } else if($rptItem['title'] == 'link_report_reqs_coverage') {
-        $hrefR = 'gui/templates/results/resultsRequirements.html' .
-                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
