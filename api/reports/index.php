@@ -1057,6 +1057,14 @@ if ($action === 'metrics_results_matrix') {
 
     if ($needSelection) {
         $payload['builds'] = $buildsOut;
+        // keep toolbar exports functional in launcher mode as well
+        // (legacy launcher page exposes the same two endpoints)
+        $xlsBase0 = '/lib/results/resultsTC.php?format=' . FORMAT_XLS .
+            '&doAction=result&tplan_id=' . $tplanId .
+            '&tproject_id=' . $tprojectId;
+        $payload['export_xls_url'] = $xlsBase0 . '&exportSpreadSheet_x=1';
+        $payload['send_mail_url'] =
+            $xlsBase0 . '&sendSpreadSheetByMail_x=1';
         out($payload);
     }
 
@@ -1175,6 +1183,7 @@ if ($action === 'metrics_results_matrix') {
                                     ? $statusLabels[$erow['status']] : '',
                             'version' => intval($erow['version']),
                             'tcversion_id' => intval($erow['tcversion_id']),
+                            'platform_id' => intval($platformId),
                         ];
                     }
 
@@ -1260,9 +1269,12 @@ if ($action === 'metrics_results_matrix') {
     $payload['rows'] = $rowsOut;
 
     // Toolbar keeps the two legacy endpoints (XLS download + email) exactly
-    // like the other modernized reports keep theirs.
+    // like the other modernized reports keep theirs. Provided in launcher
+    // mode too so the buttons still work after a build-selection apply.
     $xlsBase = '/lib/results/resultsTC.php?format=' . FORMAT_XLS .
-        '&do_action=result&tplan_id=' . $tplanId .
+        // legacy controller reads doAction (camelCase) - with do_action the
+        // >buildQtyLimit path would land on the launcher instead of exporting
+        '&doAction=result&tplan_id=' . $tplanId .
         '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
         $xlsBase .= '&buildListForExcel=' . implode(',', $idSet);

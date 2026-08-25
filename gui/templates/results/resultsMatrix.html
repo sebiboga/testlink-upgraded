@@ -328,12 +328,14 @@ function buildCell(row, col, cell) {
   var h = '<span class="badge-st st-' + esc(cell.status_code) + '">' +
           esc(cell.status_label) +
           ' <span class="ver">v' + esc(cell.version) + '</span></span>';
-  var url = '/lib/execute/execSetResults.php?tcase_id=' +
-    encodeURIComponent(row.tcase_id) +
-    '&tcversion_id=' + encodeURIComponent(cell.tcversion_id) +
-    '&build_id=' + encodeURIComponent(col.build_id) +
-    '&tplan_id=' + encodeURIComponent(tplanId) +
-    '&tproject_id=' + encodeURIComponent(tprojectId);
+  // legacy execSetResults.php parameter contract (see testlink_library.js
+  // openExecutionWindow): level, id, version_id, setting_build, setting_platform
+  var url = '/lib/execute/execSetResults.php?level=testcase' +
+    '&id=' + encodeURIComponent(row.tcase_id) +
+    '&version_id=' + encodeURIComponent(cell.tcversion_id) +
+    '&setting_build=' + encodeURIComponent(col.build_id) +
+    '&setting_platform=' + encodeURIComponent(cell.platform_id || 0) +
+    '&tplan_id=' + encodeURIComponent(tplanId);
   h += ' <a class="execico" title="' + esc(TLi18n.t('rsm.execIconTitle')) +
        '" href="' + esc(url) + '" onclick="window.open(this.href,\'exec_popup\',\'width=1024,height=750,left=80,top=80,resizable=yes,scrollbars=yes\');return false;"><i class="fas fa-play-circle"></i></a>';
   return h;
