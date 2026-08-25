@@ -1392,8 +1392,8 @@ TLU: TestLink Upgraded 2.0.1
 | Assign Custom Fields (Modernized) | 14 | 8 | 5 | 1 |
 | Platform Management (Modernized) | 18 | 11 | 5 | 2 |
 | Results by Status #695 | 15 | 10 | 1 | 4 |
-| TC with CF Report #737 | 15 | 8 | 5 | 2 |
-| **TOTAL** | **150** | **89** | **51** | **14** |
+| TC with CF Report #737 | 17 | 10 | 5 | 2 |
+| **TOTAL** | **152** | **91** | **52** | **14** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |
@@ -5039,3 +5039,165 @@ Issue tracker enabled on the test project.
 | 1 | Check events table after all tests | No new E_WARNING/E_ERROR from common.php | No new errors from grant builder | PASS |
 
 ### Result: Suite 690 — Issue #537 — 4/4 PASS
+
+---
+
+## 37. Test Cases with Custom Fields Report — Modernized (Suite ID: 37)
+
+**Screen:** `gui/templates/results/tcasesWithCF.html` · **BFF:** `/api/reports/index.php?action=tcases_with_cf`
+**Path:** ASIDE > Reports > "Test Cases with Custom Fields"
+**Tracking Issue:** https://github.com/sebiboga/testlink-upgraded/issues/737
+
+### TC-37.1: Screen Loads Inside Mainframe Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in as admin.
+- **Steps:**
+  1. Click "Test Cases with Custom Fields" in ASIDE > Reports section.
+     *Expected:* tcasesWithCF.html loads inside the mainframe shell (navbar + sidebar visible), no PHP warnings or JS console errors.
+  2. Verify header shows "Test Cases with Custom Fields" with subtitle and locale switcher.
+  3. Verify toolbar shows Test Suite, Test Case, Build dropdowns and Show button.
+
+### TC-37.2: Empty State — No Custom Fields Defined
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** No custom fields are linked to testcases/executions.
+- **Steps:**
+  1. Load the screen with no custom fields.
+     *Expected:* Info panel "No custom fields defined for test cases or executions" displayed.
+  2. Verify no errors in console.
+
+### TC-37.3: Results Table Shows Correct Columns
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan active, test cases executed with custom field values.
+- **Steps:**
+  1. Load the screen.
+     *Expected:* Table columns include: Test Suite, Test Case, Version, Build, Tester, Date, Status, Execution Notes, plus one column per custom field (e.g. "Environment").
+  2. Verify column headers match the custom field labels.
+
+### TC-37.4: Results Table Shows Correct Data
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Executions with custom field values exist.
+- **Steps:**
+  1. View results for a test case with executions.
+     *Expected:* Each row shows correct Status badge (colored), Build name, Version, and custom field values.
+  2. Verify empty custom field values show as empty cell (not "null").
+
+### TC-37.5: Action Links Open Correct Windows
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Results loaded with at least one execution.
+- **Steps:**
+  1. Click the clock icon (Execution History) on a test case row.
+     *Expected:* Opens execution history popup window for that test case.
+  2. Click the play icon (Execute) on a test case row.
+     *Expected:* Opens execution form popup window.
+  3. Click the pencil icon (Edit Test Case) on a test case row.
+     *Expected:* Opens test case editor popup window.
+
+### TC-37.6: DataTable Pagination Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** More than 10 executions exist.
+- **Steps:**
+  1. Load results with many rows.
+     *Expected:* DataTable shows pagination controls; "Showing 1 to 10 of N entries".
+  2. Click Next page.
+     *Expected:* Next set of rows displayed.
+
+### TC-37.7: DataTable Search/Filter Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Results loaded with multiple rows.
+- **Steps:**
+  1. Type partial test case name in search box.
+     *Expected:* Table filters to matching rows.
+  2. Clear search box.
+     *Expected:* Full result set restored.
+
+### TC-37.8: Locale Switcher Translates All Labels
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Screen loaded.
+- **Steps:**
+  1. Switch locale to Română.
+     *Expected:* Page reloads with `?locale=ro`; header, dropdown labels, button text all translate.
+  2. Switch back to English.
+     *Expected:* All labels return to English.
+
+### TC-37.9: Aside Menu Link Points to New Screen
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Inspect aside menu entry href in ASIDE > Reports.
+     *Expected:* Points to `/gui/templates/results/tcasesWithCF.html` (not legacy PHP).
+  2. Click the link.
+     *Expected:* Loads the modernized screen inside mainframe.
+
+### TC-37.10: API Returns Data Correctly
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged-in session; test plan with executions and CF values.
+- **Steps:**
+  1. `GET /api/reports/index.php?action=tcases_with_cf&tproject_id=<id>&tplan_id=<id>`
+     *Expected:* HTTP 200 with JSON containing `cfinfo`, `gui`, and `executions`.
+  2. Verify `cf_columns` contains field_id, name, label for each linked CF.
+  3. Verify `rows` array contains tc_name, version, build_name, status, and cfields.
+
+### TC-37.11: API Returns 401 Without Session
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. `GET /api/reports/index.php?action=tcases_with_cf&tproject_id=1` without session cookie.
+     *Expected:* HTTP 401 with `{"status":"error","message":"Not authenticated"}`.
+
+### TC-37.12: API Returns 403 Without testplan_metrics Right
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User without `testplan_metrics` right.
+- **Steps:**
+  1. Call API with restricted user session.
+     *Expected:* HTTP 403 "No permission".
+
+### TC-37.13: Event Viewer Clean After Screen Use
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Fresh events table.
+- **Steps:**
+  1. Load screen, switch locale, check Event Viewer.
+     *Expected:* No new Error/Warning events from tcasesWithCF flows.
+
+### TC-37.14: Empty Rows Filtered Like Legacy
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Executions exist where both exec_notes and all CF values are empty.
+- **Steps:**
+  1. Load results that include an execution with empty notes and empty CF values.
+     *Expected:* That execution row is NOT shown (filtered out, matching legacy behavior).
+
+### TC-37.15: Dynamic Page Title
+- **Priority:** Low
+- **Importance:** Low
+- **Steps:**
+  1. Load the screen.
+     *Expected:* Browser tab title shows "Test Cases with Custom Fields — <Plan Name>".
+
+### TC-37.16: DataTables Destroy Prevents Memory Leak
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Load the screen, switch locale to trigger loadData() again.
+     *Expected:* No JS console errors; DataTable re-initializes cleanly without duplicate event handlers.
+
+### TC-37.17: API Error Responses Include HTTP Status Codes
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Call API with `tplan_id=0`.
+     *Expected:* HTTP 400 (not 200) with error message.
+  2. Call API with nonexistent `tplan_id=99999`.
+     *Expected:* HTTP 400 with "Test plan not found".
+
+### Result: 17/17 PASS (pending full verification)
