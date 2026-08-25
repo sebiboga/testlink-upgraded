@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-25 · branch `sebiboga` @ 074e89661
+> Last updated: 2026-08-25 · branch `sebiboga` @ a19fdcc12
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 46 |
+| DONE (modernized) | 47 |
 | IN PROGRESS | 1 |
-| TODO (still legacy) | 3 |
+| TODO (still legacy) | 2 |
 
 ---
 
@@ -69,6 +69,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 44 | Reports — Results by Status (failed) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_failed; aside redirect in asideMenu.php; i18n ×10 locales |
 | 45 | Reports — Results by Status (blocked) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_blocked; aside redirect in asideMenu.php; i18n ×10 locales |
 | 46 | Reports — Results by Status (not_run) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_not_run; aside redirect in asideMenu.php; i18n ×10 locales |
+| 47 | Reports — Test Cases with Custom Fields ✅ (#737) | `results/tcasesWithCF.html` | api/reports (tcases_with_cf) | right `testplan_metrics`; cfield_mgr::get_linked_cfields_at_execution(); dynamic CF columns; aside redirect in asideMenu.php; i18n ×10 locales |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
@@ -96,7 +97,7 @@ Extra modernized feature (not an ASIDE entry):
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 
 | 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |
-| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671)**; **Baselines L1 & L2 done (#673)**; **Results by Tester per Build done (#677)**; **Test Cases Never Run done (#688)**; **Results by Status (failed/blocked/not_run) done (#695)** — next: the remaining report pages |
+| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671)**; **Baselines L1 & L2 done (#673)**; **Results by Tester per Build done (#677)**; **Test Cases Never Run done (#688)**; **Results by Status (failed/blocked/not_run) done (#695)**; **Test Cases with Custom Fields done (#737)** — next: the remaining report pages (Test Plans with CF, Free Test Cases, Execution Timeline, BTS bug reports) |
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):

@@ -146,6 +146,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'list_tc_not_run') {
         $hrefR = 'gui/templates/results/resultsByStatus.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=not_run";
+      // Refs #737 - Test Cases with Custom Fields modernized;
+      // the BFF (api/reports tcases_with_cf action) reuses the very same
+      // cfield_mgr::get_linked_cfields_at_execution() calls and enforces
+      // testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_tcases_with_cf') {
+        $hrefR = 'gui/templates/results/tcasesWithCF.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
