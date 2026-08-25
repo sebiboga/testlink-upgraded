@@ -1572,5 +1572,14 @@
   "user.status": "状态",
   "user.usersCount": "{n} 个用户",
   "user.validation.required": "登录名、名、姓和电子邮件为必填项。",
-  "version": "版本"
+  "version": "版本",
+  "nr.header": "Test Cases Never Run",
+  "nr.forPlan": "for test plan",
+  "nr.testProject": "Test Project",
+  "nr.btnExportXls": "Export as spreadsheet",
+  "nr.btnSendEmail": "Send spreadsheet by email",
+  "nr.selectPlatforms": "Select platforms to include",
+  "nr.btnGenerate": "Generate Report",
+  "nr.noNeverRun": "All test cases have been executed at least once.",
+  "nr.elapsedSeconds": "Elapsed"
 }

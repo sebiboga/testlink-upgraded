@@ -1572,5 +1572,14 @@
   "user.status": "Статус",
   "user.usersCount": "{n} пользователей",
   "user.validation.required": "Логин, Имя, Фамилия и Электронная почта обязательны.",
-  "version": "Версия"
+  "version": "Версия",
+  "nr.header": "Test Cases Never Run",
+  "nr.forPlan": "for test plan",
+  "nr.testProject": "Test Project",
+  "nr.btnExportXls": "Export as spreadsheet",
+  "nr.btnSendEmail": "Send spreadsheet by email",
+  "nr.selectPlatforms": "Select platforms to include",
+  "nr.btnGenerate": "Generate Report",
+  "nr.noNeverRun": "All test cases have been executed at least once.",
+  "nr.elapsedSeconds": "Elapsed"
 }

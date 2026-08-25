@@ -1572,5 +1572,14 @@
   "user.status": "Stato",
   "user.usersCount": "{n} utenti",
   "user.validation.required": "Login, Nome, Cognome e E-mail sono obbligatori.",
-  "version": "Versione"
+  "version": "Versione",
+  "nr.header": "Test Cases Never Run",
+  "nr.forPlan": "for test plan",
+  "nr.testProject": "Test Project",
+  "nr.btnExportXls": "Export as spreadsheet",
+  "nr.btnSendEmail": "Send spreadsheet by email",
+  "nr.selectPlatforms": "Select platforms to include",
+  "nr.btnGenerate": "Generate Report",
+  "nr.noNeverRun": "All test cases have been executed at least once.",
+  "nr.elapsedSeconds": "Elapsed"
 }
