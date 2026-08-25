@@ -4473,3 +4473,37 @@ Suite result: **5/5 PASS**
 | 6 | Control: malformed deep link without `id` | `GET ...printDocument.php?type=testreport&docTestPlanId=20&tproject_id=10` (no id) | NOT part of #515: crashes with SQL 1064 DB Access Error page → filed as separate issue #683 (out of scope here) | PASS (documented as #683) |
 
 **Result: Suite 515 — 6/6 PASS** (issue verified already fixed by e85ee1db8 + ab5833b67; no new code required)
+
+---
+
+## Suite 684 — Assigned Test Case Overview (Modernized Report Screen)
+
+**Screen**: `gui/templates/results/assignedTcOverview.html`
+**BFF**: `api/reports/index.php` (actions: `assigned_tc_overview`, `quick_exec`)
+**Tracking Issue**: #684
+**Fixtures**: ATO Demo Project (901, priority=1), ATO Plan Alpha (951), build b1 (961), Desktop platform (971), ATOD-1/ATOD-2 TCs assigned to admin
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | Page loads with data | Navigate to `assignedTcOverview.html?tproject_id=901&show_all_users=1` | Header shows "Assigned Test Case Overview for test project ATO Demo Project"; section "ATO Plan Alpha" with "2 test case(s)"; table columns: Build, Test Suite, Test Case, Platform, Priority, Status, Due Since | PASS |
+| 2 | TC cell renders correctly | Inspect ATOD-1 row | Link shows "ATOD-1: TC one (v.1)"; icons for history, quick pass/fail/block, full execute present; link targets include correct tcase_id/tcversion_id/tplan_id/build_id/platform_id | PASS |
+| 3 | Priority display | Inspect both rows | Priority column shows "High" in red for both TCs (priority=3 ≥ HIGH threshold) | PASS |
+| 4 | Status badge | Check status column | Row 1 shows "PASSED" (from earlier test), Row 2 shows "FAILED" — badges colored green/red respectively | PASS |
+| 5 | Due Since | Check due_since column | Shows "0d" for freshly-created TCs | PASS |
+| 6 | Platform column | Verify platform data | "Desktop" shown in both rows | PASS |
+| 7 | Quick-exec: Pass | Click "Quick mark as Passed" on ATOD-2 | Confirm dialog → status badge updates from "FAILED" to "PASSED" inline; toast "Execution recorded"; DB insert: executions row with status='p', tester_id=admin, tcversion_id=924 | PASS |
+| 8 | Quick-exec: Fail | Click "Quick mark as Failed" on ATOD-1 | Status badge updates to "FAILED"; executions row with status='f' inserted | PASS |
+| 9 | Quick-exec: Block | Click "Quick mark as Blocked" on ATOD-2 | Status badge updates to "BLOCKED"; executions row with status='b' inserted | PASS |
+| 10 | Show closed builds checkbox | Toggle "Show closed builds" checkbox | Page reloads with show_closed_builds=1; data refreshes; checkbox state persists via sessionStorage | PASS |
+| 11 | Refresh button | Click Refresh | Data reloads from BFF; same results displayed | PASS |
+| 12 | Empty state | Navigate to `?tproject_id=1` (no data) | Empty box shows "No records found" icon | PASS |
+| 13 | Error state (invalid project) | Navigate to `?tproject_id=0` | API returns 400; toast + warning message displayed | PASS |
+| 14 | Locale switcher | Switch to German | All header/toolbar/column headers/buttons translated to German; status badges translated | PASS |
+| 15 | Execute link | Click Execute icon on ATOD-1 | Opens legacy execSetResults.php popup with correct version_id, tplan_id, build_id, platform_id | PASS |
+| 16 | History link | Click History icon | Opens legacy execHistory.php popup with correct tcase_id | PASS |
+| 17 | Edit link (via testcase link) | Click ATOD-1 name link | Opens legacy archiveData.php?edit=testcase in new tab | PASS |
+| 18 | BFF: no permission | Unauthenticated GET to assigned_tc_overview | Returns 401 "Not authenticated" | PASS |
+| 19 | BFF: wrong project | GET with tproject_id=99999 | Returns 400 "Invalid test project id" | PASS |
+| 20 | Event Viewer check | Check Event Viewer after all tests | No new ERROR or WARNING entries from assignedTcOverview or reports API actions (pre-existing debug-phase errors already fixed) | PASS |
+
+**Result: Suite 684 — 20/20 PASS**
