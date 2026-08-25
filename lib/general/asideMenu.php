@@ -119,6 +119,13 @@ if($tplanID > 0) {
         $hrefR = 'gui/templates/results/assignedTcOverview.html' .
                  "?tproject_id={$tprojectID}" .
                  "&show_all_users=1&show_inactive_and_closed=1";
+      // Refs #685 - Test Results Flat (resultsTCFlat) modernized;
+      // the BFF (api/reports results_flat action) reuses the very same
+      // tlTestPlanMetrics::getExecStatusMatrixFlat() call and enforces
+      // testplan_metrics; XLS export stays on the legacy controller.
+      } else if($rptItem['title'] == 'link_report_test_flat') {
+        $hrefR = 'gui/templates/results/resultsTCFlat.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
