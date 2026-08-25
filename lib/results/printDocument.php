@@ -341,6 +341,13 @@ function init_args(&$dbHandler) {
     $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
     $args->tplan_id = isset($_REQUEST['docTestPlanId']) ? intval($_REQUEST['docTestPlanId']) : 0;
     $args->itemID = $args->id;
+
+    // Refs #683: stale deep links / hand-built URLs without the id param must
+    // fail gracefully instead of crashing downstream with SQL 1064.
+    if (is_null($args->itemID) || $args->itemID <= 0) {
+      renderGracefulExit(lang_get('error_print_doc_missing_id'));
+      exit;
+    }
   }
 
   $tproject_mgr = new testproject($dbHandler);

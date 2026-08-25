@@ -4522,3 +4522,22 @@ Suite result: **5/5 PASS**
 | 6 | No new PHP warnings | Check Event Viewer / `events` table after blindfolded user renders aside | No new Error/Warning entries | PASS |
 
 **Result: Suite 610 — 6/6 PASS** (static analysis — no local PHP/MariaDB available for live test; CI runner will validate)
+
+---
+
+## Regression — Issue #683: printDocument.php stale deep link without id param crashes with SQL 1064
+
+**Precondition**: Fresh DB. Project 1 (TestProject), Plan 2 (TestPlan1), TestSuite node 100 exist.
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | Plan-based doc without `id` | GET `printDocument.php?type=testreport&docTestPlanId=2&tproject_id=1` (no `id` param) | Graceful error page: heading "Document generation error", message about missing id. No DB Access Error debug page. | PASS |
+| 2 | Plan-based doc with valid `id` | GET `printDocument.php?type=testreport&docTestPlanId=2&tproject_id=1&id=100&level=testsuite` | Report renders normally with title "testreport TestPlan1", test plan name, test suite info. | PASS |
+| 3 | Plan-based doc with missing plan | GET `printDocument.php?type=testreport&docTestPlanId=999&tproject_id=1&id=100&level=testsuite` | Graceful error: "test plan is missing, unknown or does not belong..." (existing #573 guard). | PASS |
+| 4 | Test spec doc without `id` | GET `printDocument.php?type=testspec&tproject_id=1` (no `id`) | Graceful error page with missing-id message. | PASS |
+| 5 | Test spec doc with valid `id` | GET `printDocument.php?type=testspec&tproject_id=1&id=100&level=testsuite` | Report renders: "testspec TestProject" with test suite info. | PASS |
+| 6 | Req spec doc without `id` | GET `printDocument.php?type=reqspec&tproject_id=1` (no `id`) | Graceful error page with missing-id message. | PASS |
+| 7 | Req spec doc with valid `id` | GET `printDocument.php?type=reqspec&tproject_id=1&id=100&level=testsuite` | Report renders normally. | PASS |
+| 8 | Event Viewer check | Query `events` table after all tests | No new ERROR events (log_level=1). Pre-existing E_WARNINGs from print.inc.php:832 are unrelated. | PASS |
+
+**Result: Suite 683 — 8/8 PASS**
