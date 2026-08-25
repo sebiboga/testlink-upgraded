@@ -1288,5 +1288,289 @@ if ($action === 'metrics_results_matrix') {
     out($payload);
 }
 
+// ---------------------------------------------------------------------------
+// Assigned Test Case Overview report (Refs #684)
+// Modernizes lib/testcases/tcAssignedToUser.php as reached from the Reports
+// sub-menu entry link_assigned_tc_overview
+// (?show_all_users=1&show_inactive_and_closed=1): every test case whose
+// execution is assigned to a user, grouped per test plan, with last execution
+// status on each row's build/platform and the legacy quick-execution icons.
+// Right gate: 'testplan_metrics' - the same right the legacy screen is gated
+// by through the reports navigator (resultsNavigator.php reports_list).
+// ---------------------------------------------------------------------------
+if ($action === 'assigned_tc_overview') {
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    // Contextual re-check (per-project/per-plan roles), same policy as the
+    // other metrics_* actions above.
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId,
+            $tplanId > 0 ? $tplanId : null)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $showAllUsers = intval(getParam('show_all_users', '1')) == 1;
+    // The aside link pins this to 1 (legacy parity); still honored as a flag.
+    $showInactiveClosed = intval(getParam('show_inactive_and_closed', '0')) != 0;
+    $showClosedBuilds = intval(getParam('show_closed_builds',
+        isset($_SESSION['ato_show_closed_builds'])
+            ? intval($_SESSION['ato_show_closed_builds']) : 0)) ? 1 : 0;
+    $_SESSION['ato_show_closed_builds'] = $showClosedBuilds;
+    $filterUserId = intval(getParam('user_id', 0));
+    $buildId = intval(getParam('build_id', 0));
+
+    // Mirror init_args(): show_all_users switches to TL_USER_ANYBODY (0),
+    // otherwise the requested user or the session user.
+    $userIdFilter = $showAllUsers
+        ? defined('TL_USER_ANYBODY') ? TL_USER_ANYBODY : 0
+        : ($filterUserId > 0 ? $filterUserId : intval($userId));
+
+    // Mirror initFilters().
+    $filters = [
+        'tplan_status' => 'active',
+        'build_status' => $showClosedBuilds ? 'all' : 'open',
+    ];
+    if ($buildId > 0) {
+        $filters['build_id'] = $buildId;
+        $filters['build_status'] = 'all';
+        $filters['tplan_status'] = 'all';
+    }
+
+    require_once(__DIR__ . '/../../lib/functions/testcase.class.php');
+    $tcaseMgr = new testcase($db);
+    $tplan_param = $tplanId > 0 ? [$tplanId] : testcase::ALL_TESTPLANS;
+    $resultSet = $tcaseMgr->get_assigned_to_user(
+        $userIdFilter, $tprojectId, $tplan_param,
+        ['mode' => 'full_path'], $filters);
+
+    $execCfg = config_get('exec_cfg');
+    $testerModeRestrict =
+        (isset($execCfg->exec_mode->tester)
+            && $execCfg->exec_mode->tester == 'assigned_to_me');
+
+    // Status code whitelist for rendering + quick-exec (standard exec status).
+    $resultsCfg = config_get('results');
+    $statusCodeMap = $resultsCfg['status_code'];   // passed|failed|blocked|not_run => p|f|b|n
+    $codeStatusLabel = [];
+    foreach ($statusCodeMap as $stName => $stCode) {
+        if (isset($resultsCfg['status_label'][$stName])) {
+            $codeStatusLabel[$stCode] = $stName; // 'p' => 'passed' (client maps to i18n)
+        }
+    }
+
+    $payload = [
+        'status' => 'ok',
+        'hasData' => false,
+        'tproject_id' => $tprojectId,
+        'tproject_name' => $proj['name'],
+        'tplan_id' => $tplanId,
+        'glue_char' => config_get('testcase_cfg')->glue_character,
+        'show_user_column' => $showAllUsers,
+        'show_inactive_and_closed' => $showInactiveClosed,
+        'show_closed_builds' => intval($showClosedBuilds),
+        'tplans' => [],
+    ];
+
+    if (!is_null($resultSet)) {
+        $tplanNames = [];
+        $nhTable = tlObjectWithDB::getDBTables(['nodes_hierarchy']);
+        $sql = 'SELECT name,id FROM ' . $nhTable['nodes_hierarchy'] .
+               ' WHERE id IN (' . implode(',', array_map('intval', array_keys($resultSet))) . ')';
+        $tplanNames = $db->fetchRowsIntoMap($sql, 'id');
+
+        foreach ($resultSet as $tplan_id => $tcase_set) {
+            $hasExecRight = ($user->hasRight(
+                $db, 'testplan_execute', $tprojectId, $tplan_id, true) == 'yes');
+
+            $platforms = $tplanMgr->getPlatforms($tplan_id, ['outputFormat' => 'map']);
+            $showPlatforms = !is_null($platforms);
+
+            $projOpts = $proj['opt'] ?? null;
+            if (is_null($projOpts) && !empty($proj['options'])) {
+                $projOpts = json_decode($proj['options']);
+            }
+            $priorityEnabled = is_object($projOpts)
+                ? !empty($projOpts->testPriorityEnabled)
+                : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+            $rowsOut = [];
+            foreach ($tcase_set as $tcase_platform) {
+                foreach ($tcase_platform as $tcase) {
+                    $tcase_id = intval($tcase['testcase_id']);
+                    $tcversion_id = intval($tcase['tcversion_id']);
+
+                    $canExec = $hasExecRight;
+                    if ($canExec && $testerModeRestrict) {
+                        $canExec = (intval($tcase['user_id']) === intval($userId));
+                    }
+
+                    // Last execution on THIS build/platform (legacy parity).
+                    $lexec = $tcaseMgr->get_last_execution(
+                        $tcase_id, $tcversion_id, $tplan_id,
+                        $tcase['build_id'], $tcase['platform_id'],
+                        ['getSteps' => 0]);
+                    $status = isset($lexec[$tcversion_id]['status'])
+                        ? $lexec[$tcversion_id]['status'] : '';
+                    if (!isset($codeStatusLabel[$status])) {
+                        $status = $statusCodeMap['not_run'];
+                    }
+
+                    $creationTs = $tcase['creation_ts'];
+                    $tsEpoch = is_string($creationTs) ? strtotime($creationTs) : $creationTs;
+
+                    $row = [
+                        'user_login' => '',
+                        'user_id' => intval($tcase['user_id']),
+                        'build_id' => intval($tcase['build_id']),
+                        'build_name' => $tcase['build_name'],
+                        'suite_path' => $tcase['tcase_full_path'],
+                        'tc_id' => $tcase_id,
+                        'tcversion_id' => $tcversion_id,
+                        'prefix' => $tcase['prefix'],
+                        'tc_external_id' => intval($tcase['tc_external_id']),
+                        'name' => $tcase['name'],
+                        'version' => intval($tcase['version']),
+                        'tplan_id' => intval($tcase['testplan_id']),
+                        'status' => $status,
+                        'status_key' => isset($codeStatusLabel[$status])
+                            ? $codeStatusLabel[$status] : 'not_run',
+                        'creation_ts_epoch' => $tsEpoch ? intval($tsEpoch) : 0,
+                        'age_days' => $tsEpoch
+                            ? intval(floor((time() - $tsEpoch) / 86400)) : 0,
+                        'can_exec' => $canExec,
+                    ];
+                    if ($showPlatforms) {
+                        $row['platform_id'] = intval($tcase['platform_id']);
+                        $row['platform_name'] = $tcase['platform_name'];
+                    }
+                    if ($priorityEnabled) {
+                        $prio = intval($tcase['priority']);
+                        // priority_to_level(): >=HIGH is high, >=MEDIUM medium else low
+                        $level = ($prio >= HIGH) ? 'high'
+                            : (($prio >= MEDIUM) ? 'medium' : 'low');
+                        $row['priority'] = $prio;
+                        $row['priority_level'] = $level;
+                    }
+                    if ($showAllUsers && isset($lexec[$tcversion_id]['tester_login'])) {
+                        $row['tester_login'] = $lexec[$tcversion_id]['tester_login'];
+                    }
+                    $rowsOut[] = $row;
+                }
+            }
+
+            $payload['tplans'][] = [
+                'id' => intval($tplan_id),
+                'name' => isset($tplanNames[$tplan_id]['name'])
+                    ? $tplanNames[$tplan_id]['name'] : '',
+                'show_platforms' => $showPlatforms,
+                'priority_enabled' => $priorityEnabled,
+                'has_exec_right' => $hasExecRight,
+                'rows' => $rowsOut,
+            ];
+        }
+        usort($payload['tplans'], function ($a, $b) {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        foreach ($payload['tplans'] as $tp) {
+            if (count($tp['rows']) > 0) { $payload['hasData'] = true; break; }
+        }
+    }
+    out($payload);
+}
+
+// ---------------------------------------------------------------------------
+// Quick execution write-back for the Assigned Test Case Overview (Refs #684).
+// Reimplements the legacy controller's inline INSERT INTO executions
+// (result_<idx> hidden fields): one click writes a result row for the exact
+// tcversion/build/platform triple. Guards: session user, testplan_execute on
+// the (project, plan) context and the standard status whitelist. The tester
+// recorded is ALWAYS the clicking user (the legacy copy wrote the page's
+// filter user which collapses to ANYBODY=0 in the overview variant - writing
+// tester_id=0 would corrupt the executions table).
+// ---------------------------------------------------------------------------
+if ($action === 'quick_exec') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $in = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($in)) {
+        $in = $_POST;
+    }
+    $qeTplan = isset($in['tplan_id']) ? intval($in['tplan_id']) : 0;
+    $qePlatform = isset($in['platform_id']) ? intval($in['platform_id']) : 0;
+    $qeBuild = isset($in['build_id']) ? intval($in['build_id']) : 0;
+    $qeTcversion = isset($in['tcversion_id']) ? intval($in['tcversion_id']) : 0;
+    $qeResult = isset($in['result']) ? trim(strval($in['result'])) : '';
+
+    if ($qeTplan <= 0 || $qeBuild <= 0 || $qeTcversion <= 0 || $qeResult === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing parameters']);
+    }
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $qeTplan)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $allowedStatus = ['p', 'f', 'b'];
+    if (!in_array($qeResult, $allowedStatus, true)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid result status']);
+    }
+
+    // exec_mode->tester == assigned_to_me restricts to own assignments.
+    $execCfgQe = config_get('exec_cfg');
+    if (isset($execCfgQe->exec_mode->tester)
+            && $execCfgQe->exec_mode->tester == 'assigned_to_me') {
+        $tptcvTable = tlObjectWithDB::getDBTables(['testplan_tcversions']);
+        $uaTable = tlObjectWithDB::getDBTables(['user_assignments']);
+        $sql = "SELECT COUNT(*) AS cnt FROM " .
+               $uaTable['user_assignments'] . " ua " .
+               "JOIN " . $tptcvTable['testplan_tcversions'] . " tptcv " .
+               "ON ua.feature_id = tptcv.id " .
+               "WHERE ua.type = 1 AND ua.user_id = " . intval($userId) .
+               " AND tptcv.testplan_id = " . intval($qeTplan) .
+               " AND tptcv.tcversion_id = " . intval($qeTcversion) .
+               " AND tptcv.platform_id = " . intval($qePlatform) .
+               " AND ua.build_id = " . intval($qeBuild);
+        $rs = $db->get_recordset($sql);
+        if (empty($rs) || intval($rs[0]['cnt']) === 0) {
+            http_response_code(403);
+            out(['status' => 'error',
+                 'message' => 'Execution restricted to assigned tester']);
+        }
+    }
+
+    $tables = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'executions', 'tcversions']);
+    $xx = $db->get_recordset(
+        ' SELECT TCV.version FROM ' . $tables['tcversions'] .
+        ' TCV WHERE TCV.id = ' . intval($qeTcversion));
+    if (empty($xx)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid tcversion id']);
+    }
+    $versionNumber = intval($xx[0]['version']);
+    $sql = 'INSERT INTO ' . $tables['executions'] .
+           ' (status,tester_id,execution_ts,tcversion_id,tcversion_number,' .
+           '  testplan_id,platform_id,build_id)' .
+           ' VALUES (' . "'" . $qeResult . "'" .
+           ',' . intval($userId) . ',' . $db->db_now() .
+           ',' . intval($qeTcversion) . ',' . $versionNumber .
+           ',' . intval($qeTplan) . ',' . intval($qePlatform) .
+           ',' . intval($qeBuild) . ')';
+    $db->exec_query($sql);
+    out([
+        'status' => 'ok',
+        'execution_id' => intval($db->insert_id($tables['executions'])),
+        'result' => $qeResult,
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
