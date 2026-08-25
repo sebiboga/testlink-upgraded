@@ -1576,5 +1576,276 @@ if ($action === 'quick_exec') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Test Results Flat report (Refs #685)
+// Modernizes lib/results/resultsTCFlat.php as reached from the Reports
+// sub-menu entry link_report_test_flat: every execution row in the plan
+// listed flat (one row per test case × build × platform) with status,
+// tester, date, notes, duration and execution type. Right gate:
+// 'testplan_metrics' - the same right the legacy screen enforces through
+// checkRights() via resultsNavigator.php.
+// ---------------------------------------------------------------------------
+if ($action === 'results_flat') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check (per-project/per-plan roles).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Legacy initializeGui() - active builds only, ordered by config.
+    $matrixCfg = config_get('resultMatrixReport');
+    $buildInfoSet = $tplanMgr->get_builds($tplanId, testplan::ACTIVE_BUILDS,
+        null, ['orderBy' => $matrixCfg->buildOrderByClause]);
+    $activeBuildsQty = is_null($buildInfoSet) ? 0 : count($buildInfoSet);
+
+    // Legacy guard: ACTIVE builds above the configured qty limit force the
+    // launcher page unless the user explicitly submitted through it.
+    $doApply = (getParam('do_action', '') === 'result');
+    $buildSetParam = [];
+    if (isset($_GET['build_set']) && is_array($_GET['build_set'])) {
+        foreach ($_GET['build_set'] as $bid) {
+            $bid = intval($bid);
+            if ($bid > 0) {
+                $buildSetParam[] = $bid;
+            }
+        }
+    }
+    $filterApplied = count($buildSetParam) > 0;
+
+    // setUpBuilds() logic
+    $idSet = $filterApplied
+        ? array_keys(array_flip($buildSetParam))
+        : (is_null($buildInfoSet) ? null : array_keys($buildInfoSet));
+
+    $needSelection = false;
+    if (($activeBuildsQty > $matrixCfg->buildQtyLimit) &&
+        !($doApply && count($idSet) <= $matrixCfg->buildQtyLimit)) {
+        $needSelection = true;
+    }
+
+    // Platforms
+    $platformMap = $tplanMgr->getPlatforms($tplanId,
+        ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformMap) && count($platformMap) > 0;
+
+    // Priority enabled
+    $projOpts = $proj['opt'] ?? null;
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+    // TC prefix
+    $tcCfg = config_get('testcase_cfg');
+    $fullPrefix = $proj['prefix'] . $tcCfg->glue_character;
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'need_selection' => $needSelection,
+        'build_qty_limit' => intval($matrixCfg->buildQtyLimit),
+        'active_builds_qty' => $activeBuildsQty,
+        'filter_applied' => $filterApplied,
+        'show_platforms' => $showPlatforms,
+        'priority_enabled' => $priorityEnabled,
+        'builds' => [],
+        'rows' => [],
+    ];
+
+    if ($needSelection) {
+        // Launcher mode: return available builds for selection
+        if (!is_null($buildInfoSet)) {
+            foreach ($buildInfoSet as $bid => $binfo) {
+                $payload['builds'][] = [
+                    'id' => intval($bid),
+                    'name' => $binfo['name'],
+                ];
+            }
+        }
+        $payload['legacy_url'] = '/lib/results/resultsTCFlat.php?' .
+            'tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+        $payload['elapsed_time'] =
+            round(microtime(true) - $timerOn, 2);
+        out($payload);
+    }
+
+    // Result mode: fetch flat execution matrix
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $opt = [
+        'getExecutionNotes' => true,
+        'getTester' => true,
+        'getUserAssignment' => true,
+        'output' => 'cumulative',
+        'getExecutionTimestamp' => true,
+        'getExecutionDuration' => true,
+    ];
+    $buildSet = is_array($idSet) ? $idSet : [];
+    $execStatus = $metricsMgr->getExecStatusMatrixFlat($tplanId,
+        ['buildSet' => $buildSet], $opt);
+
+    $metrics = $execStatus['metrics'];
+    $latestExecution = $execStatus['latestExec'];
+
+    // Resolve user names for assigned_to and tested_by columns
+    $userSet = getUsersForHtmlOptions($db, null, null, null, null,
+        ['userDisplayFormat' => '%first% %last%']);
+
+    // Status labels resolved server-side
+    $cfgResults = config_get('results');
+    $statusLabels = [];
+    foreach ($cfgResults['status_code'] as $verbose => $scode) {
+        $statusLabels[$scode] =
+            lang_get($cfgResults['status_label'][$verbose]);
+    }
+
+    // Priority labels
+    $prioCfg = config_get('urgencyImportance');
+    $prioLabels = [];
+    foreach (config_get('priority')['code_label'] as $pcode => $plabel) {
+        $prioLabels[intval($pcode)] = lang_get($plabel);
+    }
+
+    // Execution type labels
+    $execTypeLabels = [
+        TESTCASE_EXECUTION_TYPE_MANUAL =>
+            lang_get('execution_type_manual'),
+        TESTCASE_EXECUTION_TYPE_AUTO =>
+            lang_get('execution_type_auto'),
+    ];
+
+    // Build name map
+    $buildNameMap = [];
+    if (!is_null($buildInfoSet)) {
+        foreach ($buildInfoSet as $bid => $binfo) {
+            $buildNameMap[intval($bid)] = $binfo['name'];
+        }
+    }
+
+    // Priority threshold config
+    $priorityCfg = config_get('urgencyImportance');
+
+    $rowsOut = [];
+    if (!is_null($metrics) && count($metrics) > 0) {
+        foreach ($metrics as $mrow) {
+            $suiteName = $mrow['suiteName'];
+            $externalId = $fullPrefix . $mrow['external_id'];
+            $tcName = $mrow['name'];
+            $version = intval($mrow['version']);
+            $buildId = intval($mrow['build_id']);
+            $buildName = isset($buildNameMap[$buildId])
+                ? $buildNameMap[$buildId] : ('#' . $buildId);
+            $status = $mrow['status'];
+            $statusLabel = isset($statusLabels[$status])
+                ? $statusLabels[$status] : $status;
+
+            // Priority level
+            $urgImp = $mrow['urg_imp'] ?? 0;
+            if ($urgImp >= $priorityCfg->threshold['high']) {
+                $prioLevel = HIGH;
+            } elseif ($urgImp < $priorityCfg->threshold['low']) {
+                $prioLevel = LOW;
+            } else {
+                $prioLevel = MEDIUM;
+            }
+            $prioLabel = isset($prioLabels[intval($prioLevel)])
+                ? $prioLabels[intval($prioLevel)] : '';
+
+            // Assigned to
+            $assignedTo = '';
+            $userIdVal = intval($mrow['user_id'] ?? 0);
+            if ($userIdVal > 0 && isset($userSet[$userIdVal])) {
+                $assignedTo = $userSet[$userIdVal];
+            }
+
+            // Tester
+            $tester = '';
+            $testerId = intval($mrow['tester_id'] ?? 0);
+            if ($testerId > 0 && isset($userSet[$testerId])) {
+                $tester = $userSet[$testerId];
+            }
+
+            // Execution timestamp
+            $execTs = $mrow['execution_ts'] ?? '';
+
+            // Execution notes
+            $execNotes = $mrow['execution_notes'] ?? '';
+
+            // Execution duration
+            $execDuration = $mrow['execution_duration'] ?? '';
+
+            // Execution type
+            $execType = isset($execTypeLabels[$mrow['exec_type'] ?? 0])
+                ? $execTypeLabels[$mrow['exec_type'] ?? 0] : '';
+
+            $row = [
+                'suite_name' => $suiteName,
+                'external_id' => $externalId,
+                'tc_name' => $tcName,
+                'version' => $version,
+                'build_name' => $buildName,
+                'assigned_to' => $assignedTo,
+                'status_code' => $status,
+                'status_label' => $statusLabel,
+                'exec_ts' => $execTs,
+                'tester' => $tester,
+                'exec_notes' => $execNotes,
+                'exec_duration' => $execDuration,
+                'exec_type' => $execType,
+                'priority_level' => intval($prioLevel),
+                'priority_label' => $prioLabel,
+            ];
+
+            if ($showPlatforms) {
+                $platId = intval($mrow['platform_id'] ?? 0);
+                $row['platform_name'] = isset($platformMap[$platId])
+                    ? $platformMap[$platId] : '';
+            }
+
+            $rowsOut[] = $row;
+        }
+    }
+
+    $payload['hasData'] = count($rowsOut) > 0;
+    $payload['rows'] = $rowsOut;
+
+    // Legacy XLS export endpoint
+    $xlsBase = '/lib/results/resultsTCFlat.php?format=' . FORMAT_XLS .
+        '&do_action=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId;
+    if ($filterApplied) {
+        $xlsBase .= '&buildListForExcel=' . implode(',', $idSet);
+        foreach ($idSet as $bid) {
+            $xlsBase .= '&build_set%5B%5D=' . intval($bid);
+        }
+    }
+    $payload['export_xls_url'] = $xlsBase;
+
+    $payload['elapsed_time'] =
+        round(microtime(true) - $timerOn, 2);
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
