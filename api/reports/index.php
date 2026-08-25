@@ -2155,8 +2155,7 @@ if ($action === 'by_status') {
     $its = null;
 
     if (!$isNotRun) {
-        $projInfo = $tprojectMgr->get_by_id($tprojectId);
-        $bugInterfaceOn = !empty($projInfo['issue_tracker_enabled']);
+        $bugInterfaceOn = !empty($proj['issue_tracker_enabled']);
         if ($bugInterfaceOn) {
             $itMgr = new tlIssueTracker($db);
             $its = $itMgr->getInterfaceObject($tprojectId);
@@ -2240,11 +2239,10 @@ if ($action === 'by_status') {
                 if ($testerId == 0) {
                     $row['tester'] = lang_get('nobody');
                 } elseif (isset($userNames[$testerId])) {
-                    $row['tester'] = htmlspecialchars($userNames[$testerId]);
+                    $row['tester'] = $userNames[$testerId];
                 } else {
                     $row['tester'] = sprintf(lang_get('deleted_user'), $testerId);
                 }
-                $row['tester'] = htmlspecialchars($row['tester']);
                 $row['execution_ts'] = $exec['execution_ts'];
                 $row['notes'] = strip_tags($exec['execution_notes']);
 
@@ -2280,7 +2278,7 @@ if ($action === 'by_status') {
         }
     }
 
-    $warningMsgKey = 'no_' . $statusType . '_with_tester';
+    $warningMsgKey = 'no_' . str_replace('_', '', $statusType) . '_with_tester';
     if (count($rows) === 0) {
         $warningMsg = lang_get($warningMsgKey);
     }

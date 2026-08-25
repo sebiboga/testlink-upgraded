@@ -10,9 +10,9 @@
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 43 |
+| DONE (modernized) | 46 |
 | IN PROGRESS | 1 |
-| TODO (still legacy) | 6 |
+| TODO (still legacy) | 3 |
 
 ---
 
@@ -66,6 +66,9 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 41 | Reports — Baselines L1 & L2 ✅ (#673) | `results/baselineL1L2.html` | api/reports (metrics_baseline_l1l2) | right `testplan_metrics`; reads baseline_l1l2_context/details |
 | 42 | Reports — Results by Tester per Build ✅ (#677) | `results/resultsByTesterPerBuild.html` | api/reports (metrics_by_tester_per_build) | right `testplan_metrics`; reuses getStatusTotalsByBuildUAForRender(); legacy show_closed_builds session contract |
 | 43 | Reports — Test Cases Never Run ✅ (#688) | `results/neverRun.html` | api/reports (never_run_init/never_run_result) | right `testplan_metrics`; getNeverRunByPlatform(); legacy export/email endpoints reused |
+| 44 | Reports — Results by Status (failed) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_failed; aside redirect in asideMenu.php; i18n ×10 locales |
+| 45 | Reports — Results by Status (blocked) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_blocked; aside redirect in asideMenu.php; i18n ×10 locales |
+| 46 | Reports — Results by Status (not_run) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_not_run; aside redirect in asideMenu.php; i18n ×10 locales |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
@@ -93,7 +96,7 @@ Extra modernized feature (not an ASIDE entry):
 | 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
 
 | 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |
-| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671)**; **Baselines L1 & L2 done (#673)**; **Results by Tester per Build done (#677)**; **Test Cases Never Run done (#688)** — next: the remaining report pages |
+| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671)**; **Baselines L1 & L2 done (#673)**; **Results by Tester per Build done (#677)**; **Test Cases Never Run done (#688)**; **Results by Status (failed/blocked/not_run) done (#695)** — next: the remaining report pages |
 | 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
 
 Not modernization targets (stay as-is by design):
