@@ -4541,3 +4541,21 @@ Suite result: **5/5 PASS**
 | 8 | Event Viewer check | Query `events` table after all tests | No new ERROR events (log_level=1). Pre-existing E_WARNINGs from print.inc.php:832 are unrelated. | PASS |
 
 **Result: Suite 683 — 8/8 PASS**
+
+---
+
+### Regression — Issue #516: E_WARNING array offset on null in print.inc.php:1394
+
+**Precondition**: Fresh DB. Project 1 (TestProject), TestSuite1 (id=2), TC001-TC006 (ids 7-12), TestPlan1 (id=6), tcversions linked to plan. PHP 8.x with error reporting E_WARNING enabled.
+
+| # | Test Case | Steps | Expected Result | Status |
+|---|-----------|-------|-----------------|--------|
+| 1 | tcPrint.php — single TC print with importance option | GET `lib/testcases/tcPrint.php?tcase_id=7&tplan_id=6&importance=1` (authenticated session) | HTTP 200. Page renders with importance row. Zero E_WARNING in `tmp/php_server.log`. | PASS |
+| 2 | tcPrint.php — TC print without importance option | GET `lib/testcases/tcPrint.php?tcase_id=7&tplan_id=6` (authenticated session) | HTTP 200. Page renders without importance row (option not set). Zero E_WARNING. | PASS |
+| 3 | tcPrint.php — TC print with priority option | GET `lib/testcases/tcPrint.php?tcase_id=7&tplan_id=6&priority=1` (authenticated session) | HTTP 200. Page renders with priority row. Zero E_WARNING. | PASS |
+| 4 | printDocument.php — testplan report with 6 TCs | GET `lib/results/printDocument.php?type=testplan&docTestPlanId=6&tproject_id=1&id=2&level=testsuite` (authenticated session) | HTTP 200. All 6 TCs rendered with importance and priority. Zero E_WARNING (was ~6 before fix). | PASS |
+| 5 | PHP syntax check | `php -l lib/functions/print.inc.php` | No syntax errors. | PASS |
+| 6 | Event Viewer check | Query `events` table after all tests | No new ERROR events (log_level=1) from this fix. | PASS |
+| 7 | Server log check after all requests | `grep -ci 'warning\|error' tmp/php_server.log` after all HTTP requests | Zero Warnings/Errors in PHP server log. | PASS |
+
+**Result: Regression #516 — 7/7 PASS**
