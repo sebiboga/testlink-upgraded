@@ -1542,5 +1542,13 @@
   "nr.selectPlatforms": "Выберите платформы для включения",
   "nr.btnGenerate": "Создать отчет",
   "nr.noNeverRun": "Все тест-кейсы были выполнены хотя бы один раз.",
-  "nr.elapsedSeconds": "Прошло секунд"
+  "nr.elapsedSeconds": "Прошло секунд",
+  "cwt.header": "Test Cases Without Tester",
+  "cwt.forPlan": "for test plan",
+  "cwt.testProject": "Test Project",
+  "cwt.noLinkedTcversions": "No test cases linked to this test plan.",
+  "cwt.allHaveTester": "All test cases have a tester assigned.",
+  "cwt.matchCount": "Match count",
+  "cwt.testCases": "test cases",
+  "cwt.elapsedSeconds": "Elapsed seconds"
 }

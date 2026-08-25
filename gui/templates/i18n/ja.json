@@ -1542,5 +1542,13 @@
   "nr.selectPlatforms": "含めるプラットフォームを選択",
   "nr.btnGenerate": "レポートを作成",
   "nr.noNeverRun": "すべてのテストケースが少なくとも1回実行されています。",
-  "nr.elapsedSeconds": "経過秒数"
+  "nr.elapsedSeconds": "経過秒数",
+  "cwt.header": "Test Cases Without Tester",
+  "cwt.forPlan": "for test plan",
+  "cwt.testProject": "Test Project",
+  "cwt.noLinkedTcversions": "No test cases linked to this test plan.",
+  "cwt.allHaveTester": "All test cases have a tester assigned.",
+  "cwt.matchCount": "Match count",
+  "cwt.testCases": "test cases",
+  "cwt.elapsedSeconds": "Elapsed seconds"
 }

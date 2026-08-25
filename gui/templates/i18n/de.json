@@ -1542,5 +1542,13 @@
   "nr.selectPlatforms": "Plattformen auswaehlen",
   "nr.btnGenerate": "Bericht erstellen",
   "nr.noNeverRun": "Alle Testfaelle wurden mindestens einmal ausgefuehrt.",
-  "nr.elapsedSeconds": "Vergangene Sekunden"
+  "nr.elapsedSeconds": "Vergangene Sekunden",
+  "cwt.header": "Test Cases Without Tester",
+  "cwt.forPlan": "for test plan",
+  "cwt.testProject": "Test Project",
+  "cwt.noLinkedTcversions": "No test cases linked to this test plan.",
+  "cwt.allHaveTester": "All test cases have a tester assigned.",
+  "cwt.matchCount": "Match count",
+  "cwt.testCases": "test cases",
+  "cwt.elapsedSeconds": "Elapsed seconds"
 }
