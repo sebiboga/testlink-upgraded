@@ -4,18 +4,18 @@
  * Serves PDFs from docs/ directory to the browser's native PDF viewer.
  * Consolidated from root viewer.php + docviewer.php (Refs #693).
  *
- * Usage: lib/docs/viewer.php?file=testlink_user_manual
+ * Usage: tools/viewer.php?file=testlink_user_manual
  */
 
 $allowed_files = array(
-  'testlink_user_manual' => '../../docs/testlink_user_manual.pdf',
-  'testlink_installation_manual' => '../../docs/testlink_installation_manual.pdf',
-  'tl_file_formats' => '../../docs/tl-file-formats.pdf',
-  'excel2testlink' => '../../docs/excel2TestLink.pdf',
-  'fckeditor_config' => '../../docs/Configuration_of_FCKEditor_and_CKFinder.pdf',
-  'tl_bts_howto' => '../../docs/tl-bts-howto.pdf',
-  'good_test_case' => '../../docs/bibliographical_references/GoodTest.pdf',
-  'youtrack_readme' => '../../docs/youtrack-readme.pdf',
+  'testlink_user_manual' => '../docs/testlink_user_manual.pdf',
+  'testlink_installation_manual' => '../docs/testlink_installation_manual.pdf',
+  'tl_file_formats' => '../docs/tl-file-formats.pdf',
+  'excel2testlink' => '../docs/excel2TestLink.pdf',
+  'fckeditor_config' => '../docs/Configuration_of_FCKEditor_and_CKFinder.pdf',
+  'tl_bts_howto' => '../docs/tl-bts-howto.pdf',
+  'good_test_case' => '../docs/bibliographical_references/GoodTest.pdf',
+  'youtrack_readme' => '../docs/youtrack-readme.pdf',
 );
 
 $file_key = isset($_GET['file']) ? $_GET['file'] : null;

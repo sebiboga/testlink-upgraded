@@ -4778,3 +4778,25 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 | 5 | PHP syntax check | `php -l lib/results/metricsDashboard.php` | "No syntax errors detected" | PASS |
 
 **Result: 5/5 PASS** (2026-08-25, headless Chrome + mysql against http://localhost:8082)
+
+---
+
+## Regression — Issue #693: Consolidate PDF viewers (viewer.php + docviewer.php → tools/viewer.php)
+
+**Refs:** #693 · **Date:** 2026-08-25
+**Fix commit:** `331a1ddc3` — consolidate two duplicate PDF viewers into `tools/viewer.php`, delete root copies, update `aside.tpl`.
+
+**Precondition:** TestLink at http://localhost:8082, admin logged in. PDF docs exist in `docs/` directory.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | New viewer serves PDF | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php?file=testlink_user_manual` | HTTP 200 | PASS |
+| 2 | All 8 PDFs accessible | Loop all whitelist keys (testlink_user_manual, testlink_installation_manual, tl_file_formats, excel2testlink, fckeditor_config, tl_bts_howto, good_test_case, youtrack_readme) | All return HTTP 200 | PASS |
+| 3 | Invalid file returns 404 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php?file=nonexistent` | HTTP 404 | PASS |
+| 4 | Empty file param returns 404 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php` | HTTP 404 | PASS |
+| 5 | Root viewer.php deleted | `ls viewer.php docviewer.php` from repo root | Both files do not exist | PASS |
+| 6 | aside.tpl updated | `grep -c "tools/viewer.php" gui/templates/dashio/aside.tpl` | 6 references (all links point to new path) | PASS |
+| 7 | No stale references | `grep -r "viewer\.php" --include="*.php" --include="*.tpl" --include="*.html" . \| grep -v eventviewer \| grep -v lib/docs` | Zero matches (excluding eventviewer and the new file itself) | PASS |
+| 8 | MODERNIZATION-STATUS.md updated | `grep "tools/viewer.php" docs/MODERNIZATION-STATUS.md` | 1 match (path updated) | PASS |
+
+**Result: 8/8 PASS** (2026-08-25, curl against http://localhost:8082)
