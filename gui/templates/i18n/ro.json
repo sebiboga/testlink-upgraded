@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Note de executie",
   "th_bugs_id_summary": "Bug-uri (ID / Rezumat)",
   "assigned_to": "Atribuit lui",
-  "summary": "Rezumat"
+  "summary": "Rezumat",
+  "nr.header": "Cazuri de test niciodata rulate",
+  "nr.forPlan": "pentru planul de testare",
+  "nr.testProject": "Proiect test",
+  "nr.btnExportXls": "Exporta ca foaie de calcul",
+  "nr.btnSendEmail": "Trimite foaia de calcul pe email",
+  "nr.selectPlatforms": "Selecteaza platformele de inclus",
+  "nr.btnGenerate": "Genereaza raportul",
+  "nr.noNeverRun": "Toate cazurile de test au fost rulate cel putin o data."
 }

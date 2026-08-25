@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Примечания",
   "th_bugs_id_summary": "Баги (ID / Описание)",
   "assigned_to": "Назначено",
-  "summary": "Описание"
+  "summary": "Описание",
+  "nr.header": "Тест-кейсы, никогда не выполнявшиеся",
+  "nr.forPlan": "для плана тестирования",
+  "nr.testProject": "Тестовый проект",
+  "nr.btnExportXls": "Экспорт в электронную таблицу",
+  "nr.btnSendEmail": "Отправить таблицу по email",
+  "nr.selectPlatforms": "Выберите платформы для включения",
+  "nr.btnGenerate": "Создать отчет",
+  "nr.noNeverRun": "Все тест-кейсы были выполнены хотя бы один раз."
 }

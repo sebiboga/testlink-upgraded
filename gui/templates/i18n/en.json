@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Execution Notes",
   "th_bugs_id_summary": "Bugs (ID / Summary)",
   "assigned_to": "Assigned To",
-  "summary": "Summary"
+  "summary": "Summary",
+  "nr.header": "Test Cases Never Run",
+  "nr.forPlan": "for test plan",
+  "nr.testProject": "Test Project",
+  "nr.btnExportXls": "Export as spreadsheet",
+  "nr.btnSendEmail": "Send spreadsheet by email",
+  "nr.selectPlatforms": "Select platforms to include",
+  "nr.btnGenerate": "Generate Report",
+  "nr.noNeverRun": "All test cases have been executed at least once."
 }

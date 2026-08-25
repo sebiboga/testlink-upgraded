@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Note di esecuzione",
   "th_bugs_id_summary": "Bug (ID / Riepilogo)",
   "assigned_to": "Assegnato a",
-  "summary": "Riepilogo"
+  "summary": "Riepilogo",
+  "nr.header": "Casi di test mai eseguiti",
+  "nr.forPlan": "per il piano di test",
+  "nr.testProject": "Progetto di test",
+  "nr.btnExportXls": "Esporta come foglio di calcolo",
+  "nr.btnSendEmail": "Invia foglio di calcolo via email",
+  "nr.selectPlatforms": "Seleziona le piattaforme da includere",
+  "nr.btnGenerate": "Genera report",
+  "nr.noNeverRun": "Tutti i casi di test sono stati eseguiti almeno una volta."
 }

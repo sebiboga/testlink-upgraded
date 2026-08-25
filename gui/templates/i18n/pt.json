@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Notas de execucao",
   "th_bugs_id_summary": "Bugs (ID / Resumo)",
   "assigned_to": "Atribuido a",
-  "summary": "Resumo"
+  "summary": "Resumo",
+  "nr.header": "Casos de teste nunca executados",
+  "nr.forPlan": "para o plano de testes",
+  "nr.testProject": "Projeto de teste",
+  "nr.btnExportXls": "Exportar como planilha",
+  "nr.btnSendEmail": "Enviar planilha por email",
+  "nr.selectPlatforms": "Selecionar plataformas a incluir",
+  "nr.btnGenerate": "Gerar relatorio",
+  "nr.noNeverRun": "Todos os casos de teste foram executados pelo menos uma vez."
 }

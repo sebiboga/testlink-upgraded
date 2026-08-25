@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Notes d'execution",
   "th_bugs_id_summary": "Defauts (ID / Resume)",
   "assigned_to": "Assigne a",
-  "summary": "Resume"
+  "summary": "Resume",
+  "nr.header": "Cas de test jamais executes",
+  "nr.forPlan": "pour le plan de test",
+  "nr.testProject": "Projet de test",
+  "nr.btnExportXls": "Exporter en tableur",
+  "nr.btnSendEmail": "Envoyer le tableur par email",
+  "nr.selectPlatforms": "Selectionner les plateformes a inclure",
+  "nr.btnGenerate": "Generer le rapport",
+  "nr.noNeverRun": "Tous les cas de test ont ete executes au moins une fois."
 }

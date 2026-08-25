@@ -1533,5 +1533,13 @@
   "title_execution_notes": "执行备注",
   "th_bugs_id_summary": "缺陷（ID / 摘要）",
   "assigned_to": "分配给",
-  "summary": "摘要"
+  "summary": "摘要",
+  "nr.header": "从未执行的测试用例",
+  "nr.forPlan": "测试计划",
+  "nr.testProject": "测试项目",
+  "nr.btnExportXls": "导出为电子表格",
+  "nr.btnSendEmail": "通过邮件发送电子表格",
+  "nr.selectPlatforms": "选择要包含的平台",
+  "nr.btnGenerate": "生成报告",
+  "nr.noNeverRun": "所有测试用例均已至少执行过一次。"
 }

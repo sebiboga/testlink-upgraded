@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Ausfuehrungsnotizen",
   "th_bugs_id_summary": "Fehler (ID / Zusammenfassung)",
   "assigned_to": "Zugewiesen an",
-  "summary": "Zusammenfassung"
+  "summary": "Zusammenfassung",
+  "nr.header": "Nie ausgefuehrte Testfaelle",
+  "nr.forPlan": "fuer Testplan",
+  "nr.testProject": "Testprojekt",
+  "nr.btnExportXls": "Als Tabelle exportieren",
+  "nr.btnSendEmail": "Tabelle per E-Mail senden",
+  "nr.selectPlatforms": "Plattformen auswaehlen",
+  "nr.btnGenerate": "Bericht erstellen",
+  "nr.noNeverRun": "Alle Testfaelle wurden mindestens einmal ausgefuehrt."
 }

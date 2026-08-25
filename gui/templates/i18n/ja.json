@@ -1533,5 +1533,13 @@
   "title_execution_notes": "実行メモ",
   "th_bugs_id_summary": "バグ（ID / 概要）",
   "assigned_to": "担当者",
-  "summary": "概要"
+  "summary": "概要",
+  "nr.header": "未実行のテストケース",
+  "nr.forPlan": "テスト計画",
+  "nr.testProject": "テストプロジェクト",
+  "nr.btnExportXls": "スプレッドシートとしてエクスポート",
+  "nr.btnSendEmail": "スプレッドシートをメールで送信",
+  "nr.selectPlatforms": "含めるプラットフォームを選択",
+  "nr.btnGenerate": "レポートを作成",
+  "nr.noNeverRun": "すべてのテストケースが少なくとも1回実行されています。"
 }

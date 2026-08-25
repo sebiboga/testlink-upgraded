@@ -1533,5 +1533,13 @@
   "title_execution_notes": "Notas de ejecucion",
   "th_bugs_id_summary": "Errores (ID / Resumen)",
   "assigned_to": "Asignado a",
-  "summary": "Resumen"
+  "summary": "Resumen",
+  "nr.header": "Casos de prueba nunca ejecutados",
+  "nr.forPlan": "para el plan de pruebas",
+  "nr.testProject": "Proyecto de prueba",
+  "nr.btnExportXls": "Exportar como hoja de calculo",
+  "nr.btnSendEmail": "Enviar hoja de calculo por correo",
+  "nr.selectPlatforms": "Seleccionar plataformas a incluir",
+  "nr.btnGenerate": "Generar informe",
+  "nr.noNeverRun": "Todos los casos de prueba han sido ejecutados al menos una vez."
 }
