@@ -4698,3 +4698,29 @@ Suite result: **5/5 PASS**
 
 **Test Execution Date:** 2026-08-25
 **Result:** PASS
+
+## Suite 688 — setTestCaseTestSuite XML-RPC error message prefix — Refs #685
+
+**Precondition:** TestLink app running at http://localhost:8082, XML-RPC endpoint at /lib/api/xmlrpc/v1/xmlrpc.php.
+
+**Test Steps:**
+1. POST to XML-RPC endpoint with method `tl.setTestCaseTestSuite` and an invalid devKey.
+2. Inspect the error message in the XML response for the prefix text.
+3. POST to XML-RPC endpoint with method `tl.setTestCaseTestSuite`, invalid devKey, plus a testcaseid parameter.
+4. Inspect the error message prefix again.
+
+**Expected Pre-Fix Behavior:**
+- Error message prefix was `"() - "` (empty parentheses) because `$ret['operation']` read an undefined key.
+
+**Expected Post-Fix Behavior:**
+- Error message prefix is `"(setTestCaseTestSuite) - "` for all error paths.
+
+**Actual Result (post-fix):** PASS
+- curl test 1: returned `(setTestCaseTestSuite) - Can not authenticate client: invalid developer key`
+- curl test 2: returned `(setTestCaseTestSuite) - Can not authenticate client: invalid developer key`
+- Both error paths carry the correct function name prefix.
+- PHP syntax check passed (`php -l lib/api/xmlrpc/v1/xmlrpc.class.php`).
+- Event Viewer: no new Error/Warning entries.
+
+**Test Execution Date:** 2026-08-25
+**Result:** PASS
