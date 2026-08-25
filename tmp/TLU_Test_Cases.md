@@ -4457,3 +4457,19 @@ Suite result: **9/9 PASS**
 | 5 | Markdown integrity of restored block | awk section scan | Restored section = header + precondition line + 7 table rows (header/sep/5 data) + result line, well-formed pipes | PASS |
 
 Suite result: **5/5 PASS**
+
+## Regression — Issue #515: print.inc.php getimagesize() HTTP fail + bool-as-array on PDF/doc generation (verified ALREADY FIXED)
+
+**Precondition:** fresh DB; project 10 "Issue503 Demo Project" with plan 20 "Smoke Plan" (+build v1.0); project options stored as valid PHP-serialized object (as app writes them); login admin/admin; PHP built-in server log at `tmp/php_server.log`; Event Viewer baseline = 18 events. Fix commits under verification: e85ee1db8, ab5833b67.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 0 | Baseline capture | `SELECT COUNT(*) FROM events` = 18; `grep -c "print.inc.php" tmp/php_server.log` = 0 | Clean baseline before generation | PASS |
+| 1 | Full test-report generation | `GET /lib/results/printDocument.php?type=testreport&docTestPlanId=20&id=10&level=testplan&format=0` | HTTP 200, document renders (`testreport Smoke Plan`, `.doc_title` present) | PASS |
+| 2 | Company-logo path (#570 site, print.inc.php:700-713) | inspect logo `<img>` in DOM | img complete, naturalWidth/Height real (231×56) — local-path getimagesize succeeded, no HTTP self-fetch | PASS |
+| 3 | No bool-as-array / getimagesize warnings (primary #515 symptom) | grep server log for `print.inc.php|getimagesize|Cannot use bool` after step 1 | 0 matches | PASS |
+| 4 | Event Viewer clean | re-count events after step 1 | still 18 — 0 new Error/Warning entries | PASS |
+| 5 | Static audit of all getimagesize sites in print.inc.php | lines 292/702/1311/1537/1650/1812: local path arg + `$imgData !== false` guard | all 7 sites guarded, none passes an HTTP URL | PASS |
+| 6 | Control: malformed deep link without `id` | `GET ...printDocument.php?type=testreport&docTestPlanId=20&tproject_id=10` (no id) | NOT part of #515: crashes with SQL 1064 DB Access Error page → filed as separate issue #683 (out of scope here) | PASS (documented as #683) |
+
+**Result: Suite 515 — 6/6 PASS** (issue verified already fixed by e85ee1db8 + ab5833b67; no new code required)
