@@ -2805,5 +2805,343 @@ if ($action === 'charts_data') {
     ]);
 }
 
+// ── Requirements Coverage Report ── Refs #691
+// Mirrors lib/results/resultsReqs.php — builds requirement spec map,
+// evaluates coverage, returns JSON for DataTables rendering.
+if ($action === 'metrics_results_reqs') {
+    $timerOn = microtime(true);
+
+    $tplanId = intval(getParam('tplan_id', 0));
+    $tprojectId = intval(getParam('tproject_id', 0));
+    $platformId = intval(getParam('platform', 0));
+    $buildId = intval(getParam('build', 0));
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan or project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    require_once('common.php');
+    require_once('requirements.inc.php');
+
+    $reqCfg = config_get('req_cfg');
+    $resultsCfg = config_get('results');
+    $charset = config_get('charset');
+
+    $statusMap = $resultsCfg['status_code'];
+    $codeToStatus = array_flip($statusMap);
+
+    $tplanMgr = new testplan($db);
+    $projMgr = new testproject($db);
+    $reqMgr = new requirement_mgr($db);
+    $reqSpecMgr = new requirement_spec_mgr($db);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    $proj = $projMgr->get_by_id($tprojectId);
+
+    if (!$tplanInfo || !$proj) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid plan or project']);
+    }
+
+    // ── Filters ──
+    $statesToShow = [0]; // 0 = any
+    if (isset($_GET['states_to_show']) && is_array($_GET['states_to_show'])) {
+        $statesToShow = array_map('intval', $_GET['states_to_show']);
+    }
+
+    // Platform + build dropdowns
+    $platformSet = null;
+    $plOpt = null;
+    $platMap = $tplanMgr->platform_mgr->getLinkedToTestplanAsMap($tplanId, $plOpt);
+    $guiOpen = config_get('gui_separator_open');
+    $guiClose = config_get('gui_separator_close');
+    if ($platMap) {
+        $platformSet = [0 => $guiOpen . lang_get('any') . $guiClose] + $platMap;
+    }
+
+    $buildSet = null;
+    $buildMap = $tplanMgr->get_builds_for_html_options($tplanId, 1);
+    if ($buildMap) {
+        $buildSet = [0 => $guiOpen . lang_get('any') . $guiClose] + $buildMap;
+    }
+
+    // ── Get requirements by context ──
+    $reqContext = ['tproject_id' => $tprojectId, 'tplan_id' => $tplanId, 'platform_id' => $platformId];
+    $reqSet = (array) $reqMgr->getAllByContext($reqContext);
+    $reqIds = array_keys($reqSet);
+
+    // DEBUG
+    error_log('REQ_DEBUG reqIds=' . json_encode($reqIds));
+
+    // ── Build req spec map (mirrors buildReqSpecMap) ──
+    $rspecSet = [];
+    $totalReqs = 0;
+    $itemsInTestPlan = $tplanMgr->getLinkedItems($tplanId);
+    error_log('REQ_DEBUG itemsInTestPlan keys=' . json_encode(array_keys($itemsInTestPlan)));
+
+    foreach ($reqIds as $id) {
+        $req = $reqMgr->get_by_id($id, requirement_mgr::LATEST_VERSION);
+        if (empty($req)) {
+            error_log("REQ_DEBUG req $id: get_by_id empty");
+            continue;
+        }
+        $req = $req[0];
+        error_log("REQ_DEBUG req $id: status={$req['status']} srs_id={$req['srs_id']} version_id=" . ($req['version_id'] ?? 'N/A'));
+
+        if (!in_array($req['status'], $statesToShow, true) && !in_array(0, $statesToShow, true)) {
+            continue;
+        }
+
+        $srsId = $req['srs_id'];
+        if (!isset($rspecSet[$srsId])) {
+            $rspecSet[$srsId] = $reqSpecMgr->get_by_id($srsId);
+            $rspecSet[$srsId]['requirements'] = [];
+        }
+
+        $linkedTCs = (array) $reqMgr->getActiveForReqVersion($req['version_id']);
+        error_log("REQ_DEBUG req $id: linkedTCs count=" . count($linkedTCs) . " keys=" . json_encode(array_keys($linkedTCs)));
+        foreach ($linkedTCs as $itemID => $dummy) {
+            $tcId = $dummy['id'] ?? 'N/A';
+            $isObs = $dummy['is_obsolete'] ?? 'N/A';
+            $inPlan = isset($itemsInTestPlan[$dummy['id']]) ? 'YES' : 'NO';
+            error_log("REQ_DEBUG req $id: tc itemID=$itemID tcId=$tcId obsolete=$isObs inPlan=$inPlan");
+            if ($dummy['is_obsolete'] == "1" || !isset($itemsInTestPlan[$dummy['id']])) {
+                unset($linkedTCs[$itemID]);
+            }
+        }
+        error_log("REQ_DEBUG req $id: linkedTCs after filter=" . count($linkedTCs));
+
+        if (count($linkedTCs) > 0) {
+            $totalReqs++;
+            $rspecSet[$srsId]['requirements'][$id] = $req;
+            $rspecSet[$srsId]['requirements'][$id]['linked_testcases'] = $linkedTCs;
+            $rspecSet[$srsId]['requirements'][$id]['_tc_ids'] = array_column($linkedTCs, 'id');
+        }
+    }
+
+    // ── Get TC execution data from test plan ──
+    $allTcIds = [];
+    foreach ($rspecSet as $specData) {
+        foreach ($specData['requirements'] as $reqData) {
+            $allTcIds = array_merge($allTcIds, $reqData['_tc_ids'] ?? []);
+        }
+    }
+    $allTcIds = array_unique($allTcIds);
+
+    $tcaseSet = [];
+    if (count($allTcIds)) {
+        $filters = ['tcase_id' => $allTcIds];
+        if ($platformId > 0) $filters['platform_id'] = $platformId;
+        if ($buildId > 0) $filters['build_id'] = $buildId;
+
+        $hasPlatform = isset($filters['platform_id']);
+        $hasBuild = isset($filters['build_id']);
+        $options = ['addExecInfo' => true, 'accessKeyType' => 'tcase+platform', 'build_is_active' => true];
+
+        if (!$hasBuild) {
+            $tcaseSet = $tplanMgr->getLTCVOnTestPlanPlatform($tplanId, $filters, $options);
+        } else {
+            $tcaseSet = $tplanMgr->getLTCVNewGeneration($tplanId, $filters, $options);
+        }
+    }
+
+    // ── Compute counters & evaluate (mirrors lines 78-131 of resultsReqs.php) ──
+    $algorithmCfg = $reqCfg->coverageStatusAlgorithm;
+    $evalCounts = [];
+
+    foreach ($rspecSet as $rspecId => &$rspecData) {
+        $rspecData['req_counters'] = ['total' => 0];
+        foreach ($rspecData['requirements'] as $reqId => &$reqData) {
+            $reqData['tc_counters'] = ['total' => 0, 'totalTPTCV' => 0,
+                'expected_coverage' => $reqData['expected_coverage'] ?? 0];
+
+            foreach ($reqData['linked_testcases'] as $tcInfo) {
+                $tcId = $tcInfo['id'];
+                $reqData['tc_counters']['total']++;
+                $plat2loop = isset($tcaseSet[$tcId]) ? array_keys($tcaseSet[$tcId]) : [0];
+                foreach ($plat2loop as $platId) {
+                    $reqData['tc_counters']['totalTPTCV']++;
+                    if (isset($tcaseSet[$tcId][$platId]['exec_status'])) {
+                        $st = $tcaseSet[$tcId][$platId]['exec_status'];
+                        if (!isset($reqData['tc_counters'][$st])) $reqData['tc_counters'][$st] = 0;
+                        $reqData['tc_counters'][$st]++;
+                    }
+                }
+            }
+
+            // evaluate_req (simplified inline)
+            $counters = &$reqData['tc_counters'];
+            $isFullyCovered = ($counters['total'] >= $counters['expected_coverage']);
+            if ($counters['total'] == 0) {
+                $eval = 'uncovered';
+            } else {
+                // doNotRunAnalysis
+                $hmc = 0;
+                foreach ($statusMap as $verbose => $code) {
+                    $hmc += isset($counters[$code]);
+                }
+                $doIt = true;
+                $eval = null;
+                if ($counters['total'] > 0) {
+                    $nrCode = $statusMap['not_run'];
+                    if ($hmc == 1 && isset($counters[$nrCode]) && $counters[$nrCode] != 0) {
+                        $eval = $nrCode;
+                        $doIt = false;
+                    } elseif ($counters['totalTPTCV'] == ($counters[$nrCode] ?? 0)) {
+                        $eval = $nrCode;
+                        $doIt = false;
+                    }
+                    if (!$doIt) {
+                        $eval .= ($isFullyCovered ? '' : '_nfc');
+                    }
+                }
+
+                if ($doIt) {
+                    $eval = null;
+                    foreach ($algorithmCfg['checkOrder'] as $checkKey) {
+                        $outerBreak = false;
+                        foreach ($algorithmCfg['checkType'][$checkKey] as $status2check) {
+                            $code = $statusMap[$status2check];
+                            $count = $counters[$code] ?? 0;
+                            if ($checkKey == 'atLeastOne' && $count) {
+                                $eval = $isFullyCovered ? $code : $code . '_nfc';
+                                $outerBreak = true;
+                                break;
+                            }
+                            if ($checkKey == 'all' && ($count == $counters['totalTPTCV'])) {
+                                $eval = $isFullyCovered ? $code : $code . '_nfc';
+                                $outerBreak = true;
+                                break;
+                            }
+                        }
+                        if ($outerBreak) break;
+                    }
+                    if (is_null($eval)) {
+                        $eval = 'partially_passed';
+                        if (($counters[$statusMap['not_run']] ?? 0) == 0) {
+                            $eval = $statusMap['passed'];
+                        }
+                        $eval .= ($isFullyCovered ? '' : '_nfc');
+                    }
+                }
+            }
+
+            $reqData['evaluation'] = $eval;
+            if (!isset($rspecData['req_counters'][$eval])) $rspecData['req_counters'][$eval] = 0;
+            $rspecData['req_counters'][$eval]++;
+            $rspecData['req_counters']['total']++;
+        }
+    }
+    unset($reqData, $rspecData);
+
+    // ── Build output rows ──
+    $reqTypeLabels = init_labels($reqCfg->type_labels ?? []);
+    $reqStatusLabels = init_labels($reqCfg->status_labels ?? []);
+
+    // Evaluation status map with CSS
+    $evalMap = [
+        'passed' => ['label' => 'Passed', 'css' => 'label-success'],
+        'failed' => ['label' => 'Failed', 'css' => 'label-danger'],
+        'blocked' => ['label' => 'Blocked', 'css' => 'label-warning'],
+        'not_run' => ['label' => 'Not Run', 'css' => 'label-default'],
+        'uncovered' => ['label' => 'Uncovered', 'css' => 'label-info'],
+        'partially_passed' => ['label' => 'Partially Passed', 'css' => 'label-primary'],
+    ];
+
+    $globalEvalCounts = [];
+    $rowsOut = [];
+    foreach ($rspecSet as $rspecId => $rspecData) {
+        // Get spec path
+        $pathParts = [];
+        $pathInfo = $reqMgr->tree_mgr->get_path($rspecId);
+        foreach ($pathInfo as $v) { $pathParts[] = $v['name']; }
+        $specPath = implode(' / ', $pathParts);
+
+        foreach ($rspecData['requirements'] as $reqId => $reqData) {
+            $tcCount = $reqData['tc_counters']['total'] ?? 0;
+            $executed = $tcCount - ($reqData['tc_counters'][$statusMap['not_run']] ?? 0);
+            $progress = $tcCount > 0 ? round(100 * $executed / $tcCount, 1) : 0;
+
+            $eval = $reqData['evaluation'];
+            $evalBase = preg_replace('/_nfc$/', '', $eval);
+            if (!isset($globalEvalCounts[$evalBase])) $globalEvalCounts[$evalBase] = 0;
+            $globalEvalCounts[$evalBase]++;
+
+            $row = [
+                'req_spec_path' => $specPath,
+                'req_doc_id' => $reqData['req_doc_id'] ?? '',
+                'title' => $reqData['title'] ?? '',
+                'version' => $reqData['version'] ?? 1,
+                'expected_coverage' => $reqData['expected_coverage'] ?? 0,
+                'current_coverage' => $tcCount,
+                'evaluation' => $eval,
+                'eval_label' => ($evalMap[$evalBase]['label'] ?? $eval) . ($eval !== $evalBase ? ' (NFC)' : ''),
+                'eval_css' => $evalBase,
+                'type' => isset($reqTypeLabels[$reqData['type']]) ? $reqTypeLabels[$reqData['type']] : ($reqData['type'] ?? ''),
+                'status' => $reqStatusLabels[$reqData['status']] ?? ($reqData['status'] ?? ''),
+                'status_passed' => $reqData['tc_counters'][$statusMap['passed']] ?? 0,
+                'status_failed' => $reqData['tc_counters'][$statusMap['failed']] ?? 0,
+                'status_blocked' => $reqData['tc_counters'][$statusMap['blocked']] ?? 0,
+                'status_not_run' => $reqData['tc_counters'][$statusMap['not_run']] ?? 0,
+                'total_tc' => $tcCount,
+                'progress' => $progress,
+                'linked_tcs' => [],
+            ];
+
+            // Linked TC details
+            foreach (($rspecData['requirements'][$reqId]['linked_testcases'] ?? []) as $tc) {
+                $tcId = $tc['id'];
+                $tcExec = '';
+                $tcPlatName = '';
+                if (isset($tcaseSet[$tcId])) {
+                    foreach ($tcaseSet[$tcId] as $pid => $pData) {
+                        $tcExec = $pData['exec_status'] ?? '';
+                        $tcPlatName = $pData['platform_name'] ?? '';
+                    }
+                }
+                $row['linked_tcs'][] = [
+                    'tc_external_id' => $tc['tc_external_id'] ?? 0,
+                    'name' => $tc['name'] ?? '',
+                    'exec_status' => $tcExec,
+                    'exec_status_label' => isset($codeToStatus[$tcExec])
+                        ? lang_get($resultsCfg['status_label'][$codeToStatus[$tcExec]]) : $tcExec,
+                    'platform' => $tcPlatName,
+                ];
+            }
+
+            $rowsOut[] = $row;
+        }
+    }
+
+    // ── Summary counts ──
+    $summaryCounts = [];
+    foreach ($globalEvalCounts as $ev => $cnt) {
+        $label = $evalMap[$ev]['label'] ?? $ev;
+        $css = $evalMap[$ev]['css'] ?? 'label-default';
+        $summaryCounts[] = ['eval' => $ev, 'label' => $label, 'css' => $css, 'count' => $cnt];
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'total_reqs' => $totalReqs,
+        'expected_coverage_enabled' => $reqCfg->expected_coverage_management ?? false,
+        'platform_set' => $platformSet,
+        'build_set' => $buildSet,
+        'summary_counts' => $summaryCounts,
+        'rows' => $rowsOut,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

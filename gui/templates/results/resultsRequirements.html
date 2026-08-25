@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirements Coverage</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar select { background: #333; color: #fff; border: 1px solid #555; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.summary-row { display: flex; gap: 16px; padding: 14px 20px; flex-wrap: wrap; }
+.eval-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 14px; font-size: 12px; font-weight: 600; color: #fff; }
+.eval-badge .cnt { background: rgba(255,255,255,.3); border-radius: 10px; padding: 1px 7px; font-size: 11px; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; position: sticky; top: 0; z-index: 1; }
+table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.reqspec { color: #667; font-size: 11px; max-width: 200px; word-break: break-word; }
+td.reqtitle { white-space: nowrap; }
+.eval-label { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; color: #fff; }
+.eval-label.passed, .eval-label.passed_nfc { background: #28a745; }
+.eval-label.failed, .eval-label.failed_nfc { background: #dc3545; }
+.eval-label.blocked, .eval-label.blocked_nfc { background: #ffc107; color: #333; }
+.eval-label.not_run, .eval-label.not_run_nfc { background: #6c757d; }
+.eval-label.uncovered { background: #17a2b8; }
+.eval-label.partially_passed, .eval-label.partially_passed_nfc { background: #007bff; }
+.progress-cell { min-width: 90px; }
+.progress-bar-mini { background: #e9ecef; border-radius: 4px; height: 16px; position: relative; overflow: hidden; }
+.progress-bar-mini .fill { height: 100%; border-radius: 4px; transition: width .3s; }
+.progress-bar-mini .txt { position: absolute; top: 0; left: 0; right: 0; text-align: center; font-size: 10px; line-height: 16px; font-weight: 600; color: #333; }
+.tc-expand { cursor: pointer; color: #4ECDC4; font-size: 11px; }
+.tc-detail { display: none; background: #f9f9f9; padding: 6px 10px; font-size: 11px; border-top: 1px solid #eee; }
+.tc-detail table { width: 100%; border-collapse: collapse; }
+.tc-detail td { padding: 3px 8px; }
+.tc-detail .status-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+.tc-detail .status-dot.passed { background: #28a745; }
+.tc-detail .status-dot.failed { background: #dc3545; }
+.tc-detail .status-dot.blocked { background: #ffc107; }
+.tc-detail .status-dot.not_run { background: #6c757d; }
+.empty { text-align: center; color: #888; font-size: 14px; padding: 40px 20px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-list-check" style="margin-right:8px;"></i>
+  <span data-i18n="reqcov.header">Requirements Coverage</span>
+  <span class="sub"><span data-i18n="reqcov.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="reqcov.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <label style="color:#aaa;font-size:12px;margin:0;"><span data-i18n="reqcov.platform">Platform</span>: <select id="platSel"><option value="0">[Any]</option></select></label>
+  <label style="color:#aaa;font-size:12px;margin:0;"><span data-i18n="reqcov.build">Build</span>: <select id="buildSel"><option value="0">[Any]</option></select></label>
+  <button class="btn-teal" id="btnApply"><i class="fa fa-play"></i> <span data-i18n="reqcov.apply">Apply</span></button>
+</div>
+
+<div id="loadingBox" class="spin">
+  <i class="fa fa-spinner"></i><br>
+  <span data-i18n="reqcov.loading">Loading data...</span>
+</div>
+
+<div id="warnBox" class="warnbox"></div>
+
+<div id="summaryBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-chart-bar"></i>
+    <span data-i18n="reqcov.evaluationSummary">Evaluation Summary</span>
+    <span style="margin-left:auto;font-size:12px;font-weight:400;color:#667;" id="totalCountBadge"></span>
+  </div>
+  <div class="summary-row" id="summaryRow"></div>
+</div>
+
+<div id="tableBox" class="section" style="display:none;">
+  <div class="section-head">
+    <i class="fa fa-table"></i>
+    <span data-i18n="reqcov.requirements">Requirements</span>
+  </div>
+  <div class="section-body">
+    <table class="flat" id="dtReqs" style="width:100%">
+      <thead>
+        <tr>
+          <th data-i18n="reqcov.thReqSpec">Req Spec</th>
+          <th data-i18n="reqcov.thTitle">Title</th>
+          <th data-i18n="reqcov.thVersion">Ver</th>
+          <th data-i18n="reqcov.thCoverage" id="thCov" style="display:none;">Coverage</th>
+          <th data-i18n="reqcov.thEvaluation">Evaluation</th>
+          <th data-i18n="reqcov.thType">Type</th>
+          <th data-i18n="reqcov.thStatus">Status</th>
+          <th data-i18n="reqcov.thPassed">Passed</th>
+          <th data-i18n="reqcov.thFailed">Failed</th>
+          <th data-i18n="reqcov.thBlocked">Blocked</th>
+          <th data-i18n="reqcov.thNotRun">Not Run</th>
+          <th data-i18n="reqcov.thProgress">Progress</th>
+          <th data-i18n="reqcov.thLinkedTCs">Linked TCs</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerBar" style="display:none;">
+  <span data-i18n="reqcov.elapsedSeconds">Elapsed seconds</span>: <span id="elapsedTime">-</span>
+</div>
+
+<div class="toast" id="toastBox"></div>
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
+var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+
+function toast(msg, isErr) {
+  var $t = $('#toastBox').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+
+TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher'); });
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function loadData() {
+  var plat = $('#platSel').val() || 0;
+  var build = $('#buildSel').val() || 0;
+  $('#loadingBox').show();
+  $('#warnBox').hide();
+  $('#summaryBox').hide();
+  $('#tableBox').hide();
+
+  $.ajax({
+    url: '/api/reports/index.php',
+    data: { action: 'metrics_results_reqs', tproject_id: tproject_id, tplan_id: tplan_id, platform: plat, build: build },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') { $('#warnBox').text(d.message).show(); return; }
+
+      $('#tplanName').text(d.tplan_name || '-');
+      $('#tprojectName').text(d.tproject_name || '-');
+
+      // Populate dropdowns
+      if (d.platform_set) {
+        var sel = $('#platSel').empty();
+        $.each(d.platform_set, function(id, name) { sel.append('<option value="'+id+'">'+esc(name)+'</option>'); });
+      }
+      if (d.build_set) {
+        var sel2 = $('#buildSel').empty();
+        $.each(d.build_set, function(id, name) { sel2.append('<option value="'+id+'">'+esc(name)+'</option>'); });
+      }
+
+      // Summary badges
+      if (d.summary_counts && d.summary_counts.length > 0) {
+        var html = '';
+        $.each(d.summary_counts, function(i, sc) {
+          html += '<span class="eval-badge" style="background:' + getBadgeColor(sc.eval) + ';">'
+                + esc(sc.label) + ' <span class="cnt">' + sc.count + '</span></span>';
+        });
+        $('#summaryRow').html(html);
+        $('#totalCountBadge').text(d.total_reqs + ' requirements');
+        $('#summaryBox').show();
+      }
+
+      if (d.expected_coverage_enabled) { $('#thCov').show(); }
+
+      // Populate table
+      if (d.rows && d.rows.length > 0) {
+        var tbody = $('#dtReqs tbody').empty();
+        $.each(d.rows, function(i, r) {
+          var covHtml = '';
+          if (d.expected_coverage_enabled) {
+            var pct = r.expected_coverage > 0 ? Math.round(100 / r.expected_coverage * r.current_coverage) : 0;
+            covHtml = '<td>' + pct + '% (' + r.current_coverage + '/' + r.expected_coverage + ')</td>';
+          }
+
+          var progressColor = r.progress >= 80 ? '#28a745' : (r.progress >= 50 ? '#ffc107' : '#dc3545');
+
+          var tcLinks = '';
+          if (r.linked_tcs && r.linked_tcs.length > 0) {
+            tcLinks = '<table>';
+            $.each(r.linked_tcs, function(j, tc) {
+              tcLinks += '<tr><td><span class="status-dot ' + tc.exec_status + '"></span>'
+                + esc(tc.tc_external_id) + ': ' + esc(tc.name) + '</td>'
+                + '<td>' + esc(tc.platform) + '</td>'
+                + '<td>' + esc(tc.exec_status_label) + '</td></tr>';
+            });
+            tcLinks += '</table>';
+          }
+
+          var row = '<tr>'
+            + '<td class="reqspec">' + esc(r.req_spec_path) + '</td>'
+            + '<td class="reqtitle">' + esc(r.req_doc_id) + ': ' + esc(r.title) + '</td>'
+            + '<td>' + r.version + '</td>'
+            + covHtml
+            + '<td><span class="eval-label ' + esc(r.eval_css) + '">' + esc(r.eval_label) + '</span></td>'
+            + '<td>' + esc(r.type) + '</td>'
+            + '<td>' + esc(r.status) + '</td>'
+            + '<td>' + r.status_passed + '</td>'
+            + '<td>' + r.status_failed + '</td>'
+            + '<td>' + r.status_blocked + '</td>'
+            + '<td>' + r.status_not_run + '</td>'
+            + '<td class="progress-cell"><div class="progress-bar-mini">'
+            + '<div class="fill" style="width:' + r.progress + '%;background:' + progressColor + ';"></div>'
+            + '<div class="txt">' + r.progress + '%</div></div></td>'
+            + '<td><span class="tc-expand" data-idx="' + i + '"><i class="fa fa-expand"></i> ' + (r.linked_tcs ? r.linked_tcs.length : 0) + ' TCs</span>'
+            + '<div class="tc-detail" id="tcDetail' + i + '">' + tcLinks + '</div></td>'
+            + '</tr>';
+          tbody.append(row);
+        });
+
+        if ($.fn.DataTable.isDataTable('#dtReqs')) { $('#dtReqs').DataTable().destroy(); }
+        $('#dtReqs').DataTable({ pageLength: 25, order: [[11, 'desc']], autoWidth: false });
+        $('#tableBox').show();
+
+        // TC expand/collapse
+        $(document).off('click', '.tc-expand').on('click', '.tc-expand', function() {
+          var idx = $(this).data('idx');
+          $('#tcDetail' + idx).slideToggle(100);
+        });
+      } else {
+        $('#tableBox').hide();
+      }
+
+      $('#footerBar').show();
+      $('#elapsedTime').text(d.elapsed_time || '-');
+      toast(t('common.loaded', 'Loaded'));
+    },
+    error: function() {
+      $('#loadingBox').hide();
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+
+function getBadgeColor(evalKey) {
+  var base = evalKey.replace(/_nfc$/, '');
+  var colors = {
+    passed: '#28a745', failed: '#dc3545', blocked: '#ffc107',
+    not_run: '#6c757d', uncovered: '#17a2b8', partially_passed: '#007bff'
+  };
+  return colors[base] || '#6c757d';
+}
+
+$('#btnApply').on('click', loadData);
+$(function() { loadData(); });
+</script>
+</body>
+</html>

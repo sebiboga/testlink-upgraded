@@ -165,6 +165,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_charts') {
         $hrefR = 'gui/templates/results/charts.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #691 - Requirements Coverage (resultsReqs) modernized;
+      // the BFF (api/reports metrics_results_reqs action) reuses the very same
+      // requirement_mgr::getAllByContext() + evaluate_req() calls and enforces
+      // testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_reqs_coverage') {
+        $hrefR = 'gui/templates/results/resultsRequirements.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
