@@ -939,5 +939,340 @@ if ($action === 'metrics_by_tester_per_build') {
     out($payload);
 }
 
+if ($action === 'metrics_results_matrix') {
+    // Test Results Matrix report - mirrors lib/results/resultsTC.php
+    // (Refs #681). Calls the very same tlTestPlanMetrics::getExecStatusMatrix()
+    // the legacy controller uses and rebuilds the row/cell structure with the
+    // exact buildDataSet() FORMAT_HTML logic (per-build status cells,
+    // optional "result on latest created build" + its note column, latest
+    // execution + note). Right gate ('testplan_metrics') enforced above +
+    // contextual re-check below. XLS/email generation stays on the legacy
+    // controller exactly like the other modernized reports.
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
+    // the session/project context (same pattern as the other metrics_*).
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Legacy initializeGui(): active builds only, ordered by the configured
+    // clause, optionally reversed so the newest build lands leftmost.
+    $matrixCfg = config_get('resultMatrixReport');
+    $buildInfoSet = $tplanMgr->get_builds($tplanId, testplan::ACTIVE_BUILDS,
+        null, ['orderBy' => $matrixCfg->buildOrderByClause]);
+    if (!empty($matrixCfg->buildColumns['latestBuildOnLeft']) &&
+        !is_null($buildInfoSet)) {
+        $buildInfoSet = array_reverse($buildInfoSet);
+    }
+    $activeBuildsQty = is_null($buildInfoSet) ? 0 : count($buildInfoSet);
+
+    // setUpBuilds(): explicit selection wins over "all active builds".
+    // do_action=result mirrors the legacy launcher submit contract.
+    $doApply = (getParam('do_action', '') === 'result');
+    $buildSetParam = [];
+    if (isset($_GET['build_set']) && is_array($_GET['build_set'])) {
+        foreach ($_GET['build_set'] as $bid) {
+            $bid = intval($bid);
+            if ($bid > 0) {
+                $buildSetParam[] = $bid;
+            }
+        }
+    }
+    $filterApplied = count($buildSetParam) > 0;
+
+    $buildsOut = [];
+    if (!is_null($buildInfoSet)) {
+        foreach ($buildInfoSet as $bid => $binfo) {
+            $buildsOut[] = [
+                'id' => intval($bid),
+                'name' => $binfo['name'],
+            ];
+        }
+    }
+
+    // Legacy guard: ACTIVE builds above the configured qty limit force the
+    // launcher page unless the user explicitly submitted a small-enough
+    // selection through it.
+    $idSet = $filterApplied
+        ? array_keys(array_flip($buildSetParam))
+        : (is_null($buildInfoSet) ? null : array_keys($buildInfoSet));
+
+    $needSelection = false;
+    if (($activeBuildsQty > $matrixCfg->buildQtyLimit) &&
+        !($doApply && count($idSet) <= $matrixCfg->buildQtyLimit)) {
+        $needSelection = true;
+    }
+
+    // "Latest created build" = end() of the id set AFTER any reversal -
+    // exact legacy quirk kept verbatim.
+    $latestBuildId = null;
+    $latestBuildName = '';
+    if (is_array($idSet) && !is_null($buildInfoSet)) {
+        $lbId = end($idSet);
+        $latestBuildId = intval($lbId);
+        $latestBuildName = isset($buildInfoSet[$lbId]['name'])
+            ? $buildInfoSet[$lbId]['name'] : '';
+    }
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'need_build_selection' => $needSelection,
+        'build_qty_limit' => intval($matrixCfg->buildQtyLimit),
+        'active_builds_qty' => $activeBuildsQty,
+        'filter_applied' => $filterApplied,
+        'filter_feedback' => [],
+        'show_platforms' => false,
+        'test_priority_enabled' =>
+            !empty($proj['opt']->testPriorityEnabled),
+        'priority_labels' => [],
+        'columns' => [],
+        'rows' => [],
+        'latest_build_id' => $latestBuildId,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ];
+
+    if ($needSelection) {
+        $payload['builds'] = $buildsOut;
+        out($payload);
+    }
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $execStatus = $metricsMgr->getExecStatusMatrix($tplanId,
+        ['buildSet' => $idSet], ['getExecutionNotes' => true]);
+    $metrics = $execStatus['metrics'];
+    $latestExec = $execStatus['latestExec'];
+
+    // Status vocabulary resolved server-side so the session locale applies
+    // (legacy did lang_get() in initializeGui()/buildDataSet()).
+    $cfgResults = config_get('results');
+    $statusLabels = [];
+    foreach ($cfgResults['status_code'] as $statusCode => $verbose) {
+        $statusLabels[$statusCode] =
+            lang_get($cfgResults['status_label'][$verbose]);
+    }
+    $notRunCode = $cfgResults['status_code']['not_run'];
+
+    // Priority display labels from the priority config - same source the
+    // legacy spreadsheet branch used ($cfg['priority'] built from
+    // $tlCfg->priority['code_label']), keyed by numeric level.
+    $prioCfg = config_get('priority');
+    $prioLabels = [];
+    foreach ($prioCfg['code_label'] as $pcode => $plabel) {
+        $prioLabels[intval($pcode)] = lang_get($plabel);
+    }
+    $payload['priority_labels'] = $prioLabels;
+
+    // Platforms decide the optional column - same getPlatforms(map) call as
+    // initializeGui().
+    $platformMap = $tplanMgr->getPlatforms($tplanId,
+        ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformMap) && count($platformMap) > 0;
+    $payload['show_platforms'] = $showPlatforms;
+    if ($showPlatforms) {
+        natsort($platformMap);
+    }
+
+    $tcCfg = config_get('testcase_cfg');
+    $fullPrefix = $proj['prefix'] . $tcCfg->glue_character;
+
+    $columns = [
+        ['key' => 'suite_name',
+         'label' => lang_get('title_test_suite_name')],
+        ['key' => 'tcname',
+         'label' => lang_get('title_test_case_title')],
+    ];
+    if ($showPlatforms) {
+        $columns[] = ['key' => 'platform_name',
+                      'label' => lang_get('platform')];
+    }
+    if ($payload['test_priority_enabled']) {
+        $columns[] = ['key' => 'priority',
+                      'label' => lang_get('priority')];
+    }
+    $colBuildIds = [];
+    if (is_array($idSet)) {
+        foreach ($idSet as $bid) {
+            $colBuildIds[] = intval($bid);
+            $columns[] = ['key' => 'build_' . intval($bid),
+                          'build_id' => intval($bid),
+                          'label' => isset($buildInfoSet[$bid]['name'])
+                              ? $buildInfoSet[$bid]['name'] : '',
+                          'type' => 'status'];
+        }
+    }
+    if (!empty($matrixCfg->buildColumns['showExecutionResultLatestCreatedBuild'])) {
+        $columns[] = ['key' => 'result_on_latest',
+                      'label' => lang_get('result_on_last_build') .
+                          ' ' . $latestBuildName,
+                      'type' => 'status'];
+    }
+    if (!empty($matrixCfg->buildColumns['showExecutionNoteLatestCreatedBuild'])) {
+        $columns[] = ['key' => 'note_on_latest',
+                      'label' =>
+                          lang_get('test_exec_notes_latest_created_build'),
+                      'type' => 'notes'];
+    }
+    $columns[] = ['key' => 'last_exec', 'label' => lang_get('last_execution'),
+                  'type' => 'status'];
+    $columns[] = ['key' => 'latest_notes',
+                  'label' => lang_get('latest_exec_notes'),
+                  'type' => 'notes'];
+
+    // Filter feedback: selected build names, same content the legacy screen
+    // passed to inc_result_tproject_tplan.tpl.
+    if ($filterApplied) {
+        foreach ($idSet as $bid) {
+            $payload['filter_feedback'][] =
+                isset($buildInfoSet[$bid]['name'])
+                    ? $buildInfoSet[$bid]['name'] : ('#' . intval($bid));
+        }
+    }
+
+    // Row construction: faithful port of buildDataSet() FORMAT_HTML branch.
+    // JS Object.keys() re-sorts integer-like keys numerically ascending, so
+    // iteration happens SERVER-SIDE into ordered lists (same lesson as #671).
+    $rowsOut = [];
+    if (!is_null($metrics)) {
+        foreach ($metrics as $tsuiteId => $tcaseSet) {
+            foreach ($tcaseSet as $tcaseId => $platSet) {
+                foreach ($platSet as $platformId => $rf) {
+                    $buildIdsHere = array_keys($rf);
+                    $top = current($buildIdsHere);
+                    $topRow = $rf[$top];
+
+                    $cellsByBuild = [];
+                    foreach ($rf as $bid => $erow) {
+                        $cellsByBuild[intval($bid)] = [
+                            'status_code' => $erow['status'],
+                            'status_label' =>
+                                isset($statusLabels[$erow['status']])
+                                    ? $statusLabels[$erow['status']] : '',
+                            'version' => intval($erow['version']),
+                            'tcversion_id' => intval($erow['tcversion_id']),
+                        ];
+                    }
+
+                    $orderedCells = [];
+                    $resultOnLatest = null;
+                    $noteOnLatest = '';
+                    $lastExecCell = null;
+                    if (is_array($idSet)) {
+                        foreach ($idSet as $bid) {
+                            $bid = intval($bid);
+                            if (!isset($cellsByBuild[$bid])) {
+                                continue;
+                            }
+                            $cell = $cellsByBuild[$bid];
+                            $orderedCells[] = $cell;
+
+                            if (!empty($matrixCfg->buildColumns[
+                                    'showExecutionResultLatestCreatedBuild']) &&
+                                $latestBuildId === $bid) {
+                                $resultOnLatest = $cell;
+                            }
+                            if (!empty($matrixCfg->buildColumns[
+                                    'showExecutionNoteLatestCreatedBuild']) &&
+                                $latestBuildId === $bid &&
+                                !empty($rf[intval($bid)]['execution_notes'])) {
+                                $noteOnLatest =
+                                    $rf[intval($bid)]['execution_notes'];
+                            }
+                            // Legacy lexec rule: not-run latest execution
+                            // tracks ANY iterated build (so the last one
+                            // wins), otherwise only the exact matching
+                            // execution id on the matching build.
+                            $lex = isset($latestExec[$platformId][$tcaseId])
+                                ? $latestExec[$platformId][$tcaseId] : null;
+                            if (!is_null($lex) &&
+                                (($lex['status'] == $notRunCode) ||
+                                 (($lex['build_id'] == $bid) &&
+                                  ($lex['id'] ==
+                                      $rf[intval($bid)]['executions_id'])))) {
+                                $lastExecCell = $cell;
+                            }
+                        }
+                    }
+
+                    $latestNotes = '';
+                    $lex2 = isset($latestExec[$platformId][$tcaseId])
+                        ? $latestExec[$platformId][$tcaseId] : null;
+                    if (!is_null($lex2) &&
+                        isset($lex2['execution_notes']) &&
+                        !is_null($lex2['execution_notes'])) {
+                        $latestNotes = $lex2['execution_notes'];
+                    }
+
+                    $row = [
+                        'suite_name' => $topRow['suiteName'],
+                        'tcase_id' => intval($tcaseId),
+                        'external_id' => $fullPrefix . $topRow['external_id'],
+                        'tcname' => $topRow['name'],
+                        'cells' => $orderedCells,
+                        'result_on_latest' => $resultOnLatest,
+                        'note_on_latest' => $noteOnLatest,
+                        'last_exec' => $lastExecCell,
+                        'latest_notes' => $latestNotes,
+                    ];
+                    if ($showPlatforms) {
+                        $row['platform_name'] =
+                            isset($platformMap[$platformId])
+                                ? $platformMap[$platformId] : '';
+                    }
+                    if ($payload['test_priority_enabled']) {
+                        $row['priority_level'] =
+                            isset($topRow['priority_level'])
+                                ? intval($topRow['priority_level']) : 0;
+                    }
+                    $rowsOut[] = $row;
+                }
+            }
+        }
+    }
+
+    $payload['columns'] = $columns;
+    $payload['hasData'] = count($rowsOut) > 0;
+    $payload['rows'] = $rowsOut;
+
+    // Toolbar keeps the two legacy endpoints (XLS download + email) exactly
+    // like the other modernized reports keep theirs.
+    $xlsBase = '/lib/results/resultsTC.php?format=' . FORMAT_XLS .
+        '&do_action=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId;
+    if ($filterApplied) {
+        $xlsBase .= '&buildListForExcel=' . implode(',', $idSet);
+        foreach ($idSet as $bid) {
+            $xlsBase .= '&build_set%5B%5D=' . intval($bid);
+        }
+    }
+    $payload['export_xls_url'] = $xlsBase . '&exportSpreadSheet_x=1';
+    $payload['send_mail_url'] = $xlsBase . '&sendSpreadSheetByMail_x=1';
+
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
