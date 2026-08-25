@@ -341,6 +341,8 @@ function initTopMenu(&$db)
   // check if Project is available
   if (isset($_SESSION['testprojectID']) && $_SESSION['testprojectID'] > 0)
   {
+    $tprojMgr = new testproject($db);
+    $tprojOpts = $tprojMgr->getOptions($_SESSION['testprojectID']);
     $idx = 1; 
     foreach ($guiTopMenu as $element)
     {
@@ -350,8 +352,8 @@ function initTopMenu(&$db)
         (($element['condition'] == 'TestPlanAvailable') && 
          !is_null($testPlanID)) ||
         (($element['condition'] == 'ReqMgmtEnabled') && 
-          isset($_SESSION['testprojectOptions']->requirementsEnabled) && 
-            $_SESSION['testprojectOptions']->requirementsEnabled))
+          !empty($tprojOpts) && isset($tprojOpts->requirementsEnabled) && 
+            $tprojOpts->requirementsEnabled))
       {
         // (is_null($element['right']) => no right needed => display always
 

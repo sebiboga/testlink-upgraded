@@ -184,9 +184,10 @@ if( (strcmp($secCfg, 'ALWAYS') == 0) ||
   $gui->securityNotes = getSecurityNotes($db);
 }  
 
-$gui->opt_requirements = (isset($_SESSION['testprojectOptions']) &&
-                          isset($_SESSION['testprojectOptions']->requirementsEnabled)) ?
-                         $_SESSION['testprojectOptions']->requirementsEnabled : null; 
+$tprojMgr = new testproject($db);
+$tprojOpts = $tprojMgr->getOptions(intval($_SESSION['testprojectID']));
+$gui->opt_requirements = (!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled))
+                         ? $tprojOpts->requirementsEnabled : null; 
 
 
 $gui->plugins = array();

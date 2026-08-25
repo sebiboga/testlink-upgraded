@@ -153,8 +153,10 @@ function init_args(&$dbHandler) {
   $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
 
   $args->basehref = $_SESSION['basehref'];
-  $tprojOpts = isset($_SESSION['testprojectOptions']) ? $_SESSION['testprojectOptions'] : null;
-  $args->testprojectOptReqs = (!is_null($tprojOpts) && isset($tprojOpts->requirementsEnabled)) 
+
+  $tprojMgr = new testproject($dbHandler);
+  $tprojOpts = $tprojMgr->getOptions($args->tproject_id);
+  $args->testprojectOptReqs = (!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled))
     ? $tprojOpts->requirementsEnabled : false;
   
 

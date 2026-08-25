@@ -47,9 +47,8 @@ if($tplanID > 0) {
   $reportsCfg = config_get('reports_list');
   if(!is_null($reportsCfg) && (is_array($reportsCfg) || is_object($reportsCfg))) {
     $baseHrefR = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '';
-    $tprojOptsR = isset($_SESSION['testprojectOptions'])
-      ? $_SESSION['testprojectOptions'] : null;
-    $reqEnabledR = (!is_null($tprojOptsR)
+    $tprojOptsR = $tproject_mgr->getOptions($tprojectID);
+    $reqEnabledR = (!empty($tprojOptsR)
       && !empty($tprojOptsR->requirementsEnabled));
 
     $btsEnabledR = $tproject_mgr->isIssueTrackerEnabled($tprojectID);

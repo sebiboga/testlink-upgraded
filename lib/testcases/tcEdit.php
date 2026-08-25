@@ -404,9 +404,11 @@ function init_args(&$cfgObj,$otName,&$tcaseMgr) {
   $args->refreshTree = isset($_SESSION['setting_refresh_tree_on_action']) ? intval($_SESSION['setting_refresh_tree_on_action']) : 0;
     
   $args->opt_requirements = null;
-  if( isset($_SESSION['testprojectOptions']) ) {
-    $args->opt_requirements = $_SESSION['testprojectOptions']->requirementsEnabled;
-    $args->requirementsEnabled = $_SESSION['testprojectOptions']->requirementsEnabled;
+  $tprojOptMgr = new testproject($tcaseMgr->db);
+  $tprojOpts = $tprojOptMgr->getOptions($args->tproject_id);
+  if(!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled)) {
+    $args->opt_requirements = $tprojOpts->requirementsEnabled;
+    $args->requirementsEnabled = $tprojOpts->requirementsEnabled;
   } 
 
   $args->basehref = $_SESSION['basehref'];

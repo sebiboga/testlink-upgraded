@@ -18,6 +18,12 @@ testlinkInitPage($db,true,false,"checkRights");
 $smarty = new TLSmarty();
 $templateCfg = templateConfiguration();
 $args = init_args();
+
+$tprojMgr = new testproject($db);
+$tprojOpts = $tprojMgr->getOptions($args->tproject_id);
+$args->optReqs = (!empty($tprojOpts) && isset($tprojOpts->requirementsEnabled))
+    ? $tprojOpts->requirementsEnabled : false;
+
 $gui = initializeGui($db,$args);
 $reports_mgr = new tlReports($db, $gui->tplan_id);
 
@@ -97,9 +103,6 @@ function init_args() {
 
   $args->userID = $_SESSION['userID'];
   $args->user = $_SESSION['currentUser'];
-  $tprojOpts = isset($_SESSION['testprojectOptions']) ? $_SESSION['testprojectOptions'] : null;
-  $args->optReqs = (!is_null($tprojOpts) && isset($tprojOpts->requirementsEnabled)) 
-    ? $tprojOpts->requirementsEnabled : false;
   $args->checked_show_inactive_tplans = 
     $args->show_inactive_tplans ? 'checked="checked"' : 0;
   $args->show_only_active_tplans = !$args->show_inactive_tplans;
