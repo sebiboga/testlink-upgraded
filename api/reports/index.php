@@ -2226,9 +2226,15 @@ if ($action === 'by_status') {
         // Path cache
         if (!isset($pathCache[$exec['tcase_id']])) {
             $dummy = $tcase_mgr->getPathLayered([$exec['tcase_id']]);
-            $pathCache[$exec['tcase_id']] = $dummy[$exec['tsuite_id']]['value'];
-            $levelCache[$exec['tcase_id']] = $dummy[$exec['tsuite_id']]['level'];
-            $ky = current(array_keys($dummy));
+            if (!empty($dummy) && isset($dummy[$exec['tsuite_id']])) {
+                $pathCache[$exec['tcase_id']] = $dummy[$exec['tsuite_id']]['value'];
+                $levelCache[$exec['tcase_id']] = $dummy[$exec['tsuite_id']]['level'];
+            } else {
+                $pathCache[$exec['tcase_id']] = $exec['name'] ?? 'Unknown';
+                $levelCache[$exec['tcase_id']] = 0;
+            }
+            $dummyKeys = is_array($dummy) ? array_keys($dummy) : [];
+            $ky = !empty($dummyKeys) ? current($dummyKeys) : $exec['tsuite_id'];
             $topCache[$exec['tcase_id']] = $ky;
         }
 
