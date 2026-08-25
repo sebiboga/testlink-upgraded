@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Results Flat</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; position: sticky; top: 0; z-index: 1; }
+table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.suitecell { color: #667; font-size: 11px; max-width: 200px; word-break: break-word; }
+td.tccell { white-space: nowrap; }
+.tcid { font-weight: 600; color: #33363f; }
+.badge-st { display: inline-block; min-width: 62px; text-align: center; font-size: 11px; font-weight: 600; border-radius: 9px; padding: 2px 8px; white-space: nowrap; }
+.st-passed   { background: #e5f7e3; color: #2e7d32; }
+.st-failed   { background: #fdecea; color: #c0392b; }
+.st-blocked  { background: #fff4dd; color: #b9770e; }
+.st-not_run  { background: #eceff1; color: #607d8b; }
+.ver { color: #99a; font-size: 11px; }
+.notecell { max-width: 220px; word-break: break-word; color: #556; font-size: 11.5px; }
+.prio-highest { color: #c0392b; font-weight: 700; }
+.prio-high    { color: #e67e22; font-weight: 700; }
+.prio-medium  { color: #b9770e; }
+.prio-low     { color: #607d8b; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.footer p.info { margin: 6px 0 0; font-style: italic; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+
+.launcher-box { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; padding: 24px; }
+.launcher-box h3 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0 0 12px; }
+.launcher-box label { font-size: 13px; font-weight: 600; color: #445; display: block; margin-bottom: 6px; }
+.launcher-box select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.launcher-box .hint { font-size: 12px; color: #888; margin-top: 6px; }
+
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table" style="margin-right:8px;"></i><span data-i18n="rtf.header">Test Results Flat</span>
+  <span class="sub"><span data-i18n="rtf.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rtf.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <a class="btn-ghost" id="btnXls" href="#" target="_blank" style="display:none;">
+    <i class="fa fa-file-excel"></i> <span data-i18n="rtf.btnExportXls">Export as spreadsheet</span>
+  </a>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="launcherBox" class="launcher-box" style="display:none;"></div>
+
+<div id="reportArea"></div>
+
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var API = '/api/reports/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var dtInstance = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnRefresh').on('click', function() { loadReport(); });
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+function statusBadge(code, label) {
+  var cls = 'st-' + (code || 'not_run');
+  return '<span class="badge-st ' + esc(cls) + '">' + esc(label || code) + '</span>';
+}
+
+function prioClass(level) {
+  if (level >= 5) return 'prio-highest';
+  if (level >= 3) return 'prio-high';
+  if (level >= 2) return 'prio-medium';
+  return 'prio-low';
+}
+
+function loadReport(extraQs) {
+  $('#emptyBox').hide();
+  $('#reportArea').empty();
+  $('#launcherBox').hide();
+  if (dtInstance) { dtInstance.destroy(); dtInstance = null; }
+  $('#loadingBox').show();
+
+  var url = API + '?action=results_flat&tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
+  if (extraQs) { url += '&' + extraQs; }
+
+  $.getJSON(url, function (r) {
+    $('#loadingBox').hide();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    tprojectId = r.tproject_id;
+    tplanId = r.tplan_id;
+    $('#tprojectName').text(r.tproject_name);
+    $('#tplanName').text(r.tplan_name);
+    document.title = r.tplan_name + ' - ' + TLi18n.t('rtf.header');
+
+    if (r.export_xls_url) {
+      $('#btnXls').attr('href', r.export_xls_url).show();
+    } else {
+      $('#btnXls').hide();
+    }
+
+    if (r.need_selection) {
+      showLauncher(r);
+      return;
+    }
+
+    if (!r.hasData) {
+      $('#emptyBox').html('<i class="fa fa-inbox"></i>' + esc(TLi18n.t('rtf.noData'))).show();
+      return;
+    }
+
+    renderTable(r);
+    $('#footerInfo').html(
+      esc(TLi18n.t('rtf.infoGenTestRep')) + ' &middot; ' +
+      esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString() +
+      ' &middot; ' + esc(TLi18n.t('rtf.elapsedSeconds')) + ' ' + esc(r.elapsed_time));
+  }).fail(function (xhr) {
+    $('#loadingBox').hide();
+    var msg = TLi18n.t('rtf.errLoad');
+    if (xhr.status === 403) { msg = TLi18n.t('common.forbidden'); }
+    warn(msg);
+    toast(msg, true);
+  });
+}
+
+function showLauncher(r) {
+  var $box = $('#launcherBox').empty();
+  var html = '<h3><i class="fa fa-filter" style="color:#4ECDC4;margin-right:8px;"></i>' +
+    esc(TLi18n.t('rtf.launcherTitle')) + '</h3>';
+
+  if (r.active_builds_qty > r.build_qty_limit) {
+    html += '<div style="background:#fff4dd;border:1px solid #f5c6cb;color:#b9770e;border-radius:6px;padding:10px 14px;font-size:12px;margin-bottom:14px;">' +
+      '<i class="fa fa-exclamation-triangle"></i> ' +
+      esc(TLi18n.t('rtf.tooMuchData')) + ' (' + r.active_builds_qty + ' &gt; ' + r.build_qty_limit + ')</div>';
+  }
+
+  html += '<label>' + esc(TLi18n.t('rtf.selectBuilds')) + '</label>';
+  html += '<select id="buildSetSelect" multiple size="' + Math.min(r.builds.length, 10) + '">';
+  r.builds.forEach(function (b) {
+    html += '<option value="' + b.id + '">' + esc(b.name) + '</option>';
+  });
+  html += '</select>';
+  html += '<p class="hint">' + esc(TLi18n.t('rtf.buildSelectHint')) + '</p>';
+  html += '<button class="btn-teal" id="btnApply"><i class="fa fa-check"></i> ' +
+    esc(TLi18n.t('rtf.applyFilter')) + '</button>';
+
+  $box.html(html).show();
+
+  $('#btnApply').on('click', function () {
+    var selected = [];
+    $('#buildSetSelect option:selected').each(function () {
+      selected.push(parseInt($(this).val(), 10));
+    });
+    if (selected.length === 0) {
+      toast(TLi18n.t('rtf.selectAtLeastOne'), true);
+      return;
+    }
+    if (selected.length > r.build_qty_limit) {
+      toast(TLi18n.t('rtf.tooManySelected') + ' (' + selected.length + ' > ' + r.build_qty_limit + ')', true);
+      return;
+    }
+    var urlParams = 'do_action=result';
+    selected.forEach(function (bid) { urlParams += '&build_set%5B%5D=' + bid; });
+    loadReport(urlParams);
+  });
+}
+
+function renderTable(r) {
+  var $area = $('#reportArea');
+  var h = '<div class="section"><div class="section-head"><i class="fa fa-table"></i>' +
+    '<span>' + esc(TLi18n.t('rtf.resultsTitle')) + '</span>' +
+    '<span class="bmeta">' + esc(TLi18n.t('rtf.rowCount', [r.rows.length])) + '</span>' +
+    '</div><div class="section-body"><table id="flatTable" class="flat display" style="width:100%">';
+  h += '<thead><tr>';
+  h += '<th>' + esc(TLi18n.t('rtf.thTestSuite')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thTestCase')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thVersion')) + '</th>';
+  if (r.show_platforms) { h += '<th>' + esc(TLi18n.t('rtf.thPlatform')) + '</th>'; }
+  if (r.priority_enabled) { h += '<th>' + esc(TLi18n.t('rtf.thPriority')) + '</th>'; }
+  h += '<th>' + esc(TLi18n.t('rtf.thBuild')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thAssignedTo')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thStatus')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thDate')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thTestedBy')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thNotes')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thDuration')) + '</th>';
+  h += '<th>' + esc(TLi18n.t('rtf.thExecType')) + '</th>';
+  h += '</tr></thead><tbody>';
+
+  r.rows.forEach(function (row) {
+    h += '<tr>';
+    h += '<td class="suitecell">' + esc(row.suite_name || '') + '</td>';
+    h += '<td class="tccell"><span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tc_name) + '</td>';
+    h += '<td class="ver">' + esc(row.version) + '</td>';
+    if (r.show_platforms) { h += '<td>' + esc(row.platform_name || '') + '</td>'; }
+    if (r.priority_enabled) {
+      var pc = prioClass(row.priority_level);
+      h += '<td class="' + esc(pc) + '">' + esc(row.priority_label) + '</td>';
+    }
+    h += '<td>' + esc(row.build_name) + '</td>';
+    h += '<td>' + esc(row.assigned_to) + '</td>';
+    h += '<td>' + statusBadge(row.status_code, row.status_label) + '</td>';
+    h += '<td>' + esc(row.exec_ts || '') + '</td>';
+    h += '<td>' + esc(row.tester) + '</td>';
+    h += '<td class="notecell">' + esc(row.exec_notes || '') + '</td>';
+    h += '<td>' + esc(row.exec_duration || '') + '</td>';
+    h += '<td>' + esc(row.exec_type) + '</td>';
+    h += '</tr>';
+  });
+
+  h += '</tbody></table></div></div>';
+  $area.html(h);
+
+  dtInstance = $('#flatTable').DataTable({
+    pageLength: 50,
+    order: [[0, 'asc'], [1, 'asc']],
+    language: {
+      search: TLi18n.t('rtf.dtSearch'),
+      lengthMenu: TLi18n.t('rtf.dtLengthMenu'),
+      info: TLi18n.t('rtf.dtInfo'),
+      infoEmpty: TLi18n.t('rtf.dtInfoEmpty'),
+      infoFiltered: TLi18n.t('rtf.dtInfoFiltered'),
+      zeroRecords: TLi18n.t('rtf.dtZeroRecords'),
+      paginate: {
+        first: TLi18n.t('rtf.dtFirst'),
+        last: TLi18n.t('rtf.dtLast'),
+        next: TLi18n.t('rtf.dtNext'),
+        previous: TLi18n.t('rtf.dtPrev')
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
