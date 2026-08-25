@@ -1384,14 +1384,15 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
   // estimated execution time
   $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top">' . 
            '<span class="label">'. $labels['estimated_execution_duration'].':</span></td>' .
-           '<td colspan="' .  ($cfg['tableColspan']-1) . '">' .  $tcInfo['estimated_exec_duration'];
+           '<td colspan="' .  ($cfg['tableColspan']-1) . '">' .  ($tcInfo['estimated_exec_duration'] ?? '');
   $code .= "</td></tr>\n";
 
   if( isset($options['importance']) && $options['importance'] ) {
+    $impKey = $tcInfo['importance'] ?? null;
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top">' . 
              '<span class="label">'.$labels['importance'].':</span></td>' .
              '<td colspan="' .  ($cfg['tableColspan']-1) . '">' .
-             $cfg['importance'][$tcInfo['importance']];
+             (is_array($cfg['importance']) && !is_null($impKey) ? ($cfg['importance'][$impKey] ?? '') : '');
     $code .= "</td></tr>\n";
   }
 
@@ -1403,11 +1404,13 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
     $filters = array('tcversion_id' => $tcInfo['id']);
     $opt = array('details' => 'tcversion');
     $prio_info = $st->tplan_urgency->getPriority($tplan_id, $filters, $opt);
-    $prio = $prio_info[$tcInfo['id']]['priority_level'];
+    $prio = is_array($prio_info) && isset($prio_info[$tcInfo['id']]) 
+            ? ($prio_info[$tcInfo['id']]['priority_level'] ?? null) : null;
 
     $code .= '<tr><td width="' . $cfg['firstColWidth'] . '" valign="top">' .
              '<span class="label">'.$labels['priority'].':</span></td>' .
-             '<td colspan="' .  ($cfg['tableColspan']-1) . '">' . $cfg['priority'][$prio];
+             '<td colspan="' .  ($cfg['tableColspan']-1) . '">' . 
+             (is_array($cfg['priority']) && !is_null($prio) ? ($cfg['priority'][$prio] ?? '') : '');
     $code .= "</td></tr>\n";
   }
 
