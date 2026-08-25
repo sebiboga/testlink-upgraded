@@ -2520,5 +2520,117 @@ if ($action === 'never_run_result') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// Test Cases Without Tester report (Refs #689)
+// Modernizes lib/results/testCasesWithoutTester.php as reached from the
+// Reports sub-menu entry link_report_tcases_without_tester: test cases linked
+// to the plan that have NOT been run AND have NO tester assigned, with their
+// test suite path, optional platform column and optional priority column.
+// Right gate: 'testplan_metrics' - the same right the legacy screen enforces
+// through checkRights() -> hasRightOnProj().
+// ---------------------------------------------------------------------------
+if ($action === 'cases_without_tester') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $projOpts = $proj['opt'] ?? null;
+    if (is_null($projOpts) && !empty($proj['options'])) {
+        $projOpts = json_decode($proj['options']);
+    }
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+    $showPlatforms = $tplanMgr->hasLinkedPlatforms($tplanId);
+
+    $platformMap = null;
+    if ($showPlatforms) {
+        $platformMap = $tplanMgr->getPlatforms($tplanId,
+            ['outputFormat' => 'mapAccessByID']);
+    }
+
+    $hasLinkedTCs = $tplanMgr->count_testcases($tplanId) > 0;
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $metrics = $metricsMgr->getNotRunWoTesterAssigned($tplanId, null, null,
+        ['output' => 'array', 'ignoreBuild' => true]);
+    if (is_null($metrics)) {
+        $metrics = [];
+    }
+
+    $rowsOut = [];
+    if (count($metrics) > 0) {
+        // Collect all tcases ids and get test suite paths
+        $targetSet = [];
+        foreach ($metrics as &$item) {
+            $targetSet[] = $item['tcase_id'];
+        }
+        $tree_mgr = new tree($db);
+        $path_info = $tree_mgr->get_full_path_verbose($targetSet);
+        unset($tree_mgr);
+
+        $tcCfg = config_get('testcase_cfg');
+        $fullPrefix = $proj['prefix'] . $tcCfg->glue_character;
+
+        foreach ($metrics as &$item) {
+            $suitePath = isset($path_info[$item['tcase_id']])
+                ? implode(' / ', $path_info[$item['tcase_id']])
+                : '';
+            $row = [
+                'suite_path' => $suitePath,
+                'tcase_id' => intval($item['tcase_id']),
+                'external_id' => $fullPrefix . intval($item['external_id']),
+                'name' => $item['name'],
+                'summary' => strip_tags($item['summary']),
+            ];
+            if ($showPlatforms && !is_null($platformMap)) {
+                $platId = intval($item['platform_id']);
+                $row['platform_name'] = isset($platformMap[$platId])
+                    ? $platformMap[$platId]['name'] : '';
+            }
+            if ($priorityEnabled) {
+                $row['priority_level'] =
+                    $tplanMgr->urgencyImportanceToPriorityLevel($item['urg_imp']);
+            }
+            $rowsOut[] = $row;
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'hasData' => count($rowsOut) > 0,
+        'has_linked_tcs' => $hasLinkedTCs,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'priority_enabled' => $priorityEnabled,
+        'rows' => $rowsOut,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
