@@ -185,6 +185,7 @@ $TLS_no_good_email_address = "Il formato dell'indirizzo mail non sembra corretto
 $TLS_passwd_dont_match = "Le password inserite non coincidono. Il confronto tiene conto di maiuscolo/minuscolo. Ridigitare le password";
 $TLS_user_cant_be_created_because = "Il tuo account non può essere creato :";
 $TLS_user_name_exists = "Per favore scegliere un'altro utente.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Il nome utente può solo contenere: lettere, numeri, - e _ ";
 $TLS_warning_empty_pwd = "La password non può essere una stringa vuota!";
 $TLS_your_info_please = "Per favore inserire dati del vostro utente";

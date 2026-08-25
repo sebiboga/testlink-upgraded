@@ -484,6 +484,8 @@ $TLS_no_good_email_address = "Le format de l’adresse mail n’est pas respect�
 $TLS_passwd_dont_match = "Le mot de passe renseigné ne correspond pas. Les mots de passe sont sensibles à la casse." .
                          "Veuillez essayer de nouveau.";
 $TLS_user_name_exists = "Le nom d’utilisateur est déjà utilisé. Veuillez sélectionner un autre nom d'utilisateur.";
+
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_your_info_please = "Veuillez renseigner vos informations utilisateur.";
 $TLS_new_account = "TestLink - Nouveau compte créé.";
 

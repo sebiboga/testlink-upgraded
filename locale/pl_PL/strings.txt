@@ -474,6 +474,7 @@ $TLS_no_good_email_address = "Email nie jest prawidłowy";
 $TLS_passwd_dont_match = "Powtórzone hasło nieodpowiada wpisanemu. Proszę spróbować ponownie";
 $TLS_user_cant_be_created_because = "Konto nie może zostać utworzone ponieważ:";
 $TLS_user_name_exists = "Użytkownik istnieje, wpisz inny login.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Nazwa użytkownika moża zawierać jedynie litery, cyfry, białe znaki, myślniki i podkreślenia.";
 $TLS_warning_empty_pwd = "Pole hasło nie może być puste!";
 $TLS_your_info_please = "Wpisz dane użytkownika";

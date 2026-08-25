@@ -214,6 +214,7 @@ $TLS_passwd_dont_match = "Kaksi syötettyä salasanaa eivät vastaa toisiaan. Hu
 "Olkaa hyvä ja yrittäkää uudestaan.";
 $TLS_user_cant_be_created_because = "Asiakastiliäsi ei voitu luoda, koska:";
 $TLS_user_name_exists = "Käyttäjätunnus on jo käytössä, olkaa hyvä ja valitkaa jokin toinen.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Käyttäjätunnus voi sisältää ainoastaan kirjaimia, numeroita, välilyöntejä, tavuviivoja ja alaviivoja.";
 $TLS_warning_empty_pwd = "Salasana ei saa olla tyhjä!";
 $TLS_your_info_please = "Anna käyttäjätiedot";//

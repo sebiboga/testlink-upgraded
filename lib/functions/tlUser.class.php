@@ -119,6 +119,7 @@ class tlUser extends tlDBObject {
   const E_PWDDONTMATCH = -128;
   const E_LOGINALREADYEXISTS = -256;
   const E_EMAILFORMAT = -512;
+  const E_EMAILALREADYEXISTS = -1024;
   const S_PWDMGTEXTERNAL = 2;
   
   // search options
@@ -623,6 +624,10 @@ class tlUser extends tlDBObject {
     if ($result >= tl::OK && !$this->dbID)
     {
       $result = self::doesUserExist($db,$this->login) ? self::E_LOGINALREADYEXISTS : tl::OK;
+    }
+    if ($result >= tl::OK && !$this->dbID)
+    {
+      $result = self::doesUserExistByEmail($db,$this->emailAddress) ? self::E_EMAILALREADYEXISTS : tl::OK;
     }
     if ($result >= tl::OK)
     {

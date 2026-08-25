@@ -514,6 +514,7 @@ $TLS_passwd_dont_match = "ふたつのパスワードが一致しません。パ
                          "再入力してください。";
 $TLS_user_cant_be_created_because = "あなたのアカウントは以下の理由で作成できません:";
 $TLS_user_name_exists = "このユーザー名は既に使用されています。他の名前を使用してください。";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "ユーザー名には、文字、数字、スペース、ハイフンおよびアンダースコアのみを使用してください。";
 $TLS_warning_empty_pwd = "パスワードを空白にすることはできません!";
 $TLS_your_info_please = "ユーザー情報を入力してください";

@@ -500,6 +500,7 @@ $TLS_passwd_dont_match = "两次输入的密码不一致，请重新输入。";
 
 $TLS_user_cant_be_created_because = "你的帐号无法创建,原因是：";
 $TLS_user_name_exists = "用户名已经被使用,请选择其它的名称。";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "用户名只能包含字母,数字,空格,连字符和下划线。";
 $TLS_warning_empty_pwd = "密码不允许为空！";
 $TLS_your_info_please = "输入你的用户信息";

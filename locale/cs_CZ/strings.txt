@@ -487,6 +487,8 @@ $TLS_passwd_dont_match = "Zadaná hesla nesouhlasí. Mejte na pameti, že se v hesl
                          "Zkuste to prosím znovu.";
 $TLS_user_cant_be_created_because = "Váš úcet nemuže být vytvoren, protože:";
 $TLS_user_name_exists = "Prihlašovací/uživatelské jméno je již použito. Vyberte si prosím jiné.";
+
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Prihlašovací/uživatelské jméno muže obsahovat pouze písmena, císla, mezery, oddelovace a podtržítka.";
 $TLS_warning_empty_pwd = "Vaše heslo by nemelo být prázdné!";
 $TLS_your_info_please = "Zadejte vaše prihlašovací údaje.";

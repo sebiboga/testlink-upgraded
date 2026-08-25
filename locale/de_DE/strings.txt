@@ -423,6 +423,7 @@ $TLS_passwd_dont_match = "Die beiden Passwörter stimmen nicht überein- Beachte
 						"Versuchen Sie es bitte nochmal!";
 $TLS_user_cant_be_created_because = "Der Benutzer konnte aus folgenden Gründen nicht angelegt werden:";
 $TLS_user_name_exists = "Tut mir leid aber dieser Benutzername existiert bereits. Bitte wählen Sie einen anderen!";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Benutzernamen dürfen nur Buchstaben, Zahlen, Leerzeichen, Bindestriche und Unterstriche enthalten";
 $TLS_warning_empty_pwd = "Das Passwort darf nicht leer sein!";
 $TLS_your_info_please = "Geben Sie bitte Ihre Benutzerdaten ein";

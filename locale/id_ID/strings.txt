@@ -230,6 +230,7 @@ $TLS_passwd_dont_match = "Dua Password yang dimasukkan tidak sama. Password adal
 $TLS_user_cant_be_created_because = "Akun anda tak bisa dibuat karena:";
 
 $TLS_user_name_exists = "Nama user ini sudah terpakai, harap pilih lainnya.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 
 $TLS_valid_user_name_format = "Nama user hanya boleh berisi huruf, angka, spasi, minus dan garisbawah.";
 

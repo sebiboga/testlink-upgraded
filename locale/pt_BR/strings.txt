@@ -501,6 +501,7 @@ $TLS_no_good_email_address = "Formato do endereço de e-mail parece incorreto. V
 $TLS_passwd_dont_match = "As senhas não conferem. Observe que a senha diferencia maiúsculas de minúsculas." .
                          " Tente novamente.";
 $TLS_user_name_exists = "Este login já existe, favor escolher outro.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_your_info_please = "Entre com as informações do usuário.";
 $TLS_new_account = "TestLink - Nova conta criada";
 

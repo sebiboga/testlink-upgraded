@@ -499,6 +499,7 @@ $TLS_passwd_dont_match = "De twee ingegeven paswoorden komen niet overeen. Let e
                          "Probeer a.u.b. opnieuw.";
 $TLS_user_cant_be_created_because = "Uw account kan niet aangemaakt worden omdat de";
 $TLS_user_name_exists = "Login/gebruikersnaam al in gebruik is, selecteer a.u.b. een andere.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Login/gebruikersnaam mag enkel letters, nummers, spaties, hyphens en underscores bevatten.";
 $TLS_warning_empty_pwd = "Uw paswoord mag niet leeg zijn!";
 $TLS_your_info_please = "Aanmelden";

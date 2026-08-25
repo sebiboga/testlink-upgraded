@@ -47,15 +47,19 @@ if( !is_null($args->doEditUser) ) {
         $user->lastName = $args->lastName;
         $result = $user->writeToDB($db);
 
-        $cfg = config_get('notifications');
-        if($cfg->userSignUp->enabled) {  
-          notifyGlobalAdmins($db,$user);
+        if ($result >= tl::OK) {
+          $cfg = config_get('notifications');
+          if($cfg->userSignUp->enabled) {  
+            notifyGlobalAdmins($db,$user);
+          }
+          logAuditEvent(TLS("audit_users_self_signup",$args->login),"CREATE",$user->dbID,"users");
+          
+          $url2go = "login.php?note=first";
+          redirect(TL_BASE_HREF . $url2go);
+          exit();
+        } else {
+          $message = getUserErrorMessage($result);
         }
-        logAuditEvent(TLS("audit_users_self_signup",$args->login),"CREATE",$user->dbID,"users");
-        
-        $url2go = "login.php?note=first";
-        redirect(TL_BASE_HREF . $url2go);
-        exit();
       } else {
         $message = getUserErrorMessage($result);
       } 

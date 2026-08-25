@@ -264,6 +264,10 @@ function getUserErrorMessage($code)
       $msg = lang_get('user_name_exists');
     break;
 
+    case tlUser::E_EMAILALREADYEXISTS:
+      $msg = lang_get('email_already_used');
+    break;
+
     case tlUser::E_LASTNAMELENGTH:
       $msg = lang_get('empty_last_name');
     break;

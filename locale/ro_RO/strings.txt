@@ -108,3 +108,5 @@ $TLS_img_title_remove_platform = 'Elimină platforma';
 
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = 'Înregistrarea automată a utilizatorilor noi este dezactivată. Vă rugăm să contactați administratorul site-ului.';
+
+$TLS_email_already_used = "This email address is already in use, please use another one.";

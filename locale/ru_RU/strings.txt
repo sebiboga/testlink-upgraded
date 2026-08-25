@@ -287,6 +287,7 @@ $TLS_no_good_email_address = "Формат почтового адреса не 
 $TLS_passwd_dont_match = "Вы ввели разные пароли, попробуйте еще раз.";
 $TLS_user_cant_be_created_because = "Ваша учетная запись не может быть создана, потому что : ";
 $TLS_user_name_exists = "Пользователь с таким именем уже существует, выберете другое имя";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Имя пользователя должно содержать только буквы, цифры, пробел, тире и подчеркивание";
 $TLS_warning_empty_pwd = "Ваш пароль не может быть пустым!";
 $TLS_your_info_please = "Введите подробные данные о себе";

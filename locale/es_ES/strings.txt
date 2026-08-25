@@ -463,6 +463,7 @@ $TLS_passwd_dont_match = "Las dos contraseñas introducidas no coinciden. Ten en
                         "Por favor, inténtalo de nuevo.";
 $TLS_user_cant_be_created_because = "No se puede crear tu cuenta porque:";
 $TLS_user_name_exists = "Usuario/Nombre ya existe. Por favor, selecciona uno diferente.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_valid_user_name_format = "Usuario/Nombre sólo puede contener letras, números, espacios, guiones y guiones bajos.";
 $TLS_warning_empty_pwd = "¡La contraseña no debería estar vacía!";
 $TLS_your_info_please = "Introduce la Información del Nuevo Usuario";

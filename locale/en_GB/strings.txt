@@ -484,6 +484,7 @@ $TLS_no_good_email_address = "Email address format seems no good. Check domain(s
 $TLS_passwd_dont_match = "The two passwords entered did not match. Note that passwords are case sensitive. " .
                          "Please try again.";
 $TLS_user_name_exists = "Login/User name is already in use, please select another one.";
+$TLS_email_already_used = "This email address is already in use, please use another one.";
 $TLS_your_info_please = "Sign up";
 $TLS_new_account = "TestLink - New Account Created";
 
