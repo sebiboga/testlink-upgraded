@@ -29,7 +29,7 @@ if (file_exists($rootDir . '/config.inc.php')) {
 /**
  * Check PHP version
  */
-function checkPHPVersion() {
+function sysinfo_checkPHPVersion() {
     $version = phpversion();
     $minVersion = '7.4';
     $status = version_compare($version, $minVersion, '>=') ? 'OK' : 'ERROR';
@@ -45,7 +45,7 @@ function checkPHPVersion() {
 /**
  * Check PHP extensions
  */
-function checkPHPExtensions() {
+function sysinfo_checkPHPExtensions() {
     $required = [
         'mysqli' => 'Database support',
         'gd' => 'Image processing',
@@ -260,8 +260,8 @@ if (!IS_CLI) {
 }
 
 // Collect all information
-$phpVersion = checkPHPVersion();
-$phpExtensions = checkPHPExtensions();
+$phpVersion = sysinfo_checkPHPVersion();
+$phpExtensions = sysinfo_checkPHPExtensions();
 $memory = checkMemoryLimits();
 $database = checkDatabase();
 $server = checkServerEnvironment();
