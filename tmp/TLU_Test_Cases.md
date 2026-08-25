@@ -4699,7 +4699,7 @@ Suite result: **5/5 PASS**
 **Test Execution Date:** 2026-08-25
 **Result:** PASS
 
-## Suite 688 — setTestCaseTestSuite XML-RPC error message prefix — Refs #685
+## Suite 688 — setTestCaseTestSuite XML-RPC error message prefix — Refs #658
 
 **Precondition:** TestLink app running at http://localhost:8082, XML-RPC endpoint at /lib/api/xmlrpc/v1/xmlrpc.php.
 
