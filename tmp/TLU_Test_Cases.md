@@ -5324,3 +5324,52 @@ Issue tracker enabled on the test project.
      *Expected:* No new Error/Warning entries beyond pre-existing `$key` undefined variable warning at lnl.php:129.
 
 ### Result: 14/14 PASS
+
+---
+
+## TC-39: Regression — Issue #551: DataTablesLengthMenu include-param typo in 3 templates
+
+### Preconditions
+- TestLink 2.0.1 running at http://localhost:8082
+- Admin user (admin/admin) logged in
+- Project "TestProject" (tproject_id=1) exists with a Test Plan "TestPlan1" (tplan_id=2) containing at least one Build
+
+### Description
+Verify that the DataTablesLengthMenu parameter case-sensitivity typo is fixed in buildView.tpl, containerMoveTC.tpl, and cfieldsTprojectAssign.tpl. Smarty variable names are case-sensitive; passing DataTablesLengthMenu (lowercase l) while DataTables.inc.tpl reads DataTablesLengthMenu (uppercase L) causes E_WARNING on PHP 8.1+.
+
+### Steps
+
+#### TC-39.1: Build Management page (buildView.tpl)
+1. Navigate to http://localhost:8082/lib/plan/buildView.php?tproject_id=1&tplan_id=2
+   *Expected:* Build Management page renders with DataTable showing existing builds.
+2. Inspect browser console for errors.
+   *Expected:* No JavaScript errors related to DataTable initialization.
+3. Check the "Show entries" dropdown options.
+   *Expected:* Dropdown shows [20, 40, 60, All] from the configured pagination length.
+4. Check the server Event Viewer / events table for new E_WARNING entries referencing DataTables.inc.tpl.
+   *Expected:* No new "Undefined array key DataTablesLengthMenu" or "Attempt to read property value on null" warnings.
+
+#### TC-39.2: Move/Copy Test Cases dialog (containerMoveTC.tpl)
+1. Navigate to Test Case Design, select a test suite with test cases.
+2. Select test case(s) and click "Move/Copy".
+   *Expected:* The Move/Copy dialog renders with a DataTable and correct lengthMenu.
+3. Check browser console and Event Viewer for DataTablesLengthMenu warnings.
+   *Expected:* No new E_WARNING entries.
+
+#### TC-39.3: Assign Custom Fields to Test Project (cfieldsTprojectAssign.tpl)
+1. Navigate to Projects > Assign Custom Fields.
+   *Expected:* The assignment page renders with a DataTable and correct lengthMenu.
+2. Check browser console and Event Viewer for DataTablesLengthMenu warnings.
+   *Expected:* No new E_WARNING entries.
+
+### Expected Result
+All three pages render DataTables with correct lengthMenu configuration. Zero new E_WARNING entries in the events table related to DataTablesLengthMenu.
+
+### Actual Result
+- TC-39.1: PASS — Build view shows DataTable with lengthMenu [20, 40, 60, All], console clean, no new warnings in Event Viewer.
+- TC-39.2: PASS — ContainerMoveTC dialog renders correctly with correct DataTable config, no new warnings.
+- TC-39.3: PASS — cfieldsTprojectAssign renders correctly with correct DataTable config, no new warnings.
+
+### Test Data
+- Compiled template verified: buildView.tpl.php now passes `DataTablesLengthMenu` (uppercase L)
+- `grep -r DataTableslengthMenu gui/templates_c/` returns 0 matches
