@@ -1701,12 +1701,11 @@ if ($action === 'results_flat') {
         'getExecutionTimestamp' => true,
         'getExecutionDuration' => true,
     ];
-    $buildSet = is_array($idSet) ? $idSet : [];
+    $buildSet = is_array($idSet) ? $idSet : null;
     $execStatus = $metricsMgr->getExecStatusMatrixFlat($tplanId,
         ['buildSet' => $buildSet], $opt);
 
     $metrics = $execStatus['metrics'];
-    $latestExecution = $execStatus['latestExec'];
 
     // Resolve user names for assigned_to and tested_by columns
     $userSet = getUsersForHtmlOptions($db, null, null, null, null,
@@ -1720,10 +1719,9 @@ if ($action === 'results_flat') {
             lang_get($cfgResults['status_label'][$verbose]);
     }
 
-    // Priority labels
-    $prioCfg = config_get('urgencyImportance');
+    // Priority labels (from urgency config - matches legacy resultsTCFlat.php)
     $prioLabels = [];
-    foreach (config_get('priority')['code_label'] as $pcode => $plabel) {
+    foreach (config_get('urgency')['code_label'] as $pcode => $plabel) {
         $prioLabels[intval($pcode)] = lang_get($plabel);
     }
 
@@ -1743,9 +1741,6 @@ if ($action === 'results_flat') {
         }
     }
 
-    // Priority threshold config
-    $priorityCfg = config_get('urgencyImportance');
-
     $rowsOut = [];
     if (!is_null($metrics) && count($metrics) > 0) {
         foreach ($metrics as $mrow) {
@@ -1760,15 +1755,8 @@ if ($action === 'results_flat') {
             $statusLabel = isset($statusLabels[$status])
                 ? $statusLabels[$status] : $status;
 
-            // Priority level
-            $urgImp = $mrow['urg_imp'] ?? 0;
-            if ($urgImp >= $priorityCfg->threshold['high']) {
-                $prioLevel = HIGH;
-            } elseif ($urgImp < $priorityCfg->threshold['low']) {
-                $prioLevel = LOW;
-            } else {
-                $prioLevel = MEDIUM;
-            }
+            // Priority level (pre-computed by getExecStatusMatrixFlat)
+            $prioLevel = intval($mrow['priority_level'] ?? MEDIUM);
             $prioLabel = isset($prioLabels[intval($prioLevel)])
                 ? $prioLabels[intval($prioLevel)] : '';
 
