@@ -153,6 +153,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_tcases_with_cf') {
         $hrefR = 'gui/templates/results/tcasesWithCF.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #688 - Test Cases Never Run (neverRunByPP) modernized;
+      // the BFF (api/reports never_run_init/never_run_result actions) reuses
+      // the very same tlTestPlanMetrics::getNeverRunByPlatform() call and
+      // enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_never_run') {
+        $hrefR = 'gui/templates/results/neverRun.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }
