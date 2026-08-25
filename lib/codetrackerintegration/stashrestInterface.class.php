@@ -44,19 +44,23 @@ class stashrestInterface extends codeTrackerInterface
    **/
   function completeCfg()
   {
-    $base = trim($this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    $base = '';
+    if( property_exists($this->cfg,'uribase') && is_string($this->cfg->uribase) )
+    {
+      $base = trim((string)$this->cfg->uribase,"/") . '/'; // be sure no double // at end
+    }
 
-    if( !property_exists($this->cfg,'uriapi') )
+    if( $base !== '' && !property_exists($this->cfg,'uriapi') )
     {
       $this->cfg->uriapi = $base . 'rest/api/1.0/';
     }
 
-    if( !property_exists($this->cfg,'uriview') )
+    if( $base !== '' && !property_exists($this->cfg,'uriview') )
     {
       $this->cfg->uriview = $base . 'projects/';
     }
       
-    if( !property_exists($this->cfg,'uricreate') )
+    if( $base !== '' && !property_exists($this->cfg,'uricreate') )
     {
       $this->cfg->uricreate = $base . '';
     }
@@ -80,7 +84,9 @@ class stashrestInterface extends codeTrackerInterface
    **/
   function getEnterCodeURL()
   {
-    return $this->cfg->uricreate . 'projects';
+    $base = (property_exists($this->cfg,'uricreate') && is_string($this->cfg->uricreate))
+            ? $this->cfg->uricreate : '';
+    return $base . 'projects';
   }
 
   /**
@@ -122,7 +128,8 @@ class stashrestInterface extends codeTrackerInterface
 
       $this->stashCfg = array('username' => $username,
                    'password' => $password,
-                   'host' => (string)trim($this->cfg->uriapi));
+                   'host' => (property_exists($this->cfg,'uriapi') && is_string($this->cfg->uriapi))
+                             ? (string)trim($this->cfg->uriapi) : '');
 
       $this->stashCfg['proxy'] = config_get('proxy');
       if( !is_null($this->stashCfg['proxy']) )

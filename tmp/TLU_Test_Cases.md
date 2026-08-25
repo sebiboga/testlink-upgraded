@@ -4781,22 +4781,30 @@ Fixture: project "TestProject1" (id=1), test plan "TestPlan1" (id=2) with **zero
 
 ---
 
-## Regression — Issue #693: Consolidate PDF viewers (viewer.php + docviewer.php → tools/viewer.php)
+## Regression — Issue #651: unguarded cfg property reads raise E_WARNING for incomplete codetracker configs
 
-**Refs:** #693 · **Date:** 2026-08-25
-**Fix commit:** `331a1ddc3` — consolidate two duplicate PDF viewers into `tools/viewer.php`, delete root copies, update `aside.tpl`.
+**Refs:** #651 · **Branch:** `fix/issue-651-stash-cfg-guard` · **Date:** 2026-08-25
+**Fix:** `property_exists() + is_string()` guard around `uribase` read in `completeCfg()`, plus downstream guards in `getEnterCodeURL()` and `connect()`.
+**Files under test:** `lib/codetrackerintegration/stashrestInterface.class.php` (functions `completeCfg()`, `getEnterCodeURL()`, `connect()`)
 
-**Precondition:** TestLink at http://localhost:8082, admin logged in. PDF docs exist in `docs/` directory.
+**Precondition:** fresh DB import; PHP 8.3.33; error_reporting=E_ALL.
+Test fixture: XML codetracker configs with varying levels of completeness.
+
+**Root cause (pre-fix):** `completeCfg()` read `$this->cfg->uribase` without guard. For missing `<uribase>`, PHP 8.3 fires `E_WARNING: Undefined property` + `E_DEPRECATED: trim(): null`. For empty `<uribase></uribase>`, a `Fatal TypeError` on `trim(stdClass)`. `getEnterCodeURL()` and `connect()` also had unguarded reads on `uricreate`/`uriapi`.
 
 | # | Test | Steps | Expected | Result |
 |---|------|-------|----------|--------|
-| 1 | New viewer serves PDF | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php?file=testlink_user_manual` | HTTP 200 | PASS |
-| 2 | All 8 PDFs accessible | Loop all whitelist keys (testlink_user_manual, testlink_installation_manual, tl_file_formats, excel2testlink, fckeditor_config, tl_bts_howto, good_test_case, youtrack_readme) | All return HTTP 200 | PASS |
-| 3 | Invalid file returns 404 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php?file=nonexistent` | HTTP 404 | PASS |
-| 4 | Empty file param returns 404 | `curl -s -o /dev/null -w "%{http_code}" http://localhost:8082/tools/viewer.php` | HTTP 404 | PASS |
-| 5 | Root viewer.php deleted | `ls viewer.php docviewer.php` from repo root | Both files do not exist | PASS |
-| 6 | aside.tpl updated | `grep -c "tools/viewer.php" gui/templates/dashio/aside.tpl` | 6 references (all links point to new path) | PASS |
-| 7 | No stale references | `grep -r "viewer\.php" --include="*.php" --include="*.tpl" --include="*.html" . \| grep -v eventviewer \| grep -v lib/docs` | Zero matches (excluding eventviewer and the new file itself) | PASS |
-| 8 | MODERNIZATION-STATUS.md updated | `grep "tools/viewer.php" docs/MODERNIZATION-STATUS.md` | 1 match (path updated) | PASS |
+| 1 | Empty root config | `new stashrestInterface("stashrest", "<codetracker></codetracker>", "t1")` | No warnings, `connected=false`, `completeCfg()` returns cleanly | PASS |
+| 2 | Partial config (no uribase) | `new stashrestInterface("stashrest", "<codetracker><username>u</username><password>p</password></codetracker>", "t2")` | No warnings, `connected=false` | PASS |
+| 3 | Empty uribase tag | `new stashrestInterface("stashrest", "<codetracker><uribase></uribase></codetracker>", "t3")` | No fatal TypeError, graceful fallback | PASS |
+| 4 | Full valid config | `new stashrestInterface("stashrest", "<codetracker><uribase>https://example.com/</uribase><username>u</username><password>p</password></codetracker>", "t4")` | `uriapi`/`uriview`/`uricreate` built correctly from base URL | PASS |
+| 5 | Explicit uriapi preserved | Config with both `uribase` and explicit `uriapi` | Custom `uriapi` not overwritten by default | PASS |
+| 6 | uribase without trailing slash | `uribase=https://example.com` | Trailing slash added, `uricreate=https://example.com/` | PASS |
+| 7 | Empty creds skip | Config with `uribase` but empty username/password | `connected=false`, no warnings | PASS |
+| 8 | getEnterCodeURL with full config | Call `getEnterCodeURL()` on fully configured interface | Returns `https://bitbucket.example.com/projects` | PASS |
+| 9 | getEnterCodeURL with no uribase | Call `getEnterCodeURL()` on interface with no uribase | Returns `projects` (no crash, no warning) | PASS |
+| 10 | connect() with no uriapi | Partial config with credentials but no uribase/uriapi | No warning from `connect()` host read; `connected=false` (server unreachable) | PASS |
+| 11 | PHP syntax check | `php -l lib/codetrackerintegration/stashrestInterface.class.php` | "No syntax errors detected" | PASS |
+| 12 | Events table clean | `SELECT * FROM events` after all tests | Zero new E_WARNING rows from stashrestInterface | PASS |
 
-**Result: 8/8 PASS** (2026-08-25, curl against http://localhost:8082)
+**Result: 12/12 PASS** (2026-08-25, PHP CLI + mysql against localhost)
