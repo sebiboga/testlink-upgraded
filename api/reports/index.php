@@ -1835,5 +1835,243 @@ if ($action === 'results_flat') {
     out($payload);
 }
 
+// ---------------------------------------------------------------------------
+// Absolute Latest Execution Results on Test Plan (Refs #686)
+// Modernizes lib/results/resultsTCAbsoluteLatest.php as reached from the
+// Reports sub-menu entry link_report_test_absolute_latest_exec. Two-step
+// flow: launcher (pick platform) → results (matrix of latest exec status per
+// test case on the selected platform, ignoring builds). Right gate:
+// 'testplan_metrics' — the same right the legacy screen enforces through
+// checkRights() via resultsNavigator.php.
+// ---------------------------------------------------------------------------
+if ($action === 'absolute_latest_init') {
+    // Launcher phase: return context + platforms for the dropdown
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $platformSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $platforms = [];
+    if (!is_null($platformSet) && count($platformSet) > 0) {
+        foreach ($platformSet as $pid => $pname) {
+            $platforms[] = ['id' => intval($pid), 'name' => $pname];
+        }
+    }
+
+    // Priority enabled flag
+    $projOpts = $proj['opt'] ?? null;
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+    // XLS export URL (stays on legacy controller)
+    $exportXlsUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
+        FORMAT_XLS . '&doAction=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId;
+    $sendMailUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
+        FORMAT_MAIL_HTML . '&doAction=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId;
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'platforms' => $platforms,
+        'priority_enabled' => $priorityEnabled,
+        'export_xls_url' => $exportXlsUrl,
+        'send_mail_url' => $sendMailUrl,
+    ]);
+}
+
+if ($action === 'absolute_latest_result') {
+    // Results phase: return matrix data for the selected platform
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $platformId = intval(getParam('platform_id', 0));
+    if ($platformId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing platform id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Priority enabled flag
+    $projOpts = $proj['opt'] ?? null;
+    $priorityEnabled = is_object($projOpts)
+        ? !empty($projOpts->testPriorityEnabled)
+        : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+    $tcCfg = config_get('testcase_cfg');
+    $fullPrefix = $proj['prefix'] . $tcCfg->glue_character;
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // Fetch data — same calls as legacy doProcess(), but guard against
+    // PHP 8.x count(null) crash in getNeverRunOnSinglePlatform when there
+    // are no active+open builds.
+    $neverRun = [];
+    $neverRunRaw = $metricsMgr->getNeverRunOnSinglePlatform($tplanId, $platformId);
+    if (is_array($neverRunRaw)) {
+        $neverRun = $neverRunRaw;
+    }
+    $execStatusRaw = $metricsMgr->getLatestExecOnSinglePlatformMatrix(
+        $tplanId, $platformId, ['output' => 'array']);
+    $execStatus = is_array($execStatusRaw) ? $execStatusRaw : [];
+
+    // Merge never-run + executed into one dataset
+    $allExec = array_merge($neverRun, $execStatus);
+
+    // Status vocabulary resolved server-side
+    $cfgResults = config_get('results');
+    $statusLabels = [];
+    foreach ($cfgResults['status_code'] as $verbose => $scode) {
+        $statusLabels[$scode] = lang_get($cfgResults['status_label'][$verbose]);
+    }
+
+    // Priority threshold
+    $priorityCfg = config_get('urgencyImportance');
+    $prioLabels = [];
+    foreach (config_get('priority')['code_label'] as $pcode => $plabel) {
+        $prioLabels[intval($pcode)] = lang_get($plabel);
+    }
+
+    // Build row dataset — faithful port of legacy buildDataSet()
+    $treeMgr = new tree($db);
+    $tsuiteCache = [];
+    $rowsOut = [];
+
+    foreach ($allExec as $iidx => $tcases) {
+        foreach ($tcases as $tcaseID => $platforms) {
+            foreach ($platforms as $platID => $execData) {
+                $rf = $execData[0];
+                $tsuiteID = $rf['tsuite_id'];
+
+                if (!isset($tsuiteCache[$tsuiteID])) {
+                    $tsuiteCache[$tsuiteID] =
+                        implode("/", $treeMgr->get_path($tsuiteID, null, 'name'));
+                }
+
+                $externalId = $fullPrefix . $rf['external_id'];
+                $tcName = htmlspecialchars($externalId . ':' . $rf['name'], ENT_QUOTES);
+
+                // Priority level
+                $prioLevel = 0;
+                $prioLabel = '';
+                if ($priorityEnabled) {
+                    $urgImp = $rf['urg_imp'] ?? 0;
+                    if ($urgImp >= $priorityCfg->threshold['high']) {
+                        $prioLevel = HIGH;
+                    } elseif ($urgImp < $priorityCfg->threshold['low']) {
+                        $prioLevel = LOW;
+                    } else {
+                        $prioLevel = MEDIUM;
+                    }
+                    $prioLabel = isset($prioLabels[intval($prioLevel)])
+                        ? $prioLabels[intval($prioLevel)] : '';
+                }
+
+                // Status
+                $statusCode = $rf['status'];
+                $statusLabel = isset($statusLabels[$statusCode])
+                    ? $statusLabels[$statusCode] : $statusCode;
+
+                // Version tag
+                $versionTag = isset($rf['version'])
+                    ? ' v' . intval($rf['version']) : '';
+
+                // Execution notes
+                $execNotes = '';
+                if (isset($rf['execution_notes']) && !is_null($rf['execution_notes'])) {
+                    $execNotes = $rf['execution_notes'];
+                }
+
+                $rowsOut[] = [
+                    'tsuite_name' => $tsuiteCache[$tsuiteID],
+                    'tcase_id' => intval($tcaseID),
+                    'external_id' => $externalId,
+                    'tc_name' => $rf['name'],
+                    'platform_name' => isset($rf['platform_name'])
+                        ? $rf['platform_name'] : '',
+                    'priority_level' => intval($prioLevel),
+                    'priority_label' => $prioLabel,
+                    'status_code' => $statusCode,
+                    'status_label' => $statusLabel,
+                    'version_tag' => $versionTag,
+                    'exec_notes' => $execNotes,
+                ];
+            }
+        }
+    }
+
+    // XLS export URLs (legacy controller handles format=XLS)
+    $exportXlsUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
+        FORMAT_XLS . '&doAction=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
+    $sendMailUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
+        FORMAT_MAIL_HTML . '&doAction=result&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
+
+    // Platform name for header
+    $platformMap = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    $platformName = isset($platformMap[$platformId]) ? $platformMap[$platformId] : '';
+
+    out([
+        'status' => 'ok',
+        'hasData' => count($rowsOut) > 0,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'platform_id' => $platformId,
+        'platform_name' => $platformName,
+        'priority_enabled' => $priorityEnabled,
+        'rows' => $rowsOut,
+        'export_xls_url' => $exportXlsUrl,
+        'send_mail_url' => $sendMailUrl,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
