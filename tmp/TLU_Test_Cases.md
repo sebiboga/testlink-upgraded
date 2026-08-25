@@ -5201,3 +5201,126 @@ Issue tracker enabled on the test project.
      *Expected:* HTTP 400 with "Test plan not found".
 
 ### Result: 17/17 PASS (pending full verification)
+
+---
+
+## Suite 38: Regression — Issue #706: XSS Fixes (logout.php, lnl.php, index.php)
+
+**Precondition:** TestLink running at http://localhost:8082; admin/admin credentials; database fresh import.
+
+### TC-38.1: logout.php XSS via `</script>` injection
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Send request: `GET /logout.php?viewer=</script><script>alert(1)</script>`
+     *Expected:* HTTP 302 with `Location` header, NO `<script>` tag in response body.
+  3. Verify the response body is empty (no JS redirect code).
+
+### TC-38.2: logout.php normal redirect works
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/logout.php` (no parameters).
+     *Expected:* HTTP 302 redirect to `login.php?note=logout&viewer=`.
+  3. Verify the browser lands on the login page.
+
+### TC-38.3: logout.php viewer parameter passed through safely
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/logout.php?viewer=myvalue`.
+     *Expected:* HTTP 302 redirect to `login.php?note=logout&viewer=myvalue`.
+
+### TC-38.4: lnl.php XSS via type parameter
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Get a valid 64-char object API key (from testprojects table).
+  2. Send request: `GET /lnl.php?type=<script>alert(1)</script>&apikey=<valid_key>&entities=7`
+     *Expected:* Response body contains `&lt;script&gt;alert(1)&lt;/script&gt;` (HTML-escaped).
+  3. Verify NO raw `<script>` tag appears in the output.
+
+### TC-38.5: lnl.php unknown type error is displayed correctly
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Send request with an unknown type and valid API key.
+     *Expected:* Response body shows `ABORTING - UNKNOWN TYPE:` followed by the sanitized type string.
+
+### TC-38.6: index.php data: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=data:text/html,<script>alert(1)</script>`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+  3. Verify no `data:` appears in any iframe src attribute.
+
+### TC-38.7: index.php vbscript: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=vbscript:MsgBox(1)`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.8: index.php encoded javascript: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=java%09script:alert(1)` (tab-split)
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.9: index.php URL-encoded javascript: URI blocked
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=javascript%3Aalert(1)`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.10: index.php absolute URL blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=http://evil.com/malicious`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.11: index.php normal path works
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=lib/general/mainPage.php`
+     *Expected:* iframe src is `http://localhost:8082/lib/general/mainPage.php`.
+
+### TC-38.12: index.php returnFeature parameter works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?returnFeature=editTc`
+     *Expected:* iframe src resolves to `lib/general/frmWorkArea.php?feature=editTc`.
+
+### TC-38.13: index.php no reqURI shows default
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php` (no parameters).
+     *Expected:* iframe src is `http://localhost:8082/lib/general/mainPage.php`.
+
+### TC-38.14: Event Viewer has no new errors after XSS fixes
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Execute TC-38.1 through TC-38.13.
+  2. Check Event Viewer screen / events table.
+     *Expected:* No new Error/Warning entries beyond pre-existing `$key` undefined variable warning at lnl.php:129.
+
+### Result: 14/14 PASS
