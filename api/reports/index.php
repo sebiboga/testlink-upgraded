@@ -1514,7 +1514,11 @@ if ($action === 'quick_exec') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Missing parameters']);
     }
-    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $qeTplan)) {
+    // Resolve the owning project from the plan so hasRight() checks
+    // project-level roles correctly (the JS POST has no tproject_id).
+    $qePlanInfo = $tplanMgr->get_by_id($qeTplan);
+    $qeProjId = intval($qePlanInfo['testproject_id'] ?? 0);
+    if (!$user->hasRight($db, 'testplan_execute', $qeProjId, $qeTplan)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }

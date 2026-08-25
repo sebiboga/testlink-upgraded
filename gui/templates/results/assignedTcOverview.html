@@ -115,7 +115,7 @@ function toast(msg, type) {
 }
 
 function warn(msg) {
-  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  if (msg) { $('#warnBox').text(msg).show().prepend('<i class="fa fa-exclamation-triangle"></i> '); }
   else { $('#warnBox').hide(); }
 }
 
