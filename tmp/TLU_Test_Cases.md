@@ -5477,3 +5477,30 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 - **Actual (post-fix):** No debug output detected in response.
 
 **Result:** All 4 tests PASS
+
+---
+
+## Regression — Issue #555: PHP 8 array-offset-on-null in getInterfaceObject()
+
+### Test Case 1 — Orphaned tracker link does not trigger E_WARNING
+- **Pre-requisite:** Project with `issue_tracker_enabled=1` and a `testproject_issuetracker` row pointing to a non-existent `issuetrackers.id`
+- **Steps:**
+  1. Insert `issuetrackers` row (id=1, type=25) and link to project via `testproject_issuetracker`
+  2. Delete the `issuetrackers` row (creating orphaned link)
+  3. Navigate to `index.php?tproject_id=1` (triggers `getInterfaceObject()`)
+  4. Check PHP error log for "Trying to access array offset on null" at `tlIssueTracker.class.php:690`
+  5. Check Event Viewer (`events` table) for new Error/Warning entries
+- **Expected:** No PHP 8 E_WARNING at line 690. `getInterfaceObject()` returns null gracefully. No new Event Viewer entries.
+- **Actual (post-fix):** No PHP warning. Page loads normally. Event Viewer unchanged (only pre-existing CREATE/LOGIN events).
+- **Result:** PASS
+
+### Test Case 2 — Valid tracker link still works after fix
+- **Pre-requisite:** Project with `issue_tracker_enabled=1` and valid `issuetrackers` row linked
+- **Steps:**
+  1. Recreate `issuetrackers` row (id=1, type=25) and link to project
+  2. Navigate to `index.php?tproject_id=1`
+  3. Verify no PHP warnings in console or Event Viewer
+  4. Verify page loads without errors
+- **Expected:** Normal page load, no warnings, no Event Viewer errors
+- **Actual (post-fix):** Page loads cleanly. No console errors. No new Event Viewer entries.
+- **Result:** PASS
