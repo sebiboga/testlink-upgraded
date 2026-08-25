@@ -2508,7 +2508,7 @@ if ($action === 'tcases_with_cf') {
 if ($action === 'never_run_init') {
     $timerOn = microtime(true);
 
-    if ($tplanId <= 0) {
+    if ($tplanId <= 0 || $tprojectId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'No test plan selected']);
         exit;
@@ -2527,8 +2527,7 @@ if ($action === 'never_run_init') {
         exit;
     }
 
-    $proj = new testproject($db);
-    $projInfo = $proj->get_by_id($tprojectId);
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
 
     // Platform list (same as legacy initializeGui())
     $platOpts = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map', 'addIfNull' => true]);
@@ -2549,6 +2548,7 @@ if ($action === 'never_run_init') {
 
     out([
         'status' => 'ok',
+        'hasContext' => true,
         'tproject_id' => $tprojectId,
         'tplan_id' => $tplanId,
         'tproject_name' => $projInfo['name'] ?? '',
@@ -2556,7 +2556,6 @@ if ($action === 'never_run_init') {
         'show_platforms' => $showPlatforms,
         'platforms' => $platforms,
         'export_xls_url' => $exportUrl,
-        'send_mail_url' => '',
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;
@@ -2571,7 +2570,7 @@ if ($action === 'never_run_init') {
 if ($action === 'never_run_result') {
     $timerOn = microtime(true);
 
-    if ($tplanId <= 0) {
+    if ($tplanId <= 0 || $tprojectId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'No test plan selected']);
         exit;
@@ -2618,33 +2617,13 @@ if ($action === 'never_run_result') {
 
     if ($hasData) {
         $tcaseMgr = new testcase($db);
-        $proj = new testproject($db);
-        $tcasePrefix = $proj->getTestCasePrefix($tprojectId);
+        $tcasePrefix = $tprojectMgr->getTestCasePrefix($tprojectId);
 
-        // Build platform name cache
+        // Build platform name cache (raw — client handles escaping for JSON)
         $platNameCache = [];
         if ($showPlatforms) {
             foreach ($platOpts as $pid => $pname) {
-                $platNameCache[intval($pid)] = htmlspecialchars($pname);
-            }
-        }
-
-        // Build path cache
-        $pathCache = [];
-        $levelCache = [];
-        $topCache = [];
-        foreach ($metrics as $elem) {
-            $tcId = $elem['tcase_id'];
-            if (!isset($pathCache[$tcId])) {
-                $du = $tcaseMgr->getPathLayered([$tcId]);
-                if (is_array($du)) {
-                    foreach ($du as $tsId => $pathInfo) {
-                        $pathCache[$tcId] = $pathInfo['value'] ?? '';
-                        $levelCache[$tcId] = $pathInfo['level'] ?? 0;
-                        $topCache[$tcId] = $tsId;
-                        break;
-                    }
-                }
+                $platNameCache[intval($pid)] = $pname;
             }
         }
 
@@ -2663,14 +2642,14 @@ if ($action === 'never_run_result') {
         }
     }
 
-    $proj = new testproject($db);
-    $projInfo = $proj->get_by_id($tprojectId);
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
 
     $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
         "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
 
     out([
         'status' => 'ok',
+        'hasContext' => true,
         'hasData' => $hasData,
         'tproject_id' => $tprojectId,
         'tplan_id' => $tplanId,
@@ -2680,7 +2659,6 @@ if ($action === 'never_run_result') {
         'rows' => $rows,
         'info_msg' => $hasData ? '' : lang_get('info_notrun_tc_report'),
         'export_xls_url' => $exportUrl,
-        'send_mail_url' => '',
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;
