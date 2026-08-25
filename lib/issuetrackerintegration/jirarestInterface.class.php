@@ -146,8 +146,10 @@ class jirarestInterface extends issueTrackerInterface
       // json_decode(json_encode(simplexml)), then a MISSING element is an
       // undefined property and an EMPTY element (<username></username>) is a
       // stdClass with no properties - both must yield '' without PHP8 warnings.
-      // NOTE: do NOT merge into one ?? ternary expression - miscompiles on this
-      // runtime (PHP 8.3.33 evaluates the true-branch of the ternary anyway).
+      // NOTE: keep this as an explicit two-statement guard - on this runtime
+      // (PHP 8.3.33) a compact form like trim(is_string($cfg->username ?? '')
+      // ? $cfg->username : '') was MEASURED to fire the true-branch even when
+      // the property is missing, re-introducing PHP8 warnings.
       $username = '';
       if (isset($this->cfg->username) && is_string($this->cfg->username)) {
         $username = trim($this->cfg->username);
