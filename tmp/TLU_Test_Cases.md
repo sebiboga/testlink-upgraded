@@ -25,7 +25,8 @@ TLU: TestLink Upgraded 2.0.1
 ├── Login (23)
 ├── i18n / Localization (24)
 ├── Custom Fields Modernized (25)
-└── Header Fix #523 (26)
+├── Header Fix #523 (26)
+└── Results by Status #695 (Suite 35)
 ```
 
 ---
@@ -1390,7 +1391,8 @@ TLU: TestLink Upgraded 2.0.1
 | Header Fix #523 | 3 | 1 | 2 | 0 |
 | Assign Custom Fields (Modernized) | 14 | 8 | 5 | 1 |
 | Platform Management (Modernized) | 18 | 11 | 5 | 2 |
-| **TOTAL** | **120** | **71** | **45** | **8** |
+| Results by Status #695 | 15 | 10 | 1 | 4 |
+| **TOTAL** | **135** | **81** | **46** | **12** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |
@@ -4809,23 +4811,195 @@ Test fixture: XML codetracker configs with varying levels of completeness.
 
 **Result: 12/12 PASS** (2026-08-25, PHP CLI + mysql against localhost)
 
-## Suite 530 — Regression — Issue #530: tlPlatform::belongsToTestProject() always returns false
+---
 
-**Refs:** #530 · fix commit e9da5834c (already on default branch) · branch `fix/issue-530`
-**Files under test:** `lib/functions/tlPlatform.class.php` (`belongsToTestProject()` :557-567), `api/platforms/index.php` (`needOwnedPlatform()` :81-86)
+## 35. Issue #695: Results by Status Screen Modernization (Failed/Blocked/Not Run Reports)
 
-**Root cause:** `fetchRowsIntoMap($sql, 'id')` returns a map keyed by the platform's actual id value (e.g. `[999 => [...]]`), but the old code checked `isset($dummy['id'])` — looking for the literal string key `'id'`, which never exists. Always returned `false`. Fixed to `!is_null($dummy) && count($dummy) > 0`.
+**Screen:** `gui/templates/results/resultsByStatus.html` · **BFF API:** `api/reports/index.php?action=by_status`
+**Legacy:** `lib/results/resultsByStatus.php` (XLS/email export still served by legacy controller)
+**Path:** ASIDE → Reports → Failed Test Cases / Blocked Test Cases / Not Run Test Cases
+**Rights:** `testplan_metrics`
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306; database testlink.
+Test project "TestProj" (tproject_id=2, prefix RBS) with test plan "TestPlan1" (tplan_id=5),
+build "Build1" (id=1), test suite (id=6) containing TCs with failed, blocked, and not-run executions.
+Issue tracker enabled on the test project.
 
-**Precondition:** fresh DB; admin session at http://localhost:8082. Created test project id=1 "TestProject530", inserted platform id=999 with testproject_id=1.
+### TC-35.1: API Happy Path — Failed Status
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in as admin with `testplan_metrics` right. Test project and test plan with failed executions exist.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=failed&tproject_id=2&tplan_id=5` with valid session cookies.
+     *Expected:* HTTP 200 with JSON response.
+  2. Parse the JSON response body.
+     *Expected:* `status` is `"ok"`, `hasData` is `true`, `status_type` is `"failed"`, `title` is `"Failed Test Cases"`.
+  3. Inspect each object in the `rows` array.
+     *Expected:* Every row contains fields: `suite_name`, `test_title`, `version`, `build`, `tester`, `execution_ts`, `notes`. Rows reference executions with `status=failed`.
+  4. Check `export_xls_url` and `send_mail_url` fields.
+     *Expected:* Both are present and non-empty strings.
 
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Platform belongs to project | PHP CLI: `$platMgr->belongsToTestProject(999, 1)` | Returns TRUE | PASS |
-| 2 | Platform wrong project | PHP CLI: `$platMgr->belongsToTestProject(999, 999)` | Returns FALSE | PASS |
-| 3 | Non-existent platform | PHP CLI: `$platMgr->belongsToTestProject(12345, 1)` | Returns FALSE | PASS |
-| 4 | BFF API gate — valid ownership | `needOwnedPlatform($platMgr, 999, 1)` | Access granted (no 404) | PASS |
-| 5 | BFF API gate — wrong project | `needOwnedPlatform($platMgr, 999, 999)` | 404 returned | PASS |
-| 6 | Old code confirmed buggy | `git show 9a362993d:lib/functions/tlPlatform.class.php` had `isset($dummy['id'])` | Confirmed incorrect | PASS |
-| 7 | Event Viewer clean | No new Error/Warning events from test script | Zero new rows | PASS |
+### TC-35.2: API Happy Path — Blocked Status
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Same as TC-35.1. Test plan contains at least one blocked execution.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=blocked&tproject_id=2&tplan_id=5` with valid session.
+     *Expected:* HTTP 200 with JSON response.
+  2. Parse the JSON response body.
+     *Expected:* `status` is `"ok"`, `hasData` is `true`, `status_type` is `"blocked"`, `title` is `"Blocked Test Cases"`.
+  3. Inspect `rows` array.
+     *Expected:* Each row contains `suite_name`, `test_title`, `version`, `build`, `tester`, `execution_ts`, `notes`. Rows reference executions with `status=blocked`.
 
-**Result: 7/7 PASS** (2026-08-25, PHP CLI + mysql against http://localhost:8082)
+### TC-35.3: API Happy Path — Not Run Status
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Same test plan contains test cases assigned to testers but never executed.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=not_run&tproject_id=2&tplan_id=5` with valid session.
+     *Expected:* HTTP 200 with JSON response.
+  2. Parse the JSON response body.
+     *Expected:* `status` is `"ok"`, `hasData` is `true`, `status_type` is `"not_run"`, `title` is `"Not Run Test Cases"`.
+  3. Inspect `rows` array.
+     *Expected:* Each row contains `suite_name`, `test_title`, `version`, `build`, `tester` (assigned user display name), `notes` (test case summary). Rows do NOT contain `execution_ts` or bug-related fields.
+
+### TC-35.4: API Empty State — No Matching TCs
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan exists but no test cases match the requested status (e.g. no failed executions).
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=failed&tproject_id=2&tplan_id=5` with valid session.
+     *Expected:* HTTP 200 with JSON response.
+  2. Parse the JSON response body.
+     *Expected:* `status` is `"ok"`, `hasData` is `false`, `rows` is an empty array `[]`.
+  3. Inspect `warning_msg` field.
+     *Expected:* `warning_msg` is a non-empty string (e.g. a localized "no failed with tester" message), not `null`.
+
+### TC-35.5: API Invalid Status Value Returns 400
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in with valid session.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=invalid_status&tproject_id=2&tplan_id=5`.
+     *Expected:* HTTP 400 with JSON error response.
+  2. Parse the JSON body.
+     *Expected:* `status` is `"error"`, `message` indicates invalid status.
+
+### TC-35.6: API Missing Required Parameters Returns 400
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in with valid session.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=failed&tproject_id=2` (missing `tplan_id`).
+     *Expected:* HTTP 400 with JSON error: missing project or plan id.
+  2. Send GET request to `/api/reports/index.php?action=by_status&status=failed&tplan_id=5` (missing `tproject_id`).
+     *Expected:* HTTP 400 with JSON error: missing project or plan id.
+
+### TC-35.7: API No Permission Returns 403
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in as a role without `testplan_metrics` right.
+- **Steps:**
+  1. Send GET request to `/api/reports/index.php?action=by_status&status=failed&tproject_id=2&tplan_id=5` with the restricted session.
+     *Expected:* HTTP 403 with JSON response `{"status":"error","message":"No permission"}`.
+
+### TC-35.8: UI Rendering — Failed Status
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in as admin. Test project/plan with failed executions selected.
+- **Steps:**
+  1. Navigate to `resultsByStatus.html?tproject_id=2&tplan_id=5&status=failed` inside the mainframe.
+     *Expected:* Page loads with header "Results by Status", subtitle "for test plan TestPlan1", toolbar shows "Test Project: TestProj".
+  2. Inspect the data table.
+     *Expected:* Table has columns: Test Suite, Test Case, Version, Build, Run By, Date, Notes (and Bugs column when issue tracker enabled). At least one row is rendered.
+  3. Verify DataTables controls are present.
+     *Expected:* Pagination ("Showing X to Y of Z entries"), search box, and sortable column headers are functional.
+  4. Type a search term matching one row.
+     *Expected:* Table filters to matching rows; clearing search restores full list.
+
+### TC-35.9: UI Rendering — Blocked Status
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Same as TC-35.8. Test plan has blocked executions.
+- **Steps:**
+  1. Navigate to `resultsByStatus.html?tproject_id=2&tplan_id=5&status=blocked`.
+     *Expected:* Page title updates to "Blocked Test Cases - TestLink". Header, toolbar, and subtitle render correctly.
+  2. Inspect the data table.
+     *Expected:* Same column set as failed variant (Test Suite, Test Case, Version, Build, Run By, Date, Notes). Blocked TC rows are rendered.
+
+### TC-35.10: UI Rendering — Not Run Status (Different Columns)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan has unexecuted TCs with tester assignments.
+- **Steps:**
+  1. Navigate to `resultsByStatus.html?tproject_id=2&tplan_id=5&status=not_run`.
+     *Expected:* Page title is "Not Run Test Cases - TestLink".
+  2. Inspect the data table columns.
+     *Expected:* Columns are: Test Suite, Test Case, Version, Build, Assigned To, Summary. Columns "Run By", "Date", and "Notes" are NOT present.
+  3. Verify row data.
+     *Expected:* "Assigned To" shows assigned tester display names; "Summary" shows the test case summary text.
+
+### TC-35.11: UI Export URLs Point to Legacy Controller
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User on failed variant with data.
+- **Steps:**
+  1. Inspect the "Export as spreadsheet" button `href` attribute via browser devtools.
+     *Expected:* URL points to `/lib/results/resultsByStatus.php` with query params `type=f`, `format=3` (or spreadsheet=1), `tplan_id=5`, `tproject_id=2`.
+  2. Switch to blocked variant (`?status=blocked`), inspect Export button.
+     *Expected:* `type=b` in the legacy URL; other params correct.
+  3. Switch to not_run variant (`?status=not_run`), inspect Export button.
+     *Expected:* `type=n` in the legacy URL; other params correct.
+
+### TC-35.12: UI Email URL Points to Legacy Controller
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User on failed variant with data.
+- **Steps:**
+  1. Inspect the "Send spreadsheet by email" button `href` attribute.
+     *Expected:* URL points to `/lib/results/resultsByStatus.php` with query params `type=f`, `format=6`, `tplan_id=5`, `tproject_id=2`.
+  2. Verify the link opens in the hidden mail iframe (`target="avoidMailFrame"`).
+     *Expected:* The `<a>` tag has `target="avoidMailFrame"`.
+
+### TC-35.13: UI Empty State Shows Warning Message
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan exists with no test cases matching the requested status.
+- **Steps:**
+  1. Navigate to `resultsByStatus.html?tproject_id=2&tplan_id=5&status=failed` (or a status with no data).
+     *Expected:* Page loads without errors.
+  2. Inspect the page content area.
+     *Expected:* A warning/info message is displayed (e.g. the localized "no failed with tester" message) instead of the data table. The table area is either hidden or shows no rows.
+
+### TC-35.14: UI i18n — Page Title Changes Per Locale
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** User on failed variant. Locale switcher available.
+- **Steps:**
+  1. Load the failed variant in English.
+     *Expected:* Page title is "Failed Test Cases - TestLink"; header reads "Results by Status".
+  2. Switch locale to Deutsch via the locale switcher.
+     *Expected:* Page reloads with `?locale=de`; title and all labels change to German (e.g. "Fehlgeschlagene Testfälle").
+  3. Switch locale to Română.
+     *Expected:* Page reloads with `?locale=ro`; title and labels change to Romanian.
+  4. Switch to the not_run variant and repeat locale checks.
+     *Expected:* Title changes to the locale-appropriate translation of "Not Run Test Cases" (e.g. "Nicht ausgeführte Testfälle" in German).
+
+### TC-35.15: Aside Menu Redirects to resultsByStatus.html
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User logged in with `testplan_metrics` right. Test project and plan selected in session.
+- **Steps:**
+  1. Expand the "Reports" section in the aside menu.
+     *Expected:* Menu items "Failed Test Cases", "Blocked Test Cases", and "Not Run Test Cases" are visible.
+  2. Inspect the `href` of "Failed Test Cases" link.
+     *Expected:* Points to `/gui/templates/results/resultsByStatus.html?tproject_id=<N>&tplan_id=<M>&status=failed`.
+  3. Click "Failed Test Cases".
+     *Expected:* `resultsByStatus.html?status=failed` loads inside the mainframe with data rendered.
+  4. Return to aside, click "Blocked Test Cases".
+     *Expected:* `resultsByStatus.html?status=blocked` loads with blocked data.
+  5. Click "Not Run Test Cases".
+     *Expected:* `resultsByStatus.html?status=not_run` loads with not-run data and the correct column set (Assigned To + Summary instead of Run By + Date + Notes).
+
+---
+
+### Result: Suite 35 — Issue #695 — 15/15 PASS (date TBD)
