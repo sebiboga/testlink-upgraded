@@ -6686,3 +6686,52 @@ Steps:
 
 **Expected:** "No syntax errors detected".
 **Result: PASS** — No syntax errors detected.
+
+---
+
+## Regression — Issue #637: Legacy report PHP pages exit() silently when format param is null
+
+**Precondition:** Fresh DB import; test project "TestProject" (id=1, prefix TP), test plan "TestPlan1" (id=2); admin/admin session. Event Viewer events table empty before tests.
+
+**Test Case 637.1: resultsGeneral.php without format param returns HTML (not 0 bytes)**
+
+Steps:
+1. `curl -b <session> 'http://localhost:8082/lib/results/resultsGeneral.php?tproject_id=1&tplan_id=2'`
+2. Check HTTP status and response body size.
+
+**Expected:** HTTP 200, non-empty body (HTML report). Before fix: HTTP 200, 0 bytes (silent exit()).
+**Result: PASS** — HTTP 200, 4948 bytes returned. No zero-byte silent failure.
+
+**Test Case 637.2: resultsGeneral.php with explicit format=0 still works**
+
+Steps:
+1. `curl -b <session> 'http://localhost:8082/lib/results/resultsGeneral.php?tproject_id=1&tplan_id=2&format=0'`
+
+**Expected:** HTTP 200, non-empty HTML body.
+**Result: PASS** — HTTP 200, 4948 bytes returned.
+
+**Test Case 637.3: Legacy reports using initArgsForReports() all work without format**
+
+Steps:
+1. Test each of: resultsByTSuite.php, resultsTC.php, resultsTCFlat.php, resultsByTesterPerBuild.php, baselinel1l2.php, neverRunByPP.php, resultsTCAbsoluteLatest.php — all without format param.
+
+**Expected:** All return HTTP 200 with non-empty bodies.
+**Result: PASS** — All 7 reports returned HTTP 200 with 4115–19052 bytes each.
+
+**Test Case 637.4: Event Viewer shows no new errors after fix**
+
+Steps:
+1. Clear events table.
+2. Access all 8 legacy reports without format param.
+3. Check events table for new Error/Warning entries.
+
+**Expected:** Only WARNING entries with "defaulting to FORMAT_HTML" message. No E_WARNING.
+**Result: PASS** — 0 E_WARNING entries. Only informational WARNING log entries about format defaulting.
+
+**Test Case 637.5: Modernized HTML report wrappers still work**
+
+Steps:
+1. Navigate browser to `gui/templates/results/generalMetrics.html?tproject_id=1&tplan_id=2`
+
+**Expected:** Report loads, BFF API called successfully, UI renders.
+**Result: PASS** — Page loads with title "TestPlan1 - General Test Plan Metrics", BFF returns status ok.
