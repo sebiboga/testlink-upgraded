@@ -29,11 +29,15 @@ if(isset($authCfg['SSO_enabled']) && $authCfg['SSO_enabled']
   $xx = config_get('logoutUrl');
   $lo = is_null($xx) || trim($xx) == '' ? $std : $xx;
 
-  // XSS fix — use header() redirect instead of JS + addslashes
+  // Security: strip CR/LF to prevent header injection, validate URL
+  $lo = str_replace(array("\r", "\n"), '', $lo);
+  if (!preg_match('#^https?://#i', $lo) && $lo !== $std) {
+    $lo = $std;
+  }
+
   header("Location: " . $lo);
   exit;
 }
-exit();
 
 
 /**
