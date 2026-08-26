@@ -6375,3 +6375,46 @@ Legacy: `lib/results/freeTestCases.php`
 
 **Expected:** No new E_WARNING entries from this request.
 **Result: PASS (with caveat)** — No new events generated from authenticated browser request. Pre-existing E_WARNINGs in events table were from earlier unauthenticated curl requests that triggered a different code path. The chart correctly short-circuits when `canDraw=false` (line 39 skips `createChart()`). The `$items` undefined warning at line 98 only fires when the code reaches that line without `$items` being defined, which occurs when `canDraw` is false but execution continues past the `if($obj->canDraw)` block — this is a pre-existing cosmetic issue, not a functional bug.
+
+---
+
+## Regression — Issue #741: resultsByStatus.php E_WARNING get_by_id(NULL)
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, admin/admin login, test project "TestProject" (id=1), test plan "TestPlan1" (id=2).
+
+### TC-741-01: Legacy resultsByStatus.php no longer triggers get_by_id(NULL)
+
+**Steps:**
+1. Login as admin via browser
+2. Access legacy URL directly: `curl -b cookies http://localhost:8082/lib/results/resultsByStatus.php?type=b` (no tproject_id/tplan_id params)
+3. Grep output for "get_by_id(NULL)"
+4. Repeat for type=f (failed) and type=n (not_run)
+
+**Expected:** 0 occurrences of "get_by_id(NULL)" in output for all three status types. The page should render without PHP warnings, defaulting to the first available project/plan.
+
+**Result: PASS** — 0 matches for type=b, type=f, type=n. Page renders with correct project/plan context from session defaults.
+
+### TC-741-02: XLS export URL from BFF API works correctly
+
+**Steps:**
+1. Login as admin
+2. Call BFF API: `curl -b cookies "http://localhost:8082/api/reports/index.php?action=by_status&status=blocked&tproject_id=1&tplan_id=2"`
+3. Verify `export_xls_url` in response includes both tplan_id and tproject_id
+4. Access the export URL in browser
+
+**Expected:** BFF returns valid JSON with export_xls_url containing both params. XLS export URL loads without warnings.
+
+**Result: PASS** — BFF returns `"export_xls_url": "/lib/results/resultsByStatus.php?tplan_id=2&tproject_id=1&type=b&format=3&exportSpreadSheet_x=1"`. XLS URL loads without get_by_id(NULL) warnings.
+
+### TC-741-03: Modernized screen loads without errors
+
+**Steps:**
+1. Navigate browser to `gui/templates/results/resultsByStatus.html?tproject_id=1&tplan_id=2&status=blocked`
+2. Verify page loads with correct title "Blocked Test Cases - TestLink"
+3. Verify test plan name "TestPlan1" is displayed
+4. Verify test project name "TestProject" is displayed
+5. Check Event Viewer for new errors
+
+**Expected:** Modernized screen renders correctly with project/plan context. No new Error/Warning entries in Event Viewer.
+
+**Result: PASS** — Page loaded correctly, showed "There are no blocked test cases (WITH TESTER ASSIGNED)". No new errors in Event Viewer from this request.
