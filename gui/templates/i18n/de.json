@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Vergangene Zeit (Sekunden)",
   "cwt.allHaveTester": "Alle Testfaelle haben einen Tester zugewiesen.",
   "cwt.matchCount": "Trefferanzahl",
-  "cwt.testCases": "Testfaelle"
+  "cwt.testCases": "Testfaelle",
+  "charts.header": "Diagramme",
+  "charts.forPlan": "fur Testplan",
+  "charts.testProject": "Testprojekt",
+  "charts.loading": "Diagramme werden geladen...",
+  "charts.overallMetrics": "Gesamtmetriken",
+  "charts.platformMetrics": "Gesamtmetriken nach Plattform",
+  "charts.resultsByKeyword": "Ergebnisse nach Schlagwort",
+  "charts.resultsBySuite": "Ergebnisse nach Test-Suite auf oberster Ebene",
+  "charts.noData": "Keine Diagrammdaten fur diesen Testplan verfugbar.",
+  "charts.elapsedSeconds": "Vergangene Sekunden"
 }

@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "処理時間（秒）",
   "cwt.allHaveTester": "すべてのテストケースにテスターが割り当てられています。",
   "cwt.matchCount": "一致数",
-  "cwt.testCases": "テストケース"
+  "cwt.testCases": "テストケース",
+  "charts.header": "グラフ",
+  "charts.forPlan": "テスト計画",
+  "charts.testProject": "テストプロジェクト",
+  "charts.loading": "グラフを読み込み中...",
+  "charts.overallMetrics": "全体メトリクス",
+  "charts.platformMetrics": "プラットフォーム別全体メトリクス",
+  "charts.resultsByKeyword": "キーワード別結果",
+  "charts.resultsBySuite": "最上位テストスイート別結果",
+  "charts.noData": "このテスト計画のグラフデータはありません。",
+  "charts.elapsedSeconds": "経過秒数"
 }

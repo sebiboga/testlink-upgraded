@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Затраченное время (секунды)",
   "cwt.allHaveTester": "Все тест-кейсы имеют назначенного тестировщика.",
   "cwt.matchCount": "Количество совпадений",
-  "cwt.testCases": "тест-кейсов"
+  "cwt.testCases": "тест-кейсов",
+  "charts.header": "Графики",
+  "charts.forPlan": "для плана тестирования",
+  "charts.testProject": "Проект тестирования",
+  "charts.loading": "Загрузка графиков...",
+  "charts.overallMetrics": "Общие метрики",
+  "charts.platformMetrics": "Общие метрики по платформе",
+  "charts.resultsByKeyword": "Результаты по ключевому слову",
+  "charts.resultsBySuite": "Результаты по тест-сьюту верхнего уровня",
+  "charts.noData": "Данные графиков для этого плана тестирования отсутствуют.",
+  "charts.elapsedSeconds": "Прошедшие секунды"
 }

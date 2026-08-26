@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Tempo trascorso (secondi)",
   "cwt.allHaveTester": "Tutti i casi di test hanno un tester assegnato.",
   "cwt.matchCount": "Numero di corrispondenze",
-  "cwt.testCases": "casi di test"
+  "cwt.testCases": "casi di test",
+  "charts.header": "Grafici",
+  "charts.forPlan": "per il piano di test",
+  "charts.testProject": "Progetto di test",
+  "charts.loading": "Caricamento grafici...",
+  "charts.overallMetrics": "Metriche generali",
+  "charts.platformMetrics": "Metriche generali per piattaforma",
+  "charts.resultsByKeyword": "Risultati per parola chiave",
+  "charts.resultsBySuite": "Risultati per suite di test di livello superiore",
+  "charts.noData": "Nessun dato grafico disponibile per questo piano di test.",
+  "charts.elapsedSeconds": "Secondi trascorsi"
 }

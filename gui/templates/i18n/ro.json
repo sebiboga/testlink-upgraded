@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Timpul scurs (secunde)",
   "cwt.allHaveTester": "Toate cazurile de test au un tester desemnat.",
   "cwt.matchCount": "Numar de potriviri",
-  "cwt.testCases": "cazuri de test"
+  "cwt.testCases": "cazuri de test",
+  "charts.header": "Grafice",
+  "charts.forPlan": "pentru planul de testare",
+  "charts.testProject": "Proiect de testare",
+  "charts.loading": "Se incarca graficele...",
+  "charts.overallMetrics": "Metrici generale",
+  "charts.platformMetrics": "Metrici generale pe platforma",
+  "charts.resultsByKeyword": "Rezultate dupa cuvant cheie",
+  "charts.resultsBySuite": "Rezultate dupa suita de nivel superior",
+  "charts.noData": "Nu exista date de grafic pentru acest plan de testare.",
+  "charts.elapsedSeconds": "Secunde memorie"
 }

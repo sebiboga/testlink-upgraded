@@ -167,6 +167,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_tcases_without_tester') {
         $hrefR = 'gui/templates/results/casesWithoutTester.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #690 - Graphical Charts (charts_basic) modernized;
+      // the BFF (api/reports charts_data action) returns JSON for all 4 chart
+      // types (overall pie, per-platform pies, keyword bar, suite bar) and the
+      // client renders them with Chart.js. Right gate: testplan_metrics.
+      } else if($rptItem['title'] == 'link_charts') {
+        $hrefR = 'gui/templates/results/charts.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }

@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Tiempo transcurrido (segundos)",
   "cwt.allHaveTester": "Todos los casos de prueba tienen un tester asignado.",
   "cwt.matchCount": "Conteo de coincidencias",
-  "cwt.testCases": "casos de prueba"
+  "cwt.testCases": "casos de prueba",
+  "charts.header": "Graficos",
+  "charts.forPlan": "para plan de pruebas",
+  "charts.testProject": "Proyecto de prueba",
+  "charts.loading": "Cargando graficos...",
+  "charts.overallMetrics": "Metricas generales",
+  "charts.platformMetrics": "Metricas generales por plataforma",
+  "charts.resultsByKeyword": "Resultados por palabra clave",
+  "charts.resultsBySuite": "Resultados por suite de nivel superior",
+  "charts.noData": "No hay datos de graficos para este plan de pruebas.",
+  "charts.elapsedSeconds": "Segundos transcurridos"
 }

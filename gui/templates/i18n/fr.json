@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "Temps ecoule (secondes)",
   "cwt.allHaveTester": "Tous les cas de test ont un testeur assigne.",
   "cwt.matchCount": "Nombre de correspondances",
-  "cwt.testCases": "cas de test"
+  "cwt.testCases": "cas de test",
+  "charts.header": "Graphiques",
+  "charts.forPlan": "pour le plan de test",
+  "charts.testProject": "Projet de test",
+  "charts.loading": "Chargement des graphiques...",
+  "charts.overallMetrics": "Metriques globales",
+  "charts.platformMetrics": "Metriques globales par plateforme",
+  "charts.resultsByKeyword": "Resultats par mot-cle",
+  "charts.resultsBySuite": "Resultats par suite de test de niveau superieur",
+  "charts.noData": "Aucune donnee de graphique disponible pour ce plan de test.",
+  "charts.elapsedSeconds": "Secondes ecoulees"
 }

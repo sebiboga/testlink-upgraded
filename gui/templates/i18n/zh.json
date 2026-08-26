@@ -1592,5 +1592,15 @@
   "cwt.elapsedSeconds": "耗时（秒）",
   "cwt.allHaveTester": "所有测试用例都已分配测试员。",
   "cwt.matchCount": "匹配数量",
-  "cwt.testCases": "测试用例"
+  "cwt.testCases": "测试用例",
+  "charts.header": "图表",
+  "charts.forPlan": "测试计划",
+  "charts.testProject": "测试项目",
+  "charts.loading": "加载图表中...",
+  "charts.overallMetrics": "总体指标",
+  "charts.platformMetrics": "按平台分类的总体指标",
+  "charts.resultsByKeyword": "按关键字分类的结果",
+  "charts.resultsBySuite": "按顶级测试套件分类的结果",
+  "charts.noData": "此测试计划没有可用的图表数据。",
+  "charts.elapsedSeconds": "已用秒数"
 }
