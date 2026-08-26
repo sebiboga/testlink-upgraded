@@ -386,6 +386,178 @@ if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0]) &&
 }
 
 // ===========================================================================
+// POST / — Create test plan (legacy do_action=do_create in planEdit.php)
+// body: { tproject_id, name, notes?, active?, is_public? }
+// Right gate: mgt_testplan_create (same as planEdit.php init_args()).
+// ===========================================================================
+if ($method === 'POST' && count($segments) === 0) {
+    $body = getBody();
+    $tproject_id = intval($body['tproject_id'] ?? 0);
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    if (!canManage($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $name = trim((string)($body['name'] ?? ''));
+    if ($name === '') {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Test plan name is required',
+             'error_code' => 'NAME_REQUIRED']);
+    }
+
+    $tprojectMgr = new testproject($db);
+    if ($tprojectMgr->check_tplan_name_existence($tproject_id, $name)) {
+        http_response_code(422);
+        out(['status' => 'error',
+             'message' => 'A test plan with this name already exists',
+             'error_code' => 'DUPLICATE_NAME']);
+    }
+
+    $notes   = (string)($body['notes'] ?? '');
+    $active  = !empty($body['active']) ? 1 : 0;
+    $isPublic = !empty($body['is_public']) ? 1 : 0;
+
+    $tplanMgr = new testplan($db);
+    $newId = $tplanMgr->create($name, $notes, $tproject_id, $active, $isPublic);
+    if ($newId == 0) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Failed to create test plan: ' .
+             $db->error_msg()]);
+    }
+
+    logAuditEvent(TLS("audit_testplan_created",
+        testproject::getName($db, $tproject_id), $name),
+        "CREATED", $newId, "testplans");
+
+    // Assign creator's effective role if plan is private (same as planEdit.php)
+    if (!$isPublic) {
+        $effectiveRole = $user->getEffectiveRole($db, $tproject_id, null);
+        if (!tlUser::hasRoleOnTestPlan($db, $userId, $newId)) {
+            $tplanMgr->addUserRole($userId, $newId, $effectiveRole->dbID);
+        }
+    }
+
+    // Return the new plan info for the front end
+    $info = $tplanMgr->get_by_id($newId);
+    out([
+        'status' => 'ok',
+        'id' => intval($newId),
+        'name' => $name,
+        'active' => $active,
+        'is_public' => $isPublic,
+    ]);
+}
+
+// ===========================================================================
+// PUT /{id} — Update test plan (legacy do_action=do_update in planEdit.php)
+// body: { tproject_id, name, notes?, active?, is_public? }
+// Right gate: mgt_testplan_create (same as planEdit.php init_args()).
+// ===========================================================================
+if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0]) &&
+    !isset($segments[1])) {
+    $body = getBody();
+    $tproject_id = intval($body['tproject_id'] ?? 0);
+    if ($tproject_id <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    if (!canManage($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $id = intval($segments[0]);
+    $tplanMgr = new testplan($db);
+    $info = $tplanMgr->get_by_id($id);
+    if (!$info || intval($info['testproject_id']) != $tproject_id) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+
+    $name = trim((string)($body['name'] ?? ''));
+    if ($name === '') {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Test plan name is required',
+             'error_code' => 'NAME_REQUIRED']);
+    }
+
+    // Name uniqueness: allow keeping the same name on update
+    $tprojectMgr = new testproject($db);
+    if ($tprojectMgr->check_tplan_name_existence($tproject_id, $name)) {
+        $nameIsOwn = (string)$info['name'] === $name;
+        if (!$nameIsOwn) {
+            http_response_code(422);
+            out(['status' => 'error',
+                 'message' => 'A test plan with this name already exists',
+                 'error_code' => 'DUPLICATE_NAME']);
+        }
+    }
+
+    $notes   = (string)($body['notes'] ?? '');
+    $active  = !empty($body['active']) ? 1 : 0;
+    $isPublic = !empty($body['is_public']) ? 1 : 0;
+
+    if (!$tplanMgr->update($id, $name, $notes, $active, $isPublic)) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Failed to update test plan: ' .
+             $db->error_msg()]);
+    }
+
+    logAuditEvent(TLS("audit_testplan_saved",
+        testproject::getName($db, $tproject_id), $name),
+        "SAVE", $id, "testplans");
+
+    // Handle private→public / public→private role assignment (planEdit.php lines 93-101)
+    if (!$isPublic) {
+        if (!tlUser::hasRoleOnTestPlan($db, $userId, $id)) {
+            $effectiveRole = $user->getEffectiveRole($db, $tproject_id, null);
+            $tplanMgr->addUserRole($userId, $id, $effectiveRole->dbID);
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'id' => $id,
+        'name' => $name,
+        'active' => $active,
+        'is_public' => $isPublic,
+    ]);
+}
+
+// ===========================================================================
+// GET /{id} — Fetch single test plan (for edit modal pre-fill)
+// ===========================================================================
+if ($method === 'GET' && isset($segments[0]) && ctype_digit($segments[0]) &&
+    !isset($segments[1])) {
+    $tproject_id = needTprojectId();
+    if (!canManage($user, $db, $tproject_id)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $id = intval($segments[0]);
+    $tplanMgr = new testplan($db);
+    $info = $tplanMgr->get_by_id($id);
+    if (!$info || intval($info['testproject_id']) != $tproject_id) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+
+    out([
+        'status' => 'ok',
+        'id' => intval($id),
+        'name' => (string)$info['name'],
+        'notes' => (string)($info['notes'] ?? ''),
+        'active' => intval($info['active']),
+        'is_public' => intval($info['is_public']),
+    ]);
+}
+
+// ===========================================================================
 // planAddTC (Add / Remove Test Cases into Test Plan)
 // Mirrors lib/plan/planAddTC.php (TestLink 1.9.20):
 //   view/manage -> testplan_planning (checked on tproject+tplan context)
