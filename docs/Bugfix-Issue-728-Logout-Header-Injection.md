@@ -240,10 +240,10 @@ issue tracked in Issue #706.
 ### Test case 6: Header injection attempt (CR/LF in logoutUrl)
 
 **Steps:**
-1. Set `logoutUrl = "http://evil.com\r\nX-Injected: true"` in config
+1. Set `logoutUrl = "http://testlink.example.com\r\nX-Injected: true"` in config
 2. Login and logout
 
-**Expected:** CR/LF stripped, redirect to `http://evil.comX-Injected: true`
+**Expected:** CR/LF stripped, redirect to `http://testlink.example.comX-Injected: true`
 **Result:** ✅ PASS — Characters stripped, no header injection possible
 
 ### Test case 7: Invalid URL format (non-HTTP)
@@ -258,7 +258,7 @@ issue tracked in Issue #706.
 ### Test case 8: Protocol-relative URL
 
 **Steps:**
-1. Set `logoutUrl = "//evil.com/steal"` in config
+1. Set `logoutUrl = "//attacker.example.com/steal"` in config
 2. Login and logout
 
 **Expected:** Fallback to standard login URL
