@@ -5789,3 +5789,18 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 4 | Check Event Viewer (`events` table) for Error/Warning entries | No new error/warning entries | Query: 0 errors, 0 warnings (only audit entries from login and project creation) | PASS |
 | 5 | Verify fix code: `lib/functions/tlTestPlanMetrics.class.php:1693-1701` | Null guard present: `if (!is_array($dx))`, isset checks on `flat` and `staircase` | Fix code present at correct lines, matches commit 767605c97 | PASS |
 | 6 | Verify fix code: `api/metrics/index.php:149` | `is_array($neurus)` guard present before foreach | Guard present, wraps the `foreach ($neurus["with_tester"] ...)` loop | PASS |
+
+### Regression — Issue #562: Req spec update/create crashes with DB access error when internal_links enabled
+
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.x, MariaDB at 127.0.0.1:3306, database `testlink`. `internal_links->enable` = TRUE (stock default, `config.inc.php:1735`). Test project "ReqBugTest" (tproject_id=1, prefix=RBT) with requirements enabled.
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Login as admin, create a top-level Requirement Specification (doc_id=REQ-SPEC-001, title="Test Requirement Spec", scope="Test scope") | Spec created successfully without DB access error | Success: "Requirement Specification: Test Requirement Spec was successfully created" | PASS |
+| 2 | Edit the top-level spec (change nothing, click Save) | Update succeeds without DB access error | Success: redirected to reqSpecView.php with updated data | PASS |
+| 3 | Create a Requirement under the spec (doc_id=REQ-001, title="Test Requirement") | Requirement created without DB access error | Success: redirected to reqView.php with saved data | PASS |
+| 4 | Edit the requirement (change nothing, click Save) | Update succeeds without DB access error | Success: redirected to reqView.php with saved data | PASS |
+| 5 | Check Event Viewer (`events` table) for new Error/Warning entries | No new DB access errors or debug_print_backtrace entries | Only pre-existing E_WARNING about Undefined property in reqSpecView.tpl.php — no new errors | PASS |
+| 6 | Verify fix code: `lib/functions/requirements.inc.php:1015-1032` | `req_tproject_id_for_node()` helper function present, walks nodes_hierarchy up to root | Function present at lines 1015-1032, correctly returns testproject id | PASS |
+| 7 | Verify fix code: `requirement_spec_mgr.class.php:407` | Uses `req_tproject_id_for_node()` instead of `$path[0]["parent_id"]` | Line 407: `$tproject_id = req_tproject_id_for_node($this->db, intval($item["id"]))` — correct | PASS |
+| 8 | Verify fix code: `requirement_mgr.class.php:355,447,921` | All three sites use `req_tproject_id_for_node()` instead of `getTreeRoot()` | Lines 355, 447, 921 all call `req_tproject_id_for_node()` — correct | PASS |
