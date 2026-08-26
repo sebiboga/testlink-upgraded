@@ -128,6 +128,7 @@ var deleteTarget = null;
 var ACTIONS = {};
 var drawPlatQty = false;
 var lastItems = [];
+var cfColumns = [];
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -196,6 +197,17 @@ function load() {
       $('th[data-i18n="pv.tcQty"]').attr('title', TLi18n.t('pv.helpTcQty'));
       $('th[data-i18n="pv.buildQty"]').attr('title', TLi18n.t('pv.helpBuildQty'));
 
+      // Dynamic CF columns: store definitions and add <th> elements
+      cfColumns = r.cfields_columns || [];
+      var $thead = $('#tplanTable thead tr');
+      $thead.find('th.cf-col').remove();
+      if (cfColumns.length > 0) {
+        var $actionsTh = $thead.children('th:last');
+        cfColumns.forEach(function (cf) {
+          $actionsTh.before('<th class="cf-col" data-orderable="false" title="' + esc(cf.name) + '">' + esc(cf.label) + '</th>');
+        });
+      }
+
       render(r.items);
     })
     .fail(function (xhr) {
@@ -257,11 +269,19 @@ function render(items) {
     row.push(activeToggle(tp.id, tp.active));
     row.push('<span class="' + (tp.is_public ? 'pub-yes fa-check-circle fas' : 'pub-no fas fa-times-circle') +
              '" title="' + esc(TLi18n.t('pv.publicCol')) + '"></span>');
+
+    // Custom field value cells
+    var cfData = tp.cf || {};
+    cfColumns.forEach(function (cf) {
+      row.push('<span class="cf-cell">' + esc(cfData[cf.name] || '') + '</span>');
+    });
+
     row.push(action);
     return row;
   });
 
   $('#tplanTable').toggleClass('hide-plat', !drawPlatQty);
+  var cfcnt = cfColumns.length;
   tplanTbl = $('#tplanTable').DataTable({
     destroy: true,
     data: rows,
@@ -269,8 +289,9 @@ function render(items) {
     columnDefs: [
       { targets: 0, className: 'text-center', orderable: false },
       { targets: 2, orderable: false },
-      { targets: -3, className: 'text-center', orderable: false },
-      { targets: -2, className: 'text-center', orderable: false },
+      // Active = -(3+cfcnt), Public = -(2+cfcnt), Actions = -1
+      { targets: -(3 + cfcnt), className: 'text-center', orderable: false },
+      { targets: -(2 + cfcnt), className: 'text-center', orderable: false },
       { targets: -1, orderable: false }
     ]
   });

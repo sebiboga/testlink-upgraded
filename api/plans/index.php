@@ -164,6 +164,77 @@ if ($method === 'GET' && count($segments) === 0) {
         }
     }
 
+    // --- Custom field columns for test plans (refs #584) ---
+    // Fetch CF definitions linked to testplans at design time.
+    // Follows legacy planView.php:38-90 pattern + TL_TPLANVIEW_HIDECOL config.
+    $cfColumns = [];
+    $cfValues = [];  // plan_id => [cf_name => value]
+    $cfHideNames = [];
+
+    if (!is_null($rows) && count($rows) > 0 && isset($tplanMgr)) {
+        $cfieldMgr = new cfield_mgr($db);
+        // 1. Get CF definitions: all enabled CFs linked to this project
+        //    for testplan node type (show_on_testplan_design or enable_on_testplan_design).
+        //    Use get_linked_cfields_at_testplan_design without link_id to get defs only.
+        $cfDefs = $cfieldMgr->get_linked_cfields_at_testplan_design(
+            $tproject_id, cfield_mgr::ENABLED);
+        if (!is_null($cfDefs) && count($cfDefs) > 0) {
+            // 2. Check TL_TPLANVIEW_HIDECOL config: a special CF whose
+            //    possible_values is a pipe-delimited list of CF names to hide.
+            //    (Same approach as legacy planView.php lines 45-65.)
+            $tpMgr = new testproject($db);
+            $ppfx = $tpMgr->getTestCasePrefix($tproject_id);
+            foreach (['_' . $ppfx, ''] as $suf) {
+                $gopt = ['name' => 'TL_TPLANVIEW_HIDECOL' . $suf];
+                $col2hideCF = $cfieldMgr->get_linked_to_testproject(
+                    $tproject_id, 1, $gopt);
+                if (!empty($col2hideCF)) {
+                    $first = reset($col2hideCF);
+                    $cfHideNames = array_flip(
+                        explode('|', $first['possible_values']));
+                    // Also hide the config CF itself from columns
+                    $cfHideNames[$first['name']] = '';
+                    break;
+                }
+            }
+
+            // 3. Build visible CF column definitions (filter hidden ones)
+            foreach ($cfDefs as $cfId => $cf) {
+                if (!isset($cfHideNames[$cf['name']])) {
+                    $cfColumns[] = [
+                        'id' => intval($cfId),
+                        'label' => $cf['label'],
+                        'name' => $cf['name'],
+                    ];
+                }
+            }
+
+            // 4. Batch-fetch all CF values for all plans in one query
+            if (count($cfColumns) > 0) {
+                $tplanSet = array_keys($rows);
+                $planList = implode(',', array_map('intval', $tplanSet));
+                $cfIdList = implode(',', array_map(function ($c) {
+                    return $c['id'];
+                }, $cfColumns));
+                $cfTbl = tlObject::getDBTables(
+                    ['cfield_testplan_design_values']);
+                $sql = "SELECT CFTDV.link_id AS plan_id, CF.name, CFTDV.value" .
+                       " FROM {$cfTbl['cfield_testplan_design_values']} CFTDV" .
+                       " JOIN custom_fields CF ON CF.id = CFTDV.field_id" .
+                       " WHERE CFTDV.field_id IN ({$cfIdList})" .
+                       " AND CFTDV.link_id IN ({$planList})";
+                $cfRows = $db->fetchRowsIntoMap(
+                    $sql, 'plan_id');
+                if (!is_null($cfRows)) {
+                    foreach ($cfRows as $planId => $row) {
+                        $cfValues[intval($planId)][$row['name']] =
+                            $row['value'] ?? '';
+                    }
+                }
+            }
+        }
+    }
+
     $items = [];
     if (!is_null($rows)) {
         foreach ($rows as $r) {
@@ -184,6 +255,12 @@ if ($method === 'GET' && count($segments) === 0) {
             $it['rights']['assign_roles'] =
                 rowAssignRolesRight($user, $db, $tproject_id,
                     intval($r['has_role'] ?? 0));
+
+            // Attach CF values for this plan
+            if (isset($cfValues[$idk])) {
+                $it['cf'] = $cfValues[$idk];
+            }
+
             $items[] = $it;
         }
     }
@@ -193,6 +270,7 @@ if ($method === 'GET' && count($segments) === 0) {
         'items' => $items,
         'tproject' => ['id' => $tproject_id, 'name' => $tproject_name],
         'draw_platform_qty_column' => $drawPlatformQtyColumn,
+        'cfields_columns' => $cfColumns,
         'actions' => viewActions($tproject_id),
         'rights' => ['canManage' => (bool)canManage($user, $db, $tproject_id)],
     ]);
