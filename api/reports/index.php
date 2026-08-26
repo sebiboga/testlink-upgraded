@@ -3814,5 +3814,146 @@ if ($action === 'exec_timeline') {
     out($payload);
 }
 
+// ---------------------------------------------------------------------------
+// action=results_bugs — Results by Issues / Bugs per Test Case
+// Refs #763
+// Two report types served by the same action, switched by the 'type' param:
+//   type=0 (latest) — latest generation executions only (default)
+//   type=1 (all)    — all executions with bugs
+// Mirrors lib/results/resultsBugs.php logic exactly.
+// Right enforced: testplan_metrics (same as legacy checkRights()).
+// ---------------------------------------------------------------------------
+if ($action === 'results_bugs') {
+    if ($tprojectId <= 0 || $tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing context']);
+    }
+
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Project not found']);
+    }
+
+    $planInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($planInfo) || !isset($planInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+    }
+
+    // Issue tracker setup (mirrors legacy lines 26-33 of resultsBugs.php)
+    $bugInterfaceOn = $proj['issue_tracker_enabled'];
+    $its = null;
+    if ($bugInterfaceOn) {
+        $itMgr = new tlIssueTracker($db);
+        $its = $itMgr->getInterfaceObject($tprojectId);
+    }
+
+    // Type parameter (0=latest, 1=all) — mirrors legacy init_args()
+    $typeParam = intval(getParam('type', '0'));
+    $verboseType = ($typeParam == 1) ? 'all' : 'latest';
+    $titleKey = ($typeParam == 1)
+        ? 'link_report_total_bugs_all_exec'
+        : 'link_report_total_bugs';
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // Fetch execution set — mirrors legacy switch($args->verboseType)
+    if ($verboseType === 'all') {
+        $execSet = (array)$tplanMgr->getAllExecutionsWithBugs($tplanId);
+    } else {
+        $execSet = (array)$metricsMgr->getLTCVNewGeneration(
+            $tplanId, null,
+            [
+                'addExecInfo' => true,
+                'accessKeyType' => 'index',
+                'specViewFields' => true,
+                'testSuiteInfo' => true,
+                'includeNotRun' => false,
+            ]
+        );
+    }
+
+    // Collect bugs per test case — mirrors legacy loop
+    $openBugs = [];
+    $resolvedBugs = [];
+    $testcaseBugs = [];
+
+    require_once('exec.inc.php');
+
+    foreach ($execSet as $execution) {
+        $tcId = $execution['tc_id'];
+
+        $bugUrls = [];
+        if ($its) {
+            $bugData = get_bugs_for_exec($db, $its, $execution['exec_id']);
+            if ($bugData) {
+                foreach ($bugData as $bugId => $bugInfo) {
+                    if ($bugInfo['isResolved']) {
+                        if (!in_array($bugId, $resolvedBugs)) {
+                            $resolvedBugs[] = $bugId;
+                        }
+                    } else {
+                        if (!in_array($bugId, $openBugs)) {
+                            $openBugs[] = $bugId;
+                        }
+                    }
+                    $bugUrls[] = [
+                        'bug_id' => $bugId,
+                        'link' => $bugInfo['link_to_bts'],
+                        'is_resolved' => (bool)$bugInfo['isResolved'],
+                        'build_name' => $bugInfo['build_name'] ?? '',
+                    ];
+                }
+            }
+        }
+
+        if (!empty($bugUrls)) {
+            if (!isset($testcaseBugs[$tcId])) {
+                $testcaseBugs[$tcId] = [
+                    'tc_id' => $tcId,
+                    'tc_name' => $execution['name'],
+                    'full_external_id' => $execution['full_external_id'] ?? '',
+                    'tsuite_name' => $execution['tsuite_name'] ?? '',
+                    'external_id' => $execution['external_id'] ?? 0,
+                    'bugs' => [],
+                ];
+            }
+            foreach ($bugUrls as $bug) {
+                $existingLinks = array_column($testcaseBugs[$tcId]['bugs'], 'bug_id');
+                if (!in_array($bug['bug_id'], $existingLinks)) {
+                    $testcaseBugs[$tcId]['bugs'][] = $bug;
+                }
+            }
+        }
+    }
+
+    $rows = array_values($testcaseBugs);
+
+    $totalOpen = count($openBugs);
+    $totalResolved = count($resolvedBugs);
+    $totalBugs = $totalOpen + $totalResolved;
+    $totalCasesWithBugs = count($rows);
+
+    $payload = [
+        'status' => 'ok',
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $planInfo['name'],
+        'type' => $typeParam,
+        'verbose_type' => $verboseType,
+        'title_key' => $titleKey,
+        'bug_interface_on' => $bugInterfaceOn,
+        'total_open_bugs' => $totalOpen,
+        'total_resolved_bugs' => $totalResolved,
+        'total_bugs' => $totalBugs,
+        'total_cases_with_bugs' => $totalCasesWithBugs,
+        'rows' => $rows,
+        'has_data' => count($rows) > 0,
+    ];
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
