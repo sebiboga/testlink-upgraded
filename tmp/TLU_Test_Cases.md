@@ -5519,3 +5519,22 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 5. Verify each sample file is still valid PHP: `php -l cfg/oauth_samples/oauth.github.inc.php && php -l cfg/oauth_samples/oauth.gitlab.inc.php && php -l cfg/oauth_samples/oauth.google.inc.php && php -l lib/experiments/google.php`
 
 **Result:** PASS — all secrets replaced, no real credentials in tracked files, PHP syntax valid
+
+## 63. Regression — Issue #557: missing i18n keys exechist.colBuild / exechist.colStatus / exechist.footer (Suite ID: 63)
+
+**Precondition:** fresh DB; admin/admin session at http://localhost:8082; branch fix/issue-557 (commit 2ceca4c79). The 3 keys added to all 10 locale bundles.
+
+**Repro (pre-fix):** open `gui/templates/execute/execHistory.html` → footer renders literal string "exechist.footer"; table headers "Build" and "Status" render as fallback text (not translated).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Footer renders English translation (EN) | Open `execHistory.html` (default locale=en) | Footer shows "TestLink 2.0.1 - Execution History (read-only). Editing operations open the legacy screens." — NOT the raw key "exechist.footer" | PASS |
+| 2 | Footer renders Romanian translation (RO) | Switch locale to Română via dropdown | Footer shows "TestLink 2.0.1 - Istoric execuții (doar citire). Operațiile de editare deschid ecranele tradiționale." | PASS |
+| 3 | Footer renders Japanese translation (JA) | Switch locale to Japanese via dropdown | Footer shows "TestLink 2.0.1 - 実行履歴（読み取り専用）。編集操作はレガシースクリーンを開きます。" | PASS |
+| 4 | colBuild and colStatus keys present in all bundles | `python3 -c` check all 10 JSON files | All 10 contain `exechist.colBuild`, `exechist.colStatus`, `exechist.footer` | PASS |
+| 5 | JSON validity of all 10 bundles | `python3 -m json.tool` on each file | All 10 pass with no syntax errors | PASS |
+| 6 | Event Viewer clean | Check events table after all test steps | No new Error/Warning entries | PASS |
+
+**Actual result:** 6/6 PASS.
+
+**Files changed:** `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ru,ja,zh}.json` (3 keys added to each, +30 total lines).
