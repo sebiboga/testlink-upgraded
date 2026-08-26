@@ -1604,12 +1604,12 @@
   "charts.noData": "Nu exista date de grafic pentru acest plan de testare.",
   "charts.elapsedSeconds": "Secunde memorie",
   "charts.missingParams": "Missing test plan or project id.",
-  "tpwcf.header": "Test Plan with Custom Fields",
-  "tpwcf.forPlan": "for test plan",
-  "tpwcf.testProject": "Test Project",
-  "tpwcf.testCases": "test cases",
-  "tpwcf.matchCount": "Match count",
-  "tpwcf.editTC": "Edit Test Case",
-  "tpwcf.elapsed": "Elapsed",
-  "tpwcf.noData": "No test cases with custom field values found."
+  "tpwcf.header": "Plan de testare cu campuri personalizate",
+  "tpwcf.forPlan": "pentru planul de testare",
+  "tpwcf.testProject": "Proiect de testare",
+  "tpwcf.testCases": "cazuri de testare",
+  "tpwcf.matchCount": "Numar de potriviri",
+  "tpwcf.editTC": "Editeaza cazul de testare",
+  "tpwcf.elapsed": "Timp de executie",
+  "tpwcf.noData": "Nu exista cazuri de testare cu valori de campuri personalizate gasite."
 }
