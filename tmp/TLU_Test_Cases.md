@@ -6643,3 +6643,46 @@ Steps:
 
 **Expected:** Both return HTTP 200 (already guarded by issue #634 fix).
 **Result: PASS** — Both return HTTP 200, no errors.
+
+---
+
+## Regression — Issue #586: pChart PHP4-style constructor never runs under PHP 8
+
+**Precondition:** PHP 8.3+ environment, GD extension loaded, TestLink at http://localhost:8082. Test project (id=2) with a test plan, test suite, test case with version, build, and at least one execution. Admin user (admin/admin) authenticated.
+
+**Test Case 586.1: pChart constructor initializes Picture under PHP 8**
+
+Steps:
+1. Run: `php -r "require_once 'third_party/pchart/pChart/pChart.class'; $c = new pChart(900,400); var_dump(is_null($c->Picture));"`
+2. Observe output.
+
+**Expected:** `bool(false)` — Picture is a valid GdImage object, not NULL.
+**Result: PASS** — `bool(false)` returned. Before fix: `bool(true)` (constructor never ran, Picture stayed NULL, causing `TypeError: imagecolorallocate(): Argument #1 ($image) must be of type GdImage, null given`).
+
+**Test Case 586.2: drawBackground works after fix**
+
+Steps:
+1. Run: `php -r "require_once 'third_party/pchart/pChart/pChart.class'; $c = new pChart(900,400); $c->drawBackground(240,240,240); echo 'SUCCESS';"`
+2. Observe output.
+
+**Expected:** "SUCCESS" with no errors/warnings.
+**Result: PASS** — "SUCCESS" printed, no errors. Before fix: Fatal TypeError on `imagecolorallocate`.
+
+**Test Case 586.3: topLevelSuitesBarChart no longer fatals (browser)**
+
+Steps:
+1. Login as admin at http://localhost:8082/login.php.
+2. Select test project and test plan with data.
+3. Navigate to `/lib/results/topLevelSuitesBarChart.php?tplan_id=<plan>&tproject_id=<proj>&format=0`.
+4. Observe response.
+
+**Expected:** HTTP 200, either chart image (if data exists) or empty response (if no data). No TypeError in PHP error log.
+**Result: PASS** — HTTP 200 returned. No pChart TypeError. (The chart may still show a DB error from an unrelated tree_manager issue, but the pChart constructor error is gone.)
+
+**Test Case 586.4: Syntax validation of modified file**
+
+Steps:
+1. Run: `php -l third_party/pchart/pChart/pChart.class`
+
+**Expected:** "No syntax errors detected".
+**Result: PASS** — No syntax errors detected.
