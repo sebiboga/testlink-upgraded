@@ -5504,3 +5504,18 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 - **Expected:** Normal page load, no warnings, no Event Viewer errors
 - **Actual (post-fix):** Page loads cleanly. No console errors. No new Event Viewer entries.
 - **Result:** PASS
+
+## Regression — Issue #703: OAuth secrets removed from tracked files
+
+**Precondition:** Repository has all 5 files tracked in git with sanitized (placeholder) values
+**Pre-fix behavior:** cfg/oauth_samples/oauth.github.inc.php, oauth.gitlab.inc.php, oauth.google.inc.php, lib/experiments/google.php, and lib/functions/oauth_providers/test.txt contained real OAuth client_id/client_secret/access_token values
+**Post-fix behavior:** All files use CHANGE_WITH_* placeholders; git grep for original secret strings returns zero matches outside vendor/
+
+**Repro steps:**
+1. Run: `git grep -E '(c8d61d5ec|c157df291|b66f036df|d5dbe0344|_YOKquNTa4|860603525614|aa5f70a8de|27a03c93d6|cbc290aeeb)' -- ':!vendor/'`
+2. Expected: No matches (EXIT code 1)
+3. Run: `git grep 'CHANGE_WITH_' -- cfg/oauth_samples/ lib/experiments/google.php lib/functions/oauth_providers/test.txt`
+4. Expected: Matches in all 5 files confirming placeholders are in place
+5. Verify each sample file is still valid PHP: `php -l cfg/oauth_samples/oauth.github.inc.php && php -l cfg/oauth_samples/oauth.gitlab.inc.php && php -l cfg/oauth_samples/oauth.google.inc.php && php -l lib/experiments/google.php`
+
+**Result:** PASS — all secrets replaced, no real credentials in tracked files, PHP syntax valid
