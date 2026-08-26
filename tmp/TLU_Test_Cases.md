@@ -5829,3 +5829,30 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 3 | Verify URL in mainframe has format=0, tproject_id, tplan_id params | URL: execTimelineStats.php?format=0&tproject_id=1&tplan_id=2 | URL confirmed with all three parameters | PASS |
 | 4 | Check Event Viewer for new Error/Warning entries | No new errors introduced by the fix | Only pre-existing E_WARNING at tlTestPlanMetrics.class.php:3722 (appeared before fix too) | PASS |
 | 5 | Verify other legacy report links in sidebar have params | freeTestCases.php?format=0&tproject_id=1&tplan_id=2 | Confirmed params appended to all else-clause report links | PASS |
+
+---
+
+## Test Suite 62 — Free Test Cases Report (Refs #751)
+
+Screen: `gui/templates/results/freeTestCases.html`
+BFF: `api/reports/index.php` action `free_testcases`
+Legacy: `lib/results/freeTestCases.php`
+
+### Preconditions
+- Admin user logged in
+- Test project "FTC Test Project" (id=1) with test cases NOT assigned to any test plan
+- Test cases exist in at least 2 test suites with different importance levels
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Navigate to freeTestCases.html?tproject_id=1 inside mainframe | Header shows "Test Cases Not Assigned to Any Test Plan" with project name "FTC Test Project" | Header rendered correctly with project context | PASS |
+| 2 | Verify DataTable loads with free test cases | Table shows Test Suite, Test Case (with external ID), Importance columns; match count badge shows correct number | DataTable shows 2 free test cases with correct columns and match count | PASS |
+| 3 | Verify test case IDs use project prefix format | IDs display as "FTC-1", "FTC-2" etc. with prefix from test project | IDs correctly formatted with project prefix "FTC-" | PASS |
+| 4 | Verify importance badges color-code by level | High=red badge, Medium=yellow badge, Low=green badge | Importance badges rendered with correct colors per level | PASS |
+| 5 | Verify test suite path is displayed for each TC | Suite A / Suite B paths shown in Test Suite column | Suite paths correctly displayed | PASS |
+| 6 | Test DataTable sorting — click Test Suite column header | Table re-sorts alphabetically by suite name | Sorting works correctly | PASS |
+| 7 | Test DataTable filtering — type "Suite A" in filter box | Only Suite A test cases shown | Filter correctly narrows results | PASS |
+| 8 | Verify footer shows elapsed time | "Elapsed seconds: 0" (or similar) shown at bottom | Footer with timing info displayed | PASS |
+| 9 | Verify locale switcher dropdown present | Dropdown shows available languages (English, Romana, etc.) | Locale switcher rendered | PASS |
+| 10 | Test empty state — navigate to project with no free TCs | Warning/info message shown: "All test cases are assigned to a test plan" | Empty state message displayed correctly | PASS |
+| 11 | Verify no errors in Event Viewer after testing | Zero new ERROR/WARNING entries | Event Viewer shows only AUDIT entries, no new errors | PASS |
