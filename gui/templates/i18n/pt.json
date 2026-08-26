@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "Casos de teste sem tester",
+  "cwt.forPlan": "para o plano de teste",
+  "cwt.testProject": "Projeto de teste",
+  "cwt.noLinkedTcversions": "Nenhum caso de teste vinculado a este plano de teste.",
+  "cwt.elapsedSeconds": "Tempo decorrido (segundos)",
+  "cwt.allHaveTester": "Todos os casos de teste tem um tester atribuido.",
+  "cwt.matchCount": "Contagem de correspondencias",
+  "cwt.testCases": "casos de teste"
 }

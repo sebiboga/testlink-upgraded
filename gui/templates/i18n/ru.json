@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "Тест-кейсы без тестировщика",
+  "cwt.forPlan": "для плана тестирования",
+  "cwt.testProject": "Проект тестирования",
+  "cwt.noLinkedTcversions": "Нет тест-кейсов, связанных с этим планом тестирования.",
+  "cwt.elapsedSeconds": "Затраченное время (секунды)",
+  "cwt.allHaveTester": "Все тест-кейсы имеют назначенного тестировщика.",
+  "cwt.matchCount": "Количество совпадений",
+  "cwt.testCases": "тест-кейсов"
 }

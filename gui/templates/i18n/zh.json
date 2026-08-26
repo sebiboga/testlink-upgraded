@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "无测试员的测试用例",
+  "cwt.forPlan": "测试计划",
+  "cwt.testProject": "测试项目",
+  "cwt.noLinkedTcversions": "没有与此测试计划关联的测试用例。",
+  "cwt.elapsedSeconds": "耗时（秒）",
+  "cwt.allHaveTester": "所有测试用例都已分配测试员。",
+  "cwt.matchCount": "匹配数量",
+  "cwt.testCases": "测试用例"
 }

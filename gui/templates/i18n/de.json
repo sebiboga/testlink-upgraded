@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "Testfaelle ohne Tester",
+  "cwt.forPlan": "fuer Testplan",
+  "cwt.testProject": "Testprojekt",
+  "cwt.noLinkedTcversions": "Keine Testfaelle mit diesem Testplan verknuepft.",
+  "cwt.elapsedSeconds": "Vergangene Zeit (Sekunden)",
+  "cwt.allHaveTester": "Alle Testfaelle haben einen Tester zugewiesen.",
+  "cwt.matchCount": "Trefferanzahl",
+  "cwt.testCases": "Testfaelle"
 }

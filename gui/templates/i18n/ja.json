@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "テスター未割当テストケース",
+  "cwt.forPlan": "テスト計画",
+  "cwt.testProject": "テストプロジェクト",
+  "cwt.noLinkedTcversions": "このテスト計画に関連付けられたテストケースはありません。",
+  "cwt.elapsedSeconds": "処理時間（秒）",
+  "cwt.allHaveTester": "すべてのテストケースにテスターが割り当てられています。",
+  "cwt.matchCount": "一致数",
+  "cwt.testCases": "テストケース"
 }

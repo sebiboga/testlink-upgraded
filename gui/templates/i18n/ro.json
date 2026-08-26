@@ -1581,5 +1581,13 @@
   "nr.selectPlatforms": "Select platforms to include",
   "nr.btnGenerate": "Generate Report",
   "nr.noNeverRun": "All test cases have been executed at least once.",
-  "nr.elapsedSeconds": "Elapsed"
+  "nr.elapsedSeconds": "Elapsed",
+  "cwt.header": "Cazuri de test fara tester desemnat",
+  "cwt.forPlan": "pentru planul de testare",
+  "cwt.testProject": "Proiect de testare",
+  "cwt.noLinkedTcversions": "Nicio versiune de caz de test nu este asociata acestui plan de testare.",
+  "cwt.elapsedSeconds": "Timpul scurs (secunde)",
+  "cwt.allHaveTester": "Toate cazurile de test au un tester desemnat.",
+  "cwt.matchCount": "Numar de potriviri",
+  "cwt.testCases": "cazuri de test"
 }
