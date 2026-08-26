@@ -208,8 +208,7 @@ function fillPlans(plans) {
 
 // legacy popup links (same targets as newest_tcversions.tpl icons)
 function designUrl(it) {
-  return '/lib/testcases/archiveData.php?allow_edit=0&show_mode=readonly'
-       + '&edit=testcase&id=' + it.tc_id
+  return '/gui/templates/testcases/tcView.html?tcase_id=' + it.tc_id
        + '&tcversion_id=' + it.tcversion_id
        + '&tproject_id=' + tprojectId
        + '&tplan_id=' + tplanId;

@@ -94,7 +94,7 @@ function t(key, fallback) {
   return (v && v !== key) ? v : (fallback || key);
 }
 function openTCEdit(tcId) {
-  window.open('/lib/testcases/archiveData.php?edit=testcase&id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
 }
 
 function loadData() {

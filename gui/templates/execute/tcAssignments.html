@@ -359,13 +359,13 @@ function bindRowActions() {
   $('.lnkHist').off('click').on('click', function (ev) {
     ev.preventDefault();
     var tcid = $(this).closest('tr').data('id');
-    window.open('/lib/execute/execHistory.php?tcase_id=' + tcid +
+    window.open('/gui/templates/execute/execHistory.html?tcase_id=' + tcid +
                 '&tproject_id=' + tprojectId, '_blank');
   });
   $('.lnkEdit').off('click').on('click', function (ev) {
     ev.preventDefault();
     var tcid = $(this).closest('tr').data('id');
-    window.open('/lib/testcases/archiveData.php?edit=testcase&id=' + tcid +
+    window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcid +
                 '&tproject_id=' + tprojectId, '_blank',
                 'width=1000,height=700,resizable=yes,scrollbars=yes');
   });
