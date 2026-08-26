@@ -6617,3 +6617,29 @@ Steps:
 
 **Expected:** DataTable sorts rows by CF value. Column is not sortable (non-orderable).
 **Result: PASS** — CF column is non-orderable as expected (columnDefs sets orderable:false for CF columns via the generic -1 target). Rows maintain their existing sort order.
+
+---
+
+## Regression — Issue #638: count(null) TypeError in resultsTCAbsoluteLatest.php when test plan has no builds
+
+**Test Case 638.1: resultsTCAbsoluteLatest.php renders with zero builds (pre-fix: HTTP 500)**
+
+Precondition: Test project exists with a test plan that has NO builds.
+
+Steps:
+1. `GET /lib/results/resultsTCAbsoluteLatest.php?tplan_id=<plan_without_builds>&tproject_id=<proj>&doAction=choose` (authenticated as admin).
+2. Observe HTTP response code.
+3. Verify page renders with heading "Latest execution in Selected Platform computed over all builds".
+4. Check server log for new errors.
+
+**Expected:** HTTP 200, page renders the platform selection form with empty build list. No errors in server log.
+**Result: PASS** — HTTP 200 returned. Page renders correctly. Server log clean (no new errors/warnings). Before fix: HTTP 500 with `TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given in resultsTCAbsoluteLatest.php:313`.
+
+**Test Case 638.2: Sibling result pages unaffected (regression check)**
+
+Steps:
+1. `GET /lib/results/resultsTC.php?tplan_id=<plan_without_builds>&tproject_id=<proj>&doAction=choose`
+2. `GET /lib/results/resultsTCFlat.php?tplan_id=<plan_without_builds>&tproject_id=<proj>&doAction=choose`
+
+**Expected:** Both return HTTP 200 (already guarded by issue #634 fix).
+**Result: PASS** — Both return HTTP 200, no errors.

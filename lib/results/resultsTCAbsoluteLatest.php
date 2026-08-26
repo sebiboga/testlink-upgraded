@@ -310,7 +310,10 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
   $guiObj->buildInfoSet = 
     $tplanMgr->get_builds($argsObj->tplan_id, testplan::ACTIVE_BUILDS,null,
                           array('orderBy' => $guiObj->matrixCfg->buildOrderByClause)); 
-  $guiObj->activeBuildsQty = count($guiObj->buildInfoSet);
+  // issue #634: a plan without builds returns null here =>
+  // count(null) is a TypeError on PHP 8
+  $guiObj->activeBuildsQty = is_null($guiObj->buildInfoSet) ?
+                             0 : count($guiObj->buildInfoSet);
 
 
   foreach($cfg['results']['code_status'] as $code => $verbose) {
