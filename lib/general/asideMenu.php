@@ -200,6 +200,16 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_exec_timeline') {
         $hrefR = 'gui/templates/results/execTimelineStats.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #763 - Results by Issues / Bugs per Test Case modernized;
+      // the BFF (api/reports results_bugs action) reuses the very same
+      // testplan::getAllExecutionsWithBugs() / getLTCVNewGeneration() calls
+      // and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_total_bugs') {
+        $hrefR = 'gui/templates/results/resultsBugs.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&type=0";
+      } else if($rptItem['title'] == 'link_report_total_bugs_all_exec') {
+        $hrefR = 'gui/templates/results/resultsBugs.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}&type=1";
       } else {
         $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
         $hrefR = $baseHrefR . $rptItem['url'] .
