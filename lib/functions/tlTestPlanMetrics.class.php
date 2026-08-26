@@ -1685,6 +1685,7 @@ class tlTestPlanMetrics extends testplan
     // Build item set
     $exec['tsuites_full'] = $this->get_testsuites($safe_id);
     $loop2do = count($exec['tsuites_full']);
+    $keySet = array();
     for($idx=0; $idx < $loop2do; $idx++) {
       $keySet[] = $exec['tsuites_full'][$idx]['id'];
 
