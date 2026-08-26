@@ -193,6 +193,12 @@
    var $tmpFolder        = "tmp/";
    var $MapID            = NULL;
 
+   /* PHP8-compatible constructor */
+   function __construct($XSize,$YSize)
+    {
+     $this->pChart($XSize,$YSize);
+    }
+
    /* This function create the background picture */
    function pChart($XSize,$YSize)
     {
