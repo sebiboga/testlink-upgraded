@@ -5804,3 +5804,16 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 6 | Verify fix code: `lib/functions/requirements.inc.php:1015-1032` | `req_tproject_id_for_node()` helper function present, walks nodes_hierarchy up to root | Function present at lines 1015-1032, correctly returns testproject id | PASS |
 | 7 | Verify fix code: `requirement_spec_mgr.class.php:407` | Uses `req_tproject_id_for_node()` instead of `$path[0]["parent_id"]` | Line 407: `$tproject_id = req_tproject_id_for_node($this->db, intval($item["id"]))` — correct | PASS |
 | 8 | Verify fix code: `requirement_mgr.class.php:355,447,921` | All three sites use `req_tproject_id_for_node()` instead of `getTreeRoot()` | Lines 355, 447, 921 all call `req_tproject_id_for_node()` — correct | PASS |
+
+### Regression — Issue #744: Edit project fails with "Error saving project"
+
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.3, MariaDB at 127.0.0.1:3306, database `testlink`. Project exists (e.g. "TLU Final Test Renamed", prefix=TLU).
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Navigate to Test Project Management, click Edit on a project, change the name, click Save | Name updated, no error alert, modal closes, list refreshes | Name changed to "TLU Final Test" successfully, modal closed, no error | PASS |
+| 2 | Click Deactivate on the project | Status changes to Inactive | Status changed to Inactive successfully | PASS |
+| 3 | Click Edit on inactive project, change name again, click Save | Name updated successfully on inactive project | Name changed to "TLU Final Test Renamed" successfully | PASS |
+| 4 | Check browser console for errors | No console errors | No console errors found | PASS |
+| 5 | Check Event Viewer (events table) for Error/Warning entries | Only audit_testproject_saved entries, no errors | All entries are AUDIT level UPDATE events for testprojects | PASS |
+| 6 | Verify fix: api/projects/index.php no longer calls logAuditProject() | Function call removed, logEvent() handles audit | logAuditProject() removed, logEvent() intact | PASS |
