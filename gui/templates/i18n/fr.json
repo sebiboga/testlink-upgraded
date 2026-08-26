@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "Resultats par mot-cle",
   "charts.resultsBySuite": "Resultats par suite de test de niveau superieur",
   "charts.noData": "Aucune donnee de graphique disponible pour ce plan de test.",
-  "charts.elapsedSeconds": "Secondes ecoulees"
+  "charts.elapsedSeconds": "Secondes ecoulees",
+  "charts.missingParams": "Missing test plan or project id."
 }

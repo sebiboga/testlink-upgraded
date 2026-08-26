@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "Rezultate dupa cuvant cheie",
   "charts.resultsBySuite": "Rezultate dupa suita de nivel superior",
   "charts.noData": "Nu exista date de grafic pentru acest plan de testare.",
-  "charts.elapsedSeconds": "Secunde memorie"
+  "charts.elapsedSeconds": "Secunde memorie",
+  "charts.missingParams": "Missing test plan or project id."
 }

@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "Results by Keyword",
   "charts.resultsBySuite": "Results by Top-Level Test Suite",
   "charts.noData": "No chart data available for this test plan.",
-  "charts.elapsedSeconds": "Elapsed seconds"
+  "charts.elapsedSeconds": "Elapsed seconds",
+  "charts.missingParams": "Missing test plan or project id."
 }

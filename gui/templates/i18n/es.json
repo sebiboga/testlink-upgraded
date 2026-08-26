@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "Resultados por palabra clave",
   "charts.resultsBySuite": "Resultados por suite de nivel superior",
   "charts.noData": "No hay datos de graficos para este plan de pruebas.",
-  "charts.elapsedSeconds": "Segundos transcurridos"
+  "charts.elapsedSeconds": "Segundos transcurridos",
+  "charts.missingParams": "Missing test plan or project id."
 }

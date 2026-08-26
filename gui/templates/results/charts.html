@@ -145,12 +145,6 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
 (function() {
   'use strict';
 
-  function esc(s) {
-    var d = document.createElement('div');
-    d.appendChild(document.createTextNode(s));
-    return d.innerHTML;
-  }
-
   function renderPie(canvasId, labels, values, colors) {
     var ctx = document.getElementById(canvasId);
     if (!ctx) return null;
@@ -206,7 +200,7 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
   if (!tplan_id || !tproject_id) {
     document.getElementById('loadingBox').style.display = 'none';
     document.getElementById('warnBox').style.display = 'block';
-    document.getElementById('warnMsg').textContent = 'Missing test plan or project id.';
+    document.getElementById('warnMsg').textContent = t('charts.missingParams', 'Missing test plan or project id.');
     return;
   }
 
@@ -276,7 +270,7 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
       if (!hasAny) {
         var msg = document.createElement('div');
         msg.className = 'empty';
-        msg.innerHTML = '<i class="fa fa-chart-pie"></i><span data-i18n="charts.noData">No chart data available for this test plan.</span>';
+        msg.innerHTML = '<i class="fa fa-chart-pie"></i>' + t('charts.noData', 'No chart data available for this test plan.');
         document.getElementById('chartsContainer').appendChild(msg);
       }
 

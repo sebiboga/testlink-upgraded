@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "按关键字分类的结果",
   "charts.resultsBySuite": "按顶级测试套件分类的结果",
   "charts.noData": "此测试计划没有可用的图表数据。",
-  "charts.elapsedSeconds": "已用秒数"
+  "charts.elapsedSeconds": "已用秒数",
+  "charts.missingParams": "Missing test plan or project id."
 }

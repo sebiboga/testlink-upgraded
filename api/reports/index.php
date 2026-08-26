@@ -2930,7 +2930,7 @@ if ($action === 'charts_data') {
         $sStatusData = [];
         foreach ($sortedSuites as $name => $tsId) {
             if (isset($suiteData->info[$tsId])) {
-                $sLabels[] = htmlspecialchars($name, ENT_QUOTES);
+                $sLabels[] = $name;
                 foreach ($suiteData->info[$tsId]['details'] as $status => $info) {
                     if (!isset($sStatusData[$status])) {
                         $sStatusData[$status] = [];

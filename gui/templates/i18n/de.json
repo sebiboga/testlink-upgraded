@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "Ergebnisse nach Schlagwort",
   "charts.resultsBySuite": "Ergebnisse nach Test-Suite auf oberster Ebene",
   "charts.noData": "Keine Diagrammdaten fur diesen Testplan verfugbar.",
-  "charts.elapsedSeconds": "Vergangene Sekunden"
+  "charts.elapsedSeconds": "Vergangene Sekunden",
+  "charts.missingParams": "Missing test plan or project id."
 }

@@ -1602,5 +1602,6 @@
   "charts.resultsByKeyword": "キーワード別結果",
   "charts.resultsBySuite": "最上位テストスイート別結果",
   "charts.noData": "このテスト計画のグラフデータはありません。",
-  "charts.elapsedSeconds": "経過秒数"
+  "charts.elapsedSeconds": "経過秒数",
+  "charts.missingParams": "Missing test plan or project id."
 }
