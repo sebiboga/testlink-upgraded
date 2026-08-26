@@ -127,6 +127,10 @@ function loadData() {
   $('#emptyBox').hide();
   $('#footerInfo').empty();
 
+  if ($.fn.DataTable.isDataTable('#dtResults')) {
+    $('#dtResults').DataTable().destroy();
+  }
+
   var type = parseInt($('#reportType').val()) || 0;
 
   $.ajax({
@@ -198,6 +202,12 @@ function loadData() {
       });
 
       toast(t('common.loaded', 'Loaded'));
+
+      $('#footerInfo').html(
+        t('common.generatedOn', 'Generated on') + ': ' +
+        new Date().toLocaleString() +
+        (d.elapsed_time !== undefined ? ' | ' + t('cwt.elapsedSeconds', 'Elapsed seconds') + ': ' + d.elapsed_time : '')
+      ).show();
     },
     error: function(xhr) {
       $('#loadingBox').hide();

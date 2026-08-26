@@ -3841,6 +3841,18 @@ if ($action === 'results_bugs') {
         out(['status' => 'error', 'message' => 'Test plan not found']);
     }
 
+    // Derive project from plan — same as every other action in this file.
+    $tprojectId = intval($planInfo['testproject_id']);
+
+    // Contextual re-check: per-project/per-plan roles.
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Re-fetch project with derived ID in case it differs from GET param.
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+
     // Issue tracker setup (mirrors legacy lines 26-33 of resultsBugs.php)
     $bugInterfaceOn = $proj['issue_tracker_enabled'];
     $its = null;
@@ -3856,6 +3868,7 @@ if ($action === 'results_bugs') {
         ? 'link_report_total_bugs_all_exec'
         : 'link_report_total_bugs';
 
+    $timerOn = microtime(true);
     $metricsMgr = new tlTestPlanMetrics($db);
 
     // Fetch execution set — mirrors legacy switch($args->verboseType)
@@ -3879,7 +3892,7 @@ if ($action === 'results_bugs') {
     $resolvedBugs = [];
     $testcaseBugs = [];
 
-    require_once('exec.inc.php');
+    require_once(__DIR__ . '/../../lib/functions/exec.inc.php');
 
     foreach ($execSet as $execution) {
         $tcId = $execution['tc_id'];
@@ -3951,6 +3964,7 @@ if ($action === 'results_bugs') {
         'total_cases_with_bugs' => $totalCasesWithBugs,
         'rows' => $rows,
         'has_data' => count($rows) > 0,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ];
     out($payload);
 }
