@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-25 · branch `sebiboga` @ a19fdcc12
+> Last updated: 2026-08-26 · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 47 |
+| DONE (modernized) | 59 |
 | IN PROGRESS | 1 |
-| TODO (still legacy) | 2 |
+| TODO (still legacy) | ~20 |
 
 ---
 
@@ -31,49 +31,61 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 7 | System — Custom Fields | `cfields/cfieldsView.html` | api/cfields | |
 | 8 | System — Issue Tracker Mgmt | `issuetracker/issuetrackerView.html` | api/issuetracker | |
 | 9 | System — Code Tracker Mgmt | `codetracker/codetrackerView.html` | api/codetracker | |
-| 9b | System — Plugin Management ✅ (#636) | `plugins/pluginView.html` | api/plugins | right `mgt_plugins` |
-| 10 | Product — Test Project Mgmt | `projectsView.html` | api/projects | |
-| 11 | Product — Assign User Roles | `usermanagement/usersAssignProject.html` | api/users | same as #5 |
-| 12 | Product — Assign Custom Fields | `cfields/cfieldsAssignView.html` | api/cfields | |
-| 13 | Product — Keywords Mgmt | `keywords/keywordsView.html` | api/keywords | |
-| 14 | Product — Platforms Mgmt | `platforms/platformsView.html` | api/platforms | |
-| 15 | Dashboard — Metrics Dashboard | `results/metricsDashboard.html` | api/metrics | |
-| 16 | Dashboard — Inventory | `inventory/inventoryView.html` | api/inventory | |
-| 17 | Requirements — Spec Management | `requirements/reqSpecMgmt.html` | api/reqspec | |
-| 18 | Requirements — Requirement Overview | `requirements/reqOverview.html` | api/reqspec | #566 |
-| 19 | Requirements — Print Requirements | `requirements/printReqSpec.html` | api/reqspec | |
-| 20 | Requirements — Search Requirements | `requirements/searchReq.html` | api/search | |
-| 21 | Requirements — Search Req Specs | `requirements/searchReqSpec.html` | api/search | |
-| 22 | Requirements — Assign Requirements | `requirements/assignReqs.html` | api/requirements | |
-| 23 | Requirements — Req Monitor Overview | `requirements/reqMonitorOverview.html` | api/requirements | |
-| 24 | Test Spec — Test Specification tree/editor | `testcases/testSpec.html` | api/testcases | |
-| 25 | Test Spec — TC Viewer popup | `testcases/tcView.html` | api/testcases | |
-| 26 | Test Spec — Search Test Cases | `search/searchView.html` | api/search | |
-| 27 | Search — Advanced (full text) | `search/searchAdvancedView.html` | api/search | |
-| 28 | Header — Quick search | `search/searchQuickView.html` | api/search | |
-| 29 | Test Spec — Assign Keywords | `keywords/keywordsAssign.html` | api/keywords | |
-| 30 | Test Spec — TC created per user report | `results/tcCreatedPerUserOnTestProject.html` | api/results | |
-| 31 | Plans — Test Plan Management | `plans/planView.html` | api/plans | #576 |
-| 32 | Plans — Builds & Releases | `plans/buildsView.html` | api/builds | #585 |
-| 33 | Plans — Add/Remove Test Cases | `plans/planAddTCView.html` | api/plans | #593 |
-| 34 | Plans — Assign Platforms to Plan | `platforms/platformsAssign.html` | api/platforms | #603 |
-| 35 | Execution — Execution History | `execute/execHistory.html` | api/execute | |
-| 36 | Plans — Set Test Urgency | `plans/testUrgency.html` | api/plans | #605 |
-| 37 | Plans — Show Newest TC Versions | `plans/showNewestTcVersions.html` | api/plans | #643 |
-| 38 | Execution — Test Plan Milestones ✅ (#647) | `plans/planMilestones.html` | api/milestones | right `testplan_planning` (controller parity) |
-| 39 | Execution — Execute Tests ✅ (#662) | `execute/execTest.html` | api/execute (init/tcList/tcDetails/save) | rights `testplan_execute` / RO `exec_ro_access`; reuses legacy write_execution() |
-| 40 | Reports — Results by Test Suite ✅ (#671) | `results/resultsByTSuite.html` | api/reports (metrics_by_tsuite) | right `testplan_metrics`; baseline save action lives here |
-| 41 | Reports — Baselines L1 & L2 ✅ (#673) | `results/baselineL1L2.html` | api/reports (metrics_baseline_l1l2) | right `testplan_metrics`; reads baseline_l1l2_context/details |
-| 42 | Reports — Results by Tester per Build ✅ (#677) | `results/resultsByTesterPerBuild.html` | api/reports (metrics_by_tester_per_build) | right `testplan_metrics`; reuses getStatusTotalsByBuildUAForRender(); legacy show_closed_builds session contract |
-| 43 | Reports — Test Cases Never Run ✅ (#688) | `results/neverRun.html` | api/reports (never_run_init/never_run_result) | right `testplan_metrics`; getNeverRunByPlatform(); legacy export/email endpoints reused |
-| 44 | Reports — Results by Status (failed) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_failed; aside redirect in asideMenu.php; i18n ×10 locales |
-| 45 | Reports — Results by Status (blocked) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_blocked; aside redirect in asideMenu.php; i18n ×10 locales |
-| 46 | Reports — Results by Status (not_run) ✅ (#695) | `results/resultsByStatus.html` | api/reports (by_status) | right `testplan_metrics`; list_tc_not_run; aside redirect in asideMenu.php; i18n ×10 locales |
-| 47 | Reports — Test Cases with Custom Fields ✅ (#737) | `results/tcasesWithCF.html` | api/reports (tcases_with_cf) | right `testplan_metrics`; cfield_mgr::get_linked_cfields_at_execution(); dynamic CF columns; aside redirect in asideMenu.php; i18n ×10 locales |
+| 10 | System — Plugin Management | `plugins/pluginView.html` | api/plugins | #636 |
+| 11 | Product — Test Project Mgmt | `projectsView.html` | api/projects | |
+| 12 | Product — Assign User Roles | `usermanagement/usersAssignProject.html` | api/users | same as #5 |
+| 13 | Product — Assign Custom Fields | `cfields/cfieldsAssignView.html` | api/cfields | |
+| 14 | Product — Keywords Mgmt | `keywords/keywordsView.html` | api/keywords | |
+| 15 | Product — Platforms Mgmt | `platforms/platformsView.html` | api/platforms | |
+| 16 | Dashboard — Metrics Dashboard | `results/metricsDashboard.html` | api/metrics | |
+| 17 | Dashboard — Inventory | `inventory/inventoryView.html` | api/inventory | |
+| 18 | Requirements — Spec Management | `requirements/reqSpecMgmt.html` | api/reqspec | |
+| 19 | Requirements — Requirement Overview | `requirements/reqOverview.html` | api/reqspec | #566 |
+| 20 | Requirements — Print Requirements | `requirements/printReqSpec.html` | api/reqspec | |
+| 21 | Requirements — Search Requirements | `requirements/searchReq.html` | api/search | |
+| 22 | Requirements — Search Req Specs | `requirements/searchReqSpec.html` | api/search | |
+| 23 | Requirements — Assign Requirements | `requirements/assignReqs.html` | api/requirements | |
+| 24 | Requirements — Req Monitor Overview | `requirements/reqMonitorOverview.html` | api/requirements | |
+| 25 | Test Spec — Test Specification tree/editor | `testcases/testSpec.html` | api/testcases | |
+| 26 | Test Spec — TC Viewer popup | `testcases/tcView.html` | api/testcases | |
+| 27 | Test Spec — Search Test Cases | `search/searchView.html` | api/search | |
+| 28 | Search — Advanced (full text) | `search/searchAdvancedView.html` | api/search | |
+| 29 | Header — Quick search | `search/searchQuickView.html` | api/search | |
+| 30 | Test Spec — Assign Keywords | `keywords/keywordsAssign.html` | api/keywords | |
+| 31 | Test Spec — TC created per user report | `results/tcCreatedPerUserOnTestProject.html` | api/results | |
+| 32 | Plans — Test Plan Management | `plans/planView.html` | api/plans | #576 |
+| 33 | Plans — Builds & Releases | `plans/buildsView.html` | api/builds | #585 |
+| 34 | Plans — Add/Remove Test Cases | `plans/planAddTCView.html` | api/plans | #593 |
+| 35 | Plans — Assign Platforms to Plan | `platforms/platformsAssign.html` | api/platforms | #603 |
+| 36 | Execution — Execution History | `execute/execHistory.html` | api/execute | |
+| 37 | Plans — Set Test Urgency | `plans/testUrgency.html` | api/plans | #605 |
+| 38 | Plans — Show Newest TC Versions | `plans/showNewestTcVersions.html` | api/plans | #643 |
+| 39 | Execution — Test Plan Milestones | `plans/planMilestones.html` | api/milestones | #647 |
+| 40 | Execution — Execute Tests | `execute/execTest.html` | api/execute | #662 |
+| 41 | Plans — Update Linked TC Versions | `plans/planUpdateTC.html` | api/plans | #619 |
+| 42 | Execution — TC Exec Assignment | `execute/tcExecAssignment.html` | api/execassignment | #655 |
+| 43 | Execution — TC Assignments | `execute/tcAssignments.html` | api/tcassignments | #660 |
+| 44 | Reports — Results by Test Suite | `results/resultsByTSuite.html` | api/reports | #671 |
+| 45 | Reports — Baselines L1 & L2 | `results/baselineL1L2.html` | api/reports | #673 |
+| 46 | Reports — Results by Tester per Build | `results/resultsByTesterPerBuild.html` | api/reports | #677 |
+| 47 | Reports — Test Cases Never Run | `results/neverRun.html` | api/reports | #688 |
+| 48 | Reports — Results by Status (failed) | `results/resultsByStatus.html` | api/reports | #695 |
+| 49 | Reports — Results by Status (blocked) | `results/resultsByStatus.html` | api/reports | #695 |
+| 50 | Reports — Results by Status (not_run) | `results/resultsByStatus.html` | api/reports | #695 |
+| 51 | Reports — Test Cases with Custom Fields | `results/tcasesWithCF.html` | api/reports | #737 |
+| 52 | Reports — Results Matrix | `results/resultsMatrix.html` | api/reports | |
+| 53 | Reports — Test Plan Report | `results/testPlanReport.html` | api/reports | |
+| 54 | Reports — Results TC Flat | `results/resultsTCFlat.html` | api/reports | |
+| 55 | Reports — Results Requirements | `results/resultsRequirements.html` | api/reports | |
+| 56 | Reports — Cases Without Tester | `results/casesWithoutTester.html` | api/reports | |
+| 57 | Reports — Test Plan with CF | `results/tplanWithCF.html` | api/reports | #737 |
+| 58 | Reports — Absolute Latest | `results/absoluteLatest.html` | api/reports | |
+| 59 | Reports — General Metrics | `results/generalMetrics.html` | api/reports | |
+| 60 | Reports — Assigned TC Overview | `results/assignedTcOverview.html` | api/reports | |
+| 61 | Reports — Charts | `results/charts.html` | api/reports | |
 
 Extra modernized feature (not an ASIDE entry):
-- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import
-  (#540, screen still WIP — see IN PROGRESS).
+- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, WIP)
 
 ---
 
@@ -91,19 +103,38 @@ Extra modernized feature (not an ASIDE entry):
 
 ## ⬜ TODO — still legacy PHP (next screens, ASIDE order)
 
-| Priority | Screen | Legacy entry point | Right gate | Notes |
-|---|---|---|---|---|
-~~1–3~~ done by CI: tcExecAssignment (#655), tcAssignments (#660) and Execute Tests (#662). Next: Reports center. |
-| 4 | **Update Linked TC Versions** ✅ modernized (`planUpdateTC.html` + BFF, #619) | launcher `planUpdateTC` | `testplan_update_linked_testcase_versions` | |
+### Reports (from cfg/reports.cfg.php — 26 total, 10 modernized, 16 legacy)
 
-| 5 | ~~Test Plan Milestones~~ ✅ modernized (`plans/planMilestones.html` + `api/milestones`, #647) | was `lib/plan/planMilestonesView.php` | `testplan_planning` | |
-| 7 | Reports center | launcher `showMetrics` → `lib/results/resultsNavigator.php` | varies | ~30 legacy report pages under lib/results/; metricsDashboard + tcCreatedPerUser already done; **Results by Test Suite done (#671)**; **Baselines L1 & L2 done (#673)**; **Results by Tester per Build done (#677)**; **Test Cases Never Run done (#688)**; **Results by Status (failed/blocked/not_run) done (#695)**; **Test Cases with Custom Fields done (#737)** — next: the remaining report pages (Test Plans with CF, Free Test Cases, Execution Timeline, BTS bug reports) |
-| 8 | Plugin Management ✅ modernized (`plugins/pluginView.html` + `api/plugins`, #636) | legacy right `mgt_plugins` (BFF-enforced) | |
+| Priority | Legacy file | Description | Notes |
+|---|---|---|---|
+| HIGH | `lib/results/freeTestCases.php` | Test Cases not assigned to Any Test Plan | Issue #744 needed |
+| HIGH | `lib/results/testCasesWithoutTester.php` | Test Cases without Tester | |
+| HIGH | `lib/results/uncoveredTestCases.php` | Uncovered Test Cases | |
+| HIGH | `lib/results/resultsTC.php` | Test Case Results | |
+| HIGH | `lib/results/resultsTCFlat.php` | Flat Test Case Results | Already has HTML: `resultsTCFlat.html` — verify BFF |
+| HIGH | `lib/results/resultsTCAbsoluteLatest.php` | Absolute Latest Results | Already has HTML: `absoluteLatest.html` — verify BFF |
+| HIGH | `lib/results/resultsMoreBuildsGUI.php` | Results by Multiple Builds | |
+| HIGH | `lib/results/resultsReqs.php` | Requirements Results | Already has HTML: `resultsRequirements.html` — verify BFF |
+| HIGH | `lib/results/resultsBugs.php` (type=0) | Bugs Report | |
+| HIGH | `lib/results/resultsBugs.php` (type=1) | Bugs Report | |
+| HIGH | `lib/results/testPlanWithCF.php` | Test Plan with Custom Fields | Already has HTML: `tplanWithCF.html` — verify BFF |
+| HIGH | `lib/results/execTimelineStats.php` | Execution Timeline | |
+| HIGH | `lib/results/charts.php` | Charts | Already has HTML: `charts.html` — verify BFF |
+| HIGH | `lib/results/keywordBarChart.php` | Keyword Bar Chart | |
+| HIGH | `lib/results/overallPieChart.php` | Overall Pie Chart | |
+| HIGH | `lib/results/platformPieChart.php` | Platform Pie Chart | |
+| HIGH | `lib/results/priorityBarChart.php` | Priority Bar Chart | |
+| HIGH | `lib/results/topLevelSuitesBarChart.php` | Top Level Suites Bar Chart | |
+| MEDIUM | `lib/testcases/tcAssignedToUser.php` | TCs Assigned to User | |
+| MEDIUM | `lib/results/printDocOptions.php` (3x) | Print Documentation | |
 
-Not modernization targets (stay as-is by design):
-- Documentation section (tools/viewer.php PDF links, GitHub wiki link).
-- `plugin.php` (root) — plugin page router, stays in root by convention. No plugins installed (`gui/plugins/` empty), but plugin system expects `plugin.php?page=name/page` in root. Called only from `lib/functions/plugin_api.php:69` (`plugin_page()` helper).
-- Login/logout/install pages (already themed where needed).
+### Other legacy screens
+
+| Priority | Screen | Legacy entry point | Notes |
+|---|---|---|---|
+| MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
+| LOW | Install/Upgrade | `install/` | Stays as-is |
+| LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
 
 ---
 
@@ -114,7 +145,7 @@ Not modernization targets (stay as-is by design):
 3. ASIDE link (`gui/templates/dashio/aside.tpl` via `$actions->…` in
    `lib/functions/common.php` `initUserEnv()`) points to the `.html` file, not a
    legacy launcher.
-4. i18n keys present in ALL locale bundles (`locale/*/LC_MESSAGES/*.json` client bundles).
+4. i18n keys present in ALL locale bundles (`gui/templates/i18n/*.json`).
 5. Regression suite appended to test-cases doc + wiki mirror in `docs/WIKI-*.md`.
 
 ## Maintenance rule
