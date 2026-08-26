@@ -3135,6 +3135,9 @@ if ($action === 'free_testcases') {
         ? $tprojOpt->testPriorityEnabled : false;
 
     $freeData = $tprojectMgr->getFreeTestCases($tprojectId);
+    if (is_null($freeData)) {
+        $freeData = ['items' => null, 'allfree' => false];
+    }
 
     $rows = [];
     $allFree = false;
