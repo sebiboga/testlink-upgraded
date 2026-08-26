@@ -3106,5 +3106,100 @@ if ($action === 'tplan_with_cf') {
     exit;
 }
 
+// ──────────────────────────────────────────────────────────────
+// action: free_testcases
+// Mirrors lib/results/freeTestCases.php — for a test project, list test
+// cases that are NOT linked to any test plan.  Right: testplan_metrics.
+// ──────────────────────────────────────────────────────────────
+if ($action === 'free_testcases') {
+    $timerOn = microtime(true);
+
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test project id']);
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($projInfo) || !isset($projInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tprojOpt = $tprojectMgr->getOptions($tprojectId);
+    $priorityEnabled = isset($tprojOpt->testPriorityEnabled)
+        ? $tprojOpt->testPriorityEnabled : false;
+
+    $freeData = $tprojectMgr->getFreeTestCases($tprojectId);
+
+    $rows = [];
+    $allFree = false;
+    if (is_null($freeData['items'])) {
+        $allFree = true;
+    } else {
+        $allFree = !empty($freeData['allfree']);
+    }
+
+    if (!$allFree && !is_null($freeData['items']) && count($freeData['items']) > 0) {
+        $tcCfg = config_get('testcase_cfg');
+        $prefix = $tprojectMgr->getTestCasePrefix($tprojectId)
+            . $tcCfg->glue_character;
+
+        $tcIds = array_keys($freeData['items']);
+        $treeMgr = new tree($db);
+        $pathInfo = $treeMgr->get_full_path_verbose($tcIds,
+            ['output_format' => 'path_as_string']);
+        unset($treeMgr);
+
+        foreach ($freeData['items'] as $tcId => $tcInfo) {
+            $suitePath = isset($pathInfo[$tcId]) ? $pathInfo[$tcId] : '';
+
+            $row = [
+                'tcase_id'       => intval($tcId),
+                'tc_external_id' => intval($tcInfo['tc_external_id']),
+                'external_id'    => $prefix . $tcInfo['tc_external_id'],
+                'name'           => strip_tags($tcInfo['name']),
+                'suite_path'     => $suitePath,
+            ];
+
+            if ($priorityEnabled) {
+                $imp = intval($tcInfo['importance']);
+                $prioMap = [
+                    intval(HIGH)   => 'high',
+                    intval(MEDIUM) => 'medium',
+                    intval(LOW)    => 'low',
+                ];
+                $row['importance'] = $prioMap[$imp] ?? 'low';
+            }
+
+            $rows[] = $row;
+        }
+    }
+
+    $warningMsg = '';
+    if ($allFree) {
+        $warningMsg = lang_get('all_testcases_are_free');
+    } elseif (count($rows) === 0) {
+        $warningMsg = lang_get('all_testcases_has_testplan');
+    }
+
+    out([
+        'status'            => 'ok',
+        'tproject_id'       => $tprojectId,
+        'tproject_name'     => $projInfo['name'],
+        'priority_enabled'  => $priorityEnabled,
+        'all_free'          => $allFree,
+        'has_data'          => count($rows) > 0,
+        'rows'              => $rows,
+        'warning_msg'       => $warningMsg,
+        'elapsed_time'      => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

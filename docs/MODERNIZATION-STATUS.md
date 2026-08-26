@@ -10,9 +10,9 @@
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 59 |
-| IN PROGRESS | 1 |
-| TODO (still legacy) | ~35 |
+| DONE (modernized) | 60 |
+| IN PROGRESS | 0 |
+| TODO (still legacy) | ~19 |
 
 ---
 
@@ -83,6 +83,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 59 | Reports — General Metrics | `results/generalMetrics.html` | api/reports | |
 | 60 | Reports — Assigned TC Overview | `results/assignedTcOverview.html` | api/reports | |
 | 61 | Reports — Charts | `results/charts.html` | api/reports | |
+| 62 | Reports — Free Test Cases | `results/freeTestCases.html` | api/reports | #751 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, WIP)
@@ -103,11 +104,10 @@ Extra modernized feature (not an ASIDE entry):
 
 ## ⬜ TODO — still legacy PHP (next screens, ASIDE order)
 
-### Reports (from cfg/reports.cfg.php — 26 total, 10 modernized, 16 legacy)
+### Reports (from cfg/reports.cfg.php — 26 total, 11 modernized, 15 legacy)
 
 | Priority | Legacy file | Description | Notes |
 |---|---|---|---|
-| HIGH | `lib/results/freeTestCases.php` | Test Cases not assigned to Any Test Plan | Issue #744 needed |
 | HIGH | `lib/results/testCasesWithoutTester.php` | Test Cases without Tester | |
 | HIGH | `lib/results/uncoveredTestCases.php` | Uncovered Test Cases | |
 | HIGH | `lib/results/resultsTC.php` | Test Case Results | |

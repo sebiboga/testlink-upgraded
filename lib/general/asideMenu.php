@@ -181,6 +181,12 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_tplans_with_cf') {
         $hrefR = 'gui/templates/results/tplanWithCF.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #751 - Free Test Cases report modernized;
+      // the BFF (api/reports free_testcases action) reuses the very same
+      // testproject::getFreeTestCases() call and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_free_testcases_on_testproject') {
+        $hrefR = 'gui/templates/results/freeTestCases.html' .
+                 "?tproject_id={$tprojectID}";
       } else {
         $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
         $hrefR = $baseHrefR . $rptItem['url'] .
