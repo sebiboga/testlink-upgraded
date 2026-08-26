@@ -12,7 +12,7 @@
 |---|---|
 | DONE (modernized) | 59 |
 | IN PROGRESS | 1 |
-| TODO (still legacy) | ~21 |
+| TODO (still legacy) | ~35 |
 
 ---
 
@@ -136,6 +136,24 @@ Extra modernized feature (not an ASIDE entry):
 | MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
 | LOW | Install/Upgrade | `install/` | Stays as-is |
 | LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
+
+### Legacy redirects from modernized screens (buttons that still go to .php)
+
+| Priority | Source screen | Legacy target | Issue | Action |
+|---|---|---|---|---|
+| HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php`, `tcExport.php`, `tcCompareVersions.php` | #753 | Convert to modals / BFF API |
+| HIGH | planView.html | `planEdit.php`, `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #750, #754 | Convert to modals / BFF API |
+| HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
+| HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
+| HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |
+| HIGH | 5 req screens | `reqView.php`, `reqSpecView.php`, `*Revision.php`, `printDocument.php` | #755 | Convert to modals / BFF API |
+| HIGH | resultsMatrix.html | `execSetResults.php` | #756 | Redirect to modernized page |
+| MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` | #758 | Redirect / modal |
+| MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
+| MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | Fix: already have keywordsAssign.html |
+| MEDIUM | platformsView.html | `eventviewer.php` | #757 | Fix: already have eventviewer.html |
+| MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 | Convert XML import to BFF API |
+| LOW | 10 report screens | export/mail download endpoints | #756 | Convert to BFF API downloads |
 
 ---
 
