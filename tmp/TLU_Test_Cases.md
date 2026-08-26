@@ -5761,3 +5761,18 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 4 | No PHP errors on page load | Open legacy dashboard, check PHP error log | No E_WARNING or E_ERROR from `tlTestPlanMetrics.class.php` | PASS — 0 new errors |
 | 5 | Event Viewer clean | Query `events` table for new Error/Warning rows | No new Error/Warning entries from metrics dashboard usage | PASS |
 | 6 | getExecCountersByExecStatus null guard correct | Code review: line 1056 checks `$builds->idSet` not `is_array($builds)` | Guard matches upstream TestLink pattern, stdClass property access is correct | PASS — verified in commit `d91446a74` |
+
+---
+
+## Regression — Issue #648: E_WARNING "Undefined array key testsuitename" on xmlrpc createTestSuite action=update when name omitted
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306 / testlink; admin devKey available; test project (id=1) and test suite (id=2) pre-created.
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | update without testsuitename produces no warnings | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuiteid:2, action:"update"}` — no `testsuitename` | status=ok, `events` table has 0 E_WARNING entries | PASS — status=true, message="ok", 0 events |
+| 2 | update WITH testsuitename still renames | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuiteid:2, action:"update", testsuitename:"Renamed"}` | name changes in DB, 0 warnings | PASS — `nodes_hierarchy.name=Renamed`, 0 events |
+| 3 | update without testsuitename does not change name | `tl.createTestSuite` update without name; query DB | `nodes_hierarchy.name` unchanged (still "Renamed" from test 2) | PASS — name unchanged |
+| 4 | create (default action) still works | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuitename:"NewSuite", details:"..."}` | New suite created, 0 warnings | PASS — new id returned, 0 events |
+| 5 | PHP syntax clean | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php && php -l lib/functions/testsuite.class.php` | No syntax errors | PASS |
+| 6 | Event Viewer clean after all tests | Query `events` table for Error/Warning | No new entries | PASS — 0 rows |
