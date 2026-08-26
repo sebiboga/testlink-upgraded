@@ -1,11 +1,15 @@
 name: Investigate & fix (opencode)
 
-# One run = ONE investigation issue fixed end-to-end: the NEWEST open GitHub
-# issue labeled 'investigation'. Manual trigger only — investigation issues
-# require explicit assignment, not auto-pick.
+# One run = ONE investigation issue fixed end-to-end.
+# Manual trigger — can specify issue number or defaults to oldest open investigation issue.
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to investigate (leave empty for oldest open investigation issue)'
+        required: false
+        default: ''
 
 concurrency:
   group: investigate-fix
@@ -145,10 +149,24 @@ jobs:
       - name: Verify gh auth and triage the target issue (investigation only)
         run: |
           gh auth status
-          # TRIAGE: newest open issue labeled 'investigation'.
-          TARGET=$(gh issue list --state open --limit 200 --json number,title,labels \
-            --jq 'map(select([.labels[].name] | any(. == "investigation") | not | not))
-                  | sort_by(.createdAt) | reverse | .[0].number // empty')
+          # Use provided issue number if specified, otherwise pick oldest open investigation issue
+          INPUT_ISSUE="${{ github.event.inputs.issue_number }}"
+          if [ -n "$INPUT_ISSUE" ]; then
+            # Verify the specified issue exists and is labeled 'investigation'
+            LABELS=$(gh issue view "$INPUT_ISSUE" --repo sebiboga/testlink-upgraded --json labels --jq '.labels[].name' 2>/dev/null || true)
+            if echo "$LABELS" | grep -q "investigation"; then
+              TARGET="$INPUT_ISSUE"
+            else
+              echo "::error::Issue #$INPUT_ISSUE is not labeled 'investigation'"
+              echo "HAS_TARGET=0" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          else
+            # Pick OLDEST open issue labeled 'investigation'
+            TARGET=$(gh issue list --state open --limit 200 --json number,title,labels,createdAt \
+              --jq 'map(select([.labels[].name] | any(. == "investigation") | not | not))
+                    | sort_by(.createdAt) | .[0].number // empty')
+          fi
           echo "$TARGET" > .ci_target_issue || true
           if [ -z "$TARGET" ]; then
             echo "::notice::No open investigation issues — nothing to fix"
@@ -204,7 +222,7 @@ jobs:
           PROMPT+="1. Pick the NEWEST open GitHub issue labeled 'investigation' via gh "
           PROMPT+="2. Read its full body and ALL comments "
           PROMPT+="3. Post INVESTIGATION COMMENT (COMMENT 1) — BEFORE touching any code "
-          POST_INVESTIGATION="4. Post ROOT CAUSE COMMENT (COMMENT 2) — BEFORE implementing fix "
+          PROMPT+="4. Post ROOT CAUSE COMMENT (COMMENT 2) — BEFORE implementing fix "
           PROMPT+="5. Implement the minimal fix "
           PROMPT+="6. Post FIX CHECKPOINT COMMENT(s) (COMMENT 3) — after EACH implemented step "
           PROMPT+="7. Create docs/Bugfix-Issue-<n>-<title>.md following INVESTIGATE-FIX.md §6 structure "
