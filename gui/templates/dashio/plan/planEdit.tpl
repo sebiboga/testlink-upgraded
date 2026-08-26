@@ -46,7 +46,7 @@ Purpose: smarty template - create/edit Test Plan
 {$edit_url="$basehref$url_args$form_action"}
 
 <body>
-  {if $gui->uploadOp != null }
+  {if isset($gui->uploadOp) && $gui->uploadOp != null}
     <script>
     var uplMsg = "{$labels.file_upload_ko}<br>";
     var doAlert = false;

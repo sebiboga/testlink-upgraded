@@ -62,7 +62,7 @@ function validateForm(f)
       <br />
         <input type="button" class="{#BUTTON_CLASS#}"
           name="goback" value="{$labels.btn_goback}"
-          {if $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
+          {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
             {else} onclick="javascript:history.back();" {/if} />
     </form>
 {else}
@@ -90,12 +90,12 @@ function validateForm(f)
       <div class="groupBtn">
         <input type="hidden" name="tproject_id" id="tproject_id" value="{$gui->tproject_id}" />
         <input type="hidden" name="doAction" id="doAction" value="doImport" />
-        <input type="hidden" name="goback_url" value="{ $gui->goback_url|escape}" />
+        <input type="hidden" name="goback_url" value="{if isset($gui->goback_url)}{$gui->goback_url|escape}{/if}" />
         <input type="submit" class="{#BUTTON_CLASS#}"
                name="UploadFile" value="{$labels.btn_upload_file}" />
         <input type="button" class="{#BUTTON_CLASS#}"
                name="cancel" value="{$labels.btn_cancel}"
-               {if $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
+               {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
                              {else}  onclick="javascript:history.back();" {/if} />
       </div>
     </form> 

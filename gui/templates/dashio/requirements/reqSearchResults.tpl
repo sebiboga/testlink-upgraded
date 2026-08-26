@@ -21,7 +21,7 @@ Purpose: show results for requirement search.
 
 <h1 class="title">{$gui->pageTitle}</h1>
 <div class="workBack">
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
   {foreach from=$gui->tableSet key=idx item=matrix}
     {$tableID="table_$idx"}
     {$matrix->renderBodySection($tableID)}

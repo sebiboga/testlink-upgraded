@@ -42,7 +42,7 @@ Purpose: smarty template - show Test Results and Metrics
   <h1><center>{$gui->hint}</center></h1>
 {/if}
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
   <table class="simple" style="text-align: center; margin-left: 0px;">
     <tr>
       <th>{$labels.bugs_open}</th>

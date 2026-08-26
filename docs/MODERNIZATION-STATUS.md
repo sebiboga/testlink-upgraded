@@ -10,9 +10,9 @@
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 59 |
-| IN PROGRESS | 1 |
-| TODO (still legacy) | ~20 |
+| DONE (modernized) | 60 |
+| IN PROGRESS | 0 |
+| TODO (still legacy) | ~19 |
 
 ---
 
@@ -83,6 +83,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 59 | Reports — General Metrics | `results/generalMetrics.html` | api/reports | |
 | 60 | Reports — Assigned TC Overview | `results/assignedTcOverview.html` | api/reports | |
 | 61 | Reports — Charts | `results/charts.html` | api/reports | |
+| 62 | Reports — Free Test Cases | `results/freeTestCases.html` | api/reports | #751 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, WIP)
@@ -103,11 +104,10 @@ Extra modernized feature (not an ASIDE entry):
 
 ## ⬜ TODO — still legacy PHP (next screens, ASIDE order)
 
-### Reports (from cfg/reports.cfg.php — 26 total, 10 modernized, 16 legacy)
+### Reports (from cfg/reports.cfg.php — 26 total, 11 modernized, 15 legacy)
 
 | Priority | Legacy file | Description | Notes |
 |---|---|---|---|
-| HIGH | `lib/results/freeTestCases.php` | Test Cases not assigned to Any Test Plan | Issue #744 needed |
 | HIGH | `lib/results/testCasesWithoutTester.php` | Test Cases without Tester | |
 | HIGH | `lib/results/uncoveredTestCases.php` | Uncovered Test Cases | |
 | HIGH | `lib/results/resultsTC.php` | Test Case Results | |
@@ -132,9 +132,28 @@ Extra modernized feature (not an ASIDE entry):
 
 | Priority | Screen | Legacy entry point | Notes |
 |---|---|---|---|
+| HIGH | Create/Edit Test Plan | `lib/plan/planEdit.php` | Refs #750 — planView.html redirects here for create/edit |
 | MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
 | LOW | Install/Upgrade | `install/` | Stays as-is |
 | LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
+
+### Legacy redirects from modernized screens (buttons that still go to .php)
+
+| Priority | Source screen | Legacy target | Issue | Action |
+|---|---|---|---|---|
+| HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php`, `tcExport.php`, `tcCompareVersions.php` | #753 | Convert to modals / BFF API |
+| HIGH | planView.html | `planEdit.php`, `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #750, #754 | Convert to modals / BFF API |
+| HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
+| HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
+| HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |
+| HIGH | 5 req screens | `reqView.php`, `reqSpecView.php`, `*Revision.php`, `printDocument.php` | #755 | Convert to modals / BFF API |
+| HIGH | resultsMatrix.html | `execSetResults.php` | #756 | Redirect to modernized page |
+| MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` | #758 | Redirect / modal |
+| MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
+| MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | Fix: already have keywordsAssign.html |
+| MEDIUM | platformsView.html | `eventviewer.php` | #757 | Fix: already have eventviewer.html |
+| MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 | Convert XML import to BFF API |
+| LOW | 10 report screens | export/mail download endpoints | #756 | Convert to BFF API downloads |
 
 ---
 

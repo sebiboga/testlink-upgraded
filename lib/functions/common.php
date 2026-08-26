@@ -1885,6 +1885,9 @@ function getActions(&$gui,$baseURL) {
 
   $actions->fullTextSearch = "/gui/templates/search/searchAdvancedView.html?{$ctx}";
 
+  // MD/XML Test Case Import modernized screen
+  $actions->tcImport = "/gui/templates/testcases/tcImport.html?{$ctx}";
+
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 

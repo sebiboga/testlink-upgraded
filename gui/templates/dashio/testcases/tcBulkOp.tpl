@@ -60,7 +60,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   	<div class="groupBtn">
   		<input type="hidden" name="tcase_id" id="tcase_id" value="{$gui->tcase_id}" />
   		<input type="hidden" 
-             name="goback_url" id="goback_url" value="{$gui->goback_url}" />
+             name="goback_url" id="goback_url" value="{if isset($gui->goback_url)}{$gui->goback_url}{/if}" />
       <input type="hidden" name="doAction" id="doAction" value="apply" />
       <input class="{#BUTTON_CLASS#}" type="submit" 
              name="nike" id="nike" 
@@ -69,7 +69,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   		<input class="{#BUTTON_CLASS#}" type="button" 
              name="cancel" id="cancel"
              value="{$labels.btn_cancel}"
-    		     {if $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
+    		     {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
              {elseif $gui->cancelActionJS != ''} onclick="javascript:{$gui->cancelActionJS};"
     		     {else}  onclick="javascript:history.back();" {/if} />
   	</div>

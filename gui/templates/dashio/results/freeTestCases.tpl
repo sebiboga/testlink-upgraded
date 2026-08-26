@@ -27,7 +27,7 @@ For a test project, list FREE test cases, i.e. not assigned to a test plan.
  {include file="inc_result_tproject_tplan.tpl" 
           arg_tproject_name=$gui->tproject_name arg_tplan_name=''}	
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 	{foreach from=$gui->tableSet key=idx item=matrix}
 		{$tableID="table_$idx"}
 		{$matrix->renderBodySection($tableID)}

@@ -2271,6 +2271,7 @@ $TLS_href_assign_user_roles = "Affectation des droits sur le projet";
 $TLS_href_browse_tc = "Parcourir les fiches de test";
 $TLS_href_cfields_management = "Gestion des champs personnalisés";
 $TLS_href_cfields_tproject_assign = "Affectation des champs personnalisés";
+$TLS_href_tc_import = "Import Test Cases (MD/XML)";
 $TLS_href_edit_tc = "Gestion des fiches de test";
 $TLS_href_inventory = "Inventaire";
 $TLS_href_inventory_management = "Gestion de l’inventaire";

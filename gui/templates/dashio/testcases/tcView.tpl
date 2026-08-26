@@ -89,7 +89,7 @@ function validateFormEstimatedExecDuration(the_form)
 <h1 class="{#TITLE_CLASS#}">{$gui->pageTitle}{if $gui->show_match_count} - {$labels.match_count}:{$gui->match_count}{/if}
 </h1>
 
-{if $gui->uploadOp != null }
+{if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
   var uplMsg = "{$labels.file_upload_ko}<br>";
   var doAlert = false;
@@ -102,7 +102,7 @@ function validateFormEstimatedExecDuration(the_form)
   }
   </script>
 {/if}
-{include file="inc_update.tpl" user_feedback=$gui->user_feedback refresh=$gui->refreshTree}
+{include file="inc_update.tpl" user_feedback=$gui->user_feedback refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
 <div class="workBack">
 
 {if $gui->tc_current_version}
@@ -350,7 +350,7 @@ function validateFormEstimatedExecDuration(the_form)
 {/if}
 
 </div>
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
   {include file="inc_refreshTreeWithFilters.tpl"}
 {/if}
 </body>

@@ -35,7 +35,7 @@
 
 <div class="workBack" style="overflow-y: auto;">
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
   <p>{$labels.generated_by_TestLink_on} {$smarty.now|date_format:$gsmarty_timestamp_format} 
      {if $gui->elapsedSeconds >0} ({$gui->elapsedSeconds} sec) {/if}</p>
   <p><form method="post">

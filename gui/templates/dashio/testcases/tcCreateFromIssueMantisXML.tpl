@@ -60,7 +60,7 @@ Purpose: smarty template -
   {include file="inc_refreshTree.tpl"}
 {/if}
 
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
 	{include file="inc_refreshTree.tpl"}
 {/if}
 

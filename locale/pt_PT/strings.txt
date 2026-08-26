@@ -2292,6 +2292,7 @@ $TLS_href_assign_user_roles = "Permissão do Utilizador";
 $TLS_href_browse_tc = "Pesquisar Casos de Teste";
 $TLS_href_cfields_management = "Gerir Campos Personalizados";
 $TLS_href_cfields_tproject_assign = "Selecionar Campos Personalizados";
+$TLS_href_tc_import = "Import Test Cases (MD/XML)";
 $TLS_href_edit_tc = "Especificar Casos de Teste";
 $TLS_href_inventory = "Gestão de Inventário";
 $TLS_href_inventory_management = "Gestão de Inventário";

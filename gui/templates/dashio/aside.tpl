@@ -170,6 +170,7 @@ Left side menu
                     <li><a href="{$gui->uri->keywordsAssign}" target="mainframe">{$labels.href_keywords_assign}</a></li>
                   {/if}
                   {if $menuGrants->modify_tc == 'yes'}
+                    <li><a href="{$gui->uri->tcImport}" target="mainframe">{$labels.href_tc_import}</a></li>
                     <li><a href="{$gui->uri->tcCreatedUser}" target="mainframe">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
                 </ul>

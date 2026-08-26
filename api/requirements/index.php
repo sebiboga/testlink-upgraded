@@ -655,7 +655,7 @@ if ($action === 'print_tree') {
 
     // sort siblings by name like the legacy tree menu does
     $sortByName = function(&$arr) use (&$sortByName) {
-        usort($arr, function($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        usort($arr, function($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
         foreach ($arr as $k => $v) {
             if (!empty($v['children'])) {
                 $sortByName($arr[$k]['children']);
@@ -1260,7 +1260,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'assign-suit
                 $outItems[] = ['id' => intval($r['id']), 'name' => $r['name']];
             }
         }
-        usort($outItems, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+        usort($outItems, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
     }
     out(['status' => 'ok', 'qty' => count($outItems), 'items' => $outItems]);
 }

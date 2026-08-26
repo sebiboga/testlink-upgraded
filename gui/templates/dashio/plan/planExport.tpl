@@ -70,7 +70,7 @@ function validateForm(f)
   	<div class="groupBtn">
   		<input type="submit" name="export" value="{$labels.btn_export}" />
   		<input type="button" name="cancel" value="{$labels.btn_cancel}"
-    		     {if $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
+    		     {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
              {elseif $gui->closeOnCancel} onclick="window.close();"
     		     {else}  onclick="javascript:history.back();" {/if} />
   	</div>

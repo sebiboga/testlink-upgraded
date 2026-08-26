@@ -76,13 +76,29 @@ class markdownTcImport
                 continue;
             }
 
-            // ---- suite section: "## 1. Header (Suite ID: 12)" --------------
-            if (preg_match('/^##\s+(\d+)\.\s+(.+?)\s*(?:\(Suite ID:\s*(\d+)\))?\s*$/u',
-                           $line, $m)) {
+            // ---- suite section: any ## heading starts a new suite ---------------
+            // Handles all formats:
+            //   ## 1. Header (Suite ID: 12)
+            //   ## Suite 38: Regression — Issue #706
+            //   ## Suite #461 — xmlrpc ...
+            //   ## Regression — Issue #551: ...
+            //   ## User Profile (userInfo.html)
+            //   ## Modernize — Issue #660: ...
+            if (preg_match('/^##\s+(?:Test Suites Structure|Summary)\s*$/u', $line)) {
+                continue; // skip the tree overview / summary section
+            }
+            if (preg_match('/^##\s+(.+)$/u', $line, $m)) {
+                $suiteName = trim($m[1]);
+                // Extract optional (Suite ID: N) from end
+                $suiteId = 0;
+                if (preg_match('/\(\s*Suite\s+ID:\s*(\d+)\s*\)\s*$/iu', $suiteName, $sm)) {
+                    $suiteId = intval($sm[1]);
+                    $suiteName = trim(preg_replace('/\(\s*Suite\s+ID:\s*\d+\s*\)\s*$/iu', '', $suiteName));
+                }
                 $currentSuite = [
-                    'index' => intval($m[1]),
-                    'name' => trim($m[2]),
-                    'id' => isset($m[3]) ? intval($m[3]) : 0,
+                    'index' => count($result['suites']) + 1,
+                    'name' => $suiteName,
+                    'id' => $suiteId,
                     'cases' => [],
                 ];
                 self::flushPending($result, $currentSuiteKey, $currentCase);
@@ -127,7 +143,10 @@ class markdownTcImport
             if (preg_match('/^\s*-\s*\**(Priority|Importance|Preconditions|Steps|Expected Result|Expected result)\**\s*:\s*(.*)$/u',
                            $line, $m)) {
                 $field = strtolower($m[1]);
-                $value = trim($m[2]);
+                // Strip leading/trailing ** bold markers that leak from
+                // markdown **Field:** value format (colon sits inside bold)
+                $value = preg_replace('/^\*{1,2}\s*/', '', trim($m[2]));
+                $value = preg_replace('/\s*\*{1,2}$/', '', $value);
                 switch ($field) {
                     case 'priority':
                         $currentCase['priority'] = $value;
@@ -144,9 +163,8 @@ class markdownTcImport
                         break;
                     case 'steps':
                         $inSteps = true;
-                        if ($value !== '') {
-                            $this->addStep($currentCase, 1, $value);
-                        }
+                        // Don't create a spurious step from "- **Steps:**" header
+                        // (value would be empty or just bold markers)
                         break;
                     case 'expected result':
                         $currentCase['expectedResult'] = $value;
@@ -214,6 +232,9 @@ class markdownTcImport
      */
     private function addStep(&$testCase, $number, $text) {
         $text = trim($text);
+        // Strip stray ** bold markers
+        $text = preg_replace('/^\*{1,2}\s*/', '', $text);
+        $text = preg_replace('/\s*\*{1,2}$/', '', $text);
         $expected = '';
         if (preg_match('/^(.*?)\s*\*{1,2}Expected\s*:?\*{1,2}\s*(.*)$/iu', $text, $m)) {
             $text = trim($m[1]);
