@@ -102,7 +102,7 @@ Ext.onReady(function() {
 </table>
 </form></p><br/>
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 
   <h2>{$labels.title_resultsReqsProgress}</h2>
   <br />

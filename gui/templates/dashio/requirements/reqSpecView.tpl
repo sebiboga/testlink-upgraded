@@ -76,7 +76,7 @@ Purpose: view a requirement specification
 </head>
 
 <body {$body_onload} onUnload="storeWindowSize('ReqSpecPopup')" >
-{if $gui->uploadOp != null }
+{if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
   var uplMsg = "{$labels.file_upload_ko}<br>";
   var doAlert = false;

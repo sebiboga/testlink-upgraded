@@ -15,7 +15,7 @@ Purpose: smarty template - move/copy test case
 {include file="inc_head.tpl"}
 
 <body>
-<h1 class="title">{$labels.test_case}{$smarty.const.TITLE_SEP}{$gui->name|escape}</h1>
+<h1 class="title">{$labels.test_case}{$smarty.const.TITLE_SEP}{if isset($gui->name)}{$gui->name|escape}{/if}</h1>
 
 <div class="workBack">
 <h1 class="title">{$labels.title_mv_cp_tc}</h1>

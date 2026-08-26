@@ -56,7 +56,7 @@ Ext.onReady(function() {ldelim}
 
 </form></p><br/>
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 	<h2>{$labels.project_progress}</h2>
 	<br>
 	{foreach from=$gui->project_metrics key=key item=metric}

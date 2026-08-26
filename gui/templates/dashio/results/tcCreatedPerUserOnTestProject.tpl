@@ -35,7 +35,7 @@ Purpose: smarty template - Report of Test Cases created per tester
 
   {if $gui->searchDone}
     <div class="workBack">
-    {if $gui->warning_msg == ''}
+    {if !isset($gui->warning_msg) || $gui->warning_msg == ''}
         {if $gui->resultSet}
           {foreach from=$gui->tableSet key=idx item=matrix}
             <p>

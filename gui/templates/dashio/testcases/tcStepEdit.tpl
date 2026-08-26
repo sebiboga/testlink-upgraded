@@ -158,7 +158,7 @@ var tc_editor = "{$gui->editorType}";
     {/if}
 
     <input type="button" name="cancel" value="{$labels.btn_cancel}"
-           {if $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
+           {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
            {else}  onclick="show_modified_warning=false; javascript:history.back();" {/if} />
   </div>  
 
@@ -206,7 +206,7 @@ var tc_editor = "{$gui->editorType}";
         {/if}
 
         <input type="button" name="cancel" value="{$labels.btn_cancel}"
-               {if $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
+               {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
                {else}  onclick="show_modified_warning=false; javascript:history.back();" {/if} />
       </div>  
     
@@ -354,7 +354,7 @@ var tc_editor = "{$gui->editorType}";
     {/if}
 
     <input type="button" name="cancel" value="{$labels.btn_cancel}"
-           {if $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
+           {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="show_modified_warning=false; location='{$gui->goback_url}';"
            {else}  onclick="show_modified_warning=false; javascript:history.back();" {/if} />
   </div>  
 </form>

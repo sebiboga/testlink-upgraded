@@ -25,7 +25,7 @@ Purpose: For a test plan, list test cases with Custom Fields at Execution
 <h1 class="title">{$gui->pageTitle|escape}</h1>
 <div class="workBack" style="overflow-y: auto;">
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 	{include file="inc_result_tproject_tplan.tpl" 
 		arg_tproject_name=$gui->tproject_name arg_tplan_name=$gui->tplan_name}
 	{foreach from=$gui->tableSet key=idx item=matrix}

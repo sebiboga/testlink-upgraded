@@ -49,7 +49,7 @@ Purpose: smarty template - Edit a platform
   			<th>{$labels.th_platform}</th>
   			<td><input type="text" name="name" id="name"
   			           size="{#PLATFORM_SIZE#}" maxlength="{#PLATFORM_MAXLEN#}"
-  				         value="{$gui->name|escape}" required />
+  				         value="{if isset($gui->name)}{$gui->name|escape}{/if}" required />
 			  </td>
   		</tr>
   		<tr>

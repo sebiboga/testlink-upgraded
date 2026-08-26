@@ -360,7 +360,9 @@ generate a list of TC for adding to Test Plan
             	   			{/if}
             	   
                    			{if !is_null($tcase.executed) && $tcase.executed[0] eq 'yes'}&nbsp;&nbsp;&nbsp;
+                      		{if isset($gui->warning_msg)}
    				                  <span title="{$gui->warning_msg->executed}">{$tlImages.executed}</span>
+                      		{/if}
                       		{/if}
                       		{if $is_active eq 0}&nbsp;&nbsp;&nbsp;{$labels.inactive_testcase}{/if}
             			  </td>
@@ -424,7 +426,9 @@ generate a list of TC for adding to Test Plan
             		    		&nbsp;&nbsp;
             	   			{/if}
                         	{if !is_null($tcase.executed) && isset($tcase.executed[$platform.id]) && $tcase.executed[$platform.id] eq 'yes'}&nbsp;&nbsp;&nbsp;
+                        	{if isset($gui->warning_msg)}
    				                  <span title="{$gui->warning_msg->executed}">{$tlImages.executed}</span>
+                        	{/if}
                         	{/if}
 
                             {* TICKET 5294: it is not possible to remove an inactive tc version from a testplan with platforms *}
@@ -462,7 +466,7 @@ generate a list of TC for adding to Test Plan
 {/if}
 </form>
 
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
 	{include file="inc_refreshTreeWithFilters.tpl"}
 {/if}
 

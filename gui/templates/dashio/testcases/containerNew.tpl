@@ -32,7 +32,7 @@ Purpose: smarty template - create containers
 {include file="inc_update.tpl" result=$sqlResult 
                                user_feedback=$user_feedback
                                item=$level action="add" name=$name
-                               refresh=$gui->refreshTree}
+                               refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
 
 
 <form method="post" action="{$action}" name="container_new" id="container_new"

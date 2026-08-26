@@ -29,7 +29,7 @@ searchResults.tpl
 
 {if $gui->doSearch}
   <div class="workBack">
-  {if $gui->warning_msg == ''}
+  {if !isset($gui->warning_msg) || $gui->warning_msg == ''}
     {foreach from=$gui->tableSet key=idx item=matrix}
       {$tableID="table_$idx"}
       {$matrix->renderBodySection($tableID)}

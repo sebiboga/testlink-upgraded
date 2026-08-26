@@ -38,7 +38,7 @@ Purpose: show form for search through test cases in test specification
       
       <div class="col-sm-1 col-md-1 col-lg-1"><label>{$labels.th_title}</label></div>
       <div class="col-sm-2 col-md-2 col-lg-2"><input type="text" name="name" id="name" 
-           value="{$gui->name|escape}"
+           value="{if isset($gui->name)}{$gui->name|escape}{/if}"
            size="{#TCNAME_SIZE#}" maxlength="{#TCNAME_MAXLEN#}" /></div>
     </div>
 

@@ -235,7 +235,7 @@ var {$gui->dialogName} = new std_dialog('&refreshTree');
   {include file="inc_help.tpl" helptopic="hlp_req_view" show_help_icon=true}
 </h1>
 
-{if $gui->uploadOp != null }
+{if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
   var uplMsg = "{$labels.file_upload_ko}<br>";
   var doAlert = false;

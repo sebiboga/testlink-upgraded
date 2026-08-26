@@ -45,7 +45,7 @@ Purpose: smarty template - view test case in test specification
 <br />
 {/if}
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
   {if $gui->resultSet}
 
     {foreach from=$gui->tableSet key=idx item=matrix}

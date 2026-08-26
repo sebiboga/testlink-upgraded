@@ -51,7 +51,7 @@ function check_action_precondition(container_id,action,msg)
 <div class="workBack">
 <h1 class="title">{$gui->main_descr|escape}</h1>
 
-{if $gui->op_ok == false}
+{if isset($gui->op_ok) && $gui->op_ok == false}
 	{$gui->user_feedback}
 {else}
 	<form id="delete_testcases" name="delete_testcases" method="post"
@@ -62,7 +62,7 @@ function check_action_precondition(container_id,action,msg)
       <div class="user_feedback">{$gui->user_feedback}</div>
       <br />
     {/if}
-    {if $gui->system_message != ''}
+    {if isset($gui->system_message) && $gui->system_message != ''}
       <div class="user_feedback">{$gui->system_message}</div>
       <br />
     {/if}
@@ -143,7 +143,7 @@ function check_action_precondition(container_id,action,msg)
 {/if}
 
 </div>
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
    	{include file="inc_refreshTreeWithFilters.tpl"}
 {/if}
 </body>

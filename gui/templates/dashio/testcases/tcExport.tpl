@@ -112,7 +112,7 @@ test case export initial page
   		<input class="{#BUTTON_CLASS#}" type="button" 
              name="cancel" id="cancel" 
              value="{$labels.btn_cancel}"
-    		     {if $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
+    		     {if isset($gui->goback_url) && $gui->goback_url != ''}  onclick="location='{$gui->goback_url}'"
              {elseif $gui->cancelActionJS != ''} onclick="javascript:{$gui->cancelActionJS};"
     		     {else}  onclick="javascript:history.back();" {/if} />
   	</div>
