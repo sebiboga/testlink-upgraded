@@ -5859,24 +5859,101 @@ Legacy: `lib/results/freeTestCases.php`
 
 ---
 
-## Suite 564 — Regression — Issue #564: E_WARNING spam from unserialize() in testproject::getOptions() when options holds non-serialized value
+## Suite: Regression — Issue #756: Broken legacy redirects in modernized report/execution screens
 
-### Preconditions
-- Admin user logged in
-- Test project exists with `options` column set to non-serialized value (e.g. `"0"`)
-- Event Viewer (events table) cleared
+### TC-756-01: tcasesWithCF.html History icon opens execHistory.html (not reqMilestones.php)
 
-### Test Cases
+**Precondition:** TestLink running at http://localhost:8082; user logged in as admin; at least one test case exists in a test plan with custom fields.
 
-| # | Step | Expected | Actual | Status |
-|---|------|----------|--------|--------|
-| 1 | Set testprojects.options to `"0"` (non-serialized scalar) via SQL | Column updated to literal `0` | Confirmed via SELECT | PASS |
-| 2 | Navigate to index.php?tproject_id=1 (selects the project) | No new E_WARNING entries in events table | 0 E_WARNING entries after fix (was 5 before fix) | PASS |
-| 3 | Verify page loads without error | Main page renders normally with project context | Page loads correctly, project name shown | PASS |
-| 4 | Set testprojects.options to `""` (empty string) via SQL | Column updated to empty string | Confirmed via SELECT | PASS |
-| 5 | Navigate to index.php?tproject_id=1 | No new E_WARNING entries | 0 E_WARNING entries | PASS |
-| 6 | Set testprojects.options to `NULL` via SQL | Column updated to NULL | Confirmed via SELECT | PASS |
-| 7 | Navigate to index.php?tproject_id=1 | No new E_WARNING entries | 0 E_WARNING entries | PASS |
-| 8 | Set testprojects.options to valid serialized stdClass | Column holds `O:8:"stdClass":...` | Confirmed via SELECT | PASS |
-| 9 | Navigate to index.php?tproject_id=1 | Page loads normally, no E_WARNING, properties accessible | Page loads, no errors | PASS |
-| 10 | Verify Event Viewer after all tests | No new Error/Warning entries from any test step | Event Viewer clean | PASS |
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/results/tcasesWithCF.html?tproject_id=1&tplan_id=1`
+2. Wait for the table to load
+3. Click the History icon (clock icon) next to any test case row
+
+**Expected:** A popup window opens loading `/gui/templates/execute/execHistory.html?tcase_id=...&tproject_id=...` showing execution history for the test case.
+
+**Actual (post-fix):** The popup opens `execHistory.html` and loads execution history. The previously broken link to non-existent `reqMilestones.php` (404) is fixed.
+
+**Result: PASS**
+
+---
+
+### TC-756-02: tcasesWithCF.html Design icon opens tcView.html (not archiveData.php)
+
+**Precondition:** Same as TC-756-01.
+
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/results/tcasesWithCF.html?tproject_id=1&tplan_id=1`
+2. Click the Design/Edit icon next to any test case row
+
+**Expected:** A popup opens `/gui/templates/testcases/tcView.html?tcase_id=...&tproject_id=...` showing the modernized Test Case Viewer.
+
+**Actual (post-fix):** The popup opens tcView.html correctly.
+
+**Result: PASS**
+
+---
+
+### TC-756-03: tplanWithCF.html Design icon opens tcView.html
+
+**Precondition:** Same as TC-756-01.
+
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/results/tplanWithCF.html?tproject_id=1&tplan_id=1`
+2. Click the Design/Edit icon next to any test case row
+
+**Expected:** Popup opens `tcView.html`.
+
+**Actual (post-fix):** Opens `tcView.html` correctly.
+
+**Result: PASS**
+
+---
+
+### TC-756-04: assignedTcOverview.html History and Design links use modernized targets
+
+**Precondition:** Same as TC-756-01, plus test cases assigned to users.
+
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/results/assignedTcOverview.html?tproject_id=1&tplan_id=1`
+2. Inspect the History icon link: should be `execHistory.html` (not legacy `execHistory.php`)
+3. Inspect the Design/Test case link: should be `tcView.html` (not legacy `archiveData.php`)
+
+**Expected:** Both links use `/gui/templates/...` modernized HTML targets.
+
+**Actual (post-fix):** Both links verified correct.
+
+**Result: PASS**
+
+---
+
+### TC-756-05: tcAssignments.html History and Edit links use modernized targets
+
+**Precondition:** Same as TC-756-01, plus test case assignments.
+
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/execute/tcAssignments.html?tproject_id=1&tplan_id=1`
+2. Click History link: should open `execHistory.html`
+3. Click Edit link: should open `tcView.html`
+
+**Expected:** Both links use modernized HTML targets.
+
+**Actual (post-fix):** Both links verified correct.
+
+**Result: PASS**
+
+---
+
+### TC-756-06: showNewestTcVersions.html Design icon opens tcView.html
+
+**Precondition:** Same as TC-756-01.
+
+**Steps:**
+1. Navigate to `http://localhost:8082/gui/templates/plans/showNewestTcVersions.html?tproject_id=1&tplan_id=1`
+2. Click Design icon for any test case
+
+**Expected:** Popup opens `tcView.html?tcase_id=...&tcversion_id=...&tproject_id=...&tplan_id=...`
+
+**Actual (post-fix):** Opens tcView.html correctly.
+
+**Result: PASS**
