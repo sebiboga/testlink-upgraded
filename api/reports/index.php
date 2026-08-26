@@ -2791,5 +2791,171 @@ if ($action === 'cases_without_tester') {
     exit;
 }
 
+// ---------------------------------------------------------------------------
+// Graphical Charts report (Refs #690)
+// Modernizes lib/results/charts.php (which delegates to overallPieChart.php,
+// platformPieChart.php, keywordBarChart.php, topLevelSuitesBarChart.php).
+// Returns JSON for all 4 chart types so the client renders them with Chart.js
+// instead of the legacy server-side pChart+GD PNG generation. Right gate:
+// 'testplan_metrics' — same right the legacy screen enforces via checkRights().
+// ---------------------------------------------------------------------------
+if ($action === 'charts_data') {
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing project or plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($projInfo) || !isset($projInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check — same pattern as other metrics actions.
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $resultsCfg = config_get('results');
+    $statusColour = $resultsCfg['charts']['status_colour'];
+    $statusLabel  = $resultsCfg['status_label'];
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // ── 1. Overall metrics pie ──
+    $overall = null;
+    $totals = $metricsMgr->getExecCountersByExecStatus($tplanId);
+    if (!is_null($totals) && isset($totals['total'])) {
+        unset($totals['total']);
+        $oLabels  = [];
+        $oValues  = [];
+        $oColors  = [];
+        foreach ($totals as $status => $qty) {
+            $oLabels[] = lang_get($statusLabel[$status]) . ' (' . $qty . ')';
+            $oValues[] = intval($qty);
+            $oColors[] = '#' . ($statusColour[$status] ?? '888888');
+        }
+        if (count($oValues) > 0) {
+            $overall = ['labels' => $oLabels, 'values' => $oValues, 'colors' => $oColors];
+        }
+    }
+
+    // ── 2. Per-platform pies ──
+    $platforms = [];
+    $platSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    if (!is_null($platSet) && count($platSet) > 0) {
+        $platMetrics = $metricsMgr->getStatusTotalsByPlatformForRender($tplanId);
+        if (!is_null($platMetrics) && isset($platMetrics->info)) {
+            foreach ($platSet as $platId => $platName) {
+                $pData = ['name' => $platName, 'labels' => [], 'values' => [], 'colors' => []];
+                if (isset($platMetrics->info[$platId]['details'])) {
+                    foreach ($platMetrics->info[$platId]['details'] as $status => $info) {
+                        $qty = intval($info['qty']);
+                        $pData['labels'][] = lang_get($statusLabel[$status]) . ' (' . $qty . ')';
+                        $pData['values'][] = $qty;
+                        $pData['colors'][] = '#' . ($statusColour[$status] ?? '888888');
+                    }
+                }
+                if (count($pData['values']) > 0) {
+                    $platforms[] = $pData;
+                }
+            }
+        }
+    }
+
+    // ── 3. Results by keyword (stacked bar) ──
+    $byKeyword = null;
+    $kwData = $metricsMgr->getStatusTotalsByKeywordForRender($tplanId);
+    if (!is_null($kwData) && isset($kwData->info) && count($kwData->info) > 0) {
+        // Sort alphabetically (same as legacy keywordBarChart.php)
+        $sorted = [];
+        foreach ($kwData->info as $kwId => $kwElem) {
+            $sorted[$kwElem['name']] = $kwId;
+        }
+        ksort($sorted);
+
+        $kwLabels = array_keys($sorted);
+        $datasets = []; // [ { label, data } ]
+        $statusOrder = [];
+        foreach ($sorted as $kwName => $kwId) {
+            foreach ($kwData->info[$kwId]['details'] as $status => $info) {
+                if (!isset($statusOrder[$status])) {
+                    $statusOrder[$status] = [];
+                }
+                $statusOrder[$status][] = intval($info['qty']);
+            }
+        }
+        foreach ($statusOrder as $status => $values) {
+            $datasets[] = [
+                'label' => lang_get($statusLabel[$status]),
+                'data'  => $values,
+                'backgroundColor' => '#' . ($statusColour[$status] ?? '888888'),
+            ];
+        }
+        if (count($kwLabels) > 0) {
+            $byKeyword = ['labels' => $kwLabels, 'datasets' => $datasets];
+        }
+    }
+
+    // ── 4. Results by top-level suite (stacked bar) ──
+    $bySuite = null;
+    $suiteNames = $metricsMgr->getRootTestSuites($tplanId, $tprojectId);
+    $suiteData = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanId);
+    if (!is_null($suiteData) && isset($suiteData->info) && !is_null($suiteData->info)) {
+        // Sort alphabetically (same as legacy topLevelSuitesBarChart.php)
+        $nameMap = is_array($suiteNames) ? $suiteNames : [];
+        $sortedSuites = array_flip($nameMap);
+        natcasesort($sortedSuites);
+
+        $sLabels = [];
+        $sStatusData = [];
+        foreach ($sortedSuites as $name => $tsId) {
+            if (isset($suiteData->info[$tsId])) {
+                $sLabels[] = htmlspecialchars($name, ENT_QUOTES);
+                foreach ($suiteData->info[$tsId]['details'] as $status => $info) {
+                    if (!isset($sStatusData[$status])) {
+                        $sStatusData[$status] = [];
+                    }
+                    $sStatusData[$status][] = intval($info['qty']);
+                }
+            }
+        }
+        $sDatasets = [];
+        foreach ($sStatusData as $status => $values) {
+            $sDatasets[] = [
+                'label' => lang_get($statusLabel[$status]),
+                'data'  => $values,
+                'backgroundColor' => '#' . ($statusColour[$status] ?? '888888'),
+            ];
+        }
+        if (count($sLabels) > 0) {
+            $bySuite = ['labels' => $sLabels, 'datasets' => $sDatasets];
+        }
+    }
+
+    $charts = [];
+    if (!is_null($overall))   { $charts['overall']   = $overall; }
+    if (count($platforms) > 0) { $charts['platforms'] = $platforms; }
+    if (!is_null($byKeyword)) { $charts['by_keyword'] = $byKeyword; }
+    if (!is_null($bySuite))   { $charts['by_suite']   = $bySuite; }
+
+    out([
+        'status'       => 'ok',
+        'tproject_id'  => $tprojectId,
+        'tplan_id'     => $tplanId,
+        'tproject_name'=> $projInfo['name'],
+        'tplan_name'   => $tplanInfo['name'],
+        'charts'       => $charts,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
