@@ -1626,7 +1626,7 @@ if ($method === 'GET' && count($segments) === 1 &&
             $suites[$sid]['updatable_qty']++;
         }
     }
-    usort($suites, function ($a, $b) { return strcmp($a['name'], $b['name']); });
+    usort($suites, function ($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
 
     // overall screen state (legacy messages)
     $state = 'ready';

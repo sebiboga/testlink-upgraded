@@ -673,7 +673,7 @@ if ($action === 'tree') {
                 ];
             }
         }
-        usort($suites, function($a, $b) { return strcasecmp($a['name'], $b['name']); });
+        usort($suites, function($a, $b) { return strnatcasecmp($a['name'], $b['name']); });
         return ['suites' => $suites, 'testcases' => $testcases];
     };
 
