@@ -5980,3 +5980,59 @@ Legacy: `lib/results/freeTestCases.php`
 - Previously (pre-fix): 3 E_WARNING entries about `Undefined property: stdClass::$tproject_id`
 
 **Result: PASS**
+
+---
+
+## Regression — Issue #746: testsuite::delete() fails silently — no test suite can be deleted via PHP API
+
+### TC-746-01: testsuite::delete() returns true on successful deletion via BFF API
+
+**Precondition:** TestLink running at http://localhost:8082; admin logged in; test project TP:TestProj (id=1) exists.
+
+**Steps:**
+1. Create a test suite via BFF API: `POST /api/testcases/index.php?action=suite_create` with `{"parent_id":1,"name":"RegressionSuite746"}` → expect `{"status":"ok","id":N}`
+2. Delete the suite via BFF API: `POST /api/testcases/index.php?action=suite_delete` with `{"id":N}`
+3. Verify response contains `"result":true` (not null)
+4. Verify suite removed from DB: `SELECT * FROM testsuites ts JOIN nodes_hierarchy nh ON ts.id = nh.id WHERE ts.id = N;` → empty
+
+**Expected:** Response is `{"status":"ok","message":"Suite deleted","result":true}`. Suite row deleted from both `testsuites` and `nodes_hierarchy` tables.
+
+**Actual (post-fix):**
+- Response: `{"status":"ok","message":"Suite deleted","result":true}`
+- SQL query returns 0 rows — suite fully deleted
+
+**Result: PASS**
+
+### TC-746-02: testsuite::delete() cleans up child test cases
+
+**Precondition:** Same as TC-746-01.
+
+**Steps:**
+1. Create suite: `POST /api/testcases/index.php?action=suite_create` with `{"parent_id":1,"name":"SuiteWithChildren"}` → expect id=N
+2. Create TC in suite: `POST /api/testcases/index.php?action=create` with `{"parent_id":N,"name":"ChildTC","summary":"x","preconditions":"","steps":[]}` → expect id=M
+3. Verify both exist in DB
+4. Delete suite: `POST /api/testcases/index.php?action=suite_delete` with `{"id":N}`
+5. Verify `"result":true` in response
+6. Verify both suite and TC removed from DB
+
+**Expected:** Both suite (id=N) and child TC (id=M) are deleted. Only the parent test project remains.
+
+**Actual (post-fix):**
+- Suite deleted, `"result":true` returned
+- `SELECT COUNT(*) FROM nodes_hierarchy` shows only 1 row (the test project)
+- Child TC fully cleaned up
+
+**Result: PASS**
+
+### TC-746-03: Pre-fix comparison — delete() returned null
+
+**Precondition:** Before the fix, `testsuite::delete()` had no return statement.
+
+**Steps:**
+1. Call `POST /api/testcases/index.php?action=suite_delete` with valid suite id
+2. Observe `"result":null` in response (PHP void function returns null)
+
+**Expected (pre-fix):** `"result":null` — caller cannot determine if deletion succeeded.
+**Expected (post-fix):** `"result":true` — caller can verify success.
+
+**Result: PASS** (post-fix returns `true` instead of `null`)
