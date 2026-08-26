@@ -315,6 +315,7 @@ class testsuite extends tlObjectWithAttachments
       $ctx = array('id' => $id);
       event_signal('EVENT_TEST_SUITE_DELETE', $ctx);
     }
+    return true;
   }
   
   
