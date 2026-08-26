@@ -137,13 +137,13 @@ if($tplanID > 0) {
       // tlTestPlanMetrics::getExecutionsByStatus() / getNotRunWithTesterAssigned()
       // calls and enforces testplan_metrics; XLS/email stays on the legacy
       // controller (lib/results/resultsByStatus.php).
-      } else if($rptItem['title'] == 'list_tc_failed') {
+      } else if($rptItem['title'] == 'link_report_failed') {
         $hrefR = 'gui/templates/results/resultsByStatus.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=failed";
-      } else if($rptItem['title'] == 'list_tc_blocked') {
+      } else if($rptItem['title'] == 'link_report_blocked_tcs') {
         $hrefR = 'gui/templates/results/resultsByStatus.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=blocked";
-      } else if($rptItem['title'] == 'list_tc_not_run') {
+      } else if($rptItem['title'] == 'link_report_not_run') {
         $hrefR = 'gui/templates/results/resultsByStatus.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&status=not_run";
       // Refs #737 - Test Cases with Custom Fields modernized;
