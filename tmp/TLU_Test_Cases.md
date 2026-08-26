@@ -5777,131 +5777,15 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 5 | PHP syntax clean | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php && php -l lib/functions/testsuite.class.php` | No syntax errors | PASS |
 | 6 | Event Viewer clean after all tests | Query `events` table for Error/Warning | No new entries | PASS — 0 rows |
 
-## Screen: Test Plan with Custom Fields (#739)
+### Regression — Issue #561: PHP8 E_WARNINGs in buildExecStatusMatrix on Metrics Dashboard
 
-### Test Suite: tplanWithCF — Data Display
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.x, MariaDB at 127.0.0.1:3306, database `testlink`. Project "Metric Test Project" with Test Plan 1, Platform A, Build 1, one test case (Suite 1 > TC 1).
 
-| # | Step | Expected | Status |
-|---|------|----------|--------|
-| 1 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=10 (plan with CF data) | Header shows "Test Plan with Custom Fields", table displays with CF column "CF TP Design", 2 rows with Option A and Option B | PASS |
-| 2 | Verify DataTable shows columns: Test Suite, Test Case, CF TP Design | All columns rendered, CF column shows custom field values | PASS |
-| 3 | Verify test case IDs display correctly (TPCF--1, TPCF--2) | External IDs built with project prefix and separator | PASS |
-| 4 | Verify match count badge shows correct count | "Match count: 2" shown | PASS |
-| 5 | Verify elapsed time shown in footer | "Elapsed: 0.01s" | PASS |
-
-### Test Suite: tplanWithCF — Edit Link
-
-| # | Step | Expected | Status |
-|---|------|----------|--------|
-| 6 | Click the edit icon next to TPCF--1 | Opens test case editor in new window with TPCF-1 : Test Case CF 1 | PASS |
-| 7 | Close the editor popup, return to report | Report still visible, data intact | PASS |
-
-### Test Suite: tplanWithCF — Locale Switching
-
-| # | Step | Expected | Status |
-|---|------|----------|--------|
-| 8 | Switch locale to Română via dropdown | Column headers translate ("Suita de testare", "Caz de testare"), DataTable pagination translates ("Afiseaza", "Filtru", "Anterior", "Urmatorul"), toast "Încărcat" | PASS |
-| 9 | Switch back to English | All labels return to English | PASS |
-
-### Test Suite: tplanWithCF — Empty / Warning State
-
-| # | Step | Expected | Status |
-|---|------|----------|--------|
-| 10 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=20 (plan with TCs but no CF values) | Warning message "There are no test cases on this test plan, with custom fields ENABLED ON Test Plan Design" displayed, no DataTable rendered | PASS |
-| 11 | Navigate to tplanWithCF.html?tproject_id=1&tplan_id=999 (invalid plan) | Error message "Invalid test plan id" displayed | PASS |
-
-### Test Suite: tplanWithCF — Filter / Search
-
-| # | Step | Expected | Status |
-|---|------|----------|--------|
-| 12 | Type "CF 1" in the DataTable filter box | Table filters to show only TPCF--1 row | PENDING |
-| 13 | Clear filter, all rows reappear | Both rows visible again | PENDING |
-
-## 18. Test Plan with Custom Fields — Modernized (Suite ID: 739)
-
-> **Run 2026-08-26 (browser):** 13/13 PASS. Event Viewer: only pre-existing legacy
-> warnings (cfield_mgr type key 3 missing, testcase.class.php null array). No new
-> errors introduced by this screen.
-
-**Screen:** `gui/templates/results/tplanWithCF.html` · **API:** `/api/reports/index.php`  
-**Path:** Reports > Test Plan with Custom Fields  
-**Tracking Issue:** #739
-
-### TC-18.1: Screen Loads Without PHP Warnings
-- **Priority:** High
-- **Importance:** High
-- **Preconditions:** User logged in as admin. Test plan with CF data exists (tplan_id=10).
-- **Steps:**
-  1. Navigate to Reports > Test Plan with Custom Fields via aside menu.
-     *Expected:* tplanWithCF.html loads in mainframe, no PHP warnings or JS console errors.
-  2. Verify header shows "Test Plan with Custom Fields — <plan name>" + locale switcher.
-  3. Verify toolbar shows current Test Project name and test case count badge.
-
-### TC-18.2: Data Displays With CF Columns
-- **Priority:** High
-- **Importance:** High
-- **Preconditions:** Test plan has TCs with testplan_design CF values.
-- **Steps:**
-  1. Navigate to screen with plan_id=10.
-     *Expected:* DataTable displays with columns: Test Suite, Test Case, <CF Label>.
-  2. Verify test case IDs (TPCF--1, TPCF--2) with correct names.
-  3. Verify CF values (Option A, Option B) displayed in CF column.
-  4. Verify match count badge shows correct count.
-  5. Verify elapsed time in footer.
-
-### TC-18.3: Edit Link Opens Test Case Editor
-- **Priority:** High
-- **Importance:** High
-- **Steps:**
-  1. Click edit icon next to TPCF--1.
-     *Expected:* Opens archiveData.php in new window with TC editor for TPCF-1.
-  2. Close editor popup, return to report.
-     *Expected:* Report still visible, data intact.
-
-### TC-18.4: Locale Switching Translates Labels
-- **Priority:** High
-- **Importance:** High
-- **Steps:**
-  1. Switch locale to Română.
-     *Expected:* Column headers translate (Suita de testare, Caz de testare), DataTable pagination translates, toast shows translated message.
-  2. Switch back to English.
-     *Expected:* All labels return to English.
-
-### TC-18.5: Empty State — No CF Values
-- **Priority:** High
-- **Importance:** High
-- **Steps:**
-  1. Navigate with plan_id=20 (TCs exist but no CF values).
-     *Expected:* Warning message displayed, no DataTable rendered.
-
-### TC-18.6: Error State — Invalid Plan
-- **Priority:** Medium
-- **Importance:** Medium
-- **Steps:**
-  1. Navigate with plan_id=999 (non-existent).
-     *Expected:* Error message "Invalid test plan id".
-
-### TC-18.7: Filter/Search Works
-- **Priority:** High
-- **Importance:** High
-- **Steps:**
-  1. Type "CF 1" in DataTable filter.
-     *Expected:* Table filters to show only matching row, status shows "(filtered from N total)".
-  2. Clear filter.
-     *Expected:* All rows reappear.
-
-### TC-18.8: Aside Menu Links to Modernized Screen
-- **Priority:** High
-- **Importance:** High
-- **Steps:**
-  1. Check asideMenu.php for link_report_tplans_with_cf.
-     *Expected:* Routes to gui/templates/results/tplanWithCF.html, not legacy testPlanWithCF.php.
-
-### TC-18.9: i18n Keys Present in All Locales
-- **Priority:** Medium
-- **Importance:** Medium
-- **Steps:**
-  1. Check en.json for tpwcf.* keys.
-     *Expected:* All 8 keys present (header, forPlan, testProject, testCases, matchCount, editTC, elapsed, noData).
-  2. Check ro.json for Romanian translations.
-     *Expected:* Keys translated (Plan de testare cu campuri personalizate, etc.).
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Login as admin, navigate to `gui/templates/results/metricsDashboard.html?tproject_id=1&tplan_id=2` | Dashboard loads with no PHP warnings, Test Plan Progress table shows "Test Plan 1" | Dashboard loaded successfully, 0 console errors, 0 Event Viewer warnings | PASS |
+| 2 | Call API: `GET /api/metrics/index.php/dashboard?tproject_id=1` (with valid session) | Returns `{"status":"ok",...}` with project_metrics and testplans arrays, no PHP warnings | Response: `{"status":"ok","tproject_id":1,...}`, all metrics fields present, no errors | PASS |
+| 3 | Check PHP server log (`tmp/php_server.log`) after steps 1-2 | No E_WARNING or E_ERROR entries, only `[200]` status codes | All requests returned `[200]`, no warnings logged | PASS |
+| 4 | Check Event Viewer (`events` table) for Error/Warning entries | No new error/warning entries | Query: 0 errors, 0 warnings (only audit entries from login and project creation) | PASS |
+| 5 | Verify fix code: `lib/functions/tlTestPlanMetrics.class.php:1693-1701` | Null guard present: `if (!is_array($dx))`, isset checks on `flat` and `staircase` | Fix code present at correct lines, matches commit 767605c97 | PASS |
+| 6 | Verify fix code: `api/metrics/index.php:149` | `is_array($neurus)` guard present before foreach | Guard present, wraps the `foreach ($neurus["with_tester"] ...)` loop | PASS |
