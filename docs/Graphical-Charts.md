@@ -59,3 +59,25 @@ GET /api/reports/index.php?action=charts_data&tproject_id=1&tplan_id=2
 ## How it works
 
 The BFF calls the same `tlTestPlanMetrics` methods the legacy pChart scripts used, serializes the data as JSON, and the frontend renders it with Chart.js. Status colors come from `$tlCfg->results['charts']['status_colour']` (cfg/const.inc.php).
+
+## Test results (2026-08-26)
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | Aside link switches to modernized page | PASS |
+| 2 | Header shows plan/project names | PASS |
+| 3 | Overall Metrics pie chart renders | PASS |
+| 4 | BFF returns correct JSON structure | PASS |
+| 5 | BFF data matches executions | PASS |
+| 6 | Colors match TestLink config | PASS |
+| 7 | Locale switcher works | PASS |
+| 8 | No console errors | PASS |
+| 9 | No network errors | PASS |
+| 10 | Empty plan shows graceful handling | PASS |
+| 11 | getRootTestSuites crash guard | PASS |
+| 12 | Rights gate enforced | PASS |
+| 13 | Event Viewer clean | PASS |
+
+**Actual result:** 13/13 PASS.
+
+**Bug fixed:** `lib/functions/testplan.class.php` — `getRootTestSuites()` now returns early on empty `$items`/`$tlnodes` instead of generating invalid `WHERE id IN ()` SQL. The BFF also wraps the call in try/catch as a safety net.
