@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "No linked bugs found for this report.",
   "rb.hintAllExec": "Showing all executions with bugs. Some test cases may appear multiple times.",
   "rb.tcCount": "Test cases",
-  "title_test_case_bugs": "Bugs"
+  "title_test_case_bugs": "Bugs",
+  "pv.modal.createTitle": "Create Test Plan",
+  "pv.modal.editTitle": "Edit Test Plan",
+  "pv.modal.name": "Name",
+  "pv.modal.namePlaceholder": "Enter test plan name",
+  "pv.modal.description": "Description",
+  "pv.modal.active": "Active",
+  "pv.modal.public": "Public",
+  "pv.modal.save": "Save",
+  "pv.modal.nameRequired": "Test plan name is required",
+  "pv.msg.created": "Test plan created",
+  "pv.msg.updated": "Test plan updated",
+  "pv.msg.duplicateName": "A test plan with this name already exists"
 }

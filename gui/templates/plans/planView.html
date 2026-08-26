@@ -96,6 +96,49 @@ table.hide-plat th:nth-child(6), table.hide-plat td:nth-child(6) { display:none 
 <div class="footer" id="footerInfo"></div>
 <div class="toast" id="toast"></div>
 
+<!-- Create/Edit Test Plan Modal -->
+<div class="modal fade" id="planModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#4ECDC4;color:#fff;padding:12px 20px;">
+        <h5 class="modal-title" id="planModalTitle"></h5>
+        <button type="button" class="close" data-dismiss="modal" style="color:#fff;opacity:.8;">&times;</button>
+      </div>
+      <div class="modal-body" style="padding:20px;">
+        <form id="planForm" onsubmit="return false;">
+          <input type="hidden" id="planEditId" value="">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.name">Name</label>
+            <input type="text" class="form-control" id="planName" maxlength="100" required
+                   style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:13px;width:100%;"
+                   data-i18n-placeholder="pv.modal.namePlaceholder">
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label style="font-weight:600;font-size:13px;color:#333;margin-bottom:4px;display:block;" data-i18n="pv.modal.description">Description</label>
+            <textarea class="form-control" id="planNotes" rows="6"
+                      style="border:1px solid #ddd;border-radius:4px;padding:8px 12px;font-size:13px;width:100%;resize:vertical;"></textarea>
+          </div>
+          <div style="display:flex;gap:24px;">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="planActive"> <span data-i18n="pv.modal.active">Active</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="planPublic"> <span data-i18n="pv.modal.public">Public</span>
+            </label>
+          </div>
+        </form>
+        <div id="planModalError" style="display:none;background:#fdecea;border:1px solid #f5c6cb;color:#b94a48;border-radius:6px;padding:8px 12px;font-size:12px;margin-top:10px;"></div>
+      </div>
+      <div class="modal-footer" style="padding:12px 20px;">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" id="planModalSave" onclick="submitPlan()" style="font-size:13px;">
+          <span id="planModalSaveLabel" data-i18n="pv.modal.save">Save</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Delete Confirm Modal -->
 <div class="modal fade" id="delModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
@@ -185,7 +228,7 @@ function load() {
 
       $('#btnCreate').toggle(canManage);
       $('#btnCreate').off('click').on('click', function () {
-        window.location.href = ACTIONS.createAction || '#';
+        openPlanModal('create');
       });
       $('#btnActivateBulk').toggle(canManage);
       $('#btnInactivateBulk').toggle(canManage);
@@ -232,8 +275,9 @@ function render(items) {
     var chkCell = '<input type="checkbox" class="row-chk" value="' + tp.id + '"' +
                   (canManage ? '' : ' disabled') + '>';
     var nameCell = '<i class="fas fa-cubes api-id" title="' + esc(apiTitle) + '"></i>';
-    nameCell += '<a class="tplan-name" href="' + esc(actionUrl('editAction', tp.id)) +
-                '" title="' + esc(TLi18n.t('pv.editPlan')) + '">' + esc(tp.name) + '</a>';
+    nameCell += '<a class="tplan-name" href="javascript:void(0)" ' +
+                'onclick="openPlanModal(\'edit\',' + parseInt(tp.id, 10) + ')" ' +
+                'title="' + esc(TLi18n.t('pv.editPlan')) + '">' + esc(tp.name) + '</a>';
 
     // legacy list view renders notes as stored HTML (rich editor); sanitize
     // with DOMPurify (regex stripping was bypassable)
@@ -378,6 +422,89 @@ function doDelete() {
     try { r = JSON.parse(xhr.responseText); } catch(e) {}
     toast(r.message || TLi18n.t('common.error'), true);
     load();
+  });
+}
+
+// --- Create / Edit Test Plan Modal ---
+function openPlanModal(mode, planId) {
+  $('#planModalError').hide().text('');
+  $('#planForm')[0].reset();
+  $('#planEditId').val('');
+
+  if (mode === 'create') {
+    $('#planModalTitle').text(TLi18n.t('pv.modal.createTitle'));
+    $('#planModalSaveLabel').text(TLi18n.t('pv.modal.save'));
+    $('#planActive').prop('checked', true);
+  } else {
+    $('#planModalTitle').text(TLi18n.t('pv.modal.editTitle'));
+    $('#planModalSaveLabel').text(TLi18n.t('pv.modal.save'));
+    $.getJSON(API + '/' + planId + '?tproject_id=' + tprojectId)
+      .done(function (r) {
+        if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+        $('#planEditId').val(r.id);
+        $('#planName').val(r.name);
+        $('#planNotes').val(r.notes);
+        $('#planActive').prop('checked', !!r.active);
+        $('#planPublic').prop('checked', !!r.is_public);
+      })
+      .fail(function (xhr) {
+        var r = {};
+        try { r = JSON.parse(xhr.responseText); } catch(e) {}
+        toast(r.message || TLi18n.t('common.error'), true);
+        return;
+      });
+  }
+  $('#planModal').modal('show');
+}
+
+function submitPlan() {
+  var editId = $('#planEditId').val();
+  var name = $.trim($('#planName').val());
+  if (!name) {
+    $('#planModalError').show().text(TLi18n.t('pv.modal.nameRequired'));
+    return;
+  }
+
+  var payload = {
+    tproject_id: tprojectId,
+    name: name,
+    notes: $('#planNotes').val(),
+    active: $('#planActive').is(':checked') ? 1 : 0,
+    is_public: $('#planPublic').is(':checked') ? 1 : 0
+  };
+
+  var url, method;
+  if (editId) {
+    url = API + '/' + editId;
+    method = 'PUT';
+  } else {
+    url = API;
+    method = 'POST';
+  }
+
+  $.ajax({
+    url: url,
+    method: method,
+    contentType: 'application/json',
+    data: JSON.stringify(payload)
+  }).done(function (r) {
+    $('#planModal').modal('hide');
+    if (r.status === 'ok') {
+      toast(editId ? TLi18n.t('pv.msg.updated') : TLi18n.t('pv.msg.created'));
+      load();
+    } else {
+      toast(r.message || TLi18n.t('common.error'), true);
+    }
+  }).fail(function (xhr) {
+    var r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(e) {}
+    if (r.error_code === 'DUPLICATE_NAME') {
+      $('#planModalError').show().text(TLi18n.t('pv.msg.duplicateName'));
+    } else if (r.error_code === 'NAME_REQUIRED') {
+      $('#planModalError').show().text(TLi18n.t('pv.modal.nameRequired'));
+    } else {
+      $('#planModalError').show().text(r.message || TLi18n.t('common.error'));
+    }
   });
 }
 </script>

@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "Связанные проблемы для этого отчета не найдены.",
   "rb.hintAllExec": "Показываются все выполнения с проблемами. Некоторые ТК могут появляться несколько раз.",
   "rb.tcCount": "Тестовые кейсы",
-  "title_test_case_bugs": "Проблемы"
+  "title_test_case_bugs": "Проблемы",
+  "pv.modal.createTitle": "Создать План Тестирования",
+  "pv.modal.editTitle": "Редактировать План Тестирования",
+  "pv.modal.name": "Название",
+  "pv.modal.namePlaceholder": "Введите название плана тестирования",
+  "pv.modal.description": "Описание",
+  "pv.modal.active": "Активен",
+  "pv.modal.public": "Публичный",
+  "pv.modal.save": "Сохранить",
+  "pv.modal.nameRequired": "Название плана тестирования обязательно",
+  "pv.msg.created": "План тестирования создан",
+  "pv.msg.updated": "План тестирования обновлен",
+  "pv.msg.duplicateName": "План тестирования с таким названием уже существует"
 }

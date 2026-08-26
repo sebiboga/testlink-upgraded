@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "Keine verknupften Fehler fur diesen Bericht gefunden.",
   "rb.hintAllExec": "Alle Ausfuhren mit Fehlern werden angezeigt. Einige Testfalle konnen mehrfach erscheinen.",
   "rb.tcCount": "Testfalle",
-  "title_test_case_bugs": "Fehler"
+  "title_test_case_bugs": "Fehler",
+  "pv.modal.createTitle": "Testplan Erstellen",
+  "pv.modal.editTitle": "Testplan Bearbeiten",
+  "pv.modal.name": "Name",
+  "pv.modal.namePlaceholder": "Testplan-Name eingeben",
+  "pv.modal.description": "Beschreibung",
+  "pv.modal.active": "Aktiv",
+  "pv.modal.public": "Öffentlich",
+  "pv.modal.save": "Speichern",
+  "pv.modal.nameRequired": "Testplan-Name ist erforderlich",
+  "pv.msg.created": "Testplan erstellt",
+  "pv.msg.updated": "Testplan aktualisiert",
+  "pv.msg.duplicateName": "Ein Testplan mit diesem Namen existiert bereits"
 }

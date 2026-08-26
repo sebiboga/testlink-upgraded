@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "未找到与此报告关联的问题。",
   "rb.hintAllExec": "显示所有带有问题的执行。某些测试用例可能多次出现。",
   "rb.tcCount": "测试用例",
-  "title_test_case_bugs": "问题"
+  "title_test_case_bugs": "问题",
+  "pv.modal.createTitle": "创建测试计划",
+  "pv.modal.editTitle": "编辑测试计划",
+  "pv.modal.name": "名称",
+  "pv.modal.namePlaceholder": "输入测试计划名称",
+  "pv.modal.description": "描述",
+  "pv.modal.active": "活跃",
+  "pv.modal.public": "公开",
+  "pv.modal.save": "保存",
+  "pv.modal.nameRequired": "测试计划名称是必填的",
+  "pv.msg.created": "测试计划已创建",
+  "pv.msg.updated": "测试计划已更新",
+  "pv.msg.duplicateName": "同名的测试计划已存在"
 }

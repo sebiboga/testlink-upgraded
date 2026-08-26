@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "Nu s-au gasit probleme asociate pentru acest raport.",
   "rb.hintAllExec": "Se afiseaza toate executarile cu probleme. Unele cazuri de test pot aparea de mai multe ori.",
   "rb.tcCount": "Cazuri de test",
-  "title_test_case_bugs": "Probleme"
+  "title_test_case_bugs": "Probleme",
+  "pv.modal.createTitle": "Creare Plan de Testare",
+  "pv.modal.editTitle": "Editare Plan de Testare",
+  "pv.modal.name": "Nume",
+  "pv.modal.namePlaceholder": "Introduceți numele planului de testare",
+  "pv.modal.description": "Descriere",
+  "pv.modal.active": "Activ",
+  "pv.modal.public": "Public",
+  "pv.modal.save": "Salvare",
+  "pv.modal.nameRequired": "Numele planului de testare este obligatoriu",
+  "pv.msg.created": "Planul de testare a fost creat",
+  "pv.msg.updated": "Planul de testare a fost actualizat",
+  "pv.msg.duplicateName": "Un plan de testare cu acest nume există deja"
 }

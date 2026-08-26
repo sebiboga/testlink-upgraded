@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "No se encontraron incidencias asociadas para este informe.",
   "rb.hintAllExec": "Mostrando todas las ejecuciones con incidencias. Algunos casos de prueba pueden aparecer multiples veces.",
   "rb.tcCount": "Casos de prueba",
-  "title_test_case_bugs": "Incidencias"
+  "title_test_case_bugs": "Incidencias",
+  "pv.modal.createTitle": "Crear Plan de Pruebas",
+  "pv.modal.editTitle": "Editar Plan de Pruebas",
+  "pv.modal.name": "Nombre",
+  "pv.modal.namePlaceholder": "Ingrese el nombre del plan de pruebas",
+  "pv.modal.description": "Descripción",
+  "pv.modal.active": "Activo",
+  "pv.modal.public": "Público",
+  "pv.modal.save": "Guardar",
+  "pv.modal.nameRequired": "El nombre del plan de pruebas es obligatorio",
+  "pv.msg.created": "Plan de pruebas creado",
+  "pv.msg.updated": "Plan de pruebas actualizado",
+  "pv.msg.duplicateName": "Ya existe un plan de pruebas con este nombre"
 }

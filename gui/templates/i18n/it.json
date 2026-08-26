@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "Nessun problema associato trovato per questo rapporto.",
   "rb.hintAllExec": "Mostra tutte le esecuzioni con problemi. Alcuni casi di test possono comparire piu volte.",
   "rb.tcCount": "Casi di test",
-  "title_test_case_bugs": "Problemi"
+  "title_test_case_bugs": "Problemi",
+  "pv.modal.createTitle": "Crea Piano di Test",
+  "pv.modal.editTitle": "Modifica Piano di Test",
+  "pv.modal.name": "Nome",
+  "pv.modal.namePlaceholder": "Inserisci il nome del piano di test",
+  "pv.modal.description": "Descrizione",
+  "pv.modal.active": "Attivo",
+  "pv.modal.public": "Pubblico",
+  "pv.modal.save": "Salva",
+  "pv.modal.nameRequired": "Il nome del piano di test è obbligatorio",
+  "pv.msg.created": "Piano di test creato",
+  "pv.msg.updated": "Piano di test aggiornato",
+  "pv.msg.duplicateName": "Esiste già un piano di test con questo nome"
 }

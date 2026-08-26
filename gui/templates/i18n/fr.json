@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "Aucun incident lie trouve pour ce rapport.",
   "rb.hintAllExec": "Affichage de toutes les executions avec incidents. Certains cas de test peuvent appaitre plusieurs fois.",
   "rb.tcCount": "Cas de test",
-  "title_test_case_bugs": "Incidents"
+  "title_test_case_bugs": "Incidents",
+  "pv.modal.createTitle": "Créer un Plan de Test",
+  "pv.modal.editTitle": "Modifier le Plan de Test",
+  "pv.modal.name": "Nom",
+  "pv.modal.namePlaceholder": "Entrez le nom du plan de test",
+  "pv.modal.description": "Description",
+  "pv.modal.active": "Actif",
+  "pv.modal.public": "Public",
+  "pv.modal.save": "Enregistrer",
+  "pv.modal.nameRequired": "Le nom du plan de test est obligatoire",
+  "pv.msg.created": "Plan de test créé",
+  "pv.msg.updated": "Plan de test mis à jour",
+  "pv.msg.duplicateName": "Un plan de test avec ce nom existe déjà"
 }

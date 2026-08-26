@@ -1708,5 +1708,17 @@
   "rb.noLinkedBugs": "このレポートにつながるイスジェクトはいたでしん。",
   "rb.hintAllExec": "イスジェクトあるすべての実行を表示しています。さらなるテストケースが複数回表示される場合があります。",
   "rb.tcCount": "テストケース",
-  "title_test_case_bugs": "イスジェクト"
+  "title_test_case_bugs": "イスジェクト",
+  "pv.modal.createTitle": "テスト計画を作成",
+  "pv.modal.editTitle": "テスト計画を編集",
+  "pv.modal.name": "名前",
+  "pv.modal.namePlaceholder": "テスト計画名を入力",
+  "pv.modal.description": "説明",
+  "pv.modal.active": "有効",
+  "pv.modal.public": "公開",
+  "pv.modal.save": "保存",
+  "pv.modal.nameRequired": "テスト計画名は必須です",
+  "pv.msg.created": "テスト計画が作成されました",
+  "pv.msg.updated": "テスト計画が更新されました",
+  "pv.msg.duplicateName": "この名前のテスト計画は既に存在します"
 }
