@@ -64,7 +64,7 @@ function process(&$dbHandler)
     break;
 
     default:
-     throw new Exception("Aborting - Bad API Key lenght", 1);
+     throw new Exception("Aborting - Bad API Key length", 1);
     break;  
   }
 
@@ -105,7 +105,7 @@ function process(&$dbHandler)
   $tproject_id = intval($rs[$prjPrefix]['id']); 
 
   // Check rights on test project
-  $canRead =  $user->hasRight($dbHandler,"mgt_view_tc",$tproject_id,null,("getAccess"=="getAccess"));
+  $canRead =  $user->hasRight($dbHandler,"mgt_view_tc",$tproject_id,null,true);
   if ($canRead == false) {
     echo "LTCP-04 - System Checks do not allow operation requested";
     die();    
@@ -117,14 +117,18 @@ function process(&$dbHandler)
   //
   $externalID = $testCasePieces[0] . '-' . $testCasePieces[1]; 
   $tcaseMgr = new testcase($dbHandler);
-  $testcase_id = $tcaseMgr->getInternalID($externalID); 
+  $testcase_id = intval($tcaseMgr->getInternalID($externalID));
   $allTCVID = $tcaseMgr->getAllVersionsID($testcase_id);
-  $idSet = implode(',', $allTCVID);
+  if (!is_array($allTCVID) || count($allTCVID) == 0) {
+    echo "LTCP-05 - Test case not found";
+    die();
+  }
+  $idSet = implode(',', array_map('intval', $allTCVID));
   $tcaseVersionNumber = intval($testCasePieces[2]);
   $tbl = DB_TABLE_PREFIX . 'tcversions';
   $sql = " SELECT version,id FROM $tbl
-           WHERE id IN ($idSet) 
-           AND version = $tcaseVersionNumber"; 
+           WHERE id IN ($idSet)
+           AND version = $tcaseVersionNumber";
   $rs = (array)$dbHandler->fetchRowsIntoMap($sql,'version');
   if (count($rs) != 1) {
     die();
