@@ -16,7 +16,7 @@
 
 /**
  * Replacement for deprecated strftime() function in PHP 8.1+
- * Uses IntlDateFormatter for proper locale-aware formatting
+ * Converts strftime patterns to date() format strings (bug #563 fix)
  *
  * @param string $format The format string (strftime-style)
  * @param int $timestamp Unix timestamp (optional)
@@ -28,29 +28,14 @@ if (!function_exists('tlStrftime')) {
       $timestamp = time();
     }
 
-    // For PHP 8.1+, use IntlDateFormatter for proper locale support
     if (version_compare(PHP_VERSION, '8.1.0', '>=')) {
-      try {
-        // Try to use IntlDateFormatter if available
-        if (extension_loaded('intl')) {
-          $formatter = new IntlDateFormatter(
-            ini_get('intl.default_locale') ?: 'en_US',
-            IntlDateFormatter::FULL,
-            IntlDateFormatter::FULL,
-            null,
-            null,
-            $format
-          );
-          if ($formatter !== false) {
-            return $formatter->format($timestamp);
-          }
-        }
-      } catch (Exception $e) {
-        // Fall back to date() if IntlDateFormatter fails
-      }
-
-      // Fallback to date() for common strftime patterns
+      // strftime() is deprecated in PHP 8.1+. Convert strftime specifiers
+      // to date() equivalents. IntlDateFormatter is NOT usable here because
+      // it expects ICU patterns (dd/MM/yyyy) whereas this function receives
+      // strftime patterns (%d/%m/%Y) — passing strftime directly produces
+      // wrong output (bug #563).
       $replacements = [
+        '%%' => '%',   // Literal percent — MUST be first to avoid corruption
         '%Y' => 'Y',  // 4-digit year
         '%y' => 'y',  // 2-digit year
         '%m' => 'm',  // Month (01-12)
@@ -59,6 +44,7 @@ if (!function_exists('tlStrftime')) {
         '%H' => 'H',  // Hour (00-23)
         '%M' => 'i',  // Minute (00-59)
         '%S' => 's',  // Second (00-59)
+        '%W' => 'W',  // ISO week number of year
         '%A' => 'l',  // Full weekday name
         '%a' => 'D',  // Abbreviated weekday name
         '%B' => 'F',  // Full month name
@@ -66,7 +52,6 @@ if (!function_exists('tlStrftime')) {
         '%c' => 'r',  // Locale's date and time representation
         '%x' => 'n/j/y', // Locale's date representation
         '%X' => 'H:i:s', // Locale's time representation
-        '%%' => '%'   // Literal percent sign
       ];
 
       $date_format = $format;

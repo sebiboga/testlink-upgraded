@@ -5817,3 +5817,17 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 4 | Check browser console for errors | No console errors | No console errors found | PASS |
 | 5 | Check Event Viewer (events table) for Error/Warning entries | Only audit_testproject_saved entries, no errors | All entries are AUDIT level UPDATE events for testprojects | PASS |
 | 6 | Verify fix: api/projects/index.php no longer calls logAuditProject() | Function call removed, logEvent() handles audit | logAuditProject() removed, logEvent() intact | PASS |
+
+## Regression — Issue #563: strftime placeholders rendered literally in document header date
+
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.3.33 with intl extension, MariaDB at 127.0.0.1:3306, database `testlink`.
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%d/%m/%Y', time());"` | Returns `26/08/2026` (correct dd/mm/yyyy) | `26/08/2026` | PASS |
+| 2 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%Y-%m-%d', time());"` | Returns `2026-08-26` | `2026-08-26` | PASS |
+| 3 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%H:%M:%S', time());"` | Returns `HH:MM:SS` format | `09:24:51` | PASS |
+| 4 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%W', time());"` | Returns ISO week number (integer) | `35` | PASS |
+| 5 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%c', time());"` | Returns locale date+time string | `Wed, 26 Aug 2026 09:24:51 +0000` | PASS |
+| 6 | Syntax check: `php -l lib/functions/php81_compat.php` | No syntax errors | `No syntax errors detected` | PASS |
+| 7 | Event Viewer (events table): no new Error/Warning from fix | No new errors | Only pre-existing errors from manual browser test | PASS |
