@@ -236,7 +236,15 @@ function update($id, $name, $color, $notes,$options,$active=null,
 protected function parseTestProjectRecordset(&$recordset) {
   if (null != $recordset && count($recordset) > 0) {
     foreach ($recordset as $number => $row) {
-      $recordset[$number]['opt'] = unserialize($row['options']);
+      $decoded = unserialize($row['options']);
+      if (!is_object($decoded)) {
+        $decoded = new stdClass();
+        $decoded->requirementsEnabled = 0;
+        $decoded->testPriorityEnabled = 0;
+        $decoded->automationEnabled = 0;
+        $decoded->inventoryEnabled = 0;
+      }
+      $recordset[$number]['opt'] = $decoded;
     }
   } else {
     $recordset = null;
