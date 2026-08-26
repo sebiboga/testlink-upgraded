@@ -187,6 +187,12 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_free_testcases_on_testproject') {
         $hrefR = 'gui/templates/results/freeTestCases.html' .
                  "?tproject_id={$tprojectID}";
+      // Refs #691 - Requirements Coverage report modernized;
+      // the BFF (api/reports metrics_results_reqs action) mirrors the very same
+      // legacy resultsReqs.php logic and enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_reqs_coverage') {
+        $hrefR = 'gui/templates/results/resultsRequirements.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
         $hrefR = $baseHrefR . $rptItem['url'] .
