@@ -3894,7 +3894,12 @@ function getPublicAttr($id)
     if (null == $rs || count($rs) <=0) {
       return (object)[];
     }
-    return unserialize($rs[0]['options']);       
+    $raw = $rs[0]['options'];
+    if (!is_string($raw) || $raw === '' || !in_array($raw[0], ['O','a','s','i','d','b','N','R'], true)) {
+      return (object)[];
+    }
+    $obj = unserialize($raw);
+    return $obj !== false ? $obj : (object)[];
   }  
 
   /**
