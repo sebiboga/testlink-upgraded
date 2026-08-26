@@ -5818,16 +5818,14 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 5 | Check Event Viewer (events table) for Error/Warning entries | Only audit_testproject_saved entries, no errors | All entries are AUDIT level UPDATE events for testprojects | PASS |
 | 6 | Verify fix: api/projects/index.php no longer calls logAuditProject() | Function call removed, logEvent() handles audit | logAuditProject() removed, logEvent() intact | PASS |
 
-## Regression — Issue #563: strftime placeholders rendered literally in document header date
+### Regression — Issue #743: Execution By Date/Time report fails with "Document generation error"
 
-**Precondition:** TestLink running at http://localhost:8082, PHP 8.3.33 with intl extension, MariaDB at 127.0.0.1:3306, database `testlink`.
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.x, MariaDB at 127.0.0.1:3306, database `testlink`. TestProject (id=1) with TestPlan1 (id=2, active=1) containing at least one build.
 
 | # | Step | Expected | Actual | Status |
 |---|------|----------|--------|--------|
-| 1 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%d/%m/%Y', time());"` | Returns `26/08/2026` (correct dd/mm/yyyy) | `26/08/2026` | PASS |
-| 2 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%Y-%m-%d', time());"` | Returns `2026-08-26` | `2026-08-26` | PASS |
-| 3 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%H:%M:%S', time());"` | Returns `HH:MM:SS` format | `09:24:51` | PASS |
-| 4 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%W', time());"` | Returns ISO week number (integer) | `35` | PASS |
-| 5 | CLI: `php -r "require_once 'lib/functions/php81_compat.php'; echo tlStrftime('%c', time());"` | Returns locale date+time string | `Wed, 26 Aug 2026 09:24:51 +0000` | PASS |
-| 6 | Syntax check: `php -l lib/functions/php81_compat.php` | No syntax errors | `No syntax errors detected` | PASS |
-| 7 | Event Viewer (events table): no new Error/Warning from fix | No new errors | Only pre-existing errors from manual browser test | PASS |
+| 1 | Login as admin, navigate to index.php?tproject_id=1&tplan_id=2 | Sidebar shows Reports section with report links | Reports section visible with all report entries | PASS |
+| 2 | Click Reports > Execution By Date/Time in sidebar | Report renders "Execution By Date/Time Statistics" heading with correct TestProject/TestPlan1 context | Report loaded successfully showing "Execution By Date/Time Statistics", TestProject, TestPlan1 | PASS |
+| 3 | Verify URL in mainframe has format=0, tproject_id, tplan_id params | URL: execTimelineStats.php?format=0&tproject_id=1&tplan_id=2 | URL confirmed with all three parameters | PASS |
+| 4 | Check Event Viewer for new Error/Warning entries | No new errors introduced by the fix | Only pre-existing E_WARNING at tlTestPlanMetrics.class.php:3722 (appeared before fix too) | PASS |
+| 5 | Verify other legacy report links in sidebar have params | freeTestCases.php?format=0&tproject_id=1&tplan_id=2 | Confirmed params appended to all else-clause report links | PASS |
