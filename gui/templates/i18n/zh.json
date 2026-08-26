@@ -1603,5 +1603,13 @@
   "charts.resultsBySuite": "按顶级测试套件分类的结果",
   "charts.noData": "此测试计划没有可用的图表数据。",
   "charts.elapsedSeconds": "已用秒数",
-  "charts.missingParams": "Missing test plan or project id."
+  "charts.missingParams": "Missing test plan or project id.",
+  "tpwcf.header": "Test Plan with Custom Fields",
+  "tpwcf.forPlan": "for test plan",
+  "tpwcf.testProject": "Test Project",
+  "tpwcf.testCases": "test cases",
+  "tpwcf.matchCount": "Match count",
+  "tpwcf.editTC": "Edit Test Case",
+  "tpwcf.elapsed": "Elapsed",
+  "tpwcf.noData": "No test cases with custom field values found."
 }

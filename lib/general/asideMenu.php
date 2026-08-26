@@ -174,6 +174,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_charts') {
         $hrefR = 'gui/templates/results/charts.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #739 - Test Plan with Custom Fields modernized;
+      // the BFF (api/reports tplan_with_cf action) reuses the very same
+      // cfield_mgr::get_linked_cfields_at_testplan_design() calls and
+      // enforces testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_tplans_with_cf') {
+        $hrefR = 'gui/templates/results/tplanWithCF.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $hrefR = $baseHrefR . $rptItem['url'];
       }

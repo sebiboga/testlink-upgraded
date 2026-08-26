@@ -2969,5 +2969,142 @@ if ($action === 'charts_data') {
     ]);
 }
 
+// ──────────────────────────────────────────────────────────────
+// action: tplan_with_cf
+// Mirrors lib/results/testPlanWithCF.php — for a test plan, list test
+// cases with Test Plan Design custom field values. Right: testplan_metrics.
+// ──────────────────────────────────────────────────────────────
+if ($action === 'tplan_with_cf') {
+    $timerOn = microtime(true);
+
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $hasLinkedTCs = $tplanMgr->count_testcases($tplanId) > 0;
+
+    if (!$hasLinkedTCs) {
+        out([
+            'status' => 'ok',
+            'hasData' => false,
+            'tproject_id' => $tprojectId,
+            'tplan_id' => $tplanId,
+            'tproject_name' => $proj['name'],
+            'tplan_name' => $tplanInfo['name'],
+            'cf_columns' => [],
+            'rows' => [],
+            'warning_msg' => lang_get('no_linked_tplan_cf'),
+            'elapsed_time' => round(microtime(true) - $timerOn, 2),
+        ]);
+        exit;
+    }
+
+    require_once(__DIR__ . '/../../lib/functions/cfield_mgr.class.php');
+    $cfieldMgr = new cfield_mgr($db);
+    $tcaseMgr = new testcase($db);
+    $tcCfg = config_get('testcase_cfg');
+    $titleSep = config_get('gui_title_separator_1');
+
+    // CF definitions linked at testplan design scope (column headers)
+    $cfDef = $cfieldMgr->get_linked_cfields_at_testplan_design(
+        $tprojectId, 1, 'testcase', null, null, null, 'name');
+    $cfDef = (array)$cfDef;
+
+    $cfColumns = [];
+    foreach ($cfDef as $cfKey => $cfInfo) {
+        $cfColumns[] = ['id' => $cfKey, 'label' => $cfInfo['label'], 'name' => $cfInfo['name']];
+    }
+
+    // CF values per test plan
+    $cfMap = $cfieldMgr->get_linked_cfields_at_testplan_design(
+        $tprojectId, 1, 'testcase', null, null, $tplanId);
+
+    $rows = [];
+    $hasData = false;
+    if (!is_null($cfMap)) {
+        $cfPlaceHolder = [];
+        foreach ($cfDef as $cfKey => $cfVal) {
+            $cfPlaceHolder[$cfKey] = '';
+        }
+
+        foreach ($cfMap as $execId => $execInfo) {
+            $row0 = $execInfo[0];
+
+            // Test suite path
+            $pathData = $tcaseMgr->getPathLayered([$row0['tcase_id']]);
+            $pathItem = is_array($pathData) && count($pathData) > 0
+                ? end($pathData) : null;
+            $suitePath = is_array($pathItem) && isset($pathItem['value'])
+                ? $pathItem['value'] : '';
+
+            $externalId = buildExternalIdString(
+                $proj['prefix'] . $tcCfg->glue_character,
+                $row0['tc_external_id']);
+
+            // Collect custom field values
+            $cfValues = $cfPlaceHolder;
+            foreach ($execInfo as $cfRow) {
+                $cfValues[$cfRow['name']] = $cfieldMgr->string_custom_field_value($cfRow, null);
+            }
+
+            // Filter: skip rows where all CF values are empty (legacy parity)
+            $hasValue = false;
+            foreach ($cfValues as $cfVal) {
+                if (!empty($cfVal)) { $hasValue = true; break; }
+            }
+            if (!$hasValue) {
+                continue;
+            }
+
+            $rows[] = [
+                'tcase_id' => intval($row0['tcase_id']),
+                'tc_external_id' => intval($row0['tc_external_id']),
+                'external_id' => $externalId,
+                'tcase_name' => $row0['tcase_name'],
+                'suite_path' => $suitePath,
+                'cfields' => $cfValues,
+            ];
+            $hasData = true;
+        }
+    }
+
+    $warningMsg = '';
+    if (!$hasData) {
+        $warningMsg = lang_get('no_linked_tplan_cf');
+    }
+
+    out([
+        'status' => 'ok',
+        'hasData' => $hasData,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'cf_columns' => $cfColumns,
+        'rows' => $rows,
+        'warning_msg' => $warningMsg,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

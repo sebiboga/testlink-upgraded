@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan with Custom Fields</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.section-head i { color: #4ECDC4; }
+.section-head .bmeta { font-size: 12px; font-weight: 400; color: #667; margin-left: auto; }
+.section-body { padding: 10px 20px 14px; overflow-x: auto; }
+table.flat { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.flat th { background: #22242a; color: #fff; padding: 7px 10px; text-align: left; white-space: nowrap; font-size: 11.5px; position: sticky; top: 0; z-index: 1; }
+table.flat td { padding: 5px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.flat tr:hover td { background: #f4fbfa; }
+td.suitecell { color: #667; font-size: 11px; max-width: 200px; word-break: break-word; }
+td.tccell { white-space: nowrap; }
+.tcid { font-weight: 600; color: #33363f; }
+td.cfcell { max-width: 200px; word-break: break-word; white-space: normal; font-size: 11px; }
+.edit-link { cursor: pointer; color: #4ECDC4; text-decoration: none; margin-right: 4px; }
+.edit-link:hover { color: #2ba8a0; text-decoration: underline; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.info { margin: 12px 24px 0; background: #f0f9ff; border: 1px solid #bee5eb; color: #0c5460; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
+.dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-table" style="margin-right:8px;"></i>
+  <span data-i18n="tpwcf.header">Test Plan with Custom Fields</span>
+  <span class="sub"><span data-i18n="tpwcf.forPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tpwcf.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <span id="countBadge" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="info" id="infoBox"></div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="reportArea"></div>
+
+<div class="empty" id="emptyBox" style="display:none;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script>
+var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
+var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).show();
+  if (isErr) $t.addClass('err'); else $t.removeClass('err');
+  setTimeout(function(){ $t.fadeOut(300); }, 3000);
+}
+function t(key, fallback) {
+  var v = TLi18n.t(key);
+  return (v && v !== key) ? v : (fallback || key);
+}
+function openTCEdit(tcId) {
+  window.open('/lib/testcases/archiveData.php?edit=testcase&id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
+}
+
+function loadData() {
+  $('#loadingBox').show();
+  $.ajax({
+    url: '/api/reports/index.php',
+    data: { action: 'tplan_with_cf', tproject_id: tproject_id, tplan_id: tplan_id },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') {
+        $('#warnBox').text(d.message).show();
+        return;
+      }
+      $('#tplanName').text(d.tplan_name || '-');
+      $('#tprojectName').text(d.tproject_name || '-');
+      document.title = t('tpwcf.header', 'Test Plan with Custom Fields') + ' — ' + (d.tplan_name || '');
+
+      if (d.warning_msg && !d.hasData) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + esc(d.warning_msg)).show();
+        $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        return;
+      }
+
+      if (!d.hasData) {
+        $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + t('tpwcf.noData', 'No test cases with custom field values found.')).show();
+        $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        return;
+      }
+
+      var cfCols = d.cf_columns || [];
+
+      var cols = [
+        { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
+        { title: t('testcase', 'Test Case'), data: null, className: 'tccell', orderable: true,
+          render: function(data, type, row) {
+            var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tcase_name);
+            links += ' <a class="edit-link" href="#" onclick="openTCEdit(' + row.tcase_id + '); return false;" title="' + t('tpwcf.editTC', 'Edit Test Case') + '"><i class="fa fa-pencil"></i></a>';
+            return links;
+          }
+        }
+      ];
+
+      cfCols.forEach(function(cf) {
+        cols.push({
+          title: esc(cf.label),
+          data: null,
+          className: 'cfcell',
+          orderable: false,
+          render: function(data) { return esc(data.cfields[cf.name] || ''); }
+        });
+      });
+
+      var html = '<div class="section"><div class="section-head">' +
+        '<i class="fa fa-table"></i> ' + t('tpwcf.header', 'Test Plan with Custom Fields') +
+        '<span class="bmeta">' + t('tpwcf.matchCount', 'Match count') + ': ' + d.rows.length + '</span>' +
+        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
+      $('#reportArea').html(html);
+      $('#countBadge').text(d.rows.length + ' ' + t('tpwcf.testCases', 'test cases'));
+
+      if ($.fn.DataTable.isDataTable('#dtResults')) {
+        $('#dtResults').DataTable().destroy();
+      }
+
+      $('#dtResults').DataTable({
+        data: d.rows,
+        columns: cols,
+        order: [[0, 'asc'], [1, 'asc']],
+        pageLength: 25,
+        language: {
+          search: t('common.filter', 'Filter') + ':',
+          lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
+          info: t('common.pageInfo', 'Showing _START_ to _END_ of _TOTAL_ entries'),
+          paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
+          emptyTable: t('tpwcf.noData', 'No test cases with custom field values found.')
+        }
+      });
+
+      $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+      toast(t('common.loaded', 'Loaded'));
+    },
+    error: function(xhr) {
+      $('#loadingBox').hide();
+      toast(t('common.errorLoading', 'Error loading data'), true);
+    }
+  });
+}
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadData();
+  });
+});
+</script>
+</body>
+</html>
