@@ -3140,14 +3140,9 @@ if ($action === 'free_testcases') {
     }
 
     $rows = [];
-    $allFree = false;
-    if (is_null($freeData['items'])) {
-        $allFree = true;
-    } else {
-        $allFree = !empty($freeData['allfree']);
-    }
+    $allFree = !empty($freeData['allfree'] ?? false);
 
-    if (!$allFree && !is_null($freeData['items']) && count($freeData['items']) > 0) {
+    if (!is_null($freeData['items']) && count($freeData['items']) > 0) {
         $tcCfg = config_get('testcase_cfg');
         $prefix = $tprojectMgr->getTestCasePrefix($tprojectId)
             . $tcCfg->glue_character;
@@ -3184,7 +3179,7 @@ if ($action === 'free_testcases') {
     }
 
     $warningMsg = '';
-    if ($allFree) {
+    if (count($rows) === 0 && $allFree) {
         $warningMsg = lang_get('all_testcases_are_free');
     } elseif (count($rows) === 0) {
         $warningMsg = lang_get('all_testcases_has_testplan');
