@@ -6036,3 +6036,73 @@ Legacy: `lib/results/freeTestCases.php`
 **Expected (post-fix):** `"result":true` — caller can verify success.
 
 **Result: PASS** (post-fix returns `true` instead of `null`)
+
+---
+
+## Suite 45: Regression — Issue #568: Report generation dead in standalone windows (TypeError on parent.workframe.location)
+
+**Precondition:** TestLink running at http://localhost:8082, admin/admin logged in, test project with at least one test plan, test suite, test case, build, and requirement spec exist.
+
+### TC 45.1: Test Plan Report — double-click root generates report
+
+**Steps:**
+1. Navigate to `lib/results/printDocOptions.php?type=testplan&format=0&tproject_id=<id>&tplan_id=<id>`
+2. Verify tree renders with root node
+3. Double-click root node
+
+**Expected:** New tab opens with `printDocument.php` output (full test plan report).
+**Expected (pre-fix):** Console error `TypeError: Cannot set properties of undefined (setting 'location')` — no request sent, UI frozen.
+**Result: PASS** — new tab opened, report rendered, zero console errors.
+
+### TC 45.2: Test Report — double-click root generates report
+
+**Steps:**
+1. Navigate to `lib/results/printDocOptions.php?type=testreport&format=0&tproject_id=<id>&tplan_id=<id>`
+2. Double-click root node
+
+**Expected:** New tab opens with test report document.
+**Result: PASS** — page 4 opened `printDocument.php?type=testreport`, content rendered (Test Plan Execution Report, project info, test case details).
+
+### TC 45.3: Test Report on build — double-click root generates report
+
+**Steps:**
+1. Navigate to `lib/results/printDocOptions.php?type=testreport_onbuild&format=0&tproject_id=<id>&tplan_id=<id>`
+2. Double-click root node
+
+**Expected:** New tab opens with build-specific test report.
+**Result: PASS** — page 6 opened `printDocument.php?type=testreport_onbuild`, content rendered (build info, test case details).
+
+### TC 45.4: Test Specification — double-click root generates report
+
+**Steps:**
+1. Navigate to `lib/results/printDocOptions.php?type=testspec&format=0&tproject_id=<id>&tplan_id=<id>`
+2. Double-click root node
+
+**Expected:** New tab opens with test specification document.
+**Result: PASS** — page 8 opened `printDocument.php?type=testspec`, content rendered (Test Specification header, scope, test case details).
+
+### TC 45.5: Requirement Specification — double-click root opens new tab
+
+**Steps:**
+1. Navigate to `lib/results/printDocOptions.php?type=reqspec&format=0&tproject_id=<id>&tplan_id=<id>`
+2. Double-click root node
+
+**Expected:** New tab opens. JS fix works (TypeError eliminated).
+**Result: PASS** — page 11 opened `printDocument.php?type=reqspec` in new tab. Zero console errors. Backend had pre-existing DB error (unrelated to JS fix — `req_specs_revisions` data issue).
+
+### TC 45.6: Event Viewer — no new errors
+
+**Steps:**
+1. Query `events` table after all report generation tests
+2. Check for new TypeError entries matching `Cannot set properties of undefined (setting 'location')`
+
+**Expected:** Zero new TypeError events from the fix.
+**Result: PASS** — 0 TypeError events found. All events in the table are pre-existing PHP warnings (e.g., `testPriorityEnabled on false`, `Undefined variable $buildCfields`).
+
+### TC 45.7: Console cleanliness across all report types
+
+**Steps:**
+1. Check browser console after each double-click across all 5 report types
+
+**Expected:** Zero `TypeError: Cannot set properties of undefined (setting 'location')` errors.
+**Result: PASS** — all 5 report types produced zero console errors.
