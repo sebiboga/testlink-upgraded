@@ -856,7 +856,10 @@ class testplan extends tlObjectWithAttachments
          " ON NHTCASE.id = NHTCV.parent_id " .
          " WHERE TPTCV.testplan_id = {$id} ";
          
-    $items = $this->db->fetchRowsIntoMap($sql,'tsuite_id',database::CUMULATIVE);           
+    $items = $this->db->fetchRowsIntoMap($sql,'tsuite_id',database::CUMULATIVE);
+    if (empty($items)) {
+        return array();
+    }
       $xsql = " SELECT COALESCE(parent_id,0) AS parent_id,id,name" . 
           " FROM {$this->tables['nodes_hierarchy']} " . 
           " WHERE id IN (" . implode(',',array_keys($items)) . ") AND parent_id IS NOT NULL";
@@ -884,8 +887,11 @@ class testplan extends tlObjectWithAttachments
       }
     }
     unset($xmen);
-    
+
     // Now with node list get order
+    if (empty($tlnodes)) {
+        return array();
+    }
       $xsql = " SELECT id,name,node_order " . 
           " FROM {$this->tables['nodes_hierarchy']} " . 
           " WHERE id IN (" . implode(',',array_keys($tlnodes)) . ")" .

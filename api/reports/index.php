@@ -2905,9 +2905,21 @@ if ($action === 'charts_data') {
     }
 
     // ── 4. Results by top-level suite (stacked bar) ──
+    // getRootTestSuites can produce invalid SQL (WHERE id IN ()) when no
+    // root suites exist — guard with try/catch to avoid a fatal error.
     $bySuite = null;
-    $suiteNames = $metricsMgr->getRootTestSuites($tplanId, $tprojectId);
-    $suiteData = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanId);
+    $suiteNames = [];
+    try {
+        $suiteNames = $metricsMgr->getRootTestSuites($tplanId, $tprojectId);
+    } catch (\Throwable $e) {
+        $suiteNames = [];
+    }
+    $suiteData = null;
+    try {
+        $suiteData = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanId);
+    } catch (\Throwable $e) {
+        $suiteData = null;
+    }
     if (!is_null($suiteData) && isset($suiteData->info) && !is_null($suiteData->info)) {
         // Sort alphabetically (same as legacy topLevelSuitesBarChart.php)
         $nameMap = is_array($suiteNames) ? $suiteNames : [];
