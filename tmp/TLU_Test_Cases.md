@@ -5817,3 +5817,15 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 4 | Check browser console for errors | No console errors | No console errors found | PASS |
 | 5 | Check Event Viewer (events table) for Error/Warning entries | Only audit_testproject_saved entries, no errors | All entries are AUDIT level UPDATE events for testprojects | PASS |
 | 6 | Verify fix: api/projects/index.php no longer calls logAuditProject() | Function call removed, logEvent() handles audit | logAuditProject() removed, logEvent() intact | PASS |
+
+### Regression — Issue #743: Execution By Date/Time report fails with "Document generation error"
+
+**Precondition:** TestLink running at http://localhost:8082, PHP 8.x, MariaDB at 127.0.0.1:3306, database `testlink`. TestProject (id=1) with TestPlan1 (id=2, active=1) containing at least one build.
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Login as admin, navigate to index.php?tproject_id=1&tplan_id=2 | Sidebar shows Reports section with report links | Reports section visible with all report entries | PASS |
+| 2 | Click Reports > Execution By Date/Time in sidebar | Report renders "Execution By Date/Time Statistics" heading with correct TestProject/TestPlan1 context | Report loaded successfully showing "Execution By Date/Time Statistics", TestProject, TestPlan1 | PASS |
+| 3 | Verify URL in mainframe has format=0, tproject_id, tplan_id params | URL: execTimelineStats.php?format=0&tproject_id=1&tplan_id=2 | URL confirmed with all three parameters | PASS |
+| 4 | Check Event Viewer for new Error/Warning entries | No new errors introduced by the fix | Only pre-existing E_WARNING at tlTestPlanMetrics.class.php:3722 (appeared before fix too) | PASS |
+| 5 | Verify other legacy report links in sidebar have params | freeTestCases.php?format=0&tproject_id=1&tplan_id=2 | Confirmed params appended to all else-clause report links | PASS |
