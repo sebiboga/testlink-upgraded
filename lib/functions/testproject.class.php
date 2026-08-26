@@ -438,7 +438,15 @@ function get_all($filters=null,$options=null)
     $recordset = $this->db->fetchRowsIntoMap($sql,$my['options']['access_key']);
     if (null != $recordset && count($recordset) > 0) {
       foreach ($recordset as $number => $row) {
-        $recordset[$number]['opt'] = unserialize($row['options']);
+        $decoded = unserialize($row['options']);
+        if (!is_object($decoded)) {
+          $decoded = new stdClass();
+          $decoded->requirementsEnabled = 0;
+          $decoded->testPriorityEnabled = 0;
+          $decoded->automationEnabled = 0;
+          $decoded->inventoryEnabled = 0;
+        }
+        $recordset[$number]['opt'] = $decoded;
       }
     }
   }  
