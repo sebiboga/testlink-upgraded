@@ -409,8 +409,6 @@ function updateProject(&$db, &$tprojectMgr, &$user, $projectId) {
   $event->code = 'UPDATE';
   logEvent($event);
 
-  logAuditProject($name, $projectId, 'UPDATE', 'audit_testproject_saved');
-
   echo json_encode([
     'success' => true,
     'id' => $projectId,
