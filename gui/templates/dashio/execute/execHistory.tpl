@@ -41,7 +41,7 @@ function load_notes(panel,exec_id)
 <h1>{$gui->detailed_descr|escape}<br></h1>
 {/if}
 <div class="workBack">
-  {if $gui->warning_msg == ''}
+  {if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 
     <form name="execHistory" id="execHistory" action="lib/execute/execHistory.php">
       <input type="hidden" name="tcase_id" id="tcase_id" value="{$gui->tcase_id}">

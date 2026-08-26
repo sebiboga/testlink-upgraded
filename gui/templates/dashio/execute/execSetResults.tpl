@@ -144,7 +144,7 @@ file_upload_ko,pleaseOpenTSuite'}
               {if #ROUND_TC_TITLE#}Nifty('div.exec_tc_title');{/if}"
       onUnload="storeWindowSize('TCExecPopup')">
 
-{if $gui->uploadOp != null }
+{if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
   var uplMsg = "{$labels.file_upload_ko}<br>";
   var doAlert = false;
@@ -227,7 +227,7 @@ file_upload_ko,pleaseOpenTSuite'}
   <input type="hidden" id="form_token"  name="form_token"
          value="{$gui->treeFormToken}" />
   <input type="hidden" id="refresh_tree"  name="refresh_tree"
-         value="{$gui->refreshTree}" />
+         value="{if isset($gui->refreshTree)}{$gui->refreshTree}{/if}" />
 
   {$bulkExec = $cfg->exec_cfg->show_testsuite_contents && 
                $gui->can_use_bulk_op }

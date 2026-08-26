@@ -234,7 +234,7 @@ function validateForm(f)
  refresh is useful when operating in full_control=0 => just remove,
  because tree is test plan tree.
 *}
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
 	{include file="inc_refreshTreeWithFilters.tpl"}
 	{*include file="inc_refreshTree.tpl"*}
 {/if}

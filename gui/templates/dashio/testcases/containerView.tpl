@@ -93,9 +93,9 @@ function jsCallDeleteFile(btn, text, o_id)
 <h1 class="{#TITLE_CLASS#}">{$gui->page_title}{$tlCfg->gui_title_separator_1}{$gui->container_data.name|escape}</h1>
 <div class="workBack">
 {include file="inc_update.tpl" result=$gui->sqlResult item=$gui->level
-         name=$gui->moddedItem.name refresh=$gui->refreshTree user_feedback=$gui->user_feedback}
+         name=$gui->moddedItem.name refresh=isset($gui->refreshTree) ? $gui->refreshTree : false user_feedback=$gui->user_feedback}
 
-{if $gui->uploadOp != null }
+{if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
   var uplMsg = "{$labels.file_upload_ko}<br>";
   var doAlert = false;
@@ -203,7 +203,7 @@ function jsCallDeleteFile(btn, text, o_id)
          attach_downloadOnly=$bDownloadOnly}
 
 </div>
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
   {include file="inc_refreshTreeWithFilters.tpl"}
 {/if}
 </body>

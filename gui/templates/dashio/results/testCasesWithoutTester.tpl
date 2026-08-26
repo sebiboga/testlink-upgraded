@@ -29,7 +29,7 @@ Purpose: For a test plan, list test cases that has no tester assigned
 {include file="inc_result_tproject_tplan.tpl" 
           arg_tproject_name=$gui->tproject_name arg_tplan_name=$gui->tplan_name}	
 
-{if $gui->warning_msg == ''}
+{if !isset($gui->warning_msg) || $gui->warning_msg == ''}
 	{if $gui->tableSet}
 		{foreach from=$gui->tableSet key=idx item=matrix}
 			{$tableID="table_$idx"}

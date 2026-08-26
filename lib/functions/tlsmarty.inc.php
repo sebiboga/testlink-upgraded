@@ -570,6 +570,7 @@ class TLSmarty extends Smarty {
 
     $gui = $this->getTemplateVars('gui');
     if( !is_object($gui) || !isset($_SESSION['currentUser']) || null == $db ) {
+      $this->assign('menuGrants',self::emptyMenuGrants());
       return;
     }
 
@@ -598,7 +599,8 @@ class TLSmarty extends Smarty {
     if( null == $menuGrants && property_exists($ux,'grants') ) {
       $menuGrants = $ux->grants;
     }
-    $this->assign('menuGrants',$menuGrants);
+    $this->assign('menuGrants',
+      null != $menuGrants ? $menuGrants : self::emptyMenuGrants());
 
     if( $needsMenu ) {
       // aside.tpl gates Metrics Dashboard/Builds/Add-Remove Platforms/
@@ -611,6 +613,32 @@ class TLSmarty extends Smarty {
       }
       $this->assign('gui',$gui);
     }
+  }
+
+  /**
+   * Return a stdClass whose properties match the menu grants that
+   * aside.tpl reads, all set to "no" (or 0 for inventory flags) so
+   * that every menu item is hidden when no real grant set is available.
+   */
+  static function emptyMenuGrants() {
+    $g = new stdClass();
+    $keys = array(
+      'event_viewer','user_mgmt','cfield_management','project_edit',
+      'tproject_user_role_assignment','keywords_view','modify_tc','view_tc',
+      'keyword_assignment','req_tcase_link_management','monitor_req',
+      'mgt_testplan_create','testplan_create_build',
+      'testplan_add_remove_platforms','testplan_set_urgent_testcases',
+      'testplan_update_linked_testcase_versions',
+      'testplan_show_testcases_newest_versions','testplan_execute',
+      'exec_ro_access','exec_testcases_assigned_to_me',
+      'testplan_milestone_overview','plugin_management'
+    );
+    foreach( $keys as $k ) {
+      $g->$k = 'no';
+    }
+    $g->project_inventory_view = 0;
+    $g->project_inventory_management = 0;
+    return $g;
   }
 
   /**

@@ -67,7 +67,7 @@ function warn_remove_testers(msgbox_title, msgbox_content) {
 	</div> <!-- groupBtn -->
 {/if}
 
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
 	{include file="inc_refreshTreeWithFilters.tpl"}
 {/if}
 

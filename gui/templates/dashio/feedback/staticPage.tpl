@@ -16,7 +16,7 @@
 {$gui->pageContent}
 </div>
 
-{if $gui->refreshTree}
+{if isset($gui->refreshTree) && $gui->refreshTree}
    {include file="inc_refreshTree.tpl"}
 {/if}
 </body>

@@ -18,7 +18,7 @@ delete test case in test specification
 <div class="workBack">
 {include file="inc_update.tpl" user_feedback=$gui->user_feedback 
          result=$gui->sqlResult action=$gui->action item="test case"
-         refresh=$gui->refreshTree}
+         refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
 
 {if $gui->sqlResult == ''}
 	{if $gui->delete_mode == 'single'}
