@@ -5652,3 +5652,29 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 - Test Suite: Suite A (id=200)
 - TCs: TC Without Tester 1-3 (nodes 300-302, tcversions 400-402, priorities 3/2/1)
 - No executions, no tester assignments
+
+## Regression — Issue #702: SQL injection in firstLogin.php notifyGlobalAdmins() + debug echo in production
+
+**Issue:** https://github.com/sebiboga/testlink-upgraded/issues/702
+**Precondition:** Fresh DB import; self-signup enabled (`user_self_signup = TRUE` in config.inc.php); admin user exists; config `notifications.userSignUp.to.users` set to a non-null array of login strings.
+
+**Repro steps (pre-fix):**
+1. Set `$cfg->notifications->userSignUp->to->users = array("admin' OR 1=1 --");` in config.inc.php (or any value with a single quote).
+2. Complete self-signup flow at http://localhost:8082/firstLogin.php with valid data.
+3. The `notifyGlobalAdmins()` function builds an SQL query using `implode("','", $cfg->userSignUp->to->users)` without escaping → SQL injection possible.
+
+**Expected post-fix:** Each value in the array is escaped via `$dbHandler->prepare_string()` before SQL interpolation. No SQL injection is possible regardless of config values.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | PHP syntax check: `php -l firstLogin.php` → No syntax errors | PASS |
+| 2 | Self-signup with default config (users=null): register a new user → redirects to login.php, user created in DB | PASS |
+| 3 | Self-signup with config users set to `array('admin')`: register → redirects to login.php, `notifyGlobalAdmins()` runs the SQL query with escaped values, no error | PASS |
+| 4 | Code review: `prepare_string()` (database.class.php:399) uses ADOdb `qstr()` which escapes single quotes and other SQL-special characters | PASS |
+| 5 | Event Viewer after test flows: no new Error/Warning entries | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Fix:** `firstLogin.php:140-145` — added `array_map` with `$dbHandler->prepare_string()` to escape each value in `$cfg->userSignUp->to->users` before SQL interpolation.
+
+**Note:** The debug echo (`echo '<br>' . __LINE__` at original line 143) was already removed in commit `2492d763c` (Refs #704) by the CI bot before this fix run.
