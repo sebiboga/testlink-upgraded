@@ -101,7 +101,7 @@ function checkTestPlan(&$db,&$user,&$args)
   $tplan_mgr = new testplan($db);
   
   $item_info = $tplan_mgr->get_by_id($args->tplan_id,array( 'output' => 'minimun'));
-  if(($op['status_ok'] = !is_null($item_info)))
+  if(!is_null($item_info))
   {
     $args->tproject_id = intval($item_info['tproject_id']);
 
@@ -184,11 +184,11 @@ function build_link_exec(&$argsObj)
   } 
   else
   {
-    $lk .= "&tplan_id=" . $argsObj->tplan_id . "&platform_id=" . $argsObj->platform_id;
+    $lk .= "&tplan_id=" . $argsObj->tplan_id . "&platform_id=" . $argsObj->platform_id .
            "&tcversion_id=" . $argsObj->tcversion_id;
   } 
   $lk .= "&build_id=" . $argsObj->build_id;
-  $lk .= '&load' . (isset($_GET['anchor']) ? '&anchor=' . $_GET['anchor'] : "");
+  $lk .= '&load=1' . (isset($_GET['anchor']) ? '&anchor=' . $_GET['anchor'] : "");
  
   return $lk;
 }
@@ -228,24 +228,7 @@ function process_exec(&$dbHandler,$context)
  */
 function process_xta2m(&$dbHandler,$context)
 {
-  $ret = array();
-  $ret['url'] = null;
-  $ret['msg'] = 'ko';
-
-  $treeMgr = new tree($dbHandler);
-  $info = $treeMgr->get_node_hierarchy_info($context['tcversion_id']);
-
-  $ret['url'] = "lib/execute/execSetResults.php?level=testcase" .
-                "&version_id=" . $context['tcversion_id'] . 
-                "&id=" . $info['parent_id'] . 
-                "&setting_testplan=" . $context['setting_testplan'] .
-                "&setting_build=" . $context['setting_build'] .
-                "&setting_platform=" . $context['setting_platform'];
-
-
-
-  $ret['msg'] = 'ok';
-  return $ret;
+  return process_exec($dbHandler,$context);
 }
 
 /**
@@ -260,7 +243,7 @@ function check_exec(&$dbHandler,&$argsObj)
     // get missing data
     $tb = DB_TABLE_PREFIX . 'testplan_tcversions';
     $sql = "SELECT testplan_id,platform_id,tcversion_id " .
-           "FROM {$tb} WHERE id=" . $argsObj->feature_id;
+           "FROM {$tb} WHERE id=" . intval($argsObj->feature_id);
 
     $rs = $dbHandler->get_recordset($sql);
     $argsObj->tplan_id = $rs[0]['testplan_id'];
@@ -408,8 +391,8 @@ function launch_inner_xta2m(&$dbHandler,&$tplMgr)
   //}  
 
   $jt = $_SESSION['basehref'] . '/lib/testcases/' .
-        'tcAssignedToUser.php?user_id=' . $args->target_user_id .
-  
+        'tcAssignedToUser.php?user_id=' . $args->target_user_id;
+
   $k2c = array('tplan_id','build_id');
   foreach($k2c as $tg)
   {
@@ -469,22 +452,3 @@ function launch_outer_xta2m(&$tplMgr,$argsObj)
   $tplMgr->display('main.tpl');
 }
 
-/**
- * 
- *
- */
-function buildCookie(&$dbHandler,$itemID,$tprojectID,$cookiePrefix)
-{
-  $tree_mgr = new tree($dbHandler);
-  $path = $tree_mgr->get_path($itemID);
-  $parents = array();
-  $parents[] = $tprojectID;
-  foreach($path as $node) 
-  {
-    $parents[] = $node['id'];
-  }
-  array_pop($parents);
-  $cookieInfo['path'] = 'a:s%3A/' . implode("/", $parents);
-  $cookieInfo['value'] = $cookiePrefix . $tprojectID . '_ext-comp-1001' ;
-  return $cookieInfo;
-}
