@@ -5746,3 +5746,18 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 | 4 | Malformed XML still rejected | CLI: call `setCfg('<issuetracker<')` | `setCfg()` returns `false`; ERROR "Failure loading XML STRING" with libxml detail in `events` | PASS |
 | 5 | PHP syntax clean | `php -l lib/issuetrackerintegration/issueTrackerInterface.class.php && php -l lib/reqmgrsystemintegration/reqMgrSystemInterface.class.php` | No syntax errors | PASS |
 | 6 | Event Viewer clean | Query `events` table for new ERROR rows post-fix | No new ERROR entries introduced by the fix | PASS |
+
+---
+
+## Regression — Issue #559: getExecCountersByExecStatus() always returns null (plans w/o platforms show zero metrics)
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306 / testlink; login admin/admin.
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | Plan without platforms shows non-zero metrics on modernized dashboard | Create project + test plan (no platforms) + build + TC + execute with status "Passed"; open `metricsDashboard.html` | "Plan No Platform" row shows Active TCs ≥ 1, Passed ≥ 1, Progress > 0% | PASS — Active TCs=1, Passed=1 (100%), Progress=100% |
+| 2 | Plan without platforms shows non-zero metrics on legacy dashboard | Open `metricsDashboard.php?show=1&tproject_id=1` for same plan | Row shows Active Test Cases ≥ 1, Passed ≥ 1, Progress > 0% | PASS — Active TCs=1, Passed=100%, Progress=100% |
+| 3 | Plan with builds but zero executions shows 0% | Create plan with builds and linked TCs but no executions; open dashboard | Progress = 0%, Not Run = 100% | PASS (consistent with pre-fix behavior for this case) |
+| 4 | No PHP errors on page load | Open legacy dashboard, check PHP error log | No E_WARNING or E_ERROR from `tlTestPlanMetrics.class.php` | PASS — 0 new errors |
+| 5 | Event Viewer clean | Query `events` table for new Error/Warning rows | No new Error/Warning entries from metrics dashboard usage | PASS |
+| 6 | getExecCountersByExecStatus null guard correct | Code review: line 1056 checks `$builds->idSet` not `is_array($builds)` | Guard matches upstream TestLink pattern, stdClass property access is correct | PASS — verified in commit `d91446a74` |
