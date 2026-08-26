@@ -5856,3 +5856,27 @@ Legacy: `lib/results/freeTestCases.php`
 | 9 | Verify locale switcher dropdown present | Dropdown shows available languages (English, Romana, etc.) | Locale switcher rendered | PASS |
 | 10 | Test empty state — navigate to project with no free TCs | Warning/info message shown: "All test cases are assigned to a test plan" | Empty state message displayed correctly | PASS |
 | 11 | Verify no errors in Event Viewer after testing | Zero new ERROR/WARNING entries | Event Viewer shows only AUDIT entries, no new errors | PASS |
+
+---
+
+## Suite 564 — Regression — Issue #564: E_WARNING spam from unserialize() in testproject::getOptions() when options holds non-serialized value
+
+### Preconditions
+- Admin user logged in
+- Test project exists with `options` column set to non-serialized value (e.g. `"0"`)
+- Event Viewer (events table) cleared
+
+### Test Cases
+
+| # | Step | Expected | Actual | Status |
+|---|------|----------|--------|--------|
+| 1 | Set testprojects.options to `"0"` (non-serialized scalar) via SQL | Column updated to literal `0` | Confirmed via SELECT | PASS |
+| 2 | Navigate to index.php?tproject_id=1 (selects the project) | No new E_WARNING entries in events table | 0 E_WARNING entries after fix (was 5 before fix) | PASS |
+| 3 | Verify page loads without error | Main page renders normally with project context | Page loads correctly, project name shown | PASS |
+| 4 | Set testprojects.options to `""` (empty string) via SQL | Column updated to empty string | Confirmed via SELECT | PASS |
+| 5 | Navigate to index.php?tproject_id=1 | No new E_WARNING entries | 0 E_WARNING entries | PASS |
+| 6 | Set testprojects.options to `NULL` via SQL | Column updated to NULL | Confirmed via SELECT | PASS |
+| 7 | Navigate to index.php?tproject_id=1 | No new E_WARNING entries | 0 E_WARNING entries | PASS |
+| 8 | Set testprojects.options to valid serialized stdClass | Column holds `O:8:"stdClass":...` | Confirmed via SELECT | PASS |
+| 9 | Navigate to index.php?tproject_id=1 | Page loads normally, no E_WARNING, properties accessible | Page loads, no errors | PASS |
+| 10 | Verify Event Viewer after all tests | No new Error/Warning entries from any test step | Event Viewer clean | PASS |
