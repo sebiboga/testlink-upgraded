@@ -1687,5 +1687,12 @@
     "reqcov.thBlocked": "ブロック",
     "reqcov.thNotRun": "未実行",
     "reqcov.thProgress": "進捗",
-    "reqcov.thLinkedTCs": "リンク済みTC"
+    "reqcov.thLinkedTCs": "リンク済みTC",
+    "etl.header": "実行タイムライン統計",
+    "etl.groupBy": "グループ化",
+    "etl.groupDay": "日",
+    "etl.groupMonth": "月",
+    "etl.groupDayHour": "日 + 時",
+    "etl.noData": "このテスト計画に利用可能な実行データがありません。",
+    "etl.generatedOn": "生成日"
 }

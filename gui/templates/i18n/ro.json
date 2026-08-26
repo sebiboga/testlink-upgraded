@@ -1687,5 +1687,12 @@
     "reqcov.thBlocked": "Blocat",
     "reqcov.thNotRun": "Neexecutat",
     "reqcov.thProgress": "Progres",
-    "reqcov.thLinkedTCs": "TC-uri Legate"
+    "reqcov.thLinkedTCs": "TC-uri Legate",
+    "etl.header": "Statistici Cronologice de Execuție",
+    "etl.groupBy": "Grupează după",
+    "etl.groupDay": "Zi",
+    "etl.groupMonth": "Lună",
+    "etl.groupDayHour": "Zi + Oră",
+    "etl.noData": "Nu există date de execuție disponibile pentru acest plan de testare.",
+    "etl.generatedOn": "Generat la"
 }

@@ -1687,5 +1687,12 @@
     "reqcov.thBlocked": "阻塞",
     "reqcov.thNotRun": "未运行",
     "reqcov.thProgress": "进度",
-    "reqcov.thLinkedTCs": "关联TC"
+    "reqcov.thLinkedTCs": "关联TC",
+    "etl.header": "执行时间线统计",
+    "etl.groupBy": "分组方式",
+    "etl.groupDay": "按天",
+    "etl.groupMonth": "按月",
+    "etl.groupDayHour": "天+小时",
+    "etl.noData": "此测试计划没有可用的执行数据。",
+    "etl.generatedOn": "生成于"
 }

@@ -1687,5 +1687,12 @@
     "reqcov.thBlocked": "Заблокирован",
     "reqcov.thNotRun": "Не выполнен",
     "reqcov.thProgress": "Прогресс",
-    "reqcov.thLinkedTCs": "Связанные ТС"
+    "reqcov.thLinkedTCs": "Связанные ТС",
+    "etl.header": "Статистика временной шкалы выполнения",
+    "etl.groupBy": "Группировать по",
+    "etl.groupDay": "День",
+    "etl.groupMonth": "Месяц",
+    "etl.groupDayHour": "День + Час",
+    "etl.noData": "Данные о выполнении для этого плана тестирования отсутствуют.",
+    "etl.generatedOn": "Создано"
 }

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Timeline Statistics</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-dark:hover { background: #3d4049; color: #fff; }
+.notice { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; display: none; }
+.section { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.section-head { padding: 13px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 9px; }
+.section-head i { color: #4ECDC4; }
+.section-body { padding: 6px 20px 14px; overflow-x: auto; }
+table.dataTable { width: 100% !important; }
+table.dataTable thead th { background: #22242a; color: #fff; padding: 7px 10px; text-align: right; white-space: nowrap; font-size: 12px; border-bottom: none; }
+table.dataTable thead th:first-child { text-align: left; border-top-left-radius: 6px; }
+table.dataTable tbody td { padding: 6px 10px; text-align: right; white-space: nowrap; font-size: 13px; }
+table.dataTable tbody td:first-child { text-align: left; font-weight: 600; color: #33363f; }
+table.dataTable tbody tr:hover td { background: #f4fbfa; }
+td.tot { font-weight: 700; color: #22242a; }
+.empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
+.empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
+.spin i { font-size: 22px; color: #4ECDC4; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 8px; }
+@keyframes spin { from { transform: rotate(0deg);} to { transform: rotate(360deg);} }
+.group-btn { display: inline-flex; border-radius: 4px; overflow: hidden; border: 1px solid #4ECDC4; margin-left: 8px; }
+.group-btn button { background: #fff; color: #4ECDC4; border: none; padding: 5px 14px; font-size: 12px; font-weight: 600; cursor: pointer; border-right: 1px solid #4ECDC4; }
+.group-btn button:last-child { border-right: none; }
+.group-btn button.active { background: #4ECDC4; color: #fff; }
+.group-btn button:hover:not(.active) { background: #eefaf9; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-chart-line" style="margin-right:8px;"></i>
+  <span data-i18n="etl.header">Execution Timeline Statistics</span>
+  <span class="sub"><span data-i18n="rgm.inPlan">for test plan</span> <b id="tplanName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="rgm.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span style="flex:1"></span>
+  <span style="color:#aaa;font-size:12px;" data-i18n="etl.groupBy">Group by</span>
+  <div class="group-btn" id="groupBtns">
+    <button data-group="day" class="active" data-i18n="etl.groupDay">Day</button>
+    <button data-group="month" data-i18n="etl.groupMonth">Month</button>
+    <button data-group="day_hour" data-i18n="etl.groupDayHour">Day + Hour</button>
+  </div>
+  <form id="mailForm" method="POST" target="_blank" style="display:inline;margin-left:10px;">
+    <input type="hidden" name="sendByEmail" value="1">
+    <button type="submit" class="btn-dark" id="btnMail"><i class="fa fa-envelope"></i> <span data-i18n="rgm.btnSendEmail">Send report by e-mail</span></button>
+  </form>
+  <form id="xlsForm" method="POST" target="_blank" style="display:inline;">
+    <button type="submit" class="btn-dark" id="btnXls"><i class="fa fa-file-excel"></i> <span data-i18n="rgm.btnExportXls">Export as spreadsheet</span></button>
+  </form>
+  <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="notice" id="platNotice">
+  <i class="fa fa-info-circle"></i> <b data-i18n="rgm.importantNotice">Important Notice:</b>
+  <span data-i18n="rgm.platformRelationship">Platforms have been added to this test plan, therefore metrics are also reported per platform relationship.</span>
+</div>
+
+<div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="reportArea"></div>
+
+<div class="footer">
+  <span data-i18n="etl.generatedOn">Generated on</span> <span id="genDate">-</span>
+  <span style="margin-left:16px;" data-i18n="rgm.elapsedSeconds">Elapsed seconds:</span> <span id="elapsedTime">-</span>
+  <span style="float:right;">TestLink 2.0.1 - <span data-i18n="etl.header">Execution Timeline Statistics</span></span>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    const tproject_id = params.get('tproject_id') || 0;
+    const tplan_id = params.get('tplan_id') || 0;
+    let currentGroup = 'day';
+    let dataTable = null;
+
+    const API = '/api/reports/index.php';
+
+    function toast(msg, err) {
+        var t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = 'toast' + (err ? ' err' : '');
+        t.style.display = 'block';
+        setTimeout(function() { t.style.display = 'none'; }, 4000);
+    }
+
+    function loadTimeline(group) {
+        currentGroup = group || currentGroup;
+        document.getElementById('loadingBox').style.display = 'block';
+        document.getElementById('reportArea').innerHTML = '';
+
+        $.ajax({
+            url: API,
+            data: {
+                action: 'exec_timeline',
+                tproject_id: tproject_id,
+                tplan_id: tplan_id,
+                group: currentGroup
+            },
+            dataType: 'json',
+            success: function(d) {
+                document.getElementById('loadingBox').style.display = 'none';
+                if (d.status === 'error') {
+                    toast(d.message || 'Error', true);
+                    return;
+                }
+                document.getElementById('tprojectName').textContent = d.tproject_name || '-';
+                document.getElementById('tplanName').textContent = d.tplan_name || '-';
+                document.getElementById('elapsedTime').textContent = d.elapsed_time || '0';
+                document.getElementById('genDate').textContent = new Date().toLocaleString();
+
+                if (d.show_platforms) {
+                    document.getElementById('platNotice').style.display = 'block';
+                }
+
+                // Set mail/xls form actions
+                document.getElementById('mailForm').action = d.send_mail_url || '#';
+                document.getElementById('xlsForm').action = d.export_xls_url || '#';
+
+                if (!d.hasData || !d.rows || d.rows.length === 0) {
+                    document.getElementById('reportArea').innerHTML =
+                        '<div class="empty"><i class="fa fa-chart-line"></i>' +
+                        '<span data-i18n="etl.noData">No execution data available for this test plan.</span></div>';
+                    TLi18n.localize();
+                    return;
+                }
+
+                renderTable(d.columns, d.rows);
+            },
+            error: function(xhr) {
+                document.getElementById('loadingBox').style.display = 'none';
+                toast('Network error', true);
+            }
+        });
+    }
+
+    function renderTable(columns, rows) {
+        var html = '<div class="section"><div class="section-head">' +
+            '<i class="fa fa-chart-line"></i> ' +
+            '<span data-i18n="etl.header">Execution Timeline Statistics</span>' +
+            '</div><div class="section-body"><table id="timelineTable" class="table table-striped table-bordered" style="width:100%"><thead><tr>';
+
+        // Time columns first (all except qty and testers)
+        columns.forEach(function(c) {
+            if (c.key !== 'qty' && c.key !== 'testers') {
+                html += '<th>' + escH(c.label) + '</th>';
+            }
+        });
+        html += '<th>' + escH(columns.find(function(c){return c.key==='qty'}).label) + '</th>';
+        html += '<th>' + escH(columns.find(function(c){return c.key==='testers'}).label) + '</th>';
+        html += '</tr></thead><tbody>';
+
+        rows.forEach(function(r) {
+            html += '<tr>';
+            columns.forEach(function(c) {
+                if (c.key !== 'qty' && c.key !== 'testers') {
+                    html += '<td>' + escH(r[c.key] || '') + '</td>';
+                }
+            });
+            html += '<td class="tot">' + (r.qty || 0) + '</td>';
+            html += '<td>' + (r.testers || 0) + '</td>';
+            html += '</tr>';
+        });
+
+        html += '</tbody></table></div></div>';
+        document.getElementById('reportArea').innerHTML = html;
+
+        // Initialize DataTable
+        if (dataTable) {
+            dataTable.destroy();
+        }
+        dataTable = $('#timelineTable').DataTable({
+            paging: rows.length > 25,
+            pageLength: 25,
+            ordering: true,
+            info: true,
+            searching: false,
+            language: {
+                emptyTable: TLi18n.t('etl.noData') || 'No execution data available'
+            }
+        });
+        TLi18n.localize();
+    }
+
+    function escH(s) {
+        var d = document.createElement('div');
+        d.appendChild(document.createTextNode(s));
+        return d.innerHTML;
+    }
+
+    // Group button click handler
+    document.getElementById('groupBtns').addEventListener('click', function(e) {
+        var btn = e.target.closest('button');
+        if (!btn) return;
+        var group = btn.getAttribute('data-group');
+        if (group === currentGroup) return;
+        document.querySelectorAll('#groupBtns button').forEach(function(b) {
+            b.classList.remove('active');
+        });
+        btn.classList.add('active');
+        loadTimeline(group);
+    });
+
+    // Refresh button
+    document.getElementById('btnRefresh').addEventListener('click', function() {
+        loadTimeline(currentGroup);
+    });
+
+    // Initial load
+    loadTimeline('day');
+})();
+</script>
+</body>
+</html>

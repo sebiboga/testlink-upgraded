@@ -3662,5 +3662,136 @@ function doNotRunAnalysisBff($tcaseQty, $execStatusCounter, $notRunCode) {
     return [$evaluation, $doIt];
 }
 
+// ---------------------------------------------------------------------------
+// Execution Timeline Statistics (Refs #762)
+// Modernizes lib/results/execTimelineStats.php — execution count and tester
+// workforce grouped by month / day / day+hour. Right gate: testplan_metrics.
+// ---------------------------------------------------------------------------
+if ($action === 'exec_timeline') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // Group parameter: day (default), month, day_hour — same as legacy.
+    $group = getParam('group', 'day');
+    $validGroups = ['month', 'day', 'day_hour'];
+    if (!in_array($group, $validGroups, true)) {
+        $group = 'day';
+    }
+
+    // Workforce (tester count) always enabled in legacy — same as
+    // statsBy[$group]['workforce'] = true in execTimelineStats.php.
+    $statsBy = [
+        'month'    => ['timeline' => 'month',    'workforce' => true],
+        'day'      => ['timeline' => 'day',      'workforce' => true],
+        'day_hour' => ['timeline' => 'day_hour', 'workforce' => true],
+    ];
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $stats = $metricsMgr->getExecTimelineStats(
+        $tplanId, null, $statsBy[$group]);
+
+    // $stats is array($rs, $rswf) — $rs keyed by timeline field.
+    $rs = $stats[0];
+    $hasData = !is_null($rs) && count($rs) > 0;
+
+    // Column definitions: mirrors the legacy initializeGui/switch logic.
+    $columns = [];
+    switch ($group) {
+        case 'month':
+            $columns[] = ['key' => 'yyyy_mm', 'label' => lang_get('yyyy_mm')];
+            break;
+        case 'day_hour':
+            $columns[] = ['key' => 'yyyy_mm_dd', 'label' => lang_get('yyyy_mm_dd')];
+            $columns[] = ['key' => 'hh', 'label' => lang_get('hh')];
+            break;
+        case 'day':
+        default:
+            $columns[] = ['key' => 'yyyy_mm_dd', 'label' => lang_get('yyyy_mm_dd')];
+            break;
+    }
+    $columns[] = ['key' => 'qty', 'label' => lang_get('qty')];
+    // Workforce column: always present when workforce=true.
+    $columns[] = ['key' => 'testers', 'label' => lang_get('testers_qty')];
+
+    // Rows: ordered list preserving the DB sort order.
+    $rows = [];
+    if ($hasData) {
+        foreach ($rs as $timeKey => $elem) {
+            $row = [];
+            switch ($group) {
+                case 'month':
+                    $row['yyyy_mm'] = $elem['yyyy_mm'] ?? $timeKey;
+                    break;
+                case 'day_hour':
+                    $row['yyyy_mm_dd'] = $elem['yyyy_mm_dd'] ?? $timeKey;
+                    $row['hh'] = $elem['hh'] ?? '';
+                    break;
+                case 'day':
+                default:
+                    $row['yyyy_mm_dd'] = $elem['yyyy_mm_dd'] ?? $timeKey;
+                    break;
+            }
+            $row['qty'] = intval($elem['qty'] ?? 0);
+            $row['testers'] = intval($elem['testers'] ?? 0);
+            $rows[] = $row;
+        }
+    }
+
+    // Platform awareness — same logic as legacy initializeGui().
+    $platformSet = $tplanMgr->getPlatforms(
+        $tplanId, ['outputFormat' => 'map']);
+    $showPlatforms = !is_null($platformSet) && count($platformSet) > 0;
+    if ($showPlatforms) {
+        natsort($platformSet);
+    }
+
+    // Legacy export URLs kept for mail/spreadsheet buttons.
+    $sendMailUrl = '/lib/results/execTimelineStats.php?format=' .
+        FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId;
+    $exportXlsUrl = '/lib/results/execTimelineStats.php?format=' .
+        FORMAT_XLS . '&tplan_id=' . $tplanId .
+        '&tproject_id=' . $tprojectId . '&spreadsheet=1';
+
+    $payload = [
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => $hasData,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'group' => $group,
+        'columns' => $columns,
+        'rows' => $rows,
+        'show_platforms' => $showPlatforms,
+        'send_mail_url' => $sendMailUrl,
+        'export_xls_url' => $exportXlsUrl,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ];
+    out($payload);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

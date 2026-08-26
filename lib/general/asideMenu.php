@@ -193,6 +193,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_reqs_coverage') {
         $hrefR = 'gui/templates/results/resultsRequirements.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
+      // Refs #762 - Execution Timeline Statistics modernized;
+      // the BFF (api/reports exec_timeline action) reuses the very same
+      // tlTestPlanMetrics::getExecTimelineStats() call and enforces
+      // testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_exec_timeline') {
+        $hrefR = 'gui/templates/results/execTimelineStats.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
         $hrefR = $baseHrefR . $rptItem['url'] .

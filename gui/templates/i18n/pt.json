@@ -1687,5 +1687,12 @@
     "reqcov.thBlocked": "Bloqueado",
     "reqcov.thNotRun": "Não executado",
     "reqcov.thProgress": "Progresso",
-    "reqcov.thLinkedTCs": "CTs vinculados"
+    "reqcov.thLinkedTCs": "CTs vinculados",
+    "etl.header": "Estatísticas da Linha do Tempo de Execução",
+    "etl.groupBy": "Agrupar por",
+    "etl.groupDay": "Dia",
+    "etl.groupMonth": "Mês",
+    "etl.groupDayHour": "Dia + Hora",
+    "etl.noData": "Nenhum dado de execução disponível para este plano de testes.",
+    "etl.generatedOn": "Gerado em"
 }
