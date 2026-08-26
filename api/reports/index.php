@@ -2664,5 +2664,132 @@ if ($action === 'never_run_result') {
     exit;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// cases_without_tester — Test Cases Without Tester Assigned
+// Mirrors lib/results/testCasesWithoutTester.php
+// ─────────────────────────────────────────────────────────────────────────────
+if ($action === 'cases_without_tester') {
+    $timerOn = microtime(true);
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test plan selected']);
+        exit;
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    $tplan_name = $tplanInfo['name'] ?? '';
+    $tproject_name = $projInfo['name'] ?? '';
+
+    $hasLinkedTCs = $tplanMgr->count_testcases($tplanId) > 0;
+
+    if (!$hasLinkedTCs) {
+        out([
+            'status' => 'ok',
+            'hasContext' => true,
+            'tproject_id' => $tprojectId,
+            'tplan_id' => $tplanId,
+            'tproject_name' => $tproject_name,
+            'tplan_name' => $tplan_name,
+            'has_linked_tcs' => false,
+            'hasData' => false,
+            'show_platforms' => false,
+            'priority_enabled' => false,
+            'rows' => [],
+            'elapsed_time' => round(microtime(true) - $timerOn, 2),
+        ]);
+        exit;
+    }
+
+    $show_platforms = $tplanMgr->hasLinkedPlatforms($tplanId);
+
+    $priority_enabled = false;
+    if (isset($projInfo['opt']) && is_object($projInfo['opt'])) {
+        $priority_enabled = !empty($projInfo['opt']->testPriorityEnabled);
+    }
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $metrics = $metricsMgr->getNotRunWOTesterAssigned($tplanId, null, null,
+        ['output' => 'array', 'ignoreBuild' => true]);
+
+    if (is_null($metrics)) {
+        $metrics = [];
+    }
+
+    $rows = [];
+    if (count($metrics) > 0) {
+        $targetSet = [];
+        foreach ($metrics as &$item) {
+            $targetSet[] = $item['tcase_id'];
+        }
+
+        $tree_mgr = new tree($db);
+        $path_info = $tree_mgr->get_full_path_verbose($targetSet);
+        unset($tree_mgr, $targetSet);
+
+        $platformCache = [];
+        if ($show_platforms) {
+            $platformCache = $tplanMgr->getPlatforms($tplanId,
+                ['outputFormat' => 'mapAccessByID']);
+        }
+
+        foreach ($metrics as &$item) {
+            $suite_path = isset($path_info[$item['tcase_id']])
+                ? implode(' / ', $path_info[$item['tcase_id']])
+                : '';
+
+            $row = [
+                'suite_path' => $suite_path,
+                'tcase_id' => intval($item['tcase_id']),
+                'external_id' => intval($item['external_id']),
+                'name' => $item['name'] ?? '',
+                'summary' => strip_tags($item['summary'] ?? ''),
+            ];
+
+            if ($show_platforms) {
+                $row['platform_name'] = $platformCache[$item['platform_id']]['name'] ?? '';
+            }
+
+            if ($priority_enabled) {
+                $prioInt = intval($tplanMgr->urgencyImportanceToPriorityLevel(
+                    $item['urg_imp']));
+                $prioMap = [intval(HIGH) => 'high', intval(MEDIUM) => 'medium', intval(LOW) => 'low'];
+                $row['priority_level'] = $prioMap[$prioInt] ?? 'low';
+            }
+
+            $rows[] = $row;
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $tproject_name,
+        'tplan_name' => $tplan_name,
+        'has_linked_tcs' => true,
+        'hasData' => count($rows) > 0,
+        'show_platforms' => $show_platforms,
+        'priority_enabled' => $priority_enabled,
+        'rows' => $rows,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
