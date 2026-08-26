@@ -98,6 +98,7 @@ function initialize_gui(&$dbHandler,$argsObj,&$tproject_mgr,&$req_mgr) {
     $target_id = $tproject_id;
   } 
   
+  $gui->tproject_id = $target_id;
   $gui->grants = getGrants($dbHandler,$argsObj->user,$target_id);
   $gui->tcasePrefix = $tproject_mgr->getTestCasePrefix($argsObj->tproject_id);
 
