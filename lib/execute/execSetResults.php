@@ -1542,9 +1542,15 @@ function initializeGui(&$dbHandler,&$argsObj,&$cfgObj,&$tplanMgr,&$tcaseMgr,&$is
   
   $build_info = $buildMgr->get_by_id($argsObj->build_id);
 
-  $gui->build_name = $build_info['name'];  
-  $gui->build_notes = $build_info['notes'];
-  $gui->build_is_open = ($build_info['is_open'] == 1 ? 1 : 0);
+  if(is_array($build_info)) {
+    $gui->build_name = $build_info['name'];
+    $gui->build_notes = $build_info['notes'];
+    $gui->build_is_open = ($build_info['is_open'] == 1 ? 1 : 0);
+  } else {
+    $gui->build_name = '';
+    $gui->build_notes = '';
+    $gui->build_is_open = 0;
+  }
   $gui->execution_types = $tcaseMgr->get_execution_types();
 
   if ($argsObj->filter_assigned_to) {
