@@ -40,7 +40,6 @@ $tlCfg->OAuthServers['gitlab']['redirect_uri'] =
 $tlCfg->OAuthServers['gitlab']['oauth_enabled'] = true;
 $tlCfg->OAuthServers['gitlab']['oauth_name'] = 'gitlab';
 
-$tlCfg->OAuthServers['gitlab']['oauth_client_id'] = 
-'27a03c93d60b5ddb4e0cef92149678fbe37c099733605e046a5428a9da4177ba';
+$tlCfg->OAuthServers['gitlab']['oauth_client_id'] = 'CHANGE_WITH_CLIENT_ID';
 
-$tlCfg->OAuthServers['gitlab']['oauth_client_secret'] = 'c157df291b81dbfd8084d38b155029baded3cf76c7449670bd2da889fe8b99eb';
+$tlCfg->OAuthServers['gitlab']['oauth_client_secret'] = 'CHANGE_WITH_CLIENT_SECRET';

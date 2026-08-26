@@ -34,11 +34,9 @@ $tlCfg->OAuthServers['google']['oauth_enabled'] = true;
 $tlCfg->OAuthServers['google']['oauth_name'] = 'google';
 
 // Get from /gui/themes/default/images
-$tlCfg->OAuthServers['google']['oauth_client_id'] = 
-  '860603525614-fscj9cgr2dvks51uh6odl67skec536fd.apps.googleusercontent.com';
+$tlCfg->OAuthServers['google']['oauth_client_id'] = 'CHANGE_WITH_CLIENT_ID';
 
-$tlCfg->OAuthServers['google']['oauth_client_secret'] = 
-  '_YOKquNTa4Fux-OMJoxDBuov';
+$tlCfg->OAuthServers['google']['oauth_client_secret'] = 'CHANGE_WITH_CLIENT_SECRET';
 
 // Needed when you use the cURL implementation
 // Can be authorization_code (by default), client_credentials or password
