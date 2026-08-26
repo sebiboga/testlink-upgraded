@@ -5678,3 +5678,31 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 **Fix:** `firstLogin.php:140-145` — added `array_map` with `$dbHandler->prepare_string()` to escape each value in `$cfg->userSignUp->to->users` before SQL interpolation.
 
 **Note:** The debug echo (`echo '<br>' . __LINE__` at original line 143) was already removed in commit `2492d763c` (Refs #704) by the CI bot before this fix run.
+
+---
+
+## Suite 691 — Regression — Issue #558: pt.json header.codeTrackersSub uses Spanish word "integraciones" instead of Portuguese "integrações"
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, Portuguese locale (`?locale=pt`).
+
+**Repro steps (pre-fix):**
+1. `grep 'codeTrackersSub' gui/templates/i18n/pt.json`
+2. Observe value: `"gerir integraciones de rastreadores de código fonte"` — Spanish word "integraciones" present.
+
+**Expected post-fix:**
+- `grep 'codeTrackersSub' gui/templates/i18n/pt.json` returns `"gerir integrações de rastreadores de código"` — correct Portuguese.
+- `python3 -m json.tool gui/templates/i18n/pt.json` exits 0 (valid JSON).
+- Navigate to http://localhost:8082/gui/templates/codetracker/codetrackerView.html?locale=pt — header subtitle shows "gerir integrações de rastreadores de código".
+- No Spanish-only words (`integraciones`, `gestionar`, etc.) remain in pt.json.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | `grep codeTrackersSub gui/templates/i18n/pt.json` → value contains "integrações" (not "integraciones") | PASS |
+| 2 | `python3 -m json.tool gui/templates/i18n/pt.json > /dev/null` → exits 0 | PASS |
+| 3 | `grep -c "integraciones" gui/templates/i18n/pt.json` → 0 | PASS |
+| 4 | Browser: navigate to codetrackerView.html?locale=pt → subtitle shows correct Portuguese text | PASS |
+| 5 | Event Viewer: no new Error/Warning entries in `events` table | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Fix:** `gui/templates/i18n/pt.json` line 344 — changed `"gerir integraciones de rastreadores de código fonte"` to `"gerir integrações de rastreadores de código"` (replaced Spanish "integraciones" with Portuguese "integrações", removed redundant "fonte").
