@@ -12,7 +12,7 @@
 |---|---|
 | DONE (modernized) | 59 |
 | IN PROGRESS | 1 |
-| TODO (still legacy) | ~20 |
+| TODO (still legacy) | ~21 |
 
 ---
 
@@ -132,6 +132,7 @@ Extra modernized feature (not an ASIDE entry):
 
 | Priority | Screen | Legacy entry point | Notes |
 |---|---|---|---|
+| HIGH | Create/Edit Test Plan | `lib/plan/planEdit.php` | Refs #750 — planView.html redirects here for create/edit |
 | MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
 | LOW | Install/Upgrade | `install/` | Stays as-is |
 | LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
