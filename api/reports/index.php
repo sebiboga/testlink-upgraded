@@ -3282,23 +3282,49 @@ if ($action === 'metrics_results_reqs') {
         ];
     }
 
-    // Eval status map (adds partially_passed, uncovered, *_nfc variants)
+    // Eval status map — mirrors legacy setUpReqStatusCfg() labels via lang_get()
     $evalStatusMap = $codeStatusMap;
-    $evalKeys = [
-        'partially_passed' => 'passed_text',
-        'uncovered' => 'not_run_text',
-        'passed_nfc' => 'passed_text',
-        'failed_nfc' => 'failed_text',
-        'blocked_nfc' => 'blocked_text',
-        'not_run_nfc' => 'not_run_text',
-        'partially_passed_nfc' => 'passed_text',
-        'passed' => 'passed_text',
+    $evalLabels = init_labels([
+        'partially_passed' => null, 'partially_passed_reqs' => null,
+        'uncovered' => null, 'uncovered_reqs' => null,
+        'passed_nfc' => null, 'passed_nfc_reqs' => null,
+        'failed_nfc' => null, 'failed_nfc_reqs' => null,
+        'blocked_nfc' => null, 'blocked_nfc_reqs' => null,
+        'not_run_nfc' => null, 'not_run_nfc_reqs' => null,
+        'passed' => null,
+        'partially_passed_nfc' => null, 'partially_passed_nfc_reqs' => null,
+    ]);
+    // Short eval codes returned by evaluate_req_bff() map to these labels/css
+    // 'p','f','b','n' are status_code values; *_nfc appended when not fully covered
+    $evalEntries = [
+        'partially_passed'     => ['label' => $evalLabels['partially_passed'],     'css' => 'passed_text'],
+        'uncovered'            => ['label' => $evalLabels['uncovered'],            'css' => 'not_run_text'],
+        'passed'               => ['label' => $evalLabels['passed'],               'css' => 'passed_text'],
+        'partially_passed_nfc' => ['label' => $evalLabels['partially_passed_nfc'], 'css' => 'passed_text'],
     ];
-    foreach ($evalKeys as $ek => $css) {
+    foreach ($evalEntries as $ek => $info) {
         $evalStatusMap[$ek] = [
-            'label' => $ek,
-            'long_label' => $ek,
-            'css_class' => $css,
+            'label' => $info['label'] ?? $ek,
+            'long_label' => $info['label'] ?? $ek,
+            'css_class' => $info['css'],
+            'count' => 0,
+        ];
+    }
+    // Map short status codes + *_nfc suffixes to translated labels
+    foreach ($statusCodeMap as $sName => $sCode) {
+        $evalStatusMap[$sCode] = [
+            'label' => lang_get($resultsCfg['status_label'][$sName]),
+            'long_label' => lang_get('req_title_' . $sName),
+            'css_class' => $sCode . '_text',
+            'count' => 0,
+            'status' => $sName,
+        ];
+        $nfcKey = $sCode . '_nfc';
+        $nfcLabelKey = $sName === 'not_run' ? 'not_run_nfc' : $sName . '_nfc';
+        $evalStatusMap[$nfcKey] = [
+            'label' => $evalLabels[$nfcLabelKey] ?? ($evalLabels[$sName . '_nfc'] ?? $nfcKey),
+            'long_label' => $evalLabels[$nfcLabelKey . '_reqs'] ?? $nfcKey,
+            'css_class' => $sCode . '_text',
             'count' => 0,
         ];
     }
