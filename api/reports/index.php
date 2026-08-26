@@ -3735,26 +3735,47 @@ if ($action === 'exec_timeline') {
     $columns[] = ['key' => 'testers', 'label' => lang_get('testers_qty')];
 
     // Rows: ordered list preserving the DB sort order.
+    // For day_hour, getExecTimelineStats() returns a nested map:
+    //   $rs[date][hour] = ['qty'=>X, 'yyyy_mm_dd'=>date, 'hh'=>hour, ...]
+    // For day/month it returns a flat map keyed by the time field.
+    // NOTE: the legacy merge of workforce data into $rs for day_hour
+    // accidentally adds a spurious 'testers' key at the date level;
+    // we filter that out (only numeric keys are real hours).
     $rows = [];
     if ($hasData) {
-        foreach ($rs as $timeKey => $elem) {
-            $row = [];
-            switch ($group) {
-                case 'month':
-                    $row['yyyy_mm'] = $elem['yyyy_mm'] ?? $timeKey;
-                    break;
-                case 'day_hour':
-                    $row['yyyy_mm_dd'] = $elem['yyyy_mm_dd'] ?? $timeKey;
-                    $row['hh'] = $elem['hh'] ?? '';
-                    break;
-                case 'day':
-                default:
-                    $row['yyyy_mm_dd'] = $elem['yyyy_mm_dd'] ?? $timeKey;
-                    break;
+        if ($group === 'day_hour') {
+            foreach ($rs as $dateKey => $hours) {
+                if (!is_array($hours)) {
+                    continue;
+                }
+                foreach ($hours as $hourKey => $elem) {
+                    // Skip the spurious 'testers' key added by legacy merge
+                    if (!is_numeric($hourKey)) {
+                        continue;
+                    }
+                    if (!is_array($elem) || !isset($elem['qty'])) {
+                        continue;
+                    }
+                    $rows[] = [
+                        'yyyy_mm_dd' => $elem['yyyy_mm_dd'] ?? $dateKey,
+                        'hh' => $elem['hh'] ?? $hourKey,
+                        'qty' => intval($elem['qty'] ?? 0),
+                        'testers' => intval($elem['testers'] ?? 0),
+                    ];
+                }
             }
-            $row['qty'] = intval($elem['qty'] ?? 0);
-            $row['testers'] = intval($elem['testers'] ?? 0);
-            $rows[] = $row;
+        } else {
+            foreach ($rs as $timeKey => $elem) {
+                $row = [];
+                if ($group === 'month') {
+                    $row['yyyy_mm'] = $elem['yyyy_mm'] ?? $timeKey;
+                } else {
+                    $row['yyyy_mm_dd'] = $elem['yyyy_mm_dd'] ?? $timeKey;
+                }
+                $row['qty'] = intval($elem['qty'] ?? 0);
+                $row['testers'] = intval($elem['testers'] ?? 0);
+                $rows[] = $row;
+            }
         }
     }
 
