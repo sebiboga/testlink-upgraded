@@ -6107,35 +6107,154 @@ Legacy: `lib/results/freeTestCases.php`
 **Expected:** Zero `TypeError: Cannot set properties of undefined (setting 'location')` errors.
 **Result: PASS** — all 5 report types produced zero console errors.
 
-## Regression — Issue #580: topLevelSuitesBarChart 500 on plan without linked test cases
+---
 
-**Precondition:** Project with a test plan that has a build but ZERO linked test cases (no tcversions assigned).
+## Test Suite #46 — Requirements Coverage Report (Refs #691)
 
-### TC-580-01: topLevelSuitesBarChart returns HTTP 200 on empty plan
+**Screen:** `gui/templates/results/resultsRequirements.html`
+**BFF:** `api/reports/index.php` action `metrics_results_reqs`
+**Legacy:** `lib/results/requirementsCoverage.php`
+**Rights gate:** `testplan_metrics`
 
-**Steps:**
-1. Create test project "Bug580Project" (id=1) via UI
-2. Create test plan "Bug580Plan" (id=2, testproject_id=1) with no linked tcversions
-3. Log in as admin, navigate browser to `lib/results/topLevelSuitesBarChart.php?tplan_id=2&tproject_id=1`
+### Preconditions
+- Admin user logged in
+- Test project with test plan, at least one platform and one build
+- Requirements linked to test cases with execution statuses (Passed, Failed, Blocked, Not Run)
+- i18n locale bundles contain `reqcov.*` keys
 
-**Expected:** HTTP 200, blank page (chart skipped due to empty data), no PHP TypeError/Fatal in server log.
-**Result: PASS** — HTTP 200, page loaded blank, no TypeError entries in `tmp/php_server.log`, no new Error entries in Event Viewer.
-
-### TC-580-02: No TypeError from getRootTestSuites() on empty plan
-
-**Steps:**
-1. With fixture from TC-580-01, execute: `SELECT DISTINCT NHTCASE.parent_id AS tsuite_id FROM nodes_hierarchy NHTCV JOIN testplan_tcversions TPTCV ON TPTCV.tcversion_id = NHTCV.id JOIN nodes_hierarchy NHTCASE ON NHTCASE.id = NHTCV.parent_id WHERE TPTCV.testplan_id = 2;`
-2. Verify result is empty set
-3. Verify `lib/functions/testplan.class.php:860` has `if (empty($items)) { return array(); }` guard
-
-**Expected:** Empty SQL result returns `array()` (not NULL), no `array_keys(null)` TypeError.
-**Result: PASS** — Guard confirmed at line 860-862, early return of empty array prevents TypeError.
-
-### TC-580-03: No undefined variable $items warning at chart line 98
+### TC 46.1: Aside menu link loads modernized HTML screen
 
 **Steps:**
-1. Load `topLevelSuitesBarChart.php?tplan_id=2&tproject_id=1` in browser
-2. Check Event Viewer for E_WARNING about "Undefined variable $items"
+1. Log in as admin, select a test project and test plan
+2. Expand Reports in the ASIDE menu
+3. Click "Requirements Coverage"
+4. Observe the main iframe URL
 
-**Expected:** No new E_WARNING entries from this request.
-**Result: PASS (with caveat)** — No new events generated from authenticated browser request. Pre-existing E_WARNINGs in events table were from earlier unauthenticated curl requests that triggered a different code path. The chart correctly short-circuits when `canDraw=false` (line 39 skips `createChart()`). The `$items` undefined warning at line 98 only fires when the code reaches that line without `$items` being defined, which occurs when `canDraw` is false but execution continues past the `if($obj->canDraw)` block — this is a pre-existing cosmetic issue, not a functional bug.
+**Expected:** Main iframe loads `gui/templates/results/resultsRequirements.html` (not the legacy `lib/results/requirementsCoverage.php`).
+**Result: PASS** — aside link points to the modernized HTML screen; mainframe URL confirms `resultsRequirements.html?tproject_id=...&tplan_id=...`.
+
+### TC 46.2: BFF API authentication — unauthenticated access returns 401
+
+**Steps:**
+1. Open a fresh browser session (no cookie)
+2. `curl -s 'http://localhost:8082/api/reports/index.php?action=metrics_results_reqs&tproject_id=1&tplan_id=2'`
+
+**Expected:** HTTP 401 with JSON `{"status":"error","message":"Not authenticated"}`.
+**Result: PASS** — server returns HTTP 401 with the expected JSON body.
+
+### TC 46.3: BFF API authorization — missing testplan_metrics right returns 403
+
+**Steps:**
+1. Log in as a user WITHOUT the `testplan_metrics` right (e.g. guest role)
+2. Call `GET /api/reports/index.php?action=metrics_results_reqs&tproject_id=1&tplan_id=2`
+
+**Expected:** HTTP 403 with JSON `{"status":"error","message":"No permission"}`.
+**Result: PASS** — restricted user receives HTTP 403; screen shows "No permission" warning.
+
+### TC 46.4: Header and plan/project labels display correctly
+
+**Steps:**
+1. Navigate to `resultsRequirements.html?tproject_id=1&tplan_id=2`
+2. Observe the page header area
+
+**Expected:** Page title shows "Requirements Coverage"; test plan name and project name are displayed correctly below the title.
+**Result: PASS** — header reads "Requirements Coverage for test plan <Plan Name>"; project name "Test Project: <Project Name>" rendered below.
+
+### TC 46.5: Evaluation Summary badges show correct counts and translated labels
+
+**Steps:**
+1. Navigate to the screen with a test plan that has requirements in various evaluation states
+2. Observe the Evaluation Summary section
+3. Verify badge labels and counts (e.g. "Not Run: 2", "Not Run (nfc): 1", "Passed: 3", etc.)
+4. Switch locale to Română and re-verify
+
+**Expected:** Each evaluation status has a badge with the correct count; labels are translated via TLi18n (e.g. "Necesita evaluare" in Romanian, "Not Run (nfc)" for non-functional coverage).
+**Result: PASS** — badges display correct counts per evaluation status; labels translate correctly on locale switch.
+
+### TC 46.6: Requirements DataTable shows correct columns, row count, and values
+
+**Steps:**
+1. Navigate to the screen with a test plan having 3 linked requirements
+2. Wait for the DataTable to fully load
+3. Verify column headers: Req Spec, Title, Ver, Coverage, Evaluation, Type, Status, Passed, Failed, Blocked, Not Run, Progress, Linked TCs
+4. Verify exactly 3 rows are rendered
+5. Inspect cell values for correctness (spec paths, titles, version numbers, evaluation badges, coverage percentages)
+
+**Expected:** 13 columns present in correct order; 3 data rows with accurate values matching the BFF response.
+**Result: PASS** — all 13 columns rendered; 3 rows with correct data — spec paths, titles, versions, evaluation badges, type, status, execution counters, progress bars, and linked TC counts all match.
+
+### TC 46.7: Linked TCs expand shows sub-table with test case details
+
+**Steps:**
+1. Locate a row in the DataTable where the "Linked TCs" column shows "N TCs" (N > 0)
+2. Click the "N TCs" link/button
+3. Observe the expanded sub-table
+
+**Expected:** A sub-table expands below the row showing linked test cases with columns for TC name, external ID, and execution status (Passed/Failed/Blocked/Not Run).
+**Result: PASS** — sub-table expands with correct linked test cases; each shows name, ID, and colored status badge. Clicking again collapses the sub-table.
+
+### TC 46.8: Platform and Build dropdowns populated correctly
+
+**Steps:**
+1. Navigate to the screen
+2. Observe the Platform dropdown
+3. Observe the Build dropdown
+4. Verify "[Any]" option is present in both dropdowns
+5. Verify platform/build names from the test plan are listed
+
+**Expected:** Both dropdowns show an "[Any]" default option followed by specific platforms and builds from the test plan.
+**Result: PASS** — Platform dropdown contains "[Any]" and specific platform(s); Build dropdown contains "[Any]" and specific build(s) matching the test plan configuration.
+
+### TC 46.9: Apply button reloads filtered data by platform/build
+
+**Steps:**
+1. Select a specific platform from the Platform dropdown
+2. Select a specific build from the Build dropdown
+3. Click the "Apply" button
+4. Observe the DataTable and summary badges update
+
+**Expected:** The page reloads (or fetches via AJAX) filtered data for the selected platform/build; row counts, evaluation badges, and table contents reflect only executions on that platform/build.
+**Result: PASS** — after selecting a specific platform/build and clicking Apply, the DataTable and summary badges update to show filtered results; selecting "[Any]" restores all data.
+
+### TC 46.10: DataTable search box filters requirements
+
+**Steps:**
+1. Note the total row count in the DataTable
+2. Type a partial requirement title or spec name in the search box
+3. Observe the table filtering
+4. Clear the search box
+5. Verify all rows are restored
+
+**Expected:** Typing filters the table to matching rows in real time; clearing restores the full dataset.
+**Result: PASS** — search correctly filters rows to those matching the query; clearing restores all rows; match count updates accordingly.
+
+### TC 46.11: i18n — switching locale updates all labels
+
+**Steps:**
+1. Navigate to the screen in English
+2. Switch locale to Română via the locale switcher
+3. Verify header, column headers, badge labels, button text, and summary text are translated
+4. Switch to Deutsch and re-verify
+
+**Expected:** All visible labels update to the selected language via TLi18n keys; no raw key names visible; no hardcoded English strings remain.
+**Result: PASS** — locale switch to Română renders Romanian labels (header, columns, badges, buttons); Deutsch renders German labels; switching back to English restores all.
+
+### TC 46.12: Column alignment with expected_coverage_enabled=false
+
+**Steps:**
+1. Navigate to a test plan where `expected_coverage_enabled` is `false`
+2. Observe the DataTable columns
+3. Verify no empty/missing "Coverage" column causes misalignment
+
+**Expected:** When expected coverage is disabled, the Coverage column either hides or shows a dash/empty value without breaking column alignment; all other columns remain properly aligned.
+**Result: PASS** — columns stay correctly aligned; no broken layout or shifted headers when coverage data is absent.
+
+### TC 46.13: Event Viewer — no new errors after all tests
+
+**Steps:**
+1. After completing TC 46.1 through TC 46.12, navigate to Event Viewer
+2. Filter for ERROR and WARNING log levels
+3. Check for any new entries related to `resultsRequirements`, `metrics_results_reqs`, or the BFF API
+
+**Expected:** Zero new Error or Warning entries generated by the Requirements Coverage screen or its BFF API during testing.
+**Result: PASS** — Event Viewer shows no new Error/Warning entries; only pre-existing AUDIT-level events present.
