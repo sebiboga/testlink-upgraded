@@ -3295,12 +3295,11 @@ if ($action === 'metrics_results_reqs') {
         'partially_passed_nfc' => null, 'partially_passed_nfc_reqs' => null,
     ]);
     // Short eval codes returned by evaluate_req_bff() map to these labels/css
-    // 'p','f','b','n' are status_code values; *_nfc appended when not fully covered
+    // CSS class names must match resultsRequirements.html eval-label classes
     $evalEntries = [
-        'partially_passed'     => ['label' => $evalLabels['partially_passed'],     'css' => 'passed_text'],
-        'uncovered'            => ['label' => $evalLabels['uncovered'],            'css' => 'not_run_text'],
-        'passed'               => ['label' => $evalLabels['passed'],               'css' => 'passed_text'],
-        'partially_passed_nfc' => ['label' => $evalLabels['partially_passed_nfc'], 'css' => 'passed_text'],
+        'partially_passed'     => ['label' => $evalLabels['partially_passed'],     'css' => 'partially_passed'],
+        'uncovered'            => ['label' => $evalLabels['uncovered'],            'css' => 'uncovered'],
+        'partially_passed_nfc' => ['label' => $evalLabels['partially_passed_nfc'], 'css' => 'partially_passed_nfc'],
     ];
     foreach ($evalEntries as $ek => $info) {
         $evalStatusMap[$ek] = [
@@ -3311,11 +3310,12 @@ if ($action === 'metrics_results_reqs') {
         ];
     }
     // Map short status codes + *_nfc suffixes to translated labels
+    // CSS classes use the eval key directly (e.g. 'passed', 'passed_nfc', 'failed', etc.)
     foreach ($statusCodeMap as $sName => $sCode) {
         $evalStatusMap[$sCode] = [
             'label' => lang_get($resultsCfg['status_label'][$sName]),
             'long_label' => lang_get('req_title_' . $sName),
-            'css_class' => $sCode . '_text',
+            'css_class' => $sName,
             'count' => 0,
             'status' => $sName,
         ];
@@ -3324,7 +3324,7 @@ if ($action === 'metrics_results_reqs') {
         $evalStatusMap[$nfcKey] = [
             'label' => $evalLabels[$nfcLabelKey] ?? ($evalLabels[$sName . '_nfc'] ?? $nfcKey),
             'long_label' => $evalLabels[$nfcLabelKey . '_reqs'] ?? $nfcKey,
-            'css_class' => $sCode . '_text',
+            'css_class' => $sName . '_nfc',
             'count' => 0,
         ];
     }
@@ -3344,6 +3344,11 @@ if ($action === 'metrics_results_reqs') {
         'tplan_id' => $tplanId,
         'platform_id' => $platformFilter,
     ];
+
+    // Req type & status label maps — mirrors legacy setUpLabels()
+    $reqTypeLabels = init_labels($reqCfg->type_labels);
+    $reqStatusLabels = init_labels($reqCfg->status_labels);
+
     $reqSetX = (array) $reqMgr->getAllByContext($reqContext);
     $reqIds = array_keys($reqSetX);
 
@@ -3523,8 +3528,8 @@ if ($action === 'metrics_results_reqs') {
                 'req_doc_id' => $reqInfo['req_doc_id'] ?? '',
                 'title' => strip_tags($reqInfo['title'] ?? ''),
                 'version' => intval($reqInfo['version'] ?? 0),
-                'type' => $reqInfo['type'] ?? '',
-                'status' => $reqInfo['status'] ?? '',
+                'type' => isset($reqTypeLabels[$reqInfo['type']]) ? $reqTypeLabels[$reqInfo['type']] : ($reqInfo['type'] ?? ''),
+                'status' => isset($reqStatusLabels[$reqInfo['status']]) ? $reqStatusLabels[$reqInfo['status']] : ($reqInfo['status'] ?? ''),
                 'eval' => $eval,
                 'eval_label' => isset($evalStatusMap[$eval]) ? $evalStatusMap[$eval]['label'] : $eval,
                 'eval_css' => isset($evalStatusMap[$eval]) ? $evalStatusMap[$eval]['css_class'] : '',

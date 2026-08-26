@@ -179,10 +179,12 @@ function loadData() {
       // Populate dropdowns
       if (d.platform_set) {
         var sel = $('#platSel').empty();
+        sel.append('<option value="0">[' + t('common.any', 'Any') + ']</option>');
         $.each(d.platform_set, function(id, name) { sel.append('<option value="'+id+'">'+esc(name)+'</option>'); });
       }
       if (d.build_set) {
         var sel2 = $('#buildSel').empty();
+        sel2.append('<option value="0">[' + t('common.any', 'Any') + ']</option>');
         $.each(d.build_set, function(id, name) { sel2.append('<option value="'+id+'">'+esc(name)+'</option>'); });
       }
 
@@ -204,7 +206,7 @@ function loadData() {
       if (d.rows && d.rows.length > 0) {
         var tbody = $('#dtReqs tbody').empty();
         $.each(d.rows, function(i, r) {
-          var covHtml = '';
+          var covHtml = '<td></td>';
           if (d.expected_coverage_enabled) {
             var pct = r.expected_coverage > 0 ? Math.round(100 / r.expected_coverage * r.current_coverage) : 0;
             covHtml = '<td>' + pct + '% (' + r.current_coverage + '/' + r.expected_coverage + ')</td>';
