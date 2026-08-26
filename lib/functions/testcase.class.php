@@ -8418,10 +8418,14 @@ class testcase extends tlObjectWithAttachments {
 
                   // Need file dimension!!!
                   $pathname = $repoDir . $attSet[$id][$atx]['file_path'];
-                  list($iWidth, $iHeight, $iT, $iA) = 
-                    getimagesize($pathname);
-                  
-                  $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+                  // fix #498: guard getimagesize() against false (PHP8) — mirrors #574 pattern
+                  $imgData = @getimagesize($pathname);
+                  if ($imgData !== false) {
+                    list($iWidth, $iHeight, $iT, $iA) = $imgData;
+                    $iDim = ' width=' . $iWidth . ' height=' . $iHeight;
+                  } else {
+                    $iDim = '';
+                  }
                   $icarus = str_replace(array('%id%','%sec%'),array($atx,$sec),  $img);
                   $ghost .= sprintf($icarus,$iDim);
                 }
