@@ -6418,3 +6418,32 @@ Legacy: `lib/results/freeTestCases.php`
 **Expected:** Modernized screen renders correctly with project/plan context. No new Error/Warning entries in Event Viewer.
 
 **Result: PASS** — Page loaded correctly, showed "There are no blocked test cases (WITH TESTER ASSIGNED)". No new errors in Event Viewer from this request.
+
+---
+
+## Suite 47: Regression — Issue #645: E_WARNING 'Trying to access array offset on false' at execSetResults.php:1545-1547
+
+**Precondition:**
+1. Fresh DB, TestLink running at http://localhost:8082.
+2. Login admin/admin.
+3. Create a test project, test plan (no platforms), test suite, test case with version, and a build.
+
+**Test Case 47.1: Execution form render with valid build_id**
+
+Steps:
+1. Navigate to index.php?tproject_id=1&tplan_id=<plan_id>.
+2. Open Test Case Execution > Execute Tests.
+3. Click on the test case to render the execution form.
+4. Open Event Viewer and filter for E_WARNING entries referencing `execSetResults.php` lines 1545, 1546, or 1547.
+
+**Expected:** No E_WARNING entries at execSetResults.php lines 1545-1547.
+**Result: PASS** — Execution form rendered correctly. No E_WARNING at lines 1545-1547. (Pre-existing unrelated warnings at lines 2084 and 2344 were noted but are separate issues.)
+
+**Test Case 47.2: Execution form render with invalid/nonexistent build_id**
+
+Steps:
+1. Open execSetResults.php directly in the mainframe via JS: `mainframe.src = '/lib/execute/execSetResults.php?tproject_id=1&tplan_id=3&version_id=5&level=testcase&setting_platform=-1'`
+2. Check the Event Viewer for E_WARNING entries at execSetResults.php lines 1545-1547.
+
+**Expected:** No E_WARNING entries at execSetResults.php lines 1545-1547. The `is_array($build_info)` guard falls through to safe defaults.
+**Result: PASS** — No new warnings at the guarded lines. The `get_by_id()` returning `false` is now handled gracefully.
