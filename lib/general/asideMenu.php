@@ -182,7 +182,9 @@ if($tplanID > 0) {
         $hrefR = 'gui/templates/results/tplanWithCF.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
-        $hrefR = $baseHrefR . $rptItem['url'];
+        $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
+        $hrefR = $baseHrefR . $rptItem['url'] .
+                 "{$sep}format=0&tproject_id={$tprojectID}&tplan_id={$tplanID}";
       }
       $gui->reportsMenu[] = array(
         'key' => $rptItem['title'],
