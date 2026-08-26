@@ -85,8 +85,8 @@ function initArgsForReports(&$dbHandler) {
   }
 
   if (is_null($args->format)) {
-    tlog("Parameter 'format' is not defined", 'ERROR');
-    exit();
+    tlog("Parameter 'format' is not defined — defaulting to FORMAT_HTML", 'WARNING');
+    $args->format = FORMAT_HTML;
   }
 
   switch ($args->format) {
