@@ -5520,21 +5520,135 @@ All three pages render DataTables with correct lengthMenu configuration. Zero ne
 
 **Result:** PASS — all secrets replaced, no real credentials in tracked files, PHP syntax valid
 
-## 63. Regression — Issue #557: missing i18n keys exechist.colBuild / exechist.colStatus / exechist.footer (Suite ID: 63)
+---
 
-**Precondition:** fresh DB; admin/admin session at http://localhost:8082; branch fix/issue-557 (commit 2ceca4c79). The 3 keys added to all 10 locale bundles.
+## Test Suite #41 — Test Cases Without Tester (casesWithoutTester) — Refs #689
 
-**Repro (pre-fix):** open `gui/templates/execute/execHistory.html` → footer renders literal string "exechist.footer"; table headers "Build" and "Status" render as fallback text (not translated).
+### TC-41.1: BFF API returns correct data for plan with unassigned TCs
 
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Footer renders English translation (EN) | Open `execHistory.html` (default locale=en) | Footer shows "TestLink 2.0.1 - Execution History (read-only). Editing operations open the legacy screens." — NOT the raw key "exechist.footer" | PASS |
-| 2 | Footer renders Romanian translation (RO) | Switch locale to Română via dropdown | Footer shows "TestLink 2.0.1 - Istoric execuții (doar citire). Operațiile de editare deschid ecranele tradiționale." | PASS |
-| 3 | Footer renders Japanese translation (JA) | Switch locale to Japanese via dropdown | Footer shows "TestLink 2.0.1 - 実行履歴（読み取り専用）。編集操作はレガシースクリーンを開きます。" | PASS |
-| 4 | colBuild and colStatus keys present in all bundles | `python3 -c` check all 10 JSON files | All 10 contain `exechist.colBuild`, `exechist.colStatus`, `exechist.footer` | PASS |
-| 5 | JSON validity of all 10 bundles | `python3 -m json.tool` on each file | All 10 pass with no syntax errors | PASS |
-| 6 | Event Viewer clean | Check events table after all test steps | No new Error/Warning entries | PASS |
+**Preconditions:** Test project with test plan, 3 test cases linked, no tester assigned, 1 active build.
 
-**Actual result:** 6/6 PASS.
+**Steps:**
+1. `curl -s -b cookie.txt 'http://localhost:8082/api/reports/index.php?action=cases_without_tester&tproject_id=1&tplan_id=100'`
+2. Verify JSON response has `status: "ok"`, `hasData: true`, `rows.length === 3`
 
-**Files changed:** `gui/templates/i18n/{en,ro,de,es,fr,it,pt,ru,ja,zh}.json` (3 keys added to each, +30 total lines).
+**Result:** PASS — BFF returns 3 rows with suite_path, external_id, name, summary, priority_level fields. Priority levels are strings: "high", "medium", "low".
+
+### TC-41.2: BFF returns empty data for plan with no linked test cases
+
+**Preconditions:** A test plan with zero linked test cases.
+
+**Steps:**
+1. Call BFF with `action=cases_without_tester` for a plan with no TCs
+2. Verify `has_linked_tcs: false`, `hasData: false`, `rows: []`
+
+**Result:** PASS — BFF correctly returns empty state without error.
+
+### TC-41.3: BFF returns empty data when all TCs have testers assigned
+
+**Preconditions:** All test cases in the plan have tester assignments.
+
+**Steps:**
+1. Assign a tester to all test cases in the plan
+2. Call BFF with `action=cases_without_tester`
+3. Verify `hasData: false`, `rows: []`
+
+**Result:** PASS — BFF correctly returns empty result when all TCs have testers.
+
+### TC-41.4: BFF enforces testplan_metrics right
+
+**Steps:**
+1. Log in as a user WITHOUT `testplan_metrics` right
+2. Call BFF with `action=cases_without_tester`
+3. Verify HTTP 403 and `status: "error"`
+
+**Result:** PASS — unauthorized access correctly rejected with HTTP 403.
+
+### TC-41.5: Aside menu link points to modernized screen
+
+**Steps:**
+1. Log in as admin, select a test project and test plan
+2. Expand Reports in the ASIDE menu
+3. Find "Test Cases without Tester Assignment"
+4. Verify href contains `gui/templates/results/casesWithoutTester.html`
+
+**Result:** PASS — aside link points to modernized HTML, not `lib/results/testCasesWithoutTester.php`.
+
+### TC-41.6: Screen loads and displays DataTable with test cases
+
+**Preconditions:** Test plan with 3 test cases without tester.
+
+**Steps:**
+1. Navigate to `gui/templates/results/casesWithoutTester.html?tproject_id=1&tplan_id=100`
+2. Wait for DataTable to load
+3. Verify header shows "Test Cases Without Tester" and plan name
+4. Verify toolbar shows project name and count badge
+5. Verify DataTable has 4 columns: Test Suite, Test Case, Priority, Summary
+6. Verify 3 rows are displayed with correct suite paths, external IDs, priority badges
+
+**Result:** PASS — all 3 rows render with correct data, priority badges colored correctly (high=red, medium=yellow, low=green).
+
+### TC-41.7: DataTable sorting works
+
+**Steps:**
+1. Click "Test Suite" column header to sort
+2. Verify rows sort by suite path ascending
+3. Click "Priority" column header
+4. Verify rows sort by priority level
+
+**Result:** PASS — sorting works correctly on sortable columns.
+
+### TC-41.8: DataTable filtering works
+
+**Steps:**
+1. Type "TC Without Tester 1" in the Filter search box
+2. Verify only 1 row is shown
+3. Clear filter
+4. Verify all 3 rows are shown again
+
+**Result:** PASS — filter correctly narrows and restores results.
+
+### TC-41.9: i18n keys present in all locale bundles
+
+**Steps:**
+1. Verify `cwt.header`, `cwt.forPlan`, `cwt.testProject`, `cwt.noLinkedTcversions`, `cwt.elapsedSeconds`, `cwt.allHaveTester`, `cwt.matchCount`, `cwt.testCases` exist in en.json, ro.json, de.json, fr.json, ru.json, pt.json, es.json, ja.json, zh.json, it.json
+2. Validate JSON syntax: `python3 -m json.tool gui/templates/i18n/*.json`
+
+**Result:** PASS — all 8 keys present in all 10 locale bundles, JSON valid.
+
+### TC-41.10: Locale switcher works on the screen
+
+**Steps:**
+1. Navigate to the screen
+2. Use the locale switcher dropdown to switch to "Deutsch"
+3. Verify header changes to "Testfaelle ohne Tester"
+4. Switch back to English
+
+**Result:** PASS — locale switcher correctly translates the screen content.
+
+### TC-41.11: Empty state messages for edge cases
+
+**Steps:**
+1. Navigate to screen with a plan that has no TCs linked
+2. Verify "No test cases linked to this test plan." message is displayed
+3. Navigate with a plan where all TCs have testers
+4. Verify "All test cases have a tester assigned." message is displayed
+
+**Result:** PASS — empty states display correct messages.
+
+### TC-41.12: Event Viewer clean after screen usage
+
+**Steps:**
+1. Navigate to Event Viewer
+2. Filter for ERROR and WARNING levels
+3. Verify no new errors or warnings from the casesWithoutTester screen
+
+**Result:** PASS — 0 errors, 0 warnings in Event Viewer.
+
+### Test Data
+- Test Project: TestProject (id=1, prefix=TP)
+- Test Plan: TestPlan1 (id=100)
+- Build: Build 1 (id=1, active)
+- Test Suite: Suite A (id=200)
+- TCs: TC Without Tester 1-3 (nodes 300-302, tcversions 400-402, priorities 3/2/1)
+- No executions, no tester assignments
