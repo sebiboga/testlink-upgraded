@@ -1541,6 +1541,7 @@ $TLS_href_assign_user_roles = "Assegna ruoli utente";
 $TLS_href_browse_tc = "Esplora Test Cases";
 $TLS_href_cfields_management = "Gestione campi personalizzati";
 $TLS_href_cfields_tproject_assign = "Assignazione campi personalizzati";
+$TLS_href_tc_import = "Import Test Cases (MD/XML)";
 $TLS_href_edit_tc = "Modifica Test Cases";
 $TLS_href_keywords_assign = "Assegna Parole chiave";
 $TLS_href_keywords_manage = "Gestione Parole chiave";

@@ -2276,6 +2276,7 @@ $TLS_href_browse_tc = "Browse Test Cases";
 $TLS_href_cfields_management = "Define Custom Fields";
 $TLS_href_cfields_tproject_assign = "Assign Custom Fields";
 $TLS_href_edit_tc = "Test Specification";
+$TLS_href_tc_import = "Import Test Cases (MD/XML)";
 $TLS_href_inventory = "Inventory";
 $TLS_href_inventory_management = 'Inventory management';
 $TLS_href_keywords_assign = "Assign Keywords";

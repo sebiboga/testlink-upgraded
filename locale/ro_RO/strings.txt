@@ -61,6 +61,7 @@ $TLS_href_req_assign = 'Atribuire cerințe';
 $TLS_href_req_monitor_overview = 'Prezentare monitorizare cerințe';
 $TLS_href_print_req = 'Document specificație cerințe';
 $TLS_title_test_spec = 'Specificație de test';
+$TLS_href_tc_import = "Import Test Cases (MD/XML)";
 $TLS_href_edit_tc = 'Specificație de test';
 $TLS_href_browse_tc = 'Răsfoire cazuri de test';
 $TLS_href_print_tc = 'Document specificație de test';

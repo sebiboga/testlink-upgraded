@@ -16,6 +16,7 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
    href_print_tc,href_keywords_assign, href_req_overview,
    href_print_req,title_plugins,title_documentation,href_issuetracker_management,projects,system,tests_design,requirements_design,
    href_codetracker_management,href_reqmgrsystem_management,href_req_monitor_overview,current_test_plan,ok,testplan_role,msg_no_rights_for_tp,
+   href_tc_import,
    title_test_execution,href_execute_test,href_rep_and_metrics,
    href_update_tplan,href_newest_tcversions,title_plugins,
    href_my_testcase_assignments,href_platform_assign,
