@@ -687,6 +687,10 @@ class tlIssueTracker extends tlObject
       if( !is_null($issueT)  )
       {
         $itd = $this->getByID($issueT['issuetracker_id']);
+        if( is_null($itd) )
+        {
+          return null;
+        }
         $iname = $itd['implementation'];
 
         if($goodForSession)

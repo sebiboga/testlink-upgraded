@@ -37,9 +37,8 @@ $tlCfg->OAuthServers['github'] = array();
 $tlCfg->OAuthServers['github']['redirect_uri'] = 
   'http://fman.hopto.org/login.php?oauth=github';
 
-$tlCfg->OAuthServers['github']['oauth_client_id'] ='aa5f70a8de342fb95043';
-$tlCfg->OAuthServers['github']['oauth_client_secret'] = 
-  'c8d61d5ec4ed4eb2ac81064c27043ddef351107e';
+$tlCfg->OAuthServers['github']['oauth_client_id'] = 'CHANGE_WITH_CLIENT_ID';
+$tlCfg->OAuthServers['github']['oauth_client_secret'] = 'CHANGE_WITH_CLIENT_SECRET';
 
 $tlCfg->OAuthServers['github']['oauth_enabled'] = true;
 $tlCfg->OAuthServers['github']['oauth_name'] = 'github';

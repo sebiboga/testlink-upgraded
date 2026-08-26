@@ -216,6 +216,7 @@ class testsuite extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $ret['status_ok']=0;
     $ret['msg']='';
+    $result = null;
 
     $safeID = intval($id);
     $check = $this->tree_manager->nodeNameExists($name,$this->my_node_type,$safeID,$parent_id);
@@ -250,7 +251,7 @@ class testsuite extends tlObjectWithAttachments
       
       $ret['status_ok']=1;
       $ret['msg']='ok';
-      if (!$result) {
+      if (!is_null($result) && !$result) {
         $ret['msg'] = $this->db->error_msg();
       } else {
         if (defined('TL_APICALL')) {

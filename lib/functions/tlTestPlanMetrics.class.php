@@ -1485,6 +1485,7 @@ class tlTestPlanMetrics extends testplan
       }
 
       // Last step: get percentages
+      if (!empty($renderObj->info)) {
       foreach($renderObj->info as $platID => &$tsuiteMetrics) {
         foreach($tsuiteMetrics as $tsuite_id => &$elem) {
           if( $execQty[$platID][$tsuite_id] > 0 ) {
@@ -1497,7 +1498,8 @@ class tlTestPlanMetrics extends testplan
             }
           }
         }
-      } 
+      }
+      } // end if (!empty($renderObj->info))
 
     } else {
 
@@ -1541,6 +1543,7 @@ class tlTestPlanMetrics extends testplan
       }  
          
       // Last step: get percentages
+      if (!empty($renderObj->info)) {
       foreach($renderObj->info as $tsuite_id => &$elem) {
         if( $execQty[$tsuite_id] > 0 ) {
           $elem['percentage_completed'] = number_format( 100 * ($execQty[$tsuite_id] / $elem['total_tc']),1);
@@ -1552,6 +1555,7 @@ class tlTestPlanMetrics extends testplan
           }
         }
       }      
+      } // end if (!empty($renderObj->info))
     }
 
 

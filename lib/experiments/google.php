@@ -17,9 +17,8 @@ $provider = new Google([
 $redu = 'http://fman.hopto.org/lib/experiments/google.php';
 
 $provider = new Google([
-    'clientId'     => 
-'860603525614-fscj9cgr2dvks51uh6odl67skec536fd.apps.googleusercontent.com',
-    'clientSecret' => '_YOKquNTa4Fux-OMJoxDBuov',
+    'clientId'     => 'CHANGE_WITH_CLIENT_ID',
+    'clientSecret' => 'CHANGE_WITH_CLIENT_SECRET',
     'redirectUri'  => $redu
 
 ]);

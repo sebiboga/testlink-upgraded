@@ -2341,5 +2341,633 @@ if ($action === 'by_status') {
     ]);
 }
 
+// ──────────────────────────────────────────────────────────────
+// action: tcases_with_cf
+// Mirrors lib/results/testCasesWithCF.php — for a test plan, list test
+// cases with execution custom field data. Right: testplan_metrics.
+// ──────────────────────────────────────────────────────────────
+if ($action === 'tcases_with_cf') {
+    $timerOn = microtime(true);
+
+    $tplanId = intval(getParam('tplan_id'));
+    $tprojId = $tprojectId;
+
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test plan selected']);
+        exit;
+    }
+
+    $tplanMgr = new testplan($db);
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
+
+    $proj = new testproject($db);
+    $projInfo = $proj->get_by_id($tprojId);
+    $tcasePrefix = $proj->getTestCasePrefix($tprojId);
+
+    $showPlatforms = $tplanMgr->hasLinkedPlatforms($tplanId);
+    $hasLinkedTCs = $tplanMgr->count_testcases($tplanId) > 0;
+
+    if (!$hasLinkedTCs) {
+        out([
+            'status' => 'ok',
+            'hasData' => false,
+            'tproject_name' => $projInfo['name'],
+            'tplan_name' => $tplanInfo['name'],
+            'show_platforms' => false,
+            'cf_columns' => [],
+            'rows' => [],
+            'warning_msg' => lang_get('no_linked_tc_cf'),
+            'elapsed_time' => round(microtime(true) - $timerOn, 2),
+        ]);
+        exit;
+    }
+
+    $cfieldMgr = new cfield_mgr($db);
+
+    // Get execution custom fields linked to test project
+    $cfDef = $cfieldMgr->get_linked_cfields_at_execution(
+        $tprojId, 1, 'testcase', null, null, null, 'name'
+    );
+    $cfDef = (array)$cfDef;
+
+    $cfColumns = [];
+    foreach ($cfDef as $cfKey => $cfInfo) {
+        $cfColumns[] = ['id' => $cfKey, 'label' => $cfInfo['label'], 'name' => $cfInfo['name']];
+    }
+
+    // Get CF values per execution
+    $cfMap = $cfieldMgr->get_linked_cfields_at_execution(
+        $tprojId, 1, 'testcase', null, null, $tplanId, 'exec_id'
+    );
+
+    $rows = [];
+    if (!is_null($cfMap)) {
+        $cfPlaceHolder = [];
+        foreach ($cfDef as $cfKey => $cfVal) {
+            $cfPlaceHolder[$cfKey] = '';
+        }
+
+        $tcaseMgr = new testcase($db);
+        $resultsCfg = config_get('results');
+        $codeStatus = $resultsCfg['code_status'];
+        $statusLabels = [];
+        foreach ($codeStatus as $code => $verbose) {
+            if (isset($resultsCfg['status_label'][$verbose])) {
+                $statusLabels[$code] = lang_get($resultsCfg['status_label'][$verbose]);
+            }
+        }
+
+        foreach ($cfMap as $execId => $execInfo) {
+            $row = $execInfo[0];
+
+            // Get test suite path
+            $pathData = $tcaseMgr->getPathLayered([$row['tcase_id']]);
+            $pathItem = is_array($pathData) && count($pathData) > 0 ? end($pathData) : null;
+            $suitePath = is_array($pathItem) && isset($pathItem['value']) ? $pathItem['value'] : '';
+
+            $externalId = buildExternalIdString($tcasePrefix, $row['tc_external_id']);
+
+            // Collect custom field values
+            $cfValues = $cfPlaceHolder;
+            foreach ($execInfo as $cfRow) {
+                $cfValues[$cfRow['name']] = $cfieldMgr->string_custom_field_value($cfRow, null);
+            }
+
+            // Filter: skip rows where both notes and all CF values are empty (legacy parity)
+            $hasValue = !empty($row['exec_notes']);
+            if (!$hasValue) {
+                foreach ($cfValues as $cfVal) {
+                    if (!empty($cfVal)) { $hasValue = true; break; }
+                }
+            }
+            if (!$hasValue) {
+                continue;
+            }
+
+            $rows[] = [
+                'tcase_id' => intval($row['tcase_id']),
+                'tcversion_id' => intval($row['tcversion_id']),
+                'tc_external_id' => intval($row['tc_external_id']),
+                'external_id' => $externalId,
+                'tcase_name' => $row['tcase_name'],
+                'suite_path' => $suitePath,
+                'tcversion_number' => intval($row['tcversion_number']),
+                'platform_name' => $row['platform_name'] ?? '',
+                'platform_id' => intval($row['platform_id'] ?? 0),
+                'build_name' => $row['build_name'] ?? '',
+                'builds_id' => intval($row['builds_id'] ?? 0),
+                'tester' => $row['tester'] ?? '',
+                'execution_ts' => $row['execution_ts'] ?? '',
+                'exec_status' => $row['exec_status'] ?? '',
+                'exec_status_label' => $statusLabels[$row['exec_status']] ?? $row['exec_status'],
+                'exec_notes' => strip_tags($row['exec_notes'] ?? ''),
+                'cfields' => $cfValues,
+            ];
+        }
+    }
+
+    $warningMsg = '';
+    if (count($rows) === 0) {
+        $warningMsg = lang_get('no_linked_tc_cf');
+    }
+
+    out([
+        'status' => 'ok',
+        'hasData' => count($rows) > 0,
+        'tproject_id' => $tprojId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $projInfo['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'show_platforms' => $showPlatforms,
+        'cf_columns' => $cfColumns,
+        'rows' => $rows,
+        'warning_msg' => $warningMsg,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
+// ──────────────────────────────────────────────────────────────
+// action: never_run_init
+// Mirrors lib/results/neverRunByPP.php — init phase: returns test plan +
+// project context, platform list and export URLs.
+// Right: testplan_metrics.
+// ──────────────────────────────────────────────────────────────
+if ($action === 'never_run_init') {
+    $timerOn = microtime(true);
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test plan selected']);
+        exit;
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+
+    // Platform list (same as legacy initializeGui())
+    $platOpts = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map', 'addIfNull' => true]);
+    $platforms = [];
+    $showPlatforms = true;
+    if (is_array($platOpts) && (count($platOpts) === 0 || (count($platOpts) === 1 && isset($platOpts[0])))) {
+        $showPlatforms = false;
+    } else {
+        foreach ($platOpts as $pid => $pname) {
+            if (intval($pid) > 0) {
+                $platforms[] = ['id' => intval($pid), 'name' => $pname];
+            }
+        }
+    }
+
+    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
+        "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $projInfo['name'] ?? '',
+        'tplan_name' => $tplanInfo['name'] ?? '',
+        'show_platforms' => $showPlatforms,
+        'platforms' => $platforms,
+        'export_xls_url' => $exportUrl,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
+// ──────────────────────────────────────────────────────────────
+// action: never_run_result
+// Mirrors lib/results/neverRunByPP.php — result phase: returns test cases
+// that were never executed across ALL active builds by Test Plan + Platform.
+// Right: testplan_metrics.
+// ──────────────────────────────────────────────────────────────
+if ($action === 'never_run_result') {
+    $timerOn = microtime(true);
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test plan selected']);
+        exit;
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
+
+    // Platform filter — same logic as legacy neverRunByPP.php
+    $platSetRaw = $_GET['platSet'] ?? [];
+    if (!is_array($platSetRaw)) {
+        $platSetRaw = [$platSetRaw];
+    }
+    $platSet = [];
+    foreach ($platSetRaw as $v) {
+        $v = intval($v);
+        if ($v > 0) {
+            $platSet[] = $v;
+        }
+    }
+
+    // Check if platforms are used
+    $platOpts = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map', 'addIfNull' => true]);
+    $showPlatforms = true;
+    if (is_array($platOpts) && (count($platOpts) === 0 || (count($platOpts) === 1 && isset($platOpts[0])))) {
+        $showPlatforms = false;
+    }
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $metrics = $metricsMgr->getNeverRunByPlatform($tplanId, count($platSet) > 0 ? $platSet : null);
+
+    $hasData = !is_null($metrics) && count($metrics) > 0;
+    $rows = [];
+
+    if ($hasData) {
+        $tcaseMgr = new testcase($db);
+        $tcasePrefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+
+        // Build platform name cache (raw — client handles escaping for JSON)
+        $platNameCache = [];
+        if ($showPlatforms) {
+            foreach ($platOpts as $pid => $pname) {
+                $platNameCache[intval($pid)] = $pname;
+            }
+        }
+
+        foreach ($metrics as $elem) {
+            $externalId = $elem['full_external_id'] ?? '';
+            $row = [
+                'tcase_id' => intval($elem['tcase_id']),
+                'test_title' => $externalId . ':' . $elem['name'],
+                'test_title_plain' => $externalId . ':' . $elem['name'],
+            ];
+            if ($showPlatforms) {
+                $row['platform_name'] = $platNameCache[intval($elem['platform_id'])] ?? '';
+                $row['platform_id'] = intval($elem['platform_id']);
+            }
+            $rows[] = $row;
+        }
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+
+    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
+        "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => $hasData,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $projInfo['name'] ?? '',
+        'tplan_name' => $tplanInfo['name'] ?? '',
+        'show_platforms' => $showPlatforms,
+        'rows' => $rows,
+        'info_msg' => $hasData ? '' : lang_get('info_notrun_tc_report'),
+        'export_xls_url' => $exportUrl,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// cases_without_tester — Test Cases Without Tester Assigned
+// Mirrors lib/results/testCasesWithoutTester.php
+// ─────────────────────────────────────────────────────────────────────────────
+if ($action === 'cases_without_tester') {
+    $timerOn = microtime(true);
+
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No test plan selected']);
+        exit;
+    }
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (!$tplanInfo) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test plan not found']);
+        exit;
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+        exit;
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    $tplan_name = $tplanInfo['name'] ?? '';
+    $tproject_name = $projInfo['name'] ?? '';
+
+    $hasLinkedTCs = $tplanMgr->count_testcases($tplanId) > 0;
+
+    if (!$hasLinkedTCs) {
+        out([
+            'status' => 'ok',
+            'hasContext' => true,
+            'tproject_id' => $tprojectId,
+            'tplan_id' => $tplanId,
+            'tproject_name' => $tproject_name,
+            'tplan_name' => $tplan_name,
+            'has_linked_tcs' => false,
+            'hasData' => false,
+            'show_platforms' => false,
+            'priority_enabled' => false,
+            'rows' => [],
+            'elapsed_time' => round(microtime(true) - $timerOn, 2),
+        ]);
+        exit;
+    }
+
+    $show_platforms = $tplanMgr->hasLinkedPlatforms($tplanId);
+
+    $priority_enabled = false;
+    if (isset($projInfo['opt']) && is_object($projInfo['opt'])) {
+        $priority_enabled = !empty($projInfo['opt']->testPriorityEnabled);
+    }
+
+    $metricsMgr = new tlTestPlanMetrics($db);
+    $metrics = $metricsMgr->getNotRunWOTesterAssigned($tplanId, null, null,
+        ['output' => 'array', 'ignoreBuild' => true]);
+
+    if (is_null($metrics)) {
+        $metrics = [];
+    }
+
+    $rows = [];
+    if (count($metrics) > 0) {
+        $targetSet = [];
+        foreach ($metrics as &$item) {
+            $targetSet[] = $item['tcase_id'];
+        }
+
+        $tree_mgr = new tree($db);
+        $path_info = $tree_mgr->get_full_path_verbose($targetSet);
+        unset($tree_mgr, $targetSet);
+
+        $platformCache = [];
+        if ($show_platforms) {
+            $platformCache = $tplanMgr->getPlatforms($tplanId,
+                ['outputFormat' => 'mapAccessByID']);
+        }
+
+        foreach ($metrics as &$item) {
+            $suite_path = isset($path_info[$item['tcase_id']])
+                ? implode(' / ', $path_info[$item['tcase_id']])
+                : '';
+
+            $row = [
+                'suite_path' => $suite_path,
+                'tcase_id' => intval($item['tcase_id']),
+                'external_id' => intval($item['external_id']),
+                'name' => $item['name'] ?? '',
+                'summary' => strip_tags($item['summary'] ?? ''),
+            ];
+
+            if ($show_platforms) {
+                $row['platform_name'] = $platformCache[$item['platform_id']]['name'] ?? '';
+            }
+
+            if ($priority_enabled) {
+                $prioInt = intval($tplanMgr->urgencyImportanceToPriorityLevel(
+                    $item['urg_imp']));
+                $prioMap = [intval(HIGH) => 'high', intval(MEDIUM) => 'medium', intval(LOW) => 'low'];
+                $row['priority_level'] = $prioMap[$prioInt] ?? 'low';
+            }
+
+            $rows[] = $row;
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $tproject_name,
+        'tplan_name' => $tplan_name,
+        'has_linked_tcs' => true,
+        'hasData' => count($rows) > 0,
+        'show_platforms' => $show_platforms,
+        'priority_enabled' => $priority_enabled,
+        'rows' => $rows,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
+// ---------------------------------------------------------------------------
+// Graphical Charts report (Refs #690)
+// Modernizes lib/results/charts.php (which delegates to overallPieChart.php,
+// platformPieChart.php, keywordBarChart.php, topLevelSuitesBarChart.php).
+// Returns JSON for all 4 chart types so the client renders them with Chart.js
+// instead of the legacy server-side pChart+GD PNG generation. Right gate:
+// 'testplan_metrics' — same right the legacy screen enforces via checkRights().
+// ---------------------------------------------------------------------------
+if ($action === 'charts_data') {
+    if ($tplanId <= 0 || $tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing project or plan id']);
+    }
+
+    $timerOn = microtime(true);
+
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($projInfo) || !isset($projInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    // Contextual re-check — same pattern as other metrics actions.
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $resultsCfg = config_get('results');
+    $statusColour = $resultsCfg['charts']['status_colour'];
+    $statusLabel  = $resultsCfg['status_label'];
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // ── 1. Overall metrics pie ──
+    $overall = null;
+    $totals = $metricsMgr->getExecCountersByExecStatus($tplanId);
+    if (!is_null($totals) && isset($totals['total'])) {
+        unset($totals['total']);
+        $oLabels  = [];
+        $oValues  = [];
+        $oColors  = [];
+        foreach ($totals as $status => $qty) {
+            $oLabels[] = lang_get($statusLabel[$status]) . ' (' . $qty . ')';
+            $oValues[] = intval($qty);
+            $oColors[] = '#' . ($statusColour[$status] ?? '888888');
+        }
+        if (count($oValues) > 0) {
+            $overall = ['labels' => $oLabels, 'values' => $oValues, 'colors' => $oColors];
+        }
+    }
+
+    // ── 2. Per-platform pies ──
+    $platforms = [];
+    $platSet = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
+    if (!is_null($platSet) && count($platSet) > 0) {
+        $platMetrics = $metricsMgr->getStatusTotalsByPlatformForRender($tplanId);
+        if (!is_null($platMetrics) && isset($platMetrics->info)) {
+            foreach ($platSet as $platId => $platName) {
+                $pData = ['name' => $platName, 'labels' => [], 'values' => [], 'colors' => []];
+                if (isset($platMetrics->info[$platId]['details'])) {
+                    foreach ($platMetrics->info[$platId]['details'] as $status => $info) {
+                        $qty = intval($info['qty']);
+                        $pData['labels'][] = lang_get($statusLabel[$status]) . ' (' . $qty . ')';
+                        $pData['values'][] = $qty;
+                        $pData['colors'][] = '#' . ($statusColour[$status] ?? '888888');
+                    }
+                }
+                if (count($pData['values']) > 0) {
+                    $platforms[] = $pData;
+                }
+            }
+        }
+    }
+
+    // ── 3. Results by keyword (stacked bar) ──
+    $byKeyword = null;
+    $kwData = $metricsMgr->getStatusTotalsByKeywordForRender($tplanId);
+    if (!is_null($kwData) && isset($kwData->info) && count($kwData->info) > 0) {
+        // Sort alphabetically (same as legacy keywordBarChart.php)
+        $sorted = [];
+        foreach ($kwData->info as $kwId => $kwElem) {
+            $sorted[$kwElem['name']] = $kwId;
+        }
+        ksort($sorted);
+
+        $kwLabels = array_keys($sorted);
+        $datasets = []; // [ { label, data } ]
+        $statusOrder = [];
+        foreach ($sorted as $kwName => $kwId) {
+            foreach ($kwData->info[$kwId]['details'] as $status => $info) {
+                if (!isset($statusOrder[$status])) {
+                    $statusOrder[$status] = [];
+                }
+                $statusOrder[$status][] = intval($info['qty']);
+            }
+        }
+        foreach ($statusOrder as $status => $values) {
+            $datasets[] = [
+                'label' => lang_get($statusLabel[$status]),
+                'data'  => $values,
+                'backgroundColor' => '#' . ($statusColour[$status] ?? '888888'),
+            ];
+        }
+        if (count($kwLabels) > 0) {
+            $byKeyword = ['labels' => $kwLabels, 'datasets' => $datasets];
+        }
+    }
+
+    // ── 4. Results by top-level suite (stacked bar) ──
+    // getRootTestSuites can produce invalid SQL (WHERE id IN ()) when no
+    // root suites exist — guard with try/catch to avoid a fatal error.
+    $bySuite = null;
+    $suiteNames = [];
+    try {
+        $suiteNames = $metricsMgr->getRootTestSuites($tplanId, $tprojectId);
+    } catch (\Throwable $e) {
+        $suiteNames = [];
+    }
+    $suiteData = null;
+    try {
+        $suiteData = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanId);
+    } catch (\Throwable $e) {
+        $suiteData = null;
+    }
+    if (!is_null($suiteData) && isset($suiteData->info) && !is_null($suiteData->info)) {
+        // Sort alphabetically (same as legacy topLevelSuitesBarChart.php)
+        $nameMap = is_array($suiteNames) ? $suiteNames : [];
+        $sortedSuites = array_flip($nameMap);
+        natcasesort($sortedSuites);
+
+        $sLabels = [];
+        $sStatusData = [];
+        foreach ($sortedSuites as $name => $tsId) {
+            if (isset($suiteData->info[$tsId])) {
+                $sLabels[] = $name;
+                foreach ($suiteData->info[$tsId]['details'] as $status => $info) {
+                    if (!isset($sStatusData[$status])) {
+                        $sStatusData[$status] = [];
+                    }
+                    $sStatusData[$status][] = intval($info['qty']);
+                }
+            }
+        }
+        $sDatasets = [];
+        foreach ($sStatusData as $status => $values) {
+            $sDatasets[] = [
+                'label' => lang_get($statusLabel[$status]),
+                'data'  => $values,
+                'backgroundColor' => '#' . ($statusColour[$status] ?? '888888'),
+            ];
+        }
+        if (count($sLabels) > 0) {
+            $bySuite = ['labels' => $sLabels, 'datasets' => $sDatasets];
+        }
+    }
+
+    $charts = [];
+    if (!is_null($overall))   { $charts['overall']   = $overall; }
+    if (count($platforms) > 0) { $charts['platforms'] = $platforms; }
+    if (!is_null($byKeyword)) { $charts['by_keyword'] = $byKeyword; }
+    if (!is_null($bySuite))   { $charts['by_suite']   = $bySuite; }
+
+    out([
+        'status'       => 'ok',
+        'tproject_id'  => $tprojectId,
+        'tplan_id'     => $tplanId,
+        'tproject_name'=> $projInfo['name'],
+        'tplan_name'   => $tplanInfo['name'],
+        'charts'       => $charts,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);

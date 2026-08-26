@@ -50,7 +50,7 @@ if(!$gui->external_password_mgmt && $userID) {
     exit();
   } else if ($result['status'] == tlUser::E_EMAILLENGTH) {
     $gui->note = lang_get('mail_empty_address');
-  } else if ($note != "") {
+  } else if ($gui->note != "") {
     $gui->note = getUserErrorMessage($result['status']);
   } 
 }

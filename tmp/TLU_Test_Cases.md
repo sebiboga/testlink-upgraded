@@ -1392,7 +1392,8 @@ TLU: TestLink Upgraded 2.0.1
 | Assign Custom Fields (Modernized) | 14 | 8 | 5 | 1 |
 | Platform Management (Modernized) | 18 | 11 | 5 | 2 |
 | Results by Status #695 | 15 | 10 | 1 | 4 |
-| **TOTAL** | **135** | **81** | **46** | **12** |
+| TC with CF Report #737 | 17 | 10 | 5 | 2 |
+| **TOTAL** | **152** | **91** | **52** | **14** |
 
 ### Bugs Found During Testing
 | ID | Severity | Component | Description |
@@ -5003,3 +5004,775 @@ Issue tracker enabled on the test project.
 ---
 
 ### Result: Suite 35 — Issue #695 — 15/15 PASS (date TBD)
+
+---
+
+## Suite 690 — Regression — Issue #537: Inventory rights not checked with project context in getGrantSetWithExit() — Refs #537
+
+**Precondition:**
+- Test project "Inventory Test Project" (ID=1) with inventoryEnabled=true
+- User `invtester` (user_id=2):
+  - Global role: tester (role_id=7) — NO inventory rights
+  - Project-level role: senior tester (role_id=6) on project 1 — HAS `project_inventory_view`
+
+### Test 1 — Fix: project-level inventory_view renders aside link
+| Step | Action | Expected | Actual | Result |
+|------|--------|----------|--------|--------|
+| 1 | Login as `invtester`/`invtester` (auto-selects project 1) | Aside menu loads | Aside menu loads with Search, Projects, Requirements Design, Test Case Design, Test Plan, Documentation | PASS |
+| 2 | Expand "Projects" section in aside | Inventory management link visible | "Inventory management" link present under Projects | PASS |
+
+### Test 2 — No regression: admin with global inventory rights
+| Step | Action | Expected | Actual | Result |
+|------|--------|----------|--------|--------|
+| 1 | Login as `admin`/`admin`, select project 1 | Aside menu loads | Aside menu loads | PASS |
+| 2 | Expand "Projects" section | Inventory management link visible | "Inventory management" link present under Projects | PASS |
+
+### Test 3 — No regression: inventory disabled hides link
+| Step | Action | Expected | Actual | Result |
+|------|--------|----------|--------|--------|
+| 1 | Login as `admin`, create new project with inventory disabled | Project created | Project created without inventory | PASS |
+| 2 | As `invtester`, select new project, expand Projects | No inventory link | No inventory link present | PASS |
+
+### Test 4 — Event Viewer: no new errors
+| Step | Action | Expected | Actual | Result |
+|------|--------|----------|--------|--------|
+| 1 | Check events table after all tests | No new E_WARNING/E_ERROR from common.php | No new errors from grant builder | PASS |
+
+### Result: Suite 690 — Issue #537 — 4/4 PASS
+
+---
+
+## 37. Test Cases with Custom Fields Report — Modernized (Suite ID: 37)
+
+**Screen:** `gui/templates/results/tcasesWithCF.html` · **BFF:** `/api/reports/index.php?action=tcases_with_cf`
+**Path:** ASIDE > Reports > "Test Cases with Custom Fields"
+**Tracking Issue:** https://github.com/sebiboga/testlink-upgraded/issues/737
+
+### TC-37.1: Screen Loads Inside Mainframe Without PHP Warnings
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User is logged in as admin.
+- **Steps:**
+  1. Click "Test Cases with Custom Fields" in ASIDE > Reports section.
+     *Expected:* tcasesWithCF.html loads inside the mainframe shell (navbar + sidebar visible), no PHP warnings or JS console errors.
+  2. Verify header shows "Test Cases with Custom Fields" with subtitle and locale switcher.
+  3. Verify toolbar shows Test Suite, Test Case, Build dropdowns and Show button.
+
+### TC-37.2: Empty State — No Custom Fields Defined
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** No custom fields are linked to testcases/executions.
+- **Steps:**
+  1. Load the screen with no custom fields.
+     *Expected:* Info panel "No custom fields defined for test cases or executions" displayed.
+  2. Verify no errors in console.
+
+### TC-37.3: Results Table Shows Correct Columns
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Test plan active, test cases executed with custom field values.
+- **Steps:**
+  1. Load the screen.
+     *Expected:* Table columns include: Test Suite, Test Case, Version, Build, Tester, Date, Status, Execution Notes, plus one column per custom field (e.g. "Environment").
+  2. Verify column headers match the custom field labels.
+
+### TC-37.4: Results Table Shows Correct Data
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Executions with custom field values exist.
+- **Steps:**
+  1. View results for a test case with executions.
+     *Expected:* Each row shows correct Status badge (colored), Build name, Version, and custom field values.
+  2. Verify empty custom field values show as empty cell (not "null").
+
+### TC-37.5: Action Links Open Correct Windows
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Results loaded with at least one execution.
+- **Steps:**
+  1. Click the clock icon (Execution History) on a test case row.
+     *Expected:* Opens execution history popup window for that test case.
+  2. Click the play icon (Execute) on a test case row.
+     *Expected:* Opens execution form popup window.
+  3. Click the pencil icon (Edit Test Case) on a test case row.
+     *Expected:* Opens test case editor popup window.
+
+### TC-37.6: DataTable Pagination Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** More than 10 executions exist.
+- **Steps:**
+  1. Load results with many rows.
+     *Expected:* DataTable shows pagination controls; "Showing 1 to 10 of N entries".
+  2. Click Next page.
+     *Expected:* Next set of rows displayed.
+
+### TC-37.7: DataTable Search/Filter Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Results loaded with multiple rows.
+- **Steps:**
+  1. Type partial test case name in search box.
+     *Expected:* Table filters to matching rows.
+  2. Clear search box.
+     *Expected:* Full result set restored.
+
+### TC-37.8: Locale Switcher Translates All Labels
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Screen loaded.
+- **Steps:**
+  1. Switch locale to Română.
+     *Expected:* Page reloads with `?locale=ro`; header, dropdown labels, button text all translate.
+  2. Switch back to English.
+     *Expected:* All labels return to English.
+
+### TC-37.9: Aside Menu Link Points to New Screen
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Inspect aside menu entry href in ASIDE > Reports.
+     *Expected:* Points to `/gui/templates/results/tcasesWithCF.html` (not legacy PHP).
+  2. Click the link.
+     *Expected:* Loads the modernized screen inside mainframe.
+
+### TC-37.10: API Returns Data Correctly
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Logged-in session; test plan with executions and CF values.
+- **Steps:**
+  1. `GET /api/reports/index.php?action=tcases_with_cf&tproject_id=<id>&tplan_id=<id>`
+     *Expected:* HTTP 200 with JSON containing `cfinfo`, `gui`, and `executions`.
+  2. Verify `cf_columns` contains field_id, name, label for each linked CF.
+  3. Verify `rows` array contains tc_name, version, build_name, status, and cfields.
+
+### TC-37.11: API Returns 401 Without Session
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. `GET /api/reports/index.php?action=tcases_with_cf&tproject_id=1` without session cookie.
+     *Expected:* HTTP 401 with `{"status":"error","message":"Not authenticated"}`.
+
+### TC-37.12: API Returns 403 Without testplan_metrics Right
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** User without `testplan_metrics` right.
+- **Steps:**
+  1. Call API with restricted user session.
+     *Expected:* HTTP 403 "No permission".
+
+### TC-37.13: Event Viewer Clean After Screen Use
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Fresh events table.
+- **Steps:**
+  1. Load screen, switch locale, check Event Viewer.
+     *Expected:* No new Error/Warning events from tcasesWithCF flows.
+
+### TC-37.14: Empty Rows Filtered Like Legacy
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Executions exist where both exec_notes and all CF values are empty.
+- **Steps:**
+  1. Load results that include an execution with empty notes and empty CF values.
+     *Expected:* That execution row is NOT shown (filtered out, matching legacy behavior).
+
+### TC-37.15: Dynamic Page Title
+- **Priority:** Low
+- **Importance:** Low
+- **Steps:**
+  1. Load the screen.
+     *Expected:* Browser tab title shows "Test Cases with Custom Fields — <Plan Name>".
+
+### TC-37.16: DataTables Destroy Prevents Memory Leak
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Load the screen, switch locale to trigger loadData() again.
+     *Expected:* No JS console errors; DataTable re-initializes cleanly without duplicate event handlers.
+
+### TC-37.17: API Error Responses Include HTTP Status Codes
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Call API with `tplan_id=0`.
+     *Expected:* HTTP 400 (not 200) with error message.
+  2. Call API with nonexistent `tplan_id=99999`.
+     *Expected:* HTTP 400 with "Test plan not found".
+
+### Result: 17/17 PASS (pending full verification)
+
+---
+
+## Suite 38: Regression — Issue #706: XSS Fixes (logout.php, lnl.php, index.php)
+
+**Precondition:** TestLink running at http://localhost:8082; admin/admin credentials; database fresh import.
+
+### TC-38.1: logout.php XSS via `</script>` injection
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Send request: `GET /logout.php?viewer=</script><script>alert(1)</script>`
+     *Expected:* HTTP 302 with `Location` header, NO `<script>` tag in response body.
+  3. Verify the response body is empty (no JS redirect code).
+
+### TC-38.2: logout.php normal redirect works
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/logout.php` (no parameters).
+     *Expected:* HTTP 302 redirect to `login.php?note=logout&viewer=`.
+  3. Verify the browser lands on the login page.
+
+### TC-38.3: logout.php viewer parameter passed through safely
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/logout.php?viewer=myvalue`.
+     *Expected:* HTTP 302 redirect to `login.php?note=logout&viewer=myvalue`.
+
+### TC-38.4: lnl.php XSS via type parameter
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Get a valid 64-char object API key (from testprojects table).
+  2. Send request: `GET /lnl.php?type=<script>alert(1)</script>&apikey=<valid_key>&entities=7`
+     *Expected:* Response body contains `&lt;script&gt;alert(1)&lt;/script&gt;` (HTML-escaped).
+  3. Verify NO raw `<script>` tag appears in the output.
+
+### TC-38.5: lnl.php unknown type error is displayed correctly
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Send request with an unknown type and valid API key.
+     *Expected:* Response body shows `ABORTING - UNKNOWN TYPE:` followed by the sanitized type string.
+
+### TC-38.6: index.php data: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=data:text/html,<script>alert(1)</script>`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+  3. Verify no `data:` appears in any iframe src attribute.
+
+### TC-38.7: index.php vbscript: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=vbscript:MsgBox(1)`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.8: index.php encoded javascript: URI blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=java%09script:alert(1)` (tab-split)
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.9: index.php URL-encoded javascript: URI blocked
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=javascript%3Aalert(1)`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.10: index.php absolute URL blocked
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=http://evil.com/malicious`
+     *Expected:* iframe src falls back to `lib/general/mainPage.php`.
+
+### TC-38.11: index.php normal path works
+- **Priority:** High
+- **Importance:** High
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?reqURI=lib/general/mainPage.php`
+     *Expected:* iframe src is `http://localhost:8082/lib/general/mainPage.php`.
+
+### TC-38.12: index.php returnFeature parameter works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php?returnFeature=editTc`
+     *Expected:* iframe src resolves to `lib/general/frmWorkArea.php?feature=editTc`.
+
+### TC-38.13: index.php no reqURI shows default
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Login as admin.
+  2. Navigate to `/index.php` (no parameters).
+     *Expected:* iframe src is `http://localhost:8082/lib/general/mainPage.php`.
+
+### TC-38.14: Event Viewer has no new errors after XSS fixes
+- **Priority:** Medium
+- **Importance:** Medium
+- **Steps:**
+  1. Execute TC-38.1 through TC-38.13.
+  2. Check Event Viewer screen / events table.
+     *Expected:* No new Error/Warning entries beyond pre-existing `$key` undefined variable warning at lnl.php:129.
+
+### Result: 14/14 PASS
+
+---
+
+## TC-39: Regression — Issue #551: DataTablesLengthMenu include-param typo in 3 templates
+
+### Preconditions
+- TestLink 2.0.1 running at http://localhost:8082
+- Admin user (admin/admin) logged in
+- Project "TestProject" (tproject_id=1) exists with a Test Plan "TestPlan1" (tplan_id=2) containing at least one Build
+
+### Description
+Verify that the DataTablesLengthMenu parameter case-sensitivity typo is fixed in buildView.tpl, containerMoveTC.tpl, and cfieldsTprojectAssign.tpl. Smarty variable names are case-sensitive; passing DataTablesLengthMenu (lowercase l) while DataTables.inc.tpl reads DataTablesLengthMenu (uppercase L) causes E_WARNING on PHP 8.1+.
+
+### Steps
+
+#### TC-39.1: Build Management page (buildView.tpl)
+1. Navigate to http://localhost:8082/lib/plan/buildView.php?tproject_id=1&tplan_id=2
+   *Expected:* Build Management page renders with DataTable showing existing builds.
+2. Inspect browser console for errors.
+   *Expected:* No JavaScript errors related to DataTable initialization.
+3. Check the "Show entries" dropdown options.
+   *Expected:* Dropdown shows [20, 40, 60, All] from the configured pagination length.
+4. Check the server Event Viewer / events table for new E_WARNING entries referencing DataTables.inc.tpl.
+   *Expected:* No new "Undefined array key DataTablesLengthMenu" or "Attempt to read property value on null" warnings.
+
+#### TC-39.2: Move/Copy Test Cases dialog (containerMoveTC.tpl)
+1. Navigate to Test Case Design, select a test suite with test cases.
+2. Select test case(s) and click "Move/Copy".
+   *Expected:* The Move/Copy dialog renders with a DataTable and correct lengthMenu.
+3. Check browser console and Event Viewer for DataTablesLengthMenu warnings.
+   *Expected:* No new E_WARNING entries.
+
+#### TC-39.3: Assign Custom Fields to Test Project (cfieldsTprojectAssign.tpl)
+1. Navigate to Projects > Assign Custom Fields.
+   *Expected:* The assignment page renders with a DataTable and correct lengthMenu.
+2. Check browser console and Event Viewer for DataTablesLengthMenu warnings.
+   *Expected:* No new E_WARNING entries.
+
+### Expected Result
+All three pages render DataTables with correct lengthMenu configuration. Zero new E_WARNING entries in the events table related to DataTablesLengthMenu.
+
+### Actual Result
+- TC-39.1: PASS — Build view shows DataTable with lengthMenu [20, 40, 60, All], console clean, no new warnings in Event Viewer.
+- TC-39.2: PASS — ContainerMoveTC dialog renders correctly with correct DataTable config, no new warnings.
+- TC-39.3: PASS — cfieldsTprojectAssign renders correctly with correct DataTable config, no new warnings.
+
+### Test Data
+- Compiled template verified: buildView.tpl.php now passes `DataTablesLengthMenu` (uppercase L)
+- `grep -r DataTableslengthMenu gui/templates_c/` returns 0 matches
+
+---
+
+## Suite 40: Test Cases Never Run Report — Modernized Screen (Refs #688)
+
+### TC-40.1: Init loads correctly with test plan context
+- Navigate to `gui/templates/results/neverRun.html?tproject_id=1&tplan_id=3`
+- Verify header shows "Test Cases Never Run for test plan <plan name>"
+- Verify toolbar shows project name, export link
+- Verify platform selector renders with multi-select
+- Verify "Generate Report" button is visible
+- **PASS** — All init elements render, test plan/project names correct
+
+### TC-40.2: Generate Report shows never-run test cases
+- Click "Generate Report" (no platform filter)
+- Verify DataTable shows 2 records: TNR-1:TC NeverRun 1 (Platform A) and TNR-2:TC NeverRun 2 (Platform B)
+- Verify "TC Executed" is NOT in the results (it was executed on Platform A)
+- Verify footer shows "Generated by TestLink on ..." and elapsed time
+- Verify "Refresh" button appears after generation
+- **PASS** — Correct 2 never-run test cases displayed, executed TC excluded
+
+### TC-40.3: Platform filter works
+- Select only "Platform A" in the multi-select
+- Click "Generate Report"
+- Verify only TNR-1:TC NeverRun 1 (Platform A) is shown — 1 record
+- **PASS** — Platform filtering correct
+
+### TC-40.4: Refresh button returns to launcher
+- After report is generated, click "Refresh"
+- Verify launcher box reappears with platform selector and "Generate Report" button
+- **PASS** — Refresh cycle works
+
+### TC-40.5: Export as spreadsheet link
+- Verify "Export as spreadsheet" link URL contains `/lib/results/neverRunByPP.php?format=3&tplan_id=3&tproject_id=1&doAction=result`
+- **PASS** — Absolute URL correct, links to legacy XLS export
+
+### TC-40.6: Aside menu link is wired to modernized screen
+- Open aside menu > Reports
+- Verify "Test Cases Never Run" link points to `gui/templates/results/neverRun.html?tproject_id=1&tplan_id=3`
+- **PASS** — Aside link correctly switched to modernized screen
+
+### TC-40.7: BFF API returns correct data
+- `GET /api/reports/index.php?action=never_run_init&tproject_id=1&tplan_id=3` returns status=ok, platforms list, tproject/tplan names
+- `GET /api/reports/index.php?action=never_run_result&tproject_id=1&tplan_id=3` returns hasData=true, 2 rows with test_title and platform_name
+- **PASS** — BFF API returns correct JSON structure
+
+### TC-40.8: i18n keys present
+- All `nr.*` keys exist in en.json, ro.json, and all other locale bundles
+- Validate: `python3 -m json.tool` passes for all locale files
+- **PASS** — i18n complete
+
+### TC-40.9: Event Viewer clean
+- After testing, check Event Viewer — no new ERROR or WARNING entries
+- Only AUDIT entries (project creation, login)
+- **PASS** — No errors generated
+
+### Test Data
+- Test Project: TestNR (tproject_id=1)
+- Test Plan: TestPlan NeverRun (tplan_id=3)
+- Platforms: Platform A (id=5), Platform B (id=6)
+- Build: Build 1 (id=1)
+- Test Suite: Test Suite NR (ts_id=10)
+- Test Cases: TC NeverRun 1 (tcv_id=14, platform A), TC NeverRun 2 (tcv_id=15, platform B), TC Executed (tcv_id=13, platform A, status=passed)
+- Executions: 1 execution for TC Executed on Platform A
+
+---
+
+### Regression — Issue #704: Multiple PHP undefined variable / wrong return / debug echo bugs
+
+**Precondition:** TestLink installed, database accessible, PHP 7.4+
+
+#### Test Case 1 — lnl.php:129 undefined $key
+- **Pre-requisite:** API key configured, accessWithoutLogin feature active
+- **Steps:**
+  1. Construct URL: `lnl.php?light=green&type=list_tc_my_custom_report&apikey=<valid_key>`
+  2. Access the URL
+- **Expected:** The default case in `switch($args->type)` executes with `$args->type` properly matched against `list_tc_` prefix. No PHP warning for undefined `$key`.
+- **Actual (post-fix):** `$args->type` is correctly used in `strpos()`. No warnings.
+
+#### Test Case 2 — linkto.php:243 return boolean instead of object
+- **Pre-requisite:** None (can test with invalid testcase URL)
+- **Steps:**
+  1. Access: `linkto.php?testcase=INVALID_NOSPLIT` (no glue character)
+  2. Observe page response
+- **Expected:** `init_args()` returns `$args` object (with `status_ok=false`), caller handles gracefully. No fatal error on property access of boolean.
+- **Actual (post-fix):** Returns `$args` object. Caller checks `$args->status_ok` (false) and does not proceed. No PHP fatal error.
+
+#### Test Case 3 — lostPassword.php:53 undefined $note
+- **Pre-requisite:** None
+- **Steps:**
+  1. Access: `lostPassword.php?viewer=new`
+  2. Check PHP error log for "Undefined variable $note"
+- **Expected:** No PHP warning for undefined variable `$note`. The condition uses `$gui->note` which is properly set.
+- **Actual (post-fix):** No PHP warning. `$gui->note` checked correctly.
+
+#### Test Case 4 — firstLogin.php:143 debug echo
+- **Pre-requisite:** None
+- **Steps:**
+  1. Access: `firstLogin.php?viewer=new`
+  2. Check HTTP response body
+- **Expected:** No `<br>143` debug output in HTML
+- **Actual (post-fix):** No debug output detected in response.
+
+**Result:** All 4 tests PASS
+
+---
+
+## Regression — Issue #555: PHP 8 array-offset-on-null in getInterfaceObject()
+
+### Test Case 1 — Orphaned tracker link does not trigger E_WARNING
+- **Pre-requisite:** Project with `issue_tracker_enabled=1` and a `testproject_issuetracker` row pointing to a non-existent `issuetrackers.id`
+- **Steps:**
+  1. Insert `issuetrackers` row (id=1, type=25) and link to project via `testproject_issuetracker`
+  2. Delete the `issuetrackers` row (creating orphaned link)
+  3. Navigate to `index.php?tproject_id=1` (triggers `getInterfaceObject()`)
+  4. Check PHP error log for "Trying to access array offset on null" at `tlIssueTracker.class.php:690`
+  5. Check Event Viewer (`events` table) for new Error/Warning entries
+- **Expected:** No PHP 8 E_WARNING at line 690. `getInterfaceObject()` returns null gracefully. No new Event Viewer entries.
+- **Actual (post-fix):** No PHP warning. Page loads normally. Event Viewer unchanged (only pre-existing CREATE/LOGIN events).
+- **Result:** PASS
+
+### Test Case 2 — Valid tracker link still works after fix
+- **Pre-requisite:** Project with `issue_tracker_enabled=1` and valid `issuetrackers` row linked
+- **Steps:**
+  1. Recreate `issuetrackers` row (id=1, type=25) and link to project
+  2. Navigate to `index.php?tproject_id=1`
+  3. Verify no PHP warnings in console or Event Viewer
+  4. Verify page loads without errors
+- **Expected:** Normal page load, no warnings, no Event Viewer errors
+- **Actual (post-fix):** Page loads cleanly. No console errors. No new Event Viewer entries.
+- **Result:** PASS
+
+## Regression — Issue #703: OAuth secrets removed from tracked files
+
+**Precondition:** Repository has all 5 files tracked in git with sanitized (placeholder) values
+**Pre-fix behavior:** cfg/oauth_samples/oauth.github.inc.php, oauth.gitlab.inc.php, oauth.google.inc.php, lib/experiments/google.php, and lib/functions/oauth_providers/test.txt contained real OAuth client_id/client_secret/access_token values
+**Post-fix behavior:** All files use CHANGE_WITH_* placeholders; git grep for original secret strings returns zero matches outside vendor/
+
+**Repro steps:**
+1. Run: `git grep -E '(c8d61d5ec|c157df291|b66f036df|d5dbe0344|_YOKquNTa4|860603525614|aa5f70a8de|27a03c93d6|cbc290aeeb)' -- ':!vendor/'`
+2. Expected: No matches (EXIT code 1)
+3. Run: `git grep 'CHANGE_WITH_' -- cfg/oauth_samples/ lib/experiments/google.php lib/functions/oauth_providers/test.txt`
+4. Expected: Matches in all 5 files confirming placeholders are in place
+5. Verify each sample file is still valid PHP: `php -l cfg/oauth_samples/oauth.github.inc.php && php -l cfg/oauth_samples/oauth.gitlab.inc.php && php -l cfg/oauth_samples/oauth.google.inc.php && php -l lib/experiments/google.php`
+
+**Result:** PASS — all secrets replaced, no real credentials in tracked files, PHP syntax valid
+
+---
+
+## Test Suite #41 — Test Cases Without Tester (casesWithoutTester) — Refs #689
+
+### TC-41.1: BFF API returns correct data for plan with unassigned TCs
+
+**Preconditions:** Test project with test plan, 3 test cases linked, no tester assigned, 1 active build.
+
+**Steps:**
+1. `curl -s -b cookie.txt 'http://localhost:8082/api/reports/index.php?action=cases_without_tester&tproject_id=1&tplan_id=100'`
+2. Verify JSON response has `status: "ok"`, `hasData: true`, `rows.length === 3`
+
+**Result:** PASS — BFF returns 3 rows with suite_path, external_id, name, summary, priority_level fields. Priority levels are strings: "high", "medium", "low".
+
+### TC-41.2: BFF returns empty data for plan with no linked test cases
+
+**Preconditions:** A test plan with zero linked test cases.
+
+**Steps:**
+1. Call BFF with `action=cases_without_tester` for a plan with no TCs
+2. Verify `has_linked_tcs: false`, `hasData: false`, `rows: []`
+
+**Result:** PASS — BFF correctly returns empty state without error.
+
+### TC-41.3: BFF returns empty data when all TCs have testers assigned
+
+**Preconditions:** All test cases in the plan have tester assignments.
+
+**Steps:**
+1. Assign a tester to all test cases in the plan
+2. Call BFF with `action=cases_without_tester`
+3. Verify `hasData: false`, `rows: []`
+
+**Result:** PASS — BFF correctly returns empty result when all TCs have testers.
+
+### TC-41.4: BFF enforces testplan_metrics right
+
+**Steps:**
+1. Log in as a user WITHOUT `testplan_metrics` right
+2. Call BFF with `action=cases_without_tester`
+3. Verify HTTP 403 and `status: "error"`
+
+**Result:** PASS — unauthorized access correctly rejected with HTTP 403.
+
+### TC-41.5: Aside menu link points to modernized screen
+
+**Steps:**
+1. Log in as admin, select a test project and test plan
+2. Expand Reports in the ASIDE menu
+3. Find "Test Cases without Tester Assignment"
+4. Verify href contains `gui/templates/results/casesWithoutTester.html`
+
+**Result:** PASS — aside link points to modernized HTML, not `lib/results/testCasesWithoutTester.php`.
+
+### TC-41.6: Screen loads and displays DataTable with test cases
+
+**Preconditions:** Test plan with 3 test cases without tester.
+
+**Steps:**
+1. Navigate to `gui/templates/results/casesWithoutTester.html?tproject_id=1&tplan_id=100`
+2. Wait for DataTable to load
+3. Verify header shows "Test Cases Without Tester" and plan name
+4. Verify toolbar shows project name and count badge
+5. Verify DataTable has 4 columns: Test Suite, Test Case, Priority, Summary
+6. Verify 3 rows are displayed with correct suite paths, external IDs, priority badges
+
+**Result:** PASS — all 3 rows render with correct data, priority badges colored correctly (high=red, medium=yellow, low=green).
+
+### TC-41.7: DataTable sorting works
+
+**Steps:**
+1. Click "Test Suite" column header to sort
+2. Verify rows sort by suite path ascending
+3. Click "Priority" column header
+4. Verify rows sort by priority level
+
+**Result:** PASS — sorting works correctly on sortable columns.
+
+### TC-41.8: DataTable filtering works
+
+**Steps:**
+1. Type "TC Without Tester 1" in the Filter search box
+2. Verify only 1 row is shown
+3. Clear filter
+4. Verify all 3 rows are shown again
+
+**Result:** PASS — filter correctly narrows and restores results.
+
+### TC-41.9: i18n keys present in all locale bundles
+
+**Steps:**
+1. Verify `cwt.header`, `cwt.forPlan`, `cwt.testProject`, `cwt.noLinkedTcversions`, `cwt.elapsedSeconds`, `cwt.allHaveTester`, `cwt.matchCount`, `cwt.testCases` exist in en.json, ro.json, de.json, fr.json, ru.json, pt.json, es.json, ja.json, zh.json, it.json
+2. Validate JSON syntax: `python3 -m json.tool gui/templates/i18n/*.json`
+
+**Result:** PASS — all 8 keys present in all 10 locale bundles, JSON valid.
+
+### TC-41.10: Locale switcher works on the screen
+
+**Steps:**
+1. Navigate to the screen
+2. Use the locale switcher dropdown to switch to "Deutsch"
+3. Verify header changes to "Testfaelle ohne Tester"
+4. Switch back to English
+
+**Result:** PASS — locale switcher correctly translates the screen content.
+
+### TC-41.11: Empty state messages for edge cases
+
+**Steps:**
+1. Navigate to screen with a plan that has no TCs linked
+2. Verify "No test cases linked to this test plan." message is displayed
+3. Navigate with a plan where all TCs have testers
+4. Verify "All test cases have a tester assigned." message is displayed
+
+**Result:** PASS — empty states display correct messages.
+
+### TC-41.12: Event Viewer clean after screen usage
+
+**Steps:**
+1. Navigate to Event Viewer
+2. Filter for ERROR and WARNING levels
+3. Verify no new errors or warnings from the casesWithoutTester screen
+
+**Result:** PASS — 0 errors, 0 warnings in Event Viewer.
+
+### Test Data
+- Test Project: TestProject (id=1, prefix=TP)
+- Test Plan: TestPlan1 (id=100)
+- Build: Build 1 (id=1, active)
+- Test Suite: Suite A (id=200)
+- TCs: TC Without Tester 1-3 (nodes 300-302, tcversions 400-402, priorities 3/2/1)
+- No executions, no tester assignments
+
+## Regression — Issue #702: SQL injection in firstLogin.php notifyGlobalAdmins() + debug echo in production
+
+**Issue:** https://github.com/sebiboga/testlink-upgraded/issues/702
+**Precondition:** Fresh DB import; self-signup enabled (`user_self_signup = TRUE` in config.inc.php); admin user exists; config `notifications.userSignUp.to.users` set to a non-null array of login strings.
+
+**Repro steps (pre-fix):**
+1. Set `$cfg->notifications->userSignUp->to->users = array("admin' OR 1=1 --");` in config.inc.php (or any value with a single quote).
+2. Complete self-signup flow at http://localhost:8082/firstLogin.php with valid data.
+3. The `notifyGlobalAdmins()` function builds an SQL query using `implode("','", $cfg->userSignUp->to->users)` without escaping → SQL injection possible.
+
+**Expected post-fix:** Each value in the array is escaped via `$dbHandler->prepare_string()` before SQL interpolation. No SQL injection is possible regardless of config values.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | PHP syntax check: `php -l firstLogin.php` → No syntax errors | PASS |
+| 2 | Self-signup with default config (users=null): register a new user → redirects to login.php, user created in DB | PASS |
+| 3 | Self-signup with config users set to `array('admin')`: register → redirects to login.php, `notifyGlobalAdmins()` runs the SQL query with escaped values, no error | PASS |
+| 4 | Code review: `prepare_string()` (database.class.php:399) uses ADOdb `qstr()` which escapes single quotes and other SQL-special characters | PASS |
+| 5 | Event Viewer after test flows: no new Error/Warning entries | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Fix:** `firstLogin.php:140-145` — added `array_map` with `$dbHandler->prepare_string()` to escape each value in `$cfg->userSignUp->to->users` before SQL interpolation.
+
+**Note:** The debug echo (`echo '<br>' . __LINE__` at original line 143) was already removed in commit `2492d763c` (Refs #704) by the CI bot before this fix run.
+
+---
+
+## Suite 691 — Regression — Issue #558: pt.json header.codeTrackersSub uses Spanish word "integraciones" instead of Portuguese "integrações"
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082, Portuguese locale (`?locale=pt`).
+
+**Repro steps (pre-fix):**
+1. `grep 'codeTrackersSub' gui/templates/i18n/pt.json`
+2. Observe value: `"gerir integraciones de rastreadores de código fonte"` — Spanish word "integraciones" present.
+
+**Expected post-fix:**
+- `grep 'codeTrackersSub' gui/templates/i18n/pt.json` returns `"gerir integrações de rastreadores de código"` — correct Portuguese.
+- `python3 -m json.tool gui/templates/i18n/pt.json` exits 0 (valid JSON).
+- Navigate to http://localhost:8082/gui/templates/codetracker/codetrackerView.html?locale=pt — header subtitle shows "gerir integrações de rastreadores de código".
+- No Spanish-only words (`integraciones`, `gestionar`, etc.) remain in pt.json.
+
+| # | Test | Result |
+|---|------|--------|
+| 1 | `grep codeTrackersSub gui/templates/i18n/pt.json` → value contains "integrações" (not "integraciones") | PASS |
+| 2 | `python3 -m json.tool gui/templates/i18n/pt.json > /dev/null` → exits 0 | PASS |
+| 3 | `grep -c "integraciones" gui/templates/i18n/pt.json` → 0 | PASS |
+| 4 | Browser: navigate to codetrackerView.html?locale=pt → subtitle shows correct Portuguese text | PASS |
+| 5 | Event Viewer: no new Error/Warning entries in `events` table | PASS |
+
+**Actual result:** 5/5 PASS.
+
+**Fix:** `gui/templates/i18n/pt.json` line 344 — changed `"gerir integraciones de rastreadores de código fonte"` to `"gerir integrações de rastreadores de código"` (replaced Spanish "integraciones" with Portuguese "integrações", removed redundant "fonte").
+
+---
+
+## Suite 43 — Graphical Charts (Charts) #690
+
+**Refs:** GitHub Issue #690  
+**Screen:** `gui/templates/results/charts.html` + BFF `api/reports/index.php?action=charts_data`  
+**Legacy:** `lib/results/charts.php`  
+**Rights gate:** `testplan_metrics`
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Aside link switches to modernized page | Open Reports sidebar → click "Charts" | Main iframe loads `charts.html` (not `charts.php`), shows "Graphical Charts" header | PASS |
+| 2 | Header shows plan/project names | Navigate to charts.html?tproject_id=1&tplan_id=2 | Header reads "Graphical Charts for test plan Charts Test Plan", "Test Project: Charts Test Project" | PASS |
+| 3 | Overall Metrics pie chart renders | Navigate with test plan having executions | "Overall Metrics" section visible, Canvas element `chartOverall` exists (600×400) | PASS |
+| 4 | BFF returns correct JSON structure | Network tab: `action=charts_data&tproject_id=1&tplan_id=2` | HTTP 200, JSON with keys: `status`, `tproject_id`, `tplan_id`, `tproject_name`, `tplan_name`, `charts`, `elapsed_time` | PASS |
+| 5 | BFF data matches executions | Inspect `charts.overall` in response | `values` array sums to total executions (4), labels show "Blocked (1)", "Failed (1)", "Not Run (1)", "Passed (2)" | PASS |
+| 6 | Colors match TestLink config | Inspect `charts.overall.colors` in response | Colors: `["#00008B","#B22222","#000000","#006400"]` matching `$tlCfg->results['charts']['status_colour']` | PASS |
+| 7 | Locale switcher works | Change dropdown to "Română" | Header text updates to Romanian (`charts.header`, `charts.forPlan`, `charts.testProject` keys) | PASS |
+| 8 | No console errors | Check browser console during page load | Zero error/warning messages | PASS |
+| 9 | No network errors | Check Network tab for XHR | Only expected requests: `userinfo/index.php`, `charts_data`, `i18n/en.json`, `userinfo/locales` — all 200 | PASS |
+| 10 | Empty plan shows graceful handling | Navigate to plan with no executions | Page loads, Overall Metrics shows "Not Run" only (or zero data handled) | PASS |
+| 11 | getRootTestSuites crash guard | Plan with root suite but empty tlnodes | API returns valid JSON (no DB Access Error), suite chart section absent/null | PASS |
+| 12 | Rights gate enforced | Access charts_data without testplan_metrics | API returns `{"status":"failed","message":"..."}` | PASS |
+| 13 | Event Viewer clean | Check `events` table for new Error/Warning | No new Error/Warning entries generated by charts screen usage | PASS |
+
+---
+
+## Regression — Issue #650: SimpleXMLElement truthiness false-failure in issueTrackerInterface + reqMgrSystemInterface
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306 / testlink; PHP CLI available.
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | Empty-root XML accepted by issueTrackerInterface | CLI: instantiate concrete `issueTrackerInterface` subclass, call `setCfg('<issuetracker></issuetracker>')` | `setCfg()` returns `true`; no ERROR in `events` table | PASS |
+| 2 | Empty-root XML accepted by reqMgrSystemInterface | CLI: instantiate concrete `reqMgrSystemInterface` subclass, call `setCfg('<reqmgrsystem></reqmgrsystem>')` | `setCfg()` returns `true`; no ERROR in `events` table | PASS |
+| 3 | Valid config with children unchanged | CLI: call `setCfg('<issuetracker><uribase>http://x</uribase></issuetracker>')` | `setCfg()` returns `true` (unchanged behavior) | PASS |
+| 4 | Malformed XML still rejected | CLI: call `setCfg('<issuetracker<')` | `setCfg()` returns `false`; ERROR "Failure loading XML STRING" with libxml detail in `events` | PASS |
+| 5 | PHP syntax clean | `php -l lib/issuetrackerintegration/issueTrackerInterface.class.php && php -l lib/reqmgrsystemintegration/reqMgrSystemInterface.class.php` | No syntax errors | PASS |
+| 6 | Event Viewer clean | Query `events` table for new ERROR rows post-fix | No new ERROR entries introduced by the fix | PASS |
+
+---
+
+## Regression — Issue #559: getExecCountersByExecStatus() always returns null (plans w/o platforms show zero metrics)
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306 / testlink; login admin/admin.
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | Plan without platforms shows non-zero metrics on modernized dashboard | Create project + test plan (no platforms) + build + TC + execute with status "Passed"; open `metricsDashboard.html` | "Plan No Platform" row shows Active TCs ≥ 1, Passed ≥ 1, Progress > 0% | PASS — Active TCs=1, Passed=1 (100%), Progress=100% |
+| 2 | Plan without platforms shows non-zero metrics on legacy dashboard | Open `metricsDashboard.php?show=1&tproject_id=1` for same plan | Row shows Active Test Cases ≥ 1, Passed ≥ 1, Progress > 0% | PASS — Active TCs=1, Passed=100%, Progress=100% |
+| 3 | Plan with builds but zero executions shows 0% | Create plan with builds and linked TCs but no executions; open dashboard | Progress = 0%, Not Run = 100% | PASS (consistent with pre-fix behavior for this case) |
+| 4 | No PHP errors on page load | Open legacy dashboard, check PHP error log | No E_WARNING or E_ERROR from `tlTestPlanMetrics.class.php` | PASS — 0 new errors |
+| 5 | Event Viewer clean | Query `events` table for new Error/Warning rows | No new Error/Warning entries from metrics dashboard usage | PASS |
+| 6 | getExecCountersByExecStatus null guard correct | Code review: line 1056 checks `$builds->idSet` not `is_array($builds)` | Guard matches upstream TestLink pattern, stdClass property access is correct | PASS — verified in commit `d91446a74` |
+
+---
+
+## Regression — Issue #648: E_WARNING "Undefined array key testsuitename" on xmlrpc createTestSuite action=update when name omitted
+
+**Precondition:** TestLink 2.0.1 running at http://localhost:8082; MariaDB at 127.0.0.1:3306 / testlink; admin devKey available; test project (id=1) and test suite (id=2) pre-created.
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | update without testsuitename produces no warnings | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuiteid:2, action:"update"}` — no `testsuitename` | status=ok, `events` table has 0 E_WARNING entries | PASS — status=true, message="ok", 0 events |
+| 2 | update WITH testsuitename still renames | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuiteid:2, action:"update", testsuitename:"Renamed"}` | name changes in DB, 0 warnings | PASS — `nodes_hierarchy.name=Renamed`, 0 events |
+| 3 | update without testsuitename does not change name | `tl.createTestSuite` update without name; query DB | `nodes_hierarchy.name` unchanged (still "Renamed" from test 2) | PASS — name unchanged |
+| 4 | create (default action) still works | `tl.createTestSuite` with `{devKey, testprojectid:1, testsuitename:"NewSuite", details:"..."}` | New suite created, 0 warnings | PASS — new id returned, 0 events |
+| 5 | PHP syntax clean | `php -l lib/api/xmlrpc/v1/xmlrpc.class.php && php -l lib/functions/testsuite.class.php` | No syntax errors | PASS |
+| 6 | Event Viewer clean after all tests | Query `events` table for Error/Warning | No new entries | PASS — 0 rows |

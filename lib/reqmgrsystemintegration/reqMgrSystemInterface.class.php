@@ -78,7 +78,10 @@ abstract class reqMgrSystemInterface
     try 
     {
       $this->cfg = simplexml_load_string($xmlCfg);
-      if (!$this->cfg) 
+      // identity check against false: a SimpleXMLElement with an EMPTY root
+      // element casts to boolean FALSE in PHP, so a truthiness test wrongly
+      // reports valid XML as a parse failure (same as #432 / #649).
+      if ($this->cfg === false) 
       {
         $msg = $signature . " - Failure loading XML STRING\n";
         foreach(libxml_get_errors() as $error) 

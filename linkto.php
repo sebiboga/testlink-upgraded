@@ -240,7 +240,7 @@ function init_args()
     $glue = config_get('testcase_cfg')->glue_character;
     $pieces = explode($glue,$args->testcase);
     if (count($pieces) != 2) {
-      return $args->status_ok;
+      return $args;
     }
     $args->tprojectPrefix = $pieces[0];
     $args->status_ok = !is_null($args->tprojectPrefix) && !is_null($args->id) && !is_null($args->item);

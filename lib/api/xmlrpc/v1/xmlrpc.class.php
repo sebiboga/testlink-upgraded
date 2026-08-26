@@ -4455,6 +4455,10 @@ class TestlinkXMLRPCServer extends IXR_Server {
             $args[self::$detailsParamName] = null;
         }
 
+        if( !isset( $args[self::$testSuiteNameParamName] ) ) {
+            $args[self::$testSuiteNameParamName] = null;
+        }
+
         if($status_ok) {
             switch($action) {
                 case 'update' :
