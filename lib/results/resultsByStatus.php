@@ -377,6 +377,14 @@ function initializeGui(&$dbh,&$argsObj)
 
   list($add2args,$guiObj) = initUserEnv($dbh,$argsObj);
 
+  // Sync resolved project/plan IDs back: initUserEnv creates its own local
+  // $args and may resolve defaults (e.g. first available project) when the
+  // raw request parameters are missing/zero — the caller's $argsObj is not
+  // modified by reference.  Without this, $argsObj->tproject_id can remain
+  // NULL and get_by_id(NULL) triggers an E_WARNING (Refs #741, #740).
+  $argsObj->tproject_id = $add2args->tproject_id;
+  $argsObj->tplan_id = $add2args->tplan_id;
+
   $guiObj->labels = init_labels(
     array('deleted_user' => null, 'design' => null, 
           'execution' => null,'nobody' => null,
