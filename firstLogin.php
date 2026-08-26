@@ -136,10 +136,13 @@ function notifyGlobalAdmins(&$dbHandler,&$userObj)
   }  
   if( !is_null($cfg->userSignUp->to->users) )
   {
-    // Brute force query
+    // Brute force query — escape each login to prevent SQL injection
     $tables = tlObject::getDBTables('users');
+    $escapedUsers = array_map(function($u) use ($dbHandler) {
+      return $dbHandler->prepare_string($u);
+    }, $cfg->userSignUp->to->users);
     $sql = " SELECT id,email FROM {$tables['users']} " .
-           " WHERE login IN('" . implode("','", $cfg->userSignUp->to->users) . "')";
+           " WHERE login IN('" . implode("','", $escapedUsers) . "')";
     $userSet = $dbHandler->fetchRowsIntoMap($sql,'id');
     if(!is_null($userSet))
     {
