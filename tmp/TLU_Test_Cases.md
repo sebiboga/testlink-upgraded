@@ -5957,3 +5957,26 @@ Legacy: `lib/results/freeTestCases.php`
 **Actual (post-fix):** Opens tcView.html correctly.
 
 **Result: PASS**
+
+---
+
+## Regression — Issue #565: E_WARNING "Undefined property: stdClass::$tproject_id" on every requirement view
+
+### TC-565-01: Requirement view generates no E_WARNING for tproject_id
+
+**Precondition:** TestLink running at http://localhost:8082; project TP:TestProject (id=1) with requirements enabled; requirement TP-REQ-001 (id=5) exists under req spec TP-RS-001.
+
+**Steps:**
+1. Clear events table: `DELETE FROM events WHERE log_level=2;`
+2. Navigate to `http://localhost:8082/lib/requirements/reqView.php?refreshTree=1&requirement_id=5&tproject_id=1`
+3. Page loads requirement view showing title, status, type, scope, coverage sections
+4. Check events table: `SELECT COUNT(*) FROM events WHERE log_level=2;`
+
+**Expected:** 0 new E_WARNING entries in events table. All 4 form actions (edit, print, remove TC, add TC) contain `tproject_id=1`.
+
+**Actual (post-fix):**
+- `SELECT COUNT(*) FROM events WHERE log_level=2` → 0
+- Verified via browser JS: 4 form actions all contain `tproject_id=1`
+- Previously (pre-fix): 3 E_WARNING entries about `Undefined property: stdClass::$tproject_id`
+
+**Result: PASS**
