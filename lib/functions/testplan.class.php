@@ -866,7 +866,8 @@ class testplan extends tlObjectWithAttachments
 
     unset($items);
     $xmen = $this->db->fetchMapRowsIntoMap($xsql,'parent_id','id');
-    $tlnodes = array();  
+    $tlnodes = array();
+    if (!empty($xmen)) {
     foreach($xmen as $parent_id => &$children)
     {
       if($parent_id == $tproject_id)
@@ -886,6 +887,7 @@ class testplan extends tlObjectWithAttachments
         unset($paty);
       }
     }
+    } // end if (!empty($xmen))
     unset($xmen);
 
     // Now with node list get order
