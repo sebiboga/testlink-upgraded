@@ -341,7 +341,7 @@
   "header.cfAssign": "Atribuir campos personalizados",
   "header.cfAssignSub": "escolher que campos personalizados este projeto de teste usa",
   "header.codeTrackers": "Rastreadores de código",
-  "header.codeTrackersSub": "gerir integraciones de rastreadores de código fonte",
+  "header.codeTrackersSub": "gerir integrações de rastreadores de código",
   "header.customFields": "Campos personalizados",
   "header.customFieldsSub": "gerir campos personalizados para casos de teste, requisitos e planos",
   "header.eventViewer": "Visualizador de eventos",
