@@ -6735,3 +6735,107 @@ Steps:
 
 **Expected:** Report loads, BFF API called successfully, UI renders.
 **Result: PASS** — Page loads with title "TestPlan1 - General Test Plan Metrics", BFF returns status ok.
+
+---
+
+## Suite 764 — Documentation Hub (Documentation Section)
+
+**Screen:** gui/templates/documentation/documentation.html
+**BFF API:** api/documentation/index.php
+**Refs:** #764
+
+### Test Case 764.1: BFF API returns document list
+
+Steps:
+1. Start a PHP session with valid login (admin/admin).
+2. `GET /api/documentation/index.php` with session cookies.
+
+**Expected:** HTTP 200, JSON with `status=ok`, `docs` array with 6 entries, `wikiUrl` string. Each doc has `key`, `title`, `filename`, `pdfUrl`, `exists=true`.
+**Result:** PASS — All 6 docs returned with exists=true. wikiUrl set correctly.
+
+### Test Case 764.2: Documentation screen loads in Dashio shell
+
+Steps:
+1. Log in as admin, select a test project.
+2. Click "Documentation" in ASIDE menu.
+
+**Expected:** Documentation HTML screen loads inside mainframe. Header shows "Documentation" and subtitle. PDF Manuals & Guides section with 6 document cards. Online Resources section with GitHub Wiki card.
+**Result:** PASS — Screen loads correctly, all 6 cards visible with title, filename, View and Download buttons.
+
+### Test Case 764.3: View button opens PDF in modal
+
+Steps:
+1. Navigate to Documentation screen.
+2. Click "View" button on "User Manual" card.
+
+**Expected:** Bootstrap modal opens with title "User Manual" and embedded PDF viewer.
+**Result:** PASS — Modal opens, embed element loads PDF. Close button (×) dismisses modal.
+
+### Test Case 764.4: Download links work for all PDFs
+
+Steps:
+1. For each of the 6 document cards, verify the Download link href.
+
+**Expected:** Each Download link points to `/docs/<filename>.pdf` and returns HTTP 200.
+**Result:** PASS — All 6 PDFs return HTTP 200:
+- /docs/testlink_user_manual.pdf
+- /docs/testlink_installation_manual.pdf
+- /docs/tl-file-formats.pdf
+- /docs/excel2TestLink.pdf
+- /docs/Configuration_of_FCKEditor_and_CKFinder.pdf
+- /docs/tl-bts-howto.pdf
+
+### Test Case 764.5: GitHub Wiki link works
+
+Steps:
+1. On Documentation screen, find the "Open Wiki" link in the Online Resources section.
+
+**Expected:** Link opens `https://github.com/sebiboga/testlink-upgraded/wiki` in a new tab.
+**Result:** PASS — Link href is correct, target="_blank" present.
+
+### Test Case 764.6: Refresh button reloads data
+
+Steps:
+1. Click "Refresh" button on Documentation screen.
+
+**Expected:** Data reloads from BFF API, cards re-render.
+**Result:** PASS — Page refreshes, all cards remain visible.
+
+### Test Case 764.7: i18n keys applied correctly
+
+Steps:
+1. Load Documentation screen.
+2. Verify header, subtitle, section titles, buttons use i18n keys via data-i18n attributes.
+
+**Expected:** All visible text uses i18n keys (doc.header, doc.headerSub, doc.pdfManuals, doc.view, doc.download, doc.onlineResources, doc.githubWiki, doc.openWiki).
+**Result:** PASS — All labels use data-i18n attributes.
+
+### Test Case 764.8: Locale switcher works
+
+Steps:
+1. Change language via locale switcher dropdown.
+2. Verify labels update.
+
+**Expected:** Header and button labels change to selected language.
+**Result:** PASS — Locale switcher present, TLi18n integration working.
+
+### Test Case 764.9: Footer shows generation timestamp
+
+Steps:
+1. Load Documentation screen.
+2. Check footer area.
+
+**Expected:** Footer shows "Generated on <date>" text.
+**Result:** PASS — Footer renders with current date/time.
+
+### Test Case 764.10: Event Viewer shows no new errors
+
+Steps:
+1. Clear events table.
+2. Load Documentation screen.
+3. Click View on a PDF.
+4. Close modal.
+5. Check events table.
+
+**Expected:** No new Error/Warning entries related to Documentation screen.
+**Result:** PASS — No new error entries.
