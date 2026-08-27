@@ -6883,3 +6883,47 @@ Steps:
 
 **Expected:** No new Error/Warning entries.
 **Result:** PASS — No new events logged.
+
+---
+
+## Regression — Issue #611: foreach() on null $specs in api/requirements print_tree
+
+**Bug:** `E_WARNING: foreach() argument must be of type array|object, null given` at
+`api/requirements/index.php:626` when a project has zero requirement specs
+(`$specs = $db->fetchRowsIntoMap(...)` returns `null` on an empty set).
+The warning is captured into the `events` table and surfaces in the Event Viewer (log_level 2 / Warning).
+
+**Fix:** added `$specs = is_null($specs) ? [] : $specs;` before the foreach.
+
+### Test Case 611.1: project with no requirement specs (original symptom)
+
+**Precondition:** A test project (id=1, "Bug Repro Proj") with the Requirements feature enabled and **zero** requirement specs.
+**Steps (pre-fix repro):**
+1. Log in as admin/admin.
+2. Open `gui/templates/requirements/printReqSpec.html?tproject_id=1`.
+3. The screen fires `GET /api/requirements/index.php?action=print_tree&tproject_id=1`.
+4. Check the `events` table for a new E_WARNING entry.
+
+**Pre-fix result:** `events` gained `id=3 log_level=2 activity=PHP` →
+`E_WARNING foreach() argument must be of type array|object, null given - api/requirements/index.php - Line 626`.
+
+**Expected post-fix:** print_tree returns `{"status":"ok","roots":[],"specQty":0}` and **no new E_WARNING event** is recorded.
+**Result:** PASS — after the fix, reloading the screen returned the same `roots:[]` payload; `SELECT * FROM events WHERE id > 3` returned zero rows (no new E_WARNING).
+
+### Test Case 611.2: project with requirement specs still builds the tree (regression)
+
+**Precondition:** Same project now has 3 specs (Spec Alpha parent of Spec Gamma, Spec Beta; Spec Beta holds 1 requirement).
+**Steps:**
+1. Open `gui/templates/requirements/printReqSpec.html?tproject_id=1`.
+2. GET `/api/requirements/index.php?action=print_tree&tproject_id=1`.
+3. Inspect the JSON root nodes.
+
+**Expected:** 3 specs returned; Spec Alpha contains nested child Spec Gamma; Spec Beta `reqCount:1`; no E_WARNING.
+**Result:** PASS — response: `specQty:3, reqQty:1`, roots `[Spec Alpha{child Spec Gamma}, Spec Beta{reqCount:1}]`.
+
+### Test Case 611.3: Event Viewer shows no new Error/Warning after fix
+
+**Precondition:** baseline `events` max id recorded.
+**Steps:** Run 611.1 and 611.2, then `SELECT * FROM events ORDER BY id DESC LIMIT 5`.
+**Expected:** No new entries with `log_level=2` (Warning) or worse.
+**Result:** PASS — the only E_WARNING in the table is the pre-fix capture (id=3); nothing new logged during post-fix runs.
