@@ -604,6 +604,7 @@ if ($action === 'print_tree') {
 
     $specs = $db->fetchRowsIntoMap($sql, 'id');
     $specIds = is_array($specs) ? array_keys($specs) : [];
+    $specs = is_null($specs) ? [] : $specs;
 
     // requirement count per spec (requirements.srs_id -> req_specs.id)
     $reqCount = [];
