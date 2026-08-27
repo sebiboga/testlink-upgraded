@@ -6839,3 +6839,47 @@ Steps:
 
 **Expected:** No new Error/Warning entries related to Documentation screen.
 **Result:** PASS — No new error entries.
+
+---
+
+## Regression — Issue #604: testAutomationSpec.php fatals on every request: array_keys(null) when get_last_active_version() returns null
+
+### Test Case 604.1: testAutomationSpec.php HTML view loads without fatal on empty plan
+
+**Precondition:** Project with at least one test plan; plan has no linked test cases with active versions.
+**Steps:**
+1. Login as admin/admin.
+2. GET `lib/results/testAutomationSpec.php?tplan_id=<id>&tproject_id=<id>` (use an empty plan).
+
+**Expected:** HTTP 200, page renders (no PHP fatal, no 500 error). Empty results displayed.
+**Result:** PASS — HTTP 200, no fatal error, report renders empty results.
+
+### Test Case 604.2: testAutomationSpec.php XLS export loads without fatal on empty plan
+
+**Precondition:** Same as 604.1.
+**Steps:**
+1. GET `lib/results/testAutomationSpec.php?tplan_id=<id>&tproject_id=<id>&do_report=1&exportToXLS=1`.
+
+**Expected:** HTTP 200, XLS download initiated (no PHP fatal, no 500).
+**Result:** PASS — HTTP 200, no fatal error, XLS file returned.
+
+### Test Case 604.3: testAutomationSpec.php loads with active versions present
+
+**Precondition:** Project with test cases that have active versions linked to the plan.
+**Steps:**
+1. Create test case with active version.
+2. Link to test plan.
+3. GET `lib/results/testAutomationSpec.php?tplan_id=<id>&tproject_id=<id>`.
+
+**Expected:** HTTP 200, page renders with test case data.
+**Result:** PASS — Report renders with linked test case data (tested via automated API request returning 200).
+
+### Test Case 604.4: Event Viewer shows no new errors after accessing report
+
+**Precondition:** Event viewer checked before and after.
+**Steps:**
+1. Access testAutomationSpec.php.
+2. Check events table for new Error/Warning entries.
+
+**Expected:** No new Error/Warning entries.
+**Result:** PASS — No new events logged.
