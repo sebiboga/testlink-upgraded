@@ -309,20 +309,11 @@ Left side menu
               </li>
             {/if}
 
-            <li class="sub-menu">
-              <a href="javascript:;" class="{$gui->activeMenu.documentation}">
+            <li>
+              <a href="gui/templates/documentation/documentation.html" target="mainframe">
                 <i class="fas fa-book"></i>
                 <span>{$labels.title_documentation}</span>
-                </a>
-              <ul class="sub">
-                <li><a href="tools/viewer.php?file=testlink_user_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_user_manual}</a></li>
-                <li><a href="tools/viewer.php?file=testlink_installation_manual" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_installation_manual}</a></li>
-                <li><a href="tools/viewer.php?file=tl_file_formats" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_file_formats}</a></li>
-                <li><a href="tools/viewer.php?file=excel2testlink" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_excel_import}</a></li>
-                <li><a href="tools/viewer.php?file=fckeditor_config" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_fckeditor_config}</a></li>
-                <li><a href="tools/viewer.php?file=tl_bts_howto" target="mainframe"><i class="fas fa-file-pdf" style="margin-right: 6px; color: #e74c3c;"></i> {$labels.doc_bug_tracking_howto}</a></li>
-                <li><a href="https://github.com/sebiboga/testlink-upgraded/wiki" target="_blank" rel="noopener"><i class="fas fa-globe" style="margin-right: 6px; color: #3498db;"></i> {$labels.doc_github_wiki}</a></li>
-              </ul>
+              </a>
             </li>
           {/if}
         </ul>

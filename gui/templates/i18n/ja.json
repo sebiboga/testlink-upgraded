@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "テスト計画名は必須です",
   "pv.msg.created": "テスト計画が作成されました",
   "pv.msg.updated": "テスト計画が更新されました",
-  "pv.msg.duplicateName": "この名前のテスト計画は既に存在します"
+  "pv.msg.duplicateName": "この名前のテスト計画は既に存在します",
+  "doc.header": "ドキュメント",
+  "doc.headerSub": "ユーザーマニュアル、ガイド、リファレンス",
+  "doc.pdfManuals": "PDFマニュアル＆ガイド",
+  "doc.view": "表示",
+  "doc.download": "ダウンロード",
+  "doc.onlineResources": "オンラインリソース",
+  "doc.githubWiki": "GitHub Wiki",
+  "doc.openWiki": "Wikiを開く",
+  "doc_user_manual": "ユーザーマニュアル",
+  "doc_installation_manual": "インストールマニュアル",
+  "doc_file_formats": "ファイル形式",
+  "doc_excel_import": "Excelインポート",
+  "doc_fckeditor_config": "FCKEditor設定",
+  "doc_bug_tracking_howto": "バグ追跡ハウツー",
+  "doc_github_wiki": "GitHub Wiki",
+  "title_documentation": "ドキュメント"
 }

@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "Test plan name is required",
   "pv.msg.created": "Test plan created",
   "pv.msg.updated": "Test plan updated",
-  "pv.msg.duplicateName": "A test plan with this name already exists"
+  "pv.msg.duplicateName": "A test plan with this name already exists",
+  "doc.header": "Documentation",
+  "doc.headerSub": "user manuals, guides and references",
+  "doc.pdfManuals": "PDF Manuals & Guides",
+  "doc.view": "View",
+  "doc.download": "Download",
+  "doc.onlineResources": "Online Resources",
+  "doc.githubWiki": "GitHub Wiki",
+  "doc.openWiki": "Open Wiki",
+  "doc_user_manual": "User Manual",
+  "doc_installation_manual": "Installation Manual",
+  "doc_file_formats": "File Formats",
+  "doc_excel_import": "Excel Import",
+  "doc_fckeditor_config": "FCKEditor Configuration",
+  "doc_bug_tracking_howto": "Bug Tracking How-To",
+  "doc_github_wiki": "GitHub Wiki",
+  "title_documentation": "Documentation"
 }

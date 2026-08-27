@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "Le nom du plan de test est obligatoire",
   "pv.msg.created": "Plan de test créé",
   "pv.msg.updated": "Plan de test mis à jour",
-  "pv.msg.duplicateName": "Un plan de test avec ce nom existe déjà"
+  "pv.msg.duplicateName": "Un plan de test avec ce nom existe déjà",
+  "doc.header": "Documentation",
+  "doc.headerSub": "manuels, guides et references",
+  "doc.pdfManuals": "Manuels et Guides PDF",
+  "doc.view": "Voir",
+  "doc.download": "Telecharger",
+  "doc.onlineResources": "Ressources En Ligne",
+  "doc.githubWiki": "Wiki GitHub",
+  "doc.openWiki": "Ouvrir le Wiki",
+  "doc_user_manual": "Manuel Utilisateur",
+  "doc_installation_manual": "Manuel d'Installation",
+  "doc_file_formats": "Formats de Fichiers",
+  "doc_excel_import": "Import Excel",
+  "doc_fckeditor_config": "Configuration FCKEditor",
+  "doc_bug_tracking_howto": "Guide Suivi de Bugs",
+  "doc_github_wiki": "Wiki GitHub",
+  "title_documentation": "Documentation"
 }

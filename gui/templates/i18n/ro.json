@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "Numele planului de testare este obligatoriu",
   "pv.msg.created": "Planul de testare a fost creat",
   "pv.msg.updated": "Planul de testare a fost actualizat",
-  "pv.msg.duplicateName": "Un plan de testare cu acest nume există deja"
+  "pv.msg.duplicateName": "Un plan de testare cu acest nume există deja",
+  "doc.header": "Documentatie",
+  "doc.headerSub": "manuale, ghiduri si referinte",
+  "doc.pdfManuals": "Manuale si Ghiduri PDF",
+  "doc.view": "Vizualizare",
+  "doc.download": "Descarcare",
+  "doc.onlineResources": "Resurse Online",
+  "doc.githubWiki": "Wiki GitHub",
+  "doc.openWiki": "Deschide Wiki",
+  "doc_user_manual": "Manual Utilizator",
+  "doc_installation_manual": "Manual de Instalare",
+  "doc_file_formats": "Formate de Fisiere",
+  "doc_excel_import": "Import Excel",
+  "doc_fckeditor_config": "Configurare FCKEditor",
+  "doc_bug_tracking_howto": "Ghid Urmare Probleme",
+  "doc_github_wiki": "Wiki GitHub",
+  "title_documentation": "Documentatie"
 }

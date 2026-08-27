@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "Название плана тестирования обязательно",
   "pv.msg.created": "План тестирования создан",
   "pv.msg.updated": "План тестирования обновлен",
-  "pv.msg.duplicateName": "План тестирования с таким названием уже существует"
+  "pv.msg.duplicateName": "План тестирования с таким названием уже существует",
+  "doc.header": "Документация",
+  "doc.headerSub": "руководства, инструкции и справочники",
+  "doc.pdfManuals": "PDF-руководства и инструкции",
+  "doc.view": "Просмотр",
+  "doc.download": "Скачать",
+  "doc.onlineResources": "Онлайн-ресурсы",
+  "doc.githubWiki": "GitHub Wiki",
+  "doc.openWiki": "Открыть Wiki",
+  "doc_user_manual": "Руководство пользователя",
+  "doc_installation_manual": "Руководство по установке",
+  "doc_file_formats": "Форматы файлов",
+  "doc_excel_import": "Импорт Excel",
+  "doc_fckeditor_config": "Настройка FCKEditor",
+  "doc_bug_tracking_howto": "Руководство по отслеживанию ошибок",
+  "doc_github_wiki": "GitHub Wiki",
+  "title_documentation": "Документация"
 }

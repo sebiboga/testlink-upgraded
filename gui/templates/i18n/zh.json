@@ -1720,5 +1720,21 @@
   "pv.modal.nameRequired": "测试计划名称是必填的",
   "pv.msg.created": "测试计划已创建",
   "pv.msg.updated": "测试计划已更新",
-  "pv.msg.duplicateName": "同名的测试计划已存在"
+  "pv.msg.duplicateName": "同名的测试计划已存在",
+  "doc.header": "文档",
+  "doc.headerSub": "用户手册、指南和参考资料",
+  "doc.pdfManuals": "PDF手册和指南",
+  "doc.view": "查看",
+  "doc.download": "下载",
+  "doc.onlineResources": "在线资源",
+  "doc.githubWiki": "GitHub Wiki",
+  "doc.openWiki": "打开 Wiki",
+  "doc_user_manual": "用户手册",
+  "doc_installation_manual": "安装手册",
+  "doc_file_formats": "文件格式",
+  "doc_excel_import": "Excel 导入",
+  "doc_fckeditor_config": "FCKEditor 配置",
+  "doc_bug_tracking_howto": "Bug 追踪指南",
+  "doc_github_wiki": "GitHub Wiki",
+  "title_documentation": "文档"
 }
