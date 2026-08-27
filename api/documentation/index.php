@@ -12,6 +12,13 @@ require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
 doSessionStart();
 
+$userId = $_SESSION['userID'] ?? null;
+if (!$userId || $userId <= 0) {
+    http_response_code(401);
+    echo json_encode(array('status' => 'error', 'message' => 'Not authenticated'));
+    exit;
+}
+
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 

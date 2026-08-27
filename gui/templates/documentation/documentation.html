@@ -4,7 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Documentation</title>
+<title data-i18n="doc.header">Documentation</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -69,7 +69,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="pdfTitle">Document</h5>
+        <h5 class="modal-title" id="pdfTitle" data-i18n="doc.view">View</h5>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body" id="pdfBody"></div>
@@ -97,6 +97,10 @@ function showFeedback(kind, msg) {
 }
 
 $(document).on('click', '#refreshBtn', function() { loadDocs(true); });
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
 
 function loadDocs(clearFeedback) {
   $.getJSON(API, function(r) {
@@ -136,7 +140,7 @@ function renderWiki(url) {
   if (!url) return;
   var card = $('<div class="wiki-card">')
     .append('<div class="icon"><i class="fas fa-globe"></i></div>')
-    .append('<div class="title" data-i18n="doc.githubWiki">GitHub Wiki</div>')
+    .append('<div class="title">' + TLi18n.t('doc.githubWiki') + '</div>')
     .append('<div class="filename">' + esc(url) + '</div>')
     .append(
       $('<div class="actions">')
@@ -146,15 +150,11 @@ function renderWiki(url) {
   grid.append(card);
 }
 
-function esc(s) {
-  return $('<div>').text(s == null ? '' : String(s)).html();
-}
-
 $(document).on('click', '.action-btn[data-pdf]', function() {
   var url = $(this).data('pdf');
   var title = $(this).data('title');
   $('#pdfTitle').text(title);
-  $('#pdfBody').html('<embed src="' + esc(url) + '" type="application/pdf">');
+  $('#pdfBody').empty().append($('<embed>').attr({src: url, type: 'application/pdf'}));
   $('#pdfModal').modal('show');
 });
 
