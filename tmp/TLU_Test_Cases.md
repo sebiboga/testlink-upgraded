@@ -6927,3 +6927,33 @@ The warning is captured into the `events` table and surfaces in the Event Viewer
 **Steps:** Run 611.1 and 611.2, then `SELECT * FROM events ORDER BY id DESC LIMIT 5`.
 **Expected:** No new entries with `log_level=2` (Warning) or worse.
 **Result:** PASS — the only E_WARNING in the table is the pre-fix capture (id=3); nothing new logged during post-fix runs.
+
+## Regression — Issue #632: execTimelineStats.tpl E_WARNING "Undefined array key tit" + value-on-null
+
+**Precondition:** `php tmp/fixtures_424.php` run (tplan=9, build=1, two executions today). Admin/admin session active.
+
+### Test Case 632.1: exec timeline stats page renders with no E_WARNINGs (primary fix)
+
+**Steps:**
+1. Flush baseline: `mysql ... -e "DELETE FROM events WHERE log_level=2;"`.
+2. Open `lib/results/execTimelineStats.php?tplan_id=9&format=0`.
+3. Inspect page body and the `events` table.
+
+**Pre-fix result (repro):** `events` gained 2 entries —
+`E_WARNING Undefined array key "tit"` and `E_WARNING Attempt to read property "value" on null`, both at compiled `execTimelineStats.tpl.php` Line 116.
+
+**Expected post-fix:** Page renders the table (Qty/Date/Number of testers) with a proper `<h2>Execution By Date/Time Statistics</h2>` heading, HTTP 200, and **zero** new log_level=2 events.
+**Result:** PASS — `events WHERE log_level=2` returned 0 rows; heading `uid 2_15` present; no console errors.
+
+### Test Case 632.2: both template variants fixed
+
+**Steps:** Confirm the `{$tit = $labels.execTimelineStats_report}` assignment exists in `gui/templates/dashio/` and `gui/templates/tl-classic/` variants.
+**Expected:** Both variants carry the fix.
+**Result:** PASS — diff shows +1 line in each variant.
+
+### Test Case 632.3: Event Viewer shows no new Error/Warning after fix
+
+**Precondition:** baseline `events` max id recorded.
+**Steps:** Run 632.1, then `SELECT * FROM events ORDER BY id DESC LIMIT 6`.
+**Expected:** No new entries with `log_level=2` or worse.
+**Result:** PASS — no warnings logged after the fix.
