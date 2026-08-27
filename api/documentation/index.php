@@ -8,16 +8,12 @@
  *
  * Refs #764.
  */
-require_once('../../config.inc.php');
+require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
-require_once('api/_guard.php');
+doSessionStart();
 
-$myTcp = $_SESSION['currentUser'];
-if (!$myTcp->hasRight('mgt_view_req')) {
-    // Any logged-in user may view documentation; gate on a lightweight right.
-    // The legacy tools/viewer.php had no rights check at all, so this is
-    // intentionally lenient.
-}
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
 
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
