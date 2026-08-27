@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Documentation</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.doc-grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.doc-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.doc-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.doc-card .icon { font-size: 36px; color: #e74c3c; margin-bottom: 12px; }
+.doc-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.doc-card .filename { font-size: 12px; color: #999; margin-bottom: 14px; }
+.doc-card .actions { margin-top: auto; display: flex; gap: 8px; }
+.doc-card .actions a, .doc-card .actions button { text-decoration: none; }
+.action-btn { border: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 5px; }
+.action-btn.teal { background: #4ECDC4; }
+.action-btn.teal:hover { background: #3dbdb5; }
+.action-btn.blue { background: #3498db; }
+.action-btn.blue:hover { background: #2980b9; }
+.wiki-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.wiki-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.wiki-card .icon { font-size: 36px; color: #3498db; margin-bottom: 12px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#pdfModal .modal-header { background: #22242a; color: #fff; }
+#pdfModal .modal-header .close { color: #fff; opacity: .8; }
+#pdfModal .modal-body { padding: 0; height: 80vh; }
+#pdfModal .modal-body embed { width: 100%; height: 100%; display: block; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="doc.header">Documentation</span>
+  <span data-i18n="doc.headerSub">user manuals, guides and references</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="section-title"><i class="fa fa-file-pdf" style="color:#e74c3c;margin-right:6px;"></i><span data-i18n="doc.pdfManuals">PDF Manuals &amp; Guides</span></div>
+<div class="doc-grid" id="docGrid"></div>
+
+<div class="section-title"><i class="fa fa-globe" style="color:#3498db;margin-right:6px;"></i><span data-i18n="doc.onlineResources">Online Resources</span></div>
+<div class="doc-grid" id="wikiGrid"></div>
+
+<div class="footer" id="footerText"></div>
+
+<div class="modal fade" id="pdfModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="pdfTitle">Document</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="pdfBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/documentation/index.php';
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadDocs();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn', function() { loadDocs(true); });
+
+function loadDocs(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    renderDocs(r.docs || []);
+    renderWiki(r.wikiUrl || '');
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#footerInfo').text('');
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('common.errorLoading');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFeedback('err', msg);
+  });
+}
+
+function renderDocs(docs) {
+  var grid = $('#docGrid').empty();
+  $.each(docs, function(i, d) {
+    if (!d.exists) return;
+    var card = $('<div class="doc-card">')
+      .append('<div class="icon"><i class="fas fa-file-pdf"></i></div>')
+      .append('<div class="title">' + esc(d.title) + '</div>')
+      .append('<div class="filename">' + esc(d.filename) + '</div>')
+      .append(
+        $('<div class="actions">')
+          .append('<button class="action-btn teal" data-pdf="' + esc(d.pdfUrl) + '" data-title="' + esc(d.title) + '">' +
+            '<i class="fa fa-eye"></i> ' + TLi18n.t('doc.view') + '</button>')
+          .append('<a class="action-btn blue" href="' + esc(d.pdfUrl) + '" download>' +
+            '<i class="fa fa-download"></i> ' + TLi18n.t('doc.download') + '</a>')
+      );
+    grid.append(card);
+  });
+}
+
+function renderWiki(url) {
+  var grid = $('#wikiGrid').empty();
+  if (!url) return;
+  var card = $('<div class="wiki-card">')
+    .append('<div class="icon"><i class="fas fa-globe"></i></div>')
+    .append('<div class="title" data-i18n="doc.githubWiki">GitHub Wiki</div>')
+    .append('<div class="filename">' + esc(url) + '</div>')
+    .append(
+      $('<div class="actions">')
+        .append('<a class="action-btn blue" href="' + esc(url) + '" target="_blank" rel="noopener">' +
+          '<i class="fa fa-external-link-alt"></i> ' + TLi18n.t('doc.openWiki') + '</a>')
+    );
+  grid.append(card);
+}
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+$(document).on('click', '.action-btn[data-pdf]', function() {
+  var url = $(this).data('pdf');
+  var title = $(this).data('title');
+  $('#pdfTitle').text(title);
+  $('#pdfBody').html('<embed src="' + esc(url) + '" type="application/pdf">');
+  $('#pdfModal').modal('show');
+});
+
+$('#pdfModal').on('hidden.bs.modal', function() {
+  $('#pdfBody').html('');
+});
+</script>
+</body>
+</html>
