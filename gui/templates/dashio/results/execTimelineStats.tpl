@@ -76,6 +76,7 @@ Purpose: smarty template - show Test Results and Metrics
   {/if}  
   <h1 class="{#TITLE_CLASS#}">{$labels.execTimelineStats_report}</h1>
   {if isset($gui->statistics->exec) }
+    {$tit = $labels.execTimelineStats_report}
     {include file="results/show_table_qty_datetime.inc.tpl"
       args_title=$tit
       args_first_column_header=$labels.qty
