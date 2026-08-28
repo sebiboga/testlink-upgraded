@@ -6986,3 +6986,45 @@ Fixture: `php tmp/seed_req.php` (project 1 "Requirements Fixture", spec 2 "Order
 Note 764.14: relation row verified via DOM (`#relTable tbody` contains RM-002 chip + "related to"); fixture relation removed afterwards.
 Note 764.16: monitor toggle re-verified after adding `tprojectId` to the POST body (code-review fix #2).
 Regression note: suites 687/679/517 bounds double-checked — unchanged by Deep Link switch.
+
+## Regression — Issue #613: chosen.jquery.js loaded before jQuery in frmInner.tpl (ReferenceError on every workarea load)
+
+**Precondition:** admin/admin session active; clean default branch. App http://localhost:8082. No test project selected (tproject_id=0). Browser: headless Chrome with DevTools console + network panel on the workarea tab.
+
+### Test Case 613.1: workarea frame loads without uncaught JS errors (primary fix)
+
+**Steps:**
+1. Open `http://localhost:8082/lib/general/frmWorkArea.php?feature=searchTc`
+2. Inspect the frame document's DevTools console.
+
+**Pre-fix result (repro):** exactly two uncaught errors in the frmWorkArea.php document —
+`Uncaught ReferenceError: jQuery is not defined` (chosen.jquery.js:622:3) and
+`Uncaught Error: Bootstrap's JavaScript requires jQuery` (bootstrap.min.js:6:37).
+Network panel showed chosen.jquery.js [200] and bootstrap.min.js [200] loaded with NO jQuery script in that document (only the child workframe loaded jquery-2.2.4.min.js).
+
+**Expected post-fix:** 0 uncaught errors in the frame document; network pipes in order jquery-2.2.4.min.js [200] → chosen.jquery.js [200] → bootstrap.min.js [200].
+**Result:** PASS — console shows no uncaught errors; parent frame requests jquery [200] (reqid 27) before chosen [200] before bootstrap.min.js [200]; probe `typeof window.jQuery === 'function'`, `jQuery.fn.jquery == '2.2.4'`, `typeof jQuery.fn.chosen === 'function'`.
+
+### Test Case 613.2: second workarea feature variant (printTestSpec) clean
+
+**Steps:** Open `http://localhost:8082/lib/general/frmWorkArea.php?feature=printTestSpec`; inspect console.
+**Expected:** no uncaught JS errors in the frame document.
+**Result:** PASS — console only shows legacy "Deprecated feature used" issue; zero errors.
+
+### Test Case 613.3: main dashboard unaffected
+
+**Steps:** Reload `http://localhost:8082/index.php`; inspect console.
+**Expected:** no new errors introduced by the frmInner change.
+**Result:** PASS — only legacy "Deprecated feature used" issue; no errors.
+
+### Test Case 613.4: Event Viewer shows no new Error/Warning from the fix
+
+**Steps:** After 613.1-613.3, `SELECT log_level, count(*) FROM events GROUP BY log_level;`
+**Expected:** no new entries with log_level=2 (WARNING) or 1 (ERROR) created during the run.
+**Result:** PASS — only existing `audit_login_succeeded` (log_level=16) from the session login; zero ERROR/WARNING rows.
+
+### Test Case 613.5: chosen plugin usable where jQuery is present (no regression in child frames)
+
+**Steps:** On 613.1 page confirm the treeframe/workframe iframes still load (jQuery + chosen each 200) and the frame sees no 500 from printTestSpec flow.
+**Expected:** child frames load fine; only tcSearchForm.php [500] pre-existing "Invalid Test project id" (tproject_id=0) which is outside this issue.
+**Result:** PASS.
