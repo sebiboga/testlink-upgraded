@@ -7174,3 +7174,85 @@ UI regression suite for the modernized Import Test Cases screen. File fixtures:
 **Steps:** after 63.1–63.10, `SELECT id, source, log_level FROM events ORDER BY id DESC LIMIT 5;`
 **Expected:** no new ERROR (log_level=1) / E_WARNING (2) rows caused by the import screen (pre-existing fixture unserialize rows cleaned).
 **Result:** PASS — 0 new events (watermark id=30).
+
+## 64. Feature — Native GitHub Code Tracker (Refs #433)
+
+Scope: `lib/codetrackerintegration/githubrestCodeTrackerInterface.class.php`,
+type 200 registration in `tlCodeTracker::$systems`, BFF
+`api/codetracker/index.php` (`/test_github`, per-tracker
+`/branches /tags /commits /pulls`), GitHub form UI in
+`gui/templates/codetracker/codetrackerView.html`, i18n keys (10 bundles).
+
+### Test Case 64.1: GitHub type visible in the type list
+
+**Steps:** log in admin → Code Tracker Management → open create modal → Type dropdown.
+**Expected:** options include `github (Interface: rest)` (code 200) alongside `stash (Interface: rest)` (code 1).
+**Result:** PASS (verified: `GET /api/codetracker/index.php/meta/types` returns both).
+
+### Test Case 64.2: GitHub form fields shown for github type
+
+**Steps:** select Type = github in the create modal.
+**Expected:** Repository URL, Branch, Access Token and Test Connection fields appear; the generic Server URL / API Key / Configuration (XML) textarea are hidden.
+**Result:** PENDING (browser test — deferred to env with simplexml).
+
+### Test Case 64.3: Legacy fields kept for stash type
+
+**Steps:** select Type = stash in the create modal.
+**Expected:** Server URL / API Key / Configuration (XML) fields shown; GitHub fields hidden.
+**Result:** PENDING (browser test — deferred).
+
+### Test Case 64.4: Test Connection — anonymous public repo (success)
+
+**Steps:** open create modal, Type=github, Repository URL `https://github.com/sebiboga/testlink-upgraded`, no token → Test Connection.
+**Expected:** green "Connection OK" banner; branch field optionally auto-filled with default branch after success.
+**Result:** PASS (backend verified live via `POST /test_github` → `connected:true`, branchCount 3; branches `fix/issue-616`, `fix/issue-765-get-last-child-info`, `sebiboga`).
+
+### Test Case 64.5: Test Connection — missing repository (error)
+
+**Steps:** Type=github, Repository URL empty → Test Connection.
+**Expected:** red "Repository URL is required" message; no network call.
+**Result:** PENDING (browser test — deferred).
+
+### Test Case 64.6: Test Connection — invalid repository (error)
+
+**Steps:** Type=github, Repository URL `https://github.com/this/repo-does-not-exist-12345`, no token → Test Connection.
+**Expected:** red "Connection failed" message (GitHub 404).
+**Result:** PENDING (browser test — deferred; backend returns connected:false via `ghGet` null on >=400).
+
+### Test Case 64.7: Create github tracker (config built from form)
+
+**Steps:** Type=github, Name, Repository URL, Branch → Save.
+**Expected:** tracker saved; `cfg` stored as XML `<codetracker><repository>…</repository><branch>…</branch></codetracker>`; appears in list with Server URL shown.
+**Result:** PENDING (browser test — requires simplexml for `tlCodeTracker::create()` XML validation; CI env loads xml).
+
+### Test Case 64.8: Edit github tracker prefills fields
+
+**Steps:** edit a saved github tracker.
+**Expected:** Repository URL and Branch prefilled from stored cfg; token blanked.
+**Result:** PENDING (browser test — deferred; BFF `trackerToJSON` returns masked token `********`).
+
+### Test Case 64.9: Per-tracker branches/tags/commits/pulls endpoints
+
+**Steps:** with a saved github tracker, `GET /api/codetracker/index.php/{id}/branches`, `/tags`, `/commits?branch=…`, `/pulls?state=open`.
+**Expected:** each returns JSON array of items with status ok; 502 on failure.
+**Result:** PENDING (DB save needed; code path shared with verified `getBranches()` from 64.4).
+
+### Test Case 64.10: Code/commit/PR link building
+
+**Steps:** unit-inspect `buildViewCodeURL()`: path `src/x.php` + branch → `github.com/owner/repo/blob/<branch>/src/x.php`; commit_id → `/commit/<sha>`; `#123`/`PR-1` → `/pull/<n>`.
+**Expected:** correct GitHub URLs for blob/commit/pull forms.
+**Result:** PENDING (logic review; deferred browser/link test).
+
+### Test Case 64.11: i18n coverage (all bundles)
+
+**Steps:** confirm the 9 new `ct.*` keys exist in all 10 locale bundles and are valid JSON.
+**Expected:** keys present; `python3 -m json.tool` on every bundle returns no error.
+**Result:** PASS (all 10 bundles validated; keys present, none missing).
+
+### Test Case 64.12: Event Viewer — no new Error/Warning from this feature
+
+**Steps:** after 64.1–64.11, `SELECT id, source, log_level FROM events ORDER BY id DESC LIMIT 5;`
+**Expected:** no new ERROR (log_level=1) / E_WARNING (2) rows caused by the GitHub feature screen/API.
+**Result:** PENDING (browser test — deferred).
+
+**Notes:** Cases marked PENDING require the browser + an env loading the `xml`/`simplexml` extension (the local sandbox lacks it); the CI test env (modernize.yml loads `xml`) covers the save path. Backend GitHub API integration itself is verified live (64.4).
