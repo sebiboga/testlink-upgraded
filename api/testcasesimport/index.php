@@ -182,28 +182,34 @@ if ($action === 'import_md') {
     }
 
     // ---- input ------------------------------------------------------------
+    // legacy parity: import_file_max_size_bytes cap
+    $maxBytes = intval(config_get('import_file_max_size_bytes'));
+
     $markdown = '';
     $uploadedBytes = 0;
     if (isset($_FILES['uploadedFile']) && $_FILES['uploadedFile']['error'] === UPLOAD_ERR_OK) {
         $uploadedBytes = intval($_FILES['uploadedFile']['size']);
+        if ($maxBytes > 0 && $uploadedBytes > $maxBytes) {
+            http_response_code(413);
+            out(['status' => 'error',
+                 'message' => sprintf('File too large (%d bytes); limit is %d bytes',
+                                      $uploadedBytes, $maxBytes)]);
+        }
         $markdown = file_get_contents($_FILES['uploadedFile']['tmp_name']);
     } elseif (isset($_REQUEST['markdown'])) {
         $markdown = strval($_REQUEST['markdown']);
         $uploadedBytes = strlen($markdown);
+        if ($maxBytes > 0 && $uploadedBytes > $maxBytes) {
+            http_response_code(413);
+            out(['status' => 'error',
+                 'message' => sprintf('File too large (%d bytes); limit is %d bytes',
+                                      $uploadedBytes, $maxBytes)]);
+        }
     }
     if (trim($markdown) === '') {
         http_response_code(400);
         out(['status' => 'error',
              'message' => 'No markdown content posted (use "markdown" field or "uploadedFile" upload)']);
-    }
-
-    // legacy parity: import_file_max_size_bytes cap
-    $maxBytes = intval(config_get('import_file_max_size_bytes'));
-    if ($maxBytes > 0 && $uploadedBytes > $maxBytes) {
-        http_response_code(413);
-        out(['status' => 'error',
-             'message' => sprintf('File too large (%d bytes); limit is %d bytes',
-                                  $uploadedBytes, $maxBytes)]);
     }
 
     // legacy parity options

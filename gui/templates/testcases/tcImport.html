@@ -264,9 +264,13 @@ function applyTypeVisibility() {
 
 function doUpload() {
   if (!ctx.canModify) return;
+  var btn = $('#btnUpload')[0];
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
   var f = $('#fileInput')[0].files[0];
-  if (!f) { toast(TLi18n.t('tci.errNoFile'), true); return; }
+  if (!f) { if (btn) btn.disabled = false; toast(TLi18n.t('tci.errNoFile'), true); return; }
   if (ctx.maxBytes > 0 && f.size > ctx.maxBytes) {
+    if (btn) btn.disabled = false;
     toast(TLi18n.t('tci.maxFileSize', { n: Math.floor(ctx.maxBytes / 1024) }), true);
     return;
   }
@@ -297,12 +301,14 @@ function importMarkdown(file) {
     dataType: 'json'
   }).done(function (r) {
     $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('tci.errLoadInfo'), true); return; }
     renderReport(r);
     if (r.dry_run) toast(TLi18n.t('tci.previewDone'));
     else toast(TLi18n.t('tci.importDone'));
   }).fail(function (xhr) {
     $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
     var msg = TLi18n.t('tci.errLoadInfo');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
     toast(msg, true);
@@ -350,7 +356,7 @@ function fileInputClone(file) {
 }
 
 function chip(label, count, cls) {
-  return '<span class="chip ' + (cls || '') + '">' + esc(label) + ': ' + count + '</span>';
+  return '<span class="chip ' + esc(cls || '') + '">' + esc(label) + ': ' + esc(count) + '</span>';
 }
 
 function section(title, rows) {

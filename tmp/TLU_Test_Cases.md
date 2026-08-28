@@ -7100,3 +7100,77 @@ Network panel showed chosen.jquery.js [200] and bootstrap.min.js [200] loaded wi
 **Steps:** after 616.1–616.4, `SELECT log_level, COUNT(*) FROM events GROUP BY log_level;`
 **Expected:** no log_level=1 (ERROR) / 2 (E_WARNING) rows created by these flows.
 **Result:** PASS — only log_level=16 info/audit rows; the sole historical log_level=2 row (id=4, pre-fix, recorded in the investigation phase) is unchanged and attributed to the pre-fix run.
+
+## 63. Modernization — MD Test Case Import UI (`tcImport.html` + `api/testcasesimport`) (Suite ID: 63)
+
+**Refs:** #540 · Date: 2026-08-28 · Env: fresh DB, project DemoProject (id 1), project root (containerID 1), fixtures per docs/WIKI-MD-IMPORT.md.
+
+UI regression suite for the modernized Import Test Cases screen. File fixtures:
+`/tmp/opencode/import_test.md` (suites "1. Auth"/"2. Profile", 3 TCs), `/tmp/opencode/import_mismatch.md`
+(project "AnotherProject"), `/tmp/opencode/big.md` (900137 bytes > 800000 limit).
+
+### Test Case 63.1: Screen renders with context header
+
+**Steps:** log in admin/admin; open `http://localhost:8082/gui/templates/testcases/tcImport.html?tproject_id=1&containerID=1`.
+**Expected:** title "Import Test Cases"; context "Project root: DemoProject (Test Project): DemoProject"; file type selector XML|Markdown(.md); Max size "781 KB".
+**Result:** PASS — all rendered correctly.
+
+### Test Case 63.2: File type toggle switches hit criteria; MD note + preview hint shown
+
+**Steps:** select "Markdown (.md)"; inspect duplicate-criteria selector, mdNote text, preview hint.
+**Expected:** MD mode: hidden/announced note "Rewrite your test cases as markdown…" + preview hint shown; hit-criteria select reflects MD semantics (name-only). XML mode restores same title/internal/external ID options.
+**Result:** PASS (previously blocked: `tci.mdNote` missing from all 10 bundles — fixed in `50d8ac861`, Refs #540).
+
+### Test Case 63.3: MD dry-run produces PREVIEW report, no writes
+
+**Steps:** select MD type; keep dry-run ON; upload `/tmp/opencode/import_test.md`; click Upload file.
+**Expected:** "Import report" + "PREVIEW" badge; suites created 2 / matched 0 / created 3 / skipped 0 / new versions 0 / failed 0; "Preview completed — no changes written" banner.
+**Result:** PASS (first run on clean fixture). Screenshot: `docs/screenshots/tcimport-dryrun.png`.
+
+### Test Case 63.4: MD real import writes suites/tcversions/steps to DB
+
+**Steps:** dry-run OFF; upload `/tmp/opencode/import_test.md`; then `SELECT n.*, tc.importance, tc.execution_type FROM nodes_hierarchy n LEFT JOIN tcversions tc ON tc.id=n.id` in MySQL.
+**Expected:** suites "1. Auth" (node 4) + "2. Profile" under project; TCs Login Works/Logout Works/View Profile (nodes 5/9/13); tcversions 6/10/14 (importance 3/2/1); 4 step nodes linked via parent_id.
+**Result:** PASS — DB verified correct; steps store actions/expected_results.
+
+### Test Case 63.5: Idempotent re-import matches + skips
+
+**Steps:** upload the same MD file again (dry-run ON).
+**Expected:** suites matched 2, created 0, skipped 3, created 0; no duplicates in DB.
+**Result:** PASS.
+
+### Test Case 63.6: Project-mismatch warning banner + PREVIEW
+
+**Steps:** upload `/tmp/opencode/import_mismatch.md` (declares **Project:** AnotherProject) with dry-run ON.
+**Expected:** warning "Project mismatch: file is from "AnotherProject" but target is "DemoProject""; PREVIEW report (suites matched 1, created 1).
+**Result:** PASS.
+
+### Test Case 63.7: Oversize file rejected client-side
+
+**Steps:** upload `/tmp/opencode/big.md` (900137 B > 800000 maxUploadBytes) with dry-run ON.
+**Expected:** toast "Maximum file size: 781 KB"; no import request sent.
+**Result:** PASS (client-side guard before fetch).
+
+### Test Case 63.8: No-permission user blocked
+
+**Steps:** create user guest1 (role guest, id 5, no mgt_modify_tc right on project 1); log in as guest; open the screen.
+**Expected:** lock notice "You don't have permission to modify test cases in this project"; Upload disabled.
+**Result:** PASS — upload button disabled, notice shown. (user guest1 removed after test)
+
+### Test Case 63.9: XML passthrough preserved (legacy controller)
+
+**Steps:** select XML type on the modern screen; choose a file; click Upload.
+**Expected:** form posts to `lib/testcases/tcImport.php?containerID=1&tproject_id=1` (legacy flow retained).
+**Result:** PASS — navigated to legacy controller which processed/validated the file.
+
+### Test Case 63.10: Cancel button returns to previous view
+
+**Steps:** from within Test Specification (real in-app flow), open Import, click Cancel.
+**Expected:** `history.back()` returns to previous Test Link screen.
+**Result:** PASS (isolated direct-load edge case produces empty history — acceptable).
+
+### Test Case 63.11: Event Viewer — no new Error/Warning from this suite
+
+**Steps:** after 63.1–63.10, `SELECT id, source, log_level FROM events ORDER BY id DESC LIMIT 5;`
+**Expected:** no new ERROR (log_level=1) / E_WARNING (2) rows caused by the import screen (pre-existing fixture unserialize rows cleaned).
+**Result:** PASS — 0 new events (watermark id=30).

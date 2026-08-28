@@ -86,19 +86,13 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 62 | Reports — Free Test Cases | `results/freeTestCases.html` | api/reports | #751 |
 
 Extra modernized feature (not an ASIDE entry):
-- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, WIP)
+- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
 
 ---
 
 ## 🔄 IN PROGRESS
 
-### 1. MD Test Case Import UI — Issue #540
-- Parser (`lib/functions/markdown_tc_import.class.php`) + BFF
-  (`api/testcasesimport/index.php`) DONE and tested.
-- Screen `gui/templates/testcases/tcImport.html` exists as WIP
-  (commit 5cdc065ce); remaining steps tracked in the old scratch TODO
-  (info action polish, i18n keys ×10 bundles, browser test pass, docs/wiki,
-  regression suite) before closing the issue.
+None — all modernized screens are green.
 
 ---
 
