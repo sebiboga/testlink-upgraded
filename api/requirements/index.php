@@ -636,6 +636,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
                 $relList[] = [
                     'relation_id' => intval($r['id']),
                     'type_localized' => $r['type_localized'],
+                    'related_req_id' => intval(isset($other['id']) ? $other['id'] : 0),
                     'related_doc_id' => $other['req_doc_id'],
                     'related_title' => $other['title'],
                     'related_version_id' => intval($other['version_id']),

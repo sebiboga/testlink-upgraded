@@ -138,6 +138,7 @@ var REQ_ID = 0;
 var VERSION_ID = 0;
 var TPROJECT_ID = 0;
 var META = null;
+var META_REQ_TOKEN = 0;
 var covTable = null;
 var relTable = null;
 
@@ -162,10 +163,12 @@ $(function() {
 });
 
 function loadView() {
+  var reqToken = ++META_REQ_TOKEN;
   var url = API + '/view?id=' + REQ_ID;
   if (VERSION_ID > 0) url += '&version_id=' + VERSION_ID;
   if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
   $.getJSON(url, function(r) {
+    if (reqToken !== META_REQ_TOKEN) return;
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqv.loadError')); return; }
     if (r.req_deleted) {
       $('#content').hide();
@@ -176,6 +179,7 @@ function loadView() {
     $('#deletedBanner').hide();
     $('#content').show();
     META = r.meta;
+    TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
     renderVersionSelect(r.versions);
     renderOverview(r);
@@ -184,6 +188,7 @@ function loadView() {
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title') +
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
+    if (reqToken !== META_REQ_TOKEN) return;
     var msg = TLi18n.t('reqv.loadError');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
     showError(msg);
@@ -260,7 +265,7 @@ function renderOverview(r) {
   // monitor toggle (legacy reqView.php: monitoring needs monitor_requirement)
   META._monitoring = !!r.is_monitoring;
   var mBtn = $('#monitorBtn');
-  if (r.grant && r.grant.monitor_req && r.grant.monitor_req !== 'no') {
+  if (r.grant && r.grant.monitor_req) {
     mBtn.show();
     var label = META._monitoring ? TLi18n.t('reqv.monitorOff') : TLi18n.t('reqv.monitorOn');
     mBtn.html('<i class="fa ' + (META._monitoring ? 'fa-bell-slash' : 'fa-bell') + '"></i> ' + label);
@@ -279,7 +284,7 @@ function toggleMonitor() {
     method: 'POST',
     contentType: 'application/json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({ reqId: REQ_ID, action: want }),
+    data: JSON.stringify({ reqId: REQ_ID, action: want, tprojectId: TPROJECT_ID }),
     success: function(r) {
       if (r.status !== 'ok') { alert(r.message || 'Error'); return; }
       loadView();
@@ -321,7 +326,7 @@ function renderCoverage(r) {
 }
 
 function renderRelations(r) {
-  relTable = null;
+  if (relTable) { relTable.destroy(); relTable = null; }
   if (!(r.relations || []).length) {
     $('#relCard').hide();
     return;
@@ -333,14 +338,13 @@ function renderRelations(r) {
       ? META.status_labels[rel.related_status] : rel.related_status;
     rows.push([
       escapeHtml(rel.type_localized || '-'),
-      '<a href="javascript:void(0)" onclick="openReq(' + rel.related_version_id + ')">' +
+      '<a href="javascript:void(0)" onclick="openReq(' + rel.related_req_id + ',' + rel.related_version_id + ')">' +
         '<span class="id-chip" style="font-size:11px;">' + escapeHtml(rel.related_doc_id) + '</span> ' +
         escapeHtml(rel.related_title) + '</a>',
       escapeHtml(rel.related_tproject || '-'),
       escapeHtml(st || '-')
     ]);
   });
-  if (relTable) { relTable.destroy(); $('#relTable tbody').empty(); }
   relTable = $('#relTable').DataTable({
     data: rows,
     pageLength: 10,
@@ -356,11 +360,13 @@ function openTC(tcId) {
     'tcview_' + tcId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 
-function openReq(versionId) {
+function openReq(reqId, versionId) {
   var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
-  window.open('/gui/templates/requirements/reqView.html?id=' + REQ_ID +
-    '&version_id=' + versionId + '&tproject_id=' + TPROJECT_ID,
-    'req_view_' + REQ_ID, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+  var url = '/gui/templates/requirements/reqView.html?id=' + (reqId || REQ_ID);
+  if (versionId) url += '&version_id=' + versionId;
+  url += '&tproject_id=' + TPROJECT_ID;
+  window.open(url, 'req_view_' + (reqId || REQ_ID),
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 
 function fmtTs(ts) {
