@@ -126,5 +126,13 @@
   <!--common script for all pages-->
   <script src="{$bs}common-scripts.js"></script>
   <!--script for this page-->
+
+  {*
+   * Maps the classic two-pane "workframe/treeframe" navigation target onto the
+   * single content frame when the mainframe does not itself define such a
+   * frame (see gui/javascript/frameTargetShim.js) - Refs #631.
+   *}
+  <script type="text/javascript"
+          src="{$basehref}gui/javascript/frameTargetShim.js"></script>
 </body>
 </html>

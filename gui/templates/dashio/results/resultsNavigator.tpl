@@ -12,13 +12,17 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
 
 <script type="text/javascript">
 function reportPrint() {
-  parent["workframe"].focus();
-  parent["workframe"].print();
+  var wf = (parent) ? parent["workframe"] : null;
+  if (wf) {
+    wf.focus();
+    wf.print();
+  }
 }
 
 function pre_submit() {
- document.getElementById('called_url').value=parent.workframe.location;
- return true;
+  var wf = (parent) ? parent.workframe : null;
+  document.getElementById('called_url').value = wf ? wf.location : window.location.href;
+  return true;
 }
 </script>
 </head>
@@ -83,7 +87,9 @@ function pre_submit() {
 
 <script type="text/javascript">
 {if $gui->workframe != ''}
+if (parent && parent.workframe) {
   parent.workframe.location='{$gui->workframe}';
+}
 {/if}
 </script>
 
