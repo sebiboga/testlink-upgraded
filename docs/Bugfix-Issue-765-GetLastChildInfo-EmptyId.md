@@ -113,6 +113,9 @@ if( !isset($target_cfg[$child_type]) || is_null($id) || $id === '' || !is_numeri
 - Code review: PASS (correct, minimal, no regressions, no i18n needed — pure
   backend guards).
 - 4 regression test cases in `tmp/TLU_Test_Cases.md` (suite 765) — all PASS.
+- Event Viewer clean after fix: ERROR=0, WARNING=0.
+
+![Event Viewer clean after fix](screenshots/issue-765-eventviewer-clean.png)
 
 ## Files Changed
 
