@@ -205,8 +205,8 @@ function renderTable(items) {
 
 function openReq(reqId, versionId) {
   var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
-  window.open('/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' + reqId +
-    '&req_version_id=' + versionId + '&tproject_id=' + TPROJECT_ID,
+  window.open('/gui/templates/requirements/reqView.html?id=' + reqId +
+    '&version_id=' + versionId + '&tproject_id=' + TPROJECT_ID,
     'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
 }
 

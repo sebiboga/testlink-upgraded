@@ -354,7 +354,7 @@ function renderResults(r) {
       if (m.revision_id > 0) {
         return '<a class="ver-link" href="javascript:void(0)" title="' +
           esc(TLi18n.t('reqsearch.openOnNewWindow')) +
-          '" onclick="openReqRevision(' + m.revision_id + ')">' +
+          '" onclick="openReqRevision(' + row.req_id + ',' + m.version_id + ')">' +
           esc(TLi18n.t('reqsearch.revisionTag')) + m.revision + '</a>';
       }
       return '<a class="ver-link" href="javascript:void(0)" title="' +
@@ -381,17 +381,16 @@ function renderResults(r) {
 // openLinkedReqVersionWindow() / openReqRevisionWindow()
 // in gui/javascript/testlink_library.js
 function openReq(reqId) {
-  var url = '/lib/requirements/reqView.php?requirement_id=' + reqId + '&tproject_id=' + tprojectId;
+  var url = '/gui/templates/requirements/reqView.html?id=' + reqId + '&tproject_id=' + tprojectId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 function openReqVersion(reqId, versionId) {
-  var url = '/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' + reqId +
-            '&req_version_id=' + versionId + '&tproject_id=' + tprojectId;
+  var url = '/gui/templates/requirements/reqView.html?id=' + reqId +
+            '&version_id=' + versionId + '&tproject_id=' + tprojectId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
-function openReqRevision(revisionId) {
-  var url = '/lib/requirements/reqViewRevision.php?item_id=' + revisionId;
-  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+function openReqRevision(reqId, versionId) {
+  openReqVersion(reqId, versionId);
 }
 
 function resetForm() {
