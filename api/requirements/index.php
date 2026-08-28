@@ -499,6 +499,217 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
 }
 
 // ---------------------------------------------------------------------------
+// Requirement Viewer - single requirement + one version (Reqs #755:
+// lib/requirements/reqView.php modernization).
+// GET /view?id=N&version_id=M
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
+    $reqId = intval(getParam('id', 0));
+    if ($reqId <= 0) {
+        $reqId = intval(getParam('requirement_id', 0));
+    }
+    if ($reqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'id required']);
+    }
+    $versionId = intval(getParam('version_id', 0));
+
+    // a requirement knows its own project; enforce mgt_view_req there
+    // (same targeted check legacy reqView.php does via getTestProjectID but
+    // without triggering a DB error for a nonexistent requirement id)
+    $reqRow = $db->get_recordset(
+        "SELECT REQ.id, REQ.srs_id, RSPEC.testproject_id " .
+        " FROM requirements REQ " .
+        " JOIN req_specs RSPEC ON RSPEC.id = REQ.srs_id " .
+        " WHERE REQ.id = " . intval($reqId));
+    if (empty($reqRow)) {
+        out([
+            'status' => 'ok',
+            'req_deleted' => true,
+            'tproject_id' => intval(resolveTprojectId()),
+            'tproject_name' => '',
+            'req_id' => $reqId,
+        ]);
+    }
+    $resolvedTid = intval($reqRow[0]['testproject_id']);
+    if (!$user->hasRight($db, 'mgt_view_req', $resolvedTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $tproject_name = testproject::getName($db, $resolvedTid);
+    $tcasePrefix = $tprojectMgr->getTestCasePrefix($resolvedTid);
+
+    $reqCfg = config_get('req_cfg');
+    $relationsEnabled = isset($reqCfg->relations->enable) ? (bool)$reqCfg->relations->enable : false;
+
+    $versions = $reqMgr->get_by_id($reqId, requirement_mgr::ALL_VERSIONS, null,
+        ['output_format' => 'mapOfArray', 'renderImageInline' => false]);
+    if (empty($versions) || !isset($versions[$reqId]) || empty($versions[$reqId])) {
+        out([
+            'status' => 'ok',
+            'req_deleted' => true,
+            'tproject_id' => $resolvedTid,
+            'tproject_name' => $tproject_name,
+            'req_id' => $reqId,
+        ]);
+    }
+
+    $versionRows = $versions[$reqId];
+    $currentIdx = 0;
+    if ($versionId > 0) {
+        foreach ($versionRows as $vi => $vrow) {
+            if (intval($vrow['version_id']) === $versionId) {
+                $currentIdx = $vi;
+                break;
+            }
+        }
+    }
+    $cur = $versionRows[$currentIdx];
+    $curVersionId = intval($cur['version_id']);
+    $srsId = intval($cur['srs_id']);
+
+    $specPath = '';
+    $pathNames = [];
+    foreach ((array)$reqMgr->tree_mgr->get_path($srsId) as $nodeInfo) {
+        $pathNames[] = $nodeInfo['name'];
+    }
+    $specPath = implode('/', $pathNames);
+
+    $meta = buildMeta($resolvedTid);
+
+    // custom field values for the current version
+    $cfValues = [];
+    if (count($meta['cfields']) > 0) {
+        $cfByVer = (array)$reqMgr->get_linked_cfields(null, [$curVersionId], $resolvedTid,
+            ['access_key' => 'node_id']);
+        if (isset($cfByVer[$curVersionId])) {
+            foreach ($cfByVer[$curVersionId] as $cf) {
+                $vType = isset($cfieldMgr->custom_field_types[$cf['type']])
+                    ? $cfieldMgr->custom_field_types[$cf['type']] : 'string';
+                // raw value: the client escapes it (no double-encoding)
+                $value = preg_replace('!\s+!', ' ', $cf['value']);
+                if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && $value != 0) {
+                    $value = tlStrftime(config_get($vType), intval($value));
+                }
+                $cfValues[$cf['name']] = $value;
+            }
+        }
+    }
+
+    // linked test cases (active coverage links for the current version)
+    $coverage = [];
+    $covRs = $reqMgr->getActiveForReqVersion($curVersionId);
+    if (!empty($covRs)) {
+        foreach ($covRs as $tc) {
+            $coverage[] = [
+                'tcase_id' => intval($tc['tcase_id']),
+                'tcversion_id' => intval($tc['tcversion_id']),
+                'tcase_name' => $tc['tcase_name'],
+                'tc_external_id' => $tc['tc_external_id'],
+                'tc_version' => intval($tc['version']),
+                'is_obsolete' => intval($tc['is_obsolete']) === 1,
+            ];
+        }
+    }
+
+    $expected = intval($cur['expected_coverage']);
+    $coverageQty = count($coverage);
+    $coveragePct = null;
+    if ($meta['expected_coverage_management'] && $expected > 0) {
+        $coveragePct = round(100 / $expected * $coverageQty, 2);
+    }
+
+    // monitor state for the current user
+    $monitorSet = (array)$reqMgr->getReqMonitors($reqId);
+    $isMonitoring = isset($monitorSet[$userId]);
+
+    // relations (same filtering legacy get_relations() applies)
+    $relList = [];
+    if ($relationsEnabled) {
+        $rels = $reqMgr->get_relations($reqId);
+        if (!empty($rels['relations'])) {
+            foreach ($rels['relations'] as $r) {
+                $other = $r['related_req'];
+                $modifiedNever = is_null($other['modification_ts'])
+                    || $other['modification_ts'] == '0000-00-00 00:00:00';
+                $relList[] = [
+                    'relation_id' => intval($r['id']),
+                    'type_localized' => $r['type_localized'],
+                    'related_doc_id' => $other['req_doc_id'],
+                    'related_title' => $other['title'],
+                    'related_version_id' => intval($other['version_id']),
+                    'related_status' => $other['status'],
+                    'related_type' => $other['type'],
+                    'is_frozen' => !intval($other['is_open']),
+                    'modified_never' => $modifiedNever,
+                    'modification_ts' => $modifiedNever ? null : $other['modification_ts'],
+                    'related_tproject' => isset($r['related_req']['testproject_name'])
+                        ? $r['related_req']['testproject_name'] : '',
+                ];
+            }
+        }
+    }
+
+    // all versions summary for the version selector
+    $versionList = [];
+    foreach ($versionRows as $vrow) {
+        $versionList[] = [
+            'version_id' => intval($vrow['version_id']),
+            'version' => intval($vrow['version']),
+            'revision' => intval($vrow['revision']),
+            'creation_ts' => $vrow['creation_ts'],
+            'status' => $vrow['status'],
+            'is_open' => intval($vrow['is_open']),
+        ];
+    }
+
+    $modifiedNever = is_null($cur['modification_ts'])
+        || $cur['modification_ts'] == '0000-00-00 00:00:00';
+
+    out([
+        'status' => 'ok',
+        'req_deleted' => false,
+        'tproject_id' => $resolvedTid,
+        'tproject_name' => $tproject_name,
+        'tcase_prefix' => $tcasePrefix,
+        'req_id' => $reqId,
+        'grant' => [
+            'req_mgmt' => $user->hasRight($db, 'mgt_modify_req', $resolvedTid),
+            'monitor_req' => $user->hasRight($db, 'monitor_requirement', $resolvedTid),
+            'req_tcase_link_management' => $user->hasRight($db, 'req_tcase_link_management', $resolvedTid),
+        ],
+        'meta' => $meta,
+        'spec_path' => $specPath,
+        'is_monitoring' => $isMonitoring,
+        'current' => [
+            'version_id' => $curVersionId,
+            'req_doc_id' => $cur['req_doc_id'],
+            'title' => $cur['title'],
+            'scope' => $cur['scope'],
+            'status' => $cur['status'],
+            'type' => $cur['type'],
+            'version' => intval($cur['version']),
+            'revision' => intval($cur['revision']),
+            'author' => $cur['author'],
+            'modifier' => $modifiedNever ? null : $cur['modifier'],
+            'creation_ts' => $cur['creation_ts'],
+            'modification_ts' => $modifiedNever ? null : $cur['modification_ts'],
+            'frozen' => !intval($cur['is_open']),
+            'expected_coverage' => $expected,
+            'srs_id' => $srsId,
+        ],
+        'cf_values' => $cfValues,
+        'versions' => $versionList,
+        'coverage' => $coverage,
+        'coverage_qty' => $coverageQty,
+        'expected_coverage' => $expected,
+        'coverage_pct' => $coveragePct,
+        'relations' => $relList,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // Print Requirement Specification screen (lib/results/printDocOptions.php
 // ?type=reqspec). Document generation stays in lib/results/printDocument.php.
 // ---------------------------------------------------------------------------
