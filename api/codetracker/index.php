@@ -157,7 +157,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
 
 // --- GitHub native interface endpoints (issue #433) ------------------------
 
-// Instantiate a githubrestInterface from a stored tracker record.
+// Instantiate a code-tracker interface from a stored tracker record.
 function githubInterfaceFor($mgr, $id) {
     $tracker = $mgr->getByID($id);
     if (!$tracker) { return [null, 'Code tracker not found']; }
@@ -191,13 +191,13 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'test_github')
     $cfgObj->branch = $branch;
     $cfgJson = json_encode($cfgObj);
 
-    if (!class_exists('githubrestInterface')) {
+    if (!class_exists('githubrestCodeTrackerInterface')) {
         http_response_code(500);
         out(['status' => 'error', 'message' => 'GitHub interface implementation not available']);
     }
 
     try {
-        $iface = new githubrestInterface('github', $cfgJson, 'test');
+        $iface = new githubrestCodeTrackerInterface('github', $cfgJson, 'test');
         $connected = $iface->isConnected();
         $branches = $connected ? $iface->getBranches() : false;
         out([

@@ -77,24 +77,43 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         </div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="ct.type">Type *</label>
-          <select id="editType" class="form-control" style="font-size:13px;"></select>
+          <select id="editType" class="form-control" style="font-size:13px;" onchange="onTypeChange()"></select>
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;" data-i18n="ct.serverUrl">Server URL</label>
-          <input type="text" id="editServerUrl" class="form-control" maxlength="255" style="font-size:13px;">
+        <div id="ghFields" class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="ct.repository">Repository URL</label>
+          <input type="text" id="editRepoUrl" class="form-control" maxlength="255" style="font-size:13px;" placeholder="https://github.com/owner/repo">
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;" data-i18n="ct.apiKey">API Key</label>
-          <input type="text" id="editApiKey" class="form-control" maxlength="255" style="font-size:13px;">
+        <div id="ghFields2" class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="ct.branch">Branch</label>
+          <input type="text" id="editBranch" class="form-control" maxlength="128" style="font-size:13px;" placeholder="main">
         </div>
-        <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;" data-i18n="ct.cfg">Configuration (XML)</label>
-          <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<codetracker>&#10;  &lt;uribase&gt;https://git.example.com/&lt;/uribase&gt;&#10;  &lt;apikey&gt;your-token&lt;/apikey&gt;&#10;&lt;/codetracker&gt;"></textarea>
-          <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="ct.cfgHelp">Configuration must be valid XML. Example format:</div>
-          <pre style="font-size:11px;background:#f6f6f6;border:1px solid #e3e3e3;border-radius:4px;padding:6px 8px;margin:4px 0 0;">&lt;codetracker&gt;
+        <div id="ghFields3" class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="ct.token">Access Token</label>
+          <input type="password" id="editToken" class="form-control" maxlength="255" style="font-size:13px;" placeholder="">
+          <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="ct.tokenHelp">Optional for public repositories; required for private ones.</div>
+        </div>
+        <div id="ghFields4" class="form-group" style="margin-bottom:12px;">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="testGhConnection()" style="font-size:13px;"><i class="fa fa-plug"></i> <span data-i18n="ct.testConnection">Test Connection</span></button>
+          <span id="ghTestResult" style="font-size:12px;margin-left:10px;"></span>
+        </div>
+        <div id="genericFields">
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="ct.serverUrl">Server URL</label>
+            <input type="text" id="editServerUrl" class="form-control" maxlength="255" style="font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="ct.apiKey">API Key</label>
+            <input type="text" id="editApiKey" class="form-control" maxlength="255" style="font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="ct.cfg">Configuration (XML)</label>
+            <textarea id="editCfg" class="form-control" rows="6" style="font-size:13px;font-family:monospace;" placeholder="<codetracker>&#10;  &lt;uribase&gt;https://git.example.com/&lt;/uribase&gt;&#10;  &lt;apikey&gt;your-token&lt;/apikey&gt;&#10;&lt;/codetracker&gt;"></textarea>
+            <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="ct.cfgHelp">Configuration must be valid XML. Example format:</div>
+            <pre style="font-size:11px;background:#f6f6f6;border:1px solid #e3e3e3;border-radius:4px;padding:6px 8px;margin:4px 0 0;">&lt;codetracker&gt;
   &lt;uribase&gt;https://git.example.com/&lt;/uribase&gt;
   &lt;apikey&gt;your-token&lt;/apikey&gt;
 &lt;/codetracker&gt;</pre>
+          </div>
         </div>
         <div class="form-group">
           <label style="font-size:12px;">
@@ -121,6 +140,18 @@ var API = '/api/codetracker/index.php';
 var table = null;
 var typeMap = {};
 var allItems = [];
+var githubCode = 0;
+
+function isGithubType() {
+  return parseInt($('#editType').val()) === githubCode && githubCode !== 0;
+}
+
+function onTypeChange() {
+  var gh = isGithubType();
+  $('#ghFields, #ghFields2, #ghFields3, #ghFields4').toggle(gh);
+  $('#genericFields').toggle(!gh);
+  $('#ghTestResult').text('');
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -140,6 +171,7 @@ function loadMeta() {
     var enabled = [];
     $.each(r.items, function(i, t) {
       typeMap[t.code] = t;
+      if (t.type === 'github') githubCode = t.code;
       if (t.enabled) enabled.push(t);
     });
     enabled.sort(function(a, b) {
@@ -192,8 +224,13 @@ function showCreateModal() {
   $('#editServerUrl').val('');
   $('#editApiKey').val('');
   $('#editCfg').val('');
+  $('#editRepoUrl').val('');
+  $('#editBranch').val('');
+  $('#editToken').val('');
+  $('#ghTestResult').text('');
   $('#editActive').prop('checked', true);
   $('#modalError').hide();
+  onTypeChange();
   $('#trackerModal').modal('show');
 }
 
@@ -207,10 +244,28 @@ function editTracker(id) {
     $('#editServerUrl').val(t.serverUrl || '');
     $('#editApiKey').val('');
     $('#editCfg').val(t.cfg || '');
+    $('#editRepoUrl').val((t.github && t.github.repository) ? t.github.repository : (t.serverUrl || ''));
+    $('#editBranch').val((t.github && t.github.branch) ? t.github.branch : '');
+    $('#editToken').val('');
+    $('#ghTestResult').text('');
+    onTypeChange();
     $('#editActive').prop('checked', true);
     $('#modalError').hide();
     $('#trackerModal').modal('show');
   });
+}
+
+function xmlEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function buildGhCfg(repoUrl, branch, token) {
+  var parts = ['<codetracker>'];
+  if (repoUrl) parts.push('  <repository>' + xmlEsc(repoUrl) + '</repository>');
+  if (branch) parts.push('  <branch>' + xmlEsc(branch) + '</branch>');
+  if (token) parts.push('  <token>' + xmlEsc(token) + '</token>');
+  parts.push('</codetracker>');
+  return parts.join('\n');
 }
 
 function buildCfg(serverUrl, apiKey) {
@@ -222,12 +277,51 @@ function buildCfg(serverUrl, apiKey) {
   return parts.join('\n');
 }
 
+function testGhConnection() {
+  var repoUrl = $('#editRepoUrl').val().trim();
+  if (!repoUrl) {
+    $('#ghTestResult').html('<span style="color:#e6605e;">' + TLi18n.t('ct.validation.repoRequired') + '</span>');
+    return;
+  }
+  $('#ghTestResult').html('<span style="color:#888;"><i class="fa fa-spinner fa-spin"></i> ' + TLi18n.t('ct.testing') + '</span>');
+  $.ajax({
+    url: API + '/test_github',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      repository: repoUrl,
+      token: $('#editToken').val().trim(),
+      branch: $('#editBranch').val().trim()
+    }),
+    success: function(r) {
+      if (r.connected) {
+        $('#ghTestResult').html('<span style="color:#4ECDC4;"><i class="fa fa-check"></i> ' + TLi18n.t('ct.connOk') + '</span>');
+        if (r.branches && r.branches.length && !$('#editBranch').val()) {
+          $('#editBranch').val(r.defaultBranch || r.branches[0]);
+        }
+      } else {
+        $('#ghTestResult').html('<span style="color:#e6605e;"><i class="fa fa-times"></i> ' + TLi18n.t('ct.connKo') + '</span>');
+      }
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('ct.connKo');
+      try { var resp = JSON.parse(xhr.responseText); if (resp.message) msg = resp.message; } catch(e) {}
+      $('#ghTestResult').html('<span style="color:#e6605e;"><i class="fa fa-times"></i> ' + msg + '</span>');
+    }
+  });
+}
+
 function saveTracker() {
   var id = $('#editTrackerId').val();
-  var serverUrl = $('#editServerUrl').val().trim();
-  var apiKey = $('#editApiKey').val().trim();
-  var cfgTextarea = $('#editCfg').val().trim();
-  var cfg = cfgTextarea || buildCfg(serverUrl, apiKey);
+  var gh = isGithubType();
+  var cfg;
+  if (gh) {
+    cfg = buildGhCfg($('#editRepoUrl').val().trim(), $('#editBranch').val().trim(), $('#editToken').val().trim());
+  } else {
+    var serverUrl = $('#editServerUrl').val().trim();
+    var apiKey = $('#editApiKey').val().trim();
+    cfg = $('#editCfg').val().trim() || buildCfg(serverUrl, apiKey);
+  }
   var data = {
     name: $('#editName').val().trim(),
     type: parseInt($('#editType').val()),
@@ -239,7 +333,12 @@ function saveTracker() {
     return;
   }
 
-  if (cfgTextarea && cfgTextarea.charAt(0) !== '<') {
+  if (gh && !$('#editRepoUrl').val().trim()) {
+    $('#modalError').text(TLi18n.t('ct.validation.repoRequired')).show();
+    return;
+  }
+
+  if (!gh && $('#editCfg').val().trim() && $('#editCfg').val().trim().charAt(0) !== '<') {
     $('#modalError').text(TLi18n.t('ct.validation.xmlFormat')).show();
     return;
   }

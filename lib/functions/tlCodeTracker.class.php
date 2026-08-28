@@ -114,6 +114,13 @@ class tlCodeTracker extends tlObject
   function getImplementationForType($codeTrackerType)
   {
     $spec = $this->systems[$codeTrackerType];
+    // GitHub: the plain "githubrestInterface" name is already taken by the
+    // issue-tracker integration (lib/issuetrackerintegration), so the code
+    // tracker uses a distinct class to avoid an autoloader collision.
+    if( (string)$spec['type'] == 'github' )
+    {
+      return 'githubrestCodeTrackerInterface';
+    }
     return $spec['type'] . $spec['api'] . 'Interface';
   }
 

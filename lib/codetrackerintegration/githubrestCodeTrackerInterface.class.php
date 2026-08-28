@@ -2,7 +2,7 @@
 /**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
  *
- * @filesource  githubrestInterface.class.php
+ * @filesource  githubrestCodeTrackerInterface.class.php
  *
  * Native GitHub Code Tracker interface (issue #433).
  * Talks to the public GitHub REST API (https://api.github.com) over cURL,
@@ -31,7 +31,7 @@
  */
 require_once(TL_ABS_PATH . '/lib/codetrackerintegration/codeTrackerInterface.class.php');
 
-class githubrestInterface extends codeTrackerInterface
+class githubrestCodeTrackerInterface extends codeTrackerInterface
 {
   /** Sentinel used when no repository is configured yet. */
   const NOREPOSITORY = 'e18b741e13b2b1b09f2ac85615e37bae';
