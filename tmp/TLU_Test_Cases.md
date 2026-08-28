@@ -6957,3 +6957,29 @@ The warning is captured into the `events` table and surfaces in the Event Viewer
 **Steps:** Run 632.1, then `SELECT * FROM events ORDER BY id DESC LIMIT 6`.
 **Expected:** No new entries with `log_level=2` or worse.
 **Result:** PASS — no warnings logged after the fix.
+
+### Suite 764 — Requirement Viewer (reqView) modernization — Refs #755
+
+Feature: `gui/templates/requirements/reqView.html` + BFF `GET /api/requirements/view` + monitor toggle.
+Fixture: `php tmp/seed_req.php` (project 1 "Requirements Fixture", spec 2 "Order Management Spec", RM-001 id=4 v1=5 v2=6, RM-002 id=7, RM-003 id=9, tc id=13/tcversion 14, coverage req4→rv6→tc14). Users: admin/admin, noinv/noinvpass (no `mgt_view_req`).
+
+| # | Module | Action | Input | Expected | Result |
+|---|--------|--------|-------|----------|--------|
+| 764.1 | BFF view | GET `/api/requirements/index.php/view?id=4` (admin session) | valid req | HTTP 200; `status=ok`; req_doc_id RM-001; spec_path "Order Management Spec"; versions desc (v2 first); coverage 1/2 pct 50; grants req_mgmt/monitor_req/tcase_link all true | PASS |
+| 764.2 | BFF view | GET `...?id=4&version_id=5` | v1 = closed | covers v1 only; coverage 0; v1 marked closed in version list | PASS |
+| 764.3 | BFF view | GET `...?id=99991` | missing req | HTTP 200; `req_deleted=true` | PASS |
+| 764.4 | BFF view | GET `...?id=4` (noinv session) | no mgt_view_req | HTTP 403 Forbidden; JSON error | PASS |
+| 764.5 | BFF monitor | POST `/api/requirements/index.php/monitor` body `{"reqId":4,"action":"on"}` | admin | `req_monitor` row (4, user 1, project 1) | PASS |
+| 764.6 | BFF monitor | POST `...` `action=off` | admin | `req_monitor` row removed | PASS |
+| 764.7 | UI load | open `reqView.html?id=4&tproject_id=1` | admin | Header "Requirement Viewer - Requirements Fixture"; Overview card: IDENTIFIER RM-001, REQUIREMENT SPEC, TYPE Feature, STATUS Valid, FROZEN No, author, dates, COVERAGE 50% (1/2); Scope; Linked Test Cases (100 / PLACE ORDER FLOW / 1); footer | PASS |
+| 764.8 | UI version | switch selector to `v1r1 *` | admin | reloads; "Showing v1r1"; FROZEN Yes; COVERAGE 0% (0/2); "No linked test cases" | PASS |
+| 764.9 | UI monitor | click "Start monitoring" | admin | button flips to "Stop monitoring"; DB row exists; persists across version switch | PASS |
+| 764.10 | UI monitor | click "Stop monitoring" | admin | button flips to "Start monitoring"; DB row gone | PASS |
+| 764.11 | UI openReq | Requirement Overview row button `openReq(4,6)` | admin | opens new popup `reqView.html?id=4&version_id=6&tproject_id=1` (not legacy reqView.php) | PASS |
+| 764.12 | UI deleted | open `reqView.html?id=99991` | admin | banner "This requirement no longer exists"; empty version selector | PASS |
+| 764.13 | UI permission | open `reqView.html?id=4` | noinv | "Failed to load requirement: No permission"; BFF responded 403; no JS console errors | PASS |
+| 764.14 | UI relations | (seed relation 4→7 type 3) reload id=4 | admin | Relations card visible; row "related to" RM-002 title; columns Relation/Target/Project/Status | PASS |
+| 764.15 | Event check | after whole suite | admin | no NEW `log_level>=2` entries beyond the known seed/spec-creation pair (issue #765) | PASS |
+
+Note 764.14: relation row verified via DOM (`#relTable tbody` contains RM-002 chip + "related to"); fixture relation removed afterwards.
+Regression note: suites 687/679/517 bounds double-checked — unchanged by Deep Link switch.
