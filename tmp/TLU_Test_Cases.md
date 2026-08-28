@@ -7028,3 +7028,35 @@ Network panel showed chosen.jquery.js [200] and bootstrap.min.js [200] loaded wi
 **Steps:** On 613.1 page confirm the treeframe/workframe iframes still load (jQuery + chosen each 200) and the frame sees no 500 from printTestSpec flow.
 **Expected:** child frames load fine; only tcSearchForm.php [500] pre-existing "Invalid Test project id" (tproject_id=0) which is outside this issue.
 **Result:** PASS.
+
+## Regression — Issue #765: get_last_child_info SQL error + null-array warning when creating requirements on a top-level spec
+
+**Precondition:** Fresh DB. App at http://localhost:8082, admin/admin. Harness boots same way the modern `api/requirements/index.php` does (`config.inc.php` + `common.php` + `requirements.inc.php` + `cfg/const.inc.php`, `doDBConnect`).
+
+### Test Case 765.1: getTestProjectID on a nonexistent requirement id — primary symptom (pre-fix: E_WARNING + SQL 1064)
+
+**Steps (pre-fix repro):**
+1. `$db = new database(DB_TYPE); doDBConnect($db); $reqMgr = new requirement_mgr($db);`
+2. Call `$reqMgr->getTestProjectID(999999)`.
+3. `SELECT log_level, left(description,80) FROM events ORDER BY id DESC LIMIT 4;`
+
+**Expected post-fix:** function returns `NULL` gracefully; `events` table gains **0** ERROR (log_level=1) and **0** E_WARNING (log_level=2) rows.
+**Result:** PASS — `getTestProjectID(999999)` returns `NULL`; `events_after = 0`.
+
+### Test Case 765.2: defense-in-depth — get_last_child_info with invalid ids (pre-fix: SQL 1064 on empty id)
+
+**Steps:** `$rspecMgr->get_last_child_info(null); ('') ('abc') (0) (-5);`
+**Expected post-fix:** each returns `null`; `events` table gains 0 ERROR/WARNING.
+**Result:** PASS — all five return `null`; `events_after = 0`.
+
+### Test Case 765.3: positive path — creating a top-level spec + requirements (exact seed scenario) keeps working
+
+**Steps:** (harness) create test project; `requirement_spec_mgr->create(tpid, null, 'OSD', 'Order Management Spec', ..., 1)`; `requirement_mgr->create(spec_id, 'RM-00X', ...)` x3; then `getTestProjectID(firstReqId)`.
+**Expected post-fix:** spec + 3 requirements created successfully; `getTestProjectID(valid req)` returns the correct `testproject_id`; `events` table has **0** ERROR/WARNING (only the expected audit `CREATE` log_level=16 row).
+**Result:** PASS — tproject=1, spec id=4/rev=5, req ids 6/8/10 status_ok=1; `getTestProjectID(valid req) => '3'`; only `audit_testproject_created` (log_level=16) present.
+
+### Test Case 765.4: Event Viewer shows no new Error/Warning after fix lifecycle
+
+**Steps:** After 765.1-765.3, `SELECT log_level, COUNT(*) FROM events GROUP BY log_level;`
+**Expected:** no log_level=1 (ERROR) or 2 (E_WARNING) rows created by the fixed code paths.
+**Result:** PASS — only audit CREATE (log_level=16) entries; zero ERROR/WARNING.
