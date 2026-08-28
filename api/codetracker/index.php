@@ -46,6 +46,20 @@ function trackerToJSON($item, $mgr) {
             $serverUrl = $m[1];
         }
     }
+
+    // Extract GitHub-native config fields (issue #433).
+    $github = ['repository' => '', 'branch' => '', 'token' => ''];
+    if ($typeLabel === 'github' && !empty($item['cfg'])) {
+        foreach (['repository' => 'repository', 'branch' => 'branch'] as $key => $tag) {
+            if (preg_match('/<' . $tag . '>(.*?)<\/' . $tag . '>/s', $item['cfg'], $m)) {
+                $github[$key] = $m[1];
+            }
+        }
+        if (preg_match('/<token>(.*?)<\/token>/s', $item['cfg'], $m) && $m[1] !== '') {
+            $github['token'] = '********';
+        }
+    }
+
     return [
         'id' => intval($item['id']),
         'name' => $item['name'],
@@ -54,6 +68,7 @@ function trackerToJSON($item, $mgr) {
         'typeDescr' => $typeDescr,
         'cfg' => $item['cfg'] ?? '',
         'serverUrl' => $serverUrl,
+        'github' => $github,
         'implementation' => $item['implementation'] ?? '',
     ];
 }
@@ -86,7 +101,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'items' => $items]);
 }
 
-if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
+if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $item = $mgr->getByID(intval($segments[0]));
     if (!$item) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
     out(['status' => 'ok', 'item' => trackerToJSON($item, $mgr)]);
@@ -118,7 +133,7 @@ if ($method === 'POST' && empty($segments)) {
     }
 }
 
-if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
+if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $id = intval($segments[0]);
     $existing = $mgr->getByID($id);
     if (!$existing) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
@@ -137,6 +152,106 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => $result['msg']]);
+    }
+}
+
+// --- GitHub native interface endpoints (issue #433) ------------------------
+
+// Instantiate a githubrestInterface from a stored tracker record.
+function githubInterfaceFor($mgr, $id) {
+    $tracker = $mgr->getByID($id);
+    if (!$tracker) { return [null, 'Code tracker not found']; }
+    $impl = $tracker['implementation'];
+    if (!class_exists($impl)) { return [null, 'Code tracker implementation not found']; }
+    try {
+        $iface = new $impl($tracker['type'], $tracker['cfg'], $tracker['name']);
+        return [$iface, null];
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        return [null, $e->getMessage()];
+    }
+}
+
+// Test a GitHub connection using inline (unsaved) config, so the create modal
+// can verify before saving. Body: { repository, token, branch }.
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'test_github') {
+    $body = getBody();
+    $repository = trim($body['repository'] ?? '');
+    $token = trim($body['token'] ?? '');
+    $branch = trim($body['branch'] ?? '');
+
+    if ($repository === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Repository is required']);
+    }
+
+    $cfgObj = new stdClass();
+    $cfgObj->repository = $repository;
+    $cfgObj->token = $token;
+    $cfgObj->branch = $branch;
+    $cfgJson = json_encode($cfgObj);
+
+    if (!class_exists('githubrestInterface')) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'GitHub interface implementation not available']);
+    }
+
+    try {
+        $iface = new githubrestInterface('github', $cfgJson, 'test');
+        $connected = $iface->isConnected();
+        $branches = $connected ? $iface->getBranches() : false;
+        out([
+            'status' => $connected ? 'ok' : 'error',
+            'connected' => $connected,
+            'message' => $connected ? 'Connection OK' : 'Connection failed (check repository and token)',
+            'branchCount' => is_array($branches) ? count($branches) : 0,
+            'branches' => is_array($branches) ? array_values($branches) : [],
+            'defaultBranch' => ($connected && is_array($branches) && count($branches) > 0) ? $branches[0] : '',
+        ]);
+    } catch (Exception $e) {
+        tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
+        http_response_code(502);
+        out(['status' => 'error', 'message' => 'Connection test failed']);
+    }
+}
+
+if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numeric($segments[0]) &&
+    isset($segments[1])) {
+    $id = intval($segments[0]);
+    $action = strtolower($segments[1]);
+    $tracker = $mgr->getByID($id);
+    if (!$tracker) { http_response_code(404); out(['status' => 'error', 'message' => 'Code tracker not found']); }
+
+    list($iface, $err) = githubInterfaceFor($mgr, $id);
+    if (!$iface) { http_response_code(400); out(['status' => 'error', 'message' => $err]); }
+
+    switch ($action) {
+        case 'branches':
+            $branches = $iface->getBranches();
+            if ($branches === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch branches (check repository and token)']); }
+            out(['status' => 'ok', 'items' => array_values($branches)]);
+        case 'tags':
+            $tags = $iface->getTags();
+            if ($tags === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch tags (check repository and token)']); }
+            out(['status' => 'ok', 'items' => array_values($tags)]);
+        case 'commits':
+            $branch = $_GET['branch'] ?? null;
+            $commits = $iface->getCommits($branch);
+            if ($commits === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch commits (check repository and token)']); }
+            out(['status' => 'ok', 'items' => $commits]);
+        case 'pulls':
+            $state = $_GET['state'] ?? 'open';
+            $pulls = $iface->getPullRequests($state);
+            if ($pulls === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch pull requests (check repository and token)']); }
+            out(['status' => 'ok', 'items' => $pulls]);
+        case 'test_connection':
+            $connected = $iface->isConnected();
+            out(['status' => $connected ? 'ok' : 'error',
+                 'connected' => $connected,
+                 'message' => $connected ? 'Connection OK' : 'Connection failed (check repository, branch and token)']);
+        default:
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Unknown action']);
     }
 }
 

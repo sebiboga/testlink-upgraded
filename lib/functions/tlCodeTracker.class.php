@@ -25,7 +25,8 @@ class tlCodeTracker extends tlObject
   // array index is used AS CODE that will be written to DB
   // if you need to add a new item start on 200, to avoid crash with standard ID
   //  
-  var $systems = array( 1 =>  array('type' => 'stash', 'api' => 'rest', 'enabled' => true, 'order' => -1));
+  var $systems = array( 1 =>  array('type' => 'stash', 'api' => 'rest', 'enabled' => true, 'order' => -1),
+                        200 =>  array('type' => 'github', 'api' => 'rest', 'enabled' => true, 'order' => 1));
   
     
   var $entitySpec = array('name' => 'string','cfg' => 'string','type' => 'int');
