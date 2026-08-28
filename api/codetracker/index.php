@@ -230,26 +230,30 @@ if (($method === 'GET' || $method === 'POST') && isset($segments[0]) && is_numer
             $branches = $iface->getBranches();
             if ($branches === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch branches (check repository and token)']); }
             out(['status' => 'ok', 'items' => array_values($branches)]);
+            break;
         case 'tags':
             $tags = $iface->getTags();
             if ($tags === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch tags (check repository and token)']); }
             out(['status' => 'ok', 'items' => array_values($tags)]);
+            break;
         case 'commits':
             $branch = $_GET['branch'] ?? null;
             $commits = $iface->getCommits($branch);
             if ($commits === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch commits (check repository and token)']); }
             out(['status' => 'ok', 'items' => $commits]);
+            break;
         case 'pulls':
             $state = $_GET['state'] ?? 'open';
             $pulls = $iface->getPullRequests($state);
             if ($pulls === false) { http_response_code(502); out(['status' => 'error', 'message' => 'Unable to fetch pull requests (check repository and token)']); }
             out(['status' => 'ok', 'items' => $pulls]);
+            break;
         case 'test_connection':
             $connected = $iface->isConnected();
             out(['status' => $connected ? 'ok' : 'error',
                  'connected' => $connected,
                  'message' => $connected ? 'Connection OK' : 'Connection failed (check repository, branch and token)']);
-        default:
+            break;
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Unknown action']);
     }

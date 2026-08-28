@@ -271,8 +271,8 @@ function buildGhCfg(repoUrl, branch, token) {
 function buildCfg(serverUrl, apiKey) {
   var parts = [];
   parts.push('<codetracker>');
-  if (serverUrl) parts.push('  <uribase>' + serverUrl + '</uribase>');
-  if (apiKey) parts.push('  <apikey>' + apiKey + '</apikey>');
+  if (serverUrl) parts.push('  <uribase>' + xmlEsc(serverUrl) + '</uribase>');
+  if (apiKey) parts.push('  <apikey>' + xmlEsc(apiKey) + '</apikey>');
   parts.push('</codetracker>');
   return parts.join('\n');
 }
@@ -306,7 +306,7 @@ function testGhConnection() {
     error: function(xhr) {
       var msg = TLi18n.t('ct.connKo');
       try { var resp = JSON.parse(xhr.responseText); if (resp.message) msg = resp.message; } catch(e) {}
-      $('#ghTestResult').html('<span style="color:#e6605e;"><i class="fa fa-times"></i> ' + msg + '</span>');
+      $('#ghTestResult').html('<span style="color:#e6605e;"><i class="fa fa-times"></i> ' + $('<span>').text(msg).html() + '</span>');
     }
   });
 }
