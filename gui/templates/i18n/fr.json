@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "Taille maximale du fichier : {n} Ko",
   "tci.mdActHint": "Import MD : ignorer ou créer une nouvelle version uniquement",
   "tci.mdCritHint": "Import MD : seule la correspondance par titre est supportée",
+  "tci.mdNote": "Import MD : les cas sont vérifiés par titre dans la suite cible ; les suites sont recherchées par nom dans le projet, celles manquantes sont créées sous la racine du projet. Utilisez Aperçu uniquement pour valider le fichier avant l'import réel.",
   "tci.mismatchWarn": "Projet incompatible : le fichier provient de \"{file}\" mais la cible est \"{target}\"",
   "tci.newVersions": "Nouvelles versions",
   "tci.noFileChosen": "Aucun fichier choisi",

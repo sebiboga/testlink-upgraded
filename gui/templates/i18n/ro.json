@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "Dimensiune maximă fișier: {n} KB",
   "tci.mdActHint": "Import MD: ignoră sau creează versiune nouă doar",
   "tci.mdCritHint": "Import MD: doar potrivirea după titlu este suportată",
+  "tci.mdNote": "Import MD: cazurile sunt verificate după titlu în suita țintă; suitele sunt potrivite după nume oriunde în proiect, iar cele lipsă sunt create sub rădăcina proiectului. Folosiți Doar previzualizare pentru a valida fișierul înainte de importul real.",
   "tci.mismatchWarn": "Nepotrivire proiect: fișierul este din \"{file}\" dar ținta este \"{target}\"",
   "tci.newVersions": "Versiuni noi",
   "tci.noFileChosen": "Niciun fișier ales",

@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "Maximale Dateigröße: {n} KB",
   "tci.mdActHint": "MD-Import: Nur überspringen oder neue Version",
   "tci.mdCritHint": "MD-Import: Nur Titelvergleich unterstützt",
+  "tci.mdNote": "MD-Import: Testfälle werden nach Titel innerhalb der Ziel-Suite geprüft; Suiten werden anhand des Namens im Projekt gefunden oder unter der Projektwurzel angelegt. Empfehlung: erst Vorschau ausführen, dann wirklich importieren.",
   "tci.mismatchWarn": "Projektnichtübereinstimmung: Datei ist von \"{file}\", aber Ziel ist \"{target}\"",
   "tci.newVersions": "Neue Versionen",
   "tci.noFileChosen": "Keine Datei ausgewählt",

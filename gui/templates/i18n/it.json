@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "Dimensione massima file: {n} KB",
   "tci.mdActHint": "Import MD: ignora o crea nuova versione",
   "tci.mdCritHint": "Import MD: solo corrispondenza per titolo supportata",
+  "tci.mdNote": "Import MD: i casi vengono verificati per titolo nella suite di destinazione; le suite vengono abbinate per nome nel progetto, quelle mancanti vengono create sotto la radice del progetto. Usare Solo anteprima per validare il file prima dell'importazione reale.",
   "tci.mismatchWarn": "Progetto non corrispondente: il file è di \"{file}\" ma la destinazione è \"{target}\"",
   "tci.newVersions": "Nuove versioni",
   "tci.noFileChosen": "Nessun file scelto",

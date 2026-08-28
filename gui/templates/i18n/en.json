@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "Maximum file size: {n} KB",
   "tci.mdActHint": "MD import: skip or create new version only",
   "tci.mdCritHint": "MD import: only title matching is supported",
+  "tci.mdNote": "Markdown import: test cases are checked by title within the target suite; suites are matched by name anywhere in the project and missing ones are created under the project root. Use Preview only to validate the file before importing for real.",
   "tci.mismatchWarn": "Project mismatch: file is from \"{file}\" but target is \"{target}\"",
   "tci.newVersions": "New versions",
   "tci.noFileChosen": "No file chosen",

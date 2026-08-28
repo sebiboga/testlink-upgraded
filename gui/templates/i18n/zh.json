@@ -1340,6 +1340,7 @@
   "tci.maxFileSize": "最大文件大小: {n} KB",
   "tci.mdActHint": "MD导入：仅跳过或创建新版本",
   "tci.mdCritHint": "MD导入：仅支持标题匹配",
+  "tci.mdNote": "Markdown 导入：测试用例按目标套件内的标题检查；套件按项目中的名称匹配，缺失的套件将在项目根下创建。请先使用“仅预览”验证文件，然后再真正导入。",
   "tci.mismatchWarn": "项目不匹配: 文件来自\"{file}\"，但目标是\"{target}\"",
   "tci.newVersions": "新版本",
   "tci.noFileChosen": "未选择文件",
