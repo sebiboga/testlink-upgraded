@@ -17,6 +17,7 @@
     	<style media="all" type="text/css">@import "{$css}";</style>
     	<link rel="stylesheet" type="text/css" href="{$basehref}gui/themes/default/css/frame.css">
 
+    	<script type="text/javascript" src="{$basehref}{$smarty.const.TL_JQUERY}"></script>
     	<script type="text/javascript" src="{$basehref}third_party/chosen/chosen.jquery.js"></script>
 
     	{include file="bootstrap.inc.tpl"}
