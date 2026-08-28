@@ -69,6 +69,6 @@ relations, the full version list for the selector, and the caller's grants
 
 ## Test evidence
 
-Suite 764 in `tmp/TLU_Test_Cases.md` — 15/15 PASS (BFF routes, version switch,
+Suite 764 in `tmp/TLU_Test_Cases.md` — 17/17 PASS (BFF routes, version switch,
 monitor on/off + DB rows, deleted banner, 403 permission path, relations grid,
 deep-link regression).

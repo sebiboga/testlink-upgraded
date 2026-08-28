@@ -6980,6 +6980,9 @@ Fixture: `php tmp/seed_req.php` (project 1 "Requirements Fixture", spec 2 "Order
 | 764.13 | UI permission | open `reqView.html?id=4` | noinv | "Failed to load requirement: No permission"; BFF responded 403; no JS console errors | PASS |
 | 764.14 | UI relations | (seed relation 4→7 type 3) reload id=4 | admin | Relations card visible; row "related to" RM-002 title; columns Relation/Target/Project/Status | PASS |
 | 764.15 | Event check | after whole suite | admin | no NEW `log_level>=2` entries beyond the known seed/spec-creation pair (issue #765) | PASS |
+| 764.16 | UI relation nav | click spec formula in Relations row (RM-001 view) | admin | opens `reqView.html?id=7&version_id=8` (the RELATED requirement RM-002), not the originating one — code-review fix #1 | PASS |
+| 764.17 | UI version with relations | switch v2→v1→v2 on RM-001 (relations present both) | admin | both cards re-initialize; no DataTables "Cannot reinitialise" error in console — code-review fix #3 | PASS |
 
 Note 764.14: relation row verified via DOM (`#relTable tbody` contains RM-002 chip + "related to"); fixture relation removed afterwards.
+Note 764.16: monitor toggle re-verified after adding `tprojectId` to the POST body (code-review fix #2).
 Regression note: suites 687/679/517 bounds double-checked — unchanged by Deep Link switch.
