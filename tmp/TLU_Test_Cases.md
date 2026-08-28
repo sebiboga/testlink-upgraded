@@ -7256,3 +7256,47 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 **Result:** PENDING (browser test — deferred).
 
 **Notes:** Cases marked PENDING require the browser + an env loading the `xml`/`simplexml` extension (the local sandbox lacks it); the CI test env (modernize.yml loads `xml`) covers the save path. Backend GitHub API integration itself is verified live (64.4).
+
+---
+
+## Regression — Issue #631: Dashio shell has no workframe frame — legacy `target="workframe"` links/forms open stray browser tabs
+
+**Precondition:** Fresh DB; fixture `php tmp/fixtures_631.php` → tproject=1 (WF631), tsuite=2 (Suite631), tcversion=4 (TC631, linked to plan), tplan=6 (Plan631), build=1. App shell at http://localhost:8082 (Dashio frameset `gui/templates/dashio/main.tpl`: titlebar/asidebar/mainframe — NO `workframe`). Login admin/admin.
+
+**Root cause (verified):** legacy screens render `target="workframe"` links (`resultsNavigator.tpl:72`), forms (`searchForm.tpl:24`, etc.) and `parent.workframe.location` JS (`resultsNavigator.tpl:15-16,20,86`, `inc_filter_panel_js.tpl`, `plan/planTCNavigator.tpl`). The Dashio shell registers no frame named `workframe`/`treeframe`, so a named browsing context targeting a missing frame makes the browser open a NEW tab; the JS threw `TypeError: Cannot set properties of undefined (setting 'location')`. Fix: `gui/javascript/frameTargetShim.js` (loaded before `</body>` in main.tpl) binds capture `click`/`submit` listeners into the mainframe content document, deduped per Document (`__tlFrameShimBound`), and — only when no matching named browsing context exists up the ancestor chain — drops the `target` attribute so the default action lands in the mainframe. Classic layout (`frmWorkArea.php` → `frmInner.tpl` treeframe+workframe) is detected via `hasNamedBrowsingContext()` and left to resolve natively. `resultsNavigator.tpl`'s `reportPrint()`/`pre_submit()`/initial `parent.workframe.location` were guarded.
+
+### Test Case 631.1: Flat shell — report link targets missing workframe → opens in mainframe, NO new tab (primary symptom)
+
+**Repro steps (pre-fix):** in mainframe (`mainframe.src='lib/results/resultsNavigator.php?format=0&tproject_id=1&tplan_id=6'`) click "General Test Plan Metrics" (first report anchor, `target="workframe"`).
+**Expected post-fix:** mainframe navigates to `lib/results/resultsGeneral.php?format=0&tproject_id=1&tplan_id=6`; report renders in mainframe; browser tabs unchanged (no new window).
+**Result:** PASS — click → mainframe at `resultsGeneral.php?...`, report rendered, `list_pages` shows NO new page, no TypeError in console.
+
+### Test Case 631.2: Flat shell — rebinding survives repeated mainframe navigations (document-scoped dedupe)
+
+**Steps:** after 631.1, set mainframe back to `resultsNavigator.php` (2nd doc), verify `contentWindow.document.__tlFrameShimBound===true`, click "General Test Plan Metrics" again (3rd doc then navigates).
+**Expected:** each newly loaded document gets a fresh bound listener (`__tlFrameShimBound` set on the Document, not the persistent Window); clicks keep retargeting to mainframe on every subsequent load.
+**Result:** PASS — doc 2 and doc 3 both `__tlFrameShimBound===true`; each click navigated in-mainframe; no tabs opened.
+
+### Test Case 631.3: Flat shell — form submit path retargeted to mainframe
+
+**Steps:** on `resultsNavigator` (mainframe), change "Report Format" combobox to "Email (HTML)" (onchange → `this.form.submit()`).
+**Expected:** mainframe navigates to `resultsNavigator.php?...format=6...`; no new tab; no console error.
+**Result:** PASS — mainframe reloaded to `format=6` URL; no tab, no error.
+
+### Test Case 631.4: Flat shell — Print button and pre_submit fallback do not throw
+
+**Steps:** on `resultsNavigator` (mainframe) click "Print" (`reportPrint()`).
+**Expected:** no `TypeError` re: `parent["workframe"]` undefined; console clean (aside from pre-existing cosmetic `navbar.gif` 404 in dashio theme CSS).
+**Result:** PASS — no console error from the navigator JS; only the pre-existing `navbar.gif` 404.
+
+### Test Case 631.5: Classic layout preserved — native target=workframe resolution still works
+
+**Steps:** set `mainframe.src='lib/general/frmWorkArea.php?feature=showMetrics&tproject_id=1&tplan_id=6'`; assert mainframe's window has `frames['treeframe']` AND `frames['workframe']`; click "General Test Plan Metrics" in the treeframe.
+**Expected:** report loads in the right `workframe` pane; treeframe stays at `resultsNavigator`; mainframe stays at `frmWorkArea.php`; no new tab (shim must NOT intercept when a real workframe exists).
+**Result:** PASS — workHref=`resultsGeneral.php?...`, treeHref unchanged, mainHref unchanged, tabs unchanged.
+
+### Test Case 631.6: Event Viewer — no new Error/Warning from fix lifecycle
+
+**Steps:** after 631.1–631.5, `SELECT id, log_level, LEFT(description,100) FROM events ORDER BY id DESC LIMIT 15;`
+**Expected:** no log_level=1 (ERROR) / 2 (E_WARNING) rows; only info/audit rows (login, fixture actions).
+**Result:** PASS — only `audit_login_succeeded`/`audit_testproject_created`/`audit_tc_added_to_testplan` (log_level=16) rows; zero ERROR/WARNING.
