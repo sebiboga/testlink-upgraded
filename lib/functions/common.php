@@ -311,7 +311,13 @@ function doSessionStart($setPaths=false) {
     }
   }
   
-  if(!isset($_SESSION)) {
+  // Refs #616: guard with the session STATUS, never isset($_SESSION). After
+  // `$_SESSION = null` (setUpEnvFor* clearSession) the superglobal reads as
+  // unset while the session is still PHP_SESSION_ACTIVE, so isset() would
+  // re-invoke session_start() and log an "Ignoring session_start() because a
+  // session is already active" E_NOTICE/E_WARNING into the events table on
+  // every remote/plan-link generation.
+  if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
   }
   
