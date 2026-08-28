@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Viewer</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost.active { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.deleted-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 7px; column-gap: 16px; }
+.kv .k { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding-top: 2px; }
+.kv .v { color: #333; word-break: break-word; }
+.scope-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
+.badge-frozen { background: #3598dc; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-open { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-status { background: #8e44ad; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-type { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.cov-warn { color: #e6605e; font-weight: 700; }
+.cov-ok { color: #27ae60; font-weight: 700; }
+.sort-arrow { margin-left: 6px; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.notes { padding: 0 24px 20px; color: #777; font-size: 12px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-file-text-o"></i> <span data-i18n="reqv.title">Requirement Viewer</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <label class="ctx" style="display:flex;align-items:center;gap:6px;margin:0;">
+    <span data-i18n="reqv.version">Version</span>
+    <select id="versionSelect" class="form-control" style="width:auto;display:inline-block;background:#333;color:#fff;border:1px solid #555;height:32px;font-size:13px;"></select>
+  </label>
+  <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
+  <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="deletedBanner" class="deleted-banner" style="display:none;" data-i18n="reqv.deleted"></div>
+
+<div id="content">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="reqv.overview">Overview</span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="reqv.docId">Identifier</div><div class="v" id="vDocId"></div>
+        <div class="k" data-i18n="reqv.specPath">Requirement Spec</div><div class="v" id="vSpec"></div>
+        <div class="k" data-i18n="reqv.type">Type</div><div class="v" id="vType"></div>
+        <div class="k" data-i18n="reqv.status">Status</div><div class="v" id="vStatus"></div>
+        <div class="k" data-i18n="reqv.frozen">Frozen</div><div class="v" id="vFrozen"></div>
+        <div class="k" data-i18n="reqv.author">Author</div><div class="v" id="vAuthor"></div>
+        <div class="k" data-i18n="reqv.createdOn">Created</div><div class="v" id="vCreated"></div>
+        <div class="k" data-i18n="reqv.modifiedOn">Modified</div><div class="v" id="vModified"></div>
+        <div class="k" data-i18n="reqv.coverage">Coverage</div><div class="v" id="vCoverage"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-align-left"></i> <span data-i18n="reqv.scope">Scope</span></div>
+    <div class="card-body"><div class="scope-text" id="vScope"></div></div>
+  </div>
+
+  <div class="card" id="cfCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="reqv.customFields">Custom Fields</span></div>
+    <div class="card-body"><div class="kv" id="vCF"></div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-link"></i> <span data-i18n="reqv.linkedTCs">Linked Test Cases</span></div>
+    <div class="card-body">
+      <div id="noCov" class="empty-state" style="display:none;" data-i18n="reqv.noCoverage"></div>
+      <table id="covTable" class="display" style="width:100%;display:none;">
+        <thead>
+          <tr>
+            <th data-i18n="reqv.externalId">TC external id</th>
+            <th data-i18n="reqv.tcaseName">Test case</th>
+            <th data-i18n="reqv.tcVersion">Version</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="relCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-sitemap"></i> <span data-i18n="reqv.relations">Relations</span></div>
+    <div class="card-body">
+      <div id="noRel" class="empty-state" style="display:none;" data-i18n="reqv.noRelations"></div>
+      <table id="relTable" class="display" style="width:100%;display:none;">
+        <thead>
+          <tr>
+            <th data-i18n="reqv.relType">Relation</th>
+            <th data-i18n="reqv.relTarget">Target</th>
+            <th data-i18n="reqv.relProject">Project</th>
+            <th data-i18n="reqv.status">Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var REQ_ID = 0;
+var VERSION_ID = 0;
+var TPROJECT_ID = 0;
+var META = null;
+var covTable = null;
+var relTable = null;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || 0, 10);
+  VERSION_ID = parseInt(p.get('version_id') || p.get('req_version_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!REQ_ID) {
+      $('#deletedBanner').show();
+      return;
+    }
+    loadView();
+  });
+  $('#versionSelect').on('change', function() {
+    VERSION_ID = parseInt($(this).val() || 0, 10);
+    loadView();
+  });
+});
+
+function loadView() {
+  var url = API + '/view?id=' + REQ_ID;
+  if (VERSION_ID > 0) url += '&version_id=' + VERSION_ID;
+  if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
+  $.getJSON(url, function(r) {
+    if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqv.loadError')); return; }
+    if (r.req_deleted) {
+      $('#content').hide();
+      $('#deletedBanner').show();
+      $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title'));
+      return;
+    }
+    $('#deletedBanner').hide();
+    $('#content').show();
+    META = r.meta;
+    $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
+    renderVersionSelect(r.versions);
+    renderOverview(r);
+    renderCoverage(r);
+    renderRelations(r);
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title') +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('reqv.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showError(msg);
+  });
+}
+
+function showError(msg) {
+  $('#deletedBanner').css('display', 'block').attr('data-i18n', null)
+    .text(TLi18n.t('reqv.loadError') + ': ' + msg);
+  $('#content').hide();
+}
+
+function renderVersionSelect(versions) {
+  var sel = $('#versionSelect').empty();
+  $.each(versions, function(i, v) {
+    var tag = 'v' + v.version + 'r' + v.revision + (v.is_open ? '' : ' *');
+    sel.append('<option value="' + v.version_id + '">' + tag + '</option>');
+  });
+  var cur = VERSION_ID;
+  $.each(versions, function(i, v) {
+    if (v.version_id === cur) { sel.val(cur); return false; }
+  });
+}
+
+function renderOverview(r) {
+  var c = r.current;
+  VERSION_ID = c.version_id;
+  $('#vDocId').html('<span class="id-chip">' + escapeHtml(c.req_doc_id) + '</span> <b>' +
+    escapeHtml(c.title) + '</b>');
+  $('#vSpec').text(escapeHtml(r.spec_path || '-'));
+  var typeLbl = (META.type_labels && META.type_labels[c.type]) ? META.type_labels[c.type] : c.type;
+  var statusLbl = (META.status_labels && META.status_labels[c.status]) ? META.status_labels[c.status] : c.status;
+  $('#vType').html('<span class="badge-type">' + escapeHtml(typeLbl) + '</span>');
+  $('#vStatus').html('<span class="badge-status">' + escapeHtml(statusLbl) + '</span>');
+  $('#vFrozen').html(c.frozen
+    ? '<span class="badge-frozen">' + TLi18n.t('common.yes') + '</span>'
+    : '<span class="badge-open">' + TLi18n.t('common.no') + '</span>');
+  $('#vAuthor').text(escapeHtml(c.author || '-'));
+  $('#vCreated').text(fmtTs(c.creation_ts));
+  $('#vModified').text(fmtTs(c.modification_ts) + (c.modifier ? ' (' + escapeHtml(c.modifier) + ')' : ''));
+  $('#vScope').text(c.scope || '-');
+
+  if (META.expected_coverage_management) {
+    var pct = r.coverage_pct;
+    var covHtml;
+    if (pct !== null && pct !== undefined) {
+      covHtml = '<span class="' + (pct >= 100 ? 'cov-ok' : 'cov-warn') + '">' +
+        pct.toFixed(2).replace(/\.00$/, '') + '%</span> (' + r.coverage_qty + '/' + r.expected_coverage + ')';
+    } else {
+      covHtml = TLi18n.t('ro.notApplicable') + ' (' + (r.coverage_qty || 0) + '/0)';
+    }
+    $('#vCoverage').html(covHtml);
+  } else {
+    $('#vCoverage').html((r.coverage_qty || 0) + ' (' + TLi18n.t('ro.notApplicable') + ')');
+  }
+
+  // custom fields
+  var cfs = META.cfields || [];
+  var cfNames = Object.keys(r.cf_values || {});
+  if (cfNames.length) {
+    var out = '';
+    $.each(cfs, function(i, cf) {
+      if (r.cf_values[cf.name] === undefined) return;
+      out += '<div class="k">' + escapeHtml(cf.label) + '</div>' +
+        '<div class="v">' + escapeHtml(r.cf_values[cf.name]) + '</div>';
+    });
+    if (!out) { $('#cfCard').hide(); } else {
+      $('#vCF').html(out); $('#cfCard').show();
+    }
+  } else {
+    $('#cfCard').hide();
+  }
+
+  // monitor toggle (legacy reqView.php: monitoring needs monitor_requirement)
+  META._monitoring = !!r.is_monitoring;
+  var mBtn = $('#monitorBtn');
+  if (r.grant && r.grant.monitor_req && r.grant.monitor_req !== 'no') {
+    mBtn.show();
+    var label = META._monitoring ? TLi18n.t('reqv.monitorOff') : TLi18n.t('reqv.monitorOn');
+    mBtn.html('<i class="fa ' + (META._monitoring ? 'fa-bell-slash' : 'fa-bell') + '"></i> ' + label);
+    mBtn.toggleClass('active', META._monitoring);
+    mBtn.off('click').on('click', function() { toggleMonitor(); });
+  } else {
+    mBtn.hide();
+  }
+  $('#infoLine').text(TLi18n.t('reqv.displaying') + ' v' + c.version + 'r' + c.revision);
+}
+
+function toggleMonitor() {
+  var want = META._monitoring ? 'off' : 'on';
+  $.ajax({
+    url: API + '/monitor',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ reqId: REQ_ID, action: want }),
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || 'Error'); return; }
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = 'Error';
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function renderCoverage(r) {
+  var rows = [];
+  $.each(r.coverage || [], function(i, t) {
+    rows.push([
+      escapeHtml(t.tc_external_id || '-'),
+      '<a href="javascript:void(0)" onclick="openTC(' + t.tcase_id + ')">' +
+        escapeHtml(t.tcase_name) + '</a>' + (t.is_obsolete ? ' *' : ''),
+      escapeHtml(String(t.tc_version))
+    ]);
+  });
+  if (!rows.length) {
+    $('#noCov').show();
+    if (covTable) { covTable.destroy(); covTable = null; }
+    $('#covTable').hide();
+    return;
+  }
+  $('#noCov').hide();
+  $('#covTable').show();
+  if (covTable) { covTable.destroy(); $('#covTable tbody').empty(); }
+  covTable = $('#covTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    bInfo: false
+  });
+}
+
+function renderRelations(r) {
+  relTable = null;
+  if (!(r.relations || []).length) {
+    $('#relCard').hide();
+    return;
+  }
+  $('#relCard').show();
+  var rows = [];
+  $.each(r.relations, function(i, rel) {
+    var st = (META.status_labels && META.status_labels[rel.related_status])
+      ? META.status_labels[rel.related_status] : rel.related_status;
+    rows.push([
+      escapeHtml(rel.type_localized || '-'),
+      '<a href="javascript:void(0)" onclick="openReq(' + rel.related_version_id + ')">' +
+        '<span class="id-chip" style="font-size:11px;">' + escapeHtml(rel.related_doc_id) + '</span> ' +
+        escapeHtml(rel.related_title) + '</a>',
+      escapeHtml(rel.related_tproject || '-'),
+      escapeHtml(st || '-')
+    ]);
+  });
+  if (relTable) { relTable.destroy(); $('#relTable tbody').empty(); }
+  relTable = $('#relTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    bInfo: false
+  });
+}
+
+function openTC(tcId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + TPROJECT_ID,
+    'tcview_' + tcId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function openReq(versionId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/requirements/reqView.html?id=' + REQ_ID +
+    '&version_id=' + versionId + '&tproject_id=' + TPROJECT_ID,
+    'req_view_' + REQ_ID, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function fmtTs(ts) {
+  if (!ts) return '-';
+  var d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString();
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>
