@@ -2173,6 +2173,12 @@ function get_requirement_child_by_id_req($id){
 		$target_cfg = array('revision' => array('table'=> 'req_specs_revisions', 'field' => 'revision'));
 
 		$child_type = $my['options']['child_type'];  // just for readability 
+		if( !isset($target_cfg[$child_type]) || is_null($id) || $id === '' || !is_numeric($id) || intval($id) <= 0 )
+		{
+			// id is not a valid node id => cannot build a safe query.
+			// Prevent broken SQL (NH.parent_id = <empty>) and E_WARNINGs upstream.
+			return null;
+		}
 		$table = $target_cfg[$child_type]['table'];
 		$field = $target_cfg[$child_type]['field'];
 		

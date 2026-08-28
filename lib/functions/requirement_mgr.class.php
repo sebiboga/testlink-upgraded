@@ -3431,10 +3431,18 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
     if( is_null($parent) )
     {
       $dummy = $this->tree_mgr->get_node_hierarchy_info($id);
-      $parent = $dummy['parent_id']; 
+      if( !is_null($dummy) && isset($dummy['parent_id']) )
+      {
+        $parent = $dummy['parent_id'];
+      }
+    }
+    if( is_null($parent) )
+    {
+      // id did not resolve to a requirement spec => cannot derive project
+      return null;
     }
     $target = $reqSpecMgr->get_by_id($parent);
-    return $target['testproject_id'];
+    return isset($target['testproject_id']) ? $target['testproject_id'] : null;
   }
 
 
