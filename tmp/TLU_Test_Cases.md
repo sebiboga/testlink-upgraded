@@ -7060,3 +7060,43 @@ Network panel showed chosen.jquery.js [200] and bootstrap.min.js [200] loaded wi
 **Steps:** After 765.1-765.3, `SELECT log_level, COUNT(*) FROM events GROUP BY log_level;`
 **Expected:** no log_level=1 (ERROR) or 2 (E_WARNING) rows created by the fixed code paths.
 **Result:** PASS — only audit CREATE (log_level=16) entries; zero ERROR/WARNING.
+
+## Regression — Issue #616: E_NOTICE/WARNING "session_start(): Ignoring session_start() because a session is already active" on every remote/plan-link generation
+
+**Precondition:** Fresh DB; fixture `php tmp/fixtures_616.php` → tproject=1 (UPD616), tplan=6 (Plan616), build=1 (Build616), plan api_key=`63807535719b065c9c1272e27d1a59eb9b3ebf7a75b455346265963828a266ff`, user script_key=`e557c6cdb1951e9ece4e7bafd2e2fc1c`. App at http://localhost:8082 (PHP 8.3 built-in server).
+
+**Root cause (verified):** `common.php` includes `csrf.php` → `csrf.php:211 doSessionStart(false)` starts the session; `lnl.php` then calls `setUpEnvFor{Remote,Anonymous}Access` with `clearSession=true` → `$_SESSION = null` (superglobal unset but `session_status()` still ACTIVE) → `doSessionStart()` old guard `if(!isset($_SESSION))` re-invokes `session_start()` at `common.php:315` → E_NOTICE (8.3) / E_WARNING (8.5). Fix: guard `if (session_status() !== PHP_SESSION_ACTIVE)`.
+
+### Test Case 616.1: lnl.php plan-key (64h) generation — primary symptom (pre-fix: E_NOTICE logged per request)
+
+**Repro steps (pre-fix):**
+1. `mysql> SELECT MAX(id) FROM events;` (record watermark)
+2. `curl -sS -m 15 "http://localhost:8082/lnl.php?apikey=63807535719b065c9c1272e27d1a59eb9b3ebf7a75b455346265963828a266ff&tproject_id=1&tplan_id=6&type=testreport_onbuild&build_id=1"`
+3. `mysql> SELECT id, LEFT(description,110) FROM events WHERE id > watermark;`
+
+**Expected post-fix:** HTTP 302 (redirect to printDocument.php); **0** new events rows (no `session_start(): Ignoring session_start()` E_NOTICE/E_WARNING).
+**Result:** PASS — HTTP 302; `events` gained 0 rows.
+
+### Test Case 616.2: lnl.php user-key (32h) generation — setUpEnvForRemoteAccess clearSession path
+
+**Steps:** same as 616.1 with `apikey=e557c6cdb1951e9ece4e7bafd2e2fc1c`.
+**Expected post-fix:** HTTP 302; 0 new ERROR/WARNING events.
+**Result:** PASS — HTTP 302; 0 new events.
+
+### Test Case 616.3: full redirect chain renders the document (browser, logged-in session)
+
+**Steps:** log in admin/admin in browser; navigate `http://localhost:8082/lnl.php?apikey=<plan key>&tproject_id=1&tplan_id=6&type=testreport_onbuild&build_id=1`; verify page `printDocument.php` renders "Test Plan Execution Report (on specific build)" + UPD616/Plan616/Build616; screenshot `docs/screenshots/issue-616-testreport-onbuild-generated.png`.
+**Expected post-fix:** document generated; **0** new ERROR/WARNING rows in `events`.
+**Result:** PASS — report rendered; only `audit_login_succeeded` (log_level=16) rows present, zero ERROR/WARNING.
+
+### Test Case 616.4: GUI session flow unaffected (regression)
+
+**Steps:** after 616.3, re-login admin/admin; index.php navBar/aside/mainframe must load (UPD616, Plan616, full aside).
+**Expected:** normal login + navigation; no new ERROR/WARNING events.
+**Result:** PASS — full GUI loads; events show only `audit_login_succeeded` (log_level=16).
+
+### Test Case 616.5: Event Viewer shows no new Error/Warning after fix lifecycle
+
+**Steps:** after 616.1–616.4, `SELECT log_level, COUNT(*) FROM events GROUP BY log_level;`
+**Expected:** no log_level=1 (ERROR) / 2 (E_WARNING) rows created by these flows.
+**Result:** PASS — only log_level=16 info/audit rows; the sole historical log_level=2 row (id=4, pre-fix, recorded in the investigation phase) is unchanged and attributed to the pre-fix run.
