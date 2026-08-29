@@ -7791,3 +7791,31 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS.
 
 **Result: Suite 622 — 8/8 PASS**
+
+## Suite 773 — Regression — Issue #773: exec.inc.php:182 E_WARNING 'Undefined property: stdClass::$requirementsEnabled' on every execution save (testprojects.options NULL/empty)
+
+**Bug:** `write_execution()` read `$topt->requirementsEnabled` unguarded; `getOptions()` returns a property-less `(object)[]` when `testprojects.options` is NULL/empty → E_WARNING logged to `events` (Event Viewer) on EVERY execution save.
+**Fix (commit range below):** `lib/functions/exec.inc.php:182` guarded with `isset($topt->requirementsEnabled) && $topt->requirementsEnabled`. Missing ⇒ requirements disabled (legacy semantics, matches `option_reqs` default 0).
+**Precondition:** testproject with `options=NULL` + testplan/build/testcase-with-steps linked, logged-in admin session, `TRUNCATE events` before each case.
+
+- **TC-773-1: options=NULL → save → no E_WARNING (primary)**
+  - Steps: `UPDATE testprojects SET options=NULL WHERE id=<pid>;` then `POST /api/execute/?action=save` (JSON `{tplan_id,tcase_id,tcversion_id,version_number,build_id,platform_id:-1,status:'p',notes,steps:{<sid>:{status:'p'}}}`).
+  - Expected: HTTP 200 `saved:true`; `SELECT COUNT(*) FROM events` = 0.
+  - Actual (pre-fix): events row `E_WARNING\nUndefined property: stdClass::$requirementsEnabled - exec.inc.php - Line 182` (log_level=2). **Post-fix: PASS** (execution_id=2 saved, events=0).
+
+- **TC-773-2: full options blob, requirementsEnabled=0 → save → no freeze, no warning**
+  - Steps: `UPDATE testprojects SET options='O:8:"stdClass":4:{...requirementsEnabled";i:0;...}'`; same save.
+  - Expected: 200 saved; events=0; no req freeze attempted.
+  - Result: **PASS** (execution_id=3 saved, events=0).
+
+- **TC-773-3: full options blob, requirementsEnabled=1 + real OPEN req_coverage link → freeze branch STILL fires**
+  - Steps: insert req_specs(1), req_specs_revisions(2), requirements(3), req_versions(4,is_open=1), req_revisions(5), req_coverage(req_id=3,req_version_id=4,testcase_id=<tcid>,tcversion_id=<tvid>,link_status=1); set options blob with `requirementsEnabled";i:1`; same save.
+  - Expected: 200 saved; events=0; `req_coverage.link_status` 1→2 (CLOSED_BY_EXEC); `req_versions.is_open` 1→0 (freezeReqVersionAfterExec=TRUE).
+  - Result: **PASS** (execution_id=4; link_status=2; is_open=0; events=0).
+
+- **TC-773-4: Event Viewer — no new Error/Warning after suite**
+  - Steps: `SELECT id,description FROM events ORDER BY id;` after TC-773-1..3.
+  - Expected: zero new Error/Warning rows (log_level=2).
+  - Result: **PASS** (0 rows).
+
+**Result: Suite 773 — 4/4 PASS**
