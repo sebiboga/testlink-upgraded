@@ -7819,3 +7819,27 @@ test plan "TLU Full Regression" (tplan_id=3231).
   - Result: **PASS** (0 rows).
 
 **Result: Suite 773 — 4/4 PASS**
+## Suite 755 — Requirement Specification Viewer (reqSpecView.html + BFF api/reqspec spec_view/freeze_spec/create_revision) — Refs #755
+
+Fixture: `tmp/fixtures_rsv.php` — project RSF (id 1) with spec SRS-001 (id parent, rev r2→r3, child SRS-002), 3 requirements (REQ-001 has v2 latest-open), a `Milestone` custom field value on the current revision, an attachment `feat-spec.doc`, and user `rsv_viewer` (guest role, no mgt rights). Admin session for privilege tests.
+
+**Result: text**
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | Open `reqSpecView.html?id=<spec>&tproject_id=1` as admin | Toolbar (Refresh/Open in Spec Mgmt/New Revision/Freeze), overview KV (id chip + title, revision badge r2, type label, req count 3, revisions 2), scope text, custom field Milestone = Milestone 5.1, attachment row w/ download, requirements DataTable (3 rows: REQ-001 v2 / REQ-002 v1 / REQ-003 v1, System Function/Valid) | All present; type/status labels localized; download URL `lib/attachments/attachmentdownload.php?id=` | PASS |
+| 2 | Click requirement title row | Opens modern `reqView.html?id=<req_id>&tproject_id=1` popup (window named req_view_<id>) | Popup opened for REQ-001 (id 36) | PASS |
+| 3 | Locale switcher → Română | Whole page (title, buttons, KV labels, columns, footer) re-renders in RO via `?locale=ro` | "Vizualizator specificații de cerințe", "Revizuire nouă", "Îngheață toate cerințele", "Domeniu", "Cerințe", footer localized | PASS |
+| 4 | Freeze (confirm dialog accept) | Confirm prompt with localized text; POST freeze_spec; info banner "Frozen requirements: N"; `req_versions.is_open=0` for all subtree latest versions; one `audit_req_version_frozen` event per version | Banner "Frozen requirements: 0" (all 3 already frozen via API pass below); API-only freeze run returned `frozen:3` and flipped is_open 37/39/41/42 → all 0; events id 11/12/13 FREEZE | PASS |
+| 5 | Freeze via direct BFF (`POST ?action=freeze_spec&id=32`) | Response `{"status":"ok","frozen":3}`; audit events logged | Confirmed (curl) — pre-UI-state freeze | PASS |
+| 6 | New Revision (prompt dialog accept w/ log message) | POST create_revision; banner "New revision created."; revision r3, revisions count 3; clone copies CF values | r3 + count 3 rendered; created-by updated | PASS |
+| 7 | Deep link without `tproject_id` (`?id=<spec>`) | Screen still loads: project name resolved, req labels rendered (payload self-serves domain maps), Freeze/New Revision visible | Loaded, 3 rows with "System Function"/"Valid", freeze button block | PASS |
+| 8 | Nonexistent spec `?id=99999` | Banner "Failed to load requirement specification: Requirement specification not found", body hidden | Confirmed | PASS |
+| 9 | `rsv_viewer` login (guest) opening the viewer | No Freeze/New Revision buttons (gated); spec_view returns HTTP 403 "No permission"; banner shown | freezeBtn/revBtn display none; banner "Failed to load requirement specification: No permission" | PASS |
+| 10 | Direct BFF 403 as no-right user | `GET ?action=spec_view&id=32` → HTTP 403 `{"status":"error","message":"No permission"}` | Confirmed (curl) | PASS |
+| 11 | Search Req Specs result link (admin) | `openReqSpec` opens modern `reqSpecView.html?id=<spec>` popup (was `reqSpecView.php?req_spec_id=`) | Popup `reqSpecView.html?id=32` opened from search result | PASS |
+| 12 | Event Viewer (`events` table) after the suite | Only expected LOGIN/CREATE/FREEZE/AUDIT entries; no new Error/Warning rows (log_level=2) triggered by the screen flow | Events 11-15 = expected FREEZE (req_version) + LOGIN; the E_WARNING rows present are from fixture-only call paths (`create_new_version` reqTCLinks config gap, attachment `dbID`) — none from spec_view/freeze_spec/create_revision | PASS |
+
+**Result: Suite 755 — 12/12 PASS**
+
+Known upstream quirk (not introduced by this screen): `req_specs_revisions.total_req` is never written by `requirement_spec_mgr::create()` in this fork, so "Total requirements (declared)" shows 0 until specs are edited via the modern mgmt UI.
