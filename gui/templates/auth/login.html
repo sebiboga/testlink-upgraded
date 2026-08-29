@@ -107,10 +107,6 @@ body {
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script>
 $(function () {
-  TLi18n.load(function () {
-    TLi18n.apply();
-  });
-
   var qs = new URLSearchParams(window.location.search);
   var note = qs.get('note') || '';
 
@@ -127,16 +123,21 @@ $(function () {
     $('#errorBox').hide();
   }
 
-  // Map common redirect notes to i18n-friendly display messages.
-  var noteMsg = {
-    expired: TLi18n.t('auth.sessionExpired'),
-    first: TLi18n.t('auth.firstLogin'),
-    lost: TLi18n.t('auth.passwdLost'),
-    logout: TLi18n.t('auth.loggedOut')
-  };
-  if (note && noteMsg[note]) {
-    showInfo(noteMsg[note]);
-  }
+  TLi18n.load(function () {
+    TLi18n.apply();
+
+    // Map common redirect notes to i18n-friendly display messages.
+    // Done inside the load callback so TLi18n.t() has the strings loaded.
+    var noteMsg = {
+      expired: TLi18n.t('auth.sessionExpired'),
+      first: TLi18n.t('auth.firstLogin'),
+      lost: TLi18n.t('auth.passwdLost'),
+      logout: TLi18n.t('auth.loggedOut')
+    };
+    if (note && noteMsg[note]) {
+      showInfo(noteMsg[note]);
+    }
+  });
 
   // Load public config: self-signup, lost-password, OAuth buttons.
   $.getJSON('/api/auth/config', function (cfg) {
