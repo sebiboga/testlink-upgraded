@@ -19,6 +19,8 @@
  *   POST ?action=update_spec&id=N          {tproject_id,doc_id,title,type,total_req,scope}
  *   POST ?action=delete_spec&id=N&tproject_id=N
  *   GET  ?action=reqs&spec_id=N&tproject_id=N -> requirements of a spec (latest version)
+ *   GET  ?action=spec_view&id=N            -> spec header (latest revision) + cfields + attachments
+ *   GET  ?action=spec_revision_view&id=N   -> a SINGLE spec revision (read-only viewer)
  *   POST ?action=create_req                {tproject_id,spec_id,req_doc_id,title,status,type,expected_coverage,scope}
  *   POST ?action=update_req&id=N           {tproject_id,req_doc_id,title,status,type,expected_coverage,scope}
  *   POST ?action=delete_req&id=N&tproject_id=N
@@ -616,6 +618,104 @@ if ($method === 'GET' && $action === 'spec_view') {
         'rights' => [
             'manage' => $user->hasRight($db, 'mgt_modify_req', $ownerTid),
         ],
+    ]);
+}
+
+// ------------------------------------------- spec revision view (spec_revision_view) ---
+// Refs #755 - mirrors lib/requirements/reqSpecViewRevision.php: view a SINGLE
+// spec revision read-only. Input  ?action=spec_revision_view&id=<spec_revision_id>
+// (a row in req_specs_revisions). The revision's parent spec gives the project
+// context for the rights gate. Right: strict mgt_view_req (legacy rightsAnd).
+if ($method === 'GET' && $action === 'spec_revision_view') {
+    $revId = intval($_REQUEST['id'] ?? 0);
+    if ($revId <= 0) { badRequest('Invalid spec revision id'); }
+
+    // join the revision to its parent spec to resolve ownership + project
+    // (table names are hard-coded, same as spec_view — $tables is protected)
+    $rows = $db->get_recordset(
+        "SELECT RSV.*, RS.testproject_id, RS.doc_id AS spec_doc_id" .
+        " FROM req_specs_revisions RSV" .
+        " JOIN req_specs RS ON RS.id = RSV.parent_id" .
+        " WHERE RSV.id = " . intval($revId));
+    if (!$rows) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement spec revision not found']);
+    }
+    $rev = $rows[0];
+    $ownerTid = intval($rev['testproject_id']);
+    $specId = intval($rev['parent_id']);
+
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $reqSpecMgr->decode_users($rows);
+    $rev = $rows[0];
+
+    // design custom fields linked to requirement_spec + values on THIS revision
+    // (same sink as spec_view, but item_id = this revision id)
+    $cfields = [];
+    $cfMap = $reqSpecMgr->get_linked_cfields([
+        'parent_id'   => $specId,
+        'item_id'     => $revId,
+        'tproject_id' => $ownerTid,
+    ]);
+    if (!empty($cfMap)) {
+        foreach ($cfMap as $cf) {
+            $vType = isset($reqSpecMgr->cfield_mgr->custom_field_types[$cf['type']])
+                ? $reqSpecMgr->cfield_mgr->custom_field_types[$cf['type']] : 'string';
+            $value = isset($cf['value']) ? $cf['value'] : '';
+            if (is_array($value)) { $value = implode(', ', $value); }
+            $value = preg_replace('!\s+!', ' ', trim((string)$value));
+            if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
+                $value = tlStrftime(config_get($vType), intval($value));
+            }
+            $cfields[] = [
+                'name'  => $cf['name'],
+                'label' => $cf['label'],
+                'type'  => intval($cf['type']),
+                'verbose_type' => $vType,
+                'value' => $value,
+            ];
+        }
+    }
+
+    $specCfg = config_get('req_spec_cfg');
+
+    // is this revision the LATEST one for the spec? (for a "back to current" link)
+    $latestRev = intval($db->fetchFirstRowSingleColumn(
+        "SELECT MAX(RSV2.revision) AS last_rev FROM req_specs_revisions RSV2" .
+        " WHERE RSV2.parent_id = " . intval($specId), 'last_rev'));
+
+    $modifiedNever = is_null($rev['modification_ts'])
+        || $rev['modification_ts'] == '0000-00-00 00:00:00';
+
+    out([
+        'status'  => 'ok',
+        'tproject_id'   => $ownerTid,
+        'tproject_name' => testproject::getName($db, $ownerTid),
+        'spec_id'   => $specId,
+        'spec_doc_id' => (string)$rev['spec_doc_id'],
+        'revision' => [
+            'id'          => intval($rev['id']),
+            'revision'    => intval($rev['revision']),
+            'doc_id'      => (string)$rev['doc_id'],
+            'name'        => (string)$rev['name'],
+            'scope'       => (string)$rev['scope'],
+            'type'        => (string)$rev['type'],
+            'type_label'  => isset($specCfg->type_labels[$rev['type']])
+                               ? lang_get($specCfg->type_labels[$rev['type']]) : (string)$rev['type'],
+            'total_req'   => intval($rev['total_req']),
+            'log_message' => (string)$rev['log_message'],
+            'author'      => (string)$rev['author'],
+            'modifier'    => $modifiedNever ? '' : (string)$rev['modifier'],
+            'creation_ts'     => (string)$rev['creation_ts'],
+            'modification_ts' => $modifiedNever ? '' : (string)$rev['modification_ts'],
+            'modified_never'  => $modifiedNever,
+            'is_latest'   => (intval($rev['revision']) === intval($latestRev)),
+        ],
+        'cfields' => $cfields,
     ]);
 }
 
