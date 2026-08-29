@@ -223,13 +223,13 @@ function renderOverview(r) {
   $('#vTotalReq').text(s.total_req != null ? String(s.total_req) : '-');
   $('#vReqCount').text(String(s.requirements_count || 0));
   $('#vRevCount').text(String(s.revisions_count || 0));
-  $('#vCreatedBy').text(escapeHtml(s.author || '-'));
+  $('#vCreatedBy').text(s.author || '-');
   $('#vCreatedOn').text(fmtTs(s.creation_ts));
   if (s.modified_never) {
     $('#vModifiedBy').text('-');
     $('#vModifiedOn').text('-');
   } else {
-    $('#vModifiedBy').text(escapeHtml(s.modifier || '-'));
+    $('#vModifiedBy').text(s.modifier || '-');
     $('#vModifiedOn').text(fmtTs(s.modification_ts));
   }
   $('#vScope').text(s.scope || '-');

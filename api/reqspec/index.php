@@ -108,26 +108,49 @@ function needManageRight($tproject_id) {
 }
 
 /**
- * Spec must exist AND belong to test project in context.
+ * Spec must exist (with at least one revision) AND belong to test project in context.
  */
 function needOwnedSpec($specId, $tproject_id) {
     global $reqSpecMgr, $db;
     // requirement_spec_mgr::get_by_id() fatals when the spec does not exist
     // (get_last_child_info() returns null -> E_WARNING + broken SQL), so
-    // probe existence with a plain query first. Refs #569
+    // probe existence and revision presence first. Refs #569
     $rows = $db->get_recordset(
-        'SELECT testproject_id FROM ' . $reqSpecMgr->object_table .
-        ' WHERE id = ' . intval($specId));
+        'SELECT RS.testproject_id FROM ' . $reqSpecMgr->object_table . ' RS' .
+        ' JOIN req_specs_revisions RSV ON RSV.parent_id = RS.id' .
+        ' WHERE RS.id = ' . intval($specId) . ' LIMIT 1');
     if (!$rows || intval($rows[0]['testproject_id']) !== intval($tproject_id)) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Requirement specification not found']);
     }
-    return $reqSpecMgr->get_by_id($specId);
+    return @$reqSpecMgr->get_by_id(intval($specId)) ?: null;
 }
 
 function badRequest($msg) {
     http_response_code(400);
     out(['status' => 'error', 'message' => $msg]);
+}
+
+/**
+ * ids of the spec subtree: the spec itself plus every req_spec descendant,
+ * discovered through nodes_hierarchy (req_spec nodes are tree children).
+ * Same reachable set used by legacy get_requirements/doFreeze tree walks.
+ */
+function reqSpecSubtreeIds(&$db, $specId) {
+    $specIds = [intval($specId)];
+    $frontier = [intval($specId)];
+    while (count($frontier)) {
+        $inExpr = implode(',', array_map('intval', $frontier));
+        $kids = $db->get_recordset(
+            "SELECT RS.id FROM req_specs RS" .
+            " JOIN nodes_hierarchy NH ON NH.id = RS.id" .
+            " WHERE NH.parent_id IN ($inExpr)");
+        $frontier = [];
+        if (!empty($kids)) {
+            foreach ($kids as $k) { $n = intval($k['id']); $specIds[] = $n; $frontier[] = $n; }
+        }
+    }
+    return $specIds;
 }
 
 if ($action === '' ) {
@@ -574,7 +597,12 @@ if ($method === 'GET' && $action === 'spec_view') {
             'modification_ts' => $modifiedNever ? '' : (string)$spec['modification_ts'],
             'modified_never'  => $modifiedNever,
             'direct_link'     => $directLink,
-            'requirements_count' => count($requirements),
+            // legacy get_requirements(range='all') counts direct + child-spec
+            // requirements, so count the reachable subtree (grid stays direct)
+            'requirements_count' => intval($db->fetchFirstRowSingleColumn(
+                'SELECT COUNT(*) AS n FROM requirements WHERE srs_id IN (' .
+                implode(',', reqSpecSubtreeIds($db, $spec['id'])) . ')',
+                'n')),
             'revisions_count'    => $revCount,
             'external_req_management' =>
                 (isset($reqCfg->external_req_management)
@@ -604,19 +632,7 @@ if ($method === 'POST' && $action === 'freeze_spec') {
     needOwnedSpec($specId, $tproject_id);
 
     // collect spec ids in the subtree (spec itself + every req_spec descendant)
-    $specIds = [intval($specId)];
-    $frontier = [intval($specId)];
-    while (count($frontier)) {
-        $inExpr = implode(',', array_map('intval', $frontier));
-        $kids = $db->get_recordset(
-            "SELECT RS.id FROM req_specs RS" .
-            " JOIN nodes_hierarchy NH ON NH.id = RS.id" .
-            " WHERE NH.parent_id IN ($inExpr)");
-        $frontier = [];
-        if (!empty($kids)) {
-            foreach ($kids as $k) { $n = intval($k['id']); $specIds[] = $n; $frontier[] = $n; }
-        }
-    }
+    $specIds = reqSpecSubtreeIds($db, $specId);
 
     $reqIds = $db->fetchColumnsIntoArray(
         'SELECT id FROM requirements WHERE srs_id IN (' .

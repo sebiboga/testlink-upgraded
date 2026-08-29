@@ -31,7 +31,7 @@ foreach ((array)$rows as $row) {
 // ------------------------------------------------------------------------
 // spec 1 (parent, with scope + declared req count)
 // ------------------------------------------------------------------------
-$op1 = $reqSpecMgr->create($tproject_id, 0, 'SRS-001', 'Fixture Feature Spec',
+$op1 = $reqSpecMgr->create($tproject_id, $tproject_id, 'SRS-001', 'Fixture Feature Spec',
     "Fixture scope: this specification describes the Fixture feature.\n\nSecond line of scope.",
     3, $userId, TL_REQ_SPEC_TYPE_USER_REQ_SPEC);
 if (!$op1['status_ok'] || $op1['id'] <= 0) { die("spec1 create failed: " . $op1['msg'] . "\n"); }
@@ -134,16 +134,22 @@ echo "attachment: " . ($op->statusOK ? "OK id=" . $op->dbID : "FAIL " . $op->msg
 // ------------------------------------------------------------------------
 // limited user (guest role, no mgt_view_req) for permission tests
 // ------------------------------------------------------------------------
-$u = new tlUser();
-$u->login = 'rsv_viewer';
-$u->firstName = 'Rsv';
-$u->lastName = 'Viewer';
-$u->emailAddress = 'rsv_viewer@example.org';
-$u->globalRoleID = 5; // guest -> no mgt rights
-$u->locale = 'en_GB';
-$u->isActive = 1;
-$u->setPassword('rsv_viewer');
-$res = $u->writeToDB($db);
-echo "viewer user: " . ($res == tl::OK ? "OK id=" . $u->dbID : "FAIL($res)") . "\n";
+$viewerRows = $db->get_recordset(
+    "SELECT id FROM users WHERE login = 'rsv_viewer'");
+if (!empty($viewerRows)) {
+    echo "viewer user: reusing id=" . intval($viewerRows[0]['id']) . "\n";
+} else {
+    $u = new tlUser();
+    $u->login = 'rsv_viewer';
+    $u->firstName = 'Rsv';
+    $u->lastName = 'Viewer';
+    $u->emailAddress = 'rsv_viewer@example.org';
+    $u->globalRoleID = 5; // guest -> no mgt rights
+    $u->locale = 'en_GB';
+    $u->isActive = 1;
+    $u->setPassword('rsv_viewer');
+    $res = $u->writeToDB($db);
+    echo "viewer user: " . ($res == tl::OK ? "OK id=" . $u->dbID : "FAIL($res)") . "\n";
+}
 
 echo "DONE\n";
