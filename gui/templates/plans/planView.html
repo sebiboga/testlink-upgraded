@@ -426,7 +426,10 @@ function doDelete() {
 }
 
 // --- Create / Edit Test Plan Modal ---
+var modalToken = 0;
+
 function openPlanModal(mode, planId) {
+  var token = ++modalToken;
   $('#planModalError').hide().text('');
   $('#planForm')[0].reset();
   $('#planEditId').val('');
@@ -440,6 +443,9 @@ function openPlanModal(mode, planId) {
     $('#planModalSaveLabel').text(TLi18n.t('pv.modal.save'));
     $.getJSON(API + '/' + planId + '?tproject_id=' + tprojectId)
       .done(function (r) {
+        // a newer modal open may have started while this request was in
+        // flight — never let a stale response overwrite the form
+        if (token !== modalToken) { return; }
         if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
         $('#planEditId').val(r.id);
         $('#planName').val(r.name);
@@ -448,10 +454,14 @@ function openPlanModal(mode, planId) {
         $('#planPublic').prop('checked', !!r.is_public);
       })
       .fail(function (xhr) {
+        // failed fetch must not degrade into an unintended create: the form
+        // is empty (planEditId=''), so drop back to create mode explicitly
+        // and surface the error
+        if (token !== modalToken) { return; }
         var r = {};
         try { r = JSON.parse(xhr.responseText); } catch(e) {}
+        $('#planModal').modal('hide');
         toast(r.message || TLi18n.t('common.error'), true);
-        return;
       });
   }
   $('#planModal').modal('show');
@@ -488,12 +498,12 @@ function submitPlan() {
     contentType: 'application/json',
     data: JSON.stringify(payload)
   }).done(function (r) {
-    $('#planModal').modal('hide');
     if (r.status === 'ok') {
+      $('#planModal').modal('hide');
       toast(editId ? TLi18n.t('pv.msg.updated') : TLi18n.t('pv.msg.created'));
       load();
     } else {
-      toast(r.message || TLi18n.t('common.error'), true);
+      $('#planModalError').show().text(r.message || TLi18n.t('common.error'));
     }
   }).fail(function (xhr) {
     var r = {};
