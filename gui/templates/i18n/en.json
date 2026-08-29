@@ -18,6 +18,8 @@
   "auth.firstLogin": "First login detected. Welcome!",
   "auth.passwdLost": "Password recovery completed.",
   "auth.loggedOut": "You have been logged out.",
+  "auth.loginDisabled": "Login is disabled (LDAP extension not available).",
+  "auth.schemaBlocked": "Database schema requires an upgrade. Login is blocked.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

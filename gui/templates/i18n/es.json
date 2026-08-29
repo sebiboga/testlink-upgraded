@@ -18,6 +18,8 @@
   "auth.firstLogin": "Primer inicio de sesión detectado. ¡Bienvenido!",
   "auth.passwdLost": "Recuperación de contraseña completada.",
   "auth.loggedOut": "Ha sido desconectado.",
+  "auth.loginDisabled": "Inicio de sesión deshabilitado (extensión LDAP no disponible).",
+  "auth.schemaBlocked": "El esquema de la base de datos requiere actualización. Inicio de sesión bloqueado.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

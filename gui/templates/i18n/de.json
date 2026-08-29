@@ -18,6 +18,8 @@
   "auth.firstLogin": "Erste Anmeldung erkannt. Willkommen!",
   "auth.passwdLost": "Passwortwiederherstellung abgeschlossen.",
   "auth.loggedOut": "Sie wurden abgemeldet.",
+  "auth.loginDisabled": "Anmeldung deaktiviert (LDAP-Erweiterung nicht verfügbar).",
+  "auth.schemaBlocked": "Datenbankschema muss aktualisiert werden. Anmeldung blockiert.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

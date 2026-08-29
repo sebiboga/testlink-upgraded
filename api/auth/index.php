@@ -41,6 +41,35 @@ function getBody() {
 }
 
 /**
+ * Post-login redirect target guard. Only same-app relative URLs are allowed so
+ * an attacker cannot turn ?destination= into an open redirect (phishing) or a
+ * javascript: URI that executes in the login-page origin after log in (Refs
+ * #775, code review BLOCKER). Mirrors the legacy authorizePostProcessing()
+ * hard block (login.php) but accepts any root-relative same-app path.
+ *
+ * Allowed:  /linkto.php?key=val   /lib/foo.json
+ * Rejected: https://evil.example  //evil.example  javascript:...  \  @  controls
+ */
+function safeDestination($dest) {
+    $dest = trim((string)$dest);
+    if ($dest === '') {
+        return '';
+    }
+    if (strlen($dest) > 4000) {
+        return '';
+    }
+    // Must be a root-relative URL: exactly one leading '/', not '//'.
+    if (preg_match('#^/[^/]#', $dest) !== 1) {
+        return '';
+    }
+    // Block any scheme/authority/control chars that could escape the app.
+    if (preg_match('#[:\x00-\x1f\x7f\\\\@]#', $dest)) {
+        return '';
+    }
+    return $dest;
+}
+
+/**
  * Build all data the login page needs to render (self-signup, OAuth buttons,
  * lost-password availability, admin login warning, etc.).
  */
@@ -118,11 +147,18 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'login') {
     $body = getBody();
     $login = trim($body['login'] ?? '');
     $pwd = trim($body['password'] ?? '');
-    $destination = $body['destination'] ?? '';
+    $destination = safeDestination($body['destination'] ?? '');
     $reqURI = $body['reqURI'] ?? '';
 
     if ($login === '') {
         out(array('status' => 'error', 'success' => false, 'reason' => 'login.emptyLogin'));
+    }
+
+    // Wrong schema must BLOCK any login action (mirrors legacy doBlockingChecks).
+    $schemaOK = checkSchemaVersion($db);
+    if ($schemaOK['status'] < tl::OK) {
+        out(array('status' => 'error', 'success' => false,
+                  'reason' => isset($schemaOK['msg']) ? $schemaOK['msg'] : 'auth.schemaBlocked'));
     }
 
     doSessionStart(true);
@@ -134,6 +170,10 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'login') {
     if ($op['status'] === tl::OK) {
         logAuditEvent(TLS("audit_login_succeeded", $login, $_SERVER['REMOTE_ADDR']),
             "LOGIN", $_SESSION['currentUser']->dbID, "users");
+        // Fixate-proof: new session id once authentication succeeds.
+        if (function_exists('session_regenerate_id') && session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         out(array(
             'status' => 'ok',
             'success' => true,

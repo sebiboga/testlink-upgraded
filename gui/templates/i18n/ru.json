@@ -18,6 +18,8 @@
   "auth.firstLogin": "Обнаружен первый вход. Добро пожаловать!",
   "auth.passwdLost": "Восстановление пароля завершено.",
   "auth.loggedOut": "Вы вышли из системы.",
+  "auth.loginDisabled": "Вход отключен (расширение LDAP недоступно).",
+  "auth.schemaBlocked": "Схема БД требует обновления. Вход заблокирован.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

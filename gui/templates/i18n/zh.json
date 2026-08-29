@@ -18,6 +18,8 @@
   "auth.firstLogin": "检测到首次登录，欢迎！",
   "auth.passwdLost": "密码恢复已完成。",
   "auth.loggedOut": "您已退出登录。",
+  "auth.loginDisabled": "登录已禁用（LDAP 扩展不可用）。",
+  "auth.schemaBlocked": "数据库架构需要升级。登录已被阻止。",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

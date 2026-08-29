@@ -18,6 +18,8 @@
   "auth.firstLogin": "Première connexion détectée. Bienvenue !",
   "auth.passwdLost": "Récupération du mot de passe terminée.",
   "auth.loggedOut": "Vous avez été déconnecté.",
+  "auth.loginDisabled": "Connexion désactivée (extension LDAP indisponible).",
+  "auth.schemaBlocked": "Le schéma de la base de données doit être mis à jour. Connexion bloquée.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

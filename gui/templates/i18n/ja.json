@@ -18,6 +18,8 @@
   "auth.firstLogin": "初回サインインです。ようこそ!",
   "auth.passwdLost": "パスワードの回復が完了しました。",
   "auth.loggedOut": "ログアウトしました。",
+  "auth.loginDisabled": "ログインは無効です（LDAP 拡張がありません）。",
+  "auth.schemaBlocked": "データベーススキーマの更新が必要です。ログインはブロックされています。",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",

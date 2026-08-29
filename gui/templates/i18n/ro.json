@@ -18,6 +18,8 @@
   "auth.firstLogin": "Prima autentificare detectată. Bine ați venit!",
   "auth.passwdLost": "Recuperarea parolei a fost finalizată.",
   "auth.loggedOut": "Ați fost deconectat.",
+  "auth.loginDisabled": "Autentificarea este dezactivată (extensia LDAP nu este disponibilă).",
+  "auth.schemaBlocked": "Schema bazei de date necesită actualizare. Autentificarea este blocată.",
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
   "alx.elapsedSeconds": "Processing time (seconds):",
