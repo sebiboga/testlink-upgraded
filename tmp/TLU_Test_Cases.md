@@ -7593,3 +7593,36 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS.
 
 **Result: Suite 607 — 19/19 PASS**
+
+## Suite 621 — Regression — Issue #621: file_upload_step_exec_ok/ko "not localized" L18N events on step execution save
+
+**Context:** `write_execution()` (lib/functions/exec.inc.php:257-258) calls `lang_get('file_upload_step_exec_ok'/'ko')` on every step-level execution save. If the active locale lacks the keys, `lang_get()` fires a `logL18NWarningEvent` ("string ... is not localized for locale '<loc>' - using en_GB") into the events table. en_GB + 16 locales carry the keys (custom_strings.txt), pt_BR/pt_PT in strings.txt; **ro_RO was the single missing locale** (no custom_strings.txt, 0 entries in strings.txt). Fix: created `locale/ro_RO/custom_strings.txt` with both keys.
+
+**Precondition:** fixtures project "Fixtures Project"(id1) / plan "Fixture Plan"(id5) / build "Build 1"(id1, active+open) / TC id3 v1 (id4) with steps id6,id7 linked to plan; admin user (id1) logged in; session cookie jar per locale.
+
+**TC-621-1 (repro pre-fix): ro_RO save fires L18N events for both keys**
+- Steps: `UPDATE users SET locale='ro_RO' WHERE id=1`; fresh login admin; `POST /api/execute/?action=save` with `steps:{"6":{"notes":"s1","status":"p"},"7":{"notes":"","status":"n"}}`, status "p".
+- Expected pre-fix: events table gains `string 'file_upload_step_exec_ok' is not localized for locale 'ro_RO' - using en_GB` and the same for `file_upload_step_exec_ko` (log_level 32). Housekeeping: exactly what events id 9 and 10 recorded before the fix.
+- Result: PASS (reproduced — events 9/10 pre-fix; recorded in issue comment).
+
+**TC-621-2 (post-fix): ro_RO save produces ZERO new file_upload_step_exec events**
+- Steps: with fix in place, fresh ro_RO login, same save as above.
+- Expected: `SELECT COUNT(*) FROM events WHERE description LIKE '%file_upload_step_exec%'` unchanged by the save (0 new rows); execution still saved (`status:"ok","saved":true`).
+- Result: PASS (count stayed 2 — only the two pre-fix rows; execution_id 3 saved).
+
+**TC-621-3: en_GB save still clean (no regression)**
+- Steps: `UPDATE users SET locale='en_GB'`; fresh login; same save payload.
+- Expected: no new `file_upload_step_exec` events; save `status:"ok"`.
+- Result: PASS (count 2 → 2; execution_id 4 saved).
+
+**TC-621-4: pt_BR sanity (keys lived in strings.txt since import)**
+- Steps: `UPDATE users SET locale='pt_BR'`; fresh login; same save payload.
+- Expected: no new `file_upload_step_exec` events; save `status:"ok"`.
+- Result: PASS (count 2 → 2; execution_id 5 saved).
+
+**TC-621-5: Browser UI — Execute Tests screen save works end-to-end**
+- Steps: open `/gui/templates/execute/execTest.html?tproject_id=1&tplan_id=5`, click FXT-1/TC-Alpha, fill execution notes, click "Save execution".
+- Expected: toast "Execution saved."; no console errors; events gain only `audit_login_succeeded` + the unrelated pre-existing `requirementsEnabled` E_WARNING (#773); no L18N file_upload events.
+- Result: PASS (browser-verified; screenshot docs/screenshots/issue-621-verify-save.png).
+
+**Result: Suite 621 — 5/5 PASS**
