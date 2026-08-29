@@ -7878,3 +7878,27 @@ Verified via the TestLink TLSmarty engine (real smarty + the 7 template_dir root
 **Pre-fix symptom recorded (repro):** the literal include name resolved nowhere across the 7 dashio `template_dir` roots (it only exists at `gui/templates/tl-classic/inc_show_scripts_table.tpl`, outside those roots) → hard Smarty fatal whenever a TC version has ≥1 linked script.
 
 **Known related (separate issue #778):** `gui/templates/dashio/testcases/tcView_viewer.tpl:577` uses unregistered key `{$tplConfig.inc_show_scripts_table}` — a distinct latent defect in the TC-viewer screen, out of scope for #626, logged as its own issue.
+
+## Suite 755b — Requirement Spec Revision Viewer (reqSpecViewRevision.html + BFF api/reqspec spec_revision_view) — Refs #755
+
+Fixture: `tmp/fixtures_rsv.php` — spec SRS-001 (parent id, rev r1 id=2 / rev r2 id=13, latest) with a `Milestone` custom field (value "Milestone 5.1" on r2, empty on r1), and user `rsv_viewer` (guest role, no mgt rights). Admin session for privilege tests. Run: `php tmp/fixtures_rsv.php`, then re-query `req_specs_revisions` for the actual revision ids (they shift after each re-seed).
+
+**Result: text**
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | Open `reqSpecViewRevision.html?id=<latest_rev_id>&tproject_id=1` as admin (e.g. id=13, rev r2) | Header title + project suffix, toolbar (Refresh / Open current revision), info line `#13 · Revision r2`, overview KV (id chip SRS-001 + title, Revision badge r2 + **LATEST**, type label, declared total 0), scope text, revision log message "Second revision via fixture", Custom Fields card showing Milestone = "Milestone 5.1"; footer | All rendered (snapshot) | PASS |
+| 2 | Open historical revision `?id=<r1_rev_id>` (e.g. id=2) | **HISTORICAL** badge (not LATEST), amber warn banner ("This is a historical revision…") visible; log message "Requirement Specification Created"; Milestone value empty (CF row present but blank) | Confirmed via browser snapshot | PASS |
+| 3 | Nonexistent revision `?id=9999` | Banner "Failed to load requirement specification revision: Requirement spec revision not found", body hidden | Banner shown, content hidden | PASS |
+| 4 | No id (`?id=` / no param) | Banner "The specified requirement specification revision does not exist or has been deleted.", body hidden | Confirmed | PASS |
+| 5 | Direct BFF 404 | `GET ?action=spec_revision_view&id=9999` → HTTP 404 `{"status":"error","message":"Requirement spec revision not found"}` | Confirmed (curl) | PASS |
+| 6 | Direct BFF 200 admin | `GET ?action=spec_revision_view&id=<latest>` → HTTP 200, `revision.is_latest=true`, cfields value returned | Confirmed (curl) | PASS |
+| 7 | Direct BFF 403 guest (`rsv_viewer` cookie) | `GET ?action=spec_revision_view&id=13&tproject_id=1` → HTTP 403 `{"status":"error","message":"No permission"}` | Confirmed (curl) | PASS |
+| 8 | Locale switcher → Română on latest revision | Whole page re-renders RO via `?locale=ro`: title "Vizualizator revizuire specificație cerințe", Refresh "Reîmprospătează", "Deschide revizuirea curentă", Overview/Identificator/Revizuire CURENTĂ, "Mesaj jurnal revizuire", "Câmpuri personalizate", footer localized | Confirmed (browser snapshot, RO) | PASS |
+| 9 | Deep link from Search Req Specs (`openReqSpecRevision` → `reqSpecViewRevision.html?revision_id=<id>`) | Screen loads for the given revision; `revision_id` param read correctly ("Open current revision" points to `reqSpecView.html?id=<spec>`) | Confirmed via browser `?revision_id=2` load + code switch in `searchReqSpec.html:308` | PASS |
+| 10 | "Open current revision" link | Links to `reqSpecView.html?id=<spec_id>&tproject_id=<tid>` (target=_blank) | URL `reqSpecView.html?id=1&tproject_id=1` | PASS |
+| 11 | Event Viewer (`events` table) after the suite | No new Error/Warning rows (log_level=2) triggered by `spec_revision_view` | Only LOGIN (info) events from this suite's browser/curl sessions; the E_WARNING `freezeLinkOnNewReqVersion` row is a fixture-only `create_new_version` path quirk, not this screen | PASS |
+
+**Result: Suite 755b — 11/11 PASS**
+
+Known upstream quirk (not introduced by this screen): `req_specs_revisions.total_req` is never written by `requirement_spec_mgr::create()` here, so "Total requirements (declared)" shows 0 for fixture-sourced specs (same as Suite 755).
