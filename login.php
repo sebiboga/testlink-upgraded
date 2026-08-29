@@ -357,17 +357,25 @@ function doBlockingChecks(&$dbHandler,&$guiObj) {
  */
 function renderLoginScreen($guiObj) {
   global $g_tlLogger; 
-  $templateCfg = templateConfiguration();
-  $logPeriodToDelete = config_get('removeEventsOlderThan');
-  $g_tlLogger->deleteEventsFor(null, strtotime("-{$logPeriodToDelete} days UTC"));
-  
-  $smarty = new TLSmarty();
-  $smarty->assign('gui', $guiObj);
-
-  $templ = config_get('tpl');
-  $tpl = $templ['login'];
-  
-  $smarty->display($tpl);
+  $tpl = config_get('tpl');
+  // Modernized login screen (Dashio HTML + BFF api/auth). The page is fully
+  // self-contained: it loads its public config from GET /api/auth/config and
+  // authenticates through POST /api/auth/login. Refs #775.
+  $modernLogin = dirname(__FILE__) . '/gui/templates/auth/login.html';
+  $masterTpl = dirname(__FILE__) . '/gui/templates/dashio/login/' . $tpl['login'];
+  $useModern = isset($tpl['login']) && is_file($modernLogin) ? 'modern' : 'legacy';
+  if ($useModern === 'legacy') {
+    // The legacy login screen also handles the schema-blocking / event-cleanup
+    // paths; keep the old Smarty renderer as the fallback when the modern page
+    // (or its area) is absent.
+    $logPeriodToDelete = config_get('removeEventsOlderThan');
+    $g_tlLogger->deleteEventsFor(null, strtotime("-{$logPeriodToDelete} days UTC"));
+    $smarty = new TLSmarty();
+    $smarty->assign('gui', $guiObj);
+    $smarty->display($masterTpl);
+    return;
+  }
+  readfile($modernLogin);
 }
 
 

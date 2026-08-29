@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="auth.title">TestLink Sign In</title>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Ruda', 'Helvetica Neue', Arial, sans-serif;
+  background: #22242a url('/gui/templates/dashio/img/login/login-bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+}
+#login-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.form-login {
+  width: 380px; max-width: 100%; background: rgba(255,255,255,0.97);
+  border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); overflow: hidden;
+}
+.form-login-heading {
+  margin: 0; padding: 18px 24px; background: #4ECDC4; color: #fff;
+  font-size: 18px; font-weight: 700; letter-spacing: 1px; text-align: center;
+}
+.form-login-heading img { display: block; margin: 0 auto 6px; max-height: 40px; }
+.form-login-heading .edition { font-size: 12px; font-weight: 400; opacity: .9; }
+.login-wrap { padding: 24px; }
+.login-wrap .form-control {
+  height: 44px; font-size: 14px; border-radius: 4px;
+  border: 1px solid #ddd; box-shadow: none;
+}
+.login-wrap .form-control:focus { border-color: #4ECDC4; box-shadow: none; }
+.alert-box {
+  border-radius: 4px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px;
+}
+.alert-danger { background: #fbdddd; color: #a42525; border: 1px solid #f5b7b7; }
+.alert-info { background: #d9eefb; color: #1a5276; border: 1px solid #b6d9f2; }
+.btn-theme { background: #4ECDC4; color: #fff; font-weight: 700; letter-spacing: .5px; }
+.btn-theme:hover { background: #3dbdb5; color: #fff; }
+.divider { border-top: 1px solid #eee; margin: 18px 0; }
+.oauth-row { display: flex; flex-direction: column; gap: 10px; }
+.oauth-row a {
+  display: flex; align-items: center; gap: 10px; text-decoration: none;
+  background: #f7f7f7; border: 1px solid #e5e5e5; border-radius: 4px;
+  padding: 8px 12px; color: #333; font-size: 14px; font-weight: 600;
+}
+.oauth-row a:hover { background: #eefbfa; border-color: #4ECDC4; }
+.oauth-row img { height: 28px; vertical-align: middle; }
+.registration { text-align: center; margin-top: 6px; font-size: 13px; }
+.registration a { color: #2a9a92; font-weight: 600; }
+.spinner { display: none; }
+.btn-theme.loading .spinner { display: inline-block; }
+.btn-theme.loading .btn-label { opacity: .6; }
+.footer-note { text-align: center; font-size: 12px; color: #999; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="login-page">
+  <form class="form-login" id="loginForm" method="post" autocomplete="off">
+    <div class="form-login-heading">
+      <img src="/gui/themes/default/images/tl-logo-transparent-25.png" alt="TestLink">
+      <span class="edition" data-i18n="auth.edition">TestLink Sign In</span>
+    </div>
+    <div class="login-wrap">
+      <div class="alert-box alert-danger" id="errorBox" style="display:none;"></div>
+      <div class="alert-box alert-info" id="infoBox" style="display:none;"></div>
+
+      <input type="text" id="tl_login" name="tl_login" class="form-control"
+             data-i18n-placeholder="auth.loginName" autofocus required>
+      <br>
+      <input type="password" id="tl_password" name="tl_password" class="form-control"
+             data-i18n-placeholder="auth.password" required>
+      <br>
+      <button type="submit" id="tl_login_btn" class="btn btn-theme btn-block">
+        <i class="fa fa-lock"></i>
+        <span class="btn-label" data-i18n="auth.signInBtn">SIGN IN</span>
+        <span class="spinner"><i class="fa fa-spinner fa-spin"></i></span>
+      </button>
+
+      <div class="divider"></div>
+
+      <div class="oauth-row" id="oauthRow" style="display:none;"></div>
+
+      <div class="registration" id="registrationRow" style="display:none;">
+        <a id="tl_sign_up" href="#"><span data-i18n="auth.newUserQ">New user?</span></a>
+        <span id="lostSep" style="margin:0 10px;color:#ccc;">|</span>
+        <a id="tl_lost_password" href="#"><span data-i18n="auth.lostPasswordQ">Lost password?</span></a>
+      </div>
+
+      <div class="footer-note" data-i18n="auth.secureLogin">
+        Secure login · Your password is transmitted encrypted.
+      </div>
+    </div>
+    <input type="hidden" id="destination" name="destination" value="">
+    <input type="hidden" id="reqURI" name="reqURI" value="">
+  </form>
+</div>
+
+<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/jquery.backstretch.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+  });
+
+  var qs = new URLSearchParams(window.location.search);
+  var note = qs.get('note') || '';
+
+  // Carry destination + reqURI to the BFF on submit
+  $('#destination').val(qs.get('destination') || '');
+  $('#reqURI').val(qs.get('reqURI') || '');
+
+  function showError(msg) {
+    $('#errorBox').text(msg).show();
+    $('#infoBox').hide();
+  }
+  function showInfo(msg) {
+    $('#infoBox').text(msg).show();
+    $('#errorBox').hide();
+  }
+
+  // Map common redirect notes to i18n-friendly display messages.
+  var noteMsg = {
+    expired: TLi18n.t('auth.sessionExpired'),
+    first: TLi18n.t('auth.firstLogin'),
+    lost: TLi18n.t('auth.passwdLost'),
+    logout: TLi18n.t('auth.loggedOut')
+  };
+  if (note && noteMsg[note]) {
+    showInfo(noteMsg[note]);
+  }
+
+  // Load public config: self-signup, lost-password, OAuth buttons.
+  $.getJSON('/api/auth/config', function (cfg) {
+    var c = cfg.config || {};
+    var regs = [];
+    if (c.selfSignup) {
+      $('.registration, #registrationRow').show();
+      $('#tl_sign_up').attr('href', 'firstLogin.php?viewer=new');
+    }
+    if (c.selfSignup && !c.externalPasswordMgmt && !c.demoMode) {
+      $('#tl_lost_password').attr('href', 'lostPassword.php?viewer=new');
+    } else if (c.selfSignup) {
+      $('#tl_lost_password').hide();
+      $('#lostSep').hide();
+    }
+    if (c.oauth && c.oauth.length) {
+      $('#oauthRow').show();
+      $.each(c.oauth, function (i, o) {
+        $('#oauthRow').append(
+          '<a href="' + o.link + '"><img src="/gui/themes/default/images/' + o.icon +
+          '" alt="' + o.name + '"> <span>Login with ' + o.name + '</span></a>'
+        );
+      });
+    }
+  }).fail(function () {
+    // Config load failed — still allow the basic login form to work.
+  });
+
+  $('#loginForm').on('submit', function (e) {
+    e.preventDefault();
+    var login = $('#tl_login').val().trim();
+    var pwd = $('#tl_password').val();
+    if (!login || !pwd) {
+      showError(TLi18n.t('auth.required'));
+      return;
+    }
+    $('#tl_login_btn').addClass('loading').prop('disabled', true);
+    $.post('/api/auth/login', {
+      login: login,
+      password: pwd,
+      destination: $('#destination').val(),
+      reqURI: $('#reqURI').val()
+    }).done(function (res) {
+      if (res.success) {
+        var dest = res.destination || '';
+        if (dest) {
+          window.location.href = dest;
+        } else {
+          window.location.href = 'index.php?caller=login';
+        }
+      } else {
+        var reason = res.reason || '';
+        // reason may be a generic i18n key (auth.*) or a raw localized PHP string
+        var known = {
+          'auth.badUserPasswd': TLi18n.t('auth.badUserPasswd'),
+          'login.emptyLogin': TLi18n.t('auth.required')
+        };
+        showError(known[reason] || reason || TLi18n.t('auth.badUserPasswd'));
+        $('#tl_password').val('');
+        $('#tl_password').focus();
+      }
+    }).fail(function () {
+      showError(TLi18n.t('auth.networkError'));
+    }).always(function () {
+      $('#tl_login_btn').removeClass('loading').prop('disabled', false);
+    });
+  });
+});
+</script>
+</body>
+</html>
