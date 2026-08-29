@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Specification Viewer</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3498db; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #2980b9; }
+.btn-danger { background: #e74c3c; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger:hover { background: #c0392b; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.deleted-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
+.info-banner { background: #eaf7f6; border: 1px solid #bfe6e2; color: #1a7f79; border-radius: 6px; padding: 12px 18px; font-size: 13px; margin: 16px 24px; display: none; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 7px; column-gap: 16px; }
+.kv .k { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding-top: 2px; }
+.kv .v { color: #333; word-break: break-word; }
+.scope-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
+.badge-type { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-status { background: #8e44ad; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-rev { background: #3498db; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.att-row { display: flex; align-items: center; gap: 12px; padding: 9px 0; border-bottom: 1px solid #f0f0f0; }
+.att-row:last-child { border-bottom: none; }
+.att-row .icon { font-size: 20px; color: #e74c3c; width: 26px; text-align: center; }
+.att-row .info { flex: 1; }
+.att-row .info .fn { font-weight: 700; color: #22242a; }
+.att-row .info .meta { color: #999; font-size: 11px; }
+.req-link { color: #3498db; }
+.req-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-file-text-o"></i> <span data-i18n="rsv.title">Requirement Specification Viewer</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
+  <span style="flex:1"></span>
+  <button id="revBtn" class="btn-dark" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="rsv.newRevision">New Revision</span></button>
+  <button id="freezeBtn" class="btn-danger" style="display:none;"><i class="fa fa-snowflake-o"></i> <span data-i18n="rsv.freeze">Freeze all Requirements</span></button>
+  <span class="ctx" id="infoLine"></span>
+</div>
+
+<div id="deletedBanner" class="deleted-banner" style="display:none;" data-i18n="rsv.notFound"></div>
+<div id="feedbackBanner" class="info-banner"></div>
+
+<div id="content">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="rsv.overview">Overview</span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="rsv.docId">Identifier</div><div class="v" id="vDocId"></div>
+        <div class="k" data-i18n="rsv.revision">Revision</div><div class="v" id="vRevision"></div>
+        <div class="k" data-i18n="rsv.type">Type</div><div class="v" id="vType"></div>
+        <div class="k" data-i18n="rsv.totalReq">Total requirements (declared)</div><div class="v" id="vTotalReq"></div>
+        <div class="k" data-i18n="rsv.reqCount">Requirements in spec</div><div class="v" id="vReqCount"></div>
+        <div class="k" data-i18n="rsv.revCount">Revisions</div><div class="v" id="vRevCount"></div>
+        <div class="k" data-i18n="rsv.createdBy">Created by</div><div class="v" id="vCreatedBy"></div>
+        <div class="k" data-i18n="rsv.createdOn">Created on</div><div class="v" id="vCreatedOn"></div>
+        <div class="k" data-i18n="rsv.modifiedBy">Last modified by</div><div class="v" id="vModifiedBy"></div>
+        <div class="k" data-i18n="rsv.modifiedOn">Last modified</div><div class="v" id="vModifiedOn"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-align-left"></i> <span data-i18n="rsv.scope">Scope</span></div>
+    <div class="card-body"><div class="scope-text" id="vScope"></div></div>
+  </div>
+
+  <div class="card" id="cfCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="rsv.customFields">Custom Fields</span></div>
+    <div class="card-body"><div class="kv" id="vCF"></div></div>
+  </div>
+
+  <div class="card" id="attCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="rsv.attachments">Attachments</span></div>
+    <div class="card-body">
+      <div id="noAtt" class="empty-state" style="display:none;" data-i18n="rsv.noAttachments"></div>
+      <div id="attList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-list"></i> <span data-i18n="rsv.requirementsTitle">Requirements</span></div>
+    <div class="card-body">
+      <div id="noRequirements" class="empty-state" style="display:none;" data-i18n="rsv.noRequirements"></div>
+      <table id="reqTable" class="display" style="width:100%;display:none;">
+        <thead>
+          <tr>
+            <th data-i18n="rsv.docId">Identifier</th>
+            <th data-i18n="rsv.reqTitle">Requirement</th>
+            <th data-i18n="rsv.reqVersion">Version</th>
+            <th data-i18n="rsv.type">Type</th>
+            <th data-i18n="rsv.status">Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqspec/index.php';
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var SPEC = null;
+var META = null;
+var REQ_TOKEN = 0;
+var reqTable = null;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  SPEC_ID = parseInt(p.get('id') || p.get('req_spec_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!SPEC_ID) {
+      $('#deletedBanner').css('display', 'block').attr('data-i18n', 'rsv.noId');
+      TLi18n.apply();
+      return;
+    }
+    loadMeta();
+  });
+});
+
+function loadMeta() {
+  $.getJSON(API + '?action=options&tproject_id=' + TPROJECT_ID, function(r) {
+    if (r.status !== 'ok') { showError(r.message || TLi18n.t('rsv.loadError')); return; }
+    META = r;
+    TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    loadView();
+  }).fail(function() {
+    showError(TLi18n.t('rsv.loadError'));
+  });
+}
+
+function loadView() {
+  var reqToken = ++REQ_TOKEN;
+  var url = API + '?action=spec_view&id=' + SPEC_ID;
+  if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
+  $.getJSON(url, function(r) {
+    if (reqToken !== REQ_TOKEN) return;
+    if (r.status !== 'ok') {
+      if (r.message) { $('#deletedBanner').text(r.message); }
+      $('#deletedBanner').css('display', 'block');
+      $('#content').hide();
+      $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsv.title'));
+      return;
+    }
+    $('#deletedBanner').hide();
+    $('#content').show();
+    SPEC = r.spec;
+    TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
+    renderOverview(r);
+    renderCF(r);
+    renderAttachments(r);
+    renderRequirements(r);
+    showHideActions(r);
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsv.title') +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    if (reqToken !== REQ_TOKEN) return;
+    var msg = TLi18n.t('rsv.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showError(msg);
+  });
+}
+
+function showError(msg) {
+  $('#deletedBanner').css('display', 'block').attr('data-i18n', null)
+    .text(TLi18n.t('rsv.loadError') + ': ' + msg);
+  $('#content').hide();
+}
+
+function renderOverview(r) {
+  var s = r.spec;
+  $('#vDocId').html('<span class="id-chip">' + escapeHtml(s.doc_id) + '</span> <b>' +
+    escapeHtml(s.title) + '</b>');
+  $('#vRevision').html('<span class="badge-rev">' + TLi18n.t('rsv.revision') + ' ' +
+    escapeHtml(String(s.revision)) + '</span>');
+  $('#vType').html('<span class="badge-type">' + escapeHtml(s.type_label || s.type) + '</span>');
+  $('#vTotalReq').text(s.total_req != null ? String(s.total_req) : '-');
+  $('#vReqCount').text(String(s.requirements_count || 0));
+  $('#vRevCount').text(String(s.revisions_count || 0));
+  $('#vCreatedBy').text(escapeHtml(s.author || '-'));
+  $('#vCreatedOn').text(fmtTs(s.creation_ts));
+  if (s.modified_never) {
+    $('#vModifiedBy').text('-');
+    $('#vModifiedOn').text('-');
+  } else {
+    $('#vModifiedBy').text(escapeHtml(s.modifier || '-'));
+    $('#vModifiedOn').text(fmtTs(s.modification_ts));
+  }
+  $('#vScope').text(s.scope || '-');
+  $('#infoLine').text(SPEC ? ('#' + SPEC.id + ' · ' + TLi18n.t('rsv.revision') + ' r' + s.revision) : '');
+}
+
+function renderCF(r) {
+  var out = '';
+  $.each(r.cfields || [], function(i, cf) {
+    out += '<div class="k">' + escapeHtml(cf.label) + '</div>' +
+      '<div class="v">' + escapeHtml(cf.value || '') + '</div>';
+  });
+  if (!out) { $('#cfCard').hide(); return; }
+  $('#vCF').html(out);
+  $('#cfCard').show();
+}
+
+function renderAttachments(r) {
+  var atts = r.attachments || [];
+  if (!atts.length) {
+    $('#attCard').hide();
+    return;
+  }
+  $('#attCard').show();
+  var out = '';
+  $.each(atts, function(i, a) {
+    var size = fmtSize(a.file_size);
+    out += '<div class="att-row"><div class="icon"><i class="fa fa-file-pdf-o"></i></div>' +
+      '<div class="info"><div class="fn">' + escapeHtml(a.title || a.file_name) + '</div>' +
+      '<div class="meta">' + escapeHtml(a.file_name) + ' · ' + size + ' · ' + fmtTs(a.date_added) + '</div></div>' +
+      '<a class="btn-teal" style="text-decoration:none;font-size:12px;padding:5px 12px;" ' +
+      'href="/' + a.download_url + '" target="_blank"><i class="fa fa-download"></i> ' +
+      TLi18n.t('rsv.download') + '</a></div>';
+  });
+  $('#attList').html(out);
+}
+
+function renderRequirements(r) {
+  if (reqTable) { reqTable.destroy(); reqTable = null; }
+  $('#reqTable tbody').empty();
+  var reqs = r.requirements || [];
+  if (!reqs.length) {
+    $('#noRequirements').show();
+    $('#reqTable').hide();
+    return;
+  }
+  $('#noRequirements').hide();
+  $('#reqTable').show();
+  var rows = reqs.map(function(q) {
+    var typeLbl = (META && META.reqTypes && META.reqTypes[q.type]) ? META.reqTypes[q.type] : q.type;
+    var statusLbl = (META && META.reqStatuses && META.reqStatuses[q.status]) ? META.reqStatuses[q.status] : q.status;
+    return [
+      '<span class="id-chip" style="font-size:11px;">' + escapeHtml(q.req_doc_id) + '</span>',
+      '<a class="req-link" href="javascript:void(0)" onclick="openReq(' + q.id + ')">' +
+        escapeHtml(q.title) + '</a>',
+      escapeHtml(String(q.version)),
+      escapeHtml(typeLbl),
+      escapeHtml(statusLbl)
+    ];
+  });
+  reqTable = $('#reqTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    bInfo: false
+  });
+}
+
+function showHideActions(r) {
+  $('#mgmtLink').attr('href', '/gui/templates/requirements/reqSpecMgmt.html?tproject_id=' + TPROJECT_ID);
+  if (r.rights && r.rights.manage) {
+    $('#freezeBtn').show();
+    $('#revBtn').show();
+    hb($('#freezeBtn'), freezeSpec);
+    hb($('#revBtn'), newRevision);
+  } else {
+    $('#freezeBtn').hide();
+    $('#revBtn').hide();
+  }
+}
+
+function hb($el, fn) { $el.off('click').on('click', fn); }
+
+function freezeSpec() {
+  if (!window.confirm(TLi18n.t('rsv.freezeConfirm'))) return;
+  $.ajax({
+    url: API + '?action=freeze_spec&id=' + SPEC_ID + '&tproject_id=' + TPROJECT_ID,
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: '{}',
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('rsv.loadError')); return; }
+      showFlash(TLi18n.t('rsv.freezeDone', { n: r.frozen }));
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('rsv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function newRevision() {
+  var msg = window.prompt(TLi18n.t('rsv.newRevisionPrompt'), '');
+  if (msg === null) return;
+  $.ajax({
+    url: API + '?action=create_revision&id=' + SPEC_ID + '&tproject_id=' + TPROJECT_ID,
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ log_message: msg }),
+    success: function(r) {
+      if (r.status !== 'ok') { alert(r.message || TLi18n.t('rsv.loadError')); return; }
+      showFlash(TLi18n.t('rsv.newRevisionOk'));
+      loadView();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('rsv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function showFlash(msg) {
+  $('#feedbackBanner').text(msg).css('display', 'block');
+  setTimeout(function() { $('#feedbackBanner').css('display', 'none'); }, 4000);
+}
+
+function openReq(reqId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/requirements/reqView.html?id=' + reqId + '&tproject_id=' + TPROJECT_ID,
+    'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function fmtTs(ts) {
+  if (!ts) return '-';
+  var d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString();
+}
+
+function fmtSize(n) {
+  if (!n) return '-';
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>
