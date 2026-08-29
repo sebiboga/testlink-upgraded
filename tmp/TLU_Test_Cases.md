@@ -7626,3 +7626,76 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS (browser-verified; screenshot docs/screenshots/issue-621-verify-save.png).
 
 **Result: Suite 621 — 5/5 PASS**
+
+## Suite 775 — Login/Logout screen (auth/login.html + BFF api/auth) — Refs #775
+
+**Context:** Modernized Login/Logout — `login.php` now renders the standalone Dashio page `gui/templates/auth/login.html`, backed by `api/auth/index.php` (BFF: `POST /login`, `POST /logout`, `GET /config`, `GET /check`). Login reuses the legacy `doAuthorize()` engine (session created server-side). Reset-password/sign-up links preserved (lostPassword.php fixed in #776).
+
+**Precondition:** fresh DB; app at localhost:8082; admin/admin.
+
+**TC-775-1: BFF `GET /config` returns public login-form config**
+- Steps: GET `/api/auth/config`.
+- Expected: HTTP 200, `status:"ok"`, `config` with `selfSignup`, `externalPasswordMgmt`, `oauth` (array), `pwdMaxLen`, `demoMode`, `ssoEnabled`.
+- Result: PASS (verified via curl: selfSignup=true, externalPasswordMgmt=false, oauth=[], ssoEnabled=false).
+
+**TC-775-2: BFF `POST /login` (correct creds) creates a session**
+- Steps: POST `/api/auth/login` form-encoded `login=admin&password=admin` with `X-Requested-With: XMLHttpRequest`.
+- Expected: HTTP 200 `{"status":"ok","success":true,...}`; PHPSESSID cookie issued.
+- Result: PASS.
+
+**TC-775-3: BFF `POST /login` (wrong creds) returns localized failure**
+- Steps: POST `/api/auth/login` `login=admin&password=wrong`.
+- Expected: `{"status":"error","success":false,"reason":"auth.badUserPasswd"}`.
+- Result: PASS.
+
+**TC-775-4: BFF `GET /check` reflects the session**
+- Steps: after successful login call GET `/api/auth/check`.
+- Expected: `validSession:true`, `login:"admin"`.
+- Result: PASS.
+
+**TC-775-5: BFF `POST /logout` destroys the session**
+- Steps: POST `/api/auth/logout` then GET `/api/auth/check` with same cookie.
+- Expected: logout `success:true`; subsequent check `validSession:false`.
+- Result: PASS.
+
+**TC-775-6: Browser — login page renders all elements + i18n**
+- Steps: open `login.php` logged out.
+- Expected: logo, "TestLink Sign In" title, User ID + Password fields, "SIGN IN" button, "New user? Create account" link, "Lost password?" link, "Secure login" footer; placeholders localized (User ID/Password).
+- Result: PASS (browser-verified; screenshot docs/screenshots/login-screen.png).
+
+**TC-775-7: Browser — bad credentials show error and clear password**
+- Steps: enter `admin` / wrong password, submit.
+- Expected: red error "Invalid login or password."; password field cleared and focused; user stays on login.php.
+- Result: PASS (browser-verified).
+
+**TC-775-8: Browser — correct credentials redirect to main page**
+- Steps: enter `admin`/`admin`, submit.
+- Expected: navigates to `index.php?caller=login`; session active (navBar shows "Testlink Administrator admin" + "Logout").
+- Result: PASS (browser-verified).
+
+**TC-775-9: Browser — logout via navBar returns to modern login with message**
+- Steps: click "Logout" (logout.php) → redirected to `login.php?note=logout`.
+- Expected: modern login renders with info banner "You have been logged out.".
+- Result: PASS (browser-verified; screenshot docs/screenshots/login-logout-note.png).
+
+**TC-775-10: Browser — session-expired note renders localized**
+- Steps: open `login.php?note=expired`.
+- Expected: info banner "Session expired. Please log in again.".
+- Result: PASS (browser-verified).
+
+**TC-775-11: Sign-up and reset-password links functional**
+- Steps: from login click "New user? Create account" → firstLogin.php; "Lost password?" → lostPassword.php?viewer=new.
+- Expected: firstLogin.php renders sign-up form; lostPassword.php renders reset form (200, no longer 500 — #776).
+- Result: PASS (browser-verified).
+
+**TC-775-12: i18n `auth.*` keys present in ALL locale bundles**
+- Steps: load each `gui/templates/i18n/<loc>.json` and check the 15 `auth.*` keys.
+- Expected: all 15 keys in en, ro, de, es, fr, it, pt, ru, ja, zh; each bundle valid JSON.
+- Result: PASS (python json.tool validated all 10 bundles).
+
+**TC-775-13: Event Viewer — no new Error/Warning from login/logout testing**
+- Steps: query `events` table for ERROR/WARNING rows after the test window.
+- Expected: zero new Error/Warning entries.
+- Result: PASS (events table empty for ERROR/WARNING).
+
+**Result: Suite 775 — 13/13 PASS**

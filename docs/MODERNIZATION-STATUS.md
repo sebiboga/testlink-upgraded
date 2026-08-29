@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-29 (#607 reports center) · branch `sebiboga`
+> Last updated: 2026-08-29 (#775 login/logout) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
-|---|---|---|
-| DONE (modernized) | 64 + 2 extras (tcImport, planEdit modal) |
+|---|---|
+| DONE (modernized) | 65 + 2 extras (tcImport, planEdit modal) |
 | IN PROGRESS | 0 |
-| TODO (still legacy) | Login/Logout + legacy redirects (see below) |
+| TODO (still legacy) | Install/Upgrade + Documentation links (see below) |
 
 ---
 
@@ -86,6 +86,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 62 | Reports — Free Test Cases | `results/freeTestCases.html` | api/reports | #751 |
 | 63 | Reports — Results by Issues / Bugs per TC | `results/resultsBugs.html` | api/reports | #763 |
 | 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
+| 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
@@ -115,7 +116,6 @@ menu and are deferred. The legacy `else` branch in `lib/general/asideMenu.php`
 
 | Priority | Screen | Legacy entry point | Notes |
 |---|---|---|---|
-| MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
 | LOW | Install/Upgrade | `install/` | Stays as-is |
 | LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
 
