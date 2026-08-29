@@ -358,21 +358,26 @@ function doBlockingChecks(&$dbHandler,&$guiObj) {
 function renderLoginScreen($guiObj) {
   global $g_tlLogger; 
   $tpl = config_get('tpl');
+  $logPeriodToDelete = config_get('removeEventsOlderThan');
+  $g_tlLogger->deleteEventsFor(null, strtotime("-{$logPeriodToDelete} days UTC"));
+
   // Modernized login screen (Dashio HTML + BFF api/auth). The page is fully
   // self-contained: it loads its public config from GET /api/auth/config and
   // authenticates through POST /api/auth/login. Refs #775.
   $modernLogin = dirname(__FILE__) . '/gui/templates/auth/login.html';
-  $masterTpl = dirname(__FILE__) . '/gui/templates/dashio/login/' . $tpl['login'];
-  $useModern = isset($tpl['login']) && is_file($modernLogin) ? 'modern' : 'legacy';
-  if ($useModern === 'legacy') {
-    // The legacy login screen also handles the schema-blocking / event-cleanup
-    // paths; keep the old Smarty renderer as the fallback when the modern page
-    // (or its area) is absent.
-    $logPeriodToDelete = config_get('removeEventsOlderThan');
-    $g_tlLogger->deleteEventsFor(null, strtotime("-{$logPeriodToDelete} days UTC"));
+  // Use the modern page only when the page exists AND the form is enabled
+  // (draw): when $guiObj->draw is false the schema-blocking flow needs the
+  // legacy renderer to surface the blocking note.
+  $blocked = (isset($guiObj->draw) && !$guiObj->draw);
+  $useModern = is_file($modernLogin) && !$blocked;
+  if ($useModern === false) {
+    // Legacy fallback: required for the schema-block path (blocking note) and
+    // whenever the modern page (or its area) is absent.
     $smarty = new TLSmarty();
     $smarty->assign('gui', $guiObj);
-    $smarty->display($masterTpl);
+    // $tpl['login'] is relative to the Smarty template dir (e.g.
+    // 'login/login-model-marcobiedermann.tpl').
+    $smarty->display($tpl['login']);
     return;
   }
   readfile($modernLogin);

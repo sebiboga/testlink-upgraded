@@ -142,24 +142,46 @@ $(function () {
   // Load public config: self-signup, lost-password, OAuth buttons.
   $.getJSON('/api/auth/config', function (cfg) {
     var c = cfg.config || {};
-    var regs = [];
-    if (c.selfSignup) {
-      $('.registration, #registrationRow').show();
-      $('#tl_sign_up').attr('href', 'firstLogin.php?viewer=new');
+
+    if (c.loginDisabled) {
+      showError(TLi18n.t('auth.loginDisabled'));
     }
-    if (c.selfSignup && !c.externalPasswordMgmt && !c.demoMode) {
+    if (c.pwdMaxLen > 0) {
+      $('#tl_password').attr('maxlength', c.pwdMaxLen);
+    }
+
+    if (c.selfSignup) {
+      $('#tl_sign_up').attr('href', 'firstLogin.php?viewer=new');
+    } else {
+      $('#tl_sign_up').hide();
+    }
+
+    // Lost-password link: independent of self-signup; only hidden when the
+    // auth method manages passwords externally or in demo mode.
+    var showLost = (!c.externalPasswordMgmt && !c.demoMode);
+    if (showLost) {
       $('#tl_lost_password').attr('href', 'lostPassword.php?viewer=new');
-    } else if (c.selfSignup) {
+    } else {
       $('#tl_lost_password').hide();
       $('#lostSep').hide();
     }
+    // Show the registration footer if either sign-up or lost-password is usable.
+    if (c.selfSignup || showLost) {
+      $('.registration, #registrationRow').show();
+    }
+
     if (c.oauth && c.oauth.length) {
       $('#oauthRow').show();
       $.each(c.oauth, function (i, o) {
-        $('#oauthRow').append(
-          '<a href="' + o.link + '"><img src="/gui/themes/default/images/' + o.icon +
-          '" alt="' + o.name + '"> <span>Login with ' + o.name + '</span></a>'
-        );
+        if (!o.link) return;
+        // Build links via jQuery (no raw string concat) to avoid stored-XSS
+        // through admin-configured OAuth names.
+        var $a = $('<a>').attr('href', o.link).attr('rel', 'noopener');
+        var $img = $('<img>').attr('src', '/gui/themes/default/images/' + o.icon)
+                             .attr('alt', o.name);
+        $a.append($img);
+        $a.append($('<span>').text('Login with ' + o.name));
+        $('#oauthRow').append($a);
       });
     }
   }).fail(function () {
@@ -183,7 +205,8 @@ $(function () {
     }).done(function (res) {
       if (res.success) {
         var dest = res.destination || '';
-        if (dest) {
+        // Defense-in-depth: only follow same-app root-relative paths.
+        if (dest && /^\/[^\/]/.test(dest) && !/[:\x00-\x1f\x7f\\@]/.test(dest)) {
           window.location.href = dest;
         } else {
           window.location.href = 'index.php?caller=login';
