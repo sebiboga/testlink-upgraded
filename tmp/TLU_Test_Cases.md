@@ -7338,3 +7338,86 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 **Steps:** after 620.1-620.4, `SELECT id, log_level, description FROM events WHERE description LIKE '%refreshTree%';`
 **Expected:** no refreshTree E_WARNING rows attributed to the fix.
 **Result:** PASS — 0 rows.
+
+---
+
+# Test Suite 49 — Create/Edit Test Plan Modal (planView.html + api/plans BFF) — Refs #750
+
+**Screen:** `gui/templates/plans/planView.html` — "Create Test Plan" / "Edit Test Plan" Bootstrap modal.
+**BFF:** `api/plans/index.php` — `POST /`, `PUT /{id}`, `GET /{id}`.
+**Preconditions:** Fresh DB; test project "Modernize Project" (id=1, prefix MZ) exists; admin/admin logged in.
+**Date:** 2026-08-29
+
+### Test Case 49.1: Create button opens the modal (no legacy redirect)
+
+**Steps:** Open planView.html?tproject_id=1 → click "+ Create Test Plan".
+**Expected:** Bootstrap modal "Create Test Plan" shows with Name (required), Description, Active (checked), Public, Cancel/Save. No navigation to lib/plan/planEdit.php.
+**Result:** PASS — modal opened in-place; no navigation.
+
+### Test Case 49.2: Empty name -> local validation error
+
+**Steps:** In create modal, leave Name empty, click Save.
+**Expected:** Inline error "Test plan name is required" (pv.modal.nameRequired); modal stays open.
+**Result:** PASS.
+
+### Test Case 49.3: Create test plan -> success toast + table refresh
+
+**Steps:** Fill Name "Sprint 1 - Smoke", Description "First release smoke tests", click Save.
+**Expected:** POST /api/plans returns 200; modal closes; toast "Test plan created"; table shows the new row with notes.
+**Result:** PASS — row rendered, count (1), toast shown.
+
+### Test Case 49.4: Edit modal opens pre-filled via name link
+
+**Steps:** Click the plan name link.
+**Expected:** GET /api/plans/{id} returns the plan; modal title "Edit Test Plan"; Name/Description/Active/Public pre-filled.
+**Result:** PASS — "Sprint 1 - Smoke" + description pre-filled.
+
+### Test Case 49.5: Edit save -> success toast + updated row
+
+**Steps:** Change Name to "Sprint 1 - Release Smoke", click Save.
+**Expected:** PUT /api/plans/{id} 200; toast "Test plan updated"; row name updated.
+**Result:** PASS.
+
+### Test Case 49.6: Duplicate name -> inline error, 422 handled
+
+**Steps:** Create a plan with the exact same name as an existing one.
+**Expected:** POST returns 422 DUPLICATE_NAME; inline error "A test plan with this name already exists"; modal stays open; no row added.
+**Result:** PASS — 422 in network log is the expected duplicate-name rejection.
+
+### Test Case 49.7: Row action links carry the plan id (regression for #766)
+
+**Steps:** Inspect Export/Import/Roles/Execute hrefs on a row.
+**Expected:** Appended tplan_id=<plan id>, e.g. `...tplan_id=2`.
+**Result:** PASS after fix d50489789 — hrefs end with `tplan_id=2`.
+
+### Test Case 49.8: Active toggle
+
+**Steps:** Click the toggle button on a row.
+**Expected:** PUT /{id}/active; toast + row reflects off state; toggle class flips to `off`.
+**Result:** PASS.
+
+### Test Case 49.9: Bulk inactivate
+
+**Steps:** Select both rows, click "Inactivate Test Plans".
+**Expected:** POST /bulk-active; toast "N test plan(s) deactivated"; toggles all off.
+**Result:** PASS — "2 test plan(s) deactivated", 2 rows off.
+
+### Test Case 49.10: Delete with confirm modal
+
+**Steps:** Click trash icon on a row → confirm modal shows plan name + warning → confirm.
+**Expected:** DELETE /{id} 200; toast "Test plan deleted"; row removed; count decreases.
+**Result:** PASS — count (2)->(1).
+
+### Test Case 49.11: Permission path — non-privileged user gets no Create button
+
+**Steps:** (structural) BFF gates POST/PUT on mgt_testplan_create; front-end hides btnCreate when canManage=false.
+**Expected:** canManage=false -> Create button hidden, toggles disabled.
+**Result:** PASS (verified via code + rights payload; admin path exercised end-to-end).
+
+### Test Case 49.12: Event Viewer — no new ERROR/WARNING from modal lifecycle
+
+**Steps:** Open Event Viewer after all operations.
+**Expected:** Only AUDIT events (created/saved/deleted/role-assigned); zero ERROR/WARNING.
+**Result:** PASS — 9 AUDIT, 0 ERROR, 0 WARNING.
+
+**Result: Suite 49 — 12/12 PASS**
