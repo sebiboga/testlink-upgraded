@@ -28,8 +28,7 @@ define('TL_FACE_DIR', 'prague');
  *  if you set this parameter also upgrade 
  *  lib/functions/configCheck.php - checkSchemaVersion() */
 
-// @TODO need to be changed to 2.0.0
-define('TL_LATEST_DB_VERSION', 'DB ' . '1.9.20');
+define('TL_LATEST_DB_VERSION', 'DB ' . '2.0.0');
 
 // needed to avoid problems in install scripts that do not include config.inc.php
 // want to point to root install dir, need to remove fixed part

@@ -382,7 +382,12 @@ if ($upgrade) {
         echo "<br />Script is finished.</p>";
         close_html_and_exit();          
         break;
-        
+
+      case 'DB 1.9.20':
+        $a_sql_upd_dir[] = "sql/alter_tables/2.0.0/{$db_type}/DB.2.0.0/step1/";
+        $a_sql_data_dir[] = "sql/alter_tables/2.0.0/{$db_type}/DB.2.0.0/stepZ/";
+        break;
+
       default:
         if( strlen($schema_version) == 0 )
         {
