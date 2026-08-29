@@ -192,9 +192,13 @@ jobs:
           if [ -n "${SCREEN_INPUT}" ]; then
             PROMPT+="Task: modernize exactly ONE screen: ${SCREEN_INPUT}. "
           else
-            PROMPT+="Task: choose the NEXT unmodernized screen by walking the ASIDE menu top to bottom "
-            PROMPT+="(screens already modernized exist as gui/templates/**/*.html backed by api/** BFF endpoints; "
+            PROMPT+="Task: choose the NEXT unmodernized screen from docs/MODERNIZATION-STATUS.md — this file is "
+            PROMPT+="the single source of truth for progress. Read its ⬜ TODO section and pick the first entry "
+            PROMPT+="(ASIDE order, top to bottom); if the TODO section is empty, walk the ASIDE menu top to bottom. "
+            PROMPT+="(Cross-check: screens already modernized exist as gui/templates/**/*.html backed by api/** BFF endpoints; "
             PROMPT+="anything still pointing to lib/**.php is legacy) and modernize exactly that ONE screen. "
+            PROMPT+="After completing it, move its row from TODO to DONE in docs/MODERNIZATION-STATUS.md in the same commit, "
+            PROMPT+="update the file's Last-updated line, and bump the Summary counts (DONE/IN PROGRESS/TODO). "
           fi
           PROMPT+="Execute the full ai/AGENTS.md cycle for that single screen only: "
           PROMPT+="STEP 0 — MANDATORY, BEFORE ANY exploration or code: ensure the screen's tracking issue "
