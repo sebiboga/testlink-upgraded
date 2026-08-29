@@ -7300,3 +7300,41 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 **Steps:** after 631.1–631.5, `SELECT id, log_level, LEFT(description,100) FROM events ORDER BY id DESC LIMIT 15;`
 **Expected:** no log_level=1 (ERROR) / 2 (E_WARNING) rows; only info/audit rows (login, fixture actions).
 **Result:** PASS — only `audit_login_succeeded`/`audit_testproject_created`/`audit_tc_added_to_testplan` (log_level=16) rows; zero ERROR/WARNING.
+
+---
+
+## Regression — Issue #620: E_WARNING Undefined property $refreshTree on execSetResults.php:2344 when page reached without prior navigator load
+
+**Precondition:** app http://localhost:8082 (PHP 8.3), login admin/admin. Minimal fixtures via SQL (`/tmp/opencode/fixtures.sql`): testproject node 100 "Demo TP", testsuite node 150, testplan node 200 "Demo Plan" (testplans row testproject_id=100), testcase node 300 + tcversion 301, `testplan_tcversions` (200,301), build id 1 "Build 1". `events` table cleared before each run.
+
+**Root cause (verified):** `init_args()` (`lib/execute/execSetResults.php:546`) calls `getSettingsAndFilters($args)` at line 556 *before* `$args->refreshTree` is first assigned at line 589. In `getSettingsAndFilters()`, line 2343-2344 read `$argsObj->refreshTree` as the ternary fallback when the session cache lacks `setting_refresh_tree_on_action`; that key is only seeded by `execNavigator.php`, so reaching the page directly triggers PHP 8 `E_WARNING: Undefined property: stdClass::$refreshTree`. Fix: fallback `: $argsObj->refreshTree;` → `: 0;`.
+
+### Test Case 620.1: Direct access (bypass navigator) — no refreshTree E_WARNING on fresh session (primary symptom)
+
+**Repro steps (pre-fix):** fresh session (`rm -f ck.txt`), `curl` login admin/admin, then `GET http://localhost:8082/lib/execute/execSetResults.php?level=testcase&tproject_id=100&id=300&version_id=301&tplan_id=200&build_id=1&platform_id=0` → inspect Event Viewer.
+**Expected post-fix:** request returns HTTP 200; `events` table has NO row `E_WARNING ... Undefined property: stdClass::$refreshTree - Line 2344`.
+**Result (post-fix):** PASS — HTTP 200, size 1568; `SELECT ... WHERE description LIKE '%refreshTree%'` returned 0 rows.
+
+### Test Case 620.2: A/B — original code re-introduced the warning; fixed code suppresses it
+
+**Steps:** (a) with the fix applied, clear events, fresh session, same direct GET → 0 refreshTree rows. (b) `git stash` (revert to `: $argsObj->refreshTree;`), clear events, fresh session, same GET → refreshTree warning present at Line 2344; `git stash pop` to restore fix.
+**Expected:** warning appears ONLY in the unfixed variant.
+**Result:** PASS — unfixed run produced `E_WARNING Undefined property: stdClass::$refreshTree - Line 2344` (event id 15); fixed run produced none.
+
+### Test Case 620.3: No regression — pre-existing downstream warnings are fixture artifacts (identical pre/post fix)
+
+**Steps:** compare `events` rows on the direct GET under unfixed vs fixed code.
+**Expected:** the only warnings (Undefined array key `tsuite_id` @950; keywordIsLinked SQL error) appear identically in BOTH variants → proven unrelated to this fix (missing keyword/execution linkage in the hand-made fixture).
+**Result:** PASS — `tsuite_id`@950 and keywordIsLinked SQL rows present in both A and B runs.
+
+### Test Case 620.4: Syntax gate
+
+**Steps:** `php -l lib/execute/execSetResults.php`.
+**Expected:** "No syntax errors detected".
+**Result:** PASS.
+
+### Test Case 620.5: Event Viewer — no new refreshTree Error/Warning from this fix lifecycle
+
+**Steps:** after 620.1-620.4, `SELECT id, log_level, description FROM events WHERE description LIKE '%refreshTree%';`
+**Expected:** no refreshTree E_WARNING rows attributed to the fix.
+**Result:** PASS — 0 rows.
