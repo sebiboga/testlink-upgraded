@@ -77,4 +77,3 @@ freeze branch is skipped — exactly the legacy semantics for a project whose bl
      (OPEN) linked to the tcversion → save → `req_coverage.link_status` 1→2
      (CLOSED_BY_EXEC) and `req_versions.is_open` 1→0 (freeze works ⇒ branch NOT skipped) ✅
   4. Event Viewer shows no new Error/Warning (only the login AUDIT row) ✅
-
