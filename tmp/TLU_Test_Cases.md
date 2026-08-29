@@ -7858,3 +7858,23 @@ Known upstream quirk (not introduced by this screen): `req_specs_revisions.total
 **Result: Suite 777 — 4/4 PASS**
 
 **Pre-fix symptom recorded (repro):** same create call returned the HTML "DB Access Error - debug_print_backtrace()" page; `events` got E_WARNINGs at testcase.class.php:687 + testproject.class.php:1045 + __1064__ "INSERT INTO tcversions (...tc_external_id...) VALUES(8,,...)"; `tcversions` had no row and orphan `nodes_hierarchy` nodes remained.
+
+## Suite 626 — Regression — Issue #626: exec screen missing inc_show_scripts_table.tpl fatal when a TC version has linked scripts
+
+**Precondition:** Fresh DB; app at http://localhost:8082. The fix is a one-line change in `gui/templates/dashio/execute/include/exec_test_spec.inc.tpl:147` switching the unresolvable tl-classic include name `inc_show_scripts_table.tpl` to the registered dashio key `{$tplConfig['showScriptsTable.inc']}` (→ `include/showScriptsTable.inc.tpl`, registered at `lib/functions/tlsmarty.inc.php:229`).
+
+Verified via the TestLink TLSmarty engine (real smarty + the 7 template_dir roots + registered `lang_get`/`tlImages`) bootstrapped from config.inc.php+common.php, rendering the exact include line and args the fixed template passes.
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | PRE-FIX repro: render include `{include file="inc_show_scripts_table.tpl" scripts_map=... can_delete=false tcase_id=5 tproject_id=1}` (the original line) | `SmartyException: Unable to load template 'file:inc_show_scripts_table.tpl'` — the reported symptom | Threw exactly `SmartyException -> "Unable to load template 'file:inc_show_scripts_table.tpl'"` | PASS (repro confirms root cause) |
+| 2 | POST-FIX: render the fixed include via `{include file="{$tplConfig['showScriptsTable.inc']}" scripts_map=... can_delete=false tcase_id=5 tproject_id=1}` with a non-null script map | RENDER OK — scripts table emitted (row with repository `repo/demo`), no Smarty fatal | RENDER OK, length=439, script row present (`repo/demo`) | PASS |
+| 3 | Config-key registration | `tplConfig['showScriptsTable.inc']` resolves to `include/showScriptsTable.inc.tpl` and that file exists under a dashio template_dir root | `'include/showScriptsTable.inc.tpl'`; file exists | PASS |
+| 4 | GUARD-OFF: tcversion with no linked script (`$gui->scripts[5] = null`) | Guard `isset(...) && !is_null(...)` false → table skipped, no fatal | guardOn=false (table correctly skipped) | PASS |
+| 5 | Event Viewer / `events` table after render | No new Error/Warning rows (log_level=2) caused by the fix | Only a session_start E_NOTICE artifact from the CLI harness (not from the template fix) + one pre-existing non-localized-string row (log_level 32, not an Error/Warning of this fix) | PASS |
+
+**Result: Suite 626 — 5/5 PASS**
+
+**Pre-fix symptom recorded (repro):** the literal include name resolved nowhere across the 7 dashio `template_dir` roots (it only exists at `gui/templates/tl-classic/inc_show_scripts_table.tpl`, outside those roots) → hard Smarty fatal whenever a TC version has ≥1 linked script.
+
+**Known related (separate issue #778):** `gui/templates/dashio/testcases/tcView_viewer.tpl:577` uses unregistered key `{$tplConfig.inc_show_scripts_table}` — a distinct latent defect in the TC-viewer screen, out of scope for #626, logged as its own issue.
