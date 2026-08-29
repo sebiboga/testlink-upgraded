@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-26 · branch `sebiboga`
+> Last updated: 2026-08-29 · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
-|---|---|
-| DONE (modernized) | 60 |
+|---|---|---|
+| DONE (modernized) | 62 + 2 extras (tcImport, planEdit modal) |
 | IN PROGRESS | 0 |
-| TODO (still legacy) | ~19 |
+| TODO (still legacy) | ~18 |
 
 ---
 
@@ -87,6 +87,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
+- Create/Edit Test Plan modal in `plans/planView.html` + `api/plans` (`POST /`, `PUT /{id}`, `GET /{id}`) — replaces the `planEdit.php` legacy redirect (#750, DONE)
 
 ---
 
@@ -126,7 +127,6 @@ None — all modernized screens are green.
 
 | Priority | Screen | Legacy entry point | Notes |
 |---|---|---|---|
-| HIGH | Create/Edit Test Plan | `lib/plan/planEdit.php` | Refs #750 — planView.html redirects here for create/edit |
 | MEDIUM | Login/Logout | `login.php`, `logout.php` | Themed but not fully modernized |
 | LOW | Install/Upgrade | `install/` | Stays as-is |
 | LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
@@ -136,7 +136,7 @@ None — all modernized screens are green.
 | Priority | Source screen | Legacy target | Issue | Action |
 |---|---|---|---|---|
 | HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php`, `tcExport.php`, `tcCompareVersions.php` | #753 | Convert to modals / BFF API |
-| HIGH | planView.html | `planEdit.php`, `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #750, #754 | Convert to modals / BFF API |
+| HIGH | planView.html | `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #754 — Export/Import/Roles/Execute still legacy (links fixed for tplan_id, #766) |
 | HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
 | HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
 | HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |

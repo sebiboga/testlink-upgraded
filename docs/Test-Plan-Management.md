@@ -50,3 +50,31 @@ target plan belongs to the context project.
 Full suite recorded in `tmp/TLU_Test_Cases.md`, suite 54 (16 checks PASS):
 buttons, toggles, bulk ops, delete modal cancel/confirm, permission paths
 (admin vs guest 403), i18n switch, Event Viewer clean.
+
+## Create/Edit Test Plan modal — Refs #750
+
+The "Create" and "Edit" actions were the last legacy leaves of this screen:
+they used to redirect to `lib/plan/planEdit.php`. Both are now Bootstrap modals
+built into `planView.html`, backed by dedicated BFF endpoints:
+
+- `POST /api/plans/` — create plan `{tproject_id, name, notes, active, is_public}`;
+  gates on `mgt_testplan_create`, rejects duplicate names (422 `DUPLICATE_NAME`),
+  emits the same `CREATED` audit event as legacy `do_create`.
+- `GET /api/plans/{id}?tproject_id=N` — single plan payload for modal pre-fill.
+- `PUT /api/plans/{id}` — update plan with the same name-uniqueness check and
+  `SAVE` audit event as legacy `do_update`.
+- Private plans get the creator's effective role assigned (same as legacy).
+
+Modal validation on the client mirrors the legacy form: name required, duplicate
+name surfaced inline, Active/Public toggles. On success the DataTable refreshes
+and a toast confirms `Test plan created` / `Test plan updated`.
+
+![Test Plan Management with plan list](planView-create-modal-full.png)
+
+![Create Test Plan modal](planEdit-create-modal.png)
+
+![Edit Test Plan modal pre-filled](planEdit-edit-modal.png)
+
+i18n keys `pv.modal.*` / `pv.msg.created|updated|duplicateName` are present in all
+10 locale bundles. Test suite 49 (12 checks PASS) covers create/edit validation,
+duplicate-name handling, and Event Viewer cleanliness — zero ERROR/WARNING.
