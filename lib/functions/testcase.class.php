@@ -682,9 +682,19 @@ class testcase extends tlObjectWithAttachments {
 
       $safeLenName = tlSubStr($name, 0, $name_max_len);
 
-      // Get tproject id
+      // Get tproject id. tree::get_path() stops at the tree root and returns
+      // an EMPTY path when the starting node IS the root (e.g. a test case
+      // created directly under the test project root), so $path2root[0] is
+      // undefined there. In that case the parent node is the project itself.
       $path2root = $this->tree_manager->get_path($parent_id);
-      $tproject_id = $path2root[0]['parent_id'];
+      if( is_null($path2root) || count($path2root) == 0 )
+      {
+        $tproject_id = $parent_id;
+      }
+      else
+      {
+        $tproject_id = $path2root[0]['parent_id'];
+      }
 
       $tcase_id = $this->tree_manager->new_node($parent_id,$this->my_node_type,$safeLenName,$order,$id);
       $ret['id'] = $tcase_id;
