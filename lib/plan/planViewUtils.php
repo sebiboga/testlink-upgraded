@@ -36,7 +36,9 @@ function planViewGUIInit(&$dbHandler, &$argsObj, &$guiObj, &$tplanMgr)
   // planEdit.php discards its enriched $gui (re-initialized at planEdit.php:282),
   // so the qty aggregates and the per-plan rights must be computed here,
   // otherwise every rendered row emits E_WARNINGs (see issue #622).
-  if (!is_null($guiObj->tplans) && count($guiObj->tplans) > 0) {
+  // The rights chain (tplanRoles -> tprojectRoles -> globalRole) matches
+  // tlUser::getEffectiveRole() semantics; guards are stricter than planView.php.
+  if (!empty($guiObj->tplans)) {
     $tplanSet = array_keys($guiObj->tplans);
 
     $tplanMgr->platform_mgr->setTestProjectID($argsObj->tproject_id);
@@ -57,14 +59,14 @@ function planViewGUIInit(&$dbHandler, &$argsObj, &$guiObj, &$tplanMgr)
         $guiObj->tplans[$idk]['platform_qty'] = is_null($plat) ? 0 : count($plat);
       }
 
-      // Get rights for each test plan (mirrors lib/plan/planView.php)
+      // Get rights for each test plan
       $rightSet = array('testplan_user_role_assignment');
       foreach ($rightSet as $target) {
         $roleObj = null;
         if (isset($guiObj->tplans[$idk]['has_role']) && $guiObj->tplans[$idk]['has_role'] > 0) {
-          $theRole = $guiObj->tplans[$idk]['has_role'];
-          if (isset($argsObj->user->tplanRoles[$theRole])) {
-            $roleObj = $argsObj->user->tplanRoles[$theRole];
+          $thePlanID = $guiObj->tplans[$idk]['has_role'];
+          if (isset($argsObj->user->tplanRoles[$thePlanID])) {
+            $roleObj = $argsObj->user->tplanRoles[$thePlanID];
           } else if (!is_null($argsObj->user->tprojectRoles) &&
                      isset($argsObj->user->tprojectRoles[$argsObj->tproject_id])) {
             $roleObj = $argsObj->user->tprojectRoles[$argsObj->tproject_id];
