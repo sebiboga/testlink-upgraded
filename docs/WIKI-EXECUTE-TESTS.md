@@ -112,3 +112,33 @@ Fixes landed during testing:
   (E_WARNING in Event Viewer);
 - `locale/en_GB/custom_strings.txt` adding `file_upload_step_exec_ok/ko`
   (surfaces #621's missing en_GB keys on every step-level save).
+
+### Issue #621 — L18N "not localized" events on step execution save (closed)
+
+`write_execution()` (lib/functions/exec.inc.php:257-258) evaluates
+`lang_get('file_upload_step_exec_ok'/'ko')` on every step-level save. When the
+active locale lacks the keys, `lang_get()` falls back to en_GB and writes a
+`string '...' is not localized for locale '<loc>' - using en_GB` event
+(log_level 32) into the Event Viewer.
+
+**Root cause / coverage:** the keys were added to 16 locales' `custom_strings.txt`
+and lived in `strings.txt` for pt_BR/pt_PT, but **ro_RO had neither** (no
+`custom_strings.txt`, 0 hits in `strings.txt`) — a 19-locale scan confirmed
+ro_RO was the only missing bundle.
+
+**Fix (Refs #621):** created `locale/ro_RO/custom_strings.txt` with both keys
+(UTF-8 Romanian translation, same `Fixes #621 / #662` header convention as the
+16 existing bundles).
+
+**Verification (regression suite 621, 5/5 PASS):**
+- ro_RO save pre-fix → 2 L18N events (reproduced, events id 9/10);
+- ro_RO save post-fix → 0 new `file_upload_step_exec` events;
+- en_GB + pt_BR saves → unchanged (still 0);
+- browser UI save on the modernized Execute Tests screen → "Execution saved."
+  with no console errors and no L18N events.
+
+Side-discoveries logged as new issues (out of this fix's scope):
+- #773 — `Undefined property: stdClass::$requirementsEnabled` E_WARNING on
+  every execution save when `testprojects.options` is empty;
+- #774 — other ro_RO server-side keys (`manual`, `automated`,
+  `the_format_tc_xml_import`) still missing.
