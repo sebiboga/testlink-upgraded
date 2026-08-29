@@ -7421,3 +7421,61 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 **Result:** PASS — 9 AUDIT, 0 ERROR, 0 WARNING.
 
 **Result: Suite 49 — 12/12 PASS**
+
+---
+
+## Regression — Issue #630: resultsGeneral.php 6x E_WARNING on every view (tprojOpt undefined / items2loop null)
+
+**Precondition:** app http://localhost:8082 (PHP built-in server), admin/admin login. Fixtures: `php tmp/fixtures_424.php` → tproject 1 (`RPT424`), plan 9 (`Plan424`, **zero platforms**, priorities OFF); `php tmp/fixtures_633_r2.php` → tproject 10 (`RPT633`, priorities ON), plan 18 (`Plan633`, **platform 1 linked**). `events` table cleared before each run (`DELETE FROM events;`). HEAD includes fixes `73d9c7c97` (Refs #633) and `560fd906a` (Fixes #581).
+
+**Root cause (already-fixed state on HEAD):** the three E_WARNING families named in the issue — undefined `$items2loop` (fixed at `lib/results/resultsGeneral.php:50`), `$gui->tprojOpt` property mismatch in `gui/templates/dashio/results/resultsGeneral.tpl` (now reads `testprojectOptions`), and `testPriorityEnabled on false` (guard in `lib/functions/testproject.class.php`) — all landed on the default branch before this run. This suite verifies the symptom is gone.
+
+### Test Case 630.1: No-platform plan (priorities OFF) HTML view — zero E_WARNING rows
+
+**Repro steps (pre-fix):** login admin/admin, GET `http://localhost:8082/lib/results/resultsGeneral.php?tplan_id=9&format=0`, inspect `events` table for `log_level<=2`.
+**Expected post-fix:** HTTP 200, page renders (Overall Build Status + Results by Top Level Test Suite sections), `SELECT id,description FROM events WHERE log_level<=2` returns **0 rows**.
+**Result (post-fix):** PASS — HTTP 200 (8070 B), events table only AUDIT (log_level 16).
+
+### Test Case 630.2: Platform plan (priorities ON) HTML view — all sections render, zero E_WARNING rows
+
+**Steps:** GET `http://localhost:8082/lib/results/resultsGeneral.php?tplan_id=18&format=0`; grep output for section headings; inspect events.
+**Expected:** HTTP 200; "Results by Platform" / "Overall Build Status" / "Results by Top Level Test Suite" / "Results by priority" all present; 0 rows `log_level<=2`.
+**Result:** PASS — all 4 sections rendered with correct data (PLAT-633, 2 TC, 1 passed / 1 failed); 0 warning rows.
+
+### Test Case 630.3: XLS export both plans — no fatals, no new events
+
+**Steps:** GET `?tplan_id=9&format=3&spreadsheet=1` and `?tplan_id=18&format=3&spreadsheet=1`.
+**Expected:** HTTP 200 binary responses; no new `log_level<=2` rows.
+**Result:** PASS — HTTP 200 (5120 / 6144 B); 0 warning rows.
+
+### Test Case 630.4: Mail-format flows both plans — no new events
+
+**Steps:** GET `?tplan_id=9&format=6&sendByEmail=1` and `?tplan_id=18&format=6&sendByEmail=1`.
+**Expected:** HTTP 200; no new warning rows.
+**Result:** PASS — HTTP 200 both; 0 warning rows.
+
+### Test Case 630.5: Edge — priorities ON + no-platform plan
+
+**Steps:** `UPDATE testprojects SET option_priority=1 WHERE id=1;` then GET `?tplan_id=9&format=0`; revert `SET option_priority=0`.
+**Expected:** HTTP 200, no new `log_level<=2` rows.
+**Result:** PASS — HTTP 200, 0 warning rows.
+
+### Test Case 630.6: Error→event pipeline is live (control, guards against false-negative)
+
+**Steps:** GET an unsupported format URL `?tplan_id=9&format=1` (FORMAT_ODT) which maps to `$file_extensions[$format]` missing key 1 in `displayMgr.php`; then inspect events.
+**Expected:** exactly ONE `E_WARNING Undefined array key 1 - displayMgr.php` row appears → proves `watchPHPErrors`/`set_error_handler` is active, so the 0-row results above are real, not pipeline failures.
+**Result:** PASS — event row was written (this is a separate pre-existing latent issue, logged as its own bug report, out of #630's scope).
+
+### Test Case 630.7: Compiled template has no stale tprojOpt reference
+
+**Steps:** `grep -n tprojOpt gui/templates_c/*resultsGeneral*.php` and the dashio source tpl.
+**Expected:** 0 matches in both.
+**Result:** PASS — compiled template regenerated (29 kB) and source tpl both clean.
+
+### Test Case 630.8: Browser pass — Event Viewer clean after report views
+
+**Steps:** chrome-devtools: view plan 18 then plan 9 (full-page screenshots OK), open Event Viewer screen.
+**Expected:** Event Viewer shows only AUDIT entries; no ERROR/WARNING.
+**Result:** PASS — screenshots `tmp/issue-630-resultsGeneral-platform-plan.png` / `tmp/issue-630-resultsGeneral-noplatform-plan.png`; events table 0 rows `log_level<=2`.
+
+**Result: Suite 630 — 8/8 PASS**
