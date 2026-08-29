@@ -104,6 +104,7 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     if (!REV_ID) {
       $('#deletedBanner').css('display', 'block').attr('data-i18n', 'rsvr.noId');
+      $('#content').hide();
       TLi18n.apply();
       return;
     }
@@ -159,11 +160,13 @@ function renderOverview(r, rev) {
   $('#vTotalReq').text(rev.total_req != null ? String(rev.total_req) : '-');
   $('#vCreatedBy').text(rev.author || '-');
   $('#vCreatedOn').text(fmtTs(rev.creation_ts));
-  if (rev.modified_never) {
+  // legacy reqSpecViewRevision.tpl only renders the "last modified" row when
+  // a modifier is present; otherwise hide it entirely (no stale timestamp)
+  if (rev.modified_never || !rev.modifier) {
     $('#vModifiedBy').text('-');
     $('#vModifiedOn').text('-');
   } else {
-    $('#vModifiedBy').text(rev.modifier || '-');
+    $('#vModifiedBy').text(rev.modifier);
     $('#vModifiedOn').text(fmtTs(rev.modification_ts));
   }
   $('#vScope').text(rev.scope || '-');
