@@ -144,7 +144,7 @@ Author : franciscom
     {* TestScript Links (if any) *}
     {if isset($gui->scripts[$tcversion_id]) && !is_null($gui->scripts[$tcversion_id])}
       <tr style="background-color: #dddddd">
-        {include file="inc_show_scripts_table.tpl"
+        {include file="{$tplConfig['showScriptsTable.inc']}"
          scripts_map=$gui->scripts[$tcversion_id]
          can_delete=false
          tcase_id=$tcversion_id
