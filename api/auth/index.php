@@ -31,7 +31,14 @@ $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
 $segments = array_values(array_filter(explode('/', $path)));
 
 function out($data) { echo json_encode($data); exit; }
-function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
+function getBody() {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST)) {
+        return $_POST;
+    }
+    $raw = file_get_contents('php://input');
+    $json = json_decode($raw, true);
+    return is_array($json) ? $json : (is_array($_POST) ? $_POST : []);
+}
 
 /**
  * Build all data the login page needs to render (self-signup, OAuth buttons,
