@@ -98,11 +98,19 @@ if ($method === 'GET' && (empty($segments) || $segments[0] === 'config' || $segm
 // Route: GET /api/auth/check - is there a valid session?
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'check') {
     $valid = false;
+    $login = '';
     if (session_status() !== PHP_SESSION_ACTIVE) {
         session_start();
     }
-    $valid = isset($_SESSION['currentUser']) && !is_null($_SESSION['currentUser']);
-    out(array('status' => 'ok', 'validSession' => (bool)$valid, 'login' => $valid ? $_SESSION['currentUser']->login : ''));
+    $valid = isset($_SESSION['currentUser']) && !is_null($_SESSION['currentUser'])
+             && !empty($_SESSION['userID']);
+    if ($valid) {
+        $cu = tlUser::getByID($db, $_SESSION['userID']);
+        if ($cu) {
+            $login = $cu->login;
+        }
+    }
+    out(array('status' => 'ok', 'validSession' => (bool)$valid, 'login' => $login));
 }
 
 // Route: POST /api/auth/login - authenticate and create session
