@@ -179,7 +179,7 @@ function write_execution(&$db,&$execSign,&$exec_data,&$issueTracker) {
 
       // Check if Test Project has the requirement management feature enabled
       $topt = $tprojectMgr->getOptions($execSign->tproject_id); 
-      if( $topt->requirementsEnabled ) {
+      if( isset($topt->requirementsEnabled) && $topt->requirementsEnabled ) {
         $cOpt = array('freeze_req_version' => 
                       $tcaseCfg->freezeReqVersionAfterExec); 
         $tcaseMgr->closeOpenReqLinks($tcversion_id,
