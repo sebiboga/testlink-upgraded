@@ -7193,55 +7193,55 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 
 **Steps:** select Type = github in the create modal.
 **Expected:** Repository URL, Branch, Access Token and Test Connection fields appear; the generic Server URL / API Key / Configuration (XML) textarea are hidden.
-**Result:** PENDING (browser test — deferred to env with simplexml).
+**Result:** PASS (browser: create modal shows github selected by default with Repository URL / Branch / Access Token / Test Connection; generic Server URL / XML hidden).
 
 ### Test Case 64.3: Legacy fields kept for stash type
 
 **Steps:** select Type = stash in the create modal.
 **Expected:** Server URL / API Key / Configuration (XML) fields shown; GitHub fields hidden.
-**Result:** PENDING (browser test — deferred).
+**Result:** PASS (browser: selecting stash shows Server URL / API Key / XML textarea and hides GitHub fields).
 
 ### Test Case 64.4: Test Connection — anonymous public repo (success)
 
 **Steps:** open create modal, Type=github, Repository URL `https://github.com/sebiboga/testlink-upgraded`, no token → Test Connection.
 **Expected:** green "Connection OK" banner; branch field optionally auto-filled with default branch after success.
-**Result:** PASS (backend verified live via `POST /test_github` → `connected:true`, branchCount 3; branches `fix/issue-616`, `fix/issue-765-get-last-child-info`, `sebiboga`).
+**Result:** PASS (browser: green "Connection OK" banner shown; Branch auto-filled to `fix/issue-616` when left empty. Backend `POST /test_github` → `connected:true`, branchCount 3).
 
 ### Test Case 64.5: Test Connection — missing repository (error)
 
 **Steps:** Type=github, Repository URL empty → Test Connection.
 **Expected:** red "Repository URL is required" message; no network call.
-**Result:** PENDING (browser test — deferred).
+**Result:** PASS (client-side guard in `testGhConnection()` — early return before any `$.ajax`; code-reviewed).
 
 ### Test Case 64.6: Test Connection — invalid repository (error)
 
 **Steps:** Type=github, Repository URL `https://github.com/this/repo-does-not-exist-12345`, no token → Test Connection.
 **Expected:** red "Connection failed" message (GitHub 404).
-**Result:** PENDING (browser test — deferred; backend returns connected:false via `ghGet` null on >=400).
+**Result:** PASS (browser: repo `sebiboga/this-repo-does-not-exist-12345` → red "Connection failed (check repository and token)." banner; backend `connected:false`).
 
 ### Test Case 64.7: Create github tracker (config built from form)
 
 **Steps:** Type=github, Name, Repository URL, Branch → Save.
 **Expected:** tracker saved; `cfg` stored as XML `<codetracker><repository>…</repository><branch>…</branch></codetracker>`; appears in list with Server URL shown.
-**Result:** PENDING (browser test — requires simplexml for `tlCodeTracker::create()` XML validation; CI env loads xml).
+**Result:** PASS (browser: created "GitHub E2E (via UI) 433" via the modal → appears in list as type `github (Interface: rest)`, Active; `cfg` stored as XML through `tlCodeTracker::create()` with simplexml loaded. Test trackers deleted after validation).
 
 ### Test Case 64.8: Edit github tracker prefills fields
 
 **Steps:** edit a saved github tracker.
 **Expected:** Repository URL and Branch prefilled from stored cfg; token blanked.
-**Result:** PENDING (browser test — deferred; BFF `trackerToJSON` returns masked token `********`).
+**Result:** PASS (browser: edit modal prefills Repository URL and Branch from stored cfg; Access Token left blank/masked — BFF `trackerToJSON` returns `********`).
 
 ### Test Case 64.9: Per-tracker branches/tags/commits/pulls endpoints
 
 **Steps:** with a saved github tracker, `GET /api/codetracker/index.php/{id}/branches`, `/tags`, `/commits?branch=…`, `/pulls?state=open`.
 **Expected:** each returns JSON array of items with status ok; 502 on failure.
-**Result:** PENDING (DB save needed; code path shared with verified `getBranches()` from 64.4).
+**Result:** PASS (saved tracker: `branches`→3 items, `tags`→0, `pulls`→PR #761, `commits?branch=sebiboga`→real commits incl. `a4838da`. Fake token → 502; no token → 200).
 
 ### Test Case 64.10: Code/commit/PR link building
 
 **Steps:** unit-inspect `buildViewCodeURL()`: path `src/x.php` + branch → `github.com/owner/repo/blob/<branch>/src/x.php`; commit_id → `/commit/<sha>`; `#123`/`PR-1` → `/pull/<n>`.
 **Expected:** correct GitHub URLs for blob/commit/pull forms.
-**Result:** PENDING (logic review; deferred browser/link test).
+**Result:** PASS (code review of `buildViewCodeURL()`/`buildViewCodeLink()`: blob → `github.com/{owner}/{repo}/blob/<branch>/<path>`, commit → `/commit/<sha>`, `#123`/`PR-1` → `/pull/<n>`; `htmlspecialchars` on the href).
 
 ### Test Case 64.11: i18n coverage (all bundles)
 

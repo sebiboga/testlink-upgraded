@@ -200,13 +200,14 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'test_github')
         $iface = new githubrestCodeTrackerInterface('github', $cfgJson, 'test');
         $connected = $iface->isConnected();
         $branches = $connected ? $iface->getBranches() : false;
+        $branchList = is_array($branches) ? array_values($branches) : [];
         out([
             'status' => $connected ? 'ok' : 'error',
             'connected' => $connected,
             'message' => $connected ? 'Connection OK' : 'Connection failed (check repository and token)',
-            'branchCount' => is_array($branches) ? count($branches) : 0,
-            'branches' => is_array($branches) ? array_values($branches) : [],
-            'defaultBranch' => ($connected && is_array($branches) && count($branches) > 0) ? $branches[0] : '',
+            'branchCount' => count($branchList),
+            'branches' => $branchList,
+            'defaultBranch' => ($connected && count($branchList) > 0) ? $branchList[0] : '',
         ]);
     } catch (Exception $e) {
         tLog(__METHOD__ . ' ' . $e->getMessage(), 'ERROR');
