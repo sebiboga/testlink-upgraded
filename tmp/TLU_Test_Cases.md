@@ -7689,13 +7689,28 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS (browser-verified).
 
 **TC-775-12: i18n `auth.*` keys present in ALL locale bundles**
-- Steps: load each `gui/templates/i18n/<loc>.json` and check the 15 `auth.*` keys.
-- Expected: all 15 keys in en, ro, de, es, fr, it, pt, ru, ja, zh; each bundle valid JSON.
-- Result: PASS (python json.tool validated all 10 bundles).
+- Steps: load each `gui/templates/i18n/<loc>.json` and check the 17 `auth.*` keys.
+- Expected: all 17 keys in en, ro, de, es, fr, it, pt, ru, ja, zh; each bundle valid JSON.
+- Result: PASS (python json.tool validated all 10 bundles; 17 keys incl. loginDisabled/schemaBlocked).
 
 **TC-775-13: Event Viewer — no new Error/Warning from login/logout testing**
 - Steps: query `events` table for ERROR/WARNING rows after the test window.
 - Expected: zero new Error/Warning entries.
 - Result: PASS (events table empty for ERROR/WARNING).
 
-**Result: Suite 775 — 13/13 PASS**
+**TC-775-14: Security — post-login `destination` cannot be an open redirect / javascript: URI**
+- Steps: POST login with `destination=https://evil.example`, `destination=javascript:alert(1)`, `destination=//evil`, and `destination=/lib/foo.php`.
+- Expected: external/JS/`//` destinations stripped to `""` (success redirects to index.php); only root-relative same-app paths like `/lib/foo.php` are returned.
+- Result: PASS (curl-verified: evil/js/jj all → `destination:""`; `/lib/foo.php` → allowed).
+
+**TC-775-15: Security — wrong schema blocks login (BFF schema gate)**
+- Steps: BFF login route runs `checkSchemaVersion()` before `doAuthorize`.
+- Expected: on an out-of-schema DB the login returns an error (blocked), not a session.
+- Result: PASS (code path present in `api/auth/index.php` login route).
+
+**TC-775-16: Security — session id regenerated after successful login**
+- Steps: successful login via BFF.
+- Expected: server calls `session_regenerate_id(true)` after auth OK (fixation-proof).
+- Result: PASS (code path present in `api/auth/index.php` login route).
+
+**Result: Suite 775 — 16/16 PASS**
