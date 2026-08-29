@@ -1128,6 +1128,10 @@ function DUPLICATEDopenLinkedReqVersionWindow(req_id,req_version_id, anchor) {
  * 
  * @param reqspec_id Requirement Specification ID
  * @param anchor string with anchor name
+ *
+ * Modernized to the Dashio Requirement Specification Viewer
+ * (gui/templates/requirements/reqSpecView.html, Refs #755). The legacy
+ * lib/requirements/reqSpecView.php target is removed.
  */
 function openLinkedReqSpecWindow(reqspec_id, anchor)
 {
@@ -1138,8 +1142,8 @@ function openLinkedReqSpecWindow(reqspec_id, anchor)
   }
   
   var windowCfg='';
-  var feature_url = "lib/requirements/reqSpecView.php";
-  feature_url += "?req_spec_id=" + reqspec_id + anchor;
+  var feature_url = "gui/templates/requirements/reqSpecView.html";
+  feature_url += "?id=" + reqspec_id + anchor;
 
   // 20101008 - asimon - BUGID 3311
   var width = getCookie("ReqSpecPopupWidth");

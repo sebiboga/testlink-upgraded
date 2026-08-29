@@ -300,7 +300,7 @@ function renderResults(r) {
 // same targets as the legacy JS helpers openLinkedReqSpecWindow() /
 // openReqSpecRevisionWindow() in gui/javascript/testlink_library.js
 function openReqSpec(reqSpecId) {
-  var url = '/lib/requirements/reqSpecView.php?req_spec_id=' + reqSpecId;
+  var url = '/gui/templates/requirements/reqSpecView.html?id=' + reqSpecId;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
