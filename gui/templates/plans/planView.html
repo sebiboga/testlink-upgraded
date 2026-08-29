@@ -209,7 +209,7 @@ function toast(msg, isErr) {
 
 function actionUrl(key, id) {
   var base = ACTIONS[key] || '';
-  return base + (base.indexOf('=') === base.length - 1 ? encodeURIComponent(id) : '');
+  return base + (base.charAt(base.length - 1) === '=' ? encodeURIComponent(id) : '');
 }
 
 function load() {
