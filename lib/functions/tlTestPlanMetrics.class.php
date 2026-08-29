@@ -3719,8 +3719,10 @@ class tlTestPlanMetrics extends testplan
         break;
       }
 
-      foreach ($rswf as $rt => $elem) {
-        $rs[$rt]['testers'] = $elem['testers'];
+      if (!empty($rswf)) {
+        foreach ($rswf as $rt => $elem) {
+          $rs[$rt]['testers'] = $elem['testers'];
+        }
       }
     }
 
