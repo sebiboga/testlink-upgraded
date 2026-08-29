@@ -7714,3 +7714,34 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS (code path present in `api/auth/index.php` login route).
 
 **Result: Suite 775 — 16/16 PASS**
+
+## Suite 774 — Regression — Issue #774: ro_RO bundle missing server-side keys 'manual'/'automated'/'the_format_tc_xml_import' → L18N warning spam
+
+**Precondition:** fresh DB import; admin (id=1) exists; app at http://localhost:8082; `events` table clean.
+
+**TC-774-1: Repro — ro_RO user triggers 3 'not localized' warnings (pre-fix symptom)**
+- Steps: `UPDATE users SET locale='ro_RO' WHERE id=1`; login via `POST /api/auth/login`; insert minimal hierarchy (`nodes_hierarchy` root project node_type 1 + testcase node_type 3); call `GET /api/execute/index.php?action=history&tcase_id=<tc>` and `?action=init`.
+- Expected (pre-fix): `events` gains 3 rows — `the_format_tc_xml_import`, `manual`, `automated` `'is not localized for locale 'ro_RO' - using en_GB'`.
+- Actual: reproduced pre-fix; events ids 2–4 exact matches (evidence recorded in issue #774 investigation comment).
+
+**TC-774-2: Fixed bundle — no new 'not localized' events on fresh ro_RO session**
+- Steps: after fix, `TRUNCATE TABLE events`; fresh login (new cookie jar) with admin locale `ro_RO`; repeat the same two API calls.
+- Expected: `SELECT COUNT(*) FROM events WHERE description LIKE '%not localized%'` → 0 (keys now resolve in ro_RO).
+- Result: PASS (count 0; only `audit_login_succeeded` login-audit row present).
+
+**TC-774-3: Bundle integrity — PHP strings file still valid & keys present**
+- Steps: `php -l locale/ro_RO/strings.txt`; `grep -E '^\$TLS_(manual|automated|the_format_tc_xml_import) ' locale/ro_RO/strings.txt`.
+- Expected: "No syntax errors detected"; all three keys present.
+- Result: PASS.
+
+**TC-774-4: No regression for other locales**
+- Steps: confirm the three keys exist in all 17 other `locale/*/strings.txt` bundles; en_GB user flow unchanged.
+- Expected: every other bundle already defines the keys; nothing was modified for them.
+- Result: PASS (grep audit 18/19 → now 19/19 locales define all three keys).
+
+**TC-774-5: Event Viewer — no new Error/Warning from the fix**
+- Steps: after running TC-774-2, scan `events` for ERROR/WARNING rows.
+- Expected: zero new Error/Warning entries.
+- Result: PASS (only log INFO `audit_login_succeeded` in the window).
+
+**Result: Suite 774 — 5/5 PASS**
