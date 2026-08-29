@@ -542,6 +542,17 @@ if ($method === 'GET' && $action === 'spec_view') {
         "SELECT COUNT(*) AS n FROM req_specs_revisions WHERE parent_id = " . intval($specId),
         'n'));
 
+    // localized type/status maps for the viewer (deep links may arrive without
+    // a tproject_id, so the view payload carries its own domain labels)
+    $reqTypesMap = [];
+    foreach ($reqCfg->type_labels as $code => $labelKey) {
+        $reqTypesMap[(string)$code] = lang_get($labelKey);
+    }
+    $reqStatusesMap = [];
+    foreach ($reqCfg->status_labels as $code => $labelKey) {
+        $reqStatusesMap[(string)$code] = lang_get($labelKey);
+    }
+
     out([
         'status'  => 'ok',
         'tproject_id'   => $ownerTid,
@@ -572,6 +583,8 @@ if ($method === 'GET' && $action === 'spec_view') {
         'cfields'      => $cfields,
         'attachments'  => $attachments,
         'requirements' => $requirements,
+        'reqTypes'     => $reqTypesMap,
+        'reqStatuses'  => $reqStatusesMap,
         'rights' => [
             'manage' => $user->hasRight($db, 'mgt_modify_req', $ownerTid),
         ],

@@ -158,13 +158,18 @@ $(function() {
 });
 
 function loadMeta() {
-  $.getJSON(API + '?action=options&tproject_id=' + TPROJECT_ID, function(r) {
+  var url = API + '?action=options';
+  if (TPROJECT_ID > 0) { url += '&tproject_id=' + TPROJECT_ID; }
+  $.getJSON(url, function(r) {
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('rsv.loadError')); return; }
     META = r;
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     loadView();
   }).fail(function() {
-    showError(TLi18n.t('rsv.loadError'));
+    // tproject_id unknown (deep link without it): spec_view self-resolves the
+    // owning project and rights, so proceed anyway.
+    META = null;
+    loadView();
   });
 }
 
@@ -185,6 +190,7 @@ function loadView() {
     $('#content').show();
     SPEC = r.spec;
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    if (!META && r.reqTypes) { META = { reqTypes: r.reqTypes, reqStatuses: r.reqStatuses }; }
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
     renderOverview(r);
     renderCF(r);

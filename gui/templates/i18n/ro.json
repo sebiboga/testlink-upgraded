@@ -1269,7 +1269,7 @@
   "rsv.freezeDone": "Cerințe înghețate: {n}",
   "rsv.loadError": "Eroare la încărcarea specificației de cerințe",
   "rsv.modifiedBy": "Ultima modificare de",
-  "rsv.modifiedOn": "Ul tima modificare la",
+  "rsv.modifiedOn": "Ultima modificare la",
   "rsv.newRevision": "Revizuire nouă",
   "rsv.newRevisionOk": "Revizuire nouă creată.",
   "rsv.newRevisionPrompt": "Mesaj jurnal de revizuire:",
