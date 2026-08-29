@@ -7745,3 +7745,49 @@ test plan "TLU Full Regression" (tplan_id=3231).
 - Result: PASS (only log INFO `audit_login_succeeded` in the window).
 
 **Result: Suite 774 — 5/5 PASS**
+
+## Suite 622 — Regression — Issue #622: planView.tpl E_WARNING spam (tcase_qty, build_qty, rights) on Test Plan Management screens
+
+**Precondition:** fresh DB import; app at http://localhost:8082; login admin/admin; `events` table cleared (`DELETE FROM events;`). Dataset: test project created (id=1, "B421:Bug421 Project"), 2 test plans created via UI ("Billable Resources", "Second Plan"), no TCs/builds linked.
+
+**TC-622-1: Repro — planEdit.php list emits the 4 E_WARNINGs (pre-fix symptom)**
+- Steps: `GET /lib/plan/planEdit.php?tproject_id=1` (Test Plan Management list, default `do_action=list`), then `SELECT id,log_level,description FROM events ORDER BY id DESC;`.
+- Expected (pre-fix): rows `Undefined array key "tcase_qty"` / `"build_qty"` / `"rights"` + `Trying to access array offset on null` all in `*_0.file.planView.tpl.php` at lines 213/217/279, log_level=2.
+- Result: reproduced pre-fix (events ids matched issue #622 evidence exactly).
+
+**TC-622-2: Fixed list — zero new E_WARNING entries**
+- Steps: after fix (`git checkout` fix branch), `DELETE FROM events;` then `GET /lib/plan/planEdit.php?tproject_id=1`.
+- Expected: `SELECT COUNT(*) FROM events WHERE log_level=2` → 0; page renders full plan table.
+- Result: PASS (0 warnings; both plans listed with Test Case # 0, Build # 0).
+
+**TC-622-3: Rows carry `rights` — Assign Roles links present**
+- Steps: inspect rendered `planEdit.php?tproject_id=1` action column for each plan row.
+- Expected: each row has an Assign Roles link (`usersAssign.php?featureType=testplan...featureID=<id>`).
+- Result: PASS (links present for both plans via `$testplan.rights.testplan_user_role_assignment`).
+
+**TC-622-4: Create flow — POST do_create then re-list stays clean**
+- Steps: create a 3rd test plan "Second Plan" via `planEdit.php?do_action=create`, then reopen the list.
+- Expected: only `audit_testplan_created`/`audit_users_roles_added_testplan` (log_level=16) rows appear; no log_level=2 rows.
+- Result: PASS (only 2 audit rows).
+
+**TC-622-5: Standalone planView.php unchanged and clean**
+- Steps: `GET /lib/plan/planView.php` after clearing events.
+- Expected: page renders; events table has no new E_WARNINGs.
+- Result: PASS.
+
+**TC-622-6: Edit form (planEdit.tpl) — no layout/cellContent/cellLabel warnings**
+- Steps: `GET /lib/plan/planEdit.php?do_action=edit&tproject_id=1&itemID=<plan>`.
+- Expected: no `stdClass::$layout` / `cellContent` / `cellLabel` warnings (those were fixed by 6f66ffb4e); events stays clean.
+- Result: PASS.
+
+**TC-622-7: Platform column path — platform_qty populated, no warnings**
+- Steps: insert `platforms` (testproject_id=1) + `testplan_platforms` rows for the 2 plans; reload list.
+- Expected: Platform # column rendered with qty=1 per plan; no log_level=2 events.
+- Result: PASS.
+
+**TC-622-8: Event Viewer — no new Error/Warning after full suite**
+- Steps: after all TC-622-X runs, scan `events` for ERROR/WARNING (log_level=2) rows.
+- Expected: zero new Error/Warning entries.
+- Result: PASS.
+
+**Result: Suite 622 — 8/8 PASS**
