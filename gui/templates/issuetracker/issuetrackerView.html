@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/third_party/chosen/chosen.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -41,6 +42,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="toolbar">
   <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="it.createTracker">Create Issue Tracker</span></button>
+  <button class="btn-teal" onclick="githubOAuthStart()" style="display:inline-flex;align-items:center;gap:6px;"><i class="fa-brands fa-github"></i> <span data-i18n="it.github">GitHub</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -93,11 +95,32 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   </div>
 </div>
 
+<div class="modal fade" id="repoModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="it.chooseRepo">Select GitHub Repository</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:12px;color:#888;margin-top:0;" data-i18n="it.chooseRepoHelp">Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.</p>
+        <select id="repoSelect" class="chosen-select" data-placeholder="" style="width:100%;font-size:13px;"></select>
+        <div id="repoError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="createGithubTracker()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/third_party/chosen/chosen.jquery.js"></script>
 <script>
 var API = '/api/issuetracker/index.php';
 var table = null;
@@ -112,6 +135,7 @@ $(function() {
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadMeta();
     loadTrackers();
+    checkOAuthConnected();
   });
 });
 
@@ -231,6 +255,104 @@ function deleteTracker(id, name) {
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       alert(msg);
     }
+  });
+}
+
+/* ---- GitHub OAuth flow ---- */
+
+function githubOAuthStart() {
+  var ret = window.location.href.split('#')[0];
+  $.getJSON(API + '/oauth/start?return=' + encodeURIComponent(ret), function(r) {
+    if (r.status === 'ok' && r.url) {
+      window.location.assign(r.url);
+    } else {
+      alert(r.message || 'GitHub OAuth not configured');
+    }
+  }).fail(function(xhr) {
+    var msg = 'GitHub OAuth not configured';
+    try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+    alert(msg);
+  });
+}
+
+function showRepoPicker() {
+  var sel = $('#repoSelect');
+  sel.empty();
+  $('#repoError').hide();
+  $('#repoModal').modal('show');
+  if (!sel.data('chosen')) {
+    sel.chosen({ width: '100%', disable_search_threshold: 10,
+      placeholder_text_single: TLi18n.t('it.searchRepos') });
+  }
+  sel.append('<option value="">' + TLi18n.t('it.loading') + '</option>');
+  sel.trigger('chosen:updated');
+  $.getJSON(API + '/oauth/repos', function(r) {
+    sel.empty();
+    if (!r.repos || !r.repos.length) {
+      $('#repoError').text(TLi18n.t('it.noRepos')).show();
+      sel.trigger('chosen:updated');
+      return;
+    }
+    $.each(r.repos, function(i, repo) {
+      if (!repo.push) return;
+      var label = repo.full_name + (repo.private ? ' (' + TLi18n.t('it.private') + ')' : '');
+      sel.append('<option value="' + repo.full_name + '">' + label + '</option>');
+    });
+    sel.trigger('chosen:updated');
+    sel.val('').trigger('chosen:updated');
+  }).fail(function(xhr) {
+    var msg = 'Failed to list repositories';
+    try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+    $('#repoError').text(msg).show();
+  });
+}
+
+function createGithubTracker(repo) {
+  var r = repo || $('#repoSelect').val();
+  if (!r) {
+    $('#repoError').text(TLi18n.t('it.validation.required')).show();
+    return;
+  }
+  var p = new URLSearchParams(window.location.search);
+  $.ajax({
+    url: API + '/oauth/create',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ repo: r, tproject_id: parseInt(p.get('tproject_id') || 0) }),
+    success: function() {
+      $('#repoModal').modal('hide');
+      loadTrackers();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('it.msg.errorSave');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      $('#repoError').text(msg).show();
+    }
+  });
+}
+
+function checkOAuthConnected() {
+  $.getJSON(API + '/oauth/token-status', function(r) {
+    if (r.status !== 'ok') return;
+    if (r.connected && r.expired) {
+      githubOAuthStart();
+      return;
+    }
+    if (r.connected && r.repo) {
+      var p = new URLSearchParams(window.location.search);
+      if (p.get('oauth') === 'connected') {
+        createGithubTracker(r.repo);
+        return;
+      }
+      var days = Math.ceil((r.expires_in || 0) / 86400);
+      $('#footerInfo').text(TLi18n.t('it.ghConnected', {user: r.user, repo: r.repo, days: days}));
+      return;
+    }
+    if (r.connected) {
+      showRepoPicker();
+      return;
+    }
+    $('#footerInfo').text(TLi18n.t('it.ghNotConnected'));
   });
 }
 </script>

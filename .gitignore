@@ -49,3 +49,6 @@ vendor/
 
 # Docker
 .squash.yml
+
+# Local GitHub OAuth credentials (contains real secrets, NEVER commit)
+cfg/oauth_github_local.inc.php
