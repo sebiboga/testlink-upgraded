@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-29 · branch `sebiboga`
+> Last updated: 2026-08-29 (#607 reports center) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|---|
-| DONE (modernized) | 62 + 2 extras (tcImport, planEdit modal) |
+| DONE (modernized) | 64 + 2 extras (tcImport, planEdit modal) |
 | IN PROGRESS | 0 |
-| TODO (still legacy) | ~18 |
+| TODO (still legacy) | Login/Logout + legacy redirects (see below) |
 
 ---
 
@@ -84,6 +84,8 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 60 | Reports — Assigned TC Overview | `results/assignedTcOverview.html` | api/reports | |
 | 61 | Reports — Charts | `results/charts.html` | api/reports | |
 | 62 | Reports — Free Test Cases | `results/freeTestCases.html` | api/reports | #751 |
+| 63 | Reports — Results by Issues / Bugs per TC | `results/resultsBugs.html` | api/reports | #763 |
+| 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
@@ -99,29 +101,15 @@ None — all modernized screens are green.
 
 ## ⬜ TODO — still legacy PHP (next screens, ASIDE order)
 
-### Reports (from cfg/reports.cfg.php — 26 total, 11 modernized, 15 legacy)
+### Reports (from cfg/reports.cfg.php — all 24 ACTIVE reports modernized)
 
-| Priority | Legacy file | Description | Notes |
-|---|---|---|---|
-| HIGH | `lib/results/testCasesWithoutTester.php` | Test Cases without Tester | |
-| HIGH | `lib/results/uncoveredTestCases.php` | Uncovered Test Cases | |
-| HIGH | `lib/results/resultsTC.php` | Test Case Results | |
-| HIGH | `lib/results/resultsTCFlat.php` | Flat Test Case Results | Already has HTML: `resultsTCFlat.html` — verify BFF |
-| HIGH | `lib/results/resultsTCAbsoluteLatest.php` | Absolute Latest Results | Already has HTML: `absoluteLatest.html` — verify BFF |
-| HIGH | `lib/results/resultsMoreBuildsGUI.php` | Results by Multiple Builds | |
-| HIGH | `lib/results/resultsReqs.php` | Requirements Results | Already has HTML: `resultsRequirements.html` — verify BFF |
-| HIGH | `lib/results/resultsBugs.php` (type=0) | Bugs Report | |
-| HIGH | `lib/results/resultsBugs.php` (type=1) | Bugs Report | |
-| HIGH | `lib/results/testPlanWithCF.php` | Test Plan with Custom Fields | Already has HTML: `tplanWithCF.html` — verify BFF |
-| HIGH | `lib/results/execTimelineStats.php` | Execution Timeline | |
-| HIGH | `lib/results/charts.php` | Charts | Already has HTML: `charts.html` — verify BFF |
-| HIGH | `lib/results/keywordBarChart.php` | Keyword Bar Chart | |
-| HIGH | `lib/results/overallPieChart.php` | Overall Pie Chart | |
-| HIGH | `lib/results/platformPieChart.php` | Platform Pie Chart | |
-| HIGH | `lib/results/priorityBarChart.php` | Priority Bar Chart | |
-| HIGH | `lib/results/topLevelSuitesBarChart.php` | Top Level Suites Bar Chart | |
-| MEDIUM | `lib/testcases/tcAssignedToUser.php` | TCs Assigned to User | |
-| MEDIUM | `lib/results/printDocOptions.php` (3x) | Print Documentation | |
+All report entries in `cfg/reports.cfg.php` now map to a modernized `.html` screen +
+BFF action in `api/reports/index.php` (see DONE rows 44–64). The two report types that
+have **no** modernized screen (`lib/results/uncoveredTestCases.php` — Uncovered Test
+Cases, and `lib/results/resultsMoreBuildsGUI.php` — Results by Multiple Builds) are
+**commented out** in `cfg/reports.cfg.php`, so they are not reachable from the ASIDE
+menu and are deferred. The legacy `else` branch in `lib/general/asideMenu.php`
+(fallback to `lib/**/*.php` report controllers) is now dead code for all active entries.
 
 ### Other legacy screens
 

@@ -7479,3 +7479,117 @@ type 200 registration in `tlCodeTracker::$systems`, BFF
 **Result:** PASS — screenshots `tmp/issue-630-resultsGeneral-platform-plan.png` / `tmp/issue-630-resultsGeneral-noplatform-plan.png`; events table 0 rows `log_level<=2`.
 
 **Result: Suite 630 — 8/8 PASS**
+
+---
+
+## Test Suite 607 — Reports center closing suites (Refs #607)
+
+Precondition: TestLink running, login admin/admin, project TLU (tproject_id=11),
+test plan "TLU Full Regression" (tplan_id=3231).
+
+### Execution Timeline Statistics (execTimelineStats)
+
+**TC-607-1: ETL — BFF returns valid JSON for day group**
+- Steps: GET `/api/reports/index.php?action=exec_timeline&tproject_id=11&tplan_id=3231&group=day`.
+- Expected: HTTP 200, `status:"ok"`, `hasContext:true`, `columns` contains `yyyy_mm_dd`,`qty`,`testers`, `rows` is an array, `send_mail_url`/`export_xls_url` present.
+- Result: PASS.
+
+**TC-607-2: ETL — BFF accepts month & day_hour groups**
+- Steps: GET same action with `group=month` then `group=day_hour`.
+- Expected: HTTP 200 both; month columns `yyyy_mm,qty,testers`; day_hour columns `yyyy_mm_dd,hh,qty,testers` and no spurious non-numeric hour rows.
+- Result: PASS.
+
+**TC-607-3: ETL — BFF rejects empty plan context**
+- Steps: GET `action=exec_timeline&tproject_id=0&tplan_id=0`.
+- Expected: HTTP 400 error JSON.
+- Result: PASS.
+
+**TC-607-4: ETL — BFF enforces testplan_metrics right**
+- Steps: login as user without right; GET exec_timeline.
+- Expected: HTTP 403 "No permission".
+- Result: PASS.
+
+**TC-607-5: ETL — HTML screen renders header + toolbar + empty state**
+- Steps: open `gui/templates/results/execTimelineStats.html?tproject_id=11&tplan_id=3231`.
+- Expected: header "Execution Timeline Statistics — for test plan TLU Full Regression", Group by Day/Month/Day+Hour buttons, Send-by-mail + Export + Refresh buttons, "No execution data available" empty panel when the plan has no executions, generated-on footer.
+- Result: PASS (browser-verified).
+
+**TC-607-6: ETL — Group by buttons trigger reload**
+- Steps: click Month, then Day+Hour, then Day.
+- Expected: active class follows selection; report reloads via BFF each time; no console errors.
+- Result: PASS.
+
+### Test Plan Report / Test Report / Test Report on build (testPlanReport)
+
+**TC-607-7: TPR — init returns correct doc type + title key**
+- Steps: GET `action=tp_report_init&tproject_id=11&tplan_id=3231&type=testreport_onbuild`.
+- Expected: HTTP 200, `status:"ok"`, `doc_type:"testreport_onbuild"`, `doc_title_key:"tpr.docTitle.testreportOnBuild"`, `formats` contains HTML & MS Word, `builds` non-empty.
+- Result: PASS.
+
+**TC-607-8: TPR — tree returns suites with linked counts**
+- Steps: GET `action=tp_report_tree&tproject_id=11&tplan_id=3231`.
+- Expected: HTTP 200, `roots` array of suite nodes each with `id`,`name`,`linkedQty`,`children`.
+- Result: PASS.
+
+**TC-607-9: TPR — screen renders tree + options + per-build links**
+- Steps: open `testPlanReport.html?tproject_id=11&tplan_id=3231&type=testreport_onbuild`.
+- Expected: title "Test Report on build for test plan", suite tree (23 suites), document print options (Output format HTML/MS Word, DOCUMENT STRUCTURE + TEST CASE CONTENT checkboxes), PER-BUILD REPORTS section with a "Report on build: Build 1.0" link, Print whole plan / Print selected suite buttons.
+- Result: PASS (browser-verified).
+
+**TC-607-10: TPR — Print whole plan builds printDocument URL**
+- Steps: click "Print whole test plan report".
+- Expected: opens new tab to `lib/results/printDocument.php?type=<docType>&level=testproject&id=<tproject>&docTestPlanId=<tplan>...&format=...&<options>`; document renders.
+- Result: PASS.
+
+**TC-607-11: TPR — type=testplan & type=testreport switch title**
+- Steps: open screen with `type=testplan` then `type=testreport`.
+- Expected: header title "Test Plan Report" / "Test Report" respectively; no per-build section for non-onbuild types.
+- Result: PASS.
+
+### General Test Plan Metrics (generalMetrics)
+
+**TC-607-12: GTM — BFF returns valid JSON**
+- Steps: GET `action=metrics_general&tproject_id=11&tplan_id=3231`.
+- Expected: HTTP 200, `status:"ok"`, report section keys present; empty plan → graceful empty (`There are no Test Suites with linked Test Cases`).
+- Result: PASS.
+
+**TC-607-13: GTM — right enforced**
+- Steps: user without right GET metrics_general.
+- Expected: HTTP 403.
+- Result: PASS.
+
+**TC-607-14: GTM — screen renders toolbar + empty state**
+- Steps: open `generalMetrics.html?tproject_id=11&tplan_id=3231`.
+- Expected: header "General Test Plan Metrics — for test plan TLU Full Regression", Send-by-mail + Export + Refresh buttons, empty message when no data.
+- Result: PASS (browser-verified).
+
+### Metrics Dashboard (metricsDashboard)
+
+**TC-607-15: MD — screen renders real progress data**
+- Steps: open `metricsDashboard.html?tproject_id=11&tplan_id=3231`.
+- Expected: header "Metrics Dashboard", "Show only active test plans" checkbox checked, Public link button, "Test Project Progress" overall (Executed/Not Run/Passed/Failed/Blocked with counts), "Test Plan Progress" DataTable with Active TCs / Not Run / Passed / Failed / Blocked / Progress %, "TLU Full Regression" row, generated-on footer.
+- Result: PASS (browser-verified: overall 4.55% [2/44]).
+
+**TC-607-16: MD — Public link / show-only-active filters**
+- Steps: toggle "Show only active test plans"; click "Public link".
+- Expected: filter changes rows; Public link opens/exposes a shareable metric link.
+- Result: PASS.
+
+### Test Cases Created Per User (tcCreatedPerUserOnTestProject)
+
+**TC-607-17: TCPU — BFF /meta returns context + rights**
+- Steps: GET `/api/results/index.php/meta?tproject_id=11`.
+- Expected: HTTP 200, rights `testplan_metrics`, project info, user list + "Any user" option, default window.
+- Result: PASS.
+
+**TC-607-18: TCPU — BFF /report returns created-by-user rows**
+- Steps: GET `/api/results/index.php/report?tproject_id=11&user_id=0&startDate=...&endDate=...`.
+- Expected: HTTP 200, rows from `getTestCasesCreatedByUser()`, empty array when no TCs in window.
+- Result: PASS.
+
+**TC-607-19: TCPU — screen renders filter panel + empty state**
+- Steps: open `tcCreatedPerUserOnTestProject.html?tproject_id=11`.
+- Expected: teal header + project context, user + date/hour filter panel, DataTables results, empty state when no data, CSV/Reset buttons, rights warning when missing.
+- Result: PASS.
+
+**Result: Suite 607 — 19/19 PASS**
