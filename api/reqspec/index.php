@@ -422,5 +422,232 @@ if ($method === 'POST' && $action === 'delete_req') {
     out(['status' => 'ok']);
 }
 
+// ------------------------------------------------- spec view (reqSpecView) ---
+// Refs #755 - lib/requirements/reqSpecView.php modernization.
+// Gate matches the legacy pageAccessCheck(): strict rightsAnd=['mgt_view_req'].
+// Includes the spec header (latest revision), design CF values on that
+// revision, attachment list and the requirement set of the spec (reusing the
+// reqs route data shape so the viewer table mirrors reqSpecMgmt.html).
+if ($method === 'GET' && $action === 'spec_view') {
+    $specId = intval($_REQUEST['id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+
+    // probe existence first: get_by_id() -> get_last_child_info() fatals with
+    // E_WARNING + broken SQL on a nonexistent spec (see Refs #569)
+    $rows = $db->get_recordset(
+        'SELECT testproject_id FROM ' . $reqSpecMgr->object_table . ' WHERE id = ' . intval($specId));
+    if (!$rows) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+    $ownerTid = intval($rows[0]['testproject_id']);
+
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $spec = $reqSpecMgr->get_by_id($specId);
+    if (!$spec) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+
+    $reqCfg = config_get('req_cfg');
+    $specCfg = config_get('req_spec_cfg');
+
+    $modifiedNever = is_null($spec['modification_ts'])
+        || $spec['modification_ts'] == '0000-00-00 00:00:00';
+
+    // design custom fields linked to requirement_spec + values on the revision
+    // (same access requirement_spec_mgr::get_linked_cfields() uses)
+    $cfields = [];
+    $cfMap = $reqSpecMgr->get_linked_cfields([
+        'parent_id'   => $specId,
+        'item_id'     => intval($spec['revision_id']),
+        'tproject_id' => $ownerTid,
+    ]);
+    if (!empty($cfMap)) {
+        foreach ($cfMap as $cf) {
+            $vType = isset($reqSpecMgr->cfield_mgr->custom_field_types[$cf['type']])
+                ? $reqSpecMgr->cfield_mgr->custom_field_types[$cf['type']] : 'string';
+            $value = isset($cf['value']) ? $cf['value'] : '';
+            if (is_array($value)) { $value = implode(', ', $value); }
+            $value = preg_replace('!\s+!', ' ', trim((string)$value));
+            if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
+                $value = tlStrftime(config_get($vType), intval($value));
+            }
+            $cfields[] = [
+                'name'  => $cf['name'],
+                'label' => $cf['label'],
+                'type'  => intval($cf['type']),
+                'verbose_type' => $vType,
+                'value' => $value,
+            ];
+        }
+    }
+
+    // attachments of the spec (same sink the tcView BFF uses)
+    $attachments = [];
+    if (function_exists('getAttachmentInfosFrom')) {
+        $attMap = getAttachmentInfosFrom($reqSpecMgr, $specId);
+        if (!empty($attMap)) {
+            foreach ($attMap as $ai) {
+                $attachments[] = [
+                    'id'           => intval($ai['id']),
+                    'title'        => $ai['title'],
+                    'file_name'    => isset($ai['file_name']) ? $ai['file_name'] : '',
+                    'file_size'    => isset($ai['file_size']) ? intval($ai['file_size']) : 0,
+                    'file_type'    => isset($ai['file_type']) ? $ai['file_type'] : '',
+                    'date_added'   => isset($ai['date_added']) ? (string)$ai['date_added'] : '',
+                    'download_url' => 'lib/attachments/attachmentdownload.php?id=' . intval($ai['id']),
+                ];
+            }
+        }
+    }
+
+    $prefix = $tprojectMgr->getTestCasePrefix($ownerTid);
+    $directLink = $_SESSION['basehref'] . 'linkto.php?tprojectPrefix=' . urlencode($prefix) .
+                  '&item=reqspec&id=' . urlencode($spec['doc_id']);
+
+    // requirements of the spec (latest version per requirement, same query the
+    // reqs action runs so the client table reuses its shape)
+    $reqSql = "SELECT r.id, r.srs_id, r.req_doc_id, nh.name AS title," .
+           " v.scope, v.status, v.type, v.version, v.active, v.is_open," .
+           " v.expected_coverage" .
+           " FROM requirements r" .
+           " JOIN nodes_hierarchy nh ON nh.id = r.id" .
+           " JOIN nodes_hierarchy vh ON vh.parent_id = r.id" .
+           " JOIN req_versions v ON v.id = vh.id" .
+           "     AND v.version = (SELECT MAX(v2.version) FROM req_versions v2" .
+           "                      JOIN nodes_hierarchy h2 ON h2.id = v2.id" .
+           "                      WHERE h2.parent_id = r.id)" .
+           " WHERE r.srs_id = " . intval($specId) .
+           " ORDER BY nh.node_order ASC, r.id ASC";
+    $reqRows = $db->get_recordset($reqSql);
+    $requirements = [];
+    foreach (($reqRows ? $reqRows : []) as $r) {
+        $requirements[] = [
+            'id'         => intval($r['id']),
+            'req_doc_id' => (string)$r['req_doc_id'],
+            'title'      => (string)$r['title'],
+            'status'     => (string)$r['status'],
+            'type'       => (string)$r['type'],
+            'version'    => intval($r['version']),
+            'is_open'    => intval($r['is_open']),
+        ];
+    }
+
+    $revCount = intval($db->fetchFirstRowSingleColumn(
+        "SELECT COUNT(*) AS n FROM req_specs_revisions WHERE parent_id = " . intval($specId),
+        'n'));
+
+    out([
+        'status'  => 'ok',
+        'tproject_id'   => $ownerTid,
+        'tproject_name' => testproject::getName($db, $ownerTid),
+        'spec' => [
+            'id'              => intval($spec['id']),
+            'doc_id'          => (string)$spec['doc_id'],
+            'title'           => (string)$spec['title'],
+            'type'            => (string)$spec['type'],
+            'type_label'      => isset($specCfg->type_labels[$spec['type']])
+                                   ? lang_get($specCfg->type_labels[$spec['type']]) : (string)$spec['type'],
+            'revision'        => intval($spec['revision']),
+            'revision_id'     => intval($spec['revision_id']),
+            'scope'           => (string)$spec['scope'],
+            'total_req'       => intval($spec['total_req']),
+            'author'          => (string)$spec['author'],
+            'modifier'        => $modifiedNever ? '' : (string)$spec['modifier'],
+            'creation_ts'     => (string)$spec['creation_ts'],
+            'modification_ts' => $modifiedNever ? '' : (string)$spec['modification_ts'],
+            'modified_never'  => $modifiedNever,
+            'direct_link'     => $directLink,
+            'requirements_count' => count($requirements),
+            'revisions_count'    => $revCount,
+            'external_req_management' =>
+                (isset($reqCfg->external_req_management)
+                 && $reqCfg->external_req_management == ENABLED) ? true : false,
+        ],
+        'cfields'      => $cfields,
+        'attachments'  => $attachments,
+        'requirements' => $requirements,
+        'rights' => [
+            'manage' => $user->hasRight($db, 'mgt_modify_req', $ownerTid),
+        ],
+    ]);
+}
+
+// ------------------------------------------------- spec freeze (reqSpecView) ---
+// Refs #755 - mirrors lib/requirements/reqSpecCommands.class.php doFreeze():
+// recursively freezes the LATEST version of every requirement under the spec
+// subtree (child specs included). Right: mgt_modify_req (legacy req_mgmt).
+if ($method === 'POST' && $action === 'freeze_spec') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    $specId = intval($_REQUEST['id'] ?? ($BODY['id'] ?? 0));
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+    needOwnedSpec($specId, $tproject_id);
+
+    // collect spec ids in the subtree (spec itself + every req_spec descendant)
+    $specIds = [intval($specId)];
+    $frontier = [intval($specId)];
+    while (count($frontier)) {
+        $inExpr = implode(',', array_map('intval', $frontier));
+        $kids = $db->get_recordset(
+            "SELECT RS.id FROM req_specs RS" .
+            " JOIN nodes_hierarchy NH ON NH.id = RS.id" .
+            " WHERE NH.parent_id IN ($inExpr)");
+        $frontier = [];
+        if (!empty($kids)) {
+            foreach ($kids as $k) { $n = intval($k['id']); $specIds[] = $n; $frontier[] = $n; }
+        }
+    }
+
+    $reqIds = $db->fetchColumnsIntoArray(
+        'SELECT id FROM requirements WHERE srs_id IN (' .
+        implode(',', $specIds) . ')', 'id');
+
+    $frozenQty = 0;
+    foreach (($reqIds ? $reqIds : []) as $reqId) {
+        $versions = $reqMgr->get_by_id($reqId, requirement_mgr::LATEST_VERSION);
+        if (!empty($versions) && isset($versions[0]['version_id'])
+            && intval($versions[0]['is_open']) === 1) {
+            $reqMgr->updateOpen(intval($versions[0]['version_id']), false);
+            logAuditEvent(TLS('audit_req_version_frozen',
+                intval($versions[0]['version']),
+                (string)$versions[0]['req_doc_id'],
+                (string)$versions[0]['title']),
+                'FREEZE', intval($versions[0]['version_id']), 'req_version');
+            $frozenQty++;
+        }
+    }
+
+    out(['status' => 'ok', 'frozen' => $frozenQty]);
+}
+
+// ------------------------------------------- spec new revision (reqSpecView) ---
+// Refs #755 - mirrors reqSpecCommands::doCreateRevision(): clones the latest
+// spec revision with a log message. Right: mgt_modify_req.
+if ($method === 'POST' && $action === 'create_revision') {
+    $tproject_id = needTprojectId();
+    needManageRight($tproject_id);
+
+    $specId = intval($_REQUEST['id'] ?? ($BODY['id'] ?? 0));
+    if ($specId <= 0) { badRequest('Invalid req spec id'); }
+    needOwnedSpec($specId, $tproject_id);
+
+    $logMessage = trim((string)($BODY['log_message'] ?? ''));
+    $ret = $reqSpecMgr->clone_revision($specId, [
+        'log_message' => $logMessage,
+        'author_id'   => $userId,
+    ]);
+    if (!isset($ret['status_ok']) || !$ret['status_ok']) {
+        badRequest(isset($ret['msg']) ? $ret['msg'] : 'Revision creation failed');
+    }
+    out(['status' => 'ok', 'revision_id' => intval($ret['id'])]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
