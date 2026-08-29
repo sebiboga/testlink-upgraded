@@ -111,3 +111,9 @@ $TLS_img_title_remove_platform = 'Elimină platforma';
 $TLS_error_self_signup_disabled = 'Înregistrarea automată a utilizatorilor noi este dezactivată. Vă rugăm să contactați administratorul site-ului.';
 
 $TLS_email_already_used = "This email address is already in use, please use another one.";
+
+// ----- issue #774: server-side keys fetched from testcase.class.php were
+// ----- missing, so every ro_RO session logged 'not localized' warnings.
+$TLS_manual = "Manual";
+$TLS_automated = "Automat";
+$TLS_the_format_tc_xml_import = "";
