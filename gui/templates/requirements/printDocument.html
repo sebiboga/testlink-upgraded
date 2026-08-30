@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Requirement Document</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; flex: 0 0 auto; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.err-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; display: none; flex: 0 0 auto; }
+.docwrap { flex: 1 1 auto; margin: 16px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.docwrap-title { padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #eee; background: #f7f7f7; display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.docwrap-title .docname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#docFrame { flex: 1 1 auto; width: 100%; border: 0; min-height: 0; }
+.loading { display: flex; align-items: center; justify-content: center; height: 60vh; color: #888; font-size: 14px; gap: 10px; }
+.spinner { width: 22px; height: 22px; border: 3px solid #ddd; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; flex: 0 0 auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-print" style="margin-right:8px;"></i><span data-i18n="pdoc.title">Print Requirement Document</span>
+  <span class="sub"><span data-i18n="pdoc.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnPrint" onclick="printDoc()"><i class="fa fa-print"></i> <span data-i18n="pdoc.btnPrint">Print</span></button>
+  <a class="btn-ghost" id="btnBack" href="#"><i class="fa fa-arrow-left"></i> <span data-i18n="pdoc.btnBack">Back to print options</span></a>
+  <button class="btn-ghost" onclick="loadDoc()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="errBox" class="err-banner"></div>
+
+<div class="docwrap">
+  <div class="docwrap-title">
+    <i class="fa fa-file-text-o" style="color:#4ECDC4;"></i>
+    <span class="docname" id="docTitle">-</span>
+  </div>
+  <div class="loading" id="loadingBox"><div class="spinner"></div> <span data-i18n="pdoc.generating">Generating document...</span></div>
+  <iframe id="docFrame" hidden></iframe>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqdoc/index.php';
+var requestToken = 0;
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('pdoc.title'));
+    buildBackLink();
+    loadDoc();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function showError(msg) {
+  $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+  $('#docwrap').hide();
+  $('#loadingBox').hide();
+}
+
+function buildBackLink() {
+  var p = new URLSearchParams(window.location.search);
+  var tpid = parseInt(p.get('tproject_id') || 0, 10);
+  $('#btnBack').attr('href', '/gui/templates/requirements/printReqSpec.html' +
+    (tpid > 0 ? '?tproject_id=' + tpid : '')).addClass('btn-ghost');
+}
+
+function docUrl() {
+  var q = new URLSearchParams(window.location.search);
+  q.set('action', 'doc');
+  return API + '?' + q.toString();
+}
+
+function loadDoc() {
+  var tok = ++requestToken;
+  $('#errBox').hide();
+  $('#docwrap').show();
+  $('#loadingBox').show().css('display','flex');
+  $('#docFrame').hide();
+  $('#btnPrint').prop('disabled', true);
+
+  $.get(docUrl(), function (r) {
+    if (tok !== requestToken) return;
+    if (!r || r.status !== 'ok') {
+      toast(r && r.message ? r.message : TLi18n.t('pdoc.errLoad'), true);
+      showError(r && r.message ? r.message : TLi18n.t('pdoc.errLoad'));
+      return;
+    }
+    $('#loadingBox').hide();
+    $('#docTitle').text(r.title || '-');
+    var tpid = new URLSearchParams(window.location.search).get('tproject_id');
+    $('#infoLine').html('<i class="fa fa-info-circle"></i> ' +
+      esc(TLi18n.t('pdoc.rendered')) + ' &middot; ' +
+      esc(TLi18n.t('pdoc.level' + (r.level === 'testproject' ? 'Project' : 'Spec'))));
+    if (r.html && r.html.length) {
+      var f = document.getElementById('docFrame');
+      f.srcdoc = r.html;
+      f.onload = function () {
+        $('#docFrame').show();
+        $('#btnPrint').prop('disabled', false);
+      };
+    } else {
+      showError(TLi18n.t('pdoc.errEmpty'));
+    }
+  }).fail(function (xhr) {
+    if (tok !== requestToken) return;
+    var msg = TLi18n.t('pdoc.errLoad');
+    try {
+      var j = JSON.parse(xhr.responseText);
+      if (j && j.message) msg = j.message;
+    } catch (e) { /* keep default */ }
+    if (xhr.status === 403) { msg = TLi18n.t('pdoc.errNoRights'); }
+    else if (xhr.status === 404) { msg = TLi18n.t('pdoc.errNotFound'); }
+    toast(msg, true);
+    showError(msg);
+  });
+}
+
+function printDoc() {
+  var f = document.getElementById('docFrame');
+  if (f && f.contentWindow && f.contentWindow.print) {
+    f.contentWindow.focus();
+    f.contentWindow.print();
+  } else {
+    toast(TLi18n.t('pdoc.errNotReady'), true);
+  }
+}
+</script>
+</body>
+</html>
