@@ -142,7 +142,8 @@ function loadDoc() {
         if (d && d.body) {
           $(d).on('click', 'a[href^="#"]', function (e) {
             var id = this.getAttribute('href').slice(1);
-            var target = d.getElementById(id);
+            var target = d.getElementById(id) ||
+                         (d.getElementsByName(id).length ? d.getElementsByName(id)[0] : null);
             if (target) {
               e.preventDefault();
               target.scrollIntoView();
