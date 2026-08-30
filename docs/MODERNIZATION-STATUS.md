@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-30 (#798 Requirement Editor modernized) · branch `sebiboga`
+> Last updated: 2026-08-30 (#755 Requirement Document Print modernized + #798 Requirement Editor) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 4 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit) |
+| DONE (modernized) | 67 + 5 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -139,7 +139,7 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 | HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
 | HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
 | HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |
-| HIGH | 5 req screens (#755 progress: `reqView.php` ✅, `reqSpecView.php` ✅) | `reqSpecViewRevision.php`, `reqSpecViewRevisions.php`, `printDocument.php` | #755 | Convert to modals / BFF API |
+| HIGH | 5 req screens (#755 progress: `reqView.php` ✅, `reqSpecView.php` ✅, `printDocument.php` ✅) | `reqSpecViewRevision.php`, `reqSpecViewRevisions.php` | #755 | Convert to modals / BFF API |
 | HIGH | resultsMatrix.html | `execSetResults.php` | #756 | Redirect to modernized page |
 | MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` | #758 | Redirect / modal |
 | MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
