@@ -574,7 +574,7 @@ viewer for test case in test specification
       {* TestScript Links (if any) *}
       {if isset($gui->scripts[$tcversion_id]) && !is_null($gui->scripts[$tcversion_id])}
         <tr style="background-color: #d0d0d0">
-          {include file="{$tplConfig.inc_show_scripts_table}"
+          {include file="{$tplConfig['showScriptsTable.inc']}"
            scripts_map=$gui->scripts[$tcversion_id]
            can_delete=true
            tcase_id=$tcversion_id
