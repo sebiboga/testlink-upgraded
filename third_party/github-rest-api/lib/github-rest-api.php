@@ -57,9 +57,10 @@ class github
   public $proxy = null;
   
   /**
-   * Just supports api version 4 by now
+   * Path prefix appended between host and REST command.
+   * GitHub REST v3 uses no prefix: https://api.github.com/<cmd>
    */
-  //public $api = '/api/v4/';
+  public $api = '';
 
   /**
    * Constructor
