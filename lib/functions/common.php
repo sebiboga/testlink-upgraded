@@ -1869,7 +1869,7 @@ function getActions(&$gui,$baseURL) {
   // Install/Upgrade check modernized screen (Dashio standalone page) - Refs #797.
   // Replaces the legacy upgrade landing (install/index.php); the BFF
   // (api/install) reports config/DB/schema/security status. Aside visibility
-  // gated by menuGrants->system_configuraton in aside.tpl.
+  // gated by menuGrants->configuration in aside.tpl.
   $actions->installView = "/gui/templates/install/installView.html?{$ctx}";
   // Plugin Management modernized screen (Dashio standalone page) - Refs #636.
   // Legacy right (mgt_plugins) is enforced by the BFF on every route; the
@@ -2072,7 +2072,7 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
   $systemWideRights = 
     array(
       'project_edit' => 'mgt_modify_product',
-      'configuration' => "system_configuraton",
+      'configuration' => "system_configuration",
       'usergroups' => "mgt_view_usergroups",
       'event_viewer' => "events_mgt",
       'user_mgmt' => "mgt_users",
