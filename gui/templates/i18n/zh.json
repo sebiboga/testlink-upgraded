@@ -1898,5 +1898,12 @@
   "auth.weakPassword": "The password does not meet the required quality rules.",
   "auth.mailSendError": "There was a problem sending the email. Please contact your administrator.",
   "auth.loginWith": "使用登录 ",
-  "auth.githubRepoTip": "TestLink Upgraded 源代码"
+  "auth.githubRepoTip": "TestLink Upgraded 源代码",
+  "exe.executionHistory": "执行历史",
+  "exe.actions": "操作",
+  "exe.deleteExecution": "删除执行",
+  "exe.confirmDeleteExecution": "删除此执行？无法撤消。",
+  "exe.deletedOk": "已删除执行。",
+  "exe.errDelete": "删除执行失败。",
+  "exechist.closedBuild": "已关闭的构建"
 }

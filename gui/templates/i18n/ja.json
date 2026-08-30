@@ -1898,5 +1898,12 @@
   "auth.weakPassword": "The password does not meet the required quality rules.",
   "auth.mailSendError": "There was a problem sending the email. Please contact your administrator.",
   "auth.loginWith": "でログイン ",
-  "auth.githubRepoTip": "TestLink Upgraded ソースコード"
+  "auth.githubRepoTip": "TestLink Upgraded ソースコード",
+  "exe.executionHistory": "実行履歴",
+  "exe.actions": "操作",
+  "exe.deleteExecution": "実行を削除",
+  "exe.confirmDeleteExecution": "この実行を削除しますか？元に戻せません。",
+  "exe.deletedOk": "実行が削除されました。",
+  "exe.errDelete": "実行の削除に失敗しました。",
+  "exechist.closedBuild": "クローズされたビルド"
 }

@@ -1898,5 +1898,12 @@
   "auth.weakPassword": "The password does not meet the required quality rules.",
   "auth.mailSendError": "There was a problem sending the email. Please contact your administrator.",
   "auth.loginWith": "Войти через ",
-  "auth.githubRepoTip": "Исходный код TestLink Upgraded"
+  "auth.githubRepoTip": "Исходный код TestLink Upgraded",
+  "exe.executionHistory": "История выполнения",
+  "exe.actions": "Действия",
+  "exe.deleteExecution": "Удалить выполнение",
+  "exe.confirmDeleteExecution": "Удалить это выполнение? Это действие нельзя отменить.",
+  "exe.deletedOk": "Выполнение удалено.",
+  "exe.errDelete": "Не удалось удалить выполнение.",
+  "exechist.closedBuild": "Закрытый билд"
 }

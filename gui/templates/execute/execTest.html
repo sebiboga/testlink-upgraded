@@ -60,6 +60,16 @@ label.flbl { font-size: 12px; font-weight: 600; color: #444; display: block; mar
 .steps-table select, .steps-table input[type=text] { width: 100%; font-size: 12.5px; height: 30px; border: 1px solid #ddd; border-radius: 4px; padding: 2px 6px; }
 .save-row { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
 .prior-box { background: #fdf6ec; border: 1px solid #f0e0c8; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; color: #7a6540; margin-bottom: 12px; }
+.hist-head { margin: 10px 0 4px; font-size: 12.5px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; }
+.hist-head .count { font-weight: 400; color: #888; font-size: 12px; margin-left: 6px; }
+.hist-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+.hist-table thead th { background: #f0f0f0; color: #444; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; padding: 7px 8px; text-align: left; border-bottom: 2px solid #ddd; }
+.hist-table tbody td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; font-size: 12.5px; vertical-align: middle; }
+.hist-table .icon-cell { white-space: nowrap; text-align: center; }
+.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #4ECDC4; }
+.icon-btn:hover { color: #3dbdb5; }
+.icon-btn.danger { color: #e6605e; } .icon-btn.danger:hover { color: #c0392b; }
+.icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
 .ro-banner { margin: 12px 24px 0; background: #fff8e1; border: 1px solid #ffe08a; color: #8a6d1a; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
@@ -403,6 +413,10 @@ function renderForm() {
       + '</div>';
   }
 
+  if (current.exec_history && current.exec_history.length > 0) {
+    h += renderHistoryHtml();
+  }
+
   if (v.summary) {
     h += '<div class="desc-block"><div class="desc-label">' + esc(TLi18n.t('exe.summary'))
       + '</div><div class="desc-box">' + esc(v.summary) + '</div></div>';
@@ -498,6 +512,101 @@ function resetFormInputs(keepPast) {
       row.find('.step-notes').val('');
     }
   });
+}
+
+function renderHistoryHtml() {
+  var hist = current.exec_history || [];
+  var h = '<div class="hist-head"><i class="fas fa-clock-rotate-left" style="color:#4ECDC4;margin-right:6px;"></i>'
+    + esc(TLi18n.t('exe.executionHistory'))
+    + '<span class="count">(' + hist.length + ')</span></div>';
+  h += '<table class="hist-table"><thead><tr>'
+    + '<th>' + esc(TLi18n.t('exechist.colDateTimeRun')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exechist.colBuild')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exechist.colTester')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exechist.colStatus')) + '</th>'
+    + '<th class="icon-cell">' + esc(TLi18n.t('exechist.colRunMode')) + '</th>'
+    + '<th class="icon-cell">' + esc(TLi18n.t('exechist.colVersion')) + '</th>'
+    + '<th class="icon-cell">' + esc(TLi18n.t('exe.actions')) + '</th>'
+    + '</tr></thead><tbody>';
+
+  hist.forEach(function (e) {
+    var st = statusLabelFor(e.status_code);
+    var statusCls = 'st-other';
+    var suffix = e.status_suffix;
+    if (suffix === 'passed') statusCls = 'st-passed';
+    else if (suffix === 'failed') statusCls = 'st-failed';
+    else if (suffix === 'blocked') statusCls = 'st-blocked';
+
+    var actions = '';
+    // edit notes (opens legacy popup, same as execHistory.html)
+    if (e.can_edit_notes) {
+      actions += '<button class="icon-btn" title="' + esc(TLi18n.t('exechist.editExecution'))
+        + '" onclick="openEditExecution(' + e.execution_id + ',' + e.tcversion_id + ',' + e.testplan_id + ')">'
+        + '<i class="fas fa-pen-to-square"></i></button>';
+    }
+    // print preview (opens legacy print screen)
+    actions += '<button class="icon-btn" title="' + esc(TLi18n.t('exechist.printPreview'))
+      + '" onclick="openExecPrint(' + e.execution_id + ')"><i class="fas fa-print"></i></button>';
+    // delete execution (BFF action)
+    if (e.can_delete) {
+      actions += '<button class="icon-btn danger" title="' + esc(TLi18n.t('exe.deleteExecution'))
+        + '" onclick="deleteExecution(' + e.execution_id + ')"><i class="fas fa-trash-can"></i></button>';
+    }
+
+    h += '<tr>'
+      + '<td style="white-space:nowrap;">' + esc(fmtTs(e.execution_ts)) + '</td>'
+      + '<td>' + esc(e.build_name) + (e.build_is_open ? '' : ' <i class="fas fa-lock" title="' + esc(TLi18n.t('exechist.closedBuild')) + '"></i>') + '</td>'
+      + '<td>' + esc(e.tester_name || e.tester_login || TLi18n.t('exechist.deletedUser')) + '</td>'
+      + '<td><span class="badge-status ' + statusCls + '">' + esc(st ? st.label : e.status_code) + '</span></td>'
+      + '<td class="icon-cell"><i class="fas ' + (e.run_type === 'automated' ? 'fa-robot' : 'fa-user')
+        + '" title="' + esc(e.run_type === 'automated' ? TLi18n.t('exechist.runAuto') : TLi18n.t('exechist.runManual')) + '"></i></td>'
+      + '<td class="icon-cell">' + esc(e.tcversion_number) + '</td>'
+      + '<td class="icon-cell">' + actions + '</td>'
+      + '</tr>';
+    if (e.notes) {
+      h += '<tr><td colspan="7" style="background:#fafafa;padding:6px 10px;color:#555;font-size:12px;border-top:1px dashed #ddd;">'
+        + '<span style="font-weight:700;color:#444;">' + esc(TLi18n.t('exechist.execNotes')) + ':</span> '
+        + esc(e.notes) + '</td></tr>';
+    }
+  });
+
+  h += '</tbody></table>';
+  return h;
+}
+
+function openEditExecution(execId, tcversionId, tplanId) {
+  window.open('/lib/execute/editExecution.php?exec_id=' + execId
+    + '&tcversion_id=' + tcversionId + '&tplan_id=' + tplanId
+    + '&tproject_id=' + ctx.tprojectId, 'execution_notes',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function openExecPrint(execId) {
+  window.open('/lib/execute/execPrint.php?id=' + execId, '_blank',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function deleteExecution(execId) {
+  if (roMode) return;
+  if (!window.confirm(TLi18n.t('exe.confirmDeleteExecution'))) return;
+  $.ajax({
+    url: API + '?action=deleteExecution',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: execId })
+  })
+  .done(function (r) {
+    if (r.status === 'ok' && r.deleted) {
+      toast(TLi18n.t('exe.deletedOk'));
+      // refresh the test case form + list to reflect the deletion
+      openCase(current.tcase.id, current.version.id);
+      loadList();
+    } else {
+      toast(r.message || TLi18n.t('exe.errDelete'), true);
+    }
+  })
+  .fail(function (xhr) { toast(apiErr(xhr, 'exe.errDelete'), true); });
 }
 
 function saveExecution() {

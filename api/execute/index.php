@@ -706,6 +706,64 @@ if ($action === 'tcDetails') {
         }
     }
 
+    // Full inline execution history for this version, mirroring the legacy
+    // getOtherExecutions() (execSetResults.php) used to render the inline
+    // execution_history table. We fetch the whole set for this plan (all
+    // builds and platforms, like history_on + show_history_all_*), newest
+    // first, and carry per-row grants (edit-notes / delete) + build state
+    // so the modern Execute Tests form can show the same row actions.
+    $execHistory = [];
+    try {
+        $execHistoryRows = $tcaseMgr->getExecutionSet(
+            $tcaseId, $tcversionId,
+            ['testplan_id' => $tplanId, 'build_id' => null, 'platform_id' => null],
+            ['exec_id_order' => 'DESC']);
+        $canEditNotesGlobal = $user->hasRight($db, 'exec_edit_notes', $tprojectId, $tplanId) ? 1 : 0;
+        $canDeleteGlobal = $user->hasRight($db, 'exec_delete', $tprojectId, $tplanId) ? 1 : 0;
+        $resultsCfgH = config_get('results');
+        if (is_array($execHistoryRows)) {
+            foreach ($execHistoryRows as $hVersionRows) {
+                if (!is_array($hVersionRows)) { continue; }
+                foreach ($hVersionRows as $h) {
+                    $hExecId = intval($h['execution_id']);
+                    $hStatus = strval($h['status']);
+                    $hSuffix = isset($resultsCfgH['code_status'][$hStatus])
+                        ? $resultsCfgH['code_status'][$hStatus] : '';
+                    $buildOpen = intval($h['build_is_open']) === 1;
+                    $hTester = trim(strval($h['tester_first_name'] ?? '') . ' ' .
+                                    strval($h['tester_last_name'] ?? ''));
+                    if ($hTester === '' && !empty($h['tester_login'])) $hTester = strval($h['tester_login']);
+                    $execHistory[] = [
+                    'execution_id' => $hExecId,
+                    'tcversion_id' => intval($h['tcversion_id']),
+                    'testplan_id' => intval($h['testplan_id']),
+                    'tcversion_number' => intval($h['tcversion_number']),
+                        'build_id' => intval($h['build_id']),
+                        'build_name' => strval($h['build_name']),
+                        'build_is_open' => $buildOpen,
+                        'platform_name' => strval($h['platform_name']),
+                        'tester_id' => intval($h['tester_id']),
+                        'tester_login' => strval($h['tester_login']),
+                        'tester_name' => $hTester,
+                        'status_code' => $hStatus,
+                        'status_suffix' => $hSuffix,
+                        'status_label' => ($hSuffix != '')
+                            ? lang_get('test_status_' . $hSuffix) : $hStatus,
+                        'execution_ts' => strval($h['execution_ts']),
+                        'execution_duration' => strval($h['execution_duration']),
+                        'run_type' => intval($h['execution_run_type'])
+                            === TESTCASE_EXECUTION_TYPE_AUTO ? 'automated' : 'manual',
+                        'notes' => strval($h['execution_notes']),
+                        'can_edit_notes' => ($canEditNotesGlobal && $buildOpen) ? 1 : 0,
+                        'can_delete' => ($canDeleteGlobal && $buildOpen) ? 1 : 0,
+                    ];
+                }
+            }
+        }
+    } catch (Exception $e) {
+        $execHistory = [];
+    }
+
     $tprojectMgr = new testproject($db);
     $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
     $ext = intval($vinfo['tc_external_id']);
@@ -728,6 +786,7 @@ if ($action === 'tcDetails') {
         'steps' => $steps,
         'prior_execution' => $prior,
         'prior_step_results' => $priorSteps,
+        'exec_history' => $execHistory,
     ]);
 }
 
@@ -894,6 +953,136 @@ if ($action === 'save') {
         'execution_ts' => $newTs,
         'recorded_status' => $statusCode,
     ]);
+}
+
+// POST ?action=deleteExecution  (JSON body: execution_id)
+// Deletes ONE execution, mirroring legacy execSetResults.php do_delete
+// flow (exec_Delete right + build must be open). Reuses delete_execution()
+// so child data (execution_bugs, cfield_execution_values,
+// execution_tcsteps, attachments) is cleaned up exactly as the legacy path.
+if ($action === 'deleteExecution') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    $execId = intval($payload['execution_id'] ?? 0);
+    if ($execId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing execution_id']);
+    }
+    // legacy gate: testplan_execute (execute right) AND the delete right
+    // (execSetResults.php checks grants->execute + grants->delete_execution)
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+    if (!$user->hasRight($db, 'exec_delete', $tprojectId, $tplanId, true)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    // the execution must belong to this plan
+    $et = tlObjectWithDB::getDBTables(['executions', 'builds']);
+    $er = $db->get_recordset(
+        "SELECT E.id, E.testplan_id, E.build_id, E.tcversion_id, B.is_open AS build_is_open" .
+        " FROM {$et['executions']} E" .
+        " LEFT JOIN {$et['builds']} B ON B.id = E.build_id" .
+        " WHERE E.id = {$execId}");
+    if (is_null($er) || count($er) == 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Execution not found']);
+    }
+    if (intval($er[0]['testplan_id']) !== $tplanId) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Execution does not belong to this test plan']);
+    }
+    // legacy only allows deleting executions belonging to an open build
+    if (intval($er[0]['build_is_open']) !== 1) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Cannot delete an execution of a closed build']);
+    }
+
+    $ok = delete_execution($db, $execId);
+    if (!$ok) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Delete failed']);
+    }
+
+    // audit trail ONLY on success, like legacy execSetResults.php:347-355
+    $buildInfo = $tplanMgr->get_build_by_id($tplanId, intval($er[0]['build_id']));
+    $auditMsg = 'Execution ' . $execId . ' deleted (build: '
+        . strval($buildInfo['name'] ?? '') . ', plan: ' . $tplanId . ')';
+    logAuditEvent($auditMsg, 'DELETE', $execId, 'execution');
+
+    out(['status' => 'ok', 'deleted' => true, 'execution_id' => $execId]);
+}
+
+// POST ?action=updateNotes  (JSON body: execution_id, notes)
+// Updates ONLY the execution notes, mirroring legacy editExecution.php doUpdate
+// (exec_edit_notes right + build open). Uses updateExecutionNotes().
+if ($action === 'updateNotes') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    $execId = intval($payload['execution_id'] ?? 0);
+    if ($execId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing execution_id']);
+    }
+    // legacy gate (editExecution.php checkRights): testplan_execute AND
+    // exec_edit_notes; also the inline table only offers edit on open builds
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+    if (!$user->hasRight($db, 'exec_edit_notes', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $et = tlObjectWithDB::getDBTables(['executions', 'builds']);
+    $er = $db->get_recordset(
+        "SELECT E.id, E.testplan_id, E.build_id, B.is_open AS build_is_open" .
+        " FROM {$et['executions']} E" .
+        " LEFT JOIN {$et['builds']} B ON B.id = E.build_id" .
+        " WHERE E.id = {$execId}");
+    if (is_null($er) || count($er) == 0) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Execution not found']);
+    }
+    if (intval($er[0]['testplan_id']) !== $tplanId) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Execution does not belong to this test plan']);
+    }
+    if (intval($er[0]['build_is_open']) !== 1) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Cannot edit notes of a closed build']);
+    }
+
+    $notes = strval($payload['notes'] ?? '');
+    $ok = updateExecutionNotes($db, $execId, $notes) === tl::OK;
+    if (!$ok) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Update failed']);
+    }
+    out(['status' => 'ok', 'updated' => true, 'execution_id' => $execId]);
 }
 
 http_response_code(400);

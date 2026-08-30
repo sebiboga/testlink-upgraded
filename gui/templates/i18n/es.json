@@ -1898,5 +1898,12 @@
   "auth.weakPassword": "The password does not meet the required quality rules.",
   "auth.mailSendError": "There was a problem sending the email. Please contact your administrator.",
   "auth.loginWith": "Iniciar sesión con ",
-  "auth.githubRepoTip": "Código fuente de TestLink Upgraded"
+  "auth.githubRepoTip": "Código fuente de TestLink Upgraded",
+  "exe.executionHistory": "Historial de ejecuciones",
+  "exe.actions": "Acciones",
+  "exe.deleteExecution": "Eliminar ejecución",
+  "exe.confirmDeleteExecution": "¿Eliminar esta ejecución? No se puede deshacer.",
+  "exe.deletedOk": "Ejecución eliminada.",
+  "exe.errDelete": "Error al eliminar la ejecución.",
+  "exechist.closedBuild": "Build cerrado"
 }
