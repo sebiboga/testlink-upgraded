@@ -7902,3 +7902,20 @@ Fixture: `tmp/fixtures_rsv.php` — spec SRS-001 (parent id, rev r1 id=2 / rev r
 **Result: Suite 755b — 11/11 PASS**
 
 Known upstream quirk (not introduced by this screen): `req_specs_revisions.total_req` is never written by `requirement_spec_mgr::create()` here, so "Total requirements (declared)" shows 0 for fixture-sourced specs (same as Suite 755).
+
+## Suite 778 — Regression — Issue #778: dashio tcView_viewer.tpl uses unregistered key `inc_show_scripts_table` → empty include path (scripts table dropped/fatal)
+
+**Precondition:** Fresh DB; app at http://localhost:8082. The fix is a one-line change in `gui/templates/dashio/testcases/tcView_viewer.tpl:577` switching `{$tplConfig.inc_show_scripts_table}` (an UNREGISTERED key, absent from `tplConfig`) to the registered dashio key `{$tplConfig['showScriptsTable.inc']}` (→ `include/showScriptsTable.inc.tpl`, registered at `lib/functions/tlsmarty.inc.php:229`). `tcView_viewer.tpl` is dead code (no live renderer — superseded by `tcViewViewer.inc.tpl`, per docs/Issue-422), so the defect is latent; it is verified with the same TestLink TLSmarty engine harness used for Suite 626 (real smarty + the 7 template_dir roots + registered lang_get/tlImages, bootstrapped from config.inc.php + common.php), rendering the exact include line with a non-null scripts_map.
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | Config-key registration: does `tplConfig['inc_show_scripts_table']` exist? | The unregistered key is ABSENT from `tplConfig` (empty include path → the reported defect) | `NO (unregistered -> empty)` — confirmed via harness `array_key_exists` | PASS (repro confirms root cause) |
+| 2 | PRE-FIX repro: render `{include file="{$tplConfig.inc_show_scripts_table}" scripts_map=... can_delete=true tcase_id=10 tproject_id=1}` | Unresolvable/empty path → scripts table dropped or Smarty error | `SmartyException -> Source: Missing name` — the defect symptom | PASS (repro) |
+| 3 | Config-key registration: does `tplConfig['showScriptsTable.inc']` resolve to the real template? | Resolves to `include/showScriptsTable.inc.tpl` and that file exists under a dashio template_dir root | `'include/showScriptsTable.inc.tpl'`; `gui/templates/dashio/include/showScriptsTable.inc.tpl` exists | PASS |
+| 4 | POST-FIX: render `{include file="{$tplConfig['showScriptsTable.inc']}" ...}` with a non-null script map | RENDER OK — scripts table emitted (project key / repo / branch columns), no fatal | RENDER OK length=815, contains `bug778` (project_key) & `repo-778` & branch `main` — full table rendered | PASS |
+| 5 | grep: no remaining dashio read of the unregistered `inc_show_scripts_table` key | Only the fixed file, no other dashio template still reads the unregistered key | `grep -rn inc_show_scripts_table gui/templates/dashio` → no match | PASS |
+| 6 | Event Viewer / `events` table after the change | No new Error/Warning rows (log_level=2/4) attributable to the fix | Zero rows at log_level IN (2,4); fix is template-only + CLI harness (no live request, no DB writes) | PASS |
+
+**Result: Suite 778 — 6/6 PASS**
+
+**Pre-fix symptom recorded (repro):** the unregistered key `{$tplConfig.inc_show_scripts_table}` is not among the `stdTPLCfg` keys (`lib/functions/tlsmarty.inc.php:229-230` registers only `showScriptsTable.inc`), so the include path is empty → `SmartyException: Source: Missing name` whenever the template renders a TC version with ≥1 linked script. Same defect class as the (fixed) exec screen issue #626; the live dashio viewer already uses the correct key at `tcViewViewer.inc.tpl:605`.
