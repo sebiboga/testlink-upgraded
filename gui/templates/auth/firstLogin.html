@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="auth.signUpTitle">Sign Up</title>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: 'Ruda', 'Helvetica Neue', Arial, sans-serif;
+  background: #22242a url('/gui/templates/dashio/img/login/login-bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+}
+#login-page {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.form-login {
+  width: 380px; max-width: 100%; background: rgba(255,255,255,0.97);
+  border-radius: 8px; box-shadow: 0 6px 24px rgba(0,0,0,0.35); overflow: hidden;
+}
+.form-login-heading {
+  margin: 0; padding: 18px 24px; background: #4ECDC4; color: #fff;
+  font-size: 18px; font-weight: 700; letter-spacing: 1px; text-align: center;
+}
+.form-login-heading img { display: block; margin: 0 auto 6px; max-height: 40px; }
+.form-login-heading .edition { font-size: 12px; font-weight: 400; opacity: .9; }
+.login-wrap { padding: 24px; }
+.login-wrap .form-control {
+  height: 44px; font-size: 14px; border-radius: 4px;
+  border: 1px solid #ddd; box-shadow: none; margin-bottom: 12px;
+}
+.login-wrap .form-control:focus { border-color: #4ECDC4; box-shadow: none; }
+.alert-box {
+  border-radius: 4px; padding: 10px 14px; font-size: 13px; margin-bottom: 16px;
+}
+.alert-danger { background: #fbdddd; color: #a42525; border: 1px solid #f5b7b7; }
+.alert-info { background: #d9eefb; color: #1a5276; border: 1px solid #b6d9f2; }
+.btn-theme { background: #4ECDC4; color: #fff; font-weight: 700; letter-spacing: .5px; }
+.btn-theme:hover { background: #3dbdb5; color: #fff; }
+.divider { border-top: 1px solid #eee; margin: 18px 0; }
+.spinner { display: none; }
+.btn-theme.loading .spinner { display: inline-block; }
+.btn-theme.loading .btn-label { opacity: .6; }
+.footer-note { text-align: center; font-size: 12px; color: #999; margin-top: 14px; }
+.back-link { text-align: center; margin-top: 14px; font-size: 13px; }
+.back-link a { color: #2a9a92; font-weight: 600; }
+#disabledBox { display: none; }
+</style>
+</head>
+<body>
+<div id="login-page">
+  <form class="form-login" id="signupForm" method="post" autocomplete="off">
+    <div class="form-login-heading">
+      <img src="/gui/themes/default/images/tl-logo-transparent-25.png" alt="TestLink">
+      <span class="edition" data-i18n="auth.signUpTitle">Sign Up</span>
+    </div>
+    <div class="login-wrap">
+      <div class="alert-box alert-danger" id="errorBox" style="display:none;"></div>
+      <div class="alert-box alert-info" id="infoBox" style="display:none;"></div>
+      <div class="alert-box alert-info" id="disabledBox">
+        <span data-i18n="auth.signUpDisabled">New user self-registration is disabled on this site. Please contact your site administrator.</span>
+      </div>
+
+      <input type="text" id="login" name="login" class="form-control"
+             data-i18n-placeholder="auth.loginName" autofocus required maxlength="30">
+      <input type="text" id="firstName" name="firstName" class="form-control"
+             data-i18n-placeholder="auth.firstName" required maxlength="30">
+      <input type="text" id="lastName" name="lastName" class="form-control"
+             data-i18n-placeholder="auth.lastName" required maxlength="30">
+      <input type="email" id="email" name="email" class="form-control"
+             data-i18n-placeholder="auth.email" required maxlength="100">
+      <div id="pwdFields">
+        <input type="password" id="password" name="password" class="form-control"
+               data-i18n-placeholder="auth.password" required>
+        <input type="password" id="password2" name="password2" class="form-control"
+               data-i18n-placeholder="auth.passwordAgain" required>
+      </div>
+
+      <button type="submit" id="signupBtn" class="btn btn-theme btn-block">
+        <i class="fa fa-user-plus"></i>
+        <span class="btn-label" data-i18n="auth.btnAddUserData">Sign up</span>
+        <span class="spinner"><i class="fa fa-spinner fa-spin"></i></span>
+      </button>
+
+      <div class="back-link">
+        <a href="/gui/templates/auth/login.html" data-i18n="auth.linkBackToLogin">Back to login</a>
+      </div>
+
+      <div class="footer-note" data-i18n="auth.version">
+        Version 2.0.1
+      </div>
+      <div class="footer-github" style="text-align:center; font-size:12px; color:#999; margin-top:10px;">
+        <a href="https://github.com/sebiboga/testlink-upgraded"
+           target="_blank" rel="noopener" data-i18n-title="auth.githubRepoTip"
+           style="color:#999; text-decoration:none;">
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"
+               style="vertical-align:-2px; margin-right:5px;" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          sebiboga/testlink-upgraded
+        </a>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script src="/gui/templates/dashio/lib/jquery/jquery.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+$(function () {
+  function showError(msg) {
+    $('#errorBox').text(msg).show();
+    $('#infoBox').hide();
+  }
+  function showInfo(msg) {
+    $('#infoBox').text(msg).show();
+    $('#errorBox').hide();
+  }
+
+  // Load page state: self-signup enabled? external password mgmt?
+  $.getJSON('/api/auth/config', function (cfg) {
+    var c = cfg.config || {};
+    if (!c.selfSignup) {
+      $('#disabledBox').show();
+      $('#signupBtn').hide();
+      $('#signupForm input').prop('disabled', true);
+    }
+    if (c.externalPasswordMgmt) {
+      $('#pwdFields').hide();
+    }
+    if (c.pwdMaxLen > 0) {
+      $('#password, #password2').attr('maxlength', c.pwdMaxLen);
+    }
+  }).fail(function () { /* basic form still works */ });
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+  });
+
+  $('#signupForm').on('submit', function (e) {
+    e.preventDefault();
+    var login = $('#login').val().trim();
+    var firstName = $('#firstName').val().trim();
+    var lastName = $('#lastName').val().trim();
+    var email = $('#email').val().trim();
+    var pwd = $('#password').val();
+    var pwd2 = $('#password2').val();
+
+    if (!login || !firstName || !lastName || !email) {
+      showError(TLi18n.t('auth.requiredFields'));
+      return;
+    }
+    if ($('#pwdFields').is(':visible') && pwd !== pwd2) {
+      showError(TLi18n.t('passwd_dont_match'));
+      return;
+    }
+
+    $('#signupBtn').addClass('loading').prop('disabled', true);
+    $.post('/api/auth/signup', {
+      login: login, password: pwd, password2: pwd2,
+      firstName: firstName, lastName: lastName, email: email
+    }).done(function (res) {
+      if (res.success) {
+        window.location.href = '/gui/templates/auth/login.html?note=first';
+      } else {
+        showError(localizeReason(res.reason));
+      }
+    }).fail(function () {
+      showError(TLi18n.t('auth.networkError'));
+    }).always(function () {
+      $('#signupBtn').removeClass('loading').prop('disabled', false);
+    });
+  });
+
+  function localizeReason(reason) {
+    var map = {
+      'error_self_signup_disabled': TLi18n.t('auth.signUpDisabled'),
+      'passwd_dont_match': TLi18n.t('passwd_dont_match'),
+      'auth.requiredFields': TLi18n.t('auth.requiredFields')
+    };
+    return map[reason] || reason;
+  }
+});
+</script>
+</body>
+</html>
