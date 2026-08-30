@@ -62,8 +62,10 @@ All endpoints are GET unless stated otherwise; session auth required;
 |---|---|---|
 | `init` | `tplan_id` | project/plan context, grants, builds (+executable flag, default build = newest active+open), platforms, localized status vocabulary |
 | `tcList` | `tplan_id`, `build_id`, `platform_id`, optional `q` | latest linked version per case: external id, name, suite path, importance, execution type, last execution (status/ts/tester) |
-| `tcDetails` | `tplan_id`, `tcase_id`, `tcversion_id`, `build_id`, `platform_id` | version block, ordered steps, prior execution incl. prior step results |
+| `tcDetails` | `tplan_id`, `tcase_id`, `tcversion_id`, `build_id`, `platform_id` | version block, ordered steps, prior execution incl. prior step results, and `exec_history` (all executions of this tcversion in the plan, DESC, with per-row run-mode/version/build/tester/status + `can_edit_notes`/`can_delete` grants) |
 | `save` (POST JSON) | `tplan_id,tcase_id,tcversion_id,version_number,build_id,platform_id,status(code),notes,steps{stepId:{status,notes}}` | `saved:true` + execution id/ts, or `reason:'not_run'`; validates executable build + plan link; delegates to `write_execution()` |
+| `deleteExecution` (POST JSON) | `tplan_id`, `execution_id` | `deleted:true`; gates: `testplan_execute` + `exec_delete` (public-plan-aware), execution must belong to the plan, build must be open; delegates to `delete_execution()` and logs an AUDIT event **only on success** |
+| `updateNotes` (POST JSON) | `tplan_id`, `execution_id`, `notes` | `updated:true`; gates: `testplan_execute` + `exec_edit_notes`, execution must belong to the plan, build must be open; delegates to `updateExecutionNotes()` |
 
 Status codes travel as codes (`n/p/f/b`) exactly as served by `init`
 (`statuses[].code`).
@@ -142,3 +144,53 @@ Side-discoveries logged as new issues (out of this fix's scope):
   every execution save when `testprojects.options` is empty;
 - #774 — other ro_RO server-side keys (`manual`, `automated`,
   `the_format_tc_xml_import`) still missing.
+
+### Issue #796 — inline execution-history table restored (closed)
+
+**Symptom:** opening a test case in the modernized Execute Tests screen showed
+no inline execution-history table at all. The legacy 1.9.20 screen had, under
+the prior-execution note line, a full history table with per-row edit-notes /
+delete / print actions and run-mode icons.
+
+**Root cause:** the modernized `execTest.html` simply never rendered that
+table — the BFF `tcDetails` response carried no execution-history payload and
+there were no BFF actions for edit-notes / delete, so 1.9.20 functionality was
+silently dropped during the rewrite.
+
+**Fix approach (restore 1.9.20 parity, following the legacy code paths):**
+- **BFF** (`api/execute/index.php`): `tcDetails` now also returns `exec_history`
+  — the full execution set for this tcversion+plan (all builds, DESC), each row
+  with `build_name`/`build_is_open`, tester login/name, localized status,
+  `execution_ts`/`execution_duration`/`run_type`, `tcversion_number`, plus
+  `can_edit_notes` + `can_delete` per-row grants (from `exec_edit_notes` /
+  `exec_delete` + open build). Two new write routes:
+  - `deleteExecution` — mirrors legacy `execSetResults.php` delete flow
+    (`exec_delete` right, open build, execution belongs to the plan); calls
+    `delete_execution()` (cleans execution_bugs / cfield_execution_values /
+    execution_tcsteps / attachments) and writes an AUDIT event **only on
+    success**.
+  - `updateNotes` — mirrors legacy `editExecution.php` doUpdate
+    (`testplan_execute` + `exec_edit_notes`, open build, plan ownership); calls
+    `updateExecutionNotes()`.
+- **Frontend** (`gui/templates/execute/execTest.html`): new `renderHistoryHtml()`
+  renders the EXECUTION HISTORY table (Date/time, Build+lock icon, Executed by,
+  Status badge, Run-mode icon, Version, Actions) plus a per-row notes line.
+  Row actions: edit-notes → legacy `editExecution.php` popup; print →
+  legacy `execPrint.php` popup; delete → confirm dialog → BFF
+  `deleteExecution` → refresh form + list.
+- **i18n:** added `exe.executionHistory / actions / deleteExecution /
+  confirmDeleteExecution / deletedOk / errDelete` and `exechist.closedBuild` to
+  all ten client bundles; also repaired pre-existing corrupted English/Romanian
+  values for the `exechist.*` keys the table uses.
+
+**Verification (regression suite 796, 7/7 PASS, see tmp/TLU_Test_Cases.md):**
+init/list/detail contracts unchanged; history table renders all runtime rows
+with per-row action buttons; edit-notes popup preloads the execution notes;
+print popup renders the full execution; delete removes the execution + child
+rows and logs an AUDIT delete event; rights/state gates confirmed by code
+review (`testplan_execute` + fine-grained right, plan ownership, open build);
+Event Viewer clean (only AUDIT events, no new Error/Warning).
+
+Screenshots: `docs/screenshots/issue-796-exec-history-missing-before.png`
+(pre-fix, no history table) and `docs/screenshots/issue-796-exec-history-after.png`
+(fixed, history table with row actions).
