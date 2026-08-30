@@ -20,14 +20,14 @@ Three links in a chain:
 2. `displayReport()` (`lib/results/displayMgr.php:152-161`) explicitly routes
    `FORMAT_ODT / FORMAT_ODS / FORMAT_XLS / FORMAT_MSWORD / FORMAT_PDF` into
    `flushHttpHeader()` — so formats 1, 2 and 5 genuinely reach the download
-   path even though `$tlCfg->reports_formats` (cfg/reports.cfg.php:27-29) only
+   path even though `$tlCfg->reports_formats` (cfg/reports.cfg.php:31-33) only
    exposes HTML / MSWORD / MAIL in the UI.
 3. `flushHttpHeader()` builds the filename with
    `$file_extensions[$format]` (`lib/results/displayMgr.php:232`), and
    `$tlCfg->reports_file_extension` (cfg/reports.cfg.php:42-44) only defines
    keys `0 → html`, `3 → xls`, `4 → doc`. Any other numeric key is an
    **undefined array key** on PHP 8, which the project's own error handler
-   (`watchPHPErrors()` in `lib/functions/logger.class.php:1445`, registered at
+   (`watchPHPErrors()` in `lib/functions/logger.class.php:1407`, registered at
    line 1483) turns into a new `events` row with `log_level=2`. The undefined
    value also renders an empty extension into the `Content-Disposition` header.
 
