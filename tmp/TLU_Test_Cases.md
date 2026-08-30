@@ -7846,14 +7846,14 @@ Known upstream quirk (not introduced by this screen): `req_specs_revisions.total
 
 ## Suite 777 — Regression — Issue #777: api/testcases create under project root → E_WARNING testproject.class.php:1045 + DB 1064 (empty external id)
 
-**Precondition:** Fresh DB; logged-in admin session via browser (same-origin CSRF passes). An empty test project exists (created via `POST /api/projects/?action=create`). Parent id = the project root id itself.
+**Precondition:** Fresh DB; logged-in admin session via browser (same-origin CSRF passes). An empty test project exists (created via `POST /api/projects/?action=create` → id=1). Parent id = the project root id itself. Re-executed on a freshly re-imported DB (fixtures recreated: project id=1 "Repro Project").
 
 | # | Test | Expected | Actual | Verdict |
 |---|---|---|---|---|
-| 1 | `POST /api/testcases/?action=create` with `parent_id` = **test project root id**, name + minimal steps (the pre-fix repro) | HTTP 200 `{"status":"ok","id":<n>,"message":"Test case created"}`; a `tcversions` row with a non-empty `tc_external_id` (auto-incremented); NO DB 500 / no E_WARNING+1064 in `events` | HTTP 200 ok id=9; `tcversions` id=10 `tc_external_id=1,version=1`; events show only project-audit row, no new E_WARNING/ERROR | PASS |
-| 2 | Create test case under a **testsuite** parent (control — unchanged path) | Still HTTP 200, `tcversions` row present | HTTP 200 ok id=5; external id generated | PASS |
-| 3 | Create a nested **Suite→Suite→TC** chain under the project root | Sub-suite + test case both HTTP 200; TC `tcversions` row present | Sub Suite id=13 + Nested TC id=14, external id=2 | PASS |
-| 4 | Event Viewer (`events` table) after steps 1–3 | Zero new `E_WARNING` / `ERROR ON exec_query` rows (log_level=2) produced by the create calls | No new error rows after fix (only `audit_testproject_created` for the fixture project) | PASS |
+| 1 | `POST /api/testcases/?action=create` with `parent_id` = **test project root id**, name + minimal steps (the pre-fix repro) | HTTP 200 `{"status":"ok","id":<n>,"message":"Test case created"}`; a `tcversions` row with a non-empty `tc_external_id` (auto-incremented); NO DB 500 / no E_WARNING+1064 in `events` | HTTP 200 `{"status":"ok","id":5,"message":"Test case created"}`; `tcversions` id=6 `tc_external_id=2,version=1` (also a first root TC id=2, tcversion id=3 ext=1); events show only info-level login + tproject audit, no E_WARNING/ERROR | PASS |
+| 2 | Create test case under a **testsuite** parent (control — unchanged path) | Still HTTP 200, `tcversions` row present | Suite A (suite_create id=8), then TC under it → HTTP 200 ok id=9; tcversion id=10 `tc_external_id=3` | PASS |
+| 3 | Create a nested **Suite→Suite→TC** chain under the project root | Sub-suite + test case both HTTP 200; TC `tcversions` row present | Sub Suite (suite_create under id=8) → id=12; Nested TC under it → HTTP 200 ok id=13; tcversion id=14 `tc_external_id=4` | PASS |
+| 4 | Event Viewer (`events` table) after steps 1–3 | Zero new `E_WARNING` / `ERROR ON exec_query` rows (log_level=2) produced by the create calls | `events` has only 2 rows, both log_level=16 (info): `audit_login_succeeded` + `audit_testproject_created`; NO log_level=2 errors | PASS |
 
 **Result: Suite 777 — 4/4 PASS**
 
