@@ -1932,5 +1932,7 @@
   "install.msgManual": "您需要手动升级数据库结构。请阅读 README 文件！",
   "install.msgPartialMigration": "看起来您迁移到了 1.9.20，但 users 表结构未更新——密码字段无法容纳 bcrypt 密码。",
   "install.msgUnknown": "未知的数据库结构版本 {v}——请将 TestLink 数据库升级到 {l}。",
-  "install.msgUndetermined": "无法确定数据库结构版本。"
+  "install.msgUndetermined": "无法确定数据库结构版本。",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

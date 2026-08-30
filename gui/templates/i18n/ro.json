@@ -1932,5 +1932,7 @@
   "install.msgManual": "Trebuie să procedați cu un upgrade manual al schemei DB. Citiți fișierul README!",
   "install.msgPartialMigration": "Se pare că ați migrat la 1.9.20 dar structura tabelului users nu a fost actualizată - câmpul parolă nu poate conține o parolă bcrypt.",
   "install.msgUnknown": "Versiune de schemă necunoscută {v} - vă rugăm să faceți upgrade bazei de date TestLink la {l}.",
-  "install.msgUndetermined": "Versiunea schemei DB nu a putut fi determinată."
+  "install.msgUndetermined": "Versiunea schemei DB nu a putut fi determinată.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

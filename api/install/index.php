@@ -115,15 +115,19 @@ function install_schema_status($db, &$dbSchemaVersion, &$schemaMsg)
 
 $db = null;
 $dbReachable = false;
-try {
-    doDBConnect($db);
-    $dbReachable = true;
-} catch (Exception $e) {
-    $db = null;
-    $dbReachable = false;
+if (defined('DB_TYPE')) {
+    // doDBConnect() never throws: it returns a result array with 'status',
+    // so inspect it instead of relying on an exception.
+    $dbConn = doDBConnect($db);
+    $dbReachable = (is_array($dbConn) && !empty($dbConn['status']));
 }
 
-$schema = install_schema_status($db, $dbSchemaVersion, $schemaMsg);
+$schema = array('status' => 'undetermined');
+$dbSchemaVersion = null;
+$schemaMsg = null;
+if ($dbReachable) {
+    $schema = install_schema_status($db, $dbSchemaVersion, $schemaMsg);
+}
 
 $securityNotes = array();
 $securityCodes = array();
@@ -137,7 +141,7 @@ if (isset($authCfg['method']) && $authCfg['method'] == 'LDAP') {
         $securityNotes[] = lang_get('ldap_extension_not_loaded');
         $securityCodes[] = 'ldap';
     }
-} else {
+} elseif ($dbReachable) {
     $dflt = install_default_admin_pwd($db);
     if ($dflt === true) {
         $securityNotes[] = lang_get('sec_note_admin_default_pwd');
@@ -172,7 +176,7 @@ echo json_encode(array(
     'links' => array(
         'installer' => '/install/index.php',
         'manual'    => '/docs/testlink_installation_manual.pdf',
-        'readme'    => '/README',
+        'readme'    => '/README.md',
         'changelog' => '/CHANGELOG',
     ),
 ));

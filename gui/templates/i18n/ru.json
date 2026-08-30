@@ -1932,5 +1932,7 @@
   "install.msgManual": "Необходимо выполнить ручное обновление схемы БД. Прочтите файл README!",
   "install.msgPartialMigration": "Похоже, вы перешли на 1.9.20, но структура таблицы users не обновлена — поле пароля не может содержать bcrypt-пароль.",
   "install.msgUnknown": "Неизвестная версия схемы {v} — пожалуйста, обновите базу данных TestLink до {l}.",
-  "install.msgUndetermined": "Не удалось определить версию схемы БД."
+  "install.msgUndetermined": "Не удалось определить версию схемы БД.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

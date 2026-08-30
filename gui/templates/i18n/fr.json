@@ -1932,5 +1932,7 @@
   "install.msgManual": "Vous devez procéder à une mise à niveau manuelle du schéma de votre BD. Lisez le fichier README !",
   "install.msgPartialMigration": "Il semble que vous ayez migré vers 1.9.20 sans mettre à jour la structure de la table users - le champ mot de passe ne peut pas contenir un mot de passe bcrypt.",
   "install.msgUnknown": "Version de schéma inconnue {v} - veuillez mettre à niveau votre base TestLink vers {l}.",
-  "install.msgUndetermined": "La version du schéma de la BD n'a pas pu être déterminée."
+  "install.msgUndetermined": "La version du schéma de la BD n'a pas pu être déterminée.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

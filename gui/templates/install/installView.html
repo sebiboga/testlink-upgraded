@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="install.header">Install / Upgrade</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.cards { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; }
+.card .icon { font-size: 28px; color: #4ECDC4; margin-bottom: 10px; }
+.card .label { font-size: 12px; color: #999; text-transform: uppercase; letter-spacing: .5px; }
+.card .value { font-size: 20px; font-weight: 700; color: #22242a; margin-top: 2px; word-break: break-all; }
+.card .value.small { font-size: 15px; line-height: 1.45; }
+.badge { display: inline-block; padding: 3px 12px; border-radius: 20px; color: #fff; font-size: 12px; font-weight: 700; margin-top: 6px; }
+.badge.ok { background: #27ae60; }
+.badge.upgrade, .badge.manual, .badge.unknown, .badge.undetermined { background: #e74c3c; }
+.badge.warn { background: #f39c12; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 0 24px 12px 24px; padding: 16px 20px; }
+.panel h4 { margin: 0 0 8px 0; font-size: 14px; font-weight: 700; color: #22242a; }
+.panel .msg { font-size: 13px; color: #555; line-height: 1.5; }
+.panel ul { margin: 6px 0 0 18px; padding: 0; }
+.panel ul li { font-size: 13px; color: #c0392b; margin-bottom: 4px; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 24px 14px 24px; }
+.action-btn { border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.action-btn.teal { background: #4ECDC4; }
+.action-btn.teal:hover { background: #3dbdb5; }
+.action-btn.blue { background: #3498db; }
+.action-btn.blue:hover { background: #2980b9; }
+.action-btn.dark { background: #22242a; }
+.action-btn.dark:hover { background: #33363f; }
+#feedbackMsg { display: none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display: block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="install.header">Install / Upgrade</span>
+  <span data-i18n="install.headerSub">installation and schema status</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="section-title"><i class="fa fa-cogs" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="install.status">Installation Status</span></div>
+<div class="cards" id="statusCards"></div>
+
+<div id="upgradePanel" class="panel" style="display:none;">
+  <h4><i class="fa fa-exclamation-triangle" style="color:#e74c3c;margin-right:6px;"></i><span data-i18n="install.upgradeNeeded">Upgrade Required</span></h4>
+  <div class="msg" id="upgradeMsg"></div>
+</div>
+
+<div id="securityPanel" class="panel" style="display:none;">
+  <h4><i class="fa fa-shield-alt" style="color:#f39c12;margin-right:6px;"></i><span data-i18n="install.securityNotes">Security Notes</span></h4>
+  <ul id="securityList"></ul>
+</div>
+
+<div class="section-title"><i class="fa fa-rocket" style="color:#3498db;margin-right:6px;"></i><span data-i18n="install.actions">Actions</span></div>
+<div class="actions" id="actions"></div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/install/index.php';
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadStatus();
+  });
+});
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+$(document).on('click', '#refreshBtn', function() { loadStatus(true); });
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+
+function card(label, value, small) {
+  return $('<div class="card">')
+    .append('<div class="icon"><i class="fa fa-info-circle"></i></div>')
+    .append('<div class="label">' + esc(label) + '</div>')
+    .append('<div class="value' + (small ? ' small' : '') + '">' + esc(value) + '</div>');
+}
+
+function loadStatus(clearFeedback) {
+  $.getJSON(API, function(r) {
+    if (clearFeedback) showFeedback('', '');
+    renderStatus(r);
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#footerInfo').text('');
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('common.errorLoading');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showFeedback('err', msg);
+  });
+}
+
+function renderStatus(r) {
+  var grid = $('#statusCards').empty();
+
+  grid.append(card(TLi18n.t('install.appVersion'), r.appVersion || '-'));
+  grid.append(card(TLi18n.t('install.latestDbVersion'), r.latestDbVersion || '-'));
+  grid.append(card(TLi18n.t('install.dbSchemaVersion'), r.dbSchemaVersion || '-', true));
+
+  var st = r.schemaStatus || 'unknown';
+  var stKey = st === 'ok' ? 'install.stateOk' :
+              (st === 'upgrade' ? 'install.stateUpgrade' :
+              (st === 'manual' ? 'install.stateManual' :
+              (st === 'unknown' ? 'install.stateUnknown' : 'install.stateUndetermined')));
+  var stCard = $('<div class="card">')
+    .append('<div class="icon"><i class="fa fa-database"></i></div>')
+    .append('<div class="label">' + TLi18n.t('install.schemaState') + '</div>')
+    .append('<div class="value"><span class="badge ' + (st === 'ok' ? 'ok' : st) + '">' + TLi18n.t(stKey) + '</span></div>');
+  grid.append(stCard);
+
+  var cfgCard = card(TLi18n.t('install.configPresent'), r.configPresent ? TLi18n.t('install.yes') : TLi18n.t('install.no'));
+  grid.append(cfgCard);
+  var dbCard = card(TLi18n.t('install.dbReachable'), r.dbReachable ? TLi18n.t('install.yes') : TLi18n.t('install.no'));
+  grid.append(dbCard);
+  var gdCard = card(TLi18n.t('install.gdOk'), r.gdOk ? TLi18n.t('install.yes') : TLi18n.t('install.no'));
+  grid.append(gdCard);
+
+  if (r.schemaStatus && r.schemaStatus !== 'ok') {
+    var msgKey = 'install.msgUndetermined';
+    if (r.schemaMsg === 'upgrade') msgKey = 'install.msgUpgrade';
+    else if (r.schemaMsg === 'manual') msgKey = 'install.msgManual';
+    else if (r.schemaMsg === 'partial_migration') msgKey = 'install.msgPartialMigration';
+    else if (r.schemaMsg === 'unknown') msgKey = 'install.msgUnknown';
+    var msg = TLi18n.t(msgKey);
+    if (r.schemaMsg === 'unknown' && r.schemaVersion) {
+      msg = TLi18n.t('install.msgUnknown', {v: r.schemaVersion, l: r.latestDbVersion});
+    }
+    $('#upgradeMsg').text(msg);
+    $('#upgradePanel').show();
+  } else {
+    $('#upgradePanel').hide();
+  }
+
+  if (r.securityNotes && r.securityNotes.length > 0) {
+    $('#securityPanel').show();
+    var ul = $('#securityList').empty();
+    $.each(r.securityNotes, function(i, n) {
+      ul.append($('<li>').text(n));
+    });
+  } else {
+    $('#securityPanel').hide();
+  }
+
+  renderActions(r);
+}
+
+function renderActions(r) {
+  var box = $('#actions').empty();
+  box.append('<a class="action-btn teal" href="' + esc(r.links.installer) + '" target="_top"><i class="fa fa-wrench"></i> ' + TLi18n.t('install.openWizard') + '</a>');
+  box.append('<a class="action-btn blue" href="' + esc(r.links.manual) + '" target="_blank" rel="noopener"><i class="fa fa-book"></i> ' + TLi18n.t('install.manual') + '</a>');
+  box.append('<a class="action-btn dark" href="' + esc(r.links.readme) + '" target="_blank" rel="noopener"><i class="fa fa-file-text"></i> ' + TLi18n.t('install.readme') + '</a>');
+  box.append('<a class="action-btn dark" href="' + esc(r.links.changelog) + '" target="_blank" rel="noopener"><i class="fa fa-history"></i> ' + TLi18n.t('install.changelog') + '</a>');
+}
+</script>
+</body>
+</html>

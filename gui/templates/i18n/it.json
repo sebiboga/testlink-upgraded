@@ -1932,5 +1932,7 @@
   "install.msgManual": "È necessario procedere con un aggiornamento manuale dello schema DB. Leggere il README!",
   "install.msgPartialMigration": "Sembra che si sia migrati a 1.9.20 ma la struttura della tabella users non è stata aggiornata - il campo password non può contenere una password bcrypt.",
   "install.msgUnknown": "Versione schema sconosciuta {v} - aggiornare il database TestLink a {l}.",
-  "install.msgUndetermined": "Impossibile determinare la versione dello schema DB."
+  "install.msgUndetermined": "Impossibile determinare la versione dello schema DB.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

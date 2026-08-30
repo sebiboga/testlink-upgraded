@@ -1932,5 +1932,7 @@
   "install.msgManual": "Sie müssen Ihre DB-Schema manuell upgraden. Lesen Sie die README-Datei!",
   "install.msgPartialMigration": "Es scheint, dass Sie auf 1.9.20 migriert haben, aber die users-Tabellenstruktur wurde nicht aktualisiert - das Passwortfeld kann kein bcrypt-Passwort aufnehmen.",
   "install.msgUnknown": "Unbekannte Schemaversion {v} - bitte upgraden Sie Ihre TestLink-Datenbank auf {l}.",
-  "install.msgUndetermined": "Die DB-Schemaversion konnte nicht ermittelt werden."
+  "install.msgUndetermined": "Die DB-Schemaversion konnte nicht ermittelt werden.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

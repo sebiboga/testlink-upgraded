@@ -1932,5 +1932,7 @@
   "install.msgManual": "DBスキーマの手動アップグレードが必要です。READMEファイルを読んでください！",
   "install.msgPartialMigration": "1.9.20へ移行したようですがusersテーブルの構造が更新されていません - passwordフィールドはbcryptパスワードを保持できません。",
   "install.msgUnknown": "未知のスキーマバージョン {v} - TestLinkデータベースを {l} にアップグレードしてください。",
-  "install.msgUndetermined": "DBスキーマバージョンを判定できませんでした。"
+  "install.msgUndetermined": "DBスキーマバージョンを判定できませんでした。",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

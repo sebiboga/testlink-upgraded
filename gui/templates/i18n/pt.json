@@ -1932,5 +1932,7 @@
   "install.msgManual": "Você precisa fazer uma atualização manual do esquema do BD. Leia o arquivo README!",
   "install.msgPartialMigration": "Parece que você migrou para 1.9.20, mas a estrutura da tabela users não foi atualizada - o campo de senha não pode conter uma senha bcrypt.",
   "install.msgUnknown": "Versão de esquema desconhecida {v} - atualize seu banco TestLink para {l}.",
-  "install.msgUndetermined": "Não foi possível determinar a versão do esquema do BD."
+  "install.msgUndetermined": "Não foi possível determinar a versão do esquema do BD.",
+  "install.readme": "README",
+  "install.changelog": "CHANGELOG"
 }

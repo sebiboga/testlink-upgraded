@@ -624,6 +624,7 @@ class TLSmarty extends Smarty {
     $g = new stdClass();
     $keys = array(
       'event_viewer','user_mgmt','cfield_management','project_edit',
+      'configuration',
       'tproject_user_role_assignment','keywords_view','modify_tc','view_tc',
       'keyword_assignment','req_tcase_link_management','monitor_req',
       'mgt_testplan_create','testplan_create_build',
