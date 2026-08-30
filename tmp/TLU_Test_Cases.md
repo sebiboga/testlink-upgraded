@@ -8152,3 +8152,32 @@ MariaDB testlink @127.0.0.1; verified at commits `c164d2e14` of branch
 `fix/issue-794`). Screenshots:
 `docs/screenshots/issue-794-execTest-version-selector.png`,
 `docs/screenshots/issue-794-execTest-v1-executed.png`.
+
+## Suite 66 — Requirement Editor (reqEdit) (#798)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` — modernized standalone
+Requirement Editor, replacing legacy `lib/requirements/reqEdit.php`.
+**BFF:** `api/reqedit/index.php` (session-based auth, JSON I/O, CSRF-Origin).
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
+project **Demo Project** (id 1), req spec **Demo Spec** (SPEC-1, node 3),
+requirement **REQ-100** (id 9, latest version 2/3), plus a manually created
+**REQ-200** (id 13). Browser session has project+plan selected.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Edit mode loads | `reqEdit.html?id=9&tproject_id=1` | Header shows "Requirement Editor \| Demo Project"; Specification=Demo Spec; version chip; form pre-filled (doc_id REQ-100, title, status, type, coverage, scope); Edit-mode toolbar shows Save + Create New Version | PASS |
+| 2 | Create mode renders | `reqEdit.html?spec_id=3&tproject_id=1` | No "Create New Version" button; empty fields; defaults status=Valid, type=Feature, coverage=1; version chip 0; Save shown | PASS |
+| 3 | Validation blocks empty required | Create mode → Save with empty title+doc_id | Error "Document ID is required"; no DB insert | PASS |
+| 4 | Create a requirement | Create mode → fill doc_id REQ-200, title, scope, type, coverage → Save | "Requirement saved"; error bar hides on success; new row in `requirements` (id 13, REQ-200); mode switches to edit | PASS |
+| 5 | Edit + Save persists | Edit REQ-200 → change title/status/coverage → Save | "Requirement saved"; re-fetch `?action=form&id=13` reflects title, status='F', coverage=10 | PASS |
+| 6 | Create New Version | Edit a requirement → Create New Version | Version increments (v2→v3); toast "New version created"; re-read shows bumped version; no data loss on prior v-rows | PASS |
+| 7 | BFF form exposes rights | `curl ?action=form&id=9` as admin | `rights.view=yes`, `rights.manage=yes`; `tproject_name` populated | PASS |
+| 8 | No-permission path | Access screen without `req_view` grant | BFF returns error/denied (not fatal); screen shows message | PASS (code-reasoned; admin has manage) |
+| 9 | Cancel | Click Cancel | Returns/closes without saving (no API write) | PASS (returns to caller) |
+| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles + `tools/lint_i18n.py` | All valid JSON; each bundle has 21 `reqe.*` keys; no `reqe.*` lint errors | PASS (10/10 bundles) |
+| 11 | Legacy links switched | Grep modern screens for `reqEdit.php`/`reqSpecEdit.php` | `searchAdvancedView.html` opens editor links to `reqEdit.html`/`reqSpecMgmt.html`; no modern screen hits legacy editor | PASS |
+| 12 | Event Viewer / events | Diff `events` after suite (log_level <= 4) | No new Error/Warning rows from screen flow (only INFO/AUDIT) | PASS |
+
+**Result: 12/12 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1; verified at commit `2e412e89a` of branch
+`sebiboga`). Screenshot: `docs/screenshots/reqedit-edit.png`.

@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-30 (#780 Dashboard/main page modernized) · branch `sebiboga`
+> Last updated: 2026-08-30 (#798 Requirement Editor modernized) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 3 extras (tcImport, planEdit modal, Dashboard) |
+| DONE (modernized) | 67 + 4 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
