@@ -8004,3 +8004,35 @@ Notes:
 - Discovered & fixed while testing (own commits): (a) BFF called nonexistent `database::create()` → switched to the `doDBConnect($db)` bootstrap used by all other BFFs (`api/install/index.php`); (b) the ASIDE gate used the non-existent grant `system_configuraton` → corrected to `configuration`, which only works after fixing the legacy right-name typo `system_configuraton` → `system_configuration` in `lib/functions/common.php` + `lib/general/mainPage.php` (the typo existed in legacy and matched the XML-RPC test seed, but the live install seeds describe right id 19 as `system_configuration`, so the grant was always off).
 - The screen's server-side messages follow the session login locale (legacy `lang_get`); client labels follow the TLi18n switcher.
 - Event Viewer finding & fix (own commit): the first BFF layout emitted `E_WARNING Undefined array key "msg"` (events id 4-9) on every status load because `schemaMsg` was built from `$schema['msg']` unguarded (the `ok` return path has no `msg` index) → guarded with `isset()`; final clean re-load produces **zero** new events (id > 9). The pre-fix aside render also logged one `Undefined property: stdClass::$system_configuraton` (id 2) from the initial gate typo — gone after the `configuration` fix.
+
+---
+
+## Suite 63 — Regression — Issue #629: E_WARNING "Undefined array key 0" at testcase.class.php:804 on empty steps array
+
+**Date:** 2026-08-30 · **Branch:** `fix/issue-629` ·
+**Root cause:** `testcase::createVersion()` guarded the step-writing block with
+`!is_null($item->steps) && is_array($item->steps)` but read `$item->steps[0]`
+(line 804, `$stepIsObject`) before any bounds check. An EMPTY array `[]` passes
+the guard; under PHP 8 the missing index 0 raises `E_WARNING`, persisted to
+`events`. The 0-step loop was a no-op, so the warning was pure log noise.
+**Fix:** added `count($item->steps) > 0` to the guard — the index-0 read and the
+no-op loop are now skipped entirely for the 0-step case.
+
+**Precondition:** fresh DB. Drivers: `php tmp/repro_629.php` (pre-fix repro:
+project REP629 → suite → 2 TCs created with `steps = []`, events diff),
+`php tmp/regr_629.php` (post-fix matrix). Both bootstrap TestLink classes
+directly — same code path used by the legacy UI controller and the XMLRPC/REST API.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Repro (pre-fix baseline) | `php tmp/repro_629.php` on unpatched code: create 2 TCs with `steps=[]`; diff `events` vs baseline id | Exactly one new `level=2` event per TC: `E_WARNING | Undefined array key 0 ... Line 804`; TCs created fine | PASS (2 TCs created, 2 WARNING events — recorded pre-fix) |
+| 2 | Empty steps post-fix | `php tmp/regr_629.php` CASE1: create TC with `steps=[]` | TC created; **0 step rows**; zero new `log_level<=4` events | PASS (`step_rows=0`, `NO_ERROR_WARNING_EVENTS`) |
+| 3 | Null steps unchanged | CASE2: create TC with `steps=null` | TC created; 0 step rows; no warnings | PASS (`step_rows=0`) |
+| 4 | Non-empty steps intact | CASE3: 2 steps with `execution_type` 1 and 2 | Both step rows stored with correct `execution_type`; no warnings (guards #628 path) | PASS (`step_rows=2 exec_types=1,2`) |
+| 5 | Adjacent #628 regression | `php tmp/regr_628.php` (missing/invalid execution_type cases) | All 3 cases PASS; `NO_ERROR_WARNING_EVENTS` | PASS |
+| 6 | Event Viewer / `events` after suite | Diff events table across whole matrix (`log_level <= 4`) | No Error/Warning attributable to fix or drivers | PASS (`NO_ERROR_WARNING_EVENTS`; only level-16 AUDIT rows) |
+| 7 | Event Viewer screen | Browse `gui/templates/eventviewer/eventviewer.html` logged-in as admin | No new WARNING/ERROR rows after the post-fix runs; pre-fix warnings still visible for reference | PASS (2 WARNING @12:11:38 pre-fix, 1 ERROR = driver draft artifact, none post-fix) |
+
+**Result: 7/7 PASS** (2026-08-30, PHP CLI against MariaDB testlink @127.0.0.1 +
+headless Chrome @ http://localhost:8082; fix verified at commit `b166ae910` of
+branch `fix/issue-629`).
