@@ -466,6 +466,17 @@ function renderForm() {
         + '</tr>';
     });
     h += '</tbody></table>';
+
+    // legacy "Save steps partial execution" (resume without completing the
+    // full run) - shown only when the version has steps; WIP rows are written
+    // to execution_tcsteps_wip and reloaded on the next open
+    h += '<div class="save-row" style="margin-top:8px;">';
+    h += '<button id="savePartialBtn" class="btn-dark" onclick="savePartialSteps()"'
+      + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+      + '><i class="fa fa-clock-rotate-left"></i> <span data-i18n="exe.savePartialSteps">Save steps partial execution</span></button>';
+    h += '<span class="none-text" style="font-size:12px;font-style:normal;">'
+      + esc(TLi18n.t('exe.partialExecInfo')) + '</span>';
+    h += '</div>';
   }
 
   h += '<div class="save-row">';
@@ -653,6 +664,67 @@ function saveExecution() {
       loadList();
     } else if (r.status === 'ok' && r.reason === 'not_run') {
       toast(TLi18n.t('exe.notRunInfo'), true);
+    } else {
+      toast(r.message || TLi18n.t('exe.errSave'), true);
+    }
+  })
+  .fail(function (xhr) { toast(apiErr(xhr, 'exe.errSave'), true); })
+  .always(function () { $btn.prop('disabled', false); });
+}
+
+// legacy "Save steps partial execution": persists the current step results
+// into execution_tcsteps_wip WITHOUT writing an executions row, so the run
+// can be resumed later from where it was left (saveStepsPartialExec, #795).
+function savePartialSteps() {
+  if (roMode || !(curBuildId() > 0)) {
+    toast(TLi18n.t('exe.errNoBuild'), true);
+    return;
+  }
+  // the legacy flow blocks a partial save with nothing recorded
+  // (checkStepsHaveContent + partialExecNothingToSave)
+  var anyContent = false;
+  $('tr[data-stepid]').each(function () {
+    var $row = $(this);
+    if ($row.find('.step-notes').val()
+      || ($row.find('.step-status').val()
+          && $row.find('.step-status').val() !== 'n')) {
+      anyContent = true;
+    }
+  });
+  if (!anyContent) {
+    toast(TLi18n.t('exe.partialExecNothingToSave'), true);
+    return;
+  }
+
+  var payload = {
+    tplan_id: ctx.tplanId,
+    tcversion_id: current.version.id,
+    build_id: curBuildId(),
+    platform_id: curPlatformId(),
+    steps: {}
+  };
+  $('tr[data-stepid]').each(function () {
+    var $row = $(this);
+    payload.steps[String($row.data('stepid'))] = {
+      status: $row.find('.step-status').val(),
+      notes: $row.find('.step-notes').val()
+    };
+  });
+
+  var $btn = $('#savePartialBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=savePartialSteps',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify(payload)
+  })
+  .done(function (r) {
+    if (r.status === 'ok' && r.saved) {
+      toast(TLi18n.t('exe.partialExecSaved'));
+      // reload the form so the saved WIP rows pre-fill the step selects
+      // (resume later), same as legacy getStepsPartialExec on open
+      openCase(current.tcase.id, current.version.id);
     } else {
       toast(r.message || TLi18n.t('exe.errSave'), true);
     }

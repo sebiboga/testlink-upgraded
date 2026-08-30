@@ -704,6 +704,29 @@ if ($action === 'tcDetails') {
                 }
             }
         }
+
+        // Steps Work-In-Progress residency (legacy "Save steps partial
+        // execution" / resume, execSetResults.php:380-404 + 
+        // testcase::getStepsPartialExec()): WIP rows OVERRIDE the recorded
+        // step results of the last full execution, so a partially-saved run
+        // is the state the tester resumes from next time.
+        if (count($steps) > 0) {
+            $wipCtx = new stdClass();
+            $wipCtx->testplan_id = $tplanId;
+            $wipCtx->platform_id = $storedPlatform;
+            $wipCtx->build_id = $buildId;
+            $wipRows = $tcaseMgr->getStepsPartialExec(
+                array_map(function ($s) { return intval($s['id']); }, $steps),
+                $wipCtx);
+            if (!is_null($wipRows)) {
+                foreach ($wipRows as $stepId => $wrow) {
+                    $priorSteps[intval($stepId)] = [
+                        'notes' => strval($wrow['notes']),
+                        'status' => strval($wrow['status']),
+                    ];
+                }
+            }
+        }
     }
 
     // Full inline execution history for this version, mirroring the legacy
@@ -953,6 +976,117 @@ if ($action === 'save') {
         'execution_ts' => $newTs,
         'recorded_status' => $statusCode,
     ]);
+}
+
+// POST ?action=savePartialSteps  (JSON body)
+// Legacy parity for the "Save steps partial execution" / resume feature
+// (lib/execute/execSetResults.php:333-343 handler + 
+//  lib/functions/testcase.class.php:9664 saveStepsPartialExec()).
+// Persists ONLY the WORK-IN-PROGRESS step results into execution_tcsteps_wip
+// WITHOUT writing an executions row; a later full save (?action=save)
+// clears these rows via write_execution() (lib/functions/exec.inc.php:111-118).
+if ($action === 'savePartialSteps') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    // WRITE right required (exec_ro_access is NOT enough), same as ?action=save
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcversionId = intval($payload['tcversion_id'] ?? 0);
+    $buildId = intval($payload['build_id'] ?? 0);
+    $platformId = intval($payload['platform_id'] ?? -1); // -1 = plan has none
+    $stepsIn = isset($payload['steps']) && is_array($payload['steps'])
+        ? $payload['steps'] : [];
+
+    if ($tcversionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing tcversion_id']);
+    }
+
+    // build must belong to the plan and be executable (active+open), the
+    // same gate the full-save action applies
+    $validBuild = false;
+    $rawBuilds = $tplanMgr->get_builds($tplanId);
+    if (!is_null($rawBuilds)) {
+        foreach ($rawBuilds as $bid => $b) {
+            if (intval($bid) === $buildId
+                && intval($b['active']) === 1 && intval($b['is_open']) === 1) {
+                $validBuild = true;
+                break;
+            }
+        }
+    }
+    if (!$validBuild) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Invalid or non-executable build for this plan']);
+    }
+
+    $resultsCfg = config_get('results');
+    $notRun = $resultsCfg['status_code']['not_run'];
+
+    // step-level results: keys are STEP IDS; every submitted id must belong
+    // to THIS version (tcsteps are nodes whose parent is the version),
+    // otherwise forged ids could touch unrelated partial-execution rows
+    $stepNotes = array();
+    $stepStatus = array();
+    if (count($stepsIn) > 0) {
+        $wanted = array_map('intval', array_keys($stepsIn));
+        $validStepIds = array();
+        if (count($wanted) > 0) {
+            $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+            $tcstepsTable = DB_TABLE_PREFIX . 'tcsteps';
+            $stRs = $db->get_recordset(
+                "SELECT S.id FROM {$tcstepsTable} S" .
+                " JOIN {$nhTables['nodes_hierarchy']} NH ON NH.id = S.id" .
+                " WHERE NH.parent_id = {$tcversionId}" .
+                " AND S.id IN (" . implode(',', $wanted) . ")");
+            if (!is_null($stRs)) {
+                foreach ($stRs as $sr) { $validStepIds[intval($sr['id'])] = 1; }
+            }
+        }
+        foreach ($stepsIn as $sid => $sv) {
+            $sid = intval($sid);
+            if ($sid <= 0 || !isset($validStepIds[$sid])) { continue; }
+            $sn = isset($sv['notes']) ? strval($sv['notes']) : '';
+            $ss = isset($sv['status'])
+                ? strtolower(trim(strval($sv['status']))) : $notRun;
+            if (!isset($resultsCfg['code_status'][$ss])) { $ss = $notRun; }
+            $stepNotes[$sid] = $sn;
+            $stepStatus[$sid] = $ss;
+        }
+    }
+    if (count($stepNotes) == 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No step results to save']);
+    }
+
+    // ctx mirrors the legacy saveStepsPartialExec handler; platform is
+    // normalized the same way the execution write paths store it
+    $ctx = new stdClass();
+    $ctx->testplan_id = $tplanId;
+    $ctx->platform_id = $platformId > 0 ? $platformId : 0;
+    $ctx->build_id = $buildId;
+    $ctx->tester_id = $userId;
+
+    $wipTcaseMgr = new testcase($db);
+    $wipTcaseMgr->saveStepsPartialExec(
+        array('notes' => $stepNotes, 'status' => $stepStatus), $ctx);
+
+    out(['status' => 'ok', 'saved' => true,
+         'steps' => count($stepNotes), 'build_id' => $buildId]);
 }
 
 // POST ?action=deleteExecution  (JSON body: execution_id)
