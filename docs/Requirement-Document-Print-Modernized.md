@@ -36,6 +36,7 @@ layout inside a same-origin iframe.
 | Entry point | `printReqSpec.html` opened `/lib/results/printDocument.php` in a new window | opens `printDocument.html` (new tab) with the same query params (type/level/id/tproject_id/format + print options) |
 | Document generation | Smarty/PHP rendered a full standalone page via `print.inc.php` + `printDocOptions` | BFF `action=doc` reuses the exact same legacy renderers and returns the generated HTML as JSON; the screen writes it into an iframe `srcdoc` |
 | Print | Browser print of the standalone page | **Print** toolbar button calls the iframe's `contentWindow.print()` |
+| MS Word output | legacy served a `.doc` download | `format=MS_WORD` downloads the generated document as `*.doc` (Blob `application/vnd.ms-word`) and still shows the preview |
 | Table of contents navigation | native anchor jumps within the page | anchors are resolved inside the iframe (`name=` and `id=` lookups) so the parent page never navigates |
 | Refresh | reload page | re-issues the BFF call and re-renders |
 | Locale | PHP `$g_lang` | client-side `TLi18n` switcher; keys in `pdoc.*` namespace |
@@ -57,7 +58,7 @@ Session-authenticated JSON; safe verb (GET) only, so no Origin guard needed.
   project (including hand-crafted `id == tproject_id` URLs) → HTTP 404.
   The BFF probes `req_specs` directly before calling `get_by_id()`, so a bad id
   can never fatal (a pre-fix 500 on that edge was fixed in `88672f945`).
-- Unknown `action` → HTTP 400.
+- Unknown `action` → HTTP 400; unknown `level` → HTTP 400.
 
 ## 3. Legacy parity notes
 
@@ -86,7 +87,11 @@ All labels are client-side via `TLi18n`; keys under the `pdoc.` namespace
 - Session-authenticated BFF; rights re-checked server-side on every request
   (`testplan_metrics`) — guests without that right get 403.
 - Generated HTML is inserted via `srcdoc` (no `document.write`/innerHTML of the
-  BFF body outside the iframe boundary); error state hides the iframe.
+  BFF body outside the iframe boundary); error state hides the iframe. The
+  iframe is `sandbox="allow-same-origin allow-popups allow-modals allow-downloads"`
+  (no `allow-scripts`), so any script embedded in requirement/spec scope HTML is
+  blocked and cannot touch the parent origin, while printing, attachment links
+  and the MS Word download still work.
 - The `id`/`tproject_id` values are int-cast before any SQL use; the spec probe
   is a parameter-safe recordset lookup.
 
