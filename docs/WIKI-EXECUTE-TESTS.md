@@ -194,3 +194,53 @@ Event Viewer clean (only AUDIT events, no new Error/Warning).
 Screenshots: `docs/screenshots/issue-796-exec-history-missing-before.png`
 (pre-fix, no history table) and `docs/screenshots/issue-796-exec-history-after.png`
 (fixed, history table with row actions).
+
+### Issue #795 — "Save Steps Work In Progress Execution" (partial save/resume) restored (closed)
+
+**Symptom:** the modernized Execute Tests screen had no way to save partial
+step results for later resumption. Legacy 1.9.20 rendered a
+"Save Steps Work In Progress Execution" button under the steps table
+(`inc_exec_test_spec.tpl` → `TLS_saveStepsForPartialExec`) that wrote
+`execution_tcsteps_wip` rows; the rewrite dropped the button, the BFF action
+and the WIP read-back, so mid-run progress could be lost.
+
+**Root cause:** three missing pieces during the #662 rewrite, all present in
+legacy:
+- no button in the form;
+- no BFF route (legacy: `execSetResults.php` → `testcase::saveStepsPartialExec()`);
+- `tcDetails` did not merge `execution_tcsteps_wip` into `prior_step_results`,
+  so saved WIP rows never pre-filled the form on reopen.
+
+**Fix approach (restore 1.9.20 parity):**
+- **BFF** (`api/execute/index.php`):
+  - new `POST ?action=savePartialSteps` — gates `testplan_execute` (403),
+    active+open build (400), valid `tcversion_id` (400); validates every step id
+    against the version (`tcsteps`+`nodes_hierarchy` join, forged ids dropped)
+    and every status via `results.code_status` (fallback `not_run`); delegates to
+    `testcase::saveStepsPartialExec()` with `testplan_id`,
+    `platform_id` (normalized `>0 ? id : 0`), `build_id`, `tester_id` = session
+    user. Legacy delete-then-insert semantics preserved (a resave replaces the
+    tester's WIP rows for that plan/build/platform).
+  - `tcDetails` now merges WIP rows over prior executed steps for the current
+    (plan, build, platform, tester) context — the resume pre-fill.
+- **Frontend** (`gui/templates/execute/execTest.html`): non-read-only forms
+  with steps render the `Save Steps Work In Progress Execution` button + a hint;
+  `savePartialSteps()` replicates legacy `checkStepsHaveContent` client-side
+  ("nothing to save" toast, no request), POSTs the same step payload shape as
+  `saveExecution()`, then toasts on success and re-opens the case so resumed
+  values show.
+- **i18n:** `exe.partialExecInfo / partialExecNothingToSave / partialExecSaved /
+  savePartialSteps` added to all ten bundles; button label reuses the legacy
+  English string, translations reuse legacy `locale/*/strings.txt` where present.
+
+**Verification (regression suite 64, 11/11 PASS, see tmp/TLU_Test_Cases.md):**
+partial save writes only `execution_tcsteps_wip` (no `executions` row); empty
+save is blocked client-side (no POST, DB untouched); resume pre-fill in-session
+and across full reloads; full "Save execution" after a partial save clears the
+WIP rows (legacy exec.inc.php flow) and writes the execution + step rows;
+zero-right user → 403; inactive build → 400; forged step id dropped; Event
+Viewer clean (only INFO-level AUDIT rows).
+
+Screenshots: `docs/screenshots/issue-795-execTest-no-partial-save.png` (before)
+and `docs/screenshots/issue-795-execTest-partial-save-resume.png` (after/resume,
+button + pre-filled steps).
