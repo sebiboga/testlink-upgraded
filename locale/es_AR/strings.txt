@@ -1559,6 +1559,9 @@ $TLS_date = "Fecha";
 $TLS_printed_by = "Impreso por";
 $TLS_tcs_with_bugs = "Casos de prueba con bugs";
 $TLS_title_test_case_bugs = "Bugs del Caso de prueba";
+
+$TLS_project_open_issues = "Incidencias abiertas del proyecto";
+$TLS_project_open_issues_hint = "Todas las incidencias abiertas en el rastreador vinculado al proyecto, independientes del plan de pruebas seleccionado";
 $TLS_title_test_case_timestamp = "Fecha y hora del Caso de prueba";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;

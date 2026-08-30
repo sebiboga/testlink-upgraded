@@ -221,7 +221,12 @@ class github
    */
   function getIssues($filters=null)
   {
-    $items = $this->_get("/repos/".rawurlencode($this->owner)."/".rawurlencode($this->repo)."/issues");
+    $query = '';
+    if(!empty($filters) && is_array($filters))
+    {
+      $query = '?' . http_build_query($filters);
+    }
+    $items = $this->_get("/repos/".rawurlencode($this->owner)."/".rawurlencode($this->repo)."/issues" . $query);
     return $items;
   }
 

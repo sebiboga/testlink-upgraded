@@ -1592,6 +1592,9 @@ $TLS_printed_by = "Dicetak Oleh:";
 
 $TLS_tcs_with_bugs = "Test Cases with bugs";
 $TLS_title_test_case_bugs = "Test case bugs";
+
+$TLS_project_open_issues = "Masalah terbuka proyek";
+$TLS_project_open_issues_hint = "Semua masalah terbuka pada pelacak masalah yang terhubung ke proyek, tidak tergantung pada rencana tes yang dipilih";
 $TLS_title_test_case_timestamp = "Test Case timestamp";
 $TLS_title_test_case_title = "Judul Tes";
 

@@ -9,7 +9,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   s='testplan,test_status_passed,test_status_failed,test_status_blocked,
      test_status_not_run,th_tc_total,th_completed,no_records_found,
      tc_monthly_creation_rate_on_tproj,tc_monthly_creation_rate_on_tproj_hint,
-     title_test_case_bugs,title_test_case_title,issue_summary,status'}
+     title_test_case_bugs,title_test_case_title,issue_summary,status,
+     bug_id,project_open_issues,project_open_issues_hint,project_issue_labels'}
 
 
 <!DOCTYPE html>
@@ -134,6 +135,57 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
                 <br>
               </div>
               <canvas id="tcGrowthBar" width="700" height="220"></canvas>
+            {/if}
+
+            {* Fifth widget: ALL open issues on the project's linked issue
+               tracker, project-scoped and independent of the test plan.
+               Where the "Test case bugs" table above only shows bugs that were
+               attached to an execution, this one is the project-wide backlog
+               straight from the bugtracking system. *}
+            {if $gui->projectIssues != null}
+              <div class="border-head" style="margin-top: 30px;">
+                <h3 style="border-bottom: 0px; margin-bottom: 0px; padding-bottom: 0px;">
+                  {$labels.project_open_issues|escape}</h3>
+                <h5 style="border-bottom: 1px solid #c9cdd7; color:#7a7a7a;">
+                  {$labels.project_open_issues_hint|escape}</h5>
+                <br>
+              </div>
+              <table class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th style="width: 12%;">{$labels.bug_id|escape}</th>
+                    <th>{$labels.issue_summary|escape}</th>
+                    <th>{$labels.project_issue_labels|escape}</th>
+                    <th style="width: 12%;">{$labels.status|escape}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {foreach from=$gui->projectIssues item=issue}
+                    <tr>
+                      <td>
+                        {if $issue.url != ''}
+                          <a href="{$issue.url|escape}" target="_blank" rel="noopener"><strong>{$issue.id|escape}</strong></a>
+                        {else}
+                          <strong>{$issue.id|escape}</strong>
+                        {/if}
+                      </td>
+                      <td>{$issue.title|escape}</td>
+                      <td>
+                        {if $issue.labels != ''}
+                          {foreach from=$issue.labels item=label}
+                            <span class="label" style="background-color: #6c757d;">{$label|escape}</span>
+                          {/foreach}
+                        {/if}
+                      </td>
+                      <td>
+                        {if $issue.status != ''}
+                          <span class="label" style="background-color: {$issue.color|escape};">{$issue.status|escape}</span>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/foreach}
+                </tbody>
+              </table>
             {/if}
           </div>
           <!-- /col-lg-9 END SECTION MIDDLE -->

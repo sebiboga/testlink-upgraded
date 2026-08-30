@@ -1936,6 +1936,9 @@ $TLS_date = "Datum";
 $TLS_printed_by = "Geprint door";
 $TLS_tcs_with_bugs = "Testcases met bugs";
 $TLS_title_test_case_bugs = "testcase bevinding";
+
+$TLS_project_open_issues = "Openstaande projectissues";
+$TLS_project_open_issues_hint = "Alle openstaande issues in de gekoppelde issue-tracker van het project, onafhankelijk van het geselecteerde testplan";
 $TLS_title_test_case_timestamp = "testcase timestamp";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;

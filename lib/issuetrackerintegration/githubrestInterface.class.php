@@ -252,6 +252,80 @@ class githubrestInterface extends issueTrackerInterface
 
 
   /**
+   * Lists issues of the configured repository.
+   *
+   * GitHub's /issues endpoint also returns pull requests, which have a
+   * `pull_request` property; those are filtered out so the widget lists
+   * bugs/issues only. The dashboard calls this with $state='open'.
+   *
+   * @param string $state  'open'|'closed'|'all'
+   * @param int    $perPage 1..100
+   * @param int    $page     1-based page number
+   * @param string $sort    'created'|'updated'|'comments'
+   *
+   * @return array|null list of stdClass issue objects, or null on failure
+   */
+  public function listIssues($state='open', $perPage=100, $page=1, $sort='created')
+  {
+    if (!$this->isConnected())
+    {
+      tLog(__METHOD__ . '/Not Connected ', 'ERROR');
+      return null;
+    }
+
+    $perPage = max(1, min(100, intval($perPage)));
+    $page = max(1, intval($page));
+
+    try
+    {
+      $jsonObj = $this->APIClient->getIssues(array(
+        'state'    => $state,
+        'per_page' => $perPage,
+        'page'     => $page,
+        'sort'     => $sort,
+        'direction'=> 'desc',
+      ));
+
+      if (!is_array($jsonObj))
+      {
+        return null;
+      }
+
+      $issues = array();
+      foreach ($jsonObj as $item)
+      {
+        if (!is_object($item) || property_exists($item, 'pull_request'))
+        {
+          continue;
+        }
+        $issue = new stdClass();
+        $issue->id = (int)($item->number ?? 0);
+        $issue->url = (string)($item->html_url ?? '');
+        $issue->title = (string)($item->title ?? '');
+        $issue->state = (string)($item->state ?? '');
+        $issue->number = (int)($item->number ?? 0);
+        $issue->createdAt = (string)($item->created_at ?? '');
+        $issue->user = (string)($item->user->login ?? '');
+        $issue->labels = array();
+        if (!empty($item->labels) && is_array($item->labels)) {
+          foreach ($item->labels as $label) {
+            if (is_object($label) && !empty($label->name)) {
+              $issue->labels[] = (string)$label->name;
+            }
+          }
+        }
+        $issues[] = $issue;
+      }
+      return $issues;
+    }
+    catch(Exception $e)
+    {
+      tLog(__METHOD__ . '/' . $e->getMessage(),'ERROR');
+      return null;
+    }
+  }
+
+  /**
    * Returns status for issueID
    *
    * @param string issueID

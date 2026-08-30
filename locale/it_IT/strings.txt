@@ -1244,6 +1244,9 @@ $TLS_date = "Data";
 $TLS_printed_by = "Stampato da:";
 $TLS_tcs_with_bugs = "Test Cases with bugs";
 $TLS_title_test_case_bugs = "Bug Test case";
+
+$TLS_project_open_issues = "Problemi aperti del progetto";
+$TLS_project_open_issues_hint = "Tutti i problemi aperti nel tracker collegato al progetto, indipendentemente dal piano di test selezionato";
 $TLS_title_test_case_timestamp = "Data/Ota Test Case";
 $TLS_title_test_case_title = "Titolo Test";
 $TLS_title_test_suite_name = "Nome Test Suite";

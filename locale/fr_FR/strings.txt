@@ -1820,6 +1820,9 @@ $TLS_date = "Date";
 $TLS_printed_by = "Imprimé(e) par";
 $TLS_tcs_with_bugs = "Fiches de test avec anomalies";
 $TLS_title_test_case_bugs = "Anomalies par fiche de test";
+
+$TLS_project_open_issues = "Anomalies ouvertes du projet";
+$TLS_project_open_issues_hint = "Toutes les anomalies ouvertes sur le tracker lié au projet, indépendamment du plan de test sélectionné";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;
 $TLS_no_linked_bugs = "Aucune anomalie liée";

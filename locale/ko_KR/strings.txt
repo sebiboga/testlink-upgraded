@@ -1284,6 +1284,9 @@ $TLS_date = "날짜";
 $TLS_printed_by = "인쇄 : ";
 $TLS_tcs_with_bugs = "버그가 있는 테스트 케이스";
 $TLS_title_test_case_bugs = "테스트 케이스 버그";
+
+$TLS_project_open_issues = "프로젝트 이슈";
+$TLS_project_open_issues_hint = "선택한 테스트 플랜과 관계없이 프로젝트에 연결된 이슈 트래커의 모든 이슈";
 $TLS_title_test_case_timestamp = "테스트 케이스 타임스템프";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;

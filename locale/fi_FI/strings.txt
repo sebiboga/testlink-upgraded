@@ -1127,6 +1127,9 @@ $TLS_date = "Päivämäärä";
 $TLS_printed_by = "Tulostanut";
 $TLS_tcs_with_bugs = "Testitapaukset, joissa bugeja";
 $TLS_title_test_case_bugs = "Testitapaus bugit";
+
+$TLS_project_open_issues = "Projektin avoimet ongelmat";
+$TLS_project_open_issues_hint = "Kaikki projektin liitetyn ongelmaseurannan avoimet ongelmat, riippumatta valitusta testisuunnitelmasta";
 $TLS_title_test_case_timestamp = "Testitapaus aikaleima";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;

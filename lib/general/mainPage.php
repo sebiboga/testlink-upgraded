@@ -235,6 +235,10 @@ $gui->tcGrowth = getTestCaseGrowthData($db,$testprojectID);
 // Third dashboard widget: bugs linked to this plan's executions.
 $gui->bugsInfo = getBugsTestedData($db,$testprojectID,$testplanID);
 
+// Fourth dashboard widget: ALL open issues on the project's linked issue
+// tracker, independent of the test plan (project-wide backlog).
+$gui->projectIssues = getProjectIssuesData($db,$testprojectID);
+
 $tplKey = 'mainPage';
 $tpl = $tplKey . '.tpl';
 $tplCfg = config_get('tpl');
@@ -430,6 +434,71 @@ function getBugsTestedData(&$dbHandler,$tprojectID,$tplanID)
           $item['color'] = $statusColor[$key];
         }
       }
+    }
+
+    $dbo[] = $item;
+  }
+
+  return $dbo;
+}
+
+/**
+ * Fourth dashboard widget: ALL open issues on the project's linked issue
+ * tracker, independent of any test plan and of the execution_bugs table.
+ *
+ * It complements getBugsTestedData(), which only reports bugs that testers
+ * attached to executions of the current plan. This one gives the project-wide
+ * picture straight from the tracker, so a fresh/empty plan does not hide the
+ * issues that are already real in the bugtracking system.
+ *
+ * Only trackers exposing listIssues() are supported (GitHub at the time of
+ * writing); for all others the widget is simply absent (null).
+ *
+ * @return array|null list of rows: id,url,title,status,color | null if the
+ *                    project has no tracker or listing is not supported.
+ */
+function getProjectIssuesData(&$dbHandler,$tprojectID)
+{
+  if($tprojectID <= 0) {
+    return null;
+  }
+
+  $tprojectMgr = new testproject($dbHandler);
+  $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
+  if(empty($tprojectInfo['issue_tracker_enabled'])) {
+    return null;
+  }
+
+  $itMgr = new tlIssueTracker($dbHandler);
+  $its = $itMgr->getInterfaceObject($tprojectID);
+  if(!is_object($its) || !method_exists($its,'listIssues')) {
+    return null;
+  }
+
+  $issues = $its->listIssues('open', 100, 1, 'created');
+  if(!is_array($issues) || count($issues) == 0) {
+    return null;
+  }
+
+  $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
+
+  $dbo = array();
+  foreach($issues as $issue)
+  {
+    $item = array('id' => (string)$issue->id,
+                  'number' => (string)$issue->number,
+                  'url' => $issue->url,
+                  'title' => $issue->title,
+                  'status' => $issue->state,
+                  'color' => '#8f8f8f',
+                  'labels' => array());
+
+    if(isset($issue->labels) && is_array($issue->labels)) {
+      $item['labels'] = $issue->labels;
+    }
+
+    if(isset($statusColor[$issue->state])) {
+      $item['color'] = $statusColor[$issue->state];
     }
 
     $dbo[] = $item;

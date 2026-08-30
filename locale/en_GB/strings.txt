@@ -695,6 +695,7 @@ $TLS_title_delete_script = "Delete test script link";
 // ----- gui/templates/bug_add.tpl -----
 $TLS_btn_add_bug = "Add bug";
 $TLS_bug_id = "Bug id";
+$TLS_project_issue_labels = "Labels";
 $TLS_bug_description = "Issue Description";
 $TLS_bug_summary = "Issue Summary";
 $TLS_link_bts_create_bug = "Access to Bug Tracking System ";
@@ -1824,6 +1825,9 @@ $TLS_date = "Date";
 $TLS_printed_by = "Printed by";
 $TLS_tcs_with_bugs = "Test Cases with bugs";
 $TLS_title_test_case_bugs = "Test case bugs";
+
+$TLS_project_open_issues = "Project open issues";
+$TLS_project_open_issues_hint = "All open issues on the project's linked issue tracker, independent of the selected test plan";
 $TLS_title_test_case_title = $TLS_test_case;
 $TLS_title_test_suite_name = $TLS_test_suite;
 $TLS_no_linked_bugs = "There are no linked Bugs";
