@@ -1034,6 +1034,18 @@ if ($action === 'savePartialSteps') {
              'message' => 'Invalid or non-executable build for this plan']);
     }
 
+    // version must still be linked to the plan (same gate as ?action=save),
+    // otherwise a privileged user could write WIP rows for a foreign version
+    $lt = tlObjectWithDB::getDBTables(array('testplan_tcversions'));
+    $lr = $db->get_recordset(
+        "SELECT id FROM {$lt['testplan_tcversions']}" .
+        " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}");
+    if (is_null($lr) || count($lr) == 0) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Version is not linked to this test plan']);
+    }
+
     $resultsCfg = config_get('results');
     $notRun = $resultsCfg['status_code']['not_run'];
 
