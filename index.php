@@ -84,7 +84,11 @@ $tplEngine->display('main.tpl');
  * feature is never echoed into the URL, only matched against this list.
  */
 function getReturnWorkArea($feature) {
-  $mainPage = 'lib/general/mainPage.php';
+  // Refs #780: the Dashboard (home / main page) is modernized as a standalone
+  // Dashio HTML screen backed by the api/mainpage BFF. lib/general/mainPage.php
+  // remains for any deep link that still points at it, but the post-login /
+  // post-project-change landing now renders the modernized screen.
+  $mainPage = 'gui/templates/mainpage/mainPage.html';
 
   if (!is_string($feature)) {
     return $mainPage;
