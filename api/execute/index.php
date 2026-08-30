@@ -489,23 +489,30 @@ if ($action === 'tcList') {
     $rows = $db->get_recordset($sql);
     if (is_null($rows)) { $rows = []; }
 
-    // keep only the LATEST version of each test case that is linked to the
-    // plan (legacy execution tree shows one entry per linked version set;
-    // execSetResults executes the newest linked version by default)
-    $latestByTcase = [];
+    // group the linked rows per test case keeping the LATEST version as the
+    // list/display row, but PRESERVING every linked version in 'versions'
+    // (newest first, per the ORDER BY TCV.version DESC) so older linked
+    // versions stay selectable/executable like in the legacy exec tree (#794)
+    $tcGroups = [];
     foreach ($rows as $r) {
         $tid = intval($r['tcase_id']);
-        if (!isset($latestByTcase[$tid])
-            || intval($r['version']) > intval($latestByTcase[$tid]['version'])) {
-            $latestByTcase[$tid] = $r;
+        if (!isset($tcGroups[$tid])) {
+            $tcGroups[$tid] = ['latest' => $r, 'versions' => []];
+        }
+        $tcGroups[$tid]['versions'][] = $r;
+        if (intval($r['version']) > intval($tcGroups[$tid]['latest']['version'])) {
+            $tcGroups[$tid]['latest'] = $r;
         }
     }
 
     // latest execution status per tcversion on the selected build/platform
+    // (computed over ALL linked versions so the per-version status is present)
     $execMap = [];
-    if ($buildId > 0 && count($latestByTcase) > 0) {
-        $tcvIds = array_map(function ($r) {
-            return intval($r['tcversion_id']); }, array_values($latestByTcase));
+    if ($buildId > 0 && count($tcGroups) > 0) {
+        $tcvIds = [];
+        foreach ($tcGroups as $g) {
+            foreach ($g['versions'] as $rv) { $tcvIds[] = intval($rv['tcversion_id']); }
+        }
         // plans without platforms store platform_id = 0 on executions
         $storedPlatform = $platformId > 0 ? $platformId : 0;
         $tcvSet = implode(',', $tcvIds);
@@ -538,7 +545,7 @@ if ($action === 'tcList') {
     $pathMap = [];
     try {
         $tsuiteIds = array_values(array_unique(array_map(function ($r) {
-            return intval($r['tsuite_id']); }, array_values($latestByTcase))));
+            return intval($r['tsuite_id']); }, array_column($tcGroups, 'latest'))));
         if (count($tsuiteIds) > 0) {
             $treePaths = $tplanMgr->tree_manager->get_full_path_verbose($tsuiteIds);
             if (!is_null($treePaths)) {
@@ -559,7 +566,8 @@ if ($action === 'tcList') {
     $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
 
     $items = [];
-    foreach ($latestByTcase as $tid => $r) {
+    foreach ($tcGroups as $tid => $g) {
+        $r = $g['latest'];
         $ext = intval($r['tc_external_id']);
         $fullExtId = ($ext > 0) ? ($prefix . $prefixGlue . $ext) : '';
         $tcvId = intval($r['tcversion_id']);
@@ -568,6 +576,19 @@ if ($action === 'tcList') {
         if ($search !== ''
             && strpos($haystack, strtolower($search)) === false) {
             continue;
+        }
+        // every linked version of this test case (newest first), with the
+        // per-version last execution on the current build/platform context
+        $versions = [];
+        foreach ($g['versions'] as $rv) {
+            $rvId = intval($rv['tcversion_id']);
+            $versions[] = [
+                'tcversion_id' => $rvId,
+                'version' => intval($rv['version']),
+                'active' => intval($rv['active']),
+                'last_execution' => isset($execMap[$rvId])
+                    ? $execMap[$rvId] : null,
+            ];
         }
         $items[] = [
             'tcase_id' => intval($r['tcase_id']),
@@ -581,6 +602,7 @@ if ($action === 'tcList') {
             'tsuite_id' => intval($r['tsuite_id']),
             'tsuite_path' => isset($pathMap[$r['tsuite_id']])
                 ? $pathMap[$r['tsuite_id']] : '',
+            'versions' => $versions,
             'last_execution' => $prior,
         ];
     }
