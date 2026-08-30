@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-29 (#755 reqSpecView) · branch `sebiboga`
+> Last updated: 2026-08-30 (#764 documentation hub finalize) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 65 + 2 extras (tcImport, planEdit modal) |
+| DONE (modernized) | 66 + 2 extras (tcImport, planEdit modal) |
 | IN PROGRESS | 0 |
-| TODO (still legacy) | Install/Upgrade + Documentation links (see below) |
+| TODO (still legacy) | Install/Upgrade (see below) |
 
 ---
 
@@ -87,6 +87,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 63 | Reports — Results by Issues / Bugs per TC | `results/resultsBugs.html` | api/reports | #763 |
 | 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
 | 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
+| 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764 |
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
@@ -117,7 +118,11 @@ menu and are deferred. The legacy `else` branch in `lib/general/asideMenu.php`
 | Priority | Screen | Legacy entry point | Notes |
 |---|---|---|---|
 | LOW | Install/Upgrade | `install/` | Stays as-is |
-| LOW | Documentation links | `tools/viewer.php` | PDF links, stays as-is |
+
+> The **Documentation links** screen (previously `tools/viewer.php`) was modernized
+> as the Documentation Hub in **#764**: `gui/templates/documentation/documentation.html`
+> + `api/documentation/index.php` (see DONE row 66). `tools/viewer.php` is kept for
+> backward compatibility (direct links to PDFs still work).
 
 ### Legacy redirects from modernized screens (buttons that still go to .php)
 

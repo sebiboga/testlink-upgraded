@@ -6840,6 +6840,27 @@ Steps:
 **Expected:** No new Error/Warning entries related to Documentation screen.
 **Result:** PASS — No new error entries.
 
+### Re-verification on fresh DB (2026-08-30, finalization of #764)
+
+All 10 test cases re-executed after a fresh DB import (no fixtures needed — the hub is
+static/session-only). Manual browser pass via Chrome DevTools + live BFF/PHP-server log
+checks:
+
+| Check | Result |
+|---|---|
+| BFF returns 6 docs (exists=true) + wikiUrl | PASS |
+| Hub renders in mainframe w/ 6 cards + wiki card | PASS |
+| View opens modal with `embed src=/docs/testlink_user_manual.pdf` | PASS |
+| Modal close (×) dismisses | PASS |
+| All 6 /docs/*.pdf return HTTP 200 | PASS |
+| Wiki card → `https://github.com/sebiboga/testlink-upgraded/wiki`, target=_blank | PASS |
+| Refresh re-renders 6 cards, no feedback error | PASS |
+| Unauthenticated BFF → HTTP 401 `Not authenticated` | PASS |
+| events table: no log_level IN (2,4) rows | PASS |
+| PHP server log: no Notice/Warning/Deprecated for the hub | PASS |
+
+**Result: Suite 764 — 10/10 + fresh-DB re-verification 10/10 PASS**
+
 ---
 
 ## Regression — Issue #604: testAutomationSpec.php fatals on every request: array_keys(null) when get_last_active_version() returns null
