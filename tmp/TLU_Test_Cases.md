@@ -8181,3 +8181,41 @@ requirement **REQ-100** (id 9, latest version 2/3), plus a manually created
 **Result: 12/12 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
 MariaDB testlink @127.0.0.1; verified at commit `2e412e89a` of branch
 `sebiboga`). Screenshot: `docs/screenshots/reqedit-edit.png`.
+
+## Suite 67 — Regression — Issue #771: GitHub OAuth cannot create a NEW tracker
+
+**Screen:** `gui/templates/issuetracker/issuetrackerView.html` (GLOBAL System →
+Issue Tracker Management), BFF `api/issuetracker/index.php`.
+**Bug:** after GitHub OAuth login a second/another GitHub tracker was impossible:
+`/oauth/create` aliased `$existing` to the project's linked tracker (renaming it
+in place instead of creating a new row), and `checkOAuthConnected()` never
+re-opened the repo picker once a repo was stored in session (+ never cleared the
+`?oauth=connected` flag).
+**Fix:** `/oauth/create` now tracks by tracker NAME (`owner/repo`): update-in-place
+only when the name-matching tracker IS the currently linked one; otherwise create
+new or reuse by name + (re)link. UI always opens the repo picker on
+`oauth=connected` and strips the flag with `history.replaceState`.
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin (session
+`PHPSESSID` with `userID=1`). Fixtures: test project id=1, trackers
+`owner1/repo1` (id 1, github/rest type 25) + `owner2/repo2` (id 2), link
+project 1 → tracker 1. GitHub OAuth post-login session state simulated by
+injecting `$_SESSION['gh_oauth']` (`token`/`user`/`repo`) — `/oauth/create`
+performs no outbound GitHub call, it needs only the session token + DB.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | New repo creates NEW tracker | Pre-fix repro: POST `/oauth/create` `{"repo":"owner3/repo3","tproject_id":1}` | NEW `issuetrackers` row (name owner3/repo3), project relinked→id3, trackers owner1/repo1 + owner2/repo2 intact (pre-fix: tracker id1 was RENAMED to owner3/repo3, zero new rows) | PASS (id 3 created, link 1→3, old rows intact) |
+| 2 | Same repo = token refresh, no duplicate | POST again `{"repo":"owner3/repo3","tproject_id":1}` | In-place update of id 3 (cfg refreshed), row count unchanged, link kept 1→3 | PASS |
+| 3 | Existing-by-name, not linked → reuse | `{"repo":"owner2/repo2","tproject_id":1}` | Reuses tracker id 2 (no new row), project relinked→2 | PASS |
+| 4 | No project context | `{"repo":"owner4/repo4","tproject_id":0}` ; repeat same | New row id 4 NOT linked; repeat reuses id 4, no link, no duplicate | PASS |
+| 5 | Malformed repo rejected | `owner`, `owner/`, `/repo`, `owner//extra` | HTTP 400 "Invalid repo, expected owner/name"; no DB mutation | PASS (4/4 400) |
+| 6 | Not-connected guard | POST without `gh_oauth.token` | HTTP 401 "Not connected to GitHub"; no DB mutation | PASS |
+| 7 | Picker opens after login (repo in session) | Navigate `issuetrackerView.html?tproject_id=1&oauth=connected` with repo stored in session | Repo picker modal opens (NOT a silent `createGithubTracker(r.repo)`); URL `oauth` flag removed via `history.replaceState` | PASS (modal open; URL cleaned) |
+| 8 | Reload does not re-POST | After step 7, reload the cleaned URL | Network panel shows no POST `/oauth/create` (only GETs incl. `token-status`); footer "GitHub connected as alice — owner1/repo1 (token expires in N days)"; trackers listed | PASS |
+| 9 | Global list shows multiple trackers | Load page, read DataTable | All GitHub trackers listed (owner1..owner4), footer "4 issue trackers" | PASS |
+| 10 | i18n bundles integrity | `python3 -m json.tool` on all 11 bundles | All valid JSON; `it.chooseRepoHelp` updated ("This global page lets you define several GitHub trackers - one per repository.") | PASS (11/11) |
+| 11 | Events after suite | Diff `events` (log_level IN 1,2 = ERROR/WARNING) | No new Error/Warning rows from the screen flow (one DB-error artifact from raw-SQL fixture cleanup removed/documented) | PASS (0 err/warn) |
+
+**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1 + curl with admin session; verified at commits
+`644911d74` + `e96f32393` of branch `fix/issue-771`).
