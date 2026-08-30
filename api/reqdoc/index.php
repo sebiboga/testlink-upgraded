@@ -100,13 +100,15 @@ if (!$user->hasRightOnProj($db, 'testplan_metrics', $tproject_id)) {
 }
 
 // ---- requested requirement spec must belong to the project ----------------
-if ($level === 'reqspec' && $itemID !== $tproject_id) {
-    $row = $db->get_recordset(
-        'SELECT RS.testproject_id FROM ' .
-        (new requirement_spec_mgr($db))->object_table . ' RS' .
-        ' JOIN req_specs_revisions RSV ON RSV.parent_id = RS.id' .
-        ' WHERE RS.id = ' . intval($itemID) . ' LIMIT 1');
-    if (!$row || intval($row[0]['testproject_id']) !== intval($tproject_id)) {
+$spec = null;
+if ($level === 'reqspec') {
+    // Covers hand-crafted URLs where id == tproject_id: the probe filters out
+    // non-spec nodes, so get_by_id() below can never fatal on a bad id.
+    $probeTbl = (new requirement_spec_mgr($db))->object_table;
+    $probe = $db->get_recordset(
+        'SELECT testproject_id FROM ' . $probeTbl .
+        ' WHERE id = ' . intval($itemID) . ' LIMIT 1');
+    if (!$probe || intval($probe[0]['testproject_id']) !== intval($tproject_id)) {
         http_response_code(404);
         out(['status' => 'error',
              'message' => 'Requirement specification not found in this test project']);
