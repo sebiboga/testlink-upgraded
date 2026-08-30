@@ -8106,3 +8106,49 @@ MariaDB testlink @127.0.0.1; verified at commit `96488b3eb` of branch
 - Format sweep 0,1,2,3,4,5,6 → all HTTP 200; 1/2/5 serve `-.html`, 3 `.xls`, 4 `.doc`, 0/6 unchanged.
 - `events` table after sweep: 0 rows.
 - Verified 2026-08-30 at commit `f14ec9974` on branch `fix/issue-767` (fix: `lib/results/displayMgr.php:232` uses `$file_extensions[$format] ?? 'html'`).
+
+---
+
+## Suite 65 — Regression — Issue #794: Execute Tests — cannot switch / execute older linked TC versions
+
+**Date:** 2026-08-30 · **Branch:** `fix/issue-794` ·
+**Root cause:** the modernized `api/execute/index.php` `?action=tcList` collapsed the
+linked-version set to the LATEST version per test case (`$latestByTcase`), so older
+linked versions never reached the UI, while legacy
+`testplan::getLinkedForExecTree()` exposes every linked version as a tree node
+(selectable/executable). `execTest.html` only rendered the version number with no
+selector.
+**Fix:** (1) `tcList` groups rows per test case and keeps the latest as the display
+row, but emits `versions[]` with EVERY linked version ({tcversion_id, version,
+active, last_execution}), newest first; `execMap` computed over all linked ids.
+(2) `execTest.html` carries `versions[]` into the form and, when >1 version is
+linked, renders a Version `<select>` + "Switch version" button; `switchVersion()`
+re-fetches `tcDetails` for the chosen version and the existing save path targets
+`current.version.id`/`.number`. (3) i18n: `exe.version`, `exe.inactiveVersion`,
+`exe.switchVersion`, `exe.confirmSwitchVersion` in all 10 bundles.
+
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
+`php tmp/fixture_794.php` → project **VERS794** (id 10, prefix V79), tcase
+**TCVers794** (id 12) with v2 (tcv 15) + v1 (tcv 13) both linked to plan
+**Plan794** (id 18) / build **Build794** (id 1). Screen:
+`/gui/templates/execute/execTest.html?tproject_id=10&tplan_id=18`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | tcList exposes all linked versions | `curl ?action=tcList&tplan_id=18&build_id=1&platform_id=-1` | `items[0].versions` contains BOTH `{15,version:2}` and `{13,version:1}` newest first; `items[0].tcversion_id` = 15 (latest, display row) | PASS (versions `[15, 13]`, list row v2) |
+| 2 | Per-version last execution | Execute v1 earlier, re-request tcList | `versions[].last_execution` populated for v1 (status/ts/tester), null for never-executed v2 | PASS (v1 p @20:48 admin; v2 null) |
+| 3 | Version selector rendered (multi-version TC) | Open TCVers794 row | Version select with `v2` (selected) + `v1`, "Switch version" button, no JS errors | PASS |
+| 4 | Switch to older version | Pick v1 → Switch version → confirm | Form meta shows `v1`, summary `v1 summary`, step `step A (v1)`; version selector pre-selected `v1` | PASS |
+| 5 | Execute older version | Set Passed, Save execution | Toast "Execution saved."; new `executions` row with `tcversion_id=13, version=1, status=p` | PASS (exec id 2 @ tcversion 13) |
+| 6 | Prior + history of older version | Re-open TCVers794, switch v1 | Prior execution box PASSED + notes; exec history row shows VERSION 1 | PASS |
+| 7 | Single-version TC unchanged | Open TCSingle794 (v1 only) | NO version selector; form renders summary/steps as before | PASS |
+| 8 | Read-only mode guard | roMode active (ro user) | Switch-version button hidden/disabled, selector read-only (code guard `!roMode`) | PASS (code review of guard) |
+| 9 | Save partial steps targets selected version | On v1 savePartialSteps | WIP rows written for v1 step ids (tcsteps parent_id = 13) | PASS (step ids of v1) |
+| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles | All valid JSON; selector labels localized | PASS (10/10) |
+| 11 | Event Viewer / events after suite | Diff `events` table (log_level <= 4) | No new Error/Warning rows from screen flow (only INFO AUDIT login/execution) | PASS |
+
+**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1; verified at commits `c164d2e14` of branch
+`fix/issue-794`). Screenshots:
+`docs/screenshots/issue-794-execTest-version-selector.png`,
+`docs/screenshots/issue-794-execTest-v1-executed.png`.
