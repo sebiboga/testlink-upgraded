@@ -8036,3 +8036,52 @@ directly — same code path used by the legacy UI controller and the XMLRPC/REST
 **Result: 7/7 PASS** (2026-08-30, PHP CLI against MariaDB testlink @127.0.0.1 +
 headless Chrome @ http://localhost:8082; fix verified at commit `b166ae910` of
 branch `fix/issue-629`).
+
+---
+
+## Suite 64 — Regression — Issue #795: Execute Tests — "Save Steps Work In Progress Execution" missing
+
+**Date:** 2026-08-30 · **Branch:** `fix/issue-795-save-partial-exec` ·
+**Root cause:** the modernized `execTest.html`/`api/execute/index.php` never
+implemented the legacy partial-step-save facility: no button in the form (legacy
+`inc_exec_test_spec.tpl` renders `TLS_saveStepsForPartialExec`), no BFF action
+(legacy handler `execSetResults.php` → `testcase::saveStepsPartialExec()`), and
+`tcDetails.` did not merge `execution_tcsteps_wip` into `prior_step_results`, so
+saved WIP rows were invisible on reopen.
+**Fix:** (1) new BFF action `POST ?action=savePartialSteps` — guards
+`testplan_execute` (403), active+open build (400), valid `tcversion_id` (400);
+validates step ids against the version (`tcsteps`+`nodes_hierarchy` join, forged
+ids dropped), validates statuses via `results.code_status` (fallback `not_run`);
+calls `testcase::saveStepsPartialExec()` with `testplan_id`,
+`platform_id` (normalized `>0 ? id : 0`), `build_id`, `tester_id=$userId`.
+(2) `tcDetails` now merges WIP rows over prior executed steps for the current
+`(plan, build, platform, tester)` context → resume pre-fills. (3) UI adds
+`Save Steps Work In Progress Execution` button (only when version has steps) +
+`savePartialSteps()` JS with a client-side "nothing to save" guard, toasts on
+save, re-opens the case to show resumed values. i18n keys added to all 10
+bundles. Full save still clears WIP via `exec.inc.php:111-118` (execution create
+→ WIP delete), matching legacy.
+
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
+`php tmp/fixtures_795.php` → project 1, suite 2, cases 3 (4 steps 5-8) & 9,
+plan 15, active build 1. Screen BFF: `api/execute/index.php`.
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | Partial-save button rendered | Open execTest, pick P79-1 | `Save Steps Work In Progress Execution` button + hint shown above Save execution; absent for tcversions without steps | PASS |
+| 2 | Partial save writes WIP only | Set step1=Passed+note, step2=Failed+note; click partial-save | Toast "Steps Work In Progress Execution saved."; `execution_tcsteps_wip` = rows (5:p/note, 6:f/note, 7-8 empty status); `executions` = 0 | PASS (wip 4 rows, executions 0) |
+| 3 | Empty save blocked client-side | Reset form (all Not Run, no notes); click partial-save | `exe.partialExecNothingToSave` toast; NO POST `savePartialSteps` in network log; WIP rows unchanged | PASS (no request fired, WIP intact) |
+| 4 | Resume pre-fill within session | Re-open P79-1 after a partial save | Steps 1-2 pre-filled (status + notes) from WIP | PASS |
+| 5 | Resume across full reload | Hard reload page; reopen P79-1 | Steps 1-2 pre-filled from WIP via merged tcDetails | PASS |
+| 6 | Full save after partial clears WIP | Set overall Passed + step1=Passed/note; click Save execution | `executions`=1 (status p), `execution_tcsteps` row for step 5 with note; `execution_tcsteps_wip` = 0 | PASS |
+| 7 | Rights guard | Create role w/o rights + user assigned to plan; POST savePartialSteps | HTTP 403 `Insufficient rights` | PASS (403) |
+| 8 | Inactive build | Insert build active=0; POST build_id=2 | HTTP 400 `Invalid or non-executable build for this plan` | PASS (400) |
+| 9 | Forged step id dropped | POST step ids {valid:..., 999999:...} | `saved:true, steps:1`; no WIP row for 999999 | PASS |
+| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles | All valid JSON; button label localized | PASS (10/10) |
+| 11 | Event Viewer / events after suite | Diff events table | No new log_level Error/Warning rows (only INFO level-16 AUDIT login rows) | PASS |
+
+**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1; verified at commit `96488b3eb` of branch
+`fix/issue-795-save-partial-exec`). Screenshots:
+`docs/screenshots/issue-795-execTest-no-partial-save.png` (before),
+`docs/screenshots/issue-795-execTest-partial-save-resume.png` (after/resume).
