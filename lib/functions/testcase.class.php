@@ -796,7 +796,7 @@ class testcase extends tlObjectWithAttachments {
     $ret['id'] = $tcase_version_id;
     $ret['status_ok']=1;
 
-    if ($result && ( !is_null($item->steps) && is_array($item->steps) ) ) {
+    if ($result && ( !is_null($item->steps) && is_array($item->steps) && count($item->steps) > 0 ) ) {
       $steps2create = count($item->steps);
       $op['status_ok'] = 1;
 
