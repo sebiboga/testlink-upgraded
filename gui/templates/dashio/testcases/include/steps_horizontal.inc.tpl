@@ -111,7 +111,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
         </select> <br>
         
         {if $gui->tlCanCreateIssue}
-          {include file="execute/add_issue_on_step.inc.tpl" 
+          {include file="execute/include/add_issue_on_step.inc.tpl" 
                    args_labels=$labels
                    args_step_id=$step_info.id}
         {/if}
@@ -123,7 +123,7 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
   {if $inExec && $gui->tlCanCreateIssue} 
     <tr>
       <td colspan=6>
-      {include file="execute/issue_inputs_on_step.inc.tpl"
+      {include file="execute/include/issue_inputs_on_step.inc.tpl"
                args_labels=$labels
                args_step_id=$step_info.id}
       </td>
