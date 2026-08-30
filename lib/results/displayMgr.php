@@ -229,7 +229,8 @@ function flushHttpHeader($format, $doc_kind = 0)
   }
   
   $filename = isset($_SESSION['testprojectPrefix']) ? $_SESSION['testprojectPrefix'] : '';
-  $filename .= $kind_acronym . '-' . date('Y-m-d') . '.' . $file_extensions[$format];
+  $extension = $file_extensions[$format] ?? 'html';
+  $filename .= $kind_acronym . '-' . date('Y-m-d') . '.' . $extension;
   tLog('Flush HTTP header for '.$format); 
 
   
