@@ -162,7 +162,7 @@ echo json_encode(array(
     'latestDbVersion' => $latestDb,
     'dbSchemaVersion' => $dbSchemaVersion,
     'schemaStatus' => $schema['status'],
-    'schemaMsg' => $schema['msg'],
+    'schemaMsg' => isset($schema['msg']) ? $schema['msg'] : null,
     'schemaVersion' => isset($schema['version']) ? $schema['version'] : null,
     'installDirPresent' => install_install_dir_present(),
     'securityNotes' => $securityNotes,
