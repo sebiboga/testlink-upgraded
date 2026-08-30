@@ -64,22 +64,23 @@ function install_default_admin_pwd($db)
     return false;
 }
 
-function install_schema_status($db, &$dbSchemaVersion, &$upgradeMsg)
+function install_schema_status($db, &$dbSchemaVersion, &$schemaMsg)
 {
     $latest = defined('TL_LATEST_DB_VERSION') ? TL_LATEST_DB_VERSION : 'DB 2.0.0';
     $dbSchemaVersion = null;
-    $upgradeMsg = null;
+    $schemaMsg = null;
+    $empty = array('status' => 'undetermined');
     if (!$db || !method_exists($db, 'exec_query')) {
-        return array('status' => 'undetermined');
+        return $empty;
     }
     $table = (defined('DB_TABLE_PREFIX') ? DB_TABLE_PREFIX : '') . 'db_version';
     $res = @$db->exec_query("SELECT * FROM {$table} ORDER BY upgrade_ts DESC", 1);
     if (!$res) {
-        return array('status' => 'undetermined');
+        return $empty;
     }
     $row = $db->fetch_array($res);
     if (!$row) {
-        return array('status' => 'undetermined');
+        return $empty;
     }
     $version = trim($row['version']);
     $dbSchemaVersion = $version;
@@ -91,14 +92,12 @@ function install_schema_status($db, &$dbSchemaVersion, &$upgradeMsg)
         'DB 1.9.18', 'DB 1.9.19',
     );
     if (in_array($version, $manualVersions)) {
-        $upgradeMsg = lang_get('install_manual_upgrade_required');
-        return array('status' => 'manual');
+        return array('status' => 'manual', 'msg' => 'manual');
     }
     if ($version == 'DB 1.9.20') {
         $m = $db->db->metaColumns(DB_TABLE_PREFIX . 'users');
         if (isset($m['PASSWORD']) && $m['PASSWORD']->max_length == 32) {
-            $upgradeMsg = lang_get('install_1920_partial_migration');
-            return array('status' => 'upgrade', 'credentials' => 'blocked');
+            return array('status' => 'upgrade', 'msg' => 'partial_migration');
         }
         return array('status' => 'ok');
     }
@@ -109,37 +108,40 @@ function install_schema_status($db, &$dbSchemaVersion, &$upgradeMsg)
             array('1.7.0 Alpha', '1.7.0 Beta 1', '1.7.0 Beta 2', '1.7.0 Beta 3',
                   '1.7.0 Beta 4', '1.7.0 Beta 5', '1.7.0 RC 2', '1.7.0 RC 3',
                   'DB 1.1', 'DB 1.2'))) {
-        $upgradeMsg = lang_get('install_upgrade_required');
-        return array('status' => 'upgrade');
+        return array('status' => 'upgrade', 'msg' => 'upgrade');
     }
-    $upgradeMsg = sprintf(lang_get('install_unknown_schema_version'), $version, $latest);
-    return array('status' => 'unknown');
+    return array('status' => 'unknown', 'msg' => 'unknown', 'version' => $version);
 }
 
 $db = null;
 $dbReachable = false;
 try {
-    $db = database::create(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_TYPE);
+    doDBConnect($db);
     $dbReachable = true;
 } catch (Exception $e) {
     $db = null;
+    $dbReachable = false;
 }
 
-$schema = install_schema_status($db, $dbSchemaVersion, $upgradeMsg);
+$schema = install_schema_status($db, $dbSchemaVersion, $schemaMsg);
 
 $securityNotes = array();
+$securityCodes = array();
 if (install_install_dir_present()) {
     $securityNotes[] = lang_get('sec_note_remove_install_dir');
+    $securityCodes[] = 'install_dir';
 }
 $authCfg = config_get('authentication');
 if (isset($authCfg['method']) && $authCfg['method'] == 'LDAP') {
     if (!extension_loaded('ldap')) {
         $securityNotes[] = lang_get('ldap_extension_not_loaded');
+        $securityCodes[] = 'ldap';
     }
 } else {
     $dflt = install_default_admin_pwd($db);
     if ($dflt === true) {
         $securityNotes[] = lang_get('sec_note_admin_default_pwd');
+        $securityCodes[] = 'admin_pwd';
     }
 }
 
@@ -160,9 +162,11 @@ echo json_encode(array(
     'latestDbVersion' => $latestDb,
     'dbSchemaVersion' => $dbSchemaVersion,
     'schemaStatus' => $schema['status'],
-    'upgradeMsg' => $upgradeMsg,
+    'schemaMsg' => $schema['msg'],
+    'schemaVersion' => isset($schema['version']) ? $schema['version'] : null,
     'installDirPresent' => install_install_dir_present(),
     'securityNotes' => $securityNotes,
+    'securityCodes' => $securityCodes,
     'gdOk' => $gdOk,
     'whoami' => isset($_SESSION['userID']) ? intval($_SESSION['userID']) : 0,
     'links' => array(
