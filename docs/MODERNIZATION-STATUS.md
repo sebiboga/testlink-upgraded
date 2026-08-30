@@ -4,15 +4,15 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-30 (#764 documentation hub finalize) · branch `sebiboga`
+> Last updated: 2026-08-30 (#797 install/upgrade check modernized) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 66 + 2 extras (tcImport, planEdit modal) |
+| DONE (modernized) | 67 + 2 extras (tcImport, planEdit modal) |
 | IN PROGRESS | 0 |
-| TODO (still legacy) | Install/Upgrade (see below) |
+| TODO (still legacy) | 0 — all ASIDE screens modernized |
 
 ---
 
@@ -88,6 +88,13 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
 | 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
 | 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764 |
+| 67 | System — Install / Upgrade check | `install/installView.html` | api/install | #797 |
+
+> **Install wizard scope note:** only the status-check part of the legacy
+> install area is modernized (#797). The full install wizard
+> (`install/index.php` + step scripts) runs **before** the DB/session exist and
+> intentionally stays legacy; the main APEX remains reachable from the new
+> screen via its "Open installer wizard" action.
 
 Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
@@ -115,9 +122,7 @@ menu and are deferred. The legacy `else` branch in `lib/general/asideMenu.php`
 
 ### Other legacy screens
 
-| Priority | Screen | Legacy entry point | Notes |
-|---|---|---|---|
-| LOW | Install/Upgrade | `install/` | Stays as-is |
+None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 
 > The **Documentation links** screen (previously `tools/viewer.php`) was modernized
 > as the Documentation Hub in **#764**: `gui/templates/documentation/documentation.html`

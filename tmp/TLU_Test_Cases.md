@@ -7978,3 +7978,28 @@ Notes:
 **Result: Suite 796 — 7/7 PASS**
 
 Pre-fix symptom (repro recorded): opening a test case in the modernized Execute Tests screen showed NO inline execution-history table at all — the legacy screen had shown, under the prior-execution note line, a full history table with per-row edit-notes / delete / print actions and run-mode icons (see `docs/screenshots/issue-796-exec-history-missing-before.png`). Root cause: the modernized `execTest.html` simply never rendered that table — the BFF `tcDetails` response had no execution-history payload and no BFF actions for edit-notes/delete.
+
+## Suite 797 — Install/Upgrade status screen (#797)
+
+**Precondition:** Fresh DB; app at http://localhost:8082 (docroot = repo root), logged in as admin/admin. Fixture: test project `InstallCheck Project` (INSC) created via the create-project form. Screen: `gui/templates/install/installView.html?tproject_id=<id>&tplan_id=0`, reachable from ASIDE → System → Install / Upgrade. BFF: `api/install/index.php`. DB schema at `DB 2.0.0` (== `TL_LATEST_DB_VERSION`), `install/` dir present, `config_db.inc.php` present.
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | ASIDE System menu shows the **Install / Upgrade** entry for admin (`configuration` grant) | Entry listed at the bottom of System with href `gui/templates/install/installView.html?tproject_id=…` | Entry present (browser snapshot) | PASS |
+| 2 | Open the screen; BFF `GET /api/install/index.php` returns status JSON | `status=ok`, `installed=true`, `configPresent=true`, `dbReachable=true`, `appVersion=2.0.1 [TEST]`, `latestDbVersion=DB 2.0.0`, `dbSchemaVersion=DB 2.0.0`, `schemaStatus=ok`, `gdOk=true`, both securityNotes present | Verified via CDP/curl | PASS |
+| 3 | Status cards render all values | App version, Latest DB schema version, DB schema version, Schema state badge **OK**, Config file present **Yes**, Database reachable **Yes**, GD library **Yes** | Rendered (snapshot) | PASS |
+| 4 | Security Notes panel | Shows "Install directory should be removed!" and "You should change the default password for the 'admin' account!" (db `sec_note_*` lang keys) | Both shown | PASS |
+| 5 | No upgrade panel when schema is current | Upgrade panel hidden (no message) | Hidden | PASS |
+| 6 | Actions: Open installer wizard | Link opens `install/index.php` (HTTP 200, wizard intro) | 200 via curl; link href correct | PASS |
+| 7 | Actions: Installation manual / README / CHANGELOG | Links resolve (`docs/testlink_installation_manual.pdf`, `README`, `CHANGELOG` → 200) | All 200 | PASS |
+| 8 | Refresh button | Re-fetches BFF, re-renders cards without error, footer timestamp updates | Works | PASS |
+| 9 | Locale switcher → Roy | Header becomes "Instalare / Upgrade"; screen re-renders from `ro.json` | Confirmed (CDP) | PASS |
+| 10 | Unauthenticated access to BFF | HTTP 401 `{"status":"error","message":"Not authenticated"}` | 401 via curl (no cookie) | PASS |
+| 11 | Legacy upgrade link switch | `lib/functions/configCheck.php` `$upgrade_msg` link points to `./gui/templates/install/installView.html` (not `./install/index.php`) | Code review confirmed | PASS |
+| 12 | Event Viewer / `events` table after the clean flow | No new Error/Warning (log_level 2/4) rows attributable to the screen | See below (no new rows) | PASS |
+
+**Result: Suite 797 — 12/12 PASS**
+
+Notes:
+- Discovered & fixed while testing (own commits): (a) BFF called nonexistent `database::create()` → switched to the `doDBConnect($db)` bootstrap used by all other BFFs (`api/install/index.php`); (b) the ASIDE gate used the non-existent grant `system_configuraton` → corrected to `configuration`, which only works after fixing the legacy right-name typo `system_configuraton` → `system_configuration` in `lib/functions/common.php` + `lib/general/mainPage.php` (the typo existed in legacy and matched the XML-RPC test seed, but the live install seeds describe right id 19 as `system_configuration`, so the grant was always off).
+- The screen's server-side messages follow the session login locale (legacy `lang_get`); client labels follow the TLi18n switcher.
