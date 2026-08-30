@@ -509,7 +509,7 @@
   "it.bugzilla": "Bugzilla",
   "it.cfg": "Configurare (XML)",
   "it.chooseRepo": "Select GitHub Repository",
-  "it.chooseRepoHelp": "Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.",
+  "it.chooseRepoHelp": "Alegeți depozitul GitHub de legat ca Issue Tracker. Această pagină globală permite definirea mai multor trackere GitHub - câte unul per depozit.",
   "it.createTracker": "Creaza Urmator Probleme",
   "it.editTracker": "Editeaza Urmator Probleme",
   "it.gforge": "GForge",

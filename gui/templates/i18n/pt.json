@@ -509,7 +509,7 @@
   "it.bugzilla": "Bugzilla",
   "it.cfg": "Configuração (XML)",
   "it.chooseRepo": "Select GitHub Repository",
-  "it.chooseRepoHelp": "Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.",
+  "it.chooseRepoHelp": "Escolha o repositório GitHub para vincular como Issue Tracker. Esta página global permite definir vários rastreadores GitHub - um por repositório.",
   "it.createTracker": "Criar rastreador de problemas",
   "it.editTracker": "Editar rastreador de problemas",
   "it.gforge": "GForge",

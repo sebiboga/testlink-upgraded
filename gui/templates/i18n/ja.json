@@ -509,7 +509,7 @@
   "it.bugzilla": "Bugzilla",
   "it.cfg": "設定 (XML)",
   "it.chooseRepo": "Select GitHub Repository",
-  "it.chooseRepoHelp": "Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.",
+  "it.chooseRepoHelp": "Issue Tracker としてリンクする GitHub リポジトリを選択してください。このグローバルページでは、複数の GitHub トラッカー（リポジトリごとに1つ）を定義できます。",
   "it.createTracker": "課題トラッカーを作成",
   "it.editTracker": "課題トラッカーを編集",
   "it.gforge": "GForge",

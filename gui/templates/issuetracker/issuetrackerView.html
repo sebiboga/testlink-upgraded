@@ -338,12 +338,19 @@ function checkOAuthConnected() {
       githubOAuthStart();
       return;
     }
+    var p = new URLSearchParams(window.location.search);
+    if (p.get('oauth') === 'connected') {
+      // Back from a GitHub login. This is the GLOBAL page where several
+      // GitHub trackers may coexist, so always offer the repo picker (even
+      // when a repo is already stored in session) and clean the flag so a
+      // reload does not re-POST a silent create.
+      var u = new URL(window.location.href);
+      u.searchParams.delete('oauth');
+      try { history.replaceState({}, document.title, u.pathname + u.search); } catch(e) {}
+      showRepoPicker();
+      return;
+    }
     if (r.connected && r.repo) {
-      var p = new URLSearchParams(window.location.search);
-      if (p.get('oauth') === 'connected') {
-        createGithubTracker(r.repo);
-        return;
-      }
       var days = Math.ceil((r.expires_in || 0) / 86400);
       $('#footerInfo').text(TLi18n.t('it.ghConnected', {user: r.user, repo: r.repo, days: days}));
       return;

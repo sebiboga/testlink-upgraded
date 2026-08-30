@@ -407,21 +407,31 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'oauth' && ($segments[1] ?? '
     $xml = "<issuetracker>\n<user>{$user}</user>\n<apikey>" . gh_token() . "</apikey>\n<url>https://api.github.com</url>\n<owner>{$owner}</owner>\n<repo>{$repoName}</repo>\n</issuetracker>";
     $name = $repo;
 
+    // Track by tracker NAME (= owner/repo). On the GLOBAL page several GitHub
+    // trackers may coexist, so update in place ONLY when the picked repo is
+    // the SAME one the project is already linked to (session restore / token
+    // refresh). A new repo name creates a NEW tracker; an existing one is
+    // reused by name. The previously linked tracker is never overwritten.
+    $existing = $mgr->getByName($name);
     $linked = $tprojectId ? $mgr->getLinkedTo($tprojectId) : null;
-    $existing = null;
-    if ($linked && intval($linked['type'] ?? 0) === $type) {
-        $existing = $linked;
-    }
+    $isLinkedSame = $existing !== null && $linked !== null &&
+                    intval($linked['issuetracker_id']) === intval($existing['id']);
 
     $id = 0;
     if ($existing) {
-        $it = new stdClass();
-        $it->id = intval($existing['issuetracker_id']);
-        $it->name = $name;
-        $it->type = $type;
-        $it->cfg = $xml;
-        $res = $mgr->update($it);
-        $id = $it->id;
+        $id = intval($existing['id']);
+        if ($isLinkedSame) {
+            $it = new stdClass();
+            $it->id = $id;
+            $it->name = $name;
+            $it->type = $type;
+            $it->cfg = $xml;
+            $res = $mgr->update($it);
+            if (!($res['status_ok'] ?? 0)) {
+                http_response_code(400);
+                out(['status' => 'error', 'message' => $res['msg'] ?? 'update failed']);
+            }
+        }
     } else {
         $it = new stdClass();
         $it->name = $name;
@@ -429,9 +439,14 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'oauth' && ($segments[1] ?? '
         $it->cfg = $xml;
         $res = $mgr->create($it);
         $id = isset($res['id']) ? intval($res['id']) : 0;
-        if ($tprojectId && $id && ($res['status_ok'] ?? 0)) {
-            $mgr->link($id, $tprojectId);
+        if (!$id || !($res['status_ok'] ?? 0)) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => $res['msg'] ?? 'create failed']);
         }
+    }
+
+    if ($tprojectId && $id) {
+        $mgr->link($id, $tprojectId);
     }
 
     if ($id) {

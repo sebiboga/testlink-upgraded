@@ -509,7 +509,7 @@
   "it.bugzilla": "Bugzilla",
   "it.cfg": "Конфигурация (XML)",
   "it.chooseRepo": "Select GitHub Repository",
-  "it.chooseRepoHelp": "Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.",
+  "it.chooseRepoHelp": "Выберите репозиторий GitHub для связи в качестве Issue Tracker. Эта глобальная страница позволяет определить несколько GitHub-трекеров - по одному на репозиторий.",
   "it.createTracker": "Создать трекер задач",
   "it.editTracker": "Редактировать трекер задач",
   "it.gforge": "GForge",

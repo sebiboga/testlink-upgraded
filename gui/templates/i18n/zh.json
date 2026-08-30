@@ -509,7 +509,7 @@
   "it.bugzilla": "Bugzilla",
   "it.cfg": "配置 (XML)",
   "it.chooseRepo": "Select GitHub Repository",
-  "it.chooseRepoHelp": "Choose the GitHub repository to link as an Issue Tracker. This is only asked the first time.",
+  "it.chooseRepoHelp": "选择要作为 Issue Tracker 关联的 GitHub 仓库。此全局页面允许您定义多个 GitHub 跟踪器 - 每个仓库一个。",
   "it.createTracker": "创建问题跟踪器",
   "it.editTracker": "编辑问题跟踪器",
   "it.gforge": "GForge",
