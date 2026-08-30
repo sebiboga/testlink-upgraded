@@ -25,7 +25,8 @@ $TLS_testcase_execution = 'Execuție cazuri de test';
 $TLS_reports = 'Rapoarte';
 $TLS_title_plugins = 'Plugin-uri';
 $TLS_title_documentation = 'Documentație';
-$TLS_title_dashboard = 'Tablou de bord';
+
+$TLS_install_header = "Instalare / Upgrade";$TLS_title_dashboard = 'Tablou de bord';
 $TLS_quick_search = 'Căutare rapidă';
 $TLS_advanced_search = 'Căutare avansată';
 $TLS_href_search_tc = 'Căutare cazuri de test';

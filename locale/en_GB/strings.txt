@@ -2298,7 +2298,8 @@ $TLS_href_user_management = "User Management";
 $TLS_href_admin_modules = "System Configuration";
 $TLS_title_test_spec = "Test Specification";
 $TLS_title_documentation = "Documentation";
-$TLS_title_product_mgmt = "Test Project";
+
+$TLS_install_header = "Install / Upgrade";$TLS_title_product_mgmt = "Test Project";
 $TLS_href_plan_define_priority = "Test Plan priority";
 $TLS_href_my_testcase_assignments = "Test Cases Assigned to Me";
 $TLS_href_platform_management = "Platform Management";

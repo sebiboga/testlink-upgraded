@@ -1866,6 +1866,11 @@ function getActions(&$gui,$baseURL) {
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
+  // Install/Upgrade check modernized screen (Dashio standalone page) - Refs #797.
+  // Replaces the legacy upgrade landing (install/index.php); the BFF
+  // (api/install) reports config/DB/schema/security status. Aside visibility
+  // gated by menuGrants->system_configuraton in aside.tpl.
+  $actions->installView = "/gui/templates/install/installView.html?{$ctx}";
   // Plugin Management modernized screen (Dashio standalone page) - Refs #636.
   // Legacy right (mgt_plugins) is enforced by the BFF on every route; the
   // legacy controller lib/plugins/pluginView.php keeps the same check.

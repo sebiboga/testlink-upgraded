@@ -412,7 +412,7 @@ function checkSchemaVersion(&$db)
   $myrow = $db->fetch_array($res);
   
   $upgrade_msg = "You need to upgrade your Testlink Database to {$latest_version} - <br>" .
-                 '<a href="./install/index.php" style="color: white">click here access install and upgrade page </a><br>';
+                 '<a href="./gui/templates/install/installView.html" style="color: white">click here access install and upgrade page </a><br>';
 
   $manualop_msg = "You need to proceed with Manual upgrade of your DB scheme to {$latest_version} - Read README file!";
 

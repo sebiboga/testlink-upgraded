@@ -30,7 +30,7 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
    title_dashboard,href_user_profile,href_assign_tproject_roles,
    href_assign_tplan_roles,doc_user_manual,doc_installation_manual,
    doc_file_formats,doc_excel_import,doc_fckeditor_config,
-   doc_bug_tracking_howto,doc_github_wiki'}
+   doc_bug_tracking_howto,doc_github_wiki,install_header'}
 
 {* make labels available to parent/includer template *}
 {assign var="labels" value=$l10n scope=parent}
