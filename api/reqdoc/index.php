@@ -39,9 +39,11 @@ require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
 header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
 
 function out($data) {
-    echo json_encode($data);
+    echo json_encode($data, JSON_INVALID_UTF8_SUBSTITUTE
+                           | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
     exit;
 }
 
@@ -49,7 +51,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     http_response_code(405);
     out(['status' => 'error', 'message' => 'Method not allowed']);
 }
-$action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
+$action = isset($_GET['action']) ? trim($_GET['action']) : '';
 if ($action !== 'doc') {
     http_response_code(400);
     out(['status' => 'error', 'message' => 'Invalid action']);
@@ -74,7 +76,8 @@ $itemID      = isset($_GET['id']) ? intval($_GET['id']) : 0;
 $level       = isset($_GET['level']) ? trim($_GET['level']) : 'reqspec';
 $format      = isset($_GET['format']) ? intval($_GET['format']) : FORMAT_HTML;
 if ($level !== 'reqspec' && $level !== 'testproject') {
-    $level = 'reqspec';
+    http_response_code(400);
+    out(['status' => 'error', 'message' => 'Invalid level']);
 }
 if ($itemID <= 0) {
     $itemID = $tproject_id;
@@ -149,11 +152,9 @@ $doc->build_name = '';
 $doc->build_notes = '';
 $doc->testplan_name = '';
 $doc->testplan_scope = '';
-$u = tlUser::getByID($db, $userId);
-if ($u) {
-    $doc->author = htmlspecialchars($u->getDisplayName());
+if ($user) {
+    $doc->author = htmlspecialchars($user->getDisplayName());
 }
-unset($u);
 $doc->tproject_name = htmlspecialchars($tproject_name);
 $doc->tproject_scope = $tproject_scope;
 $doc->test_priority_enabled = $test_priority_enabled;
@@ -217,7 +218,8 @@ $fullHtml = $topText . $docText;
 
 out(array('status' => 'ok',
           'html' => $fullHtml,
-          'title' => $doc->title,
+          'title' => html_entity_decode($doc->title),
+          'tproject_name' => $tproject_name,
           'format' => $format,
           'level' => $level,
           'id' => $itemID));
