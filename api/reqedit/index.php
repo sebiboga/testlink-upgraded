@@ -145,6 +145,8 @@ if ($action === '') {
 if ($method === 'GET' && $action === 'form') {
     $tproject_id = needTprojectId();
     $options = reqOptions();
+    $tpInfo = $tprojectMgr->get_by_id($tproject_id);
+    $tpName = (is_array($tpInfo) && isset($tpInfo['name'])) ? (string)$tpInfo['name'] : '';
 
     $reqId = intval($_REQUEST['id'] ?? 0);
     if ($reqId > 0) {
@@ -196,7 +198,10 @@ if ($method === 'GET' && $action === 'form') {
         ];
         $specId = intval($req['srs_id']);
         out(['status' => 'ok', 'mode' => 'edit', 'requirement' => $req,
-             'options' => $options, 'tproject_id' => $tproject_id]);
+             'options' => $options, 'tproject_id' => $tproject_id,
+             'tproject_name' => $tpName,
+             'rights' => ['view' => canView($user, $db, $tproject_id),
+                          'manage' => canManage($user, $db, $tproject_id)]]);
     }
 
     // create mode: require a spec in project
@@ -222,7 +227,10 @@ if ($method === 'GET' && $action === 'form') {
                            'version' => 0, 'req_doc_id' => '', 'title' => '',
                            'scope' => '', 'status' => $options['defaultReqStatus'],
                            'type' => $options['defaultReqType'], 'expected_coverage' => 1],
-         'options' => $options, 'tproject_id' => $tproject_id]);
+         'options' => $options, 'tproject_id' => $tproject_id,
+         'tproject_name' => $tpName,
+         'rights' => ['view' => canView($user, $db, $tproject_id),
+                      'manage' => canManage($user, $db, $tproject_id)]]);
 }
 
 // ------------------------------------------------------------------ save ---

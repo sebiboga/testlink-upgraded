@@ -524,12 +524,12 @@ function openTsEdit(tsId) {
 }
 
 function openReqSpecEdit(rsId) {
-  var url = '/lib/requirements/reqSpecEdit.php?req_spec_id=' + rsId;
+  var url = '/gui/templates/requirements/reqSpecMgmt.html?' + (tprojectId ? 'tproject_id=' + tprojectId : '');
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
 function openReqEdit(reqId) {
-  var url = '/lib/requirements/reqEdit.php?requirement_id=' + reqId;
+  var url = '/gui/templates/requirements/reqEdit.html?id=' + reqId + (tprojectId ? '&tproject_id=' + tprojectId : '');
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 

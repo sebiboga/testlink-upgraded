@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Editor</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-version { background: #3598dc; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-version:hover { background: #2a83c0; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 18px; font-size: 13px; color: #444; }
+.f-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.f-req { color: #e6605e; }
+.form-control { font-size: 13px; height: 34px; border-radius: 4px; }
+textarea.form-control { height: auto; min-height: 120px; }
+.version-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.error-bar { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; display: none; }
+.info-bar { background: #eaf6ef; border: 1px solid #b7e0c3; color: #1e8e4e; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; }
+.coverage-hint { color: #888; font-size: 12px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.readonly-note { background: #fff8e1; border: 1px solid #efe0a6; color: #8a6d3b; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-file-text-o"></i> <span data-i18n="reqe.pageTitle">Requirement Editor</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <span class="ctx" id="specLine"></span>
+  <span class="ctx"><span data-i18n="reqe.version">Version</span>: <b id="versionChip" class="version-chip">-</b></span>
+  <span style="flex:1"></span>
+  <button id="newVersionBtn" class="btn-version" style="display:none;"><i class="fa fa-code-branch"></i> <span data-i18n="reqe.newVersion">Create New Version</span></button>
+  <button class="btn-teal" onclick="save()"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+  <button class="btn-ghost" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="common.cancel">Cancel</span></button>
+</div>
+
+<div id="readonlyNote" class="readonly-note" style="display:none;" data-i18n="reqe.readonly"></div>
+<div id="errorBar" class="error-bar"></div>
+<div id="infoBar" class="info-bar" style="display:none;"></div>
+
+<div class="card">
+  <div class="card-title"><i class="fa fa-edit"></i> <span data-i18n="reqe.details">Requirement details</span></div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.docId">Document ID <span class="f-req">*</span></label>
+          <input type="text" id="reqDocId" class="form-control" maxlength="64">
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.title">Title <span class="f-req">*</span></label>
+          <input type="text" id="reqTitle" class="form-control" maxlength="100">
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.status">Status</label>
+          <select id="reqStatus" class="form-control"></select>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.type">Type</label>
+          <select id="reqType" class="form-control"></select>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.expectedCoverage">Expected Coverage</label>
+          <select id="reqExpectedCoverage" class="form-control"></select>
+          <div class="coverage-hint" data-i18n="reqe.coverageHint">How many test cases should cover this requirement.</div>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col-md-12">
+        <div class="form-group">
+          <label class="f-label" data-i18n="reqe.scope">Scope / Description</label>
+          <textarea id="reqScope" class="form-control"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span id="footerText">TestLink 2.0.1 - Requirement Editor</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqedit/index.php';
+var REQ_ID = 0;
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var MODE = 'create';
+var OPTIONS = null;
+var CURRENT = null;
+
+function fillSelect($sel, map, selected) {
+  $sel.empty();
+  $.each(map || {}, function(code, label) {
+    $sel.append($('<option>').val(code).text(label));
+  });
+  if (selected !== undefined && selected !== null && selected !== '') {
+    $sel.val(String(selected));
+  }
+}
+
+/* coverage choices mirror legacy reqEdit.php (1,2,3,5,10,'other' not handled -> numeric) */
+function fillCoverage(selected) {
+  var $sel = $('#reqExpectedCoverage');
+  $sel.empty();
+  var vals = [1,2,3,5,10];
+  var has = false;
+  $.each(vals, function(i, v) { $sel.append($('<option>').val(v).text(v)); });
+  $.each(vals, function(i, v) { if (String(v) === String(selected)) { has = true; } });
+  if (!has && selected !== undefined && selected !== null && selected !== '') {
+    $sel.append($('<option>').val(selected).text(selected));
+  }
+  $sel.val(String(selected !== undefined && selected !== null && selected !== '' ? selected : 1));
+}
+
+function goBack() {
+  if (window.history.length > 1) { window.history.back(); }
+  else { window.parent && window.parent.mainframe ? window.parent.location.href = '/gui/templates/requirements/reqOverview.html?tproject_id=' + TPROJECT_ID : window.location.href = '/index.php'; }
+}
+
+function showError(msg) {
+  $('#errorBar').text(msg).show();
+}
+function hideError() { $('#errorBar').hide(); }
+
+function loadForm() {
+  hideError();
+  var url = API + '?action=form' +
+    (REQ_ID > 0 ? '&id=' + REQ_ID : '&spec_id=' + SPEC_ID) +
+    '&tproject_id=' + TPROJECT_ID;
+  $.getJSON(url, function(r) {
+    if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.loadError')); return; }
+    MODE = r.mode;
+    OPTIONS = r.options || {};
+    CURRENT = r.requirement || {};
+    SPEC_ID = CURRENT.srs_id || SPEC_ID;
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqe.pageTitle'));
+
+    $('#specLine').html('<span data-i18n="reqe.spec">Specification</span>: <b>' + esc(CURRENT.spec_title) + '</b>');
+    $('#projName').text((r.tproject_name ? ' | ' + r.tproject_name : ''));
+    $('#versionChip').text(CURRENT.version || 0);
+
+    $('#reqDocId').val(CURRENT.req_doc_id || '');
+    $('#reqTitle').val(CURRENT.title || '');
+    $('#reqScope').val(CURRENT.scope || '');
+
+    fillSelect($('#reqStatus'), OPTIONS.reqStatuses, CURRENT.status);
+    fillSelect($('#reqType'), OPTIONS.reqTypes, CURRENT.type);
+    fillCoverage(CURRENT.expected_coverage);
+
+    var canManage = r.rights && r.rights.manage;
+    if (MODE === 'edit') {
+      $('#newVersionBtn').show();
+      if (!canManage) {
+        setEditable(false);
+        $('#readonlyNote').show();
+      }
+    } else {
+      $('#newVersionBtn').hide();
+      if (!canManage) { setEditable(false); $('#readonlyNote').show(); }
+    }
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('reqe.loadError');
+    try { if (xhr.responseJSON && xhr.responseJSON.message) { msg = xhr.responseJSON.message; } } catch (e) {}
+    showError(msg);
+  });
+}
+
+function setEditable(on) {
+  $('.form-control').prop('disabled', !on);
+}
+
+function sanitize(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
+function esc(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
+
+function save() {
+  hideError();
+  $('#infoBar').hide();
+  var payload = {
+    tproject_id: TPROJECT_ID,
+    req_doc_id: $.trim($('#reqDocId').val()),
+    title: $.trim($('#reqTitle').val()),
+    scope: $('#reqScope').val(),
+    status: $('#reqStatus').val(),
+    type: $('#reqType').val(),
+    expected_coverage: parseInt($('#reqExpectedCoverage').val() || '1', 10)
+  };
+  if (!payload.req_doc_id) { showError(TLi18n.t('reqe.errDocId')); return; }
+  if (!payload.title) { showError(TLi18n.t('reqe.errTitle')); return; }
+  if (MODE === 'edit') { payload.id = REQ_ID; }
+  else { payload.spec_id = SPEC_ID; }
+
+  $.ajax({
+    url: API + '?action=save',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    success: function(r) {
+      if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.saveError')); return; }
+      hideError();
+      if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); }
+      $('#infoBar').text(TLi18n.t('reqe.saved')).show();
+      setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
+      if (r.newVersion) { $('#versionChip').text(r.newVersion); }
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqe.saveError');
+      try { if (xhr.responseJSON && xhr.responseJSON.message) { msg = xhr.responseJSON.message; } } catch (e) {}
+      showError(msg);
+    }
+  });
+}
+
+function newVersion() {
+  if (!REQ_ID) { return; }
+  hideError();
+  $.ajax({
+    url: API + '?action=version&id=' + REQ_ID,
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ tproject_id: TPROJECT_ID, id: REQ_ID }),
+    success: function(r) {
+      if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.versionError')); return; }
+      $('#infoBar').text(TLi18n.t('reqe.versionCreated') + ' v' + r.version).show();
+      setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
+      loadForm();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('reqe.versionError');
+      try { if (xhr.responseJSON && xhr.responseJSON.message) { msg = xhr.responseJSON.message; } } catch (e) {}
+      showError(msg);
+    }
+  });
+}
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || 0, 10);
+  SPEC_ID = parseInt(p.get('spec_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || p.get('tp_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqe.pageTitle'));
+    if (REQ_ID <= 0 && SPEC_ID <= 0) { showError(TLi18n.t('reqe.errContext')); return; }
+    loadForm();
+  });
+  $('#newVersionBtn').on('click', newVersion);
+});
+</script>
+</body>
+</html>
