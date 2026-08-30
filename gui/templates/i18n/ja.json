@@ -1992,4 +1992,17 @@
   "reqe.versionError": "新バージョンの作成に失敗しました",
   "reqe.versionCreated": "新しいバージョンを作成しました",
   "reqe.errContext": "要件または仕様のコンテキストがありません"
-}
+,
+  "pdoc.title": "要件文書の印刷",
+  "pdoc.inProject": "テストプロジェクト内",
+  "pdoc.btnPrint": "印刷",
+  "pdoc.btnBack": "印刷オプションに戻る",
+  "pdoc.generating": "文書を生成中...",
+  "pdoc.errLoad": "文書を生成できませんでした。",
+  "pdoc.errNoRights": "このテストプロジェクトの要件文書を生成する権限がありません。",
+  "pdoc.errNotFound": "要求された要件仕様が見つかりませんでした。",
+  "pdoc.errEmpty": "生成された文書は空です。",
+  "pdoc.errNotReady": "文書はまだ準備できていません。",
+  "pdoc.rendered": "生成済み",
+  "pdoc.levelProject": "テストプロジェクト全体",
+  "pdoc.levelSpec": "単一の要件仕様"}

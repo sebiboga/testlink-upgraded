@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Failed to create new version",
   "reqe.versionCreated": "New version created",
   "reqe.errContext": "Missing requirement or specification context"
-}
+,
+  "pdoc.title": "Print Requirement Document",
+  "pdoc.inProject": "in test project",
+  "pdoc.btnPrint": "Print",
+  "pdoc.btnBack": "Back to print options",
+  "pdoc.generating": "Generating document...",
+  "pdoc.errLoad": "Failed to generate the document.",
+  "pdoc.errNoRights": "You are not authorized to generate requirement documents for this test project.",
+  "pdoc.errNotFound": "The requested requirement specification was not found.",
+  "pdoc.errEmpty": "The generated document is empty.",
+  "pdoc.errNotReady": "The document is not ready yet.",
+  "pdoc.rendered": "Rendered",
+  "pdoc.levelProject": "whole test project",
+  "pdoc.levelSpec": "single requirement specification"}

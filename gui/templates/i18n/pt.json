@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Falha ao criar a nova versão",
   "reqe.versionCreated": "Nova versão criada",
   "reqe.errContext": "Falta o contexto do requisito ou especificação"
-}
+,
+  "pdoc.title": "Imprimir documento de requisitos",
+  "pdoc.inProject": "no projeto de teste",
+  "pdoc.btnPrint": "Imprimir",
+  "pdoc.btnBack": "Voltar às opções de impressão",
+  "pdoc.generating": "Gerando documento...",
+  "pdoc.errLoad": "Falha ao gerar o documento.",
+  "pdoc.errNoRights": "Você não está autorizado a gerar documentos de requisitos para este projeto de teste.",
+  "pdoc.errNotFound": "A especificação de requisitos solicitada não foi encontrada.",
+  "pdoc.errEmpty": "O documento gerado está vazio.",
+  "pdoc.errNotReady": "O documento ainda não está pronto.",
+  "pdoc.rendered": "Renderizado",
+  "pdoc.levelProject": "projeto de teste inteiro",
+  "pdoc.levelSpec": "especificação de requisitos única"}

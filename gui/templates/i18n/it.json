@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Errore nella creazione della nuova versione",
   "reqe.versionCreated": "Nuova versione creata",
   "reqe.errContext": "Manca il contesto del requisito o della specifica"
-}
+,
+  "pdoc.title": "Stampa documento requisiti",
+  "pdoc.inProject": "nel progetto di test",
+  "pdoc.btnPrint": "Stampa",
+  "pdoc.btnBack": "Torna alle opzioni di stampa",
+  "pdoc.generating": "Generazione del documento...",
+  "pdoc.errLoad": "Impossibile generare il documento.",
+  "pdoc.errNoRights": "Non sei autorizzato a generare documenti di requisiti per questo progetto di test.",
+  "pdoc.errNotFound": "La specifica dei requisiti richiesta non è stata trovata.",
+  "pdoc.errEmpty": "Il documento generato è vuoto.",
+  "pdoc.errNotReady": "Il documento non è ancora pronto.",
+  "pdoc.rendered": "Generato",
+  "pdoc.levelProject": "intero progetto di test",
+  "pdoc.levelSpec": "singola specifica dei requisiti"}

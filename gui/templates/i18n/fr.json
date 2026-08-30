@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Échec de la création de la nouvelle version",
   "reqe.versionCreated": "Nouvelle version créée",
   "reqe.errContext": "Contexte d'exigence ou de spécification manquant"
-}
+,
+  "pdoc.title": "Imprimer le document d'exigences",
+  "pdoc.inProject": "dans le projet de test",
+  "pdoc.btnPrint": "Imprimer",
+  "pdoc.btnBack": "Retour aux options d'impression",
+  "pdoc.generating": "Génération du document...",
+  "pdoc.errLoad": "Impossible de générer le document.",
+  "pdoc.errNoRights": "Vous n'êtes pas autorisé à générer des documents d'exigences pour ce projet de test.",
+  "pdoc.errNotFound": "La spécification d'exigences demandée est introuvable.",
+  "pdoc.errEmpty": "Le document généré est vide.",
+  "pdoc.errNotReady": "Le document n'est pas encore prêt.",
+  "pdoc.rendered": "Rendu",
+  "pdoc.levelProject": "projet de test entier",
+  "pdoc.levelSpec": "spécification d'exigence unique"}

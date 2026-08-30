@@ -1992,4 +1992,17 @@
   "reqe.versionError": "创建新版本失败",
   "reqe.versionCreated": "已创建新版本",
   "reqe.errContext": "缺少需求或规格上下文"
-}
+,
+  "pdoc.title": "打印需求文档",
+  "pdoc.inProject": "在测试项目中",
+  "pdoc.btnPrint": "打印",
+  "pdoc.btnBack": "返回打印选项",
+  "pdoc.generating": "正在生成文档...",
+  "pdoc.errLoad": "无法生成文档。",
+  "pdoc.errNoRights": "您无权为此测试项目生成需求文档。",
+  "pdoc.errNotFound": "未找到所请求的需求规格。",
+  "pdoc.errEmpty": "生成的文档为空。",
+  "pdoc.errNotReady": "文档尚未就绪。",
+  "pdoc.rendered": "已生成",
+  "pdoc.levelProject": "整个测试项目",
+  "pdoc.levelSpec": "单个需求规格"}

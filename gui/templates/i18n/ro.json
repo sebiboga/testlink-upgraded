@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Eroare la crearea versiunii noi",
   "reqe.versionCreated": "Versiune nouă creată",
   "reqe.errContext": "Lipsește contextul cerinței sau specificației"
-}
+,
+  "pdoc.title": "Printează documentul de cerințe",
+  "pdoc.inProject": "în proiectul de testare",
+  "pdoc.btnPrint": "Printează",
+  "pdoc.btnBack": "Înapoi la opțiunile de printare",
+  "pdoc.generating": "Se generează documentul...",
+  "pdoc.errLoad": "Nu s-a putut genera documentul.",
+  "pdoc.errNoRights": "Nu sunteți autorizat să generați documente de cerințe pentru acest proiect de testare.",
+  "pdoc.errNotFound": "Specificația de cerințe solicitată nu a fost găsită.",
+  "pdoc.errEmpty": "Documentul generat este gol.",
+  "pdoc.errNotReady": "Documentul nu este încă gata.",
+  "pdoc.rendered": "Generat",
+  "pdoc.levelProject": "întregul proiect de testare",
+  "pdoc.levelSpec": "specificație de cerințe individuală"}

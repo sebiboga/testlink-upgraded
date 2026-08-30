@@ -1992,4 +1992,17 @@
   "reqe.versionError": "Neue Version konnte nicht erstellt werden",
   "reqe.versionCreated": "Neue Version erstellt",
   "reqe.errContext": "Anforderungs- oder Spezifikationskontext fehlt"
-}
+,
+  "pdoc.title": "Anforderungsdokument drucken",
+  "pdoc.inProject": "im Testprojekt",
+  "pdoc.btnPrint": "Drucken",
+  "pdoc.btnBack": "Zurück zu den Druckoptionen",
+  "pdoc.generating": "Dokument wird erzeugt...",
+  "pdoc.errLoad": "Das Dokument konnte nicht erzeugt werden.",
+  "pdoc.errNoRights": "Sie sind nicht berechtigt, Anforderungsdokumente für dieses Testprojekt zu erzeugen.",
+  "pdoc.errNotFound": "Die angeforderte Anforderungsspezifikation wurde nicht gefunden.",
+  "pdoc.errEmpty": "Das erzeugte Dokument ist leer.",
+  "pdoc.errNotReady": "Das Dokument ist noch nicht bereit.",
+  "pdoc.rendered": "Erzeugt",
+  "pdoc.levelProject": "gesamtes Testprojekt",
+  "pdoc.levelSpec": "einzelne Anforderungsspezifikation"}
