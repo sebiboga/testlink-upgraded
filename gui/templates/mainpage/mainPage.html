@@ -151,7 +151,7 @@ $(function() {
     loadData();
     $('#planSelect').on('change', function() {
       var pid = $(this).val();
-      var url = window.location.pathname + '?tproject_id=' + (tproject_id || 1) + '&tplan_id=' + (pid || 0);
+      var url = window.location.pathname + '?tproject_id=' + (tproject_id || '') + '&tplan_id=' + (pid || 0);
       // keep it in the same frame
       window.location.href = url;
     });
@@ -171,6 +171,8 @@ function loadData() {
   if (tplan_id) p.push('tplan_id=' + tplan_id);
   $.getJSON(API + '/data' + (p.length ? '?' + p.join('&') : ''), function(r) {
     if (r.status !== 'ok') { fail(TLi18n.t('common.error')); return; }
+    tproject_id = r.tproject_id;
+    tplan_id = r.tplan_id;
     buildPlanSelector(r);
     renderStatus(r);
     renderGrowth(r);
@@ -207,7 +209,7 @@ function renderStatus(r) {
   var html = '';
   $.each(d.slices, function(k, s) {
     html += '<tr><td><span class="bar" style="background:' + s.color + '"></span></td>'
-         + '<td>' + $('<div>').text(s.label).html() + '</td>'
+         + '<td>' + $('<div>').text(statusLabel(k)).html() + '</td>'
          + '<td style="text-align:right"><b>' + s.qty + '</b></td>'
          + '<td style="text-align:right;color:#777">' + s.percentage + '%</td></tr>';
   });
@@ -218,7 +220,7 @@ function renderStatus(r) {
   // pie
   var labels = [], vals = [], colors = [];
   $.each(d.slices, function(k, s) {
-    labels.push(s.label); vals.push(s.qty); colors.push(s.color);
+    labels.push(statusLabel(k)); vals.push(s.qty); colors.push(s.color);
   });
   if (pieChart) pieChart.destroy();
   var canvas = document.getElementById('execStatusPie');
@@ -265,8 +267,11 @@ function renderOpenIssues(r) {
     var lbls = $.map(iss.labels || [], function(l) {
       return '<span class="label" style="background:#6c757d;">' + $('<div>').text(l).html() + '</span>';
     }).join(' ');
-    var idCell = iss.url ? '<a href="' + iss.url + '" target="_blank" rel="noopener"><b>' + $('<div>').text(iss.id).html() + '</b></a>'
-                         : '<b>' + $('<div>').text(iss.id).html() + '</b>';
+    var safeHref = (iss.url && /^https?:\/\//i.test(iss.url)) ? iss.url : '';
+    var idCell = safeHref
+      ? $('<a>').attr('href', safeHref).attr('target', '_blank').attr('rel', 'noopener')
+          .append($('<b>').text(iss.id)).prop('outerHTML')
+      : $('<b>').text(iss.id).prop('outerHTML');
     return [[ idCell, $('<div>').text(iss.title).html(), lbls,
       (iss.status ? '<span class="label" style="background:' + iss.color + '">' + $('<div>').text(iss.status).html() + '</span>' : '') ]];
   });

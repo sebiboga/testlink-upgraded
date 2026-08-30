@@ -285,8 +285,26 @@ if ($method === 'GET' && ($path === '/data' || $path === '' || $path === '/')) {
     }
 
     // Test plans accessible to the user on this project (for the selector +
-    // to let the page fall back to the user's default plan).
+    // to let the page fall back to the user's default plan). A project with no
+    // accessible plans is treated as NOT accessible — the user must never
+    // read another project's data by crafting ?tproject_id=/tplan_id=.
     $arrPlans = (array)$user->getAccessibleTestPlans($db, $tprojectID);
+    if (count($arrPlans) == 0) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No access to this test project']);
+    }
+
+    // If the requested plan is not among the user's accessible plans for this
+    // project, fall back to the first accessible plan (mirrors the legacy
+    // mainPage.php fallback) instead of trusting the raw query value.
+    $accessibleIds = array();
+    foreach ($arrPlans as $p) {
+        $accessibleIds[] = (int)$p['id'];
+    }
+    if ($tplanID > 0 && !in_array((int)$tplanID, $accessibleIds, true)) {
+        $tplanID = (int)$arrPlans[0]['id'];
+    }
+
     $plans = array();
     $currentPlanName = '';
     foreach ($arrPlans as $p) {

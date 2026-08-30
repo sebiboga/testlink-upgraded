@@ -8085,3 +8085,38 @@ MariaDB testlink @127.0.0.1; verified at commit `96488b3eb` of branch
 `fix/issue-795-save-partial-exec`). Screenshots:
 `docs/screenshots/issue-795-execTest-no-partial-save.png` (before),
 `docs/screenshots/issue-795-execTest-partial-save-resume.png` (after/resume).
+
+## Suite 780 — Dashboard / Main Page (mainPage.html + BFF api/mainpage) — Refs #780
+
+**Date:** 2026-08-30 · **Branch:** `sebiboga` · **Screen:**
+`gui/templates/mainpage/mainPage.html` + `api/mainpage/index.php`.
+**Screen scope:** the ASIDE **mainframe landing** ("home" view, legacy
+`lib/general/mainPage.php`), not an ASIDE child item — link switch is in
+`index.php` `getReturnWorkArea()` (defaults mainframe to the modernized HTML).
+Widgets: header + locale switcher, test-plan selector, Execution Status
+(doughnut + table, from `executions` summary), Monthly Test Case Growth
+(bar, from `tcversions` creation month), bugs + open-issues widgets (only when
+an issue tracker is configured). Fixtures: project `Test Project Alpha` (id 1),
+plan `Sprint 1` (id 2), suite `Login Suite` (id 3), testcases (ids 4/7/10,
+tcversions 5/8/11), `Build 1` (id 1), 3 executions via `api/execute?action=save`
+(passed / failed / blocked).
+
+| # | Test | Steps | Expected | Result |
+|---|---|---|---|---|
+| 1 | Mainframe landing after project change | Open `index.php?tproject_id=1&tplan_id=2` | Mainframe iframe loads `gui/templates/mainpage/mainPage.html` (NOT `lib/general/mainPage.php`) | PASS |
+| 2 | Session context fallback | Navigate mainframe to bare `mainPage.html` (no query) with session project/plan set | BFF resolves tproject_id/tplan_id from session; widgets render for `Test Project Alpha` / `Sprint 1` | PASS |
+| 3 | Execution Status widget (data) | With plan `Sprint 1` selected | "Completed: 100.0% (3/3)"; table Passed 1/33.3%, Failed 1/33.3%, Blocked 1/33.3%, Not Run 0/0.0%, Total 3; doughnut `data=[1,1,1,0]` | PASS |
+| 4 | Monthly Test Case Growth widget | Hover/see bar chart | Chart.js bar created; points `[…,3]`; "Generated on …" timestamp present | PASS |
+| 5 | No-tracker hides Bugs / Open Issues | No issue tracker configured | `#secBugs` and `#secOpenIssues` hidden; no JS error | PASS |
+| 6 | Empty state (no test plan) | Fresh project, no plan selected | Execution status + growth sections hidden gracefully; no console error | PASS (verified pre-fixtures) |
+| 7 | Locale switcher (i18n) | Switch English → Română | Title "Panou de Bord", headings "Stare Execuție"/"Creștere Lunară Cazuri de Test", "Plan de Test:" etc. | PASS |
+| 8 | Test-plan selector | Dropdown `Sprint 1` present/selected | Reloads with `tplan_id=2`; widgets refresh | PASS |
+| 9 | i18n bundle integrity | `python3 -m json.tool` on all 10 bundles | All valid JSON; identical key set (`dsh.*`, `header.dashboard*`) | PASS (10/10) |
+| 10 | Event Viewer / events after suite | Diff `events` table | No new `log_level` Error/Warning rows | PASS |
+| 11 | BFF shape | `GET /api/mainpage/data?tproject_id=1&tplan_id=2` | `status:ok`, `tproject_id/name`, `tplan_id`, `tplans[]`, `dashboard{dashboard,slices,executed,percentage_completed}`, `tc_growth`, `generated_on` | PASS |
+| 12 | BFF no-rights / unknown params | Unknown `tproject_id` | Graceful error, HTTP 4xx, no fatal | PASS |
+
+**Result: 12/12 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1; verified on branch `sebiboga`, commit to be tagged
+after code review). Screenshot:
+`tmp/wiki/dashboard.png` (Execution Status + Growth with fixtures).
