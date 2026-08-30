@@ -7940,3 +7940,23 @@ Known upstream quirk (not introduced by this screen): `req_specs_revisions.total
 **Result: Suite 778 — 6/6 PASS**
 
 **Pre-fix symptom recorded (repro):** the unregistered key `{$tplConfig.inc_show_scripts_table}` is not among the `stdTPLCfg` keys (`lib/functions/tlsmarty.inc.php:229-230` registers only `showScriptsTable.inc`), so the include path is empty → `SmartyException: Source: Missing name` whenever the template renders a TC version with ≥1 linked script. Same defect class as the (fixed) exec screen issue #626; the live dashio viewer already uses the correct key at `tcViewViewer.inc.tpl:605`.
+
+## Suite 627 — Regression — Issue #627: exec screen step-level issue UI — wrong Smarty include prefix `execute/` instead of `execute/include/` → fatal when tester can create issues
+
+**Precondition:** Fresh DB; app at http://localhost:8082. Fixture: `php tmp/fixtures_627.php` → project TRACK627/T62 (issue_tracker_enabled=1), plan PLAN627, build B1 (is_open=1), TC627-A/B linked, mantis/db issue tracker MANTIS627 (mantis_bug_table inside the `testlink` schema, cfg WITHOUT `<?xml?>` prolog — `issueTrackerInterface::setCfg()` prepends its own). DB is re-imported by CI mid-session, so re-query actual ids (`nodes_hierarchy`, `tcversions`, `testplans`, `builds`) after seeding; sample ids used below: tcv=40, tc=39, plan=47, build=2.
+
+The defect surface is ONLY the legacy screen `lib/execute/execSetResults.php` (the modernize workflow's `execTest.html` has its own UI and never renders `steps_horizontal.inc.tpl`). `tlCanCreateIssue=true` requires a tracker implementing `addIssue` + a LIVE API connection — unreachable offline, so the guarded include was exercised with a temporary harness that force-overrides `$gui->tlCanCreateIssue=true` (added/removed around the test, never committed) while the rest of the real stack (traccione template engine, real tracker object, DB) stayed untouched.
+
+| # | Test | Expected | Actual | Verdict |
+|---|---|---|---|---|
+| 1 | Open legacy exec for TC627-A with build+platform resolved: `execSetResults.php?version_id=40&level=testcase&id=39&tplan_id=47&build_id=2&platform_id=0&caller=exec_feature` (mantis/db tracker connected, `form_token` fresh) | Page renders "Test Results on Build B1", TC section, 2 steps with step notes/status selects; no Smarty fatal | Rendered (browser snapshot); steps present | PASS |
+| 2 | PRE-FIX repro (harness `tlCanCreateIssue=true`) with the two includes reverted to `execute/...` | Smarty unable to load template → HTTP 500 | `PHP Fatal error: Smarty: Unable to load template 'file:execute/add_issue_on_step.inc.tpl' in 'testcases/include/steps_horizontal.inc.tpl'` + HTTP 500 (server log + browser) | PASS (repro reproduces reported symptom) |
+| 3 | POST-FIX (harness still `tlCanCreateIssue=true`), includes point to `execute/include/...` | Steps render; per-step add-issue checkbox `issueForStep_<id>` + hidden inputs row (`issueSectionForStep_`, `issueSummaryForStep_`) present; no fatal | Rendered — `issueForStep`×4, `issueSectionForStep`×4, `issueSummaryForStep`×6 in DOM; screenshot | PASS |
+| 4 | Same broken check in the tl-classic twin template | `tl-classic` is NOT affected — its `execute/` prefix is correct (its templates live under `tl-classic/execute/`) | Confirmed (`gui/templates/tl-classic/testcases/steps_horizontal.inc.tpl:117,129` resolve; files at `gui/templates/tl-classic/execute/`) — no change applied | PASS |
+| 5 | Event Viewer / `events` table for the final clean run (fix in place, harness removed) | No new Error/Warning attributable to the fix | Zero new log_level 2/4 rows from the last clean load; the only related event is a pre-existing E_WARNING set (`Undefined property: stdClass::$issuetype/...`) emitted on ANY tracker-connected exec render in HEAD (filed separately) | PASS |
+
+**Result: Suite 627 — 5/5 PASS**
+
+Notes: 
+- The legacy `execSetResults.php` REQUEST contract is `build_id=<id>&platform_id=<id>` (cache keys `setting_build`/`setting_platform` are read only from `$_SESSION['execution_mode'][form_token]`, populated by the exec navigator in the normal popup flow).
+- Discovered while testing (new, NOT from this fix — logged as a separate `bug` issue): `execSetResults.php` emits 4× `E_WARNING "Undefined property: stdClass::$issuetype/issuepriority/version/component"` per tracker-connected render because `mantis/db` cfg lacks those attributes but the metadata branch (`getIssueTrackerMetaData()` non-null) dereferences them.
