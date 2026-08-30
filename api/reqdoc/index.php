@@ -24,6 +24,7 @@
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
+require_once(__DIR__ . '/../../cfg/reports.cfg.php');
 require_once('common.php');
 require_once(__DIR__ . '/../../lib/functions/requirement_spec_mgr.class.php');
 require_once(__DIR__ . '/../../lib/functions/printDocOptions.class.php');
