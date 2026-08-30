@@ -8219,3 +8219,41 @@ performs no outbound GitHub call, it needs only the session token + DB.
 **Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
 MariaDB testlink @127.0.0.1 + curl with admin session; verified at commits
 `644911d74` + `e96f32393` of branch `fix/issue-771`).
+
+## Suite 68 — Requirement Spec Document Print (printDocument) (#755)
+
+**Screen:** `gui/templates/requirements/printDocument.html` — modernized
+standalone viewer that replaces the legacy `lib/results/printDocument.php`
+launcher for `printReqSpec.html`.
+**BFF:** `api/reqdoc/index.php?action=doc&tproject_id=N&id=N&level=reqspec|testproject&format=N&<opt>=y|n`
+(session-based auth, JSON I/O, right gate `testplan_metrics`, reuses legacy
+`lib/functions/print.inc.php` + `printDocOptions.class.php`).
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture
+`tmp/fixtures_printdoc.php`: project **PrintDoc Fixture** (prefix PRI), specs
+PD-SRS-001 + PD-SRS-002, reqs PD-REQ-001/2/3, plus a low-rights guest
+`pdguest/pdguest`. Fixture is idempotent but ids shift per run; the suite below
+uses the ids of the recorded run (project 43, spec1 44, spec2 46).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF render (single spec) | `GET /api/reqdoc/?action=doc&tproject_id=43&id=44&level=reqspec&toc=y&req_scope=y&req_author=y` (admin session) | `status:ok`; html contains PD-REQ-001 and TOC anchors `name="toc_1"` / `toc_req*`; title "PrintDoc Fixture - PrintDoc SRS Alpha" | PASS |
+| 2 | BFF render (whole project) | `?action=doc&tproject_id=43&id=43&level=testproject` | html contains PD-SRS-001 AND PD-SRS-002 AND PD-REQ-003 | PASS |
+| 3 | BFF errors | `id=9999&level=reqspec` → 404 "Requirement specification not found"; `action=bogus` → 400; `id=43&level=reqspec` (spec id == project id, hand-crafted) → clean 404, NEVER a 500 | PASS (404/400/404) — edge-case 500 fixed in `88672f945` |
+| 4 | Rights gate | pdguest granted guest role on project → doc renders (guest HAS testplan_metrics by default); pdguest switched to role "no rights" → BFF 403, viewer banner "not authorized", iframe hidden | PASS (both directions) |
+| 5 | Screen loads + renders | `printDocument.html?type=reqspec&level=reqspec&id=44&tproject_id=43&toc=y&req_scope=y&req_author=y` | Header "Print Requirement Document \| in test project PrintDoc Fixture"; doc title; iframe shows full document (logo, title, date, TOC, spec, reqs) | PASS |
+| 6 | Print enabled | Doc rendered → Print button enabled; clicking calls iframe `contentWindow.print()` (stubbed) | PASS |
+| 7 | TOC navigation stays in-iframe | Click TOC link `PD-REQ-001` in iframe | Requirement scrolled into view inside iframe (top≈10px); parent URL UNCHANGED (no reload) | PASS (fixed `name=`-anchor lookup) |
+| 8 | Options honored | `toc=n&req_spec_author=n&req_scope=y&req_author=n` | No TOC; spec Scope shown; req Author NOT printed | PASS |
+| 9 | Locale switcher | Switch viewer text locale to Română | Title, Print, Back, Refresh, "Rendered", footer all in Romanian; URL gains `locale=ro` | PASS |
+| 10 | Entry point switched | On `printReqSpec.html?tproject_id=43` click spec node "PrintDoc SRS Alpha" | Opens NEW tab → `printDocument.html?...` (NOT legacy `/lib/results/printDocument.php`), doc rendered with option flags (`toc=n`, `req_scope=y`…) | PASS (link switch in `printReqSpec.html`) |
+| 11 | 404/403/400 error paths in screen | navigate `id=9999`; no-rights user; stale project id | Error banner shown, Print disabled, iframe hidden; exact i18n text | PASS |
+| 12 | Console clean | Browser console during all flows | No JS errors from screen/BFF (only the expected 403/404 resource logs of the error-path tests) | PASS |
+| 13 | Events / Event Viewer | Diff `events` (log_level 1/2) after suite | Only INFO/AUDIT (login, project create/delete from fixture); the two legacy Event rows (E_WARNING + SQL 1064 `get_by_id(21)`) were produced by the PRE-fix BFF edge case — root cause fixed in `88672f945`, re-test leaves none | PASS |
+| 14 | i18n bundles integrity | `python3 -m json.tool` all 10 bundles + grep `pdoc.*` | All valid JSON; every bundle carries 13 `pdoc.*` keys | PASS (10/10, 13 keys) |
+
+**Result: 14/14 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1 + admin + pdguest sessions; verified at commits
+`ee1dcb694` (i18n+link switch), `7d6ba6da0` + `64f69dbf1` (TOC/anchor fixes),
+`88672f945` (BFF 404 edge) of branch `sebiboga`). Screenshots:
+`docs/screenshots/pdoc-main.png`, `pdoc-full.png`, `pdoc-projectlevel.png`,
+`pdoc-err404.png`, `pdoc-entry-tree.png`.
