@@ -398,6 +398,10 @@ if ($method === 'POST' && ($segments[0] ?? '') === 'oauth' && ($segments[1] ?? '
         out(['status' => 'error', 'message' => 'Invalid repo, expected owner/name']);
     }
     list($owner, $repoName) = explode('/', $repo, 2);
+    if ($owner === '' || $repoName === '' || strpos($repoName, '/') !== false) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid repo, expected owner/name']);
+    }
     $type = gh_tracker_type($mgr);
     if (!$type) {
         http_response_code(400);
