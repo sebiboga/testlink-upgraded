@@ -138,6 +138,17 @@ function loadDoc() {
       f.onload = function () {
         $('#docFrame').show();
         $('#btnPrint').prop('disabled', false);
+        var d = f.contentDocument;
+        if (d && d.body) {
+          $(d).on('click', 'a[href^="#"]', function (e) {
+            var id = this.getAttribute('href').slice(1);
+            var target = d.getElementById(id);
+            if (target) {
+              e.preventDefault();
+              target.scrollIntoView();
+            }
+          });
+        }
       };
     } else {
       showError(TLi18n.t('pdoc.errEmpty'));
