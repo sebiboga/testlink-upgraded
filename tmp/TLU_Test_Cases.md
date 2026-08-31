@@ -8340,3 +8340,42 @@ MariaDB testlink @127.0.0.1). Screenshots:
   - Result: **PASS** (0 rows).
 
 **Result: Suite 70 — 5/5 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 + MariaDB testlink @127.0.0.1).
+
+---
+
+## Suite 783 — Lost Password / Password Reset modernized screen (#783)
+
+**Scope:** `gui/templates/auth/lostPassword.html` + BFF `POST /api/auth/reset` (with
+`GET /api/auth/config`). Successor of the legacy `lostPassword.php` Smarty page.
+Reached from the modern login via the **Lost password?** link
+(`login.html:177` → `lostPassword.html`). Pre-authentication public screen;
+`POST` protected by the shared same-origin CSRF guard (`api/_guard.php`).
+i18n via `TLi18n` `auth.*` keys present in all 10 locale bundles.
+
+**Precondition:** Fresh DB (MariaDB testlink @127.0.0.1), app @ http://localhost:8082
+(docroot = repo root), `config.inc.php`: `user_self_signup = TRUE`, SMTP/from_email
+unconfigured (`[from_email_not_configured]`). No fixtures needed (pre-auth screen).
+
+| # | Test | Steps | Expected | Actual | Verdict |
+|---|------|-------|----------|--------|---------|
+| 1 | Screen renders with i18n labels | Open `gui/templates/auth/lostPassword.html` in headless Chrome | Title "Lost Password", note "…email you a new password.", field "User ID" (required), button "Send", "Back to login" → `login.html`, version footer + GitHub link | All rendered (CDP snapshot) | PASS |
+| 2 | Empty submit is blocked | Click **Send** with empty field | HTML5 `required` validation; no request fired | Browser alert "Please fill out this field." | PASS |
+| 3 | Unknown login — enumeration-safe generic success | Type `ghostuser_nonexistent`, click **Send** | Generic info box "If this user exists…", then redirect to `login.html?note=lost` (~1.2s) | Info shown; URL became `login.html?note=lost` | PASS |
+| 4 | Existing local user (admin) — no 500 with mail unconfigured | Type `admin`, click **Send** | Same generic success body; no HTTP 500; temp password NOT persisted (SMTP absent ⇒ `writePasswordToDB` skipped) | Generic success shown; admin password unchanged in DB; no PWD_RESET event | PASS |
+| 5 | Redirect target shows the recovery note | After redirect, login page URL `?note=lost` | Note "Password recovery completed." rendered on the sign-in form | Rendered (snapshot) | PASS |
+| 6 | Login-page links | Snapshot login.html | "New user? Create account" → `firstLogin.html`; "Lost password?" → `lostPassword.html` | Both point at the modern `.html` screens | PASS |
+| 7 | BFF config route | `GET /api/auth/config` | `selfSignup=true`, `externalPasswordMgmt=false`, `loginDisabled=0`, `oauth=[]`, `ssoEnabled=false`, `pwdMaxLen=40` | Verified via curl/CDP | PASS |
+| 8 | CSRF guard on reset | `curl -X POST -d login=admin /api/auth/reset` (no same-origin proof) | HTTP 403 `Forbidden: missing or mismatched same-origin proof (CSRF protection)` | 403 body returned | PASS |
+| 9 | i18n completeness | grep `auth.passwdResetTitle/passwordResetNote/loginName/btnSend/linkBackToLogin/version/githubRepoTip/requiredResetUser/resetInProgress/resetSent/networkError` in all bundles | Each key in all 10 bundles; all `*.json` valid | 11/11 keys × 10 bundles, JSON valid | PASS |
+| 10 | Event Viewer / `events` after suite | `SELECT id,log_level,description FROM events` at suite end | No new Error/Warning (log_level ≤ 4) rows attributable to the screen | 0 new rows (guest 401 fetch on login page is pre-existing, not DB-logged) | PASS |
+
+**Result: Suite 783 — 10/10 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1). Screenshots: `tmp/lostpw_01_default.png`,
+`tmp/lostpw_02_success.png`, `tmp/lostpw_03_login_note.png`.
+
+Notes:
+- Legacy `lostPassword.php` is intentionally left as a fallback (direct hits still
+  render the Smarty page); the app no longer links to it.
+- `resetPassword()` (lib/functions/users.inc.php:167) only persists the generated
+  password after `email_send` succeeds — with SMTP unconfigured nothing is
+  written, so no user's password is silently invalidated by a broken mail setup.
