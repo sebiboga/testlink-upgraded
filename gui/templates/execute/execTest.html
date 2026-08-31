@@ -454,6 +454,70 @@ function statusCodesForForm() {
   return codes;
 }
 
+// Attachments management block for the Execute Tests form (Refs #792):
+//  - upload file input (multiple) -> stored on the new execution at save time
+//  - list of the latest execution's attachments (download links) so the
+//    tester can see what exists on the context before copying it
+//  - "Copy attachments from latest execution" checkbox, shown only when the
+//    configured exec_mode->new_exec == 'latest' (legacy inc_exec_img_controls.tpl:68-73)
+function renderAttachmentsBlock() {
+  var h = '';
+
+  // latest execution attachments (read context)
+  var atts = (current.prior_execution && current.prior_execution.attachments) || [];
+  h += '<div style="margin-top:14px;border:1px solid #eee;border-radius:6px;padding:10px 12px;">';
+  h += '<div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">'
+    + '<i class="fas fa-paperclip" style="color:#4ECDC4;margin-right:6px;"></i>'
+    + esc(TLi18n.t('exe.attachments')) + '</div>';
+
+  // copy-from-latest checkbox (legacy copies execution + step attachments)
+  if (!roMode && newExecLatestFlag() && current.prior_execution) {
+    h += '<label style="font-size:12.5px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">'
+      + '<input type="checkbox" id="copyAttFromLEXEC">'
+      + ' ' + esc(TLi18n.t('exe.copyAttFromLatest')) + '</label>';
+  }
+
+  // prior-run attachment list (informational; what a copy would bring over)
+  h += '<div style="font-size:11.5px;font-weight:600;color:#888;margin-bottom:4px;">'
+    + esc(TLi18n.t('exe.attachments')) + ' (' + esc(TLi18n.t('exe.priorExecution')) + ')</div>';
+  if (atts.length === 0) {
+    h += '<div class="none-text" style="margin-bottom:8px;">' + esc(TLi18n.t('exe.noAttachments')) + '</div>';
+  } else {
+    h += '<ul style="list-style:none;margin:0 0 8px;padding:0;">';
+    atts.forEach(function (a) {
+      var title = a.title || a.file_name;
+      h += '<li style="font-size:12.5px;padding:2px 0;">'
+        + '<a href="' + esc(a.download_url) + '" target="_blank" title="' + esc(TLi18n.t('exe.download')) + '">'
+        + '<i class="fa fa-file" style="color:#4ECDC4;margin-right:6px;"></i>'
+        + esc(title) + ' <span style="color:#aaa;font-size:11px;">('
+        + (a.file_size ? fmtBytes(a.file_size) : '') + ')</span></a></li>';
+    });
+    h += '</ul>';
+  }
+
+  // upload control for the NEW execution
+  if (!roMode) {
+    h += '<label class="flbl" style="margin:6px 0 4px;">' + esc(TLi18n.t('exe.attachmentsUpload')) + ':</label>';
+    h += '<input type="file" id="uploadedFile" name="uploadedFile" multiple style="font-size:12.5px;">';
+    h += '<div class="none-text" style="font-size:11px;font-style:normal;margin-top:3px;">'
+      + esc(TLi18n.t('exe.attachmentsTitle')) + '</div>';
+  }
+
+  h += '</div>';
+  return h;
+}
+
+function newExecLatestFlag() {
+  return !!(initData && initData.new_exec_latest);
+}
+
+function fmtBytes(b) {
+  if (!b) return '0 B';
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b / 1024).toFixed(1) + ' KB';
+  return (b / 1048576).toFixed(1) + ' MB';
+}
+
 function renderForm() {
   var v = current.version, tc = current.tcase;
   var prior = current.prior_execution;
@@ -527,6 +591,8 @@ function renderForm() {
   h += '<label class="flbl" for="execNotes">' + esc(TLi18n.t('exe.notes')) + '</label>';
   h += '<textarea id="execNotes" class="form-control"'
     + (roMode ? ' disabled' : '') + '></textarea>';
+
+  h += renderAttachmentsBlock();
 
   if ((current.steps || []).length > 0) {
     h += '<label class="flbl" style="margin-top:14px;">' + esc(TLi18n.t('exe.steps')) + '</label>';
@@ -750,33 +816,56 @@ function saveExecution(navTo) {
     return;
   }
   var nextTarget = (navTo === 'next') ? execNextTarget() : null;
-  var payload = {
-    tplan_id: ctx.tplanId,
-    tproject_id: ctx.tprojectId,
-    tcase_id: current.tcase.id,
-    tcversion_id: current.version.id,
-    version_number: current.version.number,
-    build_id: curBuildId(),
-    platform_id: curPlatformId(),
-    status: activeBtn.data('code'),
-    notes: $('#execNotes').val() || '',
-    steps: {}
-  };
+
+  // Use FormData (multipart/form-data) so attachment uploads can ride along.
+  // Steps are serialized to a JSON string field that the BFF decodes.
+  var fd = new FormData();
+  fd.append('tplan_id', ctx.tplanId);
+  fd.append('tproject_id', ctx.tprojectId);
+  fd.append('tcase_id', current.tcase.id);
+  fd.append('tcversion_id', current.version.id);
+  fd.append('version_number', current.version.number);
+  fd.append('build_id', curBuildId());
+  fd.append('platform_id', curPlatformId());
+  fd.append('status', activeBtn.data('code'));
+  fd.append('notes', $('#execNotes').val() || '');
+  var steps = {};
   $('tr[data-stepid]').each(function () {
     var $row = $(this);
-    payload.steps[String($row.data('stepid'))] = {
+    steps[String($row.data('stepid'))] = {
       status: $row.find('.step-status').val(),
       notes: $row.find('.step-notes').val()
     };
   });
+  fd.append('steps_json', JSON.stringify(steps));
+
+  // copy attachments from the latest execution (legacy copyAttFromLEXEC)
+  var $copy = $('#copyAttFromLEXEC');
+  if ($copy.length && $copy.is(':checked')) {
+    fd.append('copy_att_from_lexec', '1');
+  }
+
+  // attachment file upload(s) for the new execution. The field is named
+  // 'exec_attachments[]' (NOT 'uploadedFile') on purpose: the legacy
+  // write_execution() treats 'uploadedFile' as its own nested upload
+  // (exec.inc.php:206-216) and would var_dump-pollute the JSON response;
+  // the BFF save handles this dedicated field itself. The '[]' suffix makes
+  // PHP build an array ($_FILES) when multiple files are appended.
+  var $file = $('#uploadedFile');
+  if ($file.length && $file[0].files && $file[0].files.length > 0) {
+    for (var f = 0; f < $file[0].files.length; f++) {
+      fd.append('exec_attachments[]', $file[0].files[f]);
+    }
+  }
 
   var $btn = $('.save-row .btn-teal').prop('disabled', true);
   $.ajax({
     url: API + '?action=save',
     method: 'POST',
-    contentType: 'application/json',
+    processData: false,
+    contentType: false,
     headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify(payload)
+    data: fd
   })
   .done(function (r) {
     if (r.status === 'ok' && r.saved) {

@@ -56,6 +56,26 @@ function getIntParam($key, $default = 0) {
     return is_numeric($v) ? intval($v) : $default;
 }
 
+/**
+ * Read the request payload of the Execute Tests save actions. Supports both
+ * application/json bodies (legacy save calls) and multipart/form-data POSTs
+ * (needed to carry attachment uploads). In multipart mode the step results
+ * are transported as a JSON-encoded string field 'steps_json'.
+ */
+function execTestPayload() {
+    $ct = strtolower(strval($_SERVER['CONTENT_TYPE'] ?? ''));
+    if (strpos($ct, 'application/json') !== false) {
+        $j = json_decode(file_get_contents('php://input'), true);
+        return is_array($j) ? $j : [];
+    }
+    $p = $_POST;
+    if (isset($p['steps_json'])) {
+        $s = json_decode(strval($p['steps_json']), true);
+        $p['steps'] = is_array($s) ? $s : [];
+    }
+    return $p;
+}
+
 $action = $_GET['action'] ?? '';
 
 // ---------------------------------------------------------------------------
@@ -460,6 +480,11 @@ if ($action === 'init') {
         'platforms' => $platforms,
         'platform_feature_enabled' => $platformFeature,
         'save_and_move' => $saveAndMove,
+        // legacy exec_mode->new_exec == 'latest' gates the "Copy attachments
+        // from latest execution" checkbox (inc_exec_img_controls.tpl:68-73)
+        'new_exec_latest' => (isset($execCfg->exec_mode)
+            && isset($execCfg->exec_mode->new_exec)
+            && strval($execCfg->exec_mode->new_exec) === 'latest') ? 1 : 0,
         'statuses' => $statuses,
     ]);
 }
@@ -723,6 +748,31 @@ if ($action === 'tcDetails') {
                 'execution_ts' => strval($er[0]['execution_ts']),
                 'tester_login' => strval($er[0]['tester_login']),
             ];
+            // execution-level attachments of the prior run, so the modern
+            // Execute Tests form can list them and offer copy-from-latest
+            // (same sink as the execHistory /history action)
+            $prior['attachments'] = [];
+            try {
+                $attachmentMgr = tlAttachmentRepository::create($db);
+                $attItems = getAttachmentInfos($attachmentMgr,
+                    intval($er[0]['execution_id']), 'executions', true, 1);
+                if ($attItems) {
+                    foreach ($attItems as $ai) {
+                        // root-absolute so the link resolves from the page
+                        // served under /gui/templates/execute/ (#792)
+                        $prior['attachments'][] = [
+                            'id' => intval($ai['id']),
+                            'title' => strval($ai['title']),
+                            'file_name' => strval($ai['file_name']),
+                            'file_size' => intval($ai['file_size']),
+                            'download_url' =>
+                                '/lib/attachments/attachmentdownload.php?id=' . intval($ai['id']),
+                        ];
+                    }
+                }
+            } catch (Exception $e) {
+                $prior['attachments'] = [];
+            }
             $sr = $db->get_recordset(
                 "SELECT tcstep_id, notes, status" .
                 " FROM {$execTables['execution_tcsteps']}" .
@@ -854,10 +904,10 @@ if ($action === 'save') {
         http_response_code(405);
         out(['status' => 'error', 'message' => 'POST required']);
     }
-    $payload = json_decode(file_get_contents('php://input'), true);
-    if (!is_array($payload)) {
+    $payload = execTestPayload();
+    if (!is_array($payload) || count($payload) == 0) {
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+        out(['status' => 'error', 'message' => 'Invalid request body']);
     }
     $tplanId = intval($payload['tplan_id'] ?? 0);
     list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
@@ -875,6 +925,12 @@ if ($action === 'save') {
     $platformId = intval($payload['platform_id'] ?? -1); // -1 = plan has none
     $statusCode = strtolower(trim(strval($payload['status'] ?? '')));
     $notes = strval($payload['notes'] ?? '');
+    // legacy copyAttFromLEXEC checkbox -> '1' when checked (see
+    // inc_exec_img_controls.tpl:71); surfaced to the frontend as
+    // 'copy_att_from_lexec'
+    $copyAttFromLEXEC = (isset($payload['copy_att_from_lexec'])
+        && in_array(strtolower(strval($payload['copy_att_from_lexec'])),
+                    ['1', 'true', 'on', 'yes']));
     $stepsIn = isset($payload['steps']) && is_array($payload['steps'])
         ? $payload['steps'] : [];
 
@@ -984,6 +1040,25 @@ if ($action === 'save') {
         }
     }
 
+    // legacy copyAttFromLEXEC: capture the latest execution id on context
+    // (tcversion + plan + platform + build) BEFORE writing, so we can copy
+    // its attachments onto the brand-new execution after it is inserted.
+    // Mirrors execSetResults.php processTestCase() -> testcase::getLatestExecIDInContext.
+    $latestExecIDInContext = -1;
+    if ($copyAttFromLEXEC) {
+        try {
+            $ctx = new stdClass();
+            $ctx->testplan_id = $tplanId;
+            $ctx->platform_id = $platformId > 0 ? $platformId : 0;
+            $ctx->build_id = $buildId;
+            $ctxTcaseMgr = new testcase($db);
+            $latestExecIDInContext =
+                $ctxTcaseMgr->getLatestExecIDInContext($tcversionId, $ctx);
+        } catch (Exception $e) {
+            $latestExecIDInContext = -1;
+        }
+    }
+
     $issueTracker = null;
     write_execution($db, $execSign, $execData, $issueTracker);
 
@@ -1001,12 +1076,83 @@ if ($action === 'save') {
     $newTs = (!is_null($fr) && count($fr) > 0)
         ? strval($fr[0]['execution_ts']) : '';
 
+    // Copy attachments from the latest execution of this context onto the
+    // fresh run (execution-level + step-level), the exact legacy flow from
+    // execSetResults.php:168-205.
+    if ($copyAttFromLEXEC && $newExecId > 0 && $latestExecIDInContext > 0) {
+        try {
+            $fileRepo = tlAttachmentRepository::create($db);
+            $fileRepo->copyAttachments($latestExecIDInContext,
+                $newExecId, 'executions');
+
+            // step-level attachments: copy per execution_tcsteps row,
+            // matched by step_number exactly like the legacy loop
+            $stepsTbl = DB_TABLE_PREFIX . 'execution_tcsteps';
+            $tcstepsTbl = DB_TABLE_PREFIX . 'tcsteps';
+            $sql = "SELECT step_number, tcstep_id, EXTCS.id AS tcsexe_id" .
+                   " FROM {$tcstepsTbl} TCS" .
+                   " JOIN {$stepsTbl} EXTCS ON EXTCS.tcstep_id = TCS.id" .
+                   " WHERE EXTCS.execution_id = ";
+            $from = (array)$db->fetchRowsIntoMap(
+                $sql . $latestExecIDInContext, 'step_number');
+            $to = (array)$db->fetchRowsIntoMap(
+                $sql . $newExecId, 'step_number');
+            foreach ($from as $stepNum => $sxelem) {
+                if (isset($to[$stepNum])) {
+                    $fileRepo->copyAttachments($sxelem['tcsexe_id'],
+                        $to[$stepNum]['tcsexe_id'], 'execution_tcsteps');
+                }
+            }
+        } catch (Exception $e) {
+            // copying is best-effort; never fail the whole save
+        }
+    }
+
+    // Upload attachments at EXECUTION level, same sink the legacy
+    // write_execution() uses (addAttachmentsToExec, exec.inc.php:206-216,
+    // 1036+). The frontend posts this dedicated 'exec_attachments' field
+    // (NOT 'uploadedFile') so the legacy write_execution() upload branch
+    // never inspects/var_dump-pollutes the response - the BFF owns the
+    // execution-level attachment upload here.
+    $uploadedCount = 0;
+    if ($newExecId > 0
+        && isset($_FILES['exec_attachments'])
+        && is_array($_FILES['exec_attachments']['name'])) {
+        try {
+            $fileRepo = isset($fileRepo) ? $fileRepo : tlAttachmentRepository::create($db);
+            $names = (array)$_FILES['exec_attachments']['name'];
+            foreach ($names as $i => $fname) {
+                if ($fname === '') { continue; }
+                $fInfo = array(
+                    'name' => strval($fname),
+                    'type' => strval($_FILES['exec_attachments']['type'][$i] ?? ''),
+                    'size' => intval($_FILES['exec_attachments']['size'][$i] ?? 0),
+                    'tmp_name' => strval($_FILES['exec_attachments']['tmp_name'][$i] ?? ''),
+                    'error' => intval($_FILES['exec_attachments']['error'][$i] ?? 0),
+                    'full_path' => strval($_FILES['exec_attachments']['full_path'][$i] ?? ''),
+                );
+                if ($fInfo['error'] !== UPLOAD_ERR_OK
+                    || $fInfo['size'] <= 0 || $fInfo['tmp_name'] === '') {
+                    continue;
+                }
+                $repOpt = array('allow_empty_title' => TRUE);
+                $upx = $fileRepo->insertAttachment(
+                    $newExecId, DB_TABLE_PREFIX . 'executions', '',
+                    $fInfo, $repOpt);
+                if ($upx->statusOK) { $uploadedCount++; }
+            }
+        } catch (Exception $e) {
+            // best-effort; not fatal for the execution write
+        }
+    }
+
     out([
         'status' => 'ok',
         'saved' => true,
         'execution_id' => $newExecId,
         'execution_ts' => $newTs,
         'recorded_status' => $statusCode,
+        'attachments_uploaded' => $uploadedCount,
     ]);
 }
 
