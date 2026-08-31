@@ -192,6 +192,9 @@ function renderVersions() {
     var author = esc((v.author_first_name + ' ' + v.author_last_name).trim() || '-');
     var leftChecked = (i === 1) ? 'checked' : '';
     var rightChecked = (i === 0) ? 'checked' : '';
+    // versions arrive newest-first (get_by_id ORDER BY version DESC); preselect
+    // the two NEWEST versions: right = newest (row 0), left = previous (row 1),
+    // mirroring legacy tcCompareVersions.tpl mycount==1 / mycount==2 defaults.
     rows += '<tr>' +
       '<td>' + v.version + '</td>' +
       '<td><input type="radio" name="version_left" value="' + v.version + '"' + leftChecked + '></td>' +

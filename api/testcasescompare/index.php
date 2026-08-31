@@ -171,9 +171,10 @@ if ($action === 'info') {
             'author_last_name' => strval($row['author_last_name'] ?? ''),
         );
     }
-    // newest first (the legacy template lists them in get_by_id order, which
-    // is ascending by version); keep ascending to mirror legacy selection.
-    $versions = array_reverse($versions);
+    // get_by_id() returns versions ORDER BY version DESC (newest first), which
+    // matches the legacy screen's table order (newest at the top). The client
+    // preselects the two NEWEST versions (right = newest, left = previous),
+    // mirroring the legacy tcCompareVersions.tpl `mycount==1`/`mycount==2` defaults.
 
     $tcCfg = getWebEditorCfg('design');
     $tcType = isset($tcCfg['type']) ? $tcCfg['type'] : 'none';
