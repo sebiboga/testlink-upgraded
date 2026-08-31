@@ -83,8 +83,10 @@ Status codes travel as codes (`n/p/f/b`) exactly as served by `init`
 - The aside entry keeps its `menuGrants` gating (`testplan_execute`,
   `exec_ro_access` fallback label) in `aside.tpl`.
 
-**Deliberate v1 scope cuts** (tracked on #662): attachments-at-execution and
+**Deliberate v1 scope cuts** (tracked on #662): step-level attachment upload,
 bug linking inside the form, execution custom fields in the form, bulk mode.
+Execution-level attachment upload/list + "Copy attachments from latest
+execution" are implemented (see `Bugfix-Issue-792-Execute-Tests-Attachments.md`).
 
 ## 4. i18n Keys
 
