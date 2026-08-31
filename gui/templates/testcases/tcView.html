@@ -83,11 +83,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-teal" id="btnEdit" style="display:none;" onclick="openTcEdit()"><i class="fa fa-pen"></i> <span data-i18n="tcview.editVersion">Edit Version</span></button>
     <button class="btn-dark" onclick="openExecHistory()"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="tcview.execHistory">Execution History</span></button>
     <button class="btn-dark" id="btnAdd2Tplan" style="display:none;" onclick="openAdd2Tplan()"><i class="fa fa-clipboard-list"></i> <span data-i18n="tcview.addToTestPlans">Add to Test Plan</span></button>
-    <form id="exportForm" method="post" action="/lib/testcases/tcExport.php" target="_blank" style="display:inline;">
-      <input type="hidden" name="testcase_id" id="expTcaseId">
-      <input type="hidden" name="tcversion_id" id="expTcversionId">
-      <button class="btn-dark" type="submit"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
-    </form>
+    <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
     <form id="compareForm" method="post" action="/lib/testcases/tcCompareVersions.php" target="_blank" style="display:none;">
       <input type="hidden" name="testcase_id" id="cmpTcaseId">
       <button class="btn-dark" type="submit"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
@@ -210,10 +206,6 @@ function canEditCurrent() {
 function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
-  // legacy tcExport.php expects tproject_id on the query string
-  $('#exportForm').attr('action', '/lib/testcases/tcExport.php?tproject_id=' + data.tproject.id);
-  $('#expTcaseId').val(data.tcase.id);
-  $('#expTcversionId').val(currentVersion.tcversion_id);
   if (data.versions.length > 1) {
     $('#cmpTcaseId').val(data.tcase.id);
     $('#compareForm').show();
@@ -429,6 +421,13 @@ function openAdd2Tplan() {
   var url = '/lib/testcases/tcAssign2Tplan.php?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openTcExport() {
+  var url = '/gui/templates/testcases/tcExport.html?tproject_id=' + data.tproject.id
+    + '&testcase_id=' + data.tcase.id
+    + '&tcversion_id=' + currentVersion.tcversion_id;
+  window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
 }
 </script>
 </body>
