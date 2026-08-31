@@ -8404,3 +8404,113 @@ Notes:
      - *Actual:* surfaced pre-existing E_WARNING `Undefined array key addReporter/addHandler` in `issueTrackerInterface::buildViewBugLink()` from the GitHub adapter dropping those keys → fixed in `githubrestInterface` (`array_merge`); re-render produced no new warnings. Logged as GitHub bug #802.
  - **Result:** **PASS** (link + create both work end-to-end; adapter warning fixed)
 - **Execution:** Execute Tests screen `execTest.html?tproject_id=11&tplan_id=3232`, case TLU-385 (3263/3264), execution_id 21. Test issues #800/#801 created then closed.
+
+## 69. Modernization — Test Case / Suite / Project Export (tcExport.html) (Suite ID: 69)
+
+**Area:** `gui/templates/testcases/tcExport.html` + `api/testcasesexport/index.php` (+ legacy `lib/testcases/tcExport.php` parity; linked from `tcView.html` toolbar Export via `openTcExport()`).
+**Purpose:** Modernized export screen for test case / test suite / test project XML export, replacing the legacy `tcExport.php` form submit.
+**Status:** EXECUTED — 13/13 PASS. Fixtures: test project `Export Demo Project` (id 1, prefix EXP), suite `Export Demo Suite` (id 2), test case `Login Valid Credentials` (id 3, version node id 4), empty suite `Empty Suite` (id 7). Matches legacy `lib/testcases/tcExport.php` (XML only export; any authenticated session).
+
+- TC-69.1: **PASS** (browser) — `GET /api/testcasesexport/?action=info&tproject_id=1&testcase_id=3&tcversion_id=4` returns mode `testcase`, project name, `filename="Login Valid Credentials.version1.testcase.xml"`, `types={XML:XML}`, `grants.mgt_modify_tc=1`.
+- TC-69.2: **PASS** (browser) — clicking **Export** POSTs `action=export`; response is `application/xml` with `Content-Disposition: attachment; filename="Login Valid Credentials.version1.testcase.xml"` and the full test case XML (steps, summary, preconditions). Browser fires a download.
+- TC-69.3: **PASS** (browser) — filename override: set `my_custom_export.xml`, export → response `Content-Disposition` uses `my_custom_export.xml`; the download honor the override.
+- TC-69.4: **PASS** (browser) — empty filename: `doExport()` shows toast `tcx.errEmptyFilename` (`"Please enter a file name"`) and does NOT POST.
+- TC-69.5: **PASS** (browser) — prefix mirror: uncheck `Include external ID` disables+unchecks `With project prefix`; re-check re-enables it.
+- TC-69.6: **PASS** (browser) — project recursion mode: `?useRecursion=1&containerID=1` → mode `Test project`, filename `Export Demo Project.testproject-deep.xml`; POST export streams project XML containing suite 2 + test case 3 + empty suite 7.
+- TC-69.7: **PASS** (browser) — suite mode (`containerID=2`, no recursion) → mode `Test suite (test cases)`, filename `Export Demo Suite.testsuite-children-testcases.xml`; POST export streams the suite's test cases.
+- TC-69.8: **PASS** (browser) — empty-suite warning: `containerID=7` (empty) → `nothingTodo=tcx.noTestcasesToExport`, warn box shows `"No test cases to export"`.
+- TC-69.9: **PASS** (curl) — project with no suites (`nothingTodo`) only set when children actually absent (correctly empty for project 1 which has suites).
+- TC-69.10: **PASS** (curl) — unauthenticated `GET ?action=info` → HTTP 401 `{"status":"error","message":"Not authenticated"}`.
+- TC-69.11: **PASS** (lint) — `php -l` clean on `api/testcasesexport/index.php` and `lib/functions/testsuite.class.php`; `tools/lint_i18n.py` reports no `tcx.*` / missing-key errors.
+- TC-69.12: **PASS** (i18n) — `tcx.*` keys present in ALL 10 locale bundles (en/de/es/fr/it/ja/pt/ro/ru/zh), all JSON valid (`json.tool`).
+- TC-69.13: **PASS** (Event Viewer) — before the recursion fix the recursive project export raised legacy `E_WARNING` (`Undefined variable $tsuiteData/$attachXML`, `array offset on null`); after `lib/functions/testsuite.class.php` legacy fix (`$$tsuiteData`→`$tsuiteData`, init `$attachXML=null`), re-running all export modes produced **0** new `log_level=2` entries (`WHERE id>15 AND log_level=2` → 0 rows).
+
+### TC-69.1: BFF info returns test-case export context
+- **Priority:** High / **Importance:** High
+- **Preconditions:** logged-in admin; project 1 with test case 3 / version node 4.
+- **Steps:**
+  1. `GET /api/testcasesexport/?action=info&tproject_id=1&testcase_id=3&tcversion_id=4`.
+     *Expected:* 200; `mode=testcase`, `tproject.name="Export Demo Project"`, `filename="Login Valid Credentials.version1.testcase.xml"`, `types.XML="XML"`, `grants.mgt_modify_tc=1`.
+  2. Confirm `oneTestCase=1`, `containerID=2`. *Expected:* as returned.
+- **Result:** PASS
+
+### TC-69.2: Export streams XML download with correct headers
+- **Priority:** High / **Importance:** High
+- **Preconditions:** tcExport.html in testcase mode (id 3 / v4).
+- **Steps:**
+  1. Click **Export**. *Expected:* `POST /api/testcasesexport/?action=export`, 200, `Content-Type: application/xml`, `Content-Disposition: attachment; filename="Login Valid Credentials.version1.testcase.xml"`, body = valid test case XML (externalid, summary, steps).
+  2. Browser downloads the file. *Expected:* download fires; no console error.
+- **Result:** PASS
+
+### TC-69.3: Custom filename override honored
+- **Priority:** High / **Importance:** Medium
+- **Steps:**
+  1. Set `exportFilename` = `my_custom_export.xml`, click Export. *Expected:* request `export_filename=my_custom_export.xml`; `Content-Disposition: attachment; filename="my_custom_export.xml"`.
+- **Result:** PASS
+
+### TC-69.4: Empty filename validation
+- **Priority:** Medium / **Importance:** Medium
+- **Steps:**
+  1. Clear filename, click Export. *Expected:* toast `tcx.errEmptyFilename` (`"Please enter a file name"`), error styled; NO network POST sent.
+- **Result:** PASS
+
+### TC-69.5: Prefix mirror checkbox behavior
+- **Priority:** Low / **Importance:** Medium
+- **Steps:**
+  1. Uncheck `Include external ID`. *Expected:* `With project prefix` disabled + unchecked.
+  2. Re-check. *Expected:* `With project prefix` enabled, unchecked.
+- **Result:** PASS
+
+### TC-69.6: Project recursive export
+- **Priority:** High / **Importance:** High
+- **Steps:**
+  1. Open `tcExport.html?tproject_id=1&containerID=1&useRecursion=1`. *Expected:* mode `Test project`, filename `Export Demo Project.testproject-deep.xml`.
+  2. Export. *Expected:* XML with `<testsuite id="" name="">` root, suite 2, test case 3, empty suite 7; no `nothingToDo` warning (project has suites).
+- **Result:** PASS
+
+### TC-69.7: Suite export (children test cases)
+- **Priority:** High / **Importance:** High
+- **Steps:**
+  1. Open `tcExport.html?tproject_id=1&containerID=2`. *Expected:* mode `Test suite (test cases)`, filename `Export Demo Suite.testsuite-children-testcases.xml`.
+  2. Export. *Expected:* XML `<testcases>` with test case 3.
+- **Result:** PASS
+
+### TC-69.8: Empty-suite "nothing to export" warning
+- **Priority:** Medium / **Importance:** Medium
+- **Steps:**
+  1. Open `tcExport.html?tproject_id=1&containerID=7` (empty suite). *Expected:* warn box `"No test cases to export"` shown; Export still active.
+- **Result:** PASS
+
+### TC-69.9: "nothing to export" only when children absent
+- **Priority:** Medium / **Importance:** Medium
+- **Steps:**
+  1. `info` project mode (project 1 has suites) → `nothingTodo: ''`.
+  2. `info` empty suite → `nothingTodo='tcx.noTestcasesToExport'`. *Expected:* nothingTodo set only when no children.
+- **Result:** PASS
+
+### TC-69.10: Unauthenticated access blocked
+- **Priority:** High / **Importance:** High
+- **Steps:**
+  1. Fresh session `GET ?action=info`. *Expected:* HTTP 401 `Not authenticated`.
+- **Result:** PASS
+
+### TC-69.11: Lint / syntax clean
+- **Priority:** Low / **Importance:** Low
+- **Steps:**
+  1. `php -l api/testcasesexport/index.php` and `php -l lib/functions/testsuite.class.php`. *Expected:* no syntax errors.
+  2. `tools/lint_i18n.py`. *Expected:* no `tcx.*` errors.
+- **Result:** PASS
+
+### TC-69.12: i18n keys in all bundles
+- **Priority:** Medium / **Importance:** High
+- **Steps:**
+  1. For each of the 10 locale bundles, confirm `tcx.*` keys exist and JSON is valid. *Expected:* all present, all `json.tool` valid.
+- **Result:** PASS
+
+### TC-69.13: Event Viewer clean after recursion-export fix
+- **Priority:** High / **Importance:** High
+- **Symptom (pre-fix):** recursive project export emitted legacy `E_WARNING` `Undefined variable $tsuiteData` / `$attachXML` and `Trying to access array offset on null` from `testsuite.class.php::exportTestSuiteDataToXML()` (the `$$tsuiteData` typo at project root and uninitialized `$attachXML`).
+- **Steps:**
+  1. Fix `$$tsuiteData`→`$tsuiteData` and init `$attachXML=null` in `lib/functions/testsuite.class.php`.
+  2. Re-run testcase, suite and project-recursive exports. *Expected:* `SELECT COUNT(*) FROM events WHERE id>15 AND log_level=2` → 0.
+- **Result:** PASS (fix commit `4b0ec819d`)
