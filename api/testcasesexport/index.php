@@ -59,6 +59,35 @@ function getIntParam($key, $default = 0) {
 }
 
 /**
+ * Count direct children of a node that are "exportable" containers/cases.
+ * Mirrors the legacy $check_children logic in lib/testcases/tcExport.php,
+ * which uses $tree_mgr->get_children() excluding testplan/requirement_spec/
+ * requirement nodes.
+ */
+function countExportChildren($dbHandler, $nodeId) {
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'node_types'));
+    $rows = $dbHandler->get_recordset(
+        "SELECT nt.description AS t FROM {$tables['nodes_hierarchy']} nh " .
+        "JOIN {$tables['node_types']} nt ON nh.node_type_id = nt.id " .
+        "WHERE nh.parent_id = " . intval($nodeId));
+    if (is_null($rows)) {
+        return 0;
+    }
+    $excl = array('testplan', 'requirement_spec', 'requirement',
+                  'requirement_version', 'testcase_version',
+                  'requirement_revision', 'requirement_spec_revision',
+                  'build', 'platform');
+    $c = 0;
+    foreach ($rows as $r) {
+        $t = isset($r['t']) ? $r['t'] : (isset($r['description']) ? $r['description'] : '');
+        if ($t !== '' && !in_array($t, $excl, true)) {
+            $c++;
+        }
+    }
+    return $c;
+}
+
+/**
  * Resolve the test project id from an explicit param, else from the session.
  */
 function resolveTprojectId() {
@@ -118,7 +147,9 @@ if ($action === 'info') {
         $mode = ($containerId <= 0 || $containerId === $tprojectId) ? 'project' : 'testsuite';
         $filename = $name . '.' . ($mode === 'project' ? 'testproject-deep' : 'testsuite-deep') . '.xml';
         $pageTitle = $mode === 'project' ? 'title_tsuite_export_all' : 'title_tsuite_export';
-        $nothingTodo = $mode === 'project' ? 'tcx.noTestsuitesToExport' : '';
+        if (countExportChildren($db, $containerId > 0 ? $containerId : $tprojectId) === 0) {
+            $nothingTodo = $mode === 'project' ? 'tcx.noTestsuitesToExport' : 'tcx.noTestsuitesToExport';
+        }
     } elseif ($oneTestCase) {
         $tcinfo = $tcaseMgr->get_by_id($tcaseId, $tcversionId, null, array('output' => 'essential'));
         if (!is_null($tcinfo) && count($tcinfo) > 0) {
@@ -131,7 +162,9 @@ if ($action === 'info') {
         $name = is_null($nodeInfo) ? '' : $nodeInfo['name'];
         $filename = $name . '.testsuite-children-testcases.xml';
         $pageTitle = 'title_tc_export_all';
-        $nothingTodo = 'tcx.noTestcasesToExport';
+        if (countExportChildren($db, $containerId) === 0) {
+            $nothingTodo = 'tcx.noTestcasesToExport';
+        }
     }
 
     // Expose legacy export types (currently only XML).
