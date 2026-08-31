@@ -8614,3 +8614,28 @@ Notes:
 - **Steps:**
   1. Compare two versions (HTML and text modes). *Expected:* `SELECT COUNT(*) FROM events WHERE id>? AND log_level=2` → 0 new E_WARNINGs (messages now resolved client-side via TLi18n).
   **Result:** PASS (fix commit for Refs #809).
+
+---
+
+## Suite 799 — Regression — Issue #799: Quick Search — empty results table when DataTables CDN is unavailable
+
+- **Priority:** High
+- **Importance:** High
+- **Symptom (pre-fix):** on `gui/templates/search/searchQuickView.html`, clicking **Find** showed `Search results (N matches)` + `N matches` footer, but the results **table body rendered EMPTY** (no row) intermittently. The page loads jQuery + DataTables from external CDNs (`code.jquery.com`, `cdn.datatables.net`); when those were slow/unavailable, `$.fn.DataTable` was `undefined` and the unguarded `$('#resTable').DataTable(...)` threw, aborting `renderResults()` after the count/wrapper were shown. The Find button also stayed disabled.
+- **Preconditions:** authenticated session; a test project with a matching test case (e.g. project TLU, case `TLU-1`).
+- **Repro steps (pre-fix):**
+  1. Open `searchQuickView.html` in an authenticated frame (project set).
+  2. Forces the intermittent CDN condition: in the page's JS context set `$.fn.DataTable = undefined`.
+  3. Enter a matching TC id (e.g. `TLU-1`) and click **Find**.
+  4. *Observed (pre-fix):* `Uncaught TypeError: $(...).DataTable is not a function` (console); `Search results (1 matches)` + `1 matches` footer render but the results table body is EMPTY; Find button stays disabled.
+- **Expected post-fix behavior:**
+  1. When `$.fn.DataTable` is unavailable, `renderResults()` renders a **plain HTML `<tbody>`** so the matched row(s) display (tc-link, summary, version, action buttons).
+  2. The count/`resultsWrap` are shown **together with** the rendered rows (never a count with an empty body).
+  3. The Find button re-enables after the request completes (`.always()` runs — no unhandled throw).
+  4. With DataTables available (normal CDN), the enhanced table still renders with all DataTables features (search, pagination, sorting).
+  5. No new Event Viewer Error/Warning entries.
+- **Actual result observed (post-fix, admin, project TLU id=1, case TLU-1):**
+  - **Fallback scenario** (`$.fn.DataTable=undefined` then Find): table renders the row `TLU-1 [v1] :: Login works` + summary + version + edit/history buttons; `1 matches` footer; Find button re-enabled; NO console JS error for this render.
+  - **Normal scenario** (DataTables present then Find): enhanced DataTables table renders (Show entries, searchbox, pagination, row present); no regression.
+  - Event Viewer `events` table: only `audit_login_succeeded` (log_level 16) entries; **0** new Error/Warning (log_level 3/4) rows from the search.
+- **Result:** **PASS**
