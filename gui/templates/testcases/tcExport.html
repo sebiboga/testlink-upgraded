@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Export Test Case</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
+.form-table td.lbl { width: 230px; font-weight: 700; color: #22242a; }
+select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+.form-table input[type=checkbox] { margin-right: 8px; }
+.check-opts { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.check-opts label { font-weight: 400; color: #333; cursor: pointer; }
+.check-opts label.disabled { color: #aaa; cursor: not-allowed; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcx.title">Export Test Case</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcx.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="infobox" id="infoBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-file-export"></i> <span id="formTitle" data-i18n="tcx.header">Export Test Case</span></div>
+  <div class="card-body">
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.filename">File name</span></td>
+        <td><input type="text" id="exportFilename" required></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.fileType">File type</span></td>
+        <td>
+          <select id="exportType">
+            <option value="XML">XML</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="padding-top:14px;"><div class="note-border"></div></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportExternalId">Include external ID</span></td>
+        <td class="check-opts">
+          <label><input type="checkbox" id="exportTestCaseExternalID" checked> <span data-i18n="tcx.exportExternalId">Include external ID</span></label>
+          <label id="addPrefixLbl"><input type="checkbox" id="addPrefix"> <span data-i18n="tcx.exportWithPrefix">With project prefix</span></label>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportSummary">Summary</span></td>
+        <td><label><input type="checkbox" id="exportTCSummary" checked> <span data-i18n="tcx.exportSummary">Summary</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportPreconditions">Preconditions</span></td>
+        <td><label><input type="checkbox" id="exportTCPreconditions" checked> <span data-i18n="tcx.exportPreconditions">Preconditions</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportSteps">Steps</span></td>
+        <td><label><input type="checkbox" id="exportTCSteps" checked> <span data-i18n="tcx.exportSteps">Steps</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportReqs">Requirements</span></td>
+        <td><label><input type="checkbox" id="exportReqs" checked> <span data-i18n="tcx.exportReqs">Requirements</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportCFields">Custom fields</span></td>
+        <td><label><input type="checkbox" id="exportCFields" checked> <span data-i18n="tcx.exportCFields">Custom fields</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportKeywords">Keywords</span></td>
+        <td><label><input type="checkbox" id="exportKeywords"> <span data-i18n="tcx.exportKeywords">Keywords</span></label></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcx.exportAttachments">Attachments</span></td>
+        <td><label><input type="checkbox" id="exportAttachments"> <span data-i18n="tcx.exportAttachments">Attachments</span></label></td>
+      </tr>
+    </table>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="tcx.export">Export</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="tcx.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="tcx.footer">TestLink 2.0.1 - Export</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcx.generating">Generating export...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  testcaseId: parseInt(qs('testcase_id') || '0', 10),
+  tcversionId: parseInt(qs('tcversion_id') || '0', 10),
+  containerId: parseInt(qs('containerID') || '0', 10),
+  useRecursion: qs('useRecursion') === '1',
+  bffUrl: '/api/testcasesexport/',
+  info: null,
+  canModify: false
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#exportTestCaseExternalID').on('change', mirrorPrefix);
+  $('#btnExport').on('click', doExport);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+  $('#exportFilename').on('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doExport(); }
+  });
+});
+
+function mirrorPrefix() {
+  var on = $('#exportTestCaseExternalID').is(':checked');
+  $('#addPrefix').prop('disabled', !on);
+  if (!on) $('#addPrefix').prop('checked', false);
+}
+
+function loadInfo() {
+  var params = { action: 'info', tproject_id: ctx.tprojectId };
+  if (ctx.testcaseId) params.testcase_id = ctx.testcaseId;
+  if (ctx.tcversionId) params.tcversion_id = ctx.tcversionId;
+  if (ctx.containerId) params.containerID = ctx.containerId;
+  if (ctx.useRecursion) params.useRecursion = 1;
+
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('tcx.errLoadInfo')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.tproject.id;
+      if (r.testcase_id) ctx.testcaseId = r.testcase_id;
+      if (r.tcversion_id) ctx.tcversionId = r.tcversion_id;
+      if (r.containerID) ctx.containerId = r.containerID;
+      ctx.canModify = !!parseInt(r.grants && r.grants.mgt_modify_tc || '0', 10);
+      renderContext();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('tcx.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnExport').prop('disabled', true);
+}
+
+function renderContext() {
+  document.title = TLi18n.t('tcx.title') + ' - ' + ctx.info.tproject.name;
+
+  var modeLbl;
+  if (ctx.info.mode === 'testcase') {
+    modeLbl = TLi18n.t('tcx.modeTestcase');
+  } else if (ctx.info.mode === 'project') {
+    modeLbl = TLi18n.t('tcx.modeProject');
+  } else if (ctx.info.mode === 'testsuite') {
+    modeLbl = TLi18n.t('tcx.modeTestsuite');
+  } else {
+    modeLbl = TLi18n.t('tcx.modeSuiteTc');
+  }
+  $('#ctxTarget').html(modeLbl);
+
+  if (ctx.info.tcase && ctx.info.tcase.name) {
+    $('#ctxProject').text(ctx.info.tproject.name + ' / ' + ctx.info.tcase.name);
+  } else {
+    $('#ctxProject').text(ctx.info.tproject.name);
+  }
+
+  if (ctx.info.filename) {
+    $('#exportFilename').val(ctx.info.filename);
+  }
+
+  mirrorPrefix();
+
+  // Legacy parity (lib/testcases/tcExport.php): export is a read-only
+  // operation available to any authenticated session. We surface the design
+  // grant for information only, but never block the Export action on it.
+  if (ctx.info.nothingTodo) {
+    $('#warnBox').html('<i class="fa fa-triangle-exclamation"></i> ' + esc(TLi18n.t(ctx.info.nothingTodo))).show();
+  }
+}
+
+function doExport() {
+  var fn = ($('#exportFilename').val() || '').trim();
+  if (!fn) { toast(TLi18n.t('tcx.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
+
+  var params = {
+    action: 'export',
+    tproject_id: ctx.tprojectId,
+    testcase_id: ctx.testcaseId || 0,
+    tcversion_id: ctx.tcversionId || 0,
+    containerID: ctx.containerId || 0,
+    useRecursion: ctx.useRecursion ? 1 : 0,
+    exportType: $('#exportType').val() || 'XML',
+    export_filename: fn,
+    exportTestCaseExternalID: $('#exportTestCaseExternalID').is(':checked') ? 1 : 0,
+    addPrefix: $('#addPrefix').is(':checked') ? 1 : 0,
+    exportTCSummary: $('#exportTCSummary').is(':checked') ? 1 : 0,
+    exportTCPreconditions: $('#exportTCPreconditions').is(':checked') ? 1 : 0,
+    exportTCSteps: $('#exportTCSteps').is(':checked') ? 1 : 0,
+    exportReqs: $('#exportReqs').is(':checked') ? 1 : 0,
+    exportCFields: $('#exportCFields').is(':checked') ? 1 : 0,
+    exportKeywords: $('#exportKeywords').is(':checked') ? 1 : 0,
+    exportAttachments: $('#exportAttachments').is(':checked') ? 1 : 0
+  };
+
+  $('#loadingOverlay').show().find('span').text(TLi18n.t('tcx.generating'));
+  $('#btnExport').prop('disabled', true);
+
+  $.ajax({
+    url: ctx.bffUrl,
+    method: 'POST',
+    data: params,
+    xhrFields: { responseType: 'blob' },
+    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
+  }).done(function (blob, textStatus, xhr) {
+    var contentType = xhr.getResponseHeader('Content-Type') || '';
+    // If the server responded JSON, it is an error payload, not a download.
+    if (contentType.indexOf('application/json') !== -1) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var msg = TLi18n.t('tcx.errExport');
+        try { msg = JSON.parse(reader.result).message || msg; } catch (e) {}
+        toast(msg, true);
+        $('#loadingOverlay').hide();
+        $('#btnExport').prop('disabled', false);
+      };
+      reader.readAsText(blob);
+      return;
+    }
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fn;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+    toast(TLi18n.t('tcx.exportDone'));
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('tcx.errExport');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+  });
+}
+</script>
+</body>
+</html>
