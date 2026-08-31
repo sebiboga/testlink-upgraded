@@ -76,6 +76,21 @@ All labels, placeholders, links and messages use client-side `TLi18n` keys under
 the `auth.*` namespace, present in every locale bundle
 (`gui/templates/i18n/{en,ro,de,es,fr,it,ja,pt,ru,zh}.json`).
 
+## Regression suite
+
+Executed as **Suite 783 — 10/10 PASS** (2026-08-31, headless Chrome + MariaDB
+testlink @127.0.0.1). Coverage: default render + i18n, empty-submit validation,
+unknown-login enumeration-safe generic success, existing local user with mail
+unconfigured (no 500 — `resetPassword()` persists the new password only after
+`email_send` succeeds, so nothing is written and no user's password is silently
+invalidated), redirect to `login.html?note=lost` with the "Password recovery
+completed." note, login-page link wiring (`firstLogin.html` / `lostPassword.html`),
+BFF `GET /api/auth/config`, CSRF guard on `POST /api/auth/reset` (403 for
+non-same-origin requests), i18n completeness in all 10 bundles, and Event
+Viewer cleanliness (zero new Error/Warning `events` rows).
+
+Screenshots are on the GitHub Wiki page (`Lost-Password-Modernized.md`).
+
 ---
 
 _TestLink 2.0.1 · Lost Password screen · Refs #783_

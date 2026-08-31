@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-30 (#755 Requirement Document Print modernized + #798 Requirement Editor) · branch `sebiboga`
+> Last updated: 2026-08-31 (#783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 5 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument) |
+| DONE (modernized) | 67 + 7 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -100,6 +100,8 @@ Extra modernized feature (not an ASIDE entry):
 - `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
 - Create/Edit Test Plan modal in `plans/planView.html` + `api/plans` (`POST /`, `PUT /{id}`, `GET /{id}`) — replaces the `planEdit.php` legacy redirect (#750, DONE)
 - Dashboard / main page (`lib/general/mainPage.php`) — `gui/templates/mainpage/mainPage.html` + `api/mainpage/index.php` (#780, DONE). This is the ASIDE **mainframe landing** (the "home" view), not an ASIDE child item; the link switch lives in `index.php` `getReturnWorkArea()` which now defaults the mainframe to the modernized screen.
+- Self Sign-Up (`firstLogin.php`) — `gui/templates/auth/firstLogin.html` + `api/auth/index.php` `POST /api/auth/signup` (#782, DONE). Reached from `login.html` "New user? Create account".
+- Lost Password / Password Reset (`lostPassword.php`) — `gui/templates/auth/lostPassword.html` + `api/auth/index.php` `POST /api/auth/reset` (+ `GET /api/auth/config`) (#783, DONE). Enumeration-safe generic success; reached from `login.html` "Lost password?". Regression suite 783 10/10 PASS.
 
 ---
 
