@@ -1177,10 +1177,11 @@ class testsuite extends tlObjectWithAttachments
     if($doRecursion) {
       $cfXML = null;
       $attachmentsXML = null;
+      $attachXML = null;
       $kwXML = null;
 
       if ($container_id == $tproject_id) {
-        $$tsuiteData = ['id' => '','name' => '','node_order' => 0, 'details' =>''];
+        $tsuiteData = ['id' => '','name' => '','node_order' => 0, 'details' =>''];
       } else {
         $tsuiteData = $this->get_by_id($container_id);
         if( isset($optExport['KEYWORDS']) && $optExport['KEYWORDS']) {
