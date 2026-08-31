@@ -117,5 +117,5 @@ an undefined-`$itsCfg` fatal for the "tracker present but not connected" edge ca
   2. jira-style cfg (attrs present) → values still flow unchanged ✅
      (`issueType=1 issuePriority=2 artifactVersion=[11,12] artifactComponent=[21,22]`)
   3. mantis/db cfg (attrs absent) → safe defaults `''`/`[]`, no warnings ✅
-  4. no tracker / tracker-not-connected → `issCfg` undefined path guarded, no fatal ✅
+  4. no tracker / tracker-not-connected → `$itsCfg` undefined path guarded, no fatal ✅
   5. Event Viewer shows no new Error/Warning ✅
