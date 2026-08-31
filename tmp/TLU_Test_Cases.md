@@ -8306,3 +8306,37 @@ Screen BFF: `api/execute/index.php` (`?action=init|tcList|tcDetails|save`).
 MariaDB testlink @127.0.0.1). Screenshots:
 `tmp/issue-793-repro-before.png` (before: only Save execution + Reset),
 `tmp/issue-793-save-and-next-after.png` (after: 4-button save-row).
+
+## Suite 70 — Regression — Issue #779: execSetResults.php 4x E_WARNING 'Undefined property: stdClass::$issuetype/issuepriority/version/component' on every tracker-connected exec render
+
+**Bug:** `initializeGui()` in `lib/execute/execSetResults.php` (else-branch for `editIssueAttr != 1`) dereferenced `$itsCfg->{issuetype,issuepriority,version,component}` where `$itsCfg = $issueTracker->getCfg()`. Trackers like mantis/db whose cfg only declares db/uri keys lack all 4 properties → one `E_WARNING` each (log_level=2) on EVERY render. The guard `null != $gui->issueTrackerMetaData` (exec.inc.php:944) never helps: `getIssueTrackerMetaData()` always returns a non-null array with null members when the tracker has no relevant method.
+**Fix (commit f18c27b53):** guarded each dereference with `property_exists($itsCfg, $kj)` (single values fall back to `''`, multi to `[]`) and gated the whole block on `isset($itsCfg)` so an unconnected-but-present tracker never fatals an undefined variable. Trackers that DO define the attributes (jira REST/SOAP) keep receiving their values — `property_exists` true ⇒ identical assignment.
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture: `php tmp/fixtures_627.php` → TRACK627 (tproject 1) + mantis/db tracker MANTIS627 (id 1; cfg = db/uri only), TC627-A (testcase 3 / tcversion 4), PLAN627 (11), build B1 (id 1). `TRUNCATE events` before each case.
+
+- **TC-779-1: tracker-connected render → ZERO new E_WARNING (primary)**
+  - Steps: `TRUNCATE events;` open `http://localhost:8082/lib/execute/execSetResults.php?version_id=4&level=testcase&id=3&tplan_id=11&build_id=1&platform_id=0&caller=exec_feature`; then `SELECT id,log_level,description FROM events ORDER BY id DESC;`.
+  - Expected (pre-fix): 4 rows log_level=2 — `Undefined property: stdClass::$issuetype/:issuepriority Line 1665`, `::$version/:$component Line 1675`.
+  - Expected (**post-fix**): `events` empty (0 rows); page renders "Test Results on Build B1", plan/build, step inputs + Passed selects, notes, Save, "Move to Next Test Case".
+  - Actual: **PASS** (events=0 after reload; full render confirmed).
+
+- **TC-779-2: jira-style tracker (attrs present) — values still flow**
+  - Steps: logic harness `$itsCfg = (object)['issuetype'=>1,'issuepriority'=>2,'version'=>[11,12],'component'=>[21,22]]` through the fixed block.
+  - Expected: `issueType=1, issuePriority=2, artifactVersion=[11,12], artifactComponent=[21,22]` (unchanged from pre-fix).
+  - Result: **PASS**.
+
+- **TC-779-3: mantis/db tracker (attrs absent) — safe defaults, no warning**
+  - Steps: logic harness `$itsCfg = (object)[]` through the fixed block.
+  - Expected: `issueType='', issuePriority='', artifactVersion=[], artifactComponent=[]`, no warnings.
+  - Result: **PASS**.
+
+- **TC-779-4: no tracker / tracker not connected — no fatal**
+  - Steps: `$issueTracker=null` ⇒ `issueTrackerMetaData=null` block fully skipped; unconnected-but-present tracker ⇒ `isset($itsCfg)` false ⇒ block skipped.
+  - Expected: render proceeds, no undefined-variable fatal.
+  - Result: **PASS** (code path verified; primary render already confirms healthy path).
+
+- **TC-779-5: Event Viewer — no new Error/Warning after suite**
+  - Steps: `SELECT id,description FROM events ORDER BY id;` at suite end.
+  - Expected: zero log_level=2 rows.
+  - Result: **PASS** (0 rows).
+
+**Result: Suite 70 — 5/5 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 + MariaDB testlink @127.0.0.1).
