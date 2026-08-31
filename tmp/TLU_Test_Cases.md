@@ -8325,3 +8325,21 @@ Notes:
      *Expected:* `write_execution_bug($db,$execId,$bugId,$tcstepId)` writes `execution_bugs (execution_id, tcstep_id, bug_id)`.
      *Actual:* BFF `api/execute/index.php` has no bug action, so no such row can be created from the UI.
 - **Result:** **FAIL** (regression, refs GitHub bug #789 — per-step linkage missing)
+
+### Regression — Issue #792: Execute Tests — Attachment upload/list + "Copy attachments from latest execution" missing (#792)
+- **Priority:** High
+- **Importance:** High
+- **Symptom (pre-fix):** the modernized Execute Tests screen (`gui/templates/execute/execTest.html`) had no attachment UI — no upload control, no prior-execution attachment list, and no "Copy attachments from latest execution" checkbox; the BFF `api/execute/index.php` `save` dropped any attachment payload and never copied attachments.
+- **Preconditions:** test plan with a linked test case and a build; `attachments->enabled=true`; for the copy checkbox also `exec_cfg->exec_mode->new_exec='latest'` (default `'clean'` hides it, matching legacy). Allowed upload ext includes `csv`.
+- **Repro steps (pre-fix):** open Execute Tests, pick a TC → no ATTACHMENTS panel; save with a file → `attachments` table empty.
+- **Expected post-fix behavior:**
+  1. ATTACHMENTS panel renders below notes: upload file input (multiple) + prior-execution attachment list (name, size, download link).
+  2. With `new_exec='latest'` and a prior execution, the "Copy attachments from latest execution" checkbox shows and, when checked+save, copies the latest execution's attachments (execution-level and per-step) onto the new execution.
+  3. Direct upload on save creates an execution-level `attachments` row (fk_table=`executions`) and returns `attachments_uploaded:1`.
+  4. No var_dump pollution in the JSON save response; no new Event Viewer Error/Warning.
+- **Actual result observed (post-fix, admin, tplan2/tproj1/tcase3/build1):**
+  - Direct upload save → `attachments_uploaded:1`, `attachments` row `id=1 fk_id=4 fk_table=executions test_attach.csv (24 B)`; download `/lib/attachments/attachmentdownload.php?id=1` → HTTP 200.
+  - `new_exec='latest'` + checkbox → copy `copy_att_from_lexec=1`; `attachments` row `id=2 fk_id=5 fk_table=executions test_attach.csv` created (copied exec 4 → 5).
+  - Copy checkbox hidden under default `'clean'`; visible under `'latest'`.
+  - Event Viewer `events` log_level 3/4 → 0 rows.
+- **Result:** **PASS**
