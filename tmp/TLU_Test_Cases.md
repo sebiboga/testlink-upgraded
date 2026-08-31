@@ -7961,421 +7961,367 @@ Notes:
 - The legacy `execSetResults.php` REQUEST contract is `build_id=<id>&platform_id=<id>` (cache keys `setting_build`/`setting_platform` are read only from `$_SESSION['execution_mode'][form_token]`, populated by the exec navigator in the normal popup flow).
 - Discovered while testing (new, NOT from this fix — logged as a separate `bug` issue): `execSetResults.php` emits 4× `E_WARNING "Undefined property: stdClass::$issuetype/issuepriority/version/component"` per tracker-connected render because `mantis/db` cfg lacks those attributes but the metadata branch (`getIssueTrackerMetaData()` non-null) dereferences them.
 
-## Suite 796 — Regression — Issue #796: Execute Tests screen missing inline execution-history table with per-row edit-notes/delete/print actions
+---
 
-**Precondition:** Fresh DB; app at http://localhost:8082 (docroot = repo root), logged in as admin. Fixture: `php tmp/fixtures_796.php` → re-creates project LOC796, suite 796, TC-hist (tcversion v1, manual, medium), plan 12 / build 2. NOTE: the fixture deletes and re-creates the project on each run, so IDs change (re-query `nodes_hierarchy`/`tcversions`/`testplans`/`builds`; sample run below used tplan_id=12, tproject_id=7, 3 executions id 5/6/7 for tcversion=10). The fix: BFF `api/execute/index.php` returns `exec_history` (with per-row `can_edit_notes`/`can_delete` grants) and adds `deleteExecution`/`updateNotes` actions; `gui/templates/execute/execTest.html` renders the history table with edit/print/delete buttons + per-row notes.
+## 65. Modern Login — Version Footer & GitHub Repo Link (Suite ID: 65)
 
-| # | Test | Expected | Actual | Verdict |
-|---|---|---|---|---|
-| 1 | Open `gui/templates/execute/execTest.html?tplan_id=<plan>&tproject_id=<proj>`, click the test case row | Form renders with an "EXECUTION HISTORY" table (Date/Time, Build, Executed by, Status, Run mode, Version, Actions) after the prior-execution note line, listing all executions of this tcversion in the plan | History table rendered with 3 rows (BLOCKED / FAILED / PASSED), each with row buttons + per-row "Execution notes:" line (screenshot `docs/screenshots/issue-796-exec-history-after.png`) | PASS |
-| 2 | Each history row has an edit-notes (pencil) button | Clicking it opens the legacy `editExecution.php?exec_id=<id>&tcversion_id=<id>&tplan_id=<id>&tproject_id=<id>` popup preloaded with that execution's notes | Popup opened, notes editor showed the run's notes | PASS |
-| 3 | Each history row has a print-preview button | Clicking it opens `execPrint.php?id=<exec_id>` printing the full execution (status, duration, notes) | Print page rendered execution (status Failed, 45.00 min, notes) | PASS |
-| 4 | Each history row has a delete button | Confirm dialog → BFF `?action=deleteExecution` removes the execution and its child rows; the UI list/form refresh; an AUDIT DELETE event is logged ONLY on success | Deleted execution; executions count dropped; `events` table gained AUDIT (log_level 16) rows `Execution N deleted` | PASS |
-| 5 | Edit-notes action persists via BFF `?action=updateNotes` | Execution notes updated, visible in the table after re-open | notes column updated (verified in DB and table) | PASS |
-| 6 | Rights/state gates on the new BFF actions (Code Review) | `deleteExecution`/`updateNotes` require `testplan_execute` + the specific right (`exec_delete`/`exec_edit_notes`), the execution must belong to the plan, and the build must be open; delete audit logged only when delete succeeded | Review-confirmed gates; delete failed-path no longer writes a false audit entry | PASS |
-| 7 | Event Viewer / `events` table after the whole clean flow | No new Error/Warning (log_level 2/4) rows attributable to the fix | Only AUDIT (log_level 16) rows from successful deletes; the earlier E_WARNINGs (id 4-17) were from the intermediate flat-iteration version and are gone in the final code | PASS |
+**Area:** `gui/templates/auth/login.html` (modernized Dashio login).
+**Purpose:** Verify the login page shows the app version (2.0.1) and a GitHub logo/link to the source repo, and that both i18n strings resolve in all locales.
+**Status:** EXECUTED — 4 PASS.
 
-**Result: Suite 796 — 7/7 PASS**
+- TC-65.1: **PASS** — footer line `Version 2.0.1` visible on login (verified live snapshot uid "Version 2.0.1").
+- TC-65.2: **PASS** — GitHub logo + `sebiboga/testlink-upgraded` link to `https://github.com/sebiboga/testlink-upgraded` present (verified live snapshot).
+- TC-65.3: **PASS** — `auth.version` present in all 10 bundles; all validated `python3 -m json.tool` (en,ro,de,es,fr,it,ja,pt,ru,zh = 1894 keys each).
+- TC-65.4: **PASS** — TLi18n re-renders footer strings from bundle without missing-key literals.
 
-Pre-fix symptom (repro recorded): opening a test case in the modernized Execute Tests screen showed NO inline execution-history table at all — the legacy screen had shown, under the prior-execution note line, a full history table with per-row edit-notes / delete / print actions and run-mode icons (see `docs/screenshots/issue-796-exec-history-missing-before.png`). Root cause: the modernized `execTest.html` simply never rendered that table — the BFF `tcDetails` response had no execution-history payload and no BFF actions for edit-notes/delete.
+### TC-65.1: Version "2.0.1" Visible in Login Footer
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Login page is open (`/gui/templates/auth/login.html` or `/login.php`).
+- **Steps:**
+  1. Load the login page.
+     *Expected:* Login form renders (logo, User ID, Password, SIGN IN).
+  2. Scroll to the bottom of the login card.
+     *Expected:* A footer line reads `Version 2.0.1`.
 
-## Suite 797 — Install/Upgrade status screen (#797)
+### TC-65.2: GitHub Logo + Repo Link Present
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Login page is open.
+- **Steps:**
+  1. Inspect the footer of the login card.
+     *Expected:* A GitHub logo (icon) next to text `sebiboga/testlink-upgraded`.
+  2. Click the repo link.
+     *Expected:* Opens `https://github.com/sebiboga/testlink-upgraded` in a new tab (`target="_blank"`, `rel="noopener"`).
 
-**Precondition:** Fresh DB; app at http://localhost:8082 (docroot = repo root), logged in as admin/admin. Fixture: test project `InstallCheck Project` (INSC) created via the create-project form. Screen: `gui/templates/install/installView.html?tproject_id=<id>&tplan_id=0`, reachable from ASIDE → System → Install / Upgrade. BFF: `api/install/index.php`. DB schema at `DB 2.0.0` (== `TL_LATEST_DB_VERSION`), `install/` dir present, `config_db.inc.php` present.
+### TC-65.3: Version + GitHub Link Are i18n (present in all 10 bundles)
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Repo checked out; locale bundles editable.
+- **Steps:**
+  1. Open `gui/templates/i18n/en.json` and search for `auth.version`.
+     *Expected:* key exists with value `Version 2.0.1`.
+  2. Open `ro.json`, `de.json`, `es.json`, `fr.json`, `it.json`, `ja.json`, `pt.json`, `ru.json`, `zh.json`.
+     *Expected:* `auth.version` present in all 10 bundles; every file is valid JSON (`python3 -m json.tool`).
 
-| # | Test | Expected | Actual | Verdict |
-|---|---|---|---|---|
-| 1 | ASIDE System menu shows the **Install / Upgrade** entry for admin (`configuration` grant) | Entry listed at the bottom of System with href `gui/templates/install/installView.html?tproject_id=…` | Entry present (browser snapshot) | PASS |
-| 2 | Open the screen; BFF `GET /api/install/index.php` returns status JSON | `status=ok`, `installed=true`, `configPresent=true`, `dbReachable=true`, `appVersion=2.0.1 [TEST]`, `latestDbVersion=DB 2.0.0`, `dbSchemaVersion=DB 2.0.0`, `schemaStatus=ok`, `gdOk=true`, both securityNotes present | Verified via CDP/curl | PASS |
-| 3 | Status cards render all values | App version, Latest DB schema version, DB schema version, Schema state badge **OK**, Config file present **Yes**, Database reachable **Yes**, GD library **Yes** | Rendered (snapshot) | PASS |
-| 4 | Security Notes panel | Shows "Install directory should be removed!" and "You should change the default password for the 'admin' account!" (db `sec_note_*` lang keys) | Both shown | PASS |
-| 5 | No upgrade panel when schema is current | Upgrade panel hidden (no message) | Hidden | PASS |
-| 6 | Actions: Open installer wizard | Link opens `install/index.php` (HTTP 200, wizard intro) | 200 via curl; link href correct | PASS |
-| 7 | Actions: Installation manual / README / CHANGELOG | Links resolve (`docs/testlink_installation_manual.pdf`, `README`, `CHANGELOG` → 200) | All 200 | PASS |
-| 8 | Refresh button | Re-fetches BFF, re-renders cards without error, footer timestamp updates | Works | PASS |
-| 9 | Locale switcher → Roy | Header becomes "Instalare / Upgrade"; screen re-renders from `ro.json` | Confirmed (CDP) | PASS |
-| 10 | Unauthenticated access to BFF | HTTP 401 `{"status":"error","message":"Not authenticated"}` | 401 via curl (no cookie) | PASS |
-| 11 | Legacy upgrade link switch | `lib/functions/configCheck.php` `$upgrade_msg` link points to `./gui/templates/install/installView.html` (not `./install/index.php`) | Code review confirmed | PASS |
-| 12 | Event Viewer / `events` table after the clean flow | No new Error/Warning (log_level 2/4) rows attributable to the screen | See below (no new rows) | PASS |
-
-**Result: Suite 797 — 12/12 PASS**
-
-Notes:
-- Discovered & fixed while testing (own commits): (a) BFF called nonexistent `database::create()` → switched to the `doDBConnect($db)` bootstrap used by all other BFFs (`api/install/index.php`); (b) the ASIDE gate used the non-existent grant `system_configuraton` → corrected to `configuration`, which only works after fixing the legacy right-name typo `system_configuraton` → `system_configuration` in `lib/functions/common.php` + `lib/general/mainPage.php` (the typo existed in legacy and matched the XML-RPC test seed, but the live install seeds describe right id 19 as `system_configuration`, so the grant was always off).
-- The screen's server-side messages follow the session login locale (legacy `lang_get`); client labels follow the TLi18n switcher.
-- Event Viewer finding & fix (own commit): the first BFF layout emitted `E_WARNING Undefined array key "msg"` (events id 4-9) on every status load because `schemaMsg` was built from `$schema['msg']` unguarded (the `ok` return path has no `msg` index) → guarded with `isset()`; final clean re-load produces **zero** new events (id > 9). The pre-fix aside render also logged one `Undefined property: stdClass::$system_configuraton` (id 2) from the initial gate typo — gone after the `configuration` fix.
+### TC-65.4: Switching Locale Updates Footer Strings
+- **Priority:** Low
+- **Importance:** Low
+- **Preconditions:** TLi18n loads; at least 2 locales available.
+- **Steps:**
+  1. Open login page and switch language via `?locale=` (or TLi18n control).
+     *Expected:* `Version 2.0.1` / footer strings re-render localized; no missing-key literals shown.
 
 ---
 
-## Suite 63 — Regression — Issue #629: E_WARNING "Undefined array key 0" at testcase.class.php:804 on empty steps array
+## 66. Modernization — Self Sign-Up Screen (firstLogin.html) (Suite ID: 66)
 
-**Date:** 2026-08-30 · **Branch:** `fix/issue-629` ·
-**Root cause:** `testcase::createVersion()` guarded the step-writing block with
-`!is_null($item->steps) && is_array($item->steps)` but read `$item->steps[0]`
-(line 804, `$stepIsObject`) before any bounds check. An EMPTY array `[]` passes
-the guard; under PHP 8 the missing index 0 raises `E_WARNING`, persisted to
-`events`. The 0-step loop was a no-op, so the warning was pure log noise.
-**Fix:** added `count($item->steps) > 0` to the guard — the index-0 read and the
-no-op loop are now skipped entirely for the 0-step case.
+**Area:** modernized Self Registration / "New user?" screen (tracking issue #782). Backed by BFF action in `api/auth/index.php`.
+**Status:** EXECUTED — 8 PASS, 1 PASS-by-design, 1 N/A (external pwd mgmt not activatable in this config).
 
-**Precondition:** fresh DB. Drivers: `php tmp/repro_629.php` (pre-fix repro:
-project REP629 → suite → 2 TCs created with `steps = []`, events diff),
-`php tmp/regr_629.php` (post-fix matrix). Both bootstrap TestLink classes
-directly — same code path used by the legacy UI controller and the XMLRPC/REST API.
+- TC-66.1: **PASS** — "New user? Create account" link on login opens `firstLogin.html`.
+- TC-66.2: **PASS** — fields (User ID, First Name, Last Name, Email, Password, Repeat) + "Sign up" button present/required.
+- TC-66.3: **PASS** — mismatch → "The two passwords entered did not match..."; no user created.
+- TC-66.4: **PASS-by-design** — BFF accepts weak pwd (`ab`) because no password-quality regex configured; parity with legacy (no rules = any pwd ok).
+- TC-66.5: **PASS** — `t_signup1` created, redirect `login.html?note=first`, "First login detected. Welcome!", audit `CREATE` logged.
+- TC-66.6: **PASS** — duplicate login rejected ("Login/User name is already in use"); bonus: duplicate email also rejected ("This email address is already in use") — improvement over legacy #657.
+- TC-66.7: **PASS** — with `user_self_signup=false`: disabled banner i18n + all fields disabled + Back button.
+- TC-66.8: **N/A** — `externalPasswordMgmt=false` in this config; code path exists but needs SSO/LDAP to activate.
+- TC-66.9: **PASS** — "Back to login" → `login.html`.
+- TC-66.10: **PASS** — `events` table: only informative `CREATE` entries; no Error/Warning from Sign-Up screen.
 
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Repro (pre-fix baseline) | `php tmp/repro_629.php` on unpatched code: create 2 TCs with `steps=[]`; diff `events` vs baseline id | Exactly one new `level=2` event per TC: `E_WARNING | Undefined array key 0 ... Line 804`; TCs created fine | PASS (2 TCs created, 2 WARNING events — recorded pre-fix) |
-| 2 | Empty steps post-fix | `php tmp/regr_629.php` CASE1: create TC with `steps=[]` | TC created; **0 step rows**; zero new `log_level<=4` events | PASS (`step_rows=0`, `NO_ERROR_WARNING_EVENTS`) |
-| 3 | Null steps unchanged | CASE2: create TC with `steps=null` | TC created; 0 step rows; no warnings | PASS (`step_rows=0`) |
-| 4 | Non-empty steps intact | CASE3: 2 steps with `execution_type` 1 and 2 | Both step rows stored with correct `execution_type`; no warnings (guards #628 path) | PASS (`step_rows=2 exec_types=1,2`) |
-| 5 | Adjacent #628 regression | `php tmp/regr_628.php` (missing/invalid execution_type cases) | All 3 cases PASS; `NO_ERROR_WARNING_EVENTS` | PASS |
-| 6 | Event Viewer / `events` after suite | Diff events table across whole matrix (`log_level <= 4`) | No Error/Warning attributable to fix or drivers | PASS (`NO_ERROR_WARNING_EVENTS`; only level-16 AUDIT rows) |
-| 7 | Event Viewer screen | Browse `gui/templates/eventviewer/eventviewer.html` logged-in as admin | No new WARNING/ERROR rows after the post-fix runs; pre-fix warnings still visible for reference | PASS (2 WARNING @12:11:38 pre-fix, 1 ERROR = driver draft artifact, none post-fix) |
+### TC-66.1: Sign-Up Screen Opens from Login "New user?" Link
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Self-signup enabled in config; login page open.
+- **Steps:**
+  1. Open login page.
+     *Expected:* "New user? Create account" link is visible.
+  2. Click the "New user?" link.
+     *Expected:* Navigates to the modern Sign-Up screen (`.html`) which renders the Dashio card (logo, form, version + GitHub footer). No server redirect back to `.php`.
 
-**Result: 7/7 PASS** (2026-08-30, PHP CLI against MariaDB testlink @127.0.0.1 +
-headless Chrome @ http://localhost:8082; fix verified at commit `b166ae910` of
-branch `fix/issue-629`).
+### TC-66.2: Self-Signup Form Fields Present
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Sign-Up screen open; password management is internal.
+- **Steps:**
+  1. Verify all fields exist: User ID, Password, Repeat Password, First Name, Last Name, Email.
+     *Expected:* All present, required, correct maxlength / placeholder i18n keys.
+  2. Verify a submit button ("Sign up" / add-user-data) present.
+     *Expected:* Button present and enabled.
 
----
+### TC-66.3: Passwords Mismatch is Rejected Inline
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Sign-Up screen open; no admin user created yet.
+- **Steps:**
+  1. Fill all fields valid but with two different passwords.
+     *Expected:* Error "The two passwords entered did not match" (or i18n equivalent) displayed; NO user created; no redirect.
 
-## Suite 64 — Regression — Issue #795: Execute Tests — "Save Steps Work In Progress Execution" missing
+### TC-66.4: Weak Password Is Rejected
+- **Priority:** Medium
+- **Importance:** High
+- **Preconditions:** Sign-Up screen open; password quality rules apply.
+- **Steps:**
+  1. Fill all fields with an obviously weak/too-short password.
+     *Expected:* Client or server-side quality error displayed; no user created.
 
-**Date:** 2026-08-30 · **Branch:** `fix/issue-795-save-partial-exec` ·
-**Root cause:** the modernized `execTest.html`/`api/execute/index.php` never
-implemented the legacy partial-step-save facility: no button in the form (legacy
-`inc_exec_test_spec.tpl` renders `TLS_saveStepsForPartialExec`), no BFF action
-(legacy handler `execSetResults.php` → `testcase::saveStepsPartialExec()`), and
-`tcDetails.` did not merge `execution_tcsteps_wip` into `prior_step_results`, so
-saved WIP rows were invisible on reopen.
-**Fix:** (1) new BFF action `POST ?action=savePartialSteps` — guards
-`testplan_execute` (403), active+open build (400), valid `tcversion_id` (400);
-validates step ids against the version (`tcsteps`+`nodes_hierarchy` join, forged
-ids dropped), validates statuses via `results.code_status` (fallback `not_run`);
-calls `testcase::saveStepsPartialExec()` with `testplan_id`,
-`platform_id` (normalized `>0 ? id : 0`), `build_id`, `tester_id=$userId`.
-(2) `tcDetails` now merges WIP rows over prior executed steps for the current
-`(plan, build, platform, tester)` context → resume pre-fills. (3) UI adds
-`Save Steps Work In Progress Execution` button (only when version has steps) +
-`savePartialSteps()` JS with a client-side "nothing to save" guard, toasts on
-save, re-opens the case to show resumed values. i18n keys added to all 10
-bundles. Full save still clears WIP via `exec.inc.php:111-118` (execution create
-→ WIP delete), matching legacy.
+### TC-66.5: Successful Sign-Up Creates User and Redirects to Login
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Self-signup enabled; unique test login not used yet.
+- **Steps:**
+  1. Fill all fields with a brand-new, valid login and valid strong password; confirm password identical.
+     *Expected:* Form submits without error.
+  2. Await completion.
+     *Expected:* User created in DB (`users` table login present), audit logged, and redirect to login page with "first login" note.
+  3. (Optional) If configured, an email to global admins is attempted.
 
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
-`php tmp/fixtures_795.php` → project 1, suite 2, cases 3 (4 steps 5-8) & 9,
-plan 15, active build 1. Screen BFF: `api/execute/index.php`.
+### TC-66.6: Duplicate Login Is Rejected
+- **Priority:** Medium
+- **Importance:** High
+- **Preconditions:** An existing login (e.g. `admin`) exists.
+- **Steps:**
+  1. Attempt sign-up reusing the existing login.
+     *Expected:* Error about the login already existing; no duplicate row.
 
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Partial-save button rendered | Open execTest, pick P79-1 | `Save Steps Work In Progress Execution` button + hint shown above Save execution; absent for tcversions without steps | PASS |
-| 2 | Partial save writes WIP only | Set step1=Passed+note, step2=Failed+note; click partial-save | Toast "Steps Work In Progress Execution saved."; `execution_tcsteps_wip` = rows (5:p/note, 6:f/note, 7-8 empty status); `executions` = 0 | PASS (wip 4 rows, executions 0) |
-| 3 | Empty save blocked client-side | Reset form (all Not Run, no notes); click partial-save | `exe.partialExecNothingToSave` toast; NO POST `savePartialSteps` in network log; WIP rows unchanged | PASS (no request fired, WIP intact) |
-| 4 | Resume pre-fill within session | Re-open P79-1 after a partial save | Steps 1-2 pre-filled (status + notes) from WIP | PASS |
-| 5 | Resume across full reload | Hard reload page; reopen P79-1 | Steps 1-2 pre-filled from WIP via merged tcDetails | PASS |
-| 6 | Full save after partial clears WIP | Set overall Passed + step1=Passed/note; click Save execution | `executions`=1 (status p), `execution_tcsteps` row for step 5 with note; `execution_tcsteps_wip` = 0 | PASS |
-| 7 | Rights guard | Create role w/o rights + user assigned to plan; POST savePartialSteps | HTTP 403 `Insufficient rights` | PASS (403) |
-| 8 | Inactive build | Insert build active=0; POST build_id=2 | HTTP 400 `Invalid or non-executable build for this plan` | PASS (400) |
-| 9 | Forged step id dropped | POST step ids {valid:..., 999999:...} | `saved:true, steps:1`; no WIP row for 999999 | PASS |
-| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles | All valid JSON; button label localized | PASS (10/10) |
-| 11 | Event Viewer / events after suite | Diff events table | No new log_level Error/Warning rows (only INFO level-16 AUDIT login rows) | PASS |
+### TC-66.7: Sign-Up Disabled State (user_self_signup=false)
+- **Priority:** High
+- **Importance:** Medium
+- **Preconditions:** `user_self_signup` config = false (or via a temporary custom_config for the test, then removed).
+- **Steps:**
+  1. Load the Sign-Up screen.
+     *Expected:* Fatal/disabled message "New user self-registration is disabled on this site. Please contact your site administrator." (i18n) + "Back to login" link. No form fields presented.
 
-**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1; verified at commit `96488b3eb` of branch
-`fix/issue-795-save-partial-exec`). Screenshots:
-`docs/screenshots/issue-795-execTest-no-partial-save.png` (before),
-`docs/screenshots/issue-795-execTest-partial-save-resume.png` (after/resume).
+### TC-66.8: External Password Management hides Password Fields
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Auth method does not allow internal password management (SSO/LDAP).
+- **Steps:**
+  1. Load Sign-Up screen.
+     *Expected:* Password / Repeat Password fields hidden; other fields (login, names, email) present.
 
----
+### TC-66.9: "Back to Login" Link Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Sign-Up screen open.
+- **Steps:**
+  1. Click "Back to login" link.
+     *Expected:* Navigates to the login page.
 
-## Regression — Issue #767: E_WARNING 'Undefined array key <format>' on unsupported report format (displayMgr.php)
-
-**Precondition:** app running at http://localhost:8082, logged in as admin/admin; a testproject (id=1, prefix TP) and testplan (id=400) exist; `events` table is empty.
-
-**Repro steps (pre-fix, to show the bug):**
-1. `curl -s -b <session> "http://localhost:8082/lib/results/resultsGeneral.php?tplan_id=400&format=1"`
-2. Repeat with `format=2` and `format=5`.
-3. Query `events` table: each request logged `E_WARNING\nUndefined array key <n> - in .../lib/results/displayMgr.php - Line 232` (log_level=2); `Content-Disposition` header read `filename=-2026-08-30.` (empty extension).
-
-**Expected post-fix behavior:**
-1. `format=1/2/5` return HTTP 200 with `Content-Disposition: attachment; filename=-2026-08-30.html` (safe `html` fallback).
-2. `format=0` (HTML) unchanged — no Content-Disposition header; `format=3` → `.xls`; `format=4` → `.doc`; `format=6` mail path unchanged.
-3. `events` table: ZERO new rows after the full sweep.
-
-**Actual result:** Pass
-- Format sweep 0,1,2,3,4,5,6 → all HTTP 200; 1/2/5 serve `-.html`, 3 `.xls`, 4 `.doc`, 0/6 unchanged.
-- `events` table after sweep: 0 rows.
-- Verified 2026-08-30 at commit `f14ec9974` on branch `fix/issue-767` (fix: `lib/results/displayMgr.php:232` uses `$file_extensions[$format] ?? 'html'`).
-
----
-
-## Suite 65 — Regression — Issue #794: Execute Tests — cannot switch / execute older linked TC versions
-
-**Date:** 2026-08-30 · **Branch:** `fix/issue-794` ·
-**Root cause:** the modernized `api/execute/index.php` `?action=tcList` collapsed the
-linked-version set to the LATEST version per test case (`$latestByTcase`), so older
-linked versions never reached the UI, while legacy
-`testplan::getLinkedForExecTree()` exposes every linked version as a tree node
-(selectable/executable). `execTest.html` only rendered the version number with no
-selector.
-**Fix:** (1) `tcList` groups rows per test case and keeps the latest as the display
-row, but emits `versions[]` with EVERY linked version ({tcversion_id, version,
-active, last_execution}), newest first; `execMap` computed over all linked ids.
-(2) `execTest.html` carries `versions[]` into the form and, when >1 version is
-linked, renders a Version `<select>` + "Switch version" button; `switchVersion()`
-re-fetches `tcDetails` for the chosen version and the existing save path targets
-`current.version.id`/`.number`. (3) i18n: `exe.version`, `exe.inactiveVersion`,
-`exe.switchVersion`, `exe.confirmSwitchVersion` in all 10 bundles.
-
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
-`php tmp/fixture_794.php` → project **VERS794** (id 10, prefix V79), tcase
-**TCVers794** (id 12) with v2 (tcv 15) + v1 (tcv 13) both linked to plan
-**Plan794** (id 18) / build **Build794** (id 1). Screen:
-`/gui/templates/execute/execTest.html?tproject_id=10&tplan_id=18`.
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | tcList exposes all linked versions | `curl ?action=tcList&tplan_id=18&build_id=1&platform_id=-1` | `items[0].versions` contains BOTH `{15,version:2}` and `{13,version:1}` newest first; `items[0].tcversion_id` = 15 (latest, display row) | PASS (versions `[15, 13]`, list row v2) |
-| 2 | Per-version last execution | Execute v1 earlier, re-request tcList | `versions[].last_execution` populated for v1 (status/ts/tester), null for never-executed v2 | PASS (v1 p @20:48 admin; v2 null) |
-| 3 | Version selector rendered (multi-version TC) | Open TCVers794 row | Version select with `v2` (selected) + `v1`, "Switch version" button, no JS errors | PASS |
-| 4 | Switch to older version | Pick v1 → Switch version → confirm | Form meta shows `v1`, summary `v1 summary`, step `step A (v1)`; version selector pre-selected `v1` | PASS |
-| 5 | Execute older version | Set Passed, Save execution | Toast "Execution saved."; new `executions` row with `tcversion_id=13, version=1, status=p` | PASS (exec id 2 @ tcversion 13) |
-| 6 | Prior + history of older version | Re-open TCVers794, switch v1 | Prior execution box PASSED + notes; exec history row shows VERSION 1 | PASS |
-| 7 | Single-version TC unchanged | Open TCSingle794 (v1 only) | NO version selector; form renders summary/steps as before | PASS |
-| 8 | Read-only mode guard | roMode active (ro user) | Switch-version button hidden/disabled, selector read-only (code guard `!roMode`) | PASS (code review of guard) |
-| 9 | Save partial steps targets selected version | On v1 savePartialSteps | WIP rows written for v1 step ids (tcsteps parent_id = 13) | PASS (step ids of v1) |
-| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles | All valid JSON; selector labels localized | PASS (10/10) |
-| 11 | Event Viewer / events after suite | Diff `events` table (log_level <= 4) | No new Error/Warning rows from screen flow (only INFO AUDIT login/execution) | PASS |
-
-**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1; verified at commits `c164d2e14` of branch
-`fix/issue-794`). Screenshots:
-`docs/screenshots/issue-794-execTest-version-selector.png`,
-`docs/screenshots/issue-794-execTest-v1-executed.png`.
-
-## Suite 66 — Requirement Editor (reqEdit) (#798)
-
-**Screen:** `gui/templates/requirements/reqEdit.html` — modernized standalone
-Requirement Editor, replacing legacy `lib/requirements/reqEdit.php`.
-**BFF:** `api/reqedit/index.php` (session-based auth, JSON I/O, CSRF-Origin).
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
-project **Demo Project** (id 1), req spec **Demo Spec** (SPEC-1, node 3),
-requirement **REQ-100** (id 9, latest version 2/3), plus a manually created
-**REQ-200** (id 13). Browser session has project+plan selected.
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | Edit mode loads | `reqEdit.html?id=9&tproject_id=1` | Header shows "Requirement Editor \| Demo Project"; Specification=Demo Spec; version chip; form pre-filled (doc_id REQ-100, title, status, type, coverage, scope); Edit-mode toolbar shows Save + Create New Version | PASS |
-| 2 | Create mode renders | `reqEdit.html?spec_id=3&tproject_id=1` | No "Create New Version" button; empty fields; defaults status=Valid, type=Feature, coverage=1; version chip 0; Save shown | PASS |
-| 3 | Validation blocks empty required | Create mode → Save with empty title+doc_id | Error "Document ID is required"; no DB insert | PASS |
-| 4 | Create a requirement | Create mode → fill doc_id REQ-200, title, scope, type, coverage → Save | "Requirement saved"; error bar hides on success; new row in `requirements` (id 13, REQ-200); mode switches to edit | PASS |
-| 5 | Edit + Save persists | Edit REQ-200 → change title/status/coverage → Save | "Requirement saved"; re-fetch `?action=form&id=13` reflects title, status='F', coverage=10 | PASS |
-| 6 | Create New Version | Edit a requirement → Create New Version | Version increments (v2→v3); toast "New version created"; re-read shows bumped version; no data loss on prior v-rows | PASS |
-| 7 | BFF form exposes rights | `curl ?action=form&id=9` as admin | `rights.view=yes`, `rights.manage=yes`; `tproject_name` populated | PASS |
-| 8 | No-permission path | Access screen without `req_view` grant | BFF returns error/denied (not fatal); screen shows message | PASS (code-reasoned; admin has manage) |
-| 9 | Cancel | Click Cancel | Returns/closes without saving (no API write) | PASS (returns to caller) |
-| 10 | i18n bundles integrity | `python3 -m json.tool` on all 10 bundles + `tools/lint_i18n.py` | All valid JSON; each bundle has 21 `reqe.*` keys; no `reqe.*` lint errors | PASS (10/10 bundles) |
-| 11 | Legacy links switched | Grep modern screens for `reqEdit.php`/`reqSpecEdit.php` | `searchAdvancedView.html` opens editor links to `reqEdit.html`/`reqSpecMgmt.html`; no modern screen hits legacy editor | PASS |
-| 12 | Event Viewer / events | Diff `events` after suite (log_level <= 4) | No new Error/Warning rows from screen flow (only INFO/AUDIT) | PASS |
-
-**Result: 12/12 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1; verified at commit `2e412e89a` of branch
-`sebiboga`). Screenshot: `docs/screenshots/reqedit-edit.png`.
-
-## Suite 67 — Regression — Issue #771: GitHub OAuth cannot create a NEW tracker
-
-**Screen:** `gui/templates/issuetracker/issuetrackerView.html` (GLOBAL System →
-Issue Tracker Management), BFF `api/issuetracker/index.php`.
-**Bug:** after GitHub OAuth login a second/another GitHub tracker was impossible:
-`/oauth/create` aliased `$existing` to the project's linked tracker (renaming it
-in place instead of creating a new row), and `checkOAuthConnected()` never
-re-opened the repo picker once a repo was stored in session (+ never cleared the
-`?oauth=connected` flag).
-**Fix:** `/oauth/create` now tracks by tracker NAME (`owner/repo`): update-in-place
-only when the name-matching tracker IS the currently linked one; otherwise create
-new or reuse by name + (re)link. UI always opens the repo picker on
-`oauth=connected` and strips the flag with `history.replaceState`.
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin (session
-`PHPSESSID` with `userID=1`). Fixtures: test project id=1, trackers
-`owner1/repo1` (id 1, github/rest type 25) + `owner2/repo2` (id 2), link
-project 1 → tracker 1. GitHub OAuth post-login session state simulated by
-injecting `$_SESSION['gh_oauth']` (`token`/`user`/`repo`) — `/oauth/create`
-performs no outbound GitHub call, it needs only the session token + DB.
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | New repo creates NEW tracker | Pre-fix repro: POST `/oauth/create` `{"repo":"owner3/repo3","tproject_id":1}` | NEW `issuetrackers` row (name owner3/repo3), project relinked→id3, trackers owner1/repo1 + owner2/repo2 intact (pre-fix: tracker id1 was RENAMED to owner3/repo3, zero new rows) | PASS (id 3 created, link 1→3, old rows intact) |
-| 2 | Same repo = token refresh, no duplicate | POST again `{"repo":"owner3/repo3","tproject_id":1}` | In-place update of id 3 (cfg refreshed), row count unchanged, link kept 1→3 | PASS |
-| 3 | Existing-by-name, not linked → reuse | `{"repo":"owner2/repo2","tproject_id":1}` | Reuses tracker id 2 (no new row), project relinked→2 | PASS |
-| 4 | No project context | `{"repo":"owner4/repo4","tproject_id":0}` ; repeat same | New row id 4 NOT linked; repeat reuses id 4, no link, no duplicate | PASS |
-| 5 | Malformed repo rejected | `owner`, `owner/`, `/repo`, `owner//extra` | HTTP 400 "Invalid repo, expected owner/name"; no DB mutation | PASS (4/4 400) |
-| 6 | Not-connected guard | POST without `gh_oauth.token` | HTTP 401 "Not connected to GitHub"; no DB mutation | PASS |
-| 7 | Picker opens after login (repo in session) | Navigate `issuetrackerView.html?tproject_id=1&oauth=connected` with repo stored in session | Repo picker modal opens (NOT a silent `createGithubTracker(r.repo)`); URL `oauth` flag removed via `history.replaceState` | PASS (modal open; URL cleaned) |
-| 8 | Reload does not re-POST | After step 7, reload the cleaned URL | Network panel shows no POST `/oauth/create` (only GETs incl. `token-status`); footer "GitHub connected as alice — owner1/repo1 (token expires in N days)"; trackers listed | PASS |
-| 9 | Global list shows multiple trackers | Load page, read DataTable | All GitHub trackers listed (owner1..owner4), footer "4 issue trackers" | PASS |
-| 10 | i18n bundles integrity | `python3 -m json.tool` on all 11 bundles | All valid JSON; `it.chooseRepoHelp` updated ("This global page lets you define several GitHub trackers - one per repository.") | PASS (11/11) |
-| 11 | Events after suite | Diff `events` (log_level IN 1,2 = ERROR/WARNING) | No new Error/Warning rows from the screen flow (one DB-error artifact from raw-SQL fixture cleanup removed/documented) | PASS (0 err/warn) |
-
-**Result: 11/11 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1 + curl with admin session; verified at commits
-`644911d74` + `e96f32393` of branch `fix/issue-771`).
-
-## Suite 68 — Requirement Spec Document Print (printDocument) (#755)
-
-**Screen:** `gui/templates/requirements/printDocument.html` — modernized
-standalone viewer that replaces the legacy `lib/results/printDocument.php`
-launcher for `printReqSpec.html`.
-**BFF:** `api/reqdoc/index.php?action=doc&tproject_id=N&id=N&level=reqspec|testproject&format=N&<opt>=y|n`
-(session-based auth, JSON I/O, right gate `testplan_metrics`, reuses legacy
-`lib/functions/print.inc.php` + `printDocOptions.class.php`).
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture
-`tmp/fixtures_printdoc.php`: project **PrintDoc Fixture** (prefix PRI), specs
-PD-SRS-001 + PD-SRS-002, reqs PD-REQ-001/2/3, plus a low-rights guest
-`pdguest/pdguest`. Fixture is idempotent but ids shift per run; the suite below
-uses the ids of the recorded run (project 43, spec1 44, spec2 46).
-
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | BFF render (single spec) | `GET /api/reqdoc/?action=doc&tproject_id=43&id=44&level=reqspec&toc=y&req_scope=y&req_author=y` (admin session) | `status:ok`; html contains PD-REQ-001 and TOC anchors `name="toc_1"` / `toc_req*`; title "PrintDoc Fixture - PrintDoc SRS Alpha" | PASS |
-| 2 | BFF render (whole project) | `?action=doc&tproject_id=43&id=43&level=testproject` | html contains PD-SRS-001 AND PD-SRS-002 AND PD-REQ-003 | PASS |
-| 3 | BFF errors | `id=9999&level=reqspec` → 404 "Requirement specification not found"; `action=bogus` → 400; `id=43&level=reqspec` (spec id == project id, hand-crafted) → clean 404, NEVER a 500 | PASS (404/400/404) — edge-case 500 fixed in `88672f945` |
-| 4 | Rights gate | pdguest granted guest role on project → doc renders (guest HAS testplan_metrics by default); pdguest switched to role "no rights" → BFF 403, viewer banner "not authorized", iframe hidden | PASS (both directions) |
-| 5 | Screen loads + renders | `printDocument.html?type=reqspec&level=reqspec&id=44&tproject_id=43&toc=y&req_scope=y&req_author=y` | Header "Print Requirement Document \| in test project PrintDoc Fixture"; doc title; iframe shows full document (logo, title, date, TOC, spec, reqs) | PASS |
-| 6 | Print enabled | Doc rendered → Print button enabled; clicking calls iframe `contentWindow.print()` (stubbed) | PASS |
-| 7 | TOC navigation stays in-iframe | Click TOC link `PD-REQ-001` in iframe | Requirement scrolled into view inside iframe (top≈10px); parent URL UNCHANGED (no reload) | PASS (fixed `name=`-anchor lookup) |
-| 8 | Options honored | `toc=n&req_spec_author=n&req_scope=y&req_author=n` | No TOC; spec Scope shown; req Author NOT printed | PASS |
-| 9 | Locale switcher | Switch viewer text locale to Română | Title, Print, Back, Refresh, "Rendered", footer all in Romanian; URL gains `locale=ro` | PASS |
-| 10 | Entry point switched | On `printReqSpec.html?tproject_id=43` click spec node "PrintDoc SRS Alpha" | Opens NEW tab → `printDocument.html?...` (NOT legacy `/lib/results/printDocument.php`), doc rendered with option flags (`toc=n`, `req_scope=y`…) | PASS (link switch in `printReqSpec.html`) |
-| 11 | 404/403/400 error paths in screen | navigate `id=9999`; no-rights user; stale project id | Error banner shown, Print disabled, iframe hidden; exact i18n text | PASS |
-| 12 | Console clean | Browser console during all flows | No JS errors from screen/BFF (only the expected 403/404 resource logs of the error-path tests) | PASS |
-| 13 | Events / Event Viewer | Diff `events` (log_level 1/2) after suite | Only INFO/AUDIT (login, project create/delete from fixture); the two legacy Event rows (E_WARNING + SQL 1064 `get_by_id(21)`) were produced by the PRE-fix BFF edge case — root cause fixed in `88672f945`, re-test leaves none | PASS |
-| 14 | i18n bundles integrity | `python3 -m json.tool` all 10 bundles + grep `pdoc.*` | All valid JSON; every bundle carries 13 `pdoc.*` keys | PASS (10/10, 13 keys) |
-
-**Result: 14/14 PASS** (2026-08-30, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1 + admin + pdguest sessions; verified at commits
-`ee1dcb694` (i18n+link switch), `7d6ba6da0` + `64f69dbf1` (TOC/anchor fixes),
-`88672f945` (BFF 404 edge) of branch `sebiboga`). Screenshots:
-`docs/screenshots/pdoc-main.png`, `pdoc-full.png`, `pdoc-projectlevel.png`,
-`pdoc-err404.png`, `pdoc-entry-tree.png`.
+### TC-66.10: No PHP Warnings / Event Viewer Clean
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** App reachable; admin logged in to check events.
+- **Steps:**
+  1. Perform TC-66.5 sign-up then check Event Viewer.
+     *Expected:* No new Error/Warning entries attributed to the Sign-Up screen.
 
 ---
 
-## Suite 69 — Regression — Issue #793: Execute Tests — "Save & move to next" navigation missing
+## 67. Modernization — Lost Password / Password Reset Screen (lostPassword.html) (Suite ID: 67)
 
-**Date:** 2026-08-31 · **Branch:** `fix/issue-793` ·
-**Root cause:** the modernized `execTest.html` `renderForm()` save-row rendered
-only Save execution + Reset; the 1.9.20 toolbar buttons `btn_save_exec_and_movetonext`
-(Save and move to next) and `btn_next` (Next, move without saving) were dropped in
-the #662 rewrite. The BFF `init` also never surfaced `exec_mode->save_and_move`,
-so the UI could not honor the navigation mode.
-**Fix:** (1) BFF `api/execute/index.php` `init` now returns `save_and_move`
-(from `config_get('exec_cfg')->exec_mode->save_and_move`, fallback `'unlimited'`,
-legacy config.inc.php:1119). (2) `execTest.html`: extracted `visibleItems()` (same
-filter predicate as `renderList()`); added `saveAndMoveMode()`, `execNextTarget()`
-(cyclical successor in the visible list; `'limited'` mode stays within the same
-`tsuite_path`) and `moveToNext()` (legacy `move2next`, no save); `saveExecution('next')`
-saves then `loadList()` + `openCase(nextTarget)`. Save-row now shows **Save execution ·
-Save and move to next · Next · Reset** (read-only disabled like existing pair).
-(3) i18n: `exe.saveAndMoveNext` / `exe.moveToNext` / `exe.noNextCase` added to all 10
-bundles (legacy `locale/*/strings.txt` translations where present).
-Note: the legacy **bulk** results grid is a testsuite-level feature
-(`can_use_bulk_op = ($args->level == 'testsuite')`); the modern flat-list screen has
-no testsuite view — scoped OUT of this fix.
+**Area:** modernized "Lost password?" screen (tracking issue #783). Backed by BFF action in `api/auth/index.php`.
+**Status:** EXECUTED — 6 PASS, 1 N/A (external pwd mgmt not activatable in this config).
 
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
-`php tmp/fixtures_793.php` → tproject 1 (EXE793), tplan 19 (Plan793), open build 1
-(B793), 5 TCs linked: Case A1-A3 (Suite Alpha), Case B1-B2 (Suite Beta), no executions.
-Screen BFF: `api/execute/index.php` (`?action=init|tcList|tcDetails|save`).
+- TC-67.1: **PASS** — "Lost password?" link on login opens `lostPassword.html`.
+- TC-67.2: **PASS** — User ID field + "Send" button present/required.
+- TC-67.3: **PASS** — unknown user → safe `bad_user`; stays on screen; no leak.
+- TC-67.4: **PASS** — `t_x` reset: audit `PWD_RESET` logged, MailDev email with new password to registered address, redirect to login (DONE state shows note). Robust try/catch added so misconfigured mail returns clean JSON (not a 500).
+- TC-67.5: **N/A** — `externalPasswordMgmt=false` in this config; code path exists but needs SSO/LDAP to activate.
+- TC-67.6: **PASS** — "Back to login" → `login.html`.
+- TC-67.7: **PASS** — `events` table: only informative `PWD_RESET` entries; no Error/Warning from Lost Password screen.
 
-| # | Test | Steps | Expected | Result |
-|---|------|-------|----------|--------|
-| 1 | BFF exposes mode | `GET /api/execute/?action=init&tplan_id=19&tproject_id=1` | JSON has `save_and_move:"unlimited"` (default config.inc.php:1119) | PASS |
-| 2 | Buttons rendered | Open execTest, pick Case A1 | Save-row = Save execution · Save and move to next · Next · Reset (4 buttons); labels localized via `data-i18n` | PASS |
-| 3 | Save & move to next | Pick Passed on Case A1 → click "Save and move to next" | Toast saved; `executions` gets 1 row (tcversion 5, status p); form auto-advances to Case A2 (successor in list); list shows A1 PASSED | PASS |
-| 4 | Move-to-next WITHOUT saving | On Case A2 click "Next" | Opens Case A3; `executions` still 1 row (A2 NOT written) | PASS |
-| 5 | Unlimited wrap-around | From Case A3 click Next repeatedly (A3→B1→B2) | Cycle A3→B1→B2→A1 (whole visible list, wraps) | PASS |
-| 6 | Limited mode scoped to suite | Override `initData.save_and_move='limited'`; successors across all 5 cases | A1→A2→A3→A1 and B1→B2→B1 (never crosses suite boundary) | PASS |
-| 7 | Search-filtered navigation | Search "Case B"; Next from B1 | Navigates only within visible (filtered) set: B1→B2; wrap B2→B1 | PASS |
-| 8 | Read-only guards | Code review of buttons + roMode gate (same `disabled` pattern as Save/Reset, verified in #795/#796) | Buttons disabled / no navigation in `ro_access` mode; `save` BFF still 403 for no `testplan_execute` | PASS (code review) |
-| 9 | i18n bundles integrity | `python3 -m json.tool` all 10 bundles + grep 3 exe.* keys | All valid JSON; `exe.saveAndMoveNext/moveToNext/noNextCase` in 10/10 bundles | PASS |
-| 10 | Plain Save unchanged | Pick Case B2 → Passed → "Save execution" | Toast saved; stays on Case B2 (no navigation); executions += 1 | PASS |
-| 11 | not_run save-and-move advances | On Case A2 (Not Run default active) click "Save and move to next" | Toast "Not Run results are not recorded"; form ADVANCES to Case A3 (legacy execSetResults.php:241 navigates regardless of persistence); `executions` unchanged | PASS |
-| 12 | Event Viewer / events | Diff `events` table after suite | No new Error/Warning rows (only INFO level-16 AUDIT: login + executions) | PASS |
+### TC-67.1: Lost Password Screen Opens from Login "Lost password?" Link
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Login page open; lost-password is available (not external password mgmt / demo mode).
+- **Steps:**
+  1. Open login page.
+     *Expected:* "Lost password?" link is visible.
+  2. Click the "Lost password?" link.
+     *Expected:* Navigates to modern Lost Password screen (`.html`), Dashio card with logo, input, version + GitHub footer.
 
-**Result: 12/12 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1). Screenshots:
-`tmp/issue-793-repro-before.png` (before: only Save execution + Reset),
-`tmp/issue-793-save-and-next-after.png` (after: 4-button save-row).
+### TC-67.2: Input Field for User ID / Email Present
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Lost Password screen open.
+- **Steps:**
+  1. Verify an input field for the account (login) and a "Send" / "Request password reset" button.
+     *Expected:* Present, required, correct maxlength, i18n placeholder.
 
-## Suite 70 — Regression — Issue #779: execSetResults.php 4x E_WARNING 'Undefined property: stdClass::$issuetype/issuepriority/version/component' on every tracker-connected exec render
+### TC-67.3: Unknown User Shows "Bad User" Note (no leak)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Lost Password screen open; `nonexistent999` not a user.
+- **Steps:**
+  1. Enter a non-existent login and submit.
+     *Expected:* A safe "bad user" / "user not found" message (i18n); no further processing; user stays on screen.
 
-**Bug:** `initializeGui()` in `lib/execute/execSetResults.php` (else-branch for `editIssueAttr != 1`) dereferenced `$itsCfg->{issuetype,issuepriority,version,component}` where `$itsCfg = $issueTracker->getCfg()`. Trackers like mantis/db whose cfg only declares db/uri keys lack all 4 properties → one `E_WARNING` each (log_level=2) on EVERY render. The guard `null != $gui->issueTrackerMetaData` (exec.inc.php:944) never helps: `getIssueTrackerMetaData()` always returns a non-null array with null members when the tracker has no relevant method.
-**Fix (commit f18c27b53):** guarded each dereference with `property_exists($itsCfg, $kj)` (single values fall back to `''`, multi to `[]`) and gated the whole block on `isset($itsCfg)` so an unconnected-but-present tracker never fatals an undefined variable. Trackers that DO define the attributes (jira REST/SOAP) keep receiving their values — `property_exists` true ⇒ identical assignment.
-**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture: `php tmp/fixtures_627.php` → TRACK627 (tproject 1) + mantis/db tracker MANTIS627 (id 1; cfg = db/uri only), TC627-A (testcase 3 / tcversion 4), PLAN627 (11), build B1 (id 1). `TRUNCATE events` before each case.
+### TC-67.4: Valid User Requests Reset → Redirect to Login with Note
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** A real user exists; mail transport may be unset/stubbed.
+- **Steps:**
+  1. Enter an existing user login and submit.
+     *Expected:* Reset is requested (audit event logged), then redirect to `login.php?note=lost&viewer=...`; success note shown on login.
+  2. Confirm DB/audit: `PWD_RESET` event + no E_WARNING (mail address empty handled correctly).
 
-- **TC-779-1: tracker-connected render → ZERO new E_WARNING (primary)**
-  - Steps: `TRUNCATE events;` open `http://localhost:8082/lib/execute/execSetResults.php?version_id=4&level=testcase&id=3&tplan_id=11&build_id=1&platform_id=0&caller=exec_feature`; then `SELECT id,log_level,description FROM events ORDER BY id DESC;`.
-  - Expected (pre-fix): 4 rows log_level=2 — `Undefined property: stdClass::$issuetype/:issuepriority Line 1665`, `::$version/:$component Line 1675`.
-  - Expected (**post-fix**): `events` empty (0 rows); page renders "Test Results on Build B1", plan/build, step inputs + Passed selects, notes, Save, "Move to Next Test Case".
-  - Actual: **PASS** (events=0 after reload; full render confirmed).
+### TC-67.5: External Password Management Path
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Auth method external (SSO/LDAP) so password mgmt not internal.
+- **Steps:**
+  1. Load Lost Password screen for an existing user whose auth method uses external password mgmt.
+     *Expected:* Message "Password management is external" (or per-user feedback) shown; no reset form submitted internally.
 
-- **TC-779-2: jira-style tracker (attrs present) — values still flow**
-  - Steps: logic harness `$itsCfg = (object)['issuetype'=>1,'issuepriority'=>2,'version'=>[11,12],'component'=>[21,22]]` through the fixed block.
-  - Expected: `issueType=1, issuePriority=2, artifactVersion=[11,12], artifactComponent=[21,22]` (unchanged from pre-fix).
-  - Result: **PASS**.
+### TC-67.6: "Back to Login" Link Works
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Lost Password screen open.
+- **Steps:**
+  1. Click "Back to login" link.
+     *Expected:* Navigates to the login page.
 
-- **TC-779-3: mantis/db tracker (attrs absent) — safe defaults, no warning**
-  - Steps: logic harness `$itsCfg = (object)[]` through the fixed block.
-  - Expected: `issueType='', issuePriority='', artifactVersion=[], artifactComponent=[]`, no warnings.
-  - Result: **PASS**.
-
-- **TC-779-4: no tracker / tracker not connected — no fatal**
-  - Steps: `$issueTracker=null` ⇒ `issueTrackerMetaData=null` block fully skipped; unconnected-but-present tracker ⇒ `isset($itsCfg)` false ⇒ block skipped.
-  - Expected: render proceeds, no undefined-variable fatal.
-  - Result: **PASS** (code path verified; primary render already confirms healthy path).
-
-- **TC-779-5: Event Viewer — no new Error/Warning after suite**
-  - Steps: `SELECT id,description FROM events ORDER BY id;` at suite end.
-  - Expected: zero log_level=2 rows.
-  - Result: **PASS** (0 rows).
-
-**Result: Suite 70 — 5/5 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 + MariaDB testlink @127.0.0.1).
+### TC-67.7: No PHP Warnings / Event Viewer Clean
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** App reachable; admin logged in to check events.
+- **Steps:**
+  1. Perform TC-67.4 then check Event Viewer / `events` table.
+     *Expected:* No new Error/Warning entries attributed to the Lost Password screen.
 
 ---
 
-## Suite 783 — Lost Password / Password Reset modernized screen (#783)
+## 68. Modernization — Code Review Fixes for Auth Screens (Suite ID: 68)
 
-**Scope:** `gui/templates/auth/lostPassword.html` + BFF `POST /api/auth/reset` (with
-`GET /api/auth/config`). Successor of the legacy `lostPassword.php` Smarty page.
-Reached from the modern login via the **Lost password?** link
-(`login.html:177` → `lostPassword.html`). Pre-authentication public screen;
-`POST` protected by the shared same-origin CSRF guard (`api/_guard.php`).
-i18n via `TLi18n` `auth.*` keys present in all 10 locale bundles.
+**Area:** BFF `api/auth/index.php` + `gui/templates/auth/{login,firstLogin,lostPassword}.html`.
+**Purpose:** Regression coverage for the three bugs surfaced during the code review subagent pass (AGENTS #16): reset user enumeration (#784), signup-under-external-password-management (#785), and hardcoded i18n OAuth/tooltip strings (#786).
+**Status:** EXECUTED (partial) — TC-68.1/68.3/68.6/68.7 PASS; TC-68.5 needs OAuth browser check; TC-68.2/68.4 need external-password config (N/A in current config).
 
-**Precondition:** Fresh DB (MariaDB testlink @127.0.0.1), app @ http://localhost:8082
-(docroot = repo root), `config.inc.php`: `user_self_signup = TRUE`, SMTP/from_email
-unconfigured (`[from_email_not_configured]`). No fixtures needed (pre-auth screen).
+- TC-68.1: **PASS** (curl) — unknown (`no_such_user_xyz999`), existing (`admin`), and empty login all return identical `{"status":"ok","success":true}`.
+- TC-68.3: **PASS** (curl) — happy path success; mismatch `passwd_dont_match`; missing fields `auth.requiredFields`.
+- TC-68.6: **PASS** (browser) — GitHub link tooltip resolves from `auth.githubRepoTip` via `data-i18n-title` ("TestLink Upgraded source code" in en; no hardcoded `title=`).
+- TC-68.7: **PASS** — `php -l` clean; reset without `X-Requested-With` returns CSRF Forbidden.
 
-| # | Test | Steps | Expected | Actual | Verdict |
-|---|------|-------|----------|--------|---------|
-| 1 | Screen renders with i18n labels | Open `gui/templates/auth/lostPassword.html` in headless Chrome | Title "Lost Password", note "…email you a new password.", field "User ID" (required), button "Send", "Back to login" → `login.html`, version footer + GitHub link | All rendered (CDP snapshot) | PASS |
-| 2 | Empty submit is blocked | Click **Send** with empty field | HTML5 `required` validation; no request fired | Browser alert "Please fill out this field." | PASS |
-| 3 | Unknown login — enumeration-safe generic success | Type `ghostuser_nonexistent`, click **Send** | Generic info box "If this user exists…", then redirect to `login.html?note=lost` (~1.2s) | Info shown; URL became `login.html?note=lost` | PASS |
-| 4 | Existing local user (admin) — no 500 with mail unconfigured | Type `admin`, click **Send** | Same generic success body; no HTTP 500; temp password NOT persisted (SMTP absent ⇒ `writePasswordToDB` skipped) | Generic success shown; admin password unchanged in DB; no PWD_RESET event | PASS |
-| 5 | Redirect target shows the recovery note | After redirect, login page URL `?note=lost` | Note "Password recovery completed." rendered on the sign-in form | Rendered (snapshot) | PASS |
-| 6 | Login-page links | Snapshot login.html | "New user? Create account" → `firstLogin.html`; "Lost password?" → `lostPassword.html` | Both point at the modern `.html` screens | PASS |
-| 7 | BFF config route | `GET /api/auth/config` | `selfSignup=true`, `externalPasswordMgmt=false`, `loginDisabled=0`, `oauth=[]`, `ssoEnabled=false`, `pwdMaxLen=40` | Verified via curl/CDP | PASS |
-| 8 | CSRF guard on reset | `curl -X POST -d login=admin /api/auth/reset` (no same-origin proof) | HTTP 403 `Forbidden: missing or mismatched same-origin proof (CSRF protection)` | 403 body returned | PASS |
-| 9 | i18n completeness | grep `auth.passwdResetTitle/passwordResetNote/loginName/btnSend/linkBackToLogin/version/githubRepoTip/requiredResetUser/resetInProgress/resetSent/networkError` in all bundles | Each key in all 10 bundles; all `*.json` valid | 11/11 keys × 10 bundles, JSON valid | PASS |
-| 10 | Event Viewer / `events` after suite | `SELECT id,log_level,description FROM events` at suite end | No new Error/Warning (log_level ≤ 4) rows attributable to the screen | 0 new rows (guest 401 fetch on login page is pre-existing, not DB-logged) | PASS |
+### TC-68.1: Reset Returns Generic Success for Unknown User (#784)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** BFF reachable; `no_such_user_xyz999` is not a user.
+- **Steps:**
+  1. `curl` (or browser) `POST /api/auth/reset` with `login=no_such_user_xyz999` and a same-origin `X-Requested-With: XMLHttpRequest` header.
+     *Expected:* Response body is `{"status":"ok","success":true}` — NOT `bad_user` or any existence-distinguishing message.
+  2. Repeat for an existing login (e.g. `admin`) and for an empty login.
+     *Expected:* All three return the IDENTICAL generic success body; no `bad_user`/`mail_empty_address`/`externalMgmt` oracle distinguishes them.
+- **Result:** PENDING
 
-**Result: Suite 783 — 10/10 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 +
-MariaDB testlink @127.0.0.1). Screenshots: `tmp/lostpw_01_default.png`,
-`tmp/lostpw_02_success.png`, `tmp/lostpw_03_login_note.png`.
+### TC-68.2: Reset Never Exposes Auth Method / Email State (#784)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** An existing user on a non-external auth method exists; a user with external password mgmt exists (if such a user/config can be provisioned) OR is simulated.
+- **Steps:**
+  1. Submit reset for a valid internal-auth user.
+     *Expected:* Generic success; no `password_mgmt_is_external` / `externalMgmt:true` field leaked.
+  2. If an external-auth user is available, submit reset for it.
+     *Expected:* Also generic success (`true`), never a distinct reason; server may log the difference internally.
+- **Result:** PENDING
 
-Notes:
-- Legacy `lostPassword.php` is intentionally left as a fallback (direct hits still
-  render the Smarty page); the app no longer links to it.
-- `resetPassword()` (lib/functions/users.inc.php:167) only persists the generated
-  password after `email_send` succeeds — with SMTP unconfigured nothing is
-  written, so no user's password is silently invalidated by a broken mail setup.
+### TC-68.3: Signup Still Validates Normally Under Internal Password Mgmt (#785)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Default config; password management internal.
+- **Steps:**
+  1. Sign up with a valid unique login and two identical strong passwords.
+     *Expected:* `{"status":"ok","success":true}`; user created.
+  2. Sign up with mismatched passwords.
+     *Expected:* `passwd_dont_match`; no user created.
+  3. Sign up with missing required fields.
+     *Expected:* `auth.requiredFields`; no user created.
+- **Result:** PENDING
+
+### TC-68.4: Signup Succeeds Without Local Password Under External Password Mgmt (#785)
+- **Priority:** Medium
+- **Importance:** High
+- **Preconditions:** External password management active (simulate via config override if possible, e.g. temporary `custom_config.inc.php`, then revert). The Sign-Up page hides the password fields.
+- **Steps:**
+  1. Load the modern Sign-Up screen; confirm Password / Repeat Password fields are hidden.
+  2. Fill login / first / last / email and submit (no password submitted).
+     *Expected:* User is created successfully (no `E_PWDEMPTY` / "empty password" failure).
+  3. Revert the external-password override afterwards and re-run TC-68.3 steps 1-3.
+     *Expected:* Normal password validation is intact again.
+- **Result:** PENDING
+
+### TC-68.5: "Login with" OAuth Label Is Localized (#786)
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** At least one OAuth provider configured in `issuetrackers` with `oauth` enabled so `GET /api/auth/config` returns `c.oauth.length > 0`.
+- **Steps:**
+  1. Open `login.html` and render the OAuth row.
+     *Expected:* The button label is `TLi18n.t('auth.loginWith')` + provider name (e.g. `Login with GitHub` in en), not a raw hardcoded `'Login with '` prefix.
+  2. Switch locale (e.g. `ro`).
+     *Expected:* The prefix re-renders as `Autentificare cu` (from `auth.loginWith`), confirming it is keyed.
+- **Result:** PENDING
+
+### TC-68.6: GitHub Link Tooltip Is i18n (`auth.githubRepoTip`) (#786)
+- **Priority:** Low
+- **Importance:** Medium
+- **Preconditions:** Any auth page open.
+- **Steps:**
+  1. Open `login.html`, `firstLogin.html`, or `lostPassword.html` and hover the GitHub repo link.
+     *Expected:* Tooltip shows the localized `auth.githubRepoTip` value (e.g. `TestLink Upgraded source code` in en), set via `data-i18n-title`.
+  2. Switch locale.
+     *Expected:* Tooltip text re-renders localized; a11y snapshot shows the translated `title`.
+- **Result:** PENDING
+
+### TC-68.7: BFF Reset Route Lint-Clean and CSRF-Protected (#784)
+- **Priority:** Medium
+- **Importance:** Medium
+- **Preconditions:** Source tree available.
+- **Steps:**
+  1. Run `php -l api/auth/index.php`.
+     *Expected:* No syntax errors.
+  2. `POST /api/auth/reset` WITHOUT the same-origin proof header (`X-Requested-With` / Origin / Referer).
+     *Expected:* `{"status":"error","message":"Forbidden: missing or mismatched same-origin proof (CSRF protection)"}` — cross-site callers are blocked.
+- **Result:** PENDING
+
+### TC-69.1: Execute Tests — Execution Duration (Execution Time) Field Present and Saved (#788)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** `exec_cfg->features->exec_duration->enabled = true` (default); open Test Case Execution -> Execute Tests on a test plan with a linked TC.
+- **Steps:**
+  1. Open a test case in the Execute Tests screen (`execTest.html`).
+     *Expected:* a numeric **Execution Time / Duration** input alongside status (legacy `inc_exec_controls.tpl:44-51`), since the feature is enabled.
+     *Actual:* **NO execution-duration field is present** anywhere in the detail panel (only status buttons, Execution notes, Steps, Save/Reset).
+  2. Fill a duration and save.
+     *Expected:* `executions.execution_duration` is persisted (legacy `exec.inc.php:147` + config); duration shown in history/results.
+     *Actual:* `api/execute/index.php` `save` never reads or writes `execution_duration` — the field and persistence are missing entirely.
+- **Result:** **FAIL** (regression, refs GitHub bug #788)
+
+### TC-69.2: Execute Tests — "Report Bug into BTS" / GitHub Bug Filing & Linking Available Through the UI (#789)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** An issue tracker (GitHub) configured (`exec_cfg->features->issue_tracker->enabled`); open Execute Tests on a test plan with a linked TC.
+- **Steps:**
+  1. Open a test case, set result **Failed**, look for a bug-reporting control.
+     *Expected:* a **"Report bug into BTS"** section (bug summary + description, `bug_create_into_bts` / `bug_copy_from_latest_exec` toggles) per legacy `inc_exec_controls.tpl:60-177`.
+     *Actual:* **no bug / tracker / GitHub control exists** in the detail panel — a bug cannot be filed or linked through the UI.
+  2. Try to link the GitHub issue (e.g. #788) to the execution.
+     *Expected:* an `execution_bugs` row links execution → bug id and the bug shows in `execHistory.html` (Bugs block).
+     *Actual:* no UI and no BFF action to create/link a bug (`api/execute`, `api/trackers`, `api/issuetracker` are read-only) — cannot be done through the UI.
+- **Result:** **FAIL** (regression, refs GitHub bug #789)
+
+### TC-69.3: Execute Tests — Bug Linkable to a Specific STEP (per-step bug, tcstep_id) (#789)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Issue tracker (GitHub) configured, `exec_cfg->features->issue_tracker->enabled`; Execute Tests on a test plan with a linked multi-step TC.
+- **Steps:**
+  1. Open a multi-step test case in the Execute Tests screen; for **one specific step**, try to attach/link the GitHub issue (e.g. #789).
+     *Expected:* a per-step bug control (summary/description and/or "link bug id") on each step row (legacy `execSetResults.php` `issueSummaryForStep`, `bugAdd.php` passing `tcstep_id`).
+     *Actual:* no per-step bug control exists — a bug cannot be linked to a step through the UI.
+  2. Save execution and open `execHistory.html`.
+     *Expected:* each linked bug shows with its `step_number`, via `execution_bugs.tcstep_id` joined to `tcsteps` (legacy `exec.inc.php:431-456`).
+     *Actual:* no bug linkage at all (execution or step level) is created through the modernized screen.
+  3. Confirm the DB would store step binding.
+     *Expected:* `write_execution_bug($db,$execId,$bugId,$tcstepId)` writes `execution_bugs (execution_id, tcstep_id, bug_id)`.
+     *Actual:* BFF `api/execute/index.php` has no bug action, so no such row can be created from the UI.
+- **Result:** **FAIL** (regression, refs GitHub bug #789 — per-step linkage missing)

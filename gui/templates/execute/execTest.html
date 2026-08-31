@@ -594,6 +594,26 @@ function renderForm() {
     $(this).addClass('active');
   });
   resetFormInputs(true);
+  deriveOverallStatus();
+}
+
+// Derive the OVERALL result (Passed/Failed/Blocked) from the per-step statuses:
+//  - any step Failed  -> overall Failed
+//  - else any step Blocked -> overall Blocked
+//  - else every step Passed (or no steps) -> overall Passed
+//  - otherwise (some steps Not Run) -> leave overall unspecified (tester decides)
+function deriveOverallStatus() {
+  if (roMode) return;
+  var steps = $('.step-status').map(function () { return this.value; }).get();
+  if (steps.length === 0) return;
+  var setOverall = function (code) {
+    $('.st-btn').removeClass('active');
+    $('.st-btn[data-code="' + code + '"]').addClass('active');
+  };
+  if (steps.indexOf('f') !== -1) { setOverall('f'); return; }
+  if (steps.indexOf('b') !== -1) { setOverall('b'); return; }
+  if (steps.every(function (v) { return v === 'p'; })) { setOverall('p'); return; }
+  $('.st-btn').removeClass('active');
 }
 // keepPast: true on first render (restore the recorded prior step results,
 // like the legacy form), false when the user presses Reset
@@ -839,6 +859,9 @@ function savePartialSteps() {
   .fail(function (xhr) { toast(apiErr(xhr, 'exe.errSave'), true); })
   .always(function () { $btn.prop('disabled', false); });
 }
+
+// Re-derive the overall PASS/FAIL/BLOCKED whenever a step status changes
+$(document).on('change', '.step-status', deriveOverallStatus);
 </script>
 </body>
 </html>

@@ -1,20 +1,21 @@
 <?php
 /**
- * Dashboard (Home / Main Page) BFF API
+ * Dashboard (main page) BFF API
  * URL: /api/mainpage/
- * Plain PHP, no framework, no compilation.
+ * Plain PHP, no framework, no compilation
  *
- * Mirrors lib/general/mainPage.php (TestLink 1.9.20) dashboard widgets:
- *  - execution status totals (passed/failed/blocked/not_run) for the selected
- *    test plan, with the overall completion percentage
- *  - monthly test case growth (project-scoped, last 12 months)
- *  - bugs that testers attached to executions of the current test plan
- *  - all open issues on the project's linked issue tracker (project-wide)
- * plus the list of test plans accessible to the user for the project selector.
+ * Supplies all the widgets of the modernized Dashboard:
+ *   - execution status pie (passed/failed/blocked/not run totals)
+ *   - monthly test case growth bar chart
+ *   - bugs linked to executions of the selected plan
+ *   - project-wide open issues from the linked tracker (with labels)
+ *
+ * Backs gui/templates/mainpage/mainPage.html.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
+require_once('users.inc.php');
 
 doSessionStart();
 
@@ -40,37 +41,98 @@ if (is_null($user)) {
     exit;
 }
 
-function out($data) { echo json_encode($data); exit; }
+$path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$path = preg_replace('#^/api/mainpage(/index\.php)?#', '', $path);
+$path = '/' . trim($path, '/');
+$method = $_SERVER['REQUEST_METHOD'];
+$segments = array_values(array_filter(explode('/', $path)));
 
-function resolveContext() {
-    $tid = intval($_GET['tproject_id'] ?? 0);
-    if ($tid <= 0) {
-        $tid = intval($_SESSION['testprojectID'] ?? 0);
-    }
-    $tpid = intval($_GET['tplan_id'] ?? 0);
-    if ($tpid <= 0) {
-        $tpid = intval($_SESSION['testplanID'] ?? 0);
-    }
-    return array('tproject_id' => $tid, 'tplan_id' => $tpid);
-}
+function out($data) { echo json_encode($data); exit; }
+function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 
 /**
- * Execution status totals for the selected test plan, grouped by top-level
- * test suite and summed across platforms (mirrors getDashboardData()).
- * Returns null when there is nothing to draw (no project/plan, no builds, a
- * plan with no executed cases).
+ * The modern screens pick a language through TLi18n (short code: 'ro'), which
+ * is independent of $_SESSION['locale'] driving the Smarty pages. Map the
+ * short code onto a TestLink locale so every label we translate (status
+ * names, widget titles) matches the language the page renders in.
  */
-function dashboardData(&$db, $tprojectID, $tplanID) {
+function assignLocale() {
+    $short = preg_replace('/[^a-z]/', '', strtolower((string) getParam('locale', '')));
+    if ($short === '' || strlen($short) !== 2) {
+        return null;
+    }
+    foreach (array_keys((array) config_get('locales')) as $code) {
+        if (strpos(strtolower($code), $short) === 0) {
+            return $code;
+        }
+    }
+    return null;
+}
+
+$tprojectID = intval(getParam('tproject_id', 0));
+if ($tprojectID <= 0) {
+    $tprojectID = intval($_SESSION['testprojectID'] ?? 0);
+}
+$tplanID = intval(getParam('tplan_id', 0));
+if ($tplanID <= 0) {
+    $tplanID = intval($_SESSION['testplanID'] ?? 0);
+}
+
+$lang = assignLocale();
+$lbl = function($key) use ($lang) {
+    return lang_get($key, $lang);
+};
+
+// Route: GET / - full dashboard widget payload
+if ($method === 'GET' && empty($segments)) {
+    $tprojectMgr = new testproject($db);
+    $tprojectInfo = null;
+    if ($tprojectID > 0) {
+        $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
+    }
+
+    $dashboard = getDashboardData($db, $tprojectID, $tplanID, $lbl);
+    $tcGrowth = getTestCaseGrowthData($db, $tprojectID);
+    $bugsInfo = getBugsTestedData($db, $tprojectID, $tplanID, $lbl);
+    $projectIssues = getProjectIssuesData($db, $tprojectID);
+
+    out([
+        'status' => 'ok',
+        'tproject' => [
+            'id' => $tprojectID,
+            'name' => is_array($tprojectInfo) ? ($tprojectInfo['name'] ?? '') : '',
+        ],
+        'tplan_name' => (string) ($_SESSION['testplanName'] ?? ''),
+        'hasTestCases' => ($tprojectID > 0) ? ($tprojectMgr->count_testcases($tprojectID) > 0) : false,
+        'dashboard' => $dashboard,
+        'tcGrowth' => $tcGrowth,
+        'bugsInfo' => $bugsInfo,
+        'projectIssues' => $projectIssues,
+    ]);
+}
+
+http_response_code(404);
+out(['status' => 'error', 'message' => 'Not found']);
+
+/**
+ * Execution status counters for the dashboard pie + status table.
+ *
+ * Mirrors lib/general/mainPage.php::getDashboardData(). Returns null when
+ * there is nothing worth drawing (no project, no plan, plan with no builds,
+ * or no linked test cases).
+ */
+function getDashboardData(&$dbHandler, $tprojectID, $tplanID, $lbl)
+{
     if ($tprojectID <= 0 || $tplanID <= 0) {
         return null;
     }
 
-    $tplanMgr = new testplan($db);
+    $tplanMgr = new testplan($dbHandler);
     if ($tplanMgr->getNumberOfBuilds($tplanID) == 0) {
         return null;
     }
 
-    $metricsMgr = new tlTestPlanMetrics($db);
+    $metricsMgr = new tlTestPlanMetrics($dbHandler);
     $rx = $metricsMgr->getStatusTotalsByTopLevelTestSuiteForRender($tplanID, null,
             array('groupByPlatform' => 1));
     if (is_null($rx) || !property_exists($rx, 'info') || is_null($rx->info)) {
@@ -78,9 +140,9 @@ function dashboardData(&$db, $tprojectID, $tplanID) {
     }
 
     $resultsCfg = config_get('results');
-    $dbo = array();
-    $dbo['total'] = 0;
-    $dbo['slices'] = array();
+    $dbo = new stdClass();
+    $dbo->total = 0;
+    $dbo->slices = array();
 
     $palette = array('passed' => '#4ECDC4', 'failed' => '#e6605e',
                      'blocked' => '#f0ad4e', 'not_run' => '#8f8f8f');
@@ -98,70 +160,97 @@ function dashboardData(&$db, $tprojectID, $tplanID) {
         $lblKey = isset($resultsCfg['status_label'][$statusVerbose])
                   ? $resultsCfg['status_label'][$statusVerbose] : $statusVerbose;
 
-        $dbo['slices'][$statusVerbose] = array(
-            'qty' => $qty, 'percentage' => 0, 'color' => $color,
-            'label' => lang_get($lblKey),
-        );
-        $dbo['total'] += $qty;
+        $dbo->slices[$statusVerbose] = array('qty' => $qty, 'percentage' => 0,
+                                             'color' => $color,
+                                             'label' => $lbl($lblKey));
+        $dbo->total += $qty;
     }
 
-    if ($dbo['total'] == 0) {
+    if ($dbo->total == 0) {
         return null;
     }
 
-    $executed = $dbo['total'] - $dbo['slices']['not_run']['qty'];
-    $dbo['executed'] = $executed;
-    $dbo['percentage_completed'] = number_format(100 * ($executed / $dbo['total']), 1);
+    $executed = $dbo->total - $dbo->slices['not_run']['qty'];
+    $dbo->executed = $executed;
+    $dbo->percentage_completed = number_format(100 * ($executed / $dbo->total), 1);
 
-    foreach ($dbo['slices'] as $statusVerbose => $slice) {
-        $dbo['slices'][$statusVerbose]['percentage'] =
-            number_format(100 * ($slice['qty'] / $dbo['total']), 1);
+    foreach ($dbo->slices as $statusVerbose => $slice) {
+        $dbo->slices[$statusVerbose]['percentage'] =
+            number_format(100 * ($slice['qty'] / $dbo->total), 1);
     }
 
-    $dbo['tplan_name'] = isset($_SESSION['testplanName']) ? $_SESSION['testplanName'] : '';
-    return $dbo;
+    $dbo->tplan_name = (string) getParam('tplan_name', '');
+    if ($dbo->tplan_name === '' && isset($_SESSION['testplanName'])) {
+        $dbo->tplan_name = (string) $_SESSION['testplanName'];
+    }
+
+    // Rebuild as an assoc array for JSON (labels already translated).
+    $slicesOut = array();
+    foreach ($dbo->slices as $statusVerbose => $slice) {
+        $slicesOut[] = array(
+            'key' => $statusVerbose,
+            'qty' => intval($slice['qty']),
+            'percentage' => $slice['percentage'],
+            'color' => $slice['color'],
+            'label' => $slice['label'],
+        );
+    }
+
+    return array(
+        'total' => intval($dbo->total),
+        'executed' => intval($dbo->executed),
+        'percentage_completed' => $dbo->percentage_completed,
+        'tplan_name' => $dbo->tplan_name,
+        'slices' => $slicesOut,
+    );
 }
 
 /**
- * Monthly test case growth, project-scoped (mirrors getTestCaseGrowthData()).
- * Returns null when the project has no test cases at all.
+ * Monthly test case growth for the bar chart widget.
+ *
+ * Mirrors lib/general/mainPage.php::getTestCaseGrowthData(). Returns null
+ * when there is no project or the project has no test cases at all.
  */
-function tcGrowthData(&$db, $tprojectID) {
+function getTestCaseGrowthData(&$dbHandler, $tprojectID)
+{
     if ($tprojectID <= 0) {
         return null;
     }
 
-    $tprojectMgr = new testproject($db);
+    $tprojectMgr = new testproject($dbHandler);
     $monthly = $tprojectMgr->getTestCaseCreationMonthly($tprojectID, 12);
 
-    if (is_array($monthly) && array_sum($monthly) == 0) {
-        return null;
-    }
-    if (!is_array($monthly) || count($monthly) == 0) {
+    if (array_sum($monthly) == 0) {
         return null;
     }
 
-    $gx = array('labels' => array(), 'values' => array(), 'total' => 0, 'peak' => 0);
+    $labels = array();
+    $values = array();
+    $total = 0;
+    $peak = 0;
     foreach ($monthly as $yearMonth => $qty) {
-        $gx['labels'][] = date('M y', strtotime($yearMonth . '-01'));
-        $gx['values'][] = (int)$qty;
-        $gx['total'] += (int)$qty;
-        $gx['peak'] = max($gx['peak'], (int)$qty);
+        $labels[] = date('M y', strtotime($yearMonth . '-01'));
+        $values[] = $qty;
+        $total += $qty;
+        $peak = max($peak, $qty);
     }
 
-    return $gx;
+    return array('labels' => $labels, 'values' => $values,
+                 'total' => $total, 'peak' => $peak);
 }
 
 /**
- * Bugs linked to executions of the current test plan (mirrors
- * getBugsTestedData()). Returns null when no bugs are linked.
+ * Bugs linked to executions of the current test plan, one row per bug.
+ *
+ * Mirrors lib/general/mainPage.php::getBugsTestedData().
  */
-function bugsData(&$db, $tprojectID, $tplanID) {
+function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
+{
     if ($tprojectID <= 0 || $tplanID <= 0) {
         return null;
     }
 
-    $tplanMgr = new testplan($db);
+    $tplanMgr = new testplan($dbHandler);
     $rows = $tplanMgr->getAllExecutionsWithBugs($tplanID);
 
     if (empty($rows)) {
@@ -178,10 +267,10 @@ function bugsData(&$db, $tprojectID, $tplanID) {
     }
 
     $its = null;
-    $tprojectMgr = new testproject($db);
+    $tprojectMgr = new testproject($dbHandler);
     $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
     if (!empty($tprojectInfo['issue_tracker_enabled'])) {
-        $itMgr = new tlIssueTracker($db);
+        $itMgr = new tlIssueTracker($dbHandler);
         $its = $itMgr->getInterfaceObject($tprojectID);
     }
 
@@ -189,7 +278,7 @@ function bugsData(&$db, $tprojectID, $tplanID) {
 
     $dbo = array();
     foreach ($bugs as $bugID => $tcaseSet) {
-        $item = array('id' => (string)$bugID,
+        $item = array('id' => $bugID,
                       'tcases' => implode(', ', array_keys($tcaseSet)),
                       'url' => '',
                       'title' => '',
@@ -200,8 +289,8 @@ function bugsData(&$db, $tprojectID, $tplanID) {
             $issue = $its->getIssue($bugID);
             if (is_object($issue)) {
                 $item['url'] = $issue->url;
-                $item['title'] = rtrim(strtok((string)$issue->summary, "\n"), ':');
-                $item['status'] = (string)$issue->statusVerbose;
+                $item['title'] = rtrim(strtok((string) $issue->summary, "\n"), ':');
+                $item['status'] = (string) $issue->statusVerbose;
 
                 $key = strtolower($item['status']);
                 if (isset($statusColor[$key])) {
@@ -217,22 +306,22 @@ function bugsData(&$db, $tprojectID, $tplanID) {
 }
 
 /**
- * All open issues on the project's linked issue tracker (project-wide,
- * mirrors getProjectIssuesData()). Only trackers exposing listIssues() are
- * supported; for all others the widget is absent (null).
+ * ALL open issues on the project's linked issue tracker, independent of the
+ * selected test plan. Mirrors lib/general/mainPage.php::getProjectIssuesData().
  */
-function projectIssuesData(&$db, $tprojectID) {
+function getProjectIssuesData(&$dbHandler, $tprojectID)
+{
     if ($tprojectID <= 0) {
         return null;
     }
 
-    $tprojectMgr = new testproject($db);
+    $tprojectMgr = new testproject($dbHandler);
     $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
     if (empty($tprojectInfo['issue_tracker_enabled'])) {
         return null;
     }
 
-    $itMgr = new tlIssueTracker($db);
+    $itMgr = new tlIssueTracker($dbHandler);
     $its = $itMgr->getInterfaceObject($tprojectID);
     if (!is_object($its) || !method_exists($its, 'listIssues')) {
         return null;
@@ -247,8 +336,8 @@ function projectIssuesData(&$db, $tprojectID) {
 
     $dbo = array();
     foreach ($issues as $issue) {
-        $item = array('id' => (string)$issue->id,
-                      'number' => (string)$issue->number,
+        $item = array('id' => (string) $issue->id,
+                      'number' => (string) $issue->number,
                       'url' => $issue->url,
                       'title' => $issue->title,
                       'status' => $issue->state,
@@ -268,88 +357,3 @@ function projectIssuesData(&$db, $tprojectID) {
 
     return $dbo;
 }
-
-$path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = preg_replace('#^/api/mainpage(/index\.php)?#', '', $path);
-$path = '/' . trim($path, '/');
-$method = $_SERVER['REQUEST_METHOD'];
-
-if ($method === 'GET' && ($path === '/data' || $path === '' || $path === '/')) {
-    $ctx = resolveContext();
-    $tprojectID = $ctx['tproject_id'];
-    $tplanID = $ctx['tplan_id'];
-
-    if ($tprojectID <= 0) {
-        http_response_code(400);
-        out(['status' => 'error', 'message' => 'No test project selected']);
-    }
-
-    // Test plans accessible to the user on this project (for the selector +
-    // to let the page fall back to the user's default plan). A project with no
-    // accessible plans is treated as NOT accessible — the user must never
-    // read another project's data by crafting ?tproject_id=/tplan_id=.
-    $arrPlans = (array)$user->getAccessibleTestPlans($db, $tprojectID);
-    if (count($arrPlans) == 0) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'No access to this test project']);
-    }
-
-    // If the requested plan is not among the user's accessible plans for this
-    // project, fall back to the first accessible plan (mirrors the legacy
-    // mainPage.php fallback) instead of trusting the raw query value.
-    $accessibleIds = array();
-    foreach ($arrPlans as $p) {
-        $accessibleIds[] = (int)$p['id'];
-    }
-    if ($tplanID > 0 && !in_array((int)$tplanID, $accessibleIds, true)) {
-        $tplanID = (int)$arrPlans[0]['id'];
-    }
-
-    $plans = array();
-    $currentPlanName = '';
-    foreach ($arrPlans as $p) {
-        $plans[] = array('id' => (int)$p['id'],
-                         'name' => $p['name'],
-                         'selected' => ((int)$p['id'] === (int)$tplanID) ? 1 : 0);
-        if ((int)$p['id'] === (int)$tplanID) {
-            $currentPlanName = $p['name'];
-        }
-    }
-
-    $nodeMgr = new tree($db);
-    $nodeInfo = $nodeMgr->get_node_hierarchy_info($tprojectID);
-    $tprojectName = $nodeInfo ? $nodeInfo['name'] : '';
-
-    // Preserve/commit the plan to the session so the selected plan for
-    // subsequent screens matches what the dashboard shows (mirrors the
-    // session commit legacy mainPage.php did on landing).
-    if ($tplanID > 0) {
-        foreach ($arrPlans as $p) {
-            if ((int)$p['id'] === (int)$tplanID) {
-                setSessionTestPlan($p);
-                break;
-            }
-        }
-    }
-
-    $dashboard = dashboardData($db, $tprojectID, $tplanID);
-    if ($dashboard !== null) {
-        $dashboard['tplan_name'] = $currentPlanName ?: $dashboard['tplan_name'];
-    }
-
-    out(array(
-        'status' => 'ok',
-        'tproject_id' => $tprojectID,
-        'tproject_name' => $tprojectName,
-        'tplan_id' => $tplanID,
-        'tplans' => $plans,
-        'dashboard' => $dashboard,
-        'tc_growth' => tcGrowthData($db, $tprojectID),
-        'bugs' => bugsData($db, $tprojectID, $tplanID),
-        'open_issues' => projectIssuesData($db, $tprojectID),
-        'generated_on' => date('Y-m-d H:i:s'),
-    ));
-}
-
-http_response_code(404);
-out(['status' => 'error', 'message' => 'Not found']);

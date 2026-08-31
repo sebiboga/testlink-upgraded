@@ -4,125 +4,112 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
+<title data-i18n="dash.header">Dashboard</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
-
-.header {
-  background: #4ECDC4; color: #fff; padding: 14px 24px;
-  font-size: 20px; font-weight: 700; letter-spacing: 1px;
-}
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
 .header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
-
-.toolbar {
-  background: #22242a; padding: 14px 24px; display: flex; gap: 16px;
-  align-items: center; flex-wrap: wrap;
-}
-.toolbar label { color: #ccc; font-size: 13px; margin: 0; }
-.toolbar select {
-  background: #2f3239; color: #eee; border: 1px solid #444; border-radius: 4px;
-  padding: 6px 10px; font-size: 13px; min-width: 240px;
-}
-
-.section { background: #fff; border-radius: 8px; padding: 20px 24px; margin: 20px 24px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-.section h2 { margin: 0 0 18px; font-size: 16px; color: #22242a;
-  border-bottom: 2px solid #4ECDC4; padding-bottom: 8px; display: inline-block; }
-.section .sub { color: #888; font-size: 13px; margin: -10px 0 16px; }
-
-.dash-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
-.chart-box { flex: 1 1 260px; min-width: 260px; text-align: center; }
-.dash-table { flex: 1 1 340px; min-width: 340px; }
-.dash-table table { width: 100%; border-collapse: collapse; }
-.dash-table td, .dash-table th { padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 13px; }
-.dash-table td .bar { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border-radius: 2px; vertical-align: middle; }
-.dash-table tr.total td { border-top: 2px solid #ddd; border-bottom: 0; font-weight: 700; }
-
-table.dataTable thead th { background: #22242a !important; color: #fff; font-size: 13px; padding: 10px 14px; }
-table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: middle; }
-.dataTables_wrapper .dataTables_paginate .paginate_button.current {
-  background: #4ECDC4 !important; color: #fff !important; border: none !important;
-}
-.label { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: 11px; color: #fff; }
-
-.empty-note { color: #999; font-size: 14px; padding: 10px 0; }
-.user_feedback { margin: 30px 24px; background: #fcf8e3; color: #8a6d3b;
-  border: 1px solid #faebcc; border-radius: 6px; padding: 18px 24px; font-size: 14px; }
-.error_feedback { margin: 30px 24px; background: #f2dede; color: #a94442;
-  border: 1px solid #ebccd1; border-radius: 6px; padding: 18px 24px; font-size: 14px; }
-.footer { padding: 12px 24px; color: #888; font-size: 12px;
-  border-top: 1px solid #ddd; background: #fff; margin-top: 20px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.content { padding: 20px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 20px; margin-bottom: 20px; }
+.card h3 { margin: 0 0 2px 0; font-size: 16px; font-weight: 700; color: #222; }
+.card h5 { margin: 0 0 12px 0; font-size: 12px; font-weight: 400; color: #7a7a7a; border-bottom: 1px solid #c9cdd7; padding-bottom: 8px; }
+.card-title { font-size: 15px; font-weight: 700; color: #222; margin-bottom: 12px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-wrap { position: relative; max-width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 8px 14px; font-size: 13px; }
+.badge { display: inline-block; padding: 3px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; margin-right: 4px; }
+.status-table td { padding: 6px 10px; font-size: 13px; }
+.status-color { width: 14px; border-radius: 2px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.empty { color: #7a7a7a; font-size: 13px; padding: 8px 0; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
 </style>
 </head>
 <body>
 
-<div class="header"><span data-i18n="header.dashboard">Dashboard</span> <span data-i18n="header.dashboardSub">home / execution &amp; project overview</span><div id="localeSwitcher" style="float:right;"></div></div>
+<div class="header"><span data-i18n="dash.header">Dashboard</span> <span data-i18n="dash.headerSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">test plan progress and project-wide overview</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
-  <label><span data-i18n="dsh.testPlan">Test Plan:</span></label>
-  <select id="planSelect"><option data-i18n="dsh.selectPlan" value="">-- select --</option></select>
+  <span class="ctx"><span data-i18n="dash.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><span data-i18n="dash.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
 
-<div id="errorBox" class="error_feedback" style="display:none"></div>
+<div class="content">
+  <div id="loadingBox" class="card" style="text-align:center;color:#7a7a7a;"><span data-i18n="dash.loading">Loading dashboard...</span></div>
+  <div id="warnBox" class="card" style="display:none;"><span id="warnMsg" style="color:#e6605e;"></span></div>
 
-<div class="section" id="secStatus" style="display:none">
-  <h2 data-i18n="dsh.execStatus">Execution Status</h2>
-  <div class="sub" id="statusSub"></div>
-  <div class="dash-row">
-    <div class="chart-box">
-      <canvas id="execStatusPie" height="240"></canvas>
+  <div id="contentBox" style="display:none;">
+    <!-- Execution status pie + table -->
+    <div class="card" id="secExec">
+      <h3 data-i18n="dash.execPlan">Test Plan execution status</h3>
+      <h5 id="execSub"></h5>
+      <div class="grid2">
+        <div class="chart-wrap" style="height:260px;"><canvas id="execStatusPie"></canvas></div>
+        <div>
+          <table class="table status-table">
+            <tbody id="execStatusRows"></tbody>
+            <tfoot><tr>
+              <td></td>
+              <td><strong data-i18n="dash.total">Total</strong></td>
+              <td style="text-align:right;"><strong id="execTotal">0</strong></td>
+              <td></td>
+            </tr></tfoot>
+          </table>
+        </div>
+      </div>
     </div>
-    <div class="dash-table">
-      <table>
-        <tbody id="statusTableBody"></tbody>
+
+    <!-- Bugs from executions -->
+    <div class="card" id="secBugs" style="display:none;">
+      <h3 data-i18n="dash.bugsTitle">Test case bugs</h3>
+      <h5 id="bugsSub"></h5>
+      <table id="bugsTable" class="display" style="width:100%">
+        <thead>
+          <tr>
+            <th data-i18n="dash.bugId">Bug id</th>
+            <th data-i18n="dash.issueSummary">Summary</th>
+            <th data-i18n="dash.status">Status</th>
+            <th data-i18n="dash.tests">Test cases</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
       </table>
     </div>
-  </div>
-</div>
 
-<div class="section" id="secGrowth" style="display:none">
-  <h2 data-i18n="dsh.monthlyGrowth">Monthly Test Case Growth</h2>
-  <div class="sub" data-i18n="dsh.monthlyGrowthHint">Test cases created per month on this test project (last 12 months).</div>
-  <canvas id="tcGrowthBar" height="110"></canvas>
-</div>
+    <!-- Monthly test case growth bar -->
+    <div class="card" id="secGrowth" style="display:none;">
+      <h3 data-i18n="dash.monthlyGrowth">Monthly Test Case Growth on Test Project</h3>
+      <h5 data-i18n="dash.monthlyGrowthHint">based on latest test case version creation date</h5>
+      <div class="chart-wrap" style="height:240px;"><canvas id="tcGrowthBar"></canvas></div>
+    </div>
 
-<div class="section" id="secBugs" style="display:none">
-  <h2 data-i18n="dsh.testCaseBugs">Test Case Bugs</h2>
-  <div class="sub" id="bugsSub"></div>
-  <div class="table-wrap">
-    <table id="bugsTable" class="display" style="width:100%">
-      <thead>
-        <tr>
-          <th data-i18n="dsh.bugId">Bug ID</th>
-          <th data-i18n="dsh.issueSummary">Summary</th>
-          <th data-i18n="dsh.status">Status</th>
-          <th data-i18n="dsh.testCases">Test Cases</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-</div>
-
-<div class="section" id="secOpenIssues" style="display:none">
-  <h2 data-i18n="dsh.openIssues">Project Open Issues</h2>
-  <div class="sub" data-i18n="dsh.openIssuesHint">Open issues on the project linked issue tracker (project-wide backlog).</div>
-  <div class="table-wrap">
-    <table id="issuesTable" class="display" style="width:100%">
-      <thead>
-        <tr>
-          <th data-i18n="dsh.bugId">ID</th>
-          <th data-i18n="dsh.issueSummary">Summary</th>
-          <th data-i18n="dsh.labels">Labels</th>
-          <th data-i18n="dsh.status">Status</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <!-- Project open issues -->
+    <div class="card" id="secIssues" style="display:none;">
+      <h3 data-i18n="dash.openIssues">Project open issues</h3>
+      <h5 data-i18n="dash.openIssuesHint">all open issues on the project's linked issue tracker, independent of the selected test plan</h5>
+      <table id="issuesTable" class="display" style="width:100%">
+        <thead>
+          <tr>
+            <th data-i18n="dash.bugId">Bug id</th>
+            <th data-i18n="dash.issueSummary">Summary</th>
+            <th data-i18n="dash.labels">Labels</th>
+            <th data-i18n="dash.status">Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -130,163 +117,188 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: 
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/mainpage/index.php';
-var qs = new URLSearchParams(window.location.search);
-var tproject_id = qs.get('tproject_id') || '';
-var tplan_id = qs.get('tplan_id') || '';
-var STATUS_KEYS = {
-  passed: 'dsh.passed', failed: 'dsh.failed', blocked: 'dsh.blocked', not_run: 'dsh.notRun'
-};
-var pieChart = null, growthChart = null, bugsDT = null, issuesDT = null;
-var tplanName = '';
+var t = TLi18n.t;
+var g_tproject_id = 0, g_tplan_id = 0;
+var execChart = null, growthChart = null;
 
 $(function() {
+  var p = new URLSearchParams(window.location.search);
+  g_tproject_id = parseInt(p.get('tproject_id') || '0', 10);
+  g_tplan_id = parseInt(p.get('tplan_id') || '0', 10);
+
+  if (!g_tproject_id) {
+    // Try to read the committed project from the session context when absent.
+    g_tproject_id = parseInt(p.get('tproject_id') || '0', 10);
+  }
+
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     loadData();
-    $('#planSelect').on('change', function() {
-      var pid = $(this).val();
-      var url = window.location.pathname + '?tproject_id=' + (tproject_id || '') + '&tplan_id=' + (pid || 0);
-      // keep it in the same frame
-      window.location.href = url;
-    });
   });
 });
 
-function statusLabel(key) { return TLi18n.t(STATUS_KEYS[key] || ('dsh.' + key)); }
-
-function fail(msg) {
-  $('#errorBox').text(msg).show();
-  $('#secStatus, #secGrowth, #secBugs, #secOpenIssues').hide();
-}
-
 function loadData() {
-  var p = [];
-  if (tproject_id) p.push('tproject_id=' + tproject_id);
-  if (tplan_id) p.push('tplan_id=' + tplan_id);
-  $.getJSON(API + '/data' + (p.length ? '?' + p.join('&') : ''), function(r) {
-    if (r.status !== 'ok') { fail(TLi18n.t('common.error')); return; }
-    tproject_id = r.tproject_id;
-    tplan_id = r.tplan_id;
-    buildPlanSelector(r);
-    renderStatus(r);
-    renderGrowth(r);
-    renderBugs(r);
-    renderOpenIssues(r);
-    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + r.generated_on);
-  }).fail(function(xhr) {
-    fail(TLi18n.t('common.error'));
+  $.ajax({
+    url: API,
+    data: { tproject_id: g_tproject_id, tplan_id: g_tplan_id, locale: TLi18n.getLocale() },
+    dataType: 'json',
+    success: function(d) {
+      $('#loadingBox').hide();
+      if (d.status === 'error') {
+        $('#warnBox').show();
+        $('#warnMsg').text(d.message);
+        return;
+      }
+      render(d);
+    },
+    error: function() {
+      $('#loadingBox').hide();
+      $('#warnBox').show();
+      $('#warnMsg').text(t('dash.errLoad'));
+    }
   });
 }
 
-function buildPlanSelector(r) {
-  var $sel = $('#planSelect');
-  $sel.empty();
-  if (r.tplans.length) {
-    $.each(r.tplans, function(i, tp) {
-      $sel.append($('<option>', { value: tp.id, text: tp.name, selected: tp.selected ? true : null }));
-    });
-  } else {
-    $sel.append($('<option>', { value: '', disabled: true,
-      text: TLi18n.t('dsh.noPlans') }));
+function render(d) {
+  $('#contentBox').show();
+  $('#tprojectName').text(d.tproject.name || '-');
+  $('#tplanName').text(d.tplan_name || '-');
+  $('#footerText').text(t('dash.generatedOn') + ' ' + new Date().toLocaleString());
+
+  renderExec(d.dashboard);
+  renderBugs(d.bugsInfo, d.dashboard);
+  renderGrowth(d.tcGrowth);
+  renderIssues(d.projectIssues);
+}
+
+function renderExec(dash) {
+  if (!dash || !dash.slices || dash.slices.length === 0) {
+    $('#secExec h3').text(t('dash.noRecords'));
+    $('#execStatusRows').html('<tr><td colspan="4" class="empty">' + t('dash.noRecords') + '</td></tr>');
+    $('#execTotal').text('0');
+    return;
   }
-}
+  $('#execSub').text(t('dash.testPlan') + ': ' + dash.tplan_name + '  \u00b7  ' + t('dash.completed') + ': ' + dash.percentage_completed + '% (' + dash.executed + '/' + dash.total + ')');
 
-function renderStatus(r) {
-  var d = r.dashboard;
-  if (!d) { $('#secStatus').hide(); return; }
-  $('#secStatus').show();
-  tplanName = d.tplan_name || '';
-  $('#statusSub').text(TLi18n.t('dsh.completed') + ': ' + d.percentage_completed + '% (' +
-    d.executed + '/' + d.total + ')');
-
-  // status table
-  var html = '';
-  $.each(d.slices, function(k, s) {
-    html += '<tr><td><span class="bar" style="background:' + s.color + '"></span></td>'
-         + '<td>' + $('<div>').text(statusLabel(k)).html() + '</td>'
-         + '<td style="text-align:right"><b>' + s.qty + '</b></td>'
-         + '<td style="text-align:right;color:#777">' + s.percentage + '%</td></tr>';
+  var labels = [], values = [], colors = [], rows = '';
+  $.each(dash.slices, function(i, s) {
+    labels.push(s.label);
+    values.push(s.qty);
+    colors.push(s.color);
+    rows += '<tr><td class="status-color" style="background:' + s.color + ';"></td>' +
+            '<td>' + s.label + '</td>' +
+            '<td style="text-align:right;"><strong>' + s.qty + '</strong></td>' +
+            '<td style="text-align:right;color:#7a7a7a;">' + s.percentage + '%</td></tr>';
   });
-  html += '<tr class="total"><td></td><td>' + TLi18n.t('dsh.total') + '</td>'
-        + '<td style="text-align:right"><b>' + d.total + '</b></td><td></td></tr>';
-  $('#statusTableBody').html(html);
+  $('#execStatusRows').html(rows);
+  $('#execTotal').text(dash.total);
 
-  // pie
-  var labels = [], vals = [], colors = [];
-  $.each(d.slices, function(k, s) {
-    labels.push(statusLabel(k)); vals.push(s.qty); colors.push(s.color);
-  });
-  if (pieChart) pieChart.destroy();
-  var canvas = document.getElementById('execStatusPie');
-  pieChart = new Chart(canvas.getContext('2d'), {
+  if (execChart) execChart.destroy();
+  var ctx = document.getElementById('execStatusPie');
+  execChart = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels: labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 1 }] },
-    options: { responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    data: { labels: labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: '#fff' }] },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'right', labels: { font: { size: 12 } } },
+        tooltip: {
+          callbacks: {
+            label: function(c) {
+              var total = c.dataset.data.reduce(function(a,b){return a+b;}, 0);
+              var pct = total > 0 ? ((c.raw / total) * 100).toFixed(1) : 0;
+              return c.label + ': ' + c.raw + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
   });
 }
 
-function renderGrowth(r) {
-  var g = r.tc_growth;
-  if (!g) { $('#secGrowth').hide(); return; }
+function renderBugs(bugs, dash) {
+  if (!bugs || bugs.length === 0) { $('#secBugs').hide(); return; }
+  $('#secBugs').show();
+  $('#bugsSub').text(t('dash.testPlan') + ': ' + (dash && dash.tplan_name ? dash.tplan_name : '-'));
+  var rows = [];
+  $.each(bugs, function(i, b) {
+    var id = b.url ? '<a href="' + b.url + '" target="_blank" rel="noopener"><strong>' + b.id + '</strong></a>' : '<strong>' + b.id + '</strong>';
+    var st = b.status ? '<span class="badge" style="background:' + b.color + ';">' + b.status + '</span>' : '';
+    rows.push([id, b.title, st, b.tcases]);
+  });
+  if ($.fn.DataTable.isDataTable('#bugsTable')) $('#bugsTable').DataTable().destroy();
+  $('#bugsTable tbody').empty();
+  $('#bugsTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    order: [[0, 'asc']],
+    columns: [ null, null, null, null ]
+  });
+}
+
+function renderGrowth(g) {
+  if (!g || !g.labels || g.labels.length === 0) { $('#secGrowth').hide(); return; }
   $('#secGrowth').show();
   if (growthChart) growthChart.destroy();
-  growthChart = new Chart(document.getElementById('tcGrowthBar').getContext('2d'), {
+  var ctx = document.getElementById('tcGrowthBar');
+  growthChart = new Chart(ctx, {
     type: 'bar',
-    data: { labels: g.labels, datasets: [{ label: TLi18n.t('dsh.monthlyGrowth'),
-      data: g.values, backgroundColor: 'rgba(78,205,196,0.55)',
-      borderColor: 'rgba(78,205,196,1)', borderWidth: 1 }] },
-    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+    data: {
+      labels: g.labels,
+      datasets: [{
+        label: t('dash.monthlyGrowth'),
+        data: g.values,
+        backgroundColor: 'rgba(78,205,196,0.55)',
+        borderColor: 'rgba(78,205,196,1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function(c) { return c.parsed.y + ' ' + t('dash.testCases'); }
+          }
+        }
+      }
+    }
   });
 }
 
-function renderBugs(r) {
-  if (!r.bugs) { $('#secBugs').hide(); return; }
-  $('#secBugs').show();
-  $('#bugsSub').text(TLi18n.t('dsh.testPlan') + ': ' + (tplanName || r.tplan_name || ''));
-  var rows = $.map(r.bugs, function(b, i) {
-    return [[ b.id, b.title,
-      (b.status ? '<span class="label" style="background:' + b.color + '">' + $('<div>').text(b.status).html() + '</span>' : ''),
-      $('<div>').text(b.tcases).html() ]];
+function renderIssues(issues) {
+  if (!issues || issues.length === 0) { $('#secIssues').hide(); return; }
+  $('#secIssues').show();
+  var rows = [];
+  $.each(issues, function(i, it) {
+    var id = it.url ? '<a href="' + it.url + '" target="_blank" rel="noopener"><strong>' + it.id + '</strong></a>' : '<strong>' + it.id + '</strong>';
+    var labelsHtml = '';
+    $.each(it.labels, function(j, lab) {
+      labelsHtml += '<span class="badge" style="background:#6c757d;">' + lab + '</span>';
+    });
+    var st = it.status ? '<span class="badge" style="background:' + it.color + ';">' + it.status + '</span>' : '';
+    rows.push([id, it.title, labelsHtml, st]);
   });
-  if (bugsDT) { bugsDT.destroy(); $('#bugsTable tbody').empty(); }
-  bugsDT = $('#bugsTable').DataTable({ data: rows, pageLength: 10,
-    order: [[0, 'asc']], language: dtLang() });
-}
-
-function renderOpenIssues(r) {
-  if (!r.open_issues) { $('#secOpenIssues').hide(); return; }
-  $('#secOpenIssues').show();
-  var rows = $.map(r.open_issues, function(iss, i) {
-    var lbls = $.map(iss.labels || [], function(l) {
-      return '<span class="label" style="background:#6c757d;">' + $('<div>').text(l).html() + '</span>';
-    }).join(' ');
-    var safeHref = (iss.url && /^https?:\/\//i.test(iss.url)) ? iss.url : '';
-    var idCell = safeHref
-      ? $('<a>').attr('href', safeHref).attr('target', '_blank').attr('rel', 'noopener')
-          .append($('<b>').text(iss.id)).prop('outerHTML')
-      : $('<b>').text(iss.id).prop('outerHTML');
-    return [[ idCell, $('<div>').text(iss.title).html(), lbls,
-      (iss.status ? '<span class="label" style="background:' + iss.color + '">' + $('<div>').text(iss.status).html() + '</span>' : '') ]];
+  if ($.fn.DataTable.isDataTable('#issuesTable')) $('#issuesTable').DataTable().destroy();
+  $('#issuesTable tbody').empty();
+  $('#issuesTable').DataTable({
+    data: rows,
+    pageLength: 25,
+    order: [[0, 'asc']],
+    columns: [ null, null, null, null ]
   });
-  if (issuesDT) { issuesDT.destroy(); $('#issuesTable tbody').empty(); }
-  issuesDT = $('#issuesTable').DataTable({ data: rows, pageLength: 10,
-    order: [[0, 'asc']], language: dtLang() });
-}
-
-function dtLang() {
-  return {
-    emptyTable: TLi18n.t('dsh.noRecords'),
-    zeroRecords: TLi18n.t('dsh.noRecords'),
-    info: TLi18n.t('dsh.info'), lengthMenu: TLi18n.t('dsh.lengthMenu'),
-    search: TLi18n.t('dsh.search'), paginate: { previous: TLi18n.t('dsh.prev'), next: TLi18n.t('dsh.next') }
-  };
 }
 </script>
 </body>

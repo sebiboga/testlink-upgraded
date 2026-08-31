@@ -136,12 +136,21 @@ function initEnv() {
     $args->reqURI = getReturnWorkArea(isset($_REQUEST['returnFeature'])
                                       ? $_REQUEST['returnFeature'] : null);
   }
-  $args->reqURI = $_SESSION['basehref'] . $args->reqURI;
-
-
-
   $args->tproject_id = isset($_REQUEST['tproject_id']) ? intval($_REQUEST['tproject_id']) : 0;
   $args->tplan_id = isset($_REQUEST['tplan_id']) ? intval($_REQUEST['tplan_id']) : 0;
+
+  $args->reqURI = $_SESSION['basehref'] . $args->reqURI;
+
+  // The modernized Dashboard reads the committed project/plan from the URL;
+  // append the context here so a direct refresh of the main frame keeps the
+  // same widgets as the frameset that built it (the BFF also falls back to
+  // the session when these are missing, but an explicit URL is unambiguous).
+  if (strpos($args->reqURI, 'gui/templates/mainpage/mainPage.html') !== false) {
+    $sep = (strpos($args->reqURI, '?') === false) ? '?' : '&';
+    $args->reqURI .= $sep . 'tproject_id=' . $args->tproject_id .
+                     '&tplan_id=' . $args->tplan_id;
+  }
+
 
   $gui = new stdClass();
   $gui->title = lang_get('main_page_title');
