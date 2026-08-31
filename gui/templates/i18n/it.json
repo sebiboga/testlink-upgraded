@@ -2098,5 +2098,7 @@
   "tcc.heading.expected_results": "Risultati attesi",
   "tcc.numChanges": "Numero di modifiche in %s: %s.",
   "tcc.noChanges": "Nessuna modifica in %s.",
-  "tcc.subtitle": "Differenze tra versione %s (v%s) e versione %s (v%s) del caso di test %s"
+  "tcc.subtitle": "Differenze tra versione %s (v%s) e versione %s (v%s) del caso di test %s",
+  "exe.executionDuration": "Execution duration (min)",
+  "exechist.colDuration": "Duration"
 }

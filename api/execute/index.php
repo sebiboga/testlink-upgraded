@@ -307,6 +307,7 @@ if ($action === 'history') {
                     'status_suffix' => $suffix,
                     'status_label' => $statusLabel,
                     'execution_ts' => strval($ex['execution_ts']),
+                    'execution_duration' => strval($ex['execution_duration'] ?? ''),
                     'notes' => strval($ex['execution_notes']),
                     'run_type' => intval($ex['execution_run_type'])
                         === TESTCASE_EXECUTION_TYPE_AUTO ? 'automated' : 'manual',
@@ -494,6 +495,12 @@ if ($action === 'init') {
         'platforms' => $platforms,
         'platform_feature_enabled' => $platformFeature,
         'save_and_move' => $saveAndMove,
+        // legacy feature flag: render the Execution Time input on the exec
+        // form and persist it (exec_cfg->features->exec_duration->enabled)
+        'exec_duration_enabled' =>
+            (isset($execCfg->features)
+             && isset($execCfg->features->exec_duration)
+             && !empty($execCfg->features->exec_duration->enabled)) ? 1 : 0,
         // legacy exec_mode->new_exec == 'latest' gates the "Copy attachments
         // from latest execution" checkbox (inc_exec_img_controls.tpl:68-73)
         'new_exec_latest' => (isset($execCfg->exec_mode)
@@ -763,7 +770,7 @@ if ($action === 'tcDetails') {
         $storedPlatform = $platformId > 0 ? $platformId : 0;
         $er = $db->get_recordset(
             "SELECT E.id AS execution_id, E.status, E.notes, E.execution_ts," .
-            " E.tester_id, U.login AS tester_login" .
+            " E.execution_duration, E.tester_id, U.login AS tester_login" .
             " FROM {$execTables['executions']} E" .
             " LEFT JOIN {$execTables['users']} U ON U.id = E.tester_id" .
             " WHERE E.testplan_id = {$tplanId}" .
@@ -777,6 +784,7 @@ if ($action === 'tcDetails') {
                 'status' => strval($er[0]['status']),
                 'notes' => strval($er[0]['notes']),
                 'execution_ts' => strval($er[0]['execution_ts']),
+                'execution_duration' => strval($er[0]['execution_duration'] ?? ''),
                 'tester_login' => strval($er[0]['tester_login']),
             ];
             // execution-level attachments of the prior run, so the modern
@@ -994,6 +1002,14 @@ if ($action === 'save') {
     $platformId = intval($payload['platform_id'] ?? -1); // -1 = plan has none
     $statusCode = strtolower(trim(strval($payload['status'] ?? '')));
     $notes = strval($payload['notes'] ?? '');
+    // Execution duration (seconds, legacy 'execution_time' input) is optional
+    // and only persisted when the feature is enabled (config exec_cfg->
+    // features->exec_duration->enabled). Passed through to write_execution(),
+    // which maps an empty/invalid value to NULL (exec.inc.php:153-158).
+    $executionDuration = '';
+    if (config_get('exec_cfg')->features->exec_duration->enabled) {
+        $executionDuration = strval($payload['execution_duration'] ?? '');
+    }
     // legacy copyAttFromLEXEC checkbox -> '1' when checked (see
     // inc_exec_img_controls.tpl:71); surfaced to the frontend as
     // 'copy_att_from_lexec'
@@ -1067,6 +1083,7 @@ if ($action === 'save') {
     $execData['version_number'][$tcversionId] = $versionNumber;
     // write_execution() applies prepare_string() itself for single saves
     $execData['notes'][$tcversionId] = trim($notes);
+    $execData['execution_duration'] = $executionDuration;
 
     // step-level results: keys are STEP IDS (like legacy step_notes[] inputs);
     // every submitted id must belong to THIS version (tcsteps.parent_id),

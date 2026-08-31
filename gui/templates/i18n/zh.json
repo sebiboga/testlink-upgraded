@@ -2098,5 +2098,7 @@
   "tcc.heading.expected_results": "预期结果",
   "tcc.numChanges": "%s 中的更改数： %s.",
   "tcc.noChanges": "%s 中没有更改。",
-  "tcc.subtitle": "测试用例 %s 的版本 %s (v%s) 与版本 %s (v%s) 之间的差异"
+  "tcc.subtitle": "测试用例 %s 的版本 %s (v%s) 与版本 %s (v%s) 之间的差异",
+  "exe.executionDuration": "Execution duration (min)",
+  "exechist.colDuration": "Duration"
 }

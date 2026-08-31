@@ -2098,5 +2098,7 @@
   "tcc.heading.expected_results": "期待結果",
   "tcc.numChanges": "%s の変更数： %s.",
   "tcc.noChanges": "%s に変更なし.",
-  "tcc.subtitle": "版 %s (v%s) と版 %s (v%s) のテストケース %s の差分"
+  "tcc.subtitle": "版 %s (v%s) と版 %s (v%s) のテストケース %s の差分",
+  "exe.executionDuration": "Execution duration (min)",
+  "exechist.colDuration": "Duration"
 }
