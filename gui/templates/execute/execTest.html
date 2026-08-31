@@ -309,20 +309,7 @@ function renderBadge(code) {
 }
 
 function renderList() {
-  var q = ($('#txtSearch').val() || '').toLowerCase();
-  var sf = $('#selStatusFilter').val();
-
-  var visible = listItems.filter(function (it) {
-    if (q !== ''
-      && (it.tcase_name + ' ' + it.full_external_id + ' ' + (it.tsuite_path || ''))
-          .toLowerCase().indexOf(q) === -1) return false;
-    if (sf) {
-      var code = itemStatus(it);
-      if (sf === '__none') { if (code) return false; }
-      else if (code !== sf) return false;
-    }
-    return true;
-  });
+  var visible = visibleItems();
 
   var h = '';
   visible.forEach(function (it) {
@@ -347,6 +334,65 @@ function renderList() {
   $('#tcRows tr').off('click').on('click', function () {
     openCase(parseInt($(this).data('tcid'), 10), parseInt($(this).data('tcvid'), 10));
   });
+}
+
+// items of listItems matching the current search text + result filter
+// (same predicate renderList() uses, so navigation follows what the user sees)
+function visibleItems() {
+  var q = ($('#txtSearch').val() || '').toLowerCase();
+  var sf = $('#selStatusFilter').val();
+
+  return listItems.filter(function (it) {
+    if (q !== ''
+      && (it.tcase_name + ' ' + it.full_external_id + ' ' + (it.tsuite_path || ''))
+          .toLowerCase().indexOf(q) === -1) return false;
+    if (sf) {
+      var code = itemStatus(it);
+      if (sf === '__none') { if (code) return false; }
+      else if (code !== sf) return false;
+    }
+    return true;
+  });
+}
+
+// save-and-move navigation mode surfaced by the BFF init payload
+// ('unlimited' default, 'limited' => only within the current suite)
+function saveAndMoveMode() {
+  return (initData && initData.save_and_move) || 'unlimited';
+}
+
+// successor of the currently open case inside the visible (filtered) list.
+// 'unlimited' (: whole visible list) wraps cyclically; 'limited' wraps
+// only among the members of the SAME test suite (the modern flat-list
+// equivalent of legacy execSetResults getTestCaseNextSibling). Grouping
+// uses the displayed suite path (each direct suite owns a distinct path).
+function execNextTarget() {
+  if (!current || !current.tcase) return null;
+  var vis = visibleItems();
+  if (vis.length === 0) return null;
+  var idx = -1;
+  for (var i = 0; i < vis.length; i++) {
+    if (vis[i].tcase_id === current.tcase.id) { idx = i; break; }
+  }
+  if (idx === -1) return vis[0]; // current is filtered out -> head of list
+  if (saveAndMoveMode() === 'limited') {
+    var suite = vis[idx].tsuite_path;
+    var members = [];
+    for (var j = 0; j < vis.length; j++) {
+      if (vis[j].tsuite_path === suite) members.push(vis[j]);
+    }
+    var mi = members.indexOf(vis[idx]);
+    return members[(mi + 1) % members.length];
+  }
+  return vis[(idx + 1) % vis.length];
+}
+
+// legacy "move2next" (execSetResults.php:617): navigate WITHOUT saving
+function moveToNext() {
+  if (roMode) return;
+  var target = execNextTarget();
+  if (!target) { toast(TLi18n.t('exe.noNextCase'), true); return; }
+  openCase(target.tcase_id, target.tcversion_id);
 }
 
 function fmtTs(ts) {
@@ -527,6 +573,12 @@ function renderForm() {
   h += '<button class="btn-teal" onclick="saveExecution()"'
     + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
     + '><i class="fa fa-floppy-disk"></i> <span data-i18n="exe.save">Save execution</span></button>';
+  h += '<button class="btn-teal" onclick="saveExecution(\'next\')"'
+    + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+    + '><i class="fa fa-forward-step"></i> <span data-i18n="exe.saveAndMoveNext">Save and move to next</span></button>';
+  h += '<button class="btn-dark" onclick="moveToNext()"'
+    + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+    + '><i class="fa fa-arrow-right"></i> <span data-i18n="exe.moveToNext">Next</span></button>';
   h += '<button class="btn-dark" onclick="resetFormInputs()"'
     + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
     + '><i class="fa fa-eraser"></i> <span data-i18n="exe.reset">Reset</span></button>';
@@ -664,7 +716,10 @@ function deleteExecution(execId) {
   .fail(function (xhr) { toast(apiErr(xhr, 'exe.errDelete'), true); });
 }
 
-function saveExecution() {
+// navTo: undefined => stay on the current case after saving (plain Save);
+// 'next'  => also move to the next case in the visible list (legacy
+// "Save and move to next", execSetResults.php save_and_next flow)
+function saveExecution(navTo) {
   if (roMode || !(curBuildId() > 0)) {
     toast(TLi18n.t('exe.errNoBuild'), true);
     return;
@@ -674,6 +729,7 @@ function saveExecution() {
     toast(TLi18n.t('exe.pickStatusFirst'), true);
     return;
   }
+  var nextTarget = (navTo === 'next') ? execNextTarget() : null;
   var payload = {
     tplan_id: ctx.tplanId,
     tproject_id: ctx.tprojectId,
@@ -706,8 +762,15 @@ function saveExecution() {
     if (r.status === 'ok' && r.saved) {
       toast(TLi18n.t('exe.savedOk'));
       loadList();
+      // save-and-move: land on the successor (wrap-around) like legacy
+      if (nextTarget) {
+        openCase(nextTarget.tcase_id, nextTarget.tcversion_id);
+      }
     } else if (r.status === 'ok' && r.reason === 'not_run') {
       toast(TLi18n.t('exe.notRunInfo'), true);
+      // legacy execSetResults.php:241 navigates on save_and_next even
+      // when nothing was persisted (not_run selected); mirror that
+      if (nextTarget) openCase(nextTarget.tcase_id, nextTarget.tcversion_id);
     } else {
       toast(r.message || TLi18n.t('exe.errSave'), true);
     }

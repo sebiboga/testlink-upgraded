@@ -426,6 +426,15 @@ if ($action === 'init') {
         ];
     }
 
+    // save-and-move navigation mode (legacy execSetResults.php:296)
+    // 'unlimited' => move on the whole execution working set,
+    // 'limited'   => move only within the current test suite.
+    // Default 'unlimited' matches config.inc.php:1119.
+    $execCfg = config_get('exec_cfg');
+    $saveAndMove = (isset($execCfg->exec_mode)
+        && isset($execCfg->exec_mode->save_and_move))
+        ? strval($execCfg->exec_mode->save_and_move) : 'unlimited';
+
     // feature flags live in the serialized options blob (the option_* columns
     // are vestigial and never written - see #525); read them defensively so a
     // missing/unserializable blob can never raise an E_WARNING here (#662)
@@ -450,6 +459,7 @@ if ($action === 'init') {
         'default_build_id' => $defaultBuildId,
         'platforms' => $platforms,
         'platform_feature_enabled' => $platformFeature,
+        'save_and_move' => $saveAndMove,
         'statuses' => $statuses,
     ]);
 }
