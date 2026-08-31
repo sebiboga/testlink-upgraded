@@ -244,3 +244,67 @@ Viewer clean (only INFO-level AUDIT rows).
 Screenshots: `docs/screenshots/issue-795-execTest-no-partial-save.png` (before)
 and `docs/screenshots/issue-795-execTest-partial-save-resume.png` (after/resume,
 button + pre-filled steps).
+
+### Issue #793 — "Save & move to next" navigation restored (closed)
+
+**Symptom:** the modernized Execute Tests screen offered only **Save execution**
+and **Reset** in the save row. The 1.9.20 toolbar buttons
+`btn_save_exec_and_movetonext` ("Save and move to next") and `btn_next`
+("Next" — move to the next test case WITHOUT saving) were dropped in the #662
+rewrite, and the BFF `init` never surfaced `exec_mode->save_and_move`, so the
+configured navigation mode could not be honored.
+
+**Root cause:** three pieces missing during the rewrite, all present in legacy
+(`lib/execute/execSetResults.php` `doExecSave()`/`move2next` window at
+lines 140-345 + 617-632 and `gui/templates/tl-classic/execute/inc_exec_controls.tpl`
+lines 89-97):
+- no "Save and move to next" button / BFF save-then-navigate flow;
+- no "Next" (navigate, no save) button / BFF `move2next` equivalent;
+- no read of `$tlCfg->exec_cfg->exec_mode->save_and_move` (config.inc.php:1119,
+  default `'unlimited'`) in the BFF `init` response.
+
+**Fix approach (restore 1.9.20 parity):**
+- **BFF** (`api/execute/index.php`): `init` now returns `save_and_move` read from
+  `config_get('exec_cfg')->exec_mode->save_and_move` with fallback `'unlimited'`.
+- **Frontend** (`gui/templates/execute/execTest.html`):
+  - extracted `visibleItems()` — the exact filter predicate `renderList()` uses,
+    so navigation always matches what the user sees (search filter included);
+  - `saveAndMoveMode()` — resolves the mode from `initData.save_and_move`
+    (config fetch + runtime override);
+  - `execNextTarget()` — computes the cyclical successor of the currently open
+    case inside the visible set; `'unlimited'` wraps across the whole list,
+    `'limited'` wraps only among members of the SAME test suite. *Limited* mode
+    groups by the displayed suite path (`tsuite_path`) — the flat-list
+    equivalent of legacy `getTestCaseNextSibling`, since every direct suite owns
+    a distinct path. (Discovery: the BFF `tcList` field named `tsuite_id`
+    actually holds the test-case node id, not the suite id; it is unused by the
+    frontend, so grouping on `tsuite_path` avoids depending on that semantics.)
+  - `moveToNext()` — legacy `move2next` (navigate, no save);
+  - `saveExecution('next')` — saves via the existing `action=save` BFF route,
+    then `loadList()` + `openCase(execNextTarget())`; the successor is computed
+    BEFORE the save (against the pre-save list), matching legacy ordering;
+    a `not_run` selection still advances (legacy execSetResults.php:241
+    navigates on save_and_next even when nothing is persisted).
+  - Save row now renders **Save execution · Save and move to next · Next ·
+    Reset**; all four buttons share the existing `roMode` disabled guard.
+- **i18n:** `exe.saveAndMoveNext` / `exe.moveToNext` / `exe.noNextCase` added to
+  all ten bundles (legacy `locale/*/strings.txt` translations reused where
+  present, e.g. en "Save and move to next" / "Next").
+
+**Note — bulk results mode:** the legacy **bulk** results grid is a
+testsuite-level feature (`$args->level == 'testsuite'`); the modern flat-list
+screen has no testsuite view, so bulk execution is out of scope here (its suite
+entry point does not exist in this screen's design).
+
+**Verification (regression suite 69, 12/12 PASS, see tmp/TLU_Test_Cases.md):**
+BFF `init` returns `save_and_move:"unlimited"`; four-button save row renders;
+Save-and-move writes the execution (executions row: tcversion 5, status p) and
+auto-advances to Case A2; move-to-next navigates WITHOUT writing (executions
+count unchanged); unlimited cycle A3→B1→B2→A1; limited mode scoped per suite
+(A1→A2→A3→A1, B1→B2→B1); search-filtered navigation B1→B2 within the visible
+subset; plain Save unchanged; i18n bundles valid 10/10 with the 3 keys; Event
+Viewer clean (no new Error/Warning rows).
+
+Screenshots: `docs/screenshots/issue-793-save-and-next-before.png` (before,
+only Save execution + Reset) and `docs/screenshots/issue-793-save-and-next-after.png`
+(after, four-button save row).
