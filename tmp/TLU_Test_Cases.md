@@ -8343,3 +8343,24 @@ Notes:
   - Copy checkbox hidden under default `'clean'`; visible under `'latest'`.
   - Event Viewer `events` log_level 3/4 → 0 rows.
 - **Result:** **PASS**
+
+### Regression — Issue #781: TLi18n.t(key, 'default') throws 'Cannot use in operator' and aborts dashboard widget rendering
+- **Priority:** High
+- **Importance:** High
+- **Symptom (pre-fix):** a `TLi18n.t(key, "default text")` call (second arg a plain string) made jQuery `$.each` evaluate `'length' in "Generated on"` and throw `TypeError: Cannot use 'in' operator to search for 'length'` inside `t()` during `render()`, aborting the modern Dashboard widgets. Inspired by a page where `t("dash.generatedOn","Generated on")` was (incorrectly) used.
+- **Preconditions:** logged-in admin; project with a test plan + build + ≥1 recorded execution (`tmp/fixtures_781.php` creates project `DASH781`, plan `Plan781`(38), build `B781`(2), 5 executions: 3 passed / 1 failed / 1 blocked). Browser devtools console open.
+- **Repro steps (pre-fix):** open `http://localhost:8082/gui/templates/mainpage/mainPage.html?tproject_id=20&tplan_id=38`; the described `t(key,"default")` calls would throw and leave `#execStatusRows` empty, `#execTotal`=0, `#secGrowth` hidden, with the console showing the `'in' operator` TypeError.
+- **Expected post-fix behavior:**
+  1. Dashboard execution-status table populated (Passed 3/60%, Failed 1/20%, Blocked 1/20%, Not Run 0/0%, Total 5).
+  2. Monthly Growth widget visible.
+  3. `TLi18n.t(key, 'string')` with a stray string second argument returns the key's translation **without throwing** (guard in `i18n.js`).
+  4. `TLi18n.t(key)` single-arg and `TLi18n.t(key, {n:..})` object-interpolation still work.
+  5. `TLi18n.t(key, [v])` array-interpolation still works (e.g. `TLi18n.t('rtf.rowCount', [5])` → `"5 rows"`; the guard must NOT reject arrays).
+  6. Browser console: zero Error/Warning; `events` table `log_level IN (4,8)` = 0 rows.
+- **Actual result observed (post-fix, admin, DASH781 / Plan781 / build B781):**
+  - `#execTotal` = `5`; `#execStatusRows` rows = 4; `#secGrowth` visible.
+  - `TLi18n.t('dash.generatedOn','Generated on')` → `"Generated on"`, no throw (`node --check` + in-page `evaluate_script`).
+  - `TLi18n.t('dash.testPlan')` → `"Test Plan"`; `TLi18n.t('dash.completed',{n:3})` → `"Completed"`, no throws.
+  - `TLi18n.t('rtf.rowCount', [5])` → `"5 rows"` (array interpolation preserved by `typeof 'object'` guard — no `Array.isArray` exclusion).
+  - Browser console error/warn: 0. `SELECT COUNT(*) FROM events WHERE log_level IN (4,8)` → 0.
+- **Result:** **PASS** (fix: `gui/templates/i18n/i18n.js` `t()` guard — defense-in-depth; primary cause already absent from current `mainPage.html`)
