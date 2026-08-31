@@ -233,6 +233,11 @@ if ($action === 'export') {
     $oneTestCase = ($tcaseId > 0 && $tcversionId > 0);
 
     $exportType = strtoupper(trim($_REQUEST['exportType'] ?? 'XML'));
+    $allowedTypes = $tcaseMgr->get_export_file_types();
+    if (!isset($allowedTypes[$exportType])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Unsupported export type: ' . $exportType]);
+    }
 
     // Option flags, mirroring init_args() in lib/testcases/tcExport.php
     $flag = function ($key) {
@@ -300,10 +305,11 @@ if ($action === 'export') {
     }
 
     // Override the JSON header set above and stream the XML as an attachment.
+    // The header filename must never contain CR/LF or quotes (header injection).
+    $headerFilename = str_replace(["\r", "\n", '"'], '', $exportFilename);
     if (!headers_sent()) {
-        header('Content-Type: application/xml; charset=utf-8; name=' . $exportFilename);
-        header('Content-Transfer-Encoding: BASE64;');
-        header('Content-Disposition: attachment; filename="' . $exportFilename . '"');
+        header('Content-Type: application/xml; charset=utf-8');
+        header('Content-Disposition: attachment; filename="' . $headerFilename . '"');
         header('Pragma: public');
         header('Cache-Control: must-revalidate');
     }
