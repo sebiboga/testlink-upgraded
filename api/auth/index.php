@@ -312,6 +312,12 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'signup') {
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'reset') {
     $body = getBody();
     $login = trim($body['login'] ?? '');
+    // Legacy init_args() constrains the login to 0..30 chars (STRING_N,0,30).
+    // Keep that parity server-side: an overlong input is treated as absent so
+    // the generic (enumeration-safe) contract still holds.
+    if (strlen($login) > 30) {
+        $login = '';
+    }
 
     $userID = false;
     if ($login !== '') {
@@ -330,21 +336,17 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'reset') {
     // exists, its auth method, or whether it has a registered email. Internal
     // distinctions are deliberately not leaked; a real reset is processed but
     // reports generically.
-    if ($userID) {
-        if ($external) {
-            logAuditEvent('Password management is external; reset skipped', 'PWD_RESET', $userID, 'users');
-        } else {
+    if ($userID && !$external) {
+        $result = false;
+        try {
+            $result = resetPassword($db, $userID);
+        } catch (\Throwable $e) {
+            // Mail transport misconfigured (e.g. from_email/SMTP unset) must not
+            // surface as a 500; handled gracefully below.
             $result = false;
-            try {
-                $result = resetPassword($db, $userID);
-            } catch (\Throwable $e) {
-                // Mail transport misconfigured (e.g. from_email/SMTP unset) must not
-                // surface as a 500; handled gracefully below.
-                $result = false;
-            }
-            if ($result !== false && $result['status'] >= tl::OK && $user->readFromDB($db) >= tl::OK) {
-                logAuditEvent(TLS("audit_pwd_reset_requested", $user->login), "PWD_RESET", $userID, "users");
-            }
+        }
+        if ($result !== false && $result['status'] >= tl::OK && $user->readFromDB($db) >= tl::OK) {
+            logAuditEvent(TLS("audit_pwd_reset_requested", $user->login), "PWD_RESET", $userID, "users");
         }
     }
 
