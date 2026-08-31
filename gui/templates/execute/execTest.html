@@ -71,7 +71,13 @@ label.flbl { font-size: 12px; font-weight: 600; color: #444; display: block; mar
 .icon-btn.danger { color: #e6605e; } .icon-btn.danger:hover { color: #c0392b; }
 .icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
 .icon-btn.buglink { color: #e6605e; } .icon-btn.buglink:hover { color: #c0392b; }
-.steps-table .bug-cell { width: 66px; text-align: center; white-space: nowrap; }
+.steps-table .bug-cell { width: 150px; text-align: center; white-space: normal; }
+.bug-badge { display: inline-block; margin: 1px 2px; padding: 1px 7px; font-size: 11px; font-weight: 600; color: #c0392b; background: #fdecea; border: 1px solid #f5c6c2; border-radius: 10px; text-decoration: none; line-height: 1.6; }
+a.bug-badge:hover { background: #f8d7da; color: #a93226; }
+.bug-badge .bug-step { color: #8a8f98; font-weight: 400; margin-left: 3px; }
+.hist-table .bug-cell { min-width: 90px; }
+.linked-bugs-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 14px; padding: 8px 12px; background: #fdecea; border: 1px solid #f5c6c2; border-radius: 6px; font-size: 13px; color: #a93226; }
+.linked-bugs-banner .lb-label { font-weight: 700; margin-right: 4px; }
 .linkbug-target { font-size: 13px; color: #555; margin-top: 4px; }
 .linkbug-target b { color: #22242a; }
 .bug-mode-toggle { display: flex; gap: 6px; margin: 8px 0 14px; }
@@ -504,11 +510,59 @@ function statusCodesForForm() {
 
 // Attachments management block for the Execute Tests form (Refs #792):
 //  - upload file input (multiple) -> stored on the new execution at save time
-//  - list of the latest execution's attachments (download links) so the
-//    tester can see what exists on the context before copying it
-//  - "Copy attachments from latest execution" checkbox, shown only when the
-//    configured exec_mode->new_exec == 'latest' (legacy inc_exec_img_controls.tpl:68-73)
-function renderAttachmentsBlock() {
+// ---- linked-bug display helpers -----------------------------------------
+// The latest execution's linked bugs (each with its tcstep_id / step_number,
+// fed by the BFF details + history payloads). Steps shown on the form are the
+// version's tcsteps, so matching by tcstep_id tells us which step owns a bug.
+
+function latestExec() {
+  var eh = current.exec_history || [];
+  return eh.length ? eh[0] : null;
+}
+
+function bugsForLatest() {
+  var le = latestExec();
+  return (le && le.bugs) ? le.bugs : [];
+}
+
+function bugBadgeHtml(bug) {
+  var label = '#' + bug.id;
+  var step = (bug.step_number > 0)
+    ? '<span class="bug-step">' + esc(TLi18n.t('exe.bugOnStepShort', { n: bug.step_number })) + '</span>'
+    : '';
+  var icon = '<i class="fas fa-bug" style="margin-right:3px;"></i>';
+  var title = (bug.step_number > 0)
+    ? esc(TLi18n.t('exe.bugLinkedToStep', { id: bug.id, n: bug.step_number }))
+    : esc(TLi18n.t('exe.bugLinkedTo', { id: bug.id }));
+  if (bug.link_to_bts) {
+    return '<a class="bug-badge" target="_blank" rel="noopener" href="' + esc(bug.link_to_bts)
+      + '" title="' + title + '">' + icon + esc(label) + step + '</a>';
+  }
+  return '<span class="bug-badge" title="' + title + '">' + icon + esc(label) + step + '</span>';
+}
+
+// bugs attached to a given tcstep (by id) on the latest execution
+function bugsForStep(tcstepId) {
+  var b = bugsForLatest();
+  return b.filter(function (bug) { return bug.tcstep_id === tcstepId; });
+}
+
+// banner shown on the detail when linked bugs exist on the latest execution
+function renderLinkedBugsBanner() {
+  var b = bugsForLatest();
+  if (!b.length) return '';
+  var h = '<div class="linked-bugs-banner"><span class="lb-label">'
+    + esc(TLi18n.t('exe.linkedBugs')) + ':</span>';
+  b.forEach(function (bug) { h += bugBadgeHtml(bug); });
+  h += '</div>';
+  return h;
+}
+
+ //  - list of the latest execution's attachments (download links) so the
+ //    tester can see what exists on the context before copying it
+ //  - "Copy attachments from latest execution" checkbox, shown only when the
+ //    configured exec_mode->new_exec == 'latest' (legacy inc_exec_img_controls.tpl:68-73)
+ function renderAttachmentsBlock() {
   var h = '';
 
   // latest execution attachments (read context)
@@ -615,6 +669,8 @@ function renderForm() {
       + '</div>';
   }
 
+  h += renderLinkedBugsBanner();
+
   if (current.exec_history && current.exec_history.length > 0) {
     h += renderHistoryHtml();
   }
@@ -668,7 +724,9 @@ function renderForm() {
       h += '</select></td>'
         + '<td><input type="text" class="step-notes" value="' + esc(priorSt.notes || '') + '"'
         + (roMode ? ' disabled' : '') + '></td>'
-        + '<td class="bug-cell"><button type="button" class="icon-btn buglink"'
+        + '<td class="bug-cell">'
+        + bugsForStep(st.id).map(bugBadgeHtml).join(' ')
+        + '<button type="button" class="icon-btn buglink"'
         + ' title="' + esc(TLi18n.t('exe.linkBugHere')) + '"'
         + ' onclick="openLinkBug(' + st.id + ',' + st.step_number + ')">'
         + '<i class="fas fa-bug"></i></button></td>'
@@ -773,6 +831,7 @@ function renderHistoryHtml() {
     + '<th>' + esc(TLi18n.t('exechist.colBuild')) + '</th>'
     + '<th>' + esc(TLi18n.t('exechist.colTester')) + '</th>'
     + '<th>' + esc(TLi18n.t('exechist.colStatus')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exe.colBugs')) + '</th>'
     + '<th class="icon-cell">' + esc(TLi18n.t('exechist.colRunMode')) + '</th>'
     + '<th class="icon-cell">' + esc(TLi18n.t('exechist.colVersion')) + '</th>'
     + '<th class="icon-cell">' + esc(TLi18n.t('exe.actions')) + '</th>'
@@ -807,13 +866,15 @@ function renderHistoryHtml() {
       + '<td>' + esc(e.build_name) + (e.build_is_open ? '' : ' <i class="fas fa-lock" title="' + esc(TLi18n.t('exechist.closedBuild')) + '"></i>') + '</td>'
       + '<td>' + esc(e.tester_name || e.tester_login || TLi18n.t('exechist.deletedUser')) + '</td>'
       + '<td><span class="badge-status ' + statusCls + '">' + esc(st ? st.label : e.status_code) + '</span></td>'
+      + '<td class="bug-cell">' + ((e.bugs && e.bugs.length)
+          ? e.bugs.map(bugBadgeHtml).join(' ') : '&ndash;') + '</td>'
       + '<td class="icon-cell"><i class="fas ' + (e.run_type === 'automated' ? 'fa-robot' : 'fa-user')
         + '" title="' + esc(e.run_type === 'automated' ? TLi18n.t('exechist.runAuto') : TLi18n.t('exechist.runManual')) + '"></i></td>'
       + '<td class="icon-cell">' + esc(e.tcversion_number) + '</td>'
       + '<td class="icon-cell">' + actions + '</td>'
       + '</tr>';
     if (e.notes) {
-      h += '<tr><td colspan="7" style="background:#fafafa;padding:6px 10px;color:#555;font-size:12px;border-top:1px dashed #ddd;">'
+      h += '<tr><td colspan="8" style="background:#fafafa;padding:6px 10px;color:#555;font-size:12px;border-top:1px dashed #ddd;">'
         + '<span style="font-weight:700;color:#444;">' + esc(TLi18n.t('exechist.execNotes')) + ':</span> '
         + esc(e.notes) + '</td></tr>';
     }

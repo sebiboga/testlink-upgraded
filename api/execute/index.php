@@ -248,6 +248,8 @@ if ($action === 'history') {
                             $bugs[] = [
                                 'id' => strval($bugId),
                                 'link_to_bts' => $bi['link_to_bts'],
+                                'tcstep_id' => intval($bi['tcstep_id'] ?? 0),
+                                'step_number' => intval($bi['step_number'] ?? 0),
                             ];
                         }
                     } catch (Exception $e) {
@@ -256,13 +258,21 @@ if ($action === 'history') {
                 } else {
                     // graceful fallback: show raw bug strings when no BTS is configured
                     try {
-                        $ebTables = tlObjectWithDB::getDBTables(array('execution_bugs'));
+                        $tables = tlObjectWithDB::getDBTables(
+                            array('execution_bugs', 'tcsteps'));
                         $brs = $db->get_recordset(
-                            "SELECT bug_id FROM {$ebTables['execution_bugs']} " .
-                            "WHERE execution_id = {$execId}");
+                            "SELECT eb.bug_id, eb.tcstep_id, s.step_number " .
+                            "FROM {$tables['execution_bugs']} eb " .
+                            "LEFT JOIN {$tables['tcsteps']} s ON s.id = eb.tcstep_id " .
+                            "WHERE eb.execution_id = {$execId}");
                         if (!is_null($brs)) {
                             foreach ($brs as $br) {
-                                $bugs[] = ['id' => strval($br['bug_id']), 'link_to_bts' => ''];
+                                $bugs[] = [
+                                    'id' => strval($br['bug_id']),
+                                    'link_to_bts' => '',
+                                    'tcstep_id' => intval($br['tcstep_id'] ?? 0),
+                                    'step_number' => intval($br['step_number'] ?? 0),
+                                ];
                             }
                         }
                     } catch (Exception $e) {
@@ -663,6 +673,22 @@ if ($action === 'tcDetails') {
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
 
+    // issue tracker integration (bugs per execution), same gate as the
+    // /history action - drives the clickable linked-bug badges
+    $its = null;
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    $useITS = !empty($info['issue_tracker_enabled'])
+        && config_get('exec_cfg')->features->issue_tracker->enabled;
+    if ($useITS) {
+        try {
+            $itMgr = new tlIssueTracker($db);
+            $its = $itMgr->getInterfaceObject($tprojectId);
+            unset($itMgr);
+        } catch (Exception $e) {
+            $its = null;
+        }
+    }
+
     $tcaseId = getIntParam('tcase_id');
     $tcversionId = getIntParam('tcversion_id');
     $buildId = getIntParam('build_id');
@@ -841,6 +867,42 @@ if ($action === 'tcDetails') {
                     $hTester = trim(strval($h['tester_first_name'] ?? '') . ' ' .
                                     strval($h['tester_last_name'] ?? ''));
                     if ($hTester === '' && !empty($h['tester_login'])) $hTester = strval($h['tester_login']);
+                    // bugs linked to this execution (with the tcstep link),
+                    // same source + gate as the /history action
+                    $hBugs = [];
+                    if ($useITS && !is_null($its)) {
+                        try {
+                            $dummyB = get_bugs_for_exec($db, $its, $hExecId);
+                            foreach ($dummyB as $bugIdB => $biB) {
+                                $hBugs[] = [
+                                    'id' => strval($bugIdB),
+                                    'link_to_bts' => $biB['link_to_bts'],
+                                    'tcstep_id' => intval($biB['tcstep_id'] ?? 0),
+                                    'step_number' => intval($biB['step_number'] ?? 0),
+                                ];
+                            }
+                        } catch (Exception $e) { $hBugs = []; }
+                    } else {
+                        try {
+                            $tblB = tlObjectWithDB::getDBTables(
+                                array('execution_bugs', 'tcsteps'));
+                            $brsB = $db->get_recordset(
+                                "SELECT eb.bug_id, eb.tcstep_id, s.step_number " .
+                                "FROM {$tblB['execution_bugs']} eb " .
+                                "LEFT JOIN {$tblB['tcsteps']} s ON s.id = eb.tcstep_id " .
+                                "WHERE eb.execution_id = {$hExecId}");
+                            if (!is_null($brsB)) {
+                                foreach ($brsB as $brB) {
+                                    $hBugs[] = [
+                                        'id' => strval($brB['bug_id']),
+                                        'link_to_bts' => '',
+                                        'tcstep_id' => intval($brB['tcstep_id'] ?? 0),
+                                        'step_number' => intval($brB['step_number'] ?? 0),
+                                    ];
+                                }
+                            }
+                        } catch (Exception $e) { $hBugs = []; }
+                    }
                     $execHistory[] = [
                     'execution_id' => $hExecId,
                     'tcversion_id' => intval($h['tcversion_id']),
@@ -864,6 +926,7 @@ if ($action === 'tcDetails') {
                         'notes' => strval($h['execution_notes']),
                         'can_edit_notes' => ($canEditNotesGlobal && $buildOpen) ? 1 : 0,
                         'can_delete' => ($canDeleteGlobal && $buildOpen) ? 1 : 0,
+                        'bugs' => $hBugs,
                     ];
                 }
             }
