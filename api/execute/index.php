@@ -675,6 +675,7 @@ if ($action === 'tcDetails') {
 
     // issue tracker integration (bugs per execution), same gate as the
     // /history action - drives the clickable linked-bug badges
+    $tprojectMgr = new testproject($db);
     $its = null;
     $info = $tprojectMgr->get_by_id($tprojectId);
     $useITS = !empty($info['issue_tracker_enabled'])
