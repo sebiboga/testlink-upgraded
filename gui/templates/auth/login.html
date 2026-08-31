@@ -164,11 +164,9 @@ $(function () {
       $('#tl_password').attr('maxlength', c.pwdMaxLen);
     }
 
-    if (c.selfSignup) {
-      $('#tl_sign_up').attr('href', 'firstLogin.html');
-    } else {
-      $('#tl_sign_up').hide();
-    }
+    // Sign-up link is always shown, regardless of the self-signup config, so
+    // users always have a visible path to the registration screen.
+    $('#tl_sign_up').attr('href', 'firstLogin.html');
 
     // Lost-password link: independent of self-signup; only hidden when the
     // auth method manages passwords externally or in demo mode.
@@ -179,10 +177,9 @@ $(function () {
       $('#tl_lost_password').hide();
       $('#lostSep').hide();
     }
-    // Show the registration footer if either sign-up or lost-password is usable.
-    if (c.selfSignup || showLost) {
-      $('.registration, #registrationRow').show();
-    }
+    // The registration footer (with the Sign Up link) is always shown so the
+    // path to registration stays visible regardless of the self-signup config.
+    $('.registration, #registrationRow').show();
 
     if (c.oauth && c.oauth.length) {
       $('#oauthRow').show();
