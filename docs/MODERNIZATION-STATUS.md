@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-08-31 (#803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
+> Last updated: 2026-08-31 (#809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 7 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword) |
+| DONE (modernized) | 67 + 8 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -103,6 +103,7 @@ Extra modernized feature (not an ASIDE entry):
 - Self Sign-Up (`firstLogin.php`) — `gui/templates/auth/firstLogin.html` + `api/auth/index.php` `POST /api/auth/signup` (#782, DONE). Reached from `login.html` "New user? Create account".
 - Lost Password / Password Reset (`lostPassword.php`) — `gui/templates/auth/lostPassword.html` + `api/auth/index.php` `POST /api/auth/reset` (+ `GET /api/auth/config`) (#783, DONE). Enumeration-safe generic success; reached from `login.html` "Lost password?". Regression suite 783 10/10 PASS.
 - Test Case / Suite / Project Export (`tcEdit` toolbar) — `gui/templates/testcases/tcExport.html` + `api/testcasesexport/index.php` `GET ?action=info` + `POST ?action=export` (#803, DONE). Converted the `tcView.html` `tcExport.php` legacy redirect to a BFF-driven XML download (test case / suite-children / suite-deep / project-deep modes). Regression suite 69 13/13 PASS. Refs #753.
+- Test Case Version Compare (`tcView` toolbar) — `gui/templates/testcases/tcCompare.html` + `api/testcasescompare/index.php` `GET ?action=info` + `GET ?action=compare` (#809, DONE). Converted the `tcView.html` `tcCompareVersions.php` legacy POST redirect to a BFF-driven side-by-side version diff (HTML/DaisyDiff + legacy text engines). Regression suite 70 13/13 PASS. Refs #753.
 
 ---
 
@@ -137,14 +138,14 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 
 | Priority | Source screen | Legacy target | Issue | Action |
 |---|---|---|---|---|
-| HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php`, `tcExport.php` ✅, `tcCompareVersions.php` | #753 | `tcExport.php` converted to `tcExport.html` + BFF (Refs #803); Edit/Assign-2-Plan/Compare still legacy |
+| HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php`, `tcExport.php` ✅, `tcCompareVersions.php` ✅ | #753 | `tcExport.php` converted to `tcExport.html` + BFF (Refs #803); `tcCompareVersions.php` converted to `tcCompare.html` + BFF (Refs #809); Edit/Assign-2-Plan still legacy |
 | HIGH | planView.html | `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #754 — Export/Import/Roles/Execute still legacy (links fixed for tplan_id, #766) |
 | HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
 | HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
 | HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |
 | HIGH | 5 req screens (#755 progress: `reqView.php` ✅, `reqSpecView.php` ✅, `printDocument.php` ✅) | `reqSpecViewRevision.php`, `reqSpecViewRevisions.php` | #755 | Convert to modals / BFF API |
 | HIGH | resultsMatrix.html | `execSetResults.php` | #756 | Redirect to modernized page |
-| MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` | #758 | Redirect / modal |
+| MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` ✅ | #758 | Redirect / modal; `tcCompareVersions` now `tcCompare.html` (Refs #809) |
 | MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
 | MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | Fix: already have keywordsAssign.html |
 | MEDIUM | platformsView.html | `eventviewer.php` | #757 | Fix: already have eventviewer.html |
