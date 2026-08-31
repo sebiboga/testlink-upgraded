@@ -248,6 +248,7 @@ if ($action === 'history') {
                             $bugs[] = [
                                 'id' => strval($bugId),
                                 'link_to_bts' => $bi['link_to_bts'],
+                                'bug_url' => (string)$its->buildViewBugURL($bugId),
                                 'tcstep_id' => intval($bi['tcstep_id'] ?? 0),
                                 'step_number' => intval($bi['step_number'] ?? 0),
                             ];
@@ -878,6 +879,7 @@ if ($action === 'tcDetails') {
                                 $hBugs[] = [
                                     'id' => strval($bugIdB),
                                     'link_to_bts' => $biB['link_to_bts'],
+                                    'bug_url' => (string)$its->buildViewBugURL($bugIdB),
                                     'tcstep_id' => intval($biB['tcstep_id'] ?? 0),
                                     'step_number' => intval($biB['step_number'] ?? 0),
                                 ];

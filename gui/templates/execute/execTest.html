@@ -534,8 +534,8 @@ function bugBadgeHtml(bug) {
   var title = (bug.step_number > 0)
     ? esc(TLi18n.t('exe.bugLinkedToStep', { id: bug.id, n: bug.step_number }))
     : esc(TLi18n.t('exe.bugLinkedTo', { id: bug.id }));
-  if (bug.link_to_bts) {
-    return '<a class="bug-badge" target="_blank" rel="noopener" href="' + esc(bug.link_to_bts)
+  if (bug.bug_url) {
+    return '<a class="bug-badge" target="_blank" rel="noopener" href="' + esc(bug.bug_url)
       + '" title="' + title + '">' + icon + esc(label) + step + '</a>';
   }
   return '<span class="bug-badge" title="' + title + '">' + icon + esc(label) + step + '</span>';
