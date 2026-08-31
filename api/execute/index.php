@@ -1002,12 +1002,16 @@ if ($action === 'save') {
     $platformId = intval($payload['platform_id'] ?? -1); // -1 = plan has none
     $statusCode = strtolower(trim(strval($payload['status'] ?? '')));
     $notes = strval($payload['notes'] ?? '');
-    // Execution duration (seconds, legacy 'execution_time' input) is optional
+    // Execution duration (minutes, legacy 'execution_time' input) is optional
     // and only persisted when the feature is enabled (config exec_cfg->
-    // features->exec_duration->enabled). Passed through to write_execution(),
-    // which maps an empty/invalid value to NULL (exec.inc.php:153-158).
+    // features->exec_duration->enabled, read defensively like the init action).
+    // Passed through to write_execution(), which maps an empty/invalid value
+    // to NULL (exec.inc.php:153-158).
     $executionDuration = '';
-    if (config_get('exec_cfg')->features->exec_duration->enabled) {
+    $execCfgSave = config_get('exec_cfg');
+    if (isset($execCfgSave->features)
+        && isset($execCfgSave->features->exec_duration)
+        && !empty($execCfgSave->features->exec_duration->enabled)) {
         $executionDuration = strval($payload['execution_duration'] ?? '');
     }
     // legacy copyAttFromLEXEC checkbox -> '1' when checked (see

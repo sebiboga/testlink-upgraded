@@ -8639,3 +8639,34 @@ Notes:
   - **Normal scenario** (DataTables present then Find): enhanced DataTables table renders (Show entries, searchbox, pagination, row present); no regression.
   - Event Viewer `events` table: only `audit_login_succeeded` (log_level 16) entries; **0** new Error/Warning (log_level 3/4) rows from the search.
 - **Result:** **PASS**
+
+---
+
+## Suite 788 — Regression — Issue #788: Execute Tests — missing Execution Duration (Execution Time) input + no duration saved/displayed
+
+- **Priority:** Blocker
+- **Importance:** High
+- **Symptom (pre-fix):** the modernized Execute Tests screen (`gui/templates/execute/execTest.html`) had NO "Execution duration" input, so the tester could not record how long executing a test case took. The BFF save (`api/execute/index.php?action=save`) never read `execution_duration` from the payload, so `write_execution()` (lib/functions/exec.inc.php:153-158) always stored NULL. The history/`execHistory.html` screen did not display a duration anywhere, even though the feature is ENABLED (`config.inc.php:1189-1190`: `exec_cfg->features->exec_duration->enabled = true`).
+- **Preconditions:** authenticated session (admin/admin); a test project with a plan + an open build + a linked test case version (fresh fixtures: project `Demo Project` id=1, plan `Plan 1` id=2, case `Login Test` version node 4, build `Build 1` id=1).
+- **Repro steps (pre-fix):**
+  1. Open Execute Tests `gui/templates/execute/execTest.html?tplan_id=2&tproject_id=1`.
+  2. Open a test case, set a status, and look for any "Execution Tra/Time/Duration" field. *Observed (pre-fix):* no such field rendered.
+  3. As admin call the BFF save with `execution_duration=12.5` (mirrors the legacy input): `SELECT execution_duration FROM executions` → NULL (value silently dropped).
+  4. Open `gui/templates/execute/execHistory.html?tcase_id=3&tproject_id=1` → no "Duration" column.
+- **Expected post-fix behavior:**
+  1. The Execute form renders a numeric "Execution duration (min)" input (gated on `exec_duration_enabled`), numeric-only, disabled in read-only mode.
+  2. Saving a value persists it: `executions.execution_duration` stores the numeric value (e.g. 8.5 → 8.50).
+  3. Saving with an empty duration stores NULL (legacy parity).
+  4. `prior_execution.execution_duration` is returned by `tcDetails` and pre-fills the field on re-open.
+  5. `execHistory.html` shows a "Duration" column and detail entry reflecting the stored duration (`-` when empty).
+  6. `?action=history` returns `execution_duration` per row.
+- **Actual result observed (post-fix, admin, fixtures above):**
+  - **TC-788.1** Form renders the "Execution duration (min)" input (screenshot `docs/screenshots/issue-788-exectest-duration-input.png`). → **PASS**
+  - **TC-788.2** UI end-to-end save: set duration `8.5` + status Passed, click "Save execution" → new execution id=4 stored with `execution_duration=8.50`, status `p` (`SELECT execution_duration,status FROM executions WHERE id=4`). → **PASS**
+  - **TC-788.3** Empty-duration save → stored NULL (execution id=3). → **PASS**
+  - **TC-788.4** `?action=tcDetails&tplan_id=2&tcase_id=3&tcversion_id=4&build_id=1&platform_id=0` → `prior_execution.execution_duration` present. → **PASS**
+  - **TC-788.5** `?action=history&tcase_id=3` → each execution row includes `execution_duration` (`8.50`, ``, `12.50`). → **PASS**
+  - **TC-788.6** `execHistory.html?tcase_id=3&tproject_id=1` renders "Duration" column showing `8.50`, `-`, `12.50` (screenshot `docs/screenshots/issue-788-exechistory-duration-column.png`). → **PASS**
+  - **TC-788.7** i18n: `exe.executionDuration` + `exechist.colDuration` present in all 10 bundles; all `python3 -m json.tool` valid; Romanian translation in `ro.json`. → **PASS**
+  - **TC-788.8** Event Viewer `events` table: only informational audit rows (login + project created, log_level=16); **0** new Error/Warning from the fix. → **PASS**
+- **Result:** **PASS**
