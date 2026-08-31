@@ -113,6 +113,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
 <script>
 var ctx = null;
 var data = null;
@@ -169,6 +170,10 @@ function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function sanitizeRich(s) {
+  return DOMPurify.sanitize(String(s == null ? '' : s));
 }
 
 function render() {
@@ -307,9 +312,9 @@ function renderVersion(v) {
 
   // summary + preconditions
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.summary')) + '</div>';
-  h += '<div class="rich-field">' + (v.summary || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+  h += '<div class="rich-field">' + (sanitizeRich(v.summary) || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.preconditions')) + '</div>';
-  h += '<div class="rich-field">' + (v.preconditions || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+  h += '<div class="rich-field">' + (sanitizeRich(v.preconditions) || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
 
   // steps
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.steps')) + '</div>';
@@ -321,8 +326,8 @@ function renderVersion(v) {
       + '</tr></thead><tbody>';
     v.steps.forEach(function (st) {
       h += '<tr><td class="step-num">' + st.step_number + '</td>'
-        + '<td>' + (st.actions || '') + '</td>'
-        + '<td>' + (st.expected_results || '') + '</td></tr>';
+        + '<td>' + (sanitizeRich(st.actions) || '') + '</td>'
+        + '<td>' + (sanitizeRich(st.expected_results) || '') + '</td></tr>';
     });
     h += '</tbody></table>';
   } else {
