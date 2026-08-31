@@ -8324,7 +8324,7 @@ Notes:
   3. Confirm the DB would store step binding.
      *Expected:* `write_execution_bug($db,$execId,$bugId,$tcstepId)` writes `execution_bugs (execution_id, tcstep_id, bug_id)`.
      *Actual:* BFF `api/execute/index.php` has no bug action, so no such row can be created from the UI.
-- **Result:** **FAIL** (regression, refs GitHub bug #789 — per-step linkage missing)
+ - **Result:** **FAIL** (regression, refs GitHub bug #789 — per-step linkage missing)
 
 ### Regression — Issue #792: Execute Tests — Attachment upload/list + "Copy attachments from latest execution" missing (#792)
 - **Priority:** High
@@ -8364,3 +8364,43 @@ Notes:
   - `TLi18n.t('rtf.rowCount', [5])` → `"5 rows"` (array interpolation preserved by `typeof 'object'` guard — no `Array.isArray` exclusion).
   - Browser console error/warn: 0. `SELECT COUNT(*) FROM events WHERE log_level IN (4,8)` → 0.
 - **Result:** **PASS** (fix: `gui/templates/i18n/i18n.js` `t()` guard — defense-in-depth; primary cause already absent from current `mainPage.html`)
+
+## TC-385: Quick Search — Results table body renders when search has matches (#799)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** Quick Search screen (`searchQuickView.html?tproject_id=11&tplan_id=3232`), jQuery + DataTables loaded from CDN.
+- **Steps:**
+  1. Open Quick Search; type a test case ID that has exactly 1 match, e.g. `383` (TLU-383); click **Find**.
+     - *Expected:* result header shows `Search results (1 matches)`.
+     - *Actual:* header renders `(1 matches)`.
+  2. Inspect the results **table body** under the header.
+     - *Expected:* a row renders with the matched test case (`<a class="tc-link">TLU-383 [v1] ...`, summary, version).
+     - *Actual (REGREsSION):* intermittently the table body is **EMPTY** — no row/`tc-link` appears even though the count header says `(1 matches)`.
+  3. Repeat the search several times, incl. under slow/unreliable CDN network (jQuery/DataTables from code.jquery.com / cdn.datatables.net).
+     - *Expected:* the matched row is ALWAYS rendered.
+     - *Actual:* the table body can stay empty whenever `$.fn.DataTable` is not ready when `renderResults()` runs — `$('#resTable').DataTable(...)` throws (uncaught) AFTER `#matchCount`/`#resultsWrap` are shown, leaving count visible but zero rows. No guard exists for CDN load failure.
+- **Result:** **FAIL** (refs GitHub bug #799)
+- **Execution:** TLU-385 (tcase 3263 / tcversion 3264), status `f`, execution_id 21, 2026-08-31 08:57:41.
+
+## TC-386: Execute Tests — Link existing bug AND create a new bug/issue (link + create) (#789/#802)
+- **Priority:** High
+- **Importance:** High
+- **Preconditions:** GitHub issue tracker configured & enabled for the project; Execute Tests on a test plan with a linked, previously-saved multi-step TC (execution_id exists).
+- **Steps:**
+  1. Open a previously-saved test case in Execute Tests; click **Link bug** (case-level toolbar) and **Link bug to this step** (a step row).
+     - *Expected:* the "Link bug to execution" modal opens with a two-mode toggle (**Link existing bug** / **Create new bug**); the target line shows `Execution <id>` (case) or `Execution <id> on step N (<id>)` (step) — the id appears exactly once.
+     - *Actual:* modal opens, both toggle buttons render, target line correct.
+  2. **Link existing:** type a valid GitHub issue id (e.g. 799) and submit.
+     - *Expected:* BFF `action=linkBug` validates syntax + existence against GitHub, writes `execution_bugs(execution_id, tcstep_id, bug_id)`, audit-logged; modal closes with "Bug {id} linked.".
+     - *Actual:* works, bug shows in execution history Bugs block.
+  3. **Create new:** switch to **Create new bug**, fill Title (summary) + Description, submit.
+     - *Expected:* BFF `action=createBug` calls `its->addIssue()` → creates a real GitHub issue, returns its id, then `write_execution_bug()` links it; "Bug {id} created and linked." shown; new issue appears in execution history.
+     - *Actual:* verified — BFF created GitHub issue #800, UI modal created #801; both linked to execution 21 (visible in history `bugs`).
+  4. Validation: submit create with an **empty Title**.
+     - *Expected:* inline toast `exe.bugSummaryRequired`, no API call.
+     - *Actual:* toast shown, no request sent.
+  5. Event Viewer after link + create.
+     - *Expected:* no new Error/Warning entries.
+     - *Actual:* surfaced pre-existing E_WARNING `Undefined array key addReporter/addHandler` in `issueTrackerInterface::buildViewBugLink()` from the GitHub adapter dropping those keys → fixed in `githubrestInterface` (`array_merge`); re-render produced no new warnings. Logged as GitHub bug #802.
+ - **Result:** **PASS** (link + create both work end-to-end; adapter warning fixed)
+- **Execution:** Execute Tests screen `execTest.html?tproject_id=11&tplan_id=3232`, case TLU-385 (3263/3264), execution_id 21. Test issues #800/#801 created then closed.

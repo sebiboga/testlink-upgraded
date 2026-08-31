@@ -70,6 +70,14 @@ label.flbl { font-size: 12px; font-weight: 600; color: #444; display: block; mar
 .icon-btn:hover { color: #3dbdb5; }
 .icon-btn.danger { color: #e6605e; } .icon-btn.danger:hover { color: #c0392b; }
 .icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
+.icon-btn.buglink { color: #e6605e; } .icon-btn.buglink:hover { color: #c0392b; }
+.steps-table .bug-cell { width: 66px; text-align: center; white-space: nowrap; }
+.linkbug-target { font-size: 13px; color: #555; margin-top: 4px; }
+.linkbug-target b { color: #22242a; }
+.bug-mode-toggle { display: flex; gap: 6px; margin: 8px 0 14px; }
+.bug-mode-btn { flex: 1; padding: 8px 10px; font-size: 13px; border: 1px solid #d8dce3; border-radius: 5px; background: #f4f6f9; color: #555; cursor: pointer; text-align: center; }
+.bug-mode-btn.active { background: #25b6d2; border-color: #1fa0b9; color: #fff; }
+#bugModeCreate label, #bugModeLink label { display: block; font-size: 12.5px; font-weight: 600; color: #444; margin: 10px 0 4px; }
 .ro-banner { margin: 12px 24px 0; background: #fff8e1; border: 1px solid #ffe08a; color: #8a6d1a; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
@@ -141,6 +149,46 @@ label.flbl { font-size: 12px; font-weight: 600; color: #444; display: block; mar
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Link Bug to Execution modal (mirrors legacy bugAdd.php?user_action=link);
+     binds the bug to a step when tcstep_id > 0, case-level otherwise -->
+<div class="modal fade" id="linkBugModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-bug" style="color:#e6605e;margin-right:6px;"></i>
+          <span data-i18n="exe.linkBugTitle">Link bug to execution</span></h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <p class="linkbug-target" id="linkBugTarget"></p>
+        <div class="bug-mode-toggle" role="tablist">
+          <button type="button" class="bug-mode-btn active" id="modeLinkBtn" onclick="setBugMode('link')"
+            data-i18n="exe.linkExisting">&nbsp;</button>
+          <button type="button" class="bug-mode-btn" id="modeCreateBtn" onclick="setBugMode('create')"
+            data-i18n="exe.createNew">&nbsp;</button>
+        </div>
+        <div id="bugModeLink">
+          <label for="linkBugId" data-i18n="exe.bugId">Bug / issue ID</label>
+          <input type="text" class="form-control" id="linkBugId" placeholder="e.g. 799" maxlength="120">
+        </div>
+        <div id="bugModeCreate" style="display:none;">
+          <label for="bugCreateSummary" data-i18n="exe.bugSummary">Title / summary</label>
+          <input type="text" class="form-control" id="bugCreateSummary" maxlength="200" placeholder="">
+          <label for="bugCreateDescription" data-i18n="exe.bugDescription">Description</label>
+          <textarea class="form-control" id="bugCreateDescription" rows="4" maxlength="4000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-dark" data-dismiss="modal"><span data-i18n="exe.cancel">Cancel</span></button>
+        <button type="button" class="btn-teal" id="btnLinkBug" onclick="doLinkBug()" style="display:none;">
+          <i class="fas fa-link"></i> <span data-i18n="exe.linkBug">Link bug</span></button>
+        <button type="button" class="btn-teal" id="btnCreateBug" onclick="doCreateBug()" style="display:none;">
+          <i class="fas fa-plus"></i> <span data-i18n="exe.createBug">Create &amp; link bug</span></button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -602,6 +650,7 @@ function renderForm() {
       + '<th>' + esc(TLi18n.t('exe.stepExpected')) + '</th>'
       + '<th style="width:130px;">' + esc(TLi18n.t('exe.stepResult')) + '</th>'
       + '<th style="width:170px;">' + esc(TLi18n.t('exe.stepNotes')) + '</th>'
+      + '<th class="bug-cell">' + esc(TLi18n.t('exe.stepBug')) + '</th>'
       + '</tr></thead><tbody>';
     current.steps.forEach(function (st) {
       var priorSt = (current.prior_step_results || {})[st.id] || {};
@@ -619,6 +668,10 @@ function renderForm() {
       h += '</select></td>'
         + '<td><input type="text" class="step-notes" value="' + esc(priorSt.notes || '') + '"'
         + (roMode ? ' disabled' : '') + '></td>'
+        + '<td class="bug-cell"><button type="button" class="icon-btn buglink"'
+        + ' title="' + esc(TLi18n.t('exe.linkBugHere')) + '"'
+        + ' onclick="openLinkBug(' + st.id + ',' + st.step_number + ')">'
+        + '<i class="fas fa-bug"></i></button></td>'
         + '</tr>';
     });
     h += '</tbody></table>';
@@ -645,6 +698,9 @@ function renderForm() {
   h += '<button class="btn-dark" onclick="moveToNext()"'
     + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
     + '><i class="fa fa-arrow-right"></i> <span data-i18n="exe.moveToNext">Next</span></button>';
+  h += '<button class="btn-dark" onclick="openLinkBug(0,0)"'
+    + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
+    + '><i class="fas fa-bug"></i> <span data-i18n="exe.linkBug">Link bug</span></button>';
   h += '<button class="btn-dark" onclick="resetFormInputs()"'
     + (roMode ? ' disabled style="opacity:.5;cursor:not-allowed;"' : '')
     + '><i class="fa fa-eraser"></i> <span data-i18n="exe.reset">Reset</span></button>';
@@ -951,6 +1007,114 @@ function savePartialSteps() {
 
 // Re-derive the overall PASS/FAIL/BLOCKED whenever a step status changes
 $(document).on('change', '.step-status', deriveOverallStatus);
+
+// Link Bug to Execution helpers (legacy bugAdd.php?user_action=link):
+// openLinkBug(stepId, stepNumber) — stepId 0 => case-level, otherwise binds
+// the bug to that tcsteps row. A saved execution is required (an execution_id
+// exists in current.prior_execution); the BFF enforces plan membership,
+// testplan_execute right and open build.
+function openLinkBug(stepId, stepNumber) {
+  var execId = current && current.prior_execution
+    ? current.prior_execution.execution_id : 0;
+  if (!execId) {
+    toast(TLi18n.t('exe.linkBugSaveFirst'), true);
+    return;
+  }
+  window._linkBug = { execId: execId, stepId: stepId, stepNumber: stepNumber };
+  var target = '';
+  if (stepId > 0) {
+    target = ' ' + TLi18n.t('exe.linkBugOnStep', { n: stepNumber }) + ' (' + execId + ')';
+  }
+  $('#linkBugTarget').html('Execution <b>' + esc(execId) + '</b>' + target);
+  setBugMode('link');
+  $('#linkBugId').val('');
+  $('#bugCreateSummary').val('');
+  $('#bugCreateDescription').val('');
+  $('#linkBugModal').modal('show');
+  setTimeout(function () { $('#linkBugId').focus(); }, 250);
+}
+
+// Switch the link-bug modal between "link existing issue" and "create new issue"
+// modes (legacy bugAdd.php supports both user_action=link and =create/doCreate).
+function setBugMode(mode) {
+  window._linkBugMode = (mode === 'create') ? 'create' : 'link';
+  var isCreate = window._linkBugMode === 'create';
+  $('#modeLinkBtn').toggleClass('active', !isCreate);
+  $('#modeCreateBtn').toggleClass('active', isCreate);
+  $('#bugModeLink').toggle(!isCreate);
+  $('#bugModeCreate').toggle(isCreate);
+  $('#btnLinkBug').toggle(!isCreate);
+  $('#btnCreateBug').toggle(isCreate);
+}
+
+function doLinkBug() {
+  var tgt = window._linkBug;
+  if (!tgt) { return; }
+  var bugId = $.trim($('#linkBugId').val());
+  if (bugId === '') { toast(TLi18n.t('exe.bugIdRequired'), true); return; }
+  var $btn = $('#btnLinkBug').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=linkBug',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      tplan_id: ctx.tplanId,
+      execution_id: tgt.execId,
+      bug_id: bugId,
+      tcstep_id: tgt.stepId
+    })
+  })
+  .done(function (r) {
+    if (r.status === 'ok' && r.linked) {
+      $('#linkBugModal').modal('hide');
+      toast(TLi18n.t('exe.linkBugDone', { id: bugId }));
+      // refresh so the newly linked bug shows in the execution history
+      openCase(current.tcase.id, current.version.id);
+    } else {
+      toast(r.message || TLi18n.t('exe.errLinkBug'), true);
+    }
+  })
+  .fail(function (xhr) { toast(apiErr(xhr, 'exe.errLinkBug'), true); })
+  .always(function () { $btn.prop('disabled', false); });
+}
+
+// Create a brand-new issue on the configured tracker (GitHub) from TestLink and
+// link it to the execution — legacy bugAdd.php?user_action=doCreate. The BFF
+// calls its->addIssue() (creating the issue) and then write_execution_bug().
+function doCreateBug() {
+  var tgt = window._linkBug;
+  if (!tgt) { return; }
+  var summary = $.trim($('#bugCreateSummary').val());
+  if (summary === '') { toast(TLi18n.t('exe.bugSummaryRequired'), true); return; }
+  var description = $.trim($('#bugCreateDescription').val());
+  var $btn = $('#btnCreateBug').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=createBug',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      tplan_id: ctx.tplanId,
+      execution_id: tgt.execId,
+      tcstep_id: tgt.stepId,
+      bug_summary: summary,
+      bug_description: description
+    })
+  })
+  .done(function (r) {
+    if (r.status === 'ok' && r.created) {
+      $('#linkBugModal').modal('hide');
+      toast(TLi18n.t('exe.createBugDone', { id: r.bug_id }));
+      // refresh so the newly created bug shows in the execution history
+      openCase(current.tcase.id, current.version.id);
+    } else {
+      toast(r.message || TLi18n.t('exe.errCreateBug'), true);
+    }
+  })
+  .fail(function (xhr) { toast(apiErr(xhr, 'exe.errCreateBug'), true); })
+  .always(function () { $btn.prop('disabled', false); });
+}
 </script>
 </body>
 </html>

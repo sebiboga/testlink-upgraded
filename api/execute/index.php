@@ -17,6 +17,9 @@
  *   ?action=tcDetails - version details incl. steps + prior execution
  *   POST ?action=save - write an execution (status/notes/step results),
  *                       reusing legacy write_execution() from exec.inc.php
+ *   POST ?action=linkBug   - link an issue to an execution (optionally bound
+ *                            to a step), mirroring legacy bugAdd.php?user_action=link
+ *   POST ?action=unlinkBug - remove a bug link (legacy bugDelete.php)
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -1407,6 +1410,225 @@ if ($action === 'updateNotes') {
         out(['status' => 'error', 'message' => 'Update failed']);
     }
     out(['status' => 'ok', 'updated' => true, 'execution_id' => $execId]);
+}
+
+// Shared helpers for the "Link Bug to Execution" feature (legacy
+// lib/execute/bugAdd.php ?user_action=link + write_execution_bug()).
+// Resolve the execution that is the target of a bug link and enforce the
+// same gate the legacy screen used (testplan_execute right).
+function execBugLinkContext(&$db, &$user, $payload) {
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list(, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        return null;
+    }
+    $execId = intval($payload['execution_id'] ?? 0);
+    if ($execId <= 0) {
+        return null;
+    }
+    // the execution must belong to the given test plan
+    $tables = tlObjectWithDB::getDBTables(array('executions', 'builds'));
+    $er = $db->get_recordset(
+        "SELECT E.id, E.testplan_id, E.build_id, B.is_open AS build_is_open" .
+        " FROM {$tables['executions']} E" .
+        " LEFT JOIN {$tables['builds']} B ON B.id = E.build_id" .
+        " WHERE E.id = {$execId}");
+    if (is_null($er) || count($er) == 0) {
+        return null;
+    }
+    if (intval($er[0]['testplan_id']) !== $tplanId) {
+        return null;
+    }
+    return array('tplanId' => $tplanId, 'tprojectId' => $tprojectId,
+                 'execId' => $execId, 'buildIsOpen' => intval($er[0]['build_is_open']) === 1);
+}
+
+// POST ?action=linkBug  (JSON body)
+// Link an issue (bug) to an execution of the current test plan. Mirrors the
+// legacy ?user_action=link flow of lib/execute/bugAdd.php: validate + normalize
+// the bug id against the configured issue tracker, then write the linkage into
+// execution_bugs via write_execution_bug(). tcstep_id is optional; when given
+// the bug is bound to that step (legacy step-level linkage).
+if ($action === 'linkBug') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    try {
+        $ctx = execBugLinkContext($db, $user, $payload);
+        if (is_null($ctx)) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Insufficient rights or invalid execution']);
+        }
+        if (!$ctx['buildIsOpen']) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Cannot link a bug to an execution of a closed build']);
+        }
+        $bugId = trim(strval($payload['bug_id'] ?? ''));
+        $tcstepId = intval($payload['tcstep_id'] ?? 0);
+        if ($bugId === '') {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Missing bug id']);
+        }
+
+        // resolve through the configured issue tracker, same as legacy bugAdd.php
+        $tprojectMgr = new testproject($db);
+        $info = $tprojectMgr->get_by_id($ctx['tprojectId']);
+        $useITS = !empty($info['issue_tracker_enabled'])
+            && config_get('exec_cfg')->features->issue_tracker->enabled;
+
+        if ($useITS) {
+            $itMgr = new tlIssueTracker($db);
+            $its = $itMgr->getInterfaceObject($ctx['tprojectId']);
+            if (is_null($its) || !method_exists($its, 'checkBugIDSyntax')) {
+                http_response_code(500);
+                out(['status' => 'error', 'message' => 'Issue tracker not available']);
+            }
+            if (!$its->checkBugIDSyntax($bugId)) {
+                http_response_code(400);
+                out(['status' => 'error',
+                     'message' => 'wrong bug ID format (' . $bugId . ')']);
+            }
+            $bugID = method_exists($its, 'normalizeBugID')
+                ? $its->normalizeBugID($bugId)
+                : $bugId;
+            if (method_exists($its, 'checkBugIDExistence')
+                && !$its->checkBugIDExistence($bugID)) {
+                http_response_code(400);
+                out(['status' => 'error',
+                     'message' => 'bug ' . $bugID . ' does not exist on the bug tracker']);
+            }
+            $bugId = $bugID;
+        }
+
+        $ok = write_execution_bug($db, $ctx['execId'], $bugId, $tcstepId);
+        if (!$ok) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Link failed']);
+        }
+        logAuditEvent(
+            'Bug ' . $bugId . ' linked to execution ' . $ctx['execId'] .
+            ($tcstepId > 0 ? ' (step ' . $tcstepId . ')' : ''),
+            'CREATE', $ctx['execId'], 'executions');
+        out(['status' => 'ok', 'linked' => true, 'execution_id' => $ctx['execId'],
+             'tcstep_id' => $tcstepId, 'bug_id' => $bugId]);
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+}
+
+// POST ?action=createBug  (JSON body)
+// Create a brand new issue on the configured issue tracker (GitHub) from
+// TestLink and link it to the execution. Mirrors the legacy
+// ?user_action=doCreate flow of lib/execute/bugAdd.php: build a title
+// (summary) + description, call its->addIssue() which returns the new issue
+// id, then write_execution_bug() to bind it to the execution (or a tcstep).
+// Requires tlCanCreateIssue (the tracker adapter exposing addIssue()).
+if ($action === 'createBug') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    try {
+        $ctx = execBugLinkContext($db, $user, $payload);
+        if (is_null($ctx)) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Insufficient rights or invalid execution']);
+        }
+        if (!$ctx['buildIsOpen']) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Cannot create a bug for an execution of a closed build']);
+        }
+        $summary = trim(strval($payload['bug_summary'] ?? ''));
+        $tcstepId = intval($payload['tcstep_id'] ?? 0);
+        if ($summary === '') {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Missing bug summary']);
+        }
+
+        $tprojectMgr = new testproject($db);
+        $info = $tprojectMgr->get_by_id($ctx['tprojectId']);
+        $useITS = !empty($info['issue_tracker_enabled'])
+            && config_get('exec_cfg')->features->issue_tracker->enabled;
+        if (!$useITS) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Issue tracker is disabled']);
+        }
+        $itMgr = new tlIssueTracker($db);
+        $its = $itMgr->getInterfaceObject($ctx['tprojectId']);
+        if (is_null($its) || !method_exists($its, 'addIssue')) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Issue tracker cannot create issues']);
+        }
+
+        $description = trim(strval($payload['bug_description'] ?? ''));
+        if ($description === '') {
+            $description = 'Created from TestLink execution ' . $ctx['execId'];
+        }
+
+        $rs = $its->addIssue($summary, $description);
+        if (!is_array($rs) || empty($rs['status_ok']) || intval($rs['id']) <= 0) {
+            http_response_code(500);
+            out(['status' => 'error',
+                 'message' => (is_array($rs) && !empty($rs['msg'])) ? $rs['msg'] : 'Bug creation failed']);
+        }
+        $newId = strval($rs['id']);
+
+        $ok = write_execution_bug($db, $ctx['execId'], $newId, $tcstepId);
+        if (!$ok) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Link failed after creating the bug']);
+        }
+        logAuditEvent(
+            'Bug ' . $newId . ' created and linked to execution ' . $ctx['execId'] .
+            ($tcstepId > 0 ? ' (step ' . $tcstepId . ')' : ''),
+            'CREATE', $ctx['execId'], 'executions');
+        out(['status' => 'ok', 'created' => true, 'linked' => true,
+             'execution_id' => $ctx['execId'], 'tcstep_id' => $tcstepId,
+             'bug_id' => $newId]);
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+}
+
+// POST ?action=unlinkBug  (JSON body)
+// Remove a bug link from an execution (legacy bugDelete.php).
+if ($action === 'unlinkBug') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $ctx = execBugLinkContext($db, $user, $payload);
+    if (is_null($ctx)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights or invalid execution']);
+    }
+    $bugId = trim(strval($payload['bug_id'] ?? ''));
+    $tcstepId = intval($payload['tcstep_id'] ?? 0);
+    if ($bugId === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing bug id']);
+    }
+    $ok = write_execution_bug($db, $ctx['execId'], $bugId, $tcstepId, true);
+    out(['status' => 'ok', 'unlinked' => true, 'execution_id' => $ctx['execId'],
+         'tcstep_id' => $tcstepId, 'bug_id' => $bugId]);
 }
 
 http_response_code(400);

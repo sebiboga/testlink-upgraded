@@ -30,7 +30,11 @@ class githubrestInterface extends issueTrackerInterface
   {
     $this->name = $name;
     $this->interfaceViaDB = false;
-    $this->methodOpt['buildViewBugLink'] = array('addSummary' => true, 'colorByStatus' => false);
+    // keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+    // warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+    $this->methodOpt['buildViewBugLink'] = array_merge(
+        $this->methodOpt['buildViewBugLink'],
+        array('addSummary' => true, 'colorByStatus' => false));
 
     $this->defaultResolvedStatus = array();
     $this->defaultResolvedStatus[] = array('code' => 'open', 'verbose' => 'open');
@@ -395,7 +399,7 @@ class githubrestInterface extends issueTrackerInterface
      {
        $msg = "Create github Ticket FAILURE => " . $e->getMessage();
        tLog($msg, 'WARNING');
-       $ret = array('status_ok' => false, 'id' => -1, 'msg' => $msg . ' - serialized issue:' . serialize($issue));
+       $ret = array('status_ok' => false, 'id' => -1, 'msg' => $msg);
      }
      return $ret;
   }  
