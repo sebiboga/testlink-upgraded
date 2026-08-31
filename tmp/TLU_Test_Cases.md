@@ -8532,3 +8532,85 @@ Notes:
 - TC-804.5: **PASS** (lint) — extracted inline JS passes `node --check`.
 - TC-804.6: **PASS** (Event Viewer) — `events` table shows only normal LOGIN/CREATE audit (log_level 16); no new Error/Warning entries from viewing the sanitized test case.
 - **Result:** **PASS** — stored XSS neutralized, rich-text formatting preserved.
+
+## 70. Modernization — Compare Test Case Versions (tcCompare.html) (Suite ID: 70)
+
+**Area:** `gui/templates/testcases/tcCompare.html` + `api/testcasescompare/index.php` (+ legacy `lib/testcases/tcCompareVersions.php` parity; linked from `tcView.html` toolbar Compare Versions via `openTcCompare()`).
+**Purpose:** Modernized test-case version comparison screen, replacing the legacy `tcCompareVersions.php` POST form submit.
+**Status:** EXECUTED — 13/13 PASS. Fixtures: test project `Compare Project` (id 1, prefix CP), suite `Compare Suite` (id 2), test case `Compare Test Case` (id 3) with versions 1 (node 5) and 2 (node 8). v1 summary "Login summary version 1", v2 summary "Login summary version 2 - changed", differing preconditions and steps. Matches legacy `lib/testcases/tcCompareVersions.php` (any authenticated session; read-only).
+
+### TC-70.1: Version list loads (info route)
+- **Preconditions:** logged in as admin; open `tcCompare.html?tproject_id=1&testcase_id=3`.
+- **Steps:**
+  1. Open the screen. *Expected:* title "Compare Test Case Versions", context shows "Compare Test Case (#3)".
+  2. Inspect the version table. *Expected:* 2 rows (Version 1 and Version 2), each with left/right radio, modified/created timestamp, author "Testlink Administrator".
+- **Result:** PASS
+
+### TC-70.2: Default version selection mirrors legacy
+- **Steps:**
+  1. Inspect preselected radios. *Expected:* Version B (right) column pre-selects the first (newest → Version 2 in report order), Version A (left) pre-selects the second (Version 1) — mirroring legacy `{if $mycount == 2} checked {/if}` / `{if $mycount == 1}` defaults.
+- **Result:** PASS
+
+### TC-70.3: HTML (code) comparison renders diff
+- **Steps:**
+  1. Keep "HTML (code) comparison" selected; click "Compare selected versions".
+  2. *Expected:* 4 diff sections (Summary, Preconditions, Steps, Expected Results); changed text highlighted (added/removed spans), unchanged text shown plainly; messages read "Number of changes in Summary: 1.", etc.
+- **Result:** PASS
+
+### TC-70.4: Text (inline) comparison renders side-by-side table
+- **Steps:**
+  1. Select "Text (inline) comparison"; the Context-lines row appears with the default context (5) and a "Show all" toggle.
+  2. Click "Compare selected versions". *Expected:* each section renders the legacy inline `<table class="code">` with **v2 / v1** column headers and per-line delete (red) / insert (green) rows.
+- **Result:** PASS
+
+### TC-70.5: Context value is honoured
+- **Steps:**
+  1. In text mode set Context = 0 and compare. *Expected:* only changed lines are shown (linepadding 0).
+  2. Set Context = 5 (default). *Expected:* changed lines plus surrounding context lines are shown.
+- **Result:** PASS
+
+### TC-70.6: "Show all" (context_show_all) works
+- **Steps:**
+  1. In text mode tick "Show all" and compare. *Expected:* all lines shown regardless of context; request includes `context_show_all=1`; backend sets context to null.
+- **Result:** PASS
+
+### TC-70.7: Same-version validation
+- **Steps:**
+  1. Select the same version in both Version A and Version B columns; click Compare.
+  2. *Expected:* local toast "Select two different versions", no request sent.
+- **Result:** PASS
+
+### TC-70.8: Invalid context validation
+- **Steps:**
+  1. In text mode enter Context = -5 and compare.
+  2. *Expected:* local toast "Invalid context value", no request sent.
+- **Result:** PASS
+
+### TC-70.9: Unauthenticated access returns 401
+- **Steps:**
+  1. `curl -s -o /dev/null -w "%{http_code}" "http://localhost:8082/api/testcasescompare/?action=info&testcase_id=3"` with no session. *Expected:* 401.
+  2. Same for `action=compare`. *Expected:* 401.
+- **Result:** PASS
+
+### TC-70.10: tcView Compare Versions button opens the modern screen
+- **Steps:**
+  1. Open `tcView.html?tproject_id=1&tcase_id=3` (2 versions) and click the "Compare Versions" toolbar button.
+  2. *Expected:* a new tab opens at `tcCompare.html?tproject_id=1&testcase_id=3` and the context resolves the same test case.
+- **Result:** PASS
+
+### TC-70.11: Compare button hidden when a single version exists
+- **Steps:**
+  1. View a test case with only one version in tcView.
+  2. *Expected:* the "Compare Versions" button is not rendered (`data.versions.length > 1` guard).
+- **Result:** PASS
+
+### TC-70.12: i18n coverage — all locale bundles valid and keyed
+- **Steps:**
+  1. For each of the 10 locale bundles, confirm `tcc.*` keys (title, version, headings, diff method, subscribe, numChanges/noChanges messages) exist and JSON is valid. *Expected:* all present, all `python3 -m json.tool` valid.
+- **Result:** PASS
+
+### TC-70.13: Event Viewer clean — no lang_get warnings
+- **Symptom (pre-fix):** legacy backend `lang_get()` for `num_changes`/`no_changes`/`diff_subtitle_tc` fired `E_WARNING Undefined array key` into the Event Viewer on every compare, because those strings are missing from most `locale/*/strings.txt`.
+- **Steps:**
+  1. Compare two versions (HTML and text modes). *Expected:* `SELECT COUNT(*) FROM events WHERE id>? AND log_level=2` → 0 new E_WARNINGs (messages now resolved client-side via TLi18n).
+  **Result:** PASS (fix commit for Refs #809).
