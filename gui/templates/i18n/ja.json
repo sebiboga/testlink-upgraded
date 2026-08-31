@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "比較に失敗",
   "tcc.warnSelectVersions": "比較する版を2つ選択してください",
   "tcc.warnSameVersions": "異なる版を2つ選択してください",
-  "tcc.warnInvalidContext": "無効なコンテキスト値"
+  "tcc.warnInvalidContext": "無効なコンテキスト値",
+  "tcc.heading.summary": "概要",
+  "tcc.heading.preconditions": "前提条件",
+  "tcc.heading.steps": "手順",
+  "tcc.heading.expected_results": "期待結果",
+  "tcc.numChanges": "%s の変更数： %s.",
+  "tcc.noChanges": "%s に変更なし.",
+  "tcc.subtitle": "版 %s (v%s) と版 %s (v%s) のテストケース %s の差分"
 }

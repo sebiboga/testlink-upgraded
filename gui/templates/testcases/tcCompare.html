@@ -248,16 +248,28 @@ function doCompare() {
 }
 
 function renderResults(r) {
-  var html = '<div class="subtitle">' + esc(r.subtitle) + '</div>';
+  var html = '<div class="subtitle">' + esc(fmtSubtitle(r)) + '</div>';
   (r.sections || []).forEach(function (sec) {
+    var heading = TLi18n.t('tcc.heading.' + sec.key) || sec.key;
+    var msgKey = sec.count > 0 ? 'tcc.numChanges' : 'tcc.noChanges';
+    var msg = TLi18n.t(msgKey)
+      .replace('%s', heading).replace('%s', sec.count);
     html += '<div class="diff-section">' +
-      '<div class="sec-head">' + esc(sec.heading) + '</div>' +
-      '<div class="sec-message">' + esc(sec.message) + '</div>' +
+      '<div class="sec-head">' + esc(heading) + '</div>' +
+      '<div class="sec-message">' + esc(msg) + '</div>' +
       '<div class="sec-body">' + (sec.count > 0 ? sec.diff : '') + '</div>' +
       '</div>';
   });
   $('#resultsArea').html(html);
   $('#resultsArea')[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function fmtSubtitle(r) {
+  var t = TLi18n.t('tcc.subtitle');
+  return t
+    .replace('%s', r.version_left).replace('%s', r.version_left)
+    .replace('%s', r.version_right).replace('%s', r.version_right)
+    .replace('%s', r.tcaseName);
 }
 </script>
 </body>

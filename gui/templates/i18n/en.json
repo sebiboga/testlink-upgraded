@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "Failed to compare versions",
   "tcc.warnSelectVersions": "Select two versions to compare",
   "tcc.warnSameVersions": "Select two different versions",
-  "tcc.warnInvalidContext": "Invalid context value"
+  "tcc.warnInvalidContext": "Invalid context value",
+  "tcc.heading.summary": "Summary",
+  "tcc.heading.preconditions": "Preconditions",
+  "tcc.heading.steps": "Steps",
+  "tcc.heading.expected_results": "Expected Results",
+  "tcc.numChanges": "Number of changes in %s: %s.",
+  "tcc.noChanges": "No changes in %s.",
+  "tcc.subtitle": "Differences between version %s (v%s) and version %s (v%s) of testcase %s"
 }

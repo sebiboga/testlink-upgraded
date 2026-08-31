@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "Не удалось сравнить версии",
   "tcc.warnSelectVersions": "Выберите две версии для сравнения",
   "tcc.warnSameVersions": "Выберите две разные версии",
-  "tcc.warnInvalidContext": "Недопустимое значение контекста"
+  "tcc.warnInvalidContext": "Недопустимое значение контекста",
+  "tcc.heading.summary": "Резюме",
+  "tcc.heading.preconditions": "Предусловия",
+  "tcc.heading.steps": "Шаги",
+  "tcc.heading.expected_results": "Ожидаемые результаты",
+  "tcc.numChanges": "Количество изменений в %s: %s.",
+  "tcc.noChanges": "Изменений в %s нет.",
+  "tcc.subtitle": "Различия между версией %s (v%s) и версией %s (v%s) тест-кейса %s"
 }

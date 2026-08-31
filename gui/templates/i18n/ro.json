@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "Eroare la compararea versiunilor",
   "tcc.warnSelectVersions": "Selectează două versiuni de comparat",
   "tcc.warnSameVersions": "Selectează două versiuni diferite",
-  "tcc.warnInvalidContext": "Valoare context invalidă"
+  "tcc.warnInvalidContext": "Valoare context invalidă",
+  "tcc.heading.summary": "Rezumat",
+  "tcc.heading.preconditions": "Precondiții",
+  "tcc.heading.steps": "Pași",
+  "tcc.heading.expected_results": "Rezultate așteptate",
+  "tcc.numChanges": "Număr de modificări în %s: %s.",
+  "tcc.noChanges": "Fără modificări în %s.",
+  "tcc.subtitle": "Diferențe între versiunea %s (v%s) și versiunea %s (v%s) a cazului de test %s"
 }

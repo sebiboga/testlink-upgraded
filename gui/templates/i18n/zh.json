@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "比较版本失败",
   "tcc.warnSelectVersions": "请选择两个版本进行比较",
   "tcc.warnSameVersions": "请选择两个不同的版本",
-  "tcc.warnInvalidContext": "无效的上下文值"
+  "tcc.warnInvalidContext": "无效的上下文值",
+  "tcc.heading.summary": "摘要",
+  "tcc.heading.preconditions": "前置条件",
+  "tcc.heading.steps": "步骤",
+  "tcc.heading.expected_results": "预期结果",
+  "tcc.numChanges": "%s 中的更改数： %s.",
+  "tcc.noChanges": "%s 中没有更改。",
+  "tcc.subtitle": "测试用例 %s 的版本 %s (v%s) 与版本 %s (v%s) 之间的差异"
 }

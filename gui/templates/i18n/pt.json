@@ -2091,5 +2091,12 @@
   "tcc.errCompare": "Falha ao comparar versões",
   "tcc.warnSelectVersions": "Selecione duas versões para comparar",
   "tcc.warnSameVersions": "Selecione duas versões diferentes",
-  "tcc.warnInvalidContext": "Valor de contexto inválido"
+  "tcc.warnInvalidContext": "Valor de contexto inválido",
+  "tcc.heading.summary": "Resumo",
+  "tcc.heading.preconditions": "Pré-condições",
+  "tcc.heading.steps": "Passos",
+  "tcc.heading.expected_results": "Resultados esperados",
+  "tcc.numChanges": "Número de mudanças em %s: %s.",
+  "tcc.noChanges": "Sem mudanças em %s.",
+  "tcc.subtitle": "Diferenças entre a versão %s (v%s) e a versão %s (v%s) do caso de teste %s"
 }

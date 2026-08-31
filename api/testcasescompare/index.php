@@ -115,15 +115,11 @@ function buildDiff($items, $leftVersion, $rightVersion, $useDaisydiff, $tcType, 
         }
     }
 
-    $labels = init_labels(array('summary', 'preconditions', 'steps', 'expected_results'));
-
     $sections = array();
     foreach ($diff as $key => $val) {
         $section = array(
             'key' => $key,
-            'heading' => isset($labels[$key]) ? $labels[$key] : $key,
             'count' => 0,
-            'message' => '',
             'diff' => '',
         );
         $val['left'] = isset($val['left']) ? $val['left'] : '';
@@ -235,23 +231,17 @@ if ($action === 'compare') {
 
     $sections = buildDiff($tcversions, $left, $right, $useDaisydiff, $tcType, $context);
 
-    $labels = init_labels(array('num_changes', 'no_changes'));
-    foreach ($sections as $i => $sec) {
-        $msgKey = $sec['count'] > 0 ? 'num_changes' : 'no_changes';
-        $sections[$i]['message'] = sprintf(
-            $labels[$msgKey], $sec['heading'], $sec['count']
-        );
-    }
-
-    $subLabels = init_labels(array('diff_subtitle_tc'));
-    $subtitle = sprintf(
-        $subLabels['diff_subtitle_tc'], $left, $left, $right, $right, $tcaseName
-    );
-
+    // Messages ("Number of changes in %s: %s.", "No changes in %s.", subtitle)
+    // are resolved CLIENT-side via TLi18n keys (tcc.numChanges / tcc.noChanges /
+    // tcc.subtitle). The legacy screen resolved them server-side with lang_get(),
+    // but most locale files lack num_changes/diff_subtitle_tc, which fired
+    // E_WARNING "Undefined array key" into the Event Viewer for every compare.
+    // Returning raw counts + version ids lets the browser format localized text.
     out(array(
         'status' => 'ok',
         'tcaseName' => $tcaseName,
-        'subtitle' => $subtitle,
+        'version_left' => $left,
+        'version_right' => $right,
         'sections' => $sections,
     ));
 }
