@@ -8257,3 +8257,52 @@ MariaDB testlink @127.0.0.1 + admin + pdguest sessions; verified at commits
 `88672f945` (BFF 404 edge) of branch `sebiboga`). Screenshots:
 `docs/screenshots/pdoc-main.png`, `pdoc-full.png`, `pdoc-projectlevel.png`,
 `pdoc-err404.png`, `pdoc-entry-tree.png`.
+
+---
+
+## Suite 69 — Regression — Issue #793: Execute Tests — "Save & move to next" navigation missing
+
+**Date:** 2026-08-31 · **Branch:** `fix/issue-793` ·
+**Root cause:** the modernized `execTest.html` `renderForm()` save-row rendered
+only Save execution + Reset; the 1.9.20 toolbar buttons `btn_save_exec_and_movetonext`
+(Save and move to next) and `btn_next` (Next, move without saving) were dropped in
+the #662 rewrite. The BFF `init` also never surfaced `exec_mode->save_and_move`,
+so the UI could not honor the navigation mode.
+**Fix:** (1) BFF `api/execute/index.php` `init` now returns `save_and_move`
+(from `config_get('exec_cfg')->exec_mode->save_and_move`, fallback `'unlimited'`,
+legacy config.inc.php:1119). (2) `execTest.html`: extracted `visibleItems()` (same
+filter predicate as `renderList()`); added `saveAndMoveMode()`, `execNextTarget()`
+(cyclical successor in the visible list; `'limited'` mode stays within the same
+`tsuite_path`) and `moveToNext()` (legacy `move2next`, no save); `saveExecution('next')`
+saves then `loadList()` + `openCase(nextTarget)`. Save-row now shows **Save execution ·
+Save and move to next · Next · Reset** (read-only disabled like existing pair).
+(3) i18n: `exe.saveAndMoveNext` / `exe.moveToNext` / `exe.noNextCase` added to all 10
+bundles (legacy `locale/*/strings.txt` translations where present).
+Note: the legacy **bulk** results grid is a testsuite-level feature
+(`can_use_bulk_op = ($args->level == 'testsuite')`); the modern flat-list screen has
+no testsuite view — scoped OUT of this fix.
+
+**Precondition:** fresh DB, app http://localhost:8082, admin/admin. Fixture:
+`php tmp/fixtures_793.php` → tproject 1 (EXE793), tplan 19 (Plan793), open build 1
+(B793), 5 TCs linked: Case A1-A3 (Suite Alpha), Case B1-B2 (Suite Beta), no executions.
+Screen BFF: `api/execute/index.php` (`?action=init|tcList|tcDetails|save`).
+
+| # | Test | Steps | Expected | Result |
+|---|------|-------|----------|--------|
+| 1 | BFF exposes mode | `GET /api/execute/?action=init&tplan_id=19&tproject_id=1` | JSON has `save_and_move:"unlimited"` (default config.inc.php:1119) | PASS |
+| 2 | Buttons rendered | Open execTest, pick Case A1 | Save-row = Save execution · Save and move to next · Next · Reset (4 buttons); labels localized via `data-i18n` | PASS |
+| 3 | Save & move to next | Pick Passed on Case A1 → click "Save and move to next" | Toast saved; `executions` gets 1 row (tcversion 5, status p); form auto-advances to Case A2 (successor in list); list shows A1 PASSED | PASS |
+| 4 | Move-to-next WITHOUT saving | On Case A2 click "Next" | Opens Case A3; `executions` still 1 row (A2 NOT written) | PASS |
+| 5 | Unlimited wrap-around | From Case A3 click Next repeatedly (A3→B1→B2) | Cycle A3→B1→B2→A1 (whole visible list, wraps) | PASS |
+| 6 | Limited mode scoped to suite | Override `initData.save_and_move='limited'`; successors across all 5 cases | A1→A2→A3→A1 and B1→B2→B1 (never crosses suite boundary) | PASS |
+| 7 | Search-filtered navigation | Search "Case B"; Next from B1 | Navigates only within visible (filtered) set: B1→B2; wrap B2→B1 | PASS |
+| 8 | Read-only guards | Code review of buttons + roMode gate (same `disabled` pattern as Save/Reset, verified in #795/#796) | Buttons disabled / no navigation in `ro_access` mode; `save` BFF still 403 for no `testplan_execute` | PASS (code review) |
+| 9 | i18n bundles integrity | `python3 -m json.tool` all 10 bundles + grep 3 exe.* keys | All valid JSON; `exe.saveAndMoveNext/moveToNext/noNextCase` in 10/10 bundles | PASS |
+| 10 | Plain Save unchanged | Pick Case B2 → Passed → "Save execution" | Toast saved; stays on Case B2 (no navigation); executions += 1 | PASS |
+| 11 | not_run save-and-move advances | On Case A2 (Not Run default active) click "Save and move to next" | Toast "Not Run results are not recorded"; form ADVANCES to Case A3 (legacy execSetResults.php:241 navigates regardless of persistence); `executions` unchanged | PASS |
+| 12 | Event Viewer / events | Diff `events` table after suite | No new Error/Warning rows (only INFO level-16 AUDIT: login + executions) | PASS |
+
+**Result: 12/12 PASS** (2026-08-31, headless Chrome @ http://localhost:8082 +
+MariaDB testlink @127.0.0.1). Screenshots:
+`tmp/issue-793-repro-before.png` (before: only Save execution + Reset),
+`tmp/issue-793-save-and-next-after.png` (after: 4-button save-row).
