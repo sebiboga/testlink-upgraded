@@ -8514,3 +8514,21 @@ Notes:
   1. Fix `$$tsuiteData`→`$tsuiteData` and init `$attachXML=null` in `lib/functions/testsuite.class.php`.
   2. Re-run testcase, suite and project-recursive exports. *Expected:* `SELECT COUNT(*) FROM events WHERE id>15 AND log_level=2` → 0.
 - **Result:** PASS (fix commit `4b0ec819d`)
+
+## Suite 804 — Regression — Issue #804: Stored XSS in Test Case Viewer (tcView.html) — WYSIWYG summary/preconditions/steps rendered as raw HTML
+
+**Area:** `gui/templates/testcases/tcView.html` (+ DOMPurify CDN + `sanitizeRich()` helper).
+**Purpose:** Verify that rich-text test-case fields (summary, preconditions, step actions/expected_results) are sanitized before insertion, so stored XSS payloads are neutralized while legitimate WYSIWYG formatting is preserved.
+**Status:** EXECUTED — PASS. Fixture `tmp/fixtures_804.php`: project `RPT804` (id 1, prefix R804), suite `Suite 1` (id 2), test case `TC-XSS` (node id 3, version node id 4) with:
+- summary = `<img src=x onerror=alert(1)><script>window.__xss804=1</script>XSS summary`
+- preconditions = `<p>Benign precond with <b>bold</b> and a list:</p><ul><li>item one</li><li>item two</li></ul>`
+- step 1 actions = `<img src=x onerror=alert(2)>action text`, expected = `<b>expected bold</b> and <script>window.__xss804=2</script>`
+- step 2 actions = `<p>plain action</p>`, expected = `plain result`
+
+- TC-804.1: **PASS** (browser) — opening `tcView.html?tcase_id=3&tcversion_id=4` renders summary as `<img src="x">XSS summary` — the `<script>` and the `onerror` handler are stripped by DOMPurify; `window.__xss804` stays **undefined** (no script executed, no alert).
+- TC-804.2: **PASS** (browser) — benign rich text preserved: preconditions still show `<p>`, `<b>bold</b>`, `<ul><li>item one</li><li>item two</li></ul>`; step 1 expected shows `<b>expected bold</b> and` (script removed, bold kept).
+- TC-804.3: **PASS** (browser) — DOM scan of `#versionsWrap`: `hasScriptTag=false`, `hasEventAttr=false` (no `onerror/onclick/onload/...`), `hasImgWithHandler=false`.
+- TC-804.4: **PASS** (network) — DOMPurify 3.0.9 loaded from cdnjs (HTTP 200). The neutralized payload's now-harmless `src=x` causes a single expected 404 for `/gui/templates/testcases/x` (broken-image fetch, no handler attached → cannot trigger).
+- TC-804.5: **PASS** (lint) — extracted inline JS passes `node --check`.
+- TC-804.6: **PASS** (Event Viewer) — `events` table shows only normal LOGIN/CREATE audit (log_level 16); no new Error/Warning entries from viewing the sanitized test case.
+- **Result:** **PASS** — stored XSS neutralized, rich-text formatting preserved.
