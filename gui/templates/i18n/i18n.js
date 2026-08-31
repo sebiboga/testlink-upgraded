@@ -128,7 +128,11 @@ var TLi18n = (function() {
 
   function t(key, params) {
     var str = _strings[key] || key;
-    if (params) {
+    // params is an interpolation bucket ({k: v} or [{0: v}]); a primitive (e.g.
+    // a stray plain-string "default" argument) must never reach $.each — that
+    // would throw "Cannot use 'in' operator to search for 'length'" inside
+    // jQuery. typeof 'object' keeps arrays + plain objects working.
+    if (params && typeof params === 'object') {
       $.each(params, function(k, v) {
         str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), v);
       });
