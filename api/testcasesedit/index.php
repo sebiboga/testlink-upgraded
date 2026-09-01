@@ -341,6 +341,7 @@ switch ($action) {
 
         $payload = buildEditPayload($db, $tcaseMgr, $tprojectMgr, $user,
             $tcaseId, $tcverId, $tprojId, $versionData, $chain, $projectKeywords);
+        $payload['status'] = 'ok';
         $payload['all_keywords'] = $projectKeywords;
         out($payload);
         break;
