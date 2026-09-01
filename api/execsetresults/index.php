@@ -134,7 +134,7 @@ function esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId) {
     $vr = $db->get_recordset(
         "SELECT V.id, V.version, V.active, V.summary, V.preconditions," .
         " V.importance, V.execution_type, V.tc_external_id," .
-        " NH.parent_id, NH.name" .
+        " NH.parent_id" .
         " FROM {$tables['tcversions']} V" .
         " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = V.id" .
         " WHERE V.id = {$tcversionId}");
@@ -393,7 +393,7 @@ if ($action === 'init') {
          && isset($execCfg->features->exec_duration)
          && !empty($execCfg->features->exec_duration->enabled)) ? 1 : 0;
 
-    $tcaseName = strval($vinfo['name']);
+    $tcaseName = isset($basic['name']) ? strval($basic['name']) : '';
     $tcaseExternalId = strval($vinfo['tc_external_id']);
 
     out([
