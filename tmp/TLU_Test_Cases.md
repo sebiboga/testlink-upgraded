@@ -8979,3 +8979,30 @@ Notes:
 | TC-814.6 | JS/bundles syntax gates | Extract inline `<script>` from main.tpl + planView.html → `node --check`; `python3 -m json.tool` on any touched i18n bundle (none touched) | Both scripts parse; bundles valid. | **PASS** |
 
 - **Result:** **6/6 PASS** (TC-814.1–814.6)
+
+## Suite 818 — Regression — Issue #813: GitHub connect button always reports "OAuth not configured" on fresh install
+
+**Precondition:** fresh DB import; logged in as admin/admin at http://localhost:8082; `cfg/oauth_github_local.inc.php` ABSENT (like a fresh install where GitHub OAuth was not enabled at install time); repo HEAD contains the fix commit `b767d45c0` (installer collects GitHub OAuth creds + generates the local config).
+
+**Root cause recap:** `gh_oauth_config()` (api/issuetracker/index.php:151-171) returns null when `cfg/oauth_github_local.inc.php` is missing → `/oauth/start` and `/oauth/callback` (index.php:255-260, 279-284) emit HTTP 503 "GitHub OAuth is not configured (missing oauth_client_id/oauth_client_secret)" → `githubOAuthStart()` (gui/templates/issuetracker/issuetrackerView.html:263-281) alerts it. The installer never collected the credentials nor generated the file (fixed by `b767d45c0`: installer form install/installDbInput.php:215-242 + `write_oauth_github_config()` install/installNewDB.php:679-713 invoked at :570 + `cfg/oauth_github_local.inc.php.example`).
+
+**Repro steps (pre-fix):** Issue Trackers (`issuetrackerView.html`) → click **GitHub** → alert "GitHub OAuth is not configured (…)". No installer path to set credentials; no `cfg/oauth_github_local.inc.php`.
+**Expected post-fix:** installer can collect credentials and generate the local config; with a config file the button opens the GitHub authorize flow; without one the button still warns (correct — creds genuinely missing).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-818.1 | Pre-config API returns 503 | `GET /api/issuetracker/index.php/oauth/start` (admin session, no config file) | HTTP 503, `status:error`, `message:GitHub OAuth is not configured (missing oauth_client_id/oauth_client_secret)`. | **PASS** (browser fetch, measured 503 JSON) |
+| TC-818.2 | Pre-config UI alerts | Issue Trackers → click GitHub (no config file) | Native alert "GitHub OAuth is not configured (missing oauth_client_id/oauth_client_secret)". | **PASS** (browser, alert observed+dismissed) |
+| TC-818.3 | Installer collects creds in session | installNewDB.php `$validKeys` includes `oauth_github_enable/client_id/client_secret` (lines 46-47) and copies POST→`$_SESSION` (48-53) | Keys present and copied; `write_oauth_github_config()` reads exactly these session keys. | **PASS** (code inspection) |
+| TC-818.4 | Installer writes config (mode 600) | Run `write_oauth_github_config()` logic with enable=on + non-placeholder id/secret (harness) | File written, `php -l` clean, mode `600`, `$tlCfg->OAuthServers['github']` populated exactly as `gh_oauth_config()` reads it. | **PASS** (standalone harness; output loaded via `include`, mode 600 verified) |
+| TC-818.5 | Placeholder rejection | `write_oauth_github_config()` with `CHANGE_WITH_*` values | Returns error string, NO file written (no literal placeholders in a live config). | **PASS** (code inspection of guard install/installNewDB.php:691-693) |
+| TC-818.6 | Disabled/empty → silent skip | enable not 'on' or empty id/secret | Returns `false`, nothing written, install continues. | **PASS** (code inspection install/installNewDB.php:686-688) |
+| TC-818.7 | Config present → `/oauth/start` 200 | Create `cfg/oauth_github_local.inc.php` in installer-generated format; `GET /oauth/start` | HTTP 200 `{"status":"ok","url":"https://github.com/login/oauth/authorize?client_id=…&redirect_uri=…&scope=repo&state=…&allow_signup=false"}`. | **PASS** (browser fetch, measured 200 + authorize URL) |
+| TC-818.8 | UI opens GitHub popup when configured | Click GitHub with config file present | No alert; real GitHub `login/oauth/authorize` popup opens. | **PASS** (browser, popup to github.com/login with our client_id observed) |
+| TC-818.9 | Example file documents manual path | `cfg/oauth_github_local.inc.php.example` | Documents callback URL (`…/api/issuetracker/index.php/oauth/callback`), OAuth App creation, copy-to + placeholder replacement. | **PASS** (file inspection) |
+| TC-818.10 | Local config gitignored | `git check-ignore cfg/oauth_github_local.inc.php` | Matched by `.gitignore:54` → secrets never committed. | **PASS** |
+| TC-818.11 | Backend unchanged requirement met | Grep for `gh_oauth_config()` readers | Only `api/issuetracker/index.php` (token-max-age, oauth/start, oauth/callback); `gh_oauth_config()` directly `include`s the local file — no backend patch needed. | **PASS** |
+| TC-818.12 | Event Viewer clean | `events` table after start/alert/popup flow | 0 new Error(1)/Warning(2) rows from the screen or BFF. | **PASS** |
+
+- **Result:** **12/12 PASS** (TC-818.1–818.12)
+- **Note:** No runtime code change was needed this run — commit `b767d45c0` already shipped the fix on the default branch (`Refs #813`). This run verified it error-free against a fresh install and closed the issue with this regression evidence.
