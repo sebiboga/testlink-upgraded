@@ -1043,7 +1043,7 @@ $linkedBugs[$bid] = [
             $assignedUser = implode(',', $names);
             $assignedUserId = implode(',', $ids);
         }
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         $assignedUser = '';
         $assignedUserId = '';
     }
@@ -1272,7 +1272,7 @@ if ($action === 'save') {
                 $fmap[$fid]['status'] = $taskStatusDomain['open']['id'];
                 $taskMgr->assign($fmap);
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             // assignment creation is best-effort like the rest of the save
             // side-effects; never fail the whole execution write
         }
