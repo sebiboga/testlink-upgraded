@@ -8873,3 +8873,40 @@ Notes:
 
 - **Result:** **9/10 PASS + 1 PARTIAL** (TC-791.1–791.5, 791.7–791.10 PASS; TC-791.6 PARTIAL — read-only execute access verified by code inspection only)
 - **Note:** Key gotcha: the input name `custom_field_0_1_3` explodes on `_` into **5 parts** (`[0]=custom [1]=field [2]=type [3]=id [4]=tcaseId`) because the literal `custom_field` prefix itself contains an underscore. Legacy `write_execution()` uses `cf_nodeid_pos=4` (exec.inc.php:86) and `_build_cfield()` uses `cftype_pos=2`/`cfid_pos=3` (cfield_mgr.class.php:1881-1883); the BFF forwarding (and the JS validator) must use the same 5-part parsing.
+
+## Suite 815 — Test Plan Import (planImport.html + api/planimport) — Refs #815
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Modernized Test Plan Import screen (`gui/templates/plans/planImport.html`
+  + `api/planimport/index.php`). Mirrors legacy `lib/plan/planImport.php`
+  (TestLink 1.9.20): allows import in XML format of test plan links to test cases
+  and platforms; items must already exist on the system; requires right
+  `mgt_testplan_create` at test project level; size limit
+  `import_file_max_size_bytes` (800000). Also switches planView toolbar
+  `importAction` → `planImport.html` (Refs #754 done via #815).
+- **Preconditions:** logged-in admin/admin at http://localhost:8082; fixture created
+  via `php tmp/fixtures_815.php` (idempotent): project `PLM Demo Project` (id 1,
+  prefix PLM), testsuite `PLM Top Suite` (node 2), test cases `PLM Case One/Two/Three`
+  (nodes 3/6/9, external ids 1/2/3, tcversion ids 4/7/10), platform `PLM Android`
+  (id 1), test plan `PLM Plan` (id 12).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-815.1 | Info endpoint loads (auth + plan context) | `GET /api/planimport/?action=info&tproject_id=1&tplan_id=12` | `status:ok`; `tproject.name=PLM Demo Project`; `tplan.name=PLM Plan`; `import_type=XML`; `import_limit_bytes=800000`. | PASS |
+| TC-815.2 | Unauthenticated rejected | `GET /api/planimport/?action=info` with fresh curl (no session) | HTTP 401, `status:error`, `message:Not authenticated`. | PASS |
+| TC-815.3 | Unknown plan → error | `GET /api/planimport/?action=info&tplan_id=99999&tproject_id=1` | HTTP 404, `message:Test plan not found`. | PASS |
+| TC-815.4 | Missing plan id → error | `GET /api/planimport/?action=info&tproject_id=1` (no tplan_id) | HTTP 400, `message:Error Test Plan ID`. | PASS |
+| TC-815.5 | UI renders context | Open `planImport.html?tproject_id=1&tplan_id=12` | Header "Import Test Plan Links" + plan name; toolbar project "PLM Demo Project"; File type=XML; file picker; max size "Maximum file size: 781 KB"; note visible; Upload/Cancel + footer. | PASS (browser) |
+| TC-815.6 | Valid XML import links TC + platform | Upload `plan_import_valid.xml` (platforms: PLM Android; links: ext 1/v1, ext 2/v1, ext 3 w/ Nonexistent Platform), click Upload | Report: "Platform PLM Android has been linked to test plan." OK; "Test Case with external id 1 version 1 has been linked ... for Platform PLM Android" OK; same for ext 2; ext 3 → "platform is not linked" Not imported. DB: `testplan_tcversions` rows (tplan 12, tcversion 4 node_order 5 / tcversion 7 node_order 10, platform 1); `testplan_platforms` row (12,1). | PASS |
+| TC-815.7 | Missing platform when plan has platforms | Upload `plan_import_errors.xml` (links without `<platform>`, target plan now has PLM Android), click Upload | Report rows "Test case link #1 has no platform element" / "#2 ..." status "Not imported". | PASS |
+| TC-815.8 | No file chosen error | Click Upload without selecting a file | Toast "Please choose a file to import."; no request sent. | PASS |
+| TC-815.9 | Permission denied (no mgt_testplan_create) | Login as user with role `guest` (no rights), open import screen | Warning "No permission"; Upload button disabled; context stays blank. | PASS |
+| TC-815.10 | planView importAction switched | `GET /api/plans/?tproject_id=1` → `actions.importAction` | `/gui/templates/plans/planImport.html?tproject_id=1&tplan_id=&tplan_id=` (no more `/lib/plan/planImport.php`). | PASS |
+| TC-815.11 | i18n keys in all bundles | Grep `pli.*` in de/en/es/fr/it/ja/pt/ro/ru/zh | 17 keys present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
+| TC-815.12 | Event Viewer clean | After uploads + permission exercise | `events` table 0 new Error/Warning rows (only INFO login audit); browser console no errors. | PASS |
+
+- **Result:** **12/12 PASS** (TC-815.1–815.12)
+- **Note:** The Import action URL from `api/plans/index.php` appends `&tplan_id=` to an
+  `$ent` that already contains `tplan_id=`; PHP resolves duplicate `tplan_id` params
+  last-wins, so the screen resolves the correct plan (same pattern as planExport).
