@@ -233,7 +233,7 @@ function esrStatuses() {
  * step-level results (partial execution feature). Mirrors api/execute
  * tcDetails prior-execution block.
  */
-function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId) {
+function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId, $stepsByVersion) {
     $prior = null;
     $priorSteps = [];
     if ($buildId > 0) {
@@ -297,9 +297,19 @@ function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId) {
         // Steps Work-In-Progress residency (legacy "Save steps partial
         // execution" resume, testcase::getStepsPartialExec()): WIP rows
         // override the recorded step results of the last full execution.
-        if (count($stepsForWip = esrStepsForWip($db, $tplanId, $storedPlatform,
-                $tcversionId)) > 0) {
-            foreach ($stepsForWip as $sid => $sw) {
+        // NOTE: getStepsPartialExec() expects the version's STEP IDS (int
+        // array) in `tcstep_id IN (...)` plus a build_id'd context — legacy
+        // execSetResults.php:371-388 builds $stepSet from the version steps.
+        $stepIdsOfVersion = array();
+        if (is_array($stepsByVersion)) {
+            foreach ($stepsByVersion as $sby) {
+                if (isset($sby['id'])) { $stepIdsOfVersion[] = intval($sby['id']); }
+            }
+        }
+        $wip = esrStepsForWip($db, $tplanId, $storedPlatform, $buildId,
+            $tcversionId, $stepIdsOfVersion);
+        if (count($wip) > 0) {
+            foreach ($wip as $sid => $sw) {
                 $priorSteps[$sid] = $sw;
             }
         }
@@ -307,14 +317,19 @@ function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId) {
     return array($prior, $priorSteps);
 }
 
-function esrStepsForWip($db, $tplanId, $platformId, $tcversionId) {
+function esrStepsForWip($db, $tplanId, $platformId, $buildId, $tcversionId, $stepIds) {
     $rows = [];
+    if (!is_array($stepIds) || count($stepIds) == 0) {
+        return $rows;
+    }
+    $stepIds = array_map('intval', $stepIds);
     try {
         $tcaseMgr = new testcase($db);
         $ctx = new stdClass();
         $ctx->testplan_id = $tplanId;
         $ctx->platform_id = $platformId;
-        $wip = $tcaseMgr->getStepsPartialExec($tcversionId, $ctx);
+        $ctx->build_id = $buildId;
+        $wip = $tcaseMgr->getStepsPartialExec($stepIds, $ctx);
         if (is_array($wip)) {
             foreach ($wip as $sid => $w) {
                 $rows[intval($sid)] = [
@@ -379,7 +394,8 @@ if ($action === 'init') {
     }
 
     list($prior, $priorSteps) =
-        esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId);
+        esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId,
+            $steps);
 
     $tprojOptions = null;
     if (!is_null($tprojInfo) && !empty($tprojInfo['options'])) {
@@ -486,15 +502,10 @@ if ($action === 'save') {
              'message' => 'Invalid or non-executable build for this plan']);
     }
 
-    $lt = tlObjectWithDB::getDBTables(array('testplan_tcversions'));
-    $lr = $db->get_recordset(
-        "SELECT id FROM {$lt['testplan_tcversions']}" .
-        " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}");
-    if (is_null($lr) || count($lr) == 0) {
-        http_response_code(400);
-        out(['status' => 'error',
-             'message' => 'Version is not linked to this test plan']);
-    }
+    // version MUST belong to the test case AND be linked to the plan —
+    // same guarantee as init (prevents freezing coverage / auditing the
+    // wrong test case via a mismatched tcase_id/tcversion_id pair)
+    esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
 
     $notRun = $resultsCfg['status_code']['not_run'];
     if ($statusCode === $notRun) {

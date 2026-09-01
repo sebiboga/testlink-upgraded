@@ -8950,8 +8950,10 @@ Notes:
 | TC-817.16 | All report/JS links switched | Grep `execSetResults.php` in gui templates/js | Only comments/tpl remain; all executable links point to `execSetResults.html` (tcasesWithCF, resultsMatrix, assignedTcOverview, tcAssignments, testlink_library.js openExecutionWindow). | PASS |
 | TC-817.17 | i18n keys in all bundles | Grep `esr.*` in de/en/es/fr/it/ja/pt/ro/ru/zh | 27 keys present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
 | TC-817.18 | Event Viewer clean | After init/save/permission tests | `events` table 0 new Error/Warning rows from the screen/BFF (only INFO login audit + fixture events). | PASS |
+| TC-817.19 | WIP partial-execution resume | INSERT `execution_tcsteps_wip` step 6 (tplan 16, build 1, platform 1, status x, note `wip-notes-draft`); init Case One build1/plat1 | `prior_steps['6']` = {status x, notes wip-notes-draft} (overrides recorded step result, exactly like legacy getStepsPartialExec which queries `tcstep_id IN (step ids)` + build-id'd ctx). NOT visible for version 9 (other steps) nor build 2 (other build). | PASS |
+| TC-817.20 | Save rejects mismatched tcase/tcversion pair | POST save with `tcase_id=4` + `tcversion_id=9` (version belongs to Case Two) | HTTP 404, `message:Version does not belong to test case` (prevents freezing the wrong TC's coverage); valid pair still saved OK. | PASS |
 
-- **Result:** **18/18 PASS** (TC-817.1–817.18)
+- **Result:** **20/20 PASS** (TC-817.1–817.20)
 - **Note:** The legacy `execSetResults.php` accepted both `id`/`version_id` and
   `tcase_id`/`tcversion_id`, plus `setting_build`/`setting_platform` (from legacy
   cookie settings). The new BFF normalizes both key pairs and both build/platform
