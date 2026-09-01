@@ -86,6 +86,12 @@ the values.)
 - New `validateExecCustomFields()` mirrors `cfield_validation.js`: required
   (empty → block + toast `exe.cfRequired`), numeric (type 1), float (type 2),
   email (type 4); generic failures → `exe.cfInvalid`.
+- **Checkbox-group (type 5) required is "at least one checked" in the group**,
+  not "every checkbox": required boxes are grouped by their base name (stripping
+  the `[]`); an empty group blocks save with `exe.cfRequired`, but checking any
+  one box satisfies the requirement. A later review found the initial required
+  logic was per-checkbox-inverted and rejected valid single selections — fixed so
+  the whole group validates on at least one checked box.
 - Minimal CSS for `.exec-cf-block` / `.cf-inputs`.
 
 **i18n:** added `exe.customFields`, `exe.cfRequired`, `exe.cfInvalid` to all 10
