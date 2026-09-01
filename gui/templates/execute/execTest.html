@@ -961,6 +961,10 @@ function validateExecCustomFields() {
   ((current.exec_cfields) || []).forEach(function (cf) { cfMeta[cf.id + ''] = cf; });
   var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   var bad = null;
+  // checkbox groups: a required checkbox custom field means "at least one box
+  // in the group is checked" (HTML5 native `required` behaviour), so we collect
+  // groups by input name and validate them once after the loop (Refs #791).
+  var cbGroups = {};
   $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
     var $el = $(this);
     var name = $el.attr('name') || '';
@@ -972,7 +976,11 @@ function validateExecCustomFields() {
     var cf = cfMeta[parts[3]];
     var label = cf ? (cf.label || name) : name;
     if ($el.attr('type') === 'checkbox') {
-      if (cf && cf.required && !$el.is(':checked')) { bad = { label: label, type: 'req' }; return; }
+      // multi-checkbox groups share a name ending in '[]'; group by the base
+      // name and remember whether any box in the required group is checked
+      var baseName = name.replace(/\[\]$/, '');
+      if (!cbGroups[baseName]) { cbGroups[baseName] = { required: !!(cf && cf.required), label: label, anyChecked: false }; }
+      if ($el.is(':checked')) { cbGroups[baseName].anyChecked = true; }
       return; // checkbox values are free-form; no per-type format check
     }
     var val = $el.is('select')
@@ -982,9 +990,14 @@ function validateExecCustomFields() {
     if (cf && cf.required && isEmpty) { bad = { label: label, type: 'req' }; return; }
     if (isEmpty) return;
     if (cfType === 1 && /[^\d]/.test(String(val))) { bad = { label: label, type: 'numeric' }; return; }
-    if (cfType === 2 && (isNaN(parseFloat(val)) || /^\s+$/.test(String(val)))) { bad = { label: label, type: 'float' }; return; }
+    if (cfType === 2 && (isNaN(Number(val)) || /^\s+$/.test(String(val)))) { bad = { label: label, type: 'float' }; return; }
     if (cfType === 4 && !emailRe.test(String(val))) { bad = { label: label, type: 'email' }; return; }
   });
+  if (!bad) {
+    $.each(cbGroups, function (k, g) {
+      if (g.required && !g.anyChecked) { bad = { label: g.label, type: 'req' }; return false; }
+    });
+  }
   if (bad) {
     if (bad.type === 'req') {
       return { ok: false, message: TLi18n.t('exe.cfRequired', { field: bad.label }) };
