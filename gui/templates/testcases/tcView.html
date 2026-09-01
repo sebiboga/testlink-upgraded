@@ -419,7 +419,7 @@ function openExecHistory() {
 }
 
 function openAdd2Tplan() {
-  var url = '/lib/testcases/tcAssign2Tplan.php?tcase_id=' + data.tcase.id
+  var url = '/gui/templates/testcases/tcAssign2Tplan.html?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
