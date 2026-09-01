@@ -424,7 +424,8 @@ switch ($action) {
         } catch (Throwable $e) {
             out(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
-        if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
+        if ($ret === false || $ret === null || $ret === ''
+            || (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok'])) {
             out(['status' => 'error', 'message' => strval($ret['msg'] ?? 'Update failed')], 400);
         }
 

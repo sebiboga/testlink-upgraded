@@ -155,9 +155,8 @@ function loadOverlay(show) {
   $('#loadingOverlay').css('display', show ? 'flex' : 'none');
 }
 
-function showWarn(msg, box) {
-  var $box = box ? $('#warnBox') : $('#warnBox');
-  $box.html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+function showWarn(msg) {
+  $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
 }
 
 function hideBoxes() {
