@@ -211,6 +211,36 @@ include 'installHead.inc';
                 'login name: admin <br /> password  : admin';
       ?>
     </p>
+
+    <?php if($_SESSION['isNew']){ ?>
+    <h2>GitHub OAuth (optional)</h2>
+    <p>Required to use the <b>GitHub</b> connect button in <i>Issue Trackers</i>.
+       If you leave these fields empty, GitHub connection stays disabled and the
+       button will report that OAuth is not configured.</p>
+    <p>
+      Create an OAuth App at
+      <a href="https://github.com/settings/developers" target="_blank">github.com/settings/developers</a>
+      and use the <b>Authorization callback URL</b>:<br />
+      <span class="mono">http://<?php echo $_SERVER['HTTP_HOST']; ?>/api/issuetracker/index.php/oauth/callback</span>
+    </p>
+    <p>
+      <div class="labelHolder">
+        <label for="oauth_github_enable">Enable GitHub OAuth</label>
+      </div>
+      <input type="checkbox" id="oauth_github_enable" name="oauth_github_enable" />
+    </p>
+    <p>
+      <div class="labelHolder"><label for="oauth_github_client_id">GitHub OAuth Client ID</label></div>
+      <input type="text" id="oauth_github_client_id" name="oauth_github_client_id" style="width:300px" /><br />
+      <div class="labelHolder"><label for="oauth_github_client_secret">GitHub OAuth Client Secret</label></div>
+      <input type="password" id="oauth_github_client_secret" name="oauth_github_client_secret" style="width:300px" /><br />
+    </p>
+    <div class="tlBox">
+      These values are stored in <span class="mono">cfg/oauth_github_local.inc.php</span>
+      and are used to authenticate with the GitHub API. Keep the secret private.
+    </div>
+    <?php } ?>
+
     <p>
       <input type="submit" id="setup" value="Process TestLink Setup!">
     </p>

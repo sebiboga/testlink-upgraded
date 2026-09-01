@@ -1,0 +1,36 @@
+<?php
+# @filename oauth_github_local.inc.php.example
+#
+# Local GitHub OAuth configuration for the Issue Tracker "GitHub" connect
+# button (Issue Trackers -> GitHub).
+#
+# The GitHub connect button requires a GitHub OAuth App:
+#   1. Create a new OAuth App at https://github.com/settings/developers
+#      (Settings -> Developer settings -> OAuth Apps -> New OAuth App)
+#   2. Set the "Authorization callback URL" to:
+#          http://YOUR_HOST/api/issuetracker/index.php/oauth/callback
+#      e.g. http://localhost:8082/api/issuetracker/index.php/oauth/callback
+#   3. Copy the assigned Client ID and Client Secret below.
+#
+# HOW TO USE
+#   1. Copy this file to:
+#          [TESTLINK_INSTALL]/cfg/oauth_github_local.inc.php
+#   2. Replace the CHANGE_WITH_* placeholders with your real credentials.
+#
+# During a NEW installation the installer asks for these values and generates
+# cfg/oauth_github_local.inc.php automatically, so you don't have to create it
+# by hand (see installDbInput.php -> GitHub OAuth section).
+#
+###########################################################################
+
+# enable/disable the GitHub OAuth connection globally
+$tlCfg->OAuthServers['github']['oauth_enabled']          = true;
+$tlCfg->OAuthServers['github']['oauth_name']             = 'github';
+$tlCfg->OAuthServers['github']['oauth_client_id']        = 'CHANGE_WITH_CLIENT_ID';
+$tlCfg->OAuthServers['github']['oauth_client_secret']    = 'CHANGE_WITH_CLIENT_SECRET';
+
+# Optional: call this file from custom_config.inc.php if you prefer to keep
+# credentials there instead of the dedicated local file:
+#   require('cfg/oauth_github_local.inc.php');
+#
+# End Of File
