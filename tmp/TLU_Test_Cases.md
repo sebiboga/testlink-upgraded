@@ -8697,3 +8697,23 @@ Notes:
 | TC-810.13 | tcView link switched | Inspect `tcView.html` `openAdd2Tplan()` | Points to `/gui/templates/testcases/tcAssign2Tplan.html` (not `tcAssign2Tplan.php`). | PASS |
 
 - **Result:** **13/13 PASS** (TC 810.1–810.13)
+
+---
+
+## Regression — Issue #802: IT adapters drop addReporter/addHandler → E_WARNING on bug-link render
+
+- **Priority:** Medium (warning pollution only; no data corruption)
+- **Importance:** Medium
+- **Scope:** `lib/issuetrackerintegration/*Interface.class.php` — every IT adapter's `buildViewBugLink` methodOpt must preserve the parent `addReporter`/`addHandler` defaults, otherwise `issueTrackerInterface::buildViewBugLink()` (lines 382/400) raises `E_WARNING: Undefined array key "addReporter"/"addHandler"` on every linked-bug render (floods Event Viewer). Covers the 8 non-GitHub adapters; GitHub was already fixed in `7d94ba1cd`.
+- **Precondition (repo state):** branch `fix/issue-802`, commit `162679f98`. Fix must be applied in all 8: gitlabrest, bugzilladb, bugzillaxmlrpc, tracxmlrpc, redminerest, jiradb, fogbugzdb, mantisdb.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-802.1 | Syntax gate | `php -l` on all 8 changed files + base `issueTrackerInterface` | No syntax errors in all 9 files. | PASS (9/9 "No syntax errors") |
+| TC-802.2 | Keys preserved (static) | For each of the 8 adapters, confirm `methodOpt['buildViewBugLink']` assignment is `array_merge` with parent defaults and file contains `addReporter` + `addHandler` | 8/8 files contain both keys (via array_merge); override values (addSummary/colorByStatus) unchanged. | PASS (grep: addReporter=1 addHandler=1 in all 8) |
+| TC-802.3 | Real-code harness — pre-fix reproduces bug | Run harness instantiating `issueTrackerInterface` subclass with PLAIN array methodOpt (pre-fix) and call `buildViewBugLink()` with a linked issue under E_ALL | 2 `Undefined array key` warnings (addReporter + addHandler) detected. | PASS (2 warnings) |
+| TC-802.4 | Real-code harness — post-fix clean | Same harness with array_merge methodOpt (post-fix) + same issue render | 0 `Undefined array key` warnings. | PASS (0 warnings) |
+| TC-802.5 | Event Viewer clean | After fix + test renders, check `events` table | 0 new Error/Warning rows; only informational audit (login, log_level=16). | PASS (events shows only audit_login_succeeded row) |
+| TC-802.6 | Unchanged-tracker regression | Confirm GitHub (`githubrestInterface`) still uses accepted array_merge (untouched by this change) and jirarest/kaitenrest/trellorest/mantisrest/mantissoap remain safe | No adapter reverts to plain array; all key-preserving. | PASS |
+
+- **Result:** **6/6 PASS**
