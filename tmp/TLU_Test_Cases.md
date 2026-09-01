@@ -8836,23 +8836,39 @@ Notes:
 - **Result:** **14/14 PASS** (TC-813.1–813.14)
 - **Note:** A PHP `E_WARNING` (testplan.class.php:4026-4027, array offset on null) appeared during the first `tree` export because the fixture testsuite node lacked its `testsuites.details` row. After adding the row (matching a properly-populated TestLink), 0 warnings. Not a defect in the BFF.
 
-## Suite 791 — Regression — Issue #791: Execute Tests screen: execution-time custom fields not rendered as inputs
+## Suite 791 — Regression — Issue #791: Execute Tests execution-time custom fields
 
 - **Priority:** Major
 - **Importance:** High
-- **Scope:** Issue #791 (regression in the modernized Execute Tests screen). The legacy execute flow rendered execution-time custom fields as editable inputs (`inc_exec_test_spec.tpl:119-128`, `inc_exec_controls.tpl:108-116`) and persisted their values via `write_execution()` (`lib/functions/exec.inc.php:94-100,203`) → `execution_values_to_db()`. The 2.0.1 rewrite dropped them: `tcDetails` returned no execution-CF data, `renderForm()` had no CF section, and `save` never forwarded the `custom_field_*` payload keys. Fix: `tcDetails` returns `exec_cfields_html` (via legacy `testcase::html_table_of_custom_field_inputs`) + `exec_cfields` metadata (gated on `$canExecute`); `save` forwards validated `custom_field_*` keys into `$execData`; `renderForm()` renders the section, `saveExecution()` collects values, and `validateExecCustomFields()` mirrors `cfield_validation.js`.
-- **Preconditions:** logged-in admin; fixture created via `php tmp/fixtures_791.php` (idempotent): project `EXCCF` (id 1), testsuite id 2, tcase `Case ExecCF` (id 3, tcversion id 4), plan `PlanExecCF` (id 6), build `BExecCF` (id 1), execution-time custom field `ecf_exec_note` (id 1, type 0 string, `show_on_execution=1 enable_on_execution=1`, `cfield_node_types.node_type_id=3`, `cfield_testprojects` linked/active).
+- **Scope:** Issue #791 (regression in the modernized Execute Tests screen). The
+  legacy execute flow rendered execution-time custom fields as editable inputs
+  (`inc_exec_test_spec.tpl:119-128`, `inc_exec_controls.tpl:108-116`) and
+  persisted values via `write_execution()` (`lib/functions/exec.inc.php:94-100,203`)
+  → `execution_values_to_db()`. The 2.0.1 rewrite dropped them: `tcDetails` returned
+  no execution-CF data, `renderForm()` had no CF section, and `save` never forwarded
+  the `custom_field_*` payload keys. Fix: `tcDetails` returns `exec_cfields_html`
+  (via legacy `testcase::html_table_of_custom_field_inputs`) + `exec_cfields`
+  metadata (gated on `$canExecute`); `save` forwards validated `custom_field_*` keys
+  into `$execData`; `renderForm()` renders the section, `saveExecution()` collects
+  values, and `validateExecCustomFields()` mirrors `cfield_validation.js`.
+- **Preconditions:** logged-in admin/admin at http://localhost:8082; fixture created
+  via `php tmp/fixtures_791.php` (idempotent): project `EXECF` (id 1), testsuite id 2,
+  tcase `Case ExecCF` (id 3, tcversion id 4), plan `PlanExecCF` (id 6), build `BExecCF`
+  (id 1), execution-time CF `ecf_exec_note` (id 1, type 0 string, `show_on_execution=1
+  enable_on_execution=1`, `cfield_node_types.node_type_id=3`, `cfield_testprojects`
+  linked/active).
 
 | # | Test case | Steps | Expected | Actual |
 |---|---|---|---|---|
-| TC-791.1 | tcDetails returns exec CF data | `GET /api/execute/index.php?action=tcDetails&tplan_id=6&tproject_id=1&tcase_id=3&tcversion_id=4&build_id=1&platform_id=-1` | Response 200 includes `exec_cfields_html` (contains `name="custom_field_0_1_3"`) and `exec_cfields` array with `{id:1,type:0,label:"Execution Note CF",required:0}`. | PASS |
+| TC-791.1 | tcDetails returns exec CF data | `GET /api/execute/index.php?action=tcDetails&tplan_id=6&tproject_id=1&tcase_id=3&tcversion_id=4&build_id=1&platform_id=-1` | 200 includes `exec_cfields_html` (contains `name="custom_field_0_1_3"`) and `exec_cfields` with `{id:1,type:0,label:"Execution Note CF",required:0}`. | PASS |
 | TC-791.2 | CF input renders in form | Open `execTest.html?tproject_id=1&tplan_id=6`, select Build `BExecCF`, click `Case ExecCF` | "CUSTOM FIELDS" section with `Execution Note CF:` text input; no console errors. | PASS |
-| TC-791.3 | Save persists CF value | Enter `Persist check 791` in CF, click Passed, click Save execution | `executions` row status p created; `SELECT * FROM cfield_execution_values` has `field_id=1, tcversion_id=4, execution_id=<new>, testplan_id=6, value='Persist check 791'`. | PASS |
-| TC-791.4 | Requires execute right | Repeat for a user with exec_ro_access only | `exec_cfields_html=''`; CF section not rendered (read-only users see recorded values via history, not inputs). | PARTIAL (verified by code inspection only: tcDetails gates on `$canExecute`; live ro-access user not exercised this run) |
-| TC-791.5 | Forged CF payload rejected | `save` with an extra `custom_field_X_Y_3` whose (type,id) is not a linked execution CF | Key not forwarded → no row written for a non-existent field; `cfield_execution_values` unchanged apart from real values. | PASS (validated against `allowedCf`) |
-| TC-791.6 | Required CF blocks save | Set `required=1` on a linked execution CF, leave empty, save | Toast "The custom field ... is required."; no save request for execution. | PASS (validateExecCustomFields) |
-| TC-791.7 | i18n keys in all bundles | Check `exe.customFields`, `exe.cfRequired`, `exe.cfInvalid` in de/en/es/fr/it/ja/pt/ro/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
-| TC-791.8 | Event Viewer clean | After 791.1–791.6 | `events` table has 0 new Error/Warning rows; browser console has no Error/Warning. | PASS |
+| TC-791.3 | Save via API persists CF value | `POST ?action=save` `status=p` + `custom_field_0_1_3=Persist check 791` (+ X-Requested-With header) | 200 `saved:true`; `cfield_execution_values` row `field_id=1 execution_id=N testplan_id=6 tcversion_id=4 value='Persist check 791'`. | PASS |
+| TC-791.4 | Save via UI persists CF value | Fill CF input "UI save check 791", set Passed, click "Save execution" | New `executions` row (status p); `cfield_execution_values` row value='UI save check 791'. | PASS |
+| TC-791.5 | Forged CF payload rejected | `POST ?action=save` `status=f` + `custom_field_0_999=FORGED` | 200 saved; NO `cfield_execution_values` row with field_id=999 (validated against `allowedCf`). | PASS |
+| TC-791.6 | Requires execute right (read-only) | Repeat for a user with exec_ro_access only | `exec_cfields_html=''`; CF section not rendered (read-only users see recorded values via history, not inputs). | PARTIAL (verified by code inspection only: tcDetails gates on `$canExecute`; live ro-access user not exercised this run) |
+| TC-791.7 | Required CF blocks save | Set `required=1` on linked execution CF, leave empty, save | Toast "The custom field ... is required."; no save request for execution. | PASS (validateExecCustomFields) |
+| TC-791.8 | i18n keys in all bundles | Check `exe.customFields`, `exe.cfRequired`, `exe.cfInvalid` in de/en/es/fr/it/ja/pt/ro/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
+| TC-791.9 | Event Viewer clean | After 791.1–791.8 | `events` table 0 new Error/Warning rows (only audit log_level=16); browser console no Error/Warning. | PASS |
 
-- **Result:** **7/8 PASS + 1 PARTIAL** (TC-791.1–791.3, 791.5–791.8 PASS; TC-791.4 PARTIAL — not exercised live with a read-only-execute user, verified by code inspection only)
+- **Result:** **8/9 PASS + 1 PARTIAL** (TC-791.1–791.5, 791.7–791.9 PASS; TC-791.6 PARTIAL — read-only execute access verified by code inspection only)
 - **Note:** Key gotcha: the input name `custom_field_0_1_3` explodes on `_` into **5 parts** (`[0]=custom [1]=field [2]=type [3]=id [4]=tcaseId`) because the literal `custom_field` prefix itself contains an underscore. Legacy `write_execution()` uses `cf_nodeid_pos=4` (exec.inc.php:86) and `_build_cfield()` uses `cftype_pos=2`/`cfid_pos=3` (cfield_mgr.class.php:1881-1883); the BFF forwarding (and the JS validator) must use the same 5-part parsing.
