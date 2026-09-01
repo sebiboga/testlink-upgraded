@@ -289,6 +289,7 @@ function render(r) {
     $('#stepsGroup').show();
     var st = r.steps.map(function (s) {
       var prior = (r.prior_steps || {})[s.id] || {};
+      if (!prior.status) prior.status = 'n';
       return '<tr>' +
         '<td class="step-num">' + s.step_number + '</td>' +
         '<td class="step-act">' + esc(s.actions) + '</td>' +

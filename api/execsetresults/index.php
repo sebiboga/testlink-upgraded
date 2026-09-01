@@ -218,6 +218,7 @@ function esrStatuses() {
     $resultsCfg = config_get('results');
     $statuses = [];
     foreach ($resultsCfg['code_status'] as $code => $suffix) {
+        if ($code === 'a') { continue; } // 'a' (All) is a filter, not a real status
         $statuses[] = [
             'code' => strval($code),
             'suffix' => strval($suffix),
