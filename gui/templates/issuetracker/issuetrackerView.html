@@ -264,7 +264,12 @@ function githubOAuthStart() {
   var ret = window.location.href.split('#')[0];
   $.getJSON(API + '/oauth/start?return=' + encodeURIComponent(ret), function(r) {
     if (r.status === 'ok' && r.url) {
-      window.location.assign(r.url);
+      var popup = window.open(r.url, 'githubOAuth', 'width=1024,height=728');
+      if (popup) {
+        pollOAuthConnected(popup);
+      } else {
+        window.location.assign(r.url);
+      }
     } else {
       alert(r.message || 'GitHub OAuth not configured');
     }
@@ -273,6 +278,25 @@ function githubOAuthStart() {
     try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
     alert(msg);
   });
+}
+
+function pollOAuthConnected(popup) {
+  var tries = 0;
+  var timer = window.setInterval(function() {
+    tries++;
+    if (tries > 120) {
+      window.clearInterval(timer);
+      return;
+    }
+    $.getJSON(API + '/oauth/token-status', function(r) {
+      if (r.status === 'ok' && r.connected && !r.expired) {
+        window.clearInterval(timer);
+        try { popup.close(); } catch(e) {}
+        checkOAuthConnected();
+        showRepoPicker();
+      }
+    });
+  }, 1500);
 }
 
 function showRepoPicker() {
