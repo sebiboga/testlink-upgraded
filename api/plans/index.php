@@ -109,8 +109,8 @@ function viewActions($tproject_id, $tplan_id = 0) {
                            intval($tproject_id) . '&tplan_id=',
         'importAction'  => '/lib/plan/planImport.php?' . $ent . '&tplan_id=',
         'assignRolesAction' =>
-            '/gui/templates/usermanagement/usersAssignPlan.html?featureType=testplan&' .
-            $ent . '&featureID=',
+            '/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=' .
+            intval($tproject_id) . '&tplan_id=',
         'gotoExecuteAction' =>
             '/gui/templates/execute/execTest.html?feature=executeTest&' . $entProj . '&tplan_id=',
     ];
