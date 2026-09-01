@@ -519,7 +519,7 @@ function openExecHistory(tcaseId) {
 }
 
 function openTsEdit(tsId) {
-  var url = '/lib/testcases/archiveData.php?edit=testsuite&id=' + tsId;
+  var url = '/gui/templates/testcases/suiteView.html?id=' + tsId + (tprojectId ? '&tproject_id=' + tprojectId : '');
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
