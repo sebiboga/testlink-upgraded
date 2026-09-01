@@ -282,20 +282,33 @@ function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
                       'tcases' => implode(', ', array_keys($tcaseSet)),
                       'url' => '',
                       'title' => '',
+                      'labels' => array(),
+                      'label_colors' => array(),
                       'status' => '',
-                      'color' => '#8f8f8f');
+                      'color' => '#8f8f8f',
+                      'unavailable' => false);
 
         if (is_object($its)) {
             $issue = $its->getIssue($bugID);
             if (is_object($issue)) {
                 $item['url'] = $issue->url;
-                $item['title'] = rtrim(strtok((string) $issue->summary, "\n"), ':');
-                $item['status'] = (string) $issue->statusVerbose;
+                $item['title'] = (!empty($issue->title))
+                    ? (string) $issue->title
+                    : rtrim(strtok((string) $issue->summary, "\n"), ':');
+                $item['status'] = (string) ($issue->state ?? $issue->statusVerbose ?? '');
+                if (isset($issue->labels) && is_array($issue->labels)) {
+                    $item['labels'] = array_values($issue->labels);
+                }
+                if (isset($issue->label_colors) && is_array($issue->label_colors)) {
+                    $item['label_colors'] = (object) $issue->label_colors;
+                }
 
                 $key = strtolower($item['status']);
                 if (isset($statusColor[$key])) {
                     $item['color'] = $statusColor[$key];
                 }
+            } else {
+                $item['unavailable'] = true;
             }
         }
 
@@ -342,10 +355,14 @@ function getProjectIssuesData(&$dbHandler, $tprojectID)
                       'title' => $issue->title,
                       'status' => $issue->state,
                       'color' => '#8f8f8f',
-                      'labels' => array());
+                      'labels' => array(),
+                      'label_colors' => array());
 
         if (isset($issue->labels) && is_array($issue->labels)) {
             $item['labels'] = $issue->labels;
+        }
+        if (isset($issue->label_colors) && is_array($issue->label_colors)) {
+            $item['label_colors'] = (object) $issue->label_colors;
         }
 
         if (isset($statusColor[$issue->state])) {

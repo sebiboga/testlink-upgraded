@@ -230,8 +230,11 @@ function renderBugs(bugs, dash) {
   var rows = [];
   $.each(bugs, function(i, b) {
     var id = b.url ? '<a href="' + b.url + '" target="_blank" rel="noopener"><strong>' + b.id + '</strong></a>' : '<strong>' + b.id + '</strong>';
-    var st = b.status ? '<span class="badge" style="background:' + b.color + ';">' + b.status + '</span>' : '';
-    rows.push([id, b.title, st, b.tcases]);
+    var title = b.title || (b.unavailable ? t('dash.bugUnavailable') : '');
+    var st;
+    if (b.unavailable) { st = '<span class="badge" style="background:#8f8f8f;">' + t('dash.bugDeleted') + '</span>'; }
+    else { st = b.status ? '<span class="badge" style="background:' + b.color + ';">' + b.status + '</span>' : ''; }
+    rows.push([id, title, st, b.tcases]);
   });
   if ($.fn.DataTable.isDataTable('#bugsTable')) $('#bugsTable').DataTable().destroy();
   $('#bugsTable tbody').empty();
@@ -286,7 +289,8 @@ function renderIssues(issues) {
     var id = it.url ? '<a href="' + it.url + '" target="_blank" rel="noopener"><strong>' + it.id + '</strong></a>' : '<strong>' + it.id + '</strong>';
     var labelsHtml = '';
     $.each(it.labels, function(j, lab) {
-      labelsHtml += '<span class="badge" style="background:#6c757d;">' + lab + '</span>';
+      var c = it.label_colors && it.label_colors[lab] ? '#' + it.label_colors[lab] : '#6c757d';
+      labelsHtml += '<span class="badge" style="background:' + c + ';">' + lab + '</span>';
     });
     var st = it.status ? '<span class="badge" style="background:' + it.color + ';">' + it.status + '</span>' : '';
     rows.push([id, it.title, labelsHtml, st]);

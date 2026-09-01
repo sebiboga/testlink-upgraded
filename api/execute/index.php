@@ -943,9 +943,77 @@ if ($action === 'tcDetails') {
     $ext = intval($vinfo['tc_external_id']);
     $glue = config_get('testcase_cfg')->glue_character;
 
+    // Consolidated "Linked Bugs" table (Dashboard-style): every unique bug
+    // linked to ANY execution of this test case/version, enriched live from
+    // the issue tracker (title, labels, status, url) and listing which step
+    // each bug is attached to.
+    $linkedBugs = [];
+    foreach ($execHistory as $h) {
+        if (empty($h['bugs'])) { continue; }
+        foreach ($h['bugs'] as $bg) {
+            $bid = strval($bg['id']);
+            if (!isset($linkedBugs[$bid])) {
+$linkedBugs[$bid] = [
+                    'id' => $bid,
+                    'url' => strval($bg['bug_url'] ?? ''),
+                    'title' => '',
+                    'labels' => [],
+                    'label_colors' => [],
+                    'status' => '',
+                    'color' => '#8f8f8f',
+                    'unavailable' => false,
+                    'steps' => [],
+                    'exec_count' => 0,
+                ];
+            }
+            $linkedBugs[$bid]['exec_count'] += 1;
+            if (intval($bg['step_number']) > 0) {
+                $linkedBugs[$bid]['steps'][] = intval($bg['step_number']);
+            }
+        }
+    }
+    if ($useITS && !is_null($its)) {
+        $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
+        foreach ($linkedBugs as &$lb) {
+            try {
+                $issue = $its->getIssue($lb['id']);
+                if (is_object($issue)) {
+                    $lb['unavailable'] = false;
+                    if (!empty($issue->url)) { $lb['url'] = (string)$issue->url; }
+                    $lb['title'] = (!empty($issue->title))
+                        ? (string)$issue->title
+                        : rtrim(strtok((string)$issue->summary, "\n"), ':');
+                    $lb['status'] = (string)($issue->state ?? $issue->statusVerbose ?? '');
+                    if (isset($issue->labels) && is_array($issue->labels)) {
+                        $lb['labels'] = array_values($issue->labels);
+                    }
+                    if (isset($issue->label_colors) && is_array($issue->label_colors)) {
+                        $lb['label_colors'] = (object)$issue->label_colors;
+                    }
+                    $key = strtolower($lb['status']);
+                    if (isset($statusColor[$key])) { $lb['color'] = $statusColor[$key]; }
+                } else {
+                    // issue deleted / no longer reachable on the tracker
+                    $lb['unavailable'] = true;
+                }
+            } catch (Exception $e) {
+                // tracker transient failure - keep id/url only
+                $lb['unavailable'] = true;
+            }
+        }
+        unset($lb);
+    }
+    foreach ($linkedBugs as &$lb) {
+        $lb['steps'] = array_values(array_unique($lb['steps']));
+        sort($lb['steps']);
+    }
+    unset($lb);
+    $linkedBugs = array_values($linkedBugs);
+
     out([
         'status' => 'ok',
         'tcase' => ['id' => $tcaseId, 'name' => strval($basic['name'])],
+        'linked_bugs' => $linkedBugs,
         'version' => [
             'id' => $tcversionId,
             'number' => intval($vinfo['version']),

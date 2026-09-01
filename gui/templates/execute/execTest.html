@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Execute Tests</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -78,6 +79,23 @@ a.bug-badge:hover { background: #f8d7da; color: #a93226; }
 .hist-table .bug-cell { min-width: 90px; }
 .linked-bugs-banner { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 14px; padding: 8px 12px; background: #fdecea; border: 1px solid #f5c6c2; border-radius: 6px; font-size: 13px; color: #a93226; }
 .linked-bugs-banner .lb-label { font-weight: 700; margin-right: 4px; }
+.linked-bugs-card, .linkbugs-wrap { margin: 10px 0 16px; }
+.linked-bugs-card { border: 1px solid #e6e8ee; border-radius: 8px; padding: 0; }
+.linked-bugs-card .card-ttl { display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid #eceef2; font-size: 14px; font-weight: 700; color: #22242a; }
+.linked-bugs-card .card-ttl .count { font-weight: 400; color: #888; font-size: 12.5px; }
+.linked-bugs-card table.bugs-table { margin: 0; width: 100%; }
+.linked-bugs-card table.bugs-table thead th { background: #22242a; color: #fff; font-size: 12px; padding: 8px 12px; text-align: left; }
+.linked-bugs-card table.bugs-table tbody td { font-size: 13px; padding: 8px 12px; vertical-align: middle; border-top: 1px solid #f0f1f5; }
+.linked-bugs-card table.bugs-table tbody tr:hover { background: #f4fbfb; }
+.bugs-table .bug-id-link { font-weight: 700; color: #25b6d2; text-decoration: none; white-space: nowrap; }
+.bugs-table .bug-id-link:hover { text-decoration: underline; }
+.bugs-table .bug-title { color: #333; }
+.bugs-table .badge { display: inline-block; padding: 3px 9px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; margin: 1px 3px 1px 0; }
+.bugs-table .status-badge { color: #fff; white-space: nowrap; }
+.bugs-table .label-badge { background: #6c757d; }
+.bugs-table .bug-steps { color: #555; }
+.bugs-table .none-text { color: #999; font-style: italic; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
 .linkbug-target { font-size: 13px; color: #555; margin-top: 4px; }
 .linkbug-target b { color: #22242a; }
 .bug-mode-toggle { display: flex; gap: 6px; margin: 8px 0 14px; }
@@ -198,6 +216,8 @@ a.bug-badge:hover { background: #f8d7da; color: #a93226; }
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/execute/index.php';
@@ -547,15 +567,67 @@ function bugsForStep(tcstepId) {
   return b.filter(function (bug) { return bug.tcstep_id === tcstepId; });
 }
 
-// banner shown on the detail when linked bugs exist on the latest execution
-function renderLinkedBugsBanner() {
-  var b = bugsForLatest();
-  if (!b.length) return '';
-  var h = '<div class="linked-bugs-banner"><span class="lb-label">'
-    + esc(TLi18n.t('exe.linkedBugs')) + ':</span>';
-  b.forEach(function (bug) { h += bugBadgeHtml(bug); });
-  h += '</div>';
-  return h;
+// Linked-bugs table (Dashboard-style): every unique bug linked across this
+// test case's executions, enriched live with title / labels / status / url
+// from the linked issue tracker (BFF tcDetails -> linked_bugs).
+function renderLinkedBugsTable() {
+  var bugs = current.linked_bugs || [];
+  if (!bugs.length) return '';
+  var rows = '';
+  bugs.forEach(function (b) {
+    var id = b.url
+      ? '<a class="bug-id-link" href="' + esc(b.url) + '" target="_blank" rel="noopener"><i class="fas fa-bug" style="margin-right:3px;"></i>#' + esc(b.id) + '</a>'
+      : '<span class="bug-id-link"><i class="fas fa-bug" style="margin-right:3px;"></i>#' + esc(b.id) + '</span>';
+    var title = b.title ? '<span class="bug-title">' + esc(b.title) + '</span>'
+                         : (b.unavailable
+                             ? '<span class="none-text">' + esc(TLi18n.t('exe.bugUnavailable')) + '</span>'
+                             : '<span class="none-text">&ndash;</span>');
+    var labels = (b.labels && b.labels.length)
+      ? b.labels.map(function (l) {
+          var c = b.label_colors && b.label_colors[l]
+            ? '#' + b.label_colors[l]
+            : '#6c757d';
+          return '<span class="badge label-badge" style="background:' + esc(c) + ';">' + esc(l) + '</span>';
+        }).join('')
+      : '<span class="none-text">&ndash;</span>';
+    var status;
+    if (b.unavailable) {
+      status = '<span class="badge status-badge" style="background:#8f8f8f;">' + esc(TLi18n.t('exe.bugDeleted')) + '</span>';
+    } else if (b.status) {
+      status = '<span class="badge status-badge" style="background:' + esc(b.color || '#8f8f8f') + ';">' + esc(b.status) + '</span>';
+    } else {
+      status = '<span class="none-text">&ndash;</span>';
+    }
+    var steps = (b.steps && b.steps.length)
+      ? b.steps.map(function (n) { return '# ' + n; }).join(', ')
+      : '<span class="none-text">&ndash;</span>';
+    rows += '<tr><td>' + id + '</td><td>' + title + '</td><td>' + labels
+      + '</td><td>' + status + '</td><td class="bug-steps">' + steps + '</td></tr>';
+  });
+  return '<div class="linked-bugs-card">'
+    + '<div class="card-ttl"><i class="fas fa-bug" style="color:#e6605e;"></i>'
+    + esc(TLi18n.t('exe.linkedBugsTable'))
+    + '<span class="count">(' + bugs.length + ')</span></div>'
+    + '<table class="bugs-table display" id="linkedBugsTable"><thead><tr>'
+    + '<th>' + esc(TLi18n.t('exe.linkedBugsId')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exe.linkedBugsTitle')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exe.linkedBugsLabels')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exe.linkedBugsStatus')) + '</th>'
+    + '<th>' + esc(TLi18n.t('exe.linkedBugsStep')) + '</th>'
+    + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+// initialise the DataTable once the form HTML (with the table) is in the DOM
+function initLinkedBugsTable() {
+  if (!window.jQuery || !$.fn.DataTable || !$('#linkedBugsTable').length) return;
+  if ($.fn.DataTable.isDataTable('#linkedBugsTable')) {
+    $('#linkedBugsTable').DataTable().destroy();
+  }
+  $('#linkedBugsTable').DataTable({
+    pageLength: 10,
+    order: [[0, 'asc']],
+    columns: [null, null, null, null, null]
+  });
 }
 
  //  - list of the latest execution's attachments (download links) so the
@@ -669,7 +741,7 @@ function renderForm() {
       + '</div>';
   }
 
-  h += renderLinkedBugsBanner();
+  h += renderLinkedBugsTable();
 
   if (current.exec_history && current.exec_history.length > 0) {
     h += renderHistoryHtml();
@@ -767,6 +839,7 @@ function renderForm() {
   $('#formBody').html(h).show();
   $('#formEmpty').hide();
   TLi18n.apply($('#formBody')[0]);
+  initLinkedBugsTable();
 
   $('.st-btn').on('click', function () {
     if (roMode) return;

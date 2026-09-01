@@ -244,6 +244,22 @@ class githubrestInterface extends issueTrackerInterface
         // $this->state does not exist on this class and always evaluated
         // to null, forcing isResolved to false for every issue.
         $issue->isResolved = ((string)$jsonObj->state == 'closed');
+        // extra fields mirroring listIssues() conventions so callers can
+        // render title / status / labels for a single issue too.
+        $issue->title = (string)($jsonObj->title ?? '');
+        $issue->state = (string)($jsonObj->state ?? '');
+        $issue->labels = array();
+        $issue->label_colors = array();
+        if (!empty($jsonObj->labels) && is_array($jsonObj->labels)) {
+          foreach ($jsonObj->labels as $label) {
+            if (is_object($label) && !empty($label->name)) {
+              $issue->labels[] = (string)$label->name;
+              if (!empty($label->color)) {
+                $issue->label_colors[(string)$label->name] = (string)$label->color;
+              }
+            }
+          }
+        }
       }
     }
     catch(Exception $e)
@@ -311,10 +327,14 @@ class githubrestInterface extends issueTrackerInterface
         $issue->createdAt = (string)($item->created_at ?? '');
         $issue->user = (string)($item->user->login ?? '');
         $issue->labels = array();
+        $issue->label_colors = array();
         if (!empty($item->labels) && is_array($item->labels)) {
           foreach ($item->labels as $label) {
             if (is_object($label) && !empty($label->name)) {
               $issue->labels[] = (string)$label->name;
+              if (!empty($label->color)) {
+                $issue->label_colors[(string)$label->name] = (string)$label->color;
+              }
             }
           }
         }
