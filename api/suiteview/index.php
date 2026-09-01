@@ -84,7 +84,7 @@ function owningProjectOf($nodeId, $types)
     $seen = array();
     while ($nodeId > 0 && !isset($seen[$nodeId])) {
         $seen[$nodeId] = 1;
-        $row = $db->fetchFirstRow(
+        $row = frr(
             "SELECT id, parent_id, node_type_id " .
             "FROM {$tables['nodes_hierarchy']} WHERE id = {$nodeId} LIMIT 1");
         if (is_null($row)) return 0;
@@ -97,6 +97,17 @@ function owningProjectOf($nodeId, $types)
 }
 
 /**
+ * fetchFirstRow returns null OR false (no row); normalize to null so callers
+ * never index into a boolean (avoids E_WARNING -> Event Viewer noise).
+ */
+function frr($sql)
+{
+    global $db;
+    $row = $db->fetchFirstRow($sql);
+    return is_array($row) ? $row : null;
+}
+
+/**
  * Suite must exist, be a testsuite node, and belong (somewhere up the tree)
  * to a test project. Returns array(id, name) or null.
  */
@@ -104,7 +115,7 @@ function resolveSuite($suiteId)
 {
     global $db, $tables, $tsuiteTypeId;
     $suiteId = intval($suiteId);
-    $row = $db->fetchFirstRow(
+    $row = frr(
         "SELECT NH.id, NH.name, NH.parent_id, NH.node_type_id " .
         "FROM {$tables['nodes_hierarchy']} NH " .
         "WHERE NH.id = {$suiteId} LIMIT 1");
@@ -141,15 +152,13 @@ if ($method === 'GET' && $action === 'info') {
         out(array('status' => 'error', 'message' => 'You are not authorized to view this test suite'));
     }
 
-    // suite details (from testsuites table, may be absent for root-only DBs)
-    $det = $db->fetchFirstRow(
-        "SELECT details FROM {$tables['testsuites']} WHERE id = {$suiteId} LIMIT 1");
+    $det = frr("SELECT details FROM {$tables['testsuites']} WHERE id = {$suiteId} LIMIT 1");
     $details = is_null($det) ? '' : strval($det['details']);
 
     // parent suite name (if any)
     $parentName = '';
     if (intval($suite['parent_id']) > 0) {
-        $parentRow = $db->fetchFirstRow(
+        $parentRow = frr(
             "SELECT name FROM {$tables['nodes_hierarchy']} " .
             "WHERE id = " . intval($suite['parent_id']) . " LIMIT 1");
         if (!is_null($parentRow)) $parentName = strval($parentRow['name']);
@@ -254,8 +263,7 @@ if ($method === 'GET' && $action === 'info') {
         }
     }
 
-    $tprojectRow = $db->fetchFirstRow(
-        "SELECT name FROM {$tables['nodes_hierarchy']} WHERE id = {$tprojectId} LIMIT 1");
+    $tprojectRow = frr("SELECT name FROM {$tables['nodes_hierarchy']} WHERE id = {$tprojectId} LIMIT 1");
     $tprojectName = is_null($tprojectRow) ? '' : strval($tprojectRow['name']);
 
     out(array(
