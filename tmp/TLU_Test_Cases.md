@@ -8670,3 +8670,30 @@ Notes:
   - **TC-788.7** i18n: `exe.executionDuration` + `exechist.colDuration` present in all 10 bundles; all `python3 -m json.tool` valid; Romanian translation in `ro.json`. → **PASS**
   - **TC-788.8** Event Viewer `events` table: only informational audit rows (login + project created, log_level=16); **0** new Error/Warning from the fix. → **PASS**
 - **Result:** **PASS**
+
+---
+
+## Suite 810 — Assign Test Case to Test Plan (tcAssign2Tplan.html + api/tcassign2tplan) — Refs #810
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** modernized popup screen that lists the ACTIVE test plans of a test project along with each plan's platforms and shows which (test case version, platform) pairs are already linked (read-only) vs selectable, then links the selected pairs via the BFF. Replaces the legacy `lib/testcases/tcAssign2Tplan.php` redirect from `tcView.html` `openAdd2Tplan()`.
+- **Preconditions (fresh DB fixtures):** project `A2P Project` id=1 (prefix A2P), suite `A2P Suite` id=2, TC `A2P Test Case One` id=3 (tcversion 4), plans `A2P Test Plan` id=6 and `A2P Plan Two` id=7, platforms `Win10` id=1 and `Ubuntu` id=2 (both linked to both plans). Second project `NoPlanProj` id=8 with TC id=10 (tcversion 11) and NO plans. Auth admin/admin; popup opened via `window.open` from an authenticated frame (session required).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-810.1 | Init renders multi-plan grid | Open `tcAssign2Tplan.html?tcase_id=3&tcversion_id=4&tproject_id=1` | Header shows "A2P Test Case One (#3 v1)" + identity `A2P-1:...`; table lists plans 6 & 7 each with 2 platform rows. | PASS |
+| TC-810.2 | Read-only already-linked rows | After linking TC3 to plan6/platform1 (pre-seed), reload | Win10/A2P Test Plan row shows checked+disabled checkbox and "(already linked)". | PASS |
+| TC-810.3 | Init with no linked pairs (fresh) | Open for a fresh TC (id=12, tcversion 13) in project 1 | All 4 platform checkboxes selectable; Add button visible. | PASS |
+| TC-810.4 | Add selected pairs via UI | Select Ubuntu(plan6), Ubuntu+Win10(plan7) on TC3, click Add | `SELECT testplan_id,platform_id FROM testplan_tcversions WHERE tcversion_id=4` → (6,1),(6,2),(7,1),(7,2); success banner "Added to 2 test plan(s)". | PASS |
+| TC-810.5 | Init reflects new links (read-only) | After Add, reload | All 4 rows checked+disabled with "(already linked)"; Add button hidden (can_do=false). | PASS |
+| TC-810.6 | Warn when no plan selected | Open fresh TC (12), click Add with no checkbox | Toast "Select at least one test plan"; no network POST; no console errors. | PASS |
+| TC-810.7 | No active test plans | Open `?tcase_id=10&tcversion_id=11&tproject_id=8` | Shows "No test plans." message; no table. | PASS |
+| TC-810.8 | Invalid tcase → 404 | `GET /api/tcassign2tplan/?action=init&tcase_id=9999&tcversion_id=999&tproject_id=1` | HTTP 404 `Test case not found in project context`. | PASS |
+| TC-810.9 | Unauthenticated → 401 | Open the HTML in a tab with no PHPSESSID | "Not authenticated" fatal banner (API 401). | PASS |
+| TC-810.10 | Add with empty selection → 400 | `POST /api/tcassign2tplan/?action=add` body `{tcase_id:3,tcversion_id:4,tproject_id:1,add2tplanid:{}}` | HTTP 400 `No test plan selected`. | PASS |
+| TC-810.11 | i18n keys in all bundles | Check `ta2p.*` keys (16) in en/ro/de/fr/es/it/pt/ja/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid; locale switcher works. | PASS |
+| TC-810.12 | Event Viewer clean | After all add/reload actions | `events` table has 0 new Error/Warning (log_level 3/4); only audit rows (16). | PASS |
+| TC-810.13 | tcView link switched | Inspect `tcView.html` `openAdd2Tplan()` | Points to `/gui/templates/testcases/tcAssign2Tplan.html` (not `tcAssign2Tplan.php`). | PASS |
+
+- **Result:** **13/13 PASS** (TC 810.1–810.13)
