@@ -42,6 +42,7 @@ table.dataTable tbody td { padding: 7px 14px; font-size: 13px; vertical-align: m
 .kv-table td:first-child { font-weight: 700; color: #555; width: 220px; }
 .att-item, .bug-item { font-size: 13px; color: #333; padding: 3px 0; }
 .att-item i, .bug-item i { color: #4ECDC4; margin-right: 8px; }
+.bug-item .bug-step-mark { color: #8a8f98; font-weight: 400; margin-left: 4px; }
 .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #4ECDC4; }
 .icon-btn:hover { color: #3dbdb5; }
 .icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
@@ -361,8 +362,12 @@ function renderDetail(e) {
     h += '<div class="detail-block"><div class="detail-label">'
       + esc(TLi18n.t('exechist.bugs')) + '</div>';
     e.bugs.forEach(function (b) {
+      var stepMark = (b.step_number > 0)
+        ? '<span class="bug-step-mark">'
+          + esc(TLi18n.t('exe.bugOnStepShort', { n: b.step_number })) + '</span>'
+        : '';
       h += '<div class="bug-item"><i class="fa fa-bug"></i>'
-        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + '</div>';
+        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + stepMark + '</div>';
     });
     h += '</div>';
   }
