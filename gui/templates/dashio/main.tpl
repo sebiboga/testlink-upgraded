@@ -88,6 +88,24 @@
       li.classList.add('active');
     }
   }
+
+  // The aside menu is server-rendered from the session (testplanID /
+  // testprojectID, see asideMenu.php). Screens that change that context
+  // with an AJAX call - e.g. creating the first test plan of a project -
+  // must ask the shell to reload it: the iframe only loads once, so its
+  // rendered Test Plan sub-menus stay stale until a full page refresh.
+  // Refs #814.
+  function reloadAside() {
+    var asideFrame = document.getElementById('asidebar');
+    if (!asideFrame || !asideFrame.contentWindow) {
+      return;
+    }
+    try {
+      asideFrame.contentWindow.location.reload();
+    } catch (e) {
+      /* cross-origin or not ready - ignore */
+    }
+  }
   </script>
 </head>
 

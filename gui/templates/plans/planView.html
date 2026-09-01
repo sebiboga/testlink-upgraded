@@ -502,6 +502,16 @@ function submitPlan() {
       $('#planModal').modal('hide');
       toast(editId ? TLi18n.t('pv.msg.updated') : TLi18n.t('pv.msg.created'));
       load();
+      // A created test plan becomes the session context of the aside menu
+      // (asideMenu.php auto-selects the first plan via initProject). The
+      // aside frame loads only once, so ask the shell to reload it or the
+      // Test Plan sub-menus stay hidden until a manual refresh (Refs #814).
+      if (!editId) {
+        var shell = window.parent;
+        if (shell && typeof shell.reloadAside === 'function') {
+          shell.reloadAside();
+        }
+      }
     } else {
       $('#planModalError').show().text(r.message || TLi18n.t('common.error'));
     }
