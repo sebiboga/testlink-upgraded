@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-01 (#815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
+> Last updated: 2026-09-01 (#817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 12 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport) |
+| DONE (modernized) | 67 + 13 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -108,6 +108,7 @@ Extra modernized feature (not an ASIDE entry):
 - Test Case Editor (`tcView` toolbar) — `gui/templates/testcases/tcEdit.html` + `api/testcasesedit/index.php` `GET ?action=edit` + `POST ?action=update` + `POST ?action=create_version` (#812, DONE). Converted the `tcView.html` `tcEdit.php` legacy redirect (the last remaining HIGH-priority link from #753) into a BFF-driven full-power version editor (title, summary, preconditions, steps/expected-results rows with add/remove, importance, status, exec. type, estimated duration, keywords, New Version clone). Rights `mgt_modify_tc` enforced on every route; executed-version edit gated by `testproject_edit_executed_testcases`. Regression suite 812 17/17 PASS.
 - Test Plan Export (Plans → Test Plan Management toolbar) — `gui/templates/plans/planExport.html` + `api/planexport/index.php` `GET ?action=info` + `POST ?action=export` (#754, DONE). Converted the `planView.html` `planExport.php` legacy redirect into a BFF-driven XML download (linkedItems / tree / 4results modes; default filename; header-injection-safe). Also re-pointed the `planView.html` `usersAssign.php` redirect → `usersAssignPlan.html` and the `frmWorkArea.php` execute redirect → `execTest.html`. Regression suite 813 14/14 PASS.
 - Test Plan Import (Plans → Test Plan Management toolbar) — `gui/templates/plans/planImport.html` + `api/planimport/index.php` `GET ?action=info` + `POST ?action=import` (#815, DONE). Converted the `planView.html` `planImport.php` legacy redirect into a BFF-driven XML upload screen that imports test plan links to test cases and platforms (legacy `importTestPlanLinksFromXML` / `processPlatforms` ports; rights `mgt_testplan_create`; size limit `import_file_max_size_bytes`; execution-order updates; legacy resultMap `OK`/`Not imported`). This closes the last remaining HIGH-priority #754 redirect — `importAction` now points at `planImport.html`. Regression suite 815 12/12 PASS.
+- Set Results popup (execution of a single test case version, `level=testcase`) — `gui/templates/execute/execSetResults.html` + `api/execsetresults/index.php` `GET ?action=init` + `POST ?action=save` (#817, DONE). Port of `lib/execute/execSetResults.php` returning TC context, stepped plan (builds/platforms), per-step and overall statuses, grants, and prior-execution resume (partial-execution). Write via `write_execution()`; server validates linked version + build + step ids (forged ids skipped); `not_run` ignored (legacy parity); `testplan_execute` / read-only `exec_ro_access` respected (Save disabled + 403). Accepts legacy aliases `id`/`version_id`/`setting_build`/`setting_platform`. Switched the 5 remaining `execSetResults.php` links off the legacy redirect: `resultsMatrix.html`, `tcasesWithCF.html`, `assignedTcOverview.html`, `tcAssignments.html`, `testlink_library.js` `openExecutionWindow()`. This closes the last HIGH `execSetResults.php` rows from #756. Regression suite 817 18/18 PASS.
 
 ---
 
@@ -144,11 +145,11 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 |---|---|---|---|---|
 | HIGH | tcView.html | `tcEdit.php`, `tcAssign2Tplan.php` ✅, `tcExport.php` ✅, `tcCompareVersions.php` ✅ | #753 | `tcExport.php` converted to `tcExport.html` + BFF (Refs #803); `tcCompareVersions.php` converted to `tcCompare.html` + BFF (Refs #809); `tcAssign2Tplan.php` converted to `tcAssign2Tplan.html` + BFF (Refs #810); `tcEdit.php` converted to `tcEdit.html` + BFF (Refs #812) — ALL 4 redirected |
 | HIGH | planView.html | `planExport.php`, `planImport.php`, `usersAssign.php`, `frmWorkArea.php` | #754 — `planExport.php` ✅ converted to `planExport.html` + BFF (Refs #754, Suite 813); `usersAssign.php` ✅→ `usersAssignPlan.html`; `frmWorkArea.php` execute ✅→ `execTest.html`; `planImport.php` ✅ converted to `planImport.html` + BFF (Refs #815, Suite 815) — **ALL REDIRECTS FIXED** |
-| HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php`, `archiveData.php` | #756 | Fix broken link + modernize |
-| HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` | #756 | Redirect to modernized pages |
-| HIGH | tcAssignments.html | `execSetResults.php`, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages |
+| HIGH | tcasesWithCF.html | `reqMilestones.php` (BROKEN!), `execSetResults.php` ✅, `archiveData.php` | #756 | Fix broken link + modernize; `execSetResults.php` ✅→ `execSetResults.html` (Refs #817) |
+| HIGH | assignedTcOverview.html | `archiveData.php`, `execHistory.php`, `execSetResults.php` ✅ | #756 | Redirect to modernized pages; `execSetResults.php` ✅→ `execSetResults.html` (Refs #817) |
+| HIGH | tcAssignments.html | `execSetResults.php` ✅, `execHistory.php`, `archiveData.php` | #756 | Redirect to modernized pages; `execSetResults.php` ✅→ `execSetResults.html` (Refs #817) |
 | HIGH | 5 req screens (#755 progress: `reqView.php` ✅, `reqSpecView.php` ✅, `printDocument.php` ✅) | `reqSpecViewRevision.php`, `reqSpecViewRevisions.php` | #755 | Convert to modals / BFF API |
-| HIGH | resultsMatrix.html | `execSetResults.php` | #756 | Redirect to modernized page |
+| HIGH | resultsMatrix.html | `execSetResults.php` ✅ | #756 | Redirect to modernized page; `execSetResults.php` ✅→ `execSetResults.html` (Refs #817) |
 | MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` ✅ | #758 | Redirect / modal; `tcCompareVersions` now `tcCompare.html` (Refs #809) |
 | MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
 | MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | Fix: already have keywordsAssign.html |
