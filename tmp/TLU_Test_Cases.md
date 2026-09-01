@@ -9052,3 +9052,23 @@ test case view). `reqMilestones.php` (status-table "BROKEN!" entry) no longer ex
   intentionally not ported — the modernized tcView.html and testSpec.html already cover the
   test-case view and tree. `frmWorkArea.php` (old all-purpose launcher) is no longer used by
   any modernized screen for suite viewing.
+
+**Addendum (code review fixes, Refs #818)** — re-verified after review subagent
+fixes `2e2590ff6..HEAD`:
+
+- **Importance mapping** (was inverted): canonical TestLink `HIGH=3 / MEDIUM=2 /
+  LOW=1`; badges now render High/Medium/Low for the three fixture values (tcase 5 → Medium,
+  tcase 9 → Low, tcase 12 → High) — verified via BFF `importance_label` + live DOM.
+- **Suite keywords**: legacy `testsuite::getKeywords()` reads `object_keywords` by `fk_id`
+  only (real writes stored `fk_table='nodes_hierarchy'`); the BFF now mirrors that exactly.
+  Fixture keywords re-seeded as `nodes_hierarchy`; Keywords card renders `auth`, `ui`.
+- **Suite attachments**: legacy suite manager is bound to the `nodes_hierarchy` attachment
+  table; BFF now filters `fk_table='nodes_hierarchy'`. Fixture attachment re-seeded as
+  `nodes_hierarchy`; Attachments card renders title + size + date.
+- **External ID now prefixed** (`SV-1`, `SV-2`, `SV-3` — legacy `PREFIX.N` form) while the
+  DataTable still sorts numerically via `data-order` on the raw numeric value.
+- **Loading spinner** added (`common.loading`) while the BFF request is in flight.
+- Browser re-verified: sort toggle (SV-2 above SV-1 descending), DataTable filter
+  ("password" → 1 row), no console errors. Event Viewer: no new error/warning entries.
+
+- **Result:** 21/21 PASS + review-fix re-verification PASS.

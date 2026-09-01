@@ -38,13 +38,18 @@ The BFF reproduces the read-only suite viewer:
 - **Suite details** — `testsuites.details` text.
 - **Child content** — count of direct child suites and the list of directly
   linked test cases with their **latest version** (highest `tcversions.version`
-  whose `tcversions.id` node is a child of the test-case node): external id,
-  name, version number, active flag, status, importance (high/medium/low),
-  summary.
-- **Keywords** — test-suite level keywords (`object_keywords` keyed on the
-  suite node, deduped, ordered).
+  whose `tcversions.id` node is a child of the test-case node): external id
+  (`PREFIX-N`, e.g. `SV-1`), name, version number, active flag, status,
+  importance (canonical TestLink levels: `HIGH=3 / MEDIUM=2 / LOW=1`, rendered
+  as High/Medium/Low badges), summary.
+- **Keywords** — test-suite level keywords (`object_keywords` for the suite
+  node — mirrors legacy `testsuite::getKeywords()`, which reads by `fk_id` only;
+  real UI writes store `fk_table='nodes_hierarchy'`), deduped, ordered.
 - **Attachments** — attachment metadata of the suite (title, file name, size,
-  date), newest first.
+  date), newest first. The legacy suite manager is bound to the
+  `nodes_hierarchy` attachment table, so the BFF filters
+  `fk_table='nodes_hierarchy'` (suite attachments uploaded through the real
+  workflow are stored there, not under `testsuites`).
 
 ## Screen layout
 

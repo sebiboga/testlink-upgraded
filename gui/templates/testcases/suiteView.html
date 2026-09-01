@@ -53,6 +53,10 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
 
 <div id="deletedBanner" class="deleted-banner" style="display:none;"></div>
 
+<div id="viewLoading" style="display:none;text-align:center;padding:22px;color:#888;font-size:13px;">
+  <i class="fa fa-spinner fa-spin" style="margin-right:6px;"></i><span data-i18n="common.loading">Loading...</span>
+</div>
+
 <div id="content">
   <div class="card">
     <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="suvw.overview">Overview</span></div>
@@ -132,10 +136,12 @@ $(function() {
 
 function loadView() {
   var tok = ++TOKEN;
+  $('#viewLoading').show();
   var url = API + '?action=info&id=' + SUITE_ID;
   if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
   $.getJSON(url, function(r) {
     if (tok !== TOKEN) return;
+    $('#viewLoading').hide();
     if (r.status !== 'ok') {
       showError(r.message || TLi18n.t('suvw.loadError'));
       return;
@@ -147,6 +153,7 @@ function loadView() {
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
     if (tok !== TOKEN) return;
+    $('#viewLoading').hide();
     var msg = TLi18n.t('suvw.loadError');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
     showError(msg);
@@ -182,7 +189,7 @@ function renderTc(rows) {
         TLi18n.t('suvw.imp' + ucfirst(tc.importance_label)) + '</span>'
       : '<span class="badge-inv">' + TLi18n.t('suvw.inactive') + '</span>';
     $tb.append('<tr>' +
-      '<td>' + (tc.external_id ? escPrefix(tc.external_id) : '-') + '</td>' +
+      '<td data-order="' + tc.external_id + '">' + (tc.external_id_display || tc.external_id ? escPrefix(tc.external_id_display || tc.external_id) : '-') + '</td>' +
       '<td><a class="tc-link" href="javascript:void(0)" title="' + TLi18n.t('suvw.openTc') + '" onclick="openTc(' + tc.id + ')">' +
         escapeHtml(tc.name) + '</a></td>' +
       '<td>' + (tc.version ? 'v' + tc.version : '-') + '</td>' +

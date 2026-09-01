@@ -152,6 +152,11 @@ if ($method === 'GET' && $action === 'info') {
         out(array('status' => 'error', 'message' => 'You are not authorized to view this test suite'));
     }
 
+    // external-id display form "PREFIX-N" (legacy get_external_id_for_tc)
+    $tprojectMgr = new testproject($db);
+    $extPrefix = strval($tprojectMgr->getTestCasePrefix($tprojectId));
+    $extGlue = config_get('testcase_cfg')->glue_character;
+
     $det = frr("SELECT details FROM {$tables['testsuites']} WHERE id = {$suiteId} LIMIT 1");
     $details = is_null($det) ? '' : strval($det['details']);
 
@@ -213,11 +218,13 @@ if ($method === 'GET' && $action === 'info') {
         }
         if (!is_null($v)) $extId = intval($v['tc_external_id']);
         $importance = is_null($v) ? 2 : intval($v['importance']);
-        $importanceLabel = array(1 => 'high', 2 => 'medium', 3 => 'low');
+        // canonical TestLink importance: HIGH=3, MEDIUM=2, LOW=1 (cfg/const.inc.php)
+        $importanceLabel = array(3 => 'high', 2 => 'medium', 1 => 'low');
         $testcases[] = array(
             'id' => $tcId,
             'name' => $name,
             'external_id' => $extId,
+            'external_id_display' => $extPrefix . $extGlue . $extId,
             'version' => is_null($v) ? 0 : intval($v['version']),
             'active' => is_null($v) ? 0 : intval($v['active']),
             'status' => is_null($v) ? 0 : intval($v['status']),
@@ -227,13 +234,14 @@ if ($method === 'GET' && $action === 'info') {
         );
     }
 
-    // suite-level keywords (object_keywords keyed on the suite node)
+    // suite-level keywords — legacy testsuite::getKeywords() reads object_keywords
+    // by fk_id only (fk_table is 'nodes_hierarchy' for suite nodes); mirror it and
+    // dedupe so real UI-assigned suite keywords are shown
     $keywords = array();
     $kwRows = $db->get_recordset(
         "SELECT K.keyword FROM {$tables['object_keywords']} OK " .
         " JOIN {$tables['keywords']} K ON K.id = OK.keyword_id " .
         " WHERE OK.fk_id = {$suiteId} " .
-        "   AND OK.fk_table IN ('testsuites','testsuite','testcase') " .
         " ORDER BY K.keyword");
     if (!is_null($kwRows)) {
         foreach ($kwRows as $k) {
@@ -242,13 +250,14 @@ if ($method === 'GET' && $action === 'info') {
         }
     }
 
-    // attachments for the suite (legacy getAttachmentInfosFrom uses the
-    // object table name 'testsuites')
+    // attachments for the suite — legacy suite manager is bound to the
+    // 'nodes_hierarchy' attachment table (testsuite.class.php parent ctor);
+    // suite attachments are stored/read with that fk_table
     $attachments = array();
     $attRows = $db->get_recordset(
         "SELECT id, title, file_name, file_type, file_size, date_added " .
         "FROM {$tables['attachments']} " .
-        "WHERE fk_id = {$suiteId} AND fk_table IN ('testsuites','testsuite') " .
+        "WHERE fk_id = {$suiteId} AND fk_table = 'nodes_hierarchy' " .
         "ORDER BY date_added DESC LIMIT 50");
     if (!is_null($attRows)) {
         foreach ($attRows as $a) {
