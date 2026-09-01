@@ -407,7 +407,7 @@ function fmtDate(ts) {
 }
 
 function openTcEdit() {
-  var url = '/lib/testcases/tcEdit.php?doAction=edit&testcase_id=' + data.tcase.id
+  var url = '/gui/templates/testcases/tcEdit.html?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
