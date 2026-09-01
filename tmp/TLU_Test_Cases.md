@@ -8910,3 +8910,49 @@ Notes:
 - **Note:** The Import action URL from `api/plans/index.php` appends `&tplan_id=` to an
   `$ent` that already contains `tplan_id=`; PHP resolves duplicate `tplan_id` params
   last-wins, so the screen resolves the correct plan (same pattern as planExport).
+
+## Suite 817 — Set Results popup (execSetResults.html + api/execsetresults) — Refs #817
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Modernized Set Results popup (`gui/templates/execute/execSetResults.html`
+  + `api/execsetresults/index.php`). Mirrors legacy `lib/execute/execSetResults.php`
+  `level=testcase` (TestLink 1.9.20): the "execute one test case version" popup
+  reached from report screens. Access requires `testplan_execute` (write) or
+  `exec_ro_access` (read-only). Also switches the exec-set-results links in
+  tcasesWithCF, resultsMatrix, assignedTcOverview, tcAssignments and
+  `gui/javascript/testlink_library.js` `openExecutionWindow` off `execSetResults.php`.
+- **Preconditions:** logged-in admin/admin at http://localhost:8082; fixture via
+  `php tmp/fixtures_817.php` (idempotent): project `ESR817` (id 1, prefix E817),
+  suites `Suite One`(2)/`Suite Two`(3), test cases `Case One`/`Case Two`/`Case Three`
+  (nodes 4/8/12, external ids 1/2/3, tcversion ids 5/9/13), platform `ESR-Android`
+  (id 1), plans `Plan817`(16, platform-linked)/`Plan817B`(17, no platform), open
+  builds id 1 (plan16) and 2 (plan17). Read-only user `ro817`/`ro817` (role id 10
+  `ro viewer` with only `exec_ro_access`=49 on project 1).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-817.1 | init loads TC context (auth + plan + version) | `GET /api/execsetresults/?action=init&tplan_id=16&id=4&version_id=5&setting_build=1&setting_platform=1` (admin session) | `status:ok`; `tcase.name=Case One`, `tcase.external_id=1`, `tplan.name=Plan817`, `tcversion.version=1`, 2 steps (ids 6,7), build `REL-1` executable+default, platform `ESR-Android`, 6 statuses (f/b/p/n/x/u — NO 'All'), `grants.can_execute=1`. | PASS |
+| TC-817.2 | Unauthenticated rejected | `GET /api/execsetresults/?action=init&tplan_id=16` fresh curl (no session) | HTTP 401, `status:error`, `message:Not authenticated`. | PASS |
+| TC-817.3 | Invalid plan → error | `GET /api/execsetresults/?action=init&tplan_id=99999&id=1&version_id=1` | HTTP 404, `message:Test plan not found`. | PASS |
+| TC-817.4 | Missing plan → error | `GET /api/execsetresults/?action=init&id=4&version_id=5` | HTTP 400, `message:Missing tplan_id`. | PASS |
+| TC-817.5 | Version not belonging to tcase → error | `GET /api/execsetresults/?action=init&tplan_id=16&id=4&version_id=9` (version 9 belongs to Case Two node 8) | HTTP 404, `message:Version does not belong to test case`. | PASS |
+| TC-817.6 | UI renders full form | Open `execSetResults.html?tcase_id=4&tcversion_id=5&tproject_id=1&tplan_id=16` (admin) | Header "Set Results", context "E817-1 · Case One (v1)", project/plan toolbar, build+platform selectors, SUMMARY + PRECONDITIONS, step table (2 rows, per-step status=Not Run default + notes), overall-status buttons (Failed/Blocked/Passed/Not Run/Not Available/Unknown — no All), notes, exec time, Save/Cancel, footer. | PASS (browser) |
+| TC-817.7 | Save writes execution + step results | Select Passed overall, step1=Passed w/ note, notes, exec time 15; click Save | Toast "Result saved successfully."; DB `executions` row (status p, notes, duration 15) + `execution_tcsteps` row for step 6 (status p, note). | PASS |
+| TC-817.8 | Prior-execution resume | Reload `execSetResults.html?...` for Case One after TC-817.7 | "Latest execution: Passed · by admin · <ts>" box; Passed pre-selected; notes + step-1 note/status repopulated; exec time shown. | PASS (browser) |
+| TC-817.9 | Read-only client gate (ro817) | Login ro817/ro817, open Case One popup | Full read-only view (context/steps/prior shown) but **Save button disabled**. | PASS (browser) |
+| TC-817.10 | Read-only server gate | As ro817, POST `/api/execsetresults/?action=save` with status p | HTTP 403, `message:Insufficient rights`. | PASS |
+| TC-817.11 | No-status save validation | Open Case Two (no prior), click Save without selecting status | Toast "Please choose an overall result before saving."; no request sent. | PASS (browser) |
+| TC-817.12 | Plan without platforms | `GET /api/execsetresults/?action=init&tplan_id=17&id=4&version_id=5&setting_build=2` | `platforms=[]`; UI hides platform selector. | PASS |
+| TC-817.13 | Forged step id rejected | POST save with `steps:{"99999":{...}}` | No `execution_tcsteps` row written for 99999 (unknown step skipped). | PASS |
+| TC-817.14 | not_run result not written (legacy parity) | POST save with `status:"n"` | `status:ok, saved:false, reason:not_run`; no new execution row. | PASS |
+| TC-817.15 | Bad build rejected | POST save with `build_id:99` (not executable/closed) | HTTP 400, `message:Invalid or non-executable build for this plan`. | PASS |
+| TC-817.16 | All report/JS links switched | Grep `execSetResults.php` in gui templates/js | Only comments/tpl remain; all executable links point to `execSetResults.html` (tcasesWithCF, resultsMatrix, assignedTcOverview, tcAssignments, testlink_library.js openExecutionWindow). | PASS |
+| TC-817.17 | i18n keys in all bundles | Grep `esr.*` in de/en/es/fr/it/ja/pt/ro/ru/zh | 27 keys present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
+| TC-817.18 | Event Viewer clean | After init/save/permission tests | `events` table 0 new Error/Warning rows from the screen/BFF (only INFO login audit + fixture events). | PASS |
+
+- **Result:** **18/18 PASS** (TC-817.1–817.18)
+- **Note:** The legacy `execSetResults.php` accepted both `id`/`version_id` and
+  `tcase_id`/`tcversion_id`, plus `setting_build`/`setting_platform` (from legacy
+  cookie settings). The new BFF normalizes both key pairs and both build/platform
+  param names to a single contract.
