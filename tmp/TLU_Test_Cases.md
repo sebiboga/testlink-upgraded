@@ -9006,3 +9006,49 @@ Notes:
 
 - **Result:** **12/12 PASS** (TC-818.1–818.12)
 - **Note:** No runtime code change was needed this run — commit `b767d45c0` already shipped the fix on the default branch (`Refs #813`). This run verified it error-free against a fresh install and closed the issue with this regression evidence.
+
+## Suite 819 — Test Suite viewer popup (suiteView.html + api/suiteview) — Refs #818
+
+**Precondition:** fresh DB import; fixtures recreated for this run via the live app API:
+project id 1 "SuiteViewer Test Project" (prefix `SV`); suites: id 2 "Login Tests" (details
+"Functional area covering the login flow (smoke + edge cases)."), id 3 "API Tests",
+id 4 "Nested Auth" (child of suite 2); test cases: id 5 "Verify login form" (ext 1, medium),
+id 9 "Verify password rules" (ext 2, high), id 12 "GET /api/status" (ext 3, low); suite 2
+keywords `auth`/`ui`; suite 2 attachment "Login flow spec" (`login_flow.md`, 2048 B). Logged
+in as admin/admin (cookie jar `/tmp/tljar`).
+
+**Scope note:** smallest coherent sub-screen of the legacy `lib/testcases/archiveData.php`
+tool: the read-only **test-suite viewer** (`edit=testsuite`), the only route still reachable
+from a modernized screen (`searchAdvancedView.html` `openTsEdit()`). The
+testproject/testcase routes of `archiveData.php` stay legacy (tcView.html already covers the
+test case view). `reqMilestones.php` (status-table "BROKEN!" entry) no longer exists.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-819.1 | No session → 401 | `GET /api/suiteview/index.php?action=info&id=2` fresh curl | HTTP 401, `status:error`, `message:Not authenticated`. | PASS |
+| TC-819.2 | Valid suite loads | `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` (admin session) | `status:ok`; `suite.name=Login Tests`, `suite.details` = fixture text, `parent_name=SuiteViewer Test Project`, `child_suites=1` (id 4), `testcases_cnt=2`. | PASS |
+| TC-819.3 | Linked tcases (latest active version) | Inspect `testcases[]` of suite 2 | ids 5 and 9; `external_id` 1 and 2; `version:1`; `importance_label` medium and high; correct `summary` strings. | PASS |
+| TC-819.4 | Suite keywords | Inspect `keywords` of suite 2 | `['auth','ui']` (ordered, deduped). | PASS |
+| TC-819.5 | Attachments meta | Inspect `attachments` of suite 2 | Row id 1, `title=Login flow spec`, `file_name=login_flow.md`, `file_size=2048`, `date_added` present. | PASS |
+| TC-819.6 | Empty suite shape | `info&id=3` (API Tests) | `child_suites=0`, `testcases_cnt=1`, tc 12 `importance_label=low`. | PASS |
+| TC-819.7 | Nested suite parent | `info&id=4` (Nested Auth) | `parent_name=Login Tests`; owning testproject resolved by walking up nodes (not session). | PASS |
+| TC-819.8 | Unknown suite → 404 | `info&id=999` | HTTP 404, `message:Test suite not found`. | PASS |
+| TC-819.9 | Non-suite node rejected | `info&id=5` (a test CASE node) | HTTP 404, `message:Test suite not found` (node_type guard). | PASS |
+| TC-819.10 | Missing id → 400 | `info` without id | HTTP 400, `message:Invalid test suite id`. | PASS |
+| TC-819.11 | UI loads and renders header | Open `suiteView.html?id=2&tproject_id=1` (admin) | Title "Test Suite Viewer"; header shows project `- SuiteViewer Test Project`; Overview card: identifier `Login Tests #2`, parent, `Child test suites 1`, `Test cases 2`. | PASS (browser) |
+| TC-819.12 | Details + keywords + attachments cards | Same view | Details card shows fixture text; Keywords card chips `auth`,`ui`; Attachments card `Login flow spec — login_flow.md · 2.0 KB · <ts>`. | PASS (browser) |
+| TC-819.13 | TC table + badges + filter | Inspect table; type `password` in Search | 2 rows (ext id, name link, `v1`, `Medium`/`High` badges, summary); filtering shows 1 row ("Verify password rules"). | PASS (browser) |
+| TC-819.14 | Locale switch to Romanian | Set locale `ro` (switcher) | Strings translated: title "Vizualizator set de testare", "Prezentare generală", "Cazuri de testare din acest set", "Scăzută" badge, DataTable search "Cauta". | PASS (browser) |
+| TC-819.15 | Open in Test Specification link | Click "Open in Test Specification" | Navigates to `testSpec.html?tproject_id=1`. | PASS |
+| TC-819.16 | TC row opens viewer popup | Click tc name "Verify login form" | New popup `tcView.html?tcase_id=5&tproject_id=1` opens. | PASS (browser) |
+| TC-819.17 | Error banner (unknown id) | Open `suiteView.html?id=999` | Red banner "Test suite not found"; content hidden. | PASS (browser) |
+| TC-819.18 | Error banner (no id) | Open `suiteView.html` (no params) | Banner "No test suite id provided."; content hidden. | PASS (browser) |
+| TC-819.19 | Search screen link switched | Run advanced search targeting `Login` on `searchAdvancedView.html?tproject_id=1` | Test-Suites section row "Login Tests" renders `openTsEdit(2)`; clicking opens **suiteView.html?id=2&tproject_id=1** (no `/lib/testcases/archiveData.php`). Grep: no executable `archiveData.php` refs remain in gui templates/js. | PASS (browser + code) |
+| TC-819.20 | i18n keys in all bundles | Grep `suvw.` in en/ro/de/fr/es/it/ja/pt/ru/zh + `python3 -m json.tool` | 25 keys present in all 10 bundles; all valid JSON. | PASS |
+| TC-819.21 | Event Viewer clean | After all BFF + UI tests | 0 new Error(1)/Warning(2) rows from the screen/BFF (`frr()` guard fixed the fetchFirstRow `false` E_WARNING); only AUDIT(16) login/fixture rows + 2 pre-fix rows from the first curl probe. | PASS |
+
+- **Result:** **21/21 PASS** (TC-819.1–819.21)
+- **Note:** Routes for legacy `archiveData.php` (`edit=testproject` and `edit=testcase`) are
+  intentionally not ported — the modernized tcView.html and testSpec.html already cover the
+  test-case view and tree. `frmWorkArea.php` (old all-purpose launcher) is no longer used by
+  any modernized screen for suite viewing.
