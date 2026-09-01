@@ -33,6 +33,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .st-btn.n { background: #95a5a6; } .st-btn.p { background: #2ecc71; }
 .st-btn.f { background: #e6605e; } .st-btn.b { background: #e67e22; }
 .st-btn.u { background: #34495e; }
+#statusRow.readonly .st-btn { cursor: not-allowed; opacity: .35; }
 .form-group { margin: 10px 0; }
 .form-group label { font-size: 12.5px; font-weight: 700; color: #22242a; display: block; margin-bottom: 4px; }
 textarea.form-control { min-height: 80px; font-size: 13px; }
@@ -239,6 +240,7 @@ function render(r) {
   });
   if (!hasExec) {
     $('#selBuild').append('<option value="0">' + esc(TLi18n.t('esr.noExecBuild')) + '</option>');
+    $('#btnSave').prop('disabled', true).css('opacity', .5);
   }
   $('#selBuild').val(String(r.default_build_id));
 
@@ -257,8 +259,11 @@ function render(r) {
   if (!canExec) {
     $('#btnSave').prop('disabled', true).css('opacity', .5);
     $('#statusRow').addClass('readonly');
+    $('#selBuild').prop('disabled', true);
+    if ($('#selPlatform').length) $('#selPlatform').prop('disabled', true);
+    $('#txtNotes').prop('disabled', true);
+    $('#txtExecDuration').prop('disabled', true);
   }
-
   // status vocabulary + buttons
   ctx.statusLabels = {};
   $('#statusRow').empty();
@@ -268,6 +273,9 @@ function render(r) {
       '<button type="button" class="st-btn st-"' + esc(s.code) + ' data-code="' + esc(s.code) +
       '" title="' + esc(s.label) + '">' + esc(s.label) + '</button>');
   });
+  if (!canExec) {
+    $('#statusRow .st-btn').prop('disabled', true);
+  }
   $('#statusRow .st-btn').off('click').on('click', function () {
     $('#statusRow .st-btn').removeClass('active');
     $(this).addClass('active');
@@ -301,6 +309,9 @@ function render(r) {
         '</td></tr>';
     }).join('');
     $('#stepsBody').html(st);
+    if (!canExec) {
+      $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', true);
+    }
   }
 
   // prior execution box
@@ -373,7 +384,8 @@ function doSave() {
     method: 'POST',
     data: JSON.stringify(payload),
     contentType: 'application/json',
-    dataType: 'json'
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
   }).done(function (r) {
     $('#loadingOverlay').hide();
     $('#btnSave').prop('disabled', false);
