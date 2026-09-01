@@ -26,7 +26,11 @@ class redminerestInterface extends issueTrackerInterface
 	function __construct($type,$config,$name) {
       $this->name = $name;
 	  $this->interfaceViaDB = false;
-	  $this->methodOpt['buildViewBugLink'] = array('addSummary' => true, 'colorByStatus' => false);
+	  // keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+	  // warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+	  $this->methodOpt['buildViewBugLink'] = array_merge(
+	      $this->methodOpt['buildViewBugLink'],
+	      array('addSummary' => true, 'colorByStatus' => false));
 
       $this->defaultResolvedStatus = array();
       $this->defaultResolvedStatus[] = array('code' => 3, 'verbose' => 'resolved');

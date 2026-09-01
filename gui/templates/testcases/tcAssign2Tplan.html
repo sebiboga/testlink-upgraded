@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Assign Test Case to Test Plan</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.okbox { margin: 12px 24px 0; background: #e8f8ee; border: 1px solid #b7e4c7; color: #1a7a3d; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.plan-table th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+.plan-table td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+.plan-table tr.linked { background: #f4fbf9; }
+.readonly-note { color: #888; font-size: 12px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ta2p.title">Assign Test Case to Test Plan</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="ta2p.testCase">Test Case</span>: <b id="ctxCase">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="okbox" id="okBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-link"></i> <span data-i18n="ta2p.usage">Test plan usage</span></div>
+  <div class="card-body">
+    <div id="noPlans" style="display:none;" class="readonly-note"><span data-i18n="ta2p.noTestPlans">No test plans.</span></div>
+    <table class="plan-table" id="planTable" style="display:none;">
+      <thead>
+        <tr>
+          <th style="width:44px"></th>
+          <th style="width:80px"><span data-i18n="ta2p.version">Version</span></th>
+          <th><span data-i18n="ta2p.testPlan">Test Plan</span></th>
+          <th><span data-i18n="ta2p.platform">Platform</span></th>
+        </tr>
+      </thead>
+      <tbody id="planRows"></tbody>
+    </table>
+
+    <div class="actions-bar" id="actionsBar" style="display:none;">
+      <button class="btn-teal" id="btnAdd"><i class="fa fa-plus"></i> <span data-i18n="ta2p.btnAdd">Add</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="ta2p.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="ta2p.footer">TestLink 2.0.1 - Assign Test Case to Test Plan</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="ta2p.loading">Loading...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  testcaseId: parseInt(qs('tcase_id') || '0', 10),
+  tcversionId: parseInt(qs('tcversion_id') || '0', 10),
+  bffUrl: '/api/tcassign2tplan/',
+  info: null
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function loadOverlay(show) {
+  $('#loadingOverlay').css('display', show ? 'flex' : 'none');
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#btnAdd').on('click', doAdd);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function loadInfo() {
+  if (!ctx.testcaseId || !ctx.tcversionId) {
+    showFatal(TLi18n.t('ta2p.errNoContext'));
+    return;
+  }
+  var params = { action: 'init', tcase_id: ctx.testcaseId, tcversion_id: ctx.tcversionId };
+  if (ctx.tprojectId) params.tproject_id = ctx.tprojectId;
+
+  loadOverlay(true);
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('ta2p.errLoad')); return; }
+      ctx.info = r;
+      renderPlans();
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('ta2p.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#planTable').hide();
+  $('#actionsBar').hide();
+  $('#noPlans').hide();
+}
+
+function renderPlans() {
+  document.title = TLi18n.t('ta2p.title') + ' - ' + ctx.info.tcase.name;
+  $('#ctxCase').text(ctx.info.tcase.name + ' (#' + ctx.info.tcase.id + ' v' + ctx.info.tcase.version + ')');
+  $('#ctxTarget').text(ctx.info.tcase.identity || '');
+
+  var plans = ctx.info.plans || [];
+  if (!plans.length) {
+    $('#planTable').hide();
+    $('#actionsBar').hide();
+    $('#noPlans').css('display', '');
+    return;
+  }
+
+  var rows = '';
+  plans.forEach(function (plan) {
+    plan.platforms.forEach(function (p) {
+      var cbId = 'cb_' + plan.id + '_' + p.platform_id;
+      var checked = p.already_linked ? 'checked disabled' : '';
+      var roNote = '';
+      if (p.already_linked) {
+        roNote = ' <span class="readonly-note">(' + esc(escRoutineNote(p)) + ')</span>';
+      }
+      rows += '<tr' + (plan.linked ? ' class="linked"' : '') + '>' +
+        '<td class="clickable_icon"><input type="checkbox" id="' + cbId +
+          '" data-tplan="' + plan.id + '" data-platform="' + p.platform_id + '" ' + checked + '></td>' +
+        '<td>' + esc(p.version) + '</td>' +
+        '<td>' + esc(plan.name) + '</td>' +
+        '<td>' + esc(p.platform) + roNote + '</td>' +
+        '</tr>';
+    });
+  });
+  $('#planRows').html(rows);
+  $('#planTable').css('display', '');
+  $('#noPlans').hide();
+  $('#actionsBar').css('display', ctx.info.can_do ? '' : 'none');
+}
+
+function escRoutineNote(p) {
+  return TLi18n.t('ta2p.alreadyLinked');
+}
+
+function collectSelected() {
+  var add = {};
+  $('#planRows input[type=checkbox]:checked:not(:disabled)').each(function () {
+    var $cb = $(this);
+    var tp = $cb.data('tplan');
+    var pf = $cb.data('platform');
+    if (!add[tp]) add[tp] = {};
+    add[tp][pf] = true;
+  });
+  return add;
+}
+
+function doAdd() {
+  var add = collectSelected();
+  if (Object.keys(add).length === 0) {
+    toast(TLi18n.t('ta2p.warnSelect'), true);
+    return;
+  }
+
+  var payload = {
+    action: 'add',
+    tcase_id: ctx.testcaseId,
+    tcversion_id: ctx.tcversionId,
+    tproject_id: ctx.tprojectId,
+    add2tplanid: add
+  };
+
+  loadOverlay(true);
+  $('#okBox').hide();
+  $.ajax({ url: ctx.bffUrl + '?action=add', method: 'POST', contentType: 'application/json',
+           data: JSON.stringify(payload) })
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('ta2p.errAdd'), true); return; }
+      var msg = TLi18n.t('ta2p.done').replace('%s', r.added);
+      $('#okBox').html('<i class="fa fa-check"></i> ' + esc(msg)).show();
+      loadInfo();
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('ta2p.errAdd');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    });
+}
+</script>
+</body>
+</html>

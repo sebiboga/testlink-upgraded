@@ -42,6 +42,7 @@ table.dataTable tbody td { padding: 7px 14px; font-size: 13px; vertical-align: m
 .kv-table td:first-child { font-weight: 700; color: #555; width: 220px; }
 .att-item, .bug-item { font-size: 13px; color: #333; padding: 3px 0; }
 .att-item i, .bug-item i { color: #4ECDC4; margin-right: 8px; }
+.bug-item .bug-step-mark { color: #8a8f98; font-weight: 400; margin-left: 4px; }
 .icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #4ECDC4; }
 .icon-btn:hover { color: #3dbdb5; }
 .icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
@@ -119,6 +120,7 @@ table.dataTable tbody td { padding: 7px 14px; font-size: 13px; vertical-align: m
     <thead>
       <tr>
         <th data-i18n="exechist.colDateTimeRun">Date/Time of run</th>
+        <th data-i18n="exechist.colDuration">Duration</th>
         <th data-i18n="exechist.colTestPlan">Test Plan</th>
         <th data-i18n="exechist.colBuild">Build</th>
         <th id="thPlatform" style="display:none;" data-i18n="exechist.colPlatform">Platform</th>
@@ -302,6 +304,7 @@ function renderTable() {
 
     h += '<tr>';
     h += '<td style="white-space:nowrap;">' + esc(fmtTs(e.execution_ts)) + '</td>';
+    h += '<td>' + esc(e.execution_duration || '-') + '</td>';
     h += '<td>' + esc(e.testplan_name) + '</td>';
     h += '<td>' + esc(e.build_name) + '</td>';
     if (data.displayPlatformCol) h += '<td>' + esc(e.platform_name || '-') + '</td>';
@@ -314,12 +317,12 @@ function renderTable() {
     h += '<td class="text-right" style="white-space:nowrap;">' + actions + '</td>';
     h += '</tr>';
     h += '<tr class="detail-row" id="detail_' + idx + '" style="display:none;"><td colspan="'
-      + (data.displayPlatformCol ? 9 : 8) + '">' + renderDetail(e) + '</td></tr>';
+      + (data.displayPlatformCol ? 10 : 9) + '">' + renderDetail(e) + '</td></tr>';
   });
 
   $('#histTable tbody').html(h);
   if (!filtered.length && !data.neverExecuted) {
-    $('#histTable tbody').html('<tr><td colspan="9" class="none-text text-center">'
+    $('#histTable tbody').html('<tr><td colspan="10" class="none-text text-center">'
       + esc(TLi18n.t('search.noResults')) + '</td></tr>');
   }
   $('#resultsWrap').show();
@@ -327,6 +330,11 @@ function renderTable() {
 
 function renderDetail(e) {
   var h = '';
+  if (e.execution_duration) {
+    h += '<div class="detail-block"><div class="detail-label">'
+      + esc(TLi18n.t('exechist.colDuration')) + '</div>'
+      + '<div class="notes-box">' + esc(e.execution_duration) + '</div></div>';
+  }
   if (e.notes !== '') {
     h += '<div class="detail-block"><div class="detail-label">'
       + esc(TLi18n.t('exechist.execNotes')) + '</div>'
@@ -354,8 +362,12 @@ function renderDetail(e) {
     h += '<div class="detail-block"><div class="detail-label">'
       + esc(TLi18n.t('exechist.bugs')) + '</div>';
     e.bugs.forEach(function (b) {
+      var stepMark = (b.step_number > 0)
+        ? '<span class="bug-step-mark">'
+          + esc(TLi18n.t('exe.bugOnStepShort', { n: b.step_number })) + '</span>'
+        : '';
       h += '<div class="bug-item"><i class="fa fa-bug"></i>'
-        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + '</div>';
+        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + stepMark + '</div>';
     });
     h += '</div>';
   }

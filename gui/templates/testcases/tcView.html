@@ -84,10 +84,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" onclick="openExecHistory()"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="tcview.execHistory">Execution History</span></button>
     <button class="btn-dark" id="btnAdd2Tplan" style="display:none;" onclick="openAdd2Tplan()"><i class="fa fa-clipboard-list"></i> <span data-i18n="tcview.addToTestPlans">Add to Test Plan</span></button>
     <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
-    <form id="compareForm" method="post" action="/lib/testcases/tcCompareVersions.php" target="_blank" style="display:none;">
-      <input type="hidden" name="testcase_id" id="cmpTcaseId">
-      <button class="btn-dark" type="submit"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
-    </form>
+    <button class="btn-dark" id="btnCompare" style="display:none;" onclick="openTcCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
     <button class="btn-dark" onclick="window.print()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
   </div>
 </div>
@@ -113,6 +110,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
 <script>
 var ctx = null;
 var data = null;
@@ -171,6 +169,10 @@ function esc(s) {
     .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+function sanitizeRich(s) {
+  return DOMPurify.sanitize(String(s == null ? '' : s));
+}
+
 function render() {
   document.title = data.tcase.name + ' - ' + TLi18n.t('tcview.header');
   $('#extId').text(data.fullExternalId);
@@ -207,8 +209,7 @@ function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
   if (data.versions.length > 1) {
-    $('#cmpTcaseId').val(data.tcase.id);
-    $('#compareForm').show();
+    $('#btnCompare').show();
   }
 }
 
@@ -307,9 +308,9 @@ function renderVersion(v) {
 
   // summary + preconditions
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.summary')) + '</div>';
-  h += '<div class="rich-field">' + (v.summary || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+  h += '<div class="rich-field">' + (sanitizeRich(v.summary) || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.preconditions')) + '</div>';
-  h += '<div class="rich-field">' + (v.preconditions || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
+  h += '<div class="rich-field">' + (sanitizeRich(v.preconditions) || '<span class="none-text">' + esc(TLi18n.t('tcview.none')) + '</span>') + '</div>';
 
   // steps
   h += '<div class="field-label">' + esc(TLi18n.t('tcview.steps')) + '</div>';
@@ -321,8 +322,8 @@ function renderVersion(v) {
       + '</tr></thead><tbody>';
     v.steps.forEach(function (st) {
       h += '<tr><td class="step-num">' + st.step_number + '</td>'
-        + '<td>' + (st.actions || '') + '</td>'
-        + '<td>' + (st.expected_results || '') + '</td></tr>';
+        + '<td>' + (sanitizeRich(st.actions) || '') + '</td>'
+        + '<td>' + (sanitizeRich(st.expected_results) || '') + '</td></tr>';
     });
     h += '</tbody></table>';
   } else {
@@ -406,7 +407,7 @@ function fmtDate(ts) {
 }
 
 function openTcEdit() {
-  var url = '/lib/testcases/tcEdit.php?doAction=edit&testcase_id=' + data.tcase.id
+  var url = '/gui/templates/testcases/tcEdit.html?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
@@ -418,7 +419,7 @@ function openExecHistory() {
 }
 
 function openAdd2Tplan() {
-  var url = '/lib/testcases/tcAssign2Tplan.php?tcase_id=' + data.tcase.id
+  var url = '/gui/templates/testcases/tcAssign2Tplan.html?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
@@ -428,6 +429,12 @@ function openTcExport() {
     + '&testcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id;
   window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
+}
+
+function openTcCompare() {
+  var url = '/gui/templates/testcases/tcCompare.html?tproject_id=' + data.tproject.id
+    + '&testcase_id=' + data.tcase.id;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 </script>
 </body>

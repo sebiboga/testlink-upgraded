@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Case Editor</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 22px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-danger-line { background: #fff; color: #e6605e; border: 1px solid #e6608e; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; }
+.btn-danger-line:hover { background: #fdecea; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.field-label { font-weight: 700; color: #333; font-size: 13px; margin-bottom: 6px; margin-top: 14px; }
+.field-label .req { color: #e6605e; }
+.form-control { border-radius: 4px; font-size: 13px; }
+textarea.form-control { resize: vertical; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.okbox { margin: 12px 24px 0; background: #e8f8ee; border: 1px solid #b7e4c7; color: #1a7a3d; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.step-row { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 12px; }
+.step-num { font-weight: 700; color: #4ECDC4; width: 36px; padding-top: 8px; font-size: 14px; flex-shrink: 0; text-align: center; }
+.step-editors { flex: 1; display: flex; gap: 12px; }
+.step-editors > div { flex: 1; }
+.step-del { flex-shrink: 0; margin-top: 26px; }
+.attr-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 4px 0 6px; }
+.attr-item label { font-size: 12px; color: #666; font-weight: 600; display: block; margin-bottom: 4px; }
+.attr-item select, .attr-item input { width: 100%; }
+.actions-bar { margin-top: 20px; display: flex; gap: 12px; align-items: center; }
+.kw-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.kw-pill { background: #f0f0f0; border: 1px solid #ddd; border-radius: 20px; padding: 4px 12px; font-size: 12px; cursor: pointer; color: #333; }
+.kw-pill.selected { background: #4ECDC4; color: #fff; border-color: #4ECDC4; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+.readonly-note { color: #888; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcedit.title">Edit Test Case</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcedit.testCase">Test Case</span>: <b id="ctxCase">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnNewVersion" style="display:none;"><i class="fa fa-copy"></i> <span data-i18n="tcedit.btnNewVersion">Create New Version</span></button>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="okbox" id="okBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-pen"></i> <span data-i18n="tcedit.editor">Test Case Editor</span></div>
+  <div class="card-body">
+    <div id="execWarn" class="warnbox" style="display:none;"></div>
+
+    <div class="field-label"><span data-i18n="tcedit.tcTitle">Test Case Title</span> <span class="req">*</span></div>
+    <input type="text" class="form-control" id="tc_name" maxlength="400">
+
+    <div class="attr-grid">
+      <div class="attr-item">
+        <label data-i18n="tcedit.importance">Importance</label>
+        <select class="form-control" id="tc_importance"></select>
+      </div>
+      <div class="attr-item">
+        <label data-i18n="tcedit.status">Status</label>
+        <select class="form-control" id="tc_status"></select>
+      </div>
+      <div class="attr-item">
+        <label data-i18n="tcedit.execType">Execution Type</label>
+        <select class="form-control" id="tc_exec_type"></select>
+      </div>
+      <div class="attr-item">
+        <label data-i18n="tcedit.estDuration">Estimated Exec Duration (min)</label>
+        <input type="text" class="form-control" id="tc_duration">
+      </div>
+    </div>
+
+    <div class="field-label"><span data-i18n="tcedit.summary">Summary</span></div>
+    <textarea class="form-control" id="tc_summary" rows="3"></textarea>
+
+    <div class="field-label"><span data-i18n="tcedit.preconditions">Preconditions</span></div>
+    <textarea class="form-control" id="tc_preconditions" rows="3"></textarea>
+
+    <div class="field-label" style="display:flex;justify-content:space-between;align-items:center;">
+      <span><span data-i18n="tcedit.steps">Steps</span></span>
+      <button class="btn-dark" id="btnAddStep" type="button"><i class="fa fa-plus"></i> <span data-i18n="tcedit.addStep">Add Step</span></button>
+    </div>
+    <div id="stepsContainer"></div>
+
+    <div class="field-label"><span data-i18n="tcedit.keywords">Keywords</span></div>
+    <div id="kwContainer" class="kw-pills"><span class="readonly-note" data-i18n="tcedit.noKeywords">No keywords defined for this project</span></div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnSave"><i class="fa fa-save"></i> <span data-i18n="tcedit.btnSave">Save</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="tcedit.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="tcedit.footer">TestLink 2.0.1 - Test Case Editor</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcedit.loading">Loading...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  testcaseId: parseInt(qs('tcase_id') || '0', 10),
+  tcversionId: parseInt(qs('tcversion_id') || '0', 10),
+  bffUrl: '/api/testcasesedit/',
+  info: null,
+  selectedKeywords: {}
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function loadOverlay(show) {
+  $('#loadingOverlay').css('display', show ? 'flex' : 'none');
+}
+
+function showWarn(msg) {
+  $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+}
+
+function hideBoxes() {
+  $('#warnBox').hide();
+  $('#okBox').hide();
+  $('#execWarn').hide();
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#btnSave').on('click', doSave);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+  $('#btnAddStep').on('click', function () { addStepRow(); });
+  $('#btnNewVersion').on('click', doNewVersion);
+});
+
+function loadInfo() {
+  if (!ctx.testcaseId) {
+    showWarn(TLi18n.t('tcedit.errNoContext'));
+    return;
+  }
+  var params = { action: 'edit', tcase_id: ctx.testcaseId, tproject_id: ctx.tprojectId };
+  if (ctx.tcversionId) params.tcversion_id = ctx.tcversionId;
+
+  loadOverlay(true);
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { showWarn(r.message || TLi18n.t('tcedit.errLoad')); return; }
+      ctx.info = r;
+      ctx.tcversionId = r.tcase.tcversion_id;
+      renderEditor();
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('tcedit.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showWarn(msg);
+    });
+}
+
+function renderEditor() {
+  var tc = ctx.info.tcase;
+  document.title = TLi18n.t('tcedit.title') + ' - ' + tc.name;
+  $('#ctxCase').text(tc.name + ' (#' + tc.id + ' v' + tc.version + ')');
+  $('#ctxTarget').text(tc.identity || '');
+
+  if (tc.has_been_executed || ctx.info.has_been_executed) {
+    $('#execWarn').html('<i class="fa fa-warning"></i> ' + esc(TLi18n.t('tcedit.executedWarn'))).show();
+  }
+  if (ctx.info.grants && !ctx.info.grants.mgt_modify_tc) {
+    $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(TLi18n.t('tcedit.noPermission'))).show();
+    $('#btnSave').prop('disabled', true);
+    $('#btnAddStep').prop('disabled', true);
+  }
+  $('#btnNewVersion').css('display', '');
+  $('#btnNewVersion').prop('disabled', !ctx.info.grants || !ctx.info.grants.mgt_modify_tc);
+
+  $('#tc_name').val(tc.name);
+  $('#tc_summary').val(tc.summary);
+  $('#tc_preconditions').val(tc.preconditions);
+  $('#tc_duration').val(tc.estimated_exec_duration);
+
+  fillSelect('#tc_importance', ctx.info.importances, tc.importance, 'tcedit.imp');
+  fillSelect('#tc_exec_type', ctx.info.exec_types, tc.execution_type, 'tcedit.exec');
+
+  // status select: domain codes 1..7
+  var statusVal = tc.status;
+  $('#tc_status').empty();
+  for (var i = 1; i <= 7; i++) {
+    var lbl = 'tcedit.status' + i;
+    $('#tc_status').append('<option value="' + i + '">' + TLi18n.t(lbl) + '</option>');
+  }
+  $('#tc_status').val(String(statusVal));
+
+  // keywords
+  renderKeywords();
+
+  // steps
+  $('#stepsContainer').empty();
+  var steps = tc.steps || [];
+  if (!steps.length) {
+    addStepRow();
+  } else {
+    steps.forEach(function (s, idx) {
+      addStepRow(s, idx + 1);
+    });
+  }
+}
+
+function fillSelect(sel, items, value, i18nPrefix) {
+  var $sel = $(sel).empty();
+  items.forEach(function (it) {
+    $sel.append('<option value="' + it.id + '">' + TLi18n.t(i18nPrefix + it.id) + '</option>');
+  });
+  $sel.val(String(value));
+}
+
+function renderKeywords() {
+  var all = ctx.info.all_keywords || [];
+  var assigned = ctx.info.tcase.keywords || [];
+  ctx.selectedKeywords = {};
+  assigned.forEach(function (k) { ctx.selectedKeywords[k.id] = true; });
+
+  if (!all.length) {
+    $('#kwContainer').html('<span class="readonly-note">' + esc(TLi18n.t('tcedit.noKeywords')) + '</span>');
+    return;
+  }
+  var html = '';
+  all.forEach(function (k) {
+    var sel = ctx.selectedKeywords[k.id] ? ' selected' : '';
+    html += '<span class="kw-pill' + sel + '" data-kwid="' + k.id + '">' + esc(k.name) + '</span>';
+  });
+  $('#kwContainer').html(html);
+  $('#kwContainer .kw-pill').on('click', function () {
+    var id = $(this).data('kwid');
+    ctx.selectedKeywords[id] = !ctx.selectedKeywords[id];
+    $(this).toggleClass('selected', !!ctx.selectedKeywords[id]);
+  });
+}
+
+function addStepRow(step, number) {
+  var n = number || ($('#stepsContainer .step-row').length + 1);
+  var actions = step ? (step.actions || '') : '';
+  var expected = step ? (step.expected_results || '') : '';
+  var exect = step ? step.execution_type : (ctx.info ? ctx.info.tcase.execution_type : 1);
+
+  var row = $(
+    '<div class="step-row" data-number="' + n + '">' +
+      '<div class="step-num">' + n + '</div>' +
+      '<div class="step-editors">' +
+        '<div>' +
+          '<label class="readonly-note" data-i18n="tcedit.stepActions">Step Actions</label>' +
+          '<textarea class="form-control step-actions" rows="2">' + esc(actions) + '</textarea>' +
+        '</div>' +
+        '<div>' +
+          '<label class="readonly-note" data-i18n="tcedit.stepExpected">Expected Results</label>' +
+          '<textarea class="form-control step-expected" rows="2">' + esc(expected) + '</textarea>' +
+        '</div>' +
+      '</div>' +
+      '<div class="step-del"><button type="button" class="btn-danger-line"><i class="fa fa-times"></i></button></div>' +
+    '</div>'
+  );
+  $('#stepsContainer').append(row);
+  row.find('.step-del button').on('click', function () { row.remove(); renumberSteps(); });
+  TLi18n.apply(row);
+}
+
+function renumberSteps() {
+  $('#stepsContainer .step-row').each(function (i) {
+    $(this).attr('data-number', i + 1);
+    $(this).find('.step-num').text(i + 1);
+  });
+}
+
+function collectSteps() {
+  var steps = [];
+  $('#stepsContainer .step-row').each(function (i) {
+    steps.push({
+      step_number: i + 1,
+      actions: $(this).find('.step-actions').val(),
+      expected_results: $(this).find('.step-expected').val(),
+      execution_type: parseInt($('#tc_exec_type').val(), 10)
+    });
+  });
+  return steps;
+}
+
+function collectKeywords() {
+  var ids = [];
+  Object.keys(ctx.selectedKeywords).forEach(function (k) {
+    if (ctx.selectedKeywords[k]) ids.push(parseInt(k, 10));
+  });
+  return ids;
+}
+
+function doSave() {
+  hideBoxes();
+  var name = $.trim($('#tc_name').val());
+  if (!name) {
+    showWarn(TLi18n.t('tcedit.emptyTitle'));
+    $('#tc_name').focus();
+    return;
+  }
+  var dur = $.trim($('#tc_duration').val());
+  if (dur !== '' && isNaN(dur)) {
+    showWarn(TLi18n.t('tcedit.badDuration'));
+    $('#tc_duration').focus();
+    return;
+  }
+
+  var payload = {
+    action: 'update',
+    tcase_id: ctx.testcaseId,
+    tcversion_id: ctx.tcversionId,
+    tproject_id: ctx.tprojectId,
+    name: name,
+    summary: $('#tc_summary').val(),
+    preconditions: $('#tc_preconditions').val(),
+    importance: parseInt($('#tc_importance').val(), 10),
+    status: parseInt($('#tc_status').val(), 10),
+    exec_type: parseInt($('#tc_exec_type').val(), 10),
+    estimated_execution_duration: dur,
+    steps: collectSteps(),
+    keywords: collectKeywords()
+  };
+
+  loadOverlay(true);
+  $.ajax({ url: ctx.bffUrl + '?action=update', method: 'POST', contentType: 'application/json',
+           data: JSON.stringify(payload) })
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcedit.errSave'), true); return; }
+      $('#okBox').html('<i class="fa fa-check"></i> ' + esc(TLi18n.t('tcedit.saved'))).show();
+      toast(TLi18n.t('tcedit.saved'));
+      // reload current version to reflect updates
+      ctx.tcversionId = r.tcversion_id || ctx.tcversionId;
+      loadInfo();
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('tcedit.errSave');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showWarn(msg);
+    });
+}
+
+function doNewVersion() {
+  if (!confirm(TLi18n.t('tcedit.confirmNewVersion'))) return;
+  hideBoxes();
+  var payload = {
+    action: 'create_version',
+    tcase_id: ctx.testcaseId,
+    tcversion_id: ctx.tcversionId,
+    tproject_id: ctx.tprojectId
+  };
+  loadOverlay(true);
+  $.ajax({ url: ctx.bffUrl + '?action=create_version', method: 'POST', contentType: 'application/json',
+           data: JSON.stringify(payload) })
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcedit.errNewVersion'), true); return; }
+      ctx.tcversionId = r.tcversion_id;
+      toast(TLi18n.t('tcedit.versionCreated'));
+      loadInfo();
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('tcedit.errNewVersion');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showWarn(msg);
+    });
+}
+</script>
+</body>
+</html>

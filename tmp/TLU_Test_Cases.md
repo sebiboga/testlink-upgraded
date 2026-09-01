@@ -8514,3 +8514,256 @@ Notes:
   1. Fix `$$tsuiteData`→`$tsuiteData` and init `$attachXML=null` in `lib/functions/testsuite.class.php`.
   2. Re-run testcase, suite and project-recursive exports. *Expected:* `SELECT COUNT(*) FROM events WHERE id>15 AND log_level=2` → 0.
 - **Result:** PASS (fix commit `4b0ec819d`)
+
+## Suite 804 — Regression — Issue #804: Stored XSS in Test Case Viewer (tcView.html) — WYSIWYG summary/preconditions/steps rendered as raw HTML
+
+**Area:** `gui/templates/testcases/tcView.html` (+ DOMPurify CDN + `sanitizeRich()` helper).
+**Purpose:** Verify that rich-text test-case fields (summary, preconditions, step actions/expected_results) are sanitized before insertion, so stored XSS payloads are neutralized while legitimate WYSIWYG formatting is preserved.
+**Status:** EXECUTED — PASS. Fixture `tmp/fixtures_804.php`: project `RPT804` (id 1, prefix R804), suite `Suite 1` (id 2), test case `TC-XSS` (node id 3, version node id 4) with:
+- summary = `<img src=x onerror=alert(1)><script>window.__xss804=1</script>XSS summary`
+- preconditions = `<p>Benign precond with <b>bold</b> and a list:</p><ul><li>item one</li><li>item two</li></ul>`
+- step 1 actions = `<img src=x onerror=alert(2)>action text`, expected = `<b>expected bold</b> and <script>window.__xss804=2</script>`
+- step 2 actions = `<p>plain action</p>`, expected = `plain result`
+
+- TC-804.1: **PASS** (browser) — opening `tcView.html?tcase_id=3&tcversion_id=4` renders summary as `<img src="x">XSS summary` — the `<script>` and the `onerror` handler are stripped by DOMPurify; `window.__xss804` stays **undefined** (no script executed, no alert).
+- TC-804.2: **PASS** (browser) — benign rich text preserved: preconditions still show `<p>`, `<b>bold</b>`, `<ul><li>item one</li><li>item two</li></ul>`; step 1 expected shows `<b>expected bold</b> and` (script removed, bold kept).
+- TC-804.3: **PASS** (browser) — DOM scan of `#versionsWrap`: `hasScriptTag=false`, `hasEventAttr=false` (no `onerror/onclick/onload/...`), `hasImgWithHandler=false`.
+- TC-804.4: **PASS** (network) — DOMPurify 3.0.9 loaded from cdnjs (HTTP 200). The neutralized payload's now-harmless `src=x` causes a single expected 404 for `/gui/templates/testcases/x` (broken-image fetch, no handler attached → cannot trigger).
+- TC-804.5: **PASS** (lint) — extracted inline JS passes `node --check`.
+- TC-804.6: **PASS** (Event Viewer) — `events` table shows only normal LOGIN/CREATE audit (log_level 16); no new Error/Warning entries from viewing the sanitized test case.
+- **Result:** **PASS** — stored XSS neutralized, rich-text formatting preserved.
+
+## 70. Modernization — Compare Test Case Versions (tcCompare.html) (Suite ID: 70)
+
+**Area:** `gui/templates/testcases/tcCompare.html` + `api/testcasescompare/index.php` (+ legacy `lib/testcases/tcCompareVersions.php` parity; linked from `tcView.html` toolbar Compare Versions via `openTcCompare()`).
+**Purpose:** Modernized test-case version comparison screen, replacing the legacy `tcCompareVersions.php` POST form submit.
+**Status:** EXECUTED — 13/13 PASS. Fixtures: test project `Compare Project` (id 1, prefix CP), suite `Compare Suite` (id 2), test case `Compare Test Case` (id 3) with versions 1 (node 5) and 2 (node 8). v1 summary "Login summary version 1", v2 summary "Login summary version 2 - changed", differing preconditions and steps. Matches legacy `lib/testcases/tcCompareVersions.php` (any authenticated session; read-only).
+
+### TC-70.1: Version list loads (info route)
+- **Preconditions:** logged in as admin; open `tcCompare.html?tproject_id=1&testcase_id=3`.
+- **Steps:**
+  1. Open the screen. *Expected:* title "Compare Test Case Versions", context shows "Compare Test Case (#3)".
+  2. Inspect the version table. *Expected:* 2 rows (Version 1 and Version 2), each with left/right radio, modified/created timestamp, author "Testlink Administrator".
+- **Result:** PASS
+
+### TC-70.2: Default version selection mirrors legacy
+- **Steps:**
+  1. Inspect preselected radios. *Expected:* Version B (right) column pre-selects the first (newest → Version 2 in report order), Version A (left) pre-selects the second (Version 1) — mirroring legacy `{if $mycount == 2} checked {/if}` / `{if $mycount == 1}` defaults.
+- **Result:** PASS
+
+### TC-70.3: HTML (code) comparison renders diff
+- **Steps:**
+  1. Keep "HTML (code) comparison" selected; click "Compare selected versions".
+  2. *Expected:* 4 diff sections (Summary, Preconditions, Steps, Expected Results); changed text highlighted (added/removed spans), unchanged text shown plainly; messages read "Number of changes in Summary: 1.", etc.
+- **Result:** PASS
+
+### TC-70.4: Text (inline) comparison renders side-by-side table
+- **Steps:**
+  1. Select "Text (inline) comparison"; the Context-lines row appears with the default context (5) and a "Show all" toggle.
+  2. Click "Compare selected versions". *Expected:* each section renders the legacy inline `<table class="code">` with **v2 / v1** column headers and per-line delete (red) / insert (green) rows.
+- **Result:** PASS
+
+### TC-70.5: Context value is honoured
+- **Steps:**
+  1. In text mode set Context = 0 and compare. *Expected:* only changed lines are shown (linepadding 0).
+  2. Set Context = 5 (default). *Expected:* changed lines plus surrounding context lines are shown.
+- **Result:** PASS
+
+### TC-70.6: "Show all" (context_show_all) works
+- **Steps:**
+  1. In text mode tick "Show all" and compare. *Expected:* all lines shown regardless of context; request includes `context_show_all=1`; backend sets context to null.
+- **Result:** PASS
+
+### TC-70.7: Same-version validation
+- **Steps:**
+  1. Select the same version in both Version A and Version B columns; click Compare.
+  2. *Expected:* local toast "Select two different versions", no request sent.
+- **Result:** PASS
+
+### TC-70.8: Invalid context validation
+- **Steps:**
+  1. In text mode enter Context = -5 and compare.
+  2. *Expected:* local toast "Invalid context value", no request sent.
+- **Result:** PASS
+
+### TC-70.9: Unauthenticated access returns 401
+- **Steps:**
+  1. `curl -s -o /dev/null -w "%{http_code}" "http://localhost:8082/api/testcasescompare/?action=info&testcase_id=3"` with no session. *Expected:* 401.
+  2. Same for `action=compare`. *Expected:* 401.
+- **Result:** PASS
+
+### TC-70.10: tcView Compare Versions button opens the modern screen
+- **Steps:**
+  1. Open `tcView.html?tproject_id=1&tcase_id=3` (2 versions) and click the "Compare Versions" toolbar button.
+  2. *Expected:* a new tab opens at `tcCompare.html?tproject_id=1&testcase_id=3` and the context resolves the same test case.
+- **Result:** PASS
+
+### TC-70.11: Compare button hidden when a single version exists
+- **Steps:**
+  1. View a test case with only one version in tcView.
+  2. *Expected:* the "Compare Versions" button is not rendered (`data.versions.length > 1` guard).
+- **Result:** PASS
+
+### TC-70.12: i18n coverage — all locale bundles valid and keyed
+- **Steps:**
+  1. For each of the 10 locale bundles, confirm `tcc.*` keys (title, version, headings, diff method, subscribe, numChanges/noChanges messages) exist and JSON is valid. *Expected:* all present, all `python3 -m json.tool` valid.
+- **Result:** PASS
+
+### TC-70.13: Event Viewer clean — no lang_get warnings
+- **Symptom (pre-fix):** legacy backend `lang_get()` for `num_changes`/`no_changes`/`diff_subtitle_tc` fired `E_WARNING Undefined array key` into the Event Viewer on every compare, because those strings are missing from most `locale/*/strings.txt`.
+- **Steps:**
+  1. Compare two versions (HTML and text modes). *Expected:* `SELECT COUNT(*) FROM events WHERE id>? AND log_level=2` → 0 new E_WARNINGs (messages now resolved client-side via TLi18n).
+  **Result:** PASS (fix commit for Refs #809).
+
+---
+
+## Suite 799 — Regression — Issue #799: Quick Search — empty results table when DataTables CDN is unavailable
+
+- **Priority:** High
+- **Importance:** High
+- **Symptom (pre-fix):** on `gui/templates/search/searchQuickView.html`, clicking **Find** showed `Search results (N matches)` + `N matches` footer, but the results **table body rendered EMPTY** (no row) intermittently. The page loads jQuery + DataTables from external CDNs (`code.jquery.com`, `cdn.datatables.net`); when those were slow/unavailable, `$.fn.DataTable` was `undefined` and the unguarded `$('#resTable').DataTable(...)` threw, aborting `renderResults()` after the count/wrapper were shown. The Find button also stayed disabled.
+- **Preconditions:** authenticated session; a test project with a matching test case (e.g. project TLU, case `TLU-1`).
+- **Repro steps (pre-fix):**
+  1. Open `searchQuickView.html` in an authenticated frame (project set).
+  2. Forces the intermittent CDN condition: in the page's JS context set `$.fn.DataTable = undefined`.
+  3. Enter a matching TC id (e.g. `TLU-1`) and click **Find**.
+  4. *Observed (pre-fix):* `Uncaught TypeError: $(...).DataTable is not a function` (console); `Search results (1 matches)` + `1 matches` footer render but the results table body is EMPTY; Find button stays disabled.
+- **Expected post-fix behavior:**
+  1. When `$.fn.DataTable` is unavailable, `renderResults()` renders a **plain HTML `<tbody>`** so the matched row(s) display (tc-link, summary, version, action buttons).
+  2. The count/`resultsWrap` are shown **together with** the rendered rows (never a count with an empty body).
+  3. The Find button re-enables after the request completes (`.always()` runs — no unhandled throw).
+  4. With DataTables available (normal CDN), the enhanced table still renders with all DataTables features (search, pagination, sorting).
+  5. No new Event Viewer Error/Warning entries.
+- **Actual result observed (post-fix, admin, project TLU id=1, case TLU-1):**
+  - **Fallback scenario** (`$.fn.DataTable=undefined` then Find): table renders the row `TLU-1 [v1] :: Login works` + summary + version + edit/history buttons; `1 matches` footer; Find button re-enabled; NO console JS error for this render.
+  - **Normal scenario** (DataTables present then Find): enhanced DataTables table renders (Show entries, searchbox, pagination, row present); no regression.
+  - Event Viewer `events` table: only `audit_login_succeeded` (log_level 16) entries; **0** new Error/Warning (log_level 3/4) rows from the search.
+- **Result:** **PASS**
+
+---
+
+## Suite 788 — Regression — Issue #788: Execute Tests — missing Execution Duration (Execution Time) input + no duration saved/displayed
+
+- **Priority:** Blocker
+- **Importance:** High
+- **Symptom (pre-fix):** the modernized Execute Tests screen (`gui/templates/execute/execTest.html`) had NO "Execution duration" input, so the tester could not record how long executing a test case took. The BFF save (`api/execute/index.php?action=save`) never read `execution_duration` from the payload, so `write_execution()` (lib/functions/exec.inc.php:153-158) always stored NULL. The history/`execHistory.html` screen did not display a duration anywhere, even though the feature is ENABLED (`config.inc.php:1189-1190`: `exec_cfg->features->exec_duration->enabled = true`).
+- **Preconditions:** authenticated session (admin/admin); a test project with a plan + an open build + a linked test case version (fresh fixtures: project `Demo Project` id=1, plan `Plan 1` id=2, case `Login Test` version node 4, build `Build 1` id=1).
+- **Repro steps (pre-fix):**
+  1. Open Execute Tests `gui/templates/execute/execTest.html?tplan_id=2&tproject_id=1`.
+  2. Open a test case, set a status, and look for any "Execution Tra/Time/Duration" field. *Observed (pre-fix):* no such field rendered.
+  3. As admin call the BFF save with `execution_duration=12.5` (mirrors the legacy input): `SELECT execution_duration FROM executions` → NULL (value silently dropped).
+  4. Open `gui/templates/execute/execHistory.html?tcase_id=3&tproject_id=1` → no "Duration" column.
+- **Expected post-fix behavior:**
+  1. The Execute form renders a numeric "Execution duration (min)" input (gated on `exec_duration_enabled`), numeric-only, disabled in read-only mode.
+  2. Saving a value persists it: `executions.execution_duration` stores the numeric value (e.g. 8.5 → 8.50).
+  3. Saving with an empty duration stores NULL (legacy parity).
+  4. `prior_execution.execution_duration` is returned by `tcDetails` and pre-fills the field on re-open.
+  5. `execHistory.html` shows a "Duration" column and detail entry reflecting the stored duration (`-` when empty).
+  6. `?action=history` returns `execution_duration` per row.
+- **Actual result observed (post-fix, admin, fixtures above):**
+  - **TC-788.1** Form renders the "Execution duration (min)" input (screenshot `docs/screenshots/issue-788-exectest-duration-input.png`). → **PASS**
+  - **TC-788.2** UI end-to-end save: set duration `8.5` + status Passed, click "Save execution" → new execution id=4 stored with `execution_duration=8.50`, status `p` (`SELECT execution_duration,status FROM executions WHERE id=4`). → **PASS**
+  - **TC-788.3** Empty-duration save → stored NULL (execution id=3). → **PASS**
+  - **TC-788.4** `?action=tcDetails&tplan_id=2&tcase_id=3&tcversion_id=4&build_id=1&platform_id=0` → `prior_execution.execution_duration` present. → **PASS**
+  - **TC-788.5** `?action=history&tcase_id=3` → each execution row includes `execution_duration` (`8.50`, ``, `12.50`). → **PASS**
+  - **TC-788.6** `execHistory.html?tcase_id=3&tproject_id=1` renders "Duration" column showing `8.50`, `-`, `12.50` (screenshot `docs/screenshots/issue-788-exechistory-duration-column.png`). → **PASS**
+  - **TC-788.7** i18n: `exe.executionDuration` + `exechist.colDuration` present in all 10 bundles; all `python3 -m json.tool` valid; Romanian translation in `ro.json`. → **PASS**
+  - **TC-788.8** Event Viewer `events` table: only informational audit rows (login + project created, log_level=16); **0** new Error/Warning from the fix. → **PASS**
+- **Result:** **PASS**
+
+---
+
+## Suite 810 — Assign Test Case to Test Plan (tcAssign2Tplan.html + api/tcassign2tplan) — Refs #810
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** modernized popup screen that lists the ACTIVE test plans of a test project along with each plan's platforms and shows which (test case version, platform) pairs are already linked (read-only) vs selectable, then links the selected pairs via the BFF. Replaces the legacy `lib/testcases/tcAssign2Tplan.php` redirect from `tcView.html` `openAdd2Tplan()`.
+- **Preconditions (fresh DB fixtures):** project `A2P Project` id=1 (prefix A2P), suite `A2P Suite` id=2, TC `A2P Test Case One` id=3 (tcversion 4), plans `A2P Test Plan` id=6 and `A2P Plan Two` id=7, platforms `Win10` id=1 and `Ubuntu` id=2 (both linked to both plans). Second project `NoPlanProj` id=8 with TC id=10 (tcversion 11) and NO plans. Auth admin/admin; popup opened via `window.open` from an authenticated frame (session required).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-810.1 | Init renders multi-plan grid | Open `tcAssign2Tplan.html?tcase_id=3&tcversion_id=4&tproject_id=1` | Header shows "A2P Test Case One (#3 v1)" + identity `A2P-1:...`; table lists plans 6 & 7 each with 2 platform rows. | PASS |
+| TC-810.2 | Read-only already-linked rows | After linking TC3 to plan6/platform1 (pre-seed), reload | Win10/A2P Test Plan row shows checked+disabled checkbox and "(already linked)". | PASS |
+| TC-810.3 | Init with no linked pairs (fresh) | Open for a fresh TC (id=12, tcversion 13) in project 1 | All 4 platform checkboxes selectable; Add button visible. | PASS |
+| TC-810.4 | Add selected pairs via UI | Select Ubuntu(plan6), Ubuntu+Win10(plan7) on TC3, click Add | `SELECT testplan_id,platform_id FROM testplan_tcversions WHERE tcversion_id=4` → (6,1),(6,2),(7,1),(7,2); success banner "Added to 2 test plan(s)". | PASS |
+| TC-810.5 | Init reflects new links (read-only) | After Add, reload | All 4 rows checked+disabled with "(already linked)"; Add button hidden (can_do=false). | PASS |
+| TC-810.6 | Warn when no plan selected | Open fresh TC (12), click Add with no checkbox | Toast "Select at least one test plan"; no network POST; no console errors. | PASS |
+| TC-810.7 | No active test plans | Open `?tcase_id=10&tcversion_id=11&tproject_id=8` | Shows "No test plans." message; no table. | PASS |
+| TC-810.8 | Invalid tcase → 404 | `GET /api/tcassign2tplan/?action=init&tcase_id=9999&tcversion_id=999&tproject_id=1` | HTTP 404 `Test case not found in project context`. | PASS |
+| TC-810.9 | Unauthenticated → 401 | Open the HTML in a tab with no PHPSESSID | "Not authenticated" fatal banner (API 401). | PASS |
+| TC-810.10 | Add with empty selection → 400 | `POST /api/tcassign2tplan/?action=add` body `{tcase_id:3,tcversion_id:4,tproject_id:1,add2tplanid:{}}` | HTTP 400 `No test plan selected`. | PASS |
+| TC-810.11 | i18n keys in all bundles | Check `ta2p.*` keys (16) in en/ro/de/fr/es/it/pt/ja/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid; locale switcher works. | PASS |
+| TC-810.12 | Event Viewer clean | After all add/reload actions | `events` table has 0 new Error/Warning (log_level 3/4); only audit rows (16). | PASS |
+| TC-810.13 | tcView link switched | Inspect `tcView.html` `openAdd2Tplan()` | Points to `/gui/templates/testcases/tcAssign2Tplan.html` (not `tcAssign2Tplan.php`). | PASS |
+
+- **Result:** **13/13 PASS** (TC 810.1–810.13)
+
+---
+
+## Regression — Issue #802: IT adapters drop addReporter/addHandler → E_WARNING on bug-link render
+
+- **Priority:** Medium (warning pollution only; no data corruption)
+- **Importance:** Medium
+- **Scope:** `lib/issuetrackerintegration/*Interface.class.php` — every IT adapter's `buildViewBugLink` methodOpt must preserve the parent `addReporter`/`addHandler` defaults, otherwise `issueTrackerInterface::buildViewBugLink()` (lines 382/400) raises `E_WARNING: Undefined array key "addReporter"/"addHandler"` on every linked-bug render (floods Event Viewer). Covers the 8 non-GitHub adapters; GitHub was already fixed in `7d94ba1cd`.
+- **Precondition (repo state):** branch `fix/issue-802`, commit `162679f98`. Fix must be applied in all 8: gitlabrest, bugzilladb, bugzillaxmlrpc, tracxmlrpc, redminerest, jiradb, fogbugzdb, mantisdb.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-802.1 | Syntax gate | `php -l` on all 8 changed files + base `issueTrackerInterface` | No syntax errors in all 9 files. | PASS (9/9 "No syntax errors") |
+| TC-802.2 | Keys preserved (static) | For each of the 8 adapters, confirm `methodOpt['buildViewBugLink']` assignment is `array_merge` with parent defaults and file contains `addReporter` + `addHandler` | 8/8 files contain both keys (via array_merge); override values (addSummary/colorByStatus) unchanged. | PASS (grep: addReporter=1 addHandler=1 in all 8) |
+| TC-802.3 | Real-code harness — pre-fix reproduces bug | Run harness instantiating `issueTrackerInterface` subclass with PLAIN array methodOpt (pre-fix) and call `buildViewBugLink()` with a linked issue under E_ALL | 2 `Undefined array key` warnings (addReporter + addHandler) detected. | PASS (2 warnings) |
+| TC-802.4 | Real-code harness — post-fix clean | Same harness with array_merge methodOpt (post-fix) + same issue render | 0 `Undefined array key` warnings. | PASS (0 warnings) |
+| TC-802.5 | Event Viewer clean | After fix + test renders, check `events` table | 0 new Error/Warning rows; only informational audit (login, log_level=16). | PASS (events shows only audit_login_succeeded row) |
+| TC-802.6 | Unchanged-tracker regression | Confirm GitHub (`githubrestInterface`) still uses accepted array_merge (untouched by this change) and jirarest/kaitenrest/trellorest/mantisrest/mantissoap remain safe | No adapter reverts to plain array; all key-preserving. | PASS |
+
+- **Result:** **6/6 PASS**
+
+---
+
+## Regression — Issue #789: execHistory shows step number for step-bound linked bugs
+
+- **Priority:** Medium
+- **Importance:** Medium
+- **Scope:** `gui/templates/execute/execHistory.html` — `renderDetail()` bugs loop now renders the step number beside a step-bound linked bug. The #789 feature (GitHub bug filing/linking from the modernized Execute Tests screen) already persisted per-step `execution_bugs(tcstep_id)` rows and the `?action=history` BFF already returned `tcstep_id`/`step_number`, but `execHistory.html`'s Bugs block only rendered `link_to_bts`/`id` with no step marker — so a step-bound bug looked identical to a case-level bug. Fix appends a `· st. {n}` marker (`exe.bugOnStepShort`) only when `step_number > 0`.
+- **Preconditions (wrap-up on branch `fix/issue-789`):** fixture project `BUG789` (id 17, prefix B79), GitHub tracker GH789 (id 3, type 25), suite 18, TC789-Bug (19/20), plan PLAN789 (24), build B789 (2), FAILED execution id=2 with steps 21/22/23. `execution_bugs`: `#789`→tcstep_id=0 (case), `#788`→tcstep_id=22 (step 2), `#802`→tcstep_id=22 (step 2).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-789-S.1 | JS syntax gate | `node --check` on the inline `<script>` body of `renderDetail()` (extracted) | No syntax errors. | PASS ("JS SYNTAX OK") |
+| TC-789-S.2 | API supplies step numbers | `GET /api/execute/?action=history&tcase_id=19&tproject_id=17` | Each bug carries `tcstep_id` and `step_number` (788→2, 802→2, 789→0). | PASS |
+| TC-789-S.3 | Case-level bug renders without step marker | Open `execHistory.html?tcase_id=19&tproject_id=17`, expand the execution's Bug detail | Bug #789 (step_number=0) renders as a link with **no** `bug-step-mark` span. | PASS (rendered `#detail_0` HTML: #789 anchor closes with no marker) |
+| TC-789-S.4 | Step-bound bugs render `· st. N` | Same view, inspect `#detail_0` innerHTML | Bugs #788 and #802 (step 2) each render `<span class="bug-step-mark">· st. 2</span>` after their link. | PASS (2 `bug-step-mark` spans, both `· st. 2`) |
+| TC-789-S.5 | i18n key present | Check `exe.bugOnStepShort` in en/ro/de/fr/es/it/pt/ja/ru/zh | Key exists in all 10 bundles; all `python3 -m json.tool` valid. | PASS (all 10, no new keys added) |
+| TC-789-S.6 | Event Viewer clean | After fix + renders, check `events` table | No new Error/Warning rows (log_level 2/4/8/32); only audit (16). | PASS (0 error/warning rows) |
+
+- **Result:** **6/6 PASS**
+- **Note:** A pre-existing, unrelated console `SyntaxError: Failed to execute 'appendChild' on 'Node': Unexpected identifier 'events'` appears when rendering these executions whose `link_to_bts` embeds the full raw GitHub issue body (escaped `<br>`, backticks, quotes) into the anchor; it reproduces **identically on the unmodified HEAD file** and is NOT introduced by this fix (jQuery `.html()` parser fragility on the server-generated anchor content). Out of scope for #789.
+## Suite 812 — Test Case Editor (tcEdit.html + BFF api/testcasesedit) — Refs #812
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** modernized Test Case Version Editor that loads ONE test case version for editing (title, summary, preconditions, steps, expected_results, importance, status, exec. type, estimated duration, keywords), saves changes back to the DB (`testcase::update()`), and creates new versions. Replaces the legacy `lib/testcases/tcEdit.php` redirect from `tcView.html` `openTcEdit()` (the last remaining HIGH-priority legacy redirect from #753).
+- **Preconditions (fresh DB fixtures):** project `Demo Project` id=1 (prefix DP), suite `Suite A` id=2, TC `Login Test` id=3; version 1 (tcversion_id=4) with 2 steps, then a 2nd version (tcversion_id=13) created from it. `noperm` user (login `noperm`/`noperm`, role `<no rights>` id=3) assigned to project 1 with NO mgt_modify_tc, for the 403 path. Auth admin/admin.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-812.1 | Edit loads version data | `GET /api/testcasesedit/?action=edit&tcase_id=3&tcversion_id=4&tproject_id=1` | status=ok; tcase.name=`Login Test v1`, version=1, identity `DP-1:1:...`, 2 steps returned with actions/expected, importance/status/exec_type present. | PASS |
+| TC-812.2 | Screen renders form (Dashio) | Open `tcEdit.html?tcase_id=3&tcversion_id=4&tproject_id=1` | Title `Login Test v1 (#3 v1)`; name/summary/preconditions/duration prefilled; 2 step rows (Step Actions + Expected Results each); Importance/Status/Execution Type selects populated; Save/Cancel/New Version present; no console errors. | PASS |
+| TC-812.3 | Update saves fields + steps | Edit summary text, click "Add Step" (3rd step), fill it, click Save | "Test case saved."; form reloads; 3 steps present incl. new one; `SELECT summary,importance,status,estimated_exec_duration FROM tcversions WHERE id=4` reflect edits; steps rows 1..3 saved. | PASS |
+| TC-812.4 | Name persists on node | After save changing the title | `nodes_hierarchy.name` for tcase node (id 3) updated. | PASS |
+| TC-812.5 | Attributes persist | Update importance (Low=3), status (2), duration (`7`) and Save | `tcversions.importance=3, status=2, estimated_exec_duration=7.00`. | PASS |
+| TC-812.6 | Create New Version | Click "Create New Version", accept confirm | New version created; identity becomes `DP-1:2:...` (v2, tcversion_id grows); status resets to Draft; steps cloned; new row in `tcversions` with version=2. | PASS |
+| TC-812.7 | Empty title rejected | Clear the name, click Save | Toast/warn "Test case title must not be empty"; no network POST; no DB change. | PASS |
+| TC-812.8 | Bad duration rejected | Set duration to `abc`, click Save | Warn "Estimated duration must be a number"; client-side stop. | PASS |
+| TC-812.9 | Permission denied (no right) | `GET /api/testcasesedit/?action=edit&tcase_id=3&tcversion_id=4&tproject_id=1` with a session for `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.10 | Update permission denied | `POST /api/testcasesedit/?action=update` as `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.11 | Create_version permission denied | `POST /api/testcasesedit/?action=create_version` as `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.12 | Unknown action → 404 | `GET /api/testcasesedit/bogus` | HTTP 404 `Unknown action`. | PASS |
+| TC-812.13 | Unauthenticated → 401 | `GET /api/testcasesedit/?action=edit` with no session | HTTP 401 `Not authenticated`. | PASS |
+| TC-812.14 | Bad context → 400 | `GET /api/testcasesedit/?action=edit` with no ids | HTTP 400 `Missing test case context`. | PASS |
+| TC-812.15 | i18n keys in all bundles | Check `tcedit.*` keys (46) in en/ro/de/fr/es/it/pt/ja/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid; locale switcher renders. | PASS |
+| TC-812.16 | tcView link switched | Inspect `tcView.html` `openTcEdit()` | Points to `/gui/templates/testcases/tcEdit.html` (not `tcEdit.php`). | PASS |
+| TC-812.17 | Event Viewer clean | After all edit/save/version actions | `events` table has 0 new Error/Warning (log_level >= 40); only audit rows (16). | PASS |
+
+- **Result:** **17/17 PASS** (TC-812.1–812.17)
+

@@ -55,8 +55,11 @@ class mantisdbInterface extends issueTrackerInterface
     
     $this->setResolvedStatusCfg();
     
-    $this->methodOpt['buildViewBugLink'] = 
-      array('addSummary' => true, 'colorByStatus' => true);
+    // keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+    // warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+    $this->methodOpt['buildViewBugLink'] = array_merge(
+      $this->methodOpt['buildViewBugLink'],
+      array('addSummary' => true, 'colorByStatus' => true));
     
     $this->guiCfg = array('use_decoration' => true);
     if( property_exists($this->cfg, 'statuscfg') ) {

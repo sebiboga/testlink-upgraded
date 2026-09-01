@@ -685,6 +685,10 @@ function newExecLatestFlag() {
   return !!(initData && initData.new_exec_latest);
 }
 
+function execDurationEnabled() {
+  return !!(initData && initData.exec_duration_enabled);
+}
+
 function fmtBytes(b) {
   if (!b) return '0 B';
   if (b < 1024) return b + ' B';
@@ -767,6 +771,15 @@ function renderForm() {
   h += '<label class="flbl" for="execNotes">' + esc(TLi18n.t('exe.notes')) + '</label>';
   h += '<textarea id="execNotes" class="form-control"'
     + (roMode ? ' disabled' : '') + '></textarea>';
+
+  if (execDurationEnabled()) {
+    h += '<label class="flbl" for="execDuration" style="margin-top:12px;">'
+      + esc(TLi18n.t('exe.executionDuration')) + '</label>';
+    h += '<input type="text" id="execDuration" class="form-control"'
+      + ' style="max-width:140px;" maxlength="8"'
+      + ' onkeyup="this.value=this.value.replace(/[^0-9.]/g,\'\');"'
+      + (roMode ? ' disabled' : '') + '>';
+  }
 
   h += renderAttachmentsBlock();
 
@@ -880,6 +893,12 @@ function resetFormInputs(keepPast) {
 
   $('#execNotes').val((keepPast && current.prior_execution)
     ? current.prior_execution.notes : '');
+
+  if (execDurationEnabled()) {
+    $('#execDuration').val((keepPast && current.prior_execution
+      && current.prior_execution.execution_duration)
+      ? current.prior_execution.execution_duration : '');
+  }
 
   (current.steps || []).forEach(function (st) {
     var row = $('tr[data-stepid="' + st.id + '"]');
@@ -1019,6 +1038,9 @@ function saveExecution(navTo) {
   fd.append('platform_id', curPlatformId());
   fd.append('status', activeBtn.data('code'));
   fd.append('notes', $('#execNotes').val() || '');
+  fd.append('execution_duration',
+    (execDurationEnabled() && $('#execDuration').length)
+      ? ($('#execDuration').val() || '') : '');
   var steps = {};
   $('tr[data-stepid]').each(function () {
     var $row = $(this);

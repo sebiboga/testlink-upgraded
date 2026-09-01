@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare Test Case Versions</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/third_party/diff/diff.css">
+<link rel="stylesheet" href="/third_party/daisydiff/css/diff.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.version-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.version-table th { background: #22242a; color: #fff; padding: 8px 10px; text-align: center; font-weight: 600; }
+.version-table th.l { text-align: left; }
+.version-table td { padding: 8px 10px; border-bottom: 1px solid #eee; text-align: center; }
+.version-table td.l { text-align: left; }
+.opt-row { display: flex; align-items: center; gap: 14px; margin-top: 16px; flex-wrap: wrap; font-size: 13px; }
+.opt-row label { font-weight: 400; color: #333; cursor: pointer; }
+.opt-row input[type=text] { width: 60px; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.diff-section { margin: 16px 24px 0; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.diff-section .sec-head { background: #22242a; color: #fff; padding: 10px 20px; font-size: 14px; font-weight: 700; }
+.diff-section .sec-message { padding: 8px 20px; font-size: 12px; color: #888; border-bottom: 1px solid #eee; }
+.diff-section .sec-body { padding: 12px 20px; }
+.subtitle { margin: 14px 24px 0; font-size: 15px; color: #22242a; font-weight: 600; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcc.title">Compare Test Case Versions</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcc.testCase">Test Case</span>: <b id="ctxCase">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-code-compare"></i> <span data-i18n="tcc.selectVersions">Select two versions to compare</span></div>
+  <div class="card-body">
+    <table class="version-table">
+      <thead>
+        <tr>
+          <th style="width:80px"><span data-i18n="tcc.version">Version</span></th>
+          <th style="width:140px"><span data-i18n="tcc.left">Version A (left)</span></th>
+          <th style="width:140px"><span data-i18n="tcc.right">Version B (right)</span></th>
+          <th class="l"><span data-i18n="tcc.modified">Modified / Created</span></th>
+          <th class="l"><span data-i18n="tcc.modifiedBy">Author</span></th>
+        </tr>
+      </thead>
+      <tbody id="versionRows"></tbody>
+    </table>
+
+    <div class="opt-row">
+      <span style="font-weight:700"><span data-i18n="tcc.diffMethod">Diff method</span>:</span>
+      <label><input type="radio" name="use_html_comp" value="1" checked> <span data-i18n="tcc.useHtmlComp">HTML (code) comparison</span></label>
+      <label><input type="radio" name="use_html_comp" value="0"> <span data-i18n="tcc.useHtmlCodeComp">Text (inline) comparison</span></label>
+    </div>
+    <div class="opt-row" id="contextRow" style="display:none;">
+      <label><span data-i18n="tcc.context">Context lines:</span> <input type="text" id="context" maxlength="4"></label>
+      <label><input type="checkbox" id="contextShowAll"> <span data-i18n="tcc.showAll">Show all</span></label>
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnCompare"><i class="fa fa-code-compare"></i> <span data-i18n="tcc.btnCompare">Compare selected versions</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="tcc.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="resultsArea"></div>
+
+<div class="footer"><span data-i18n="tcc.footer">TestLink 2.0.1 - Compare Test Case Versions</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcc.comparing">Comparing versions...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  testcaseId: parseInt(qs('testcase_id') || '0', 10),
+  bffUrl: '/api/testcasescompare/',
+  info: null
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function loadOverlay(show) {
+  $('#loadingOverlay').css('display', show ? 'flex' : 'none');
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('input[name=use_html_comp]').on('change', onDiffMethod);
+  $('#contextShowAll').on('change', function () {
+    $('#context').prop('disabled', this.checked);
+  });
+  $('#btnCompare').on('click', doCompare);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function onDiffMethod() {
+  var useHtml = $('input[name=use_html_comp]:checked').val() === '1';
+  $('#contextRow').css('display', useHtml ? 'none' : '');
+}
+
+function loadInfo() {
+  if (!ctx.testcaseId) {
+    showFatal(TLi18n.t('tcc.errNoTestcase'));
+    return;
+  }
+  var params = { action: 'info', testcase_id: ctx.testcaseId };
+  if (ctx.tprojectId) params.tproject_id = ctx.tprojectId;
+
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('tcc.errLoadInfo')); return; }
+      ctx.info = r;
+      renderVersions();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('tcc.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnCompare').prop('disabled', true);
+}
+
+function renderVersions() {
+  document.title = TLi18n.t('tcc.title') + ' - ' + ctx.info.tcase.name;
+  $('#ctxCase').text(ctx.info.tcase.name + ' (#' + ctx.info.tcase.id + ')');
+  $('#context').val(ctx.info.context);
+
+  var rows = '';
+  ctx.info.versions.forEach(function (v, i) {
+    var ts = esc(v.modification_ts || '');
+    var author = esc((v.author_first_name + ' ' + v.author_last_name).trim() || '-');
+    var leftChecked = (i === 1) ? 'checked' : '';
+    var rightChecked = (i === 0) ? 'checked' : '';
+    // versions arrive newest-first (get_by_id ORDER BY version DESC); preselect
+    // the two NEWEST versions: right = newest (row 0), left = previous (row 1),
+    // mirroring legacy tcCompareVersions.tpl mycount==1 / mycount==2 defaults.
+    rows += '<tr>' +
+      '<td>' + v.version + '</td>' +
+      '<td><input type="radio" name="version_left" value="' + v.version + '"' + leftChecked + '></td>' +
+      '<td><input type="radio" name="version_right" value="' + v.version + '"' + rightChecked + '></td>' +
+      '<td class="l">' + ts + '</td>' +
+      '<td class="l">' + author + '</td>' +
+      '</tr>';
+  });
+  $('#versionRows').html(rows);
+}
+
+function getSelectedVersion(name) {
+  return parseInt($('input[name=' + name + ']:checked').val() || '0', 10);
+}
+
+function doCompare() {
+  var left = getSelectedVersion('version_left');
+  var right = getSelectedVersion('version_right');
+  if (!left || !right) { toast(TLi18n.t('tcc.warnSelectVersions'), true); return; }
+  if (left === right) { toast(TLi18n.t('tcc.warnSameVersions'), true); return; }
+
+  var useHtml = $('input[name=use_html_comp]:checked').val() === '1';
+  var params = {
+    action: 'compare',
+    testcase_id: ctx.testcaseId,
+    version_left: left,
+    version_right: right,
+    use_html_comp: useHtml ? 1 : 0
+  };
+  if (!useHtml) {
+    if ($('#contextShowAll').is(':checked')) {
+      params.context_show_all = 1;
+    } else {
+      var c = parseInt($('#context').val() || '0', 10);
+      if (isNaN(c) || c < 0) { toast(TLi18n.t('tcc.warnInvalidContext'), true); return; }
+      params.context = c;
+    }
+  }
+
+  loadOverlay(true);
+  $('#resultsArea').empty();
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      loadOverlay(false);
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcc.errCompare'), true); return; }
+      renderResults(r);
+    })
+    .fail(function (xhr) {
+      loadOverlay(false);
+      var msg = TLi18n.t('tcc.errCompare');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    });
+}
+
+function renderResults(r) {
+  var html = '<div class="subtitle">' + esc(fmtSubtitle(r)) + '</div>';
+  (r.sections || []).forEach(function (sec) {
+    var heading = TLi18n.t('tcc.heading.' + sec.key) || sec.key;
+    var msgKey = sec.count > 0 ? 'tcc.numChanges' : 'tcc.noChanges';
+    var msg = TLi18n.t(msgKey)
+      .replace('%s', heading).replace('%s', sec.count);
+    html += '<div class="diff-section">' +
+      '<div class="sec-head">' + esc(heading) + '</div>' +
+      '<div class="sec-message">' + esc(msg) + '</div>' +
+      '<div class="sec-body">' + (sec.count > 0 ? sec.diff : '') + '</div>' +
+      '</div>';
+  });
+  $('#resultsArea').html(html);
+  $('#resultsArea')[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function fmtSubtitle(r) {
+  var t = TLi18n.t('tcc.subtitle');
+  return t
+    .replace('%s', r.version_left).replace('%s', r.version_left)
+    .replace('%s', r.version_right).replace('%s', r.version_right)
+    .replace('%s', r.tcaseName);
+}
+</script>
+</body>
+</html>
