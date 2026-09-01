@@ -196,7 +196,8 @@ function renderTc(rows) {
   if (rows.length > 0) {
     $('#tcTable').DataTable({
       pageLength: 10, lengthChange: false, searching: true,
-      order: [[0, 'asc']], language: { search: TLi18n.t('common.search') }
+      order: [[0, 'asc']], language: { search: TLi18n.t('common.search') },
+      columnDefs: [{ targets: 0, type: 'num' }]
     });
   }
 }
