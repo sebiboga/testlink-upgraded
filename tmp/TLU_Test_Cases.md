@@ -8786,3 +8786,25 @@ Notes:
 
 - **Result:** **7/7 PASS** (TC-811.1–811.7)
 - **Note:** Data and rendering were already correct pre-fix; the defect was console pollution + potential DOM corruption from injecting raw untrusted bug-tracker HTML. The fix removes the injection entirely rather than attempting to sanitize arbitrary body text, which is the structurally correct fix and aligns `execHistory` with the modernized `execTest` convention.
+
+## Suite 790 — Regression — Issue #790: Execute Tests missing "assign execution task to me" + assignee display/warning
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Issue #790 (regression in the modernized Execute Tests screen). The legacy Execute flow (`inc_exec_controls.tpl:55-60`, `execTCaseHeader.inc.tpl:58-66`, `execSetResults.php:208-219`) offered a "assign execution task to me" checkbox on unassigned test cases, showed the assignee (or a "No tester assigned" warning) in the case header, and created a `user_assignments` row (`type=testcase_execution, status=open`) on save. The 2.0.1 rewrite dropped all of it: `execTest.html` had zero `assign`/`assigned` references, `tcDetails` returned no `assigned_user`, and `save` never called `assignment_mgr`. Fix: `tcDetails` resolves and returns `assigned_user`/`assigned_user_id` via `testcase::get_version_exec_assignment()`, `save` accepts `assign_task` and creates the row through `assignment_mgr->assign()` on `getFeatureID()` (idempotent), and `renderForm()` shows the warning+checkbox (writable, unassigned) or "Assigned to <user>" line; `saveExecution()` appends `assign_task=1`.
+- **Preconditions:** logged-in admin; test project `Demo Project` (id 1); test plan `Demo Plan` (id 2) with build `Build A` (id 1); test case `Login Test` (tcversion id 5) linked (`testplan_tcversions.id=1`); no platform (stored `platform_id=0`, payload `platform_id=-1`); `user_assignments` empty.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-790.1 | API returns assignment fields | `GET /api/execute/index.php?action=tcDetails&tplan_id=2&tproject_id=1&tcase_id=4&tcversion_id=5&build_id=1&platform_id=-1` with no assignment | Response contains `assigned_user:""`, `assigned_user_id:""`; keys `status,tcase,linked_bugs,version,steps,prior_execution,prior_step_results,exec_history` plus the two new fields. | PASS |
+| TC-790.2 | Unassigned case shows warning + checkbox | Open `execTest.html?tproject_id=1&tplan_id=2`, select Build A, click `Login Test` | Header renders warning "No tester assigned" **and** visible "Assign task to me" checkbox (writable mode); no JS errors. | PASS |
+| TC-790.3 | Check + save creates assignment | Check "Assign task to me", click Passed, click Save execution | Toast "Execution saved."; `user_assignments` has exactly 1 row: `user_id=1, assigner_id=1, build_id=1, type=1, status=1, feature_id=<testplan_tcversions.id=1>`. | PASS |
+| TC-790.4 | Reopen shows assignee, hides checkbox | Reload screen, click `Login Test` | Header shows "Assigned to: Testlink Administrator"; no checkbox rendered; `tcDetails` returns `assigned_user="Testlink Administrator"`, `assigned_user_id="1"`. | PASS |
+| TC-790.5 | Save WITHOUT checkbox creates nothing | Reset `user_assignments` (delete row), reload, open case (warning+checkbox back), click Passed + Save **without** checking | No new `user_assignments` row (count stays 0). | PASS |
+| TC-790.6 | Idempotent re-assign | After an assignment exists, re-open unassigned case, check box, save twice | Single `user_assignments` row persists (assignment_mgr->assign() skips existing); no duplicate. | PASS |
+| TC-790.7 | No-platform plans normalize platform | Same flow for a plan without platforms (payload `platform_id=-1`) | Assignment created against `feature_id` of the `testplan_tcversions` row (platform=0) — verified in TC-790.3/790.4. | PASS |
+| TC-790.8 | i18n keys in all bundles | Check `exe.assignTaskToMe`, `exe.assignedTo`, `exe.noTesterAssigned` in de/en/es/fr/it/ja/pt/ro/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
+| TC-790.9 | Event Viewer clean | After all of the above | `events` table has 0 new Error/Warning rows (only INFO audit entries). | PASS |
+
+- **Result:** **9/9 PASS** (TC-790.1–790.9)
+- **Note:** The form keeps its `current` snapshot (assignment state captured at open time) until the next `openCase()`, consistent with the rest of the screen (list reloads, form does not). After reload the correct assignee view renders.
