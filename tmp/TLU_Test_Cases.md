@@ -8738,3 +8738,32 @@ Notes:
 
 - **Result:** **6/6 PASS**
 - **Note:** A pre-existing, unrelated console `SyntaxError: Failed to execute 'appendChild' on 'Node': Unexpected identifier 'events'` appears when rendering these executions whose `link_to_bts` embeds the full raw GitHub issue body (escaped `<br>`, backticks, quotes) into the anchor; it reproduces **identically on the unmodified HEAD file** and is NOT introduced by this fix (jQuery `.html()` parser fragility on the server-generated anchor content). Out of scope for #789.
+## Suite 812 — Test Case Editor (tcEdit.html + BFF api/testcasesedit) — Refs #812
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** modernized Test Case Version Editor that loads ONE test case version for editing (title, summary, preconditions, steps, expected_results, importance, status, exec. type, estimated duration, keywords), saves changes back to the DB (`testcase::update()`), and creates new versions. Replaces the legacy `lib/testcases/tcEdit.php` redirect from `tcView.html` `openTcEdit()` (the last remaining HIGH-priority legacy redirect from #753).
+- **Preconditions (fresh DB fixtures):** project `Demo Project` id=1 (prefix DP), suite `Suite A` id=2, TC `Login Test` id=3; version 1 (tcversion_id=4) with 2 steps, then a 2nd version (tcversion_id=13) created from it. `noperm` user (login `noperm`/`noperm`, role `<no rights>` id=3) assigned to project 1 with NO mgt_modify_tc, for the 403 path. Auth admin/admin.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-812.1 | Edit loads version data | `GET /api/testcasesedit/?action=edit&tcase_id=3&tcversion_id=4&tproject_id=1` | status=ok; tcase.name=`Login Test v1`, version=1, identity `DP-1:1:...`, 2 steps returned with actions/expected, importance/status/exec_type present. | PASS |
+| TC-812.2 | Screen renders form (Dashio) | Open `tcEdit.html?tcase_id=3&tcversion_id=4&tproject_id=1` | Title `Login Test v1 (#3 v1)`; name/summary/preconditions/duration prefilled; 2 step rows (Step Actions + Expected Results each); Importance/Status/Execution Type selects populated; Save/Cancel/New Version present; no console errors. | PASS |
+| TC-812.3 | Update saves fields + steps | Edit summary text, click "Add Step" (3rd step), fill it, click Save | "Test case saved."; form reloads; 3 steps present incl. new one; `SELECT summary,importance,status,estimated_exec_duration FROM tcversions WHERE id=4` reflect edits; steps rows 1..3 saved. | PASS |
+| TC-812.4 | Name persists on node | After save changing the title | `nodes_hierarchy.name` for tcase node (id 3) updated. | PASS |
+| TC-812.5 | Attributes persist | Update importance (Low=3), status (2), duration (`7`) and Save | `tcversions.importance=3, status=2, estimated_exec_duration=7.00`. | PASS |
+| TC-812.6 | Create New Version | Click "Create New Version", accept confirm | New version created; identity becomes `DP-1:2:...` (v2, tcversion_id grows); status resets to Draft; steps cloned; new row in `tcversions` with version=2. | PASS |
+| TC-812.7 | Empty title rejected | Clear the name, click Save | Toast/warn "Test case title must not be empty"; no network POST; no DB change. | PASS |
+| TC-812.8 | Bad duration rejected | Set duration to `abc`, click Save | Warn "Estimated duration must be a number"; client-side stop. | PASS |
+| TC-812.9 | Permission denied (no right) | `GET /api/testcasesedit/?action=edit&tcase_id=3&tcversion_id=4&tproject_id=1` with a session for `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.10 | Update permission denied | `POST /api/testcasesedit/?action=update` as `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.11 | Create_version permission denied | `POST /api/testcasesedit/?action=create_version` as `noperm` | HTTP 403 `No permission`. | PASS |
+| TC-812.12 | Unknown action → 404 | `GET /api/testcasesedit/bogus` | HTTP 404 `Unknown action`. | PASS |
+| TC-812.13 | Unauthenticated → 401 | `GET /api/testcasesedit/?action=edit` with no session | HTTP 401 `Not authenticated`. | PASS |
+| TC-812.14 | Bad context → 400 | `GET /api/testcasesedit/?action=edit` with no ids | HTTP 400 `Missing test case context`. | PASS |
+| TC-812.15 | i18n keys in all bundles | Check `tcedit.*` keys (46) in en/ro/de/fr/es/it/pt/ja/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid; locale switcher renders. | PASS |
+| TC-812.16 | tcView link switched | Inspect `tcView.html` `openTcEdit()` | Points to `/gui/templates/testcases/tcEdit.html` (not `tcEdit.php`). | PASS |
+| TC-812.17 | Event Viewer clean | After all edit/save/version actions | `events` table has 0 new Error/Warning (log_level >= 40); only audit rows (16). | PASS |
+
+- **Result:** **17/17 PASS** (TC-812.1–812.17)
+
