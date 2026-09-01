@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="suvw.title">Test Suite Viewer</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-title i { color: #4ECDC4; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.deleted-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.badge-high { background: #e74c3c; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-medium { background: #f39c12; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-low { background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inv { background: #95a5a6; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 7px; column-gap: 16px; }
+.kv .k { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding-top: 2px; }
+.kv .v { color: #333; word-break: break-word; }
+.details-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
+.kw-chip { display: inline-block; background: #eaf7f6; border: 1px solid #bfe6e2; color: #1a7f79; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; }
+.att-row { display: flex; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px dashed #eee; }
+.att-row:last-child { border-bottom: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+table.table-tc thead th { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; border-bottom: 2px solid #4ECDC4; }
+table.table-tc td { font-size: 13px; vertical-align: top; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-folder-open-o"></i> <span data-i18n="suvw.title">Test Suite Viewer</span><span id="projName" class="sub"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="treeLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.openTree">Open in Test Specification</span></a>
+  <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
+</div>
+
+<div id="deletedBanner" class="deleted-banner" style="display:none;"></div>
+
+<div id="content">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="suvw.overview">Overview</span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="suvw.identifier">Identifier</div><div class="v" id="vDocId"></div>
+        <div class="k" data-i18n="suvw.parent">Parent</div><div class="v" id="vParent"></div>
+        <div class="k" data-i18n="suvw.childSuites">Child test suites</div><div class="v" id="vChildSuites"></div>
+        <div class="k" data-i18n="suvw.testcases">Test cases</div><div class="v" id="vTestcases"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-align-left"></i> <span data-i18n="suvw.details">Details</span></div>
+    <div class="card-body"><div class="details-text" id="vDetails"></div></div>
+  </div>
+
+  <div class="card" id="tcCard">
+    <div class="card-title"><i class="fa fa-file-text-o"></i> <span data-i18n="suvw.linkedCases">Test cases in this suite</span></div>
+    <div class="card-body">
+      <table class="table table-tc" id="tcTable">
+        <thead>
+          <tr>
+            <th data-i18n="suvw.extId">External ID</th>
+            <th data-i18n="suvw.name">Name</th>
+            <th data-i18n="suvw.version">Version</th>
+            <th data-i18n="suvw.importance">Importance</th>
+            <th data-i18n="suvw.summary">Summary</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="tcEmpty" style="display:none;" data-i18n="suvw.noCases">No test cases in this suite.</div>
+    </div>
+  </div>
+
+  <div class="card" id="kwCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="suvw.keywords">Keywords</span></div>
+    <div class="card-body" id="vKeywords"></div>
+  </div>
+
+  <div class="card" id="attCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="suvw.attachments">Attachments</span></div>
+    <div class="card-body" id="vAttachments"></div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script>
+var API = '/api/suiteview/index.php';
+var SUITE_ID = 0;
+var TPROJECT_ID = 0;
+var TOKEN = 0;
+var SPEC_URL = '/gui/templates/testcases/testSpec.html?tproject_id=';
+var TC_VIEW_URL = '/gui/templates/testcases/tcView.html';
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  SUITE_ID = parseInt(p.get('id') || p.get('testsuite_id') || p.get('item_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!SUITE_ID) {
+      showError(TLi18n.t('suvw.noId'));
+      return;
+    }
+    loadView();
+  });
+});
+
+function loadView() {
+  var tok = ++TOKEN;
+  var url = API + '?action=info&id=' + SUITE_ID;
+  if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
+  $.getJSON(url, function(r) {
+    if (tok !== TOKEN) return;
+    if (r.status !== 'ok') {
+      showError(r.message || TLi18n.t('suvw.loadError'));
+      return;
+    }
+    $('#deletedBanner').hide();
+    $('#content').show();
+    render(r);
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('suvw.title') +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    if (tok !== TOKEN) return;
+    var msg = TLi18n.t('suvw.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showError(msg);
+  });
+}
+
+function render(r) {
+  var s = r.suite;
+  TPROJECT_ID = r.tproject.id || TPROJECT_ID;
+  $('#projName').text(' - ' + (r.tproject.name || ('#' + TPROJECT_ID)));
+  $('#vDocId').html('<span class="id-chip">' + escapeHtml(s.name) + '</span>' +
+    ' <span class="id-chip" style="font-size:10px;color:#999;">#' + s.id + '</span>');
+  $('#vParent').text(s.parent_name || '-');
+  $('#vChildSuites').text(s.child_suites ? String(s.child_suites) : '0');
+  $('#vTestcases').text(s.testcases_cnt ? String(s.testcases_cnt) : '0');
+  $('#vDetails').text(s.details || (TLi18n.t('suvw.noDetails')));
+  $('#infoLine').text('#' + s.id);
+  $('#treeLink').attr('href', SPEC_URL + TPROJECT_ID);
+
+  renderTc(r.testcases || []);
+  renderKeywords(r.keywords || []);
+  renderAttachments(r.attachments || []);
+}
+
+function renderTc(rows) {
+  $('#tcEmpty').toggle(rows.length === 0);
+  $('#tcCard').show();
+  var $tb = $('#tcTable tbody').empty();
+  $.each(rows, function(i, tc) {
+    if (!tc.active && tc.version === 0) return; // no version yet -> treat as none
+    var badge = tc.active
+      ? '<span class="badge-' + escapeHtml(tc.importance_label) + '">' +
+        TLi18n.t('suvw.imp' + ucfirst(tc.importance_label)) + '</span>'
+      : '<span class="badge-inv">' + TLi18n.t('suvw.inactive') + '</span>';
+    $tb.append('<tr>' +
+      '<td>' + (tc.external_id ? escPrefix(tc.external_id) : '-') + '</td>' +
+      '<td><a class="tc-link" href="javascript:void(0)" title="' + TLi18n.t('suvw.openTc') + '" onclick="openTc(' + tc.id + ')">' +
+        escapeHtml(tc.name) + '</a></td>' +
+      '<td>' + (tc.version ? 'v' + tc.version : '-') + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + escapeHtml(tc.summary || '') + '</td>' +
+    '</tr>');
+  });
+  if (rows.length > 0 && $.fn.DataTable.isDataTable('#tcTable')) {
+    $('#tcTable').DataTable().destroy();
+  }
+  if (rows.length > 0) {
+    $('#tcTable').DataTable({
+      pageLength: 10, lengthChange: false, searching: true,
+      order: [[0, 'asc']], language: { search: TLi18n.t('common.search') }
+    });
+  }
+}
+
+function renderKeywords(kws) {
+  if (!kws.length) { $('#kwCard').hide(); return; }
+  var out = '';
+  $.each(kws, function(i, kw) { out += '<span class="kw-chip">' + escapeHtml(kw) + '</span>'; });
+  $('#vKeywords').html(out);
+  $('#kwCard').show();
+}
+
+function renderAttachments(atts) {
+  if (!atts.length) { $('#attCard').hide(); return; }
+  var out = '';
+  $.each(atts, function(i, a) {
+    out += '<div class="att-row"><i class="fa fa-paperclip" style="color:#4ECDC4;"></i>' +
+      '<div><b>' + escapeHtml(a.title || a.file_name) + '</b>' +
+      (a.file_name ? '<span class="att-name"> &mdash; ' + escapeHtml(a.file_name) + '</span>' : '') +
+      '<div class="sub">' + fmtSize(a.file_size) + (a.date_added ? ' &middot; ' + escapeHtml(a.date_added) : '') + '</div></div></div>';
+  });
+  $('#vAttachments').html(out);
+  $('#attCard').show();
+}
+
+function openTc(tcId) {
+  window.open(TC_VIEW_URL + '?tcase_id=' + tcId + '&tproject_id=' + TPROJECT_ID,
+    '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function showError(msg) {
+  $('#deletedBanner').text(msg).css('display', 'block');
+  $('#content').hide();
+  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('suvw.title'));
+}
+
+function escPrefix(ext) { return escapeHtml(String(ext)); }
+function ucfirst(s) { s = String(s); return s.charAt(0).toUpperCase() + s.slice(1); }
+
+function fmtSize(n) {
+  n = parseInt(n || 0, 10);
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>
