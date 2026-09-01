@@ -8958,3 +8958,24 @@ Notes:
   `tcase_id`/`tcversion_id`, plus `setting_build`/`setting_platform` (from legacy
   cookie settings). The new BFF normalizes both key pairs and both build/platform
   param names to a single contract.
+
+## Suite 814 — Regression — Issue #814: Aside menu missing Test Plan sub-menus after creating a test plan (until manual reload)
+
+**Precondition:** fresh DB (0 testprojects / 0 testplans); logged in as admin/admin at http://localhost:8082; a test project "Demo Project" exists (prefix DP, id=1) and is the current project context (navBar combo shows "DP:Demo Project").
+
+**Root cause recap:** the aside is an iframe (`iframe#asidebar`, `src=/lib/general/asideMenu.php`) that loads only once (gui/templates/dashio/main.tpl). `asideMenu.php` renders the Test Plan sub-menu server-side from `$_SESSION['testplanID']`, which is set by `initProject()` (lib/functions/common.php) only when the aside re-runs. Creating the first plan via the modernized Test Plan Management UI (api/plans POST) updated the DB + mainframe but never told the aside to reload → sub-menus stayed hidden until F5.
+**Fix:** `gui/templates/dashio/main.tpl` adds shell-level `reloadAside()`; `gui/templates/plans/planView.html` `submitPlan()` calls it in the create branch (`!editId`), reloading the aside to the F5-equivalent state.
+
+**Repro steps (pre-fix):** open Test Plan Management → + Create Test Plan → Save → aside still shows only "Test Plan Management" → F5 → full sub-menu appears.
+**Expected post-fix:** the aside gains the full Test Plan sub-menu automatically (no reload) as soon as the plan is created.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-814.1 | First plan create refreshes aside automatically | With 0 plans, aside Test Plan sub-menu shows only `["Test Plan Management"]`. Open Test Plan Management → + Create Test Plan "Release 2.0" → Save. | No manual reload; aside auto-upgrades to `["Test Plan Management","Assign Test Plan Roles","Builds / Releases","Add / Remove Test Cases","Add / Remove Platforms","Set Urgent Tests","Update Linked Test Case Versions","Show Test Cases Newest Versions"]`. Test Case Execution + Reports sections appear (session plan now set). | **PASS** (browser, chrome-devtools MCP — aside iframe re-fetched `/lib/general/asideMenu.php`, full menu rendered) |
+| TC-814.2 | Second plan create keeps plan menu | Create "Release 2.1" | Aside still shows the full Test Plan sub-menu (first plan remains auto-selected session plan, matching F5 semantics). | **PASS** (browser) |
+| TC-814.3 | Edit plan triggers no spurious aside reload | Open edit modal on an existing plan, change name, Save (PUT/update path) | Plan table updates; aside not reloaded (plan count unchanged — update does not need it). No errors. | **PASS** (browser) |
+| TC-814.4 | DB rows correct after creates | `SELECT id, active FROM testplans` | Two plans (active=1) exist for project 1. | **PASS** |
+| TC-814.5 | Event Viewer clean | Inspect `events` table after create flow | 0 new Error(1)/Warning(2) rows; only AUDIT(16) login/plan-create rows. | **PASS** |
+| TC-814.6 | JS/bundles syntax gates | Extract inline `<script>` from main.tpl + planView.html → `node --check`; `python3 -m json.tool` on any touched i18n bundle (none touched) | Both scripts parse; bundles valid. | **PASS** |
+
+- **Result:** **6/6 PASS** (TC-814.1–814.6)
