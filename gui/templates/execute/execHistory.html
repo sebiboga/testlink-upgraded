@@ -366,8 +366,13 @@ function renderDetail(e) {
         ? '<span class="bug-step-mark">'
           + esc(TLi18n.t('exe.bugOnStepShort', { n: b.step_number })) + '</span>'
         : '';
+      var btsLabel = '#' + b.id;
+      var bugLink = b.bug_url
+        ? '<a href="' + esc(b.bug_url) + '" target="_blank" rel="noopener">'
+          + esc(btsLabel) + '</a>'
+        : esc(b.id);
       h += '<div class="bug-item"><i class="fa fa-bug"></i>'
-        + (b.link_to_bts ? b.link_to_bts : esc(b.id)) + stepMark + '</div>';
+        + bugLink + stepMark + '</div>';
     });
     h += '</div>';
   }
