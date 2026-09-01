@@ -2214,5 +2214,6 @@
   "pli.errNoFile": "Please choose a file to import.",
   "pli.errLoadInfo": "Failed to load import information.",
   "pli.noResult": "No import results to display.",
-  "pli.footer": "TestLink 2.0.1 - Test Plan Import"
+  "pli.footer": "TestLink 2.0.1 - Test Plan Import",
+  "pli.uploading": "Importing... please wait."
 }

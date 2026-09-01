@@ -110,6 +110,9 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
         return $msg;
     }
 
+    // XXE defense-in-depth (same as legacy simplexml_load_file_wrapper):
+    // disable external entity loading before parsing attacker-supplied XML.
+    @libxml_disable_entity_loader(true);
     $xml = @simplexml_load_file($targetFile);
     if ($xml !== FALSE) {
         $tcaseMgr = new testcase($dbHandler);
@@ -305,6 +308,9 @@ function processPlatformsBff(&$platMgr, &$tplanMgr, $universe, $xmlSubset, $lbl,
         }
     }
     if ($status_ok && !is_null($idSet)) {
+        // NOTE: legacy planImport.php checks only $status_ok here; the extra
+        // is_null($idSet) guard only avoids a foreach() over null when the
+        // XML declares zero platforms (output is identical).
         $currentPlatformSet = $tplanMgr->getPlatforms($tplanID, array('outputFormat' => 'mapAccessByID'));
         foreach ($idSet as $platformID => $platformName) {
             if (!isset($currentPlatformSet[$platformID])) {
@@ -332,9 +338,10 @@ $labelKeys = array(
     'tcversion_status_forbidden', 'cant_link_to_tplan_feedback'
 );
 
-if ($method_check = true) { } // no-op, kept for clarity
+// Resolve the request route.
+$method = $_SERVER['REQUEST_METHOD'];
 
-if (($method = $_SERVER['REQUEST_METHOD']) === 'GET' && $action === 'info') {
+if ($method === 'GET' && $action === 'info') {
     list($args, $tplanMgr) = resolvePlanContext($db, $user);
     $importLimitBytes = (int)config_get('import_file_max_size_bytes');
 
@@ -344,7 +351,11 @@ if (($method = $_SERVER['REQUEST_METHOD']) === 'GET' && $action === 'info') {
 
     $resultMap = null;
     if (!$tprojectHasTC) {
-        $resultMap = array(array('', sprintf(lang_get('tproject_has_zero_testcases'), $tprojectInfo['name'])));
+        // Slightly better than legacy (which emitted array('',msg) so the
+        // message landed in the status column): use [message, not_imported].
+        $resultMap = array(array(
+            sprintf(lang_get('tproject_has_zero_testcases'), $tprojectInfo['name']),
+            lang_get('not_imported')));
     }
 
     out(array(

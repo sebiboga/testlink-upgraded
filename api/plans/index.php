@@ -107,7 +107,8 @@ function viewActions($tproject_id, $tplan_id = 0) {
         'editAction'    => '/lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
         'exportAction'  => '/gui/templates/plans/planExport.html?tproject_id=' .
                            intval($tproject_id) . '&tplan_id=',
-        'importAction'  => '/gui/templates/plans/planImport.html?' . $ent . '&tplan_id=',
+        'importAction'  => '/gui/templates/plans/planImport.html?tproject_id=' .
+                           intval($tproject_id) . '&tplan_id=',
         'assignRolesAction' =>
             '/gui/templates/usermanagement/usersAssignPlan.html?tproject_id=' .
             intval($tproject_id) . '&tplan_id=',
