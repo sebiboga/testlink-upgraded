@@ -760,6 +760,41 @@ if ($action === 'tcDetails') {
         $steps = [];
     }
 
+    // execution-time custom field INPUTS (Refs #791): rendered through the same
+    // legacy helper as execSetResults.php (html_table_of_custom_field_inputs),
+    // so the input names carry the exact 'custom_field_<type>_<id>_<tcaseId>'
+    // contract that write_execution() -> execution_values_to_db() persists.
+    // Only surfaced to users holding the Execute right (they are inputs);
+    // read-only access keeps the read-only recorded values via exec_history.
+    $execCFieldsHtml = '';
+    $execCFields = [];
+    if ($canExecute) {
+        try {
+            $execCFieldsHtml = (string)$tcaseMgr->html_table_of_custom_field_inputs(
+                $tcaseId, null, 'execution', '_' . $tcaseId, null, null, $tprojectId);
+            // definitions for the frontend required/format validation
+            // (testcase::get_linked_cfields_at_execution resolves the test
+            //  project itself when $tproject_id is given)
+            $cfDefs = $tcaseMgr->get_linked_cfields_at_execution(
+                $tcversionId, null, null, null, null, $tprojectId);
+            if (is_array($cfDefs)) {
+                foreach ($cfDefs as $cf) {
+                    $execCFields[] = [
+                        'id' => intval($cf['id']),
+                        'name' => 'custom_field_' . intval($cf['type']) . '_'
+                                  . intval($cf['id']) . '_' . $tcaseId,
+                        'label' => strval($cf['label']),
+                        'type' => intval($cf['type']),
+                        'required' => intval($cf['required'] ?? 0),
+                    ];
+                }
+            }
+        } catch (\Throwable $e) {
+            $execCFieldsHtml = '';
+            $execCFields = [];
+        }
+    }
+
     // latest execution of THIS version on THIS build(+platform), with the
     // recorded step-level results (partial execution feature)
     $prior = null;
@@ -1066,6 +1101,8 @@ $linkedBugs[$bid] = [
                 $prefix . $glue . ($ext > 0 ? $ext : ''),
         ],
         'steps' => $steps,
+        'exec_cfields_html' => $execCFieldsHtml,
+        'exec_cfields' => $execCFields,
         'prior_execution' => $prior,
         'prior_step_results' => $priorSteps,
         'exec_history' => $execHistory,
@@ -1228,6 +1265,41 @@ if ($action === 'save') {
             // deleteStepsPartialExec() reads the request superglobal
             $_REQUEST['step_notes'] = $stepNotes;
         }
+    }
+
+    // execution-time custom field values (Refs #791): the Execute Tests form
+    // submits them under the exact legacy input names
+    // 'custom_field_<type>_<id>_<tcaseId>' (checkbox / multiselection carry
+    // '[]' which PHP folds into array values; date/datetime add '_input' /
+    // '_hour' / '_minute' / '_second' segments). Forward them into $execData
+    // so write_execution() -> execution_values_to_db() persists them onto the
+    // new execution row. Only accept names whose (type,id) belongs to a real
+    // execution-time custom field linked to this test case version, so a
+    // forged payload cannot write unrelated values.
+    $cfPrefix = 'custom_field_';
+    $allowedCf = [];
+    try {
+        $saveTcaseMgr = new testcase($db);
+        $cfDefs = $saveTcaseMgr->get_linked_cfields_at_execution(
+            $tcversionId, null, null, null, null, $tprojectId);
+        if (is_array($cfDefs)) {
+            foreach ($cfDefs as $cf) {
+                $allowedCf[intval($cf['type']) . '_' . intval($cf['id'])] = 1;
+            }
+        }
+    } catch (\Throwable $e) {
+        $allowedCf = [];
+    }
+    foreach ($payload as $pName => $pVal) {
+        if (strncmp($pName, $cfPrefix, strlen($cfPrefix)) !== 0) { continue; }
+        // input name 'custom_field_<type>_<id>_<tcaseId>' explodes on '_' with
+        // 'custom_field' itself containing an underscore, so positions are:
+        // 0='custom' 1='field' 2=type 3=id 4=tcaseId (5 parts).
+        $parts = explode('_', $pName);
+        if (count($parts) < 5) { continue; }
+        $typeIdKey = $parts[2] . '_' . $parts[3];
+        if (!isset($allowedCf[$typeIdKey])) { continue; }
+        $execData[$pName] = $pVal;
     }
 
     // legacy copyAttFromLEXEC: capture the latest execution id on context

@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Eroare la încărcarea informațiilor de export.",
   "pex.errEmptyFilename": "Numele fișierului este obligatoriu.",
   "pex.errExport": "Exportul a eșuat.",
-  "pex.exportDone": "Export complet."
+  "pex.exportDone": "Export complet.",
+  "exe.customFields": "Câmpuri personalizate",
+  "exe.cfRequired": "Câmpul personalizat \"{field}\" este obligatoriu.",
+  "exe.cfInvalid": "Valoarea introdusă pentru câmpul personalizat \"{field}\" este invalidă."
 }

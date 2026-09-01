@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "エクスポート情報の読み込みに失敗しました。",
   "pex.errEmptyFilename": "ファイル名が必要です。",
   "pex.errExport": "エクスポートに失敗しました。",
-  "pex.exportDone": "エクスポートが完了しました。"
+  "pex.exportDone": "エクスポートが完了しました。",
+  "exe.customFields": "カスタムフィールド",
+  "exe.cfRequired": "カスタムフィールド「{field}」は必須です。",
+  "exe.cfInvalid": "カスタムフィールド「{field}」に入力された値が無効です。"
 }

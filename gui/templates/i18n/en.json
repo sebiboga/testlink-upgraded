@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Failed to load export information.",
   "pex.errEmptyFilename": "File name is required.",
   "pex.errExport": "Export failed.",
-  "pex.exportDone": "Export complete."
+  "pex.exportDone": "Export complete.",
+  "exe.customFields": "Custom Fields",
+  "exe.cfRequired": "The custom field \"{field}\" is required.",
+  "exe.cfInvalid": "The value entered for custom field \"{field}\" is invalid."
 }

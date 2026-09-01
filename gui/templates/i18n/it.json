@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Impossibile caricare le informazioni di esportazione.",
   "pex.errEmptyFilename": "Il nome file è obbligatorio.",
   "pex.errExport": "Esportazione non riuscita.",
-  "pex.exportDone": "Esportazione completata."
+  "pex.exportDone": "Esportazione completata.",
+  "exe.customFields": "Campi personalizzati",
+  "exe.cfRequired": "Il campo personalizzato \"{field}\" è obbligatorio.",
+  "exe.cfInvalid": "Il valore inserito per il campo personalizzato \"{field}\" non è valido."
 }

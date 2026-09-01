@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Exportinformationen konnten nicht geladen werden.",
   "pex.errEmptyFilename": "Dateiname ist erforderlich.",
   "pex.errExport": "Export fehlgeschlagen.",
-  "pex.exportDone": "Export abgeschlossen."
+  "pex.exportDone": "Export abgeschlossen.",
+  "exe.customFields": "Benutzerdefinierte Felder",
+  "exe.cfRequired": "Das benutzerdefinierte Feld \"{field}\" ist erforderlich.",
+  "exe.cfInvalid": "Der für das benutzerdefinierte Feld \"{field}\" eingegebene Wert ist ungültig."
 }

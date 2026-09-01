@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "加载导出信息失败。",
   "pex.errEmptyFilename": "需要文件名。",
   "pex.errExport": "导出失败。",
-  "pex.exportDone": "导出完成。"
+  "pex.exportDone": "导出完成。",
+  "exe.customFields": "自定义字段",
+  "exe.cfRequired": "自定义字段“{field}”为必填项。",
+  "exe.cfInvalid": "自定义字段“{field}”的值无效。"
 }

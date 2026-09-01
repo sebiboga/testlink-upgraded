@@ -46,6 +46,11 @@ table.tc-list tbody tr.selected { background: #d9f3f1; box-shadow: inset 3px 0 0
 .desc-block { margin-bottom: 12px; }
 .desc-label { font-size: 11px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
 .desc-box { border: 1px solid #eee; border-radius: 6px; background: #fafafa; padding: 8px 12px; font-size: 13px; color: #333; white-space: pre-wrap; }
+.exec-cf-block .cf-inputs { border: 1px solid #eee; border-radius: 6px; background: #fafafa; padding: 8px 12px; font-size: 13px; color: #333; }
+.exec-cf-block table { border-collapse: collapse; margin: 0; }
+.exec-cf-block table tr td { padding: 4px 8px 4px 0; vertical-align: middle; }
+.exec-cf-block td.labelHolder { font-weight: 600; color: #22242a; font-size: 12.5px; white-space: nowrap; }
+.exec-cf-block input[type=text], .exec-cf-block input[type=checkbox], .exec-cf-block select, .exec-cf-block textarea { font-size: 13px; }
 .status-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 14px; }
 .st-btn { border: 2px solid transparent; border-radius: 5px; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; opacity: .55; }
 .st-btn.active { opacity: 1; border-color: #22242a; box-shadow: 0 0 0 2px rgba(78,205,196,.45); }
@@ -779,6 +784,15 @@ function renderForm() {
       + '</div><div class="desc-box">' + esc(v.preconditions) + '</div></div>';
   }
 
+  // execution-time custom fields (Refs #791): the BFF returns the legacy-rendered
+  // input HTML (names are 'custom_field_<type>_<id>_<tcaseId>'), matching the
+  // contract write_execution() uses to persist the values on save.
+  if (current.exec_cfields_html) {
+    h += '<div class="desc-block exec-cf-block"><div class="desc-label">'
+      + esc(TLi18n.t('exe.customFields')) + '</div>'
+      + '<div class="cf-inputs" id="execCFields">' + current.exec_cfields_html + '</div></div>';
+  }
+
   h += '<label class="flbl">' + esc(TLi18n.t('exe.status')) + '</label><div class="status-row">';
   statusCodesForForm().forEach(function (code) {
     var st = statusLabelFor(code);
@@ -873,6 +887,11 @@ function renderForm() {
   TLi18n.apply($('#formBody')[0]);
   initLinkedBugsTable();
 
+  // read-only mode: execution-time custom field inputs become inert
+  if (roMode) {
+    $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', true);
+  }
+
   $('.st-btn').on('click', function () {
     if (roMode) return;
     $('.st-btn').removeClass('active');
@@ -930,6 +949,49 @@ function resetFormInputs(keepPast) {
       row.find('.step-notes').val('');
     }
   });
+}
+
+// Validate the execution-time custom fields on the current form before save.
+// Mirrors legacy javascript/cfield_validation.js validateCustomFields() plus the
+// 'required' flag (cfield_testprojects.required) the BFF returns per field.
+// Input names follow 'custom_field_<type>_<id>_<tcaseId>'.
+// Returns {ok:true} or {ok:false, message} where message uses the CF label.
+function validateExecCustomFields() {
+  var cfMeta = {};
+  ((current.exec_cfields) || []).forEach(function (cf) { cfMeta[cf.id + ''] = cf; });
+  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var bad = null;
+  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
+    var $el = $(this);
+    var name = $el.attr('name') || '';
+    if (name.indexOf('custom_field_') !== 0) return;
+    // name 'custom_field_<type>_<id>_<tcaseId>' splits on '_' into 5 parts
+    // ('custom_field' itself contains an underscore): 0=custom 1=field 2=type 3=id 4=tcaseId
+    var parts = name.split('_');
+    var cfType = parseInt(parts[2], 10);
+    var cf = cfMeta[parts[3]];
+    var label = cf ? (cf.label || name) : name;
+    if ($el.attr('type') === 'checkbox') {
+      if (cf && cf.required && !$el.is(':checked')) { bad = { label: label, type: 'req' }; return; }
+      return; // checkbox values are free-form; no per-type format check
+    }
+    var val = $el.is('select')
+      ? (($el.attr('multiple') ? ($el.val() || []) : [$el.val() || '']).join('|'))
+      : ($el.val() == null ? '' : $el.val());
+    var isEmpty = (val === '' || val == null);
+    if (cf && cf.required && isEmpty) { bad = { label: label, type: 'req' }; return; }
+    if (isEmpty) return;
+    if (cfType === 1 && /[^\d]/.test(String(val))) { bad = { label: label, type: 'numeric' }; return; }
+    if (cfType === 2 && (isNaN(parseFloat(val)) || /^\s+$/.test(String(val)))) { bad = { label: label, type: 'float' }; return; }
+    if (cfType === 4 && !emailRe.test(String(val))) { bad = { label: label, type: 'email' }; return; }
+  });
+  if (bad) {
+    if (bad.type === 'req') {
+      return { ok: false, message: TLi18n.t('exe.cfRequired', { field: bad.label }) };
+    }
+    return { ok: false, message: TLi18n.t('exe.cfInvalid', { field: bad.label }) };
+  }
+  return { ok: true };
 }
 
 function renderHistoryHtml() {
@@ -1043,6 +1105,13 @@ function saveExecution(navTo) {
     toast(TLi18n.t('exe.pickStatusFirst'), true);
     return;
   }
+  // execution-time custom fields: validate content + required before saving
+  // (mirrors legacy checkCustomFields / validateCustomFields on submit)
+  var cfCheck = validateExecCustomFields();
+  if (!cfCheck.ok) {
+    toast(cfCheck.message, true);
+    return;
+  }
   var nextTarget = (navTo === 'next') ? execNextTarget() : null;
 
   // Use FormData (multipart/form-data) so attachment uploads can ride along.
@@ -1060,6 +1129,23 @@ function saveExecution(navTo) {
   fd.append('execution_duration',
     (execDurationEnabled() && $('#execDuration').length)
       ? ($('#execDuration').val() || '') : '');
+  // execution-time custom field values (Refs #791): read every rendered input
+  // (text/numeric/select/textarea/checkbox/date...) under its legacy name.
+  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
+    var $el = $(this);
+    var name = $el.attr('name');
+    if (!name) return;
+    if ($el.attr('type') === 'checkbox') {
+      // only checked boxes ride along; PHP folds the '[]' names into an array
+      if ($el.is(':checked')) { fd.append(name, $el.val() || 'on'); }
+      return;
+    }
+    if ($el.is('select') && $el.attr('multiple')) {
+      ($el.val() || []).forEach(function (v) { fd.append(name, v); });
+      return;
+    }
+    fd.append(name, $el.val() == null ? '' : $el.val());
+  });
   var steps = {};
   $('tr[data-stepid]').each(function () {
     var $row = $(this);

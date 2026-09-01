@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Échec du chargement des informations dʼexport.",
   "pex.errEmptyFilename": "Le nom du fichier est requis.",
   "pex.errExport": "Lʼexport a échoué.",
-  "pex.exportDone": "Export terminé."
+  "pex.exportDone": "Export terminé.",
+  "exe.customFields": "Champs personnalisés",
+  "exe.cfRequired": "Le champ personnalisé \"{field}\" est obligatoire.",
+  "exe.cfInvalid": "La valeur saisie pour le champ personnalisé \"{field}\" est invalide."
 }

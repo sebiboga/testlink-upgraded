@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Не удалось загрузить информацию об экспорте.",
   "pex.errEmptyFilename": "Требуется имя файла.",
   "pex.errExport": "Не удалось выполнить экспорт.",
-  "pex.exportDone": "Экспорт завершен."
+  "pex.exportDone": "Экспорт завершен.",
+  "exe.customFields": "Настраиваемые поля",
+  "exe.cfRequired": "Поле \"{field}\" обязательно для заполнения.",
+  "exe.cfInvalid": "Недопустимое значение поля \"{field}\"."
 }

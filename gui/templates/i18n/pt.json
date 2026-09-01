@@ -2194,5 +2194,8 @@
   "pex.errLoadInfo": "Falha ao carregar informações de exportação.",
   "pex.errEmptyFilename": "O nome do arquivo é obrigatório.",
   "pex.errExport": "A exportação falhou.",
-  "pex.exportDone": "Exportação concluída."
+  "pex.exportDone": "Exportação concluída.",
+  "exe.customFields": "Campos personalizados",
+  "exe.cfRequired": "O campo personalizado \"{field}\" é obrigatório.",
+  "exe.cfInvalid": "O valor inserido para o campo personalizado \"{field}\" é inválido."
 }
