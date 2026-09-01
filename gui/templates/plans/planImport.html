@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Import Test Plan Links</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
+.form-table td.lbl { width: 230px; font-weight: 700; color: #22242a; }
+select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+.filepick { display: inline-flex; align-items: center; gap: 10px; }
+.filepick .fake-btn { background: #3a3d46; color: #eee; border-radius: 4px; padding: 7px 16px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.filepick .fname { color: #555; font-size: 13px; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.note { background: #fafafa; border-left: 4px solid #4ECDC4; padding: 8px 14px; font-size: 12.5px; color: #555; margin: 10px 0 4px; max-width: 720px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+table.rep { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.rep thead th { background: #22242a; color: #fff; text-align: left; padding: 7px 10px; font-weight: 600; }
+table.rep tbody td { padding: 6px 10px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; }
+table.rep tbody tr:nth-child(even) { background: #fafafa; }
+.ok { color: #2d8e88; font-weight: 600; }
+.not-imported { color: #b94a48; font-weight: 600; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="pli.title">Import Test Plan Links</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pli.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="infobox" id="infoBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-file-import"></i> <span data-i18n="pli.title">Import Test Plan Links</span></div>
+  <div class="card-body">
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><span data-i18n="pli.fileType">File type</span></td>
+        <td><span class="filepick"><span class="badge" style="background:#22242a;color:#eee;padding:5px 12px;border-radius:4px;font-size:13px;">XML</span></span></td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="pli.file">File</span></td>
+        <td>
+          <div class="filepick">
+            <label class="fake-btn" for="fileInput"><i class="fa fa-folder-open"></i> <span data-i18n="pli.chooseFile">Choose file</span></label>
+            <input type="file" id="fileInput" accept=".xml" style="display:none;">
+            <span class="fname" id="fileName" data-i18n="pli.noFileChosen">No file chosen</span>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <div class="note" id="noteText" data-i18n="pli.note"></div>
+    <div class="hint" id="maxSizeLine" style="margin-top:8px;"></div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnUpload"><i class="fa fa-upload"></i> <span data-i18n="pli.btnUpload">Upload file</span></button>
+      <button class="btn-dark" id="btnCancel"><i class="fa fa-xmark"></i> <span data-i18n="common.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="card" id="reportCard" style="display:none;">
+  <div class="card-head">
+    <i class="fa fa-clipboard-check"></i> <span data-i18n="pli.reportTitle">Import report</span>
+  </div>
+  <div class="card-body">
+    <div id="reportTable"></div>
+  </div>
+</div>
+
+<div class="footer">
+  <span data-i18n="pli.footer">TestLink 2.0.1 - Test Plan Import</span>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i><span data-i18n="pli.uploading">Importing... please wait.</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  tplanId: parseInt(qs('tplan_id') || '0', 10),
+  info: null,
+  maxBytes: 0
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-triangle-exclamation"></i> ' + esc(msg)).show();
+  $('#btnUpload').prop('disabled', true);
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#fileInput').on('change', function () {
+    var f = this.files[0];
+    $('#fileName').text(f ? f.name : TLi18n.t('pli.noFileChosen'));
+  });
+
+  $('#btnUpload').on('click', doUpload);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function loadInfo() {
+  $.get('/api/planimport/', { action: 'info', tproject_id: ctx.tprojectId, tplan_id: ctx.tplanId })
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('pli.errLoadInfo')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.tproject.id;
+      ctx.tplanId = r.tplan.id;
+      ctx.maxBytes = parseInt(r.import_limit_bytes || '0', 10);
+      renderContext();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('pli.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function renderContext() {
+  document.title = TLi18n.t('pli.title') + ' - ' + ctx.info.tplan.name;
+  $('#ctxProject').text(ctx.info.tproject.name);
+  $('#ctxTarget').html(esc(ctx.info.tplan.name));
+
+  if (ctx.maxBytes > 0) {
+    $('#maxSizeLine').text(TLi18n.t('pli.maxFileSize', { n: Math.floor(ctx.maxBytes / 1024) }));
+  }
+
+  if (ctx.info.result_map && ctx.info.result_map.length > 0) {
+    renderReport(ctx.info.result_map);
+  }
+}
+
+function doUpload() {
+  var btn = $('#btnUpload')[0];
+  if (btn && btn.disabled) return;
+  if (btn) btn.disabled = true;
+  var f = $('#fileInput')[0].files[0];
+  if (!f) {
+    if (btn) btn.disabled = false;
+    toast(TLi18n.t('pli.errNoFile'), true);
+    return;
+  }
+  if (ctx.maxBytes > 0 && f.size > ctx.maxBytes) {
+    if (btn) btn.disabled = false;
+    toast(TLi18n.t('pli.maxFileSize', { n: Math.floor(ctx.maxBytes / 1024) }), true);
+    return;
+  }
+
+  var fd = new FormData();
+  fd.append('uploadedFile', f);
+  $('#loadingOverlay').show();
+
+  $.ajax({
+    url: '/api/planimport/?action=import&tproject_id=' + ctx.tprojectId + '&tplan_id=' + ctx.tplanId,
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    if (r.status !== 'ok') {
+      toast(r.message || TLi18n.t('pli.errLoadInfo'), true);
+      return;
+    }
+    renderReport(r.result_map);
+    toast(TLi18n.t('pli.importDone'));
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    var msg = TLi18n.t('pli.errLoadInfo');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
+}
+
+function renderReport(rows) {
+  if (!rows || !rows.length) {
+    $('#reportTable').html('<div style="font-size:13px;color:#888;padding:4px;">' + esc(TLi18n.t('pli.noResult')) + '</div>');
+  } else {
+    var h = '<table class="rep"><thead><tr><th>' + esc(TLi18n.t('pli.colMessage')) + '</th>'
+      + '<th style="width:140px;">' + esc(TLi18n.t('pli.colStatus')) + '</th></tr></thead><tbody>';
+    rows.forEach(function (r) {
+      var statusCls = (r[1] === 'OK' || r[1] === TLi18n.t('common.ok'))
+        ? 'ok' : 'not-imported';
+      h += '<tr><td>' + esc(r[0]) + '</td><td class="' + statusCls + '">' + esc(r[1]) + '</td></tr>';
+    });
+    h += '</tbody></table>';
+    $('#reportTable').html(h);
+  }
+  $('#formCard').hide();
+  $('#reportCard').show();
+  window.scrollTo(0, 0);
+}
+</script>
+</body>
+</html>

@@ -2197,5 +2197,22 @@
   "pex.exportDone": "Export complete.",
   "exe.customFields": "Custom Fields",
   "exe.cfRequired": "The custom field \"{field}\" is required.",
-  "exe.cfInvalid": "The value entered for custom field \"{field}\" is invalid."
+  "exe.cfInvalid": "The value entered for custom field \"{field}\" is invalid.",
+  "pli.title": "Import Test Plan Links",
+  "pli.testProject": "Test Project",
+  "pli.fileType": "File type",
+  "pli.file": "File",
+  "pli.chooseFile": "Choose file",
+  "pli.noFileChosen": "No file chosen",
+  "pli.note": "Imports test plan links (test cases and platforms) from an XML file. Items must already exist on the target test project.",
+  "pli.btnUpload": "Upload file",
+  "pli.reportTitle": "Import report",
+  "pli.colMessage": "Message",
+  "pli.colStatus": "Status",
+  "pli.importDone": "Import completed successfully.",
+  "pli.maxFileSize": "Maximum file size: {n} KB",
+  "pli.errNoFile": "Please choose a file to import.",
+  "pli.errLoadInfo": "Failed to load import information.",
+  "pli.noResult": "No import results to display.",
+  "pli.footer": "TestLink 2.0.1 - Test Plan Import"
 }
