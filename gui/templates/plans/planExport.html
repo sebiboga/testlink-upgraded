@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Export Test Plan</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
+.form-table td.lbl { width: 230px; font-weight: 700; color: #22242a; }
+.form-table td.lbl i { color: #2d8e88; margin-right: 6px; }
+select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+select:focus, input[type=text]:focus { outline: none; border-color: #4ECDC4; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="pex.title">Export Test Plan</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pex.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-file-export"></i> <span id="formTitle" data-i18n="pex.header">Export Test Plan</span></div>
+  <div class="card-body">
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><i class="fa fa-file"></i><span data-i18n="pex.filename">File name</span></td>
+        <td><input type="text" id="exportFilename" required></td>
+      </tr>
+      <tr>
+        <td class="lbl"><i class="fa fa-file-code"></i><span data-i18n="pex.fileType">File type</span></td>
+        <td>
+          <select id="exportType">
+            <option value="XML">XML</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><i class="fa fa-list"></i><span data-i18n="pex.exportContent">Export content</span></td>
+        <td>
+          <select id="exportContent">
+            <option value="linkedItems" data-i18n="pex.linkedItems">Linked items (test cases &amp; platforms)</option>
+            <option value="tree" data-i18n="pex.tree">Complete plan contents (tree)</option>
+            <option value="4results" data-i18n="pex.forResults">For results import</option>
+          </select>
+          <div class="hint" data-i18n="pex.contentHint">Choose what should be included in the exported XML file.</div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="pex.export">Export</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="pex.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="pex.footer">TestLink 2.0.1 - Export Test Plan</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="pex.generating">Generating export...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  tplanId: parseInt(qs('tplan_id') || '0', 10),
+  platformId: parseInt(qs('platform_id') || '0', 10),
+  buildId: parseInt(qs('build_id') || '0', 10),
+  bffUrl: '/api/planexport/',
+  info: null
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#btnExport').on('click', doExport);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+  $('#exportFilename').on('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doExport(); }
+  });
+  // apply i18n to dynamically-added option labels
+  $('#exportContent option').each(function () {
+    var k = $(this).data('i18n');
+    if (k) $(this).text(TLi18n.t(k));
+  });
+});
+
+function loadInfo() {
+  var params = { action: 'info', tproject_id: ctx.tprojectId, tplan_id: ctx.tplanId };
+  if (ctx.platformId) params.platform_id = ctx.platformId;
+  if (ctx.buildId) params.build_id = ctx.buildId;
+
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('pex.errLoadInfo')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.tproject.id;
+      ctx.tplanId = r.tplan.id;
+      renderContext();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('pex.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnExport').prop('disabled', true);
+}
+
+function renderContext() {
+  document.title = TLi18n.t('pex.title') + ' - ' + ctx.info.tproject.name;
+  $('#ctxProject').text(ctx.info.tproject.name + ' / ' + ctx.info.tplan.name);
+  $('#ctxTarget').text(ctx.info.tplan.name);
+
+  if (ctx.info.filename) {
+    $('#exportFilename').val(ctx.info.filename);
+  }
+  // restore the requested export content
+  if (ctx.info.exportContent) {
+    $('#exportContent').val(ctx.info.exportContent);
+  }
+}
+
+function doExport() {
+  var fn = ($('#exportFilename').val() || '').trim();
+  if (!fn) { toast(TLi18n.t('pex.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
+
+  var params = {
+    action: 'export',
+    tproject_id: ctx.tprojectId,
+    tplan_id: ctx.tplanId,
+    platform_id: ctx.platformId,
+    build_id: ctx.buildId,
+    exportContent: $('#exportContent').val() || 'linkedItems',
+    exportType: $('#exportType').val() || 'XML',
+    export_filename: fn
+  };
+
+  $('#loadingOverlay').show().find('span').text(TLi18n.t('pex.generating'));
+  $('#btnExport').prop('disabled', true);
+
+  $.ajax({
+    url: ctx.bffUrl,
+    method: 'POST',
+    data: params,
+    xhrFields: { responseType: 'blob' },
+    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
+  }).done(function (blob, textStatus, xhr) {
+    var contentType = xhr.getResponseHeader('Content-Type') || '';
+    if (contentType.indexOf('application/json') !== -1) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var msg = TLi18n.t('pex.errExport');
+        try { msg = JSON.parse(reader.result).message || msg; } catch (e) {}
+        toast(msg, true);
+        $('#loadingOverlay').hide();
+        $('#btnExport').prop('disabled', false);
+      };
+      reader.readAsText(blob);
+      return;
+    }
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fn;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+    toast(TLi18n.t('pex.exportDone'));
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('pex.errExport');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+  });
+}
+</script>
+</body>
+</html>

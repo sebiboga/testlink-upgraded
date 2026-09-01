@@ -105,13 +105,14 @@ function viewActions($tproject_id, $tplan_id = 0) {
         'managerURL'    => '/lib/plan/planEdit.php?' . $ent,
         'createAction'  => '/lib/plan/planEdit.php?do_action=create&' . $ent,
         'editAction'    => '/lib/plan/planEdit.php?do_action=edit&' . $ent . '&itemID=',
-        'exportAction'  => '/lib/plan/planExport.php?' . $ent . '&tplan_id=',
+        'exportAction'  => '/gui/templates/plans/planExport.html?tproject_id=' .
+                           intval($tproject_id) . '&tplan_id=',
         'importAction'  => '/lib/plan/planImport.php?' . $ent . '&tplan_id=',
         'assignRolesAction' =>
-            '/lib/usermanagement/usersAssign.php?featureType=testplan&' .
+            '/gui/templates/usermanagement/usersAssignPlan.html?featureType=testplan&' .
             $ent . '&featureID=',
         'gotoExecuteAction' =>
-            '/lib/general/frmWorkArea.php?feature=executeTest&' . $entProj . '&tplan_id=',
+            '/gui/templates/execute/execTest.html?feature=executeTest&' . $entProj . '&tplan_id=',
     ];
 }
 
