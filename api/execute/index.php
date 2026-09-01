@@ -1018,10 +1018,42 @@ $linkedBugs[$bid] = [
     unset($lb);
     $linkedBugs = array_values($linkedBugs);
 
+    // Tester assignment of THIS version in the current plan/build/platform
+    // context (legacy execSetResults setTesterAssignment() via
+    // testcase::get_version_exec_assignment()). user_assignments rows are
+    // keyed by testplan_tcversions.id (= feature_id); empty/absent means the
+    // test case has "no tester assigned" and the Execute form must offer the
+    // "assign execution task to me" control. Refs #790.
+    $assignedUser = '';
+    $assignedUserId = '';
+    try {
+        $asg = $tcaseMgr->get_version_exec_assignment(
+            $tcversionId, $tplanId, $buildId);
+        $asgPlatform = $platformId > 0 ? $platformId : 0;
+        if (is_array($asg) && isset($asg[$tcversionId][$asgPlatform])) {
+            $names = [];
+            $ids = [];
+            foreach ($asg[$tcversionId][$asgPlatform] as $uu) {
+                $uid = intval($uu['user_id']);
+                if ($uid <= 0) { continue; }
+                $ids[] = $uid;
+                $aUser = tlUser::getByID($db, $uid);
+                $names[] = $aUser ? $aUser->getDisplayName() : strval($uid);
+            }
+            $assignedUser = implode(',', $names);
+            $assignedUserId = implode(',', $ids);
+        }
+    } catch (Exception $e) {
+        $assignedUser = '';
+        $assignedUserId = '';
+    }
+
     out([
         'status' => 'ok',
         'tcase' => ['id' => $tcaseId, 'name' => strval($basic['name'])],
         'linked_bugs' => $linkedBugs,
+        'assigned_user' => $assignedUser,
+        'assigned_user_id' => $assignedUserId,
         'version' => [
             'id' => $tcversionId,
             'number' => intval($vinfo['version']),
@@ -1219,6 +1251,32 @@ if ($action === 'save') {
 
     $issueTracker = null;
     write_execution($db, $execSign, $execData, $issueTracker);
+
+    // legacy "Assign execution task to me" checkbox (execSetResults.php:208-219):
+    // claim this test case version for the current user when it has NO tester
+    // assignment yet. assignment_mgr->assign() is idempotent (skips rows that
+    // already exist), so re-checking on a later save cannot duplicate rows.
+    if (isset($payload['assign_task'])
+        && in_array(strtolower(strval($payload['assign_task'])),
+                    ['1', 'true', 'on', 'yes'])) {
+        try {
+            $asgPlatform = $platformId > 0 ? $platformId : 0; // -1 => no-platform plans
+            $fid = $tplanMgr->getFeatureID($tplanId, $asgPlatform, $tcversionId);
+            if ($fid > 0) {
+                $taskMgr = new assignment_mgr($db);
+                $taskDomain = $taskMgr->get_available_types();
+                $taskStatusDomain = $taskMgr->get_available_status();
+                $fmap[$fid]['user_id'] = $fmap[$fid]['assigner_id'] = $userId;
+                $fmap[$fid]['build_id'] = $buildId;
+                $fmap[$fid]['type'] = $taskDomain['testcase_execution']['id'];
+                $fmap[$fid]['status'] = $taskStatusDomain['open']['id'];
+                $taskMgr->assign($fmap);
+            }
+        } catch (Exception $e) {
+            // assignment creation is best-effort like the rest of the save
+            // side-effects; never fail the whole execution write
+        }
+    }
 
     // read back the fresh execution row for the response
     $et = tlObjectWithDB::getDBTables(array('executions'));
