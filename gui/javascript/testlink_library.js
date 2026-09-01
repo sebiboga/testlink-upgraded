@@ -933,7 +933,7 @@ function openTCEditWindow(tcase_id,tcversion_id,tproject_id)  {
  */
 function openExecutionWindow(tc_id, tcversion_id, build_id, tplan_id, platform_id, whoiam) 
 {
-  var url = "lib/execute/execSetResults.php?" + "version_id=" + tcversion_id +
+  var url = "gui/templates/execute/execSetResults.html?" + "version_id=" + tcversion_id +
             "&level=testcase&id=" + tc_id + "&tplan_id=" + tplan_id +
             "&setting_build=" + build_id + "&setting_platform=" + platform_id +
             "&caller=" + whoiam;

@@ -328,9 +328,9 @@ function buildCell(row, col, cell) {
   var h = '<span class="badge-st st-' + esc(cell.status_code) + '">' +
           esc(cell.status_label) +
           ' <span class="ver">v' + esc(cell.version) + '</span></span>';
-  // legacy execSetResults.php parameter contract (see testlink_library.js
+  // legacy execSetResults parameter contract (see testlink_library.js
   // openExecutionWindow): level, id, version_id, setting_build, setting_platform
-  var url = '/lib/execute/execSetResults.php?level=testcase' +
+  var url = '/gui/templates/execute/execSetResults.html?level=testcase' +
     '&id=' + encodeURIComponent(row.tcase_id) +
     '&version_id=' + encodeURIComponent(cell.tcversion_id) +
     '&setting_build=' + encodeURIComponent(col.build_id) +

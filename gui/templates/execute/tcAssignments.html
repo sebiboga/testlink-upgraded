@@ -349,8 +349,8 @@ function bindRowActions() {
     var $tr = $(this).closest('tr');
     var tcv = $tr.data('tcv'), b = $tr.data('b'), p = $tr.data('p');
     var g = groupOfRow($tr);
-    var url = '/lib/execute/execSetResults.php?version_id=' + tcv +
-              '&level=testcase&id=' + $tr.data('id') +
+    var url = '/gui/templates/execute/execSetResults.html?tcase_id=' + $tr.data('id') +
+              '&version_id=' + tcv + '&level=testcase&id=' + $tr.data('id') +
               '&tplan_id=' + g + '&setting_build=' + b +
               '&setting_platform=' + p + '&caller=' +
               (showAllUsers ? 'tcAssignedToUser' : 'tcAssignedToMe');

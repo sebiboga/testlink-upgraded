@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set Results</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: auto; min-height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 12px 22px; font-size: 19px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .9; }
+.toolbar { background: #22242a; padding: 10px 22px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar label { color: #aaa; font-size: 12px; margin-right: 5px; }
+.toolbar select { height: 30px; font-size: 13px; border-radius: 4px; border: 1px solid #555; background: #31343c; color: #eee; padding: 0 8px; }
+.toolbar .ctx { color: #ccc; font-size: 12.5px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 14px 22px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 10px 18px; font-size: 13.5px; font-weight: 700; display: flex; align-items: center; gap: 9px; }
+.card-body { padding: 16px 20px 20px; }
+.desc-label { font-size: 11px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .5px; margin: 0 0 4px; }
+.desc-box { border: 1px solid #eee; border-radius: 6px; background: #fafafa; padding: 8px 12px; font-size: 13px; color: #333; white-space: pre-wrap; margin-bottom: 12px; }
+.status-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0 4px; }
+.st-btn { border: 2px solid transparent; border-radius: 5px; color: #fff; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; opacity: .55; }
+.st-btn.active { opacity: 1; border-color: #22242a; box-shadow: 0 0 0 2px rgba(78,205,196,.45); }
+.st-btn.n { background: #95a5a6; } .st-btn.p { background: #2ecc71; }
+.st-btn.f { background: #e6605e; } .st-btn.b { background: #e67e22; }
+.st-btn.u { background: #34495e; }
+.form-group { margin: 10px 0; }
+.form-group label { font-size: 12.5px; font-weight: 700; color: #22242a; display: block; margin-bottom: 4px; }
+textarea.form-control { min-height: 80px; font-size: 13px; }
+input[type=text].form-control { font-size: 13px; }
+table.steps { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.steps thead th { background: #22242a; color: #fff; text-align: left; padding: 7px 10px; font-weight: 600; font-size: 12px; }
+table.steps tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; }
+table.steps tbody tr:nth-child(even) { background: #fafafa; }
+table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; width: 50px; }
+.step-act { white-space: pre-wrap; }
+.step-status-cell { width: 250px; }
+.step-status-cell .row { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.step-status-cell select { font-size: 12px; padding: 3px 6px; border-radius: 4px; border: 1px solid #ccc; }
+.step-status-cell textarea { width: 100%; font-size: 12px; min-height: 44px; margin-top: 4px; border: 1px solid #ddd; border-radius: 4px; padding: 5px 7px; }
+.prior-box { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; }
+.prior-box .lbl { font-weight: 700; }
+.warnbox { margin: 12px 22px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.actions-bar { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
+.save-ok { color: #2d8e88; font-size: 13px; font-weight: 600; }
+.footer { padding: 10px 22px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="esr.title">Set Results</span>
+  <span class="sub" id="ctxTcase">-</span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="esr.tproject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span class="ctx"><span data-i18n="esr.tplan">Test Plan</span>: <b id="ctxPlan">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="card" id="formCard" style="display:none;">
+  <div class="card-head" id="tcInfoHead"><i class="fa fa-hand-pointer"></i> <span id="tcTitle">-</span></div>
+  <div class="card-body">
+    <div id="planCtxBar">
+      <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:4px;">
+        <span style="font-size:13px;"><label data-i18n="esr.build">Build</label>
+          <select id="selBuild" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12.5px;"></select></span>
+        <span style="font-size:13px;" id="platformCtx"><label data-i18n="esr.platform">Platform</label>
+          <select id="selPlatform" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12.5px;"></select></span>
+      </div>
+    </div>
+
+    <div class="prior-box" id="priorBox" style="display:none;"></div>
+
+    <div id="summaryBox" style="display:none;">
+      <div class="desc-label" data-i18n="esr.summary">Summary</div>
+      <div class="desc-box" id="summaryText"></div>
+    </div>
+    <div id="precondBox" style="display:none;">
+      <div class="desc-label" data-i18n="esr.preconditions">Preconditions</div>
+      <div class="desc-box" id="precondText"></div>
+    </div>
+
+    <div class="form-group" id="stepsGroup" style="display:none;">
+      <label data-i18n="esr.steps">Steps</label>
+      <table class="steps">
+        <thead>
+          <tr>
+            <th style="width:60px;">#</th>
+            <th data-i18n="esr.stepAct">Actions</th>
+            <th data-i18n="esr.stepExp">Expected result</th>
+            <th style="width:250px;" data-i18n="esr.stepRes">Result</th>
+          </tr>
+        </thead>
+        <tbody id="stepsBody"></tbody>
+      </table>
+    </div>
+
+    <div class="form-group">
+      <label data-i18n="esr.overallResult">Overall result</label>
+      <div class="status-row" id="statusRow"></div>
+    </div>
+
+    <div class="form-group">
+      <label data-i18n="esr.notes">Notes</label>
+      <textarea class="form-control" id="txtNotes" data-i18n-placeholder="esr.notesPlaceholder"></textarea>
+    </div>
+
+    <div class="form-group" id="execDurGroup" style="display:none;">
+      <label data-i18n="esr.execDuration">Execution time (minutes)</label>
+      <input type="text" class="form-control" id="txtExecDuration" style="max-width:180px;" value="0">
+    </div>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnSave"><i class="fa fa-floppy-disk"></i> <span data-i18n="esr.btnSave">Save result</span></button>
+      <button class="btn-dark" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="common.cancel">Cancel</span></button>
+      <span class="save-ok" id="saveOk" style="display:none;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  <span data-i18n="esr.footer">TestLink 2.0.1 - Set Results</span>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i><span data-i18n="esr.saving">Saving... please wait.</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  tplanId: parseInt(qs('tplan_id') || '0', 10),
+  tcaseId: parseInt(qs('tcase_id') || qs('id') || '0', 10),
+  tcversionId: parseInt(qs('tcversion_id') || qs('version_id') || '0', 10),
+  buildId: parseInt(qs('build_id') || qs('setting_build') || '0', 10),
+  platformId: parseInt(qs('platform_id') || qs('setting_platform') || '0', 10),
+  info: null,
+  statusCode: '',
+  statusLabels: {},
+  prior: null
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-triangle-exclamation"></i> ' + esc(msg)).show();
+  $('.header, .toolbar').css('filter', 'grayscale(.4)');
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#btnSave').on('click', doSave);
+  $('#btnClose').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function loadInfo() {
+  var q = '?action=init&tplan_id=' + ctx.tplanId +
+          '&id=' + ctx.tcaseId + '&version_id=' + ctx.tcversionId;
+  if (ctx.buildId) q += '&setting_build=' + ctx.buildId;
+  if (ctx.platformId) q += '&setting_platform=' + ctx.platformId;
+  $.get('/api/execsetresults/' + q)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('esr.errLoad')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.tproject.id;
+      ctx.tplanId = r.tplan.id;
+      ctx.tcaseId = r.tcase.id;
+      ctx.tcversionId = r.tcversion.id;
+      render(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('esr.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function render(r) {
+  document.title = TLi18n.t('esr.title') + ' - ' + r.tcase.name;
+
+  // ctx bar
+  $('#ctxProject').text(r.tproject.name);
+  $('#ctxPlan').text(r.tplan.name + ' / v' + r.tcversion.version);
+  $('#ctxTcase').text(r.tproject.prefix + '-' + r.tcase.external_id);
+
+  $('#tcTitle').html(
+    '<span style="color:#4ECDC4;">' + esc(r.tcase.external_id) + '</span>' +
+    '<span style="margin:0 6px;color:#777;">|</span>' + esc(r.tcase.name) +
+    ' <span class="sub" style="font-size:12px;opacity:.9;">(v' + r.tcversion.version + ')</span>');
+
+  // build selector (only executable builds)
+  $('#selBuild').empty();
+  var hasExec = false;
+  (r.builds || []).forEach(function (b) {
+    if (!b.executable) return;
+    hasExec = true;
+    $('#selBuild').append('<option value="' + b.id + '">' + esc(b.name) + '</option>');
+  });
+  if (!hasExec) {
+    $('#selBuild').append('<option value="0">' + esc(TLi18n.t('esr.noExecBuild')) + '</option>');
+  }
+  $('#selBuild').val(String(r.default_build_id));
+
+  // platform selector
+  $('#platformCtx').toggle(!!(r.platforms && r.platforms.length > 0));
+  if (r.platforms && r.platforms.length > 0) {
+    $('#selPlatform').empty();
+    (r.platforms).forEach(function (p) {
+      $('#selPlatform').append('<option value="' + p.id + '">' + esc(p.name) + '</option>');
+    });
+    $('#selPlatform').val(String(ctx.platformId || r.platforms[0].id));
+  }
+
+  // read-only gate for exec_ro_access (no WRITE right)
+  var canExec = r.grants && r.grants.can_execute;
+  if (!canExec) {
+    $('#btnSave').prop('disabled', true).css('opacity', .5);
+    $('#statusRow').addClass('readonly');
+  }
+
+  // status vocabulary + buttons
+  ctx.statusLabels = {};
+  $('#statusRow').empty();
+  (r.statuses || []).forEach(function (s) {
+    ctx.statusLabels[s.code] = s.label;
+    $('#statusRow').append(
+      '<button type="button" class="st-btn st-"' + esc(s.code) + ' data-code="' + esc(s.code) +
+      '" title="' + esc(s.label) + '">' + esc(s.label) + '</button>');
+  });
+  $('#statusRow .st-btn').off('click').on('click', function () {
+    $('#statusRow .st-btn').removeClass('active');
+    $(this).addClass('active');
+    ctx.statusCode = $(this).data('code');
+  });
+
+  // summary / preconditions
+  if (r.tcversion.summary) {
+    $('#summaryBox').show();
+    $('#summaryText').text(r.tcversion.summary);
+  }
+  if (r.tcversion.preconditions) {
+    $('#precondBox').show();
+    $('#precondText').text(r.tcversion.preconditions);
+  }
+
+  // steps
+  if (r.steps && r.steps.length > 0) {
+    $('#stepsGroup').show();
+    var st = r.steps.map(function (s) {
+      var prior = (r.prior_steps || {})[s.id] || {};
+      return '<tr>' +
+        '<td class="step-num">' + s.step_number + '</td>' +
+        '<td class="step-act">' + esc(s.actions) + '</td>' +
+        '<td class="step-act">' + esc(s.expected_results) + '</td>' +
+        '<td class="step-status-cell">' +
+          '<div class="row"><select data-step="' + s.id + '">' + statusOptions(prior.status) + '</select></div>' +
+          '<textarea data-stepnotes="' + s.id + '" placeholder="' + esc(TLi18n.t('esr.stepNotes')) + '">' +
+            esc(prior.notes) + '</textarea>' +
+        '</td></tr>';
+    }).join('');
+    $('#stepsBody').html(st);
+  }
+
+  // prior execution box
+  if (r.prior) {
+    ctx.prior = r.prior;
+    $('#priorBox').html(
+      '<i class="fa fa-circle-info"></i> <span class="lbl">' + esc(TLi18n.t('esr.priorExec')) + ':</span> ' +
+      esc(statusLabel(r.prior.status)) +
+      ' &middot; ' + esc(TLi18n.t('esr.by')) + ' ' + esc(r.prior.tester_login) +
+      (r.prior.execution_ts ? ' &middot; ' + esc(r.prior.execution_ts) : '') +
+      (r.prior.notes ? '<br><span style="font-weight:400;">' + esc(r.prior.notes) + '</span>' : '')).show();
+    var priorStatus = String(r.prior.status).toLowerCase();
+    $('#statusRow .st-btn[data-code="' + priorStatus + '"]').addClass('active');
+    ctx.statusCode = priorStatus;
+    $('#txtNotes').val(r.prior.notes || '');
+    if (r.prior.execution_duration) $('#txtExecDuration').val(r.prior.execution_duration);
+  }
+
+  if (r.exec_duration_enabled) $('#execDurGroup').show();
+
+  $('#formCard').show();
+}
+
+function statusLabel(code) {
+  return ctx.statusLabels[code] || code || '';
+}
+
+function statusOptions(code) {
+  var opts = '';
+  Object.keys(ctx.statusLabels).forEach(function (c) {
+    opts += '<option value="' + esc(c) + '"' + (String(code).toLowerCase() === c ? ' selected' : '') + '>' +
+            esc(ctx.statusLabels[c]) + '</option>';
+  });
+  return opts;
+}
+
+function doSave() {
+  if ($('#btnSave').prop('disabled')) return;
+  if (ctx.statusCode === '') { toast(TLi18n.t('esr.errNoStatus'), true); return; }
+
+  var steps = {};
+  $('#stepsBody select[data-step]').each(function () {
+    steps[$(this).data('step')] = { status: $(this).val(), notes: $(this).closest('td').find('[data-stepnotes]').val() || '' };
+  });
+
+  var buildId = parseInt($('#selBuild').val() || '0', 10);
+  var platformId = 0;
+  if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
+    platformId = parseInt($('#selPlatform').val() || '0', 10);
+  }
+
+  var payload = {
+    tplan_id: ctx.tplanId,
+    tcase_id: ctx.tcaseId,
+    tcversion_id: ctx.tcversionId,
+    version_number: ctx.info.tcversion.version,
+    build_id: buildId,
+    platform_id: platformId,
+    status: ctx.statusCode,
+    notes: $('#txtNotes').val() || '',
+    execution_duration: $('#txtExecDuration').val() || '',
+    steps: steps
+  };
+
+  $('#btnSave').prop('disabled', true);
+  $('#loadingOverlay').show();
+
+  $.ajax({
+    url: '/api/execsetresults/?action=save',
+    method: 'POST',
+    data: JSON.stringify(payload),
+    contentType: 'application/json',
+    dataType: 'json'
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#btnSave').prop('disabled', false);
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('esr.errSave'), true); return; }
+    if (r.saved === false) {
+      // not_run result: legacy parity - nothing written
+      toast(TLi18n.t('esr.savedNotRun'));
+      return;
+    }
+    $('#saveOk').text(TLi18n.t('esr.saveDone')).show();
+    toast(TLi18n.t('esr.saveDone'));
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#btnSave').prop('disabled', false);
+    var msg = TLi18n.t('esr.errSave');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
+}
+</script>
+</body>
+</html>

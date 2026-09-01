@@ -217,7 +217,7 @@ function cellHtml(row, key, plan) {
 function tcCell(r) {
   var tcUrl = '/gui/templates/testcases/tcView.html?tcase_id=' + r.tc_id + '&tproject_id=' + tprojectId;
   var histUrl = '/gui/templates/execute/execHistory.html?tcase_id=' + r.tc_id + '&tproject_id=' + tprojectId;
-  var execUrl = '/lib/execute/execSetResults.php?version_id=' + r.tcversion_id +
+  var execUrl = '/gui/templates/execute/execSetResults.html?tcase_id=' + r.tc_id + '&tcversion_id=' + r.tcversion_id +
                 '&level=testcase&id=' + r.tc_id + '&tplan_id=' + r.tplan_id +
                 '&setting_build=' + r.build_id + '&setting_platform=' + (r.platform_id||0) +
                 '&caller=assignedTcOverview';
