@@ -34,7 +34,9 @@ which also require a current test-plan context.
 
 Add a shell-level helper `reloadAside()` in `gui/templates/dashio/main.tpl`
 that reloads `iframe#asidebar` (same-origin, guarded for a missing frame or
-cross-origin errors), and call it from `gui/templates/plans/planView.html`
+cross-origin errors) and re-syncs the active menu highlight once it finishes
+loading (the highlight is normally re-applied on every mainframe onload, so it
+would otherwise desync), and call it from `gui/templates/plans/planView.html`
 `submitPlan()` in the **create** branch (`!editId`) only. After it runs,
 `asideMenu.php` re-executes `initProject()` against a database that now has at
 least one plan, so the full Test Plan sub-menu (and the Test Case Execution /
@@ -51,7 +53,7 @@ there is no i18n impact.
 ## Files Changed
 
 - `gui/templates/dashio/main.tpl` — added `reloadAside()` (reloads the aside
-  iframe).
+  iframe and re-syncs the active-link highlight after the reload).
 - `gui/templates/plans/planView.html` — `submitPlan()` create branch calls
   `window.parent.reloadAside()` when available.
 
