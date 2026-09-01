@@ -272,7 +272,8 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
             }
         } else {
             if ($status_ok) {
-                $msg[] = array($labels['no_executables'], $labels['not_imported']);
+                // Legacy parity: when the XML has no <executables> section
+                // nothing is reported (planImport.php silently skips).
             }
         }
     } else {
@@ -328,7 +329,7 @@ $labelKeys = array(
     'tproject_has_zero_testcases', 'platform_not_on_tproject', 'platform_linked',
     'platform_not_linked', 'tcase_doesnot_exist', 'tcversion_doesnot_exist',
     'not_imported', 'link_to_tplan_feedback', 'link_to_platform',
-    'tcversion_status_forbidden', 'cant_link_to_tplan_feedback', 'no_executables'
+    'tcversion_status_forbidden', 'cant_link_to_tplan_feedback'
 );
 
 if ($method_check = true) { } // no-op, kept for clarity
