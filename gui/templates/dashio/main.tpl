@@ -105,6 +105,14 @@
     } catch (e) {
       /* cross-origin or not ready - ignore */
     }
+    // The aside loses its active-link highlight when it re-renders (the
+    // highlight is re-applied on every mainframe onload). Re-apply it once
+    // the aside has finished loading so the currently open entry stays lit.
+    try {
+      asideFrame.addEventListener('load', syncAsideActiveLink, { once: true });
+    } catch (e) {
+      /* ignore - cosmetics only */
+    }
   }
   </script>
 </head>
