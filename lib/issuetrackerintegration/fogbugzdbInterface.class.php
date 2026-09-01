@@ -22,7 +22,11 @@ class fogbugzdbInterface extends issueTrackerInterface
 	    parent::__construct($type,$config,$name);
 
 		$this->interfaceViaDB = true;
-		$this->methodOpt['buildViewBugLink'] = array('addSummary' => true, 'colorByStatus' => true);
+		// keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+		// warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+		$this->methodOpt['buildViewBugLink'] = array_merge(
+		    $this->methodOpt['buildViewBugLink'],
+		    array('addSummary' => true, 'colorByStatus' => true));
 	    $this->guiCfg = array('use_decoration' => true);
 	}
 

@@ -36,7 +36,11 @@ class bugzilladbInterface extends issueTrackerInterface
       
       $this->interfaceViaDB = true;
       $this->guiCfg = array('use_decoration' => true); // add [] on summary
-      $this->methodOpt['buildViewBugLink'] = array('addSummary' => true, 'colorByStatus' => false);
+      // keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+      // warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+      $this->methodOpt['buildViewBugLink'] = array_merge(
+          $this->methodOpt['buildViewBugLink'],
+          array('addSummary' => true, 'colorByStatus' => false));
     }
   }
 

@@ -53,7 +53,11 @@ class tracxmlrpcInterface extends issueTrackerInterface
       return false;
     }  
 
-    $this->methodOpt['buildViewBugLink'] = array('addSummary' => true, 'colorByStatus' => false);
+    // keep parent defaults (addReporter/addHandler) to avoid "Undefined array key"
+    // warnings in issueTrackerInterface::buildViewBugLink() when rendering links
+    $this->methodOpt['buildViewBugLink'] = array_merge(
+        $this->methodOpt['buildViewBugLink'],
+        array('addSummary' => true, 'colorByStatus' => false));
     
     $this->defaultResolvedStatus = array();
     $this->defaultResolvedStatus[] = array('code' => 'r', 'verbose' => 'resolved');
