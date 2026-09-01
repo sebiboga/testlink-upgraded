@@ -8808,3 +8808,30 @@ Notes:
 
 - **Result:** **9/9 PASS** (TC-790.1–790.9)
 - **Note:** The form keeps its `current` snapshot (assignment state captured at open time) until the next `openCase()`, consistent with the rest of the screen (list reloads, form does not). After reload the correct assignee view renders.
+
+## Suite 813 — planExport screen — Test Plan Export (modernized from lib/plan/planExport.php, Refs #754)
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Modernized Test Plan Export screen (`gui/templates/plans/planExport.html` + `api/planexport/index.php`). Mirrors legacy `lib/plan/planExport.php` export modes (`linkedItems` | `tree` | `4results`), default filename building (`<content>_<tplan>_<platform>_<build>.xml`), and streams the XML as a file download. Also fixes planView toolbar redirects: export → planExport.html, assign roles → usersAssignPlan.html, execute → execTest.html (Refs #754).
+- **Preconditions:** logged-in admin; fixtures created directly in DB: test project `TP Export Demo` (id 100, prefix PEXP), testsuite `Suite A` (node 110 + `testsuites` row), test cases `TC Alpha`/`TC Beta` (nodes 120/121, tcversions 130/131), test plan `Plan Export Demo` (id 140) with both TCs linked.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-813.1 | Info endpoint loads (auth) | `GET /api/planexport/?action=info&tplan_id=140&tproject_id=100` | `status:ok`; `tplan.name=Plan Export Demo`; `filename=linkedItems_Plan_Export_Demo.xml`; `types.XML` present. | PASS (curl) |
+| TC-813.2 | Unauthenticated rejected | `GET /api/planexport/?action=info&tplan_id=140` with fresh curl (no session) | HTTP 401, `status:error`, `message:Not authenticated`. | PASS |
+| TC-813.3 | Unknown plan → 404 | `GET /api/planexport/?action=info&tplan_id=99999` | HTTP 404, `message:Test plan not found`. | PASS |
+| TC-813.4 | linkedItems export streams XML | `POST /api/planexport/` `action=export&tplan_id=140&exportContent=linkedItems&export_filename=mytest.xml` | HTTP 200; `Content-Type: application/xml`; `Content-Disposition: attachment; filename="mytest.xml"`; body `<testplan>` with `<executables>` listing `TC Alpha` (extid 1) and `TC Beta` (extid 2). | PASS |
+| TC-813.5 | tree export full contents | `POST ...&exportContent=tree&export_filename=tree.xml` | Body `<testplan><testsuites>` with `<testsuite name="Suite A">` containing both `<testcase>` blocks incl. summary/preconditions and `<fullexternalid>`. | PASS |
+| TC-813.6 | Invalid content mode falls back | `POST ...&exportContent=XYZ` | Falls back to `linkedItems` (body contains `<executables>`/`<externalid>`); no error. | PASS |
+| TC-813.7 | Header-injection sanitized | `POST ...&export_filename=test\nInjected: bad.xml` | Single-line `filename="testInjected:_bad.xml"`; no CR/LF/`Injected` header emitted. | PASS |
+| TC-813.8 | UI renders + default filename | Open `planExport.html?tproject_id=100&tplan_id=140` | Header "Export Test Plan" + plan name; toolbar shows project/plan; File name = `linkedItems_Plan_Export_Demo.xml`; File type=XML; Export content=Linked items; Export/Cancel buttons + footer. | PASS |
+| TC-813.9 | UI linkedItems download | Click Export (defaults) | Network `POST /api/planexport/` 200 with `content-disposition:attachment`, `content-type:application/xml`; blob saved. | PASS |
+| TC-813.10 | UI tree mode download | Set Export content=tree, filename=tree_demo.xml, click Export | Network 200 body `<testplan>` with `<testsuites>` incl. both testcases with details; headers correct. | PASS |
+| TC-813.11 | Empty filename blocked | Clear filename, click Export | Toast "File name is required."; no request sent. | PASS |
+| TC-813.12 | planView action URLs | `GET /api/plans/?tproject_id=100` → `actions` | `exportAction=/gui/templates/plans/planExport.html?tproject_id=100&tplan_id=`; `assignRolesAction=...usersAssignPlan.html?tproject_id=100&tplan_id=`; `gotoExecuteAction=...execTest.html?...&tplan_id=` (clean bases, no duplicate `tplan_id`). | PASS |
+| TC-813.13 | i18n keys in all bundles | Grep `pex.*` in de/en/es/fr/it/ja/pt/ro/ru/zh | 18 keys present in all 10 bundles; all `python3 -m json.tool` valid. | PASS |
+| TC-813.14 | Event Viewer clean | After full export exercise (with complete `testsuites` fixture row) | 0 new Error/Warning rows in `events` (only INFO login audit). | PASS |
+
+- **Result:** **14/14 PASS** (TC-813.1–813.14)
+- **Note:** A PHP `E_WARNING` (testplan.class.php:4026-4027, array offset on null) appeared during the first `tree` export because the fixture testsuite node lacked its `testsuites.details` row. After adding the row (matching a properly-populated TestLink), 0 warnings. Not a defect in the BFF.
