@@ -62,7 +62,7 @@ All endpoints are GET unless stated otherwise; session auth required;
 |---|---|---|
 | `init` | `tplan_id` | project/plan context, grants, builds (+executable flag, default build = newest active+open), platforms, localized status vocabulary |
 | `tcList` | `tplan_id`, `build_id`, `platform_id`, optional `q` | latest linked version per case: external id, name, suite path, importance, execution type, last execution (status/ts/tester) |
-| `tcDetails` | `tplan_id`, `tcase_id`, `tcversion_id`, `build_id`, `platform_id` | version block, ordered steps, prior execution incl. prior step results, and `exec_history` (all executions of this tcversion in the plan, DESC, with per-row run-mode/version/build/tester/status + `can_edit_notes`/`can_delete` grants) |
+| `tcDetails` | `tplan_id`, `tcase_id`, `tcversion_id`, `build_id`, `platform_id` | version block, ordered steps, prior execution incl. prior step results, `linked_bugs` (consolidated, deduped by bug id: `id`,`url`,`title`,`labels`,`label_colors`,`status`,`color`,`unavailable`,`steps`,`exec_count`) and `exec_history` (all executions of this tcversion in the plan, DESC, with per-row run-mode/version/build/tester/status + `can_edit_notes`/`can_delete` grants) |
 | `save` (POST JSON) | `tplan_id,tcase_id,tcversion_id,version_number,build_id,platform_id,status(code),notes,steps{stepId:{status,notes}}` | `saved:true` + execution id/ts, or `reason:'not_run'`; validates executable build + plan link; delegates to `write_execution()` |
 | `deleteExecution` (POST JSON) | `tplan_id`, `execution_id` | `deleted:true`; gates: `testplan_execute` + `exec_delete` (public-plan-aware), execution must belong to the plan, build must be open; delegates to `delete_execution()` and logs an AUDIT event **only on success** |
 | `updateNotes` (POST JSON) | `tplan_id`, `execution_id`, `notes` | `updated:true`; gates: `testplan_execute` + `exec_edit_notes`, execution must belong to the plan, build must be open; delegates to `updateExecutionNotes()` |
@@ -88,10 +88,32 @@ bug linking inside the form, execution custom fields in the form, bulk mode.
 Execution-level attachment upload/list + "Copy attachments from latest
 execution" are implemented (see `Bugfix-Issue-792-Execute-Tests-Attachments.md`).
 
+## 3b. Linked Bugs table (test-case details)
+
+The test-case details panel renders a **Linked bugs** DataTables card
+(Bug ID / Title / Labels / Status / Step), fed **real-time from the GitHub
+API** (no caching) via the `tcDetails` `linked_bugs` array:
+
+- Bug ID is a clickable GitHub link (`bug_url`), unless the issue is deleted.
+- **Deleted / rejected GitHub issues** (API returns HTTP `410`) set
+  `unavailable:true` → the row shows a grey **Deleted** status badge, an
+  "Unavailable" title and **no dead link** (`#805`/`#806` are deleted on
+  GitHub and demonstrate this; live issues show real title/labels/status).
+- **Labels** render as GitHub-colored badges. `githubrestInterface::getIssue()`
+  and `listIssues()` expose `label_colors` (name→hex) alongside `labels`;
+  `execTest.html renderLinkedBugsTable()` uses the same map; unknown/missing
+  color falls back to grey `#6c757d`.
+- BFF dedupes by bug id and aggregates the steps each bug is bound to
+  (`steps`) plus the number of executions (`exec_count`).
+- The same `unavailable` + GitHub label-color handling is mirrored in the
+  Dashboard (`mainPage.html` bugs + issues tables, `dash.bugDeleted` /
+  `dash.bugUnavailable`).
+
 ## 4. i18n Keys
 
 All strings use the `exe.*` prefix, defined in ALL ten client bundles:
-`en, de, es, fr, it, ja, pt, ro, ru, zh` (44 keys each), consumed through
+`en, de, es, fr, it, ja, pt, ro, ru, zh` (46 keys each after the Linked Bugs
+table keys `exe.bugDeleted` / `exe.bugUnavailable`), consumed through
 `TLi18n`. Server-side labels (statuses) come from `lang_get('test_status_*')`
 like legacy `localize_tc_status()`.
 
