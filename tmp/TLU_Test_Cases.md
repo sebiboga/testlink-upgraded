@@ -8717,3 +8717,24 @@ Notes:
 | TC-802.6 | Unchanged-tracker regression | Confirm GitHub (`githubrestInterface`) still uses accepted array_merge (untouched by this change) and jirarest/kaitenrest/trellorest/mantisrest/mantissoap remain safe | No adapter reverts to plain array; all key-preserving. | PASS |
 
 - **Result:** **6/6 PASS**
+
+---
+
+## Regression — Issue #789: execHistory shows step number for step-bound linked bugs
+
+- **Priority:** Medium
+- **Importance:** Medium
+- **Scope:** `gui/templates/execute/execHistory.html` — `renderDetail()` bugs loop now renders the step number beside a step-bound linked bug. The #789 feature (GitHub bug filing/linking from the modernized Execute Tests screen) already persisted per-step `execution_bugs(tcstep_id)` rows and the `?action=history` BFF already returned `tcstep_id`/`step_number`, but `execHistory.html`'s Bugs block only rendered `link_to_bts`/`id` with no step marker — so a step-bound bug looked identical to a case-level bug. Fix appends a `· st. {n}` marker (`exe.bugOnStepShort`) only when `step_number > 0`.
+- **Preconditions (wrap-up on branch `fix/issue-789`):** fixture project `BUG789` (id 17, prefix B79), GitHub tracker GH789 (id 3, type 25), suite 18, TC789-Bug (19/20), plan PLAN789 (24), build B789 (2), FAILED execution id=2 with steps 21/22/23. `execution_bugs`: `#789`→tcstep_id=0 (case), `#788`→tcstep_id=22 (step 2), `#802`→tcstep_id=22 (step 2).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-789-S.1 | JS syntax gate | `node --check` on the inline `<script>` body of `renderDetail()` (extracted) | No syntax errors. | PASS ("JS SYNTAX OK") |
+| TC-789-S.2 | API supplies step numbers | `GET /api/execute/?action=history&tcase_id=19&tproject_id=17` | Each bug carries `tcstep_id` and `step_number` (788→2, 802→2, 789→0). | PASS |
+| TC-789-S.3 | Case-level bug renders without step marker | Open `execHistory.html?tcase_id=19&tproject_id=17`, expand the execution's Bug detail | Bug #789 (step_number=0) renders as a link with **no** `bug-step-mark` span. | PASS (rendered `#detail_0` HTML: #789 anchor closes with no marker) |
+| TC-789-S.4 | Step-bound bugs render `· st. N` | Same view, inspect `#detail_0` innerHTML | Bugs #788 and #802 (step 2) each render `<span class="bug-step-mark">· st. 2</span>` after their link. | PASS (2 `bug-step-mark` spans, both `· st. 2`) |
+| TC-789-S.5 | i18n key present | Check `exe.bugOnStepShort` in en/ro/de/fr/es/it/pt/ja/ru/zh | Key exists in all 10 bundles; all `python3 -m json.tool` valid. | PASS (all 10, no new keys added) |
+| TC-789-S.6 | Event Viewer clean | After fix + renders, check `events` table | No new Error/Warning rows (log_level 2/4/8/32); only audit (16). | PASS (0 error/warning rows) |
+
+- **Result:** **6/6 PASS**
+- **Note:** A pre-existing, unrelated console `SyntaxError: Failed to execute 'appendChild' on 'Node': Unexpected identifier 'events'` appears when rendering these executions whose `link_to_bts` embeds the full raw GitHub issue body (escaped `<br>`, backticks, quotes) into the anchor; it reproduces **identically on the unmodified HEAD file** and is NOT introduced by this fix (jQuery `.html()` parser fragility on the server-generated anchor content). Out of scope for #789.
