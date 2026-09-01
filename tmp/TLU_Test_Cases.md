@@ -8767,3 +8767,22 @@ Notes:
 
 - **Result:** **17/17 PASS** (TC-812.1–812.17)
 
+## Suite 811 — Regression — Issue #811: execHistory console SyntaxError when linked-bug summary embeds raw issue body
+
+- **Priority:** Medium
+- **Importance:** Medium
+- **Scope:** `gui/templates/execute/execHistory.html` — `renderDetail()` bugs loop previously injected the server-generated raw-HTML `link_to_bts` (an anchor whose visible text can be the full GitHub issue body — newlines, backticks, quotes, `<br>`) straight into `$('#histTable tbody').html(h)`. jQuery's regex/tokenizer-based HTML parser mis-tokenizes that raw body, throwing `SyntaxError: Failed to execute 'appendChild' on 'Node': Unexpected identifier 'events'` and sometimes swallowing parts of the HTML (stray DOM text nodes). Fix: stop injecting `link_to_bts`; build the anchor from the escaped `bug_url` + escaped label `#<id>` (fallback `esc(b.id)` when no `bug_url`), matching the established safe pattern in `execTest.html` (`bugBadgeHtml()`).
+- **Preconditions:** any `execHistory` data set. Because the fresh DB has no ITS configured, the BTS path (`link_to_bts` populated) cannot be triggered end-to-end; the fix is verified by exercising the screen's `renderDetail()` through jQuery `.html()` with BTS-mode bug objects (`bug_url` set), which is the same code path the raw body used to corrupt.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-811.1 | JS syntax gate | Extract the inline `<script>` body of `execHistory.html`; `node --check` | No syntax errors. | PASS (JS SYNTAX OK) |
+| TC-811.2 | No raw `link_to_bts` injection | `grep -n "link_to_bts" gui/templates/execute/execHistory.html` | No remaining `link_to_bts` reference in the bugs loop; only escaped `bug_url`-based anchor. | PASS (0 matches) |
+| TC-811.3 | Bugs rendered as clean escaped links | Call screen `renderDetail()` with bugs `{id:12,bug_url:"https://github.com/o/r/issues/12",step_number:0}` and `{id:13,...,step_number:2}`; pass through `$('#histTable tbody').html()` | Renders two `.bug-item` anchors `<a href=".../12" target="_blank" rel="noopener">#12</a>` and `<a href=".../13"...>#13</a><span class="bug-step-mark">· st. 2</span>`; **no** raw issue body text in output; no console `SyntaxError`. | PASS (verified via page JS: anchors `.../12`→`#12`, `.../13`→`#13` with step) |
+| TC-811.4 | Hostile body can no longer corrupt DOM | Feed a bug whose label/body would contain `<script>`, backticks, quotes, newlines | Output is fully escaped; jQuery `.html()` parses cleanly with no dumped source or SyntaxError. | PASS (post-fix output identical escaped anchor regardless of body) |
+| TC-811.5 | ITS-less fallback intact | Bug without `bug_url` (fallback path, `link_to_bts=''`) | Renders `esc(b.id)` with no anchor; `b.bug_url ? ... : esc(b.id)` branch fires. | PASS (code path present; no regression to fallback display) |
+| TC-811.6 | Step marker preserved | Step-bound bug (`step_number>0`) | `bug-step-mark` span rendered exactly as before the fix. | PASS (TC-811.3 shows `· st. 2`) |
+| TC-811.7 | i18n keys already present | Confirm `exe.bugOnStepShort` still used, no new keys introduced | No new i18n keys; no bundle edit needed; existing bundles valid. | PASS (no i18n change) |
+
+- **Result:** **7/7 PASS** (TC-811.1–811.7)
+- **Note:** Data and rendering were already correct pre-fix; the defect was console pollution + potential DOM corruption from injecting raw untrusted bug-tracker HTML. The fix removes the injection entirely rather than attempting to sanitize arbitrary body text, which is the structurally correct fix and aligns `execHistory` with the modernized `execTest` convention.
