@@ -140,7 +140,7 @@ function buildGrid(&$db, &$tcaseMgr, &$tplanMgr, &$tprojectMgr, $tcaseId, $tcver
     $plans = [];
 
     if (is_null($tplanSet)) {
-        return ['plans' => [], 'linked' => [], 'can_do' => false];
+        return ['plans' => [], 'can_do' => false];
     }
 
     $hasLinks = array_fill_keys(array_keys($tplanSet), false);
@@ -268,7 +268,7 @@ switch ($action) {
             resolveContext($db, $user, $tcaseId, $tcverId, $tprojId);
 
         $body = bffBody();
-        $add2tplanid = $body['add2tplanid'] ?? (isset($_POST['add2tplanid']) ? $_POST['add2tplanid'] : null);
+        $add2tplanid = $body['add2tplanid'] ?? null;
         if (!is_array($add2tplanid) || count($add2tplanid) === 0) {
             out(['status' => 'error', 'message' => 'No test plan selected',
                  'error_code' => 'NO_PLAN_SELECTED'], 400);
