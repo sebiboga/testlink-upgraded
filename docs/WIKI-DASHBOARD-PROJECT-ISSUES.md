@@ -1,7 +1,7 @@
 # Dashboard — "Project open issues" Widget (Refs #772)
 
-The **Project open issues** widget is the fifth card of the modernized Dashboard
-(`gui/templates/mainpage/mainPage.html`). It shows **all open issues on the
+The **Project open issues** widget is the fourth data card of the modernized Dashboard
+(`gui/templates/mainpage/mainPage.html`, `#secIssues`). It shows **all open issues on the
 project's linked issue tracker**, independent of the selected test plan, and is
 backed by the Dashboard BFF (`api/mainpage/index.php` → `getProjectIssuesData()`).
 

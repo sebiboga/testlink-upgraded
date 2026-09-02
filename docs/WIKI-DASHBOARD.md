@@ -1,4 +1,6 @@
-# Dashboard — Landing Page (Main Page)
+# Dashboard — Landing Page (Main Page) — Docs (Wiki Mirror)
+
+> Mirror of the GitHub Wiki page [Dashboard](https://github.com/sebiboga/testlink-upgraded.wiki/blob/master/Dashboard.md). Image lines omitted per project convention.
 
 The **Dashboard** is the ASIDE **mainframe landing** — the first screen shown in the
 main frame after login and after any project/test-plan change. It gives a visual
@@ -6,8 +8,6 @@ overview of the current test plan's execution status and the test project's test
 case growth over time. It was re-implemented in 2.0.1 as a standalone Dashio HTML +
 JS + CSS screen backed by a plain-PHP REST BFF (replacing the legacy 1.9.20
 `lib/general/mainPage.php` + Smarty).
-
-![Dashboard Screenshot](screenshot-dashboard-modernized.png)
 
 **Path:** Dashboard — main frame landing (not an ASIDE child item)
 **URL:** `gui/templates/mainpage/mainPage.html` (loaded inside the main frame)
