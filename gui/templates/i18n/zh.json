@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "按级别分类的事件",
   "ev.eventsCount": "{n} 个事件",
   "ev.eventsPerDay": "每日事件（最近30天）",
+  "ev.filteredByObject": "按 {type} #{id} 筛选",
   "ev.from": "从",
   "ev.level": "级别",
   "ev.logLevels": "日志级别",

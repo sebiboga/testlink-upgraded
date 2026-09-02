@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "レベル別イベント",
   "ev.eventsCount": "{n} 件のイベント",
   "ev.eventsPerDay": "1日あたりのイベント（過去30日）",
+  "ev.filteredByObject": "{type} #{id} でフィルタリング",
   "ev.from": "開始",
   "ev.level": "レベル",
   "ev.logLevels": "ログレベル",

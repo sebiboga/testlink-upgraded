@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "Ereignisse nach Stufe",
   "ev.eventsCount": "{n} Ereignisse",
   "ev.eventsPerDay": "Ereignisse pro Tag (letzte 30 Tage)",
+  "ev.filteredByObject": "Gefiltert nach {type} #{id}",
   "ev.from": "Von",
   "ev.level": "Stufe",
   "ev.logLevels": "Logstufen",

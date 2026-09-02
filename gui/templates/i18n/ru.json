@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "События по уровням",
   "ev.eventsCount": "{n} событий",
   "ev.eventsPerDay": "События за день (последние 30 дней)",
+  "ev.filteredByObject": "Отфильтровано по {type} #{id}",
   "ev.from": "От",
   "ev.level": "Уровень",
   "ev.logLevels": "Уровни журнала",

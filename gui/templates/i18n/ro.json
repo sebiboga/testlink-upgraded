@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "Evenimente pe Nivel",
   "ev.eventsCount": "{n} evenimente",
   "ev.eventsPerDay": "Evenimente pe Zi (ultimele 30 zile)",
+  "ev.filteredByObject": "Filtrat dupa {type} #{id}",
   "ev.from": "De la",
   "ev.level": "Nivel",
   "ev.logLevels": "Niveluri Log",

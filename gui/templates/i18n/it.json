@@ -384,6 +384,7 @@
   "ev.eventsByLevel": "Eventi per livello",
   "ev.eventsCount": "{n} eventi",
   "ev.eventsPerDay": "Eventi al giorno (ultimi 30 giorni)",
+  "ev.filteredByObject": "Filtrato per {type} #{id}",
   "ev.from": "Da",
   "ev.level": "Livello",
   "ev.logLevels": "Livelli di log",
