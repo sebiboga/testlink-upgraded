@@ -196,9 +196,10 @@ var tprojectId = 0;
 var tplanId = 0;
 var ctx = null;
 var resTbl = null;
+var p = null;
 
 $(function () {
-  var p = new URLSearchParams(window.location.search);
+  p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
   TLi18n.load(function () {
@@ -364,7 +365,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + TLi18n.t('search.matchCount', {n: r.count}) + ')');
 
-  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
 
   if (!r.rows || r.rows.length === 0) {
     $('#resultsWrap').hide();
@@ -379,7 +380,7 @@ function renderResults(r) {
     var path = esc(row.path);
     var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcEdit(' +
                   row.testcase_id + ',' + row.tcversion_id + ')">' +
-                  esc(row.full_external_id) + ' [v' + row.version + '] :: ' + esc(row.name) + '</a>';
+                  esc(row.full_external_id) + ' [v' + esc(row.version) + '] :: ' + esc(row.name) + '</a>';
     var summary = esc(stripHtml(row.summary));
     var actions =
       '<button class="icon-btn" title="' + esc(TLi18n.t('search.editTC')) +
@@ -389,15 +390,40 @@ function renderResults(r) {
     return [path, tcLabel, summary, row.version, actions];
   });
 
-  resTbl = $('#resTable').DataTable({
-    destroy: true,
-    data: rows,
-    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
-    columnDefs: [
-      { targets: 3, className: 'text-center', width: '70px' },
-      { targets: 4, orderable: false }
-    ]
+  // Render the plain <tbody> rows first so results are never lost even when
+  // the DataTables CDN (external) is slow/unavailable. Previously the
+  // unguarded `$('#resTable').DataTable(...)` threw when `$.fn.DataTable`
+  // was undefined, aborting renderResults() after the count/wrapper were
+  // shown and leaving an empty table beside a non-zero count (Refs #799 —
+  // same latent defect as searchQuickView pre-fix).
+  var $body = $('#resTable tbody').empty();
+  rows.forEach(function (cell) {
+    $('<tr>').append(
+      $('<td>').html(cell[0]),
+      $('<td>').html(cell[1]),
+      $('<td>').html(cell[2]),
+      $('<td>').text(cell[3]).addClass('text-center'),
+      $('<td>').html(cell[4]).addClass('text-center')
+    ).appendTo($body);
   });
+
+  // Enhance with DataTables when available (CDN loaded); otherwise keep the
+  // plain table fallback so rows always display.
+  if (typeof $.fn.DataTable === 'function') {
+    try {
+      resTbl = $('#resTable').DataTable({
+        destroy: true,
+        data: rows,
+        language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+        columnDefs: [
+          { targets: 3, className: 'text-center', width: '70px' },
+          { targets: 4, orderable: false }
+        ]
+      });
+    } catch (e) {
+      resTbl = null;
+    }
+  }
   $('#footerInfo').text(TLi18n.t('search.matchCount', {n: r.count}));
 }
 

@@ -9198,3 +9198,34 @@ in as admin/admin. Data source: live GitHub API
 | TC-822.9 | Console clean | After whole flow | Only pre-existing a11y hints + the 3 expected HTTP 400 (non-existent-bug probe); 0 JS errors | PASS |
 
 - **Result:** **9/9 PASS** (TC-822.1–822.9)
+
+## Suite 823 — Search Test Cases full screen (`searchView.html`): dedicated suite + 2 bugs found & fixed — Refs #822/#823/#824
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Dedicated suite for the modernized full **Search Test Cases** screen (as requested: Quick Search `searchQuickView` had Suite 22/25, Advanced Search had Suite 28; the full screen previously only had shared coverage via Suite 22 pre-split). All tests run in-browser (MCP page 15, `searchView.html?tproject_id=11&tplan_id=3232`, locale en then ro) against the BFF `api/search/index.php?action=search`. Fixture TC **TLU-258** = tcversion 2759 (API Key Display). During the run **two real bugs were found and fixed**: the unguarded DataTable() init (port of #799 pattern) and `ReferenceError: p is not defined` breaking URL deep-link prefill.
+- **Auth:** admin/admin, project TLU id=11, plan 3232.
+- **Datapoints:** 196 TCs, all fixtures draft (`status=1`) / v1, created by admin, updater_id set on only 3/202 tcversions (`edited_by=admin` → 0 is correct with this data). `max_qty_for_display=200` → no `too_wide_search_criteria` for the full set.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-823.1 | Screen loads + banner | `searchView.html?tproject_id=11&tplan_id=3232` | Title "Search Test Cases"; notice "Search is done ONLY on test project 'TestLink Upgraded 2.0.1'."; prefix addon `TLU-` in TC ID field | PASS |
+| TC-823.2 | Easy-search matches | BFF `targetTestCase=TLU-258` (exact) and `=258` (bare number) | Each → 1 match TLU-258; source tags present | PASS |
+| TC-823.3 | Non-existent TC id warning | BFF `targetTestCase=TLU-999` | `status ok`, `warning=testcase_does_not_exists`, count 0; UI `#warnBox` "Test case does not exist.", `#matchCount "(0 matches)"` | PASS |
+| TC-823.4 | Title LIKE | UI `name=API Key` → Find | 1 row TLU-258 `[v1] :: API Key Display and Regenerate`, path `12. User Profile (userInfo.html)`; `#matchCount "(1 matches)"`, footer same | PASS |
+| TC-823.5 | LIKE fields behave | BFF `name=API Key`, `steps=recovery`(no hit), `summary=dashboard`(no hit), `preconditions=page`(22), `expected_results`(172 no warning) | `no_records_found` only when genuinely empty; no crash on regex-ish `.+` value (LIKE literal) | PASS |
+| TC-823.6 | Created-by / edited-by | BFF `created_by=admin` → 196; `edited_by=admin` → 0 | 196 (fixtures authored by admin); edited 0 = correct (updater_id set on only 3/202 — verified via DB); NOT a bug | PASS |
+| TC-823.7 | Status / importance filters | BFF `status=1`→196, `status=2`→0+warn, `importance=2`→85, `importance=3`→103 | All fixtures draft → 196; other statuses correctly 0; importance split medium/high matches 188 combined | PASS |
+| TC-823.8 | Version + req doc | BFF `version=1`→196; `requirement_doc_id=REQ`→0+warn | Version filter works; req field query returns clean empty (project has no REQ docs in store) | PASS |
+| TC-823.9 | AND combination | UI name=`API Key` + importance=Medium → Find | exactly 1 match (TLU-258), count consistent with BFF `name=API Key&importance=2`→1 | PASS |
+| TC-823.10 | Empty criteria = whole project | UI reset → Find (no criteria) | 196 matches, no warning; DataTable `Showing 1 to 10 of 196 entries` | PASS |
+| TC-823.11 | **BUG found: unguarded DataTable** | `$.fn.DataTable=undefined` then Find | Was: `TypeError: $(...).DataTable is not a function`, table empty with `(1 matches)`, Find disabled. **Fixed**: plain `<tbody>` rows render first + DataTable guarded in try/catch (port of #799 — issue **#823**) | PASS (post-fix) |
+| TC-823.12 | **BUG found: ReferenceError `p`** | Reload `searchView.html?...` & watch console | Was: `Uncaught ReferenceError: p is not defined` (prefill broken). **Fixed**: hoisted `var p=null` top-level (issue **#824**); console now clean of JS errors | PASS (post-fix) |
+| TC-823.13 | DataTable features intact (regression) | importance=Medium → 85 rows | Sort on col 1 toggles asc/desc (TLU-193 ↔ TLU-385 runs); table-search filters to 1 entry `(filtered from 85)`; length/paginate widgets present | PASS |
+| TC-823.14 | Row actions + deep links | tc-link → `openTcEdit(2758,2759)`; edit & exec-history buttons | `window.open` URLs = `tcView.html?tcase_id=2758&tcversion_id=2759&tproject_id=11` and `execHistory.html?tcase_id=2758&tproject_id=11`; 2 action buttons titled Edit / Execution history | PASS |
+| TC-823.15 | URL deep-link prefill | `?...&name=API Key&importance=2` | name "API Key" + importance 2 prefilled from URL (works after #824 fix) | PASS |
+| TC-823.16 | i18n `ro` | reload `?locale=ro` | Title "Căutare cazuri de test" (browser tab), "Criterii de căutare", "Caută"/"Resetează", "ID caz de test", "Căutarea se face DOAR în proiectul de test", result-count "(196 potriviri)"; status domain stays server-side English (not a UI bug — populated from server context) | PASS |
+| TC-823.17 | Event Viewer clean | after all searches |0 new Error/Warning in `events` (searches are read-only; last entry still id 2016 AUDIT from Suite 822) | PASS |
+| TC-823.18 | Console clean | entire run | Only a11y hints (autocomplete attribute / form-field id) — 0 JS errors | PASS |
+
+- **Result:** **18/18 PASS** (TC-823.1–823.18) — 2 bugs found during run are FIXED, logged & closed via this commit (`Fixes #823`, `Fixes #824`).
