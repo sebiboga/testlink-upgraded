@@ -9428,3 +9428,22 @@ Changes: `buildCopyExecTaskAssignment::init_args` now resolves the project direc
 - **Result:** **5/5 PASS** (TC-503.37–503.41) against MariaDB 11.4.
 - **Note (#834 follow-up):** `buildCopyExecTaskAssignment::getBuildDomainForGUI` still passes `$argsObj->tplan_id` to
   `get_builds_for_html_options`; when #834 drops `testplan_id`, this should pass the project id (make the method project-based).
+
+---
+
+### Sub-task #832 — execution pages (execSetResults / execDashboard) resolve project builds
+The exec pages already consume project-scoped testplan build methods (project-scoped in #829):
+`get_build_by_id` (execSetResults.php:235/352), `get_max_build_id` (execDashboard.php:85),
+`get_builds_for_html_options` (execSetResults.php:1566 / execDashboard.php:208). No `builds.testplan_id`
+reference remains in `lib/execute/` (verified by grep). Fixture project 2000 (plans 2001/2002, build 3001).
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| TC-503.42 | exec build-info lookup is project-wide | `get_build_by_id(plan 2002, build 3001)` | returns 3001 (shared) | PASS |
+| TC-503.43 | exec default build is project-wide | `get_max_build_id(plan 2002, 1, 1)` | project build >= 3001 | PASS |
+| TC-503.44 | exec build dropdown is project-wide | `get_builds_for_html_options(plan 2002)` | contains 3001 | PASS |
+| TC-503.45 | no `builds.testplan_id` in lib/execute | grep `lib/execute` | none | PASS |
+
+- **Result:** **4/4 PASS** (TC-503.42–503.45) against MariaDB 11.4.
+- **Note:** No source change was required in `lib/execute/` — the underlying testplan build methods were
+  project-scoped in #829; #832 is the verification/regression step for the execution pages.
