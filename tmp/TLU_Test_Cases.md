@@ -9313,8 +9313,12 @@ in as admin/admin. Data source: live GitHub API
 | TC-503.9 | survivor keeps metadata | read build 3001 | `commit_id='abc'`, `branch='main'` (earliest) kept | PASS |
 | TC-503.10 | rerun after merge idempotent | re-run `--apply` | "No duplicate builds found — nothing to do" | PASS |
 | TC-503.11 | no new schema orphans | `foreach build_id column` expect executions/wip/assignments | all re-pointed, no orphaned refs to 3002 | PASS |
+| TC-503.12 | cfield PK collision (survivor has same field) | seed `(1,3001,'survivor_val')` + `(1,3002,'victim_val')` + `(2,3002,'only_victim')`; run `--apply` | no PK violation; survivor's `(1,3001,'survivor_val')` kept; victim collision dropped; `(2,3001,'only_victim')` re-pointed to survivor | PASS |
+| TC-503.13 | no new events on merge | read `events` table before/after `--apply` | 0 rows (no Error/Warning) | PASS |
 
-- **Result:** **11/11 PASS** (TC-503.1–503.11) against MariaDB 11.4 (testlink user granted CREATE VIEW).
+- **Result:** **13/13 PASS** (TC-503.1–503.13) against MariaDB 11.4 (testlink user granted CREATE VIEW).
+  Note: TC-503.12/503.13 added during the bug-fix/verification run for #827 (independent reproduction, incl. the
+  cfield PK-collision edge case the original suite did not exercise).
   Note: `database->exec_query()` dies + auto-rolls-back on DB error; the `try/catch/ROLLBACK` in an
   earlier draft was dead code and was removed (transactions still atomic via connection-close rollback).
 
