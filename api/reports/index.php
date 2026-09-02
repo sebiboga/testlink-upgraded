@@ -3969,5 +3969,617 @@ if ($action === 'results_bugs') {
     out($payload);
 }
 
+// =============================================================================
+// action=more_builds_init / action=more_builds — Results by Multiple Builds
+// (lib/results/resultsMoreBuildsGUI.php + resultsMoreBuilds.php, Refs #838)
+// Legacy checkRights() requires 'testplan_metrics' — enforced above + context.
+//
+// The legacy resultsMoreBuilds.php report-query is dead code (the newResults
+// block is commented out), so this BFF rebuilds the intended feature: a
+// parameter form (builds, platforms, keyword, top-level suites, last-status
+// filter, owner/executor, search-in-notes, display options, date range) that
+// drives a per-test-case x per-build last-execution-status matrix with
+// per-build totals.
+// =============================================================================
+if ($action === 'more_builds_init') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $resultsCfg = config_get('results');
+    $reportsCfg = config_get('reportsCfg');
+
+    // Builds (active by default, same as legacy get_builds(ACTIVE_BUILDS)).
+    $buildItems = [];
+    $buildInfoSet = $tplanMgr->get_builds($tplanId, testplan::ACTIVE_BUILDS);
+    if (!is_null($buildInfoSet)) {
+        foreach ($buildInfoSet as $bid => $binfo) {
+            $buildItems[] = [
+                'id' => intval($bid),
+                'name' => $binfo['name'],
+                'is_open' => (intval($binfo['is_open']) === 1),
+            ];
+        }
+    }
+    // Also expose closed builds so the user can include them if desired.
+    $allBuildInfo = $tplanMgr->get_builds($tplanId);
+    $closedBuildItems = [];
+    if (!is_null($allBuildInfo)) {
+        foreach ($allBuildInfo as $bid => $binfo) {
+            if (intval($binfo['is_open']) !== 1) {
+                $closedBuildItems[] = [
+                    'id' => intval($bid),
+                    'name' => $binfo['name'],
+                    'is_open' => false,
+                ];
+            }
+        }
+    }
+
+    // Top-level test suites (legacy getRootTestSuites).
+    $suiteItems = [];
+    $suites = $tplanMgr->getRootTestSuites($tplanId, $tprojectId,
+        ['output' => 'plain']);
+    if (!is_null($suites)) {
+        foreach ($suites as $sid => $sname) {
+            $suiteItems[] = ['id' => intval($sid), 'name' => $sname['name']];
+        }
+    }
+
+    // Platforms (legacy getPlatforms).
+    $platformItems = [];
+    $platformMap = $tplanMgr->getPlatforms($tplanId,
+        ['outputFormat' => 'map']);
+    if (!is_null($platformMap)) {
+        foreach ($platformMap as $pid => $pname) {
+            $platformItems[] = ['id' => intval($pid), 'name' => $pname];
+        }
+    }
+
+    // Keywords (legacy get_keywords_map; index 0 = ANY).
+    $keywordItems = [['id' => 0, 'name' => lang_get('any')]];
+    $kwMap = $tplanMgr->get_keywords_map($tplanId);
+    if (!is_null($kwMap)) {
+        foreach ($kwMap as $kid => $kname) {
+            $keywordItems[] = ['id' => intval($kid), 'name' => $kname];
+        }
+    }
+
+    // Users for owner/executor.
+    $userItems = [];
+    $users = getUsersForHtmlOptions($db, ALL_USERS_FILTER,
+        ['0' => lang_get('any')]);
+    if (is_array($users)) {
+        foreach ($users as $uid => $uname) {
+            $userItems[] = ['id' => intval($uid), 'name' => $uname];
+        }
+    }
+
+    // Status options (legacy get_status_for_reports_html_options), exec
+    // statuses in config order, values = status codes ('p','f','b','n','x').
+    $statusOptions = [];
+    foreach ($reportsCfg->exec_status as $verbose => $label) {
+        $code = $resultsCfg['status_code'][$verbose];
+        $statusOptions[] = [
+            'code' => $code,
+            'label' => lang_get($label),
+        ];
+    }
+
+    // Server-side display-status labels (code -> label) for the matrix.
+    $statusLabels = [];
+    foreach ($resultsCfg['status_label'] as $verbose => $label) {
+        $statusLabels[$resultsCfg['status_code'][$verbose]] =
+            lang_get($label);
+    }
+
+    // Default date range (legacy: end = now, start = now - start_date_offset).
+    $ldf = config_get('locales_date_format');
+    $locale = $_SESSION['locale'] ?? 'en_GB';
+    $dateFormat = isset($ldf[$locale]) ? $ldf[$locale] : 'Y-m-d';
+    $startOffset = $reportsCfg->start_date_offset;
+    $selectedStart = tlStrftime($dateFormat,
+        time() - $startOffset);
+    $selectedEnd = tlStrftime($dateFormat, time());
+    $startTime = $reportsCfg->start_time;
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'builds' => $buildItems,
+        'closed_builds' => $closedBuildItems,
+        'testsuites' => $suiteItems,
+        'platforms' => $platformItems,
+        'keywords' => $keywordItems,
+        'users' => $userItems,
+        'status_options' => $statusOptions,
+        'status_labels' => $statusLabels,
+        'selected_start_date' => $selectedStart,
+        'selected_end_date' => $selectedEnd,
+        'selected_start_time' => $startTime,
+    ]);
+}
+
+if ($action === 'more_builds') {
+    if ($tplanId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test plan id']);
+    }
+    $tplanInfo = $tplanMgr->get_by_id($tplanId);
+    if (is_null($tplanInfo)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test plan id']);
+    }
+    $tprojectId = intval($tplanInfo['testproject_id']);
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($proj)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $timerOn = microtime(true);
+    $resultsCfg = config_get('results');
+    $reportsCfg = config_get('reportsCfg');
+    $metricsMgr = new tlTestPlanMetrics($db);
+
+    // ---- Read filter parameters ----
+    $buildSel = isset($_GET['build']) && is_array($_GET['build'])
+        ? array_values(array_filter(array_map('intval', $_GET['build']),
+            function ($b) { return $b > 0; })) : [];
+    $suiteSel = isset($_GET['testsuite']) && is_array($_GET['testsuite'])
+        ? array_values(array_filter(array_map('intval', $_GET['testsuite']),
+            function ($s) { return $s > 0; })) : [];
+    $platformSel = isset($_GET['platform']) && is_array($_GET['platform'])
+        ? array_values(array_filter(array_map('intval', $_GET['platform']),
+            function ($p) { return $p > 0; })) : [];
+    $lastStatusSel = isset($_GET['lastStatus']) && is_array($_GET['lastStatus'])
+        ? array_values(array_filter($_GET['lastStatus'],
+            function ($s) { return is_string($s) && $s !== ''; })) : ['p', 'f', 'b', 'n', 'x'];
+    $keywordId = intval(getParam('keyword', 0));
+    $ownerId = intval(getParam('owner', 0));
+    $executorId = intval(getParam('executor', 0));
+    $searchNotes = getParam('search_notes_string');
+
+    $displayLatest = (getParam('display_latest_results', '') !== '0');
+    $displayTotals = (getParam('display_totals', '1') === '1');
+    $displaySuiteSummaries = (getParam('display_suite_summaries', '0') === '1');
+    $displayTestCases = (getParam('display_test_cases', '1') !== '0');
+    $displayQueryParams = (getParam('display_query_params', '1') === '1');
+
+    if (count($buildSel) === 0) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'At least one build must be selected']);
+    }
+
+    // ---- Build name map (for headers + executed row reference) ----
+    $buildNameMap = [];
+    $buildInfoSet = $tplanMgr->get_builds($tplanId);
+    if (!is_null($buildInfoSet)) {
+        foreach ($buildInfoSet as $bid => $binfo) {
+            $buildNameMap[intval($bid)] = $binfo['name'];
+        }
+    }
+
+    // ---- Keyword map ----
+    $keywordName = lang_get('any');
+    $kwMap = $tplanMgr->get_keywords_map($tplanId);
+    if (!is_null($kwMap) && isset($kwMap[$keywordId])) {
+        $keywordName = $kwMap[$keywordId];
+    }
+
+    // ---- Users for owner/executor labels ----
+    $userNameMap = [];
+    $users = getUsersForHtmlOptions($db, ALL_USERS_FILTER);
+    if (is_array($users)) {
+        foreach ($users as $uid => $uname) {
+            $userNameMap[intval($uid)] = $uname;
+        }
+    }
+    $ownerName = isset($userNameMap[$ownerId]) ? $userNameMap[$ownerId]
+        : lang_get('any');
+    $executorName = isset($userNameMap[$executorId]) ? $userNameMap[$executorId]
+        : lang_get('any');
+
+    // ---- Gather all linked test cases + executions ----
+    // getExecStatusMatrixFlat returns:
+    //   metrics   : flat rows (one per linked tc x platform x build/not_run)
+    //   latestExec: [platform_id][tcase_id] => last exec (build_id,status,id)
+    $opt = ['output' => 'cumulative'];
+    $execStatus = $metricsMgr->getExecStatusMatrixFlat($tplanId, null, $opt);
+    $metricsRows = $execStatus['metrics'];
+    $latestExec = $execStatus['latestExec'];
+
+    // ---- Build a per-tcase summary ----
+    $tcaseRows = [];  // tcase_id => row aggregate (suite name, full ext id, name)
+    $tcExecByBuild = [];  // tcase_id => [build_id => last status]
+    $suiteCache = [];
+
+    if (!is_null($metricsRows)) {
+        foreach ($metricsRows as $r) {
+            $tcId = intval($r['tcase_id']);
+            if (!isset($tcaseRows[$tcId])) {
+                $suiteName = isset($r['suiteName']) ? $r['suiteName'] : '';
+                // suiteName may be empty on the raw rows; cache by tsuite_id
+                $tcaseRows[$tcId] = [
+                    'tcase_id' => $tcId,
+                    'tcversion_id' => intval($r['tcversion_id']),
+                    'external_id' => intval($r['external_id']),
+                    'full_external_id' => (isset($r['full_external_id'])
+                        ? $r['full_external_id']
+                        : ((isset($r['testcasePrefix']) ? $r['testcasePrefix'] : '')
+                           . (isset($r['external_id']) ? $r['external_id'] : ''))),
+                    'name' => $r['name'],
+                    'tsuite_id' => intval($r['tsuite_id']),
+                    'suite_name' => $suiteName,
+                    'priority_level' => isset($r['priority_level'])
+                        ? $r['priority_level'] : MEDIUM,
+                ];
+            }
+            if (!isset($tcExecByBuild[$tcId])) {
+                $tcExecByBuild[$tcId] = [];
+            }
+        }
+    }
+
+    // Populate per-build last statuses from latestExec, honouring the
+    // selected builds (and platform filter: platform 0 = any).
+    $statusByTcBuild = [];  // tcase_id => [build_id => last status]
+    if (!is_null($latestExec)) {
+        foreach ($latestExec as $platId => $platMap) {
+            foreach ($platMap as $tcId => $info) {
+                $tcId = intval($tcId);
+                $buildId = intval($info['build_id']);
+                if (!isset($statusByTcBuild[$tcId])) {
+                    $statusByTcBuild[$tcId] = [];
+                }
+                // keep the later execution per build
+                if (!isset($statusByTcBuild[$tcId][$buildId])
+                    || $info['id'] > $statusByTcBuild[$tcId][$buildId]['exec_id']) {
+                    $statusByTcBuild[$tcId][$buildId] = [
+                        'exec_id' => $info['id'],
+                        'status' => $info['status'],
+                    ];
+                }
+            }
+        }
+    }
+
+    // ---- Suite name resolution via tree path ----
+    if (count($tcaseRows) > 0) {
+        foreach ($tcaseRows as &$tr) {
+            if ($tr['suite_name'] === '') {
+                $path = $metricsMgr->tree_manager->get_path(
+                    $tr['tsuite_id'], null, 'name');
+                $tr['suite_name'] = is_array($path)
+                    ? implode('/', array_values($path)) : '';
+            }
+        }
+        unset($tr);
+    }
+
+    // ---- Apply filters ----
+    // Suite filter: keep TCs whose top-level suite is in suiteSel (empty = all).
+    $topLevelSuites = [];
+    if (count($suiteSel) > 0) {
+        $rootSet = $tplanMgr->getRootTestSuites($tplanId, $tprojectId,
+            ['output' => 'plain']);
+        if (!is_null($rootSet)) {
+            $topLevelSuites = array_keys($rootSet);
+        }
+        $userWantsAll = (count($suiteSel) == count($topLevelSuites));
+        if (!$userWantsAll) {
+            // resolve each selected suite id to its subtree (descendants) so
+            // linked TCs in nested suites are included.
+            foreach ($suiteSel as $ssid) {
+                $sub = $metricsMgr->tree_manager->get_subtree($ssid);
+                if (is_array($sub)) {
+                    foreach (array_keys($sub) as $nodeId) {
+                        $topLevelSuites[] = intval($nodeId);
+                    }
+                } else {
+                    $topLevelSuites[] = intval($ssid);
+                }
+            }
+            $topLevelSuites = array_values(array_unique($topLevelSuites));
+        }
+    } else {
+        $rootSet = $tplanMgr->getRootTestSuites($tplanId, $tprojectId,
+            ['output' => 'plain']);
+        if (!is_null($rootSet)) {
+            $topLevelSuites = array_keys($rootSet);
+        }
+    }
+
+    // TCs to include: from full exec metrics filtered by tsuite subtree +
+    // also TCs that have only not-run rows (already in metricsRows).
+    $keepTcase = [];
+    $keepBySuite = [];
+    foreach ($tcaseRows as $tcId => $tr) {
+        if (count($topLevelSuites) > 0
+            && !in_array($tr['tsuite_id'], $topLevelSuites)) {
+            continue;
+        }
+        $keepTcase[] = $tcId;
+        $keepBySuite[$tr['tsuite_id']][$tcId] = $tr;
+    }
+    $keepTcaseMap = array_flip($keepTcase);
+
+    // ---- Platform filter (affects executed statuses) ----
+    $platformFilter = $platformSel;
+    // A TC is kept on a platform pass only if it has an execution (or not-run)
+    // on one of the selected platforms. We approximate with latestExec for the
+    // executed set and allow all when ALL platforms / no platforms selected.
+    $platformFilteredTcase = $keepTcase;
+    if (count($platformFilter) > 0) {
+        $platformOk = [];
+        if (!is_null($latestExec)) {
+            foreach ($platformFilter as $pf) {
+                if (isset($latestExec[$pf])) {
+                    foreach (array_keys($latestExec[$pf]) as $ptc) {
+                        $platformOk[intval($ptc)] = true;
+                    }
+                }
+            }
+        }
+        $platformFilteredTcase = [];
+        foreach ($keepTcase as $tcId) {
+            if (isset($platformOk[$tcId])) {
+                $platformFilteredTcase[] = $tcId;
+            }
+        }
+    }
+
+    // ---- keyword filter ----
+    if ($keywordId > 0) {
+        $kwTcIds = [];
+        if (!is_null($metricsRows)) {
+            $kwFlags = [];
+            foreach ($metricsRows as $r) {
+                if (intval($r['keyword_id']) === $keywordId) {
+                    $kwFlags[intval($r['tcase_id'])] = true;
+                }
+            }
+            $kwTcIds = array_keys($kwFlags);
+        }
+        $kwMapIdx = array_flip($kwTcIds);
+        $tmp = [];
+        foreach ($platformFilteredTcase as $tcId) {
+            if (isset($kwMapIdx[$tcId])) {
+                $tmp[] = $tcId;
+            }
+        }
+        $platformFilteredTcase = $tmp;
+    }
+
+    // ---- search-in-notes (matches against any execution note for the tc) ----
+    if ($searchNotes !== '') {
+        $notesTc = [];
+        if (!is_null($metricsRows)) {
+            foreach ($metricsRows as $r) {
+                if (isset($r['notes'])
+                    && stripos($r['notes'], $searchNotes) !== false) {
+                    $notesTc[intval($r['tcase_id'])] = true;
+                }
+            }
+        }
+        $nIdx = array_flip($notesTc);
+        $tmp = [];
+        foreach ($platformFilteredTcase as $tcId) {
+            if (isset($nIdx[$tcId])) {
+                $tmp[] = $tcId;
+            }
+        }
+        $platformFilteredTcase = $tmp;
+    }
+
+    // ---- owner filter ----
+    if ($ownerId > 0 && !is_null($metricsRows)) {
+        $ownerTc = [];
+        foreach ($metricsRows as $r) {
+            if (isset($r['assigned_user_id'])
+                && intval($r['assigned_user_id']) === $ownerId) {
+                $ownerTc[intval($r['tcase_id'])] = true;
+            }
+        }
+        $oIdx = array_flip($ownerTc);
+        $tmp = [];
+        foreach ($platformFilteredTcase as $tcId) {
+            if (isset($oIdx[$tcId])) {
+                $tmp[] = $tcId;
+            }
+        }
+        $platformFilteredTcase = $tmp;
+    }
+
+    // ---- executor filter ----
+    if ($executorId > 0 && !is_null($metricsRows)) {
+        $execTc = [];
+        foreach ($metricsRows as $r) {
+            if (isset($r['executed_by']) && intval($r['executed_by']) === $executorId) {
+                $execTc[intval($r['tcase_id'])] = true;
+            }
+        }
+        $eIdx = array_flip($execTc);
+        $tmp = [];
+        foreach ($platformFilteredTcase as $tcId) {
+            if (isset($eIdx[$tcId])) {
+                $tmp[] = $tcId;
+            }
+        }
+        $platformFilteredTcase = $tmp;
+    }
+
+    // ---- Build per-TC per-build status, honouring last-status filter ----
+    $nb = count($buildSel);
+    $rows = [];
+    $notRunCode = $resultsCfg['status_code']['not_run'];
+    $perBuildCounts = [];  // build_id => status => count
+    foreach ($buildSel as $bid) {
+        $perBuildCounts[$bid] = [];
+    }
+
+    foreach ($platformFilteredTcase as $tcId) {
+        $tr = $tcaseRows[$tcId];
+        $cells = [];
+        $executedAny = false;
+        $hasNotRun = false;
+        $statusCell = [];
+        foreach ($buildSel as $bid) {
+            $st = $notRunCode;
+            if (isset($statusByTcBuild[$tcId][$bid])) {
+                $st = $statusByTcBuild[$tcId][$bid]['status'];
+            }
+            $statusCell[$bid] = $st;
+            if ($st !== $notRunCode) {
+                $executedAny = true;
+            } else {
+                $hasNotRun = true;
+            }
+            $perBuildCounts[$bid][$st] = isset($perBuildCounts[$bid][$st])
+                ? $perBuildCounts[$bid][$st] + 1 : 1;
+        }
+
+        // last-status filter: include TC if any of its selected-build statuses
+        // is in lastStatusSel (legacy "displayResults[status]" semantics).
+        $match = false;
+        foreach ($statusCell as $st) {
+            if (in_array($st, $lastStatusSel)) {
+                $match = true;
+                break;
+            }
+        }
+        if (!$match) {
+            continue;
+        }
+
+        $rowCells = [];
+        foreach ($buildSel as $bid) {
+            $rowCells[] = [
+                'build_id' => $bid,
+                'status' => $statusCell[$bid],
+                'executed' => ($statusCell[$bid] !== $notRunCode),
+            ];
+        }
+        $rows[] = [
+            'tcase_id' => $tcId,
+            'full_external_id' => $tr['full_external_id'],
+            'name' => $tr['name'],
+            'suite_name' => $tr['suite_name'],
+            'priority_level' => $tr['priority_level'],
+            'cells' => $rowCells,
+            'executed_any' => $executedAny,
+            'has_not_run' => $hasNotRun,
+        ];
+    }
+
+    // ---- Build totals ----
+    $buildTotals = [];
+    foreach ($buildSel as $bid) {
+        $buildTotals[] = [
+            'build_id' => $bid,
+            'name' => isset($buildNameMap[$bid]) ? $buildNameMap[$bid] : ('#' . $bid),
+            'counts' => $perBuildCounts[$bid],
+        ];
+    }
+
+    // Suite summaries: total / per-status counts grouped by suite name.
+    $suiteSummaries = [];
+    if ($displaySuiteSummaries) {
+        $agg = [];
+        foreach ($rows as $r) {
+            $sn = $r['suite_name'];
+            if (!isset($agg[$sn])) {
+                $agg[$sn] = ['total' => 0];
+            }
+            $agg[$sn]['total']++;
+            foreach ($r['cells'] as $cell) {
+                $agg[$sn][$cell['status']] = isset($agg[$sn][$cell['status']])
+                    ? $agg[$sn][$cell['status']] + 1 : 1;
+            }
+        }
+        ksort($agg);
+        $suiteSummaries = $agg;
+    }
+
+    // Status label map resolved server side.
+    $statusLabels = [];
+    foreach ($resultsCfg['status_label'] as $verbose => $label) {
+        $statusLabels[$resultsCfg['status_code'][$verbose]] =
+            lang_get($label);
+    }
+
+    // Suite names selected for the query-params block.
+    $suiteSelNames = [];
+    $rootSet = $tplanMgr->getRootTestSuites($tplanId, $tprojectId,
+        ['output' => 'plain']);
+    if (!is_null($rootSet)) {
+        foreach ($suiteSel as $ssid) {
+            if (isset($rootSet[$ssid])) {
+                $suiteSelNames[] = $rootSet[$ssid]['name'];
+            }
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'hasContext' => true,
+        'hasData' => count($rows) > 0,
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'tproject_name' => $proj['name'],
+        'tplan_name' => $tplanInfo['name'],
+        'display' => [
+            'query_params' => $displayQueryParams,
+            'totals' => $displayTotals,
+            'suite_summaries' => $displaySuiteSummaries,
+            'test_cases' => $displayTestCases,
+            'latest_results' => $displayLatest,
+        ],
+        'selected' => [
+            'build_ids' => $buildSel,
+            'suite_ids' => $suiteSel,
+            'suite_names' => $suiteSelNames,
+            'keyword_id' => $keywordId,
+            'keyword_name' => $keywordName,
+            'owner_id' => $ownerId,
+            'owner_name' => $ownerName,
+            'executor_id' => $executorId,
+            'executor_name' => $executorName,
+            'search_notes_string' => $searchNotes,
+            'last_status' => $lastStatusSel,
+        ],
+        'builds' => $buildTotals,
+        'rows' => $rows,
+        'suite_summaries' => $suiteSummaries,
+        'status_labels' => $statusLabels,
+        'elapsed_time' => round(microtime(true) - $timerOn, 2),
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
