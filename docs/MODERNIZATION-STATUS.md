@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-01 (#818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
+> Last updated: 2026-09-02 (#757 keywordsView/PlatformMgmt legacy redirects fixed → modern screens; bug #820 keywordsAssign missing kwa.* i18n keys fixed in all bundles; #819 enhancement filed for tcImport XML BFF; #818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
@@ -153,9 +153,9 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 | HIGH | resultsMatrix.html | `execSetResults.php` ✅ | #756 | Redirect to modernized page; `execSetResults.php` ✅→ `execSetResults.html` (Refs #817) |
 | MEDIUM | showNewestTcVersions.html | `archiveData.php`, `tcCompareVersions.php` ✅ | #758 | Redirect / modal; `tcCompareVersions` now `tcCompare.html` (Refs #809) |
 | MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
-| MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | Fix: already have keywordsAssign.html |
-| MEDIUM | platformsView.html | `eventviewer.php` | #757 | Fix: already have eventviewer.html |
-| MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 | Convert XML import to BFF API |
+| MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | ✅ `goAssign()` now opens `keywordsAssign.html?tproject_id=&tplan_id=` (Refs #757, fixed) |
+ | MEDIUM | platformsView.html | `eventviewer.php` | #757 | ✅ Event History now opens `eventviewer.html` with `objectId`+`objectType` filter (Refs #757, fixed); `eventviewer.html` gained client-side object filter |
+ | MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 → #819 | pending: `action=import_xml` BFF conversion tracked in enhancement #819 |
 | LOW | 10 report screens | export/mail download endpoints | #756 | Convert to BFF API downloads |
 
 ---

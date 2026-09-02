@@ -9154,3 +9154,24 @@ in as admin/admin. Data source: live GitHub API
 | TC-814.10 | Console clean | All screens after reload | Only pre-existing a11y issues (label/id hints), zero new JS errors | PASS |
 
 - **Result:** **10/10 PASS** (TC-814.1–814.10)
+
+## Suite 821 — Legacy redirect cleanup: keywordsView → keywordsAssign.html, platformsView → eventviewer.html object filter, kwa.* i18n — Refs #757/#820
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Remove the last two legacy links from modernized Product screens. Keyword Management "Assign Keywords to Test Cases" (`goAssign()`) now opens the modern `keywordsAssign.html?tproject_id=&tplan_id=` instead of `lib/general/frmWorkArea.php?feature=keywordsAssign`. Platform Management "Show event history" now opens the modern `eventviewer.html` as a GET with `object_id`/`object_type`, and `eventviewer.html` gained client-side object-filter support (`objectId`/`objectType` URL params forwarded to the BFF, which already supported them) plus an in-page indicator. Also fixes bug #820: `keywordsAssign.html` rendered raw `kwa.*` keys — added all 29 keys to every locale bundle.
+- **Auth:** admin/admin. Fresh DB fixtures: test project "LegacyRedirects TP" (id 1), platform "Linux x64" (id 1), keyword "smoke".
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-821.1 | goAssign opens modern keywordsAssign | Keyword Management → "Assign Keywords to Test Cases" | Mainframe loads `gui/templates/keywords/keywordsAssign.html?tproject_id=1&tplan_id=0` (no `frmWorkArea.php`) | PASS |
+| TC-821.2 | keywordsAssign renders translated | Re-open with fixed bundles | Title "Assign Keywords to Test Cases", subtitle, "Target level", section headers all translated; **no raw `kwa.*` keys** in DOM | PASS |
+| TC-821.3 | Event History opens modern viewer | Edit platform → "Show event history" | New tab `gui/templates/eventviewer/eventviewer.html?object_id=1&object_type=platforms` (GET, not POST to `eventviewer.php`) | PASS |
+| TC-821.4 | Object filter passed to BFF | Network tab in the new tab | `GET /api/eventviewer/index.php/events?objectId=1&objectType=platforms` (+ byLevel/perDay) all HTTP 200 | PASS |
+| TC-821.5 | Object-filter indicator shown | New Event Viewer tab | "Filtered by platforms #1" banner visible; events table loads without JS errors | PASS |
+| TC-821.6 | Event history filter matches legacy | Check `events` table | Platform created logs no invalid/error event (level 16 AUDIT only); object filter returns the same rows legacy `object_id/object_type` would | PASS |
+| TC-821.7 | kwa.* keys in all bundles | Count `kwa.*` in en/ro/de/es/fr/it/ja/pt/ru/zh | 29 keys present in each; all `python3 -m json.tool` valid | PASS |
+| TC-821.8 | No new console errors | keywordsView, keywordsAssign, Event Viewer | No new Error/Warning in browser console | PASS |
+| TC-821.9 | Event Viewer clean | After all interactions | `events` table has 0 new Error/Warning (only AUDIT login/project/keyword entries) | PASS |
+
+- **Result:** **9/9 PASS** (TC-821.1–821.9)
