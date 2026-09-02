@@ -9229,3 +9229,22 @@ in as admin/admin. Data source: live GitHub API
 | TC-823.18 | Console clean | entire run | Only a11y hints (autocomplete attribute / form-field id) — 0 JS errors | PASS |
 
 - **Result:** **18/18 PASS** (TC-823.1–823.18) — 2 bugs found during run are FIXED, logged & closed via this commit (`Fixes #823`, `Fixes #824`).
+
+## Regression — Issue #824: `Uncaught ReferenceError: p is not defined` on Search Test Cases page load (URL deep-link prefill)
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Reproduces and verifies the fix for the `ReferenceError: p is not defined` on every load of the modernized `searchView.html` that silently broke URL deep-link prefill. Pre-fix, `var p = new URLSearchParams(...)` was declared inside the `$(function(){...})` ready handler (function-scoped), while `loadContext()`'s `.done()` prefill loop called `p.get(k)` in a separate top-level function scope → the error aborted the whole prefill. Fix hoists `var p = null` to top-level and the ready handler assigns it (commit `39d9c5b11`). Fresh DB fixture recreated via `php tmp/fixtures_824.php`: project **SEARCH824** (id=1, prefix `S824-`, priority enabled), plan **9**, 2 TCs (tcversions 4, 7, both importance=2).
+- **Auth:** admin/admin. Browser chrome-devtools MCP on `http://localhost:8082`.
+
+| # | Test case | Precondition | Steps | Expected post-fix behavior | Actual |
+|---|---|---|---|---|---|
+| TC-824.1 | No console error on deep-link load (pre-fix repro step) | Fixture SEARCH824 exists | Open `searchView.html?tproject_id=1&tplan_id=9&name=API&importance=2`; read console | No `ReferenceError: p is not defined`; `window.p` defined at top level (pre-fix this threw on every load with a valid project) | PASS — 0 JS errors; `window.p` resolves |
+| TC-824.2 | Context loads | Same URL | Watch network | `GET /api/search/index.php?action=context&tproject_id=1` → HTTP 200; title `SEARCH824 - Search Test Cases`; prefix addon `S824-` | PASS |
+| TC-824.3 | URL name param prefills | Same URL | Read `#name` | `#name` value = `API` (pre-fix: prefill aborted, field empty) | PASS |
+| TC-824.4 | URL importance param prefills | Same URL | Read `#importance` | `#importance` = `2`; `#grpImportance` display `block` (priority enabled) | PASS |
+| TC-824.5 | Prefilled criteria actually applied | Same URL | Click Find | `#matchCount` `(1 matches)`; row `S824-1 [v1] :: API Key Display and Regenerate`; footer `1 matches` | PASS |
+| TC-824.6 | Non-matching param still correct (data-driven) | URL `?...&name=API&importance=3` | Click Find | `(0 matches)` + `no_records_found` warnbox (importance filtering works, not a JS failure) | PASS |
+| TC-824.7 | Console / Event Viewer clean | after all steps | Re-read console + `events` table | 0 JS errors; 0 new Error/Warning rows in `events` | PASS |
+
+- **Result:** **7/7 PASS** (TC-824.1–824.7) — fix `39d9c5b11` verified error-free against a fresh-DB fixture.
