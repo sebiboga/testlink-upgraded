@@ -9177,3 +9177,24 @@ in as admin/admin. Data source: live GitHub API
 | TC-821.11 | Object badge sanitized | `eventviewer.html?object_type=<img+onerror>&object_id=1` | Badge text has no HTML / no script executed; non-alphanumeric chars stripped before `TLi18n.t` interpolation (`.text()` escapes too) | PASS |
 
 - **Result:** **11/11 PASS** (TC-821.1–821.11)
+
+## Suite 822 — Execute: "Link bug to test step" + attachment upload of `.jpeg` (whitelist fix) — Refs #821/#789/#772
+
+- **Priority:** Major
+- **Importance:** High
+- **Scope:** Executes two end-to-end user flows on the modernized Execute Tests screen (plan 3232 / build 4 / TLU-258): (a) the per-step **Link bug to this step** UI (`openLinkBug(st.id, st.step_number)` → BFF `POST ?action=linkBug` with `tcstep_id`), and (b) the attachment upload path after the whitelist fix (issue #821) — `.jpeg` was silently rejected because `config.inc.php` `allowed_files` lacked it. Both flows verified through the real browser UI (MCP) against the live GitHub API.
+- **Auth:** admin/admin, project TLU id=11, plan 3232 (build id=4). TC TLU-258 = tcversion 2759 (steps: 2760=step1, 2761=step2, ...). Real open GitHub issue **#819** used as link target; fixtures **#807/#808 were deleted manually upstream** — their existence-check rejection is the expected/root-cause path (NOT a bug).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-822.1 | Upload `.jpeg` accepted after fix | Execute → TLU-258 → Attach Files = `tmp/uploads-test/jpeg-test.jpeg`, mark steps, Save | `r.attachments_uploaded=1`, `r.attachments_rejected=false`; attachment persisted | PASS |
+| TC-822.2 | Attachment download serves real bytes | `attachmentdownload.php?id=2` (browser fetch, authenticated) | HTTP 200, `content-type: image/jpeg`, 1799772 bytes, magic `ff d8 ff db` | PASS |
+| TC-822.3 | Step-bug modal opens with correct target | Click "Link bug to this step" (step 1) | Modal "Execution 32 on step 1 (32)", Link existing bug / Create new bug tabs, Bug ID field focused | PASS |
+| TC-822.4 | Non-existent bug rejected with toast | Enter 807 (deleted upstream) → Link | Toast "bug 807 does not exist on the bug tracker"; modal stays open; HTTP 400 (expected, no DB row) | PASS |
+| TC-822.5 | Real bug linked to step | Enter 819 → Link | Toast "Bug 819 linked."; modal closes | PASS |
+| TC-822.6 | Step linkage persisted | `GET ?action=history&tcase_id=2758…` (exec 32) | exec 32 `bugs[0]` = `{id:'819', bug_url:…, tcstep_id:2760, step_number:1}` (bound to step 1) | PASS |
+| TC-822.7 | Linked-bugs table renders step binding | After 819 link, reload Linked Bugs card | Rows: `#819 | Modernize… | enhancement | open | # 1`; #807/#808 show `Unavailable | Deleted` grey badges (no dead links) | PASS |
+| TC-822.8 | Event Viewer clean | After link + upload | `events`: only `Bug 819 linked to execution 32 (step 2760)` AUDIT; 0 new Error/Warning | PASS |
+| TC-822.9 | Console clean | After whole flow | Only pre-existing a11y hints + the 3 expected HTTP 400 (non-existent-bug probe); 0 JS errors | PASS |
+
+- **Result:** **9/9 PASS** (TC-822.1–822.9)
