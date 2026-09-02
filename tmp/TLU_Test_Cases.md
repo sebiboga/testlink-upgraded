@@ -9072,3 +9072,42 @@ fixes `2e2590ff6..HEAD`:
   ("password" → 1 row), no console errors. Event Viewer: no new error/warning entries.
 
 - **Result:** 21/21 PASS + review-fix re-verification PASS.
+
+## Suite 820 — Dashboard "Project open issues" widget (mainPage.html + api/mainpage) — Refs #772
+
+**Precondition:** fresh DB import; fixtures recreated for this run via SQL
+(documentation of records): project id 30 "TLU Project" (prefix `TLU`,
+`issue_tracker_enabled=1`), issue tracker id 1 "GitHub - TLU" (type 25 GitHub
+REST, cfg `<url>https://api.github.com</url><user>sebiboga</user>
+<apikey><install-token></apikey><repo>testlink-upgraded</repo>
+<owner>sebiboga</owner>`), linked by `testproject_issuetracker`; test plan id 31
+"TLU Plan" + its `nodes_hierarchy` row (parent 30) and the project's own row
+(`nodes_hierarchy` is required by legacy `helperConcatTCasePrefix()`);
+control project id 32 "No Tracker Project" (`issue_tracker_enabled=0`). Logged
+in as admin/admin. Data source: live GitHub API
+`GET /repos/sebiboga/testlink-upgraded/issues?state=open&per_page=100&page=1&sort=created&direction=desc`
+(public repo, 49 open issues at run time).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-820.1 | BFF returns projectIssues for tracker-enabled project | `GET /api/mainpage/index.php?tproject_id=30&tplan_id=31&locale=en` (admin session) | HTTP 200, valid JSON, `status=ok`; `projectIssues` is an array of 49 rows; each row has `id,number,url,title,status,color,labels[],label_colors{}`. | PASS — 49 rows (issue numbers 503…818, all `state=open`); first row id/number 503, `url=https://github.com/sebiboga/testlink-upgraded/issues/503`, `status=open`, `color=#e6605e`, `labels=["enhancement"]`, `label_colors={"enhancement":"a2eeef"}`. |
+| TC-820.2 | BFF hides widget for tracker-less project | `GET /api/mainpage/index.php?tproject_id=32&tplan_id=0` | HTTP 200; `projectIssues` is `null`. | PASS — `projectIssues: null` (guard `issue_tracker_enabled`). |
+| TC-820.3 | BFF null when no project | `tproject_id=0` | `projectIssues` `null` (guard `$tprojectID<=0`). | PASS — widget absent on empty dashboard (observed on post-login frame `tproject_id=0`). |
+| TC-820.4 | ID links to real GitHub URL | Open `mainPage.html?tproject_id=30&tplan_id=31` | Bug-id cell renders `<a href="https://github.com/sebiboga/testlink-upgraded/issues/<n>">` target=_blank rel=noopener. | PASS — row 503 link points to `https://github.com/sebiboga/testlink-upgraded/issues/503`. |
+| TC-820.5 | GitHub label colors | Inspect label badge styles in issues table | Badge background = GitHub hex: `enhancement`→`#a2eeef`, `bug`→`#d73a4a`. | PASS — `background:#a2eeef` for enhancement rows; `#d73a4a` for #807/#808. |
+| TC-820.6 | Multi-label issue | Search "test 123"; inspect #808 row | Two badges: `bug` + `enhancement` with GitHub colors. | PASS — badges `rgb(215,58,74)` and `rgb(162,238,239)`. |
+| TC-820.7 | Status badge & palette | Inspect status cell | `open` badge background `#e6605e` (red), text `open`. | PASS — every open row: `background:rgb(230,96,94)`. |
+| TC-820.8 | Widget hidden without tracker | Open `mainPage.html?tproject_id=32&tplan_id=0` | `#secIssues` card not visible; dashboard still renders. | PASS — `#secIssues:visible=false`, `#tprojectName = No Tracker Project`. |
+| TC-820.9 | DataTable populated + pagination | Open widget; check info line; click Next | "Showing 1 to 25 of 49 entries"; page 2 = "Showing 26 to 49 of 49" (25/page, 11 columns correct order id asc). | PASS — page 1 starts #503…; page 2 starts #725…#818; `11 columns` renders. |
+| TC-820.10 | Search filter | Type `Dashboard` in the issues search box | 2 filtered entries ("Showing 1 to 2 of 2 entries"), rows #772/#780. | PASS — filter returns #772 and #780 only. |
+| TC-820.11 | Sorting toggles | Click column headers | DataTable sort asc/desc on id/summary/labels/status. | PASS — status desc groups all `open` consistently; id sort toggles. |
+| TC-820.12 | Graceful degradation on unreachable tracker | Point tracker cfg url to `https://api.github.example.invalid`, reload project 30 | No fatal/JSON corruption; widget hidden; page keeps rendering. | PASS — dashboard intact, `#secIssues` hidden, no warn box. |
+| TC-820.13 | No console/JS errors | DevTools console after loads | Zero errors (1 pre-existing a11y "issue" on DataTable searchbox name only). | PASS. |
+| TC-820.14 | Event Viewer clean (success path) | Reload project-30 dashboard; diff `events` max id before/after | No new `log_level=1`(Error)/`2`(Warning) rows from the widget/BFF. | PASS — max event id unchanged across success-path reloads; earlier rows 3–18 predate this suite (incomplete-fixture repro) and the only `listIssues/Not Connected` ERROR (id 19) is the deliberate unreachable-tracker case. |
+| TC-820.15 | i18n keys in all modern bundles | Grep `dash.openIssues`/`dash.openIssuesHint`/`dash.labels`/`dash.bugId`/`dash.issueSummary`/`dash.status` in `gui/templates/i18n/*.json` + `python3 -m json.tool` | 6 keys present in all 10 bundles; valid JSON. | PASS — all 10 bundles OK. |
+| TC-820.16 | Legacy tpl keys | Grep `project_open_issues`, `project_open_issues_hint`, `project_issue_labels` in `locale/*/strings.txt` | Present in all 18 files (all locales that define `title_test_case_bugs`; added by `fb8d6e2e2`); `issue_summary` pre-existing in 12 files (Smarty falls back cleanly elsewhere). | PASS — 18/18 files carry the three widget keys. |
+
+- **Result:** **16/16 PASS** (TC-820.1–820.16)
+- **Note:** the GitHub `listIssues` ERROR-level `Not Connected` log fires only when
+  the tracker cannot be reached (degraded mode, widget hidden) — pre-existing
+  interface convention (same as `getIssue`); recorded as discovery, not changed.
