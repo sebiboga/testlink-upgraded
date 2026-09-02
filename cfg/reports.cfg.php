@@ -119,13 +119,17 @@ $tlCfg->reports_list['assigned_tc_overview'] = array(
 	'format' => 'format_html'
 );
 
-// will be released in future because refactoring is not completed
-//$tlCfg->reports_list['results_custom_query'] = array( 
-//	'title' => 'link_report_metrics_more_builds',
-//	'url' => 'lib/results/resultsMoreBuildsGUI.php',
-//	'enabled' => 'all', 'directLink' => '',
-//	'format' => 'format_html,format_ods,format_xls,format_mail_html'
-//);
+// Refs #838 - Results by Multiple Builds modernized: gui/templates/results/
+// resultsMoreBuilds.html + api/reports more_builds_init/more_builds actions.
+// The legacy resultsMoreBuildsGUI.php used 'url' => 'lib/results/...' with
+// XLS/ODS/email formats, but its report-query (resultsMoreBuilds.php) is dead
+// code, so only the HTML format is offered (served by the BFF matrix).
+$tlCfg->reports_list['results_custom_query'] = array( 
+	'title' => 'link_report_metrics_more_builds',
+	'url' => 'gui/templates/results/resultsMoreBuilds.html',
+	'enabled' => 'all', 'directLink' => '',
+	'format' => 'format_html'
+);
 $tlCfg->reports_list['results_matrix'] = array( 
 	'title' => 'link_report_test',
 	'url' => 'lib/results/resultsTC.php',

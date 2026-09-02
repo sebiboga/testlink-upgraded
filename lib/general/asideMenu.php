@@ -210,6 +210,14 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_total_bugs_all_exec') {
         $hrefR = 'gui/templates/results/resultsBugs.html' .
                  "?tproject_id={$tprojectID}&tplan_id={$tplanID}&type=1";
+      // Refs #838 - Results by Multiple Builds (resultsMoreBuilds) modernized;
+      // the BFF (api/reports more_builds_init / more_builds actions) rebuilds
+      // the intended per-test-case x per-build status matrix (the legacy
+      // resultsMoreBuilds.php report-query was dead code) and enforces
+      // testplan_metrics.
+      } else if($rptItem['title'] == 'link_report_metrics_more_builds') {
+        $hrefR = 'gui/templates/results/resultsMoreBuilds.html' .
+                 "?tproject_id={$tprojectID}&tplan_id={$tplanID}";
       } else {
         $sep = (strpos($rptItem['url'], '?') !== false) ? '&' : '?';
         $hrefR = $baseHrefR . $rptItem['url'] .
