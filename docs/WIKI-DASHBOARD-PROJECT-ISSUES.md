@@ -80,9 +80,12 @@ issue:
 
 ## 5. Error Handling & Event Viewer
 
-- GitHub failures are caught inside the interface (`listIssues` returns `null`,
-  logs `tLog(..., 'ERROR')` on the **not-connected** path only — same convention
-  as `getIssue`). The widget simply hides.
+- GitHub failures are caught inside the interface: `listIssues` returns `null` and
+  logs `tLog(..., 'ERROR')` on the **not-connected** path and on the API-failure
+  catch block (same convention as `getIssue`). The widget simply hides.
+- The modern renderer HTML-escapes every issue-controlled field (`esc()` helper on
+  `title`, `labels[]`, `status`, `id`, `url`, colors) so a malicious GitHub issue
+  title/label cannot inject markup (stored-XSS hardening, see Suite 820 TC-820.17).
 - Verification on `sebiboga@907816717`: success-path loads generated **zero**
   new `Error`/`Warning` rows in the Event Viewer (`events` table).
 
@@ -92,8 +95,10 @@ issue:
   `dash.issueSummary`, `dash.status` — present and valid in **all 10** bundles
   (`gui/templates/i18n/{en,ro,de,fr,es,it,ja,pt,ru,zh}.json`).
 - Legacy Dashio template `gui/templates/dashio/mainPage.tpl` carries the same
-  widget with `project_open_issues` / `project_open_issues_hint` /
-  `project_issue_labels` keys in all 18 `locale/*/strings.txt` files.
+  widget. `project_open_issues` / `project_open_issues_hint` were in all 18
+  `locale/*/strings.txt`, but `project_issue_labels` ("Labels" column header) was
+  only in cs_CZ/en_GB/en_US — this run added it to the remaining 15 so **all 18**
+  locales resolve the header (byte-safe ASCII insertion, `php -l` clean).
 
 ## 7. Acceptance Evidence
 
@@ -104,7 +109,7 @@ All acceptance criteria of #772 verified live (admin session, project `TLU` id
 2. Widget absent for a tracker-less project and for an unreachable tracker. ✅
 3. No Event Viewer errors, no JS console errors. ✅
 
-Regression suite: **Suite 820** in `tmp/TLU_Test_Cases.md` — 16/16 PASS.
+Regression suite: **Suite 820** in `tmp/TLU_Test_Cases.md` — 17/17 PASS.
 
 ---
 
