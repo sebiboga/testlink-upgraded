@@ -1870,6 +1870,8 @@
   "tci.suitesMatched": "Suită potrivite",
   "tci.testProject": "Proiect Test",
   "tci.uploading": "Se importă... vă rugăm așteptați.",
+  "tci.noRows": "Nicio linie de raportat",
+  "tci.xmlResults": "Rezultatele importului XML",
   "tcview.active": "Activ",
   "tcview.addToTestPlans": "Adaugă în planul de test",
   "tcview.attachments": "Atașamente",

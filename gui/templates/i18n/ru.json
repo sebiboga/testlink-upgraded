@@ -1870,6 +1870,8 @@
   "tci.suitesMatched": "Наборы совпали",
   "tci.testProject": "Тест-проект",
   "tci.uploading": "Импорт... пожалуйста подождите.",
+  "tci.noRows": "Нет строк для отчета",
+  "tci.xmlResults": "Результаты импорта XML",
   "tcview.active": "Активна",
   "tcview.addToTestPlans": "Добавить в тест-план",
   "tcview.attachments": "Вложения",

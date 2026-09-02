@@ -1870,6 +1870,8 @@
   "tci.suitesMatched": "已匹配套件",
   "tci.testProject": "测试项目",
   "tci.uploading": "导入中...请稍候。",
+  "tci.noRows": "没有可报告的行",
+  "tci.xmlResults": "XML导入结果",
   "tcview.active": "活动",
   "tcview.addToTestPlans": "添加到测试计划",
   "tcview.attachments": "附件",

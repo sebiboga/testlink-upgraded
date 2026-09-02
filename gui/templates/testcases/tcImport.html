@@ -161,7 +161,6 @@ var ctx = {
   containerId: parseInt(qs('containerID') || '0', 10),
   intoProject: qs('intoProject') === '1',
   useRecursion: qs('useRecursion') === '1',
-  legacyUrl: '/lib/testcases/tcImport.php',
   bffUrl: '/api/testcasesimport/',
   info: null,
   maxBytes: 0,
@@ -277,7 +276,7 @@ function doUpload() {
   if ($('#fileType').val() === 'MD') {
     importMarkdown(f);
   } else {
-    submitLegacyXml(f);
+    importXml(f);
   }
 }
 
@@ -315,44 +314,67 @@ function importMarkdown(file) {
   });
 }
 
-function submitLegacyXml(file) {
-  var form = document.createElement('form');
-  form.method = 'post';
-  form.action = ctx.legacyUrl + '?containerID=' + encodeURIComponent(ctx.containerId)
-    + '&tproject_id=' + encodeURIComponent(ctx.tprojectId)
-    + (ctx.intoProject ? '&bIntoProject=1' : '')
-    + (ctx.useRecursion ? '&useRecursion=1' : '');
-  form.enctype = 'multipart/form-data';
-  addHidden(form, 'tproject_id', ctx.tprojectId);
-  if (ctx.intoProject) addHidden(form, 'bIntoProject', '1');
-  if (ctx.useRecursion) addHidden(form, 'useRecursion', '1');
-  addHidden(form, 'MAX_FILE_SIZE', String(ctx.maxBytes));
-  addHidden(form, 'importType', 'XML');
-  addHidden(form, 'hit_criteria', $('#hitCriteria').val());
-  addHidden(form, 'action_on_duplicated_name', $('#actionOnHit').val());
-  addHidden(form, 'UploadFile', '1');
-  form.appendChild(fileInputClone(file));
-  document.body.appendChild(form);
-  form.submit();
+function importXml(file) {
+  var fd = new FormData();
+  fd.append('uploadedFile', file);
+  var params = {
+    action: 'import_xml',
+    tproject_id: ctx.tprojectId,
+    containerID: ctx.containerId,
+    hit_criteria: $('#hitCriteria').val(),
+    action_on_hit: $('#actionOnHit').val()
+  };
+  if (ctx.intoProject) params.intoProject = 1;
+  if (ctx.useRecursion) params.useRecursion = 1;
+  $('#loadingOverlay').show();
+  $.ajax({
+    url: ctx.bffUrl + '?' + $.param(params),
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('tci.errLoadInfo'), true); return; }
+    renderXmlReport(r);
+    toast(TLi18n.t('tci.importDone'));
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#btnUpload').prop('disabled', false);
+    var msg = TLi18n.t('tci.errLoadInfo');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
 }
 
-function addHidden(form, name, value) {
-  var i = document.createElement('input');
-  i.type = 'hidden';
-  i.name = name;
-  i.value = value;
-  form.appendChild(i);
-}
-
-function fileInputClone(file) {
-  var dt = new DataTransfer();
-  dt.items.add(file);
-  var inp = document.createElement('input');
-  inp.type = 'file';
-  inp.name = 'uploadedFile';
-  inp.files = dt.files;
-  inp.style.display = 'none';
-  return inp;
+function renderXmlReport(r) {
+  $('#formCard').hide();
+  $('#previewBadge').hide();
+  $('#warnBox').hide();
+  var rows = r.result || [];
+  var chips = chip(TLi18n.t('tci.created'), rows.length);
+  $('#statChips').html(chips);
+  var h = '';
+  if (rows.length) {
+    h += '<div class="rsec"><h3>' + esc(TLi18n.t('tci.xmlResults')) + ' (' + rows.length + ')</h3>'
+      + '<table class="rep"><thead><tr>'
+      + '<th style="width:90px;">' + esc(TLi18n.t('tci.colRef')) + '</th>'
+      + '<th>' + esc(TLi18n.t('tci.colTitle')) + '</th>'
+      + '<th>' + esc(TLi18n.t('tci.colDetail')) + '</th>'
+      + '</tr></thead><tbody>';
+    rows.forEach(function (row) {
+      h += '<tr><td class="ref">' + (row.id || '') + '</td><td>' + esc(row.name || row.title || '') + '</td><td>'
+        + esc(row.message || row.error || '') + '</td></tr>';
+    });
+    h += '</tbody></table></div>';
+  } else {
+    h += '<div class="rsec"><h3>' + esc(TLi18n.t('tci.noRows')) + '</h3></div>';
+  }
+  $('#reportSections').html(h);
+  $('#reportCard').show();
+  window.scrollTo(0, 0);
 }
 
 function chip(label, count, cls) {

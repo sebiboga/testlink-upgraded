@@ -1870,6 +1870,8 @@
   "tci.suitesMatched": "Suites correspondentes",
   "tci.testProject": "Projeto de teste",
   "tci.uploading": "Importando... por favor aguarde.",
+  "tci.noRows": "Nenhuma linha para relatar",
+  "tci.xmlResults": "Resultados da importação XML",
   "tcview.active": "Ativa",
   "tcview.addToTestPlans": "Adicionar aos planos de teste",
   "tcview.attachments": "Anexos",

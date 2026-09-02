@@ -1870,6 +1870,8 @@
   "tci.suitesMatched": "一致したスイート",
   "tci.testProject": "テストプロジェクト",
   "tci.uploading": "インポート中...お待ちください。",
+  "tci.noRows": "報告する行がありません",
+  "tci.xmlResults": "XMLインポート結果",
   "tcview.active": "アクティブ",
   "tcview.addToTestPlans": "テストプランに追加",
   "tcview.attachments": "添付ファイル",

@@ -1,16 +1,21 @@
 <?php
 /**
- * Test Case Markdown Import BFF API
- * URL: /api/testcasesimport/?action=import_md  (POST)
+ * Test Case Import BFF API
+ * URL: /api/testcasesimport/?action=import_md   (POST) — Markdown import
+ *      /api/testcasesimport/?action=import_xml  (POST) — legacy XML import
  *
- * Imports test cases from the structured Markdown produced by the CI agents
- * (reference format: tmp/TLU_Test_Cases.md) using the markdownTcImport parser.
+ * Markdown import uses the structured Markdown produced by the CI agents
+ * (reference format: tmp/TLU_Test_Cases.md) via the markdownTcImport parser.
+ *
+ * XML import (action=import_xml) mirrors lib/testcases/tcImport.php — it
+ * uploads an XML file and imports test cases / suites into the target project.
  *
  * Legacy parity (lib/testcases/tcImport.php):
  *  - permission: mgt_modify_tc on the target project
  *  - size limit: config import_file_max_size_bytes
- *  - duplicate hitCriteria: 'name' (title within target suite)
- *  - actionOnHit: 'skip' (default) | 'create_new_version'
+ *  - duplicate hitCriteria: 'name' | 'internalID' | 'externalID'
+ *  - actionOnHit: 'skip' | 'update_last_version' | 'generate_new' | 'create_new_version'
+ *  - useRecursion / intoProject flags for suite import
  *
  * Self-contained: does not depend on api/testcases/index.php.
  */
@@ -513,18 +518,37 @@ if ($action === 'import_xml') {
     }
 
     // ---- load import functions from legacy tcImport.php ---------------------
-    // Use output buffering to suppress any page output from the legacy script.
-    // PHP compiles the entire file before executing, so all function definitions
-    // are registered even if the page logic fails or calls exit().
+    // The legacy script mixes page logic (config require, Smarty display, initArgs)
+    // with the import helpers. Executing the whole script from the BFF is unsafe,
+    // so we extract only the function definitions (which start at the first
+    // top-level `function` keyword) and eval them. Helper globals/classes the
+    // functions rely on (common.php, xml.inc.php, csv.inc.php) are already loaded
+    // by this BFF and by the include below.
     if (!function_exists('importTestCaseDataFromXML')) {
-        ob_start();
         $tcImportPath = __DIR__ . '/../../lib/testcases/tcImport.php';
-        try {
-            include($tcImportPath);
-        } catch (\Throwable $e) {
-            // Swallow — functions are registered at compile time
+        $src = @file_get_contents($tcImportPath);
+        if ($src === false) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Legacy import library not found']);
         }
-        ob_end_clean();
+        // find first top-level `function `importTestCaseDataFromXML`` and eval
+        // everything that follows (it is pure function/class definitions).
+        $pos = strpos($src, 'function importTestCaseDataFromXML(');
+        if ($pos === false) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Legacy import functions not found']);
+        }
+        $code = substr($src, $pos);
+        try {
+            eval($code);
+        } catch (\Throwable $e) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Failed to load import helpers: ' . $e->getMessage()]);
+        }
+        if (!function_exists('importTestCaseDataFromXML')) {
+            http_response_code(500);
+            out(['status' => 'error', 'message' => 'Legacy import helpers unavailable']);
+        }
     }
 
     // ---- run import ---------------------------------------------------------
@@ -552,24 +576,30 @@ if ($action === 'import_xml') {
     @unlink($dest);
 
     // ---- normalise resultMap to JSON-friendly structure ---------------------
+    // The legacy saveImportedTCData returns a flat list of [title, message]
+    // pairs; normalise into structured rows for the frontend.
     $normalized = [
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
         'useRecursion' => $useRecursion,
         'intoProject' => $intoProject,
         'options' => ['hit_criteria' => $hitCriteria, 'action_on_hit' => $actionOnHit],
+        'result' => [],
     ];
 
     if (is_array($resultMap)) {
-        // The legacy importTestCaseDataFromXML returns an array with 'ok', 'ko',
-        // 'filtered', 'skipped' keys depending on context.
-        $normalized['resultMap'] = $resultMap;
-        $normalized['okCount'] = count($resultMap['ok'] ?? []);
-        $normalized['koCount'] = count($resultMap['ko'] ?? []);
-        $normalized['skippedCount'] = count($resultMap['skipped'] ?? []);
-        $normalized['filteredCount'] = count($resultMap['filtered'] ?? []);
-    } else {
-        $normalized['resultMap'] = $resultMap;
+        foreach ($resultMap as $row) {
+            if (!is_array($row) || count($row) < 2) {
+                continue;
+            }
+            list($name, $message) = $row;
+            $normalized['result'][] = [
+                'name' => strval($name),
+                'message' => strval($message),
+            ];
+        }
+    } elseif ($resultMap === null && !$useRecursion && $containerId > $tprojectId) {
+        // No test cases found / empty result — keep result empty.
     }
 
     out($normalized);
