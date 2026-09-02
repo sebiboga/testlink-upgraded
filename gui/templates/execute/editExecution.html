@@ -129,7 +129,7 @@ function validate() {
     var name = $(this).attr('name');
     var $els = $('[name="' + name.replace(/"/g, '\\"') + '"]');
     var val;
-    if ($(this).attr('type') === 'checkbox') {
+    if ($(this).attr('type') === 'checkbox' || $(this).attr('type') === 'radio') {
       val = $els.filter(':checked').length > 0;
     } else {
       val = String($(this).val() == null ? '' : $(this).val());

@@ -338,7 +338,7 @@ function renderDetail(e) {
   if (e.notes !== '') {
     h += '<div class="detail-block"><div class="detail-label">'
       + esc(TLi18n.t('exechist.execNotes')) + '</div>'
-      + '<div class="notes-box">' + e.notes + '</div></div>';
+      + '<div class="notes-box">' + esc(e.notes) + '</div></div>';
   }
   if (e.customFields.length) {
     h += '<div class="detail-block"><div class="detail-label">'
