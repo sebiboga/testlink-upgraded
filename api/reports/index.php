@@ -4246,25 +4246,30 @@ if ($action === 'more_builds') {
         }
     }
 
-    // Populate per-build last statuses from latestExec, honouring the
-    // selected builds (and platform filter: platform 0 = any).
-    $statusByTcBuild = [];  // tcase_id => [build_id => last status]
-    if (!is_null($latestExec)) {
-        foreach ($latestExec as $platId => $platMap) {
-            foreach ($platMap as $tcId => $info) {
-                $tcId = intval($tcId);
-                $buildId = intval($info['build_id']);
-                if (!isset($statusByTcBuild[$tcId])) {
-                    $statusByTcBuild[$tcId] = [];
-                }
-                // keep the later execution per build
-                if (!isset($statusByTcBuild[$tcId][$buildId])
-                    || $info['id'] > $statusByTcBuild[$tcId][$buildId]['exec_id']) {
-                    $statusByTcBuild[$tcId][$buildId] = [
-                        'exec_id' => $info['id'],
-                        'status' => $info['status'],
-                    ];
-                }
+    // Build per-(tcase, build) last execution status from the flat metrics
+    // rows (latestExec only keeps ONE build per platform+tcase, so it cannot
+    // drive a per-build matrix). not_run union rows carry a null build_id and
+    // are skipped here; any selected build with no execution row for a TC is
+    // reported as not_run.
+    $statusByTcBuild = [];  // tcase_id => build_id => ['exec_id'=>, 'status'=>]
+    if (!is_null($metricsRows)) {
+        foreach ($metricsRows as $r) {
+            if (!isset($r['build_id']) || $r['build_id'] === null
+                || $r['build_id'] === '') {
+                continue;
+            }
+            $tcId = intval($r['tcase_id']);
+            $buildId = intval($r['build_id']);
+            $execId = intval($r['executions_id']);
+            if (!isset($statusByTcBuild[$tcId])) {
+                $statusByTcBuild[$tcId] = [];
+            }
+            if (!isset($statusByTcBuild[$tcId][$buildId])
+                || $execId > $statusByTcBuild[$tcId][$buildId]['exec_id']) {
+                $statusByTcBuild[$tcId][$buildId] = [
+                    'exec_id' => $execId,
+                    'status' => $r['status'],
+                ];
             }
         }
     }
@@ -4438,16 +4443,9 @@ if ($action === 'more_builds') {
     $nb = count($buildSel);
     $rows = [];
     $notRunCode = $resultsCfg['status_code']['not_run'];
-    $perBuildCounts = [];  // build_id => status => count
-    foreach ($buildSel as $bid) {
-        $perBuildCounts[$bid] = [];
-    }
 
     foreach ($platformFilteredTcase as $tcId) {
         $tr = $tcaseRows[$tcId];
-        $cells = [];
-        $executedAny = false;
-        $hasNotRun = false;
         $statusCell = [];
         foreach ($buildSel as $bid) {
             $st = $notRunCode;
@@ -4455,13 +4453,6 @@ if ($action === 'more_builds') {
                 $st = $statusByTcBuild[$tcId][$bid]['status'];
             }
             $statusCell[$bid] = $st;
-            if ($st !== $notRunCode) {
-                $executedAny = true;
-            } else {
-                $hasNotRun = true;
-            }
-            $perBuildCounts[$bid][$st] = isset($perBuildCounts[$bid][$st])
-                ? $perBuildCounts[$bid][$st] + 1 : 1;
         }
 
         // last-status filter: include TC if any of its selected-build statuses
@@ -4477,12 +4468,20 @@ if ($action === 'more_builds') {
             continue;
         }
 
+        $executedAny = false;
+        $hasNotRun = false;
         $rowCells = [];
         foreach ($buildSel as $bid) {
+            $st = $statusCell[$bid];
+            if ($st !== $notRunCode) {
+                $executedAny = true;
+            } else {
+                $hasNotRun = true;
+            }
             $rowCells[] = [
                 'build_id' => $bid,
-                'status' => $statusCell[$bid],
-                'executed' => ($statusCell[$bid] !== $notRunCode),
+                'status' => $st,
+                'executed' => ($st !== $notRunCode),
             ];
         }
         $rows[] = [
@@ -4497,7 +4496,19 @@ if ($action === 'more_builds') {
         ];
     }
 
-    // ---- Build totals ----
+    // ---- Build totals (over the same filtered row set as the matrix) ----
+    $perBuildCounts = [];
+    foreach ($buildSel as $bid) {
+        $perBuildCounts[$bid] = [];
+    }
+    foreach ($rows as $r) {
+        foreach ($r['cells'] as $cell) {
+            $bid = $cell['build_id'];
+            $perBuildCounts[$bid][$cell['status']] =
+                isset($perBuildCounts[$bid][$cell['status']])
+                    ? $perBuildCounts[$bid][$cell['status']] + 1 : 1;
+        }
+    }
     $buildTotals = [];
     foreach ($buildSel as $bid) {
         $buildTotals[] = [
