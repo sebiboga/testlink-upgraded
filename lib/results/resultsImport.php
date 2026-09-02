@@ -282,7 +282,7 @@ function saveImportedResultData(&$db,$resultData,$context,$options) {
   // -------------------------------------------------------------------- 
 
   // -------------------------------------------------------------------- 
-  $optGB = array('tplan_id' => $context->tplanID, 'output' => 'minimun');
+  $optGB = array('tproject_id' => $context->tprojectID, 'output' => 'minimun');
   $dummy = null;
   if( !is_null($context->buildID) && intval($context->buildID) > 0 ) {
     $dummy = array($build_mgr->get_by_id($context->buildID,$optGB));

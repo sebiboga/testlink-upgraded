@@ -9317,3 +9317,35 @@ in as admin/admin. Data source: live GitHub API
 - **Result:** **11/11 PASS** (TC-503.1–503.11) against MariaDB 11.4 (testlink user granted CREATE VIEW).
   Note: `database->exec_query()` dies + auto-rolls-back on DB error; the `try/catch/ROLLBACK` in an
   earlier draft was dead code and was removed (transactions still atomic via connection-close rollback).
+
+---
+
+## Issue #503 — Sub-task #828: `build.class.php` project scope
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Backend-only. Makes the build manager operate at Test Project scope while keeping
+  `testplan_id` dual-written (dropped only in #834):
+  - `create()` writes `testproject_id` (derived from the plan via new `getProjectIdOfPlan()`, or
+    accepted as `$tproject_id`) + `testplan_id`.
+  - `createFromObject()` derives/writes `testproject_id` (property_exists-guarded), and the name
+    collision check is now project-wide.
+  - `checkNameExistence($tproject_id,...)` filters on `testproject_id`.
+  - `get_by_name()` / `get_by_id()` accept `tproject_id` (get_by_id falls back to `tplan_id`).
+  - `resultsImport.php` build lookups now pass `tproject_id`.
+- **Fixture/verify:** `php tmp/repro_828.php` — project `2100`, plans `2101`/`2102`, builds
+  `v2.0` (plan 2101) and `v2.1` (plan 2102). Code-review subagent passed; fixed E_WARNING on
+  undefined `$item->tproject_id` via `property_exists` guard.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-503.12 | create() writes testproject_id | `bm->create($tpl1,'v2.0','')` | build row `testproject_id=2100` | PASS |
+| TC-503.13 | create() keeps testplan_id | read same row | `testplan_id=2101` | PASS |
+| TC-503.14 | checkNameExistence project-wide | `bm->checkNameExistence(2100,'v2.0')` | `status_ok=0` (name used on plan 2101 → visible at project scope) | PASS |
+| TC-503.15 | createFromObject rejects project dup | same name `v2.0` on plan 2102 | throws (project-wide collision) | PASS |
+| TC-503.16 | createFromObject writes testproject_id | new name `v2.1` on plan 2102 | `testproject_id=2100` | PASS |
+| TC-503.17 | createFromObject keeps testplan_id | read same row | `testplan_id=2102` | PASS |
+| TC-503.18 | get_by_name project scope | `get_by_name('v2.0',['tproject_id'=>2100])` | returns build id of plan-2101 build | PASS |
+| TC-503.19 | get_by_id project scope | `get_by_id(id,['tproject_id'=>2100])` | returns the build | PASS |
+
+- **Result:** **8/8 PASS** (TC-503.12–503.19) against MariaDB 11.4.

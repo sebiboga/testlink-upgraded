@@ -39,6 +39,22 @@ class build extends tlObject {
     $this->cfield_mgr = new cfield_mgr($this->db);
   }
 
+  /**
+   * Resolve the test project a test plan belongs to.
+   * Used to scope builds to the project while keeping testplan_id dual-write
+   * during the migration (issue #503).
+   *
+   * @param integer $tplan_id
+   * @return integer testproject_id (0 if plan not found)
+   */
+  function getProjectIdOfPlan($tplan_id)
+  {
+    $sql = " SELECT testproject_id FROM {$this->tables['testplans']} " .
+           " WHERE id = " . intval($tplan_id);
+    $rs = $this->db->get_recordset($sql);
+    return (is_array($rs) && isset($rs[0]['testproject_id'])) ? intval($rs[0]['testproject_id']) : 0;
+  }
+
 
   /**
    * Build Manager
@@ -105,7 +121,6 @@ class build extends tlObject {
         throw new Exception('Build - Empty name is not allowed');      
       }  
     
-      // what checks need to be done ?
       // 1. does test plan exist?
       $item->tplan_id = intval($item->tplan_id);
       $tm = new tree($this->db);
@@ -117,12 +132,19 @@ class build extends tlObject {
           "Build - Test Plan ID {$item->tplan_id} does not exist");    
       }  
 
-      // 2. there is NO other build on test plan with same name
+      // builds are scoped to the Test Project (issue #503): resolve the
+      // project from the plan and write it alongside the plan (dual-write).
+      $item->tproject_id = property_exists($item,'tproject_id') ? intval($item->tproject_id) : 0;
+      if($item->tproject_id == 0) {
+        $item->tproject_id = $this->getProjectIdOfPlan($item->tplan_id);
+      }
+
+      // 2. there is NO other build on test PROJECT with same name
       $name = trim($item->name);
-      $op = $this->checkNameExistence($item->tplan_id,$name);
+      $op = $this->checkNameExistence($item->tproject_id,$name);
       if(!$op['status_ok']) {
         throw new Exception(
-          "Build name {$name} is already in use on Test Plan {$item->tplan_id}");      
+          "Build name {$name} is already in use on Test Project {$item->tproject_id}");      
       }  
     } catch (Exception $e) {
       throw $e;  // rethrow
@@ -138,6 +160,7 @@ class build extends tlObject {
 
     $build->name = $item->name;
     $build->tplan_id = $item->tplan_id;
+    $build->tproject_id = $item->tproject_id;
     foreach( $prop as $nu => $value  ) {      
       $build->$nu = $value;
       if( property_exists($item, $nu) ) {
@@ -162,10 +185,10 @@ class build extends tlObject {
     $build->release_date = trim($build->release_date);
     $ps = 'prepare_string';
     $sql = " INSERT INTO {$this->tables['builds']} " .
-           " (testplan_id,name,notes,
+           " (testproject_id,testplan_id,name,notes,
               commit_id,tag,branch,release_candidate,
               active,is_open,creation_ts,release_date) " .
-           " VALUES ('". $build->tplan_id . "','" . 
+           " VALUES ('". intval($build->tproject_id) . "','" . intval($build->tplan_id) . "','" . 
              $this->db->$ps($build->name) . "','" .
              $this->db->$ps($build->notes) . "',";
 
@@ -210,12 +233,22 @@ class build extends tlObject {
 
     rev :
   */
-  function create($tplan_id,$name,$notes = '',$active=1,$open=1,$release_date='')
+  function create($tplan_id,$name,$notes = '',$active=1,$open=1,$release_date='',
+                  $tproject_id=null)
   {
+    // Builds are scoped to the Test Project (issue #503). We still accept the
+    // plan id for backwards compatibility and dual-write (testplan_id is kept
+    // populated until #834); the project id is derived when not supplied.
+    if(is_null($tproject_id))
+    {
+      $tproject_id = $this->getProjectIdOfPlan($tplan_id);
+    }
+    $safe_tproject = intval($tproject_id);
+
     $targetDate = trim($release_date);
     $sql = " INSERT INTO {$this->tables['builds']} " .
-           " (testplan_id,name,notes,release_date,active,is_open,creation_ts) " .
-           " VALUES ('". $tplan_id . "','" . $this->db->prepare_string($name) . "','" .
+           " (testproject_id,testplan_id,name,notes,release_date,active,is_open,creation_ts) " .
+           " VALUES ('". $safe_tproject . "','" . intval($tplan_id) . "','" . $this->db->prepare_string($name) . "','" .
            $this->db->prepare_string($notes) . "',";
 
     if($targetDate == '') {
@@ -399,7 +432,8 @@ class build extends tlObject {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     
     $my = array('options' => 
-                array('tplan_id' => null, 'output' => 'full', 'fields' => '*'));
+                array('tproject_id' => null, 'tplan_id' => null,
+                      'output' => 'full', 'fields' => '*'));
     $my['options'] = array_merge($my['options'],(array)$opt);
     
     $safe_id = intval($id);  
@@ -421,7 +455,10 @@ class build extends tlObject {
     }
     
     $sql .= " FROM {$this->tables['builds']} WHERE id = {$safe_id} ";
-    if(!is_null($my['options']['tplan_id']) && ($safe_tplan = intval($my['options']['tplan_id'])) > 0) {
+    // Builds are scoped to the Test Project (issue #503): prefer project scope.
+    if(!is_null($my['options']['tproject_id']) && ($safe_tp = intval($my['options']['tproject_id'])) > 0) {
+      $sql .= " AND testproject_id = {$safe_tp} ";
+    } elseif(!is_null($my['options']['tplan_id']) && ($safe_tplan = intval($my['options']['tplan_id'])) > 0) {
       $sql .= " AND testplan_id = {$safe_tplan} ";
     }
     
@@ -441,7 +478,7 @@ class build extends tlObject {
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     
-    $my = array('options' => array('tplan_id' => null, 'output' => 'full'));
+    $my = array('options' => array('tproject_id' => null, 'output' => 'full'));
     $my['options'] = array_merge($my['options'],(array)$opt);
 
     $sql = "/* {$debugMsg} */";
@@ -460,9 +497,11 @@ class build extends tlObject {
     $sql .= " FROM {$this->tables['builds']} B " .
           " WHERE B.name = '" . $this->db->prepare_string($name) . "'";
 
-    if(!is_null($my['options']['tplan_id']) && ($safe_tplan = intval($my['options']['tplan_id'])) > 0)
+    // Builds are scoped to the Test Project (issue #503): resolve by project.
+    if(isset($my['options']['tproject_id']) && !is_null($my['options']['tproject_id']) &&
+       ($safe_tproject = intval($my['options']['tproject_id'])) > 0)
     {
-      $sql .= " AND B.testplan_id = {$safe_tplan} ";
+      $sql .= " AND B.testproject_id = {$safe_tproject} ";
     }
 
     $rs = $this->db->get_recordset($sql);
@@ -627,13 +666,15 @@ class build extends tlObject {
    * Build Manager
    *
    */
-  function checkNameExistence($tplan_id,$build_name,$build_id=null,
+  function checkNameExistence($tproject_id,$build_name,$build_id=null,
                               $caseSens=0) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
+    // Builds are scoped to the Test Project (issue #503): the uniqueness of a
+    // build name is enforced per (testproject_id, name).
     $sql = " /* $debugMsg */ SELECT id, name, notes " .
       " FROM {$this->tables['builds']} " .
-      " WHERE testplan_id = {$tplan_id} ";
+      " WHERE testproject_id = {$tproject_id} ";
     
     if($caseSens) {
       $sql .= " AND name=";
