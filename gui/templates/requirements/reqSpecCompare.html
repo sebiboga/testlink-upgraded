@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compare Requirement Spec Revisions</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.warn-banner { background: #fff8e1; border: 1px solid #ffe082; color: #9a7d0a; border-radius: 6px; padding: 12px 18px; font-size: 13px; margin: 16px 24px; display: none; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.badge-rev { background: #3498db; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-lchanged { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-rchanged { background: #c0392b; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-same { background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+table.diff-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.diff-table th { background: #22242a; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+table.diff-table td { padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+table.diff-table tr.changed { background: #fdf3e7; }
+.del { color: #c0392b; background: #fdecea; }
+.ins { color: #1a7f79; background: #eaf7f6; }
+.scope-diff { background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 14px; font-size: 13px; line-height: 1.6; word-break: break-word; }
+.scope-diff del { background: #fdecea; color: #c0392b; text-decoration: line-through; }
+.scope-diff ins { background: #eaf7f6; color: #1a7f79; text-decoration: none; }
+.method-box { background: #f7f7f7; border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px 16px; margin: 12px 0; }
+.method-box label { font-weight: 400; margin-right: 18px; font-size: 13px; color: #333; }
+.context-row { margin-top: 8px; display: none; }
+.context-row input { width: 70px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; }
+.table>tbody>tr>td { padding: 8px 12px; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-code-compare"></i> <span data-i18n="rsvc.title">Compare Requirement Spec Revisions</span><span id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="selMode" onclick="loadRevisions()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-ghost" id="compareBtn" style="display:none;" onclick="doCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="rsvc.compareSelected">Compare selected revisions</span></button>
+  <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
+</div>
+
+<div id="warnBanner" class="warn-banner"></div>
+
+<div id="content">
+  <div class="card" id="selCard">
+    <div class="card-title"><i class="fa fa-list"></i> <span data-i18n="rsvc.selectRevisions">Select two revisions</span></div>
+    <div class="card-body">
+      <div class="method-box">
+        <div><b data-i18n="rsvc.diffMethod">Diff method</b></div>
+        <label><input type="radio" name="diff_method" value="html" checked> <span data-i18n="rsvc.htmlCompare">HTML comparison</span></label>
+        <label><input type="radio" name="diff_method" value="text"> <span data-i18n="rsvc.codeCompare">HTML code comparison</span></label>
+        <div class="context-row" id="contextRow">
+          <label><span data-i18n="rsvc.context">Context</span> <input type="text" id="context" maxlength="4" size="4" value="" data-def=""></label>
+          <label><input type="checkbox" id="contextShowAll"> <span data-i18n="rsvc.showAll">Show all</span></label>
+        </div>
+      </div>
+      <table id="revTable" class="table table-striped table-bordered" width="100%">
+        <thead>
+          <tr>
+            <th data-i18n="rsvc.revision">Revision</th>
+            <th data-i18n="rsvc.compare">Compare (left / right)</th>
+            <th data-i18n="rsvc.logMessage">Log message</th>
+            <th data-i18n="rsvc.timestamp">Last change</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="diffWrap" style="display:none;">
+    <div class="card">
+      <div class="card-title"><i class="fa fa-code-compare"></i> <span data-i18n="rsvc.diffDetails">Diff details</span><span id="subtitle" style="margin-left:auto;font-weight:400;font-size:12px;color:#666;"></span></div>
+      <div class="card-body">
+        <div id="attrSection"></div>
+        <h5 style="margin-top:18px;"><i class="fa fa-align-left"></i> <span data-i18n="rsvc.scope">Scope</span></h5>
+        <div class="scope-diff" id="scopeDiff"></div>
+        <div id="cfSection"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+var API = '/api/reqspec/index.php';
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var revTable = null;
+var curMethod = 'html';
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  SPEC_ID = parseInt(p.get('spec_id') || p.get('id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!SPEC_ID) {
+      showWarn(TLi18n.t('rsvc.noSpec'));
+      $('#content').hide();
+      return;
+    }
+    loadRevisions();
+  });
+  $('input[name=diff_method]').on('change', function() {
+    curMethod = this.value;
+    if (curMethod === 'text') { $('#contextRow').show(); }
+    else { $('#contextRow').hide(); }
+  });
+  $('#contextShowAll').on('change', function() {
+    $('#context').prop('disabled', this.checked);
+  });
+});
+
+function loadRevisions() {
+  var url = API + '?action=spec_revision_compare&spec_id=' + SPEC_ID;
+  if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
+  $('#warnBanner').hide();
+  $('#diffWrap').hide();
+  $('#selCard').show();
+  $('#compareBtn').show();
+  $('#infoLine').text('');
+  $.getJSON(url, function(r) {
+    if (r.status !== 'ok') { showWarn(r.message || TLi18n.t('rsvc.loadError')); return; }
+    TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)) + ' [' + r.spec_doc_id + ']');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsvc.title') +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    renderRevisions(r.revisions || []);
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('rsvc.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showWarn(msg);
+  });
+}
+
+function renderRevisions(revisions) {
+  var rows = '';
+  // pre-select most recent two (revisions already DESC from API): left = rev-1 (index1), right = rev (index0)
+  if (revisions.length >= 2) {
+    rows += revRow(revisions[0], true, false);
+    rows += revRow(revisions[1], false, true);
+    for (var i = 2; i < revisions.length; i++) rows += revRow(revisions[i], false, false);
+  } else if (revisions.length === 1) {
+    rows += revRow(revisions[0], true, false);
+  } else {
+    rows = '<tr><td colspan="4" class="empty-state">' + TLi18n.t('rsvc.noRevisions') + '</td></tr>';
+  }
+  $('#revTable tbody').html(rows);
+  if (revTable) { revTable.destroy(); revTable = null; }
+  if (revisions.length > 0) {
+    revTable = $('#revTable').DataTable({
+      paging: false, searching: true, info: false, ordering: true
+    });
+  }
+  TLi18n.apply();
+}
+
+function revRow(rev, isRight, isLeft) {
+  var disp = Number(rev.revision) + 1;
+  return '<tr>' +
+    '<td><span class="badge-rev">' + TLi18n.t('rsvc.revision') + ' ' + escapeHtml(disp) + '</span></td>' +
+    '<td style="white-space:nowrap;">' +
+      '<label class="radio-inline" title="' + TLi18n.t('rsvc.left') + '"><input type="radio" name="left_item_id" value="' + rev.item_id + '"' + (isLeft ? ' checked' : '') + '></label> ' +
+      '<label class="radio-inline" title="' + TLi18n.t('rsvc.right') + '"><input type="radio" name="right_item_id" value="' + rev.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
+    '</td>' +
+    '<td>' + escapeHtml(rev.log_message || '-') + '</td>' +
+    '<td style="white-space:nowrap;">' + fmtTs(rev.timestamp) + ' · ' + escapeHtml(rev.last_editor || '-') + '</td>' +
+    '</tr>';
+}
+
+function doCompare() {
+  var left = $('input[name=left_item_id]:checked').val();
+  var right = $('input[name=right_item_id]:checked').val();
+  if (!left || !right) { showWarn(TLi18n.t('rsvc.selectTwo')); return; }
+  if (left === right) { showWarn(TLi18n.t('rsvc.sameSelected')); return; }
+  var method = curMethod;
+  if (method === 'text') {
+    var ctx = $('#context').val();
+    if (!$('#contextShowAll').prop('checked')) {
+      if (ctx === '' || isNaN(parseInt(ctx, 10)) || parseInt(ctx, 10) < 0) {
+        showWarn(TLi18n.t('rsvc.invalidContext'));
+        return;
+      }
+    }
+  }
+  var url = API + '?action=spec_revision_compare&spec_id=' + SPEC_ID +
+    '&left=' + left + '&right=' + right + '&method=' + method;
+  if (TPROJECT_ID > 0) url += '&tproject_id=' + TPROJECT_ID;
+  if (method === 'text') {
+    if ($('#contextShowAll').prop('checked')) url += '&context_show_all=1';
+    else url += '&context=' + encodeURIComponent($('#context').val() || '');
+  }
+  $('#warnBanner').hide();
+  $('#infoLine').text(TLi18n.t('rsvc.computing'));
+  $.getJSON(url, function(r) {
+    if (r.status !== 'ok') { showWarn(r.message || TLi18n.t('rsvc.loadError')); return; }
+    renderDiff(r);
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('rsvc.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showWarn(msg);
+  });
+}
+
+function renderDiff(r) {
+  var leftDisp = Number(r.left.revision) + 1;
+  var rightDisp = Number(r.right.revision) + 1;
+  $('#subtitle').text(TLi18n.t('rsvc.diffBetween') + ' r' + leftDisp + ' ↔ r' + rightDisp);
+
+  // attributes table
+  var attrHtml = '<h5><i class="fa fa-list-ul"></i> <span data-i18n="rsvc.attributes">Attributes</span></h5>' +
+    '<table class="diff-table"><thead><tr>' +
+    '<th>' + TLi18n.t('rsvc.attribute') + '</th>' +
+    '<th>' + TLi18n.t('rsvc.left') + ' (r' + leftDisp + ')</th>' +
+    '<th>' + TLi18n.t('rsvc.right') + ' (r' + rightDisp + ')</th></tr></thead><tbody>';
+  $.each(r.attributes || [], function(i, a) {
+    var cls = a.changed ? 'del' : 'ins';
+    attrHtml += '<tr class="' + (a.changed ? 'changed' : '') + '">' +
+      '<td><b>' + escapeHtml(a.label) + '</b></td>' +
+      '<td class="' + cls + '">' + escapeHtml(a.lvalue) + '</td>' +
+      '<td class="' + cls + '">' + escapeHtml(a.rvalue) + '</td></tr>';
+  });
+  attrHtml += '</tbody></table>';
+  $('#attrSection').html(attrHtml);
+
+  // scope diff
+  showBadgeCount(r.scope.count);
+  if (r.scope.type === 'html' && r.scope.diff) {
+    $('#scopeDiff').html(r.scope.diff);
+  } else if (r.scope.diff) {
+    $('#scopeDiff').html(r.scope.diff);
+  } else {
+    $('#scopeDiff').html('<span style="color:#888;">' + TLi18n.t('rsvc.noChanges') + '</span>');
+  }
+
+  // custom fields diff
+  var cfRows = r.custom_fields || [];
+  var cfHtml = '';
+  if (cfRows.length > 0) {
+    cfHtml = '<h5 style="margin-top:18px;"><i class="fa fa-tags"></i> <span data-i18n="rsvc.customFields">Custom Fields</span></h5>' +
+      '<table class="diff-table"><thead><tr>' +
+      '<th>' + TLi18n.t('rsvc.customField') + '</th>' +
+      '<th>' + TLi18n.t('rsvc.left') + ' (r' + leftDisp + ')</th>' +
+      '<th>' + TLi18n.t('rsvc.right') + ' (r' + rightDisp + ')</th></tr></thead><tbody>';
+    $.each(cfRows, function(i, c) {
+      var cls = c.changed ? 'del' : 'ins';
+      cfHtml += '<tr class="' + (c.changed ? 'changed' : '') + '">' +
+        '<td><b>' + escapeHtml(c.label) + '</b></td>' +
+        '<td class="' + cls + '">' + escapeHtml(c.lvalue || '') + '</td>' +
+        '<td class="' + cls + '">' + escapeHtml(c.rvalue || '') + '</td></tr>';
+    });
+    cfHtml += '</tbody></table>';
+  }
+  $('#cfSection').html(cfHtml);
+  $('#diffWrap').show();
+  $('#selCard').hide();
+  $('#compareBtn').hide();
+  $('#infoLine').text('');
+  TLi18n.apply();
+}
+
+function showBadgeCount(count) {
+  $('#scopeCount').remove();
+  var badge = count > 0
+    ? '<span class="badge-lchanged" id="scopeCount" style="margin-left:10px;">' + count + ' ' + TLi18n.t('rsvc.changes') + '</span>'
+    : '<span class="badge-same" id="scopeCount" style="margin-left:10px;">' + TLi18n.t('rsvc.noChanges') + '</span>';
+}
+
+function showWarn(msg) {
+  $('#warnBanner').text(msg).css('display', 'block');
+}
+
+function fmtTs(ts) {
+  if (!ts) return '-';
+  var d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString();
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>
