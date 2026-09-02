@@ -181,7 +181,7 @@ function renderRevisions(revisions) {
 }
 
 function revRow(rev, isRight, isLeft) {
-  var disp = Number(rev.revision) + 1;
+  var disp = Number(rev.revision);
   return '<tr>' +
     '<td><span class="badge-rev">' + TLi18n.t('rsvc.revision') + ' ' + escapeHtml(disp) + '</span></td>' +
     '<td style="white-space:nowrap;">' +
@@ -228,8 +228,8 @@ function doCompare() {
 }
 
 function renderDiff(r) {
-  var leftDisp = Number(r.left.revision) + 1;
-  var rightDisp = Number(r.right.revision) + 1;
+  var leftDisp = Number(r.left.revision);
+  var rightDisp = Number(r.right.revision);
   $('#subtitle').text(TLi18n.t('rsvc.diffBetween') + ' r' + leftDisp + ' ↔ r' + rightDisp);
 
   // attributes table
