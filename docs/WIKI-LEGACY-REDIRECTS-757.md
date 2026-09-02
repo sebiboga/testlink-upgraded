@@ -56,7 +56,7 @@ When an object filter is active a teal banner shows `Filtered by platforms #1` (
 
 ## Test plan
 
-Regression suite **821** in `tmp/TLU_Test_Cases.md` — **9/9 PASS**.
+Regression suite **821** in `tmp/TLU_Test_Cases.md` — **11/11 PASS**.
 
 - `goAssign()` opens `keywordsAssign.html` (no `frmWorkArea.php`).
 - `keywordsAssign.html` renders fully translated (no raw `kwa.*`).

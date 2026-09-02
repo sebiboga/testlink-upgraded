@@ -179,9 +179,14 @@ $(function() {
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    if (objectId && objectType) {
+    if (objectId || objectType) {
       $('#objectFilterGroup').css('display', 'flex');
-      $('#objectFilterLabel').text(TLi18n.t('ev.filteredByObject', { type: objectType, id: objectId }));
+      $('#objectFilterLabel').text(
+        TLi18n.t('ev.filteredByObject', {
+          type: String(objectType).replace(/[^a-zA-Z0-9_]/g, ''),
+          id: String(objectId).replace(/[^a-zA-Z0-9_]/g, '')
+        })
+      );
     }
     loadMeta();
     loadEvents();

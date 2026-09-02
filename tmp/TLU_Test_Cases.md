@@ -9173,5 +9173,7 @@ in as admin/admin. Data source: live GitHub API
 | TC-821.7 | kwa.* keys in all bundles | Count `kwa.*` in en/ro/de/es/fr/it/ja/pt/ru/zh | 29 keys present in each; all `python3 -m json.tool` valid | PASS |
 | TC-821.8 | No new console errors | keywordsView, keywordsAssign, Event Viewer | No new Error/Warning in browser console | PASS |
 | TC-821.9 | Event Viewer clean | After all interactions | `events` table has 0 new Error/Warning (only AUDIT login/project/keyword entries) | PASS |
+| TC-821.10 | Object badge shows with either param | `eventviewer.html?object_type=platforms` (no id) | "Filtered by platforms " badge still shown (`objectId || objectType`, matching `buildQuery()`); lone param not silently filtered | PASS |
+| TC-821.11 | Object badge sanitized | `eventviewer.html?object_type=<img+onerror>&object_id=1` | Badge text has no HTML / no script executed; non-alphanumeric chars stripped before `TLi18n.t` interpolation (`.text()` escapes too) | PASS |
 
-- **Result:** **9/9 PASS** (TC-821.1–821.9)
+- **Result:** **11/11 PASS** (TC-821.1–821.11)
