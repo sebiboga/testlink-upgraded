@@ -9561,3 +9561,43 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
   and 16 other bundles) fixed; `lang_get` now returns the localized string for
   every locale under TestLink without firing the L18N warning; no locale file
   corrupted, no new Event Viewer warnings.
+
+---
+
+## Suite 837 — Requirement Spec Revision Compare (`reqSpecCompare.html` + `api/reqspec` action=spec_revision_compare) — Refs #837
+
+- **Priority:** High · **Importance:** High
+- **Scope:** Modernization of legacy `lib/requirements/reqSpecCompareRevisions.php`
+  (HIGH-priority #755 `reqSpecViewRevisions`/compare-revisions item). A standalone
+  Dashio screen lists a requirement spec's revisions (`requirement_spec_mgr->get_history`)
+  with two left/right radios, a diff-method choice (HTML comparison / HTML code
+  comparison + context), and a diff panel: attribute table (doc_id/name/type),
+  scope diff (HTMLDiffer or text `diff`/`inline`), and linked custom-fields diff.
+  Right `mgt_view_req` is enforced on every route (same gate as `spec_revision_view`).
+- **Fixture:** `tmp/fixtures_837.php` → project **RSC837** (id 9), spec **RSPEC-1** (id 10)
+  with 3 revisions (ids 11/13/15) + spec-level custom field "Spec Note".
+  Verified in-browser against a freshly-imported DB.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-837.1 | revision list loads | open `reqSpecCompare.html?spec_id=10&tproject_id=9` (admin) | Title "Compare Requirement Spec Revisions"; project header `RSC837 [RSPEC-1]`; DataTable lists Revision 1/2/3 with log messages; left radio pre-checked = Revision 2, right = Revision 3. | PASS (browser) |
+| TC-837.2 | HTML comparison diff | select left=Rev1 right=Rev3, method HTML, Compare | Diff panel shown "Diff between r1 ↔ r3"; attribute Name changed "Compare Spec" → "Compare Spec v3"; scope diff renders HTMLDiffer ins/del; CF Spec Note Left empty / Right "latest spec note". | PASS (browser) |
+| TC-837.3 | HTML code comparison diff | method=HTML Code + context=2, Compare | Scope renders the text `diff::inline` table (class `del`/`ins` rows, revision:2/3 header); count > 0. | PASS (browser) |
+| TC-837.4 | same revision validation | select left=right=Rev1, Compare | Warning "Cannot compare a revision with itself"; no diff shown. | PASS (browser) |
+| TC-837.5 | empty context validation | method=Code, clear context, Compare | Warning "Context must be a non-negative number". | PASS (browser) |
+| TC-837.6 | missing spec id error | open `reqSpecCompare.html` (no `spec_id`) | Warning banner "Missing requirement spec id"; content hidden. | PASS (browser) |
+| TC-837.7 | BFF unknown spec | `curl …action=spec_revision_compare&spec_id=999999` | HTTP 404 `Requirement specification not found`. | PASS (curl) |
+| TC-837.8 | BFF same-revision guard | `curl …&left=11&right=11` | HTTP 400 `Select two different revisions to compare`. | PASS (curl) |
+| TC-837.9 | links from reqSpecView.html | open `reqSpecView.html?id=10`, click Compare revisions | Opens `reqSpecCompare.html?spec_id=10&tproject_id=9` (target=_blank). | PASS (browser) |
+| TC-837.10 | links from reqSpecViewRevision.html | open `reqSpecViewRevision.html?id=15`, inspect Compare link | href = `reqSpecCompare.html?spec_id=10&tproject_id=9`; visible. | PASS (browser) |
+| TC-837.11 | locale switch renders | switch locale to Română | Header + button labels localize via `rsvc.*` keys; no missing-key on-screen. | PASS (browser) |
+| TC-837.12 | no JS console errors | throughout the above | 0 errors/warnings in console. | PASS (browser) |
+| TC-837.13 | Event Viewer clean | `SELECT * FROM events` after all comparisons | only normal AUDIT (LOGIN/spec) rows; no new Error/Warning from BFF read path. | PASS |
+
+- **Result:** **13/13 PASS** (TC-837.1–837.13). Req Spec Revision Compare modernized
+  end-to-end: history picker + two diff engines + attribute/scope/CF diffs, wired
+  from both the current-spec viewer and the historical-revision viewer, rights +
+  validation + all error states verified, Event Viewer clean.
+- **Note:** while testing, found and fixed a display bug (revision badges and diff
+  labels rendered `revision+1` instead of the actual revision) in the same screen —
+  fixed and re-verified. No GitHub bug filed (fix landed in the same PR).
