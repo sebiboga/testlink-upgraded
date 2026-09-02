@@ -56,6 +56,8 @@ Implementation notes:
   cs_CZ (4493 lines churned) and was caught and reverted.
 - Wording authored fresh per language (en/de/es/fi/fr/id/it/ja/ko/nl/pl/ro/ru/zh + cs), consistent with
   the existing pt text "Falhou o carregamento do XML".
+- ja/ko/zh/ru/fi use native script (matching each file's existing convention, e.g. the #653 keys);
+  cs_CZ keeps ASCII because the file contains a pre-existing invalid UTF-8 byte (see integrity note).
 - Client-side i18n JSON bundles were left alone: this legacy Smarty path does not consume them.
 
 ## Verification

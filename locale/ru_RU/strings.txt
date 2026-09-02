@@ -2798,5 +2798,5 @@ $TLS_img_title_remove_platform = 'Удалить платформу';
 $TLS_error_self_signup_disabled = 'Самостоятельная регистрация новых пользователей отключена. Обратитесь к администратору сайта.';
 
 // Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
-$TLS_simplexml_load_file_wrapper_error = "Pozhaluysta, peredaite etot tekst vashemu administratoru TestLink<br> - Oshibka zagruzki XML<br>";
+$TLS_simplexml_load_file_wrapper_error = "Пожалуйста, передайте этот текст вашему администратору TestLink<br> - Ошибка загрузки XML<br>";
 ?>

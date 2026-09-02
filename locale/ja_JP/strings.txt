@@ -4538,4 +4538,4 @@ $TLS_img_title_remove_platform = 'プラットフォームを削除';
 $TLS_error_self_signup_disabled = '新規ユーザーの自己登録は無効になっています。サイト管理者に連絡してください。';
 
 // Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
-$TLS_simplexml_load_file_wrapper_error = "XML no rodo ni shippai shimashita. Kono tekisuto o TestLink kanrisha ni watashite kudasai.<br>";
+$TLS_simplexml_load_file_wrapper_error = "このテキストをTestLink管理者に渡してください<br> - XMLの読み込みに失敗しました<br>";
