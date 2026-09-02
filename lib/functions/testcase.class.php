@@ -4260,7 +4260,6 @@ class testcase extends tlObjectWithAttachments {
               " JOIN {$this->tables['tcversions']} tcversions ON NHA.id = tcversions.id" .
               " {$executions_join}" .
               " LEFT OUTER JOIN {$this->tables['builds']} builds ON builds.id = e.build_id" .
-              "                 AND builds.testplan_id = {$tplan_id}" .
               " LEFT OUTER JOIN {$this->tables['users']} users ON users.id = e.tester_id " .
               " LEFT OUTER JOIN {$this->tables['platforms']} p ON p.id = e.platform_id" .
               " $where_clause_2" .

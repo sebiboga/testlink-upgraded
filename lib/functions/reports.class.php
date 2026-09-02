@@ -134,9 +134,13 @@ class tlReports extends tlObjectWithDB
    * @return integer count of builds
    */ 
   public function get_count_builds($active=1, $open=0) {
+    // Builds are scoped to the Test Project (issue #503): count the plan's project builds.
+    $tproject_id = intval($this->db->fetchOneValue(
+        " SELECT testproject_id FROM {$this->tables['testplans']} " .
+        " WHERE id = " . intval($this->testPlanID) ));
     $sql = " SELECT COUNT(0) FROM {$this->tables['builds']} builds " . 
-           " WHERE builds.testplan_id = {$this->testPlanID} ";
-           
+           " WHERE builds.testproject_id = {$tproject_id} ";
+            
     if( $active )
     {
        $sql .= " AND active=" . intval($active) . " ";   

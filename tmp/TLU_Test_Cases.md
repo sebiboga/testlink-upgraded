@@ -9391,3 +9391,21 @@ in as admin/admin. Data source: live GitHub API
 - **Result:** **13/13 PASS** (TC-503.20–503.32) against MariaDB 11.4.
 - Code-review subagent found and we fixed a real under-count regression in the three "never run"
   metrics methods (they compared a per-plan build count against the now project-wide build set).
+
+---
+
+### Sub-task #830 — reporting joins scoped to plan's project
+Fixture: project 2000 (plans 2001/2002, project build 3001 `v1.0`).
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| TC-503.33 | `reports::get_count_builds` project scope | `new tlReports($db,2002)` | 1 (shares project build 3001) | PASS |
+| TC-503.34 | `get_count_builds` counts project builds across plans | added project build 3003 | 2 (project scope, not per-plan) | PASS |
+| TC-503.35 | `testcase::get_last_execution` build join no `builds.testplan_id` | grep `builds.testplan_id` in testcase.class.php | none (removed) | PASS |
+| TC-503.36 | repro clean-up leaves project 2000 builds stable | after `DEL where id=3003` | only 3001 (+pre-existing 3111) | PASS |
+
+- **Result:** **4/4 PASS** (TC-503.33–503.36) against MariaDB 11.4.
+- **Note:** metrics/tests item: `tlTestPlanMetrics.class.php:2567` still has `JOIN builds A_B ON A_B.testplan_id = A_TPTCV.testplan_id`
+  plus the 15 platform-report `JOIN builds B ON B.testplan_id = TPTCV.testplan_id` in `testplan.class.php` (lines 4153–5677).
+  These are the #835 cross-plan report / metrics scope, intentionally deferred (DoD requires no `builds.testplan_id`
+  by the time #834 lands, so they must be converted in #835).
