@@ -9248,3 +9248,40 @@ in as admin/admin. Data source: live GitHub API
 | TC-824.7 | Console / Event Viewer clean | after all steps | Re-read console + `events` table | 0 JS errors; 0 new Error/Warning rows in `events` | PASS |
 
 - **Result:** **7/7 PASS** (TC-824.1–824.7) — fix `39d9c5b11` verified error-free against a fresh-DB fixture.
+
+---
+
+## Suite 825 — Edit Execution popup (editExecution.html + api/executionedit) — Refs #825
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Full-screen browser test of the modernized Edit Execution popup that replaces the legacy
+  `lib/execute/editExecution.php` (execution notes + execution custom fields editor). Opened from
+  `execTest.html` / `execHistory.html` via `openEditExecution()` → now `editExecution.html`.
+  BFF `GET ?action=init` / `POST ?action=update` on `/api/executionedit/`.
+- **Auth:** admin/admin (rights); edxtester/edxtester (403 path — tester role has `testplan_execute`
+  but NOT `exec_edit_notes`).
+- **Fixture:** created via `php tmp/fixtures_825.php` project **EDX825** (id=24), suite, 3 TCs
+  (tcversions 27/30/33), plan **35**, 2 builds (3 open, 4 closed), executions 2/3/4 with notes
+  `initial notes for ...`, plus an execution-level custom field `EDX825_ExecNote` (string, linked
+  at testcase node type) so the CF editor path is covered. UI root `http://localhost:8082`,
+  chrome-devtools MCP (iframes: content screens load standalone in a tab).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-825.1 | Popup loads notes | Open `editExecution.html?exec_id=2&tproject_id=24&tplan_id=35` as admin | Title "Edit Execution"; header badge `— #2`; Notes textarea value `initial notes for EDX One`; footer "TestLink 2.0.1 - Edit Execution"; locale switcher present | PASS |
+| TC-825.2 | Execution CF renders | same page | "Execution Custom Fields" card visible; label `EDX825 Execution Field:` with an editable textbox | PASS |
+| TC-825.3 | Save notes | Set notes = `UPDATED notes after save test`; set CF = `custom-value-abc`; click **Save** | Request `POST /api/executionedit/?action=update` → 200 `{status:ok}`; toast "Execution updated" | PASS |
+| TC-825.4 | Notes persisted | Read `executions` row id=2 | `notes` = `UPDATED notes after save test` | PASS |
+| TC-825.5 | CF value persisted | Read `cfield_execution_values` for exec 2 | row `field_id=3, value=custom-value-abc` | PASS |
+| TC-825.6 | Save button disabled on closed build | Open `exec_id=4` (closed build 4) | Banner "Build is closed - editing disabled"; Notes textarea + CF input + Save button all `disabled` | PASS |
+| TC-825.7 | 404 missing/unknown execution | Open `editExecution.html?exec_id=99999` | Banner "Execution not found"; Save disabled | PASS |
+| TC-825.8 | 403 insufficient rights | Login as `edxtester` (tester role: has `testplan_execute`, lacks `exec_edit_notes`); open exec_id=2 | BFF `GET ?action=init` → 403; banner "You do not have permission to edit this execution"; Save disabled | PASS |
+| TC-825.9 | Link switch (execHistory) | Grep `execHistory.html` + `execTest.html` `openEditExecution()` | Both open `/gui/templates/execute/editExecution.html?...` (not `editExecution.php`) | PASS |
+| TC-825.10 | i18n in all bundles | `grep -l editexec.title gui/templates/i18n/*.json` | Present in all 10 bundles; each validates via `python3 -m json.tool` | PASS |
+| TC-825.11 | Console clean | Entire run, admin + edxtester | 0 JS errors after jQuery-CDN fix (initial local-jQuery 404 killed the page — fixed) | PASS |
+| TC-825.12 | Event Viewer clean | After all screen tests, read `events` table | No new Error/Warning from the screen/BFF usage (only fixture-setup E_WARNINGs from the first failed `cfield_mgr->create` attempt, not from the popup) | PASS |
+
+- **Result:** **12/12 PASS** (TC-825.1–825.12) — one bug found & fixed during run: jQuery was loaded from a
+  non-existent local path (`/gui/javascript/jquery-1.8.3.js`, 404 → `$ is not defined` killed the whole popup);
+  fixed to the CDN `https://code.jquery.com/jquery-3.6.0.min.js` (same as `execSetResults.html`/`execTest.html`).
