@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-02 (#825 Edit Execution popup editExecution modernized + Suite 825 + execTest/execHistory openEditExecution links switched; #757 keywordsView/PlatformMgmt legacy redirects fixed → modern screens; bug #820 keywordsAssign missing kwa.* i18n keys fixed in all bundles; #819 enhancement filed for tcImport XML BFF; #818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
+> Last updated: 2026-09-02 (#819 tcImport XML path converted to BFF `action=import_xml` in `api/testcasesimport`; #825 Edit Execution popup editExecution modernized + Suite 825 + execTest/execHistory openEditExecution links switched; #757 keywordsView/PlatformMgmt legacy redirects fixed → modern screens; bug #820 keywordsAssign missing kwa.* i18n keys fixed in all bundles; #818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
@@ -97,7 +97,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 > screen via its "Open installer wizard" action.
 
 Extra modernized feature (not an ASIDE entry):
-- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE)
+- `testcases/tcImport.html` + `api/testcasesimport` — Markdown/XML test case import (#540, DONE). XML path: `submitLegacyXml()` converted to an AJAX call to the BFF `POST ?action=import_xml` (Refs #819). The BFF extracts the legacy import functions from `lib/testcases/tcImport.php` (pure function defs, eval'd to avoid page side effects), validates the XML with a safe parser (returns a JSON 422 instead of the legacy script's `die()` on malformed XML), and normalizes the flat legacy `[title, message]` resultMap into rows for a report table. Regression suite 819 PASS.
 - Create/Edit Test Plan modal in `plans/planView.html` + `api/plans` (`POST /`, `PUT /{id}`, `GET /{id}`) — replaces the `planEdit.php` legacy redirect (#750, DONE)
 - Dashboard / main page (`lib/general/mainPage.php`) — `gui/templates/mainpage/mainPage.html` + `api/mainpage/index.php` (#780, DONE). This is the ASIDE **mainframe landing** (the "home" view), not an ASIDE child item; the link switch lives in `index.php` `getReturnWorkArea()` which now defaults the mainframe to the modernized screen.
 - Self Sign-Up (`firstLogin.php`) — `gui/templates/auth/firstLogin.html` + `api/auth/index.php` `POST /api/auth/signup` (#782, DONE). Reached from `login.html` "New user? Create account".
@@ -156,7 +156,7 @@ None — every ASIDE entry now maps to a modernized `.html` screen + BFF.
 | MEDIUM | searchAdvancedView.html | `archiveData.php`, `reqSpecEdit.php`, `reqEdit.php` | #759 | Redirect to modernized pages |
 | MEDIUM | keywordsView.html | `frmWorkArea.php` (keywordsAssign) | #757 | ✅ `goAssign()` now opens `keywordsAssign.html?tproject_id=&tplan_id=` (Refs #757, fixed) |
  | MEDIUM | platformsView.html | `eventviewer.php` | #757 | ✅ Event History now opens `eventviewer.html` with `objectId`+`objectType` filter (Refs #757, fixed); `eventviewer.html` gained client-side object filter |
- | MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 → #819 | pending: `action=import_xml` BFF conversion tracked in enhancement #819 |
+ | MEDIUM | tcImport.html | `tcImport.php` (XML path only) | #757 → #819 | ✅ `submitLegacyXml()` in `tcImport.html` now calls BFF `action=import_xml` in `api/testcasesimport/index.php` (Refs #819); removed `legacyUrl` (XML path only) — **FIXED** |
 | LOW | 10 report screens | export/mail download endpoints | #756 | Convert to BFF API downloads |
 
 ---
