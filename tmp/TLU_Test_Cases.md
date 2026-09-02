@@ -9285,3 +9285,35 @@ in as admin/admin. Data source: live GitHub API
 - **Result:** **12/12 PASS** (TC-825.1–825.12) — one bug found & fixed during run: jQuery was loaded from a
   non-existent local path (`/gui/javascript/jquery-1.8.3.js`, 404 → `$ is not defined` killed the whole popup);
   fixed to the CDN `https://code.jquery.com/jquery-3.6.0.min.js` (same as `execSetResults.html`/`execTest.html`).
+
+## Regression — Issue #503 / #826/#827: build scoped to test project — schema + duplicate-build merge migration
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Backend-only (no UI screen). Validates (a) the additive schema from #826
+  (`builds.testproject_id` column, backfill, `latest_exec_by_build` view) and (b) the
+  data migration from #827 that merges duplicate `(testproject_id, name)` builds and
+  re-points every reference (executions, execution_tcsteps_wip, user_assignments,
+  cfield_build_design_values) at the survivor.
+- **Fixture:** `php tmp/fixtures_827.php` — project `2000`, plans `2001`/`2002`, two
+  builds `3001`/`3002` both named `v1.0` (dup group), one execution per build,
+  plus wip/assignment/cfield rows pointing at victim `3002`.
+- **Migration:** `php tmp/migrate_827.php` (dry-run, no writes) / `php tmp/migrate_827.php --apply` (merge).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-503.1 | testproject_id present | `SHOW COLUMNS FROM builds` | `testproject_id` column exists | PASS |
+| TC-503.2 | testproject_id backfilled | `SELECT COUNT(*) FROM builds WHERE testproject_id=0` | `0` (after migrate_826 backfill) | PASS |
+| TC-503.3 | latest_exec_by_build view | `SHOW CREATE VIEW latest_exec_by_build` | view present; groups `tcversion_id,build_id,platform_id` (no testplan_id) | PASS |
+| TC-503.4 | dry-run writes nothing | run `migrate_827.php`, then read builds/references | still 2 builds; exec 6002→build 3002 unchanged | PASS |
+| TC-503.5 | dry-run reports conflict | run dry-run on dup `v1.0` | survivor=3001, merge=3002, logs `commit_id`/`branch` conflict | PASS |
+| TC-503.6 | merge re-points executions | `--apply`; read executions 6001/6002 | both → build 3001 | PASS |
+| TC-503.7 | merge re-points wip/assignment/cfield | read execution_tcsteps_wip 7001, user_assignments 7101, cfield value 'x' | all → build 3001 | PASS |
+| TC-503.8 | victim deleted | `SELECT COUNT(*) FROM builds WHERE id=3002` | `0` | PASS |
+| TC-503.9 | survivor keeps metadata | read build 3001 | `commit_id='abc'`, `branch='main'` (earliest) kept | PASS |
+| TC-503.10 | rerun after merge idempotent | re-run `--apply` | "No duplicate builds found — nothing to do" | PASS |
+| TC-503.11 | no new schema orphans | `foreach build_id column` expect executions/wip/assignments | all re-pointed, no orphaned refs to 3002 | PASS |
+
+- **Result:** **11/11 PASS** (TC-503.1–503.11) against MariaDB 11.4 (testlink user granted CREATE VIEW).
+  Note: `database->exec_query()` dies + auto-rolls-back on DB error; the `try/catch/ROLLBACK` in an
+  earlier draft was dead code and was removed (transactions still atomic via connection-close rollback).
