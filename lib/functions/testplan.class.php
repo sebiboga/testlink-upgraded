@@ -2020,8 +2020,7 @@ class testplan extends tlObjectWithAttachments
     
     $the_sql[]="DELETE FROM {$this->tables['execution_tcsteps']} WHERE execution_id ".
            "IN ($execIDSetSQL) ";           
-    $the_sql[]="DELETE FROM {$this->tables['executions']} WHERE testplan_id={$id}";
-    $the_sql[]="DELETE FROM {$this->tables['builds']} WHERE testplan_id={$id}"; 
+    $the_sql[]="DELETE FROM {$this->tables['executions']} WHERE testplan_id={$id}"; 
 
     
     foreach($the_sql as $sql) {
@@ -2277,7 +2276,7 @@ class testplan extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
     $my['opt'] = array('fields' => 
-                       'id,testplan_id, name, notes, active, is_open,release_date,closed_on_date,creation_ts',
+                       'id, name, notes, active, is_open,release_date,closed_on_date,creation_ts',
                        'orderBy' => " ORDER BY name ASC", 'getCount' => false, 'buildID' => null);
 
     $my['opt'] = array_merge($my['opt'],(array)$opt);
@@ -2364,7 +2363,7 @@ class testplan extends tlObjectWithAttachments
    * @param int $id test plan id
    * @param string $build_name
    * 
-   * @return array [id,testplan_id, name, notes, active, is_open]
+   * @return array [id,testproject_id, name, notes, active, is_open]
    */
   function get_build_by_name($id,$build_name)
   {
@@ -2372,7 +2371,7 @@ class testplan extends tlObjectWithAttachments
 
     $safe_build_name=$this->db->prepare_string(trim($build_name));
     
-    $sql = " /* $debugMsg */ SELECT id,testplan_id, name, notes, active, is_open " .
+    $sql = " /* $debugMsg */ SELECT id, name, notes, active, is_open " .
       " FROM {$this->tables['builds']} " .
       " WHERE testproject_id = " . $this->getProjectIdOfPlan($id) . " AND name='{$safe_build_name}'";
     
@@ -2393,13 +2392,13 @@ class testplan extends tlObjectWithAttachments
    * @param int $id test plan id
    * @param int $build_id
    *
-   * @return array [id,testplan_id, name, notes, active, is_open]
+   * @return array [id,testproject_id, name, notes, active, is_open]
    */
   function get_build_by_id($id,$build_id)
   {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
-    $sql = " /* $debugMsg */ SELECT id,testplan_id, name, notes, active, is_open " .
+    $sql = " /* $debugMsg */ SELECT id, name, notes, active, is_open " .
       " FROM {$this->tables['builds']} BUILDS " .
       " WHERE testproject_id = " . $this->getProjectIdOfPlan($id) . " AND BUILDS.id={$build_id}";
     
@@ -4147,11 +4146,12 @@ class testplan extends tlObjectWithAttachments
 
     $my['filters'] = array('build' => null, 'tcversion' => null);
     $my['filters'] = array_merge($my['filters'], (array)$filters);
+    $safe_tproject = $this->getProjectIdOfPlan($tplan_id);
 
     $sql .=  " SELECT COALESCE(UA.user_id,-1) AS user_id, " . 
         " TPTCV.id AS feature_id, B.id AS build_id, TPTCV.platform_id " .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_tproject} " .
         
         " LEFT OUTER JOIN {$this->tables['user_assignments']} UA " .
         " ON UA.feature_id = TPTCV.id AND UA.build_id = B.id " .
@@ -4424,7 +4424,7 @@ class testplan extends tlObjectWithAttachments
     $sql =   "/* $debugMsg */ " .
         " SELECT count(0) AS COUNTER ,NHTCV.parent_id AS tcase_id  " .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
         
         " JOIN {$this->tables['nodes_hierarchy']} NHTCV ON " .
@@ -4465,12 +4465,13 @@ class testplan extends tlObjectWithAttachments
     $safe_id['tplan'] = intval($id);
     $safe_id['platform'] = intval($platformID);
     $safe_id['build'] = intval($buildID);
+    $safe_id['tproject'] = $this->getProjectIdOfPlan($safe_id['tplan']);
 
     $sql =   "/* $debugMsg */ " .
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id, E.status, B.id AS build_id " .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
         
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
 
         " /* Needed to get TEST CASE ID */ " .
         " JOIN {$this->tables['nodes_hierarchy']} NHTCV " .
@@ -4511,7 +4512,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id, E.status " .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
         
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
         
         " /* Needed to get TEST CASE ID */ " .
@@ -4564,7 +4565,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT COUNT(0) AS COUNTER ,NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -4627,7 +4628,7 @@ class testplan extends tlObjectWithAttachments
         " /* Count() to be used on HAVING */ " .
         " SELECT COUNT(0) AS COUNTER ,NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
         
         " JOIN {$this->tables['nodes_hierarchy']} NHTCV ON " .
@@ -4740,7 +4741,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT COUNT(0) AS COUNTER ,NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -4825,7 +4826,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -4913,7 +4914,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -5012,7 +5013,7 @@ class testplan extends tlObjectWithAttachments
                    " /* COUNT() is needed as parameter for HAVING clause */ " .
                    " SELECT COUNT(0) AS COUNTER, NHTCV.parent_id AS tcase_id" .
                    " FROM {$this->tables['testplan_tcversions']} TPTCV " .
-                   " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+                   " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
                    $buildsCfg['statusClause'] .
 
                    " JOIN {$this->tables['nodes_hierarchy']} NHTCV ON " .
@@ -5058,7 +5059,7 @@ class testplan extends tlObjectWithAttachments
                     " SELECT DISTINCT NHTCV.parent_id AS tcase_id, E.build_id " .
                     " FROM {$this->tables['testplan_tcversions']} TPTCV " .
     
-                    " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+                    " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
                     $buildsCfg['statusClause'] .
     
                     " /* Get Test Case ID */ " .
@@ -5358,7 +5359,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT MAX(LEX.id) AS latest_exec_id ,NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -5432,7 +5433,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT MAX(LEBP.id) AS latest_exec_id ,NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -5580,7 +5581,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -5675,7 +5676,7 @@ class testplan extends tlObjectWithAttachments
         " SELECT DISTINCT NHTCV.parent_id AS tcase_id" .
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
-        " JOIN {$this->tables['builds']} B ON B.testplan_id = TPTCV.testplan_id " .
+        " JOIN {$this->tables['builds']} B ON B.testproject_id = {$safe_id['tproject']} " .
         $buildsCfg['statusClause'] .
 
         " /* Get Test Case ID */ " .
@@ -5808,6 +5809,7 @@ class testplan extends tlObjectWithAttachments
     
     $safe_id['tplan'] = intval($id);
     $safe_id['platform'] = intval($platformID);
+    $safe_id['tproject'] = $this->getProjectIdOfPlan($safe_id['tplan']);
     
     $buildsCfg['statusClause'] = "";
     $buildsCfg['inClause'] = "";
@@ -7292,10 +7294,11 @@ class testplan extends tlObjectWithAttachments
     switch($criteria)
     {
       case 'maxID':
+        $tproject_id = $this->getProjectIdOfPlan($id);
         $sql = " /* $debugMsg */ " . 
-               " SELECT MAX(id) AS id,testplan_id, name, notes, active, is_open," .
+               " SELECT MAX(id) AS id,testproject_id, name, notes, active, is_open," .
                " release_date,closed_on_date " .
-               " FROM {$this->tables['builds']} WHERE testplan_id = {$id} " ;
+               " FROM {$this->tables['builds']} WHERE testproject_id = {$tproject_id} " ;
       break;
     }
 

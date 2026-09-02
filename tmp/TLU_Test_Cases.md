@@ -10038,3 +10038,27 @@ documented findings only).
 | TC-854.18 | General Metrics mail-by-email no longer fatals | GET `?action=general_metrics_mail&tplan_id=200&tproject_id=100` via gateway | 200 HTML feedback page (not fatal at displayMgr:171) | PASS: 200, no fatal; Event Viewer clean |
 
 - **Suite 854 final:** **18/18 PASS.** Legacy PHP 8.x fixes: resultsByStatus `count(null)` (Fixes #855), neverRunByPP `foreach(null)` (Fixes #856), displayMgr `$mf` null (Fixes #857) — all auto-closed & verified. Event Viewer clean (0 warnings/errors).
+
+---
+
+### Sub-task pre-#834 (reader conversion) — scope remaining `builds.testplan_id` readers to project
+Converted every remaining runtime reader/deleter of `builds.testplan_id` to project scope so #834 can drop the
+column. Includes the modern BFF API (`api/builds/index.php`), REST v2/v3 build-update auth + duplicate-name checks,
+XML-RPC set-closed-build rights check, assignment create/count joins, and cfield execution-details report join.
+`testplan::delete()` no longer deletes (project-scoped) builds; `testproject::delete()` cleans up all project builds.
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| TC-503.51 | plan->project helper | `getPlanProjectID(2002)` | 2000 | PASS |
+| TC-503.52 | assignment not-run count join is project-scoped | EXPLAIN `TPTCV.testplan_id IN (SELECT id FROM testplans WHERE testproject_id = BU.testproject_id)` | parses | PASS |
+| TC-503.53 | assignment email join is project-scoped | EXPLAIN `B.testproject_id = {planProject}` | parses | PASS |
+| TC-503.54 | cfield exec-details report join is project-scoped | EXPLAIN `B.testproject_id = {tproject_id}` | parses | PASS |
+| TC-503.55 | testplan::delete keeps project builds | create+delete throwaway plan, count builds | unchanged | PASS |
+| TC-503.56 | testproject::delete removes project builds | delete throwaway project+plan+build | builds+plans gone | PASS |
+| TC-503.57 | no `builds.testplan_id` refs in runtime PHP | grep repo | only deferred dual-write/comment | PASS |
+
+- **Result:** **7/7 PASS** (TC-503.51–503.57) against MariaDB 11.4.
+- Code-review subagent: APPROVED (2 passes; both found bugs fixed before merge).
+- **Note (#834):** `build.class.php` INSERT dual-write (`testplan_id` column) and `get_by_id` `tplan_id` filter
+  fallback remain — intentionally deferred to #834 when the column is dropped and the unique key swapped to
+  `(testproject_id, name)`.

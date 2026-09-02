@@ -2409,6 +2409,7 @@ class tlTestPlanMetrics extends testplan
     // particular options
     $my['opt'] = array_merge(array('output' => 'map'),$my['opt']);    
     $safe_id = intval($id);  
+    $tproject_id = $this->getProjectIdOfPlan($safe_id);
 
     $fullEID = $this->helperConcatTCasePrefix($safe_id);
     // $sqlLEBBP = $sqlStm['LEBBP'];
@@ -2429,7 +2430,7 @@ class tlTestPlanMetrics extends testplan
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
         " JOIN {$this->tables['builds']} B " .
-        " ON  B.testplan_id = TPTCV.testplan_id " .
+        " ON  B.testproject_id = {$tproject_id} " .
 
         " /* Get Test Case info from Test Case Version */ " .
         " JOIN {$this->tables['nodes_hierarchy']} NHTCV " .
@@ -2475,7 +2476,7 @@ class tlTestPlanMetrics extends testplan
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
         " JOIN {$this->tables['builds']} B " .
-        " ON  B.testplan_id = TPTCV.testplan_id " .
+        " ON  B.testproject_id = {$tproject_id} " .
 
         " JOIN {$this->tables['user_assignments']} UA " .
         " ON  UA.feature_id = TPTCV.id " .
@@ -2551,6 +2552,7 @@ class tlTestPlanMetrics extends testplan
     // particular options
     $my['opt'] = array_merge(array('output' => 'map','ignoreBuild' => false),$my['opt']);    
     $safe_id = intval($id);  
+    $tproject_id = $this->getProjectIdOfPlan($safe_id);
 
     $fullEID = $this->helperConcatTCasePrefix($safe_id);
 
@@ -2564,7 +2566,7 @@ class tlTestPlanMetrics extends testplan
     $sqlc = "/* $debugMsg */ " .
             " SELECT count(0) AS TESTER_COUNTER ,A_NHTCV.parent_id AS tcase_id,A_TPTCV.platform_id  " .
             " FROM {$this->tables['testplan_tcversions']} A_TPTCV " .
-            " JOIN {$this->tables['builds']} A_B ON A_B.testplan_id = A_TPTCV.testplan_id " .
+            " JOIN {$this->tables['builds']} A_B ON A_B.testproject_id = {$tproject_id} " .
             str_replace('B.active','A_B.active',$buildsCfg['statusClause']) .
             
             " JOIN {$this->tables['nodes_hierarchy']} A_NHTCV ON " .
@@ -2613,7 +2615,7 @@ class tlTestPlanMetrics extends testplan
         " FROM {$this->tables['testplan_tcversions']} TPTCV " .
 
         " JOIN {$this->tables['builds']} B " .
-        " ON  B.testplan_id = TPTCV.testplan_id " .
+        " ON  B.testproject_id = {$tproject_id} " .
 
         " /* Get Test Case info from Test Case Version */ " .
         " JOIN {$this->tables['nodes_hierarchy']} NHTCV " .

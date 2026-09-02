@@ -27,6 +27,16 @@ class assignment_mgr extends tlObjectWithDB
     parent::__construct($db);
   }
 
+  // Builds are scoped to the Test Project (issue #503). Helpers to resolve the
+  // testproject_id a build/plan belongs to, so queries can be project-scoped.
+  function getPlanProjectID($tplan_id)
+  {
+    $sql = " SELECT testproject_id FROM {$this->tables['testplans']} " .
+           " WHERE id = " . intval($tplan_id);
+    $rs = $this->db->get_recordset($sql);
+    return (is_array($rs) && isset($rs[0]['testproject_id'])) ? intval($rs[0]['testproject_id']) : 0;
+  }
+
   /*
    $key_field: contains the filename that has to be used as the key of
                the returned hash.    
@@ -317,9 +327,9 @@ class assignment_mgr extends tlObjectWithDB
            " FROM {$this->tables['user_assignments']} UA " .
            " JOIN {$this->tables['builds']}  BU ON UA.build_id = BU.id " .
            " JOIN {$this->tables['testplan_tcversions']} TPTCV " .
-           "     ON TPTCV.testplan_id = BU.testplan_id " .
-           "     AND TPTCV.id = UA.feature_id " .
-           " LEFT OUTER JOIN {$this->tables['executions']} E " .
+            "     ON TPTCV.testplan_id IN (SELECT id FROM {$this->tables['testplans']} WHERE testproject_id = BU.testproject_id) " .
+            "     AND TPTCV.id = UA.feature_id " .
+            " LEFT OUTER JOIN {$this->tables['executions']} E " .
            "     ON E.testplan_id = TPTCV.testplan_id " . 
            "     AND E.tcversion_id = TPTCV.tcversion_id " .
            "     AND E.platform_id = TPTCV.platform_id " .
@@ -443,7 +453,7 @@ class assignment_mgr extends tlObjectWithDB
             " FROM {$this->tables['user_assignments']} UA " .
             " JOIN {$this->tables['builds']}  BU ON UA.build_id = BU.id " .
             " JOIN {$this->tables['testplan_tcversions']} TPTCV " .
-            "     ON TPTCV.testplan_id = BU.testplan_id " .
+            "     ON TPTCV.testplan_id IN (SELECT id FROM {$this->tables['testplans']} WHERE testproject_id = BU.testproject_id) " .
             "     AND TPTCV.id = UA.feature_id " .
             " LEFT OUTER JOIN {$this->tables['executions']} E " .
             "     ON E.testplan_id = TPTCV.testplan_id " . 
@@ -511,6 +521,7 @@ class assignment_mgr extends tlObjectWithDB
 
     $tplan_id = intval($context['tplan_id']);
     $build_id = intval($context['build_id']);
+    $planProject = $this->getPlanProjectID($tplan_id);
     $sql =  "/* $debugMsg */ ".
             " SELECT UA.user_id, U.email ".
             " FROM {$this->tables['user_assignments']} UA " .
@@ -518,7 +529,7 @@ class assignment_mgr extends tlObjectWithDB
             " ON UA.build_id = B.id " .
             " LEFT JOIN {$this->tables['users']} U " .
             " ON U.id = UA.user_id " .
-            " WHERE B.testplan_id = " . $tplan_id .
+            " WHERE B.testproject_id = " . $planProject .
             " AND B.id = " . $build_id . 
             " AND type = " . intval($atd['testcase_execution']['id']);
             

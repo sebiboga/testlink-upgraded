@@ -1685,7 +1685,7 @@ function name_is_unique($id,$name)
                               " AND CFEV.execution_id = EXECU.id " ;
             
           $additional_join .= " JOIN {$this->tables['builds']} B ON B.id = EXECU.build_id " .
-                              " AND B.testplan_id = EXECU.testplan_id " ;
+                              " AND B.testproject_id = {$tproject_id} " ;
 
           $additional_join .= " JOIN {$this->tables['tcversions']} TCV ON TCV.version = EXECU.tcversion_number " .
 	                            " AND TCV.id = EXECU.tcversion_id " ;

@@ -9064,13 +9064,14 @@ class TestlinkXMLRPCServer extends IXR_Server {
         }
 
         if($status_ok) {
-            // Get Test Plan ID from Build ID in order to check rights
+            // Get Test Project ID from Build ID in order to check rights
+            // (builds are scoped to the Test Project, issue #503).
             $bm = new build( $this->dbObj );
 
             $buildID = intval( $this->args[self::$buildIDParamName] );
             $opx = array(
                     'output' => 'fields',
-                    'fields' => 'id,testplan_id'
+                    'fields' => 'id,testproject_id'
             );
             $buildInfo = $bm->get_by_id( $buildID, $opx );
 
@@ -9083,7 +9084,7 @@ class TestlinkXMLRPCServer extends IXR_Server {
 
         if($status_ok) {
             $context = array();
-            $context[self::$testPlanIDParamName] = $buildInfo['testplan_id'];
+            $context[self::$testProjectIDParamName] = $buildInfo['testproject_id'];
 
             $status_ok = $this->userHasRight( "testplan_create_build", self::CHECK_PUBLIC_PRIVATE_ATTR, $context );
         }

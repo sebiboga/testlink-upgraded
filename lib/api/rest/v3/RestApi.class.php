@@ -707,11 +707,9 @@ class RestApi
     }
 
     if( $statusOK ) {
-      $tplan = $this->tplanMgr->get_by_id( $build['testplan_id'] );
-
-      // Ready to check user permissions
-      $context = array('tplan_id' => $tplan['id'], 
-                       'tproject_id' => $tplan['testproject_id']);
+      // Builds are project-scoped (issue #503): derive context from the build.
+      $context = array('tplan_id' => 0,
+                       'tproject_id' => intval($build['testproject_id']));
 
       if( !$this->userHasRight($rightToCheck,TRUE,$context) ) {
         $statusOK = false;
@@ -727,10 +725,10 @@ class RestApi
 
     // Go ahead, try to update build!!
     if( $statusOK ) {
-      // Step 1 - Check if build name already exists
+      // Step 1 - Check if build name already exists (builds are project-scoped)
       if( property_exists($item,'name') ) {
-        if( $this->tplanMgr->check_build_name_existence(
-                             $tplan['id'],$item->name,$id) ) {
+        if( $this->buildMgr->checkNameExistence(
+                             intval($build['testproject_id']),$item->name,$id) ) {
           $statusOK = false;
           $op['message'] = 
             sprintf($this->l10n['API_BUILDNAME_ALREADY_EXISTS'], 

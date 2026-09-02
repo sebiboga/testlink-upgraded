@@ -80,6 +80,25 @@ function resolveTplan(&$db, $tplanId) {
     ];
 }
 
+/**
+ * Resolve context for a build row. Builds are scoped to the Test Project
+ * (issue #503), so authorization derives from the build's testproject_id
+ * rather than a (now ambiguous) owning test plan.
+ */
+function resolveBuild(&$db, $b) {
+    $tprojectId = intval($b['testproject_id'] ?? 0);
+    $tp = new testproject($db);
+    $info = $tp->tree_manager->get_node_hierarchy_info($tprojectId);
+    if (is_null($info)) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Invalid Test Project ID']);
+    }
+    return [
+        'tproject_id' => $tprojectId,
+        'tproject_name' => $info['name'],
+    ];
+}
+
 /** Project display name for audit entries - resolved from ctx, not session. */
 function tprojectName(&$tp, $tprojectId) {
     $info = $tp->tree_manager->get_node_hierarchy_info(intval($tprojectId));
@@ -209,7 +228,7 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
-    $ctx = resolveTplan($db, intval($b['testplan_id']));
+    $ctx = resolveBuild($db, $b);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -218,7 +237,7 @@ if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
         'status' => 'ok',
         'build' => [
             'id' => intval($b['id']),
-            'tplan_id' => intval($b['testplan_id']),
+            'tproject_id' => intval($b['testproject_id']),
             'name' => $b['name'],
             'notes' => (string)$b['notes'],
             'release_date' => (isset($b['release_date']) && $b['release_date'])
@@ -308,7 +327,7 @@ if ($method === 'POST' && count($segments) === 0) {
     $sourceBuildId = intval($body['source_build_id'] ?? 0);
     if ($copyAssign && $sourceBuildId > 0) {
         $src = $buildMgr->get_by_id($sourceBuildId);
-        if (is_null($src) || intval($src['testplan_id']) !== $tplanId) {
+        if (is_null($src) || intval($src['testproject_id']) !== $ctx['tproject_id']) {
             http_response_code(400);
             out(['status' => 'error', 'message' => 'Invalid source build']);
         }
@@ -342,7 +361,7 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
-    $ctx = resolveTplan($db, intval($b['testplan_id']));
+    $ctx = resolveBuild($db, $b);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
@@ -449,12 +468,13 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
-    $ctx = resolveTplan($db, intval($b['testplan_id']));
+    $ctx = resolveBuild($db, $b);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
-    $tp = $ctx['tplan_mgr'];
+    $tp = new testplan($db);
+    $ctx['tplan_mgr'] = $tp;
 
     $name = strField($body, 'name');
     if (is_null($name)) {
@@ -466,8 +486,8 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         http_response_code(400);
         out(['status' => 'error', 'message' => $err]);
     }
-    // Legacy crossChecks: duplicate name inside THIS plan, excluding self.
-    if ($tp->check_build_name_existence($tplanId = intval($b['testplan_id']), $name, $buildId)) {
+    // Legacy crossChecks: duplicate name inside THIS project, excluding self.
+    if ($buildMgr->checkNameExistence($ctx['tproject_id'], $name, $buildId)) {
         http_response_code(409);
         out(['status' => 'error', 'message' => 'warning_duplicate_build', 'detail' => $name]);
     }
@@ -504,7 +524,7 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     }
 
     logAuditEvent(TLS('audit_build_saved',
-        tprojectName($tp, $ctx['tproject_id']), $ctx['tplan_name'], $name),
+        tprojectName($tp, $ctx['tproject_id']), $ctx['tproject_name'], $name),
         'SAVE', $buildId, 'builds');
 
     out(['status' => 'ok']);
@@ -520,14 +540,21 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
-    $ctx = resolveTplan($db, intval($b['testplan_id']));
+    $ctx = resolveBuild($db, $b);
     if (!canManage($user, $db, $ctx['tproject_id'])) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
 
     // Legacy doDelete(): executions on this build require exec_delete right.
-    $qty = $ctx['tplan_mgr']->getExecCountOnBuild($ctx['tplan_id'], $buildId);
+    // Builds are project-scoped (issue #503), so count executions across all
+    // plans of the project.
+    $qry = "SELECT COUNT(0) AS qty FROM {$tplanMgr->tables['executions']} E " .
+           "JOIN {$tplanMgr->tables['testplans']} TP ON TP.id = E.testplan_id " .
+           "WHERE TP.testproject_id = {$ctx['tproject_id']} " .
+           "AND E.build_id = {$buildId}";
+    $rsq = $db->get_recordset($qry);
+    $qty = $rsq[0]['qty'] ?? 0;
     if ($qty > 0 && !canDeleteExec($user, $db, $ctx['tproject_id'])) {
         http_response_code(409);
         out(['status' => 'error', 'message' => 'cannot_delete_build_no_exec_delete',
@@ -538,7 +565,7 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
         out(['status' => 'error', 'message' => 'cannot_delete_build']);
     }
     logAuditEvent(TLS('audit_build_deleted',
-        tprojectName($ctx['tplan_mgr'], $ctx['tproject_id']), $ctx['tplan_name'], $b['name']),
+        tprojectName($tplanMgr, $ctx['tproject_id']), $ctx['tproject_name'], $b['name']),
         'DELETE', $buildId, 'builds');
 
     out(['status' => 'ok']);

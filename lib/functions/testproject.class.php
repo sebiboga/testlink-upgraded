@@ -2024,6 +2024,12 @@ function setPublicStatus($id,$status)
       $result = $this->db->exec_query($sql);
     }
 
+    // Builds are scoped to the Test Project (issue #503), so clean up all
+    // project builds here (per-plan deletion no longer removes them).
+    $sql = "/* $debugMsg */ DELETE FROM {$this->tables['builds']} " .
+           " WHERE testproject_id = " . intval($id);
+    $result = $this->db->exec_query($sql);
+
     // ---------------------------------------------------------------------------------------
     // delete product itself and items directly related to it like:
     // custom fields assignments
