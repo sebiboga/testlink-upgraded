@@ -778,5 +778,221 @@ if ($method === 'POST' && $action === 'create_revision') {
     out(['status' => 'ok', 'revision_id' => intval($ret['id'])]);
 }
 
+// ------------------------------------- spec revision compare (reqSpecCompareRevisions) ---
+// Refs #837 - mirrors lib/requirements/reqSpecCompareRevisions.php: compare any two
+// spec revisions (history list + attributes/scope/custom-fields diff).
+//   GET ?action=spec_revision_compare&spec_id=N&tproject_id=N          -> revision list
+//   GET ?action=spec_revision_compare&spec_id=N&left=A&right=B[&method=html|text][&context=N]
+// Right: mgt_view_req (viewer, same as spec_revision_view).
+if ($method === 'GET' && $action === 'spec_revision_compare') {
+    $specId = intval($_REQUEST['spec_id'] ?? 0);
+    if ($specId <= 0) { badRequest('Invalid requirement spec id'); }
+
+    // resolve owning test project from the spec row (rights gate like spec_view)
+    $specRow = $db->get_recordset(
+        'SELECT testproject_id, doc_id FROM req_specs WHERE id = ' . intval($specId) . ' LIMIT 1');
+    if (!$specRow) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement specification not found']);
+    }
+    $ownerTid = intval($specRow[0]['testproject_id']);
+    if (isset($_REQUEST['tproject_id']) && intval($_REQUEST['tproject_id']) > 0
+        && intval($_REQUEST['tproject_id']) !== $ownerTid) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Test project mismatch']);
+    }
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $leftId  = intval($_REQUEST['left'] ?? 0);
+    $rightId = intval($_REQUEST['right'] ?? 0);
+
+    // ---- history list (revision rows, DESC like legacy) ----
+    if ($leftId <= 0 && $rightId <= 0) {
+        $history = $reqSpecMgr->get_history($specId, [
+            'output' => 'array', 'decode_user' => true, 'order_by_dir' => 'DESC',
+        ]);
+        $items = [];
+        foreach (($history ? $history : []) as $row) {
+            $items[] = [
+                'item_id'    => intval($row['item_id']),
+                'revision'   => intval($row['revision']),
+                'log_message'=> (string)$row['log_message'],
+                'timestamp'  => (string)$row['timestamp'],
+                'last_editor'=> (string)$row['last_editor'],
+                'creation_ts'=> (string)$row['creation_ts'],
+            ];
+        }
+        out([
+            'status'      => 'ok',
+            'tproject_id' => $ownerTid,
+            'tproject_name' => testproject::getName($db, $ownerTid),
+            'spec_id'     => $specId,
+            'spec_doc_id' => (string)$specRow[0]['doc_id'],
+            'revisions'   => $items,
+        ]);
+    }
+
+    // ---- diff two revisions ----
+    if ($leftId <= 0 || $rightId <= 0 || $leftId === $rightId) {
+        badRequest('Select two different revisions to compare');
+    }
+
+    // fetch both revisions joined to their owning spec for context
+    $revRows = $db->get_recordset(
+        'SELECT RSV.*, RS.testproject_id, RS.doc_id AS spec_doc_id' .
+        ' FROM req_specs_revisions RSV' .
+        ' JOIN req_specs RS ON RS.id = RSV.parent_id' .
+        ' WHERE RSV.parent_id = ' . intval($specId) .
+        ' AND RSV.id IN (' . intval($leftId) . ',' . intval($rightId) . ')');
+    if (!$revRows || count($revRows) < 2) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'One or both revisions not found']);
+    }
+    $byId = [];
+    foreach ($revRows as $r) { $byId[intval($r['id'])] = $r; }
+    $left  = $byId[$leftId];
+    $right = $byId[$rightId];
+
+    $useDaisy = ($_REQUEST['method'] ?? 'html') === 'html';
+
+    $specCfg = config_get('req_spec_cfg');
+    $typeLabels = isset($specCfg->type_labels) ? (array)$specCfg->type_labels : [];
+
+    // attribute diff (doc_id / name / type) - legacy getAttrDiff()
+    $attrRows = [];
+    $attrDefs = [
+        'doc_id' => ['label' => null],
+        'name'   => ['label' => null],
+        'type'   => ['label' => 'type_labels'],
+    ];
+    foreach ($attrDefs as $fkey => $def) {
+        $l = isset($specCfg->$fkey) ? (string)$specCfg->$fkey : $fkey;
+        $lv = (string)$left[$fkey];
+        $rv = (string)$right[$fkey];
+        if (!empty($def['label']) && isset($specCfg->{$def['label']})) {
+            $map = (array)$specCfg->{$def['label']};
+            if (isset($map[$lv])) { $lv = lang_get($map[$lv]); }
+            if (isset($map[$rv])) { $rv = lang_get($map[$rv]); }
+        }
+        $attrRows[] = [
+            'label'   => lang_get($l),
+            'lvalue'  => $lv,
+            'rvalue'  => $rv,
+            'changed' => ($lv !== $rv),
+        ];
+    }
+
+    // scope diff
+    $diffData = ['type' => $useDaisy ? 'html' : 'text', 'left' => '', 'right' => '', 'count' => 0];
+    $lvScope = (string)$left['scope'];
+    $rvScope = (string)$right['scope'];
+    $diffData['left'] = $lvScope;
+    $diffData['right'] = $rvScope;
+    if ($lvScope !== $rvScope) {
+        if ($useDaisy) {
+            require_once(__DIR__ . '/../../third_party/daisydiff/src/HTMLDiff.php');
+            $differ = new HTMLDiffer();
+            list($diffHtml, $count) = $differ->htmlDiff($lvScope, $rvScope);
+            $diffData['type'] = 'html';
+            $diffData['diff'] = $diffHtml;
+            $diffData['count'] = intval($count);
+        } else {
+            require_once(__DIR__ . '/../../third_party/diff/diff.php');
+            $context = isset($_REQUEST['context_show_all'])
+                ? -1 : (isset($_REQUEST['context']) && is_numeric($_REQUEST['context'])
+                    ? intval($_REQUEST['context']) : null);
+            $differ = new diff();
+            $differ->doDiff(
+                explode("\n", str_replace('</p>', "</p>\n", $lvScope)),
+                explode("\n", str_replace('</p>', "</p>\n", $rvScope)));
+            $diffData['type'] = 'text';
+            $diffData['diff'] = $differ->inline(
+                explode("\n", str_replace('</p>', "</p>\n", $lvScope)),
+                'revision:' . intval($left['revision']),
+                explode("\n", str_replace('</p>', "</p>\n", $rvScope)),
+                'revision:' . intval($right['revision']),
+                $context);
+            $diffData['count'] = count($differ->changes);
+        }
+    }
+
+    // linked custom fields on each revision (same sink as spec_revision_view)
+    function reqSpecCFieldValuesCmp($mgr, $specId, $revId, $ownerTid) {
+        $out = [];
+        $cfMap = $mgr->get_linked_cfields([
+            'parent_id'   => $specId,
+            'item_id'     => $revId,
+            'tproject_id' => $ownerTid,
+        ]);
+        if (empty($cfMap)) { return $out; }
+        foreach ($cfMap as $cf) {
+            $vType = isset($mgr->cfield_mgr->custom_field_types[$cf['type']])
+                ? $mgr->cfield_mgr->custom_field_types[$cf['type']] : 'string';
+            $value = isset($cf['value']) ? $cf['value'] : '';
+            if (is_array($value)) { $value = implode(', ', $value); }
+            $value = preg_replace('!\s+!', ' ', trim((string)$value));
+            if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
+                $value = tlStrftime(config_get($vType), intval($value));
+            }
+            $out[$cf['name']] = [
+                'label'  => $cf['label'],
+                'value'  => $value,
+            ];
+        }
+        return $out;
+    }
+    $cfLeft  = reqSpecCFieldValuesCmp($reqSpecMgr, $specId, $leftId, $ownerTid);
+    $cfRight = reqSpecCFieldValuesCmp($reqSpecMgr, $specId, $rightId, $ownerTid);
+    $cfKeys  = array_unique(array_merge(array_keys($cfLeft), array_keys($cfRight)));
+    $cfRows  = [];
+    foreach ($cfKeys as $k) {
+        $lv = isset($cfLeft[$k]) ? $cfLeft[$k]['value'] : '';
+        $rv = isset($cfRight[$k]) ? $cfRight[$k]['value'] : '';
+        $cfShown = true;
+        $cfgCf = config_get('custom_fields');
+        if (isset($cfgCf->show_custom_fields_without_value) && !$cfgCf->show_custom_fields_without_value
+            && $lv === '' && $rv === '') {
+            $cfShown = false;
+        }
+        if (!$cfShown) { continue; }
+        $cfRows[] = [
+            'label'   => isset($cfLeft[$k]) ? $cfLeft[$k]['label'] : (isset($cfRight[$k]) ? $cfRight[$k]['label'] : $k),
+            'lvalue'  => $lv,
+            'rvalue'  => $rv,
+            'changed' => ($lv !== $rv),
+        ];
+    }
+
+    out([
+        'status'      => 'ok',
+        'tproject_id' => $ownerTid,
+        'tproject_name' => testproject::getName($db, $ownerTid),
+        'spec_id'     => $specId,
+        'spec_doc_id' => (string)$specRow[0]['doc_id'],
+        'spec_name'   => (string)$left['name'],
+        'left'  => [
+            'item_id'  => intval($left['id']),
+            'revision' => intval($left['revision']),
+            'doc_id'   => (string)$left['doc_id'],
+            'name'     => (string)$left['name'],
+            'timestamp'=> (string)$left['creation_ts'],
+        ],
+        'right' => [
+            'item_id'  => intval($right['id']),
+            'revision' => intval($right['revision']),
+            'doc_id'   => (string)$right['doc_id'],
+            'name'     => (string)$right['name'],
+            'timestamp'=> (string)$right['creation_ts'],
+        ],
+        'method'   => $useDaisy ? 'html' : 'text',
+        'attributes' => $attrRows,
+        'scope'    => $diffData,
+        'custom_fields' => $cfRows,
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
