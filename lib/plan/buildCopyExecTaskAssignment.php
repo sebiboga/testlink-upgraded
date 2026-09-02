@@ -87,15 +87,12 @@ function init_args(&$buildMgr)
     throw new Exception("Error Processing Request - Target build is not set", 1);
   }  
 
-  // Get test plan id from build
+  // Get test project & test plan IDs from the build.
+  // Builds are scoped to the Test Project (issue #503): resolve the project
+  // directly from the build's testproject_id (no need to walk the plan node).
   $bi = $buildMgr->get_by_id($args->build_id);
-  $args->tplan_id = $bi['testplan_id'];
-
-  $info = $buildMgr->tree_manager->
-            get_node_hierarchy_info($args->tplan_id,null,
-              array('nodeType' => 'testplan'));
-
-  $args->tproject_id = intval($info['testproject_id']);
+  $args->tproject_id = intval($bi['testproject_id']);
+  $args->tplan_id = isset($bi['testplan_id']) ? intval($bi['testplan_id']) : 0;
 
   $args->confirmed = isset($_REQUEST['confirmed']) && $_REQUEST['confirmed'] == 'yes' ? true : false;
   

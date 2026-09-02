@@ -9409,3 +9409,22 @@ Fixture: project 2000 (plans 2001/2002, project build 3001 `v1.0`).
   plus the 15 platform-report `JOIN builds B ON B.testplan_id = TPTCV.testplan_id` in `testplan.class.php` (lines 4153–5677).
   These are the #835 cross-plan report / metrics scope, intentionally deferred (DoD requires no `builds.testplan_id`
   by the time #834 lands, so they must be converted in #835).
+
+---
+
+### Sub-task #831 — build UI pages project scope
+Fixture: project 2000 (plans 2001/2002, project build 3001).
+Changes: `buildCopyExecTaskAssignment::init_args` now resolves the project directly from the build's
+`testproject_id` (no plan-node walk); `buildEdit`/`buildView` render paths already project-scoped via #829.
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| TC-503.37 | build carries its project id | `build::get_by_id(3001)` | `testproject_id=2000` | PASS |
+| TC-503.38 | build dual-writes plan id | `build::get_by_id(3001)` | `testplan_id=2001` (until #834) | PASS |
+| TC-503.39 | buildEdit/buildView list project builds | `get_builds(plan 2002)` | contains 3001 | PASS |
+| TC-503.40 | source-build selector project scope | `get_builds_for_html_options(plan 2002)` | contains 3001 | PASS |
+| TC-503.41 | duplicate-name check project-wide | `check_build_name_existence(2002,'v1.0')` | 1 (dup) | PASS |
+
+- **Result:** **5/5 PASS** (TC-503.37–503.41) against MariaDB 11.4.
+- **Note (#834 follow-up):** `buildCopyExecTaskAssignment::getBuildDomainForGUI` still passes `$argsObj->tplan_id` to
+  `get_builds_for_html_options`; when #834 drops `testplan_id`, this should pass the project id (make the method project-based).
