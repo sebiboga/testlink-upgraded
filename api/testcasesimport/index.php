@@ -558,6 +558,24 @@ if ($action === 'import_xml') {
     }
 
     // ---- run import ---------------------------------------------------------
+    // Defense-in-depth: the legacy helper built into simplexml_load_file_wrapper
+    // (lib/functions/xml.inc.php) calls die() + echoes raw HTML on a parse failure.
+    // The BFF pre-validates the file as well-formed above, so this path should not
+    // be reached, but guarantee the JSON contract even if it ever fires.
+    $cleanExit = false;
+    register_shutdown_function(function () use (&$cleanExit) {
+        if ($cleanExit) {
+            return;
+        }
+        while (ob_get_level()) {
+            ob_end_clean();
+        }
+        if (!headers_sent()) {
+            header('Content-Type: application/json');
+        }
+        echo json_encode(['status' => 'error', 'message' => 'Import failed']);
+    });
+
     $opt = [
         'useRecursion' => $useRecursion,
         'importIntoProject' => $intoProject,
@@ -573,6 +591,7 @@ if ($action === 'import_xml') {
             $db, $dest, $containerId, $tprojectId, $userId, $opt
         );
     } catch (\Throwable $e) {
+        $cleanExit = true;
         @unlink($dest);
         http_response_code(500);
         out(['status' => 'error',
@@ -580,6 +599,7 @@ if ($action === 'import_xml') {
     }
 
     @unlink($dest);
+    $cleanExit = true;
 
     // ---- normalise resultMap to JSON-friendly structure ---------------------
     // The legacy saveImportedTCData returns a flat list of [title, message]

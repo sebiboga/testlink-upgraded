@@ -365,7 +365,7 @@ function renderXmlReport(r) {
       + '<th>' + esc(TLi18n.t('tci.colDetail')) + '</th>'
       + '</tr></thead><tbody>';
     rows.forEach(function (row) {
-      h += '<tr><td class="ref">' + (row.id || '') + '</td><td>' + esc(row.name || row.title || '') + '</td><td>'
+      h += '<tr><td class="ref">' + esc(row.id || '') + '</td><td>' + esc(row.name || row.title || '') + '</td><td>'
         + esc(row.message || row.error || '') + '</td></tr>';
     });
     h += '</tbody></table></div>';

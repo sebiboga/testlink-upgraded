@@ -9495,3 +9495,35 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
 - **Result:** **8/8 PASS** (TC-826.1–826.8) against MariaDB 11.4. Primary symptom (schema gap blocking
   project-scoped builds) resolved; app HTTP 200; no browser console errors.
 - **Note:** the original #826/#827 umbrella suite (TC-503.1–503.3) also covers this schema and is PASS.
+
+---
+
+## Regression — Issue #819: tcImport XML path → BFF `action=import_xml`
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Modernized `gui/templates/testcases/tcImport.html` XML import path. Converted the legacy
+  `submitLegacyXml()` form-POST to `lib/testcases/tcImport.php` into an AJAX call to the new BFF
+  `POST /api/testcasesimport/?action=import_xml`. The BFF extracts the legacy import function
+  definitions from `lib/testcases/tcImport.php` (eval, avoiding page side effects), validates the XML
+  with a safe parser (returns JSON 422 instead of the legacy `die()` on malformed XML), and normalizes
+  the flat `[title, message]` resultMap into `result` rows. Tested fresh on the default branch against
+  an empty freshly-imported MariaDB.
+- **Fixture:** local testproject id 1 "Demo Project" (created via UI, prefix DEMO). Sample XML files:
+  flat `<testcases>` (2 TCs), recursive `<testsuite>` (2 nested suites, 2 TCs), malformed XML.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-819.1 | screen renders with project context | open `tcImport.html?tproject_id=1` | shows "Demo Project", Upload button enabled for admin | PASS |
+| TC-819.2 | XML flat import creates test cases | upload flat `sample_tc.xml`, hit=name, action=skip | report "Created: 2", rows show "ok"; DB has 2 new testcase nodes under project | PASS |
+| TC-819.3 | duplicate skip on re-import | re-upload `sample_tc.xml` (same names) | rows show "Already exists => skipped"; no new testcase nodes | PASS |
+| TC-819.4 | recursive suite import | open `?tproject_id=1&useRecursion=1`, upload `sample_suite.xml` | suites "Suite A" + nested "Suite A.1" created with correct parent-child hierarchy; 2 TCs imported | PASS |
+| TC-819.5 | malformed XML → JSON 422 | upload `broken.xml` (unclosed tag) | BFF returns HTTP 422 with JSON body; error toast "Invalid XML file"; no raw-HTML die | PASS |
+| TC-819.6 | MD import regression | switch to Markdown, upload `.md` | report card renders with MD chips; no JS errors | PASS |
+| TC-819.7 | no new ERROR/WARNING events | `SELECT * FROM events` after all imports | only audit LOGIN/import rows; no new E_WARNING/E_STRICT from BFF path | PASS |
+
+- **Result:** **7/7 PASS** (TC-819.1–819.7). XML import fully routed through the BFF; JSON contract
+  preserved on error; duplicate + recursive + MD paths verified; Event Viewer clean.
+- **Note:** while testing, found the pre-existing missing locale key
+  `simplexml_load_file_wrapper_error` (en_GB) — filed as bug #836 (only the legacy
+  `lib/testcases/tcImport.php` path triggers it; the BFF path avoids it).
