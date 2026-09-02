@@ -1555,7 +1555,7 @@ $tlCfg->attachments->access_string = "[*]";
  * Files that are allowed.  Separate items by commas.
  * eg. 'doc,xls,gif,png,jpg'
  */
-$tlCfg->attachments->allowed_files = 'doc,xls,gif,png,jpg,xlsx,csv';
+$tlCfg->attachments->allowed_files = 'doc,xls,gif,png,jpg,jpeg,webp,bmp,heic,heif,xlsx,csv,pdf,txt';
 
 
 /**
