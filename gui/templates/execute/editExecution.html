@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="editexec.title">Edit Execution</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-danger { background: #e74c3c; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-danger:hover { background: #c0392b; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-title i { color: #4ECDC4; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+label.field-label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: #888; margin: 0 0 6px; }
+#notesArea { width: 100%; min-height: 130px; border: 1px solid #ddd; border-radius: 5px; padding: 10px; font-family: inherit; font-size: 13px; line-height: 1.5; resize: vertical; }
+#execCFields { margin-top: 4px; }
+#execCFields .cf-inputs { margin-top: 6px; }
+#execCFields .cf-inputs input, #execCFields .cf-inputs textarea, #execCFields .cf-inputs select {
+  border: 1px solid #ddd; border-radius: 5px; padding: 6px 9px; font-size: 13px; font-family: inherit;
+}
+#execCFields .cf-inputs textarea { width: 100%; resize: vertical; }
+#execCFields .cfield_label, #execCFields .cf_label { font-weight: 600; color: #333; }
+.toast { position: fixed; top: 16px; right: 16px; padding: 13px 20px; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 600; display: none; z-index: 2000; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.toast.ok { background: #27ae60; }
+.toast.err { background: #e74c3c; }
+.banner { border-radius: 6px; padding: 13px 18px; font-size: 13px; margin: 16px 24px; }
+.banner.err { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.actions { padding: 14px 24px; display: flex; gap: 10px; align-items: center; justify-content: flex-end; }
+.spinner { color: #888; font-size: 13px; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-pen-to-square"></i> <span data-i18n="editexec.title">Edit Execution</span><span id="infoLine" class="sub"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="save()" id="saveBtn"><i class="fa fa-save"></i> <span data-i18n="editexec.save">Save</span></button>
+  <button class="btn-ghost" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="editexec.close">Close</span></button>
+  <span id="buildNote" style="margin-left:auto;color:#e74c3c;font-size:12px;display:none;"></span>
+</div>
+
+<div id="errBanner" class="banner err" style="display:none;"></div>
+<div id="loading" class="spinner"><i class="fa fa-spinner fa-spin" style="margin-right:6px;"></i><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="content" style="display:none;">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-sticky-note"></i> <span data-i18n="editexec.notes">Execution Notes</span></div>
+    <div class="card-body">
+      <textarea id="notesArea" data-i18n-placeholder="editexec.notesPh"></textarea>
+    </div>
+  </div>
+
+  <div class="card" id="cfCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-list-alt"></i> <span data-i18n="editexec.execCfields">Execution Custom Fields</span></div>
+    <div class="card-body" id="execCFields"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/javascript/jquery-1.8.3.js"></script>
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+'use strict';
+var API = '/api/executionedit/index.php';
+var EXEC_ID = 0;
+var TCVERSION_ID = 0;
+var TPLAN_ID = 0;
+var TPROJECT_ID = 0;
+var CF_META = {};
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toast(msg, ok) {
+  var $t = $('#toast');
+  $t.text(msg).removeClass('ok err').addClass(ok ? 'ok' : 'err').fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function(){ $t.fadeOut(150); }, 3200));
+}
+
+function showError(msg) {
+  $('#loading').hide();
+  $('#content').hide();
+  $('#errBanner').text(msg).show();
+  $('#saveBtn').prop('disabled', true);
+}
+
+function buildFormPayload() {
+  var data = { exec_id: EXEC_ID, notes: $('#notesArea').val() };
+  // gather execution custom field inputs (value of <checkbox>/<multiselect>
+  // arrays is handled by collecting all [name] values into an array)
+  $('[data-cf-submit]').each(function () {
+    var name = $(this).attr('name');
+    if (!name) return;
+    var $els = $('[name="' + name.replace(/"/g, '\\"') + '"]');
+    var type = $(this).attr('type');
+    if (type === 'checkbox' || type === 'radio') {
+      var vals = [];
+      $els.each(function () { if ($(this).is(':checked')) vals.push($(this).val()); });
+      data[name] = vals;
+    } else if ($(this).is('select') && $(this).attr('multiple')) {
+      data[name] = $(this).val() || [];
+    } else {
+      data[name] = $(this).val();
+    }
+  });
+  return data;
+}
+
+function validate() {
+  var ok = true;
+  $('[data-cf-submit]').each(function () {
+    if (!$(this).is('[required]')) return;
+    var name = $(this).attr('name');
+    var $els = $('[name="' + name.replace(/"/g, '\\"') + '"]');
+    var val;
+    if ($(this).attr('type') === 'checkbox') {
+      val = $els.filter(':checked').length > 0;
+    } else {
+      val = String($(this).val() == null ? '' : $(this).val());
+    }
+    if (!val) {
+      $(this).closest('[data-cf-item]').addClass('has-error');
+      ok = false;
+    } else {
+      $(this).closest('[data-cf-item]').removeClass('has-error');
+    }
+  });
+  if (!ok) {
+    toast(TLi18n.t('editexec.reqFields'), false);
+  }
+  return ok;
+}
+
+function save() {
+  if (!validate()) return;
+  var payload = buildFormPayload();
+  $.ajax({
+    url: API + '?action=update',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    dataType: 'json'
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('editexec.saved'), true);
+      if (window.opener && window.opener.execHistoryReload) window.opener.execHistoryReload();
+      setTimeout(function(){ if (window.opener) window.close(); }, 700);
+    } else {
+      toast(r.message || TLi18n.t('editexec.saveError'), false);
+    }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('editexec.saveError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, false);
+  });
+}
+
+function load() {
+  $('#loading').show();
+  $('#errBanner').hide();
+  $.getJSON(API + '?action=init&exec_id=' + EXEC_ID, function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') { showError(r.message || TLi18n.t('editexec.loadError')); return; }
+    TCVERSION_ID = r.tcversion_id;
+    TPLAN_ID = r.tplan_id;
+    TPROJECT_ID = r.tproject_id;
+    $('#infoLine').text(' — #' + r.exec_id);
+    $('#notesArea').val(r.notes || '');
+    CF_META = {};
+    (r.exec_cfields || []).forEach(function (cf) { CF_META[cf.id + ''] = cf; });
+    if (r.exec_cfields_html) {
+      $('#execCFields').empty().append($(r.exec_cfields_html));
+      markCfSubmittable();
+      $('#cfCard').show();
+    } else {
+      $('#cfCard').hide();
+    }
+    if (!r.build_is_open) {
+      $('#buildNote').text(TLi18n.t('editexec.buildClosed')).show();
+      $('#notesArea').prop('disabled', true);
+      $('#execCFields').find('input,textarea,select,button').prop('disabled', true);
+      $('#saveBtn').prop('disabled', true);
+    }
+    $('#content').show();
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('editexec.title'));
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    var msg = TLi18n.t('editexec.loadError');
+    if (xhr.status === 403) msg = TLi18n.t('editexec.noRights');
+    else if (xhr.status === 404) msg = TLi18n.t('editexec.notFound');
+    else {
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    }
+    showError(msg);
+  });
+}
+
+function markCfSubmittable() {
+  $('#execCFields').find('input,textarea,select').each(function () {
+    var $el = $(this);
+    if (!$el.attr('name')) return;
+    // mark for payload collection; skip decorative hidden helpers but keep
+    // date/datetime companion segments which the write path needs too
+    if ($el.attr('type') === 'hidden') return;
+    $el.attr('data-cf-submit', '1');
+    if ($el.closest('[data-cf-item]').length === 0) {
+      $el.closest('div, td').filter(':first').attr('data-cf-item', '1');
+    }
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  EXEC_ID = parseInt(p.get('exec_id') || 0, 10);
+  TPLAN_ID = parseInt(p.get('tplan_id') || 0, 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!EXEC_ID) { showError(TLi18n.t('editexec.noId')); return; }
+    load();
+  });
+});
+</script>
+</body>
+</html>
