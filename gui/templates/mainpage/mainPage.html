@@ -181,6 +181,7 @@ function render(d) {
   renderBugs(d.bugsInfo, d.dashboard);
   renderGrowth(d.tcGrowth);
   renderIssues(d.projectIssues);
+  loadLinkedBugs();
 }
 
 function renderExec(dash) {
@@ -232,14 +233,20 @@ function renderExec(dash) {
 function renderBugs(bugs, dash) {
   if (!bugs || bugs.length === 0) { $('#secBugs').hide(); return; }
   $('#secBugs').show();
-  $('#bugsSub').text(t('dash.testPlan') + ': ' + (dash && dash.tplan_name ? dash.tplan_name : '-'));
+  if (dash) {
+    $('#bugsSub').text(t('dash.testPlan') + ': ' + (dash.tplan_name ? dash.tplan_name : '-'));
+  }
   var rows = [];
   $.each(bugs, function(i, b) {
+// placeholders (fast payload) have no title/status yet; while the async
+    // enrich is pending render a loading badge so the row still makes sense
+    var pending = !b.title && !b.unavailable;
     var id = b.url ? '<a href="' + esc(b.url) + '" target="_blank" rel="noopener"><strong>' + esc(b.id) + '</strong></a>' : '<strong>' + esc(b.id) + '</strong>';
-    var title = b.title || (b.unavailable ? t('dash.bugUnavailable') : '');
+    var title = b.title || (b.unavailable ? t('dash.bugUnavailable') : t('dash.loadingBugs'));
     title = esc(title);
     var st;
     if (b.unavailable) { st = '<span class="badge" style="background:#8f8f8f;">' + t('dash.bugDeleted') + '</span>'; }
+    else if (pending) { st = '<span class="badge" style="background:#cfe8c6;color:#487a3a;"><i class="fas fa-spinner fa-spin"></i> ' + t('dash.loadingBugs') + '</span>'; }
     else { st = b.status ? '<span class="badge" style="background:' + esc(b.color) + ';">' + esc(b.status) + '</span>' : ''; }
     rows.push([id, title, st, b.tcases]);
   });
@@ -250,6 +257,25 @@ function renderBugs(bugs, dash) {
     pageLength: 10,
     order: [[0, 'asc']],
     columns: [ null, null, null, null ]
+  });
+}
+
+// Async live enrichment of the "Test case bugs" table: the base payload
+// (GET /) ships id/url/tcases only so the dashboard paints instantly; this
+// call finishes title/status/labels from the linked issue tracker and replaces
+// the placeholder rows in place (same pattern as Execute's tcLinkedBugs).
+function loadLinkedBugs() {
+  if (!g_tproject_id && !g_tplan_id) return;
+  $.ajax({
+    url: API + '/bugsTested',
+    data: { tproject_id: g_tproject_id, tplan_id: g_tplan_id, locale: TLi18n.getLocale() },
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'ok' && d.bugsInfo) {
+        renderBugs(d.bugsInfo, null);
+      }
+    },
+    error: function() { /* transient tracker failure: keep placeholders */ }
   });
 }
 

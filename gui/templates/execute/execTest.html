@@ -500,12 +500,16 @@ function openCase(tcaseId, tcversionId) {
     .done(function (r) {
       if (r.status !== 'ok') { toast(r.message || TLi18n.t('exe.errDetails'), true); return; }
       current = r;
-      // carry the linked-versions set from the list item so the form can offer
-      // a version switcher (older linked versions stay executable, #794)
+      ctx.plan_apikey = r.plan_apikey || '';
+      // the Linked Bugs card is filled from the SLOW live-ITS enrichment
+      // (?action=tcLinkedBugs, async) so the form paints immediately
       var it = listItemByCaseId(tcaseId);
       current.versions = (it && it.versions) || [];
       renderForm();
       $('#tcRows tr[data-tcid="' + tcaseId + '"]').addClass('selected');
+      if ((r.linked_bug_ids || []).length > 0) {
+        loadLinkedBugs(tcaseId);
+      }
     })
     .fail(function (xhr) { toast(apiErr(xhr, 'exe.errDetails'), true); });
 }
@@ -574,9 +578,21 @@ function bugsForStep(tcstepId) {
 
 // Linked-bugs table (Dashboard-style): every unique bug linked across this
 // test case's executions, enriched live with title / labels / status / url
-// from the linked issue tracker (BFF tcDetails -> linked_bugs).
+// from the linked issue tracker (BFF tcLinkedBugs, loaded async).
 function renderLinkedBugsTable() {
   var bugs = current.linked_bugs || [];
+  // tcDetails arrives with placeholder rows (id/url only, no live tracker
+  // title/status). While those placeholders are pending their async
+  // tcLinkedBugs fill, show the loading skeleton instead of an empty card.
+  var pending = (bugs.length && !bugs.some(function (b) { return !!b.title || b.unavailable; }));
+  if (pending) {
+    return '<div class="linked-bugs-card">'
+      + '<div class="card-ttl"><i class="fas fa-bug" style="color:#e6605e;"></i>'
+      + esc(TLi18n.t('exe.linkedBugsTable'))
+      + '<span class="count">(' + bugs.length + ')</span></div>'
+      + '<div class="loading-bugs"><i class="fas fa-spinner fa-spin"></i> '
+      + esc(TLi18n.t('exe.loadingBugs')) + '</div></div>';
+  }
   if (!bugs.length) return '';
   var rows = '';
   bugs.forEach(function (b) {
@@ -624,7 +640,9 @@ function renderLinkedBugsTable() {
 
 // initialise the DataTable once the form HTML (with the table) is in the DOM
 function initLinkedBugsTable() {
-  if (!window.jQuery || !$.fn.DataTable || !$('#linkedBugsTable').length) return;
+  var tNode = $('#linkedBugsTable'); // eslint-disable-line no-undef
+  if (!window.jQuery || !$.fn.DataTable || !tNode.length) return;
+  if (tNode[0].tagName !== 'TABLE') return; // skeleton/other state: nothing to init
   if ($.fn.DataTable.isDataTable('#linkedBugsTable')) {
     $('#linkedBugsTable').DataTable().destroy();
   }
@@ -633,6 +651,38 @@ function initLinkedBugsTable() {
     order: [[0, 'asc']],
     columns: [null, null, null, null, null]
   });
+}
+
+// Async fill of the Linked Bugs card: tcDetails arrives WITHOUT the live
+// issue-tracker enrichment (one getIssue() round-trip per bug is slow), so
+// the form paints instantly and this request completes the card in place.
+function loadLinkedBugs(tcaseId) {
+  $.get(API + '?action=tcLinkedBugs&tplan_id=' + ctx.tplanId
+      + '&tproject_id=' + ctx.tprojectId
+      + '&tcase_id=' + tcaseId
+      + '&tcversion_id=' + (current.version ? current.version.id : 0)
+      + '&build_id=' + curBuildId() + '&platform_id=' + curPlatformId())
+    .done(function (r) {
+      if (r.status !== 'ok' || !current.tcase || current.tcase.id !== tcaseId) {
+        return;
+      }
+      current.linked_bugs = r.linked_bugs || [];
+      current.linked_bug_ids = current.linked_bugs.map(function (b) { return b.id; });
+      // re-render the card in place. When the fast payload painted the
+      // loading skeleton there is NO #linkedBugsTable yet, so target the
+      // whole .linked-bugs-card container, not the table node.
+      var card = $('.linked-bugs-card');
+      if (card.length) {
+        try {
+          if ($.fn.DataTable && $.fn.DataTable.isDataTable('#linkedBugsTable')) {
+            $('#linkedBugsTable').DataTable().destroy();
+          }
+        } catch (e) { /* not a DataTable yet */ }
+        card.replaceWith(renderLinkedBugsTable());
+        initLinkedBugsTable();
+      }
+    })
+    .fail(function () { /* transient tracker failure: keep the placeholder */ });
 }
 
  //  - list of the latest execution's attachments (download links) so the
@@ -1038,6 +1088,22 @@ function renderHistoryHtml() {
         + '" onclick="openEditExecution(' + e.execution_id + ',' + e.tcversion_id + ',' + e.testplan_id + ')">'
         + '<i class="fas fa-pen-to-square"></i></button>';
     }
+    // attachments (paperclip): direct download link per file, in place.
+    // Real anchor (target=_blank), NOT window.open() - popup blockers were
+    // swallowing the legacy button-onclick approach for some users.
+    if (e.attachments && e.attachments.length) {
+      e.attachments.forEach(function (a) {
+        var attUrl = a.download_url || ('/lib/attachments/attachmentdownload.php?id=' + a.id);
+        actions += '<a class="icon-btn" href="' + esc(attUrl) + '" target="_blank" rel="noopener"'
+          + ' title="' + esc((a.title || a.file_name)) + '">'
+          + '<i class="fas fa-paperclip"></i></a>';
+      });
+    }
+    // direct public link (lnl.php?type=exec&id=N&apikey=) for sharing/email
+    if (ctx.plan_apikey) {
+      actions += '<button class="icon-btn" title="' + esc(TLi18n.t('exe.copyDirectLink'))
+        + '" onclick="copyDirectLink(' + e.execution_id + ')"><i class="fas fa-link"></i></button>';
+    }
     // print preview (opens legacy print screen)
     actions += '<button class="icon-btn" title="' + esc(TLi18n.t('exechist.printPreview'))
       + '" onclick="openExecPrint(' + e.execution_id + ')"><i class="fas fa-print"></i></button>';
@@ -1080,6 +1146,18 @@ function openEditExecution(execId, tcversionId, tplanId) {
 function openExecPrint(execId) {
   window.open('/lib/execute/execPrint.php?id=' + execId, '_blank',
     'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function copyDirectLink(execId) {
+  var url = window.location.origin + '/lnl.php?type=exec&id=' + execId
+    + '&apikey=' + encodeURIComponent(ctx.plan_apikey || '');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function () {
+      toast(TLi18n.t('exe.directLinkCopied'));
+    }, function () { prompt(TLi18n.t('exe.copyDirectLink'), url); });
+  } else {
+    prompt(TLi18n.t('exe.copyDirectLink'), url);
+  }
 }
 
 function deleteExecution(execId) {
@@ -1207,6 +1285,12 @@ function saveExecution(navTo) {
   .done(function (r) {
     if (r.status === 'ok' && r.saved) {
       toast(TLi18n.t('exe.savedOk'));
+      // the execution WAS saved, but file(s) picked for upload were all
+      // rejected by the attachments whitelist (ext/name) - must NOT look
+      // like a silent success, see execTestIssueViewUrl()/attachments
+      if (r.attachments_rejected) {
+        toast(TLi18n.t('exe.attachmentsRejected'), true);
+      }
       loadList();
       // save-and-move: land on the successor (wrap-around) like legacy
       if (nextTarget) {

@@ -388,6 +388,103 @@ function execTestResolveContext($db, $user, $tplanId) {
     return [$tplanMgr, $tplanId, $tprojectId, strval($planInfo['name'])];
 }
 
+// Live GitHub (or ITS) enrichment of the consolidated Linked Bugs list.
+// getIssue() performs a real network round-trip per bug, so this is the
+// SLOW part of tcDetails. The modern Execute Tests screen calls it in a
+// separate async request (?action=tcLinkedBugs) after the form has already
+// rendered; when $enrichWith is null the bug placeholders are returned as-is
+// (id/url/steps only) which is enough to paint the table instantly.
+function execTestEnrichLinkedBugs($linkedBugs, $enrichWith) {
+    if (!is_array($linkedBugs) || count($linkedBugs) == 0) {
+        return [];
+    }
+    if ($enrichWith !== null) {
+        $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
+        foreach ($linkedBugs as &$lb) {
+            try {
+                $issue = $enrichWith->getIssue($lb['id']);
+                if (is_object($issue)) {
+                    $lb['unavailable'] = false;
+                    if (!empty($issue->url)) { $lb['url'] = (string)$issue->url; }
+                    $lb['title'] = (!empty($issue->title))
+                        ? (string)$issue->title
+                        : rtrim(strtok((string)$issue->summary, "\n"), ':');
+                    $lb['status'] = (string)($issue->state ?? $issue->statusVerbose ?? '');
+                    if (isset($issue->labels) && is_array($issue->labels)) {
+                        $lb['labels'] = array_values($issue->labels);
+                    }
+                    if (isset($issue->label_colors) && is_array($issue->label_colors)) {
+                        $lb['label_colors'] = (object)$issue->label_colors;
+                    }
+                    $key = strtolower($lb['status']);
+                    if (isset($statusColor[$key])) { $lb['color'] = $statusColor[$key]; }
+                } else {
+                    // issue deleted / no longer reachable on the tracker
+                    $lb['unavailable'] = true;
+                }
+            } catch (Exception $e) {
+                // tracker transient failure - keep id/url only
+                $lb['unavailable'] = true;
+            }
+        }
+        unset($lb);
+    }
+    return $linkedBugs;
+}
+
+// Local (DB-only) issue view URL used by the FAST tcDetails path so we never
+// instantiate the live ITS just to build a link. The GitHub REST adapter's
+// buildViewBugURL() == getIssueURL() == getIssue(), i.e. one HTTP request per
+// bug, and its constructor fires connect()->getRepo() (network!) too. Only the
+// GitHub layout is derivable without calling the tracker; anything else (or
+// any DB/parse failure) falls back to '' and the badge is non-clickable until
+// the async tcLinkedBugs enrichment fills real links.
+function execTestIssueViewUrl($db, $tprojectId, $bugId) {
+    static $cache = [];
+    // owner/repo/base are invariant per test project; resolve once per call.
+    // Before that, try the already-parsed tracker cfg for this project.
+    if (array_key_exists(intval($tprojectId), $cache)) {
+        return execTestIssueUrlFromCfg(
+            $cache[intval($tprojectId)], strval($bugId));
+    }
+    try {
+        $itMgr = new tlIssueTracker($db);
+        $linkedT = $itMgr->getLinkedTo(intval($tprojectId));
+        if (is_null($linkedT)) { return ''; }
+        $itd = $itMgr->getByID(intval($linkedT['issuetracker_id']));
+        if (is_null($itd)) { return ''; }
+        $cfgDoc = simplexml_load_string($itd['cfg']);
+        if ($cfgDoc === false) { return ''; }
+        $owner = trim((string)$cfgDoc->owner);
+        $repo = trim((string)$cfgDoc->repo);
+        $base = trim((string)$cfgDoc->url);
+        $cache[intval($tprojectId)] = [
+            'owner' => $owner,
+            'repo' => $repo,
+            'base' => $base,
+        ];
+        return execTestIssueUrlFromCfg($cache[intval($tprojectId)], strval($bugId));
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
+// Build the GitHub (web UI) issue URL from a parsed ITS-GitHub config.
+// Returns '' when the tracker is not the GitHub layout (falls back to a
+// non-clickable badge until the async tcLinkedBugs enrichment fills links).
+function execTestIssueUrlFromCfg($cfg, $bugId) {
+    if ($cfg['owner'] === '' || $cfg['repo'] === '' || $bugId === '') {
+        return '';
+    }
+    $bugId = rawurlencode(strval($bugId));
+    // GitHub web UI lives at github.com even though the API is api.github.com
+    if (strpos($cfg['base'], 'api.github.com') !== false) {
+        return (('https://github.com/' . rawurlencode($cfg['owner'])
+                . '/' . rawurlencode($cfg['repo']) . '/issues/' . $bugId));
+    }
+    return '';
+}
+
 if ($action === 'init') {
     $tplanId = getIntParam('tplan_id');
     list($tplanMgr, , $tprojectId, $tplanName) =
@@ -670,6 +767,100 @@ if ($action === 'tcList') {
     out(['status' => 'ok', 'count' => count($items), 'items' => $items]);
 }
 
+// ?action=tcLinkedBugs - async enrichment endpoint for the Execute Tests
+// screen. tcDetails is intentionally served WITHOUT live issue-tracker
+// enrichment (getIssue() = one network round-trip per bug, ~5s for 2 bugs);
+// the frontend paints the Linked Bugs card instantly from the fast payload,
+// then fires this action to fill titles/labels/status/colors asynchronously.
+// Same rights gate + ITS gate as tcDetails.
+if ($action === 'tcLinkedBugs') {
+    $tplanId = getIntParam('tplan_id');
+    list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
+
+    $canExecute = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId);
+    $roAccess = $user->hasRight($db, 'exec_ro_access', $tprojectId, $tplanId);
+    if (!$canExecute && !$roAccess) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tprojectMgrT = new testproject($db);
+    $infoT = $tprojectMgrT->get_by_id($tprojectId);
+    $useITST = !empty($infoT['issue_tracker_enabled'])
+        && config_get('exec_cfg')->features->issue_tracker->enabled;
+    $itsT = null;
+    if ($useITST) {
+        try {
+            $itMgrT = new tlIssueTracker($db);
+            $itsT = $itMgrT->getInterfaceObject($tprojectId);
+            unset($itMgrT);
+        } catch (Exception $e) {
+            $itsT = null;
+        }
+    }
+
+    $tcaseId = getIntParam('tcase_id');
+    $tcversionId = getIntParam('tcversion_id');
+    $buildId = getIntParam('build_id');
+    $platformId = getIntParam('platform_id');
+    if ($tcaseId <= 0 || $tcversionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing tcase_id/tcversion_id']);
+    }
+
+    // aggregate every bug linked to any execution of this version in the plan
+    // (same data source tcDetails consolidates, without rebuilding history)
+    $linkedBugs = [];
+    $tblT = tlObjectWithDB::getDBTables(array(
+        'execution_bugs', 'tcsteps', 'executions'));
+    $rsT = $db->get_recordset(
+        "SELECT eb.bug_id, eb.tcstep_id, s.step_number, e.id AS exec_id" .
+        " FROM {$tblT['execution_bugs']} eb" .
+        " JOIN {$tblT['executions']} e ON e.id = eb.execution_id" .
+        " LEFT JOIN {$tblT['tcsteps']} s ON s.id = eb.tcstep_id" .
+        " WHERE e.testplan_id = {$tplanId}" .
+        " AND e.tcversion_id = {$tcversionId}" .
+        " ORDER BY e.id DESC");
+    if (!is_null($rsT)) {
+        foreach ($rsT as $brT) {
+            $bidT = strval($brT['bug_id']);
+            if (!isset($linkedBugs[$bidT])) {
+                $linkedBugs[$bidT] = [
+                    'id' => $bidT,
+                    'url' => execTestIssueViewUrl($db, $tprojectId, $bidT),
+                    'title' => '',
+                    'labels' => [],
+                    'label_colors' => [],
+                    'status' => '',
+                    'color' => '#8f8f8f',
+                    'unavailable' => false,
+                    'steps' => [],
+                    'exec_count' => 0,
+                ];
+            }
+            $linkedBugs[$bidT]['exec_count'] += 1;
+            if (intval($brT['step_number']) > 0) {
+                $linkedBugs[$bidT]['steps'][] = intval($brT['step_number']);
+            }
+        }
+    }
+    foreach ($linkedBugs as &$lbT) {
+        $lbT['steps'] = array_values(array_unique($lbT['steps']));
+        sort($lbT['steps']);
+    }
+    unset($lbT);
+    $linkedBugs = array_values($linkedBugs);
+
+    // live enrichment (the slow part) - this endpoint exists exactly to do it
+    $linkedBugs = execTestEnrichLinkedBugs(
+        $linkedBugs, ($useITST && !is_null($itsT)) ? $itsT : null);
+
+    out(['status' => 'ok',
+         'tcase_id' => $tcaseId,
+         'tcversion_id' => $tcversionId,
+         'linked_bugs' => $linkedBugs]);
+}
+
 if ($action === 'tcDetails') {
     $tplanId = getIntParam('tplan_id');
     list($tplanMgr, , $tprojectId, ) = execTestResolveContext($db, $user, $tplanId);
@@ -682,13 +873,20 @@ if ($action === 'tcDetails') {
     }
 
     // issue tracker integration (bugs per execution), same gate as the
-    // /history action - drives the clickable linked-bug badges
+    // /history action - drives the clickable linked-bug badges.
+    // The ITS is only instantiated when enrichment is explicitly requested
+    // (?enrich=1): githubrestInterface::__construct() -> connect() does a
+    // LIVE getRepo() HTTP call, and buildViewBugURL()==getIssueURL()==getIssue()
+    // is another HTTP call per bug. The fast path (default) uses the local
+    // execTestIssueViewUrl() for link badges and defers enrichment to the
+    // ?action=tcLinkedBugs endpoint.
+    $enrichNow = (getIntParam('enrich') === 1);
     $tprojectMgr = new testproject($db);
     $its = null;
     $info = $tprojectMgr->get_by_id($tprojectId);
     $useITS = !empty($info['issue_tracker_enabled'])
         && config_get('exec_cfg')->features->issue_tracker->enabled;
-    if ($useITS) {
+    if ($useITS && $enrichNow) {
         try {
             $itMgr = new tlIssueTracker($db);
             $its = $itMgr->getInterfaceObject($tprojectId);
@@ -912,42 +1110,55 @@ if ($action === 'tcDetails') {
                     $hTester = trim(strval($h['tester_first_name'] ?? '') . ' ' .
                                     strval($h['tester_last_name'] ?? ''));
                     if ($hTester === '' && !empty($h['tester_login'])) $hTester = strval($h['tester_login']);
-                    // bugs linked to this execution (with the tcstep link),
-                    // same source + gate as the /history action
+                    // bugs linked to this execution (with the tcstep link).
+                    // NOTE: legacy get_bugs_for_exec() -> buildViewBugLink()
+                    // fires a LIVE tracker getIssue() per bug (~seconds); the
+                    // consolidated table below is enriched asynchronously via
+                    // tcLinkedBugs instead, so here we only need ids/steps and
+                    // a LOCAL view URL (no network).
                     $hBugs = [];
-                    if ($useITS && !is_null($its)) {
-                        try {
-                            $dummyB = get_bugs_for_exec($db, $its, $hExecId);
-                            foreach ($dummyB as $bugIdB => $biB) {
+                    try {
+                        $tblB = tlObjectWithDB::getDBTables(
+                            array('execution_bugs', 'tcsteps'));
+                        $brsB = $db->get_recordset(
+                            "SELECT eb.bug_id, eb.tcstep_id, s.step_number " .
+                            "FROM {$tblB['execution_bugs']} eb " .
+                            "LEFT JOIN {$tblB['tcsteps']} s ON s.id = eb.tcstep_id " .
+                            "WHERE eb.execution_id = {$hExecId}");
+                        if (!is_null($brsB)) {
+                            foreach ($brsB as $brB) {
+                                // LOCAL url (no ITS instantiation / network) -
+                                // see execTestIssueViewUrl()
                                 $hBugs[] = [
-                                    'id' => strval($bugIdB),
-                                    'link_to_bts' => $biB['link_to_bts'],
-                                    'bug_url' => (string)$its->buildViewBugURL($bugIdB),
-                                    'tcstep_id' => intval($biB['tcstep_id'] ?? 0),
-                                    'step_number' => intval($biB['step_number'] ?? 0),
+                                    'id' => strval($brB['bug_id']),
+                                    'link_to_bts' => '',
+                                    'bug_url' => execTestIssueViewUrl(
+                                        $db, $tprojectId, strval($brB['bug_id'])),
+                                    'tcstep_id' => intval($brB['tcstep_id'] ?? 0),
+                                    'step_number' => intval($brB['step_number'] ?? 0),
                                 ];
                             }
-                        } catch (Exception $e) { $hBugs = []; }
-                    } else {
-                        try {
-                            $tblB = tlObjectWithDB::getDBTables(
-                                array('execution_bugs', 'tcsteps'));
-                            $brsB = $db->get_recordset(
-                                "SELECT eb.bug_id, eb.tcstep_id, s.step_number " .
-                                "FROM {$tblB['execution_bugs']} eb " .
-                                "LEFT JOIN {$tblB['tcsteps']} s ON s.id = eb.tcstep_id " .
-                                "WHERE eb.execution_id = {$hExecId}");
-                            if (!is_null($brsB)) {
-                                foreach ($brsB as $brB) {
-                                    $hBugs[] = [
-                                        'id' => strval($brB['bug_id']),
-                                        'link_to_bts' => '',
-                                        'tcstep_id' => intval($brB['tcstep_id'] ?? 0),
-                                        'step_number' => intval($brB['step_number'] ?? 0),
-                                    ];
-                                }
+                        }
+                    } catch (Exception $e) { $hBugs = []; }
+                    // attachments of this execution (same sink as /history)
+                    $hAtts = [];
+                    try {
+                        $attachMgrH = tlAttachmentRepository::create($db);
+                        $hItems = getAttachmentInfos($attachMgrH, $hExecId, 'executions', true, 1);
+                        if ($hItems) {
+                            foreach ($hItems as $hai) {
+                                $hAtts[] = [
+                                    'id' => intval($hai['id']),
+                                    'title' => strval($hai['title']),
+                                    'file_name' => strval($hai['file_name']),
+                                    'file_size' => intval($hai['file_size']),
+                                    'download_url' => '/lib/attachments/attachmentdownload.php?id='
+                                        . intval($hai['id']),
+                                ];
                             }
-                        } catch (Exception $e) { $hBugs = []; }
+                        }
+                    } catch (Exception $e) {
+                        $hAtts = [];
                     }
                     $execHistory[] = [
                     'execution_id' => $hExecId,
@@ -973,6 +1184,7 @@ if ($action === 'tcDetails') {
                         'can_edit_notes' => ($canEditNotesGlobal && $buildOpen) ? 1 : 0,
                         'can_delete' => ($canDeleteGlobal && $buildOpen) ? 1 : 0,
                         'bugs' => $hBugs,
+                        'attachments' => $hAtts,
                     ];
                 }
             }
@@ -1015,37 +1227,6 @@ $linkedBugs[$bid] = [
             }
         }
     }
-    if ($useITS && !is_null($its)) {
-        $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
-        foreach ($linkedBugs as &$lb) {
-            try {
-                $issue = $its->getIssue($lb['id']);
-                if (is_object($issue)) {
-                    $lb['unavailable'] = false;
-                    if (!empty($issue->url)) { $lb['url'] = (string)$issue->url; }
-                    $lb['title'] = (!empty($issue->title))
-                        ? (string)$issue->title
-                        : rtrim(strtok((string)$issue->summary, "\n"), ':');
-                    $lb['status'] = (string)($issue->state ?? $issue->statusVerbose ?? '');
-                    if (isset($issue->labels) && is_array($issue->labels)) {
-                        $lb['labels'] = array_values($issue->labels);
-                    }
-                    if (isset($issue->label_colors) && is_array($issue->label_colors)) {
-                        $lb['label_colors'] = (object)$issue->label_colors;
-                    }
-                    $key = strtolower($lb['status']);
-                    if (isset($statusColor[$key])) { $lb['color'] = $statusColor[$key]; }
-                } else {
-                    // issue deleted / no longer reachable on the tracker
-                    $lb['unavailable'] = true;
-                }
-            } catch (Exception $e) {
-                // tracker transient failure - keep id/url only
-                $lb['unavailable'] = true;
-            }
-        }
-        unset($lb);
-    }
     foreach ($linkedBugs as &$lb) {
         $lb['steps'] = array_values(array_unique($lb['steps']));
         sort($lb['steps']);
@@ -1053,7 +1234,7 @@ $linkedBugs[$bid] = [
     unset($lb);
     $linkedBugs = array_values($linkedBugs);
 
-    // Tester assignment of THIS version in the current plan/build/platform
+// Tester assignment of THIS version in the current plan/build/platform
     // context (legacy execSetResults setTesterAssignment() via
     // testcase::get_version_exec_assignment()). user_assignments rows are
     // keyed by testplan_tcversions.id (= feature_id); empty/absent means the
@@ -1083,12 +1264,29 @@ $linkedBugs[$bid] = [
         $assignedUserId = '';
     }
 
+    $planApiKey = '';
+    try {
+        $planRow = $tplanMgr->get_by_id($tplanId);
+        $planApiKey = strval($planRow['api_key'] ?? '');
+    } catch (Exception $e) {
+        $planApiKey = '';
+    }
+
+    // Enrichment against the live issue tracker (getIssue per bug) is SLOW
+    // (network round-trips per bug). The Execute Tests screen therefore
+    // requests tcDetails WITHOUT GitHub enrichment (fast path) and then
+    // fills the Linked Bugs card asynchronously via ?action=tcLinkedBugs.
+    // (?enrich=1 keeps the old all-in-one behaviour for other callers.)
+    $linkedBugs = execTestEnrichLinkedBugs(
+        $linkedBugs, $enrichNow ? $useITS : null);
+
     out([
         'status' => 'ok',
         'tcase' => ['id' => $tcaseId, 'name' => strval($basic['name'])],
         'linked_bugs' => $linkedBugs,
         'assigned_user' => $assignedUser,
         'assigned_user_id' => $assignedUserId,
+        'linked_bug_ids' => array_map(function ($lb) { return $lb['id']; }, $linkedBugs),
         'version' => [
             'id' => $tcversionId,
             'number' => intval($vinfo['version']),
@@ -1106,6 +1304,7 @@ $linkedBugs[$bid] = [
         'prior_execution' => $prior,
         'prior_step_results' => $priorSteps,
         'exec_history' => $execHistory,
+        'plan_apikey' => $planApiKey,
     ]);
 }
 
@@ -1403,6 +1602,7 @@ if ($action === 'save') {
     // never inspects/var_dump-pollutes the response - the BFF owns the
     // execution-level attachment upload here.
     $uploadedCount = 0;
+    $sentCount = 0;
     if ($newExecId > 0
         && isset($_FILES['exec_attachments'])
         && is_array($_FILES['exec_attachments']['name'])) {
@@ -1423,6 +1623,7 @@ if ($action === 'save') {
                     || $fInfo['size'] <= 0 || $fInfo['tmp_name'] === '') {
                     continue;
                 }
+                $sentCount++;
                 $repOpt = array('allow_empty_title' => TRUE);
                 $upx = $fileRepo->insertAttachment(
                     $newExecId, DB_TABLE_PREFIX . 'executions', '',
@@ -1441,6 +1642,10 @@ if ($action === 'save') {
         'execution_ts' => $newTs,
         'recorded_status' => $statusCode,
         'attachments_uploaded' => $uploadedCount,
+        // the user picked files but __none__ reached the repo (e.g. forbidden
+        // extension/name filtered by allowed_files): surface it instead of the
+        // silent success the legacy flow gives (attachments whitelist)
+        'attachments_rejected' => ($sentCount > 0 && $uploadedCount === 0),
     ]);
 }
 

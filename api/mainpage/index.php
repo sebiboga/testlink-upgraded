@@ -93,7 +93,11 @@ if ($method === 'GET' && empty($segments)) {
 
     $dashboard = getDashboardData($db, $tprojectID, $tplanID, $lbl);
     $tcGrowth = getTestCaseGrowthData($db, $tprojectID);
-    $bugsInfo = getBugsTestedData($db, $tprojectID, $tplanID, $lbl);
+    // FAST path: bugs with a locally-derived GitHub URL only. The live
+    // title/labels/status enrichment calls the ITS (one HTTP getIssue() per
+    // bug) and is delivered async through GET /bugsTested below, so the
+    // dashboard renders immediately (same pattern as Execute's tcLinkedBugs).
+    $bugsInfo = getBugsTestedData($db, $tprojectID, $tplanID, $lbl, false);
     $projectIssues = getProjectIssuesData($db, $tprojectID);
 
     out([
@@ -108,6 +112,19 @@ if ($method === 'GET' && empty($segments)) {
         'tcGrowth' => $tcGrowth,
         'bugsInfo' => $bugsInfo,
         'projectIssues' => $projectIssues,
+    ]);
+}
+
+// Route: GET /bugsTested - async live enrichment of the "Test case bugs"
+// widget. The base payload above ships id/tcases/url for a fast first paint;
+// this call finishes the rows with tracker title/labels/status. Mirrors the
+// async tcLinkedBugs endpoint of the Execute screen.
+if ($method === 'GET' && $segments === ['bugsTested']) {
+    $bugsInfo = getBugsTestedData($db, $tprojectID, $tplanID, $lbl, true);
+
+    out([
+        'status' => 'ok',
+        'bugsInfo' => $bugsInfo,
     ]);
 }
 
@@ -244,7 +261,7 @@ function getTestCaseGrowthData(&$dbHandler, $tprojectID)
  *
  * Mirrors lib/general/mainPage.php::getBugsTestedData().
  */
-function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
+function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl, $enrich = false)
 {
     if ($tprojectID <= 0 || $tplanID <= 0) {
         return null;
@@ -266,12 +283,18 @@ function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
         $bugs[$bugID][$row['full_external_id'] . ':' . $row['name']] = true;
     }
 
+    // Live enrichment needs the ITS adapter (one HTTP round-trip per bug via
+    // getIssue()). The fast path skips it entirely and only builds a
+    // locally-derivable GitHub URL - the async GET /bugsTested call then
+    // fills title/labels/status in place (same pattern as Execute screen).
     $its = null;
-    $tprojectMgr = new testproject($dbHandler);
-    $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
-    if (!empty($tprojectInfo['issue_tracker_enabled'])) {
-        $itMgr = new tlIssueTracker($dbHandler);
-        $its = $itMgr->getInterfaceObject($tprojectID);
+    if ($enrich) {
+        $tprojectMgr = new testproject($dbHandler);
+        $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
+        if (!empty($tprojectInfo['issue_tracker_enabled'])) {
+            $itMgr = new tlIssueTracker($dbHandler);
+            $its = $itMgr->getInterfaceObject($tprojectID);
+        }
     }
 
     $statusColor = array('closed' => '#5cb85c', 'open' => '#e6605e');
@@ -280,7 +303,7 @@ function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
     foreach ($bugs as $bugID => $tcaseSet) {
         $item = array('id' => $bugID,
                       'tcases' => implode(', ', array_keys($tcaseSet)),
-                      'url' => '',
+                      'url' => mainpageIssueViewUrl($dbHandler, $tprojectID, $bugID),
                       'title' => '',
                       'labels' => array(),
                       'label_colors' => array(),
@@ -288,26 +311,31 @@ function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
                       'color' => '#8f8f8f',
                       'unavailable' => false);
 
-        if (is_object($its)) {
-            $issue = $its->getIssue($bugID);
-            if (is_object($issue)) {
-                $item['url'] = $issue->url;
-                $item['title'] = (!empty($issue->title))
-                    ? (string) $issue->title
-                    : rtrim(strtok((string) $issue->summary, "\n"), ':');
-                $item['status'] = (string) ($issue->state ?? $issue->statusVerbose ?? '');
-                if (isset($issue->labels) && is_array($issue->labels)) {
-                    $item['labels'] = array_values($issue->labels);
-                }
-                if (isset($issue->label_colors) && is_array($issue->label_colors)) {
-                    $item['label_colors'] = (object) $issue->label_colors;
-                }
+        if ($enrich && is_object($its)) {
+            try {
+                $issue = $its->getIssue($bugID);
+                if (is_object($issue)) {
+                    $item['url'] = $issue->url;
+                    $item['title'] = (!empty($issue->title))
+                        ? (string) $issue->title
+                        : rtrim(strtok((string) $issue->summary, "\n"), ':');
+                    $item['status'] = (string) ($issue->state ?? $issue->statusVerbose ?? '');
+                    if (isset($issue->labels) && is_array($issue->labels)) {
+                        $item['labels'] = array_values($issue->labels);
+                    }
+                    if (isset($issue->label_colors) && is_array($issue->label_colors)) {
+                        $item['label_colors'] = (object) $issue->label_colors;
+                    }
 
-                $key = strtolower($item['status']);
-                if (isset($statusColor[$key])) {
-                    $item['color'] = $statusColor[$key];
+                    $key = strtolower($item['status']);
+                    if (isset($statusColor[$key])) {
+                        $item['color'] = $statusColor[$key];
+                    }
+                } else {
+                    $item['unavailable'] = true;
                 }
-            } else {
+            } catch (Exception $e) {
+                // tracker transient failure - keep id/url placeholders
                 $item['unavailable'] = true;
             }
         }
@@ -316,6 +344,49 @@ function getBugsTestedData(&$dbHandler, $tprojectID, $tplanID, $lbl)
     }
 
     return $dbo;
+}
+
+// Local (DB-only) issue view URL for the FAST dashboard path - never
+// instantiates the live ITS (GitHub's adapter fires connect()->getRepo() plus
+// getIssue() == buildViewBugURL() network calls). Only the GitHub layout is
+// derivable without the tracker; anything else falls back to ''.
+function mainpageIssueViewUrl($db, $tprojectID, $bugID)
+{
+    static $cache = [];
+    // owner/repo/base are invariant per test project; resolve once per request.
+    if (array_key_exists(intval($tprojectID), $cache)) {
+        return mainpageIssueUrlFromCfg($cache[intval($tprojectID)], strval($bugID));
+    }
+    try {
+        $itMgr = new tlIssueTracker($db);
+        $linkedT = $itMgr->getLinkedTo(intval($tprojectID));
+        if (is_null($linkedT)) { return ''; }
+        $itd = $itMgr->getByID(intval($linkedT['issuetracker_id']));
+        if (is_null($itd)) { return ''; }
+        $cfgDoc = simplexml_load_string($itd['cfg']);
+        if ($cfgDoc === false) { return ''; }
+        $owner = trim((string) $cfgDoc->owner);
+        $repo = trim((string) $cfgDoc->repo);
+        $base = trim((string) $cfgDoc->url);
+        $cache[intval($tprojectID)] = ['owner' => $owner, 'repo' => $repo, 'base' => $base];
+        return mainpageIssueUrlFromCfg($cache[intval($tprojectID)], strval($bugID));
+    } catch (Exception $e) {
+        return '';
+    }
+}
+
+// GitHub web-UI issue URL from a parsed ITS-GitHub config; '' when the
+// tracker is not the GitHub layout (falls back to a non-clickable badge until
+// the async /bugsTested enrichment fills real links).
+function mainpageIssueUrlFromCfg($cfg, $bugID)
+{
+    if ($cfg['owner'] === '' || $cfg['repo'] === '' || $bugID === '') { return ''; }
+    $bugID = rawurlencode(strval($bugID));
+    if (strpos($cfg['base'], 'api.github.com') !== false) {
+        return 'https://github.com/' . rawurlencode($cfg['owner'])
+            . '/' . rawurlencode($cfg['repo']) . '/issues/' . $bugID;
+    }
+    return '';
 }
 
 /**

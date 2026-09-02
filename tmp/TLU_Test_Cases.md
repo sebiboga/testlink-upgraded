@@ -9112,3 +9112,45 @@ in as admin/admin. Data source: live GitHub API
 - **Note:** the GitHub `listIssues` ERROR-level `Not Connected` log fires only when
   the tracker cannot be reached (degraded mode, widget hidden) — pre-existing
   interface convention (same as `getIssue`); recorded as discovery, not changed.
+
+## Suite 813 — Linked-Bugs Table + GitHub Label Colors (execute + dashboard) — Refs #789/#662/#772
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** modernized Execute Tests test-case details panel now renders a DataTables **Linked bugs** table (Bug ID / Title / Labels / Status / Step) fed real-time from the GitHub API via `api/execute` `tcDetails` (`linked_bugs`); deleted/rejected GitHub issues render a grey **Deleted** status badge (no dead link). GitHub **label colors** (name→hex) flow from `githubrestInterface::getIssue()/listIssues()` and are rendered as colored badges in BOTH Execute (`renderLinkedBugsTable`) and Dashboard (`mainPage.html` issues/bugs tables).
+- **Auth:** admin/admin, project TLU id=11, plan 3230, TLU-261 (=tcversion 2774). Live issue sample: #811 (`bug` label, color `d73a4a`). Deleted-sample: #806 linked to TLU-261.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-813.1 | tcDetails returns consolidated linked_bugs | `GET /api/execute/?action=tcDetails&tplan_id=3230&tproject_id=11&tcase_id=2773&tcversion_id=2774&build_id=3&platform_id=1` | `status=ok`; `linked_bugs` has #806 with `id=806`, `title=''`, `labels=[]`, `label_colors=[]`, `steps=[1]`, `unavailable=true` | PASS |
+| TC-813.2 | Deleted issue marked unavailable | Same response, #806 | `unavailable=true`, `url=''`, `status=''` | PASS |
+| TC-813.3 | Live issue carries labels + colors | `getIssue()` for a live labelled issue (e.g. #811) via BFF | `labels=["bug"]`, `label_colors={"bug":"d73a4a"}`, `title` and `status` populated | PASS |
+| TC-813.4 | Execute table renders Deleted row | Open ExecTests → TLU-261 | Linked bugs table shows `#806 | Unavailable | – | Deleted | # 1`; ID is NOT clickable (no dead link) | PASS |
+| TC-813.5 | Table is DataTables | Linked bugs card | Search/sort controls + "Showing 1 to 1 of 1 entries" present | PASS |
+| TC-813.6 | Dashboard issues show GitHub colors | Dashboard bugs/issues tables | `enhancement` label badge = GitHub cyan `rgb(162,238,239)`; status closed=grey-green / open=red from GitHub | PASS |
+| TC-813.7 | Dashboard deleted handling | Dashboard bugs table (all linked) | Deleted issues (#805/#806) show grey badge / unavailable, no dead link | PASS |
+| TC-813.8 | i18n keys in all bundles | Check `exe.bugDeleted`, `exe.bugUnavailable`, `dash.bugDeleted`, `dash.bugUnavailable` in en/ro/de/fr/es/it/pt/ja/ru/zh | Present in all 10 bundles; all `python3 -m json.tool` valid | PASS |
+| TC-813.9 | No new console errors | After opening TLU-261 details + Dashboard | No new Error/Warning in console (only pre-existing a11y issues) | PASS |
+| TC-813.10 | Event Viewer clean | After all renders on Execute + Dashboard | `events` table has 0 new Error/Warning from this feature | PASS |
+
+## Suite 814 — Execute TcDetails Async Enrichment + Paperclip Fix + Dashboard Async Bugs — Refs #789/#772
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Execute Tests `tcDetails` now renders instantly (fast path: local GitHub URL from ITS cfg XML, no live ITS instantiation) and fills the **Linked Bugs** card asynchronously via `?action=tcLinkedBugs` (live getIssue per bug). Execution-history paperclip was changed from `window.open` (popup-blocker risk) to a real `<a href target="_blank" rel="noopener">`. Dashboard `bugsInfo` is now a fast placeholder set, enriched asynchronously via `GET /bugsTested`. DataTables init guarded to true TABLE nodes (TBODY "non-table node" alert fix).
+- **Auth:** admin/admin, project TLU id=11, plan 3232 (=Regression Aug 29, build 4). Sample tc TLU-258 (=tcversion 2759) with linked bugs #807/#808.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-814.1 | tcDetails fast path instant | Open Exec Tests → TLU-258, measure time-to-render | Case quickly paints WITHOUT tracker network as payload is placeholder-only (local URL, empty title) | PASS |
+| TC-814.2 | Async Linked Bugs fill | After case opens, watch Linked Bugs card | Initially loading spinner (`exe.loadingBugs`), then titles/status/labels appear from `tcLinkedBugs` without page reload | PASS |
+| TC-814.3 | Local URL before enrich | Fast-path `tcDetails.linked_bugs[].url` | `https://github.com/sebiboga/testlink-upgraded/issues/807` (no ITS instantiation) | PASS |
+| TC-814.4 | Paperclip opens attachment (real link) | Exec history row with attachment → click paperclip icon | Opens `attachmentdownload.php?id=N` in NEW TAB (image renders); no popup blocker (anchor, not window.open) | PASS |
+| TC-814.5 | Attachments block download link | ATTACHMENTS section | Download link present and opens the same image | PASS |
+| TC-814.6 | DataTables no TBODY alert | Open case repeatedly / after async refill, check console | NO "Non-table node initialisation (TBODY)" DataTables alert; `initLinkedBugsTable` bails when node isn't TABLE | PASS |
+| TC-814.7 | Dashboard fast paint + async enrich | Load Dashboard, watch bugs table | bugsTable renders fast with loading badge (`dash.loadingBugs`), then titles/status/labels populate via `/bugsTested`; 5 rows final | PASS |
+| TC-814.8 | Pending skeleton vs unavailable | Refresh case so placeholders are title-less; then simulate all-unavailable | Skeleton only when truly pending (no title AND not unavailable); unavailable rows render "Deleted" badge immediately | PASS |
+| TC-814.9 | RO users still get enrichment | `loadLinkedBugs` no longer gated on `roMode` | RO/exec-non-rights users receive the async tcLinkedBugs fill (backend allows roAccess) — no permanent skeleton | PASS (code path verified) |
+| TC-814.10 | Console clean | All screens after reload | Only pre-existing a11y issues (label/id hints), zero new JS errors | PASS |
+
+- **Result:** **10/10 PASS** (TC-814.1–814.10)
