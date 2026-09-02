@@ -9527,3 +9527,33 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
 - **Note:** while testing, found the pre-existing missing locale key
   `simplexml_load_file_wrapper_error` (en_GB) — filed as bug #836 (only the legacy
   `lib/testcases/tcImport.php` path triggers it; the BFF path avoids it).
+
+---
+
+## Regression — Issue #836: simplexml_load_file_wrapper_error missing in en_GB (and most locales)
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Legacy locale-key fix. `lib/functions/xml.inc.php:37` calls
+  `lang_get("simplexml_load_file_wrapper_error")` on malformed XML import.
+  The key existed only in `pt_BR`/`pt_PT`; the other 17 bundles (incl. `en_GB`
+  fallback) lacked it, so `lang_get` fired an L18N "not localized" warning
+  (`lib/functions/lang_api.php:135`). Fix: added the translated key to all 17
+  missing `locale/*/strings.txt` bundles. Verified on branch `fix/issue-836`
+  (commit `b9c8d7c29`) against freshly-imported MariaDB.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-836.1 | key exists in every bundle | `grep -c simplexml_load_file_wrapper_error locale/*/strings.txt` | every one of the 19 bundles returns exactly `1` | PASS |
+| TC-836.2 | all bundles syntactically valid | `php -l locale/{en_GB,de_DE,fr_FR,ro_RO,...}/strings.txt` | "No syntax errors detected" for all 17 touched files | PASS |
+| TC-836.3 | en_GB resolves localized string | `lang_get("simplexml_load_file_wrapper_error")` with `$_SESSION[locale]=en_GB` | returns English text, no `TL_LOCALIZE_TAG` wrapper | PASS |
+| TC-836.4 | de_DE resolves its translation | same call with `$_SESSION[locale]=de_DE` | returns German text ("Laden der XML-Datei fehlgeschlagen") | PASS |
+| TC-836.5 | fr_FR resolves its translation | same call with `$_SESSION[locale]=fr_FR` | returns French text, no wrapper | PASS |
+| TC-836.6 | ro_RO resolves its translation | same call with `$_SESSION[locale]=ro_RO` | returns Romanian text, no wrapper | PASS |
+| TC-836.7 | no new L18N warning event | resolve key with event-firing on; `SELECT * FROM events WHERE description LIKE '%localized%'` | 0 new LOCALIZATION/simplexml rows (only normal LOGIN audit) | PASS |
+| TC-836.8 | no locale file corrupted | `git diff --stat locale/*/strings.txt` | each of 17 files is exactly `3 +++` (pure additions, CRLF preserved) | PASS |
+
+- **Result:** **8/8 PASS** (TC-836.1–836.8). Root cause (key absent from en_GB
+  and 16 other bundles) fixed; `lang_get` now returns the localized string for
+  every locale under TestLink without firing the L18N warning; no locale file
+  corrupted, no new Event Viewer warnings.
