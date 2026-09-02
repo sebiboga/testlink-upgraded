@@ -9447,3 +9447,21 @@ reference remains in `lib/execute/` (verified by grep). Fixture project 2000 (pl
 - **Result:** **4/4 PASS** (TC-503.42–503.45) against MariaDB 11.4.
 - **Note:** No source change was required in `lib/execute/` — the underlying testplan build methods were
   project-scoped in #829; #832 is the verification/regression step for the execution pages.
+
+---
+
+### Sub-task #833 — XML-RPC build methods project scope
+`getBuildsForTestPlan` (testplan::get_builds) and `getLatestBuildForTestPlan` (get_max_build_id + get_builds)
+were already project-scoped via #829. `createBuild` `sourceBuild` pre-check was converted from `testplan_id`
+to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project 2000 (plans 2001/2002, build 3001).
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| TC-503.46 | getBuildsForTestPlan backing project scope | `get_builds(2002)` | contains 3001 | PASS |
+| TC-503.47 | getLatestBuildForTestPlan backing project scope | `get_max_build_id(2002)` | >= 3001 | PASS |
+| TC-503.48 | createBuild dup-check project scope | `get_build_id_by_name(2002,'v1.0')` | 3001 | PASS |
+| TC-503.49 | createBuild source-build accepts cross-plan same-project | `WHERE id=3001 AND testproject_id=proj(2002)` | 1 row (accepted) | PASS |
+| TC-503.50 | createBuild source-build rejects other-project | `WHERE id=<other> AND testproject_id=proj(2002)` | 0 rows (rejected) | PASS |
+
+- **Result:** **5/5 PASS** (TC-503.46–503.50) against MariaDB 11.4.
+- Code-review subagent: APPROVED (intval'd vars; `count($rs)` unchanged; original guard intent preserved).

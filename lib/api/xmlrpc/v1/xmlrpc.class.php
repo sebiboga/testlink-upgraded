@@ -1990,8 +1990,10 @@ class TestlinkXMLRPCServer extends IXR_Server {
                     $sourceBuild = intval( $opt[self::$copyTestersFromBuildParamName] );
 
                     if($sourceBuild > 0) {
-                        // Check if belongs to test plan, otherwise ignore in silence
-                        $sql = " SELECT id FROM {$this->tables['builds']} " . " WHERE id = " . $sourceBuild . " AND testplan_id = " . $testPlanID;
+                        // Builds are scoped to the Test Project (issue #503): the source build
+                        // must belong to the SAME project as the plan (not necessarily the same plan).
+                        $sql = " SELECT id FROM {$this->tables['builds']} " . " WHERE id = " . $sourceBuild .
+                               " AND testproject_id = " . $this->tplanMgr->getProjectIdOfPlan( $testPlanID );
                         $rs = $this->dbObj->get_recordset( $sql );
 
                         if(count( $rs ) == 1) {
