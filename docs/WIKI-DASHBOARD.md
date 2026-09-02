@@ -1,6 +1,4 @@
-# Dashboard — Landing Page (Main Page) — Docs (Wiki Mirror)
-
-> Mirror of the GitHub Wiki page [Dashboard](https://github.com/sebiboga/testlink-upgraded.wiki/blob/master/Dashboard.md). Image lines omitted per project convention.
+# Dashboard — Landing Page (Main Page)
 
 The **Dashboard** is the ASIDE **mainframe landing** — the first screen shown in the
 main frame after login and after any project/test-plan change. It gives a visual
@@ -8,6 +6,8 @@ overview of the current test plan's execution status and the test project's test
 case growth over time. It was re-implemented in 2.0.1 as a standalone Dashio HTML +
 JS + CSS screen backed by a plain-PHP REST BFF (replacing the legacy 1.9.20
 `lib/general/mainPage.php` + Smarty).
+
+![Dashboard Screenshot](screenshot-dashboard-modernized.png)
 
 **Path:** Dashboard — main frame landing (not an ASIDE child item)
 **URL:** `gui/templates/mainpage/mainPage.html` (loaded inside the main frame)
@@ -106,9 +106,12 @@ date).
 An **issue tracker** (`tlIssueTracker`) must be configured on the project for these
 widgets to appear. When a tracker is configured:
 
-- **Bugs (execution-linked)** — table of bugs that testers linked to test cases
-  during execution in the current plan.
-- **Open Issues** — the tracker's currently open issues for the plan.
+- **Test case bugs (execution-linked)** — table of bugs that testers linked to
+  test cases during execution in the current plan (`getBugsTestedData`).
+- **Project open issues** — **all** currently open issues on the project's
+  linked tracker, independent of the selected test plan (`getProjectIssuesData`,
+  Refs #772). See the dedicated page
+  [Dashboard — "Project open issues" Widget](WIKI-DASHBOARD-PROJECT-ISSUES.md).
 
 If no tracker is configured, both sections are **hidden entirely**.
 
