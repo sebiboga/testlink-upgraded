@@ -9601,3 +9601,55 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
 - **Note:** while testing, found and fixed a display bug (revision badges and diff
   labels rendered `revision+1` instead of the actual revision) in the same screen —
   fixed and re-verified. No GitHub bug filed (fix landed in the same PR).
+
+
+---
+
+## Suite 838 — Results by Multiple Builds (`resultsMoreBuilds.html` + `api/reports` actions `more_builds_init`/`more_builds`) — Refs #838
+
+- **Priority:** High · **Importance:** High
+- **Scope:** Modernization of legacy `lib/results/resultsMoreBuildsGUI.php` +
+  `resultsMoreBuilds.php` (the last deferred report screen, re-enabled and
+  pointed at the modern Dashio screen). A standalone filter panel (builds incl.
+  closed, top-level test suites, platforms, keyword, last-result statuses,
+  owner/executor, search-in-notes, date range, display toggles) drives a
+  per-test-case x per-selected-build last-execution-status matrix with per-build
+  totals, per-suite summaries and a query-parameters recap. The legacy
+  report-query in `resultsMoreBuilds.php` was dead code (newResults block
+  commented out), so the BFF rebuilds the intended feature from
+  `tlTestPlanMetrics::getExecStatusMatrixFlat`. Right `testplan_metrics`
+  enforced (global + per-project/per-plan context).
+- **Fixture:** `tmp/fixtures_838.php` → project **RMB Demo Project** (id 1), plan
+  **Plan RMB** (id 22), suites **RMB Suite One** / **RMB Suite Two**, six test
+  cases RMBTC1–6, builds **Open One** (id 1), **Open Two** (id 2), **Closed**
+  (id 3). Executions: Open1 → TC1 p, TC2 p, TC3 f, TC5 f; Open2 → TC1 p, TC2 b,
+  TC3 p, TC6 b; Closed → TC1 p, TC2 f, TC4 p. Verified in-browser against a
+  freshly-imported DB.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-838.1 | init context + filter options load | open `resultsMoreBuilds.html?tproject_id=1&tplan_id=22` (admin) | Title "Plan RMB - Results by Multiple Builds"; Test Project `RMB Demo Project`; filter panel lists 3 builds, 2 suites, keyword Any, status options, owner/executor; quiet default run renders. | PASS (browser) |
+| TC-838.2 | default multi-build matrix | run with all 3 builds selected, all statuses | Matrix rows RMBTC1–6 with a column per build; TC1 Passed/Passed/Passed (Closed/Open1/Open2), TC2 Failed/Passed/Blocked, TC3 Not Run/Failed/Passed, TC4 Passed/NR/NR, TC5 NR/Failed/NR, TC6 NR/NR/Blocked. | PASS (browser) |
+| TC-838.3 | per-build totals correct | inspect Totals panel | Open1: 6 total = Passed 2, Failed 2, Not Run 2; Open2: 6 = Passed 2, Blocked 2, Not Run 2; Closed: 6 = Passed 2, Failed 1, Not Run 3. | PASS (browser) |
+| TC-838.4 | suite summaries correct | inspect Suite Summaries | Suite One: 3 TCs (TC1-3); Suite Two: 3 TCs (TC4-6); per-suite status sums equal build totals for retained TCs. | PASS (browser) |
+| TC-838.5 | query-params recap | with all filters default | User-selected block lists Test Plan, Builds, Suites, Keyword Any, Last Result statuses, Executor Any, Results All. | PASS (browser) |
+| TC-838.6 | single-build + status filter | select only Open One + Last Result = Failed, Run | Totals panel Open1: 2 total / Failed 2 (consistent); matrix shows only RMBTC3 + RMBTC5 (both Failed in Open1); suite summaries show 1 each. | PASS (browser) |
+| TC-838.7 | no-build guard | deselect all builds, Run | Toast "At least one build must be selected."; no report rendered. | PASS (browser) |
+| TC-838.8 | display toggles | uncheck suite summaries / test cases / query params / totals, Run | Corresponding sections disappear; matrix only remains when test cases checked. | PASS (browser) |
+| TC-838.9 | no-rights user | login `rmbNoinv` (role 3), open screen | Warning "Insufficient rights"; filter panel hidden; no data. | PASS (browser) |
+| TC-838.10 | BFF invalid plan | authenticated fetch `action=more_builds&tplan_id=999999` | HTTP 400 `Invalid test plan id`. | PASS (browser fetch) |
+| TC-838.11 | locale switch renders | switch locale to Română | Header + labels localize via `rmb.*` keys; no missing-key on-screen. | PASS (browser) |
+| TC-838.12 | no JS console errors | throughout the above | 0 errors/warnings in console. | PASS (browser) |
+| TC-838.13 | Event Viewer clean | `SELECT * FROM events` after all queries | no new Error/Warning rows from the BFF read path (table empty on fresh import). | PASS |
+
+- **Result:** **13/13 PASS** (TC-838.1–838.13). Results by Multiple Builds
+  modernized end-to-end: filter panel + multi-build status matrix + totals +
+  suite summaries + query-params recap, re-enabled from the Reports ASIDE menu,
+  rights + no-build guard + filter semantics + all error states verified, Event
+  Viewer clean.
+- **Note:** during testing found and fixed a BFF aggregation bug — the per-build
+  status was read from `getExecStatusMatrixFlat`'s `latestExec` (which only
+  keeps ONE build per platform+tcase), making executed builds show as Not Run;
+  fixed to aggregate from the flat metrics rows per (tcase, build) and aligned
+  build totals with the last-status filter. No GitHub bug filed (fix landed in
+  the same modernize run).
