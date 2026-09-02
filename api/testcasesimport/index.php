@@ -496,8 +496,14 @@ if ($action === 'import_xml') {
     require_once(__DIR__ . '/../../lib/functions/xml.inc.php');
     require_once(__DIR__ . '/../../lib/functions/csv.inc.php');
 
-    $xml = @simplexml_load_file_wrapper($dest);
-    if ($xml === FALSE) {
+    // simplexml_load_file_wrapper() dies with raw HTML for malformed XML, which
+    // would break the JSON contract. Validate with a safe parser first so we can
+    // return a proper JSON error.
+    libxml_use_internal_errors(true);
+    $rawXml = @file_get_contents($dest);
+    $xml = @simplexml_load_string($rawXml, 'SimpleXMLElement', LIBXML_NONET);
+    libxml_clear_errors();
+    if ($xml === FALSE || $rawXml === false) {
         @unlink($dest);
         http_response_code(422);
         out(['status' => 'error', 'message' => 'Invalid XML file']);
