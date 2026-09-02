@@ -1137,10 +1137,10 @@ function renderHistoryHtml() {
 }
 
 function openEditExecution(execId, tcversionId, tplanId) {
-  window.open('/lib/execute/editExecution.php?exec_id=' + execId
+  window.open('/gui/templates/execute/editExecution.html?exec_id=' + execId
     + '&tcversion_id=' + tcversionId + '&tplan_id=' + tplanId
     + '&tproject_id=' + ctx.tprojectId, 'execution_notes',
-    'width=800,height=600,resizable=yes,scrollbars=yes');
+    'width=820,height=620,resizable=yes,scrollbars=yes');
 }
 
 function openExecPrint(execId) {

@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "Средняя",
   "suvw.impLow": "Низкая",
   "suvw.inactive": "Неактивен",
-  "suvw.openTc": "Открыть тестовый случай"
+  "suvw.openTc": "Открыть тестовый случай",
+  "editexec.title": "Редактировать выполнение",
+  "editexec.save": "Сохранить",
+  "editexec.close": "Закрыть",
+  "editexec.notes": "Заметки выполнения",
+  "editexec.notesPh": "Введите заметки выполнения...",
+  "editexec.execCfields": "Пользовательские поля выполнения",
+  "editexec.saved": "Выполнение обновлено",
+  "editexec.saveError": "Не удалось сохранить",
+  "editexec.reqFields": "Заполните все обязательные поля",
+  "editexec.loadError": "Не удалось загрузить",
+  "editexec.noRights": "Нет прав на редактирование этого выполнения",
+  "editexec.notFound": "Выполнение не найдено",
+  "editexec.noId": "Отсутствует id выполнения",
+  "editexec.buildClosed": "Сборка закрыта - редактирование отключено"
 }

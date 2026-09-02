@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "Mittel",
   "suvw.impLow": "Niedrig",
   "suvw.inactive": "Inaktiv",
-  "suvw.openTc": "Testfall öffnen"
+  "suvw.openTc": "Testfall öffnen",
+  "editexec.title": "Ausführung bearbeiten",
+  "editexec.save": "Speichern",
+  "editexec.close": "Schließen",
+  "editexec.notes": "Ausführungsnotizen",
+  "editexec.notesPh": "Ausführungsnotizen eingeben...",
+  "editexec.execCfields": "Ausführungs-Custom-Felder",
+  "editexec.saved": "Ausführung aktualisiert",
+  "editexec.saveError": "Speichern fehlgeschlagen",
+  "editexec.reqFields": "Bitte alle Pflichtfelder ausfüllen",
+  "editexec.loadError": "Laden fehlgeschlagen",
+  "editexec.noRights": "Keine Berechtigung zum Bearbeiten",
+  "editexec.notFound": "Ausführung nicht gefunden",
+  "editexec.noId": "Ausführungs-ID fehlt",
+  "editexec.buildClosed": "Build geschlossen - Bearbeitung deaktiviert"
 }

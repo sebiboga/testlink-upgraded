@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "Medie",
   "suvw.impLow": "Scăzută",
   "suvw.inactive": "Inactiv",
-  "suvw.openTc": "Deschide cazul de testare"
+  "suvw.openTc": "Deschide cazul de testare",
+  "editexec.title": "Editare Executie",
+  "editexec.save": "Salveaza",
+  "editexec.close": "Inchide",
+  "editexec.notes": "Note executie",
+  "editexec.notesPh": "Introduceti notele executiei...",
+  "editexec.execCfields": "Campuri personalizate executie",
+  "editexec.saved": "Executia a fost actualizata",
+  "editexec.saveError": "Eroare la salvarea executiei",
+  "editexec.reqFields": "Completati toate campurile obligatorii",
+  "editexec.loadError": "Eroare la incarcarea executiei",
+  "editexec.noRights": "Nu aveti permisiunea de a edita aceasta executie",
+  "editexec.notFound": "Executia nu a fost gasita",
+  "editexec.noId": "Lipseste id-ul executiei",
+  "editexec.buildClosed": "Build-ul este inchis - editare dezactivata"
 }

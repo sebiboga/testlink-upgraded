@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "中",
   "suvw.impLow": "低",
   "suvw.inactive": "不活动",
-  "suvw.openTc": "打开测试用例"
+  "suvw.openTc": "打开测试用例",
+  "editexec.title": "编辑执行",
+  "editexec.save": "保存",
+  "editexec.close": "关闭",
+  "editexec.notes": "执行备注",
+  "editexec.notesPh": "输入执行备注...",
+  "editexec.execCfields": "执行自定义字段",
+  "editexec.saved": "执行已更新",
+  "editexec.saveError": "保存失败",
+  "editexec.reqFields": "请填写所有必填字段",
+  "editexec.loadError": "加载失败",
+  "editexec.noRights": "无权编辑此执行",
+  "editexec.notFound": "未找到执行",
+  "editexec.noId": "缺少执行ID",
+  "editexec.buildClosed": "构建已关闭 - 编辑已禁用"
 }

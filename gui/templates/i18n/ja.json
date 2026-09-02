@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "中",
   "suvw.impLow": "低",
   "suvw.inactive": "非アクティブ",
-  "suvw.openTc": "テストケースを開く"
+  "suvw.openTc": "テストケースを開く",
+  "editexec.title": "実行を編集",
+  "editexec.save": "保存",
+  "editexec.close": "閉じる",
+  "editexec.notes": "実行ノート",
+  "editexec.notesPh": "実行ノートを入力...",
+  "editexec.execCfields": "実行カスタムフィールド",
+  "editexec.saved": "実行が更新されました",
+  "editexec.saveError": "保存に失敗しました",
+  "editexec.reqFields": "必須フィールドをすべて入力してください",
+  "editexec.loadError": "読み込みに失敗しました",
+  "editexec.noRights": "この実行を編集する権限がありません",
+  "editexec.notFound": "実行が見つかりません",
+  "editexec.noId": "実行IDがありません",
+  "editexec.buildClosed": "ビルドはクローズ中 - 編集無効"
 }

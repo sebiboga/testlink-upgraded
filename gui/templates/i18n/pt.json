@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "Média",
   "suvw.impLow": "Baixa",
   "suvw.inactive": "Inativo",
-  "suvw.openTc": "Abrir caso de teste"
+  "suvw.openTc": "Abrir caso de teste",
+  "editexec.title": "Editar Execução",
+  "editexec.save": "Salvar",
+  "editexec.close": "Fechar",
+  "editexec.notes": "Notas de execução",
+  "editexec.notesPh": "Digite as notas de execução...",
+  "editexec.execCfields": "Campos personalizados de execução",
+  "editexec.saved": "Execução atualizada",
+  "editexec.saveError": "Falha ao salvar",
+  "editexec.reqFields": "Preencha todos os campos obrigatórios",
+  "editexec.loadError": "Falha ao carregar",
+  "editexec.noRights": "Sem permissão para editar esta execução",
+  "editexec.notFound": "Execução não encontrada",
+  "editexec.noId": "Id de execução ausente",
+  "editexec.buildClosed": "Build fechado - edição desativada"
 }

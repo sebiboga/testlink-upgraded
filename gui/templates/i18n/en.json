@@ -2302,5 +2302,19 @@
   "suvw.impMedium": "Medium",
   "suvw.impLow": "Low",
   "suvw.inactive": "Inactive",
-  "suvw.openTc": "Open test case"
+  "suvw.openTc": "Open test case",
+  "editexec.title": "Edit Execution",
+  "editexec.save": "Save",
+  "editexec.close": "Close",
+  "editexec.notes": "Execution Notes",
+  "editexec.notesPh": "Enter execution notes...",
+  "editexec.execCfields": "Execution Custom Fields",
+  "editexec.saved": "Execution updated",
+  "editexec.saveError": "Failed to save execution",
+  "editexec.reqFields": "Please fill all required fields",
+  "editexec.loadError": "Failed to load execution",
+  "editexec.noRights": "You do not have permission to edit this execution",
+  "editexec.notFound": "Execution not found",
+  "editexec.noId": "Missing execution id",
+  "editexec.buildClosed": "Build is closed - editing disabled"
 }
