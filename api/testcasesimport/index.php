@@ -410,5 +410,170 @@ if ($action === 'import_md') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// POST ?action=import_xml&tproject_id=N&containerID=N
+//      [&hit_criteria=name|internalID|externalID]
+//      [&action_on_hit=skip|update_last_version|generate_new|create_new_version]
+//      [&useRecursion=1][&intoProject=1]
+// Body: multipart file field "uploadedFile"
+// ---------------------------------------------------------------------------
+if ($action === 'import_xml') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'Use POST']);
+    }
+
+    $tprojectId = getIntParam('tproject_id');
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    if (!$info) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+    if (!$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    $containerId = getIntParam('containerID');
+    if ($containerId <= 0) {
+        $containerId = $tprojectId;
+    }
+
+    // ---- input validation --------------------------------------------------
+    if (!isset($_FILES['uploadedFile']) || $_FILES['uploadedFile']['error'] !== UPLOAD_ERR_OK) {
+        $errCode = isset($_FILES['uploadedFile']) ? $_FILES['uploadedFile']['error'] : -1;
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'File upload failed (error code: ' . $errCode . ')']);
+    }
+
+    $maxBytes = intval(config_get('import_file_max_size_bytes'));
+    $uploadedBytes = intval($_FILES['uploadedFile']['size']);
+    if ($maxBytes > 0 && $uploadedBytes > $maxBytes) {
+        http_response_code(413);
+        out(['status' => 'error',
+             'message' => sprintf('File too large (%d bytes); limit is %d bytes',
+                                  $uploadedBytes, $maxBytes)]);
+    }
+
+    $useRecursion = getIntParam('useRecursion') === 1;
+    $intoProject = getIntParam('intoProject') === 1;
+
+    $hitCriteria = strtolower(trim(strval($_REQUEST['hit_criteria'] ?? 'name')));
+    if (!in_array($hitCriteria, ['name', 'internalID', 'externalID'], true)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid hit_criteria']);
+    }
+    $actionOnHit = strtolower(trim(strval($_REQUEST['action_on_hit'] ?? 'skip')));
+    if (!in_array($actionOnHit, ['skip', 'update_last_version', 'generate_new', 'create_new_version'], true)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid action_on_hit']);
+    }
+
+    // ---- save uploaded file to temp -----------------------------------------
+    $tmpDir = config_get('repositoryPath');
+    if (!$tmpDir || !is_dir($tmpDir)) {
+        $tmpDir = sys_get_temp_dir();
+    }
+    $dest = tempnam($tmpDir, 'xmlimport_');
+    if (!move_uploaded_file($_FILES['uploadedFile']['tmp_name'], $dest)) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Failed to save uploaded file']);
+    }
+
+    // ---- validate XML ------------------------------------------------------
+    require_once(__DIR__ . '/../../lib/functions/xml.inc.php');
+    require_once(__DIR__ . '/../../lib/functions/csv.inc.php');
+
+    $xml = @simplexml_load_file_wrapper($dest);
+    if ($xml === FALSE) {
+        @unlink($dest);
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Invalid XML file']);
+    }
+
+    $elementName = $xml->getName();
+    if ($useRecursion && $elementName !== 'testsuite') {
+        @unlink($dest);
+        http_response_code(422);
+        out(['status' => 'error',
+             'message' => 'XML root element must be <testsuite> for recursive import']);
+    }
+    if (!$useRecursion && $elementName !== 'testcases' && $elementName !== 'testcase') {
+        @unlink($dest);
+        http_response_code(422);
+        out(['status' => 'error',
+             'message' => 'XML root element must be <testcases> or <testcase> for flat import']);
+    }
+
+    // ---- load import functions from legacy tcImport.php ---------------------
+    // Use output buffering to suppress any page output from the legacy script.
+    // PHP compiles the entire file before executing, so all function definitions
+    // are registered even if the page logic fails or calls exit().
+    if (!function_exists('importTestCaseDataFromXML')) {
+        ob_start();
+        $tcImportPath = __DIR__ . '/../../lib/testcases/tcImport.php';
+        try {
+            include($tcImportPath);
+        } catch (\Throwable $e) {
+            // Swallow — functions are registered at compile time
+        }
+        ob_end_clean();
+    }
+
+    // ---- run import ---------------------------------------------------------
+    $opt = [
+        'useRecursion' => $useRecursion,
+        'importIntoProject' => $intoProject,
+        'duplicateLogic' => [
+            'hitCriteria' => $hitCriteria,
+            'actionOnHit' => $actionOnHit,
+        ],
+    ];
+
+    $resultMap = null;
+    try {
+        $resultMap = importTestCaseDataFromXML(
+            $db, $dest, $containerId, $tprojectId, $userId, $opt
+        );
+    } catch (\Throwable $e) {
+        @unlink($dest);
+        http_response_code(500);
+        out(['status' => 'error',
+             'message' => 'Import failed: ' . $e->getMessage()]);
+    }
+
+    @unlink($dest);
+
+    // ---- normalise resultMap to JSON-friendly structure ---------------------
+    $normalized = [
+        'status' => 'ok',
+        'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
+        'useRecursion' => $useRecursion,
+        'intoProject' => $intoProject,
+        'options' => ['hit_criteria' => $hitCriteria, 'action_on_hit' => $actionOnHit],
+    ];
+
+    if (is_array($resultMap)) {
+        // The legacy importTestCaseDataFromXML returns an array with 'ok', 'ko',
+        // 'filtered', 'skipped' keys depending on context.
+        $normalized['resultMap'] = $resultMap;
+        $normalized['okCount'] = count($resultMap['ok'] ?? []);
+        $normalized['koCount'] = count($resultMap['ko'] ?? []);
+        $normalized['skippedCount'] = count($resultMap['skipped'] ?? []);
+        $normalized['filteredCount'] = count($resultMap['filtered'] ?? []);
+    } else {
+        $normalized['resultMap'] = $resultMap;
+    }
+
+    out($normalized);
+}
+
 http_response_code(400);
 out(['status' => 'error', 'message' => 'Bad request']);
