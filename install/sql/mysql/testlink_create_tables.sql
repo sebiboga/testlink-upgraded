@@ -76,6 +76,7 @@ CREATE TABLE /*prefix*/attachments (
 
 CREATE TABLE /*prefix*/builds (
   `id` int(10) unsigned NOT NULL auto_increment,
+  `testproject_id` int(10) unsigned NOT NULL default '0',
   `testplan_id` int(10) unsigned NOT NULL default '0',
   `name` varchar(100) NOT NULL default 'undefined',
   `notes` text,
@@ -91,7 +92,8 @@ CREATE TABLE /*prefix*/builds (
   `release_candidate` varchar(100),
   PRIMARY KEY  (`id`),
   UNIQUE KEY /*prefix*/name (`testplan_id`,`name`),
-  KEY /*prefix*/testplan_id (`testplan_id`)
+  KEY /*prefix*/testplan_id (`testplan_id`),
+  KEY /*prefix*/testproject_id (`testproject_id`)
 ) DEFAULT CHARSET=utf8 COMMENT='Available builds';
 
 
@@ -934,6 +936,15 @@ CREATE OR REPLACE VIEW /*prefix*/latest_exec_by_context
 AS SELECT tcversion_id, testplan_id,build_id,platform_id,max(id) AS id
 FROM /*prefix*/executions 
 GROUP BY tcversion_id,testplan_id,build_id,platform_id;
+
+#
+# project-scoped rollup: per build, across all plans (builds are now
+# scoped to the test project per issue #503). Unlocks the cross-plan
+# "quality of build X" report.
+CREATE OR REPLACE VIEW /*prefix*/latest_exec_by_build
+AS SELECT tcversion_id, build_id, platform_id, max(id) AS id
+FROM /*prefix*/executions 
+GROUP BY tcversion_id, build_id, platform_id;
 
 #
 CREATE OR REPLACE VIEW /*prefix*/tcversions_without_platforms
