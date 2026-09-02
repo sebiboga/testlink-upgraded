@@ -126,6 +126,12 @@ var t = TLi18n.t;
 var g_tproject_id = 0, g_tplan_id = 0;
 var execChart = null, growthChart = null;
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 $(function() {
   var p = new URLSearchParams(window.location.search);
   g_tproject_id = parseInt(p.get('tproject_id') || '0', 10);
@@ -229,11 +235,12 @@ function renderBugs(bugs, dash) {
   $('#bugsSub').text(t('dash.testPlan') + ': ' + (dash && dash.tplan_name ? dash.tplan_name : '-'));
   var rows = [];
   $.each(bugs, function(i, b) {
-    var id = b.url ? '<a href="' + b.url + '" target="_blank" rel="noopener"><strong>' + b.id + '</strong></a>' : '<strong>' + b.id + '</strong>';
+    var id = b.url ? '<a href="' + esc(b.url) + '" target="_blank" rel="noopener"><strong>' + esc(b.id) + '</strong></a>' : '<strong>' + esc(b.id) + '</strong>';
     var title = b.title || (b.unavailable ? t('dash.bugUnavailable') : '');
+    title = esc(title);
     var st;
     if (b.unavailable) { st = '<span class="badge" style="background:#8f8f8f;">' + t('dash.bugDeleted') + '</span>'; }
-    else { st = b.status ? '<span class="badge" style="background:' + b.color + ';">' + b.status + '</span>' : ''; }
+    else { st = b.status ? '<span class="badge" style="background:' + esc(b.color) + ';">' + esc(b.status) + '</span>' : ''; }
     rows.push([id, title, st, b.tcases]);
   });
   if ($.fn.DataTable.isDataTable('#bugsTable')) $('#bugsTable').DataTable().destroy();
@@ -286,14 +293,14 @@ function renderIssues(issues) {
   $('#secIssues').show();
   var rows = [];
   $.each(issues, function(i, it) {
-    var id = it.url ? '<a href="' + it.url + '" target="_blank" rel="noopener"><strong>' + it.id + '</strong></a>' : '<strong>' + it.id + '</strong>';
+    var id = it.url ? '<a href="' + esc(it.url) + '" target="_blank" rel="noopener"><strong>' + esc(it.id) + '</strong></a>' : '<strong>' + esc(it.id) + '</strong>';
     var labelsHtml = '';
     $.each(it.labels, function(j, lab) {
       var c = it.label_colors && it.label_colors[lab] ? '#' + it.label_colors[lab] : '#6c757d';
-      labelsHtml += '<span class="badge" style="background:' + c + ';">' + lab + '</span>';
+      labelsHtml += '<span class="badge" style="background:' + esc(c) + ';">' + esc(lab) + '</span>';
     });
-    var st = it.status ? '<span class="badge" style="background:' + it.color + ';">' + it.status + '</span>' : '';
-    rows.push([id, it.title, labelsHtml, st]);
+    var st = it.status ? '<span class="badge" style="background:' + esc(it.color) + ';">' + esc(it.status) + '</span>' : '';
+    rows.push([id, esc(it.title), labelsHtml, st]);
   });
   if ($.fn.DataTable.isDataTable('#issuesTable')) $('#issuesTable').DataTable().destroy();
   $('#issuesTable tbody').empty();
