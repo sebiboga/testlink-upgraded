@@ -9465,3 +9465,33 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
 
 - **Result:** **5/5 PASS** (TC-503.46–503.50) against MariaDB 11.4.
 - Code-review subagent: APPROVED (intval'd vars; `count($rs)` unchanged; original guard intent preserved).
+
+---
+
+## Regression — Issue #826: build scoped to test project — additive schema + project-scoped rollup view
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Backend-only. Focused re-verification of sub-task #826 (schema step 1 of #503):
+  the `builds.testproject_id` column, its backfill from the owning testplan, the project index, and the
+  new `latest_exec_by_build` cross-plan rollup view. Additive (no behaviour change) — `testplan_id` kept
+  dual-written (unique-key swap deferred to #834). Re-verified fresh on the default branch (commit
+  `14b6f673d`) against an empty freshly-imported MariaDB.
+- **Fixture (created in-DB, then cleaned up):** local testproject id 1, testplans 1 & 2 (both project 1),
+  build 1 (testproject_id backfilled = 1), 3 executions across the 2 plans sharing
+  tcversion_id=101, build_id=1, platform_id=0.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-826.1 | testproject_id column present | `SHOW COLUMNS FROM builds` | `testproject_id int unsigned NOT NULL MUL 0` exists | PASS |
+| TC-826.2 | backfill from owning testplan | zero `testproject_id`, re-run `JOIN testplans` backfill | restored to plan's `testproject_id` (=1) | PASS |
+| TC-826.3 | project index present | `SHOW INDEX FROM builds` | key `testproject_id` exists | PASS |
+| TC-826.4 | latest_exec_by_build view present | `SHOW CREATE VIEW latest_exec_by_build` | view exists, groups `(tcversion_id, build_id, platform_id)` no testplan_id | PASS |
+| TC-826.5 | cross-plan rollup collapses to one row | 3 execs (testplan 1 & 2, same tcversion/build/platform) | 1 row, `id = max(id)=3` | PASS |
+| TC-826.6 | view registered in getDBViews | grep `lib/functions/object.class.php` | `latest_exec_by_build` listed | PASS |
+| TC-826.7 | migration idempotent | re-run `php tmp/migrate_826.php` | "already up to date"; no orphans `testproject_id=0` | PASS |
+| TC-826.8 | no new events | `SELECT * FROM events` after verification | only normal LOGIN audit row; no ERROR/WARNING | PASS |
+
+- **Result:** **8/8 PASS** (TC-826.1–826.8) against MariaDB 11.4. Primary symptom (schema gap blocking
+  project-scoped builds) resolved; app HTTP 200; no browser console errors.
+- **Note:** the original #826/#827 umbrella suite (TC-503.1–503.3) also covers this schema and is PASS.
