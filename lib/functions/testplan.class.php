@@ -92,7 +92,6 @@ class testplan extends tlObjectWithAttachments
     $this->platform_mgr = new tlPlatform($this->db);
     $this->tproject_mgr = new testproject($this->db);
 
-     
     $this->resultsCfg = config_get('results');
     $this->tcaseCfg = config_get('testcase_cfg');
 
@@ -102,6 +101,24 @@ class testplan extends tlObjectWithAttachments
     $this->execTaskCode = intval($this->assignment_types['testcase_execution']['id']);
 
     tlObjectWithAttachments::__construct($this->db,'testplans');
+  }
+
+  /**
+   * Resolve the Test Project a test plan belongs to.
+   * Builds are scoped to the Test Project (issue #503); this lets a plan's
+   * build-facing methods operate on the builds of its own project.
+   *
+   * @param integer $tplan_id
+   * @return integer testproject_id (0 if the plan was not found)
+   */
+  function getProjectIdOfPlan($tplan_id)
+  {
+    $safe = intval($tplan_id);
+    if($safe <= 0) { return 0; }
+    $sql = " SELECT testproject_id FROM {$this->tables['testplans']} " .
+           " WHERE id = {$safe} ";
+    $rs = $this->db->get_recordset($sql);
+    return (is_array($rs) && isset($rs[0]['testproject_id'])) ? intval($rs[0]['testproject_id']) : 0;
   }
 
   /**
@@ -2056,7 +2073,7 @@ class testplan extends tlObjectWithAttachments
     $my['opt'] = array_merge($my['opt'],(array)$opt);
 
     $sql = " /* $debugMsg */ SELECT id, name " .
-           " FROM {$this->tables['builds']} WHERE testplan_id = {$id} ";
+           " FROM {$this->tables['builds']} WHERE testproject_id = " . $this->getProjectIdOfPlan($id) . " ";
     
     if( !is_null($active) )
     {
@@ -2107,7 +2124,7 @@ class testplan extends tlObjectWithAttachments
 
     $sql = " /* $debugMsg */ SELECT MAX(id) AS maxbuildid " .
       " FROM {$this->tables['builds']} " .
-      " WHERE testplan_id = {$id}";
+      " WHERE testproject_id = " . $this->getProjectIdOfPlan($id);
     
     if(!is_null($active))
     {
@@ -2268,22 +2285,46 @@ class testplan extends tlObjectWithAttachments
     {
       $my['opt']['orderBy'] = null;
 
-      $accessField = 'testplan_id';     
-      $groupBy = " GROUP BY testplan_id ";
+      // Builds are scoped to the Test Project (issue #503). A plan's build
+      // count equals the count of builds in the plan's project, so resolve
+      // each plan to its project and aggregate per project.
       $itemSet = (array)$id;
+      $projectOfPlan = array();
+      $projSet = array();
+      foreach($itemSet as $pl) {
+        $pl = intval($pl);
+        if($pl <= 0) { continue; }
+        $pi = $this->getProjectIdOfPlan($pl);
+        if($pi > 0) { $projSet[$pi] = 1; $projectOfPlan[$pl] = $pi; }
+      }
 
-      $sql = " /* $debugMsg */ " . 
-           " SELECT testplan_id, count(0) AS build_qty " .
-           " FROM {$this->tables['builds']} " .
-           " WHERE testplan_id IN ('" . implode("','", $itemSet) . "') "; 
+      $buildQtyPerProject = array();
+      if( !empty($projSet) )
+      {
+        $sql = " /* $debugMsg */ SELECT testproject_id, count(0) AS build_qty " .
+               " FROM {$this->tables['builds']} " .
+               " WHERE testproject_id IN (" . implode(",", array_keys($projSet)) . ") " .
+               " GROUP BY testproject_id ";
+        $rsCnt = $this->db->get_recordset($sql);
+        foreach((array)$rsCnt as $row) {
+          $buildQtyPerProject[intval($row['testproject_id'])] = intval($row['build_qty']);
+        }
+      }
+
+      $mapped = array();
+      foreach($projectOfPlan as $pl => $proj) {
+        $mapped[$pl] = array('build_qty' => isset($buildQtyPerProject[$proj]) ? $buildQtyPerProject[$proj] : 0);
+      }
+      $rs = $mapped;
     }  
     else
     {
       $accessField = 'id';     
       $groupBy = '';
+      $tproject_id = $this->getProjectIdOfPlan($id);
       $sql = " /* $debugMsg */ " . 
              " SELECT {$my['opt']['fields']} " .
-             " FROM {$this->tables['builds']} WHERE testplan_id = {$id} " ;
+             " FROM {$this->tables['builds']} WHERE testproject_id = {$tproject_id} " ;
       
       if( !is_null($my['opt']['buildID']) )
       {
@@ -2332,7 +2373,7 @@ class testplan extends tlObjectWithAttachments
     
     $sql = " /* $debugMsg */ SELECT id,testplan_id, name, notes, active, is_open " .
       " FROM {$this->tables['builds']} " .
-      " WHERE testplan_id = {$id} AND name='{$safe_build_name}'";
+      " WHERE testproject_id = " . $this->getProjectIdOfPlan($id) . " AND name='{$safe_build_name}'";
     
     
     $recordset = $this->db->get_recordset($sql);
@@ -2359,7 +2400,7 @@ class testplan extends tlObjectWithAttachments
 
     $sql = " /* $debugMsg */ SELECT id,testplan_id, name, notes, active, is_open " .
       " FROM {$this->tables['builds']} BUILDS " .
-      " WHERE testplan_id = {$id} AND BUILDS.id={$build_id}";
+      " WHERE testproject_id = " . $this->getProjectIdOfPlan($id) . " AND BUILDS.id={$build_id}";
     
     $recordset = $this->db->get_recordset($sql);
     $rs=null;
@@ -2386,7 +2427,7 @@ class testplan extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     
     $sql = "/* $debugMsg */ SELECT count(id) AS num_builds FROM {$this->tables['builds']} builds " .
-             "WHERE builds.testplan_id = " . $tplanID;
+             "WHERE builds.testproject_id = " . $this->getProjectIdOfPlan($tplanID);
     
     if( !is_null($active) )
      {
@@ -2436,7 +2477,7 @@ class testplan extends tlObjectWithAttachments
 
     $sql = " /* $debugMsg */ SELECT id, name, notes " .
       " FROM {$this->tables['builds']} " .
-      " WHERE testplan_id = {$tplan_id} ";
+      " WHERE testproject_id = " . $this->getProjectIdOfPlan($tplan_id) . " ";
     
     
     if($case_sensitive) {
@@ -2478,7 +2519,7 @@ class testplan extends tlObjectWithAttachments
 
     $sql = " /* $debugMsg */ SELECT builds.id, builds.name, builds.notes " .
       " FROM {$this->tables['builds']} builds " .
-      " WHERE builds.testplan_id = {$tplan_id} ";
+      " WHERE builds.testproject_id = " . $this->getProjectIdOfPlan($tplan_id) . " ";
     
     $build_name=strtoupper($build_name);        
     $sql .= " AND UPPER(builds.name)=";

@@ -3061,6 +3061,10 @@ class tlTestPlanMetrics extends testplan
     $safeID = intval($tplanID);
 
     $fullEID = $this->helperConcatTCasePrefix($safeID);
+    // Builds are scoped to the Test Project (issue #503): a test case is
+    // "never run" when it has no execution on ANY active+open build of the
+    // plan's project, so the cross-build count must match the project build set.
+    $projectID = $this->getProjectIdOfPlan($safeID);
 
     // Because we now allow assignment of MULTIPLE testers to same test case
     // we need to remove UA.user_id, in order to avoid duplication
@@ -3076,7 +3080,8 @@ class tlTestPlanMetrics extends testplan
           FROM {$this->tables['testplan_tcversions']} TPTCV 
           
           JOIN {$this->tables['builds']} B
-          ON  B.testplan_id = TPTCV.testplan_id 
+          ON  B.testproject_id = {$projectID}
+          AND B.active=1 AND B.is_open=1
 
           /* Get Test Case info from Test Case Version */ 
           JOIN {$this->tables['nodes_hierarchy']} NHTCV 
@@ -3113,6 +3118,8 @@ class tlTestPlanMetrics extends testplan
     
     $buildSet = $this->get_builds($safeID,testplan::ACTIVE_BUILDS,
                                   testplan::OPEN_BUILDS);
+    // no active+open builds to run on => nothing can be "never run"
+    if( is_null($buildSet) || count($buildSet) == 0 ) { return null; }
 
     $sql .= " HAVING COUNT(0) = " . count($buildSet);
     $sql .= " ORDER BY platform_name,full_external_id ";
@@ -3209,6 +3216,8 @@ class tlTestPlanMetrics extends testplan
     $safeID = intval($tplanID);
 
     $fullEID = $this->helperConcatTCasePrefix($safeID);
+    // Builds are scoped to the Test Project (issue #503): see getNeverRunByPlatform().
+    $projectID = $this->getProjectIdOfPlan($safeID);
 
     // Because we now allow assignment of MULTIPLE testers to same test case
     // we need to remove UA.user_id, in order to avoid duplication
@@ -3224,7 +3233,8 @@ class tlTestPlanMetrics extends testplan
             FROM {$this->tables['testplan_tcversions']} TPTCV 
             
             JOIN {$this->tables['builds']} B
-            ON  B.testplan_id = TPTCV.testplan_id 
+            ON  B.testproject_id = {$projectID}
+            AND B.active=1 AND B.is_open=1
 
             /* Get Test Case info from Test Case Version */ 
             JOIN {$this->tables['nodes_hierarchy']} NHTCV 
@@ -3251,6 +3261,8 @@ class tlTestPlanMetrics extends testplan
     
     $buildSet = $this->get_builds($safeID,testplan::ACTIVE_BUILDS,
                                   testplan::OPEN_BUILDS);
+    // no active+open builds to run on => nothing can be "never run"
+    if( is_null($buildSet) || count($buildSet) == 0 ) { return null; }
 
     $sql .= " HAVING COUNT(0) = " . count($buildSet);
     
@@ -3271,6 +3283,8 @@ class tlTestPlanMetrics extends testplan
 
     $fullEID = $this->helperConcatTCasePrefix($safeID);
     $notRunCode = $this->resultsCfg['status_code']['not_run'];
+    // Builds are scoped to the Test Project (issue #503): see getNeverRunByPlatform().
+    $projectID = $this->getProjectIdOfPlan($safeID);
 
     // Because we now allow assignment of MULTIPLE testers to same test case
     // we need to remove UA.user_id, in order to avoid duplication
@@ -3290,7 +3304,8 @@ class tlTestPlanMetrics extends testplan
           FROM {$this->tables['testplan_tcversions']} TPTCV 
           
           JOIN {$this->tables['builds']} B
-          ON  B.testplan_id = TPTCV.testplan_id 
+          ON  B.testproject_id = {$projectID}
+          AND B.active=1 AND B.is_open=1
 
           /* Get Test Case info from Test Case Version */ 
           JOIN {$this->tables['nodes_hierarchy']} NHTCV 
@@ -3327,6 +3342,8 @@ class tlTestPlanMetrics extends testplan
     //echo $sql;
     $buildSet = $this->get_builds($safeID,testplan::ACTIVE_BUILDS,
                                   testplan::OPEN_BUILDS);
+    // no active+open builds to run on => nothing can be "never run"
+    if( is_null($buildSet) || count($buildSet) == 0 ) { return array(); }
 
     $sql .= " HAVING COUNT(0) = " . count($buildSet);
     // $sql .= " ORDER BY platform_name,full_external_id ";

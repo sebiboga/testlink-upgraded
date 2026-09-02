@@ -9349,3 +9349,45 @@ in as admin/admin. Data source: live GitHub API
 | TC-503.19 | get_by_id project scope | `get_by_id(id,['tproject_id'=>2100])` | returns the build | PASS |
 
 - **Result:** **8/8 PASS** (TC-503.12–503.19) against MariaDB 11.4.
+
+---
+
+## Issue #503 — Sub-task #829: `testplan.class.php` + `tlTestPlanMetrics` → builds of plan's project
+
+- **Priority:** High
+- **Importance:** High
+- **Scope:** Backend-only. Makes a plan's build-facing methods operate at Test Project scope
+  (builds shared across plans) while execution counters stay per-plan:
+  - `testplan::get_builds()` (non-getCount → project scope; getCount remaps project build count
+    onto each plan id), `get_builds_for_html_options`, `get_max_build_id`, `getNumberOfBuilds`,
+    `get_build_by_name`, `get_build_by_id`, `check_build_name_existence`, `get_build_id_by_name`.
+  - New `testplan::getProjectIdOfPlan()` helper (also inherited by `tlTestPlanMetrics`).
+  - Metrics "never run" methods (`getNeverRunByPlatform`, `getNeverRunOnTestPlanWithoutPlatforms`,
+    `getNeverRunOnSinglePlatform`): `JOIN builds` now on `testproject_id` + active/open to match the
+    project-scoped `buildSet` (fixes a real under-count regression caught in code review); added a
+    zero-builds guard (`HAVING 0=0` false-positive).
+- **DoD:** execution counters on a plan return the same numbers after switching to project-scoped
+  builds — all counter queries are still `WHERE TPTCV.testplan_id={plan}`, only the build-id set
+  (bucket list) is now project-wide; verified.
+- **Verify:** `php tmp/repro_829.php` (project 2000, plans 2001/2002, shared build 3001),
+  `php tmp/repro_829_nr.php` (project 2200, 2 shared builds, "never run" HAVING fix).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-503.20 | get_builds plan A project scope | `get_builds(2001)` | contains project build 3001 | PASS |
+| TC-503.21 | get_builds shared across plans | `get_builds(2002)` | ALSO returns 3001 (builds shared) | PASS |
+| TC-503.22 | get_builds same set both plans | compare id sets | identical (shared) | PASS |
+| TC-503.23 | get_builds_for_html_options project scope | plan B | includes 3001 | PASS |
+| TC-503.24 | get_max_build_id project scope | plan B | 3001 (int) | PASS |
+| TC-503.25 | getNumberOfBuilds project scope | plan B | 1 (project build) | PASS |
+| TC-503.26 | get_build_id_by_name project-wide | plan B, 'v1.0' | 3001 | PASS |
+| TC-503.27 | check_build_name_existence project-wide | plan B, 'v1.0' | 1 (dup detected); 'NONEXISTENT'=0 | PASS |
+| TC-503.28 | get_build_by_name / by_id project scope | plan B, 'v1.0' | finds 3001 | PASS |
+| TC-503.29 | metrics build-set cascade | `metricsMgr->get_builds(plan B)` | project-wide, contains 3001 | PASS |
+| TC-503.30 | never-run: no execs → flagged | `getNeverRunOnTestPlanWithoutPlatforms(2210)` | returns the tcversion | PASS |
+| TC-503.31 | never-run: run on 1 of 2 → not flagged | add exec on b1 | empty (HAVING == project build count) | PASS |
+| TC-503.32 | never-run join invariant | `count(builds active+open project) == count(buildSet)` | 2 == 2 | PASS |
+
+- **Result:** **13/13 PASS** (TC-503.20–503.32) against MariaDB 11.4.
+- Code-review subagent found and we fixed a real under-count regression in the three "never run"
+  metrics methods (they compared a per-plan build count against the now project-wide build set).
