@@ -112,6 +112,9 @@ td.desc-expand:hover { background: #f9fffe !important; }
     <label data-i18n="ev.to">To</label>
     <input type="text" id="filterEnd" placeholder="dd/mm/yyyy">
   </div>
+  <div class="filter-group" id="objectFilterGroup" style="display:none;align-items:center;justify-content:center;background:#eef7f6;border:1px solid #cfe8e5;border-radius:6px;padding:4px 10px;">
+    <span id="objectFilterLabel" style="font-size:12px;color:#0e7a6e;font-weight:600;"></span>
+  </div>
   <div class="filter-group" style="display:flex;gap:8px;">
     <button class="btn-teal" onclick="applyFilters()" data-i18n="ev.apply">Apply</button>
     <button class="btn-red" id="btnClear" onclick="clearEvents()" style="display:none" data-i18n="ev.clearEvents">Clear Events</button>
@@ -162,6 +165,8 @@ var API = '/api/eventviewer/index.php';
 var qs = new URLSearchParams(window.location.search);
 var tproject_id = qs.get('tproject_id') || '';
 var tplan_id = qs.get('tplan_id') || '';
+var objectId = qs.get('objectId') || qs.get('object_id') || '';
+var objectType = qs.get('objectType') || qs.get('object_type') || '';
 var LEVEL_COLORS = {
   AUDIT: '#4ECDC4', ERROR: '#e6605e', WARNING: '#f0ad4e',
   INFO: '#3498db', DEBUG: '#8f8f8f', L18N: '#9b59b6'
@@ -174,6 +179,10 @@ $(function() {
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (objectId && objectType) {
+      $('#objectFilterGroup').css('display', 'flex');
+      $('#objectFilterLabel').text(TLi18n.t('ev.filteredByObject', { type: objectType, id: objectId }));
+    }
     loadMeta();
     loadEvents();
   });
@@ -212,6 +221,8 @@ function buildQuery() {
   var p = [];
   if (tproject_id) p.push('tproject_id=' + tproject_id);
   if (tplan_id) p.push('tplan_id=' + tplan_id);
+  if (objectId) p.push('objectId=' + encodeURIComponent(objectId));
+  if (objectType) p.push('objectType=' + encodeURIComponent(objectType));
   var levels = $('#filterLevel').val();
   if (levels && levels.length) p.push('logLevel=' + levels.join(','));
   var user = $('#filterUser').val();
