@@ -4157,3 +4157,6 @@ $TLS_report_test_automation = 'Test Automation Report';
 
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = 'New user self-registration is disabled on this site. Please contact your site administrator.';
+
+// Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
+$TLS_simplexml_load_file_wrapper_error = "Please give this text to your TestLink Administrator<br> - Failed to load XML<br>";

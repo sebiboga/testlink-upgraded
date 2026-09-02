@@ -4138,3 +4138,6 @@ $TLS_img_title_remove_platform = '移除平台';
 
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = '新用户自助注册已被禁用，请联系站点管理员。';
+
+// Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
+$TLS_simplexml_load_file_wrapper_error = "XML jia zai shi bai. Qing jiang ci wen ben ti gong gei nin de TestLink guan li yuan.<br>";

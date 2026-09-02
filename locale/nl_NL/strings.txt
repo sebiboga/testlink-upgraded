@@ -4052,3 +4052,6 @@ $TLS_img_title_remove_platform = 'Platform verwijderen';
 
 // Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
 $TLS_error_self_signup_disabled = 'Zelfregistratie van nieuwe gebruikers is uitgeschakeld. Neem contact op met de beheerder van de site.';
+
+// Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
+$TLS_simplexml_load_file_wrapper_error = "Geef deze tekst door aan uw TestLink-beheerder<br> - Laden van XML mislukt<br>";
