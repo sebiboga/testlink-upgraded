@@ -4646,7 +4646,8 @@ if ($action === 'uncovered_testcases') {
         $tprojectMgr->get_all_testcases_id($tprojectId, $tcasesID);
 
         if (!is_null($tcasesID) && count($tcasesID) > 0) {
-            $inIds = implode(',', array_map('intval', array_keys($tcasesID)));
+            // get_all_testcases_id('just_id') returns a plain list of ids.
+            $inIds = implode(',', array_map('intval', (array)$tcasesID));
             $sql = "SELECT NHA.id AS tc_id, NHA.name, NHA.parent_id AS testsuite_id, " .
                    "REQC.req_id " .
                    " FROM {$tables['nodes_hierarchy']} NHA " .
