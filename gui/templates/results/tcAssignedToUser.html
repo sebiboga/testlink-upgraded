@@ -4,7 +4,7 @@
 <link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title data-i18n="tca.title">Test Cases Assigned to User</title>
+<title data-i18n="ta2u.title">Test Cases Assigned to User</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -56,16 +56,16 @@ a.icon-btn.qe:hover{background:#22242a;color:#fff}
 <body>
 
 <div class="header">
-  <i class="fa fa-user-check" style="margin-right:6px;"></i><span data-i18n="tca.header">Test Cases Assigned to User</span>
+  <i class="fa fa-user-check" style="margin-right:6px;"></i><span data-i18n="ta2u.header">Test Cases Assigned to User</span>
   <span class="sub" id="headerSub"></span>
 </div>
 
 <div class="toolbar">
-  <span class="ctx"><span data-i18n="tca.forProject">for test project</span>: <b id="tprojectName">-</b></span>
-  <span class="ctx" id="userCtx"><span data-i18n="tca.builder">user</span>: <b id="userName">-</b></span>
+  <span class="ctx"><span data-i18n="ta2u.forProject">for test project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx" id="userCtx"><span data-i18n="ta2u.builder">user</span>: <b id="userName">-</b></span>
   <span style="flex:1"></span>
   <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
-  <button class="btn-teal" id="btnClose" style="background:#e6605e;"><i class="fa fa-times"></i> <span data-i18n="tca.close">Close</span></button>
+  <button class="btn-teal" id="btnClose" style="background:#e6605e;"><i class="fa fa-times"></i> <span data-i18n="ta2u.close">Close</span></button>
 </div>
 
 <div id="loadingBox" class="spin"><i class="fa fa-circle-notch"></i><br><span data-i18n="common.loading">Loading...</span></div>
@@ -129,10 +129,10 @@ function loadReport() {
     $('#tprojectName').text(r.tproject_name);
     $('#userName').text(r.user_login || r.user_id);
     $('#headerSub').text(esc(r.tproject_name));
-    document.title = r.tproject_name + ' - ' + TLi18n.t('tca.header');
+    document.title = r.tproject_name + ' - ' + TLi18n.t('ta2u.header');
 
     if (!r.hasData || !r.tplans || r.tplans.length === 0) {
-      renderEmpty(TLi18n.t('tca.noRecords'));
+      renderEmpty(TLi18n.t('ta2u.noRecords'));
       return;
     }
     renderAll(r);
@@ -140,7 +140,7 @@ function loadReport() {
       esc(TLi18n.t('common.generatedOn')) + ' ' + new Date().toLocaleString());
   }).fail(function (xhr) {
     $('#loadingBox').hide();
-    var msg = TLi18n.t('tca.errLoad');
+    var msg = TLi18n.t('ta2u.errLoad');
     if (xhr.status === 403 || xhr.status === 401) { msg = TLi18n.t('common.forbidden'); }
     toast(msg, 'err');
     if (xhr.status === 401) { window.location.href = '/index.php'; }
@@ -159,7 +159,7 @@ function renderAll(r) {
     var cols = planColumns(plan);
     var head = esc(plan.name) +
       '<span class="bmeta">' +
-      esc(TLi18n.t('tca.rowCount', {0: String(plan.rows.length)})) +
+      esc(TLi18n.t('ta2u.rowCount', {0: String(plan.rows.length)})) +
       '</span>';
     $area.append(sectionHtml(head, planTable(plan, cols)));
   });
@@ -167,13 +167,13 @@ function renderAll(r) {
 
 function planColumns(plan) {
   var cols = [];
-  cols.push({key:'build_name',label:TLi18n.t('tca.thBuild')});
-  cols.push({key:'suite_path',label:TLi18n.t('tca.thTestSuite')});
-  cols.push({key:'tc',label:TLi18n.t('tca.thTestCase'),cls:'tc-cell'});
-  if (plan.show_platforms) cols.push({key:'platform_name',label:TLi18n.t('tca.thPlatform')});
-  if (plan.priority_enabled) cols.push({key:'priority',label:TLi18n.t('tca.thPriority')});
-  cols.push({key:'status',label:TLi18n.t('tca.thStatus')});
-  cols.push({key:'due_since',label:TLi18n.t('tca.thDueSince')});
+  cols.push({key:'build_name',label:TLi18n.t('ta2u.thBuild')});
+  cols.push({key:'suite_path',label:TLi18n.t('ta2u.thTestSuite')});
+  cols.push({key:'tc',label:TLi18n.t('ta2u.thTestCase'),cls:'tc-cell'});
+  if (plan.show_platforms) cols.push({key:'platform_name',label:TLi18n.t('ta2u.thPlatform')});
+  if (plan.priority_enabled) cols.push({key:'priority',label:TLi18n.t('ta2u.thPriority')});
+  cols.push({key:'status',label:TLi18n.t('ta2u.thStatus')});
+  cols.push({key:'due_since',label:TLi18n.t('ta2u.thDueSince')});
   return cols;
 }
 
@@ -216,10 +216,10 @@ function tcCell(r) {
                 '&caller=tcAssignedToUser';
   var label = esc(r.prefix) + '-' + esc(r.tc_external_id) + ': ' + esc(r.name) + ' <span style="color:#888;font-size:11px;">(v.' + esc(r.version) + ')</span>';
   var h = '<a class="tlink" href="' + esc(tcUrl) + '" target="_blank">' + label + '</a>';
-  h += ' <a class="icon-btn" href="' + esc(histUrl) + '" target="_blank" title="' + esc(TLi18n.t('tca.titleHistory')) + '"><i class="fa fa-clock"></i></a>';
+  h += ' <a class="icon-btn" href="' + esc(histUrl) + '" target="_blank" title="' + esc(TLi18n.t('ta2u.titleHistory')) + '"><i class="fa fa-clock"></i></a>';
   if (r.can_exec) {
     h += quickIcons(r);
-    h += ' <a class="icon-btn" href="' + esc(execUrl) + '" target="_blank" title="' + esc(TLi18n.t('tca.titleExecution')) + '"><i class="fa fa-play"></i></a>';
+    h += ' <a class="icon-btn" href="' + esc(execUrl) + '" target="_blank" title="' + esc(TLi18n.t('ta2u.titleExecution')) + '"><i class="fa fa-play"></i></a>';
   }
   return h;
 }
@@ -227,7 +227,7 @@ function tcCell(r) {
 function quickIcons(r) {
   var h = '';
   ['p','f','b'].forEach(function(code){
-    var tip = code === 'p' ? TLi18n.t('tca.quickPassed') : code === 'f' ? TLi18n.t('tca.quickFailed') : TLi18n.t('tca.quickBlocked');
+    var tip = code === 'p' ? TLi18n.t('ta2u.quickPassed') : code === 'f' ? TLi18n.t('ta2u.quickFailed') : TLi18n.t('ta2u.quickBlocked');
     var icon = code === 'p' ? 'fa-check-circle' : code === 'f' ? 'fa-times-circle' : 'fa-ban';
     h += ' <a class="icon-btn qe" href="javascript:void(0)" title="' + esc(tip) + '" ' +
          'onclick="quickExec(' + r.tplan_id + ',' + (r.platform_id||0) + ',' + r.build_id + ',' + r.tcversion_id + ',\'' + code + '\',this);return false;">' +
@@ -239,7 +239,7 @@ function quickIcons(r) {
 function prioHtml(r) {
   var lvl = r.priority_level || 'low';
   var cls = lvl === 'high' ? 'prio-h' : lvl === 'medium' ? 'prio-m' : 'prio-l';
-  var txt = lvl === 'high' ? TLi18n.t('tca.priorityHigh') : lvl === 'medium' ? TLi18n.t('tca.priorityMedium') : TLi18n.t('tca.priorityLow');
+  var txt = lvl === 'high' ? TLi18n.t('ta2u.priorityHigh') : lvl === 'medium' ? TLi18n.t('ta2u.priorityMedium') : TLi18n.t('ta2u.priorityLow');
   return '<span class="' + cls + '">' + esc(txt) + '</span>';
 }
 
@@ -248,13 +248,13 @@ function statusBadge(code) {
   if (code === 'p') cls = 'badge-p';
   else if (code === 'f') cls = 'badge-f';
   else if (code === 'b') cls = 'badge-b';
-  var map = {p:'tca.statusPassed',f:'tca.statusFailed',b:'tca.statusBlocked',n:'tca.statusNotRun'};
+  var map = {p:'ta2u.statusPassed',f:'ta2u.statusFailed',b:'ta2u.statusBlocked',n:'ta2u.statusNotRun'};
   var txt = TLi18n.t(map[code] || map['n']);
   return '<span class="badge-st ' + cls + '">' + esc(txt) + '</span>';
 }
 
 function quickExec(tplanId, platformId, buildId, tcversionId, code, el) {
-  if (!confirm(TLi18n.t('tca.confirmExec'))) return;
+  if (!confirm(TLi18n.t('ta2u.confirmExec'))) return;
   $.ajax({
     url: API + '?action=quick_exec',
     method: 'POST',
@@ -268,7 +268,7 @@ function quickExec(tplanId, platformId, buildId, tcversionId, code, el) {
     }),
     success: function(r) {
       if (r.status === 'ok') {
-        toast(TLi18n.t('tca.quickExecSuccess'), 'ok');
+        toast(TLi18n.t('ta2u.quickExecSuccess'), 'ok');
         var row = $(el).closest('tr');
         var statusCell = row.find('td:last').prev();
         statusCell.html(statusBadge(code));
@@ -277,7 +277,7 @@ function quickExec(tplanId, platformId, buildId, tcversionId, code, el) {
       }
     },
     error: function(xhr) {
-      var msg = TLi18n.t('tca.errLoad');
+      var msg = TLi18n.t('ta2u.errLoad');
       if (xhr.status === 403) msg = TLi18n.t('common.forbidden');
       toast(msg, 'err');
     }
