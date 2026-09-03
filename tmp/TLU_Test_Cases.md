@@ -9653,3 +9653,35 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
   fixed to aggregate from the flat metrics rows per (tcase, build) and aligned
   build totals with the last-status filter. No GitHub bug filed (fix landed in
   the same modernize run).
+---
+
+## Regression — Issue #828: project-scoped build duplicate/hint messages still said "test plan"
+
+- **Priority:** High · **Importance:** High
+- **Scope:** Residual i18n bug from sub-task #828 (builds scoped from test plan to test
+  project). The code logic (29a10a8f1) was already project-tracked; the modernized Builds
+  screen still told the user the build-name uniqueness scope was "the test plan" even
+  though a build name is now rejected project-wide (a name can collide on a DIFFERENT plan
+  of the same project). Fix re-words the two `bv.*` keys across all 10 locale bundles
+  ("test plan" → "test project") and the HTML fallback at `buildsView.html:106`.
+- **Precondition:** DB fresh import; project **M828** (id 2100), plans **P-A** (2101) /
+  **P-B** (2102), builds `v2.0` (plan 2101) and `v2.1` (plan 2102), both
+  `testproject_id=2100`. Logged in admin/admin.
+- **Repro (pre-fix):** open `buildsView.html?tproject_id=2100&tplan_id=2102` → + Create Build →
+  name `v2.0` → Save → the toast AND the inline hint both said "test plan" although the
+  collision was project-wide (build `v2.0` lives on the OTHER plan P-A).
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-828.1 | Create-Build hint re-worded | open Create Build modal on plan P-B | inline hint reads "must be unique within the **test project**" | PASS (browser) |
+| TC-828.2 | duplicate toast re-worded | name `v2.0` on plan P-B → Save (dup across plan, same project) | rejected; toast "A build with that name already exists in this **test project**: v2.0" | PASS (browser) |
+| TC-828.3 | still rejects cross-plan duplicate | same as TC-828.2, confirm no row added | `builds` row count unchanged (only v2.0/v2.1) | PASS (DB) |
+| TC-828.4 | unique name still creates | name `unique-build-828` → Save | "Build created"; listed; then deleted cleanly | PASS (browser) |
+| TC-828.5 | milestone msg unchanged | grep `ms.msg.duplicateName`/`ms.nameHint` in `en.json` | still "…test plan" (milestones remain plan-scoped) | PASS (grep) |
+| TC-828.6 | JSON valid | `python3 -m json.tool` over all 10 bundles | all OK | PASS |
+| TC-828.7 | no new Event errors | `SELECT * FROM events` after flows | only INFO-level audit rows; no new Error/Warning | PASS |
+| TC-828.8 | no JS console errors | throughout the flows | only the expected `409 Conflict` from the intentional duplicate attempt; no new JS errors | PASS (browser) |
+
+- **Result:** **8/8 PASS** (TC-828.1–828.8). Project-scoped duplicate/hint messages now
+  correctly say "test project" in all locales; unique creation unaffected; milestone
+  strings untouched; Event Viewer clean.
