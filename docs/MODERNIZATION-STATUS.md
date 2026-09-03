@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-02 (#837 Requirement Spec Revision Compare reqSpecCompare.html + BFF action=spec_revision_compare + Suite 837 — closes the HIGH `reqSpecViewRevisions` item of #755; #819 tcImport XML path converted to BFF `action=import_xml` in `api/testcasesimport`; #825 Edit Execution popup editExecution modernized + Suite 825 + execTest/execHistory openEditExecution links switched; #757 keywordsView/PlatformMgmt legacy redirects fixed → modern screens; bug #820 keywordsAssign missing kwa.* i18n keys fixed in all bundles; #818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
+> Last updated: 2026-09-03 (#838 Results by Multiple Builds resultsMoreBuilds.html + BFF actions more_builds_init/more_builds + Suite 838 + wiki/docs + closes the last deferred report screen; #837 Requirement Spec Revision Compare reqSpecCompare.html + BFF action=spec_revision_compare + Suite 837 — closes the HIGH `reqSpecViewRevisions` item of #755; #819 tcImport XML path converted to BFF `action=import_xml` in `api/testcasesimport`; #825 Edit Execution popup editExecution modernized + Suite 825 + execTest/execHistory openEditExecution links switched; #757 keywordsView/PlatformMgmt legacy redirects fixed → modern screens; bug #820 keywordsAssign missing kwa.* i18n keys fixed in all bundles; #818 Test Suite viewer popup suiteView modernized + Suite 819 + searchAdvancedView openTsEdit link switched; #817 Set Results popup execSetResults modernized + Suite 817 + 4 report-screen links switched; #815 Test Plan Import planImport modernized + Suite 815; #754 planView redirects all fixed; #754 Test Plan Export planExport modernized + Suite 813 + planView redirect fixes; #812 Test Case Editor tcEdit modernized + Suite 812; #810 Assign Test Case to Test Plan modernized + Suite 810; #809 Test Case Compare Versions modernized + Suite 70; #803 Test Case Export modernized + Suite 69; #783 Lost Password modernized + regression suite; #782 Self Sign-Up code landed 1b62a353c) · branch `sebiboga`
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 16 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare) |
+| DONE (modernized) | 67 + 17 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -112,6 +112,7 @@ Extra modernized feature (not an ASIDE entry):
 - Test Suite viewer popup (`archiveData.php?edit=testsuite`) — `gui/templates/testcases/suiteView.html` + `api/suiteview/index.php` `GET ?action=info` (#818, DONE). Read-only popup popup: suite overview/details, latest-version test-case rows (ext. id, name, version, importance badge, summary) in a DataTable, suite keywords chips, attachments list. Rights `mgt_view_tc` on the owning test project (walked up `nodes_hierarchy`; 401/400/403/404 parity); `frr()` normalizes `fetchFirstRow()` `false` so error paths never write E_WARNING events. Switched `searchAdvancedView.html` `openTsEdit()` from `archiveData.php?edit=testsuite` to `suiteView.html`. Intentionally NOT porting `edit=testproject`/`edit=testcase` (tcView.html/testSpec.html already cover them). Regression suite 819 21/21 PASS.
 - Edit Execution popup (`lib/execute/editExecution.php`) — `gui/templates/execute/editExecution.html` + `api/executionedit/index.php` `GET ?action=init` + `POST ?action=update` (#825, DONE). Edits an existing execution's **notes** (`updateExecutionNotes`) and **execution custom fields** (same legacy `html_table_of_custom_field_inputs` + `execution_values_to_db` contract; forged CF names ignored). Rights on the owning test project (`testplan_execute` AND `exec_edit_notes` → 403 otherwise); closed build → read-only (Save disabled + update 400); 404 unknown execution. Switched `openEditExecution()` in `execTest.html` and `execHistory.html` from `editExecution.php` to `editExecution.html`. Regression suite 825 12/12 PASS.
 - Requirement Spec Revision Compare (`lib/requirements/reqSpecCompareRevisions.php`) — `gui/templates/requirements/reqSpecCompare.html` + `api/reqspec/index.php` `GET ?action=spec_revision_compare` (#837, DONE). Closes the HIGH `reqSpecViewRevisions` (revision-compare) item of #755. DataTable of spec revisions (from `get_history`) with left/right radios + diff-method choice (HTML comparison / HTML code comparison + context); diff panel shows the attribute table (doc_id/name/type), the scope diff (`HTMLDiffer::htmlDiff` or `diff::doDiff`+`inline`), and linked design custom-fields diff. Right `mgt_view_req` gates every route (same as `spec_revision_view`). Switched the "Compare revisions" buttons in `reqSpecView.html` and `reqSpecViewRevision.html` from the legacy screen to `reqSpecCompare.html`. Regression suite 837 13/13 PASS.
+- Results by Multiple Builds (`lib/results/resultsMoreBuildsGUI.php` + `resultsMoreBuilds.php`) — `gui/templates/results/resultsMoreBuilds.html` + `api/reports/index.php` `GET ?action=more_builds_init` + `GET ?action=more_builds` (#838, DONE). Re-enabled and modernized the last deferred report screen: per-test-case × per-build last-execution-status matrix with build totals, per-suite summaries, and a query-parameters recap. Right `testplan_metrics` gates every route; legacy dead code (`resultsMoreBuilds.php` `newResults` block) rebuilt from `getExecStatusMatrixFlat()` (aggregating per `(tcversion,build)` keeping highest `executions_id`). ASIDE link (Reports → Query Metrics) and `cfg/reports.cfg.php` `results_custom_query` point at the modern screen. Regression suite 838 13/13 PASS; wiki + docs mirror.
 
 ---
 
@@ -126,12 +127,12 @@ None — all modernized screens are green.
 ### Reports (from cfg/reports.cfg.php — all 24 ACTIVE reports modernized)
 
 All report entries in `cfg/reports.cfg.php` now map to a modernized `.html` screen +
-BFF action in `api/reports/index.php` (see DONE rows 44–64). The two report types that
-have **no** modernized screen (`lib/results/uncoveredTestCases.php` — Uncovered Test
-Cases, and `lib/results/resultsMoreBuildsGUI.php` — Results by Multiple Builds) are
-**commented out** in `cfg/reports.cfg.php`, so they are not reachable from the ASIDE
-menu and are deferred. The legacy `else` branch in `lib/general/asideMenu.php`
-(fallback to `lib/**/*.php` report controllers) is now dead code for all active entries.
+BFF action in `api/reports/index.php` (see DONE rows 44–64, plus the *Results by
+Multiple Builds* extra). The one remaining report type with **no** modernized screen
+(`lib/results/uncoveredTestCases.php` — Uncovered Test Cases) is **commented out**
+in `cfg/reports.cfg.php`, so it is not reachable from the ASIDE menu and deferred.
+The legacy `else` branch in `lib/general/asideMenu.php` (fallback to
+`lib/**/*.php` report controllers) is now dead code for all active entries.
 
 ### Other legacy screens
 
