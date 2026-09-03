@@ -2426,5 +2426,21 @@
   "user.status": "Status",
   "user.usersCount": "{n} Benutzer",
   "user.validation.required": "Login, Vorname, Nachname und E-Mail sind erforderlich.",
-  "version": "Version"
+  "version": "Version",
+  "execprint.title": "Ausführungsdruck",
+  "execprint.print": "Drucken",
+  "execprint.close": "Schließen",
+  "execprint.build": "Build",
+  "execprint.tester": "Tester",
+  "execprint.statusPassed": "Bestanden",
+  "execprint.statusFailed": "Fehlgeschlagen",
+  "execprint.statusBlocked": "Blockiert",
+  "execprint.statusNotRun": "Nicht ausgeführt",
+  "execprint.statusUnknown": "Unbekannt",
+  "execprint.loadError": "Laden der Ausführung fehlgeschlagen",
+  "execprint.noRights": "Keine Berechtigung zum Anzeigen dieser Ausführung",
+  "execprint.notFound": "Ausführung nicht gefunden",
+  "execprint.noId": "Ausführungs-ID fehlt",
+  "execprint.attDeleted": "Anhang gelöscht",
+  "execprint.deleteError": "Löschen des Anhangs fehlgeschlagen"
 }

@@ -2426,5 +2426,21 @@
   "user.status": "ステータス",
   "user.usersCount": "{n} 人のユーザー",
   "user.validation.required": "ログイン、名、姓、メールは必須です。",
-  "version": "バージョン"
+  "version": "バージョン",
+  "execprint.title": "実行プリント",
+  "execprint.print": "印刷",
+  "execprint.close": "閉じる",
+  "execprint.build": "ビルド",
+  "execprint.tester": "テスター",
+  "execprint.statusPassed": "合格",
+  "execprint.statusFailed": "不合格",
+  "execprint.statusBlocked": "ブロック",
+  "execprint.statusNotRun": "未実行",
+  "execprint.statusUnknown": "不明",
+  "execprint.loadError": "実行の読み込みに失敗しました",
+  "execprint.noRights": "この実行を表示する権限がありません",
+  "execprint.notFound": "実行が見つかりません",
+  "execprint.noId": "実行IDがありません",
+  "execprint.attDeleted": "添付ファイルを削除しました",
+  "execprint.deleteError": "添付ファイルの削除に失敗しました"
 }

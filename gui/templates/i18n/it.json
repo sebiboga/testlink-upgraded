@@ -2426,5 +2426,21 @@
   "user.status": "Stato",
   "user.usersCount": "{n} utenti",
   "user.validation.required": "Login, Nome, Cognome e E-mail sono obbligatori.",
-  "version": "Versione"
+  "version": "Versione",
+  "execprint.title": "Stampa esecuzione",
+  "execprint.print": "Stampa",
+  "execprint.close": "Chiudi",
+  "execprint.build": "Build",
+  "execprint.tester": "Tester",
+  "execprint.statusPassed": "Superato",
+  "execprint.statusFailed": "Fallito",
+  "execprint.statusBlocked": "Bloccato",
+  "execprint.statusNotRun": "Non eseguito",
+  "execprint.statusUnknown": "Sconosciuto",
+  "execprint.loadError": "Errore nel caricamento dell'esecuzione",
+  "execprint.noRights": "Non hai il permesso di visualizzare questa esecuzione",
+  "execprint.notFound": "Esecuzione non trovata",
+  "execprint.noId": "Manca l'id dell'esecuzione",
+  "execprint.attDeleted": "Allegato eliminato",
+  "execprint.deleteError": "Errore nell'eliminazione dell'allegato"
 }

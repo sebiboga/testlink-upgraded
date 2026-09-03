@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="execprint.title">Execution Print</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 500; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; padding: 18px 22px; overflow-x: auto; }
+.banner { border-radius: 6px; padding: 13px 18px; font-size: 13px; margin: 16px 24px; }
+.banner.err { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.spinner { color: #888; font-size: 13px; padding: 24px; text-align: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; top: 16px; right: 16px; padding: 13px 20px; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 600; display: none; z-index: 2000; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.toast.ok { background: #27ae60; }
+.toast.err { background: #e74c3c; }
+.meta-line { color: #555; font-size: 12px; margin: 0 0 14px; }
+.meta-line .badge { display: inline-block; padding: 3px 9px; border-radius: 11px; color: #fff; font-size: 11px; font-weight: 700; margin-right: 6px; }
+.badge.passed { background: #27ae60; } .badge.failed { background: #e74c3c; }
+.badge.blocked { background: #f39c12; } .badge.not_run { background: #95a5a6; }
+.badge.unknown { background: #7f8c8d; }
+#printBody table.tc { border-collapse: collapse; }
+#printBody table.tc th, #printBody table.tc td { border: 1px solid #ddd; padding: 6px 9px; vertical-align: top; font-size: 13px; }
+#printBody table.tc th { background: #f0f4f4; text-align: left; }
+#printBody .label { font-weight: 700; }
+@media print {
+  .toolbar, .footer, .header { display: none !important; }
+  body { background: #fff; }
+  .card { box-shadow: none; margin: 0; border: none; padding: 0; }
+  #printBody table.tc th, #printBody table.tc td { border-color: #000; font-size: 11px; }
+  @page { margin: 1.5cm; }
+}
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-print"></i> <span data-i18n="execprint.title">Execution Print</span><span id="infoLine" class="sub"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="window.print()" id="printBtn"><i class="fa fa-print"></i> <span data-i18n="execprint.print">Print</span></button>
+  <button class="btn-ghost" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="execprint.close">Close</span></button>
+</div>
+
+<div id="errBanner" class="banner err" style="display:none;"></div>
+<div id="loading" class="spinner"><i class="fa fa-spinner fa-spin" style="margin-right:6px;"></i><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="content" style="display:none;">
+  <div class="card">
+    <div id="metaLine" class="meta-line"></div>
+    <div id="printBody"></div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div id="toast" class="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+'use strict';
+var API = '/api/executionprint/index.php';
+var EXEC_ID = 0;
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toast(msg, ok) {
+  var $t = $('#toast');
+  $t.text(msg).removeClass('ok err').addClass(ok ? 'ok' : 'err').fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function(){ $t.fadeOut(150); }, 3200));
+}
+
+function showError(msg) {
+  $('#loading').hide();
+  $('#content').hide();
+  $('#errBanner').text(msg).show();
+  $('#printBtn').prop('disabled', true);
+}
+
+function statusBadge(status) {
+  var cls = (['passed','failed','blocked','not_run'].indexOf(status) >= 0) ? status : 'unknown';
+  var label = '';
+  switch (status) {
+    case 'p': cls = 'passed'; label = TLi18n.t('execprint.statusPassed'); break;
+    case 'f': cls = 'failed'; label = TLi18n.t('execprint.statusFailed'); break;
+    case 'b': cls = 'blocked'; label = TLi18n.t('execprint.statusBlocked'); break;
+    case 'n': cls = 'not_run'; label = TLi18n.t('execprint.statusNotRun'); break;
+    default: label = TLi18n.t('execprint.statusUnknown'); break;
+  }
+  return '<span class="badge ' + cls + '">' + esc(label) + '</span>';
+}
+
+function load() {
+  $('#loading').show();
+  $('#errBanner').hide();
+  $.getJSON(API + '?action=print&id=' + EXEC_ID, function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') { showError(r.message || TLi18n.t('execprint.loadError')); return; }
+    $('#infoLine').text(' — #' + r.exec_id);
+    var m = r.meta || {};
+    var meta = [];
+    meta.push(statusBadge(m.status || ''));
+    if (m.build_name) meta.push('<i class="fa fa-cube"></i> ' + esc(TLi18n.t('execprint.build') + ': ' + m.build_name));
+    if (m.tester) meta.push('<i class="fa fa-user"></i> ' + esc(TLi18n.t('execprint.tester') + ': ' + m.tester));
+    if (m.execution_ts) meta.push('<i class="fa fa-clock"></i> ' + esc(m.execution_ts));
+    $('#metaLine').html(meta.join(' &nbsp; '));
+    $('#printBody').html(r.body_html || '');
+    bindInlineDeletes();
+    $('#content').show();
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('execprint.title'));
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    var msg = TLi18n.t('execprint.loadError');
+    if (xhr.status === 403) msg = TLi18n.t('execprint.noRights');
+    else if (xhr.status === 404) msg = TLi18n.t('execprint.notFound');
+    else {
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    }
+    showError(msg);
+  });
+}
+
+// The print body embeds legacy inline <form> blocks (one per execution step
+// attachment) that POST deleteAttachmentID to execPrint.php. Intercept them
+// and route through the BFF so the modern screen handles deletion without
+// leaving the page, then re-render the print.
+function bindInlineDeletes() {
+  $('#printBody').off('submit.execPrint').on('submit.execPrint', 'form', function (e) {
+    var $form = $(this);
+    var delId = parseInt($form.find('[name="deleteAttachmentID"]').val() || '0', 10);
+    if (delId <= 0) return; // not an attachment-delete form; allow default
+    e.preventDefault();
+    $.ajax({
+      url: API + '?action=delete_attachment&id=' + EXEC_ID + '&deleteAttachmentID=' + delId,
+      method: 'GET'
+    }).done(function (r) {
+      if (r.status === 'ok') {
+        toast(TLi18n.t('execprint.attDeleted'), true);
+        load();
+      } else {
+        toast(r.message || TLi18n.t('execprint.deleteError'), false);
+      }
+    }).fail(function (xhr) {
+      var msg = TLi18n.t('execprint.deleteError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (err) {}
+      toast(msg, false);
+    });
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  EXEC_ID = parseInt(p.get('id') || 0, 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!EXEC_ID) { showError(TLi18n.t('execprint.noId')); return; }
+    load();
+  });
+});
+</script>
+</body>
+</html>

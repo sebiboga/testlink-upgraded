@@ -2426,5 +2426,21 @@
   "user.status": "状态",
   "user.usersCount": "{n} 个用户",
   "user.validation.required": "登录名、名、姓和电子邮件为必填项。",
-  "version": "版本"
+  "version": "版本",
+  "execprint.title": "执行打印",
+  "execprint.print": "打印",
+  "execprint.close": "关闭",
+  "execprint.build": "构建",
+  "execprint.tester": "测试员",
+  "execprint.statusPassed": "通过",
+  "execprint.statusFailed": "失败",
+  "execprint.statusBlocked": "阻塞",
+  "execprint.statusNotRun": "未运行",
+  "execprint.statusUnknown": "未知",
+  "execprint.loadError": "加载执行失败",
+  "execprint.noRights": "没有权限查看此执行",
+  "execprint.notFound": "执行未找到",
+  "execprint.noId": "缺少执行ID",
+  "execprint.attDeleted": "附件已删除",
+  "execprint.deleteError": "删除附件失败"
 }

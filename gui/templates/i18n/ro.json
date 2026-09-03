@@ -2426,5 +2426,21 @@
   "user.status": "Status",
   "user.usersCount": "{n} utilizatori",
   "user.validation.required": "Utilizator, Prenume, Nume si Email sunt obligatorii.",
-  "version": "Versiune"
+  "version": "Versiune",
+  "execprint.title": "Printare Executie",
+  "execprint.print": "Printeaza",
+  "execprint.close": "Inchide",
+  "execprint.build": "Build",
+  "execprint.tester": "Tester",
+  "execprint.statusPassed": "Trecut",
+  "execprint.statusFailed": "Esuat",
+  "execprint.statusBlocked": "Blocat",
+  "execprint.statusNotRun": "Nerulat",
+  "execprint.statusUnknown": "Necunoscut",
+  "execprint.loadError": "Eroare la incarcarea executiei",
+  "execprint.noRights": "Nu aveti permisiunea de a vedea aceasta executie",
+  "execprint.notFound": "Executia nu a fost gasita",
+  "execprint.noId": "Lipseste id-ul executiei",
+  "execprint.attDeleted": "Atasament sters",
+  "execprint.deleteError": "Eroare la stergerea atasamentului"
 }

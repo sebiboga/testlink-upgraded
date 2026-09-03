@@ -2426,5 +2426,21 @@
   "user.status": "Статус",
   "user.usersCount": "{n} пользователей",
   "user.validation.required": "Логин, Имя, Фамилия и Электронная почта обязательны.",
-  "version": "Версия"
+  "version": "Версия",
+  "execprint.title": "Печать выполнения",
+  "execprint.print": "Печать",
+  "execprint.close": "Закрыть",
+  "execprint.build": "Сборка",
+  "execprint.tester": "Тестировщик",
+  "execprint.statusPassed": "Пройден",
+  "execprint.statusFailed": "Не пройден",
+  "execprint.statusBlocked": "Заблокирован",
+  "execprint.statusNotRun": "Не выполнен",
+  "execprint.statusUnknown": "Неизвестно",
+  "execprint.loadError": "Ошибка загрузки выполнения",
+  "execprint.noRights": "Нет прав на просмотр этого выполнения",
+  "execprint.notFound": "Выполнение не найдено",
+  "execprint.noId": "Отсутствует id выполнения",
+  "execprint.attDeleted": "Вложение удалено",
+  "execprint.deleteError": "Ошибка удаления вложения"
 }

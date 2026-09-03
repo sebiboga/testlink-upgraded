@@ -2426,5 +2426,21 @@
   "user.status": "Status",
   "user.usersCount": "{n} users",
   "user.validation.required": "Login, First Name, Last Name, and Email are required.",
-  "version": "Version"
+  "version": "Version",
+  "execprint.title": "Execution Print",
+  "execprint.print": "Print",
+  "execprint.close": "Close",
+  "execprint.build": "Build",
+  "execprint.tester": "Tester",
+  "execprint.statusPassed": "Passed",
+  "execprint.statusFailed": "Failed",
+  "execprint.statusBlocked": "Blocked",
+  "execprint.statusNotRun": "Not Run",
+  "execprint.statusUnknown": "Unknown",
+  "execprint.loadError": "Failed to load execution",
+  "execprint.noRights": "You do not have permission to view this execution",
+  "execprint.notFound": "Execution not found",
+  "execprint.noId": "Missing execution id",
+  "execprint.attDeleted": "Attachment deleted",
+  "execprint.deleteError": "Failed to delete attachment"
 }

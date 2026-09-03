@@ -2426,5 +2426,21 @@
   "user.status": "Statut",
   "user.usersCount": "{n} utilisateurs",
   "user.validation.required": "Connexion, Prénom, Nom et E-mail sont requis.",
-  "version": "Version"
+  "version": "Version",
+  "execprint.title": "Impression d'exécution",
+  "execprint.print": "Imprimer",
+  "execprint.close": "Fermer",
+  "execprint.build": "Build",
+  "execprint.tester": "Testeur",
+  "execprint.statusPassed": "Réussi",
+  "execprint.statusFailed": "Échoué",
+  "execprint.statusBlocked": "Bloqué",
+  "execprint.statusNotRun": "Non exécuté",
+  "execprint.statusUnknown": "Inconnu",
+  "execprint.loadError": "Échec du chargement de l'exécution",
+  "execprint.noRights": "Vous n'avez pas la permission de voir cette exécution",
+  "execprint.notFound": "Exécution introuvable",
+  "execprint.noId": "Id de l'exécution manquant",
+  "execprint.attDeleted": "Pièce jointe supprimée",
+  "execprint.deleteError": "Échec de la suppression de la pièce jointe"
 }
