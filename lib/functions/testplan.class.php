@@ -2321,10 +2321,13 @@ class testplan extends tlObjectWithAttachments
     {
       $accessField = 'id';     
       $groupBy = '';
-      $tproject_id = $this->getProjectIdOfPlan($id);
+      // NOTE: schema currently keys builds by testplan_id only (testproject_id
+      // column not yet present — issue #834 pending). Scope by the plan; once
+      // the builds migration lands (builds.testproject_id added), this becomes
+      // a project scope (Refs #503, #829, #834).
       $sql = " /* $debugMsg */ " . 
              " SELECT {$my['opt']['fields']} " .
-             " FROM {$this->tables['builds']} WHERE testproject_id = {$tproject_id} " ;
+             " FROM {$this->tables['builds']} WHERE testplan_id = " . intval($id) . " " ;
       
       if( !is_null($my['opt']['buildID']) )
       {
@@ -2427,7 +2430,7 @@ class testplan extends tlObjectWithAttachments
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     
     $sql = "/* $debugMsg */ SELECT count(id) AS num_builds FROM {$this->tables['builds']} builds " .
-             "WHERE builds.testproject_id = " . $this->getProjectIdOfPlan($tplanID);
+             "WHERE builds.testplan_id = " . intval($tplanID);
     
     if( !is_null($active) )
      {
