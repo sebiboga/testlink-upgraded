@@ -108,6 +108,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 var ctx = {
   tprojectId: parseInt(qs('tproject_id') || '0', 10),
   testcaseId: parseInt(qs('testcase_id') || '0', 10),
+  preLeft: parseInt(qs('version_left') || '0', 10),
+  preRight: parseInt(qs('version_right') || '0', 10),
   bffUrl: '/api/testcasescompare/',
   info: null
 };
@@ -190,11 +192,11 @@ function renderVersions() {
   ctx.info.versions.forEach(function (v, i) {
     var ts = esc(v.modification_ts || '');
     var author = esc((v.author_first_name + ' ' + v.author_last_name).trim() || '-');
-    var leftChecked = (i === 1) ? 'checked' : '';
-    var rightChecked = (i === 0) ? 'checked' : '';
-    // versions arrive newest-first (get_by_id ORDER BY version DESC); preselect
-    // the two NEWEST versions: right = newest (row 0), left = previous (row 1),
-    // mirroring legacy tcCompareVersions.tpl mycount==1 / mycount==2 defaults.
+    // Support pre-selection via URL params (version_left/version_right).
+    // When provided, match by version number; otherwise default to the two
+    // newest versions (index 0 = right, index 1 = left).
+    var leftChecked = (ctx.preLeft ? (v.version === ctx.preLeft) : (i === 1)) ? 'checked' : '';
+    var rightChecked = (ctx.preRight ? (v.version === ctx.preRight) : (i === 0)) ? 'checked' : '';
     rows += '<tr>' +
       '<td>' + v.version + '</td>' +
       '<td><input type="radio" name="version_left" value="' + v.version + '"' + leftChecked + '></td>' +
@@ -204,6 +206,10 @@ function renderVersions() {
       '</tr>';
   });
   $('#versionRows').html(rows);
+
+  if (ctx.preLeft && ctx.preRight) {
+    doCompare();
+  }
 }
 
 function getSelectedVersion(name) {

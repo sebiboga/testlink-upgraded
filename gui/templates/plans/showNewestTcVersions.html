@@ -218,10 +218,9 @@ function execHistoryUrl(it) {
        + '&tproject_id=' + tprojectId;
 }
 function compareUrl(it) {
-  return '/lib/testcases/tcCompareVersions.php?testcase_id=' + it.tc_id
+  return '/gui/templates/testcases/tcCompare.html?testcase_id=' + it.tc_id
        + '&version_left=' + it.version
-       + '&version_right=' + it.newest_version
-       + '&compare_selected_versions=1&use_html_comp=1';
+       + '&version_right=' + it.newest_version;
 }
 
 function render(data) {
