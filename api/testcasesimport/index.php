@@ -136,7 +136,8 @@ if ($action === 'info') {
     $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
     $cRow = $db->get_recordset(
         "SELECT id, parent_id, name FROM {$tables['nodes_hierarchy']} " .
-        "WHERE id = " . intval($containerId));
+        "WHERE id = " . intval($containerId) .
+        " AND parent_id IN (0, " . intval($tprojectId) . ")");
     $container = ['id' => $tprojectId, 'name' => strval($info['name']),
                   'isProject' => true];
     if (!is_null($cRow) && count($cRow) === 1) {
@@ -189,6 +190,9 @@ if ($action === 'import_md') {
     // ---- input ------------------------------------------------------------
     // legacy parity: import_file_max_size_bytes cap
     $maxBytes = intval(config_get('import_file_max_size_bytes'));
+    if ($maxBytes <= 0) {
+        $maxBytes = 10 * 1024 * 1024; // 10 MB fallback when config unset
+    }
 
     $markdown = '';
     $uploadedBytes = 0;
@@ -201,8 +205,8 @@ if ($action === 'import_md') {
                                       $uploadedBytes, $maxBytes)]);
         }
         $markdown = file_get_contents($_FILES['uploadedFile']['tmp_name']);
-    } elseif (isset($_REQUEST['markdown'])) {
-        $markdown = strval($_REQUEST['markdown']);
+    } elseif (isset($_POST['markdown'])) {
+        $markdown = strval($_POST['markdown']);
         $uploadedBytes = strlen($markdown);
         if ($maxBytes > 0 && $uploadedBytes > $maxBytes) {
             http_response_code(413);
@@ -218,20 +222,20 @@ if ($action === 'import_md') {
     }
 
     // legacy parity options
-    $hitCriteria = strtolower(trim(strval($_REQUEST['hit_criteria'] ?? 'name')));
-    if ($hitCriteria !== 'name') {
+    $hitCriteria = strtolower(trim(strval($_POST['hit_criteria'] ?? 'name')));
+    if (!in_array($hitCriteria, ['name', 'internalID', 'externalID'], true)) {
         http_response_code(400);
         out(['status' => 'error',
-             'message' => 'Unsupported hit_criteria (only "name" is implemented for markdown imports)']);
+             'message' => 'Invalid hit_criteria']);
     }
-    $actionOnHit = strtolower(trim(strval($_REQUEST['action_on_hit'] ?? 'skip')));
-    if (!in_array($actionOnHit, ['skip', 'create_new_version'], true)) {
+    $actionOnHit = strtolower(trim(strval($_POST['action_on_hit'] ?? 'skip')));
+    if (!in_array($actionOnHit, ['skip', 'update_last_version', 'generate_new', 'create_new_version'], true)) {
         http_response_code(400);
         out(['status' => 'error',
-             'message' => 'Unsupported action_on_hit (skip | create_new_version)']);
+             'message' => 'Invalid action_on_hit']);
     }
 
-    $dryRun = intval($_REQUEST['dry_run'] ?? 0) === 1;
+    $dryRun = intval($_POST['dry_run'] ?? 0) === 1;
 
     // ---- parse --------------------------------------------------------------
     $parser = new markdownTcImport();
@@ -356,7 +360,7 @@ if ($action === 'import_md') {
                     }
                 } catch (Exception $e) {
                     $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                                 'error' => $e->getMessage()];
+                                 'error' => 'Update failed (internal error)'];
                 }
                 continue;
             }
@@ -389,7 +393,7 @@ if ($action === 'import_md') {
                 }
             } catch (Exception $e) {
                 $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                             'error' => $e->getMessage()];
+                             'error' => 'Create failed (internal error)'];
             }
         }
     }
@@ -549,7 +553,7 @@ if ($action === 'import_xml') {
             eval($code);
         } catch (\Throwable $e) {
             http_response_code(500);
-            out(['status' => 'error', 'message' => 'Failed to load import helpers: ' . $e->getMessage()]);
+            out(['status' => 'error', 'message' => 'Failed to load import helpers']);
         }
         if (!function_exists('importTestCaseDataFromXML')) {
             http_response_code(500);
