@@ -9774,3 +9774,38 @@ contains `eb5b4f8ef`. CLI run from repo root: `php tmp/repro_830_verify.php`.
   Event Viewer Error/Warning entries from the verified flows (the 4 warnings logged during this
   session's intermediate repro debugging were deleted as self-inflicted artifacts — final clean
   repro produces zero event rows).
+
+---
+
+### Regression — Issue #844: Execution Print popup (execPrint.php → execPrint.html + BFF)
+
+**Background:** Modernized `lib/execute/execPrint.php` into a standalone Dashio screen
+`gui/templates/execute/execPrint.html` + BFF `api/executionprint/index.php` (Refs #844). The BFF
+reuses the battle-tested legacy render machinery (`lib/functions/print.inc.php`
+`renderExecutionForPrinting`) over the network and hardens the unauthenticated legacy entry
+point (now requires a session + `testplan_execute` on the owning test project; unknown/forged
+execution id → 404 with no E_WARNING). In-app Print links in `execTest.html` + `execHistory.html`
+now open the modern screen.
+
+**Fixture:** `php tmp/fixtures_844.php` → project, suite, 2 TCs, plan, open build, 2 executions
+(status p/f, notes, steps). BFF/curl checks run with admin session (exec id from fixture);
+403 checks use a fresh `noprint` low-rights user (role 3 `<no rights>`).
+
+| # | Check | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-844.1 | BFF print OK | `GET /api/executionprint/index.php?action=print&id=<exec>` (admin) | HTTP 200, `status=ok`, `body_html` contains the TC table + execution notes + Direct Link block; `meta.status` reflects execution | PASS |
+| TC-844.2 | BFF unknown execution | `...?action=print&id=99999` | HTTP 404 "Execution not found" | PASS |
+| TC-844.3 | BFF missing id | `...?action=print&id=0` | HTTP 400 "Missing id" | PASS |
+| TC-844.4 | BFF no rights | print an execution as `noprint` (no `testplan_execute`) | HTTP 403 "Insufficient rights" | PASS |
+| TC-844.5 | Front-end renders content | open `execPrint.html?id=<exec>` (admin) | header + toolbar render; `#content` visible; print body non-empty; footer "TestLink 2.0.1 - Execution Print" | PASS (CDP) |
+| TC-844.6 | Front-end 404 path | open `execPrint.html?id=99999` | banner "Execution not found"; print button disabled; content hidden | PASS (CDP) |
+| TC-844.7 | Front-end 403 path | open `execPrint.html?id=<exec>` as `noprint` | banner "You do not have permission to view this execution"; print disabled; content hidden | PASS (CDP) |
+| TC-844.8 | Print button | click `#printBtn` | triggers `window.print()` (print dialog; verified handler bound) | PASS |
+| TC-844.9 | delete_attachment guard | `...?action=delete_attachment&id=<exec>` (no deleteAttachmentID) → 400; `id=99999&deleteAttachmentID=1` → 404 | 400 / 404 | PASS (curl) |
+| TC-844.10 | i18n keys in all bundles | `execprint.*` in `gui/templates/i18n/*.json` (10) | all keys present; every JSON validates (`python3 -m json.tool`) | PASS |
+| TC-844.11 | in-app links switched | grep `execPrint.php` in `execTest.html` + `execHistory.html` | both now open `execPrint.html?id=`; no `execPrint.php` remains in modern screens | PASS |
+| TC-844.12 | Event Viewer clean | `SELECT ... FROM events WHERE log_level>=3` after modernized flows | no Error/Warning (the stray `print_execution` lang warning from the pre-fix dev iteration was from a removed `lang_get` call — gone after fix) | PASS |
+
+- **Result:** **12/12 PASS** (TC-844.1–844.12). The last remaining legacy execution Print popup is
+  modernized; BFF enforces auth + `testplan_execute`, 404/400 edge cases handled without
+  E_WARNING events, i18n complete, in-app links switched.
