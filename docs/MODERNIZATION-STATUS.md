@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-03 (#840 legacy redirect fixes: showNewestTcVersions.html tcCompareVersions.php→tcCompare.html with auto-select+compare, searchAdvancedView.html verified clean; closes #758, #759 MEDIUM redirect items)
+> Last updated: 2026-09-03 (#843 Uncovered Test Cases report modernized — the last report without a modern screen is now done: `uncoveredTestCases.html` + BFF `uncovered_testcases`, re-enabled in `cfg/reports.cfg.php`, wired into ASIDE Reports menu)
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 17 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds) |
+| DONE (modernized) | 67 + 18 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -113,6 +113,7 @@ Extra modernized feature (not an ASIDE entry):
 - Edit Execution popup (`lib/execute/editExecution.php`) — `gui/templates/execute/editExecution.html` + `api/executionedit/index.php` `GET ?action=init` + `POST ?action=update` (#825, DONE). Edits an existing execution's **notes** (`updateExecutionNotes`) and **execution custom fields** (same legacy `html_table_of_custom_field_inputs` + `execution_values_to_db` contract; forged CF names ignored). Rights on the owning test project (`testplan_execute` AND `exec_edit_notes` → 403 otherwise); closed build → read-only (Save disabled + update 400); 404 unknown execution. Switched `openEditExecution()` in `execTest.html` and `execHistory.html` from `editExecution.php` to `editExecution.html`. Regression suite 825 12/12 PASS.
 - Requirement Spec Revision Compare (`lib/requirements/reqSpecCompareRevisions.php`) — `gui/templates/requirements/reqSpecCompare.html` + `api/reqspec/index.php` `GET ?action=spec_revision_compare` (#837, DONE). Closes the HIGH `reqSpecViewRevisions` (revision-compare) item of #755. DataTable of spec revisions (from `get_history`) with left/right radios + diff-method choice (HTML comparison / HTML code comparison + context); diff panel shows the attribute table (doc_id/name/type), the scope diff (`HTMLDiffer::htmlDiff` or `diff::doDiff`+`inline`), and linked design custom-fields diff. Right `mgt_view_req` gates every route (same as `spec_revision_view`). Switched the "Compare revisions" buttons in `reqSpecView.html` and `reqSpecViewRevision.html` from the legacy screen to `reqSpecCompare.html`. Regression suite 837 13/13 PASS.
 - Results by Multiple Builds (`lib/results/resultsMoreBuildsGUI.php` + `resultsMoreBuilds.php`) — `gui/templates/results/resultsMoreBuilds.html` + `api/reports/index.php` `GET ?action=more_builds_init` + `GET ?action=more_builds` (#838, DONE). Re-enabled and modernized the last deferred report screen: per-test-case × per-build last-execution-status matrix with build totals, per-suite summaries, and a query-parameters recap. Right `testplan_metrics` gates every route; legacy dead code (`resultsMoreBuilds.php` `newResults` block) rebuilt from `getExecStatusMatrixFlat()` (aggregating per `(tcversion,build)` keeping highest `executions_id`). ASIDE link (Reports → Query Metrics) and `cfg/reports.cfg.php` `results_custom_query` point at the modern screen. Regression suite 838 13/13 PASS; wiki + docs mirror.
+- Uncovered Test Cases report (`lib/results/uncoveredTestCases.php`) — `gui/templates/results/uncoveredTestCases.html` + `api/reports/index.php` `GET ?action=uncovered_testcases` (#843, DONE). The LAST report without a modern screen. Mirrors the legacy SQL: `genComboReqSpec` → has_reqspec (`testproject_has_no_reqspec`); `requirement_spec_mgr::get_requirements_count` → has_requirements (`testproject_has_no_requirements`); `get_all_testcases_id` + LEFT OUTER JOIN `req_coverage` WHERE `req_id IS NULL` → uncovered; external_id joined to `tcversions`, grouped by suite; all-covered → `no_uncovered_testcases`. Re-enabled the entry in `cfg/reports.cfg.php` (`enabled='req'` — shown in the aside only when the project has requirements enabled and a test plan is selected) and added the `link_report_uncovered_testcases` branch to `lib/general/asideMenu.php`. Fixed a latent bug: `get_all_testcases_id($tprojectId,'just_id')` returns a plain list of ids, so the BFF uses `implode(',', array_map('intval',...))` instead of `array_keys()`. Regression suite 843 11/11 PASS; wiki + docs mirror.
 
 ---
 
@@ -128,9 +129,9 @@ None — all modernized screens are green.
 
 All report entries in `cfg/reports.cfg.php` now map to a modernized `.html` screen +
 BFF action in `api/reports/index.php` (see DONE rows 44–64, plus the *Results by
-Multiple Builds* extra). The one remaining report type with **no** modernized screen
-(`lib/results/uncoveredTestCases.php` — Uncovered Test Cases) is **commented out**
-in `cfg/reports.cfg.php`, so it is not reachable from the ASIDE menu and deferred.
+Multiple Builds* and *Uncovered Test Cases* extras). The previously commented-out
+`uncovered_testcases` entry (Uncovered Test Cases) is now **re-enabled and modernized**
+(`gui/templates/results/uncoveredTestCases.html` + BFF `uncovered_testcases`, Refs #843).
 The legacy `else` branch in `lib/general/asideMenu.php` (fallback to
 `lib/**/*.php` report controllers) is now dead code for all active entries.
 

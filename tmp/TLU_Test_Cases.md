@@ -9707,3 +9707,41 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
 - **Result:** **8/8 PASS** (TC-828.1–828.8). Project-scoped duplicate/hint messages now
   correctly say "test project" in all locales; unique creation unaffected; milestone
   strings untouched; Event Viewer clean.
+
+---
+
+## Regression — Screen #843: Uncovered Test Cases report (modernization of lib/results/uncoveredTestCases.php)
+
+- **Priority:** Medium · **Importance:** Medium
+- **Scope:** Modernized the last remaining report without a modern screen. New Dashio
+  screen `gui/templates/results/uncoveredTestCases.html` + BFF action
+  `uncovered_testcases` in `api/reports/index.php`, enabled in
+  `cfg/reports.cfg.php` (`enabled='req'`, shown when requirements enabled + test plan
+  selected) and wired into the ASIDE (Reports menu → "Test Cases without Requirements
+  Assignment"). Uses `TLi18n` (`unc.*` keys across all 10 locale bundles). Reuses the
+  established patterns of `freeTestCases.html`.
+- **Precondition:** DB fresh import; **Project 1 "Uncovered Demo Project" (UCD, reqs ON)**;
+  req spec (id=2), requirement (`REQ1`/req_doc "Delivered", linked), test suite "Suite A",
+  test cases **"Covered TC"** (has `req_coverage` row → NOT reported) and
+  **"Uncovered TC"** (no coverage → reported as `UCD-2`). **Project 13 "No Req Project"
+  (NRP, reqs OFF)** with a req spec but NO requirements (only for state 4). Test plan
+  "Demo Plan" (id=16) created and selected. Logged in admin/admin.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-843.1 | data state | open `uncoveredTestCases.html?tproject_id=1` | title + "1 test cases" + row "Suite A \| UCD-2 : Uncovered TC"; "Covered TC" NOT listed | PASS (browser) |
+| TC-843.2 | DataTable filter | type `zzz` in Filter box | "No matching records found" | PASS (browser) |
+| TC-843.3 | DataTable sort/entries | click Test Case column; change Show entries 25 | sorting toggles; 25 offered | PASS (browser) |
+| TC-843.4 | no-reqspec state | open `uncoveredTestCases.html?tproject_id=13` (before adding spec) | "There are no Requirement Spec. defined" | PASS (browser) |
+| TC-843.5 | no-requirements state | add req spec (no reqs) to project 13, reopen report | "There are no Requirements defined" | PASS (browser) |
+| TC-843.6 | unauthenticated BFF | `curl api/reports/index.php?action=uncovered_testcases` (no session) | http 401 | PASS |
+| TC-843.7 | aside menu entry | select Demo Plan on project 1 → Reports → "Test Cases without Requirements Assignment" | link to `uncoveredTestCases.html?tproject_id=1`; opens screen showing UCD-2 | PASS (browser) |
+| TC-843.8 | req-off project hides report | project 13 (reqs OFF) with a test plan | report entry NOT shown in aside | PASS (browser) |
+| TC-843.9 | i18n bundles valid | `python3 -m json.tool` over all 10 bundles + `unc.*` keys present | all valid, keys present | PASS |
+| TC-843.10 | Event Viewer clean | `SELECT * FROM events` after all flows | only INFO audit rows; no new Error/Warning | PASS |
+| TC-843.11 | PHP lint | `php -l` over `api/reports/index.php` + touched files | no syntax errors | PASS |
+
+- **Result:** **11/11 PASS** (TC-843.1–843.11). All report states (data / all-covered /
+  no-reqspec / no-requirements), auth (401 / admin), aside-menu integration (req-enabled
+  shown, req-off hidden), DataTable, i18n and Event Viewer verified clean.
+- **Deferred (not covered):** BFF 403 path with a limited user lacking `testplan_metrics`.
