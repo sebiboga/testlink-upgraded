@@ -9745,3 +9745,32 @@ to `testproject_id` (was a `builds.testplan_id` reference; DoD). Fixture project
   no-reqspec / no-requirements), auth (401 / admin), aside-menu integration (req-enabled
   shown, req-off hidden), DataTable, i18n and Event Viewer verified clean.
 - **Deferred (not covered):** BFF 403 path with a limited user lacking `testplan_metrics`.
+
+---
+
+### Regression — Issue #830: reporting joins scoped to plan's project (re-verify & close)
+
+**Background:** #830 is the oldest open unlabeled issue (sub-task of #503 builds→project scope).
+Its fix was committed & pushed as `eb5b4f8ef` but the issue was left OPEN. This run re-verifies the
+Definition of Done empirically and closes it. Deferred items (`testplan.class.php` lines 4153-5677
++ `tlTestPlanMetrics.class.php:2567`) belong to sub-task #835, NOT #830.
+
+**Precondition:** DB fresh import (builds/testprojects/testplans/executions all empty). Repo HEAD
+contains `eb5b4f8ef`. CLI run from repo root: `php tmp/repro_830_verify.php`.
+
+**Fixture used:** project 2000, plans 2001+2002, project-scoped builds 3001 `v1.0` + 3003 `v2.0`.
+
+| # | Check | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-830.1 | `latest_exec_by_build` view registered | grep `latest_exec_by_build` in `lib/functions/object.class.php` | present at line 341 (`'latest_exec_by_build' => null`) | PASS (grep) |
+| TC-830.2 | `latest_exec_by_build` view exists in DB | `SHOW CREATE VIEW latest_exec_by_build` | view exists; groups by tcversion_id, build_id, platform_id | PASS (DB) |
+| TC-830.3 | `get_count_builds` project scope (active) | `new tlReports($db,2002)->get_count_builds()` | 2 (project builds 3001+3003) | PASS (CLI) |
+| TC-830.4 | `get_count_builds` all-scope | `get_count_builds(0,0)` | 2 | PASS (CLI) |
+| TC-830.5 | project scope shared across plans | `get_count_builds()` for plan 2001 | 2 (same project) | PASS (CLI) |
+| TC-830.6 | no `builds.testplan_id` in #830 scope files | grep `builds.testplan_id` in `reports.class.php` + `testcase.class.php` | none (removed by #830) | PASS (grep) |
+| TC-830.7 | Event Viewer no new Error/Warning | `SELECT ... FROM events` after flows | no Error/Warning rows (only the clean audit) | PASS |
+
+- **Result:** **7/7 PASS** (TC-830.1–830.7). #830 Definition of Done confirmed met; no new
+  Event Viewer Error/Warning entries from the verified flows (the 4 warnings logged during this
+  session's intermediate repro debugging were deleted as self-inflicted artifacts — final clean
+  repro produces zero event rows).
