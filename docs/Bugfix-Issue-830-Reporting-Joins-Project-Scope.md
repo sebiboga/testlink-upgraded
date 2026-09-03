@@ -42,7 +42,7 @@ the total builds for a project.
 | File | Change |
 |------|--------|
 | `tmp/TLU_Test_Cases.md` | Added regression suite TC-830.1–830.7 (verification of #830 DoD) |
-| `tmp/repro_830_verify.php` | Repro exercising `get_count_builds()` project scope via the real class |
+| `tmp/repro_830_verify.php` | Local (untracked, `tmp/` is gitignored) repro exercising `get_count_builds()` project scope via the real class — rebuild it from the TC-830.3–830.5 steps to re-run |
 
 Note: the implementation files themselves (`reports.class.php`,
 `testcase.class.php`, `object.class.php`) were changed in the earlier commit
