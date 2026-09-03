@@ -80,7 +80,7 @@ a.userlink:hover { color: #4ECDC4; }
 var API = '/api/reports/index.php';
 var tprojectId = 0;
 var tplanId = 0;
-var assignmentUrl = '/lib/testcases/tcAssignedToUser.php';
+var assignmentUrl = '/gui/templates/results/tcAssignedToUser.html';
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
@@ -218,14 +218,15 @@ function statTable(build, columns) {
   return h;
 }
 
-// Same popup target as the legacy openAssignmentOverviewWindow()
-// (testlink_library.js): tcAssignedToUser.php scoped to user+build+plan,
+// Test Cases Assigned to User popup (modernized, Refs #840):
+// tcAssignedToUser.php -> tcAssignedToUser.html, scoped to user+build+plan,
 // resizable 800x600 popup.
 function userLink(u, buildId) {
   var url = assignmentUrl +
     '?user_id=' + encodeURIComponent(u.user_id) +
     '&build_id=' + encodeURIComponent(buildId) +
-    '&tplan_id=' + encodeURIComponent(tplanId);
+    '&tplan_id=' + encodeURIComponent(tplanId) +
+    '&tproject_id=' + encodeURIComponent(tprojectId);
   return '<a class="userlink" href="' + esc(url) + '" ' +
     'onclick="window.open(this.href,\'assignment_overview\',\'width=800,height=600,left=100,top=100,resizable=yes,scrollbars=yes\');return false;">' +
     esc(u.login) + '</a>';

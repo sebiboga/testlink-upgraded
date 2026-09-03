@@ -931,9 +931,9 @@ if ($action === 'metrics_by_tester_per_build') {
         'show_closed_builds' => $showClosed,
         'columns' => $columns,
         'builds' => $buildsOut,
-        // user link target kept on the legacy controller (assignment
-        // overview popup behaviour unchanged)
-        'assignment_url' => '/lib/testcases/tcAssignedToUser.php',
+        // user link target -> modernized Test Cases Assigned to User popup
+        // (Refs #840); the URL lacks tproject_id which the client injects.
+        'assignment_url' => '/gui/templates/results/tcAssignedToUser.html',
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ];
     out($payload);
