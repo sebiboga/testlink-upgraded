@@ -9801,7 +9801,7 @@ now open the modern screen.
 | TC-844.6 | Front-end 404 path | open `execPrint.html?id=99999` | banner "Execution not found"; print button disabled; content hidden | PASS (CDP) |
 | TC-844.7 | Front-end 403 path | open `execPrint.html?id=<exec>` as `noprint` | banner "You do not have permission to view this execution"; print disabled; content hidden | PASS (CDP) |
 | TC-844.8 | Print button | click `#printBtn` | triggers `window.print()` (print dialog; verified handler bound) | PASS |
-| TC-844.9 | delete_attachment guard | `...?action=delete_attachment&id=<exec>` (no deleteAttachmentID) → 400; `id=99999&deleteAttachmentID=1` → 404 | 400 / 404 | PASS (curl) |
+| TC-844.9 | delete_attachment contract | GET → 405 (destructive action is POST-only, CSRF-guarded); POST (no deleteAttachmentID) → 400; POST bogus id (not in session list = not this exec's attachment) → 409 | 405 / 400 / 409 | PASS (curl) |
 | TC-844.10 | i18n keys in all bundles | `execprint.*` in `gui/templates/i18n/*.json` (10) | all keys present; every JSON validates (`python3 -m json.tool`) | PASS |
 | TC-844.11 | in-app links switched | grep `execPrint.php` in `execTest.html` + `execHistory.html` | both now open `execPrint.html?id=`; no `execPrint.php` remains in modern screens | PASS |
 | TC-844.12 | Event Viewer clean | `SELECT ... FROM events WHERE log_level>=3` after modernized flows | no Error/Warning (the stray `print_execution` lang warning from the pre-fix dev iteration was from a removed `lang_get` call — gone after fix) | PASS |

@@ -144,7 +144,7 @@ function bindInlineDeletes() {
     e.preventDefault();
     $.ajax({
       url: API + '?action=delete_attachment&id=' + EXEC_ID + '&deleteAttachmentID=' + delId,
-      method: 'GET'
+      method: 'POST'
     }).done(function (r) {
       if (r.status === 'ok') {
         toast(TLi18n.t('execprint.attDeleted'), true);

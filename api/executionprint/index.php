@@ -27,15 +27,22 @@
  *  - Unknown / forged execution id -> 404 (no E_WARNING events).
  *
  * Routes:
- *   GET ?action=print&id=N
+ *   GET  ?action=print&id=N
  *        -> { status, exec_id, page_title, body_html, meta{...} }
  *        Access: authenticated + testplan_execute on owning test project.
+ *   POST ?action=delete_attachment&id=N&deleteAttachmentID=M
+ *        -> { status, deleted, exec_id }
+ *        Access: authenticated + testplan_execute on owning test project.
+ *        (POST only — a destructive action; same-origin guard applies.)
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
 require_once(__DIR__ . '/../../cfg/reports.cfg.php');
 require_once('common.php');
 require_once(__DIR__ . '/../../lib/functions/print.inc.php');
+if (!function_exists('deleteAttachment')) {
+    require_once(__DIR__ . '/../../lib/functions/attachments.inc.php');
+}
 
 doSessionStart();
 
@@ -77,7 +84,7 @@ function resolveExecution(&$db, $execId) {
         " E.platform_id, E.execution_duration, E.notes," .
         " B.name AS build_name" .
         " FROM {$t['executions']} E" .
-        " JOIN {$t['builds']} B ON B.id = E.build_id" .
+        " LEFT JOIN {$t['builds']} B ON B.id = E.build_id" .
         " WHERE E.id = {$execId}");
     if (is_null($er) || count($er) == 0) {
         return null;
@@ -91,32 +98,38 @@ function resolveExecution(&$db, $execId) {
     return $row;
 }
 
-if ($action === 'print') {
-    if ($id <= 0) {
+/**
+ * Resolve an execution and enforce testplan_execute on the owning test
+ * project (the same gate as api/execute). Outputs 404/403 and exits on
+ * failure; returns the resolved row on success.
+ */
+function resolveAndAuthorize(&$db, &$user, $execId) {
+    if ($execId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Missing id']);
     }
-
-    $row = resolveExecution($db, $id);
+    $row = resolveExecution($db, $execId);
     if (is_null($row)) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Execution not found']);
     }
-
     $tprojectId = intval($row['tproject_id']);
     $tplanId = intval($row['testplan_id']);
     if ($tprojectId <= 0 || $tplanId <= 0) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Execution not found']);
     }
-
-    // Same gate as api/execute: the owning test project must grant
-    // testplan_execute. Attachment-management inside the render already
-    // re-checks this on $context['user'].
     if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
+    return $row;
+}
+
+if ($action === 'print') {
+    $row = resolveAndAuthorize($db, $user, $id);
+    $tprojectId = intval($row['tproject_id']);
+    $tplanId = intval($row['testplan_id']);
 
     // Ensure basehref is available to the print renderer (it builds the
     // direct public link and any absolute asset URLs).
@@ -159,6 +172,36 @@ if ($action === 'print') {
             'tproject_id' => $tprojectId,
             'tplan_id' => $tplanId,
         ],
+    ]);
+}
+
+if ($action === 'delete_attachment') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'Method not allowed']);
+    }
+    $row = resolveAndAuthorize($db, $user, $id);
+    $deleteAttachmentID = isset($_GET['deleteAttachmentID'])
+        ? intval($_GET['deleteAttachmentID']) : 0;
+    if ($deleteAttachmentID <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing deleteAttachmentID']);
+    }
+
+    // deleteAttachment() ownership-checks the id against the session list of
+    // this execution's attachments (populated by the print render), so a
+    // forged id from another execution is rejected; it returns the info (or
+    // null when not found / not authorized to delete). Mirrors legacy
+    // execPrint's deleteAttachment() flow, but now on an explicit POST that
+    // the same-origin CSS guard enforces.
+    if (!deleteAttachment($db, $deleteAttachmentID)) {
+        http_response_code(409);
+        out(['status' => 'error', 'message' => 'Attachment not found']);
+    }
+    out([
+        'status' => 'ok',
+        'deleted' => true,
+        'exec_id' => $id,
     ]);
 }
 
