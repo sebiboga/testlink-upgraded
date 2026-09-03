@@ -187,6 +187,13 @@ if($tplanID > 0) {
       } else if($rptItem['title'] == 'link_report_free_testcases_on_testproject') {
         $hrefR = 'gui/templates/results/freeTestCases.html' .
                  "?tproject_id={$tprojectID}";
+      // Refs #843 - Uncovered Test Cases report modernized;
+      // the BFF (api/reports uncovered_testcases action) mirrors the legacy
+      // lib/results/uncoveredTestCases.php logic (test cases with no linked
+      // requirement) and enforces testplan_metrics. Project-scoped.
+      } else if($rptItem['title'] == 'link_report_uncovered_testcases') {
+        $hrefR = 'gui/templates/results/uncoveredTestCases.html' .
+                 "?tproject_id={$tprojectID}";
       // Refs #691 - Requirements Coverage report modernized;
       // the BFF (api/reports metrics_results_reqs action) mirrors the very same
       // legacy resultsReqs.php logic and enforces testplan_metrics.

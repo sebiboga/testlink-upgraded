@@ -212,13 +212,14 @@ $tlCfg->reports_list['results_requirements'] = array(
 );
 
 
-// disabled TICKET 37006 - disabled uncovered_testcases report 
-//$tlCfg->reports_list['uncovered_testcases'] = array( 
-//	'title' => 'link_report_uncovered_testcases',
-//	'url' => 'lib/results/uncoveredTestCases.php',
-//	'enabled' => 'req',
-//	'format' => 'format_html'
-//);
+// Refs #843 - Uncovered Test Cases report modernized
+// (gui/templates/results/uncoveredTestCases.html + api/reports uncovered_testcases action).
+$tlCfg->reports_list['uncovered_testcases'] = array( 
+	'title' => 'link_report_uncovered_testcases',
+	'url' => 'gui/templates/results/uncoveredTestCases.html',
+	'enabled' => 'req',
+	'format' => 'format_html'
+);
 
 $tlCfg->reports_list['list_problems'] = array( 
 	'title' => 'link_report_total_bugs',
