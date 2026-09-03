@@ -9398,6 +9398,28 @@ in as admin/admin. Data source: live GitHub API
 
 ---
 
+### Regression — Issue #829: get_builds getCount early-return regression
+
+**Precondition:** Fixture project 2000 (plans 2001/2002, build 3001 `v1.0`), fresh DB.
+**Repro (pre-fix):** Run `php tmp/repro_829.php` — 9 of 12 checks FAIL because:
+1. `get_builds()` non-getCount branch used `testplan_id` (hotfix from #841)
+2. `get_builds()` getCount branch had no early return → fell through to `fetchRowsIntoMap` with undefined `$sql`/`$accessField`/`$groupBy`, overwriting correct result
+
+**Post-fix (current):** `php tmp/repro_829.php` → 12/12 PASS; `php tmp/repro_829_nr.php` → 4/4 PASS.
+Dashboard loads without error. Event Viewer shows no new Error/Warning.
+
+| # | Check | Input | Expected | Result |
+|---|-------|-------|----------|--------|
+| REG-829.1 | `get_builds` non-getCount branch | `get_builds(2001)` | contains project build 3001 | PASS |
+| REG-829.2 | `get_builds` getCount early return | `get_builds([2001,2002],getCount)` | map[2001]=array(build_qty=>1), map[2002]=array(build_qty=>1) | PASS |
+| REG-829.3 | `getNumberOfBuilds` project scope | `getNumberOfBuilds(2002)` | 1 | PASS |
+| REG-829.4 | Dashboard loads | `GET /index.php` | HTTP 200, no JS error | PASS |
+| REG-829.5 | Plan View loads | `GET /lib/plan/planView.php` | HTTP 200, shows 2 plans | PASS |
+
+- **Fix:** Added `return $rs;` at end of getCount branch in `testplan::get_builds()` (lib/functions/testplan.class.php:2319) + restored 2 reverted lines to use `testproject_id` instead of `testplan_id`.
+
+---
+
 ### Sub-task #830 — reporting joins scoped to plan's project
 Fixture: project 2000 (plans 2001/2002, project build 3001 `v1.0`).
 
