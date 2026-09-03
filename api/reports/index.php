@@ -4592,5 +4592,158 @@ if ($action === 'more_builds') {
     ]);
 }
 
+// ── uncovered_testcases ──────────────────────────────────────────────
+// Uncovered Test Cases report — mirrors lib/results/uncoveredTestCases.php
+// (Refs #843). For the current test project, list test cases that have NO
+// requirement assigned (no row in req_coverage), grouped by test suite.
+// Right gate: testplan_metrics (same as legacy checkRights()).
+if ($action === 'uncovered_testcases') {
+    $timerOn = microtime(true);
+
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test project id']);
+    }
+
+    $projInfo = $tprojectMgr->get_by_id($tprojectId);
+    if (is_null($projInfo) || !isset($projInfo['name'])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid test project id']);
+    }
+
+    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // 1. Does the project define any req spec? Does any hold requirements?
+    $reqSpec = $tprojectMgr->genComboReqSpec($tprojectId);
+    $hasReqSpec = is_array($reqSpec) && count($reqSpec) > 0;
+
+    $hasRequirements = false;
+    if ($hasReqSpec) {
+        $reqSpecMgr = new requirement_spec_mgr($db);
+        foreach ($reqSpec as $reqSpecID => $name) {
+            try {
+                $cnt = $reqSpecMgr->get_requirements_count($reqSpecID);
+            } catch (Exception $e) {
+                $cnt = 0;
+            }
+            if ($hasRequirements = ($cnt > 0)) {
+                break;
+            }
+        }
+        unset($reqSpecMgr);
+    }
+
+    $tables = tlObjectWithDB::getDBTables(
+        ['req_coverage', 'nodes_hierarchy', 'tcversions', 'node_types']);
+    $uncovered = [];
+
+    if ($hasRequirements) {
+        // All test case ids (active/inactive) in the test project.
+        $tcasesID = null;
+        $tprojectMgr->get_all_testcases_id($tprojectId, $tcasesID);
+
+        if (!is_null($tcasesID) && count($tcasesID) > 0) {
+            $inIds = implode(',', array_map('intval', array_keys($tcasesID)));
+            $sql = "SELECT NHA.id AS tc_id, NHA.name, NHA.parent_id AS testsuite_id, " .
+                   "REQC.req_id " .
+                   " FROM {$tables['nodes_hierarchy']} NHA " .
+                   " JOIN {$tables['node_types']} NT ON NHA.node_type_id=NT.id " .
+                   " LEFT OUTER JOIN {$tables['req_coverage']} REQC on REQC.testcase_id=NHA.id " .
+                   " WHERE NT.description='testcase' AND NHA.id IN ({$inIds}) " .
+                   " AND REQC.req_id IS NULL";
+            $uncovered = $db->fetchRowsIntoMap($sql, 'tc_id');
+        }
+    }
+
+    // 2. External ids for the uncovered test cases.
+    if (is_array($uncovered) && count($uncovered) > 0) {
+        $testSet = array_map('intval', array_keys($uncovered));
+        $inClause = implode(',', $testSet);
+        $sql = "SELECT DISTINCT NHA.id AS tc_id, TCV.tc_external_id " .
+               " FROM {$tables['nodes_hierarchy']} NHA, " .
+               " {$tables['nodes_hierarchy']} NHB, " .
+               " {$tables['tcversions']} TCV, {$tables['node_types']} NT " .
+               " WHERE NHA.node_type_id=NT.id AND NHA.id=NHB.parent_id AND NHB.id=TCV.id " .
+               " AND NHA.id IN ({$inClause}) AND NT.description='testcase'";
+        $externalId = $db->fetchRowsIntoMap($sql, 'tc_id');
+        foreach ($externalId as $key => $value) {
+            if (isset($uncovered[$key])) {
+                $uncovered[$key]['external_id'] = $value['tc_external_id'];
+            }
+        }
+    }
+
+    $tcaseCfg = config_get('testcase_cfg');
+    $tcPrefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+    if (is_null($tcPrefix)) {
+        $tcPrefix = '';
+    }
+    $tcPrefix .= $tcaseCfg->glue_character;
+
+    // 3. Group uncovered test cases by test suite (preserving the legacy
+    //    gen_spec_view ordering: suite name -> its test cases).
+    $suites = [];
+    if (is_array($uncovered) && count($uncovered) > 0) {
+        $tcIds = array_map('intval', array_keys($uncovered));
+
+        // Suite display name per suite id.
+        $suiteIds = [];
+        foreach ($uncovered as $tcInfo) {
+            $sid = intval($tcInfo['testsuite_id'] ?? 0);
+            if ($sid > 0) {
+                $suiteIds[$sid] = $sid;
+            }
+        }
+        $suiteNames = [];
+        if (count($suiteIds) > 0) {
+            $nhTable = tlObjectWithDB::getDBTables(['nodes_hierarchy']);
+            $sql = 'SELECT id, name FROM ' . $nhTable['nodes_hierarchy'] .
+                   ' WHERE id IN (' . implode(',', $suiteIds) . ')';
+            $suiteRows = $db->fetchRowsIntoMap($sql, 'id');
+            foreach ($suiteRows as $sid => $srow) {
+                $suiteNames[$sid] = $srow['name'];
+            }
+        }
+
+        foreach ($uncovered as $tcId => $tcInfo) {
+            $sid = intval($tcInfo['testsuite_id'] ?? 0);
+            $suiteKey = $sid > 0 ? $sid : 0;
+            $suiteName = $sid > 0 ? ($suiteNames[$sid] ?? ('#' . $sid)) : '';
+            if (!isset($suites[$suiteKey])) {
+                $suites[$suiteKey] = [
+                    'suite_id' => $sid,
+                    'suite_name' => $suiteName,
+                    'tc_count' => 0,
+                    'testcases' => [],
+                ];
+            }
+            $suites[$suiteKey]['testcases'][] = [
+                'tc_id'        => intval($tcId),
+                'external_id'  => ($tcPrefix . ($tcInfo['external_id'] ?? '')),
+                'name'         => strip_tags($tcInfo['name'] ?? ''),
+            ];
+            $suites[$suiteKey]['tc_count']++;
+        }
+        ksort($suites);
+    }
+
+    $suiteList = array_values($suites);
+
+    out([
+        'status'           => 'ok',
+        'tproject_id'      => $tprojectId,
+        'tproject_name'    => $projInfo['name'],
+        'has_reqspec'      => $hasReqSpec,
+        'has_requirements' => $hasRequirements,
+        'has_data'         => count($suiteList) > 0,
+        'suites'           => $suiteList,
+        'elapsed_time'     => round(microtime(true) - $timerOn, 2),
+    ]);
+    exit;
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Unknown action']);
