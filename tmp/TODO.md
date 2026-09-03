@@ -5,7 +5,7 @@ Updated: 2026-09-03 · Owner: opencode (sebi urmărește)
 ---
 
 ## IN PROGRESS (current)
-None — last session finished Search Test Cases suite (823). Ready for next screen.
+None — all pending TODO items finished. Ready for next screen or backlog.
 
 ## NEXT (ASIDE menu order)
 Per AGENTS.md rule 1: top to bottom, one screen at a time.
@@ -30,6 +30,9 @@ Check `tmp/ASIDE-MENU.md` for remaining un-modernized screens.
 | Search Test Cases (full screen) | #822 | DONE — suite 823 (18/18); 2 bugs found+fixed (#823/#824) |
 | Quick Search | #662/#789 | DONE — suites 22/25/799 |
 | Advanced Search | #662/#789 | DONE — suites 28/28b/34 |
+| TC Assignment Overview popup | #840 | DONE — BFF + HTML + i18n (CLOSED) |
+| MD Import screen | #540 | DONE — BFF + HTML + i18n + security review (#842 for feature parity) |
+| Test Plan Report | #608 | DONE — BFF + HTML + i18n (CLOSED) |
 
 ## COMPLETED (do not redo)
 - [x] Config whitelist: jpeg/webp/bmp/heic/heif/pdf/txt (`8098ef3f2`, Fixes #821)
@@ -48,21 +51,23 @@ Check `tmp/ASIDE-MENU.md` for remaining un-modernized screens.
 - [x] Regression suites appended (MD import, dash, execute, event viewer, keywords, search)
 - [x] Async linked-bugs enrichment + paperclip real-link fix (`faccc789f`)
 - [x] Suite 819 (21/21 PASS) — Test Suite viewer popup regression
+- [x] Bug #839: Loading linked bugs spinner stuck forever (`203c8fcba`, CLOSED)
+- [x] Bug #841: Dashboard builds schema mismatch hotfix (`eb4df8315`, CLOSED)
+- [x] Issue #840: TC Assignment Overview popup (CLOSED — all done)
+- [x] Docs/Wiki mirror for #821/#823/#839/#841 (`3bb9dc7d4`, wiki pushed)
+- [x] Junk data cleanup: execs 29/30 deleted, att id=1 at exec 28
+- [x] MD import security review: info auth, containerID scope, memory cap, exception sanitization, `$_REQUEST→$_POST` (`b8b71fff1`)
 
 ## PENDING (known gaps)
-- [ ] MD import: code review subagent over parser+BFF diff (security/correctness)
-- [ ] MD import: `update_last_version` / `generate_new` actions (legacy parity)
-- [ ] MD import: `hitCriteria internalID / externalID` (legacy parity)
-- [ ] Docs/Wiki update: async enrich/paperclip/dashboard changes (not yet mirrored)
-- [ ] Junk data cleanup: execs 29/30, attachment id=1 repointed to exec 28
+- [ ] MD import feature parity: `update_last_version` / `generate_new` + `internalID` / `externalID` hitCriteria — filed as **#842**
 
 ## BACKLOG (tracked elsewhere)
-- #540 MD Test Case Import — UI screen pending (TBD: tcImport.html + BFF info endpoint)
+- #540 MD Test Case Import — DONE (UI + BFF + i18n + security review)
 - #542 Execution History modernization — DONE on remote (CI)
 - #543 i18n bundles — DONE
 
 ## GIT STATE
-- Branch: `sebiboga` (local == remote at `39d9c5b11`)
+- Branch: `sebiboga` (local == remote at `b8b71fff1`)
 - CI: `fix-bug.yml` runs every 2h (newest open `bug`-labelled issue → fix/* branch → PR)
 - `tmp/TLU_Test_Cases.md` tracked via `git add -f` (gitignored)
 
