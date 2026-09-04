@@ -71,6 +71,7 @@ Two charts provide a visual overview of event distribution:
 - Area-filled line chart with the TestLink teal accent color
 - Automatically generated from the filtered dataset
 - Uses Chart.js v1 `Line` with bezier curves
+- **Hover tooltip:** moving the pointer over a plotted point shows a dark tooltip with the date and event count (e.g. `2026-09-04: 2`), matching the doughnut chart's tooltip. Implemented in `gui/templates/dashio/lib/tl-line-tooltip.js` because the bundled Chart.js v1 build has no native tooltip support.
 
 Both charts update whenever the **Apply** button is clicked with new filter settings.
 
@@ -217,3 +218,4 @@ The Event Viewer uses the standard Dashio color palette:
 |------|---------|
 | `gui/templates/eventviewer/eventviewer.html` | Frontend page (HTML + JS + CSS, no PHP) |
 | `api/eventviewer/index.php` | BFF API (plain PHP, no framework) |
+| `gui/templates/dashio/lib/tl-line-tooltip.js` | Hover-tooltip shim for the line chart (mirror of `tl-pie-tooltip.js`) |
