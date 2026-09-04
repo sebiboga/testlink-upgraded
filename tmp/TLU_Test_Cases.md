@@ -10062,3 +10062,30 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Note (#834):** `build.class.php` INSERT dual-write (`testplan_id` column) and `get_by_id` `tplan_id` filter
   fallback remain — intentionally deferred to #834 when the column is dropped and the unique key swapped to
   `(testproject_id, name)`.
+
+## Regression — Issue #503 sub-tasks #832 & #833: builds scoped to Test Project
+
+- **Priority:** High · **Importance:** High
+- **Scope:** Syntax + contract verification for build project-scoping:
+  - **#833 (API):** `createBuild` now accepts an OPTIONAL `testprojectid` (takes
+    precedence over the plan-derived project when supplied; must equal the plan's
+    project, else rejected). Dead `_getLatestBuildForTestPlan()` ref was fixed.
+    REST v2/v3 `createBuild` accept optional `testprojectid` (422 on mismatch).
+  - **#832 (execution UI):** already project-scoped; verified, no code change.
+- **Precondition:** DB reachable, plans 2001/2002 in project 2000 with a shared
+  project build 3001 'v1.0'.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-833.1 | createBuild without testprojectid | `createBuild({testplanid:61, buildname:'X'})` | build created in plan's project (derived), legacy-compatible | PENDING (needs DB; `repro_833.php`) |
+| TC-833.2 | createBuild with matching testprojectid | `createBuild({testplanid:61, testprojectid:<plan's project>})` | build created OK | PENDING |
+| TC-833.3 | createBuild with mismatched testprojectid | pass a project != plan's project | rejected (INVALID_TESTPROJECTID) | PENDING |
+| TC-833.4 | REST createBuild mismatched testprojectid | POST /testprojects/:id/builds with wrong testprojectid | HTTP 422 | PENDING |
+| TC-833.5 | dead code | grep `_getBuildsForTestPlan` | no non-existent call remains | PASS |
+| TC-833.6 | syntax gate | `php -l` on xmlrpc.class.php, tlRestApi.class.php, RestApi.class.php, locales | no syntax errors | PASS |
+| TC-832.1 | build dropdown project scope | execSetResults/execDashboard under plan 2002 expose shared build 3001 | shared project build selectable/executable | PASS (`repro_832.php`) |
+
+- **Result:** Syntax + dead-code checks PASS in sandbox. API round-trips
+  (TC-833.1–833.4) are PENDING because no reachable DB exists in the sandbox
+  (`mariadbd` not listening on 3306/3307); run `php tmp/repro_833.php` and
+  `php tmp/repro_832.php` against a live instance to confirm.

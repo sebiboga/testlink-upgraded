@@ -1417,6 +1417,22 @@ class TestlinkXMLRPCServer extends IXR_Server {
         if($status_ok) {
             $status_ok = $this->_isParamPresent( self::$buildNameParamName, $messagePrefix, self::SET_ERROR );
         }
+        // Issue #503 sub-task #833: `testprojectid` is OPTIONAL. When supplied it must be a
+        // valid test project AND the project the selected test plan belongs to (a mismatch
+        // would create the build in a different project scope than the plan, which is invalid).
+        if($status_ok && $this->_isTestProjectIDPresent()) {
+            $status_ok = $this->checkTestProjectID( $messagePrefix );
+            if($status_ok) {
+                $testPlanID = intval( $this->args[self::$testPlanIDParamName] );
+                $projectOfPlan = intval( $this->tplanMgr->getProjectIdOfPlan( $testPlanID ) );
+                $testProjectID = intval( $this->args[self::$testProjectIDParamName] );
+                if($projectOfPlan <= 0 || $testProjectID !== $projectOfPlan) {
+                    $status_ok = false;
+                    $this->errors[] = new IXR_Error( INVALID_TESTPROJECTID,
+                        $messagePrefix . sprintf( INVALID_TESTPROJECTID_STR, $testProjectID ) );
+                }
+            }
+        }
 
         return $status_ok;
     }
@@ -1457,7 +1473,13 @@ class TestlinkXMLRPCServer extends IXR_Server {
     }
 
     /**
-     * Gets the latest build by choosing the maximum build id for a specific test plan
+     * Gets the latest build by choosing the maximum build id for a specific test plan.
+     *
+     * Issue #503 sub-task #833: builds are scoped to the Test Project. This method
+     * therefore returns the latest build of the plan's PROJECT (not only the plan),
+     * because the underlying `testplan::get_max_build_id()` / `testplan::get_builds()`
+     * resolve in project scope. Clients passing `testplanid` may now receive a build
+     * that was created on a different plan of the same project.
      *
      * @param struct $args
      * @param string $args["devKey"]
@@ -1499,11 +1521,18 @@ class TestlinkXMLRPCServer extends IXR_Server {
     /**
      * _getLatestBuildForTestPlan
      *
+     * Returns the latest build (max id) of the plan's PROJECT as a single-element
+     * array. Issue #503 sub-task #833: builds are resolved in project scope via
+     * `testplan::get_builds()`.
+     *
      * @param struct $args
      *
      */
     protected function _getLatestBuildForTestPlan($args) {
-        $builds = $this->_getBuildsForTestPlan( $args );
+        $builds = $this->tplanMgr->get_builds( $args[self::$testPlanIDParamName] );
+        if(empty( $builds )) {
+            return array();
+        }
         $maxid = - 1;
         $maxkey = - 1;
         foreach( $builds as $key => $build ) {
@@ -1914,11 +1943,25 @@ class TestlinkXMLRPCServer extends IXR_Server {
     }
 
     /**
-     * Creates a new build for a specific test plan
+     * Creates a new build for a specific test plan.
+     *
+     * The `builds` entity is scoped to the Test Project (issue #503). As part of
+     * sub-task #833 the `testprojectid` parameter is now accepted OPTIONALLY and,
+     * when supplied, defines the project the build is created in. For backwards
+     * compatibility the legacy `testplanid` remains the required parameter and is
+     * still used for the rights check; when `testprojectid` is omitted the creating
+     * project is derived from the plan. When `testprojectid` IS supplied it MUST be
+     * the project the plan belongs to (a mismatch is rejected).
      *
      * @param struct $args
      * @param string $args["devKey"]
      * @param int $args["testplanid"]
+     *            REQUIRED. The test plan the build is created against. Also used for
+     *            the `testplan_create_build` right check.
+     * @param int $args["testprojectid"]
+     *            OPTIONAL. The test project (build scope) the build belongs to. When
+     *            present it takes precedence and must equal the plan's project. When
+     *            absent the project is derived from `testplanid`.
      * @param string $args["buildname"];
      * @param string $args["buildnotes"];
      * @param string $args["active"];
@@ -1947,6 +1990,13 @@ class TestlinkXMLRPCServer extends IXR_Server {
         // check the tpid
         if($this->_checkCreateBuildRequest( $messagePrefix ) && $this->userHasRight( "testplan_create_build", self::CHECK_PUBLIC_PRIVATE_ATTR )) {
             $testPlanID = intval( $this->args[self::$testPlanIDParamName] );
+            // Issue #503 sub-task #833: builds are scoped to the Test Project. `testprojectid`
+            // is OPTIONAL and takes precedence when supplied; otherwise the project is derived
+            // from the plan (backward compatible with the legacy testplanid-only call).
+            $testProjectID = $this->_isTestProjectIDPresent()
+                ? intval( $this->args[self::$testProjectIDParamName] )
+                : intval( $this->tplanMgr->getProjectIdOfPlan( $testPlanID ) );
+
             $buildName = $this->args[self::$buildNameParamName];
             $buildNotes = "";
             if($this->_isBuildNotePresent()) {
@@ -1984,16 +2034,16 @@ class TestlinkXMLRPCServer extends IXR_Server {
                 }
 
                 $bm = new build( $this->dbObj );
-                $insertID = $bm->create( $testPlanID, $buildName, $buildNotes, $opt[self::$activeParamName], $opt[self::$openParamName], $opt[self::$releaseDateParamName] );
+                $insertID = $bm->create( $testPlanID, $buildName, $buildNotes, $opt[self::$activeParamName], $opt[self::$openParamName], $opt[self::$releaseDateParamName], $testProjectID );
 
                 if($insertID > 0) {
                     $sourceBuild = intval( $opt[self::$copyTestersFromBuildParamName] );
 
                     if($sourceBuild > 0) {
-                        // Builds are scoped to the Test Project (issue #503): the source build
-                        // must belong to the SAME project as the plan (not necessarily the same plan).
+                        // Builds are scoped to the Test Project (issue #503 sub-task #833): the source build
+                        // must belong to the SAME project as the target build (not necessarily the same plan).
                         $sql = " SELECT id FROM {$this->tables['builds']} " . " WHERE id = " . $sourceBuild .
-                               " AND testproject_id = " . $this->tplanMgr->getProjectIdOfPlan( $testPlanID );
+                               " AND testproject_id = " . $testProjectID;
                         $rs = $this->dbObj->get_recordset( $sql );
 
                         if(count( $rs ) == 1) {
@@ -2064,7 +2114,12 @@ class TestlinkXMLRPCServer extends IXR_Server {
     }
 
     /**
-     * Gets a list of builds within a test plan
+     * Gets a list of builds within a test plan.
+     *
+     * Issue #503 sub-task #833: builds are scoped to the Test Project. The name is kept
+     * for backward compatibility but the semantics are now "builds of this plan's
+     * project" — the returned set may include builds that were created on other plans
+     * of the same project.
      *
      * @param struct $args
      * @param string $args["devKey"]
@@ -2656,6 +2711,12 @@ class TestlinkXMLRPCServer extends IXR_Server {
      * @param int $args["buildname"]
      *            - optional.
      *            if not present Build with higher internal ID will be used
+     *
+     *            Issue #503 sub-task #833 BREAKING CHANGE: builds are scoped to the
+     *            Test Project, so `buildname` is resolved against the plan's PROJECT,
+     *            not the plan alone. A name that was previously unique within a single
+     *            plan may now resolve to a build belonging to a different plan of the
+     *            same project.
      *
      *
      * @param string $args["notes"]

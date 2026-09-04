@@ -3190,6 +3190,7 @@ $TLS_API_BUILDID_NOGUESS = "Guessing is disabled so a buildid must be specified!
 $TLS_API_BUILDID_NOT_INTEGER = "The Build ID (buildid: %s) is not an integer";
 
 $TLS_API_BUILDNAME_ALREADY_EXISTS = "Build name (%s) already exists (id:%s)";
+$TLS_API_BUILD_PROJECT_MISMATCH = "Test project id (%s) does not match the test project of the provided test plan";
 $TLS_API_BUILDNAME_DOES_NOT_EXIST = "Build Name (buildname: %s) provided does not exist!";
 $TLS_API_NO_BUILDID = "No buildid provided. A valid buildid must be provided!";
 $TLS_API_TCASEID_NOT_IN_TPLANID = "Test Case (name=%s/id=%s) is not associated with Test Plan (name=%s/id=%s).";

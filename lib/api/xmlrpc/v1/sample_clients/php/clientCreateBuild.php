@@ -26,10 +26,13 @@ $unitTestDescription="Test {$test_num} - {$method}";
 $args=array();
 $args["devKey"]=$devKey;
 $args["testplanid"]=61;
+// Issue #503 sub-task #833: `testprojectid` is OPTIONAL. When supplied it must be
+// the test project the plan belongs to. When omitted the project is derived from the plan.
+$args["testprojectid"]=1;
 $args["buildname"]='Abril 230';
 $args["buildnotes"]='Created via API 3';
 $args["copytestersfrombuild"]='3';
-$additionalInfo='';
+$additionalInfo=' + testprojectid (optional, #833)';
 
 $debug=true;
 echo $unitTestDescription;

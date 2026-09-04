@@ -106,6 +106,7 @@ class tlRestApi
                 'API_TESTPLAN_ID_DOES_NOT_EXIST' => null,
                 'API_TESTPLAN_APIKEY_DOES_NOT_EXIST' => null,
                 'API_BUILDNAME_ALREADY_EXISTS' => null,
+                'API_BUILD_PROJECT_MISMATCH' => null,
                 'API_INVALID_BUILDID' => null);
 
     $this->l10n = init_labels($tl);
@@ -782,6 +783,12 @@ class tlRestApi
    * 
    *               if check is OK, tester assignments will be copied.
    *
+   * @param int    [testprojectid]
+   *               - OPTIONAL (Issue #503 sub-task #833)
+   *               - builds are scoped to the Test Project.
+   *               - when supplied, must be the test project the provided
+   *                 test plan belongs to, otherwise a 422 error is returned.
+   *
    */
   public function createBuild() {
 
@@ -841,6 +848,20 @@ class tlRestApi
     }
 
     if( $statusOK ) {
+      // Issue #503 sub-task #833: accept an OPTIONAL `testprojectid`. Builds are scoped
+      // to the Test Project, so when supplied it must equal the plan's project (a
+      // mismatch would create the build in a different scope than the plan).
+      if( property_exists($item, 'testprojectid') && !is_null($item->testprojectid) ) {
+        $reqProject = intval($item->testprojectid);
+        $planProject = intval($tplan['testproject_id']);
+        if( $planProject <= 0 || $reqProject !== $planProject ) {
+          $statusOK = false;
+          $op['details'][] =
+            sprintf($this->l10n['API_BUILD_PROJECT_MISMATCH'], $reqProject);
+          $this->app->status(422);
+        }
+      }
+
       // Ready to check user permissions
       $context = array('tplan_id' => $tplan['id'], 
                        'tproject_id' => $tplan['testproject_id']);
