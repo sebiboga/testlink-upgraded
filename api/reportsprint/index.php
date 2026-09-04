@@ -49,7 +49,6 @@
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
-require_once(__DIR__ . '/../../cfg/reports.cfg.php');
 require_once('common.php');
 
 doSessionStart();
@@ -112,7 +111,7 @@ if ($tprojectId <= 0) {
 if ($tplanId <= 0) {
     $tplanId = isset($_GET['docTestPlanId']) ? intval($_GET['docTestPlanId']) : 0;
 }
-$format = isset($_GET['format']) ? intval($_GET['format']) : FORMAT_HTML;
+$format = isset($_GET['format']) ? intval($_GET['format']) : 0; // FORMAT_HTML
 $buildId = isset($_GET['build_id']) ? intval($_GET['build_id']) : 0;
 if ($id <= 0 && $level === 'testproject') { $id = $tprojectId; }
 if ($id <= 0) {
@@ -130,7 +129,11 @@ if (is_null($proj) || !isset($proj['name'])) {
     http_response_code(404);
     out(['status' => 'error', 'message' => 'Test project not found']);
 }
-$planBasedTypes = [DOC_TEST_PLAN_DESIGN, DOC_TEST_PLAN_EXECUTION, DOC_TEST_PLAN_EXECUTION_ON_BUILD];
+// Plan-based doc types (string literals = DOC_TEST_PLAN_* values from
+// cfg/reports.cfg.php, which we intentionally do NOT load here so the legacy
+// plain `require` inside printDocument.php defines them exactly once and no
+// "constant already defined" E_WARNING events are emitted).
+$planBasedTypes = ['testplan', 'testreport', 'testreport_onbuild'];
 if (in_array($docType, $planBasedTypes, true)) {
     $tplanInfo = $tplanMgr->get_by_id($tplanId);
     if (is_null($tplanInfo) || !isset($tplanInfo['tproject_id']) ||
@@ -204,7 +207,7 @@ if ($action === 'download') {
     }
     // legacy flushHttpHeader() already set attachment headers for non-HTML;
     // for HTML we set them here after the buffer is cleaned.
-    if ($format === FORMAT_HTML) {
+    if ($format === 0) { // FORMAT_HTML
         $filename = (($_SESSION['testprojectPrefix'] ?? '') ?: 'report') .
             '-test_plan-' . date('Y-m-d') . '.html';
         header('Content-Type: text/html; charset=utf-8');
