@@ -2986,6 +2986,7 @@ if ($action === 'tplan_with_cf') {
             'rows' => [],
             'warning_msg' => lang_get('no_linked_tplan_cf'),
             'elapsed_time' => round(microtime(true) - $timerOn, 2),
+            'generated_on' => date('Y-m-d H:i:s'),
         ]);
         exit;
     }
@@ -3029,7 +3030,7 @@ if ($action === 'tplan_with_cf') {
                 ? $pathItem['value'] : '';
 
             $externalId = buildExternalIdString(
-                $proj['prefix'] . $tcCfg->glue_character,
+                $proj['prefix'],
                 $row0['tc_external_id']);
 
             // Collect custom field values
@@ -3075,6 +3076,7 @@ if ($action === 'tplan_with_cf') {
         'rows' => $rows,
         'warning_msg' => $warningMsg,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
+        'generated_on' => date('Y-m-d H:i:s'),
     ]);
     exit;
 }
