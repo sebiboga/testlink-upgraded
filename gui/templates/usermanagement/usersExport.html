@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Management Export</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-block; }
+.btn-dark:hover { background: #4a4e59; color: #fff; text-decoration: none; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
+.form-table td.lbl { width: 240px; font-weight: 700; color: #22242a; }
+input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-users"></i> <span data-i18n="userexport.title">User Management Export</span>
+  <span class="sub" data-i18n="userexport.subtitle">export the full user list to an XML file</span>
+</div>
+
+<div class="toolbar">
+  <a class="btn-dark" id="btnBack" href="#"><i class="fa fa-arrow-left"></i> <span data-i18n="userexport.backToUsers">Back to User Management</span></a>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="card">
+  <div class="card-head"><i class="fa fa-file-export"></i> <span data-i18n="userexport.exportSettings">Export settings</span></div>
+  <div class="card-body">
+    <p style="font-size:13px;color:#444;margin-top:0;" data-i18n="userexport.info">Generates an XML file (users.xml) with login, role, email, first/last name, locale, default test project, active flag and expiration date for every user.</p>
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><span data-i18n="userexport.userCount">Users to export</span></td>
+        <td><b id="userCount" style="color:#22242a;">-</b></td>
+      </tr>
+      <tr>
+        <td class="lbl"><label for="exportFilename" data-i18n="userexport.filename">Export filename</label></td>
+        <td>
+          <input type="text" id="exportFilename" required>
+          <div class="hint" data-i18n="userexport.filenameHint">The file is downloaded as XML.</div>
+        </td>
+      </tr>
+    </table>
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="userexport.export">Export Users to XML</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="userexport.footer">TestLink 2.0.1 - User Management Export</span></div>
+
+<div class="toast" id="toast"></div>
+<div class="loading-overlay" id="loadingOverlay"><span><i class="fa fa-spinner fa-spin"></i> <span data-i18n="userexport.exporting">Exporting users, please wait...</span></span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/usersexport/index.php';
+var ctx = { tproject_id: 0, tplan_id: 0 };
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g,
+    function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+}
+
+function toast(msg, isErr) {
+  var t = $('#toast');
+  t.text(msg).removeClass('err').toggleClass('err', !!isErr).fadeIn(250);
+  clearTimeout(t.data('tm'));
+  t.data('tm', setTimeout(function () { t.fadeOut(250); }, 3500));
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnExport').prop('disabled', true);
+}
+
+function loadInfo() {
+  $.getJSON(API, { action: 'info' })
+    .done(function (d) {
+      if (d.status === 'error') {
+        showFatal(d.message || TLi18n.t('userexport.errLoad'));
+        return;
+      }
+      if (d.grants && d.grants.mgt_users !== 1) {
+        showFatal(TLi18n.t('userexport.noRights'));
+        return;
+      }
+      $('#userCount').text(d.count);
+      if (d.filename) { $('#exportFilename').val(d.filename); }
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('userexport.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    });
+}
+
+function doExport() {
+  var fn = ($('#exportFilename').val() || '').trim();
+  if (!fn) { toast(TLi18n.t('userexport.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
+
+  $('#loadingOverlay').show().find('span').text(TLi18n.t('userexport.exporting'));
+  $('#btnExport').prop('disabled', true);
+
+  $.ajax({
+    url: API,
+    method: 'POST',
+    data: { action: 'export', export_filename: fn },
+    xhrFields: { responseType: 'blob' },
+    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
+  }).done(function (blob, textStatus, xhr) {
+    var contentType = xhr.getResponseHeader('Content-Type') || '';
+    if (contentType.indexOf('application/json') !== -1) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var msg = TLi18n.t('userexport.errExport');
+        try { msg = JSON.parse(reader.result).message || msg; } catch (e2) {}
+        toast(msg, true);
+        $('#loadingOverlay').hide();
+        $('#btnExport').prop('disabled', false);
+      };
+      reader.readAsText(blob);
+      return;
+    }
+    var url = window.URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fn;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+    toast(TLi18n.t('userexport.done'));
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('userexport.errExport');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e3) {}
+    toast(msg, true);
+    $('#loadingOverlay').hide();
+    $('#btnExport').prop('disabled', false);
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  ctx.tproject_id = parseInt(p.get('tproject_id') || '0', 10);
+  ctx.tplan_id = parseInt(p.get('tplan_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#btnBack').attr('href', 'usersView.html?tproject_id=' + ctx.tproject_id + '&tplan_id=' + ctx.tplan_id);
+    $('#btnExport').on('click', doExport);
+    $('#exportFilename').on('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); doExport(); }
+    });
+    loadInfo();
+  });
+});
+</script>
+</body>
+</html>
