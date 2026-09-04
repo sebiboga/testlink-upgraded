@@ -64,7 +64,7 @@ function getProjectSuites($dbHandler, $tprojectId) {
     $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'node_types'));
     $typeRows = $dbHandler->get_recordset(
         "SELECT id, description FROM {$tables['node_types']} " .
-        "WHERE description IN ('testproject','testsuite','testcase')");
+        "WHERE description IN ('testproject','testsuite','testcase','testcase_version')");
     if (is_null($typeRows)) {
         return ['byName' => [], 'types' => []];
     }
@@ -223,11 +223,14 @@ if ($action === 'import_md') {
 
     // legacy parity options
     $hitCriteria = strtolower(trim(strval($_POST['hit_criteria'] ?? 'name')));
-    if (!in_array($hitCriteria, ['name', 'internalID', 'externalID'], true)) {
+    if (!in_array($hitCriteria, ['name', 'internalid', 'externalid'], true)) {
         http_response_code(400);
         out(['status' => 'error',
              'message' => 'Invalid hit_criteria']);
     }
+    // canonically re-case so downstream (and the legacy XML switch) match
+    $hitCriteria = ($hitCriteria === 'internalid') ? 'internalID'
+                  : (($hitCriteria === 'externalid') ? 'externalID' : 'name');
     $actionOnHit = strtolower(trim(strval($_POST['action_on_hit'] ?? 'skip')));
     if (!in_array($actionOnHit, ['skip', 'update_last_version', 'generate_new', 'create_new_version'], true)) {
         http_response_code(400);
@@ -257,15 +260,28 @@ if ($action === 'import_md') {
     $tsuiteMgr = new testsuite($db);
 
     $tcTypeId = intval($suitesIndex['types']['testcase'] ?? -1);
-    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $tcVersionTypeId = intval($suitesIndex['types']['testcase_version'] ?? 4);
+    $tables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
     $existingCasesBySuite = [];
+    $existingCasesByNode = [];
+    $existingCasesByExternal = [];
     $rows = $db->get_recordset(
-        "SELECT NH.parent_id AS suite_id, NH.id AS tcase_id, NH.name " .
-        "FROM {$tables['nodes_hierarchy']} NH WHERE NH.node_type_id = {$tcTypeId}");
+        "SELECT NH.parent_id AS suite_id, NH.id AS tcase_id, NH.name, TCV.tc_external_id " .
+        "FROM {$tables['nodes_hierarchy']} NH " .
+        "LEFT JOIN {$tables['nodes_hierarchy']} NHV " .
+        "        ON NHV.parent_id = NH.id AND NHV.node_type_id = {$tcVersionTypeId} " .
+        "LEFT JOIN {$tables['tcversions']} TCV ON TCV.id = NHV.id " .
+        "WHERE NH.node_type_id = {$tcTypeId}");
     if (!is_null($rows)) {
         foreach ($rows as $r) {
-            $key = strtolower(trim(strval($r['name'])));
-            $existingCasesBySuite[intval($r['suite_id'])][$key] = intval($r['tcase_id']);
+            $suiteId = intval($r['suite_id']);
+            $tcId = intval($r['tcase_id']);
+            $existingCasesBySuite[$suiteId][strtolower(trim(strval($r['name'])))] = $tcId;
+            $existingCasesByNode[$suiteId][$tcId] = $tcId;
+            $ext = intval($r['tc_external_id'] ?? 0);
+            if ($ext > 0 && !isset($existingCasesByExternal[$suiteId][$ext])) {
+                $existingCasesByExternal[$suiteId][$ext] = $tcId;
+            }
         }
     }
 
@@ -313,10 +329,27 @@ if ($action === 'import_md') {
             }, is_array($c['steps']) ? $c['steps'] : []);
             $importance = intval($c['importance']) ?: 2;
 
-            if ($actionOnHit !== 'generate_new' && isset($existingCasesBySuite[$suiteId][$nameKey])) {
+            // Select the duplicate index + match key per hit_criteria (legacy
+            // parity with lib/testcases/tcImport.php:280-296).
+            $existingTcId = 0;
+            if ($hitCriteria === 'externalID') {
+                $ext = intval($c['tcId'] ?? 0);
+                if ($ext > 0 && isset($existingCasesByExternal[$suiteId][$ext])) {
+                    $existingTcId = $existingCasesByExternal[$suiteId][$ext];
+                }
+            } elseif ($hitCriteria === 'internalID') {
+                $nodeId = intval($c['tcId'] ?? 0);
+                if ($nodeId > 0 && isset($existingCasesByNode[$suiteId][$nodeId])) {
+                    $existingTcId = $existingCasesByNode[$suiteId][$nodeId];
+                }
+            } elseif (isset($existingCasesBySuite[$suiteId][$nameKey])) {
+                $existingTcId = $existingCasesBySuite[$suiteId][$nameKey];
+            }
+
+            if ($actionOnHit !== 'generate_new' && $existingTcId > 0) {
                 if ($actionOnHit === 'skip') {
                     $skipped[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                                  'reason' => 'duplicate title in target suite'];
+                                  'reason' => 'duplicate in target suite'];
                     continue;
                 }
                 // create_new_version / update_last_version
@@ -326,7 +359,7 @@ if ($action === 'import_md') {
                     continue;
                 }
                 try {
-                    $existingTcId = intval($existingCasesBySuite[$suiteId][$nameKey]);
+                    $existingTcId = intval($existingTcId);
                     $vr = $tcaseMgr->create_new_version($existingTcId, intval($userId));
                     $okV = is_array($vr)
                         ? (isset($vr['status_ok']) ? intval($vr['status_ok']) : 1)
@@ -475,10 +508,13 @@ if ($action === 'import_xml') {
     $intoProject = getIntParam('intoProject') === 1;
 
     $hitCriteria = strtolower(trim(strval($_REQUEST['hit_criteria'] ?? 'name')));
-    if (!in_array($hitCriteria, ['name', 'internalID', 'externalID'], true)) {
+    if (!in_array($hitCriteria, ['name', 'internalid', 'externalid'], true)) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid hit_criteria']);
     }
+    // canonically re-case so the legacy XML switch matches
+    $hitCriteria = ($hitCriteria === 'internalid') ? 'internalID'
+                  : (($hitCriteria === 'externalid') ? 'externalID' : 'name');
     $actionOnHit = strtolower(trim(strval($_REQUEST['action_on_hit'] ?? 'skip')));
     if (!in_array($actionOnHit, ['skip', 'update_last_version', 'generate_new', 'create_new_version'], true)) {
         http_response_code(400);
