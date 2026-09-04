@@ -9902,13 +9902,15 @@ documented findings only).
 | TC-845.8 | no-permission user | login `norpt2` (role 3), fetch `action=print&…tproject_id=1&tplan_id=13` | HTTP 403 `No permission` | PASS (browser) |
 | TC-845.9 | guest-with-right user | login `norpt` (guest role 5 holds testplan_metrics), fetch `action=print&…` | HTTP 200 (correctly allowed) | PASS (browser) |
 | TC-845.10 | navigator whole-plan button | open `testPlanReport.html?tproject_id=1&tplan_id=13&type=testplan` (admin), click **Print whole test plan report** | opens NEW tab `reportPrint.html?type=testplan&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&opts=toc=n&headerNumbering=n…&summary=y…` and renders the report | PASS (browser) |
-| TC-845.11 | navigator per-build links | `api/reports?action=tp_report_init&type=testreport_onbuild&tproject_id=1&tplan_id=13` | builds[].report_url point to `reportPrint.html?…&build_id=…` (not `lnl.php`) | PASS (browser fetch) |
+| TC-845.11 | navigator per-build links | `api/reports?action=tp_report_init&type=testreport_onbuild&tproject_id=1&tplan_id=13` | builds[].report_url point to `/reportPrint.html?…&build_id=<bid>&format=0` (absolute path, not `lnl.php`) | PASS (browser fetch) |
+| TC-845.16 | popup forwards build_id (per-build report) | open a per-build `report_url` (build_id=1) in the admin browser; inspect network + rendered body | BFF receives `build_id=1`; rendered title "Test Plan Execution Report (on specific build)" NOT the whole-plan "Test Plan Design Report"; no whole-plan "Execution time metrics" section | PASS (browser; `window.buildId`=1, title confirmed) |
 | TC-845.12 | print popup render | open `reportPrint.html?…&opts=summary=y` (admin) | Dashio toolbar (Print/Download/Close) + project context; report body shows RP One summary, RP Two, RP Three | PASS (browser) |
 | TC-845.13 | Event Viewer clean | `SELECT * FROM events WHERE id > 234` (after all above incl. many print downloads) | no new Error/Warning (the duplicate-`reports.cfg.php` E_WARNING bug is fixed) | PASS |
 | TC-845.14 | no JS console errors | throughout | 0 errors/warnings | PASS (browser) |
 | TC-845.15 | locale loads | popup on en (then ro bundles present) | header/localized labels render; no missing-key | PASS (browser) |
+| TC-845.17 | build2 closed per-build link | open per-build `report_url` for build_id=2 (closed) in admin browser | still opens the popup and forwards build_id=2; per-build report renders | PASS (browser) |
 
-- **Result:** **15/15 PASS** (TC-845.1–845.15). Test Plan Report print modernized
+- **Result:** **17/17 PASS** (TC-845.1–845.17). Test Plan Report print modernized
   end-to-end: legacy `printDocument.php` generator ported behind the BFF
   (`api/reportsprint`) + new Dashio print popup (`reportPrint.html`); navigator
   `PRINT_SCREEN` and per-build `report_url` re-pointed off the legacy
@@ -9924,3 +9926,10 @@ documented findings only).
   scope after `chdir('lib/results')`; including it from a helper function scope
   makes its nested `cfg/reports.cfg.php` include run where the global `$tlCfg` is
   invisible (`Attempt to assign property on null`). Both documented in the BFF header.
+- **Note 3 (bug found in code review & fixed):** the first `reportPrint.html` never
+  parsed/forwarded `build_id`, so a per-build link opened the whole-plan document
+  instead of the per-build ("on specific build") report. Fixed by parsing
+  `build_id` from the URL and appending it to the BFF query (only when > 0);
+  also made the per-build `report_url` absolute (leading `/`). Re-verified: per-build
+  link now renders "Test Plan Execution Report (on specific build)".
+
