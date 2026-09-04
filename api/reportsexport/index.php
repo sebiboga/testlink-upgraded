@@ -188,6 +188,12 @@ if (isset($_GET['build_set']) && is_array($_GET['build_set'])) {
     $params['build_set'] = $_GET['build_set'];
 }
 
+// results_by_status: forward the single-letter status code to the legacy
+// controller's "type" param (resultsByStatus.php reads type=f|b|n).
+if (isset($_GET['status_code'])) {
+    $params['type'] = $_GET['status_code'];
+}
+
 // Forward platform_id for reports that are scoped per platform
 // (e.g. absolute_latest builds platform_id into its export URL).
 $platformId = intval($_GET['platform_id'] ?? 0);

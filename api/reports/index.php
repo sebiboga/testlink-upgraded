@@ -2255,8 +2255,8 @@ if ($action === 'by_status') {
     }
 
     // BFF gateway for XLS download + email
-    $xlsUrl = '/api/reportsexport/index.php?action=results_by_status&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
-    $mailUrl = '/api/reportsexport/index.php?action=results_by_status_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $xlsUrl = '/api/reportsexport/index.php?action=results_by_status&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . '&status_code=' . $statusCode;
+    $mailUrl = '/api/reportsexport/index.php?action=results_by_status_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . '&status_code=' . $statusCode;
 
     $bugsMsg = '';
     if (!$isNotRun) {
