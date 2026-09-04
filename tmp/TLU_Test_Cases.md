@@ -10010,3 +10010,14 @@ documented findings only).
 | TC-854.12 | Event Viewer clean | After all export flows, `SELECT * FROM events WHERE log_level>=2` | No new Error/Warning rows from export testing | PASS (checked 2026-09-04) |
 
 - **Result:** **12/12 PASS** (TC-854.1–854.12). The reportsexport BFF gateway correctly validates auth/rights/target, then 303-redirects to the legacy controller for XLS/mail generation. All 10 report screens' export buttons now go through the BFF — no legacy `.php` references remain in any modernized report screen frontend.
+
+
+- **Suite 854 addendum (TC-854.13–854.15) — results matrix + results_by_status export fixes (Refs #854, Fixes #855)**
+
+| TC | Title | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-854.13 | results matrix export URLs use results_matrix action | Call BFF `action=metrics_results_matrix` with data present; inspect `export_xls_url`/`send_mail_url` | Both point to `action=results_matrix`/`results_matrix_mail` (not `assigned_tc_overview`) | PASS: `/api/reportsexport/index.php?action=results_matrix(...)` / `results_matrix_mail` |
+| TC-854.14 | results_by_status XLS download works | `?action=results_by_status&tplan_id=200&tproject_id=100&status_code=f` follow redirect | 200 `application/vnd.ms-excel` (not 500), non-empty `.xls` | PASS: 200 XLS (5120 bytes) |
+| TC-854.15 | results_by_status without matching data no longer 500s | Legacy `resultsByStatus.php?format=3&type=f` with no tester-assigned rows (before guard: count(null) fatal) | 200 empty `.xls`, no TypeError | PASS: 200 XLS after `is_array()` guard |
+
+- **Suite 854 updated:** **15/15 PASS.** Follow-up fixes: (a) results matrix export action renamed to `results_matrix`/`results_matrix_mail`; (b) `status_code` forwarded to legacy `type` param for results_by_status; (c) legacy PHP 8.x `count(null)` regression in `lib/results/resultsByStatus.php:782` guarded (Fixes #855).
