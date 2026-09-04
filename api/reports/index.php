@@ -377,14 +377,11 @@ if ($action === 'metrics_general') {
         // ordered platform list ([id => name]) so the client renders the
         // "* on platform X" sections in the same natsort order as legacy
         'platform_set' => $platformSet,
-        // legacy lib/results/resultsGeneral.php endpoints kept for the two
-        // export buttons - document/mail/spreadsheet generation stays legacy.
-        // Root-relative (sibling convention, see testPlanReport.html
-        // PRINT_URL): the page lives under /gui/templates/results/.
-        'send_mail_url' => '/lib/results/resultsGeneral.php?format=' .
-            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId,
-        'export_xls_url' => '/lib/results/resultsGeneral.php?format=' .
-            FORMAT_XLS . '&tplan_id=' . $tplanId . '&spreadsheet=1',
+        // Export endpoints go through the authenticated BFF gateway
+        // (api/reportsexport) which validates auth + rights, then proxies
+        // to the legacy controller for actual XLS/mail generation.
+        'send_mail_url' => '/api/reportsexport/index.php?action=general_metrics_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
+        'export_xls_url' => '/api/reportsexport/index.php?action=general_metrics&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
     ];
 
     if (!is_null($tsInf)) {
@@ -505,15 +502,9 @@ if ($action === 'metrics_by_tsuite') {
             },
             array_keys($platformSet)),
         // legacy lib/results/resultsByTSuite.php endpoints kept for the two
-        // toolbar buttons - mail/spreadsheet generation stays legacy.
-        // Root-relative (sibling convention, see generalMetrics.html):
-        // the page lives under /gui/templates/results/.
-        'send_mail_url' => '/lib/results/resultsByTSuite.php?format=' .
-            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
-            '&tproject_id=' . $tprojectId,
-        'export_xls_url' => '/lib/results/resultsByTSuite.php?format=' .
-            FORMAT_XLS . '&tplan_id=' . $tplanId .
-            '&tproject_id=' . $tprojectId . '&spreadsheet=1',
+        // Export endpoints go through the authenticated BFF gateway
+        'send_mail_url' => '/api/reportsexport/index.php?action=results_by_tsuite_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
+        'export_xls_url' => '/api/reportsexport/index.php?action=results_by_tsuite&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
     ];
 
     if (!is_null($tsInf) && !empty($tsInf->infoL2)) {
@@ -771,15 +762,9 @@ if ($action === 'metrics_baseline_l1l2') {
         'columns' => $columns,
         'platform_blocks' => $platBlocks,
         // legacy lib/results/baselinel1l2.php endpoints kept for the two
-        // toolbar buttons - mail/spreadsheet generation stays legacy.
-        // Root-relative (sibling convention, see resultsByTSuite.html):
-        // the page lives under /gui/templates/results/.
-        'send_mail_url' => '/lib/results/baselinel1l2.php?format=' .
-            FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
-            '&tproject_id=' . $tprojectId,
-        'export_xls_url' => '/lib/results/baselinel1l2.php?format=' .
-            FORMAT_XLS . '&tplan_id=' . $tplanId .
-            '&tproject_id=' . $tprojectId . '&spreadsheet=1',
+        // Export endpoints go through the authenticated BFF gateway
+        'send_mail_url' => '/api/reportsexport/index.php?action=baseline_l1l2_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
+        'export_xls_url' => '/api/reportsexport/index.php?action=baseline_l1l2&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ];
     out($payload);
@@ -1061,14 +1046,9 @@ if ($action === 'metrics_results_matrix') {
 
     if ($needSelection) {
         $payload['builds'] = $buildsOut;
-        // keep toolbar exports functional in launcher mode as well
-        // (legacy launcher page exposes the same two endpoints)
-        $xlsBase0 = '/lib/results/resultsTC.php?format=' . FORMAT_XLS .
-            '&doAction=result&tplan_id=' . $tplanId .
-            '&tproject_id=' . $tprojectId;
-        $payload['export_xls_url'] = $xlsBase0 . '&exportSpreadSheet_x=1';
-        $payload['send_mail_url'] =
-            $xlsBase0 . '&sendSpreadSheetByMail_x=1';
+        // BFF gateway for XLS download + email
+        $payload['export_xls_url'] = '/api/reportsexport/index.php?action=results_matrix&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+        $payload['send_mail_url'] = '/api/reportsexport/index.php?action=results_matrix_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
         out($payload);
     }
 
@@ -1272,22 +1252,16 @@ if ($action === 'metrics_results_matrix') {
     $payload['hasData'] = count($rowsOut) > 0;
     $payload['rows'] = $rowsOut;
 
-    // Toolbar keeps the two legacy endpoints (XLS download + email) exactly
-    // like the other modernized reports keep theirs. Provided in launcher
-    // mode too so the buttons still work after a build-selection apply.
-    $xlsBase = '/lib/results/resultsTC.php?format=' . FORMAT_XLS .
-        // legacy controller reads doAction (camelCase) - with do_action the
-        // >buildQtyLimit path would land on the launcher instead of exporting
-        '&doAction=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId;
+    // BFF gateway for XLS download + email (assigned_tc_overview)
+    $exportUrl = '/api/reportsexport/index.php?action=assigned_tc_overview&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
-        $xlsBase .= '&buildListForExcel=' . implode(',', $idSet);
+        $exportUrl .= '&buildListForExcel=' . implode(',', $idSet);
         foreach ($idSet as $bid) {
-            $xlsBase .= '&build_set%5B%5D=' . intval($bid);
+            $exportUrl .= '&build_set%5B%5D=' . intval($bid);
         }
     }
-    $payload['export_xls_url'] = $xlsBase . '&exportSpreadSheet_x=1';
-    $payload['send_mail_url'] = $xlsBase . '&sendSpreadSheetByMail_x=1';
+    $payload['export_xls_url'] = $exportUrl;
+    $payload['send_mail_url'] = str_replace('action=assigned_tc_overview&', 'action=assigned_tc_overview_mail&', $exportUrl);
 
     out($payload);
 }
@@ -1822,17 +1796,15 @@ if ($action === 'results_flat') {
     $payload['hasData'] = count($rowsOut) > 0;
     $payload['rows'] = $rowsOut;
 
-    // Legacy XLS export endpoint
-    $xlsBase = '/lib/results/resultsTCFlat.php?format=' . FORMAT_XLS .
-        '&do_action=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId;
+    // BFF gateway for XLS export
+    $exportUrl = '/api/reportsexport/index.php?action=results_tc_flat&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
-        $xlsBase .= '&buildListForExcel=' . implode(',', $idSet);
+        $exportUrl .= '&buildListForExcel=' . implode(',', $idSet);
         foreach ($idSet as $bid) {
-            $xlsBase .= '&build_set%5B%5D=' . intval($bid);
+            $exportUrl .= '&build_set%5B%5D=' . intval($bid);
         }
     }
-    $payload['export_xls_url'] = $xlsBase;
+    $payload['export_xls_url'] = $exportUrl;
 
     $payload['elapsed_time'] =
         round(microtime(true) - $timerOn, 2);
@@ -1886,13 +1858,9 @@ if ($action === 'absolute_latest_init') {
         ? !empty($projOpts->testPriorityEnabled)
         : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
 
-    // XLS export URL (stays on legacy controller)
-    $exportXlsUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
-        FORMAT_XLS . '&doAction=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId;
-    $sendMailUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
-        FORMAT_MAIL_HTML . '&doAction=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId;
+    // BFF gateway for XLS download + email
+    $exportXlsUrl = '/api/reportsexport/index.php?action=absolute_latest&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $sendMailUrl = '/api/reportsexport/index.php?action=absolute_latest_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     out([
         'status' => 'ok',
@@ -2048,13 +2016,9 @@ if ($action === 'absolute_latest_result') {
         }
     }
 
-    // XLS export URLs (legacy controller handles format=XLS)
-    $exportXlsUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
-        FORMAT_XLS . '&doAction=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
-    $sendMailUrl = '/lib/results/resultsTCAbsoluteLatest.php?format=' .
-        FORMAT_MAIL_HTML . '&doAction=result&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
+    // BFF gateway for XLS download + email (with platform)
+    $exportXlsUrl = '/api/reportsexport/index.php?action=absolute_latest&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
+    $sendMailUrl = '/api/reportsexport/index.php?action=absolute_latest_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . '&platform_id=' . $platformId;
 
     // Platform name for header
     $platformMap = $tplanMgr->getPlatforms($tplanId, ['outputFormat' => 'map']);
@@ -2287,9 +2251,9 @@ if ($action === 'by_status') {
         $warningMsg = lang_get($warningMsgKey);
     }
 
-    // XLS export URLs (legacy controller handles XLS/email generation)
-    $xlsBase = '/lib/results/resultsByStatus.php?tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId . '&type=' . $statusCode;
+    // BFF gateway for XLS download + email
+    $xlsUrl = '/api/reportsexport/index.php?action=results_by_status&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $mailUrl = '/api/reportsexport/index.php?action=results_by_status_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     $bugsMsg = '';
     if (!$isNotRun) {
@@ -2339,8 +2303,8 @@ if ($action === 'by_status') {
         'bugs_msg' => $bugsMsg,
         'cf_columns' => $cfColumns,
         'rows' => $rows,
-        'export_xls_url' => $xlsBase . '&format=' . FORMAT_XLS . '&exportSpreadSheet_x=1',
-        'send_mail_url' => $xlsBase . '&format=' . FORMAT_MAIL_HTML . '&sendSpreadSheetByMail_x=1',
+        'export_xls_url' => $xlsUrl,
+        'send_mail_url' => $mailUrl,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
 }
@@ -2547,8 +2511,7 @@ if ($action === 'never_run_init') {
         }
     }
 
-    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
-        "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
+    $exportUrl = '/api/reportsexport/index.php?action=never_run&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     out([
         'status' => 'ok',
@@ -2648,8 +2611,7 @@ if ($action === 'never_run_result') {
 
     $projInfo = $tprojectMgr->get_by_id($tprojectId);
 
-    $exportUrl = "/lib/results/neverRunByPP.php?format=" . FORMAT_XLS .
-        "&tplan_id={$tplanId}&tproject_id={$tprojectId}&doAction=result";
+    $exportUrl = '/api/reportsexport/index.php?action=never_run&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     out([
         'status' => 'ok',
@@ -3791,13 +3753,9 @@ if ($action === 'exec_timeline') {
         natsort($platformSet);
     }
 
-    // Legacy export URLs kept for mail/spreadsheet buttons.
-    $sendMailUrl = '/lib/results/execTimelineStats.php?format=' .
-        FORMAT_MAIL_HTML . '&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId;
-    $exportXlsUrl = '/lib/results/execTimelineStats.php?format=' .
-        FORMAT_XLS . '&tplan_id=' . $tplanId .
-        '&tproject_id=' . $tprojectId . '&spreadsheet=1';
+    // BFF gateway for XLS download + email
+    $sendMailUrl = '/api/reportsexport/index.php?action=exec_timeline_stats_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $exportXlsUrl = '/api/reportsexport/index.php?action=exec_timeline_stats&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     $payload = [
         'status' => 'ok',
