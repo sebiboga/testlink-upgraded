@@ -179,6 +179,7 @@ $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
+    document.title = TLi18n.t('userexport.title');
     $('#btnBack').attr('href', 'usersView.html?tproject_id=' + ctx.tproject_id + '&tplan_id=' + ctx.tplan_id);
     $('#btnExport').on('click', doExport);
     $('#exportFilename').on('keydown', function (e) {

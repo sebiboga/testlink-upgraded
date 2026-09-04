@@ -10194,3 +10194,64 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Result:** **6/6 PASS** against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
 - **Syntax gate:** `php -l api/mainpage/index.php` → no syntax errors.
 - **Screenshots:** `docs/screenshots/issue-862-dashboard-failed.png` (pre-fix), `docs/screenshots/issue-862-dashboard-fixed.png` (post-fix restored schema).
+
+---
+
+## 71. Modernization — User Management Export (usersExport.html) (Suite ID: 71)
+
+**Date:** 2026-09-04
+**Area:** `gui/templates/usermanagement/usersExport.html` + `api/usersexport/index.php` (legacy `lib/usermanagement/usersExport.php` parity; linked from `usersView.html` toolbar Export button via `gotoExport()`).
+**Purpose:** Modernized XML export of the full user list, replacing the legacy `usersExport.php` form submit. Right required: `mgt_users` (same as legacy). Parity fields per user: `id, login, role_id, email, first, last, locale, default_testproject_id, active, expiration_date`.
+**Status:** EXECUTED — 13/13 PASS. Fixtures: fresh DB (admin id 1); fixture user `noperm` (id 2, globalRole guest = role id 5, no `mgt_users`) created via `POST /api/users` (admin).
+
+| Test | Description | Steps | Expected | Result |
+|---|---|---|---|---|
+| TC-71.1 | Toolbar link switch | usersView.html toolbar → click Export | Mainframe navigates to `usersExport.html?tproject_id=0&tplan_id=0` | PASS |
+| TC-71.2 | Screen renders + i18n | Load usersExport.html as admin | Header "User Management Export", subtitle, card "Users to export: 2", filename input default `users.xml`, Export button, footer | PASS |
+| TC-71.3 | BFF info context | `GET /api/usersexport/?action=info` | 200: `filename=users.xml`, `count=2`, `exportTypes.XML=XML`, `grants.mgt_users=1` | PASS |
+| TC-71.4 | Export streams legacy XML | `POST action=export` | `text/xml` + `Content-Disposition attachment; filename="users.xml"`; `<users>` with all 10 legacy fields per user, both admin+noperm | PASS |
+| TC-71.5 | Custom filename honored | `export_filename=my_users.xml` | `Content-Disposition` uses `my_users.xml` | PASS |
+| TC-71.6 | Filename sanitization | `export_filename=../../etc/evil.xml` | basename-applied → `filename="evil.xml"`, no traversal | PASS |
+| TC-71.7 | Empty filename validation | clear filename → Export | Toast `userexport.errEmptyFilename`, NO POST | PASS |
+| TC-71.8 | BFF no-right 403 | noperm GET info / POST export | HTTP 403 `{"status":"error","message":"No rights","right":"mgt_users"}` both routes | PASS |
+| TC-71.9 | Screen no-right state | Login as noperm, load screen | WarwBox `userexport.noRights` + Export button disabled | PASS |
+| TC-71.10 | Unauthenticated | fresh session info | HTTP 401 `Not authenticated` | PASS |
+| TC-71.11 | Syntax gate | `php -l api/usersexport/index.php` | No syntax errors | PASS |
+| TC-71.12 | i18n in all bundles | grep `userexport.` + `user.export` in 10 bundles | All 10 contain 16 `userexport.*` keys + `user.export`, JSON valid | PASS |
+| TC-71.13 | Event Viewer clean | Query events after all runs | Only log_level 16 (LOGIN/LOGOUT/CREATE); zero ERROR/WARNING | PASS |
+
+### TC-71.1: usersView toolbar Export → usersExport.html
+- **Priority:** High / **Importance:** High
+- **Preconditions:** logged-in admin; usersView.html in mainframe.
+- **Steps:**
+  1. Click toolbar **Export** (new button, `data-i18n="user.export"`). *Expected:* mainframe navigates to `usersExport.html?tproject_id=<tproject>&tplan_id=<tplan>`.
+- **Result:** PASS
+
+### TC-71.4: Export returns legacy-parity XML with attachment headers
+- **Priority:** High / **Importance:** High
+- **Preconditions:** admin session.
+- **Steps:**
+  1. `POST /api/usersexport/` body `action=export&export_filename=users.xml`, header `X-Requested-With: XMLHttpRequest`.
+     *Expected:* 200; `Content-Type: text/xml; charset=ISO-8859-1`; `Content-Disposition: attachment; filename="users.xml"`; body `<?xml version='1.0'?><users><user>...`.
+  2. Verify per-user field set. *Expected:* exactly `id,login,role_id,email,first,last,locale,default_testproject_id,active,expiration_date` (CDATA), both `admin` and `noperm` rows present (`grep -c "<user>"` = 2).
+- **Result:** PASS
+
+### TC-71.8/TC-71.9: no mgt_users → BFF 403 + screen warn state
+- **Priority:** High / **Importance:** High
+- **Preconditions:** fixture user `noperm` (guest, id 2); only role 8 (admin) holds `mgt_users`.
+- **Steps:**
+  1. As noperm: `GET ?action=info`. *Expected:* HTTP 403 `{"status":"error","message":"No rights","right":"mgt_users"}`.
+  2. As noperm: `POST action=export`. *Expected:* HTTP 403 same.
+  3. Browser as noperm: load `usersExport.html`. *Expected:* lock warn-box `userexport.noRights` ("You do not have the mgt_users right required to export users."), Export button disabled.
+- **Result:** PASS
+
+### TC-71.12: i18n keys reach all locale bundles
+- **Priority:** Medium / **Importance:** High
+- **Steps:**
+  1. For each of en/de/es/fr/it/ja/pt/ro/ru/zh: confirm the 16 `userexport.*` keys (`title, subtitle, backToUsers, exportSettings, info, userCount, filename, filenameHint, export, exporting, done, errEmptyFilename, errLoad, errExport, noRights, footer`) and `user.export`. *Expected:* all present; `python3 -m json.tool` valid on all 10.
+- **Result:** PASS
+
+- **Result:** **13/13 PASS** against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
+- **Syntax gate:** `php -l api/usersexport/index.php` → no syntax errors.
+- **Screenshots:** `docs/screenshots/usersExport-normal.png`, `docs/screenshots/usersExport-norights.png`.
+- **Tracking:** Refs #920 (closes gap #880).

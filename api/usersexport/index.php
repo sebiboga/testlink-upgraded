@@ -131,8 +131,9 @@ if ($action === 'export') {
     if ($exportFilename === '') {
         $exportFilename = defaultExportFilename();
     }
-    // Safety: basename only + strip CR/LF/quotes to avoid header injection.
-    $exportFilename = basename($exportFilename);
+    // Safety: basename only + strip CR/LF/quotes to avoid header injection;
+    // cap the length at the legacy field size (STRING_N 0,100).
+    $exportFilename = substr(basename($exportFilename), 0, 100);
     $headerFilename = str_replace(["\r", "\n", '"'], '', $exportFilename);
     if ($headerFilename === '') {
         $headerFilename = defaultExportFilename();
