@@ -180,22 +180,22 @@ jobs:
             echo "analyzing explicitly requested screen: ${SCREEN_INPUT}"
             echo "$SCREEN_INPUT" > .ci_screen
           else
-            # NEXT screen not yet marked "✓ analysed" in docs/SCREEN-COMPARE-STATUS.md.
-            # Rows the analyzer appended look like: | <n> | gui/templates/<area>/<screen>.html | ✓ | <verdict> |
-            # Un-analyzed rows have an empty marker column. First such row wins.
+            # NEXT screen not yet "✓" in docs/SCREEN-COMPARE-STATUS.md.
+            # Hierarchical format (Level|Parent|...): each row is
+            #   | # | Level | gui/templates/<area>/<screen>.html | BFF | Parent | Legacy | Status | Issues | Verdict |
+            # So the modern screen path is column 4 and Status is column 8.
+            # Picking the FIRST row with an empty Status (top-down) yields a
+            # breadth-first walk: all L1 rows before their L2/L3 sub-screens,
+            # and a parent is handled before any of its sub-screens.
             SCREEN="$(
-              awk -F'|' '/\.html/ { gsub(/ /,"",$3); if ($3 != "" && $4 !~ /✓/ && $4 !~ /x/) { print $3; exit } }' \
-                docs/SCREEN-COMPARE-STATUS.md 2>/dev/null
+              awk -F'|' 'NR>1 && /\.html/ {
+                path=$4; gsub(/^ +| +$/,"",path); gsub(/`/,"",path); status=$8; gsub(/^ +| +$/,"",status);
+                if (path != "" && status != "✓" && status != "x" && status != "X") { print path; exit }
+              }' docs/SCREEN-COMPARE-STATUS.md 2>/dev/null
             )"
             echo "$SCREEN" > .ci_screen
             if [ -z "$SCREEN" ]; then
-              echo "::notice::docs/SCREEN-COMPARE-STATUS.md empty/unreadable or every row already ✓ — falling back to first modernized screen"
-              # prime the file with one row for the first modernized screen (from MODERNIZATION-STATUS)
-              FIRST="$(
-                sed -n 's|.*`\([a-zA-Z0-9_/]*\.html\)`.*|\1|p' docs/MODERNIZATION-STATUS.md | grep -v '^$' | head -1
-              )"
-              echo "| 1 | $FIRST | | pending |" > docs/SCREEN-COMPARE-STATUS.md
-              echo "$FIRST" > .ci_screen
+              echo "::notice::every screen row already ✓ (or status file unreadable) — nothing left to compare"
             fi
           fi
           ANALYZING_SCREEN="$(cat .ci_screen 2>/dev/null || true)"
@@ -205,6 +205,10 @@ jobs:
       - name: Run opencode — feature-analyze this one modernized screen vs legacy
         timeout-minutes: 50
         run: |
+          if [ -z "${ANALYZING_SCREEN}" ]; then
+            echo "no screen left to compare — nothing to do this run"
+            exit 0
+          fi
           date -d '+45 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are a FEATURE ANALYZER for this TestLink 2.0.1 modernization project. "
           PROMPT+="Read ai/AGENTS.md in the repo root FIRST and follow its labeling/triage rules strictly. "
@@ -226,12 +230,12 @@ jobs:
           PROMPT+=""
           if [ -n "${ANALYZING_SCREEN}" ]; then
             PROMPT+="SCREEN TO ANALYZE THIS RUN (this is the ONLY screen you may look at): ${ANALYZING_SCREEN}. "
+            PROMPT+="Its Level/Parent are recorded in docs/SCREEN-COMPARE-STATUS.md. "
           else
-            PROMPT+="SCREEN SELECTION: pick the FIRST modernized screen in docs/MODERNIZATION-STATUS.md's DONE "
-            PROMPT+="list (plus its 'extras' paragraph) that does NOT yet have a ✓ marker in "
-            PROMPT+="docs/SCREEN-COMPARE-STATUS.md. Cross-reference docs/SCREEN-COMPARE-STATUS.md and "
-            PROMPT+="docs/MODERNIZATION-STATUS.md. If ALL are already ✓, pick the first row anyway. Analyze "
-            PROMPT+="EXACTLY ONE screen and no other. Announce your choice in one line before anything else. "
+            PROMPT+="SCREEN SELECTION: you must NOT pick on your own. If the workflow DID NOT set "
+            PROMPT+="ANALYZING_SCREEN, then every row in docs/SCREEN-COMPARE-STATUS.md is already ✓ — "
+            PROMPT+="so there is nothing to compare. Print 'nothing to compare' and stop (make no issues, "
+            PROMPT+="no doc changes). Never invent a screen. "
           fi
           PROMPT+="YOUR MISSION — find legacy features that were FORGOTTEN / NOT implemented in the modern screen: "
           PROMPT+="1. IDENTIFY the modern screen: the file name above lives under gui/templates/<area>/<screen>.html "
@@ -256,15 +260,32 @@ jobs:
           PROMPT+="   Title EACH issue with the screen name so they are easy to group. Do NOT clutter: one issue "
           PROMPT+="   per DISTINCT missing feature. If the legacy feature is genuinely present in the modern "
           PROMPT+="   screen, do NOT file anything for it. If NOTHING is missing, file ONE issue labeled "
-          PROMPT+="   'task' with title 'Nothing missing: <screen> fully matches legacy' (body: comparison summary "
-          PROMPT+="   proving each legacy feature is covered) — verifiable bookkeeping. "
-          PROMPT+="6. RECORD the result: append/update a row for this screen in docs/SCREEN-COMPARE-STATUS.md "
-          PROMPT+="   with a ✓ marker, the commit(s)/issue number(s) filed, and a one-line verdict "
-          PROMPT+="   (e.g. '4 gaps filed: #a #b #c #d' or 'no gaps — full parity'). If the file does not "
-          PROMPT+="   exist, create it with a header row and mark this screen ✓. COMMIT+PUSH this doc change "
-          PROMPT+="   (and nothing else) so the next run sees it and moves to a different screen. "
-          PROMPT+="   Do NOT push any app-code changes — you are not implementing anything. "
-          PROMPT+=""
+           PROMPT+="   'task' with title 'Nothing missing: <screen> fully matches legacy' (body: comparison summary "
+           PROMPT+="   proving each legacy feature is covered) — verifiable bookkeeping. "
+           PROMPT+="6. FILE THE LEGACY-CLEANUP TASK (ALWAYS, if this screen has not reached ✓ before): after "
+           PROMPT+="   the analysis, create ONE cleanup issue with --label task and title "
+           PROMPT+="   'Delete legacy <screen short name> (Refs #<this issue>)' whose body lists the exact "
+           PROMPT+="   legacy files to remove (the legacy PHP controller + its dashio .tpl, and any redirect "
+           PROMPT+="   now pointing to the modern screen). This is what lets us later decommission legacy "
+           PROMPT+="   screens. Skip it only if an equivalent open 'Delete legacy ...' issue already exists "
+           PROMPT+="   for this screen. Record its number below. "
+           PROMPT+="7. DISCOVER SUB-SCREENS (L2/L3): this screen is a parent if clicking inside it opens "
+           PROMPT+="   OTHER modern screens (window.open/href to gui/templates/.../.html from its HTML/JS, "
+           PROMPT+="   or legacy redirects to another screen). For each child you find, ensure there is a "
+           PROMPT+="   row in docs/SCREEN-COMPARE-STATUS.md with that child's Level (L2 if child of an L1, "
+           PROMPT+="   L3 if child of an L2, etc.), its Parent set to this screen, and Status EMPTY so a "
+           PROMPT+="   future run analyses it. If the child row already exists, do not duplicate it. "
+           PROMPT+="   Example: tplanWithCF.html (L1) opens tcView.html → tcView is an L2 row with "
+           PROMPT+="   Parent 'results/tplanWithCF.html'; tcView's toolbar opens tcEdit/tcCompare/..."
+           PROMPT+="   which are L3 rows with Parent 'testcases/tcView.html'. "
+           PROMPT+="8. RECORD the result: in docs/SCREEN-COMPARE-STATUS.md find this screen's row and set its "
+           PROMPT+="   Status to ✓, append the issue numbers filed to 'Issues' (both the gap issues AND the "
+           PROMPT+="   'Delete legacy' cleanup task from step 6, format '#n #m'), and write a one-line "
+           PROMPT+="   Verdict (e.g. '4 gaps filed: #a #b #c #d' or 'no gaps — full parity'; add the cleanup "
+           PROMPT+="   task number too). Add the sub-screen rows from step 7. If the file does not exist, "
+           PROMPT+="   create it with a header row. COMMIT+PUSH this doc change ONLY (no app code) so the "
+           PROMPT+="   next run sees the ✓ and the new empty rows and moves on. "
+           PROMPT+=""
           PROMPT+="RULES: "
           PROMPT+="- You are ONLY analyzing: create NO app code, NO BFF, NO HTML. The only commit you make is "
           PROMPT+="  the docs/SCREEN-COMPARE-STATUS.md bookkeeping update. "
@@ -278,9 +299,11 @@ jobs:
           PROMPT+="  (Dashio look is intended). Focus on missing FUNCTIONALITY, missing rights checks, missing "
           PROMPT+="  filters/actions/links/exports, and data shown or editable in legacy but absent in modern. "
           PROMPT+="- Time-box to the deadline in .ci_deadline_epoch (date +%s; cat .ci_deadline_epoch). File "
-          PROMPT+="  issues for what you found, update docs/SCREEN-COMPARE-STATUS.md, commit+push that doc, and stop. "
-          PROMPT+="- After you finish, print a short final summary: screen analyzed, how many gaps filed (issue "
-          PROMPT+="  numbers), and which legacy features you confirmed as already covered. "
+          PROMPT+="  issues for what you found (gaps + the 'Delete legacy' cleanup task in step 6 + the "
+          PROMPT+="  sub-screen rows in step 7), update docs/SCREEN-COMPARE-STATUS.md, commit+push that doc, and stop. "
+          PROMPT+="- After you finish, print a short final summary: screen analyzed, its Level/Parent, how many "
+          PROMPT+="  gaps filed (issue numbers), the 'Delete legacy' task number, which sub-screens (L2/L3) you "
+          PROMPT+="  added, and which legacy features you confirmed as already covered. "
           PROMPT+="MCP failure policy: at most one retry per failed MCP call (reset browser first); if it still "
           PROMPT+="fails, fall back to static code reading only and note you could not browser-verify. "
           PROMPT+="All steps must be executed autonomously — no user interaction. "
