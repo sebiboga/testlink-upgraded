@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Ausführung nicht gefunden",
   "execprint.noId": "Ausführungs-ID fehlt",
   "execprint.attDeleted": "Anhang gelöscht",
-  "execprint.deleteError": "Löschen des Anhangs fehlgeschlagen"
+  "execprint.deleteError": "Löschen des Anhangs fehlgeschlagen",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

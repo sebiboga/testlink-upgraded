@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Execução não encontrada",
   "execprint.noId": "Id da execução ausente",
   "execprint.attDeleted": "Anexo eliminado",
-  "execprint.deleteError": "Erro ao eliminar o anexo"
+  "execprint.deleteError": "Erro ao eliminar o anexo",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

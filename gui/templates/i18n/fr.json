@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Exécution introuvable",
   "execprint.noId": "Id de l'exécution manquant",
   "execprint.attDeleted": "Pièce jointe supprimée",
-  "execprint.deleteError": "Échec de la suppression de la pièce jointe"
+  "execprint.deleteError": "Échec de la suppression de la pièce jointe",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

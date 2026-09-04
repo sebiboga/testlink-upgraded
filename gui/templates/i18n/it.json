@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Esecuzione non trovata",
   "execprint.noId": "Manca l'id dell'esecuzione",
   "execprint.attDeleted": "Allegato eliminato",
-  "execprint.deleteError": "Errore nell'eliminazione dell'allegato"
+  "execprint.deleteError": "Errore nell'eliminazione dell'allegato",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

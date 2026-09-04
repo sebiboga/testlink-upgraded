@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Выполнение не найдено",
   "execprint.noId": "Отсутствует id выполнения",
   "execprint.attDeleted": "Вложение удалено",
-  "execprint.deleteError": "Ошибка удаления вложения"
+  "execprint.deleteError": "Ошибка удаления вложения",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

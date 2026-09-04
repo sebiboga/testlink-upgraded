@@ -2449,5 +2449,7 @@
   "execprint.notFound": "実行が見つかりません",
   "execprint.noId": "実行IDがありません",
   "execprint.attDeleted": "添付ファイルを削除しました",
-  "execprint.deleteError": "添付ファイルの削除に失敗しました"
+  "execprint.deleteError": "添付ファイルの削除に失敗しました",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

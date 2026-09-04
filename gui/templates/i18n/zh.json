@@ -2449,5 +2449,7 @@
   "execprint.notFound": "执行未找到",
   "execprint.noId": "缺少执行ID",
   "execprint.attDeleted": "附件已删除",
-  "execprint.deleteError": "删除附件失败"
+  "execprint.deleteError": "删除附件失败",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

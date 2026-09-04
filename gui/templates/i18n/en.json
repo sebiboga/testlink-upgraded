@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Execution not found",
   "execprint.noId": "Missing execution id",
   "execprint.attDeleted": "Attachment deleted",
-  "execprint.deleteError": "Failed to delete attachment"
+  "execprint.deleteError": "Failed to delete attachment",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }

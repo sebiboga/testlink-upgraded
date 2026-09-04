@@ -2449,5 +2449,7 @@
   "execprint.notFound": "Executia nu a fost gasita",
   "execprint.noId": "Lipseste id-ul executiei",
   "execprint.attDeleted": "Atasament sters",
-  "execprint.deleteError": "Eroare la stergerea atasamentului"
+  "execprint.deleteError": "Eroare la stergerea atasamentului",
+  "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
+  "tpwcf.generatedOn": "Generated on"
 }
