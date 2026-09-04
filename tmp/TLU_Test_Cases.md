@@ -10241,3 +10241,36 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Result:** **10/10 PASS** (+ 1 pre-fix confirmation) against http://localhost:8082 (MariaDB at 127.0.0.1:3306, admin/admin).
 - **Syntax gate:** charts re-render verified live in headless Chrome; `node` check of inline script skipped (jQuery-heavy page), validated via browser runtime instead.
 - **Code-review subagent:** APPROVED (minimal change, chart re-creation is the established pattern; minor finding on HiDPI canvas growth was addressed with the markup-size reset in `cb3e45a56`).
+
+## Regression — Test Project Information viewer (modernized) — Refs #923
+
+**Date:** 2026-09-04
+**Screen:** Test Project Information — `gui/templates/projects/projectInfoView.html` + BFF `api/projectinfo/index.php`
+**Modernization:** rewrote legacy `lib/testcases/archiveData.php?edit=testproject` (project home pane) as a Dashio HTML screen backed by a PHP session-auth REST BFF. Replacements in ASIDE/common, `projectsView.html` info button, and testproject-level cancel links in `containerEdit.php`/`tcImport.php`.
+**Observed / fixtures:** created test project "Project Alpha" (id=1, prefix PA, req+priority options on, auto+inventory off, public/active) via modernized UI; one attachment fixture (id=1) inserted by SQL for the DataTable.
+Note: attachment **upload/delete** are intentionally out of scope for the read-only viewer (matches suiteView.html pattern) — gap tracked as issue #933.
+
+| Test | Description | Steps | Expected | Result |
+|---|---|---|---|---|
+| TC-923.1 | Info button row navigation | On `projectsView.html`, click the row Info button | Opens `projectInfoView.html?tproject_id=1` in new tab; page title "Test Project Information" | PASS |
+| TC-923.2 | Overview card renders | Open `projectInfoView.html?tproject_id=1` (authed) | NAME=Project Alpha, PREFIX=PA, STATUS=Active, VISIBILITY=Public, TEST CASE COUNTER=0, options Requirements:Yes/Priority:Yes/Automation:No/Inventory:No | PASS |
+| TC-923.3 | Description card | Same page | Section shows "Main test project for project info viewer testing." | PASS |
+| TC-923.4 | Integrations card | Same page | ISSUE TRACKER / CODE TRACKER / REQUIREMENTS MGMT = No (none configured) | PASS |
+| TC-923.5 | Attachments DataTable | Same page (attachment fixture present) | Table shows row: Title "Project Info Doc", File "notes.txt", Size "1.2 KB"; pagination "Showing 1 to 1 of 1 entries"; header TITLE/FILE/SIZE/ADDED | PASS |
+| TC-923.6 | Attachment download | Click the row Download link | GET `attachmentdownload.php?id=1` → 200 with content | PASS |
+| TC-923.7 | Attachments hidden when empty | Delete fixture attachment / query empty project id=2 | Attachments card `display:none` (no empty DataTable rendered) | PASS |
+| TC-923.8 | BFF 200 ok | `fetch('/api/projectinfo/index.php?action=info&id=1')` authed | status 200; `status=ok`; project.id=1; grants contain mgt_modify_product/mgt_view_tc/mgt_view_req booleans | PASS |
+| TC-923.9 | BFF 404 unknown project | `?action=info&id=99999` | status 404; body `status=error`,`message=Test project not found`; screen shows `piv.notFound` banner | PASS |
+| TC-923.10 | BFF 400 missing id | `?action=info` (no id/tproject_id/session) | status 400; body `Missing project id` | PASS |
+| TC-923.11 | BFF 401 logged-out | Open `projectInfoView.html` in anonymous context | banner "Not authenticated"; no project data leaked | PASS |
+| TC-923.12 | Locale switch | `projectInfoView.html?tproject_id=1&locale=ro` | Document title "Informații Proiect de Testare"; overview/project labels follow ro.json `piv.*`; `localStorage.tl_locale=ro` | PASS |
+| TC-923.13 | Refresh button | Click toolbar Refresh | Re-issues BFF GET, re-renders cards (no stale data) | PASS |
+| TC-923.14 | Title/footer i18n | Footer text | `TestLink 2.0.1 - Test Project Information | Generated on <date>` | PASS |
+| TC-923.15 | i18n flat keys valid | `python3 -m json.tool` over all 10 bundles | All valid JSON; `piv.*` present as flat dotted top-level keys in en + ro (+8 others) | PASS |
+| TC-923.16 | bundle cache-bust no regression | Load another i18n screen (e.g. projectsView) | Keys resolve (no literal key names); `?_=<ts>` on bundle GET | PASS |
+| TC-923.17 | No JS console errors | All viewer interactions | Zero errors/warnings in console (only expected 400/404 resource log is from the deliberate status-code probes, not from page flow) | PASS |
+| TC-923.18 | Cancel link from containerEdit (testproject) | php -l + inspect `containerEdit.php` testproject branch | cancelActionJS → `projectInfoView.html?tproject_id=<id>`; valid JS string (no dangling quote), php -l clean | PASS |
+| TC-923.19 | Cancel link from tcImport (testproject) | php -l + inspect `tcImport.php` testproject branch | cancelActionJS → `projectInfoView.html?tproject_id=<containerID>`; single closing quote; php -l clean; non-testproject branches append original args only | PASS |
+| TC-923.20 | Event Viewer clean | Query `events` table after all flows | Zero new ERROR/WARNING rows (only info-level audit rows for login/project-created) | PASS |
+
+All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), branch `sebiboga`.
