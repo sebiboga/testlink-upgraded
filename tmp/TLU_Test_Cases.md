@@ -10236,7 +10236,8 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 | TC-921.8 | Clear Events flow re-renders charts | Click Clear Events, accept confirm | Confirm dialog shown; `0 events`; legends zeroed without console errors | PASS |
 | TC-921.9 | No new Error/Warning events | Query `events` table after all interactions | Zero ERROR/WARNING rows beyond the seeded fixtures | PASS |
 | TC-921.10 | No other screen uses `.clear()` | `grep '\.clear()' gui/templates/**/*.html` | Only documented occurrences represent the internal Chart.js helper; no other chart screens call `.clear()` on instances | PASS |
+| TC-921.11 | HiDPI Apply does not grow canvases | Emulate `devicePixelRatio:2`, Apply the date filter 4× | Pie canvas stays 240px CSS / 480 backing; line canvas 700px CSS / 1400 backing across all Applies (no 240→480→960 growth) | PASS |
 
-- **Result:** **9/9 PASS** (+ 1 pre-fix confirmation) against http://localhost:8082 (MariaDB at 127.0.0.1:3306, admin/admin).
+- **Result:** **10/10 PASS** (+ 1 pre-fix confirmation) against http://localhost:8082 (MariaDB at 127.0.0.1:3306, admin/admin).
 - **Syntax gate:** charts re-render verified live in headless Chrome; `node` check of inline script skipped (jQuery-heavy page), validated via browser runtime instead.
-- **Code-review subagent:** APPROVED (minimal 2-line change, no refactor, chart re-creation is the established pattern).
+- **Code-review subagent:** APPROVED (minimal change, chart re-creation is the established pattern; minor finding on HiDPI canvas growth was addressed with the markup-size reset in `cb3e45a56`).
