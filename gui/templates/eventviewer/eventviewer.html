@@ -311,7 +311,7 @@ function renderPie(items) {
   $.each(items, function(name, count) {
     data.push({value: count, color: LEVEL_COLORS[name] || '#ccc', label: name});
   });
-  if (pieChart) { pieChart.clear(); pieChart = null; }
+  if (pieChart) { pieChart = null; }
   var pieCanvas = document.getElementById('pieChart');
   pieChart = new Chart(pieCanvas.getContext('2d'))
     .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45, animationEasing: "easeOutQuart"});
@@ -326,7 +326,7 @@ function renderPie(items) {
 }
 
 function renderLine(labels, data) {
-  if (lineChart) { lineChart.clear(); lineChart = null; }
+  if (lineChart) { lineChart = null; }
   var ctx = document.getElementById('lineChart').getContext('2d');
   lineChart = new Chart(ctx).Line({
     labels: labels,
