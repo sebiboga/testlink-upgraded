@@ -68,11 +68,14 @@ var TLLineTooltip = (function () {
       if (w > widestXLabel) widestXLabel = w;
     }
     if (W / labels.length < widestXLabel) {
-      // rotateLabels = 45; then 90 and maxSize -= widestXLabel for our data
-      if (W / labels.length < Math.cos(45 * (Math.PI / 180)) * widestXLabel) {
+      // Chart.js feeds rotateLabels (=45, a degree-looking value) straight into
+      // Math.cos/sin, i.e. as RADIANS. Mirror that verbatim so the branch stays
+      // pixel-exact under every geometry, not just the 90-degree branch the
+      // Event Viewer (30 labels) always falls into.
+      if (W / labels.length < Math.cos(45) * widestXLabel) {
         maxSize -= widestXLabel; // rotateLabels = 90
       } else {
-        maxSize -= Math.sin(45 * (Math.PI / 180)) * widestXLabel;
+        maxSize -= Math.sin(45) * widestXLabel;
       }
     } else {
       maxSize -= SFS;
@@ -82,8 +85,9 @@ var TLLineTooltip = (function () {
     maxSize -= labelHeight;
     var scaleHeight = maxSize;
 
-    // getValueBounds()
-    var upperValue = -Infinity, lowerValue = Infinity;
+    // getValueBounds() - same sentinel init as Chart.js, so an all-zero dataset
+    // keeps an hoverable baseline (upperValue = Number.MIN_VALUE > 0).
+    var upperValue = Number.MIN_VALUE, lowerValue = Number.MAX_VALUE;
     for (i = 0; i < data.length; i++) {
       var v = Number(data[i]);
       if (isFinite(v)) {
