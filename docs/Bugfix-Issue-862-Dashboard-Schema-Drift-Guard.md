@@ -31,8 +31,9 @@ that has not run the migration — the reporter's instance.
 In `api/mainpage/index.php`:
 - New helper `bffBuildsSchemaOk($db)` probes
   `INFORMATION_SCHEMA.COLUMNS` for `{DB_TABLE_PREFIX}builds.testproject_id`.
-  The probe query itself references no migrated column, so it can never fail and
-  cannot `die()`.
+  The probe reads only a system view and references trusted config constants
+  (never the migrated column), so it is effectively un-failable and cannot
+  `die()` in practice.
 - The `GET /` route runs `getDashboardData()` only when the probe returns true;
   otherwise the execution-status widget is skipped (`dashboard: null` in the
   payload) and the rest of the dashboard still renders.

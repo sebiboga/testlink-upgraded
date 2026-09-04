@@ -61,7 +61,8 @@ function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
  * (Ref #826, scope builds to test project). On a not-yet-migrated 1.9.20
  * database that query fails and kills the request; this probe lets the BFF
  * degrade that widget to its empty state instead. The INFORMATION_SCHEMA
- * probe itself can never fail (it does not reference the migrated column).
+ * probe is effectively un-failable for this query (it only reads a system
+ * view and references trusted config constants, never the migrated column).
  */
 function bffBuildsSchemaOk($dbHandler)
 {
