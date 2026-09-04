@@ -331,16 +331,19 @@ if ($action === 'import_md') {
 
             // Select the duplicate index + match key per hit_criteria (legacy
             // parity with lib/testcases/tcImport.php:280-296).
+            // tcId from markdown is "TC-<N>" — extract numeric part for ID matching.
+            $tcNumericId = 0;
+            if (preg_match('/(\d+)\s*$/', strval($c['tcId'] ?? ''), $idMatch)) {
+                $tcNumericId = intval($idMatch[1]);
+            }
             $existingTcId = 0;
             if ($hitCriteria === 'externalID') {
-                $ext = intval($c['tcId'] ?? 0);
-                if ($ext > 0 && isset($existingCasesByExternal[$suiteId][$ext])) {
-                    $existingTcId = $existingCasesByExternal[$suiteId][$ext];
+                if ($tcNumericId > 0 && isset($existingCasesByExternal[$suiteId][$tcNumericId])) {
+                    $existingTcId = $existingCasesByExternal[$suiteId][$tcNumericId];
                 }
             } elseif ($hitCriteria === 'internalID') {
-                $nodeId = intval($c['tcId'] ?? 0);
-                if ($nodeId > 0 && isset($existingCasesByNode[$suiteId][$nodeId])) {
-                    $existingTcId = $existingCasesByNode[$suiteId][$nodeId];
+                if ($tcNumericId > 0 && isset($existingCasesByNode[$suiteId][$tcNumericId])) {
+                    $existingTcId = $existingCasesByNode[$suiteId][$tcNumericId];
                 }
             } elseif (isset($existingCasesBySuite[$suiteId][$nameKey])) {
                 $existingTcId = $existingCasesBySuite[$suiteId][$nameKey];
