@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "Вложение удалено",
   "execprint.deleteError": "Ошибка удаления вложения",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "Экспорт управления пользователями",
+  "userexport.subtitle": "экспорт полного списка пользователей в XML-файл",
+  "userexport.backToUsers": "Назад к управлению пользователями",
+  "userexport.exportSettings": "Настройки экспорта",
+  "userexport.info": "Создаёт XML-файл (users.xml) с логином, ролью, e-mail, именем/фамилией, локалью, тестовым проектом по умолчанию, активным флагом и датой истечения для каждого пользователя.",
+  "userexport.userCount": "Пользователей для экспорта",
+  "userexport.filename": "Имя файла экспорта",
+  "userexport.filenameHint": "Файл загружается в формате XML.",
+  "userexport.export": "Экспортировать пользователей в XML",
+  "userexport.exporting": "Экспорт пользователей, подождите...",
+  "userexport.done": "Пользователи успешно экспортированы.",
+  "userexport.errEmptyFilename": "Укажите имя файла.",
+  "userexport.errLoad": "Не удалось загрузить информацию об экспорте.",
+  "userexport.errExport": "Сбой экспорта.",
+  "userexport.noRights": "У вас нет права mgt_users, необходимого для экспорта пользователей.",
+  "userexport.footer": "TestLink 2.0.1 - Экспорт управления пользователями",
+  "user.export": "Экспорт"
 }

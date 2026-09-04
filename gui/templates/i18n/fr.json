@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "Pièce jointe supprimée",
   "execprint.deleteError": "Échec de la suppression de la pièce jointe",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "Export Gestion des Utilisateurs",
+  "userexport.subtitle": "exporter la liste complète des utilisateurs dans un fichier XML",
+  "userexport.backToUsers": "Retour à la Gestion des Utilisateurs",
+  "userexport.exportSettings": "Options d'exportation",
+  "userexport.info": "Génère un fichier XML (users.xml) avec identifiant, rôle, e-mail, prénom/nom, locale, projet de test par défaut, indicateur actif et date d'expiration pour chaque utilisateur.",
+  "userexport.userCount": "Utilisateurs à exporter",
+  "userexport.filename": "Nom du fichier d'exportation",
+  "userexport.filenameHint": "Le fichier est téléchargé au format XML.",
+  "userexport.export": "Exporter les utilisateurs en XML",
+  "userexport.exporting": "Exportation des utilisateurs, veuillez patienter...",
+  "userexport.done": "Utilisateurs exportés avec succès.",
+  "userexport.errEmptyFilename": "Veuillez fournir un nom de fichier.",
+  "userexport.errLoad": "Impossible de charger les informations d'exportation.",
+  "userexport.errExport": "L'exportation a échoué.",
+  "userexport.noRights": "Vous ne disposez pas du droit mgt_users requis pour exporter des utilisateurs.",
+  "userexport.footer": "TestLink 2.0.1 - Export Gestion des Utilisateurs",
+  "user.export": "Exporter"
 }

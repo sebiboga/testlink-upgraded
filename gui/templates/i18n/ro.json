@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "Atasament sters",
   "execprint.deleteError": "Eroare la stergerea atasamentului",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "Export Utilizatori",
+  "userexport.subtitle": "exportați întreaga listă de utilizatori într-un fișier XML",
+  "userexport.backToUsers": "Înapoi la Gestionarea Utilizatorilor",
+  "userexport.exportSettings": "Setări export",
+  "userexport.info": "Generează un fișier XML (users.xml) cu login, rol, e-mail, nume/prenume, locație, proiect de test implicit, flag activ și dată de expirare pentru fiecare utilizator.",
+  "userexport.userCount": "Utilizatori de exportat",
+  "userexport.filename": "Nume fișier export",
+  "userexport.filenameHint": "Fișierul este descărcat ca XML.",
+  "userexport.export": "Exportă utilizatorii în XML",
+  "userexport.exporting": "Se exportă utilizatorii, vă rugăm să așteptați...",
+  "userexport.done": "Utilizatorii au fost exportați cu succes.",
+  "userexport.errEmptyFilename": "Vă rugăm să furnizați un nume de fișier.",
+  "userexport.errLoad": "Nu s-a putut încărca informația de export.",
+  "userexport.errExport": "Exportul a eșuat.",
+  "userexport.noRights": "Nu aveți dreptul mgt_users necesar pentru a exporta utilizatori.",
+  "userexport.footer": "TestLink 2.0.1 - Export Utilizatori",
+  "user.export": "Export"
 }

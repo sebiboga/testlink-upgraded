@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "Anexo eliminado",
   "execprint.deleteError": "Erro ao eliminar o anexo",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "Exportar Gerenciamento de Usuários",
+  "userexport.subtitle": "exportar a lista completa de usuários para um arquivo XML",
+  "userexport.backToUsers": "Voltar ao Gerenciamento de Usuários",
+  "userexport.exportSettings": "Configurações de exportação",
+  "userexport.info": "Gera um arquivo XML (users.xml) com login, perfil, e-mail, nome/sobrenome, localidade, projeto de teste padrão, sinalizador ativo e data de expiração para cada usuário.",
+  "userexport.userCount": "Usuários a exportar",
+  "userexport.filename": "Nome do arquivo de exportação",
+  "userexport.filenameHint": "O arquivo é baixado como XML.",
+  "userexport.export": "Exportar usuários para XML",
+  "userexport.exporting": "Exportando usuários, aguarde...",
+  "userexport.done": "Usuários exportados com sucesso.",
+  "userexport.errEmptyFilename": "Forneça um nome de arquivo.",
+  "userexport.errLoad": "Não foi possível carregar as informações de exportação.",
+  "userexport.errExport": "Falha na exportação.",
+  "userexport.noRights": "Você não tem o direito mgt_users necessário para exportar usuários.",
+  "userexport.footer": "TestLink 2.0.1 - Exportar Gerenciamento de Usuários",
+  "user.export": "Exportar"
 }

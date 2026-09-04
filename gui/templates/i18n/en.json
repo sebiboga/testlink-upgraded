@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "Attachment deleted",
   "execprint.deleteError": "Failed to delete attachment",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "User Management Export",
+  "userexport.subtitle": "export the full user list to an XML file",
+  "userexport.backToUsers": "Back to User Management",
+  "userexport.exportSettings": "Export settings",
+  "userexport.info": "Generates an XML file (users.xml) with login, role, email, first/last name, locale, default test project, active flag and expiration date for every user.",
+  "userexport.userCount": "Users to export",
+  "userexport.filename": "Export filename",
+  "userexport.filenameHint": "The file is downloaded as XML.",
+  "userexport.export": "Export Users to XML",
+  "userexport.exporting": "Exporting users, please wait...",
+  "userexport.done": "Users exported successfully.",
+  "userexport.errEmptyFilename": "Please provide a filename.",
+  "userexport.errLoad": "Could not load export information.",
+  "userexport.errExport": "Export failed.",
+  "userexport.noRights": "You do not have the mgt_users right required to export users.",
+  "userexport.footer": "TestLink 2.0.1 - User Management Export",
+  "user.export": "Export"
 }

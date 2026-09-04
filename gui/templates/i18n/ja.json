@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "添付ファイルを削除しました",
   "execprint.deleteError": "添付ファイルの削除に失敗しました",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "ユーザー管理のエクスポート",
+  "userexport.subtitle": "全ユーザーリストをXMLファイルにエクスポートします",
+  "userexport.backToUsers": "ユーザー管理に戻る",
+  "userexport.exportSettings": "エクスポート設定",
+  "userexport.info": "各ユーザーのログイン、ロール、メール、姓/名、ロケール、デフォルトテストプロジェクト、アクティブフラグ、有効期限を含むXMLファイル(users.xml)を生成します。",
+  "userexport.userCount": "エクスポートするユーザー数",
+  "userexport.filename": "エクスポートファイル名",
+  "userexport.filenameHint": "ファイルはXMLとしてダウンロードされます。",
+  "userexport.export": "ユーザーをXMLにエクスポート",
+  "userexport.exporting": "ユーザーをエクスポートしています。お待ちください...",
+  "userexport.done": "ユーザーを正常にエクスポートしました。",
+  "userexport.errEmptyFilename": "ファイル名を指定してください。",
+  "userexport.errLoad": "エクスポート情報を読み込めませんでした。",
+  "userexport.errExport": "エクスポートに失敗しました。",
+  "userexport.noRights": "ユーザーをエクスポートするにはmgt_users権限が必要です。",
+  "userexport.footer": "TestLink 2.0.1 - ユーザー管理のエクスポート",
+  "user.export": "エクスポート"
 }

@@ -49,6 +49,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="toolbar">
   <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="user.createUser">Create User</span></button>
+  <button class="btn-teal" onclick="gotoExport()"><i class="fa fa-file-export"></i> <span data-i18n="user.export">Export</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -162,6 +163,14 @@ $(function() {
     loadUsers();
   });
 });
+
+// User Management Export switched to the modernized Dashio screen (Refs #920);
+// the legacy usersExport.php entry point stays for backward compatibility.
+function gotoExport() {
+  var p = new URLSearchParams(window.location.search);
+  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  window.location.href = 'usersExport.html?' + ctx;
+}
 
 function loadMeta() {
   $.getJSON(API + '/meta/roles', function(r) {

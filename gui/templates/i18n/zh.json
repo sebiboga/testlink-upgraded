@@ -2451,5 +2451,22 @@
   "execprint.attDeleted": "附件已删除",
   "execprint.deleteError": "删除附件失败",
   "tpwcf.infoText": "This Report shows all test cases with any custom field set while adding test cases to test plan.",
-  "tpwcf.generatedOn": "Generated on"
+  "tpwcf.generatedOn": "Generated on",
+  "userexport.title": "用户管理导出",
+  "userexport.subtitle": "将完整用户列表导出为XML文件",
+  "userexport.backToUsers": "返回用户管理",
+  "userexport.exportSettings": "导出设置",
+  "userexport.info": "为每个用户生成一个包含登录名、角色、电子邮件、姓/名、区域设置、默认测试项目、启用标记和过期日期的XML文件(users.xml)。",
+  "userexport.userCount": "要导出的用户数",
+  "userexport.filename": "导出文件名",
+  "userexport.filenameHint": "文件将作为XML下载。",
+  "userexport.export": "将用户导出为XML",
+  "userexport.exporting": "正在导出用户，请稍候...",
+  "userexport.done": "用户导出成功。",
+  "userexport.errEmptyFilename": "请提供文件名。",
+  "userexport.errLoad": "无法加载导出信息。",
+  "userexport.errExport": "导出失败。",
+  "userexport.noRights": "您没有导出用户所需的mgt_users权限。",
+  "userexport.footer": "TestLink 2.0.1 - 用户管理导出",
+  "user.export": "导出"
 }
