@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Falha ao carregar o anexo.",
   "piv.deleteOk": "Anexo excluído.",
   "piv.deleteFail": "Falha ao excluir o anexo.",
-  "piv.addAttachment": "Adicionar anexo"
+  "piv.addAttachment": "Adicionar anexo",
+  "piv.errAllowedFiles": "O arquivo não passa na verificação de tipo permitido.",
+  "piv.errAllowedFilenames": "O nome do arquivo não corresponde ao padrão permitido.",
+  "piv.errEmptyExtension": "O arquivo não tem extensão.",
+  "piv.errNoFile": "Nenhum arquivo carregado.",
+  "piv.errUploadGeneric": "Falha ao carregar o anexo."
 }

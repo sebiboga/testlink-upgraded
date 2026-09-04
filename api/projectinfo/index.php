@@ -34,9 +34,12 @@
  * project info (no extra hard right gate; the reachable callers are inside an
  * authenticated work area). Grants are returned so the UI surfaces what the
  * user may actually do (e.g. "Manage project" only with mgt_modify_product).
- * The write actions (upload/delete) require mgt_modify_product on the owning
- * test project (403 otherwise) - mirrors the legacy testcase_mgmt gate used by
- * containerEdit.php for the project-level container.
+ * The write actions (upload/delete) require POST and mgt_modify_product on
+ * the owning test project (403 otherwise). NOTE: the legacy containerEdit.php
+ * gated project-level fileUpload/deleteFile with mgt_modify_tc (via
+ * "testcase_mgmt"); per issue #933 the BFF deliberately uses
+ * mgt_modify_product (the right governing project-level editing) and adds an
+ * explicit fk_id/fk_table ownership guard on delete.
  * Unknown / forged project id -> 404.
  */
 
@@ -180,6 +183,10 @@ if ($action === 'upload') {
     // Mirrors lib/testcases/containerEdit.php doAction=fileUpload for the
     // testproject container level: fileUploadManagement($db, tprojectID,
     // fileTitle, attachment table name = 'nodes_hierarchy').
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        out(array('status' => 'error', 'message' => 'Method not allowed'));
+    }
     $projectId = resolveProjectId();
     if ($projectId <= 0) {
         http_response_code(400);
@@ -217,10 +224,18 @@ if ($action === 'upload') {
                 ? 'No file uploaded'
                 : 'upload failed'));
     http_response_code(422);
-    out(array('status' => 'error', 'message' => $msg));
+    out(array(
+        'status' => 'error',
+        'message' => $msg,
+        'code' => $statusCode,
+    ));
 }
 
 if ($action === 'delete') {
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        out(array('status' => 'error', 'message' => 'Method not allowed'));
+    }
     $projectId = resolveProjectId();
     if ($projectId <= 0) {
         http_response_code(400);

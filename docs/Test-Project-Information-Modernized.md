@@ -79,15 +79,20 @@ codeTrackerEnabled, reqmgrIntegrationEnabled } }`, plus `attachments[]`
 (title, file_name, file_size, file_type, date_added, download_url) and
 `grants { mgt_modify_product, mgt_view_tc, mgt_view_req }`.
 
-**Write routes** (both require `mgt_modify_product` on the owning project —
-`403 No permission` otherwise):
+**Write routes** (both require the `POST` method — non-POST → `405 Method
+not allowed` — and `mgt_modify_product` on the owning project — `403 No
+permission` otherwise):
 
 - `POST ?action=upload&id=<project_id>` — multipart `uploadedFile` + optional
   `fileTitle` (defaults to the file name on the client side). Ports the legacy
   `fileUploadManagement($db, tprojectID, fileTitle, 'nodes_hierarchy')`
   path, including the repo's allowed-file-type / extension and size guards.
   `200` returns `{ status: ok, attachments: [...] }` (refreshed list);
-  `422` with a descriptive message on rejections.
+  `422` with a descriptive message **and a machine `code`** on rejections
+  (`allowed_files`, `allowed_filenames_regexp`, `empty_extension`,
+  `fNameORfTypeOrfSize`, ...). The screen maps those codes to localized
+  `piv.err*` bundle keys client-side (unknown codes fall back to the generic
+  `piv.errUploadGeneric`).
 - `POST ?action=delete&id=<project_id>&file_id=<id>` — deletes the attachment
   via the legacy `deleteAttachment($db, file_id, false)`. Before deleting, the
   BFF verifies the attachment **exists and is bound to this project node**
@@ -95,8 +100,8 @@ codeTrackerEnabled, reqmgrIntegrationEnabled } }`, plus `attachments[]`
 
 **Errors:** `401 Not authenticated` (no/invalid session), `403 No permission`
 (upload/delete without `mgt_modify_product`), `404 Test project not found /
-Attachment not found on this project`, `400 Missing project id` / `Unknown
-action`.
+Attachment not found on this project`, `405 Method not allowed` (write
+actions via GET), `400 Missing project id` / `Unknown action`.
 
 ## 3. Legacy parity notes
 

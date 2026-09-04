@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Attachment upload failed.",
   "piv.deleteOk": "Attachment deleted.",
   "piv.deleteFail": "Failed to delete the attachment.",
-  "piv.addAttachment": "Add attachment"
+  "piv.addAttachment": "Add attachment",
+  "piv.errAllowedFiles": "File does not pass allowed file type check.",
+  "piv.errAllowedFilenames": "File name does not match the allowed pattern.",
+  "piv.errEmptyExtension": "File has no extension.",
+  "piv.errNoFile": "No file uploaded.",
+  "piv.errUploadGeneric": "Attachment upload failed."
 }

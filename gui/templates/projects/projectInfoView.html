@@ -98,6 +98,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="piv.attachments">Attachments</span></div>
     <div class="card-body">
       <div id="attUpload" style="display:none;margin-bottom:14px;border:1px dashed #d0d0d0;border-radius:6px;padding:12px 14px;background:#fbfbfb;">
+        <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><i class="fa fa-plus" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="piv.addAttachment">Add attachment</span></div>
         <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
           <div style="flex:1;min-width:180px;">
             <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;" data-i18n="piv.uploadTitle">Attachment title</div>
@@ -213,9 +214,7 @@ function render(r) {
   $('#manageLink').attr('href', '/gui/templates/projectsView.html');
 
   CAN_UPLOAD = !!r.grants.mgt_modify_product;
-  if (CAN_UPLOAD) {
-    $('#attUpload').css('display', 'block');
-  }
+  $('#attUpload').css('display', CAN_UPLOAD ? 'block' : 'none');
 
   renderAttachments(r.attachments || []);
 }
@@ -256,6 +255,20 @@ function attMsg(text, isError) {
   $m.text(text || '');
 }
 
+function uploadErrorText(r) {
+  var code = String((r && r.code) || '');
+  var map = {
+    'allowed_files': 'piv.errAllowedFiles',
+    'allowed_filenames_regexp': 'piv.errAllowedFilenames',
+    'empty_extension': 'piv.errEmptyExtension',
+    'fNameORfTypeOrfSize': 'piv.errNoFile',
+    '0': 'piv.errNoFile',
+    '': 'piv.errNoFile'
+  };
+  var key = Object.prototype.hasOwnProperty.call(map, code) ? map[code] : 'piv.errUploadGeneric';
+  return TLi18n.t(key);
+}
+
 function uploadAttachment() {
   var $file = $('#attFile')[0];
   if (!$file || !$file.files.length) {
@@ -274,7 +287,7 @@ function uploadAttachment() {
     contentType: false,
     success: function(r) {
       if (r.status !== 'ok') {
-        attMsg(r.message || TLi18n.t('piv.uploadFail'), true);
+        attMsg(uploadErrorText(r), true);
         return;
       }
       $('#attTitle').val('');
@@ -283,9 +296,9 @@ function uploadAttachment() {
       renderAttachments(r.attachments || []);
     },
     error: function(xhr) {
-      var msg = TLi18n.t('piv.uploadFail');
-      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-      attMsg(msg, true);
+      var body = null;
+      try { body = JSON.parse(xhr.responseText); } catch(e) {}
+      attMsg(uploadErrorText(body), true);
     }
   });
 }
@@ -297,7 +310,7 @@ function deleteAttachment(id) {
     type: 'POST',
     success: function(r) {
       if (r.status !== 'ok') {
-        attMsg(r.message || TLi18n.t('piv.deleteFail'), true);
+        attMsg(TLi18n.t('piv.deleteFail'), true);
         return;
       }
       attMsg(TLi18n.t('piv.deleteOk'), false);
@@ -311,9 +324,7 @@ function deleteAttachment(id) {
       }
     },
     error: function(xhr) {
-      var msg = TLi18n.t('piv.deleteFail');
-      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
-      attMsg(msg, true);
+      attMsg(TLi18n.t('piv.deleteFail'), true);
     }
   });
 }

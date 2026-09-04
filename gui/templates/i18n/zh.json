@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "附件上传失败。",
   "piv.deleteOk": "附件已删除。",
   "piv.deleteFail": "删除附件失败。",
-  "piv.addAttachment": "添加附件"
+  "piv.addAttachment": "添加附件",
+  "piv.errAllowedFiles": "文件未通过允许类型检查。",
+  "piv.errAllowedFilenames": "文件名不符合允许的模式。",
+  "piv.errEmptyExtension": "文件没有扩展名。",
+  "piv.errNoFile": "未上传文件。",
+  "piv.errUploadGeneric": "附件上传失败。"
 }

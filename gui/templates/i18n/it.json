@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Caricamento allegato non riuscito.",
   "piv.deleteOk": "Allegato eliminato.",
   "piv.deleteFail": "Eliminazione allegato non riuscita.",
-  "piv.addAttachment": "Aggiungi allegato"
+  "piv.addAttachment": "Aggiungi allegato",
+  "piv.errAllowedFiles": "Il file non supera il controllo del tipo consentito.",
+  "piv.errAllowedFilenames": "Il nome del file non corrisponde al pattern consentito.",
+  "piv.errEmptyExtension": "Il file non ha estensione.",
+  "piv.errNoFile": "Nessun file caricato.",
+  "piv.errUploadGeneric": "Caricamento allegato non riuscito."
 }

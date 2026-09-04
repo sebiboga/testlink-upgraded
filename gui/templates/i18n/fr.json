@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Échec du téléversement de la pièce jointe.",
   "piv.deleteOk": "Pièce jointe supprimée.",
   "piv.deleteFail": "Échec de la suppression de la pièce jointe.",
-  "piv.addAttachment": "Ajouter une pièce jointe"
+  "piv.addAttachment": "Ajouter une pièce jointe",
+  "piv.errAllowedFiles": "Le fichier ne passe pas le contrôle de type autorisé.",
+  "piv.errAllowedFilenames": "Le nom du fichier ne correspond pas au modèle autorisé.",
+  "piv.errEmptyExtension": "Le fichier n'a pas d'extension.",
+  "piv.errNoFile": "Aucun fichier téléversé.",
+  "piv.errUploadGeneric": "Échec du téléversement de la pièce jointe."
 }

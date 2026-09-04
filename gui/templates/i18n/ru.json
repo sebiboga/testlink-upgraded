@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Не удалось загрузить вложение.",
   "piv.deleteOk": "Вложение удалено.",
   "piv.deleteFail": "Не удалось удалить вложение.",
-  "piv.addAttachment": "Добавить вложение"
+  "piv.addAttachment": "Добавить вложение",
+  "piv.errAllowedFiles": "Файл не проходит проверку допустимого типа.",
+  "piv.errAllowedFilenames": "Имя файла не соответствует допустимому шаблону.",
+  "piv.errEmptyExtension": "У файла нет расширения.",
+  "piv.errNoFile": "Файл не загружен.",
+  "piv.errUploadGeneric": "Не удалось загрузить вложение."
 }

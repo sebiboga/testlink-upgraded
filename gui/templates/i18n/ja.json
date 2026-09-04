@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "添付ファイルのアップロードに失敗しました。",
   "piv.deleteOk": "添付ファイルを削除しました。",
   "piv.deleteFail": "添付ファイルの削除に失敗しました。",
-  "piv.addAttachment": "添付ファイルを追加"
+  "piv.addAttachment": "添付ファイルを追加",
+  "piv.errAllowedFiles": "ファイルが許可された種類のチェックに合格しませんでした。",
+  "piv.errAllowedFilenames": "ファイル名が許可されたパターンに一致しません。",
+  "piv.errEmptyExtension": "ファイルに拡張子がありません。",
+  "piv.errNoFile": "ファイルがアップロードされていません。",
+  "piv.errUploadGeneric": "添付ファイルのアップロードに失敗しました。"
 }

@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Error al subir el adjunto.",
   "piv.deleteOk": "Adjunto eliminado.",
   "piv.deleteFail": "Error al eliminar el adjunto.",
-  "piv.addAttachment": "Añadir adjunto"
+  "piv.addAttachment": "Añadir adjunto",
+  "piv.errAllowedFiles": "El archivo no pasa la comprobación de tipo permitido.",
+  "piv.errAllowedFilenames": "El nombre del archivo no coincide con el patrón permitido.",
+  "piv.errEmptyExtension": "El archivo no tiene extensión.",
+  "piv.errNoFile": "Ningún archivo subido.",
+  "piv.errUploadGeneric": "Error al subir el adjunto."
 }

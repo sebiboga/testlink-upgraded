@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Încărcarea atașamentului a eșuat.",
   "piv.deleteOk": "Atașament șters.",
   "piv.deleteFail": "Ștergerea atașamentului a eșuat.",
-  "piv.addAttachment": "Adaugă atașament"
+  "piv.addAttachment": "Adaugă atașament",
+  "piv.errAllowedFiles": "Fișierul nu trece de verificarea tipului permis.",
+  "piv.errAllowedFilenames": "Numele fișierului nu respectă modelul permis.",
+  "piv.errEmptyExtension": "Fișierul nu are extensie.",
+  "piv.errNoFile": "Niciun fișier încărcat.",
+  "piv.errUploadGeneric": "Încărcarea atașamentului a eșuat."
 }

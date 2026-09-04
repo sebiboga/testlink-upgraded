@@ -2512,5 +2512,10 @@
   "piv.uploadFail": "Hochladen des Anhangs fehlgeschlagen.",
   "piv.deleteOk": "Anhang gelöscht.",
   "piv.deleteFail": "Fehler beim Löschen des Anhangs.",
-  "piv.addAttachment": "Anhang hinzufügen"
+  "piv.addAttachment": "Anhang hinzufügen",
+  "piv.errAllowedFiles": "Datei besteht den Prüfung des erlaubten Dateityps nicht.",
+  "piv.errAllowedFilenames": "Dateiname entspricht nicht dem erlaubten Muster.",
+  "piv.errEmptyExtension": "Datei hat keine Endung.",
+  "piv.errNoFile": "Keine Datei hochgeladen.",
+  "piv.errUploadGeneric": "Hochladen des Anhangs fehlgeschlagen."
 }
