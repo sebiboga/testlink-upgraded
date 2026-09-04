@@ -9838,3 +9838,30 @@ build 3001 (`testproject_id=2000`, `testplan_id=2001`), then asserts project sco
   parent-#503 sub-tasks (drop `testplan_id` #834, cross-plan per-build results report #835, and
   the Test-Project-menu move which is #831's own body DoD) are owned by the modernize workflow
   and tracked separately (all still OPEN).
+
+---
+
+### Regression — Issue #834: finalize builds schema (drop testplan_id + swap unique key)
+
+**Background:** #834 asks to drop `builds.testplan_id` and swap the unique key to
+`(testproject_id, name)`, after "all readers are migrated (sub-tasks #826-#832)". This suite
+records the measured verification that the reader-migration precondition is NOT met on a fresh
+DB import, and that the destructive drop must therefore be deferred (no code change attempted —
+documented findings only).
+
+**Fixture:** fresh default-branch DB import; inspection only (no fixture seeding needed; `builds` empty).
+
+| # | Check | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-834.1 | builds.testplan_id still present | `SHOW CREATE TABLE builds;` | column exists; `UNIQUE KEY name(testplan_id,name)` | PASS (evidence: schema showed `testplan_id` + `UNIQUE KEY (testplan_id,name)`) |
+| TC-834.2 | sub-task #832 (execution page) state | `gh issue view 832 --json state` | open | PASS (state=OPEN, `gh issue view 832`) |
+| TC-834.3 | reporting joins still plan-keyed | grep `B ON B.testplan_id = TPTCV.testplan_id` in `lib/functions/testplan.class.php` | present (un-migrated readers) | PASS (15 sites, lines 4154…5678) |
+| TC-834.4 | metrics joins still plan-keyed | grep `B ON B.testplan_id = TPTCV.testplan_id` in `lib/functions/tlTestPlanMetrics.class.php` | present | PASS (lines 2432, 2478, 2567, 2616) |
+| TC-834.5 | plan-scoped delete/read remains | `testplan.class.php:2024` (`DELETE … WHERE testplan_id={$id}`) and `:7298` (`SELECT … WHERE testplan_id={$id}`) | present | PASS |
+| TC-834.6 | REST reads off build.testplan_id remain | `tlRestApi.class.php:1308`, `RestApi.class.php:710` (`$build['testplan_id']`) | present, un-migrated | PASS |
+| TC-834.7 | drop is deferred (no forced breaking change) | code review of this run's diff | no destructive `ALTER … DROP COLUMN testplan_id` committed | PASS (no schema/code change; findings-only run) |
+| TC-834.8 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=3` (this run) | no new Error/Warning | TBD-if-run (no app flows executed; inspection-only) |
+
+- **Result:** inspection confirms the drop is **blocked** by un-migrated readers (#832 OPEN, 15
+  `testplan.class.php` joins + 4 `tlTestPlanMetrics` joins + plan-scoped delete/read + REST
+  reads). Issue #834 left **OPEN** with INVESTIGATION + ROOT CAUSE comments; no code changed.
