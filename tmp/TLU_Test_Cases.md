@@ -10274,3 +10274,37 @@ Note: attachment **upload/delete** are intentionally out of scope for the read-o
 | TC-923.20 | Event Viewer clean | Query `events` table after all flows | Zero new ERROR/WARNING rows (only info-level audit rows for login/project-created) | PASS |
 
 All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), branch `sebiboga`.
+
+---
+
+# TC-933 — Test Project Information — Attachment Upload/Delete (gap from #923)
+
+**Date:** 2026-09-04
+**Screen:** `gui/templates/projects/projectInfoView.html` + BFF `api/projectinfo/index.php` (upload/delete routes)
+**Modernization:** closed the #923 read-only gap — the project-info Attachments panel now supports **upload** and **delete**, mirroring `containerEdit.php` `doAction=fileUpload`/`doAction=deleteFile` for the testproject container, gated by `mgt_modify_product` on the owning project (403). Ported `fileUploadManagement()` + `deleteAttachment()` with an explicit `fk_id`/`fk_table` ownership guard on delete.
+**Observed / fixtures:** project "Modernize Demo Project" (id=1, prefix MDP) created via `api/projects`; attachment fixtures id=2 ("Att2", demo_att.txt) via curl and id=3 ("Browser Upload Test", upload_test.txt) via the UI. Limited-rights user `limiteduser` (guest role, no mgt_modify_product) created via `api/users` for the 403/read-only paths.
+
+| Test | Description | Steps | Expected | Result |
+|---|---|---|---|---|
+| TC-933.1 | BFF upload 200 (file + title) | `POST api/projectinfo/index.php?action=upload&id=1` multipart `uploadedFile`+`fileTitle`, authed admin | status 200; `status=ok`; response carries refreshed `attachments[]` including the new row | PASS |
+| TC-933.2 | Upload persists to DB | After TC-933.1, `SELECT * FROM attachments` | New row exists with fk_id=1, fk_table='nodes_hierarchy', correct title/file_name/size | PASS |
+| TC-933.3 | Upload form visible for privileged user | Open `projectInfoView.html?id=1` as admin | Attachments card shows title input + file picker + Upload button (mgt_modify_product) | PASS |
+| TC-933.4 | UI upload happy path + table refresh | Fill title, pick `/tmp/upload_test.txt`, click Upload | Green "Attachment uploaded successfully."; table re-renders without stale rows (DataTable destroy→rebuild fix) and shows all attachments | PASS |
+| TC-933.5 | Confirm dialog on delete | Click a row Delete button | `confirm:` dialog "Delete this attachment? This cannot be undone." | PASS |
+| TC-933.6 | UI delete happy path | Accept the confirm | Green "Attachment deleted."; row removed from the table; row gone from `attachments` DB table | PASS |
+| TC-933.7 | Last attachment deleted keeps card (uploader) | Delete the only remaining attachment as admin | Card stays visible with the upload form (no attachments, CAN_UPLOAD), no stale row | PASS |
+| TC-933.8 | BFF delete 200 | `POST ?action=delete&id=1&file_id=<id>` admin | status 200; `deleted:true`; `attachments[]` no longer contains the id; DB row removed | PASS |
+| TC-933.9 | Forged file_id → 404 | `POST ?action=delete&id=1&file_id=999999` | status 404; message "Attachment not found on this project"; no other container attachment touched | PASS |
+| TC-933.10 | Empty upload → 422 | `POST ?action=upload&id=1` without a file | status 422; message "No file uploaded" | PASS |
+| TC-933.11 | Disallowed file type → 422 | Upload `/tmp/evil.sh` (application/x-sh) | status 422; legacy `FILE_UPLOAD_allowed_files` message ("allowed file type check"); not stored | PASS |
+| TC-933.12 | Unknown project → 404 | `POST ?action=upload&id=99999` | status 404; "Test project not found" | PASS |
+| TC-933.13 | Read-only UI for non-privileged user | Open `projectInfoView.html?id=1` as limiteduser | No upload form, no Delete buttons, no Manage-project link (grants.mgt_modify_product=false) | PASS |
+| TC-933.14 | Upload 403 for non-privileged user | `?action=upload&id=1` as limiteduser | status 403; "No permission to upload attachments" | PASS |
+| TC-933.15 | Delete 403 for non-privileged user | `?action=delete&id=1&file_id=3` as limiteduser | status 403; "No permission to delete attachments"; attachment survives | PASS |
+| TC-933.16 | Download link regression | GET `attachmentdownload.php?id=3` authed | status 200 `text/plain`; content matches uploaded file | PASS |
+| TC-933.17 | i18n keys in all 10 bundles | `python3 -m json.tool` over en/de/es/fr/it/ja/pt/ro/ru/zh + grep `piv.upload/delete/...` | All bundles valid JSON; the 11 new `piv.*` keys present in every bundle | PASS |
+| TC-933.18 | No JS console errors | All upload/delete interactions | Zero errors/warnings in console | PASS |
+| TC-933.19 | DataTable re-render regression | Upload then delete repeatedly, and Refresh | Table never duplicates/stales rows; pagination counts match server list | PASS |
+| TC-933.20 | Event Viewer clean | Query `events` table after all flows | No new ERROR/WARNING rows; only info audit (attachment created/deleted) | PASS |
+
+All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), branch `sebiboga`.
