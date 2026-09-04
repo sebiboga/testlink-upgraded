@@ -208,8 +208,9 @@ if ($action === 'download') {
     // legacy flushHttpHeader() already set attachment headers for non-HTML;
     // for HTML we set them here after the buffer is cleaned.
     if ($format === 0) { // FORMAT_HTML
-        $filename = (($_SESSION['testprojectPrefix'] ?? '') ?: 'report') .
-            '-test_plan-' . date('Y-m-d') . '.html';
+        $prefix = preg_replace('/[^A-Za-z0-9_\-\.]/', '_', $_SESSION['testprojectPrefix'] ?? '');
+        $prefix = $prefix === '' ? 'report' : $prefix;
+        $filename = $prefix . '-test_plan-' . date('Y-m-d') . '.html';
         header('Content-Type: text/html; charset=utf-8');
         header('Content-Disposition: attachment; filename="' . $filename . '"');
     }
