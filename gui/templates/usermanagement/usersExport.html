@@ -116,6 +116,7 @@ function loadInfo() {
       if (d.filename) { $('#exportFilename').val(d.filename); }
     })
     .fail(function (xhr) {
+      if (xhr.status === 403) { showFatal(TLi18n.t('userexport.noRights')); return; }
       var msg = TLi18n.t('userexport.errLoad');
       try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
       showFatal(msg);
@@ -160,13 +161,14 @@ function doExport() {
     $('#loadingOverlay').hide();
     $('#btnExport').prop('disabled', false);
     toast(TLi18n.t('userexport.done'));
-  }).fail(function (xhr) {
+}).fail(function (xhr) {
     var msg = TLi18n.t('userexport.errExport');
+    if (xhr.status === 403) { showFatal(TLi18n.t('userexport.noRights')); return; }
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e3) {}
     toast(msg, true);
     $('#loadingOverlay').hide();
     $('#btnExport').prop('disabled', false);
-  });
+});
 }
 
 $(function () {
