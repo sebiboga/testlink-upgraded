@@ -274,7 +274,7 @@ function initializeGui(&$dbh,&$argsObj,&$tplanMgr) {
   $pp = (array)array_flip((array)$argsObj->platSet);
   if( !isset($pp[0]) ) {
     // we have platforms
-    foreach( $argsObj->platSet as $pk ) {
+    foreach( (array)$argsObj->platSet as $pk ) {
       $guiObj->platSet[$pk] = $pk;
     }
   }
