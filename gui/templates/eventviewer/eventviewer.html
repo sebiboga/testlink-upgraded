@@ -175,8 +175,13 @@ var LEVEL_COLORS = {
 var table = null;
 var pieChart = null;
 var lineChart = null;
+var pieCanvasSize = null;
+var lineCanvasSize = null;
 
 $(function() {
+  var pieEl = $('#pieChart'), lineEl = $('#lineChart');
+  pieCanvasSize = { w: parseInt(pieEl.attr('width'), 10), h: parseInt(pieEl.attr('height'), 10) };
+  lineCanvasSize = { w: parseInt(lineEl.attr('width'), 10), h: parseInt(lineEl.attr('height'), 10) };
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -313,6 +318,7 @@ function renderPie(items) {
   });
   if (pieChart) { pieChart = null; }
   var pieCanvas = document.getElementById('pieChart');
+  if (pieCanvasSize) { pieCanvas.width = pieCanvasSize.w; pieCanvas.height = pieCanvasSize.h; }
   pieChart = new Chart(pieCanvas.getContext('2d'))
     .Doughnut(data, {segmentStrokeWidth: 1, percentageInnerCutout: 45, animationEasing: "easeOutQuart"});
   TLPieTooltip.attach(pieCanvas, data, {percentageInnerCutout: 45});
@@ -327,8 +333,9 @@ function renderPie(items) {
 
 function renderLine(labels, data) {
   if (lineChart) { lineChart = null; }
-  var ctx = document.getElementById('lineChart').getContext('2d');
-  lineChart = new Chart(ctx).Line({
+  var lineEl = document.getElementById('lineChart');
+  if (lineCanvasSize) { lineEl.width = lineCanvasSize.w; lineEl.height = lineCanvasSize.h; }
+  lineChart = new Chart(lineEl.getContext('2d')).Line({
     labels: labels,
     datasets: [{
       fillColor: 'rgba(78,205,196,0.2)',
