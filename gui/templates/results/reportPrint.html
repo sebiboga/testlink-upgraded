@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Plan Report - Print</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #f2f2f2; font-family: 'Ruda', sans-serif; }
+.toolbar { position: sticky; top: 0; z-index: 10; background: #22242a; color: #fff;
+  display: flex; align-items: center; gap: 12px; padding: 10px 20px; flex-wrap: wrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,.2); }
+.toolbar .title { font-size: 15px; font-weight: 700; letter-spacing: .5px; }
+.toolbar .title i { color: #4ECDC4; margin-right: 6px; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .spacer { flex: 1; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #3d4049; }
+.btn-close { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-close:hover { background: #d45553; }
+.docwrap { margin: 20px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 18px 22px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff;
+  padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999;
+  box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+
+/* Minimal print CSS so the generated document prints cleanly */
+@media print {
+  .toolbar { display: none !important; }
+  body { background: #fff; }
+  .docwrap { margin: 0; border: none; box-shadow: none; padding: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="title"><i class="fa fa-print"></i><span data-i18n="rpt.header">Test Plan Report - Print</span></span>
+  <span class="ctx"><span data-i18n="rpt.project">Project</span>: <b id="projName">-</b></span>
+  <span class="spacer"></span>
+  <button class="btn-teal" onclick="doPrint()"><i class="fa fa-print"></i> <span data-i18n="rpt.print">Print</span></button>
+  <button class="btn-dark" onclick="doDownload()"><i class="fa fa-download"></i> <span data-i18n="rpt.download">Download</span></button>
+  <button class="btn-close" onclick="window.close()"><i class="fa fa-times"></i> <span data-i18n="rpt.close">Close</span></button>
+</div>
+<div class="docwrap" id="docBody"><em style="color:#888;" data-i18n="common.loading">Loading...</em></div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+var API = '/api/reportsprint/index.php';
+var docType = 'testplan';
+var level = 'testproject';
+var id = 0;
+var tprojectId = 0;
+var tplanId = 0;
+var format = 0;
+var opts = '';
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function buildQuery() {
+  return 'action=print&type=' + encodeURIComponent(docType) +
+    '&level=' + encodeURIComponent(level) +
+    '&id=' + id +
+    '&tproject_id=' + tprojectId +
+    '&tplan_id=' + tplanId +
+    '&format=' + format +
+    (opts ? '&' + opts : '');
+}
+
+function loadPrint() {
+  $.getJSON(API + '?' + buildQuery(), function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('rpt.errLoad'), true); return; }
+    $('#docBody').html(r.body_html || '<em>' + esc(TLi18n.t('rpt.empty')) + '</em>');
+    document.title = (r.meta && r.meta.title) ? r.meta.title : TLi18n.t('rpt.header');
+  }).fail(function (xhr) {
+    var msg = xhr.responseJSON && xhr.responseJSON.message;
+    toast(msg || TLi18n.t('rpt.errLoad'), true);
+  });
+}
+
+function doPrint() { window.print(); }
+
+function doDownload() {
+  var q = buildQuery().replace('action=print', 'action=download');
+  window.open(API + '?' + q, '_blank');
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  docType = p.get('type') || 'testplan';
+  level = p.get('level') || 'testproject';
+  id = parseInt(p.get('id') || '0', 10);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  format = parseInt(p.get('format') || '0', 10);
+  var o = p.get('opts') || '';
+  opts = o; // e.g. "toc=y&summary=y..."
+
+  // pre-fill project name from URL if provided
+  var pn = p.get('tproject_name');
+  if (pn) { $('#projName').text(pn); }
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    loadPrint();
+  });
+});
+</script>
+</body>
+</html>

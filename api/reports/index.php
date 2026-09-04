@@ -158,7 +158,8 @@ if ($action === 'tp_report_init') {
     ];
 
     // DOC_TEST_PLAN_EXECUTION_ON_BUILD: legacy printDocOptions offers a
-    // direct report link per build (lnl.php with the plan api key).
+    // direct report link per build (lnl.php with the plan api key). Modern
+    // re-points to the BFF print popup (Refs #845).
     $builds = [];
     if ($docType === 'testreport_onbuild') {
         $buildInfoSet = $tplanMgr->get_builds($tplanId);
@@ -167,10 +168,13 @@ if ($action === 'tp_report_init') {
                 $builds[] = [
                     'id' => intval($bid),
                     'name' => $binfo['name'],
-                    'report_url' => 'lnl.php?apikey=' . $tplanInfo['api_key'] .
+                    'report_url' => 'gui/templates/results/reportPrint.html' .
+                        '?type=testreport_onbuild&level=testproject' .
+                        '&id=' . $tprojectId .
                         '&tproject_id=' . $tprojectId .
                         '&tplan_id=' . $tplanId .
-                        '&type=testreport_onbuild&build_id=' . intval($bid),
+                        '&build_id=' . intval($bid) .
+                        '&format=' . FORMAT_HTML,
                 ];
             }
         }

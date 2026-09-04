@@ -126,7 +126,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/reports/index.php';
-var PRINT_URL = '/lib/results/printDocument.php';
+var PRINT_SCREEN = '/gui/templates/results/reportPrint.html';
 var tprojectId = 0;
 var tplanId = 0;
 var docType = 'testplan';
@@ -319,12 +319,13 @@ function collectOpts() {
 }
 
 function docUrl(level, id) {
-  return PRINT_URL +
+  return PRINT_SCREEN +
     '?type=' + docType + '&level=' + level + '&id=' + id +
-    '&docTestPlanId=' + tplanId +
     '&tproject_id=' + tprojectId +
+    '&tplan_id=' + tplanId +
     '&format=' + parseInt($('#formatSel').val() || '0', 10) +
-    '&' + collectOpts();
+    '&tproject_name=' + encodeURIComponent($('#tprojectName').text() || '') +
+    '&opts=' + encodeURIComponent(collectOpts());
 }
 
 function printWholePlan() {
