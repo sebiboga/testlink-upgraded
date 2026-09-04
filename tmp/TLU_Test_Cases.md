@@ -10117,29 +10117,33 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Code-review subagent:** APPROVED (additive, non-breaking, consistent with
   `create_new_version` branch).
 
----
+## Regression — Issue #849: MD import hitCriteria externalID/internalID accepted + duplicate detection fixed
 
-### Suite TPWCF-1: tplanWithCF gaps fixed (#860 #858 #859 #848)
+- **Priority:** High · **Importance:** High
+- **Scope:** `api/testcasesimport/index.php` — MD import `hit_criteria` validation
+  and duplicate detection. Two coupled defects: (1) `strtolower()` on incoming
+  `hit_criteria` produced `externalid`/`internalid` which never matched the
+  mixed-case allow-list `['name','internalID','externalID']`, making
+  externalID/internalID always rejected with 400. (2) The MD duplicate detection
+  block used `intval($c['tcId'])` but tcId is "TC-N" format → `intval("TC-1")`
+  = 0, so duplicate matching always fell through to name-based path. Fix:
+  lowercase allow-list for validation + canonical re-casing for downstream, and
+  `preg_match('/(\d+)\s*$/', tcId)` to extract numeric part before ID lookup.
+- **Precondition:** authenticated session (admin/admin) + fixture project
+  `HitCriteriaTest` (id 1, auto-created by admin). One existing TC node (id 3,
+  external_id 1, title "Existing Test Case Alpha") in suite "Import Test Suite".
 
-**Date:** 2026-09-04
-**Screen:** `gui/templates/results/tplanWithCF.html` + `api/reports/index.php` `tplan_with_cf`
-**Fixes:** #860 (doubled glue-char), #858 (info text), #859 (generated timestamp), #848 (edit icon → tcEdit)
-
-| Test | Description | Steps | Expected | Result |
+| # | Test case | Steps | Expected | Actual |
 |---|---|---|---|---|
-| TC-TPWCF.1 | External IDs show single glue-char | Load `tplanWithCF.html?tproject_id=1&tplan_id=2` with 2 TCs having CF values | IDs display as "TPWCF-1", "TPWCF-2" (single dash) | PASS: TPWCF-1, TPWCF-2 |
-| TC-TPWCF.2 | Info text displayed | Same page load, inspect footer area | Italic text: "This Report shows all test cases with any custom field set while adding test cases to test plan." | PASS |
-| TC-TPWCF.3 | Generated timestamp shown | Same page load, inspect footer | "Generated on 2026-09-04 ..." timestamp visible in footer | PASS |
-| TC-TPWCF.4 | Elapsed time shown | Same page load, inspect footer | "Elapsed: 0.01s" shown in footer | PASS |
-| TC-TPWCF.5 | Edit icon opens tcEdit.html | Click the pencil icon on TC Alpha-1 row | Popup opens `tcEdit.html?tcase_id=12&tproject_id=1` (editor, not viewer) | PASS |
-| TC-TPWCF.6 | No-data state shows info text + timestamp | Load with tplan_id that has no CF values | Empty message shown + footer with info text + generated timestamp | N/A (fixture had data) |
-| TC-TPWCF.7 | BFF returns generated_on | `curl` the BFF API endpoint | JSON includes `"generated_on": "2026-09-04 ..."` field | PASS |
-| TC-TPWCF.8 | BFF returns single glue-char | Check `external_id` in BFF JSON response | Values like `"TPWCF-1"`, not `"TPWCF--1"` | PASS |
-| TC-TPWCF.9 | i18n keys present in all bundles | `grep tpwcf.infoText gui/templates/i18n/*.json` | All 10 JSON bundles contain `tpwcf.infoText` and `tpwcf.generatedOn` | PASS |
-| TC-TPWCF.10 | No new Error/Warning in Event Viewer | Check Event Viewer after all test runs | Zero ERROR/WARNING events | PASS |
-| TC-TPWCF.11 | Footer standard (no-data path) | `api/reports/index.php?action=tplan_with_cf` with empty CF values | `generated_on` present in both `hasData=false` response paths | PASS |
-| TC-TPWCF.12 | Syntax check BFF | `php -l api/reports/index.php` | No syntax errors | PASS |
+| TC-849.1 | hit_criteria=externalID accepted | `POST import_md` with `hit_criteria=externalID` | 200 ok, `options.hit_criteria: "externalID"` | PASS |
+| TC-849.2 | hit_criteria=internalID accepted | `POST import_md` with `hit_criteria=internalID` | 200 ok, `options.hit_criteria: "internalID"` | PASS |
+| TC-849.3 | externalID duplicate detected | import TC-1 (ext_id=1) with `hit_criteria=externalID,action_on_hit=skip` | `skippedCount:1`, reason "duplicate in target suite" | PASS |
+| TC-849.4 | internalID duplicate detected | import TC-3 (node_id=3) with `hit_criteria=internalID,action_on_hit=skip` | `skippedCount:1`, reason "duplicate in target suite" | PASS |
+| TC-849.5 | name duplicate (no regression) | import TC-1 with `hit_criteria=name,action_on_hit=skip` | `skippedCount:1`, reason "duplicate in target suite" | PASS |
+| TC-849.6 | externalID + generate_new bypasses | import TC-1 with `hit_criteria=externalID,action_on_hit=generate_new` | `createdCount:1` (no skip) | PASS |
+| TC-849.7 | non-matching externalID creates | import TC-999 (ext_id=999) with `hit_criteria=externalID,action_on_hit=skip` | `createdCount:1` (no duplicate found) | PASS |
+| TC-849.8 | invalid hit_criteria rejected | `hit_criteria=invalid` | 400 "Invalid hit_criteria" | PASS |
+| TC-849.9 | Event Viewer clean | inspect `events` table after all runs | no ERROR/WARNING rows | PASS |
 
-- **Result:** **11/11 PASS** (+ 1 N/A) against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
-- **Syntax gate:** `php -l api/reports/index.php` → no syntax errors.
-- **Code-review subagent:** APPROVED (buildExternalIdString contract correct, date() safe, HTML escaping pre-existing pattern).
+- **Result:** **9/9 PASS** against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
+- **Syntax gate:** `php -l api/testcasesimport/index.php` → no syntax errors.
