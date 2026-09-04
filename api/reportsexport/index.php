@@ -172,7 +172,7 @@ $exportMap = [
 
 if (!isset($exportMap[$action])) {
     http_response_code(400);
-    echo json_encode(['status' => 'error', 'message' => 'Unknown action: ' . $action]);
+    echo json_encode(['status' => 'error', 'message' => 'Unknown action']);
     exit;
 }
 

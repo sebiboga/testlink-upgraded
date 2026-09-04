@@ -2515,6 +2515,7 @@ if ($action === 'never_run_init') {
     }
 
     $exportUrl = '/api/reportsexport/index.php?action=never_run&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $mailUrl = '/api/reportsexport/index.php?action=never_run_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     out([
         'status' => 'ok',
@@ -2526,6 +2527,7 @@ if ($action === 'never_run_init') {
         'show_platforms' => $showPlatforms,
         'platforms' => $platforms,
         'export_xls_url' => $exportUrl,
+        'send_mail_url' => $mailUrl,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;
@@ -2615,6 +2617,7 @@ if ($action === 'never_run_result') {
     $projInfo = $tprojectMgr->get_by_id($tprojectId);
 
     $exportUrl = '/api/reportsexport/index.php?action=never_run&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $mailUrl = '/api/reportsexport/index.php?action=never_run_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
 
     out([
         'status' => 'ok',
@@ -2628,6 +2631,7 @@ if ($action === 'never_run_result') {
         'rows' => $rows,
         'info_msg' => $hasData ? '' : lang_get('info_notrun_tc_report'),
         'export_xls_url' => $exportUrl,
+        'send_mail_url' => $mailUrl,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;
