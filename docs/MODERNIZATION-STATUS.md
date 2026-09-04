@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-04 (#854 Report XLS/Mail Export BFF gateway — `api/reportsexport/index.php` validates auth + rights, then proxies to legacy controllers for XLS/mail generation. All 10 report screens' export endpoints switched off legacy `.php` references.)
+> Last updated: 2026-09-04 (tplanWithCF gap fixes — #860 doubled glue-char in external IDs, #858 info text, #859 generated-on footer timestamp, #848 direct tcEdit action — all verified, Refs #848 #858 #859 #860)
 
 ## Summary
 
@@ -79,6 +79,13 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 55 | Reports — Results Requirements | `results/resultsRequirements.html` | api/reports | |
 | 56 | Reports — Cases Without Tester | `results/casesWithoutTester.html` | api/reports | |
 | 57 | Reports — Test Plan with CF | `results/tplanWithCF.html` | api/reports | #737 |
+
+> **tplanWithCF gap fixes (2026-09-04, Refs #848 #858 #859 #860):** external IDs now use a single glue-char
+> (`buildExternalIdString($prefix, …)` — no more doubled `CFRP--2`); footer shows the legacy italic info text
+> ("This Report shows all test cases…" via new `tpwcf.infoText` key) plus a "Generated on" server timestamp
+> (`generated_on` in BFF response, new `tpwcf.generatedOn` key) alongside elapsed time; per-row edit icon now
+> opens the direct test-case editor `tcEdit.html` instead of the read-only `tcView.html`. i18n keys added to all
+> 10 locale bundles. Regression suite TPWCF-1 11/11 PASS; Event Viewer clean.
 | 58 | Reports — Absolute Latest | `results/absoluteLatest.html` | api/reports | |
 | 59 | Reports — General Metrics | `results/generalMetrics.html` | api/reports | |
 | 60 | Reports — Assigned TC Overview | `results/assignedTcOverview.html` | api/reports | |
