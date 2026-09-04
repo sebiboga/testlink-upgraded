@@ -2501,5 +2501,16 @@
   "piv.noDescription": "Nu a fost furnizată nicio descriere.",
   "piv.loadError": "Încărcarea informațiilor despre proiect a eșuat.",
   "piv.notFound": "Proiectul de testare nu a fost găsit.",
-  "piv.infoShort": "Info"
+  "piv.infoShort": "Info",
+  "piv.upload": "Încarcă",
+  "piv.uploadTitle": "Titlul atașamentului",
+  "piv.chooseFile": "Alege fișier",
+  "piv.noFileSelected": "Niciun fișier selectat",
+  "piv.delete": "Șterge",
+  "piv.deleteConfirm": "Ștergeți acest atașament? Această acțiune nu poate fi anulată.",
+  "piv.uploadOk": "Atașament încărcat cu succes.",
+  "piv.uploadFail": "Încărcarea atașamentului a eșuat.",
+  "piv.deleteOk": "Atașament șters.",
+  "piv.deleteFail": "Ștergerea atașamentului a eșuat.",
+  "piv.addAttachment": "Adaugă atașament"
 }

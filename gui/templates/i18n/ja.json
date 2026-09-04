@@ -2501,5 +2501,16 @@
   "piv.noDescription": "説明はありません。",
   "piv.loadError": "プロジェクト情報を読み込めませんでした。",
   "piv.notFound": "テストプロジェクトが見つかりません。",
-  "piv.infoShort": "情報"
+  "piv.infoShort": "情報",
+  "piv.upload": "アップロード",
+  "piv.uploadTitle": "添付ファイルのタイトル",
+  "piv.chooseFile": "ファイルを選択",
+  "piv.noFileSelected": "ファイルが選択されていません",
+  "piv.delete": "削除",
+  "piv.deleteConfirm": "この添付ファイルを削除しますか？この操作は元に戻せません。",
+  "piv.uploadOk": "添付ファイルをアップロードしました。",
+  "piv.uploadFail": "添付ファイルのアップロードに失敗しました。",
+  "piv.deleteOk": "添付ファイルを削除しました。",
+  "piv.deleteFail": "添付ファイルの削除に失敗しました。",
+  "piv.addAttachment": "添付ファイルを追加"
 }

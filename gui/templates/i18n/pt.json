@@ -2501,5 +2501,16 @@
   "piv.noDescription": "Nenhuma descrição fornecida.",
   "piv.loadError": "Falha ao carregar as informações do projeto.",
   "piv.notFound": "Projeto de teste não encontrado.",
-  "piv.infoShort": "Info"
+  "piv.infoShort": "Info",
+  "piv.upload": "Carregar",
+  "piv.uploadTitle": "Título do anexo",
+  "piv.chooseFile": "Escolher arquivo",
+  "piv.noFileSelected": "Nenhum arquivo selecionado",
+  "piv.delete": "Excluir",
+  "piv.deleteConfirm": "Excluir este anexo? Esta ação não pode ser desfeita.",
+  "piv.uploadOk": "Anexo carregado com sucesso.",
+  "piv.uploadFail": "Falha ao carregar o anexo.",
+  "piv.deleteOk": "Anexo excluído.",
+  "piv.deleteFail": "Falha ao excluir o anexo.",
+  "piv.addAttachment": "Adicionar anexo"
 }

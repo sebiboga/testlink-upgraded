@@ -39,6 +39,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 #attTable td { font-size: 13px; vertical-align: middle; }
 .dl-link { color: #f24286; text-decoration: none; font-weight: 600; }
 .dl-link:hover { text-decoration: underline; }
+.btn-sm-del { background: #fff; border: 1px solid #e5b8bb; color: #c0392b; border-radius: 4px; padding: 3px 9px; margin-left: 8px; font-size: 12px; cursor: pointer; }
+.btn-sm-del:hover { background: #fdecea; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
 .error-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
@@ -95,6 +97,20 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <div class="card" id="attCard" style="display:none;">
     <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="piv.attachments">Attachments</span></div>
     <div class="card-body">
+      <div id="attUpload" style="display:none;margin-bottom:14px;border:1px dashed #d0d0d0;border-radius:6px;padding:12px 14px;background:#fbfbfb;">
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;" data-i18n="piv.uploadTitle">Attachment title</div>
+            <input type="text" id="attTitle" class="form-control form-control-sm" maxlength="100" placeholder="">
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;" data-i18n="piv.chooseFile">Choose file</div>
+            <input type="file" id="attFile" class="form-control form-control-sm">
+          </div>
+          <button class="btn-teal" onclick="uploadAttachment()"><i class="fa fa-upload"></i> <span data-i18n="piv.upload">Upload</span></button>
+        </div>
+        <div id="attMsg" style="margin-top:8px;font-size:12.5px;color:#a00;display:none;"></div>
+      </div>
       <table class="table" id="attTable">
         <thead>
           <tr>
@@ -121,6 +137,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 var API = '/api/projectinfo/index.php';
 var PROJECT_ID = 0;
 var TOKEN = 0;
+var CAN_UPLOAD = false;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -195,28 +212,109 @@ function render(r) {
   $('#manageLink').css('display', r.grants.mgt_modify_product ? 'inline-flex' : 'none');
   $('#manageLink').attr('href', '/gui/templates/projectsView.html');
 
+  CAN_UPLOAD = !!r.grants.mgt_modify_product;
+  if (CAN_UPLOAD) {
+    $('#attUpload').css('display', 'block');
+  }
+
   renderAttachments(r.attachments || []);
 }
 
 function renderAttachments(atts) {
-  if (!atts.length) { $('#attCard').hide(); return; }
+  if (!atts.length && !CAN_UPLOAD) { $('#attCard').hide(); return; }
   $('#attCard').show();
+  if ($.fn.DataTable.isDataTable('#attTable')) {
+    $('#attTable').DataTable().destroy();
+  }
   var $tb = $('#attTable tbody').empty();
+  if (!atts.length) {
+    return;
+  }
   $.each(atts, function(i, a) {
+    var actions = '<a class="dl-link" href="' + a.download_url + '"><i class="fa fa-download"></i> ' + TLi18n.t('piv.download') + '</a>';
+    if (CAN_UPLOAD) {
+      actions += ' <button class="btn-sm-del" onclick="deleteAttachment(' + a.id + ')" title="' + TLi18n.t('piv.delete') + '"><i class="fa fa-trash"></i> ' + TLi18n.t('piv.delete') + '</button>';
+    }
     $tb.append('<tr>' +
       '<td><b>' + escapeHtml(a.title || a.file_name) + '</b></td>' +
       '<td>' + escapeHtml(a.file_name || '') + '</td>' +
       '<td>' + fmtSize(a.file_size) + '</td>' +
       '<td>' + escapeHtml(a.date_added || '') + '</td>' +
-      '<td><a class="dl-link" href="' + a.download_url + '"><i class="fa fa-download"></i> ' + TLi18n.t('piv.download') + '</a></td>' +
+      '<td>' + actions + '</td>' +
     '</tr>');
   });
-  if ($.fn.DataTable.isDataTable('#attTable')) {
-    $('#attTable').DataTable().destroy();
-  }
   $('#attTable').DataTable({
     pageLength: 10, lengthChange: false, searching: true,
     order: [[3, 'desc']], language: { search: TLi18n.t('common.search') }
+  });
+}
+
+function attMsg(text, isError) {
+  var $m = $('#attMsg');
+  $m.css('display', text ? 'block' : 'none');
+  $m.css('color', isError ? '#a00' : '#1a7f79');
+  $m.text(text || '');
+}
+
+function uploadAttachment() {
+  var $file = $('#attFile')[0];
+  if (!$file || !$file.files.length) {
+    attMsg(TLi18n.t('piv.noFileSelected'), true);
+    return;
+  }
+  attMsg('', false);
+  var fd = new FormData();
+  fd.append('uploadedFile', $file.files[0]);
+  fd.append('fileTitle', $('#attTitle').val() || $file.files[0].name);
+  $.ajax({
+    url: API + '?action=upload&id=' + PROJECT_ID,
+    type: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    success: function(r) {
+      if (r.status !== 'ok') {
+        attMsg(r.message || TLi18n.t('piv.uploadFail'), true);
+        return;
+      }
+      $('#attTitle').val('');
+      $('#attFile').val('');
+      attMsg(TLi18n.t('piv.uploadOk'), false);
+      renderAttachments(r.attachments || []);
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('piv.uploadFail');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      attMsg(msg, true);
+    }
+  });
+}
+
+function deleteAttachment(id) {
+  if (!window.confirm(TLi18n.t('piv.deleteConfirm'))) return;
+  $.ajax({
+    url: API + '?action=delete&id=' + PROJECT_ID + '&file_id=' + id,
+    type: 'POST',
+    success: function(r) {
+      if (r.status !== 'ok') {
+        attMsg(r.message || TLi18n.t('piv.deleteFail'), true);
+        return;
+      }
+      attMsg(TLi18n.t('piv.deleteOk'), false);
+      var remaining = r.attachments || [];
+      if (remaining.length) {
+        renderAttachments(remaining);
+      } else if (CAN_UPLOAD) {
+        renderAttachments([]);
+      } else {
+        $('#attCard').hide();
+      }
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('piv.deleteFail');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      attMsg(msg, true);
+    }
   });
 }
 

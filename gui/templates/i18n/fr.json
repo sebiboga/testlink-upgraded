@@ -2501,5 +2501,16 @@
   "piv.noDescription": "Aucune description fournie.",
   "piv.loadError": "Échec du chargement des informations du projet.",
   "piv.notFound": "Projet de test introuvable.",
-  "piv.infoShort": "Info"
+  "piv.infoShort": "Info",
+  "piv.upload": "Téléverser",
+  "piv.uploadTitle": "Titre de la pièce jointe",
+  "piv.chooseFile": "Choisir un fichier",
+  "piv.noFileSelected": "Aucun fichier sélectionné",
+  "piv.delete": "Supprimer",
+  "piv.deleteConfirm": "Supprimer cette pièce jointe ? Cette action est irréversible.",
+  "piv.uploadOk": "Pièce jointe téléversée avec succès.",
+  "piv.uploadFail": "Échec du téléversement de la pièce jointe.",
+  "piv.deleteOk": "Pièce jointe supprimée.",
+  "piv.deleteFail": "Échec de la suppression de la pièce jointe.",
+  "piv.addAttachment": "Ajouter une pièce jointe"
 }

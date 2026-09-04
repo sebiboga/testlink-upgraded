@@ -2501,5 +2501,16 @@
   "piv.noDescription": "Описание не предоставлено.",
   "piv.loadError": "Не удалось загрузить информацию о проекте.",
   "piv.notFound": "Проект тестирования не найден.",
-  "piv.infoShort": "Справка"
+  "piv.infoShort": "Справка",
+  "piv.upload": "Загрузить",
+  "piv.uploadTitle": "Название вложения",
+  "piv.chooseFile": "Выбрать файл",
+  "piv.noFileSelected": "Файл не выбран",
+  "piv.delete": "Удалить",
+  "piv.deleteConfirm": "Удалить это вложение? Это действие нельзя отменить.",
+  "piv.uploadOk": "Вложение успешно загружено.",
+  "piv.uploadFail": "Не удалось загрузить вложение.",
+  "piv.deleteOk": "Вложение удалено.",
+  "piv.deleteFail": "Не удалось удалить вложение.",
+  "piv.addAttachment": "Добавить вложение"
 }

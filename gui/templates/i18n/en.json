@@ -2501,5 +2501,16 @@
   "piv.noDescription": "No description provided.",
   "piv.loadError": "Failed to load the project information.",
   "piv.notFound": "Test project not found.",
-  "piv.infoShort": "Info"
+  "piv.infoShort": "Info",
+  "piv.upload": "Upload",
+  "piv.uploadTitle": "Attachment title",
+  "piv.chooseFile": "Choose file",
+  "piv.noFileSelected": "No file selected",
+  "piv.delete": "Delete",
+  "piv.deleteConfirm": "Delete this attachment? This cannot be undone.",
+  "piv.uploadOk": "Attachment uploaded successfully.",
+  "piv.uploadFail": "Attachment upload failed.",
+  "piv.deleteOk": "Attachment deleted.",
+  "piv.deleteFail": "Failed to delete the attachment.",
+  "piv.addAttachment": "Add attachment"
 }
