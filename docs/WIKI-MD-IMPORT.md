@@ -48,11 +48,22 @@ create_new_version doubles tcversions · generate_new creates new TC when name m
 full-file dry run (122 cases/24 suites) ·
 403 without rights · 413 over size limit · no Event Viewer pollution.
 
+## Duplicate actions (`action_on_hit`)
+When a case matches an existing TC in the target suite (by `hit_criteria`):
+- `skip` — leave the existing TC untouched (added to `skipped`).
+- `create_new_version` — bump to a fresh test case version, then update it
+  (added to `newVersions`; the human-readable `version` number increments).
+- `update_last_version` — resolve the latest version via `get_last_version_info()`
+  and update it **in place** (no new version); legacy parity with
+  `lib/testcases/tcImport.php:384-427`. If the name matches no existing TC it
+  falls through to create, matching legacy `case 0`.
+- `generate_new` — bypass duplicate detection and always create a new TC
+  (legacy parity: `tcImport.php:274-276`).
+
 ## Legacy parity notes (vs lib/testcases/tcImport.php)
 Same permission model and size cap; duplicate criteria limited to `name`
 (legacy also has internalID/externalID); all four legacy actions supported
 (`skip`, `create_new_version`, `generate_new`, `update_last_version`).
-`generate_new` bypasses duplicate detection entirely (legacy parity: `tcImport.php:274-276`).
 
 ## Modernized UI (`gui/templates/testcases/tcImport.html`)
 
