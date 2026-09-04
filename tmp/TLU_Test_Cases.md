@@ -10030,3 +10030,11 @@ documented findings only).
 | TC-854.17 | unknown action error doesn't reflect user input | GET `?action=<script>` with auth | JSON `"message":"Unknown action"` (no raw script reflected) | PASS: `{"status":"error","message":"Unknown action"}` |
 
 - **Suite 854 final:** **17/17 PASS.** Code-review fixes applied: never_run mail URL exposed, XSS in unknown-action error removed. All legacy-fix bugs (855, 856) auto-closed and verified; Event Viewer clean.
+
+- **Suite 854 addendum (TC-854.18) — displayMgr mail feedback fix (Fixes #857, Refs #854)**
+
+| TC | Title | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-854.18 | General Metrics mail-by-email no longer fatals | GET `?action=general_metrics_mail&tplan_id=200&tproject_id=100` via gateway | 200 HTML feedback page (not fatal at displayMgr:171) | PASS: 200, no fatal; Event Viewer clean |
+
+- **Suite 854 final:** **18/18 PASS.** Legacy PHP 8.x fixes: resultsByStatus `count(null)` (Fixes #855), neverRunByPP `foreach(null)` (Fixes #856), displayMgr `$mf` null (Fixes #857) — all auto-closed & verified. Event Viewer clean (0 warnings/errors).
