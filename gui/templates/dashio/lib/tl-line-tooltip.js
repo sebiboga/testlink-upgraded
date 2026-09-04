@@ -44,14 +44,25 @@ var TLLineTooltip = (function () {
 
   // Decimal places Chart.js uses when formatting the Y-axis tick labels.
   function getDecimalPlaces(num) {
-    if (num % 1 !== 0) { return num.toString().split('.')[1].length; }
-    return 0;
+    var s = num.toString();
+    var dot = s.indexOf('.');
+    if (dot < 0) return 0; // integer, or exponential notation (5e-325)
+    return s.length - dot - 1;
   }
 
   // Replicates the pivot values of the Chart.js v1 `Line()` chart so the point
   // dots can be located without CSS parsing. Returns the dot centres in canvas
   // backing-store pixels, or null when the chart cannot be hit-tested.
   function geometry(canvas, ctx, labels, data) {
+    try {
+      return computeGeometry(canvas, ctx, labels, data);
+    } catch (e) {
+      // Never propagate a geometry failure into the chart render path.
+      return null;
+    }
+  }
+
+  function computeGeometry(canvas, ctx, labels, data) {
     if (!labels || !labels.length || !data || labels.length !== data.length) return null;
     if (labels.length < 2) return null; // valueHop would divide by zero
 
@@ -85,9 +96,8 @@ var TLLineTooltip = (function () {
     maxSize -= labelHeight;
     var scaleHeight = maxSize;
 
-    // getValueBounds() - same sentinel init as Chart.js, so an all-zero dataset
-    // keeps an hoverable baseline (upperValue = Number.MIN_VALUE > 0).
-    var upperValue = Number.MIN_VALUE, lowerValue = Number.MAX_VALUE;
+    // getValueBounds()
+    var upperValue = -Infinity, lowerValue = Infinity;
     for (i = 0; i < data.length; i++) {
       var v = Number(data[i]);
       if (isFinite(v)) {
@@ -108,6 +118,7 @@ var TLLineTooltip = (function () {
     var stepValue = Math.pow(10, rangeOrderOfMagnitude);
     var numberOfSteps = Math.round(graphRange / stepValue);
     while (numberOfSteps < minSteps || numberOfSteps > maxSteps) {
+      if (stepValue === 0 || !isFinite(numberOfSteps)) return null; // degenerate scale (e.g. all-zero data)
       if (numberOfSteps < minSteps) { stepValue /= 2; numberOfSteps = Math.round(graphRange / stepValue); }
       else { stepValue *= 2; numberOfSteps = Math.round(graphRange / stepValue); }
     }

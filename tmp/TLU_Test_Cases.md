@@ -10212,7 +10212,8 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 | TC-861.7 | Geometry matches rendered dots | Compare replicated dot centres vs canvas pixel scan | lineChart dots differ ≤2px (visual hit exact) | PASS (delta ≤2px) |
 | TC-861.8 | Re-attach does not stack | Click Apply (filter re-draw), hover again | Tooltip still shows; single attached handler (`canvas._tlLineMove` replaced, not stacked) | PASS (see note) |
 | TC-861.9 | No new Error/Warning events | Query `events` table after test runs | Zero new ERROR/WARNING from this flow | PASS |
+| TC-861.10 | All-zero dataset does not throw/hang | Attach shim to a scratch 700×260 canvas with 30 zero values, hover baseline | No exception, no infinite loop, tooltip stays hidden (real Chart.js is degenerate for all-zero; hook stays inert) | PASS |
 
-- **Result:** **8/9 PASS** (+ 1 pre-fix confirmation). TC-861.8 verified hover works after Apply; NOTE a separate pre-existing bug surfaced while testing — the `.clear()` call on Chart.js v1 chart instances throws TypeError, so charts do NOT re-render on Apply (filed as issue **#921**, out of scope of this run).
+- **Result:** **9/10 PASS** (+ 1 pre-fix confirmation). TC-861.8 verified hover works after Apply; NOTE a separate pre-existing bug surfaced while testing — the `.clear()` call on Chart.js v1 chart instances throws TypeError, so charts do NOT re-render on Apply (filed as issue **#921**, out of scope of this run).
 - **Syntax gate:** `node --check gui/templates/dashio/lib/tl-line-tooltip.js` → no syntax errors.
 - **Screenshots:** `docs/screenshots/issue-861-eventviewer-line-tooltip-before.png` (pre-fix, no tooltip), `docs/screenshots/issue-861-eventviewer-line-tooltip.png` (post-fix, tooltip `2026-09-04: 2` visible).
