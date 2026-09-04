@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="piv.title">Test Project Information</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #f24286; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-title i { color: #f24286; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.kv { display: grid; grid-template-columns: 200px 1fr; row-gap: 8px; column-gap: 16px; }
+.kv .k { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding-top: 2px; }
+.kv .v { color: #333; word-break: break-word; }
+.details-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.flag-chip { display: inline-block; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; }
+.flag-on  { background: #eaf7f6; border: 1px solid #bfe6e2; color: #1a7f79; }
+.flag-off { background: #f3f3f3; border: 1px solid #ddd; color: #999; }
+.badge-active { background: #27ae60; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #95a5a6; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.att-row { display: flex; gap: 12px; align-items: center; padding: 9px 0; border-bottom: 1px dashed #eee; }
+.att-row:last-child { border-bottom: none; }
+.att-row .sub { color: #999; font-size: 12px; }
+#attTable thead th { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; border-bottom: 2px solid #f24286; }
+#attTable td { font-size: 13px; vertical-align: middle; }
+.dl-link { color: #f24286; text-decoration: none; font-weight: 600; }
+.dl-link:hover { text-decoration: underline; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.error-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-cube"></i> <span data-i18n="piv.title">Test Project Information</span><span id="projName" class="sub"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="manageLink" href="#" target="_blank"><i class="fa fa-cog"></i> <span data-i18n="piv.manage">Manage project</span></a>
+  <a class="btn-ghost" id="dashLink" href="/gui/templates/mainpage/mainPage.html" target="_blank"><i class="fa fa-home"></i> <span data-i18n="piv.dashboard">Dashboard</span></a>
+  <span style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
+</div>
+
+<div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+<div id="viewLoading" style="display:none;text-align:center;padding:22px;color:#888;font-size:13px;">
+  <i class="fa fa-spinner fa-spin" style="margin-right:6px;"></i><span data-i18n="common.loading">Loading...</span>
+</div>
+
+<div id="content" style="display:none;">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="piv.overview">Overview</span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="piv.name">Name</div><div class="v"><span class="id-chip" id="vName"></span> <span class="id-chip" style="font-size:10px;color:#999;" id="vId"></span></div>
+        <div class="k" data-i18n="piv.prefix">Prefix</div><div class="v" id="vPrefix"></div>
+        <div class="k" data-i18n="piv.status">Status</div><div class="v" id="vStatus"></div>
+        <div class="k" data-i18n="piv.public">Visibility</div><div class="v" id="vPublic"></div>
+        <div class="k" data-i18n="piv.tcCount">Test case counter</div><div class="v" id="vTcCount"></div>
+        <div class="k" data-i18n="piv.options">Project options</div><div class="v" id="vOptions"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-align-left"></i> <span data-i18n="piv.description">Description</span></div>
+    <div class="card-body"><div class="details-text" id="vNotes"></div></div>
+  </div>
+
+  <div class="card" id="integCard">
+    <div class="card-title"><i class="fa fa-plug"></i> <span data-i18n="piv.integrations">Integrations</span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="piv.issueTracker">Issue tracker</div><div class="v" id="vIssueTracker"></div>
+        <div class="k" data-i18n="piv.codeTracker">Code tracker</div><div class="v" id="vCodeTracker"></div>
+        <div class="k" data-i18n="piv.reqmgr">Req. mgmt system</div><div class="v" id="vReqmgr"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="attCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="piv.attachments">Attachments</span></div>
+    <div class="card-body">
+      <table class="table" id="attTable">
+        <thead>
+          <tr>
+            <th data-i18n="piv.attTitle">Title</th>
+            <th data-i18n="piv.attFile">File</th>
+            <th data-i18n="piv.attSize">Size</th>
+            <th data-i18n="piv.attDate">Added</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script>
+var API = '/api/projectinfo/index.php';
+var PROJECT_ID = 0;
+var TOKEN = 0;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  PROJECT_ID = parseInt(p.get('id') || p.get('tproject_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadView();
+  });
+});
+
+function loadView() {
+  var tok = ++TOKEN;
+  $('#viewLoading').show();
+  $('#errorBanner').hide();
+  var url = API + '?action=info';
+  if (PROJECT_ID > 0) url += '&id=' + PROJECT_ID;
+  $.getJSON(url, function(r) {
+    if (tok !== TOKEN) return;
+    $('#viewLoading').hide();
+    if (r.status !== 'ok') {
+      showError(r.message || TLi18n.t('piv.loadError'));
+      return;
+    }
+    $('#content').show();
+    render(r);
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('piv.title') +
+      ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    if (tok !== TOKEN) return;
+    $('#viewLoading').hide();
+    var msg = TLi18n.t('piv.loadError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    if (xhr.status === 404) msg = TLi18n.t('piv.notFound');
+    showError(msg);
+  });
+}
+
+function render(r) {
+  var p = r.project;
+  PROJECT_ID = p.id;
+  $('#projName').text(' - ' + p.name);
+  $('#infoLine').text('#' + p.id);
+  $('#vName').text(p.name);
+  $('#vId').text('#' + p.id);
+  $('#vPrefix').text(p.prefix || '-');
+  $('#vStatus').html(p.active
+    ? '<span class="badge-active">' + TLi18n.t('piv.active') + '</span>'
+    : '<span class="badge-inactive">' + TLi18n.t('piv.inactive') + '</span>');
+  $('#vPublic').html(p.is_public
+    ? '<span class="badge-active">' + TLi18n.t('piv.publicYes') + '</span>'
+    : '<span class="badge-inactive">' + TLi18n.t('piv.publicNo') + '</span>');
+  $('#vTcCount').text(String(p.tc_counter));
+  $('#vNotes').text(p.notes || TLi18n.t('piv.noDescription'));
+  $('#vIssueTracker').text(p.flags.issueTrackerEnabled ? TLi18n.t('common.yes') : TLi18n.t('common.no'));
+  $('#vCodeTracker').text(p.flags.codeTrackerEnabled ? TLi18n.t('common.yes') : TLi18n.t('common.no'));
+  $('#vReqmgr').text(p.flags.reqmgrIntegrationEnabled ? TLi18n.t('common.yes') : TLi18n.t('common.no'));
+
+  var opts = [
+    { k: 'piv.optReqs', on: p.options.requirementsEnabled },
+    { k: 'piv.optPriority', on: p.options.testPriorityEnabled },
+    { k: 'piv.optAutomation', on: p.options.automationEnabled },
+    { k: 'piv.optInventory', on: p.options.inventoryEnabled }
+  ];
+  var out = '';
+  $.each(opts, function(i, o) {
+    out += '<span class="flag-chip ' + (o.on ? 'flag-on' : 'flag-off') + '">' +
+      TLi18n.t(o.k) + ': ' + (o.on ? TLi18n.t('common.yes') : TLi18n.t('common.no')) + '</span>';
+  });
+  $('#vOptions').html(out);
+
+  $('#manageLink').css('display', r.grants.mgt_modify_product ? 'inline-flex' : 'none');
+  $('#manageLink').attr('href', '/gui/templates/projectsView.html');
+
+  renderAttachments(r.attachments || []);
+}
+
+function renderAttachments(atts) {
+  if (!atts.length) { $('#attCard').hide(); return; }
+  $('#attCard').show();
+  var $tb = $('#attTable tbody').empty();
+  $.each(atts, function(i, a) {
+    $tb.append('<tr>' +
+      '<td><b>' + escapeHtml(a.title || a.file_name) + '</b></td>' +
+      '<td>' + escapeHtml(a.file_name || '') + '</td>' +
+      '<td>' + fmtSize(a.file_size) + '</td>' +
+      '<td>' + escapeHtml(a.date_added || '') + '</td>' +
+      '<td><a class="dl-link" href="' + a.download_url + '"><i class="fa fa-download"></i> ' + TLi18n.t('piv.download') + '</a></td>' +
+    '</tr>');
+  });
+  if ($.fn.DataTable.isDataTable('#attTable')) {
+    $('#attTable').DataTable().destroy();
+  }
+  $('#attTable').DataTable({
+    pageLength: 10, lengthChange: false, searching: true,
+    order: [[3, 'desc']], language: { search: TLi18n.t('common.search') }
+  });
+}
+
+function showError(msg) {
+  $('#errorBanner').text(msg).css('display', 'block');
+  $('#content').hide();
+  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('piv.title'));
+}
+
+function fmtSize(n) {
+  n = parseInt(n || 0, 10);
+  if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+  if (n >= 1024) return (n / 1024).toFixed(1) + ' KB';
+  return n + ' B';
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>

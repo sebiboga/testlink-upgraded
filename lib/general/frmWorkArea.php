@@ -34,7 +34,10 @@ $req_cfg = config_get('req_cfg');
 // array(1) => right pane
 $aa_tfp = array( 
      'editTc' => array('lib/testcases/listTestCases.php?feature=edit_tc',
-                       'lib/testcases/archiveData.php?edit=testproject&id='),
+                       // Refs #923: the project "home" pane is now the
+                       // modernized Test Project Information viewer instead
+                       // of the legacy archiveData.php?edit=testproject&id=
+                       'gui/templates/projects/projectInfoView.html?tproject_id='),
 
      'assignReqs' => 'lib/testcases/listTestCases.php?feature=assignReqs',
      'searchTc' => 'lib/testcases/tcSearchForm.php',

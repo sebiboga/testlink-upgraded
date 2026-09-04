@@ -1865,6 +1865,11 @@ function getActions(&$gui,$baseURL) {
   // every route; the legacy controller lib/project/projectView.php keeps the
   // same check.
   $actions->projectView = "/gui/templates/projectsView.html?{$ctx}";
+  // Test Project Information viewer (modernized archiveData.php?edit=testproject)
+  // - Refs #923. Standalone Dashio screen backed by api/projectinfo; used when
+  // a caller needs the read-only project info view (e.g. the "home" right pane
+  // of frmWorkArea.php and the info icon on Test Project Management rows).
+  $actions->projectInfo = "/gui/templates/projects/projectInfoView.html?{$ctx}";
 
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";

@@ -43,6 +43,8 @@
     .action-btn { padding: 6px 12px; border: none; border-radius: 3px; cursor: pointer; font-size: 12px; }
     .edit-btn { background: #3498db; color: white; }
     .edit-btn:hover { background: #2980b9; }
+    .info-btn { background: #4ECDC4; color: white; }
+    .info-btn:hover { background: #3dbdb5; }
     .toggle-btn { background: #2c3e50; color: white; }
     .toggle-btn:hover { background: #1a252f; }
     .delete-btn { background: #e74c3c; color: white; }
@@ -327,6 +329,9 @@
           </td>
           <td>
             <div class="actions">
+              <button class="action-btn info-btn" onclick="openProjectInfo(${p.id})" title="${TLi18n.t('piv.title')}">
+                <i class="fas fa-info-circle"></i> ${TLi18n.t('piv.infoShort')}
+              </button>
               <button class="action-btn edit-btn" onclick="editProject(${p.id})">
                 <i class="fas fa-edit"></i> ${TLi18n.t('common.edit')}
               </button>
@@ -402,6 +407,12 @@
       const select = document.getElementById(selectId);
       const match = Array.from(select.options).find(o => o.text === name);
       select.value = match ? match.value : '0';
+    }
+
+    // Open the Test Project Information viewer (Refs #923) for a project row.
+    function openProjectInfo(id) {
+      window.open('/gui/templates/projects/projectInfoView.html?tproject_id=' + id,
+        '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
     }
 
     // Edit project
