@@ -1252,9 +1252,9 @@ if ($action === 'metrics_results_matrix') {
     $payload['hasData'] = count($rowsOut) > 0;
     $payload['rows'] = $rowsOut;
 
-    // BFF gateway for XLS download + email (assigned_tc_overview)
-    $exportUrl = '/api/reportsexport/index.php?action=assigned_tc_overview&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
-    $mailUrl = '/api/reportsexport/index.php?action=assigned_tc_overview_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    // BFF gateway for XLS download + email (results matrix)
+    $exportUrl = '/api/reportsexport/index.php?action=results_matrix&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $mailUrl = '/api/reportsexport/index.php?action=results_matrix_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
         $exportUrl .= '&buildListForExcel=' . implode(',', $idSet);
         $mailUrl .= '&buildListForExcel=' . implode(',', $idSet);
