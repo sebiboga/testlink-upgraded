@@ -9834,6 +9834,7 @@ build 3001 (`testproject_id=2000`, `testplan_id=2001`), then asserts project sco
 | TC-831.6 | duplicate-name check project-wide | `check_build_name_existence(2002,'v1.0')` | duplicate detected across plans (project scope) | PASS |
 
 - **Result:** **6/6 PASS** (TC-831.1–831.6). The #831 deliverable is confirmed present and
-  correct on the default branch after a fresh DB import. No defect found; remaining parent-#503
-  work (drop `testplan_id`, Test-Project-menu move) is owned by the modernize workflow under
-  sibling sub-tasks #834/#835.
+  correct on the default branch after a fresh DB import. No defect found; the remaining
+  parent-#503 sub-tasks (drop `testplan_id` #834, cross-plan per-build results report #835, and
+  the Test-Project-menu move which is #831's own body DoD) are owned by the modernize workflow
+  and tracked separately (all still OPEN).

@@ -34,9 +34,10 @@ php tmp/repro_831_verify.php → 7/7 PASS
   check_build_name_existence is project-wide
 ```
 
-There is **no code defect**. The remaining parent-#503 work — dropping `builds.testplan_id` +
-swapping the unique key (sub-task #834) and the Test-Project-menu move (#835) — is owned by the
-modernize workflow and tracked separately (both still OPEN).
+There is **no code defect**. The remaining parent-#503 sub-tasks — dropping `builds.testplan_id`
++ swapping the unique key (#834), the cross-plan per-build results report (#835), and the
+Test-Project-menu move (which is the body DoD of this very issue #831) — are owned by the
+modernize workflow and tracked separately (all still OPEN).
 
 ## Files
 
