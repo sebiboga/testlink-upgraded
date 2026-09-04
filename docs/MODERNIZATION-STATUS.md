@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-03 (#844 Execution Print popup modernized — `execPrint.php` → `execPrint.html` + BFF `api/executionprint`, switched in-app links in `execTest.html`/`execHistory.html`)
+> Last updated: 2026-09-04 (#845 Test Plan Report Print popup modernized — `printDocument.php` → `reportPrint.html` + BFF `api/reportsprint`, switched the navigator `PRINT_SCREEN` and per-build `report_url` off the legacy controller/`lnl.php`)
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 19 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint) |
+| DONE (modernized) | 67 + 20 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
