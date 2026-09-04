@@ -9972,3 +9972,18 @@ documented findings only).
   change (seed from `emptyMenuGrants()` before overlaying the 11 `"yes"` keys);
   `php -l` clean; no i18n/HTML/JS touched.
 
+---
+
+## Regression — Issue #851: MD import `generate_new` actionOnHit accepted but not implemented
+
+**Precondition:** Project "MDImportTest" (id=1) with suite "Smoke" containing one TC "Login validation" (id=3).
+
+| TC | Title | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-851.1 | generate_new creates new TC when name matches | POST `action=import_md&tproject_id=1` with `action_on_hit=generate_new&hit_criteria=name`, markdown containing "Login validation" (same name as existing TC) | `createdCount=1`, new TC created (not a new version) | PASS: `createdCount=1`, new TC id=7 created, `newVersionCount=0` |
+| TC-851.2 | skip still skips duplicate | POST same markdown with `action_on_hit=skip` | `skippedCount=1`, no new TC | PASS: `skippedCount=1`, reason="duplicate title in target suite" |
+| TC-851.3 | create_new_version still creates version | POST same markdown with `action_on_hit=create_new_version` | Enters version creation path (may fail on duplicate name, but path is correct) | PASS: enters duplicate handling block |
+| TC-851.4 | php -l syntax check | `php -l api/testcasesimport/index.php` | No syntax errors | PASS |
+
+- **Result:** **4/4 PASS** (TC-851.1–851.4). The `generate_new` actionOnHit now bypasses duplicate detection and always creates a new TC. `skip` and `create_new_version` paths unchanged. Fix is a one-line guard at `api/testcasesimport/index.php:316`.
+

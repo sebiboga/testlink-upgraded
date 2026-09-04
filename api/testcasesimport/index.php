@@ -313,13 +313,13 @@ if ($action === 'import_md') {
             }, is_array($c['steps']) ? $c['steps'] : []);
             $importance = intval($c['importance']) ?: 2;
 
-            if (isset($existingCasesBySuite[$suiteId][$nameKey])) {
+            if ($actionOnHit !== 'generate_new' && isset($existingCasesBySuite[$suiteId][$nameKey])) {
                 if ($actionOnHit === 'skip') {
                     $skipped[] = ['tcId' => strval($c['tcId']), 'title' => $title,
                                   'reason' => 'duplicate title in target suite'];
                     continue;
                 }
-                // create_new_version
+                // create_new_version / update_last_version
                 if ($dryRun) {
                     $newVersions[] = ['tcId' => strval($c['tcId']), 'title' => $title,
                                       'suite' => $suiteName, 'steps' => count($steps)];
