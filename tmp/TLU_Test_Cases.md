@@ -10089,3 +10089,30 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
   (TC-833.1–833.4) are PENDING because no reachable DB exists in the sandbox
   (`mariadbd` not listening on 3306/3307); run `php tmp/repro_833.php` and
   `php tmp/repro_832.php` against a live instance to confirm.
+
+## Regression — Issue #850: MD import `update_last_version` action implemented
+
+- **Priority:** High · **Importance:** High
+- **Scope:** `api/testcasesimport/index.php` MD-import duplicate handling. Previously
+  `action_on_hit=update_last_version` fell through to the `create_new_version` path,
+  bumping the TC version instead of updating the latest version in place (legacy
+  parity: `lib/testcases/tcImport.php:384-427`). Fix splits the branch so
+  `update_last_version` resolves the latest tcversion via `get_last_version_info()`
+  and calls `testcase::update()` directly (no new version).
+- **Precondition:** authenticated session (admin/admin) + fixture project `Repro Proj`
+  (id 1). Import markdown `tmp/opencode/md_clean.txt` (out-of-repo scratch) whose suite
+  `1. SuiteA` and TC `Fresh Clean Test` exist after the first import.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-850.1 | update_last_version updates in place (no new version) | first import creates TC id 10 (v1/11); re-import same md with `action_on_hit=update_last_version` | API `newVersions[{tcase_id:10, tcversion_id:11}]`; DB still single version 11/v1 | PASS: version count unchanged (id 11, v1 only) |
+| TC-850.2 | update_last_version with NO existing TC creates | import brand-new TC name with `update_last_version` | `createdCount:1`, new TC id | PASS: created id 14, `newVersionCount:0` |
+| TC-850.3 | create_new_version unchanged (still bumps) | re-import existing TC id 10 with `create_new_version` | new v2 added (id 17), v1 kept | PASS: v1(id11)+v2(id17) |
+| TC-850.4 | skip unchanged | re-import existing TC id 10 with `action_on_hit=skip` | `skippedCount:1`, no DB change | PASS |
+| TC-850.5 | XML import intact (already correct) | import_xml existing TC id 20 with `update_last_version` | "Already exists, data of LAST version has been updated", no new version | PASS: v1 only (id 21) |
+| TC-850.6 | no new Error/Warning in Event Viewer | inspect `events` table `log_level>=3` after all runs | no ERROR/WARNING rows introduced | PASS: only INFO audit rows |
+
+- **Result:** **6/6 PASS** against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
+- **Syntax gate:** `php -l api/testcasesimport/index.php` → no syntax errors.
+- **Code-review subagent:** APPROVED (additive, non-breaking, consistent with
+  `create_new_version` branch).
