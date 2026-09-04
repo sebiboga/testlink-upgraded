@@ -1254,14 +1254,17 @@ if ($action === 'metrics_results_matrix') {
 
     // BFF gateway for XLS download + email (assigned_tc_overview)
     $exportUrl = '/api/reportsexport/index.php?action=assigned_tc_overview&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    $mailUrl = '/api/reportsexport/index.php?action=assigned_tc_overview_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
         $exportUrl .= '&buildListForExcel=' . implode(',', $idSet);
+        $mailUrl .= '&buildListForExcel=' . implode(',', $idSet);
         foreach ($idSet as $bid) {
             $exportUrl .= '&build_set%5B%5D=' . intval($bid);
+            $mailUrl .= '&build_set%5B%5D=' . intval($bid);
         }
     }
     $payload['export_xls_url'] = $exportUrl;
-    $payload['send_mail_url'] = str_replace('action=assigned_tc_overview&', 'action=assigned_tc_overview_mail&', $exportUrl);
+    $payload['send_mail_url'] = $mailUrl;
 
     out($payload);
 }

@@ -49,9 +49,9 @@ if (is_null($user)) {
     exit;
 }
 
-$action = $_GET['action'] ?? $_POST['action'] ?? '';
-$tplanId = intval($_GET['tplan_id'] ?? $_POST['tplan_id'] ?? 0);
-$tprojectId = intval($_GET['tproject_id'] ?? $_POST['tproject_id'] ?? 0);
+$action = $_GET['action'] ?? '';
+$tplanId = intval($_GET['tplan_id'] ?? 0);
+$tprojectId = intval($_GET['tproject_id'] ?? 0);
 
 if ($tplanId <= 0) {
     http_response_code(400);
@@ -186,6 +186,13 @@ if ($tprojectId > 0) {
 // For results_by_status, add build_set if provided (some screens include it)
 if (isset($_GET['build_set']) && is_array($_GET['build_set'])) {
     $params['build_set'] = $_GET['build_set'];
+}
+
+// Forward platform_id for reports that are scoped per platform
+// (e.g. absolute_latest builds platform_id into its export URL).
+$platformId = intval($_GET['platform_id'] ?? 0);
+if ($platformId > 0) {
+    $params['platform_id'] = $platformId;
 }
 
 $legacyUrl = $target['file'] . '?' . http_build_query($params);
