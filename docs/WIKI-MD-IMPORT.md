@@ -12,8 +12,8 @@
 | `tproject_id` | query | target test project (falls back to session project) |
 | `markdown` | form field | the MD text; OR multipart file field `uploadedFile` |
 | `dry_run` | query | `1` = parse + resolve + report, zero DB writes |
-| `hit_criteria` | query | only `name` (legacy parity; others rejected with 400) |
-| `action_on_hit` | query | `skip` (default) \| `create_new_version` |
+| `hit_criteria` | query | `name` (default) \| `internalID` \| `externalID` — all accepted; only `name` implemented for MD |
+| `action_on_hit` | query | `skip` (default) \| `create_new_version` \| `generate_new` \| `update_last_version` |
 
 Limits: payload larger than `import_file_max_size_bytes` → HTTP 413.
 
@@ -22,7 +22,7 @@ Limits: payload larger than `import_file_max_size_bytes` → HTTP 413.
    different project than the target, response carries `projectMismatch` — caller decides.
 2. Suites match by name (case-insensitive) anywhere in the project; missing ones are
    created under the project root.
-3. Cases duplicate by title within the target suite → skipped or new version created.
+3. Cases duplicate by title within the target suite → skipped, new version created, or new TC created (see `action_on_hit`).
 4. Steps support `*Expected:*` inline markers; importance mapped High/Medium/Low → 3/2/1.
 5. Response reports per-item arrays: `created`, `skipped`, `newVersions`, `failed`,
    plus `suitesCreated`, `suitesMatched`, `parserErrors`.
@@ -44,13 +44,15 @@ curl -b cookies.txt -X POST \
 
 ## Verified behavior (suite 27 in tmp/TLU_Test_Cases.md)
 dry-run no-write · real create with external IDs · idempotent re-import ·
-create_new_version doubles tcversions · full-file dry run (122 cases/24 suites) ·
+create_new_version doubles tcversions · generate_new creates new TC when name matches ·
+full-file dry run (122 cases/24 suites) ·
 403 without rights · 413 over size limit · no Event Viewer pollution.
 
 ## Legacy parity notes (vs lib/testcases/tcImport.php)
 Same permission model and size cap; duplicate criteria limited to `name`
-(legacy also has internalID/externalID); actions limited to skip/create_new_version
-(legacy also has update_last_version/generate_new) — backlog for later parity.
+(legacy also has internalID/externalID); all four legacy actions supported
+(`skip`, `create_new_version`, `generate_new`, `update_last_version`).
+`generate_new` bypasses duplicate detection entirely (legacy parity: `tcImport.php:274-276`).
 
 ## Modernized UI (`gui/templates/testcases/tcImport.html`)
 
@@ -65,7 +67,7 @@ The import screen is modernized as a standalone HTML+JS+CSS page backed by the B
 - **File type selector** XML (legacy form passthrough → `lib/testcases/tcImport.php`) vs **Markdown (.md)** (BFF).
 - MD mode: dry-run toggle → PREVIEW report with created/skipped/duplicate tables, **zero DB writes**;
   project-mismatch banner when file header names another project.
-- Duplicate hit criteria (name-only for MD) + action for duplicates (skip / create new version).
+- Duplicate hit criteria (name-only for MD) + action for duplicates (skip / create new version / generate new).
 - Client-side size guard (toast at `import_file_max_size_bytes`) before upload; server 413 backup.
 - `mgt_modify_tc` gate: no-rights users see a lock notice and a disabled Upload button.
 - Mandatory i18n via `TLi18n` — all labels keyed in every locale bundle.
