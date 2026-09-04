@@ -51,6 +51,36 @@ function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 
 /**
+ * Schema-drift guard for the project-scoped build queries (issue #862).
+ *
+ * database::exec_query() DIES with an HTML "DB Access Error" trace on any
+ * SQL failure (lib/functions/database.class.php), which for a JSON BFF means
+ * the client receives HTML while expecting JSON and the whole dashboard
+ * collapses into "Failed to load dashboard." The execution-status widget's
+ * first query filters on builds.testproject_id, a recent additive column
+ * (Ref #826, scope builds to test project). On a not-yet-migrated 1.9.20
+ * database that query fails and kills the request; this probe lets the BFF
+ * degrade that widget to its empty state instead. The INFORMATION_SCHEMA
+ * probe itself can never fail (it does not reference the migrated column).
+ */
+function bffBuildsSchemaOk($dbHandler)
+{
+    static $cache = null;
+    if ($cache !== null) {
+        return $cache;
+    }
+
+    $sql = " SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS " .
+           " WHERE TABLE_SCHEMA = '" . DB_NAME . "' " .
+           "   AND TABLE_NAME = '" . DB_TABLE_PREFIX . "builds' " .
+           "   AND COLUMN_NAME = 'testproject_id' LIMIT 1";
+    $rs = $dbHandler->get_recordset($sql);
+
+    $cache = (is_array($rs) && count($rs) > 0);
+    return $cache;
+}
+
+/**
  * The modern screens pick a language through TLi18n (short code: 'ro'), which
  * is independent of $_SESSION['locale'] driving the Smarty pages. Map the
  * short code onto a TestLink locale so every label we translate (status
@@ -91,7 +121,14 @@ if ($method === 'GET' && empty($segments)) {
         $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
     }
 
-    $dashboard = getDashboardData($db, $tprojectID, $tplanID, $lbl);
+    // Graceful degradation on schema drift (issue #862): when the deployed
+    // DB predates the project-scoped-builds migration (builds.testproject_id
+    // missing), getNumberOfBuilds() would otherwise die inside exec_query()
+    // with an HTML trace and the whole payload never arrives. Skip the widget
+    // (it renders hidden) and keep a valid JSON response.
+    $dashboard = bffBuildsSchemaOk($db)
+        ? getDashboardData($db, $tprojectID, $tplanID, $lbl)
+        : null;
     $tcGrowth = getTestCaseGrowthData($db, $tprojectID);
     // FAST path: bugs with a locally-derived GitHub URL only. The live
     // title/labels/status enrichment calls the ITS (one HTTP getIssue() per
