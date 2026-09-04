@@ -10021,3 +10021,12 @@ documented findings only).
 | TC-854.15 | results_by_status without matching data no longer 500s | Legacy `resultsByStatus.php?format=3&type=f` with no tester-assigned rows (before guard: count(null) fatal) | 200 empty `.xls`, no TypeError | PASS: 200 XLS after `is_array()` guard |
 
 - **Suite 854 updated:** **15/15 PASS.** Follow-up fixes: (a) results matrix export action renamed to `results_matrix`/`results_matrix_mail`; (b) `status_code` forwarded to legacy `type` param for results_by_status; (c) legacy PHP 8.x `count(null)` regression in `lib/results/resultsByStatus.php:782` guarded (Fixes #855).
+
+- **Suite 854 addendum (TC-854.16–854.17) — review fixes (Refs #854)**
+
+| TC | Title | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-854.16 | never_run sends send_mail_url | Call BFF `action=never_run_init` | `send_mail_url` present = `action=never_run_mail` | PASS: `/api/reportsexport/index.php?action=never_run_mail&tplan_id=200&tproject_id=100` |
+| TC-854.17 | unknown action error doesn't reflect user input | GET `?action=<script>` with auth | JSON `"message":"Unknown action"` (no raw script reflected) | PASS: `{"status":"error","message":"Unknown action"}` |
+
+- **Suite 854 final:** **17/17 PASS.** Code-review fixes applied: never_run mail URL exposed, XSS in unknown-action error removed. All legacy-fix bugs (855, 856) auto-closed and verified; Event Viewer clean.
