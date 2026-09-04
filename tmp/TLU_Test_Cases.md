@@ -9865,3 +9865,62 @@ documented findings only).
 - **Result:** inspection confirms the drop is **blocked** by un-migrated readers (#832 OPEN, 15
   `testplan.class.php` joins + 4 `tlTestPlanMetrics` joins + plan-scoped delete/read + REST
   reads). Issue #834 left **OPEN** with INVESTIGATION + ROOT CAUSE comments; no code changed.
+
+---
+
+## Suite 845 — Test Plan Report print endpoint (`reportPrint.html` + `api/reportsprint`) — Refs #845
+
+- **Priority:** Medium · **Importance:** Medium
+- **Scope:** Modernization of the report document generator behind the modernized
+  **Test Plan Report** navigator. The navigator (`testPlanReport.html`) previously
+  opened the legacy controller `/lib/results/printDocument.php` (`PRINT_URL`) in a
+  new tab and per-build links used `lnl.php`. Now a new Dashio print popup
+  (`gui/templates/results/reportPrint.html`) fetches the generated document from the
+  BFF `api/reportsprint/index.php` (`action=print` → JSON body_html; `action=download`
+  → attachment stream) and offers Print / Download / Close. The BFF reuses the
+  battle-tested legacy `printDocument.php` render pipeline inside an output buffer
+  (same strategy as `api/executionprint` Refs #844), hardened: session required
+  (no anonymous apikey path), `testplan_metrics` on context project/plan → 403,
+  plan-belongs-to-project validated → 400, unknown action → 404.
+- **Fixture:** `tmp/fixtures_845.php` → project **RP845** (id 1), plan **RP Plan**
+  (id 13), suites **RP Suite A** (2 linked TCs: RP One, RP Two) / **RP Suite B**
+  (1 TC: RP Three), builds **RP Build 1** (id 1, open) / **RP Build 2** (id 2,
+  closed), executions p/f/b. Verified in-browser as **admin** and as limited users
+  **norpt** (guest role 5, holds testplan_metrics → allowed) and **norpt2**
+  (role 3 `<no rights>` → 403). All browsers on the default branch, freshly
+  imported DB.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-845.1 | BFF print whole plan | admin fetch `?action=print&type=testplan&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&summary=y` | HTTP 200; JSON `body_html` is a full printable doc containing RP One/RP Two/RP Three + "Execution time metrics" | PASS (browser fetch) |
+| TC-845.2 | print one suite | admin fetch `type=testplan&level=testsuite&id=3&tproject_id=1&tplan_id=13` (suite B) | 200; body contains RP Three, does NOT contain RP One | PASS (browser) |
+| TC-845.3 | per-build report (`onbuild`) | admin fetch `type=testreport_onbuild&level=testproject&id=1&tproject_id=1&tplan_id=13&build_id=1` | 200 with generated on-build report content | PASS (browser) |
+| TC-845.4 | `testreport` type | admin fetch `type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=13` | 200 with test report content | PASS (browser) |
+| TC-845.5 | download action | admin fetch `?action=download&type=testplan&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0` | 200, `Content-Disposition: attachment; filename="RP8-test_plan-….html"`, body has RP One | PASS (browser) |
+| TC-845.6 | bogus plan for project | admin fetch `type=testreport&tplan_id=999` for project 1 | HTTP 400 `Invalid test plan for this test project` | PASS (browser) |
+| TC-845.7 | unknown action | admin fetch `?action=bogus` | HTTP 404 `Unknown action` (before generation) | PASS (browser) |
+| TC-845.8 | no-permission user | login `norpt2` (role 3), fetch `action=print&…tproject_id=1&tplan_id=13` | HTTP 403 `No permission` | PASS (browser) |
+| TC-845.9 | guest-with-right user | login `norpt` (guest role 5 holds testplan_metrics), fetch `action=print&…` | HTTP 200 (correctly allowed) | PASS (browser) |
+| TC-845.10 | navigator whole-plan button | open `testPlanReport.html?tproject_id=1&tplan_id=13&type=testplan` (admin), click **Print whole test plan report** | opens NEW tab `reportPrint.html?type=testplan&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&opts=toc=n&headerNumbering=n…&summary=y…` and renders the report | PASS (browser) |
+| TC-845.11 | navigator per-build links | `api/reports?action=tp_report_init&type=testreport_onbuild&tproject_id=1&tplan_id=13` | builds[].report_url point to `reportPrint.html?…&build_id=…` (not `lnl.php`) | PASS (browser fetch) |
+| TC-845.12 | print popup render | open `reportPrint.html?…&opts=summary=y` (admin) | Dashio toolbar (Print/Download/Close) + project context; report body shows RP One summary, RP Two, RP Three | PASS (browser) |
+| TC-845.13 | Event Viewer clean | `SELECT * FROM events WHERE id > 234` (after all above incl. many print downloads) | no new Error/Warning (the duplicate-`reports.cfg.php` E_WARNING bug is fixed) | PASS |
+| TC-845.14 | no JS console errors | throughout | 0 errors/warnings | PASS (browser) |
+| TC-845.15 | locale loads | popup on en (then ro bundles present) | header/localized labels render; no missing-key | PASS (browser) |
+
+- **Result:** **15/15 PASS** (TC-845.1–845.15). Test Plan Report print modernized
+  end-to-end: legacy `printDocument.php` generator ported behind the BFF
+  (`api/reportsprint`) + new Dashio print popup (`reportPrint.html`); navigator
+  `PRINT_SCREEN` and per-build `report_url` re-pointed off the legacy
+  controller/`lnl.php`; session/rights/plan-scope/unknown-action guards verified;
+  Event Viewer clean.
+- **Note 1 (bug found & fixed):** the first BFF version pre-loaded
+  `cfg/reports.cfg.php` at the top, then the included legacy `printDocument.php`
+  loads it again via plain `require` → the app logged `Constant FORMAT_* already
+  defined` E_WARNING events on every request. Fixed by removing the BFF top-level
+  require and using literal constant values so the constants are defined exactly
+  once. Event Viewer confirmed clean after the fix.
+- **Note 2 (scoping gotcha):** the legacy controller must be included at TOP-LEVEL
+  scope after `chdir('lib/results')`; including it from a helper function scope
+  makes its nested `cfg/reports.cfg.php` include run where the global `$tlCfg` is
+  invisible (`Attempt to assign property on null`). Both documented in the BFF header.
