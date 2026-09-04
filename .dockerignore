@@ -1,0 +1,11 @@
+/vendor
+/tmp
+.git
+.gitignore
+config_db.inc.php
+config_db.inc.*.php
+custom_config.inc.php*
+composer.phar
+.env
+node_modules
+*.log
