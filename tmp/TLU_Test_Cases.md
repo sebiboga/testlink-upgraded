@@ -9987,3 +9987,26 @@ documented findings only).
 
 - **Result:** **4/4 PASS** (TC-851.1–851.4). The `generate_new` actionOnHit now bypasses duplicate detection and always creates a new TC. `skip` and `create_new_version` paths unchanged. Fix is a one-line guard at `api/testcasesimport/index.php:316`.
 
+
+---
+
+## Suite 854 — Report XLS/Mail Export BFF Gateway (`api/reportsexport/index.php`) — Refs #854
+
+**Precondition:** Test project "Export Test Project" (id=100) with test plan "Export Test Plan" (id=200), suite "Login Suite" (id=300), 3 test cases (ids 500–502) linked to plan. Logged in as admin.
+
+| TC | Title | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-854.1 | Unauthenticated GET blocked | `curl` to `?action=general_metrics&tplan_id=200` with no session | HTTP 401 JSON error | PASS: 401 Not authenticated |
+| TC-854.2 | Missing tplan_id rejected | `?action=general_metrics` with auth | HTTP 400 JSON error | PASS: 400 Missing tplan_id |
+| TC-854.3 | Unknown action rejected | `?action=bogus&tplan_id=200` with auth | HTTP 400 JSON error | PASS: 400 Unknown action |
+| TC-854.4 | Nonexistent tplan_id → 404 | `?action=general_metrics&tplan_id=9999` with auth | HTTP 404 JSON error | PASS: 404 Test plan not found |
+| TC-854.5 | general_metrics XLS 303 redirect | Authenticated GET `?action=general_metrics&tplan_id=200&tproject_id=100` | 303 to `lib/results/resultsGeneral.php?format=XLS&spreadsheet=1&tplan_id=200&tproject_id=100` | PASS: 303 redirect |
+| TC-854.6 | general_metrics XLS download works | Follow redirect with auth | 200 `application/vnd.ms-excel`, filename `TestLink_GTMP_Export Test Project_Export Test Plan.xls` | PASS: XLS downloaded |
+| TC-854.7 | general_metrics_mail 303 | `?action=general_metrics_mail&tplan_id=200` | 303 to `resultsGeneral.php?format=FORMT_MAIL_HTML` | PASS: 303 redirect |
+| TC-854.8 | results_by_tsuite XLS download | `?action=results_by_tsuite&tplan_id=200` follow redirect | 200 XLS content-type | PASS: XLS downloaded |
+| TC-854.9 | baseline_l1l2 XLS download | `?action=baseline_l1l2&tplan_id=200` follow redirect | 200 XLS content-type | PASS: XLS downloaded |
+| TC-854.10 | reportsexport gateway no legacy `.php` in frontend | Inspect `api/reports/index.php` all `export_xls_url`/`send_mail_url` | All point to `api/reportsexport/index.php` | PASS: no `/lib/results/*.php` references remain |
+| TC-854.11 | php -l syntax check | `php -l api/reportsexport/index.php` + `php -l api/reports/index.php` | No syntax errors | PASS |
+| TC-854.12 | Event Viewer clean | After all export flows, `SELECT * FROM events WHERE log_level>=2` | No new Error/Warning rows from export testing | PASS (checked 2026-09-04) |
+
+- **Result:** **12/12 PASS** (TC-854.1–854.12). The reportsexport BFF gateway correctly validates auth/rights/target, then 303-redirects to the legacy controller for XLS/mail generation. All 10 report screens' export buttons now go through the BFF — no legacy `.php` references remain in any modernized report screen frontend.
