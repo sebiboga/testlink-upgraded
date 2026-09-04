@@ -10174,3 +10174,23 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Result:** **11/11 PASS** (+ 1 N/A) against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
 - **Syntax gate:** `php -l api/reports/index.php` → no syntax errors.
 - **Code-review subagent:** APPROVED (buildExternalIdString contract correct, date() safe, HTML escaping pre-existing pattern).
+
+## Regression — Issue #862: Failed to load dashboard.
+
+**Date:** 2026-09-04
+**Screen:** Dashboard — `gui/templates/mainpage/mainPage.html` + `api/mainpage/index.php`
+**Fix:** `bffBuildsSchemaOk()` schema-drift guard (commit `ec457b9c6`). Precondition: the deployed DB lacks the migrated `builds.testproject_id` column (a 1.9.20-era schema) → the dashboard's `getNumberOfBuilds()` previously died inside `database::exec_query()` with an HTML trace, so the BFF returned non-JSON and the page showed "Failed to load dashboard.".
+
+| Test | Description | Steps | Expected | Result |
+|---|---|---|---|---|
+| TC-862.1 | Syntax gate | `php -l api/mainpage/index.php` | No syntax errors | PASS |
+| TC-862.2 | Schema present → full render | With `builds.testproject_id` restored (correct schema), load `mainPage.html?tproject_id=1&tplan_id=<plan with builds>` | Header shows project/plan; 'Test Plan execution status' shows counts (e.g. Completed 100.0% 3/3); bugs + growth + project issues widgets render; NO warn box | PASS |
+| TC-862.3 | PRE-FIX repro | Rename column: `ALTER TABLE builds CHANGE testproject_id testproject_id_missing int(10) unsigned NOT NULL DEFAULT 0;` then reload | WITHOUT the fix: HTTP 200 body is raw HTML 'DB Access Error' trace; warn box 'Failed to load dashboard.'; header shows '-' | Confirmed (pre-fix behaviour) |
+| TC-862.4 | Post-fix graceful degradation | Same drifted schema, reload dashboard | HTTP 200 body is VALID JSON `{"status":"ok", "dashboard":null, ...}`; header shows project/plan; execution-status widget shows 'No records found / Total 0'; bugs+growth widgets still render; NO 'Failed to load dashboard.' warn box | PASS |
+| TC-862.5 | async bugs route still JSON | On drifted schema load, `GET /api/mainpage/index.php/bugsTested` | HTTP 200 valid JSON | PASS |
+| TC-862.6 | Restore schema | `ALTER TABLE builds CHANGE testproject_id_missing testproject_id int(10) unsigned NOT NULL DEFAULT 0;` | Column restored (`SHOW COLUMNS`); dashboard renders fully again | PASS |
+| TC-862.7 | No new Error/Warning events | After all loads, query `events` table for new ERROR/WARNING | Zero new entries; INFO setCfg entries are fixture-only (malformed test ITS cfg) and were fixed to well-formed XML | PASS |
+
+- **Result:** **6/6 PASS** against http://localhost:8082 (MariaDB at 127.0.0.1:3306).
+- **Syntax gate:** `php -l api/mainpage/index.php` → no syntax errors.
+- **Screenshots:** `docs/screenshots/issue-862-dashboard-failed.png` (pre-fix), `docs/screenshots/issue-862-dashboard-fixed.png` (post-fix restored schema).
