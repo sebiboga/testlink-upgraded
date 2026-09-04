@@ -94,7 +94,7 @@ function t(key, fallback) {
   return (v && v !== key) ? v : (fallback || key);
 }
 function openTCEdit(tcId) {
-  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
+  window.open('/gui/templates/testcases/tcEdit.html?tcase_id=' + tcId + '&tproject_id=' + tproject_id, 'tcEdit_' + tcId, 'width=900,height=700');
 }
 
 function loadData() {
@@ -115,13 +115,21 @@ function loadData() {
 
       if (d.warning_msg && !d.hasData) {
         $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + esc(d.warning_msg)).show();
-        $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        $('#footerInfo').html(
+          '<span style="font-style:italic;">' + t('tpwcf.infoText', 'This Report shows all test cases with any custom field set while adding test cases to test plan.') + '</span>' +
+          ' &mdash; ' + t('tpwcf.generatedOn', 'Generated on') + ' ' + (d.generated_on || '') +
+          ' &mdash; ' + t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's'
+        ).show();
         return;
       }
 
       if (!d.hasData) {
         $('#emptyBox').html('<i class="fa fa-info-circle"></i> ' + t('tpwcf.noData', 'No test cases with custom field values found.')).show();
-        $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+        $('#footerInfo').html(
+          '<span style="font-style:italic;">' + t('tpwcf.infoText', 'This Report shows all test cases with any custom field set while adding test cases to test plan.') + '</span>' +
+          ' &mdash; ' + t('tpwcf.generatedOn', 'Generated on') + ' ' + (d.generated_on || '') +
+          ' &mdash; ' + t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's'
+        ).show();
         return;
       }
 
@@ -173,7 +181,11 @@ function loadData() {
         }
       });
 
-      $('#footerInfo').html(t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's').show();
+      $('#footerInfo').html(
+        '<span style="font-style:italic;">' + t('tpwcf.infoText', 'This Report shows all test cases with any custom field set while adding test cases to test plan.') + '</span>' +
+        ' &mdash; ' + t('tpwcf.generatedOn', 'Generated on') + ' ' + (d.generated_on || '') +
+        ' &mdash; ' + t('tpwcf.elapsed', 'Elapsed') + ': ' + d.elapsed_time + 's'
+      ).show();
       toast(t('common.loaded', 'Loaded'));
     },
     error: function(xhr) {
