@@ -10308,3 +10308,18 @@ All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), br
 | TC-933.20 | Event Viewer clean | Query `events` table after all flows | No new ERROR/WARNING rows; only info audit (attachment created/deleted) | PASS |
 
 All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), branch `sebiboga`.
+
+#### Regression re-check after code review follow-up (same screen, Rv-#933)
+| ID | Test case | Expected | Result |
+|----|-----------|----------|--------|
+| TC-933-RV.1 | `GET ?action=upload` (no POST) | `405 Method not allowed`, nothing written | PASS |
+| TC-933-RV.2 | `GET ?action=delete` (no POST) | `405 Method not allowed`, attachment untouched | PASS |
+| TC-933-RV.3 | Upload `.sh` file via UI | localized `piv.errAllowedFiles` message shown, 422, no row | PASS |
+| TC-933-RV.4 | Upload rejection response carries machine `code` (`allowed_files`) | JSON `{code:"allowed_files"}` | PASS |
+| TC-933-RV.5 | Upload happy path after refactor (title + file) | row appears, list refreshed | PASS |
+| TC-933-RV.6 | Delete happy path after refactor | confirm dialog, row removed, "Attachment deleted." | PASS |
+| TC-933-RV.7 | Delete last attachment | card + upload form stay visible | PASS |
+| TC-933-RV.8 | "ADD ATTACHMENT" panel heading present | heading + upload controls rendered | PASS |
+| TC-933-RV.9 | i18n: all 10 bundles contain piv.errAllowedFiles/errAllowedFilenames/errEmptyExtension/errNoFile/errUploadGeneric | json.tool valid, keys present | PASS |
+
+Result: 9/9 PASS (English locale exercised; keys verified in all 10 bundles).
