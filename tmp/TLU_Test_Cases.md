@@ -10217,3 +10217,26 @@ XML-RPC set-closed-build rights check, assignment create/count joins, and cfield
 - **Result:** **9/10 PASS** (+ 1 pre-fix confirmation). TC-861.8 verified hover works after Apply; NOTE a separate pre-existing bug surfaced while testing — the `.clear()` call on Chart.js v1 chart instances throws TypeError, so charts do NOT re-render on Apply (filed as issue **#921**, out of scope of this run).
 - **Syntax gate:** `node --check gui/templates/dashio/lib/tl-line-tooltip.js` → no syntax errors.
 - **Screenshots:** `docs/screenshots/issue-861-eventviewer-line-tooltip-before.png` (pre-fix, no tooltip), `docs/screenshots/issue-861-eventviewer-line-tooltip.png` (post-fix, tooltip `2026-09-04: 2` visible).
+
+## Regression — Issue #921: eventviewer Apply leaves charts frozen (Chart.js v1 has no `.clear()`)
+
+**Date:** 2026-09-04
+**Screen:** Event Viewer — `gui/templates/eventviewer/eventviewer.html`
+**Fix:** remove the two calls to the non-existent public `.clear()` on Chart.js v1 instances (`renderPie` line ~314 and `renderLine` line ~329, commit `95d8432fa`). The bundled `gui/templates/dashio/lib/chart-master/Chart.js` (2013 v1) only has an internal `clear(ctx)` helper (`Chart.js:353/1243`); chart re-creation on the same canvas is safe because the constructor resizes the backing store when `devicePixelRatio` is set and the animation loop clears the whole canvas on its first frame. Data prep (DB freshly imported): seeded 7 events across levels AUDIT(3)/INFO(1)/WARNING(2)/ERROR(1) via SQL + the real admin login event → 8 events total.
+
+| Test | Description | Steps | Expected | Result |
+|---|---|---|---|---|
+| TC-921.1 | PRE-FIX repro — charts frozen on Apply | Seed events, load Event Viewer, set From/To `04/09/2026 - 04/09/2026`, click Apply | WITHOUT the fix: console `Uncaught TypeError: pieChart.clear is not a function` + `lineChart.clear is not a function`; table shows `5 events` but pie legend still `AUDIT: 4 (50%) ...` (8-event dataset) | Confirmed (pre-fix behaviour) |
+| TC-921.2 | First load renders without errors | Fresh load of `eventviewer.html?tproject_id=0&tplan_id=0` | Charts render; pie legend `AUDIT: 4 (50%) / WARNING: 2 (25%) / INFO: 1 (13%) / ERROR: 1 (13%)`; footer `8 events`; no console errors | PASS |
+| TC-921.3 | Apply updates charts AND table | Set date range `04/09/2026 - 04/09/2026`, click Apply | Table `5 events`; pie legend updates to `AUDIT: 3 (60%) / INFO: 1 (20%) / WARNING: 1 (20%) / ERROR: 0 (0%)`; line chart re-renders; **zero** console errors | PASS |
+| TC-921.4 | Repeated Apply is stable | Click Apply twice more with the same filter | Values stay identical, no console errors | PASS |
+| TC-921.5 | Empty-result filter | Set date range `01/01/2020 - 01/01/2020`, Apply | Table `0 events`; legend all `0 (0%)`; lineChart instance exists (line tooltip geometry is guarded against degenerate data); no console errors | PASS |
+| TC-921.6 | Reverse re-render (filter cleared) | Clear From/To, Apply | Legend returns to `AUDIT: 4 (50%) ...`, table `8 events` | PASS |
+| TC-921.7 | Pie hover tooltip after re-render | Hover doughnut segment at canvas offset (+60,-40 → WARNING arc) | `#tl-pie-tooltip` `display:block`, text `WARNING: 2 (25%)` | PASS |
+| TC-921.8 | Clear Events flow re-renders charts | Click Clear Events, accept confirm | Confirm dialog shown; `0 events`; legends zeroed without console errors | PASS |
+| TC-921.9 | No new Error/Warning events | Query `events` table after all interactions | Zero ERROR/WARNING rows beyond the seeded fixtures | PASS |
+| TC-921.10 | No other screen uses `.clear()` | `grep '\.clear()' gui/templates/**/*.html` | Only documented occurrences represent the internal Chart.js helper; no other chart screens call `.clear()` on instances | PASS |
+
+- **Result:** **9/9 PASS** (+ 1 pre-fix confirmation) against http://localhost:8082 (MariaDB at 127.0.0.1:3306, admin/admin).
+- **Syntax gate:** charts re-render verified live in headless Chrome; `node` check of inline script skipped (jQuery-heavy page), validated via browser runtime instead.
+- **Code-review subagent:** APPROVED (minimal 2-line change, no refactor, chart re-creation is the established pattern).
