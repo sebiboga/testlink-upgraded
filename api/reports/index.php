@@ -168,7 +168,7 @@ if ($action === 'tp_report_init') {
                 $builds[] = [
                     'id' => intval($bid),
                     'name' => $binfo['name'],
-                    'report_url' => 'gui/templates/results/reportPrint.html' .
+                    'report_url' => '/gui/templates/results/reportPrint.html' .
                         '?type=testreport_onbuild&level=testproject' .
                         '&id=' . $tprojectId .
                         '&tproject_id=' . $tprojectId .

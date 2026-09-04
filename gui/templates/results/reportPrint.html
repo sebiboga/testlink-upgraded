@@ -62,6 +62,7 @@ var id = 0;
 var tprojectId = 0;
 var tplanId = 0;
 var format = 0;
+var buildId = 0;
 var opts = '';
 
 function esc(s) {
@@ -83,6 +84,7 @@ function buildQuery() {
     '&tproject_id=' + tprojectId +
     '&tplan_id=' + tplanId +
     '&format=' + format +
+    (buildId > 0 ? '&build_id=' + buildId : '') +
     (opts ? '&' + opts : '');
 }
 
@@ -112,6 +114,7 @@ $(function () {
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
   format = parseInt(p.get('format') || '0', 10);
+  buildId = parseInt(p.get('build_id') || '0', 10);
   var o = p.get('opts') || '';
   opts = o; // e.g. "toc=y&summary=y..."
 
