@@ -160,6 +160,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="/gui/templates/dashio/lib/chart-master/Chart.js"></script>
 <script src="/gui/templates/dashio/lib/tl-pie-tooltip.js"></script>
+<script src="/gui/templates/dashio/lib/tl-line-tooltip.js"></script>
 <script>
 var API = '/api/eventviewer/index.php';
 var qs = new URLSearchParams(window.location.search);
@@ -337,6 +338,7 @@ function renderLine(labels, data) {
       data: data
     }]
   }, {scaleBeginAtZero: true, bezierCurve: true, datasetFill: true});
+  TLLineTooltip.attach(document.getElementById('lineChart'), labels, data, {color: '#4ECDC4'});
 }
 
 function applyFilters() { loadEvents(); }
