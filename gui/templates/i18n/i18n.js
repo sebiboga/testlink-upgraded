@@ -102,7 +102,11 @@ var TLi18n = (function() {
   }
 
   function loadStrings(callback) {
-    var url = '/gui/templates/i18n/' + _locale + '.json';
+    // Cache-bust the bundle GET: the built-in dev server serves JSON without
+    // validation headers and browsers can hand jQuery a stale cached copy,
+    // which shows literal keys on screens whose bundle just gained new keys
+    // (Refs #923).
+    var url = '/gui/templates/i18n/' + _locale + '.json?_=' + Date.now();
     $.getJSON(url)
       .done(function(data) {
         _strings = data;
@@ -112,7 +116,7 @@ var TLi18n = (function() {
       .fail(function() {
         // Fallback to English
         if (_locale !== 'en') {
-          $.getJSON('/gui/templates/i18n/en.json').done(function(data) {
+          $.getJSON('/gui/templates/i18n/en.json?_=' + Date.now()).done(function(data) {
             _strings = data;
             _loaded = true;
             _locale = 'en';

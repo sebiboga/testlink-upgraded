@@ -181,7 +181,10 @@ if( $doIt ) {
                              "'lib/testcases/archiveData.php?id=" . intval($args->containerID);
       switch($level) {
         case 'testproject':
-          $gui->cancelActionJS .= "&edit=testproject&level=testproject'";
+          // Modernized Test Project Information viewer (Refs #923)
+          $gui->cancelActionJS = 'location.href=fRoot+' .
+                 "'gui/templates/projects/projectInfoView.html?tproject_id=" .
+                 intval($args->containerID) . "'";
         break;  
 
         case 'testsuite':
@@ -269,7 +272,10 @@ if( $doIt ) {
       
       switch($level) {
         case 'testproject':
-          $gui->cancelActionJS .= "&edit=testproject&level=testproject'";
+          // Modernized Test Project Information viewer (Refs #923)
+          $gui->cancelActionJS = 'location.href=fRoot+' .
+                 "'gui/templates/projects/projectInfoView.html?tproject_id=" .
+                 intval($args->containerID) . "'";
         break;  
 
         case 'testsuite':

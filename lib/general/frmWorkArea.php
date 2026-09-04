@@ -159,10 +159,18 @@ if( intval($args->tproject_id) > 0 || intval($args->tplan_id) > 0)
   $leftPane .= (strpos($leftPane,"?") === false) ? "?" : "&";
   $leftPane .= "tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}";
 
-  // for execDashboard is OK, need to understand if will be ok for other features
-  // or is going to create issues.
-  $rightPane .= (strpos($rightPane,"?") === false) ? "?" : "&";
-  $rightPane .= "tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}";
+  if($showFeature == 'editTc') {
+    // Refs #923: the projectInfoView right pane already carries tproject_id
+    // (appended above), so only add the test plan id to avoid a duplicate key.
+    $rightPane .= (strpos($rightPane,"?") === false) ? "?" : "&";
+    $rightPane .= "tplan_id={$args->tplan_id}";
+  }
+  else {
+    // for execDashboard is OK, need to understand if will be ok for other features
+    // or is going to create issues.
+    $rightPane .= (strpos($rightPane,"?") === false) ? "?" : "&";
+    $rightPane .= "tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}";
+  }
 }
 
 if(isset($full_screen[$showFeature])) {

@@ -65,7 +65,7 @@ $tables = tlObjectWithDB::getDBTables(
  * Resolve the target project id in the same order as legacy archiveData.php:
  * explicit id > tproject_id > session testprojectID.
  */
-function resolveProjectId(&$db, $tables) {
+function resolveProjectId() {
     if (isset($_REQUEST['id']) && $_REQUEST['id'] !== '') {
         return intval($_REQUEST['id']);
     }
@@ -76,7 +76,7 @@ function resolveProjectId(&$db, $tables) {
 }
 
 if ($action === 'info') {
-    $projectId = resolveProjectId($db, $tables);
+    $projectId = resolveProjectId();
     if ($projectId <= 0) {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Missing project id'));
@@ -129,10 +129,10 @@ if ($action === 'info') {
             'is_public' => intval($project['is_public']) === 1,
             'tc_counter' => intval($project['tc_counter']),
             'options' => array(
-                'requirementsEnabled'  => intval($opt->requirementsEnabled) === 1,
-                'testPriorityEnabled'  => intval($opt->testPriorityEnabled) === 1,
-                'automationEnabled'    => intval($opt->automationEnabled) === 1,
-                'inventoryEnabled'     => intval($opt->inventoryEnabled) === 1,
+                'requirementsEnabled'  => intval($opt->requirementsEnabled ?? 0) === 1,
+                'testPriorityEnabled'  => intval($opt->testPriorityEnabled ?? 0) === 1,
+                'automationEnabled'    => intval($opt->automationEnabled ?? 0) === 1,
+                'inventoryEnabled'     => intval($opt->inventoryEnabled ?? 0) === 1,
             ),
             'flags' => array(
                 'issueTrackerEnabled'     => intval($project['issue_tracker_enabled']) === 1,

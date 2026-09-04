@@ -1196,26 +1196,33 @@ function initializeGui(&$dbHandler,&$argsObj)
 
   $guiObj->cancelActionJS = 'location.href=fRoot+' . "'" . "lib/testcases/archiveData.php?";
 
+  $cancelToModernView = false;
   if (intval($argsObj->containerID) > 0) {
     if (intval($argsObj->containerID) == intval($argsObj->tproject_id)) {
-      $guiObj->cancelActionJS .= 'edit=testproject';
+      // Modernized Test Project Information viewer (Refs #923)
+      $cancelToModernView = true;
+      $guiObj->cancelActionJS = 'location.href=fRoot+' .
+          "'gui/templates/projects/projectInfoView.html?tproject_id=" .
+          intval($argsObj->containerID) . "'";
     } else {
       $guiObj->cancelActionJS .= 'edit=testsuite';
+      $guiObj->cancelActionJS .= '&id=' . intval($argsObj->containerID);
     }
-    $guiObj->cancelActionJS .= '&id=' . intval($argsObj->containerID);
   } else {
     $guiObj->cancelActionJS .= 'edit=testcase&id=' . intval($argsObj->tcase_id);
   }
 
-  if( property_exists($argsObj, 'tplan_id') ) {
+  if( !$cancelToModernView && property_exists($argsObj, 'tplan_id') ) {
     $guiObj->cancelActionJS .= "&tplan_id={$argsObj->tplan_id}";
   }
 
-  if( property_exists($argsObj, 'tproject_id') ) {
+  if( !$cancelToModernView && property_exists($argsObj, 'tproject_id') ) {
     $guiObj->cancelActionJS .= "&tproject_id={$argsObj->tproject_id}";
   }
 
-  $guiObj->cancelActionJS .= "'";
+  if( !$cancelToModernView ) {
+    $guiObj->cancelActionJS .= "'";
+  }
 
   return $guiObj;
 } 
