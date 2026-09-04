@@ -9933,3 +9933,42 @@ documented findings only).
   also made the per-build `report_url` absolute (leading `/`). Re-verified: per-build
   link now renders "Test Plan Execution Report (on specific build)".
 
+---
+
+## Regression — Issue #846: ASIDE menu E_WARNING "Undefined property: stdClass::$configuration" for blindfolded no-rights users
+
+- **Priority:** High · **Importance:** High
+- **Scope:** When a user's effective role is <no rights> (role_id 3) and one or more test
+  projects exist but none are accessible (userIsBlindFolded path in `initUserEnv`),
+  the ASIDE sidebar rendered from `gui/templates/dashio/aside.tpl` accesses
+  unguarded `$menuGrants->configuration` (and ~24 other menuGrants properties) on an
+  incomplete 13-key stdClass returned by the blindfolded branch, producing an
+  E_WARNING for each undefined property on every login. Fix: the blindfolded grants
+  object is now seeded from `TLSmarty::emptyMenuGrants()` (complete 29-key shape)
+  before enabling the same system-wide "yes" entries, guaranteeing every property
+  aside.tpl accesses exists.
+- **Precondition:** DB fresh import; one test project exists (e.g. id 100, name TP1,
+  `is_public=1`); a user with global role = <no rights> (e.g. `norights_norepro`,
+  id 2, role_id 3) who has no project-level role assignment; server running at
+  http://localhost:8082.
+- **Repro (pre-fix):** Bootstrapped `asideMenu.php` flow (testlinkInitPage → initUserEnv
+  → TLSmarty render of `asideFrame.tpl`) for the no-rights user with test project
+  present → `events` table logged at least one `log_level=2` E_WARNING:
+  `Undefined property: stdClass::$configuration`.
+
+| # | Test case | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-846.1 | blindfolded no-rights user: zero Undefined property warnings | Create TP1, login as norights_norepro, trigger aside render | `events WHERE log_level>=2` contains 0 new rows for `Undefined property` | PASS (CLI repro: 0 post-fix) |
+| TC-846.2 | blindfolded no-rights user: menuGrants has all aside keys | Same scenario; inspect `$smarty->getTemplateVars('menuGrants')` | 29 properties including configuration, modify_tc, view_tc, testplan_execute | PASS (CLI: 29 props) |
+| TC-846.3 | blindfolded user still sees System+Projects menus | Login as blindfolded user, render aside | `$gui->showMenu.system=true`, `$gui->showMenu.projects=true`; nav links rendered | PASS |
+| TC-846.4 | normal admin user: complete grants, no regression | Login admin (id 1), render aside with TP1 selected | 47-key grants, zero new E_WARNING events | PASS (CLI) |
+| TC-846.5 | zero-projects DB: zeroTestProjects branch unchanged | Remove TP1, render aside for no-rights user | Complete grants, zero new E_WARNING events | PASS (CLI) |
+| TC-846.6 | syntax gate | `php -l lib/functions/common.php` | No syntax errors | PASS |
+| TC-846.7 | Event Viewer clean | After all flows, `SELECT * FROM events WHERE log_level>=2` | No new Undefined property rows | PASS |
+
+- **Result:** **7/7 PASS** (TC-846.1–846.7). Blindfolded no-rights user now gets a full
+  29-key grants object on every login; zero E_WARNING events for any `menuGrants`
+  property; normal admin and zero-project paths unaffected. Fix is a one-line
+  change (seed from `emptyMenuGrants()` before overlaying the 11 `"yes"` keys);
+  `php -l` clean; no i18n/HTML/JS touched.
+

@@ -1728,7 +1728,14 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     $gui->showMenu['system'] = true;
     $gui->countPlans = 0;
     if( is_null($gui->grants) ) {
-      $gui->grants = new stdClass();
+      // Refs #846: start from the FULL grant shape (emptyMenuGrants gives
+      // every key aside.tpl reads, defaulted to 'no'), then enable the same
+      // system-wide admin entries as before so a rights-less user can reach
+      // the System/Projects screens and request access. Building a partial
+      // object here previously left configuration/modify_tc/view_tc/etc.
+      // undefined, and the unguarded $menuGrants-><prop> reads in
+      // gui/templates/dashio/aside.tpl raised E_WARNING on every login.
+      $gui->grants = TLSmarty::emptyMenuGrants();
       $gui->grants->event_viewer = "yes";
       $gui->grants->user_mgmt = "yes";
       $gui->grants->cfield_management = "yes";
