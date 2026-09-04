@@ -779,7 +779,7 @@ function createSpreadsheet($gui,$args,$media,$customFieldColumns=null)
 
   // Now process data  
   $startingRow++;
-  $qta_loops = count($gui->dataSet);
+  $qta_loops = is_array($gui->dataSet) ? count($gui->dataSet) : 0;
   for ($idx = 0; $idx < $qta_loops; $idx++) {
     $line2write = $gui->dataSet[$idx];
     $colCounter = 0; 
