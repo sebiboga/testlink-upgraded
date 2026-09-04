@@ -9809,3 +9809,31 @@ now open the modern screen.
 - **Result:** **12/12 PASS** (TC-844.1–844.12). The last remaining legacy execution Print popup is
   modernized; BFF enforces auth + `testplan_execute`, 404/400 edge cases handled without
   E_WARNING events, i18n complete, in-app links switched.
+
+---
+
+### Regression — Issue #831: build UI pages resolve project scope (child of #503)
+
+**Background:** #831 is a child tracking issue of enhancement #503 ("builds scoped to the Test
+Project"). Its scoped deliverable (commit `748555985`) makes `lib/plan/buildCopyExecTaskAssignment.php`
+resolve the test project directly from the build's `testproject_id` (no testplan-node walk) and
+confirmed the build UI listing/selectors are project-scoped. On a fresh DB import, the work is
+already present on the default branch — this suite verifies the sub-task's state holds (it is a
+tracking/verification pass, not a code change: no defect was found).
+
+**Fixture:** `php tmp/repro_831_verify.php` seeds project 2000 (plans 2001/2002) + project
+build 3001 (`testproject_id=2000`, `testplan_id=2001`), then asserts project scope.
+
+| # | Check | Steps | Expected | Actual |
+|---|---|---|---|---|
+| TC-831.1 | `builds.testproject_id` exists | `DESCRIBE builds;` | `testproject_id` column present (from #826) | PASS |
+| TC-831.2 | build carries project id | `get_by_id(3001)` | `testproject_id=2000`, `testplan_id=2001` (dual-write until #834) | PASS |
+| TC-831.3 | `init_args` project resolution | replicate `buildCopyExecTaskAssignment.php:93-95` on build 3001 | `tproject_id=2000`, `tplan_id=2001` from the build row | PASS |
+| TC-831.4 | source-build selector project-scoped | `get_builds_for_html_options(2001)` | contains project build 3001 | PASS |
+| TC-831.5 | same selector for other plan | `get_builds_for_html_options(2002)` | contains project build 3001 (project-wide) | PASS |
+| TC-831.6 | duplicate-name check project-wide | `check_build_name_existence(2002,'v1.0')` | duplicate detected across plans (project scope) | PASS |
+
+- **Result:** **6/6 PASS** (TC-831.1–831.6). The #831 deliverable is confirmed present and
+  correct on the default branch after a fresh DB import. No defect found; remaining parent-#503
+  work (drop `testplan_id`, Test-Project-menu move) is owned by the modernize workflow under
+  sibling sub-tasks #834/#835.
