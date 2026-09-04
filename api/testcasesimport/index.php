@@ -352,7 +352,49 @@ if ($action === 'import_md') {
                                   'reason' => 'duplicate in target suite'];
                     continue;
                 }
-                // create_new_version / update_last_version
+                if ($actionOnHit === 'update_last_version') {
+                    // Legacy parity (lib/testcases/tcImport.php:384-427):
+                    // update the LATEST version in place — no new version.
+                    if ($dryRun) {
+                        $newVersions[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                          'suite' => $suiteName, 'steps' => count($steps)];
+                        continue;
+                    }
+                    try {
+                        $existingTcId = intval($existingTcId);
+                        $last = $tcaseMgr->get_last_version_info($existingTcId,
+                                                                 ['output' => 'minimun']);
+                        $lastVersionId = is_array($last) ? intval($last['id'] ?? 0) : 0;
+                        if ($lastVersionId <= 0) {
+                            $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                         'error' => 'Cannot resolve latest version of matched test case'];
+                            continue;
+                        }
+                        $ur = $tcaseMgr->update($existingTcId, $lastVersionId, $title, '',
+                            strval($c['preconditions']), $steps, intval($userId), '',
+                            testcase::DEFAULT_ORDER, TESTCASE_EXECUTION_TYPE_MANUAL,
+                            $importance);
+                        $okU = is_array($ur)
+                            ? (isset($ur['status_ok']) ? intval($ur['status_ok']) : 1)
+                            : (isset($ur->status_ok) ? intval($ur->status_ok) : 0);
+                        if ($okU) {
+                            $newVersions[] = ['tcId' => strval($c['tcId']),
+                                              'title' => $title, 'suite' => $suiteName,
+                                              'tcase_id' => $existingTcId,
+                                              'tcversion_id' => $lastVersionId];
+                        } else {
+                            $msg = is_array($ur) ? strval($ur['msg'] ?? 'update failed')
+                                                 : strval($ur->msg ?? 'update failed');
+                            $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                         'error' => $msg];
+                        }
+                    } catch (Exception $e) {
+                        $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                     'error' => 'Update failed (internal error)'];
+                    }
+                    continue;
+                }
+                // create_new_version: bump to a fresh version, then update it
                 if ($dryRun) {
                     $newVersions[] = ['tcId' => strval($c['tcId']), 'title' => $title,
                                       'suite' => $suiteName, 'steps' => count($steps)];
