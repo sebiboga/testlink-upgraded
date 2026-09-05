@@ -7,7 +7,7 @@ Purpose: smarty template - view test case in test specification
 
 {config_load file="input_dimensions.conf"}
 {lang_get var='labels' 
-          s='no_records_found,other_versions,show_hide_reorder,version,title_test_case,match_count,actions,
+          s='warning,no_records_found,other_versions,show_hide_reorder,version,title_test_case,match_count,actions,
              file_upload_ko,warning_estimated_execution_duration_format '}
 
 {* Configure Actions *}
