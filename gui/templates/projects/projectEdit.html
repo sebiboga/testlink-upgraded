@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Project Create/Edit - TestLink</title>
+
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" type="text/css" href="../themes/default/css/frame.css">
+
+  <style>
+    body { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+    .header { background: #22b8b0; color: white; padding: 20px 24px; border-radius: 4px; margin-bottom: 24px; }
+    .header h1 { margin: 0; font-size: 26px; }
+    .header .sub { margin: 6px 0 0 0; opacity: 0.9; font-size: 13px; }
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; }
+    .icon-btn { background: rgba(255,255,255,0.18); border: none; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+    .icon-btn:hover { background: rgba(255,255,255,0.3); }
+
+    .card { background: white; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px; }
+    .card-body { padding: 24px; }
+
+    .btn { padding: 9px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .btn-primary { background: #22b8b0; color: white; }
+    .btn-primary:hover { background: #1d9d96; }
+    .btn-secondary { background: #95a5a6; color: white; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .footer-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 18px; border-top: 1px solid #ecf0f1; margin-top: 22px; }
+
+    .form-section { margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid #ecf0f1; }
+    .form-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .form-section-title { font-weight: 600; font-size: 14px; color: #333; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .form-section-title i { color: #22b8b0; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 16px; }
+    .form-row.full { grid-template-columns: 1fr; }
+    .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 13px; }
+    .form-group input[type="text"],
+    .form-group textarea,
+    .form-group select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+    .form-group textarea { resize: vertical; min-height: 90px; }
+    .form-group .hint-icon { margin-left: 6px; color: #7f8c8d; cursor: help; }
+    .form-group .readonly-val { padding: 10px 0; font-family: monospace; color: #555; }
+
+    .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
+    .checkbox-item { display: flex; align-items: center; }
+    .checkbox-item input[type="checkbox"] { margin-right: 9px; cursor: pointer; }
+    .checkbox-item label { margin: 0; font-weight: normal; cursor: pointer; font-size: 13px; }
+
+    .alert { display: none; padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 13px; }
+    .alert.error { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .alert.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+
+    .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+    .muted { color: #7f8c8d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="header-top">
+        <div>
+          <h1 id="pageTitle" data-i18n="pedit.createProjectTitle">Create Test Project</h1>
+          <p class="sub" data-i18n="pedit.subtitle">Create or edit a Test Project</p>
+        </div>
+        <div class="header-actions">
+          <button id="eventHistoryBtn" class="icon-btn" style="display:none;" title="">
+            <i class="fas fa-history"></i> <span data-i18n="pedit.eventHistory">Show event history</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert" id="alertBox"></div>
+
+    <div class="card">
+      <div class="card-body" id="spinner" style="text-align:center; padding: 40px; color:#7f8c8d;">
+        <i class="fas fa-spinner fa-spin"></i> <span data-i18n="common.loading">Loading...</span>
+      </div>
+
+      <form id="projectForm" style="display:none;">
+        <!-- Copy from an existing project (create mode only) -->
+        <div class="form-section" id="copySection" style="display:none;">
+          <div class="form-section-title"><i class="fas fa-copy"></i> <span data-i18n="pedit.createFromSection">Source data</span></div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="copy_from_tproject_id" data-i18n="pedit.createFrom">Create from existing Test Project?</label>
+              <select id="copy_from_tproject_id" name="copy_from_tproject_id">
+                <option value="0" data-i18n="pedit.no">No</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Basic information -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-info-circle"></i> <span data-i18n="proj.basicInfo">Basic Information</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="tprojectName"><span data-i18n="proj.name">Project Name</span> *</label>
+              <input type="text" id="tprojectName" required>
+            </div>
+            <div class="form-group">
+              <label for="tcasePrefix"><span data-i18n="proj.prefix">Test Case Prefix</span> * <i class="fas fa-info-circle hint-icon" id="prefixHint" title=""></i></label>
+              <input type="text" id="tcasePrefix" required>
+            </div>
+          </div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="projectDesc" data-i18n="proj.description">Description</label>
+              <textarea id="projectDesc"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-cogs"></i> <span data-i18n="proj.features">Features</span></div>
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="optReq" name="optReq">
+              <label for="optReq" data-i18n="proj.enableRequirements">Enable Requirements</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="optPriority" name="optPriority">
+              <label for="optPriority" data-i18n="proj.enablePriority">Enable Priority</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="optAutomation" name="optAutomation">
+              <label for="optAutomation" data-i18n="proj.enableAutomation">Enable Automation</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="optInventory" name="optInventory">
+              <label for="optInventory" data-i18n="proj.enableInventory">Enable Inventory</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Issue Tracker Integration -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-bug"></i> <span data-i18n="proj.issueTrackerIntegration">Issue Tracker Integration</span></div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="issue_tracker_id" data-i18n="proj.issueTracker">Issue Tracker</label>
+              <select id="issue_tracker_id" name="issue_tracker_id">
+                <option value="0" data-i18n="common.none">None</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="issue_tracker_enabled" name="issue_tracker_enabled">
+            <label for="issue_tracker_enabled" data-i18n="proj.enabled">Enabled</label>
+          </div>
+        </div>
+
+        <!-- Code Tracker Integration -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-code-branch"></i> <span data-i18n="proj.codeTrackerIntegration">Code Tracker Integration</span></div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="code_tracker_id" data-i18n="proj.codeTracker">Code Tracker</label>
+              <select id="code_tracker_id" name="code_tracker_id">
+                <option value="0" data-i18n="common.none">None</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="code_tracker_enabled" name="code_tracker_enabled">
+            <label for="code_tracker_enabled" data-i18n="proj.enabled">Enabled</label>
+          </div>
+        </div>
+
+        <!-- Requirement Management System Integration -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-file-signature"></i> <span data-i18n="proj.reqMgrIntegration">Requirement Management Integration</span></div>
+          <div class="form-row full">
+            <div class="form-group">
+              <label for="reqmgrsystem_id" data-i18n="proj.reqMgrSystem">Requirement Management System</label>
+              <select id="reqmgrsystem_id" name="reqmgrsystem_id">
+                <option value="0" data-i18n="common.none">None</option>
+              </select>
+            </div>
+          </div>
+          <div class="checkbox-item">
+            <input type="checkbox" id="reqmgr_integration_enabled" name="reqmgr_integration_enabled">
+            <label for="reqmgr_integration_enabled" data-i18n="proj.enabled">Enabled</label>
+          </div>
+        </div>
+
+        <!-- Availability -->
+        <div class="form-section">
+          <div class="form-section-title"><i class="fas fa-toggle-on"></i> <span data-i18n="proj.availability">Availability</span></div>
+          <div class="checkbox-group">
+            <div class="checkbox-item">
+              <input type="checkbox" id="active" name="active">
+              <label for="active" data-i18n="proj.active">Active</label>
+            </div>
+            <div class="checkbox-item">
+              <input type="checkbox" id="is_public" name="is_public">
+              <label for="is_public" data-i18n="proj.public">Public</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- API key (edit mode, read-only) -->
+        <div class="form-section" id="apiKeySection" style="display:none;">
+          <div class="form-section-title"><i class="fas fa-key"></i> <span data-i18n="pedit.apiKey">API Key</span></div>
+          <div class="form-group">
+            <div class="readonly-val" id="apiKeyVal"></div>
+          </div>
+        </div>
+
+        <div class="footer-actions">
+          <button type="button" class="btn btn-secondary" id="cancelBtn" data-i18n="common.cancel">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveBtn">
+            <i class="fas fa-save"></i> <span data-i18n="common.save">Save</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="footer"><span data-i18n="footers.projectEdit">TestLink 2.0.1 - Test Project Management</span></div>
+
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="/gui/templates/i18n/i18n.js"></script>
+
+  <script>
+    let projectId = 0;
+    const mode = projectId > 0 ? 'edit' : 'create';
+
+    function esc(s) {
+      return String(s ?? '').replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+      }[c]));
+    }
+
+    function getParam(name) {
+      const m = new URLSearchParams(window.location.search).get(name);
+      return m ? parseInt(m, 10) || 0 : 0;
+    }
+
+    function showAlert(msg, type) {
+      const box = document.getElementById('alertBox');
+      box.className = 'alert ' + type;
+      box.textContent = msg;
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    }
+
+    function clearAlert() {
+      const box = document.getElementById('alertBox');
+      box.className = 'alert';
+      box.textContent = '';
+    }
+
+    // Legacy manageTracker(): the "enabled" checkbox is meaningless while the
+    // select shows the no-tracker option (disabled + unchecked).
+    function manageTracker(selectId, enabledId) {
+      const select = document.getElementById(selectId);
+      const enabled = document.getElementById(enabledId);
+      enabled.disabled = select.selectedIndex === 0;
+      if (select.selectedIndex === 0) enabled.checked = false;
+    }
+
+    function fillSelect(selectId, options, selectedId) {
+      const select = document.getElementById(selectId);
+      select.innerHTML = '<option value="0">-- ' + TLi18n.t('common.none') + ' --</option>' +
+        options.map(o =>
+          '<option value="' + parseInt(o.id, 10) + '"' +
+          (parseInt(o.id, 10) === parseInt(selectedId, 10) ? ' selected' : '') + '>' +
+          esc(o.verbose) + '</option>').join('');
+      manageTracker(selectId, selectId.replace('_id', '_enabled'));
+    }
+
+    function loadForm() {
+      projectId = getParam('tproject_id');
+      $.ajax({
+        url: '/api/projectedit/index.php?action=init&tproject_id=' + projectId,
+        method: 'GET',
+        dataType: 'json',
+        success: function(res) {
+          if (!res.success) {
+            showAlert(res.error || TLi18n.t('pedit.loadError'), 'error');
+            return;
+          }
+          render(res.data);
+        },
+        error: function(xhr) {
+          const body = xhr.responseJSON;
+          const msg = (xhr.status === 404)
+            ? TLi18n.t('pedit.notFound')
+            : (body && body.error) || TLi18n.t('pedit.loadError');
+          showAlert(msg, 'error');
+        }
+      });
+    }
+
+    function render(data) {
+      const p = data.project || {};
+      projectId = p.id || 0;
+      const isEdit = projectId > 0;
+
+      document.getElementById('pageTitle').textContent =
+        isEdit ? TLi18n.t('pedit.editProjectTitle', {name: p.name})
+               : TLi18n.t('pedit.createProjectTitle');
+
+      document.getElementById('tprojectName').value = p.name || '';
+      document.getElementById('tcasePrefix').value = p.prefix || '';
+      document.getElementById('projectDesc').value = p.description || '';
+      document.getElementById('active').checked = !!(p.active);
+      document.getElementById('is_public').checked = !!(p.isPublic);
+      document.getElementById('optReq').checked = !!(p.optReq);
+      document.getElementById('optPriority').checked = !!(p.optPriority);
+      document.getElementById('optAutomation').checked = !!(p.optAutomation);
+      document.getElementById('optInventory').checked = !!(p.optInventory);
+
+      fillSelect('issue_tracker_id', data.issueTrackers || [], p.issue_tracker_id || 0);
+      document.getElementById('issue_tracker_enabled').checked = !!(p.issue_tracker_enabled);
+      fillSelect('code_tracker_id', data.codeTrackers || [], p.code_tracker_id || 0);
+      document.getElementById('code_tracker_enabled').checked = !!(p.code_tracker_enabled);
+      fillSelect('reqmgrsystem_id', data.reqMgrSystems || [], p.reqmgrsystem_id || 0);
+      document.getElementById('reqmgr_integration_enabled').checked = !!(p.reqmgr_integration_enabled);
+
+      // Copy-from picker: create mode only, populated with accessible projects.
+      if (!isEdit && data.copyFromProjects && data.copyFromProjects.length > 0) {
+        const sel = document.getElementById('copy_from_tproject_id');
+        sel.innerHTML = '<option value="0">' + TLi18n.t('pedit.no') + '</option>' +
+          data.copyFromProjects.map(o =>
+            '<option value="' + parseInt(o.id, 10) + '">' + esc(o.name) + '</option>').join('');
+        document.getElementById('copySection').style.display = '';
+      }
+
+      // API key (edit mode, read-only; legacy shows it only when set).
+      if (isEdit && p.api_key) {
+        document.getElementById('apiKeyVal').textContent = p.api_key;
+        document.getElementById('apiKeySection').style.display = '';
+      }
+
+      // Event history (edit mode + right).
+      if (isEdit && data.grants && data.grants.mgt_view_events) {
+        const btn = document.getElementById('eventHistoryBtn');
+        btn.style.display = '';
+        btn.onclick = function() {
+          window.open(
+            '/gui/templates/eventviewer/eventviewer.html?objectId=' + projectId + '&objectType=testprojects',
+            '_blank', 'width=1100,height=720,resizable=yes,scrollbars=yes');
+        };
+      }
+
+      document.getElementById('prefixHint').title = TLi18n.t('pedit.prefixHint');
+      document.getElementById('spinner').style.display = 'none';
+      document.getElementById('projectForm').style.display = '';
+    }
+
+    // Validation (mirrors legacy validateForm()).
+    function validateForm() {
+      if (!document.getElementById('tprojectName').value.trim()) {
+        alert(TLi18n.t('pedit.warningEmptyName'));
+        document.getElementById('tprojectName').focus();
+        return false;
+      }
+      if (!document.getElementById('tcasePrefix').value.trim()) {
+        alert(TLi18n.t('pedit.warningEmptyPrefix'));
+        document.getElementById('tcasePrefix').focus();
+        return false;
+      }
+      return true;
+    }
+
+    function collect() {
+      return {
+        name: document.getElementById('tprojectName').value.trim(),
+        prefix: document.getElementById('tcasePrefix').value.trim(),
+        description: document.getElementById('projectDesc').value.trim(),
+        active: document.getElementById('active').checked ? 1 : 0,
+        isPublic: document.getElementById('is_public').checked ? 1 : 0,
+        optReq: document.getElementById('optReq').checked ? 1 : 0,
+        optPriority: document.getElementById('optPriority').checked ? 1 : 0,
+        optAutomation: document.getElementById('optAutomation').checked ? 1 : 0,
+        optInventory: document.getElementById('optInventory').checked ? 1 : 0,
+        issue_tracker_id: parseInt(document.getElementById('issue_tracker_id').value, 10) || 0,
+        issue_tracker_enabled: document.getElementById('issue_tracker_enabled').checked ? 1 : 0,
+        code_tracker_id: parseInt(document.getElementById('code_tracker_id').value, 10) || 0,
+        code_tracker_enabled: document.getElementById('code_tracker_enabled').checked ? 1 : 0,
+        reqmgrsystem_id: parseInt(document.getElementById('reqmgrsystem_id').value, 10) || 0,
+        reqmgr_integration_enabled: document.getElementById('reqmgr_integration_enabled').checked ? 1 : 0
+      };
+    }
+
+    document.getElementById('projectForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!validateForm()) return;
+      clearAlert();
+
+      const data = collect();
+      const action = projectId > 0 ? 'update' : 'create';
+      const url = '/api/projectedit/index.php?action=' + action +
+        (projectId > 0 ? '&tproject_id=' + projectId : '');
+
+      if (projectId <= 0) {
+        data.copy_from_tproject_id =
+          parseInt(document.getElementById('copy_from_tproject_id').value, 10) || 0;
+      }
+
+      $.ajax({
+        url: url,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(data),
+        success: function(res) {
+          if (res.success) {
+            showAlert(projectId > 0
+              ? TLi18n.t('pedit.updateSuccess')
+              : TLi18n.t('pedit.createSuccess'), 'success');
+            // Back to the project list (the modernized management screen).
+            setTimeout(function() {
+              window.location.href = '/gui/templates/projectsView.html';
+            }, 1200);
+          } else {
+            showAlert(res.error || TLi18n.t('pedit.saveError'), 'error');
+          }
+        },
+        error: function(xhr) {
+          const body = xhr.responseJSON;
+          showAlert((body && body.error) || TLi18n.t('pedit.saveError'), 'error');
+        }
+      });
+    });
+
+    document.getElementById('cancelBtn').addEventListener('click', function() {
+      window.location.href = '/gui/templates/projectsView.html';
+    });
+
+    ['issue_tracker_id', 'code_tracker_id', 'reqmgrsystem_id'].forEach(function(id) {
+      document.getElementById(id).addEventListener('change', function() {
+        manageTracker(id, id.replace('_id', '_enabled'));
+      });
+    });
+
+    TLi18n.load(function() {
+      TLi18n.apply();
+      loadForm();
+    });
+  </script>
+</body>
+</html>

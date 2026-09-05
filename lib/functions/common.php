@@ -2069,8 +2069,11 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     // mgt_modify_product, skip the admin redirect instead of fataling.
     if ($argsObj->user !== null &&
         $argsObj->user->hasRight($dbHandler,'mgt_modify_product')) {
-      redirect($_SESSION['basehref'] . 
-        'lib/project/projectEdit.php?doAction=create');
+      // Refs #967: point the "no test project exists" bootstrap at the
+      // modernized Test Project Create/Edit screen instead of the legacy
+      // projectEdit.php full-page controller (now a Dashio standalone page).
+      redirect($_SESSION['basehref'] .
+        'gui/templates/projects/projectEdit.html');
       exit();
     }
   }
