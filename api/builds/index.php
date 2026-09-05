@@ -549,8 +549,9 @@ if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0]))
     // Legacy doDelete(): executions on this build require exec_delete right.
     // Builds are project-scoped (issue #503), so count executions across all
     // plans of the project.
-    $qry = "SELECT COUNT(0) AS qty FROM {$tplanMgr->tables['executions']} E " .
-           "JOIN {$tplanMgr->tables['testplans']} TP ON TP.id = E.testplan_id " .
+    $buildTables = tlObjectWithDB::getDBTables(array('executions', 'testplans'));
+    $qry = "SELECT COUNT(0) AS qty FROM {$buildTables['executions']} E " .
+           "JOIN {$buildTables['testplans']} TP ON TP.id = E.testplan_id " .
            "WHERE TP.testproject_id = {$ctx['tproject_id']} " .
            "AND E.build_id = {$buildId}";
     $rsq = $db->get_recordset($qry);
