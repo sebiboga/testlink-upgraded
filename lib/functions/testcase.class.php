@@ -2138,23 +2138,6 @@ class testcase extends tlObjectWithAttachments {
 
 
   /*
-    function: formatTestCaseIdentity
-
-    args: id: testcase id
-          external_id
-
-    returns: testproject id
-
-  */
-  function formatTestCaseIdentity($id,$external_id=null)
-  {
-    $path2root = $this->tree_manager->get_path($tc_id);
-    $tproject_id = $path2root[0]['parent_id'];
-    $tcasePrefix = $this->tproject_mgr->getTestCasePrefix($tproject_id);
-  }
-
-
-  /*
     function: getPrefix
 
     args: id: testcase id
