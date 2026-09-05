@@ -763,8 +763,8 @@ if ($action === 'get') {
     try {
         $pk = $tprojectMgr->getKeywords($tprojectId);
         if (!is_null($pk)) {
-            foreach ($pk as $kid => $kr) {
-                $projKw[intval($kid)] = strval(is_array($kr) ? ($kr['keyword'] ?? '') : $kr);
+            foreach ($pk as $kwo) {
+                $projKw[intval($kwo->dbID)] = strval($kwo->name);
             }
         }
     } catch (Exception $e) {
