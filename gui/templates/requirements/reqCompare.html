@@ -297,23 +297,25 @@ function showBadgeCount(count) {
 
 function sanitizeDiffHtml(html) {
   if (!html) { return html; }
-  var tmp = document.createElement('div');
-  tmp.innerHTML = html;
-  tmp.querySelectorAll('*').forEach(function (el) {
+  var doc = new DOMParser().parseFromString(html, 'text/html');
+  var DANGEROUS = 'script, iframe, object, embed, link, meta, base, form, input, button, textarea, select, option';
+  doc.querySelectorAll(DANGEROUS).forEach(function (el) { el.parentNode.removeChild(el); });
+  doc.querySelectorAll('*').forEach(function (el) {
     var i;
     var attrs = el.attributes;
     for (i = attrs.length - 1; i >= 0; i--) {
       var name = attrs[i].name.toLowerCase();
-      if (name === 'onclick' || name === 'onload' || name === 'onerror' || name === 'onmouseover' ||
-          name === 'onchange' || name === 'onfocus' || name === 'onblur' || name.indexOf('on') === 0) {
+      if (name === 'srcdoc' || name.indexOf('on') === 0) {
         el.removeAttribute(attrs[i].name);
+        continue;
+      }
+      if (name === 'href' || name === 'src' || name === 'xlink:href') {
+        var v = (attrs[i].value || '').trim().toLowerCase();
+        if (/^(javascript|vbscript|data):/.test(v)) { el.removeAttribute(attrs[i].name); }
       }
     }
   });
-  tmp.querySelectorAll('script, iframe, object, embed, link, meta, style, form, input, button').forEach(function (el) {
-    el.parentNode.removeChild(el);
-  });
-  return tmp.innerHTML;
+  return doc.body ? doc.body.innerHTML : html;
 }
 
 function showWarn(msg) {

@@ -139,6 +139,13 @@ foreach ((array)$history as $row) {
     ];
 }
 
+// get_history() only enforces ORDER BY in the union (revision-exists) branch;
+// sort explicitly so "index 0 = newest" preselection holds for every case.
+usort($items, function ($a, $b) {
+    if ($b['version'] !== $a['version']) { return $b['version'] <=> $a['version']; }
+    return $b['revision'] <=> $a['revision'];
+});
+
 $webCfg = getWebEditorCfg('requirement');
 $reqType = isset($webCfg['type']) ? (string)$webCfg['type'] : 'none';
 
@@ -216,8 +223,9 @@ if ($action === 'compare') {
             $differ = new diff();
             $differ->doDiff($ln, $rn);
             $scope['type'] = 'text';
-            $scope['diff'] = $differ->inline($ln, 'revision:' . intval($left['revision']),
-                                             $rn, 'revision:' . intval($right['revision']), $context);
+            $scope['diff'] = $differ->inline($ln, 'v' . intval($left['version']) . ' rev ' . intval($left['revision']),
+                                             $rn, 'v' . intval($right['version']) . ' rev ' . intval($right['revision']),
+                                             $context);
             $scope['count'] = count($differ->changes);
         }
     }
@@ -242,11 +250,23 @@ if ($action === 'compare') {
         if (!$showAll && $lRaw === '' && $rRaw === '') { continue; }
         $vType = (isset($leftCfs[$k]['type']) && isset($cfieldMgr->custom_field_types[$leftCfs[$k]['type']]))
             ? $cfieldMgr->custom_field_types[$leftCfs[$k]['type']] : 'string';
+        if ($vType === 'string' && isset($rightCfs[$k]['type']) && isset($cfieldMgr->custom_field_types[$rightCfs[$k]['type']])) {
+            $vType = $cfieldMgr->custom_field_types[$rightCfs[$k]['type']];
+        }
+        // legacy date/datetime formatting: date_format + (for datetime) time_format
+        $dateFmt = config_get('date_format');
+        if ($dateFmt === null || $dateFmt === false) { $dateFmt = '%d/%m/%Y'; }
+        $timeFmt = '%H:%i:%s';
+        $guiCfg = config_get('gui');
+        if (is_object($guiCfg) && isset($guiCfg->custom_fields) && is_object($guiCfg->custom_fields)
+            && isset($guiCfg->custom_fields->time_format)) { $timeFmt = $guiCfg->custom_fields->time_format; }
         if (($vType === 'date' || $vType === 'datetime') && is_numeric($lRaw) && intval($lRaw) != 0) {
-            $lRaw = tlStrftime(config_get($vType), intval($lRaw));
+            $fmt = ($vType === 'datetime') ? ($dateFmt . ' ' . $timeFmt) : $dateFmt;
+            $lRaw = tlStrftime($fmt, intval($lRaw));
         }
         if (($vType === 'date' || $vType === 'datetime') && is_numeric($rRaw) && intval($rRaw) != 0) {
-            $rRaw = tlStrftime(config_get($vType), intval($rRaw));
+            $fmt = ($vType === 'datetime') ? ($dateFmt . ' ' . $timeFmt) : $dateFmt;
+            $rRaw = tlStrftime($fmt, intval($rRaw));
         }
         $cfRows[] = [
             'label'   => isset($leftCfs[$k]['label']) ? $leftCfs[$k]['label'] : $k,

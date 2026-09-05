@@ -934,8 +934,16 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
             $value = isset($cf['value']) ? $cf['value'] : '';
             if (is_array($value)) { $value = implode(', ', $value); }
             $value = preg_replace('!\s+!', ' ', trim((string)$value));
+            // legacy date/datetime formatting: date_format + (for datetime) time_format
+            $dateFmt = config_get('date_format');
+            if ($dateFmt === null || $dateFmt === false) { $dateFmt = '%d/%m/%Y'; }
+            $timeFmt = '%H:%i:%s';
+            $guiCfg = config_get('gui');
+            if (is_object($guiCfg) && isset($guiCfg->custom_fields) && is_object($guiCfg->custom_fields)
+                && isset($guiCfg->custom_fields->time_format)) { $timeFmt = $guiCfg->custom_fields->time_format; }
             if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
-                $value = tlStrftime(config_get($vType), intval($value));
+                $fmt = ($vType == 'datetime') ? ($dateFmt . ' ' . $timeFmt) : $dateFmt;
+                $value = tlStrftime($fmt, intval($value));
             }
             $out[$cf['name']] = [
                 'label'  => $cf['label'],
