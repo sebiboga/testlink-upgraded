@@ -10368,3 +10368,22 @@ Result: 8/8 PASS. Commits on branch `fix/issue-892`.
 | TC-MD.15 | Event Viewer clean | Query `events` table after all real imports | No new ERROR/WARNING rows from export/import interaction | PASS |
 
 Result: 15/15 PASS. Commits: `2acb740a7` (MD round-trip), `8245fc888` (ci compare hierarchical), `docs(export)`.
+
+---
+
+## Regression — Issue #949: api/builds DELETE returns 500 empty body and does not delete the build
+
+**Precondition:** App http://localhost:8082, logged in as admin. Fresh DB. Project "Bug949 Project" (id=1, prefix B949) + plan "Bug949 Plan" (id=2) created via `api/projects` / `api/plans`. Every request sent with session cookie and `X-Requested-With: XMLHttpRequest`.
+
+Pre-fix symptom: `DELETE /api/builds/{id}` → HTTP 500 empty body, build stays; PHP fatal in PHP server log: `Uncaught Error: Cannot access protected property testplan::$tables in api/builds/index.php:552` (DELETE exec-count query interpolated the protected `$tplanMgr->tables` map from procedural context).
+
+| ID | Test case | Repro (pre-fix was broken here) | Expected (post-fix) | Result |
+|----|-----------|-------------------------------|----------------------|--------|
+| TC-949.1 | DELETE build with no executions | `POST /api/builds/ {tplan_id:2,name:'B949-v1',active:1,open:1}` → id 1, then `DELETE /api/builds/1` | HTTP 200 `{"status":"ok"}`; `GET /api/builds/1` → 404; row gone from `builds` table | PASS |
+| TC-949.2 | DELETE build with executions (admin has exec_delete) | `POST /api/builds/` → id 2; insert 1 execution row (`build_id=2,testplan_id=2,status='p'`); `DELETE /api/builds/2` | HTTP 200 `{"status":"ok"}`; build gone; dependent executions removed (count=0) | PASS |
+| TC-949.3 | DELETE nonexistent build | `DELETE /api/builds/999999` | HTTP 404 (unchanged path; `get_by_id` returns false → resolveBuild 404) | PASS |
+| TC-949.4 | Audit event logged | Query `events` after TC-949.1/949.2 | `activity='DELETE'`, `object_type='builds'`, description contains `audit_build_deleted` with project + build name | PASS |
+| TC-949.5 | Event Viewer clean | `GET /api/eventviewer/events/stats/byLevel` after all TCs | `ERROR:0, WARNING:0` (only fixture AUDIT/login entries) | PASS |
+| TC-949.6 | PHP syntax gate | `php -l api/builds/index.php` | No syntax errors | PASS |
+
+Result: 6/6 PASS. Commit: `0fe8588b2` on branch `fix/issue-949`.
