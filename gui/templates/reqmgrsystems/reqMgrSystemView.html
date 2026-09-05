@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Requirement Management Systems</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d04e4c; }
+.btn-gray { background: #555; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-gray:hover { background: #444; }
+.table-wrap { padding: 20px 24px; }
+.table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
+table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
+.badge-active { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-inactive { background: #e6605e; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.action-btn { cursor: pointer; color: #4ECDC4; margin-right: 8px; font-size: 14px; }
+.action-btn:hover { color: #2d8e88; }
+.action-btn.danger { color: #e6605e; }
+.action-btn.danger:hover { color: #d04e4c; }
+.action-btn.disabled { color: #ccc; cursor: not-allowed; }
+.conn-btn { cursor: pointer; color: #4ECDC4; margin-right: 6px; font-size: 14px; }
+.conn-btn:hover { color: #2d8e88; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.cfg-example { font-size: 11px; background: #f6f6f6; border: 1px solid #e3e3e3; border-radius: 4px; padding: 6px 8px; margin: 4px 0 0; white-space: pre-wrap; font-family: monospace; }
+.stat-ok { color: #4ECDC4; }
+.stat-ko { color: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="rms.header">Requirement Management Systems</span> <span data-i18n="rms.headerSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage requirement management system integrations</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-teal" id="btnCreate" onclick="showCreateModal()" style="display:none;"><i class="fa fa-plus"></i> <span data-i18n="rms.createSystem">Create Requirement Management System</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="table-wrap">
+  <table id="systemsTable" class="display" style="width:100%">
+    <thead>
+      <tr>
+        <th data-i18n="rms.name">Name</th>
+        <th data-i18n="rms.type">Type</th>
+        <th data-i18n="rms.env">Environment</th>
+        <th id="thActions" style="width:100px" data-i18n="common.actions">Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.reqMgrSystemView">TestLink 2.0.1 - Requirement Management Systems</span></div>
+
+<div class="modal fade" id="systemModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">Create Requirement Management System</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editSystemId">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="rms.name">Name *</label>
+          <input type="text" id="editName" class="form-control" maxlength="100" style="font-size:13px;">
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="rms.type">Type *</label>
+          <select id="editType" class="form-control" style="font-size:13px;" onchange="onTypeChange()"></select>
+          <a href="javascript:void(0)" style="font-size:12px;" data-i18n="rms.showCfgExample" onclick="showCfgExample()">show configuration example</a>
+        </div>
+        <div class="form-group" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="rms.cfg">Configuration</label>
+          <textarea id="editCfg" class="form-control" rows="8" style="font-size:13px;font-family:monospace;"></textarea>
+          <div style="font-size:11px;color:#777;margin-top:4px;" data-i18n="rms.cfgHelp">Configuration is type-specific and stored as-is.</div>
+        </div>
+        <div class="form-group" id="cfgExampleGroup" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="rms.cfgExample">Configuration example</label>
+          <pre class="cfg-example" id="cfgExample">&nbsp;</pre>
+        </div>
+        <div class="form-group" id="usedOnGroup" style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;" data-i18n="rms.usedOnTestProject">Used on test project</label>
+          <div id="usedOnList" style="font-size:13px;"></div>
+        </div>
+        <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn-teal" onclick="saveSystem()" style="font-size:13px;" data-i18n="common.save">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqmgrsystems/index.php';
+var table = null;
+var typeMap = {};
+var allItems = [];
+var canManage = false;
+
+function onTypeChange() {
+  $('#cfgExample').text('\u00a0');
+}
+
+jQuery(function() {
+  var p = new URLSearchParams(window.location.search);
+  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMeta();
+    loadSystems();
+  });
+});
+
+function loadMeta() {
+  $.getJSON(API + '/meta/types', function(r) {
+    var sel = $('#editType');
+    sel.empty();
+    var all = [];
+    $.each(r.items, function(i, t) {
+      typeMap[t.code] = t;
+      all.push(t);
+    });
+    all.sort(function(a, b) {
+      var order = {'contour':1};
+      return (order[a.type]||99) - (order[b.type]||99);
+    });
+    $.each(all, function(i, t) {
+      sel.append('<option value="' + t.code + '">' + t.label + '</option>');
+    });
+  }).fail(authFail);
+}
+
+function loadSystems() {
+  $.getJSON(API, function(r) {
+    allItems = r.items;
+    canManage = !!r.canManage;
+    $('#btnCreate').toggle(canManage);
+    renderTable(allItems);
+    $('#footerText').text(TLi18n.t('rms.systemCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(authFail);
+}
+
+function authFail(xhr) {
+  if (xhr && (xhr.status === 401 || xhr.status === 403)) {
+    window.location.href = '/index.php';
+  }
+}
+
+function renderTable(items) {
+  if (table) { table.destroy(); $('#systemsTable tbody').empty(); }
+  var rows = [];
+  $.each(items, function(i, t) {
+    var nameHtml = '';
+    if (canManage) {
+      nameHtml += '<i class="fa fa-wrench conn-btn" title="' + TLi18n.t('rms.checkConnection') + '" onclick="checkConnection(' + t.id + ')"></i>';
+      nameHtml += '<span id="conn_' + t.id + '" style="margin-right:6px;"></span>';
+    }
+    nameHtml += (canManage ? '<a href="javascript:void(0)" style="color:#337AB7;" onclick="checkConnection(' + t.id + ')">' : '') +
+                $('<span>').text(t.name).html() +
+                (canManage ? '</a>' : '');
+    var envHtml = '';
+    if (t.env_check_ok) {
+      envHtml = '<span class="stat-ok"><i class="fa fa-check-circle"></i></span>';
+    } else {
+      envHtml = '<span class="stat-ko" title="' + $('<span>').text(t.env_check_msg).html() + '"><i class="fa fa-times-circle"></i></span>';
+    }
+    var actions = '';
+    if (canManage) {
+      actions += '<i class="fa fa-edit action-btn" title="' + TLi18n.t('common.edit') + '" onclick="editSystem(' + t.id + ')"></i>';
+      if (t.link_count > 0) {
+        actions += '<i class="fa fa-trash action-btn danger disabled" title="' + TLi18n.t('rms.msg.cannotDeleteLinked') + '"></i>';
+      } else {
+        actions += '<i class="fa fa-trash action-btn danger" title="' + TLi18n.t('common.delete') + '" data-action="delete" data-id="' + t.id + '"></i>';
+      }
+    }
+    rows.push([nameHtml, $('<span>').text(t.typeDescr).html(), envHtml, actions]);
+  });
+  var cols = [null, null, null, { orderable: false, searchable: false }];
+  if (!canManage) {
+    $('#thActions').hide();
+    $.each(rows, function(i, r) { r.pop(); });
+    cols.pop();
+  } else {
+    $('#thActions').show();
+  }
+  table = $('#systemsTable').DataTable({
+    data: rows,
+    order: [[0, 'asc']],
+    pageLength: 25,
+    columns: cols
+  });
+  $('#systemsTable').off('click', '[data-action="delete"]').on('click', '[data-action="delete"]', function() {
+    deleteSystem($(this).data('id'));
+  });
+}
+
+function showCreateModal() {
+  $('#modalTitle').text(TLi18n.t('rms.createSystem'));
+  $('#editSystemId').val('');
+  $('#editName').val('');
+  $('#editType').val($('#editType option:first').val());
+  $('#editCfg').val('');
+  $('#cfgExample').text('\u00a0');
+  $('#usedOnGroup').hide();
+  $('#modalError').hide();
+  onTypeChange();
+  $('#systemModal').modal('show');
+}
+
+function editSystem(id) {
+  $.getJSON(API + '/' + id, function(r) {
+    var t = r.item;
+    $('#modalTitle').text(TLi18n.t('rms.editSystem') + ': ' + t.name);
+    $('#editSystemId').val(t.id);
+    $('#editName').val(t.name);
+    $('#editType').val(t.type);
+    $('#editCfg').val(t.cfg || '');
+    $('#cfgExample').text('\u00a0');
+    $('#modalError').hide();
+    var projects = t.testprojects || [];
+    if (projects.length) {
+      $('#usedOnGroup').show();
+      var html = '';
+      $.each(projects, function(i, pr) {
+        html += '<div><i class="fa fa-flask" style="color:#4ECDC4;margin-right:4px;"></i>' + $('<span>').text(pr.testproject_name).html() + '</div>';
+      });
+      $('#usedOnList').html(html);
+    } else {
+      $('#usedOnGroup').hide();
+    }
+    onTypeChange();
+    $('#systemModal').modal('show');
+  });
+}
+
+function showCfgExample() {
+  var type = parseInt($('#editType').val());
+  $.getJSON(API + '/meta/cfg_template?type=' + type, function(r) {
+    if (r.available && r.cfg) {
+      $('#cfgExample').text(String(r.cfg));
+    } else {
+      $('#cfgExample').text(r.message || TLi18n.t('rms.connNotImplemented', {iface: type}));
+    }
+  });
+}
+
+function checkConnection(id) {
+  var target = $('#conn_' + id);
+  target.html('<i class="fa fa-spinner fa-spin" style="color:#888;"></i>');
+  $.ajax({
+    url: API + '/' + id + '/check_connection',
+    type: 'POST',
+    contentType: 'application/json',
+    data: '{}',
+    success: function(r) {
+      if (r.connected) {
+        target.html('<i class="fa fa-check-circle stat-ok" title="' + TLi18n.t('rms.connOk') + '"></i>');
+      } else {
+        target.html('<i class="fa fa-times-circle stat-ko" title="' + $('<span>').text(r.message || TLi18n.t('rms.connKo')).html() + '"></i>');
+      }
+    },
+    error: function(xhr) {
+      target.html('<i class="fa fa-times-circle stat-ko" title="' + TLi18n.t('rms.connKo') + '"></i>');
+    }
+  });
+}
+
+function saveSystem() {
+  var id = $('#editSystemId').val();
+  var data = {
+    name: $('#editName').val().trim(),
+    type: parseInt($('#editType').val()),
+    cfg: $('#editCfg').val()
+  };
+
+  if (!data.name) {
+    $('#modalError').text(TLi18n.t('rms.validation.required')).show();
+    return;
+  }
+
+  var url = id ? API + '/' + id : API;
+  var method = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: method,
+    contentType: 'application/json', data: JSON.stringify(data),
+    success: function(r) {
+      $('#systemModal').modal('hide');
+      loadSystems();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('rms.msg.errorSave');
+      try {
+        var resp = JSON.parse(xhr.responseText);
+        if (resp.message) msg = resp.message;
+      } catch(e) {}
+      $('#modalError').text(msg).show();
+    }
+  });
+}
+
+function deleteSystem(id) {
+  var item = null;
+  $.each(allItems, function(i, x) { if (x.id === id) item = x; });
+  var name = item ? item.name : '';
+  if (!confirm(TLi18n.t('rms.msg.confirmDelete') + ' "' + name + '"?')) return;
+  $.ajax({
+    url: API + '/' + id, type: 'DELETE',
+    success: function() { loadSystems(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('rms.msg.errorDelete');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+</script>
+</body>
+</html>

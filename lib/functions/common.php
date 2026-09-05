@@ -1878,6 +1878,11 @@ function getActions(&$gui,$baseURL) {
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
   $actions->issueTrackerView = "/gui/templates/issuetracker/issuetrackerView.html?{$ctx}";
   $actions->codeTrackerView = "/gui/templates/codetracker/codetrackerView.html?{$ctx}";
+  // Requirement Management Systems modernized screen (Dashio standalone
+  // page) - Refs #980. Legacy rights (reqmgrsystem_view/reqmgrsystem_management)
+  // are enforced by the BFF on every route; the legacy controller
+  // lib/reqmgrsystems/reqMgrSystemView.php keeps the same checks.
+  $actions->reqMgrSystemView = "/gui/templates/reqmgrsystems/reqMgrSystemView.html?{$ctx}";
   // Install/Upgrade check modernized screen (Dashio standalone page) - Refs #797.
   // Replaces the legacy upgrade landing (install/index.php); the BFF
   // (api/install) reports config/DB/schema/security status. Aside visibility
@@ -2110,6 +2115,7 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
     'req_tcase_link_management','keyword_assignment',
     'issuetracker_management','issuetracker_view',
     'codetracker_management','codetracker_view',
+    'reqmgrsystem_management','reqmgrsystem_view',
     'platform_management','platform_view',
     'cfield_management',
     'cfield_view','cfield_assignment',
@@ -2215,7 +2221,7 @@ function getGrantSetWithExit(&$dbHandler,&$argsObj,&$tprojMgr,$opt=null) {
  *
  */
 function getAccess(&$gui) {
-  $k2l = array('codetracker','issuetracker','platform');
+  $k2l = array('codetracker','issuetracker','platform','reqmgrsystem');
   foreach($k2l as $ak) {
     $access[$ak] = 'no';
     $p_m = $ak . '_management';
@@ -2253,6 +2259,8 @@ function getMenuVisibility(&$gui)
      $gui->grants->codetracker_management == "yes" || 
      $gui->grants->issuetracker_view == "yes" ||
      $gui->grants->codetracker_view == "yes" ||
+     $gui->grants->reqmgrsystem_management == "yes" ||
+     $gui->grants->reqmgrsystem_view == "yes" ||
      $gui->tproject_id == 0) {
     $showMenu['system'] = true;
   }

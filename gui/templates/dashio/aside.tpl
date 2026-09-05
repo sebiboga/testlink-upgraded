@@ -84,6 +84,9 @@ Left side menu
                   {if $gui->access.codetracker == 'yes'}
                     <li><a id="codeTrackerView" href="{$gui->uri->codeTrackerView}" target="mainframe">{$labels.href_codetracker_management}</a></li>
                   {/if}
+                  {if $gui->access.reqmgrsystem == 'yes'}
+                    <li><a id="reqMgrSystemView" href="{$gui->uri->reqMgrSystemView}" target="mainframe">{$labels.href_reqmgrsystem_management}</a></li>
+                  {/if}
                   {if $menuGrants->configuration == "yes"}
                     <li><a id="installView" href="{$gui->uri->installView}" target="mainframe">{$labels.install_header}</a></li>
                   {/if}

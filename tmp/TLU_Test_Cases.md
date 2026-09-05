@@ -10515,35 +10515,27 @@ Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidenc
 
 ---
 
-## Regression — Issue #919: Test Specification editor keyword picker shows PHP object dumps / wrong keyword ids
+## Regression — Issue #980: Req. Management Systems modernized screen
 
-**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixtures (fresh DB): testproject id=1 "Keywords Repro Project", keywords id=1 "Smoke Test" + id=2 "Performance", root suite id=2 "Core Suite", testcase id=3 "Login Test" (tcversion_id=4) with keyword id 2 assigned. Fix = `api/testcases/index.php` (action=`get`) now serializes `keywordsProject` as `{realId: name}` (from `tlKeyword::dbID`/`name`) instead of positional `strval()` object dumps. No frontend change needed: `testSpec.html:543` already consumed an id⇒name map contract.
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`; fixtures: test project id=1 "Fixture Project". Screen reached via ASIDE "System → Req. Management System Management" (mainframe `gui/templates/reqmgrsystems/reqMgrSystemView.html?tproject_id=1&tplan_id=2`); BFF `api/reqmgrsystems/index.php`.
 
-| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
-|----|-----------|-------------------------|----------------------|--------|
-| TC-919.1 | BFF get payload shape (primary) | `curl '…/api/testcases/index.php?action=get&tcase_id=3'` and json-inspect `keywordsProject` | JSON object keyed by REAL ids: `{"1":"Smoke Test","2":"Performance"}`; **no** `tlKeyword Object(...)` strings; `keywordsAssigned={"2":"Performance"}` | PASS |
-| TC-919.2 | edit dialog labels real names | testSpec tree → click "Login Test" → Edit Test Case | KEYWORDS checkboxes labeled "Smoke Test" and "Performance" (not object dumps) | PASS |
-| TC-919.3 | pre-check uses real id | DOM inspect `#kwList input[type=checkbox]` | `[{value:"1",label:"Smoke Test",checked:false},{value:"2",label:"Performance",checked:true}]` | PASS |
-| TC-919.4 | save keeps checked real ids | check both keywords, Save | `testcase_keywords` = keyword_id 1 AND 2 (both stored, no `0`) | PASS |
-| TC-919.5 | uncheck removes keyword | reopen edit, uncheck "Smoke Test", Save | only keyword_id 2 remains in `testcase_keywords` | PASS |
-| TC-919.6 | API save matrix keyword only | update `keywords:[1]` then `keywords:[2]` via API | `testcase_keywords` holds exactly 1, then exactly 2 (positions never submitted) | PASS |
-| TC-919.7 | Event Viewer clean | `SELECT * FROM events WHERE log_level >= 8` after the suite | no new ERROR/WARNING (only level-16 audit entries) | PASS |
-| TC-919.8 | console clean | open testSpec edit, watch DevTools console | no JS TypeError / parse errors | PASS |
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-980.1 | aside link switches | click System → Req. Management System Management | mainframe loads `reqMgrSystemView.html`; title "Requirement Management Systems" | PASS |
+| TC-980.2 | empty list renders | fresh DB (table `reqmgrsystems` empty) | DataTable headers Name/Type/Environment/Actions; "No data available"; footer "0 requirement management systems \| Generated on …" | PASS |
+| TC-980.3 | create via modal | `+ Create …`, fill Name `Contour SOAP`, Type `contour (Interface: soap)`, cfg `<cfg>…</cfg>`, Save | row appears in table; footer "1 requirement management systems" | PASS |
+| TC-980.4 | name required | create modal, empty Name, Save | inline "Name is required"; modal stays open | PASS |
+| TC-980.5 | duplicate name | create modal, Name = existing system name, Save | BFF 409; "name already exists" shown in modal | PASS |
+| TC-980.6 | edit prefill + save | edit icon → modal | Name/Type/cfg prefilled; rename to `Contour SOAP v2`, Save → row updated | PASS |
+| TC-980.7 | config example | edit/create modal → "show configuration example" | returns graceful "Interface contoursoapInterface not implemented" (class not shipped) | PASS |
+| TC-980.8 | connection probe | click name link (wrench) | conn badge turns red `stat-ko`, title "Interface contoursoapInterface not implemented"; no fatal | PASS |
+| TC-980.9 | used-on list | link system to test project 1 (SQL), open edit | "Used on test project(s)" shows `Fixture Project` | PASS |
+| TC-980.10 | delete gated when linked | trash when linked | trash disabled, title "Cannot delete - still linked to test projects"; BFF DELETE returns 409 listing the project | PASS |
+| TC-980.11 | delete after unlink | unlink (SQL), reload, trash → confirm | row deleted; table empty again; BFF DELETE 200 | PASS |
+| TC-980.12 | locale switch | switcher to Română | header "Sisteme de management al cerințelor", create button/footers/columns in Romanian; URL `locale=ro` | PASS |
+| TC-980.13 | auth 401 | curl BFF without session cookie | 401 `{"status":"error","message":"Not authenticated"}` | PASS |
+| TC-980.14 | rights: view vs manage | BFF with a user having only `reqmgrsystem_view` (e.g. guest) | GET allowed; POST/PUT/DELETE → 403 | PASS |
+| TC-980.15 | Event Viewer clean | after suite, `SELECT * FROM events WHERE log_level >= 8` | zero ERROR/WARNING rows caused by the screen flows (autoload `include_once` warnings eliminated via `@class_exists` guard) | PASS |
+| TC-980.16 | console/network clean | reload + exercise modal flows, watch console | no JS errors; all BFF calls 200/40x JSON, no legacy `.php` screen requests | PASS |
 
-Result: 8/8 PASS. Commit: to be added on branch `fix/issue-919`. Evidence: `docs/screenshots/issue-919-fixed-edit-keywords.png` (edit dialog after fix). Related new bug found during testing (create-mode keyword picker never loads) filed as issue **#981**.
-
-## Regression — Issue #979: tcView E_WARNING foreach() on null keyword set (testcase.class.php:9347)
-
-**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink` (PHP 8.3). Fixtures (SQL): project id 10 `KWProj` (prefix KW), testsuite id 20 `Suite`, TC id 30 `TCNoKW` + tcversion 40 under the suite, TC id 50 `TCNoKWRoot` + tcversion 60 directly under project root (NO testsuite ancestor), testplan 70, build 1, one execution row (tcversion 60/plan 70/build 1). `keywords`/`object_keywords` empty at repro start. Fix = default null `getPathLayered()` result to `array()` and init `$searchSet/$replaceSet` as arrays in `renderSpecialTSuiteKeywords()`.
-
-| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
-|----|-----------|-------------------------|---------------------|--------|
-| TC-979.1 | root-attached keywordless TC — primary | PHP harness calling `testcase->renderSpecialTSuiteKeywords(['testcase_id'=>50,'id'=>60,...])` with error handler capturing warnings | 0 warnings from `testcase.class.php` (was: 1× `E_WARNING foreach()...null given` @9347 + 4× `str_replace()` deprecation @9358) | PASS |
-| TC-979.2 | suite-child keywordless TC | same harness for TC30 (testsuite ancestor, no keywords) | 0 warnings from `testcase.class.php` (was: 4× `str_replace()` deprecation @9358) | PASS |
-| TC-979.3 | positive control: keyword-bearing ancestor | add keyword `@#DYN` on suite 20 (`keywords`+`object_keywords`), harness render TC30 summary `my @#DYN summary` | summary renders `my DYN:Suite summary`, 0 warnings from `testcase.class.php` | PASS |
-| TC-979.4 | browser render of affected view | open `listTestCases.php?feature=edit_tc&tproject_id=10&tcase_id=50`, expand tree, open `archiveData.php?edit=testcase&id=50` | TC view renders (heading "Test Case", summary/preconditions); results-view banner shown; no new `testcase.class.php:9347/9358` event | PASS |
-| TC-979.5 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after post-fix renders | no `foreach()`/`str_replace` warning from `testcase.class.php:9347/9358` after the fix (last such event is pre-fix id 24 @10:02:00); only pre-existing unrelated template warnings remain (tracked elsewhere) | PASS |
-| TC-979.6 | syntax gate | `php -l lib/functions/testcase.class.php` | `No syntax errors detected` | PASS |
-| TC-979.7 | min diff / no callers broken | `git diff --stat` + `grep -c renderSpecialTSuiteKeywords lib/functions/testcase.class.php` | only `testcase.class.php` touched (7 insertions/4 deletions); 3 occurrences (1 def + 2 calls) confined to the file | PASS |
-
-Result: 7/7 PASS. Commit: `bed7f8561` (fix) on branch `fix/issue-979`. Evidence: harness outputs (`captured warnings: 0` from testcase.class.php), browser snapshots + `docs/screenshots/issue-979-tcview-no-warning-postfix.png`, `docs/screenshots/issue-979-event-viewer-postfix.png`.
+Result: 16/16 PASS. Commits: `Refs #980` (final modernization commit). Screen: `gui/templates/reqmgrsystems/reqMgrSystemView.html`; BFF: `api/reqmgrsystems/index.php`; issue: #980 (tracking).

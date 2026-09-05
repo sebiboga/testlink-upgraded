@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-04 — (projectEdit: last user-reachable legacy screen `lib/project/projectEdit.php` modernized, Refs #967)
+> Last updated: 2026-09-05 — (Req. Management Systems modernized, Refs #980)
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 67 + 24 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit) |
+| DONE (modernized) | 68 + 25 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -96,6 +96,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
 | 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764 |
 | 67 | System — Install / Upgrade check | `install/installView.html` | api/install | #797 |
+| 68 | System — Req. Management Systems | `reqmgrsystems/reqMgrSystemView.html` | api/reqmgrsystems | #980 |
 
 > **Install wizard scope note:** only the status-check part of the legacy
 > install area is modernized (#797). The full install wizard
