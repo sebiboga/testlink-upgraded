@@ -255,7 +255,7 @@ if ($action === 'import') {
         if ($rawXml === false || $xml === false) {
             @unlink($dest);
             http_response_code(422);
-            out(['status' => 'error', 'message' => lang_get('xml_ko')]);
+            out(['status' => 'error', 'message' => lang_get('wrong_results_import_format')]);
         }
         if ($xml->getName() !== 'results') {
             @unlink($dest);
@@ -342,7 +342,7 @@ out(['status' => 'error', 'message' => 'Bad request']);
  * Check the XML file starts OK (legacy check_xml_execution_results, no die()).
  */
 function resultsImportCheckXml($fileName) {
-    $fileCheck = ['status_ok' => 0, 'msg' => 'xml_ko'];
+    $fileCheck = ['status_ok' => 0, 'msg' => lang_get('wrong_results_import_format')];
     if (!file_exists($fileName) || filesize($fileName) === 0) {
         return ['status_ok' => 0, 'msg' => lang_get('wrong_results_import_format')];
     }
@@ -423,7 +423,7 @@ function resultsImportExecutionFromXML($xmlTCExec) {
 /**
  * Mirror legacy check_exec_values() — validate a single parsed execution row.
  */
-function resultsImportCheckExecValues($db, $tcaseMgr, $tcaseCfg, &$execValues, &$columnDef) {
+function resultsImportCheckExecValues($db, $tcaseMgr, $tcaseCfg, &$execValues, &$columnDef, $tprojectId = 0) {
     $tables = tlObjectWithDB::getDBTables(array('users', 'execution_bugs'));
     $checks = ['status_ok' => false, 'tcase_id' => 0, 'tester_id' => 0, 'msg' => []];
     $tcaseId = $execValues['tcase_id'];
@@ -431,7 +431,10 @@ function resultsImportCheckExecValues($db, $tcaseMgr, $tcaseCfg, &$execValues, &
     $usingExternalId = ($tcaseExternalId !== '');
 
     if ($usingExternalId) {
-        $checks['tcase_id'] = $tcaseMgr->getInternalID($tcaseExternalId);
+        // A plain numeric external ID (no "prefix-id" glue) requires the test
+        // project ID to be scoped (testcase::getInternalID throws otherwise).
+        $optGi = $tprojectId > 0 ? ['tproject_id' => $tprojectId] : null;
+        $checks['tcase_id'] = $tcaseMgr->getInternalID($tcaseExternalId, $optGi);
         $checks['status_ok'] = intval($checks['tcase_id']) > 0;
         if (!$checks['status_ok']) {
             $checks['msg'][] = sprintf(lang_get('tcase_external_id_do_not_exists'), $tcaseExternalId);
@@ -578,7 +581,10 @@ function resultsImportSaveResultData(&$db, $resultData, $context) {
     if (!is_null($context->tprojectID) && intval($context->tprojectID) > 0) {
         $dummy = $tprojectMgr->get_by_id($context->tprojectID, ['output' => 'existsByID']);
     } else if (!is_null($context->tprojectName)) {
-        $dummy = $tprojectMgr->get_by_name($context->tprojectName, null, ['output' => 'existsByName']);
+        $row = $tprojectMgr->get_by_name($context->tprojectName, null, ['output' => 'existsByName']);
+        if (!is_null($row)) {
+            $dummy = $row[0];
+        }
     }
     $checks['status_ok'] = !is_null($dummy);
     if (!$checks['status_ok']) {
@@ -590,7 +596,7 @@ function resultsImportSaveResultData(&$db, $resultData, $context) {
         }
     }
     if ($checks['status_ok']) {
-        $context->tprojectID = $dummy[0]['id'];
+        $context->tprojectID = $dummy['id'];
     }
 
     // plan
@@ -654,7 +660,7 @@ function resultsImportSaveResultData(&$db, $resultData, $context) {
         $statusOk = true;
         $tcaseExec = $resultData[$idx];
 
-        $checks = resultsImportCheckExecValues($db, $tcaseMgr, $tcaseCfg, $tcaseExec, $columnDef['execution_bugs']);
+        $checks = resultsImportCheckExecValues($db, $tcaseMgr, $tcaseCfg, $tcaseExec, $columnDef['execution_bugs'], intval($context->tprojectID));
         $statusOk = $checks['status_ok'];
         if ($statusOk) {
             $tcaseId = $checks['tcase_id'];
