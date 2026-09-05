@@ -45,7 +45,7 @@ $aa_tfp = array(
      'searchReq' => 'lib/requirements/reqSearchForm.php',
      'searchReqSpec' => 'lib/requirements/reqSpecSearchForm.php',
    
-     'printTestSpec' => 'lib/results/printDocOptions.php?type=testspec',
+     'printTestSpec' => 'gui/templates/testcases/printTestSpec.html',
      'printReqSpec' => 'lib/results/printDocOptions.php?type=reqspec',
      'keywordsAssign' => 'lib/testcases/listTestCases.php?feature=keywordsAssign',
      'planAddTC'    => array('lib/plan/planAddTCNavigator.php?loadRightPaneAddTC=0',
@@ -62,7 +62,8 @@ $aa_tfp = array(
                             'lib/project/project_req_spec_mgmt.php?id=')
 );
 
-$full_screen = array('newest_tcversions' => 1);
+// Refs #982: Print Test Specification renders a full standalone Dashio page
+$full_screen = array('newest_tcversions' => 1, 'printTestSpec' => 1);
 
 //cleanup session var
 $_SESSION['currentSrsId'] = null;

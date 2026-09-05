@@ -1,4 +1,8 @@
 <?php
+// Buffer the whole endpoint so nothing (session cookies, legacy includes,
+// stray whitespace) can commit HTTP headers before the JSON branch resets
+// them (the legacy generator sets document content-type/disposition headers).
+ob_start();
 /**
  * Test Cases Print BFF API
  * URL: /api/testcasesprint/
@@ -371,6 +375,13 @@ if ($action === 'download') {
     exit;
 }
 
+// The legacy generator set its own headers (document content-type,
+// content-description, content-disposition) via flushHttpHeader(). For the
+// MSWORD format those are committed before this point, so the front-end must
+// request JSON parsing explicitly (jQuery dataType 'json'); strip what we can.
+header_remove('Content-Type');
+header_remove('Content-Disposition');
+header_remove('Content-Description');
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 echo json_encode([

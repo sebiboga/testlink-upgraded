@@ -1990,6 +1990,7 @@ function getActions(&$gui,$baseURL) {
 
   $gui->workArea->reqSpecMgmt = "reqSpecMgmt&{$ctx}";
   $gui->workArea->printReqSpec = "printReqSpec&{$ctx}";
+  $gui->workArea->printTestSpec = "printTestSpec&{$ctx}";
   $gui->workArea->searchReq = "searchReq&{$ctx}";
   $gui->workArea->searchReqSpec = "searchReqSpec&{$ctx}";
 
@@ -2004,6 +2005,10 @@ function getActions(&$gui,$baseURL) {
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
+  // Print Test Specification modernized screen (Dashio standalone page) -
+  // Refs #982. Legacy right (testplan_metrics) is enforced by the BFF on every
+  // route; aside visibility is gated by aside.tpl via menuGrants.
+  $actions->printTestSpec = "/gui/templates/testcases/printTestSpec.html?{$ctx}";
   $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
 

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Print Test Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #2e3038; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #3d4049; }
+.layout { display: flex; gap: 20px; margin: 20px 24px 0; align-items: flex-start; flex-wrap: wrap; }
+.col-tree { flex: 1 1 420px; min-width: 340px; }
+.col-opts { flex: 1 1 380px; min-width: 320px; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 8px; }
+.panel-head .badge-count { background: #eefaf9; color: #2d8e88; border-radius: 10px; padding: 1px 9px; font-size: 12px; font-weight: 600; }
+.notice { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.tree-body { padding: 12px 14px 16px; max-height: 62vh; overflow: auto; }
+.tnode { user-select: none; }
+.tnode-row { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-radius: 5px; cursor: pointer; font-size: 13px; color: #33363f; }
+.tnode-row:hover { background: #eefaf9; }
+.tnode-row.sel { background: #4ECDC4; color: #fff; }
+.tnode-row.sel .nmeta, .tnode-row.sel .caret { color: #eafffd; }
+.tnode-row i.fa-folder, .tnode-row i.fa-file-alt { color: #f0ad4e; }
+.tnode-row.sel i.fa-folder, .tnode-row.sel i.fa-file-alt { color: #fff; }
+.caret { width: 16px; text-align: center; color: #888; font-size: 11px; cursor: pointer; }
+.caret.hidden-caret { visibility: hidden; }
+.nname { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nmeta { color: #999; font-size: 11px; white-space: nowrap; }
+.nkids { margin-left: 22px; display: none; }
+.nkids.open { display: block; }
+.rootrow { font-weight: 700; }
+.opts-body { padding: 6px 20px 18px; }
+.opt-group-label { font-size: 12px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .6px; margin: 14px 0 6px; }
+.opt-group-label:first-child { margin-top: 10px; }
+.opt-item { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; color: #444; }
+.opt-item input[type=checkbox] { accent-color: #4ECDC4; width: 15px; height: 15px; cursor: pointer; }
+.opt-item label { cursor: pointer; margin: 0; }
+.fmt-row { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.fmt-row select { height: 34px; font-size: 13px; min-width: 200px; }
+.opts-actions { border-top: 1px solid #eee; margin-top: 14px; padding-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-print" style="margin-right:8px;"></i><span data-i18n="pts.header">Print Test Specification</span>
+  <span class="sub"><span data-i18n="pts.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="pts.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnRefreshTree" onclick="loadTree()"><i class="fa fa-sync-alt"></i> <span data-i18n="pts.refresh">Refresh tree</span></button>
+</div>
+
+<div class="notice" id="hintBox">
+  <i class="fa fa-info-circle"></i>
+  <span data-i18n="pts.hintClickNode">Click the test project node to print the whole test specification document, or click a single test suite to print only that part. The document opens in a new tab using the options selected on the right.</span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+
+<div class="layout">
+  <div class="col-tree panel">
+    <div class="panel-head">
+      <i class="fa fa-sitemap"></i>
+      <span data-i18n="pts.treeTitle">Select a test suite</span>
+      <span class="badge-count" id="suiteBadge"></span>
+    </div>
+    <div class="tree-body" id="treeBody"><em style="color:#888;font-size:13px;" data-i18n="common.loading">Loading...</em></div>
+  </div>
+
+  <div class="col-opts panel">
+    <div class="panel-head">
+      <i class="fa fa-cog"></i>
+      <span data-i18n="pts.optionsTitle">Document print options</span>
+    </div>
+    <div class="opts-body">
+      <div class="fmt-row">
+        <label for="formatSel" style="font-size:12px;font-weight:600;color:#444;" data-i18n="pts.format">Output format</label>
+        <select id="formatSel" class="form-control"></select>
+      </div>
+
+      <div class="opt-group-label" data-i18n="pts.docStructure">Document structure</div>
+      <div id="docOptList"></div>
+
+      <div class="opt-group-label" data-i18n="pts.tcContent">Test specification content</div>
+      <div id="tcOptList"></div>
+
+      <div class="opts-actions">
+        <button class="btn-teal" onclick="printWholeProject()"><i class="fa fa-print"></i> <span data-i18n="pts.btnPrintAll">Print whole project document</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="empty" id="emptyBox"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.printTestSpec">TestLink 2.0.1 - Print Test Specification</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/testcasesprint/index.php';
+var PRINT_URL = '/gui/templates/testcases/printTestDoc.html';
+var tprojectId = 0;
+var canGenerate = true;
+var init = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function warn(msg) {
+  if (msg) { $('#warnBox').html('<i class="fa fa-exclamation-triangle"></i> ' + msg).show(); }
+  else { $('#warnBox').hide(); }
+}
+
+function loadInit() {
+  $.getJSON(API, { action: 'init', tproject_id: tprojectId }, function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    init = r;
+    if (!r.hasProject) {
+      $('#tprojectName,#tprojectName2').text('-');
+      warn(TLi18n.t('pts.noProject'));
+      $('#treeBody').empty();
+      $('#emptyBox').html('<i class="fa fa-exclamation-circle"></i> ' + TLi18n.t('pts.noProject')).show();
+      return;
+    }
+    tprojectId = r.tproject_id;
+    canGenerate = !!r.canGenerate;
+    $('#tprojectName,#tprojectName2').text(r.tproject_name);
+    document.title = r.tproject_name + ' - ' + TLi18n.t('pts.header');
+
+    renderFormats(r.formats);
+    renderOptions('#docOptList', r.docOptions);
+    renderOptions('#tcOptList', r.testSpecOptions);
+
+    if (!canGenerate) {
+      warn(TLi18n.t('pts.errNoRights'));
+    } else {
+      warn('');
+    }
+
+    loadTree();
+  }).fail(function () {
+    toast(TLi18n.t('pts.errLoad'), true);
+  });
+}
+
+function renderFormats(formats) {
+  var $sel = $('#formatSel').empty();
+  (formats || []).forEach(function (f) {
+    $sel.append($('<option>', { value: f.id, text: TLi18n.t(f.key) }));
+  });
+}
+
+function renderOptions(sel, opts) {
+  var $box = $(sel).empty();
+  (opts || []).forEach(function (o) {
+    var id = sel.substring(1) + '_' + o.value;
+    var $item = $('<div>', { 'class': 'opt-item' });
+    var $cb = $('<input>', { type: 'checkbox', id: id, value: o.value });
+    if (o.checked) { $cb.prop('checked', true); }
+    var $lb = $('<label>', { for: id, 'data-i18n': 'pts.opt_' + o.value });
+    $lb.text(TLi18n.t('pts.opt_' + o.value));
+    $item.append($cb).append($lb);
+    $box.append($item);
+  });
+}
+
+function loadTree() {
+  if (!init || !init.hasProject) { return; }
+  $.getJSON(API, { action: 'tree', tproject_id: tprojectId }, function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    renderTree(r);
+    $('#footerInfo').html(
+      TLi18n.t('pts.suiteCount', { n: r.suiteQty }) + ' &middot; ' +
+      TLi18n.t('pts.tcCount', { n: r.tcQty })
+    );
+  }).fail(function () {
+    toast(TLi18n.t('pts.errLoad'), true);
+  });
+}
+
+function nodeHtml(node, depth) {
+  var hasKids = node.children && node.children.length > 0;
+  var meta = [];
+  meta.push(TLi18n.t('pts.tcCount', { n: node.tcTotal }));
+  var h = '<div class="tnode">';
+  h += '<div class="tnode-row" data-id="' + node.id + '" data-name="' + esc(node.name) + '" data-root="1" style="padding-left:' + (8 + depth * 4) + 'px">';
+  h += '<span class="caret' + (hasKids ? '' : ' hidden-caret') + '" data-toggle-kids="1"><i class="fas fa-chevron-' + (hasKids ? 'down' : 'right') + '"></i></span>';
+  h += '<i class="far ' + (hasKids ? 'fa-folder' : 'fa-folder-open') + '"></i>';
+  h += '<span class="nname">' + esc(node.name) + '</span>';
+  h += '<span class="nmeta">' + meta.join(' ') + '</span>';
+  h += '</div>';
+  h += '<div class="nkids' + (depth === 0 ? ' open' : '') + '">';
+  (node.children || []).forEach(function (kid) { h += nodeHtml(kid, depth + 1); });
+  h += '</div></div>';
+  return h;
+}
+
+function renderTree(r) {
+  var $body = $('#treeBody');
+  $body.empty();
+  if ((!r.roots || r.roots.length === 0)) {
+    $body.html('<em style="color:#888;font-size:13px;">' + esc(TLi18n.t('pts.emptyTree')) + '</em>');
+    return;
+  }
+  $('#suiteBadge').text(r.suiteQty);
+  var h = '';
+  // virtual root row = whole test project document
+  h += '<div class="tnode"><div class="tnode-row rootrow sel" data-id="' + r.tproject_id + '" data-root="0" data-name="' + esc(r.tproject_name) + '">';
+  h += '<span class="caret hidden-caret"><i class="fas fa-chevron-right"></i></span>';
+  h += '<i class="fas fa-home" style="color:#2d8e88;"></i>';
+  h += '<span class="nname">' + esc(r.tproject_name) + '</span>';
+  h += '<span class="nmeta">' + TLi18n.t('pts.wholeProject') + '</span>';
+  h += '</div></div>';
+  r.roots.forEach(function (node) { h += nodeHtml(node, 1); });
+  $body.html(h);
+
+  $('.tnode-row').on('click', function () {
+    if ($(event.target).closest('.caret[data-toggle-kids]').length) { return; }
+    selectNode($(this));
+    printFromNode($(this));
+  });
+  $('.caret[data-toggle-kids]').on('click', function (ev) {
+    ev.stopPropagation();
+    var $kids = $(this).closest('.tnode').children('.nkids');
+    $kids.toggleClass('open');
+    $(this).find('i').toggleClass('fa-chevron-down fa-chevron-right');
+  });
+}
+
+function selectNode($row) {
+  $('#treeBody .tnode-row').removeClass('sel');
+  $row.addClass('sel');
+}
+
+function collectOpts() {
+  var parts = [];
+  $('.opt-item input[type=checkbox]').each(function () {
+    parts.push(this.value + '=' + (this.checked ? 'y' : 'n'));
+  });
+  return parts.join('&');
+}
+
+function docUrl(level, id) {
+  return PRINT_URL +
+    '?type=testspec&level=' + level + '&id=' + id +
+    '&tproject_id=' + tprojectId +
+    '&format=' + parseInt($('#formatSel').val() || '0', 10) +
+    '&' + collectOpts();
+}
+
+function printWholeProject() {
+  generateDoc('testproject', tprojectId);
+}
+
+function printFromNode($row) {
+  var isSuite = $row.data('root') === 1;
+  generateDoc(isSuite ? 'testsuite' : 'testproject', $row.data('id'));
+}
+
+function generateDoc(level, id) {
+  if (!canGenerate) { toast(TLi18n.t('pts.errNoRights'), true); return; }
+  window.open(docUrl(level, id), '_blank');
+}
+</script>
+</body>
+</html>

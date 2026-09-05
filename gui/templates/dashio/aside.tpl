@@ -166,6 +166,10 @@ Left side menu
                   {else}
                     {lang_get s='href_browse_tc'}
                   {/if}</a></li>
+
+                  {if $menuGrants->testplan_metrics == "yes"}
+                  <li><a href="{$gui->uri->printTestSpec}" target="mainframe">{$labels.href_print_tc}</a></li>
+                  {/if}
                   
                   {if $menuGrants->view_tc == "yes"}
                   <li><a href="{$gui->uri->tcSearch}" target="mainframe">{$labels.href_search_tc}</a></li>
