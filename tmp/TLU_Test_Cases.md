@@ -10604,3 +10604,18 @@ Result: 16/16 PASS. Commits: `4a90a7ea7` (BFF), `820ef49d9` (screens + i18n + as
 | TC-985.7 | syntax gates | `php -l lib/functions/common.php lib/functions/tlUser.class.php lib/general/navBar.php` | no syntax errors (all 3 files) | PASS |
 
 Result: 7/7 PASS. Commit: `087ace530` (fix). Files: `lib/functions/common.php:1787`, `lib/general/navBar.php:198`, `lib/functions/tlUser.class.php:830`. Screenshots: `docs/screenshots/issue-985-guest-login-{500,fixed}.png`; issue: #985.
+
+---
+
+## Regression — Issue #977: tcView.tpl E_WARNING Undefined array key "warning" on every Test Case view
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixture: test project **Bug977 Project** (id=1, prefix B977), test suite **Bug977 Suite** (node id=2), test case **Bug977 TestCase** (node id=3, get by browsing Test Case Design → Test Specification and creating a suite + case). Fix = one line in legacy Smarty `gui/templates/dashio/testcases/tcView.tpl`: added `warning,` to the `{lang_get var='labels' s='...'}` list (the `{$labels.warning}` key at tcView.tpl:39 was previously unset).
+
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|----------------------|--------|
+| TC-977.1 | tcView render no longer warns on `warning` key (primary) | GET `http://localhost:8082/lib/testcases/archiveData.php?edit=testcase&id=3` (pre-fix: `events` gains `E_WARNING Undefined array key "warning" ... file.tcView.tpl.php Line 69`) | no NEW `warning`-key event in `events`; `alert_box_title` JS var populated (`"Warning!!"`) | PASS |
+| TC-977.2 | `warning` key present in labels list | inspect compiled `gui/templates_c/*_0.file.tcView.tpl.php` line ~35 | `s=>'warning,no_records_found,...,warning_estimated_execution_duration_format'` | PASS |
+| TC-977.3 | Event Viewer clean (scoped) | `SELECT * FROM events WHERE log_level=2 AND description LIKE '%tcView%warning%'` after render | zero rows for the `warning` key | PASS |
+| TC-977.4 | screen still renders fully | reload tcView page | full tcView layout renders; no fatal; only the (separate, issue #978) `inc_relations`/`value on null`/`click_to_copy_ghost_to_clipboard` warnings remain | PASS |
+
+Result: 4/4 PASS. Fix commit: `6633cb6db` (see fix/issue-977). File: `gui/templates/dashio/testcases/tcView.tpl` (1 line). Screenshot: `docs/screenshots/issue-977-tcview-fixed.png`; issue: #977. Note: the other 3 warnings observed on the same render are tracked separately in issue #978 (out of scope here).
