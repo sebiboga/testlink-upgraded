@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="resimp.title">Test Results Import</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #b5e3e0; cursor: not-allowed; }
+.btn-dark { background: #22242a; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #33363e; }
+.section { padding: 20px 24px 4px; }
+.section h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 0 24px 18px; overflow: hidden; }
+.card-head { padding: 12px 18px; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 8px; }
+.card-head i { color: #4ECDC4; }
+.card-body { padding: 16px 18px; }
+.form-group { margin-bottom: 14px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #445; display: block; margin-bottom: 5px; }
+.form-control { font-size: 13px; border: 1px solid #cdd; border-radius: 4px; padding: 7px 10px; width: 100%; }
+.form-control:focus { outline: none; border-color: #4ECDC4; }
+.file-input { border: 1px dashed #4ECDC4; padding: 10px; border-radius: 4px; font-size: 13px; color: #667; }
+.file-input input[type=file] { font-size: 13px; border: none; }
+.check-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #445; }
+.check-row input[type=checkbox] { width: 16px; height: 16px; }
+.hint { color: #999; font-size: 12px; margin-top: 6px; }
+.size-msg { color: #667; font-size: 12px; margin-top: 4px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 6px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+table.res { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.res th { background: #22242a; color: #fff; padding: 8px 12px; text-align: left; font-size: 12px; white-space: nowrap; }
+table.res td { padding: 7px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.res tr:hover td { background: #f4fbfa; }
+.badge-ok { display: inline-block; background: #e6f7ec; color: #1e7e46; border: 1px solid #bfe6cf; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+.badge-skip { display: inline-block; background: #fdf3dc; color: #9a7204; border: 1px solid #efe0ac; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+.badge-err { display: inline-block; background: #fdeaea; color: #b45452; border: 1px solid #f3cccc; border-radius: 10px; padding: 0 8px; font-size: 11px; font-weight: 600; }
+.empty { background: #fff; border-radius: 8px; padding: 22px; text-align: center; color: #888; font-size: 13px; }
+#resultArea { display: none; }
+#resultArea .res-count { font-size: 12px; color: #667; margin-top: 4px; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="resimp.header">Test Results Import</span>
+  <span id="projectSub" class="sub"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="resimp.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
+  <span class="ctx"><span data-i18n="resimp.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnBack" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="resimp.back">Back</span></button>
+</div>
+
+<div class="card">
+  <div class="card-head"><i class="fa fa-upload"></i> <span data-i18n="resimp.importForm">Import XML Results</span></div>
+  <div class="card-body">
+    <form id="importForm">
+      <input type="hidden" id="tprojectId">
+      <div class="row" style="margin:0 -8px;">
+        <div class="col-sm-6" style="padding:0 8px;">
+          <div class="form-group">
+            <label for="buildSelect" data-i18n="resimp.build">Build</label>
+            <select id="buildSelect" class="form-control"></select>
+          </div>
+        </div>
+        <div class="col-sm-6" style="padding:0 8px;">
+          <div class="form-group">
+            <label for="platformSelect" data-i18n="resimp.platform">Test Platform</label>
+            <select id="platformSelect" class="form-control">
+              <option value="0" data-i18n="resimp.anyPlatform">(any)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label for="importType" data-i18n="resimp.fileType">File Type</label>
+        <select id="importType" class="form-control">
+          <option value="XML">XML</option>
+        </select>
+        <div class="hint"><a href="/docs/tl-file-formats.pdf" target="_blank" data-i18n="resimp.fileFormatsDoc">view file format documentation</a></div>
+      </div>
+      <div class="form-group">
+        <label for="uploadedFile" data-i18n="resimp.localFile">Local File</label>
+        <div class="file-input">
+          <input type="file" id="uploadedFile" name="uploadedFile" accept=".xml">
+        </div>
+        <div class="size-msg" id="sizeMsg"></div>
+      </div>
+      <div class="form-group" id="copyIssuesRow" style="display:none;">
+        <div class="check-row">
+          <input type="checkbox" id="copyIssues">
+          <label for="copyIssues" style="font-weight:400;color:#445;margin:0;" data-i18n="resimp.copyIssues">Copy issues from the latest execution</label>
+        </div>
+      </div>
+      <button type="button" class="btn-teal" id="btnUpload" onclick="doImport()"><i class="fa fa-upload"></i> <span data-i18n="resimp.btnUpload">Upload and Import</span></button>
+      <button type="button" class="btn-dark" onclick="resetForm()" data-i18n="resimp.reset">Reset</button>
+    </form>
+  </div>
+</div>
+
+<div id="resultArea" class="card">
+  <div class="card-head"><i class="fa fa-list"></i> <span data-i18n="resimp.result">Import Result</span>
+    <span class="res-count" id="resultCount"></span></div>
+  <div class="card-body" style="padding:8px 12px;">
+    <div id="resultEmpty" class="empty" style="display:none;" data-i18n="resimp.noResults">no execution results found in the file</div>
+    <table class="res" id="resultTable" style="display:none;">
+      <thead>
+        <tr>
+          <th data-i18n="resimp.colResult">Result</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.resultsImport">TestLink 2.0.1 - Test Results Import</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/resultsimport/index.php';
+var tprojectId = 0;
+var tplanId = 0;
+var opts = null;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function goBack() {
+  window.history.length > 1 ? window.history.back() : window.close();
+}
+
+function resetForm() {
+  $('#uploadedFile').val('');
+  $('#resultArea').hide();
+  $('#resultTable tbody').empty();
+  $('#btnUpload').prop('disabled', false).html('<i class="fa fa-upload"></i> ' + TLi18n.t('resimp.btnUpload'));
+}
+
+function load() {
+  $.getJSON(API + '?action=info&tplan_id=' + tplanId + '&tproject_id=' + tprojectId, function (r) {
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    opts = r;
+    tprojectId = r.tproject.id;
+    tplanId = r.tplan.id;
+    $('#tprojectId').val(r.tproject.id);
+    $('#tprojectName').text(r.tproject.name);
+    $('#tplanName').text(r.tplan.name);
+    $('#projectSub').text(' - ' + r.tproject.name + ' / ' + r.tplan.name);
+    document.title = r.tproject.name + ' - ' + TLi18n.t('resimp.header');
+    $('#sizeMsg').text(TLi18n.t('resimp.maxFileSize').replace('{size}', r.file_size_limit_kb));
+    renderBuilds(r.builds, r.tplan.id);
+    renderPlatforms(r.platforms);
+    if (r.copy_issues_enabled) {
+      $('#copyIssuesRow').show();
+    }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    toast(msg, true);
+    $('#footerInfo').text(msg);
+  });
+}
+
+function renderBuilds(builds, planId) {
+  var $sel = $('#buildSelect').empty();
+  (builds || []).forEach(function (b) {
+    var suffix = '';
+    if (!b.active) suffix += ' (' + TLi18n.t('resimp.inactive') + ')';
+    if (!b.open) suffix += ' (' + TLi18n.t('resimp.closed') + ')';
+    $sel.append($('<option>', { value: b.id, text: b.name + suffix, 'data-open': b.open ? '1' : '0' }));
+  });
+  var p = new URLSearchParams(window.location.search);
+  var bv = p.get('build_id');
+  if (bv && $sel.find('option[value="' + bv + '"]').length) {
+    $sel.val(bv);
+  }
+}
+
+function renderPlatforms(platforms) {
+  $('#platformSelect').empty()
+    .append($('<option>', { value: '0', text: TLi18n.t('resimp.anyPlatform') }));
+  (platforms || []).forEach(function (p) {
+    $('#platformSelect').append($('<option>', { value: p.id, text: p.name }));
+  });
+}
+
+function doImport() {
+  var file = $('#uploadedFile')[0].files[0];
+  if (!file) { toast(TLi18n.t('resimp.chooseFile'), true); return; }
+  if (!$('#buildSelect').val()) { toast(TLi18n.t('resimp.chooseBuild'), true); return; }
+  var f = new FormData();
+  f.append('tproject_id', tprojectId);
+  f.append('tplan_id', tplanId);
+  f.append('build_id', $('#buildSelect').val());
+  f.append('platform_id', $('#platformSelect').val() || '0');
+  f.append('importType', $('#importType').val());
+  if ($('#copyIssues').is(':checked')) f.append('copy_issues', '1');
+  f.append('uploadedFile', file);
+
+  $('#btnUpload').prop('disabled', true).html('<span class="spinner"></span> ' + TLi18n.t('resimp.importing'));
+
+  $.ajax({
+    url: API + '?action=import',
+    method: 'POST',
+    data: f,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  }).done(function (r) {
+    resetForm();
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+    renderResult(r.result || []);
+    toast(TLi18n.t('resimp.importDone'));
+  }).fail(function (xhr) {
+    resetForm();
+    var msg = TLi18n.t('common.error');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    toast(msg, true);
+  });
+}
+
+function renderResult(items) {
+  $('#resultArea').show();
+  $('#resultCount').text('(' + items.length + ')');
+  if (!items.length) {
+    $('#resultEmpty').show();
+    $('#resultTable').hide();
+    return;
+  }
+  $('#resultEmpty').hide();
+  $('#resultTable').show();
+  var $tb = $('#resultTable tbody').empty();
+  items.forEach(function (it) {
+    var msg = String(it.message || '');
+    var cls = 'badge-ok';
+    if (/skipped/i.test(msg)) cls = 'badge-skip';
+    else if (/not found|invalid|missing|does not exist/i.test(msg)) cls = 'badge-err';
+    $tb.append('<tr><td><span class="' + cls + '">' + esc(msg) + '</span></td></tr>');
+  });
+}
+</script>
+</body>
+</html>
