@@ -10323,3 +10323,22 @@ All runs against http://localhost:8082 (MariaDB 127.0.0.1:3306, admin/admin), br
 | TC-933-RV.9 | i18n: all 10 bundles contain piv.errAllowedFiles/errAllowedFilenames/errEmptyExtension/errNoFile/errUploadGeneric | json.tool valid, keys present | PASS |
 
 Result: 9/9 PASS (English locale exercised; keys verified in all 10 bundles).
+
+---
+
+## Regression — Issue #892: Metrics Dashboard shows bare "Error" when no test project selected
+
+**Precondition:** Fresh DB with a seeded project METR892 (tproject=1, plan Plan892, build B1, 4 executions). Logged in as admin. App http://localhost:8082. The pre-fix symptom: `gui/templates/results/metricsDashboard.html` with `tproject_id=0` showed a red box containing only "Error".
+
+| ID | Test case | Repro (pre-fix was broken here) | Expected (post-fix) | Result |
+|----|-----------|-------------------------------|----------------------|--------|
+| TC-892.1 | No project selected → guidance message | Open `metricsDashboard.html?tproject_id=0&tplan_id=0` as admin | Red box shows localized "No test project selected. Please select a test project first." (not a bare "Error") | PASS |
+| TC-892.2 | API still answers 400 with stable message | `GET /api/metrics/index.php/dashboard` (no tproject_id) | `400 {"status":"error","message":"No test project selected"}` (app contract unchanged) | PASS |
+| TC-892.3 | Happy path unchanged | Open `metricsDashboard.html?tproject_id=1&tplan_id=0` | Full dashboard renders: Test Project Progress bars (80% executed), Test Plan Progress table with Plan892 row, "Generated on" footer, no error box | PASS |
+| TC-892.4 | i18n — non-English locale | Same as TC-892.1 with `&locale=ro` | Romanian text "Niciun proiect de test selectat. Selecteaza mai intai un proiect de test."; screen header also localized | PASS |
+| TC-892.5 | i18n key present in ALL 10 bundles | `python3 -m json.tool` + `grep md.msg.noProject gui/templates/i18n/*.json` | All bundles valid JSON; `md.msg.noProject` exists in de/en/es/fr/it/ja/pt/ro/ru/zh | PASS |
+| TC-892.6 | 403 branch retained | code review of `.fail()` handler | `403` still maps to `md.msg.noRights` (branch unchanged); rights gate unchanged server-side | PASS (code) |
+| TC-892.7 | Event Viewer clean | Query `events` table after all flows | No new ERROR/WARNING rows from dashboard interaction (only fixture/login audit info) | PASS |
+| TC-892.8 | No JS console errors | All dashboard loads | No JS errors; the single "[error] Failed to load resource 400" is the deliberate no-project API response now surfaced as guidance (pre-existing behavior) | PASS |
+
+Result: 8/8 PASS. Commits on branch `fix/issue-892`.
