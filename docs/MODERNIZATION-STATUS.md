@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-05 — (Requirement Export modernized, Refs #1001)
+> Last updated: 2026-09-05 — (Test Results Import modernized, Refs #1005)
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 69 + 27 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView, Requirement Import reqImport, Requirement Export reqExport) |
+| DONE (modernized) | 69 + 28 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView, Requirement Import reqImport, Requirement Export reqExport, Test Results Import resultsImport) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -100,6 +100,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 69 | Test Case Design — Test Specification Document (Print, `lib/results/printDocOptions.php?type=testspec`) | `testcases/printTestSpec.html` + `testcases/printTestDoc.html` | api/testcasesprint | #982 |
 | 70 | Requirements — Requirement Import (`lib/requirements/reqImport.php`) | `requirements/reqImport.html` | api/reqimport | #993 |
 | 71 | Requirements — Requirement Export (`lib/requirements/reqExport.php`) | `requirements/reqExport.html` | api/reqexport | #1001 |
+| 72 | Test Management — Import Results (`lib/results/resultsImport.php`) | `results/resultsImport.html` | api/resultsimport | #1005 |
 
 > **Print Test Specification (2026-09-05, Refs #982):** the last remaining unmodernized ASIDE
 > screen. Navigator (`printTestSpec.html`) shows the whole-project row + recursive suite tree (counts
@@ -115,6 +116,8 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 > feature `printTestSpec` and `$actions->printTestSpec` point at the modern screen. i18n keys `pts.*`
 > + `ptdoc.*` + `footers.printTest*` in all 10 bundles. Regression suite PTS-982 recorded in
 > `tmp/TLU_Test_Cases.md`.
+
+- Test Results Import (`lib/results/resultsImport.php`) — `gui/templates/results/resultsImport.html` + `api/resultsimport/index.php` `GET ?action=info` + `POST ?action=import` (#1005, DONE). The last unmodernized `lib/results/*` controller. Ports the legacy XML result import: context resolution (tproject/tplan from GUI or session), build/platform selects from `get_builds`/`getPlatforms`, file-type XML, `import_file_max_size_bytes` server-side cap, per-row `resultsImportCheckExecValues` (tproject-scoped external-id resolution — fixes legacy fatal on plain numeric ext ids), duplicate-timestamp skip via `getLatestExecSingleContext`, `copyIssues` from latest execution gated by `exec_cfg->copyLatestExecIssues->enabled`, and the legacy resultMap messages (`Imported!`/`Not imported`/per-row errors). **Modernization bug-fixes:** `$resultsCfg['code_status']` is undefined since 1.8 → BFF validates against the authoritative `status_code` domain (legacy would reject every result); malformed XML answered with JSON `wrong_results_import_format` instead of the legacy `simplexml_load_file_wrapper()` die() HTML; `testproject::get_by_id(existsByID)` single-map vs `get_by_name` recordset row-shape normalized; `xml_ko` dead key replaced. **Security:** `testplan_execute` on the owning project gates both routes (403 guest-verified); the final XML-resolved project is re-gated inside `resultsImportSaveResultData`; `bug_id` prepared in the dedup SELECT; both actions have `ob_start()`+shutdown JSON safety nets; XML parsed with `LIBXML_NONET`. Link switch: `openImportResult()` in `test_automation.js` → modern screen with tproject/tplan/build/platform context. i18n `resimp.*` (25 keys) + `footers.resultsImport` in all 10 bundles. Regression suite 1005 20/20 PASS; Event Viewer clean; wiki + docs mirror + screenshots.
 
 > **Install wizard scope note:** only the status-check part of the legacy
 > install area is modernized (#797). The full install wizard

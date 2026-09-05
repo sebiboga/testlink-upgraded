@@ -10719,3 +10719,34 @@ Result: 16/16 PASS. Commits: `f1d05737c` (screen/BFF/i18n/link switch), `87033fb
 - **Actual:** only pre-existing `E_WARNING ... object_keywords.inc.tpl` rows from the synthetic fixture's missing keyword data (unrelated to `refresh` attr; come from the now-rendering viewer, not the fix). PASS.
 
 **Result:** 7/7 PASS. Commits: `40f3412c1` (fix, 3 templates). Branch: `fix/issue-1000-smarty-ternary-containerview`.
+
+## Modernize: Test Results Import (resultsImport.php) — Refs #1005
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink` (fresh import). Fixture: test project **ImportTProject** (`testprojects.id=1`, prefix IMP), test plan **ImportTPlan** (`testplans.id=2`), build **Build1** (`builds.id=1`, active+open), suite Suite1 (`testsuites.id=3`), TC **TC_Pass** (`testcases.id=4`, tcversion 5, external_id 1), TC **TC_Fail** (`testcases.id=7`, tcversion 8, external_id 2), both in plan 2 with platform 0. Files: `tmp/import_ok.xml` (TC_Pass 10:00 p + BUG-001, TC_Fail 11:30 f, steps), `import_ok2.xml` (TC_Pass 14:20 p), `import_errors.xml` (bad external id 999, bad result `zz`, bad timestamp `abc`), `import_bad.xml` (malformed XML), `import_wrongroot.xml` (root `<foo>`, no `<results>`), `import_copyissues.xml` (TC_Pass 16:00 p). Screen: `gui/templates/results/resultsImport.html?tproject_id=1&tplan_id=2&build_id=1`; BFF: `api/resultsimport/index.php`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1005.1 | screen loads via direct navigation (admin) | GET `resultsImport.html?tproject_id=1&tplan_id=2&build_id=1` | GET `action=info` 200 JSON; title `Test Results Import - ImportTProject / ImportTPlan`; Build select = Build1; platform = (any); File Type = XML; max size 781 KB | PASS |
+| TC-1005.2 | valid file imports executions + bugs + steps (primary) | upload `import_ok.xml`, click Upload and Import | POST `action=import` 200 JSON ok; `executions` rows for tcversions 5 (p, 10:00, BUG-001 in `execution_bugs`) and 8 (f, 11:30); `execution_tcsteps` rows with status p for the p case; result table shows 2 Imported rows with timestamps | PASS |
+| TC-1005.3 | duplicate timestamp → NOT IMPORTED (skip) | re-upload `import_ok.xml` unchanged | rows shown with "Result: Not imported" (duplicate timestamp, `getLatestExecSingleContext` equality), no new `executions` rows | PASS |
+| TC-1005.4 | bad external id | upload `import_errors.xml` | TC with external id 999 → row `testcase is not valid for this test plan` style error message, still HTTP 200, other rows processed | PASS |
+| TC-1005.5 | invalid result code | (same file, `z` case) | row error message about invalid result code `z` | PASS |
+| TC-1005.6 | invalid timestamp format | (same file, `abc` case) | row error message about timestamp format | PASS |
+| TC-1005.7 | malformed XML → clean error | upload `import_bad.xml` | BFF JSON `{"status":"error","message":"Wrong xml Results file (see documentation)"}` (legacy die() HTML trapped via libxml internal errors), toast shown, no partial insert | PASS |
+| TC-1005.8 | wrong XML root → clean error | upload `import_wrongroot.xml` | same `wrong_results_import_format` error message | PASS |
+| TC-1005.9 | upload without file | click Upload and Import with no file | toast "Please choose a file first", no request sent | PASS |
+| TC-1005.10 | copyIssues checkbox hidden when config off | default config (`copyLatestExecIssues->enabled=FALSE`) | info JSON `copy_issues_enabled:false`, no checkbox in form | PASS |
+| TC-1005.11 | copyIssues checkbox + copy works when config on | temporarily enable config `enabled=TRUE`, reload, tick "Copy issues from the latest execution", upload `import_copyissues.xml` | checkbox shown; new execution inherits `BUG-001` (from latest exec BUG-001) into `execution_bugs` | PASS |
+| TC-1005.12 | reset button | click Reset | file input cleared; result table hidden; no toast | PASS |
+| TC-1005.13 | back button | click Back | navigates back in history | PASS |
+| TC-1005.14 | session fallback for missing params | GET `resultsImport.html` with tproject/tplan committed to session | info resolves from SESSION (tproject 1 / tplan 2), builds/platforms populated | PASS |
+| TC-1005.15 | invalid tplan → 404 | `action=info&tplan_id=9999&tproject_id=1` | HTTP 404 JSON "Test plan not found" | PASS |
+| TC-1005.16 | permission gate | guest user (`importrestricted`, globalRoleID 5, no `testplan_execute`) GET `action=info` and POST `action=import` | HTTP 403 JSON "No permission" for both (same right as legacy); restricted user cannot access page | PASS |
+| TC-1005.17 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after all flows | no NEW ERROR/WARNING rows attributable to the modern screen (only expected audit login/logout/user-created INFO rows) | PASS |
+| TC-1005.18 | console clean | exercise load + imports + error + 403 paths | no JS errors; all BFF requests JSON (200/404/403/431 as designed) | PASS |
+| TC-1005.19 | i18n locale coverage | grep `resimp.*` + `footers.resultsImport` keys in all 10 bundles | keys present in en/de/es/fr/it/ja/pt/ro/ru/zh, JSON valid | PASS |
+| TC-1005.20 | enumerated-type info payload | `code_status` legacy key undefined (documented) | info JSON exposes `import_types` XML UX label from real domain (status_code), builds `active`/`open` from `get_builds` | PASS |
+
+Result: 20/20 PASS. Commits: `780a07177` (BFF), `23e70a1ae` (screen HTML) + `4fa88a67b` (i18n all bundles + `openImportResult()` link switch), `dc1599d27` (fixes: tproject into getInternalID, DB row-shape, lang fix). Screens: `gui/templates/results/resultsImport.html`; BFF: `api/resultsimport/index.php`; wiki: docs + `tmp/wiki-repo`.
+
+---
