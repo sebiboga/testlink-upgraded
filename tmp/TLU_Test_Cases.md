@@ -10342,3 +10342,29 @@ Result: 9/9 PASS (English locale exercised; keys verified in all 10 bundles).
 | TC-892.8 | No JS console errors | All dashboard loads | No JS errors; the single "[error] Failed to load resource 400" is the deliberate no-project API response now surfaced as guidance (pre-existing behavior) | PASS |
 
 Result: 8/8 PASS. Commits on branch `fix/issue-892`.
+
+---
+
+## MD Export → Import Round-Trip — tcExport screen + BFF (Refs #842 #852 #853)
+
+**Precondition:** App http://127.0.0.1:8082, logged in as admin. Project "TestLink Upgraded 2.0.1" (tproject=11) with 196 test cases under several suites (ExternalIDs TLU-*). Tested against the merged MD export (`api/testcasesexport` exportType=MD) + import BFF (`api/testcasesimport` action=import_md).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-MD.1 | Export screen offers Markdown | Open `tcExport.html?tproject_id=11` | File-type dropdown lists **XML** and **Markdown** (from `ctx.info.types` = `{XML, MD}`) | PASS |
+| TC-MD.2 | Whole-project MD export | `POST api/testcasesexport exportType=MD useRecursion=0 containerID=11` | HTTP 200, `Content-Type: text/markdown`, 196 `### TC-N:` blocks, header with project name + prefix | PASS |
+| TC-MD.3 | MD block structure | Inspect first block of export | `### TC-N: <title>` + `- **ExternalID:** TLU-*` + `- **Importance:** High/Medium/Low` + optional `Preconditions:` + `Steps:` numbered with `*Expected:*` | PASS |
+| TC-MD.4 | Importance labels round-trip | Count labels in export of 196 TCs | 196 label lines; High/Medium/Low present (103/85/8), mapping High=3/Medium=2/Low=1 (not inverted) | PASS |
+| TC-MD.5 | externalID + skip dry-run | Re-import exported MD with `hit_criteria=externalid action_on_hit=skip dry_run=1` | `created:0, skipped:196, updated:0` — all duplicates recognized by ExternalID | PASS |
+| TC-MD.6 | externalID + update_last_version real run | Re-import MD with `hit_criteria=externalid action_on_hit=update_last_version dry_run=0` | `created:0, skipped:0, updated:196, newVersion:0, failed:0` (updates in place, no new TCs) | PASS |
+| TC-MD.7 | No duplicates after update | After real update, re-run dry-run `externalid+skip` | Still `skipped:196` — no new TCs were created | PASS |
+| TC-MD.8 | create_new_version real run | Re-import MD with `action_on_hit=create_new_version dry_run=0` | `created:0, newVersion:196` — new versions, no new TCs | PASS |
+| TC-MD.9 | generate_new bypass | Re-import MD with `action_on_hit=generate_new dry_run=1` | `created:196` — duplicate detection bypassed, unconditional create | PASS |
+| TC-MD.10 | internalID hit-criteria | Re-import MD with `hit_criteria=internalid action_on_hit=skip dry_run=1` | numeric part of `TC-<N>` matched against existing node ids — duplicates detected (196) in dry-run | PASS |
+| TC-MD.11 | Dry-run mutates nothing | Compare TC count before/after all dry-run calls | No change (dry-run only computes) | PASS |
+| TC-MD.12 | Unauthenticated rejection | Repeat call without session | HTTP 401 `{"status":"error","message":"Not authenticated"}` | PASS |
+| TC-MD.13 | MD importer update of a no-steps TC does not crash | Real `update_last_version` over the exported doc (196 TCs incl. step-less ones) | No 500; `updated:196` (PHP8 `count(null)` guard in `update_tcversion_steps()` active) | PASS |
+| TC-MD.14 | i18n keys present | `python3 -m json.tool` on en/ro; grep `tcx.type.md`/`tcx.type.xml` | Both bundles valid; both keys exist (md=Markdown, xml=XML) | PASS |
+| TC-MD.15 | Event Viewer clean | Query `events` table after all real imports | No new ERROR/WARNING rows from export/import interaction | PASS |
+
+Result: 15/15 PASS. Commits: `2acb740a7` (MD round-trip), `8245fc888` (ci compare hierarchical), `docs(export)`.
