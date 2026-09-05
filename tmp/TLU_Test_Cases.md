@@ -10674,3 +10674,48 @@ Result: 17/17 PASS. Commits: `e8a6d6a30` (BFF), `a94bed68a` (screen), `a0db59b94
 | TC-1001.16 | console clean | load + options + exports + error path | no JS errors; BFF requests all JSON (200/400/403/404 as designed) | PASS |
 
 Result: 16/16 PASS. Commits: `f1d05737c` (screen/BFF/i18n/link switch), `87033fb55` (404 + fetch download fix), `1c49856a5` (fetch fix on plan/tc/users export — Fixes #1002). Screens: `gui/templates/requirements/reqExport.html`, `reqSpecMgmt.html` (Export button), `reqSpecView.html` (Export/Export branch links); BFF: `api/reqexport/index.php`; wiki: docs + `tmp/wiki-repo`. Shared-bug screenshots documented on #1002.
+
+---
+
+## Regression — Issue #1000: Smarty ternary in inc_update include attr breaks testproject/testsuite viewer (HTTP 500)
+
+**Precondition:** admin/admin session; a test project exists and is committed to `SESSION['testprojectID']`; a testsuite exists under it.
+
+### TC-1000.1 — Primary symptom: testproject container viewer renders (PASS)
+1. Fresh session: login admin/admin, commit project via `GET /index.php?tproject_id=<id>`.
+2. `GET /lib/testcases/archiveData.php?edit=testproject&id=<id>`.
+- **Pre-fix expected/observed:** HTTP 500, 0-byte body (Smarty compile fatal on `?` in include attr, containerView.tpl:96).
+- **Post-fix expected:** HTTP 200, rendered containerView page (`<h1 ...>Test Project : ...</h1>`).
+- **Actual:** HTTP 200, 16153-byte body, `<title>TestLink</title>` + `Test Project` h1. PASS.
+
+### TC-1000.2 — testsuite container viewer renders (PASS)
+1. `GET /lib/testcases/archiveData.php?edit=testsuite&id=<tsuite_id>`.
+- **Expected:** HTTP 200, rendered testsuite view.
+- **Actual:** HTTP 200, 24492-byte body containing `Test Suite` / `workBack`. PASS.
+
+### TC-1000.3 — containerNew.tpl no ternary (PASS)
+1. Grep `gui/templates/dashio/testcases/containerNew.tpl` for `? :` inside `{include}` attribute.
+- **Expected:** none; refresh uses `$refreshTreeVal`.
+- **Actual:** `{assign var="refreshTreeVal" value=$gui->refreshTree|default:0}` + `refresh=$refreshTreeVal`; no `?`. PASS.
+
+### TC-1000.4 — tcDelete.tpl no ternary (PASS)
+1. Grep `gui/templates/dashio/testcases/tcDelete.tpl` include attribute.
+- **Expected:** none.
+- **Actual:** `{assign}` + `refresh=$refreshTreeVal`. PASS.
+
+### TC-1000.5 — full-tree audit: no remaining ternary in dashio include attrs (PASS)
+1. `grep -rn 'include file="[^"]*" ' gui/templates/dashio/ | grep '?'`
+- **Expected:** no `?`-ternary in any `{include}` attribute.
+- **Actual:** output empty. PASS.
+
+### TC-1000.6 — `|default:0` semantics equivalence (PASS)
+1. Inspect `gui/templates/dashio/include/inc_update.tpl:78`: `{if $result eq "ok" && isset($refresh) && $refresh}`.
+- **Expected:** `0` ≡ old `false` (truthy check); undefined property NOTICE-free under `E_ALL`.
+- **Actual:** verified via compile harness + code review; `$refresh=0` is falsy, identical outcome. PASS.
+
+### TC-1000.7 — Event Viewer: no fix-attributable ERROR/WARNING (PASS)
+1. Query `events` table for `log_level IN (2,3)` around the fix.
+- **Expected:** no new ERROR/WARNING caused by the refresh-attribute change.
+- **Actual:** only pre-existing `E_WARNING ... object_keywords.inc.tpl` rows from the synthetic fixture's missing keyword data (unrelated to `refresh` attr; come from the now-rendering viewer, not the fix). PASS.
+
+**Result:** 7/7 PASS. Commits: `40f3412c1` (fix, 3 templates). Branch: `fix/issue-1000-smarty-ternary-containerview`.
