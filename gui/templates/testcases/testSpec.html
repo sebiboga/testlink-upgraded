@@ -584,7 +584,15 @@ function openCreateTc() {
   }
   editMode = { mode: 'create', parent_id: parentId };
   hideAllPanes();
-  $('#editView').html(formHtml({}, {})).show();
+  $('#editView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
+  apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
+    if (editMode.mode !== 'create') { return; }
+    $('#editView').html(formHtml({}, r.keywordsProject || {})).show();
+  }).catch(function (e) {
+    if (editMode.mode !== 'create') { return; }
+    $('#editView').html(formHtml({}, {})).show();
+    toast(e.message || t('tspec.errLoad'), true);
+  });
 }
 
 function openEditTc(tcaseId) {

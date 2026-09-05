@@ -796,6 +796,49 @@ if ($action === 'get') {
     ]);
 }
 
+// ---------------------------------------------------------------------------
+// GET ?action=keywords&tproject_id=N
+// Project keyword map {id: name} for the test case editor. The create
+// (new test case) form needs this without an existing tcase_id; mirrors
+// the keywordsProject payload already exposed by the 'get' action
+// (lib/testcases/containerEdit.php legacy flow loads project keywords
+// unconditionally for the create form).
+// ---------------------------------------------------------------------------
+if ($action === 'keywords') {
+    $tprojectId = getIntParam('tproject_id');
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($_SESSION['testprojectID'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        jout(['status' => 'error', 'message' => 'Invalid test project id'], 400);
+    }
+    $info = $tprojectMgr->get_by_id($tprojectId);
+    if (!$info) {
+        jout(['status' => 'error', 'message' => 'Test project not found'], 404);
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        jout(['status' => 'error', 'message' => 'No permission'], 403);
+    }
+
+    $projKw = [];
+    try {
+        $pk = $tprojectMgr->getKeywords($tprojectId);
+        if (!is_null($pk)) {
+            foreach ($pk as $kwo) {
+                $projKw[intval($kwo->dbID)] = strval($kwo->name);
+            }
+        }
+    } catch (Exception $e) {
+        $projKw = [];
+    }
+
+    jout([
+        'status' => 'ok',
+        'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
+        'keywordsProject' => $projKw,
+    ]);
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
     $body = getJsonBody();
 
