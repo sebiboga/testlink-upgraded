@@ -10512,3 +10512,22 @@ Result: 17/17 PASS. Commits: `b6108fd59` (BFF), `ad57d6349` (screen+i18n+common.
 | TC-918.8 | browser render | open TC view in Chrome, a11y snapshot | page heading "Test Case", `FX-1 : TC Login - Version 1`, status dropdown, Keywords/Platforms/Relations | PASS |
 
 Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidence: primary repro curl screenshot + chrome snapshot; Event Viewer accounting id range 155-165 shows only pre-existing label warnings (new issues #977/#978/#979).
+
+---
+
+## Regression — Issue #919: Test Specification editor keyword picker shows PHP object dumps / wrong keyword ids
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixtures (fresh DB): testproject id=1 "Keywords Repro Project", keywords id=1 "Smoke Test" + id=2 "Performance", root suite id=2 "Core Suite", testcase id=3 "Login Test" (tcversion_id=4) with keyword id 2 assigned. Fix = `api/testcases/index.php` (action=`get`) now serializes `keywordsProject` as `{realId: name}` (from `tlKeyword::dbID`/`name`) instead of positional `strval()` object dumps. No frontend change needed: `testSpec.html:543` already consumed an id⇒name map contract.
+
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|----------------------|--------|
+| TC-919.1 | BFF get payload shape (primary) | `curl '…/api/testcases/index.php?action=get&tcase_id=3'` and json-inspect `keywordsProject` | JSON object keyed by REAL ids: `{"1":"Smoke Test","2":"Performance"}`; **no** `tlKeyword Object(...)` strings; `keywordsAssigned={"2":"Performance"}` | PASS |
+| TC-919.2 | edit dialog labels real names | testSpec tree → click "Login Test" → Edit Test Case | KEYWORDS checkboxes labeled "Smoke Test" and "Performance" (not object dumps) | PASS |
+| TC-919.3 | pre-check uses real id | DOM inspect `#kwList input[type=checkbox]` | `[{value:"1",label:"Smoke Test",checked:false},{value:"2",label:"Performance",checked:true}]` | PASS |
+| TC-919.4 | save keeps checked real ids | check both keywords, Save | `testcase_keywords` = keyword_id 1 AND 2 (both stored, no `0`) | PASS |
+| TC-919.5 | uncheck removes keyword | reopen edit, uncheck "Smoke Test", Save | only keyword_id 2 remains in `testcase_keywords` | PASS |
+| TC-919.6 | API save matrix keyword only | update `keywords:[1]` then `keywords:[2]` via API | `testcase_keywords` holds exactly 1, then exactly 2 (positions never submitted) | PASS |
+| TC-919.7 | Event Viewer clean | `SELECT * FROM events WHERE log_level >= 8` after the suite | no new ERROR/WARNING (only level-16 audit entries) | PASS |
+| TC-919.8 | console clean | open testSpec edit, watch DevTools console | no JS TypeError / parse errors | PASS |
+
+Result: 8/8 PASS. Commit: to be added on branch `fix/issue-919`. Evidence: `docs/screenshots/issue-919-fixed-edit-keywords.png` (edit dialog after fix). Related new bug found during testing (create-mode keyword picker never loads) filed as issue **#981**.
