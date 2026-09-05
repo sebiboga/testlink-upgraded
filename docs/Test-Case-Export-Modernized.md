@@ -37,12 +37,47 @@ same logic as the legacy `initializeGui()` and `init_args()`.
 |---------|-------------|
 | **Heading** | Export title + breadcrumb context (test project name) |
 | **File name** | Text input, pre-filled with the default filename; editable |
-| **Format** | Type select (XML — the only legacy export format) |
+| **Format** | Type select, populated dynamically from the BFF `types` map — **XML** and **Markdown**. The default filename extension follows the selection (`.xml` / `.md`) |
 | **Options** | Checkboxes: external ID, with project prefix, summary, preconditions, steps, requirements, custom fields, keywords, attachments |
-| **Action** | **Export** (downloads XML) and **Cancel** |
+| **Action** | **Export** (downloads the selected format) and **Cancel** |
 
 **Prefix mirroring:** unchecking *Include external ID* disables and unchecks
 *With project prefix* (external prefix only applies when external ID is on).
+
+## Markdown format (MD)
+
+The **Markdown** type produces a structured document that round-trips through the
+modern MD importer (`api/testcasesimport/?action=import_md`):
+
+```
+# <project name>
+**Project:** <project name>
+**Prefix:** <prefix>
+
+## <suite name> (Suite ID: N)
+### TC-<tcase-node-id>: <title>
+- **ExternalID:** TLU-190          (prefix + glue + tc_external_id)
+- **Importance:** High | Medium | Low
+- **Preconditions:** ...           (single bullet line, newlines flattened)
+- **Steps:**
+     1. Do something
+        *Expected:* something happened
+- **Steps:**_none_                 (when a TC has no steps)
+```
+
+Format rules (kept symmetric with the MD parser):
+
+- **Importance labels** use the TestLink canonical mapping High=3 / Medium=2 / Low=1.
+- The exported block always reflects the **latest test case version** (the ExternalID,
+  title, preconditions and steps all come from the same latest version).
+- `ExternalID` is omitted when the case has no external id.
+- `TC-<N>` in the heading is the test case **node id** — used only for display and for
+  the `internalID` hit-criteria on re-import; duplicate detection prefers the
+  `ExternalID` line.
+
+Re-importing the exported document with `hit_criteria=externalid` +
+`action_on_hit=update_last_version` updates each existing test case **in place** by
+its ExternalID and never creates duplicates.
 
 ## Export flow
 
@@ -70,6 +105,9 @@ same logic as the legacy `initializeGui()` and `init_args()`.
 - The BFF reuses the exact legacy export methods — `testcase::exportTestCaseDataToXML()`
   and `testsuite::exportTestSuiteDataToXML()` — so the generated XML is byte-for-byte
   identical to the legacy screen.
+- The MD export path uses the new `markdownTcExport` class
+  (`lib/functions/markdown_tc_export.class.php`), streaming a `.md` attachment with
+  `Content-Type: text/markdown; charset=utf-8`.
 - `nothingTodo` is computed with a `countExportChildren()` helper that mirrors the
   legacy `$check_children` logic (excludes testplan/requirement/build/platform nodes).
 - Two pre-existing legacy `E_WARNING`s in `testsuite.class.php::exportTestSuiteDataToXML()`
@@ -82,7 +120,7 @@ same logic as the legacy `initializeGui()` and `init_args()`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/testcasesexport/?action=info` | export context: mode, names, default filename, types, grants |
-| POST | `/api/testcasesexport/?action=export` | stream the XML as a file download |
+| POST | `/api/testcasesexport/?action=export` | stream the file as a download (XML or Markdown, per `exportType`) |
 
 All routes require a valid session; `POST` is protected by the shared same-origin
 CSRF guard (`_guard.php`).
@@ -96,4 +134,4 @@ enforced by `tools/lint_i18n.py`.
 
 ---
 
-_TestLink 2.0.1 · Test Case / Suite / Project Export · Refs #803_
+_TestLink 2.0.1 · Test Case / Suite / Project Export · Refs #803 · MD round-trip #842 / #852 / #853_
