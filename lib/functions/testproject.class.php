@@ -2746,7 +2746,7 @@ function copy_as($id,$new_id,$user_id,$new_name=null,$options=null) {
   
     // need to copy relations between requirements
     $rel = null;
-    foreach ($oldNewMappings['requirements'] as $erek) {
+    foreach ((array)$oldNewMappings['requirements'] as $erek) {
       foreach ($erek['req'] as $okey => $nkey) {
         $sql = "/* $debugMsg */ SELECT id, source_id, destination_id," .
                " relation_type, author_id, creation_ts " . 
@@ -2800,7 +2800,7 @@ function copy_as($id,$new_id,$user_id,$new_name=null,$options=null) {
   $copyTSuiteOpt['copyRequirements'] = $my['options']['copy_requirements'];    
   
   $oldNewMappings['test_spec'] = array();
-  foreach($elements as $piece) {
+  foreach((array)$elements as $piece) {
     $op = $item_mgr['testsuites']->copy_to($piece['id'],$new_id,$user_id,$copyTSuiteOpt,$oldNewMappings);        
     $oldNewMappings['test_spec'] += $op['mappings'];
   }
