@@ -2169,6 +2169,15 @@ class testcase extends tlObjectWithAttachments {
     if( is_null($root) )
     {
       $path2root=$this->tree_manager->get_path($id);
+      // No project context (user without any test-project access) or a
+      // nonexistent node id: get_path() returns null/empty. Bail out instead
+      // of indexing $path2root[0] (E_WARNING) and running
+      // getTestCasePrefix(null) which builds "WHERE id = " (SQL 1064). The
+      // caller then falls back to an empty prefix, same as a project with no
+      // prefix configured. Refs #1011
+      if( is_null($path2root) || count($path2root) == 0 ) {
+        return array(null,null);
+      }
       $root=$path2root[0]['parent_id'];
     }
     $tcasePrefix = $this->tproject_mgr->getTestCasePrefix($root);
