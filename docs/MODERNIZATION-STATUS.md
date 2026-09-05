@@ -4,13 +4,13 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-05 — (Req. Management Systems modernized, Refs #980)
+> Last updated: 2026-09-05 — (Print Test Specification modernized, Refs #982)
 
 ## Summary
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 68 + 25 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView) |
+| DONE (modernized) | 69 + 25 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -97,6 +97,22 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764 |
 | 67 | System — Install / Upgrade check | `install/installView.html` | api/install | #797 |
 | 68 | System — Req. Management Systems | `reqmgrsystems/reqMgrSystemView.html` | api/reqmgrsystems | #980 |
+| 69 | Test Case Design — Test Specification Document (Print, `lib/results/printDocOptions.php?type=testspec`) | `testcases/printTestSpec.html` + `testcases/printTestDoc.html` | api/testcasesprint | #982 |
+
+> **Print Test Specification (2026-09-05, Refs #982):** the last remaining unmodernized ASIDE
+> screen. Navigator (`printTestSpec.html`) shows the whole-project row + recursive suite tree (counts
+> from `tree.class`) plus the document option checkboxes (TOC, header numbering, TC header/summary/
+> steps/author/keywords/CF/requirements) and the HTML/MS Word format choice. Document popup
+> (`printTestDoc.html`) renders the extracted legacy spec document in an iframe (`action=print`,
+> project level `id=tproject_id` / suite level `id=suite_id`), with a client-side `.doc` Blob download
+> for MS Word (`FORMAT_MSWORD=4`) and Print/Refresh/Back controls. BFF ports `printDocument.php`
+> (top-level include, `flushHttpHeader()` MS-Word header quirk absorbed — front-end forces
+> `dataType:'json'`), `get_subtree_list()` membership for suite project checks, `<title>`-first title
+> extraction. Right `testplan_metrics` gates every route (403 without it). ASIDE "Test Specification
+> Document" entry lives in `gui/templates/dashio/aside.tpl` gated the same way; `frmWorkArea.php`
+> feature `printTestSpec` and `$actions->printTestSpec` point at the modern screen. i18n keys `pts.*`
+> + `ptdoc.*` + `footers.printTest*` in all 10 bundles. Regression suite PTS-982 recorded in
+> `tmp/TLU_Test_Cases.md`.
 
 > **Install wizard scope note:** only the status-check part of the legacy
 > install area is modernized (#797). The full install wizard

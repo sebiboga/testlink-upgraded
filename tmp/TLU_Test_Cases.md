@@ -10559,3 +10559,30 @@ Result: 16/16 PASS. Commits: `Refs #980` (final modernization commit). Screen: `
 | TC-981.9 | console clean | exercise create + edit flows, watch console/network | no JS errors; `action=keywords` request returns 200 | PASS |
 
 Result: 9/9 PASS. Commits: pending (see `fix/issue-981`). Screen: `gui/templates/testcases/testSpec.html`; BFF: `api/testcases/index.php`; issue: #981.
+
+---
+
+## Regression — Issue #982: Print Test Specification modernized (printDocOptions.php?type=testspec)
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; fixtures created by `php tmp/fixtures_982.php` (project **PTS982** id=18, suites suite_alpha id=19 → suite_alpha_sub id=20, suite_beta id=21; test cases "PTS Login Succeeds"/"PTS Sub Nested TC"/"PTS Logout"/"PTS Search TC"). No-rights user `pts_guest`/`ptsguest` (role 3 `<no rights>` on project 18) for 403 paths. BFF `api/testcasesprint/index.php`; screens `gui/templates/testcases/printTestSpec.html` + `printTestDoc.html`.
+
+| ID | Test case | Steps | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-982.1 | init returns grants + defaults | GET `?action=init&tproject_id=18` (admin) | `canGenerate:true`; options summary=y others n; formats HTML + MS Word | PASS |
+| TC-982.2 | suite tree with counts | GET `?action=tree&tproject_id=18` | "PTS Suite Alpha" tcTotal 1 (+nested subtree 1), "PTS Suite Beta" 2; root excluded | PASS |
+| TC-982.3 | whole-project doc renders | open `printTestDoc.html?type=testspec&level=testproject&id=18&tproject_id=18&format=0&toc=y&headerNumbering=y&header=y&summary=y&body=y&author=y&keyword=y&cfields=n&requirement=n` | iframe shows TOC + header-numbered titles, author, step actions, all 4 TCs; title `testspec PTS982` | PASS |
+| TC-982.4 | suite-level doc renders | open `printTestDoc.html?level=testsuite&id=19&tproject_id=18` | only suite_alpha doc (nested suite included); suite title present | PASS |
+| TC-982.5 | unknown suite 404 | GET `?action=print&level=testsuite&id=99999` | HTTP 404 JSON `Test suite not found` | PASS |
+| TC-982.6 | suite from other project 404 | GET `?action=print&level=testsuite&id=<external-suite>&tproject_id=18` | HTTP 404 `Test suite not found in this test project` | PASS |
+| TC-982.7 | missing project 404 | GET `?action=print&level=testproject` (no id) | HTTP 404 `Test project not found` | PASS |
+| TC-982.8 | invalid level 400 | GET `?action=print&level=bogus` | HTTP 400 `Invalid level` | PASS |
+| TC-982.9 | unknown action 404 | GET `?action=bogus` | HTTP 404 `Unknown action` | PASS |
+| TC-982.10 | no-rights init | login pts_guest → GET `?action=init&tproject_id=18` | `canGenerate:false`, options null | PASS |
+| TC-982.11 | no-rights print 403 | guest GET `?action=print&level=testproject&id=18` | HTTP 403 `No permission` | PASS |
+| TC-982.12 | MS Word format download | navigator select "MS Word", click Print whole project document | doc preview shown; `.doc` Blob download triggered client-side (BFF streams legacy HTML, headers stripped via ob_start/header_remove, jQuery forced `dataType:'json'`) | PASS |
+| TC-982.13 | navigator UI + aside wiring | ASIDE Test Case Design → "Test Specification Document" | mainframe loads `printTestSpec.html?tproject_id=18&tplan_id=0`; tree, options, locale switcher render | PASS |
+| TC-982.14 | locale switch applies | navigator select "Română" | labels switch via TLi18n + `?locale=`; reload keeps it | PASS |
+| TC-982.15 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after all flows | no ERROR/WARNING rows from the modern screen (guest-login 500 is a separate pre-existing bug #985) | PASS |
+| TC-982.16 | console clean | exercise navigator + doc + MS Word flows | no JS errors; BFF requests 200/4xx as expected | PASS |
+
+Result: 16/16 PASS. Commits: `4a90a7ea7` (BFF), `820ef49d9` (screens + i18n + aside). Screen: `gui/templates/testcases/printTestSpec.html` + `printTestDoc.html`; BFF: `api/testcasesprint/index.php`; issue: #982; wiki: docs + `tmp/wiki-repo`.
