@@ -243,6 +243,7 @@ if ($action === 'tc_print') {
     } catch (\Throwable $e) {
         ob_end_clean();
         chdir((string)$cwd);
+        error_log('[tl-tcprint] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
         http_response_code(500);
         out(['status' => 'error', 'message' => 'Document generation failed']);
     }
