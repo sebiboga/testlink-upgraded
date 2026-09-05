@@ -802,6 +802,7 @@
   "md.infoProgress": "L'avancement est relatif au nombre de cas de test actifs affectés aux plans de test.",
   "md.infoTable": "Seuls les builds actifs sont pris en compte.",
   "md.msg.noRights": "Vous n'avez pas les droits nécessaires pour consulter le tableau de bord des métriques.",
+  "md.msg.noProject": "Aucun projet de test selectionne. Selectionnez d'abord un projet de test.",
   "md.noTestPlans": "Aucun plan de test disponible pour le projet actuel !",
   "md.notApplicable": "s/o",
   "md.overallProgress": "Avancement global",

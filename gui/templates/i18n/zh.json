@@ -802,6 +802,7 @@
   "md.infoProgress": "进度基于关联到测试计划的有效用例数量计算。",
   "md.infoTable": "仅统计有效的构建。",
   "md.msg.noRights": "您没有查看指标仪表板所需的权限。",
+  "md.msg.noProject": "未选择测试项目。请先选择一个测试项目。",
   "md.noTestPlans": "当前测试项目没有可用的测试计划！",
   "md.notApplicable": "不适用",
   "md.overallProgress": "总体进度",

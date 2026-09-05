@@ -802,6 +802,7 @@
   "md.infoProgress": "Progresul este raportat la numărul de cazuri de test active asociate planurilor de teste.",
   "md.infoTable": "Se iau în considerare doar build-urile active.",
   "md.msg.noRights": "Nu aveți drepturile necesare pentru a vedea panoul de metrici.",
+  "md.msg.noProject": "Niciun proiect de test selectat. Selecteaza mai intai un proiect de test.",
   "md.noTestPlans": "Nu există planuri de teste disponibile pentru proiectul curent!",
   "md.notApplicable": "n/a",
   "md.overallProgress": "Progres global",

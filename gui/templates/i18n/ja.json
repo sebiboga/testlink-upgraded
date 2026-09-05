@@ -802,6 +802,7 @@
   "md.infoProgress": "進捗はテスト計画に割り当てられた有効なテストケース数を基準に計算されます。",
   "md.infoTable": "有効なビルドのみが対象です。",
   "md.msg.noRights": "メトリクスダッシュボードを表示する権限がありません。",
+  "md.msg.noProject": "テストプロジェクトが未選択です。先にテストプロジェクトを選択してください。",
   "md.noTestPlans": "現在のテストプロジェクトに利用可能なテスト計画がありません！",
   "md.notApplicable": "N/A",
   "md.overallProgress": "全体の進捗",

@@ -802,6 +802,7 @@
   "md.infoProgress": "Progress is relative to the number of active test cases linked to the test plans.",
   "md.infoTable": "Only active builds are taken into account.",
   "md.msg.noRights": "You do not have the rights needed to view the metrics dashboard.",
+  "md.msg.noProject": "No test project selected. Please select a test project first.",
   "md.noTestPlans": "No test plans available for the current test project!",
   "md.notApplicable": "n/a",
   "md.overallProgress": "Overall progress",

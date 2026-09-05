@@ -802,6 +802,7 @@
   "md.infoProgress": "Der Fortschritt bezieht sich auf die Anzahl der aktiven, den Testplänen zugewiesenen Testfälle.",
   "md.infoTable": "Es werden nur aktive Builds berücksichtigt.",
   "md.msg.noRights": "Sie haben nicht die erforderlichen Rechte, um das Metrik-Dashboard anzuzeigen.",
+  "md.msg.noProject": "Kein Testprojekt ausgewaehlt. Waehlen Sie zuerst ein Testprojekt.",
   "md.noTestPlans": "Für das aktuelle Testprojekt sind keine Testpläne verfügbar!",
   "md.notApplicable": "n.v.",
   "md.overallProgress": "Gesamtfortschritt",

@@ -195,7 +195,10 @@ function loadDashboard(showOnlyActive) {
     renderTable(r);
     $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + r.generated_on);
   }).fail(function(xhr) {
-    showMsg('#errorBox', xhr.status === 403 ? 'md.msg.noRights' : 'common.error');
+    var key = 'common.error';
+    if (xhr.status === 403) { key = 'md.msg.noRights'; }
+    else if (xhr.status === 400) { key = 'md.msg.noProject'; }
+    showMsg('#errorBox', key);
   });
 }
 

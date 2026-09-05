@@ -802,6 +802,7 @@
   "md.infoProgress": "El progreso es relativo al número de casos de prueba activos asignados a los planes de pruebas.",
   "md.infoTable": "Solo se tienen en cuenta las builds activas.",
   "md.msg.noRights": "No tiene los permisos necesarios para ver el panel de métricas.",
+  "md.msg.noProject": "Ningun proyecto de prueba seleccionado. Seleccione primero un proyecto de prueba.",
   "md.noTestPlans": "¡No hay planes de pruebas disponibles para el proyecto actual!",
   "md.notApplicable": "n/d",
   "md.overallProgress": "Progreso general",

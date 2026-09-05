@@ -802,6 +802,7 @@
   "md.infoProgress": "L'avanzamento è relativo al numero di test case attivi associati ai piani di test.",
   "md.infoTable": "Vengono considerate solo le build attive.",
   "md.msg.noRights": "Non hai i diritti necessari per visualizzare la dashboard delle metriche.",
+  "md.msg.noProject": "Nessun progetto di test selezionato. Seleziona prima un progetto di test.",
   "md.noTestPlans": "Nessun piano di test disponibile per il progetto corrente!",
   "md.notApplicable": "n.d.",
   "md.overallProgress": "Avanzamento complessivo",
