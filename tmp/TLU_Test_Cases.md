@@ -10546,4 +10546,4 @@ Result: 8/8 PASS. Commit: to be added on branch `fix/issue-919`. Evidence: `docs
 | TC-979.6 | syntax gate | `php -l lib/functions/testcase.class.php` | `No syntax errors detected` | PASS |
 | TC-979.7 | min diff / no callers broken | `git diff --stat` + `grep -c renderSpecialTSuiteKeywords lib/functions/testcase.class.php` | only `testcase.class.php` touched (7 insertions/4 deletions); 3 occurrences (1 def + 2 calls) confined to the file | PASS |
 
-Result: 7/7 PASS. Commit: `d4bb3148` (fix) on branch `fix/issue-979`. Evidence: harness outputs (`captured warnings: 0` from testcase.class.php), browser snapshots + `docs/screenshots/issue-979-tcview-no-warning-postfix.png`, `docs/screenshots/issue-979-event-viewer-postfix.png`.
+Result: 7/7 PASS. Commit: `bed7f8561` (fix) on branch `fix/issue-979`. Evidence: harness outputs (`captured warnings: 0` from testcase.class.php), browser snapshots + `docs/screenshots/issue-979-tcview-no-warning-postfix.png`, `docs/screenshots/issue-979-event-viewer-postfix.png`.

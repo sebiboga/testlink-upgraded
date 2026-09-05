@@ -82,7 +82,7 @@ No i18n impact, no user-facing strings changed.
 | `docs/screenshots/issue-979-tcview-no-warning-postfix.png` | post-fix TC view render (new) |
 | `docs/screenshots/issue-979-event-viewer-postfix.png` | Event Viewer after post-fix renders (new) |
 
-Commit `d4bb3148` on branch `fix/issue-979`.
+Commit `bed7f8561` on branch `fix/issue-979`.
 
 ## Testing / Evidence
 
