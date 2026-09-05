@@ -470,7 +470,10 @@ function renderReqs(items) {
 
 // ------------------------------------------------------------ spec CRUD ----
 function goImportReqs() {
-  window.open('reqImport.html?tproject_id=' + tprojectId, '_self');
+  var specId = currentSpecId();
+  var url = 'reqImport.html?tproject_id=' + tprojectId;
+  if (specId > 0) { url += '&req_spec_id=' + specId; }
+  window.open(url, '_self');
 }
 
 function openSpecCreate() {

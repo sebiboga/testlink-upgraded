@@ -43,7 +43,7 @@ if (is_null($user)) {
     out(['status' => 'error', 'message' => 'User not found']);
 }
 
-function out($data) { echo json_encode($data); exit; }
+function out($data) { defined('BFF_JSON_SENT') || define('BFF_JSON_SENT', true); echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $_REQUEST[$key] ?? $default; }
 function getIntParam($key, $default = 0) { return intval($_REQUEST[$key] ?? $default); }
 
@@ -174,6 +174,11 @@ if ($action === 'import') {
     // ---- validate upload ---------------------------------------------------
     if (!isset($_FILES['uploadedFile']) || $_FILES['uploadedFile']['error'] !== UPLOAD_ERR_OK) {
         $errCode = isset($_FILES['uploadedFile']) ? $_FILES['uploadedFile']['error'] : -1;
+        if ($errCode === UPLOAD_ERR_INI_SIZE || $errCode === UPLOAD_ERR_FORM_SIZE) {
+            $maxBytes = intval(config_get('import_file_max_size_bytes'));
+            out(['status' => 'error', 'message' =>
+                 sprintf(lang_get('max_file_size_is'), round($maxBytes / 1024)) . ' KB']);
+        }
         out(['status' => 'error', 'message' => lang_get('please_choose_req_file') .
              ' (code ' . $errCode . ')']);
     }
@@ -215,10 +220,11 @@ if ($action === 'import') {
     // Legacy framework DB helpers die() with a raw HTML page on hard DB errors
     // (they never return FALSE), e.g. strict-mode "Data too long for column".
     // Trap that non-JSON output with an output buffer + shutdown handler so
-    // this BFF always answers with application/json.
+    // this BFF always answers with application/json. The flag (set by out())
+    // makes the happy-path JSON untouchable even if leading garbage appears.
     ob_start();
     register_shutdown_function(function () {
-        if (headers_sent() || ob_get_level() <= 0) {
+        if (defined('BFF_JSON_SENT') || ob_get_level() <= 0 || headers_sent()) {
             return;
         }
         $buf = trim(ob_get_contents());
@@ -248,10 +254,10 @@ if ($action === 'import') {
                     $isReqSpec = property_exists($xml, 'req_spec');
                     if ($isReqSpec) {
                         // The XML is a spec tree, but a single spec was chosen —
-                        // import the spec's top-level spec into the project.
+                        // nest the imported spec(s) under the selected spec.
                         foreach ($xml->req_spec as $xkm) {
                             $specItems = $reqSpecMgr->createFromXML(
-                                $xkm, $tprojectId, 0, $userId, null, $opts);
+                                $xkm, $tprojectId, $reqSpecId, $userId, null, $opts);
                             if (is_array($specItems)) {
                                 $items = array_merge($items, $specItems);
                             }
