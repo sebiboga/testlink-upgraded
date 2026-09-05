@@ -487,7 +487,10 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
         out(['status' => 'error', 'message' => $err]);
     }
     // Legacy crossChecks: duplicate name inside THIS project, excluding self.
-    if ($buildMgr->checkNameExistence($ctx['tproject_id'], $name, $buildId)) {
+    // build::checkNameExistence() returns a status ARRAY (['status_ok']), not a
+    // bool - testing the array directly is always truthy and would 409 every rename.
+    $chk = $buildMgr->checkNameExistence($ctx['tproject_id'], $name, $buildId);
+    if (!$chk['status_ok']) {
         http_response_code(409);
         out(['status' => 'error', 'message' => 'warning_duplicate_build', 'detail' => $name]);
     }
