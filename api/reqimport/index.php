@@ -212,6 +212,28 @@ if ($action === 'import') {
     $fileStatus = ['status_ok' => true, 'msg' => ''];
     $userFeedback = null;
 
+    // Legacy framework DB helpers die() with a raw HTML page on hard DB errors
+    // (they never return FALSE), e.g. strict-mode "Data too long for column".
+    // Trap that non-JSON output with an output buffer + shutdown handler so
+    // this BFF always answers with application/json.
+    ob_start();
+    register_shutdown_function(function () {
+        if (headers_sent() || ob_get_level() <= 0) {
+            return;
+        }
+        $buf = trim(ob_get_contents());
+        if ($buf === '' || ($buf[0] !== '{' && $buf[0] !== '[')) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Import failed: a database error occurred while processing the file.',
+            ]);
+        }
+    });
+
     try {
         if ($importType === 'XML') {
             libxml_use_internal_errors(true);
