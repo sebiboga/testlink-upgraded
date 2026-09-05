@@ -60,6 +60,8 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsv.compareRevisions">Compare revisions</span></a>
+  <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
+  <a class="btn-ghost" href="#" onclick="return goExportReqs('branch')"><i class="fa fa-sitemap"></i> <span data-i18n="reqexp.exportBranch">Export branch</span></a>
   <span style="flex:1"></span>
   <button id="revBtn" class="btn-dark" style="display:none;"><i class="fa fa-files-o"></i> <span data-i18n="rsv.newRevision">New Revision</span></button>
   <button id="freezeBtn" class="btn-danger" style="display:none;"><i class="fa fa-snowflake-o"></i> <span data-i18n="rsv.freeze">Freeze all Requirements</span></button>
@@ -370,6 +372,12 @@ function openReq(reqId) {
   var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
   window.open('/gui/templates/requirements/reqView.html?id=' + reqId + '&tproject_id=' + TPROJECT_ID,
     'req_view_' + reqId, 'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function goExportReqs(scope) {
+  window.open('/gui/templates/requirements/reqExport.html?req_spec_id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID + '&scope=' + scope, '_self');
+  return false;
 }
 
 function fmtTs(ts) {
