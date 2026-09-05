@@ -10866,3 +10866,47 @@ users admin (id=1) + noview (id=2, role <no rights>, user_testproject_roles role
 - **Actual:** post-fix tc_print runs generated 0 new ERROR/WARNING rows; the two remaining ERROR/WARNING groups are (a) pre-fix fixture artifacts (bad tcversions.id during development) and (b) reproduction of pre-existing issue #1011 (login as a user with no project context). PASS.
 
 **Result:** 14/14 PASS. Commits: `d60872c1b` (implementation), `(docs)` + `(tests)` follow-ups. Branch: `sebiboga`. Screens: modern `tcPrint.html` (+ BFF `api/testcasesprint` action=tc_print) replacing legacy `lib/testcases/tcPrint.php` for the printer-friendly view; link switched in both modern tcView.html toolbar and legacy viewer templates.
+
+---
+
+## Regression — Issue #1011: login as user without any test-project context logs SQL error + PHP warnings (getTestCasePrefix empty id)
+
+**Precondition:** TestLink 2.0.1 running at localhost:8082; MariaDB testlink db from the last import; fixture present: testprojects id=100 prefix 'FIXTURE' (is_public=0), nodes_hierarchy 100(project)->101('Suite')/2->102('Case One')/3; users admin/admin (id=1) and noview/noview (id=2, role_id=3 `<no rights>`); events table purged.
+
+### TC-1011.1 — getPrefix() with no project context returns null, null (PASS — post-fix)
+1. In-app probe (framework bootstrapped): `$tcaseMgr = new testcase($db); $r = $tcaseMgr->getPrefix(null, null);`
+- **Expected (pre-fix):** E_WARNING "Trying to access array offset on null" (testcase.class.php:2172) + ERROR exec_query SQL 1064 `/* Class:testproject - Method: getTestCasePrefix */ SELECT prefix FROM testprojects WHERE id = `. 
+- **Expected (post-fix):** returns `array(NULL, NULL)` and logs nothing.
+- **Actual:** `array(NULL, NULL)`; events table: 0 ERROR / 0 WARNING. PASS.
+
+### TC-1011.2 — getPrefix() with a nonexistent node id (PASS — post-fix)
+1. `$tcaseMgr->getPrefix(99999999, null);`
+- **Expected:** same guard — `array(NULL, NULL)`, no events.
+- **Actual:** `array(NULL, NULL)`; no events. PASS.
+
+### TC-1011.3 — getPrefix() valid deep link still derives the prefix (PASS — post-fix)
+1. `$tcaseMgr->getPrefix(102, null);` (tc node 102 under suite 101 under project 100).
+- **Expected:** `array('FIXTURE','100')` — derivation via `tree_manager->get_path()` unchanged for valid inputs.
+- **Actual:** `array('FIXTURE','100')`. PASS.
+
+### TC-1011.4 — getPrefix() fast path (explicit tproject_id) unchanged (PASS)
+1. `$tcaseMgr->getPrefix(102, 100);`
+- **Expected:** `array('FIXTURE', 100)`.
+- **Actual:** `array('FIXTURE', 100)`. PASS.
+
+### TC-1011.5 — Landing index.php as user with no test-project rights (PASS — post-fix)
+1. Purge events; logout; login as `noview`; land on `index.php?caller=login`.
+- **Expected:** shells load (`No View <no rights>` navBar, asideMenu, dashboard); **no** E_WARNING / SQL-1064 ERROR rows in `events`; `tproject_id` context 0.
+- **Actual:** frameset rendered; events contain only INFO AUDIT rows (audit_user_logout, audit_login_succeeded). PASS.
+
+### TC-1011.6 — Modern Test Case Print permission path as no-rights user (PASS — post-fix)
+1. Login as `noview`; open `/gui/templates/testcases/tcPrint.html` (no args → BFF `action=tc_print&testcase_id=0`).
+- **Expected:** BFF 400 "Missing testcase_id", no ERROR/WARNING events, no empty-id getTestCasePrefix SQL error.
+- **Actual:** HTTP 400, 0 ERROR/WARNING events. PASS.
+
+### TC-1011.7 — Event Viewer: no new Error/Warning attributable to the fix (PASS)
+1. After TC-1011.1..6: `SELECT log_level, source, LEFT(description,200) FROM events;`
+- **Expected:** no rows with log_level < 8 attributable to getPrefix/getTestCasePrefix; only INFO AUDIT rows.
+- **Actual:** only INFO (16) AUDIT rows present. PASS.
+
+**Result:** 7/7 PASS. Commits: `abb99067e` (fix, Refs #1011) on branch `fix/issue-1011-nocontext-gettestcaseprefix`. Root cause: `testcase::getPrefix()` derived `$root` from an unguarded `$path2root[0]['parent_id']` when `$tproject_id` null; empty tree path (no project context / nonexistent id) → E_WARNING + `getTestCasePrefix(null)` → SQL 1064. Fix: early bail `array(null,null)` when `get_path()` returns null/empty; fast path and valid deep-link path unchanged. Follow-up issue filed: #1016 (same bug class in dead `formatTestCaseIdentity()`).
