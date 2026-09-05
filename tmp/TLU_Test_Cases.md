@@ -10750,3 +10750,37 @@ Result: 16/16 PASS. Commits: `f1d05737c` (screen/BFF/i18n/link switch), `87033fb
 Result: 20/20 PASS. Commits: `780a07177` (BFF), `23e70a1ae` (screen HTML) + `4fa88a67b` (i18n all bundles + `openImportResult()` link switch), `dc1599d27` (fixes: tproject into getInternalID, DB row-shape, lang fix). Screens: `gui/templates/results/resultsImport.html`; BFF: `api/resultsimport/index.php`; wiki: docs + `tmp/wiki-repo`.
 
 ---
+
+## Regression — Issue #978: tcView viewer includes: E_WARNINGs 'click_to_copy_ghost_to_clipboard' + 'inc_relations' on every Test Case view
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixture: test project **ReproProject** (`testprojects.id=1`, prefix RT), suite **MainSuite** (`testsuites.id=2`), TC **GhostCopyTC** (`testcases.id=3`, tcversion `tcversions.id=4`, external_id RT-1, step id 5). Baseline `events` table has only 2 INFO audit rows (login + project created).
+
+### TC-978.1 — Test Case view renders with zero E_WARNINGs (PRIMARY, pre-fix repro)
+1. Login admin/admin.
+2. `DELETE FROM events WHERE id>=3;` (baseline reset).
+3. GET `http://localhost:8082/lib/testcases/archiveData.php?edit=testcase&id=3&tproject_id=1`.
+- **Expected (post-fix):** page renders full viewer (title `RT-1 : GhostCopyTC - Version 1`, Summary, Preconditions, Steps, Relations section); `events` table has NO new `log_level IN (2,3,32)` rows.
+- **Pre-fix evidence:** events ids 7-9 were `E_WARNING Undefined array key "inc_relations"` + `Attempt to read property "value" on null` (tctitle.inc.tpl.php:39) and `E_WARNING Undefined array key "click_to_copy_ghost_to_clipboard"` (tcbody.inc.tpl.php:105).
+- **Actual:** viewer renders fully; `events` shows only baseline INFO rows. PASS.
+
+### TC-978.2 — relations jump icon present in title bar
+1. (same page as TC-978.1). Inspect the title/actions bar for the relations jump icon.
+- **Expected:** `<span class="clickable" title="The test case has relations. Click to jump to the relations section" onclick="document.getElementById('relations_4').scrollIntoView();"><i class="fa fa-sitemap">` present (the test case has a relations section, so `inc_relations` != '' toggles it on).
+- **Actual:** present via `querySelector('span[onclick*="relations_"]')`. PASS.
+
+### TC-978.3 — ghost copy icon title localizes
+1. (same page). Inspect the preconditions label row ghost icon.
+- **Expected:** `title="Click to copy the ghost string to clipboard"` on `span[onclick*="copyAttrGhostString"]` (en_GB now localizes `click_to_copy_ghost_to_clipboard`).
+- **Actual:** present. PASS.
+
+### TC-978.4 — repeated reloads stay warning-free
+1. Reload the viewer URL 3×.
+- **Expected:** still zero `log_level IN (2,3,32)` events attributable to the templates.
+- **Actual:** 0 new events across 3 reloads. PASS.
+
+### TC-978.5 — Event Viewer clean across fix
+1. `SELECT id,log_level,description FROM events ORDER BY id DESC;`
+- **Expected:** no ERROR/WARNING/L18N-notice rows caused by the fix.
+- **Actual:** only INFO audit rows (login, project created). PASS.
+
+**Result:** 5/5 PASS. Commits: (fix) `tlsmarty.inc.php` + `gui/templates/dashio/testcases/labels/tcViewViewer.labels.tpl` + `gui/templates/dashio/testcases/include/tcViewViewer.inc.tpl` + `gui/templates/dashio/testcases/tcView_viewer.tpl` + `locale/en_GB/strings.txt`. Branch: `fix/issue-978-viewer-warnings`. Screens: legacy `archiveData.php?edit=testcase` viewer. Wiki: docs + `tmp/wiki-repo`.
