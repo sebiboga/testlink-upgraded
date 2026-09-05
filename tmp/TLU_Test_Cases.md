@@ -10542,18 +10542,20 @@ Result: 16/16 PASS. Commits: `Refs #980` (final modernization commit). Screen: `
 
 ---
 
-## Regression — Issue #968: PHP E_WARNING in testproject::copy_as() when copying an empty test project
+## Regression — Issue #981: testSpec.html Create New Test Case form never loads project keywords
 
-**Precondition:** app `http://localhost:8082`; MariaDB `testlink`; logged in as admin (cookie jar via `POST /api/auth/login`, `X-Requested-With: XMLHttpRequest` on BFF writes). Record `SELECT MAX(id) FROM events` as baseline before the suite. Fixture sources: empty test projects (no children) and one non-empty project holding a testsuite node.
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`; fixtures created by `php tmp/fixtures_981.php` (project **Bugfix Project** id=1 prefix BFX, suite "Suite A" id=2, test case "Case A1" id=3, keywords `Smoke Test` id 1 and `Performance` id 2; admin role 8 granted via `user_testproject_roles`). No-keywords project id=8 "NoKeywords Project" (suite "Empty Suite") for the negative case. Fix = BFF `GET ?action=keywords&tproject_id=N` in `api/testcases/index.php` returning `keywordsProject` + `openCreateTc()` in `gui/templates/testcases/testSpec.html` fetching it before rendering (previously rendered `formHtml({}, {})` with an empty keyword map).
 
-Repro entry point used: `POST http://localhost:8082/api/projectedit/index.php?action=create` (BFF behind the modernized Test Project Create/Edit screen; same `copy_as()` path as legacy `lib/project/projectEdit.php`).
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|----------------------|--------|
+| TC-981.1 | create form lists project keywords (primary) | open `testSpec.html?tproject_id=1`, click **+ New Test Case** (pre-fix: KEYWORDS → "No keywords defined for this project") | KEYWORDS renders checkboxes `Smoke Test` and `Performance` | PASS |
+| TC-981.2 | API returns keyword map | authenticated fetch `GET /api/testcases/index.php?action=keywords&tproject_id=1` | `{"status":"ok","keywordsProject":{"1":"Smoke Test","2":"Performance"}}` | PASS |
+| TC-981.3 | create + assign + save persists | new test case "Case Smoke", check `Smoke Test`, click Save | tree shows "Case Smoke" (2 cases); `SELECT * FROM testcase_keywords` → row testcase_id=6, tcversion_id=7, keyword_id=1; viewer shows chip "Smoke Test" | PASS |
+| TC-981.4 | no-keyword project unchanged (negative) | open `testSpec.html?tproject_id=8` (NoKeywords Project), **+ New Test Case** | KEYWORDS → "No keywords defined for this project" (fallback intact) | PASS |
+| TC-981.5 | edit mode still loads + pre-selects | open Case Smoke → **Edit Test Case** | checkboxes both present, `Smoke Test` pre-checked (edit path via `get` unchanged) | PASS |
+| TC-981.6 | unauthenticated access rejected | `curl` `action=keywords&tproject_id=1` without session cookie | HTTP 401 (session guard) | PASS |
+| TC-981.7 | PHP + JS syntax gates | `php -l api/testcases/index.php`; extracted inline JS `node --check` | no syntax errors | PASS |
+| TC-981.8 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after the flows | zero ERROR/WARNING rows (only INFO audits: login/project created/keyword assigned) | PASS |
+| TC-981.9 | console clean | exercise create + edit flows, watch console/network | no JS errors; `action=keywords` request returns 200 | PASS |
 
-| ID | Test case | Repro | Expected | Result |
-|----|-----------|-------|----------|--------|
-| TC-968.1 | copy from EMPTY source, optReq=0 (primary) | create empty src (JSON w/o `copy_from_tproject_id`), then create copy with `copy_from_tproject_id=<empty_src>` and `optReq:0` | HTTP 200 both; `SELECT id,activity,description FROM events WHERE activity='PHP' AND id>:baseline` → **0 rows** (pre-fix: E_WARNING `foreach() argument must be of type array\|object, null given - testproject.class.php - Line 2803` event id=4/8) | PASS |
-| TC-968.2 | copy from EMPTY source, optReq=1 | same with `optReq:1` | 0 PHP events (pre-fix: E_WARNING Line 2749 event id=7) | PASS |
-| TC-968.3 | copy from NON-empty source (positive) | add `nodes_hierarchy`+`testsuites` rows to source, copy with optReq=0 | copy project gets suite child (`SELECT ... WHERE parent_id=<new>` → 1 row) AND 0 PHP events | PASS |
-| TC-968.4 | plain create (no copy-from) | create project without `copy_from_tproject_id` | 0 PHP events, project created | PASS |
-| TC-968.5 | syntax gate | `php -l lib/functions/testproject.class.php` | `No syntax errors detected` | PASS |
-
-Result: 5/5 PASS. Fix commit: `Refs #968` on branch `fix/issue-968` (2-line change in `lib/functions/testproject.class.php`). Evidence: `events` rows id 9–14 are all `AUDIT CREATE` (zero `activity='PHP'`), suite node 1004 created under copied project 1003.
+Result: 9/9 PASS. Commits: pending (see `fix/issue-981`). Screen: `gui/templates/testcases/testSpec.html`; BFF: `api/testcases/index.php`; issue: #981.
