@@ -10371,6 +10371,24 @@ Result: 15/15 PASS. Commits: `2acb740a7` (MD round-trip), `8245fc888` (ci compar
 
 ---
 
+## Footer standardization across modernized screens (Refs #745)
+
+**Precondition:** App http://127.0.0.1:8082, logged in as admin. Screens under `gui/templates/` serve the standardized footer `TestLink 2.0.1 - <Screen Name>` via `data-i18n="footers.<slug>"`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-FTR.1 | Footer present on modernized screen | Open `plans/buildsView.html?tplan_id=3232&locale=en` | Bottom shows `TestLink 2.0.1 - Builds & Releases` below the dynamic info bar | PASS |
+| TC-FTR.2 | Dynamic footer bar preserved | Same page, check first `.footer` element | Still shows `Generated on …` (counts/date logic untouched) | PASS |
+| TC-FTR.3 | i18n key applies (en) | Inspect second `.footer` text after load | Rendered value, not the literal key `footers.buildsView` | PASS |
+| TC-FTR.4 | Romanian translation | Open same page with `locale=ro` | Footer = `TestLink 2.0.1 - Build-uri și Lansări` | PASS |
+| TC-FTR.5 | Flat key convention | `data-i18n` value + bundle lookup | Keys are flat `"footers.<slug>"` (module uses dotted flat lookup) | PASS |
+| TC-FTR.6 | All created keys present | grep `footers\.` in en.json/ro.json | 65 keys in every bundle; all bundles valid `json.tool` | PASS |
+| TC-FTR.7 | No new server events | Query `events` after navigation | No new ERROR/WARNING rows (only INFO audits) | PASS |
+
+Result: 7/7 PASS.
+
+---
+
 ## Regression — Issue #949: api/builds DELETE returns 500 empty body and does not delete the build
 
 **Precondition:** App http://localhost:8082, logged in as admin. Fresh DB. Project "Bug949 Project" (id=1, prefix B949) + plan "Bug949 Plan" (id=2) created via `api/projects` / `api/plans`. Every request sent with session cookie and `X-Requested-With: XMLHttpRequest`.
