@@ -10619,3 +10619,31 @@ Result: 7/7 PASS. Commit: `087ace530` (fix). Files: `lib/functions/common.php:17
 | TC-977.4 | screen still renders fully | reload tcView page | full tcView layout renders; no fatal; only the (separate, issue #978) `inc_relations`/`value on null`/`click_to_copy_ghost_to_clipboard` warnings remain | PASS |
 
 Result: 4/4 PASS. Fix commit: `6633cb6db` (see fix/issue-977). File: `gui/templates/dashio/testcases/tcView.tpl` (1 line). Screenshot: `docs/screenshots/issue-977-tcview-fixed.png`; issue: #977. Note: the other 3 warnings observed on the same render are tracked separately in issue #978 (out of scope here).
+
+---
+
+## Modernize: Requirement Import (reqImport.php)
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixture: test project **ReqImport Test Project** (`testprojects.id=1`, prefix RIMP), req spec **SRS-RIMP-001** (`req_specs.id=2`). Sample file `/tmp/req_sample.xml` (requirements RIMP-REQ-001 "Login works", RIMP-REQ-002 "Logout works", `status=V`, `type=1`). Screen: `gui/templates/requirements/reqImport.html?tproject_id=1`; BFF: `api/reqimport/index.php`; issue: #993.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-993.1 | screen loads via direct navigation | GET `reqImport.html?tproject_id=1` | options GET 200; header shows project name in title; form + target select populated | PASS |
+| TC-993.2 | target spec list | inspect "Target Requirement Specification" | "Whole project (spec tree)" + "SRS-RIMP-001 - ReqImport SRS" options | PASS |
+| TC-993.3 | whole-project → XML-only import types | leave target on whole project | File Type list = XML only (spec import types) | PASS |
+| TC-993.4 | spec selected → requirement import types | select SRS-RIMP-001 | File Type list = CSV, CSV (Doors), XML, DocBook | PASS |
+| TC-993.5 | max file size message + format doc link | read form | "Maximum file size is 781 KB"; link `/docs/tl-file-formats.pdf` resolves (HTTP 200) | PASS |
+| TC-993.6 | upload XML into spec (primary) | select spec, upload `req_sample.xml`, click Upload and Import | POST `action=import` 200 JSON `{"status":"ok"}`; 2 rows created in `requirements` + `req_versions`; result table shows 2 rows with "Created - Requirement - Doc ID:..." | PASS |
+| TC-993.7 | result table rendering | after import | `#resultArea` visible; doc id/title/status cells for RIMP-REQ-001/002; count "(2)" | PASS |
+| TC-993.8 | duplicate import → update latest version | re-upload same file (hitCriteria=docid, actionOnHit=update_last_version) | result "Updated - Requirement - Doc ID:...:ok"; no new req_versions rows | PASS |
+| TC-993.9 | skip frozen requirements | re-import with skipFrozen on frozen requirement (curl) | "Skipped - is FROZEN" feedback; no new version | PASS |
+| TC-993.10 | whole-project + non-spec XML → error | target whole project, upload `<requirement>`-only XML | BFF returns `please_create_req_spec_first` JSON error, toast shown, no DB write | PASS |
+| TC-993.11 | invalid format data → clean error | upload XML with `status=valid` (multichar) | legacy `exec_query()` die() HTML trapped; BFF returns JSON `Import failed: a database error...` (HTTP 500), toast on screen | PASS |
+| TC-993.12 | upload without file | click Upload and Import with no file | toast `chooseFile` error; no request sent | PASS |
+| TC-993.13 | Reset button | click Reset | file input cleared; result area hidden; table emptied | PASS |
+| TC-993.14 | Back button | click Back | navigates back (history) | PASS |
+| TC-993.15 | permission path | BFF `options/import` without `mgt_modify_req` | HTTP 403 JSON "No permission" (same check as legacy checkRights) | PASS |
+| TC-993.16 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after all flows | no NEW ERROR/WARNING rows from the modern screen | PASS |
+| TC-993.17 | console clean | exercise load + both imports + error paths | no JS errors; all BFF requests JSON (200/400/403/500 as designed) | PASS |
+
+Result: 17/17 PASS. Commits: `e8a6d6a30` (BFF), `a94bed68a` (screen), `a0db59b94` (i18n + link switch), `38cde2605` (JSON guard + URL fix). Screens: `gui/templates/requirements/reqImport.html`, `gui/templates/requirements/reqSpecMgmt.html` (Import button); BFF: `api/reqimport/index.php`; wiki: docs + `tmp/wiki-repo`.
