@@ -129,6 +129,42 @@ function checkReqExportRight($db, $user, $tprojectId, $granted) {
     return true;
 }
 
+/**
+ * Existence check without touching requirement_spec_mgr::get_by_id() on a
+ * non-existent id: that method runs a query that the legacy database layer
+ * aborts (CWE-200 backtrace) when the node is missing. A flat nodes_hierarchy
+ * lookup returns NULL cleanly for missing ids.
+ */
+function specExists($db, $reqSpecMgr, $id) {
+    $type = $reqSpecMgr->node_types_descr_id['requirement_spec'] ?? null;
+    if ($type === null) {
+        return true; // cannot determine the node type; let the caller proceed
+    }
+    $rs = $db->get_recordset('SELECT id FROM nodes_hierarchy WHERE id = ' . intval($id)
+        . ' AND node_type_id = ' . intval($type));
+    return !is_null($rs) && count($rs) > 0;
+}
+
+function reqSpecContext(&$reqSpecMgr, $scope, $req_spec_id) {
+    $spec = null;
+    if ($scope !== 'tree') {
+        if ($req_spec_id <= 0) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid requirement specification id']);
+        }
+        if (!specExists($GLOBALS['db'], $reqSpecMgr, $req_spec_id)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Requirement specification not found']);
+        }
+        $spec = $reqSpecMgr->get_by_id($req_spec_id);
+        if (is_null($spec) || empty($spec)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Requirement specification not found']);
+        }
+    }
+    return $spec;
+}
+
 // ---------------------------------------------------------------------------
 // GET ?action=options - export form context
 // ---------------------------------------------------------------------------
@@ -145,15 +181,7 @@ if (($_GET['action'] ?? '') === 'options') {
     $specTitle = lang_get('all_reqspecs_in_tproject');
     if ($scope !== 'tree') {
         $req_spec_id = getIntParam('req_spec_id');
-        if ($req_spec_id <= 0) {
-            http_response_code(400);
-            out(['status' => 'error', 'message' => 'Invalid requirement specification id']);
-        }
-        $spec = $reqSpecMgr->get_by_id($req_spec_id);
-        if (is_null($spec) || empty($spec)) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Requirement specification not found']);
-        }
+        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id);
         // legacy remember - makes subsequent requests easier
         $_SESSION['req_spec_id'] = $req_spec_id;
         $specTitle = (string)$spec['title'];
@@ -204,11 +232,7 @@ if (($_POST['action'] ?? '') === 'export') {
     $reqSpecMgr = new requirement_spec_mgr($db);
     $specTitle = null;
     if ($scope !== 'tree') {
-        $spec = $reqSpecMgr->get_by_id($req_spec_id);
-        if (is_null($spec) || empty($spec)) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Requirement specification not found']);
-        }
+        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id);
         $specTitle = (string)$spec['title'];
     }
 

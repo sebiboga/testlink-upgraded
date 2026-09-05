@@ -195,57 +195,45 @@ function doExport() {
   var fn = ($('#exportFilename').val() || '').trim();
   if (!fn) { toast(TLi18n.t('reqexp.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
 
-  var params = {
-    action: 'export',
-    tproject_id: ctx.tprojectId,
-    req_spec_id: ctx.reqSpecId,
-    scope: ctx.scope,
-    exportType: $('#exportType').val() || 'XML',
-    export_filename: fn
-  };
-  if ($('#exportAttachments').is(':checked')) params.exportAttachments = '1';
+  var params = new URLSearchParams();
+  params.set('action', 'export');
+  params.set('tproject_id', ctx.tprojectId);
+  params.set('req_spec_id', ctx.reqSpecId);
+  params.set('scope', ctx.scope);
+  params.set('exportType', $('#exportType').val() || 'XML');
+  params.set('export_filename', fn);
+  if ($('#exportAttachments').is(':checked')) params.set('exportAttachments', '1');
 
   $('#loadingOverlay').show().find('span').text(TLi18n.t('reqexp.generating'));
   $('#btnExport').prop('disabled', true);
 
-  $.ajax({
-    url: API,
-    method: 'POST',
-    data: params,
-    xhrFields: { responseType: 'blob' },
-    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
-  }).done(function (blob, textStatus, xhr) {
-    var contentType = xhr.getResponseHeader('Content-Type') || '';
-    if (contentType.indexOf('application/json') !== -1) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        var msg = TLi18n.t('reqexp.errExport');
-        try { msg = JSON.parse(reader.result).message || msg; } catch (e) {}
-        toast(msg, true);
-        $('#loadingOverlay').hide();
-        $('#btnExport').prop('disabled', false);
-      };
-      reader.readAsText(blob);
-      return;
-    }
-    var url = window.URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-    toast(TLi18n.t('reqexp.exportDone'));
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('reqexp.errExport');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-  });
+  fetch(API, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
+    .then(function (res) {
+      var ct = res.headers.get('Content-Type') || '';
+      if (!res.ok || ct.indexOf('application/json') !== -1) {
+        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('reqexp.errExport')); });
+      }
+      var name = fn;
+      return res.blob().then(function (blob) { return { blob: blob, name: name }; });
+    })
+    .then(function (r) {
+      var url = window.URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast(TLi18n.t('reqexp.exportDone'));
+    })
+    .catch(function (e) {
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast((e && e.message) || TLi18n.t('reqexp.errExport'), true);
+    });
 }
 </script>
 </body>
