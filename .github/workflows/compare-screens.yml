@@ -30,9 +30,9 @@ on:
         required: false
         default: 'opencode/big-pickle'
 
-  # every 4 hours; offset from fix-bug (:00/:30 every 2h) and modernize (:15 every 3h)
+  # every 1 hour; offset from fix-bug (:00/:30 every 2h) and modernize (:15 every 3h)
   schedule:
-    - cron: "45 */4 * * *"
+    - cron: "45 * * * *"
 
 concurrency:
   group: compare-screens
