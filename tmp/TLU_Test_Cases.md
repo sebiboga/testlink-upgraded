@@ -10647,3 +10647,30 @@ Result: 4/4 PASS. Fix commit: `6633cb6db` (see fix/issue-977). File: `gui/templa
 | TC-993.17 | console clean | exercise load + both imports + error paths | no JS errors; all BFF requests JSON (200/400/403/500 as designed) | PASS |
 
 Result: 17/17 PASS. Commits: `e8a6d6a30` (BFF), `a94bed68a` (screen), `a0db59b94` (i18n + link switch), `38cde2605` (JSON guard + URL fix). Screens: `gui/templates/requirements/reqImport.html`, `gui/templates/requirements/reqSpecMgmt.html` (Import button); BFF: `api/reqimport/index.php`; wiki: docs + `tmp/wiki-repo`.
+
+---
+
+## Modernize: Requirement Export (reqExport.php)
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`. Fixture: test project **TLU Walk** (`testprojects.id=46`), req spec **WRS-1 / Walk Spec One** (`req_specs.id=55`, requires: R-1 Walk Req One). Screen: `gui/templates/requirements/reqExport.html`; BFF: `api/reqexport/index.php`; issues: #1001 (screen), #1002 (shared export-blob bug found here).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1001.1 | screen loads, scope tree | GET `reqExport.html?tproject_id=46&scope=tree` | options GET 200; header shows project; default file name `all-req.xml`; File Type = XML only; attachments checkbox present | PASS |
+| TC-1001.2 | tree export → valid XML | POST export scope=tree | HTTP 200 `application/xml`, root `<requirement-specification>`, starts with TL XMLEXPORT header; no JS error | PASS |
+| TC-1001.3 | branch export | POST export scope=branch&req_spec_id=55 | HTTP 200 XML root `<requirement-specification>` with spec subtree | PASS |
+| TC-1001.4 | items export | POST export scope=items&req_spec_id=55 | HTTP 200 XML root `<requirements>` (non-recursive, requirement rows R-1) | PASS |
+| TC-1001.5 | default filenames | read options for tree/branch/items | `all-req.xml`, `Walk Spec One-req-spec.xml`, `Walk Spec One-child_req.xml` (spaces→`_`) | PASS |
+| TC-1001.6 | UI export flow (items) | open screen, click Export | toast `reqexp.exportComplete` ("Export complete - check your download"); file downloads via keepchunk | PASS |
+| TC-1001.7 | empty file name validation | clear file name, click Export | toast "Export file name can not be empty!"; no request sent | PASS |
+| TC-1001.8 | attachments toggle | fixture req R-1 (node 57 / ver 58) given a real FS attachment `walkreq.txt`; export items with `exportAttachments=1` | XML still valid; `<attachments>` element with `<name>walkreq.txt</name>` and base64 `SGVsbG8...` content; without the flag no `<attachments>` (fixture cleaned after test) | PASS |
+| TC-1001.9 | link from spec management | `reqSpecMgmt.html?tproject_id=46` toolbar **Export** | opens `reqExport.html?tproject_id=46&scope=tree` (and `scope=branch` + req_spec_id once a spec is open) | PASS |
+| TC-1001.10 | link from spec viewer | `reqSpecView.html?id=55` toolbar **Export** / **Export branch** | Export → `...scope=items&req_spec_id=55`; Export branch → `...scope=branch&req_spec_id=55` (clicked, navigated) | PASS |
+| TC-1001.11 | invalid scope | export with scope=bogus | sanitized to `items` (like legacy `init_args()` default) | PASS |
+| TC-1001.12 | missing spec id → 404 (CWE-200 fix) | POST export with `req_spec_id=9999` | clean HTTP 404 JSON `{"status":"error"}`; NO DB backtrace/HTML dump (was broken SQL + debug screen before fix) | PASS |
+| TC-1001.13 | missing right → 403 | BFF with temp `guest` user (no `mgt_view_req`), POST export | HTTP 403 JSON "No permission" on both options and export (same check as legacy `checkRights`) | PASS |
+| TC-1001.14 | header injection guard | export with filename `bogus\r\nX` | filename sanitized (no CR/LF/quote); single Content-Disposition header | PASS |
+| TC-1001.15 | Event Viewer clean | `events` table + `logs/userlog*.log` after all flows | no NEW ERROR/WARNING rows from the modern screen (only pre-fix entries from the fixed 9999 path) | PASS |
+| TC-1001.16 | console clean | load + options + exports + error path | no JS errors; BFF requests all JSON (200/400/403/404 as designed) | PASS |
+
+Result: 16/16 PASS. Commits: `f1d05737c` (screen/BFF/i18n/link switch), `87033fb55` (404 + fetch download fix), `1c49856a5` (fetch fix on plan/tc/users export — Fixes #1002). Screens: `gui/templates/requirements/reqExport.html`, `reqSpecMgmt.html` (Export button), `reqSpecView.html` (Export/Export branch links); BFF: `api/reqexport/index.php`; wiki: docs + `tmp/wiki-repo`. Shared-bug screenshots documented on #1002.
