@@ -10586,3 +10586,21 @@ Result: 9/9 PASS. Commits: pending (see `fix/issue-981`). Screen: `gui/templates
 | TC-982.16 | console clean | exercise navigator + doc + MS Word flows | no JS errors; BFF requests 200/4xx as expected | PASS |
 
 Result: 16/16 PASS. Commits: `4a90a7ea7` (BFF), `820ef49d9` (screens + i18n + aside). Screen: `gui/templates/testcases/printTestSpec.html` + `printTestDoc.html`; BFF: `api/testcasesprint/index.php`; issue: #982; wiki: docs + `tmp/wiki-repo`.
+
+---
+
+## Regression — Issue #985: Guest login HTTP 500 (getDisplayName() on null)
+
+**Precondition:** browser logged out; app `http://localhost:8082`; fresh DB. Fixture: test project **GTP** (`testprojects.id=1`) and user **pts_guest**/`ptsguest` (`users.id=2`, `role_id=0`, no global role) with project GUEST role (id 5) on project 1.
+
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|----------------------|--------|
+| TC-985.1 | guest login renders main page (primary) | login `pts_guest`/`ptsguest` (pre-fix: `index.php?caller=login` → **HTTP ERROR 500**) | Dashio frameset renders; `navBar`/`asideMenu`/`mainPage` all HTTP 200; whoami "Guest User" | PASS |
+| TC-985.2 | guest whoami no role shown | inspect navBar whoami (`Guest User -`) | empty role display, no fatal | PASS |
+| TC-985.3 | guest navigates to guest project | `index.php?tproject_id=1` (project-role GUEST path) | renders, no 500, no JS error | PASS |
+| TC-985.4 | guest hasRight no E_WARNING | follow guest flows; `SELECT * FROM events WHERE log_level=2` | no new WARNING rows (`read property "rights" on null` gone from tlUser.class.php:830) | PASS |
+| TC-985.5 | admin login regression | login `admin`/`admin` | full frameset 200, whoami "Testlink Administrator / admin", full aside | PASS |
+| TC-985.6 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after guest+admin sessions | zero new ERROR/WARNING; only AUDIT (log_level=16) login-success rows | PASS |
+| TC-985.7 | syntax gates | `php -l lib/functions/common.php lib/functions/tlUser.class.php lib/general/navBar.php` | no syntax errors (all 3 files) | PASS |
+
+Result: 7/7 PASS. Commit: `087ace530` (fix). Files: `lib/functions/common.php:1787`, `lib/general/navBar.php:198`, `lib/functions/tlUser.class.php:830`. Screenshots: `docs/screenshots/issue-985-guest-login-{500,fixed}.png`; issue: #985.
