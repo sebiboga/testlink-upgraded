@@ -1781,10 +1781,12 @@ function initUserEnv(&$dbH, $context, $opt=null) {
 
   // Refs #609 hardening: fall back to an anonymous-looking identity when the
   // session user is unusable, instead of fataling on method calls on null.
+  // Refs #985: the effective role object itself can also be null (account with
+  // users.role_id = 0 and no matching project/plan role), so guard it too.
   if( $args->user !== null ) {
     $eRoleObj = $args->user->getEffectiveRole($dbH,$gui->tproject_id,$tplan_id);
     $gui->whoamiName = $args->user->getDisplayName();
-    $gui->whoamiRole = $eRoleObj->getDisplayName();
+    $gui->whoamiRole = is_object($eRoleObj) ? $eRoleObj->getDisplayName() : '';
   } else {
     $gui->whoamiName = '';
     $gui->whoamiRole = '';

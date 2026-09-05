@@ -827,7 +827,9 @@ class tlUser extends tlDBObject {
       }
     }
     
-    $userGlobalRights = (array)$this->globalRole->rights;
+    // Refs #985: users can have users.role_id = 0 (no global role); treat
+    // that as an empty global right set instead of reading ->rights on null.
+    $userGlobalRights = (array)($this->globalRole ? $this->globalRole->rights : array());
 
     $globalRights = array();
     foreach($userGlobalRights as $right) {

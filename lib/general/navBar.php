@@ -193,9 +193,12 @@ function initializeGui(&$db,&$args) {
     // test project specific role applied
     $role = $args->user->tprojectRoles[$gui->tprojectID];
     $testprojectRole = $role->getDisplayName();
-  } else {
+  } else if (is_object($args->user->globalRole)) {
     // general role applied
     $testprojectRole = $args->user->globalRole->getDisplayName();
+  } else {
+    // no effective role (e.g. guest account with users.role_id = 0)
+    $testprojectRole = '';
   } 
   $gui->whoamiName = $args->user->getDisplayName();
   $gui->whoamiRole = $testprojectRole;
