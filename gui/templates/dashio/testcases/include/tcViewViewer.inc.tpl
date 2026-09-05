@@ -422,6 +422,7 @@ viewer for test case in test specification
   <input type="hidden" id="stepsControls_tplan_id" name="tplan_id" value="{$gui->tplan_id}" />
 
     {include file="{$tplConfig['tcbody.inc']}" 
+             inc_relations=$args_relations
              inc_tcbody_close_table=false
              inc_tcbody_testcase=$args_testcase
              inc_tcbody_show_title=$args_show_title

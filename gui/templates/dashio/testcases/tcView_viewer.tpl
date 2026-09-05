@@ -419,6 +419,7 @@ viewer for test case in test specification
          value="{$gui->tplan_id}" />
 
     {include file="{$tplConfig.inc_tcbody}" 
+             inc_relations=$args_relations
              inc_tcbody_close_table=false
              inc_tcbody_testcase=$args_testcase
              inc_tcbody_show_title=$args_show_title

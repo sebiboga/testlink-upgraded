@@ -54,6 +54,8 @@ TestLink Open Source Project - http://testlink.sourceforge.net/
     btn_bulk,
     show_ghost_string,
     copy_ghost_string,
+    click_to_copy_ghost_to_clipboard,
+    tc_has_relations,
     display_author_updater,
     onchange_save,
     estimated_execution_duration,
