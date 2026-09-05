@@ -10910,3 +10910,51 @@ users admin (id=1) + noview (id=2, role <no rights>, user_testproject_roles role
 - **Actual:** only INFO (16) AUDIT rows present. PASS.
 
 **Result:** 7/7 PASS. Commits: `abb99067e` (fix, Refs #1011) on branch `fix/issue-1011-nocontext-gettestcaseprefix`. Root cause: `testcase::getPrefix()` derived `$root` from an unguarded `$path2root[0]['parent_id']` when `$tproject_id` null; empty tree path (no project context / nonexistent id) → E_WARNING + `getTestCasePrefix(null)` → SQL 1064. Fix: early bail `array(null,null)` when `get_path()` returns null/empty; fast path and valid deep-link path unchanged. Follow-up issue filed: #1016 (same bug class in dead `formatTestCaseIdentity()`).
+
+---
+
+## Regression — Issue #1016: formatTestCaseIdentity() is broken dead code (undefined $tc_id, unguarded $path2root[0])
+
+**Precondition:** TestLink 2.0.1 running at localhost:8082; MariaDB testlink db from the fresh import this run; fixture created via SQL: testprojects id=1 prefix 'PROBE' (name PROBE1047), nodes_hierarchy 1(project)->2('ProbeSuite')/2->3('ProbeTC')/3; users admin/admin; events table purged before probes.
+
+### TC-1016.1 — Dead code confirmation: zero call sites (PASS)
+1. `grep -rn 'formatTestCaseIdentity' --include=*.php --include=*.tpl --include=*.html --include=*.js .`
+- **Expected (pre-fix):** exactly 2 hits, both inside lib/functions/testcase.class.php (PHPDoc at ~2141 + definition at ~2149); no callers anywhere.
+- **Actual (pre-fix):** 2 hits (definition + docblock), 0 call sites. PASS.
+
+### TC-1016.2 — Pre-fix repro: body raises E_WARNINGs and dies on SQL 1064 (PASS — measured before fix)
+1. In-app probe replicating the body line-by-line: `$path2root = $tc->tree_manager->get_path($tc_id);` / `$tproject_id = $path2root[0]['parent_id'];`
+- **Expected:** `E_WARNING Undefined variable $tc_id`; `get_path(NULL)` → NULL; `E_WARNING Trying to access array offset on null` x2; `$tproject_id` NULL.
+- **Actual:** `path2root = NULL`, `tproject_id = NULL`, warnings `[2] Undefined variable $tc_id`, `[2] Trying to access array offset on null` (x2). PASS.
+2. Full-call probe `formatTestCaseIdentity(1)`:
+- **Expected:** dies via `testproject::getTestCasePrefix(NULL)` → MySQL 1064 `WHERE id = ` (event row).
+- **Actual:** DB Access Error stack `#3 testcase.class.php(2153): testproject->getTestCasePrefix(NULL)`; events row id=1 log_level 1 (ERROR) SQL 1064. PASS.
+
+### TC-1016.3 — Post-fix: function removed (PASS)
+1. `grep -rn 'formatTestCaseIdentity' --include=*.php --include=*.tpl --include=*.html --include=*.js .`
+- **Expected:** 0 matches (grep exit 1).
+- **Actual:** 0 matches, exit 1. PASS.
+2. `php -l lib/functions/testcase.class.php`
+- **Expected:** "No syntax errors detected".
+- **Actual:** clean. PASS.
+
+### TC-1016.4 — Untouched getPrefix() valid path still works (PASS)
+1. In-app probe with fixture tc id 3: `$tc->getPrefix(3)` → `array('PROBE','1')`.
+- **Actual:** `["PROBE","1"]`. PASS.
+
+### TC-1016.5 — getPrefix() guard paths unchanged (#1011 regression, PASS)
+1. `$tc->getPrefix(99999999)` and `$tc->getPrefix(null)` → `array(null,null)`, no events.
+- **Actual:** `[null,null]` both; no new ERROR/WARNING events. PASS.
+
+### TC-1016.6 — App boot + users landing (PASS)
+1. Browser: login admin/admin → landing shells render (navBar / asideMenu / dashboard).
+- **Actual:** render cleanly; no console errors. PASS.
+2. Modern Test Case Viewer `tcView.html?tcase_id=3&tproject_id=1` loads (renders shell; fixture tcversion incomplete so 'Test case not found' is displayed, no crash).
+- **Actual:** shell renders, no console errors. PASS.
+
+### TC-1016.7 — Event Viewer: no new Error/Warning attributable to the fix (PASS)
+1. `SELECT id, log_level, source, LEFT(description,200) FROM events ORDER BY id DESC;`
+- **Expected:** the only ERROR (id=1, SQL 1064) is the pre-fix repro artifact; post-fix activity logs only INFO audit rows.
+- **Actual:** id=1 = pre-fix 1064 repro; post-fix rows: INFO AUDIT audit_login_succeeded only. PASS.
+
+**Result:** 7/7 PASS. Commits: fix commit (Refs #1016) on branch `fix/issue-1016-format-testcase-identity`. Root cause: `testcase::formatTestCaseIdentity()` (lib/functions/testcase.class.php) was dead code (0 callers) broken 3 ways — `$tc_id` undefined (parameter `$id`), unguarded `$path2root[0]['parent_id']` on NULL, and it computes `$tcasePrefix` but never returns; calling it died with SQL 1064 via `getTestCasePrefix(NULL)` (same class as #1011). Fix: removed the function + its PHPDoc (single-hunk, ~16 lines), leaving `getPrefix()` and its #1011 guard untouched.
