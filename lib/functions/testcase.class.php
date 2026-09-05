@@ -7543,7 +7543,7 @@ class testcase extends tlObjectWithAttachments {
     $gui->tcViewAction = "lib/testcases/archiveData.php?tproject_id={$gui->tproject_id}" .
                          "&show_mode=$gui->show_mode&tcase_id=";
 
-    $gui->printTestCaseAction = "lib/testcases/tcPrint.php?tproject_id=$gui->tproject_id&show_mode=$gui->show_mode";
+    $gui->printTestCaseAction = "gui/templates/testcases/tcPrint.html?tproject_id=$gui->tproject_id";
 
 
     $gui->keywordsViewHREF = "lib/keywords/keywordsView.php?tproject_id={$gui->tproject_id} " .

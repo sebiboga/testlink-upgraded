@@ -85,7 +85,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" id="btnAdd2Tplan" style="display:none;" onclick="openAdd2Tplan()"><i class="fa fa-clipboard-list"></i> <span data-i18n="tcview.addToTestPlans">Add to Test Plan</span></button>
     <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
     <button class="btn-dark" id="btnCompare" style="display:none;" onclick="openTcCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
-    <button class="btn-dark" onclick="window.print()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
+    <button class="btn-dark" onclick="openTcPrint()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
   </div>
 </div>
 
@@ -435,6 +435,13 @@ function openTcCompare() {
   var url = '/gui/templates/testcases/tcCompare.html?tproject_id=' + data.tproject.id
     + '&testcase_id=' + data.tcase.id;
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openTcPrint() {
+  var url = '/gui/templates/testcases/tcPrint.html?tproject_id=' + data.tproject.id
+    + '&testcase_id=' + data.tcase.id
+    + '&tcversion_id=' + currentVersion.tcversion_id;
+  window.open(url, '_blank', 'width=980,height=760,resizable=yes,scrollbars=yes');
 }
 </script>
 </body>

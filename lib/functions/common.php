@@ -2012,6 +2012,10 @@ function getActions(&$gui,$baseURL) {
   // Refs #982. Legacy right (testplan_metrics) is enforced by the BFF on every
   // route; aside visibility is gated by aside.tpl via menuGrants.
   $actions->printTestSpec = "/gui/templates/testcases/printTestSpec.html?{$ctx}";
+  // Single Test Case Print modernized screen (Dashio standalone page) - Refs
+  // #1010. Replaces lib/testcases/tcPrint.php for the printer-friendly view;
+  // the BFF enforces mgt_view_tc on the owning project on every route.
+  $actions->printTc = "/gui/templates/testcases/tcPrint.html?{$ctx}";
   $actions->searchReq = "/gui/templates/requirements/searchReq.html?{$ctx}";
   $actions->searchReqSpec = "/gui/templates/requirements/searchReqSpec.html?{$ctx}";
 

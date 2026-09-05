@@ -85,7 +85,7 @@ $_SESSION['currentUser'] = $user;
 
 $action = isset($_GET['action']) ? trim($_GET['action']) : '';
 
-if (!in_array($action, ['init', 'tree', 'print', 'download'], true)) {
+if (!in_array($action, ['init', 'tree', 'print', 'download', 'tc_print'], true)) {
     http_response_code(404);
     out(['status' => 'error', 'message' => 'Unknown action']);
 }
@@ -153,6 +153,123 @@ if ($action === 'init') {
         'formats' => $formats,
         'docOptions' => $docOptions,
         'testSpecOptions' => $testSpecOptions,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=tc_print  (single Test Case print document, legacy tcPrint.php)
+// Refs #1010. Port of lib/testcases/tcPrint.php: renders ONE test case
+// version through the battle-tested renderTestCaseForPrinting() pipeline
+// (lib/functions/print.inc.php) with the exact legacy printing-options set
+// (SINGLE_TESTCASE doc type), returning the generated document as JSON for the
+// Dashio shell (gui/templates/testcases/tcPrint.html) to embed in an iframe.
+//
+// URL args: testcase_id, tcversion_id (optional), tproject_id (optional;
+// fallback: owning project derived from the test case tree path, legacy
+// parity).
+// Access: authenticated + mgt_view_tc on the OWNING test project (viewer
+// parity; the legacy controller only required a session - hardened like the
+// other modern gateways).
+// ---------------------------------------------------------------------------
+if ($action === 'tc_print') {
+    $tcaseId = isset($_GET['testcase_id']) ? intval($_GET['testcase_id']) : 0;
+    $tcversionId = isset($_GET['tcversion_id']) ? intval($_GET['tcversion_id']) : 0;
+    if ($tcaseId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing testcase_id']);
+    }
+
+    $treeMgr = new tree($db);
+    $node = $treeMgr->get_node_hierarchy_info($tcaseId);
+    if (is_null($node) || !isset($node['name'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => lang_get('testcase_does_not_exists')]);
+    }
+
+    // resolve the owning test project: explicit arg first, then the tree
+    // path (deep link with no project context - legacy tcPrint.php parity)
+    $ownerId = ($tprojectId > 0) ? $tprojectId : 0;
+    if ($ownerId <= 0) {
+        $path2root = $treeMgr->get_path($tcaseId);
+        if (!is_null($path2root) && count($path2root) > 0) {
+            $ownerId = intval($path2root[0]['parent_id']);
+        }
+    }
+    if ($ownerId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Cannot resolve the owning test project']);
+    }
+
+    $proj = $tprojectMgr->get_by_id($ownerId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    // authorization: mgt_view_tc on the owning project (matches the test
+    // case viewer gate; the legacy print page only required a session)
+    $canView = false;
+    try {
+        $canView = (bool)$user->hasRightOnProj($db, 'mgt_view_tc', $ownerId);
+    } catch (\Throwable $e) {
+        $canView = false;
+    }
+    if (!$canView) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // ---- set the session + request state the legacy controller expects ----
+    $_SESSION['testprojectID'] = $ownerId;
+    if (empty($_SESSION['testprojectPrefix'])) {
+        $_SESSION['testprojectPrefix'] = isset($proj['prefix']) ? $proj['prefix'] : '';
+    }
+    $_GET['testcase_id'] = $tcaseId;
+    $_GET['tcversion_id'] = $tcversionId;
+    $_GET['tproject_id'] = $ownerId;
+    $_REQUEST['testcase_id'] = $tcaseId;
+    $_REQUEST['tcversion_id'] = $tcversionId;
+    $_REQUEST['tproject_id'] = $ownerId;
+
+    setPaths();
+
+    // ---- generate the document at TOP-LEVEL scope (include scope note) ----
+    $cwd = getcwd();
+    chdir(__DIR__ . '/../../lib/testcases');
+    ob_start();
+    try {
+        include __DIR__ . '/../../lib/testcases/tcPrint.php';
+        $bodyHtml = (string)ob_get_clean();
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        chdir((string)$cwd);
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Document generation failed']);
+    }
+    chdir((string)$cwd);
+
+    if ($bodyHtml === '') {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Document generation returned no content']);
+    }
+
+    // extract the document <title> produced by the generator
+    $docTitle = $node['name'];
+    if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $bodyHtml, $m)) {
+        $docTitle = trim($m[1]);
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    out([
+        'status' => 'ok',
+        'tcase_id' => $tcaseId,
+        'tcversion_id' => $tcversionId,
+        'tproject_id' => $ownerId,
+        'tproject_name' => $proj['name'],
+        'tcname' => $node['name'],
+        'title' => $docTitle,
+        'body_html' => $bodyHtml,
     ]);
 }
 
