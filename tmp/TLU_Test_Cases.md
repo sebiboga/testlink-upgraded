@@ -10531,3 +10531,19 @@ Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidenc
 | TC-919.8 | console clean | open testSpec edit, watch DevTools console | no JS TypeError / parse errors | PASS |
 
 Result: 8/8 PASS. Commit: to be added on branch `fix/issue-919`. Evidence: `docs/screenshots/issue-919-fixed-edit-keywords.png` (edit dialog after fix). Related new bug found during testing (create-mode keyword picker never loads) filed as issue **#981**.
+
+## Regression — Issue #979: tcView E_WARNING foreach() on null keyword set (testcase.class.php:9347)
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink` (PHP 8.3). Fixtures (SQL): project id 10 `KWProj` (prefix KW), testsuite id 20 `Suite`, TC id 30 `TCNoKW` + tcversion 40 under the suite, TC id 50 `TCNoKWRoot` + tcversion 60 directly under project root (NO testsuite ancestor), testplan 70, build 1, one execution row (tcversion 60/plan 70/build 1). `keywords`/`object_keywords` empty at repro start. Fix = default null `getPathLayered()` result to `array()` and init `$searchSet/$replaceSet` as arrays in `renderSpecialTSuiteKeywords()`.
+
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|---------------------|--------|
+| TC-979.1 | root-attached keywordless TC — primary | PHP harness calling `testcase->renderSpecialTSuiteKeywords(['testcase_id'=>50,'id'=>60,...])` with error handler capturing warnings | 0 warnings from `testcase.class.php` (was: 1× `E_WARNING foreach()...null given` @9347 + 4× `str_replace()` deprecation @9358) | PASS |
+| TC-979.2 | suite-child keywordless TC | same harness for TC30 (testsuite ancestor, no keywords) | 0 warnings from `testcase.class.php` (was: 4× `str_replace()` deprecation @9358) | PASS |
+| TC-979.3 | positive control: keyword-bearing ancestor | add keyword `@#DYN` on suite 20 (`keywords`+`object_keywords`), harness render TC30 summary `my @#DYN summary` | summary renders `my DYN:Suite summary`, 0 warnings from `testcase.class.php` | PASS |
+| TC-979.4 | browser render of affected view | open `listTestCases.php?feature=edit_tc&tproject_id=10&tcase_id=50`, expand tree, open `archiveData.php?edit=testcase&id=50` | TC view renders (heading "Test Case", summary/preconditions); results-view banner shown; no new `testcase.class.php:9347/9358` event | PASS |
+| TC-979.5 | Event Viewer clean | `SELECT * FROM events WHERE log_level>=8` after post-fix renders | no `foreach()`/`str_replace` warning from `testcase.class.php:9347/9358` after the fix (last such event is pre-fix id 24 @10:02:00); only pre-existing unrelated template warnings remain (tracked elsewhere) | PASS |
+| TC-979.6 | syntax gate | `php -l lib/functions/testcase.class.php` | `No syntax errors detected` | PASS |
+| TC-979.7 | min diff / no callers broken | `git diff --stat` + `grep -c renderSpecialTSuiteKeywords lib/functions/testcase.class.php` | only `testcase.class.php` touched (7 insertions/4 deletions); 3 occurrences (1 def + 2 calls) confined to the file | PASS |
+
+Result: 7/7 PASS. Commit: `d4bb3148` (fix) on branch `fix/issue-979`. Evidence: harness outputs (`captured warnings: 0` from testcase.class.php), browser snapshots + `docs/screenshots/issue-979-tcview-no-warning-postfix.png`, `docs/screenshots/issue-979-event-viewer-postfix.png`.
