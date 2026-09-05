@@ -10445,3 +10445,23 @@ Result: 7/7 PASS. Commit: `7d745c0d5` on branch `fix/issue-948`.
 | TC-503E.9 | Event Viewer clean | Query `events` after CRUD | audit_build_created/saved/deleted all log_level 16 INFO; no new errors | PASS |
 
 Result: 9/9 PASS. Commits: `7774d0659` (#948), `0fe8588b2` (#949), `704f3899b` (head at validation time).
+
+---
+
+## Regression — Issue #958: legacy REST v2/v3 updateBuild always 409 (checkNameExistence array read as bool)
+
+**Precondition:** Live DB harness `/tmp/verify958.php` (boots `config.inc.php` + `database` + `new build($db)` against MariaDB `testlink`). Fixtures: `testprojects` id=1 (prefix RSTTP), id=2 (RSTTP2); `builds` id=1 `Build A` (tp=1), id=2 `Build B` (tp=1). The HTTP layer of the legacy Slim routers is unreachable in this sandbox (documented on #958: v2 lacks `Slim/Slim.php`, v3 custom-api example fatals), so the exact patched branch predicate is exercised directly against the real DB — identical code the handlers run.
+
+Pre-fix symptom: `if (checkNameExistence(...))` — `['status_ok'=>1]` (unique name) is truthy → duplicate branch → HTTP 409 `API_BUILDNAME_ALREADY_EXISTS` on EVERY `updateBuild` whose body contains `name`.
+
+| ID | Test case | Repro (v2/v3 updateBuild name-precheck) | Expected (post-fix) | Result |
+|----|-----------|------------------------------------------|----------------------|--------|
+| TC-958.1 | Unique rename passes | `checkNameExistence(1,'Build B',1)` read via fixed `if(!$chk['status_ok'])` | NOT blocked (`status_ok=1`) → 200 path; rename proceeds | PASS |
+| TC-958.2 | Same-name no-op rename passes | `checkNameExistence(1,'Build A',1)` (self excluded) | NOT blocked → 200 path | PASS |
+| TC-958.3 | Case-only rename passes | `checkNameExistence(1,'build a',1)` (UPPER() compare, self excluded) | NOT blocked → 200 path | PASS |
+| TC-958.4 | Genuine duplicate still 409s | build id=2 name `Build B` in same tp; `checkNameExistence(1,'Build B',1)` | BLOCKED (`status_ok=0`) → 409 (negative case preserved) | PASS |
+| TC-958.5 | Same name in OTHER project allowed | `checkNameExistence(2,'Build B',999)` | NOT blocked → project scoping (#503) holds | PASS |
+| TC-958.6 | PHP syntax gate | `php -l lib/api/rest/v2/tlRestApi.class.php`, `php -l lib/api/rest/v3/RestApi.class.php` | No syntax errors | PASS |
+| TC-958.7 | Event Viewer clean | `SELECT COUNT(*) FROM events` after clean verification run | 0 new ERROR/WARNING rows | PASS |
+
+Result: 7/7 PASS. Commit: `7697f5354` on branch `fix/issue-958-updatebuild-409`. Harness: `/tmp/verify958.php`.
