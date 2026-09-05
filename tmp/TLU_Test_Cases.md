@@ -10539,3 +10539,21 @@ Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidenc
 | TC-980.16 | console/network clean | reload + exercise modal flows, watch console | no JS errors; all BFF calls 200/40x JSON, no legacy `.php` screen requests | PASS |
 
 Result: 16/16 PASS. Commits: `Refs #980` (final modernization commit). Screen: `gui/templates/reqmgrsystems/reqMgrSystemView.html`; BFF: `api/reqmgrsystems/index.php`; issue: #980 (tracking).
+
+---
+
+## Regression — Issue #968: PHP E_WARNING in testproject::copy_as() when copying an empty test project
+
+**Precondition:** app `http://localhost:8082`; MariaDB `testlink`; logged in as admin (cookie jar via `POST /api/auth/login`, `X-Requested-With: XMLHttpRequest` on BFF writes). Record `SELECT MAX(id) FROM events` as baseline before the suite. Fixture sources: empty test projects (no children) and one non-empty project holding a testsuite node.
+
+Repro entry point used: `POST http://localhost:8082/api/projectedit/index.php?action=create` (BFF behind the modernized Test Project Create/Edit screen; same `copy_as()` path as legacy `lib/project/projectEdit.php`).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-968.1 | copy from EMPTY source, optReq=0 (primary) | create empty src (JSON w/o `copy_from_tproject_id`), then create copy with `copy_from_tproject_id=<empty_src>` and `optReq:0` | HTTP 200 both; `SELECT id,activity,description FROM events WHERE activity='PHP' AND id>:baseline` → **0 rows** (pre-fix: E_WARNING `foreach() argument must be of type array\|object, null given - testproject.class.php - Line 2803` event id=4/8) | PASS |
+| TC-968.2 | copy from EMPTY source, optReq=1 | same with `optReq:1` | 0 PHP events (pre-fix: E_WARNING Line 2749 event id=7) | PASS |
+| TC-968.3 | copy from NON-empty source (positive) | add `nodes_hierarchy`+`testsuites` rows to source, copy with optReq=0 | copy project gets suite child (`SELECT ... WHERE parent_id=<new>` → 1 row) AND 0 PHP events | PASS |
+| TC-968.4 | plain create (no copy-from) | create project without `copy_from_tproject_id` | 0 PHP events, project created | PASS |
+| TC-968.5 | syntax gate | `php -l lib/functions/testproject.class.php` | `No syntax errors detected` | PASS |
+
+Result: 5/5 PASS. Fix commit: `Refs #968` on branch `fix/issue-968` (2-line change in `lib/functions/testproject.class.php`). Evidence: `events` rows id 9–14 are all `AUDIT CREATE` (zero `activity='PHP'`), suite node 1004 created under copied project 1003.
