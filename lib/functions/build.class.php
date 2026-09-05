@@ -133,7 +133,8 @@ class build extends tlObject {
       }  
 
       // builds are scoped to the Test Project (issue #503): resolve the
-      // project from the plan and write it alongside the plan (dual-write).
+      // project from the plan; the plan id is used only for validation and
+      // project resolution (the builds.testplan_id column is gone since #834).
       $item->tproject_id = property_exists($item,'tproject_id') ? intval($item->tproject_id) : 0;
       if($item->tproject_id == 0) {
         $item->tproject_id = $this->getProjectIdOfPlan($item->tplan_id);
@@ -159,7 +160,6 @@ class build extends tlObject {
                   'creation_ts' => $this->db->db_now());
 
     $build->name = $item->name;
-    $build->tplan_id = $item->tplan_id;
     $build->tproject_id = $item->tproject_id;
     foreach( $prop as $nu => $value  ) {      
       $build->$nu = $value;
@@ -185,10 +185,10 @@ class build extends tlObject {
     $build->release_date = trim($build->release_date);
     $ps = 'prepare_string';
     $sql = " INSERT INTO {$this->tables['builds']} " .
-           " (testproject_id,testplan_id,name,notes,
+           " (testproject_id,name,notes,
               commit_id,tag,branch,release_candidate,
               active,is_open,creation_ts,release_date) " .
-           " VALUES ('". intval($build->tproject_id) . "','" . intval($build->tplan_id) . "','" . 
+           " VALUES ('". intval($build->tproject_id) . "','" . 
              $this->db->$ps($build->name) . "','" .
              $this->db->$ps($build->notes) . "',";
 
@@ -236,9 +236,9 @@ class build extends tlObject {
   function create($tplan_id,$name,$notes = '',$active=1,$open=1,$release_date='',
                   $tproject_id=null)
   {
-    // Builds are scoped to the Test Project (issue #503). We still accept the
-    // plan id for backwards compatibility and dual-write (testplan_id is kept
-    // populated until #834); the project id is derived when not supplied.
+    // Builds are scoped to the Test Project (issue #503, finalized in #834):
+    // the plan id is accepted for backwards compatibility but only used to
+    // derive the project; the builds.testplan_id column no longer exists.
     if(is_null($tproject_id))
     {
       $tproject_id = $this->getProjectIdOfPlan($tplan_id);
@@ -247,8 +247,8 @@ class build extends tlObject {
 
     $targetDate = trim($release_date);
     $sql = " INSERT INTO {$this->tables['builds']} " .
-           " (testproject_id,testplan_id,name,notes,release_date,active,is_open,creation_ts) " .
-           " VALUES ('". $safe_tproject . "','" . intval($tplan_id) . "','" . $this->db->prepare_string($name) . "','" .
+           " (testproject_id,name,notes,release_date,active,is_open,creation_ts) " .
+           " VALUES ('". $safe_tproject . "','" . $this->db->prepare_string($name) . "','" .
            $this->db->prepare_string($notes) . "',";
 
     if($targetDate == '') {
@@ -426,7 +426,7 @@ class build extends tlObject {
              notes: build notes
              active: build active status
              is_open: build open status
-             testplan_id
+             testproject_id
   */
   function get_by_id($id,$opt=null) {
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
@@ -456,10 +456,15 @@ class build extends tlObject {
     
     $sql .= " FROM {$this->tables['builds']} WHERE id = {$safe_id} ";
     // Builds are scoped to the Test Project (issue #503): prefer project scope.
+    // When only a plan is given, resolve the plan's project (the builds
+    // table no longer carries testplan_id since #834).
     if(!is_null($my['options']['tproject_id']) && ($safe_tp = intval($my['options']['tproject_id'])) > 0) {
       $sql .= " AND testproject_id = {$safe_tp} ";
     } elseif(!is_null($my['options']['tplan_id']) && ($safe_tplan = intval($my['options']['tplan_id'])) > 0) {
-      $sql .= " AND testplan_id = {$safe_tplan} ";
+      $projOfPlan = $this->getProjectIdOfPlan($safe_tplan);
+      if($projOfPlan > 0) {
+        $sql .= " AND testproject_id = {$projOfPlan} ";
+      }
     }
     
     $result = $this->db->exec_query($sql);

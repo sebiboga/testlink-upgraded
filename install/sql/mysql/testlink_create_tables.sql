@@ -77,7 +77,6 @@ CREATE TABLE /*prefix*/attachments (
 CREATE TABLE /*prefix*/builds (
   `id` int(10) unsigned NOT NULL auto_increment,
   `testproject_id` int(10) unsigned NOT NULL default '0',
-  `testplan_id` int(10) unsigned NOT NULL default '0',
   `name` varchar(100) NOT NULL default 'undefined',
   `notes` text,
   `active` tinyint(1) NOT NULL default '1',
@@ -91,8 +90,7 @@ CREATE TABLE /*prefix*/builds (
   `branch` varchar(64) NULL,
   `release_candidate` varchar(100),
   PRIMARY KEY  (`id`),
-  UNIQUE KEY /*prefix*/name (`testplan_id`,`name`),
-  KEY /*prefix*/testplan_id (`testplan_id`),
+  UNIQUE KEY /*prefix*/name (`testproject_id`,`name`),
   KEY /*prefix*/testproject_id (`testproject_id`)
 ) DEFAULT CHARSET=utf8 COMMENT='Available builds';
 
