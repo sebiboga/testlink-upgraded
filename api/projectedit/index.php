@@ -50,7 +50,14 @@ if (!$user->hasRight($db, 'mgt_modify_product')) {
 $tprojectMgr = new testproject($db);
 
 $action = $_REQUEST['action'] ?? '';
-$auth = 'auth'; // placeholder for lint parity
+
+$method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+$writeActions = array('create', 'update', 'delete', 'toggle_active', 'toggle_requirements');
+if (in_array($action, $writeActions, true) && $method !== 'POST') {
+  http_response_code(405);
+  echo json_encode(['error' => 'Method not allowed (POST required)']);
+  exit;
+}
 
 try {
   switch ($action) {
@@ -407,7 +414,7 @@ function updateProject(&$db, &$tprojectMgr, &$user) {
   // Partial semantics: only touch fields actually sent (same as api/projects
   // PUT); the full-page form always sends everything, so this is a safety net.
   $notes = array_key_exists('description', $input)
-    ? $input['description'] : $current['notes'];
+    ? trim($input['description']) : $current['notes'];
   $active = array_key_exists('active', $input)
     ? (int)(bool)$input['active'] : (int)$current['active'];
   $isPublic = array_key_exists('isPublic', $input)

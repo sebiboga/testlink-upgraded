@@ -10465,3 +10465,31 @@ Pre-fix symptom: `if (checkNameExistence(...))` — `['status_ok'=>1]` (unique n
 | TC-958.7 | Event Viewer clean | `SELECT COUNT(*) FROM events` after clean verification run | 0 new ERROR/WARNING rows | PASS |
 
 Result: 7/7 PASS. Commit: `7697f5354` on branch `fix/issue-958-updatebuild-409`. Harness: `/tmp/verify958.php`.
+
+---
+
+## Test Project Create/Edit — projectEdit (#967)
+
+**Precondition:** browser logged in as admin; MariaDB `testlink` DB; app `http://localhost:8082`; screen `gui/templates/projects/projectEdit.html`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-967.1 | init create-mode model | open `projectEdit.html` (fresh DB, zero projects) | `mode=create`, name/prefix empty, optPriority+optAutomation on by default, no copy-from card (no projects exist) | PASS |
+| TC-967.2 | copy-from card appears | open `projectEdit.html` after ≥1 project exists | "Source data" card with "-- none --"/existing projects; clone select lists them | PASS |
+| TC-967.3 | empty-name client warning | submit with empty name | alert "Project name cannot be empty!"; no request | PASS |
+| TC-967.4 | empty-prefix client warning | submit with name set, empty prefix | alert "Test Case ID prefix cannot be empty!"; no request | PASS |
+| TC-967.5 | create with defaults + feature toggle | fill name `Alpha Test Project` / prefix `ATP`, tick Requirements, Save | toast + auto-redirect to `projectsView.html`; row visible (Active/Public) | PASS |
+| TC-967.6 | create persisted in DB | `SELECT id,name,prefix,active,is_public,options FROM testprojects` | row id=1; options `requirementsEnabled=1,testPriorityEnabled=1,automationEnabled=1,inventoryEnabled=0` | PASS |
+| TC-967.7 | audit event on create | `SELECT * FROM events WHERE object_type='testprojects'` | `audit_testproject_created`, log_level 16, no ERROR/WARNING | PASS |
+| TC-967.8 | duplicate prefix server error | create name `Second Project` prefix `ATP` via UI + via API | both: 400, inline alert "Test Case ID prefix ATP already exists"; no row added | PASS |
+| TC-967.9 | create-from-copy clone | API create `Cloned Project`/`CLP` with `copy_from_tproject_id=1` | 200 `{success,id:2}`; DB row created | PASS |
+| TC-967.10 | edit mode prefill | open `projectEdit.html?tproject_id=1` | title "Edit Alpha Test Project"; name/prefix/description/features/api_key prefilled; "Show event history" present | PASS |
+| TC-967.11 | edit persist + option change | rename to `Alpha Test Project Renamed`, priority off, inventory on, Save | redirect; DB name updated; options `testPriorityEnabled=0,inventoryEnabled=1` | PASS |
+| TC-967.12 | audit event on update | events table | `audit_testproject_saved` (new row) | PASS |
+| TC-967.13 | event history popup | click "Show event history" on edit mode | new window `eventviewer.html?objectId=1&objectType=testprojects`, 1 AUDIT entry, event counts clean (DEBUG/INFO/WARNING/ERROR 0, AUDIT 100%) | PASS |
+| TC-967.14 | toggle active + requirements | API `toggle_active&tproject_id=2&enable=0/1`, `toggle_requirements&tproject_id=2&enable=1` | 200 each; `active` back to 1; `options.requirementsEnabled=1` | PASS |
+| TC-967.15 | delete cascade | API `delete&tproject_id=2` | 200 `test_project_deleted`; `testprojects` row gone; `audit_testproject_deleted` + role-removal events logged | PASS |
+| TC-967.16 | console/network clean after fixes | reload create + edit; watch console/network | zero console errors; `frame.css` 200 (was 404), no JS TypeErrors (manageTracker fix) | PASS |
+| TC-967.17 | Event Viewer clean | `SELECT * FROM events WHERE log_level >= 8` after suite | only the known legacy `copy_as` E_WARNING (empty-source clone) — filed as #968 (bug); no other ERROR/WARNING | PASS |
+
+Result: 17/17 PASS. Commits: `b6108fd59` (BFF), `ad57d6349` (screen+i18n+common.php), pending final (bugfixes+docs). Screen: `gui/templates/projects/projectEdit.html`; BFF: `api/projectedit/index.php`; issue: #967 (tracking).

@@ -6,7 +6,7 @@
   <title>Test Project Create/Edit - TestLink</title>
 
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" type="text/css" href="../themes/default/css/frame.css">
+  <link rel="stylesheet" type="text/css" href="../../themes/default/css/frame.css">
 
   <style>
     body { background: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -228,7 +228,6 @@
 
   <script>
     let projectId = 0;
-    const mode = projectId > 0 ? 'edit' : 'create';
 
     function esc(s) {
       return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -263,14 +262,19 @@
       if (select.selectedIndex === 0) enabled.checked = false;
     }
 
-    function fillSelect(selectId, options, selectedId) {
+    function setTrackerChecked(enabledId, stored) {
+      const enabled = document.getElementById(enabledId);
+      if (!enabled.disabled) enabled.checked = !!(stored);
+    }
+
+    function fillSelect(selectId, enabledId, options, selectedId) {
       const select = document.getElementById(selectId);
       select.innerHTML = '<option value="0">-- ' + TLi18n.t('common.none') + ' --</option>' +
         options.map(o =>
           '<option value="' + parseInt(o.id, 10) + '"' +
           (parseInt(o.id, 10) === parseInt(selectedId, 10) ? ' selected' : '') + '>' +
           esc(o.verbose) + '</option>').join('');
-      manageTracker(selectId, selectId.replace('_id', '_enabled'));
+      manageTracker(selectId, enabledId);
     }
 
     function loadForm() {
@@ -281,6 +285,7 @@
         dataType: 'json',
         success: function(res) {
           if (!res.success) {
+            document.getElementById('spinner').style.display = 'none';
             showAlert(res.error || TLi18n.t('pedit.loadError'), 'error');
             return;
           }
@@ -291,6 +296,7 @@
           const msg = (xhr.status === 404)
             ? TLi18n.t('pedit.notFound')
             : (body && body.error) || TLi18n.t('pedit.loadError');
+          document.getElementById('spinner').style.display = 'none';
           showAlert(msg, 'error');
         }
       });
@@ -302,7 +308,7 @@
       const isEdit = projectId > 0;
 
       document.getElementById('pageTitle').textContent =
-        isEdit ? TLi18n.t('pedit.editProjectTitle', {name: p.name})
+        isEdit ? TLi18n.t('pedit.editProjectTitle', {name: String(p.name || '').replace(/\$/g, '$$$$')})
                : TLi18n.t('pedit.createProjectTitle');
 
       document.getElementById('tprojectName').value = p.name || '';
@@ -315,12 +321,12 @@
       document.getElementById('optAutomation').checked = !!(p.optAutomation);
       document.getElementById('optInventory').checked = !!(p.optInventory);
 
-      fillSelect('issue_tracker_id', data.issueTrackers || [], p.issue_tracker_id || 0);
-      document.getElementById('issue_tracker_enabled').checked = !!(p.issue_tracker_enabled);
-      fillSelect('code_tracker_id', data.codeTrackers || [], p.code_tracker_id || 0);
-      document.getElementById('code_tracker_enabled').checked = !!(p.code_tracker_enabled);
-      fillSelect('reqmgrsystem_id', data.reqMgrSystems || [], p.reqmgrsystem_id || 0);
-      document.getElementById('reqmgr_integration_enabled').checked = !!(p.reqmgr_integration_enabled);
+      fillSelect('issue_tracker_id', 'issue_tracker_enabled', data.issueTrackers || [], p.issue_tracker_id || 0);
+      setTrackerChecked('issue_tracker_enabled', p.issue_tracker_enabled);
+      fillSelect('code_tracker_id', 'code_tracker_enabled', data.codeTrackers || [], p.code_tracker_id || 0);
+      setTrackerChecked('code_tracker_enabled', p.code_tracker_enabled);
+      fillSelect('reqmgrsystem_id', 'reqmgr_integration_enabled', data.reqMgrSystems || [], p.reqmgrsystem_id || 0);
+      setTrackerChecked('reqmgr_integration_enabled', p.reqmgr_integration_enabled);
 
       // Copy-from picker: create mode only, populated with accessible projects.
       if (!isEdit && data.copyFromProjects && data.copyFromProjects.length > 0) {
@@ -433,8 +439,9 @@
     });
 
     ['issue_tracker_id', 'code_tracker_id', 'reqmgrsystem_id'].forEach(function(id) {
+      const enabledId = id === 'reqmgrsystem_id' ? 'reqmgr_integration_enabled' : id.replace('_id', '_enabled');
       document.getElementById(id).addEventListener('change', function() {
-        manageTracker(id, id.replace('_id', '_enabled'));
+        manageTracker(id, enabledId);
       });
     });
 
