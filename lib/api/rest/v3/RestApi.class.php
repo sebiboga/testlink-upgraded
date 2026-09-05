@@ -750,8 +750,12 @@ class RestApi
     if( $statusOK ) {
       // Step 1 - Check if build name already exists (builds are project-scoped)
       if( property_exists($item,'name') ) {
-        if( $this->buildMgr->checkNameExistence(
-                             intval($build['testproject_id']),$item->name,$id) ) {
+        // checkNameExistence() returns a status ARRAY (['status_ok']), not a
+        // bool - testing the array directly is always truthy and would 409
+        // every rename (same defect family as #948).
+        $checkName = $this->buildMgr->checkNameExistence(
+                             intval($build['testproject_id']),$item->name,$id);
+        if( !$checkName['status_ok'] ) {
           $statusOK = false;
           $op['message'] = 
             sprintf($this->l10n['API_BUILDNAME_ALREADY_EXISTS'], 
