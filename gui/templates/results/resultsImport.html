@@ -213,7 +213,7 @@ function renderBuilds(builds, planId) {
   });
   var p = new URLSearchParams(window.location.search);
   var bv = p.get('build_id');
-  if (bv && $sel.find('option[value="' + bv + '"]').length) {
+  if (bv && $sel.find('option').filter(function () { return String(this.value) === bv; }).length) {
     $sel.val(bv);
   }
 }

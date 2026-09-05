@@ -124,7 +124,26 @@ if ($action === 'info') {
     $tplanId = $ctx['tplan_id'];
     $tprojectId = $ctx['tproject_id'];
 
-    // Builds for the selected plan.
+    ob_start();
+    register_shutdown_function(function () {
+        if (defined('BFF_JSON_SENT') || ob_get_level() <= 0 || headers_sent()) {
+            return;
+        }
+        $buf = trim(ob_get_contents());
+        if ($buf === '' || ($buf[0] !== '{' && $buf[0] !== '[')) {
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+            http_response_code(500);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'An unexpected error occurred while loading the import screen.',
+            ]);
+        }
+    });
+
+    try {
+        // Builds for the selected plan.
     $buildRows = $tplanMgr->get_builds($tplanId);
     $builds = [];
     foreach (($buildRows ? $buildRows : []) as $b) {
@@ -165,6 +184,10 @@ if ($action === 'info') {
             ['id' => 'XML', 'label' => 'XML'],
         ],
     ]);
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'An unexpected error occurred while loading the import screen: ' . $e->getMessage()]);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -652,6 +675,20 @@ function resultsImportSaveResultData(&$db, $resultData, $context) {
 
     $doIt = $checks['status_ok'];
 
+    // Authorization re-check on the FINAL XML-resolved context: the initial
+    // gate ran against the GUI-selected project, but the XML <testproject>/
+    // <testplan> elements can override the target. Refuse if the resolved
+    // project no longer grants testplan_execute.
+    if ($doIt && intval($context->tprojectID) > 0) {
+        $authUser = new tlUser($context->userID);
+        $authUser->readFromDB($db);
+        if (!$authUser->hasRight($db, 'testplan_execute', $context->tprojectID)) {
+            $checks['status_ok'] = false;
+            $resultMap[] = ['No permission'];
+            $doIt = false;
+        }
+    }
+
     for ($idx = 0; $doIt && $idx < $tcQty; $idx++) {
         $testerId = 0;
         $testerName = '';
@@ -779,7 +816,8 @@ function resultsImportSaveResultData(&$db, $resultData, $context) {
                             $bugId = trim($bugId);
                             $sql = " /* $debugMsg */ " .
                                 " SELECT execution_id AS check_qty FROM  {$tables['execution_bugs']} " .
-                                " WHERE bug_id = '{$bugId}' AND execution_id={$executionId} ";
+                                " WHERE bug_id = '" . $db->prepare_string($bugId) .
+                                "' AND execution_id={$executionId} ";
                             $rs = $db->get_recordset($sql);
                             if (is_null($rs)) {
                                 $sql = " /* $debugMsg */ " .
