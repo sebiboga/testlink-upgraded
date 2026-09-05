@@ -10405,3 +10405,23 @@ Pre-fix symptom: `DELETE /api/builds/{id}` → HTTP 500 empty body, build stays;
 | TC-949.6 | PHP syntax gate | `php -l api/builds/index.php` | No syntax errors | PASS |
 
 Result: 6/6 PASS. Commit: `0fe8588b2` on branch `fix/issue-949`.
+
+---
+
+## Regression — Issue #948: api/builds PUT rename always 409 warning_duplicate_build
+
+**Precondition:** App http://localhost:8082, logged in as admin. Fresh DB. Project "Issue948 Demo Project" (id=1, prefix IS948) + plan "Issue948 Plan" (id=2); second project "Issue948 Project 2" (id=3) + plan (id=4) for cross-project scope checks. All requests via page fetch() with the admin session cookie.
+
+Pre-fix symptom: `PUT /api/builds/{id}` with a globally-unique new name → HTTP 409 `{"message":"warning_duplicate_build","detail":"<new name>"}`, row unchanged.
+
+| ID | Test case | Repro (pre-fix was broken here) | Expected (post-fix) | Result |
+|----|-----------|-------------------------------|----------------------|--------|
+| TC-948.1 | PUT rename to unique name | `POST /api/builds/ {tplan_id:2,name:'Alpha'}` → id 1; `PUT /api/builds/1 {name:'Beta'}`; `GET /api/builds/1` | HTTP 200 `{"status":"ok"}`; GET shows `name:"Beta"` (rename persisted) | PASS |
+| TC-948.2 | Real duplicate in same project still 409s | `POST /api/builds/ {tplan_id:2,name:'Gamma'}` → id 2; `PUT /api/builds/1 {name:'Gamma'}` | HTTP 409 `warning_duplicate_build detail=Gamma` (negative case preserved) | PASS |
+| TC-948.3 | Same name in ANOTHER project is allowed | `POST /api/builds/ {tplan_id:4,name:'echo'}` → id 3 (project 3); `PUT /api/builds/1 {name:'echo'}` | HTTP 200 `{"status":"ok"}` (project scoping holds) | PASS |
+| TC-948.4 | Case-only rename | `PUT /api/builds/1 {name:'Delta'}` then `PUT /api/builds/1 {name:'delta'}` | Both HTTP 200 (UPPER() compare + `id<>self` excludes self) | PASS |
+| TC-948.5 | Surrounding BFF routes untouched | `POST /api/builds/` create, `GET /api/builds/1`, `POST /api/builds/1/flags {active:0}`, `DELETE /api/builds/2` | All HTTP 200 with correct JSON; only expected 409/404 from negative tests | PASS |
+| TC-948.6 | Event Viewer clean | Query `events` after all TCs | No new ERROR/WARNING rows from build interactions (log_level 1/2/3, last 30 min) | PASS |
+| TC-948.7 | PHP syntax gate | `php -l api/builds/index.php` | No syntax errors | PASS |
+
+Result: 7/7 PASS. Commit: `7d745c0d5` on branch `fix/issue-948`.
