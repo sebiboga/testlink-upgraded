@@ -40,6 +40,7 @@ $optObj->requirementsEnabled = 1;
 $optObj->testPriorityEnabled = 1;
 $optObj->automationEnabled = 1;
 $optObj->inventoryEnabled = 0;
+$optObj->freezeLinkOnNewReqVersion = 0;
 $db->exec_query("UPDATE testprojects SET options='" .
     $db->prepare_string(serialize($optObj)) . "' WHERE id=$tid");
 // confirm requirements are enabled on the project
@@ -130,22 +131,49 @@ $db->exec_query("INSERT INTO cfield_design_values (field_id, node_id, value) VAL
 echo "v2=$v2Id updated (type informative, scope changed, cf=5.0)\n";
 
 // revision r2 of v2 with yet another scope + cf value
-$revRows = $db->get_recordset(
-    "SELECT id, revision FROM req_revisions WHERE parent_id=$v2Id ORDER BY revision DESC LIMIT 1");
-$revId = null;
-if (count($verList) >= 2) {
+$revList = $db->get_recordset("SELECT id, revision FROM req_revisions WHERE parent_id=$v2Id ORDER BY revision ASC");
+if (empty($revList)) {
     // create one revision of v2 so compare shows a version/revision mixed list
     $req = ['title' => 'RCMP Fixture Requirement', 'req_doc_id' => 'REQ-100'];
     $rv = $reqMgr->create_new_revision($v2Id, $userId, $tid, $req, 'Revise v2 scope');
     $revId = intval($rv['id']);
     echo "created revision: " . var_export($rv, true) . "\n";
-    $db->exec_query("UPDATE req_revisions SET scope='" . $db->prepare_string(
-        "Final scope paragraph.\nBrand new second paragraph.") .
-        "' WHERE id=$revId");
     $db->exec_query("DELETE FROM cfield_design_values WHERE field_id=$cfId AND node_id=$revId");
     $db->exec_query("INSERT INTO cfield_design_values (field_id, node_id, value) VALUES ($cfId, $revId, '5.1')");
-    echo "revision=$revId updated (scope changed, cf=5.1)\n";
+} else {
+    $revId = intval($revList[0]['id']);
+    echo "reusing revision id=$revId\n";
 }
+$db->exec_query("UPDATE req_revisions SET scope='" . $db->prepare_string(
+    "Final scope paragraph.\nBrand new second paragraph.") .
+    "' WHERE id=$revId");
+echo "revision=$revId updated (scope changed, cf=5.1)\n";
+
+// guard sync: keep only ONE v2 revision row (skip if block already ran)
+if (count($revList) > 1) {
+    foreach (array_slice($revList, 1) as $stray) {
+        $db->exec_query("DELETE FROM cfield_design_values WHERE node_id=" . intval($stray['id']));
+        $db->exec_query("DELETE FROM req_revisions WHERE id=" . intval($stray['id']));
+        echo "cleaned stray revision id=" . intval($stray['id']) . "\n";
+    }
+}
+
+// v3 = identical copy of v2 (non-revision row) for the "no changes" compare test
+$v2Row = $db->get_recordset("SELECT scope, status, type, expected_coverage FROM req_versions WHERE id=$v2Id");
+if (!isset($verList[3])) {
+    $vp = $reqMgr->create_new_version($reqId, $userId, ['log_msg' => 'v3 identical copy for no-changes test']);
+    echo "created v3: " . var_export($vp, true) . "\n";
+    $verList[3] = intval($vp['id']);
+}
+$v3Id = $verList[3];
+$db->exec_query("UPDATE req_versions SET scope='" . $db->prepare_string(
+    "Updated scope paragraph.\nBrand new second paragraph.") .
+    "', type='" . TL_REQ_TYPE_FEATURE . "', status='" . TL_REQ_STATUS_VALID .
+    "', expected_coverage=" . intval($v2Row[0]['expected_coverage']) .
+    " WHERE id=$v3Id");
+$db->exec_query("DELETE FROM cfield_design_values WHERE field_id=$cfId AND node_id=$v3Id");
+$db->exec_query("INSERT INTO cfield_design_values (field_id, node_id, value) VALUES ($cfId, $v3Id, '5.0')");
+echo "v3=$v3Id identical copy set (scope/type/status/cov/cf matches v2)\n";
 
 // ---- user with no mgt_view_req (permission test) -----------------------
 $guestRows = $db->get_recordset("SELECT id FROM users WHERE login='rcmp_guest'");

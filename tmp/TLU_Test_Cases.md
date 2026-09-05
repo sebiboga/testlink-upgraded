@@ -10958,3 +10958,95 @@ users admin (id=1) + noview (id=2, role <no rights>, user_testproject_roles role
 - **Actual:** id=1 = pre-fix 1064 repro; post-fix rows: INFO AUDIT audit_login_succeeded only. PASS.
 
 **Result:** 7/7 PASS. Commits: fix commit (Refs #1016) on branch `fix/issue-1016-format-testcase-identity`. Root cause: `testcase::formatTestCaseIdentity()` (lib/functions/testcase.class.php) was dead code (0 callers) broken 3 ways — `$tc_id` undefined (parameter `$id`), unguarded `$path2root[0]['parent_id']` on NULL, and it computes `$tcasePrefix` but never returns; calling it died with SQL 1064 via `getTestCasePrefix(NULL)` (same class as #1011). Fix: removed the function + its PHPDoc (single-hunk, ~16 lines), leaving `getPrefix()` and its #1011 guard untouched.
+
+## Suite 1017 — Requirement Version Compare (`reqCompare.html` + `api/reqcompare` actions=versions|compare) — Refs #1017
+
+Fixture (`php tmp/fixtures_rcmp.php`, idempotent): project id=1 "RCMP Demo Project" (prefix RCMP, requirements + priority enabled via direct options blob — legacy `enableRequirements()` breaks on the `N;` options blob), req. spec id=2 "RC-SRS" (type USER), cfield `rcmp_milestone` id=1 (requirement node type), requirement `REQ-100` id=4 with nodes: item 5 = v1 r1 (System Function, cf 1.0 — "Requirement Created"), item 6 = v2 version row (Feature, scope "Updated scope paragraph.\nBrand new second paragraph.", cf 5.0 — "Revise v2 scope"), item 7 = v2 r1 revision (scope "Final scope paragraph.\nBrand new second paragraph.", cf 5.1), item 8 = v3 version row (byte-identical to item 6 incl. cf 5.0 — "v3 identical copy for no-changes test"). Guest user `rcmp_guest`/`rcmp_guest` (id=2, global role guest — no mgt rights).
+
+### TC-1017.1 — BFF versions returns header + history (admin) (PASS)
+1. (admin session, project 1) `fetch('/api/reqcompare/index.php?action=versions&requirement_id=4&tproject_id=1')`.
+- **Expected:** HTTP 200 `status:"ok"`; keys `tproject_id,tproject_name,req_id,req_doc_id,req_type,context,items`; `items` ordered DESC by version/revision: [item 8 (v3 r1, revision_id −1), item 6 (v2 r3, revision_id −1), item 7 (v2 r1, revision_id 7), item 5 (v1 r1, revision_id −1)]; `context` = diffEngine context (5).
+- **Actual:** exact match (items in that order; revision_id −1 on version rows, 7 on the revision row; `req_type:"ckeditor"`). PASS.
+
+### TC-1017.2 — Rich history item payload (PASS)
+1. (TC-1017.1) inspect items[0].
+- **Expected:** keys `item_id, version_id, revision_id, version, revision, scope, status, status_label, type, type_label, expected_coverage, log_message, timestamp, last_editor`; `status_label:"Valid"`, `type_label:"Feature"` (localized via `init_labels`).
+- **Actual:** all present; `last_editor` shows "undefined" (pre-existing `get_history()` quirk — see discovery). PASS.
+
+### TC-1017.3 — HTML compare shows attribute/scope/CF deltas (PASS)
+1. `fetch('/api/reqcompare/index.php?action=compare&requirement_id=4&left=5&right=6&method=html')`.
+- **Expected:** HTTP 200; `attributes` = [Status Valid↔Valid (unchanged), Type "System Function"→"Feature" (changed), Number of test cases needed 3↔3 (unchanged)] → exactly 1 changed attribute; `scope` = {type:"html", count:2, diff with `<span class="diff-html-removed">`/`diff-html-added`} — "Original "→"Updated ", "Second original "→"Brand new second "; `custom_fields` = [Milestone ""→"5.0", changed] (v1 has no CF value set).
+- **Actual:** status 200 `ok`; changed attributes = 1 (Type); scope count 2 with DaisyDiff HTML del/ins spans; CF Milestone ""→"5.0". PASS.
+
+### TC-1017.4 — Text/code compare mode (PASS)
+1. `fetch('...?action=compare&requirement_id=4&left=5&right=6&method=text')`.
+- **Expected:** HTTP 200; `diff.scope` produced by legacy `diff::inline` (text) — empty `<ins>`/`<del>`-free if identical or prefixed segments otherwise; method echoed.
+- **Actual:** text-mode content diff returned (different from HTML mode). PASS.
+
+### TC-1017.5 — Identical version pair → No changes (PASS)
+1. `fetch('...?action=compare&requirement_id=4&left=8&right=6&method=html')`.
+- **Expected:** HTTP 200; all attributes `changed:false`; `diff.scope` null; CF section shows "No changes" (no `diff` key).
+- **Actual:** status 200, attrChanges 0, scope null. UI shows green "No changes" badge under Diff details and Scope, Milestone 5.0 ↔ 5.0. PASS.
+
+### TC-1017.6 — Unknown action → 404 (PASS)
+1. `fetch('/api/reqcompare/index.php?action=bogus&requirement_id=4')`.
+- **Expected:** HTTP 404, JSON `error:"Unknown action"`.
+- **Actual:** 404 + `Unknown action`. PASS.
+
+### TC-1017.7 — Nonexistent requirement → 404 (PASS)
+1. `fetch('...?action=versions&requirement_id=999')`.
+- **Expected:** HTTP 404, `error:"Requirement not found"`; no E_WARNING events.
+- **Actual:** 404 exact message. PASS.
+
+### TC-1017.8 — Missing/invalid params → 400 (PASS)
+1. `fetch('...?action=compare&requirement_id=4&left=5')` (no right) and `?action=versions` (no requirement_id).
+- **Expected:** HTTP 400 with a required-param message.
+- **Actual:** 400 "Missing right item id" / 400 "Missing requirement_id". PASS.
+
+### TC-1017.9 — Wrong tproject_id for the requirement → 400 (PASS)
+1. `fetch('...?action=versions&requirement_id=4&tproject_id=999')`.
+- **Expected:** HTTP 400 `tproject_id does not match requirement` (JSON, no SQL backtrace).
+- **Actual:** 400 exact message. PASS.
+
+### TC-1017.10 — Unauthenticated → 401 (PASS)
+1. `curl -s -o /dev/null -w "%{http_code}" 'http://localhost:8082/api/reqcompare/index.php?action=versions&requirement_id=4'` (no session cookie).
+- **Expected:** HTTP 401.
+- **Actual:** 401. PASS.
+
+### TC-1017.11 — No mgt_view_req right → 403 (PASS)
+1. Login `rcmp_guest`/`rcmp_guest` in an isolated context; `fetch('/api/reqcompare/index.php?action=versions&requirement_id=4')`.
+- **Expected:** HTTP 403 `You do not have permission to view requirements` (owner resolved from `requirements JOIN req_specs`).
+- **Actual:** 403 JSON. PASS.
+
+### TC-1017.12 — reqCompare screen renders list + diff panel (PASS)
+1. (admin) open `http://localhost:8082/gui/templates/requirements/reqCompare.html?requirement_id=4&tproject_id=1`.
+- **Expected:** header "Compare Requirement Versions - RCMP Demo Project [REQ-100]"; locale switcher; DataTable with Version/Revision/Compare/Log/Last-change columns; left/right radios per row (right preselected = 2nd newest, left = newest); HTML/HTML-code diff radios; Compare selected versions button; footer `TestLink 2.0.1 - Compare Requirement Versions`.
+- **Actual:** all rendered; 4 rows; preselection as expected. PASS.
+
+### TC-1017.13 — Compare flow + context rows + CF cards via UI (PASS)
+1. (TC-1017.12) pick left=v2 version row, right=v1; keep HTML mode; click "Compare selected versions".
+- **Expected:** "Diff details — Comparing v2 ↔ v1" panel: Attributes table (attr / left / right with changed rows highlighted), Scope diff (DaisyDiff HTML with del/ins styling + context), Milestone CF values; "No changes" badge for unchanged sections.
+- **Actual:** panel renders with attribute deltas, colored scope diff, CF table. PASS.
+
+### TC-1017.14 — Locale switch translates the screen (PASS)
+1. (TC-1017.12) switch locale to Română.
+- **Expected:** header "Compară Versiunile Cerinței - RCMP Demo Project [REQ-100]", "Selectați două versiuni pentru comparare", radio "Comparare HTML", footer translated.
+- **Actual:** all translated. PASS.
+
+### TC-1017.15 — reqView.html Compare-versions button opens the screen (PASS)
+1. (admin) open `reqView.html?id=4&tproject_id=1`; wait for load; assert `#cmpBtn` visible (versions.length > 1); click.
+- **Expected:** new tab opens `gui/templates/requirements/reqCompare.html?requirement_id=4&tproject_id=1`; the compare screen renders.
+- **Actual:** button visible "Compare versions"; new tab opened with the correct query string; screen renders. PASS.
+
+### TC-1017.16 — i18n keys present + JSON valid in all 10 bundles (PASS)
+1. `python3 -m json.tool gui/templates/i18n/*.json`; grep each `rcmp.*` key used in `reqCompare.html` + `footers.reqCompare` + `reqv.compareVersions`.
+- **Expected:** all 31 `rcmp.*` keys + `footers.reqCompare` + `reqv.compareVersions` valid JSON in de/en/es/fr/it/ja/pt/ro/ru/zh.
+- **Actual:** all present and valid (served en.json measured 2784 keys incl. `rcmp.title`). PASS.
+
+### TC-1017.17 — Event Viewer: no screen-attributable Error/Warning (PASS)
+1. After the runs above: purge events, re-run fixture + browser/API pass, then `SELECT id,log_level,source,LEFT(description,120) FROM events ORDER BY id DESC LIMIT 30;`
+- **Expected:** zero ERROR/WARNING rows attributable to api/reqcompare or reqCompare.html — the fixture itself must not leak warnings either.
+- **Actual:** after hardening the fixture options blob (`freezeLinkOnNewReqVersion=0`; the legacy `create()` warning otherwise) the fixture produces 0 events; the full versions/compare/no-change/reqView pass after a TRUNCATE left the `events` table completely empty (0 rows across all levels). PASS.
+
+**Result:** 17/17 PASS. Commits: `92ff7003d` (implementation) + `fb7ad2e06` (re-apply i18n + reqView button) on branch `sebiboga`; fixture `tmp/fixtures_rcmp.php`; screenshots `tmp/rcmp_select.png`, `tmp/rcmp_select_new.png`, `tmp/rcmp_diff.png`, `tmp/rcmp_identical.png`. **Discovery:** `last_editor` shows "undefined" on items created via `create_new_version()`/`create_new_revision()` — pre-existing `get_history()` behavior, byte-identical in the `reqSpecCompare` `spec_revision_compare` path; NOT a regression, documented, no bug filed.
+
