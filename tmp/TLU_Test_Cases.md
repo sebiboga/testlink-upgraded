@@ -10425,3 +10425,23 @@ Pre-fix symptom: `PUT /api/builds/{id}` with a globally-unique new name → HTTP
 | TC-948.7 | PHP syntax gate | `php -l api/builds/index.php` | No syntax errors | PASS |
 
 Result: 7/7 PASS. Commit: `7d745c0d5` on branch `fix/issue-948`.
+
+---
+
+## E2E — Issue #503: builds scoped to Test Project (full CRUD validation after #948/#949)
+
+**Precondition:** App http://127.0.0.1:8082, admin session. `api/builds` against tplan 3232.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-503E.1 | POST create build | `POST /api/builds/` {name:503e2e-crud, tplan_id:3232} | 200, id returned, row persisted with testproject_id=11 | PASS |
+| TC-503E.2 | GET single build | `GET /api/builds/<id>` | 200 with build object | PASS |
+| TC-503E.3 | PUT rename (regression #948) | `PUT /api/builds/<id>` {name:503e2e-ren} | **200** `{"status":"ok"}` (was 409 before fix) | PASS |
+| TC-503E.4 | GET reflects rename | `GET /api/builds/<id>` | 200, name=503e2e-ren | PASS |
+| TC-503E.5 | DELETE (regression #949) | `DELETE /api/builds/<id>` | **200** `{"status":"ok"}` (was 500 before fix) | PASS |
+| TC-503E.6 | DELETE physically removes | `GET /api/builds/<id>` then `SELECT * FROM builds WHERE id=7` | 404; no DB row (not soft-delete) | PASS |
+| TC-503E.7 | Project scoping intact | `SELECT id,testproject_id FROM builds` | id1→2, id2→11, id3→11; no testplan_id column | PASS |
+| TC-503E.8 | latest_exec_by_build view | `SELECT COUNT(*) FROM latest_exec_by_build` | intact (23 rows) | PASS |
+| TC-503E.9 | Event Viewer clean | Query `events` after CRUD | audit_build_created/saved/deleted all log_level 16 INFO; no new errors | PASS |
+
+Result: 9/9 PASS. Commits: `7774d0659` (#948), `0fe8588b2` (#949), `704f3899b` (head at validation time).
