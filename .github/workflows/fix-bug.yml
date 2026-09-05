@@ -7,8 +7,8 @@ name: Fix latest bug (opencode)
 on:
   workflow_dispatch: {}
   schedule:
-    # every 2 hours (UTC); GitHub may delay scheduled runs under load
-    - cron: "0 */2 * * *"
+    # every 1 hour (UTC); GitHub may delay scheduled runs under load
+    - cron: "0 * * * *"
 
 concurrency:
   group: fix-bug
