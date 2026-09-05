@@ -16,9 +16,10 @@ delete test case in test specification
 <h1 class="title">{$gui->main_descr|escape}</h1>
 
 <div class="workBack">
+{assign var="refreshTreeVal" value=$gui->refreshTree|default:0}
 {include file="inc_update.tpl" user_feedback=$gui->user_feedback 
          result=$gui->sqlResult action=$gui->action item="test case"
-         refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
+         refresh=$refreshTreeVal}
 
 {if $gui->sqlResult == ''}
 	{if $gui->delete_mode == 'single'}

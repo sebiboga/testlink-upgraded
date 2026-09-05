@@ -29,10 +29,11 @@ Purpose: smarty template - create containers
 
 <div class="workBack">
 <h1 class="title">{$labels.title_create} {lang_get s=$level}</h1>
+{assign var="refreshTreeVal" value=$gui->refreshTree|default:0}
 {include file="inc_update.tpl" result=$sqlResult 
                                user_feedback=$user_feedback
                                item=$level action="add" name=$name
-                               refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
+                               refresh=$refreshTreeVal}
 
 
 <form method="post" action="{$action}" name="container_new" id="container_new"

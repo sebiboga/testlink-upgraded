@@ -92,8 +92,9 @@ function jsCallDeleteFile(btn, text, o_id)
 <body>
 <h1 class="{#TITLE_CLASS#}">{$gui->page_title}{$tlCfg->gui_title_separator_1}{$gui->container_data.name|escape}</h1>
 <div class="workBack">
+{assign var="refreshTreeVal" value=$gui->refreshTree|default:0}
 {include file="inc_update.tpl" result=$gui->sqlResult item=$gui->level
-         name=$gui->moddedItem.name refresh=isset($gui->refreshTree) ? $gui->refreshTree : false user_feedback=$gui->user_feedback}
+         name=$gui->moddedItem.name refresh=$refreshTreeVal user_feedback=$gui->user_feedback}
 
 {if isset($gui->uploadOp) && $gui->uploadOp != null}
   <script>
