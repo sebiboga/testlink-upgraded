@@ -56,6 +56,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   </label>
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
+  <button id="cmpBtn" class="btn-ghost" style="display:none;" onclick="openCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="reqv.compareVersions">Compare versions</span></button>
   <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
 </div>
 
@@ -203,6 +204,7 @@ function showError(msg) {
 
 function renderVersionSelect(versions) {
   var sel = $('#versionSelect').empty();
+  $('#cmpBtn').toggle(versions.length > 1);
   $.each(versions, function(i, v) {
     var tag = 'v' + v.version + 'r' + v.revision + (v.is_open ? '' : ' *');
     sel.append('<option value="' + v.version_id + '">' + tag + '</option>');
@@ -211,6 +213,12 @@ function renderVersionSelect(versions) {
   $.each(versions, function(i, v) {
     if (v.version_id === cur) { sel.val(cur); return false; }
   });
+}
+
+function openCompare() {
+  var q = 'requirement_id=' + encodeURIComponent(REQ_ID);
+  if (TPROJECT_ID > 0) q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID);
+  window.open('/gui/templates/requirements/reqCompare.html?' + q, '_blank');
 }
 
 function renderOverview(r) {
