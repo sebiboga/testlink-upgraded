@@ -15,7 +15,8 @@ rev :
 <div class="workBack">
 <h1 class="title">{$gui->title}</h1>
 {* BUGID 3757: misspelled variable caused tree to always be refreshed when deleting requirements *}
-{include file="inc_update.tpl" result=$gui->result user_feedback=$gui->user_feedback refresh=isset($gui->refreshTree) ? $gui->refreshTree : false} 
+{assign var="refreshVal" value=$gui->refreshTree|default:0}
+{include file="inc_update.tpl" result=$gui->result user_feedback=$gui->user_feedback refresh=$refreshVal} 
 </div>
 </body>
 </html>

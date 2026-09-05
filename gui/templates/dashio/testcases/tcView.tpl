@@ -102,7 +102,8 @@ function validateFormEstimatedExecDuration(the_form)
   }
   </script>
 {/if}
-{include file="inc_update.tpl" user_feedback=$gui->user_feedback refresh=isset($gui->refreshTree) ? $gui->refreshTree : false}
+{assign var="refreshVal" value=$gui->refreshTree|default:0}
+{include file="inc_update.tpl" user_feedback=$gui->user_feedback refresh=$refreshVal}
 <div class="workBack">
 
 {if $gui->tc_current_version}

@@ -97,7 +97,8 @@ function validateForm(f)
 <h1 class="{#TITLE_CLASS#}">{$gui->main_descr|escape}</h1>
 <div class="workBack">
 
-{include file="inc_update.tpl" result=$gui->sqlResult item="testcase" name=isset($gui->name) ? $gui->name : '' user_feedback=$gui->user_feedback refresh=$smarty.session.setting_refresh_tree_on_action}
+{assign var="nameVal" value=$gui->name|default:''}
+{include file="inc_update.tpl" result=$gui->sqlResult item="testcase" name=$nameVal user_feedback=$gui->user_feedback refresh=$smarty.session.setting_refresh_tree_on_action}
 
 <form method="post" 
 action="{$basehref}lib/testcases/tcEdit.php?containerID={$gui->containerID}"
