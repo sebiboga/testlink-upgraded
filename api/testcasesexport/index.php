@@ -226,6 +226,16 @@ if ($action === 'export') {
         out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
 
+    // Project name, used as the markdown header title.
+    $tprojectNameForHeader = 'Test Project';
+    $tproj = $tprojectMgr->get_by_id($tprojectId);
+    if ($tproj) {
+        $name = is_object($tproj) ? strval($tproj->name ?? '') : strval($tproj['name'] ?? '');
+        if ($name !== '') {
+            $tprojectNameForHeader = $name;
+        }
+    }
+
     $tcaseId = getIntParam('testcase_id');
     $tcversionId = getIntParam('tcversion_id');
     $containerId = getIntParam('containerID');
@@ -259,23 +269,24 @@ if ($action === 'export') {
     // Filename: explicit override or default from the export context.
     $exportFilename = trim((string)($_REQUEST['export_filename'] ?? ''));
     if ($exportFilename === '') {
+        $ext = ($exportType === 'MD') ? '.md' : '.xml';
         if ($useRecursion) {
             $nodeInfo = $treeMgr->get_node_hierarchy_info($containerId > 0 ? $containerId : $tprojectId);
             $name = is_null($nodeInfo) ? 'export' : $nodeInfo['name'];
             $suffix = ($containerId <= 0 || $containerId === $tprojectId)
-                ? '.testproject-deep.xml' : '.testsuite-deep.xml';
-            $exportFilename = $name . $suffix;
+                ? '.testproject-deep' : '.testsuite-deep';
+            $exportFilename = $name . $suffix . $ext;
         } elseif ($oneTestCase) {
             $tcinfo = $tcaseMgr->get_by_id($tcaseId, $tcversionId, null, array('output' => 'essential'));
             if (!is_null($tcinfo) && count($tcinfo) > 0) {
-                $exportFilename = $tcinfo[0]['name'] . '.version' . $tcinfo[0]['version'] . '.testcase.xml';
+                $exportFilename = $tcinfo[0]['name'] . '.version' . $tcinfo[0]['version'] . '.testcase' . $ext;
             } else {
-                $exportFilename = 'testcase.xml';
+                $exportFilename = 'testcase' . $ext;
             }
         } else {
             $nodeInfo = $treeMgr->get_node_hierarchy_info($containerId);
             $name = is_null($nodeInfo) ? 'export' : $nodeInfo['name'];
-            $exportFilename = $name . '.testsuite-children-testcases.xml';
+            $exportFilename = $name . '.testsuite-children-testcases' . $ext;
         }
     }
 
@@ -283,7 +294,22 @@ if ($action === 'export') {
     $exportFilename = basename($exportFilename);
 
     $content = '';
-    if ($exportType === 'XML') {
+    if ($exportType === 'MD') {
+        require_once(__DIR__ . '/../../lib/functions/markdown_tc_export.class.php');
+        $mdExport = new markdownTcExport($db, $tprojectId);
+        if ($oneTestCase) {
+            $content = $mdExport->header($tprojectNameForHeader);
+            $content .= $mdExport->exportTestCase($tcaseId, $tprojectId);
+        } elseif ($useRecursion) {
+            $content = $mdExport->header($tprojectNameForHeader);
+            $content .= ($containerId <= 0 || $containerId === $tprojectId)
+                ? $mdExport->exportTestProject($tprojectId)
+                : $mdExport->exportTestSuite($containerId, $tprojectId, true);
+        } else {
+            $content = $mdExport->header($tprojectNameForHeader);
+            $content .= $mdExport->exportTestSuite($containerId, $tprojectId, false);
+        }
+    } elseif ($exportType === 'XML') {
         if ($oneTestCase) {
             $optExport['RELATIONS'] = true;
             $optExport['ROOTELEM'] = "<testcases>{{XMLCODE}}</testcases>";
@@ -304,11 +330,14 @@ if ($action === 'export') {
         out(['status' => 'error', 'message' => 'Nothing to export for the given selection']);
     }
 
-    // Override the JSON header set above and stream the XML as an attachment.
+    // Override the JSON header set above and stream the file as an attachment.
     // The header filename must never contain CR/LF or quotes (header injection).
     $headerFilename = str_replace(["\r", "\n", '"'], '', $exportFilename);
     if (!headers_sent()) {
-        header('Content-Type: application/xml; charset=utf-8');
+        $ctype = ($exportType === 'MD')
+            ? 'text/markdown; charset=utf-8'
+            : 'application/xml; charset=utf-8';
+        header('Content-Type: ' . $ctype);
         header('Content-Disposition: attachment; filename="' . $headerFilename . '"');
         header('Pragma: public');
         header('Cache-Control: must-revalidate');

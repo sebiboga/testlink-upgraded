@@ -127,6 +127,7 @@ class markdownTcImport
                     'preconditions' => '',
                     'steps' => [],
                     'expectedResult' => '',
+                    'externalId' => '',
                     'line' => $lineNo,
                 ];
                 // pending case is flushed when the next section starts (or EOF)
@@ -140,7 +141,7 @@ class markdownTcImport
             }
 
             // ---- field bullets ---------------------------------------------
-            if (preg_match('/^\s*-\s*\**(Priority|Importance|Preconditions|Steps|Expected Result|Expected result)\**\s*:\s*(.*)$/u',
+            if (preg_match('/^\s*-\s*\**(Priority|Importance|Preconditions|Steps|Expected Result|Expected result|ExternalID|External ID)\**\s*:\s*(.*)$/u',
                            $line, $m)) {
                 $field = strtolower($m[1]);
                 // Strip leading/trailing ** bold markers that leak from
@@ -168,6 +169,10 @@ class markdownTcImport
                         break;
                     case 'expected result':
                         $currentCase['expectedResult'] = $value;
+                        break;
+                    case 'externalid':
+                    case 'external id':
+                        $currentCase['externalId'] = trim($value);
                         break;
                 }
                 continue;

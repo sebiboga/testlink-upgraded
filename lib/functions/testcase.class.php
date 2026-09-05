@@ -70,7 +70,7 @@ class testcase extends tlObjectWithAttachments {
   var $cfield_mgr;
 
   var $import_file_types = ["XML" => "XML"];
-  var $export_file_types = ["XML" => "XML"];
+  var $export_file_types = ["XML" => "XML", "MD" => "Markdown"];
   var $execution_types = [];
   var $cfg;
   var $debugMsg;
@@ -6413,7 +6413,7 @@ class testcase extends tlObjectWithAttachments {
 
     $stepSet = $this->get_steps($tcversion_id,0,
                         array('fields2get' => 'id', 'accessKey' => 'id'));
-    if( count($stepSet) > 0 )
+    if( !is_null($stepSet) && count($stepSet) > 0 )
     {
       $this->delete_step_by_id(array_keys($stepSet));
     }

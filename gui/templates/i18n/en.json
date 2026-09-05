@@ -2175,6 +2175,7 @@
   "tcx.noTestcasesToExport": "No test cases to export",
   "tcx.noTestsuitesToExport": "No test suites to export",
   "tcx.testProject": "Test Project",
+  "tcx.type.md": "Markdown",
   "tcx.title": "Export Test Case",
   "tea.allPlatforms": "All platforms",
   "tea.btnApply": "Apply to selected rows",
@@ -2518,5 +2519,6 @@
   "piv.errAllowedFilenames": "File name does not match the allowed pattern.",
   "piv.errEmptyExtension": "File has no extension.",
   "piv.errNoFile": "No file uploaded.",
-  "piv.errUploadGeneric": "Attachment upload failed."
+  "piv.errUploadGeneric": "Attachment upload failed.",
+  "tcx.type.xml": "XML"
 }

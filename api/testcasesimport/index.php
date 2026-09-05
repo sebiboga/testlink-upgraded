@@ -265,6 +265,9 @@ if ($action === 'import_md') {
     $existingCasesBySuite = [];
     $existingCasesByNode = [];
     $existingCasesByExternal = [];
+    $existingExtIdBySuite = [];
+    $tprojectPrefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+    $glueChar = config_get('testcase_cfg')->glue_character;
     $rows = $db->get_recordset(
         "SELECT NH.parent_id AS suite_id, NH.id AS tcase_id, NH.name, TCV.tc_external_id " .
         "FROM {$tables['nodes_hierarchy']} NH " .
@@ -282,10 +285,15 @@ if ($action === 'import_md') {
             if ($ext > 0 && !isset($existingCasesByExternal[$suiteId][$ext])) {
                 $existingCasesByExternal[$suiteId][$ext] = $tcId;
             }
+            if ($ext > 0 && $tprojectPrefix !== '') {
+                $fullExtId = strtolower($tprojectPrefix . $glueChar . $ext);
+                if (!isset($existingExtIdBySuite[$suiteId][$fullExtId])) {
+                    $existingExtIdBySuite[$suiteId][$fullExtId] = $tcId;
+                }
+            }
         }
     }
-
-    $created = []; $skipped = []; $newVersions = []; $failed = [];
+    $created = []; $skipped = []; $newVersions = []; $updated = []; $failed = [];
     $suitesCreated = []; $suitesMatched = [];
 
     foreach ($parsed['suites'] as $suite) {
@@ -321,6 +329,8 @@ if ($action === 'import_md') {
         foreach ($suite['cases'] as $c) {
             $title = trim(strval($c['title']));
             $nameKey = strtolower($title);
+            $externalId = trim(strval($c['externalId'] ?? ''));
+            $extKey = ($externalId !== '') ? strtolower($externalId) : '';
             $steps = array_map(function($s) {
                 return ['step_number' => $s['step_number'],
                         'actions' => $s['actions'],
@@ -331,15 +341,17 @@ if ($action === 'import_md') {
 
             // Select the duplicate index + match key per hit_criteria (legacy
             // parity with lib/testcases/tcImport.php:280-296).
-            // tcId from markdown is "TC-<N>" — extract numeric part for ID matching.
+            // externalID: match the markdown **ExternalID** field (e.g. "TLU-190")
+            // against existing ids built from prefix + glue + tc_external_id.
+            // internalID: the markdown heading "TC-<N>" carries the node id.
             $tcNumericId = 0;
             if (preg_match('/(\d+)\s*$/', strval($c['tcId'] ?? ''), $idMatch)) {
                 $tcNumericId = intval($idMatch[1]);
             }
             $existingTcId = 0;
             if ($hitCriteria === 'externalID') {
-                if ($tcNumericId > 0 && isset($existingCasesByExternal[$suiteId][$tcNumericId])) {
-                    $existingTcId = $existingCasesByExternal[$suiteId][$tcNumericId];
+                if ($extKey !== '' && isset($existingExtIdBySuite[$suiteId][$extKey])) {
+                    $existingTcId = $existingExtIdBySuite[$suiteId][$extKey];
                 }
             } elseif ($hitCriteria === 'internalID') {
                 if ($tcNumericId > 0 && isset($existingCasesByNode[$suiteId][$tcNumericId])) {
@@ -359,8 +371,8 @@ if ($action === 'import_md') {
                     // Legacy parity (lib/testcases/tcImport.php:384-427):
                     // update the LATEST version in place — no new version.
                     if ($dryRun) {
-                        $newVersions[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                                          'suite' => $suiteName, 'steps' => count($steps)];
+                        $updated[] = ['tcId' => strval($c['tcId']), 'title' => $title,
+                                      'suite' => $suiteName, 'tcase_id' => $existingTcId];
                         continue;
                     }
                     try {
@@ -381,10 +393,10 @@ if ($action === 'import_md') {
                             ? (isset($ur['status_ok']) ? intval($ur['status_ok']) : 1)
                             : (isset($ur->status_ok) ? intval($ur->status_ok) : 0);
                         if ($okU) {
-                            $newVersions[] = ['tcId' => strval($c['tcId']),
-                                              'title' => $title, 'suite' => $suiteName,
-                                              'tcase_id' => $existingTcId,
-                                              'tcversion_id' => $lastVersionId];
+                            $updated[] = ['tcId' => strval($c['tcId']),
+                                          'title' => $title, 'suite' => $suiteName,
+                                          'tcase_id' => $existingTcId,
+                                          'tcversion_id' => $lastVersionId];
                         } else {
                             $msg = is_array($ur) ? strval($ur['msg'] ?? 'update failed')
                                                  : strval($ur->msg ?? 'update failed');
@@ -427,8 +439,9 @@ if ($action === 'import_md') {
                         ? (isset($ur['status_ok']) ? intval($ur['status_ok']) : 1)
                         : (isset($ur->status_ok) ? intval($ur->status_ok) : 0);
                     if ($okU) {
-                        $newVersions[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                                          'suite' => $suiteName, 'tcase_id' => $existingTcId,
+                        $newVersions[] = ['tcId' => strval($c['tcId']),
+                                          'title' => $title, 'suite' => $suiteName,
+                                          'tcase_id' => $existingTcId,
                                           'tcversion_id' => $newVersionId];
                     } else {
                         $msg = is_array($ur) ? strval($ur['msg'] ?? 'update failed')
@@ -438,16 +451,20 @@ if ($action === 'import_md') {
                     }
                 } catch (Exception $e) {
                     $failed[] = ['tcId' => strval($c['tcId']), 'title' => $title,
-                                 'error' => 'Update failed (internal error)'];
+                                 'error' => 'Create new version failed (internal error)'];
                 }
                 continue;
             }
 
+            // ── Create new TC (no hit found, or generate_new) ──
             if ($dryRun) {
                 $created[] = ['tcId' => strval($c['tcId']), 'title' => $title,
                               'suite' => $suiteName, 'importance' => $importance,
                               'steps' => count($steps)];
-                $existingCasesBySuite[$suiteId][$nameKey] = -1; // pretend inserted
+                $existingCasesBySuite[$suiteId][$nameKey] = -1;
+                if ($extKey !== '') {
+                    $existingExtIdBySuite[$suiteId][$extKey] = -1;
+                }
                 continue;
             }
             try {
@@ -463,6 +480,9 @@ if ($action === 'import_md') {
                     $created[] = ['tcId' => strval($c['tcId']), 'title' => $title,
                                   'suite' => $suiteName, 'id' => $newId];
                     $existingCasesBySuite[$suiteId][$nameKey] = $newId;
+                    if ($extKey !== '') {
+                        $existingExtIdBySuite[$suiteId][$extKey] = $newId;
+                    }
                 } else {
                     $msg = is_array($ret) ? strval($ret['msg'] ?? 'create failed')
                                           : strval($ret->msg ?? 'create failed');
@@ -488,10 +508,12 @@ if ($action === 'import_md') {
         'createdCount' => count($created),
         'skippedCount' => count($skipped),
         'newVersionCount' => count($newVersions),
+        'updatedCount' => count($updated),
         'failedCount' => count($failed),
         'created' => $created,
         'skipped' => $skipped,
         'newVersions' => $newVersions,
+        'updated' => $updated,
         'failed' => $failed,
         'parserErrors' => $parser->errors,
     ]);

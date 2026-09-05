@@ -2176,6 +2176,7 @@
   "tcx.noTestsuitesToExport": "Nicio suitsă de exportat",
   "tcx.testProject": "Proiect de test",
   "tcx.title": "Exportă caz de test",
+  "tcx.type.md": "Markdown",
   "tea.allPlatforms": "Toate platformele",
   "tea.btnApply": "Aplică pe rândurile selectate",
   "tea.btnBulkRemove": "Elimină Atribuirile",
@@ -2518,5 +2519,6 @@
   "piv.errAllowedFilenames": "Numele fișierului nu respectă modelul permis.",
   "piv.errEmptyExtension": "Fișierul nu are extensie.",
   "piv.errNoFile": "Niciun fișier încărcat.",
-  "piv.errUploadGeneric": "Încărcarea atașamentului a eșuat."
+  "piv.errUploadGeneric": "Încărcarea atașamentului a eșuat.",
+  "tcx.type.xml": "XML"
 }

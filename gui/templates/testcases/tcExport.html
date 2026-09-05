@@ -69,7 +69,6 @@ select, input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-rad
         <td class="lbl"><span data-i18n="tcx.fileType">File type</span></td>
         <td>
           <select id="exportType">
-            <option value="XML">XML</option>
           </select>
         </td>
       </tr>
@@ -234,6 +233,21 @@ function renderContext() {
   if (ctx.info.filename) {
     $('#exportFilename').val(ctx.info.filename);
   }
+
+  // Populate the export-type dropdown from the BFF's type map so any new
+  // backend types (e.g. Markdown) surface automatically.
+  var $sel = $('#exportType').empty();
+  var types = ctx.info.types || { XML: 'XML' };
+  var first = '';
+  Object.keys(types).forEach(function (code) {
+    var label = types[code] || code;
+    var i18nKey = 'tcx.type.' + code.toLowerCase();
+    var t = TLi18n.t(i18nKey);
+    if (t === i18nKey) t = label; // fallback to backend label when no locale key
+    $('<option></option>').attr('value', code).text(t).appendTo($sel);
+    if (first === '') first = code;
+  });
+  if (first !== '') $sel.val(first);
 
   mirrorPrefix();
 
