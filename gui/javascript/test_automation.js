@@ -21,9 +21,9 @@
 */
 function openImportResult(windows_title,tproject_id,tplan_id,build_id,platform_id) 
 {
-  var wargs = "tprojectID=" + tproject_id + "&tplanID=" + tplan_id + "&buildID=" + build_id + "&platformID=" + platform_id;
-  var wref = window.open(fRoot+"lib/results/resultsImport.php?"+wargs,
-	                   windows_title,"menubar=no,width=650,height=500,toolbar=no,scrollbars=yes");
+  var wargs = "tproject_id=" + tproject_id + "&tplan_id=" + tplan_id + "&build_id=" + build_id + "&platform_id=" + platform_id;
+  var wref = window.open(fRoot+"gui/templates/results/resultsImport.html?"+wargs,
+ 	                   windows_title,"menubar=no,width=900,height=650,toolbar=no,scrollbars=yes");
   wref.focus();
 }
 
