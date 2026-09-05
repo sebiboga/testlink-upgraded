@@ -188,58 +188,46 @@ function doExport() {
   var fn = ($('#exportFilename').val() || '').trim();
   if (!fn) { toast(TLi18n.t('pex.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
 
-  var params = {
-    action: 'export',
-    tproject_id: ctx.tprojectId,
-    tplan_id: ctx.tplanId,
-    platform_id: ctx.platformId,
-    build_id: ctx.buildId,
-    exportContent: $('#exportContent').val() || 'linkedItems',
-    exportType: $('#exportType').val() || 'XML',
-    export_filename: fn
-  };
+  var params = new URLSearchParams();
+  params.set('action', 'export');
+  params.set('tproject_id', ctx.tprojectId);
+  params.set('tplan_id', ctx.tplanId);
+  params.set('platform_id', ctx.platformId);
+  params.set('build_id', ctx.buildId);
+  params.set('exportContent', $('#exportContent').val() || 'linkedItems');
+  params.set('exportType', $('#exportType').val() || 'XML');
+  params.set('export_filename', fn);
 
   $('#loadingOverlay').show().find('span').text(TLi18n.t('pex.generating'));
   $('#btnExport').prop('disabled', true);
 
-  $.ajax({
-    url: ctx.bffUrl,
-    method: 'POST',
-    data: params,
-    xhrFields: { responseType: 'blob' },
-    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
-  }).done(function (blob, textStatus, xhr) {
-    var contentType = xhr.getResponseHeader('Content-Type') || '';
-    if (contentType.indexOf('application/json') !== -1) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        var msg = TLi18n.t('pex.errExport');
-        try { msg = JSON.parse(reader.result).message || msg; } catch (e) {}
-        toast(msg, true);
-        $('#loadingOverlay').hide();
-        $('#btnExport').prop('disabled', false);
-      };
-      reader.readAsText(blob);
-      return;
-    }
-    var url = window.URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-    toast(TLi18n.t('pex.exportDone'));
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('pex.errExport');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-  });
+  fetch(ctx.bffUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
+    .then(function (res) {
+      var contentType = res.headers.get('Content-Type') || '';
+      if (!res.ok || contentType.indexOf('application/json') !== -1) {
+        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('pex.errExport')); });
+      }
+      var name = fn;
+      return res.blob().then(function (blob) { return { blob: blob, name: name }; });
+    })
+    .then(function (r) {
+      var url = window.URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast(TLi18n.t('pex.exportDone'));
+    })
+    .catch(function (e) {
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast((e && e.message) || TLi18n.t('pex.errExport'), true);
+    });
 }
 </script>
 </body>

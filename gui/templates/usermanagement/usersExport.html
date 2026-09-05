@@ -130,45 +130,41 @@ function doExport() {
   $('#loadingOverlay').show().find('span').text(TLi18n.t('userexport.exporting'));
   $('#btnExport').prop('disabled', true);
 
-  $.ajax({
-    url: API,
-    method: 'POST',
-    data: { action: 'export', export_filename: fn },
-    xhrFields: { responseType: 'blob' },
-    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
-  }).done(function (blob, textStatus, xhr) {
-    var contentType = xhr.getResponseHeader('Content-Type') || '';
-    if (contentType.indexOf('application/json') !== -1) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        var msg = TLi18n.t('userexport.errExport');
-        try { msg = JSON.parse(reader.result).message || msg; } catch (e2) {}
-        toast(msg, true);
-        $('#loadingOverlay').hide();
-        $('#btnExport').prop('disabled', false);
-      };
-      reader.readAsText(blob);
-      return;
-    }
-    var url = window.URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-    toast(TLi18n.t('userexport.done'));
-}).fail(function (xhr) {
-    var msg = TLi18n.t('userexport.errExport');
-    if (xhr.status === 403) { showFatal(TLi18n.t('userexport.noRights')); return; }
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e3) {}
-    toast(msg, true);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-});
+  var params = new URLSearchParams();
+  params.set('action', 'export');
+  params.set('export_filename', fn);
+
+  fetch(API, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
+    .then(function (res) {
+      var contentType = res.headers.get('Content-Type') || '';
+      if (!res.ok || contentType.indexOf('application/json') !== -1) {
+        return res.json().then(function (j) {
+          if (res.status === 403) { showFatal(TLi18n.t('userexport.noRights')); return null; }
+          throw new Error(j && j.message || TLi18n.t('userexport.errExport'));
+        });
+      }
+      var name = fn;
+      return res.blob().then(function (blob) { return { blob: blob, name: name }; });
+    })
+    .then(function (r) {
+      if (r === null) { $('#loadingOverlay').hide(); $('#btnExport').prop('disabled', false); return; }
+      var url = window.URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast(TLi18n.t('userexport.done'));
+    })
+    .catch(function (e) {
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast((e && e.message) || TLi18n.t('userexport.errExport'), true);
+    });
 }
 
 $(function () {

@@ -263,68 +263,56 @@ function doExport() {
   var fn = ($('#exportFilename').val() || '').trim();
   if (!fn) { toast(TLi18n.t('tcx.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
 
-  var params = {
-    action: 'export',
-    tproject_id: ctx.tprojectId,
-    testcase_id: ctx.testcaseId || 0,
-    tcversion_id: ctx.tcversionId || 0,
-    containerID: ctx.containerId || 0,
-    useRecursion: ctx.useRecursion ? 1 : 0,
-    exportType: $('#exportType').val() || 'XML',
-    export_filename: fn,
-    exportTestCaseExternalID: $('#exportTestCaseExternalID').is(':checked') ? 1 : 0,
-    addPrefix: $('#addPrefix').is(':checked') ? 1 : 0,
-    exportTCSummary: $('#exportTCSummary').is(':checked') ? 1 : 0,
-    exportTCPreconditions: $('#exportTCPreconditions').is(':checked') ? 1 : 0,
-    exportTCSteps: $('#exportTCSteps').is(':checked') ? 1 : 0,
-    exportReqs: $('#exportReqs').is(':checked') ? 1 : 0,
-    exportCFields: $('#exportCFields').is(':checked') ? 1 : 0,
-    exportKeywords: $('#exportKeywords').is(':checked') ? 1 : 0,
-    exportAttachments: $('#exportAttachments').is(':checked') ? 1 : 0
-  };
+  var params = new URLSearchParams();
+  params.set('action', 'export');
+  params.set('tproject_id', ctx.tprojectId);
+  params.set('testcase_id', ctx.testcaseId || 0);
+  params.set('tcversion_id', ctx.tcversionId || 0);
+  params.set('containerID', ctx.containerId || 0);
+  params.set('useRecursion', ctx.useRecursion ? 1 : 0);
+  params.set('exportType', $('#exportType').val() || 'XML');
+  params.set('export_filename', fn);
+  params.set('exportTestCaseExternalID', $('#exportTestCaseExternalID').is(':checked') ? 1 : 0);
+  params.set('addPrefix', $('#addPrefix').is(':checked') ? 1 : 0);
+  params.set('exportTCSummary', $('#exportTCSummary').is(':checked') ? 1 : 0);
+  params.set('exportTCPreconditions', $('#exportTCPreconditions').is(':checked') ? 1 : 0);
+  params.set('exportTCSteps', $('#exportTCSteps').is(':checked') ? 1 : 0);
+  params.set('exportReqs', $('#exportReqs').is(':checked') ? 1 : 0);
+  params.set('exportCFields', $('#exportCFields').is(':checked') ? 1 : 0);
+  params.set('exportKeywords', $('#exportKeywords').is(':checked') ? 1 : 0);
+  params.set('exportAttachments', $('#exportAttachments').is(':checked') ? 1 : 0);
 
   $('#loadingOverlay').show().find('span').text(TLi18n.t('tcx.generating'));
   $('#btnExport').prop('disabled', true);
 
-  $.ajax({
-    url: ctx.bffUrl,
-    method: 'POST',
-    data: params,
-    xhrFields: { responseType: 'blob' },
-    beforeSend: function (xhr) { xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest'); }
-  }).done(function (blob, textStatus, xhr) {
-    var contentType = xhr.getResponseHeader('Content-Type') || '';
-    // If the server responded JSON, it is an error payload, not a download.
-    if (contentType.indexOf('application/json') !== -1) {
-      var reader = new FileReader();
-      reader.onload = function () {
-        var msg = TLi18n.t('tcx.errExport');
-        try { msg = JSON.parse(reader.result).message || msg; } catch (e) {}
-        toast(msg, true);
-        $('#loadingOverlay').hide();
-        $('#btnExport').prop('disabled', false);
-      };
-      reader.readAsText(blob);
-      return;
-    }
-    var url = window.URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = fn;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(url);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-    toast(TLi18n.t('tcx.exportDone'));
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('tcx.errExport');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-    $('#loadingOverlay').hide();
-    $('#btnExport').prop('disabled', false);
-  });
+  fetch(ctx.bffUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
+    .then(function (res) {
+      var contentType = res.headers.get('Content-Type') || '';
+      // If the server responded JSON (or error status), it is an error payload, not a download.
+      if (!res.ok || contentType.indexOf('application/json') !== -1) {
+        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('tcx.errExport')); });
+      }
+      var name = fn;
+      return res.blob().then(function (blob) { return { blob: blob, name: name }; });
+    })
+    .then(function (r) {
+      var url = window.URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast(TLi18n.t('tcx.exportDone'));
+    })
+    .catch(function (e) {
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast((e && e.message) || TLi18n.t('tcx.errExport'), true);
+    });
 }
 </script>
 </body>
