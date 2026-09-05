@@ -9324,10 +9324,13 @@ class testcase extends tlObjectWithAttachments {
 
     if( null==$skwSet || !isset($skwSet[$tcase_id]) ) {
       $optSKW = array('getTSuiteKeywords' => true);
-      $skwSet[$tcase_id] = $this->getPathLayered($tcase_id,$optSKW);      
+      $skwSet[$tcase_id] = $this->getPathLayered($tcase_id,$optSKW);
+      if( is_null($skwSet[$tcase_id]) ) {
+        $skwSet[$tcase_id] = array();
+      }
     }
 
-    if( is_null($skwSet) ) {
+    if( empty($skwSet) ) {
       return;
     }
 
@@ -9341,8 +9344,8 @@ class testcase extends tlObjectWithAttachments {
     // $newphrase = str_replace($healthy, $yummy, $phrase);
     // Provides: You should eat pizza, beer, and ice cream every day
     //
-    $searchSet = null;
-    $replaceSet = null;
+    $searchSet = array();
+    $replaceSet = array();
     foreach($skwSet as $xdx => $eSet ) {
       foreach($eSet as $dm) {
         if( null != $dm['data_management'] ) {
