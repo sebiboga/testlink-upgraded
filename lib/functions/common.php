@@ -2006,6 +2006,7 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   // Print Test Specification modernized screen (Dashio standalone page) -
   // Refs #982. Legacy right (testplan_metrics) is enforced by the BFF on every

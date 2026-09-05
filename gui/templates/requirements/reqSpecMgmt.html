@@ -68,6 +68,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   <span class="ctx"><span data-i18n="rs.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span style="flex:1"></span>
   <button class="btn-teal" id="btnCreateSpec" onclick="openSpecCreate()" style="display:none"><i class="fa fa-plus"></i> <span data-i18n="rs.createSpec">Create Spec</span></button>
+  <button class="btn-teal" id="btnImportReqs" onclick="goImportReqs()" style="display:none"><i class="fa fa-upload"></i> <span data-i18n="reqimp.header">Requirement Import</span></button>
 </div>
 
 <div class="section">
@@ -294,6 +295,7 @@ function load() {
     $('#tprojectName').text(options.tproject_name || '-');
     document.title = (options.tproject_name || '') + ' - ' + TLi18n.t('rs.header');
     $('#btnCreateSpec').toggle(canManage);
+    $('#btnImportReqs').toggle(canManage);
     renderDomains();
     loadSpecs();
   });
@@ -467,6 +469,10 @@ function renderReqs(items) {
 }
 
 // ------------------------------------------------------------ spec CRUD ----
+function goImportReqs() {
+  window.open('reqImport.html?tproject_id=' + tprojectId, '_self');
+}
+
 function openSpecCreate() {
   $('#editSpecId').val('');
   $('#specDocId').val('');
