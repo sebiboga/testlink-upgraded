@@ -76,3 +76,11 @@ Rejected alternatives:
 | Copy from EMPTY source, optReq=1 | E_WARNINGs `:2749` + `:2803` | 0 warnings |
 | Copy from NON-empty source | Works, warning-free | Works (suite child copied), 0 warnings |
 | Plain create (no copy-from) | No warnings | No warnings |
+
+## Verification (measured)
+
+Post-fix, on the same environment, all four regression cases run through the BFF produced **zero** new
+`activity='PHP'` rows in `events` (events id 9–14 are all `AUDIT`). The only remaining `WARNING` rows
+in the Event Viewer are the three pre-fix repro artifacts (ids 4, 7, 8) from 10:56; every post-fix
+copy (10:58+) is `AUDIT`. Event Viewer verification screenshot is stored on the wiki page
+(`Bugfix-Issue-968-eventviewer.png`).
