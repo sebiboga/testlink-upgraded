@@ -10784,3 +10784,85 @@ Result: 20/20 PASS. Commits: `780a07177` (BFF), `23e70a1ae` (screen HTML) + `4fa
 - **Actual:** only INFO audit rows (login, project created). PASS.
 
 **Result:** 5/5 PASS. Commits: (fix) `tlsmarty.inc.php` + `gui/templates/dashio/testcases/labels/tcViewViewer.labels.tpl` + `gui/templates/dashio/testcases/include/tcViewViewer.inc.tpl` + `gui/templates/dashio/testcases/tcView_viewer.tpl` + `locale/en_GB/strings.txt`. Branch: `fix/issue-978-viewer-warnings`. Screens: legacy `archiveData.php?edit=testcase` viewer. Wiki: docs + `tmp/wiki-repo`.
+
+## Suite 1010 — Test Case Print (`tcPrint.html` + `api/testcasesprint` action=tc_print) — Refs #1010
+
+Fixture DB (fresh import): testprojects id=1 WalkProject (prefix MR), testplans id=1 WalkPlan,
+builds id=1 Build1, Suite A (node 3) with TC "Login Check" (node 5, tcversion node 6,
+4 steps via tcsteps ids 8-11), Suite B (node 4) with TC "Logout Check" (node 12, tcversion node 13),
+users admin (id=1) + noview (id=2, role <no rights>, user_testproject_roles role 3).
+
+### TC-1010.1 — BFF tc_print returns the print document (admin) (PASS)
+1. Login admin/admin; project WalkProject selected.
+2. `fetch('/api/testcasesprint/index.php?action=tc_print&testcase_id=5&tcversion_id=6&tproject_id=1')` in-session.
+- **Expected:** HTTP 200, JSON `status:"ok"`, `tcase_id:5`, `tproject_id:1`, `tproject_name:"WalkProject"`, `tcname:"Login Check"`, non-empty `body_html` containing step text.
+- **Actual:** status 200, `body_html` 2909 chars with "Test Case MR-1: Login Check", summary, preconditions and all 4 steps. PASS.
+
+### TC-1010.2 — tcPrint.html renders the full document (PASS)
+1. Open `http://localhost:8082/gui/templates/testcases/tcPrint.html?testcase_id=5&tcversion_id=6&tproject_id=1` (admin).
+2. Inspect the srcdoc iframe content.
+- **Expected:** header "Print Test Case", project "WalkProject"; document shows prefix `MR-1`, title, `[Version : 1]`, Author, Summary, Preconditions, 4 numbered steps (actions + expected results), Execution type Manual, Estimated exec. duration 5.00, Importance Medium, Requirements/Keywords/Platforms = None.
+- **Actual:** all present in iframe (srcdoc), toolbar + footer rendered. PASS.
+
+### TC-1010.3 — Print button enabled and invokes iframe print (PASS)
+1. (TC-1010.2 page) wait for load; check `#btnPrint.disabled`; call `docFrame.contentWindow.print()`.
+- **Expected:** button enabled once document loads; print call executes without exception.
+- **Actual:** `btnEnabled:true`, `frameVisible:true`, `printCallOk:true`. PASS.
+
+### TC-1010.4 — Back link returns to tcView with params (PASS)
+1. (TC-1010.2 page) inspect `#btnBack` href.
+- **Expected:** `/gui/templates/testcases/tcView.html?tcase_id=5&tproject_id=1`.
+- **Actual:** matches. PASS.
+
+### TC-1010.5 — Refresh reloads the document (PASS)
+1. (TC-1010.2 page) click `#btnRefresh`; observe request + reload of the iframe.
+- **Expected:** `tc_print` request re-issued, document re-rendered, no error banner.
+- **Actual:** request re-issued, document re-rendered clean. PASS.
+
+### TC-1010.6 — Locale switch (Română) translates the UI (PASS)
+1. (TC-1010.2 page) switch locale combo to Română (`?locale=ro`).
+- **Expected:** header "Printează Caz de Test", sub "în proiectul de test", buttons "Printează"/"Înapoi"/"Reîmprospătează", footer "TestLink 2.0.1 - Printează Caz de Test".
+- **Actual:** all translated. PASS.
+
+### TC-1010.7 — Unknown test case → 404 + localized error (PASS)
+1. Open `tcPrint.html?testcase_id=999&tproject_id=1` (admin).
+- **Expected:** error banner "The requested test case was not found.", Print disabled, project "-".
+- **Actual:** banner shown, print disabled. BFF confirmed HTTP 404 `testcase_does_not_exists`. PASS.
+
+### TC-1010.8 — Missing testcase_id → 400 (PASS)
+1. `fetch('/api/testcasesprint/index.php?action=tc_print&testcase_id=0&tproject_id=1')`.
+- **Expected:** HTTP 400 "Missing testcase_id".
+- **Actual:** 400. PASS.
+
+### TC-1010.9 — No mgt_view_tc right → 403 localized (PASS)
+1. Login as `noview` (role <no rights> on project 1) in isolated context.
+2. Open `tcPrint.html?testcase_id=5&tcversion_id=6&tproject_id=1`.
+- **Expected:** error banner "You do not have permission to print this test case.", Print disabled, project "-".
+- **Actual:** shown. BFF confirms 403. PASS.
+
+### TC-1010.10 — Deep link without tproject_id resolves owner from tree path (PASS)
+1. (admin) `fetch('/api/testcasesprint/index.php?action=tc_print&testcase_id=5&tcversion_id=6')` (no project param).
+- **Expected:** HTTP 200, `tproject_id` resolved to 1 via tree path, document rendered.
+- **Actual:** status 200, `tproject_id:1`. PASS.
+
+### TC-1010.11 — Modern tcView.html Print button opens the modern screen (PASS)
+1. (admin) open `/gui/templates/testcases/tcView.html?tcase_id=5&tproject_id=1`; click the Print toolbar button.
+- **Expected:** a new tab opens `gui/templates/testcases/tcPrint.html?tproject_id=1&testcase_id=5&tcversion_id=6` (params from loaded tc + current version); document renders.
+- **Actual:** page opened `Print Test Case: Login Check` with the correct query string. PASS.
+
+### TC-1010.12 — Legacy viewer printer-friendly button uses the modern screen (PASS)
+1. (admin) `fetch('/lib/testcases/archiveData.php?edit=testcase&id=5&tproject_id=1')`, inspect rendered html.
+- **Expected:** `openPrintPreview('tc',5,6,null,'gui/templates/testcases/tcPrint.html?tproject_id=1&tplan_id=')` present; NO `lib/testcases/tcPrint.php` reference.
+- **Actual:** modern URL present, legacy absent. PASS.
+
+### TC-1010.13 — i18n keys present in all 10 bundles (PASS)
+1. `python3 -m json.tool gui/templates/i18n/*.json` and grep for each `tcprint.*` key used in `tcPrint.html`.
+- **Expected:** all 11 keys (`title,inProject,btnPrint,btnBack,generating,errLoad,errNotFound,errNoRights,errNotReady,errEmpty,rendered`) valid JSON in de/en/es/fr/it/ja/pt/ro/ru/zh.
+- **Actual:** all present and valid in all 10 bundles. PASS.
+
+### TC-1010.14 — Event Viewer: no screen-attributable Error/Warning (PASS)
+1. After the runs above: `SELECT id,log_level,description FROM events ORDER BY id DESC;`
+- **Expected:** no ERROR/WARNING rows attributable to tcPrint; the only DEC events are the expected ones from the fixed fixture state, plus the known pre-existing noview-login bug (filed as issue #1011).
+- **Actual:** post-fix tc_print runs generated 0 new ERROR/WARNING rows; the two remaining ERROR/WARNING groups are (a) pre-fix fixture artifacts (bad tcversions.id during development) and (b) reproduction of pre-existing issue #1011 (login as a user with no project context). PASS.
+
+**Result:** 14/14 PASS. Commits: `d60872c1b` (implementation), `(docs)` + `(tests)` follow-ups. Branch: `sebiboga`. Screens: modern `tcPrint.html` (+ BFF `api/testcasesprint` action=tc_print) replacing legacy `lib/testcases/tcPrint.php` for the printer-friendly view; link switched in both modern tcView.html toolbar and legacy viewer templates.
