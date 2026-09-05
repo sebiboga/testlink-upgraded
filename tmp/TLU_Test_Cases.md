@@ -10493,3 +10493,22 @@ Result: 7/7 PASS. Commit: `7697f5354` on branch `fix/issue-958-updatebuild-409`.
 | TC-967.17 | Event Viewer clean | `SELECT * FROM events WHERE log_level >= 8` after suite | only the known legacy `copy_as` E_WARNING (empty-source clone) — filed as #968 (bug); no other ERROR/WARNING | PASS |
 
 Result: 17/17 PASS. Commits: `b6108fd59` (BFF), `ad57d6349` (screen+i18n+common.php), pending final (bugfixes+docs). Screen: `gui/templates/projects/projectEdit.html`; BFF: `api/projectedit/index.php`; issue: #967 (tracking).
+
+---
+
+## Regression — Issue #918: Legacy TC View/Edit Smarty syntax error at tcView.tpl:105
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`; fixtures: testproject `Fixtures` (id=1, prefix FX), testcase `nodes_hierarchy.id=2` ("TC Login", node_type_id=3), tcversion node `id=3` + `tcversions.id=3` (tc_external_id=1). Fix = replace Smarty-2-illegal `? :` ternaries inside `{include inc_update.tpl ...}` attributes with `{assign}`+`|default:` in `tcView.tpl`, `tcNew.tpl`, `show_message.tpl`.
+
+| ID | Test case | Repro (pre-fix symptom) | Expected (post-fix) | Result |
+|----|-----------|-------------------------|----------------------|--------|
+| TC-918.1 | TC View renders (primary) | `curl -b cookies 'http://localhost:8082/lib/testcases/archiveData.php?edit=testcase&id=2'` | HTTP 200; body contains `TC Login` + Summary/Preconditions sections; **no** `Syntax error in template ... tcView.tpl ... line 105` | PASS |
+| TC-918.2 | tcNew.tpl parses with name | app TLSmarty fetch of `testcases/tcNew.tpl`, `$gui->name` set | renders 16 835 bytes, no parse error | PASS |
+| TC-918.3 | tcNew.tpl parses without name | same with `$gui->name` unset (the branch of the removed ternary) | renders 13 810 bytes, no parse error, no undefined-property notice | PASS |
+| TC-918.4 | show_message.tpl parses | app TLSmarty fetch of `feedback/show_message.tpl` | renders 3 208 bytes, no parse error | PASS |
+| TC-918.5 | no other ternary-in-tag offenders | grep `\{[^{}]*\?[^{}]*\}` across `gui/templates/dashio/**` + `tl-classic/**` | only quoted URL strings / comments match; zero `{include ... ? ...}` remain | PASS |
+| TC-918.6 | regex guards | `grep -rn '? :' gui/templates/dashio/testcases/*.tpl gui/templates/dashio/feedback/*.tpl` for `refresh=isset`/`name=isset` | no matches | PASS |
+| TC-918.7 | Event Viewer clean for the fix | `SELECT * FROM events WHERE log_level>=8` after the verification renders | no ERROR/WARNING referencing tcView/tcNew/show_message fix lines (pre-existing viewer label warnings tracked in #977/#978/#979) | PASS |
+| TC-918.8 | browser render | open TC view in Chrome, a11y snapshot | page heading "Test Case", `FX-1 : TC Login - Version 1`, status dropdown, Keywords/Platforms/Relations | PASS |
+
+Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidence: primary repro curl screenshot + chrome snapshot; Event Viewer accounting id range 155-165 shows only pre-existing label warnings (new issues #977/#978/#979).
