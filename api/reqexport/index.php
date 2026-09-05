@@ -112,17 +112,12 @@ function defaultExportFilename($scope, $specTitle = null) {
     }
 }
 
-function checkReqExportRight($db, $user, $tprojectId, $granted) {
+function checkReqExportRight($db, $user, $tprojectId) {
     if ($tprojectId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
-    $has = $user->hasRight($db, 'mgt_view_req', $tprojectId);
-    if ($granted === null) {
-        // discovery/options path: report the right instead of failing
-        return $has;
-    }
-    if (!$has) {
+    if (!$user->hasRight($db, 'mgt_view_req', $tprojectId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -145,7 +140,7 @@ function specExists($db, $reqSpecMgr, $id) {
     return !is_null($rs) && count($rs) > 0;
 }
 
-function reqSpecContext(&$reqSpecMgr, $scope, $req_spec_id) {
+function reqSpecContext(&$reqSpecMgr, $scope, $req_spec_id, $tproject_id = 0) {
     $spec = null;
     if ($scope !== 'tree') {
         if ($req_spec_id <= 0) {
@@ -158,6 +153,11 @@ function reqSpecContext(&$reqSpecMgr, $scope, $req_spec_id) {
         }
         $spec = $reqSpecMgr->get_by_id($req_spec_id);
         if (is_null($spec) || empty($spec)) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Requirement specification not found']);
+        }
+        if ($tproject_id > 0 && (int)$spec['testproject_id'] !== (int)$tproject_id) {
+            // the spec must belong to the test project the user has rights on
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Requirement specification not found']);
         }
@@ -177,11 +177,15 @@ if (($_GET['action'] ?? '') === 'options') {
 
     $reqSpecMgr = new requirement_spec_mgr($db);
 
+    // Gate the discovery route too, BEFORE any data access, so unprivileged
+    // users cannot probe spec existence/ids (no 404-vs-403 oracle).
+    checkReqExportRight($db, $user, $tproject_id);
+
     $req_spec_id = 0;
     $specTitle = lang_get('all_reqspecs_in_tproject');
     if ($scope !== 'tree') {
         $req_spec_id = getIntParam('req_spec_id');
-        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id);
+        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id, $tproject_id);
         // legacy remember - makes subsequent requests easier
         $_SESSION['req_spec_id'] = $req_spec_id;
         $specTitle = (string)$spec['title'];
@@ -191,8 +195,6 @@ if (($_GET['action'] ?? '') === 'options') {
     if ($tproject_name === '') {
         $tproject_name = (string)testproject::getName($db, $tproject_id);
     }
-
-    checkReqExportRight($db, $user, $tproject_id, false);
 
     out(array(
         'status' => 'ok',
@@ -216,7 +218,7 @@ if (($_POST['action'] ?? '') === 'export') {
     if ($tproject_id <= 0) {
         $tproject_id = intval($_SESSION['testprojectID'] ?? 0);
     }
-    checkReqExportRight($db, $user, $tproject_id, true);
+    checkReqExportRight($db, $user, $tproject_id);
 
     $scope = sanitizeScope($_POST['scope'] ?? null);
     $exportType = sanitizeExportType($_POST['exportType'] ?? null);
@@ -232,7 +234,7 @@ if (($_POST['action'] ?? '') === 'export') {
     $reqSpecMgr = new requirement_spec_mgr($db);
     $specTitle = null;
     if ($scope !== 'tree') {
-        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id);
+        $spec = reqSpecContext($reqSpecMgr, $scope, $req_spec_id, $tproject_id);
         $specTitle = (string)$spec['title'];
     }
 
@@ -241,14 +243,12 @@ if (($_POST['action'] ?? '') === 'export') {
         case 'CSV':
             $requirements_map = $reqSpecMgr->get_requirements($req_spec_id);
             $pfn = 'exportReqDataToCSV';
-            $fileName = 'reqs.csv';
             $content = $pfn($requirements_map);
             break;
 
         case 'XML':
         default:
             $pfn = 'exportReqSpecToXML';
-            $fileName = 'reqs.xml';
             $content = TL_XMLEXPORT_HEADER;
             $optionsForExport['RECURSIVE'] = ($scope === 'items') ? false : true;
             $optionsForExport['ATTACHMENTS'] = sanitizeAttachments($_POST['exportAttachments'] ?? null);

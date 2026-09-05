@@ -138,9 +138,10 @@ function doExport() {
     .then(function (res) {
       var contentType = res.headers.get('Content-Type') || '';
       if (!res.ok || contentType.indexOf('application/json') !== -1) {
-        return res.json().then(function (j) {
+        return res.text().then(function (t) {
           if (res.status === 403) { showFatal(TLi18n.t('userexport.noRights')); return null; }
-          throw new Error(j && j.message || TLi18n.t('userexport.errExport'));
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          throw new Error((j && j.message) || t || TLi18n.t('userexport.errExport'));
         });
       }
       var name = fn;

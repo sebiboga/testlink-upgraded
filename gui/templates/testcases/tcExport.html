@@ -290,7 +290,10 @@ function doExport() {
       var contentType = res.headers.get('Content-Type') || '';
       // If the server responded JSON (or error status), it is an error payload, not a download.
       if (!res.ok || contentType.indexOf('application/json') !== -1) {
-        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('tcx.errExport')); });
+        return res.text().then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          throw new Error((j && j.message) || t || TLi18n.t('tcx.errExport'));
+        });
       }
       var name = fn;
       return res.blob().then(function (blob) { return { blob: blob, name: name }; });

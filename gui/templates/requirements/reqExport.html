@@ -211,7 +211,10 @@ function doExport() {
     .then(function (res) {
       var ct = res.headers.get('Content-Type') || '';
       if (!res.ok || ct.indexOf('application/json') !== -1) {
-        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('reqexp.errExport')); });
+        return res.text().then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          throw new Error((j && j.message) || t || TLi18n.t('reqexp.errExport'));
+        });
       }
       var name = fn;
       return res.blob().then(function (blob) { return { blob: blob, name: name }; });

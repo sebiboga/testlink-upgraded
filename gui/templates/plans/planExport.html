@@ -205,7 +205,10 @@ function doExport() {
     .then(function (res) {
       var contentType = res.headers.get('Content-Type') || '';
       if (!res.ok || contentType.indexOf('application/json') !== -1) {
-        return res.json().then(function (j) { throw new Error(j && j.message || TLi18n.t('pex.errExport')); });
+        return res.text().then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          throw new Error((j && j.message) || t || TLi18n.t('pex.errExport'));
+        });
       }
       var name = fn;
       return res.blob().then(function (blob) { return { blob: blob, name: name }; });
