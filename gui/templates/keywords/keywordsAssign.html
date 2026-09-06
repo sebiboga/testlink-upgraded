@@ -225,17 +225,22 @@ function applyLevel() {
 
 function checkSuiteEmpty() {
   var sid = parseInt($('#suiteSel').val() || '0', 10);
+  var scope = scopeVal();
   var $btns = $('#btnSuiteAdd,#btnSuiteRemove,#btnSuiteRemoveAll');
   $btns.prop('disabled', false);
   note(null);
   if (!sid) { return; }
-  $.getJSON(API + '/tcases?tsuite_id=' + sid + '&scope=' + scopeVal())
+  $.getJSON(API + '/tcases?tsuite_id=' + sid + '&scope=' + scope)
     .done(function (r) {
+      if (sid !== parseInt($('#suiteSel').val() || '0', 10) || scope !== scopeVal()) { return; }
       var empty = !(r.tcases && r.tcases.length);
       $btns.prop('disabled', empty);
       if (empty) { note('kwa.emptySuite'); }
     })
-    .fail(function () { $btns.prop('disabled', false); });
+    .fail(function () {
+      if (sid !== parseInt($('#suiteSel').val() || '0', 10) || scope !== scopeVal()) { return; }
+      $btns.prop('disabled', false);
+    });
 }
 
 function scopeVal() {
