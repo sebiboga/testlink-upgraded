@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} 凍結",
   "tcbk.vOpen": "有効",
   "tcbk.vFrozen": "凍結",
-  "tcview.bulkUpdate": "一括更新"
+  "tcview.bulkUpdate": "一括更新",
+  "kwa.emptySuite": "このテストスイートにはテストケースがありません。キーワードの割り当てはできません"
 }

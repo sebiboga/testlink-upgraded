@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} figée",
   "tcbk.vOpen": "active",
   "tcbk.vFrozen": "figée",
-  "tcview.bulkUpdate": "Mise à jour groupée"
+  "tcview.bulkUpdate": "Mise à jour groupée",
+  "kwa.emptySuite": "Il n'y a aucun cas de test dans cette suite de tests => l'affectation de mots-clés n'est pas possible"
 }

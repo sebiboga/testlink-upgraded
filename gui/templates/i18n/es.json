@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} congelada",
   "tcbk.vOpen": "activa",
   "tcbk.vFrozen": "congelada",
-  "tcview.bulkUpdate": "Actualización masiva"
+  "tcview.bulkUpdate": "Actualización masiva",
+  "kwa.emptySuite": "No hay casos de prueba en esta Suite de Pruebas => la asignación de palabras clave no es posible"
 }

@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} 个冻结",
   "tcbk.vOpen": "活动",
   "tcbk.vFrozen": "冻结",
-  "tcview.bulkUpdate": "批量更新"
+  "tcview.bulkUpdate": "批量更新",
+  "kwa.emptySuite": "此测试套件中没有测试用例 => 无法分配关键字"
 }

@@ -63,6 +63,16 @@ $tprojectMgr = new testproject($db);
 $tcaseMgr = new testcase($db);
 
 try {
+    // /context stays open for everyone: it drives the canAssign flag that the
+    // screen uses to render the no-rights note. All data + mutation routes
+    // (suites/tcases/keywords/case/suite) require keyword_assignment, matching
+    // legacy testlinkInitPage(...,"checkRights") (Refs #1110).
+    if ($path !== '/context' && !kwaHasRight($db, $user, 'keyword_assignment')) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'Insufficient rights']);
+        exit;
+    }
+
     // ------------------------------------------------------------------
     // GET /context
     // ------------------------------------------------------------------
@@ -218,11 +228,6 @@ try {
     // POST /case  {tcase_id, keywords:[ids]} -> REPLACE set (setKeywords)
     // ------------------------------------------------------------------
     if ($method === 'POST' && $path === '/case') {
-        if (!kwaHasRight($db, $user, 'keyword_assignment')) {
-            http_response_code(403);
-            echo json_encode(['status' => 'error', 'message' => 'Insufficient rights']);
-            exit;
-        }
         $sid = intval($_SESSION['testprojectID'] ?? 0);
         $tproject_id = intval($body['tproject_id'] ?? 0) ?: $sid;
         $tcase_id = intval($body['tcase_id'] ?? 0);
@@ -274,11 +279,6 @@ try {
     //              mode:add|remove|removeall, keywords:[ids]}
     // ------------------------------------------------------------------
     if ($method === 'POST' && $path === '/suite') {
-        if (!kwaHasRight($db, $user, 'keyword_assignment')) {
-            http_response_code(403);
-            echo json_encode(['status' => 'error', 'message' => 'Insufficient rights']);
-            exit;
-        }
         $sid = intval($_SESSION['testprojectID'] ?? 0);
         $tproject_id = intval($body['tproject_id'] ?? 0) ?: $sid;
         $tsuite_id = intval($body['tsuite_id'] ?? 0);
@@ -314,6 +314,14 @@ try {
             $tcs = $tsuiteMgr->get_children_testcases($tsuite_id, 'only_id');
         } else {
             $tcs = $tsuiteMgr->get_testcases_deep($tsuite_id, 'only_id');
+        }
+
+        if (empty($tcs)) {
+            echo json_encode(['status' => 'empty',
+                'reason' => 'no_test_cases',
+                'message' => 'There are no Test Cases in this Test Suite'
+                    . ' => keyword assignment is not possible']);
+            exit;
         }
 
         $canEditExecuted = kwaHasRight($db, $user,

@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} congelada",
   "tcbk.vOpen": "ativa",
   "tcbk.vFrozen": "congelada",
-  "tcview.bulkUpdate": "Atualização em massa"
+  "tcview.bulkUpdate": "Atualização em massa",
+  "kwa.emptySuite": "Não há casos de teste nesta suíte de teste => a atribuição de palavras-chave não é possível"
 }

@@ -190,10 +190,10 @@ function bindEvents() {
     applyLevel();
   });
   $('#suiteSel').on('change', function () {
-    if (currentLevel === 'testcase') { loadCases(); } else { clearBoxes(); updateSubtitle(); }
+    if (currentLevel === 'testcase') { loadCases(); } else { clearBoxes(); updateSubtitle(); checkSuiteEmpty(); }
   });
   $('input[name=scope]').on('change', function () {
-    if (currentLevel === 'testsuite') { clearBoxes(); updateSubtitle(); }
+    if (currentLevel === 'testsuite') { clearBoxes(); updateSubtitle(); checkSuiteEmpty(); }
   });
   $('#caseSel').on('change', loadCaseState);
   $('#mvRight').on('click', function () { transfer('#availBox', '#targetBox', false); });
@@ -219,7 +219,23 @@ function applyLevel() {
     $('#execBadge').hide();
     clearBoxes();
     updateSubtitle();
+    checkSuiteEmpty();
   }
+}
+
+function checkSuiteEmpty() {
+  var sid = parseInt($('#suiteSel').val() || '0', 10);
+  var $btns = $('#btnSuiteAdd,#btnSuiteRemove,#btnSuiteRemoveAll');
+  $btns.prop('disabled', false);
+  note(null);
+  if (!sid) { return; }
+  $.getJSON(API + '/tcases?tsuite_id=' + sid + '&scope=' + scopeVal())
+    .done(function (r) {
+      var empty = !(r.tcases && r.tcases.length);
+      $btns.prop('disabled', empty);
+      if (empty) { note('kwa.emptySuite'); }
+    })
+    .fail(function () { $btns.prop('disabled', false); });
 }
 
 function scopeVal() {
@@ -387,6 +403,7 @@ function suiteOp(mode) {
     }), null, 'json')
     .done(function (r) {
       $('.actions button').prop('disabled', false);
+      if (r.status === 'empty') { note('kwa.emptySuite'); return; }
       if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
       var key = mode === 'add' ? 'kwa.addedOk' : (mode === 'remove' ? 'kwa.removedOk' : 'kwa.removeAllOk');
       var msg = TLi18n.t(key).replace('%d', r.updated);

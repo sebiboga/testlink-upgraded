@@ -2839,5 +2839,6 @@
   "tcbk.frozenVer": "{0} gesperrt",
   "tcbk.vOpen": "offen",
   "tcbk.vFrozen": "gesperrt",
-  "tcview.bulkUpdate": "Sammelupdate"
+  "tcview.bulkUpdate": "Sammelupdate",
+  "kwa.emptySuite": "Es gibt keine Testfälle in dieser Testsuite => Schlüsselwortzuweisung ist nicht möglich"
 }

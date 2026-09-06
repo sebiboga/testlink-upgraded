@@ -2841,5 +2841,6 @@
   "tcbk.frozenVer": "{0} frozen",
   "tcbk.vOpen": "open",
   "tcbk.vFrozen": "frozen",
-  "tcview.bulkUpdate": "Bulk Update"
+  "tcview.bulkUpdate": "Bulk Update",
+  "kwa.emptySuite": "There are no Test Cases in this Test Suite => keyword assignment is not possible"
 }
