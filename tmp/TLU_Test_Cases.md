@@ -10515,7 +10515,6 @@ Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidenc
 
 ---
 
-<<<<<<< Updated upstream
 ## Regression — Issue #980: Req. Management Systems modernized screen
 
 **Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`; fixtures: test project id=1 "Fixture Project". Screen reached via ASIDE "System → Req. Management System Management" (mainframe `gui/templates/reqmgrsystems/reqMgrSystemView.html?tproject_id=1&tplan_id=2`); BFF `api/reqmgrsystems/index.php`.
@@ -11188,4 +11187,21 @@ curl -s -o /dev/null -w "%{http_code}\n" -L "http://localhost:8082/lib/results/m
 | TC-747.8 | ro key translated (no literal leak) | fetch `gui/templates/i18n/ro.json`, inspect `footers.userInfo` | `"TestLink 2.0.1 - Setările Mele"` — real Romanian string, not the nullable key | PASS |
 
 Result: 8/8 PASS. Screens moot: `userInfo.html`, `charts.html`, `resultsRequirements.html`; issue: #747 (tracking).
->>>>>>> Stashed changes
+
+---
+
+## Issue #1032: ASIDE "Show Test Cases Newest Versions" orphan link (missing <li>)
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; MariaDB `testlink` (container `testlink-mariadb`, port 3307). Bug: `gui/templates/dashio/aside.tpl:235-238` emitted the Show Newest TC item as a bare `<a>` directly inside `ul.sub` (no `<li>`), so it rendered as a gray un-styled link instead of a proper dark sub-item row; the same submenu also had an unclosed `<li>` for Set Urgent Tests (`aside.tpl:224-227`). Fix: wrapped the item like its siblings (`<li><a ... title=...><span class="menu-label">…</span></a></li>`) and added the missing `</li>`. Bonus fix found during testing: `api/plans/index.php:2151` passed `array_keys(...)` (a non-variable) to by-ref `get_full_path_verbose(&$items)` → PHP 8 E_NOTICE "Only variables should be passed by reference" on every load of `showNewestTcVersions.html`; now assigns to `$newestKeys` first (verified zero new events afterwards, legacy + the other 3 api/ BFFs already pass real variables).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1032.1 | aside link inside <li> | expand ASIDE → Test Plan; inspect DOM `a[href*="showNewestTcVersions"]` | `closest('li')` non-null; outerHTML = `<li><a ... title="Show Test Cases Newest Versions"><span class="menu-label …">Show Test Cases Newest Versions</span></a></li>` | PASS |
+| TC-1032.2 | row styled like siblings | compare computed styles vs `a[href*="planUpdateTC"]` | same `li` background `#2f323a` + color `#aeB2B7` in the idle state, same `span.menu-label-overflow` enhancement | PASS |
+| TC-1032.3 | submenu lists 8 proper items | expand Test Plan submenu | Test Plan Management, Assign Test Plan Roles, Builds / Releases, Add / Remove Test Cases, Add / Remove Platforms, Set Urgent Tests, Update Linked Test Case Versions, Show Test Cases Newest Versions all present | PASS |
+| TC-1032.4 | link navigates to modern screen | click "Show Test Cases Newest Versions" | mainframe loads `plans/showNewestTcVersions.html?tproject_id=11&tplan_id=3232` (title "Show Newest Test Case Versions"), 196 linked TCs with suite paths + Compare/History/Design links render | PASS |
+| TC-1032.5 | no PHP E_NOTICE on the screen | reload `showNewestTcVersions.html`; `SELECT id,description,FROM_UNIXTIME(fired_at) FROM events ORDER BY id DESC` | no NEW E_NOTICE row after the `$newestKeys` fix (line 2151); last event stays the pre-fix 09:04:55 one | PASS |
+| TC-1032.6 | PHP syntax valid | `php -l api/plans/index.php` | "No syntax errors detected" | PASS |
+| TC-1032.7 | no new console errors | Chrome console after aside + screen reloads | only the pre-existing "unload is not allowed" permissions-policy violation, nothing new | PASS |
+
+Result: 7/7 PASS. Files: `gui/templates/dashio/aside.tpl` (li wrapper + missing `</li>`), `api/plans/index.php` (by-ref param fix), + conflict-marker cleanup in this file. Refs #1032.

@@ -2147,8 +2147,10 @@ if ($method === 'GET' && count($segments) === 1 &&
             // suite placement, same path building as legacy controller:
             // drop root node, append trailing separator
             $treeMgr = new tree($db);
-            $pathInfo =
-              $treeMgr->get_full_path_verbose(array_keys($newestMap));
+            // get_full_path_verbose() takes its 1st arg by reference:
+            // array_keys() result is not a variable (PHP 8 E_NOTICE)
+            $newestKeys = array_keys($newestMap);
+            $pathInfo = $treeMgr->get_full_path_verbose($newestKeys);
             foreach ($newestMap as $tcId => $tc) {
                 $path = isset($pathInfo[$tcId]) ? $pathInfo[$tcId] : [];
                 unset($path[0]);

@@ -223,7 +223,7 @@ Left side menu
 
                   {if $gui->uri->setTestUrgency != null
                       && $menuGrants->testplan_set_urgent_testcases == "yes"}
-                    <li><a href="{$gui->uri->setTestUrgency}" target="mainframe">{$labels.href_plan_assign_urgency}</a>
+                    <li><a href="{$gui->uri->setTestUrgency}" target="mainframe">{$labels.href_plan_assign_urgency}</a></li>
                   {/if}
 
                   {if $gui->uri->planUpdateTC != null
@@ -234,7 +234,8 @@ Left side menu
 
                   {if $gui->uri->showNewestTCV != null
                       && $menuGrants->testplan_show_testcases_newest_versions == "yes"}
-                    <a href="{$gui->uri->showNewestTCV}" target="mainframe">{$labels.href_newest_tcversions}</a>
+                    <li><a href="{$gui->uri->showNewestTCV}" target="mainframe">
+                    {$labels.href_newest_tcversions}</a></li>
                   {/if} 
                 </ul>
               </li>
