@@ -224,7 +224,7 @@ if ($method === 'GET' && count($segments) === 0) {
 // GET /{id} -> single build (edit modal prefill)
 if ($method === 'GET' && count($segments) === 1 && ctype_digit($segments[0])) {
     $b = $buildMgr->get_by_id(intval($segments[0]));
-    if (is_null($b)) {
+    if (!$b) { // build::get_by_id returns bool(false) when missing
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
@@ -292,6 +292,20 @@ if ($method === 'POST' && count($segments) === 0) {
     $isActive = empty($body['active']) ? 0 : 1;
     $isOpen = empty($body['open']) ? 0 : 1;
 
+    // Validate the copy-assignment source build BEFORE creating anything:
+    // legacy doCreate() creates first and silently leaves an orphan build if
+    // the copy target is bad; evaluate source up-front so the new build is
+    // not persisted when the request is rejected.
+    $copyAssign = !empty($body['copy_tester_assignments']);
+    $sourceBuildId = intval($body['source_build_id'] ?? 0);
+    if ($copyAssign && $sourceBuildId > 0) {
+        $src = $buildMgr->get_by_id($sourceBuildId);
+        if (!$src || intval($src['testproject_id']) !== $ctx['tproject_id']) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Invalid source build']);
+        }
+    }
+
     $oBuild = new stdClass();
     $oBuild->name = $name;
     $oBuild->tplan_id = $tplanId;
@@ -321,16 +335,7 @@ if ($method === 'POST' && count($segments) === 0) {
     }
 
     // Copy tester assignments from source build (legacy behavior).
-    // Security: the source build MUST belong to this test plan, otherwise a
-    // user could clone assignments (user ids) from a plan of another project.
-    $copyAssign = !empty($body['copy_tester_assignments']);
-    $sourceBuildId = intval($body['source_build_id'] ?? 0);
     if ($copyAssign && $sourceBuildId > 0) {
-        $src = $buildMgr->get_by_id($sourceBuildId);
-        if (is_null($src) || intval($src['testproject_id']) !== $ctx['tproject_id']) {
-            http_response_code(400);
-            out(['status' => 'error', 'message' => 'Invalid source build']);
-        }
         $statusFilter = isset($body['exec_status_filter']) &&
                         is_array($body['exec_status_filter'])
             ? array_map('strval', $body['exec_status_filter']) : null;
@@ -357,7 +362,7 @@ if ($method === 'POST' && count($segments) === 2 && ctype_digit($segments[0])
     $buildId = intval($segments[0]);
     $body = getBody();
     $b = $buildMgr->get_by_id($buildId);
-    if (is_null($b)) {
+    if (!$b) { // build::get_by_id returns bool(false) when missing
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
@@ -464,7 +469,7 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
     $buildId = intval($segments[0]);
     $body = getBody();
     $b = $buildMgr->get_by_id($buildId);
-    if (is_null($b)) {
+    if (!$b) { // build::get_by_id returns bool(false) when missing
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
@@ -539,7 +544,7 @@ if ($method === 'PUT' && count($segments) === 1 && ctype_digit($segments[0])) {
 if ($method === 'DELETE' && count($segments) === 1 && ctype_digit($segments[0])) {
     $buildId = intval($segments[0]);
     $b = $buildMgr->get_by_id($buildId);
-    if (is_null($b)) {
+    if (!$b) { // build::get_by_id returns bool(false) when missing
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Build not found']);
     }
