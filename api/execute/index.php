@@ -521,15 +521,51 @@ if ($action === 'init') {
                 'release_date' => isset($b['release_date'])
                     ? strval($b['release_date']) : '',
             ];
-            if ($isActive && $isOpen
-                && intval($b['id']) > $defaultBuildId) {
-                // legacy default = newest active+open build (highest id wins,
-                // matching the ORDER BY id DESC used by execSetResults)
-                $defaultBuildId = intval($b['id']);
+            }
+    }
+    usort($builds, function ($a, $b) { return $a['id'] < $b['id'] ? 1 : -1; });
+
+    // Default build selection (#1031). Builds became project-scoped in Refs
+    // #503 (builds.testproject_id, no testplan_id), so the legacy "newest
+    // active+open build" heuristic can land on a project build that has ZERO
+    // executions for this plan -> the whole TC list looks un-executed.
+    // Prefer the newest executable build that already carries executions for
+    // this test plan; fall back to the newest executable build (previous
+    // behaviour) when the plan has no executions at all.
+    $defaultBuildId = 0;
+    $executableIds = [];
+    foreach ($builds as $b) {
+        if ($b['executable']) {
+            $executableIds[] = $b['id'];
+        }
+    }
+    if (count($executableIds) > 0) {
+        $execTbl = tlObjectWithDB::getDBTables(['executions']);
+        $executedBuildIds = [];
+        $erows = $db->get_recordset(
+            'SELECT DISTINCT E.build_id FROM ' . $execTbl['executions'] . ' E' .
+            " WHERE E.testplan_id = {$tplanId}" .
+            ' AND E.build_id IN (' . implode(',', $executableIds) . ')');
+        if (!is_null($erows)) {
+            foreach ($erows as $r) {
+                $executedBuildIds[intval($r['build_id'])] = true;
+            }
+        }
+        foreach ($builds as $b) {
+            if ($b['executable'] && isset($executedBuildIds[$b['id']])) {
+                $defaultBuildId = $b['id'];
+                break;
+            }
+        }
+        if ($defaultBuildId === 0) {
+            foreach ($builds as $b) {
+                if ($b['executable']) {
+                    $defaultBuildId = $b['id'];
+                    break;
+                }
             }
         }
     }
-    usort($builds, function ($a, $b) { return $a['id'] < $b['id'] ? 1 : -1; });
 
     // platforms linked to the plan
     $platforms = [];

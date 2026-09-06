@@ -11280,3 +11280,21 @@ Result: 6/6 PASS. Files: `lib/functions/common.php` (getMenuVisibility `dashboar
 | TC-893.9 | no console errors | Chrome console on index.php + tplanWithCF | zero Error/Warning messages | PASS |
 
 Result: 9/9 PASS. Files: `config.inc.php` (TL_JQUERY), `lib/functions/tlsmarty.inc.php` (FA path), `third_party/jquery/jquery-3.7.1.min.js` (+2.2.4 removed), `third_party/bootstrap/3.4.1` kept (+3.3.6 removed), bootstrap 3.4.1 sync in dashio-template/lib + lib + gui/themes/dashio/lib, `fontawesome-free-6.7.2-web` (6.2.0 removed), 96 modern HMTL jquery CDN bump + 31 files datatables bump. Refs #893.
+
+---
+
+## Issue #1031: Execute Tests default build wrong after project-scoped builds
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; project 11 "TestLink Upgraded 2.0.1", plan "Regression Aug 29" (tplan 3232), builds project-scoped (Build 1.0 id=2 = newest with 24 executions; v1.0 id=3 = newest id but 0 executions for this plan). Legacy heuristic picked the newest active+open project build (id 3 → v1.0) → the whole TC list looked NOT EXECUTED. Fix (`api/execute` init + `api/execsetresults` esrBuilds): default = newest active+open build that HAS at least one execution for this test plan; fallback = newest active+open build (plan with no executions).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1031.1 | execTest default build has executions | `GET /api/execute/index.php?action=init&tproject_id=11&tplan_id=3232` | `default_build_id = 2` (Build 1.0), not 3 (v1.0) | PASS |
+| TC-1031.2 | execTest UI preselects Build 1.0 | load `execTest.html?tproject_id=11&tplan_id=3232`; combo "Build" | value "Build 1.0" selected | PASS |
+| TC-1031.3 | statuses show for executed TCs | inspect first table rows on default build | TLU-331 = PASSED 2026-08-30 09:18; TLU-383 = FAILED 2026-08-31 08:16 | PASS |
+| TC-1031.4 | switching to empty build still works | set Build = v1.0 in combo | rows show NOT EXECUTED / Last execution - (previous behaviour preserved) | PASS |
+| TC-1031.5 | setresults default aligns | `GET /api/execsetresults/index.php?action=init&tproject_id=11&tplan_id=3232&tcase_id=3070&tcversion_id=3071` (TLU-331) | `default_build_id = 2` | PASS |
+| TC-1031.6 | fallback for plans w/o executions | code path check: plan with zero executions | `esrBuilds`/init fall back to newest active+open build (no executions query rows → default = newest executable id) | PASS (logic review) |
+| TC-1031.7 | PHP syntax + no warnings | `php -l` both BFFs; API responses | "No syntax errors detected"; init returns clean JSON | PASS |
+
+Result: 7/7 PASS. Files: `api/execute/index.php` (init default-build selection), `api/execsetresults/index.php` (`esrBuilds($tplanMgr,$tplanId,$db)` + caller). Scope audit: only these two BFFs auto-selected a default build with the stale heuristic; `api/plans` `default_build` is the "assign tester to build" preselect (legacy init_build_selector semantics) and was left unchanged. Refs #1031.

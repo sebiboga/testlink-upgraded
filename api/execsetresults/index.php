@@ -182,11 +182,14 @@ function esrSteps($db, $tcaseMgr, $tcversionId) {
 
 /**
  * Builds of the plan (UI offers active+open only for execution, same as
- * legacy execSetResults); newest active+open build id is the default.
+ * legacy execSetResults). Default build (#1031): builds became project-scoped
+ * (builds.testproject_id, no testplan_id - Refs #503), so "newest active+open
+ * build" can land on a project build with zero executions for this plan.
+ * Prefer the newest executable build that already has executions for this
+ * plan; fall back to newest executable build.
  */
-function esrBuilds($tplanMgr, $tplanId) {
+function esrBuilds($tplanMgr, $tplanId, $db) {
     $builds = [];
-    $defaultBuildId = 0;
     $rawBuilds = $tplanMgr->get_builds($tplanId);
     if (!is_null($rawBuilds)) {
         foreach ($rawBuilds as $bid => $b) {
@@ -201,13 +204,44 @@ function esrBuilds($tplanMgr, $tplanId) {
                 'release_date' => isset($b['release_date'])
                     ? strval($b['release_date']) : '',
             ];
-            if ($isActive && $isOpen
-                && intval($b['id']) > $defaultBuildId) {
-                $defaultBuildId = intval($b['id']);
-            }
         }
     }
     usort($builds, function ($a, $b) { return $a['id'] < $b['id'] ? 1 : -1; });
+
+    $defaultBuildId = 0;
+    $executableIds = [];
+    foreach ($builds as $b) {
+        if ($b['executable']) {
+            $executableIds[] = $b['id'];
+        }
+    }
+    if (count($executableIds) > 0) {
+        $execTbl = tlObjectWithDB::getDBTables(['executions']);
+        $executedBuildIds = [];
+        $erows = $db->get_recordset(
+            'SELECT DISTINCT E.build_id FROM ' . $execTbl['executions'] . ' E' .
+            " WHERE E.testplan_id = {$tplanId}" .
+            ' AND E.build_id IN (' . implode(',', $executableIds) . ')');
+        if (!is_null($erows)) {
+            foreach ($erows as $r) {
+                $executedBuildIds[intval($r['build_id'])] = true;
+            }
+        }
+        foreach ($builds as $b) {
+            if ($b['executable'] && isset($executedBuildIds[$b['id']])) {
+                $defaultBuildId = $b['id'];
+                break;
+            }
+        }
+        if ($defaultBuildId === 0) {
+            foreach ($builds as $b) {
+                if ($b['executable']) {
+                    $defaultBuildId = $b['id'];
+                    break;
+                }
+            }
+        }
+    }
     return array($builds, $defaultBuildId);
 }
 
@@ -376,7 +410,7 @@ if ($action === 'init') {
     $prefix = !is_null($tprojInfo) ? strval($tprojInfo['prefix']) : '';
 
     $steps = esrSteps($db, $tcaseMgr, $tcversionId);
-    list($builds, $defaultBuildId) = esrBuilds($tplanMgr, $tplanId);
+    list($builds, $defaultBuildId) = esrBuilds($tplanMgr, $tplanId, $db);
     if ($buildId <= 0) { $buildId = $defaultBuildId; }
     $platforms = [];
     try {
