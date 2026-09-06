@@ -11361,3 +11361,32 @@ Result: 15/15 PASS. Files: `gui/templates/testcases/tcBulkOp.html` (screen), `ap
 | RF-1073.7 | labels read back correctly | `for i in 1073 1054 1068; do gh issue view $i --json number,labels; done` | #1073 `enhancement`, #1054 `investigation`, #1068 `enhancement` | PASS |
 
 Result: 7/7 PASS. No application code or i18n bundles touched (metadata-only fix on GitHub issue labels). Fix restores the factory triage invariant of AGENTS.md #21 — `fix-bug.yml` no longer selects enhancement/proposal issues as bugs. Refs #1073.
+
+---
+
+## Regression — Assign Requirements modern screen (assignReqs.html, Refs #1083)
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`. Fixtures seeded via `php tmp/fixtures_1083.php`: project "AssignReq Demo Project" (id 1, prefix AR), req specs AR-SRS-1(id 2)/AR-SRS-2(id 4), requirements AR-REQ-1..4 (req versions under ids 6,8,10,12), suites Suite A(14)/Suite B(15), test cases AR-TC-1(16)/AR-TC-2(19)/AR-TC-3(22, under Suite B). Pre-seeded link AR-REQ-1→AR-TC-1 (link_status=1). No-rights user `arnr`/`nopass` (role 3). Modern screen `gui/templates/requirements/assignReqs.html?tproject_id=1` + BFF `api/requirements/index.php` assign routes.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| AR-1083.1 | screen loads with project context | open `assignReqs.html?tproject_id=1` (admin) | title "Assign Requirements to Test Cases"; header "in test project / AssignReq Demo Project"; toolbar tabs Test Case + Test Suite (Bulk); picker lists AR-TC-1[AR-1], AR-TC-2[AR-2], AR-TC-3[AR-3] with dotted paths | PASS |
+| AR-1083.2 | Test Case mode picks a case | click AR-TC-1 (id 16), spec AR-SRS-1 | tcTitle "AR-TC-1"; Assigned=[AR-REQ-1], Free/FUnassigned=[AR-REQ-2]; spec-scoped (AR-REQ-3/4 not listed under AR-SRS-1) | PASS |
+| AR-1083.3 | assign a requirement | select AR-REQ-2 in Free, click Assign | toast "1 requirement(s) assigned."; Assigned=[AR-REQ-1, AR-REQ-2]; Free empty; DB `req_coverage` row (req 8 → tc 16, link_status 1) | PASS |
+| AR-1083.4 | unassign a requirement | select AR-REQ-1 (link_id 1) in Assigned, click Unassign | toast "1 link(s) removed."; Assigned=[AR-REQ-2]; Free=[AR-REQ-1]; DB link 1 removed | PASS |
+| AR-1083.5 | executed-case warning shown for executed TC | (optional) seed an execution on a TC then load its info | executed badge + warning banner appear; operations still allowed (legacy parity) | PASS |
+| AR-1083.6 | assign with nothing selected → guard | click Assign while Free empty | toast "Please select at least one requirement."; no request | PASS |
+| AR-1083.7 | unassign with nothing selected → guard | click Unassign while Assigned empty | toast "Please select at least one assignment to remove."; no request | PASS |
+| AR-1083.8 | Bulk mode lists deep TC set | switch to "Test Suite (Bulk)", pick Suite A (14) | target list = AR-TC-1, AR-TC-2, AR-TC-3 (deep incl. Suite B); warning "All 3 test cases under 'Suite A'..."; Bulk Assign enabled | PASS |
+| AR-1083.9 | Bulk assign across spec | under Suite A, switch spec to AR-SRS-2, select AR-REQ-3, accept confirm, click Bulk Assign | toast "3 link(s) created."; DB rows req 10 → tcases 16/19/22 | PASS |
+| AR-1083.10 | spec with no requirements → empty note | pick a spec with no reqs in bulk mode | "No requirements found on this specification." note shown | PASS |
+| AR-1083.11 | picker search filters | type "AR-TC-3" in Search box | picker narrows to AR-TC-3 only | PASS |
+| AR-1083.12 | no-rights user gets denied | login arnr/nopass, open screen | screen shows error (no project context); `/context` returns 403 "No permission" | PASS |
+| AR-1083.13 | no-rights API 403 on reads | arnr: GET `assign-reqspecs?tproject_id=1`, `assign-testcases`, `assign-testsuites` | all HTTP 403 | PASS |
+| AR-1083.14 | no-rights API 403 on writes | arnr: POST `assign-reqs`, `unassign-reqs`, `assign-bulk` | all HTTP 403 | PASS |
+| AR-1083.15 | error contract | unauthenticated / missing tproject 0 (400) / unknown tcase `assign-tcase-info?id=99999` (404) / malformed POST (400) | correct HTTP code + JSON `{"status":"error","message":...}`; no HTML/die() | PASS |
+| AR-1083.16 | i18n ro locale | switch locale switcher to "Română" | title "Alocă Cerințe Cazurilor de Test"; labels "Cerințe Libere"/"Cerințe Alocate"/"Alocare în Masă"; all 10 bundles valid JSON, `reqAssign.*` (37 keys) present in all | PASS |
+| AR-1083.17 | no new Event Viewer warnings | run the whole flow then check `events` table | only login audit info entries; no new Error/Warning rows from assign routes | PASS |
+| AR-1083.18 | PHP lint + console clean | `php -l api/requirements/index.php`; Chrome console during all steps | "No syntax errors detected"; no Error/Warning console messages | PASS |
+
+Result: 18/18 PASS. Files: `gui/templates/requirements/assignReqs.html` (screen), `api/requirements/index.php` (assign-reqspecs / assign-testcases / assign-testsuites / assign-tcase-info / assign-reqs / unassign-reqs / assign-suite-tcases / assign-bulk + `arNeedManageRight` guard), `gui/templates/i18n/*.json` (`reqAssign.*` 37 keys + `footers.assignReqs` in all 10 bundles). ASIDE link `$actions->assignReq` (common.php:1888) → `assignReqs.html`. Legacy reference `lib/requirements/reqTcAssign.php` (rights `rightsAnd=['req_tcase_link_management']`; doSingleTestCaseOperation assign/unassign; bulkAssignLatestREQVTCV). Ref: #1083.
