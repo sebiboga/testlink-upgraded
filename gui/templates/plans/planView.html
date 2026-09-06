@@ -269,7 +269,16 @@ function render(items) {
   $('#footerInfo').text(items.length ?
     TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString() : '');
 
-  if (tplanTbl) { tplanTbl.destroy(); $('#tplanTable tbody').empty(); }
+  // Teardown must key on the DataTables registry, not the tplanTbl variable:
+  // a live instance can exist while tplanTbl is null (e.g. a prior render
+  // aborted mid-init), in which case re-init with destroy:true would RESTORE
+  // the previous render's stale rows into the tbody and duplicate them.
+  // (Refs #1116)
+  if ($.fn.DataTable.isDataTable('#tplanTable')) {
+    $('#tplanTable').DataTable().destroy();
+    tplanTbl = null;
+  }
+  $('#tplanTable tbody').empty();
 
   var rows = items.map(function (tp) {
     var apiTitle = TLi18n.t('pv.apiId').replace('{id}', tp.id);
@@ -328,7 +337,6 @@ function render(items) {
   $('#tplanTable').toggleClass('hide-plat', !drawPlatQty);
   var cfcnt = cfColumns.length;
   tplanTbl = $('#tplanTable').DataTable({
-    destroy: true,
     data: rows,
     language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
     columnDefs: [
