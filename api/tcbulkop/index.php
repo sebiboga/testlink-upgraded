@@ -218,7 +218,7 @@ if ($action === 'init') {
 
     list($statusMap, $importanceMap, $execMap) = buildDomains($db);
 
-    $canModify = $user->hasRight($db, 'mgt_modify_tc', $tprojId);
+    $canModify = ($user->hasRight($db, 'mgt_modify_tc', $tprojId) === 'yes');
 
     out([
         'status' => 'ok',

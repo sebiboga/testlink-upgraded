@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Update Test Case</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #9adbd7; cursor: not-allowed; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+.card-body { padding: 18px 22px; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
+.form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
+.form-table td.lbl { width: 230px; font-weight: 700; color: #22242a; }
+select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+.form-table input[type=checkbox] { margin-right: 8px; }
+.hint { color: #888; font-size: 12px; margin-top: 3px; }
+.context-box { background: #fafafa; border: 1px solid #ececec; border-radius: 6px; padding: 12px 16px; margin-bottom: 6px; font-size: 13px; display: none; }
+.context-box .row { display: flex; gap: 24px; flex-wrap: wrap; margin: 4px 0; }
+.context-box .k { color: #888; font-weight: 600; }
+.context-box .v { color: #22242a; font-weight: 600; }
+.ver-list { margin-top: 6px; }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px; margin-left: 6px; }
+.badge.open { background: #d9f0ec; color: #2d8e88; }
+.badge.frozen { background: #e8e8e8; color: #777; }
+.actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tcbk.title">Bulk Update Test Case</span>
+  <span class="sub" id="ctxTarget"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tcbk.testProject">Test Project</span>: <b id="ctxProject">-</b></span>
+  <span style="flex:1"></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="infobox" id="infoBox"></div>
+
+<div class="context-box" id="contextBox">
+  <div class="row"><span><span class="k" data-i18n="tcbk.testCase">Test Case</span>: <span class="v" id="tcName">-</span></span>
+    <span><span class="k" data-i18n="tcbk.extId">External ID</span>: <span class="v" id="tcExtId">-</span></span></div>
+  <div class="row"><span><span class="k" data-i18n="tcbk.versionsCount">Versions</span>: <span class="v" id="tcVersionCount">-</span></span></div>
+  <div class="ver-list" id="versionList"></div>
+  <div class="hint"><span data-i18n="tcbk.scopeHint">The chosen attributes are applied to ALL versions of this test case.</span></div>
+</div>
+
+<div class="card" id="formCard">
+  <div class="card-head"><i class="fa fa-envelopes-bulk"></i> <span data-i18n="tcbk.header">Bulk Update</span></div>
+  <div class="card-body">
+    <table class="form-table">
+      <tr>
+        <td class="lbl"><span data-i18n="tcbk.status">Status</span></td>
+        <td>
+          <select id="selStatus">
+            <option value="" data-i18n="tcbk.noChange">(no change)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcbk.importance">Importance</span></td>
+        <td>
+          <select id="selImportance">
+            <option value="" data-i18n="tcbk.noChange">(no change)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcbk.executionType">Execution type</span></td>
+        <td>
+          <select id="selExecType">
+            <option value="" data-i18n="tcbk.noChange">(no change)</option>
+          </select>
+        </td>
+      </tr>
+      <tr>
+        <td class="lbl"><span data-i18n="tcbk.forceFrozen">Force frozen versions</span></td>
+        <td>
+          <label><input type="checkbox" id="forceFrozen"> <span data-i18n="tcbk.forceFrozen">Force frozen versions</span></label>
+          <div class="hint" id="frozenHint"><span data-i18n="tcbk.forceFrozenHint">When unchecked, frozen (closed) versions keep their values.</span></div>
+        </td>
+      </tr>
+    </table>
+
+    <div class="actions-bar">
+      <button class="btn-teal" id="btnApply"><i class="fa fa-check"></i> <span data-i18n="tcbk.apply">Apply</span></button>
+      <button class="btn-dark" id="btnCancel"><span data-i18n="tcbk.cancel">Cancel</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="tcbk.footer">TestLink 2.0.1 - Bulk Update Test Case</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tcbk.applying">Applying bulk operation...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var ctx = {
+  tcaseId: parseInt(qs('tcase_id') || '0', 10),
+  tprojectId: parseInt(qs('tproject_id') || '0', 10),
+  bffUrl: '/api/tcbulkop/',
+  info: null,
+  canModify: false
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInfo();
+  });
+
+  $('#btnApply').on('click', doApply);
+  $('#btnCancel').on('click', function () {
+    if (window.history.length > 1) window.history.back(); else window.close();
+  });
+});
+
+function loadInfo() {
+  var params = { action: 'init', tcase_id: ctx.tcaseId };
+  if (ctx.tprojectId) params.tproject_id = ctx.tprojectId;
+
+  $('#loadingOverlay').show();
+  $.get(ctx.bffUrl, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('tcbk.errLoad')); return; }
+      ctx.info = r;
+      ctx.tprojectId = r.context.tproject_id;
+      ctx.canModify = !!(r.grants && r.grants.can_modify);
+      renderScreen();
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('tcbk.errLoad');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+    })
+    .always(function () { $('#loadingOverlay').hide(); });
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnApply').prop('disabled', true);
+}
+
+function fillSelect(id, domain, localizedNoChange) {
+  var $sel = $(id).find('option[value=""]').text(localizedNoChange).end().empty();
+  $('<option value="" data-i18n="tcbk.noChange">' + esc(localizedNoChange) + '</option>').appendTo($sel);
+  Object.keys(domain).forEach(function (code) {
+    $('<option></option>').attr('value', code).text(domain[code]).appendTo($sel);
+  });
+}
+
+function renderScreen() {
+  var c = ctx.info.context;
+  document.title = TLi18n.t('tcbk.title') + ' - ' + c.name;
+
+  $('#ctxProject').text(c.tproject_name);
+  $('#ctxTarget').text(c.external_id + ' - ' + c.name);
+  $('#tcName').text(c.name);
+  $('#tcExtId').text(c.external_id);
+  $('#tcVersionCount').text(c.version_count +
+    (c.active_count ? ' (' + TLi18n.t('tcbk.activeVer', {0: c.active_count}) + ')' : '') +
+    (c.frozen_count ? ' (' + TLi18n.t('tcbk.frozenVer', {0: c.frozen_count}) + ')' : ''));
+  $('#contextBox').show();
+
+  // Version chips: number + open/frozen badge.
+  var $vl = $('#versionList').empty();
+  if (c.versions && c.versions.length) {
+    var labels = [];
+    c.versions.forEach(function (v) {
+      var isOpen = !!v.is_open;
+      var badge = $('<span class="badge ' + (isOpen ? 'open' : 'frozen') + '"></span>')
+        .text(isOpen ? TLi18n.t('tcbk.vOpen') : TLi18n.t('tcbk.vFrozen'));
+      $('<span class="ver-chip"></span>')
+        .text(TLi18n.t('tcbk.version') + ' ' + v.version + ' ')
+        .append(badge)
+        .css({ marginRight: '14px', display: 'inline-block' })
+        .appendTo($vl);
+    });
+  }
+
+  var noChange = TLi18n.t('tcbk.noChange');
+  fillSelect('#selStatus', ctx.info.domains.status, noChange);
+  fillSelect('#selImportance', ctx.info.domains.importance, noChange);
+  fillSelect('#selExecType', ctx.info.domains.execution_type, noChange);
+
+  if (!ctx.canModify) {
+    $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(TLi18n.t('tcbk.errNoModify'))).show();
+    $('#btnApply').prop('disabled', true);
+  }
+}
+
+function doApply() {
+  if (!ctx.canModify) { toast(TLi18n.t('tcbk.errNoModify'), true); return; }
+
+  // map "" -> -1 (no change), numeric value -> number
+  function pick($sel) { var v = $sel.val(); return v === '' || v === null ? -1 : parseInt(v, 10); }
+  var status = pick($('#selStatus'));
+  var importance = pick($('#selImportance'));
+  var execType = pick($('#selExecType'));
+
+  if (status <= 0 && importance <= 0 && execType <= 0) {
+    toast(TLi18n.t('tcbk.errNothingSelected'), true);
+    return;
+  }
+
+  var chosen = [];
+  var domS = ctx.info.domains.status;
+  var domI = ctx.info.domains.importance;
+  var domE = ctx.info.domains.execution_type;
+  if (status > 0) chosen.push(TLi18n.t('tcbk.status') + ': ' + domS[String(status)]);
+  if (importance > 0) chosen.push(TLi18n.t('tcbk.importance') + ': ' + domI[String(importance)]);
+  if (execType > 0) chosen.push(TLi18n.t('tcbk.executionType') + ': ' + domE[String(execType)]);
+
+  if (!window.confirm(TLi18n.t('tcbk.confirm', {0: chosen.join(', ')}))) return;
+
+  var payload = {
+    action: 'apply',
+    tcase_id: ctx.tcaseId,
+    tproject_id: ctx.tprojectId,
+    status: status,
+    importance: importance,
+    execution_type: execType,
+    forceFrozenTestcasesVersions: $('#forceFrozen').is(':checked') ? 1 : 0
+  };
+
+  $('#loadingOverlay').show();
+  $.ajax({ url: ctx.bffUrl, method: 'POST', contentType: 'application/json',
+           data: JSON.stringify(payload), dataType: 'json' })
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcbk.errApply'), true); return; }
+      toast(TLi18n.t('tcbk.applied'));
+      loadInfo(); // refresh counts/versions after apply
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('tcbk.errApply');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      toast(msg, true);
+    })
+    .always(function () { $('#loadingOverlay').hide(); });
+}
+</script>
+</body>
+</html>

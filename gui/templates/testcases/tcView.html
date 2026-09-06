@@ -81,6 +81,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
   <span style="flex:1"></span>
   <div class="actions-bar" id="actionsBar" style="display:flex;gap:10px;flex-wrap:wrap;">
     <button class="btn-teal" id="btnEdit" style="display:none;" onclick="openTcEdit()"><i class="fa fa-pen"></i> <span data-i18n="tcview.editVersion">Edit Version</span></button>
+    <button class="btn-dark" id="btnBulk" style="display:none;" onclick="openTcBulk()"><i class="fa fa-envelopes-bulk"></i> <span data-i18n="tcview.bulkUpdate">Bulk Update</span></button>
     <button class="btn-dark" onclick="openExecHistory()"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="tcview.execHistory">Execution History</span></button>
     <button class="btn-dark" id="btnAdd2Tplan" style="display:none;" onclick="openAdd2Tplan()"><i class="fa fa-clipboard-list"></i> <span data-i18n="tcview.addToTestPlans">Add to Test Plan</span></button>
     <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
@@ -208,6 +209,7 @@ function canEditCurrent() {
 function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
+  $('#btnBulk').toggle(!!data.grants.mgt_modify_tc);
   if (data.versions.length > 1) {
     $('#btnCompare').show();
   }
@@ -404,6 +406,12 @@ function renderRelations() {
 function fmtDate(ts) {
   if (!ts || ts.indexOf('0000') === 0) return '-';
   return ts;
+}
+
+function openTcBulk() {
+  var url = '/gui/templates/testcases/tcBulkOp.html?tcase_id=' + data.tcase.id
+    + '&tproject_id=' + data.tproject.id;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 
 function openTcEdit() {
