@@ -41,6 +41,17 @@ login/auth screens, `testSpec`, `projectsView` and `reportPrint`. Older
 placeholder footers that rendered nothing were completed; screens without any
 footer got the static element plus the `.footer` CSS when missing.
 
+Follow-up (Refs #747) closed the last gaps found by auditing the checklist:
+- `usermanagement/userInfo.html` — replaced the hardcoded `TLU 2.0.1 [TEST]`
+  dev footer with the standard `footers.userInfo` ("TestLink 2.0.1 - My Settings").
+- `results/charts.html` — added the static footer (`footers.charts`, key
+  already existed) below the elapsed-seconds bar.
+- `results/resultsRequirements.html` — added the static footer
+  (`footers.resultsRequirements`, "TestLink 2.0.1 - Requirements Coverage")
+  below the elapsed-seconds bar.
+
+Every checklist row of #747 now renders the standard static footer.
+
 ## Verification
 
 - `python3 -m json.tool` on every bundle.

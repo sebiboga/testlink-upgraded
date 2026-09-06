@@ -10515,6 +10515,7 @@ Result: 8/8 PASS. Commit: `(fix push commit)` on branch `fix/issue-918`. Evidenc
 
 ---
 
+<<<<<<< Updated upstream
 ## Regression — Issue #980: Req. Management Systems modernized screen
 
 **Precondition:** browser logged in admin/admin; app `http://localhost:8082`; MariaDB `testlink`; fixtures: test project id=1 "Fixture Project". Screen reached via ASIDE "System → Req. Management System Management" (mainframe `gui/templates/reqmgrsystems/reqMgrSystemView.html?tproject_id=1&tplan_id=2`); BFF `api/reqmgrsystems/index.php`.
@@ -11168,3 +11169,23 @@ curl -s -o /dev/null -w "%{http_code}\n" -L "http://localhost:8082/lib/results/m
 - **Actual:** newest entries are fixture-authoring notices and a failed `INSERT INTO builds` from the very first fixture attempt (pre-modernization, timestamped during setup, NOT triggered by the BFF/screen); no rows produced by any executeexport call (info/export/403/404/400/locale). PASS.
 
 **Result:** 14/14 PASS. Commits `5405e7ba8` + `1d633c34b` (branch `sebiboga`, `Refs #1024`); screenshots `tmp/execx_screen.png`, `tmp/execx_filename.png`. **Discovery:** `exportTestCaseDataToXML()` emits `<fullexternalid>` empty when called without `ADDPREFIX`-populated data — identical to legacy execExport output (legacy calls it with no optExport too), NOT a regression. The 401-auto-redirect on expired/absent sessions bounces the popup to `login.php` via `/index.php` — intentional hardening added in this screen (matches execTest.html behavior).
+
+---
+
+## Issue #747: Static footer on LAST remaining modernized screens
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; MariaDB `testlink` (container `testlink-mariadb`, port 3307). #745 standardized footers on 62 screens; this suite closes the 3 remaining gaps found by auditing every checklist row of #747: `usermanagement/userInfo.html` (My Settings — had a hardcoded `TLU 2.0.1 [TEST]` dev footer), `results/charts.html` and `results/resultsRequirements.html` (only dynamic elapsed-seconds bars, no static footer). Fix: standard `footers.userInfo` + `footers.resultsRequirements` keys added to all 10 locale bundles (en+ro translated), `footers.charts` key already existed and was wired to the new div.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-747.1 | userInfo static footer | open `gui/templates/usermanagement/userInfo.html` in Chrome | last element under content = `<div class="footer"><span data-i18n="footers.userInfo">TestLink 2.0.1 - My Settings</span></div>`; renders "TestLink 2.0.1 - My Settings", no `TLU 2.0.1 [TEST]` remnant | PASS |
+| TC-747.2 | charts static footer + dynamic bar coexist | `results/charts.html?tproject_id=2&tplan_id=4` | data loads ("Loaded", elapsed seconds 0.0x) AND static footer "TestLink 2.0.1 - Charts" below the elapsed-seconds bar | PASS |
+| TC-747.3 | resultsRequirements static footer + dynamic bar | `results/resultsRequirements.html?tproject_id=2&tplan_id=4` | Apply button renders table (or empty state) AND static footer "TestLink 2.0.1 - Requirements Coverage" below elapsed-seconds bar | PASS |
+| TC-747.4 | i18n keys present in all 10 bundles | grep `footers.userInfo` + `footers.resultsRequirements` in `gui/templates/i18n/{de,en,es,fr,it,ja,pt,ro,ru,zh}.json` | keys present (10/10 each); `footers.charts` had existed in all bundles already | PASS |
+| TC-747.5 | bundle JSON validity | `python3 -m json.tool` per bundle | 10/10 valid, keys sorted alphabetically, 2-space indent preserved | PASS |
+| TC-747.6 | no console errors on the 3 screens | Chrome console after each navigation | zero console messages | PASS |
+| TC-747.7 | Event Viewer clean | `SELECT log_level,description FROM events ORDER BY id DESC LIMIT 6` after suite | newest rows are pre-existing level-16 audits + level-32 plugin locale warning; no NEW ERROR/WARNING from the footer work | PASS |
+| TC-747.8 | ro key translated (no literal leak) | fetch `gui/templates/i18n/ro.json`, inspect `footers.userInfo` | `"TestLink 2.0.1 - Setările Mele"` — real Romanian string, not the nullable key | PASS |
+
+Result: 8/8 PASS. Screens moot: `userInfo.html`, `charts.html`, `resultsRequirements.html`; issue: #747 (tracking).
+>>>>>>> Stashed changes
