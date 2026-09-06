@@ -11050,3 +11050,44 @@ Fixture (`php tmp/fixtures_rcmp.php`, idempotent): project id=1 "RCMP Demo Proje
 
 **Result:** 17/17 PASS. Commits: `92ff7003d` (implementation) + `fb7ad2e06` (re-apply i18n + reqView button) on branch `sebiboga`; fixture `tmp/fixtures_rcmp.php`; screenshots `tmp/rcmp_select.png`, `tmp/rcmp_select_new.png`, `tmp/rcmp_diff.png`, `tmp/rcmp_identical.png`. **Discovery:** `last_editor` shows "undefined" on items created via `create_new_version()`/`create_new_revision()` — pre-existing `get_history()` behavior, byte-identical in the `reqSpecCompare` `spec_revision_compare` path; NOT a regression, documented, no bug filed.
 
+
+---
+
+## Regression — Issue #1021: Metrics dashboard public link (lnl.php apikey flow) bounces to login or 500
+
+**Precondition:** Fresh DB import. Fixture: `testprojects` id=1 (prefix `MST`, name `Master`, `api_key=2d67b35b429c48223fccdf6887bcc9b8558f6f4d6467e68059061a3879dcc1ab`), `testplans` id=2 (`Plan A`, `public=1`, `active=1`, api_key=64×`a`), tcversion node id=4 + `testplan_tcversions` link, build id=1, one `executions` row status `p`. DB at `127.0.0.1:3306` (testlink/testlink/testlink). App at `http://localhost:8082`.
+
+**Pre-fix repro (1 — no accessible plans → HTTP 500 empty body):**
+```bash
+mysql -e "UPDATE testplans SET active=0 WHERE id=2;"
+curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8082/lnl.php?type=metricsdashboard&apikey=2d67b35b429c48223fccdf6887bcc9b8558f6f4d6467e68059061a3879dcc1ab"
+mysql -e "UPDATE testplans SET active=1 WHERE id=2;"
+```
+- **Expected (post-fix):** HTTP 200; page renders with `ntp = 0` metrics = all 0% / `[0/0]` and the "no testplans available" empty-state grid.
+- **Actual:** HTTP 200; log `php_server.log` shows zero Fatal/Warning; browser shows 0% `[0/0]` + empty plan grid. **PASS.** (screenshot `docs/screenshots/issue-1021-metrics-anonymous-noplans.png`)
+
+**Pre-fix repro (2 — with accessible plans → HTTP 500 empty body):**
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8082/lnl.php?type=metricsdashboard&apikey=2d67b35b429c48223fccdf6887bcc9b8558f6f4d6467e68059061a3879dcc1ab"
+```
+- **Expected:** HTTP 200; dashboard renders Project Progress 100% `[1/1]`, Passed 100% `[1/1]`, Test Plan Progress grid row `Plan A / 1 Active TC / 100%`.
+- **Actual:** HTTP 200; full grid rendered (browser + curl). **PASS.** (screenshot `docs/screenshots/issue-1021-metrics-anonymous.png`)
+
+**Pre-fix repro (3 — fresh-session direct hit → login bounce):**
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" -L "http://localhost:8082/lib/results/metricsDashboard.php?apikey=2d67b35b429c48223fccdf6887bcc9b8558f6f4d6467e68059061a3879dcc1ab"
+```
+- **Expected:** HTTP 200; no `login.php?note=logout` redirect anywhere in the chain; page renders the dashboard.
+- **Actual:** HTTP 200, no redirect-to-login (pre-fix body contained `location.href='../../login.php?note=logout'`); rendered in an isolated incognito context. **PASS.**
+
+**Pre-fix repro (4 — server log must be clean):**
+- `grep -E "Fatal|Undefined|\[500\]" tmp/php_server.log` after the runs above, plus Event Viewer: `SELECT id,log_level,source,LEFT(description,120) FROM events ORDER BY id DESC LIMIT 30;`
+- **Expected:** no new Error/Warning rows attributable to the anonymous metrics flow; PHP log without Fatal/Undefined-property.
+- **Actual:** log clean; `events` shows no new entries (max id before = 14; none after). **PASS.**
+
+**Login/rights regression (5):**
+1. admin on `gui/templates/results/metricsDashboard.html?tproject_id=1&tplan_id=0` → 200, grid renders, "Public link" button produces `http://localhost:8082/lnl.php?type=metricsdashboard&apikey=2d67b35b429c48223fccdf6887bcc9b8558f6f4d6467e68059061a3879dcc1ab`.
+- **Expected:** logged-in admin unchanged; authenticated menu context still renders.
+- **Actual:** 200 + grid + link matches the tested anonymous URL. **PASS.**
+
+**Result:** 5/5 PASS. Fix commits `237b7ec6f` (branch `fix/issue-1021`). Timing evidence: pre-fix `[500]` bodies; post-fix all scenarios `[200]`; PHP idle (no loop). **Discoveries:** (a) `getAccessibleTestPlans()` docblock documents `null` return when no accessible plan — Caller assumes array → PHP8 `array_keys(null)` TypeError; (b) anonymous service sessions (`userID=-1`) hit `initUserEnv → get_accessible_for_user` on a null user object → `hasRight()` on null fatal in `testproject.class.php:584`; (c) missing `$_SESSION['basehref']` for anonymous viewers caused `setUpEnvForAnonymousAccess()` to raze the session and bounce to `login.php?note=logout` — a dead end since the viewer cannot authenticate. Root cause = triple defect; each fixed minimally. Cosmetic 404s for `gui/themes/dashio/images/edit-undo.png|reset_filter.png|question16_16.gif` on the legacy dashboard are pre-existing theme gaps (out of scope). Anonymous `lnl.php?type=test_report` smoke returns HTTP 200 with empty body — pre-existing printDocument validation behavior, not a regression.
