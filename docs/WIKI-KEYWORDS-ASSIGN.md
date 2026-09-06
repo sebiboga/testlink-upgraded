@@ -48,6 +48,10 @@ The right box is the operation payload (legacy option-transfer semantics):
 | Remove All | clears every keyword from every case in scope, ignores the right box |
 Cases whose latest active version has been executed are skipped unless your
 role allows editing them; the toast reports how many were skipped.
+
+An **empty suite** (no test cases in the selected scope) shows the localized
+`kwa.emptySuite` message and disables the three action buttons — mirroring the
+legacy `keyword_assignment_empty_tsuite` state (`can_do = 0`).
 ## 4. Executed-Version Guard
 Same rule as 1.9.20: when the latest active version has execution rows, keyword
 changes are blocked unless the user holds
@@ -78,13 +82,17 @@ Suite 43 (Suite ID: 50) in `TLU_Test_Cases.md` covers both levels, replace vs
 bulk semantics, deep/direct scope, the executed guard for a restricted role,
 the no-rights path and i18n validity across bundles.
 
-SCREEN-COMPARE regression suite **KWA-1105** (18 TCs, `TLU_Test_Cases.md`,
+SCREEN-COMPARE regression suite **KWA-1105** (19 TCs, `TLU_Test_Cases.md`,
 Refs #1105) re-verifies the parity pass on seeded fixtures (project 1 "KWA Demo
 Project", users `kwanr` no-rights / `kwadesign` restricted, plan+build+execution
 on Case A2): deep case listing, replace-save, executed badge + blocked Save
 (POST /case → `{status:"blocked", reason:"executed"}`), suite bulk add/remove/
-remove-all with executed skip counters, no-rights 403 + UI note, all 400/404
-error contracts, empty-keyword project card, Română locale switch, Event Viewer
-cleanliness, `php -l` + console. Gaps found: **#1106** `useFilteredSet`
-assign-to-filtered-set dropped · **#1107** legacy `id`/`edit` deep-link params
-dropped · **#1108** cleanup (delete legacy keywordsAssign).
+remove-all with executed skip counters, empty-suite block, no-rights 403 + UI
+note, all 400/404 error contracts, empty-keyword project card, Română locale
+switch, Event Viewer cleanliness, `php -l` + console. Gaps found: **#1106**
+`useFilteredSet` assign-to-filtered-set dropped · **#1107** legacy `id`/`edit`
+deep-link params dropped · **#1108** cleanup (delete legacy keywordsAssign).
+Fixed during the pass: **#1109** empty-suite state (BFF `{status:"empty"}`
++ `kwa.emptySuite` in all 10 bundles + disabled action buttons) · **#1110**
+`keyword_assignment` right now enforced on all non-`/context` routes + shared
+CSRF same-origin guard mounted.
