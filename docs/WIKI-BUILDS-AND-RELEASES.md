@@ -49,3 +49,71 @@ Edit Build modal (prefilled from API):
 * Security review fixes applied: source-build must belong to the target plan,
   closure-date preservation, unknown exec-status codes ignored, JSON errors
   for all failure paths.
+
+## Parity-check pass (SCREEN-COMPARE row 32, Refs #1121)
+
+Full feature-parity audit of `lib/plan/buildView.php` + `lib/plan/buildEdit.php`
+(+ dashio `buildView.tpl`/`buildEdit.tpl`) against the modern screen + BFF
+(`gui/templates/plans/buildsView.html` + `api/builds/index.php`), executed in
+the 2026-09-06 parity run.
+
+### Two BFF bugs found and fixed (commit 69f0e01e0)
+
+1. `build::get_by_id()` returns `bool(false)` — not `null` — when a build does
+   not exist, so the `is_null($b)` guard in the four build-fetch routes
+   (GET `/api/builds/{id}`, POST `/api/builds/{id}/flags`, PUT `/api/builds/{id}`,
+   DELETE `/api/builds/{id}`) fell through into `resolveBuild()` and answered a
+   misleading **"Invalid Test Project ID" 404**. Guarded with `if (!$b)` → proper
+   **"Build not found"** 404 (browser/API verified on `id=9999`).
+
+2. POST create validated the copy-assignments **source** build *after*
+   `createFromObject()`, so an invalid `source_build_id` returned 400 **while an
+   orphan build row stayed persisted** (and the PHP8 `is_null($b)` on a `false`
+   value emitted an E_WARNING into the Event Viewer). Source build is now
+   validated **up front**, before creation — no orphan row, no PHP warning.
+
+### Gaps (open issues)
+
+| Issue | Type | Gap |
+|---|---|---|
+| #1122 | task | Build design-time **custom fields** dropped — legacy renders CF *columns* in the list (`buildEdit.php:356-408`, `buildView.php:56-110`, `TL_BUILDVIEW_HIDECOL`), CF *inputs* in the create/edit form (`html_custom_field_inputs()`, `buildEdit.tpl:75-82`), and persists via `design_values_to_db(...,'build')`; modern has none (inconsistent with `plans/planView.html` which renders testplan CF columns; `cfield_build_design_values` exists) |
+| #1123 | task | Edit-screen **event-history icon** dropped — legacy `buildEdit.tpl:52-57` `showEventHistoryFor('{id}','builds')` gated by `mgt_view_events` (`buildEdit.php:106`) |
+| #1124 | task | **closed_on_date** value never displayed — legacy `buildEdit.tpl:96` shows the stored closure date; BFF returns it, modern modal only shows the generic `bv.closureHint` |
+
+Cleanup: #1125 delete legacy `lib/plan/buildView.php` + `buildEdit.php` +
+dashio tpls (Refs #1122 #1123 #1124).
+
+### NOT gaps (deliberate parity)
+
+* Rich-text notes (`web_editor`) vs modern plain textarea — matches
+  `projectsView.html`/`planView.html` precedent.
+* Legacy custom pagination `[20,40,60,100]`/default 10 vs modern
+  `10/[10,25,50,100]` — deliberate cross-screen DataTables convention.
+* `copy_to_all_tplans` + `commit_id/tag/branch/release_candidate` are
+  API/JSONB-only in *both* legacy (`buildEdit.php` never rendered inputs;
+  `:129-145` just reads REQUEST) and modern (BFF honors them on POST/PUT) — parity,
+  no UI gap.
+* Copy-to-all-plans is a no-op-by-design today: builds are project-scoped (#503;
+  `builds` has `testproject_id`, no `testplan_id`), so a name created on one plan
+  already exists project-wide and `check_build_name_existence()` skips every
+  sibling.
+
+### Screenshots
+
+Admin run, seeded BV1121 project (plans + builds in varied states):
+
+![Builds &amp; Releases — parity run, admin list](images/bv1121-browser-list.png)
+
+Guest user (role 3, no `testplan_create_build`) gets a graceful rights toast and
+an empty control-less table — matches legacy `rightsAnd = testplan_create_build`:
+
+![Builds &amp; Releases — parity run, no-rights](images/bv1121-browser-norights.png)
+
+### Verified this run
+
+20/20 test cases PASS (append-only `tmp/TLU_Test_Cases.md`): ASIDE link switched
+(`common.php:1932`), project-scoped build visibility, create/edit/delete modals,
+active toggle, open→closed closure-date stamping, duplicate/empty/invalid-date
+errors, 404 "Build not found", invalid-source no-orphan, no-rights 403, copy
+assignments, copy-to-all-plans no-op, i18n 46 `bv.*` keys × 10 bundles, clean
+events table + JS console.
