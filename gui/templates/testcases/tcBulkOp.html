@@ -188,7 +188,7 @@ function showFatal(msg) {
 }
 
 function fillSelect(id, domain, localizedNoChange) {
-  var $sel = $(id).find('option[value=""]').text(localizedNoChange).end().empty();
+  var $sel = $(id).empty();
   $('<option value="" data-i18n="tcbk.noChange">' + esc(localizedNoChange) + '</option>').appendTo($sel);
   Object.keys(domain).forEach(function (code) {
     $('<option></option>').attr('value', code).text(domain[code]).appendTo($sel);

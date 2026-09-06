@@ -258,7 +258,7 @@ if ($action === 'apply') {
 
     // The bulk op MODIFIES test cases -> require mgt_modify_tc on the owning
     // project. The modern screen hides controls for non-granted users too.
-    if (!$user->hasRight($db, 'mgt_modify_tc', $tprojId)) {
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojId) !== 'yes') {
         out(['status' => 'error', 'message' => 'No permission'], 403);
     }
 

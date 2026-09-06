@@ -11317,3 +11317,29 @@ Result: 7/7 PASS. Files: `api/execute/index.php` (init default-build selection),
 | TC-1022.8 | PHP syntax | `php -l api/inventory/index.php` | "No syntax errors detected" | PASS |
 
 Result: 8/8 PASS. Files: `api/inventory/index.php` (`invRight()` + view/owners/write gates + canManage). No new i18n needed (existing `inv.*` keys cover both view-only banner and 403 dead-end). Refs #1022.
+
+---
+
+## Issue #1074: Test Case Bulk Update (tcBulkOp) modern screen
+
+**Precondition:** browser logged in admin/admin; app `http://localhost:8082`; fixtures created for this screen: project 1000 "ModernizeTest" (prefix MZT), test plan 2000 "ModernizePlan", suite node 3100 "BulkSuite", test case node 3200 "BulkTC" (external id MZT-1) with versions tcversion 3210 (v1, open) and 3211 (v2, frozen, `is_open=0`). No-rights user `vguest`/`vguest` (role `<no rights>`). Modern screen `gui/templates/testcases/tcBulkOp.html` + BFF `api/tcbulkop/index.php`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1074.1 | BFF init returns context + domains | `GET /api/tcbulkop/?action=init&tcase_id=3200&tproject_id=1000` (admin) | 200; `context` = external_id MZT-1, name BulkTC, version_count 2, active_count 1, frozen_count 1, versions [3210 v1 open, 3211 v2 frozen]; `domains.status` 1-7 maps, `domains.importance` 3/2/1 (High/Medium/Low), `domains.execution_type` 1/2 (Manual/Automated); `grants.can_modify` true | PASS |
+| TC-1074.2 | init renders screen | open `tcBulkOp.html?tcase_id=3200&tproject_id=1000` | title "Bulk Update Test Case - BulkTC"; ctx project "ModernizeTest"; ext id MZT-1; version count "2 (1 active) (1 frozen)"; chips "Version 1 open" / "Version 2 frozen"; 3 selects with "(no change)" + domain values; Apply enabled | PASS |
+| TC-1074.3 | apply force-frozen updates ALL versions | select status=Final(7), importance=High(3), exec=Automated(2), check "Force frozen versions", Apply, accept confirm | DB: BOTH 3210 and 3211 = status 7, importance 3, execution_type 2 | PASS |
+| TC-1074.4 | apply without force-frozen leaves frozen untouched | reset 3211 to status 2/1/1; uncheck force; select status=Rework(4), importance=Medium(2), exec=Manual(1); Apply | DB: 3210 = 4/2/1; 3211 stays 2/1/1 | PASS |
+| TC-1074.5 | no attr selected → guard toast | all selects "(no change)", click Apply | toast "Please select at least one attribute to change."; no request made | PASS |
+| TC-1074.6 | confirm dialog summarizes changes | select status=Obsolete(5), importance=High(3), exec=Automated(2) | confirm text "Apply the following changes to all versions: Status: Obsolete, Importance: High, Execution type: Automated." | PASS |
+| TC-1074.7 | success toast + screen refresh | accept confirm once | toast "Bulk operation applied successfully."; selects reset to "(no change)"; version counts re-fetched | PASS |
+| TC-1074.8 | no-modify user: init 200, apply 403 | vguest: `GET init` then `POST apply {status:4}` | init 200 (view), apply → HTTP 403 "No permission" | PASS |
+| TC-1074.9 | no-modify UI state | vguest opens screen | warnbox "You do not have permission to modify test cases in this project."; Apply disabled | PASS |
+| TC-1074.10 | unauthenticated → 401 + disabled UI | fresh browser no session opens screen | warnbox "Not authenticated"; Apply disabled; no data rendered | PASS |
+| TC-1074.11 | error contract | missing tcase (400), unknown tcase 99999 (404), unknown action (404), GET on apply (405), no session (401) | correct HTTP codes + JSON `{"status":"error","message":...}` | PASS |
+| TC-1074.12 | tcView Bulk button gated | open `tcView.html?tcase_id=3200&tcversion_id=3210` as admin vs vguest | admin toolbar shows "Bulk Update" button and it opens `tcBulkOp.html` popup (tcase 3200 + tproject 1000); vguest has NO Bulk button | PASS |
+| TC-1074.13 | i18n ro locale | switch locale switcher to "Română" | title "Actualizare în masă caz de testare"; labels Stare/Importanță/Tip de execuție/Forțează versiunile înghețate/Aplică/Anulează; counts "2 (1 activă) (1 înghețată)"; all 10 bundles valid JSON | PASS |
+| TC-1074.14 | no new Event Viewer warnings | test entire flow, check `events` table | only login audit info entries; no log_level 2/32 warnings from the bulk flow | PASS |
+| TC-1074.15 | PHP syntax + console clean | `php -l api/tcbulkop/index.php`; Chrome console during all steps | "No syntax errors detected"; no Error/Warning console messages | PASS |
+
+Result: 15/15 PASS. Files: `gui/templates/testcases/tcBulkOp.html` (screen), `api/tcbulkop/index.php` (BFF init+apply), `gui/templates/testcases/tcView.html` (Bulk button `openTcBulk()` gated on mgt_modify_tc), `gui/templates/i18n/*.json` (`tcbk.*` 28 keys + `tcview.bulkUpdate` in all 10 bundles). The BFF applies status/importance/execution_type attr>0 via `testcase::setIntAttrForAllVersions()` honoring `forceFrozenTestcasesVersions` (frozen = `is_open=0` children of the test case node), mirroring `lib/testcases/tcBulkOp.php`. Refs #1074.
