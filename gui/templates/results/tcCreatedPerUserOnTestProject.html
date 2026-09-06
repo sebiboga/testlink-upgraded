@@ -273,7 +273,7 @@ function renderResults(r) {
   $('#resultsHead').show();
   $('#matchCount').text('(' + r.totalRows + ')');
 
-  if (resTbl) { resTbl.destroy(); $('#resTable tbody').empty(); }
+  if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }
 
   if (!r.rows || r.rows.length === 0) {
     $('#resultsWrap').hide();
