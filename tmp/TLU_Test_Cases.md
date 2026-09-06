@@ -11354,10 +11354,10 @@ Result: 15/15 PASS. Files: `gui/templates/testcases/tcBulkOp.html` (screen), `ap
 |----|-----------|-------|----------|--------|
 | RF-1073.1 | triage picks the issue | `gh issue list --state open --limit 200 --json number,title,labels,createdAt --jq 'map(select([.labels[].name] \| any(. == "enhancement" or . == "task" or . == "investigation" or . == "documentation") \| not)) \| first'` (pre-labeling) | returns newest un-labeled issue = #1073 (enhancement) | PASS (confirmed pre-fix) |
 | RF-1073.2 | bug-label open count | `gh issue list --state open --limit 300 --json number,title,labels --jq '.[] \| select([.labels[].name] \| any(. == "bug"))' \| wc -l` | 0 (no genuine open bug in repo) | PASS |
-| RF-1073.3 | apply enhancement label to feature issues | `gh issue edit 1053 1055..1073 --add-label enhancement` | 20 issues now labeled `enhancement` | PASS |
+| RF-1073.3 | apply enhancement label to feature issues | `for i in 1053 1055 1056 1057 1058 1059 1060 1061 1062 1063 1064 1065 1066 1067 1068 1069 1070 1071 1072 1073; do gh issue edit $i --add-label enhancement; done` | 20 issues now labeled `enhancement` | PASS |
 | RF-1073.4 | apply investigation label to review issue | `gh issue edit 1054 --add-label investigation` | #1054 labeled `investigation` | PASS |
 | RF-1073.5 | triage now returns NO bug candidate | re-run command from RF-1073.1 | empty output (nothing eligible) | PASS |
 | RF-1073.6 | no unlabeled open issues remain | `gh issue list --state open --limit 300 --json number,labels --jq '[.[] \| select((.labels\|length)==0)] \| length'` | 0 | PASS |
-| RF-1073.7 | labels read back correctly | `gh issue view 1073/1054/1068 --json labels` | #1073 `enhancement`, #1054 `investigation`, #1068 `enhancement` | PASS |
+| RF-1073.7 | labels read back correctly | `for i in 1073 1054 1068; do gh issue view $i --json number,labels; done` | #1073 `enhancement`, #1054 `investigation`, #1068 `enhancement` | PASS |
 
 Result: 7/7 PASS. No application code or i18n bundles touched (metadata-only fix on GitHub issue labels). Fix restores the factory triage invariant of AGENTS.md #21 — `fix-bug.yml` no longer selects enhancement/proposal issues as bugs. Refs #1073.
