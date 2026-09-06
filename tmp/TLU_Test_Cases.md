@@ -11298,3 +11298,22 @@ Result: 9/9 PASS. Files: `config.inc.php` (TL_JQUERY), `lib/functions/tlsmarty.i
 | TC-1031.7 | PHP syntax + no warnings | `php -l` both BFFs; API responses | "No syntax errors detected"; init returns clean JSON | PASS |
 
 Result: 7/7 PASS. Files: `api/execute/index.php` (init default-build selection), `api/execsetresults/index.php` (`esrBuilds($tplanMgr,$tplanId,$db)` + caller). Scope audit: only these two BFFs auto-selected a default build with the stale heuristic; `api/plans` `default_build` is the "assign tester to build" preselect (legacy init_build_selector semantics) and was left unchanged. Refs #1031.
+
+---
+
+## Issue #1022: Inventory project-level role rights (gap vs legacy)
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; project 11 (TestLink Upgraded 2.0.1) has `inventoryEnabled=true`. Task: legacy granted inventory via a *project role* (`getGrantSetWithExit` fallback reads `tprojectRoles[...]->rights`), but the modern BFF used bare `hasRight()` which strips inventory rights from project roles (`tlUser.class.php:860` array_diff vs `$g_propRights_global`) -> side-by-side 403 dead-end. Fix: `invRight()` helper (hasRight OR direct project-role right scan) applied to view gate, canManage, owners, and write endpoints (checked after resolving the addressed project).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-1022.1 | admin GET returns 200 + canManage | `GET /api/inventory/index.php?tproject_id=11` (admin global role) | 200, `rights.canManage=true` | PASS |
+| TC-1022.2 | create device (admin) | `POST` machineName=t-c-1031-dev, tproject_id=11 | 200, returns `id` | PASS |
+| TC-1022.3 | created row visible | `GET ?tproject_id=11` | row id matches name `t-c-1031-dev` | PASS |
+| TC-1022.4 | update device (admin) | `PUT /{id}` rename | 200 | PASS |
+| TC-1022.5 | delete device (admin) | `DELETE /{id}?tproject_id=11` | 200; list empty after | PASS |
+| TC-1022.6 | write check is project-scoped | code review: POST/PUT/DELETE call `needTprojectId()` before `invRight(...,$tproject_id)` | management checked on the addressed project, not global-only | PASS (logic) |
+| TC-1022.7 | no console errors from screen | Chrome console during CRUD | no Error/Warning from this screen (404/400 entries were from test URLs only) | PASS |
+| TC-1022.8 | PHP syntax | `php -l api/inventory/index.php` | "No syntax errors detected" | PASS |
+
+Result: 8/8 PASS. Files: `api/inventory/index.php` (`invRight()` + view/owners/write gates + canManage). No new i18n needed (existing `inv.*` keys cover both view-only banner and 403 dead-end). Refs #1022.
