@@ -1360,24 +1360,15 @@ function setUpEnvForAnonymousAccess(&$dbHandler,$apikey,$rightsCheck=null,$opt=n
     $_SESSION['userID'] = -1;
     $_SESSION['locale'] = config_get('default_language');
 
-    // if user do this:
-    // 1. login to test link
-    // 2. get direct link and open in new tab or new window while still logged 
-    // 3. logout
-    // If user refresh tab / window open on (2), because on (3) we destroyed
-    // session we have loose basehref, and we are not able to recreate it.
-    // Without basehref we are not able to get CSS, JS, etc.
-    // In this situation we destroy session, this way user is forced to login
-    // again in one of two ways
-    // a. using the direct link
-    // b. using traditional login
-    // In both way we assure that behaivour will be OK.
+    // Missing basehref happens for fresh anonymous sessions (api-key flow):
+    // the viewer has no credentials, so bouncing to the login page would be a
+    // dead end. Rebuild the base path (setPaths() recomputes it from the
+    // effective home URL) so CSS/JS resolve and the public report renders.
+    // Refs #1021: previously this branch did session_unset()/session_destroy()
+    // and redirected to login.php?note=logout.
     //
     if(!isset($_SESSION['basehref']))
     {
-      // Refs #1021: anonymous access carries no credentials - bouncing to the
-      // login page is a dead end (the viewer cannot authenticate as the data
-      // owner). Rebuild the base path instead so the public report renders.
       setPaths();
     }  
 
