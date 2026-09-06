@@ -11343,3 +11343,21 @@ Result: 8/8 PASS. Files: `api/inventory/index.php` (`invRight()` + view/owners/w
 | TC-1074.15 | PHP syntax + console clean | `php -l api/tcbulkop/index.php`; Chrome console during all steps | "No syntax errors detected"; no Error/Warning console messages | PASS |
 
 Result: 15/15 PASS. Files: `gui/templates/testcases/tcBulkOp.html` (screen), `api/tcbulkop/index.php` (BFF init+apply), `gui/templates/testcases/tcView.html` (Bulk button `openTcBulk()` gated on mgt_modify_tc), `gui/templates/i18n/*.json` (`tcbk.*` 28 keys + `tcview.bulkUpdate` in all 10 bundles). The BFF applies status/importance/execution_type attr>0 via `testcase::setIntAttrForAllVersions()` honoring `forceFrozenTestcasesVersions` (frozen = `is_open=0` children of the test case node), mirroring `lib/testcases/tcBulkOp.php`. Refs #1074.
+
+---
+
+## Regression — Issue #1073: fix-bug factory triage selects unlabeled enhancement as a bug
+
+**Precondition:** this is CI-factory metadata (GitHub issues), not a browser screen. Auth: `gh` CLI (GH_TOKEN) against `sebiboga/testlink-upgraded`. Run type: `fix-bug.yml` (opencode). Data: 21 open issues 1053–1073 that were created WITHOUT a work-type label (all feature/analysis proposals: enhancement feature-requests + #1054 ISTQB investigation).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| RF-1073.1 | triage picks the issue | `gh issue list --state open --limit 200 --json number,title,labels,createdAt --jq 'map(select([.labels[].name] \| any(. == "enhancement" or . == "task" or . == "investigation" or . == "documentation") \| not)) \| first'` (pre-labeling) | returns newest un-labeled issue = #1073 (enhancement) | PASS (confirmed pre-fix) |
+| RF-1073.2 | bug-label open count | `gh issue list --state open --limit 300 --json number,title,labels --jq '.[] \| select([.labels[].name] \| any(. == "bug"))' \| wc -l` | 0 (no genuine open bug in repo) | PASS |
+| RF-1073.3 | apply enhancement label to feature issues | `gh issue edit 1053 1055..1073 --add-label enhancement` | 20 issues now labeled `enhancement` | PASS |
+| RF-1073.4 | apply investigation label to review issue | `gh issue edit 1054 --add-label investigation` | #1054 labeled `investigation` | PASS |
+| RF-1073.5 | triage now returns NO bug candidate | re-run command from RF-1073.1 | empty output (nothing eligible) | PASS |
+| RF-1073.6 | no unlabeled open issues remain | `gh issue list --state open --limit 300 --json number,labels --jq '[.[] \| select((.labels\|length)==0)] \| length'` | 0 | PASS |
+| RF-1073.7 | labels read back correctly | `gh issue view 1073/1054/1068 --json labels` | #1073 `enhancement`, #1054 `investigation`, #1068 `enhancement` | PASS |
+
+Result: 7/7 PASS. No application code or i18n bundles touched (metadata-only fix on GitHub issue labels). Fix restores the factory triage invariant of AGENTS.md #21 — `fix-bug.yml` no longer selects enhancement/proposal issues as bugs. Refs #1073.
