@@ -11477,3 +11477,23 @@ Result: 9/9 PASS. Fix: `gui/templates/results/tcCreatedPerUserOnTestProject.html
 | 1121.20 | console clean | Chrome console throughout | no JS Error/Warning (2 minor a11y `issue` diagnostics only) | PASS |
 
 Result: 20/20 PASS. Fixes (commit 69f0e01e0, api/builds/index.php): (a) all four build-fetch routes use `if (!$b)` instead of `if (is_null($b))` since `build::get_by_id()` returns `bool(false)` when missing — proper "Build not found" 404; (b) POST create validates the copy-assignment source build BEFORE `createFromObject()` so a bad source returns 400 with no orphan persisted (also removed the pre-existing E_WARNING). Gaps filed: #1122 (build design-time custom fields — columns + modal inputs + CF save), #1123 (event-history icon mgt_view_events), #1124 (closed_on_date display in edit modal), #1125 (cleanup legacy buildView). Refs #1121. Screenshots: `tmp/screenshots/bv1121-browser-list.png`, `tmp/screenshots/bv1121-browser-norights.png`.
+
+## Regression — Issue #1116: planView modernized — stale duplicate plan row after save until manual reload
+
+**Precondition:** browser logged in admin/admin; app http://localhost:8082. Fixture: `php tmp/fixtures_1116.php` creates project PLAN1116 (id 17), plans A(18)/B(19)/C(20)/D(21) + 2 CF columns (CF REL, CF SIGN). Screen under test: `gui/templates/plans/planView.html?tproject_id=17`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1116.1 | rename + row count | Edit Plan A → rename to "Plan E (modern)" → Save → check `#tplanTable tbody tr` count and `.dataTables_info` text | 4 rows rendered, info "Showing 1 to 4 of 4 entries", 11 cells per row (8+2CF+1action), no stale/duplicate rows | PASS |
+| 1116.2 | chained rapid rename (same row) | Rename Plan B → "Plan ZZ (modern)" → Save → immediately rename same row → "Plan ZZ v2" → Save, measure after each | 4 rows after each; info matches; no duplicate on chained re-render | PASS |
+| 1116.3 | active toggle re-renders | Toggle active on any plan → wait for save + table re-render | 4 rows; row count in tbody == info count; no stale orphan row | PASS |
+| 1116.4 | create → row count increases | Create "Plan NEW" via modal → Save → check row count | 5 rows, info "Showing 1 to 5 of 5 entries"; all 11 cells per row | PASS |
+| 1116.5 | delete → row count decreases | Delete "Plan NEW" via confirm modal | 4 rows, info "Showing 1 to 4 of 4 entries" | PASS |
+| 1116.6 | null-var sabotage case | Set `tplanTbl = null` while live instance exists → call `render(r.items)` directly | 4 rows, no duplicate (the `isDataTable()` check + `.empty()` blocks the restore-stale path) | PASS |
+| 1116.7 | empty then repopulate | `render([])` → confirm 0-row info / no-data message → `render(r.items)` | 4 rows after repopulate; no orphan row | PASS |
+| 1116.8 | CSS/CF column stability | Check `#tplanTable thead th` count and per-row `<td>` count after each of the above steps | always 11 th (7 base + 1 action + 2 CF hidden or visible) and 11 td per tr | PASS |
+| 1116.9 | DB correctness | After full flow: `SELECT id FROM nodes_hierarchy WHERE node_type_id=5` and custom-field tables | 4 distinct plan nodes; CF values intact; no orphan rows in nodes_hierarchy | PASS |
+| 1116.10 | events clean | `SELECT log_level, COUNT(*) FROM events GROUP BY log_level` after full flow | only INFO audit (log_level=16) rows; no new Error/Warning from screen | PASS |
+| 1116.11 | console clean | Chrome console throughout all browser tests | no JS Error/Warning (only pre-existing a11y issue diagnostics) | PASS |
+
+Result: 11/11 PASS. Fix: `gui/templates/plans/planView.html:272-281` — replaced variable-gated teardown `if (tplanTbl) { tplanTbl.destroy(); ... }` with registry-aware `if ($.fn.DataTable.isDataTable('#tplanTable')) { $('#tplanTable').DataTable().destroy(); tplanTbl = null; }` plus unconditional `.empty()`, and removed the redundant `destroy: true` init option. Refs #1116.
