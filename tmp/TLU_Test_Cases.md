@@ -11205,3 +11205,21 @@ Result: 8/8 PASS. Screens moot: `userInfo.html`, `charts.html`, `resultsRequirem
 | TC-1032.7 | no new console errors | Chrome console after aside + screen reloads | only the pre-existing "unload is not allowed" permissions-policy violation, nothing new | PASS |
 
 Result: 7/7 PASS. Files: `gui/templates/dashio/aside.tpl` (li wrapper + missing `</li>`), `api/plans/index.php` (by-ref param fix), + conflict-marker cleanup in this file. Refs #1032.
+
+---
+
+## Issue #748: "+New Sub-Suite" button in Test Specification header
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; MariaDB `testlink` (container `testlink-mariadb`, port 3307). Enhancement: the header toolbar only had **+ New Test Suite** (root or under selection, legacy parity) and **Rename**; users had no visible affordance to create a suite as a CHILD of the selected suite (legacy containerEdit `new_testsuite` inherits `containerID`). Fix in `gui/templates/testcases/testSpec.html`: added `btnNewSubSuite` in the toolbar, shown only when a testsuite is selected AND `mgt_modify_tc` granted, calling the existing `openSuiteCreate()` which already targets the selected suite as `parent_id`; modal title now switches to `tspec.newSubSuite` vs `tspec.newSuite` dynamically. i18n key `tspec.newSubSuite` already present in all 10 bundles (en "New Sub-Suite", ro "Sub-suită nouă").
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-748.1 | button hidden with no selection | open `testcases/testSpec.html?tproject_id=11` (nothing selected) | "+ New Sub-Suite" not visible; "+ New Test Suite" + "+ New Test Case" visible (admin) | PASS |
+| TC-748.2 | button shown when testsuite selected | click a suite node (e.g. "1. Header") | "+ New Sub-Suite", Rename and Delete all appear; modal opens with title "New Sub-Suite" | PASS |
+| TC-748.3 | creates child of selected suite | select "1. Header" → New Sub-Suite → name "ZZ AutoSub" → Save | POST `suite_create {parent_id}`; tree refreshes showing ZZ AutoSub under "1. Header"; DB `nodes_hierarchy`: id 5220, parent_id = 2446, node_type_id 2 | PASS |
+| TC-748.4 | root creation unaffected | New Test Suite with no selection → modal title "New Test Suite" | root-level suite creation still works (legacy parity intact) | PASS |
+| TC-748.5 | i18n present | grep `tspec.newSubSuite` in `gui/templates/i18n/{de,en,es,fr,it,ja,pt,ro,ru,zh}.json` | key in 10/10 bundles; en "New Sub-Suite", ro "Sub-suită nouă" | PASS |
+| TC-748.6 | no console errors | Chrome console during selection + create + delete | zero messages | PASS |
+| TC-748.7 | cleanup | delete ZZ AutoSub via UI/API | toast "deleted", tree no longer shows it | PASS |
+
+Result: 7/7 PASS. File: `gui/templates/testcases/testSpec.html` (toolbar button, toggle in `updateContextButtons()`, dynamic modal title in `openSuiteCreate()`); docs: `docs/WIKI-TEST-SPECIFICATION.md`. Refs #748.

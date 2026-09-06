@@ -41,6 +41,7 @@ Single-page replacement of the 1.9.20 *Test Specification* two-frame layout:
 |--------|----------|
 | New Test Case | opens create form targeted at the selected suite |
 | New Test Suite | modal → POST `suite_create` under selection (or project root) |
+| New Sub-Suite | toolbar button, enabled only when a test suite is selected → modal "New Sub-Suite" → POST `suite_create` with `parent_id` = selected suite (Refs #748) |
 | Rename Suite | modal prefilled → POST `suite_update` |
 | Delete Suite | confirm modal (warns when non-empty) → POST `suite_delete` |
 | Edit Test Case | pre-filled form → POST `update` (latest version, legacy doUpdate semantics) |
