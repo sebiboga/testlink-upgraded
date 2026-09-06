@@ -1,0 +1,67 @@
+name: Compare-screens babysitter
+
+# Polls roughly every ~9 min. While the compare-screens analysis pipeline is
+# idle AND not-yet-analysed screens remain, it dispatches ONE more analysis
+# run (no `screen` input = auto-pick, exactly like the cron inside
+# compare-screens.yml). That workflow analyses ONE screen per run and marks it
+# ✓, so chained dispatches walk the whole backlog back-to-back with no
+# external/watchdog process and no manual trigger.
+#
+# Why not just tighten the cron in compare-screens.yml? Its concurrency group
+# keeps only ONE pending run (newer queued runs cancel older ones), so
+# bulk-dispatching N runs at once is a no-go; and a runner-local watch loop
+# would block the dev session. This workflow is self-contained and idempotent:
+# it only dispatches when the pipeline is idle, and stops dispatching the
+# moment every row in docs/SCREEN-COMPARE-STATUS.md is marked ✓ (the no-op
+# auto-pick run in compare-screens.yml also exits 0 in that case).
+
+on:
+  schedule:
+    - cron: '*/9 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: compare-screens-babysitter
+  cancel-in-progress: false
+
+jobs:
+  babysit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout status file
+        uses: actions/checkout@v4
+
+      - name: Detect work (next not-analysed screen)
+        id: work
+        run: |
+          NEXT="$(
+            awk -F'|' 'NR>1 && /\.html/ {
+              path=$4; gsub(/^ +| +$/,"",path); gsub(/`/,"",path);
+              status=$8; gsub(/^ +| +$/,"",status);
+              if (path != "" && status != "✓" && status != "x" && status != "X") { print path; exit }
+            }' docs/SCREEN-COMPARE-STATUS.md 2>/dev/null
+          )"
+          echo "next=${NEXT:-}" >> "$GITHUB_OUTPUT"
+
+      - name: Detect idle pipeline
+        id: busy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ACTIVE="$(
+            gh api "repos/${{ github.repository }}/actions/workflows/compare-screens.yml/runs?per_page=20" \
+              --jq '[ .workflow_runs[] | select(.status == "in_progress" or .status == "queued" or .status == "pending") ] | length'
+          )"
+          echo "active=${ACTIVE:-0}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch next analysis (only when work remains and pipeline idle)
+        if: steps.work.outputs.next != '' && steps.busy.outputs.active == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "next screen: ${{ steps.work.outputs.next }}"
+          gh workflow run compare-screens.yml --repo "${{ github.repository }}"
