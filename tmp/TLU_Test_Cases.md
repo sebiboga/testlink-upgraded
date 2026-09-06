@@ -11091,3 +11091,80 @@ curl -s -o /dev/null -w "%{http_code}\n" -L "http://localhost:8082/lib/results/m
 - **Actual:** 200 + grid + link matches the tested anonymous URL. **PASS.**
 
 **Result:** 5/5 PASS. Fix commits `237b7ec6f` (branch `fix/issue-1021`). Timing evidence: pre-fix `[500]` bodies; post-fix all scenarios `[200]`; PHP idle (no loop). **Discoveries:** (a) `getAccessibleTestPlans()` docblock documents `null` return when no accessible plan — Caller assumes array → PHP8 `array_keys(null)` TypeError; (b) anonymous service sessions (`userID=-1`) hit `initUserEnv → get_accessible_for_user` on a null user object → `hasRight()` on null fatal in `testproject.class.php:584`; (c) missing `$_SESSION['basehref']` for anonymous viewers caused `setUpEnvForAnonymousAccess()` to raze the session and bounce to `login.php?note=logout` — a dead end since the viewer cannot authenticate. Root cause = triple defect; each fixed minimally. Cosmetic 404s for `gui/themes/dashio/images/edit-undo.png|reset_filter.png|question16_16.gif` on the legacy dashboard are pre-existing theme gaps (out of scope). Anonymous `lnl.php?type=test_report` smoke returns HTTP 200 with empty body — pre-existing printDocument validation behavior, not a regression.
+
+---
+
+## TC-1024 — Issue #1024: Modernize Execution Export (execExport.php → execExport.html) — "Export all test cases in TEST SUITE" (BUGID 3421)
+
+**Precondition:** Fresh DB import; fixtures in DB: project 4 `WALK DEMO` (prefix WALK), plan 9 `WALK Plan`, build 1 `Build Walk`, tcversion node 7 (testcase `TC Login`, family id 6), link `testplan_tcversions (9,7)`. App `http://localhost:8082` (admin/admin). Branch `sebiboga`, commits `5405e7ba8` (BFF) + `1d633c34b` (screen+entry+links), `Refs #1024`.
+
+### TC-1024.1 — BFF info route returns export context (PASS)
+1. (admin) `fetch('/api/executeexport/?action=info&tplan_id=9&build_id=1&platform_id=0&tsuite_id=0&tcversionSet=7')`.
+- **Expected:** 200 JSON `{status:'ok', tplan:{id:9,name:'WALK Plan'}, tproject:{id:4,name:'WALK DEMO'}, build:{id:1,name:'Build Walk'}, platform:{id:0,name:''}, tc_count:1, default_filename:'export_execution_set.xml', types:{XML:'XML'}, rights:{testplan_execute:1, exec_ro_access:0}}`.
+- **Actual:** exact match (200, `application/json`). PASS.
+
+### TC-1024.2 — BFF export streams byte-faithful legacy XML (PASS)
+1. (admin) `POST /api/executeexport/` `action=export&tplan_id=9&build_id=1&platform_id=0&tcversionSet=7&export_filename=export_execution_set.xml` with `X-Requested-With: XMLHttpRequest`.
+- **Expected:** 200 `application/xml` + `Content-Disposition: attachment; filename="export_execution_set.xml"`; body = `TL_XMLEXPORT_HEADER` + `<executionSet>` → `<context>` testproject(testproject/testplan/build + prefix WALK) + `<testcases>` with one `<testcase name="TC Login">` carrying node_order/externalid/version/summary/preconditions/execution_type/importance/estimated_exec_duration/status/is_open/active + `<steps><step>`; byte layout identical to legacy `contextAsXML`/`tcaseSetAsXML`/`contentAsXML`.
+- **Actual:** body length 1228, structure matches legacy templates exactly (tabs/CDATA as in execExport.php). PASS.
+
+### TC-1024.3 — execTest.html toolbar shows Export button (PASS)
+1. (admin) open `execTest.html?tproject_id=4&tplan_id=9`; snapshot toolbar.
+- **Expected:** "Export" button beside Refresh; list header shows 1 test case (`WALK-1` / `TC Login` / v1 / `NOT EXECUTED`).
+- **Actual:** button rendered; list correct. PASS.
+
+### TC-1024.4 — Export button opens the modern popup (PASS)
+1. (TC-1024.3) click Export.
+- **Expected:** `window.open` → `gui/templates/execute/execExport.html?tproject_id=4&tplan_id=9&build_id=1&platform_id=0&tsuite_id=0&tcversionSet=7`.
+- **Actual:** new tab opened with the exact query string. PASS.
+
+### TC-1024.5 — Popup renders context + form (PASS)
+1. On the popup: title "Export Test Case Set" + "- WALK Plan"; toolbar "Test plan: WALK Plan", "Test cases in set: 1"; context grid cells TEST PROJECT / TEST PLAN / BUILD with correct values; filename prefilled `export_execution_set.xml`; file-type select `XML`; "view file formats documentation" link → `/docs/tl-file-formats.pdf`; Export/Cancel buttons; footer.
+- **Actual:** all rendered (snapshot). PASS.
+
+### TC-1024.6 — Empty filename validation (PASS)
+1. Clear filename field; click Export.
+- **Expected:** input keeps focus (no navigation), toast "Export name can not be empty!".
+- **Actual:** toast shown; field focused. PASS.
+
+### TC-1024.7 — Successful export via UI (PASS)
+1. Type `my_export.xml`; Enter/click Export.
+- **Expected:** overlay flashes, browser downloads `my_export.xml`, toast "Export complete - check your download".
+- **Actual:** download triggered (Content-Type `application/xml`, filename header `my_export.xml`), toast shown. PASS.
+
+### TC-1024.8 — Enter submits the export (PASS)
+1. Focus filename (valid value), press Enter.
+- **Expected:** same flow as clicking Export; download toasts; no page navigation.
+- **Actual:** export runs, toast "Export complete". PASS.
+
+### TC-1024.9 — No execution right → 403 on info AND export (PASS)
+1. DB: user `noexec` (id 2, role_id 5 guest → no `testplan_execute`/`exec_ro_access`). Login via curl + cookie jar; `GET ?action=info&tplan_id=9&build_id=1&tcversionSet=7`.
+- **Expected:** 403 `{"status":"error","message":"No permission"}`.
+- **Actual:** 403 (owner project 4 resolved from plan 9). Same result on `POST action=export`. PASS.
+
+### TC-1024.10 — Unknown test plan → 404; missing tplan → 400; empty set → 400 (PASS)
+1. (noexec jar) `info?tplan_id=99999`, `info` (no id), `export` with `tcversionSet=`.
+- **Expected:** 404 "Test plan not found"; 400 "Invalid test plan id"; 403-no-permission (checked before body since noexec) — update: with admin jar the empty-set POST yields 400 "No test case versions to export".
+- **Actual:** 404 / 400 / (admin) 400 for empty set; matchers correct. PASS.
+
+### TC-1024.11 — Locale switch translates the popup (PASS)
+1. On popup switch `#tl-locale-switcher` to Română (URL gains `?locale=ro`).
+- **Expected:** title "Exportă setul de cazuri de test - WALK Plan"; toolbar "Cazuri de test în set"; labels "Numele fișierului de export", "Tip fișier"; doc link "vezi documentația formatelor de fișiere"; buttons "Exportă"/"Anulează"; footer "TestLink 2.0.1 - Exportă setul de cazuri de test".
+- **Actual:** exact translation. PASS.
+
+### TC-1024.12 — i18n keys + JSON valid in all 10 bundles (PASS)
+1. `python3 -m json.tool gui/templates/i18n/*.json`; grep `execx.*` (16 keys) used by `execExport.html` + `exe.export`/`exe.errExportNoData` (execTest.html) present in de/en/es/fr/it/ja/pt/ro/ru/zh.
+- **Expected:** all present, valid JSON.
+- **Actual:** 18 new keys spread across all 10 bundles, validated. PASS.
+
+### TC-1024.13 — common.php exposes execExport action pointing at the modern screen (PASS)
+1. `grep '\$actions->execExport' lib/functions/common.php`; on a logged-in frame `window.setupGui`/aside render — verify the mapped uri.
+- **Expected:** `$actions->execExport = "/gui/templates/execute/execExport.html?{ctx}"` (inside `if ($tplan_id > 0)`, alphanumeric, no `lib/execute/execExport.php` anywhere in codebase usage).
+- **Actual:** mapping added; no remaining references to the legacy execExport.php beyond the (dead) Dashio tpl/JS. PASS.
+
+### TC-1024.14 — Event Viewer: no screen-attributable Error/Warning (PASS)
+1. After all of the above, `SELECT id,log_level,source,LEFT(description,120) FROM events ORDER BY id DESC LIMIT 30;`
+- **Expected:** zero ERROR/WARNING rows attributable to api/executeexport or execExport.html (legacy pre-existing rows from the fixture session may exist).
+- **Actual:** newest entries are fixture-authoring notices and a failed `INSERT INTO builds` from the very first fixture attempt (pre-modernization, timestamped during setup, NOT triggered by the BFF/screen); no rows produced by any executeexport call (info/export/403/404/400/locale). PASS.
+
+**Result:** 14/14 PASS. Commits `5405e7ba8` + `1d633c34b` (branch `sebiboga`, `Refs #1024`); screenshots `tmp/execx_screen.png`, `tmp/execx_filename.png`. **Discovery:** `exportTestCaseDataToXML()` emits `<fullexternalid>` empty when called without `ADDPREFIX`-populated data — identical to legacy execExport output (legacy calls it with no optExport too), NOT a regression. The 401-auto-redirect on expired/absent sessions bounces the popup to `login.php` via `/index.php` — intentional hardening added in this screen (matches execTest.html behavior).
