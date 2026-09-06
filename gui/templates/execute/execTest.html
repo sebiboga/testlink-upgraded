@@ -137,6 +137,7 @@ a.bug-badge:hover { background: #f8d7da; color: #a93226; }
   <select id="selStatusFilter"></select>
   <input type="text" id="txtSearch" data-i18n-placeholder="exe.searchPlaceholder" placeholder="Search test case..." style="min-width:180px;">
   <button class="btn-teal" onclick="loadList()"><i class="fa fa-rotate"></i> <span data-i18n="exe.refresh">Refresh</span></button>
+  <button class="btn-teal" id="btnExport" onclick="openExport()"><i class="fa fa-download"></i> <span data-i18n="exe.export">Export</span></button>
 </div>
 
 <div class="ro-banner" id="roBanner"></div>
@@ -332,6 +333,20 @@ function curBuildId() { return parseInt($('#selBuild').val() || '0', 10); }
 function curPlatformId() {
   var v = $('#selPlatform').val();
   return v ? parseInt(v, 10) : -1; // -1 => plan without platforms (stored as 0)
+}
+
+// BUGID 3421 - Export all test cases in the current set (modernized
+// execExport.php popup, Refs #1024): exports the currently visible set.
+function openExport() {
+  var ids = (visibleItems() || []).map(function (it) { return it.tcversion_id; });
+  if (ids.length === 0) { toast(TLi18n.t('exe.errExportNoData'), true); return; }
+  var url = '/gui/templates/execute/execExport.html?tproject_id=' + ctx.tprojectId
+    + '&tplan_id=' + ctx.tplanId
+    + '&build_id=' + curBuildId()
+    + '&platform_id=' + Math.max(0, curPlatformId())
+    + '&tsuite_id=0'
+    + '&tcversionSet=' + encodeURIComponent(ids.join(','));
+  window.open(url, '_blank', 'width=860,height=680');
 }
 
 function resetSelection() {

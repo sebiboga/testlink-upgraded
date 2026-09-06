@@ -2042,6 +2042,10 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id > 0) {
     $actions->executeTest =
       "/gui/templates/execute/execTest.html?{$ctx}";
+    // Execution Export popup (modernized execExport.php, BUGID 3421) - Refs
+    // #1024. Opens as a standalone Dashio page fed by api/executeexport.
+    $actions->execExport =
+      "/gui/templates/execute/execExport.html?{$ctx}";
   }
 
   $gui->uri = $actions;

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="execx.header">Export Test Case Set</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #b5e3e0; cursor: not-allowed; }
+.btn-dark { background: #22242a; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #33363e; }
+.section { padding: 20px 24px 4px; }
+.section h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 0 24px 18px; overflow: hidden; }
+.card-head { padding: 12px 18px; border-bottom: 1px solid #eee; font-size: 14px; font-weight: 700; color: #22242a; display: flex; align-items: center; gap: 8px; }
+.card-head i { color: #4ECDC4; }
+.card-body { padding: 16px 18px; }
+.ctx-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.ctx-cell { background: #f7f9f9; border: 1px solid #e7ecec; border-radius: 5px; padding: 8px 12px; }
+.ctx-cell .k { font-size: 11px; font-weight: 600; color: #889; text-transform: uppercase; letter-spacing: .4px; }
+.ctx-cell .v { font-size: 13px; color: #22242a; margin-top: 2px; word-break: break-word; }
+.form-group { margin-bottom: 14px; }
+.form-group label { font-size: 12px; font-weight: 600; color: #445; display: block; margin-bottom: 5px; }
+.form-control { font-size: 13px; border: 1px solid #cdd; border-radius: 4px; padding: 7px 10px; width: 100%; }
+.form-control:focus { outline: none; border-color: #4ECDC4; }
+.hint { color: #999; font-size: 12px; margin-top: 6px; }
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 6px; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 6px; }
+.loading-overlay { position: fixed; top:0; left:0; right:0; bottom:0; background: rgba(34,36,42,.55); color:#fff; display:none; align-items:center; justify-content:center; font-size:15px; z-index:10000; }
+.loading-overlay i { margin-right: 10px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.warn-box { background:#fdeaea; color:#b45452; border:1px solid #f3cccc; border-radius: 4px; padding: 10px 14px; font-size: 13px; margin: 0 24px 18px; display:none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="execx.header">Export Test Case Set</span>
+  <span id="planSub" class="sub"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="execx.testplan">Test plan</span>: <b id="planTitle">-</b></span>
+  <span class="ctx"><span data-i18n="execx.tcCount">Test cases in set</span>: <b id="tcCount">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-dark" id="btnBack"><i class="fa fa-arrow-left"></i> <span data-i18n="execx.cancel">Cancel</span></button>
+</div>
+
+<div class="warn-box" id="warnBox"></div>
+
+<div class="card">
+  <div class="card-head"><i class="fa fa-file-export"></i> <span data-i18n="execx.header">Export Test Case Set</span></div>
+  <div class="card-body">
+    <div class="ctx-grid" id="ctxGrid"></div>
+    <div class="form-group">
+      <label for="exportFilename" data-i18n="execx.exportFilename">Export file name</label>
+      <input type="text" class="form-control" id="exportFilename" required>
+      <div class="hint" data-i18n="execx.headerSub">export the set of test cases shown on the bulk execution window as XML</div>
+    </div>
+    <div class="form-group">
+      <label for="exportType" data-i18n="execx.fileType">File type</label>
+      <select id="exportType" class="form-control">
+        <option value="XML">XML</option>
+      </select>
+      <div class="hint"><a href="/docs/tl-file-formats.pdf" target="_blank" data-i18n="execx.viewFileFormatsDoc">view file formats documentation</a></div>
+    </div>
+    <div class="actions">
+      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="execx.export">Export</span></button>
+      <button class="btn-dark" id="btnCancel" data-i18n="execx.cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="execx.footer">TestLink 2.0.1 - Export Test Case Set</span></div>
+
+<div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="execx.generating">Generating export...</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/executeexport/index.php';
+var ctx = {
+  tprojectId: 0,
+  tplanId: 0,
+  buildId: 0,
+  platformId: 0,
+  tsuiteId: 0,
+  tcversionSet: '',
+  info: null
+};
+
+function qs(name) {
+  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+  return m ? decodeURIComponent(m[1]) : '';
+}
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function showFatal(msg) {
+  $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
+  $('#btnExport').prop('disabled', true);
+}
+
+function goBack() {
+  window.history.length > 1 ? window.history.back() : window.close();
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  ctx.tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  ctx.tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  ctx.buildId = parseInt(p.get('build_id') || '0', 10);
+  ctx.platformId = parseInt(p.get('platform_id') || '0', 10);
+  ctx.tsuiteId = parseInt(p.get('tsuite_id') || '0', 10);
+  ctx.tcversionSet = p.get('tcversionSet') || '';
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadOptions();
+  });
+  $('#btnExport').on('click', doExport);
+  $('#btnBack').on('click', goBack);
+  $('#btnCancel').on('click', goBack);
+  $('#exportFilename').on('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); doExport(); }
+  });
+});
+
+function loadOptions() {
+  var params = {
+    action: 'info',
+    tplan_id: ctx.tplanId,
+    tproject_id: ctx.tprojectId,
+    build_id: ctx.buildId,
+    platform_id: ctx.platformId,
+    tsuite_id: ctx.tsuiteId,
+    tcversionSet: ctx.tcversionSet
+  };
+  $.get(API, params)
+    .done(function (r) {
+      if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('execx.errLoadInfo')); return; }
+      ctx.info = r;
+      renderContext();
+    })
+    .fail(function (xhr) {
+      var msg = (xhr && xhr.status === 401) ? TLi18n.t('common.error') : TLi18n.t('execx.errLoadInfo');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showFatal(msg);
+      if (xhr && xhr.status === 401) {
+        setTimeout(function () { window.location.href = '/index.php'; }, 1200);
+      }
+    });
+}
+
+function renderContext() {
+  document.title = TLi18n.t('execx.header') + ' - ' + ctx.info.tplan.name;
+  $('#planSub').text(' - ' + ctx.info.tplan.name);
+  $('#planTitle').text(ctx.info.tplan.name);
+  $('#tcCount').text(ctx.info.tc_count);
+  $('#exportFilename').val(ctx.info.default_filename || 'export_execution_set.xml');
+
+  var cells = [
+    { k: TLi18n.t('execx.testproject'), v: ctx.info.tproject.name },
+    { k: TLi18n.t('execx.testplan'), v: ctx.info.tplan.name }
+  ];
+  if (ctx.info.build && ctx.info.build.id > 0) {
+    cells.push({ k: TLi18n.t('execx.build'), v: ctx.info.build.name });
+  }
+  if (ctx.info.platform && ctx.info.platform.id > 0) {
+    cells.push({ k: TLi18n.t('execx.platform'), v: ctx.info.platform.name });
+  }
+  $('#ctxGrid').empty();
+  cells.forEach(function (c) {
+    $('<div class="ctx-cell"><div class="k"></div><div class="v"></div></div>')
+      .appendTo('#ctxGrid')
+      .find('.k').text(c.k).end()
+      .find('.v').text(c.v);
+  });
+
+  var canExport = !!(ctx.info.rights && (ctx.info.rights.testplan_execute || ctx.info.rights.exec_ro_access));
+  $('#btnExport').prop('disabled', !canExport);
+  if (!canExport) showFatal(TLi18n.t('common.error'));
+}
+
+function doExport() {
+  var fn = ($('#exportFilename').val() || '').trim();
+  if (!fn) { toast(TLi18n.t('execx.errEmptyFilename'), true); $('#exportFilename').focus(); return; }
+
+  var params = new URLSearchParams();
+  params.set('action', 'export');
+  params.set('tplan_id', ctx.info.tplan.id);
+  params.set('tproject_id', ctx.info.tproject.id);
+  params.set('build_id', ctx.info.build ? ctx.info.build.id : 0);
+  params.set('platform_id', ctx.info.platform ? ctx.info.platform.id : 0);
+  params.set('tsuite_id', ctx.info.tsuite_id || 0);
+  params.set('tcversionSet', ctx.tcversionSet);
+  params.set('exportType', $('#exportType').val() || 'XML');
+  params.set('export_filename', fn);
+
+  $('#loadingOverlay').show().find('span').text(TLi18n.t('execx.generating'));
+  $('#btnExport').prop('disabled', true);
+
+  fetch(API, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
+    .then(function (res) {
+      var ct = res.headers.get('Content-Type') || '';
+      if (!res.ok || ct.indexOf('application/json') !== -1) {
+        return res.text().then(function (t) {
+          var j = null; try { j = JSON.parse(t); } catch (e) {}
+          throw new Error((j && j.message) || t || TLi18n.t('execx.errExport'));
+        });
+      }
+      var name = fn;
+      return res.blob().then(function (blob) { return { blob: blob, name: name }; });
+    })
+    .then(function (r) {
+      var url = window.URL.createObjectURL(r.blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast(TLi18n.t('execx.exportDone'));
+    })
+    .catch(function (e) {
+      $('#loadingOverlay').hide();
+      $('#btnExport').prop('disabled', false);
+      toast((e && e.message) || TLi18n.t('execx.errExport'), true);
+    });
+}
+</script>
+</body>
+</html>
