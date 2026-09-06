@@ -105,11 +105,6 @@ var ctx = {
   info: null
 };
 
-function qs(name) {
-  var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
-  return m ? decodeURIComponent(m[1]) : '';
-}
-
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
