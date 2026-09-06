@@ -11446,3 +11446,34 @@ Code-review follow-up (same run): subagent review of `api/keywords/assign.php` +
 | 1114.9 | console clean | Chrome console throughout | no JS Error/Warning messages (only pre-existing a11y `issue` diagnostics) | PASS |
 
 Result: 9/9 PASS. Fix: `gui/templates/results/tcCreatedPerUserOnTestProject.html:276` — `if (resTbl) { resTbl.destroy(); resTbl = null; $('#resTable tbody').empty(); }` (stale DataTable reference nulled after destroy so the next query re-initialises from scratch; `resetForm()` at :333 already had the correct pattern). Screenshots: `docs/screenshots/issue-1114-table-missing-after-0row-requery.png` (before), `docs/screenshots/issue-1114-after-fix.png` (after). Refs #1114.
+
+---
+
+## Regression — Issue #1121: Builds & Releases (buildsView.html, api/builds) parity + BFF fixes
+
+**Precondition:** browser logged in admin/admin; app http://localhost:8082. Fixtures: `php tmp/fixtures_1121.php` → test project 1 "BV1121" (prefix BV) proj_id=1 (session default), plans 2 "BV Plan A" + 3 "BV Plan B", 5 builds ids 6-10 (Alpha Active Open, Beta Inactive, Closed Released(closed 2024-05-20), Delta Released(2025-11-01), Echo OtherPlan), no-rights user bvnr (role 3, pwd nopass). Screen under test `gui/templates/plans/buildsView.html?tproject_id=10&tplan_id=11` + BFF `api/builds/index.php` (route `/api/builds/`). Note: builds are project-scoped (#503) so all project builds show in either plan's list.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1121.1 | ASIDE link switched | ASIDE Test Plan → Builds / Releases | opens `gui/templates/plans/buildsView.html?tproject_id=10&tplan_id=11` (no frmWorkArea.php?feature=buildView) | PASS |
+| 1121.2 | list renders | load screen as admin | header "Builds & Releases Management", Test Plan ctx "BV Plan A", Existing Builds(4), DataTable rows: Beta Inactive / Closed Released / Delta Released / Echo OtherPlan, api-id cubes, notes sanitized rich text (`<b>html</b>` renders as "html"), localized release date "Nov 1, 2025" for Delta | PASS |
+| 1121.3 | project-scoped build visibility | build created on Plan B (Echo) | appears in Plan A list too (get_builds = project scope per #503) | PASS |
+| 1121.4 | create via modal persists | Create Build → name "Browser Build One", notes "UI-created notes", Active+Open, release date 2026-09-06 → Save | toast + reload; row appears "Browser Build One" with localized "Sep 6, 2026"; DB row testproject_id correct, active=1, is_open=1, closed_on_date NULL | PASS |
+| 1121.5 | edit modal prefills | click build name "Build Delta Released" | modal title "Edit Build: Build Delta Released", fields prefilled (name/notes/release_date 2025-11-01/Active+Open) | PASS |
+| 1121.6 | active toggle persists | toggle Beta Inactive → activate | DB active 0→1; toast | PASS |
+| 1121.7 | open→closed stamps closure date | toggle Browser Build One → set closed | DB is_open=0, closed_on_date=today (2026-09-06); row icon lock-on | PASS |
+| 1121.8 | delete via confirm modal | delete Browser Build One → Delete in confirm modal | row removed; DB row deleted; DELETE audit event present | PASS |
+| 1121.9 | duplicate name 409 | POST create "Build Delta Released" (already exists) | HTTP 409 `warning_duplicate_build` + localized toast "Already exists: Build Delta Released" | PASS |
+| 1121.10 | empty name 400 | POST create name "" | HTTP 400 `empty_field_no` field=name | PASS |
+| 1121.11 | invalid release date 400 | POST create release_date 2026-13-45 | HTTP 400 `invalid_release_date` | PASS |
+| 1121.12 | missing build → "Build not found" (bug a) | GET/PUT/DELETE `/api/builds/9999`, POST `/9999/flags` | HTTP 404 `Build not found` (pre-fix: misleading "Invalid Test Project ID") | PASS |
+| 1121.13 | invalid source build no orphan (bug b) | POST create with copy_tester_assignments=true source_build_id=9999 | HTTP 400 `Invalid source build`; NO build row persisted after; no new PHP E_WARNING in events | PASS |
+| 1121.14 | no-rights user 403 | login bvnr → load screen | graceful "Insufficient rights" toast, empty table, no Create button, no data | PASS |
+| 1121.15 | rights flag routes | delete with existing executions by admin | admin has exec_delete → DELETE ok (verified via seeded execution on deleted id 6 pre-clean) | PASS |
+| 1121.16 | copy assignments full copy | POST create copy_tester_assignments=true source_build_id (valid) | HTTP 200 ok; copy path exercised (no errors) | PASS |
+| 1121.17 | copy-to-all-plans no-op by design | POST create copy_to_all_tplans=true | 200; no extra build rows (project-scoped name already exists → sibling skip, #503) | PASS |
+| 1121.18 | i18n complete | grep `bv.*` keys HTML vs bundles en/ro/de/es/fr/it/ja/pt/ru/zh | all 46 keys present in all 10 bundles; python3 -m json.tool clean | PASS |
+| 1121.19 | events clean after pass | after full browser+API flow check `events` | only INFO audit CREATE/SAVE/DELETE builds + login rows; no new Error/Warning (pre-existing id 26 PHP warning was from pre-fix code, not reproduced) | PASS |
+| 1121.20 | console clean | Chrome console throughout | no JS Error/Warning (2 minor a11y `issue` diagnostics only) | PASS |
+
+Result: 20/20 PASS. Fixes (commit 69f0e01e0, api/builds/index.php): (a) all four build-fetch routes use `if (!$b)` instead of `if (is_null($b))` since `build::get_by_id()` returns `bool(false)` when missing — proper "Build not found" 404; (b) POST create validates the copy-assignment source build BEFORE `createFromObject()` so a bad source returns 400 with no orphan persisted (also removed the pre-existing E_WARNING). Gaps filed: #1122 (build design-time custom fields — columns + modal inputs + CF save), #1123 (event-history icon mgt_view_events), #1124 (closed_on_date display in edit modal), #1125 (cleanup legacy buildView). Refs #1121. Screenshots: `tmp/screenshots/bv1121-browser-list.png`, `tmp/screenshots/bv1121-browser-norights.png`.
