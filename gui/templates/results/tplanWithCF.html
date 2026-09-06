@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -29,6 +30,13 @@ td.suitecell { color: #667; font-size: 11px; max-width: 200px; word-break: break
 td.tccell { white-space: nowrap; }
 .tcid { font-weight: 600; color: #33363f; }
 td.cfcell { max-width: 200px; word-break: break-word; white-space: normal; font-size: 11px; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #22242a; color: #fff; border: none; border-radius: 4px; padding: 7px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #33363f; }
+.tbtn i { color: #4ECDC4; }
+table.flat tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 7px 10px; border-bottom: 1px solid #d2e6e3; }
+table.flat tr.dtrg-group td i { margin-right: 8px; color: #4ECDC4; }
+table.flat tr.dtrg-group td:hover { background: #dcefec; }
+table.flat tr.group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 5px; }
 .edit-link { cursor: pointer; color: #4ECDC4; text-decoration: none; margin-right: 4px; }
 .edit-link:hover { color: #2ba8a0; text-decoration: underline; }
 .empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
@@ -77,9 +85,12 @@ td.cfcell { max-width: 200px; word-break: break-word; white-space: normal; font-
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script>
 var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
 var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+var dtTPlanCF = null;
+var collapsedGroups = {};
 
 function esc(s) {
   if (!s) return '';
@@ -137,7 +148,7 @@ function loadData() {
       var cfCols = d.cf_columns || [];
 
       var cols = [
-        { title: t('testsuite', 'Test Suite'), data: 'suite_path', className: 'suitecell', orderable: true },
+        { title: t('testsuite', 'Test Suite'), data: 'suite_path', visible: false },
         { title: t('testcase', 'Test Case'), data: null, className: 'tccell', orderable: true,
           render: function(data, type, row) {
             var links = '<span class="tcid">' + esc(row.external_id) + '</span>: ' + esc(row.tcase_name);
@@ -159,6 +170,9 @@ function loadData() {
 
       var html = '<div class="section"><div class="section-head">' +
         '<i class="fa fa-table"></i> ' + t('tpwcf.header', 'Test Plan with Custom Fields') +
+        '<button type="button" class="tbtn" id="btnExpandAll"><i class="fa fa-plus-square"></i> ' + t('tpwcf.expandAll', 'Expand all groups') + '</button>' +
+        '<button type="button" class="tbtn" id="btnCollapseAll"><i class="fa fa-minus-square"></i> ' + t('tpwcf.collapseAll', 'Collapse all groups') + '</button>' +
+        '<button type="button" class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> ' + t('tpwcf.showAllColumns', 'Show all columns') + '</button>' +
         '<span class="bmeta">' + t('tpwcf.matchCount', 'Match count') + ': ' + d.rows.length + '</span>' +
         '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"></table></div></div>';
       $('#reportArea').html(html);
@@ -168,11 +182,27 @@ function loadData() {
         $('#dtResults').DataTable().destroy();
       }
 
-      $('#dtResults').DataTable({
+      collapsedGroups = {};
+      dtTPlanCF = $('#dtResults').DataTable({
         data: d.rows,
         columns: cols,
         order: [[0, 'asc'], [1, 'asc']],
         pageLength: 25,
+        rowGroup: {
+          dataSrc: 'suite_path',
+          startRender: function (rows, group) {
+            var isCollapsed = !!collapsedGroups[group];
+            rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+            var n = rows.count();
+            var cnt = t('tpwcf.groupItem', '({count} item)').replace('{count}', n);
+            if (n !== 1) { cnt = t('tpwcf.groupItems', '({count} items)').replace('{count}', n); }
+            return $('<tr/>').attr('data-key', encodeURIComponent(group))
+              .append($('<td/>').append(
+                $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+                ' ' + esc(group) + '<span class="gcount">' + cnt + '</span>'
+              ));
+          }
+        },
         language: {
           search: t('common.filter', 'Filter') + ':',
           lengthMenu: t('common.showEntries', 'Show') + ' _MENU_ ' + t('common.entries', 'entries'),
@@ -180,6 +210,28 @@ function loadData() {
           paginate: { previous: t('common.prev', 'Previous'), next: t('common.next', 'Next') },
           emptyTable: t('tpwcf.noData', 'No test cases with custom field values found.')
         }
+      });
+
+      $(dtTPlanCF.table().container()).on('click', 'tr.dtrg-group', function () {
+        var key = decodeURIComponent($(this).attr('data-key') || '');
+        collapsedGroups[key] = !collapsedGroups[key];
+        dtTPlanCF.draw(false);
+      });
+
+      $('#btnExpandAll').off('click').on('click', function () {
+        collapsedGroups = {};
+        dtTPlanCF.draw(false);
+      });
+
+      $('#btnCollapseAll').off('click').on('click', function () {
+        d.rows.forEach(function (r) { collapsedGroups[r.suite_path] = true; });
+        dtTPlanCF.draw(false);
+      });
+
+      $('#btnShowCols').off('click').on('click', function () {
+        dtTPlanCF.columns().visible(true);
+        dtTPlanCF.draw(false);
+        toast(t('common.loaded', 'Loaded'), false);
       });
 
       $('#footerInfo').html(

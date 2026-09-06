@@ -11223,3 +11223,23 @@ Result: 7/7 PASS. Files: `gui/templates/dashio/aside.tpl` (li wrapper + missing 
 | TC-748.7 | cleanup | delete ZZ AutoSub via UI/API | toast "deleted", tree no longer shows it | PASS |
 
 Result: 7/7 PASS. File: `gui/templates/testcases/testSpec.html` (toolbar button, toggle in `updateContextButtons()`, dynamic modal title in `openSuiteCreate()`); docs: `docs/WIKI-TEST-SPECIFICATION.md`. Refs #748.
+
+---
+
+## Issue #847: Test-suite grouping + collapsible group toolbar in tplanWithCF.html
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`; MariaDB `testlink` (container `testlink-mariadb`, port 3307). Task: legacy ExtTable grouped rows by Test Suite and offered a group toolbar (expand/collapse groups + show all columns, `storeTableState`). Modern `results/tplanWithCF.html` rendered a flat DataTable without grouping. Implementation: DataTables **RowGroup 1.4.1** CDN extension; `rowGroup:{ dataSrc:'suite_path' }` with the Test Suite data column hidden (`visible:false`, ordering preserved by `order:[[0,'asc'],[1,'asc']]`); group header rows (`dtrg-group`) show suite path + count ("({count} items)") + chevron, click toggles per-group collapse; toolbar buttons **Expand all groups** / **Collapse all groups** / **Show all columns** in the section header. Fixture: project 11, plan "Regression Aug 29" (tplan 3232), 6 TCs all under suite "1. Header" with design CF "Rol".
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-847.1 | group headers render | open `results/tplanWithCF.html?tproject_id=11&tplan_id=3232` | exactly one `tr.dtrg-group` with text "1. Header (6 items)"; chevron-down icon | PASS |
+| TC-847.2 | Test Suite data column hidden | inspect `#dtResults` columnDefs/rendered table | no visible "Test Suite" column; headers = Test Case + Rol | PASS |
+| TC-847.3 | per-group collapse via header click | click the group header | all 6 data rows `display:none`; chevron flips to chevron-right; group header stays | PASS |
+| TC-847.4 | per-group expand via second click | click group header again | 6 data rows visible again, chevron-down | PASS |
+| TC-847.5 | Expand all groups button | collapse a group → click `#btnExpandAll` | all data rows visible | PASS |
+| TC-847.6 | Collapse all groups button | click `#btnCollapseAll` | 0 visible data rows; every group collapsed | PASS |
+| TC-847.7 | Show all columns button | click `#btnShowCols` | all `thead th` visible (3/3), draw OK | PASS |
+| TC-847.8 | i18n keys | grep `tpwcf.{expandAll,collapseAll,showAllColumns,groupItem,groupItems}` in all bundles + `python3 -m json.tool` | 5 keys in 10/10 bundles, all bundles valid JSON | PASS |
+| TC-847.9 | no console errors | Chrome console on load + collapse/expand + toolbar buttons | zero Error/Warning messages | PASS |
+
+Result: 9/9 PASS. Files: `gui/templates/results/tplanWithCF.html` (RowGroup CDN + `rowGroup` init + `dtrg-group` CSS + toolbar + collapse handling), `gui/templates/i18n/*.json` (5 keys × 10 locales), `docs/Test-Plan-with-Custom-Fields-Report-Modernized.md`. Empty-state path unchanged (no `d.rows` → warnbox). Refs #847.
