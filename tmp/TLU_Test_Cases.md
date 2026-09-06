@@ -11260,3 +11260,23 @@ Result: 9/9 PASS. Files: `gui/templates/results/tplanWithCF.html` (RowGroup CDN 
 | TC-863.6 | PHP syntax | `php -l lib/functions/common.php` | "No syntax errors detected" | PASS |
 
 Result: 6/6 PASS. Files: `lib/functions/common.php` (getMenuVisibility `dashboard`, `$actions->dashboard`), `gui/templates/dashio/aside.tpl` (href). Refs #863.
+
+---
+
+## Issue #893: Dashio integration - versions (bump to latest secure libs)
+
+**Precondition:** browser admin/admin, app `http://127.0.0.1:8082`. Task: repo carried many stale Dashio-related library copies (jQuery 2.2.4 / CDN 3.6.0, Bootstrap 3.3.6/3.3.7 mixed, Font Awesome 6.2.0, DataTables 1.10.25/1.13.6). Bumped everything to the latest drop-in line release: jQuery 3.7.1, Bootstrap 3.4.1 (final v3, security fixes), Font Awesome 6.7.2-free-web, DataTables 1.13.7 (CDN unified).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-893.1 | shell jQuery = 3.7.1 | load `index.php`; check mainframe/asidebar/titlebar `jQuery.fn.jquery` | all frames "3.7.1" (TL_JQUERY → third_party/jquery/jquery-3.7.1.min.js) | PASS |
+| TC-893.2 | shell Bootstrap = 3.4.1 | inspect dashio-template & lib bootstrap.min.css headers | "Bootstrap v3.4.1" | PASS |
+| TC-893.3 | shell Font Awesome = 6.7.2 | check `dashio-template/lib/fontawesome-free-6.7.2-web/css/all.css` loads; aside icon font-family | "Font Awesome 6 Free"; 6.7.2 path served | PASS |
+| TC-893.4 | aside accordion works on jQuery 3 | click a `li.sub-menu > a` in asidebar | `ul.sub` toggles (display block/hidden); no JS errors | PASS |
+| TC-893.5 | modern screens jQuery CDN = 3.7.1 | grep `code.jquery.com/jquery-3.7.1.min.js` across gui/templates | 96 files, 0 refs to 3.6.0 remain | PASS |
+| TC-893.6 | DataTables unified to 1.13.7 | grep `cdn.datatables.net/` across gui/templates | only 1.13.7 + rowgroup 1.4.1 refs (0× 1.10.25 / 1.13.6) | PASS |
+| TC-893.7 | no stale 3.3.6 / jquery-2.2.4 | `third_party/bootstrap/`, `third_party/jquery/`, grep whole tree | only bootstrap/3.4.1 and jquery-3.7.1.min.js remain | PASS |
+| TC-893.8 | grouping screen works after bump | open `tplanWithCF.html?tproject_id=11&tplan_id=3232`; jQuery.fn.jquery=$.fn.DataTable.version | 3.7.1 / 1.13.7; group header "1. Header (6 items)"; collapse hides 6 rows; expand-all restores 6 | PASS |
+| TC-893.9 | no console errors | Chrome console on index.php + tplanWithCF | zero Error/Warning messages | PASS |
+
+Result: 9/9 PASS. Files: `config.inc.php` (TL_JQUERY), `lib/functions/tlsmarty.inc.php` (FA path), `third_party/jquery/jquery-3.7.1.min.js` (+2.2.4 removed), `third_party/bootstrap/3.4.1` kept (+3.3.6 removed), bootstrap 3.4.1 sync in dashio-template/lib + lib + gui/themes/dashio/lib, `fontawesome-free-6.7.2-web` (6.2.0 removed), 96 modern HMTL jquery CDN bump + 31 files datatables bump. Refs #893.

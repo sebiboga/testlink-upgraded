@@ -124,7 +124,7 @@ class TLSmarty extends Smarty {
     $this->assign('dashioHomeURL', $basehref . $this->dashioHome);
 
     // FontAwesome CSS location
-    $fontAwesomeHome = $basehref . $this->dashioHome . 'lib/fontawesome-free-6.2.0-web/';
+    $fontAwesomeHome = $basehref . $this->dashioHome . 'lib/fontawesome-free-6.7.2-web/';
     $this->assign('fontawesomeHomeURL', $fontAwesomeHome);
 
     // ----------------------------------------------------------    
