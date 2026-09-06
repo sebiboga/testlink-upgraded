@@ -18,6 +18,9 @@ require_once('common.php');
 
 doSessionStart();
 
+require_once(__DIR__ . '/../_guard.php');
+bffSameOriginGuard();
+
 header('Content-Type: application/json');
 
 $db = new database(DB_TYPE);
@@ -171,7 +174,8 @@ try {
                 $latestVersion = $ltcv;
                 $statusQuo = current(
                     $tcaseMgr->get_versions_status_quo($tcase_id, $ltcv['tcversion_id']));
-                $hasBeenExecuted = intval($statusQuo['executed']) > 0;
+                if ($statusQuo === false) { $statusQuo = []; }
+                $hasBeenExecuted = intval($statusQuo['executed'] ?? 0) > 0;
 
                 $amap = $tcaseMgr->get_keywords_map($tcase_id, $ltcv['tcversion_id'],
                     ['orderByClause' => ' ORDER BY keyword ASC ']);
@@ -239,7 +243,8 @@ try {
         }
 
         $statusQuo = current($tcaseMgr->get_versions_status_quo($tcase_id, $ltcv['tcversion_id']));
-        $hasBeenExecuted = intval($statusQuo['executed']) > 0;
+        if ($statusQuo === false) { $statusQuo = []; }
+        $hasBeenExecuted = intval($statusQuo['executed'] ?? 0) > 0;
         $canEditExecuted = kwaHasRight($db, $user,
             'testproject_add_remove_keywords_executed_tcversions')
             || kwaHasRight($db, $user, 'testproject_edit_executed_testcases');
@@ -328,7 +333,8 @@ try {
                 $latestActiveVersionID = $ltcv['tcversion_id'];
                 $statusQuo = current(
                     $tcaseMgr->get_versions_status_quo($tcid, $latestActiveVersionID));
-                $execd = intval($statusQuo['executed']) > 0;
+                if ($statusQuo === false) { $statusQuo = []; }
+                $execd = intval($statusQuo['executed'] ?? 0) > 0;
 
                 if (!$canEditExecuted && $execd) {
                     $skipped++;
