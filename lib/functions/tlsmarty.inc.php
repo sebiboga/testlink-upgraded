@@ -570,7 +570,16 @@ class TLSmarty extends Smarty {
     global $db;
 
     $gui = $this->getTemplateVars('gui');
-    if( !is_object($gui) || !isset($_SESSION['currentUser']) || null == $db ) {
+
+    // Refs #1021: anonymous object-api_key sessions (setUpEnvForAnonymousAccess
+    // sets userID = -1) have no usable identity to build a menu context from
+    // (initUserEnv -> get_accessible_for_user(tlUser::getByID(0)=null) would
+    // fatal). Public report pages render without any menu shell, so an empty
+    // grant set is the correct, crash-free menu for them.
+    $isAnonymousSession =
+      isset($_SESSION['userID']) && intval($_SESSION['userID']) <= 0;
+    if( !is_object($gui) || !isset($_SESSION['currentUser']) ||
+        $isAnonymousSession || null == $db ) {
       $this->assign('menuGrants',self::emptyMenuGrants());
       return;
     }

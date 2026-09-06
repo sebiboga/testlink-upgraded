@@ -164,6 +164,14 @@ function getMetrics(&$db,$userObj,$args, $result_cfg, $labels)
   $options['active'] = $args->show_only_active ? ACTIVE : TP_ALL_STATUS; 
   $test_plans = $userObj->getAccessibleTestPlans($db,$tproject_id,null,$options);
 
+  // Refs #1021: getAccessibleTestPlans() returns null when no plan matches
+  // (no plan / none public / none active). array_keys(null) is a PHP8
+  // TypeError -> 500 on the anonymous public link; degrade to the empty
+  // state ("no testplans available") instead.
+  if( !is_array($test_plans) ) {
+    $test_plans = array();
+  }
+
   // Get count of testcases linked to every testplan
   // Hmm Count active and inactive ?
   $linkedItemsQty = $tplan_mgr->count_testcases(array_keys($test_plans),null,array('output' => 'groupByTestPlan'));
@@ -369,6 +377,11 @@ function initEnv(&$dbHandler)
       // Have got OBJECT KEY
       $cerbero->method = null;
       $cerbero->args->getAccessAttr = false;
+      // Refs #1021: set the ids setUpEnvForAnonymousAccess() reads to decide
+      // the entity type (common.php checks args->tplan_id), otherwise we get
+      // an "Undefined property: stdClass::$tplan_id" E_WARNING on every hit.
+      $cerbero->args->tproject_id = $args->tproject_id;
+      $cerbero->args->tplan_id = $args->tplan_id;
 
       setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
     

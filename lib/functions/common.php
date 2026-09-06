@@ -1375,19 +1375,10 @@ function setUpEnvForAnonymousAccess(&$dbHandler,$apikey,$rightsCheck=null,$opt=n
     //
     if(!isset($_SESSION['basehref']))
     {
-      // echo $rightsCheck->redirect_target;
-      session_unset();
-      session_destroy();
-      if(property_exists($rightsCheck, 'redirect_target') && !is_null($rightsCheck->redirect_target))
-      {
-        redirect($rightsCheck->redirect_target);  
-      } 
-      else
-      {
-        // best guess for all features that live on ./lib/results/
-        redirect("../../login.php?note=logout");  
-      } 
-      exit();
+      // Refs #1021: anonymous access carries no credentials - bouncing to the
+      // login page is a dead end (the viewer cannot authenticate as the data
+      // owner). Rebuild the base path instead so the public report renders.
+      setPaths();
     }  
 
     if(!is_null($rightsCheck->method))
