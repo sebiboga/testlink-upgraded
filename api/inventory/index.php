@@ -57,6 +57,33 @@ function needTprojectId($body = []) {
     return $id;
 }
 
+/**
+ * Project-role-aware inventory right check (mirrors getGrantSetWithExit,
+ * lib/functions/common.php lines 2189-2203). hasRight() strips inventory
+ * rights from project roles because they live in $g_propRights_global
+ * (roles.inc.php) / propagateRights() (tlUser.class.php:860), so a user
+ * granted "project_inventory_view" via a *project role* would otherwise be
+ * shown the aside menu link (the legacy grant check reads the project role
+ * directly) but hit a 403 dead-end here. Fall back to scanning the project
+ * role's right set; keep the 403 only for users holding neither right.
+ */
+function invRight($user, $db, $right, $tproject_id) {
+    if ($user->hasRight($db, $right, $tproject_id) == 'yes') {
+        return true;
+    }
+    if ($tproject_id > 0
+        && isset($user->tprojectRoles[$tproject_id])
+        && !empty($user->tprojectRoles[$tproject_id]->rights)
+        && is_array($user->tprojectRoles[$tproject_id]->rights)) {
+        foreach ($user->tprojectRoles[$tproject_id]->rights as $ro) {
+            if (isset($ro->name) && $ro->name === $right) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 function itemToJSON($row, $logins) {
     return [
         'id' => intval($row['id']),
@@ -79,14 +106,14 @@ function itemToJSON($row, $logins) {
 if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'owners') {
     // stricter than the legacy ajax (which only required the requested right):
     // the owner combo is only used inside the manage modal, so management
-    // right is required here too
-    if (!$user->hasRight($db, 'project_inventory_management')) {
+    // right is required here too (project-role-aware, see invRight)
+    if (!invRight($user, $db, 'project_inventory_management', 0)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
     $tproject_id = needTprojectId();
     // user must hold the requested right on the project as well
-    if (!$user->hasRight($db, 'project_inventory_view', $tproject_id)) {
+    if (!invRight($user, $db, 'project_inventory_view', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -109,7 +136,7 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'owners') {
 // ---------------------------------------------------------------------------
 if ($method === 'GET' && count($segments) === 0) {
     $tproject_id = needTprojectId();
-    if (!$user->hasRight($db, 'project_inventory_view', $tproject_id)) {
+    if (!invRight($user, $db, 'project_inventory_view', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -142,7 +169,7 @@ if ($method === 'GET' && count($segments) === 0) {
             'inventoryEnabled' => $invEnabled,
         ],
         'rights' => [
-            'canManage' => (bool)$user->hasRight($db, 'project_inventory_management', $tproject_id),
+            'canManage' => invRight($user, $db, 'project_inventory_management', $tproject_id),
             'canView' => true,
         ],
         'user' => ['id' => intval($userId)],
@@ -155,13 +182,13 @@ if ($method === 'GET' && count($segments) === 0) {
 //       machinePurpose, machineHw, machineNotes
 // ---------------------------------------------------------------------------
 if ($method === 'POST' && count($segments) === 0) {
-    if (!$user->hasRight($db, 'project_inventory_management')) {
+    $body = getBody();
+    $tproject_id = needTprojectId($body);
+    if (!invRight($user, $db, 'project_inventory_management', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHTS']);
     }
-    $body = getBody();
-    $tproject_id = needTprojectId($body);
 
     $op = saveDevice($db, $userId, $tproject_id, 0, $body);
     if (is_array($op)) {
@@ -180,13 +207,13 @@ if ($method === 'POST' && count($segments) === 0) {
 // body: tproject_id + same fields as POST
 // ---------------------------------------------------------------------------
 if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
-    if (!$user->hasRight($db, 'project_inventory_management')) {
+    $body = getBody();
+    $tproject_id = needTprojectId($body);
+    if (!invRight($user, $db, 'project_inventory_management', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHTS']);
     }
-    $body = getBody();
-    $tproject_id = needTprojectId($body);
     $machineId = intval($segments[0]);
 
     // defense-in-depth: the row must belong to the addressed test project
@@ -210,12 +237,12 @@ if ($method === 'PUT' && isset($segments[0]) && ctype_digit($segments[0])) {
 // DELETE /{id}?tproject_id=N - delete device (project_inventory_management)
 // ---------------------------------------------------------------------------
 if ($method === 'DELETE' && isset($segments[0]) && ctype_digit($segments[0])) {
-    if (!$user->hasRight($db, 'project_inventory_management')) {
+    $tproject_id = needTprojectId();
+    if (!invRight($user, $db, 'project_inventory_management', $tproject_id)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission',
              'error_code' => 'NO_RIGHTS']);
     }
-    $tproject_id = needTprojectId();
     $machineId = intval($segments[0]);
 
     // pre-check existence/ownership: legacy deleteInventory() hit an undefined
