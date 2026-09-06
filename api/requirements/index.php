@@ -1889,4 +1889,5 @@ function reqLocalizeDateToIso($localizedDate) {
     return null;
 }
 
+http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Unknown endpoint']);
