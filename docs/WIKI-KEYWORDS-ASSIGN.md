@@ -70,10 +70,21 @@ badge plus an explanatory note and disables Save.
 All routes are session-authenticated and return JSON
 (`{status:"ok"|...}`); insufficient rights yield HTTP 403.
 ## 7. i18n Keys
-26 keys under `kwa.*` exist in **all ten locale bundles**
+29 keys under `kwa.*` exist in **all ten locale bundles**
 (`en de es fr it ja pt ro ru zh`). No hardcoded strings remain on screen;
 toasts use parameterized messages (`%d` counts).
 ## 8. Testing
 Suite 43 (Suite ID: 50) in `TLU_Test_Cases.md` covers both levels, replace vs
 bulk semantics, deep/direct scope, the executed guard for a restricted role,
 the no-rights path and i18n validity across bundles.
+
+SCREEN-COMPARE regression suite **KWA-1105** (18 TCs, `TLU_Test_Cases.md`,
+Refs #1105) re-verifies the parity pass on seeded fixtures (project 1 "KWA Demo
+Project", users `kwanr` no-rights / `kwadesign` restricted, plan+build+execution
+on Case A2): deep case listing, replace-save, executed badge + blocked Save
+(POST /case → `{status:"blocked", reason:"executed"}`), suite bulk add/remove/
+remove-all with executed skip counters, no-rights 403 + UI note, all 400/404
+error contracts, empty-keyword project card, Română locale switch, Event Viewer
+cleanliness, `php -l` + console. Gaps found: **#1106** `useFilteredSet`
+assign-to-filtered-set dropped · **#1107** legacy `id`/`edit` deep-link params
+dropped · **#1108** cleanup (delete legacy keywordsAssign).
