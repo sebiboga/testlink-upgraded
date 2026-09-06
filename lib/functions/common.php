@@ -1849,6 +1849,9 @@ function getActions(&$gui,$baseURL) {
   // every route; the legacy controller lib/project/projectView.php keeps the
   // same check.
   $actions->projectView = "/gui/templates/projectsView.html?{$ctx}";
+  // The dashboard (main view) loaded into the main frame - same target as the
+  // header logo (index.php). Refs #863.
+  $actions->dashboard = "/gui/templates/mainpage/mainPage.html?{$ctx}";
   // Test Project Information viewer (modernized archiveData.php?edit=testproject)
   // - Refs #923. Standalone Dashio screen backed by api/projectinfo; used when
   // a caller needs the read-only project info view (e.g. the "home" right pane
@@ -2241,6 +2244,10 @@ function getAccess(&$gui) {
 function getMenuVisibility(&$gui) 
 {
   $showMenu = getFirstLevelMenuStructure();
+
+  // The Dashboard is the app landing page (also reachable via the header
+  // logo); it requires no project/plan grant, so always show its menu entry.
+  $showMenu['dashboard'] = true;
 
   if($gui->tproject_id > 0  && 
      (   $gui->grants->view_tc == "yes" 

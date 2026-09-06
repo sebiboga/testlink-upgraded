@@ -11243,3 +11243,20 @@ Result: 7/7 PASS. File: `gui/templates/testcases/testSpec.html` (toolbar button,
 | TC-847.9 | no console errors | Chrome console on load + collapse/expand + toolbar buttons | zero Error/Warning messages | PASS |
 
 Result: 9/9 PASS. Files: `gui/templates/results/tplanWithCF.html` (RowGroup CDN + `rowGroup` init + `dtrg-group` CSS + toolbar + collapse handling), `gui/templates/i18n/*.json` (5 keys × 10 locales), `docs/Test-Plan-with-Custom-Fields-Report-Modernized.md`. Empty-state path unchanged (no `d.rows` → warnbox). Refs #847.
+
+---
+
+## Issue #863: Dashboard as first ASIDE menu item
+
+**Precondition:** browser logged in admin/admin; app `http://127.0.0.1:8082`. Task: the Dashboard (app landing page / main view) was reachable only by clicking the TestLink header logo; the ASIDE had a Dashboard `<li>` (aside.tpl lines 16-22) but it never rendered because `getMenuVisibility()` never set `$showMenu['dashboard']`, and its href pointed to `uri->projectView` (Test Project management), not the dashboard. Fix: enable `$showMenu['dashboard'] = true` (unconditional — landing page needs no grant), added `$actions->dashboard = "/gui/templates/mainpage/mainPage.html?{$ctx}"` in the URI builder, and switched the aside Dashboard link to it (target=mainframe).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| TC-863.1 | Dashboard is first ASIDE item | load `index.php`; inspect `#sidebar ul.sidebar-menu > li` | first `<li>` = "Dashboard" | PASS |
+| TC-863.2 | href points to dashboard | hover/inspect first item `<a>` | `/gui/templates/mainpage/mainPage.html?tproject_id=11&tplan_id=3232` (session context preserved) | PASS |
+| TC-863.3 | renders without a testplan selected | load `index.php` fresh (tproject 0/tplan 0) | Dashboard li still rendered (no project grant needed) | PASS |
+| TC-863.4 | click loads dashboard in mainframe | click the Dashboard item | mainframe title "Dashboard", URL `mainPage.html?tproject_id=11&tplan_id=3232`, widgets (test-plan status etc.) render | PASS |
+| TC-863.5 | other menu sections intact | inspect aside li list | Search, System, Projects, Requirements Design, Test Case Design, Test Plan, Test Case Execution, Reports, Plugins, Documentation still present below Dashboard | PASS |
+| TC-863.6 | PHP syntax | `php -l lib/functions/common.php` | "No syntax errors detected" | PASS |
+
+Result: 6/6 PASS. Files: `lib/functions/common.php` (getMenuVisibility `dashboard`, `$actions->dashboard`), `gui/templates/dashio/aside.tpl` (href). Refs #863.

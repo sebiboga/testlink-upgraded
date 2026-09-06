@@ -15,7 +15,7 @@ Left side menu
           {if $gui->showMenu != null}
             {if $gui->showMenu.dashboard == true}
             <li class="mt">
-              <a class="{$gui->activeMenu.dashboard}" href="{$gui->uri->projectView}" target="mainframe">
+              <a class="{$gui->activeMenu.dashboard}" href="{$gui->uri->dashboard}" target="mainframe">
                 <i class="fa fa-dashboard"></i>
                 <span>{$labels.title_dashboard}</span>
                 </a>
