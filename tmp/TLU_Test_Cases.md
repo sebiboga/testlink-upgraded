@@ -11577,3 +11577,19 @@ Result: 11/11 PASS. Fix applied (Refs #1149): compiled against the only gap — 
 | 39.10 | i18n + Event Viewer | console + `events` table after tests | no JS errors; no new Error/Warning events beyond fixture-audit rows | PASS |
 
 Result: 10/10 documented, 13 gaps filed as `task` issues #1151-#1163, cleanup #1164 (Delete legacy execTest; keep editExecution/execExport/execPrint/execHistory + shared exec.inc.php). Screenshot: `docs/screenshots/execTest39_panel.png` (pending).
+
+## Regression — Issue #1181: tcAssignedToUser legacy — E_WARNING when a row has no prior execution (Refs #1181)
+
+**Precondition:** app http://localhost:8082, session admin/admin (fresh DB import). Fixture `tmp/fixtures_660.php` → project 1 `LOC660` (prefix L660), plan 16 `Plan660A` (build 1 `BUILD-OPEN`, build 2 `BUILD-CLOSED`), platform 1 `PLAT-X`, TCs alpha=4 (has prior execution 'p' by admin), beta=7 (linked @ PLAT-X, NO execution), gamma=10 (NO execution, assigned on closed build), delta=13 (inactive plan), users admin=1, tester1=2. Screen: `http://localhost:8082/lib/testcases/tcAssignedToUser.php?tproject_id=1&show_all_users=1` (overview), also `&user_id=2&build_id=1` (assigned-to-user) and bare `?tproject_id=1` (assigned-to-me).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1181.1 | PRIMARY BUG — no E_WARNING on never-executed rows | open overview URL; `SELECT * FROM events WHERE log_level IN (1,2)` (was: 4 new E_WARNING entries — 2× Line 150, 2× Line 159) | page renders; **no** new Error/Warning rows in `events`; beta & gamma rows visible | PASS |
+| 1181.2 | never-executed row cell parity | inspect beta row (TC-beta, PLAT-X) and gamma row (TC-gamma, closed build) | Status cell = "Not Run"; Tester cell blank; platform/priority cells normal (beta High/PLAT-X, gamma Medium/blank) | PASS |
+| 1181.3 | executed row unaffected | alpha row (TC-alpha) | Status = "Passed", Tester = "admin", exec-history icon + execution window link present (regression on the executed path) | PASS |
+| 1181.4 | assigned-to-user mode | open `?tproject_id=1&user_id=2&build_id=1` (tester1, open build) | beta row "Not Run"; no new `events` Errors/Warnings | PASS |
+| 1181.5 | assigned-to-me mode (default) | open `?tproject_id=1` (admin session) | alpha row "Passed"/admin; no new `events` Errors/Warnings | PASS |
+| 1181.6 | closed-build toggle path | check "Show also closed builds" + reload overview | gamma row (closed build, never executed) renders "Not Run"/blank; no new `events` Errors/Warnings | PASS |
+| 1181.7 | console clean | Chrome console throughout | no JS Error; only pre-existing `Deprecated feature` issue + favicon 404 | PASS |
+
+Result: 7/7 PASS. Fix: `lib/testcases/tcAssignedToUser.php` — one null-safe read `$lastExec = $lexec[$tcversion_id] ?? array();` then `$status = $lastExec['status'] ?? '';` (existing `if(!$status)` fallback keeps `not_run`) and `htmlspecialchars($lastExec['tester_login'] ?? '')`. Behavior unchanged; PHP 8 null-offset E_WARNING eliminated. Screenshots: `tmp/issue-1181-before.png`, `tmp/issue-1181-after.png`.
