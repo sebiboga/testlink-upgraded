@@ -66,11 +66,16 @@ plan↔tcversion↔platform link:
 
 ```php
 // build must belong to this test project (builds are project-scoped
-// since #503/#834; a plan's builds resolve via builds.testproject_id)
-$bTables = tlObjectWithDB::getDBTables(['builds']);
+// since #503/#834; a plan's builds resolve via builds.testproject_id).
+// Also cross-bind the plan to the same project so a caller cannot
+// write executions combining a build and a plan of different projects.
+$bTables = tlObjectWithDB::getDBTables(['builds', 'testplans']);
 $brow = $db->get_recordset(
-    "SELECT id FROM {$bTables['builds']} " .
-    " WHERE id = {$build_id} AND testproject_id = {$tproject_id}");
+    "SELECT B.id FROM {$bTables['builds']} B" .
+    " JOIN {$bTables['testplans']} TP ON TP.id = {$tplan_id}" .
+    " WHERE B.id = {$build_id}" .
+    " AND B.testproject_id = {$tproject_id}" .
+    " AND TP.testproject_id = {$tproject_id}");
 if (!$brow) {
     http_response_code(400);
     out(['status' => 'error',
@@ -81,16 +86,17 @@ if (!$brow) {
 ### Why this method
 
 Minimal change that keeps the BFF's input-validation intent: the tcversion↔plan↔platform
-link is still verified via `testplan_tcversions`, so a project-scoped build check is enough
-to guarantee the execution is written inside the caller's project. The alternative
-(reverting to legacy's completely unchecked INSERT) was rejected — the modern BFF
-explicitly documents that it validates every id (`index.php` quick_result comment).
+link is still verified via `testplan_tcversions`, and the plan is additionally
+cross-bound to the caller's project (`testplans` JOIN), so the execution is always
+written inside a single, consistent project. The alternative (reverting to legacy's
+completely unchecked INSERT) was rejected — the modern BFF explicitly documents that it
+validates every id (`index.php` quick_result comment).
 
 ## Files changed
 
-- `api/tcassignments/index.php` — lines ~398-408: build predicate `testplan_id = {tplan_id}`
-  → `testproject_id = {tproject_id}`; error message text aligned
-  ('does not belong to this test project').
+- `api/tcassignments/index.php` — lines ~398-410: build predicate `testplan_id = {tplan_id}`
+  → `testproject_id = {tproject_id}` with a `testplans` JOIN cross-binding the plan to the
+  same project; error message text aligned ('does not belong to this test project').
 
 ## Verification
 
@@ -103,6 +109,7 @@ exercise the rejection):
 | PRIMARY — quick result succeeds; `executions` gains status='p' row (plan 16, build 1, tcversion 5, tester 1) | PASS |
 | P→F→P full click cycle in the browser (toast + reload + chip flip) | PASS |
 | Cross-project build (build 30 on plan of project 1) rejected — no insert, no new events | PASS |
+| Cross-project plan/build binding — POST with tproject_id=50, tplan_id=16 (plan of project 1), build 30 rejected | PASS |
 | Non-linked tcversion 14 rejected ('Version not linked to this test plan/platform') | PASS |
 | Rights gate intact — tester1 without `testplan_execute` gets 'Insufficient rights', no insert | PASS |
 | Event Viewer clean — zero new Error/Warning from the fixed flow (only the pre-fix event id 7 remains) | PASS |
@@ -116,6 +123,6 @@ Screenshots: `docs/screenshots/issue-1180-tcassignments-quickresult-normal.png` 
 loaded, pre-click), `docs/screenshots/issue-1180-tcassignments-quickresult-passed.png`
 (status chip "Passed" after a quick-result click).
 
-Commits on `fix/issue-1180`: `0c97bca0e` (fix), `fb0e8e6a4` (regression suite
-`tmp/TLU_Test_Cases.md`), docs.
+Commits on `fix/issue-1180`: `0c97bca0e` (fix), `e575f67de` (review hardening — plan↔project cross-bind),
+`fb0e8e6a4` (regression suite `tmp/TLU_Test_Cases.md`), docs.
 Refs #1180.
