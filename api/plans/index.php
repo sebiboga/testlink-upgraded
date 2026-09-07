@@ -226,11 +226,13 @@ if ($method === 'GET' && count($segments) === 0) {
                        " WHERE CFTDV.field_id IN ({$cfIdList})" .
                        " AND CFTDV.link_id IN ({$planList})";
                 $cfRows = $db->fetchRowsIntoMap(
-                    $sql, 'plan_id');
+                    $sql, 'plan_id', 1);
                 if (!is_null($cfRows)) {
-                    foreach ($cfRows as $planId => $row) {
-                        $cfValues[intval($planId)][$row['name']] =
-                            $row['value'] ?? '';
+                    foreach ($cfRows as $planId => $rowsByPlan) {
+                        foreach ($rowsByPlan as $row) {
+                            $cfValues[intval($planId)][$row['name']] =
+                                $row['value'] ?? '';
+                        }
                     }
                 }
             }
