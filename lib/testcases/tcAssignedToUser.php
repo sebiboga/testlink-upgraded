@@ -147,7 +147,8 @@ if( $doIt )
         $lexec = $tcase_mgr->get_last_execution($tcase_id, $tcversion_id, $tplan_id, 
                                                 $tcase['build_id'],$tcase['platform_id'],
                                                 $leOptions);
-        $status = $lexec[$tcversion_id]['status'];
+        $lastExec = $lexec[$tcversion_id] ?? array();
+        $status = $lastExec['status'] ?? '';
         if (!$status) 
         {
           $status = $statusGui->status_code['not_run'];
@@ -156,7 +157,7 @@ if( $doIt )
 
         if ($args->show_user_column) 
         {
-            $current_row[] = htmlspecialchars($lexec[$tcversion_id]['tester_login']);
+            $current_row[] = htmlspecialchars($lastExec['tester_login'] ?? '');
         }
 
 
