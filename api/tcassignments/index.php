@@ -395,15 +395,16 @@ if ($method === 'POST' && count($segments) === 1
              'message' => 'Version not linked to this test plan/platform']);
     }
 
-    // build must belong to this plan
+    // build must belong to this test project (builds are project-scoped
+    // since #503/#834; a plan's builds resolve via builds.testproject_id)
     $bTables = tlObjectWithDB::getDBTables(['builds']);
     $brow = $db->get_recordset(
         "SELECT id FROM {$bTables['builds']} " .
-        " WHERE id = {$build_id} AND testplan_id = {$tplan_id}");
+        " WHERE id = {$build_id} AND testproject_id = {$tproject_id}");
     if (!$brow) {
         http_response_code(400);
         out(['status' => 'error',
-             'message' => 'Build does not belong to this test plan']);
+             'message' => 'Build does not belong to this test project']);
     }
 
     $vTables = tlObjectWithDB::getDBTables(['tcversions']);
