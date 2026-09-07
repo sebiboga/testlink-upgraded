@@ -11593,3 +11593,19 @@ Result: 10/10 documented, 13 gaps filed as `task` issues #1151-#1163, cleanup #1
 | 1181.7 | console clean | Chrome console throughout | no JS Error; only pre-existing `Deprecated feature` issue + favicon 404 | PASS |
 
 Result: 7/7 PASS. Fix: `lib/testcases/tcAssignedToUser.php` — one null-safe read `$lastExec = $lexec[$tcversion_id] ?? array();` then `$status = $lastExec['status'] ?? '';` (existing `if(!$status)` fallback keeps `not_run`) and `htmlspecialchars($lastExec['tester_login'] ?? '')`. Behavior unchanged; PHP 8 null-offset E_WARNING eliminated. Screenshots: `tmp/issue-1181-before.png`, `tmp/issue-1181-after.png`.
+
+## Regression — Issue #1180: tcAssignments quick result (P/F/B) DB error — builds.testplan_id does not exist (Refs #1180)
+
+**Precondition:** app http://localhost:8082, session admin/admin (fresh DB import). Fixture `php tmp/fixtures_660.php` → project 1 `LOC660` (prefix L660), plan 16 `Plan660A` (build 1 `BUILD-OPEN`, build 2 `BUILD-CLOSED`), platform 1 `PLAT-X`, admin=1 assigned on TC-alpha (tcversion 5) @ build 1, tester1=2 (password reset to `tester1` for the rights test). Cross-project build seeded: `BUILD-X` id=30 under extra project `LOC660B-x` id=50. Screen: `gui/templates/execute/tcAssignments.html?tproject_id=1`; BFF `POST /api/tcassignments/quick_result`. Fix = commit `0c97bca0e` (`api/tcassignments/index.php` lines ~398-408): build check predicate `testplan_id = {tplan_id}` → `testproject_id = {tproject_id}` (builds are project-scoped since #503/#834), error message aligned to 'Build does not belong to this test project'. Pre-fix baseline measured: any quick-result click returned HTTP 200 body = `DB Access Error` backtrace and wrote event `1054 Unknown column 'testplan_id' in 'WHERE' - SELECT id FROM builds`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1180.1 | PRIMARY BUG — quick result succeeds | click green check (quick passed) on row L660-1 / BUILD-OPEN as admin | toast localized "Passed"; status chip flips to Passed; `executions` gains row status='p', tester_id=1, plan=16, build=1, tcversion=5 (SQL verified) | PASS |
+| 1180.2 | P→F→P full cycle in browser | click failed, then passed on same row | each click: success toast + reload; status chip Failed → Passed; 2 new `executions` rows (ids 3='f', 4='p') | PASS |
+| 1180.3 | Cross-project build rejected | POST quick_result `{tproject_id:1,tplan_id:16,platform_id:0,build_id:30,tcversion_id:5,result:"failed"}` (build=30 belongs to project 50) | JSON `{"status":"error","message":"Build does not belong to this test project"}`; executions count unchanged; no new `events` Error/Warning | PASS |
+| 1180.4 | Non-linked version rejected | POST quick_result with tcversion 14 (linked only to plan 17) + valid build 1 | `{"status":"error","message":"Version not linked to this test plan/platform"}`; no insert (link/version gates intact) | PASS |
+| 1180.5 | Rights gate unchanged | login tester1 (no `testplan_execute`), POST quick_result on beta (tcversion 8, plan 16, platform 1) | `{"status":"error","message":"Insufficient rights"}`; no insert | PASS |
+| 1180.6 | Event Viewer clean | watermark `events` log_level<=1 before/after whole suite | only pre-fix event id 7 (`1054 testplan_id`) present; **zero** new Error/Warning from fixed flow | PASS |
+| 1180.7 | Console clean | Chrome DevTools console during click cycle | no JS errors; grid re-renders after each quick result | PASS |
+
+Result: 7/7 PASS. Fix = `api/tcassignments/index.php` (4 insertions / 3 deletions): the `/quick_result` build validation now queries the real project-scoped column, mirroring `testplan::get_builds()` (lib/functions/testplan.class.php:2274) and sibling BFFs (api/execsetresults:186, api/execute:529). Legacy's unvalidated INSERT was not restored — the BFF's input validation intent is preserved. Screenshots: `tmp/issue-1180-before-click.png`, `tmp/issue-1180-fixed-passed.png`.
