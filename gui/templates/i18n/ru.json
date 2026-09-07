@@ -572,7 +572,7 @@
   "exechist.execNotes": "実行メモ",
   "exechist.executions": "実行一覧",
   "exechist.filters": "フィルター",
-  "exechist.footer": "TestLink 2.0.1 - История выполнения (только чтение). Операции редактирования открывают устаревшие экраны.",
+  "exechist.footer": "TestLink 2.0.1 - История выполнения (только чтение). Используйте кнопку редактирования строки, чтобы обновить примечания к выполнению.",
   "exechist.header": "実行履歴",
   "exechist.loading": "実行履歴を読み込み中...",
   "exechist.neverExecuted": "このテストケースは一度も実行されていません。",

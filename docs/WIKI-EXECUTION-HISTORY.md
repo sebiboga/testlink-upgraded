@@ -49,3 +49,34 @@ ExtJS popup.
 Regression suite 35 in `tmp/TLU_Test_Cases.md`: 9/9 PASS (API both plan modes,
 screen render, filters, reset, never-executed warning, entry points, clean
 Event Viewer).
+
+## SCREEN-COMPARE parity verification (row 35, Refs #1138, 2026-09-07)
+
+Full side-by-side check against legacy `lib/execute/execHistory.php` with a
+dedicated fixture (`tmp/fixtures_exechist.php`, project `EH Demo`: 3 test
+cases — one with 2 versions, one never executed; 2 active + 1 inactive plan;
+open + closed builds; 2 platforms; 6 executions across statuses/testers;
+1 deleted-tester execution; execution-level custom field `EH_exec_result`;
+1 attachment).
+
+**Verdict: full parity, no distinct gaps — the modern screen is a functional
+superset.** Both generations share `testcase::getExecutionSet()` (identical
+rows) and the `getAccessibleTestPlans()` + `onlyActiveTestPlans` filter
+semantics; the legacy `exec_edit_notes` grant still drives the edit icon
+(`can_edit_notes`). Browser-verified side by side (admin + no-rights user,
+each also served by the legacy page): platform-column gating, never-executed
+warning, deleted-tester handling (`tester_id=0`, notes still editable),
+build/tester/status/date filters, only-active-plans server call, print →
+`execPrint.html`, edit → `editExecution.html` (modern), details panel showing
+duration/notes/execution CF/attachments. i18n keys `exechist.*` valid in all
+10 bundles, zero console errors, Event Viewer clean after testing.
+
+**Fixed this run:** the footer `exechist.footer` still said "Editing
+operations open the legacy screens" although the edit button now opens the
+modernized `editExecution.html` — updated to "Use a row's edit button to
+update execution notes" in all 10 locale bundles.
+
+**Cleanup:** legacy files `lib/execute/execHistory.php`,
+`gui/templates/dashio/execute/execHistory.tpl` and
+`lib/execute/getExecNotes.php` retire with issue #1139 (all entry points
+already route to the modern screen).

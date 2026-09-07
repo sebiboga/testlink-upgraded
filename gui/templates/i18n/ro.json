@@ -572,7 +572,7 @@
   "exechist.execNotes": "Note execuție",
   "exechist.executions": "Execuții",
   "exechist.filters": "Filtre",
-  "exechist.footer": "TestLink 2.0.1 - Istoric execuții (doar citire). Operațiile de editare deschid ecranele tradiționale.",
+  "exechist.footer": "TestLink 2.0.1 - Istoric execuții (doar citire). Folosiți butonul de editare din rând pentru a actualiza notele de execuție.",
   "exechist.header": "Istoric execuții",
   "exechist.loading": "Se încarcă istoricul execuțiilor...",
   "exechist.neverExecuted": "Acest caz de test nu a fost niciodată executat.",

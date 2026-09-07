@@ -572,7 +572,7 @@
   "exechist.execNotes": "Notas de execução",
   "exechist.executions": "Execuções",
   "exechist.filters": "Filtri",
-  "exechist.footer": "TestLink 2.0.1 - Storico esecuzioni (sola lettura). Le operazioni di modifica aprono le schermate legacy.",
+  "exechist.footer": "TestLink 2.0.1 - Storico esecuzioni (sola lettura). Usa il pulsante di modifica di una riga per aggiornare le note di esecuzione.",
   "exechist.header": "Storico esecuzioni",
   "exechist.loading": "Caricamento storico esecuzioni...",
   "exechist.neverExecuted": "Questo caso di test non è mai stato eseguito.",

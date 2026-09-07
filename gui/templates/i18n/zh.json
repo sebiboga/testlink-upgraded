@@ -572,7 +572,7 @@
   "exechist.execNotes": "Execution notes",
   "exechist.executions": "Executions",
   "exechist.filters": "Filters",
-  "exechist.footer": "TestLink 2.0.1 - 执行历史（只读）。编辑操作将打开旧版界面。",
+  "exechist.footer": "TestLink 2.0.1 - 执行历史（只读）。使用行的编辑按钮来更新执行说明。",
   "exechist.header": "Execution History",
   "exechist.loading": "Loading execution history...",
   "exechist.neverExecuted": "This test case has never been executed.",

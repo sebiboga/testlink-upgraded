@@ -572,7 +572,7 @@
   "exechist.execNotes": "Примечания к выполнению",
   "exechist.executions": "Выполнения",
   "exechist.filters": "Фильтры",
-  "exechist.footer": "TestLink 2.0.1 - Histórico de execuções (somente leitura). Operações de edição abrem as telas legadas.",
+  "exechist.footer": "TestLink 2.0.1 - Histórico de execuções (somente leitura). Use o botão de edição da linha para atualizar as notas de execução.",
   "exechist.header": "История выполнения",
   "exechist.loading": "Загрузка истории выполнения...",
   "exechist.neverExecuted": "Этот тест-кейс никогда не выполнялся.",

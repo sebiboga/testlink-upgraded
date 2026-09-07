@@ -572,7 +572,7 @@
   "exechist.execNotes": "Notas de ejecución",
   "exechist.executions": "Ejecuciones",
   "exechist.filters": "Filter",
-  "exechist.footer": "TestLink 2.0.1 - Ausführungshistorie (nur lesen). Bearbeitungsoperationen öffnen die alten Bildschirme.",
+  "exechist.footer": "TestLink 2.0.1 - Ausführungshistorie (nur lesen). Verwenden Sie zum Aktualisieren der Ausführungsnotizen die Bearbeitungsschaltfläche der Zeile.",
   "exechist.header": "Ausführungshistorie",
   "exechist.loading": "Ausführungshistorie wird geladen...",
   "exechist.neverExecuted": "Dieser Testfall wurde noch nie ausgeführt.",

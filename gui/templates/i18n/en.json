@@ -572,7 +572,7 @@
   "exechist.execNotes": "Execution notes",
   "exechist.executions": "Executions",
   "exechist.filters": "Filters",
-  "exechist.footer": "TestLink 2.0.1 - Execution History (read-only). Editing operations open the legacy screens.",
+  "exechist.footer": "TestLink 2.0.1 - Execution History (read-only). Use a row's edit button to update execution notes.",
   "exechist.header": "Execution History",
   "exechist.loading": "Loading execution history...",
   "exechist.neverExecuted": "This test case has never been executed.",

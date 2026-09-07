@@ -572,7 +572,7 @@
   "exechist.execNotes": "Note di esecuzione",
   "exechist.executions": "Esecuzioni",
   "exechist.filters": "Filtres",
-  "exechist.footer": "TestLink 2.0.1 - Historique d'exécution (lecture seule). Les opérations d'édition ouvrent les écrans classiques.",
+  "exechist.footer": "TestLink 2.0.1 - Historique d'exécution (lecture seule). Utilisez le bouton d'édition d'une ligne pour mettre à jour les notes d'exécution.",
   "exechist.header": "Historique d'exécution",
   "exechist.loading": "Chargement de l'historique d'exécution...",
   "exechist.neverExecuted": "Ce cas de test n'a jamais été exécuté.",

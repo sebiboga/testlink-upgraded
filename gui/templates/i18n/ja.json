@@ -572,7 +572,7 @@
   "exechist.execNotes": "执行备注",
   "exechist.executions": "执行记录",
   "exechist.filters": "筛选条件",
-  "exechist.footer": "TestLink 2.0.1 - 実行履歴（読み取り専用）。編集操作はレガシースクリーンを開きます。",
+  "exechist.footer": "TestLink 2.0.1 - 実行履歴（読み取り専用）。行の編集ボタンを使用して実行ノートを更新します。",
   "exechist.header": "执行历史",
   "exechist.loading": "正在加载执行历史...",
   "exechist.neverExecuted": "该测试用例从未被执行过。",
