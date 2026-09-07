@@ -396,11 +396,16 @@ if ($method === 'POST' && count($segments) === 1
     }
 
     // build must belong to this test project (builds are project-scoped
-    // since #503/#834; a plan's builds resolve via builds.testproject_id)
-    $bTables = tlObjectWithDB::getDBTables(['builds']);
+    // since #503/#834; a plan's builds resolve via builds.testproject_id).
+    // Also cross-bind the plan to the same project so a caller cannot
+    // write executions combining a build and a plan of different projects.
+    $bTables = tlObjectWithDB::getDBTables(['builds', 'testplans']);
     $brow = $db->get_recordset(
-        "SELECT id FROM {$bTables['builds']} " .
-        " WHERE id = {$build_id} AND testproject_id = {$tproject_id}");
+        "SELECT B.id FROM {$bTables['builds']} B" .
+        " JOIN {$bTables['testplans']} TP ON TP.id = {$tplan_id}" .
+        " WHERE B.id = {$build_id}" .
+        " AND B.testproject_id = {$tproject_id}" .
+        " AND TP.testproject_id = {$tproject_id}");
     if (!$brow) {
         http_response_code(400);
         out(['status' => 'error',
