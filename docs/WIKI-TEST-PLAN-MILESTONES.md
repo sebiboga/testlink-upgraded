@@ -51,3 +51,17 @@ both the `milestonesView` link and the old `mileView` launcher entry).
 * Plans without builds render no metrics section (`getMilestonesMetrics`
   returns `[]`, cf. issue #634 fix).
 * Test suite: `tmp/TLU_Test_Cases.md` **Suite 647 — 18/18 PASS**.
+* **Event history (added 2026-09-07, Refs #1149):** the edit modal now shows a
+  *Show event history* button (hidden while creating a new milestone) for users
+  holding `mgt_view_events`. It mirrors the legacy `planMilestonesEdit.tpl`
+  `showEventHistoryFor(id,'milestones')` icon and the `platformsView.html`
+  pattern: hidden `#eventhistory` form posts `object_id`/`object_type=milestones`
+  to `/gui/templates/eventviewer/eventviewer.html`. The BFF `/list` exposes
+  `rights.canViewEvents`; new `ms.showEventHistory` key added to all 10 locale
+  bundles. See GitHub issue #1148/#1149.
+* **SCREEN-COMPARE (2026-09-07, Refs #1148):** re-verified against legacy
+  `lib/plan/planMilestonesView.php`/`planMilestonesEdit.php` on seeded project
+  `MS Demo Project`. Confirmed full parity (list + metrics report, create/edit/
+  delete + audit events, duplicate-name/past-date/% validation, `testplan_planning`
+  403). Only gap was the dropped event-history icon → fixed (#1149). Test suite:
+  `tmp/TLU_Test_Cases.md` **Suite 1148 — 11/11 PASS**.
