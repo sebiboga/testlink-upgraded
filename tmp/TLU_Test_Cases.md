@@ -11558,3 +11558,22 @@ Result: 13/13 PASS. Fix applied: `gui/templates/i18n/{de,en,es,fr,it,ja,pt,ro,ru
 
 Result: 11/11 PASS. Fix applied (Refs #1149): compiled against the only gap — dropped event-history icon — by (a) `api/milestones/index.php` `/list` now returning `rights.canViewEvents` via `$user->hasRight($db,'mgt_view_events',$tproject_id)` (platform pattern api/platforms/index.php:143), and (b) `gui/templates/plans/planMilestones.html` gaining a hidden `#eventhistory` form (object_id/object_type=milestones) + a "Show event history" button in the edit-modal header (hidden on create, toggled on `canViewEvents`) + `showEventHistory()` (platformsView pattern); new i18n `ms.showEventHistory` added to all 10 bundles. Cleanup: none (screen already modernized; only feature gap fixed). Screenshots: `docs/screenshots/ms1148_main.png`, `docs/screenshots/ms1148_edit_modal.png`.
 
+
+## SCREEN-COMPARE 39 — Execute Tests (execTest.html vs legacy lib/execute/execSetResults.php + execNavigator.php) — Refs #1151-#1164
+
+**Precondition:** app http://localhost:8082, session admin/admin. Fixture `tmp/fixtures_exectest.php` (idempotent) → project 197 `EXET` (prefix EXT, requirements+priority+automation enabled), suites 198 Suite Alpha / 199 Suite Beta, TCs Case A1/A2/A3/B1, plan 220 `PlanEXET`, build 9 `Build OPEN` / 10 `Build CLOSED`, executions (A1 p / A2 f / B1 b with step rows), req EXT-REQ-1 linked to A1, keywords smoke(A1)/regression(B1), relation A1→B1. Screen: `http://localhost:8082/gui/templates/execute/execTest.html?tproject_id=197&tplan_id=220`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 39.1 | list renders TCs + last-exec + status (admin) | load screen (build open) | 4 rows EXT-1 A1 PASSED / EXT-2 A2 FAILED / EXT-3 A3 NOT EXECUTED / EXT-4 B1 BLOCKED with case path `EXET / Suite Alpha|Beta` + v1 badge; count `(4)`; build dropdown shows open + `Build CLOSED (closed)` | PASS |
+| 39.2 | build selector + result filter | switch Result=Failed; switch closed build | filter narrows to FAILED row; closed build still lists rows and cannot be used for save (BFF 400) | PASS |
+| 39.3 | detail panel (execution form) | click EXT-1 / Case A1 | panel: meta EXT-1 v1 Medium importance, exec-type badge (automated only on EXT-3), no-assigned warn + Assign-task-to-me, prior-execution box `Passed @ ... admin` + notes, execution history row (edit/copy-link/print/delete), summary/preconditions, status buttons, notes, duration, attachments (choose files + title), steps table with per-step result/notes/bug-link | PASS |
+| 39.4 | step save + save buttons | set step 2 = Failed + note; click Save steps WIP | WIP saved (Save Steps Work In Progress Execution stays); full "Save execution" writes run; "Save and move to next" advances to next TC | PASS |
+| 39.5 | link/edit bug modal | click Link bug | modal: Link mode (bug id) / Create mode (summary+description only) — **GAP #1160** (no components/versions/addLinkToTL metadata, legacy issueTrackerMetadata.inc.tpl) | PASS-with-gap |
+| 39.6 | Requirement/keywords/relations display gap | open A1/B1 | **GAP #1151** no Requirements section (legacy req_details), **#1153** no keywords (smoke), **#1152** no relations (A1→B1) | documented |
+| 39.7 | TSuite/bulk + import + automation gaps | toolbar + panel | **GAP #1155/#1156/#1157** no testsuite bulk mode, no Import XML Results button, no Execute-and-Save automation trigger | documented |
+| 39.8 | navigator filters/tree gap | screen top bar | **GAP #1158** no left filter panel/tree (legacy execNavigator keyword/priority/assigned/unassigned/TCID/execution_type) — only build+result+search | documented |
+| 39.9 | read-only + closed-build save rejection | no-rights session / save on closed build | 403 `Insufficient rights`; BFF returns 400 `Invalid or non-executable build` (server-side gate) | PASS |
+| 39.10 | i18n + Event Viewer | console + `events` table after tests | no JS errors; no new Error/Warning events beyond fixture-audit rows | PASS |
+
+Result: 10/10 documented, 13 gaps filed as `task` issues #1151-#1163, cleanup #1164 (Delete legacy execTest; keep editExecution/execExport/execPrint/execHistory + shared exec.inc.php). Screenshot: `docs/screenshots/execTest39_panel.png` (pending).
