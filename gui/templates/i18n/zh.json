@@ -944,6 +944,7 @@
   "ms.noMilestones": "此测试计划没有里程碑！",
   "ms.percTcases": "已完成测试 [0-100%]",
   "ms.reportTitle": "里程碑状态",
+  "ms.showEventHistory": "显示事件历史",
   "ms.startDate": "开始日期",
   "ms.startHint": "可选",
   "ms.targetDate": "目标日期",

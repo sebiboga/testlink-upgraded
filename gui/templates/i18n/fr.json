@@ -944,6 +944,7 @@
   "ms.noMilestones": "Il n'y a aucun jalon pour ce plan de test !",
   "ms.percTcases": "Tests terminés [0-100%]",
   "ms.reportTitle": "État des jalons",
+  "ms.showEventHistory": "Afficher l'historique des événements",
   "ms.startDate": "Date de début",
   "ms.startHint": "facultatif",
   "ms.targetDate": "Échéance",

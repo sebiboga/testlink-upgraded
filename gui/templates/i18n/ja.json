@@ -944,6 +944,7 @@
   "ms.noMilestones": "このテスト計画にはマイルストーンがありません！",
   "ms.percTcases": "完了テスト [0-100%]",
   "ms.reportTitle": "マイルストーンの状況",
+  "ms.showEventHistory": "イベント履歴を表示",
   "ms.startDate": "開始日",
   "ms.startHint": "任意",
   "ms.targetDate": "期日",

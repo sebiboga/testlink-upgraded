@@ -944,6 +944,7 @@
   "ms.noMilestones": "Для этого тест-плана не заданы этапы!",
   "ms.percTcases": "Завершённые тесты [0-100%]",
   "ms.reportTitle": "Состояние этапов",
+  "ms.showEventHistory": "Показать историю событий",
   "ms.startDate": "Дата начала",
   "ms.startHint": "необязательно",
   "ms.targetDate": "Целевая дата",

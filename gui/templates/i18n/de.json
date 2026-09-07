@@ -944,6 +944,7 @@
   "ms.noMilestones": "Es gibt keine Meilensteine für diesen Testplan!",
   "ms.percTcases": "Abgeschlossene Tests [0-100%]",
   "ms.reportTitle": "Status der Meilensteine",
+  "ms.showEventHistory": "Ereignisverlauf anzeigen",
   "ms.startDate": "Startdatum",
   "ms.startHint": "optional",
   "ms.targetDate": "Zieltermin",

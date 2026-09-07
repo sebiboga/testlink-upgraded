@@ -164,6 +164,7 @@ if ($method === 'GET' && $path === '/list') {
         'status' => 'ok',
         'rights' => [
             'canManage' => $mayManage,
+            'canViewEvents' => (bool)$user->hasRight($db, 'mgt_view_events', $ctx['tproject_id']),
         ],
         'data' => [
             'tplan_id' => $tplanId,

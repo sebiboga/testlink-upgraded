@@ -944,6 +944,7 @@
   "ms.noMilestones": "Não há marcos para este plano de testes!",
   "ms.percTcases": "Testes concluídos [0-100%]",
   "ms.reportTitle": "Estado dos marcos",
+  "ms.showEventHistory": "Mostrar histórico de eventos",
   "ms.startDate": "Data de início",
   "ms.startHint": "opcional",
   "ms.targetDate": "Data-alvo",

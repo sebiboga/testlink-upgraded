@@ -111,6 +111,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
       <form id="msForm" onsubmit="return false;">
       <div class="modal-header">
         <h5 class="modal-title" id="editTitle">Milestone</h5>
+        <button type="button" class="btn btn-link" id="btnEventHistory" style="display:none;font-size:13px;padding:0 8px;" onclick="showEventHistory()"><i class="fas fa-history"></i> <span data-i18n="ms.showEventHistory">Show event history</span></button>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body" style="font-size:13px;">
@@ -192,6 +193,11 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
   </div>
 </div>
 
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="milestones">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -201,6 +207,7 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; vertical-align: m
 var API = '/api/milestones/index.php';
 var tplanId = 0;
 var canManage = true;
+var canViewEvents = false;
 var prioEnabled = true;
 var msTbl = null;
 var rptTbl = null;
@@ -281,6 +288,7 @@ function load() {
       if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
       lastData = r;
       canManage = !!(r.rights && r.rights.canManage);
+      canViewEvents = !!(r.rights && r.rights.canViewEvents);
       prioEnabled = !!r.data.testPriorityEnabled;
       $('#tplanName').text(r.data.tplan_name);
       document.title = r.data.tplan_name + ' - ' + TLi18n.t('ms.header');
@@ -440,6 +448,7 @@ function openCreate() {
   $('#fMediumPct').val('0');
   $('#fLowPct').val('0');
   $('#fMediumOnlyPct').val('0');
+  $('#btnEventHistory').hide();
   togglePctFields();
   $('#editModal').modal('show');
 }
@@ -455,8 +464,18 @@ function openEdit(m) {
   $('#fMediumPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
   $('#fLowPct').val(m.low_percentage == null ? 0 : m.low_percentage);
   $('#fMediumOnlyPct').val(m.medium_percentage == null ? 0 : m.medium_percentage);
+  $('#btnEventHistory').toggle(!!canViewEvents);
   togglePctFields();
   $('#editModal').modal('show');
+}
+
+/** Legacy parity: planMilestonesEdit.tpl showEventHistoryFor(id,'milestones')
+ *  opens the event viewer for an existing milestone when mgt_view_events. */
+function showEventHistory() {
+  var id = $('#fId').val();
+  if (!id) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
 }
 
 /** Legacy parity: project without priority mgmt edits only the medium %. */

@@ -944,6 +944,7 @@
   "ms.noMilestones": "Nu există etape pentru acest plan de testare!",
   "ms.percTcases": "Teste finalizate [0-100%]",
   "ms.reportTitle": "Stadiul etapelor",
+  "ms.showEventHistory": "Arată istoricul evenimentelor",
   "ms.startDate": "Data de început",
   "ms.startHint": "opțional",
   "ms.targetDate": "Data țintă",

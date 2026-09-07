@@ -944,6 +944,7 @@
   "ms.noMilestones": "¡No hay hitos para este plan de pruebas!",
   "ms.percTcases": "Pruebas completadas [0-100%]",
   "ms.reportTitle": "Estado de los hitos",
+  "ms.showEventHistory": "Ver historial de eventos",
   "ms.startDate": "Fecha de inicio",
   "ms.startHint": "opcional",
   "ms.targetDate": "Fecha objetivo",
