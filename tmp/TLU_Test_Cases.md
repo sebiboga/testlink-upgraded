@@ -11497,3 +11497,21 @@ Result: 20/20 PASS. Fixes (commit 69f0e01e0, api/builds/index.php): (a) all four
 | 1116.11 | console clean | Chrome console throughout all browser tests | no JS Error/Warning (only pre-existing a11y issue diagnostics) | PASS |
 
 Result: 11/11 PASS. Fix: `gui/templates/plans/planView.html:272-281` — replaced variable-gated teardown `if (tplanTbl) { tplanTbl.destroy(); ... }` with registry-aware `if ($.fn.DataTable.isDataTable('#tplanTable')) { $('#tplanTable').DataTable().destroy(); tplanTbl = null; }` plus unconditional `.empty()`, and removed the redundant `destroy: true` init option. Refs #1116.
+
+---
+
+## Regression — Issue #1115: planView (modern) — custom field values collapse when a plan has multiple custom fields
+
+**Precondition:** browser logged in admin/admin; app http://localhost:8082 (empty fresh install). Fixture (SQL, see INVESTIGATION comment): test project 1 "CF Proj" (prefix CFP) + plans 2 "CF Plan" / 3 "Plan Solo" / 4 "Plan None" / 5 "Plan Dual2"; custom fields 1 `release_tag` (string, label "Release Tag") + 2 `signoff_date` (date, label "Signoff Date"), both `enable_on_testplan_design=1`, both linked in `cfield_testprojects` (testproject 1, active=1); `cfield_testplan_design_values`: (1,2)='v1.5.0', (2,2)='2026-09-01', (1,3)='solo-tag', (1,5)='v2.0.0', (2,5)='2026-10-01'. Screen under test: `gui/templates/plans/planView.html?tproject_id=1` + BFF `api/plans/index.php/?tproject_id=1`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1115.1 | PRIMARY BUG — multi-CF plan shows ALL CF values | Plan "CF Plan" row in the modern list (was: Release Tag column EMPTY, only Signoff Date "2026-09-01" shown) | Release Tag = "v1.5.0" AND Signoff Date = "2026-09-01" both rendered in the same row | PASS |
+| 1115.2 | API retains every (plan, field) value | GET `/api/plans/index.php/?tproject_id=1` (was: `"cf":{"signoff_date":"2026-09-01"}` only) | item cf = `{"release_tag":"v1.5.0","signoff_date":"2026-09-01"}`; `cfields_columns` contains both fields | PASS |
+| 1115.3 | single-CF plan still populated | "Plan Solo" row (only release_tag='solo-tag') | Release Tag = "solo-tag", Signoff Date blank; no error | PASS |
+| 1115.4 | no-CF plan renders blank, no error | "Plan None" row (no design-values rows) | both CF cells blank; row renders normally; no `cf` key needed | PASS |
+| 1115.5 | multi-plan multi-CF no cross-plan bleed | "Plan Dual2" row (release_tag='v2.0.0', signoff_date='2026-10-01') alongside "CF Plan" | Plan Dual2 shows v2.0.0 / 2026-10-01; CF Plan still shows v1.5.0 / 2026-09-01 — values never leak between plans | PASS |
+| 1115.6 | events clean | after full flow `SELECT * FROM events WHERE log_level IN (1,2)` | no new Error/Warning rows (only INFO audit LOGIN level 16 from fixture session) | PASS |
+| 1115.7 | console clean | Chrome console throughout | no JS Error/Warning messages | PASS |
+
+Result: 7/7 PASS. Fix: `api/plans/index.php:228-239` — `fetchRowsIntoMap($sql,'plan_id',1)` (cumulative) + nested `foreach ($rowsByPlan as $row)` so every (plan_id, field_name) value lands in `$cfValues[plan_id][name]`; previously the non-cumulative default overwrote N-1 of N values per plan (database.class.php:699-702). Screenshot: `docs/screenshots/issue-1115-planview-multiple-cf-values-fixed.png`. Refs #1115.
