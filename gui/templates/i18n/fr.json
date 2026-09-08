@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "active",
   "tcbk.vFrozen": "figée",
   "tcview.bulkUpdate": "Mise à jour groupée",
-  "kwa.emptySuite": "Il n'y a aucun cas de test dans cette suite de tests => l'affectation de mots-clés n'est pas possible"
+  "kwa.emptySuite": "Il n'y a aucun cas de test dans cette suite de tests => l'affectation de mots-clés n'est pas possible",
+  "rgm.directLink": "Lien public",
+  "rgm.directLinkHint": "Toute personne disposant de ce lien peut consulter ce rapport sans se connecter."
 }

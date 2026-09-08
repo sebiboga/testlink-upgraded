@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "offen",
   "tcbk.vFrozen": "gesperrt",
   "tcview.bulkUpdate": "Sammelupdate",
-  "kwa.emptySuite": "Es gibt keine Testfälle in dieser Testsuite => Schlüsselwortzuweisung ist nicht möglich"
+  "kwa.emptySuite": "Es gibt keine Testfälle in dieser Testsuite => Schlüsselwortzuweisung ist nicht möglich",
+  "rgm.directLink": "Öffentlicher Link",
+  "rgm.directLinkHint": "Jeder mit diesem Link kann diesen Bericht ohne Anmeldung einsehen."
 }

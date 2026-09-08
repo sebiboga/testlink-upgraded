@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "活动",
   "tcbk.vFrozen": "冻结",
   "tcview.bulkUpdate": "批量更新",
-  "kwa.emptySuite": "此测试套件中没有测试用例 => 无法分配关键字"
+  "kwa.emptySuite": "此测试套件中没有测试用例 => 无法分配关键字",
+  "rgm.directLink": "公开链接",
+  "rgm.directLinkHint": "任何拥有此链接的人都可以在无需登录的情况下查看此报告。"
 }

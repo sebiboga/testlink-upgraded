@@ -44,11 +44,15 @@ doDBConnect($db);
 // The apikey is forwarded to the legacy controller in the redirect, whose
 // own init_args() re-runs setUpEnvFor*() against the same (fresh) session,
 // guaranteeing identical behaviour to a legacy embed/public link.
-// The apikey / public-link flow is scoped to the Results TC Flat screen
-// (results_tc_flat + results_tc_flat_mail). Any other action keeps the
-// session-only auth path below.
+// The apikey / public-link flow covers the Results TC Flat and the
+// General Metrics screens (results_tc_flat/_mail + general_metrics/_mail,
+// Refs #1220 + #1246). Any other action keeps the session-only auth path.
 $action = $_GET['action'] ?? '';
-$apikeyAction = ($action === 'results_tc_flat' || $action === 'results_tc_flat_mail');
+$apikeyActions = [
+    'results_tc_flat', 'results_tc_flat_mail',
+    'general_metrics', 'general_metrics_mail',
+];
+$apikeyAction = in_array($action, $apikeyActions, true);
 
 $apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
 if (!$apikeyAction) {

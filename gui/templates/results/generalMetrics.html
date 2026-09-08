@@ -40,6 +40,9 @@ td.tot { font-weight: 700; color: #22242a; }
 .empty { background: #fff; border-radius: 8px; padding: 30px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px; }
 .empty i { font-size: 34px; color: #4ECDC4; display: block; margin-bottom: 10px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.direct-link { display: none; margin-top: 10px; padding: 9px 12px; background: #f4fbfa; border: 1px solid #bfe5e2; border-radius: 6px; font-size: 12px; color: #2d8e88; word-break: break-all; }
+.direct-link a { color: #4ECDC4; font-weight: 600; }
+.direct-link hr.b { border: 0; border-top: 1px dashed #bfe5e2; margin: 7px 0; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .spin { text-align: center; color: #888; font-size: 13px; padding: 40px 24px; }
@@ -65,6 +68,8 @@ td.tot { font-weight: 700; color: #22242a; }
   <form id="xlsForm" method="POST" target="_blank" style="display:inline;">
     <button type="submit" class="btn-dark" id="btnXls" title=""><i class="fa fa-file-excel"></i> <span data-i18n="rgm.btnExportXls">Export as spreadsheet</span></button>
   </form>
+  <button class="btn-dark" id="btnDirectLink" title="" style="display:none;"><i class="fa fa-link"></i> <span data-i18n="rgm.directLink">Public link</span></button>
+  <div class="direct-link" id="directLinkBox"></div>
   <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
 
@@ -92,16 +97,21 @@ td.tot { font-weight: 700; color: #22242a; }
 var API = '/api/reports/index.php';
 var tprojectId = 0;
 var tplanId = 0;
+var apiKey = '';
 var DATA = null;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  apiKey = p.get('apikey') || '';
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
     $('#btnRefresh').on('click', loadReport);
+    $('#btnDirectLink').on('click', function () {
+      $('#directLinkBox').toggle();
+    });
     loadReport();
   });
 });
@@ -127,7 +137,9 @@ function loadReport() {
   $('#emptyBox').hide();
   $('#reportArea').empty();
   $('#loadingBox').show();
-  $.getJSON(API, { action: 'metrics_general', tproject_id: tprojectId, tplan_id: tplanId }, function (r) {
+  var params = { action: 'metrics_general', tproject_id: tprojectId, tplan_id: tplanId };
+  if (apiKey !== '') { params.apikey = apiKey; }
+  $.getJSON(API, params, function (r) {
     $('#loadingBox').hide();
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
     DATA = r;
@@ -139,6 +151,17 @@ function loadReport() {
     // legacy export endpoints (document/mail/XLS generation stays legacy)
     $('#mailForm').attr('action', r.send_mail_url);
     $('#xlsForm').attr('action', r.export_xls_url);
+    // public/shared link generator (Refs #1246) - mirrors the reports list
+    // direct-link toggle (metricsDashboard) by exposing the anonymous URL
+    if (r.direct_link) {
+      $('#btnDirectLink').show();
+      $('#directLinkBox').html(
+        '<a href="' + esc(r.direct_link) + '" target="_blank" rel="noopener">' +
+        esc(r.direct_link) + '</a>' +
+        '<span class="note">' + esc(TLi18n.t('rgm.directLinkHint')) + '</span>');
+    } else {
+      $('#btnDirectLink').hide();
+    }
 
     if (!r.hasData) {
       $('#emptyBox').html('<i class="fa fa-inbox"></i>' + esc(TLi18n.t('rgm.noTsuites'))).show();

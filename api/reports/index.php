@@ -39,22 +39,25 @@ header('Content-Type: application/json');
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
-// Legacy apikey / public-link anonymous access (Refs #1220).
-// resultsTCFlat.php init_args() accepts an 'apikey' argument:
+// Legacy apikey / public-link anonymous access (Refs #1220, #1246).
+// resultsTCFlat.php init_args() (and resultsGeneral.php via displayMgr.php
+// initArgsForReports) accept an 'apikey' argument:
 //   - 32-char  -> remote access for the owning user (setUpEnvForRemoteAccess
 //                 + checkRights on 'testplan_metrics')
 //   - longer   -> anonymous/public access for the connected test plan/grouping
 //                 entity (setUpEnvForAnonymousAccess, addOpAccess=false)
-// Only the results_flat action accepts it here; every other report action
-// keeps the session-only auth. A fresh session is created on the server side
-// just like legacy setUpEnv*() does, so the export/mail gateway redirects
-// (which target lib/results/*.php) find a valid session and, when the apikey
-// is forwarded, the legacy controller's own init_args handles it natively.
+// Only the results_flat and metrics_general actions accept it here; every
+// other report action keeps the session-only auth. A fresh session is created
+// on the server side just like legacy setUpEnv*() does, so the export/mail
+// gateway redirects (which target lib/results/*.php) find a valid session
+// and, when the apikey is forwarded, the legacy controller's own init_args
+// handles it natively.
 $apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
 $isAnon = false;
 
+$apikeyActions = ['results_flat', 'metrics_general'];
 $userId = $_SESSION['userID'] ?? null;
-if ($apikey !== '' && (getParam('action') === 'results_flat')) {
+if ($apikey !== '' && in_array(getParam('action'), $apikeyActions, true)) {
     if (strlen($apikey) === 32) {
         $apiUsers = tlUser::getByAPIKey($db, $apikey);
         if (is_array($apiUsers) && count($apiUsers) === 1) {
@@ -404,8 +407,9 @@ if ($action === 'metrics_general') {
     // Contextual re-check: legacy checkRights() uses hasRightOnProj() with
     // the session/project context, so users holding the right ONLY through a
     // per-project role must pass here too (the global check above is just
-    // the cheap first gate).
-    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+    // the cheap first gate). Anonymous/apikey access skips it (legacy
+    // setUpEnvForAnonymousAccess: addOpAccess=false, $cerbero->method=null).
+    if (!$isAnon && !$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -449,8 +453,23 @@ if ($action === 'metrics_general') {
         // Export endpoints go through the authenticated BFF gateway
         // (api/reportsexport) which validates auth + rights, then proxies
         // to the legacy controller for actual XLS/mail generation.
-        'send_mail_url' => '/api/reportsexport/index.php?action=general_metrics_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
-        'export_xls_url' => '/api/reportsexport/index.php?action=general_metrics&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId,
+        // With an apikey the export/mail flows run anonymously; the apikey is
+        // kept on the gateway URL so the legacy controller behind it can
+        // authorise natively (setUpEnvForAnonymousAccess / RemoteAccess).
+        'send_mail_url' => '/api/reportsexport/index.php?action=general_metrics_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . ($apikey !== '' ? '&apikey=' . rawurlencode($apikey) : ''),
+        'export_xls_url' => '/api/reportsexport/index.php?action=general_metrics&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . ($apikey !== '' ? '&apikey=' . rawurlencode($apikey) : ''),
+        // Public/shared link generator (Refs #1246): mirrors the legacy reports
+        // list show/hide direct-link toggle (reports.class.php:74-105, lnl.php
+        // metrics_tp_general) pointing at the MODERN screen with the plan's
+        // 64-char api_key. The screen + BFF handle the anonymous session
+        // end-to-end, so no lnl.php hop is needed (same shape as the
+        // results_flat public-link from #1220).
+        'direct_link' => !empty($tplanInfo['api_key'])
+            ? rtrim(isset($_SESSION['basehref']) ? $_SESSION['basehref'] : '../../', '/') .
+              '/gui/templates/results/generalMetrics.html?tproject_id=' . $tprojectId .
+              '&tplan_id=' . $tplanId .
+              '&apikey=' . rawurlencode($tplanInfo['api_key'])
+            : '',
     ];
 
     if (!is_null($tsInf)) {

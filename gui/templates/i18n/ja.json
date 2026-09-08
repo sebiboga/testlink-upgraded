@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "有効",
   "tcbk.vFrozen": "凍結",
   "tcview.bulkUpdate": "一括更新",
-  "kwa.emptySuite": "このテストスイートにはテストケースがありません。キーワードの割り当てはできません"
+  "kwa.emptySuite": "このテストスイートにはテストケースがありません。キーワードの割り当てはできません",
+  "rgm.directLink": "公開リンク",
+  "rgm.directLinkHint": "このリンクを持っている人は、ログインせずにこのレポートを閲覧できます。"
 }

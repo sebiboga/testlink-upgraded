@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "activa",
   "tcbk.vFrozen": "congelada",
   "tcview.bulkUpdate": "Actualización masiva",
-  "kwa.emptySuite": "No hay casos de prueba en esta Suite de Pruebas => la asignación de palabras clave no es posible"
+  "kwa.emptySuite": "No hay casos de prueba en esta Suite de Pruebas => la asignación de palabras clave no es posible",
+  "rgm.directLink": "Enlace público",
+  "rgm.directLinkHint": "Cualquiera con este enlace puede ver este informe sin iniciar sesión."
 }

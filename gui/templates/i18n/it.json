@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "attiva",
   "tcbk.vFrozen": "congelata",
   "tcview.bulkUpdate": "Aggiornamento di massa",
-  "kwa.emptySuite": "Non ci sono casi di test in questa suite di test => l'assegnazione delle parole chiave non è possibile"
+  "kwa.emptySuite": "Non ci sono casi di test in questa suite di test => l'assegnazione delle parole chiave non è possibile",
+  "rgm.directLink": "Link pubblico",
+  "rgm.directLinkHint": "Chiunque disponga di questo link può visualizzare questo rapporto senza effettuare l'accesso."
 }

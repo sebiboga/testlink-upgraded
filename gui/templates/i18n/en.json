@@ -2878,5 +2878,7 @@
   "tcbk.vOpen": "open",
   "tcbk.vFrozen": "frozen",
   "tcview.bulkUpdate": "Bulk Update",
-  "kwa.emptySuite": "There are no Test Cases in this Test Suite => keyword assignment is not possible"
+  "kwa.emptySuite": "There are no Test Cases in this Test Suite => keyword assignment is not possible",
+  "rgm.directLink": "Public link",
+  "rgm.directLinkHint": "Anyone with this link can view this report without logging in."
 }

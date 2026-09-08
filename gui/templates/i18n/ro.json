@@ -2878,5 +2878,7 @@
   "tcbk.vOpen": "activă",
   "tcbk.vFrozen": "înghețată",
   "tcview.bulkUpdate": "Actualizare în masă",
-  "kwa.emptySuite": "Nu există cazuri de test în această suită de test => atribuirea cuvintelor cheie nu este posibilă"
+  "kwa.emptySuite": "Nu există cazuri de test în această suită de test => atribuirea cuvintelor cheie nu este posibilă",
+  "rgm.directLink": "Link public",
+  "rgm.directLinkHint": "Oricine are acest link poate vedea acest raport fără a se autentifica."
 }

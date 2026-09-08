@@ -71,7 +71,7 @@ Exactly the same calls, in the same order, as the legacy controller:
 ## 4. i18n
 
 All labels/messages come from the client-side `TLi18n` module using the new
-`rgm.*` key family (43 keys) present in ALL 10 locale bundles
+`rgm.*` key family (45 keys) present in ALL 10 locale bundles
 (en/ro/de/fr/es/it/pt/ru/ja/zh). Status column headers use the server-provided
 labels from TestLink's own localization (same strings the legacy tables show).
 The locale switcher in the header switches bundles live:
@@ -121,3 +121,47 @@ were raised by the legacy include `inc_results_show_table.tpl`: it hardcodes
 | `gui/templates/i18n/*.json` | `rgm.*` keys ×10 bundles |
 | `gui/templates/dashio/results/inc_results_show_table.tpl` | #670 fix |
 | `tmp/TLU_Test_Cases.md` | Suite 618 — 16/16 PASS |
+
+## 9. Public-link / API-key anonymous access (Refs #1246)
+
+Full legacy parity for the apikey flow of `resultsGeneral.php` `init_args()`
+(`displayMgr.php::initArgsForReports`), restoring the public-link capability
+the legacy reports list exposed (`reports.class.php:74-105` + `lnl.php` case
+`metrics_tp_general` + `cfg/reports.cfg.php` `directLink`).
+
+| apikey length | Legacy mode | Behaviour in the modern screen |
+|---------------|-------------|-------------------------------|
+| 32 chars      | `setUpEnvForRemoteAccess()` + `checkRights()` | Request authenticated as the owning user (users.script_key); same `testplan_metrics` gate applies |
+| 64 chars      | `setUpEnvForAnonymousAccess()` | Anonymous read-only access for the connected test plan (`testplans.api_key`), `addOpAccess=false`, no rights check |
+| invalid / unknown | — | `401 {"message":"Unknown api key"}` |
+| absent        | session login | unchanged session-only auth |
+
+* The screen reads `apikey` from its own URL and forwards it to the BFF
+  (`api/reports/index.php?action=metrics_general&…&apikey=…`).
+* The BFF mirrors the legacy split (32-char user key vs longer anonymous entity
+  key), guards the contextual `testplan_metrics` re-check with `!$isAnon`, and
+  (like `setUpEnvForAnonymousAccess`' `Refs #1021` fix) rebuilds `basehref` via
+  `setPaths()` on fresh sessions.
+* `send_mail_url` / `export_xls_url` keep the apikey; the export gateway
+  (`api/reportsexport`) accepts it for `metrics_general` / `metrics_general_mail`
+  too and forwards it to the legacy controller (`resultsGeneral.php`), whose own
+  `init_args()` re-runs its `setUpEnvFor*()` flow and generates the XLS / mail
+  form anonymously.
+* **Public-link generator** (new toolbar button, metricsDashboard pattern):
+  the BFF returns `direct_link` =
+  `gui/templates/results/generalMetrics.html?tproject_id=<id>&tplan_id=<id>&apikey=<plan-api-key>`
+  (mirroring the legacy reports-list show/hide toggle). "Public link" shows a
+  copy-able link + hint; anyone with the link sees the anonymous report.
+
+Public / shared links work end-to-end with no session:
+
+```
+gui/templates/results/generalMetrics.html?tproject_id=39&tplan_id=40&apikey=<64-char-plan-key>
+```
+
+Anonymous sessions get `$_SESSION['userID'] = -1` exactly as legacy; only the
+report payload/data renders — theme bootstrap endpoints (`api/userinfo` for the
+locale switcher) still 401 (cosmetic, report works).
+
+![General Test Plan Metrics — public-link box on the logged-in screen](screenshots/issue-1246-public-link.png)
+![General Test Plan Metrics — anonymous render via the public link](screenshots/issue-1246-anonymous-report.png)

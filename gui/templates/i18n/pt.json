@@ -2876,5 +2876,7 @@
   "tcbk.vOpen": "ativa",
   "tcbk.vFrozen": "congelada",
   "tcview.bulkUpdate": "Atualização em massa",
-  "kwa.emptySuite": "Não há casos de teste nesta suíte de teste => a atribuição de palavras-chave não é possível"
+  "kwa.emptySuite": "Não há casos de teste nesta suíte de teste => a atribuição de palavras-chave não é possível",
+  "rgm.directLink": "Link público",
+  "rgm.directLinkHint": "Qualquer pessoa com este link pode ver este relatório sem entrar."
 }
