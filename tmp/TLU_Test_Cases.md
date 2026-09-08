@@ -11750,3 +11750,18 @@ Result: 10/10 PASS — **feature implemented + verified**. The modern projectInf
 | 998.8 | Event Viewer clean | `events` table after full suite | only AUDIT/log_level=16 rows (login + attachment_created + attachment_deleted); zero `log_level IN (1,2)` Error/Warning | PASS |
 
 Result: 8/8 PASS — **feature aligned with legacy**. BFF upload/delete gates in `api/projectinfo/index.php` switched from `mgt_modify_product` to `mgt_modify_tc` (legacy `testcase_mgmt`), and `CAN_UPLOAD` in `gui/templates/projects/projectInfoView.html` now reads `grants.mgt_modify_tc`. Discovered during implementation that the old mgt_modify_product gate was doubly wrong for this screen: mgt_modify_product is a global-property right (`$g_propRights_global` in roles.inc.php) that resolves to null for per-project roles, so per-project attachment management was effectively impossible with it. No i18n bundle changes required (no new user-facing strings). Refs #998. Screenshots: `docs/screenshots/issue-998-tconly-upload-allowed.png`, `docs/screenshots/issue-998-prodonly-upload-hidden.png`.
+
+## Task — Issue #991: Implement show-event-history link in projectsView edit (gap vs legacy)
+
+**Precondition:** app http://localhost:8082 (PHP built-in server), DB testlink, admin/admin. Fixture: test project `Test Project` (id=999999, prefix TP) inserted via SQL into nodes_hierarchy + testprojects during the run. Screen: `http://localhost:8082/gui/templates/projectsView.html`. Legacy reference: `gui/templates/dashio/project/projectEdit.tpl:92-95` (help icon gated on `mgt_view_events` → `showEventHistoryFor(itemID,"testprojects")`); modern reference: `gui/templates/projects/projectEdit.html:347-355` (event-history button). BFF: `api/projects/index.php` now returns `grants.mgt_view_events`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 991.1 | BFF list returns grants.mgt_view_events | `GET /api/projects/` as admin | status 200; response object contains `grants.mgt_view_events === true` (admin has the right) | PASS |
+| 991.2 | Edit modal shows event-history button (right present) | open projectsView.html, click Edit on project id=999999 | header shows `Show event history` button (`#eventHistoryBtn` visible) | PASS |
+| 991.3 | Button opens event viewer filtered to project | click `Show event history` | new tab opens `eventviewer.html?objectId=999999&objectType=testprojects`; page title "Event Viewer"; filter shows "Filtered by testprojects #999999" | PASS |
+| 991.4 | Create modal does NOT show the button | click `+ Create Test Project` | header shows only the × close button; `#eventHistoryBtn` hidden | PASS |
+| 991.5 | i18n key present in all 10 bundles | `python3 -m json.tool` over en/de/es/fr/it/ja/pt/ro/ru/zh + grep `proj.eventHistory` | all bundles valid JSON; key present in every bundle | PASS |
+| 991.6 | Event Viewer clean | `events` table after the suite | no Error/Warning (`log_level IN (1,2)`) rows; only audit/login INFO rows | PASS |
+
+Result: 6/6 PASS — **feature implemented + verified**. BFF `api/projects/index.php` now returns `grants.mgt_view_events` on both `GET /api/projects/` and `GET /api/projects/{id}`; `gui/templates/projectsView.html` shows a right-gated `Show event history` button in the edit modal header that opens `eventviewer.html?objectId=<projectId>&objectType=testprojects`, hidden in create mode. Matches legacy `projectEdit.tpl` behavior and the separate `projectEdit.html:347-355` pattern. New `proj.eventHistory` key added in ALL 10 locale bundles. Refs #991. Screenshot: `docs/screenshots/issue-991-event-history-modal.png`.

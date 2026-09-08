@@ -34,6 +34,7 @@ client-side when the right is missing.
 | List test projects ordered by name | `testproject::get_accessible_for_user()` with issue/code tracker info | `GET /api/projects/` — joined rows incl. tracker names + enabled flags + feature flags from the serialized options blob |
 | Create project | `doCreate`: crossChecks (name syntax, dup name, dup prefix), feature checkboxes, tracker link | `POST /api/projects/` with same checks via `tprojectMgr::checkName/get_by_name/get_by_prefix`, `create(doChecks:false)` after explicit crossChecks |
 | Edit project in modal | `edit/doUpdate`: same crossChecks excluding self, then `update()`+`activate()` | `PUT /api/projects/{id}` — partial updates supported (only sent fields change), manager-based update |
+| Show event history from edit modal | `projectEdit.tpl` help icon gated on `mgt_view_events` right → `showEventHistoryFor(itemID,"testprojects")` | **Show event history** button in the modal header (edit mode only), gated on `mgt_view_events`, opens `eventviewer.html?objectId=<projectId>&objectType=testprojects` — Ref #991 |
 | Active/Inactive click-to-change | toggle icon per row → `setActive/setInactive` | row **Deactivate/Activate** button → `PUT {isActive}` partial update |
 | Issue tracker integration | `tlIssueTracker::link/unlink` + `setIssueTrackerEnabled` | identical manager calls (raw SQL removed) |
 | Code tracker integration | `tlCodeTracker::link/unlink` + `setCodeTrackerEnabled` | identical manager calls |
@@ -50,7 +51,7 @@ All routes require an authenticated session; non-admin callers without
 
 | Method & path | Purpose | Failure modes |
 |---|---|---|
-| `GET /api/projects/` | list all projects (id, name, prefix, description, isActive, isPublic, opt* flags, trackers) | 401 unauthenticated, 403 no right |
+| `GET /api/projects/` | list all projects (id, name, prefix, description, isActive, isPublic, opt* flags, trackers) + `grants.mgt_view_events` | 401 unauthenticated, 403 no right |
 | `GET /api/projects/{id}` | one project | 404 not found |
 | `POST /api/projects/` | create | 400 empty name/prefix, name-syntax or duplicate name/prefix (legacy messages), create failure |
 | `PUT /api/projects/{id}` | update (partial: only provided keys) | 404 not found, 400 validation/duplicates |
@@ -76,6 +77,13 @@ All routes require an authenticated session; non-admin callers without
   not present in the request body keep their stored values; feature-flag
   merges start from the stored options blob (corrupt blobs fall back to
   legacy create defaults instead of wiping flags).
+* **Show event history** (Ref #991): the edit modal shows a **Show event
+  history** button in the header when the user has `mgt_view_events`. It
+  opens the event viewer filtered to the project being edited
+  (`eventviewer.html?objectId=<projectId>&objectType=testprojects`), matching
+  the legacy `projectEdit.tpl` help-icon behavior and the separate
+  `projectEdit.html` pattern. The button is hidden in create mode and when
+  the `mgt_view_events` right is absent.
 
 ## 4. i18n Keys
 
@@ -85,7 +93,8 @@ en, de, es, fr, it, ja, pt, ro, ru, zh. New in #640:
 `proj.toggleActive`, `proj.activate`, `proj.deactivate`,
 `proj.reqMgrIntegration`, `proj.reqMgrSystem`; corrected
 `proj.msg.confirmDelete` / `proj.msg.errorDelete` to describe a real,
-irreversible deletion.
+irreversible deletion. Ref #991 adds `proj.eventHistory`
+("Show event history").
 
 ## 5. Security
 
