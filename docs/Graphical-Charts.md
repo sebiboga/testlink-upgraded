@@ -60,6 +60,21 @@ GET /api/reports/index.php?action=charts_data&tproject_id=1&tplan_id=2
 
 The BFF calls the same `tlTestPlanMetrics` methods the legacy pChart scripts used, serializes the data as JSON, and the frontend renders it with Chart.js. Status colors come from `$tlCfg->results['charts']['status_colour']` (cfg/const.inc.php).
 
+## Public link / apikey anonymous access (Refs #1258)
+
+Mirroring the legacy `charts.php:79-112` `init_args()` and the `results_flat`/`metrics_general` precedent (#1220/#1246), the BFF `charts_data` action accepts the legacy `apikey` argument:
+
+* **32-char** — remote access for the owning user (`setUpEnvForRemoteAccess` + `testplan_metrics` rights).
+* **longer (64-char)** — anonymous/public read-only access tied to the test plan or test project carrying that key (`setUpEnvForAnonymousAccess`, `addOpAccess=false`); the contextual rights re-check is skipped.
+
+The screen forwards its own `apikey` query param to every BFF request, so a public link such as:
+
+```
+gui/templates/results/charts.html?tproject_id=1&tplan_id=2&apikey=<plan-or-project-key>
+```
+
+renders the full chart report without any login. The apikey allow-list in the BFF is limited to `results_flat`, `metrics_general` and `charts_data`; all other report actions keep session-only auth. Unknown keys → 401.
+
 ## Test results (2026-08-26)
 
 | # | Test | Result |
