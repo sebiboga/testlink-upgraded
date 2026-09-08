@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "para el plan de pruebas",
   "reqcov.header": "Cobertura de Requisitos",
   "reqcov.loading": "Cargando datos...",
+  "reqcov.noMatchingReqs": "No se encuentran Requisitos disponibles.",
+  "reqcov.noSrsDefined": "No hay Especificación de Requisitos disponible para este Proyecto de Pruebas",
   "reqcov.platform": "Plataforma",
   "reqcov.requirements": "Requisitos",
   "reqcov.testProject": "Proyecto de pruebas",

@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "for test plan",
   "reqcov.header": "Requirements Coverage",
   "reqcov.loading": "Loading data...",
+  "reqcov.noMatchingReqs": "No matching Requirements available.",
+  "reqcov.noSrsDefined": "No Requirements Specification available for this Test Project.",
   "reqcov.platform": "Platform",
   "reqcov.requirements": "Requirements",
   "reqcov.testProject": "Test Project",

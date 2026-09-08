@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "für Testplan",
   "reqcov.header": "Anforderungsabdeckung",
   "reqcov.loading": "Daten werden geladen...",
+  "reqcov.noMatchingReqs": "Es sind keine passenden Anforderungen für dieses Testprojekt verfügbar.",
+  "reqcov.noSrsDefined": "Keine Anforderungs-Definition für dieses Testprojekt vorhanden.",
   "reqcov.platform": "Plattform",
   "reqcov.requirements": "Anforderungen",
   "reqcov.testProject": "Testprojekt",

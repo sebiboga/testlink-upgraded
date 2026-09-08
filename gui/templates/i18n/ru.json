@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "для плана тестирования",
   "reqcov.header": "Покрытие требований",
   "reqcov.loading": "Загрузка данных...",
+  "reqcov.noMatchingReqs": "Нет подходящих требований.",
+  "reqcov.noSrsDefined": "Нет спецификации требований для этого тестового проекта.",
   "reqcov.platform": "Платформа",
   "reqcov.requirements": "Требования",
   "reqcov.testProject": "Проект тестирования",

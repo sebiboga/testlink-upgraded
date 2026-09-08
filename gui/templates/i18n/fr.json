@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "pour le plan de test",
   "reqcov.header": "Couverture des Exigences",
   "reqcov.loading": "Chargement des données...",
+  "reqcov.noMatchingReqs": "Aucune exigence correspondante disponible.",
+  "reqcov.noSrsDefined": "Aucun dossier d’exigences disponible pour le projet.",
   "reqcov.platform": "Plateforme",
   "reqcov.requirements": "Exigences",
   "reqcov.testProject": "Projet de test",

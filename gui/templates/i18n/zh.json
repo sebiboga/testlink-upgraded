@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "测试计划",
   "reqcov.header": "需求覆盖率",
   "reqcov.loading": "正在加载数据...",
+  "reqcov.noMatchingReqs": "未找到匹配的产品需求",
+  "reqcov.noSrsDefined": "这个测试项目没有可用的产品需求规格",
   "reqcov.platform": "平台",
   "reqcov.requirements": "需求",
   "reqcov.testProject": "测试项目",

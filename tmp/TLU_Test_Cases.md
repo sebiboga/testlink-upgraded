@@ -11855,3 +11855,25 @@ Legacy reference: `lib/results/resultsTCFlat.php:103-137` (init_args apikey → 
 | 1220.11 | Event Viewer clean | `events` table after the suite | only log_level=16 AUDIT rows; zero Error/Warning (`log_level IN (1,2)`) — the 2 dev-time warnings (gateway `$user` + `by_status` `$cfSet`) deleted after root-cause fixes | PASS |
 
 Result: 11/11 PASS — **feature implemented + verified**. The modern Results TC Flat screen now accepts the legacy `apikey` argument on the BFF `results_flat` action and on the export gateway (`results_tc_flat` / `results_tc_flat_mail`): 32-char = remote user with the same `testplan_metrics` gate, >32-char = anonymous read-only tied to the plan/project api_key (addOpAccess=false). The screen forwards its own `apikey` query param to every BFF request and the BFF keeps it on the export/mail URLs; the gateway 303s to the legacy controller forwarding the apikey, whose `init_args()` re-runs `setUpEnvFor*()` natively (basehref rebuilt via `setPaths()` on fresh sessions, matching the Refs #1021 anon fix). An isolated anonymous browser context rendered the full report and downloaded the XLS. Bonus: fixed the pre-existing `by_status` `$cfSet` undefined-variable warning (hoisted init). Refs #1223, #1220. Screenshot: `docs/Results-TC-Flat-Anon-Public-Link.png` + wiki `Results-TC-Flat-Anon-Public-Link.png`.
+
+---
+
+## Task — Issue #1233: Empty/warning states in Requirements Coverage (gap vs legacy resultsReqs)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink`. Fixture: `php tmp/fixtures_1233.php` → project `ReqCovEmpty` (id **12**, requirements enabled) with plans **PFull (20)** (TC-F linked, 1 passed execution), **PNoMatch (21)** (TC-M linked, req R-M coverage `link_status=3` = obsolete), **PNoSpec (22)** (no TCs linked); spec `SRS-EMPTY` (23); reqs R-F (25), R-M (27). Also `php tmp/fixtures_1223.php` → reqs-disabled project `RTCF8`/plan `Plan8` (29/37). Login admin/admin. Legacy reference: `lib/results/resultsReqs.php:61-74`, `getAllByContext()` (requirement_mgr.class.php:3457).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1233.1 | BFF: plan with rows → no warning | `curl -b cookie "api/reports/index.php?action=metrics_results_reqs&tplan_id=20&tproject_id=12"` | HTTP 200, `total_reqs=1`, `rows=1`, `warning=""` | PASS |
+| 1233.2 | BFF: reqs in plan context but none produce a row → `no_matching_reqs` | same call with `tplan_id=21` (R-M coverage obsolete) | HTTP 200, `total_reqs=0`, `rows=0`, `warning="no_matching_reqs"` | PASS |
+| 1233.3 | BFF: no req-coverage in plan → `no_srs_defined` | same call with `tplan_id=22` (no TCs linked) | HTTP 200, `total_reqs=0`, `rows=0`, `warning="no_srs_defined"` | PASS |
+| 1233.4 | BFF: requirements-disabled project → `no_srs_defined` | same call with `tplan_id=37&tproject_id=29` | HTTP 200, `total_reqs=0`, `warning="no_srs_defined"` | PASS |
+| 1233.5 | screen renders `no_matching_reqs` warnBox | open `resultsRequirements.html?tproject_id=12&tplan_id=21` | red `#warnBox` visible with info icon + "No matching Requirements available."; summary + table hidden | PASS |
+| 1233.6 | screen renders `no_srs_defined` warnBox | open `...tplan_id=22` (and reqs-disabled `...tplan_id=37&tproject_id=29`) | warnBox shows "No Requirements Specification available for this Test Project."; no table/summary | PASS |
+| 1233.7 | data-present plan shows NO warnBox (regression) | open `...tplan_id=20` | table + "Passed 1" summary render; `#warnBox` hidden | PASS |
+| 1233.8 | warning follows locale switcher | PNoMatch page → switcher → Română | message becomes "Nu există cerințe potrivite disponibile." (ro.json `reqcov.noMatchingReqs`); other labels translated too | PASS |
+| 1233.9 | Apply re-fetch keeps the warning | on PNoMatch empty state click **Aplică/Apply** | warnBox still rendered after reload; toast "Încărcat/Loaded" | PASS |
+| 1233.10 | console clean | all above navigations / applies | no console errors (0 messages in devtools) | PASS |
+| 1233.11 | Event Viewer clean | `events` table after the suite | only log_level=16 AUDIT rows (fixtures/login); zero Error/Warning (`log_level IN (1,2)`) | PASS |
+
+Result: 11/11 PASS — **feature implemented + verified**. The BFF action `metrics_results_reqs` now returns a `warning` key mirroring legacy `resultsReqs.php:61-74`: `no_matching_reqs` when `total_reqs==0` but requirements still exist in the plan context (`count($reqIds)>0`), `no_srs_defined` when no requirement has a coverage TC in the plan (incl. requirements-disabled projects). The HTML renders the localized message in `#warnBox` (info icon) via new TLi18n keys `reqcov.noMatchingReqs` / `reqcov.noSrsDefined` added to all 10 locale bundles (de/es/fr/pt/ja/zh reused legacy strings; it/ru/ro hand-translated). Screenshots: `docs/screenshots/issue-1233-no-matching-reqs.png`, `docs/screenshots/issue-1233-no-srs-defined.png` (also mirrored into the GitHub Wiki).

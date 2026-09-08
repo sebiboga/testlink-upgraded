@@ -33,6 +33,7 @@ now points to the new HTML screen.
 | Linked TC expand | clicking "N TCs" expands a sub-table with linked test cases and their status | same expand/collapse behavior |
 | Platform/Build filter | filter by specific platform/build or [Any] | same filter with [Any] default |
 | Per-column list filters (Evaluation / Type / Status) | ExtTable `filter => ListSimpleMatch`/`list` dropdowns with eval/type/status label options (resultsReqs.php:157-162) | DataTable footer `<select>` filters under Evaluation (col 4), Type (col 5), Status (col 6), default option "All" + full translated label lists; combine freely with each other and with the global search (Refs #1234) |
+| Empty/warning states | `user_feedback` block with localized `no_matching_reqs` (requirements exist but none produce a row — resultsReqs.php:66-69) or `no_srs_defined` (no requirement spec / no req-coverage in the plan — resultsReqs.php:71-74) | when `total_reqs == 0` the BFF returns a `warning` key (`no_matching_reqs` / `no_srs_defined`) and the screen renders it in a red `#warnBox` with an info icon, translated via TLi18n keys `reqcov.noMatchingReqs` / `reqcov.noSrsDefined` (Refs #1233) |
 
 ## 2. REST API Reference
 
@@ -68,6 +69,7 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
     "eval_filter_options": ["Not Run", "Passed", "Failed", "Blocked", "Partially passed", "Not covered", "Partially Passed (nfc)", "Not Run (nfc)", "Passed (nfc)", "Failed (nfc)", "Blocked (nfc)"],
     "type_filter_options": ["Informational", "Feature", "Use Case", "User Interface", "Non functional", "Constraint", "System Function"],
     "status_filter_options": ["Draft", "Review", "Rework", "Finish", "Implemented", "Valid", "Not testable", "Obsolete"],
+    "warning": "no_srs_defined | no_matching_reqs | \"\"",
     "rows": [
       {
         "req_spec_path": "Req Spec 1",
@@ -118,6 +120,13 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
 - `buildReqSpecMap()` logic is inlined in the BFF action
 - `expected_coverage_enabled` respects the `$tlCfg->req_cfg->expected_coverage` config
 - The legacy `approve_status_matrix()` for full coverage check is ported exactly
+- Empty-state warning mirrors `lib/results/resultsReqs.php:61-74`: when
+  `total_reqs == 0` the payload carries `warning` = `no_matching_reqs` if the plan
+  context still has requirements (`count($reqIds) > 0`) but none produced a row
+  (all active coverage TCs excluded), or `no_srs_defined` when no requirement has
+  a coverage TC in the plan at all. Requirements-disabled projects always return
+  `no_srs_defined`. The client translates the KEY via TLi18n, so the message
+  follows the locale switcher (Refs #1233).
 
 ## 4. i18n Keys
 
@@ -125,9 +134,11 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
 `fr.json`, `es.json`, `pt.json`, `ja.json`, `zh.json`, `it.json`, `ru.json`).
 
 Keys cover: page title, summary labels, eval status names, badge labels, column headers,
-search placeholder, apply button, elapsed time label, and the per-column filter default
+search placeholder, apply button, elapsed time label, the per-column filter default
 option `reqcov.all` ("All" / "Alle" / "Todos" / "Tous" / "Tutti" / "すべて" / "Toate" /
-"Все" / "全部", Refs #1234).
+"Все" / "全部", Refs #1234), and the two empty-state messages `reqcov.noMatchingReqs`
+("No matching Requirements available.") / `reqcov.noSrsDefined` ("No Requirements
+Specification available for this Test Project.", Refs #1233).
 
 ## 5. Security
 
@@ -150,3 +161,12 @@ no-match empty state, All-reset, Apply-reset, global-search composition, locale
 translation of the "All" option, console & Event Viewer cleanliness.
 Screenshots: `docs/screenshots/issue-1234-before.png`,
 `docs/screenshots/issue-1234-filter-passed-valid.png`.
+
+And the `Task — Issue #1233` suite (8 cases, all PASS): empty/warning states —
+BFF `warning` key for each scenario (no rows but requirements present →
+`no_matching_reqs`; no req-coverage in the plan → `no_srs_defined`; requirements
+disabled → `no_srs_defined`), rendered `#warnBox` messages, no warnBox when data
+present, locale switch re-renders the message, Apply re-fetch keeps it, console and
+Event Viewer clean. Fixtures: `tmp/fixtures_1233.php`. Screenshots:
+`docs/screenshots/issue-1233-no-matching-reqs.png`,
+`docs/screenshots/issue-1233-no-srs-defined.png`.

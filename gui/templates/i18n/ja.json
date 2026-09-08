@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "テスト計画",
   "reqcov.header": "要件カバレッジ",
   "reqcov.loading": "データを読み込み中...",
+  "reqcov.noMatchingReqs": "一致する要件はありません。",
+  "reqcov.noSrsDefined": "このテストプロジェクトには要件定義がありません",
   "reqcov.platform": "プラットフォーム",
   "reqcov.requirements": "要件",
   "reqcov.testProject": "テストプロジェクト",

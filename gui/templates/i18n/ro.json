@@ -1477,6 +1477,8 @@
   "reqcov.forPlan": "pentru planul de testare",
   "reqcov.header": "Acoperire Cerințe",
   "reqcov.loading": "Se încarcă datele...",
+  "reqcov.noMatchingReqs": "Nu există cerințe potrivite disponibile.",
+  "reqcov.noSrsDefined": "Nu există o Specificație de Cerințe disponibilă pentru acest Proiect de Testare.",
   "reqcov.platform": "Platformă",
   "reqcov.requirements": "Cerințe",
   "reqcov.testProject": "Proiect de testare",

@@ -3299,6 +3299,7 @@ if ($action === 'metrics_results_reqs') {
             'summary_counts' => [],
             'total_reqs' => 0,
             'rows' => [],
+            'warning' => 'no_srs_defined',
             'expected_coverage_enabled' => false,
             'eval_filter_options' => [],
             'type_filter_options' => [],
@@ -3624,6 +3625,18 @@ if ($action === 'metrics_results_reqs') {
     $typeFilterOptions = array_values($reqTypeLabels);
     $statusFilterOptions = array_values($reqStatusLabels);
 
+    // Empty/warning state — mirrors legacy resultsReqs.php:61-74.
+    // - no_srs_defined: no requirement has a coverage TC linked into the test
+    //   plan context (project has no req spec / no req-coverage in the plan).
+    // - no_matching_reqs: requirements exist in the plan context but none
+    //   produced a row (no active linked TC after exclusions).
+    // The client translates the key via TLi18n (reqcov.noSrsDefined /
+    // reqcov.noMatchingReqs) so the warning follows the locale switcher.
+    $warning = '';
+    if ($totalReqs == 0) {
+        $warning = count($reqIds) > 0 ? 'no_matching_reqs' : 'no_srs_defined';
+    }
+
     out([
         'status' => 'ok',
         'tplan_name' => $tplanInfo['name'],
@@ -3633,6 +3646,7 @@ if ($action === 'metrics_results_reqs') {
         'summary_counts' => $summaryCounts,
         'total_reqs' => $totalReqs,
         'rows' => $rows,
+        'warning' => $warning,
         'expected_coverage_enabled' => !empty($reqCoverageCfg->expected_coverage_management),
         'eval_filter_options' => $evalFilterOptions,
         'type_filter_options' => $typeFilterOptions,

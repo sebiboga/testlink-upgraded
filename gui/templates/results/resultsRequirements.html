@@ -265,6 +265,15 @@ function loadData() {
         });
       } else {
         $('#tableBox').hide();
+        var warnMsg = '';
+        if (d.warning === 'no_srs_defined') {
+          warnMsg = t('reqcov.noSrsDefined', 'No Requirements Specification available for this Test Project.');
+        } else if (d.warning === 'no_matching_reqs') {
+          warnMsg = t('reqcov.noMatchingReqs', 'No matching Requirements available.');
+        }
+        if (warnMsg) {
+          $('#warnBox').html('<i class="fa fa-info-circle" style="margin-right:6px;"></i>' + esc(warnMsg)).show();
+        }
       }
 
       $('#footerBar').show();
