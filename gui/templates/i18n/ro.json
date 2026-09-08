@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Ștergerea atașamentului a eșuat.",
   "piv.deleteOk": "Atașament șters.",
   "piv.description": "Descriere",
+  "piv.exportAll": "Exporta toate suite de teste",
   "piv.download": "Descarcă",
   "piv.errAllowedFilenames": "Numele fișierului nu respectă modelul permis.",
   "piv.errAllowedFiles": "Fișierul nu trece de verificarea tipului permis.",

@@ -29,8 +29,10 @@ shown. Attachment **upload/delete** additionally require
 Screenshots: `docs/screenshots/projectinfo-view.png`,
 `docs/screenshots/projectinfo-projectsview-info-btn.png`,
 `docs/screenshots/projectinfo-view-ro.png`,
-`docs/screenshots/projectinfo-attachments-upload-delete.png`
+`docs/screenshots/projectinfo-attachments-upload-delete.png`,
+`docs/screenshots/issue-996-export-all-testsuites.png`
 (also mirrored on the wiki).
+**Export all test suites** (Refs #996): `docs/screenshots/issue-996-export-all-testsuites.png`.
 
 ---
 ## Table of Contents
@@ -44,7 +46,12 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 ## 1. What the screen does
 
 - **Toolbar:** locale switcher, Refresh (re-fetches the BFF), Manage project
-  (`projectsView.html`) and Dashboard (`mainPage.html`).
+  (`projectsView.html`), **Export all test suites** (shown only when the user
+  holds `mgt_modify_tc` **and** the project has ≥1 direct test-suite child —
+  gated by `canDoExport` and `mgt_modify_tc` from the BFF response; opens the
+  modernized export dialog `tcExport.html?tproject_id=<id>&containerID=<id>&useRecursion=1`
+  which streams the `.testproject-deep.xml` file, Refs #996), and Dashboard
+  (`mainPage.html`).
 - **Overview card:** name, prefix, status (Active/Inactive), visibility
   (Public/Private), test-case counter and the project feature options
   (Requirements, Priority, Automation, Inventory) as chips.
@@ -76,8 +83,10 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 is_public, tc_counter, options { requirementsEnabled, testPriorityEnabled,
 automationEnabled, inventoryEnabled }, flags { issueTrackerEnabled,
 codeTrackerEnabled, reqmgrIntegrationEnabled } }`, plus `attachments[]`
-(title, file_name, file_size, file_type, date_added, download_url) and
-`grants { mgt_modify_product, mgt_view_tc, mgt_view_req }`.
+(title, file_name, file_size, file_type, date_added, download_url),
+top-level `canDoExport` (boolean — the project has ≥1 direct test-suite
+child, mirroring legacy `testproject.class.php:778`) and
+`grants { mgt_modify_product, mgt_view_tc, mgt_view_req, mgt_modify_tc }`.
 
 **Write routes** (both require the `POST` method — non-POST → `405 Method
 not allowed` — and `mgt_modify_product` on the owning project — `403 No
@@ -122,6 +131,19 @@ actions via GET), `400 Missing project id` / `Unknown action`.
   `?edit=testproject` to `execSetResults.php` / `planAddTC.php` — that is
   their own item-level switch, not a call to the retired viewer; left
   untouched.
+- **Export all test suites** mirrors the legacy `containerView.tpl` control
+  panel icon `btn_export_all_testsuites` (`containerView.tpl:150`), gated by
+  `canDoExport` — set in `lib/functions/testproject.class.php:777-778` —
+  and by the legacy `modify_tc_rights` block (`containerView.tpl:119`, i.e.
+  `mgt_modify_tc`). The modern BFF computes `canDoExport` by counting the
+  project's direct children that are not testplan/requirement-spec/testcase
+  nodes — exactly the legacy `get_children($safeID, ['testcase','me','testplan'=>'me','requirement_spec'=>'me'])`
+  semantics (only direct test-suite children make the project exportable).
+  Clicking the button opens the pre-existing modern export dialog
+  (`gui/templates/testcases/tcExport.html` + `api/testcasesexport/`) set to
+  project-deep mode (`containerID = tproject_id` + `useRecursion=1`), which
+  streams `<project>.testproject-deep.xml` — the same file the legacy
+  `lib/testcases/tcExport.php` produced (Refs #996).
 
 ## 4. i18n Keys
 
@@ -133,7 +155,8 @@ flat keys — see testing note), e.g. `piv.title`, `piv.overview`,
 `piv.uploadTitle`, `piv.chooseFile`, `piv.noFileSelected`, `piv.delete`,
 `piv.deleteConfirm`, `piv.uploadOk`, `piv.uploadFail`, `piv.deleteOk`,
 `piv.deleteFail`, `piv.addAttachment` — also in all 10 bundles. No
-user-facing string is hardcoded in the screen.
+user-facing string is hardcoded in the screen. Refs #996 adds `piv.exportAll`
+("Export all test suites") to all 10 bundles.
 
 ## 5. Security
 

@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Falha ao excluir o anexo.",
   "piv.deleteOk": "Anexo excluído.",
   "piv.description": "Descrição",
+  "piv.exportAll": "Exportar todas as suítes de teste",
   "piv.download": "Baixar",
   "piv.errAllowedFilenames": "O nome do arquivo não corresponde ao padrão permitido.",
   "piv.errAllowedFiles": "O arquivo não passa na verificação de tipo permitido.",

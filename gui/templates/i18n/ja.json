@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "添付ファイルの削除に失敗しました。",
   "piv.deleteOk": "添付ファイルを削除しました。",
   "piv.description": "説明",
+  "piv.exportAll": "すべてのテストスイートをエクスポート",
   "piv.download": "ダウンロード",
   "piv.errAllowedFilenames": "ファイル名が許可されたパターンに一致しません。",
   "piv.errAllowedFiles": "ファイルが許可された種類のチェックに合格しませんでした。",

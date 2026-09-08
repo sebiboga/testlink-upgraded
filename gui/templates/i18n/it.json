@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Eliminazione allegato non riuscita.",
   "piv.deleteOk": "Allegato eliminato.",
   "piv.description": "Descrizione",
+  "piv.exportAll": "Esporta tutte le suite di test",
   "piv.download": "Scarica",
   "piv.errAllowedFilenames": "Il nome del file non corrisponde al pattern consentito.",
   "piv.errAllowedFiles": "Il file non supera il controllo del tipo consentito.",

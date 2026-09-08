@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Не удалось удалить вложение.",
   "piv.deleteOk": "Вложение удалено.",
   "piv.description": "Описание",
+  "piv.exportAll": "Экспортировать все наборы тестов",
   "piv.download": "Скачать",
   "piv.errAllowedFilenames": "Имя файла не соответствует допустимому шаблону.",
   "piv.errAllowedFiles": "Файл не проходит проверку допустимого типа.",

@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Échec de la suppression de la pièce jointe.",
   "piv.deleteOk": "Pièce jointe supprimée.",
   "piv.description": "Description",
+  "piv.exportAll": "Exporter toutes les suites de tests",
   "piv.download": "Télécharger",
   "piv.errAllowedFilenames": "Le nom du fichier ne correspond pas au modèle autorisé.",
   "piv.errAllowedFiles": "Le fichier ne passe pas le contrôle de type autorisé.",

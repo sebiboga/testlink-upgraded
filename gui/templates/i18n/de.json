@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Fehler beim Löschen des Anhangs.",
   "piv.deleteOk": "Anhang gelöscht.",
   "piv.description": "Beschreibung",
+  "piv.exportAll": "Alle Testsuiten exportieren",
   "piv.download": "Herunterladen",
   "piv.errAllowedFilenames": "Dateiname entspricht nicht dem erlaubten Muster.",
   "piv.errAllowedFiles": "Datei besteht den Prüfung des erlaubten Dateityps nicht.",

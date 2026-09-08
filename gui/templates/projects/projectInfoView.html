@@ -53,6 +53,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="toolbar">
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="manageLink" href="#" target="_blank"><i class="fa fa-cog"></i> <span data-i18n="piv.manage">Manage project</span></a>
+  <a class="btn-ghost" id="exportAllLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-export"></i> <span data-i18n="piv.exportAll">Export all test suites</span></a>
   <a class="btn-ghost" id="dashLink" href="/gui/templates/mainpage/mainPage.html" target="_blank"><i class="fa fa-home"></i> <span data-i18n="piv.dashboard">Dashboard</span></a>
   <span style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
@@ -212,6 +213,14 @@ function render(r) {
 
   $('#manageLink').css('display', r.grants.mgt_modify_product ? 'inline-flex' : 'none');
   $('#manageLink').attr('href', '/gui/templates/projectsView.html');
+
+  // Export-all-suites entry point, mirroring legacy containerView.tpl:150
+  // (canDoExport) gated by mgt_modify_tc (legacy modify_tc_rights, line 119).
+  var canExport = !!(r.canDoExport && r.grants.mgt_modify_tc);
+  $('#exportAllLink').css('display', canExport ? 'inline-flex' : 'none');
+  $('#exportAllLink').attr('href',
+    '/gui/templates/testcases/tcExport.html?tproject_id=' + PROJECT_ID +
+    '&containerID=' + PROJECT_ID + '&useRecursion=1');
 
   CAN_UPLOAD = !!r.grants.mgt_modify_product;
   $('#attUpload').css('display', CAN_UPLOAD ? 'block' : 'none');

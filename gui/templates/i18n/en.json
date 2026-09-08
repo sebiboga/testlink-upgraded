@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Failed to delete the attachment.",
   "piv.deleteOk": "Attachment deleted.",
   "piv.description": "Description",
+  "piv.exportAll": "Export all test suites",
   "piv.download": "Download",
   "piv.errAllowedFilenames": "File name does not match the allowed pattern.",
   "piv.errAllowedFiles": "File does not pass allowed file type check.",

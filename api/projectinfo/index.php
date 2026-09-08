@@ -18,7 +18,9 @@
  *   GET  ?action=info&tproject_id=<project_id>   (alias, legacy param name)
  *   GET  ?action=info                            (falls back to the session's
  *                                                 testprojectID, like legacy)
- *        -> project attributes + option flags + attachment list + grants
+ *        -> project attributes + option flags + attachment list + grants +
+ *           canDoExport (whether the project has at least one direct test
+ *           suite child, mirroring legacy canDoExport)
  *   POST ?action=upload&id=<project_id>          (multipart: uploadedFile +
  *                                                 fileTitle) -> uploads a new
  *        attachment bound to the project node ('nodes_hierarchy'), mirroring
@@ -75,7 +77,7 @@ function out($data) { echo json_encode($data); exit; }
 $action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
 
 $tables = tlObjectWithDB::getDBTables(
-    array('nodes_hierarchy', 'attachments', 'testprojects'));
+    array('nodes_hierarchy', 'attachments', 'testprojects', 'node_types'));
 
 /**
  * Resolve the target project id in the same order as legacy archiveData.php:
@@ -98,6 +100,36 @@ function loadProject($db, $projectId) {
     $tprojectMgr = new testproject($db);
     $project = $tprojectMgr->get_by_id(intval($projectId));
     return $project;
+}
+
+/**
+ * Count direct children of a project that are "exportable" (test suites).
+ * Mirrors the legacy canDoExport computation in
+ * lib/testcases/containerEdit.php / lib/functions/testproject.class.php:777-778:
+ *   $exclusion = array('testcase', 'me', 'testplan' => 'me', 'requirement_spec' => 'me');
+ *   $gui->canDoExport = count((array)$this->tree_manager->get_children($safeID,$exclusion)) > 0;
+ * i.e. only direct test-suite children make the project exportable.
+ */
+function countExportChildren($dbHandler, $tables, $projectId) {
+    $rows = $dbHandler->get_recordset(
+        "SELECT nt.description AS t FROM {$tables['nodes_hierarchy']} nh " .
+        "JOIN {$tables['node_types']} nt ON nh.node_type_id = nt.id " .
+        "WHERE nh.parent_id = " . intval($projectId));
+    if (is_null($rows)) {
+        return 0;
+    }
+    $excl = array('testproject', 'testplan', 'requirement_spec', 'requirement',
+                  'requirement_version', 'testcase', 'testcase_version',
+                  'requirement_revision', 'requirement_spec_revision',
+                  'testcase_step', 'build', 'platform', 'user');
+    $c = 0;
+    foreach ($rows as $r) {
+        $t = isset($r['t']) ? $r['t'] : (isset($r['description']) ? $r['description'] : '');
+        if ($t !== '' && !in_array($t, $excl, true)) {
+            $c++;
+        }
+    }
+    return $c;
 }
 
 /**
@@ -171,8 +203,10 @@ if ($action === 'info') {
             ),
         ),
         'attachments' => $attachments,
+        'canDoExport' => countExportChildren($db, $tables, $projectIdS) > 0,
         'grants' => array(
             'mgt_modify_product' => $user->hasRight($db, 'mgt_modify_product', $projectIdS),
+            'mgt_modify_tc'      => $user->hasRight($db, 'mgt_modify_tc', $projectIdS),
             'mgt_view_tc'        => $user->hasRight($db, 'mgt_view_tc', $projectIdS),
             'mgt_view_req'       => $user->hasRight($db, 'mgt_view_req', $projectIdS),
         ),

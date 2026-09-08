@@ -1095,6 +1095,7 @@
   "piv.deleteFail": "Error al eliminar el adjunto.",
   "piv.deleteOk": "Adjunto eliminado.",
   "piv.description": "Descripción",
+  "piv.exportAll": "Exportar todas las suites de pruebas",
   "piv.download": "Descargar",
   "piv.errAllowedFilenames": "El nombre del archivo no coincide con el patrón permitido.",
   "piv.errAllowedFiles": "El archivo no pasa la comprobación de tipo permitido.",
