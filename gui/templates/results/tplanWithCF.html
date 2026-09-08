@@ -286,14 +286,13 @@ function loadData() {
             .attr('title', t('tpwcf.multiSortToggle', 'Click to toggle ascending/descending; shift+click or X to remove'))
             .append($('<span class="ms-title"></span>').text(title))
             .append($('<span class="ms-dir"></span>').text(' ' + (s.dir === 'asc' ? '\u2191' : '\u2193')))
-            .append($('<button type="button" class="ms-x" tabindex="-1" title="' +
-              t('tpwcf.multiSortRemove', 'Remove sort') + '">&times;</button>'));
+            .append($('<button type="button" class="ms-x" tabindex="-1"></button>').text('\u00d7').attr('title', t('tpwcf.multiSortRemove', 'Remove sort')));
           $wrap.append($chip);
         });
         $('#msortClear').css('display', multiSort.length ? 'inline-block' : 'none');
       }
       function addMultiSortCol(col) {
-        if (isNaN(col) || !dtTPlanCF.column(col)) { return false; }
+        if (isNaN(col) || col < 0 || col >= dtTPlanCF.columns().count()) { return false; }
         if (multiSort.some(function (s) { return s.col === col; })) {
           toast(t('tpwcf.multiSortDup', 'Column is already in the sort list'), true);
           return false;
@@ -316,12 +315,10 @@ function loadData() {
         renderMultiSortChips();
       }
 
-      // make visible column headers draggable
+      // make column headers draggable (all columns; hidden ones only become
+// drag sources after "Show all columns" makes them visible)
       dtTPlanCF.columns().every(function () {
-        var h = $(this.header());
-        if (this.visible()) {
-          h.attr('draggable', 'true').attr('data-col', this.index());
-        }
+        $(this.header()).attr('draggable', 'true').attr('data-col', this.index());
       });
 
       $(document).off('dragstart.msort').on('dragstart.msort', '#dtResults thead th[draggable="true"]', function (e) {
@@ -369,6 +366,7 @@ function loadData() {
 
       $('#msortChips')
         .off('click.mschip').on('click.mschip', '.ms-chip', function (e) {
+          if ($(e.target).is('.ms-x')) { return; }
           if (e.shiftKey) {
             e.preventDefault();
             removeMultiSortCol(parseInt($(this).attr('data-col'), 10));
