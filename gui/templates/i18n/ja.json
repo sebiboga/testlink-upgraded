@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "リンクの削除に失敗しました: {ids}",
   "reqAssign.unassigned": "未割り当ての要件",
   "reqAssign.versionShort": "v",
+  "reqcov.all": "すべて",
   "reqcov.apply": "適用",
   "reqcov.build": "ビルド",
   "reqcov.elapsedSeconds": "経過秒数",

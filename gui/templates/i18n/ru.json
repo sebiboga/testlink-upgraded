@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Не удалось удалить связи: {ids}",
   "reqAssign.unassigned": "Свободные Требования",
   "reqAssign.versionShort": "в.",
+  "reqcov.all": "Все",
   "reqcov.apply": "Применить",
   "reqcov.build": "Сборка",
   "reqcov.elapsedSeconds": "Прошедшие секунды",

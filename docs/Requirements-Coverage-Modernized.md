@@ -32,6 +32,7 @@ now points to the new HTML screen.
 | Requirements table | DataTable with 13 columns: Req Spec, Title, Ver, Coverage, Evaluation, Type, Status, Passed, Failed, Blocked, Not Run, Progress, Linked TCs | identical columns, same data |
 | Linked TC expand | clicking "N TCs" expands a sub-table with linked test cases and their status | same expand/collapse behavior |
 | Platform/Build filter | filter by specific platform/build or [Any] | same filter with [Any] default |
+| Per-column list filters (Evaluation / Type / Status) | ExtTable `filter => ListSimpleMatch`/`list` dropdowns with eval/type/status label options (resultsReqs.php:157-162) | DataTable footer `<select>` filters under Evaluation (col 4), Type (col 5), Status (col 6), default option "All" + full translated label lists; combine freely with each other and with the global search (Refs #1234) |
 
 ## 2. REST API Reference
 
@@ -64,6 +65,9 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
       "not_run_nfc": {"label": "Not Run (nfc)", "count": 1, "long_label": "Not Run (nfc) Reqs"}
     },
     "expected_coverage_enabled": true,
+    "eval_filter_options": ["Not Run", "Passed", "Failed", "Blocked", "Partially passed", "Not covered", "Partially Passed (nfc)", "Not Run (nfc)", "Passed (nfc)", "Failed (nfc)", "Blocked (nfc)"],
+    "type_filter_options": ["Informational", "Feature", "Use Case", "User Interface", "Non functional", "Constraint", "System Function"],
+    "status_filter_options": ["Draft", "Review", "Rework", "Finish", "Implemented", "Valid", "Not testable", "Obsolete"],
     "rows": [
       {
         "req_spec_path": "Req Spec 1",
@@ -102,6 +106,13 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
 
 ## 3. Legacy parity notes
 
+- Per-column list filters on Evaluation / Type / Status port the legacy ExtTable
+  `filter` definitions (resultsReqs.php:157-162) — `ListSimpleMatch` for Evaluation,
+  `list` for Type and Status — with the same filter *options*: eval-status labels,
+  req-type labels and req-status labels. Implemented as DataTable footer `<select>`
+  elements wired to `column.search()` (anchored exact match on the translated cell
+  text); filter state resets to "All" on each Apply/reload, mirroring the ExtTable
+  re-render behavior (Refs #1234).
 - Evaluation logic is a direct port of `evaluate_req()` from `lib/results/resultsReqs.php`
 - `doNotRunAnalysis()` is ported as `doNotRunAnalysisBff()`
 - `buildReqSpecMap()` logic is inlined in the BFF action
@@ -110,11 +121,13 @@ Single action endpoint: `GET /api/reports/index.php?action=metrics_results_reqs`
 
 ## 4. i18n Keys
 
-23 keys under `reqcov.*` in all 10 locale bundles (`en.json`, `ro.json`, `de.json`,
+24 keys under `reqcov.*` in all 10 locale bundles (`en.json`, `ro.json`, `de.json`,
 `fr.json`, `es.json`, `pt.json`, `ja.json`, `zh.json`, `it.json`, `ru.json`).
 
 Keys cover: page title, summary labels, eval status names, badge labels, column headers,
-search placeholder, apply button, and elapsed time label.
+search placeholder, apply button, elapsed time label, and the per-column filter default
+option `reqcov.all` ("All" / "Alle" / "Todos" / "Tous" / "Tutti" / "すべて" / "Toate" /
+"Все" / "全部", Refs #1234).
 
 ## 5. Security
 
@@ -130,3 +143,10 @@ See [Test Suite #46](../tmp/TLU_Test_Cases.md) — 13 test cases covering:
 - Evaluation summary badges, DataTable columns and values
 - Linked TCs expand, platform/build dropdowns, Apply filter
 - Search, i18n, column alignment, Event Viewer
+
+And the `Task — Issue #1234` suite (13 cases, all PASS): per-column
+Evaluation/Type/Status footer filters — BFF option lists, single & combined filtering,
+no-match empty state, All-reset, Apply-reset, global-search composition, locale
+translation of the "All" option, console & Event Viewer cleanliness.
+Screenshots: `docs/screenshots/issue-1234-before.png`,
+`docs/screenshots/issue-1234-filter-passed-valid.png`.

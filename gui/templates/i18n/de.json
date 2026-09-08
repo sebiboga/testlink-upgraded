@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Entfernen fehlgeschlagen für Verknüpfungen: {ids}",
   "reqAssign.unassigned": "Freie Anforderungen",
   "reqAssign.versionShort": "V.",
+  "reqcov.all": "Alle",
   "reqcov.apply": "Anwenden",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Vergangene Sekunden",

@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "La eliminación falló para los enlaces: {ids}",
   "reqAssign.unassigned": "Requisitos Libres",
   "reqAssign.versionShort": "v.",
+  "reqcov.all": "Todos",
   "reqcov.apply": "Aplicar",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Segundos transcurridos",

@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Rimozione non riuscita per i collegamenti: {ids}",
   "reqAssign.unassigned": "Requisiti Liberi",
   "reqAssign.versionShort": "v.",
+  "reqcov.all": "Tutti",
   "reqcov.apply": "Applica",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Secondi trascorsi",

@@ -3220,6 +3220,9 @@ if ($action === 'metrics_results_reqs') {
             'total_reqs' => 0,
             'rows' => [],
             'expected_coverage_enabled' => false,
+            'eval_filter_options' => [],
+            'type_filter_options' => [],
+            'status_filter_options' => [],
             'elapsed_time' => round(microtime(true) - $timerOn, 2),
         ]);
         exit;
@@ -3532,6 +3535,15 @@ if ($action === 'metrics_results_reqs') {
         }
     }
 
+    // Per-column list filter options — mirrors legacy resultsReqs.php:152-162
+    // Evaluation = labels of the eval status map (ListSimpleMatch)
+    $evalFilterOptions = array_values(array_unique(array_map(function ($ev) {
+        return $ev['label'];
+    }, $evalStatusMap)));
+    // Type / Status = localized labels of req type / status maps (filter => list)
+    $typeFilterOptions = array_values($reqTypeLabels);
+    $statusFilterOptions = array_values($reqStatusLabels);
+
     out([
         'status' => 'ok',
         'tplan_name' => $tplanInfo['name'],
@@ -3542,6 +3554,9 @@ if ($action === 'metrics_results_reqs') {
         'total_reqs' => $totalReqs,
         'rows' => $rows,
         'expected_coverage_enabled' => !empty($reqCoverageCfg->expected_coverage_management),
+        'eval_filter_options' => $evalFilterOptions,
+        'type_filter_options' => $typeFilterOptions,
+        'status_filter_options' => $statusFilterOptions,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),
     ]);
     exit;

@@ -63,6 +63,8 @@ td.reqtitle { white-space: nowrap; }
 .dataTables_wrapper .dataTables_filter input { border: 1px solid #ccc; border-radius: 4px; padding: 4px 8px; font-size: 12px; }
 .dataTables_wrapper .dataTables_length select { border: 1px solid #ccc; border-radius: 4px; padding: 4px; font-size: 12px; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+table.flat tfoot th { background: #f7f7f7; border-top: 1px solid #e4e4e4; }
+table.flat tfoot select { width: 100%; min-width: 70px; border: 1px solid #ccc; border-radius: 4px; padding: 3px 6px; font-size: 11.5px; background: #fff; color: #222; }
 </style>
 </head>
 <body>
@@ -151,7 +153,8 @@ function t(key, fallback) {
   return (v && v !== key) ? v : (fallback || key);
 }
 
-TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher'); });
+var i18nReady = false;
+TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitcher'); i18nReady = true; start(); });
 
 function esc(s) {
   if (!s) return '';
@@ -249,7 +252,10 @@ function loadData() {
         });
 
         if ($.fn.DataTable.isDataTable('#dtReqs')) { $('#dtReqs').DataTable().destroy(); }
-        $('#dtReqs').DataTable({ pageLength: 25, order: [[11, 'desc']], autoWidth: false });
+        $('#dtReqs tfoot').remove();
+        $('#dtReqs').append(buildFilters(d));
+        var dt = $('#dtReqs').DataTable({ pageLength: 25, order: [[11, 'desc']], autoWidth: false });
+        bindColumnFilters(dt);
         $('#tableBox').show();
 
         // TC expand/collapse
@@ -272,6 +278,43 @@ function loadData() {
   });
 }
 
+function escRe(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function buildFilters(d) {
+  var evalOps = d.eval_filter_options || [];
+  var typeOps = d.type_filter_options || [];
+  var statusOps = d.status_filter_options || [];
+  var allLabel = t('reqcov.all', 'All');
+
+  function selHtml(id, colIdx, headerKey, opts) {
+    var disabled = (!opts || opts.length === 0) ? ' disabled' : '';
+    var h = '<select id="' + id + '" data-col="' + colIdx + '" aria-label="' + esc(t(headerKey, 'Filter')) + '"' + disabled + '>'
+          + '<option value="">' + esc(allLabel) + '</option>';
+    $.each(opts, function (i, o) {
+      h += '<option value="' + esc(o) + '">' + esc(o) + '</option>';
+    });
+    return h + '</select>';
+  }
+
+  return '<tfoot><tr>'
+    + '<th></th><th></th><th></th><th></th>'
+    + '<th>' + selHtml('filtEval', 4, 'reqcov.thEvaluation', evalOps) + '</th>'
+    + '<th>' + selHtml('filtType', 5, 'reqcov.thType', typeOps) + '</th>'
+    + '<th>' + selHtml('filtStatus', 6, 'reqcov.thStatus', statusOps) + '</th>'
+    + '<th></th><th></th><th></th><th></th><th></th><th></th>'
+    + '</tr></tfoot>';
+}
+
+function bindColumnFilters(dt) {
+  $(document).off('.reqfilt').on('change.reqfilt', '#filtEval, #filtType, #filtStatus', function () {
+    var colIdx = parseInt($(this).data('col'), 10);
+    var val = $(this).val() || '';
+    dt.column(colIdx).search(val ? '^' + escRe(val) + '$' : '', true, false).draw();
+  });
+}
+
 function getBadgeColor(evalKey) {
   var base = evalKey.replace(/_nfc$/, '');
   var colors = {
@@ -281,8 +324,15 @@ function getBadgeColor(evalKey) {
   return colors[base] || '#6c757d';
 }
 
-$('#btnApply').on('click', loadData);
-$(function() { loadData(); });
+function start() {
+  if (!i18nReady) return;
+  loadData();
+}
+
+$('#btnApply').on('click', start);
+$(function() {
+  if (i18nReady) start();
+});
 </script>
 </body>
 </html>

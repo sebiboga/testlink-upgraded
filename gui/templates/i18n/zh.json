@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "以下关联的移除失败：{ids}",
   "reqAssign.unassigned": "未关联的需求",
   "reqAssign.versionShort": "v",
+  "reqcov.all": "全部",
   "reqcov.apply": "应用",
   "reqcov.build": "构建",
   "reqcov.elapsedSeconds": "已用秒数",

@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Removal failed for links: {ids}",
   "reqAssign.unassigned": "Free Requirements",
   "reqAssign.versionShort": "v.",
+  "reqcov.all": "All",
   "reqcov.apply": "Apply",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Elapsed seconds",

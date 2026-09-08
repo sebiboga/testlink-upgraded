@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Échec de la suppression des liaisons : {ids}",
   "reqAssign.unassigned": "Exigences Libres",
   "reqAssign.versionShort": "v.",
+  "reqcov.all": "Tous",
   "reqcov.apply": "Appliquer",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Secondes écoulées",

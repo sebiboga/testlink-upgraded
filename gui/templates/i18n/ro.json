@@ -1469,6 +1469,7 @@
   "reqAssign.unassignFailed": "Eliminarea a eșuat pentru legăturile: {ids}",
   "reqAssign.unassigned": "Cerințe Libere",
   "reqAssign.versionShort": "v.",
+  "reqcov.all": "Toate",
   "reqcov.apply": "Aplică",
   "reqcov.build": "Build",
   "reqcov.elapsedSeconds": "Secunde scurse",

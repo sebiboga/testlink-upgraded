@@ -11785,23 +11785,26 @@ Result: 6/6 PASS — **feature implemented + verified**. BFF `api/projects/index
 
 Result: 10/10 PASS — **feature implemented + verified**. The modern `projectsView.html` create modal now has the legacy "Create from existing Test Project?" dropdown (`copy_from_tproject_id`), populated from the projects list, hidden in edit mode. The BFF `createProject()` (`api/projects/index.php:341-355`) validates the source and invokes `testproject::copy_as($source,$newId,$userId,$name,['copy_requirements'=>optReq])`, cloning custom-field assignments (verified via `cfield_testprojects`) plus keywords/platforms/testsuites/testplans/roles/requirements per legacy. New `proj.copyFrom` + `proj.noProject` i18n keys added in all 10 locale bundles. Refs #989. Screenshot: `docs/screenshots/issue-989-copy-from-project-modal.png`.
 
-## Task — Issue #864: Implement per-column filters + Reset Filters action in tplanWithCF (gap vs legacy)
+---
 
-**Date:** 2026-09-08
-**Screen:** `gui/templates/results/tplanWithCF.html` + `api/reports/index.php` `tplan_with_cf`
-**Legacy ref:** `lib/results/testPlanWithCF.php:160-166` + `lib/functions/exttable.class.php` — Ext `GridFilters` plugin (`filter:{type:'string'}` per column) + "Reset Filters" toolbar button (`filters.clearFilters()`).
-**Precondition:** app http://localhost:8082, DB testlink (testlink/testlink), admin/admin. Fixture created via SQL: project `TPWCF Proj` (id=1, prefix TPWCF), suite `Suite A` (id=2), TCs `Alpha` (node 3, tcversion 4, ext id 1) + `Beta` (node 5, tcversion 6, ext id 2), plan `TPWCF Plan` (id=7), CFs `owner_cf` (Owner) + `tier_cf` (Tier) linked at testplan-design scope; `cfield_testplan_design_values`: Alpha=Alice/Gold, Beta=Bob/Silver; `testplan_tcversions` (id 1,2). Screen: `http://localhost:8082/gui/templates/results/tplanWithCF.html?tproject_id=1&tplan_id=7`.
+## Task — Issue #1234: Per-column filters (Evaluation/Type/Status) in Requirements Coverage (gap vs legacy resultsReqs)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink`, logged in admin/admin. Screen: `http://localhost:8082/gui/templates/results/resultsRequirements.html?tproject_id=1&tplan_id=15` (fixture project `ReqCovFilt`/plan `PlanFilt`, created by `tmp/fixtures_1234.php`: 4 requirements R-001…R-004 with evals Passed/Failed/Blocked/Not Run, types Feature/Use Case/Non functional/User Interface, statuses Valid/Draft/Review/Valid; 2 builds B1/B2). Legacy reference: `lib/results/resultsReqs.php:157-162` (ExtTable `filter => list/ListSimpleMatch`, filterOptions = eval/type/status label lists). BFF: `api/reports/index.php` action `metrics_results_reqs`.
 
 | ID | Test case | Repro | Expected | Result |
 |----|-----------|-------|----------|--------|
-| 864.1 | per-column footer filter inputs render | load screen, inspect `#dtResultsFoot` | one `input.col-filter` per column; visible inputs placeholders "Filter Test Case", "Filter Owner", "Filter Tier"; hidden suite column input hidden | PASS |
-| 864.2 | Owner column filter narrows rows | type "Alice" in Owner filter | only `TPWCF-1: Alpha` (Alice/Gold) remains; `dtTPlanCF.column(2).search()==="Alice"` | PASS |
-| 864.3 | Test Case column filter narrows rows | type "Beta" in Test Case filter | only `TPWCF-2: Beta` (Bob/Silver) remains | PASS |
-| 864.4 | custom-field column filter narrows rows | type "Silver" in Tier filter | only `TPWCF-2: Beta` (Bob/Silver) remains | PASS |
-| 864.5 | Reset Filters button shows only when a filter is active | load clean (no filter) vs type in a filter | button `display:none` initially; `display:inline-flex` when a column filter is active | PASS |
-| 864.6 | Reset Filters clears all column filters | set Owner=Alice, then click Reset Filters | both rows restored; every footer input empty; all `column().search()===""`; button hides again | PASS |
-| 864.7 | no JS console errors during filter/reset | watch console while typing + resetting | zero error/warn messages | PASS |
-| 864.8 | Event Viewer clean | `events` table after suite | zero Error/Warning (`log_level` error/warn) rows | PASS |
-| 864.9 | i18n keys present + valid | grep `tpwcf.{resetFilters,filtersCleared,columnFilterPlaceholder}` in all 10 bundles + `python3 -m json.tool` | 3 keys in 10/10 bundles, all JSON valid | PASS |
+| 1234.1 | BFF exposes the 3 filter option lists | in-page fetch `metrics_results_reqs?tproject_id=1&tplan_id=15` | payload has `eval_filter_options` (unique eval labels), `type_filter_options` (7 req-type labels), `status_filter_options` (8 req-status labels) | PASS |
+| 1234.2 | footer renders 3 list filters under Eval/Type/Status | open screen | `<tfoot>` has `<select>` in columns 4/5/6 with default option "All" plus label options; cols map vertically to their headers | PASS |
+| 1234.3 | Evaluation filter narrows rows | set Eval filter = `Passed` | only R-001 row remains; "filtered from 4 total entries" | PASS |
+| 1234.4 | Type filter narrows rows | reset Eval, set Type = `User Interface` | only R-004 row remains | PASS |
+| 1234.5 | Status filter narrows rows | set Status = `Valid` | R-001 + R-004 remain (exactly 2) | PASS |
+| 1234.6 | combined filters intersect | Eval=`Not Run` + Type=`User Interface` + Status=`Valid` | exactly R-004 remains | PASS |
+| 1234.7 | no-match option yields empty table | Status = `Rework` (no rework reqs) | 0 rows, "no data" state, no console errors | PASS |
+| 1234.8 | All resets each filter | set all three to `All` | all 4 rows restored | PASS |
+| 1234.9 | Apply reload resets filters | set Status=`Valid`, click Apply | filters reset to `All`; 4 rows after reload (fresh dataset = fresh filter state) | PASS |
+| 1234.10 | global search still works alongside column filters | type "use" in global search + Type=`Use Case` | rows = R-002 only (global AND column filters compose) | PASS |
+| 1234.11 | i18n — `All` translates on locale switch | switch locale to Română (re-navigate `&locale=ro`) | filter default reads `Toate`; headers `Evaluare`/`Tip`/`Stare`; `reqcov.all` present in all 10 bundles | PASS |
+| 1234.12 | JS console clean | reload after all filter ops | zero console errors/warnings from this screen (no new entries) | PASS |
+| 1234.13 | Event Viewer clean | `events` table after suite | only log_level=16 AUDIT rows; zero Error/Warning (`log_level IN (1,2)`) | PASS |
 
-Result: 9/9 PASS — **feature implemented + verified**. `tplanWithCF.html` now renders one per-column string filter input under every visible column (Test Case + each custom-field column) wired to DataTables `column().search()`, plus a "Reset Filters" toolbar button that clears every column search + footer inputs at once and hides when no filter is active. Mirrors the legacy Ext `GridFilters` behavior exactly (left visible per-column filtering — e.g. "filter Owner CF = Alice" — and the single reset action). No BFF change required: `d.rows` already ships all data client-side. New `tpwcf.resetFilters` / `tpwcf.filtersCleared` / `tpwcf.columnFilterPlaceholder` keys added to all 10 locale bundles; all bundles valid JSON. Refs #864.
+Result: 13/13 PASS — **feature implemented + verified**. Ports the legacy ExtTable list filters (`resultsReqs.php:157-162`) onto the modern DataTable as footer `<select>` filters for Evaluation/Type/Status, fed by new BFF fields `eval_filter_options`/`type_filter_options`/`status_filter_options` (api/reports/index.php). New `reqcov.all` key added in all 10 locale bundles. Refs #1234. Screenshots: `docs/screenshots/issue-1234-before.png` (no filters), `docs/screenshots/issue-1234-filter-passed-valid.png` (filtered).
