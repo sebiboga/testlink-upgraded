@@ -83,11 +83,14 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     move on with modernization. New screens will surface further fixes anyway;
     do not stall progress on long debugging sessions.
 
-18. **The CI factory (GitHub Actions).** Three autonomous workflows run on this
+18. **The CI factory (GitHub Actions).** Four autonomous workflows run on this
     repo — be aware of them and never fight them:
-    - `fix-bug.yml` (every 2h): picks the NEWEST open issue, fixes it on its own
-      `fix/*` branch, opens a PR with `Fixes #<n>`, tries to self-merge.
+    - `fix-bug.yml` (every 2h): picks the NEWEST open bug issue, fixes it on its
+      own `fix/*` branch, opens a PR with `Fixes #<n>`, tries to self-merge.
       Rulebook: `ai/FIX-ISSUE.md`.
+    - `implement-task.yml` (every 1h): picks the OLDEST open `task` issue and
+      implements the missing feature from scratch on its own `task/*` branch.
+      Rulebook: `ai/IMPLEMENT-TASK.md`.
     - `merge-prs.yml` (hourly): safety net that squash-merges open `fix/*` PRs.
     - `modernize.yml` (manual): one screen per run, pushes intermediate commits
       directly to the default branch.
