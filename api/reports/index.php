@@ -45,9 +45,10 @@ doDBConnect($db);
 //   - 32-char  -> remote access for the owning user (setUpEnvForRemoteAccess
 //                 + checkRights on 'testplan_metrics')
 //   - longer   -> anonymous/public access for the connected test plan/grouping
-//                 entity (setUpEnvForAnonymousAccess, addOpAccess=false)
-// Only the results_flat and metrics_general actions accept it here; every
-// other report action keeps the session-only auth. A fresh session is created
+//     entity (setUpEnvForAnonymousAccess, addOpAccess=false)
+// Only the results_flat, metrics_general and charts_data actions accept it
+// here; every other report action keeps the session-only auth. A fresh
+// session is created
 // on the server side just like legacy setUpEnv*() does, so the export/mail
 // gateway redirects (which target lib/results/*.php) find a valid session
 // and, when the apikey is forwarded, the legacy controller's own init_args
@@ -55,7 +56,7 @@ doDBConnect($db);
 $apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
 $isAnon = false;
 
-$apikeyActions = ['results_flat', 'metrics_general'];
+$apikeyActions = ['results_flat', 'metrics_general', 'charts_data'];
 $userId = $_SESSION['userID'] ?? null;
 if ($apikey !== '' && in_array(getParam('action'), $apikeyActions, true)) {
     if (strlen($apikey) === 32) {
@@ -2891,7 +2892,9 @@ if ($action === 'charts_data') {
     }
 
     // Contextual re-check — same pattern as other metrics actions.
-    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+    // Anonymous/apikey access skips it (legacy setUpEnvForAnonymousAccess:
+    // addOpAccess=false), mirroring metrics_general (Refs #1258).
+    if (!$isAnon && !$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }

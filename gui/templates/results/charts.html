@@ -129,6 +129,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script>
 var tproject_id = parseInt(new URLSearchParams(window.location.search).get('tproject_id')) || 0;
 var tplan_id = parseInt(new URLSearchParams(window.location.search).get('tplan_id')) || 0;
+var apikey = new URLSearchParams(window.location.search).get('apikey') || '';
 
 function toast(msg, isErr) {
   var $t = $('#toastBox').text(msg).show();
@@ -207,7 +208,7 @@ TLi18n.load(function() { TLi18n.apply(); TLi18n.initLocaleSwitcher('#localeSwitc
 
   $.ajax({
     url: '/api/reports/index.php',
-    data: { action: 'charts_data', tproject_id: tproject_id, tplan_id: tplan_id },
+    data: { action: 'charts_data', tproject_id: tproject_id, tplan_id: tplan_id, apikey: apikey },
     dataType: 'json',
     success: function(d) {
       document.getElementById('loadingBox').style.display = 'none';
