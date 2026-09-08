@@ -11957,3 +11957,25 @@ Result: 7/7 PASS — **feature implemented + verified (Refs #1163, #1165)**. BFF
 | 1249.5 | Event Viewer clean | `SELECT COUNT(*) FROM events WHERE activity='PHP' AND log_level=2` after the suite | 0 rows referencing `displayMgr.php:121` (only the #1257 sibling rows on the anonymous path) | PASS |
 
 Result: 5/5 PASS — **bug fixed + verified**. Root cause: `buildMailCfg()` (resultsGeneral.php:216-224) never defines `from`, so `generateHtmlEmail()` (`lib/results/displayMgr.php:120-121`) unconditionally read `$_SESSION['currentUser']->emailAddress`; on the anonymous invalid-apikey path `setUpEnvForAnonymousAccess()` never sets `currentUser` → PHP 8 raised `Undefined array key 'currentUser'` + `Attempt to read property 'emailAddress' on null` → `events` rows (activity PHP, log_level 2). Fix (displayMgr.php:121): isset/is_object/property_exists guard with `''` fallback → legacy graceful `to==''` no-email-credentials path, same pattern as the #1248 isset-guards. One-site change covers every FORMAT_MAIL_HTML caller (resultsByStatus, resultsTC, resultsTCAbsoluteLatest, tcNotRunAnyPlatform, resultsByTSuite, resultsTCFlat, execTimelineStats, neverRunByPP, baselinel1l2, testAutomationSpec). Discovery: the anonymous-invalid-ids path also warns at resultsGeneral.php:251/252/255 (null `get_by_id`) — sibling bug filed as #1257 (bug label).
+
+## Task — Issue #866: tplanWithCF multi-column sort (drag column headers to toolbar)
+
+**Precondition:** app `http://localhost:8082`, DB fixtures project **TPWCF866** (id 29, prefix T866), plan **TPWCF866 Plan** (id 56), 2 suites (Suite Alpha/Beta), 8 TCs, testplan-design CF **Owner** + **Tier** with per-tc values (`php tmp/fixtures_866.php`). Login admin/admin. Screen `gui/templates/results/tplanWithCF.html?tproject_id=29&tplan_id=56`. Legacy reference: `lib/results/testPlanWithCF.php:104-169` + `gui/templates/dashio/include/inc_ext_table.tpl:209-239` (`Ext.ux.ToolbarDroppable`/`ToolbarReorderer`).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 866.1 | multi-sort toolbar renders | open the screen | bar shows "Multi sort" label + hint text above the DataTable; no chips initially; sort order defaults `[[0,'asc'],[1,'asc']]` | PASS |
+| 866.2 | drag column header onto bar creates sort chip, default DESC | drag "Owner" header onto the bar | chip `Owner ↓` appears; `dt.order() == [[2,'desc']]`; rows sorted Owner DESC (Carol first, Alice last) | PASS |
+| 866.3 | second column combines into multi-sort | also drag "Tier" onto the bar | chips `Owner ↓`,`Tier ↓`; `order == [[2,'desc'],[3,'desc']]`; within Owner, Tier DESC (Carol/Med, Carol/High, Bob/Med…) | PASS |
+| 866.4 | click chip toggles ASC/DESC | click the Owner chip | direction flips (`Owner ↑`), order `[[2,'asc'],[3,'desc']]`, rows re-sorted | PASS |
+| 866.5 | duplicate column drop rejected (legacy canDrop) | drop "Owner" again | no second chip; toast "Column is already in the sort list" | PASS |
+| 866.6 | chip removed via X | click `×` on the Tier chip | chip gone; order drops to `[[2,'asc']]` | PASS |
+| 866.7 | chip removed via shift+click (legacy button.destroy) | shift+click the Tier chip | chip removed, sort re-applied | PASS |
+| 866.8 | chips reorderable, sort follows precedence | drag "Tier" chip onto "Owner" chip (and reverse) | insert-before/after semantics: moving Tier first gives `[[3,..],[2,..]]`; DOM chip order updates with the order array | PASS |
+| 866.9 | Clear sorts resets to default | click "Clear sorts" | chips emptied; `order == [[0,'asc'],[1,'asc']]` | PASS |
+| 866.10 | rowGroups stay consistent with combined sort | sort by Owner+Tier | group headers re-split per suite_path and match row owners/tiers | PASS |
+| 866.11 | existing column filters unaffected | type in a filter footer input with active multi-sort | per-column search still works while combined sort stays applied | PASS |
+| 866.12 | console clean | all steps above | zero JS console errors | PASS |
+| 866.13 | Event Viewer clean | `events` AFTER suite | zero new Error/Warning (`log_level` 1/2); only AUDIT/INFO rows | PASS |
+
+Result: 13/13 PASS — **feature implemented + verified (Refs #866)**. Client-side only (BFF `tplan_with_cf` already returns all columns/rows): `.msortbar` toolbar + HTML5 drag/drop of visible column headers (`data-col`), chip toggle/remove/reorder, `dt.order([...]).draw()`; i18n keys in all 10 bundles. Screenshots: `docs/screenshots/issue-866-multisort-bar-empty.png` (toolbar idle), `docs/screenshots/issue-866-multisort-sorted.png` (Owner+Tier chips applied, table re-sorted). Mirrored into the GitHub Wiki.
