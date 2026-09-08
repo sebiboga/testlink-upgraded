@@ -187,6 +187,10 @@ None — all modernized screens are green.
 
 ---
 
+### Execute Tests (Execution → Execute Tests, `execTest.html`/`api/execute`) — historical-issue parity
+
+- **Gap #1163 collapsible testplan/build/platform notes panels (Refs #1163, #1165, DONE).** The BFF `init` payload now carries `tplan.notes` + `builds[].notes` + `platforms[].notes` (all note columns exist in `testplans`/`builds`/`platforms`); `gui/templates/execute/execTest.html` renders a collapsible notes panel under the toolbar with per-section toggles mirroring legacy `execSetResults.tpl` `show_hide('tplan_notes'|'build_notes'|'platform_notes')`. Build/platform boxes auto-hide when empty; the whole panel hides when nothing to show; notes re-render on build/platform selection change. i18n `exe.tplanNotes`/`exe.buildNotes`/`exe.platformNotes` added to all 10 bundles. Browser suite 1163 7/7 PASS; Event Viewer clean (no screen-attributable rows). Screenshot `docs/screenshots/issue-1163-execTest-notes.png`.
+
 ## ⬜ TODO — still legacy PHP (next screens, ASIDE order)
 
 ### Reports (from cfg/reports.cfg.php — all 24 ACTIVE reports modernized)

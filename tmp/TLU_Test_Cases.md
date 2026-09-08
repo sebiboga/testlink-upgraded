@@ -11928,3 +11928,18 @@ Result: 12/12 PASS — **feature implemented + verified**. The BFF `metrics_gene
 | 1248.5 | shared-helper sibling reports unaffected | `curl resultsByStatus.php` anonymous (valid+invalid key) | behavior unchanged (redirects to login — not anon-reachable), no new PHP-warning rows | PASS |
 
 Result: 5/5 PASS — **bug fixed + verified**. Root cause: `setUpEnvForAnonymousAccess()` (lib/functions/common.php:1356-1380) initializes `$_SESSION['currentUser']`/`['basehref']` only when the apikey resolves to a testproject/testplan entity; when it does not, the shared args helpers read the keys unconditionally (`displayMgr.php:102-103`, `resultsGeneral.php:270`) → PHP 8 E_WARNING → `events` rows (`activity=PHP`, `log_level=2`). Fix: defensive `isset()` reads with fallbacks (`null` / `TL_BASE_HREF`) at those three sites, matching the repo-wide pattern (asideMenu.php:49, archiveData.php:105, tlsmarty.inc.php:93). Authenticated/valid-key behavior is byte-identical. Screenshot: `docs/screenshots/issue-1248-resultsGeneral-rendered.png`.
+## Gap #1163 — Execute Tests: collapsible testplan/build/platform notes panels (execTest + api/execute)
+
+**Precondition:** app `http://localhost:8082`, DB fixtures: project **WALK** (id 5), plan **Plan Walk** (id 10, notes `Plan Walk - step by step`), build **Build Walk** (id 1, notes `Build 1 notes - bleeding edge`), platform **Linux** (id 1, notes `Linux x86 64-bit notes`). Login admin/admin.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1163.1 | all three note panels render | open `gui/templates/execute/execTest.html?tproject_id=5&tplan_id=10` (project 5, plan 10 active) | toolbar shows **Test Plan Notes**, **Build Notes**, **Platform Notes** boxes with the exact stored note text | PASS |
+| 1163.2 | plan notes toggle collapses/expands | click "Test Plan Notes" header, click again | notes body hidden on first click, re-shown on second (`display: block`) | PASS |
+| 1163.3 | build+platform boxes hide when empty | clear `builds.notes` + `platforms.notes` (id 1), reload | Build/Platform boxes absent; Test Plan Notes box still visible | PASS |
+| 1163.4 | whole panel hides when nothing to show | also clear `testplans.notes` (id 10), reload | no notes panel element rendered | PASS |
+| 1163.5 | notes re-render on build selection change | set distinct notes per build, switch `selBuild` | visible Build Notes text follows the selected build (`renderNotes()` after `change`) | PASS |
+| 1163.6 | console clean | all navigations above | no JS console errors | PASS |
+| 1163.7 | Event Viewer clean | `events` AFTER suite | zero new Error/Warning (`log_level IN (1,2)`); only AUDIT/BUI login rows | PASS |
+
+Result: 7/7 PASS — **feature implemented + verified (Refs #1163, #1165)**. BFF init payload gains `tplan.notes` / `builds[].notes` / `platforms[].notes`; frontend renders a collapsible panel mirroring legacy `execSetResults.tpl` `show_hide('tplan_notes'|'build_notes'|'platform_notes')`; i18n `exe.tplanNotes`/`exe.buildNotes`/`exe.platformNotes` in all 10 bundles. Screenshot: `docs/screenshots/issue-1163-execTest-notes.png` (also mirrored into the GitHub Wiki).
