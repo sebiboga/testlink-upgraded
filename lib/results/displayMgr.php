@@ -99,8 +99,8 @@ function initArgsForReports(&$dbHandler) {
   
   $args->format = $args->sendByMail ? FORMAT_MAIL_HTML : $args->format;
 
-  $args->user = $_SESSION['currentUser'];
-  $args->basehref = $_SESSION['basehref'];
+  $args->user = isset($_SESSION['currentUser']) ? $_SESSION['currentUser'] : null;
+  $args->basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : TL_BASE_HREF;
 
   return array($tplanMgr,$args);
 }

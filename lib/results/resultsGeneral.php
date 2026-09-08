@@ -267,7 +267,7 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
     natsort($gui->platformSet);
   }
 
-  $gui->basehref = $_SESSION['basehref'];
+  $gui->basehref = isset($_SESSION['basehref']) ? $_SESSION['basehref'] : TL_BASE_HREF;
   $gui->actionSendMail = $gui->basehref . 
           "lib/results/resultsGeneral.php?format=" . 
           FORMAT_MAIL_HTML . "&tplan_id={$gui->tplan_id}"; 
