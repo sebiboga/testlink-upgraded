@@ -1917,6 +1917,7 @@
   "rsvr.type": "Тип",
   "rtf.applyFilter": "Apply Filter",
   "rtf.btnExportXls": "Export as spreadsheet",
+  "rtf.btnSendEmail": "Отправить таблицу по электронной почте",
   "rtf.buildSelectHint": "Hold Ctrl (or Cmd on Mac) to select multiple builds.",
   "rtf.dtFirst": "First",
   "rtf.dtInfo": "Showing _START_ to _END_ of _TOTAL_ entries",
