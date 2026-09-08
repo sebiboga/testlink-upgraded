@@ -73,7 +73,8 @@ if( ($gui->activeBuildsQty <= $gui->matrixCfg->buildQtyLimit) ||
   {
     buildSpreadsheetData($db,$args,$gui,$execStatus,$labels);
   }
-  createSpreadsheet($gui,$args);
+  $gui->mailCfg = buildMailCfg($gui);
+  createSpreadsheet($gui,$args,$args->getSpreadsheetBy);
   $args->format = FORMAT_XLS;
 } else {
   // We need to ask user to do a choice
@@ -156,7 +157,16 @@ function init_args(&$dbHandler)
       }  
     break;
   }  
-  
+
+  // Mirror initArgsForReports(): distinguish "download the spreadsheet" from
+  // "send it to the current user by email". resultsTCFlat.php's own init
+  // routine (unlike resultsTC.php/initArgsForReports) previously ignored
+  // these flags, so the mail action silently produced a download instead of
+  // an email (legacy parity gap refs #1219). Both flags carry the same
+  // "_x" suffix that the legacy report templates submit.
+  $args->getSpreadsheetBy = 
+    isset($_REQUEST['sendSpreadSheetByMail_x']) ? 'email' :
+      (isset($_REQUEST['exportSpreadSheet_x']) ? 'download' : null);
 
   $args->user = $_SESSION['currentUser'];
   $args->basehref = $_SESSION['basehref'];
@@ -289,7 +299,7 @@ function initializeGui(&$dbHandler,&$argsObj,$imgSet,&$tplanMgr)
  *
  *
  */
-function createSpreadsheet($gui,$args)
+function createSpreadsheet($gui,$args,$media = null)
 {
 
   $lbl = init_labels(array('title_test_suite_name' => null,'platform' => null,'priority' => null,
@@ -428,6 +438,28 @@ function createSpreadsheet($gui,$args)
   $objWriter->save($tmpfname);
   
   $content = file_get_contents($tmpfname);
+  
+  if($media == 'email')
+  {
+    // Send the generated spreadsheet to the current user's e-mail address
+    // instead of downloading it (legacy parity for the "send by mail" action
+    // — references #1219). resultsTCFlat.php's own createSpreadsheet()
+    // unconditionally downloaded before, so the mail action produced a binary
+    // download rather than an email.
+    require_once('email_api.php');
+    $ema = new stdClass();
+    $ema->from_address = config_get('from_email');
+    $ema->to_address = $args->user->emailAddress;
+    $ema->subject = $gui->mailCfg->subject;
+    $ema->message = $gui->mailCfg->subject;
+    $dum = uniqid("resultsTCFlat_") . '.xls';
+    $oops = array('attachment' =>
+                  array('file' => $tmpfname, 'newname' => $dum),
+                  'exit_on_error' => true, 'htmlFormat' => true);
+    $email_op = email_send_wrapper($ema,$oops);
+    unlink($tmpfname);
+    exit();
+  }
   unlink($tmpfname);
   $f2d = 'resultsTCFlat_'. $gui->tproject_name . '_' . $gui->tplan_name . $settings[$xlsType]['ext'];
   downloadContentsToFile($content,$f2d,array('Content-Type' =>  $settings[$xlsType]['Content-Type']));
