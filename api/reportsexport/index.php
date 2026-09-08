@@ -104,7 +104,8 @@ $exportMap = [
     ],
     'results_tc_flat' => [
         'file' => '/lib/results/resultsTCFlat.php',
-        'params' => ['format' => FORMAT_XLS, 'exportSpreadSheet_x' => '1'],
+        'params' => ['format' => FORMAT_XLS, 'do_action' => 'result',
+                      'exportSpreadSheet_x' => '1'],
     ],
     'absolute_latest' => [
         'file' => '/lib/results/resultsTCAbsoluteLatest.php',
@@ -148,7 +149,7 @@ $exportMap = [
     ],
     'results_tc_flat_mail' => [
         'file' => '/lib/results/resultsTCFlat.php',
-        'params' => ['format' => FORMAT_MAIL_HTML,
+        'params' => ['format' => FORMAT_MAIL_HTML, 'do_action' => 'result',
                       'sendSpreadSheetByMail_x' => '1'],
     ],
     'absolute_latest_mail' => [
@@ -183,9 +184,14 @@ if ($tprojectId > 0) {
     $params['tproject_id'] = $tprojectId;
 }
 
-// For results_by_status, add build_set if provided (some screens include it)
+// For reports with build filtering, forward the build set / build list
+// (some screens include build_set[] and some build the comma-separated
+// buildListForExcel in the export URL).
 if (isset($_GET['build_set']) && is_array($_GET['build_set'])) {
     $params['build_set'] = $_GET['build_set'];
+}
+if (isset($_GET['buildListForExcel']) && $_GET['buildListForExcel'] !== '') {
+    $params['buildListForExcel'] = $_GET['buildListForExcel'];
 }
 
 // results_by_status: forward the single-letter status code to the legacy
