@@ -35,21 +35,92 @@ bffSameOriginGuard();
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
-$userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
-    exit;
-}
-
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
-    exit;
-}
-
+// Legacy apikey / public-link anonymous access (Refs #1220), mirroring the
+// auth resultsTCFlat.php init_args() applies:
+//   - 32-char apikey  -> remote access for the owning user; the same
+//                        testplan_metrics right gate as a logged session
+//   - longer apikey   -> anonymous access tied to the connected test
+//                        plan/project entity (addOpAccess=false, no rights)
+// The apikey is forwarded to the legacy controller in the redirect, whose
+// own init_args() re-runs setUpEnvFor*() against the same (fresh) session,
+// guaranteeing identical behaviour to a legacy embed/public link.
+// The apikey / public-link flow is scoped to the Results TC Flat screen
+// (results_tc_flat + results_tc_flat_mail). Any other action keeps the
+// session-only auth path below.
 $action = $_GET['action'] ?? '';
+$apikeyAction = ($action === 'results_tc_flat' || $action === 'results_tc_flat_mail');
+
+$apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+if (!$apikeyAction) {
+    $apikey = '';
+}
+$isAnon = false;
+
+$userId = $_SESSION['userID'] ?? null;
+if ($apikey !== '') {
+    if (strlen($apikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $apikey);
+        if (is_array($apiUsers) && count($apiUsers) === 1) {
+            $uid = key($apiUsers);
+            $user = new tlUser($uid);
+            $user->readFromDB($db);
+            $userId = $uid;
+            $_SESSION['userID'] = $uid;
+            $_SESSION['currentUser'] = $user;
+            $_SESSION['lastActivity'] = time();
+            if (!isset($_SESSION['basehref'])) {
+                setPaths();
+            }
+            if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+                $_SESSION['locale'] = $user->locale;
+                setDateTimeFormats($_SESSION['locale']);
+            }
+        } else {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Unknown api key']);
+            exit;
+        }
+    } else {
+        $entity = getEntityByAPIKey($db, $apikey, 'testplan');
+        if (is_null($entity)) {
+            $entity = getEntityByAPIKey($db, $apikey, 'testproject');
+        }
+        if (is_null($entity)) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Unknown api key']);
+            exit;
+        }
+        $isAnon = true;
+        $user = new tlUser();
+        $userId = -1;
+        $_SESSION['userID'] = -1;
+        $_SESSION['currentUser'] = $user;
+        $_SESSION['lastActivity'] = time();
+        if (!isset($_SESSION['basehref'])) {
+            setPaths();
+        }
+        if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+            $_SESSION['locale'] = config_get('default_language');
+            setDateTimeFormats($_SESSION['locale']);
+        }
+    }
+}
+
+if (!$isAnon && !isset($user)) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+        exit;
+    }
+
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
+        exit;
+    }
+}
+
 $tplanId = intval($_GET['tplan_id'] ?? 0);
 $tprojectId = intval($_GET['tproject_id'] ?? 0);
 
@@ -60,6 +131,7 @@ if ($tplanId <= 0) {
 }
 
 // Rights check: testplan_metrics on the owning test project
+// (skipped for anonymous/apikey access - legacy addOpAccess=false).
 $tplanMgr = new testplan($db);
 $tplanInfo = $tplanMgr->get_by_id($tplanId);
 if (!$tplanInfo) {
@@ -70,7 +142,7 @@ if (!$tplanInfo) {
 if (!$tprojectId) {
     $tprojectId = $tplanInfo['testproject_id'];
 }
-if (!$user->hasRightOnProj($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+if (!$isAnon && !$user->hasRightOnProj($db, 'testplan_metrics', $tprojectId, $tplanId)) {
     http_response_code(403);
     echo json_encode(['status' => 'error', 'message' => 'No permission']);
     exit;
@@ -182,6 +254,12 @@ $params = $target['params'];
 $params['tplan_id'] = $tplanId;
 if ($tprojectId > 0) {
     $params['tproject_id'] = $tprojectId;
+}
+
+// Forward the apikey so the legacy controller's own init_args() runs its
+// setUpEnvForRemoteAccess()/setUpEnvForAnonymousAccess() flow (Refs #1220).
+if ($apikey !== '') {
+    $params['apikey'] = $apikey;
 }
 
 // For reports with build filtering, forward the build set / build list

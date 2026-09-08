@@ -39,18 +39,85 @@ header('Content-Type: application/json');
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
+// Legacy apikey / public-link anonymous access (Refs #1220).
+// resultsTCFlat.php init_args() accepts an 'apikey' argument:
+//   - 32-char  -> remote access for the owning user (setUpEnvForRemoteAccess
+//                 + checkRights on 'testplan_metrics')
+//   - longer   -> anonymous/public access for the connected test plan/grouping
+//                 entity (setUpEnvForAnonymousAccess, addOpAccess=false)
+// Only the results_flat action accepts it here; every other report action
+// keeps the session-only auth. A fresh session is created on the server side
+// just like legacy setUpEnv*() does, so the export/mail gateway redirects
+// (which target lib/results/*.php) find a valid session and, when the apikey
+// is forwarded, the legacy controller's own init_args handles it natively.
+$apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+$isAnon = false;
+
 $userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
-    exit;
+if ($apikey !== '' && (getParam('action') === 'results_flat')) {
+    if (strlen($apikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $apikey);
+        if (is_array($apiUsers) && count($apiUsers) === 1) {
+            $uid = key($apiUsers);
+            $user = new tlUser($uid);
+            $user->readFromDB($db);
+            $userId = $uid;
+            $_SESSION['userID'] = $uid;
+            $_SESSION['currentUser'] = $user;
+            $_SESSION['lastActivity'] = time();
+            if (!isset($_SESSION['basehref'])) {
+                setPaths();
+            }
+            if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+                $_SESSION['locale'] = $user->locale;
+                setDateTimeFormats($_SESSION['locale']);
+            }
+        } else {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Unknown api key']);
+            exit;
+        }
+    } else {
+        // Anonymous/public access: a test plan or test project carrying the
+        // api key grants read-only access to that report (addOpAccess=false).
+        $entity = getEntityByAPIKey($db, $apikey, 'testplan');
+        if (is_null($entity)) {
+            $entity = getEntityByAPIKey($db, $apikey, 'testproject');
+        }
+        if (is_null($entity)) {
+            http_response_code(401);
+            echo json_encode(['status' => 'error', 'message' => 'Unknown api key']);
+            exit;
+        }
+        $isAnon = true;
+        $user = new tlUser();
+        $userId = -1;
+        $_SESSION['userID'] = -1;
+        $_SESSION['currentUser'] = $user;
+        $_SESSION['lastActivity'] = time();
+        if (!isset($_SESSION['basehref'])) {
+            setPaths();
+        }
+        if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+            $_SESSION['locale'] = config_get('default_language');
+            setDateTimeFormats($_SESSION['locale']);
+        }
+    }
 }
 
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
-    exit;
+if (!$isAnon && !isset($user)) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+        exit;
+    }
+
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
+        exit;
+    }
 }
 
 // The right lib/results/printDocument.php requires before generating any
@@ -60,7 +127,9 @@ if (is_null($user)) {
 // must not be rejected here. Fail closed: reject unless the global right
 // exists or the request's own project/plan context grants it; every action
 // additionally re-checks contextually once ids are resolved.
-if (!$user->hasRight($db, 'testplan_metrics')) {
+// Anonymous/apikey access skips this global gate (legacy addOpAccess=false:
+// setUpEnvForAnonymousAccess runs with $cerbero->method = null).
+if (!$isAnon && !$user->hasRight($db, 'testplan_metrics')) {
     $ctxProject = intval(getParam('tproject_id', 0));
     $ctxPlan = intval(getParam('tplan_id', 0));
     $ctxOk = false;
@@ -1586,8 +1655,9 @@ if ($action === 'results_flat') {
         out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
 
-    // Contextual re-check (per-project/per-plan roles).
-    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+    // Contextual re-check (per-project/per-plan roles). Anonymous/apikey
+    // access skips it (legacy setUpEnvForAnonymousAccess: addOpAccess=false).
+    if (!$isAnon && !$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -1799,7 +1869,10 @@ if ($action === 'results_flat') {
     $payload['hasData'] = count($rowsOut) > 0;
     $payload['rows'] = $rowsOut;
 
-    // BFF gateway for XLS export + email (Refs #1219)
+    // BFF gateway for XLS export + email (Refs #1219). When the request came
+    // in through an apikey (Refs #1220), keep the apikey on the gateway URLs:
+    // the gateway and the legacy controller behind it then authorise natively.
+    $apiSuffix = ($apikey !== '') ? '&apikey=' . rawurlencode($apikey) : '';
     $exportUrl = '/api/reportsexport/index.php?action=results_tc_flat&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     $mailUrl = '/api/reportsexport/index.php?action=results_tc_flat_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
     if ($filterApplied) {
@@ -1810,6 +1883,8 @@ if ($action === 'results_flat') {
             $mailUrl .= '&build_set%5B%5D=' . intval($bid);
         }
     }
+    $exportUrl .= $apiSuffix;
+    $mailUrl .= $apiSuffix;
     $payload['export_xls_url'] = $exportUrl;
     $payload['send_mail_url'] = $mailUrl;
 
@@ -2154,10 +2229,11 @@ if ($action === 'by_status') {
         }
     }
 
+    // Custom fields on execution (failed/blocked only) - initialized here so
+    // an empty result set does not leave $cfSet undefined at the end (Refs #1220).
+    $cfSet = null;
+    $cfOnExec = null;
     if (!is_null($metrics) && count($metrics) > 0) {
-        // Custom fields on execution (failed/blocked only)
-        $cfSet = null;
-        $cfOnExec = null;
         if (!$isNotRun) {
             $cfSet = $tcaseMgr->cfield_mgr->get_linked_cfields_at_execution(
                 $tprojectId, true, 'testcase');

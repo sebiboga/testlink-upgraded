@@ -108,12 +108,14 @@ td.tccell { white-space: nowrap; }
 var API = '/api/reports/index.php';
 var tprojectId = 0;
 var tplanId = 0;
+var apiKey = '';
 var dtInstance = null;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
   tplanId = parseInt(p.get('tplan_id') || '0', 10);
+  apiKey = p.get('apikey') || '';
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -159,6 +161,7 @@ function loadReport(extraQs) {
   $('#loadingBox').show();
 
   var url = API + '?action=results_flat&tproject_id=' + tprojectId + '&tplan_id=' + tplanId;
+  if (apiKey) { url += '&apikey=' + encodeURIComponent(apiKey); }
   if (extraQs) { url += '&' + extraQs; }
 
   $.getJSON(url, function (r) {
