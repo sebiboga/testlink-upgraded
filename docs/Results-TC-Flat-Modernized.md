@@ -43,7 +43,7 @@ all builds and platforms. The DataTable provides built-in search, pagination
 | Section | Description |
 |---------|-------------|
 | **Header** | Teal Dashio header "Test Results Flat — for test plan X" with locale switcher |
-| **Toolbar** | Dark bar: test project context, *Export as spreadsheet* (legacy XLS POST), *Refresh* |
+| **Toolbar** | Dark bar: test project context, *Export as spreadsheet* (BFF gateway, legacy XLS), *Send spreadsheet by email*, *Refresh* |
 | **Launcher** | Shown only when active builds exceed the configured `buildQtyLimit`; multi-select of builds with *Apply Filter* button |
 | **Report table** | White card with DataTable: Test Suite, Test Case (TC prefix + name), Version, Platform (when enabled), Priority (when enabled), Build, Assigned To, Status (color-coded badge), Date, Tested By, Notes, Duration, Exec Type |
 | **Footer** | Legacy `info_gen_test_rep` description line + "Generated on \<timestamp\> · Processing time (seconds): n" |
@@ -81,7 +81,8 @@ The BFF calls the same engine method as the legacy controller:
 
 | Button | Behaviour |
 |--------|-----------|
-| Export as spreadsheet | Links to `/lib/results/resultsTCFlat.php?format=<XLS>&do_action=result&tplan_id=&tproject_id=` with optional `buildListForExcel` and `build_set[]` when filtered |
+| Export as spreadsheet | Links to the BFF export gateway `/api/reportsexport/index.php?action=results_tc_flat&tplan_id=&tproject_id=` (303 → legacy XLS generator) with optional `buildListForExcel` and `build_set[]` when filtered |
+| Send spreadsheet by email | Links to the BFF export gateway `/api/reportsexport/index.php?action=results_tc_flat_mail&tplan_id=&tproject_id=` (303 → legacy `resultsTCFlat.php` mail path). **Refs #1219 fix:** the legacy controller now honours `sendSpreadSheetByMail_x` — before the fix the mail action silently produced an XLS download instead of sending the email (resultsTCFlat.php's own `init_args()`/`createSpreadsheet()` did not route to `email_send_wrapper`; the `getSpreadsheetBy` flag is now detected and the spreadsheet is attached to an email addressed to the current user) |
 | Refresh | Re-fetches the BFF payload and re-renders the DataTable |
 
 ## 6. i18n
@@ -139,7 +140,8 @@ localized.
       "platform_name": "Linux"
     }
   ],
-  "export_xls_url": "/lib/results/resultsTCFlat.php?format=4&do_action=result&...",
+  "export_xls_url": "/api/reportsexport/index.php?action=results_tc_flat&tplan_id=2&tproject_id=1&buildListForExcel=1,2",
+  "send_mail_url": "/api/reportsexport/index.php?action=results_tc_flat_mail&tplan_id=2&tproject_id=1&buildListForExcel=1,2",
   "elapsed_time": 0.12
 }
 ```
@@ -150,14 +152,19 @@ Notes:
   `{id, name}`) and `legacy_url` instead of `rows`.
 * Build-filtered requests pass `build_set[]` and `do_action=result` as query
   parameters.
-* The `export_xls_url` always points to the legacy controller (XLS generation
-  is not reimplemented).
+* `export_xls_url` and `send_mail_url` both point to the BFF export gateway
+  (`api/reportsexport`) which validates the session + `testplan_metrics` right
+  then 303-redirects to the legacy controller for XLS generation / email send.
+
+![Test Results Flat — Export + Send-by-email toolbar](Results-TC-Flat-Mail.png)
 
 ## 9. Files
 
 | File | Purpose |
 |------|---------|
 | `gui/templates/results/resultsTCFlat.html` | Modern Dashio screen |
-| `api/reports/index.php` | `results_flat` action (BFF) |
+| `api/reports/index.php` | `results_flat` action (BFF, emits `send_mail_url` Refs #1219) |
+| `api/reportsexport/index.php` | `results_tc_flat` / `results_tc_flat_mail` gateway |
+| `lib/results/resultsTCFlat.php` | Legacy XLS generator + email-send path (`getSpreadsheetBy`, Refs #1219) |
 | `lib/general/asideMenu.php` | Reports menu href switch (`link_report_test_flat`) |
 | `gui/templates/i18n/*.json` | `rtf.*` keys in all 10 bundles |
