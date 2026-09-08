@@ -137,7 +137,12 @@
     <div class="modal-content">
       <div class="modal-header">
         <h2 id="modalTitle" data-i18n="proj.createProject">New Project</h2>
-        <button class="close-btn" onclick="closeModal()">&times;</button>
+        <div style="display:flex; align-items:center; gap:12px;">
+          <button id="eventHistoryBtn" class="icon-btn" style="display:none; padding:6px 12px; border:none; border-radius:3px; cursor:pointer; background:#6c757d; color:white; font-size:13px;" title="">
+            <i class="fas fa-history"></i> <span data-i18n="proj.eventHistory">Show event history</span>
+          </button>
+          <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
       </div>
 
       <form id="projectForm">
@@ -265,6 +270,7 @@
   <script>
     let currentProjectId = null;
     let projectsData = [];
+    let grantsData = {};
 
     // Escape user-controlled values before injecting into HTML strings
     // (project names / prefixes / tracker names are free text).
@@ -283,6 +289,7 @@
         success: function(response) {
           if (response.success) {
             projectsData = response.data;
+            grantsData = response.grants || {};
             renderProjects();
           }
         },
@@ -403,6 +410,7 @@
         document.getElementById('reqmgrsystem_id').value = '0';
       });
       document.getElementById('projectModal').classList.add('show');
+      document.getElementById('eventHistoryBtn').style.display = 'none';
     });
 
     function selectTrackerByName(selectId, name) {
@@ -444,6 +452,19 @@
           project.reqMgrSystem ? project.reqMgrSystem.name : '');
       });
       document.getElementById('projectModal').classList.add('show');
+
+      // Event history (edit mode + right) — same pattern as projectEdit.html:347-355
+      const eventBtn = document.getElementById('eventHistoryBtn');
+      if (grantsData && grantsData.mgt_view_events) {
+        eventBtn.style.display = '';
+        eventBtn.onclick = function() {
+          window.open(
+            '/gui/templates/eventviewer/eventviewer.html?objectId=' + id + '&objectType=testprojects',
+            '_blank', 'width=1100,height=720,resizable=yes,scrollbars=yes');
+        };
+      } else {
+        eventBtn.style.display = 'none';
+      }
     }
 
     // Submit form

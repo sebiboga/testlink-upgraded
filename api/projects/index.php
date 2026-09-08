@@ -55,7 +55,7 @@ $projectId = ctype_digit((string)$last) ? (int)$last : null;
 try {
   switch ($method) {
     case 'GET':
-      $projectId ? getProject($db, $projectId) : listProjects($db);
+      $projectId ? getProject($db, $user, $projectId) : listProjects($db, $user);
       break;
 
     case 'POST':
@@ -134,18 +134,23 @@ function formatProject($row) {
   ];
 }
 
-function listProjects(&$db) {
+function listProjects(&$db, &$user) {
   $rows = $db->get_recordset(projectSelect() . " ORDER BY nh.name");
   $result = array_map('formatProject', (array)$rows);
+
+  $grants = array(
+    'mgt_view_events' => ($user->hasRight($db, 'mgt_view_events') === 'yes'),
+  );
 
   echo json_encode([
     'success' => true,
     'data' => $result,
+    'grants' => $grants,
     'count' => count($result)
   ]);
 }
 
-function getProject(&$db, $projectId) {
+function getProject(&$db, &$user, $projectId) {
   $rows = $db->get_recordset(projectSelect() . " WHERE tp.id = " . (int)$projectId);
 
   if (empty($rows)) {
@@ -154,7 +159,11 @@ function getProject(&$db, $projectId) {
     return;
   }
 
-  echo json_encode(['success' => true, 'data' => formatProject($rows[0])]);
+  $grants = array(
+    'mgt_view_events' => ($user->hasRight($db, 'mgt_view_events') === 'yes'),
+  );
+
+  echo json_encode(['success' => true, 'data' => formatProject($rows[0]), 'grants' => $grants]);
 }
 
 /**

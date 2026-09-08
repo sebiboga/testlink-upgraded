@@ -1311,6 +1311,7 @@
   "proj.deactivate": "Desativar",
   "proj.description": "Descrição",
   "proj.editProject": "Editar projeto de teste",
+  "proj.eventHistory": "Mostrar histórico de eventos",
   "proj.enableAutomation": "Ativar automação",
   "proj.enableInventory": "Ativar inventário",
   "proj.enablePriority": "Ativar prioridade",

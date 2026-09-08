@@ -1311,6 +1311,7 @@
   "proj.deactivate": "無効化",
   "proj.description": "説明",
   "proj.editProject": "テストプロジェクトを編集",
+  "proj.eventHistory": "イベント履歴を表示",
   "proj.enableAutomation": "自動化を有効化",
   "proj.enableInventory": "インベントリを有効化",
   "proj.enablePriority": "優先度を有効化",

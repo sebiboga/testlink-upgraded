@@ -1311,6 +1311,7 @@
   "proj.deactivate": "Деактивировать",
   "proj.description": "Описание",
   "proj.editProject": "Редактировать тест-проект",
+  "proj.eventHistory": "Показать историю событий",
   "proj.enableAutomation": "Включить автоматизацию",
   "proj.enableInventory": "Включить инвентаризацию",
   "proj.enablePriority": "Включить приоритет",

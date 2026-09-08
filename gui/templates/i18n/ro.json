@@ -1311,6 +1311,7 @@
   "proj.deactivate": "Dezactivează",
   "proj.description": "Descriere",
   "proj.editProject": "Editeaza Proiect de Test",
+  "proj.eventHistory": "Afișează istoricul evenimentelor",
   "proj.enableAutomation": "Activeaza Automatizare",
   "proj.enableInventory": "Activeaza Inventar",
   "proj.enablePriority": "Activeaza Prioritate",

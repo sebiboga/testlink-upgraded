@@ -1311,6 +1311,7 @@
   "proj.deactivate": "停用",
   "proj.description": "描述",
   "proj.editProject": "编辑测试项目",
+  "proj.eventHistory": "显示事件历史",
   "proj.enableAutomation": "启用自动化",
   "proj.enableInventory": "启用库存",
   "proj.enablePriority": "启用优先级",
