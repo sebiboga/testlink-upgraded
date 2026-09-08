@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-08 — (Test Cases with Custom Fields SCREEN-COMPARE row 48 analysed vs legacy `lib/results/testCasesWithCF.php`, Refs #1204 — 4 gaps #1205-#1208 + cleanup #1209 filed)
+> Last updated: 2026-09-08 — (Results Flat export fix on >6-builds plans: `api/reportsexport` now forwards `do_action=result` + `buildListForExcel` for `results_tc_flat`/`results_tc_flat_mail`, Refs #1223, Fixes #1221)
 
 ## Summary
 
