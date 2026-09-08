@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-07 — (Results by Tester per Build parity re-verification done, Refs #1191 — SCREEN-COMPARE row 45 closed, no gaps)
+> Last updated: 2026-09-08 — (Test Cases with Custom Fields SCREEN-COMPARE row 48 analysed vs legacy `lib/results/testCasesWithCF.php`, Refs #1204 — 4 gaps #1205-#1208 + cleanup #1209 filed)
 
 ## Summary
 
