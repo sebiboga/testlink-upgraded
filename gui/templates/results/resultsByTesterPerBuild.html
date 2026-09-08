@@ -195,7 +195,7 @@ function statTable(build, columns) {
     '<th>' + esc(TLi18n.t('rbtb.thUser')) + '</th>' +
     '<th>' + esc(TLi18n.t('rbtb.thTcAssigned')) + '</th>';
   columns.forEach(function (col) {
-    h += '<th colspan="2">' + esc(col.label) + '</th>';
+    h += '<th>' + esc(col.label) + '</th>';
   });
   h += '<th>' + esc(TLi18n.t('rbtb.thProgress')) + '</th>' +
        '<th>' + esc(TLi18n.t('rbtb.totalTime')) + '</th>' +

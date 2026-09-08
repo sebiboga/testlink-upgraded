@@ -51,3 +51,15 @@ Permission handling mirrors legacy `checkRights()`: no session ⇒ 401; missing 
 ## Testing
 
 11-case suite (Suite 677) in `tmp/TLU_Test_Cases.md`: BFF data parity vs fixtures, render, closed-builds toggle + persistence, both legacy warnings, assignment popup, locale switcher, 403 path, aside link switch, Event Viewer clean.
+
+## Parity re-verification (issue #1191)
+
+Re-verified 2026-09-07 against a purpose-built fixture (`tmp/fixtures_rbtb.php`: project RBTB, plan `PlanRBTB`, open + closed builds, exec-task `user_assignments` for admin + a second tester on both builds, executions p/f/b with durations; empty plan 29 for warnings). 11-case suite (Suite 1191) appended to `tmp/TLU_Test_Cases.md` — **11/11 PASS, no data gaps**:
+
+* Matrix + build-rollup numbers byte-identical to legacy (open: admin 100.0%/00:05:00, rbtb_tester 66.7%/00:15:45, rollup 80%/00:20:45; closed: admin 50.0%/00:06:30, rbtb_tester 50.0%/00:04:00, rollup 50%/00:10:30) — both generations call the same `tlTestPlanMetrics::getStatusTotalsByBuildUAForRender()`.
+* Show-closed-builds checkbox + session persistence; `no_open_builds` warning verified by toggling `builds.is_open`; `no_testers_per_build` for a plan without exec-task assignments. Builds are project-scoped since #503/#834 (no `testplan_builds` table), so the open-build count gate reads `builds.testproject_id AND is_open` exactly like legacy `getNumberOfBuilds()`.
+* `testplan_metrics` enforced BFF-side (role-3 user → HTTP 403 `No permission`; note role 5 "guest" is granted the right by default in `role_rights`).
+* User cells open the already-modernized `tcAssignedToUser.html` popup with correct rows + icons; columns follow results-config status order; console + Event Viewer clean.
+* **Bug found + fixed**: the status `<th>` cells carried `colspan="2"` while each body row renders one combined count+% `<td>` per status — with 4 statuses the header spanned 12 columns vs 8 body cells, so Progress/Total-Time visually shifted under the Failed/Blocked headers. Fixed by removing the `colspan` (`resultsByTesterPerBuild.html:198`); DOM-verified 8 header = 8 body cells with per-status colspans all 1.
+
+Screenshots: `docs/screenshots/rbtb1191_open.png`, `docs/screenshots/rbtb1191_closed.png`, `docs/screenshots/rbtb1191_noopen.png`, `docs/screenshots/rbtb1191_popup.png`.

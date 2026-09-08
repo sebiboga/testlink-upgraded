@@ -1,8 +1,10 @@
 <?php
-// CLI fixtures for Results by Tester per Build (Refs #677).
-// Run: php tmp/fixtures_rbtb.php
-$_SESSION = array();
-require_once(dirname(__DIR__) . '/config.inc.php');
+// CLI fixtures for "Results by Tester per Build" parity analysis (issue #1191).
+// Seeds: project RBTB + plan, 6 TCs in 2 suites, open + closed builds,
+// user_assignments (exec-tasks), executions by tester2@admin with a spread
+// of statuses, plus a no-rights user for the 403 check.
+// Run from repo root: php tmp/fixtures_rbtb.php
+require_once('config.inc.php');
 require_once('common.php');
 
 $db = new database(DB_TYPE);
@@ -14,175 +16,164 @@ $tcaseMgr = new testcase($db);
 $tplanMgr = new testplan($db);
 $buildMgr = new build($db);
 
-function childByName($db, $parentId, $name) {
-    $row = $db->get_recordset(
-        "SELECT id,name FROM nodes_hierarchy WHERE parent_id=" .
-        intval($parentId) . " AND name='" . $db->prepare_string($name) . "'");
-    return $row ? intval($row[0]['id']) : 0;
+function fid($r) {
+    if (is_array($r)) {
+        if (isset($r['id'])) { return intval($r['id']); }
+        $k = array_keys($r);
+        return intval($k[0]);
+    }
+    return intval($r);
 }
 
-function firstActiveVersionId($db, $tcaseId) {
-    $row = $db->get_recordset(
-        "SELECT TCVERSION.id FROM tcversions AS TCVERSION " .
-        "JOIN nodes_hierarchy NH ON NH.id = TCVERSION.id " .
-        "WHERE NH.parent_id = " . intval($tcaseId) . " AND TCVERSION.active = 1 " .
-        "ORDER BY TCVERSION.id ASC LIMIT 1");
-    return $row ? intval($row[0]['id']) : 0;
+$adminId = intval($db->get_recordset("SELECT id FROM users WHERE login='admin'")[0]['id']);
+echo "admin_id=$adminId\n";
+
+// --- idempotent cleanup ---
+$old = $tprojMgr->get_by_name('RBTB');
+foreach ((array)$old as $row) {
+    $o = intval($row['id']);
+    if ($o > 0) { echo "deleting old RBTB $o\n"; $tprojMgr->delete($o, 1); }
 }
 
-// ---- users -------------------------------------------------------------
-function ensureUser($db, $login, $roleId) {
-    $row = $db->get_recordset("SELECT id FROM users WHERE login='" .
-        $db->prepare_string($login) . "'");
-    if ($row) { return intval($row[0]['id']); }
-    // tlUser::create() is a no-op stub -> plain SQL insert
-    $cookie = 'rbtb-' . md5($login . microtime(true));
-    $hash = password_hash('password123', PASSWORD_BCRYPT);
-    $ok = $db->exec_query(
-        "INSERT INTO users (login,password,cookie_string,first,last,email," .
-        "role_id,locale,active,creation_ts) VALUES ('" .
-        $db->prepare_string($login) . "','" . $db->prepare_string($hash) .
-        "','" . $cookie . "','Fixture','Rbtb','" . $db->prepare_string('rbtb_' . $login . '@example.com') .
-        "'," . intval($roleId) . ",'en_GB',1,NOW())");
-    if (!$ok) { echo "user create failed\n"; exit(1); }
-    $row = $db->get_recordset("SELECT id FROM users WHERE login='" .
-        $db->prepare_string($login) . "'");
-    echo "user=$login id={$row[0]['id']}\n";
-    return intval($row[0]['id']);
+$opts = new stdClass();
+$opts->requirementsEnabled = 0;
+$opts->testPriorityEnabled = 0;
+$opts->automationEnabled = 0;
+$item = new stdClass();
+$item->name = 'RBTB';
+$item->prefix = 'RBT';
+$item->notes = 'Results by Tester per Build fixture (issue #1191)';
+$item->options = $opts;
+$item->active = 1;
+$item->is_public = 1;
+$idP = fid($tprojMgr->create($item));
+$db->exec_query("UPDATE testprojects SET options='" .
+    $db->prepare_string(serialize($opts)) . "' WHERE id=$idP");
+echo "tproject=$idP\n";
+
+$idS1 = fid($tsuiteMgr->create($idP, 'RBTB Suite One', 'suite one'));
+$idS2 = fid($tsuiteMgr->create($idP, 'RBTB Suite Two', 'suite two'));
+echo "tsuite_one=$idS1 tsuite_two=$idS2\n";
+
+$tcv = [];
+$tcid = [];
+foreach ([['TC1', $idS1], ['TC2', $idS1], ['TC3', $idS1],
+          ['TC4', $idS2], ['TC5', $idS2], ['TC6', $idS2]] as [$nm, $suit]) {
+    $idTC = fid($tcaseMgr->create($suit, $nm, 'summary ' . $nm, '', [[
+        'step_number' => 1, 'actions' => 'act ' . $nm,
+        'expected_results' => 'exp ' . $nm]], 1));
+    $rr = $db->get_recordset(
+        " SELECT NH.id FROM nodes_hierarchy NH JOIN tcversions TV ON TV.id = NH.id" .
+        " WHERE NH.parent_id = " . intval($idTC) . " AND TV.active = 1 ORDER BY TV.version");
+    $tvid = intval($rr[0]['id']);
+    $tcv[$nm] = $tvid;
+    $tcid[$nm] = $idTC;
 }
+echo "tcversions: " . json_encode($tcv) . "\n";
 
-$userA = ensureUser($db, 'testerA', 6); // senior tester
-$userB = ensureUser($db, 'testerB', 7); // tester
-$noperm = ensureUser($db, 'noinv', 3);  // no rights
+// --- plan + builds ---
+$idTP = fid($tplanMgr->create('PlanRBTB', 'results by tester per build plan', $idP, 1, 1));
+echo "tplan=$idTP\n";
 
-// ---- project -----------------------------------------------------------
-$name = 'RBTP Demo Project';
-$rs = $tprojMgr->get_by_name($name);
-if ($rs) {
-    $projId = intval($rs[0]['id']);
-    echo "project exists id=$projId\n";
+$linkItems = ['items' => [], 'tcversion' => []];
+foreach ($tcv as $nm => $tv) {
+    $tci = intval($db->get_recordset(
+        " SELECT parent_id AS id FROM nodes_hierarchy WHERE id = " . intval($tv))[0]['id']);
+    $linkItems['items'][$tci] = [0 => $tv];
+    $linkItems['tcversion'][$tci] = $tv;
+}
+$tplanMgr->link_tcversions($idTP, $linkItems, 1, array('getTCPrefixFromTPlan' => true));
+
+// testplan_tcversions ids: use latest rows of the plan
+$tptcv = [];
+foreach ($tcv as $nm => $tv) {
+    $rr = $db->get_recordset(
+        " SELECT id FROM testplan_tcversions WHERE testplan_id = $idTP" .
+        " AND tcversion_id = " . intval($tv));
+    $tptcv[$nm] = intval($rr[0]['id']);
+}
+echo "testplan_tcversions: " . json_encode($tptcv) . "\n";
+
+$bOpen = fid($buildMgr->create($idTP, 'RBTB Open Build', 'open'));
+$bClosed = fid($buildMgr->create($idTP, 'RBTB Closed Build', 'closed'));
+$db->exec_query("UPDATE builds SET is_open = 0 WHERE id = $bClosed");
+echo "build_open=$bOpen build_closed=$bClosed\n";
+
+// --- second tester ---
+$t2Rows = $db->get_recordset("SELECT id FROM users WHERE login='rbtb_tester'");
+if (!empty($t2Rows)) {
+    $t2Id = intval($t2Rows[0]['id']);
+    echo "tester2: reusing id=$t2Id\n";
 } else {
-    $item = new stdClass();
-    $item->name = $name;
-    $item->prefix = 'RBTP';
-    $item->notes = 'fixture for #677';
-    $item->options = new stdClass();
-    $item->color = '';
-    $item->active = 1;
-    $item->is_public = 1;
-    $projId = intval($tprojMgr->create($item));
-    echo "project=$projId\n";
+    $u = new tlUser();
+    $u->login = 'rbtb_tester';
+    $u->firstName = 'Rbtb';
+    $u->lastName = 'Tester';
+    $u->emailAddress = 'rbtb_tester@example.org';
+    $u->globalRoleID = 4; // senior tester - rights granted per-project below
+    $u->locale = 'en_GB';
+    $u->isActive = 1;
+    $u->setPassword('rbtb_tester');
+    $res = $u->writeToDB($db);
+    if ($res != tl::OK) { die('tester create failed ' . $res . "\n"); }
+    $t2Id = intval($u->dbID);
+    echo "tester2 created id=$t2Id\n";
 }
 
-$idS = childByName($db, $projId, 'Suite RBTP');
-if (!$idS) {
-    $retS = $tsuiteMgr->create($projId, 'Suite RBTP', 'details', null, 1);
-    $idS = is_array($retS) ? intval($retS['id']) : intval($retS);
+// --- no-rights user (403 check) ---
+$norgRows = $db->get_recordset("SELECT id FROM users WHERE login='rbtb_norg'");
+if (!empty($norgRows)) {
+    $norgId = intval($norgRows[0]['id']);
+    echo "norg: reusing id=$norgId\n";
+} else {
+    $u = new tlUser();
+    $u->login = 'rbtb_norg';
+    $u->firstName = 'Rbtb';
+    $u->lastName = 'Norg';
+    $u->emailAddress = 'rbtb_norg@example.org';
+    $u->globalRoleID = 5; // guest
+    $u->locale = 'en_GB';
+    $u->isActive = 1;
+    $u->setPassword('rbtb_norg');
+    $res = $u->writeToDB($db);
+    if ($res != tl::OK) { die('norg create failed ' . $res . "\n"); }
+    $norgId = intval($u->dbID);
+    echo "norg created id=$norgId\n";
 }
-echo "tsuite=$idS\n";
 
-// ---- test cases --------------------------------------------------------
-$tcs = array();
-for ($i = 1; $i <= 6; $i++) {
-    $cname = 'RBTC' . $i;
-    $cid = childByName($db, $idS, $cname);
-    if (!$cid) {
-        $steps = [['step_number' => 1, 'actions' => 'do step', 'expected_results' => 'ok']];
-        $ret = $tcaseMgr->create($idS, $cname, 'summary ' . $cname, 'precond',
-            $steps, 1);
-        $cid = is_array($ret) ? intval($ret['id']) : intval($ret);
+// --- user_assignments (type=1 => testcase_execution) ---
+// open build: tester2 -> TC1,TC2,TC5 ; admin -> TC3,TC4
+// closed build: tester2 -> TC1,TC2 ; admin -> TC4,TC6
+$ua = [
+    [$bOpen, $t2Id, ['TC1', 'TC2', 'TC5']],
+    [$bOpen, $adminId, ['TC3', 'TC4']],
+    [$bClosed, $t2Id, ['TC1', 'TC2']],
+    [$bClosed, $adminId, ['TC4', 'TC6']],
+];
+foreach ($ua as [$bid, $uid, $tcs]) {
+    foreach ($tcs as $nm) {
+        $db->exec_query(
+            "INSERT INTO user_assignments (type, feature_id, user_id, build_id)" .
+            " VALUES (1, {$tptcv[$nm]}, $uid, $bid)");
     }
-    $tcs[$i] = $cid;
 }
-echo "tcases=" . implode(',', $tcs) . "\n";
+echo "user_assignments inserted\n";
 
-// ---- plan + builds -----------------------------------------------------
-$planId = 0;
-$rows = $db->get_recordset(
-    "SELECT NH.id FROM nodes_hierarchy NH WHERE NH.name = 'Plan RBTP'");
-if ($rows) { $planId = intval($rows[0]['id']); }
-else { $planId = intval($tplanMgr->create('Plan RBTP', 'plan for #677', $projId, 1, 1)); }
-echo "plan=$planId\n";
-
-$buildOpen = 0; $buildClosed = 0;
-$brows = $db->get_recordset(
-    "SELECT id,is_open,active FROM builds WHERE testplan_id=" . intval($planId));
-if ($brows) {
-    foreach ($brows as $b) {
-        if (intval($b['is_open'])) { $buildOpen = intval($b['id']); }
-        else { $buildClosed = intval($b['id']); }
-    }
-}
-if (!$buildOpen) { $buildOpen = intval($buildMgr->create($planId, 'Build Open One', 'open build', 1, 1)); }
-if (!$buildClosed) { $buildClosed = intval($buildMgr->create($planId, 'Build Closed Two', 'closed build', 1, 0)); }
-echo "buildOpen=$buildOpen buildClosed=$buildClosed\n";
-
-// ---- link versions + assignments + executions -------------------------
-$linkMap = array();
-foreach ($tcs as $i => $tcId) {
-    $tvId = firstActiveVersionId($db, $tcId);
-    $items = ['tcversion' => [$tcId => $tvId], 'items' => [$tcId => [0 => $tvId]]];
-    $tplanMgr->link_tcversions($planId, $items, 1);
-    $row = $db->get_recordset(
-        "SELECT TPTCV.id AS feature_id, TPTCV.tcversion_id FROM testplan_tcversions TPTCV " .
-        "WHERE TPTCV.testplan_id=" . intval($planId) .
-        " AND TPTCV.tcversion_id=" . intval($tvId));
-    $linkMap[$i] = ['feature' => intval($row[0]['feature_id']),
-                    'tcversion' => intval($tvId)];
-}
-echo "linked features\n";
-
-function ensureAssignment($db, $featureId, $buildId, $userId, $assignerId) {
-    $row = $db->get_recordset(
-        "SELECT id FROM user_assignments WHERE feature_id=" . intval($featureId) .
-        " AND build_id=" . intval($buildId) . " AND user_id=" . intval($userId) .
-        " AND type=1");
-    if ($row) { return intval($row[0]['id']); }
+// --- executions (latest per tcversion+build = the ones the metric reads) ---
+$exec = [
+    [$bOpen, 'TC1', $t2Id, 'p', 10.50],
+    [$bOpen, 'TC2', $t2Id, 'f', 5.25],
+    [$bOpen, 'TC3', $adminId, 'p', 2.00],
+    [$bOpen, 'TC4', $adminId, 'b', 3.00],
+    [$bClosed, 'TC1', $t2Id, 'p', 4.00],
+    [$bClosed, 'TC4', $adminId, 'f', 6.50],
+];
+foreach ($exec as [$bid, $nm, $uid, $st, $dur]) {
     $db->exec_query(
-        "INSERT INTO user_assignments (type,feature_id,user_id,build_id," .
-        "deadline_ts,assigner_id,creation_ts,status) VALUES (1," .
-        intval($featureId) . "," . intval($userId) . "," . intval($buildId) .
-        ",NULL," . intval($assignerId) . ",NOW(),1)");
-    return intval($db->insert_id('user_assignments', 'id'));
+        "INSERT INTO executions (testplan_id, platform_id, build_id, tester_id," .
+        " execution_type, tcversion_id, execution_duration, status, notes, execution_ts)" .
+        " VALUES ($idTP, 0, $bid, $uid, 1, {$tcv[$nm]}, $dur, '$st', 'rbtb $st', NOW())");
 }
+echo "executions inserted\n";
 
-function ensureExecution($db, $buildId, $planId, $platId, $tcversionId,
-                         $testerId, $status, $duration) {
-    // one execution per (build,platform,tcversion): LEBBP picks the latest
-    $row = $db->get_recordset(
-        "SELECT id FROM executions WHERE build_id=" . intval($buildId) .
-        " AND platform_id=" . intval($platId) .
-        " AND tcversion_id=" . intval($tcversionId));
-    if ($row) { return intval($row[0]['id']); }
-    $db->exec_query(
-        "INSERT INTO executions (build_id,tester_id,execution_ts,status," .
-        "testplan_id,tcversion_id,tcversion_number,platform_id,execution_type," .
-        "execution_duration,notes) VALUES (" . intval($buildId) . "," .
-        intval($testerId) . ",NOW(),'" . $status . "'," . intval($planId) . "," .
-        intval($tcversionId) . ",1," . intval($platId) . ",1," .
-        floatval($duration) . ",'fixture')");
-    return intval($db->insert_id('executions', 'id'));
-}
-
-// Build Open One: A -> f1 passed(10.50) f2 passed(20.25) f3 failed(15)
-//                 f4 failed(12.75); B -> f5 blocked(45.10); f6 unassigned+not run
-ensureAssignment($db, $linkMap[1]['feature'], $buildOpen, $userA, 1);
-ensureAssignment($db, $linkMap[2]['feature'], $buildOpen, $userA, 1);
-ensureAssignment($db, $linkMap[3]['feature'], $buildOpen, $userA, 1);
-ensureAssignment($db, $linkMap[4]['feature'], $buildOpen, $userA, 1);
-ensureAssignment($db, $linkMap[5]['feature'], $buildOpen, $userB, 1);
-ensureAssignment($db, $linkMap[6]['feature'], $buildOpen, $userB, 1);
-
-ensureExecution($db, $buildOpen, $planId, 0, $linkMap[1]['tcversion'], $userA, 'p', 10.50);
-ensureExecution($db, $buildOpen, $planId, 0, $linkMap[2]['tcversion'], $userA, 'p', 20.25);
-ensureExecution($db, $buildOpen, $planId, 0, $linkMap[3]['tcversion'], $userA, 'f', 15.00);
-ensureExecution($db, $buildOpen, $planId, 0, $linkMap[4]['tcversion'], $userA, 'f', 12.75);
-ensureExecution($db, $buildOpen, $planId, 0, $linkMap[5]['tcversion'], $userB, 'b', 45.10);
-
-// Build Closed Two: only A assigned on f1+f2, f1 executed passed
-ensureAssignment($db, $linkMap[1]['feature'], $buildClosed, $userA, 1);
-ensureAssignment($db, $linkMap[2]['feature'], $buildClosed, $userA, 1);
-ensureExecution($db, $buildClosed, $planId, 0, $linkMap[1]['tcversion'], $userA, 'p', 30.00);
-
-echo json_encode(compact('projId','idS','planId','buildOpen','buildClosed',
-    'userA','userB','noperm')) . "\n";
+echo "DONE tplan=$idTP open=$bOpen closed=$bClosed t2=$t2Id norg=$norgId\n";

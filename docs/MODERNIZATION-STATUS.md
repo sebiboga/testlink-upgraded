@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-06 — (Test Case Bulk Update tcBulkOp modernized, Refs #1074)
+> Last updated: 2026-09-07 — (Results by Tester per Build parity re-verification done, Refs #1191 — SCREEN-COMPARE row 45 closed, no gaps)
 
 ## Summary
 
