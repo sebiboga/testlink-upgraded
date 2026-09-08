@@ -102,6 +102,41 @@ localized.
   per-project role pass, exactly like `hasRightOnProj()`.
 * Plan without execution data ⇒ friendly empty state message.
 
+### Public-link / API-key anonymous access (Refs #1220)
+
+The modern screen reproduces the legacy apikey flow of `resultsTCFlat.php`
+`init_args()`:
+
+| apikey length | Legacy mode | Behaviour |
+|---------------|-------------|-----------|
+| 32 chars      | `setUpEnvForRemoteAccess()` | Request authenticated as the owning user; the same `testplan_metrics` gate applies |
+| > 32 chars    | `setUpEnvForAnonymousAccess()` | Anonymous read-only access for the connected test plan / test project (`addOpAccess=false`, no rights check) |
+| invalid / unknown | — | `401 {"error":"Unknown api key"}` |
+| absent        | session login | unchanged session-only auth |
+
+Public / shared links therefore work end-to-end with no session:
+
+```
+gui/templates/results/resultsTCFlat.html?tplan_id=9&apikey=<64-char-plan-key>
+```
+
+* The screen reads `apikey` from its own URL and forwards it to the BFF
+  (`api/reports/index.php?action=results_flat&…&apikey=…`).
+* The BFF mirrors the legacy split: 32-char user key vs. longer anonymous
+  entity key, and (like `setUpEnvForAnonymousAccess`' `Refs #1021` fix) rebuilds
+  `basehref` via `setPaths()` on fresh sessions so the follow-up legacy export
+  request does not bounce to login.
+* `export_xls_url` / `send_mail_url` keep the apikey, and the export gateway
+  (`api/reportsexport`) accepts it **only** for `results_tc_flat` /
+  `results_tc_flat_mail`; every other export/mail action still requires a
+  session (401 otherwise). The gateway forwards the apikey to the legacy
+  controller whose own `init_args()` re-runs its `setUpEnvFor*()` flow.
+* Anonymous sessions get `$_SESSION['userID'] = -1` exactly as legacy; only the
+  report payload/data renders — theme bootstrap endpoints
+  (`api/userinfo` for the locale switcher) still 401 (cosmetic, report works).
+
+![Test Results Flat — anonymous public link, result table](Results-TC-Flat-Anon-Public-Link.png)
+
 ## 8. BFF API Reference
 
 `GET /api/reports/index.php?action=results_flat&tproject_id=<id>&tplan_id=<id>`
@@ -155,6 +190,9 @@ Notes:
 * `export_xls_url` and `send_mail_url` both point to the BFF export gateway
   (`api/reportsexport`) which validates the session + `testplan_metrics` right
   then 303-redirects to the legacy controller for XLS generation / email send.
+* With an `apikey`, `export_xls_url` / `send_mail_url` additionally carry
+  `&apikey=<key>`; the rights pre-check is skipped for anonymous long keys
+  (legacy `addOpAccess=false`).
 
 ![Test Results Flat — Export + Send-by-email toolbar](Results-TC-Flat-Mail.png)
 
@@ -163,7 +201,7 @@ Notes:
 | File | Purpose |
 |------|---------|
 | `gui/templates/results/resultsTCFlat.html` | Modern Dashio screen |
-| `api/reports/index.php` | `results_flat` action (BFF, emits `send_mail_url` Refs #1219) |
+| `api/reports/index.php` | `results_flat` action (BFF, `send_mail_url` Refs #1219 + apikey auth Refs #1220) |
 | `api/reportsexport/index.php` | `results_tc_flat` / `results_tc_flat_mail` gateway |
 | `lib/results/resultsTCFlat.php` | Legacy XLS generator + email-send path (`getSpreadsheetBy`, Refs #1219) |
 | `lib/general/asideMenu.php` | Reports menu href switch (`link_report_test_flat`) |

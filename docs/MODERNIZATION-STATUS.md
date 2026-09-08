@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-08 — (Results TC Flat Send-by-email: BFF `results_flat` emits `send_mail_url` (Refs #1219); legacy `resultsTCFlat.php` routes `sendSpreadSheetByMail_x` to `email_send_wrapper` instead of silently downloading the XLS; frontend gains `btnMail`; suite 1219 10/10 PASS)
+> Last updated: 2026-09-08 — (Results TC Flat Send-by-email (Refs #1219, suite 10/10) + public-link/apikey anonymous access (Refs #1220, suite 11/11); legacy `resultsTCFlat.php` now routes `sendSpreadSheetByMail_x` to `email_send_wrapper`; BFF `results_flat` + export gateway accept 32-char user apikey / longer anonymous entity apikey; pre-existing `by_status` `$cfSet` warning fixed)
 
 ## Summary
 
@@ -78,18 +78,24 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 53 | Reports — Test Plan Report | `results/testPlanReport.html` | api/reports | |
 | 54 | Reports — Results TC Flat | `results/resultsTCFlat.html` | api/reports | |
 
-> **Results TC Flat Send-by-email (2026-09-08, Refs #1223, Fixes #1219):** the screen's only
-> legacy-parity gap (besides the #1221 >6-builds launcher export fix and #1220 public-link work) was
-> the missing **Send spreadsheet by email** action. The BFF `results_flat` payload now also emits
-> `send_mail_url` (`/api/reportsexport/index.php?action=results_tc_flat_mail&…`, build-list forwarded
-> when filtered) and the toolbar gained a `btnMail` button (`target=avoidMailFrame`). Root cause of
-> the mail gap was the legacy controller itself: `resultsTCFlat.php`'s own `init_args()`/
-> `createSpreadsheet()` ignored the `sendSpreadSheetByMail_x` flag (unlike `resultsTC.php`), so the
-> mail action silently produced the XLS download. Fixed by detecting
-> `sendSpreadSheetByMail_x`/`exportSpreadSheet_x` → `$args->getSpreadsheetBy` and adding the
-> `.xls`-attachment `email_send_wrapper` branch to `createSpreadsheet(...,$media)`. i18n
-> `rtf.btnSendEmail` added to all 10 bundles. Regression suite 1219 10/10 PASS (export XLS regression
-> green, mail 303→email-send path, Event Viewer clean).
+> **Results TC Flat send-by-email + apikey completion (2026-09-08, Refs #1223,
+> Fixes #1219 #1220):** the screen's legacy-parity gaps are now closed. (1)
+> **Send spreadsheet by email** — the BFF `results_flat` payload also emits
+> `send_mail_url` (export gateway `results_tc_flat_mail`) and the toolbar has a
+> `btnMail` button (`target=avoidMailFrame`). Root cause of the missing mail
+> action was the legacy controller ignoring `sendSpreadSheetByMail_x`; fixed
+> with `$args->getSpreadsheetBy` + an `email_send_wrapper` branch in
+> `createSpreadsheet()` (mirrors `resultsTC.php`). i18n `rtf.btnSendEmail` in
+> all 10 bundles. (2) **Public link / apikey anonymous access** — `results_flat`
+> and the export gateway accept `apikey`: 32-char → remote user with the
+> `testplan_metrics` gate; longer → anonymous entity access (addOpAccess=false),
+> matching legacy `setUpEnvForRemoteAccess`/`setUpEnvForAnonymousAccess`. The
+> screen forwards its URL `apikey` to the BFF; export/mail URLs keep it and the
+> gateway 303s with it, so legacy `init_args()` runs its native apikey flow
+> (basehref rebuilt via `setPaths()` on fresh sessions). Apikey is scoped to the
+> tc_flat actions on the gateway; every other report action stays session-only.
+> Bonus: fixed the pre-existing `by_status` `$cfSet` undefined-variable warning
+> (hoisted init). Suites 1219 (10/10) and 1220 (11/11) PASS; Event Viewer clean.
 | 55 | Reports — Results Requirements | `results/resultsRequirements.html` | api/reports | |
 | 56 | Reports — Cases Without Tester | `results/casesWithoutTester.html` | api/reports | |
 | 57 | Reports — Test Plan with CF | `results/tplanWithCF.html` | api/reports | #737 |
