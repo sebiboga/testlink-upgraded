@@ -5,7 +5,10 @@ Modernization of the **Test Project Information** viewer (the legacy
 GitHub issue
 [#923](https://github.com/sebiboga/testlink-upgraded/issues/923), with the
 attachment **upload/delete** gap closed by
-[#933](https://github.com/sebiboga/testlink-upgraded/issues/933).
+[#933](https://github.com/sebiboga/testlink-upgraded/issues/933), and the
+attachment upload/delete **rights** subsequently aligned with legacy
+`mgt_modify_tc` by
+[#998](https://github.com/sebiboga/testlink-upgraded/issues/998).
 
 The legacy project homepage is replaced by a standalone Dashio page
 (`gui/templates/projects/projectInfoView.html`) backed by a plain-PHP REST
@@ -23,8 +26,9 @@ also accepts `?action=info&id=<id>`)
 **BFF API:** `api/projectinfo/index.php?action=info`
 **Rights:** `mgt_view_tc` context read; the UI additionally receives grants
 `mgt_modify_product` / `mgt_view_tc` / `mgt_view_req` to drive what is
-shown. Attachment **upload/delete** additionally require
-`mgt_modify_product` on the owning test project (Refs #933).
+shown. Attachment **upload/delete** require `mgt_modify_tc` on the owning
+test project, mirroring the legacy `testcase_mgmt` gate of
+`containerEdit.php` (Refs #933, rights aligned in #998).
 
 Screenshots: `docs/screenshots/projectinfo-view.png`,
 `docs/screenshots/projectinfo-projectsview-info-btn.png`,
@@ -42,6 +46,11 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 **Test Suite Operations — New test suite + Reorder A-Z** (Refs #994):
 `docs/screenshots/issue-994-testsuite-operations.png` (toolbar + suites card),
 `docs/screenshots/issue-994-new-suite-modal.png` (New Test Suite modal).
+**Attachment rights aligned with legacy** (Refs #998):
+`docs/screenshots/issue-998-tconly-upload-allowed.png` (user with only
+`mgt_modify_tc` — upload panel + delete button shown),
+`docs/screenshots/issue-998-prodonly-upload-hidden.png` (user with only
+`mgt_modify_product` — upload panel hidden).
 
 ---
 ## Table of Contents
@@ -80,13 +89,14 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 - **Attachments card:** all project attachments (DataTable with search, sort,
   pagination and a server-built Download link to
   `attachmentdownload.php?id=<id>`). When the user holds
-  `mgt_modify_product`, an **upload form** (title + file picker + Upload
+  `mgt_modify_tc`, an **upload form** (title + file picker + Upload
   button) is rendered above the table and every row gains a **Delete**
   button (with a confirm dialog) — mirroring the legacy
   `containerEdit.php` `doAction=fileUpload` / `doAction=deleteFile` actions
-  of the project-level container (Refs #933). The card is hidden when the
-  project has no attachments **and** the user cannot upload; otherwise it
-  stays visible so the first attachment (or an upload) can be added.
+  of the project-level container (Refs #933, rights aligned in #998). The
+  card is hidden when the project has no attachments **and** the user cannot
+  upload; otherwise it stays visible so the first attachment (or an upload)
+  can be added.
 
 ## 2. REST API Reference
 
@@ -108,7 +118,7 @@ child, mirroring legacy `testproject.class.php:778`) and
 `grants { mgt_modify_product, mgt_view_tc, mgt_view_req, mgt_modify_tc }`.
 
 **Write routes** (both require the `POST` method — non-POST → `405 Method
-not allowed` — and `mgt_modify_product` on the owning project — `403 No
+not allowed` — and `mgt_modify_tc` on the owning project — `403 No
 permission` otherwise):
 
 - `POST ?action=upload&id=<project_id>` — multipart `uploadedFile` + optional
@@ -148,7 +158,7 @@ permission: modify test cases required`):
   `{ status: ok, message: 'suites_reordered', suites: [...] }`.
 
 **Errors:** `401 Not authenticated` (no/invalid session), `403 No permission`
-(upload/delete without `mgt_modify_product`; new_suite / reorder without
+(upload/delete without `mgt_modify_tc`; new_suite / reorder without
 `mgt_modify_tc` — messages distinguish the two), `404 Test project not found /
 Attachment not found on this project`, `405 Method not allowed` (write
 actions via GET), `400 Missing project id` / `Unknown action`.
@@ -161,9 +171,17 @@ actions via GET), `400 Missing project id` / `Unknown action`.
   legacy project pane and the modernized suite viewer.
 - Attachment write actions mirror `containerEdit.php` `doAction=fileUpload`
   and `doAction=deleteFile` for the `testproject` container level. The legacy
-  gate is `testcase_mgmt`; the BFF uses `mgt_modify_product` — the right that
-  governs project-level editing (as suggested in
-  [#933](https://github.com/sebiboga/testlink-upgraded/issues/933)).
+  gate is `testcase_mgmt` (i.e. `mgt_modify_tc`); the BFF originally used
+  `mgt_modify_product` (as suggested in
+  [#933](https://github.com/sebiboga/testlink-upgraded/issues/933)) but that
+  was corrected by
+  [#998](https://github.com/sebiboga/testlink-upgraded/issues/998) to
+  `mgt_modify_tc` for full parity — including the practical benefit that
+  `mgt_modify_tc` is an ordinary per-project right (it resolves correctly for
+  project-role users), whereas `mgt_modify_product` is a *global-property*
+  right (`$g_propRights_global` in `lib/functions/roles.inc.php`) whose
+  per-project grants resolve to null in `hasRight()` unless the user also
+  holds it globally.
 - Legacy `deleteAttachment(..., $checkOnSession=true)` requires the
   `s_lastAttachmentInfos` session list which the BFF never populated; the BFF
   calls it with the session check disabled and instead enforces an explicit
@@ -268,8 +286,9 @@ to the same 10 bundles.
   query input is numeric only.
 - DB-derived values are rendered with `.text()`; the download URL is built
   server-side from an intval'd id.
-- Write routes (upload/delete) are gated by `mgt_modify_product` on the
-  owning test project and by the shared BFF same-origin guard (CSRF). File
+- Write routes (upload/delete) are gated by `mgt_modify_tc` on the
+  owning test project (legacy `testcase_mgmt`) and by the shared BFF
+  same-origin guard (CSRF). File
   upload passes the legacy repository validation (allowed filenames regexp,
   extension allow-list, size limits); the delete guard verifies the
   attachment belongs to the requested project before issuing the delete.
@@ -291,6 +310,16 @@ is deleted, read-only rendering for a user without `mgt_modify_product`
 (no upload form / no delete buttons), 403 on write routes for that user,
 forged file_id → 404, empty upload → 422, disallowed file type → 422, unknown
 project → 404, and Event Viewer cleanliness.
+
+The `Task — Issue #998` suite in `tmp/TLU_Test_Cases.md` (8 cases, all PASS)
+documents the **attachment rights realignment to `mgt_modify_tc`**: a user
+with only `mgt_modify_tc` (`tconly`) sees the upload panel + delete buttons
+and can upload/delete, while a user with only `mgt_modify_product`
+(`prodonly`, `mgt_modify_tc=null`) sees the upload panel hidden and gets
+`403 No permission to upload/delete attachments` on both BFF write routes
+(pre-fix this same user was allowed by the `mgt_modify_product` gate);
+admin (both rights) still sees the upload panel; Event Viewer stays clean
+(only AUDIT rows).
 
 The `Task — Issue #997` suite in `tmp/TLU_Test_Cases.md` (8 cases, all PASS)
 documents the **Generate Test Spec (HTML + Word)** gap: links visible for a

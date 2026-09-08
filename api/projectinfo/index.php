@@ -53,12 +53,11 @@
  * project info (no extra hard right gate; the reachable callers are inside an
  * authenticated work area). Grants are returned so the UI surfaces what the
  * user may actually do (e.g. "Manage project" only with mgt_modify_product).
- * The write actions (upload/delete) require POST and mgt_modify_product on
- * the owning test project (403 otherwise). NOTE: the legacy containerEdit.php
- * gated project-level fileUpload/deleteFile with mgt_modify_tc (via
- * "testcase_mgmt"); per issue #933 the BFF deliberately uses
- * mgt_modify_product (the right governing project-level editing) and adds an
- * explicit fk_id/fk_table ownership guard on delete.
+ * The write actions (upload/delete) require POST and mgt_modify_tc on
+ * the owning test project (403 otherwise). This matches legacy
+ * containerEdit.php which gated project-level fileUpload/deleteFile with
+ * mgt_modify_tc (via "testcase_mgmt"). An explicit fk_id/fk_table ownership
+ * guard on delete is added as BFF hardening.
  * Unknown / forged project id -> 404.
  */
 
@@ -291,7 +290,7 @@ if ($action === 'upload') {
         out(array('status' => 'error', 'message' => 'Test project not found'));
     }
 
-    if (!$user->hasRight($db, 'mgt_modify_product', $projectId)) {
+    if (!$user->hasRight($db, 'mgt_modify_tc', $projectId)) {
         http_response_code(403);
         out(array('status' => 'error', 'message' => 'No permission to upload attachments'));
     }
@@ -340,7 +339,7 @@ if ($action === 'delete') {
         out(array('status' => 'error', 'message' => 'Test project not found'));
     }
 
-    if (!$user->hasRight($db, 'mgt_modify_product', $projectId)) {
+    if (!$user->hasRight($db, 'mgt_modify_tc', $projectId)) {
         http_response_code(403);
         out(array('status' => 'error', 'message' => 'No permission to delete attachments'));
     }

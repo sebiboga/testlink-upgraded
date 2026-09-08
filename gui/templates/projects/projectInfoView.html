@@ -309,7 +309,7 @@ function render(r) {
     '/gui/templates/testcases/tcImport.html?containerID=' + PROJECT_ID +
     '&tproject_id=' + PROJECT_ID + '&intoProject=1&useRecursion=1');
 
-  CAN_UPLOAD = !!r.grants.mgt_modify_product;
+  CAN_UPLOAD = !!r.grants.mgt_modify_tc;
   $('#attUpload').css('display', CAN_UPLOAD ? 'block' : 'none');
 
   renderSuites(r.suites || []);
