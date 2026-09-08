@@ -11665,3 +11665,20 @@ Result: 11/11 PASS — **no data gaps** (row set + CF values + status + platform
 | 996.6 | Event Viewer clean | `events` log_level IN (1,2) after load projectInfoView 1000 + 2000 + export dialog | no new Error/Warning; `piv.*` reads and the export-dialog project mode emit nothing (fixture options stored as correct PHP serialization) | PASS |
 
 Result: 6/6 PASS — **no data gaps**. The modern screen now mirrors legacy containerView export-all-testsuites entry point: button shown only when the project has >=1 direct test-suite child AND the user has `mgt_modify_tc`, opening the existing project-deep export dialog. Reuses `api/testcasesexport/` + `tcExport.html` (mode=project) — no new exporter code needed. Refs #996.
+
+## Task — Issue #997: Implement generate-full-test-spec (HTML + Word) in projectInfoView (gap vs legacy)
+
+**Precondition:** app http://localhost:8082 (PHP built-in server), DB testlink, login admin/admin. Fixture (idempotent) `php tmp/fixtures_997.php` → project 1 `SPEC997` (prefix S97, is_public=1) with suites 2 `SuiteA`, 9 `SuiteB`→10 `SuiteB1` and test cases 3 `TC-A1`, 6 `TC-A2`, 11 `TC-B1` (one step each). Low-rights user `specguest` (role 5 guest) created for the permission path. Screen: `http://localhost:8082/gui/templates/projects/projectInfoView.html?id=1`; BFF `GET /api/projectinfo/index.php?action=info&id=1` (returns `grants.mgt_modify_tc`); legacy reference `gui/templates/dashio/testcases/containerView.tpl:48-52,153-158` (level=testproject) + `lib/results/printDocument.php` (`checkRights` → `testplan_metrics`, init_args:301-351, form_token NOT parsed).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 997.1 | admin sees Generate Test Spec (HTML) | open projectInfoView?id=1 as admin | toolbar shows `Generate Test Spec (HTML)` link (fa-file-code) `href=printDocument.php?type=testspec&level=testproject&allOptionsOn=1&id=1&format=0` | PASS |
+| 997.2 | admin sees Generate Test Spec (Word) | open projectInfoView?id=1 as admin | toolbar shows `Generate Test Spec (Word)` link (fa-file-word) `href=...format=4` | PASS |
+| 997.3 | HTML doc opens in new tab with full project spec | click HTML link | new tab `printDocument.php?...format=0` renders `Test Specification` title + TOC + Scope + all suites/cases: `1.SuiteA`(TC-A1, TC-A2), `2.SuiteB`→`2.1.SuiteB1`(TC-B1), steps `act*/res*`, versions, author, importance | PASS |
+| 997.4 | Word doc downloads .doc | click Word link (fetch check) | HTTP 200, `Content-Type: application/vnd.ms-word`, `Content-Disposition: attachment; filename=_test_spec-2026-09-08.doc`, body 5904 bytes | PASS |
+| 997.5 | links honored for admin | BFF grants for admin (id=1) | `grants.mgt_modify_tc:true` → both links `display:inline-flex` | PASS |
+| 997.6 | guest (no mgt_modify_tc) sees neither link | log in specguest, open projectInfoView?id=1 | toolbar hides BOTH Generate Test Spec links (`grants.mgt_modify_tc:null`); Manage project + Export all test suites also hidden; overview still renders | PASS |
+| 997.7 | i18n present | all 10 bundles | `piv.genSpecHtml` + `piv.genSpecWord` keys valid JSON in en de es fr it ja pt ro ru zh (2-line insert after `piv.exportAll`, no re-sort) | PASS |
+| 997.8 | Event Viewer clean | `events` table after browser suite | only INFO `audit_login_succeeded`/`audit_testproject_created` rows (level 16); zero Error/Warning; php_server.log shows `[200]` only | PASS |
+
+Result: 8/8 PASS — **no data gaps**. The modern projectInfoView now mirrors the legacy testproject-level full Test Spec generation: HTML (format=0) + Word (format=4) via `printDocument.php?type=testspec&level=testproject&allOptionsOn=1&id=<pid>`, opened in new tabs (target=_blank ≈ legacy window.open), gated by `mgt_modify_tc` in the UI (legacy `modify_tc_rights`). No BFF change required — `grants.mgt_modify_tc` was already exposed by `api/projectinfo/index.php?action=info`. Refs #997. Screenshots: `docs/screenshots/issue-997-testspec-links-admin.png`, `docs/screenshots/issue-997-testspec-html-doc.png`.

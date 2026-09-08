@@ -1096,6 +1096,8 @@
   "piv.deleteOk": "添付ファイルを削除しました。",
   "piv.description": "説明",
   "piv.exportAll": "すべてのテストスイートをエクスポート",
+  "piv.genSpecHtml": "テスト仕様書を生成 (HTML)",
+  "piv.genSpecWord": "テスト仕様書を生成 (Word)",
   "piv.download": "ダウンロード",
   "piv.errAllowedFilenames": "ファイル名が許可されたパターンに一致しません。",
   "piv.errAllowedFiles": "ファイルが許可された種類のチェックに合格しませんでした。",

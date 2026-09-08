@@ -33,6 +33,9 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 `docs/screenshots/issue-996-export-all-testsuites.png`
 (also mirrored on the wiki).
 **Export all test suites** (Refs #996): `docs/screenshots/issue-996-export-all-testsuites.png`.
+**Generate Test Spec (HTML + Word)** (Refs #997):
+`docs/screenshots/issue-997-testspec-links-admin.png`,
+`docs/screenshots/issue-997-testspec-html-doc.png`.
 
 ---
 ## Table of Contents
@@ -50,8 +53,12 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
   holds `mgt_modify_tc` **and** the project has ≥1 direct test-suite child —
   gated by `canDoExport` and `mgt_modify_tc` from the BFF response; opens the
   modernized export dialog `tcExport.html?tproject_id=<id>&containerID=<id>&useRecursion=1`
-  which streams the `.testproject-deep.xml` file, Refs #996), and Dashboard
-  (`mainPage.html`).
+  which streams the `.testproject-deep.xml` file, Refs #996),
+  **Generate Test Spec (HTML)** and **Generate Test Spec (Word)** (both shown
+  only when the user holds `mgt_modify_tc`; they open `printDocument.php?type=testspec&level=testproject&allOptionsOn=1&id=<id>&format=0|4`
+  in a new tab, generating the full Test Specification document for the whole
+  project — HTML for `format=0`, Word/RTF download for `format=4`, Refs
+  #997), and Dashboard (`mainPage.html`).
 - **Overview card:** name, prefix, status (Active/Inactive), visibility
   (Public/Private), test-case counter and the project feature options
   (Requirements, Priority, Automation, Inventory) as chips.
@@ -144,6 +151,23 @@ actions via GET), `400 Missing project id` / `Unknown action`.
   project-deep mode (`containerID = tproject_id` + `useRecursion=1`), which
   streams `<project>.testproject-deep.xml` — the same file the legacy
   `lib/testcases/tcExport.php` produced (Refs #996).
+- **Generate Test Spec (HTML + Word)** mirrors the legacy `containerView.tpl`
+  report icons `btn_gen_test_spec_new_window` (`containerView.tpl:154-155`,
+  HTML `format=0`) and `btn_gen_test_spec_word` (`containerView.tpl:157-158`,
+  Word `format=4`) at `level=testproject`, both under the legacy
+  `modify_tc_rights` block (`containerView.tpl:119`, i.e. `mgt_modify_tc`);
+  the modern toolbar links open `lib/results/printDocument.php` with the same
+  `type=testspec&level=testproject&allOptionsOn=1&id=<project>&format=0|4`
+  parameters. The backend `printDocument.php` authenticates via the session
+  (`testlinkInitPage`) and gates on its own `checkRights()` → `testplan_metrics`;
+  its `init_args()` does **not** parse `form_token`, so the legacy HTML link's
+  `form_token` param is inert here and the modern links do not need it. No BFF
+  change was required — `grants.mgt_modify_tc` was already returned by
+  `api/projectinfo/index.php?action=info` (Refs #997). Caveat (pre-existing
+  legacy behavior): `printDocument.php:341` derives the title/rights context
+  from the session's active project, while `id` selects the subtree root — a
+  deep link `?id=X` with a different session project Y keeps the legacy
+  behavior unchanged.
 
 ## 4. i18n Keys
 
@@ -156,7 +180,9 @@ flat keys — see testing note), e.g. `piv.title`, `piv.overview`,
 `piv.deleteConfirm`, `piv.uploadOk`, `piv.uploadFail`, `piv.deleteOk`,
 `piv.deleteFail`, `piv.addAttachment` — also in all 10 bundles. No
 user-facing string is hardcoded in the screen. Refs #996 adds `piv.exportAll`
-("Export all test suites") to all 10 bundles.
+("Export all test suites") to all 10 bundles. Refs #997 adds
+`piv.genSpecHtml` ("Generate Test Spec (HTML)") and `piv.genSpecWord`
+("Generate Test Spec (Word)") to all 10 bundles.
 
 ## 5. Security
 
@@ -189,3 +215,12 @@ is deleted, read-only rendering for a user without `mgt_modify_product`
 (no upload form / no delete buttons), 403 on write routes for that user,
 forged file_id → 404, empty upload → 422, disallowed file type → 422, unknown
 project → 404, and Event Viewer cleanliness.
+
+The `Task — Issue #997` suite in `tmp/TLU_Test_Cases.md` (8 cases, all PASS)
+documents the **Generate Test Spec (HTML + Word)** gap: links visible for a
+user with `mgt_modify_tc` (correct `format=0`/`format=4` hrefs), HTML doc
+opens in a new tab with the full project spec (TOC + all suites/cases/steps),
+Word doc returns the `.doc` attachment (200, `application/vnd.ms-word`,
+`Content-Disposition: attachment`), both links hidden for a user without
+`mgt_modify_tc`, `piv.genSpecHtml`/`piv.genSpecWord` present in all 10
+bundles, and Event Viewer cleanliness (no Error/Warning).

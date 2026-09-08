@@ -54,6 +54,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="manageLink" href="#" target="_blank"><i class="fa fa-cog"></i> <span data-i18n="piv.manage">Manage project</span></a>
   <a class="btn-ghost" id="exportAllLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-export"></i> <span data-i18n="piv.exportAll">Export all test suites</span></a>
+  <a class="btn-ghost" id="genSpecHtmlLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-code"></i> <span data-i18n="piv.genSpecHtml">Generate Test Spec (HTML)</span></a>
+  <a class="btn-ghost" id="genSpecWordLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-word"></i> <span data-i18n="piv.genSpecWord">Generate Test Spec (Word)</span></a>
   <a class="btn-ghost" id="dashLink" href="/gui/templates/mainpage/mainPage.html" target="_blank"><i class="fa fa-home"></i> <span data-i18n="piv.dashboard">Dashboard</span></a>
   <span style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
@@ -221,6 +223,18 @@ function render(r) {
   $('#exportAllLink').attr('href',
     '/gui/templates/testcases/tcExport.html?tproject_id=' + PROJECT_ID +
     '&containerID=' + PROJECT_ID + '&useRecursion=1');
+
+  // Generate full Test Spec (whole project) actions, mirroring legacy
+  // containerView.tpl:154-158 at level=testproject — HTML (format=0) and
+  // Word (format=4), both via printDocument.php, gated by mgt_modify_tc
+  // (legacy modify_tc_rights, line 119).
+  var canGenSpec = !!r.grants.mgt_modify_tc;
+  var specBase = '/lib/results/printDocument.php?type=testspec&level=testproject' +
+    '&allOptionsOn=1&id=' + PROJECT_ID;
+  $('#genSpecHtmlLink').css('display', canGenSpec ? 'inline-flex' : 'none');
+  $('#genSpecHtmlLink').attr('href', specBase + '&format=0');
+  $('#genSpecWordLink').css('display', canGenSpec ? 'inline-flex' : 'none');
+  $('#genSpecWordLink').attr('href', specBase + '&format=4');
 
   CAN_UPLOAD = !!r.grants.mgt_modify_product;
   $('#attUpload').css('display', CAN_UPLOAD ? 'block' : 'none');

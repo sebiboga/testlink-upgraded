@@ -1096,6 +1096,8 @@
   "piv.deleteOk": "Adjunto eliminado.",
   "piv.description": "Descripción",
   "piv.exportAll": "Exportar todas las suites de pruebas",
+  "piv.genSpecHtml": "Generar especificación de pruebas (HTML)",
+  "piv.genSpecWord": "Generar especificación de pruebas (Word)",
   "piv.download": "Descargar",
   "piv.errAllowedFilenames": "El nombre del archivo no coincide con el patrón permitido.",
   "piv.errAllowedFiles": "El archivo no pasa la comprobación de tipo permitido.",
