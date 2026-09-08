@@ -145,6 +145,21 @@ a.bug-badge:hover { background: #f8d7da; color: #a93226; }
 <div class="errorbox" id="errorBox"></div>
 <div class="loading" id="loadingBox"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="exe.loading">Loading execution context...</span></div>
 
+<div id="notesPanel" style="display:none;margin:12px 24px 0;">
+  <div class="notes-box" style="border:1px solid #ddd;border-radius:6px;background:#fff;margin-bottom:8px;">
+    <div class="notes-head" data-i18n="exe.tplanNotes" style="cursor:pointer;padding:8px 14px;font-weight:700;color:#333;background:#f7f7f7;border-bottom:1px solid #eee;border-radius:6px 6px 0 0;">Test Plan Notes</div>
+    <div class="notes-body" style="padding:10px 14px;color:#555;font-size:13px;white-space:pre-wrap;"></div>
+  </div>
+  <div id="buildNotesBox" style="border:1px solid #ddd;border-radius:6px;background:#fff;margin-bottom:8px;">
+    <div class="notes-head" data-i18n="exe.buildNotes" style="cursor:pointer;padding:8px 14px;font-weight:700;color:#333;background:#f7f7f7;border-bottom:1px solid #eee;border-radius:6px 6px 0 0;">Build Notes</div>
+    <div class="notes-body" style="padding:10px 14px;color:#555;font-size:13px;white-space:pre-wrap;"></div>
+  </div>
+  <div id="platformNotesBox" style="border:1px solid #ddd;border-radius:6px;background:#fff;margin-bottom:8px;">
+    <div class="notes-head" data-i18n="exe.platformNotes" style="cursor:pointer;padding:8px 14px;font-weight:700;color:#333;background:#f7f7f7;border-bottom:1px solid #eee;border-radius:6px 6px 0 0;">Platform Notes</div>
+    <div class="notes-body" style="padding:10px 14px;color:#555;font-size:13px;white-space:pre-wrap;"></div>
+  </div>
+</div>
+
 <div class="layout" id="layout" style="display:none;">
   <div class="left-pane">
     <div class="pane-head"><i class="fas fa-list-check" style="color:#4ECDC4;margin-right:8px;"></i>
@@ -282,6 +297,7 @@ function boot() {
       $('#planBadge').text(r.tplan.name);
       $('#projName').text(r.tproject.name);
       fillToolbar();
+      renderNotes();
       $('#toolbar').show();
       $('#layout').show();
       $('#loadingBox').hide();
@@ -291,6 +307,52 @@ function boot() {
       loadList();
     })
     .fail(function (xhr) { showError(apiErr(xhr, 'exe.errInit')); });
+}
+
+// Refs #1163: collapsible testplan / build / platform notes panels
+// (legacy execSetResults.tpl tplan_notes / build_notes / platform_notes
+// sections; show/hide + per-section status memory mirror legacy behavior)
+function renderNotes() {
+  var body = $('.notes-body', $('#notesPanel').parent());
+  var tplanNotes = (initData.tplan && initData.tplan.notes) || '';
+  var build = currentBuildObj();
+  var buildNotes = (build && build.notes) || '';
+  var plat = currentPlatformObj();
+  var platNotes = (plat && plat.notes) || '';
+
+  if (!tplanNotes && !buildNotes && !platNotes) { $('#notesPanel').hide(); return; }
+
+  $('#notesPanel .notes-box:first .notes-body').text(tplanNotes);
+  $('#buildNotesBox .notes-body').text(buildNotes);
+  $('#platformNotesBox .notes-body').text(platNotes);
+  $('#buildNotesBox').toggle(!!buildNotes);
+  $('#platformNotesBox').toggle(!!platNotes);
+  $('#notesPanel').show();
+  bindNotesToggle();
+}
+
+function bindNotesToggle() {
+  $('#notesPanel .notes-head').off('click').on('click', function () {
+    $(this).next('.notes-body').toggle();
+  });
+}
+
+function currentBuildObj() {
+  if (!initData || !initData.builds) return null;
+  var id = curBuildId();
+  for (var i = 0; i < initData.builds.length; i++) {
+    if (initData.builds[i].id === id) return initData.builds[i];
+  }
+  return null;
+}
+
+function currentPlatformObj() {
+  if (!initData || !initData.platforms) return null;
+  var id = curPlatformId();
+  for (var i = 0; i < initData.platforms.length; i++) {
+    if (initData.platforms[i].id === id) return initData.platforms[i];
+  }
+  return null;
 }
 
 function fillToolbar() {
@@ -318,8 +380,8 @@ function fillToolbar() {
     $sf.append('<option value="' + esc(st.code) + '">' + esc(st.label) + '</option>');
   });
 
-  $('#selBuild').on('change', function () { resetSelection(); loadList(); });
-  $('#selPlatform').on('change', function () { resetSelection(); loadList(); });
+  $('#selBuild').on('change', function () { resetSelection(); loadList(); renderNotes(); });
+  $('#selPlatform').on('change', function () { resetSelection(); loadList(); renderNotes(); });
   $('#selStatusFilter').on('change', function () { renderList(); });
   $('#txtSearch').on('input', debounce(renderList, 250));
 }

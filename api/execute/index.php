@@ -520,6 +520,9 @@ if ($action === 'init') {
                 'executable' => ($isActive && $isOpen),
                 'release_date' => isset($b['release_date'])
                     ? strval($b['release_date']) : '',
+                // legacy build notes shown in the collapsible notes panel
+                // (execSetResults.tpl build_notes section, Refs #1163)
+                'notes' => isset($b['notes']) ? strval($b['notes']) : '',
             ];
             }
     }
@@ -576,6 +579,8 @@ if ($action === 'init') {
                 $platforms[] = [
                     'id' => intval($p['id']),
                     'name' => strval($p['name']),
+                    // Refs #1163: legacy platform notes panel carries notes
+                    'notes' => isset($p['notes']) ? strval($p['notes']) : '',
                 ];
             }
         }
@@ -620,7 +625,13 @@ if ($action === 'init') {
             'name' => strval($tprojInfo['name']),
             'prefix' => strval($tprojInfo['prefix']),
         ],
-        'tplan' => ['id' => $tplanId, 'name' => $tplanName],
+        'tplan' => [
+            'id' => $tplanId,
+            'name' => $tplanName,
+            // Refs #1163: legacy testplan notes collapsible panel
+            // (execSetResults.tpl tplan_notes section)
+            'notes' => strval($tplanMgr->get_by_id($tplanId)['notes'] ?? ''),
+        ],
         'grants' => ['can_execute' => $canExecute ? 1 : 0,
                      'ro_access' => $roAccess ? 1 : 0],
         'builds' => $builds,
