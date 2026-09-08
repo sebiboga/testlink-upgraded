@@ -11877,3 +11877,18 @@ Result: 11/11 PASS — **feature implemented + verified**. The modern Results TC
 | 1233.11 | Event Viewer clean | `events` table after the suite | only log_level=16 AUDIT rows (fixtures/login); zero Error/Warning (`log_level IN (1,2)`) | PASS |
 
 Result: 11/11 PASS — **feature implemented + verified**. The BFF action `metrics_results_reqs` now returns a `warning` key mirroring legacy `resultsReqs.php:61-74`: `no_matching_reqs` when `total_reqs==0` but requirements still exist in the plan context (`count($reqIds)>0`), `no_srs_defined` when no requirement has a coverage TC in the plan (incl. requirements-disabled projects). The HTML renders the localized message in `#warnBox` (info icon) via new TLi18n keys `reqcov.noMatchingReqs` / `reqcov.noSrsDefined` added to all 10 locale bundles (de/es/fr/pt/ja/zh reused legacy strings; it/ru/ro hand-translated). Screenshots: `docs/screenshots/issue-1233-no-matching-reqs.png`, `docs/screenshots/issue-1233-no-srs-defined.png` (also mirrored into the GitHub Wiki).
+
+## Task — Issue #865: Make custom-field columns sortable in tplanWithCF (gap vs legacy)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink`, login admin/admin. Fixture (SQL, fresh-imported DB): project **TPWCF Proj** (id 200, prefix TPWCF), plan **TPWCF Plan A** (id 220), suite **Suite A** (201), TCs **TC Alpha/Beta/Gamma** (202/203/204) linked to plan via `testplan_tcversions` (ids 1/2/3), custom field **Owner** (`OwnerCF`, id 865, `enable_on_testplan_design=1`, cfield_node_types node_type 3) with values via `cfield_testplan_design_values`: link 1='Zed corp', link 2='Alpha corp', link 3='Mid corp'. Legacy reference: `lib/results/testPlanWithCF.php:113-121` (CF columns `sortable:true`), modern fix: `gui/templates/results/tplanWithCF.html:169` (`orderable:true`).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 865.1 | CF columns are orderable | open `gui/templates/results/tplanWithCF.html?tproject_id=200&tplan_id=220`; inspect DataTable columns | owner CF column `orderable:true` (header lacks `sorting_disabled` class); a11y label "Owner: activate to sort column ascending" | PASS |
+| 865.2 | Click CF header sorts A→Z | click the **Owner** column header | rows re-sort by owner asc: Alpha corp → Mid corp → Zed corp (`order: [[2,'asc']]`) | PASS |
+| 865.3 | Second click sorts Z→A | click **Owner** header again | rows re-sort by owner desc: Zed corp → Mid corp → Alpha corp (`order: [[2,'desc']]`) | PASS |
+| 865.4 | Default sort stays Test Case ASC | reload the screen | `order: [[0,'asc'],[1,'asc']]`, rows in TC order (TC Alpha, TC Beta, TC Gamma) — legacy parity | PASS |
+| 865.5 | Sort arrows visible on CF header | after clicking Owner header | `fa-sort-up`/`fa-sort-down` classes on the Owner th (DataTables default) | PASS |
+| 865.6 | Event Viewer clean | `events` table after suite | only log_level=16 AUDIT rows (login); zero Error/Warning (`log_level IN (1,2)`) added | PASS |
+
+Result: 6/6 PASS — **feature implemented + verified**. One-line change: `gui/templates/results/tplanWithCF.html:169` `orderable: false` → `orderable: true` for every custom-field column, so any CF column header sorts all rows by that CF value (A→Z / Z→A) exactly like the legacy Ext grid (`testPlanWithCF.php` all columns sortable). BFF `api/reports/index.php` action `tplan_with_cf` needed no change (already returns CF values per row). Default order `[[0,'asc'],[1,'asc']]` (Test Case ASC) preserved — matches legacy `setSortByColumnName('test_case')` + `sortDirection='ASC'`. Screenshot: `docs/screenshots/issue-865-tplanwithcf-cf-sortable.png` (also mirrored into the GitHub Wiki).

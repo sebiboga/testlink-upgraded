@@ -31,6 +31,7 @@ screen when a test plan is selected.
 | Page load | `testPlanWithCF.php` loads CF definitions via `cfield_mgr::get_linked_cfields_at_testplan_design()` | BFF action fetches same CF definitions, returns them as `cf_columns` array |
 | Empty state | Warning message "There are no test cases on this test plan, with custom fields ENABLED ON Test Plan Design" | Same warning message shown in info panel, no DataTable rendered |
 | Results table | ExtTable with dynamic columns for each CF, grouped by Test Suite | DataTables with sort, search, pagination; grouped by Test Suite path (RowGroup extension), CF columns; extra Test Suite data column hidden |
+| Column sorting | Ext grid: EVERY column (Test Suite, Test Case and each custom-field column) is `sortable: true`; default sort is Test Case ASC (`setSortByColumnName('test_case')`, `sortDirection='ASC'`) | Same — all CF columns are `orderable: true` in the DataTables config (issue #865); clicking any CF column header sorts the rows by that CF value A→Z / Z→A; default order remains Test Case ASC |
 | Group toolbar | ExtTable toolbar: expand/collapse groups button + show all columns button, `storeTableState=true` | Dashio toolbar in section header: **Expand all groups**, **Collapse all groups**, **Show all columns** buttons + match-count badge |
 | Group collapse | ExtTable expand/collapse per group; hidden rows stay in result set (filterable) | Group headers include chevron + "(N items)"; click a header to collapse/expand that group; hidden rows remain in the DataTables result set |
 | CF values | Rendered from CF design values per testplan, filtered rows with all-empty CFs | Same data shape; `cf_columns` drives column headers, rows with all-empty CF values filtered out |
@@ -105,6 +106,7 @@ Returns test cases with Test Plan Design custom field values.
 - Footer shows italic info text + "Generated on" timestamp + elapsed time (#858 #859 fixes)
 - Per-column string filters under each visible column header (Test Case + every custom-field column) using DataTables `column().search()` — mirrors the legacy Ext `GridFilters` `filter:{type:'string'}` (`Refs #864`); the hidden Test Suite (group-by) column keeps a hidden footer input like the legacy group-by filter
 - "Reset Filters" toolbar button clears every column search + all footer inputs at once — mirrors the legacy `filters.clearFilters()` toolbar action (`Refs #864`); the button is shown only while at least one column filter is active
+- Every custom-field column is `orderable: true` — clicking its header sorts all rows by that CF value (ascending/descending), exactly like the legacy Ext grid where every column had `sortable: true` with a `filter:{type:'string'}` and the CF column model rendered `{header:"Owner", dataIndex:'id_cf_Owner', filter:{type:'string'}, renderer: columnWrap, sortable: true}` (`Refs #865`). The Test-Suite hidden column keeps the suite ascendant + Test Case ascendant default order (`order: [[0,'asc'],[1,'asc']]`), matching legacy `setSortByColumnName('test_case')` + `sortDirection='ASC'`
 
 ## 4. i18n Keys
 
@@ -162,6 +164,14 @@ Test suite TPWCF-2 in `tmp/TLU_Test_Cases.md` — 8 test cases covering per-colu
 - No JS console errors during filtering / reset interactions
 - No new Error/Warning in Event Viewer
 
+Test suite #865 in `tmp/TLU_Test_Cases.md` — 6 test cases covering sortable CF columns (#865):
+- Custom-field columns report `orderable: true` in the DataTables config (no `sorting_disabled` class on their headers)
+- Clicking a CF column header sorts asc (A→Z) by the CF value
+- Clicking again sorts desc (Z→A) by the CF value
+- Default order on load stays Test Case ASC (`order: [[0,'asc'],[1,'asc']]`)
+- DataTable `order()` reflects the CF column index + direction after each click
+- No new Error/Warning in Event Viewer after sort interactions
+
 Test suite TPWCF-1 in `tmp/TLU_Test_Cases.md` — 12 test cases covering:
 - External IDs show single glue-char (#860)
 - Info text displayed in footer (#858)
@@ -188,4 +198,20 @@ Previous test suite #18 — 9 test cases covering:
 - i18n keys present in all locales
 
 ---
+
+
+## Screenshots
+
+### Per-column filters + Reset Filters (Refs #864)
+
+Owner column filtered to "Alice" — the per-column footer filter is active and the
+**Reset Filters** toolbar button is shown.
+
+
+### Sortable custom-field columns (Refs #865)
+
+Rows sorted by the **Owner** custom-field column (descending) — the header shows a
+sort arrow and all rows are re-ordered by their CF value (Zed corp → Mid corp →
+Alpha corp), matching the legacy Ext grid where every CF column was `sortable: true`.
+
 
