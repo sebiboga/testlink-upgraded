@@ -11784,3 +11784,24 @@ Result: 6/6 PASS — **feature implemented + verified**. BFF `api/projects/index
 | 989.10 | Event Viewer clean | `events` table after the suite | only AUDIT/log_level=16 rows (login + testproject_created); zero Error/Warning (`log_level IN (1,2)`) | PASS |
 
 Result: 10/10 PASS — **feature implemented + verified**. The modern `projectsView.html` create modal now has the legacy "Create from existing Test Project?" dropdown (`copy_from_tproject_id`), populated from the projects list, hidden in edit mode. The BFF `createProject()` (`api/projects/index.php:341-355`) validates the source and invokes `testproject::copy_as($source,$newId,$userId,$name,['copy_requirements'=>optReq])`, cloning custom-field assignments (verified via `cfield_testprojects`) plus keywords/platforms/testsuites/testplans/roles/requirements per legacy. New `proj.copyFrom` + `proj.noProject` i18n keys added in all 10 locale bundles. Refs #989. Screenshot: `docs/screenshots/issue-989-copy-from-project-modal.png`.
+
+## Task — Issue #864: Implement per-column filters + Reset Filters action in tplanWithCF (gap vs legacy)
+
+**Date:** 2026-09-08
+**Screen:** `gui/templates/results/tplanWithCF.html` + `api/reports/index.php` `tplan_with_cf`
+**Legacy ref:** `lib/results/testPlanWithCF.php:160-166` + `lib/functions/exttable.class.php` — Ext `GridFilters` plugin (`filter:{type:'string'}` per column) + "Reset Filters" toolbar button (`filters.clearFilters()`).
+**Precondition:** app http://localhost:8082, DB testlink (testlink/testlink), admin/admin. Fixture created via SQL: project `TPWCF Proj` (id=1, prefix TPWCF), suite `Suite A` (id=2), TCs `Alpha` (node 3, tcversion 4, ext id 1) + `Beta` (node 5, tcversion 6, ext id 2), plan `TPWCF Plan` (id=7), CFs `owner_cf` (Owner) + `tier_cf` (Tier) linked at testplan-design scope; `cfield_testplan_design_values`: Alpha=Alice/Gold, Beta=Bob/Silver; `testplan_tcversions` (id 1,2). Screen: `http://localhost:8082/gui/templates/results/tplanWithCF.html?tproject_id=1&tplan_id=7`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 864.1 | per-column footer filter inputs render | load screen, inspect `#dtResultsFoot` | one `input.col-filter` per column; visible inputs placeholders "Filter Test Case", "Filter Owner", "Filter Tier"; hidden suite column input hidden | PASS |
+| 864.2 | Owner column filter narrows rows | type "Alice" in Owner filter | only `TPWCF-1: Alpha` (Alice/Gold) remains; `dtTPlanCF.column(2).search()==="Alice"` | PASS |
+| 864.3 | Test Case column filter narrows rows | type "Beta" in Test Case filter | only `TPWCF-2: Beta` (Bob/Silver) remains | PASS |
+| 864.4 | custom-field column filter narrows rows | type "Silver" in Tier filter | only `TPWCF-2: Beta` (Bob/Silver) remains | PASS |
+| 864.5 | Reset Filters button shows only when a filter is active | load clean (no filter) vs type in a filter | button `display:none` initially; `display:inline-flex` when a column filter is active | PASS |
+| 864.6 | Reset Filters clears all column filters | set Owner=Alice, then click Reset Filters | both rows restored; every footer input empty; all `column().search()===""`; button hides again | PASS |
+| 864.7 | no JS console errors during filter/reset | watch console while typing + resetting | zero error/warn messages | PASS |
+| 864.8 | Event Viewer clean | `events` table after suite | zero Error/Warning (`log_level` error/warn) rows | PASS |
+| 864.9 | i18n keys present + valid | grep `tpwcf.{resetFilters,filtersCleared,columnFilterPlaceholder}` in all 10 bundles + `python3 -m json.tool` | 3 keys in 10/10 bundles, all JSON valid | PASS |
+
+Result: 9/9 PASS — **feature implemented + verified**. `tplanWithCF.html` now renders one per-column string filter input under every visible column (Test Case + each custom-field column) wired to DataTables `column().search()`, plus a "Reset Filters" toolbar button that clears every column search + footer inputs at once and hides when no filter is active. Mirrors the legacy Ext `GridFilters` behavior exactly (left visible per-column filtering — e.g. "filter Owner CF = Alice" — and the single reset action). No BFF change required: `d.rows` already ships all data client-side. New `tpwcf.resetFilters` / `tpwcf.filtersCleared` / `tpwcf.columnFilterPlaceholder` keys added to all 10 locale bundles; all bundles valid JSON. Refs #864.
