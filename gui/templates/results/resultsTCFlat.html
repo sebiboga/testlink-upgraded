@@ -78,6 +78,9 @@ td.tccell { white-space: nowrap; }
   <a class="btn-ghost" id="btnXls" href="#" target="_blank" style="display:none;">
     <i class="fa fa-file-excel"></i> <span data-i18n="rtf.btnExportXls">Export as spreadsheet</span>
   </a>
+  <a class="btn-ghost" id="btnMail" href="#" target="avoidMailFrame" style="display:none;">
+    <i class="fa fa-envelope"></i> <span data-i18n="rtf.btnSendEmail">Send spreadsheet by email</span>
+  </a>
   <button class="btn-teal" id="btnRefresh"><i class="fa fa-sync-alt"></i> <span data-i18n="common.refresh">Refresh</span></button>
 </div>
 
@@ -169,6 +172,12 @@ function loadReport(extraQs) {
       $('#btnXls').attr('href', r.export_xls_url).show();
     } else {
       $('#btnXls').hide();
+    }
+
+    if (r.send_mail_url) {
+      $('#btnMail').attr('href', r.send_mail_url).show();
+    } else {
+      $('#btnMail').hide();
     }
 
     if (r.need_selection) {
