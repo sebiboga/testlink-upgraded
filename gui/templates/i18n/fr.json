@@ -2881,5 +2881,14 @@
   "tcview.bulkUpdate": "Mise à jour groupée",
   "kwa.emptySuite": "Il n'y a aucun cas de test dans cette suite de tests => l'affectation de mots-clés n'est pas possible",
   "rgm.directLink": "Lien public",
-  "rgm.directLinkHint": "Toute personne disposant de ce lien peut consulter ce rapport sans se connecter."
+  "rgm.directLinkHint": "Toute personne disposant de ce lien peut consulter ce rapport sans se connecter.",
+  "common.sort": "Trier",
+  "tpwcf.sortDesc": "décroissant",
+  "tpwcf.multiSortTitle": "Tri multiple",
+  "tpwcf.multiSortHint": "Faites glisser les en-têtes de colonnes ici pour trier sur plusieurs colonnes; cliquez sur une puce pour inverser le sens, glissez les puces pour réordonner, Maj+clic ou X pour supprimer.",
+  "tpwcf.multiSortClear": "Effacer les tris",
+  "tpwcf.multiSortToggle": "Clic pour inverser croissant/décroissant; Maj+clic ou X pour supprimer",
+  "tpwcf.multiSortRemove": "Retirer le tri",
+  "tpwcf.multiSortDup": "La colonne est déjà dans la liste de tri",
+  "tpwcf.multiSortCleared": "Tri effacé"
 }

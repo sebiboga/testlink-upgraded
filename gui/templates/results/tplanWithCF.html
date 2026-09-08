@@ -54,6 +54,22 @@ table.flat tr.group td .gcount { font-weight: 400; color: #6aa; font-size: 11px;
 table.flat tfoot td { padding: 4px 6px; border-bottom: 1px solid #ddd; background: #f7f8fa; }
 table.flat tfoot input.col-filter { width: 100%; box-sizing: border-box; border: 1px solid #ccc; border-radius: 4px; padding: 4px 6px; font-size: 11.5px; }
 table.flat tfoot input.col-filter:focus { outline: none; border-color: #4ECDC4; box-shadow: 0 0 0 2px rgba(78,205,196,.2); }
+.msortbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 20px; border-bottom: 1px solid #eee; background: #fafbfc; font-size: 12px; }
+.msortbar .ms-label { color: #22242a; font-weight: 700; white-space: nowrap; }
+.msortbar .ms-label i { color: #4ECDC4; margin-right: 4px; }
+.msortbar .ms-hint { color: #889; font-size: 11px; font-style: italic; }
+.msortbar .ms-chip { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid #4ECDC4; color: #22242a; border-radius: 14px; padding: 3px 4px 3px 10px; font-size: 11.5px; cursor: pointer; user-select: none; }
+.msortbar .ms-chip:hover { background: #eefaf8; }
+.msortbar .ms-chip.dragging { opacity: .4; }
+.msortbar .ms-chip .ms-dir { font-weight: 700; color: #2ba8a0; }
+.msortbar .ms-chip .ms-x { border: none; background: transparent; color: #e6605e; cursor: pointer; font-size: 12px; line-height: 1; padding: 2px 4px; border-radius: 50%; }
+.msortbar .ms-chip .ms-x:hover { background: #fdecea; }
+.msortbar .ms-clear { background: #22242a; color: #fff; border: none; border-radius: 4px; padding: 4px 9px; font-size: 11px; cursor: pointer; display: none; }
+.msortbar .ms-clear:hover { background: #33363f; }
+.msortbar .ms-clear i { color: #4ECDC4; margin-right: 4px; }
+.msortbar.ms-dragover { background: #eef8f7; outline: 2px dashed #4ECDC4; outline-offset: -2px; }
+thead th[draggable="true"] { cursor: grab; }
+thead th[draggable="true"]:active { cursor: grabbing; }
 </style>
 </head>
 <body>
@@ -178,7 +194,14 @@ function loadData() {
         '<button type="button" class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> ' + t('tpwcf.showAllColumns', 'Show all columns') + '</button>' +
         '<button type="button" class="tbtn" id="btnResetFilters" style="display:none;"><i class="fa fa-filter-circle-xmark"></i> ' + t('tpwcf.resetFilters', 'Reset Filters') + '</button>' +
         '<span class="bmeta">' + t('tpwcf.matchCount', 'Match count') + ': ' + d.rows.length + '</span>' +
-        '</div><div class="section-body"><table id="dtResults" class="flat" style="width:100%"><tfoot id="dtResultsFoot"></tfoot></table></div></div>';
+        '</div>' +
+        '<div class="msortbar" id="msortBar">' +
+        '<span class="ms-label"><i class="fa fa-arrow-down-up-across-line"></i> ' + t('tpwcf.multiSortTitle', 'Multi sort') + '</span>' +
+        '<span class="ms-hint">' + t('tpwcf.multiSortHint', 'Drag column headers here to sort by multiple columns; click a chip to toggle direction, drag chips to reorder, shift+click or X to remove.') + '</span>' +
+        '<span id="msortChips"></span>' +
+        '<button type="button" class="ms-clear" id="msortClear"><i class="fa fa-broom"></i> ' + t('tpwcf.multiSortClear', 'Clear sorts') + '</button>' +
+        '</div>' +
+        '<div class="section-body"><table id="dtResults" class="flat" style="width:100%"><tfoot id="dtResultsFoot"></tfoot></table></div></div>';
       $('#reportArea').html(html);
       $('#countBadge').text(d.rows.length + ' ' + t('tpwcf.testCases', 'test cases'));
 
@@ -245,6 +268,138 @@ function loadData() {
         $('#btnResetFilters').css('display', any ? 'inline-flex' : 'none');
       }
       mutateResetVisible();
+
+      // Multi-column sort (legacy Ext.ux.ToolbarDroppable parity, issue #866):
+      // drag a column header onto the multi-sort bar to append a sort key; click
+      // a chip to toggle ASC/DESC, shift+click or X to remove it, drag chips to
+      // reorder their precedence. Every change re-applies the combined order.
+      var multiSort = [];
+
+      function applyMultiSort() {
+        dtTPlanCF.order(multiSort.map(function (s) { return [s.col, s.dir]; })).draw();
+      }
+      function renderMultiSortChips() {
+        var $wrap = $('#msortChips').empty();
+        multiSort.forEach(function (s) {
+          var title = (dtTPlanCF.column(s.col).header().textContent || '').trim();
+          var $chip = $('<span class="ms-chip" draggable="true" data-col="' + s.col + '"></span>')
+            .attr('title', t('tpwcf.multiSortToggle', 'Click to toggle ascending/descending; shift+click or X to remove'))
+            .append($('<span class="ms-title"></span>').text(title))
+            .append($('<span class="ms-dir"></span>').text(' ' + (s.dir === 'asc' ? '\u2191' : '\u2193')))
+            .append($('<button type="button" class="ms-x" tabindex="-1" title="' +
+              t('tpwcf.multiSortRemove', 'Remove sort') + '">&times;</button>'));
+          $wrap.append($chip);
+        });
+        $('#msortClear').css('display', multiSort.length ? 'inline-block' : 'none');
+      }
+      function addMultiSortCol(col) {
+        if (isNaN(col) || !dtTPlanCF.column(col)) { return false; }
+        if (multiSort.some(function (s) { return s.col === col; })) {
+          toast(t('tpwcf.multiSortDup', 'Column is already in the sort list'), true);
+          return false;
+        }
+        multiSort.push({ col: col, dir: 'desc' });
+        applyMultiSort();
+        renderMultiSortChips();
+        toast(t('common.sort', 'Sort') + ': ' +
+          (dtTPlanCF.column(col).header().textContent || '').trim() + ' ' +
+          t('tpwcf.sortDesc', 'descending'), false);
+        return true;
+      }
+      function removeMultiSortCol(col) {
+        multiSort = multiSort.filter(function (s) { return s.col !== col; });
+        if (multiSort.length === 0) {
+          dtTPlanCF.order([[0, 'asc'], [1, 'asc']]).draw();
+        } else {
+          applyMultiSort();
+        }
+        renderMultiSortChips();
+      }
+
+      // make visible column headers draggable
+      dtTPlanCF.columns().every(function () {
+        var h = $(this.header());
+        if (this.visible()) {
+          h.attr('draggable', 'true').attr('data-col', this.index());
+        }
+      });
+
+      $(document).off('dragstart.msort').on('dragstart.msort', '#dtResults thead th[draggable="true"]', function (e) {
+        e.originalEvent.dataTransfer.setData('text/plain', 'col:' + $(this).attr('data-col'));
+        e.originalEvent.dataTransfer.effectAllowed = 'copy';
+      });
+
+      var $bar = $('#msortBar');
+      $bar.off('dragover.msort').on('dragover.msort', function (e) {
+        var dt = e.originalEvent.dataTransfer;
+        var types = dt && dt.types ? Array.prototype.slice.call(dt.types) : [];
+        if (types.indexOf('text/plain') >= 0) {
+          e.preventDefault();
+          $bar.addClass('ms-dragover');
+        }
+      }).off('dragleave.msort').on('dragleave.msort', function () {
+        $bar.removeClass('ms-dragover');
+      }).off('drop.msort').on('drop.msort', function (e) {
+        e.preventDefault();
+        $bar.removeClass('ms-dragover');
+        var dt = String(e.originalEvent.dataTransfer.getData('text/plain') || '');
+        if (dt.indexOf('col:') === 0) {
+          addMultiSortCol(parseInt(dt.slice(4), 10));
+        } else if (dt.indexOf('chip:') === 0) {
+          var fromCol = parseInt(dt.slice(5), 10);
+          var targetEl = $(e.originalEvent.target).closest('.ms-chip');
+          var toCol = targetEl.length ? parseInt(targetEl.attr('data-col'), 10) : null;
+          if (toCol === null || toCol === fromCol) { return; }
+          var fromIdx = multiSort.findIndex(function (s) { return s.col === fromCol; });
+          var toIdx0 = multiSort.findIndex(function (s) { return s.col === toCol; });
+          var moving = null;
+          var rest = multiSort.filter(function (s) {
+            if (s.col === fromCol) { moving = s; return false; }
+            return true;
+          });
+          var toIdx = rest.findIndex(function (s) { return s.col === toCol; });
+          if (toIdx === -1) { return; }
+          if (fromIdx < toIdx0) { toIdx += 1; } // drop on a later chip → move after it
+          rest.splice(toIdx, 0, moving);
+          multiSort = rest;
+          applyMultiSort();
+          renderMultiSortChips();
+        }
+      });
+
+      $('#msortChips')
+        .off('click.mschip').on('click.mschip', '.ms-chip', function (e) {
+          if (e.shiftKey) {
+            e.preventDefault();
+            removeMultiSortCol(parseInt($(this).attr('data-col'), 10));
+            return;
+          }
+          var col = parseInt($(this).attr('data-col'), 10);
+          multiSort = multiSort.map(function (s) {
+            return s.col === col ? { col: col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : s;
+          });
+          applyMultiSort();
+          renderMultiSortChips();
+        })
+        .off('click.msx').on('click.msx', '.ms-x', function (e) {
+          e.stopPropagation();
+          removeMultiSortCol(parseInt($(this).closest('.ms-chip').attr('data-col'), 10));
+        })
+        .off('dragstart.msort').on('dragstart.msort', '.ms-chip', function (e) {
+          $(this).addClass('dragging');
+          e.originalEvent.dataTransfer.setData('text/plain', 'chip:' + $(this).attr('data-col'));
+          e.originalEvent.dataTransfer.effectAllowed = 'move';
+        })
+        .off('dragend.msort').on('dragend.msort', '.ms-chip', function () {
+          $(this).removeClass('dragging');
+        });
+
+      $('#msortClear').off('click.msort').on('click.msort', function () {
+        multiSort = [];
+        dtTPlanCF.order([[0, 'asc'], [1, 'asc']]).draw();
+        renderMultiSortChips();
+        toast(t('tpwcf.multiSortCleared', 'Sort cleared'));
+      });
 
       $('#btnResetFilters').off('click').on('click', function () {
         dtTPlanCF.columns().every(function () {

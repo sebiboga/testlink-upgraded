@@ -2883,5 +2883,14 @@
   "tcview.bulkUpdate": "Actualizare în masă",
   "kwa.emptySuite": "Nu există cazuri de test în această suită de test => atribuirea cuvintelor cheie nu este posibilă",
   "rgm.directLink": "Link public",
-  "rgm.directLinkHint": "Oricine are acest link poate vedea acest raport fără a se autentifica."
+  "rgm.directLinkHint": "Oricine are acest link poate vedea acest raport fără a se autentifica.",
+  "common.sort": "Sortare",
+  "tpwcf.sortDesc": "descrescător",
+  "tpwcf.multiSortTitle": "Sortare multiplă",
+  "tpwcf.multiSortHint": "Trageți anteturile coloanelor aici pentru a sorta după mai multe coloane; faceți clic pe un cip pentru a comuta direcția, trageți cipurile pentru reordonare, shift+clic sau X pentru eliminare.",
+  "tpwcf.multiSortClear": "Șterge sortările",
+  "tpwcf.multiSortToggle": "Clic pentru comutare ascendent/descendent; shift+clic sau X pentru eliminare",
+  "tpwcf.multiSortRemove": "Elimină sortarea",
+  "tpwcf.multiSortDup": "Coloana este deja în lista de sortare",
+  "tpwcf.multiSortCleared": "Sortare ștearsă"
 }

@@ -2883,5 +2883,14 @@
   "tcview.bulkUpdate": "Bulk Update",
   "kwa.emptySuite": "There are no Test Cases in this Test Suite => keyword assignment is not possible",
   "rgm.directLink": "Public link",
-  "rgm.directLinkHint": "Anyone with this link can view this report without logging in."
+  "rgm.directLinkHint": "Anyone with this link can view this report without logging in.",
+  "common.sort": "Sort",
+  "tpwcf.sortDesc": "descending",
+  "tpwcf.multiSortTitle": "Multi sort",
+  "tpwcf.multiSortHint": "Drag column headers here to sort by multiple columns; click a chip to toggle direction, drag chips to reorder, shift+click or X to remove.",
+  "tpwcf.multiSortClear": "Clear sorts",
+  "tpwcf.multiSortToggle": "Click to toggle ascending/descending; shift+click or X to remove",
+  "tpwcf.multiSortRemove": "Remove sort",
+  "tpwcf.multiSortDup": "Column is already in the sort list",
+  "tpwcf.multiSortCleared": "Sort cleared"
 }

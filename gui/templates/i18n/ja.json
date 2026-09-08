@@ -2881,5 +2881,14 @@
   "tcview.bulkUpdate": "一括更新",
   "kwa.emptySuite": "このテストスイートにはテストケースがありません。キーワードの割り当てはできません",
   "rgm.directLink": "公開リンク",
-  "rgm.directLinkHint": "このリンクを持っている人は、ログインせずにこのレポートを閲覧できます。"
+  "rgm.directLinkHint": "このリンクを持っている人は、ログインせずにこのレポートを閲覧できます。",
+  "common.sort": "ソート",
+  "tpwcf.sortDesc": "降順",
+  "tpwcf.multiSortTitle": "複数列ソート",
+  "tpwcf.multiSortHint": "複数の列でソートするにはカラム術をここにドラッグしてください。チップをクリックして方向切り替え、チップをドラッグして順序変更、Shift+クリックまたはXで削除。",
+  "tpwcf.multiSortClear": "ソートをクリア",
+  "tpwcf.multiSortToggle": "クリックで昇順/降順を切り替え、Shift+クリックまたはXで削除",
+  "tpwcf.multiSortRemove": "ソートを削除",
+  "tpwcf.multiSortDup": "この列はソートリストに既に含まれています",
+  "tpwcf.multiSortCleared": "ソートをクリアしました"
 }
