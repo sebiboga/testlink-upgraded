@@ -149,6 +149,15 @@
         <!-- Basic Information -->
         <div class="form-section">
           <div class="form-section-title" data-i18n="proj.basicInfo">Basic Information</div>
+          <!-- Legacy parity: "Create from existing Test Project?" dropdown (only on create) -->
+          <div class="form-row full" id="copyFromRow">
+            <div class="form-group">
+              <label for="copy_from_tproject_id" data-i18n="proj.copyFrom">Create from existing Test Project?</label>
+              <select id="copy_from_tproject_id" name="copy_from_tproject_id">
+                <option value="0" data-i18n="proj.noProject">-- No --</option>
+              </select>
+            </div>
+          </div>
           <div class="form-row">
             <div class="form-group">
               <label for="projectName"><span data-i18n="proj.name">Project Name</span> *</label>
@@ -397,6 +406,16 @@
         });
     }
 
+    // Populate the "Create from existing Test Project?" dropdown from projectsData.
+    // Legacy parity: projectEdit.tpl:118-130 — a select listing all projects with a "No" default.
+    function populateCopyFromDropdown() {
+      const sel = document.getElementById('copy_from_tproject_id');
+      sel.innerHTML = '<option value="0">' + TLi18n.t('proj.noProject') + '</option>';
+      projectsData.forEach(function(p) {
+        sel.innerHTML += '<option value="' + parseInt(p.id,10) + '">' + esc(p.name) + '</option>';
+      });
+    }
+
     // Create project
     document.getElementById('createBtn').addEventListener('click', function() {
       currentProjectId = null;
@@ -404,6 +423,8 @@
       document.getElementById('projectForm').reset();
       document.getElementById('active').checked = true;
       document.getElementById('is_public').checked = true;
+      document.getElementById('copyFromRow').style.display = '';
+      populateCopyFromDropdown();
       loadTrackers().then(function() {
         document.getElementById('issue_tracker_id').value = '0';
         document.getElementById('code_tracker_id').value = '0';
@@ -451,6 +472,7 @@
         selectTrackerByName('reqmgrsystem_id',
           project.reqMgrSystem ? project.reqMgrSystem.name : '');
       });
+      document.getElementById('copyFromRow').style.display = 'none';
       document.getElementById('projectModal').classList.add('show');
 
       // Event history (edit mode + right) — same pattern as projectEdit.html:347-355
@@ -501,7 +523,8 @@
         code_tracker_id: parseInt(document.getElementById('code_tracker_id').value) || 0,
         code_tracker_enabled: document.getElementById('code_tracker_enabled').checked ? 1 : 0,
         reqmgrsystem_id: parseInt(document.getElementById('reqmgrsystem_id').value) || 0,
-        reqmgr_integration_enabled: document.getElementById('reqmgr_integration_enabled').checked ? 1 : 0
+        reqmgr_integration_enabled: document.getElementById('reqmgr_integration_enabled').checked ? 1 : 0,
+        copy_from_tproject_id: currentProjectId ? 0 : (parseInt(document.getElementById('copy_from_tproject_id').value) || 0)
       };
 
       $.ajax({

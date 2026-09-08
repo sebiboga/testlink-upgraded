@@ -33,6 +33,7 @@ client-side when the right is missing.
 |---|---|---|
 | List test projects ordered by name | `testproject::get_accessible_for_user()` with issue/code tracker info | `GET /api/projects/` — joined rows incl. tracker names + enabled flags + feature flags from the serialized options blob |
 | Create project | `doCreate`: crossChecks (name syntax, dup name, dup prefix), feature checkboxes, tracker link | `POST /api/projects/` with same checks via `tprojectMgr::checkName/get_by_name/get_by_prefix`, `create(doChecks:false)` after explicit crossChecks |
+| Create project from existing (copy) | `projectEdit.tpl:118-130` "Create from existing Test Project?" dropdown → `doCreate` runs `copy_as(source,new,user,name,{copy_requirements=>optReq})` | **Create from existing Test Project?** dropdown in the create modal (only on create, hidden on edit), populated from the projects list; BFF accepts `copy_from_tproject_id` and calls `testproject::copy_as()` after create — Ref #989 |
 | Edit project in modal | `edit/doUpdate`: same crossChecks excluding self, then `update()`+`activate()` | `PUT /api/projects/{id}` — partial updates supported (only sent fields change), manager-based update |
 | Show event history from edit modal | `projectEdit.tpl` help icon gated on `mgt_view_events` right → `showEventHistoryFor(itemID,"testprojects")` | **Show event history** button in the modal header (edit mode only), gated on `mgt_view_events`, opens `eventviewer.html?objectId=<projectId>&objectType=testprojects` — Ref #991 |
 | Active/Inactive click-to-change | toggle icon per row → `setActive/setInactive` | row **Deactivate/Activate** button → `PUT {isActive}` partial update |
@@ -84,6 +85,15 @@ All routes require an authenticated session; non-admin callers without
   the legacy `projectEdit.tpl` help-icon behavior and the separate
   `projectEdit.html` pattern. The button is hidden in create mode and when
   the `mgt_view_events` right is absent.
+* **Create from existing Test Project** (Ref #989): the create modal shows a
+  **Create from existing Test Project?** dropdown (legacy
+  `copy_from_tproject_id`) listing every project with a "-- No --" default.
+  Picking a source and saving sends `copy_from_tproject_id` to the BFF, which
+  validates the source (`Source project not found` 400 for unknown ids) and
+  runs the legacy `testproject::copy_as()` clone (custom-field assignments,
+  keywords, platforms, requirements per the `optReq` checkbox, test
+  specification, test plans, user roles). The dropdown is hidden in edit mode
+  and the field is zeroed in edit PUTs so editing never triggers a copy.
 
 ## 4. i18n Keys
 
@@ -94,7 +104,8 @@ en, de, es, fr, it, ja, pt, ro, ru, zh. New in #640:
 `proj.reqMgrIntegration`, `proj.reqMgrSystem`; corrected
 `proj.msg.confirmDelete` / `proj.msg.errorDelete` to describe a real,
 irreversible deletion. Ref #991 adds `proj.eventHistory`
-("Show event history").
+("Show event history"). Ref #989 adds `proj.copyFrom`
+("Create from existing Test Project?") and `proj.noProject` ("-- No --").
 
 ## 5. Security
 
@@ -113,5 +124,10 @@ run + 9 PASS re-verification of the code-review fixes (render, modal
 validation, CRUD, toggles, tracker + req-mgmt linking, search, XSS,
 cascade delete + cancel, lockout guard, partial-update preservation,
 permission paths 401/403/404/500 mapping, i18n completeness, aside switch,
-Event Viewer clean — AUDIT-only).
+Event Viewer clean — AUDIT-only). Ref #989 adds **Suite 989** (10/10 PASS):
+create-modal dropdown listing every project, copy via UI + via BFF with
+`copy_from_tproject_id`, clone verification (`cfield_testprojects` carried
+over), invalid source 400, no-copy regression, edit-mode hiding, payload
+`copy_from_tproject_id:0` on plain create, i18n coverage, Event Viewer clean.
+Screenshot: `docs/screenshots/issue-989-copy-from-project-modal.png`.
 

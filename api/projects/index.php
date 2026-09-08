@@ -341,6 +341,23 @@ function createProject(&$db, &$tprojectMgr, &$user) {
   applyTrackers($db, $tprojectMgr, $newId, $input);
   protectFromLockout($db, $tprojectMgr, $user, $newId, $item->is_public);
 
+  // Legacy parity (projectEdit.php:428-432): when the user picks a source
+  // project, clone its entire contents into the newly created project.
+  $copyFromId = isset($input['copy_from_tproject_id'])
+    ? (int)$input['copy_from_tproject_id'] : 0;
+  if ($copyFromId > 0) {
+    // Validate that the source project exists and is accessible.
+    $source = $tprojectMgr->get_by_id($copyFromId);
+    if (is_null($source)) {
+      throw new Exception('Source project not found');
+    }
+    $options = array(
+      'copy_requirements' => isset($input['optReq']) ? (int)(bool)$input['optReq'] : 0
+    );
+    $tprojectMgr->copy_as($copyFromId, $newId, $user->dbID,
+                          trim($item->name), $options);
+  }
+
   // NOTE: no extra AUDIT event here — testproject::create() already logs
   // audit_testproject_created (legacy doCreate doesn't log twice either).
 
