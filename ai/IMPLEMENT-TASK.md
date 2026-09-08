@@ -13,12 +13,14 @@ following the Dashio patterns of already-modernized screens.
 
 - You receive NO input. Find the oldest open TASK issue. TRIAGE IS MANDATORY:
   SKIP any issue whose title starts with "Delete legacy" — those are cleanup
-  tasks blocked by gap issues that must be fixed first:
+  tasks blocked by gap issues that must be implemented first.
+  IMPORTANT: use `sort:created-asc` (NOT gh's default order) so you truly get
+  the OLDEST task — the default sort silently skips older issues beyond window:
 
-      gh issue list --state open --limit 200 --json number,title,labels,createdAt \
+      gh issue list --state open --label task --search "sort:created-asc" \
+        --limit 25 --json number,title \
         --jq 'map(select(.title | startswith("Delete legacy") | not))
-              | map(select([.labels[].name] | any(. == "task")))
-              | sort_by(.createdAt) | .[0].number // empty'
+              | .[0].number // empty'
 
 - Read the FULL body (and all comments) with `gh issue view <number> --comments`.
 - If there are NO open task issues after triage: report that and stop cleanly.

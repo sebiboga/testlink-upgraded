@@ -1,18 +1,21 @@
-name: Implement latest task (opencode)
+name: Implement NEWEST task (opencode)
 
-# One run = ONE task implemented end-to-end: the OLDEST open GitHub `task` issue.
+# One run = ONE task implemented end-to-end: the NEWEST open GitHub `task` issue.
 # No inputs on purpose — the agent picks the issue itself (see ai/IMPLEMENT-TASK.md).
 # Implements missing features FROM SCRATCH (legacy capability not ported to modern
-# screen). Same environment pattern as fix-bug.yml / modernize.yml.
+# screen). Guaranteed LIFO: triage queries sort:created-desc so the NEWEST task is
+# truly picked (default gh sort silently skips recent issues — see #1218).
+# Same environment pattern as fix-bug.yml / modernize.yml.
 
 on:
   workflow_dispatch: {}
   schedule:
-    # every 1 hour (UTC); GitHub may delay scheduled runs under load
-    - cron: "30 * * * *"
+    # every 2 hours (UTC); offset minute 45 avoids fix-bug (minute 0) and the
+    # OLDEST twin's minute 15 — GitHub may delay scheduled runs under load
+    - cron: "45 */2 * * *"
 
 concurrency:
-  group: implement-task
+  group: implement-task-newest
   cancel-in-progress: false
 
 permissions:
@@ -20,7 +23,7 @@ permissions:
   issues: write
 
 jobs:
-  implement-task:
+  implement-task-newest:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     env:
@@ -149,12 +152,18 @@ jobs:
       - name: Verify gh auth and triage the target issue (tasks only)
         run: |
           gh auth status
-          # TRIAGE: oldest open issue labeled 'task', skipping 'Delete legacy'
-          # cleanup issues that are blocked by the gap issues (fixed first).
-          TARGET=$(gh issue list --state open --limit 200 --json number,title,labels,createdAt \
-            --jq 'map(select(.title | startswith("Delete legacy") | not))
-                  | map(select([.labels[].name] | any(. == "task")))
-                  | sort_by(.createdAt) | .[0].number // empty')
+          # TRIAGE: NEWEST open issue labeled 'task' — guaranteed by querying
+          # sort:created-desc (NOT gh's default order). Previously the default
+          # sort silently skipped the newest tasks, so the "newest" pick was
+          # wrong (see #1218 review).
+          # Skip 'Delete legacy' cleanup issues (blocked by the gap issues).
+          # Pull the 25 newest and pick the first non-"Delete legacy" one, so
+          # a run never lands on a blocked cleanup ticket.
+          TARGET=$(gh issue list --state open --label task \
+            --search "sort:created-desc" --limit 25 \
+            --json number,title --jq '
+              map(select(.title | startswith("Delete legacy") | not))
+              | .[0].number // empty')
           echo "$TARGET" > .ci_target_issue || true
           if [ -z "$TARGET" ]; then
             echo "::notice::No open implementable task issues — nothing to do"
@@ -167,14 +176,16 @@ jobs:
           # remember run baseline for the auto-close safety net
           git rev-parse HEAD > .ci_before_sha
 
-      - name: Run opencode — implement the oldest open task issue
+      - name: Run opencode — implement the newest open task issue
         if: env.HAS_TARGET == '1'
         timeout-minutes: 60
         run: |
           date -d '+55 minutes' +%s > .ci_deadline_epoch
           PROMPT="You are implementing a missing feature in this TestLink 2.0.1 repository. "
           PROMPT+="Read ai/AGENTS.md, ai/IMPLEMENT-TASK.md and ai/ISSUES.md in the repo root FIRST and follow ALL their rules strictly. "
-          PROMPT+="ai/IMPLEMENT-TASK.md is your mission rulebook: pick the OLDEST open GitHub issue labeled 'task' yourself via gh, "
+          PROMPT+="ai/IMPLEMENT-TASK.md is your mission rulebook, BUT this run's direction is OVERRIDDEN: "
+          PROMPT+="pick the NEWEST open GitHub issue labeled 'task' yourself via gh "
+          PROMPT+="(gh issue list --state open --label task --search 'sort:created-desc' --limit 25), "
           PROMPT+="skipping any issue whose title starts with 'Delete legacy' (those are cleanup tasks blocked by gap issues "
           PROMPT+="that must be implemented first). You are implementing a FEATURE FROM SCRATCH, not fixing a bug: "
           PROMPT+="the issue body describes a legacy capability that was not ported to the modern screen during modernization. "
