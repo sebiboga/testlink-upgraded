@@ -11892,3 +11892,19 @@ Result: 11/11 PASS — **feature implemented + verified**. The BFF action `metri
 | 865.6 | Event Viewer clean | `events` table after suite | only log_level=16 AUDIT rows (login); zero Error/Warning (`log_level IN (1,2)`) added | PASS |
 
 Result: 6/6 PASS — **feature implemented + verified**. One-line change: `gui/templates/results/tplanWithCF.html:169` `orderable: false` → `orderable: true` for every custom-field column, so any CF column header sorts all rows by that CF value (A→Z / Z→A) exactly like the legacy Ext grid (`testPlanWithCF.php` all columns sortable). BFF `api/reports/index.php` action `tplan_with_cf` needed no change (already returns CF values per row). Default order `[[0,'asc'],[1,'asc']]` (Test Case ASC) preserved — matches legacy `setSortByColumnName('test_case')` + `sortDirection='ASC'`. Screenshot: `docs/screenshots/issue-865-tplanwithcf-cf-sortable.png` (also mirrored into the GitHub Wiki).
+
+---
+
+## Regression — Issue #1248: Legacy resultsGeneral (resultsGeneral/displayMgr) E_WARNING undefined 'basehref'/'currentUser'
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink` 2.0.0 freshly imported, login admin/admin. Fixture (created via modern UI): project **Repro Project** (id **1**, prefix REPRO), plan **Repro Plan** (id **2**). Plan api_key: `b4b259b612598777941b7efed9ea3b4a123e1a0922bd7821ecf298405c2efb11` (64-char → anonymous). Invalid 64-char key for negative test: `INVALIDKEY0000000000000000000000000000000000000000000000000000`. Start from `DELETE FROM events WHERE activity='PHP' AND log_level=2` (or fresh import). Legacy reference: `lib/results/resultsGeneral.php:270` (`initializeGui`, `$_SESSION['basehref']`), `lib/results/displayMgr.php:102-103` (`initArgsForReports`, `$_SESSION['currentUser']`/`['basehref']`).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1248.1 | invalid apikey anonymous render emits NO E_WARNING (pre-fix: 3) | `curl "http://localhost:8082/lib/results/resultsGeneral.php?apikey=INVALIDKEY…&tplan_id=2&tproject_id=1"` (fresh, no cookies) | HTTP 200, page renders "General Test Plan Metrics"; `events` gains only the `format` tlog row, no `activity='PHP' log_level=2` E_WARNING rows | PASS |
+| 1248.2 | valid apikey anonymous render unchanged | same with testplan api_key | HTTP 200, renders, only `format` tlog warning | PASS |
+| 1248.3 | GUI authenticated render unchanged | browser open `resultsGeneral.php?tplan_id=2&tproject_id=1` as admin | page renders; no E_WARNING rows | PASS |
+| 1248.4 | Event Viewer clean | `SELECT COUNT(*) FROM events WHERE activity='PHP' AND log_level=2` after suite | 0 (only log_level=16 audit + benign `format` tlog rows) | PASS |
+| 1248.5 | shared-helper sibling reports unaffected | `curl resultsByStatus.php` anonymous (valid+invalid key) | behavior unchanged (redirects to login — not anon-reachable), no new PHP-warning rows | PASS |
+
+Result: 5/5 PASS — **bug fixed + verified**. Root cause: `setUpEnvForAnonymousAccess()` (lib/functions/common.php:1356-1380) initializes `$_SESSION['currentUser']`/`['basehref']` only when the apikey resolves to a testproject/testplan entity; when it does not, the shared args helpers read the keys unconditionally (`displayMgr.php:102-103`, `resultsGeneral.php:270`) → PHP 8 E_WARNING → `events` rows (`activity=PHP`, `log_level=2`). Fix: defensive `isset()` reads with fallbacks (`null` / `TL_BASE_HREF`) at those three sites, matching the repo-wide pattern (asideMenu.php:49, archiveData.php:105, tlsmarty.inc.php:93). Authenticated/valid-key behavior is byte-identical. Screenshot: `docs/screenshots/issue-1248-resultsGeneral-rendered.png`.
