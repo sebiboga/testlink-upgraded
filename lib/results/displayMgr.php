@@ -118,7 +118,9 @@ function generateHtmlEmail(&$smarty, $template_file, $mailCfg) {
   
   $html_report = $smarty->fetch($template_file);
   if( ! property_exists($mailCfg,'from') ) {
-    $mailCfg->from = $_SESSION['currentUser']->emailAddress;
+    $mailCfg->from = (isset($_SESSION['currentUser']) && is_object($_SESSION['currentUser'])
+                      && property_exists($_SESSION['currentUser'],'emailAddress'))
+                     ? $_SESSION['currentUser']->emailAddress : '';
   }
 
   if( ! property_exists($mailCfg,'to') ) {
