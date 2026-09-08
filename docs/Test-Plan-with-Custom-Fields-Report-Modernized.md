@@ -107,6 +107,7 @@ Returns test cases with Test Plan Design custom field values.
 - Per-column string filters under each visible column header (Test Case + every custom-field column) using DataTables `column().search()` — mirrors the legacy Ext `GridFilters` `filter:{type:'string'}` (`Refs #864`); the hidden Test Suite (group-by) column keeps a hidden footer input like the legacy group-by filter
 - "Reset Filters" toolbar button clears every column search + all footer inputs at once — mirrors the legacy `filters.clearFilters()` toolbar action (`Refs #864`); the button is shown only while at least one column filter is active
 - Every custom-field column is `orderable: true` — clicking its header sorts all rows by that CF value (ascending/descending), exactly like the legacy Ext grid where every column had `sortable: true` with a `filter:{type:'string'}` and the CF column model rendered `{header:"Owner", dataIndex:'id_cf_Owner', filter:{type:'string'}, renderer: columnWrap, sortable: true}` (`Refs #865`). The Test-Suite hidden column keeps the suite ascendant + Test Case ascendant default order (`order: [[0,'asc'],[1,'asc']]`), matching legacy `setSortByColumnName('test_case')` + `sortDirection='ASC'`
+- **Multi-column sort** — a "Multi sort" toolbar sits between the section header and the table. Any visible column header (Test Case + every custom-field column) can be dragged onto it: each drop creates a sort chip (default direction **DESC**, mirroring legacy `createItem`), and dropping several headers builds a combined multi-key sort applied via `dt.order([...]).draw()`. Chips can be re-ordered by dragging (drop on a later chip = insert-after, on an earlier chip = insert-before), toggled ASC/DESC by click, removed by `×` or shift+click (legacy `button.destroy()`), and all cleared by the **Clear sorts** button (reverts to `[[0,'asc'],[1,'asc']]`). Duplicate drops are rejected with a toast, mirroring legacy `canDrop`. This is the client-side port of the legacy `Ext.ux.ToolbarReorderer` + `Ext.ux.ToolbarDroppable` multi-sort feature (`gui/templates/dashio/include/inc_ext_table.tpl:209-239`, `lib/results/testPlanWithCF.php:160-166`) (`Refs #866`).
 
 ## 4. i18n Keys
 
@@ -132,6 +133,15 @@ All strings use `TLi18n` keys; no hardcoded text.
 | `tpwcf.resetFilters` | Reset Filters |
 | `tpwcf.filtersCleared` | Filters cleared |
 | `tpwcf.columnFilterPlaceholder` | Filter |
+| `tpwcf.multiSortTitle` | Multi sort |
+| `tpwcf.multiSortHint` | Drag column headers here to sort by multiple columns; click a chip to toggle direction, drag chips to reorder, shift+click or X to remove. |
+| `tpwcf.multiSortClear` | Clear sorts |
+| `tpwcf.multiSortToggle` | Click to toggle ascending/descending; shift+click or X to remove |
+| `tpwcf.multiSortRemove` | Remove sort |
+| `tpwcf.multiSortDup` | Column is already in the sort list |
+| `tpwcf.multiSortCleared` | Sort cleared |
+| `tpwcf.sortDesc` | descending |
+| `common.sort` | Sort |
 
 Keys present in all 10 locale bundles (en, ro, de, fr, es, it, ja, pt, ru, zh).
 
@@ -171,6 +181,20 @@ Test suite #865 in `tmp/TLU_Test_Cases.md` — 6 test cases covering sortable CF
 - Default order on load stays Test Case ASC (`order: [[0,'asc'],[1,'asc']]`)
 - DataTable `order()` reflects the CF column index + direction after each click
 - No new Error/Warning in Event Viewer after sort interactions
+
+Test suite #866 in `tmp/TLU_Test_Cases.md` — 13 test cases covering multi-column sort (`Refs #866`):
+- Multi-sort toolbar renders above the table with label + hint, no initial chips
+- Dragging the Owner header onto the bar creates an `Owner ↓` chip (default DESC), order `[[2,'desc']]`
+- Dragging a second header (Tier) builds the combined sort `[[2,'desc'],[3,'desc']]`
+- Clicking a chip toggles ASC/DESC
+- Dropping a duplicate column is rejected with a toast (legacy `canDrop`)
+- `×` and shift+click both remove chips (legacy `button.destroy()`)
+- Dragging chips reorders their precedence (insert-before/after) and re-applies the sort
+- "Clear sorts" resets to the default `[[0,'asc'],[1,'asc']]` order
+- RowGroup headers stay consistent with the combined sort
+- Per-column footer filters keep working while a multi-sort is active
+- No JS console errors; no new Error/Warning in Event Viewer
+- Screenshots: `docs/screenshots/issue-866-multisort-bar-empty.png`, `docs/screenshots/issue-866-multisort-sorted.png`
 
 Test suite TPWCF-1 in `tmp/TLU_Test_Cases.md` — 12 test cases covering:
 - External IDs show single glue-char (#860)
