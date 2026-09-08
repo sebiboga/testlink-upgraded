@@ -11700,3 +11700,17 @@ Result: 8/8 PASS — **no data gaps**. The modern projectInfoView now mirrors th
 | 1221.9 | console clean | Chrome console after launcher+filter+export | no JS Error/Warning (only pre-existing a11y "label" issues) | PASS |
 
 Result: 9/9 PASS — **fix verified live**. Root cause: `api/reportsexport/index.php` forwards `build_set[]` but not `do_action=result`, so the legacy controller's guard at `resultsTCFlat.php:42-43` (`activeBuildsQty <= buildQtyLimit` **OR** `do_action == 'result'`) closed on the launcher branch (>6 builds) and returned HTML. Added `do_action=result` to `results_tc_flat` + `results_tc_flat_mail` entries (mirrors `results_matrix`) and forward `buildListForExcel` through the gateway. Export on >6-build plans now produces the exact subgrouped XLS. Refs #1223, Fixes #1221.
+
+## Task — Issue #995: Implement import testsuite link in projectInfoView (gap vs legacy)
+
+**Precondition:** app http://localhost:8082 (PHP built-in server), DB testlink, login admin/admin. Fixture: test project `Demo Import Project` (id=1, prefix DEMO, is_public=1) created via the modern projectsView UI; low-rights user `guestuser` (role 5 guest, no `mgt_modify_tc`/`mgt_modify_product`) created in `users` for the permission path. Screen: `http://localhost:8082/gui/templates/projects/projectInfoView.html?id=1`; BFF `GET /api/projectinfo/index.php?action=info&id=1` (returns `grants.mgt_modify_tc`); legacy reference `gui/templates/dashio/testcases/containerView.tpl:41-42,148` (`$importToTProjectAction` = tcImport.html?containerID=..&tproject_id=..&intoProject=1&useRecursion=1, gated by `modify_tc_rights` at :119) and modern target `gui/templates/testcases/tcImport.html` (reads containerID/tproject_id/intoProject/useRecursion).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 995.1 | admin sees Import link | open projectInfoView?id=1 as admin | toolbar shows `Import` link (fa-file-import) with `href=/gui/templates/testcases/tcImport.html?containerID=1&tproject_id=1&intoProject=1&useRecursion=1` | PASS |
+| 995.2 | click opens import screen pre-targeted at project | click Import link | opens in NEW TAB: tcImport.html with same query string, header shows `Demo Import Project`, `Project root: Demo Import Project`, import form (File type/File/duplicate criteria/Upload) rendered; project info page stays in original tab | PASS |
+| 995.3 | link hidden for user without mgt_modify_tc | log in guestuser, open projectInfoView?id=1 | toolbar has NO Import link (`grants.mgt_modify_tc` falsy for guest role); only Refresh + Dashboard visible; overview still renders | PASS |
+| 995.4 | i18n key present | all 10 bundles | `piv.import` key valid JSON in en de es fr it ja pt ro ru zh | PASS |
+| 995.5 | Event Viewer clean | `events` table after suite | only INFO `audit_login_succeeded`/`audit_testproject_created` rows (level 16); zero Error/Warning | PASS |
+
+Result: 5/5 PASS — **no data gaps**. The modern projectInfoView now mirrors the legacy testproject-level Importsuite entry point: toolbar link to `tcImport.html?containerID=<project>&tproject_id=<project>&intoProject=1&useRecursion=1` (the exact `$importToTProjectAction` parameters), gated by `mgt_modify_tc` in the UI (legacy `modify_tc_rights`). No BFF change required — `grants.mgt_modify_tc` was already exposed by `api/projectinfo/index.php?action=info`; the modern `tcImport.html` already reads the four query params. Refs #995. Screenshot: `docs/screenshots/issue-995-import-button.png`.

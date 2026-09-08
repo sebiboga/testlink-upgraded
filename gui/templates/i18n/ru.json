@@ -1098,6 +1098,7 @@
   "piv.exportAll": "Экспортировать все наборы тестов",
   "piv.genSpecHtml": "Создать спецификацию тестов (HTML)",
   "piv.genSpecWord": "Создать спецификацию тестов (Word)",
+  "piv.import": "Импорт",
   "piv.download": "Скачать",
   "piv.errAllowedFilenames": "Имя файла не соответствует допустимому шаблону.",
   "piv.errAllowedFiles": "Файл не проходит проверку допустимого типа.",

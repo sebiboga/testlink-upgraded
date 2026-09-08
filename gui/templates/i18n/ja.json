@@ -1098,6 +1098,7 @@
   "piv.exportAll": "すべてのテストスイートをエクスポート",
   "piv.genSpecHtml": "テスト仕様書を生成 (HTML)",
   "piv.genSpecWord": "テスト仕様書を生成 (Word)",
+  "piv.import": "インポート",
   "piv.download": "ダウンロード",
   "piv.errAllowedFilenames": "ファイル名が許可されたパターンに一致しません。",
   "piv.errAllowedFiles": "ファイルが許可された種類のチェックに合格しませんでした。",

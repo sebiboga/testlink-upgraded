@@ -36,6 +36,9 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 **Generate Test Spec (HTML + Word)** (Refs #997):
 `docs/screenshots/issue-997-testspec-links-admin.png`,
 `docs/screenshots/issue-997-testspec-html-doc.png`.
+**Import test cases / test suites** (Refs #995):
+`docs/screenshots/issue-995-import-button.png`,
+`docs/screenshots/issue-995-import-target.png`.
 
 ---
 ## Table of Contents
@@ -58,7 +61,11 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
   only when the user holds `mgt_modify_tc`; they open `printDocument.php?type=testspec&level=testproject&allOptionsOn=1&id=<id>&format=0|4`
   in a new tab, generating the full Test Specification document for the whole
   project — HTML for `format=0`, Word/RTF download for `format=4`, Refs
-  #997), and Dashboard (`mainPage.html`).
+  #997), **Import test cases / test suites** (shown only when the user holds
+  `mgt_modify_tc`; it opens the modernized import screen
+  `tcImport.html?containerID=<id>&tproject_id=<id>&intoProject=1&useRecursion=1`
+  pre-targeted to import into THIS project, mirroring the legacy
+  `importToTProjectAction`, Refs #995), and Dashboard (`mainPage.html`).
 - **Overview card:** name, prefix, status (Active/Inactive), visibility
   (Public/Private), test-case counter and the project feature options
   (Requirements, Priority, Automation, Inventory) as chips.
@@ -167,7 +174,20 @@ actions via GET), `400 Missing project id` / `Unknown action`.
   legacy behavior): `printDocument.php:341` derives the title/rights context
   from the session's active project, while `id` selects the subtree root — a
   deep link `?id=X` with a different session project Y keeps the legacy
-  behavior unchanged.
+  behavior   unchanged.
+- **Import test cases / test suites** mirrors the legacy `containerView.tpl`
+  project-level control-panel import icon
+  `$importToTProjectAction` (`containerView.tpl:42-43,148`), gated by the same
+  `modify_tc_rights == 'yes'` block (`containerView.tpl:119`, i.e.
+  `mgt_modify_tc`). The modern toolbar link opens
+  `gui/templates/testcases/tcImport.html?containerID=<project>&tproject_id=<project>&intoProject=1&useRecursion=1`
+  — exactly the parameters the legacy `$importToTProjectAction` produced,
+  landing the user on the modern import screen pre-targeted to import into the
+  current project (`intoProject=1&useRecursion=1`). The modern `tcImport.html`
+  already reads `containerID`/`tproject_id`/`intoProject`/`useRecursion`, so no
+  change to the import screen was needed. The BFF already returned
+  `grants.mgt_modify_tc` (api/projectinfo/index.php:209), so no BFF change was
+  required either — only the toolbar link + i18n key (Refs #995).
 
 ## 4. i18n Keys
 
@@ -182,7 +202,8 @@ flat keys — see testing note), e.g. `piv.title`, `piv.overview`,
 user-facing string is hardcoded in the screen. Refs #996 adds `piv.exportAll`
 ("Export all test suites") to all 10 bundles. Refs #997 adds
 `piv.genSpecHtml` ("Generate Test Spec (HTML)") and `piv.genSpecWord`
-("Generate Test Spec (Word)") to all 10 bundles.
+("Generate Test Spec (Word)") to all 10 bundles. Refs #995 adds `piv.import`
+("Import") to all 10 bundles.
 
 ## 5. Security
 
@@ -224,3 +245,10 @@ Word doc returns the `.doc` attachment (200, `application/vnd.ms-word`,
 `Content-Disposition: attachment`), both links hidden for a user without
 `mgt_modify_tc`, `piv.genSpecHtml`/`piv.genSpecWord` present in all 10
 bundles, and Event Viewer cleanliness (no Error/Warning).
+
+The `Task — Issue #995` suite in `tmp/TLU_Test_Cases.md` documents the
+**Import test cases / test suites** gap: link visible with the correct
+`tcImport.html?...&intoProject=1&useRecursion=1` href for a user with
+`mgt_modify_tc`, link hidden for a user without `mgt_modify_tc`, click lands
+on the import screen pre-targeted at the current project, `piv.import` present
+in all 10 bundles, and Event Viewer cleanliness (no Error/Warning).

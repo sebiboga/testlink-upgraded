@@ -1098,6 +1098,7 @@
   "piv.exportAll": "Exporta toate suite de teste",
   "piv.genSpecHtml": "Genera specificația de test (HTML)",
   "piv.genSpecWord": "Genera specificația de test (Word)",
+  "piv.import": "Importă",
   "piv.download": "Descarcă",
   "piv.errAllowedFilenames": "Numele fișierului nu respectă modelul permis.",
   "piv.errAllowedFiles": "Fișierul nu trece de verificarea tipului permis.",

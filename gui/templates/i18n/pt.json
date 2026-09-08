@@ -1098,6 +1098,7 @@
   "piv.exportAll": "Exportar todas as suítes de teste",
   "piv.genSpecHtml": "Gerar especificação de teste (HTML)",
   "piv.genSpecWord": "Gerar especificação de teste (Word)",
+  "piv.import": "Importar",
   "piv.download": "Baixar",
   "piv.errAllowedFilenames": "O nome do arquivo não corresponde ao padrão permitido.",
   "piv.errAllowedFiles": "O arquivo não passa na verificação de tipo permitido.",

@@ -1098,6 +1098,7 @@
   "piv.exportAll": "Alle Testsuiten exportieren",
   "piv.genSpecHtml": "Test-Spezifikation generieren (HTML)",
   "piv.genSpecWord": "Test-Spezifikation generieren (Word)",
+  "piv.import": "Importieren",
   "piv.download": "Herunterladen",
   "piv.errAllowedFilenames": "Dateiname entspricht nicht dem erlaubten Muster.",
   "piv.errAllowedFiles": "Datei besteht den Prüfung des erlaubten Dateityps nicht.",
