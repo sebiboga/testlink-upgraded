@@ -53,6 +53,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="toolbar">
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="manageLink" href="#" target="_blank"><i class="fa fa-cog"></i> <span data-i18n="piv.manage">Manage project</span></a>
+  <span id="tsSuiteOps" style="display:none;margin-left:4px;height:26px;width:1px;background:#444;"></span>
+  <button class="btn-teal" id="btnNewSuite" style="display:none;" onclick="openNewSuiteModal()"><i class="fa fa-plus"></i> <span data-i18n="piv.newSuite">New Test Suite</span></button>
+  <button class="btn-ghost" id="btnReorderAlpha" style="display:none;" onclick="reorderSuitesAlpha()"><i class="fa fa-sort-alpha-asc"></i> <span data-i18n="piv.reorderAlpha">Reorder test suites (A-Z)</span></button>
   <a class="btn-ghost" id="exportAllLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-export"></i> <span data-i18n="piv.exportAll">Export all test suites</span></a>
   <a class="btn-ghost" id="importLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="piv.import">Import</span></a>
   <a class="btn-ghost" id="genSpecHtmlLink" href="#" target="_blank" style="display:none;"><i class="fa fa-file-code"></i> <span data-i18n="piv.genSpecHtml">Generate Test Spec (HTML)</span></a>
@@ -98,6 +101,27 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     </div>
   </div>
 
+  <div class="card" id="suitesCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-folder-open"></i> <span data-i18n="piv.testSuites">Test Suites</span></div>
+    <div class="card-body">
+      <div style="font-size:12px;color:#888;margin-bottom:10px;"><span data-i18n="piv.suitesHint">Direct test suites of this project, in current display order.</span></div>
+      <table class="table" id="suitesTable">
+        <thead>
+          <tr>
+            <th style="width:60px;" data-i18n="piv.order">Order</th>
+            <th data-i18n="piv.name">Name</th>
+            <th data-i18n="piv.suiteDetails">Details</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="suitesEmpty" style="display:none;" class="empty-state">
+        <i class="fa fa-folder-open" style="font-size:26px;display:block;margin-bottom:8px;color:#ccc;"></i>
+        <span data-i18n="piv.noSuites">No test suites yet. Use "New Test Suite" to create one.</span>
+      </div>
+    </div>
+  </div>
+
   <div class="card" id="attCard" style="display:none;">
     <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="piv.attachments">Attachments</span></div>
     <div class="card-body">
@@ -134,8 +158,38 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="footer" id="footerText"></div>
 
+<div class="modal fade" id="newSuiteModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newSuiteTitle" data-i18n="piv.newSuiteTitle">New Test Suite</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:12px;color:#888;margin-bottom:12px;"><span data-i18n="piv.newSuiteIn"></span> <b id="newSuiteProject"></b></div>
+        <div class="form-group">
+          <label style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;" data-i18n="piv.suiteName">Test Suite name</label>
+          <input type="text" class="form-control" id="newSuiteName" maxlength="100" autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;" data-i18n="piv.suiteDetails">Details</label>
+          <textarea class="form-control" id="newSuiteDetails" rows="4" style="resize:vertical;"></textarea>
+        </div>
+        <div id="newSuiteMsg" style="margin-top:10px;font-size:13px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal" id="newSuiteCreateBtn" onclick="createSuite()" style="font-size:13px;"><i class="fa fa-plus"></i> <span data-i18n="piv.createSuite">Create</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
 <script>
@@ -217,6 +271,14 @@ function render(r) {
   $('#manageLink').css('display', r.grants.mgt_modify_product ? 'inline-flex' : 'none');
   $('#manageLink').attr('href', '/gui/templates/projectsView.html');
 
+  // Test Suite Operations toolbar (legacy tproject_control_panel, containerView
+  // .tpl:117-163): New Test Suite + Reorder A-Z, gated by mgt_modify_tc
+  // (legacy modify_tc_rights / testcase_mgmt).
+  var canSuiteOps = !!(r.grants.mgt_modify_tc);
+  $('#tsSuiteOps').css('display', canSuiteOps ? 'inline-block' : 'none');
+  $('#btnNewSuite').css('display', canSuiteOps ? 'inline-flex' : 'none');
+  $('#btnReorderAlpha').css('display', canSuiteOps ? 'inline-flex' : 'none');
+
   // Export-all-suites entry point, mirroring legacy containerView.tpl:150
   // (canDoExport) gated by mgt_modify_tc (legacy modify_tc_rights, line 119).
   var canExport = !!(r.canDoExport && r.grants.mgt_modify_tc);
@@ -250,7 +312,109 @@ function render(r) {
   CAN_UPLOAD = !!r.grants.mgt_modify_product;
   $('#attUpload').css('display', CAN_UPLOAD ? 'block' : 'none');
 
+  renderSuites(r.suites || []);
   renderAttachments(r.attachments || []);
+}
+
+function renderSuites(suites) {
+  if (!suites.length) {
+    $('#suitesTable').hide();
+    $('#suitesEmpty').css('display', 'block');
+    $('#suitesCard').show();
+    return;
+  }
+  $('#suitesEmpty').hide();
+  $('#suitesTable').show();
+  var $tb = $('#suitesTable tbody').empty();
+  $.each(suites, function(i, s) {
+    $tb.append('<tr>' +
+      '<td>' + escapeHtml(String(s.node_order)) + '</td>' +
+      '<td><b>' + escapeHtml(s.name) + '</b></td>' +
+      '<td>' + (s.details ? escapeHtml(s.details) : '<span style="color:#aaa;">&mdash;</span>') + '</td>' +
+    '</tr>');
+  });
+  $('#suitesCard').show();
+}
+
+function openNewSuiteModal() {
+  $('#newSuiteName').val('');
+  $('#newSuiteDetails').val('');
+  $('#newSuiteMsg').hide();
+  $('#newSuiteProject').text(($('#vName').text() || '') + ' #' + PROJECT_ID);
+  $('#newSuiteModal').modal('show');
+  setTimeout(function() { $('#newSuiteName').focus(); }, 350);
+}
+
+function suiteMsg(text, isError) {
+  var $m = $('#newSuiteMsg');
+  $m.css('display', text ? 'block' : 'none');
+  $m.css('color', isError ? '#a00' : '#1a7f79');
+  $m.text(text || '');
+}
+
+// Mirrors legacy containerEdit.php doAction=new_testsuite -> add_testsuite
+// (new suite directly under the project).
+function createSuite() {
+  var name = $.trim($('#newSuiteName').val());
+  if (!name) {
+    suiteMsg(TLi18n.t('piv.suiteNameRequired'), true);
+    return;
+  }
+  var $btn = $('#newSuiteCreateBtn').prop('disabled', true);
+  suiteMsg(TLi18n.t('common.working'), false);
+  $.ajax({
+    url: API + '?action=new_suite&id=' + PROJECT_ID,
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ name: name, details: $('#newSuiteDetails').val() || '' }),
+    success: function(r) {
+      $btn.prop('disabled', false);
+      if (r.status !== 'ok') {
+        suiteMsg(suiteErrorText(r, name), true);
+        return;
+      }
+      $('#newSuiteModal').modal('hide');
+      $('#infoLine').text('#' + PROJECT_ID + ' | ' + TLi18n.t('piv.suiteCreated', [name]));
+      renderSuites(r.suites || []);
+    },
+    error: function(xhr) {
+      $btn.prop('disabled', false);
+      var r = null;
+      try { r = JSON.parse(xhr.responseText); } catch(e) {}
+      suiteMsg(suiteErrorText(r, name), true);
+    }
+  });
+}
+
+function suiteErrorText(r, name) {
+  var code = String((r && r.code) || '');
+  var map = {
+    'duplicate': 'piv.errSuiteDuplicate',
+    'empty_name': 'piv.errSuiteEmptyName',
+    'bad_chars': 'piv.errSuiteBadChars',
+    '': 'piv.errSuiteCreate'
+  };
+  var key = Object.prototype.hasOwnProperty.call(map, code) ? map[code] : 'piv.errSuiteCreate';
+  return TLi18n.t(key, [name]);
+}
+
+// Mirrors legacy containerEdit.php doAction=reorder_testproject_testsuites_alpha
+// (natural sort of the project's direct suites by lowercase name).
+function reorderSuitesAlpha() {
+  if (!window.confirm(TLi18n.t('piv.reorderConfirm'))) return;
+  $('#infoLine').text(TLi18n.t('common.working'));
+  $.post(API + '?action=reorder_suites_alpha&id=' + PROJECT_ID, function(r) {
+    if (r.status !== 'ok') {
+      alert(TLi18n.t('piv.errReorder'));
+      $('#infoLine').text('#' + PROJECT_ID);
+      return;
+    }
+    $('#infoLine').text('#' + PROJECT_ID + ' | ' + TLi18n.t('piv.reordered'));
+    renderSuites(r.suites || []);
+  }).fail(function() {
+    alert(TLi18n.t('piv.errReorder'));
+    $('#infoLine').text('#' + PROJECT_ID);
+  });
 }
 
 function renderAttachments(atts) {

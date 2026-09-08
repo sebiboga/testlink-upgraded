@@ -31,6 +31,23 @@
  *        doAction=deleteFile via deleteAttachment(). The attachment must be
  *        bound to THIS project node (fk_id + fk_table guard) before the
  *        delete is issued. Returns the refreshed attachment list.
+ *   POST ?action=new_suite&id=<project_id>
+ *        (JSON body: name, details?) -> creates a test suite directly under
+ *        the project, mirroring containerEdit.php doAction=add_testsuite
+ *        (addTestSuite() at containerEdit.php:729) i.e.
+ *        testsuite::create(parent=$projectId, name, details, null,
+ *        config_get('check_names_for_duplicates'), 'block'). Requires
+ *        mgt_modify_tc (legacy testcase_mgmt). Fires
+ *        EVENT_TEST_SUITE_CREATE like the legacy path. Returns the new suite
+ *        id + refreshed suite list.
+ *   POST ?action=reorder_suites_alpha&id=<project_id>
+ *        -> reorders the project's direct test-suite children alphabetically
+ *        (natural sort, case-insensitive), mirroring containerEdit.php
+ *        doAction=reorder_testproject_testsuites_alpha (containerEdit.php:337
+ *        -> reorderTestSuitesDictionary at containerEdit.php:1381: get_children
+ *        excluding testplan/requirement/testcase/requirement_spec, natsort on
+ *        lowercased name, then tree::change_order_bulk). Requires
+ *        mgt_modify_tc. Returns the refreshed (ordered) suite list.
  *
  * Auth: same as legacy archiveData.php - any authenticated user can view the
  * project info (no extra hard right gate; the reachable callers are inside an
@@ -77,7 +94,8 @@ function out($data) { echo json_encode($data); exit; }
 $action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
 
 $tables = tlObjectWithDB::getDBTables(
-    array('nodes_hierarchy', 'attachments', 'testprojects', 'node_types'));
+    array('nodes_hierarchy', 'attachments', 'testprojects', 'testsuites',
+          'node_types'));
 
 /**
  * Resolve the target project id in the same order as legacy archiveData.php:
@@ -130,6 +148,45 @@ function countExportChildren($dbHandler, $tables, $projectId) {
         }
     }
     return $c;
+}
+
+/**
+ * List the DIRECT test-suite children of a project, in current display order
+ * (legacy containerView.tpl renders the project's suite list via
+ * tree_manager->get_children with the same exclusion set used by
+ * reorderTestSuitesDictionary). Details come from the testsuites table.
+ */
+function getProjectSuites($db, $tables, $projectId) {
+    $suites = array();
+    $tSuiteType = 2; // node_types.description='testsuite'; guard against drift
+    $typeRows = $db->get_recordset(
+        "SELECT id, description FROM {$tables['node_types']}");
+    if (!is_null($typeRows)) {
+        foreach ($typeRows as $tr) {
+            if (strval($tr['description']) === 'testsuite') {
+                $tSuiteType = intval($tr['id']);
+                break;
+            }
+        }
+    }
+    $rows = $db->get_recordset(
+        "SELECT nh.id, nh.name, nh.node_order, ts.details " .
+        "FROM {$tables['nodes_hierarchy']} nh " .
+        "LEFT JOIN {$tables['testsuites']} ts ON ts.id = nh.id " .
+        "WHERE nh.parent_id = " . intval($projectId) . " " .
+        "AND nh.node_type_id = {$tSuiteType} " .
+        "ORDER BY nh.node_order, nh.id");
+    if (!is_null($rows) && count($rows) > 0) {
+        foreach ($rows as $r) {
+            $suites[] = array(
+                'id'         => intval($r['id']),
+                'name'       => strval($r['name']),
+                'node_order' => intval($r['node_order']),
+                'details'    => strval($r['details'] ?? ''),
+            );
+        }
+    }
+    return $suites;
 }
 
 /**
@@ -204,6 +261,7 @@ if ($action === 'info') {
         ),
         'attachments' => $attachments,
         'canDoExport' => countExportChildren($db, $tables, $projectIdS) > 0,
+        'suites' => getProjectSuites($db, $tables, $projectIdS),
         'grants' => array(
             'mgt_modify_product' => $user->hasRight($db, 'mgt_modify_product', $projectIdS),
             'mgt_modify_tc'      => $user->hasRight($db, 'mgt_modify_tc', $projectIdS),
@@ -314,6 +372,145 @@ if ($action === 'delete') {
         'deleted_id'  => $fileId,
         'deleted'     => !is_null($info),
         'attachments' => $attachments,
+    ));
+}
+
+if ($action === 'new_suite') {
+    // Mirrors lib/testcases/containerEdit.php doAction=add_testsuite
+    // (addTestSuite(), containerEdit.php:729) for level=testproject: creates a
+    // test suite directly under the project node.
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        out(array('status' => 'error', 'message' => 'Method not allowed'));
+    }
+    $projectId = resolveProjectId();
+    if ($projectId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Missing project id'));
+    }
+
+    $project = loadProject($db, $projectId);
+    if (is_null($project)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test project not found'));
+    }
+
+    // Legacy gate: containerEdit.php:$doIt = (grants->testcase_mgmt == 'yes'),
+    // i.e. mgt_modify_tc.
+    if (!$user->hasRight($db, 'mgt_modify_tc', $projectId)) {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'No permission: modify test cases required'));
+    }
+
+    $rawBody = file_get_contents('php://input');
+    $body = array();
+    if ($rawBody !== false && trim($rawBody) !== '') {
+        $decoded = json_decode($rawBody, true);
+        if (is_array($decoded)) {
+            $body = $decoded;
+        } else {
+            $body = $_POST;
+        }
+    } else {
+        $body = $_POST;
+    }
+
+    $name = trim(strval($body['name'] ?? ''));
+    $details = strval($body['details'] ?? '');
+    if ($name === '') {
+        http_response_code(400);
+        out(array('status' => 'error', 'code' => 'empty_name',
+                  'message' => 'Please give a name to Test Suite'));
+    }
+    // Legacy gate + name checks: containerEdit.php uses the global
+    // $g_ereg_forbidden (config.inc.php) via check_string().
+    if (!check_string($name, $g_ereg_forbidden)) {
+        http_response_code(400);
+        out(array('status' => 'error', 'code' => 'bad_chars',
+                  'message' => 'Test Suite name contains forbidden characters'));
+    }
+
+    $tsuiteMgr = new testsuite($db);
+    $ret = $tsuiteMgr->create(intval($projectId), $name, $details, null,
+                              config_get('check_names_for_duplicates'), 'block');
+
+    if (!is_array($ret) || !(isset($ret['status_ok']) ? $ret['status_ok'] : false)) {
+        $msg = (is_array($ret) && isset($ret['msg'])) ? strval($ret['msg']) : 'Create failed';
+        $code = (is_array($ret) && isset($ret['msg']) && $ret['msg'] !== 'ok') ? 'duplicate' : 'create_failed';
+        http_response_code(400);
+        out(array('status' => 'error', 'code' => $code, 'message' => $msg));
+    }
+
+    $newId = intval($ret['id'] ?? 0);
+    if ($newId <= 0) {
+        http_response_code(500);
+        out(array('status' => 'error', 'code' => 'create_failed', 'message' => 'Create failed'));
+    }
+
+    // Legacy addTestSuite() fires EVENT_TEST_SUITE_CREATE after a successful
+    // create (containerEdit.php:761) with the same context.
+    if (function_exists('event_signal')) {
+        event_signal('EVENT_TEST_SUITE_CREATE', array(
+            'id' => $newId,
+            'name' => $name,
+            'details' => $details,
+        ));
+    }
+
+    out(array(
+        'status'  => 'ok',
+        'id'      => $newId,
+        'name'    => $name,
+        'message' => 'testsuite_created',
+        'suites'  => getProjectSuites($db, $tables, intval($projectId)),
+    ));
+}
+
+if ($action === 'reorder_suites_alpha') {
+    // Mirrors lib/testcases/containerEdit.php doAction=
+    // reorder_testproject_testsuites_alpha (containerEdit.php:337) ->
+    // reorderTestSuitesDictionary() (containerEdit.php:1381): natural-sort the
+    // project's direct non-testcase/plan/req children by lowercase name and
+    // rewrite node_order sequentially via tree::change_order_bulk().
+    if (strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        http_response_code(405);
+        out(array('status' => 'error', 'message' => 'Method not allowed'));
+    }
+    $projectId = resolveProjectId();
+    if ($projectId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Missing project id'));
+    }
+
+    $project = loadProject($db, $projectId);
+    if (is_null($project)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test project not found'));
+    }
+
+    if (!$user->hasRight($db, 'mgt_modify_tc', $projectId)) {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'No permission: modify test cases required'));
+    }
+
+    $treeMgr = new tree($db);
+    $excludeNodeTypes = array('testplan' => 1, 'requirement' => 1,
+                              'testcase' => 1, 'requirement_spec' => 1);
+    $itemSet = $treeMgr->get_children(intval($projectId), $excludeNodeTypes);
+    if (is_array($itemSet) && count($itemSet) > 0) {
+        $a2sort = array();
+        foreach ($itemSet as $node) {
+            $a2sort[intval($node['id'])] = strtolower(strval($node['name']));
+        }
+        natsort($a2sort);
+        $a2sort = array_keys($a2sort);
+        $treeMgr->change_order_bulk($a2sort);
+    }
+
+    out(array(
+        'status'  => 'ok',
+        'message' => 'suites_reordered',
+        'suites'  => getProjectSuites($db, $tables, intval($projectId)),
     ));
 }
 

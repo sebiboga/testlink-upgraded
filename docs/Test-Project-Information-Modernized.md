@@ -39,6 +39,9 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
 **Import test cases / test suites** (Refs #995):
 `docs/screenshots/issue-995-import-button.png`,
 `docs/screenshots/issue-995-import-target.png`.
+**Test Suite Operations — New test suite + Reorder A-Z** (Refs #994):
+`docs/screenshots/issue-994-testsuite-operations.png` (toolbar + suites card),
+`docs/screenshots/issue-994-new-suite-modal.png` (New Test Suite modal).
 
 ---
 ## Table of Contents
@@ -65,7 +68,9 @@ Screenshots: `docs/screenshots/projectinfo-view.png`,
   `mgt_modify_tc`; it opens the modernized import screen
   `tcImport.html?containerID=<id>&tproject_id=<id>&intoProject=1&useRecursion=1`
   pre-targeted to import into THIS project, mirroring the legacy
-  `importToTProjectAction`, Refs #995), and Dashboard (`mainPage.html`).
+  `importToTProjectAction`, Refs #995), **New Test Suite** and **Reorder test
+  suites (A-Z)** (both shown only when the user holds `mgt_modify_tc`; they
+  call the BFF write routes below — Refs #994), and Dashboard (`mainPage.html`).
 - **Overview card:** name, prefix, status (Active/Inactive), visibility
   (Public/Private), test-case counter and the project feature options
   (Requirements, Priority, Automation, Inventory) as chips.
@@ -121,8 +126,30 @@ permission` otherwise):
   BFF verifies the attachment **exists and is bound to this project node**
   (`fk_id`/`fk_table = 'nodes_hierarchy'`); a forged file_id → `404`.
 
+**Test Suite Operations write routes** (Refs #994 — both require `POST` →
+non-POST returns `405`, and `mgt_modify_tc` on the owning project → `403 No
+permission: modify test cases required`):
+
+- `POST ?action=new_suite&id=<project_id>` — JSON body `{ name, details }`.
+  Ports the legacy `lib/testcases/containerEdit.php` `doAction=new_testsuite`
+  path: empty name → `400 code=empty_name`; name failing the global
+  `check_string($name, $g_ereg_forbidden)` (config.inc.php:2257 `/[\|]/i`) →
+  `400 code=bad_chars`; then `testsuite::create($projectID, $name, $details,
+  null, config_get('check_names_for_duplicates'), 'block')` → duplicate →
+  `400 code=duplicate`; other failures → `400 code=create_failed`. On success
+  fires `event_signal('EVENT_TEST_SUITE_CREATE')` and returns
+  `{ status: ok, id, name, message: 'testsuite_created', suites: [...] }`
+  (refreshed list).
+- `POST ?action=reorder_suites_alpha&id=<project_id>` — ports the legacy
+  `doAction=reorder_testproject_testsuites_alpha`
+  (`reorderTestSuitesDictionary()`): `tree->get_children` excluding
+  testplan/requirement/testcase/requirement_spec, map `id => strtolower(name)`,
+  `natsort()`, `tree->change_order_bulk(array_keys)`; returns
+  `{ status: ok, message: 'suites_reordered', suites: [...] }`.
+
 **Errors:** `401 Not authenticated` (no/invalid session), `403 No permission`
-(upload/delete without `mgt_modify_product`), `404 Test project not found /
+(upload/delete without `mgt_modify_product`; new_suite / reorder without
+`mgt_modify_tc` — messages distinguish the two), `404 Test project not found /
 Attachment not found on this project`, `405 Method not allowed` (write
 actions via GET), `400 Missing project id` / `Unknown action`.
 
@@ -188,6 +215,25 @@ actions via GET), `400 Missing project id` / `Unknown action`.
   change to the import screen was needed. The BFF already returned
   `grants.mgt_modify_tc` (api/projectinfo/index.php:209), so no BFF change was
   required either — only the toolbar link + i18n key (Refs #995).
+- **Test Suite Operations — New test suite + Reorder A-Z** mirrors the legacy
+  `containerView.tpl` management panel items `btn_new_testsuite` and
+  `btn_reorder_testsuites_alpha` (`containerView.tpl:116-163`), both under the
+  legacy `modify_tc_rights == 'yes'` gate (`containerView.tpl:119`, i.e.
+  `mgt_modify_tc`). Creation is the exact `containerEdit.php`
+  `doAction=new_testsuite` flow (`containerEdit.php:248-255` →
+  `addTestSuite()` → `testsuite::create(..., config_get('check_names_for_duplicates'),
+  'block')`, `containerEdit.php:729-765`), including the global forbidden-char
+  regex `$g_ereg_forbidden` applied via `check_string()` (legacy
+  `containerEdit.php:87-89`) and the duplicate guard; on success the legacy
+  fires `EVENT_TEST_SUITE_CREATE` which the BFF preserves. Ordering is the
+  legacy `doAction=reorder_testproject_testsuites_alpha` algorithm
+  (`containerEdit.php:337-342,1381-1395`): direct children excluding
+  testplan/requirement/testcase/requirement_spec, `natsort` on lowercased
+  names, `change_order_bulk`. The BFF also exposes the direct-suite list as a
+  new top-level `suites` array in `action=info` (id, name, node_order,
+  details), which the screen renders as a read-only Test Suites card for ALL
+  viewers (matches `mgt_view_tc` read context); only the two operations are
+  gated on `mgt_modify_tc` (Refs #994).
 
 ## 4. i18n Keys
 
@@ -203,7 +249,16 @@ user-facing string is hardcoded in the screen. Refs #996 adds `piv.exportAll`
 ("Export all test suites") to all 10 bundles. Refs #997 adds
 `piv.genSpecHtml` ("Generate Test Spec (HTML)") and `piv.genSpecWord`
 ("Generate Test Spec (Word)") to all 10 bundles. Refs #995 adds `piv.import`
-("Import") to all 10 bundles.
+("Import") to all 10 bundles. Refs #994 adds the Test Suite Operations keys
+`piv.newSuite` ("New Test Suite"), `piv.reorderAlpha` ("Reorder test suites
+(A-Z)"), `piv.reorderConfirm`, `piv.reordered`, `piv.errReorder`,
+`piv.suiteName`, `piv.suiteDetails`, `piv.newSuiteTitle`, `piv.newSuiteIn`
+("Create in project:"), `piv.createSuite`, `piv.suiteNameRequired`,
+`piv.suiteCreated` ("Test Suite created"), `piv.errSuiteDuplicate`,
+`piv.errSuiteEmptyName`, `piv.errSuiteBadChars`, `piv.errSuiteCreate`,
+plus the read-only card `piv.testSuites` ("Test Suites"), `piv.suitesHint`,
+`piv.noSuites`, `piv.order`, and `common.working` (spinner during ops) — all
+to the same 10 bundles.
 
 ## 5. Security
 
@@ -252,3 +307,12 @@ The `Task — Issue #995` suite in `tmp/TLU_Test_Cases.md` documents the
 `mgt_modify_tc`, link hidden for a user without `mgt_modify_tc`, click lands
 on the import screen pre-targeted at the current project, `piv.import` present
 in all 10 bundles, and Event Viewer cleanliness (no Error/Warning).
+
+The `Task — Issue #994` suite in `tmp/TLU_Test_Cases.md` (10 cases, all PASS)
+documents the **Test Suite Operations** feature: `info` returns direct suites
+in display order; admin sees the two operations + the read-only card; create
+via modal (append + DB row); empty-name / duplicate / forbidden-char
+rejections (UI message + BFF `400` codes); reorder A-Z rewrites node_order
+(natsort, case-insensitive); a guest without `mgt_modify_tc` sees no
+operations and gets `403` on both write routes; all `piv.*` keys + 
+`common.working` in all 10 bundles; Event Viewer cleanliness.
