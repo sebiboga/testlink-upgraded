@@ -12352,27 +12352,30 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #872)**. The expande
 | 1307.15 | Fixture idempotency | re-running `php tmp/fixtures_1307.php` purges the old project's QOBJ rows (orphan count = 0) and recreates 3 objectives with 3 links | PASS |
 
 Result: 15/15 PASS — **i18n restored, screen recorded as DONE, parity re-verified (Refs #1307)**.
-## Task — Issue #1317: tcEdit.html unsaved-changes warning (gap vs legacy checkNotSaved)
 
-**Screen:** `gui/templates/testcases/tcEdit.html` · **BFF:** `api/testcasesedit/index.php` (unchanged)
-**Legacy reference:** `gui/templates/dashio/testcases/tcEdit.tpl:93-98` + `gui/javascript/checkmodified.js`
-**Fix:**
-1. `gui/templates/testcases/tcEdit.html` — added `ctx.content_modified` / `ctx.show_modified_warning`, `markModified()` / `resetModified()`, `doBeforeUnload()` on `window.onbeforeunload` (returns `tcedit.unsavedWarning` when dirty+armed), delegated `input change click` tracking on `#formCard` (inputs, selects, textareas, `.kw-pill`, `.step-del button`), reset after `renderEditor()` and after a successful save, `show_modified_warning=false` on Cancel.
-2. i18n — added `tcedit.unsavedWarning` to all 10 locale bundles (native translations).
-**Fixture:** `php tmp/fixtures_1317.php` → tproject=1 (UNS:UnsavedDemo), tsuite=2, tc=3, v1 (2 steps). URL: `tcEdit.html?tproject_id=1&tcase_id=3&tcversion_id=4`.
+---
+
+## Task — Issue #873: Show localized "no events" empty state in Event Viewer (gap vs legacy)
+
+**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php` (GET /events)
+**Legacy reference:** `lib/events/eventviewer.legacy.php:72-74` sets `$gui->warning_msg = lang_get("no_events")`; `gui/templates/dashio/events/eventviewer.tpl:184-198` renders the `user_feedback` box with that localized message *instead of* the table when zero events match.
+**Fix:** `gui/templates/eventviewer/eventviewer.html`:
+1. DataTables `language` block gains `infoEmpty` + `zeroRecords` overrides (`TLi18n.t('ev.noEvents')`) alongside the existing `emptyTable` override — the info/footer line and the zero-match search message are localized instead of DataTables' hardcoded English strings.
+2. New `#noEventsBox` feedback div (white card, teal left border + info icon, `data-i18n="ev.noEvents"`) — hidden by default.
+3. `loadEvents()` toggles: zero `r.items` → box shown, `.table-wrap` + `#evToolbar` hidden; non-zero → reverse. This matches legacy `user_feedback`-instead-of-table exactly.
+**i18n:** `ev.noEvents` already present in all 10 locale bundles (`en de es fr it ja pt ro ru zh`) — no bundle edits needed.
+**Fixture:** fresh DB — 1 login AUDIT event present (admin login).
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1317.1 | Open editor, modify title, then reload | `beforeunload` dialog fires ("You have unsaved changes..."), change is NOT silently discarded | PASS |
-| 1317.2 | Handler output | `doBeforeUnload()` returns the localized string and sets `event.returnValue` to the same string | PASS |
-| 1317.3 | Clean load | `ctx.content_modified === false` right after render (programmatic field filling never marks dirty) | PASS |
-| 1317.4 | Clean navigation | navigate away with no edits → no prompt (browser `beforeunload` suppressed) | PASS |
-| 1317.5 | Title edit | `ctx.content_modified` flips `false → true` on input | PASS |
-| 1317.6 | Add Step button | clicking `+ Add Step` marks the form modified (content_modified=true) | PASS |
-| 1317.7 | Delete Step button | clicking a row's delete marks the form modified (content_modified stays true, row removed) | PASS |
-| 1317.8 | Save suppresses warning | modify title → Save → save success resets `content_modified=false` → navigate away → NO prompt | PASS |
-| 1317.9 | Cancel suppresses warning | modify summary → Cancel → navigates away with NO prompt | PASS |
-| 1317.10 | i18n bundles | `tcedit.unsavedWarning` present + JSON valid in all 10 locales (de/en/es/fr/it/ja/pt/ro/ru/zh) | PASS |
-| 1317.11 | Event Viewer | no new ERROR/WARNING rows in `events` (`log_level` beyond INFO) from this feature; no browser console errors | PASS |
+| 873.1 | Load Event Viewer (EN), set From = 01/01/2099 - 31/12/2099, Apply | `#noEventsBox` visible with "No events found."; `.table-wrap` and `#evToolbar` hidden; footer "0 events" | PASS |
+| 873.2 | DataTables empty cell | hidden table tbody shows localized "No events found." (`emptyTable`) | PASS |
+| 873.3 | Reload `?locale=ro`, same future filter | box shows localized "Nu au fost găsite evenimente."; `html lang="ro"` | PASS |
+| 873.4 | Reload `?locale=de`, same future filter | box shows localized "Keine Ereignisse gefunden." | PASS |
+| 873.5 | Clear date filter + Apply (regression) | box hidden, table + toolbar restored with data (AUDIT group + 1 row) | PASS |
+| 873.6 | Client-side DataTables search with no match (data present, query "zzzz-no-match") | tbody shows localized "No events found."; info line localized — no English "0 entries" (filtered-from suffix localizes too) | PASS |
+| 873.7 | Browser console during all of the above | no JS errors (only pre-existing a11y notices) | PASS |
+| 873.8 | `events` table | no ERROR/WARNING rows added by this feature | PASS |
+| 873.9 | `node --check` on extracted inline JS | no syntax errors | PASS |
 
-Result: 11/11 PASS — **feature implemented + verified (Refs #1317)**.
+Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-match state now shows a localized "no events" feedback box in place of the table (legacy `user_feedback` parity), and the DataTables info/zero-records strings no longer leak English in any of the 10 locales.

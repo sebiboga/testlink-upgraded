@@ -2,7 +2,6 @@
 
 The Event Viewer is a redeveloped, modern screen for real-time monitoring of all system events in TestLink. It replaces the legacy event viewer with a clean HTML+JavaScript interface powered by its own BFF (Backend-for-Frontend) API.
 
-![Event Viewer Screenshot](screenshot-eventviewer.png)
 
 **Path:** System > Event Viewer  
 **URL:** `gui/templates/eventviewer/eventviewer.html`  
@@ -55,7 +54,6 @@ The filter bar sits at the top and allows narrowing down the displayed events. A
 
 **Note:** The date pickers use the `daterangepicker` library but are configured to accept a single date per field (From and To), not a range.
 
-![Multi-user filter in action](issue-868-eventviewer-multiuser-filter.png)
 
 ---
 
@@ -78,7 +76,6 @@ Two charts provide a visual overview of event distribution:
 - Uses Chart.js v1 `Line` with bezier curves
 - **Hover tooltip:** moving the pointer over a plotted point shows a dark tooltip with the date and event count (e.g. `2026-09-04: 2`), matching the doughnut chart's tooltip. Implemented in `gui/templates/dashio/lib/tl-line-tooltip.js` because the bundled Chart.js v1 build has no native tooltip support.
 
-![Events per Day line chart with hover tooltip](issue-861-eventviewer-line-tooltip.png)
 
 Both charts update whenever the **Apply** button is clicked with new filter settings.
 
@@ -101,7 +98,6 @@ A toolbar sits directly above the table with three actions plus a status badge:
 
 Clicking an individual group header row toggles that group's expand/collapse state. Level groups show their element count, e.g. `ERROR (2 items)`.
 
-![Grouped event viewer](issue-869-eventviewer-grouped.png)
 
 ### Table Columns
 
@@ -122,6 +118,19 @@ Clicking an individual group header row toggles that group's expand/collapse sta
 - **Sorting:** Click any column header (except expand and description) to sort ascending/descending
 - **Search:** Use the DataTables search box to filter the visible rows client-side
 - **Row expand:** Click the chevron icon or the description text to expand/collapse the detail row
+
+### Empty State (No Matching Events)
+
+When the current filter set matches **zero events** (e.g. a date range entirely in the future), the page reproduces the legacy behavior (`lib/events/eventviewer.legacy.php:72-74` → `eventviewer.tpl:184-198`): the events table and its toolbar are hidden and a localized **"No events found."** feedback box is shown in their place (`#noEventsBox`, white card with a teal left border and info icon). The message is routed through `TLi18n.t('ev.noEvents')`, so it renders per-locale — e.g. *"Nu au fost găsite evenimente."* in Romanian, *"Keine Ereignisse gefunden."* in German.
+
+The DataTables engine strings are also localized for the same condition:
+- `emptyTable` (server-side empty result in the hidden grid),
+- `infoEmpty` (the info/footer line),
+- `zeroRecords` (a client-side search box query that matches nothing).
+
+All three point at `ev.noEvents`, present in all 10 locale bundles.
+
+
 
 ---
 
@@ -146,6 +155,7 @@ Expanding a row reveals the **complete event record** (legacy `eventinfo.tpl` pa
 
 The detail data is fetched on-demand via `GET /api/eventviewer/index.php/events/{id}`.
 
+
 ---
 
 ## 6. Delete Events
@@ -165,7 +175,7 @@ Users with the `events_mgt` right (typically admins) see a **Clear Events** butt
 
 Both rows are written with log level **AUDIT**, source `events`, and activity code **DELETE**. This mirrors `lib/events/eventviewer.legacy.php:27-43`.
 
-![Deletion audit event in the list](issue-870-audit-clear-events.png)
+
 
 ---
 
@@ -182,9 +192,7 @@ The modern screen reproduces this exactly:
 
 The access-denied panel is an i18n block (`ev.accessDeniedTitle` / `ev.accessDeniedMsg`) shown by the UI as soon as the `/events/meta/rights` probe is rejected (or fails) — even a user who deep-links directly to `eventviewer.html` without the right gets the panel and no data calls fire.
 
-![Granted view (mgt_view_events + events_mgt)](issue-867-eventviewer-granted.png)
 
-![Access denied (no mgt_view_events)](issue-867-eventviewer-access-denied.png)
 
 ---
 

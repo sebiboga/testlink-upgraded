@@ -94,6 +94,13 @@ tr.shown { background: #f9fffe !important; }
 .ev-toolbar .tbtn i { color: #4ECDC4; }
 .ev-toolbar .ev-tbtn-label { color: #aaa; font-size: 12px; margin-left: auto; }
 
+.no-events-feedback {
+  background: #fff; border: 1px solid #d2e6e3; border-left: 4px solid #4ECDC4;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center;
+  color: #2b6f69; font-size: 15px;
+}
+.no-events-feedback i { font-size: 26px; color: #4ECDC4; margin-right: 8px; vertical-align: middle; }
+
 table.dataTable tr.dtrg-group td {
   background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer;
   padding: 8px 14px; border-bottom: 1px solid #d2e6e3;
@@ -176,6 +183,10 @@ td.desc-expand:hover { background: #f9fffe !important; }
   <button type="button" class="tbtn" id="btnCollapseAll"><i class="fa fa-minus-square"></i> <span data-i18n="ev.collapseAll">Collapse all groups</span></button>
   <button type="button" class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> <span data-i18n="ev.showAllColumns">Show all columns</span></button>
   <span class="ev-tbtn-label" id="evGroupBadge"></span>
+</div>
+
+<div class="no-events-feedback" id="noEventsBox" style="display:none;">
+  <i class="fa fa-info-circle"></i><span data-i18n="ev.noEvents">No events found.</span>
 </div>
 
 <div class="table-wrap">
@@ -316,6 +327,13 @@ function loadEvents() {
   var q = buildQuery();
   $.getJSON(API + '/events' + q, function(r) {
     renderTable(r.items);
+    var empty = !r.items || !r.items.length;
+    // Legacy no_events parity (eventviewer.tpl:184-198): when the filter set
+    // matches zero events the table + toolbar are replaced by a localized
+    // "no events" feedback box instead of an English DataTables empty grid.
+    $('#noEventsBox').toggle(empty);
+    $('#evToolbar').toggle(!empty);
+    $('.table-wrap').toggle(!empty);
     $('#footerText').text(TLi18n.t('ev.eventsCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   });
   $.getJSON(API + '/events/stats/byLevel' + q, function(r) { renderPie(r.items); });
@@ -379,7 +397,9 @@ function renderTable(items) {
       lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
       info: TLi18n.t('common.pageInfo'),
       paginate: { previous: TLi18n.t('common.prev'), next: TLi18n.t('common.next') },
-      emptyTable: TLi18n.t('ev.noEvents')
+      emptyTable: TLi18n.t('ev.noEvents'),
+      infoEmpty: TLi18n.t('ev.noEvents'),
+      zeroRecords: TLi18n.t('ev.noEvents')
     }
   });
 
