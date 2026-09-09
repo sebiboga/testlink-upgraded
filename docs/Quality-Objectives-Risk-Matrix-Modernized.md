@@ -110,7 +110,7 @@ added to every `locale/*/strings.txt` and to `gui/templates/dashio/labels/labels
 ## 7. Testing
 
 See `tmp/TLU_Test_Cases.md` → **Task — Issue #1280** suite (original 10/10 PASS)
-and **Task — Issue #1307** suite (14/14 PASS, i18n restore re-verified).
+and **Task — Issue #1307** suite (15/15 PASS, i18n restore re-verified).
 Browser-verified flows: matrix rendering, plan filter, create (live risk
 preview), link editor (add/remove), edit, delete (confirm + cascade), i18n
 switcher; no new Error/Warning entries in the `events` table.
