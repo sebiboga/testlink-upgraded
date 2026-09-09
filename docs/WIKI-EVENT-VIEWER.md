@@ -2,6 +2,8 @@
 
 The Event Viewer is a redeveloped, modern screen for real-time monitoring of all system events in TestLink. It replaces the legacy event viewer with a clean HTML+JavaScript interface powered by its own BFF (Backend-for-Frontend) API.
 
+![Event Viewer Screenshot](screenshot-eventviewer.png)
+
 **Path:** System > Event Viewer  
 **URL:** `gui/templates/eventviewer/eventviewer.html`  
 **Prerequisite:** You must be logged in with the `mgt_view_events` right (all users by default).
@@ -45,13 +47,15 @@ The filter bar sits at the top and allows narrowing down the displayed events. A
 | Filter | Type | Description |
 |--------|------|-------------|
 | **Log Levels** | Multi-select (default: all selected) | Filter by event severity. Hold Ctrl/Cmd to select multiple. Available levels: AUDIT, ERROR, WARNING, INFO, DEBUG, L18N |
-| **User** | Single-select dropdown | Filter events by a specific user. "All users" shows events from everyone |
+| **User(s)** | Multi-select (`multiple size="4"`) | Filter events by one or more users at once — Ctrl/Cmd+click to select several. Matches legacy `testers[]` (size=5) multi-select. Selected users stay selected after Apply. Empty selection = events from all users |
 | **From** | Date picker (dd/mm/yyyy) | Start date of the date range filter |
 | **To** | Date picker (dd/mm/yyyy) | End date of the date range filter |
 | **Apply** | Button | Reloads the table, charts, and footer with the current filter settings |
 | **Clear Events** | Button (admin only) | Deletes events matching the current filters (see [Delete Events](#6-delete-events)) |
 
 **Note:** The date pickers use the `daterangepicker` library but are configured to accept a single date per field (From and To), not a range.
+
+![Multi-user filter in action](issue-868-eventviewer-multiuser-filter.png)
 
 ---
 
@@ -73,6 +77,8 @@ Two charts provide a visual overview of event distribution:
 - Automatically generated from the filtered dataset
 - Uses Chart.js v1 `Line` with bezier curves
 - **Hover tooltip:** moving the pointer over a plotted point shows a dark tooltip with the date and event count (e.g. `2026-09-04: 2`), matching the doughnut chart's tooltip. Implemented in `gui/templates/dashio/lib/tl-line-tooltip.js` because the bundled Chart.js v1 build has no native tooltip support.
+
+![Events per Day line chart with hover tooltip](issue-861-eventviewer-line-tooltip.png)
 
 Both charts update whenever the **Apply** button is clicked with new filter settings.
 
@@ -142,6 +148,10 @@ The modern screen reproduces this exactly:
 | `events_mgt` | Required for the **Clear Events** deletion action (`DELETE /api/eventviewer/index.php/events`). Without it the button stays hidden and the DELETE route returns 403. |
 
 The access-denied panel is an i18n block (`ev.accessDeniedTitle` / `ev.accessDeniedMsg`) shown by the UI as soon as the `/events/meta/rights` probe is rejected (or fails) — even a user who deep-links directly to `eventviewer.html` without the right gets the panel and no data calls fire.
+
+![Granted view (mgt_view_events + events_mgt)](issue-867-eventviewer-granted.png)
+
+![Access denied (no mgt_view_events)](issue-867-eventviewer-access-denied.png)
 
 ---
 

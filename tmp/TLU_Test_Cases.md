@@ -12101,3 +12101,18 @@ Result: 12/12 PASS — **parity verified (Refs #1273)**. Gaps found + FIXED: BFF
 | 1267.7 | sibling report page exposes same guard path | same apikey+tproject-only request against `resultsTC.php`, `resultsByTSuite.php`, `execTimelineStats.php` (share initArgsForReports) | graceful info page, HTTP 200, no 1064 (blast radius covered by single-point fix) | PASS |
 
 Result: 7/7 PASS — **bug fixed + verified (Refs #1267)**. Root cause: anonymous/remote apikey branch of `initArgsForReports()` never resolved/validated `tplan_id`; the authenticated branch already had a null-tplan guard (displayMgr.php:72-78) but the apikey branch only had the #1257 `tproject_id <= 0` guard, so `tplan_id=null` flowed into `initializeGui()` → `getPlatforms(NULL)` → `tlPlatform::getLinkedToTestplanAsMap(NULL)` (testplan.class.php:3489) → `WHERE TP.testplan_id =  AND …` SQL 1064. Fix: minimal guard in the shared parser (displayMgr.php, after the apikey if/else block) — `is_null($args->tplan_id) || <= 0` → same graceful `displayInfo(error_print_doc_title, error_print_doc_missing_testplan)`; no code layout changes, i18n keys already exist in all bundles.
+
+## Task — Issue #868: multi-user filter in Event Viewer
+
+**Precondition:** app `http://localhost:8082`, DB fresh. Users `tester1` (id 2) and `tester2` (id 3) exist; events 2,3 inserted — one AUDIT event per tester linked via `transactions.user_id IN (2,3)`; admin has the pre-existing login event. Login as admin, open `gui/templates/eventviewer/eventviewer.html`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 868.1 | User filter is multi-select | inspect `#filterUser` | `<select id="filterUser" multiple size="4">` — single-select dropdown gone (legacy `testers[]` size=5 parity); "All users" dummy option removed | PASS |
+| 868.2 | BFF parses multi-user CSV | `fetch('/api/eventviewer/index.php/events?user=2,3')` | 2 items, users = Alpha+Beta Tester, admin event excluded | PASS |
+| 868.3 | UI multi-select + Apply | select Alpha+Beta in `#filterUser`, click Apply | table shows 2 rows (tester1+tester2 events), pie AUDIT=2, footer "2 events"; both options still selected after Apply | PASS |
+| 868.4 | Single user still works | select only tester1, Apply | 1 row (tester1 event) — no regression on single filter | PASS |
+| 868.5 | Empty selection = all events | clear user selection, Apply | all 3 events shown (legacy: no testers filter → all users) | PASS |
+| 868.6 | Event Viewer clean | `events` table after suite | no new ERROR/WARNING rows introduced | PASS |
+
+Result: 6/6 PASS — **legacy gap closed (Refs #868)**. Legacy `eventviewer.tpl` `testers[]` multi-select ported: BFF already accepted `user=id1,id2`, front-end now produces it. i18n key `ev.selectUsers` added to all 10 bundles.
