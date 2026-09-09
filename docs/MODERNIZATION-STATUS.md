@@ -4,7 +4,9 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-09 — (SCREEN-COMPARE parity for `results/execTimelineStats.html` vs legacy `execTimelineStats` (Refs #1273): BFF `exec_timeline` added to apikey allowlist + `!$isAnon` rights guard + apikey forwarded on export/mail URLs; export gateway adds exec_timeline_stats/_mail apikey actions + `spreadsheet=1`; day_hour per-hour `testers` sourced from `$rswf` (legacy date-level quirk); fixture `tmp/fixtures_etl.php` proj 10 ETD / plan 18 ETL Plan; cleanup #1274 filed)
+> Last updated: 2026-09-09 — (SCREEN-COMPARE parity for `documentation/documentation.html` vs legacy `tools/viewer.php` (Refs #1281): BFF `api/documentation/index.php` was missing `good_test_case` (`docs/bibliographical_references/GoodTest.pdf`) and `youtrack_readme` (`docs/youtrack-readme.pdf`) from the legacy 8-entry allowlist → both restored + `usort` pins the legacy order; new `doc_good_test_case`/`doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`; browser-verified (8 cards, View modal, 200 downloads, Event Viewer clean). Gap #1275 fixed; cleanup #1276 open.)
+
+> Previous: 2026-09-09 — (SCREEN-COMPARE parity for `results/execTimelineStats.html` vs legacy `execTimelineStats` (Refs #1273): BFF `exec_timeline` added to apikey allowlist + `!$isAnon` rights guard + apikey forwarded on export/mail URLs; export gateway adds exec_timeline_stats/_mail apikey actions + `spreadsheet=1`; day_hour per-hour `testers` sourced from `$rswf` (legacy date-level quirk); fixture `tmp/fixtures_etl.php` proj 10 ETD / plan 18 ETL Plan; cleanup #1274 filed)
 
 ## Summary
 
@@ -114,7 +116,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 63 | Reports — Results by Issues / Bugs per TC | `results/resultsBugs.html` | api/reports | #763 |
 | 64 | Reports — Execution Timeline Statistics | `results/execTimelineStats.html` | api/reports | #762 |
 | 65 | Login / Logout | `auth/login.html` | api/auth | #775 |
-| 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764 |
+| 66 | Documentation links / hub | `documentation/documentation.html` | api/documentation | #764, #1281 |
 | 67 | System — Install / Upgrade check | `install/installView.html` | api/install | #797 |
 | 68 | System — Req. Management Systems | `reqmgrsystems/reqMgrSystemView.html` | api/reqmgrsystems | #980 |
 | 69 | Test Case Design — Test Specification Document (Print, `lib/results/printDocOptions.php?type=testspec`) | `testcases/printTestSpec.html` + `testcases/printTestDoc.html` | api/testcasesprint | #982 |

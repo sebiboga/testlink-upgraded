@@ -12131,3 +12131,21 @@ Result: 6/6 PASS — **legacy gap closed (Refs #868)**. Legacy `eventviewer.tpl`
 | 1271.7 | Event Viewer clean | `SELECT log_level FROM events ORDER BY id DESC` after suite | zero new ERROR/WARNING rows (only INFO/audit) | PASS |
 
 Result: 7/7 PASS — **feature implemented + verified (Refs #1271)**. Gap closed: legacy italic `info_bugs_per_tc_report` line below the table is now rendered in the modern footer as `<p class="info">` via new `rb.infoReport` key (all 10 locales; en/de/es/fr/ja/pt/zh from legacy `strings.txt`, ro/it/ru newly authored). Sibling pattern from `resultsMatrix.html` (`rsm.infoReport`) / `absoluteLatest.html` (`alx.infoReport`) reused. Fixture `tmp/fixtures_1271.php` reproduces the ready-to-render report (1 open + 1 resolved bug) using a local mantisdb tracker.
+## SCREEN-COMPARE — Issue #1281: Documentation Hub — restore good_test_case + youtrack_readme (gap #1275)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink` freshly imported. Login admin/admin → ASIDE → Documentation (`gui/templates/documentation/documentation.html`). Legacy ref: `tools/viewer.php` `$allowed_files` (8 entries incl. `good_test_case` → `docs/bibliographical_references/GoodTest.pdf`, `youtrack_readme` → `docs/youtrack-readme.pdf`). BFF: `api/documentation/index.php`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1281.1 | All 8 legacy docs listed | open Documentation hub as admin | 8 cards: User Manual / Installation Manual / File Formats / Excel Import / FCKEditor Config / Bug Tracking HowTo / **Good Test Case** / **YouTrack Readme** — each with a localized title + filename (legacy allowlist parity) | PASS |
+| 1281.2 | Restored GoodTest card | find "Good Test Case" card | card exists, filename `GoodTest.pdf`, Download href `/docs/bibliographical_references/GoodTest.pdf` | PASS |
+| 1281.3 | Restored YouTrack card | find "YouTrack Readme" card | card exists, filename `youtrack-readme.pdf`, Download href `/docs/youtrack-readme.pdf` | PASS |
+| 1281.4 | BFF payload order + exists flags | `fetch('/api/documentation/index.php')` from authed page | `status 200`; docs keys in legacy order: testlink_user_manual, testlink_installation_manual, tl_file_formats, excel2testlink, fckeditor_config, tl_bts_howto, good_test_case, youtrack_readme; every `exists:true` | PASS |
+| 1281.5 | View modal on restored doc | click View on "Good Test Case" | Bootstrap modal opens with title "Good Test Case" and `<embed src="/docs/bibliographical_references/GoodTest.pdf" type="application/pdf">` | PASS |
+| 1281.6 | Downloads serve 200 | `curl -sI /docs/bibliographical_references/GoodTest.pdf` and `/docs/youtrack-readme.pdf` | both `HTTP/1.1 200 OK` | PASS |
+| 1281.7 | Legacy viewer back-compat | `curl tools/viewer.php?file=good_test_case` and `?file=youtrack_readme` | both `200` (kept for direct-link backward compatibility) | PASS |
+| 1281.8 | i18n keys in all 19 strings.txt | `grep doc_good_test_case locale/*/strings.txt` + `grep doc_youtrack_readme locale/*/strings.txt` | key present in every one of the 19 locale bundles; non-empty translations | PASS |
+| 1281.9 | BFF session guard unchanged | anon `curl -s -o /dev/null -w '%{http_code}' api/documentation/index.php` | `401` (menu is behind login; hardening vs legacy public viewer, decision kept) | PASS |
+| 1281.10 | Event Viewer clean | `SELECT log_level,count(*) FROM events GROUP BY log_level` after suite | zero new ERROR/WARNING rows (admin login AUDIT only); no console errors | PASS |
+
+Result: 10/10 PASS — **gap #1275 fixed (Refs #1281)**: the two dropped legacy allowlist entries restored in the BFF (`$docs` + order-pinning `usort`), new `doc_good_test_case`/`doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`, browser/curl-verified. Cleanup of legacy viewer tracked by #1276 (viewer intentionally kept for back-compat until cleanup run).

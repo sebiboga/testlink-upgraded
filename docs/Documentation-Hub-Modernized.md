@@ -7,6 +7,7 @@ The **Documentation Hub** provides access to TestLink user manuals, guides, and 
 **BFF API:** `api/documentation/index.php` — `GET ?action=list` (default)
 **Rights:** Any logged-in user (same as legacy viewer — no rights check)
 **Tracking issue:** [#764](https://github.com/sebiboga/testlink-upgraded/issues/764)
+**SCREEN-COMPARE:** row 64 ✅ (Refs #1281) — gap closed: `good_test_case` (`docs/bibliographical_references/GoodTest.pdf`) and `youtrack_readme` (`docs/youtrack-readme.pdf`) were dropped from the BFF vs the legacy `tools/viewer.php` allowlist (8 entries); both restored with new `doc_good_test_case` / `doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`. Legacy viewer kept for backward compatibility.
 
 ---
 
@@ -16,7 +17,7 @@ The Documentation Hub consolidates access to all TestLink documentation in one s
 
 | Section | Content |
 |---------|---------|
-| **PDF Manuals & Guides** | 6 PDF documents with View and Download buttons |
+| **PDF Manuals & Guides** | 8 PDF documents with View and Download buttons |
 | **Online Resources** | GitHub Wiki link |
 
 The screen follows the same Dashio visual patterns as other modernized screens: teal header, dark toolbar, card grid layout, Bootstrap modal for PDF viewing.
@@ -29,7 +30,7 @@ The screen follows the same Dashio visual patterns as other modernized screens: 
 |---------|-------------|
 | **Header** | Teal banner with "Documentation" title, subtitle, locale switcher |
 | **Toolbar** | Refresh button, generation timestamp |
-| **PDF section** | Card grid with 6 document cards (title, filename, View/Download buttons) |
+| **PDF section** | Card grid with 8 document cards (title, filename, View/Download buttons) |
 | **Wiki section** | Card grid with GitHub Wiki link card |
 | **Footer** | Generation timestamp |
 
@@ -45,6 +46,8 @@ The screen follows the same Dashio visual patterns as other modernized screens: 
 | excel2testlink | Excel Import | excel2TestLink.pdf |
 | fckeditor_config | FCKEditor Configuration | Configuration_of_FCKEditor_and_CKFinder.pdf |
 | tl_bts_howto | Bug Tracking How-To | tl-bts-howto.pdf |
+| good_test_case | Good Test Case | docs/bibliographical_references/GoodTest.pdf |
+| youtrack_readme | YouTrack Readme | youtrack-readme.pdf |
 
 Additionally, the GitHub Wiki is linked as an online resource.
 
