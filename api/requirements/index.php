@@ -620,9 +620,23 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         $coveragePct = round(100 / $expected * $coverageQty, 2);
     }
 
-    // monitor state for the current user
+    // monitor state for the current user + full monitor list (issue #1304)
     $monitorSet = (array)$reqMgr->getReqMonitors($reqId);
     $isMonitoring = isset($monitorSet[$userId]);
+
+    // list of all users monitoring this requirement (login + user_id)
+    $monitorsList = [];
+    if ($user->hasRight($db, 'monitor_requirement', $resolvedTid)) {
+        $monRaw = $reqMgr->getReqMonitors($reqId, ['output' => 'array']);
+        if (!empty($monRaw)) {
+            foreach ($monRaw as $mon) {
+                $monitorsList[] = [
+                    'user_id' => intval($mon['user_id']),
+                    'login'   => $mon['login'],
+                ];
+            }
+        }
+    }
 
     // relations (same filtering legacy get_relations() applies)
     $relList = [];
@@ -709,6 +723,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'expected_coverage' => $expected,
         'coverage_pct' => $coveragePct,
         'relations' => $relList,
+        'monitors' => $monitorsList,
     ]);
 }
 

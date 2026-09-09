@@ -124,6 +124,21 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
     </div>
   </div>
 
+  <div class="card" id="monitorsCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-bell"></i> <span data-i18n="reqv.monitors">Monitors</span></div>
+    <div class="card-body">
+      <div id="noMonitors" class="empty-state" style="display:none;" data-i18n="reqv.noMonitors">No users monitoring this requirement</div>
+      <table id="monitorsTable" class="display" style="width:100%;display:none;">
+        <thead>
+          <tr>
+            <th data-i18n="reqv.monitorLogin">Login</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="card" id="relCard" style="display:none;">
     <div class="card-title"><i class="fa fa-sitemap"></i> <span data-i18n="reqv.relations">Relations</span></div>
     <div class="card-body">
@@ -164,6 +179,7 @@ var CUR_REVISION = 0;
 var DIRECT_LINK = '';
 var covTable = null;
 var relTable = null;
+var monitorsTable = null;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -210,6 +226,7 @@ function loadView() {
     renderOverview(r);
     renderCoverage(r);
     renderRelations(r);
+    renderMonitors(r);
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title') +
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
@@ -438,6 +455,35 @@ function renderRelations(r) {
     data: rows,
     pageLength: 10,
     lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    bInfo: false
+  });
+}
+
+function renderMonitors(r) {
+  if (monitorsTable) { monitorsTable.destroy(); monitorsTable = null; }
+  if (!(r.grant && r.grant.monitor_req)) {
+    $('#monitorsCard').hide();
+    return;
+  }
+  var list = r.monitors || [];
+  if (!list.length) {
+    $('#noMonitors').show();
+    $('#monitorsTable').hide();
+    $('#monitorsCard').show();
+    return;
+  }
+  $('#noMonitors').hide();
+  $('#monitorsTable').show();
+  $('#monitorsCard').show();
+  var rows = [];
+  $.each(list, function(i, m) {
+    rows.push([escapeHtml(m.login)]);
+  });
+  monitorsTable = $('#monitorsTable').DataTable({
+    data: rows,
+    paging: false,
+    searching: false,
     columnDefs: [{ targets: '_all', defaultContent: '' }],
     bInfo: false
   });
