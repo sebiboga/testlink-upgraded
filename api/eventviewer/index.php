@@ -131,8 +131,8 @@ if ($method === 'GET' && $path === '/events/meta/users') {
 if ($method === 'GET' && $path === '/events/meta/rights') {
     out([
         'status' => 'ok',
-        'canDelete' => $user->hasRight($db, 'events_mgt'),
-        'canView' => $user->hasRight($db, 'mgt_view_events'),
+        'canDelete' => (bool)$user->hasRight($db, 'events_mgt'),
+        'canView' => (bool)$user->hasRight($db, 'mgt_view_events'),
     ]);
 }
 
