@@ -3740,6 +3740,11 @@ class tlTestPlanMetrics extends testplan
 
       if (!empty($rswf)) {
         foreach ($rswf as $rt => $elem) {
+          // day_hour: the workforce map is keyed per hour; a date-level
+          // 'testers' key would be spurious and only E_WARNING here.
+          if ($options['timeline'] === 'day_hour') {
+            continue;
+          }
           $rs[$rt]['testers'] = $elem['testers'];
         }
       }
