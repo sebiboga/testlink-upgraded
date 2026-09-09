@@ -215,6 +215,20 @@ if ($method === 'DELETE' && $path === '/events') {
         }
     }
     $em->deleteEventsFor($logLevels);
+
+    if (is_null($logLevels)) {
+        logAuditEvent(TLS("audit_all_events_deleted", $user->login), "DELETE", null, "events");
+    } else {
+        $levelNames = [];
+        foreach ($logLevels as $code) {
+            $levelNames[] = lang_get("log_level_" . (tlLogger::$logLevels[$code] ?? $code));
+        }
+        logAuditEvent(
+            TLS("audit_events_with_level_deleted", $user->login, implode(',', $levelNames)),
+            "DELETE", null, "events"
+        );
+    }
+
     out(['status' => 'ok', 'message' => 'Events deleted']);
 }
 
