@@ -48,6 +48,8 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
 <div class="toolbar">
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="treeLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.openTree">Open in Test Specification</span></a>
+  <button class="btn-ghost" onclick="openSuiteExport(false)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuiteCases">Export Test Cases</span></button>
+  <button class="btn-ghost" onclick="openSuiteExport(true)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuite">Export Test Suite</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
 
@@ -234,6 +236,13 @@ function renderAttachments(atts) {
 function openTc(tcId) {
   window.open(TC_VIEW_URL + '?tcase_id=' + tcId + '&tproject_id=' + TPROJECT_ID,
     '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+
+function openSuiteExport(deep) {
+  var url = '/gui/templates/testcases/tcExport.html?tproject_id=' + TPROJECT_ID +
+    '&containerID=' + SUITE_ID;
+  if (deep) url += '&useRecursion=1';
+  window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
 }
 
 function showError(msg) {

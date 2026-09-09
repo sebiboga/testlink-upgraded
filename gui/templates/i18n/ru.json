@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "Русский",
-    "code": "ru"
+    "code": "ru",
+    "name": "Русский"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "Вложения",
   "suvw.childSuites": "Дочерние наборы тестов",
   "suvw.details": "Описание",
+  "suvw.exportSuite": "Экспортировать тест-сьют",
+  "suvw.exportSuiteCases": "Экспортировать тестовые случаи",
   "suvw.extId": "Внешний ID",
   "suvw.identifier": "Идентификатор",
   "suvw.impHigh": "Высокая",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "Выполнен",
   "tspec.executionType": "Тип выполнения",
   "tspec.expectedResults": "Ожидаемые результаты",
+  "tspec.exportSuite": "Экспортировать тест-сьют",
+  "tspec.exportSuiteCases": "Экспортировать тестовые случаи",
   "tspec.filterPlaceholder": "Фильтр по имени...",
   "tspec.fullViewer": "Полный просмотрщик",
   "tspec.header": "Спецификация тестов",

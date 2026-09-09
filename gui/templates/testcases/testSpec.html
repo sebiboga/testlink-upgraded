@@ -387,16 +387,26 @@ function showSuiteView() {
   if ((s.children.testcases || []).length === 0 && (s.children.suites || []).length === 0) {
     h += '<p class="none-text"><i class="fa fa-circle-info"></i> ' + t('tspec.emptySuite') + '</p>';
   }
+  h += '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">' +
+    '<button class="btn-dark btn-sm" onclick="openSuiteExport(false)"><i class="fa fa-file-export"></i> ' + t('tspec.exportSuiteCases') + '</button>' +
+    '<button class="btn-dark btn-sm" onclick="openSuiteExport(true)"><i class="fa fa-file-export"></i> ' + t('tspec.exportSuite') + '</button>';
   if (canMod) {
-    h += '<div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">' +
-      '<button class="btn-teal btn-sm" onclick="openCreateTc()"><i class="fa fa-plus"></i> ' + t('tspec.newTcHere') + '</button>' +
+    h += '<button class="btn-teal btn-sm" onclick="openCreateTc()"><i class="fa fa-plus"></i> ' + t('tspec.newTcHere') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="openSuiteCreate()"><i class="fa fa-folder-plus"></i> ' + t('tspec.newSubSuite') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="openSuiteRename()"><i class="fa fa-pen"></i> ' + t('tspec.renameSuite') + '</button>' +
-      '<button class="btn-red btn-sm" onclick="askDeleteSuite()"><i class="fa fa-trash"></i> ' + t('tspec.deleteSuite') + '</button>' +
-    '</div>';
+      '<button class="btn-red btn-sm" onclick="askDeleteSuite()"><i class="fa fa-trash"></i> ' + t('tspec.deleteSuite') + '</button>';
   }
+  h += '</div>';
   h += '</div></div>';
   $('#suiteView').html(h).show();
+}
+
+function openSuiteExport(deep) {
+  if (!selected || selected.type !== 'testsuite') return;
+  var url = '/gui/templates/testcases/tcExport.html?tproject_id=' + ctx.tproject_id +
+    '&containerID=' + selected.id;
+  if (deep) url += '&useRecursion=1';
+  window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
 }
 
 function importanceLabel(v) {

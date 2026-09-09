@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "Italiano",
-    "code": "it"
+    "code": "it",
+    "name": "Italiano"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "Allegati",
   "suvw.childSuites": "Suite di test figlie",
   "suvw.details": "Dettagli",
+  "suvw.exportSuite": "Esporta suite di test",
+  "suvw.exportSuiteCases": "Esporta casi di test",
   "suvw.extId": "ID esterno",
   "suvw.identifier": "Identificatore",
   "suvw.impHigh": "Alta",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "Eseguito",
   "tspec.executionType": "Tipo di esecuzione",
   "tspec.expectedResults": "Risultati attesi",
+  "tspec.exportSuite": "Esporta suite di test",
+  "tspec.exportSuiteCases": "Esporta casi di test",
   "tspec.filterPlaceholder": "Filtra per nome...",
   "tspec.fullViewer": "Visualizzatore completo",
   "tspec.header": "Specifiche di test",

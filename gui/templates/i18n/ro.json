@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "Romana",
-    "code": "ro"
+    "code": "ro",
+    "name": "Romana"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "Atașamente",
   "suvw.childSuites": "Seturi de testare secundare",
   "suvw.details": "Detalii",
+  "suvw.exportSuite": "Exportă suite de test",
+  "suvw.exportSuiteCases": "Exportă cazuri de testare",
   "suvw.extId": "ID extern",
   "suvw.identifier": "Identificator",
   "suvw.impHigh": "Ridicată",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "Executat",
   "tspec.executionType": "Tip de execuție",
   "tspec.expectedResults": "Rezultate așteptate",
+  "tspec.exportSuite": "Exportă suite de test",
+  "tspec.exportSuiteCases": "Exportă cazuri de testare",
   "tspec.filterPlaceholder": "Filtrează după nume...",
   "tspec.fullViewer": "Vizualizator complet",
   "tspec.header": "Specificație de test",

@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "中文",
-    "code": "zh"
+    "code": "zh",
+    "name": "中文"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "附件",
   "suvw.childSuites": "子测试套件",
   "suvw.details": "详情",
+  "suvw.exportSuite": "导出测试套件",
+  "suvw.exportSuiteCases": "导出测试用例",
   "suvw.extId": "外部ID",
   "suvw.identifier": "标识符",
   "suvw.impHigh": "高",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "已执行",
   "tspec.executionType": "执行类型",
   "tspec.expectedResults": "预期结果",
+  "tspec.exportSuite": "导出测试套件",
+  "tspec.exportSuiteCases": "导出测试用例",
   "tspec.filterPlaceholder": "按名称筛选...",
   "tspec.fullViewer": "完整查看器",
   "tspec.header": "测试用例规约",

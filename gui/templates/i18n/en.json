@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "English",
-    "code": "en"
+    "code": "en",
+    "name": "English"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "Attachments",
   "suvw.childSuites": "Child test suites",
   "suvw.details": "Details",
+  "suvw.exportSuite": "Export Test Suite",
+  "suvw.exportSuiteCases": "Export Test Cases",
   "suvw.extId": "External ID",
   "suvw.identifier": "Identifier",
   "suvw.impHigh": "High",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "Executed",
   "tspec.executionType": "Execution Type",
   "tspec.expectedResults": "Expected Results",
+  "tspec.exportSuite": "Export Test Suite",
+  "tspec.exportSuiteCases": "Export Test Cases",
   "tspec.filterPlaceholder": "Filter by name...",
   "tspec.fullViewer": "Full Viewer",
   "tspec.header": "Test Specification",

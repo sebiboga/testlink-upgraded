@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "日本語",
-    "code": "ja"
+    "code": "ja",
+    "name": "日本語"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "添付ファイル",
   "suvw.childSuites": "子テストスイート",
   "suvw.details": "詳細",
+  "suvw.exportSuite": "テストスイートをエクスポート",
+  "suvw.exportSuiteCases": "テストケースをエクスポート",
   "suvw.extId": "外部ID",
   "suvw.identifier": "識別子",
   "suvw.impHigh": "高",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "実行済み",
   "tspec.executionType": "実行タイプ",
   "tspec.expectedResults": "期待結果",
+  "tspec.exportSuite": "テストスイートをエクスポート",
+  "tspec.exportSuiteCases": "テストケースをエクスポート",
   "tspec.filterPlaceholder": "名前で絞り込み...",
   "tspec.fullViewer": "詳細ビューア",
   "tspec.header": "テスト仕様",

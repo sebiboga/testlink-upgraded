@@ -1,7 +1,7 @@
 {
   "_meta": {
-    "name": "Fran&ccedil;ais",
-    "code": "fr"
+    "code": "fr",
+    "name": "Fran&ccedil;ais"
   },
   "alx.btnExportXls": "Export as spreadsheet",
   "alx.choosePlatform": "-- Select a platform --",
@@ -2363,6 +2363,8 @@
   "suvw.attachments": "Pièces jointes",
   "suvw.childSuites": "Suites de tests enfants",
   "suvw.details": "Détails",
+  "suvw.exportSuite": "Exporter la suite de test",
+  "suvw.exportSuiteCases": "Exporter les cas de test",
   "suvw.extId": "ID externe",
   "suvw.identifier": "Identifiant",
   "suvw.impHigh": "Élevée",
@@ -2897,6 +2899,8 @@
   "tspec.executed": "Exécuté",
   "tspec.executionType": "Type d'exécution",
   "tspec.expectedResults": "Résultats attendus",
+  "tspec.exportSuite": "Exporter la suite de test",
+  "tspec.exportSuiteCases": "Exporter les cas de test",
   "tspec.filterPlaceholder": "Filtrer par nom...",
   "tspec.fullViewer": "Vue complète",
   "tspec.header": "Spécification de test",
