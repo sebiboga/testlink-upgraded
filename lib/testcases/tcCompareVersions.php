@@ -118,7 +118,7 @@ function initializeGUI(&$dbHandler,$argsObj)
 
   $tcaseMgr = new testcase($dbHandler); 
   $gui->tc_versions = $tcaseMgr->get_by_id($argsObj->tcase_id);
-  $gui->tcaseName = $gui->tc_versions[0]['name'];
+  $gui->tcaseName = isset($gui->tc_versions[0]['name']) ? $gui->tc_versions[0]['name'] : '';
   unset($tcaseMgr);
 
   $lblkeys = array('num_changes' => null,'no_changes' => null, 'version_short' => null,'diff_subtitle_tc' => null);
