@@ -12149,3 +12149,24 @@ Result: 7/7 PASS — **feature implemented + verified (Refs #1271)**. Gap closed
 | 1281.10 | Event Viewer clean | `SELECT log_level,count(*) FROM events GROUP BY log_level` after suite | zero new ERROR/WARNING rows (admin login AUDIT only); no console errors | PASS |
 
 Result: 10/10 PASS — **gap #1275 fixed (Refs #1281)**: the two dropped legacy allowlist entries restored in the BFF (`$docs` + order-pinning `usort`), new `doc_good_test_case`/`doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`, browser/curl-verified. Cleanup of legacy viewer tracked by #1276 (viewer intentionally kept for back-compat until cleanup run).
+
+---
+
+## Task — Issue #1280: Quality Objectives & Risk Traceability Matrix
+
+**Precondition:** PostgreSQL-free fresh DB refreshed by `tmp/fixtures_1280.php` (project `QOB:QObjDemo` id 1, plan `QOB Plan` id 12, req specs w/ reqs 15/17/19, TCs 3/6/9, 2 executions: TC-Login passed, TC-Pay failed); login admin/admin; ASIDE → Requirements Design → Quality Objectives.
+
+| # | Test | Steps | Expected | Actual |
+|---|---|---|---|---|
+| 1280.1 | Menu entry + rights gate | Check ASIDE `Requirements Design` submenu, then DB grant `reqs_view='no'` | link "Quality Objectives" visible for admin; hidden for users without `reqs_view` | PASS — link present (labels.aside.tpl key fixed, no empty label/E_WARNING); grant key `reqs_view` wired through emptyMenuGrants |
+| 1280.2 | Matrix render | Open the screen | "Secure Transactions" card: Risk High (L3×I5), Passed:1 Failed:2 Blocked:0 Not Run:0; QOS-1→TC-Login Passed, QOS-2→TC-Pay Failed, directly linked TC-Pay Failed; "Fast Search" Risk Low (L1×I2), QOS-3→TC-Search Not Run | PASS — exact rows/badges rendered, no console errors |
+| 1280.3 | Plan filter | Select "QOB Plan" in filter, Refresh | same two cards, table regenerated (generated timestamp changes) | PASS |
+| 1280.4 | Create objective | Add → Name (req), desc, L=4 I=4 | live preview shows "Critical"; saved; card appears with Risk Critical | PASS — created "New Objective Q" L4×I4 Critical |
+| 1280.5 | Link editor | Open Links, check req + TC-Login, Save | TC-Login added under covered TCs with "Passed: 1" badge + appears in direct TC section | PASS |
+| 1280.6 | Edit objective | Edit → rename + change L=1 I=4 | card updates to new name + Risk Low | PASS — renamed "Edited Objective Q", Low |
+| 1280.7 | Delete + cascade | Delete → confirm | objective removed; its links cascaded; count back to 2 | PASS |
+| 1280.8 | i18n switch | Change locale to Română / Românește in the screen | all labels, modal titles, buttons and footer translated via TLi18n (no `##`/raw-key leaks) | PASS |
+| 1280.9 | BFF session guard | anon `curl -X GET -H 'X-Requested-With: XMLHttpRequest' localhost:8082/api/requirements/index.php?action=quality-objectives` | `401` | PASS |
+| 1280.10 | Event Viewer clean | `SELECT id,log_level,notes FROM events WHERE id>16 AND log_level IN('ERROR','WARNING')` after full CRUD | zero rows (the pre-fix `href_quality_objectives` E_WARNING repaired); writes produced QOBJ audit events OK | PASS — 0 new Error/Warning rows |
+
+Result: 10/10 PASS — **feature delivered (Refs #1280)**: BFF + Dashio screen + i18n (43 keys × 10 bundles + 14 locale strings.txt + labels.aside.tpl) + 2 new tables (`quality_objectives`, `quality_objective_links`) + `latest_exec_by_testplan` DB view integration. Commits on `task/issue-1280`: `30660fc7a` (feat), `80cdf7620` (ci), `8cf530463` (i18n rebuild fix). Wiki mirror updated.
