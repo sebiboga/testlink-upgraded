@@ -12409,3 +12409,34 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-ma
 | 1323.16 | Skeleton export parity (in-run, gap #1326) | POST `exportSkel=1` to modern BFF and legacy controller → **byte-for-byte identical** (835 B both) — BFF skeleton path matches legacy; only the UI button is missing (Dashio form had none; tl-classic tcExport.tpl:130 has one) | PASS |
 
 Result: 16/16 PASS — **2 gaps fixed in-run** (file-format doc link + `tcx.type.*` i18n in 8 bundles), **2 gaps OPEN** (suite-level launcher #1325, skeleton UI #1326), **cleanup #1324** (delete legacy). XML export proven byte-identical to legacy.
+
+---
+
+## Suite 1327 — GAP-FIX: tcCompare.html context input handling vs legacy tcCompareVersions (Refs #1327)
+
+**Screen:** `gui/templates/testcases/tcCompare.html` · **BFF:** `api/testcasescompare/index.php` (`info` + `compare`)
+**Legacy reference:** `lib/testcases/tcCompareVersions.php:97-106` (`init_args`: numeric `context` used as-is, 0 honored; fallback to `diffEngine` config default) + `gui/templates/dashio/testcases/tcCompareVersions.tpl:77-91` (`validateForm`: blank/non-numeric/negative → warning, numeric incl 0 OK) + `third_party/diff/diff.php showline():79` (`linepadding === 0` → changed lines only).
+**Fixture 2026-09-09:** fresh DB — project CMP1327 id=1 (prefix C727), suite CMP Suite id=2, TC CMP Login Test node 3 with v1 tcversion id=4 (3 steps / summary / preconds) and v2 tcversion id=8 (4 different steps / edited summary / preconds). Admin session. Screens reached via `tcCompare.html?tproject_id=1&testcase_id=3` (modern) and `tcCompareVersions.php?tproject_id=1&testcase_id=3` (legacy).
+**Scope:** parity of the Text (inline) comparison context field — blank/invalid blocked, explicit `0` honored end-to-end, positive values and "Show all" still work, BFF fallback to diffEngine default, legacy parity checks, i18n, events.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1327.1 | N/A fix: `api/testcasescompare/index.php` compare branch | `context_show_all` → context null; else `getIntParam('context', -1)` → `context = ($rawCtx >= 0) ? $rawCtx : defaultCtx` where defaultCtx = `diffEngine->context || 5` — explicit 0 honored, only absent/blank/non-numeric falls back | PASS (commit e76f208d6) |
+| 1327.2 | N/A fix: `tcCompare.html` `doCompare()` context branch | raw `jQuery('#context').val()` checked: blank/null → `toast(tcc.warnInvalidContext)` + return (no silent `|| '0'`); `parseInt` NaN or `< 0` → toast + return; else `params.context = c` | PASS (commit 9e003fad2) |
+| 1327.3 | `php -l api/testcasescompare/index.php` — BFF syntax | no parse errors | PASS |
+| 1327.4 | `node --check` on extracted inline JS of tcCompare.html | no syntax errors | PASS |
+| 1327.5 | Open modern screen `tcCompare.html?tproject_id=1&testcase_id=3`, select "Text (inline) comparison" radio | context input appears prefilled with default 5 (diffEngine config default from `info` payload `context`) | PASS |
+| 1327.6 | Clear context field → click "Compare selected versions" | toast "Invalid context value" (`tcc.warnInvalidContext`), NO compare network request fired (only `action=info` present in network log) | PASS |
+| 1327.7 | Enter `0` → click Compare | XHR `?action=compare&testcase_id=3&version_left=1&version_right=2&use_html_comp=0&context=0` HTTP 200; diff renders each section with ONLY del/ins rows (no context/unchanged rows) — `showline()` `linepadding === 0` path | PASS |
+| 1327.8 | Enter `-1` → click Compare | toast "Invalid context value" (same key), no new request fired (previous diff stays) | PASS |
+| 1327.9 | Enter `3` → click Compare | XHR `...context=3` HTTP 200; identical (single-line blob) diff renders — positive context path still works | PASS |
+| 1327.10 | Tick "Show all" → click Compare | XHR `...context_show_all=1` HTTP 200; diff renders (context = null → full content) | PASS |
+| 1327.11 | Legacy blank context parity: legacy `tcCompareVersions.php?tproject_id=1&testcase_id=3`, select "HTML Code Compare" (text mode), clear context, submit | `validateForm()` returns false (submit blocked) + warning "Context (lines) must not be empty." — modern blocks the same input (toast) | PASS |
+| 1327.12 | Legacy context=0 parity: same legacy page, context=0, submit | `validateForm()` returns ALLOWED (0 not blank, not NaN, not negative) — matches modern `doCompare` allowing 0 | PASS |
+| 1327.13 | BFF edge parity via request: context absent / non-numeric / -1 | BFF falls back to diffEngine default (5) — same as legacy `init_args` when `!is_numeric` | PASS (code path verified; -1 also maps to default) |
+| 1327.14 | i18n key `tcc.warnInvalidContext` | present in all 10 bundles (de en es fr it ja pt ro ru zh) — no bundle edits required; `python3 -m json.tool` valid on all 10 | PASS |
+| 1327.15 | Re-run fixture `php tmp/fixtures_1327.php` | deletes prior project and recreates CMP1327 (re-runnable like sibling fixtures) | PASS |
+| 1327.16 | Event Viewer / `events` table | after fixture + all modern compares + legacy submits: only INFO CREATE/LOGIN entries, no ERROR/WARNING rows from the new code paths | PASS |
+| 1327.17 | Browser console during all modern scenarios | no JS errors | PASS |
+
+Result: 17/17 PASS — **gap #1327 fully closed**. Both previously-open regressions from the SCREEN-COMPARE run (blank-`context` silently coerced to `0`, explicit `0` dropped to config default) verified fixed in-browser and at the BFF/legacy-parity level. Screenshots for wiki: pending (chrome-devtools `take_screenshot` timed out in this run).

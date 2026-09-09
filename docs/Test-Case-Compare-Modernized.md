@@ -62,8 +62,32 @@ and the previous one on the left (matching the legacy `{if $mycount == 2}` /
 | No `testcase_id` | warn box `tcc.errNoTestcase`, Compare disabled |
 | Test case not found | HTTP 404 `{"status":"error","message":"Test case not found"}` |
 | Same version selected twice | local toast `tcc.warnSameVersions`, no request |
-| Invalid (negative/non-numeric) context | local toast `tcc.warnInvalidContext`, no request |
+| Blank / non-numeric / negative context | local toast `tcc.warnInvalidContext`, no request |
+| Explicit context `0` | sent to the BFF as `context=0` and honored end-to-end (diff renders only the changed lines, see below) |
 | Not authenticated | HTTP 401 `{"status":"error","message":"Not authenticated"}` |
+
+## Context handling (Refs #1327)
+
+Gap-fix restoring legacy parity for the **Text (inline)** diff context field
+(`lib/testcases/tcCompareVersions.php:97-106` `init_args` +
+`gui/templates/dashio/testcases/tcCompareVersions.tpl:77-91` `validateForm`):
+
+- **Legacy** treats a numeric `context` value exactly as given — **`0` is honored**
+  (the diff engine's `showline()` has an explicit `linepadding === 0` branch that
+  prints only changed lines, `third_party/diff/diff.php:79`). It only falls back to
+  the `diffEngine` config default (`config_get('diffEngine')->context`, typically 5)
+  when the parameter is absent or non-numeric.
+- **Pre-fix regressions (both from the original #809 port):** a blank field was
+  silently coerced to `0` by `doCompare`, and an explicit `0` was dropped to the
+  config default by the BFF — both diverging from legacy.
+- **Fix:** `tcCompare.html` `doCompare()` now reads the raw field value; blank/null,
+  `NaN` or `context < 0` trigger the `tcc.warnInvalidContext` toast **and** nothing
+  is sent to the BFF. `api/testcasescompare/index.php` parses the parameter with an
+  explicit `-1` sentinel (`$context = ($rawCtx >= 0) ? $rawCtx : $defaultCtx;`
+  where `$defaultCtx = diffEngine->context || 5`);
+  `context_show_all=1` still maps to `context = null` (render everything).
+- **i18n:** the `tcc.warnInvalidContext` key already existed in all 10 bundles —
+  no new keys were required for this fix.
 
 ## Backend notes
 
@@ -96,4 +120,4 @@ enforced by `tools/lint_i18n.py`; every bundle passes `python3 -m json.tool`.
 
 ---
 
-_TestLink 2.0.1 · Compare Test Case Versions · Refs #809_
+_TestLink 2.0.1 · Compare Test Case Versions · Refs #809, #1327_
