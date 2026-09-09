@@ -2,7 +2,8 @@
 
 Modernization / new feature: **Quality Objectives & Risk Traceability Matrix**
 — GitHub issue [#1280](https://github.com/sebiboga/testlink-upgraded/issues/1280)
-(ISTQB quality-objective gap, ISTQB Compliance review #1054).
+(ISTQB quality-objective gap, ISTQB Compliance review #1054); i18n bundles,
+records and test suite re-verified under [#1307](https://github.com/sebiboga/testlink-upgraded/issues/1307).
 
 TestLink 1.9.20/2.0.1 had no quality-objective concept at all: no tables, no
 API, no screen. This feature adds a complete objective → requirement → test
@@ -14,7 +15,7 @@ REST BFF (`api/requirements/index.php`).
 **URL:** `gui/templates/requirements/qualityObjectives.html?tproject_id=<id>&tplan_id=<id>`
 **BFF API:** `api/requirements/index.php`
 **Rights:** `mgt_view_req` (read) / `mgt_modify_req` (write), enforced server-side
-**Tracking issue:** [#1280](https://github.com/sebiboga/testlink-upgraded/issues/1280)
+**Tracking issue:** [#1280](https://github.com/sebiboga/testlink-upgraded/issues/1280) (implementation) / [#1307](https://github.com/sebiboga/testlink-upgraded/issues/1307) (i18n restore + record)
 
 ---
 
@@ -108,7 +109,8 @@ added to every `locale/*/strings.txt` and to `gui/templates/dashio/labels/labels
 
 ## 7. Testing
 
-See `tmp/TLU_Test_Cases.md` → **Task — Issue #1280** suite (10/10 PASS).
+See `tmp/TLU_Test_Cases.md` → **Task — Issue #1280** suite (original 10/10 PASS)
+and **Task — Issue #1307** suite (14/14 PASS, i18n restore re-verified).
 Browser-verified flows: matrix rendering, plan filter, create (live risk
 preview), link editor (add/remove), edit, delete (confirm + cascade), i18n
 switcher; no new Error/Warning entries in the `events` table.
