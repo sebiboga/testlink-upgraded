@@ -1882,6 +1882,10 @@ function getActions(&$gui,$baseURL) {
   // Requirement Overview modernized screen (Dashio standalone page) - Refs #566
   $actions->reqOverView = "/gui/templates/requirements/reqOverview.html?{$ctx}";
   $actions->reqMonOverView = "/gui/templates/requirements/reqMonitorOverview.html?{$ctx}";
+  // Quality Objectives & Risk Traceability Matrix (Dashio standalone page) -
+  // Refs #1280. Right (mgt_view_req / mgt_modify_req) enforced by the BFF on
+  // every route; aside visibility gated by aside.tpl via menuGrants.
+  $actions->qualityObjectives = "/gui/templates/requirements/qualityObjectives.html?{$ctx}";
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
   $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";

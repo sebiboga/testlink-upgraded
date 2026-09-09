@@ -2308,6 +2308,7 @@ $TLS_href_req_assign = "Selecionar Requisitos";
 $TLS_href_req_spec = "Especificar Requisitos";
 $TLS_href_req_overview = "Visão Geral dos Requisitos";
 $TLS_href_req_monitor_overview = "Visão Geral da Monitorização dos Requisitos";
+$TLS_href_quality_objectives = "Objetivos de qualidade"; // "Quality Objectives" (Refs #1280)
 $TLS_href_roles_management = "Gerir Perfis";
 $TLS_href_search_tc = "Pesquisar Casos de Teste";
 $TLS_href_tproject_management = "Gerir Projecto de Teste";

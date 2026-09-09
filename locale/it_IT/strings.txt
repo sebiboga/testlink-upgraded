@@ -2371,6 +2371,7 @@ $TLS_href_platform_assign = 'Aggiungi / Rimuovi piattaforme';
 $TLS_href_platform_management = 'Gestione piattaforme';
 $TLS_href_print_req = 'Documento specifica requisiti';
 $TLS_href_req_monitor_overview = 'Panoramica monitoraggio requisiti';
+$TLS_href_quality_objectives = 'Obiettivi di qualità'; // "Quality Objectives" (Refs #1280)
 $TLS_href_req_overview = 'Panoramica requisiti';
 $TLS_href_reqmgrsystem_management = 'Gestione sistema requisiti';
 $TLS_href_search_req = 'Cerca requisiti';

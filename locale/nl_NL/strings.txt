@@ -2442,6 +2442,7 @@ $TLS_href_req_assign = "Ken vereisten toe";
 $TLS_href_req_spec = "Vereistenspecificatie document";
 $TLS_href_req_overview = "Vereisten overzicht";
 $TLS_href_req_monitor_overview = "Vereisten monitor overzicht";
+$TLS_href_quality_objectives = "Kwaliteitsdoelstellingen"; // "Quality Objectives" (Refs #1280)
 $TLS_href_roles_management = "Beheer gebruikersrollen";
 $TLS_href_search_tc = "Zoek testcases";
 $TLS_href_tproject_management = "Testproject beheer";

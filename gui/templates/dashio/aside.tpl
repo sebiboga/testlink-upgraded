@@ -150,6 +150,9 @@ Left side menu
                   {if $menuGrants->monitor_req == "yes"}
                     <li><a href="{$gui->uri->reqMonOverView}" target="mainframe">{$labels.href_req_monitor_overview}</a></li>
                   {/if}
+                  {if $menuGrants->reqs_view == "yes"}
+                    <li><a href="{$gui->uri->qualityObjectives}" target="mainframe">{$labels.href_quality_objectives}</a></li>
+                  {/if}
                 </ul>
               </li>
             {/if}

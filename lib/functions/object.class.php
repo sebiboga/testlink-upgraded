@@ -286,6 +286,8 @@ abstract class tlObject implements iSerialization
                     'req_monitor',
                     'rights',
                     'risk_assignments',
+                    'quality_objectives',
+                    'quality_objective_links',
                     'role_rights',
                     'roles',
                     'aliens',

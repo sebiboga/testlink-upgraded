@@ -2586,6 +2586,7 @@ $TLS_href_req_assign = "要件の割り当て";
 $TLS_href_req_spec = "要件定義文書";
 $TLS_href_req_overview = "要件概要";
 $TLS_href_req_monitor_overview = "要件モニター概要"; // "Requirement Monitoring Overview";
+$TLS_href_quality_objectives = "品質目標"; // "Quality Objectives" (Refs #1280)
 $TLS_href_roles_management = "割り当ての管理";
 $TLS_href_search_tc = "テストケースの検索";
 $TLS_href_tproject_management = "テストプロジェクトの管理";

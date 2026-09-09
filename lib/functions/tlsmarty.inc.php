@@ -637,6 +637,7 @@ class TLSmarty extends Smarty {
       'configuration',
       'tproject_user_role_assignment','keywords_view','modify_tc','view_tc',
       'keyword_assignment','req_tcase_link_management','monitor_req',
+      'reqs_view',
       'mgt_testplan_create','testplan_create_build',
       'testplan_add_remove_platforms','testplan_set_urgent_testcases',
       'testplan_update_linked_testcase_versions',

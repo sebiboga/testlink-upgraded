@@ -1889,5 +1889,628 @@ function reqLocalizeDateToIso($localizedDate) {
     return null;
 }
 
+// ---------------------------------------------------------------------------
+// Quality Objectives & Risk Traceability Matrix  (ISTQB #1054, Refs #1280)
+// A quality objective groups requirements / test cases (traceability axis
+// above the requirement level) and carries a risk rating (likelihood x impact).
+// ---------------------------------------------------------------------------
+
+/** Table names for the quality-objectives feature. */
+function qobjTables() {
+    return tlObjectWithDB::getDBTables(['quality_objectives', 'quality_objective_links']);
+}
+
+/** Idempotent lazy schema migration so a freshly imported DB works unchanged. */
+function qobjEnsureSchema($db) {
+    $t = qobjTables();
+    $db->exec_query(
+        "CREATE TABLE IF NOT EXISTS {$t['quality_objectives']} (" .
+        " id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        " testproject_id INT UNSIGNED NOT NULL DEFAULT 0," .
+        " name VARCHAR(255) NOT NULL DEFAULT ''," .
+        " description TEXT NULL," .
+        " risk_likelihood TINYINT NOT NULL DEFAULT 1," .
+        " risk_impact TINYINT NOT NULL DEFAULT 1," .
+        " is_active TINYINT NOT NULL DEFAULT 1," .
+        " author_id INT UNSIGNED NULL," .
+        " creation_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        " PRIMARY KEY (id)," .
+        " KEY idx_qo_tproject (testproject_id)" .
+        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    $db->exec_query(
+        "CREATE TABLE IF NOT EXISTS {$t['quality_objective_links']} (" .
+        " id INT UNSIGNED NOT NULL AUTO_INCREMENT," .
+        " qo_id INT UNSIGNED NOT NULL DEFAULT 0," .
+        " tproject_id INT UNSIGNED NOT NULL DEFAULT 0," .
+        " item_type VARCHAR(16) NOT NULL DEFAULT 'req'," .
+        " item_id INT UNSIGNED NOT NULL DEFAULT 0," .
+        " creation_ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP," .
+        " PRIMARY KEY (id)," .
+        " UNIQUE KEY uq_qo_item (qo_id, item_type, item_id)," .
+        " KEY idx_qol_item (item_type, item_id)" .
+        " ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+}
+
+/**
+ * Risk level from likelihood x impact (1..5 each).
+ * Product thresholds: 1-4 Low, 5-9 Medium, 10-15 High, 16-25 Critical.
+ */
+function qobjRiskLevel($likelihood, $impact) {
+    $prod = intval($likelihood) * intval($impact);
+    if ($prod >= 16) {
+        return 'critical';
+    }
+    if ($prod >= 10) {
+        return 'high';
+    }
+    if ($prod >= 5) {
+        return 'medium';
+    }
+    return 'low';
+}
+
+/** Execution status code -> localized label (test_status_* lang keys). */
+function qobjExecLabels($resultsCfg) {
+    $labels = [];
+    foreach ((array)$resultsCfg['status_label'] as $verbose => $langKey) {
+        $labels[$resultsCfg['status_code'][$verbose]] = lang_get($langKey);
+    }
+    return $labels;
+}
+
+/** Requirement spec path helper (cached per spec id). */
+function qobjSpecPath($reqMgr, $srsId, &$pathCache) {
+    if (!isset($pathCache[$srsId])) {
+        $pathNames = [];
+        $pset = $reqMgr->tree_mgr->get_path($srsId);
+        if (is_array($pset)) {
+            foreach ($pset as $p) {
+                $pathNames[] = $p['name'];
+            }
+        }
+        $pathCache[$srsId] = implode(' / ', $pathNames);
+    }
+    return $pathCache[$srsId];
+}
+
+/**
+ * GET /quality-objectives ?tproject_id=N [&tplan_id=N]
+ * Returns the objectives with their linked requirements/T-Cases and the
+ * latest execution status per linked test-case version (pass/fail matrix).
+ */
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'quality-objectives' && !isset($segments[1])) {
+
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_view_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $qoProject = $tprojectMgr->get_by_id($qoTpid);
+    if (!$qoProject) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    $qoTplanId = intval($_GET['tplan_id'] ?? 0);
+
+    qobjEnsureSchema($db);
+    $qoDb = config_get('results');
+    $execLabels = qobjExecLabels($qoDb);
+
+    $t = qobjTables();
+    $qoSql = " SELECT * FROM {$t['quality_objectives']} " .
+             " WHERE testproject_id = " . intval($qoTpid) .
+             " ORDER BY is_active DESC, id ASC";
+    $qoRows = $db->get_recordset($qoSql);
+    if (!is_array($qoRows)) {
+        $qoRows = [];
+    }
+
+    $linksByQo = [];
+    $qoIds = array_map('intval', array_column($qoRows, 'id'));
+    $reqIds = [];
+    $tcIds = [];
+
+    if (!empty($qoIds)) {
+        $linkRows = $db->get_recordset(
+            " SELECT * FROM {$t['quality_objective_links']} " .
+            " WHERE qo_id IN (" . implode(',', $qoIds) . ")");
+        foreach ((array)$linkRows as $lr) {
+            $linksByQo[$lr['qo_id']][] = $lr;
+            if ($lr['item_type'] === 'req') {
+                $reqIds[intval($lr['item_id'])] = intval($lr['item_id']);
+            } elseif ($lr['item_type'] === 'tc') {
+                $tcIds[intval($lr['item_id'])] = intval($lr['item_id']);
+            }
+        }
+    }
+
+    // requirement details (latest version) + spec paths
+    $reqMap = [];
+    $pathCache = [];
+    if (!empty($reqIds)) {
+        $reqSet = $reqMgr->getByIDBulkLatestVersionRevision(
+            array_keys($reqIds), ['outputFormat' => 'mapOfArray']);
+        foreach (array_keys($reqIds) as $rId) {
+            if (!isset($reqSet[$rId]) || !isset($reqSet[$rId][0])) {
+                continue;
+            }
+            $r = $reqSet[$rId][0];
+            $srsId = intval($r['srs_id']);
+            $reqMap[$rId] = [
+                'id' => intval($r['id']),
+                'req_doc_id' => $r['req_doc_id'],
+                'title' => strip_tags($r['title']),
+                'spec_path' => qobjSpecPath($reqMgr, $srsId, $pathCache),
+                'version' => intval($r['version']),
+                'version_id' => intval($r['version_id']),
+            ];
+        }
+    }
+
+    $tcMap = [];   // tcase_id -> latest tcversion info
+    $tcversionIds = [];
+    $tcv2tcase = [];  // tcversion_id -> tcase_id
+
+    if (!empty($tcIds)) {
+        $tbl = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'tcversions']);
+        $tcRows = $db->get_recordset(
+            " SELECT NH.id AS tcase_id, NH.name AS tc_name," .
+            "        NH_TCV.id AS tcversion_id, TCV.tc_external_id, TCV.version " .
+            " FROM {$tbl['nodes_hierarchy']} NH " .
+            " JOIN {$tbl['nodes_hierarchy']} NH_TCV ON NH_TCV.parent_id = NH.id " .
+            " JOIN {$tbl['tcversions']} TCV ON TCV.id = NH_TCV.id " .
+            " WHERE NH.id IN (" . implode(',', array_keys($tcIds)) . ") " .
+            " ORDER BY TCV.version DESC");
+        foreach ((array)$tcRows as $tr) {
+            $tcid = intval($tr['tcase_id']);
+            if (!isset($tcMap[$tcid])) {
+                $tcMap[$tcid] = [
+                    'tcase_id' => $tcid,
+                    'tc_name' => $tr['tc_name'],
+                    'tc_external_id' => $tr['tc_external_id'],
+                    'tcversion_id' => intval($tr['tcversion_id']),
+                    'version' => intval($tr['version']),
+                ];
+                $tcversionIds[] = intval($tr['tcversion_id']);
+                $tcv2tcase[intval($tr['tcversion_id'])] = $tcid;
+            }
+        }
+    }
+
+    // coverage chain requirement -> test case (latest tcversion)
+    $covByReq = [];
+    if (!empty($reqMap)) {
+        $tbl = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'tcversions', 'req_coverage']);
+        $covRows = $db->get_recordset(
+            " SELECT RC.req_id, RC.testcase_id, NH_TC.name AS tc_name," .
+            "        NH_TCV.id AS tcversion_id, TCV.tc_external_id, TCV.version " .
+            " FROM {$tbl['req_coverage']} RC " .
+            " JOIN {$tbl['nodes_hierarchy']} NH_TC ON NH_TC.id = RC.testcase_id " .
+            " JOIN {$tbl['nodes_hierarchy']} NH_TCV ON NH_TCV.parent_id = NH_TC.id " .
+            " JOIN {$tbl['tcversions']} TCV ON TCV.id = NH_TCV.id " .
+            " WHERE RC.req_id IN (" . implode(',', array_map('intval', array_keys($reqMap))) . ") " .
+            " AND RC.is_active = 1 " .
+            " ORDER BY TCV.version DESC");
+        foreach ((array)$covRows as $cr) {
+            $rid = intval($cr['req_id']);
+            if (!isset($covByReq[$rid])) {
+                $covByReq[$rid] = [];
+            }
+            $tcversionId = intval($cr['tcversion_id']);
+            $covByReq[$rid][$tcversionId] = [
+                'tcase_id' => intval($cr['testcase_id']),
+                'tc_name' => $cr['tc_name'],
+                'tc_external_id' => $cr['tc_external_id'],
+                'tcversion_id' => $tcversionId,
+                'version' => intval($cr['version']),
+            ];
+            $tcversionIds[] = $tcversionId;
+            $tcv2tcase[$tcversionId] = intval($cr['testcase_id']);
+        }
+    }
+
+    // latest execution status per tcversion (optionally scoped to a plan)
+    $execByTcv = [];
+    $tcversionIds = array_values(array_unique(array_map('intval', $tcversionIds)));
+    if (!empty($tcversionIds)) {
+        $tbl = tlObjectWithDB::getDBTables(['executions']);
+        $vws = tlObjectWithDB::getDBViews(['latest_exec_by_testplan']);
+        $execSql = " SELECT E.tcversion_id, E.status, E.execution_ts " .
+                   " FROM {$vws['latest_exec_by_testplan']} LET " .
+                   " JOIN {$tbl['executions']} E ON E.id = LET.id " .
+                   " WHERE E.tcversion_id IN (" . implode(',', $tcversionIds) . ")";
+        if ($qoTplanId > 0) {
+            $execSql .= " AND LET.testplan_id = " . intval($qoTplanId);
+        }
+        $execRows = $db->get_recordset($execSql);
+        foreach ((array)$execRows as $er) {
+            $tcvId = intval($er['tcversion_id']);
+            $cur = isset($execByTcv[$tcvId]) ? $execByTcv[$tcvId] : null;
+            if ($cur === null || strtotime($er['execution_ts']) > strtotime($cur['execution_ts'])) {
+                $execByTcv[$tcvId] = ['status' => $er['status'], 'execution_ts' => $er['execution_ts']];
+            }
+        }
+    }
+
+    function qobjTcRow($info, $execByTcv, $execLabels) {
+        $st = isset($execByTcv[$info['tcversion_id']]) ? $execByTcv[$info['tcversion_id']]['status'] : 'n';
+        if ($st === '' || $st === null) {
+            $st = 'n';
+        }
+        return [
+            'tcase_id' => $info['tcase_id'],
+            'tc_external_id' => $info['tc_external_id'],
+            'tc_name' => $info['tc_name'],
+            'tcversion_id' => $info['tcversion_id'],
+            'version' => $info['version'],
+            'exec_status' => $st,
+            'exec_status_label' => isset($execLabels[$st]) ? $execLabels[$st] : $st,
+        ];
+    }
+
+    // Assemble per-objective matrix
+    $objectives = [];
+    foreach ($qoRows as $qo) {
+        $qoId = intval($qo['id']);
+        $oqLinks = isset($linksByQo[$qoId]) ? $linksByQo[$qoId] : [];
+        $oReqIds = [];
+        $oTcIds = [];
+        foreach ($oqLinks as $ol) {
+            if ($ol['item_type'] === 'req') {
+                $oReqIds[] = intval($ol['item_id']);
+            } elseif ($ol['item_type'] === 'tc') {
+                $oTcIds[] = intval($ol['item_id']);
+            }
+        }
+        $oReqs = [];
+        foreach ($oReqIds as $oid) {
+            if (!isset($reqMap[$oid])) {
+                continue;
+            }
+            $rm = $reqMap[$oid];
+            $tcRows = [];
+            if (isset($covByReq[$oid])) {
+                foreach ($covByReq[$oid] as $tcvInfo) {
+                    $tcRows[] = qobjTcRow($tcvInfo, $execByTcv, $execLabels);
+                }
+            }
+            $oReqs[] = [
+                'id' => $rm['id'],
+                'req_doc_id' => $rm['req_doc_id'],
+                'title' => $rm['title'],
+                'spec_path' => $rm['spec_path'],
+                'version' => $rm['version'],
+                'covered_tcs' => count($tcRows),
+                'linked_tcs' => $tcRows,
+            ];
+        }
+        $oTcs = [];
+        foreach ($oTcIds as $oid) {
+            if (isset($tcMap[$oid])) {
+                $oTcs[] = qobjTcRow($tcMap[$oid], $execByTcv, $execLabels);
+            }
+        }
+
+        // summary of execution results across every linked tc
+        $summary = ['passed' => 0, 'failed' => 0, 'blocked' => 0, 'not_run' => 0, 'total' => 0];
+        foreach (array_merge($oReqs, [[]]) as $pick) {
+            $useRows = isset($pick['linked_tcs']) ? $pick['linked_tcs'] : [];
+            foreach ($useRows as $tr) {
+                $summary['total']++;
+                if ($tr['exec_status'] === 'p') {
+                    $summary['passed']++;
+                } elseif ($tr['exec_status'] === 'f') {
+                    $summary['failed']++;
+                } elseif ($tr['exec_status'] === 'b') {
+                    $summary['blocked']++;
+                } else {
+                    $summary['not_run']++;
+                }
+            }
+        }
+        foreach ($oTcs as $tr) {
+            $summary['total']++;
+            if ($tr['exec_status'] === 'p') {
+                $summary['passed']++;
+            } elseif ($tr['exec_status'] === 'f') {
+                $summary['failed']++;
+            } elseif ($tr['exec_status'] === 'b') {
+                $summary['blocked']++;
+            } else {
+                $summary['not_run']++;
+            }
+        }
+
+        $likelihood = intval($qo['risk_likelihood']);
+        $impact = intval($qo['risk_impact']);
+        $riskLevel = qobjRiskLevel($likelihood, $impact);
+
+        $objectives[] = [
+            'id' => $qoId,
+            'name' => $qo['name'],
+            'description' => $qo['description'],
+            'risk_likelihood' => $likelihood,
+            'risk_impact' => $impact,
+            'risk_level' => $riskLevel,
+            'is_active' => intval($qo['is_active']),
+            'creation_ts' => $qo['creation_ts'],
+            'linked_requirement_ids' => $oReqIds,
+            'linked_tc_ids' => $oTcIds,
+            'requirements' => $oReqs,
+            'testcases' => $oTcs,
+            'summary' => $summary,
+        ];
+    }
+
+    // Link pickers: every requirement + every test case of the project
+    $pickerReqs = [];
+    $allReqIds = $tprojectMgr->get_all_requirement_ids($qoTpid);
+    if (!is_null($allReqIds) && count($allReqIds) > 0) {
+        $reqSetAll = $reqMgr->getByIDBulkLatestVersionRevision($allReqIds, ['outputFormat' => 'mapOfArray']);
+        foreach ($allReqIds as $rid) {
+            if (!isset($reqSetAll[$rid]) || !isset($reqSetAll[$rid][0])) {
+                continue;
+            }
+            $r = $reqSetAll[$rid][0];
+            $pickerReqs[] = [
+                'id' => intval($r['id']),
+                'req_doc_id' => $r['req_doc_id'],
+                'title' => strip_tags($r['title']),
+                'spec_path' => qobjSpecPath($reqMgr, intval($r['srs_id']), $pathCache),
+            ];
+        }
+        usort($pickerReqs, function ($a, $b) {
+            return strcmp($a['spec_path'], $b['spec_path']) ?: strcasecmp($a['title'], $b['title']);
+        });
+    }
+
+    $pickerTcs = [];
+    $allTcIds = [];
+    $tprojectMgr->get_all_testcases_id($qoTpid, $allTcIds);
+    if (count($allTcIds) > 0) {
+        $tbl = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'tcversions']);
+        $tcRows = $db->get_recordset(
+            " SELECT NH.id AS tcase_id, NH.name AS tc_name," .
+            "        NH_TCV.id AS tcversion_id, TCV.tc_external_id, TCV.version " .
+            " FROM {$tbl['nodes_hierarchy']} NH " .
+            " JOIN {$tbl['nodes_hierarchy']} NH_TCV ON NH_TCV.parent_id = NH.id " .
+            " JOIN {$tbl['tcversions']} TCV ON TCV.id = NH_TCV.id " .
+            " WHERE NH.id IN (" . implode(',', array_map('intval', $allTcIds)) . ") " .
+            " ORDER BY TCV.version DESC");
+        $seen = [];
+        foreach ((array)$tcRows as $tr) {
+            $tcid = intval($tr['tcase_id']);
+            if (isset($seen[$tcid])) {
+                continue;
+            }
+            $seen[$tcid] = true;
+            $pickerTcs[] = [
+                'tcase_id' => $tcid,
+                'tc_name' => $tr['tc_name'],
+                'tc_external_id' => $tr['tc_external_id'],
+            ];
+        }
+        usort($pickerTcs, function ($a, $b) {
+            return strcasecmp($a['tc_name'], $b['tc_name']);
+        });
+    }
+
+    // plans of the project (context filter)
+    $planPicker = [];
+    $plans = $tprojectMgr->get_all_testplans($qoTpid);
+    if (is_array($plans)) {
+        foreach ($plans as $pl) {
+            if (isset($pl['id'])) {
+                $planPicker[] = ['id' => intval($pl['id']), 'name' => $pl['name'] ?? ''];
+            }
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'tproject_id' => $qoTpid,
+        'tproject_name' => $qoProject['name'],
+        'tplan_id' => $qoTplanId,
+        'objectives' => $objectives,
+        'pickers' => [
+            'requirements' => $pickerReqs,
+            'testcases' => $pickerTcs,
+            'plans' => $planPicker,
+        ],
+    ]);
+}
+
+// GET /quality-objectives-meta - existence guard for the front-end
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'quality-objectives-meta') {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_view_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $cnt = $db->fetchOneValue(" SELECT COUNT(*) FROM {$t['quality_objectives']} ");
+    out(['status' => 'ok', 'tables' => true, 'count' => intval($cnt)]);
+}
+
+// POST /quality-objectives - create
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'quality-objectives' && !isset($segments[1])) {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_modify_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $body = getBody();
+    $name = trim($body['name'] ?? '');
+    $description = trim($body['description'] ?? '');
+    $likelihood = intval($body['risk_likelihood'] ?? 1);
+    $impact = intval($body['risk_impact'] ?? 1);
+    $isActive = isset($body['is_active']) ? (intval($body['is_active']) === 1 ? 1 : 0) : 1;
+    if ($name === '') {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'name is mandatory']);
+    }
+    $likelihood = max(1, min(5, $likelihood));
+    $impact = max(1, min(5, $impact));
+
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $sql = " INSERT INTO {$t['quality_objectives']} " .
+           " (testproject_id, name, description, risk_likelihood, risk_impact, is_active, author_id) " .
+           " VALUES (" . intval($qoTpid) . ", '" . $db->prepare_string($name) . "', '" .
+           $db->prepare_string($description) . "', " . $likelihood . ", " . $impact . ", " .
+           $isActive . ", " . intval($userId) . ")";
+    $db->exec_query($sql);
+    $newId = intval($db->insert_id('quality_objectives'));
+    if ($newId <= 0) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Could not create quality objective']);
+    }
+    logAuditEvent("Quality objective created: " . $name, 'QOBJ_CREATE', $newId, 'quality_objective');
+    out(['status' => 'ok', 'id' => $newId]);
+}
+
+// PUT /quality-objectives/<id> - update
+if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'quality-objectives' && isset($segments[1])) {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_modify_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $qoId = intval($segments[1]);
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $existing = $db->get_recordset(
+        " SELECT * FROM {$t['quality_objectives']} WHERE id = " . $qoId . " AND testproject_id = " . intval($qoTpid));
+    if (!$existing) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Quality objective not found']);
+    }
+    $body = getBody();
+    $sets = [];
+    if (isset($body['name'])) {
+        $name = trim($body['name']);
+        if ($name === '') {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'name cannot be empty']);
+        }
+        $sets[] = "name = '" . $db->prepare_string($name) . "'";
+    }
+    if (isset($body['description'])) {
+        $sets[] = "description = '" . $db->prepare_string(trim($body['description'])) . "'";
+    }
+    if (isset($body['risk_likelihood'])) {
+        $sets[] = "risk_likelihood = " . max(1, min(5, intval($body['risk_likelihood'])));
+    }
+    if (isset($body['risk_impact'])) {
+        $sets[] = "risk_impact = " . max(1, min(5, intval($body['risk_impact'])));
+    }
+    if (isset($body['is_active'])) {
+        $sets[] = "is_active = " . (intval($body['is_active']) === 1 ? 1 : 0);
+    }
+    if (empty($sets)) {
+        out(['status' => 'ok', 'id' => $qoId]);
+    }
+    $db->exec_query(
+        " UPDATE {$t['quality_objectives']} SET " . implode(', ', $sets) .
+        " WHERE id = " . $qoId . " AND testproject_id = " . intval($qoTpid));
+    logAuditEvent("Quality objective updated: " . $existing[0]['name'], 'QOBJ_UPDATE', $qoId, 'quality_objective');
+    out(['status' => 'ok', 'id' => $qoId]);
+}
+
+// DELETE /quality-objectives/<id> - delete (also removes its links)
+if ($method === 'DELETE' && isset($segments[0]) && $segments[0] === 'quality-objectives' && isset($segments[1])) {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_modify_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $qoId = intval($segments[1]);
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $existing = $db->get_recordset(
+        " SELECT * FROM {$t['quality_objectives']} WHERE id = " . $qoId . " AND testproject_id = " . intval($qoTpid));
+    if (!$existing) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Quality objective not found']);
+    }
+    $db->exec_query(" DELETE FROM {$t['quality_objectives']} WHERE id = " . $qoId);
+    $db->exec_query(" DELETE FROM {$t['quality_objective_links']} WHERE qo_id = " . $qoId);
+    logAuditEvent("Quality objective deleted: " . $existing[0]['name'], 'QOBJ_DELETE', $qoId, 'quality_objective');
+    out(['status' => 'ok', 'id' => $qoId]);
+}
+
+// POST /quality-objectives/<id>/links - add links
+if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'quality-objectives'
+    && isset($segments[1]) && isset($segments[2]) && $segments[2] === 'links') {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_modify_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $qoId = intval($segments[1]);
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $existing = $db->get_recordset(
+        " SELECT * FROM {$t['quality_objectives']} WHERE id = " . $qoId . " AND testproject_id = " . intval($qoTpid));
+    if (!$existing) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Quality objective not found']);
+    }
+    $body = getBody();
+    $items = (array)($body['items'] ?? []);
+    if (empty($items)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'items is mandatory']);
+    }
+    $added = 0;
+    foreach ($items as $it) {
+        $type = trim($it['item_type'] ?? '');
+        $iid = intval($it['item_id'] ?? 0);
+        if (!in_array($type, ['req', 'tc'], true) || $iid <= 0) {
+            continue;
+        }
+        $db->exec_query(
+            " INSERT IGNORE INTO {$t['quality_objective_links']} " .
+            " (qo_id, tproject_id, item_type, item_id) VALUES (" . $qoId . ", " .
+            intval($qoTpid) . ", '" . $type . "', " . $iid . ")");
+        $added++;
+    }
+    logAuditEvent("Quality objective linked: " . $existing[0]['name'] . " (" . $added . " items)", 'QOBJ_LINK', $qoId, 'quality_objective');
+    out(['status' => 'ok', 'id' => $qoId, 'added' => $added]);
+}
+
+// DELETE /quality-objectives/<id>/links - remove a link
+if ($method === 'DELETE' && isset($segments[0]) && $segments[0] === 'quality-objectives'
+    && isset($segments[1]) && isset($segments[2]) && $segments[2] === 'links') {
+    $qoTpid = resolveTprojectId();
+    if (!$user->hasRight($db, 'mgt_modify_req', $qoTpid)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+    $qoId = intval($segments[1]);
+    qobjEnsureSchema($db);
+    $t = qobjTables();
+    $existing = $db->get_recordset(
+        " SELECT * FROM {$t['quality_objectives']} WHERE id = " . $qoId . " AND testproject_id = " . intval($qoTpid));
+    if (!$existing) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Quality objective not found']);
+    }
+    $body = getBody();
+    $type = trim($body['item_type'] ?? '');
+    $iid = intval($body['item_id'] ?? 0);
+    if (!in_array($type, ['req', 'tc'], true) || $iid <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'item_type + item_id are mandatory']);
+    }
+    $db->exec_query(
+        " DELETE FROM {$t['quality_objective_links']} " .
+        " WHERE qo_id = " . $qoId . " AND item_type = '" . $type . "' AND item_id = " . $iid);
+    logAuditEvent("Quality objective unlinked: " . $existing[0]['name'] . " (item " . $iid . ")", 'QOBJ_UNLINK', $qoId, 'quality_objective');
+    out(['status' => 'ok', 'id' => $qoId]);
+}
+
 http_response_code(404);
 echo json_encode(['status' => 'error', 'message' => 'Unknown endpoint']);

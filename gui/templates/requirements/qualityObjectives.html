@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Objectives &amp; Risk Traceability Matrix</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark-ghost { background: transparent; color: #8bf3ec; border: 1px solid #4ECDC4; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.btn-dark-ghost:hover { background: #2f343c; }
+.toolbar label { color: #fff; font-size: 13px; display: flex; align-items: center; gap: 6px; margin: 0; }
+.toolbar select { background: #2f343c; color: #fff; border: 1px solid #4ECDC4; border-radius: 4px; padding: 5px 8px; font-size: 13px; }
+.tools-info { color: #aaa; font-size: 12px; margin-left: auto; }
+.cards-wrap { padding: 20px 24px; display: flex; flex-direction: column; gap: 20px; }
+.qo-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.qo-card-head { background: #22242a; color: #fff; padding: 12px 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.qo-card-head .qo-name { font-weight: 700; font-size: 15px; }
+.qo-card-body { padding: 14px 18px; }
+.qo-desc { color: #666; font-size: 13px; margin: 0 0 10px; }
+.qo-summary { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.sum-badge { padding: 4px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; color: #fff; }
+.sum-passed { background: #27ae60; }
+.sum-failed { background: #e74c3c; }
+.sum-blocked { background: #f39c12; }
+.sum-notrun { background: #95a5a6; }
+.risk-badge { padding: 4px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.risk-low { background: #27ae60; }
+.risk-medium { background: #f39c12; }
+.risk-high { background: #e67e22; }
+.risk-critical { background: #c0392b; }
+.qo-actions { margin-left: auto; display: flex; gap: 6px; }
+.qo-action-btn { background: transparent; color: #8bf3ec; border: none; cursor: pointer; font-size: 15px; padding: 2px 6px; }
+.qo-action-btn:hover { color: #fff; }
+.req-row { border: 1px solid #e5e9f0; border-radius: 6px; margin-bottom: 10px; }
+.req-row-head { background: #f5f7fa; padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; }
+.req-row-head .docid { color: #4ECDC4; font-weight: 700; }
+.req-row-head .req-title { color: #22242a; font-weight: 600; }
+.req-row-head .req-spec { color: #999; font-size: 11px; }
+.req-row-head .cov-count { color: #555; font-size: 11px; margin-left: auto; }
+.tc-chips { padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+.tc-chip { background: #f0f8f7; border: 1px solid #cdeae7; border-radius: 14px; padding: 4px 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 8px; }
+.tc-chip .tc-id { color: #2d8e88; font-weight: 700; }
+.tc-chip .res { padding: 1px 8px; border-radius: 8px; color: #fff; font-size: 11px; font-weight: 700; }
+.res-p { background: #27ae60; }
+.res-f { background: #e74c3c; }
+.res-b { background: #f39c12; }
+.res-n { background: #95a5a6; }
+.direct-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .5px; margin: 4px 12px 6px; }
+.empty-state { padding: 40px; text-align: center; color: #888; font-size: 14px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.pick-group { border: 1px solid #e5e9f0; border-radius: 6px; margin-bottom: 12px; max-height: 220px; overflow: auto; }
+.pick-group-title { background: #f5f7fa; padding: 8px 12px; font-weight: 700; font-size: 12px; color: #22242a; }
+.pick-item { padding: 6px 12px; font-size: 13px; border-top: 1px solid #f0f2f6; display: flex; gap: 8px; align-items: center; }
+.pick-item label { margin: 0; font-weight: 400; cursor: pointer; }
+.pick-item .pid { color: #4ECDC4; font-weight: 700; margin-right: 6px; }
+.pick-item .pspec { color: #999; font-size: 11px; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="qobj.header">Quality Objectives</span> <span class="sub" data-i18n="qobj.subHeader">objective → requirement → test case → result traceability</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <label><span data-i18n="qobj.forProject">Project</span> <strong id="projName" style="color:#8bf3ec;"></strong></label>
+  <label><span data-i18n="qobj.planFilter">Test plan</span>
+    <select id="planFilter"><option value="0" data-i18n="qobj.planAll">All plans</option></select>
+  </label>
+  <button class="btn-teal" onclick="loadData()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <button class="btn-dark-ghost" onclick="openEditModal(0)"><i class="fa fa-plus"></i> <span data-i18n="qobj.addObjective">Add Quality Objective</span></button>
+  <span class="tools-info" id="infoLine"></span>
+</div>
+
+<div class="cards-wrap" id="cardsWrap"></div>
+<div class="empty-state" id="emptyState" style="display:none;" data-i18n="qobj.noObjectives">No quality objectives defined yet.</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.qualityObjectives">TestLink 2.0.1 - Quality Objectives &amp; Risk Traceability Matrix</span></div>
+
+<!-- Objective create/edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalTitle">Quality Objective</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="qoId">
+        <div class="form-group">
+          <label data-i18n="qobj.name">Name</label>
+          <input type="text" class="form-control" id="qoName" style="font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label data-i18n="qobj.description">Description</label>
+          <textarea class="form-control" id="qoDescription" rows="2" style="font-size:13px;"></textarea>
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label data-i18n="qobj.riskLikelihood">Failure likelihood (1–5)</label>
+              <select class="form-control" id="qoLikelihood" style="font-size:13px;">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label data-i18n="qobj.riskImpact">Business impact (1–5)</label>
+              <select class="form-control" id="qoImpact" style="font-size:13px;">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+                <option value="4">4</option><option value="5">5</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <span id="riskPreview"></span>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal btn-sm" onclick="saveObjective()"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Link editor modal -->
+<div class="modal fade" id="linkModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="linkModalTitle">Links</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body" id="linkModalBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal btn-sm" onclick="saveLinks()"><i class="fa fa-link"></i> <span data-i18n="qobj.saveLinks">Save links</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Error modal -->
+<div class="modal fade" id="errModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="common.error">Error</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body"><p id="errModalText" style="font-size:13px;color:#c0392b;"></p></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/requirements/index.php';
+var tprojectId = 0;
+var DATA = null;       // latest GET payload
+var editTarget = null; // objective under edit/link
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || p.get('tprojectId') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#planFilter').on('change', loadData);
+    $('#qoLikelihood,#qoImpact').on('change', previewRisk);
+    loadData();
+  });
+});
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function showError(msg) {
+  $('#errModalText').text(msg);
+  $('#errModal').modal('show');
+}
+
+function riskClass(level) { return level === 'critical' ? 'risk-critical' : 'risk-' + level; }
+
+function riskLabelKey(level) { return 'qobj.risk' + level.charAt(0).toUpperCase() + level.slice(1); }
+
+function stClass(st) { return st === 'p' ? 'res-p' : st === 'f' ? 'res-f' : st === 'b' ? 'res-b' : 'res-n'; }
+
+function loadData() {
+  var planId = $('#planFilter').val() || 0;
+  $.getJSON(API + '/quality-objectives?tproject_id=' + tprojectId + '&tplan_id=' + planId, function(r) {
+    DATA = r;
+    tprojectId = r.tproject_id || tprojectId;
+    $('#projName').text(r.tproject_name || '');
+    renderPlans(r.pickers.plans || [], planId);
+    renderObjectives(r.objectives || []);
+    $('#infoLine').text(TLi18n.t('qobj.count', {n: (r.objectives || []).length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#footerText').text(TLi18n.t('qobj.footerCount', {n: (r.objectives || []).length, r: 0}));
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('qobj.errLoad');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showError(msg);
+  });
+}
+
+function renderPlans(plans, selected) {
+  var cur = $('#planFilter').val();
+  var html = '<option value="0">' + TLi18n.t('qobj.planAll') + '</option>';
+  $.each(plans, function(i, pl) {
+    var sel = (String(pl.id) === String(selected || cur || 0)) ? ' selected' : '';
+    html += '<option value="' + pl.id + '"' + sel + '>' + esc(pl.name) + '</option>';
+  });
+  var was = $('#planFilter').val();
+  $('#planFilter').html(html);
+  if (was != null && $('#planFilter').val() !== was) { /* keep external selection */ }
+}
+
+function summaryBadges(summary) {
+  var s = summary || {passed:0, failed:0, blocked:0, not_run:0, total:0};
+  var h = '';
+  h += '<span class="sum-badge sum-passed" title="' + esc(TLi18n.t('qobj.stPassed')) + '">' + TLi18n.t('qobj.stPassed') + ': ' + s.passed + '</span>';
+  h += '<span class="sum-badge sum-failed" title="' + esc(TLi18n.t('qobj.stFailed')) + '">' + TLi18n.t('qobj.stFailed') + ': ' + s.failed + '</span>';
+  h += '<span class="sum-badge sum-blocked" title="' + esc(TLi18n.t('qobj.stBlocked')) + '">' + TLi18n.t('qobj.stBlocked') + ': ' + s.blocked + '</span>';
+  h += '<span class="sum-badge sum-notrun" title="' + esc(TLi18n.t('qobj.stNotRun')) + '">' + TLi18n.t('qobj.stNotRun') + ': ' + s.not_run + '</span>';
+  return h;
+}
+
+function tcChip(tc) {
+  return '<span class="tc-chip">' +
+    '<span class="tc-id">' + esc(tc.tc_external_id) + ':</span>' +
+    '<span>' + esc(tc.tc_name) + '</span>' +
+    '<span class="res ' + stClass(tc.exec_status) + '">' + esc(tc.exec_status_label) + '</span>' +
+    '</span>';
+}
+
+function requirementBlock(req) {
+  var chips = '';
+  $.each(req.linked_tcs || [], function(i, tc) { chips += tcChip(tc); });
+  if (chips === '') {
+    chips = '<span class="tc-chip" style="color:#999;">' + TLi18n.t('qobj.noLinkedTc') + '</span>';
+  }
+  return '<div class="req-row">' +
+    '<div class="req-row-head">' +
+      '<span class="docid">' + esc(req.req_doc_id) + '</span>' +
+      '<span class="req-title">' + esc(req.title) + '</span>' +
+      '<span class="req-spec">' + esc(req.spec_path) + '</span>' +
+      '<span class="req-spec">v' + req.version + '</span>' +
+      '<span class="cov-count">' + TLi18n.t('qobj.coveredTcs', {n: req.covered_tcs}) + '</span>' +
+    '</div>' +
+    '<div class="tc-chips">' + chips + '</div>' +
+    '</div>';
+}
+
+function renderObjectives(objectives) {
+  $('#cardsWrap').empty();
+  if (!objectives.length) {
+    $('#emptyState').show();
+    return;
+  }
+  $('#emptyState').hide();
+
+  $.each(objectives, function(i, o) {
+    var html = '';
+    html += '<div class="qo-card">';
+    html += '  <div class="qo-card-head">';
+    html += '    <span class="qo-name">' + esc(o.name) + '</span>';
+    html += '    <span class="risk-badge ' + riskClass(o.risk_level) + '">' +
+            TLi18n.t('qobj.risk') + ': ' + TLi18n.t(riskLabelKey(o.risk_level)) +
+            ' (L' + o.risk_likelihood + '\u00d7I' + o.risk_impact + ')</span>';
+    html += '    <span class="qo-actions">';
+    html += '      <button class="qo-action-btn" onclick="openEditModal(' + o.id + ')" title="' + esc(TLi18n.t('qobj.edit')) + '"><i class="fa fa-pen-to-square"></i></button>';
+    html += '      <button class="qo-action-btn" onclick="openLinkModal(' + o.id + ')" title="' + esc(TLi18n.t('qobj.links')) + '"><i class="fa fa-link"></i></button>';
+    html += '      <button class="qo-action-btn" style="color:#e74c3c" onclick="deleteObjective(' + o.id + ')" title="' + esc(TLi18n.t('qobj.delete')) + '"><i class="fa fa-trash"></i></button>';
+    html += '    </span>';
+    html += '  </div>';
+    html += '  <div class="qo-card-body">';
+    if (o.description) {
+      html += '    <p class="qo-desc">' + esc(o.description) + '</p>';
+    }
+    html += '    <div class="qo-summary">' + summaryBadges(o.summary) + '</div>';
+    $.each(o.requirements || [], function(j, req) {
+      html += requirementBlock(req);
+    });
+    if ((o.testcases || []).length) {
+      html += '<div class="direct-label">' + TLi18n.t('qobj.directTc') + '</div>';
+      html += '<div class="tc-chips" style="padding-left:12px;">';
+      $.each(o.testcases, function(j, tc) { html += tcChip(tc); });
+      html += '</div>';
+    }
+    if (!(o.requirements || []).length && !(o.testcases || []).length) {
+      html += '<div class="qo-desc">' + TLi18n.t('qobj.noLinks') + '</div>';
+    }
+    html += '  </div>';
+    html += '</div>';
+    $('#cardsWrap').append(html);
+  });
+}
+
+// ---- CRUD ---------------------------------------------------------------
+
+function previewRisk() {
+  var l = parseInt($('#qoLikelihood').val(), 10) || 1;
+  var i = parseInt($('#qoImpact').val(), 10) || 1;
+  var level = l * i >= 16 ? 'critical' : l * i >= 10 ? 'high' : l * i >= 5 ? 'medium' : 'low';
+  $('#riskPreview').html('<span class="risk-badge ' + riskClass(level) + '">' +
+    TLi18n.t('qobj.risk') + ': ' + TLi18n.t(riskLabelKey(level)) + ' (L' + l + '\u00d7I' + i + ')</span>');
+}
+
+function openEditModal(id) {
+  editTarget = null;
+  $('#qoId').val('');
+  $('#qoName').val('');
+  $('#qoDescription').val('');
+  $('#qoLikelihood').val(1);
+  $('#qoImpact').val(1);
+  $('#editModalTitle').text(TLi18n.t('qobj.addObjective'));
+  if (id) {
+    var o = findObjective(id);
+    if (o) {
+      editTarget = o;
+      $('#qoId').val(o.id);
+      $('#qoName').val(o.name);
+      $('#qoDescription').val(o.description || '');
+      $('#qoLikelihood').val(o.risk_likelihood);
+      $('#qoImpact').val(o.risk_impact);
+      $('#editModalTitle').text(TLi18n.t('qobj.editObjective'));
+    }
+  }
+  previewRisk();
+  $('#editModal').modal('show');
+}
+
+function saveObjective() {
+  var name = $('#qoName').val().trim();
+  if (!name) { showError(TLi18n.t('qobj.msgNameRequired')); return; }
+  var id = $('#qoId').val();
+  var payload = {
+    name: name,
+    description: $('#qoDescription').val(),
+    risk_likelihood: parseInt($('#qoLikelihood').val(), 10),
+    risk_impact: parseInt($('#qoImpact').val(), 10)
+  };
+  var url = API + '/quality-objectives' + (id ? '/' + id : '') + '?tproject_id=' + tprojectId;
+  var method = id ? 'PUT' : 'POST';
+  $.ajax({
+    url: url, type: method, contentType: 'application/json',
+    data: JSON.stringify(payload),
+    success: function() {
+      $('#editModal').modal('hide');
+      loadData();
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('qobj.errSave');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      showError(msg);
+    }
+  });
+}
+
+function deleteObjective(id) {
+  if (!confirm(TLi18n.t('qobj.confirmDelete'))) { return; }
+  $.ajax({
+    url: API + '/quality-objectives/' + id + '?tproject_id=' + tprojectId,
+    type: 'DELETE',
+    success: function() { loadData(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('qobj.errDelete');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      showError(msg);
+    }
+  });
+}
+
+function findObjective(id) {
+  var found = null;
+  $.each(DATA.objectives || [], function(i, o) { if (o.id === id) { found = o; return false; } });
+  return found;
+}
+
+// ---- link editor --------------------------------------------------------
+
+function openLinkModal(id) {
+  var o = findObjective(id);
+  if (!o) { return; }
+  editTarget = o;
+  $('#linkModalTitle').text(TLi18n.t('qobj.linkTitle') + ': ' + o.name);
+  var reqs = DATA.pickers.requirements || [];
+  var tcs = DATA.pickers.testcases || [];
+  var selReqs = genSet(o.linked_requirement_ids || []);
+  var selTcs = genSet(o.linked_tc_ids || []);
+  var html = '';
+  html += '<div class="pick-group"><div class="pick-group-title">' + TLi18n.t('qobj.linkRequirements') + ' (' + reqs.length + ')</div>';
+  if (!reqs.length) { html += '<div class="pick-item" style="color:#999;">' + TLi18n.t('qobj.noReqs') + '</div>'; }
+  $.each(reqs, function(i, r) {
+    var checked = selReqs[r.id] ? ' checked' : '';
+    html += '<div class="pick-item"><label><input type="checkbox" class="qo-req" value="' + r.id + '"' + checked + '> ' +
+            '<span class="pid">' + esc(r.req_doc_id) + '</span><span>' + esc(r.title) + '</span></label>' +
+            '<span class="pspec">' + esc(r.spec_path) + '</span></div>';
+  });
+  html += '</div>';
+  html += '<div class="pick-group"><div class="pick-group-title">' + TLi18n.t('qobj.linkTestCases') + ' (' + tcs.length + ')</div>';
+  if (!tcs.length) { html += '<div class="pick-item" style="color:#999;">' + TLi18n.t('qobj.noTcs') + '</div>'; }
+  $.each(tcs, function(i, t) {
+    var checked = selTcs[t.tcase_id] ? ' checked' : '';
+    html += '<div class="pick-item"><label><input type="checkbox" class="qo-tc" value="' + t.tcase_id + '"' + checked + '> ' +
+            '<span class="pid">' + esc(t.tc_external_id) + ':</span><span>' + esc(t.tc_name) + '</span></label></div>';
+  });
+  html += '</div>';
+  $('#linkModalBody').html(html);
+  $('#linkModal').modal('show');
+}
+
+function genSet(arr) {
+  var s = {};
+  $.each(arr, function(i, v) { s[v] = true; });
+  return s;
+}
+
+function saveLinks() {
+  var o = editTarget;
+  if (!o) { return; }
+  var keepReqs = [];
+  var keepTcs = [];
+  $('.qo-req:checked').each(function() { keepReqs.push(parseInt(this.value, 10)); });
+  $('.qo-tc:checked').each(function() { keepTcs.push(parseInt(this.value, 10)); });
+
+  var oldReqs = genSet(o.linked_requirement_ids || []);
+  var oldTcs = genSet(o.linked_tc_ids || []);
+
+  var toAdd = [];
+  $.each(keepReqs, function(i, id) { if (!oldReqs[id]) { toAdd.push({item_type: 'req', item_id: id}); } });
+  $.each(keepTcs, function(i, id) { if (!oldTcs[id]) { toAdd.push({item_type: 'tc', item_id: id}); } });
+
+  var done = 0, failed = false;
+  function nextDelete() {
+    var keys = [];
+    $.each(oldReqs, function(id) { if (keepReqs.indexOf(parseInt(id, 10)) === -1) { keys.push(['req', parseInt(id, 10)]); } });
+    $.each(oldTcs, function(id) { if (keepTcs.indexOf(parseInt(id, 10)) === -1) { keys.push(['tc', parseInt(id, 10)]); } });
+    if (!keys.length) { finish(true); return; }
+    // remove sequentially to respect the DELETE one-item API
+    var k = keys.shift();
+    $.ajax({
+      url: API + '/quality-objectives/' + o.id + '/links?tproject_id=' + tprojectId,
+      type: 'DELETE', contentType: 'application/json',
+      data: JSON.stringify({item_type: k[0], item_id: k[1]}),
+      success: function() { nextDelete(); },
+      error: function(xhr) { finish(false, xhr); }
+    });
+  }
+  function finish(ok, xhr) {
+    if (!ok) {
+      var msg = TLi18n.t('qobj.errLinks');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      showError(msg);
+      return;
+    }
+    if (!toAdd.length) { $('#linkModal').modal('hide'); loadData(); return; }
+    $.ajax({
+      url: API + '/quality-objectives/' + o.id + '/links?tproject_id=' + tprojectId,
+      type: 'POST', contentType: 'application/json',
+      data: JSON.stringify({items: toAdd}),
+      success: function() { $('#linkModal').modal('hide'); loadData(); },
+      error: function(xr) {
+        var msg = TLi18n.t('qobj.errLinks');
+        try { msg = JSON.parse(xr.responseText).message || msg; } catch(e) {}
+        showError(msg);
+      }
+    });
+  }
+  nextDelete();
+}
+</script>
+</body>
+</html>
