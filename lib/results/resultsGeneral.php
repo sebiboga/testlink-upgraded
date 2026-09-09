@@ -248,11 +248,15 @@ function initializeGui(&$dbHandler,$argsObj,&$tplanMgr) {
   $mgr = new testproject($dbHandler);
   $dummy = $mgr->get_by_id($argsObj->tproject_id);
   $gui->testprojectOptions = new stdClass();
-  $gui->testprojectOptions->testPriorityEnabled = $dummy['opt']->testPriorityEnabled;
-  $gui->tproject_name = $dummy['name'];
+  // Anonymous/invalid-apikey requests can fabricate tproject_id/tplan_id that
+  // match no DB row: get_by_id() then returns null and dereferencing it would
+  // emit E_WARNINGs into the events table (Refs #1257).
+  $gui->testprojectOptions->testPriorityEnabled =
+    !is_null($dummy) && !empty($dummy['opt']) ? $dummy['opt']->testPriorityEnabled : false;
+  $gui->tproject_name = !is_null($dummy) ? $dummy['name'] : '';
 
   $info = $tplanMgr->get_by_id($argsObj->tplan_id);
-  $gui->tplan_name = $info['name'];
+  $gui->tplan_name = !is_null($info) ? $info['name'] : '';
   $gui->tplan_id = intval($argsObj->tplan_id);
 
   $gui->platformSet = $tplanMgr->getPlatforms($argsObj->tplan_id,array('outputFormat' => 'map'));
