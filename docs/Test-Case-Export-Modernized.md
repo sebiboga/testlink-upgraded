@@ -188,10 +188,13 @@ Parity run `testcases/tcExport.html` vs legacy `lib/testcases/tcExport.php`
 - **Gaps found and fixed in-run:** file-format documentation link restored +
   `tcx.type.*` keys added to the 8 bundles that had silently fallen back to the
   backend label.
-- **Open gap:** suite-level export has no modern launcher — legacy
+- **Open gaps:** suite-level export has no modern launcher — legacy
   `containerView.tpl` targeted `tcExport.php?containerID=<suite>`; modern reaches
   only the testcase mode (tcView toolbar) and the project-deep mode
-  (projectInfoView *Export all test suites*). See #1325.
+  (projectInfoView *Export all test suites*). See #1325. Skeleton export has no
+  modern UI button (tl-classic `tcExport.tpl:130` has an `exportSkel` submit
+  button, the Dashio form had none; the BFF `export` already honors the
+  `exportSkel` param and produces byte-identical output to legacy). See #1326.
 - Cleanup: #1324 (delete legacy `tcExport.php` + tcExport.tpl templates once the
   reachability gap is resolved).
 
