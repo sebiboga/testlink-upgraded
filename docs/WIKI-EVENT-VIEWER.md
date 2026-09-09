@@ -86,7 +86,22 @@ Both charts update whenever the **Apply** button is clicked with new filter sett
 
 ## 4. Events Table
 
-A DataTables-powered table listing all matching events, sorted by timestamp descending (newest first).
+A DataTables-powered table listing all matching events. By default the rows are **grouped by Log Level** into collapsible groups (data ordered by level, then by timestamp descending — newest first within each group), mirroring the legacy ExtTable grouping (`eventviewer.legacy.php:263-274`, `setGroupByColumnName(th_loglevel)` + `sortDirection=DESC`).
+
+### Table Toolbar
+
+A toolbar sits directly above the table with three actions plus a status badge:
+
+| Button | Icon | Description |
+|--------|------|-------------|
+| **Expand all groups** | plus-square | Expands every collapsed Log Level group |
+| **Collapse all groups** | minus-square | Collapses every Log Level group to its header only |
+| **Show all columns** | columns | Toggles the hidden **Transaction** column (see below) |
+| *badge* | — | "Grouped by log level" status indicator |
+
+Clicking an individual group header row toggles that group's expand/collapse state. Level groups show their element count, e.g. `ERROR (2 items)`.
+
+![Grouped event viewer](issue-869-eventviewer-grouped.png)
 
 ### Table Columns
 
@@ -94,13 +109,16 @@ A DataTables-powered table listing all matching events, sorted by timestamp desc
 |--------|-------|-------------|
 | (expand) | 30px | Clickable chevron icon to toggle the detail row |
 | Timestamp | auto | Formatted as `dd/mm/yyyy hh:mm:ss` |
-| Level | auto | Colored badge showing the log level (AUDIT, ERROR, WARNING, INFO, DEBUG, L18N) |
+| Level | auto | Colored badge showing the log level (AUDIT, ERROR, WARNING, INFO, DEBUG, L18N) — the grouping key |
 | User | auto | Display name of the user who triggered the event, or `-` for system events |
 | Description | auto | The event description text. Clicking the row also expands the detail view |
+| Transaction | auto | **Hidden by default.** Revealed via the "Show all columns" toolbar button; shows the per-row transaction id (e.g. `#1234`), mirroring legacy `th_transaction` |
 
 ### Behavior
 
 - **Pagination:** 25 rows per page by default
+- **Grouping:** Rows are grouped by Log Level (uses the DataTables RowGroup extension, `rowGroup.dataSrc`). Within each group rows sort by timestamp descending.
+- **Group collapse:** Click a group header to collapse/expand that level; use the toolbar to expand or collapse all at once.
 - **Sorting:** Click any column header (except expand and description) to sort ascending/descending
 - **Search:** Use the DataTables search box to filter the visible rows client-side
 - **Row expand:** Click the chevron icon or the description text to expand/collapse the detail row

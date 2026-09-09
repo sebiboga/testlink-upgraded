@@ -7,6 +7,7 @@
 <title>Event Viewer</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -80,6 +81,27 @@ tr.shown { background: #f9fffe !important; }
 .detail-content table th { color: #555; font-weight: 600; width: 140px; font-size: 12px; }
 .detail-content table td { color: #333; font-size: 13px; }
 
+.ev-toolbar {
+  background: #fff; border-bottom: 1px solid #eee; padding: 10px 24px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.ev-toolbar .tbtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #22242a; color: #fff; border: none; border-radius: 4px;
+  padding: 7px 12px; font-size: 12px; cursor: pointer;
+}
+.ev-toolbar .tbtn:hover { background: #33363f; }
+.ev-toolbar .tbtn i { color: #4ECDC4; }
+.ev-toolbar .ev-tbtn-label { color: #aaa; font-size: 12px; margin-left: auto; }
+
+table.dataTable tr.dtrg-group td {
+  background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer;
+  padding: 8px 14px; border-bottom: 1px solid #d2e6e3;
+}
+table.dataTable tr.dtrg-group td i { margin-right: 8px; color: #4ECDC4; }
+table.dataTable tr.dtrg-group td:hover { background: #dcefec; }
+table.dataTable tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 5px; }
+
 .footer {
   padding: 12px 24px; color: #888; font-size: 12px;
   border-top: 1px solid #ddd; background: #fff;
@@ -149,6 +171,13 @@ td.desc-expand:hover { background: #f9fffe !important; }
   </div>
 </div>
 
+<div class="ev-toolbar" id="evToolbar">
+  <button type="button" class="tbtn" id="btnExpandAll"><i class="fa fa-plus-square"></i> <span data-i18n="ev.expandAll">Expand all groups</span></button>
+  <button type="button" class="tbtn" id="btnCollapseAll"><i class="fa fa-minus-square"></i> <span data-i18n="ev.collapseAll">Collapse all groups</span></button>
+  <button type="button" class="tbtn" id="btnShowCols"><i class="fa fa-columns"></i> <span data-i18n="ev.showAllColumns">Show all columns</span></button>
+  <span class="ev-tbtn-label" id="evGroupBadge"></span>
+</div>
+
 <div class="table-wrap">
   <table id="eventsTable" class="display" style="width:100%">
     <thead>
@@ -158,6 +187,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
         <th data-i18n="ev.level">Level</th>
         <th data-i18n="ev.user">User</th>
         <th data-i18n="ev.description">Description</th>
+        <th data-i18n="ev.transaction" class="ev-txn-col">Transaction</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -171,6 +201,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="https://cdn.jsdelivr.net/momentjs/latest/moment.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/daterangepicker/daterangepicker.min.js"></script>
 <script src="/gui/templates/dashio/lib/chart-master/Chart.js"></script>
@@ -192,6 +223,7 @@ var pieChart = null;
 var lineChart = null;
 var pieCanvasSize = null;
 var lineCanvasSize = null;
+var collapsedGroups = {};
 
 $(function() {
   var pieEl = $('#pieChart'), lineEl = $('#lineChart');
@@ -287,28 +319,91 @@ function loadEvents() {
 }
 
 function renderTable(items) {
-  if (table) { table.destroy(); $('eventsTable tbody').empty(); }
+  if (table) { table.destroy(); $('#eventsTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, ev) {
     rows.push([
       ev.id,
       ev.timestampFormatted,
-      '<span class="level-badge level-' + ev.logLevel + '">' + ev.logLevel + '</span>',
+      ev.logLevel,
       ev.userDisplayName || ev.userID || '-',
-      ev.description || ''
+      ev.description || '',
+      ev.transactionID ? '#' + ev.transactionID : '-'
     ]);
   });
+
+  // Collapsed group state lives on the module-global `collapsedGroups` object.
+  // The rowGroup startRender closure reads it directly on every draw, so group
+  // clicks and the expand/collapse-all toolbar buttons take effect on redraw
+  // (legacy expand/collapse parity, same pattern as tplanWithCF.html).
+
   table = $('#eventsTable').DataTable({
     data: rows,
-    order: [[1, 'desc']],
+    // Legacy ExtGrouping parity: group rows are contiguous by Log Level, and
+    // within each group rows are ordered by timestamp DESC. Because DataTables
+    // rowGroup only groups *consecutive* equal values, the primary sort must be
+    // the level column (dataSrc 2) with the timestamp as the secondary key.
+    order: [[2, 'asc'], [1, 'desc']],
     pageLength: 25,
     columns: [
       { orderable: false, searchable: false, render: function(data) { return '<span class="details-control" data-id="' + data + '"><i class="fa fa-chevron-right"></i></span>'; } },
       { type: 'string' },
+      { orderable: true, render: function(data, type) {
+          if (type === 'display') { return '<span class="level-badge level-' + data + '">' + data + '</span>'; }
+          return data;
+        } },
       { orderable: true },
-      { orderable: true },
-      { orderable: false, className: 'desc-expand' }
-    ]
+      { orderable: false, className: 'desc-expand' },
+      { visible: false }
+    ],
+    rowGroup: {
+      dataSrc: 2,
+      startRender: function (rows, group) {
+        var isCollapsed = !!collapsedGroups[group];
+        rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+        var n = rows.count();
+        var suffix = n === 1 ? TLi18n.t('ev.item') : TLi18n.t('ev.items');
+        return $('<tr/>').attr('data-key', encodeURIComponent(group))
+          .append($('<td/>').append(
+            $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            ' ' + group + '<span class="gcount">(' + n + ' ' + suffix + ')</span>'
+          ));
+      }
+    },
+    language: {
+      search: TLi18n.t('common.filter') + ':',
+      lengthMenu: TLi18n.t('common.showEntries') + ' _MENU_ ' + TLi18n.t('common.entries'),
+      info: TLi18n.t('common.pageInfo'),
+      paginate: { previous: TLi18n.t('common.prev'), next: TLi18n.t('common.next') },
+      emptyTable: TLi18n.t('ev.noEvents')
+    }
+  });
+
+  $('#evGroupBadge').text(TLi18n.t('ev.groupedByLevel'));
+
+  $(table.table().container()).off('click.dtrg').on('click.dtrg', 'tr.dtrg-group', function () {
+    var key = decodeURIComponent($(this).attr('data-key') || '');
+    collapsedGroups[key] = !collapsedGroups[key];
+    table.draw(false);
+  });
+
+  $('#btnExpandAll').off('click').on('click', function () {
+    collapsedGroups = {};
+    table.draw(false);
+  });
+
+  $('#btnCollapseAll').off('click').on('click', function () {
+    items.forEach(function (ev) { collapsedGroups[ev.logLevel] = true; });
+    table.draw(false);
+  });
+
+  $('#btnShowCols').off('click').on('click', function () {
+    // Legacy toolbarShowAllColumnsButton parity: toggle the hidden Transaction
+    // column so the transaction id is visible per row (not only in the expand
+    // detail or in the chart). DataTables' column().visible() manages both the
+    // column cells and the header visibility, so no manual th styling needed.
+    table.column(5).visible(!table.column(5).visible());
+    table.draw(false);
   });
 }
 

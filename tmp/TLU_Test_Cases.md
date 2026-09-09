@@ -12149,24 +12149,21 @@ Result: 7/7 PASS — **feature implemented + verified (Refs #1271)**. Gap closed
 | 1281.10 | Event Viewer clean | `SELECT log_level,count(*) FROM events GROUP BY log_level` after suite | zero new ERROR/WARNING rows (admin login AUDIT only); no console errors | PASS |
 
 Result: 10/10 PASS — **gap #1275 fixed (Refs #1281)**: the two dropped legacy allowlist entries restored in the BFF (`$docs` + order-pinning `usort`), new `doc_good_test_case`/`doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`, browser/curl-verified. Cleanup of legacy viewer tracked by #1276 (viewer intentionally kept for back-compat until cleanup run).
+## Task — Issue #869: log-level grouping + collapsible-group toolbar (Show All Columns) in Event Viewer
 
----
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink` freshly imported. Login admin/admin. Seed mixed-level events: `events` rows ERROR ×2, WARNING ×2, INFO ×1, DEBUG ×1, AUDIT ×1 (via `transactions` id 1-3); the admin login adds a 6th AUDIT row → 8 total. Open `gui/templates/eventviewer/eventviewer.html`. Legacy ref: `lib/events/eventviewer.legacy.php:263-274` (`setGroupByColumnName(th_loglevel)`, `sortDirection=DESC`, `toolbarExpandCollapseGroupsButton`+`toolbarShowAllColumnsButton`=true, hidden `th_transaction` at `:228`).
 
-## Task — Issue #1280: Quality Objectives & Risk Traceability Matrix
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 869.1 | Rows grouped by Log Level (contiguous) | load Event Viewer with mixed-level fixtures | table renders one group per level (AUDIT 2, DEBUG 1, ERROR 2, INFO 1, WARNING 2) — NOT interleaved by timestamp; both ERROR rows under a single ERROR group, both WARNING rows under one WARNING group | PASS |
+| 869.2 | Timestamp DESC within each group | inspect an AUDIT group | AUDIT rows ordered 05:59:09 then 05:52:20 (newest first, legacy `sortDirection=DESC`) | PASS |
+| 869.3 | Toolbar visible with 3 buttons + badge | inspect `#evToolbar` | buttons: Expand all / Collapse all / Show all columns + status badge "Grouped by log level" | PASS |
+| 869.4 | Collapse all groups | click "Collapse all groups" | all 5 group rows collapse to header only (chevron-right), detail rows hidden; footer still "Showing 1 to 8 of 8 entries" | PASS |
+| 869.5 | Expand single collapsed group | click the collapsed ERROR group header | only ERROR expands (chevron-down) showing its 2 rows; AUDIT/DEBUG/INFO/WARNING stay collapsed | PASS |
+| 869.6 | Expand all groups | click "Expand all groups" | every group expands; all 8 rows visible (chevron-down) | PASS |
+| 869.7 | Show all columns reveals Transaction | click "Show all columns" | a Transaction column appears per row with the transaction id (`#1`/`#2`/`#3`/…) — legacy hidden `th_transaction` parity | PASS |
+| 869.8 | Transaction hidden by default | reload page (fresh) | no Transaction column until the button is clicked | PASS |
+| 869.9 | i18n keys in all 10 bundles + valid JSON | `python3 -m json.tool gui/templates/i18n/{en,ro,de,es,fr,it,ja,pt,ru,zh}.json`; grep `ev.transaction\|ev.expandAll\|ev.collapseAll\|ev.showAllColumns\|ev.groupedByLevel\|ev.item\|ev.items\|ev.noEvents` | all 8 keys present in every bundle, all files valid JSON, non-empty translations | PASS |
+| 869.10 | no JS errors + Event Viewer clean | browser console after 869.1-869.8; `SELECT log_level FROM events ORDER BY id DESC` | zero console errors; no new ERROR/WARNING rows introduced (only the pre-seeded fixtures + admin login AUDIT) | PASS |
 
-**Precondition:** PostgreSQL-free fresh DB refreshed by `tmp/fixtures_1280.php` (project `QOB:QObjDemo` id 1, plan `QOB Plan` id 12, req specs w/ reqs 15/17/19, TCs 3/6/9, 2 executions: TC-Login passed, TC-Pay failed); login admin/admin; ASIDE → Requirements Design → Quality Objectives.
-
-| # | Test | Steps | Expected | Actual |
-|---|---|---|---|---|
-| 1280.1 | Menu entry + rights gate | Check ASIDE `Requirements Design` submenu, then DB grant `reqs_view='no'` | link "Quality Objectives" visible for admin; hidden for users without `reqs_view` | PASS — link present (labels.aside.tpl key fixed, no empty label/E_WARNING); grant key `reqs_view` wired through emptyMenuGrants |
-| 1280.2 | Matrix render | Open the screen | "Secure Transactions" card: Risk High (L3×I5), Passed:1 Failed:2 Blocked:0 Not Run:0; QOS-1→TC-Login Passed, QOS-2→TC-Pay Failed, directly linked TC-Pay Failed; "Fast Search" Risk Low (L1×I2), QOS-3→TC-Search Not Run | PASS — exact rows/badges rendered, no console errors |
-| 1280.3 | Plan filter | Select "QOB Plan" in filter, Refresh | same two cards, table regenerated (generated timestamp changes) | PASS |
-| 1280.4 | Create objective | Add → Name (req), desc, L=4 I=4 | live preview shows "Critical"; saved; card appears with Risk Critical | PASS — created "New Objective Q" L4×I4 Critical |
-| 1280.5 | Link editor | Open Links, check req + TC-Login, Save | TC-Login added under covered TCs with "Passed: 1" badge + appears in direct TC section | PASS |
-| 1280.6 | Edit objective | Edit → rename + change L=1 I=4 | card updates to new name + Risk Low | PASS — renamed "Edited Objective Q", Low |
-| 1280.7 | Delete + cascade | Delete → confirm | objective removed; its links cascaded; count back to 2 | PASS |
-| 1280.8 | i18n switch | Change locale to Română / Românește in the screen | all labels, modal titles, buttons and footer translated via TLi18n (no `##`/raw-key leaks) | PASS |
-| 1280.9 | BFF session guard | anon `curl -X GET -H 'X-Requested-With: XMLHttpRequest' localhost:8082/api/requirements/index.php?action=quality-objectives` | `401` | PASS |
-| 1280.10 | Event Viewer clean | `SELECT id,log_level,notes FROM events WHERE id>16 AND log_level IN('ERROR','WARNING')` after full CRUD | zero rows (the pre-fix `href_quality_objectives` E_WARNING repaired); writes produced QOBJ audit events OK | PASS — 0 new Error/Warning rows |
-
-Result: 10/10 PASS — **feature delivered (Refs #1280)**: BFF + Dashio screen + i18n (43 keys × 10 bundles + 14 locale strings.txt + labels.aside.tpl) + 2 new tables (`quality_objectives`, `quality_objective_links`) + `latest_exec_by_testplan` DB view integration. Commits on `task/issue-1280`: `30660fc7a` (feat), `80cdf7620` (ci), `8cf530463` (i18n rebuild fix). Wiki mirror updated.
+Result: 10/10 PASS — **feature implemented + verified (Refs #869)**. Legacy ExtTable grouping/toolbar ported to the modern Event Viewer via DataTables RowGroup: rows grouped by Log Level (contiguous, sorted by level asc + timestamp desc), collapsible group rows, toolbar with Expand all / Collapse all / Show all columns (toggles the hidden Transaction column), plus a new `ev.*` i18n key set in all 10 bundles. No BFF change needed (per-event `logLevel`/`transactionID` already returned). Pattern reused from `tplanWithCF.html` (#847/#864).
