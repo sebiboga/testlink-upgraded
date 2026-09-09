@@ -1386,9 +1386,14 @@ if ($action === 'assigned_tc_overview') {
         out(['status' => 'error', 'message' => 'No permission']);
     }
 
-    $showAllUsers = intval(getParam('show_all_users', '1')) == 1;
-    // The aside link pins this to 1 (legacy parity); still honored as a flag.
+    // Legacy init_args():293 default is FALSE (a targeted-user view). The reports
+    // aside link explicitly pins show_all_users=1 for the overview variant.
+    $showAllUsers = intval(getParam('show_all_users', '0')) == 1;
     $showInactiveClosed = intval(getParam('show_inactive_and_closed', '0')) != 0;
+    // Legacy init_args():291 mirrors presence (isset) into tplan_status='all'.
+    // NOTE: getParam() coerces an absent key to '' (never null), so the
+    // presence test must use isset($_GET) directly.
+    $showInactiveTplans = isset($_GET['show_inactive_tplans']);
     $showClosedBuilds = intval(getParam('show_closed_builds',
         isset($_SESSION['ato_show_closed_builds'])
             ? intval($_SESSION['ato_show_closed_builds']) : 0)) ? 1 : 0;
@@ -1404,7 +1409,7 @@ if ($action === 'assigned_tc_overview') {
 
     // Mirror initFilters().
     $filters = [
-        'tplan_status' => 'active',
+        'tplan_status' => $showInactiveTplans ? 'all' : 'active',
         'build_status' => $showClosedBuilds ? 'all' : 'open',
     ];
     if ($buildId > 0) {

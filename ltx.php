@@ -383,15 +383,16 @@ function launch_inner_xta2m(&$dbHandler,&$tplMgr)
 {
   $args = init_args($dbHandler);
 
-  //if($args->status_ok == FALSE)
-  //{
-  //  echo 'NOOO';
-  //  ob_end_flush();
-  //  exit();
-  //}  
+  // Refs #1255: assignedTcOverview.html is the Dashio replacement of the
+  // legacy tcAssignedToUser.php this email workflow used to land on; the
+  // modern screen's BFF requires tproject_id, so resolve it from the plan.
+  $tplan_mgr = new testplan($dbHandler);
+  $planInfo = $tplan_mgr->get_by_id($args->tplan_id);
+  $tprojectId = isset($planInfo['tproject_id']) ? intval($planInfo['tproject_id']) : 0;
 
-  $jt = $_SESSION['basehref'] . '/lib/testcases/' .
-        'tcAssignedToUser.php?user_id=' . $args->target_user_id;
+  $jt = $_SESSION['basehref'] . 'gui/templates/results/assignedTcOverview.html' .
+        '?tproject_id=' . $tprojectId .
+        '&user_id=' . $args->target_user_id;
 
   $k2c = array('tplan_id','build_id');
   foreach($k2c as $tg)
@@ -399,8 +400,8 @@ function launch_inner_xta2m(&$dbHandler,&$tplMgr)
     if( property_exists($args,$tg) && $args->$tg > 0 )
     {
       $jt .= "&$tg=" . $args->$tg;
-    }      
-  }  
+    }
+  }
 
   $tplMgr->assign('workframe', $jt);
   $tplMgr->display('workframe.tpl');

@@ -87,15 +87,36 @@ a.icon-btn.qe:hover{background:#22242a;color:#fff}
 <script>
 var API = '/api/reports/index.php';
 var tprojectId = 0;
+// Deep-link scope (legacy tcAssignedToUser.php init_args parity, Refs #1255):
+// ltx.php?item=xta2m email links arrive as user_id/tplan_id/build_id and the
+// reports aside link pins show_all_users=1&show_inactive_and_closed=1.
+var dlUserId = 0, dlTplanId = 0, dlBuildId = 0;
+var dlShowAllUsers = false, dlShowInactiveTplans = false, dlShowInactiveClosed = false;
 
 $(function () {
   var p = new URLSearchParams(window.location.search);
   tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  dlUserId = parseInt(p.get('user_id') || '0', 10);
+  dlTplanId = parseInt(p.get('tplan_id') || '0', 10);
+  dlBuildId = parseInt(p.get('build_id') || '0', 10);
+  dlShowAllUsers = p.has('show_all_users') ? parseInt(p.get('show_all_users'), 10) === 1 : false;
+  dlShowInactiveTplans = p.has('show_inactive_tplans');
+  dlShowInactiveClosed = p.has('show_inactive_and_closed')
+    ? parseInt(p.get('show_inactive_and_closed'), 10) !== 0 : false;
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
-    var saved = sessionStorage.getItem('ato_show_closed_builds');
-    if (saved === '1' || saved === '0') { $('#showClosed').prop('checked', saved === '1'); }
+    // show_build_selector parity (initializeGui:414): no closed-builds toggle
+    // when a specific build is deep-linked.
+    if (dlBuildId > 0) { $('#showClosed').parent().hide(); }
+    var closedSel = false;
+    if (p.has('show_closed_builds')) { closedSel = true; }
+    else if (p.has('show_closed_builds_hidden')) { closedSel = false; }
+    else {
+      var saved = sessionStorage.getItem('ato_show_closed_builds');
+      if (saved === '1' || saved === '0') { closedSel = saved === '1'; }
+    }
+    $('#showClosed').prop('checked', closedSel);
     $('#showClosed').on('change', function () {
       sessionStorage.setItem('ato_show_closed_builds', this.checked ? '1' : '0');
       loadReport();
@@ -126,13 +147,18 @@ function loadReport() {
   $('#emptyBox').hide();
   $('#reportArea').empty();
   $('#loadingBox').show();
-  $.getJSON(API, {
+  var q = {
     action: 'assigned_tc_overview',
     tproject_id: tprojectId,
-    show_all_users: 1,
-    show_inactive_and_closed: 1,
     show_closed_builds: $('#showClosed').prop('checked') ? 1 : 0
-  }, function (r) {
+  };
+  if (dlUserId > 0) { q.user_id = dlUserId; }
+  if (dlTplanId > 0) { q.tplan_id = dlTplanId; }
+  if (dlBuildId > 0) { q.build_id = dlBuildId; }
+  if (dlShowAllUsers) { q.show_all_users = 1; }
+  if (dlShowInactiveTplans) { q.show_inactive_tplans = 1; }
+  if (dlShowInactiveClosed) { q.show_inactive_and_closed = 1; }
+  $.getJSON(API, q, function (r) {
     $('#loadingBox').hide();
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), 'err'); return; }
     tprojectId = r.tproject_id;

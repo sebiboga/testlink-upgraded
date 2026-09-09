@@ -7,12 +7,13 @@ The **Assigned Test Case Overview** report (ASIDE → Reports → *Assigned Test
 **BFF API:** `api/reports/index.php` — `GET ?action=assigned_tc_overview&tproject_id=&show_all_users=&show_inactive_and_closed=&show_closed_builds=`
 **Rights:** `testplan_metrics`
 **Tracking issue:** [#684](https://github.com/sebiboga/testlink-upgraded/issues/684)
+**Deep-link params:** [#1255](https://github.com/sebiboga/testlink-upgraded/issues/1255)
 
 ---
 
 ## Overview
 
-The header carries the test project context. The toolbar shows the test project name, a "Show closed builds" checkbox (session-persisted via sessionStorage), and a Refresh button.
+The header carries the test project context. The toolbar shows the test project name, a "Show closed builds" checkbox (session-persisted via sessionStorage), and a Refresh button. The checkbox is **hidden when a specific build is deep-linked** (`build_id>0`, legacy `show_build_selector` parity).
 
 For each test plan with assigned test cases, a collapsible section renders:
 
@@ -65,11 +66,13 @@ A test plan with no assigned test cases is omitted entirely. A project with zero
 
 Parameters:
 * `tproject_id` (required) — test project context
-* `show_all_users` (default 1) — show user column for all users
+* `show_all_users` (default 0, legacy `init_args`:293 default) — overview-for-all-users variant (the Reports aside link pins `1`)
 * `show_inactive_and_closed` (default 0) — include inactive/closed TC versions
-* `show_closed_builds` (default 0) — include closed builds (persisted in session)
-* `user_id` (optional) — filter by specific user
-* `build_id` (optional) — filter by specific build
+* `show_inactive_tplans` (**presence**, legacy `init_args`:291) — `tplan_status='all'` instead of `'active'`
+* `show_closed_builds` / `show_closed_builds_hidden` (default 0, persisted in session) — include closed builds
+* `user_id` (optional) — filter by specific user; when `show_all_users` is absent the report scopes to it (deep-link target)
+* `tplan_id` (optional) — restrict to one test plan
+* `build_id` (optional) — restrict to one build and force `build_status='all'` + `tplan_status='all'` (legacy `initFilters`:457-463)
 
 Response shape:
 ```json
@@ -114,6 +117,22 @@ Response shape:
   ]
 }
 ```
+
+## Deep links & email workflow (Refs #1255)
+
+The screen honors the exact deep-link parameter set of the legacy `tcAssignedToUser.php` `init_args()`, so emailed/guiding links open the report **pre-filtered**:
+
+```
+gui/templates/results/assignedTcOverview.html?tproject_id=<id>&user_id=<uid>&tplan_id=<plan>&build_id=<build>[&show_inactive_tplans]
+```
+
+* `user_id` — report scoped to that user (when `show_all_users` absent; the flag wins and collapses to any-user, legacy `init_args`:321-323)
+* `tplan_id` — single test plan
+* `build_id` — single build; the "Show closed builds" checkbox is hidden (`show_build_selector` parity) and both build/tplan status filters are forced to `all`
+* `show_inactive_tplans` — presence: include inactive test plans
+* `show_closed_builds` / `show_closed_builds_hidden` — URL values take precedence over the sessionStorage value
+
+The email "execution tasks assigned to me" link (`lib/functions/assignment_mgr.class.php` → `ltx.php?item=xta2m`) now redirects to this screen: `launch_inner_xta2m()` resolves the test project from the plan and builds `assignedTcOverview.html?tproject_id=<resolved>&user_id=<target>&tplan_id=<plan>&build_id=<build>` (legacy: `lib/testcases/tcAssignedToUser.php`). `check_xta2m` still requires the target user to match the session user.
 
 ## Legacy controller reference
 
