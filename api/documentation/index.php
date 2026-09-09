@@ -62,7 +62,29 @@ $docs = array(
         'filename'  => 'tl-bts-howto.pdf',
         'pdfUrl'    => '/docs/tl-bts-howto.pdf',
     ),
+    array(
+        'key'       => 'good_test_case',
+        'title'     => lang_get('doc_good_test_case'),
+        'filename'  => 'GoodTest.pdf',
+        'pdfUrl'    => '/docs/bibliographical_references/GoodTest.pdf',
+    ),
+    array(
+        'key'       => 'youtrack_readme',
+        'title'     => lang_get('doc_youtrack_readme'),
+        'filename'  => 'youtrack-readme.pdf',
+        'pdfUrl'    => '/docs/youtrack-readme.pdf',
+    ),
 );
+
+// Mirror the legacy tools/viewer.php allowlist ordering (Refs #1281).
+usort($docs, function($a, $b) {
+    static $order = array('testlink_user_manual', 'testlink_installation_manual',
+        'tl_file_formats', 'excel2testlink', 'fckeditor_config', 'tl_bts_howto',
+        'good_test_case', 'youtrack_readme');
+    $ia = array_search($a['key'], $order, true);
+    $ib = array_search($b['key'], $order, true);
+    return ($ia === false ? 999 : $ia) - ($ib === false ? 999 : $ib);
+});
 
 // Verify each file exists on disk
 foreach ($docs as &$doc) {
