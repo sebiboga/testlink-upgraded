@@ -12085,3 +12085,19 @@ Result: 7/7 PASS — **feature implemented + verified (Refs #867)**. Legacy gap 
 | 63.12 | Event Viewer clean | `events` after suite | zero new ERROR/WARNING rows | PASS |
 
 Result: 12/12 PASS — **parity verified (Refs #1273)**. Gaps found + FIXED: BFF `exec_timeline` not in `$apikeyActions` → now allowlisted (+ `!$isAnon` rights guard, apikey on export/mail URLs, `is_anon` flag); export gateway lacked exec_timeline apikey actions + `spreadsheet=1` → added; day_hour `testers:0` (legacy date-level quirk) → sourced from `$rswf[date][hour]`. Non-gaps: column order Date|Qty vs legacy Qty|Date (cosmetic); month/day_hour superset (legacy hardcodes day). Cleanup: #1274.
+
+## Regression — Issue #1267: anonymous apikey + tproject_id without tplan_id → SQL 1064
+
+**Precondition:** app `http://localhost:8082`, DB fresh. Fixture: `php tmp/fixtures_1257.php` → tproject id 1, tplan id 6, plan api_key `rrrr…57` (55-char → anonymous). Bug: `initArgsForReports()` (displayMgr.php) left tplan_id null on the apikey branch → `getPlatforms(NULL)` → SQL 1064 DB Access Error.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1267.1 | anonymous valid apikey, tproject_id only (pre-fix symptom) | `curl -s "…/resultsGeneral.php?apikey=rrrr…57&tproject_id=1"` (no tplan_id) | **HTTP 200**, body = graceful `Document generation error / test plan is missing, unknown or does not belong to the selected test project` info page — NO `DB Access Error`, no backtrace | PASS |
+| 1267.2 | no new ERROR row in events for path 1267.1 | `SELECT id,log_level,description FROM events ORDER BY id DESC LIMIT 8` | no new `log_level=1` (1064) row for the fixed path (only benign INFO/WARNING 'format not defined', same as pre-fix healthy paths) | PASS |
+| 1267.3 | anonymous valid apikey + both ids still renders | `…?apikey=rrrr…57&tproject_id=1&tplan_id=6` | **HTTP 200** full report `General Test Plan Metrics`, `RF Plan 1257` | PASS |
+| 1267.4 | anonymous invalid apikey (Refs #1257 regression) | `…?apikey=zzzz…99` (55-char unknown, no ids) | **HTTP 200** same graceful info page — no `throw`/HTTP 500 (guard not regressed) | PASS |
+| 1267.5 | authenticated missing tplan_id | browser/admin session, `resultsGeneral.php` (no params) | existing graceful `Document generation error` info page (guard @ displayMgr.php:72-78 unchanged) | PASS |
+| 1267.6 | authenticated valid report | browser/admin session, `resultsGeneral.php?tplan_id=6` | full report renders (Overall Build Status + Results by Top Level Test Suite + priority rows) | PASS |
+| 1267.7 | sibling report page exposes same guard path | same apikey+tproject-only request against `resultsTC.php`, `resultsByTSuite.php`, `execTimelineStats.php` (share initArgsForReports) | graceful info page, HTTP 200, no 1064 (blast radius covered by single-point fix) | PASS |
+
+Result: 7/7 PASS — **bug fixed + verified (Refs #1267)**. Root cause: anonymous/remote apikey branch of `initArgsForReports()` never resolved/validated `tplan_id`; the authenticated branch already had a null-tplan guard (displayMgr.php:72-78) but the apikey branch only had the #1257 `tproject_id <= 0` guard, so `tplan_id=null` flowed into `initializeGui()` → `getPlatforms(NULL)` → `tlPlatform::getLinkedToTestplanAsMap(NULL)` (testplan.class.php:3489) → `WHERE TP.testplan_id =  AND …` SQL 1064. Fix: minimal guard in the shared parser (displayMgr.php, after the apikey if/else block) — `is_null($args->tplan_id) || <= 0` → same graceful `displayInfo(error_print_doc_title, error_print_doc_missing_testplan)`; no code layout changes, i18n keys already exist in all bundles.
