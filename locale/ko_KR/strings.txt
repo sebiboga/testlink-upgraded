@@ -2416,6 +2416,8 @@ $TLS_time_charts_title 		= "Time Charts";
 // ----- pluginView.php -----       
 
 $TLS_testproject_prefix_hint = '최대 16자까지 허용되지만, 최대 5자 사용을 권장합니다';
+$TLS_doc_good_test_case = '좋은 테스트 케이스';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = '테스트 자동화 보고서';

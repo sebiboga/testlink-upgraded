@@ -3658,6 +3658,8 @@ $TLS_execution_time_metrics = 'Ausführungs Zeit Metriken';
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Erweiterte Suche';
 $TLS_doc_bug_tracking_howto = 'Anleitung zur Fehlerverfolgung';
+$TLS_doc_good_test_case = 'Guter Testfall';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_doc_excel_import = 'Excel-Import';
 $TLS_doc_fckeditor_config = 'FCKEditor-Konfiguration';
 $TLS_doc_file_formats = 'Dateiformate';

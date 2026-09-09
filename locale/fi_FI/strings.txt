@@ -2120,6 +2120,8 @@ $TLS_time_charts_metrics = "Time Charts Metrics";
 $TLS_time_charts_title = "Time Charts";
 
 // ----- pluginView.php -----       
+$TLS_doc_good_test_case = 'Hyvä testitapaus';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 //-----   END ------------------------------------------------------------------
 
 $TLS_testproject_prefix_hint = 'Enintään 16 merkkiä on sallittu, mutta suosittelemme käyttämään enintään viittä';

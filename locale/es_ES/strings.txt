@@ -3794,6 +3794,8 @@ $TLS_demo_usage = "Esto es una DEMO, úsala con RESPETO. <br>" .
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Búsqueda avanzada';
 $TLS_doc_bug_tracking_howto = 'Guía de seguimiento de errores';
+$TLS_doc_good_test_case = 'Buen caso de prueba';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_doc_excel_import = 'Importar Excel';
 $TLS_doc_fckeditor_config = 'Configuración de FCKEditor';
 $TLS_doc_file_formats = 'Formatos de archivo';

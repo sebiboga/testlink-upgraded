@@ -4214,6 +4214,8 @@ $TLS_no_users_selected = "Sem utilizadores seleccionados - não se fez nada";
 
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_doc_bug_tracking_howto = 'Guia de rastreio de erros';
+$TLS_doc_good_test_case = 'Bom caso de teste';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_doc_excel_import = 'Importação Excel';
 $TLS_doc_fckeditor_config = 'Configuração do FCKEditor';
 $TLS_doc_file_formats = 'Formatos de ficheiro';

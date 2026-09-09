@@ -4508,6 +4508,8 @@ $TLS_testers_qty = 'テスト者の数';
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = '詳細検索';
 $TLS_doc_bug_tracking_howto = 'バグ追跡ガイド';
+$TLS_doc_good_test_case = '優れたテストケース';
+$TLS_doc_youtrack_readme = 'YouTrack リードミー';
 $TLS_doc_excel_import = 'Excel インポート';
 $TLS_doc_fckeditor_config = 'FCKEditor 設定';
 $TLS_doc_file_formats = 'ファイル形式';

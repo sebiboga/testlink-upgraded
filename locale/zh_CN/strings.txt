@@ -4109,6 +4109,8 @@ $TLS_no_access_to_feature = '您没有权限使用该功能，请联系TestLink�
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = '高级搜索';
 $TLS_doc_bug_tracking_howto = '缺陷跟踪指南';
+$TLS_doc_good_test_case = '好的测试用例';
+$TLS_doc_youtrack_readme = 'YouTrack 自述';
 $TLS_doc_excel_import = 'Excel 导入';
 $TLS_doc_fckeditor_config = 'FCKEditor 配置';
 $TLS_doc_file_formats = '文件格式';

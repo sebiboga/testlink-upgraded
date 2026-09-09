@@ -4077,6 +4077,8 @@ $TLS_after_preconditions = "Après les pré-conditions";
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Recherche avancée';
 $TLS_doc_bug_tracking_howto = 'Guide de suivi des anomalies';
+$TLS_doc_good_test_case = 'Bon cas de test';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_doc_excel_import = 'Import Excel';
 $TLS_doc_fckeditor_config = 'Configuration FCKEditor';
 $TLS_doc_file_formats = 'Formats de fichier';

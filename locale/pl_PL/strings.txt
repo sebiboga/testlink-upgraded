@@ -3814,6 +3814,8 @@ $TLS_link_report_test_plan_results_csv = 'Wyniki Planu Testów (XLSX)';
 $TLS_display_inline ="Pokaż w linii";
 
 // ----- pluginView.php -----       
+$TLS_doc_good_test_case = 'Dobry przypadek testowy';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 // ----- END ------------------------------------------------------------------
 
 $TLS_report_test_automation = 'Raport automatyzacji testów';

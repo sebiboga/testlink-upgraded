@@ -3906,18 +3906,6 @@ $TLS_remove_kw_msgbox_title = "Smazat klícové slovo";
 $TLS_remove_kw_msgbox_msg = "Skutecne smazat klícové slovo %i?";
 $TLS_img_title_remove_keyword = "Klikni pro smazání tohoto klícového slova.";
 
-// ----- END ------------------------------------------------------------------
 
-$TLS_report_test_automation = 'Report automatizace testù';
-// ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
-$TLS_executed_me_and_also = 'is executed together with';
-$TLS_remove_plat_msgbox_title = 'Remove Platform';
-$TLS_remove_plat_msgbox_msg = 'Do you want to remove all executions linked to this platform?';
-$TLS_img_title_remove_platform = 'Remove Platform';
-
-// Added for TestLink 2.0.1 - issue #653: key was missing from every bundle
-$TLS_error_self_signup_disabled = 'SamoobsluÅ¾nÃ¡ registrace novÃ½ch uÅ¾ivatelÅ¯ je zakÃ¡zÃ¡na. Kontaktujte prosÃ­m sprÃ¡vce webu.';
-
-// Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
-$TLS_simplexml_load_file_wrapper_error = "Predajte prosim tento text svemu administratorovi TestLink<br> - Nacteni XML selhalo<br>";
-?>
+$TLS_doc_good_test_case = 'Good Test Case';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';

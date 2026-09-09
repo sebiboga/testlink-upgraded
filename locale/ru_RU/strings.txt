@@ -2754,6 +2754,8 @@ $TLS_warning_step_number_already_exists = " Step number %s already exists";
 // ----- aside.tpl / navBar.tpl - navigation labels ---------------
 $TLS_advanced_search = 'Расширенный поиск';
 $TLS_doc_bug_tracking_howto = 'Руководство по отслеживанию дефектов';
+$TLS_doc_good_test_case = 'Хороший тест-кейс';
+$TLS_doc_youtrack_readme = 'YouTrack Readme';
 $TLS_doc_excel_import = 'Импорт из Excel';
 $TLS_doc_fckeditor_config = 'Настройка FCKEditor';
 $TLS_doc_file_formats = 'Форматы файлов';
