@@ -265,7 +265,14 @@ function doImport() {
     resetForm();
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
     renderResult(r.result || []);
-    toast(TLi18n.t('reqimp.importDone'));
+    var uf = r.userFeedback || {};
+    var se = uf.syntaxErrors || [];
+    if (se.length > 0) {
+      var details = se.map(function(e){ return TLi18n.t('reqimp.syntaxErrorLine').replace('{line}', e.line).replace('{msg}', e.message); }).join('; ');
+      toast(TLi18n.t('reqimp.importSyntaxError') + ' ' + details, true);
+    } else {
+      toast(TLi18n.t('reqimp.importDone'));
+    }
   }).fail(function (xhr) {
     resetForm();
     var msg = TLi18n.t('common.error');

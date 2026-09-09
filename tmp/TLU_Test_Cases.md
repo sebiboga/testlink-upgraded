@@ -12228,3 +12228,30 @@ Result: 13/13 PASS — screen verified end-to-end (load, custom label save + per
 | 871.5 | No JS errors + Event Viewer clean | browser console has no errors from the change; `events` table shows no unexpected ERROR/WARNING rows (only expected AUDIT delete rows) | PASS |
 
 Result: 5/5 PASS — **feature implemented + verified (Refs #871)**. Gap closed: modern `clearEvents()` now resets every filter after a successful DELETE, matching legacy BUGID 3908, so the full event log is re-shown with no stale filter. Browser-verified on the DEBUG-filtered clear path. Commit(s) noted in issue #871.
+
+---
+
+## Task — Issue #1292: Implement CSV syntax-error feedback in reqImport (gap vs legacy)
+
+**Screen:** `gui/templates/requirements/reqImport.html` · **BFF:** `api/reqimport/index.php` (POST `action=import`)
+**Legacy reference:** `lib/requirements/reqImport.php:40-44` shows `lang_get("import_syntax_error")` when `userFeedback.syntaxError` is non-empty (per-line field-count messages produced by `lib/functions/csv.inc.php:135-140`).
+**Fix:**
+1. `api/reqimport/index.php:338-353` — BFF now includes `userFeedback` in the `import` response:
+   - `parsedCounter` (int)
+   - `syntaxErrors[]` — array of `{line, message}` entries from `csv.inc.php`'s `syntaxError` map.
+2. `gui/templates/requirements/reqImport.html` `doImport()` `.done()` handler — when `r.userFeedback.syntaxErrors.length > 0`, shows a red error toast `reqimp.importSyntaxError` + per-line `reqimp.syntaxErrorLine` details; otherwise shows the normal `reqimp.importDone` green toast.
+3. i18n — added `reqimp.importSyntaxError` and `reqimp.syntaxErrorLine` keys to all 10 locale bundles.
+**Fixture:** `tmp/fixtures_1292.php` creates tproject `ReqImportDemo` (id=2) with req spec `SPEC-1` (id=3). CSV files: `req_import_bad.csv` (2 valid 7-field rows + 1 malformed 3-field row), `req_import_good.csv` (2 valid rows).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1292.1 | Upload `req_import_bad.csv` (CSV type, target SPEC-1), click Upload | RIMP-200 & RIMP-203 imported; RIMP-202 (3 fields) skipped | PASS |
+| 1292.2 | Result toast after bad-file import | red error toast: "Import completed with syntax errors: Line 2: Field count:3 Required Field count: 7" | PASS |
+| 1292.3 | Result table | shows only the 2 valid rows RIMP-200, RIMP-203 | PASS |
+| 1292.4 | DB persistence | only RIMP-200 and RIMP-203 present under SPEC-1; no RIMP-202 | PASS |
+| 1292.5 | Upload `req_import_good.csv` (no malformed row) | normal "Import finished" toast (no error), both rows imported | PASS |
+| 1292.6 | i18n bundles | `reqimp.importSyntaxError`, `reqimp.syntaxErrorLine` present & valid JSON in all 10 locales | PASS |
+| 1292.7 | Event Viewer | no new ERROR/WARNING rows from the import feature | PASS |
+| 1292.8 | `php -l` on BFF | no syntax errors in `api/reqimport/index.php` | PASS |
+
+Result: 8/8 PASS — **feature implemented + verified (Refs #1292)**. The malformed CSV line is now clearly flagged in the UI with the per-line field-count message, exactly mirroring legacy `import_syntax_error` behavior; valid rows still import normally and the normal-success path is unchanged.

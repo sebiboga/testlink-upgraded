@@ -335,11 +335,22 @@ if ($action === 'import') {
         out(['status' => 'error', 'message' => $fileStatus['msg']]);
     }
 
+    $syntaxErrors = [];
+    if (is_array($userFeedback) && !empty($userFeedback['syntaxError'])) {
+        foreach ($userFeedback['syntaxError'] as $lineNum => $msg) {
+            $syntaxErrors[] = ['line' => intval($lineNum), 'message' => (string)$msg];
+        }
+    }
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => (string)$info['name']],
         'req_spec_id' => $reqSpecId,
         'result' => $normalized,
+        'userFeedback' => [
+            'parsedCounter' => is_array($userFeedback) ? intval($userFeedback['parsedCounter'] ?? 0) : 0,
+            'syntaxErrors' => $syntaxErrors,
+        ],
     ]);
 }
 

@@ -2992,5 +2992,7 @@
   "sevcfg.resetDone": "Levels reset to the default scale.",
   "footers.severityConfig": "TestLink 2.0.1 - Severity Configuration",
   "proj.severityConfig": "Severity Configuration",
-  "proj.severityConfigHint": "Define the severity levels of this project's Test Strategy"
+  "proj.severityConfigHint": "Define the severity levels of this project's Test Strategy",
+  "reqimp.importSyntaxError": "Импорт завершён с ошибками синтаксиса:",
+  "reqimp.syntaxErrorLine": "Строка {line}: {msg}"
 }

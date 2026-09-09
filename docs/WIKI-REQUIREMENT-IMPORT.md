@@ -41,10 +41,14 @@ The legacy `database::exec_query()` **dies** with a raw HTML page on hard DB err
 
 After a successful import the **Import Result** card appears (count badge) with one row per item: **ID** (doc id), **Title**, **Status** (Created / Updated / Skipped / plain-skip reason).
 
+## CSV syntax-error feedback (legacy parity)
+
+When a CSV/CSV(Doors) file contains a line whose field count does not match the expected format, the legacy screen showed `<lang>import_syntax_error</lang>`. The modern BFF captures `userFeedback` from `loadImportedReq()` (`api/reqimport/index.php:311`) and now returns it in the `import` response as `userFeedback.parsedCounter` + `userFeedback.syntaxErrors[]` (array of `{line, message}` from `lib/functions/csv.inc.php:135-140`). The frontend `doImport()` surfaces a red error toast `reqimp.importSyntaxError` followed by one `reqimp.syntaxErrorLine` entry per malformed line (e.g. `Line 2: Field count:3 Required Field count: 7`) while still importing the valid rows and listing them in the result table. When there are no syntax errors the normal `reqimp.importDone` ("Import finished") toast is shown — a clean, unchanged success path.
+
 ## Link switch
 
 The **Import** button in the `reqSpecMgmt.html` toolbar (`btnImportReqs`) opens `reqImport.html?tproject_id=<id>`; the legacy ASIDE/route entry (`$actions->reqImport` in `lib/functions/common.php`) now targets the modern screen too.
 
 ## i18n
 
-All labels, hints, messages, buttons and the footer use client-side `TLi18n` keys `reqimp.*` (26 keys) + `footers.reqImport`, present in every locale bundle (`en`, `de`, `es`, `fr`, `it`, `ja`, `pt`, `ro`, `ru`, `zh`).
+All labels, hints, messages, buttons and the footer use client-side `TLi18n` keys `reqimp.*` (28 keys) + `footers.reqImport`, present in every locale bundle (`en`, `de`, `es`, `fr`, `it`, `ja`, `pt`, `ro`, `ru`, `zh`).

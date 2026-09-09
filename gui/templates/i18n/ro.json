@@ -2994,5 +2994,7 @@
   "sevcfg.resetDone": "Nivelurile au fost resetate la scala implicita.",
   "footers.severityConfig": "TestLink 2.0.1 - Configurare severitate",
   "proj.severityConfig": "Configurare severitate",
-  "proj.severityConfigHint": "Definiti nivelurile de severitate ale Strategiei de testare a acestui proiect"
+  "proj.severityConfigHint": "Definiti nivelurile de severitate ale Strategiei de testare a acestui proiect",
+  "reqimp.importSyntaxError": "Import finalizat cu erori de sintaxă:",
+  "reqimp.syntaxErrorLine": "Linia {line}: {msg}"
 }
