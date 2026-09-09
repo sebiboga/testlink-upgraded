@@ -3042,5 +3042,6 @@
   "qobj.editObjective": "品質目標を編集",
   "qobj.msgNameRequired": "名前は必須です。",
   "qobj.noLinks": "要件またはテストケースはまだリンクされていません。",
-  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix"
+  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix",
+  "tcedit.unsavedWarning": "未保存の変更があります。本当に終了しますか？"
 }

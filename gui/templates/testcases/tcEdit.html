@@ -131,8 +131,35 @@ var ctx = {
   tcversionId: parseInt(qs('tcversion_id') || '0', 10),
   bffUrl: '/api/testcasesedit/',
   info: null,
-  selectedKeywords: {}
+  selectedKeywords: {},
+  content_modified: false,
+  show_modified_warning: true
 };
+
+function markModified() {
+  ctx.content_modified = true;
+}
+
+function resetModified() {
+  ctx.content_modified = false;
+}
+
+// Mirror legacy checkmodified.js: warn on unload when edits are pending,
+// suppress the warning once Save/Cancel force a deliberate navigation.
+function doBeforeUnload(e) {
+  if (!ctx.show_modified_warning || !ctx.content_modified) {
+    return;
+  }
+  var msg = TLi18n.t('tcedit.unsavedWarning');
+  e = e || window.event;
+  if (e) {
+    if (e.preventDefault) e.preventDefault();
+    e.returnValue = msg;
+  }
+  return msg;
+}
+
+window.onbeforeunload = doBeforeUnload;
 
 function qs(name) {
   var m = new RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
@@ -174,10 +201,15 @@ $(function () {
 
   $('#btnSave').on('click', doSave);
   $('#btnCancel').on('click', function () {
+    ctx.show_modified_warning = false;
     if (window.history.length > 1) window.history.back(); else window.close();
   });
-  $('#btnAddStep').on('click', function () { addStepRow(); });
+  $('#btnAddStep').on('click', function () { addStepRow(); markModified(); });
   $('#btnNewVersion').on('click', doNewVersion);
+
+  // Track edits on every form control inside the editor card.
+  $('#formCard').on('input change', '.form-control, input[type=text], select, textarea', markModified);
+  $('#formCard').on('click', '.kw-pill, .step-del button', markModified);
 });
 
 function loadInfo() {
@@ -252,6 +284,8 @@ function renderEditor() {
       addStepRow(s, idx + 1);
     });
   }
+
+  resetModified();
 }
 
 function fillSelect(sel, items, value, i18nPrefix) {
@@ -379,6 +413,7 @@ function doSave() {
       if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcedit.errSave'), true); return; }
       $('#okBox').html('<i class="fa fa-check"></i> ' + esc(TLi18n.t('tcedit.saved'))).show();
       toast(TLi18n.t('tcedit.saved'));
+      resetModified();
       // reload current version to reflect updates
       ctx.tcversionId = r.tcversion_id || ctx.tcversionId;
       loadInfo();

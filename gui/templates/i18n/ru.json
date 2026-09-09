@@ -3042,5 +3042,6 @@
   "qobj.editObjective": "Изменить цель по качеству",
   "qobj.msgNameRequired": "Требуется название.",
   "qobj.noLinks": "Связанных требований или тест-кейсов пока нет.",
-  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix"
+  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix",
+  "tcedit.unsavedWarning": "У вас есть несохранённые изменения. Вы уверены, что хотите уйти?"
 }

@@ -3042,5 +3042,6 @@
   "qobj.editObjective": "Modifica obiettivo di qualità",
   "qobj.msgNameRequired": "Il nome è obbligatorio.",
   "qobj.noLinks": "Nessun requisito o caso di test collegato per il momento.",
-  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix"
+  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix",
+  "tcedit.unsavedWarning": "Hai modifiche non salvate. Sei sicuro di voler uscire?"
 }

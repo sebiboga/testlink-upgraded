@@ -3042,5 +3042,6 @@
   "qobj.editObjective": "编辑质量目标",
   "qobj.msgNameRequired": "名称为必填项。",
   "qobj.noLinks": "尚无关联的需求或测试用例。",
-  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix"
+  "footers.qualityObjectives": "TestLink 2.0.1 - Quality Objectives & Risk Traceability Matrix",
+  "tcedit.unsavedWarning": "您有未保存的更改。确定要离开吗？"
 }
