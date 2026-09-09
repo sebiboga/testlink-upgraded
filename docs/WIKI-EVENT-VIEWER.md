@@ -16,8 +16,9 @@ The Event Viewer is a redeveloped, modern screen for real-time monitoring of all
 4. [Events Table](#4-events-table)
 5. [Row Detail View](#5-row-detail-view)
 6. [Delete Events](#6-delete-events)
-7. [API Endpoints](#7-api-endpoints)
-8. [Color Scheme](#8-color-scheme)
+7. [Rights & Access Control](#7-rights--access-control)
+8. [API Endpoints](#8-api-endpoints)
+9. [Color Scheme](#9-color-scheme)
 
 ---
 
@@ -129,9 +130,24 @@ Users with the `events_mgt` right (typically admins) see a **Clear Events** butt
 
 ---
 
-## 7. API Endpoints
+## 7. Rights & Access Control
 
-The Event Viewer uses a dedicated BFF API at `/api/eventviewer/index.php`. All endpoints require an authenticated session.
+In legacy TestLink 1.9.20, `lib/events/eventviewer.php` was gated by `testlinkInitPage(...checkRights)` — a user **without** the `mgt_view_events` right received an access-denied screen, and even direct URL access was blocked. `lib/events/eventinfo.php` (row detail) required the same right; only the `clear` action (events deletion) could be reached via `events_mgt` alone. The **Events** menu item in the top bar is rendered only for users holding `events_mgt` OR `mgt_view_events` (`cfg/const.inc.php:908`).
+
+The modern screen reproduces this exactly:
+
+| Right | Effect |
+|-------|--------|
+| `mgt_view_events` | Required to view the event log (all read endpoints). Without it, every `GET /api/eventviewer/...` route returns **HTTP 403** `{"status":"error","message":"Forbidden: mgt_view_events right required"}`, and the page itself renders the access-denied panel (sees no filters, charts or table). |
+| `events_mgt` | Required for the **Clear Events** deletion action (`DELETE /api/eventviewer/index.php/events`). Without it the button stays hidden and the DELETE route returns 403. |
+
+The access-denied panel is an i18n block (`ev.accessDeniedTitle` / `ev.accessDeniedMsg`) shown by the UI as soon as the `/events/meta/rights` probe is rejected (or fails) — even a user who deep-links directly to `eventviewer.html` without the right gets the panel and no data calls fire.
+
+---
+
+## 8. API Endpoints
+
+The Event Viewer uses a dedicated BFF API at `/api/eventviewer/index.php`. All endpoints require an authenticated session, and **all read (GET/HEAD/OPTIONS) routes additionally require the `mgt_view_events` right** — they return `403 Forbidden` when it is missing. The only route gated by a different right is `DELETE /events`, which requires `events_mgt`.
 
 ### Metadata
 
@@ -194,7 +210,7 @@ The Event Viewer uses a dedicated BFF API at `/api/eventviewer/index.php`. All e
 
 ---
 
-## 8. Color Scheme
+## 9. Color Scheme
 
 The Event Viewer uses the standard Dashio color palette:
 
