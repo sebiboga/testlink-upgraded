@@ -21,6 +21,7 @@ legacy popup `lib/requirements/reqView.php`, backed by a new JSON BFF action
 | Custom fields | values of requirement-level custom fields (dates localized by the BFF) |
 | Linked Test Cases | DataTables grid: TC external id, test case name (opens the modern `tcView.html`), TC version |
 | Relations | DataTables grid: relation, target requirement (`docID : title`, clickable), project, status |
+| Monitors | DataTables grid: user login of every user monitoring the requirement (gated on `monitor_requirement` right; shows empty-state message when no monitors) |
 
 Deleted requirements show a "This requirement no longer exists" banner and
 an empty version selector; the permission-denied path shows

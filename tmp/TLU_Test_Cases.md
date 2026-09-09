@@ -12284,51 +12284,21 @@ Result: 10/10 PASS — **feature implemented + verified (Refs #1305)**.
 
 ---
 
-## Task — Issue #872: Show full event detail (level, description, user, PHP session ID) in Event Viewer row detail (gap vs legacy)
+### Test Suite 1304 — Task — Issue #1304: reqView.html: Monitor user list dropped (gap vs legacy)
 
-**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php`
-**Legacy reference:** `gui/templates/dashio/events/eventinfo.tpl` (whole file) + `lib/events/eventinfo.php` + `showEventDetails()` modal in `eventviewer.tpl:36-94`.
-**Fix:**
-1. `api/eventviewer/index.php` `eventToJSON()` — added `'sessionID' => $event->sessionID` (populated by `readFromDB(..., TLOBJ_O_GET_DETAIL_TRANSACTION)`, `logger.class.php:863`).
-2. `gui/templates/eventviewer/eventviewer.html` `toggleRow()` — detail panel now renders Level / Timestamp / Source / Description always; a **"Session information"** section (User — display name w/ id fallback — + real PHP Session ID + Transaction relabelled) when `transactionID` is set; an **Activity** section when `objectID` is set.
-3. i18n — added `ev.sessionInfo` key to all 10 locale bundles.
-**Fixture:** fresh DB + login as `admin` via the browser → `events.id=1` (audit login, source GUI) with `transactions.id=1`, `session_id = ua3rgkp1l4k3m3h21ep198l599`, `user_id=1`.
+**Precondition:** Test project with at least one requirement. At least two users (admin + testuser) with `monitor_requirement` right on the project, both monitoring the requirement.
 
-| # | Step | Expected | Result |
-|---|---|---|---|
-| 872.1 | `GET /api/eventviewer/index.php/events/1` (fetch in browser) | JSON contains `sessionID:"ua3rgkp1l4k3m3h21ep198l599"` matching `transactions.session_id` | PASS |
-| 872.2 | Open Event Viewer, expand event 1 | detail panel now starts with **Level → AUDIT** and **Description** row present | PASS |
-| 872.3 | Expand event 1 (EN) | **Session information** section shows **User → Testlink Administrator** and **Session ID → ua3rgkp1l4k3m3h21ep198l599** (real PHP session) | PASS |
-| 872.4 | Expand event 1 (EN) | transaction id relabelled **Transaction → #1** (no longer mislabelled "Session ID") | PASS |
-| 872.5 | Expand event 1 (EN) | **Activity** section still present since `objectID` set; the activity code row is labelled **Activity code** (legacy `th_activity_code`), distinct from the section header | PASS |
-| 872.6 | XSS guard | `esc()` escapes `<`,`>`,`&`,`"` before innerHTML — the detail panel and table cells render description/source/user/displayName safely (verified `esc('<img src=x onerror=alert(1)>')` returns the escaped literal) | PASS |
-| 872.7 | Switch locale to `?locale=ro`, expand event 1 | Romanian labels render: `Informații despre sesiune`, `ID Sesiune → ua3rgkp1l4k3m3h21ep198l599`, `Tranzacție`, `Cod activitate` | PASS |
-| 872.8 | All 10 locale bundles | `ev.sessionInfo` + `ev.activityCode` present and JSON valid (`python3 -m json.tool`) in de/en/es/fr/it/ja/pt/ro/ru/zh | PASS |
-| 872.9 | Event log hygiene | browser console has no JS errors from the change; `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = 0 (no new ERROR/WARNING) | PASS |
+| # | Area | Step | Expected | Actual | Result |
+|---|------|------|----------|--------|--------|
+| 1304.1 | BFF `/view` | `GET /api/requirements/index.php/view?id=<req_id>` | Response contains `monitors` array with `[{user_id, login}]` for each monitoring user | Response returned `{"monitors":[{"user_id":1,"login":"admin"},{"user_id":2,"login":"testuser"}]}` | PASS |
+| 1304.2 | BFF `/view` | Same request for a requirement with 0 monitors | `monitors` array is empty `[]` | Empty array returned | PASS |
+| 1304.3 | BFF `/view` | Request with `grant.monitor_req` right | `monitors` array is populated | Array populated for admin with monitor_req right | PASS |
+| 1304.4 | HTML — Monitors card | Navigate to `reqView.html?id=<req_id>` with monitors | Monitors card visible with DataTable showing Login column | Card visible, DataTable shows "admin" and "testuser" rows | PASS |
+| 1304.5 | HTML — Empty monitors | Navigate to a requirement with 0 monitors | "No users monitoring this requirement" message shown | Empty state message displayed | PASS |
+| 1304.6 | HTML — No monitor right | User without `monitor_requirement` right | Monitors card hidden entirely | Card not visible | PASS |
+| 1304.7 | Toggle — Off | Click "Stop monitoring" button on a monitored requirement | Admin removed from monitors list; button changes to "Start monitoring" | After click: only "testuser" in list; button text updated | PASS |
+| 1304.8 | Toggle — On | Click "Start monitoring" button | Admin re-added to monitors list; button changes to "Stop monitoring" | After click: both "admin" and "testuser" in list; button text updated | PASS |
+| 1304.9 | i18n | Switch locale to German/French/Spanish etc. | Monitors card title, Login header, and empty-state message all localized | All 3 strings localized in tested locales | PASS |
+| 1304.10 | JS console | Open reqView with monitors | No console errors | No JS console errors from feature | PASS |
 
-Result: 9/9 PASS — **feature implemented + verified (Refs #872)**. The expanded event row now shows the full legacy record incl. the real PHP session id from `transactions.session_id`; the transaction id is distinctly labelled, all injected values are HTML-escaped (stored-XSS guard matching legacy `|escape`), and the detail panel is i18n-clean across all locales. Browser-verified in EN + RO.
-
-## Task — Issue #1307: Quality Objectives — complete i18n + record status (screen existed from #1280)
-
-**Screen:** `gui/templates/requirements/qualityObjectives.html` · **BFF:** `api/requirements/index.php` (quality-objectives CRUD + links + meta, schema guard `qobjEnsureSchema`)
-**Context:** The screen/BFF/aside-link were implemented in task #1280 (`lib/functions/common.php:1888` → modern HTML), but the `qobj.*` i18n keys had been lost from ALL 10 JSON bundles during a later rebase, the screen was missing from `docs/MODERNIZATION-STATUS.md`, and the test suite record was lost too. This run restored the 42 `qobj.*` keys + `footers.qualityObjectives` in each bundle and re-recorded the screen as DONE (row 24b, summary 71).
-**Fixture:** `php tmp/fixtures_1307.php` → tproject `QOB:QObjDemo` (id=1), tplan `QOB Plan` (id=12), build=1, spec=13, reqs QOS-1/2/3 (ids 15/17/19), TCs TC-A/B/C (ids 3/6/9, tcvids 4/7/10), execs TC-A=Passed / TC-B=Failed, quality objectives id 1/2/3 (Secure Transactions L3×I5, Fast Search L1×I2, Audit Ready L2×I4) pre-linked req+tc.
-
-| # | Step | Expected | Result |
-|---|---|---|---|
-| 1307.1 | Open Quality Objectives via ASIDE (tproject=QOB:QObjDemo, plan=QOB Plan) | Matrix renders with full i18n — no raw `qobj.*` keys anywhere in the DOM | PASS |
-| 1307.2 | Matrix content | 3 objectives; Secure Transactions "Risk: High (L3×I5)", Passed:2 Failed:0; Fast Search "Risk: Low (L1×I2)", Passed:0 Failed:1; Audit Ready "Risk: Medium (L2×I4)" | PASS |
-| 1307.3 | Traceability rows | QOS-1→TC-A Passed under both "covered test cases" and "directly linked"; QOS-2→TC-B Failed | PASS |
-| 1307.4 | Plan filter = QOB Plan then "All plans" | both reload matrix; "Generated on" timestamp refreshes | PASS |
-| 1307.5 | Add objective | modal has Name/Description/Failure likelihood(1-5)/Business impact(1-5); live risk preview; Save persists | PASS |
-| 1307.6 | New objective card | correct risk badge (L1×I5 → Medium), Passed/Failed/Blocked/Not run: 0, "No requirements or test cases linked yet." | PASS |
-| 1307.7 | Links modal | shows all 3 reqs + 3 TCs checkboxes; checking QOS-3 + TC-C then Save adds a traceability row via covered + directly linked test cases | PASS |
-| 1307.8 | Edit modal | pre-fills name/desc/likelihood/impact; rename + L4 → Risk: Critical (L4×I5), links preserved after reload | PASS |
-| 1307.9 | Delete | confirm() prompt "Delete this quality objective?"; accept → card gone, count 4→3 | PASS |
-| 1307.10 | DB persistence | `quality_objectives` has exactly ids 1/2/3; `quality_objective_links` intact for remaining objectives; links for deleted objective removed (cascade) | PASS |
-| 1307.11 | Auth/rights | anonymous GET `/api/requirements/index.php/quality-objectives` → 401 `{"status":"error","message":"Not authenticated"}` | PASS |
-| 1307.12 | i18n bundles | all 42 `qobj.*` keys + `footers.qualityObjectives` present and valid JSON in all 10 locales | PASS |
-| 1307.13 | Event Viewer / `events` table | only expected INFO/AUDIT entries (QOBJ_CREATE/UPDATE/LINK/DELETE, LOGIN); no ERROR/WARNING rows | PASS |
-| 1307.14 | Browser console | no console errors across load, add, link, edit, delete | PASS |
-
-Result: 14/14 PASS — **i18n restored, screen recorded as DONE, parity re-verified (Refs #1307)**.
+Result: 10/10 PASS — **feature implemented + verified (Refs #1304)**.
