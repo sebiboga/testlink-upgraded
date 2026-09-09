@@ -2893,11 +2893,8 @@
   "tpwcf.multiSortRemove": "移除排序",
   "tpwcf.multiSortDup": "该列已在排序列表中",
   "tpwcf.multiSortCleared": "排序已清除",
-<<<<<<< HEAD
   "ev.selectUsers": "选择用户",
-  "rb.infoReport": "此报告显示所有与测试用例连接的问题"
-}
-=======
+  "rb.infoReport": "此报告显示所有与测试用例连接的问题",
   "qobj.header": "质量目标",
   "qobj.subHeader": "目标 → 需求 → 测试用例 → 结果",
   "qobj.forProject": "项目",
@@ -2942,4 +2939,3 @@
   "qobj.noTcs": "此项目没有测试用例。",
   "footers.qualityObjectives": "TestLink 2.0.1 - 质量目标与风险可追溯性矩阵"
 }
->>>>>>> dd7f92d89 (feat(requirements): Quality Objectives & Risk Traceability Matrix (ISTQB) — BFF + Dashio screen + i18n)

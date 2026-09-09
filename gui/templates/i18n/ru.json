@@ -2893,11 +2893,8 @@
   "tpwcf.multiSortRemove": "Удалить сортировку",
   "tpwcf.multiSortDup": "Этот столбец уже в списке сортировки",
   "tpwcf.multiSortCleared": "Сортировка очищена",
-<<<<<<< HEAD
   "ev.selectUsers": "Выберите пользователя(ей)",
-  "rb.infoReport": "Отчёт показывает все ошибки, связанные с тест-кейсами во время выполнения."
-}
-=======
+  "rb.infoReport": "Отчёт показывает все ошибки, связанные с тест-кейсами во время выполнения.",
   "qobj.header": "Цели по качеству",
   "qobj.subHeader": "цель → требование → тест-кейс → результат",
   "qobj.forProject": "Проект",
@@ -2942,4 +2939,3 @@
   "qobj.noTcs": "В этом проекте нет тест-кейсов.",
   "footers.qualityObjectives": "TestLink 2.0.1 - Цели по качеству и матрица трассировки рисков"
 }
->>>>>>> dd7f92d89 (feat(requirements): Quality Objectives & Risk Traceability Matrix (ISTQB) — BFF + Dashio screen + i18n)

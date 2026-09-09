@@ -2895,11 +2895,8 @@
   "tpwcf.multiSortRemove": "Elimină sortarea",
   "tpwcf.multiSortDup": "Coloana este deja în lista de sortare",
   "tpwcf.multiSortCleared": "Sortare ștearsă",
-<<<<<<< HEAD
   "ev.selectUsers": "Selectati utilizator(i)",
-  "rb.infoReport": "Acest raport afișează toate bug-urile legate de cazurile de test în timpul execuției."
-}
-=======
+  "rb.infoReport": "Acest raport afișează toate bug-urile legate de cazurile de test în timpul execuției.",
   "qobj.header": "Obiective de calitate",
   "qobj.subHeader": "obiectiv → cerință → caz de test → rezultat",
   "qobj.forProject": "Proiect",
@@ -2944,4 +2941,3 @@
   "qobj.noTcs": "Acest proiect nu are cazuri de test.",
   "footers.qualityObjectives": "TestLink 2.0.1 - Obiective de calitate și matrice de trasabilitate a riscurilor"
 }
->>>>>>> dd7f92d89 (feat(requirements): Quality Objectives & Risk Traceability Matrix (ISTQB) — BFF + Dashio screen + i18n)
