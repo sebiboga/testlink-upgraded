@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "クリックで昇順/降順を切り替え、Shift+クリックまたはXで削除",
   "tpwcf.multiSortRemove": "ソートを削除",
   "tpwcf.multiSortDup": "この列はソートリストに既に含まれています",
-  "tpwcf.multiSortCleared": "ソートをクリアしました"
+  "tpwcf.multiSortCleared": "ソートをクリアしました",
+  "ev.selectUsers": "ユーザーを選択"
 }

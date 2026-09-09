@@ -109,8 +109,8 @@ td.desc-expand:hover { background: #f9fffe !important; }
     <select id="filterLevel" multiple size="4"></select>
   </div>
   <div class="filter-group">
-    <label data-i18n="ev.user">User</label>
-    <select id="filterUser"><option value="" data-i18n="ev.allUsers">All users</option></select>
+    <label data-i18n="ev.selectUsers">Select user(s)</label>
+    <select id="filterUser" multiple size="4"></select>
   </div>
   <div class="filter-group">
     <label data-i18n="ev.from">From</label>
@@ -268,7 +268,7 @@ function buildQuery() {
   var levels = $('#filterLevel').val();
   if (levels && levels.length) p.push('logLevel=' + levels.join(','));
   var user = $('#filterUser').val();
-  if (user) p.push('user=' + user);
+  if (user && user.length) p.push('user=' + user.join(','));
   var start = $('#filterStart').val();
   if (start) p.push('startDate=' + encodeURIComponent(start.split(' - ')[0]));
   var end = $('#filterEnd').val();

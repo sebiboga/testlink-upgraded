@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "Klick wechselt auf-/absteigend; Umschalt+Klick oder X zum Entfernen",
   "tpwcf.multiSortRemove": "Sortierung entfernen",
   "tpwcf.multiSortDup": "Spalte ist bereits in der Sortierliste",
-  "tpwcf.multiSortCleared": "Sortierung gelöscht"
+  "tpwcf.multiSortCleared": "Sortierung gelöscht",
+  "ev.selectUsers": "Benutzer auswählen"
 }

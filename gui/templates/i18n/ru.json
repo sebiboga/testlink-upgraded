@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "Щелчок — переключить возр./убыв.; Shift+клик или X — удалить",
   "tpwcf.multiSortRemove": "Удалить сортировку",
   "tpwcf.multiSortDup": "Этот столбец уже в списке сортировки",
-  "tpwcf.multiSortCleared": "Сортировка очищена"
+  "tpwcf.multiSortCleared": "Сортировка очищена",
+  "ev.selectUsers": "Выберите пользователя(ей)"
 }

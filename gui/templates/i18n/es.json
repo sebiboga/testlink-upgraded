@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "Clic para alternar ascendente/descendente; Mayús+clic o X para eliminar",
   "tpwcf.multiSortRemove": "Quitar ordenación",
   "tpwcf.multiSortDup": "La columna ya está en la lista de ordenación",
-  "tpwcf.multiSortCleared": "Ordenación eliminada"
+  "tpwcf.multiSortCleared": "Ordenación eliminada",
+  "ev.selectUsers": "Seleccionar usuario(s)"
 }

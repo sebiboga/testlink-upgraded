@@ -2894,5 +2894,6 @@
   "tpwcf.multiSortToggle": "Click to toggle ascending/descending; shift+click or X to remove",
   "tpwcf.multiSortRemove": "Remove sort",
   "tpwcf.multiSortDup": "Column is already in the sort list",
-  "tpwcf.multiSortCleared": "Sort cleared"
+  "tpwcf.multiSortCleared": "Sort cleared",
+  "ev.selectUsers": "Select user(s)"
 }

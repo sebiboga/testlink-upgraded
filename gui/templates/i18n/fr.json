@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "Clic pour inverser croissant/décroissant; Maj+clic ou X pour supprimer",
   "tpwcf.multiSortRemove": "Retirer le tri",
   "tpwcf.multiSortDup": "La colonne est déjà dans la liste de tri",
-  "tpwcf.multiSortCleared": "Tri effacé"
+  "tpwcf.multiSortCleared": "Tri effacé",
+  "ev.selectUsers": "Sélectionner utilisateur(s)"
 }

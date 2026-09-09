@@ -2894,5 +2894,6 @@
   "tpwcf.multiSortToggle": "Clic pentru comutare ascendent/descendent; shift+clic sau X pentru eliminare",
   "tpwcf.multiSortRemove": "Elimină sortarea",
   "tpwcf.multiSortDup": "Coloana este deja în lista de sortare",
-  "tpwcf.multiSortCleared": "Sortare ștearsă"
+  "tpwcf.multiSortCleared": "Sortare ștearsă",
+  "ev.selectUsers": "Selectati utilizator(i)"
 }

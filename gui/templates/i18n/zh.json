@@ -2892,5 +2892,6 @@
   "tpwcf.multiSortToggle": "单击切换升序/降序；Shift+单击或X删除",
   "tpwcf.multiSortRemove": "移除排序",
   "tpwcf.multiSortDup": "该列已在排序列表中",
-  "tpwcf.multiSortCleared": "排序已清除"
+  "tpwcf.multiSortCleared": "排序已清除",
+  "ev.selectUsers": "选择用户"
 }
