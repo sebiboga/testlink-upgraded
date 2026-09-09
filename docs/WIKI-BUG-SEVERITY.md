@@ -40,7 +40,7 @@ Create/Edit Test Project** (`gui/templates/projects/projectEdit.html`, BFF
   Urgency inside a test plan; priority-aware reports and columns activate.
 - **OFF** (default) → severity/priority is not tracked on this project.
 
-Server-side write path: `api/projects/index.php:205-209`
+Server-side write path: `api/projects/index.php:209-210`
 (`$options->testPriorityEnabled = isset($input['optPriority'])`.
 
 ### 1.2 Test case version — Importance
@@ -142,7 +142,7 @@ aligns with what the team then files in the tracker.
 |---|---|
 | `tcversion.importance` 3/2/1 | unchanged schema; displayed via `tcview.*` / `tspec.*` labels |
 | `testplan_tcversions.urgency` 3/2/1 | unchanged schema; managed by the modern Set Test Urgency screen |
-| `priority_to_level()` thresholds (`urgencyImportance`) | identical config used by the modern BFF (`prioLevel()` in `api/tcassignments/index.php:103`, `api/execassignment/index.php:110`) |
+| `priority_to_level()` thresholds (`urgencyImportance`) | the modern BFF `prioLevel()` (`api/tcassignments/index.php:103`, `api/execassignment/index.php:110`) uses simplified hardcoded thresholds (<=2 low, <=4 medium, >4 high) — functionally similar to the config thresholds (low=3 high=6) but diverging at priority value 5 |
 | `testPriorityEnabled` project option | still stored on the project; exposed/edited in `projectEdit.html` |
 
 ## 6. Test cases
