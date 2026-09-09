@@ -27,12 +27,21 @@ function firstId($r) {
 
 // idempotency: drop previous fixture project/plan leftovers
 $old = $tprojMgr->get_by_name('QObjDemo');
+$oldIds = [];
 foreach ((array)$old as $row) {
     $oid = intval($row['id']);
     if ($oid > 0) {
         echo "deleting old project $oid\n";
         $tprojMgr->delete($oid, 1);
+        $oldIds[] = $oid;
     }
+}
+if ($oldIds) {
+    $tblQ = tlObjectWithDB::getDBTables(['quality_objectives', 'quality_objective_links']);
+    $in = implode(',', $oldIds);
+    $db->exec_query("DELETE FROM {$tblQ['quality_objectives']} WHERE testproject_id IN ($in)");
+    $db->exec_query("DELETE FROM {$tblQ['quality_objective_links']} WHERE tproject_id IN ($in)");
+    echo "purged QOBJ rows for old project(s): $in\n";
 }
 
 $item = new stdClass();
