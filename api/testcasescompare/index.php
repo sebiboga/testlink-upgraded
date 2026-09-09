@@ -225,10 +225,12 @@ if ($action === 'compare') {
         // controller (lib/testcases/tcCompareVersions.php init_args:97-106)
         // honors ANY numeric value - including an explicit 0 (a diff with zero
         // context lines) - and only falls back to the diffEngine config default
-        // when the parameter is absent or not numeric. getIntParam() returns
-        // non-negative ints for numeric input, so -1 cleanly marks
-        // absent/blank/non-numeric; 0 is passed through to the engine as-is
-        // (the diff engine's showline() handles linepadding === 0 exactly).
+        // when the parameter is absent or not numeric. getIntParam() returns the
+        // int value for numeric input and the default otherwise, so -1 cleanly
+        // marks absent/blank/non-numeric; the >= 0 guard also rejects negative
+        // input that the client blocks anyway, and 0 is passed through to the
+        // engine as-is (the diff engine's showline() handles linepadding === 0
+        // exactly).
         $diffEngineCfg = config_get("diffEngine");
         $defaultCtx = isset($diffEngineCfg->context) ? intval($diffEngineCfg->context) : 5;
         $rawCtx = getIntParam('context', -1);
