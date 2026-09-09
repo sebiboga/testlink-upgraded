@@ -12255,3 +12255,29 @@ Result: 5/5 PASS — **feature implemented + verified (Refs #871)**. Gap closed:
 | 1292.8 | `php -l` on BFF | no syntax errors in `api/reqimport/index.php` | PASS |
 
 Result: 8/8 PASS — **feature implemented + verified (Refs #1292)**. The malformed CSV line is now clearly flagged in the UI with the per-line field-count message, exactly mirroring legacy `import_syntax_error` behavior; valid rows still import normally and the normal-success path is unchanged.
+
+## Task — Issue #1305: reqView — Print view + Direct link + Help icon (gap vs legacy)
+
+**Screen:** `gui/templates/requirements/reqView.html` + new `gui/templates/requirements/printReq.html` · **BFF:** `api/requirements/index.php` (`view` → `direct_link`; new `action=req_print`)
+**Legacy reference:** `lib/requirements/reqView.php:131-132` (direct-link formula `basehref + linkto.php?tprojectPrefix=<T>&item=req&id=<docID>`); `gui/templates/dashio/requirements/reqViewVersionsViewer.tpl:37-42,126-134` (toggle_direct_link + print button → `openPrintPreview('req',id,version_id,revision,'lib/requirements/reqPrint.php')`); `gui/javascript/testlink_library.js:1660` `openPrintPreview`; `reqViewVersions.tpl:235` help icon.
+**Implementation:**
+1. BFF `view` response now includes `direct_link`; new `?action=req_print` renders via legacy `reqPrint.php` into `{status, req_id, req_version_id, req_revision, tproject_id, tproject_name, reqname, title, body_html}`. Missing `req_revision` is auto-resolved from `req_versions.revision` (legacy `reqPrint.php` DB-crashes on revision 0).
+2. `printReq.html` mirrors `tcPrint.html`: sandboxed iframe (`srcdoc`), Print/Back/Refresh toolbar, localized error banner, prints any visible iframe content.
+3. `reqView.html` toolbar: Print (popup), Direct link toggle (permalink + version-specific link + Copy-to-clipboard with teal toast; refreshes on version switch), Help (btn-ghost → wiki Requirement-Viewer page).
+4. i18n: 18 new keys (`reqv.print`/`reqv.directLink`/`reqv.help`/`reqv.helpTooltip`/`reqv.copyLink`/`reqv.specificLink`/`reqv.directLinkCopied` + `reqprint.*`) in ALL 10 bundles.
+**Fixture:** `tmp/fixtures_rcmp.php` → tproject 1 `RCMP Demo Project` (prefix `RCMP`), spec 2, REQ-100 (id=4), version v2r2 (id=6, revision 2).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1305.1 | reqView reload (id=4, tproject=1) | toolbar shows Print / Direct link / Help buttons | PASS |
+| 1305.2 | Click Direct link | permalink `http://localhost:8082/linkto.php?tprojectPrefix=RCMP&item=req&id=REQ-100` + version link (`&version=2`) + Copy button shown | PASS |
+| 1305.3 | Click Copy | teal toast "Direct link copied to clipboard" | PASS |
+| 1305.4 | Switch version to v1 while box open | version-specific link updates to `&version=1` | PASS |
+| 1305.5 | Click Print | popup `printReq.html?req_id=4&req_version_id=6&req_revision=2&tproject_id=1` opens, iframe shows REQ-100 v2r2 (scope + milestone) | PASS |
+| 1305.6 | printReq with unknown req (req_id=9999) | localized banner "The requested requirement was not found", Print disabled | PASS |
+| 1305.7 | Help icon | btn-ghost link to `https://github.com/sebiboga/testlink-upgraded/wiki/Requirement-Viewer` (tooltip via i18n) | PASS |
+| 1305.8 | i18n bundles | 18 new keys present & valid JSON in all 10 locales | PASS |
+| 1305.9 | Browser console | no console errors on reqView or printReq | PASS |
+| 1305.10 | Event Viewer / `events` table | no new ERROR/WARNING rows from the feature (last row id=73 is the pre-fix req_print crash, before this feature) | PASS |
+
+Result: 10/10 PASS — **feature implemented + verified (Refs #1305)**.

@@ -43,6 +43,13 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 .notes { padding: 0 24px 20px; color: #777; font-size: 12px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.direct-link-bar { background: #1c1e24; color: #ccc; border-bottom: 1px solid #333; padding: 10px 24px; font-size: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.direct-link-bar a { color: #4ECDC4; word-break: break-all; }
+.direct-link-bar .btn-copy { background: transparent; color: #4ECDC4; border: 1px solid #2d8e88; padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.direct-link-bar .btn-copy:hover { background: #2d8e88; color: #fff; }
+.direct-link-bar .ctx { color: #999; }
+.toast-bar { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast-bar.ok { background: #2d8e88; }
 </style>
 </head>
 <body>
@@ -57,7 +64,17 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button id="monitorBtn" class="btn-ghost" style="display:none;"></button>
   <button id="cmpBtn" class="btn-ghost" style="display:none;" onclick="openCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="reqv.compareVersions">Compare versions</span></button>
+  <button class="btn-ghost" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="reqv.print">Print</span></button>
+  <button id="directLinkBtn" class="btn-ghost" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="reqv.directLink">Direct link</span></button>
+  <a class="btn-ghost" id="helpBtn" href="https://github.com/sebiboga/testlink-upgraded/wiki/Requirement-Viewer" target="_blank" rel="noopener" data-i18n-title="reqv.helpTooltip"><i class="fa fa-circle-question"></i> <span data-i18n="reqv.help">Help</span></a>
   <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="directLinkBox" class="direct-link-bar" style="display:none;">
+  <i class="fa fa-link"></i>
+  <a href="#" id="dlCurrent" target="_blank" rel="noopener"></a>
+  <button class="btn-copy" id="dlCopy" onclick="copyDirectLink()"><i class="fa fa-copy"></i> <span data-i18n="reqv.copyLink">Copy</span></button>
+  <span class="ctx" id="dlSpecific"> <span data-i18n="reqv.specificLink">This version:</span> <a href="#" id="dlVersion" target="_blank" rel="noopener"></a></span>
 </div>
 
 <div id="deletedBanner" class="deleted-banner" style="display:none;" data-i18n="reqv.deleted"></div>
@@ -127,6 +144,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
 </div>
 
 <div class="footer" id="footerText"></div>
+<div class="toast-bar" id="toastBar"></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -140,6 +158,10 @@ var VERSION_ID = 0;
 var TPROJECT_ID = 0;
 var META = null;
 var META_REQ_TOKEN = 0;
+var CUR_DOC_ID = '';
+var CUR_VERSION_NUM = 0;
+var CUR_REVISION = 0;
+var DIRECT_LINK = '';
 var covTable = null;
 var relTable = null;
 
@@ -173,6 +195,7 @@ function loadView() {
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqv.loadError')); return; }
     if (r.req_deleted) {
       $('#content').hide();
+      $('#directLinkBox').hide();
       $('#deletedBanner').show();
       $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqv.title'));
       return;
@@ -181,6 +204,7 @@ function loadView() {
     $('#content').show();
     META = r.meta;
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
+    DIRECT_LINK = r.direct_link || ('/linkto.php?item=req&id=' + encodeURIComponent(CUR_DOC_ID || ''));
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
     renderVersionSelect(r.versions);
     renderOverview(r);
@@ -221,9 +245,66 @@ function openCompare() {
   window.open('/gui/templates/requirements/reqCompare.html?' + q, '_blank');
 }
 
+function showToast(msg, ok) {
+  var $t = $('#toastBar').text(msg).attr('class', 'toast-bar' + (ok ? ' ok' : '')).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function() { $t.hide(); }, 3500));
+}
+
+function openPrint() {
+  var q = 'req_id=' + encodeURIComponent(REQ_ID) +
+    '&req_version_id=' + encodeURIComponent(VERSION_ID) +
+    '&req_revision=' + encodeURIComponent(CUR_REVISION);
+  if (TPROJECT_ID > 0) q += '&tproject_id=' + encodeURIComponent(TPROJECT_ID);
+  var w = Math.floor(window.innerWidth * 0.9), h = Math.floor(window.innerHeight * 0.9);
+  window.open('/gui/templates/requirements/printReq.html?' + q, 'req_print_' + REQ_ID,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
+}
+
+function toggleDirectLink() {
+  var $box = $('#directLinkBox');
+  if ($box.is(':visible')) { $box.hide(); return; }
+  updateDirectLinks();
+  $box.show();
+}
+
+function updateDirectLinks() {
+  $('#dlCurrent').attr('href', DIRECT_LINK).text(DIRECT_LINK);
+  var versionLink = '';
+  if (CUR_VERSION_NUM > 0) {
+    versionLink = DIRECT_LINK + '&version=' + encodeURIComponent(CUR_VERSION_NUM);
+  } else {
+    versionLink = DIRECT_LINK;
+  }
+  $('#dlVersion').attr('href', versionLink).text(versionLink);
+}
+
+function copyDirectLink() {
+  var done = function() {
+    showToast(TLi18n.t('reqv.directLinkCopied'), true);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(DIRECT_LINK).then(done).catch(function() { legacyCopy(done); });
+  } else {
+    legacyCopy(done);
+  }
+}
+
+function legacyCopy(done) {
+  var ta = $('<textarea>').val(DIRECT_LINK).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  done();
+}
+
 function renderOverview(r) {
   var c = r.current;
   VERSION_ID = c.version_id;
+  CUR_DOC_ID = c.req_doc_id;
+  CUR_VERSION_NUM = c.version || 0;
+  CUR_REVISION = c.revision || 0;
+  if ($('#directLinkBox').is(':visible')) updateDirectLinks();
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(c.req_doc_id) + '</span> <b>' +
     escapeHtml(c.title) + '</b>');
   $('#vSpec').text(escapeHtml(r.spec_path || '-'));

@@ -674,6 +674,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'tproject_id' => $resolvedTid,
         'tproject_name' => $tproject_name,
         'tcase_prefix' => $tcasePrefix,
+        'direct_link' => $_SESSION['basehref'] . 'linkto.php?tprojectPrefix=' .
+            urlencode($tcasePrefix) . '&item=req&id=' . urlencode($cur['req_doc_id']),
         'req_id' => $reqId,
         'grant' => [
             'req_mgmt' => $user->hasRight($db, 'mgt_modify_req', $resolvedTid),
@@ -707,6 +709,156 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'expected_coverage' => $expected,
         'coverage_pct' => $coveragePct,
         'relations' => $relList,
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=req_print  (single Requirement print document, legacy reqPrint.php)
+// Refs #1305. Port of lib/requirements/reqPrint.php: renders ONE requirement
+// version/revision through the battle-tested renderReqForPrinting() pipeline
+// (lib/functions/print.inc.php) with the exact legacy printing-options set
+// (SINGLE_REQ doc type), returning the generated document as JSON for the
+// Dashio shell (gui/templates/requirements/printReq.html) to embed in an iframe.
+//
+// URL args: req_id, req_version_id (optional), req_revision (optional),
+// tproject_id (optional; fallback: owning project derived from req_specs).
+// Access: authenticated + mgt_view_req on the OWNING test project (viewer
+// parity for the modern reqView screen).
+// ---------------------------------------------------------------------------
+if ($action === 'req_print') {
+    $rqId = isset($_GET['req_id']) ? intval($_GET['req_id']) : 0;
+    $rqVersionId = isset($_GET['req_version_id']) ? intval($_GET['req_version_id']) : 0;
+    $rqRevision = isset($_GET['req_revision']) ? intval($_GET['req_revision']) : 0;
+    if ($rqId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing req_id']);
+    }
+
+    // legacy reqPrint.php breaks with revision=0 (get_version_revision(number=0)
+    // falls back to a NULL version and fires a DB error), so resolve the
+    // revision of the requested version, or (when no version is given) the
+    // revision of the latest open version of the requirement.
+    if ($rqRevision <= 0) {
+        if ($rqVersionId > 0) {
+            $verRows = $db->get_recordset(
+                "SELECT revision FROM req_versions WHERE id = " . intval($rqVersionId));
+        } else {
+            // no version given: latest OPEN version of the requirement
+            // (req_versions rows are nodes_hierarchy rows; NH.parent_id = req id)
+            $verRows = $db->get_recordset(
+                "SELECT REQV.id, REQV.revision FROM req_versions REQV " .
+                " JOIN nodes_hierarchy NH ON NH.id = REQV.id " .
+                " WHERE NH.parent_id = " . intval($rqId) . " AND REQV.is_open = 1 " .
+                " ORDER BY REQV.version DESC LIMIT 1");
+        }
+        if (!empty($verRows) && isset($verRows[0]['revision'])) {
+            if (isset($verRows[0]['id'])) {
+                $rqVersionId = intval($verRows[0]['id']);
+            }
+            $rqRevision = intval($verRows[0]['revision']);
+        }
+    }
+
+    $treeMgr = new tree($db);
+    $node = $treeMgr->get_node_hierarchy_info($rqId);
+    if (is_null($node) || !isset($node['name'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Requirement does not exist']);
+    }
+
+    // owning project: explicit arg first, then req_specs.testproject_id via
+    // the requirement's srs_id (deep link with no project context - legacy
+    // reqPrint.php parity)
+    $ownerId = ($tprojectId > 0) ? $tprojectId : 0;
+    if ($ownerId <= 0) {
+        $reqRow = $db->get_recordset(
+            "SELECT REQ.srs_id, RSPEC.testproject_id FROM requirements REQ " .
+            " JOIN req_specs RSPEC ON RSPEC.id = REQ.srs_id " .
+            " WHERE REQ.id = " . intval($rqId));
+        if (!empty($reqRow) && isset($reqRow[0]['testproject_id'])) {
+            $ownerId = intval($reqRow[0]['testproject_id']);
+        }
+    }
+    if ($ownerId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Cannot resolve the owning test project']);
+    }
+
+    $proj = $tprojectMgr->get_by_id($ownerId);
+    if (is_null($proj) || !isset($proj['name'])) {
+        http_response_code(404);
+        out(['status' => 'error', 'message' => 'Test project not found']);
+    }
+
+    // authorization: mgt_view_req on the owning project (matches the modern
+    // requirement viewer gate; the legacy print page only required a session)
+    $canView = false;
+    try {
+        $canView = (bool)$user->hasRightOnProj($db, 'mgt_view_req', $ownerId);
+    } catch (\Throwable $e) {
+        $canView = false;
+    }
+    if (!$canView) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
+
+    // ---- set the session + request state the legacy controller expects ----
+    $_SESSION['testprojectID'] = $ownerId;
+    if (empty($_SESSION['testprojectName'])) {
+        $_SESSION['testprojectName'] = $proj['name'];
+    }
+    if (empty($_SESSION['testprojectPrefix'])) {
+        $_SESSION['testprojectPrefix'] = isset($proj['prefix']) ? $proj['prefix'] : '';
+    }
+    $_GET['req_id'] = $rqId;
+    $_GET['req_version_id'] = $rqVersionId;
+    $_GET['req_revision'] = $rqRevision;
+    $_REQUEST['req_id'] = $rqId;
+    $_REQUEST['req_version_id'] = $rqVersionId;
+    $_REQUEST['req_revision'] = $rqRevision;
+
+    setPaths();
+
+    // ---- generate the document at TOP-LEVEL scope (include scope note) ----
+    $cwd = getcwd();
+    chdir(__DIR__ . '/../../lib/requirements');
+    ob_start();
+    try {
+        include __DIR__ . '/../../lib/requirements/reqPrint.php';
+        $bodyHtml = (string)ob_get_clean();
+    } catch (\Throwable $e) {
+        ob_end_clean();
+        chdir((string)$cwd);
+        error_log('[tl-reqprint] ' . $e->getMessage() . ' @ ' . $e->getFile() . ':' . $e->getLine());
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Document generation failed']);
+    }
+    chdir((string)$cwd);
+
+    if ($bodyHtml === '') {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Document generation returned no content']);
+    }
+
+    // extract the document <title> produced by the generator
+    $docTitle = $node['name'];
+    if (preg_match('/<title[^>]*>(.*?)<\/title>/is', $bodyHtml, $m)) {
+        $docTitle = trim($m[1]);
+    }
+
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+    out([
+        'status' => 'ok',
+        'req_id' => $rqId,
+        'req_version_id' => $rqVersionId,
+        'req_revision' => $rqRevision,
+        'tproject_id' => $ownerId,
+        'tproject_name' => $proj['name'],
+        'reqname' => $node['name'],
+        'title' => $docTitle,
+        'body_html' => $bodyHtml,
     ]);
 }
 

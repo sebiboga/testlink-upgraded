@@ -12,7 +12,10 @@ legacy popup `lib/requirements/reqView.php`, backed by a new JSON BFF action
 
 | Section | Content |
 |---|---|
-| Toolbar | version selector (`vN rM`, closed versions tagged `*`), refresh, monitoring toggle |
+| Toolbar | version selector (`vN rM`, closed versions tagged `*`), refresh, monitoring toggle, **Print**, **Direct link** (toggle), **Help** |
+| Print | opens the new print screen `printReq.html` in a resizable popup |
+| Direct link | shows the requirement permalink (`linkto.php?tprojectPrefix=<T>&item=req&id=<docID>`) plus a version-specific link and a **Copy** button (clipboard API with `execCommand` fallback; teal toast on success) |
+| Help | links to the GitHub wiki Requirement-Viewer page |
 | Overview | identifier (`docID`), requirement title, requirement spec path, type, status, frozen, author, created / modified, coverage `pct% (covered/expected)` |
 | Scope | approval-scope note text (legacy *"approval scope"* field) |
 | Custom fields | values of requirement-level custom fields (dates localized by the BFF) |
@@ -31,6 +34,19 @@ an empty version selector; the permission-denied path shows
 - **Start/Stop monitoring** hits the existing `POST /api/requirements/monitor`
   action (`{reqId, action:'on'|'off'}`). Monitoring is per **requirement**
   (legacy parity), so the state survives version switches.
+- The **Print** toolbar button opens
+  `gui/templates/requirements/printReq.html?req_id&req_version_id&req_revision&tproject_id`
+  in a popup. The print screen mirrors `tcPrint.html`: it calls
+  `GET /api/requirements/index.php?action=req_print` and embeds the legacy
+  generator output (`lib/requirements/reqPrint.php`) in a sandboxed iframe
+  (Print / Back / Refresh toolbar, inline-anchor navigation, localized error
+  banner on failure). The BFF resolves the requested revision (falling back to
+  the version's stored revision) — without it the legacy generator crashed with
+  a DB error.
+- The **Direct link** toggle shows the requirement permalink
+  (`basehref` + `linkto.php?tprojectPrefix=<code>&item=req&id=<docID>`,
+  legacy `reqView.php` formula) and re-renders the version-specific link when
+  the version selector changes.
 
 ## Access & permission
 
@@ -47,8 +63,10 @@ an empty version selector; the permission-denied path shows
 
 ## i18n
 
-29 new keys (`reqv.*`) added to **all** locale bundles: en, de, es, fr, it, ja,
-pt, ro, ru, zh.
+29 new keys (`reqv.*`) plus 18 more (`reqv.print`, `reqv.directLink`,
+`reqv.help`, `reqv.helpTooltip`, `reqv.copyLink`, `reqv.specificLink`,
+`reqv.directLinkCopied` and the `reqprint.*` block) added to **all** locale
+bundles: en, de, es, fr, it, ja, pt, ro, ru, zh.
 
 ## BFF
 
@@ -56,9 +74,15 @@ pt, ro, ru, zh.
 
 Returns the requirement (current or requested version), spec path, type/status
 labels, coverage data, custom-field values, monitor state for the caller,
-relations, the full version list for the selector, and the caller's grants
-(`req_mgmt`, `monitor_req`, `req_tcase_link_management`). Unknown ids return
-`req_deleted:true`.
+relations, the full version list for the selector, the caller's grants
+(`req_mgmt`, `monitor_req`, `req_tcase_link_management`), and the **`direct_link`**
+permalink. Unknown ids return `req_deleted:true`.
+
+`GET /api/requirements/index.php?action=req_print&req_id&req_version_id&req_revision&tproject_id`
+
+Renders the single requirement via the legacy `reqPrint.php` into
+`{status, req_id, req_version_id, req_revision, tproject_id, tproject_name,
+reqname, title, body_html}`. Checks `mgt_view_req` (HTTP 403 on missing right).
 
 ## Bugs found while testing
 
@@ -71,4 +95,7 @@ relations, the full version list for the selector, and the caller's grants
 
 Suite 764 in `tmp/TLU_Test_Cases.md` — 17/17 PASS (BFF routes, version switch,
 monitor on/off + DB rows, deleted banner, 403 permission path, relations grid,
-deep-link regression).
+deep-link regression). Suite 1305 — Print / Direct link / Help (see below).
+
+![reqView toolbar with Direct link box](screenshots/issue-1305-reqview-directlink-toolbar.png)
+![Print screen](screenshots/issue-1305-reqprint-screen.png)
