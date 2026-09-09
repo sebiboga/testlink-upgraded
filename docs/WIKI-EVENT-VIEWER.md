@@ -152,6 +152,14 @@ Users with the `events_mgt` right (typically admins) see a **Clear Events** butt
 - After deletion, the table and charts reload automatically
 - The button is hidden for users without the `events_mgt` right
 
+**Audit trail (legacy parity):** every deletion is itself audited — the BFF calls `logAuditEvent()` right after `deleteEventsFor()`, so the Event Viewer history stays traceable:
+- No log level selected → `TLS("audit_all_events_deleted", login)` → *"User 'admin' deleted all events"*
+- Specific levels selected → `TLS("audit_events_with_level_deleted", login, levelNames)` → *"User 'admin' deleted events with level: Error,Warning,Info,Debug,Audit,L18N"*
+
+Both rows are written with log level **AUDIT**, source `events`, and activity code **DELETE**. This mirrors `lib/events/eventviewer.legacy.php:27-43`.
+
+![Deletion audit event in the list](issue-870-audit-clear-events.png)
+
 ---
 
 ## 7. Rights & Access Control
@@ -234,7 +242,7 @@ The Event Viewer uses a dedicated BFF API at `/api/eventviewer/index.php`. All e
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| DELETE | `/events` | Delete events. Body: `{"logLevel": [1,2]}` to delete specific levels, or `{}` to delete all. Requires `events_mgt` right. |
+| DELETE | `/events` | Delete events. Body: `{"logLevel": [1,2]}` to delete specific levels, or `{}` to delete all. Requires `events_mgt` right. Writes an **AUDIT** log entry after deletion (`audit_all_events_deleted` / `audit_events_with_level_deleted`, activity `DELETE`, object type `events`). |
 
 ---
 
