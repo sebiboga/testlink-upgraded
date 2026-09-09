@@ -150,6 +150,7 @@ Users with the `events_mgt` right (typically admins) see a **Clear Events** butt
 - Events are deleted based on the **currently selected log level filter**
 - If no log levels are selected, all events are deleted (use with caution)
 - After deletion, the table and charts reload automatically
+- **All filters are reset after a successful delete** (legacy BUGID 3908 parity, `lib/events/eventviewer.legacy.php:44-50`): the Log Levels, User(s), From and To controls are cleared so the full event log is re-shown with no stale filter. The Date controls are reset in JS as well. Only the per-object drill-down filter (when opened via "Show event history") is preserved, since it is a page-level context rather than a user-adjustable filter.
 - The button is hidden for users without the `events_mgt` right
 
 **Audit trail (legacy parity):** every deletion is itself audited — the BFF calls `logAuditEvent()` right after `deleteEventsFor()`, so the Event Viewer history stays traceable:

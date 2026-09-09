@@ -483,7 +483,15 @@ function clearEvents() {
   $.ajax({
     url: API + '/events', type: 'DELETE',
     contentType: 'application/json', data: body,
-    success: function() { loadEvents(); }
+    success: function() {
+      // Legacy BUGID 3908 parity: reset every filter after a successful clear
+      // so the full event log is shown again with no stale filter applied.
+      $('#filterLevel').val([]);
+      $('#filterUser').val([]);
+      $('#filterStart').val('');
+      $('#filterEnd').val('');
+      loadEvents();
+    }
   });
 }
 </script>

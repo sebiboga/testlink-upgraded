@@ -12209,3 +12209,22 @@ Result: 7/7 PASS — **feature implemented + verified (Refs #870)**. Gap closed:
 | 1294.13 | Reset + re-save round-trip with 2 customized levels | label/description length capped at 40/300, blob preserves other flags (`requirementsEnabled`,`testPriorityEnabled`) | PASS |
 
 Result: 13/13 PASS — screen verified end-to-end (load, custom label save + persist, preview mapping, reset-to-defaults, auth/rights gates, i18n completeness, Event Viewer clean). Committed as part of Refs #1294.
+
+---
+
+## Task — Issue #871: Reset filters after Clear Events in Event Viewer (BUGID 3908 parity)
+
+**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php` (DELETE /events)
+**Legacy reference:** `lib/events/eventviewer.legacy.php:44-50` — after a successful clear the controller resets `$args->logLevel=null`, `$gui->selectedLogLevels=array()`, `$gui->selectedTesters=array()`, `$gui->startDate=null`, `$gui->endDate=null` so the full log is re-shown unfiltered.
+**Fix:** `gui/templates/eventviewer/eventviewer.html` `clearEvents()` success handler now resets `#filterLevel`, `#filterUser`, `#filterStart`, `#filterEnd` before `loadEvents()`.
+**Fixture:** events table seeded with DEBUG(8)/WARNING(2)×2/INFO(4) rows in addition to the admin-login AUDIT(16) row.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 871.1 | Set `#filterLevel` to DEBUG only (value 8), click Apply | footer "1 events", table shows only the DEBUG row | PASS |
+| 871.2 | With DEBUG filter active, click "Clear Events", accept confirm | DEBUG row deleted from DB; after reload footer shows remaining events, and `#filterLevel` selection reset to [] (none), `#filterStart`/`#filterEnd` empty, `#filterUser` empty | PASS |
+| 871.3 | Remaining events visible after clear | WARNING/INFO/AUDIT rows shown (full log, no stale DEBUG filter) | PASS |
+| 871.4 | `applyFilters()` flow unaffected | setting a filter + Apply still filters (reset only happens on clear, not on apply) | PASS (code path: only `clearEvents()` success handler touched) |
+| 871.5 | No JS errors + Event Viewer clean | browser console has no errors from the change; `events` table shows no unexpected ERROR/WARNING rows (only expected AUDIT delete rows) | PASS |
+
+Result: 5/5 PASS — **feature implemented + verified (Refs #871)**. Gap closed: modern `clearEvents()` now resets every filter after a successful DELETE, matching legacy BUGID 3908, so the full event log is re-shown with no stale filter. Browser-verified on the DEBUG-filtered clear path. Commit(s) noted in issue #871.
