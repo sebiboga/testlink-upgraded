@@ -234,7 +234,13 @@ function doCompare() {
     if ($('#contextShowAll').is(':checked')) {
       params.context_show_all = 1;
     } else {
-      var c = parseInt($('#context').val() || '0', 10);
+      // Refs #1327: legacy validateForm() parity - tcCompareVersions.tpl:78
+      // refuses a blank "Context" field (warning_empty_context) before the
+      // diff runs; numeric values (including 0) are honoured as-is. A blank
+      // field here used to be silently coerced to 0 by the '|| "0"' fallback.
+      var rawCtx = $('#context').val();
+      if (rawCtx === '' || rawCtx == null) { toast(TLi18n.t('tcc.warnInvalidContext'), true); return; }
+      var c = parseInt(rawCtx, 10);
       if (isNaN(c) || c < 0) { toast(TLi18n.t('tcc.warnInvalidContext'), true); return; }
       params.context = c;
     }
