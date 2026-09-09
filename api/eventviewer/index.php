@@ -107,6 +107,7 @@ function eventToJSON(tlEvent $event, &$db) {
         'userName' => $userName,
         'userDisplayName' => $userDisplayName,
         'transactionID' => $event->transactionID ? intval($event->transactionID) : null,
+        'sessionID' => $event->sessionID,
         'objectID' => $event->objectID ? intval($event->objectID) : null,
         'objectType' => $event->objectType,
         'activityCode' => $event->activityCode,

@@ -127,16 +127,22 @@ Clicking an individual group header row toggles that group's expand/collapse sta
 
 ## 5. Row Detail View
 
-Expanding a row reveals additional metadata about the event in a bordered detail panel:
+Expanding a row reveals the **complete event record** (legacy `eventinfo.tpl` parity) in a bordered detail panel:
 
 | Field | Description |
 |-------|-------------|
-| Source | The system component that generated the event |
-| Session ID | The transaction/session ID (shown with `#` prefix) |
-| Object Type | The type of object involved (e.g., test case, test plan) |
-| Object ID | The database ID of the object |
-| Activity | The activity code describing what happened |
-| Timestamp | Full timestamp of the event |
+| **Level** | Log level (AUDIT, ERROR, WARNING, INFO, DEBUG, L18N) |
+| **Timestamp** | Full timestamp of the event |
+| **Source** | The system component that generated the event |
+| **Description** | The event description text |
+| **Session information** *(only when the event has a transaction)* | Section header |
+| — *User* | Display name of the user who triggered the event (falls back to the raw user id) |
+| — *Session ID* | The **real PHP session id** from `transactions.session_id` (e.g. `qun27mjdmgqeerpm1ds5gn0lfk`) |
+| — *Transaction* | The transaction id (shown with `#` prefix) — distinctly labelled so it is not mistaken for the PHP session |
+| **Activity** *(only when `objectID` is set)* | Section header |
+| — *Activity code* | The activity code describing what happened |
+| — *Object ID* | The database ID of the object |
+| — *Object Type* | The type of object involved (e.g., test case, test plan) |
 
 The detail data is fetched on-demand via `GET /api/eventviewer/index.php/events/{id}`.
 
@@ -226,6 +232,7 @@ The Event Viewer uses a dedicated BFF API at `/api/eventviewer/index.php`. All e
   "userName": "admin",
   "userDisplayName": "Administrator",
   "transactionID": 12345,
+  "sessionID": "qun27mjdmgqeerpm1ds5gn0lfk",
   "objectID": 1,
   "objectType": "users",
   "activityCode": "login"

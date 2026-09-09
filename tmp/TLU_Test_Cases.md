@@ -12281,3 +12281,29 @@ Result: 8/8 PASS — **feature implemented + verified (Refs #1292)**. The malfor
 | 1305.10 | Event Viewer / `events` table | no new ERROR/WARNING rows from the feature (last row id=73 is the pre-fix req_print crash, before this feature) | PASS |
 
 Result: 10/10 PASS — **feature implemented + verified (Refs #1305)**.
+
+---
+
+## Task — Issue #872: Show full event detail (level, description, user, PHP session ID) in Event Viewer row detail (gap vs legacy)
+
+**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php`
+**Legacy reference:** `gui/templates/dashio/events/eventinfo.tpl` (whole file) + `lib/events/eventinfo.php` + `showEventDetails()` modal in `eventviewer.tpl:36-94`.
+**Fix:**
+1. `api/eventviewer/index.php` `eventToJSON()` — added `'sessionID' => $event->sessionID` (populated by `readFromDB(..., TLOBJ_O_GET_DETAIL_TRANSACTION)`, `logger.class.php:863`).
+2. `gui/templates/eventviewer/eventviewer.html` `toggleRow()` — detail panel now renders Level / Timestamp / Source / Description always; a **"Session information"** section (User — display name w/ id fallback — + real PHP Session ID + Transaction relabelled) when `transactionID` is set; an **Activity** section when `objectID` is set.
+3. i18n — added `ev.sessionInfo` key to all 10 locale bundles.
+**Fixture:** fresh DB + login as `admin` via the browser → `events.id=1` (audit login, source GUI) with `transactions.id=1`, `session_id = ua3rgkp1l4k3m3h21ep198l599`, `user_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 872.1 | `GET /api/eventviewer/index.php/events/1` (fetch in browser) | JSON contains `sessionID:"ua3rgkp1l4k3m3h21ep198l599"` matching `transactions.session_id` | PASS |
+| 872.2 | Open Event Viewer, expand event 1 | detail panel now starts with **Level → AUDIT** and **Description** row present | PASS |
+| 872.3 | Expand event 1 (EN) | **Session information** section shows **User → Testlink Administrator** and **Session ID → ua3rgkp1l4k3m3h21ep198l599** (real PHP session) | PASS |
+| 872.4 | Expand event 1 (EN) | transaction id relabelled **Transaction → #1** (no longer mislabelled "Session ID") | PASS |
+| 872.5 | Expand event 1 (EN) | **Activity** section still present since `objectID` set; the activity code row is labelled **Activity code** (legacy `th_activity_code`), distinct from the section header | PASS |
+| 872.6 | XSS guard | `esc()` escapes `<`,`>`,`&`,`"` before innerHTML — the detail panel and table cells render description/source/user/displayName safely (verified `esc('<img src=x onerror=alert(1)>')` returns the escaped literal) | PASS |
+| 872.7 | Switch locale to `?locale=ro`, expand event 1 | Romanian labels render: `Informații despre sesiune`, `ID Sesiune → ua3rgkp1l4k3m3h21ep198l599`, `Tranzacție`, `Cod activitate` | PASS |
+| 872.8 | All 10 locale bundles | `ev.sessionInfo` + `ev.activityCode` present and JSON valid (`python3 -m json.tool`) in de/en/es/fr/it/ja/pt/ro/ru/zh | PASS |
+| 872.9 | Event log hygiene | browser console has no JS errors from the change; `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = 0 (no new ERROR/WARNING) | PASS |
+
+Result: 9/9 PASS — **feature implemented + verified (Refs #872)**. The expanded event row now shows the full legacy record incl. the real PHP session id from `transactions.session_id`; the transaction id is distinctly labelled, all injected values are HTML-escaped (stored-XSS guard matching legacy `|escape`), and the detail panel is i18n-clean across all locales. Browser-verified in EN + RO.

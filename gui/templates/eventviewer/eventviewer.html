@@ -208,6 +208,10 @@ td.desc-expand:hover { background: #f9fffe !important; }
 <script src="/gui/templates/dashio/lib/tl-pie-tooltip.js"></script>
 <script src="/gui/templates/dashio/lib/tl-line-tooltip.js"></script>
 <script>
+function esc(s) {
+  return s == null ? '' : String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 var API = '/api/eventviewer/index.php';
 var qs = new URLSearchParams(window.location.search);
 var tproject_id = qs.get('tproject_id') || '';
@@ -326,9 +330,9 @@ function renderTable(items) {
       ev.id,
       ev.timestampFormatted,
       ev.logLevel,
-      ev.userDisplayName || ev.userID || '-',
-      ev.description || '',
-      ev.transactionID ? '#' + ev.transactionID : '-'
+      esc(ev.userDisplayName || ev.userID || '-'),
+      esc(ev.description || ''),
+      ev.transactionID ? '#' + esc(ev.transactionID) : '-'
     ]);
   });
 
@@ -419,12 +423,27 @@ function toggleRow(tr) {
     icon.addClass('shown');
     $.getJSON(API + '/events/' + id, function(d) {
       var e = d.item;
-      var html = '<div class="detail-content"><table><tr><th>' + TLi18n.t('ev.source') + '</th><td>' + (e.source||'-') + '</td></tr>';
-      html += '<tr><th>' + TLi18n.t('ev.sessionId') + '</th><td>' + (e.transactionID ? '#' + e.transactionID : '-') + '</td></tr>';
-      html += '<tr><th>' + TLi18n.t('ev.objectType') + '</th><td>' + (e.objectType||'-') + '</td></tr>';
-      html += '<tr><th>' + TLi18n.t('ev.objectId') + '</th><td>' + (e.objectID||'-') + '</td></tr>';
-      html += '<tr><th>' + TLi18n.t('ev.activity') + '</th><td>' + (e.activityCode||'-') + '</td></tr>';
-      html += '<tr><th>' + TLi18n.t('ev.timestamp') + '</th><td>' + e.timestampFormatted + '</td></tr></table></div>';
+      // Legacy eventinfo.tpl parity: full event record with a "Session
+      // information" section (User + real PHP session id) when the event has a
+      // transaction, and an "Activity" section when objectID is set.
+      var html = '<div class="detail-content"><table>';
+      html += '<tr><th>' + TLi18n.t('ev.level') + '</th><td>' + esc(e.logLevel) + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.timestamp') + '</th><td>' + esc(e.timestampFormatted) + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.source') + '</th><td>' + esc(e.source) + '</td></tr>';
+      html += '<tr><th>' + TLi18n.t('ev.description') + '</th><td>' + esc(e.description) + '</td></tr>';
+      if (e.transactionID) {
+        html += '<tr><th colspan="2">' + TLi18n.t('ev.sessionInfo') + '</th></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.user') + '</th><td>' + esc(e.userDisplayName || e.userName || e.userID) + '</td></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.sessionId') + '</th><td>' + esc(e.sessionID) + '</td></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.transaction') + '</th><td>#' + esc(e.transactionID) + '</td></tr>';
+      }
+      if (e.objectID) {
+        html += '<tr><th colspan="2">' + TLi18n.t('ev.activity') + '</th></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.activityCode') + '</th><td>' + esc(e.activityCode) + '</td></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.objectId') + '</th><td>' + esc(e.objectID) + '</td></tr>';
+        html += '<tr><th>' + TLi18n.t('ev.objectType') + '</th><td>' + esc(e.objectType) + '</td></tr>';
+      }
+      html += '</table></div>';
       row.child(html, 'detail-row').show();
       tr.addClass('shown');
     });
