@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-08 — (Results TC Flat Send-by-email (Refs #1219, suite 10/10) + public-link/apikey anonymous access (Refs #1220, suite 11/11); legacy `resultsTCFlat.php` now routes `sendSpreadSheetByMail_x` to `email_send_wrapper`; BFF `results_flat` + export gateway accept 32-char user apikey / longer anonymous entity apikey; pre-existing `by_status` `$cfSet` warning fixed)
+> Last updated: 2026-09-09 — (SCREEN-COMPARE parity for `results/execTimelineStats.html` vs legacy `execTimelineStats` (Refs #1273): BFF `exec_timeline` added to apikey allowlist + `!$isAnon` rights guard + apikey forwarded on export/mail URLs; export gateway adds exec_timeline_stats/_mail apikey actions + `spreadsheet=1`; day_hour per-hour `testers` sourced from `$rswf` (legacy date-level quirk); fixture `tmp/fixtures_etl.php` proj 10 ETD / plan 18 ETL Plan; cleanup #1274 filed)
 
 ## Summary
 

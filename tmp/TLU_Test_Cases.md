@@ -12048,3 +12048,24 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #1255)**. BFF: `assi
 | 1261.7 | Event Viewer clean (fixed paths) | `SELECT id,log_level FROM events ORDER BY id DESC` after 1261.1-1261.6 | zero new ERROR/WARNING rows attributable to the fixed paths (invalid-key paths exit before any DB work; healthy-path rows are only the benign INFO/WARNING 'format not defined' defaulting, identical pre-fix) | PASS |
 
 Result: 7/7 PASS — **bug fixed + verified (Refs #1261)**. Root cause: `initArgsForReports()` permissive guard `if ($args->tproject_id <= 0)` (displayMgr.php:82, PHP8 `null <= 0` → true) `throw new Exception(...)` (line 84) with no catch anywhere in the 7 result scripts → HTTP 500 for any garbage/incomplete request on the anonymous/remote branches; the authenticated branch already had a graceful `displayInfo()` guard (displayMgr.php:72-78, #1257). Fix: the throw is replaced by the identical graceful `displayInfo(error_print_doc_title, error_print_doc_missing_testplan)` info page (require info.inc.php + exit), reusing the existing i18n keys — strictly-better: every request that previously 500'd now renders HTTP 200; no valid request could reach line 82 (all healthy paths pass id > 0). Bonus finding while regression-testing: anonymous valid apikey + tproject_id WITHOUT tplan_id → pre-existing SQL 1064 DB Access error in `tlPlatform::getLinkedToTestplanAsMap(NULL)` (getPlatforms(NULL), resultsGeneral.php:262) — filed separately as **#1267** (not fixed in this run, out of scope).
+
+## Suite 63 — SCREEN-COMPARE: results/execTimelineStats.html vs legacy execTimelineStats (Refs #1273)
+
+**Precondition:** app `http://localhost:8082`, DB fresh. `php tmp/fixtures_etl.php` → proj **ETD** (id 10), plan **ETL Plan** (id 18), users etd_tester=4 (role 8) / etd_norg=5 (role 3), builds A=1 open / B=2 closed, 6 executions: 2026-08-10 10h:3 (tester 1+4), 14h:1 (tester 4); 2026-08-11 09h:2 (tester 1+4). Plan api_key = 62×`e`+`74` (64-char → anonymous); admin script_key `abcdef0123456789abcdef0123456789` (32-char → remote).
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 63.1 | BFF apikey allowlist (anonymous) | `curl /api/reports/index.php?action=exec_timeline&tproject_id=10&tplan_id=18&group=day&apikey=<64-char>` (no cookies) | **HTTP 200** JSON `is_anon:true`, day rows 2026-08-10 4/2 + 2026-08-11 2/2 | PASS |
+| 63.2 | BFF remote 32-char user key | same + `apikey=abcdef0123456789abcdef0123456789` | **HTTP 200**, `is_anon:false`, same rows | PASS |
+| 63.3 | BFF unknown apikey | `apikey=INVALIDKEY...` (64 chars unknown) | **HTTP 401** `{"message":"Unknown api key"}` | PASS |
+| 63.4 | BFF no-key no-session | no apikey, no cookies | **HTTP 401** `Not authenticated` | PASS |
+| 63.5 | month group | `graph=month` (remote key) | 2026-08 qty=6 testers=2 (super-set; legacy hardcodes day) | PASS |
+| 63.6 | day_hour group testers (regression) | `group=day_hour` | 3 rows: 10h 3/2, 14h 1/1, 09h 2/2 (per-hour testers now from $rswf) | PASS |
+| 63.7 | role-3 no-rights session | login etd_norg / `x`, BFF exec_timeline | **HTTP 403** `No permission` (legacy home-bounce redirect; both deny) | PASS |
+| 63.8 | gateway apikey XLS export | `curl -L /api/reportsexport/index.php?action=exec_timeline_stats&tplan_id=18&tproject_id=10&apikey=<64-char>` | **HTTP 200** `application/vnd.ms-excel` OLE workbook (was 401; `spreadsheet=1` now forwarded) | PASS |
+| 63.9 | gateway session XLS export | browser logged-in admin clicks Export | downloads `TL_ExecTimelineStats_ETD_ETL Plan.xls` with day rows | PASS |
+| 63.10 | gateway mail form | logged-in admin clicks Send by email | opens lib/results/execTimelineStats.php?format=6... mail form (accessType gui gate) | PASS |
+| 63.11 | anon hides mail form | `execTimelineStats.html?tproject_id=10&tplan_id=18&apikey=<64-char>` incognito | data renders, **no** mail button (is_anon), export button present | PASS |
+| 63.12 | Event Viewer clean | `events` after suite | zero new ERROR/WARNING rows | PASS |
+
+Result: 12/12 PASS — **parity verified (Refs #1273)**. Gaps found + FIXED: BFF `exec_timeline` not in `$apikeyActions` → now allowlisted (+ `!$isAnon` rights guard, apikey on export/mail URLs, `is_anon` flag); export gateway lacked exec_timeline apikey actions + `spreadsheet=1` → added; day_hour `testers:0` (legacy date-level quirk) → sourced from `$rswf[date][hour]`. Non-gaps: column order Date|Qty vs legacy Qty|Date (cosmetic); month/day_hour superset (legacy hardcodes day). Cleanup: #1274.
