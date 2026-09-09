@@ -12406,5 +12406,6 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-ma
 | 1323.13 | Permission parity | export works with any session (no explicit right check), same as legacy; `mgt_modify_tc` surfaced via `info` grants only | PASS |
 | 1323.14 | Event Viewer / `events` table | after project/suite/TC creation + all modern & legacy exports + locale switch: only LOGIN + CREATE INFO entries (log_level 16), no ERROR/WARNING rows | PASS |
 | 1323.15 | Browser console | no JS errors during load, mode switches, exports | PASS |
+| 1323.16 | Skeleton export parity (in-run, gap #1326) | POST `exportSkel=1` to modern BFF and legacy controller → **byte-for-byte identical** (835 B both) — BFF skeleton path matches legacy; only the UI button is missing (Dashio form had none; tl-classic tcExport.tpl:130 has one) | PASS |
 
-Result: 15/15 PASS — **2 gaps fixed in-run** (file-format doc link + `tcx.type.*` i18n in 8 bundles), **1 gap OPEN** (suite-level launcher, #1325), **cleanup #1324** (delete legacy). XML export proven byte-identical to legacy.
+Result: 16/16 PASS — **2 gaps fixed in-run** (file-format doc link + `tcx.type.*` i18n in 8 bundles), **2 gaps OPEN** (suite-level launcher #1325, skeleton UI #1326), **cleanup #1324** (delete legacy). XML export proven byte-identical to legacy.
