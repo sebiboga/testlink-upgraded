@@ -420,6 +420,8 @@
   "ev.activity": "アクティビティ",
   "ev.allUsers": "全ユーザー",
   "ev.apply": "適用",
+  "ev.accessDeniedTitle": "アクセス拒否",
+  "ev.accessDeniedMsg": "イベントログを表示する権限がありません。",
   "ev.clearEvents": "イベントをクリア",
   "ev.confirmDelete": "現在のフィルターに一致するイベントを削除しますか？",
   "ev.description": "説明",

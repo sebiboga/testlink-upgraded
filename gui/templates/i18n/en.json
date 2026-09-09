@@ -420,6 +420,8 @@
   "ev.activity": "Activity",
   "ev.allUsers": "All users",
   "ev.apply": "Apply",
+  "ev.accessDeniedTitle": "Access Denied",
+  "ev.accessDeniedMsg": "You do not have permission to view the event log.",
   "ev.clearEvents": "Clear Events",
   "ev.confirmDelete": "Delete events matching current filters?",
   "ev.description": "Description",

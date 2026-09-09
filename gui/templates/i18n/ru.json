@@ -420,6 +420,8 @@
   "ev.activity": "Деятельность",
   "ev.allUsers": "Все пользователи",
   "ev.apply": "Применить",
+  "ev.accessDeniedTitle": "Доступ запрещён",
+  "ev.accessDeniedMsg": "У вас нет прав на просмотр журнала событий.",
   "ev.clearEvents": "Очистить события",
   "ev.confirmDelete": "Удалить события, соответствующие текущим фильтрам?",
   "ev.description": "Описание",

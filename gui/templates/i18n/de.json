@@ -420,6 +420,8 @@
   "ev.activity": "Aktivität",
   "ev.allUsers": "Alle Benutzer",
   "ev.apply": "Anwenden",
+  "ev.accessDeniedTitle": "Zugriff verweigert",
+  "ev.accessDeniedMsg": "Sie haben keine Berechtigung, das Ereignisprotokoll anzusehen.",
   "ev.clearEvents": "Ereignisse löschen",
   "ev.confirmDelete": "Ereignisse löschen, die den aktuellen Filtern entsprechen?",
   "ev.description": "Beschreibung",

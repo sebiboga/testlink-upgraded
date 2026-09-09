@@ -33,11 +33,21 @@ if (is_null($user)) {
     exit;
 }
 
+$method = $_SERVER['REQUEST_METHOD'];
+
+// Every read endpoint is gated by mgt_view_events (legacy: eventviewer.legacy.php
+// checkRights + eventinfo.php checkRights). The DELETE /events clear action is
+// handled separately below and only needs events_mgt, matching legacy fallback.
+if (in_array($method, ['GET', 'HEAD', 'OPTIONS']) && !$user->hasRight($db, 'mgt_view_events')) {
+    http_response_code(403);
+    echo json_encode(['status' => 'error', 'message' => 'Forbidden: mgt_view_events right required']);
+    exit;
+}
+
 $em = tlEventManager::create($db);
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/eventviewer(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
-$method = $_SERVER['REQUEST_METHOD'];
 
 function out($data) { echo json_encode($data); exit; }
 

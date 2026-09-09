@@ -420,6 +420,8 @@
   "ev.activity": "活动",
   "ev.allUsers": "所有用户",
   "ev.apply": "应用",
+  "ev.accessDeniedTitle": "访问被拒绝",
+  "ev.accessDeniedMsg": "您没有查看事件日志的权限。",
   "ev.clearEvents": "清除事件",
   "ev.confirmDelete": "删除与当前筛选条件匹配的事件？",
   "ev.description": "描述",

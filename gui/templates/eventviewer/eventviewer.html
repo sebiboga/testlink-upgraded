@@ -23,6 +23,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   background: #22242a; padding: 16px 24px; display: flex; gap: 16px;
   align-items: flex-end; flex-wrap: wrap;
 }
+
+.access-denied {
+  background: #fff; border: 1px solid #f0d0d0; border-left: 4px solid #e6605e;
+  border-radius: 8px; margin: 24px; padding: 28px 32px; text-align: center;
+}
+.access-denied i { font-size: 34px; color: #e6605e; margin-bottom: 10px; }
+.access-denied h3 { margin: 0 0 8px; font-size: 18px; color: #22242a; }
+.access-denied p { margin: 0; font-size: 14px; color: #777; }
 .filter-group label { color: #ccc; font-size: 12px; display: block; margin-bottom: 4px; }
 .filter-group select, .filter-group input {
   background: #333; color: #fff; border: 1px solid #555;
@@ -95,7 +103,7 @@ td.desc-expand:hover { background: #f9fffe !important; }
 
 <div class="header"><span data-i18n="header.eventViewer">Event Viewer</span> <span data-i18n="header.eventViewerSub">real-time log monitoring</span><div id="localeSwitcher" style="float:right;"></div></div>
 
-<div class="filters">
+<div class="filters" id="filtersBar">
   <div class="filter-group">
     <label data-i18n="ev.logLevels">Log Levels</label>
     <select id="filterLevel" multiple size="4"></select>
@@ -119,6 +127,12 @@ td.desc-expand:hover { background: #f9fffe !important; }
     <button class="btn-teal" onclick="applyFilters()" data-i18n="ev.apply">Apply</button>
     <button class="btn-red" id="btnClear" onclick="clearEvents()" style="display:none" data-i18n="ev.clearEvents">Clear Events</button>
   </div>
+</div>
+
+<div class="access-denied" id="accessDenied" style="display:none;">
+  <i class="fa fa-lock"></i>
+  <h3 data-i18n="ev.accessDeniedTitle">Access Denied</h3>
+  <p data-i18n="ev.accessDeniedMsg">You do not have permission to view the event log.</p>
 </div>
 
 <div class="charts-row">
@@ -196,11 +210,41 @@ $(function() {
       );
     }
     loadMeta();
-    loadEvents();
   });
 });
 
+function showAccessDenied() {
+  $('#filtersBar').hide();
+  $('.charts-row').hide();
+  $('.table-wrap').hide();
+  $('#footerText').hide();
+  $('#accessDenied').show();
+}
+
 function loadMeta() {
+  $.getJSON(API + '/events/meta/rights')
+    .done(function(r) {
+      if (r.canDelete) $('#btnClear').show();
+      loadFilterOptions();
+      loadEvents();
+    })
+    .fail(function() {
+      showAccessDenied();
+    });
+
+  $('input[id^="filter"]').each(function() {
+    $(this).daterangepicker({
+      autoUpdateInput: false,
+      locale: { cancelLabel: TLi18n.t('common.cancel'), format: 'DD/MM/YYYY' }
+    });
+    $(this).on('apply.daterangepicker', function(ev, picker) {
+      $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
+    });
+    $(this).on('cancel.daterangepicker', function() { $(this).val(''); });
+  });
+}
+
+function loadFilterOptions() {
   $.getJSON(API + '/events/meta/logLevels', function(r) {
     var sel = $('#filterLevel');
     $.each(r.items, function(code, name) {
@@ -212,20 +256,6 @@ function loadMeta() {
     $.each(r.items, function(i, u) {
       sel.append('<option value="' + u.id + '">' + u.displayName + '</option>');
     });
-  });
-  $.getJSON(API + '/events/meta/rights', function(r) {
-    if (r.canDelete) $('#btnClear').show();
-  });
-
-  $('input[id^="filter"]').each(function() {
-    $(this).daterangepicker({
-      autoUpdateInput: false,
-      locale: { cancelLabel: TLi18n.t('common.cancel'), format: 'DD/MM/YYYY' }
-    });
-    $(this).on('apply.daterangepicker', function(ev, picker) {
-      $(this).val(picker.startDate.format('DD/MM/YYYY') + ' - ' + picker.endDate.format('DD/MM/YYYY'));
-    });
-    $(this).on('cancel.daterangepicker', function() { $(this).val(''); });
   });
 }
 

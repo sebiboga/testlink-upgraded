@@ -420,6 +420,8 @@
   "ev.activity": "Activité",
   "ev.allUsers": "Tous les utilisateurs",
   "ev.apply": "Appliquer",
+  "ev.accessDeniedTitle": "Accès refusé",
+  "ev.accessDeniedMsg": "Vous n'êtes pas autorisé à consulter le journal des événements.",
   "ev.clearEvents": "Effacer les événements",
   "ev.confirmDelete": "Supprimer les événements correspondant aux filtres actuels ?",
   "ev.description": "Description",

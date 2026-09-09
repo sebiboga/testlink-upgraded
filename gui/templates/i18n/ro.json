@@ -420,6 +420,8 @@
   "ev.activity": "Activitate",
   "ev.allUsers": "Toti utilizatorii",
   "ev.apply": "Aplica",
+  "ev.accessDeniedTitle": "Acces interzis",
+  "ev.accessDeniedMsg": "Nu aveți permisiunea de a vizualiza jurnalul de evenimente.",
   "ev.clearEvents": "Sterge Evenimente",
   "ev.confirmDelete": "Stergeti evenimentele corespunzatoare filtrelor curente?",
   "ev.description": "Descriere",

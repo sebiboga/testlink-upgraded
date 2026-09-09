@@ -420,6 +420,8 @@
   "ev.activity": "Attività",
   "ev.allUsers": "Tutti gli utenti",
   "ev.apply": "Applica",
+  "ev.accessDeniedTitle": "Accesso negato",
+  "ev.accessDeniedMsg": "Non hai il permesso di visualizzare il registro eventi.",
   "ev.clearEvents": "Cancella eventi",
   "ev.confirmDelete": "Eliminare gli eventi corrispondenti ai filtri attuali?",
   "ev.description": "Descrizione",
