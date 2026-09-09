@@ -192,8 +192,10 @@ switch ($method) {
             exit;
         }
 
-        // Validate + normalize: level must be int 1..4, label/description strings.
+        // Validate + normalize: level must be int 1..4 (unique), label/description
+        // strings trimmed and length-capped.
         $levels = array();
+        $seen = array();
         foreach ($input['levels'] as $entry) {
             $lv = isset($entry['level']) ? (int)$entry['level'] : 0;
             if ($lv < 1 || $lv > 4) {
@@ -201,11 +203,17 @@ switch ($method) {
                 echo json_encode(array('status' => 'error', 'message' => 'Invalid level'));
                 exit;
             }
+            if (isset($seen[$lv])) {
+                http_response_code(400);
+                echo json_encode(array('status' => 'error', 'message' => 'Duplicate level'));
+                exit;
+            }
+            $seen[$lv] = true;
             $levels[] = array(
                 'level'       => $lv,
                 'code'        => isset($entry['code']) ? trim((string)$entry['code']) : '',
-                'label'       => isset($entry['label']) ? trim((string)$entry['label']) : '',
-                'description' => isset($entry['description']) ? trim((string)$entry['description']) : '',
+                'label'       => isset($entry['label']) ? mb_substr(trim((string)$entry['label']), 0, 40) : '',
+                'description' => isset($entry['description']) ? mb_substr(trim((string)$entry['description']), 0, 300) : '',
             );
         }
 
@@ -251,5 +259,5 @@ switch ($method) {
 
     default:
         http_response_code(405);
-        echo json_encode(array('error' => 'Method not allowed'));
+        echo json_encode(array('status' => 'error', 'message' => 'Method not allowed'));
 }
