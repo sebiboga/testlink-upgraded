@@ -125,6 +125,7 @@
             <div class="checkbox-item">
               <input type="checkbox" id="optPriority" name="optPriority">
               <label for="optPriority" data-i18n="proj.enablePriority">Enable Priority</label>
+              <a href="/gui/templates/projects/severityConfig.html" class="sevcfg-link" title="" id="sevcfgLink" style="font-size:12px;color:#22b8b0;text-decoration:none;margin-left:14px;"><i class="fas fa-exclamation-triangle"></i> <span data-i18n="proj.severityConfig">Severity Configuration</span></a>
             </div>
             <div class="checkbox-item">
               <input type="checkbox" id="optAutomation" name="optAutomation">
@@ -355,6 +356,13 @@
       }
 
       document.getElementById('prefixHint').title = TLi18n.t('pedit.prefixHint');
+
+      const sevcfgLink = document.getElementById('sevcfgLink');
+      if (sevcfgLink) {
+        sevcfgLink.href = '/gui/templates/projects/severityConfig.html?tproject_id=' + projectId;
+        sevcfgLink.title = TLi18n.t('proj.severityConfigHint');
+      }
+
       document.getElementById('spinner').style.display = 'none';
       document.getElementById('projectForm').style.display = '';
     }

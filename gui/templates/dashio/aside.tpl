@@ -103,6 +103,9 @@ Left side menu
                   {if $menuGrants->project_edit == "yes"}
                     <li><a id="projectView" href="gui/templates/projectsView.html" target="mainframe"><i class="fas fa-cog"></i> {$labels.href_tproject_management}</a></li>
                   {/if}
+                  {if $menuGrants->project_edit == "yes"}
+                    <li><a id="severityConfig" href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-exclamation-triangle"></i> {$labels.href_severity_config}</a></li>
+                  {/if}
                   {if $menuGrants->tproject_user_role_assignment == "yes"}
                     <li><a href="{$gui->uri->usersAssign}" target="mainframe">{$labels.href_assign_user_roles}</a></li>
                   {/if}

@@ -2302,6 +2302,7 @@ $TLS_title_documentation = "Documentation";
 
 $TLS_install_header = "Install / Upgrade";$TLS_title_product_mgmt = "Test Project";
 $TLS_href_plan_define_priority = "Test Plan priority";
+$TLS_href_severity_config = "Severity Configuration";
 $TLS_href_my_testcase_assignments = "Test Cases Assigned to Me";
 $TLS_href_platform_management = "Platform Management";
 $TLS_href_issuetracker_management = "Issue Tracker Management";
@@ -3362,6 +3363,7 @@ $TLS_audit_security_user_right_missing = "User '{%1}' has insufficient rights fo
 $TLS_audit_testproject_created = $TLS_testproject . " '{%1}' was created";
 $TLS_audit_testproject_saved = $TLS_testproject . " '{%1}' was saved";
 $TLS_audit_testproject_deleted = $TLS_testproject . " '{%1}' was deleted";
+$TLS_severityConfig_saved = $TLS_testproject . " '{%1}' severity levels configuration was saved";
 
 $TLS_audit_keyword_created = "Keyword '{%1}' was created";
 $TLS_audit_keyword_saved = "Keyword '{%1}' was saved";

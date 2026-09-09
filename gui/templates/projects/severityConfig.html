@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="sevcfg.header">Severity Configuration</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 240px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-blue { background: #3498db; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; text-decoration: none; display: inline-block; }
+.btn-blue:hover { background: #2980b9; }
+.content { padding: 18px 24px; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 18px 0; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px 24px; margin-bottom: 18px; }
+.card h2 { font-size: 16px; font-weight: 700; color: #22242a; margin: 0 0 4px 0; display: flex; align-items: center; gap: 8px; }
+.card h2 i { color: #4ECDC4; }
+.card .hint { font-size: 12px; color: #888; margin: 2px 0 14px 0; }
+.priority-note { background: #f0fbfa; border-left: 4px solid #4ECDC4; padding: 10px 14px; border-radius: 0 6px 6px 0; font-size: 13px; margin: 10px 0; }
+.priority-note .badge-enable { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.priority-note .badge-disable { background: #e0e0e0; color: #666; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+table.levels { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.levels thead th { background: #fafafa; text-align: left; padding: 9px 12px; border-bottom: 2px solid #eee; font-size: 12px; color: #555; white-space: nowrap; }
+table.levels td { padding: 10px 8px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+table.levels input.lbl, table.levels textarea.desc { width: 100%; padding: 7px 9px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; box-sizing: border-box; }
+table.levels textarea.desc { resize: vertical; min-height: 46px; }
+table.levels td.sev-badge { white-space: nowrap; }
+.sev-badge { display: inline-block; padding: 5px 14px; border-radius: 14px; font-size: 12px; font-weight: 700; color: #fff; }
+.sev-badge.s1 { background: #27ae60; }
+.sev-badge.s2 { background: #f1c40f; color: #333; }
+.sev-badge.s3 { background: #e67e22; }
+.sev-badge.s4 { background: #e74c3c; }
+.default-tag { font-size: 11px; color: #b58900; font-weight: 600; }
+.actions { display: flex; gap: 12px; padding-top: 14px; border-top: 1px solid #eee; margin-top: 14px; align-items: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.guide-link { margin-left: 4px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+#feedbackMsg.ok { display:block; background: #dff0d8; color: #3c763d; border: 1px solid #d0e9c6; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="sevcfg.header">Severity Configuration</span>
+  <span class="sub" data-i18n="sevcfg.headerSub">define the severity levels of the Test Strategy per project</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <label for="projectSel" style="color:#aaa;font-size:13px;"><span data-i18n="sevcfg.testProject">Test Project</span>:</label>
+  <select id="projectSel"></select>
+  <span style="flex:1"></span>
+  <button class="btn-teal" id="saveBtn" disabled><i class="fa fa-floppy-disk"></i> <span data-i18n="sevcfg.save">Save severity levels</span></button>
+  <a class="btn-blue guide-link" href="/gui/templates/documentation/bugSeverity.html" target="_top"><i class="fa fa-book-open"></i> <span data-i18n="sevcfg.guide">Bug Severity guide</span></a>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="empty" id="noProject" style="display:none;" data-i18n="sevcfg.noProject">Please select a test project above to define its severity levels.</div>
+
+<div id="workArea" style="display:none;">
+  <div class="content">
+    <div class="card">
+      <h2><i class="fa fa-map-signs"></i> <span data-i18n="sevcfg.strategyTitle">Severity in the Test Strategy</span></h2>
+      <p class="hint" data-i18n="sevcfg.strategyHint">Severity is part of the Test Strategy of this project. Define each severity level and what it means for the team.</p>
+      <div class="priority-note">
+        <span data-i18n="sevcfg.priorityNote">Priority management for this project is</span>
+        <span class="badge-enable" id="prioBadgeOn" style="display:none;" data-i18n="sevcfg.priorityOn">ENABLED</span>
+        <span class="badge-disable" id="prioBadgeOff" style="display:none;" data-i18n="sevcfg.priorityOff">DISABLED</span>
+        <span data-i18n="sevcfg.priorityNote2">. It is controlled by the "Enable Priority" option (Projects &rarr; Edit Project &rarr; Features).</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><i class="fa fa-layer-group"></i> <span data-i18n="sevcfg.levelsTitle">Severity levels</span></h2>
+      <p class="hint" data-i18n="sevcfg.levelsHint">Edit the label and description of each level. Levels marked with the default badge keep the standard TestLink definition.</p>
+      <table class="levels">
+        <thead>
+          <tr>
+            <th style="width:180px;" data-i18n="sevcfg.colLevel">Severity level</th>
+            <th data-i18n="sevcfg.colLabel">Custom label</th>
+            <th data-i18n="sevcfg.colMeaning">What it means (description)</th>
+          </tr>
+        </thead>
+        <tbody id="levelRows"></tbody>
+      </table>
+
+      <div class="actions">
+        <button class="btn-teal" id="saveBtn2"><i class="fa fa-floppy-disk"></i> <span data-i18n="sevcfg.save">Save severity levels</span></button>
+        <button class="btn-teal" id="resetBtn" style="background:#95a5a6;"><i class="fa fa-rotate-left"></i> <span data-i18n="sevcfg.reset">Reset to defaults</span></button>
+        <span style="flex:1"></span>
+        <span class="hintline" id="dirtyHint" style="display:none;font-size:12px;color:#888;" data-i18n="sevcfg.unsaved">unsaved changes</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2><i class="fa fa-th"></i> <span data-i18n="sevcfg.previewTitle">Severity / priority preview</span></h2>
+      <p class="hint" data-i18n="sevcfg.previewHint">Importance x urgency maps to the following severity result. Each level above defines how the team reads that result.</p>
+      <table class="levels" style="font-size:12.5px;">
+        <thead>
+          <tr>
+            <th>&nbsp;</th>
+            <th data-i18n="sevcfg.gridUrgLow">Urgency LOW (1)</th>
+            <th data-i18n="sevcfg.gridUrgMed">Urgency MEDIUM (2)</th>
+            <th data-i18n="sevcfg.gridUrgHigh">Urgency HIGH (3)</th>
+          </tr>
+        </thead>
+        <tbody id="previewGrid"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.severityConfig">TestLink 2.0.1 - Severity Configuration</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/severityconfig/index.php';
+var projectId = 0;
+var levels = [];
+var defaults = null;
+var dirty = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  projectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadProjects();
+  });
+
+  $('#projectSel').on('change', function () {
+    projectId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    load();
+  });
+
+  $('#saveBtn, #saveBtn2').on('click', save);
+  $('#resetBtn').on('click', resetToDefaults);
+  $(document).on('input', 'input.lbl, textarea.desc', markDirty);
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function showFeedback(kind, msg) {
+  var el = $('#feedbackMsg');
+  el.attr('class', kind).text(msg);
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('tproject_id', String(projectId || ''));
+  window.history.replaceState({}, '', url);
+}
+
+function markDirty() {
+  dirty = true;
+  $('#dirtyHint').show();
+  $('#saveBtn, #saveBtn2').prop('disabled', false);
+  renderGrid();
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('common.error');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+  toast(msg, true);
+}
+
+function loadProjects() {
+  $.getJSON(API + '?action=projects&_=' + Date.now()).done(function (r) {
+    var items = r.projects || [];
+    var $sel = $('#projectSel').empty();
+    $sel.append('<option value="0">-- ' + TLi18n.t('sevcfg.selectProject') + ' --</option>');
+    items.forEach(function (pr) {
+      $sel.append('<option value="' + pr.id + '">' + esc(pr.name) + ' (' + esc(pr.prefix + '') + ')</option>');
+    });
+    if (items.length && projectId <= 0) {
+      projectId = parseInt(items[0].id, 10);
+    }
+    if (projectId > 0) {
+      $sel.val(String(projectId));
+    }
+    syncUrl();
+    load();
+  }).fail(function (xhr) {
+    $('#noProject').show();
+    apiFail(xhr);
+  });
+}
+
+function levelDefaultSeverity(lv) {
+  var key = lv === 1 ? 'sevcfg.lv1Badge'
+    : lv === 2 ? 'sevcfg.lv2Badge'
+    : lv === 3 ? 'sevcfg.lv3Badge'
+    : 'sevcfg.lv4Badge';
+  return TLi18n.t(key);
+}
+
+function levelMapClass(lv) { return 's' + lv; }
+
+function defaultLevels() {
+  if (defaults) return defaults;
+  return [
+    {level:1, code:'low', label:null, description:null},
+    {level:2, code:'medium', label:null, description:null},
+    {level:3, code:'high', label:null, description:null},
+    {level:4, code:'critical', label:null, description:null}
+  ];
+}
+
+function load() {
+  if (projectId <= 0) {
+    $('#workArea').hide();
+    $('#noProject').show();
+    return;
+  }
+  $('#workArea').hide();
+  $('#noProject').hide();
+  $.getJSON(API + '?tproject_id=' + projectId + '&_=' + Date.now()).done(function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('common.error'), true); return; }
+    document.title = (r.project ? r.project.name + ' - ' : '') + TLi18n.t('sevcfg.header');
+    render(r);
+  }).fail(function (xhr) {
+    if (xhr.status === 404) {
+      $('#noProject').show();
+    } else {
+      apiFail(xhr);
+    }
+  });
+}
+
+function render(r) {
+  levels = r.levels || defaultLevels();
+  defaults = levels.map(function (l) { return $.extend({}, l); });
+
+  $('#prioBadgeOn').toggle(!!r.priorityEnabled);
+  $('#prioBadgeOff').toggle(!r.priorityEnabled);
+
+  var $tb = $('#levelRows').empty();
+  levels.forEach(function (lv) {
+    var badge = levelDefaultSeverity(lv.level);
+    var tr = $('<tr>')
+      .append($('<td>').html(
+        '<span class="sev-badge ' + levelMapClass(lv.level) + '">' + esc(badge) + '</span>' +
+        (lv.label ? ' <span class="default-tag">(' + esc(badge) + ')</span>' : '')))
+      .append($('<td>').append($('<input class="lbl" type="text" maxlength="40">').attr('id', 'lblLv' + lv.level).val(lv.label || '').attr('placeholder', badge)))
+      .append($('<td>').append($('<textarea class="desc" maxlength="300">').attr('id', 'descLv' + lv.level).val(lv.description || '').attr('placeholder', TLi18n.t('sevcfg.descPlaceholder'))));
+    $tb.append(tr);
+  });
+
+  renderGrid();
+  dirty = false;
+  $('#dirtyHint').hide();
+  $('#saveBtn, #saveBtn2').prop('disabled', true);
+  $('#workArea').show();
+  $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+}
+
+function renderGrid() {
+  var labels = {};
+  $('#levelRows tr').each(function (i) {
+    labels[i] = $(this).find('input.lbl').val().trim();
+  });
+  var badgeFor = function (idx, css, fallbackKey) {
+    var lbl = (labels[idx] || (levels[idx] && levels[idx].label) || TLi18n.t(fallbackKey));
+    return '<span class="sev-badge ' + css + '">' + esc(lbl) + '</span>';
+  };
+  var badges = {
+    1: badgeFor(0, 's1', 'sevcfg.lv1Badge'),
+    2: badgeFor(1, 's2', 'sevcfg.lv2Badge'),
+    3: badgeFor(2, 's3', 'sevcfg.lv3Badge'),
+    4: badgeFor(3, 's4', 'sevcfg.lv4Badge')
+  };
+  // priority = importance x urgency; product <3 -> level1, >=6 -> level3/4, else 2
+  var cell = function (imp, urg) {
+    var prod = imp * urg;
+    if (prod === 9) return badges[4];
+    if (prod >= 6) return badges[3];
+    if (prod < 3) return badges[1];
+    return badges[2];
+  };
+  var $tb = $('#previewGrid').empty();
+  var rows = [ {imp:1, lbl:'sevcfg.gridImpLow', val:1}, {imp:2, lbl:'sevcfg.gridImpMed', val:2}, {imp:3, lbl:'sevcfg.gridImpHigh', val:3} ];
+  rows.forEach(function (r) {
+    $tb.append($('<tr>')
+      .append($('<td><b>' + esc(TLi18n.t(r.lbl)) + '</b></td>'))
+      .append($('<td style="text-align:center;">').html(cell(r.val, 1)))
+      .append($('<td style="text-align:center;">').html(cell(r.val, 2)))
+      .append($('<td style="text-align:center;">').html(cell(r.val, 3))));
+  });
+}
+
+function collectLevels() {
+  var out = [];
+  $('#levelRows tr').each(function (i) {
+    var $tr = $(this);
+    out.push({
+      level: levelForRow(i),
+      code: codeForRow(i),
+      label: $tr.find('input.lbl').val().trim(),
+      description: $tr.find('textarea.desc').val().trim()
+    });
+  });
+  return out;
+}
+
+function levelForRow(i) { return [1,2,3,4][i] || (i + 1); }
+function codeForRow(i) { return (defaults && defaults[i] && defaults[i].code) || ['low','medium','high','critical'][i] || ''; }
+
+function save() {
+  var data = collectLevels();
+  $.ajax({
+    url: API + '?tproject_id=' + projectId,
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ levels: data }),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      toast(TLi18n.t('sevcfg.savedOk'));
+      showFeedback('ok', TLi18n.t('sevcfg.savedOk'));
+    } else {
+      toast(r.message || TLi18n.t('sevcfg.saveFail'), true);
+    }
+    load();
+  }).fail(function (xhr) { apiFail(xhr); });
+}
+
+function resetToDefaults() {
+  $.ajax({
+    url: API + '?tproject_id=' + projectId,
+    method: 'PUT',
+    contentType: 'application/json',
+    data: JSON.stringify({ levels: [] }),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      showFeedback('ok', TLi18n.t('sevcfg.resetDone'));
+    } else {
+      showFeedback('err', r.message || TLi18n.t('sevcfg.saveFail'));
+    }
+    load();
+  }).fail(function (xhr) { apiFail(xhr); });
+}
+</script>
+</body>
+</html>

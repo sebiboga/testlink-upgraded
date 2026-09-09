@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="sevDoc.header">Bug Severity - Test Strategy</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-blue { background: #3498db; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-blue:hover { background: #2980b9; }
+.content { padding: 20px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 24px; margin-bottom: 20px; }
+.card h2 { font-size: 18px; font-weight: 700; color: #22242a; margin: 0 0 12px 0; display: flex; align-items: center; gap: 8px; }
+.card h2 i { color: #4ECDC4; }
+.card p, .card li { font-size: 14px; color: #444; line-height: 1.6; }
+.card ul { padding-left: 20px; }
+.card .note { background: #f0fbfa; border-left: 4px solid #4ECDC4; padding: 12px 16px; border-radius: 0 6px 6px 0; font-size: 13px; margin: 14px 0; }
+.card .note.blue { background: #eaf4fd; border-left-color: #3498db; }
+.card .note.red { background: #fdeceb; border-left-color: #e74c3c; }
+.level-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 8px; }
+.level-card { border-radius: 8px; padding: 16px; color: #fff; }
+.level-card.critical { background: #e74c3c; }
+.level-card.high { background: #e67e22; }
+.level-card.medium { background: #f1c40f; }
+.level-card.low { background: #27ae60; }
+.level-card .lv { font-size: 16px; font-weight: 700; }
+.level-card .ds { font-size: 12px; margin-top: 6px; line-height: 1.5; opacity: .95; }
+table.grid-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+table.grid-table th, table.grid-table td { border: 1px solid #ddd; padding: 8px 10px; text-align: center; }
+table.grid-table thead th { background: #22242a; color: #fff; }
+table.grid-table tbody td { background: #fff; }
+.tc-key { font-size: 12px; color: #999; margin-top: 14px; border-top: 1px dashed #ddd; padding-top: 10px; }
+.tc-key span.high { color: #e67e22; font-weight: 700; }
+.tc-key span.critical { color: #e74c3c; font-weight: 700; }
+.tc-key span.medium { color: #f1c40f; font-weight: 700; }
+.tc-key span.low { color: #27ae60; font-weight: 700; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.formula { background: #22242a; color: #4ECDC4; font-family: monospace; font-size: 16px; padding: 14px 18px; border-radius: 6px; margin: 14px 0; text-align: center; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge.critical { background: #e74c3c; }
+.badge.high { background: #e67e22; }
+.badge.medium { background: #f1c40f; }
+.badge.low { background: #27ae60; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="sevDoc.header">Bug Severity - Test Strategy</span><span data-i18n="sevDoc.headerSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">guide for testers</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-blue" onclick="history.back()"><i class="fa fa-arrow-left"></i> <span data-i18n="sevDoc.back">Back</span></button>
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="content" id="content">
+  <div class="card" id="sectionIntro">
+    <h2><i class="fa fa-info-circle"></i> <span data-i18n="sevDoc.whatTitle">What is Bug Severity?</span></h2>
+    <p data-i18n-html="sevDoc.whatText">Severity is a measure of the <b>impact</b> a defect has on the system under test. It indicates how bad the impact is on the product, the business, or the users. Severity is classified after the defect is opened, based on how critical the impact is to the product's functionality. Severity is part of the Test Strategy: each project defines its own severity scheme and the meaning of each level.</p>
+    <div class="note" data-i18n="sevDoc.whatNote">ISTQB defines priority (how soon to fix) and severity (how bad the impact is) as two distinct concepts. Severity evaluates the defect's impact; priority evaluates the urgency of fixing it. In TestLink these are unified through the Test Strategy: each test case has an importance, each test-plan link has an urgency, and their product yields the priority.</div>
+  </div>
+
+  <div class="card" id="sectionLevels">
+    <h2><i class="fa fa-layer-group"></i> <span data-i18n="sevDoc.levelsTitle">Severity Levels</span></h2>
+    <p data-i18n="sevDoc.levelsText">The standard severity scheme used in TestLink is based on four levels. Each severity level is part of the Test Strategy and its meaning is defined per project (see the Severity Configuration screen in the Projects section). The default scheme is:</p>
+    <div class="level-grid">
+      <div class="level-card critical">
+        <div class="lv">CRITICAL</div>
+        <div class="ds" data-i18n="sevDoc.lvCriticalDesc">Blocks the product entirely; system crash, data loss, security breach, core function completely unavailable.</div>
+      </div>
+      <div class="level-card high">
+        <div class="lv">HIGH</div>
+        <div class="ds" data-i18n="sevDoc.lvHighDesc">Major functionality broken or severely degraded; a key feature unusable with no workaround.</div>
+      </div>
+      <div class="level-card medium">
+        <div class="lv">MEDIUM</div>
+        <div class="ds" data-i18n="sevDoc.lvMediumDesc">Moderate impact; feature partially broken or works with a workaround, wrong output in edge cases.</div>
+      </div>
+      <div class="level-card low">
+        <div class="lv">LOW</div>
+        <div class="ds" data-i18n="sevDoc.lvLowDesc">Minor impact; cosmetic issues, small usability problems, typographical or layout errors.</div>
+      </div>
+    </div>
+    <p class="tc-key" data-i18n="sevDoc.levelsKey"><span class="critical">CRITICAL</span> / <span class="high">HIGH</span> / <span class="medium">MEDIUM</span> / <span class="low">LOW</span> - these are the four severity levels.</p>
+  </div>
+
+  <div class="card" id="sectionStrategy">
+    <h2><i class="fa fa-map-signs"></i> <span data-i18n="sevDoc.strategyTitle">Severity in the Test Strategy</span></h2>
+    <p data-i18n-html="sevDoc.strategyText">Severity is defined as part of the <b>Test Strategy</b> of a project. The Test Strategy is the document/scheme that states the overall testing approach of a project, including risk management. The severity scheme is part of that strategy because it tells the team how important each test and each defect is.</p>
+    <p data-i18n="sevDoc.strategyText2">In TestLink, the Test Strategy maps to three attributes captured across the test case and test plan:</p>
+    <table class="grid-table">
+      <thead>
+        <tr><th data-i18n="sevDoc.strColAttr">Attribute</th><th data-i18n="sevDoc.strColWhere">Where defined</th><th data-i18n="sevDoc.strColMeaning">Meaning</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><b data-i18n="sevDoc.strImportance">Importance</b></td><td data-i18n="sevDoc.strImportanceWhere">Test case version (tcversions.importance)</td><td data-i18n="sevDoc.strImportanceMeaning">How important the test case is to the product (Low/Medium/High).</td></tr>
+        <tr><td><b data-i18n="sevDoc.strUrgency">Urgency</b></td><td data-i18n="sevDoc.strUrgencyWhere">Test plan link (testplan_tcversions.urgency)</td><td data-i18n="sevDoc.strUrgencyMeaning">How urgent the test case is within the current test plan (Low/Medium/High).</td></tr>
+        <tr><td><b data-i18n="sevDoc.strPriority">Priority</b></td><td data-i18n="sevDoc.strPriorityWhere">Computed (importance x urgency)</td><td data-i18n="sevDoc.strPriorityMeaning">The resulting priority used to prioritize execution and defect fix effort.</td></tr>
+      </tbody>
+    </table>
+    <div class="formula">Priority = Importance × Urgency</div>
+    <div class="note blue" data-i18n-html="sevDoc.strategyNote">The "Enable Priority" project option (Projects &rarr; Edit Project &rarr; Features) turns priority management on for a project. When disabled, priority is not tracked for that project.</div>
+  </div>
+
+  <div class="card" id="sectionGrid">
+    <h2><i class="fa fa-th"></i> <span data-i18n="sevDoc.gridTitle">Severity / Priority Matrix</span></h2>
+    <p data-i18n="sevDoc.gridText">With importance and urgency each in {Low=1, Medium=2, High=3}, their product ranges from 1 to 9 and is mapped to a severity/priority level:</p>
+    <table class="grid-table">
+      <thead>
+        <tr>
+          <th>&nbsp;</th>
+          <th data-i18n="sevDoc.gridUrgLow">Urgency LOW (1)</th>
+          <th data-i18n="sevDoc.gridUrgMed">Urgency MEDIUM (2)</th>
+          <th data-i18n="sevDoc.gridUrgHigh">Urgency HIGH (3)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b data-i18n="sevDoc.gridImpLow">Importance LOW (1)</b></td>
+          <td><span class="badge low" data-i18n="sevDoc.gridLow">LOW&nbsp;(1)</span></td>
+          <td><span class="badge medium" data-i18n="sevDoc.gridLow">LOW&nbsp;(2)</span></td>
+          <td><span class="badge medium" data-i18n="sevDoc.gridMed">MEDIUM&nbsp;(3)</span></td>
+        </tr>
+        <tr>
+          <td><b data-i18n="sevDoc.gridImpMed">Importance MEDIUM (2)</b></td>
+          <td><span class="badge medium" data-i18n="sevDoc.gridLow">LOW&nbsp;(2)</span></td>
+          <td><span class="badge medium" data-i18n="sevDoc.gridMed">MEDIUM&nbsp;(4)</span></td>
+          <td><span class="badge high" data-i18n="sevDoc.gridHigh">HIGH&nbsp;(6)</span></td>
+        </tr>
+        <tr>
+          <td><b data-i18n="sevDoc.gridImpHigh">Importance HIGH (3)</b></td>
+          <td><span class="badge medium" data-i18n="sevDoc.gridMed">MEDIUM&nbsp;(3)</span></td>
+          <td><span class="badge high" data-i18n="sevDoc.gridHigh">HIGH&nbsp;(6)</span></td>
+          <td><span class="badge critical" data-i18n="sevDoc.gridCrit">CRITICAL&nbsp;(9)</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note" data-i18n-html="sevDoc.gridNote">Product &lt; 3 maps to LOW, product &gt;= 6 maps to HIGH (thresholds configurable in the Test Strategy), values in between map to MEDIUM. The CRITICAL level (9) is reached only when importance and urgency are both HIGH.</div>
+  </div>
+
+  <div class="card" id="sectionFlow">
+    <h2><i class="fa fa-bug"></i> <span data-i18n="sevDoc.flowTitle">Severity in the Bug Lifecycle</span></h2>
+    <p data-i18n-html="sevDoc.flowText">When a defect is found, the tester assigns a severity to it in the bug report. Defects are triaged by severity: CRITICAL and HIGH defects are fixed first, MEDIUM defects are scheduled, and LOW defects are deferred. Severity travels with the defect through the bug lifecycle (New &rarr; Assigned &rarr; Fixed &rarr; Retest &rarr; Closed).</p>
+    <div class="note red" data-i18n="sevDoc.flowNote">Severity measures impact on the product; priority measures urgency of fix. A cosmetic LOW-severity defect could still have HIGH priority if it blocks a release, but in the Test Strategy the severity scheme is fixed before testing begins.</div>
+  </div>
+
+  <div class="card" id="sectionGoto">
+    <h2><i class="fa fa-cog"></i> <span data-i18n="sevDoc.gotoTitle">Define Severity per Project</span></h2>
+    <p data-i18n-html="sevDoc.gotoText">Because severity is part of the Test Strategy, each project can define its own severity levels and their meanings with the dedicated <b>Severity Configuration</b> screen. Open it from the Projects section (Project Management &rarr; Severity Configuration).</p>
+    <p>
+      <a class="btn-teal" style="text-decoration:none;display:inline-block;" id="gotoSeverityBtn" href="/gui/templates/projects/severityConfig.html"><i class="fa fa-cog"></i> <span data-i18n="sevDoc.gotoConfig">Open Severity Configuration</span></a>
+    </p>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.documentation">TestLink 2.0.1 - Documentation</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text(TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  });
+});
+$(document).on('click', '#refreshBtn', function() { location.reload(); });
+</script>
+</body>
+</html>

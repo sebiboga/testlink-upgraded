@@ -10,6 +10,7 @@
  *
  * Data attributes:
  *   data-i18n="key"              — sets textContent
+ *   data-i18n-html="key"         — sets innerHTML (use with trusted keys only)
  *   data-i18n-title="key"        — sets title attribute
  *   data-i18n-placeholder="key"  — sets placeholder attribute
  *
@@ -149,6 +150,10 @@ var TLi18n = (function() {
     $root.find('[data-i18n]').each(function() {
       var key = $(this).data('i18n');
       if (key) $(this).text(t(key));
+    });
+    $root.find('[data-i18n-html]').each(function() {
+      var key = $(this).data('i18n-html');
+      if (key) $(this).html(t(key));
     });
     $root.find('[data-i18n-title]').each(function() {
       var key = $(this).data('i18n-title');
