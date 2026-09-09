@@ -56,7 +56,7 @@ doDBConnect($db);
 $apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
 $isAnon = false;
 
-$apikeyActions = ['results_flat', 'metrics_general', 'charts_data'];
+$apikeyActions = ['results_flat', 'metrics_general', 'charts_data', 'exec_timeline'];
 $userId = $_SESSION['userID'] ?? null;
 if ($apikey !== '' && in_array(getParam('action'), $apikeyActions, true)) {
     if (strlen($apikey) === 32) {
@@ -3798,7 +3798,11 @@ if ($action === 'exec_timeline') {
         out(['status' => 'error', 'message' => 'Invalid test project id']);
     }
 
-    if (!$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
+    // Contextual re-check — same pattern as other metrics actions.
+    // Anonymous/apikey access skips it (legacy setUpEnvForAnonymousAccess:
+    // addOpAccess=false), mirroring metrics_general (Refs #1258) and
+    // charts_data (Refs #1274).
+    if (!$isAnon && !$user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId)) {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'No permission']);
     }
@@ -3824,6 +3828,7 @@ if ($action === 'exec_timeline') {
 
     // $stats is array($rs, $rswf) — $rs keyed by timeline field.
     $rs = $stats[0];
+    $rswf = isset($stats[1]) ? $stats[1] : null;
     $hasData = !is_null($rs) && count($rs) > 0;
 
     // Column definitions: mirrors the legacy initializeGui/switch logic.
@@ -3867,11 +3872,18 @@ if ($action === 'exec_timeline') {
                     if (!is_array($elem) || !isset($elem['qty'])) {
                         continue;
                     }
+                    // Legacy getExecTimelineStats() only merges the workforce
+                    // count at the DATE level for day_hour (a legacy quirk),
+                    // so per-hour testers come from $rswf[date][hour] instead.
+                    $hourTesters = 0;
+                    if (is_array($rswf) && isset($rswf[$dateKey][$hourKey]['testers'])) {
+                        $hourTesters = intval($rswf[$dateKey][$hourKey]['testers']);
+                    }
                     $rows[] = [
                         'yyyy_mm_dd' => $elem['yyyy_mm_dd'] ?? $dateKey,
                         'hh' => $elem['hh'] ?? $hourKey,
                         'qty' => intval($elem['qty'] ?? 0),
-                        'testers' => intval($elem['testers'] ?? 0),
+                        'testers' => $hourTesters,
                     ];
                 }
             }
@@ -3898,9 +3910,12 @@ if ($action === 'exec_timeline') {
         natsort($platformSet);
     }
 
-    // BFF gateway for XLS download + email
-    $sendMailUrl = '/api/reportsexport/index.php?action=exec_timeline_stats_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
-    $exportXlsUrl = '/api/reportsexport/index.php?action=exec_timeline_stats&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId;
+    // BFF gateway for XLS download + email. When the request came in through
+    // an apikey, keep it on the gateway URLs so the gateway and the legacy
+    // controller authorise natively (mirrors results_flat Refs #1220).
+    $apiSuffix = ($apikey !== '') ? '&apikey=' . rawurlencode($apikey) : '';
+    $sendMailUrl = '/api/reportsexport/index.php?action=exec_timeline_stats_mail&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . $apiSuffix;
+    $exportXlsUrl = '/api/reportsexport/index.php?action=exec_timeline_stats&tplan_id=' . $tplanId . '&tproject_id=' . $tprojectId . $apiSuffix;
 
     $payload = [
         'status' => 'ok',
@@ -3914,6 +3929,7 @@ if ($action === 'exec_timeline') {
         'columns' => $columns,
         'rows' => $rows,
         'show_platforms' => $showPlatforms,
+        'is_anon' => $isAnon,
         'send_mail_url' => $sendMailUrl,
         'export_xls_url' => $exportXlsUrl,
         'elapsed_time' => round(microtime(true) - $timerOn, 2),

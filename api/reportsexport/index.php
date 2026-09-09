@@ -51,6 +51,7 @@ $action = $_GET['action'] ?? '';
 $apikeyActions = [
     'results_tc_flat', 'results_tc_flat_mail',
     'general_metrics', 'general_metrics_mail',
+    'exec_timeline_stats', 'exec_timeline_stats_mail',
 ];
 $apikeyAction = in_array($action, $apikeyActions, true);
 
@@ -193,7 +194,7 @@ $exportMap = [
     ],
     'exec_timeline_stats' => [
         'file' => '/lib/results/execTimelineStats.php',
-        'params' => ['format' => FORMAT_XLS],
+        'params' => ['format' => FORMAT_XLS, 'spreadsheet' => '1'],
     ],
     'assigned_tc_overview' => [
         'file' => '/lib/results/resultsTC.php',

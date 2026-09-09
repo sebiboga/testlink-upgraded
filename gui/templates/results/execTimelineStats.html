@@ -106,6 +106,7 @@ td.tot { font-weight: 700; color: #22242a; }
         const params = new URLSearchParams(window.location.search);
         const tproject_id = params.get('tproject_id') || 0;
         const tplan_id = params.get('tplan_id') || 0;
+        const apiKey = params.get('apikey') || '';
         let currentGroup = 'day';
         let dataTable = null;
 
@@ -124,14 +125,17 @@ td.tot { font-weight: 700; color: #22242a; }
         document.getElementById('loadingBox').style.display = 'block';
         document.getElementById('reportArea').innerHTML = '';
 
+        var reqData = {
+            action: 'exec_timeline',
+            tproject_id: tproject_id,
+            tplan_id: tplan_id,
+            group: currentGroup
+        };
+        if (apiKey) { reqData.apikey = apiKey; }
+
         $.ajax({
             url: API,
-            data: {
-                action: 'exec_timeline',
-                tproject_id: tproject_id,
-                tplan_id: tplan_id,
-                group: currentGroup
-            },
+            data: reqData,
             dataType: 'json',
             success: function(d) {
                 document.getElementById('loadingBox').style.display = 'none';
@@ -148,9 +152,14 @@ td.tot { font-weight: 700; color: #22242a; }
                     document.getElementById('platNotice').style.display = 'block';
                 }
 
-                // Set mail/xls form actions
+                // Set mail/xls form actions (mail is gui-only in legacy —
+                // anonymous apikey access hides it, mirroring the
+                // accessType == 'gui' gate in the legacy tpl)
                 document.getElementById('mailForm').action = d.send_mail_url || '#';
                 document.getElementById('xlsForm').action = d.export_xls_url || '#';
+                if (d.is_anon) {
+                    document.getElementById('mailForm').style.display = 'none';
+                }
 
                 if (!d.hasData || !d.rows || d.rows.length === 0) {
                     document.getElementById('reportArea').innerHTML =
