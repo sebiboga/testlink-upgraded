@@ -12440,3 +12440,25 @@ Result: 16/16 PASS — **2 gaps fixed in-run** (file-format doc link + `tcx.type
 | 1327.17 | Browser console during all modern scenarios | no JS errors | PASS |
 
 Result: 17/17 PASS — **gap #1327 fully closed**. Both previously-open regressions from the SCREEN-COMPARE run (blank-`context` silently coerced to `0`, explicit `0` dropped to config default) verified fixed in-browser and at the BFF/legacy-parity level. Screenshots for wiki: pending (chrome-devtools `take_screenshot` timed out in this run).
+
+---
+
+## Regression — Issue #1332: tcCompareVersions 2x E_WARNING 'array offset on null' without testcase_id (Refs #1332)
+
+**File:** `lib/testcases/tcCompareVersions.php:121` (legacy compare page).
+**Root cause:** `init_args()` sets `testcase_id` to 0 when the parameter is absent → `testcase::get_by_id(0)` returns null → `$gui->tcaseName = $gui->tc_versions[0]['name']` dereferences null (2x `E_WARNING Trying to access array offset on null`, log_level 2, events table).
+**Fix:** guard at line 121 — `isset($gui->tc_versions[0]['name']) ? ... : ''` (commit `9fbcf3533`).
+**Precondition (fresh DB):** project id=1 exists; admin session cookies; `DELETE FROM events` baseline.
+**Repro (pre-fix):** `curl -b <cookies> 'http://localhost:8082/lib/testcases/tcCompareVersions.php?tproject_id=1'` → HTTP 200 + **2** new rows in `events` (`E_WARNING ... tcCompareVersions.php - Line 121`, log_level 2).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1332.1 | `php -l lib/testcases/tcCompareVersions.php` | no syntax errors | PASS |
+| 1332.2 | Open page without `testcase_id` (`?tproject_id=1`), then inspect `events` | HTTP 200; page renders 'Testcase versions compare page' + empty version-selection form; **0** rows with `log_level IN (2,3)` matching Line 121 (pre-fix: 2) | PASS |
+| 1332.3 | Create 2-version testcase fixture (node 3, tcversions 4/5), open `?tproject_id=1&testcase_id=3` | HTTP 200; both version radios (1 and 2) rendered; subtitle/tcaseName populated; 0 new warnings | PASS |
+| 1332.4 | TEXT compare path with valid versions (`testcase_id=3&version_left=1&version_right=2&compare_selected_versions=1`) | HTTP 200; diff rendered; 0 new ERROR/WARNING events | PASS |
+| 1332.5 | Browser (headless Chrome) open no-testcase URL | no JS/console errors beyond pre-existing generic 'Deprecated feature used'; screenshot `tmp/wiki-repo/tcCompareVersions-no-tcase-id-fixed.png` | PASS |
+| 1332.6 | Event Viewer / `events` table after full pass | only INFO/AUDIT (audit_login_succeeded) entries; no log_level 2/3 rows | PASS |
+| 1332.7 | Related-but-separate edge (compare submit with `testcase_id=0` → `Line 157` foreach warning) | documented + filed as bug **#1333** (out of scope for this run) | PASS (filed, not fixed here) |
+
+Result: 7/7 PASS — **issue #1332 fixed and verified**; secondary edge case (Line 157, `buildDiff` on null input) tracked as **#1333**.
