@@ -12116,3 +12116,18 @@ Result: 7/7 PASS — **bug fixed + verified (Refs #1267)**. Root cause: anonymou
 | 868.6 | Event Viewer clean | `events` table after suite | no new ERROR/WARNING rows introduced | PASS |
 
 Result: 6/6 PASS — **legacy gap closed (Refs #868)**. Legacy `eventviewer.tpl` `testers[]` multi-select ported: BFF already accepted `user=id1,id2`, front-end now produces it. i18n key `ev.selectUsers` added to all 10 bundles.
+## Task — Issue #1271: resultsBugs — info_bugs_per_tc_report explanatory info paragraph (footer gap vs legacy)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink` freshly imported. Run fixture `php tmp/fixtures_1271.php` → project **RB1271** (id 17), plan **RB Plan 1271** (id 25), suite Suite 1271, 2 TCs (RB1-1, RB1-2), build 3, executions 23/24 each linked to a bug (1001 status 10=New/open, 1002 status 80=resolved), local mantisdb tracker id 3 linked to project. Legacy ref: `gui/templates/dashio/results/resultsBugs.tpl:70` `<p class="italic">{$labels.info_bugs_per_tc_report}</p>`, text `locale/en_GB/strings.txt:1834`. Modern: `gui/templates/results/resultsBugs.html:207-212`, `rb.infoReport` in all 10 bundles.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1271.1 | footer info paragraph present (Latest Generation) | admin login → `resultsBugs.html?tproject_id=17&tplan_id=25` (type=0) | report renders (2 TCs with bugs); footer shows `Generated on: … | Elapsed seconds: 0` FOLLOWED by italic `<p class="info">` "This report shows all bugs linked to test cases during execution." | PASS |
+| 1271.2 | footer info paragraph present (All Executions) | switch report type dropdown to "All Executions" | type-1 hint banner + footer identical info paragraph; `has_data` true | PASS |
+| 1271.3 | summary cards correct (bug counts from tracker) | 1271.1 state | Open Bugs 1, Resolved Bugs 1, Total Bugs 2, TCs with Bugs 2 | PASS |
+| 1271.4 | i18n key in every bundle + valid JSON | `python3 -m json.tool gui/templates/i18n/{en,ro,de,es,fr,it,ja,pt,ru,zh}.json`; grep `rb.infoReport` | key present in all 10 bundles, all files valid JSON, non-empty translations | PASS |
+| 1271.5 | ro locale translation renders | relaunch with `?locale=ro` (or locale combobox → Română) | footer shows `Acest raport afișează toate bug-urile legate de cazurile de test în timpul execuției.` | PASS |
+| 1271.6 | no JS errors | browser console after 1271.1-1271.5 | zero console errors (only benign a11y label hint) | PASS |
+| 1271.7 | Event Viewer clean | `SELECT log_level FROM events ORDER BY id DESC` after suite | zero new ERROR/WARNING rows (only INFO/audit) | PASS |
+
+Result: 7/7 PASS — **feature implemented + verified (Refs #1271)**. Gap closed: legacy italic `info_bugs_per_tc_report` line below the table is now rendered in the modern footer as `<p class="info">` via new `rb.infoReport` key (all 10 locales; en/de/es/fr/ja/pt/zh from legacy `strings.txt`, ro/it/ru newly authored). Sibling pattern from `resultsMatrix.html` (`rsm.infoReport`) / `absoluteLatest.html` (`alx.infoReport`) reused. Fixture `tmp/fixtures_1271.php` reproduces the ready-to-render report (1 open + 1 resolved bug) using a local mantisdb tracker.

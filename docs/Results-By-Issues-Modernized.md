@@ -31,7 +31,7 @@ The "All Executions" variant shows a warning hint that some test cases may appea
 | **Toolbar** | Test project name, report type dropdown (Latest Generation / All Executions) |
 | **Summary cards** | Four cards: Open Bugs, Resolved Bugs, Total Bugs, TCs with Bugs |
 | **Report body** | DataTable with Test Suite, Test Case, and Bugs columns; grouped by test suite |
-| **Footer** | Generation timestamp, elapsed time |
+| **Footer** | Generation timestamp, elapsed time, and explanatory italic info paragraph ("This report shows all bugs linked to test cases during execution.") |
 
 ---
 
@@ -44,6 +44,7 @@ The "All Executions" variant shows a warning hint that some test cases may appea
 | Data from `getLTCVNewGeneration()` (type=0) or `getAllExecutionsWithBugs()` (type=1) | Same backend calls via BFF |
 | Bug links via `get_bugs_for_exec()` | Same backend call via BFF |
 | ExtTable with group-by | DataTable with sorting, pagination, search |
+| `resultsBugs.tpl:70` renders `<p class="italic">{$labels.info_bugs_per_tc_report}</p>` below the table (report description) | Modern footer renders the equivalent italic info paragraph via `rb.infoReport` (`<p class="info">`) next to the generated-on line — **Refs #1271** |
 
 ---
 
@@ -59,6 +60,8 @@ The "All Executions" variant shows a warning hint that some test cases may appea
 ## 5. i18n
 
 All labels use the `rb.*` i18n key namespace (14 keys per bundle). The screen uses the shared `TLi18n` module for locale loading and switching. Keys are defined in all 10 locale bundles (`en.json`, `ro.json`, etc.).
+
+The footer report-description paragraph uses `rb.infoReport` — added for all 10 locales in **Refs #1271** (en: "This report shows all bugs linked to test cases during execution."; legacy text sourced from `locale/en_GB/strings.txt:1834` `$TLS_info_bugs_per_tc_report`; de/es/fr/ja/pt/zh reuse the legacy translations, ro/it/ru are newly authored).
 
 Column headers reuse existing i18n keys: `title_test_suite_name`, `title_test_case_title`, `title_test_case_bugs`.
 
@@ -126,12 +129,25 @@ Returns test cases with linked bugs for a test plan.
 
 ---
 
-## 8. Files
+## 8. Footer Info Paragraph (Refs #1271)
+
+The legacy report footer always renders an explanatory italic line between the result table and the generated-on line
+(`resultsBugs.tpl:70` → `<p class="italic">{$labels.info_bugs_per_tc_report}</p>`,
+text: *"This report shows all bugs linked to test cases during execution."*). The modern screen renders the same line:
+
+- Modern: `#footerInfo` HTML appends `<p class="info">` with `rb.infoReport` after the `Generated on: … | Elapsed seconds: N` line (`resultsBugs.html:207-212`).
+- The paragraph is escaped via the screen's `esc()` helper and translated with `TLi18n.t('rb.infoReport')` in all 10 locales.
+- Mirrors the established sibling pattern from `resultsMatrix.html` (`rsm.infoReport`) and `absoluteLatest.html` (`alx.infoReport`).
+
+---
+
+## 9. Files
 
 | File | Purpose |
 |------|---------|
 | `gui/templates/results/resultsBugs.html` | Standalone HTML+JS+CSS screen (~230 lines) |
 | `api/reports/index.php` | BFF API — `results_bugs` action (lines ~3820–3971) |
 | `lib/general/asideMenu.php` | ASIDE link switch for `link_report_total_bugs` / `link_report_total_bugs_all_exec` |
-| `gui/templates/i18n/*.json` | i18n locale bundles (14 `rb.*` keys per bundle) |
+| `gui/templates/i18n/*.json` | i18n locale bundles (14 `rb.*` keys per bundle, incl. `rb.infoReport` — Refs #1271) |
 | `lib/results/resultsBugs.php` | Legacy controller (still exists but no longer linked from ASIDE) |
+| `tmp/fixtures_1271.php` | Reproducible fixture: RB1271 project/plan, 2 executions with linked bugs via local mantisdb tracker |
