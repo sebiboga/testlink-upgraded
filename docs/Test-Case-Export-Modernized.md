@@ -100,6 +100,31 @@ its ExternalID and never creates duplicates.
 | Not authenticated | HTTP 401 `{"status":"error","message":"Not authenticated"}` |
 | Nothing generated (0 bytes) | HTTP 400 "Nothing to export for the given selection" |
 
+## Suite-level export launchers (#1325)
+
+Legacy 1.9.20 reached the suite export from `containerView.tpl` (test project
+control panel, `btn_export_all_testsuites`) and from the test-suite control
+panel (`include/containerViewTestSuiteTextButtons.inc.tpl` —
+`btn_export_testsuite` → deep suite export + `btn_export_tc` → children test
+cases). Modern parity was completed with two suite-context launch points:
+
+| Launch point | Location | Deep (recursion) | Children (suite_tc) |
+|--------------|----------|------------------|---------------------|
+| **Test Specification** suite card | `testSpec.html` `showSuiteView()` | **Export Test Suite** button | **Export Test Cases** button |
+| **Test Suite Viewer** toolbar | `suiteView.html` | **Export Test Suite** button | **Export Test Cases** button |
+
+Both open `tcExport.html?tproject_id=<project>&containerID=<suite_id>[&useRecursion=1]`
+in a popup; the BFF resolves the mode (`testsuite` vs `suite_tc`), default
+filename (`<suite>.testsuite-deep.xml` vs `<suite>.testsuite-children-testcases.xml`)
+and export options exactly as the legacy screen did. Verified with the `EXP1325`
+fixture (`tmp/fixtures_1325.php`, project 1, root suite 2 + sub-suite 3): the
+children export streams the 2 direct cases (`EXP Case A/B`, not the sub-suite's
+`EXP Case C`), the deep export streams all 3 cases plus the sub-suite, and the
+Markdown variant round-trips too. No BFF change was needed — the export API
+already handled both suite modes. New i18n keys: `tspec.exportSuite`,
+`tspec.exportSuiteCases`, `suvw.exportSuite`, `suvw.exportSuiteCases` (all
+locales).
+
 ## Backend notes
 
 - The BFF reuses the exact legacy export methods — `testcase::exportTestCaseDataToXML()`

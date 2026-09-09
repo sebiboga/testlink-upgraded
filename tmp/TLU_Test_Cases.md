@@ -12382,25 +12382,28 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-ma
 
 ---
 
-## Task — Issue #874: Sort Event Viewer rows chronologically by Timestamp (gap vs legacy)
+## Task — Issue #1325: Add suite-level Test Case export entry point in modern UI (gap vs legacy)
 
-**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php` (GET /events — already exposes numeric `timestamp` + `timestampFormatted`)
-**Legacy reference:** `lib/events/eventviewer.legacy.php:241-243` prepends a hidden `<!--{$event->timestamp}-->` epoch comment to the timestamp cell; `:267-269` sorts by `th_timestamp` DESC — i.e. the column sorts by NUMERIC epoch, not the `dd/mm/yyyy hh:mm:ss` display string. Modern dropped the epoch and declared the column `{ type: 'string' }`, causing lexicographic day-first sorting across months/years.
-**Fix:** timestamp cell now carries `[Number(ev.timestamp), ev.timestampFormatted]`; the column is declared `{ type: 'num' }` with an orthogonal `render(data,type)` — `type==='sort' → data[0]` (epoch), otherwise `data[1]` (formatted string for display + filter). `type:'num'` forces the numeric comparison path so the epoch can never be string-compared (review-verified against DataTables 1.13.7 `_fnSortData`/`num-pre`). Default order `[[2,'asc'],[1,'desc']]` preserved.
-**Fixture:** 4 seeded AUDIT events (`source='sort-repro'`, `log_level=16`) at `fired_at` 31/07/2025 (1753963200), 06/06/2026 (1780747200), 04/08/2026 (1785844800), 04/09/2026 (1788523200) + existing admin-login AUDIT event 09/09/2026.
+**Screen:** `gui/templates/testcases/testSpec.html` (suite card) + `gui/templates/testcases/suiteView.html` (toolbar) · **BFF:** none changed — `api/testcasesexport/index.php` already resolved suite modes.
+**Legacy reference:** `gui/templates/dashio/testcases/containerView.tpl:45-46,61` (`tcExportAction` children = `containerID=<suite>`, `tsuiteExportAction` = + `useRecursion=1`) rendered at `containerView.tpl:150-152` (project, `canDoExport`) and `include/containerViewTestSuiteTextButtons.inc.tpl:79-84` (`exportItem` → deep suite) + `:130` (`btn_export_tc` → children test cases).
+**Fix:** 
+1. `testSpec.html` `showSuiteView()` — added **Export Test Cases** (`containerID=<suite_id>`, mode suite_tc) and **Export Test Suite** (`containerID=<suite_id>&useRecursion=1`, mode testsuite) buttons + `openSuiteExport(deep)`; buttons always visible (export is read-only in legacy, modern BFF keeps any-session parity) alongside mgt_modify_tc-gated edit actions.
+2. `suiteView.html` toolbar — same two buttons + `openSuiteExport(deep)` (uses SUITE_ID/TPROJECT_ID).
+3. i18n keys `tspec.exportSuite`, `tspec.exportSuiteCases`, `suvw.exportSuite`, `suvw.exportSuiteCases` added to all 10 locale bundles (validated with `python3 -m json.tool`).
+**Fixture:** `tmp/fixtures_1325.php` — project EXP1325 (id 1), root suite 2, sub-suite 3, TCs 4/7 in root, 10 in sub.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 874.1 | Load Event Viewer as admin (5 AUDIT events in one group), default state | rows within AUDIT group sorted newest-first: 09/09/2026 → 04/09/2026 → 04/08/2026 → 06/06/2026 → 31/07/2025 | PASS |
-| 874.2 | Click **Timestamp** header → ascending | chronological asc: 31/07/2025 → 06/06/2026 → 04/08/2026 → 04/09/2026 → 09/09/2026 (before fix: 04/08 → 04/09 → 06/06 → 09/09 → 31/07) | PASS |
-| 874.3 | Click **Timestamp** header again → descending | chronological desc: 09/09/2026 → 04/09/2026 → 04/08/2026 → 06/06/2026 → 31/07/2025 | PASS |
-| 874.4 | DataTables internals | after asc click `order=[[1,'asc']]`; per-cell data is `[epoch, formatted]`; sort key is numeric | PASS |
-| 874.5 | Search box filter `2025` | only the 31/07/2025 row matches (filter type uses formatted string) | PASS |
-| 874.6 | Expand/Collapse all groups | collapse → 0 visible data rows; expand → 5 rows (rowGroup unaffected) | PASS |
-| 874.7 | Show all columns | Transaction column toggles visible/hidden | PASS |
-| 874.8 | Overlapping month/year boundaries across groups | same chronic-asc logic independent of level (render is per-column, not per-group) | PASS |
-| 874.9 | `node --check` on extracted inline JS | no syntax errors | PASS |
-| 874.10 | Browser console | no JS errors (only pre-existing a11y notices) | PASS |
-| 874.11 | `events` table | no ERROR/WARNING rows added by this feature (`SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = 0) | PASS |
+| 1325.1 | testSpec.html?tproject_id=1 → click EXP Suite → click **Export Test Cases** | popup tcExport.html?tproject_id=1&containerID=2 opens, mode "Test suite (test cases)", filename `EXP Suite.testsuite-children-testcases.xml` | PASS |
+| 1325.2 | In that popup click Export (XML) | POST /api/testcasesexport/ → 200 application/xml, download named `EXP Suite.testsuite-children-testcases.xml`, content has `EXP Case A` + `EXP Case B` and NOT `EXP Case C` (sub-suite case excluded — children-only) | PASS |
+| 1325.3 | testSpec → click **Export Test Suite** | popup tcExport.html?tproject_id=1&containerID=2&useRecursion=1 opens, mode "Test suite", filename `EXP Suite.testsuite-deep.xml` | PASS |
+| 1325.4 | In that popup export XML (deep) | 200 XML, content has `EXP Case A/B/C` + `EXP Sub Suite` (recursion includes sub-suite) | PASS |
+| 1325.5 | Deep export as Markdown | 200 `text/markdown`, `# EXP1325` header, `EXP Case C` present | PASS |
+| 1325.6 | suiteView.html?id=2&tproject_id=1 | toolbar shows **Export Test Cases** + **Export Test Suite** | PASS |
+| 1325.7 | suiteView **Export Test Suite** | popup mode "Test suite", filename `.testsuite-deep.xml` (recursion on) | PASS |
+| 1325.8 | suiteView **Export Test Cases** | popup mode "Test suite (test cases)", filename `.testsuite-children-testcases.xml` (no recursion) | PASS |
+| 1325.9 | `node --check` on extracted inline JS of testSpec.html + suiteView.html | no syntax errors | PASS |
+| 1325.10 | i18n bundles | all 4 new keys present + valid JSON in all 10 locales (`python3 -m json.tool`) | PASS |
+| 1325.11 | Event Viewer / `events` table | only AUDIT/INFO entries (LOGIN 16, TESTPROJECT_CREATED 16); no ERROR(1)/WARNING(2) rows added | PASS |
 
-Result: 11/11 PASS — **feature implemented + verified (Refs #874)**. The Timestamp column now sorts numerically by epoch exactly like legacy (hidden-comment parity via orthogonal render), fixing month/year-boundary misordering in both ascending and descending directions while display, search, grouping and toolbar behaviours are unchanged.
+Result: 11/11 PASS — **suite-level export launchers implemented + verified (Refs #1325)**. Legacy `btn_export_testsuite` (deep) and `btn_export_tc` (children) parity restored in both suite contexts; BFF untouched.
