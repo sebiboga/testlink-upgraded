@@ -221,10 +221,18 @@ if ($action === 'compare') {
     if (getIntParam('context_show_all')) {
         $context = null;
     } else {
+        // Refs #1327: legacy parity for the context parameter. The legacy
+        // controller (lib/testcases/tcCompareVersions.php init_args:97-106)
+        // honors ANY numeric value - including an explicit 0 (a diff with zero
+        // context lines) - and only falls back to the diffEngine config default
+        // when the parameter is absent or not numeric. getIntParam() returns
+        // non-negative ints for numeric input, so -1 cleanly marks
+        // absent/blank/non-numeric; 0 is passed through to the engine as-is
+        // (the diff engine's showline() handles linepadding === 0 exactly).
         $diffEngineCfg = config_get("diffEngine");
-        $context = (getIntParam('context') > 0)
-            ? getIntParam('context')
-            : (isset($diffEngineCfg->context) ? intval($diffEngineCfg->context) : 5);
+        $defaultCtx = isset($diffEngineCfg->context) ? intval($diffEngineCfg->context) : 5;
+        $rawCtx = getIntParam('context', -1);
+        $context = ($rawCtx >= 0) ? $rawCtx : $defaultCtx;
     }
 
     $tcCfg = getWebEditorCfg('design');
