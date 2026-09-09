@@ -79,6 +79,17 @@ function initArgsForReports(&$dbHandler) {
     $args->tproject_id = $tplan['testproject_id'];
   }
 
+  if (is_null($args->tplan_id) || $args->tplan_id <= 0) {
+    // Missing/invalid tplan_id on an apikey (anonymous/remote) request:
+    // the authenticated branch above already stops when the test plan is
+    // unknown, but setUpEnvFor*Access() never resolves tplan_id, so a valid
+    // apikey + tproject_id without tplan_id would leak as SQL 1064 from
+    // getLinkedToTestplanAsMap(NULL). Stop gracefully (Refs #1267).
+    require_once(__DIR__ . '/../functions/info.inc.php');
+    displayInfo(lang_get('error_print_doc_title'),
+                lang_get('error_print_doc_missing_testplan'));
+  }
+
   if ($args->tproject_id <= 0) {
     // Missing/invalid tproject_id (incl. anonymous invalid-apikey requests where
     // neither tproject_id nor tplan_id is present): stop gracefully instead of an
