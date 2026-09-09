@@ -65,7 +65,7 @@ td.tot { font-weight: 700; color: #22242a; }
     <button data-group="month" data-i18n="etl.groupMonth">Month</button>
     <button data-group="day_hour" data-i18n="etl.groupDayHour">Day + Hour</button>
   </div>
-  <form id="mailForm" method="POST" target="_blank" style="display:inline;margin-left:10px;">
+  <form id="mailForm" method="POST" target="_blank" style="display:none;margin-left:10px;">
     <input type="hidden" name="sendByEmail" value="1">
     <button type="submit" class="btn-dark" id="btnMail"><i class="fa fa-envelope"></i> <span data-i18n="rgm.btnSendEmail">Send report by e-mail</span></button>
   </form>
@@ -157,9 +157,8 @@ td.tot { font-weight: 700; color: #22242a; }
                 // accessType == 'gui' gate in the legacy tpl)
                 document.getElementById('mailForm').action = d.send_mail_url || '#';
                 document.getElementById('xlsForm').action = d.export_xls_url || '#';
-                if (d.is_anon) {
-                    document.getElementById('mailForm').style.display = 'none';
-                }
+                document.getElementById('mailForm').style.display =
+                    d.is_anon ? 'none' : 'inline';
 
                 if (!d.hasData || !d.rows || d.rows.length === 0) {
                     document.getElementById('reportArea').innerHTML =
@@ -173,7 +172,8 @@ td.tot { font-weight: 700; color: #22242a; }
             },
             error: function(xhr) {
                 document.getElementById('loadingBox').style.display = 'none';
-                toast('Network error', true);
+                var msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Network error';
+                toast(msg, true);
             }
         });
     }
