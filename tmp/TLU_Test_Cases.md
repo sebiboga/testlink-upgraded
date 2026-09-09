@@ -12307,3 +12307,28 @@ Result: 10/10 PASS — **feature implemented + verified (Refs #1305)**.
 | 872.9 | Event log hygiene | browser console has no JS errors from the change; `SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = 0 (no new ERROR/WARNING) | PASS |
 
 Result: 9/9 PASS — **feature implemented + verified (Refs #872)**. The expanded event row now shows the full legacy record incl. the real PHP session id from `transactions.session_id`; the transaction id is distinctly labelled, all injected values are HTML-escaped (stored-XSS guard matching legacy `|escape`), and the detail panel is i18n-clean across all locales. Browser-verified in EN + RO.
+
+## Task — Issue #1307: Quality Objectives — complete i18n + record status (screen existed from #1280)
+
+**Screen:** `gui/templates/requirements/qualityObjectives.html` · **BFF:** `api/requirements/index.php` (quality-objectives CRUD + links + meta, schema guard `qobjEnsureSchema`)
+**Context:** The screen/BFF/aside-link were implemented in task #1280 (`lib/functions/common.php:1888` → modern HTML), but the `qobj.*` i18n keys had been lost from ALL 10 JSON bundles during a later rebase, the screen was missing from `docs/MODERNIZATION-STATUS.md`, and the test suite record was lost too. This run restored the 42 `qobj.*` keys + `footers.qualityObjectives` in each bundle and re-recorded the screen as DONE (row 24b, summary 71).
+**Fixture:** `php tmp/fixtures_1307.php` → tproject `QOB:QObjDemo` (id=1), tplan `QOB Plan` (id=12), build=1, spec=13, reqs QOS-1/2/3 (ids 15/17/19), TCs TC-A/B/C (ids 3/6/9, tcvids 4/7/10), execs TC-A=Passed / TC-B=Failed, quality objectives id 1/2/3 (Secure Transactions L3×I5, Fast Search L1×I2, Audit Ready L2×I4) pre-linked req+tc.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1307.1 | Open Quality Objectives via ASIDE (tproject=QOB:QObjDemo, plan=QOB Plan) | Matrix renders with full i18n — no raw `qobj.*` keys anywhere in the DOM | PASS |
+| 1307.2 | Matrix content | 3 objectives; Secure Transactions "Risk: High (L3×I5)", Passed:2 Failed:0; Fast Search "Risk: Low (L1×I2)", Passed:0 Failed:1; Audit Ready "Risk: Medium (L2×I4)" | PASS |
+| 1307.3 | Traceability rows | QOS-1→TC-A Passed under both "covered test cases" and "directly linked"; QOS-2→TC-B Failed | PASS |
+| 1307.4 | Plan filter = QOB Plan then "All plans" | both reload matrix; "Generated on" timestamp refreshes | PASS |
+| 1307.5 | Add objective | modal has Name/Description/Failure likelihood(1-5)/Business impact(1-5); live risk preview; Save persists | PASS |
+| 1307.6 | New objective card | correct risk badge (L1×I5 → Medium), Passed/Failed/Blocked/Not run: 0, "No requirements or test cases linked yet." | PASS |
+| 1307.7 | Links modal | shows all 3 reqs + 3 TCs checkboxes; checking QOS-3 + TC-C then Save adds a traceability row via covered + directly linked test cases | PASS |
+| 1307.8 | Edit modal | pre-fills name/desc/likelihood/impact; rename + L4 → Risk: Critical (L4×I5), links preserved after reload | PASS |
+| 1307.9 | Delete | confirm() prompt "Delete this quality objective?"; accept → card gone, count 4→3 | PASS |
+| 1307.10 | DB persistence | `quality_objectives` has exactly ids 1/2/3; `quality_objective_links` intact for remaining objectives; links for deleted objective removed (cascade) | PASS |
+| 1307.11 | Auth/rights | anonymous GET `/api/requirements/index.php/quality-objectives` → 401 `{"status":"error","message":"Not authenticated"}` | PASS |
+| 1307.12 | i18n bundles | all 42 `qobj.*` keys + `footers.qualityObjectives` present and valid JSON in all 10 locales | PASS |
+| 1307.13 | Event Viewer / `events` table | only expected INFO/AUDIT entries (QOBJ_CREATE/UPDATE/LINK/DELETE, LOGIN); no ERROR/WARNING rows | PASS |
+| 1307.14 | Browser console | no console errors across load, add, link, edit, delete | PASS |
+
+Result: 14/14 PASS — **i18n restored, screen recorded as DONE, parity re-verified (Refs #1307)**.
