@@ -2893,5 +2893,6 @@
   "tpwcf.multiSortRemove": "Retirer le tri",
   "tpwcf.multiSortDup": "La colonne est déjà dans la liste de tri",
   "tpwcf.multiSortCleared": "Tri effacé",
-  "ev.selectUsers": "Sélectionner utilisateur(s)"
+  "ev.selectUsers": "Sélectionner utilisateur(s)",
+  "rb.infoReport": "Le rapport affiche toutes les anomalies constatées pendant l'exécution et liées aux fiches de test de la campagne."
 }

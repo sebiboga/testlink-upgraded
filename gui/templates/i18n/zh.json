@@ -2893,5 +2893,6 @@
   "tpwcf.multiSortRemove": "移除排序",
   "tpwcf.multiSortDup": "该列已在排序列表中",
   "tpwcf.multiSortCleared": "排序已清除",
-  "ev.selectUsers": "选择用户"
+  "ev.selectUsers": "选择用户",
+  "rb.infoReport": "此报告显示所有与测试用例连接的问题"
 }

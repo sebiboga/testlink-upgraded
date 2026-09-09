@@ -2895,5 +2895,6 @@
   "tpwcf.multiSortRemove": "Elimină sortarea",
   "tpwcf.multiSortDup": "Coloana este deja în lista de sortare",
   "tpwcf.multiSortCleared": "Sortare ștearsă",
-  "ev.selectUsers": "Selectati utilizator(i)"
+  "ev.selectUsers": "Selectati utilizator(i)",
+  "rb.infoReport": "Acest raport afișează toate bug-urile legate de cazurile de test în timpul execuției."
 }

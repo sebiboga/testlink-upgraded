@@ -2895,5 +2895,6 @@
   "tpwcf.multiSortRemove": "Remove sort",
   "tpwcf.multiSortDup": "Column is already in the sort list",
   "tpwcf.multiSortCleared": "Sort cleared",
-  "ev.selectUsers": "Select user(s)"
+  "ev.selectUsers": "Select user(s)",
+  "rb.infoReport": "This report shows all bugs linked to test cases during execution."
 }

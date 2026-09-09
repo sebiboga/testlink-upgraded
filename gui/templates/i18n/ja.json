@@ -2893,5 +2893,6 @@
   "tpwcf.multiSortRemove": "ソートを削除",
   "tpwcf.multiSortDup": "この列はソートリストに既に含まれています",
   "tpwcf.multiSortCleared": "ソートをクリアしました",
-  "ev.selectUsers": "ユーザーを選択"
+  "ev.selectUsers": "ユーザーを選択",
+  "rb.infoReport": "このレポートは、テスト実行中に起きた全不具合を表示しています"
 }

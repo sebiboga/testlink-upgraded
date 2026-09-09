@@ -2893,5 +2893,6 @@
   "tpwcf.multiSortRemove": "Sortierung entfernen",
   "tpwcf.multiSortDup": "Spalte ist bereits in der Sortierliste",
   "tpwcf.multiSortCleared": "Sortierung gelöscht",
-  "ev.selectUsers": "Benutzer auswählen"
+  "ev.selectUsers": "Benutzer auswählen",
+  "rb.infoReport": "Dieser Report zeigt alle Bugs, die einem Testfall während der Testausführung zugewiesen wurden."
 }

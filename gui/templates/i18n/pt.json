@@ -2893,5 +2893,6 @@
   "tpwcf.multiSortRemove": "Remover ordenação",
   "tpwcf.multiSortDup": "A coluna já está na lista de ordenação",
   "tpwcf.multiSortCleared": "Ordenação removida",
-  "ev.selectUsers": "Selecionar utilizador(es)"
+  "ev.selectUsers": "Selecionar utilizador(es)",
+  "rb.infoReport": "Este relatório exibe todas as ocorrências ligadas aos casos de teste durante a execução."
 }
