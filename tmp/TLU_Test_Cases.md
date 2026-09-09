@@ -12382,28 +12382,29 @@ Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-ma
 
 ---
 
-## Task — Issue #1325: Add suite-level Test Case export entry point in modern UI (gap vs legacy)
+## Suite 1323 — SCREEN-COMPARE: tcExport.html vs legacy lib/testcases/tcExport.php (Refs #1323)
 
-**Screen:** `gui/templates/testcases/testSpec.html` (suite card) + `gui/templates/testcases/suiteView.html` (toolbar) · **BFF:** none changed — `api/testcasesexport/index.php` already resolved suite modes.
-**Legacy reference:** `gui/templates/dashio/testcases/containerView.tpl:45-46,61` (`tcExportAction` children = `containerID=<suite>`, `tsuiteExportAction` = + `useRecursion=1`) rendered at `containerView.tpl:150-152` (project, `canDoExport`) and `include/containerViewTestSuiteTextButtons.inc.tpl:79-84` (`exportItem` → deep suite) + `:130` (`btn_export_tc` → children test cases).
-**Fix:** 
-1. `testSpec.html` `showSuiteView()` — added **Export Test Cases** (`containerID=<suite_id>`, mode suite_tc) and **Export Test Suite** (`containerID=<suite_id>&useRecursion=1`, mode testsuite) buttons + `openSuiteExport(deep)`; buttons always visible (export is read-only in legacy, modern BFF keeps any-session parity) alongside mgt_modify_tc-gated edit actions.
-2. `suiteView.html` toolbar — same two buttons + `openSuiteExport(deep)` (uses SUITE_ID/TPROJECT_ID).
-3. i18n keys `tspec.exportSuite`, `tspec.exportSuiteCases`, `suvw.exportSuite`, `suvw.exportSuiteCases` added to all 10 locale bundles (validated with `python3 -m json.tool`).
-**Fixture:** `tmp/fixtures_1325.php` — project EXP1325 (id 1), root suite 2, sub-suite 3, TCs 4/7 in root, 10 in sub.
+**Screen:** `gui/templates/testcases/tcExport.html` · **BFF:** `api/testcasesexport/index.php` (`info` + `export`)
+**Legacy reference:** `lib/testcases/tcExport.php` + `gui/templates/dashio/testcases/tcExport.tpl` (**#803**; MD export **#853**)
+**Fixture 2026-09-09:** fresh DB — project ExportTestProject id=1 (prefix ETP), Suite A id=2, Empty Suite id=6, TC Login Test node 3 (tcversions.id=4, v1, step, summary, preconditions). Admin session.
+**Scope:** parity verification of all 4 export modes, option defaults, exact XML output vs legacy, i18n across 10 bundles, in-run gap fixes.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1325.1 | testSpec.html?tproject_id=1 → click EXP Suite → click **Export Test Cases** | popup tcExport.html?tproject_id=1&containerID=2 opens, mode "Test suite (test cases)", filename `EXP Suite.testsuite-children-testcases.xml` | PASS |
-| 1325.2 | In that popup click Export (XML) | POST /api/testcasesexport/ → 200 application/xml, download named `EXP Suite.testsuite-children-testcases.xml`, content has `EXP Case A` + `EXP Case B` and NOT `EXP Case C` (sub-suite case excluded — children-only) | PASS |
-| 1325.3 | testSpec → click **Export Test Suite** | popup tcExport.html?tproject_id=1&containerID=2&useRecursion=1 opens, mode "Test suite", filename `EXP Suite.testsuite-deep.xml` | PASS |
-| 1325.4 | In that popup export XML (deep) | 200 XML, content has `EXP Case A/B/C` + `EXP Sub Suite` (recursion includes sub-suite) | PASS |
-| 1325.5 | Deep export as Markdown | 200 `text/markdown`, `# EXP1325` header, `EXP Case C` present | PASS |
-| 1325.6 | suiteView.html?id=2&tproject_id=1 | toolbar shows **Export Test Cases** + **Export Test Suite** | PASS |
-| 1325.7 | suiteView **Export Test Suite** | popup mode "Test suite", filename `.testsuite-deep.xml` (recursion on) | PASS |
-| 1325.8 | suiteView **Export Test Cases** | popup mode "Test suite (test cases)", filename `.testsuite-children-testcases.xml` (no recursion) | PASS |
-| 1325.9 | `node --check` on extracted inline JS of testSpec.html + suiteView.html | no syntax errors | PASS |
-| 1325.10 | i18n bundles | all 4 new keys present + valid JSON in all 10 locales (`python3 -m json.tool`) | PASS |
-| 1325.11 | Event Viewer / `events` table | only AUDIT/INFO entries (LOGIN 16, TESTPROJECT_CREATED 16); no ERROR(1)/WARNING(2) rows added | PASS |
+| 1323.1 | tcView.html (tcase 3) → toolbar Export | popup opens `tcExport.html?tproject_id=1&testcase_id=3&tcversion_id=4`; mode label "Test case"; filename `Login Test.version1.testcase.xml`; type select XML + Markdown; defaults: external ID/summary/preconditions/steps/reqs/cfields checked, prefix/keywords/attachments unchecked | PASS |
+| 1323.2 | projectInfoView "Export all test suites" (has direct suite → visible) | popup `?tproject_id=1&containerID=1&useRecursion=1`; mode "Test project"; filename `ExportTestProject.testproject-deep.xml`; type XML + Markdown; only visible when `canDoExport && mgt_modify_tc` | PASS |
+| 1323.3 | Direct suite modes (no modern launcher — gap #1325) | `?containerID=6&useRecursion=1` → mode testsuite, filename `Empty Suite.testsuite-deep.xml`; `?containerID=6` → mode suite_tc, filename `Empty Suite.testsuite-children-testcases.xml`; both return nothingTodo for empty suite | PASS |
+| 1323.4 | Single-TC XML export (POST action=export, all opts on) vs legacy POST `lib/testcases/tcExport.php` (export=1, same opts) | modern and legacy outputs **byte-for-byte identical** (835 B both) — same root `<testcases>`, externalid, summary, preconditions, steps, execution_type, importance | PASS |
+| 1323.5 | Project-deep XML export vs legacy (tproject_id=1, containerID=1, useRecursion=1) | modern and legacy outputs **byte-for-byte identical** (1061 B both) — nested `<testsuite id="2" name="Suite A">` + testcase | PASS |
+| 1323.6 | Markdown export (exportType=MD, one TC) | 200 `Content-Type: text/markdown; charset=utf-8`; doc starts `# ExportTestProject` + `**ExternalID:** ETP-1` + steps with Expected (feature #853) | PASS |
+| 1323.7 | Empty suite UI (page loads `?containerID=6`) | warn box "No test cases to export" (`tcx.noTestcasesToExport`) shown above the form; Export still active (superset vs legacy which hides the whole form) | PASS |
+| 1323.8 | Empty filename | local toast `tcx.errEmptyFilename`, no request sent | PASS (code path; regression from #803) |
+| 1323.9 | i18n type keys sync | `tcx.type.xml` + `tcx.type.md` present in all 10 bundles (added to de/es/fr/it/ja/pt/ru/zh that lacked them); `tcx.fileFormatsDoc` in all 10 | PASS |
+| 1323.10 | Locale switch de (`?locale=de`) | title "Testfall exportieren", labels translated, type dropdown XML/Markdown, file-format link shows "Dokumentation der Dateiformate anzeigen" | PASS |
+| 1323.11 | File format documentation link (in-run fix) | "view file format documentation" link present in File type row → `/docs/tl-file-formats.pdf` (200; mirrors reqImport/resultsImport) | PASS |
+| 1323.12 | JSON validation | `python3 -m json.tool` passes for all 10 bundles after key additions; tcx.* set identical (32 keys) across bundles | PASS |
+| 1323.13 | Permission parity | export works with any session (no explicit right check), same as legacy; `mgt_modify_tc` surfaced via `info` grants only | PASS |
+| 1323.14 | Event Viewer / `events` table | after project/suite/TC creation + all modern & legacy exports + locale switch: only LOGIN + CREATE INFO entries (log_level 16), no ERROR/WARNING rows | PASS |
+| 1323.15 | Browser console | no JS errors during load, mode switches, exports | PASS |
 
-Result: 11/11 PASS — **suite-level export launchers implemented + verified (Refs #1325)**. Legacy `btn_export_testsuite` (deep) and `btn_export_tc` (children) parity restored in both suite contexts; BFF untouched.
+Result: 15/15 PASS — **2 gaps fixed in-run** (file-format doc link + `tcx.type.*` i18n in 8 bundles), **1 gap OPEN** (suite-level launcher, #1325), **cleanup #1324** (delete legacy). XML export proven byte-identical to legacy.

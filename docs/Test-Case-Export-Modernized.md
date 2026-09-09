@@ -153,10 +153,48 @@ CSRF guard (`_guard.php`).
 ## i18n
 
 All labels, titles, placeholders and messages use client-side `TLi18n` keys under
-the `tcx.*` namespace (29 keys) present in all 10 locale bundles
+the `tcx.*` namespace (32 keys) present in all 10 locale bundles
 (`gui/templates/i18n/{en,ro,de,es,fr,it,ja,pt,ru,zh}.json`). Bundle consistency is
 enforced by `tools/lint_i18n.py`.
 
+The **File type** row shows a *view file format documentation* hint link
+(`tcx.fileFormatsDoc` → `docs/tl-file-formats.pdf`, same `reqimp.fileFormatsDoc`/
+`resimp.fileFormatsDoc` pattern). The type dropdown labels use `tcx.type.xml` and
+`tcx.type.md`, which fall back to the backend label when a bundle lacks the key.
+
 ---
 
-_TestLink 2.0.1 · Test Case / Suite / Project Export · Refs #803 · MD round-trip #842 / #852 / #853_
+## SCREEN-COMPARE parity verification (Refs #1323)
+
+Parity run `testcases/tcExport.html` vs legacy `lib/testcases/tcExport.php`
+(2026-09-09, tracked as issue [#1323](https://github.com/sebiboga/testlink-upgraded/issues/1323)):
+
+- All four export modes resolve the same default filenames as legacy
+  (`<name>.version<N>.testcase.xml`, `<project>.testproject-deep.xml`,
+  `<suite>.testsuite-deep.xml`, `<suite>.testsuite-children-testcases.xml`).
+- Default checkbox states are identical to legacy (external ID, summary,
+  preconditions, steps, requirements and custom fields on; prefix, keywords and
+  attachments off). Prefix mirroring differs only cosmetically (legacy
+  `mirrorCheckbox` re-checks the prefix when re-enabling external ID; modern
+  re-enables it unchecked).
+- **XML output is byte-for-byte identical** to legacy for the single test-case
+  (835 B) and the project-deep export (1061 B) — both call the same legacy
+  exporter methods.
+- Markdown export works in every mode (legacy recursion was XML-only because the
+  `testsuite` class exposes a single export type — modern superset from #853).
+- Empty-suite/project state shows the localized warn box (`tcx.noTestcasesToExport`
+  / `tcx.noTestsuitesToExport`) while legacy hides the form entirely (superset).
+- Permission parity: any authenticated session — same as legacy.
+- **Gaps found and fixed in-run:** file-format documentation link restored +
+  `tcx.type.*` keys added to the 8 bundles that had silently fallen back to the
+  backend label.
+- **Open gap:** suite-level export has no modern launcher — legacy
+  `containerView.tpl` targeted `tcExport.php?containerID=<suite>`; modern reaches
+  only the testcase mode (tcView toolbar) and the project-deep mode
+  (projectInfoView *Export all test suites*). See #1325.
+- Cleanup: #1324 (delete legacy `tcExport.php` + tcExport.tpl templates once the
+  reachability gap is resolved).
+
+---
+
+_TestLink 2.0.1 · Test Case / Suite / Project Export · Refs #803 · MD round-trip #842 / #852 / #853 · SCREEN-COMPARE #1323 (gaps #1324 #1325)_
