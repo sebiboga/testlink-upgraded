@@ -151,6 +151,55 @@ Suite in `tmp/TLU_Test_Cases.md` — `Task — Issue #1291: Document Bug
 Severity` (see the repository test-case document for steps and results).
 Screenshots live in the GitHub Wiki page "Bug Severity".
 
+## 7. Modern Severity Configuration screen (severityConfig, Refs #1294)
+
+The per-project **Severity Configuration** screen (`gui/templates/projects/
+severityConfig.html` + `api/severityconfig/index.php`, ASIDE → Product →
+Severity Configuration) is a Dashio modern screen where the Test Strategy
+severity scale is defined:
+
+- **Project selector** lists all projects; the current `tproject_id` URL
+  param preselects a project.
+- **Severity in the Test Strategy** card shows whether the project's
+  **Enable Priority** (`testPriorityEnabled`) option is ENABLED/DISABLED.
+- **Severity levels** card: one row per level (LOW/MEDIUM/HIGH/CRITICAL)
+  with a custom **label** (max 40 chars) and **description** (max 300
+  chars). Editing marks the scale dirty and enables the Save buttons; the
+  default badge is shown next to a customized level.
+- **Severity / priority preview** grid renders the computed mapping
+  `importance × urgency` → severity level live (as you type): products
+  `<3` → LOW, `>=6` → HIGH/CRITICAL, otherwise MEDIUM; `3×3=9` → CRITICAL.
+- **Save** persists the scale into the project `options` blob under the
+  `severityLevels` property via `testproject::update()` and logs an AUDIT
+  event (`severityConfig_saved`, objectType `testprojects`).
+- **Reset to defaults** drops the `severityLevels` property so the default
+  scale is served again.
+- The toolbar **Bug Severity guide** link opens `documentation/bugSeverity.html`.
+
+**API contract** (`api/severityconfig/index.php`):
+
+- `GET ?action=projects` — accessible project list (id/name/prefix) for the
+  selector; authenticated session only.
+- `GET ?tproject_id=N` — returns `project`, `priorityEnabled`,
+  `levels` (default scale when none stored, merged scaffold otherwise),
+  `canEdit` (`mgt_modify_product`); 401 anon, 404 unknown project.
+- `POST/PUT ?tproject_id=N` body `{levels:[{level,code,label,description}]}`
+  — **403** without `mgt_modify_product`; 400 no/invalid levels, 404 unknown
+  project; empty `levels` array = reset-to-defaults; writes the AUDIT event.
+
+**Rights:** writes gated on `mgt_modify_product` (403 with a no-rights
+user); reads require only a valid session (401 anon). This mirrors the
+project-edit surface.
+
+**i18n:** `sevcfg.*` (36 keys) + `footers.severityConfig` in all 10 locale
+bundles.
+
+**Regression suite:** `Suite 1294` in `tmp/TLU_Test_Cases.md` — 11/11 PASS
+(load, ENABLED badge, preview grid, custom-label save + DB persistence,
+reset-to-defaults, 401/403 gates, i18n completeness, Event Viewer clean).
+
+![Severity Configuration screen](1294-severityConfig-screen.png)
+
 ## Files
 
 - `docs/WIKI-BUG-SEVERITY.md` — this page (docs mirror, no image lines)

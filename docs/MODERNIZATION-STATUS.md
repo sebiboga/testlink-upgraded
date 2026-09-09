@@ -4,7 +4,7 @@
 > `modernize.yml`: when triggered without a screen name, pick the NEXT item from the
 > **TODO** section below (ASIDE order, top to bottom) and update this file when done.
 >
-> Last updated: 2026-09-09 — (SCREEN-COMPARE parity for `documentation/documentation.html` vs legacy `tools/viewer.php` (Refs #1281): BFF `api/documentation/index.php` was missing `good_test_case` (`docs/bibliographical_references/GoodTest.pdf`) and `youtrack_readme` (`docs/youtrack-readme.pdf`) from the legacy 8-entry allowlist → both restored + `usort` pins the legacy order; new `doc_good_test_case`/`doc_youtrack_readme` lang keys in all 19 `locale/*/strings.txt`; browser-verified (8 cards, View modal, 200 downloads, Event Viewer clean). Gap #1275 fixed; cleanup #1276 open.)
+> Last updated: 2026-09-09 — (Severity Configuration `projects/severityConfig.html` + `api/severityconfig` recorded as DONE (Refs #1294): per-project Test Strategy severity scale (Low/Medium/High/Critical) stored in the testproject `options` blob (`severityLevels`), custom labels/descriptions with live severity×urgency preview grid, Reset-to-defaults drops the property, writes gated on `mgt_modify_product` (403), reads session-only (401 anon), project list via `?action=projects`. Browser-verified: load, custom-label save + DB persistence, preview mapping, reset, Event Viewer clean. i18n `sevcfg.*` (36 keys) + `footers.severityConfig` in all 10 bundles. Regression suite 1294 11/11 PASS. ASIDE link `gui/templates/dashio/aside.tpl:107` + guide link → `documentation/bugSeverity.html`.)
 
 > Previous: 2026-09-09 — (SCREEN-COMPARE parity for `results/execTimelineStats.html` vs legacy `execTimelineStats` (Refs #1273): BFF `exec_timeline` added to apikey allowlist + `!$isAnon` rights guard + apikey forwarded on export/mail URLs; export gateway adds exec_timeline_stats/_mail apikey actions + `spreadsheet=1`; day_hour per-hour `testers` sourced from `$rswf` (legacy date-level quirk); fixture `tmp/fixtures_etl.php` proj 10 ETD / plan 18 ETL Plan; cleanup #1274 filed)
 
@@ -12,7 +12,7 @@
 
 | State | Count |
 |---|---|
-| DONE (modernized) | 69 + 32 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView, Requirement Import reqImport, Requirement Export reqExport, Test Results Import resultsImport, Test Case Print tcPrint, Requirement Version Compare reqCompare, Execution Export execExport, Test Case Bulk Update tcBulkOp) |
+| DONE (modernized) | 70 + 32 extras (tcImport, planEdit modal, Dashboard, Requirement Editor reqEdit, Requirement Document Print printDocument, Self Sign-Up firstLogin, Lost Password lostPassword, Compare Test Case Versions tcCompare, Assign TC to Test Plan tcAssign2Tplan, Test Case Editor tcEdit, Test Plan Export planExport, Test Plan Import planImport, Set Results popup execSetResults, Test Suite viewer popup suiteView, Edit Execution popup editExecution, Requirement Spec Revision Compare reqSpecCompare, Results by Multiple Builds resultsMoreBuilds, Uncovered Test Cases uncoveredTestCases, Execution Print execPrint, Test Plan Report Print reportPrint, Report XLS/Mail Export Gateway reportsexport, User Management Export usersExport, Test Project Information viewer projectInfoView, Test Project Create/Edit projectEdit, Req. Management Systems reqMgrSystemView, Requirement Import reqImport, Requirement Export reqExport, Test Results Import resultsImport, Test Case Print tcPrint, Requirement Version Compare reqCompare, Execution Export execExport, Test Case Bulk Update tcBulkOp, Test Project Severity Config severityConfig) |
 | IN PROGRESS | 0 |
 | TODO (still legacy) | 0 — all ASIDE screens modernized |
 
@@ -36,6 +36,7 @@ Each row: ASIDE entry → HTML screen + BFF API (`api/<area>/index.php`).
 | 10 | System — Plugin Management | `plugins/pluginView.html` | api/plugins | #636 |
 | 11 | Product — Test Project Mgmt | `projectsView.html` | api/projects | |
 | 12 | Product — Assign User Roles | `usermanagement/usersAssignProject.html` | api/users | same as #5 |
+| 12b | Product — Severity Configuration (Test Strategy) | `projects/severityConfig.html` | api/severityconfig | #1294 |
 | 13 | Product — Assign Custom Fields | `cfields/cfieldsAssignView.html` | api/cfields | |
 | 14 | Product — Keywords Mgmt | `keywords/keywordsView.html` | api/keywords | |
 | 15 | Product — Platforms Mgmt | `platforms/platformsView.html` | api/platforms | |

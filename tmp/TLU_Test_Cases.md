@@ -12182,3 +12182,28 @@ Result: 10/10 PASS — **feature implemented + verified (Refs #869)**. Legacy Ex
 | 870.7 | no JS errors + Event Viewer clean | browser console after 870.1-870.5; `SELECT log_level,count(*) FROM events GROUP BY log_level` | zero console errors; no ERROR/WARNING rows introduced (only the AUDIT deletion rows + admin-login AUDIT) | PASS |
 
 Result: 7/7 PASS — **feature implemented + verified (Refs #870)**. Gap closed: modern `DELETE /events` now calls `logAuditEvent()` after `$em->deleteEventsFor()` exactly like the legacy controller — `audit_all_events_deleted` when no level filter is set, `audit_events_with_level_deleted` (with `lang_get("log_level_*")` verbose names) when specific levels are cleared; both log level AUDIT/activity DELETE/object type events. Browser-verified on both paths (level-filtered AND all-events), audit rows visible in the modern table. Commit `2440efae3` (BFF) + `d72672cd3` (docs).
+
+---
+
+## Suite 1294 — Severity Configuration (severityConfig.html + api/severityconfig)
+
+**Screen:** `gui/templates/projects/severityConfig.html` · **BFF:** `api/severityconfig/index.php`
+**Fixture:** project id=1 (`Severity Test Proj`, prefix `SEV`) created via `POST /api/projects/`.
+**Legacy reference:** Test Strategy severity model (Bug Severity guide `docs/WIKI-BUG-SEVERITY.md`, Refs #1291).
+**Refs:** #1294.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1294.1 | Open `severityConfig.html?tproject_id=1` as admin | Header "Severity Configuration", project selector pre-filled `Severity Test Proj (SEV)`, 4 level rows (LOW/MEDIUM/HIGH/CRITICAL) | PASS |
+| 1294.2 | Verify "Priority management … ENABLED" badge | badge-enable shown for project with `testPriorityEnabled=1` | PASS |
+| 1294.3 | Verify severity/priority preview grid | Importance×urgency maps LOW/LOW/MEDIUM, LOW/MEDIUM/HIGH, MEDIUM/HIGH/CRITICAL | PASS |
+| 1294.4 | Edit level 1 label→"Minor" + description→"Minor cosmetic issue" | Save button becomes enabled (dirty) | PASS |
+| 1294.5 | Click Save | toast + green feedback "Severity levels saved"; "Minor" persists after reload; preview grid LOW cells show "Minor" | PASS |
+| 1294.6 | DB persistence | `testprojects.options` blob contains `severityLevels` with level 1 label "Minor" | PASS |
+| 1294.7 | Click "Reset to defaults" | feedback "Severity levels saved"; "Minor" gone; DB options no longer contain `severityLevels` | PASS |
+| 1294.8 | Unauthenticated BFF | `GET /api/severityconfig/index.php` → HTTP 401 | PASS |
+| 1294.9 | No-rights write | PUT without `mgt_modify_product` → HTTP 403 | PASS (code path `api/severityconfig/index.php:171`) |
+| 1294.10 | i18n | `sevcfg.*` 36 keys + `footers.severityConfig` present in all 10 locale bundles | PASS |
+| 1294.11 | Event Viewer | no new ERROR/WARNING rows introduced by the screen | PASS |
+
+Result: 11/11 PASS — screen verified end-to-end (load, custom label save + persist, preview mapping, reset-to-defaults, auth/rights gates, i18n completeness, Event Viewer clean). Committed as part of Refs #1294.
