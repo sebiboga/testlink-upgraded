@@ -80,8 +80,13 @@ function initArgsForReports(&$dbHandler) {
   }
 
   if ($args->tproject_id <= 0) {
-    $msg = __FILE__ . '::' . __FUNCTION__ . " :: Invalid Test Project ID ({$args->tproject_id})";
-    throw new Exception($msg);
+    // Missing/invalid tproject_id (incl. anonymous invalid-apikey requests where
+    // neither tproject_id nor tplan_id is present): stop gracefully instead of an
+    // uncaught Exception (PHP 8: null <= 0 is true) that dies with HTTP 500.
+    // Same info page as the authenticated tplan guard above (Refs #1257).
+    require_once(__DIR__ . '/../functions/info.inc.php');
+    displayInfo(lang_get('error_print_doc_title'),
+                lang_get('error_print_doc_missing_testplan'));
   }
 
   if (is_null($args->format)) {
