@@ -22,6 +22,30 @@ controller's edit-permission logic).
 
 ---
 
+## Unsaved-changes guard (parity with legacy `checkNotSaved`)
+
+Issue [#1317](https://github.com/sebiboga/testlink-upgraded/issues/1317) — the
+legacy editor (`tcEdit.tpl:93-98`) wires `checkmodified.js` when
+`$tlCfg->gui->checkNotSaved` is enabled, so leaving the page with unsaved edits
+triggers a "You have unsaved changes" prompt. The modern screen mirrors that:
+
+- `ctx.content_modified` / `ctx.show_modified_warning` flags plus
+  `markModified()` / `resetModified()` helpers (`tcEdit.html`).
+- `doBeforeUnload()` installed on `window.onbeforeunload`, returning the
+  localised `tcedit.unsavedWarning` message only when the form is dirty and the
+  warning is armed.
+- Dirty tracking is event-delegated on the editor card: `input`/`change` on
+  `.form-control, input[type=text], select, textarea`, plus `click` on keyword
+  pills and step-delete buttons; **Add step** marks the form modified too.
+- `renderEditor()` calls `resetModified()` so prefilling never flags a clean
+  form; a successful **Save** resets the flag; **Cancel** clears
+  `show_modified_warning` (mirrors the legacy "suppress on Save/Cancel").
+- i18n key `tcedit.unsavedWarning` added to all 10 locale bundles.
+
+Because the modern editor uses plain inputs/textareas (no CKEditor), the legacy
+`editorChanged()`/`IsDirty()` detection is replaced by the delegated event
+tracking described above.
+
 ## Behavioral parity with the legacy controller
 
 The BFF mirrors `lib/testcases/tcEdit.php` + `testcaseCommands`:
