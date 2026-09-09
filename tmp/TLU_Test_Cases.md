@@ -12167,3 +12167,22 @@ Result: 10/10 PASS — **gap #1275 fixed (Refs #1281)**: the two dropped legacy 
 | 869.10 | no JS errors + Event Viewer clean | browser console after 869.1-869.8; `SELECT log_level FROM events ORDER BY id DESC` | zero console errors; no new ERROR/WARNING rows introduced (only the pre-seeded fixtures + admin login AUDIT) | PASS |
 
 Result: 10/10 PASS — **feature implemented + verified (Refs #869)**. Legacy ExtTable grouping/toolbar ported to the modern Event Viewer via DataTables RowGroup: rows grouped by Log Level (contiguous, sorted by level asc + timestamp desc), collapsible group rows, toolbar with Expand all / Collapse all / Show all columns (toggles the hidden Transaction column), plus a new `ev.*` i18n key set in all 10 bundles. No BFF change needed (per-event `logLevel`/`transactionID` already returned). Pattern reused from `tplanWithCF.html` (#847/#864).
+
+## Task — Issue #1291: Document Bug Severity (Test Strategy)
+
+**Precondition:** app `http://localhost:8082` (PHP built-in server), DB `testlink` freshly imported, login admin/admin. Fixture `tmp/fixtures_1291.php` creates project **SEVPROJ** (prefix SEV, `testPriorityEnabled=1`), suite "Critical Flows", 4 TCs (TC-Login imp=3 urg=3 → 9; TC-Transfer imp=3 urg=2 → 6; TC-Reports imp=2 urg=3 → 6; TC-Cosmetics imp=1 urg=1 → 1) in plan **Plan SEV** (id 15). The documentation page under test: `docs/WIKI-BUG-SEVERITY.md` + wiki `Bug-Severity.md`. Legacy refs: `config.inc.php:2041-2048` (`urgencyImportance` thresholds), `lib/functions/common.php:766-781` (`priority_to_level()`), `lib/plan/planUrgency.php`.
+
+| ID | Test case | Repro | Expected | Result |
+|----|-----------|-------|----------|--------|
+| 1291.1 | Docs page exists in docs mirror | `test -f docs/WIKI-BUG-SEVERITY.md` | file present and non-empty; explains Bug Severity is part of Test Strategy | PASS |
+| 1291.2 | Wiki page exists | `test -f tmp/wiki-repo/Bug-Severity.md` | file present; same content as docs mirror plus image links | PASS |
+| 1291.3 | Severity levels documented | grep `docs/WIKI-BUG-SEVERITY.md` for "importance", "urgency", "priority" | all three levels described with values 3/2/1 and the `importance × urgency` formula | PASS |
+| 1291.4 | Enable Priority option documented + live | `curl` projectEdit.html shows "Enable Priority" checked for SEVPROJ; doc §1.1 references `api/projects/index.php:205-209` | doc matches live UI; server write path `testPriorityEnabled` | PASS |
+| 1291.5 | Importance badge visible on tcView | open `gui/templates/testcases/tcView.html?tcase_id=3&tproject_id=1` | badge "HIGH PRIORITY" shown (tcversion.importance=3, mapping tcView.html:248-250); matches doc §1.2 | PASS |
+| 1291.6 | Priority computation live (Set Test Urgency) | open `gui/templates/plans/testUrgency.html?tproject_id=1&tplan_id=15` | rows show High (9) / High (6) / High (6) / Low (1) exactly per doc §1.4/grid; suite badge "mixed" | PASS |
+| 1291.7 | Priority grid arithmetic correct | verify 9× grid cells in doc §2 against thresholds (>=6 HIGH, <3 LOW) | all 9 combinations produce the documented level | PASS |
+| 1291.8 | Rights model documented | grep doc §4 for `testplan_planning` + `testplan_set_urgent_testcases` | both grants present, matching legacy planUrgency parity | PASS |
+| 1291.9 | Legacy parity table accurate | grep doc §5 for `testPriorityEnabled`, `priority_to_level`, `prioLevel` | each parity row references the real modern source file:line | PASS |
+| 1291.10 | Wiki index linked + valid JSON unaffected | grep `tmp/wiki-repo/Home.md` for "Bug-Severity"; `python3 -m json.tool` on all 10 i18n bundles | Home.md has the new 17b entry; all i18n bundles still valid JSON (no code change touched them) | PASS |
+
+Result: 10/10 PASS — **documentation implemented + verified (Refs #1291)**. Live browser cross-check on SEVPROJ: tcView badge "HIGH PRIORITY" for importance=3 (tcView.html:248-250 mapping), Set Test Urgency displayed exact priority values High (9) / High (6) / High (6) / Low (1), suite badge "mixed", projectEdit "Enable Priority" checked (options blob `testPriorityEnabled=1`, read at api/projects/index.php:119); DB join score = importance×urgency = 9/6/6/1 matches the doc grid; all 10 i18n bundles valid JSON (no code change). Both doc pages (docs mirror + wiki) exist and are linked from Home.md.
