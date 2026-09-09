@@ -115,7 +115,7 @@ Clicking an individual group header row toggles that group's expand/collapse sta
 - **Pagination:** 25 rows per page by default
 - **Grouping:** Rows are grouped by Log Level (uses the DataTables RowGroup extension, `rowGroup.dataSrc`). Within each group rows sort by timestamp descending.
 - **Group collapse:** Click a group header to collapse/expand that level; use the toolbar to expand or collapse all at once.
-- **Sorting:** Click any column header (except expand and description) to sort ascending/descending
+- **Sorting:** Click any column header (except expand and description) to sort ascending/descending. The **Timestamp** column sorts **chronologically by the numeric epoch**, not by the `dd/mm/yyyy` display string — the column cell carries `[epoch, formatted]` and an orthogonal `render(data,type)` returns the epoch for the `sort` type (legacy hidden-`<!--epoch-->`-comment parity, `eventviewer.legacy.php:241-243`). This keeps month/year boundaries correct (e.g. a *31/07/2025* event sorts before a *04/08/2026* one in ascending order) in both directions.
 - **Search:** Use the DataTables search box to filter the visible rows client-side
 - **Row expand:** Click the chevron icon or the description text to expand/collapse the detail row
 

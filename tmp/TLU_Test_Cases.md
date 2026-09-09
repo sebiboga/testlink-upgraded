@@ -12379,3 +12379,28 @@ Result: 15/15 PASS — **i18n restored, screen recorded as DONE, parity re-verif
 | 873.9 | `node --check` on extracted inline JS | no syntax errors | PASS |
 
 Result: 9/9 PASS — **feature implemented + verified (Refs #873)**. The zero-match state now shows a localized "no events" feedback box in place of the table (legacy `user_feedback` parity), and the DataTables info/zero-records strings no longer leak English in any of the 10 locales.
+
+---
+
+## Task — Issue #874: Sort Event Viewer rows chronologically by Timestamp (gap vs legacy)
+
+**Screen:** `gui/templates/eventviewer/eventviewer.html` · **BFF:** `api/eventviewer/index.php` (GET /events — already exposes numeric `timestamp` + `timestampFormatted`)
+**Legacy reference:** `lib/events/eventviewer.legacy.php:241-243` prepends a hidden `<!--{$event->timestamp}-->` epoch comment to the timestamp cell; `:267-269` sorts by `th_timestamp` DESC — i.e. the column sorts by NUMERIC epoch, not the `dd/mm/yyyy hh:mm:ss` display string. Modern dropped the epoch and declared the column `{ type: 'string' }`, causing lexicographic day-first sorting across months/years.
+**Fix:** timestamp cell now carries `[Number(ev.timestamp), ev.timestampFormatted]`; the column is declared `{ type: 'num' }` with an orthogonal `render(data,type)` — `type==='sort' → data[0]` (epoch), otherwise `data[1]` (formatted string for display + filter). `type:'num'` forces the numeric comparison path so the epoch can never be string-compared (review-verified against DataTables 1.13.7 `_fnSortData`/`num-pre`). Default order `[[2,'asc'],[1,'desc']]` preserved.
+**Fixture:** 4 seeded AUDIT events (`source='sort-repro'`, `log_level=16`) at `fired_at` 31/07/2025 (1753963200), 06/06/2026 (1780747200), 04/08/2026 (1785844800), 04/09/2026 (1788523200) + existing admin-login AUDIT event 09/09/2026.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 874.1 | Load Event Viewer as admin (5 AUDIT events in one group), default state | rows within AUDIT group sorted newest-first: 09/09/2026 → 04/09/2026 → 04/08/2026 → 06/06/2026 → 31/07/2025 | PASS |
+| 874.2 | Click **Timestamp** header → ascending | chronological asc: 31/07/2025 → 06/06/2026 → 04/08/2026 → 04/09/2026 → 09/09/2026 (before fix: 04/08 → 04/09 → 06/06 → 09/09 → 31/07) | PASS |
+| 874.3 | Click **Timestamp** header again → descending | chronological desc: 09/09/2026 → 04/09/2026 → 04/08/2026 → 06/06/2026 → 31/07/2025 | PASS |
+| 874.4 | DataTables internals | after asc click `order=[[1,'asc']]`; per-cell data is `[epoch, formatted]`; sort key is numeric | PASS |
+| 874.5 | Search box filter `2025` | only the 31/07/2025 row matches (filter type uses formatted string) | PASS |
+| 874.6 | Expand/Collapse all groups | collapse → 0 visible data rows; expand → 5 rows (rowGroup unaffected) | PASS |
+| 874.7 | Show all columns | Transaction column toggles visible/hidden | PASS |
+| 874.8 | Overlapping month/year boundaries across groups | same chronic-asc logic independent of level (render is per-column, not per-group) | PASS |
+| 874.9 | `node --check` on extracted inline JS | no syntax errors | PASS |
+| 874.10 | Browser console | no JS errors (only pre-existing a11y notices) | PASS |
+| 874.11 | `events` table | no ERROR/WARNING rows added by this feature (`SELECT COUNT(*) FROM events WHERE log_level IN (1,2)` = 0) | PASS |
+
+Result: 11/11 PASS — **feature implemented + verified (Refs #874)**. The Timestamp column now sorts numerically by epoch exactly like legacy (hidden-comment parity via orthogonal render), fixing month/year-boundary misordering in both ascending and descending directions while display, search, grouping and toolbar behaviours are unchanged.

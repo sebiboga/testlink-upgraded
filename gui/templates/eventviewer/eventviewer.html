@@ -344,9 +344,13 @@ function renderTable(items) {
   if (table) { table.destroy(); $('#eventsTable tbody').empty(); }
   var rows = [];
   $.each(items, function(i, ev) {
+    // Legacy parity (eventviewer.legacy.php:241-243/267-269): legacy prepends a
+    // hidden "<!--epoch-->" comment to the timestamp cell so sorting uses the
+    // numeric epoch, not the dd/mm/yyyy display string. Carry both values in the
+    // cell: [epoch, formatted]; the column render below picks the sort key.
     rows.push([
       ev.id,
-      ev.timestampFormatted,
+      [Number(ev.timestamp), ev.timestampFormatted],
       ev.logLevel,
       esc(ev.userDisplayName || ev.userID || '-'),
       esc(ev.description || ''),
@@ -369,7 +373,16 @@ function renderTable(items) {
     pageLength: 25,
     columns: [
       { orderable: false, searchable: false, render: function(data) { return '<span class="details-control" data-id="' + data + '"><i class="fa fa-chevron-right"></i></span>'; } },
-      { type: 'string' },
+      { type: 'num', render: function(data, type) {
+          // Orthogonal data: cell holds [epoch, formatted]. Sorting must use the
+          // numeric epoch (legacy hidden-comment parity) — a string sort of the
+          // "dd/mm/yyyy hh:mm:ss" text is wrong across months/years. type:'num'
+          // forces the numeric comparison path (num-pre/num-asc) even though the
+          // epoch would otherwise type-detect as a string via the display value.
+          // Display and filter keep the localized string.
+          if (type === 'sort') { return data[0]; }
+          return data[1];
+        } },
       { orderable: true, render: function(data, type) {
           if (type === 'display') { return '<span class="level-badge level-' + data + '">' + data + '</span>'; }
           return data;
