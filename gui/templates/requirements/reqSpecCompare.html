@@ -174,7 +174,8 @@ function renderRevisions(revisions) {
   if (revTable) { revTable.destroy(); revTable = null; }
   if (revisions.length > 0) {
     revTable = $('#revTable').DataTable({
-      paging: false, searching: true, info: false, ordering: true
+      paging: false, searching: true, info: false, ordering: true,
+      order: [[0, 'desc']]
     });
   }
   TLi18n.apply();
@@ -183,7 +184,7 @@ function renderRevisions(revisions) {
 function revRow(rev, isRight, isLeft) {
   var disp = Number(rev.revision);
   return '<tr>' +
-    '<td><span class="badge-rev">' + TLi18n.t('rsvc.revision') + ' ' + escapeHtml(disp) + '</span></td>' +
+    '<td data-order="' + disp + '"><span class="badge-rev">' + TLi18n.t('rsvc.revision') + ' ' + escapeHtml(disp) + '</span></td>' +
     '<td style="white-space:nowrap;">' +
       '<label class="radio-inline" title="' + TLi18n.t('rsvc.left') + '"><input type="radio" name="left_item_id" value="' + rev.item_id + '"' + (isLeft ? ' checked' : '') + '></label> ' +
       '<label class="radio-inline" title="' + TLi18n.t('rsvc.right') + '"><input type="radio" name="right_item_id" value="' + rev.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
