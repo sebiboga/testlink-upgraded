@@ -289,11 +289,14 @@ function render(r) {
 
   // Generate full Test Spec (whole project) actions, mirroring legacy
   // containerView.tpl:154-158 at level=testproject — HTML (format=0) and
-  // Word (format=4), both via printDocument.php, gated by mgt_modify_tc
-  // (legacy modify_tc_rights, line 119).
+  // Word (format=4). Both route through the modern printTestDoc screen + BFF
+  // (api/testcasesprint action=print: HTML renders in an iframe, MS Word
+  // streams a .doc blob download), gated by mgt_modify_tc (legacy
+  // modify_tc_rights, line 119). Refs #1329/#1340 — no legacy .php refs.
   var canGenSpec = !!r.grants.mgt_modify_tc;
-  var specBase = '/lib/results/printDocument.php?type=testspec&level=testproject' +
-    '&allOptionsOn=1&id=' + PROJECT_ID;
+  var specBase = '/gui/templates/testcases/printTestDoc.html?action=print' +
+    '&type=testspec&level=testproject&allOptionsOn=1&id=' + PROJECT_ID +
+    '&tproject_id=' + PROJECT_ID;
   $('#genSpecHtmlLink').css('display', canGenSpec ? 'inline-flex' : 'none');
   $('#genSpecHtmlLink').attr('href', specBase + '&format=0');
   $('#genSpecWordLink').css('display', canGenSpec ? 'inline-flex' : 'none');
