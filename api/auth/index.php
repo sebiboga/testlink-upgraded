@@ -269,7 +269,7 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'signup') {
     // External password management (SSO/LDAP): the sign-up page hides the
     // password fields, so a locally set password is neither expected nor
     // required. Skip the local password step rather than fail on E_PWDEMPTY.
-    $externalPwd = (bool) config_get('external_password_mgmt', false);
+    $externalPwd = (bool) tlUser::isPasswordMgtExternal();
     if (!$externalPwd) {
         if (strcmp($pwd, $pwd2) !== 0) {
             out(array('status' => 'error', 'success' => false, 'reason' => 'passwd_dont_match'));
