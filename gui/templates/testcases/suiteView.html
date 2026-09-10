@@ -39,6 +39,14 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
 table.table-tc thead th { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; border-bottom: 2px solid #4ECDC4; }
 table.table-tc td { font-size: 13px; vertical-align: top; }
+.table-tc .chk { width: 34px; text-align: center; }
+.tv-bulk { margin-top: 14px; background: #f7f7f7; border: 1px solid #e5e5e5; border-radius: 6px; padding: 12px 14px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.tv-bulk label { font-size: 12px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .5px; }
+.tv-bulk select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #fff; min-width: 130px; }
+.tv-cf { display: inline-flex; gap: 8px; align-items: center; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 7px 12px; margin: 0 10px 10px 0; font-size: 13px; }
+.tv-cf input[type=text], .tv-cf select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; background: #fff; }
+.tv-cf .cf-chk { width: auto; margin-right: 4px; }
+.tv-saved { color: #1a7f79; font-weight: 600; font-size: 13px; margin-left: 8px; }
 </style>
 </head>
 <body>
@@ -50,6 +58,7 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
   <a class="btn-ghost" id="treeLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.openTree">Open in Test Specification</span></a>
   <button class="btn-ghost" onclick="openSuiteExport(false)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuiteCases">Export Test Cases</span></button>
   <button class="btn-ghost" onclick="openSuiteExport(true)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuite">Export Test Suite</span></button>
+  <button class="btn-ghost" id="tvBtn" onclick="toggleTableView()" style="display:none;"><i class="fa fa-table"></i> <span data-i18n="suvw.tableView">Table view</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
 
@@ -96,6 +105,37 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
     </div>
   </div>
 
+  <div class="card" id="tvCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-table"></i> <span data-i18n="suvw.tblView">Test cases table view</span><span id="tvCount" style="color:#999;font-weight:400;font-size:12px;margin-left:8px;"></span></div>
+    <div class="card-body">
+      <div id="tvCfBox" style="margin-bottom:6px;"></div>
+      <table class="table table-tc" id="tvTable">
+        <thead>
+          <tr>
+            <th class="chk"><input type="checkbox" id="tvSelAll" title="" onclick="tvToggleAll(this)"></th>
+            <th data-i18n="suvw.extId">External ID</th>
+            <th data-i18n="suvw.name">Name</th>
+            <th data-i18n="suvw.version">Version</th>
+            <th data-i18n="suvw.tblStatus">Status</th>
+            <th data-i18n="suvw.importance">Importance</th>
+            <th data-i18n="suvw.tblExecType">Execution Type</th>
+            <th data-i18n="suvw.summary">Summary</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="tvEmpty" style="display:none;" data-i18n="suvw.noCases">No test cases in this suite.</div>
+      <div class="tv-bulk" id="tvBulk" style="display:none;">
+        <label><span data-i18n="suvw.tblSetOn">Set on selected:</span></label>
+        <select id="tvStatus" title=""></select>
+        <select id="tvImportance" title=""></select>
+        <select id="tvExecType" title=""></select>
+        <button class="btn-teal" onclick="tvApply()"><i class="fa fa-check"></i> <span data-i18n="suvw.tblApply">Apply to selected</span></button>
+        <span class="tv-saved" id="tvSaved"></span>
+      </div>
+    </div>
+  </div>
+
   <div class="card" id="kwCard" style="display:none;">
     <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="suvw.keywords">Keywords</span></div>
     <div class="card-body" id="vKeywords"></div>
@@ -121,6 +161,11 @@ var TPROJECT_ID = 0;
 var TOKEN = 0;
 var SPEC_URL = '/gui/templates/testcases/testSpec.html?tproject_id=';
 var TC_VIEW_URL = '/gui/templates/testcases/tcView.html';
+var CAN_MANAGE = false;
+var DOMAINS = null;
+var TV_LOADED = false;
+var TV_DATA = null;
+var TV_ACTIVE = false;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -166,6 +211,10 @@ function loadView() {
 function render(r) {
   var s = r.suite;
   TPROJECT_ID = r.tproject.id || TPROJECT_ID;
+  CAN_MANAGE = !!r.can_manage;
+  DOMAINS = r.domains || null;
+  $('#tvBtn').toggle(CAN_MANAGE);
+  $('#tvSelAll').attr('title', TLi18n.t('suvw.tblSelectAll'));
   $('#projName').text(' - ' + (r.tproject.name || ('#' + TPROJECT_ID)));
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(s.name) + '</span>' +
     ' <span class="id-chip" style="font-size:10px;color:#999;">#' + s.id + '</span>');
@@ -231,6 +280,174 @@ function renderAttachments(atts) {
   });
   $('#vAttachments').html(out);
   $('#attCard').show();
+}
+
+function toggleTableView() {
+  TV_ACTIVE = !TV_ACTIVE;
+  $('#tcCard, #kwCard, #attCard').toggle(!TV_ACTIVE);
+  $('#viewLoading').hide();
+  if (TV_ACTIVE && !TV_LOADED) {
+    $('#tvCard').show();
+    loadTableView();
+  } else {
+    $('#tvCard').toggle(TV_ACTIVE);
+  }
+}
+
+function loadTableView() {
+  var url = API + '?action=table&id=' + SUITE_ID + '&tproject_id=' + TPROJECT_ID;
+  $('#viewLoading').show();
+  $.getJSON(url, function(r) {
+    $('#viewLoading').hide();
+    if (r.status !== 'ok') {
+      showError(r.message || TLi18n.t('suvw.loadError'));
+      return;
+    }
+    TV_LOADED = true;
+    DOMAINS = r.domains || DOMAINS;
+    renderTableView(r);
+  }).fail(function() {
+    $('#viewLoading').hide();
+    showError(TLi18n.t('suvw.loadError'));
+  });
+}
+
+function renderTableView(r) {
+  TV_DATA = r;
+  var rows = r.rows || [];
+  $('#tvEmpty').toggle(rows.length === 0);
+  $('#tvBulk').toggle(rows.length > 0 && !!CAN_MANAGE);
+  $('#tvCount').text('(' + rows.length + ')');
+
+  // per-design-CF set inputs (addCheck pattern from legacy html_table_inputs)
+  var cfHtml = '';
+  var typeSel = {5: 1, 6: 1, 7: 1, 9: 1};
+  lockTvSelects();
+  $.each(r.cfs || [], function(i, cf) {
+    var opts = '';
+    if (typeSel[cf.type]) {
+      opts = '<option value="">(' + escapeHtml(TLi18n.t('suvw.tblNoChange')) + ')</option>';
+      var vals = String(cf.possible_values || '').split(';');
+      $.each(vals, function(j, v) {
+        v = $.trim(v);
+        if (v) opts += '<option value="' + escapeHtml(v) + '">' + escapeHtml(v) + '</option>';
+      });
+      opts = '<select class="tv-cf-val" data-cfid="' + cf.id + '">' + opts + '</select>';
+    } else {
+      opts = '<input type="text" class="tv-cf-val" data-cfid="' + cf.id + '" placeholder="' +
+        escapeHtml(TLi18n.t('suvw.tblNoChange')) + '">';
+    }
+    cfHtml += '<span class="tv-cf"><input type="checkbox" class="tv-cf-on" data-cfid="' + cf.id + '" title="' +
+      escapeHtml(TLi18n.t('suvw.tblEnableCf')) + '"> <b>' + escapeHtml(cf.label) + '</b>' + opts + '</span>';
+  });
+  $('#tvCfBox').html(cfHtml);
+
+  // tbody mapping by tcversion_id (used by tvApply)
+  var $tb = $('#tvTable tbody').empty();
+  var html = '';
+  $.each(rows, function(i, tc) {
+    var badge = tc.active
+      ? '<span class="badge-' + escapeHtml(tc.importance_label) + '">' +
+        TLi18n.t('suvw.imp' + ucfirst(tc.importance_label)) + '</span>'
+      : '<span class="badge-inv">' + TLi18n.t('suvw.inactive') + '</span>';
+    html += '<tr>' +
+      '<td class="chk"><input type="checkbox" class="tvRow" data-tcversion="' + tc.tcversion_id +
+        '" data-tcase="' + tc.tcase_id + '"></td>' +
+      '<td data-order="' + tc.external_id + '">' + escPrefix(tc.external_id_display || tc.external_id) + '</td>' +
+      '<td><a class="tc-link" href="javascript:void(0)" title="' + TLi18n.t('suvw.openTc') + '" onclick="openTc(' + tc.tcase_id + ')">' +
+        escapeHtml(tc.name) + '</a></td>' +
+      '<td>' + (tc.version ? 'v' + tc.version : '-') + '</td>' +
+      '<td>' + (DOMAINS && DOMAINS.status[tc.status] ? escapeHtml(DOMAINS.status[tc.status]) : '-') + '</td>' +
+      '<td>' + badge + '</td>' +
+      '<td>' + (DOMAINS && DOMAINS.execution_type[tc.execution_type] ? escapeHtml(DOMAINS.execution_type[tc.execution_type]) : '-') + '</td>' +
+      '<td>' + escapeHtml(tc.summary || '') + '</td>' +
+    '</tr>';
+  });
+  $tb.html(html);
+
+  if (TV_TABLE && $.fn.DataTable.isDataTable('#tvTable')) {
+    TV_TABLE.destroy();
+    TV_TABLE = null;
+  }
+  if (rows.length > 0) {
+    $('#tvTable').DataTable({
+      pageLength: 10, lengthChange: false, searching: true,
+      order: [[1, 'asc']], language: { search: TLi18n.t('common.search') },
+      columnDefs: [
+        { targets: 0, orderable: false },
+        { targets: 1, type: 'num' },
+        { targets: [2, 3, 4, 5, 6, 7], orderable: true }]
+    });
+    TV_TABLE = $('#tvTable').DataTable();
+  }
+  $('#tvSelAll').prop('checked', false);
+}
+
+function lockTvSelects() {
+  $([['#tvStatus', 'status'], ['#tvImportance', 'importance'], ['#tvExecType', 'execution_type']]).each(function() {
+    var sel = $(this[0]);
+    if (sel.data('locked')) return;
+    var map = DOMAINS && DOMAINS[this[1]] ? DOMAINS[this[1]] : null;
+    var opts = '<option value="0">-- ' + escapeHtml(TLi18n.t('suvw.tblNoChange')) + ' --</option>';
+    if (map) {
+      $.each(map, function(code, label) {
+        opts += '<option value="' + escapeHtml(code) + '">' + escapeHtml(label) + '</option>';
+      });
+    }
+    sel.html(opts);
+    sel.data('locked', 1);
+  });
+}
+
+function tvToggleAll(el) {
+  $('#tvTable tbody .tvRow').prop('checked', $(el).is(':checked'));
+}
+
+function tvApply() {
+  var sel = [];
+  $('#tvTable tbody .tvRow:checked').each(function() {
+    sel.push({ tcversion_id: parseInt($(this).data('tcversion'), 10), tcase_id: parseInt($(this).data('tcase'), 10) });
+  });
+  if (!sel.length) {
+    $('#tvSaved').text(TLi18n.t('suvw.tblSelectOne')).css('color', '#b94a48');
+    return;
+  }
+  var status = parseInt($('#tvStatus').val() || 0, 10);
+  var importance = parseInt($('#tvImportance').val() || 0, 10);
+  var execType = parseInt($('#tvExecType').val() || 0, 10);
+  var cfs = {};
+  $('.tv-cf-on:checked').each(function() {
+    var cfId = $(this).data('cfid');
+    var val = $('.tv-cf-val[data-cfid="' + cfId + '"]').val() || '';
+    if (val !== '') cfs[cfId] = val;
+  });
+  if (status <= 0 && importance <= 0 && execType <= 0 && !Object.keys(cfs).length) {
+    $('#tvSaved').text(TLi18n.t('suvw.tblNoChangeSelected')).css('color', '#b94a48');
+    return;
+  }
+  $('#tvSaved').text(TLi18n.t('common.loading')).css('color', '#999');
+  $.ajax({
+    url: API + '?action=bulk_set',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({
+      id: SUITE_ID, tproject_id: TPROJECT_ID,
+      rows: sel, status: status, importance: importance,
+      execution_type: execType, cfs: cfs
+    })
+  }).done(function(res) {
+    if (res.status !== 'ok') {
+      $('#tvSaved').text(res.message || TLi18n.t('suvw.tblApplyError')).css('color', '#b94a48');
+      return;
+    }
+    $('#tvSaved').text(TLi18n.t('suvw.tblApplied', { count: sel.length })).css('color', '#1a7f79');
+    $('#tvTable tbody .tvRow').prop('checked', false);
+    $('#tvSelAll').prop('checked', false);
+    TV_LOADED = false;
+    loadTableView();
+  }).fail(function() {
+    $('#tvSaved').text(TLi18n.t('suvw.tblApplyError')).css('color', '#b94a48');
+  });
 }
 
 function openTc(tcId) {
