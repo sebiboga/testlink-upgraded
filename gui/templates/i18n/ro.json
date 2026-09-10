@@ -3057,5 +3057,6 @@
   "userexport.title": "Export Utilizatori",
   "userexport.userCount": "Utilizatori de exportat",
   "version": "Versiune",
-  "profile.msg.apiDisabled": "Interfața API este dezactivată de administrator"
+  "profile.msg.apiDisabled": "Interfața API este dezactivată de administrator",
+  "profile.demoUpdateDisabled": "Versiune demo, actualizare dezactivată."
 }

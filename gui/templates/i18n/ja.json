@@ -3057,5 +3057,6 @@
   "userexport.title": "ユーザー管理のエクスポート",
   "userexport.userCount": "エクスポートするユーザー数",
   "version": "バージョン",
-  "profile.msg.apiDisabled": "APIインターフェースは管理者により無効化されています"
+  "profile.msg.apiDisabled": "APIインターフェースは管理者により無効化されています",
+  "profile.demoUpdateDisabled": "デモ版のため、更新は無効です。"
 }

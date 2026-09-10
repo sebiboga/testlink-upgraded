@@ -65,7 +65,23 @@ function userProfile(tlUser $u, $db) {
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
         'apiEnabled' => (bool)($tlCfg->api->enabled ?? true),
         'canViewEvents' => (bool)$u->hasRight($db, 'mgt_view_events'),
+        'demoMode' => (bool)config_get('demoMode'),
     ];
+}
+
+// demoMode: legacy userInfo.tpl gates ALL users (including admin) from saving
+// the profile or changing the password; server-side write enforcement lives here.
+function demoModeBlockedWrite() {
+    if (!config_get('demoMode')) {
+        return false;
+    }
+    http_response_code(403);
+    out([
+        'status' => 'error',
+        'messageKey' => 'profile.demoUpdateDisabled',
+        'message'  => 'Demo mode enabled => Update User DISABLED',
+    ]);
+    exit;
 }
 
 // Route: GET /userinfo - get current user profile
@@ -140,6 +156,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'login-history'
 
 // Route: PUT /userinfo - update profile (firstName, lastName, email, locale)
 if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php')) {
+    demoModeBlockedWrite();
     $body = getBody();
     if (isset($body['firstName'])) $user->firstName = trim($body['firstName']);
     if (isset($body['lastName'])) $user->lastName = trim($body['lastName']);
@@ -161,6 +178,7 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
 
 // Route: PUT /userinfo/password - change password
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'password') {
+    demoModeBlockedWrite();
     $body = getBody();
 
     if (tlUser::isPasswordMgtExternal($user->authentication)) {

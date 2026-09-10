@@ -12675,6 +12675,7 @@ Result: 13/13 PASS — gap #1354 closed: the modern revision viewer now has a `P
 
 Result: 9/9 PASS — gap #877 closed: the BFF exposes `canViewEvents` (project-less `hasRight($db,'mgt_view_events')`, matching legacy userInfo.php:90) and the User Profile Login History card gains a right-gated "Show event history" button opening the Event Viewer filtered to `users #<userID>` via the hidden `#eventhistory` GET form (planMilestones pattern).
 
+<<<<<<< HEAD
 ---
 
 ## Task — Issue #1362: reqSpecCompare revision list default ordering (gap vs legacy)
@@ -12697,3 +12698,28 @@ Result: 9/9 PASS — gap #877 closed: the BFF exposes `canViewEvents` (project-l
 | 1362.10 | Browser console | no JS errors (only benign a11y "form field should have id/name" issue, pre-existing template pattern) | **PASS** |
 
 Result: 10/10 PASS — gap #1362 closed: no BFF change was needed (api/reqspec/index.php:814 already sends DESC); the fix is client-side in `gui/templates/requirements/reqSpecCompare.html` — integer `data-order` sort key on the Revision cell + DataTable `order: [[0,'desc']]`. Screenshot: `docs/screenshots/issue-1362-reqspeccompare-desc-order.png`.
+
+---
+
+## Task — Issue #878: demoMode read-only gating in User Profile (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/userInfo.html` · `api/userinfo/index.php`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in (id=1). demoMode toggled in `config.inc.php:2057` (`$tlCfg->demoMode = ON;` to test the gate, `OFF` afterwards — both edits reverted before commit, `git diff config.inc.php` clean at the end).
+**Gap:** legacy `dashio/usermanagement/userInfo.tpl:165-171,193-199` does NOT render Save / Change Password submit buttons when `$tlCfg->demoMode` is on (shows `demo_update_user_disabled` instead); the modern screen always rendered the buttons and the BFF `PUT /userinfo` / `PUT /userinfo/password` always wrote.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 878.1 | `GET /api/userinfo/index.php` with session cookie | payload contains `demoMode: false` when `config.inc.php` has demoMode OFF | **PASS** |
+| 878.2 | Profile UI with demoMode OFF (reload) | Save button visible, Change Password button visible, password inputs enabled | **PASS** |
+| 878.3 | Save profile (PUT) with demoMode OFF | HTTP 200, `message: Profile updated`, DB persisted | **PASS** |
+| 878.4 | Set `$tlCfg->demoMode = ON;` in config.inc.php, reload User Profile | `GET /api/userinfo` returns `demoMode: true`; Save button hidden, Change Password button hidden, both red notices "Demo version, update disabled." visible, password inputs disabled | **PASS** |
+| 878.5 | `PUT /api/userinfo` while demoMode ON | HTTP 403, `status:error`, `messageKey: profile.demoUpdateDisabled`, message "Demo mode enabled => Update User DISABLED" | **PASS** |
+| 878.6 | `PUT /api/userinfo/password` while demoMode ON | HTTP 403, `status:error`, `messageKey: profile.demoUpdateDisabled` (even before password validation) | **PASS** |
+| 878.7 | DB probe after blocked writes | `users.first/last/email` unchanged by PUT attempts (blocked server-side) | **PASS** |
+| 878.8 | Revert demoMode to OFF, verify Profile again | buttons visible again, `apiEnabled`/`canViewEvents`/other payload fields intact | **PASS** |
+| 878.9 | `php -l api/userinfo/index.php` | no syntax errors | **PASS** |
+| 878.10 | i18n completeness | `profile.demoUpdateDisabled` present in all 10 locale bundles (de/en/es/fr/it/ja/pt/ro/ru/zh), all 11 `python3 -m json.tool` valid | **PASS** |
+| 878.11 | `events` scan after suite | no rows with log_level 1 (ERROR) / 2 (WARNING) | **PASS** |
+| 878.12 | `git diff config.inc.php` after reverts | clean (no committed demoMode flip) | **PASS** |
+
+Result: 12/12 PASS — gap #878 closed: the BFF exposes `demoMode`, the modern screen replicates the legacy gating (buttons replaced by localized demo notice) AND the server now hard-blocks both write endpoints with HTTP 403 in demo mode, so no write can slip through via direct API calls. Screenshot: `docs/screenshots/issue-878-demoMode-gating.png`.

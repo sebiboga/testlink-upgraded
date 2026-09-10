@@ -3057,5 +3057,6 @@
   "userexport.title": "Benutzerverwaltung exportieren",
   "userexport.userCount": "Zu exportierende Benutzer",
   "version": "Version",
-  "profile.msg.apiDisabled": "API-Schnittstelle ist vom Administrator deaktiviert"
+  "profile.msg.apiDisabled": "API-Schnittstelle ist vom Administrator deaktiviert",
+  "profile.demoUpdateDisabled": "Demo-Version, Update deaktiviert."
 }

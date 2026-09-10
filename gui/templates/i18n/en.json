@@ -3057,5 +3057,6 @@
   "userexport.title": "User Management Export",
   "userexport.userCount": "Users to export",
   "version": "Version",
-  "profile.msg.apiDisabled": "API interface is disabled by administrator"
+  "profile.msg.apiDisabled": "API interface is disabled by administrator",
+  "profile.demoUpdateDisabled": "Demo version, update disabled."
 }

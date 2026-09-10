@@ -3057,5 +3057,6 @@
   "userexport.title": "用户管理导出",
   "userexport.userCount": "要导出的用户数",
   "version": "版本",
-  "profile.msg.apiDisabled": "API接口已被管理员禁用"
+  "profile.msg.apiDisabled": "API接口已被管理员禁用",
+  "profile.demoUpdateDisabled": "演示版本，禁用更新。"
 }

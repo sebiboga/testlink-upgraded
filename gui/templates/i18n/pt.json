@@ -3057,5 +3057,6 @@
   "userexport.title": "Exportar Gerenciamento de Usuários",
   "userexport.userCount": "Usuários a exportar",
   "version": "Versão",
-  "profile.msg.apiDisabled": "A interface API está desabilitada pelo administrador"
+  "profile.msg.apiDisabled": "A interface API está desabilitada pelo administrador",
+  "profile.demoUpdateDisabled": "Versão demo, atualização desabilitada."
 }

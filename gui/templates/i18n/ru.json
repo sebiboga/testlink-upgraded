@@ -3057,5 +3057,6 @@
   "userexport.title": "Экспорт управления пользователями",
   "userexport.userCount": "Пользователей для экспорта",
   "version": "Версия",
-  "profile.msg.apiDisabled": "API-интерфейс отключен администратором"
+  "profile.msg.apiDisabled": "API-интерфейс отключен администратором",
+  "profile.demoUpdateDisabled": "Демо-версия, обновление отключено."
 }

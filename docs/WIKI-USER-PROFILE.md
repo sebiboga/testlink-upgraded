@@ -14,8 +14,8 @@ inspect their login history.
 
 | Card | Description |
 |------|-------------|
-| **Personal Data** | Login (read-only), First name, Last name, Email, Locale, Role (read-only), and a **Save** button. |
-| **Change Password** | Old / New / Confirm password fields and a **Change Password** button. **Hidden, replaced by an informational note when password management is external** (see below). |
+| **Personal Data** | Login (read-only), First name, Last name, Email, Locale, Role (read-only), and a **Save** button. **Save hidden, replaced by a demo notice when `$tlCfg->demoMode = ON`** (see below). |
+| **Change Password** | Old / New / Confirm password fields and a **Change Password** button. **Hidden, replaced by an informational note when password management is external** (see below), and by the same demo notice in demo mode. |
 | **API Interface** | Read-only display of the current API key plus a **Generate New Key** button. **Only rendered when the XML-RPC API is enabled** (`$tlCfg->api->enabled = TRUE`, see below). |
 | **Login History** | Last 10 successful and failed logins (timestamp + description). Header shows a right-gated **Show event history** button (see below). |
 
@@ -89,13 +89,39 @@ This mirrors the pattern already used by `plans/planMilestones.html` (#1149),
 `platformsView.html`, `projectEdit` (#991), build edit (#1123) and the milestone
 screen.
 
+## Demo mode gating (read-only)
+
+When the global flag `$tlCfg->demoMode = ON` in `config.inc.php` is set, the
+screen becomes read-only for the profile and password sections — exactly like
+legacy 1.9.20:
+
+- Legacy behaviour (`gui/templates/dashio/usermanagement/userInfo.tpl:165-171`
+  and `:193-199`): in demo mode the Save and Change Password **submit buttons
+  are not rendered at all**; instead the localized label
+  `demo_update_user_disabled` ("Demo mode enabled => Update User DISABLED") is
+  shown. The gate applies to ALL users, including admin.
+- Modern behaviour (2.0.1): the BFF exposes **`demoMode`** in the
+  `GET /api/userinfo` payload (`(bool)config_get('demoMode')`). The front-end
+  then hides the Save button and the Change Password button, disables the
+  password inputs, and shows the localized notice
+  **"Demo version, update disabled."** (i18n `profile.demoUpdateDisabled`) in
+  both cards.
+- Server-side enforcement: `PUT /api/userinfo` and `PUT /api/userinfo/password`
+  are rejected with **HTTP 403** (`messageKey: profile.demoUpdateDisabled`)
+  whenever `config_get('demoMode')` is true — so no write can be performed even
+  by a direct API call.
+
+Example (demo mode ON — red notices, no Save / Change Password buttons):
+
+![User Profile — demo mode gating](screenshots/issue-878-demoMode-gating.png)
+
 ## API endpoints
 
 | Method + path | Purpose |
 |---|---|
-| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled` and `canViewEvents` — the right-gated Event Viewer flag) |
+| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled`, `canViewEvents` — the right-gated Event Viewer flag — and `demoMode`) |
 | `GET /api/userinfo/locales` | Available locales (single source of truth for all locale dropdowns) |
 | `GET /api/userinfo/login-history` | Last 10 successful + failed logins |
-| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale) |
-| `PUT /api/userinfo/password` | Change password (403 when password management is external) |
+| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale) — **403 in demo mode** |
+| `PUT /api/userinfo/password` | Change password (403 when password management is external **or in demo mode**) |
 | `POST /api/userinfo/apikey` | Generate a new API key (403 when XML-RPC API is disabled) |
