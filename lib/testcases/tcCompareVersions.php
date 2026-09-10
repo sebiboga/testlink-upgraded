@@ -154,6 +154,11 @@ function buildDiff($items,$argsObj)
     }  
   } 
 
+  if (!is_array($items))
+  {
+    return $diff;
+  }
+
   foreach($items as $tcase) 
   {   
     foreach($panel as $side)
