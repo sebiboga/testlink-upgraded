@@ -12462,3 +12462,28 @@ Result: 17/17 PASS — **gap #1327 fully closed**. Both previously-open regressi
 | 1332.7 | Related-but-separate edge (compare submit with `testcase_id=0` → `Line 157` foreach warning) | documented + filed as bug **#1333** (out of scope for this run) | PASS (filed, not fixed here) |
 
 Result: 7/7 PASS — **issue #1332 fixed and verified**; secondary edge case (Line 157, `buildDiff` on null input) tracked as **#1333**.
+
+---
+
+## Task 875 — External password-management gating in User Profile (Refs #875)
+
+**Screen:** `gui/templates/usermanagement/userInfo.html` · **BFF:** `api/userinfo/index.php` (`GET /`, `PUT /password`)
+**Legacy reference:** `lib/usermanagement/userInfo.php:87` (`external_password_mgmt` Smarty flag) + `gui/templates/dashio/usermanagement/userInfo.tpl:177-204` (`{if $external_password_mgmt eq 0}` password form `{else}` `<p>{$labels.your_password_is_external}</p>`).
+**Scope:** password change must be offered ONLY when password management is internal; when external (e.g. LDAP domain with `allowPasswordManagement=false`) the form is hidden, the localized external note is shown, and the BFF rejects the change.
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin session; internal = `users.auth_method=''` (falls back to configured method `DB`, `allowPasswordManagement=true`); external = `users.auth_method='LDAP'` (config.inc.php:465-466, `allowPasswordManagement=false`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 875.1 | `php -l api/userinfo/index.php` | no syntax errors | **PASS** |
+| 875.2 | `python3 -m json.tool` on all 10 i18n bundles | valid JSON; `profile.yourPasswordIsExternal` present in all 10 (en ro de es fr it ja pt ru zh) | **PASS** |
+| 875.3 | Internal auth (`auth_method=''`): `GET /api/userinfo` | payload `isPasswordExternal=false`, `authentication=""` | **PASS** |
+| 875.4 | Internal auth: open modern profile screen | Change Password form visible (`#pwForm` display != none), external note hidden | **PASS** |
+| 875.5 | Internal auth: `PUT /api/userinfo/password` with correct old password | HTTP 200 `{"status":"ok"}` — password change still works; audit event `User 'admin' password changed` (log_level 16, INFO) | **PASS** |
+| 875.6 | External auth (`auth_method='LDAP'`): `GET /api/userinfo` | payload `isPasswordExternal=true`, `authentication="LDAP"` | **PASS** |
+| 875.7 | External auth: reload modern profile screen | Change Password form **hidden** (`#pwForm` display == none), external note **shown** with localized text "Your password is managed by an external system." | **PASS** |
+| 875.8 | External auth: `PUT /api/userinfo/password` (valid old+new pw) | HTTP 403 `{"status":"error","message":"Password is managed by an external system"}` — no password change | **PASS** |
+| 875.9 | Revert `auth_method=''`, reload | form visible again, note hidden, `isPasswordExternal=false` (state fully restorable) | **PASS** |
+| 875.10 | Event Viewer / `events` table after all scenarios | only INFO/audit entries (LOGIN, `password changed`); **no** new ERROR/WARNING (log_level 2/3) rows | **PASS** |
+| 875.11 | Browser console during internal + external scenarios | no JS errors | **PASS** |
+
+Result: 11/11 PASS — **gap #875 fully closed**: payload flag exposes legacy `isPasswordMgtExternal`, front-end toggles form↔note exactly like legacy tpl, BFF refuses external password changes with a clean 403. Screenshot for wiki: `docs/screenshots/issue-875-user-profile-password-external.png`.

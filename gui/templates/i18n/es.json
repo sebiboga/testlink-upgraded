@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "Inicios de sesión exitosos",
   "profile.timestamp": "MARCA DE TIEMPO",
   "profile.yourApiKey": "Su clave API",
+  "profile.yourPasswordIsExternal": "Su contraseña está gestionada por un sistema externo.",
   "proj.activate": "Activar",
   "proj.active": "Activo",
   "proj.availability": "Disponibilidad",

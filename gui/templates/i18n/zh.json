@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "成功登录",
   "profile.timestamp": "时间戳",
   "profile.yourApiKey": "您的API密钥",
+  "profile.yourPasswordIsExternal": "您的密码由外部系统管理。",
   "proj.activate": "激活",
   "proj.active": "启用",
   "proj.availability": "可用性",

@@ -32,6 +32,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .alert { padding: 10px 14px; border-radius: 4px; font-size: 13px; margin-bottom: 12px; display: none; }
 .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
 .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.external-note { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 4px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; display: none; }
 .apikey-display { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 10px 14px; font-family: monospace; font-size: 13px; word-break: break-all; display: flex; align-items: center; justify-content: space-between; }
 .apikey-display .copy-btn { cursor: pointer; color: #4ECDC4; margin-left: 12px; font-size: 14px; }
 .login-history-table { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -93,22 +94,25 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <div class="card-header"><i class="fa fa-lock"></i> <span data-i18n="profile.changePassword">Change Password</span></div>
     <div class="card-body">
       <div id="pwAlert" class="alert"></div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label data-i18n="profile.currentPassword">Current Password</label>
-        <input type="password" id="oldPassword">
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label data-i18n="profile.newPassword">New Password</label>
-          <input type="password" id="newPassword">
+      <div id="pwExternalMsg" class="external-note"><i class="fa fa-info-circle"></i> <span data-i18n="profile.yourPasswordIsExternal">Your password is managed by an external system.</span></div>
+      <div id="pwForm" style="display:none;">
+        <div class="form-group" style="margin-bottom:12px;">
+          <label data-i18n="profile.currentPassword">Current Password</label>
+          <input type="password" id="oldPassword">
         </div>
-        <div class="form-group">
-          <label data-i18n="profile.confirmNewPassword">Confirm New Password</label>
-          <input type="password" id="newPasswordCheck">
+        <div class="form-row">
+          <div class="form-group">
+            <label data-i18n="profile.newPassword">New Password</label>
+            <input type="password" id="newPassword">
+          </div>
+          <div class="form-group">
+            <label data-i18n="profile.confirmNewPassword">Confirm New Password</label>
+            <input type="password" id="newPasswordCheck">
+          </div>
         </div>
-      </div>
-      <div class="btn-group">
-        <button class="btn-teal" onclick="changePassword()"><i class="fa fa-key"></i> <span data-i18n="profile.changePassword">Change Password</span></button>
+        <div class="btn-group">
+          <button class="btn-teal" onclick="changePassword()"><i class="fa fa-key"></i> <span data-i18n="profile.changePassword">Change Password</span></button>
+        </div>
       </div>
     </div>
   </div>
@@ -183,6 +187,13 @@ function loadProfile() {
     $('#email').val(profileData.email);
     $('#roleName').val(profileData.globalRoleName);
     $('#apiKeyValue').text(profileData.apiKey || 'none');
+    if (profileData.isPasswordExternal) {
+      $('#pwForm').hide();
+      $('#pwExternalMsg').show();
+    } else {
+      $('#pwForm').show();
+      $('#pwExternalMsg').hide();
+    }
     if (profileData.locale) {
       $('#locale').val(profileData.locale);
     }

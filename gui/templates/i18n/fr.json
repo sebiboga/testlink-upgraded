@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "Connexions réussies",
   "profile.timestamp": "HORODATAGE",
   "profile.yourApiKey": "Votre clé API",
+  "profile.yourPasswordIsExternal": "Votre mot de passe est géré par un système externe.",
   "proj.activate": "Activer",
   "proj.active": "Actif",
   "proj.availability": "Disponibilité",

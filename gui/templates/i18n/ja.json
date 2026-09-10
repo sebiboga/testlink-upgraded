@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "成功したログイン",
   "profile.timestamp": "タイムスタンプ",
   "profile.yourApiKey": "あなたのAPIキー",
+  "profile.yourPasswordIsExternal": "パスワードは外部システムで管理されています。",
   "proj.activate": "有効化",
   "proj.active": "有効",
   "proj.availability": "利用可否",

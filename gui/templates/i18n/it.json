@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "Accessi riusciti",
   "profile.timestamp": "TIMESTAMP",
   "profile.yourApiKey": "La tua chiave API",
+  "profile.yourPasswordIsExternal": "La tua password è gestita da un sistema esterno.",
   "proj.activate": "Attiva",
   "proj.active": "Attivo",
   "proj.availability": "Disponibilità",

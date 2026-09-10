@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "Sessões iniciadas com sucesso",
   "profile.timestamp": "CARIMBO TEMPORAL",
   "profile.yourApiKey": "A sua chave API",
+  "profile.yourPasswordIsExternal": "A sua senha é gerenciada por um sistema externo.",
   "proj.activate": "Ativar",
   "proj.active": "Ativo",
   "proj.availability": "Disponibilidade",

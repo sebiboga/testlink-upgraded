@@ -61,6 +61,7 @@ function userProfile(tlUser $u, $db) {
         'globalRoleName' => $roleName,
         'apiKey' => $u->userApiKey ?? 'none',
         'authentication' => $u->authentication ?? '',
+        'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
     ];
 }
 
@@ -158,6 +159,12 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
 // Route: PUT /userinfo/password - change password
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'password') {
     $body = getBody();
+
+    if (tlUser::isPasswordMgtExternal($user->authentication)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Password is managed by an external system']);
+    }
+
     $oldPassword = $body['oldPassword'] ?? '';
     $newPassword = $body['newPassword'] ?? '';
 

@@ -1349,6 +1349,7 @@
   "profile.successfulLogins": "Autentificari Reusite",
   "profile.timestamp": "TIMP",
   "profile.yourApiKey": "Cheia ta API",
+  "profile.yourPasswordIsExternal": "Parola ta este gestionata de un sistem extern.",
   "proj.activate": "Activează",
   "proj.active": "Activ",
   "proj.availability": "Disponibilitate",
