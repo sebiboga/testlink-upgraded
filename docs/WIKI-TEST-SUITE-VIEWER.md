@@ -56,13 +56,38 @@ The BFF reproduces the read-only suite viewer:
 | Section | Description |
 |---------|-------------|
 | **Header** | "Test Suite Viewer" + owning test project name + locale switcher |
-| **Toolbar** | Refresh, "Open in Test Specification" (→ `testSpec.html?tproject_id=..`), context (#id) |
+| **Toolbar** | Refresh, "Open in Test Specification" (→ `testSpec.html?tproject_id=..`), Export Test Cases, Export Test Suite, **Table view** (when `mgt_modify_tc` on the owning project), context (#id) |
 | **Overview card** | Identifier (suite name + `#id`), Parent, Child test suites, Test cases |
 | **Details card** | Suite `details` (fallback `(no details)`) |
 | **Test cases card** | DataTable (External ID, Name, Version, Importance badge, Summary) with search + pagination |
+| **Test cases table view card** | Full grid for bulk-set (admin/designer with `mgt_modify_tc`): checkbox column, External ID, Name, Version, **Status**, Importance, **Execution Type**, Summary + per design-time custom field a set-input (checkbox + value select/text); bulk toolbar (Status / Importance / Execution Type selects + "Apply to selected") |
 | **Keywords card** | Keyword chips (hidden when empty) |
 | **Attachments card** | Attachment rows with size + date (hidden when empty) |
 | **Footer** | Generated-on timestamp |
+
+## Test cases table view (gap vs legacy, issue #1371)
+
+Legacy parity target: the `testcases_table_view` action of
+`lib/testcases/containerEdit.php:215-224` (button in
+`containerViewTestSuiteTextButtons.inc.tpl`, only when
+`modify_tc_rights == 'yes'`) → `moveTestCasesViewer()`, which rendered a full
+selectable grid of the suite test cases (MAX version each, regardless of the
+active flag) with design-time custom-field set inputs
+(`html_table_inputs(..., addCheck=true)`) and a bulk toolbar whose Save ran
+`doBulkSet()` (status / importance / execution_type + `design_values_to_db`).
+
+The modern screen reproduces it:
+
+| Piece | Location |
+|-------|----------|
+| **Rights** | `info` returns `can_manage` = `mgt_modify_tc == 'yes'` on the owning project; the toolbar button is hidden otherwise (`suiteView.html`). |
+| **Grid BFF** | `GET /api/suiteview/?action=table&id=<suite>&tproject_id=<pid>` — one row per test case (MAX `tcversions.version`, inactive versions INCLUDED, matching the legacy grid), each with `tcversion_id`, `tcase_id`, `name`, `external_id_display`, `version`, `active`, `status`, `importance`, `execution_type`, `summary` and `cf.{cfId}` design values; plus `cfs` definitions and `domains` (localized status/importance/execution_type maps). |
+| **Bulk write BFF** | `POST /api/suiteview/?action=bulk_set` `{id, tproject_id, rows:[{tcversion_id,tcase_id}], status, importance, execution_type, cfs:{cfId:value}}` — gated on `mgt_modify_tc` (HTTP 403 otherwise); per selected version applies `setStatus`/`setImportance`/`setExecutionType` when the value > 0, then `cfield_mgr->design_values_to_db()` for each provided CF value (legacy `doBulkSet` ordering, `containerEdit.php:1434`). |
+| **UI** | "Table view" toolbar button toggles the full grid; header checkbox selects/deselects all; DataTable with search + pagination; bulk toolbar under the grid + success/error feedback (`suvw.tbl*` keys, all 10 locales). |
+
+Screenshots (issue #1371):
+`![table-view](screenshots/issue-1371-table-view.png)`,
+`![before](screenshots/issue-1371-before.png)`.
 
 ## Flow
 
@@ -106,7 +131,8 @@ screen routes suite viewing through `archiveData.php` (grep-clean).
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
-(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 25 keys; bundles validated with
+(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 38 keys (25 original + 13 table-view
+keys added with issue #1371); bundles validated with
 `python3 -m json.tool`.
 
 ## Test coverage

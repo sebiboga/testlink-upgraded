@@ -12768,3 +12768,25 @@ Result: 8/8 PASS — gap #1360 closed: BFF `api/reqspec/index.php` returns `cont
 | 879.15 | Syntax + hygiene | `php -l api/users/index.php` clean; i18n bundles pass `python3 -m json.tool`; no new Error/Warning in `events` from screen | **PASS** |
 
 Result: 15/15 PASS — gap #879 closed: BFF `api/users/index.php` refuses every route with 403 `no_permissions_for_action` when the session user lacks `mgt_users` (mirroring legacy checkRights), audits `audit_security_user_right_missing`, and `gui/templates/usermanagement/usersView.html` gates the management tabs on `getGrantsForUserMgmt()` and shows a no-access box when the right is missing. Side-findings: two undefined tlUser error constants caused empty-body 400s on create validation failures (bug #1373 → fixed in branch). Screenshots: `docs/screenshots/issue-879-guest-denied.png`, `docs/screenshots/issue-879-usermgr-tabs.png`.
+
+## Task — Issue #1371: Test cases table view in suiteView (gap vs legacy)
+
+**Screens:** `gui/templates/testcases/suiteView.html` · `api/suiteview/index.php`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in. Fixture `tmp/fixtures_1371.php`: testproject id 1 `TVDemo` (prefix TVD), testsuite id 2 `Suite Alpha`, 3 test cases (ids 3/6/9, tcversions 4/7/10) with distinct status (1/2/3), importance (3/2/1), execution_type (1/2/1); design CF id 1 `Priority Level` (type 6=list, P1/P2/P3) linked to project, design values P1/P2/P3. Guest user `tvviewer`/`password123` (role guest, id 5 — mgt_view_tc WITHOUT mgt_modify_tc). Screen URL: `suiteView.html?id=2&tproject_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1371.1 | `GET /api/suiteview/index.php?action=table&id=2&tproject_id=1` (admin) | 200; 3 rows each with tcversion_id (4/7/10), external_id_display (TVD-1..3), status, importance, execution_type, `cf:{1:value}`; `cfs` includes id 1 type 6; can_manage=true | **PASS** |
+| 1371.2 | `POST ?action=bulk_set` (admin) {rows:[{tcversion_id:10}], status:4, importance:2, cfs:{1:'P2'}} | 200 `updated:1`; tcversions.id=10 `status=4 importance=2`; cfield_design_values node_id=10 value='P2' | **PASS** |
+| 1371.3 | Row 10 restored to status 3 / importance 1 / CF P3 via bulk_set | 200; DB probe confirms reverted to fixture state | **PASS** |
+| 1371.4 | Load modern suiteView (admin) toolbar | "Table view" button visible (can_manage=true) | **PASS** |
+| 1371.5 | Click "Table view" | Full grid renders: checkbox col + External ID / Name / Version / Status / Importance / Execution Type / Summary; 3 rows show Draft / Ready for review / Review in progress and Manual / Automated / Manual; CF set-input "Priority Level" with checkbox + select (P1/P2/P3); bulk toolbar with 3 dropdowns + Apply | **PASS** |
+| 1371.6 | Select TC-Three row, set Status=Final, Importance=High, CF checkbox + P1, click Apply | "Applied to 1 test case(s)"; row re-renders Status=Final, Importance=High; DB: tcversions.id=10 status=7 importance=3; cfield_design_values value='P1' | **PASS** |
+| 1371.7 | Click Apply with NO row selected | Error message `suvw.tblSelectOne` ("Select at least one test case"), red, no request | **PASS** |
+| 1371.8 | Click Apply with row selected but all "no change" | Error message `suvw.tblNoChangeSelected`, red, no request | **PASS** |
+| 1371.9 | Guest login `tvviewer` → GET `info` | `can_manage:false`; `#tvBtn` computed display `none`; `GET table` still 200 (read allowed) | **PASS** |
+| 1371.10 | Guest login → POST `bulk_set` {rows:[{tcversion_id:10}], status:4} | HTTP 403 `You are not authorized to modify test cases`; no DB change | **PASS** |
+| 1371.11 | Hygiene | `php -l api/suiteview/index.php` clean; inline JS `node --check` clean; `python3 -m json.tool` passes all 10 i18n bundles; `events` has only level-16 audit rows, no ERROR/WARNING | **PASS** |
+| 1371.12 | Regression — viewer + info | Default per-case viewer still renders 5-column table correctly; info payload unchanged shape (+can_manage/domains) | **PASS** |
+
+Result: 12/12 PASS — gap #1371 closed: BFF `api/suiteview/index.php` exposes `info.can_manage` + domains, `GET table` (full grid w/ status/execution_type/version/CF values per tcversion) and mgt_modify_tc-gated `POST bulk_set` (legacy `doBulkSet` parity: setStatus/setImportance/setExecutionType + `design_values_to_db`); `gui/templates/testcases/suiteView.html` adds the canManage-gated "Table view" with checkbox grid + per-CF set-inputs + bulk toolbar; 13 `suvw.tbl*` keys added in all 10 locales. Screenshots: `docs/screenshots/issue-1371-table-view.png`.
