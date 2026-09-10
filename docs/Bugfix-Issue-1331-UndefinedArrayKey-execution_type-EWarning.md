@@ -71,7 +71,9 @@ $this->create_step($tcversion_id,$steps[$idx]['step_number'],
 The empty-coalescing operator makes the missing-key case default the step to
 `TESTCASE_EXECUTION_TYPE_MANUAL` — exactly the value `create_step()`'s
 signature default intended. It mirrors the `createVersion()` guard and reuses
-the `??` idiom already present in `create_step()` (`testcase.class.php:5788-5793`).
+the same defaulting idiom already present in `create_step()`
+(`testcase.class.php:5788-5793`, there expressed as an `isset(...) ? ... :
+...` ternary).
 
 **Rejected alternatives:** (a) guarding with an explicit `isset(...) ? ... :
 ...` ternary — functionally identical but more verbose than the `??` operator
