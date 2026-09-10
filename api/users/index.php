@@ -179,9 +179,9 @@ if ($method === 'POST' && empty($segments)) {
     } else {
         http_response_code(400);
         $msg = 'Error creating user';
-        if ($result == tlUser::E_LOGINEMPTY) $msg = 'Login cannot be empty';
+        if ($result == tlUser::E_LOGINLENGTH) $msg = 'Login cannot be empty';
         elseif ($result == tlUser::E_LOGINALREADYEXISTS) $msg = 'Login already exists';
-        elseif ($result == tlUser::E_EMAILINVALID) $msg = 'Invalid email';
+        elseif ($result == tlUser::E_EMAILFORMAT) $msg = 'Invalid email';
         out(['status' => 'error', 'message' => $msg, 'code' => $result]);
     }
 }
