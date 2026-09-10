@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "esportare l'elenco completo degli utenti in un file XML",
   "userexport.title": "Esporta Gestione Utenti",
   "userexport.userCount": "Utenti da esportare",
-  "version": "Versione"
+  "version": "Versione",
+  "profile.msg.apiDisabled": "L'interfaccia API è disabilitata dall'amministratore"
 }

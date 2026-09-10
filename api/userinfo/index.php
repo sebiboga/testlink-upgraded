@@ -51,6 +51,7 @@ function userProfile(tlUser $u, $db) {
         $role = tlRole::getByID($db, $u->globalRoleID, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
         if ($role) $roleName = $role->getDisplayName();
     }
+    global $tlCfg;
     return [
         'id' => intval($u->dbID),
         'login' => $u->login,
@@ -62,6 +63,7 @@ function userProfile(tlUser $u, $db) {
         'apiKey' => $u->userApiKey ?? 'none',
         'authentication' => $u->authentication ?? '',
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
+        'apiEnabled' => (bool)($tlCfg->api->enabled ?? true),
     ];
 }
 
@@ -195,6 +197,11 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'password') {
 
 // Route: POST /userinfo/apikey - generate new API key
 if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'apikey') {
+    global $tlCfg;
+    if (!($tlCfg->api->enabled ?? true)) {
+        http_response_code(403);
+        out(['status' => 'error', 'messageKey' => 'profile.msg.apiDisabled', 'message' => 'API interface is disabled by administrator']);
+    }
     $APIKey = new APIKey();
     $result = $APIKey->addKeyForUser($userId);
     if ($result < tl::OK) {

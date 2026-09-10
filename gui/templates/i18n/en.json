@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "export the full user list to an XML file",
   "userexport.title": "User Management Export",
   "userexport.userCount": "Users to export",
-  "version": "Version"
+  "version": "Version",
+  "profile.msg.apiDisabled": "API interface is disabled by administrator"
 }

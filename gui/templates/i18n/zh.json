@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "将完整用户列表导出为XML文件",
   "userexport.title": "用户管理导出",
   "userexport.userCount": "要导出的用户数",
-  "version": "版本"
+  "version": "版本",
+  "profile.msg.apiDisabled": "API接口已被管理员禁用"
 }

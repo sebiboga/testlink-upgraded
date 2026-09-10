@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "全ユーザーリストをXMLファイルにエクスポートします",
   "userexport.title": "ユーザー管理のエクスポート",
   "userexport.userCount": "エクスポートするユーザー数",
-  "version": "バージョン"
+  "version": "バージョン",
+  "profile.msg.apiDisabled": "APIインターフェースは管理者により無効化されています"
 }

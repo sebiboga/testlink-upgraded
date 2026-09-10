@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "экспорт полного списка пользователей в XML-файл",
   "userexport.title": "Экспорт управления пользователями",
   "userexport.userCount": "Пользователей для экспорта",
-  "version": "Версия"
+  "version": "Версия",
+  "profile.msg.apiDisabled": "API-интерфейс отключен администратором"
 }

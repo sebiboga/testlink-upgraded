@@ -3051,5 +3051,6 @@
   "userexport.subtitle": "exportați întreaga listă de utilizatori într-un fișier XML",
   "userexport.title": "Export Utilizatori",
   "userexport.userCount": "Utilizatori de exportat",
-  "version": "Versiune"
+  "version": "Versiune",
+  "profile.msg.apiDisabled": "Interfața API este dezactivată de administrator"
 }

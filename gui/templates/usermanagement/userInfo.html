@@ -118,7 +118,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   </div>
 
   <!-- API Key -->
-  <div class="card">
+  <div id="apiKeyCard" class="card" style="display:none;">
     <div class="card-header"><i class="fa fa-key"></i> <span data-i18n="profile.apiInterface">API Interface</span></div>
     <div class="card-body">
       <div id="apiKeyAlert" class="alert"></div>
@@ -187,6 +187,11 @@ function loadProfile() {
     $('#email').val(profileData.email);
     $('#roleName').val(profileData.globalRoleName);
     $('#apiKeyValue').text(profileData.apiKey || 'none');
+    if (profileData.apiEnabled) {
+      $('#apiKeyCard').show();
+    } else {
+      $('#apiKeyCard').hide();
+    }
     if (profileData.isPasswordExternal) {
       $('#pwForm').hide();
       $('#pwExternalMsg').show();
@@ -270,7 +275,10 @@ function generateApiKey() {
     },
     error: function(xhr) {
       var msg = TLi18n.t('profile.msg.errorApiKey');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      try {
+        var body = JSON.parse(xhr.responseText);
+        msg = (body.messageKey && TLi18n.t(body.messageKey)) || body.message || msg;
+      } catch(e) {}
       showAlert('error', msg, 'apiKeyAlert');
     }
   });

@@ -12591,3 +12591,25 @@ Result: 17/17 PASS — bug #1333 fixed (foreach null guard), gap #1329/#1340 clo
 | 1338.11 | Browser console on all three screens | no JS errors (only the expected pre-existing 401 on the `/api/userinfo` auth-state probe) | **PASS** |
 
 Result: 11/11 PASS — gap #1338 closed; `firstLogin.html`/`lostPassword.html` advertised to `login.php` serve context with absolute hrefs. Accompanying discovery: spurious `external_password_mgmt` config WARNING in `api/auth/index.php:272` filed as bug #1342. Commit: `HEAD` (task/issue-1338).
+
+---
+
+## Task — Issue #876: API-enabled gating in User Profile (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/userInfo.html` · `api/userinfo/index.php` · `config.inc.php` (`$tlCfg->api->enabled`)
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, logged in as admin. `$tlCfg->api->enabled` defaults to TRUE in `config.inc.php:634`.
+**Gap:** legacy `userInfo.tpl:206` wraps the API Interface section in `{if $tlCfg->api->enabled}`; the modern screen previously always showed the API card and always allowed key generation.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 876.1 | With `$tlCfg->api->enabled = TRUE`, open User Profile (`/gui/templates/usermanagement/userInfo.html`) | **API Interface** card rendered (key display + Generate New Key button); `GET /api/userinfo` returns `apiEnabled: true` | **PASS** |
+| 876.2 | Click **Generate New Key** with API enabled | Alert "API key generated", new key shown in the display | **PASS** |
+| 876.3 | Set `$tlCfg->api->enabled = FALSE`; reload User Profile | **API Interface card is NOT rendered** (hidden via `profileData.apiEnabled === false`); card div has `style="display:none"` and is never shown | **PASS** |
+| 876.4 | With API disabled, direct-call `POST /api/userinfo/apikey` | HTTP 403 `{"status":"error","message":"API interface is disabled by administrator"}` — no key generated | **PASS** |
+| 876.5 | Restore `$tlCfg->api->enabled = TRUE`; reload User Profile | API Interface card visible again; `GET /api/userinfo` returns `apiEnabled: true` | **PASS** |
+| 876.6 | `php -l api/userinfo/index.php` | no syntax errors | **PASS** |
+| 876.7 | i18n completeness — `profile.msg.apiDisabled` present in all 10 locale bundles (flat dot-notation key, bundle convention) | en, ro, de, fr, es, it, pt, ru, ja, zh all contain the flat key `profile.msg.apiDisabled`; all JSON valid (`python3 -m json.tool`); `TLi18n.t('profile.msg.apiDisabled')` resolves to the translated string and 403 alert shows it | **PASS** |
+| 876.8 | `events` scan after the whole suite | only INFO/AUDIT rows (`login succeeded`, `API key regenerated`); **0** E_WARNING/E_ERROR (log_level 2/3) rows | **PASS** |
+| 876.9 | Browser console during all states | no JS errors | **PASS** |
+
+Result: 9/9 PASS — gap #876 closed: BFF exposes `apiEnabled` in the profile payload, hides the API Interface card when the XML-RPC API is disabled, and `POST /api/userinfo/apikey` returns 403 when disabled. Screenshots: `tmp/issue-876-api-enabled.png`, `tmp/issue-876-api-disabled.png`.
