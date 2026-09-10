@@ -3058,5 +3058,6 @@
   "userexport.userCount": "Utilizatori de exportat",
   "version": "Versiune",
   "profile.msg.apiDisabled": "Interfața API este dezactivată de administrator",
-  "profile.demoUpdateDisabled": "Versiune demo, actualizare dezactivată."
+  "profile.demoUpdateDisabled": "Versiune demo, actualizare dezactivată.",
+  "user.noRights": "Nu aveți dreptul mgt_users necesar pentru a gestiona utilizatorii."
 }

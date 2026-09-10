@@ -3035,6 +3035,7 @@
   "user.lastName": "Last Name",
   "user.locale": "Locale",
   "user.login": "Login",
+  "user.noRights": "You do not have the rights required to manage users (mgt_users right required).",
   "user.password": "Password",
   "user.role": "Role",
   "user.status": "Status",

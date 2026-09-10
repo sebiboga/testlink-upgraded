@@ -3058,5 +3058,6 @@
   "userexport.userCount": "Zu exportierende Benutzer",
   "version": "Version",
   "profile.msg.apiDisabled": "API-Schnittstelle ist vom Administrator deaktiviert",
-  "profile.demoUpdateDisabled": "Demo-Version, Update deaktiviert."
+  "profile.demoUpdateDisabled": "Demo-Version, Update deaktiviert.",
+  "user.noRights": "Sie benötigen das Recht mgt_users, um Benutzer zu verwalten."
 }

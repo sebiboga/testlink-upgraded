@@ -3058,5 +3058,6 @@
   "userexport.userCount": "Usuários a exportar",
   "version": "Versão",
   "profile.msg.apiDisabled": "A interface API está desabilitada pelo administrador",
-  "profile.demoUpdateDisabled": "Versão demo, atualização desabilitada."
+  "profile.demoUpdateDisabled": "Versão demo, atualização desabilitada.",
+  "user.noRights": "Você não tem o direito mgt_users necessário para gerenciar usuários."
 }

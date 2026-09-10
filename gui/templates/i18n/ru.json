@@ -3058,5 +3058,6 @@
   "userexport.userCount": "Пользователей для экспорта",
   "version": "Версия",
   "profile.msg.apiDisabled": "API-интерфейс отключен администратором",
-  "profile.demoUpdateDisabled": "Демо-версия, обновление отключено."
+  "profile.demoUpdateDisabled": "Демо-версия, обновление отключено.",
+  "user.noRights": "У вас нет права mgt_users, необходимого для управления пользователями."
 }

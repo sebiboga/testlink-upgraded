@@ -34,13 +34,25 @@ if (is_null($user)) {
     exit;
 }
 
+function out($data) { echo json_encode($data); exit; }
+
+// Legacy parity: lib/usermanagement/usersView.php checkRights() ->
+// $user->hasRight($db,'mgt_users'); also enforced by usersEdit.php:482,
+// usersExport.php:105 and usersAssign.php. Every user-management entry
+// point (list/create/edit/disable/export) requires the mgt_users right.
+// Without it the BFF refuses to serve ANY route (403), mirroring the
+// legacy login redirect for unauthorized users.
+if (!$user->hasRight($db, 'mgt_users')) {
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => 'mgt_users']);
+}
+
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/users(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
 $method = $_SERVER['REQUEST_METHOD'];
 $segments = array_values(array_filter(explode('/', $path)));
 
-function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
@@ -119,6 +131,17 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         foreach ($locales as $k => $v) { $items[] = ['code' => $k, 'name' => $v]; }
     }
     out(['status' => 'ok' , 'items' => $items]);
+}
+
+// Route: GET /users/meta/grants - user mgmt grant flags (mirror of legacy
+// getGrantsForUserMgmt()). Used by the modernized screens (usersView,
+// usersExport, ...) to gate the tab bar: role mgmt / assign-project /
+// assign-plan tabs only render when the matching grant is 'yes'.
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'grants') {
+    $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+    $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+    $grants = getGrantsForUserMgmt($db, $user, $tprojectID, $tplanID);
+    out(['status' => 'ok', 'grants' => $grants]);
 }
 
 // Route: GET /users/{id} - get single user

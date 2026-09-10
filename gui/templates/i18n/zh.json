@@ -3058,5 +3058,6 @@
   "userexport.userCount": "要导出的用户数",
   "version": "版本",
   "profile.msg.apiDisabled": "API接口已被管理员禁用",
-  "profile.demoUpdateDisabled": "演示版本，禁用更新。"
+  "profile.demoUpdateDisabled": "演示版本，禁用更新。",
+  "user.noRights": "您没有管理用户所需的mgt_users权限。"
 }
