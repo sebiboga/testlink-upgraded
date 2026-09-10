@@ -70,12 +70,19 @@ live authentication errors:
 
 ## 4. Self-registration & lost password
 
-- **New user? Create account** → `firstLogin.php?viewer=new` (sign-up form).
-- **Lost password?** → `lostPassword.php?viewer=new` (reset form). The reset templates were
-  added to the Dashio theme to fix a 500 (see #776).
+- **New user? Create account** → `/gui/templates/auth/firstLogin.html` (modern sign-up form,
+  `POST /api/auth/signup`).
+- **Lost password?** → `/gui/templates/auth/lostPassword.html` (modern reset form,
+  `POST /api/auth/reset`).
 
-These links only render when the server reports that self-signup and password management are
-allowed by the configured authentication method.
+The links carry **absolute** hrefs (`/gui/templates/auth/firstLogin.html` and
+`/gui/templates/auth/lostPassword.html`) because the login page is served two ways: directly at
+`/gui/templates/auth/login.html` and `readfile()`-ed at `/login.php`. A relative href would
+resolve against `/` in the latter context and 404 (`/firstLogin.html`). Fixed in #1338.
+
+These links always render; the lost-password link is hidden only when the authentication method
+manages passwords externally or demo mode is on (same gate as legacy `external_password_mgmt` /
+`demoMode`).
 
 ---
 

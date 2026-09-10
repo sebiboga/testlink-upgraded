@@ -12567,3 +12567,27 @@ Result: 7/7 PASS — issue #1334 closed: no more E_WARNING, hidden test-project 
 | 1341.6 | Browser console during all modern-print renders | no JS errors | **PASS** |
 
 Result: 17/17 PASS — bug #1333 fixed (foreach null guard), gap #1329/#1340 closed (modern spec-generation buttons, format 0=HTML / 4=Word, same `mgt_modify_tc` gate), bug #1341 fixed (`headers_sent()` guard removes `Cannot modify header information` E_WARNING on format=4). Commits: `1f2d0a5d3`, `e283f8dc2`, `1de4b8070`.
+
+---
+
+## Task — Issue #1338: Working "New user?" sign-up path from /login.php entry in auth/firstLogin
+
+**Screens:** `login.php` (renderLoginScreen → readfile of `gui/templates/auth/login.html`) · `gui/templates/auth/firstLogin.html` (sign-up) · `gui/templates/auth/lostPassword.html` (password reset) · `api/auth/index.php` (signup/reset routes)
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, unauthenticated session. DB imported. Self-signup enabled (`GET /api/auth/config` → `selfSignup:true`, `externalPasswordMgmt:false`).
+**Root cause:** `gui/templates/auth/login.html:171,177` set RELATIVE hrefs `firstLogin.html`/`lostPassword.html`; served at `/login.php` the resolution base is `/` → `/firstLogin.html`, `/lostPassword.html` → 404. Fix: absolute hrefs `/gui/templates/auth/firstLogin.html` and `/gui/templates/auth/lostPassword.html`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1338.1 | Fresh browser → `GET /index.php` (unauthenticated) | redirects to `/login.php`, HTTP 200, modern login card renders | **PASS** |
+| 1338.2 | Inspect "New user? Create account" link on `/login.php` | href resolves to `http://localhost:8082/gui/templates/auth/firstLogin.html` (not `/firstLogin.html`) | **PASS** |
+| 1338.3 | Click "New user? Create account" from `/login.php` | navigates to `/gui/templates/auth/firstLogin.html`, HTTP 200, **no 404**; sign-up form renders (User ID / First Name / Last Name / Email / Password / Repeat password + Sign up button) | **PASS** |
+| 1338.4 | Inspect "Lost password?" link on `/login.php` | href resolves to `http://localhost:8082/gui/templates/auth/lostPassword.html` | **PASS** |
+| 1338.5 | Click "Lost password?" from `/login.php` | navigates to `/gui/templates/auth/lostPassword.html`, HTTP 200, reset form renders ("Enter your user ID...", Send button) | **PASS** |
+| 1338.6 | Sign-up end-to-end: fill form (login `issue1338user`) on `/gui/templates/auth/firstLogin.html`, submit | `POST /api/auth/signup` 200; redirect to `login.html?note=first`; info banner "First login detected. Welcome!" | **PASS** |
+| 1338.7 | Verify user persisted | `SELECT ... FROM users WHERE login='issue1338user'` → row exists (id=2, en_GB) | **PASS** |
+| 1338.8 | Direct open of `/gui/templates/auth/login.html` (canonical URL) | both sibling links still resolve absolutely and work | **PASS** |
+| 1338.9 | Back-links on firstLogin.html / lostPassword.html ("Back to login") | absolute `/gui/templates/auth/login.html`, 200 | **PASS** |
+| 1338.10 | `events` scan after suite | **0** new ERROR/WARNING rows *from the href fix* (one pre-existing `config option not available: external_password_mgmt` WARNING from the signup BFF logged separately as #1342) | **PASS** |
+| 1338.11 | Browser console on all three screens | no JS errors (only the expected pre-existing 401 on the `/api/userinfo` auth-state probe) | **PASS** |
+
+Result: 11/11 PASS — gap #1338 closed; `firstLogin.html`/`lostPassword.html` advertised to `login.php` serve context with absolute hrefs. Accompanying discovery: spurious `external_password_mgmt` config WARNING in `api/auth/index.php:272` filed as bug #1342. Commit: `HEAD` (task/issue-1338).

@@ -167,14 +167,17 @@ $(function () {
     }
 
     // Sign-up link is always shown, regardless of the self-signup config, so
-    // users always have a visible path to the registration screen.
-    $('#tl_sign_up').attr('href', 'firstLogin.html');
+    // users always have a visible path to the registration screen. The href is
+    // absolute: login.html is also served via readfile() at /login.php, where
+    // a relative href would resolve to /firstLogin.html (404). Refs #1338.
+    $('#tl_sign_up').attr('href', '/gui/templates/auth/firstLogin.html');
 
     // Lost-password link: independent of self-signup; only hidden when the
     // auth method manages passwords externally or in demo mode.
     var showLost = (!c.externalPasswordMgmt && !c.demoMode);
     if (showLost) {
-      $('#tl_lost_password').attr('href', 'lostPassword.html');
+      // Absolute href for the same reason as the sign-up link (see above).
+      $('#tl_lost_password').attr('href', '/gui/templates/auth/lostPassword.html');
     } else {
       $('#tl_lost_password').hide();
       $('#lostSep').hide();
