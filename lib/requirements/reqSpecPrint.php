@@ -94,7 +94,7 @@ function init_args()
     $args->reqspec_id = isset($_REQUEST['reqspec_id']) ? intval($_REQUEST['reqspec_id']) : 0;
     $args->reqspec_revision_id = isset($_REQUEST['reqspec_revision_id']) ? intval($_REQUEST['reqspec_revision_id']) : 0;
     $args->tproject_id = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
-    $args->tproject_name = $_SESSION['testprojectName'];
+    $args->tproject_name = isset($_SESSION['testprojectName']) ? $_SESSION['testprojectName'] : '';
 
     return $args;
 }

@@ -397,7 +397,7 @@ function renderReqSpecNodeForPrinting(&$db, &$node, &$options, $tocPrefix, $rsLe
                    'tproject_id' => $spec['testproject_id']);
     break;
   } 
-  $name = htmlspecialchars($spec['doc_id'] . $title_separator . $spec['title']);
+  $name = htmlspecialchars($spec['doc_id'] . $title_separator . ($spec['title'] ?? $spec['name'] ?? ''));
   
   $docHeadingNumbering = '';
   if (!empty($options['headerNumbering'])) {
