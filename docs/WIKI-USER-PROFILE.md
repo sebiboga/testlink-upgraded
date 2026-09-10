@@ -17,7 +17,7 @@ inspect their login history.
 | **Personal Data** | Login (read-only), First name, Last name, Email, Locale, Role (read-only), and a **Save** button. |
 | **Change Password** | Old / New / Confirm password fields and a **Change Password** button. **Hidden, replaced by an informational note when password management is external** (see below). |
 | **API Interface** | Read-only display of the current API key plus a **Generate New Key** button. **Only rendered when the XML-RPC API is enabled** (`$tlCfg->api->enabled = TRUE`, see below). |
-| **Login History** | Last 10 successful and failed logins (timestamp + description). |
+| **Login History** | Last 10 successful and failed logins (timestamp + description). Header shows a right-gated **Show event history** button (see below). |
 
 ---
 
@@ -63,11 +63,37 @@ Example (API disabled — API Interface card is not rendered):
 
 ![User Profile — API disabled](screenshots/issue-876-api-disabled.png)
 
+## Show event history (right-gated)
+
+Next to the **Login History** heading the legacy screen
+(`gui/templates/dashio/usermanagement/userInfo.tpl:224-228`) showed a clickable
+`question.gif` titled `show_event_history` that opened the Event Viewer filtered
+to the logged-in user's audit events (`showEventHistoryFor(userID,'users')`),
+but only when the user holds the `mgt_view_events` right (flag computed at
+`lib/usermanagement/userInfo.php:90`).
+
+Modern 2.0.1 behaviour — same gate, Dashio styling:
+
+- The BFF exposes **`canViewEvents`** in the `GET /api/userinfo` payload, computed
+  with the same project-less check as legacy:
+  `(bool)$user->hasRight($db, 'mgt_view_events')`.
+- The Login History card header shows a **"Show event history"** button (teal
+  outline, `fa-clock-rotate-left` icon, i18n `profile.showEventHistory`) rendered
+  only when `canViewEvents` is true.
+- Clicking it submits the hidden `#eventhistory` GET form
+  (`object_id = <userID>`, `object_type = users`) to
+  `gui/templates/eventviewer/eventviewer.html`, which opens in a new tab and
+  auto-filters to `users #<userID>`.
+
+This mirrors the pattern already used by `plans/planMilestones.html` (#1149),
+`platformsView.html`, `projectEdit` (#991), build edit (#1123) and the milestone
+screen.
+
 ## API endpoints
 
 | Method + path | Purpose |
 |---|---|
-| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal` and `apiEnabled`) |
+| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled` and `canViewEvents` — the right-gated Event Viewer flag) |
 | `GET /api/userinfo/locales` | Available locales (single source of truth for all locale dropdowns) |
 | `GET /api/userinfo/login-history` | Last 10 successful + failed logins |
 | `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale) |

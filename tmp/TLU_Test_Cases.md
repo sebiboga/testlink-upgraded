@@ -12652,3 +12652,25 @@ Result: 9/9 PASS — gap #876 closed: BFF exposes `apiEnabled` in the profile pa
 | 1354.13 | i18n | keys `rsvr.printView`, `rsvp.title`, `rsvp.btnBack`, `rsvp.rendered` present in all 10 locale bundles; `python3 -m json.tool` valid on all 11 bundles | **PASS** |
 
 Result: 13/13 PASS — gap #1354 closed: the modern revision viewer now has a `Print view` button that renders a printable document of the exact historical revision through the legacy `print.inc.php` pipeline (`renderReqSpecNodeForPrinting` SINGLE_REQSPEC options + optional child requirements via `req_cfg->show_child_reqs_on_reqspec_print_view`), matching `lib/requirements/reqSpecPrint.php` line-for-line. Screenshot: `docs/screenshots/issue-1354-revision-print-view.png`.
+
+---
+
+## Task — Issue #877: "Show event history" link in User Profile (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/userInfo.html` · `api/userinfo/index.php` · `gui/templates/eventviewer/eventviewer.html`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in (id=1, global role admin = has `mgt_view_events`). No-rights fixture user `norightsuser`/`norights` created directly in DB with `role_id=3` ("<no rights>", no `role_rights` rows) for the negative case.
+**Gap:** legacy `dashio/usermanagement/userInfo.tpl:224-228` renders a `question.gif` titled `show_event_history` (call `showEventHistoryFor(userID,'users')`) next to the "Audit Login History" heading IF `$mgt_view_events == "yes"` (flag from `lib/usermanagement/userInfo.php:90`); the modern screen had no event-viewer affordance and the BFF exposed no rights flag.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 877.1 | `GET /api/userinfo/index.php` as admin | payload contains `canViewEvents: true` (admin global role has mgt_view_events) | **PASS** |
+| 877.2 | Open User Profile as admin | Login History card header shows **"Show event history"** button (teal outline, `fa-clock-rotate-left` icon, i18n `profile.showEventHistory`) | **PASS** |
+| 877.3 | Click **Show event history** | New tab: `eventviewer.html?object_id=1&object_type=users`, banner `Filtered by users #1`, 1 AUDIT event "Login for 'admin' from '127.0.0.1' succeeded" | **PASS** |
+| 877.4 | `GET /api/userinfo/index.php` as `norightsuser` (role "<no rights>") | payload contains `canViewEvents: false` | **PASS** |
+| 877.5 | Open User Profile as `norightsuser` | Login History card shows **no** "Show event history" button (element not rendered / display:none) | **PASS** |
+| 877.6 | `php -l api/userinfo/index.php` + `node --check` on inline script | no syntax errors | **PASS** |
+| 877.7 | i18n completeness | `profile.showEventHistory` present in all 10 locale bundles (en/de/es/fr/it/ja/pt/ro/ru/zh), all JSON valid | **PASS** |
+| 877.8 | `events` scan after suite | only AUDIT `login succeeded` rows (log_level 16); **0** rows with log_level 1 (ERROR) / 2 (WARNING) | **PASS** |
+| 877.9 | Browser console (admin + no-rights sessions) | no JS errors (only pre-existing a11y `No label associated with a form field` issues) | **PASS** |
+
+Result: 9/9 PASS — gap #877 closed: the BFF exposes `canViewEvents` (project-less `hasRight($db,'mgt_view_events')`, matching legacy userInfo.php:90) and the User Profile Login History card gains a right-gated "Show event history" button opening the Event Viewer filtered to `users #<userID>` via the hidden `#eventhistory` GET form (planMilestones pattern).

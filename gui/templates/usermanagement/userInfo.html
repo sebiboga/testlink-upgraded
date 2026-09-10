@@ -135,7 +135,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
   <!-- Login History -->
   <div class="card">
-    <div class="card-header"><i class="fa fa-history"></i> <span data-i18n="profile.loginHistory">Login History</span></div>
+    <div class="card-header"><i class="fa fa-history"></i> <span data-i18n="profile.loginHistory">Login History</span><button type="button" id="btnEventHistory" style="display:none;margin-left:auto;background:transparent;border:1px solid #4ECDC4;color:#4ECDC4;border-radius:4px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer;" onclick="showEventHistory()"><i class="fa fa-clock-rotate-left"></i> <span data-i18n="profile.showEventHistory">Show event history</span></button></div>
     <div class="card-body">
       <div style="margin-bottom:16px;">
         <h4 style="font-size:13px;font-weight:700;color:#22242a;margin:0 0 8px 0;"><i class="fa fa-check-circle" style="color:#4ECDC4;"></i> <span data-i18n="profile.successfulLogins">Successful Logins</span></h4>
@@ -158,11 +158,17 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="footer"><span data-i18n="footers.userInfo">TestLink 2.0.1 - My Settings</span></div>
 
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="users">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 var API = '/api/userinfo/index.php';
 var profileData = null;
+var canViewEvents = false;
 
 TLi18n.load(function() {
   TLi18n.apply();
@@ -202,6 +208,8 @@ function loadProfile() {
     if (profileData.locale) {
       $('#locale').val(profileData.locale);
     }
+    canViewEvents = !!(profileData.canViewEvents);
+    $('#btnEventHistory').toggle(canViewEvents);
   });
 }
 
@@ -296,6 +304,15 @@ function formatTimestamp(ts) {
   if (!ts) return '-';
   var d = new Date(parseInt(ts) * 1000);
   return d.toLocaleString();
+}
+
+/** Legacy parity: dashio userInfo.tpl showEventHistoryFor(userID,'users')
+ *  opens the Event Viewer for this user's audit events when mgt_view_events. */
+function showEventHistory() {
+  var id = profileData ? profileData.id : null;
+  if (!id || !canViewEvents) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
 }
 
 function loadLoginHistory() {

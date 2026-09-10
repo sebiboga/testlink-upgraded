@@ -64,6 +64,7 @@ function userProfile(tlUser $u, $db) {
         'authentication' => $u->authentication ?? '',
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
         'apiEnabled' => (bool)($tlCfg->api->enabled ?? true),
+        'canViewEvents' => (bool)$u->hasRight($db, 'mgt_view_events'),
     ];
 }
 
