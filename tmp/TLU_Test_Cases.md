@@ -12514,3 +12514,24 @@ Result: 11/11 PASS — **gap #875 fully closed**: payload flag exposes legacy `i
 | 1330.13 | Browser console during all 6 modern landings + round-trip | no new JS errors | **PASS** |
 
 Result: 13/13 PASS — **gap #1330 closed**: all 6 project-scoped features land on their modernized screens after a project switch, with feature round-trip; `editTc` behavior unchanged; unknown/missing features still fall back to the modern Dashboard. Screenshots: `docs/screenshots/issue-1330-keywordsAssign-modern-landing.png`, `docs/screenshots/issue-1330-searchReqSpec-modern-landing.png`.
+
+---
+
+## Regression — Issue #1334: listTestCases left tree missing `$gui->tproject_id` fires E_WARNING + empty tproject_id (Refs #1334)
+
+**Screen:** `lib/testcases/listTestCases.php` → `gui/templates/dashio/testcases/tcTree.tpl` → `include/inc_filter_panel.tpl`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, logged in admin/admin. Seeded fixture: `testprojects` id=1 prefix ALPHA (options `requirementsEnabled=1,testPriorityEnabled=1,automationEnabled=1`), `nodes_hierarchy` root id=1 'Alpha Project' + suite id=10, `testplans` id=20 'Alpha Plan' (project 1).
+**Root cause:** `listTestCases.php::initializeGui()` never assigned `$gui->tproject_id`; `inc_filter_panel.tpl` deref'd it on lines 43/202/204/209 (compiled templates_c line 59) → E_WARNING `Undefined property: stdClass::$tproject_id` logged to `events` once per render, and the hidden `input[name=tproject_id]` rendered empty. Sibling navigators already set it (planTCNavigator.php:58, planAddTCNavigator.php:67, execNavigator.php:71).
+**Fix:** `listTestCases.php` `$gui->tproject_id = isset($control->args->testproject_id) ? intval($control->args->testproject_id) : 0;` (same guard as planTCNavigator). Commit `ee469b456`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1334.1 | `php -l lib/testcases/listTestCases.php` | no syntax errors | **PASS** |
+| 1334.2 | Pre-fix repro: `index.php?tproject_id=1&returnFeature=editTc`, mainframe left = `listTestCases.php?feature=edit_tc` | (pre-fix) `events` gains 1 E_WARNING `Undefined property: stdClass::$tproject_id` per render; DOM `input[name=tproject_id]` = `""` — verified pre-fix event id=5 + empty value | **PASS (reproduced)** |
+| 1334.3 | Post-fix reload `index.php?tproject_id=1&returnFeature=editTc` (events cleared first) | 0 new `events` rows; DOM `input[name=tproject_id]` = `"1"` | **PASS** |
+| 1334.4 | Reload with no project `index.php?tproject_id=0&returnFeature=editTc` | 0 new `events` rows; guarded default leads to int `0`, no warning | **PASS** |
+| 1334.5 | Side-by-side code check of the other 4 deref sites (tpl lines 202/204/209 export/import spans) | all now render the assigned int; sibling navigators already set the prop (code-read only — those legacy paths not reachable from modern ASIDE) | **PASS** |
+| 1334.6 | `events` scan after the whole pass | `SELECT COUNT(*) FROM events` → 0 Error/Warning rows from these renders | **PASS** |
+| 1334.7 | Browser console during the renders | no JS errors (only pre-existing a11y issue hints) | **PASS** |
+
+Result: 7/7 PASS — issue #1334 closed: no more E_WARNING, hidden test-project input and export/import calls carry the real project id.
