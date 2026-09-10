@@ -43,6 +43,11 @@ function out($data) { echo json_encode($data); exit; }
 // Without it the BFF refuses to serve ANY route (403), mirroring the
 // legacy login redirect for unauthorized users.
 if (!$user->hasRight($db, 'mgt_users')) {
+    logAuditEvent(TLS("audit_security_user_right_missing",
+                      $user->login,
+                      basename($_SERVER['SCRIPT_NAME']),
+                      $method ?? $_SERVER['REQUEST_METHOD']),
+                  'AUTH', $user->dbID, 'users');
     http_response_code(403);
     out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => 'mgt_users']);
 }
