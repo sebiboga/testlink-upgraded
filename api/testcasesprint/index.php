@@ -495,13 +495,18 @@ if ($action === 'download') {
 
 // The legacy generator set its own headers (document content-type,
 // content-description, content-disposition) via flushHttpHeader(). For the
-// MSWORD format those are committed before this point, so the front-end must
-// request JSON parsing explicitly (jQuery dataType 'json'); strip what we can.
-header_remove('Content-Type');
-header_remove('Content-Disposition');
-header_remove('Content-Description');
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
+// MSWORD format those are committed before this point (flush() in
+// flushHttpHeader), so the front-end must request JSON parsing explicitly
+// (jQuery dataType 'json'); strip what we can. headers_sent() guard: when
+// the legacy flush already committed the headers, header_remove()/header()
+// would raise E_WARNING events (see #1340 fix).
+if (!headers_sent()) {
+    header_remove('Content-Type');
+    header_remove('Content-Disposition');
+    header_remove('Content-Description');
+    header('Content-Type: application/json; charset=utf-8');
+    header('X-Content-Type-Options: nosniff');
+}
 echo json_encode([
     'status' => 'ok',
     'level' => $level,
