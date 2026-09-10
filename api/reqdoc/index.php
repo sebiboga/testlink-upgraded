@@ -20,6 +20,10 @@
  *   GET  ?action=doc&tproject_id=N&id=N&level=reqspec|testproject
  *              &format=N&toc=y|n&cfields=y|n&<opt>=y|n...
  *        -> {status:"ok", html:"...", title:"...", format:N}
+ *   GET  ?action=revision_doc&revision_id=N[&tproject_id=M]
+ *        -> {status:"ok", html:"...", title:"...", format:N,
+ *            level:"revision", id:<spec_id>, revision_id:N}   (print of ONE
+ *            historical spec revision, mirror of lib/requirements/reqSpecPrint.php)
  *   Any other verb/action -> 400 JSON.
  */
 
@@ -52,7 +56,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET') {
     out(['status' => 'error', 'message' => 'Method not allowed']);
 }
 $action = isset($_GET['action']) ? trim($_GET['action']) : '';
-if ($action !== 'doc') {
+if ($action !== 'doc' && $action !== 'revision_doc') {
     http_response_code(400);
     out(['status' => 'error', 'message' => 'Invalid action']);
 }
@@ -69,6 +73,94 @@ $user = tlUser::getByID($db, $userId);
 if (is_null($user)) {
     http_response_code(401);
     out(['status' => 'error', 'message' => 'User not found']);
+}
+
+// ---------------------------------------------------------------------------
+// Print ONE historical requirement-spec revision (mirror of legacy
+// lib/requirements/reqSpecPrint.php, refs #1354). Right: strict mgt_view_req
+// (same gate as the modern reqSpecViewRevision.html screen that hosts the
+// "Print view" button).
+// ---------------------------------------------------------------------------
+if ($action === 'revision_doc') {
+    $revId = isset($_GET['revision_id']) ? intval($_GET['revision_id']) : 0;
+    if ($revId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid revision id']);
+    }
+    $extraTid = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;
+
+    $reqSpecMgr = new requirement_spec_mgr($db);
+    $rev = $reqSpecMgr->getRevisionByID($revId);
+    if (is_null($rev)) {
+        http_response_code(404);
+        out(['status' => 'error',
+             'message' => 'Requirement specification revision not found']);
+    }
+    $ownerTid = intval($rev['testproject_id']);
+    if ($extraTid > 0 && $extraTid !== $ownerTid) {
+        http_response_code(404);
+        out(['status' => 'error',
+             'message' => 'Requirement specification revision not found in this test project']);
+    }
+    if (!$user->hasRight($db, 'mgt_view_req', $ownerTid)) {
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'You are not authorized to view requirement specifications']);
+    }
+
+    $specId = intval($rev['parent_id']);
+    $tprojectMgr = new testproject($db);
+    $tprojectInfo = $tprojectMgr->get_by_id($ownerTid);
+    $tproject_name = $tprojectInfo ? $tprojectInfo['name'] : ('#' . $ownerTid);
+
+    // legacy reqSpecPrint.php obtains the node from the tree; the revision row
+    // is a node in nodes_hierarchy of type requirement_spec_revision.
+    $tree_manager = $tprojectMgr->tree_manager;
+    $node = $tree_manager->get_node_hierarchy_info($revId);
+    if (!$node) {
+        http_response_code(404);
+        out(['status' => 'error',
+             'message' => 'Requirement specification revision node not found']);
+    }
+
+    $req_cfg = config_get('req_cfg');
+    $nodeName = !empty($node['name']) ? $node['name'] : (string)$rev['name'];
+    $pageTitle = sprintf(lang_get('print_requirement_specification'), $nodeName);
+
+    // exact options used by legacy reqSpecPrint.php (SINGLE_REQSPEC)
+    $options = array('toc' => 0, 'req_spec_scope' => 1, 'req_spec_author' => 1,
+                     'req_spec_type' => 1, 'req_spec_cf' => 1,
+                     'req_spec_overwritten_count_reqs' => 1,
+                     'headerNumbering' => 0, 'docType' => SINGLE_REQSPEC);
+
+    $text2print = '';
+    $text2print .= renderHTMLHeader($pageTitle, $_SESSION['basehref'], SINGLE_REQSPEC) . '<body>';
+    $text2print .= renderReqSpecNodeForPrinting($db, $node, $options, null, 0, $ownerTid);
+
+    // child requirements, gated by the same config flag as legacy
+    $childrenReq = $reqSpecMgr->get_requirements($specId);
+    if (!is_null($childrenReq) && $req_cfg->show_child_reqs_on_reqspec_print_view) {
+        $reqPrintOpts = array('toc' => 0, 'req_linked_tcs' => 1, 'req_cf' => 1,
+                              'req_scope' => 1, 'req_relations' => 1,
+                              'req_coverage' => 1, 'req_status' => 1,
+                              'req_type' => 1, 'req_author' => 1,
+                              'displayVersion' => 1, 'displayDates' => 1,
+                              'displayLastEdit' => 1, 'docType' => SINGLE_REQ);
+        $text2print .= '<div><h2>' . lang_get('reqs') . '</h2></div>';
+        foreach ($childrenReq as $child) {
+            $text2print .= renderReqForPrinting($db, $child, $reqPrintOpts, null, 0, $ownerTid);
+        }
+    }
+    $text2print .= renderEOF();
+
+    out(array('status' => 'ok',
+              'html' => $text2print,
+              'title' => html_entity_decode($pageTitle),
+              'tproject_name' => $tproject_name,
+              'format' => FORMAT_HTML,
+              'level' => 'revision',
+              'id' => $specId,
+              'revision_id' => $revId));
 }
 
 $tproject_id = isset($_GET['tproject_id']) ? intval($_GET['tproject_id']) : 0;

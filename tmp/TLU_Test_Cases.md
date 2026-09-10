@@ -12628,3 +12628,27 @@ Result: 9/9 PASS — gap #876 closed: BFF exposes `apiEnabled` in the profile pa
 | 7 | `php -l api/auth/index.php` | No syntax errors | **PASS** |
 
 **Result:** All 7 steps **PASS**. The spurious `config option not available: external_password_mgmt` WARNING no longer appears on self-signup or login.
+
+## Task — Issue #1354: Print view in reqSpecViewRevision (gap vs legacy)
+
+**Screens:** `gui/templates/requirements/reqSpecViewRevision.html` · `gui/templates/requirements/reqSpecPrintRevision.html` (new) · `api/reqdoc/index.php` (`?action=revision_doc`)
+**Precondition (2026-09-10, fresh DB):** `php tmp/fixtures_1354.php` run → test project id 1 (`Print Rev Fixture Project`, PRF), spec id 2 `SRS-PRNT-001` (total_req=3) with revision 1 id=3 (historical) and revision 2 id=5 (latest), 2 requirements REQ-PRNT-001 (id 6) / REQ-PRNT-002 (id 8). Login admin/admin at http://localhost:8082.
+**Gap:** legacy `reqSpecViewRevision.tpl:65-70` has a `Print view` button → `reqSpecPrint.php?reqspec_id=&reqspec_revision_id=` printing ONE historical revision; the modern screen had no print affordance and `api/reqdoc?action=doc` only prints the live tree.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1354.1 | Open `/gui/templates/requirements/reqSpecViewRevision.html?id=5&tproject_id=1` | Toolbar shows 4 items: Refresh / Open current revision / Compare revisions / **Print view** (i18n `rsvr.printView`) | **PASS** |
+| 1354.2 | Inspect `#printLink` href | `/gui/templates/requirements/reqSpecPrintRevision.html?revision_id=5&tproject_id=1` (uses the VIEWED revision id, not the latest) | **PASS** |
+| 1354.3 | Click **Print view** (target=_blank) | New tab `reqSpecPrintRevision.html?revision_id=5…` opens; doc renders in sandboxed iframe; Print button enabled; no console errors | **PASS** |
+| 1354.4 | iframe doc title/page title | `Print Requirement Specification: Print Fixture Spec` (`print_requirement_specification` lang key, legacy format) | **PASS** |
+| 1354.5 | iframe heading | `Requirements Spec.: SRS-PRNT-001 : Print Fixture Spec` (H2 `req_spec` title row, legacy `renderReqSpecNodeForPrinting`) | **PASS** |
+| 1354.6 | iframe rows | `revision 2` · `Author Testlink Administrator` · `Type User Requirement Specification` · `Total count of requirements (Coverage) 66.67% (2/3)` · scope text | **PASS** |
+| 1354.7 | Open print for the HISTORICAL revision id=3 | Revision row = `1` (i.e. the revision-specific content is printed, NOT the current/latest) | **PASS** |
+| 1354.8 | BFF error paths (fetch same session) | `revision_id=999999`→404 json; `revision_id=5&tproject_id=999`→404 json; missing `revision_id`→400 json; valid→200 `{level:'revision', revision_id:5, id:2}` | **PASS** |
+| 1354.9 | Default gate `show_child_reqs_on_reqspec_print_view = DISABLED` (config.inc.php:1671, unchanged) | Printed doc has NO `Requirements` heading / NO child requirement tables | **PASS** |
+| 1354.10 | Temporarily set the flag `= ENABLED`, reload id=5 print (then revert — `git diff config.inc.php` clean after) | `<h2>Requirements</h2>` + `Requirement: REQ-PRNT-001 : Print Requirement One` + `Requirement: REQ-PRNT-002 : Print Requirement Two` with Version/revision/Author/Status Valid/Type System Function/Coverage 0% (0/1)/scope | **PASS** |
+| 1354.11 | Back link on print page | `Back to revision view` → `reqSpecViewRevision.html?id=5&tproject_id=1` | **PASS** |
+| 1354.12 | Event Viewer | `events` table: 0 rows with log_level 1 (ERROR) / 2 (WARNING) after all tests | **PASS** |
+| 1354.13 | i18n | keys `rsvr.printView`, `rsvp.title`, `rsvp.btnBack`, `rsvp.rendered` present in all 10 locale bundles; `python3 -m json.tool` valid on all 11 bundles | **PASS** |
+
+Result: 13/13 PASS — gap #1354 closed: the modern revision viewer now has a `Print view` button that renders a printable document of the exact historical revision through the legacy `print.inc.php` pipeline (`renderReqSpecNodeForPrinting` SINGLE_REQSPEC options + optional child requirements via `req_cfg->show_child_reqs_on_reqspec_print_view`), matching `lib/requirements/reqSpecPrint.php` line-for-line. Screenshot: `docs/screenshots/issue-1354-revision-print-view.png`.

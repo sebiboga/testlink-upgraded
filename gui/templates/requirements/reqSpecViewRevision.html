@@ -45,6 +45,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <a class="btn-ghost" id="currentLink" href="#" target="_blank"><i class="fa fa-file-text-o"></i> <span data-i18n="rsvr.openCurrent">Open current revision</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsvr.compareRevisions">Compare revisions</span></a>
+  <a class="btn-ghost" id="printLink" href="#" target="_blank"><i class="fa fa-print"></i> <span data-i18n="rsvr.printView">Print view</span></a>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
 
@@ -177,6 +178,8 @@ function renderOverview(r, rev) {
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#compareLink').attr('href', '/gui/templates/requirements/reqSpecCompare.html?spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  $('#printLink').attr('href', '/gui/templates/requirements/reqSpecPrintRevision.html?revision_id=' +
+    rev.id + '&tproject_id=' + TPROJECT_ID);
 }
 
 function renderCF(r) {
