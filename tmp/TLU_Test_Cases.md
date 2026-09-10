@@ -12613,3 +12613,18 @@ Result: 11/11 PASS — gap #1338 closed; `firstLogin.html`/`lostPassword.html` a
 | 876.9 | Browser console during all states | no JS errors | **PASS** |
 
 Result: 9/9 PASS — gap #876 closed: BFF exposes `apiEnabled` in the profile payload, hides the API Interface card when the XML-RPC API is disabled, and `POST /api/userinfo/apikey` returns 403 when disabled. Screenshots: `tmp/issue-876-api-enabled.png`, `tmp/issue-876-api-disabled.png`.
+### Regression — Issue #1342: Self-signup logs spurious WARNING `external_password_mgmt`
+
+**Precondition:** Fresh DB import. No existing users (or at least no `testuser1342`).
+
+| Step | Action | Expected | Actual |
+|------|--------|----------|--------|
+| 1 | Clear `events` table: `DELETE FROM events`; remove test user if exists | Table empty, user deleted | **PASS** |
+| 2 | Navigate to `http://localhost:8082/gui/templates/auth/firstLogin.html` | Sign Up page renders with form fields | **PASS** |
+| 3 | Fill: User ID=`testuser1342`, First=`Test`, Last=`User`, Email=`test1342@example.com`, Password=`TestPass123!`, Repeat=`TestPass123!`; click "Sign up" | Redirects to `login.html?note=first`; user created in DB | **PASS** |
+| 4 | Query `events` table: `SELECT id, log_level, source, description FROM events` | Only 1 row: `audit_users_self_signup` (log_level=16). **Zero** WARNING rows (`log_level=2`). | **PASS** |
+| 5 | Log in as `testuser1342` / `TestPass123!` | Login succeeds; mainframe loads | **PASS** |
+| 6 | Query `events` after login | Only `audit_login_succeeded` added. **Zero** WARNING rows. | **PASS** |
+| 7 | `php -l api/auth/index.php` | No syntax errors | **PASS** |
+
+**Result:** All 7 steps **PASS**. The spurious `config option not available: external_password_mgmt` WARNING no longer appears on self-signup or login.
