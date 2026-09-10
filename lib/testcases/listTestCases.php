@@ -41,6 +41,7 @@ function initializeGui(&$dbHandler, &$control)
 {
   $gui = new stdClass();
   $gui->feature = $control->args->feature;
+  $gui->tproject_id = isset($control->args->testproject_id) ? intval($control->args->testproject_id) : 0;
   $gui->treeHeader = lang_get('title_navigator'). ' - ' . lang_get('title_test_spec');
 
   $lblkey = (config_get('testcase_reorder_by') == 'NAME') ? '_alpha' : '_externalid';
