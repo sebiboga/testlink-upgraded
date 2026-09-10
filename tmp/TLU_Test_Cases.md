@@ -12790,3 +12790,24 @@ Result: 15/15 PASS — gap #879 closed: BFF `api/users/index.php` refuses every 
 | 1371.12 | Regression — viewer + info | Default per-case viewer still renders 5-column table correctly; info payload unchanged shape (+can_manage/domains) | **PASS** |
 
 Result: 12/12 PASS — gap #1371 closed: BFF `api/suiteview/index.php` exposes `info.can_manage` + domains, `GET table` (full grid w/ status/execution_type/version/CF values per tcversion) and mgt_modify_tc-gated `POST bulk_set` (legacy `doBulkSet` parity: setStatus/setImportance/setExecutionType + `design_values_to_db`); `gui/templates/testcases/suiteView.html` adds the canManage-gated "Table view" with checkbox grid + per-CF set-inputs + bulk toolbar; 13 `suvw.tbl*` keys added in all 10 locales. Screenshots: `docs/screenshots/issue-1371-table-view.png`.
+
+## Task — Issue #881: 'Manage user' search-by-login box in User Management (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/usersView.html` · `api/users/index.php`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in; fixture users `tester1` (id 2, role tester) and `guest1` (id 3, role guest, password123) created for the test window then removed. Screen URL: `usersView.html`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 881.1 | `GET /api/users/index.php?login=tester1` (admin) | 200 `{status:'ok', item:{id:2, login:'tester1', firstName:'Test', ...}}` | **PASS** |
+| 881.2 | `GET /api/users/index.php?login=nosuchlogin` (admin) | HTTP 404 `{message:'login_does_not_exist', login:'nosuchlogin'}` | **PASS** |
+| 881.3 | `GET /api/users/index.php?login=` (admin, empty) | HTTP 400 `{message:'login_required'}` | **PASS** |
+| 881.4 | Load modern usersView (admin) toolbar | Login input + `Manage user` button rendered between Export and the footer info (legacy manage_user form position) | **PASS** |
+| 881.5 | Type `tester1` in the lookup box, click Manage user | Edit modal opens with title `Edit User: tester1`, login readonly, fields prefilled | **PASS** |
+| 881.6 | Type `nosuchlogin`, click Manage user | Alert `Login nosuchlogin does not exist.` shown, no modal opens | **PASS** |
+| 881.7 | Empty input (required) | Form blocks submission (HTML5 required), no request | **PASS** |
+| 881.8 | `GET /api/users/index.php?login=tester1` as guest1 (session without mgt_users) | HTTP 403 `no_permissions_for_action` `right:mgt_users` (same as list); guest screen shows only the deny box, layout hidden | **PASS** |
+| 881.9 | Locale check — switch to Română then Manage user on missing login | Alert in Romanian `Loginul nosuchlogin nu exista` (key `user.loginDoesNotExist` present in all 10 bundles) | **PASS** |
+| 881.10 | Hygiene | `php -l api/users/index.php` clean; inline JS `node --check` clean; `python3 -m json.tool` passes all 10 i18n bundles; `events` has only audit rows, no new Error/Warning | **PASS** |
+| 881.11 | Regression — existing actions | Row edit/disable/delete icons still work; DataTables list unchanged (2 columns order etc.); Export and Create User buttons unaffected | **PASS** |
+
+Result: 11/11 PASS — gap #881 closed: BFF `api/users/index.php` gains `GET /?login=<login>` resolving via legacy `tlUser::doesUserExist` (usersEdit.php 'edit' parity: 200 item / 404 `login_does_not_exist` / 400 empty), behind the same `mgt_users` gate as every other route; `gui/templates/usermanagement/usersView.html` toolbar gains the legacy `manage_user` login lookup form (`user.manageUser` button) that opens the edit modal on success and shows the localized `user.loginDoesNotExist` alert on miss; 2 keys added in all 10 locales. Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.

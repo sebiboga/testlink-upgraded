@@ -55,6 +55,11 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="toolbar">
   <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="user.createUser">Create User</span></button>
   <button class="btn-teal" onclick="gotoExport()"><i class="fa fa-file-export"></i> <span data-i18n="user.export">Export</span></button>
+  <span style="border-left:1px solid #444;height:26px;"></span>
+  <form onsubmit="return manageUser()" style="display:inline-flex;gap:8px;align-items:center;margin:0;">
+    <input type="text" id="manageLogin" class="form-control" maxlength="30" data-i18n-placeholder="user.login" style="width:180px;font-size:13px;padding:7px 10px;" required>
+    <button type="submit" class="btn-teal"><i class="fa fa-user-cog"></i> <span data-i18n="user.manageUser">Manage user</span></button>
+  </form>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -308,6 +313,30 @@ function editUser(id) {
     $('#modalError').hide();
     $('#userModal').modal('show');
   });
+}
+
+// Legacy "Manage user" lookup (usersView.tpl manage_user form ->
+// usersEdit.php 'edit'): resolve login -> user id via tlUser::doesUserExist,
+// open the edit modal on success, show the localized not-found message when
+// the login does not exist.
+function manageUser() {
+  var login = $('#manageLogin').val().trim();
+  if (!login) return false;
+  $.getJSON(API + '?login=' + encodeURIComponent(login), function(r) {
+    if (r.status === 'ok' && r.item) {
+      editUser(r.item.id);
+    }
+  }).fail(function(xhr) {
+    var msg;
+    try {
+      var j = JSON.parse(xhr.responseText);
+      msg = TLi18n.t('user.loginDoesNotExist', {login: (j && j.login) || login});
+    } catch (e) {
+      msg = TLi18n.t('user.loginDoesNotExist', {login: login});
+    }
+    alert(msg);
+  });
+  return false;
 }
 
 function saveUser() {

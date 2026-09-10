@@ -3048,6 +3048,8 @@
   "user.lastName": "姓",
   "user.locale": "言語",
   "user.login": "ログイン",
+  "user.loginDoesNotExist": "ログイン {login} は存在しません",
+  "user.manageUser": "ユーザーの管理",
   "user.password": "パスワード",
   "user.role": "ロール",
   "user.status": "ステータス",

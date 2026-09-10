@@ -85,8 +85,29 @@ function userToJSON(tlUser $u) {
     ];
 }
 
-// Route: GET /users - list all users
+// Route: GET /users?login=<login> - resolve a login to a user (legacy
+// "Manage user" lookup, usersView.tpl manage_user form -> usersEdit.php
+// 'edit' case). Mirrors lib/usermanagement/usersEdit.php:403-410 which
+// resolves the login via tlUser::doesUserExist() and reports
+// login_does_not_exist when it cannot. 404 tells the UI to show the
+// localized not-found message.
 if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php')) {
+    $loginParam = getParam('login');
+    if ($loginParam !== null) {
+        $loginParam = trim($loginParam);
+        if ($loginParam === '') {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'login_required']);
+        }
+        $uid = tlUser::doesUserExist($db, $loginParam);
+        if (!$uid) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'login_does_not_exist', 'login' => $loginParam]);
+        }
+        $u = tlUser::getByID($db, $uid);
+        out(['status' => 'ok', 'item' => userToJSON($u)]);
+    }
+
     $tables = tlObject::getDBTables(array('users', 'nodes_hierarchy', 'roles'));
     $sql = "SELECT u.id, u.login, u.first, u.last, u.email, u.locale, " .
            "u.active, u.role_id, u.auth_method, u.expiration_date, u.creation_ts, " .

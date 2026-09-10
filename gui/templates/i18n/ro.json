@@ -3048,6 +3048,8 @@
   "user.lastName": "Nume",
   "user.locale": "Limba",
   "user.login": "Utilizator",
+  "user.loginDoesNotExist": "Loginul {login} nu exista",
+  "user.manageUser": "Gestioneaza Utilizator",
   "user.password": "Parola",
   "user.role": "Rol",
   "user.status": "Status",

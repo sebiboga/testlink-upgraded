@@ -3048,6 +3048,8 @@
   "user.lastName": "Nachname",
   "user.locale": "Sprache",
   "user.login": "Login",
+  "user.loginDoesNotExist": "Login {login} existiert nicht",
+  "user.manageUser": "Benutzer verwalten",
   "user.password": "Passwort",
   "user.role": "Rolle",
   "user.status": "Status",

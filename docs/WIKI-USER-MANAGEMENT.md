@@ -28,9 +28,30 @@ TestLink provides four screens for managing users, roles, and role assignments. 
 | Element | Description |
 |---------|-------------|
 | **Create User** button | Opens the create user modal |
+| **Export** button | Redirects to the modern User Management Export screen |
+| **Manage user** box | Login lookup (legacy `manage_user` form): type a login and click **Manage user** to jump straight to that user's edit modal; an unknown login shows a localized "login does not exist" message |
 | **Data Table** | Lists all active and inactive users (soft-deleted users are hidden) |
 | **Search box** | Filters the table by any column |
 | **Show entries** | Controls how many rows are displayed per page |
+
+### Manage User Lookup (legacy parity, issue #881)
+
+Legacy `gui/templates/dashio/usermanagement/usersView.tpl` showed a "Login [...] Manage user"
+form below the buttons that posted to `usersEdit.php?doAction=edit&login=<login>`, where
+`initializeGui()` resolves the login to a user id via `tlUser::doesUserExist()` and opens
+the edit screen — or shows `login_does_not_exist` for an unknown login.
+
+The modern screen reimplements this in the toolbar:
+
+1. Type a full login into the lookup box (placeholder = Login, maxlength 30, required).
+2. Click **Manage user** → the BFF resolves it (`GET /api/users/index.php?login=<login>`)
+   and opens the **Edit User** modal for that user.
+3. Unknown login → localized alert "Login ___ does not exist"
+   (`user.loginDoesNotExist`, present in all 10 locale bundles); empty input is blocked
+   client-side (HTML5 `required`), and an empty parameter to the API returns 400
+   `login_required`.
+
+Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.
 
 ### Table Columns
 

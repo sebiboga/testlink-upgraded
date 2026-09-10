@@ -3048,6 +3048,8 @@
   "user.lastName": "Фамилия",
   "user.locale": "Язык",
   "user.login": "Логин",
+  "user.loginDoesNotExist": "Логин {login} не существует",
+  "user.manageUser": "Управление пользователем",
   "user.password": "Пароль",
   "user.role": "Роль",
   "user.status": "Статус",
