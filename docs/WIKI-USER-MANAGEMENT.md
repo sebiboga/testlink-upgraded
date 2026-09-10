@@ -350,3 +350,40 @@ Global Role (system-wide, assigned in User Management)
 3. Use **Select All** to quickly check all permissions, then uncheck what you don't need
 4. Click **Save**
 5. The new role appears in all role assignment dropdowns across the system
+
+---
+
+## 7. Rights Enforcement (`mgt_users`)
+
+Since issue #879, **every** User Management BFF endpoint enforces the legacy
+`mgt_users` right (right id 13) on the session user — same check as legacy
+`lib/usermanagement/usersView.php` `checkRights()`, also enforced in legacy
+`usersEdit.php` and `usersExport.php`.
+
+### Behavior
+
+- A user **with** `mgt_users` (e.g. admin): gets `GET /api/users`, `POST`,
+  `PUT`, `DELETE` and `GET /meta/grants` — full management.
+- A user **without** `mgt_users` (e.g. guest): any request to `/api/users/…`
+  returns `403 {"status":"error","message":"no_permissions_for_action","right":"mgt_users"}`.
+  No user data leaks; no mutation is possible.
+- The denial is also written to the audit trail as
+  `audit_security_user_right_missing` (AUTH event).
+
+### Grant-gated tabs
+
+The modern User Management screen calls `GET /api/users/meta/grants`, which
+mirrors legacy `getGrantsForUserMgmt()` (`lib/functions/users.inc.php`). The
+resulting grant map controls which tabs the user sees:
+
+| Tab | Required grant |
+|-----|----------------|
+| User Management | `user_mgmt` |
+| Role Management | `role_mgmt` |
+| Assign Test Project Roles | `tproject_user_role_assignment` |
+| Assign Test Plan Roles | `tplan_user_role_assignment` |
+
+Legacy parity: when the user holds `mgt_users`, `tproject/tplan` assignment
+grants are forced to `"yes"` (those tabs stay visible). A user without
+`mgt_users` sees only the no-access notice (i18n `user.noRights`) instead of
+the tab bar. This mirrors legacy `gui/templates/dashio/usermanagement/menu.inc.tpl`.

@@ -12742,3 +12742,29 @@ Result: 12/12 PASS — gap #878 closed: the BFF exposes `demoMode`, the modern s
 | 1360.8 | Syntax + hygiene | `php -l api/reqspec/index.php` clean; extracted inline `<script>` parses under `node --check`; browser console 0 errors; `events` table: 0 new log_level ERROR/WARNING rows from the screen (only pre-existing LOGIN event) | **PASS** |
 
 Result: 8/8 PASS — gap #1360 closed: BFF `api/reqspec/index.php` returns `context` (diffEngine default 5, `is_object`-guarded) in the revision-list response and uses it as the server-side text-diff fallback; `gui/templates/requirements/reqSpecCompare.html` prefills the Context input in `loadRevisions()` (`var defCtx = r.context || 5; $('#context').val(defCtx);`) — exact sibling `reqCompare.html`/legacy parity. Screenshots: `docs/screenshots/issue-1360-context-prefilled-5.png`, `docs/screenshots/issue-1360-text-diff-rendered.png`.
+
+---
+
+## Task — Issue #879: Implement mgt_users rights check in User Management BFF (gap vs legacy)
+
+**Precondition:** fresh DB with admin/admin. Test users: `guest01`/`guestpass` (role `guest`, id 5), `usermgr01`/`usermgrpass` (custom role id 10 with ONLY right 13 = `mgt_users`). App at http://localhost:8082.
+
+| No | Step | Expected | Actual |
+|---|---|---|---|
+| 879.1 | Login admin → open `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0` | 4 tabs (User Management, Role Management, Assign Test Project Roles, Assign Test Plan Roles) + full users table | **PASS** — 4 tabs rendered, 5 users listed |
+| 879.2 | Login `guest01` → GET `/api/users/index.php` | 403 `{"status":"error","message":"no_permissions_for_action","right":"mgt_users"}` | **PASS** |
+| 879.3 | Login `guest01` → GET `/api/users/index.php/meta/grants` | 403 same shape | **PASS** |
+| 879.4 | Login `guest01` → POST `/api/users/index.php` (create) | 403 same shape | **PASS** |
+| 879.5 | Login `guest01` → GET `/api/users/index.php/1` (item) | 403 same shape | **PASS** |
+| 879.6 | Login `guest01` → PUT/DELETE `/api/users/index.php/1` | 403 same shape | **PASS** |
+| 879.7 | Login `guest01` → open usersView.html | deny box (`user.noRights` message), NO tabs, NO datatable | **PASS** |
+| 879.8 | Login `guest01` → deny-box attempt → `events` table | new row log_level 0 (normal): `audit_security_user_right_missing` | **PASS** (events id=8, object_type users) |
+| 879.9 | Login `usermgr01` → GET `/api/users/index.php/meta/grants` | `user_mgmt:yes, role_mgmt:no, tproject_user_role_assignment:yes, tplan_user_role_assignment:yes` (legacy forces tproject/tplan 'yes' when user_mgmt 'yes') | **PASS** |
+| 879.10 | Login `usermgr01` → open usersView.html | 3 tabs — Role Management NOT shown; users table renders and is usable | **PASS** |
+| 879.11 | Admin → POST create user with VALID email `ct@example.com` | 200 OK, user visible in list | **PASS** |
+| 879.12 | Admin → POST create with invalid email `bad@test.local` | 400 JSON `{"message":"Invalid email","code":-512}` (previously empty body — bug #1373, fixed) | **PASS** |
+| 879.13 | Admin → POST create with empty login | 400 JSON `{"message":"Login cannot be empty","code":-1}` (previously empty body — bug #1373, fixed) | **PASS** |
+| 879.14 | Admin → DELETE created test user | 200 OK with item JSON | **PASS** |
+| 879.15 | Syntax + hygiene | `php -l api/users/index.php` clean; i18n bundles pass `python3 -m json.tool`; no new Error/Warning in `events` from screen | **PASS** |
+
+Result: 15/15 PASS — gap #879 closed: BFF `api/users/index.php` refuses every route with 403 `no_permissions_for_action` when the session user lacks `mgt_users` (mirroring legacy checkRights), audits `audit_security_user_right_missing`, and `gui/templates/usermanagement/usersView.html` gates the management tabs on `getGrantsForUserMgmt()` and shows a no-access box when the right is missing. Side-findings: two undefined tlUser error constants caused empty-body 400s on create validation failures (bug #1373 → fixed in branch). Screenshots: `docs/screenshots/issue-879-guest-denied.png`, `docs/screenshots/issue-879-usermgr-tabs.png`.
