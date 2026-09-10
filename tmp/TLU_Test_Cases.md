@@ -12811,3 +12811,19 @@ Result: 12/12 PASS — gap #1371 closed: BFF `api/suiteview/index.php` exposes `
 | 881.11 | Regression — existing actions | Row edit/disable/delete icons still work; DataTables list unchanged (2 columns order etc.); Export and Create User buttons unaffected | **PASS** |
 
 Result: 11/11 PASS — gap #881 closed: BFF `api/users/index.php` gains `GET /?login=<login>` resolving via legacy `tlUser::doesUserExist` (usersEdit.php 'edit' parity: 200 item / 404 `login_does_not_exist` / 400 empty), behind the same `mgt_users` gate as every other route; `gui/templates/usermanagement/usersView.html` toolbar gains the legacy `manage_user` login lookup form (`user.manageUser` button) that opens the edit modal on success and shows the localized `user.loginDoesNotExist` alert on miss; 2 keys added in all 10 locales. Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.
+
+## Task — Issue #1388: 'view file formats documentation' link in planImport (gap vs legacy)
+
+**Screens:** `gui/templates/plans/planImport.html` (link) · i18n bundles ×10 (key `pli.fileFormatsDoc`) · legacy ref `gui/templates/dashio/plan/planImport.tpl:37` + `cfg/const.inc.php:917`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in. Fixture `tmp/fixtures_1388.php`: testproject id 3 `PlanImpDoc` (prefix PID), testsuite id 5, test case id 6 (so the form renders, not the zero-testcase report), testplan id 4 `PlanImpDoc Plan`. Screen URL: `planImport.html?tproject_id=3&tplan_id=4`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1388.1 | Load modern planImport (admin) | Form renders; File type row shows XML badge **and** a link `view file format documentation` (a11y: link node next to badge) | **PASS** |
+| 1388.2 | Inspect link href | `http://localhost:8082/docs/tl-file-formats.pdf`, `target="_blank"` (same static path as legacy `PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`) | **PASS** |
+| 1388.3 | Click the link | New tab opens `docs/tl-file-formats.pdf` (HTTP 200, PDF renders) | **PASS** |
+| 1388.4 | Locale switch to Română (`?locale=ro`) | Link text becomes `vezi documentația formatelor de fișier` (ro.json value); English default restores on reload | **PASS** |
+| 1388.5 | i18n hygiene | `pli.fileFormatsDoc` present in all 10 bundles (`de,en,es,fr,it,ja,pt,ro,ru,zh`); `python3 -m json.tool` VALID on every bundle | **PASS** |
+| 1388.6 | Regression — legacy screen + hygiene | Legacy `lib/plan/planImport.php?tplan_id=4` still shows `(View file formats documentation)` link; `events` table has only AUDIT (16) rows, no new ERROR/WARNING (1/2) | **PASS** |
+
+Result: 6/6 PASS — gap #1388 closed: `gui/templates/plans/planImport.html:72-75` File type row renders the legacy file-formats doc anchor (`/docs/tl-file-formats.pdf`, `_blank`, `.hint` styling, same pattern as `reqImport.html:90`); new `pli.fileFormatsDoc` key in all 10 locale bundles. Screenshot: `docs/screenshots/issue-1388-planimport-doc-link.png` + wiki `planImport-doc-link.png`.

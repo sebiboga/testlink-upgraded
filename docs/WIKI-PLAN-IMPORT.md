@@ -26,7 +26,12 @@ without it get HTTP 403 and the screen disables the upload.
 The BFF reproduces `lib/plan/planImport.php`:
 
 - **Import type** is always **XML** (imports test plan links to test cases and
-  platforms — items must **already exist** on the target test project).
+  platforms — items must **already exist** on the target test project). Next to
+  the fixed XML badge, the File type row shows the **"view file format
+  documentation"** link (`/docs/tl-file-formats.pdf`, target `_blank`) — the
+  import XML schema reference, ported from legacy `planImport.tpl:37`
+  (`PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`); key `pli.fileFormatsDoc`, same
+  pattern as the requirements importer (`reqImport.html`).
 - **Upload field** `uploadedFile` (multipart), size limit
   `import_file_max_size_bytes` (default 800000) with the same error strings as
   legacy (`file_size_exceeded`, `please_choose_file_to_import`).
@@ -56,7 +61,7 @@ The BFF reproduces `lib/plan/planImport.php`:
 |---------|-------------|
 | **Header** | "Import Test Plan Links" + test plan name |
 | **Toolbar** | Test Project context + locale switcher |
-| **Form card** | File type (fixed XML), file picker (`.xml`), upload size hint (`Maximum file size: N KB`), explanatory note |
+| **Form card** | File type (fixed XML **+ "view file format documentation" link** to `docs/tl-file-formats.pdf`), file picker (`.xml`), upload size hint (`Maximum file size: N KB`), explanatory note |
 | **Actions** | **Upload file** (multipart POST to the BFF) and **Cancel** (back/close) |
 | **Report card** | Result table (Message / Status columns) with OK (teal) vs Not imported (red) rows |
 
@@ -110,4 +115,5 @@ the legacy `lang_get()` strings (`strings.txt`), identical to 1.9.20 output.
 
 ## Test coverage
 
-See **Suite 815** in `tmp/TLU_Test_Cases.md` (12/12 PASS).
+See **Suite 815** in `tmp/TLU_Test_Cases.md` (12/12 PASS) and **Suite 1388**
+(doc-link gap, added by issue #1388).
