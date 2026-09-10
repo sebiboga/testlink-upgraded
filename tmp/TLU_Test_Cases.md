@@ -12535,3 +12535,35 @@ Result: 13/13 PASS — **gap #1330 closed**: all 6 project-scoped features land 
 | 1334.7 | Browser console during the renders | no JS errors (only pre-existing a11y issue hints) | **PASS** |
 
 Result: 7/7 PASS — issue #1334 closed: no more E_WARNING, hidden test-project input and export/import calls carry the real project id.
+
+---
+
+## Regression — Issues #1333/#1329/#1340/#1341: BuildDiff null guard + projectInfoView 'Generate Test Spec' buttons routed to modern printTestDoc (Refs #1333, #1329, #1340, #1341)
+
+**Screens:** `lib/testcases/tcCompareVersions.php` (`buildDiff()`) · `gui/templates/projects/projectInfoView.html` (`genSpecHtmlLink`/`genSpecWordLink`) · `api/testcasesprint/index.php` (print action) · target `gui/templates/testcases/printTestDoc.html`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, logged in admin/admin; `events` table cleared. Fixture via `php tmp/fixtures_982.php` → test project id=1 (PTS982, prefix P982) with suites 2/3/4 and 4 test cases (spec generation content).
+**Root cause #1333:** `tcCompareVersions.php::buildDiff()` — legacy `tcCompareVersions.php` called with `testcase_id` absent/`0` fed `null`/non-array into `foreach` → E_WARNING `Invalid argument supplied for foreach` (Line 157 area). Fix: `if (!is_array($items)) return $diff;` guard at the top of `buildDiff()`.
+**Root cause #1329/#1340:** projectInfoView's two Generate Test Spec buttons still pointed to legacy `lib/results/printDocument.php`; switched to modern `gui/templates/testcases/printTestDoc.html?action=print&type=testspec&level=testproject&allOptionsOn=1&id=<PROJECT_ID>&tproject_id=<PROJECT_ID>`, HTML button `format=0`, Word `format=4`. Same UI gate `mgt_modify_tc` as before.
+**Root cause #1341:** for `format=4` (MSWORD), the modern BFF print action included legacy `lib/results/printDocument.php` which calls `flushHttpHeader(FORMAT_MSWORD)` (`header()` + `flush()`) before the BFF's own `header_remove()`/`header()` JSON block → E_WARNING `Cannot modify header information - headers already sent` at `api/testcasesprint/index.php` lines 500-504, logged to `events` once per format=4 print. Fix: wrap the JSON header-reset block in `if (!headers_sent())`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1333.1 | `php -l lib/testcases/tcCompareVersions.php` | no syntax errors | **PASS** |
+| 1333.2 | Pre-fix repro (events cleared): curl `tcCompareVersions.php?tproject_id=1&testcase_id=0` variants | (pre-fix) `events` gains E_WARNING `Invalid argument supplied for foreach` per request — observed before fix | **PASS (reproduced)** |
+| 1333.3 | Post-fix same 3 URL variants | HTTP 200; `events` gains **0** E_WARNING rows | **PASS** |
+| 1333.4 | Valid compare path still works (`testcase_id=3&version_left=1&version_right=2&compare_selected_versions=1`) | HTTP 200; diff rendered; 0 new ERROR/WARNING events | **PASS** |
+| 1329.1 | Read-only check of `gui/templates/projects/projectInfoView.html` lines 61-62 (`genSpecHtmlLink`/`genSpecWordLink` hrefs) | both point to `/gui/templates/testcases/printTestDoc.html?action=print&type=testspec&level=testproject&allOptionsOn=1&id=1&tproject_id=1`, `format=0` and `format=4`; **no** `lib/results/printDocument.php` reference remains in the file (`grep -c printDocument` → 0) | **PASS** |
+| 1340.1 | Admin: open `projectInfoView.html?tproject_id=1&tplan_id=0` — buttons visible | both links visible (admin has `mgt_modify_tc`) | **PASS** |
+| 1340.2 | Admin: click Generate Test Spec (HTML) | opens `printTestDoc.html?...format=0`; document renders in page (spec content from the 4 fixture TCs); screenshot `tmp/issue-1340-html-spec.png` | **PASS** |
+| 1340.3 | Admin: click Generate Test Spec (Word) | opens `printTestDoc.html?...format=4`; document renders + `.doc` blob download triggered; no JS errors | **PASS** |
+| 1340.4 | Network: both buttons fan-out | requests hit only `/api/testcasesprint/index.php?action=print...` (HTTP 200); **no** `/lib/results/printDocument.php` request | **PASS** |
+| 1340.5 | Permissions — user without rights (role_id=3 `<no rights>`, no project role): open `projectInfoView.html?tproject_id=1` | both Generate Test Spec links hidden (`display:none`) | **PASS** |
+| 1340.6 | Permissions — no-rights user direct-calls the BFF print URL (format=0) | HTTP 403 `{"status":"error","message":"No permission"}` | **PASS** |
+| 1341.1 | Format=0 print (also exercised by 1340.2), then `events` scan | `SELECT COUNT(*) FROM events WHERE log_level=2` → 0 rows for ALL modern-print renders | **PASS** |
+| 1341.2 | Format=4 print (also exercised by 1340.3) with `events` cleared first, then scan | 0 E_WARNING (`Cannot modify header information`) rows — headers_sent() guard prevents the legacy flush conflict | **PASS** |
+| 1341.3 | `php -l api/testcasesprint/index.php` | no syntax errors | **PASS** |
+| 1341.4 | i18n completeness — `piv.genSpecHtml`/`piv.genSpecWord` present in all 10 locale bundles | all present (bundles use flat dot-notation keys) | **PASS** |
+| 1341.5 | `events` scan after entire suite | only INFO/AUDIT entries (login, project creation); no log_level 2/3 rows | **PASS** |
+| 1341.6 | Browser console during all modern-print renders | no JS errors | **PASS** |
+
+Result: 17/17 PASS — bug #1333 fixed (foreach null guard), gap #1329/#1340 closed (modern spec-generation buttons, format 0=HTML / 4=Word, same `mgt_modify_tc` gate), bug #1341 fixed (`headers_sent()` guard removes `Cannot modify header information` E_WARNING on format=4). Commits: `1f2d0a5d3`, `e283f8dc2`, `1de4b8070`.
