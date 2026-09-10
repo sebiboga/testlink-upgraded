@@ -6417,7 +6417,7 @@ class testcase extends tlObjectWithAttachments {
       $this->create_step($tcversion_id,$steps[$idx]['step_number'],
                          $steps[$idx]['actions'],
                          $steps[$idx]['expected_results'],
-                         $steps[$idx]['execution_type']);
+                         $steps[$idx]['execution_type'] ?? TESTCASE_EXECUTION_TYPE_MANUAL);
     }
   }
 
