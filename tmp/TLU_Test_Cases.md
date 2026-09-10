@@ -8958,6 +8958,16 @@ Notes:
   `tcase_id`/`tcversion_id`, plus `setting_build`/`setting_platform` (from legacy
   cookie settings). The new BFF normalizes both key pairs and both build/platform
   param names to a single contract.
+- **SCREEN-COMPARE row 85 (Refs #817, 2026-09-10):** re-verified on recreated fixture
+  `tmp/fixtures_817.php` (proj 35 ESR817 / plan 50 Plan817 / build 5 REL-1 / tcase 38
+  Case One / version 39 / steps 40,41 — old fixture file was missing from the tree, so
+  the file was recreated and committed this run). Browser+API+DB (admin + ro817):
+  init OK · save wrote `executions` id 1 + `execution_tcsteps` (TC-817.7 revisited) ·
+  prior resume shows "Passed · by admin · 2026-09-10 23:24:31" · read-only init
+  `can_execute:0, ro_access:1`, save blocked (ro817 curl session — CSRF 403 as endpoint
+  classifies, disabled Save client-side). Result: **7 gap tasks filed (#1392–#1398)** ·
+  legacy cleanup tracked by #1164 (shared file, row 39). Marked ✓ in
+  `docs/SCREEN-COMPARE-STATUS.md`.
 
 ## Suite 814 — Regression — Issue #814: Aside menu missing Test Plan sub-menus after creating a test plan (until manual reload)
 
