@@ -12487,3 +12487,24 @@ Result: 7/7 PASS — **issue #1332 fixed and verified**; secondary edge case (Li
 | 875.11 | Browser console during internal + external scenarios | no JS errors | **PASS** |
 
 Result: 11/11 PASS — **gap #875 fully closed**: payload flag exposes legacy `isPasswordMgtExternal`, front-end toggles form↔note exactly like legacy tpl, BFF refuses external password changes with a clean 403. Screenshot for wiki: `docs/screenshots/issue-875-user-profile-password-external.png`.
+
+---
+
+## Regression — Issue #1331: testcase::update()/XML-RPC E_WARNING 'Undefined array key "execution_type"' when steps omit execution_type (Refs #1331)
+
+**File:** `lib/functions/testcase.class.php:6417-6420` (`update_tcversion_steps()`).
+**Root cause:** the loop reads `$steps[$idx]['execution_type']` unconditionally and passes it positionally to `create_step()`; when a caller-supplied step array omits the key, PHP 8 raises `E_WARNING Undefined array key "execution_type"`, forwarded by `watchPHPErrors()` (`logger.class.php:1407-1446`) to the `events` table (log_level 2). Reachable via `testcase::update()` (line 1496) and XML-RPC `updateTestCase` (`lib/api/xmlrpc/v1/xmlrpc.class.php:7321`). Note: `testcase::create()` → `createVersion()` already guards the key (lines 816-818), so create alone does not warn.
+**Fix:** line 6420 — `$steps[$idx]['execution_type'] ?? TESTCASE_EXECUTION_TYPE_MANUAL` (mirrors `createVersion()` + the `??` idiom already in `create_step()`).
+**Precondition (fresh DB import, 2026-09-10):** `php tmp/repro_1331.php` (project BUG1331 id=2, suite id=3, tc id=4, tcversion id=5); `DELETE FROM events` baseline; re-run `php tmp/repro_1331_update.php` (steps without `execution_type` via `testcase::update()`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1331.1 | `php -l lib/functions/testcase.class.php` | no syntax errors | PASS |
+| 1331.2 | Run `php tmp/repro_1331.php` (create path, steps without execution_type) | create succeeds; **0** E_WARNING rows in `events` (pre-existing guard already covered this path) | PASS |
+| 1331.3 | Run `php tmp/repro_1331_update.php` (update path, steps without execution_type) — PRE-FIX this produced 1x `E_WARNING\nUndefined array key "execution_type" - ...testcase.class.php - Line 6420` | update succeeds; **0** E_WARNING rows in `events` (fix removes the warning); step row exists with `execution_type=1` (MANUAL default) | PASS |
+| 1331.4 | Check step row after update: `SELECT step_number,actions,expected_results,execution_type FROM tcsteps` | `1 / 'updated a' / 'updated e' / 1` — default applied at DB level | PASS |
+| 1331.5 | Run `php tmp/regr_1331.php` (update path, steps WITH `execution_type`=2) | explicit value preserved: step `execution_type=2` (no default-clobber regression) | PASS |
+| 1331.6 | Count warning rows after all runs | `SELECT COUNT(*) FROM events WHERE description LIKE 'E\_WARNING%'` = 0 | PASS |
+| 1331.7 | Import-parity re-run: re-import fresh schema (`testlink_create_tables.sql` + `testlink_create_default_data.sql`) then `php tmp/repro_1331.php` + `php tmp/repro_1331_update.php` | fixture recreates cleanly; 0 E_WARNING | PASS |
+
+Result: 7/7 PASS — **issue #1331 fixed and verified**: E_WARNING gone on the unguarded `update_tcversion_steps()` path, defaults still apply (MANUAL when omitted, explicit value preserved), events table clean.
