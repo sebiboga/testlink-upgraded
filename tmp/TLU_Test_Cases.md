@@ -12723,3 +12723,22 @@ Result: 10/10 PASS — gap #1362 closed: no BFF change was needed (api/reqspec/i
 | 878.12 | `git diff config.inc.php` after reverts | clean (no committed demoMode flip) | **PASS** |
 
 Result: 12/12 PASS — gap #878 closed: the BFF exposes `demoMode`, the modern screen replicates the legacy gating (buttons replaced by localized demo notice) AND the server now hard-blocks both write endpoints with HTTP 403 in demo mode, so no write can slip through via direct API calls. Screenshot: `docs/screenshots/issue-878-demoMode-gating.png`.
+
+## Task — Issue #1360: reqSpecCompare Context input default value prefill (gap vs legacy)
+
+**Screens:** `gui/templates/requirements/reqSpecCompare.html` · `api/reqspec/index.php`
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in. Fixtures recreated for this run: testproject id 7 (nodes_hierarchy), requirement spec id 8 `FS-1` (req_specs), 2 spec revisions id 9 (rev 1) / id 10 (rev 2) in `req_specs_revisions` with distinct scopes. Screen URL: `reqSpecCompare.html?spec_id=8&tproject_id=7`.
+**Gap:** legacy `lib/requirements/reqSpecCompareRevisions.php:241-245` prefills `$args->context` with `config_get('diffEngine')->context` (=5, config.inc.php:1774) and tpl line 251 renders `value={$gui->context}`; the modern screen rendered the Context input EMPTY (`reqSpecCompare.html:71 value=''`) and `doCompare()` blocked with `rsvc.invalidContext` ("Context must be a non-negative number"). Sibling `reqCompare.html:153-154` already prefills `var defCtx = r.context || 5`. Fix mirrors sibling — BFF list response now returns `context` (diffEngine default), HTML prefills the field, and the BFF text-compare fallback uses the default instead of null.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1360.1 | `GET /api/reqspec/index.php?action=spec_revision_compare&spec_id=8&tproject_id=7` | list response contains `context: 5` (verified via `Object.keys` before fix it was absent) | **PASS** |
+| 1360.2 | Load screen, select "HTML code comparison" | Context input shows **5** (`document.getElementById('context').value` → `"5"`); context row visible | **PASS** |
+| 1360.3 | Click "Compare selected revisions" WITHOUT typing anything | No `rsvc.invalidContext` warn; diff renders (`#diffWrap` visible, subtitle "Diff between r1 ↔ r2", attributes + scope text diff) | **PASS** |
+| 1360.4 | Select "HTML code comparison", tick "Show all" | Context field disabled; compare still renders (BFF receives `context_show_all=1` → context=-1) | **PASS** |
+| 1360.5 | Default "HTML comparison" method unchanged | DaisyDiff path unaffected — compare renders HTML diff with 3 changes badge | **PASS** |
+| 1360.6 | Override Context value to e.g. `2` in text mode | Explicit value honored — diff renders, no warn | **PASS** |
+| 1360.7 | BFF text compare WITHOUT `context` param (fetch `method=text&left=9&right=10`) | Server uses diffEngine default fallback instead of null — `scope.type:text`, diff produced (count=1) | **PASS** |
+| 1360.8 | Syntax + hygiene | `php -l api/reqspec/index.php` clean; extracted inline `<script>` parses under `node --check`; browser console 0 errors; `events` table: 0 new log_level ERROR/WARNING rows from the screen (only pre-existing LOGIN event) | **PASS** |
+
+Result: 8/8 PASS — gap #1360 closed: BFF `api/reqspec/index.php` returns `context` (diffEngine default 5, `is_object`-guarded) in the revision-list response and uses it as the server-side text-diff fallback; `gui/templates/requirements/reqSpecCompare.html` prefills the Context input in `loadRevisions()` (`var defCtx = r.context || 5; $('#context').val(defCtx);`) — exact sibling `reqCompare.html`/legacy parity. Screenshots: `docs/screenshots/issue-1360-context-prefilled-5.png`, `docs/screenshots/issue-1360-text-diff-rendered.png`.

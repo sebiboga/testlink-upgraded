@@ -40,6 +40,7 @@ Viewer** (`reqSpecView.html`) and **Spec Revision Viewer**
 | Scope diff | `diff`/`HTMLDiffer` on the `scope` of each revision | same — HTML-ins/del or text diff table; "No changes" when equal |
 | Custom fields diff | `getCFDiff()` table of linked CF values on each revision | same — CF table, `show_custom_fields_without_value` honored |
 | Validation | two distinct revisions required, context must be numeric ≥ 0 | same client-side validation before the compare request |
+| Context default (gap #1360) | Context input **prefilled with diffEngine default 5** so code-compare runs without typing (`lib/requirements/reqSpecCompareRevisions.php:241-245`; tpl line 251 renders `value={$gui->context}`) | same — HTML code-comparison mode shows Context **prefilled with 5**; the BFF list response returns `context` (mirror of sibling `reqCompare.html:153-154` / `api/reqcompare/index.php:161`); user can still edit it or tick "Show all" |
 | Revision ordering (gap #1362) | newest-first (DESC by revision number) | same — DataTable disabled default client-side ascending sort; the Revision cell carries an integer `data-order` sort key and the DataTable is initialised with `order: [[0,"desc"]]`, so rows render newest-first AND sort numerically for 10+ revisions ("Revision 10" > "Revision 2") |
 
 ## 2. REST API Reference
@@ -48,7 +49,7 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 
 | Method | Route | Query | Returns |
 |---|---|---|---|
-| GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id` | `{status, tproject_id, tproject_name, spec_id, spec_doc_id, revisions:[{item_id, revision, log_message, timestamp, last_editor}]}` |
+| GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id` | `{status, tproject_id, tproject_name, spec_id, spec_doc_id, context, revisions:[{item_id, revision, log_message, timestamp, last_editor}]}` |
 | GET | `?action=spec_revision_compare` | `spec_id`, `tproject_id`, `left`, `right`, `method=html|text`, `context`, `context_show_all` | `{status, left, right, method, attributes:[{label,lvalue,rvalue,changed}], scope:{type,left,right,count,diff}, custom_fields:[{label,lvalue,rvalue,changed}]}` |
 
 ### Error conditions
@@ -70,6 +71,12 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
   `diff::doDiff` + `inline` (HTML code comparison with a context window).
 - The `scope` is compared for both engines; attributes and custom fields use the
   legacy `changed` flag for row highlighting.
+- **Context default (gap #1360):** the BFF returns the `diffEngine->context`
+  default (`config.inc.php:1774`, = 5) in the revision-list response, and also
+  uses it server-side as fallback when a text-compare request omits `context`
+  (previously the fallback was `null`). The screen prefills the Context input
+  from that field (`r.context || 5`), identical to legacy and to the sibling
+  requirement-version compare screen.
 
 ## 4. i18n Keys
 
@@ -100,3 +107,9 @@ See **Suite 837 — Requirement Spec Revision Compare** in `tmp/TLU_Test_Cases.m
 validation, empty-context validation, missing-spec error, BFF 404/400 guards,
 link switches from both the current-spec viewer and the revision viewer, locale
 switch, console cleanliness, and Event Viewer cleanliness.
+
+See also **Suite 1360 — Context default prefill** (8/8 PASS): the code-compare
+Context input is prefilled with 5 from the BFF `context` field on load, compare
+runs without typing, "Show all" still disables the field, HTML-compare (Daisy)
+path unaffected, explicit context override honored, BFF fallback default,
+syntax gates, and Event Viewer/console cleanliness.

@@ -148,6 +148,9 @@ function loadRevisions() {
     if (r.status !== 'ok') { showWarn(r.message || TLi18n.t('rsvc.loadError')); return; }
     TPROJECT_ID = r.tproject_id || TPROJECT_ID;
     $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)) + ' [' + r.spec_doc_id + ']');
+    // Refs #1360 - prefill context with diffEngine default (5), mirror of sibling reqCompare.html
+    var defCtx = r.context || 5;
+    $('#context').val(defCtx);
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rsvc.title') +
       ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
     renderRevisions(r.revisions || []);

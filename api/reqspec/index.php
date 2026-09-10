@@ -806,6 +806,13 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
         out(['status' => 'error', 'message' => 'No permission']);
     }
 
+    // Refs #1360 - prefill default context = diffEngine->context (5), mirror of
+    // legacy lib/requirements/reqSpecCompareRevisions.php:241-245 and of the
+    // sibling reqCompare screen (api/reqcompare/index.php:161, :220-222).
+    $diffEngine = config_get('diffEngine');
+    $defContext = (is_object($diffEngine) && isset($diffEngine->context))
+        ? intval($diffEngine->context) : 5;
+
     $leftId  = intval($_REQUEST['left'] ?? 0);
     $rightId = intval($_REQUEST['right'] ?? 0);
 
@@ -831,6 +838,7 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
             'tproject_name' => testproject::getName($db, $ownerTid),
             'spec_id'     => $specId,
             'spec_doc_id' => (string)$specRow[0]['doc_id'],
+            'context'     => $defContext,
             'revisions'   => $items,
         ]);
     }
@@ -903,7 +911,7 @@ if ($method === 'GET' && $action === 'spec_revision_compare') {
             require_once(__DIR__ . '/../../third_party/diff/diff.php');
             $context = isset($_REQUEST['context_show_all'])
                 ? -1 : (isset($_REQUEST['context']) && is_numeric($_REQUEST['context'])
-                    ? intval($_REQUEST['context']) : null);
+                    ? intval($_REQUEST['context']) : $defContext);
             $differ = new diff();
             $differ->doDiff(
                 explode("\n", str_replace('</p>', "</p>\n", $lvScope)),
