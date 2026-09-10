@@ -40,6 +40,7 @@ Viewer** (`reqSpecView.html`) and **Spec Revision Viewer**
 | Scope diff | `diff`/`HTMLDiffer` on the `scope` of each revision | same — HTML-ins/del or text diff table; "No changes" when equal |
 | Custom fields diff | `getCFDiff()` table of linked CF values on each revision | same — CF table, `show_custom_fields_without_value` honored |
 | Validation | two distinct revisions required, context must be numeric ≥ 0 | same client-side validation before the compare request |
+| Revision ordering (gap #1362) | newest-first (DESC by revision number) | same — DataTable disabled default client-side ascending sort; the Revision cell carries an integer `data-order` sort key and the DataTable is initialised with `order: [[0,"desc"]]`, so rows render newest-first AND sort numerically for 10+ revisions ("Revision 10" > "Revision 2") |
 
 ## 2. REST API Reference
 

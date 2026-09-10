@@ -12674,3 +12674,26 @@ Result: 13/13 PASS — gap #1354 closed: the modern revision viewer now has a `P
 | 877.9 | Browser console (admin + no-rights sessions) | no JS errors (only pre-existing a11y `No label associated with a form field` issues) | **PASS** |
 
 Result: 9/9 PASS — gap #877 closed: the BFF exposes `canViewEvents` (project-less `hasRight($db,'mgt_view_events')`, matching legacy userInfo.php:90) and the User Profile Login History card gains a right-gated "Show event history" button opening the Event Viewer filtered to `users #<userID>` via the hidden `#eventhistory` GET form (planMilestones pattern).
+
+---
+
+## Task — Issue #1362: reqSpecCompare revision list default ordering (gap vs legacy)
+
+**Screens:** `gui/templates/requirements/reqSpecCompare.html` · BFF `api/reqspec/index.php` (unchanged)
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, admin/admin logged in; `php tmp/fixtures_rscmp.php` creates project 1 "RCMP Spec Compare Project", spec 2 "RSC-SRS" with 10 revisions (log msg 'Fourth revision'…'Revision 10', author admin). Open modern compare screen `reqSpecCompare.html?spec_id=2&tproject_id=1`.
+**Gap:** legacy `reqSpecCompareRevisions.php` renders newest-first (DESC); the modern DataTable defaulted to ascending lexicographic sort on the "Revision N" text badge → "Revision 1, 2, 3" and wrong order for 10+ revisions ("Revision 10" < "Revision 2").
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1362.1 | Open modern screen; inspect Revision column | Rows top-down = **Revision 10, 9, 8, 7, 6, 5, 4, 3, 2, 1** (numeric DESC, newest first) | **PASS** |
+| 1362.2 | Inspect first cell `data-order` attr | `data-order="10"` (bare integer, not text) — numeric sort key present | **PASS** |
+| 1362.3 | Legacy parity check | legacy `reqSpecCompareRevisions.php?req_spec_id=2` shows newest first (DESC) — same intent rendered by modern screen | **PASS** |
+| 1362.4 | Default compare selection | left radio checked on rev 9 (previous), right radio checked on rev 10 (newest) — preserved after sort change | **PASS** |
+| 1362.5 | Click "Compare selected revisions" | Diff renders: subtitle "Diff between r9 ↔ r10", attributes table, scope block; `#diffWrap` visible | **PASS** |
+| 1362.6 | DataTable ordering config | init has `order: [[0, 'desc']]`; column header shows descending sort indicator | **PASS** |
+| 1362.7 | Numeric edge (≥10 revisions) | With 10 revisions the table still sorts numerically (10 above 2), NOT lexicographically | **PASS** |
+| 1362.8 | BFF local test | `php -l api/reqspec/index.php` clean | **PASS** |
+| 1362.9 | Event Viewer | `events` table: 0 new rows with log_level 1 (ERROR) / 2 (WARNING) from the screen | **PASS** |
+| 1362.10 | Browser console | no JS errors (only benign a11y "form field should have id/name" issue, pre-existing template pattern) | **PASS** |
+
+Result: 10/10 PASS — gap #1362 closed: no BFF change was needed (api/reqspec/index.php:814 already sends DESC); the fix is client-side in `gui/templates/requirements/reqSpecCompare.html` — integer `data-order` sort key on the Revision cell + DataTable `order: [[0,'desc']]`. Screenshot: `docs/screenshots/issue-1362-reqspeccompare-desc-order.png`.
