@@ -94,9 +94,31 @@ function getReturnWorkArea($feature) {
     return $mainPage;
   }
 
-  $tprojectScoped = array('editTc','keywordsAssign','assignReqs',
-                          'reqSpecMgmt','printReqSpec',
-                          'searchReq','searchReqSpec');
+  // Refs #1330: project-scoped ASIDE features land on their modernized Dashio
+  // screens after a test-project switch instead of the legacy two-pane
+  // frmWorkArea layout. The URIs mirror getActions() in lib/functions/common.php.
+  // `feature=` is echoed into the URL so navbar switchTestProject() (navBar.tpl)
+  // round-trips the same work area on the following switch.
+  $modernScreens = array(
+      'keywordsAssign' => 'gui/templates/keywords/keywordsAssign.html',
+      'assignReqs'     => 'gui/templates/requirements/assignReqs.html',
+      'reqSpecMgmt'    => 'gui/templates/requirements/reqSpecMgmt.html',
+      'printReqSpec'   => 'gui/templates/requirements/printReqSpec.html',
+      'searchReq'      => 'gui/templates/requirements/searchReq.html',
+      'searchReqSpec'  => 'gui/templates/requirements/searchReqSpec.html',
+  );
+
+  if (isset($modernScreens[$feature])) {
+    return $modernScreens[$feature] . '?feature=' . $feature;
+  }
+
+  // Refs #923: editTc keeps the two-pane frmWorkArea layout whose right pane is
+  // the modernized projectInfoView.html. Only features that depend on the test
+  // project alone are accepted: the ones getActions() guards behind a test plan
+  // reference the previous project's test plan, so they fall back to the main
+  // page, as does anything unknown - the feature is never echoed into the URL,
+  // only matched against this list.
+  $tprojectScoped = array('editTc');
 
   return in_array($feature,$tprojectScoped,true)
          ? 'lib/general/frmWorkArea.php?feature=' . $feature
@@ -141,11 +163,13 @@ function initEnv() {
 
   $args->reqURI = $_SESSION['basehref'] . $args->reqURI;
 
-  // The modernized Dashboard reads the committed project/plan from the URL;
-  // append the context here so a direct refresh of the main frame keeps the
-  // same widgets as the frameset that built it (the BFF also falls back to
-  // the session when these are missing, but an explicit URL is unambiguous).
-  if (strpos($args->reqURI, 'gui/templates/mainpage/mainPage.html') !== false) {
+  // Modernized Dashio screens (gui/templates/**/*.html) read the committed
+  // project/plan from the URL; append the context here so a direct refresh of
+  // the main frame keeps the same widgets as the frameset that built it (the
+  // BFF also falls back to the session when these are missing, but an explicit
+  // URL is unambiguous). Legacy targets (lib/...) keep their own context
+  // handling, e.g. frmWorkArea.php.
+  if (preg_match('#gui/templates/[^?]*\.html#', $args->reqURI)) {
     $sep = (strpos($args->reqURI, '?') === false) ? '?' : '&';
     $args->reqURI .= $sep . 'tproject_id=' . $args->tproject_id .
                      '&tplan_id=' . $args->tplan_id;

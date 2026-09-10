@@ -12,7 +12,7 @@ JS + CSS screen backed by a plain-PHP REST BFF (replacing the legacy 1.9.20
 **Path:** Dashboard — main frame landing (not an ASIDE child item)
 **URL:** `gui/templates/mainpage/mainPage.html` (loaded inside the main frame)
 **BFF API:** `api/mainpage/index.php` — `GET /data?tproject_id=<id>&tplan_id=<plan>`
-**Link switch:** `index.php` → `getReturnWorkArea()` default now returns the modernized HTML instead of `lib/general/mainPage.php`
+**Link switch:** `index.php` → `getReturnWorkArea()` default now returns the modernized HTML instead of `lib/general/mainPage.php` (Refs #1330: the 6 project-scoped features `keywordsAssign`, `assignReqs`, `reqSpecMgmt`, `printReqSpec`, `searchReq`, `searchReqSpec` also land on their modernized Dashio screens after a test-project switch instead of the legacy two-pane `frmWorkArea.php`; `editTc` keeps the `frmWorkArea` two-pane layout with the modern `projectInfoView.html` right pane)
 
 ---
 

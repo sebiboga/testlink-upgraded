@@ -12490,21 +12490,27 @@ Result: 11/11 PASS — **gap #875 fully closed**: payload flag exposes legacy `i
 
 ---
 
-## Regression — Issue #1331: testcase::update()/XML-RPC E_WARNING 'Undefined array key "execution_type"' when steps omit execution_type (Refs #1331)
+## Task — Issue #1330: getReturnWorkArea() lands 6 project-scoped features on MODERN screens after a project switch (Refs #1330)
 
-**File:** `lib/functions/testcase.class.php:6417-6420` (`update_tcversion_steps()`).
-**Root cause:** the loop reads `$steps[$idx]['execution_type']` unconditionally and passes it positionally to `create_step()`; when a caller-supplied step array omits the key, PHP 8 raises `E_WARNING Undefined array key "execution_type"`, forwarded by `watchPHPErrors()` (`logger.class.php:1407-1446`) to the `events` table (log_level 2). Reachable via `testcase::update()` (line 1496) and XML-RPC `updateTestCase` (`lib/api/xmlrpc/v1/xmlrpc.class.php:7321`). Note: `testcase::create()` → `createVersion()` already guards the key (lines 816-818), so create alone does not warn.
-**Fix:** line 6420 — `$steps[$idx]['execution_type'] ?? TESTCASE_EXECUTION_TYPE_MANUAL` (mirrors `createVersion()` + the `??` idiom already in `create_step()`).
-**Precondition (fresh DB import, 2026-09-10):** `php tmp/repro_1331.php` (project BUG1331 id=2, suite id=3, tc id=4, tcversion id=5); `DELETE FROM events` baseline; re-run `php tmp/repro_1331_update.php` (steps without `execution_type` via `testcase::update()`).
+**Screen:** `index.php` (frameset builder) — `getReturnWorkArea()` + `initEnv()`
+**Legacy gap:** after switching Test Project in the navbar, `getReturnWorkArea()` returned `lib/general/frmWorkArea.php?feature=X` for `keywordsAssign`/`assignReqs`/`reqSpecMgmt`/`printReqSpec`/`searchReq`/`searchReqSpec`, rendering the legacy two-pane Smarty layout (`listTestCases.php`, `reqSpecListTree.php`, `reqSearchForm.php`, `reqSpecSearchForm.php`) instead of the modern `.html` screen.
+**Fix:** `index.php:94-124` maps those 6 features to their modern Dashio URIs (mirror of getActions()) and echoes `?feature=` so navbar `switchTestProject()` round-trips the same work area on the next switch; `index.php:163-175` extends the Dashboard-only context append to every modern `gui/templates/*.html` landing (`tproject_id`/`tplan_id`). `editTc` intentionally keeps `frmWorkArea.php` (right pane = modern projectInfoView).
+**Precondition (2026-09-10, fresh DB):** app @ localhost:8082, logged in admin/admin; two test projects created via UI — Alpha Project (id=1, prefix ALPHA) and Beta Project (id=2, prefix BETA); both requirements-enabled. `events` baseline = login + 2 project-create audits.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1331.1 | `php -l lib/functions/testcase.class.php` | no syntax errors | PASS |
-| 1331.2 | Run `php tmp/repro_1331.php` (create path, steps without execution_type) | create succeeds; **0** E_WARNING rows in `events` (pre-existing guard already covered this path) | PASS |
-| 1331.3 | Run `php tmp/repro_1331_update.php` (update path, steps without execution_type) — PRE-FIX this produced 1x `E_WARNING\nUndefined array key "execution_type" - ...testcase.class.php - Line 6420` | update succeeds; **0** E_WARNING rows in `events` (fix removes the warning); step row exists with `execution_type=1` (MANUAL default) | PASS |
-| 1331.4 | Check step row after update: `SELECT step_number,actions,expected_results,execution_type FROM tcsteps` | `1 / 'updated a' / 'updated e' / 1` — default applied at DB level | PASS |
-| 1331.5 | Run `php tmp/regr_1331.php` (update path, steps WITH `execution_type`=2) | explicit value preserved: step `execution_type=2` (no default-clobber regression) | PASS |
-| 1331.6 | Count warning rows after all runs | `SELECT COUNT(*) FROM events WHERE description LIKE 'E\_WARNING%'` = 0 | PASS |
-| 1331.7 | Import-parity re-run: re-import fresh schema (`testlink_create_tables.sql` + `testlink_create_default_data.sql`) then `php tmp/repro_1331.php` + `php tmp/repro_1331_update.php` | fixture recreates cleanly; 0 E_WARNING | PASS |
+| 1330.1 | `php -l index.php` | no syntax errors | **PASS** |
+| 1330.2 | Simulated switch `index.php?tproject_id=2&returnFeature=keywordsAssign` → mainframe src | `gui/templates/keywords/keywordsAssign.html?feature=keywordsAssign&tproject_id=2&tplan_id=0`; page renders "Assign Keywords to Test Cases", project Beta | **PASS** |
+| 1330.3 | Same for `assignReqs` | `gui/templates/requirements/assignReqs.html?feature=assignReqs&tproject_id=…`. Renders, title "Assign Requirements to Test Cases in test project Alpha Project" | **PASS** |
+| 1330.4 | Same for `reqSpecMgmt` | `…/reqSpecMgmt.html?feature=reqSpecMgmt…`, title "Alpha Project - Requirement Specification Management" | **PASS** |
+| 1330.5 | Same for `printReqSpec` | `…/printReqSpec.html?feature=printReqSpec…`, title "Alpha Project - Print Requirement Specification" | **PASS** |
+| 1330.6 | Same for `searchReq` | `…/searchReq.html?feature=searchReq…`, title "Alpha Project - Search Requirements" | **PASS** |
+| 1330.7 | Same for `searchReqSpec` | `…/searchReqSpec.html?feature=searchReqSpec…`, title "Alpha Project - Search Requirement Specifications" | **PASS** |
+| 1330.8 | `editTc` (unchanged) `index.php?tproject_id=1&returnFeature=editTc` | mainframe = `lib/general/frmWorkArea.php?feature=editTc`; left=legacy listTestCases, right=`gui/templates/projects/projectInfoView.html?tproject_id=1` | **PASS** |
+| 1330.9 | Unknown feature / no feature → Dashboard | `gui/templates/mainpage/mainPage.html?tproject_id=1&tplan_id=0` | **PASS** |
+| 1330.10 | Round-trip: while modern keywordsAssign screen is mainframe, change project dropdown Alpha→Beta | frameset reloads; mainframe stays on `keywordsAssign.html?feature=keywordsAssign&tproject_id=2&tplan_id=0`; project Beta in screen header | **PASS** |
+| 1330.11 | POST-login landing (no returnFeature) | modern Dashboard, with context appended | **PASS** |
+| 1330.12 | Event Viewer / `events` after the pass | only the two pre-existing legacy E_WARNINGs (id=4,5, legacy `listTestCases.php` tcTree path, filed as bug **#1334**) + INFO/AUDIT; modern landings produce **0** new Error/Warning rows | **PASS** |
+| 1330.13 | Browser console during all 6 modern landings + round-trip | no new JS errors | **PASS** |
 
-Result: 7/7 PASS — **issue #1331 fixed and verified**: E_WARNING gone on the unguarded `update_tcversion_steps()` path, defaults still apply (MANUAL when omitted, explicit value preserved), events table clean.
+Result: 13/13 PASS — **gap #1330 closed**: all 6 project-scoped features land on their modernized screens after a project switch, with feature round-trip; `editTc` behavior unchanged; unknown/missing features still fall back to the modern Dashboard. Screenshots: `docs/screenshots/issue-1330-keywordsAssign-modern-landing.png`, `docs/screenshots/issue-1330-searchReqSpec-modern-landing.png`.
