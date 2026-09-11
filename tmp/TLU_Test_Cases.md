@@ -12968,30 +12968,24 @@ Result: 10/10 PASS — #882 gap closed: BFF persists `authentication` + `expirat
 
 Result: 9/9 PASS — **#1390 FIXED** via null-guard `!is_null($dummy) && count($dummy) > 0` at `lib/plan/planImport.php:372` (single line). Purpose-built payloads `tmp/pimp_xml/repro1390.xml` / `regr1390.xml` added. **New bugs discovered while testing:** (a) single-element result messages (`planImport.php:476/481`) vs template `$result[1]` → E_WARNING on every mixed import → filed as **#1413** (label `bug`); (b) identical unguarded `count($dummy)` in modern BFF `api/planimport/index.php:208` (masked by #1389) → filed as **#1414** (label `bug`). Both left for fix-bug factory.
 
----
+## Regression — Issue #1414: planImport (modern BFF) HTTP 500 `count(null)` crash at api/planimport/index.php:208 for a missing test-case version (Refs #1414)
 
-## Task — Issue #1408: reportPrint apikey / public-link anonymous + remote-user document generation (gap vs legacy)
-
-**Screens:** `api/reportsprint/index.php` (BFF) · `gui/templates/results/reportPrint.html` (modern popup, reads `apikey` and forwards it in `buildQuery()`) · `lnl.php` (`reportPublicUrl()` re-points test_plan/test_report/testreport_onbuild) · `cfg/reports.cfg.php` (`directLink` sprintf `%1$s..%4$s`).
-**Legacy ref:** `lib/results/printDocument.php:320-337` (`init_args()` apikey branch: 32-char `setUpEnvForRemoteAccess` / 64-char `setUpEnvForAnonymousAccess`), `gui/templates/dashio/...` lnl links.
-**Precondition (2026-09-11, fresh DB):** app @ localhost:8082. Project RP845 (id=1), plan 13 "RP Plan" with api_key = 64 chars `a×63 + '1'`, plan 100 "Other Plan" api_key = 64×`c`, project api_key = 64×`d`; user admin script_key = 32×`b`(+`32`); user `noprint` (id=2, role 3 = no rights) script_key = 32×`e`; 3 TCs, builds 1+2, executions on both builds. Anonymous browser test run in an ISOLATED incognito context (no TL cookies).
+**Screen:** `api/planimport/index.php` (modern planImport BFF, `importTestPlanLinksFromXML()`, POST `?action=import`)
+**Root cause:** `api/planimport/index.php:206-208` passes `$tcaseMgr->get_basic_info($tcaseSet[$externalID], array('number'=>$version))` (→ `db->get_recordset()`, returns **`null`** for zero rows, `lib/functions/database.class.php:776-791`) straight into `count($dummy)` → PHP 8 `TypeError: count(): Argument #1 ... null` → HTTP 500. The intended `else` (`tcversion_doesnot_exist`) was unreachable. Byte-for-byte twin of the legacy bug fixed in #1390. Fix: `if (!is_null($dummy) && count($dummy) > 0) {` (`api/planimport/index.php:208`).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. Fixture `php tmp/fixtures_pimp.php`: tproject **1 PIMP** (prefix PIMP), TCs PIMP-1/2/3 (= Login/Logout/Settings, tc_external_id 1/2/3, tcversions 4/7/10), plan **12** `PIMP-Plan`, platform 1 `PIMP-Android`. Payloads `tmp/pimp_xml/repro1390.xml` (Login v1 + Login v99), `regr1390.xml` (valid + v99 + extid 777 + no-platform link), `mixed.xml`, `badplat.xml`, `invalid.xml`. Session: `POST /login.php tl_login=admin&tl_password=admin` (cookie jar).
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1408.1 | `GET /api/reportsprint/index.php?action=print&type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&apikey=<64×a>` (no session) | HTTP 200 `{status:ok,body_html,...}` full execution report (TOC + suites + executions + metrics) — legacy defaults applied | **PASS** |
-| 1408.2 | same + `action=download` (no session) | HTTP 200, `Content-Disposition: attachment; filename="RP8-test_plan-2026-09-11.html"` | **PASS** |
-| 1408.3 | anonymous `type=testreport_onbuild&build_id=1` | HTTP 200, per-build report "Test Plan Execution Report (on specific build)" with "Build: RP Build 1"; TCs without exec on the build show Not Run | **PASS** |
-| 1408.4 | remote-user 32-char key admin (`apikey=32×b`) | HTTP 200, full report | **PASS** |
-| 1408.5 | remote-user 32-char key `noprint` user (no testplan rights) | HTTP 403 `No permission` | **PASS** |
-| 1408.6 | anonymous `apikey=<64×a>` (plan 13) but `tplan_id=100` | HTTP 400 `Invalid context for api key` | **PASS** |
-| 1408.7 | anonymous project key `<64×d>` with `tplan_id=13` | HTTP 200 (project key falls back to owning project) | **PASS** |
-| 1408.8 | invalid apikey (`apikey=<64×z>`) | HTTP 401 `Unknown api key` | **PASS** |
-| 1408.9 | `GET /lnl.php?apikey=<64×a>&tproject_id=1&tplan_id=13&type=test_report` (no session) | HTTP 302 → `reportPrint.html?type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&apikey=...&opts=header=y&summary=y&...` | **PASS** |
-| 1408.10 | `GET /lnl.php?...&type=testreport_onbuild&build_id=1` (no session) | HTTP 302 → `reportPrint.html?type=testreport_onbuild&...&build_id=1&format=0&apikey=...&opts=<full flags>` | **PASS** |
-| 1408.11 | Browser (incognito, no cookies) open `reportPrint.html?...&apikey=<64×a>` | Popup renders the FULL document (TOC, suite headers, TC author/summary/execution details, metrics); only console msg is the incidental `/api/userinfo` 401 | **PASS** |
-| 1408.12 | Browser (incognito) `?type=testreport_onbuild&build_id=1&apikey=<64×a>` via lnl.php 302 | Popup renders per-build doc with "Build: RP Build 1" header + per-build execution details | **PASS** |
-| 1408.13 | Browser (incognito) `apikey=32×b` (admin remote) | Popup renders full document | **PASS** |
-| 1408.14 | Authenticated regression: modern navigator `testPlanReport.html` "Print whole test plan report" + per-build report_url links | popup opens + document renders with user-selected opts (toc=n etc.); per-build links hit reportPrint.html?type=testreport_onbuild&... (no apikey) | **PASS** |
-| 1408.15 | Integrity | `php -l` on `api/reportsprint/index.php`, `lnl.php` clean; no new i18n keys required (BFF errors are plain-English JSON as in sibling BFFs); events table shows NO new Error/Warning from the modern flows (the `$buildCfields` E_WARNING seen is a pre-existing legacy bug → filed #1415, reproduced identically on the legacy script path) | **PASS** |
+| 1414.1 | Pre-fix repro: `curl -b cookies -X POST 'http://localhost:8082/api/planimport/?action=import&tproject_id=1&tplan_id=12' -F 'uploadedFile=@tmp/pimp_xml/repro1390.xml'` (existing TC, version 99 missing) | HTTP 500 empty body; PHP harness confirms `TypeError: count(): Argument #1 ($value) must be of type Countable|array, null given` when `get_basic_info()` returns null | **PASS (pre-fix)** — `500` reproduced; harness on v99 → `dummy: NULL` → TypeError exactly |
+| 1414.2 | Post-fix R1: repeat 1414.1 | HTTP **200**; `{"status":"ok","result_map":[["...already linked...","OK"],["Test Case with external id 1 version 99 does not exist on Test Project PIMP"]]}` | **PASS** |
+| 1414.3 | Post-fix R2 (create path): fresh plan links (DELETE `testplan_tcversions WHERE testplan_id=12`), import `mixed.xml` | `external id 1 version 1 has been linked ... PIMP-Android`, same for extid 2; DB rows tcversion 4/platform 1 + 7/platform 1 | **PASS** — rows id2/tcversion4/platform1/node_order10 and id3/tcversion7/platform1/node_order20 |
+| 1414.4 | R2b: missing-version link (`repro1390.xml` v99) | `Test Case with external id 1 version 99 does not exist on Test Project PIMP`, no crash, no new link row | **PASS** |
+| 1414.5 | R2c: non-existent TC (`regr1390.xml` externalid 777) | `Attention!! - Can not find test case identified by 777`, no row | **PASS** |
+| 1414.6 | R2d: link without platform element on platform-linked plan (`regr1390.xml` last link) | `Test case link #4 has no platform element` / Not imported | **PASS** |
+| 1414.7 | R2e: platform not on test project (`badplat.xml`) | `... request platform NoSuchPlatform be linked ... does not exist on target Test Project.` / Not imported; no crash | **PASS** |
+| 1414.8 | R2f: malformed XML (`invalid.xml`) | HTTP 200, `simplexml_load_file_wrapper_error` ("Failed to load XML") row, no crash | **PASS** |
+| 1414.9 | R3 idempotency: re-import `repro1390.xml` | `... was already linked to Test Plan, only execution order has been updated.` | **PASS** |
+| 1414.10 | Browser: upload + submit `repro1390.xml` on screen `gui/templates/plans/planImport.html?tplan_id=12` | Report renders 2 rows, `Import completed successfully.`, no console errors; screenshot `tmp/wiki-repo/planImport-fixed-issue1414.png` | **PASS** |
+| 1414.11 | Hygiene | `php -l api/planimport/index.php` clean; no new Error/Warning **entries** in `events` table from the fixed path (only AUDIT(16): `audit_testproject_created`, `audit_login_succeeded`, 2x `audit_tc_added_to_testplan`) | **PASS** |
 
-Result: 15/15 PASS — **#1408 DONE**. Gap closed: anonymous (64-char testplan/project api_key) and remote-user (32-char script_key) document generation restored on the modern reportPrint popup + BFF; lnl.php and cfg directLink entries re-pointed; legacy flags defaulted for apikey callers exactly like legacy lnl. Reference commit: `8f8b5353d` (BFF+screen+lnl+cfg). Screenshots: `docs/screenshots/issue-1408-anon-testreport.png` (+ wiki `images/issue-1408-anon-testreport.png`).
+Result: 11/11 PASS — **#1414 FIXED** via null-guard `!is_null($dummy) && count($dummy) > 0` at `api/planimport/index.php:208` (single line, mirrors `995ca7f36` legacy fix for #1390). No new bugs discovered while testing.
