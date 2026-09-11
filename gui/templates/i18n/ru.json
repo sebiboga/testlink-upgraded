@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Прямая ссылка скопирована в буфер обмена",
   "rrv.openReq": "Открыть требование",
   "rrv.help": "Справка",
-  "rrv.invalidId": "Не указан id элемента требования"
+  "rrv.invalidId": "Не указан id элемента требования",
+  "reqv.print": "Печать",
+  "reqv.directLink": "Прямая ссылка",
+  "reqv.copyLink": "Копировать",
+  "reqv.directLinkCopied": "Прямая ссылка скопирована в буфер обмена",
+  "reqv.help": "Справка",
+  "reqv.helpTooltip": "Открыть страницу вики TestLink для этого экрана",
+  "reqv.specificLink": "Ссылка на эту версию/редакцию"
 }

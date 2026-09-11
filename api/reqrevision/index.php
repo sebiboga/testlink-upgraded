@@ -207,7 +207,8 @@ out([
     'revision'               => intval($info['revision']),
     'version_id'             => intval($info['version_id']),
     'revision_id'            => intval($info['revision_id']),
-    'status'                 => (string)$info['status'],
+    'status_code'            => (string)$info['status'],
+    'status'                 => 'ok',
     'status_label'           => isset($statusLabels[$info['status']])
         ? $statusLabels[$info['status']] : (string)$info['status'],
     'type'                   => (string)$info['type'],

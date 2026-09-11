@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "直接链接已复制到剪贴板",
   "rrv.openReq": "打开需求",
   "rrv.help": "帮助",
-  "rrv.invalidId": "未提供需求项 ID"
+  "rrv.invalidId": "未提供需求项 ID",
+  "reqv.print": "打印",
+  "reqv.directLink": "直接链接",
+  "reqv.copyLink": "复制",
+  "reqv.directLinkCopied": "直接链接已复制到剪贴板",
+  "reqv.help": "帮助",
+  "reqv.helpTooltip": "打开此界面的TestLink wiki页面",
+  "reqv.specificLink": "链接到此版本/修订"
 }

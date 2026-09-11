@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Lien direct copié dans le presse-papiers",
   "rrv.openReq": "Ouvrir l'exigence",
   "rrv.help": "Aide",
-  "rrv.invalidId": "Aucun identifiant d'élément d'exigence fourni"
+  "rrv.invalidId": "Aucun identifiant d'élément d'exigence fourni",
+  "reqv.print": "Imprimer",
+  "reqv.directLink": "Lien direct",
+  "reqv.copyLink": "Copier",
+  "reqv.directLinkCopied": "Lien direct copié dans le presse-papiers",
+  "reqv.help": "Aide",
+  "reqv.helpTooltip": "Ouvrir la page wiki TestLink de cet écran",
+  "reqv.specificLink": "Lien vers cette version/révision"
 }

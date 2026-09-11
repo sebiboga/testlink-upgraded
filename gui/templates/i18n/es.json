@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Enlace directo copiado al portapapeles",
   "rrv.openReq": "Abrir requisito",
   "rrv.help": "Ayuda",
-  "rrv.invalidId": "No se proporcionó un id de elemento de requisito"
+  "rrv.invalidId": "No se proporcionó un id de elemento de requisito",
+  "reqv.print": "Imprimir",
+  "reqv.directLink": "Enlace directo",
+  "reqv.copyLink": "Copiar",
+  "reqv.directLinkCopied": "Enlace directo copiado al portapapeles",
+  "reqv.help": "Ayuda",
+  "reqv.helpTooltip": "Abrir la página wiki de TestLink de esta pantalla",
+  "reqv.specificLink": "Enlace a esta versión/revisión"
 }

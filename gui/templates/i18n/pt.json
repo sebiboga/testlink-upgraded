@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Ligação direta copiada para a área de transferência",
   "rrv.openReq": "Abrir requisito",
   "rrv.help": "Ajuda",
-  "rrv.invalidId": "Sem id de elemento de requisito fornecido"
+  "rrv.invalidId": "Sem id de elemento de requisito fornecido",
+  "reqv.print": "Imprimir",
+  "reqv.directLink": "Ligação direta",
+  "reqv.copyLink": "Copiar",
+  "reqv.directLinkCopied": "Ligação direta copiada para a área de transferência",
+  "reqv.help": "Ajuda",
+  "reqv.helpTooltip": "Abrir a página wiki do TestLink para este ecrã",
+  "reqv.specificLink": "Ligação para esta versão/revisão"
 }

@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Link direct copiat în clipboard",
   "rrv.openReq": "Deschide cerința",
   "rrv.help": "Ajutor",
-  "rrv.invalidId": "Nu este furnizat niciun id pentru itemul cerinței"
+  "rrv.invalidId": "Nu este furnizat niciun id pentru itemul cerinței",
+  "reqv.print": "Printează",
+  "reqv.directLink": "Link direct",
+  "reqv.copyLink": "Copiază",
+  "reqv.directLinkCopied": "Link direct copiat în clipboard",
+  "reqv.help": "Ajutor",
+  "reqv.helpTooltip": "Deschide pagina wiki TestLink pentru acest ecran",
+  "reqv.specificLink": "Link către această versiune/revizie"
 }

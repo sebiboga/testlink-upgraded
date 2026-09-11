@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Direct link copied to clipboard",
   "rrv.openReq": "Open requirement",
   "rrv.help": "Help",
-  "rrv.invalidId": "No requirement item id provided"
+  "rrv.invalidId": "No requirement item id provided",
+  "reqv.print": "Print",
+  "reqv.directLink": "Direct link",
+  "reqv.copyLink": "Copy",
+  "reqv.directLinkCopied": "Direct link copied to clipboard",
+  "reqv.help": "Help",
+  "reqv.helpTooltip": "Open the TestLink wiki page for this screen",
+  "reqv.specificLink": "Link to this version/revision"
 }

@@ -185,7 +185,7 @@ function render(r) {
   $('#vVersion').text('v' + r.version);
   $('#vRevision').html('<span class="badge-rev vr-chip">r' + r.revision + '</span>');
   $('#vType').html('<span class="badge-type">' + escapeHtml(r.type_label || r.type || '-') + '</span>');
-  $('#vStatus').html('<span class="badge-status">' + escapeHtml(r.status_label || r.status || '-') + '</span>');
+  $('#vStatus').html('<span class="badge-status">' + escapeHtml(r.status_label || r.status_code || '-') + '</span>');
   $('#vFrozen').html(r.is_open
     ? '<span class="badge-open">' + TLi18n.t('common.no') + '</span>'
     : '<span class="badge-frozen">' + TLi18n.t('common.yes') + '</span>');

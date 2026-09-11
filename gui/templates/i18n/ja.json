@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "ダイレクトリンクをクリップボードにコピーしました",
   "rrv.openReq": "要件を開く",
   "rrv.help": "ヘルプ",
-  "rrv.invalidId": "要件アイテムIDが指定されていません"
+  "rrv.invalidId": "要件アイテムIDが指定されていません",
+  "reqv.print": "印刷",
+  "reqv.directLink": "ダイレクトリンク",
+  "reqv.copyLink": "コピー",
+  "reqv.directLinkCopied": "ダイレクトリンクをクリップボードにコピーしました",
+  "reqv.help": "ヘルプ",
+  "reqv.helpTooltip": "この画面のTestLink wikiページを開く",
+  "reqv.specificLink": "このバージョン/リビジョンへのリンク"
 }

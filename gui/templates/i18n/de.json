@@ -3272,5 +3272,12 @@
   "rrv.directLinkCopied": "Direkter Link in Zwischenablage kopiert",
   "rrv.openReq": "Anforderung öffnen",
   "rrv.help": "Hilfe",
-  "rrv.invalidId": "Keine Anforderungs-Item-ID angegeben"
+  "rrv.invalidId": "Keine Anforderungs-Item-ID angegeben",
+  "reqv.print": "Drucken",
+  "reqv.directLink": "Direkter Link",
+  "reqv.copyLink": "Kopieren",
+  "reqv.directLinkCopied": "Direkter Link in die Zwischenablage kopiert",
+  "reqv.help": "Hilfe",
+  "reqv.helpTooltip": "TestLink-Wiki-Seite für diesen Bildschirm öffnen",
+  "reqv.specificLink": "Link zu dieser Version/Revision"
 }
