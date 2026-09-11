@@ -338,7 +338,9 @@ function render(r) {
     }
   }
 
-  // prior execution box
+  // prior execution box (hidden when the selected build has no execution —
+  // e.g. a closed build that was never executed; matches the re-fetch on
+  // build switch so the box always reflects the ACTUAL selected build)
   if (r.prior) {
     ctx.prior = r.prior;
     $('#priorBox').html(
@@ -352,6 +354,12 @@ function render(r) {
     ctx.statusCode = priorStatus;
     $('#txtNotes').val(r.prior.notes || '');
     if (r.prior.execution_duration) $('#txtExecDuration').val(r.prior.execution_duration);
+  } else {
+    ctx.prior = null;
+    $('#priorBox').hide().html('');
+    $('#txtNotes').val('');
+    ctx.statusCode = '';
+    $('#statusRow .st-btn').removeClass('active');
   }
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
