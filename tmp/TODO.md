@@ -1,11 +1,14 @@
 # TODO — TestLink 2.0.1 Modernization
 
-Updated: 2026-09-03 · Owner: opencode (sebi urmărește)
+Updated: 2026-09-11 · Owner: opencode (sebi urmărește)
 
 ---
 
 ## IN PROGRESS (current)
 None — all pending TODO items finished. Ready for next screen or backlog.
+
+## LAST RUN — TASK #884 (closed)
+Reset Password action in User Management — **DONE** (closes #884). BFF route `POST /api/users/index.php/{id}/reset-password`, gated key-icon row action, 8 i18n keys ×10 bundles, docs + wiki (`8cce10e`), TLU suite 884 (12/12 PASS). Branch `task/issue-884` pushed at `47a1aab4e`.
 
 ## NEXT (ASIDE menu order)
 Per AGENTS.md rule 1: top to bottom, one screen at a time.
