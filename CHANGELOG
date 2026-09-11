@@ -231,6 +231,9 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   save-and-next (#793), partial-step save + per-step attachments (#795),
   apikey/public-link chart access (#1258), execSetResults TC-spec sections
   (#1404), reqEdit full screen (#798, #1374-#1384).
+- planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
+  in BFF association import (#1407/#1414), legacy twin count(null) guard
+  (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
