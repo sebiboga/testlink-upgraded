@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "测试策略概览：目的和章节",
   "ts.navAdded2": "Nav：测试策略现在是包含实际章节的子菜单。",
   "ts.openChapter": "打开章节",
-  "ts.navAdded3": "测试策略的所有18个章节如下所列；有专门页面的章节可以直接打开。"
+  "ts.navAdded3": "测试策略的所有18个章节如下所列；有专门页面的章节可以直接打开。",
+  "ts.generatedOn": "生成于",
+  "ts.errLoad": "无法加载测试策略的章节。",
+  "user.apiKeyDisabled": "此安装已禁用 API 密钥管理。",
+  "user.apiKeyFailed": "无法生成 API 密钥。",
+  "user.apiKeyInvalidSmtp": "无法生成 API 密钥。原因：SMTP 主机名似乎无效。",
+  "user.apiKeySent": "新的 API 密钥已通过邮件发送",
+  "user.generateApiKey": "生成新密钥",
+  "user.generateApiKeyConfirm": "为用户 \"{login}\" 生成新的 API 密钥？将创建新密钥并发送到该用户的邮箱地址。"
 }

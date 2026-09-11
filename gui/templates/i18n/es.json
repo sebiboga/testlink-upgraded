@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "La Estrategia de Pruebas de un vistazo: propósito y capítulos",
   "ts.navAdded2": "Nav: Estrategia de Pruebas ahora es un submenú con capítulos reales.",
   "ts.openChapter": "Abrir capítulo",
-  "ts.navAdded3": "Los 18 capítulos de una Estrategia de Pruebas se listan a continuación; los capítulos con página dedicada se pueden abrir directamente."
+  "ts.navAdded3": "Los 18 capítulos de una Estrategia de Pruebas se listan a continuación; los capítulos con página dedicada se pueden abrir directamente.",
+  "ts.generatedOn": "Generado el",
+  "ts.errLoad": "No se pudieron cargar los capítulos de la Estrategia de Pruebas.",
+  "user.apiKeyDisabled": "La gestión de claves API está deshabilitada en esta instalación.",
+  "user.apiKeyFailed": "No se pudo generar la clave API.",
+  "user.apiKeyInvalidSmtp": "No se puede generar la clave API. Motivo: el nombre de host SMTP parece no ser válido.",
+  "user.apiKeySent": "La nueva clave API ha sido enviada por correo",
+  "user.generateApiKey": "Generar nueva clave",
+  "user.generateApiKeyConfirm": "¿Generar una nueva clave API para el usuario \"{login}\"? Se creará una nueva clave y se enviará por correo a la dirección del usuario."
 }

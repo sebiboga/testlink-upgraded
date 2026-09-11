@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "A Estratégia de Teste de relance: propósito e capítulos",
   "ts.navAdded2": "Nav: Estratégia de Teste agora é um sub-menu com capítulos reais.",
   "ts.openChapter": "Abrir capítulo",
-  "ts.navAdded3": "Os 18 capítulos de uma Estratégia de Teste estão listados abaixo; os capítulos com página dedicada podem ser abertos diretamente."
+  "ts.navAdded3": "Os 18 capítulos de uma Estratégia de Teste estão listados abaixo; os capítulos com página dedicada podem ser abertos diretamente.",
+  "ts.generatedOn": "Gerado em",
+  "ts.errLoad": "Falha ao carregar os capítulos da Estratégia de Teste.",
+  "user.apiKeyDisabled": "A gestão de chaves de API está desativada nesta instalação.",
+  "user.apiKeyFailed": "Não foi possível gerar a chave de API.",
+  "user.apiKeyInvalidSmtp": "Não é possível gerar a chave de API. Motivo: o nome do host SMTP parece inválido.",
+  "user.apiKeySent": "A nova chave de API foi enviada por correio",
+  "user.generateApiKey": "Gerar nova chave",
+  "user.generateApiKeyConfirm": "Gerar uma nova chave de API para o utilizador \"{login}\"? Será criada uma nova chave e enviada por correio para o endereço do utilizador."
 }

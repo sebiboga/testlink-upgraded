@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "La Strategia di Test in breve: scopo e capitoli",
   "ts.navAdded2": "Nav: la Strategia di Test è ora un sotto-menu con capitoli reali.",
   "ts.openChapter": "Apri capitolo",
-  "ts.navAdded3": "I 18 capitoli di una Strategia di Test sono elencati di seguito; i capitoli con pagina dedicata possono essere aperti direttamente."
+  "ts.navAdded3": "I 18 capitoli di una Strategia di Test sono elencati di seguito; i capitoli con pagina dedicata possono essere aperti direttamente.",
+  "ts.generatedOn": "Generato il",
+  "ts.errLoad": "Impossibile caricare i capitoli della Strategia di Test.",
+  "user.apiKeyDisabled": "La gestione delle chiavi API è disabilitata in questa installazione.",
+  "user.apiKeyFailed": "Impossibile generare la chiave API.",
+  "user.apiKeyInvalidSmtp": "Impossibile generare la chiave API. Motivo: il nome host SMTP sembra non valido.",
+  "user.apiKeySent": "La nuova chiave API è stata inviata via email",
+  "user.generateApiKey": "Genera una nuova chiave",
+  "user.generateApiKeyConfirm": "Generare una nuova chiave API per l'utente \"{login}\"? Verrà creata una nuova chiave e inviata via email all'indirizzo dell'utente."
 }

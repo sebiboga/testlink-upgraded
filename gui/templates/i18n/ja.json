@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "テスト戦略の概要：目的とチャプター",
   "ts.navAdded2": "Nav：テスト戦略が実際のチャプターを含むサブメニューになりました。",
   "ts.openChapter": "チャプターを開く",
-  "ts.navAdded3": "テスト戦略の18チャプターを以下にリストします。専用ページがあるチャプターは直接開けます。"
+  "ts.navAdded3": "テスト戦略の18チャプターを以下にリストします。専用ページがあるチャプターは直接開けます。",
+  "ts.generatedOn": "生成日時",
+  "ts.errLoad": "テスト戦略のチャプターを読み込めませんでした。",
+  "user.apiKeyDisabled": "このインストールではAPIキー管理は無効です。",
+  "user.apiKeyFailed": "APIキーを生成できませんでした。",
+  "user.apiKeyInvalidSmtp": "APIキーを生成できません。理由: SMTPホスト名が無効のようです。",
+  "user.apiKeySent": "新しいAPIキーがメールで送信されました",
+  "user.generateApiKey": "新しいキーを生成",
+  "user.generateApiKeyConfirm": "ユーザー \"{login}\" に新しいAPIキーを生成しますか？新しいキーが作成され、ユーザーのアドレスにメールで送信されます。"
 }

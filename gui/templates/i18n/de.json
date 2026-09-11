@@ -3209,5 +3209,13 @@
   "ts.overviewHeaderSub": "Die Teststrategie auf einen Blick: Zweck und Kapitel",
   "ts.navAdded2": "Nav: Teststrategie ist jetzt ein Untermenü mit echten Kapiteln.",
   "ts.openChapter": "Kapitel öffnen",
-  "ts.navAdded3": "Alle 18 Kapitel einer Teststrategie sind unten aufgelistet; Kapitel mit eigener Seite können direkt geöffnet werden."
+  "ts.navAdded3": "Alle 18 Kapitel einer Teststrategie sind unten aufgelistet; Kapitel mit eigener Seite können direkt geöffnet werden.",
+  "ts.generatedOn": "Erstellt am",
+  "ts.errLoad": "Fehler beim Laden der Teststrategie-Kapitel.",
+  "user.apiKeyDisabled": "API-Schlüsselverwaltung ist auf dieser Installation deaktiviert.",
+  "user.apiKeyFailed": "API-Schlüssel konnte nicht generiert werden.",
+  "user.apiKeyInvalidSmtp": "API-Schlüssel kann nicht generiert werden. Grund: SMTP-Hostname scheint ungültig zu sein.",
+  "user.apiKeySent": "Neuer API-Schlüssel wurde per E-Mail gesendet",
+  "user.generateApiKey": "Neuen Schlüssel generieren",
+  "user.generateApiKeyConfirm": "Neuen API-Schlüssel für Benutzer \"{login}\" generieren? Ein neuer Schlüssel wird erstellt und an die E-Mail-Adresse des Benutzers gesendet."
 }
