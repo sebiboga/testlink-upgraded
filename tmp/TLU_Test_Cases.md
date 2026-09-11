@@ -13030,3 +13030,20 @@ Result: 8/8 PASS — **#1415 FIXED** via removing the stale `!is_null($buildCfie
 | 1403.10 | Event Viewer hygiene | `events` table has 0 Error/Warning rows after all popup operations (2 fixture-typo E_WARNINGs `build_mgr.class.php` cleaned; they came from the fixture script, not the screen) | **PASS** |
 
 Result: 10/10 PASS — **#1403 FIXED** (front-end only; the BFF already delivered the data). No new bugs discovered while testing.
+
+## Regression — Issue #1405: legacy execSetResults E_WARNING 'Trying to access array offset on null' on no-valid-build path (Refs #1405)
+
+**Screen:** legacy popup `lib/execute/execSetResults.php` + `gui/templates/dashio/execute/execSetResults.tpl`
+**Root cause:** `$gui->plugins` is seeded to `null` at `lib/execute/execSetResults.php:1452`; the plugin assignment (`$gui->plugins['EVENT_TESTRUN_DISPLAY'] = event_signal(...)`, `:122-124`) only runs inside `if(!is_null($linked_tcversions))` (`:99`). On the no-valid-build path (`getSettingsAndFilters()` never honours `setting_build` — it reads `$_REQUEST['build_id']`/session cache at `:2310-2311` → `build_id=0`) `getLinkedItems()` returns null → branch skipped → `$gui->plugins` stays null → TPL `{if $gui->plugins.EVENT_TESTRUN_DISPLAY}` (`:290`) compiles to a raw PHP null array-offset (`templates_c/…/file.execSetResults.tpl.php:381`) → PHP8 `E_WARNING Trying to access array offset on null` logged to Event Viewer (`log_level=2`) on every render of the "Build is closed — Test cases can not be executed" branch. Same trigger with a real closed build. Fix: guard with `isset()` (single line, commit `11150bbd8`).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. Fixture `php tmp/fixtures_esr2.php` → tproject **1** (ESR2), plan **15** (ESR2 Plan), TC-1=**3** (tcversion **4**), TC-2=7 (tcversion 8), build open=**1** (B-OPEN), build closed=**2** (B-CLOSED). IDs may shift on a fresh DB; derive from the fixture output. Capture `SELECT MAX(id) FROM events` as baseline before each render.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1405.1 | Pre-fix repro (control): render `lib/execute/execSetResults.php?level=testcase&id=3&version_id=4&tplan_id=15&setting_build=1&setting_platform=0` (build_id=0) | Page shows "Build is closed / Test cases can not be executed"; **+1** `E_WARNING\nTrying to access array offset on null - in .../execSetResults.tpl.php - Line 381` (event `log_level=2`) | **PASS (pre-fix)** — bug confirmed exactly (event id 5) |
+| 1405.2 | Post-fix: repeat the build_id=0 URL | same page renders, **0** new events | **PASS** |
+| 1405.3 | Post-fix: `…?build_id=2` (closed build) | closed-build message renders, **0** new events | **PASS** |
+| 1405.4 | Post-fix: `…?build_id=1` (open build) | full TC exec popup renders (steps, CF `my exec CF value`, req REQ-1, prior executions on B-OPEN), **0** new events | **PASS** |
+| 1405.5 | Post-fix: on the open-build popup set step 1 status → submit "Save Steps Work In Progress Execution" (POST round-trip) | page re-renders with saved status (step 1=Failed), **0** new events | **PASS** |
+| 1405.6 | Hygiene | `events` table has **0** rows matching `%execSetResults.tpl.php%` at log_level=2 after all fixed-path renders | **PASS** |
+
+Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISPLAY)` guard at `gui/templates/dashio/execute/execSetResults.tpl:290` (commit `11150bbd8`). No i18n impact (template logic only, no user-facing strings).
