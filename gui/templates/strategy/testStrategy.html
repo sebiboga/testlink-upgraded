@@ -20,6 +20,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .task-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
 .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
 .task-card .icon { font-size: 36px; color: #3498db; margin-bottom: 12px; }
+.task-card .num { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; background: #4ECDC4; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.task-card { position: relative; }
 .task-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
 .task-card .desc { font-size: 13px; color: #555; margin-bottom: 14px; }
 .task-card .actions { margin-top: auto; display: flex; gap: 8px; }
@@ -53,11 +55,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   </p>
 </div>
 
-<div class="note" data-i18n="ts.navAdded2">
-  Nav: the Test Strategy is now a sub-menu with real chapters.
+<div class="note" data-i18n="ts.navAdded3">
+  All 18 chapters of a Test Strategy are listed below; the chapters with a dedicated page can be opened directly.
 </div>
 
-<div class="section-title"><i class="fa fa-tasks" style="color:#3498db;margin-right:6px;"></i><span data-i18n="ts.tasksTitle">Planned work</span></div>
+<div class="section-title"><i class="fa fa-book" style="color:#3498db;margin-right:6px;"></i><span data-i18n="ts.chapterTitle">Test Strategy chapters</span></div>
 <div class="task-grid" id="taskGrid"></div>
 
 <div class="footer"><span data-i18n="footers.documentation">TestLink 2.0.1</span> - <span data-i18n="ts.overviewHeader">General Overview</span></div>
@@ -66,9 +68,25 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
 var CHAPTERS = [
-  { icon: 'fa-bullseye',          key: 'ts.chapterScope',    descKey: 'ts.chapterScopeDesc',    url: 'scope.html' },
-  { icon: 'fa-flag-checkered',    key: 'ts.chapterExit',     descKey: 'ts.chapterExitDesc',     url: 'exitCriteria.html' },
-  { icon: 'fa-exclamation-triangle', key: 'ts.chapterSeverity', descKey: 'ts.chapterSeverityDesc', url: '/gui/templates/projects/severityConfig.html' }
+  { num: 1,  icon: 'fa-book',           key: 'ts.chapterIntro',     descKey: 'ts.chapterIntroDesc' },
+  { num: 2,  icon: 'fa-bullseye',       key: 'ts.chapterObjectives', descKey: 'ts.chapterObjectivesDesc' },
+  { num: 3,  icon: 'fa-expand-arrows-alt', key: 'ts.chapterScope',    descKey: 'ts.chapterScopeDesc',            url: 'scope.html' },
+  { num: 4,  icon: 'fa-compass',        key: 'ts.chapterApproach',  descKey: 'ts.chapterApproachDesc' },
+  { num: 5,  icon: 'fa-layer-group',    key: 'ts.chapterLevels',    descKey: 'ts.chapterLevelsDesc' },
+  { num: 6,  icon: 'fa-check-double',   key: 'ts.chapterTypes',     descKey: 'ts.chapterTypesDesc' },
+  { num: 7,  icon: 'fa-flag-checkered', key: 'ts.chapterEntryExit', descKey: 'ts.chapterEntryExitDesc',         url: 'exitCriteria.html' },
+  { num: 8,  icon: 'fa-server',         key: 'ts.chapterEnv',       descKey: 'ts.chapterEnvDesc' },
+  { num: 9,  icon: 'fa-users',          key: 'ts.chapterRoles',     descKey: 'ts.chapterRolesDesc' },
+  { num: 10, icon: 'fa-wrench',         key: 'ts.chapterTools',     descKey: 'ts.chapterToolsDesc' },
+  { num: 11, icon: 'fa-comments',       key: 'ts.chapterComm',      descKey: 'ts.chapterCommDesc' },
+  { num: 12, icon: 'fa-file-alt',       key: 'ts.chapterDeliverables', descKey: 'ts.chapterDeliverablesDesc' },
+  { num: 13, icon: 'fa-chart-line',     key: 'ts.chapterMetrics',   descKey: 'ts.chapterMetricsDesc' },
+  { num: 14, icon: 'fa-exclamation-triangle', key: 'ts.chapterRisks',   descKey: 'ts.chapterRisksDesc' },
+  { num: 15, icon: 'fa-bug',            key: 'ts.chapterDefects',   descKey: 'ts.chapterDefectsDesc' },
+  { num: 16, icon: 'fa-code-branch',    key: 'ts.chapterCfg',       descKey: 'ts.chapterCfgDesc' },
+  { num: 17, icon: 'fa-graduation-cap', key: 'ts.chapterTraining',  descKey: 'ts.chapterTrainingDesc' },
+  { num: 18, icon: 'fa-rocket',         key: 'ts.chapterRelease',   descKey: 'ts.chapterReleaseDesc' },
+  { num: 19, icon: 'fa-sliders-h',      key: 'ts.chapterSeverity',  descKey: 'ts.chapterSeverityDesc', url: '/gui/templates/projects/severityConfig.html' }
 ];
 
 $(function() {
@@ -82,15 +100,17 @@ $(function() {
 function renderChapters() {
   var grid = $('#taskGrid');
   $.each(CHAPTERS, function(i, t) {
+    var actions = $('<div class="actions"></div>');
+    if (t.url) {
+      actions.append('<a class="action-btn blue" href="' + t.url + '" target="mainframe">' +
+        '<i class="fa fa-arrow-right"></i> ' + TLi18n.t('ts.openChapter') + '</a>');
+    }
     var card = $('<div class="task-card">')
+      .append('<div class="num">' + t.num + '</div>')
       .append('<div class="icon"><i class="fas ' + t.icon + '"></i></div>')
       .append('<div class="title">' + TLi18n.t(t.key) + '</div>')
       .append('<div class="desc">' + TLi18n.t(t.descKey) + '</div>')
-      .append(
-        $('<div class="actions">')
-          .append('<a class="action-btn blue" href="' + t.url + '" target="mainframe">' +
-            '<i class="fa fa-arrow-right"></i> ' + TLi18n.t('ts.openChapter') + '</a>')
-      );
+      .append(actions);
     grid.append(card);
   });
 }
