@@ -67,8 +67,8 @@ contract and `openExecutionWindow()`):
 |---------|-------------|
 | **Header** | "Set Results" + TC external id / name / version |
 | **Toolbar** | Test Project / Test Plan context + locale switcher |
-| **Plan context** | Build selector (executable builds) + Platform selector (hidden when plan has none) |
-| **Prior execution** | Info box showing last result / tester / timestamp / notes (resumes the run) |
+| **Plan context** | Build selector (**all** builds; closed ones marked `(closed)`) + Platform selector (hidden when plan has none) |
+| **Prior execution** | Info box showing last result / tester / timestamp / notes (resumes the run; hidden when the selected build has no execution) |
 | **TC content** | Summary, Preconditions, Steps table (per-step status + notes) |
 | **Result** | Overall-result status buttons (colored) + Notes + Execution time (minutes) |
 | **Actions** | **Save result** (disabled for read-only) and **Cancel** |
@@ -89,3 +89,31 @@ A user with only `exec_ro_access` sees the full context (steps, prior
 execution) but the **Save result** button is disabled client-side AND the
 `save` route returns HTTP 403 `Insufficient rights` server-side. `testplan_execute`
 is required to write.
+
+## Closed builds (issue [#1403](https://github.com/sebiboga/testlink-upgraded/issues/1403))
+
+The BFF `init` returns every build of the plan (`id/name/active/open/executable/release_date`,
+`executable = active AND open`). The legacy popup shows a closed build with a
+"Build is closed / Test cases can not be executed" banner and blocks new
+execution while still allowing result review — the modern popup mirrors this:
+
+- The build selector lists **all** builds (closed ones suffixed `(closed)`),
+  so a closed build never silently disappears from the dropdown.
+- Selecting a closed build shows the amber **"Build is closed. Test cases can
+  not be executed."** box and switches the popup to review-only: Save, status
+  buttons, step selects/notes, Notes and Execution-time are disabled, but the
+  build selector stays enabled so the tester can switch back.
+- Switching builds re-runs `GET ?action=init` for the new `setting_build`, so
+  the banner and the prior-execution box always reflect the ACTUAL selected
+  build (a build with no execution hides the prior box).
+- `doSave()` defensively re-validates the selected build and aborts with
+  `esr.errClosedBuild` ("Selected build is closed - result not saved.") if the
+  UI state was somehow bypassed.
+- Server-side the `save` route already rejected closed builds (HTTP 400
+  "Invalid or non-executable build"), so data was always safe; this change only
+  restores the missing user-facing signal.
+
+i18n keys (all 10 locale bundles): `esr.closedBuild`, `esr.buildClosedMsg`,
+`esr.errClosedBuild`.
+
+![Closed-build read-only state](screenshots/issue-1403-execSetResults-closed-build.png)
