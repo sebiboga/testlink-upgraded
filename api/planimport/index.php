@@ -205,7 +205,7 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
                     if (isset($tcaseSet[$externalID])) {
                         $dummy = $tcaseMgr->get_basic_info($tcaseSet[$externalID],
                                                            array('number' => $version));
-                        if (count($dummy) > 0) {
+                        if (!is_null($dummy) && count($dummy) > 0) {
                             $lvFilters = array('tplan_id' => $contextObj->tplan_id);
                             $linkedVersions = $tcaseMgr->get_linked_versions($dummy[0]['id'], $lvFilters);
                             $updateLink = false;
