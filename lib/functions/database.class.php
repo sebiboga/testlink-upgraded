@@ -197,6 +197,15 @@ class database {
 
       tLog("ERROR ON exec_query() - database.class.php <br />" . $this->error(htmlspecialchars($p_query)) . 
            "<br />THE MESSAGE : $message ", 'ERROR', "DATABASE");     
+
+      // BFF/JSON clients (see api/): fail with an exception instead of the
+      // legacy HTML backtrace + die(), which broke the JSON contract and leaked
+      // absolute paths (CWE-200) — see #1423.
+      $xrw = strtoupper(trim((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')));
+      if ($xrw === 'XMLHTTPREQUEST') {
+        throw new Exception('Database error (query failed)');
+      }
+
       echo "<pre> ============================================================================== </pre>";
       echo "<pre> DB Access Error - debug_print_backtrace() OUTPUT START </pre>";
       echo "<pre> ATTENTION: Enabling more debug info will produce path disclosure weakness (CWE-200) </pre>";
