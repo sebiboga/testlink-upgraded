@@ -3114,5 +3114,13 @@
   "user.noRights": "Sie benötigen das Recht mgt_users, um Benutzer zu verwalten.",
   "esr.closedBuild": "geschlossen",
   "esr.buildClosedMsg": "Build ist geschlossen. Testfälle können nicht ausgeführt werden.",
-  "esr.errClosedBuild": "Ausgewählter Build ist geschlossen - Ergebnis nicht gespeichert."
+  "esr.errClosedBuild": "Ausgewählter Build ist geschlossen - Ergebnis nicht gespeichert.",
+  "user.resetPassword": "Passwort zurücksetzen",
+  "user.resetPasswordConfirm": "Passwort des Benutzers \"{login}\" zurücksetzen? Ein neues Passwort wird generiert.",
+  "user.passwordResetSent": "Ein neues Passwort wurde per E-Mail gesendet.",
+  "user.passwordShownOnScreen": "Neues Passwort: {password}",
+  "user.passwordResetInvalidSmtp": "Passwort-Reset nicht möglich. Grund: SMTP-Hostname scheint ungültig zu sein.",
+  "user.passwordResetDenied": "Die Passwortverwaltung ist für diesen Benutzer extern; das Passwort kann nicht zurückgesetzt werden.",
+  "user.resetFailed": "Passwort konnte nicht zurückgesetzt werden.",
+  "user.passwordResetError": "Passwort-Reset nicht möglich. Grund: {reason}"
 }

@@ -13047,3 +13047,26 @@ Result: 10/10 PASS — **#1403 FIXED** (front-end only; the BFF already delivere
 | 1405.6 | Hygiene | `events` table has **0** rows matching `%execSetResults.tpl.php%` at log_level=2 after all fixed-path renders | **PASS** |
 
 Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISPLAY) && $gui->plugins.EVENT_TESTRUN_DISPLAY` guard at `gui/templates/dashio/execute/execSetResults.tpl:290` (commits `11150bbd8`, `3e5fc1210`). No i18n impact (template logic only, no user-facing strings). Known sibling: `tl-classic/execute/execSetResults.tpl:466` has same unguarded pattern — tracked for the `tl-classic` theme cleanup.
+
+## Task — Issue #884: Implement Reset Password action in User Management (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/usersView.html` · `api/users/index.php` · i18n bundles ×10 (keys `user.resetPassword`, `user.resetPasswordConfirm`, `user.passwordResetSent`, `user.passwordShownOnScreen`, `user.passwordResetInvalidSmtp`, `user.passwordResetDenied`, `user.resetFailed`, `user.passwordResetError`)
+**Legacy ref:** `gui/templates/dashio/usermanagement/usersEdit.tpl:339-356` (Reset password form, hidden when `allowPasswordManagement=false`, usersEdit.tpl:169-178), `lib/usermanagement/usersEdit.php:55-60` + `createNewPassword()` `:222-269` (smtp hostname Zend validation, PWD_RESET audit, send-by-mail or display_on_screen), `lib/functions/users.inc.php:167-225` (`resetPassword()`: auth-method gate, `generatePassword(8,4)`, `email_send()`, `writePasswordToDB()`)
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in. Fixtures: users `tester1` (id 2, email `tester1@example.com`, `auth_method='DB'`) and `ldapuser` (id 3, email `ldap@example.com`, `auth_method='LDAP'`) created via `tlUser` API. Default config: `smtp_host='[smtp_host_not_configured]'` (config.inc.php:409), `password_reset_send_method='send_password_by_mail'` (config.inc.php:596). The `display_on_screen` success case needs a **temporary** flip of config.inc.php:596 (reverted immediately after each test). Screen URL: `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 884.1 | Focus gap: modern Users grid shows per-row actions | Rows render Edit/Enable-Disable/Delete icons **only**; **no** reset-password action exists (pre-fix) | **PASS (pre-fix)** |
+| 884.2 | Focus gap: modern edit modal (click pencil on admin) | Modal shows Login/First/Last/Email/Password/Role/Locale/Auth/Active + Cancel/Save; **no** Reset password button vs legacy edit screen which shows `Reset password` (snapshot uid 5_55) | **PASS (pre-fix)** |
+| 884.3 | Legacy parity demo: click legacy Reset password (default config) | Legacy dialog: *"Password Reset can not be done. Reason: SMTP Hostname seems to be invalid"* | **PASS** |
+| 884.4 | Post-fix UI: reload Users grid | admin + tester1 rows show the **key icon**; ldapuser row has **no** key icon (external password mgmt, usersEdit.tpl:169-178 parity) | **PASS** |
+| 884.5 | BFF default path: `POST /api/users/index.php/1/reset-password` (admin, send-by-mail, smtp unconfigured) | HTTP 400 `{"status":"error","code":"invalid_smtp_hostname","message":"Password Reset can not be done. Reason: SMTP Hostname seems to be invalid"}` — message identical to legacy dialog | **PASS** |
+| 884.6 | BFF external-mgmt path: `POST /api/users/index.php/3/reset-password` (ldapuser) | HTTP 400 `{"status":"error","code":"password_mgmt_external","message":"Password management is external"}` | **PASS** |
+| 884.7 | BFF display_on_screen path (temp config flip, reverted after): `POST /api/users/index.php/2/reset-password` (tester1) | HTTP 200 `{"status":"ok","code":"ok_on_screen","message":"Password has been set to: <pw>","newPassword":"<pw>","passwordOnScreen":true}` | **PASS** |
+| 884.8 | BFF empty-email path (display_on_screen): `POST /api/users/index.php/1/reset-password` (admin has no email) | HTTP 400 `reset_failed`, reason *"You can't use an empty Email address!"* (E_EMAILLENGTH parity) | **PASS** |
+| 884.9 | New password is effective: login `tester1` with the generated password; then with the old one | Login with new password → `{"status":"ok","success":true}`; with old password → `auth.badUserPasswd` | **PASS** |
+| 884.10 | UI flow (default config): click key icon on tester1 → confirm dialog → alert | Confirm text = `user.resetPasswordConfirm` bundle; alert = invalid-smart message (bundle `user.passwordResetInvalidSmtp`); no console errors | **PASS** |
+| 884.11 | Audit trail | `events` table has `PWD_RESET` row (activity=16, object_id=2, label `audit_pwd_reset_requested`); no new ERROR/WARNING rows during the whole window | **PASS** |
+| 884.12 | Integrity | `php -l api/users/index.php` clean; `python3 -m json.tool` passes for all 10 i18n bundles; `config.inc.php` diff empty after temporary flip reverted; screenshot `docs/screenshots/issue-884-usersView-reset-password-actions.png` | **PASS** |
+
+Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mirrors legacy `createNewPassword()`/`resetPassword()` (smtp validation, send-method, external-mgmt gate, PWD_RESET audit), Users grid gains the gated key-icon action, 8 i18n keys added to all 10 bundles. No new bugs discovered while testing.

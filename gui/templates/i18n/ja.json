@@ -3114,5 +3114,13 @@
   "user.noRights": "ユーザーを管理するにはmgt_users権限が必要です。",
   "esr.closedBuild": "クローズ",
   "esr.buildClosedMsg": "ビルドがクローズされています。テストケースを実行できません。",
-  "esr.errClosedBuild": "選択したビルドはクローズされています - 結果は保存されません。"
+  "esr.errClosedBuild": "選択したビルドはクローズされています - 結果は保存されません。",
+  "user.resetPassword": "パスワードをリセット",
+  "user.resetPasswordConfirm": "ユーザー「{login}」のパスワードをリセットしますか？新しいパスワードが生成されます。",
+  "user.passwordResetSent": "新しいパスワードがメールで送信されました。",
+  "user.passwordShownOnScreen": "新しいパスワード: {password}",
+  "user.passwordResetInvalidSmtp": "パスワードをリセットできません。理由: SMTPホスト名が無効のようです。",
+  "user.passwordResetDenied": "このユーザーのパスワード管理は外部です。パスワードをリセットできません。",
+  "user.resetFailed": "パスワードをリセットできませんでした。",
+  "user.passwordResetError": "パスワードをリセットできません。理由: {reason}"
 }

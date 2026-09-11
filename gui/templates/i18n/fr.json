@@ -3114,5 +3114,13 @@
   "user.noRights": "Vous ne disposez pas du droit mgt_users requis pour gérer les utilisateurs.",
   "esr.closedBuild": "fermée",
   "esr.buildClosedMsg": "La build est fermée. Les fiches de test ne peuvent être exécutées.",
-  "esr.errClosedBuild": "La build sélectionnée est fermée - résultat non enregistré."
+  "esr.errClosedBuild": "La build sélectionnée est fermée - résultat non enregistré.",
+  "user.resetPassword": "Réinitialiser le mot de passe",
+  "user.resetPasswordConfirm": "Réinitialiser le mot de passe de l'utilisateur \"{login}\" ? Un nouveau mot de passe sera généré.",
+  "user.passwordResetSent": "Un nouveau mot de passe a été envoyé par e-mail.",
+  "user.passwordShownOnScreen": "Nouveau mot de passe : {password}",
+  "user.passwordResetInvalidSmtp": "La réinitialisation du mot de passe est impossible. Raison : le nom d'hôte SMTP semble invalide.",
+  "user.passwordResetDenied": "La gestion du mot de passe est externe pour cet utilisateur ; le mot de passe ne peut pas être réinitialisé.",
+  "user.resetFailed": "Le mot de passe n'a pas pu être réinitialisé.",
+  "user.passwordResetError": "La réinitialisation du mot de passe est impossible. Raison : {reason}"
 }

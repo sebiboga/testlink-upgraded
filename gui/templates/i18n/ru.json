@@ -3114,5 +3114,13 @@
   "user.noRights": "У вас нет права mgt_users, необходимого для управления пользователями.",
   "esr.closedBuild": "закрыта",
   "esr.buildClosedMsg": "Сборка закрыта. Тест-кейсы не могут быть выполнены.",
-  "esr.errClosedBuild": "Выбранная сборка закрыта - результат не сохранён."
+  "esr.errClosedBuild": "Выбранная сборка закрыта - результат не сохранён.",
+  "user.resetPassword": "Сбросить пароль",
+  "user.resetPasswordConfirm": "Сбросить пароль пользователя \"{login}\"? Будет сгенерирован новый пароль.",
+  "user.passwordResetSent": "Новый пароль отправлен по электронной почте.",
+  "user.passwordShownOnScreen": "Новый пароль: {password}",
+  "user.passwordResetInvalidSmtp": "Сброс пароля невозможен. Причина: имя SMTP-хоста недействительно.",
+  "user.passwordResetDenied": "Управление паролем для этого пользователя внешнее; пароль не может быть сброшен.",
+  "user.resetFailed": "Не удалось сбросить пароль.",
+  "user.passwordResetError": "Сброс пароля невозможен. Причина: {reason}"
 }

@@ -3114,5 +3114,13 @@
   "user.noRights": "Você não tem o direito mgt_users necessário para gerenciar usuários.",
   "esr.closedBuild": "fechada",
   "esr.buildClosedMsg": "A build está fechada. Casos de teste não podem ser executados.",
-  "esr.errClosedBuild": "A build selecionada está fechada - resultado não salvo."
+  "esr.errClosedBuild": "A build selecionada está fechada - resultado não salvo.",
+  "user.resetPassword": "Repor palavra-passe",
+  "user.resetPasswordConfirm": "Repor a palavra-passe do utilizador \"{login}\"? Será gerada uma nova palavra-passe.",
+  "user.passwordResetSent": "Uma nova palavra-passe foi enviada por e-mail.",
+  "user.passwordShownOnScreen": "Nova palavra-passe: {password}",
+  "user.passwordResetInvalidSmtp": "Não foi possível repor a palavra-passe. Motivo: o host SMTP parece inválido.",
+  "user.passwordResetDenied": "A gestão da palavra-passe é externa para este utilizador; a palavra-passe não pode ser reposta.",
+  "user.resetFailed": "Não foi possível repor a palavra-passe.",
+  "user.passwordResetError": "Não foi possível repor a palavra-passe. Motivo: {reason}"
 }

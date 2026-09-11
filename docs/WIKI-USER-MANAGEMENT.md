@@ -65,13 +65,49 @@ Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.
 | Locale | The UI language preference (e.g. `en_GB`, `fr_FR`) — legacy parity `usersView.php:173` (`th_locale`) |
 | Active | **Active** (green badge) or **Inactive** (red badge) |
 | Expiration Date | Localized expiration date of the account (`localize_dateOrTimeStamp(null,null,'date_format',…)` server-side, e.g. `31/12/2026`); empty cell when no expiry set — legacy parity `usersView.php:262-267`. Legacy gap #883 |
-| Actions | Edit, Enable/Disable, Delete icons |
+| Actions | Edit, Reset password, Enable/Disable, Delete icons |
 
 ### Actions
 
 - **Edit** (pencil icon): Opens the edit modal to change user details and global role
+- **Reset password** (key icon, issue #884): Generates a new random password for the user, then either emails it (default `password_reset_send_method = send_password_by_mail`) or returns it to be displayed on screen (`display_on_screen`). Shown only for users whose effective authentication method has `allowPasswordManagement = true` (legacy `usersEdit.tpl:169-178` parity)
 - **Enable/Disable** (toggle icon): Toggles the user between Active (1) and Inactive (0) states
 - **Delete** (trash icon): Soft-deletes the user (sets `active = 2`, hidden from UI but retained in database). **Not available for the admin user**
+
+### Reset password (issue #884)
+
+The legacy edit screen had a dedicated **Reset password** form
+(`gui/templates/dashio/usermanagement/usersEdit.tpl:339-356` → `usersEdit.php:222-269`
+`createNewPassword()` → `lib/functions/users.inc.php:167-225` `resetPassword()`). The
+modern screen ports it to a row action backed by a new BFF route:
+
+- **UI** (`gui/templates/usermanagement/usersView.html`): a key icon in the Actions
+  column per row, gated by `canResetPassword(u)` against the `/meta/authentication`
+  payload (the user's `authentication` value, falling back to the configured default
+  method — same rule as the legacy template). Clicking shows a confirm dialog, then
+  `POST /api/users/index.php/{id}/reset-password`; the result is shown as an alert:
+  the bundle message for *sent-by-mail*, `user.passwordShownOnScreen` with the fresh
+  password for *display-on-screen*, or the localized error.
+- **BFF** (`api/users/index.php`, `POST /users/{id}/reset-password`), mirroring the
+  legacy `createNewPassword()` flow step by step:
+  1. `tlUser::isPasswordMgtExternal($u->authentication)` → refuse with
+     `password_mgmt_external` (defense-in-depth; the UI hides the action anyway);
+  2. `config_get('demoMode')` → refuse (`demo_reset_password_disabled`);
+  3. reads `password_reset_send_method`; unless it is `display_on_screen`, validates
+     `config_get('smtp_host')` with `Zend_Validate_Hostname(ALLOW_ALL)` →
+     `invalid_smtp_hostname` on failure;
+  4. calls the legacy `resetPassword($db,$userId,$method)` (email send via
+     `email_send()` when by-mail) and on success logs
+     `logAuditEvent(tls('audit_pwd_reset_requested',$login),'PWD_RESET',$id,'users')`.
+- **Config**: `config_get('password_reset_send_method')` decides send-by-mail vs
+  display-on-screen. With the default unconfigured SMTP host the by-mail path returns
+  the same message as legacy: *"Password Reset can not be done. Reason: SMTP Hostname
+  seems to be invalid"*.
+- New i18n keys in all 10 locale bundles: `user.resetPassword`,
+  `user.resetPasswordConfirm`, `user.passwordResetSent`,
+  `user.passwordShownOnScreen`, `user.passwordResetInvalidSmtp`,
+  `user.passwordResetDenied`, `user.resetFailed`, `user.passwordResetError`.
+- Screenshots: `docs/screenshots/issue-884-usersView-reset-password-actions.png`.
 
 ### Create/Edit User Modal
 

@@ -3114,5 +3114,13 @@
   "user.noRights": "No tiene el derecho mgt_users necesario para gestionar usuarios.",
   "esr.closedBuild": "cerrada",
   "esr.buildClosedMsg": "La build está cerrada. No se pueden ejecutar los casos de prueba.",
-  "esr.errClosedBuild": "La build seleccionada está cerrada - resultado no guardado."
+  "esr.errClosedBuild": "La build seleccionada está cerrada - resultado no guardado.",
+  "user.resetPassword": "Restablecer contraseña",
+  "user.resetPasswordConfirm": "¿Restablecer la contraseña del usuario \"{login}\"? Se generará una nueva contraseña.",
+  "user.passwordResetSent": "Se ha enviado una nueva contraseña por correo electrónico.",
+  "user.passwordShownOnScreen": "Nueva contraseña: {password}",
+  "user.passwordResetInvalidSmtp": "No se pudo restablecer la contraseña. Motivo: el host SMTP parece no ser válido.",
+  "user.passwordResetDenied": "La gestión de contraseñas es externa para este usuario; la contraseña no se puede restablecer.",
+  "user.resetFailed": "No se pudo restablecer la contraseña.",
+  "user.passwordResetError": "No se pudo restablecer la contraseña. Motivo: {reason}"
 }

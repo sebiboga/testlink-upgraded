@@ -192,8 +192,10 @@ function loadGrants(ctx) {
       return;
     }
     renderTabs(ctx, g);
-    loadMeta();
-    loadUsers();
+    // loadUsers() runs after the authentication meta resolves so the table
+    // render knows each user's allowPasswordManagement before drawing the
+    // reset-password action (usersEdit.tpl:169-178 parity).
+    loadMeta(function() { loadUsers(); });
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); return; }
     showNoAccess();
@@ -234,7 +236,7 @@ function gotoExport() {
   window.location.href = 'usersExport.html?' + ctx;
 }
 
-function loadMeta() {
+function loadMeta(cb) {
   $.getJSON(API + '/meta/roles', function(r) {
     var sel = $('#editRole');
     sel.empty();
@@ -267,7 +269,9 @@ function loadMeta() {
     $.each(r.items, function(i, it) {
       sel.append('<option value="' + it.value + '">' + it.label + '</option>');
     });
-  });
+    // cb() on .always(), not only success, so a /meta/authentication failure
+    // still renders the user table (reset icon just degrades to hidden).
+  }).always(function() { if (typeof cb === 'function') { cb(); } });
 }
 
 function loadUsers() {
@@ -296,6 +300,9 @@ function renderTable(items) {
       u.active === 1 ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>',
       u.expirationDateFormatted || u.expirationDate || '',
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
+      (canResetPassword(u)
+        ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
+        : '') +
       (u.active
         ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
         : '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>') +
@@ -383,6 +390,65 @@ function manageUser() {
     alert(msg);
   });
   return false;
+}
+
+// Reset password row action. Legacy parity: usersEdit.tpl only renders the
+// Reset password button when the user's effective auth method (user's own or
+// the configured default) has allowPasswordManagement=true. The BFF re-checks
+// the same rule server-side (resetPassword() + isPasswordMgtExternal()).
+function canResetPassword(u) {
+  if (!authMeta || !authMeta.items) return false;
+  var auth = u.authentication || authMeta.configuredMethod;
+  var found = null;
+  $.each(authMeta.items, function(i, it) {
+    if (it.value === auth) { found = it; return false; }
+  });
+  return !!(found && found.allowPasswordManagement);
+}
+
+function resetPassword(id) {
+  var u = null;
+  $.each(allItems, function(i, x) {
+    if (x.id === id) { u = x; return false; }
+  });
+  var login = u ? (u.login || '') : '';
+  if (!confirm(TLi18n.t('user.resetPasswordConfirm', {login: login}))) return;
+  $.ajax({
+    url: API + '/' + id + '/reset-password',
+    type: 'POST',
+    contentType: 'application/json',
+    data: '{}',
+    success: function(r) {
+      var msg;
+      if (r && r.status === 'ok') {
+        if (r.passwordOnScreen && r.newPassword) {
+          msg = TLi18n.t('user.passwordShownOnScreen', {password: r.newPassword});
+        } else {
+          msg = TLi18n.t('user.passwordResetSent');
+        }
+      } else {
+        msg = (r && r.message) || TLi18n.t('user.resetFailed');
+      }
+      alert(msg);
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('user.resetFailed');
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.message) msg = j.message;
+      } catch (e) {}
+      if (code === 'invalid_smtp_hostname') {
+        msg = TLi18n.t('user.passwordResetInvalidSmtp');
+      } else if (code === 'password_mgmt_external') {
+        msg = TLi18n.t('user.passwordResetDenied');
+      } else if (code === 'reset_failed') {
+        msg = (j && j.message) || msg;
+      }
+      alert(msg);
+    }
+  });
 }
 
 function saveUser() {

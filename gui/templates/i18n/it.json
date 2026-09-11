@@ -3114,5 +3114,13 @@
   "user.noRights": "Non si dispone del diritto mgt_users necessario per gestire gli utenti.",
   "esr.closedBuild": "chiusa",
   "esr.buildClosedMsg": "La build è chiusa. I test case non possono essere eseguiti.",
-  "esr.errClosedBuild": "La build selezionata è chiusa - risultato non salvato."
+  "esr.errClosedBuild": "La build selezionata è chiusa - risultato non salvato.",
+  "user.resetPassword": "Reimposta password",
+  "user.resetPasswordConfirm": "Reimpostare la password dell'utente \"{login}\"? Verrà generata una nuova password.",
+  "user.passwordResetSent": "Una nuova password è stata inviata via e-mail.",
+  "user.passwordShownOnScreen": "Nuova password: {password}",
+  "user.passwordResetInvalidSmtp": "Impossibile reimpostare la password. Motivo: l'host SMTP sembra non valido.",
+  "user.passwordResetDenied": "La gestione della password per questo utente è esterna; la password non può essere reimpostata.",
+  "user.resetFailed": "Impossibile reimpostare la password.",
+  "user.passwordResetError": "Impossibile reimpostare la password. Motivo: {reason}"
 }

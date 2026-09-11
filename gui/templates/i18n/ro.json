@@ -3114,5 +3114,13 @@
   "user.noRights": "Nu aveți dreptul mgt_users necesar pentru a gestiona utilizatorii.",
   "esr.closedBuild": "inchis",
   "esr.buildClosedMsg": "Build-ul este închis. Cazurile de test nu pot fi executate.",
-  "esr.errClosedBuild": "Build-ul selectat este închis - rezultatul nu a fost salvat."
+  "esr.errClosedBuild": "Build-ul selectat este închis - rezultatul nu a fost salvat.",
+  "user.resetPassword": "Resetează parola",
+  "user.resetPasswordConfirm": "Resetați parola utilizatorului \"{login}\"? Va fi generată o parolă nouă.",
+  "user.passwordResetSent": "Parola nouă a fost trimisă prin e-mail.",
+  "user.passwordShownOnScreen": "Parola nouă: {password}",
+  "user.passwordResetInvalidSmtp": "Resetarea parolei nu poate fi efectuată. Motiv: numele gazdei SMTP pare a fi invalid.",
+  "user.passwordResetDenied": "Gestionarea parolei este externă pentru acest utilizator; parola nu poate fi resetată.",
+  "user.resetFailed": "Parola nu a putut fi resetată.",
+  "user.passwordResetError": "Resetarea parolei nu poate fi efectuată. Motiv: {reason}"
 }

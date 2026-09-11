@@ -3114,5 +3114,13 @@
   "user.noRights": "您没有管理用户所需的mgt_users权限。",
   "esr.closedBuild": "已关闭",
   "esr.buildClosedMsg": "版本已关闭。无法执行测试用例。",
-  "esr.errClosedBuild": "所选版本已关闭 - 结果未保存。"
+  "esr.errClosedBuild": "所选版本已关闭 - 结果未保存。",
+  "user.resetPassword": "重置密码",
+  "user.resetPasswordConfirm": "重置用户 \"{login}\" 的密码？将生成一个新密码。",
+  "user.passwordResetSent": "新密码已通过电子邮件发送。",
+  "user.passwordShownOnScreen": "新密码：{password}",
+  "user.passwordResetInvalidSmtp": "无法重置密码。原因：SMTP 主机名似乎无效。",
+  "user.passwordResetDenied": "该用户的密码管理是外部的；无法重置密码。",
+  "user.resetFailed": "无法重置密码。",
+  "user.passwordResetError": "无法重置密码。原因：{reason}"
 }

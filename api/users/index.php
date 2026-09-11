@@ -8,6 +8,8 @@
 require_once(__DIR__ . '/../../config.inc.php');
 require_once('common.php');
 require_once('users.inc.php');
+require_once('email_api.php');
+require_once('Zend/Validate/Hostname.php');
 
 doSessionStart();
 
@@ -344,6 +346,77 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     $item = userToJSON($u);
     $item['active'] = 2;
     out(['status' => 'ok', 'item' => $item]);
+}
+
+// Route: POST /users/{id}/reset-password - reset/generate a user's password
+// (legacy parity: lib/usermanagement/usersEdit.php createNewPassword() +
+// lib/functions/users.inc.php resetPassword()). Generates a new random
+// password, then either emails it (password_reset_send_method =
+// 'send_password_by_mail', requires a valid smtp_host) or returns it to be
+// displayed on screen ('display_on_screen'). Respects the auth domain's
+// allowPasswordManagement flag (usersEdit.tpl hides the button for external
+// password management; the BFF re-checks it server-side).
+if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
+    isset($segments[1]) && $segments[1] === 'reset-password') {
+    $id = intval($segments[0]);
+    $u = tlUser::getByID($db, $id);
+    if (!$u) { http_response_code(404); out(['status' => 'error', 'message' => 'User not found']); }
+
+    // Legacy parity: usersEdit.tpl:169-178 hides the Reset password form when
+    // the user's effective auth method disables password management (e.g.
+    // LDAP). resetPassword() re-checks this internally, but we refuse early
+    // with a clear message instead of the legacy silent-OK quirk when $doIt
+    // is false (resetPassword returns status=OK with empty password).
+    $isExternal = tlUser::isPasswordMgtExternal($u->authentication);
+    if ($isExternal) {
+        http_response_code(400);
+        out(['status' => 'error', 'code' => 'password_mgmt_external',
+             'message' => lang_get('password_mgmt_is_external')]);
+    }
+    if (config_get('demoMode')) {
+        http_response_code(400);
+        out(['status' => 'error', 'code' => 'demo_mode',
+             'message' => lang_get('demo_reset_password_disabled')]);
+    }
+
+    $sendMethod = config_get('password_reset_send_method');
+    $passwordOnScreen = ($sendMethod === 'display_on_screen');
+
+    // Try to validate the mail configuration like legacy createNewPassword()
+    // (usersEdit.php:238-242): smtp_host must be a valid hostname unless the
+    // new password is displayed on screen.
+    $smtpHost = config_get('smtp_host');
+    $validator = @new Zend_Validate_Hostname(Zend_Validate_Hostname::ALLOW_ALL);
+    $smtpHostValid = @$validator->isValid($smtpHost) || $passwordOnScreen;
+
+    if (!$smtpHostValid) {
+        http_response_code(400);
+        out(['status' => 'error', 'code' => 'invalid_smtp_hostname',
+             'message' => lang_get('password_cannot_be_reseted_invalid_smtp_hostname')]);
+    }
+
+    $dummy = resetPassword($db, $id, $sendMethod);
+    if ($dummy['status'] >= tl::OK) {
+        logAuditEvent(TLS("audit_pwd_reset_requested", $u->login),
+                      "PWD_RESET", $id, "users");
+        $message = lang_get('password_reseted');
+        $code = 'ok_sent';
+        if ($passwordOnScreen) {
+            $message = lang_get('password_set') . $dummy['password'];
+            $code = 'ok_on_screen';
+        }
+        out(['status' => 'ok',
+             'code' => $code,
+             'message' => $message,
+             'newPassword' => $passwordOnScreen ? $dummy['password'] : '',
+             'passwordOnScreen' => $passwordOnScreen]);
+    } else {
+        http_response_code(400);
+        $reason = $dummy['msg'] !== '' ? $dummy['msg'] : getUserErrorMessage($dummy['status']);
+        $message = @sprintf(lang_get('password_cannot_be_reseted_reason'), $reason);
+        out(['status' => 'error', 'code' => 'reset_failed',
+             'message' => $message]);
+    }
 }
 
 http_response_code(404);
