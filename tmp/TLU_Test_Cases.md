@@ -12967,3 +12967,31 @@ Result: 10/10 PASS — #882 gap closed: BFF persists `authentication` + `expirat
 | 1390.9 | Hygiene | `php -l lib/plan/planImport.php` clean; no new Error **entries** from the fixed path in `events` table (only AUDIT(16) from link creation; 2x `E_WARNING Undefined array key 1` at compiled `planImport.tpl.php:105` = pre-existing render quirk → new bug **#1413**; `E_WARNING planImport.php:149` only for non-existent `tplan_id`, pre-existing) | **PASS** |
 
 Result: 9/9 PASS — **#1390 FIXED** via null-guard `!is_null($dummy) && count($dummy) > 0` at `lib/plan/planImport.php:372` (single line). Purpose-built payloads `tmp/pimp_xml/repro1390.xml` / `regr1390.xml` added. **New bugs discovered while testing:** (a) single-element result messages (`planImport.php:476/481`) vs template `$result[1]` → E_WARNING on every mixed import → filed as **#1413** (label `bug`); (b) identical unguarded `count($dummy)` in modern BFF `api/planimport/index.php:208` (masked by #1389) → filed as **#1414** (label `bug`). Both left for fix-bug factory.
+
+---
+
+## Task — Issue #1408: reportPrint apikey / public-link anonymous + remote-user document generation (gap vs legacy)
+
+**Screens:** `api/reportsprint/index.php` (BFF) · `gui/templates/results/reportPrint.html` (modern popup, reads `apikey` and forwards it in `buildQuery()`) · `lnl.php` (`reportPublicUrl()` re-points test_plan/test_report/testreport_onbuild) · `cfg/reports.cfg.php` (`directLink` sprintf `%1$s..%4$s`).
+**Legacy ref:** `lib/results/printDocument.php:320-337` (`init_args()` apikey branch: 32-char `setUpEnvForRemoteAccess` / 64-char `setUpEnvForAnonymousAccess`), `gui/templates/dashio/...` lnl links.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082. Project RP845 (id=1), plan 13 "RP Plan" with api_key = 64 chars `a×63 + '1'`, plan 100 "Other Plan" api_key = 64×`c`, project api_key = 64×`d`; user admin script_key = 32×`b`(+`32`); user `noprint` (id=2, role 3 = no rights) script_key = 32×`e`; 3 TCs, builds 1+2, executions on both builds. Anonymous browser test run in an ISOLATED incognito context (no TL cookies).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1408.1 | `GET /api/reportsprint/index.php?action=print&type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&apikey=<64×a>` (no session) | HTTP 200 `{status:ok,body_html,...}` full execution report (TOC + suites + executions + metrics) — legacy defaults applied | **PASS** |
+| 1408.2 | same + `action=download` (no session) | HTTP 200, `Content-Disposition: attachment; filename="RP8-test_plan-2026-09-11.html"` | **PASS** |
+| 1408.3 | anonymous `type=testreport_onbuild&build_id=1` | HTTP 200, per-build report "Test Plan Execution Report (on specific build)" with "Build: RP Build 1"; TCs without exec on the build show Not Run | **PASS** |
+| 1408.4 | remote-user 32-char key admin (`apikey=32×b`) | HTTP 200, full report | **PASS** |
+| 1408.5 | remote-user 32-char key `noprint` user (no testplan rights) | HTTP 403 `No permission` | **PASS** |
+| 1408.6 | anonymous `apikey=<64×a>` (plan 13) but `tplan_id=100` | HTTP 400 `Invalid context for api key` | **PASS** |
+| 1408.7 | anonymous project key `<64×d>` with `tplan_id=13` | HTTP 200 (project key falls back to owning project) | **PASS** |
+| 1408.8 | invalid apikey (`apikey=<64×z>`) | HTTP 401 `Unknown api key` | **PASS** |
+| 1408.9 | `GET /lnl.php?apikey=<64×a>&tproject_id=1&tplan_id=13&type=test_report` (no session) | HTTP 302 → `reportPrint.html?type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=13&format=0&apikey=...&opts=header=y&summary=y&...` | **PASS** |
+| 1408.10 | `GET /lnl.php?...&type=testreport_onbuild&build_id=1` (no session) | HTTP 302 → `reportPrint.html?type=testreport_onbuild&...&build_id=1&format=0&apikey=...&opts=<full flags>` | **PASS** |
+| 1408.11 | Browser (incognito, no cookies) open `reportPrint.html?...&apikey=<64×a>` | Popup renders the FULL document (TOC, suite headers, TC author/summary/execution details, metrics); only console msg is the incidental `/api/userinfo` 401 | **PASS** |
+| 1408.12 | Browser (incognito) `?type=testreport_onbuild&build_id=1&apikey=<64×a>` via lnl.php 302 | Popup renders per-build doc with "Build: RP Build 1" header + per-build execution details | **PASS** |
+| 1408.13 | Browser (incognito) `apikey=32×b` (admin remote) | Popup renders full document | **PASS** |
+| 1408.14 | Authenticated regression: modern navigator `testPlanReport.html` "Print whole test plan report" + per-build report_url links | popup opens + document renders with user-selected opts (toc=n etc.); per-build links hit reportPrint.html?type=testreport_onbuild&... (no apikey) | **PASS** |
+| 1408.15 | Integrity | `php -l` on `api/reportsprint/index.php`, `lnl.php` clean; no new i18n keys required (BFF errors are plain-English JSON as in sibling BFFs); events table shows NO new Error/Warning from the modern flows (the `$buildCfields` E_WARNING seen is a pre-existing legacy bug → filed #1415, reproduced identically on the legacy script path) | **PASS** |
+
+Result: 15/15 PASS — **#1408 DONE**. Gap closed: anonymous (64-char testplan/project api_key) and remote-user (32-char script_key) document generation restored on the modern reportPrint popup + BFF; lnl.php and cfg directLink entries re-pointed; legacy flags defaulted for apikey callers exactly like legacy lnl. Reference commit: `8f8b5353d` (BFF+screen+lnl+cfg). Screenshots: `docs/screenshots/issue-1408-anon-testreport.png` (+ wiki `images/issue-1408-anon-testreport.png`).
