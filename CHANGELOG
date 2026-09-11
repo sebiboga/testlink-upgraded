@@ -152,6 +152,7 @@ Execution:
   api/execsetresults (#662, #789-#796, #817, #1392-#1405).
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
+- Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
 - TC Assignments (tcAssignments.html) - BFF api/tcassignments.
 - Edit Execution popup (editExecution.html).
 - Export Test Case Set (execExport.html) - BFF api/executeexport.
