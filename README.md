@@ -63,6 +63,97 @@ session.gc_maxlifetime = 2880
 memory_limit = 64M
 ```
 
+## Windows Installation (Development)
+
+Dev setup on Windows: **MariaDB runs in Docker** (host port `3307`),
+**TestLink runs on the PHP built-in server** (port `8082`).
+
+### 1. Prerequisites
+
+| Tool | Download |
+|------|----------|
+| Docker Desktop | https://www.docker.com/products/docker-desktop/ |
+| PHP 8.1+ (Windows x64 Zip) | https://windows.php.net/download/ |
+| Git for Windows | https://git-scm.com/download/win |
+
+Install all three, add the extracted PHP folder to your system `PATH`, then
+verify from a new terminal:
+
+```bat
+php -v
+docker --version
+git --version
+```
+
+Enable the PHP extensions TestLink needs — edit the `php.ini` from your PHP
+package and uncomment (`;` prefix removal):
+
+```ini
+extension=mysqli
+extension=mbstring
+extension=openssl
+extension=gd
+extension=curl
+```
+
+### 2. Clone the repo (copy-paste in Git Bash / PowerShell)
+
+```bash
+git clone https://github.com/sebiboga/testlink-upgraded.git
+cd testlink-upgraded
+```
+
+### 3. Start MariaDB in Docker on port 3307
+
+```bash
+docker run --name testlink-mariadb ^
+  -e MARIADB_ROOT_PASSWORD=root ^
+  -e MARIADB_DATABASE=testlink ^
+  -p 3307:3306 ^
+  -d mariadb:11.4
+```
+
+Check that MariaDB is up:
+
+```bash
+docker exec -it testlink-mariadb mariadb -uroot -proot -e "SELECT 1;"
+```
+
+Start/stop it later with `docker start testlink-mariadb` /
+`docker stop testlink-mariadb`.
+
+### 4. Start TestLink with the PHP built-in server (port 8082)
+
+```bash
+php -d display_errors=1 -d error_reporting=E_ALL -d max_execution_time=120 -d session.gc_maxlifetime=2880 -d memory_limit=64M -S 0.0.0.0:8082 -t .
+```
+
+> The `-d` flags mirror `scripts/devserver.sh` — the installer pre-flight
+> check requires them (`max_execution_time >= 120`, `memory_limit >= 64M`,
+> `session.gc_maxlifetime > 30min`).
+
+### 5. Run the web installer
+
+Open **http://localhost:8082** and choose *New Installation*.
+
+| Field | Value |
+|-------|-------|
+| Database Type | MySQL/MariaDB |
+| Database host | `127.0.0.1:3307` |
+| Database name | `testlink` |
+| Database admin login / password | `root` / `root` |
+| TestLink DB login / password | `tl_user` / `tl_user` |
+
+The installer creates the tables and writes `config_db.inc.php` (gitignored).
+If you re-provision Docker later, keep the same DB name, user and password so
+you don't have to reinstall TestLink.
+
+### 6. Login
+
+| User | Password | Role |
+|------|----------|------|
+| admin | admin | admin |
+
 ## Login Credentials
 
 | User | Password | Role |
