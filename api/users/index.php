@@ -192,6 +192,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 // exposes noExpDateUsers (config.inc.php:492, default ['admin']) so the modal
 // can hide the expiration date field for those logins exactly like legacy
 // usersEdit.php:462-467.
+// apiEnabled (config.inc.php:634) is exposed so the UI can gate the
+// "Generate API Key" action (legacy usersEdit.tpl:351-355).
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'authentication') {
     $authCfg = config_get('authentication');
     $domain = (isset($authCfg['domain']) && is_array($authCfg['domain'])) ? $authCfg['domain'] : [];
@@ -206,10 +208,16 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     }
     $noExp = config_get('noExpDateUsers');
     if (!is_array($noExp)) { $noExp = []; }
+    $tlCfg = $GLOBALS['tlCfg'] ?? null;
+    $apiEnabled = false;
+    if ($tlCfg && isset($tlCfg->api->enabled)) {
+        $apiEnabled = (bool)$tlCfg->api->enabled;
+    }
     out(['status' => 'ok',
          'configuredMethod' => $authCfg['method'] ?? '',
          'items' => $items,
-         'noExpDateUsers' => array_values($noExp)]);
+         'noExpDateUsers' => array_values($noExp),
+         'apiEnabled' => $apiEnabled]);
 }
 
 // Route: GET /users/meta/grants - user mgmt grant flags (mirror of legacy
@@ -416,6 +424,70 @@ if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
         $message = @sprintf(lang_get('password_cannot_be_reseted_reason'), $reason);
         out(['status' => 'error', 'code' => 'reset_failed',
              'message' => $message]);
+    }
+}
+
+// Route: POST /users/{id}/generate-apikey - generate a new API key for a user
+// and email it to them. Legacy parity: lib/usermanagement/usersEdit.php
+// createNewAPIKey() (lines 274-318) validates SMTP, calls
+// APIKey::addKeyForUser(), emails the key, logs audit_user_apikey_set.
+// Gated on $tlCfg->api->enabled (config.inc.php:634), same as legacy
+// usersEdit.tpl:351 which checks $tlCfg->api->enabled && $submitEnabled.
+if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
+    isset($segments[1]) && $segments[1] === 'generate-apikey') {
+    $tlCfg = $GLOBALS['tlCfg'] ?? null;
+    $apiEnabled = false;
+    if ($tlCfg && isset($tlCfg->api->enabled)) {
+        $apiEnabled = (bool)$tlCfg->api->enabled;
+    }
+    if (!$apiEnabled) {
+        http_response_code(403);
+        out(['status' => 'error', 'code' => 'api_disabled',
+             'message' => 'API key management is disabled']);
+    }
+
+    $id = intval($segments[0]);
+    $u = tlUser::getByID($db, $id);
+    if (!$u) { http_response_code(404); out(['status' => 'error', 'message' => 'User not found']); }
+
+    // Validate SMTP hostname (same as legacy createNewAPIKey usersEdit.php:286-290)
+    $validator = @new Zend_Validate_Hostname(Zend_Validate_Hostname::ALLOW_ALL);
+    $smtp_host = config_get('smtp_host');
+    if (!$validator->isValid($smtp_host)) {
+        http_response_code(400);
+        // Plain message: legacy lang key 'apikey_cannot_be_reseted_invalid_smtp_hostname'
+        // is not defined in any strings.txt bundle (lang_get logs a "not localized"
+        // WARNING event); the UI already maps code 'invalid_smtp_hostname' to the
+        // localized i18n key user.apiKeyInvalidSmtp.
+        out(['status' => 'error', 'code' => 'invalid_smtp_hostname',
+             'message' => 'API key cannot be generated. Reason: SMTP hostname seems to be invalid.']);
+    }
+
+    $APIKey = new APIKey();
+    $result = $APIKey->addKeyForUser($u->dbID);
+    if ($result >= tl::OK) {
+        logAuditEvent(TLS("audit_user_apikey_set", $u->login), "CREATE", $u->login, "users");
+        // Email the new key to the user (legacy usersEdit.php:305-310). Legacy
+        // silences the send with @email_send(); we mirror that by never letting
+        // a mail-delivery failure turn a successfully generated key into a
+        // hard error (the operation result stays OK). Delivery problems go to
+        // the PHP error log only - never to the Event Viewer (no new WARNING
+        // events), matching legacy's silent @ suppression.
+        $ak = $APIKey->getAPIKey($u->dbID);
+        $msgBody = lang_get('your_apikey_is') . "\n\n" . $ak .
+                   "\n\n" . lang_get('contact_admin');
+        try {
+            @email_send(config_get('from_email'),
+                        $u->emailAddress, lang_get('mail_apikey_subject'), $msgBody);
+        } catch (Throwable $e) {
+            error_log('API key mail delivery failed for user ' . $u->login . ': ' . $e->getMessage());
+        }
+        out(['status' => 'ok',
+             'message' => lang_get('apikey_by_mail')]);
+    } else {
+        http_response_code(500);
+        out(['status' => 'error', 'code' => 'apikey_generation_failed',
+             'message' => 'Failed to generate API key']);
     }
 }
 

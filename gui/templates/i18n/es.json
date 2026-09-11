@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "No se pudo restablecer la contraseña. Motivo: el host SMTP parece no ser válido.",
   "user.passwordResetDenied": "La gestión de contraseñas es externa para este usuario; la contraseña no se puede restablecer.",
   "user.resetFailed": "No se pudo restablecer la contraseña.",
-  "user.passwordResetError": "No se pudo restablecer la contraseña. Motivo: {reason}"
+  "user.passwordResetError": "No se pudo restablecer la contraseña. Motivo: {reason}",
+  "user.generateApiKey": "Generar nueva clave",
+  "user.generateApiKeyConfirm": "¿Generar una nueva clave API para el usuario \"{login}\"? Se creará una nueva clave y se enviará por correo a la dirección del usuario.",
+  "user.apiKeySent": "La nueva clave API ha sido enviada por correo",
+  "user.apiKeyFailed": "No se pudo generar la clave API.",
+  "user.apiKeyInvalidSmtp": "No se puede generar la clave API. Motivo: el nombre de host SMTP parece no ser válido.",
+  "user.apiKeyDisabled": "La gestión de claves API está deshabilitada en esta instalación."
 }

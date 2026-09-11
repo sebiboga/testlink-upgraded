@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "La réinitialisation du mot de passe est impossible. Raison : le nom d'hôte SMTP semble invalide.",
   "user.passwordResetDenied": "La gestion du mot de passe est externe pour cet utilisateur ; le mot de passe ne peut pas être réinitialisé.",
   "user.resetFailed": "Le mot de passe n'a pas pu être réinitialisé.",
-  "user.passwordResetError": "La réinitialisation du mot de passe est impossible. Raison : {reason}"
+  "user.passwordResetError": "La réinitialisation du mot de passe est impossible. Raison : {reason}",
+  "user.generateApiKey": "Générer une nouvelle clé",
+  "user.generateApiKeyConfirm": "Générer une nouvelle clé API pour l'utilisateur \"{login}\" ? Une nouvelle clé sera créée et envoyée par e-mail à l'adresse de l'utilisateur.",
+  "user.apiKeySent": "La nouvelle clé API a été envoyée par e-mail",
+  "user.apiKeyFailed": "Impossible de générer la clé API.",
+  "user.apiKeyInvalidSmtp": "Impossible de générer la clé API. Raison : le nom d'hôte SMTP semble invalide.",
+  "user.apiKeyDisabled": "La gestion des clés API est désactivée sur cette installation."
 }

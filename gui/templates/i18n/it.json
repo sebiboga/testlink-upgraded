@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "Impossibile reimpostare la password. Motivo: l'host SMTP sembra non valido.",
   "user.passwordResetDenied": "La gestione della password per questo utente è esterna; la password non può essere reimpostata.",
   "user.resetFailed": "Impossibile reimpostare la password.",
-  "user.passwordResetError": "Impossibile reimpostare la password. Motivo: {reason}"
+  "user.passwordResetError": "Impossibile reimpostare la password. Motivo: {reason}",
+  "user.generateApiKey": "Genera una nuova chiave",
+  "user.generateApiKeyConfirm": "Generare una nuova chiave API per l'utente \"{login}\"? Verrà creata una nuova chiave e inviata via email all'indirizzo dell'utente.",
+  "user.apiKeySent": "La nuova chiave API è stata inviata via email",
+  "user.apiKeyFailed": "Impossibile generare la chiave API.",
+  "user.apiKeyInvalidSmtp": "Impossibile generare la chiave API. Motivo: il nome host SMTP sembra non valido.",
+  "user.apiKeyDisabled": "La gestione delle chiavi API è disabilitata in questa installazione."
 }

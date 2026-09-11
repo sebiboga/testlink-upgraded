@@ -303,6 +303,9 @@ function renderTable(items) {
       (canResetPassword(u)
         ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
         : '') +
+      (canGenerateApiKey()
+        ? '<i class="fa fa-id-card action-btn" title="' + TLi18n.t('user.generateApiKey') + '" onclick="generateApiKey(' + u.id + ')"></i>'
+        : '') +
       (u.active
         ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
         : '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>') +
@@ -445,6 +448,52 @@ function resetPassword(id) {
         msg = TLi18n.t('user.passwordResetDenied');
       } else if (code === 'reset_failed') {
         msg = (j && j.message) || msg;
+      }
+      alert(msg);
+    }
+  });
+}
+
+// API key generation row action. Legacy parity: usersEdit.tpl:351-355 renders
+// the "Generate a new key" button only when $tlCfg->api->enabled (config.inc.php:634).
+// The BFF re-checks the same flag server-side (403 when disabled).
+function canGenerateApiKey() {
+  return !!(authMeta && authMeta.apiEnabled);
+}
+
+function generateApiKey(id) {
+  var u = null;
+  $.each(allItems, function(i, x) {
+    if (x.id === id) { u = x; return false; }
+  });
+  var login = u ? (u.login || '') : '';
+  if (!confirm(TLi18n.t('user.generateApiKeyConfirm', {login: login}))) return;
+  $.ajax({
+    url: API + '/' + id + '/generate-apikey',
+    type: 'POST',
+    contentType: 'application/json',
+    data: '{}',
+    success: function(r) {
+      var msg;
+      if (r && r.status === 'ok') {
+        msg = TLi18n.t('user.apiKeySent');
+      } else {
+        msg = (r && r.message) || TLi18n.t('user.apiKeyFailed');
+      }
+      alert(msg);
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('user.apiKeyFailed');
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.message) msg = j.message;
+      } catch (e) {}
+      if (code === 'invalid_smtp_hostname') {
+        msg = TLi18n.t('user.apiKeyInvalidSmtp');
+      } else if (code === 'api_disabled') {
+        msg = TLi18n.t('user.apiKeyDisabled');
       }
       alert(msg);
     }

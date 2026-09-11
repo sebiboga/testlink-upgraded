@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "パスワードをリセットできません。理由: SMTPホスト名が無効のようです。",
   "user.passwordResetDenied": "このユーザーのパスワード管理は外部です。パスワードをリセットできません。",
   "user.resetFailed": "パスワードをリセットできませんでした。",
-  "user.passwordResetError": "パスワードをリセットできません。理由: {reason}"
+  "user.passwordResetError": "パスワードをリセットできません。理由: {reason}",
+  "user.generateApiKey": "新しいキーを生成",
+  "user.generateApiKeyConfirm": "ユーザー \"{login}\" に新しいAPIキーを生成しますか？新しいキーが作成され、ユーザーのアドレスにメールで送信されます。",
+  "user.apiKeySent": "新しいAPIキーがメールで送信されました",
+  "user.apiKeyFailed": "APIキーを生成できませんでした。",
+  "user.apiKeyInvalidSmtp": "APIキーを生成できません。理由: SMTPホスト名が無効のようです。",
+  "user.apiKeyDisabled": "このインストールではAPIキー管理は無効です。"
 }

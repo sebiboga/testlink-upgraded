@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "Não foi possível repor a palavra-passe. Motivo: o host SMTP parece inválido.",
   "user.passwordResetDenied": "A gestão da palavra-passe é externa para este utilizador; a palavra-passe não pode ser reposta.",
   "user.resetFailed": "Não foi possível repor a palavra-passe.",
-  "user.passwordResetError": "Não foi possível repor a palavra-passe. Motivo: {reason}"
+  "user.passwordResetError": "Não foi possível repor a palavra-passe. Motivo: {reason}",
+  "user.generateApiKey": "Gerar nova chave",
+  "user.generateApiKeyConfirm": "Gerar uma nova chave de API para o utilizador \"{login}\"? Será criada uma nova chave e enviada por correio para o endereço do utilizador.",
+  "user.apiKeySent": "A nova chave de API foi enviada por correio",
+  "user.apiKeyFailed": "Não foi possível gerar a chave de API.",
+  "user.apiKeyInvalidSmtp": "Não é possível gerar a chave de API. Motivo: o nome do host SMTP parece inválido.",
+  "user.apiKeyDisabled": "A gestão de chaves de API está desativada nesta instalação."
 }

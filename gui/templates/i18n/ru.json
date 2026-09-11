@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "Сброс пароля невозможен. Причина: имя SMTP-хоста недействительно.",
   "user.passwordResetDenied": "Управление паролем для этого пользователя внешнее; пароль не может быть сброшен.",
   "user.resetFailed": "Не удалось сбросить пароль.",
-  "user.passwordResetError": "Сброс пароля невозможен. Причина: {reason}"
+  "user.passwordResetError": "Сброс пароля невозможен. Причина: {reason}",
+  "user.generateApiKey": "Создать новый ключ",
+  "user.generateApiKeyConfirm": "Создать новый API-ключ для пользователя \"{login}\"? Новый ключ будет создан и отправлен на адрес электронной почты пользователя.",
+  "user.apiKeySent": "Новый API-ключ отправлен по почте",
+  "user.apiKeyFailed": "Не удалось создать API-ключ.",
+  "user.apiKeyInvalidSmtp": "Невозможно создать API-ключ. Причина: имя SMTP-хоста кажется недействительным.",
+  "user.apiKeyDisabled": "Управление API-ключами отключено в этой установке."
 }

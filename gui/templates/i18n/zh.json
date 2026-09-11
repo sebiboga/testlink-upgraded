@@ -3132,5 +3132,11 @@
   "user.passwordResetInvalidSmtp": "无法重置密码。原因：SMTP 主机名似乎无效。",
   "user.passwordResetDenied": "该用户的密码管理是外部的；无法重置密码。",
   "user.resetFailed": "无法重置密码。",
-  "user.passwordResetError": "无法重置密码。原因：{reason}"
+  "user.passwordResetError": "无法重置密码。原因：{reason}",
+  "user.generateApiKey": "生成新密钥",
+  "user.generateApiKeyConfirm": "为用户 \"{login}\" 生成新的 API 密钥？将创建新密钥并发送到该用户的邮箱地址。",
+  "user.apiKeySent": "新的 API 密钥已通过邮件发送",
+  "user.apiKeyFailed": "无法生成 API 密钥。",
+  "user.apiKeyInvalidSmtp": "无法生成 API 密钥。原因：SMTP 主机名似乎无效。",
+  "user.apiKeyDisabled": "此安装已禁用 API 密钥管理。"
 }
