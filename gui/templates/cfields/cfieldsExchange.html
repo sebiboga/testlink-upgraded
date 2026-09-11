@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Fields XML Export/Import</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.wrap { padding: 20px 24px; }
+.cards { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1100px; }
+@media (max-width: 900px) { .cards { grid-template-columns: 1fr; } }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card-title { padding: 12px 18px; font-size: 14px; font-weight: 700; color: #22242a; border-bottom: 1px solid #eee; background: #f7f7f7; }
+.card-title i { color: #4ECDC4; margin-right: 8px; }
+.card-body { padding: 16px 18px; }
+.field-row { margin-bottom: 14px; }
+.field-row label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 5px; }
+.form-ctrl { width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 7px 10px; font-size: 13px; background: #fff; }
+.hint { font-size: 12px; color: #888; margin-top: 6px; }
+.info-strip { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; font-size: 12px; color: #666; }
+.chip { background: #fff; border: 1px solid #ddd; border-radius: 14px; padding: 4px 12px; }
+.chip b { color: #22242a; }
+.msgbox { display: none; border-radius: 6px; padding: 10px 14px; font-size: 13px; margin: 10px 0; }
+.msg-ok { background: #e8f7ef; border: 1px solid #b3e0c5; color: #1e7e44; }
+.msg-err { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.imp-list { font-size: 13px; margin: 4px 0; }
+.imp-list .ok { color: #1e7e44; }
+.imp-list .ko { color: #b94a48; }
+.resume { margin-top: 4px; font-size: 12px; color: #888; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header"><span data-i18n="cfx.title">Custom Fields XML Export/Import</span> <span data-i18n="cfx.subtitle">export or import custom field definitions as XML</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <button class="btn-ghost" onclick="history.back()"><i class="fa fa-arrow-left"></i> <span data-i18n="cfx.goback">Back</span></button>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="wrap">
+  <div class="info-strip">
+    <span class="chip"><span data-i18n="cfx.existing">Existing custom fields:</span> <b id="countInfo">-</b></span>
+    <span class="chip"><span data-i18n="cfx.rightExport">Export right:</span> <b id="rightExport">-</b></span>
+    <span class="chip"><span data-i18n="cfx.rightImport">Import right:</span> <b id="rightImport">-</b></span>
+    <span class="chip"><span data-i18n="cfx.maxSize">Max file size:</span> <b id="maxSizeInfo">-</b></span>
+  </div>
+
+  <div class="cards">
+    <div class="card" id="exportCard">
+      <div class="card-title"><i class="fa fa-download"></i><span data-i18n="cfx.exportCard">Export Definitions</span></div>
+      <div class="card-body">
+        <p class="hint" data-i18n="cfx.exportDesc" style="margin-top:0;">Download the current custom field definitions of this installation as an XML file, ready to be imported on another TestLink.</p>
+        <div class="field-row">
+          <label data-i18n="cfx.filename">Export filename</label>
+          <input type="text" class="form-ctrl" id="exportFilename" value="customFields.xml">
+        </div>
+        <div class="field-row">
+          <label data-i18n="cfx.fileType">Format</label>
+          <select class="form-ctrl" id="exportType"><option value="XML">XML</option></select>
+        </div>
+        <p class="hint"><a href="/docs/tl-file-formats.pdf" target="_blank" rel="noopener" data-i18n="cfx.formatDoc">View File Format Document</a></p>
+        <div id="exportMsg" class="msgbox msg-ok"></div>
+        <div class="field-row" style="margin-bottom:0;">
+          <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="importCard">
+      <div class="card-title"><i class="fa fa-upload"></i><span data-i18n="cfx.importCard">Import Definitions</span></div>
+      <div class="card-body">
+        <p class="hint" data-i18n="cfx.importDesc" style="margin-top:0;">Upload an XML file with custom field definitions. Fields that already exist by name are skipped.</p>
+        <div class="field-row">
+          <label data-i18n="cfx.fileType">Format</label>
+          <select class="form-ctrl" id="importType"><option value="XML">XML</option></select>
+        </div>
+        <div class="field-row">
+          <label data-i18n="cfx.localFile">XML file to import</label>
+          <input type="file" class="form-ctrl" id="targetFilename" accept=".xml,text/xml,application/xml">
+          <p class="hint" id="maxSizeHint">Max file size: -</p>
+        </div>
+        <p class="hint"><a href="/docs/tl-file-formats.pdf" target="_blank" rel="noopener" data-i18n="cfx.formatDoc">View File Format Document</a></p>
+        <div id="importMsg" class="msgbox"></div>
+        <div id="importResume" class="resume" style="display:none;"></div>
+        <div class="field-row" style="margin-bottom:0;">
+          <button class="btn-teal" id="btnUpload"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="common.generatedOn">Generated on</span> <span id="generatedOn"></span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/cfieldsx/index.php';
+var INFO = null;
+var MAX_BYTES = 0;
+
+function escapeHtml(s) {
+  return $('<div>').text(String(s == null ? '' : s)).html();
+}
+
+function showMsg(sel, type, html) {
+  var box = $(sel);
+  box.removeClass('msg-ok msg-err').addClass(type === 'err' ? 'msg-err' : 'msg-ok').html(html).show();
+}
+
+function setBusy(btn, busy, busyText) {
+  var $b = $(btn);
+  $b.prop('disabled', busy);
+  var span = $b.find('span');
+  if (busy) { $b.data('orig', span.html()); span.html(busyText); }
+  else { span.html($b.data('orig') || span.html()); }
+}
+
+function exportXml() {
+  var filename = $('#exportFilename').val().trim();
+  if (filename === '') {
+    showMsg('#exportMsg', 'err', TLi18n.t('cfx.msg.noFilename'));
+    return;
+  }
+  setBusy('#btnExport', true, TLi18n.t('cfx.exporting'));
+  $('#exportMsg').hide();
+  fetch(API + '/export', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    credentials: 'same-origin',
+    body: JSON.stringify({export_filename: filename})
+  }).then(function(res) {
+    if (!res.ok) { throw new Error('HTTP ' + res.status); }
+    return res.blob();
+  }).then(function(blob) {
+    var name = filename;
+    if (name.toLowerCase().indexOf('.xml') === -1) { name += '.xml'; }
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    setBusy('#btnExport', false);
+    showMsg('#exportMsg', 'ok', TLi18n.t('cfx.exportDone'));
+  }).catch(function(err) {
+    setBusy('#btnExport', false);
+    showMsg('#exportMsg', 'err', TLi18n.t('cfx.errExport') + ': ' + err.message);
+  });
+}
+
+function importXml() {
+  var file = $('#targetFilename')[0].files[0];
+  if (!file) {
+    showMsg('#importMsg', 'err', TLi18n.t('cfx.msg.noFile'));
+    return;
+  }
+  if (MAX_BYTES > 0 && file.size > MAX_BYTES) {
+    showMsg('#importMsg', 'err', TLi18n.t('cfx.errTooBig', {kb: Math.ceil(MAX_BYTES / 1024)}));
+    return;
+  }
+  setBusy('#btnUpload', true, TLi18n.t('cfx.importing'));
+  showMsg('#importMsg', '', '');
+  $('#importResume').html('').hide();
+  var fd = new FormData();
+  fd.append('targetFilename', file);
+  fetch(API + '/import', {
+    method: 'POST',
+    credentials: 'same-origin',
+    body: fd
+  }).then(function(res) {
+    return res.json().then(function(data) { data._status = res.status; return data; });
+  }).then(function(data) {
+    setBusy('#btnUpload', false);
+    if (data.status !== 'ok') { throw data; }
+    var html = '<div class="imp-list ok"><b>' + TLi18n.t('cfx.importedTitle') + ' (' + data.imported.length + ')</b>';
+    (data.imported || []).forEach(function(n) { html += '<div class="ok">&raquo; ' + escapeHtml(n) + '</div>'; });
+    html += '</div>';
+    html += '<div class="imp-list ko"><b>' + TLi18n.t('cfx.notImportedTitle') + ' (' + data.not_imported.length + ')</b>';
+    (data.not_imported || []).forEach(function(n) {
+      html += '<div class="ko">&raquo; ' + escapeHtml(n) + ' — ' + TLi18n.t('cfx.msg.alreadyExists', {name: escapeHtml(n)}) + '</div>';
+    });
+    html += '</div>';
+    showMsg('#importMsg', 'ok', html);
+    $('#importMsg').css('background', '#e8f7ef');
+    $('#importResume').text(TLi18n.t('cfx.msg.counts', {ok: data.imported.length, ko: data.not_imported.length})).show();
+    $('#targetFilename').val('');
+    loadInfo();
+  }).catch(function(errObj) {
+    setBusy('#btnUpload', false);
+    var msg;
+    if (errObj && errObj.message === 'file_too_big') msg = TLi18n.t('cfx.errTooBig', {kb: (errObj.limit_kb || 0)});
+    else if (errObj && errObj.message === 'parse_failed') msg = TLi18n.t('cfx.errParse') + (errObj.xml_errors && errObj.xml_errors[0] ? ': ' + errObj.xml_errors[0] : '');
+    else if (errObj && errObj.message === 'need_file') msg = TLi18n.t('cfx.msg.noFile');
+    else if (errObj && errObj.message === 'upload_failed') msg = TLi18n.t('cfx.errUpload');
+    else msg = TLi18n.t('cfx.errImport') + ': ' + (errObj && errObj.message ? errObj.message : '');
+    showMsg('#importMsg', 'err', msg);
+  });
+}
+
+function loadInfo() {
+  $.getJSON(API + '/').done(function(r) {
+    if (!r || r.status !== 'ok') return;
+    INFO = r;
+    $('#countInfo').text(r.count);
+    $('#rightExport').html(r.has_export_right ? '<span class="badge-active">' + TLi18n.t('common.yes') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('common.no') + '</span>');
+    $('#rightImport').html(r.has_import_right ? '<span class="badge-active">' + TLi18n.t('common.yes') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('common.no') + '</span>');
+    $('#maxSizeInfo').text(r.import_limit_kb + ' KB');
+    $('#maxSizeHint').text(TLi18n.t('cfx.maxSize', {kb: r.import_limit_kb}));
+    MAX_BYTES = r.import_limit_kb * 1024;
+    if (!r.has_export_right) { $('#exportCard').css('opacity', '.5'); $('#btnExport').prop('disabled', true); }
+    if (!r.has_import_right) { $('#importCard').css('opacity', '.5'); $('#btnUpload').prop('disabled', true); }
+  }).fail(function() {
+    $('#countInfo').text('-');
+  });
+}
+
+$('#btnExport').on('click', exportXml);
+$('#btnUpload').on('click', importXml);
+
+TLi18n.load(function() {
+  TLi18n.apply();
+  TLi18n.initLocaleSwitcher('#localeSwitcher');
+  $('#generatedOn').text(new Date().toLocaleString());
+  loadInfo();
+});
+</script>
+</body>
+</html>

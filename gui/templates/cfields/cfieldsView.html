@@ -18,6 +18,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-teal:hover { background: #3dbdb5; }
 .btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-red:hover { background: #d04e4c; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
 .table-wrap { padding: 20px 24px; }
 .table-wrap table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; }
 table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; }
@@ -43,6 +45,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="toolbar">
   <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="cf.createCustomField">Create Custom Field</span></button>
+  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#export'"><i class="fa fa-download"></i> <span data-i18n="cfx.btnExport">Export</span></button>
+  <button class="btn-ghost" onclick="location='/gui/templates/cfields/cfieldsExchange.html#import'"><i class="fa fa-upload"></i> <span data-i18n="cfx.btnUpload">Upload File</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>

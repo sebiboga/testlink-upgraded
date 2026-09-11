@@ -1860,6 +1860,7 @@ function getActions(&$gui,$baseURL) {
 
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
+  $actions->cfieldsExchange = "/gui/templates/cfields/cfieldsExchange.html?{$ctx}";
 
   $actions->keywordsView = "/gui/templates/keywords/keywordsView.html?{$ctx}";
   $actions->platformsView = "/gui/templates/platforms/platformsView.html?{$ctx}";
