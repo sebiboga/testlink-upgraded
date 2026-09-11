@@ -112,8 +112,14 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
 
     // XXE defense-in-depth (same as legacy simplexml_load_file_wrapper):
     // disable external entity loading before parsing attacker-supplied XML.
+    // Parse via load_string: under PHP 8.3/libxml 2.9.x simplexml_load_file()
+    // returns false after libxml_disable_entity_loader(true) even for a
+    // well-formed local file ("failed to load external entity") — the legacy
+    // wrapper reads with file_get_contents + simplexml_load_string instead.
     @libxml_disable_entity_loader(true);
-    $xml = @simplexml_load_file($targetFile);
+    $zebra = @file_get_contents($targetFile);
+    $xml = ($zebra !== false) ? @simplexml_load_string($zebra) : false;
+    @libxml_clear_errors();
     if ($xml !== FALSE) {
         $tcaseMgr = new testcase($dbHandler);
         $tcaseSet = array();
