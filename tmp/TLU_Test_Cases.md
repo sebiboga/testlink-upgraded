@@ -13297,3 +13297,86 @@ Result: 6/6 PASS — **#1426 COMPLETE**: all-10-bundle i18n with real native tra
 | 1430.8 | Hygiene / Event Viewer | `events` table shows only info-level (`log_level` 16) audit rows (login + `User 'xss_test_user' created`); 0 new Error/Warning | **PASS** |
 
 Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlled sink (`role.name`, usersView.html:247), locale/auth labels left intact (config-owned, pre-entity-encoded — escaping would corrupt display). Commit on `fix/issue-1430`. Screenshots: `docs/screenshots/issue-1430-modal-xss-repro.png` (before), `docs/screenshots/issue-1430-modal-xss-fixed.png` (after). **New same-family bug filed:** `rolesView.html` delete-cell onclick attribute breakout → **#1432**.
+
+## Task — Issue #1424: CHANGELOG 2.0.1 update (Refs #1424)
+
+**Screen:** repo-root `CHANGELOG` file (documentation/process). No runtime code touched; the update documents all 2.0.1 work and adds a rule so the file stays continuously updated.
+**Precondition:** cloned repo, `CHANGELOG` at repo root, `cfg/const.inc.php:22` declares `TL_VERSION_NUMBER = '2.0.1'`.
+
+### TC-1424.1: 2.0.1 section present at the top of the CHANGELOG
+
+**Steps:**
+1. `grep -n "^TestLink - 2.0.1" CHANGELOG`
+2. Confirm it appears directly above the 1.9.20 entry
+
+**Expected:** `TestLink - 2.0.1 (2026 Q3) (Released 2026-09)` present, 1.9.20 still intact after it.
+
+**Actual:** PASS — line 9 = `TestLink - 2.0.1 (2026 Q3) (Released 2026-09)`, 1.9.20 entry follows intact.
+
+### TC-1424.2: MAJOR AREAS block covers the modernization scope
+
+**Steps:**
+1. Read the `MAJOR AREAS` list in the CHANGELOG 2.0.1 section
+
+**Expected:** entries for UI modernization (Dashio), BFF API layer, PHP 8.x compatibility, modernized screens, i18n, security hardening, CI factory, testing, wiki/docs.
+
+**Actual:** PASS — all 9 entries present (screens count 112, BFF 60 endpoints, 10 locale bundles, 213 suites / 3649 PASS, 360-page wiki).
+
+### TC-1424.3: MODERNIZED SCREENS grouped per ASIDE section with BFF references
+
+**Steps:**
+1. Read the `MODERNIZED SCREENS (per ASIDE section)` block
+2. Spot-check entries against `docs/SCREEN-COMPARE-STATUS.md` (e.g. `eventviewer/eventviewer.html` → api/eventviewer, `usersView.html` → api/users)
+
+**Expected:** every section (System/Product/Dashboard/Requirements/Test Spec/Plans/Execution/Reports/Auth/Test Strategy) lists its screens with HTML path + BFF + issue refs; spot-checked refs match SCREEN-COMPARE-STATUS.
+
+**Actual:** PASS — sections present; `eventviewer` #867-#874, `usersView` #879-#891, reports area with charts apikey #1258, execTimelineStats #1273 all match the tracker.
+
+### TC-1424.4: NEW FEATURES and KEY BUGFIX blocks present
+
+**Steps:**
+1. Read `NEW FEATURES` and `KEY BUGFIX / COMPATIBILITY EFFORTS` blocks
+
+**Expected:** MD import/export (#853), Quality Objectives (#1280/#1307), Test Strategy (#1423/#1425/#1431), GitHub tracker (#433), apikey/anon report access, reset-password/generate-apikey user actions; PHP 8.x + security + legacy-restoration bugfix bullets.
+
+**Actual:** PASS — all listed with issue references.
+
+### TC-1424.5: PROCESS block + AGENTS.md rule 22 mirror
+
+**Steps:**
+1. Read the `PROCESS / KEEPING THIS CHANGELOG UPDATED` block in the CHANGELOG
+2. `grep -n "CHANGELOG is mandatory in every run" ai/AGENTS.md`
+
+**Expected:** the CHANGELOG states every work run updates it; `ai/AGENTS.md` contains rule 22 with the exact wording referencing the CHANGELOG sections and code-review check.
+
+**Actual:** PASS — CHANGELOG PROCESS block present; `ai/AGENTS.md` rule 22 found verbatim.
+
+### TC-1424.6: Legacy 1.9.20 content untouched + file still valid
+
+**Steps:**
+1. `wc -l CHANGELOG`
+2. Verify the 1.9.20 line count is preserved by diffing the tail against the pre-change file
+
+**Expected:** file grew by the 2.0.1 section only; no 1.9.20/earlier line removed or altered.
+
+**Actual:** PASS — file now 3870 lines (was 3633); +237 from the 2.0.1 section. `git show --stat HEAD` confirms only insertions.
+
+### TC-1424.7: Wiki + docs mirror updated
+
+**Steps:**
+1. `ls tmp/wiki-repo/CHANGELOG-2.0.1.md docs/CHANGELOG-2.0.1.md`
+
+**Expected:** both files exist with matching content (docs mirror without image lines); wiki Home.md lists the new page (31 pages).
+
+**Actual:** PASS — both files exist; wiki `Home.md` updated to 31 pages with link; wiki pushed (`d18ceb1..396f1bd`).
+
+### TC-1424.8: Event Viewer / runtime unaffected (docs-only task)
+
+**Steps:**
+1. Since no runtime code changed, confirm no `api/*` or `gui/templates/*` files were touched in the diff
+
+**Expected:** `git diff HEAD~1 --stat` touches only `CHANGELOG`, `ai/AGENTS.md`, `docs/CHANGELOG-2.0.1.md`.
+
+**Actual:** PASS — exactly those 3 files, documentation-only. No runtime/DB/Event effects.
+
+Result: 8/8 PASS — **#1424 COMPLETE**: CHANGELOG now documents all 2.0.1 work (UI modernization, BFF, 60 endpoints, 112 screens, PHP 8.x, security, features, bugfix effort), AGENTS.md rule 22 keeps it continuously updated, wiki + docs mirror published. Branch `task/issue-1424`.
