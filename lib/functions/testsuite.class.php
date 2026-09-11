@@ -149,6 +149,12 @@ class testsuite extends tlObjectWithAttachments
     }
     
     $name = trim($name);
+    // Cap names that would overflow nodes_hierarchy.name (varchar(100)) and
+    // abort inserts in strict MySQL/MariaDB with a raw DB error (see #1420).
+    // Mirrors the truncation already done in the generate_new branch below.
+    if (tlStringLen($name) > self::MAXLEN_NAME) {
+        $name = tlSubStr($name, 0, self::MAXLEN_NAME);
+    }
     $ret = array('status_ok' => 1, 'id' => 0, 'msg' => 'ok', 
                  'name' => '', 'name_changed' => false);
   
