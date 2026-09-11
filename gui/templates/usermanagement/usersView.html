@@ -170,6 +170,8 @@ var localeMap = [];
 var authMeta = null;
 var allItems = [];
 
+function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+
 $(function() {
   var p = new URLSearchParams(window.location.search);
   var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
@@ -291,14 +293,14 @@ function renderTable(items) {
   var rows = [];
   $.each(filtered, function(i, u) {
     rows.push([
-      u.login,
-      u.firstName || '',
-      u.lastName || '',
-      u.email || '',
-      u.globalRoleName || '',
-      u.locale || '',
+      esc(u.login),
+      esc(u.firstName || ''),
+      esc(u.lastName || ''),
+      esc(u.email || ''),
+      esc(u.globalRoleName || ''),
+      esc(u.locale || ''),
       u.active === 1 ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>',
-      u.expirationDateFormatted || u.expirationDate || '',
+      esc(u.expirationDateFormatted || u.expirationDate || ''),
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
       (canResetPassword(u)
         ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
@@ -310,7 +312,7 @@ function renderTable(items) {
         ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
         : '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>') +
       (u.login !== 'admin'
-        ? '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteUser(' + u.id + ', \'' + u.login + '\')"></i>'
+        ? '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteUser(' + u.id + ')"></i>'
         : '')
     ]);
   });
@@ -539,7 +541,12 @@ function saveUser() {
   });
 }
 
-function deleteUser(id, login) {
+function deleteUser(id) {
+  var u = null;
+  $.each(allItems, function(i, x) {
+    if (x.id === id) { u = x; return false; }
+  });
+  var login = u ? (u.login || '') : '';
   if (!confirm('Delete user "' + login + '"?')) return;
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
