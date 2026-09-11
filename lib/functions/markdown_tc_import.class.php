@@ -106,6 +106,7 @@ class markdownTcImport
                 $currentSuiteKey = count($result['suites']) - 1;
                 $currentCase = null;
                 $inSteps = false;
+                $stepsFieldSeen = false;
                 continue;
             }
 
@@ -133,6 +134,23 @@ class markdownTcImport
                 // pending case is flushed when the next section starts (or EOF)
                 $result['caseCount']++;
                 $inSteps = false;
+                $stepsFieldSeen = false;
+                continue;
+            }
+
+            // ---- non-TC "###" heading (narrative, e.g. "### Test Data") -----
+            // Flush the pending case and surface it as a parser warning instead
+            // of silently merging/abandoning the content (see #1422).
+            if (preg_match('/^###\s+(.+)$/u', $line, $m)) {
+                if (!is_null($currentCase)) {
+                    self::flushPending($result, $currentSuiteKey, $currentCase);
+                    $this->errors[] = [
+                        'line' => $lineNo,
+                        'message' => 'Ignored non-test-case heading: ' . trim($m[1]),
+                    ];
+                }
+                $inSteps = false;
+                $stepsFieldSeen = false;
                 continue;
             }
 
@@ -141,9 +159,24 @@ class markdownTcImport
             }
 
             // ---- field bullets ---------------------------------------------
-            if (preg_match('/^\s*-\s*\**(Priority|Importance|Preconditions|Steps|Expected Result|Expected result|ExternalID|External ID)\**\s*:\s*(.*)$/u',
+            // "Steps" accepts a suffix ("Steps (pre-fix repro):") so step
+            // blocks with renamed headers are recognized too (see #1422).
+            if (preg_match('/^\s*-\s*\**(Priority|Importance|Preconditions|' .
+                           'Steps(?:[^:]*?)|Expected[^:]*?[Rr]esult|' .
+                           'External[^:]*?[Ii][Dd])\**\s*:\s*(.*)$/u',
                            $line, $m)) {
-                $field = strtolower($m[1]);
+                // Normalize the label: "Steps (pre-fix repro)" -> steps,
+                // "Expected Result"/"Expected result" -> expected result, etc.
+                $labelRaw = strtolower(trim($m[1]));
+                if (strpos($labelRaw, 'steps') === 0) {
+                    $field = 'steps';
+                } elseif (strpos($labelRaw, 'expected') === 0) {
+                    $field = 'expected result';
+                } elseif (strpos($labelRaw, 'external') === 0) {
+                    $field = 'externalid';
+                } else {
+                    $field = $labelRaw;
+                }
                 // Strip leading/trailing ** bold markers that leak from
                 // markdown **Field:** value format (colon sits inside bold)
                 $value = preg_replace('/^\*{1,2}\s*/', '', trim($m[2]));
@@ -164,6 +197,7 @@ class markdownTcImport
                         break;
                     case 'steps':
                         $inSteps = true;
+                        $stepsFieldSeen = true;
                         // Don't create a spurious step from "- **Steps:**" header
                         // (value would be empty or just bold markers)
                         break;
@@ -171,15 +205,14 @@ class markdownTcImport
                         $currentCase['expectedResult'] = $value;
                         break;
                     case 'externalid':
-                    case 'external id':
                         $currentCase['externalId'] = trim($value);
                         break;
                 }
                 continue;
             }
 
-            // ---- numbered steps + continuation lines ------------------------
-            if ($inSteps && preg_match('/^\s+(\d+)\.\s+(.*)$/', $line, $m)) {
+            // ---- numbered steps (indented or not) ---------------------------
+            if ($inSteps && preg_match('/^\s*(\d+)\.\s+(.*)$/', $line, $m)) {
                 $this->addStep($currentCase, intval($m[1]), $m[2]);
                 continue;
             }
@@ -202,6 +235,25 @@ class markdownTcImport
                 } else {
                     $currentCase['steps'][$lastStep]['actions'] =
                         trim($currentCase['steps'][$lastStep]['actions'] . "\n" . $cont);
+                }
+                continue;
+            }
+
+            // ---- plain "- " bullets as acceptance-style steps ---------------
+            // Cases without an explicit "- **Steps:**" field (e.g. Suite 40
+            // blocks) express the whole procedure as a bullet list; import
+            // each bullet as a step action instead of dropping it (see #1422).
+            if (!$stepsFieldSeen && preg_match('/^\s*-\s+(.+)$/u', $line, $bm)) {
+                $text = preg_replace('/^\*{1,2}\s*/', '', trim($bm[1]));
+                $text = preg_replace('/\s*\*{1,2}$/', '', $text);
+                if ($text !== '' && $text !== 'Expected') {
+                    $currentCase['steps'][] = [
+                        'step_number' => count($currentCase['steps']) + 1,
+                        'actions' => $text,
+                        'expected_results' => '',
+                        'execution_type' => TESTCASE_EXECUTION_TYPE_MANUAL,
+                    ];
+                    $inSteps = true;
                 }
                 continue;
             }
