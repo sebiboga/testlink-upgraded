@@ -244,7 +244,7 @@ function loadMeta(cb) {
     sel.empty();
     $.each(r.items, function(i, role) {
       roleMap[role.id] = role.name;
-      sel.append('<option value="' + role.id + '">' + role.name + '</option>');
+      sel.append('<option value="' + role.id + '">' + esc(role.name) + '</option>');
     });
   });
   $.getJSON(API + '/meta/locales', function(r) {
