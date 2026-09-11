@@ -287,7 +287,7 @@ file_upload_ko,pleaseOpenTSuite'}
     </div>
   {/if}
 
-  {if isset($gui->plugins.EVENT_TESTRUN_DISPLAY)}
+  {if isset($gui->plugins.EVENT_TESTRUN_DISPLAY) && $gui->plugins.EVENT_TESTRUN_DISPLAY}
     <div id="plugin_display">
       {foreach from=$gui->plugins.EVENT_TESTRUN_DISPLAY item=testrun_item}
         {$testrun_item}
