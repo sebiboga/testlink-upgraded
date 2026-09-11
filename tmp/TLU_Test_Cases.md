@@ -13186,3 +13186,25 @@ Result: 6/6 PASS — **#1417 FIXED** via `isset($args_gui->reqTypeDomain.$req_ty
 | 1406.7 | Hygiene | `events` table: rows 2,4,5 `1406 - Data too long for column 'locale'` are my repro artifacts of the varchar(10) locale PUT (pre-existing, filed as #1429); post-fix verification added only INFO audit events (create/update/delete xssuser), 0 new Error/Warning from the fixed render | **PASS** |
 
 Result: 7/7 PASS — **#1406 FIXED** via `esc()` + delete-onclick hardening (+16/-9 on `gui/templates/usermanagement/usersView.html`, commit `a6821c188` pushed on `fix/issue-1406-usersview-xss`). Before/after screenshots: `docs/screenshots/issue-1406-usersview-xss-before.png`, `docs/screenshots/issue-1406-usersview-xss-after.png`. **New pre-existing bugs discovered while testing (out of scope, filed):** BFF leaks full DB debug backtrace on locale-overflow PUT → **#1429**; edit-modal `<option>` labels (role.name/loc.name/auth label) appended unescaped → **#1430**.
+
+# Test Suite 1431 — Modernize: Test Strategy General Overview (strategy/testStrategy.html + api/strategy BFF)
+
+**Screen:** `gui/templates/strategy/testStrategy.html` (Dashio General Overview, BFF-fed chapter grid)
+**BFF:** `api/strategy/index.php` — `GET ?action=chapters` (19 chapter cards) + `GET ?action=info` (footer meta/grants), session auth (401 anonymous), GET-only (405/403 non-GET), unknown action → 400.
+**Scope of modernization:** the Test Strategy ASIDE section (added #1423/#1425) held standalone `.html` pages with a hardcoded `CHAPTERS` JS array and `ts.*` i18n keys present ONLY in `en.json`+`ro.json`. Per the ASIDE walk this was the first entry violating the modernized-screen contract (no `api/**` BFF, keys not in all 10 bundles). Now: chapters come from the BFF, all 10 bundles carry `ts.*` (79 keys), ASIDE links route through `$gui->uri->testStrategy*`.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in. No fixtures needed (content screen).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1431.1 | ASIDE: Test Strategy section expands and shows 4 links (General Overview / Scope / Exit Criteria / Severity Configuration) | Links render; General Overview href = `gui/templates/strategy/testStrategy.html?tproject_id=0&tplan_id=0` (routed via `$gui->uri->testStrategy`) | **PASS** |
+| 1431.2 | Open General Overview from ASIDE | Mainframe loads the Dashio screen; header "General Overview", intro card, 19 numbered chapter cards grid, footer "TestLink 2.0.1 - General Overview - Generated on <server ts>" | **PASS** |
+| 1431.3 | BFF request `GET /api/strategy/index.php?action=chapters` (authenticated) | HTTP 200, JSON `status:ok`, `chapters` array length 19, each with num/icon/key/descKey/url; footer has displayName "Testlink Administrator" + generated_on | **PASS** |
+| 1431.4 | Chapter card content (server-driven) | Card 1 shows numbered badge "1" + "Introduction & Background" title + its description; cards that own a page (3 Scope, 7 Entry & Exit Criteria, 19 Severity Configuration) show an "Open chapter" button, others show none | **PASS** |
+| 1431.5 | Open chapter buttons target `_mainframe` | Scope → `gui/templates/strategy/scope.html` (In scope/Out of scope col-s, "Back to Test Strategy" link); Exit Criteria → `gui/templates/strategy/exitCriteria.html` (Entry/Exit col-s); Severity → `projects/severityConfig.html` | **PASS** |
+| 1431.6 | Locale switch to Română on the overview | All titles/descriptions render Romanian (e.g. "Prezentare Generală", "Capitolele Strategiei de Testare", "Deschide capitolul"), reusing the pre-existing ro translations; URL gains `locale=ro` | **PASS** |
+| 1431.7 | Locale switch to a previously-unbundled locale (e.g. German) | `ts.*` keys resolve (no raw `ts.chapterX` text leaked) — keys now present in all 10 bundles (validated `python3 -m json.tool` + grep count = 79 in each) | **PASS (compile-level)** |
+| 1431.8 | Anonymous access to the overview | BFF answers 401 JSON `Not authenticated`; the screen redirects the top frame to `/index.php` (login) — no data leaked | **PASS** |
+| 1431.9 | BFF hardening | Non-GET (POST) → 403 same-origin guard / 405; `?action=bogus` → 400 `Unknown action`; `?action=info` → 200 with footer+grants | **PASS** |
+| 1431.10 | Hygiene / Event Viewer | `events` table has no new Error/Warning rows attributable to the screen (only the standard login audits from the harness) | **PASS** |
+
+Result: 10/10 PASS — **#1431 DONE**. Commits: `e1799ff70` (BFF), `c28494cc7` (front-end + i18n + ASIDE link switch), `04e5b7441` (ro translations). Screenshots: `docs/screenshots/issue-1431-strategy-overview-en.png`, `docs/screenshots/issue-1431-strategy-overview-ro.png`.
