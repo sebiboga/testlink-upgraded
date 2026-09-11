@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testplan>
+  <name>PIMP-Plan</name>
+  <platforms>
+    <platform>
+      <name>PIMP-Android</name>
+    </platform>
+  </platforms>
+  <executables>
+    <link>
+      <platform>
+        <name>PIMP-Android</name>
+      </platform>
+      <testcase>
+        <name>Login</name>
+        <externalid>1</externalid>
+        <version>1</version>
+        <execution_order>10</execution_order>
+      </testcase>
+    </link>
+    <link>
+      <platform>
+        <name>PIMP-Android</name>
+      </platform>
+      <testcase>
+        <name>Login</name>
+        <externalid>1</externalid>
+        <version>99</version>
+        <execution_order>20</execution_order>
+      </testcase>
+    </link>
+  </executables>
+</testplan>

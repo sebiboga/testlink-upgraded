@@ -369,7 +369,7 @@ function importTestPlanLinksFromXML(&$dbHandler,&$tplanMgr,$targetFile,$contextO
             $dummy = $tcaseMgr->get_basic_info($tcaseSet[$externalID],
                                                array('number' => $version));
 
-            if( count($dummy) > 0 )
+            if( !is_null($dummy) && count($dummy) > 0 )
             {
               // Check :
               // for same test plan there is a different version already linked ?
