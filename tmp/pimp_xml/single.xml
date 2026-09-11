@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testplan>
+  <name>PIMP-Plan</name>
+  <executables>
+    <link>
+      <testcase>
+        <name>Login</name>
+        <externalid>1</externalid>
+        <version>1</version>
+        <execution_order>5</execution_order>
+      </testcase>
+    </link>
+  </executables>
+</testplan>
