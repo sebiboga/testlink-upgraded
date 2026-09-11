@@ -13169,22 +13169,20 @@ Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mi
 
 Result: 6/6 PASS — **#1417 FIXED** via `isset($args_gui->reqTypeDomain.$req_type)` + `isset($args_gui->attrCfg.expected_coverage.$req_type)` guards (+11/-2 ×4 templates, commits pushed on `fix/issue-1417-undefined-array-key-f`). Before/after screenshots: `docs/screenshots/issue-1417-reqview-type-f-before.png`, `docs/screenshots/issue-1417-reqview-type-f-after.png`. **New pre-existing bug discovered while testing (out of scope, filed):** reqViewRevision.php HTTP 500 in dashio because `gui/templates/dashio/requirements/displayReqCoverageRO.inc.tpl` does not exist → **#1427**.
 
----
+## Regression — Issue #1406: usersView grid renders stored XSS payloads (Refs #1406)
 
-## Task — Issue #885: Generate API key action in User Management (Refs #885)
-
-**Screen:** `gui/templates/usermanagement/usersView.html` + `api/users/index.php` (POST /users/{id}/generate-apikey)
-**Legacy parity:** `lib/usermanagement/usersEdit.php:274-318` `createNewAPIKey()` + `usersEdit.tpl:351-355`
-**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in; test user `tester1` (id 2, email tester1@example.com) exists (created via BFF). Local smtp override `custom_config.inc.php` (`$g_smtp_host='localhost'`, gitignored).
+**Screen:** `gui/templates/usermanagement/usersView.html` (modernized User Management grid, DataTables 1.13.7)
+**Root cause:** `renderTable()` pushed raw `login/firstName/lastName/email/globalRoleName/locale` strings into DataTables row arrays; 1.13.7 injects cell data via `td.innerHTML` without escaping → a stored `<img onerror>` in a name field executed when the grid rendered. The delete action also interpolated raw `u.login` into the `onclick` attribute. Fix: add `esc()` (rolesView convention) + wrap all text cells; `deleteUser()` resolves login from `allItems` by id (resetPassword pattern).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. `POST /api/users/index.php` created `xssuser` (id 2); `PUT /api/users/index.php/2` `{"firstName":"</td><img src=x onerror=document.title=\"XSSFIRED\">"}` stored the payload verbatim. Baseline `SELECT MAX(id) FROM events` before the run.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 885.1 | Open User Management screen as admin; inspect a user row action icons | `fa fa-id-card` icon titled "Generate a new key" present between the reset-password and disable icons (only when `apiEnabled` meta = true) | **PASS** — icon rendered for both admin and tester1 rows; curl `GET /api/users/index.php/meta/authentication` → `"apiEnabled": true` |
-| 885.2 | Click the id-card icon for tester1 | Native confirm dialog "Generate a new API key for user \"tester1\"? ..." | **PASS** — screenshot `docs/screenshots/issue-885-apikey-generate-confirm.png` |
-| 885.3 | Confirm; observe result alert | Success alert "New API key has been sent via mail."; HTTP 200 | **PASS** — verified in browser; DB `users.script_key` for tester1 rotated to a fresh md5; audit event `audit_user_apikey_set`/CREATE written |
-| 885.4 | Direct API: `POST /api/users/index.php/2/generate-apikey` (same-origin header) | `{"status":"ok","message":"New API key has been sent via mail"}` | **PASS** |
-| 885.5 | Direct API with invalid smtp_host (no local override / `[smtp_host_not_configured]`) — verified pre-override | HTTP 400 `code:"invalid_smtp_hostname"` (legacy `apikey_cannot_be_reseted_invalid_smtp_hostname` path) | **PASS** — no "not localized" event leaked |
-| 885.6 | Audit trail | New `audit_user_apikey_set` row per generation with correct actor/login | **PASS** |
-| 885.7 | Event Viewer hygiene | No new log_level <= 2 (Error/Warning) rows from the modern implementation | **PASS** — after final fix only `log_level=16` audit rows added |
+| 1406.1 | Pre-fix control: open `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0` with the payload stored | `document.title` becomes `XSSFIRED` (handler executes); td[1].innerHTML contains the raw `<img>` markup | **PASS (pre-fix)** — title `XSSFIRED`, cell html `<img src=x onerror="document.title=&quot;XSSFIRED&quot;">` |
+| 1406.2 | Post-fix: reload the same URL | title stays `User Management`; td[1].innerHTML = `&lt;/td&gt;&lt;img src=x onerror=...&gt;`, textContent is the literal payload | **PASS** |
+| 1406.3 | Normal grid renders | admin row intact (Testlink / Administrator / en_GB / Active badge), 2 rows shown when xssuser present, action icons present | **PASS** |
+| 1406.4 | Edit modal on payload user | opens, login readonly, firstName pre-filled via `.val()` (raw text, no execution) | **PASS** |
+| 1406.5 | Delete non-admin user | confirm shows login, DELETE returns 200, row removed (grid shows only admin) — proves `deleteUser(id)` without login interpolated into onclick works | **PASS** |
+| 1406.6 | Search box | typing `admin` filters to the single admin row | **PASS** |
+| 1406.7 | Hygiene | `events` table: rows 2,4,5 `1406 - Data too long for column 'locale'` are my repro artifacts of the varchar(10) locale PUT (pre-existing, filed as #1429); post-fix verification added only INFO audit events (create/update/delete xssuser), 0 new Error/Warning from the fixed render | **PASS** |
 
-Result: 7/7 PASS — **#885 IMPLEMENTED**. Commits on `task/issue-885-apikey-generate` (c4be491b5). Screenshots: `docs/screenshots/issue-885-apikey-generate-row-action.png`, `docs/screenshots/issue-885-apikey-generate-confirm.png`.
+Result: 7/7 PASS — **#1406 FIXED** via `esc()` + delete-onclick hardening (+16/-9 on `gui/templates/usermanagement/usersView.html`, commit `a6821c188` pushed on `fix/issue-1406-usersview-xss`). Before/after screenshots: `docs/screenshots/issue-1406-usersview-xss-before.png`, `docs/screenshots/issue-1406-usersview-xss-after.png`. **New pre-existing bugs discovered while testing (out of scope, filed):** BFF leaks full DB debug backtrace on locale-overflow PUT → **#1429**; edit-modal `<option>` labels (role.name/loc.name/auth label) appended unescaped → **#1430**.
