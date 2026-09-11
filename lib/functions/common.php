@@ -1706,6 +1706,7 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     // Show at least System + Projects so the user can see the interface
     // and request access — same pattern as the zero-project case.
     $gui->showMenu = getFirstLevelMenuStructure();
+    $gui->showMenu['dashboard'] = true;
     $gui->showMenu['projects'] = true;
     $gui->showMenu['system'] = true;
     $gui->countPlans = 0;
@@ -1737,6 +1738,7 @@ function initUserEnv(&$dbH, $context, $opt=null) {
     // No test projects exist - show at least Projects and System menus
     // so the user can create a project and access admin functions.
     $gui->showMenu = getFirstLevelMenuStructure();
+    $gui->showMenu['dashboard'] = true;
     $gui->showMenu['projects'] = true;
     $gui->showMenu['system'] = true;
     $gui->countPlans = 0;
