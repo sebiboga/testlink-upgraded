@@ -3093,6 +3093,8 @@
   "user.expirationDate": "过期日期",
   "user.authenticationMethod": "认证方式",
   "user.defaultAuthMethod": "默认",
+  "user.demoResetPasswordDisabled": "演示模式已启用 => 禁用重置用户密码",
+  "user.demoUpdateDisabled": "演示模式已启用 => 禁用更新用户",
   "user.clearDate": "清除日期",
   "user.login": "登录名",
   "user.loginDoesNotExist": "登陆账号 {login} 不存在。",

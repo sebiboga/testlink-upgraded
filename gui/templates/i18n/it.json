@@ -3093,6 +3093,8 @@
   "user.expirationDate": "Data di scadenza",
   "user.authenticationMethod": "Metodo di autenticazione",
   "user.defaultAuthMethod": "Predefinito",
+  "user.demoResetPasswordDisabled": "Modalità demo attiva => Reimpostazione Password DISABILITATA",
+  "user.demoUpdateDisabled": "Modalità demo attiva => Aggiornamento Utente DISABILITATO",
   "user.clearDate": "Cancella data",
   "user.login": "Login",
   "user.loginDoesNotExist": "Il login {login} non esiste",

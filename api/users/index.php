@@ -76,6 +76,26 @@ $isNoExpDateUser = function ($login) use ($noExpDateUsers) {
     return false;
 };
 
+// demoMode: legacy gates user-management writes in the template only
+// (gui/templates/dashio/usermanagement/usersEdit.tpl:312-355 - the Save
+// button is replaced by the demo_update_user_disabled note on doUpdate and
+// the Reset password / Generate key form by demo_reset_password_disabled).
+// Server-side enforcement lives here so no BFF write can bypass the button
+// removal; mirror of api/userinfo demoModeBlockedWrite().
+function demoModeBlockedWrite($phpMsgKey = 'demo_update_user_disabled', $jsMsgKey = 'user.demoUpdateDisabled') {
+    if (!config_get('demoMode')) {
+        return false;
+    }
+    http_response_code(403);
+    out([
+        'status' => 'error',
+        'code' => 'demo_mode',
+        'messageKey' => $jsMsgKey,
+        'message' => lang_get($phpMsgKey, 'en_GB'),
+    ]);
+    exit;
+}
+
 function userToJSON(tlUser $u) {
     $roleName = '';
     if ($u->globalRole) {
@@ -217,7 +237,10 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
          'configuredMethod' => $authCfg['method'] ?? '',
          'items' => $items,
          'noExpDateUsers' => array_values($noExp),
-         'apiEnabled' => $apiEnabled]);
+         'apiEnabled' => $apiEnabled,
+         // Legacy parity: the whole edit screen is read-only in demo mode, so
+         // the UI must know the demo state to gate buttons (usersEdit.tpl).
+         'demoMode' => (bool)config_get('demoMode')]);
 }
 
 // Route: GET /users/meta/grants - user mgmt grant flags (mirror of legacy
@@ -240,6 +263,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
 
 // Route: POST /users - create user
 if ($method === 'POST' && empty($segments)) {
+    demoModeBlockedWrite();
     $body = getBody();
     $u = new tlUser();
     $u->login = trim($body['login'] ?? '');
@@ -281,7 +305,8 @@ if ($method === 'POST' && empty($segments)) {
 }
 
 // Route: PUT /users/{id} - update user
-if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
+if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && !isset($segments[1])) {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
     $u = tlUser::getByID($db, $id);
     if (!$u) { http_response_code(404); out(['status' => 'error', 'message' => 'User not found']); }
@@ -319,6 +344,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 
 // Route: PUT /users/{id}/active - toggle active
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && isset($segments[1]) && $segments[1] === 'active') {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
     $u = tlUser::getByID($db, $id);
     if (!$u) { http_response_code(404); out(['status' => 'error', 'message' => 'User not found']); }
@@ -340,6 +366,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && isse
 
 // Route: DELETE /users/{id} - soft delete (active=2)
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
     $u = tlUser::getByID($db, $id);
     if (!$u) { http_response_code(404); out(['status' => 'error', 'message' => 'User not found']); }
@@ -381,11 +408,7 @@ if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
         out(['status' => 'error', 'code' => 'password_mgmt_external',
              'message' => lang_get('password_mgmt_is_external')]);
     }
-    if (config_get('demoMode')) {
-        http_response_code(400);
-        out(['status' => 'error', 'code' => 'demo_mode',
-             'message' => lang_get('demo_reset_password_disabled')]);
-    }
+    demoModeBlockedWrite('demo_reset_password_disabled', 'user.demoResetPasswordDisabled');
 
     $sendMethod = config_get('password_reset_send_method');
     $passwordOnScreen = ($sendMethod === 'display_on_screen');
@@ -435,6 +458,10 @@ if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
 // usersEdit.tpl:351 which checks $tlCfg->api->enabled && $submitEnabled.
 if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) &&
     isset($segments[1]) && $segments[1] === 'generate-apikey') {
+    // Legacy parity: usersEdit.tpl:342-355 replaces the whole Reset password /
+    // Generate key form with demo_reset_password_disabled when demo mode is on.
+    demoModeBlockedWrite('demo_reset_password_disabled', 'user.demoResetPasswordDisabled');
+
     $tlCfg = $GLOBALS['tlCfg'] ?? null;
     $apiEnabled = false;
     if ($tlCfg && isset($tlCfg->api->enabled)) {

@@ -3093,6 +3093,8 @@
   "user.expirationDate": "Ablaufdatum",
   "user.authenticationMethod": "Authentifizierungs-Methode",
   "user.defaultAuthMethod": "Standard",
+  "user.demoResetPasswordDisabled": "Demo Modus aktiviert => Passwort Reset Deaktiviert",
+  "user.demoUpdateDisabled": "Demo Modus aktiviert => Update Benutzer Deaktiviert",
   "user.clearDate": "Datum entfernen",
   "user.login": "Login",
   "user.loginDoesNotExist": "Login {login} existiert nicht",

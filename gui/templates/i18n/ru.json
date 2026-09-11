@@ -3093,6 +3093,8 @@
   "user.expirationDate": "Дата истечения срока",
   "user.authenticationMethod": "Метод аутентификации",
   "user.defaultAuthMethod": "По умолчанию",
+  "user.demoResetPasswordDisabled": "Демо-режим включен => Сброс пароля ОТКЛЮЧЕН",
+  "user.demoUpdateDisabled": "Демо-режим включен => Обновление пользователя ОТКЛЮЧЕНО",
   "user.clearDate": "Очистить дату",
   "user.login": "Логин",
   "user.loginDoesNotExist": "Логин {login} не существует",

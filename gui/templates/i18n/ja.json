@@ -3093,6 +3093,8 @@
   "user.expirationDate": "期限日",
   "user.authenticationMethod": "認証方法",
   "user.defaultAuthMethod": "デフォルト",
+  "user.demoResetPasswordDisabled": "デモモードが有効です => パスワードリセットは無効です",
+  "user.demoUpdateDisabled": "デモモードが有効です => ユーザーの更新は無効です",
   "user.clearDate": "日付を消去",
   "user.login": "ログイン",
   "user.loginDoesNotExist": "ログイン {login} は存在しません",

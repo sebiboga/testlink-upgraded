@@ -3172,6 +3172,8 @@
   "user.clearDate": "Clear Date",
   "user.createUser": "Create User",
   "user.defaultAuthMethod": "Default",
+  "user.demoResetPasswordDisabled": "Demo mode enabled => Password Reset DISABLED",
+  "user.demoUpdateDisabled": "Demo mode enabled => Update User DISABLED",
   "user.editUser": "Edit User",
   "user.email": "Email",
   "user.error.save": "Error saving user",

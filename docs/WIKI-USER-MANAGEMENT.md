@@ -174,6 +174,33 @@ Legacy `usersEdit.tpl:268-304` let the admin choose the authentication method (D
 
 Screenshots: `docs/screenshots/issue-882-create-modal-auth-expdate.png`, `docs/screenshots/issue-882-edit-admin-exp-hidden.png`, `docs/screenshots/issue-882-grid-expiration-dates.png`.
 
+### Demo Mode (read-only gating, issue #887)
+
+When `$tlCfg->demoMode = ON;` in `config.inc.php` the whole User Management
+screen becomes read-only, mirroring legacy `usersEdit.tpl:312-355` where the
+Save button is replaced by the `demo_update_user_disabled` note (on `doUpdate`)
+and the Reset password / Generate key form by `demo_reset_password_disabled`.
+
+- **BFF enforcement** (`api/users/index.php`): a shared `demoModeBlockedWrite()`
+  helper (mirror of `api/userinfo`) returns HTTP 403 `{status:error,
+  code:'demo_mode'}` from every write route — POST create, PUT update,
+  PUT `/active`, DELETE, POST `reset-password` and POST `generate-apikey`.
+  The UI can never bypass it.
+- **UI gating** (`usersView.html`): with demo mode on a read-only amber banner
+  appears under the header, the **Create User** toolbar button disappears, grid
+  rows show only the **Edit** icon (no reset-password / generate-API-key /
+  enable-disable / delete), and the create/edit modal replaces **Save** with a
+  `user.demoUpdateDisabled` notice and disables every field. Cancel/close stay
+  usable.
+- **Discovery**: `GET /api/users/index.php/meta/authentication` now returns
+  `demoMode` so the front-end knows the state.
+- New i18n keys in all 10 locale bundles (values from the legacy
+  `strings.txt`): `user.demoUpdateDisabled`, `user.demoResetPasswordDisabled`.
+
+Screenshots: `docs/screenshots/887_1_demo_on.png`,
+`docs/screenshots/887_2_modal_readonly.png`,
+`docs/screenshots/887_3_normal_state.png`.
+
 ### Tips
 
 - Only users with `active = 1` (Active) appear in the table

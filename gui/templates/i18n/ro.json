@@ -3172,6 +3172,8 @@
   "user.clearDate": "Șterge data",
   "user.createUser": "Creaza Utilizator",
   "user.defaultAuthMethod": "Implicit",
+  "user.demoResetPasswordDisabled": "Mod demo activat => Resetare Parolă DEZACTIVATĂ",
+  "user.demoUpdateDisabled": "Mod demo activat => Actualizare Utilizator DEZACTIVATĂ",
   "user.editUser": "Editeaza Utilizator",
   "user.email": "Email",
   "user.error.save": "Eroare la salvarea utilizatorului",

@@ -64,7 +64,8 @@ System:
 - User Management (usermanagement/usersView.html) - BFF api/users.
   Create/edit modal, enable/disable/delete (soft-delete), grant-gated tabs
   (mgt_users #879), login lookup, Auth method+Expiration Date, Reset Password,
-  Generate API Key, Locale/Expiration columns, XML export (#879-#891).
+  Generate API Key, Locale/Expiration columns, XML export, demoMode read-only
+  gating (banner + BFF 403 on all writes, #887) (#879-#891).
 - Role Management (usermanagement/rolesView.html) - BFF api/roles.
 - Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
   usersAssignPlan.html).

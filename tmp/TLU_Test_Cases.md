@@ -13380,3 +13380,25 @@ Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlle
 **Actual:** PASS — exactly those 3 files, documentation-only. No runtime/DB/Event effects.
 
 Result: 8/8 PASS — **#1424 COMPLETE**: CHANGELOG now documents all 2.0.1 work (UI modernization, BFF, 60 endpoints, 112 screens, PHP 8.x, security, features, bugfix effort), AGENTS.md rule 22 keeps it continuously updated, wiki + docs mirror published. Branch `task/issue-1424`.
+
+## Task — Issue #887: demoMode read-only gating in User Management (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/usersView.html` · `api/users/index.php`
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in (id=1). demoMode toggled in `config.inc.php:2060` (`$tlCfg->demoMode = ON;` to test the gate, `OFF` afterwards — both edits reverted before commit, `git diff config.inc.php` clean). Fixture users created via MySQL (`fixture_887` id=3, `off_887` id=4) and removed after the run.
+**Gap:** legacy `dashio/usermanagement/usersEdit.tpl:312-328/342-355` replaces the Save button with `demo_update_user_disabled` on doUpdate in demo mode and replaces the whole Reset password / Generate key form with `demo_reset_password_disabled`; the modern screen always showed the buttons/icons and the BFF always wrote (create/update/active/delete/apikey had no `config_get('demoMode')` check).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 887.1 | `GET /api/users/index.php/meta/authentication` with demoMode OFF | payload contains `demoMode: false` alongside `apiEnabled` | **PASS** |
+| 887.2 | User Management UI with demoMode OFF (reload) | banner hidden; Create User button visible; grid rows show all action icons (edit/reset-pw/API-key/enable-disable/delete for non-admin) | **PASS** |
+| 887.3 | BFF writes with demoMode OFF: POST create / PUT update / PUT active / DELETE | all HTTP 200; DB confirms create (id=4), update (`first=Off2`), disable (`active:0`), delete (`active:2`) | **PASS** |
+| 887.4 | Set `$tlCfg->demoMode = ON;` in config.inc.php, reload User Management | `meta/authentication` returns `demoMode: true`; amber banner "Demo mode enabled => Update User DISABLED" visible; Create User button hidden; grid rows show ONLY the Edit icon | **PASS** |
+| 887.5 | Open Edit modal (fixture_887) while demoMode ON | Save button absent, replaced by demo-note "Demo mode enabled => Update User DISABLED"; all inputs/selects/Active checkbox disabled; Cancel still works | **PASS** |
+| 887.6 | POST `/api/users/index.php` (create) while demoMode ON | HTTP 403, `status:error`, `code:demo_mode`, `messageKey:user.demoUpdateDisabled`; no `blocked_887` row in `users` | **PASS** |
+| 887.7 | PUT `/api/users/{id}` (update) while demoMode ON | HTTP 403 `code:demo_mode`; fixture user unchanged (`first='Fixture'`, `active=1`) | **PASS** |
+| 887.8 | PUT `/api/users/{id}/active` and DELETE `/api/users/{id}` while demoMode ON | both HTTP 403 `code:demo_mode`; fixture untouched | **PASS** |
+| 887.9 | POST reset-password and POST generate-apikey while demoMode ON | both HTTP 403 `code:demo_mode`, `messageKey:user.demoResetPasswordDisabled` | **PASS** |
+| 887.10 | Revert demoMode to OFF, reload User Management | banner gone; Create button + all row action icons restored; BFF writes succeed again | **PASS** |
+| 887.11 | `php -l api/users/index.php` + `node --check` on usersView.html inline script | no syntax errors | **PASS** |
+| 887.12 | i18n completeness | `user.demoUpdateDisabled` + `user.demoResetPasswordDisabled` present in all 10 locale bundles (de/en/es/fr/it/ja/pt/ro/ru/zh), `python3 -m json.tool` valid for all | **PASS** |
+| 887.13 | Event Viewer / events table after the whole run | zero ERROR (1) / WARNING (2) log_level rows created during testing | **PASS** |

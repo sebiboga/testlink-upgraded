@@ -3093,6 +3093,8 @@
   "user.expirationDate": "Fecha de vencimiento",
   "user.authenticationMethod": "Método de autenticación",
   "user.defaultAuthMethod": "Por defecto",
+  "user.demoResetPasswordDisabled": "Modo Demo habilitado => Reseteo de Contraseña DESHABILITADO",
+  "user.demoUpdateDisabled": "Modo Demo habilitado => Actualización de Usuario DESHABILITADA",
   "user.clearDate": "Eliminar fecha",
   "user.login": "Usuario",
   "user.loginDoesNotExist": "El usuario {login} no existe",
