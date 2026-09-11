@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="ts.overviewHeader">General Overview</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.section-title { padding: 20px 24px 8px 24px; font-size: 16px; font-weight: 700; color: #22242a; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-top: 4px solid #4ECDC4; }
+.intro { margin: 0 24px; padding: 16px 20px; }
+.task-grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.task-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
+.task-card .icon { font-size: 36px; color: #3498db; margin-bottom: 12px; }
+.task-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
+.task-card .desc { font-size: 13px; color: #555; margin-bottom: 14px; }
+.task-card .actions { margin-top: auto; display: flex; gap: 8px; }
+.action-btn { border: none; padding: 5px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: 600; color: #fff; display: inline-flex; align-items: center; gap: 5px; text-decoration: none; }
+.action-btn.blue { background: #3498db; }
+.action-btn.blue:hover { background: #2980b9; }
+.note { margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; background: #eafaf1; color: #1e8449; border: 1px solid #abebc6; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="ts.overviewHeader">General Overview</span>
+  <span data-i18n="ts.overviewHeaderSub">the Test Strategy at a glance: purpose and chapters</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="card intro">
+  <div><i class="fas fa-map-signs" style="color:#4ECDC4;font-size:28px;margin-right:10px;"></i>
+    <b data-i18n="ts.introTitle" style="font-size:15px;">About the Test Strategy</b></div>
+  <p style="margin:10px 0 0 0;font-size:13px;color:#555;" data-i18n="ts.introText">
+    A Test Strategy is the high-level quality and testing reference of a test project.
+    It defines quality objectives, scope, risks, entry/exit criteria, environments, roles
+    and the testing approach across the whole SDLC (shift-left testing).
+  </p>
+</div>
+
+<div class="note" data-i18n="ts.navAdded2">
+  Nav: the Test Strategy is now a sub-menu with real chapters.
+</div>
+
+<div class="section-title"><i class="fa fa-tasks" style="color:#3498db;margin-right:6px;"></i><span data-i18n="ts.tasksTitle">Planned work</span></div>
+<div class="task-grid" id="taskGrid"></div>
+
+<div class="footer"><span data-i18n="footers.documentation">TestLink 2.0.1</span> - <span data-i18n="ts.overviewHeader">General Overview</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+var CHAPTERS = [
+  { icon: 'fa-bullseye',          key: 'ts.chapterScope',    descKey: 'ts.chapterScopeDesc',    url: 'scope.html' },
+  { icon: 'fa-flag-checkered',    key: 'ts.chapterExit',     descKey: 'ts.chapterExitDesc',     url: 'exitCriteria.html' },
+  { icon: 'fa-exclamation-triangle', key: 'ts.chapterSeverity', descKey: 'ts.chapterSeverityDesc', url: '/gui/templates/projects/severityConfig.html' }
+];
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    renderChapters();
+  });
+});
+
+function renderChapters() {
+  var grid = $('#taskGrid');
+  $.each(CHAPTERS, function(i, t) {
+    var card = $('<div class="task-card">')
+      .append('<div class="icon"><i class="fas ' + t.icon + '"></i></div>')
+      .append('<div class="title">' + TLi18n.t(t.key) + '</div>')
+      .append('<div class="desc">' + TLi18n.t(t.descKey) + '</div>')
+      .append(
+        $('<div class="actions">')
+          .append('<a class="action-btn blue" href="' + t.url + '" target="mainframe">' +
+            '<i class="fa fa-arrow-right"></i> ' + TLi18n.t('ts.openChapter') + '</a>')
+      );
+    grid.append(card);
+  });
+}
+</script>
+</body>
+</html>

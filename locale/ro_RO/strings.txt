@@ -25,6 +25,10 @@ $TLS_testcase_execution = 'Execuție cazuri de test';
 $TLS_reports = 'Rapoarte';
 $TLS_title_plugins = 'Plugin-uri';
 $TLS_title_documentation = 'Documentație';
+$TLS_title_test_strategy = 'Strategia de Testare';
+$TLS_href_test_strategy_overview = 'Prezentare Generală';
+$TLS_href_test_strategy_scope = 'Domeniul';
+$TLS_href_test_strategy_exit_criteria = 'Criterii de Ieșire';
 
 $TLS_install_header = "Instalare / Upgrade";$TLS_title_dashboard = 'Tablou de bord';
 $TLS_quick_search = 'Căutare rapidă';
