@@ -62,7 +62,7 @@ checks the CHANGELOG before each commit.
 
 - `CHANGELOG` — 2.0.1 section present (lines 9–246), all 5 headers present.
 - `git log` shows the commit adding the section with `Refs #1424`.
-- Regression suite numbers (213 suites, 3649 PASS) cross-checked against
+- Regression suite numbers (181 suites, 3658 PASS) cross-checked against
   `tmp/TLU_Test_Cases.md`.
 - No functional code touched — documentation-only task. Event Viewer unaffected
   (no runtime code changed).
