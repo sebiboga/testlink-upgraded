@@ -147,8 +147,13 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
             $platformSet = (array)$tplanMgr->getPlatforms($contextObj->tplan_id, array('outputFormat' => 'mapAccessByName'));
             $targetHasPlatforms = (count($platformSet) > 0);
 
-            $xmlLinks = $xml->executables->children();
-            $loops2do = count($xmlLinks);
+            // NOTE: //executables xpath matches at any depth but ->executables only
+            // reaches a direct child of the root; on non-<testplan> roots
+            // (e.g. <xml>-wrapped exports) it resolves to an empty node whose
+            // ->children() is null, so count() fatals on PHP 8.
+            $xmlLinks = $xml->executables instanceof SimpleXMLElement
+                        ? $xml->executables->children() : null;
+            $loops2do = is_null($xmlLinks) ? 0 : count($xmlLinks);
 
             $tplanDesignCfg = config_get('tplanDesign');
 
