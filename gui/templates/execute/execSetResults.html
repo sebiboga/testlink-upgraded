@@ -199,13 +199,17 @@ $(function () {
   });
 });
 
+var _initSeq = 0;
+
 function loadInfo() {
+  var seq = ++_initSeq;
   var q = '?action=init&tplan_id=' + ctx.tplanId +
           '&id=' + ctx.tcaseId + '&version_id=' + ctx.tcversionId;
   if (ctx.buildId) q += '&setting_build=' + ctx.buildId;
   if (ctx.platformId) q += '&setting_platform=' + ctx.platformId;
   $.get('/api/execsetresults/' + q)
     .done(function (r) {
+      if (seq !== _initSeq) return; // stale response (rapid build switch)
       if (r.status !== 'ok') { showFatal(r.message || TLi18n.t('esr.errLoad')); return; }
       ctx.info = r;
       ctx.tprojectId = r.tproject.id;
@@ -215,6 +219,7 @@ function loadInfo() {
       render(r);
     })
     .fail(function (xhr) {
+      if (seq !== _initSeq) return; // stale response (rapid build switch)
       var msg = TLi18n.t('esr.errLoad');
       try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
       showFatal(msg);
@@ -278,17 +283,8 @@ function render(r) {
     loadInfo();
   });
 
-  // read-only gate for exec_ro_access (no WRITE right)
-  var canExec = r.grants && r.grants.can_execute;
-  if (!canExec) {
-    $('#btnSave').prop('disabled', true).css('opacity', .5);
-    $('#statusRow').addClass('readonly');
-    $('#selBuild').prop('disabled', false);
-    if ($('#selPlatform').length) $('#selPlatform').prop('disabled', true);
-    $('#txtNotes').prop('disabled', true);
-    $('#txtExecDuration').prop('disabled', true);
-  }
-  // status vocabulary + buttons
+  // status vocabulary + buttons. WRITE disabling for exec_ro_access and for
+  // closed builds is consolidated in applyBuildState() below.
   ctx.statusLabels = {};
   $('#statusRow').empty();
   (r.statuses || []).forEach(function (s) {
@@ -297,9 +293,6 @@ function render(r) {
       '<button type="button" class="st-btn st-"' + esc(s.code) + ' data-code="' + esc(s.code) +
       '" title="' + esc(s.label) + '">' + esc(s.label) + '</button>');
   });
-  if (!canExec) {
-    $('#statusRow .st-btn').prop('disabled', true);
-  }
   $('#statusRow .st-btn').off('click').on('click', function () {
     $('#statusRow .st-btn').removeClass('active');
     $(this).addClass('active');
@@ -333,9 +326,6 @@ function render(r) {
         '</td></tr>';
     }).join('');
     $('#stepsBody').html(st);
-    if (!canExec) {
-      $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', true);
-    }
   }
 
   // prior execution box (hidden when the selected build has no execution —
@@ -358,6 +348,7 @@ function render(r) {
     ctx.prior = null;
     $('#priorBox').hide().html('');
     $('#txtNotes').val('');
+    $('#txtExecDuration').val('');
     ctx.statusCode = '';
     $('#statusRow .st-btn').removeClass('active');
   }
