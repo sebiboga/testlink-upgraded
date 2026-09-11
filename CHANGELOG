@@ -149,7 +149,7 @@ Plans:
 
 Execution:
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
-  api/execsetresults (#662, #789-#796, #817, #1392-#1405).
+  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1402).
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
@@ -229,9 +229,10 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   BFF CSRF + session-cookie hardening (#591), API key authentication fix (#595),
   apikey isolation on reports (#1261/#1267).
 - Legacy behavior restorations: Closed builds in execSetResults (#1403),
-  save-and-next (#793), partial-step save + per-step attachments (#795),
-  apikey/public-link chart access (#1258), execSetResults TC-spec sections
-  (#1404), reqEdit full screen (#798, #1374-#1384).
+  save-and-next (#793), Set Results case navigation prev/next +
+  save-and-move-to-next (#1402), partial-step save + per-step attachments
+  (#795), apikey/public-link chart access (#1258), execSetResults TC-spec
+  sections (#1404), reqEdit full screen (#798, #1374-#1384).
 - planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
   in BFF association import (#1407/#1414), legacy twin count(null) guard
   (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407,

@@ -144,3 +144,36 @@ i18n keys (all 10 locale bundles): `esr.closedBuild`, `esr.buildClosedMsg`,
 `esr.errClosedBuild`.
 
 ![Closed-build read-only state](screenshots/issue-1403-execSetResults-closed-build.png)
+
+## Case navigation: Move to Previous / Next + Save and move to next (Refs #1402)
+
+The legacy popup's action bar offered **Move to next test case**, **Save
+result**, **Save result and move to next** and **Move to previous test case**
+(`gui/templates/dashio/execute/include/exec_controls.inc.tpl:84-103`,
+`lib/execute/execSetResults.php:617-632`); the initial 2.0.1 port shipped only
+Save + Cancel. Issue
+[#1402](https://github.com/sebiboga/testlink-upgraded/issues/1402) restores the
+full navigation.
+
+- **BFF** (`api/execsetresults/index.php`): `?action=init` now returns
+  `save_and_move` (from `$tlCfg->exec_cfg->exec_mode->save_and_move`, default
+  `unlimited`) and `nav {mode, prev:{tcase_id,tcversion_id}|null, next:...}`
+  describing the sibling chain:
+  - **unlimited** — cyclic walk of the plan's linked case versions ordered by
+    `node_order, tc_external_id` (deduped by tcversion); Next from the last case
+    wraps to the first, Previous from the first wraps to the last.
+  - **limited** — via the exact legacy `testplan::getTestCaseNextSibling()`
+    (local scope): Next stops at the last case (prev:null / next:null when no
+    sibling), Previous clamps at the first.
+- **Front-end** (`gui/templates/execute/execSetResults.html`): action bar shows
+  `Move to Previous Test Case`, `Save result`, `Save and move to next`,
+  `Move to Next Test Case`, `Cancel`. `navTo(dir)` keeps the selected
+  build/platform, rewrites the popup URL in place (`id/tcase_id/version_id/
+  tcversion_id`) and re-runs `init`. `doSave(navNext=true)` saves then moves to
+  next — including the legacy `not_run` case (nothing recorded, still
+  navigates). Closed-build / read-only state disables `Save`, `Save and move to
+  next`, `Next` and `Previous`.
+- **i18n:** `esr.moveToNext`, `esr.moveToPrevious`, `esr.saveAndMoveNext`,
+  `esr.noNextCase`, `esr.noPrevCase` in all 10 locale bundles.
+
+![Navigation toolbar and cyclic wrap](screenshots/issue-1402-setresults-navigation.png)

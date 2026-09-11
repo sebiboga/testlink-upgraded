@@ -155,7 +155,10 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
     </div>
 
     <div class="actions-bar">
+      <button class="btn-dark" id="btnPrev" title="" disabled style="display:none;"><i class="fa fa-arrow-left"></i> <span data-i18n="esr.moveToPrevious">Move to Previous Test Case</span></button>
       <button class="btn-teal" id="btnSave"><i class="fa fa-floppy-disk"></i> <span data-i18n="esr.btnSave">Save result</span></button>
+      <button class="btn-teal" id="btnSaveNext"><i class="fa fa-forward-step"></i> <span data-i18n="esr.saveAndMoveNext">Save and move to next</span></button>
+      <button class="btn-dark" id="btnNext"><i class="fa fa-arrow-right"></i> <span data-i18n="esr.moveToNext">Move to Next Test Case</span></button>
       <button class="btn-dark" id="btnClose"><i class="fa fa-xmark"></i> <span data-i18n="common.cancel">Cancel</span></button>
       <span class="save-ok" id="saveOk" style="display:none;"></span>
     </div>
@@ -215,7 +218,10 @@ $(function () {
     loadInfo();
   });
 
-  $('#btnSave').on('click', doSave);
+  $('#btnSave').on('click', function () { doSave(false); });
+  $('#btnSaveNext').on('click', function () { doSave(true); });
+  $('#btnNext').on('click', function () { navTo('next'); });
+  $('#btnPrev').on('click', function () { navTo('prev'); });
   $('#btnClose').on('click', function () {
     if (window.history.length > 1) window.history.back(); else window.close();
   });
@@ -379,6 +385,12 @@ renderTcSpecSections(r);
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
 
+  // popup navigation (legacy save_and_next / move2next / move2previous):
+  // show Prev/Next only when the BFF nav chain has a sibling in that direction
+  var nav = r.nav || {};
+  $('#btnPrev').toggle(!!nav.prev);
+  $('#btnNext').toggle(!!nav.next);
+
   applyBuildState(r);
 
   $('#formCard').show();
@@ -402,6 +414,9 @@ function applyBuildState(r) {
   }
   if (closed || !canWExec) {
     $('#btnSave').prop('disabled', true).css('opacity', .5);
+    $('#btnSaveNext').prop('disabled', true).css('opacity', .5);
+    $('#btnNext').prop('disabled', true).css('opacity', .5);
+    $('#btnPrev').prop('disabled', true).css('opacity', .5);
     $('#statusRow').addClass('readonly');
     $('#statusRow .st-btn').prop('disabled', true);
     $('#selBuild').prop('disabled', false);
@@ -411,6 +426,9 @@ function applyBuildState(r) {
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', true);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
+    $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
+    $('#btnNext').prop('disabled', false).css('opacity', 1);
+    $('#btnPrev').prop('disabled', false).css('opacity', 1);
     $('#statusRow').removeClass('readonly');
     $('#statusRow .st-btn').prop('disabled', false);
     $('#selBuild').prop('disabled', false);
@@ -532,8 +550,39 @@ function openRelDesign(tcaseId, tcversionId) {
     'width=800,height=600,resizable=yes,scrollbars=yes');
 }
 
-function doSave() {
+// Navigate to the prev/next test case in the plan chain WITHOUT saving
+// (legacy move2next / move2previous, execSetResults.php:617-620). The chain
+// lives in the init payload; 'unlimited' wraps cyclically, 'limited' does
+// not. The target version re-fetches in-place (same popup), keeping the
+// selected build/platform.
+function navTo(dir) {
+  if (!$('#btnSaveNext').length || $('#btnSaveNext').prop('disabled')) return;
+  var nav = ctx.info && ctx.info.nav;
+  var target = nav ? (dir === 'prev' ? nav.prev : nav.next) : null;
+  if (!target) {
+    toast(TLi18n.t(dir === 'prev' ? 'esr.noPrevCase' : 'esr.noNextCase'), true);
+    return;
+  }
+  if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
+    ctx.platformId = parseInt($('#selPlatform').val() || '0', 10);
+  }
+  ctx.buildId = parseInt($('#selBuild').val() || '0', 10);
+  var u = new URL(window.location.href);
+  u.searchParams.set('id', String(target.tcase_id));
+  u.searchParams.set('tcase_id', String(target.tcase_id));
+  u.searchParams.set('version_id', String(target.tcversion_id));
+  u.searchParams.set('tcversion_id', String(target.tcversion_id));
+  window.history.replaceState({}, '', u);
+  ctx.tcaseId = target.tcase_id;
+  ctx.tcversionId = target.tcversion_id;
+  $('#saveOk').hide();
+  $('#formCard').hide();
+  loadInfo();
+}
+
+function doSave(navNext) {
   if ($('#btnSave').prop('disabled')) return;
+  if (navNext && $('#btnSaveNext').prop('disabled')) return;
   if (ctx.statusCode === '') { toast(TLi18n.t('esr.errNoStatus'), true); return; }
 
   var buildId = parseInt($('#selBuild').val() || '0', 10);
@@ -584,10 +633,14 @@ function doSave() {
     if (r.saved === false) {
       // not_run result: legacy parity - nothing written
       toast(TLi18n.t('esr.savedNotRun'));
+      // legacy execSetResults.php:241 navigates on save_and_next even when
+      // nothing was persisted (not_run selected); mirror that
+      if (navNext) navTo('next');
       return;
     }
     $('#saveOk').text(TLi18n.t('esr.saveDone')).show();
     toast(TLi18n.t('esr.saveDone'));
+    if (navNext) navTo('next');
   }).fail(function (xhr) {
     $('#loadingOverlay').hide();
     $('#btnSave').prop('disabled', false);

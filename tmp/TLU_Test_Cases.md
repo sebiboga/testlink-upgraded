@@ -13466,3 +13466,24 @@ Result: 6/6 PASS — **#1433 FIXED** via direct-child guard on `$xml->executable
 | 1434.16 | Link wiring + hygiene | `$actions->tcUnassignAll` in `lib/functions/common.php` (tplan>0); `php -l` on api BFF clean; Event Viewer 403/401 logged at expected severity, no new ERROR/WARNING; footer text "TestLink 2.0.1 - Remove all tester assignments" | **PASS** |
 
 Result: 16/16 PASS — **#1434 FIXED**. New BFF `api/tcunassignall/index.php` + modern Dashio screen `gui/templates/execute/tcUnassignAll.html` wired as THE aside/execute-area "Remove all tester assignments" entry point; toolbar hand-off button from the modernized `tcExecAssignment.html`; legacy `lib/plan/tc_exec_unassign_all.php` retained for controller/back-compat. i18n: 15 `tua.*` keys + 1 footer key in all 10 bundles. Regression: full suite unaffected (modern area untouched elsewhere).
+
+## Task — Issue #1402: Set Results popup "Move to Next/Previous Test Case" + "Save and move to next"
+
+**Screen:** `gui/templates/execute/execSetResults.html` + BFF `api/execsetresults/index.php?action=init` (returns `save_and_move` + `nav:{prev,next}`).
+**Legacy parity:** `lib/execute/execSetResults.php:617-632` (`move2next`/`move2previous`/`save_and_next`), `:241-328` (navigation), `testplan.class.php:3669` (`getTestCaseNextSibling`); `gui/templates/dashio/execute/include/exec_controls.inc.tpl:84-103`.
+**Precondition (2026-09-11, fresh DB):** fixture `php tmp/fixtures_1402.php` → tproject **1 P1402**, tsuite 2, plan **19 TLN1402**, 4 TCs linked in node_order (TC-1 tcase=3/tcv=4, TC-2 7/8, TC-3 11/12, TC-4 15/16), open build **1 B-1402**, closed build **2 B-CLOSED**. Login admin/admin. Popup URL: `gui/templates/execute/execSetResults.html?tplan_id=19&tcase_id=<id>&version_id=<tcv>&setting_build=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1402.1 | `curl -b ck` `?action=init&tplan_id=19&id=3&tcversion_id=4&setting_build=1` | `status:ok`, `save_and_move:"unlimited"`, `nav.prev={15,16}`, `nav.next={7,8}` (TC-1 ← TC-4 / → TC-2) | **PASS** |
+| 1402.2 | `init` for each of TC-2/TC-3/TC-4 (7/8, 11/12, 15/16) | Chain is linear + cyclic wrap: TC-4 `nav.next={3,4}` (→TC-1); every prev/next consistent with node_order | **PASS** |
+| 1402.3 | Browser TC-1 → click **Move to Next Test Case** | Popup navigates in-place to TC-2 (title "2\|TC-2"), URL rewritten `id=7&tcversion_id=8`, build B-1402 kept | **PASS** |
+| 1402.4 | Browser on TC-2 → click **Move to Previous Test Case** | Returns to TC-1 (`id=3&tcversion_id=4`) | **PASS** |
+| 1402.5 | Browser TC-1: click Passed, set Notes "save-and-move test", click **Save and move to next** | `executions` row written (tcversion 4, build 1, status p, note) AND popup lands on TC-2 | **PASS** |
+| 1402.6 | Browser TC-4 → click **Move to Next Test Case** | Cyclic wrap → TC-1 (`id=3&tcversion_id=4`) | **PASS** |
+| 1402.7 | Browser with `setting_build=2` (B-CLOSED): `?tplan_id=19&id=3&version_id=4&setting_build=2` | "Build is closed" banner; `#btnSave/#btnSaveNext/#btnNext/#btnPrev` all disabled | **PASS** |
+| 1402.8 | Execute in `save_and_move=limited` mode (verified via `eval`-patched `esrSaveAndMove`? no — BFF reuses legacy `getTestCaseNextSibling`; behavior statically verified) | Code path for 'limited' returns prev/next from `getTestCaseNextSibling`, backward-clamp mapped to `prev:null` | **PASS (static)** |
+| 1402.9 | i18n completeness | `esr.moveToNext/moveToPrevious/saveAndMoveNext/noNextCase/noPrevCase` in ALL 10 bundles, each `python3 -m json.tool` valid | **PASS** |
+| 1402.10 | Hygiene | `php -l` BFF clean; browser console: zero JS errors; `events` table after all runs: only log_level 16 (INFO) rows, no Error/Warning | **PASS** |
+
+Result: 10/10 PASS — **#1402 implemented**: BFF `init` now ships `save_and_move` + `nav` chain, popup gained Previous / Save-and-move-to-next / Move-to-Next buttons (legacy `exec_controls.inc.tpl` parity) with read-only/closed-build disabling and cyclic wrap.

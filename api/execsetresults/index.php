@@ -263,6 +263,109 @@ function esrStatuses() {
 }
 
 /**
+ * save-and-move navigation mode (legacy exec_cfg->exec_mode->save_and_move,
+ * config.inc.php:1119 default 'unlimited'). 'unlimited' walks the whole
+ * plan-linked chain with cyclic wrap; 'limited' moves only within the
+ * current test suite (getTestCaseNextSibling, local scope).
+ */
+function esrSaveAndMove() {
+    $execCfg = config_get('exec_cfg');
+    $m = (isset($execCfg->exec_mode)
+          && isset($execCfg->exec_mode->save_and_move))
+        ? strval($execCfg->exec_mode->save_and_move) : 'unlimited';
+    return ($m === 'limited') ? 'limited' : 'unlimited';
+}
+
+/**
+ * Ordered chain of plan-linked test case versions for navigation ('unlimited'
+ * mode). Mirrors the legacy getTestCaseSiblings ordering (node_order then
+ * tc_external_id, testplan.class.php:3618-3658) over the whole plan set.
+ */
+function esrNavChain($db, $tplanId, $platformId, $currentTcversionId) {
+    $chain = [];
+    $tptcv = tlObjectWithDB::getDBTables(array('testplan_tcversions'))['testplan_tcversions'];
+    $nh = tlObjectWithDB::getDBTables(array('nodes_hierarchy'))['nodes_hierarchy'];
+    $tcv = tlObjectWithDB::getDBTables(array('tcversions'))['tcversions'];
+    $pid = $platformId > 0 ? $platformId : 0;
+    $rows = $db->get_recordset(
+        "SELECT NHTCV.parent_id AS tcase_id, TPTCV.tcversion_id" .
+        " FROM {$tptcv} TPTCV" .
+        " JOIN {$nh} NHTCV ON NHTCV.id = TPTCV.tcversion_id" .
+        " JOIN {$tcv} TCV ON TCV.id = TPTCV.tcversion_id" .
+        " WHERE TPTCV.testplan_id = {$tplanId}" .
+        " AND TPTCV.platform_id = {$pid}" .
+        " ORDER BY TPTCV.node_order, TCV.tc_external_id");
+    $seen = array();
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $tcversionId = intval($r['tcversion_id']);
+            if (isset($seen[$tcversionId])) { continue; }
+            $seen[$tcversionId] = 1;
+            $chain[] = [
+                'tcase_id' => intval($r['tcase_id']),
+                'tcversion_id' => $tcversionId,
+            ];
+        }
+    }
+    // current version must be in the chain, else navigation is pointless
+    $present = false;
+    foreach ($chain as $it) {
+        if ($it['tcversion_id'] === $currentTcversionId) { $present = true; break; }
+    }
+    if (!$present) { return []; }
+    return $chain;
+}
+
+/**
+ * Prev/next navigation targets for the popup (legacy execSetResults.php:241-328
+ * for save_and_next / move2next / move2previous):
+ *  - 'unlimited': whole plan-linked chain, cyclic wrap in both directions
+ *    (the modern equivalent of the legacy $_SESSION testcases_to_show walk,
+ *    execSetResults.php:258-267).
+ *  - 'limited': getTestCaseNextSibling with move=forward/backward (local
+ *    scope): previous clamps at the first (legacy treats "same version" as
+ *    no-previous), next stops at the last (no cyclic wrap).
+ */
+function esrNavTargets($db, $tplanMgr, $tplanId, $platformId, $tcaseId, $tcversionId) {
+    $mode = esrSaveAndMove();
+    $prev = null;
+    $next = null;
+    try {
+        if ($mode === 'limited') {
+            $p = $tplanMgr->getTestCaseNextSibling($tplanId, $tcversionId, $platformId, array('move' => 'backward'));
+            $n = $tplanMgr->getTestCaseNextSibling($tplanId, $tcversionId, $platformId, array('move' => 'forward'));
+            if (is_array($p) && isset($p['tcase_id'])) {
+                $p = array('tcase_id' => intval($p['tcase_id']), 'tcversion_id' => intval($p['tcversion_id']));
+                // legacy backward on the first sibling clamps to the current
+                // version — surface that as "no previous"
+                if ($p['tcase_id'] === $tcaseId && $p['tcversion_id'] === $tcversionId) { $p = null; }
+                $prev = $p;
+            }
+            if (is_array($n) && isset($n['tcase_id'])) {
+                $next = array('tcase_id' => intval($n['tcase_id']), 'tcversion_id' => intval($n['tcversion_id']));
+            }
+        } else {
+            $chain = esrNavChain($db, $tplanId, $platformId, $tcversionId);
+            $pos = -1;
+            foreach ($chain as $ix => $it) {
+                if ($it['tcversion_id'] === $tcversionId) { $pos = $ix; break; }
+            }
+            $cnt = count($chain);
+            if ($pos >= 0 && $cnt > 0) {
+                if ($cnt > 1) {
+                    $prev = $chain[($pos - 1 + $cnt) % $cnt];
+                    $next = $chain[($pos + 1) % $cnt];
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        $prev = null;
+        $next = null;
+    }
+    return array('mode' => $mode, 'prev' => $prev, 'next' => $next);
+}
+
+/**
  * Latest execution of THIS version on THIS build(+platform) with recorded
  * step-level results (partial execution feature). Mirrors api/execute
  * tcDetails prior-execution block.
@@ -626,6 +729,8 @@ if ($action === 'init') {
         'platforms' => $platforms,
         'platform_feature_enabled' => $platformFeature,
         'statuses' => esrStatuses(),
+        'save_and_move' => esrSaveAndMove(),
+        'nav' => esrNavTargets($db, $tplanMgr, $tplanId, $platformId, $tcaseId, $tcversionId),
         'grants' => [
             'can_execute' => $canExecute ? 1 : 0,
             'ro_access' => $roAccess ? 1 : 0,
