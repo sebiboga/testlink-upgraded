@@ -12880,3 +12880,23 @@ Result: 10/10 PASS — gap #883 closed: BFF list route returns `expirationDateFo
 | 1389.11 | Hygiene | `php -l api/planimport/index.php` clean; `events` table: only AUDIT(16) rows from import, no new ERROR/WARNING entries (stray ERROR id 2 from fixture-script bug removed); `php_server.log` no 500s post-fix (only R1-wrong-root fixture 500s at line 151 → NEW bug #1407 filed) | **PASS** |
 
 Result: 11/11 PASS — #1389 FIXED. **New bug discovered while testing:** well-formed XML with a non-`<testplan>` root → unhandled `TypeError count(): null` 500 at `api/planimport/index.php:151` (legacy lines 285-286 identical) → filed as **#1407** (label `bug`), left for fix-bug factory.
+
+## Regression — Issue #1410: print.inc.php:1234 E_WARNING flooding Event Viewer when printing with step exec options and a TC without execution
+
+**Screens:** `lib/results/printDocument.php` (legacy) · `api/reportsprint/index.php` (modern BFF) → shared `lib/functions/print.inc.php:1234`
+**Root cause:** `renderTestCaseForPrinting()` calls `$st->tc_mgr->getStepsExecInfo($exec_info[0]['execution_id'])` whenever `$opt[step_exec_notes] || $opt[step_exec_status]`; for a platform where the TC was never executed, `get_recordset()` (database.class.php:776-789) returns **null** → `$exec_info[0]` dereferences null → PHP 8 `E_WARNING`. Fix: guard the call with `!is_null($exec_info) && isset($exec_info[0]['execution_id'])` — `$sxni` stays null, the existing `$nike`/`isset` guards render empty exec cells so colspan/layout stays consistent. Fix commit `c2e77abb0`.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in (session `testprojectID=1`, `tplan_id=7`). Fixture `tmp/fixtures_1410.php`: tproject 1 `W1410:WPRINT1410`, platforms `P-ONLY-EXEC`(1)/`P-NO-EXEC`(2), tplan 7 `Plan1410` linked on both platforms, TC `Case1410` (tcversion 4, 2 steps) linked on both, execution (id 1, p) on platform 1 only. Recreate on a fresh DB: `php tmp/fixtures_1410.php`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1410.1 | Pre-fix repro: in-page `fetch` of legacy `printDocument.php?type=test_report&level=testproject&id=1&tproject_id=1&docTestPlanId=7&format=0&step_exec_status=y&step_exec_notes=y` | HTTP 200 doc + 2 new `E_WARNING Trying to access array offset on null … print.inc.php - Line 1234` events (log_level 2) | **PASS (pre-fix)** — bug confirmed: events id 5,6 |
+| 1410.2 | Pre-fix repro: `api/reportsprint?action=print&type=testreport&level=testproject&id=1&tproject_id=1&tplan_id=7&format=0&step_exec_status=y&step_exec_notes=y` | `{status:ok}` + same 2 E_WARNING events | **PASS (pre-fix)** — events id 7,8 |
+| 1410.3 | Post-fix R1: repeat 1410.1 | HTTP 200, doc renders, **0 new** ERROR/WARNING events in `events` table | **PASS** |
+| 1410.4 | Post-fix R2: repeat 1410.2 | `{status:ok, doc_type:testreport}` valid JSON, **0 new** events | **PASS** |
+| 1410.5 | Post-fix R3: `api/reportsprint?action=download&…step_exec_status=y&step_exec_notes=y` | HTTP 200 attachment streams, **0 new** events | **PASS** |
+| 1410.6 | Post-fix R4: executed platform keeps exec data | Document body still contains `step note p1` (execution_tcsteps notes) + exec column labels; no-exec platform P-NO-EXEC section renders | **PASS** |
+| 1410.7 | Post-fix R5: layout consistency | Step section `<tr>` cell counts identical on both platforms (header 5 cols + rows 5 cols: step_number/actions/expected/exec_notes/exec_status) — empty cells on no-exec platform | **PASS** |
+| 1410.8 | Control: report WITHOUT step exec options (`format=0` only) | HTTP 200, steps section renders, **0 new** events | **PASS** |
+| 1410.9 | Hygiene | `php -l lib/functions/print.inc.php` clean; `events` table contains only the 4 recorded pre-fix E_WARNING ids (5-8) + AUDIT(16) rows — no new Error/Warning after fix | **PASS** |
+
+Result: 9/9 PASS — **#1410 FIXED** via commit `c2e77abb0` (guard `getStepsExecInfo` against null `$exec_info`, `lib/functions/print.inc.php:1233-1238`). No new bugs discovered; no i18n impact (no user-facing strings touched).
