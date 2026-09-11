@@ -13046,4 +13046,4 @@ Result: 10/10 PASS — **#1403 FIXED** (front-end only; the BFF already delivere
 | 1405.5 | Post-fix: on the open-build popup set step 1 status → submit "Save Steps Work In Progress Execution" (POST round-trip) | page re-renders with saved status (step 1=Failed), **0** new events | **PASS** |
 | 1405.6 | Hygiene | `events` table has **0** rows matching `%execSetResults.tpl.php%` at log_level=2 after all fixed-path renders | **PASS** |
 
-Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISPLAY)` guard at `gui/templates/dashio/execute/execSetResults.tpl:290` (commit `11150bbd8`). No i18n impact (template logic only, no user-facing strings).
+Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISPLAY) && $gui->plugins.EVENT_TESTRUN_DISPLAY` guard at `gui/templates/dashio/execute/execSetResults.tpl:290` (commits `11150bbd8`, `3e5fc1210`). No i18n impact (template logic only, no user-facing strings). Known sibling: `tl-classic/execute/execSetResults.tpl:466` has same unguarded pattern — tracked for the `tl-classic` theme cleanup.
