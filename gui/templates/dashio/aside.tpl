@@ -137,9 +137,9 @@ Left side menu
                 <span>{$labels.title_test_strategy}</span>
               </a>
               <ul class="sub">
-                <li><a href="gui/templates/strategy/testStrategy.html" target="mainframe"><i class="fas fa-book-open"></i> {$labels.href_test_strategy_overview}</a></li>
-                <li><a href="gui/templates/strategy/scope.html" target="mainframe"><i class="fas fa-bullseye"></i> {$labels.href_test_strategy_scope}</a></li>
-                <li><a href="gui/templates/strategy/exitCriteria.html" target="mainframe"><i class="fas fa-flag-checkered"></i> {$labels.href_test_strategy_exit_criteria}</a></li>
+                <li><a href="{$gui->uri->testStrategy}" target="mainframe"><i class="fas fa-book-open"></i> {$labels.href_test_strategy_overview}</a></li>
+                <li><a href="{$gui->uri->testStrategyScope}" target="mainframe"><i class="fas fa-bullseye"></i> {$labels.href_test_strategy_scope}</a></li>
+                <li><a href="{$gui->uri->testStrategyExit}" target="mainframe"><i class="fas fa-flag-checkered"></i> {$labels.href_test_strategy_exit_criteria}</a></li>
                 <li><a href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-exclamation-triangle"></i> {$labels.href_severity_config}</a></li>
               </ul>
             </li>

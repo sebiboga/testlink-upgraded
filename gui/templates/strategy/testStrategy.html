@@ -17,11 +17,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-top: 4px solid #4ECDC4; }
 .intro { margin: 0 24px; padding: 16px 20px; }
 .task-grid { padding: 0 24px 10px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
-.task-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; }
+.task-card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; display: flex; flex-direction: column; transition: box-shadow .2s; position: relative; }
 .task-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.15); }
 .task-card .icon { font-size: 36px; color: #3498db; margin-bottom: 12px; }
 .task-card .num { position: absolute; top: 12px; right: 12px; width: 30px; height: 30px; border-radius: 50%; background: #4ECDC4; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
-.task-card { position: relative; }
 .task-card .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 6px; }
 .task-card .desc { font-size: 13px; color: #555; margin-bottom: 14px; }
 .task-card .actions { margin-top: auto; display: flex; gap: 8px; }
@@ -29,10 +28,15 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .action-btn.blue { background: #3498db; }
 .action-btn.blue:hover { background: #2980b9; }
 .note { margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; background: #eafaf1; color: #1e8449; border: 1px solid #abebc6; }
+.toast { position: fixed; top: 16px; right: 16px; background: #22242a; color: #fff; padding: 10px 18px; border-radius: 6px; font-size: 13px; z-index: 9999; box-shadow: 0 2px 10px rgba(0,0,0,.25); display: none; }
+.toast.error { background: #e74c3c; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+#footerInfo { color: #aaa; font-size: 12px; }
 </style>
 </head>
 <body>
+
+<div class="toast" id="toast"></div>
 
 <div class="header">
   <span data-i18n="ts.overviewHeader">General Overview</span>
@@ -42,7 +46,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <div class="toolbar">
   <span style="flex:1"></span>
-  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+  <span id="footerInfo"></span>
 </div>
 
 <div class="card intro">
@@ -62,44 +66,22 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 <div class="section-title"><i class="fa fa-book" style="color:#3498db;margin-right:6px;"></i><span data-i18n="ts.chapterTitle">Test Strategy chapters</span></div>
 <div class="task-grid" id="taskGrid"></div>
 
-<div class="footer"><span data-i18n="footers.documentation">TestLink 2.0.1</span> - <span data-i18n="ts.overviewHeader">General Overview</span></div>
+<div class="footer"><span data-i18n="footers.documentation">TestLink 2.0.1</span> - <span data-i18n="ts.overviewHeader">General Overview</span> - <span data-i18n="ts.generatedOn">Generated on</span> <span id="generatedOn"></span></div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script>
-var CHAPTERS = [
-  { num: 1,  icon: 'fa-book',           key: 'ts.chapterIntro',     descKey: 'ts.chapterIntroDesc' },
-  { num: 2,  icon: 'fa-bullseye',       key: 'ts.chapterObjectives', descKey: 'ts.chapterObjectivesDesc' },
-  { num: 3,  icon: 'fa-expand-arrows-alt', key: 'ts.chapterScope',    descKey: 'ts.chapterScopeDesc',            url: 'scope.html' },
-  { num: 4,  icon: 'fa-compass',        key: 'ts.chapterApproach',  descKey: 'ts.chapterApproachDesc' },
-  { num: 5,  icon: 'fa-layer-group',    key: 'ts.chapterLevels',    descKey: 'ts.chapterLevelsDesc' },
-  { num: 6,  icon: 'fa-check-double',   key: 'ts.chapterTypes',     descKey: 'ts.chapterTypesDesc' },
-  { num: 7,  icon: 'fa-flag-checkered', key: 'ts.chapterEntryExit', descKey: 'ts.chapterEntryExitDesc',         url: 'exitCriteria.html' },
-  { num: 8,  icon: 'fa-server',         key: 'ts.chapterEnv',       descKey: 'ts.chapterEnvDesc' },
-  { num: 9,  icon: 'fa-users',          key: 'ts.chapterRoles',     descKey: 'ts.chapterRolesDesc' },
-  { num: 10, icon: 'fa-wrench',         key: 'ts.chapterTools',     descKey: 'ts.chapterToolsDesc' },
-  { num: 11, icon: 'fa-comments',       key: 'ts.chapterComm',      descKey: 'ts.chapterCommDesc' },
-  { num: 12, icon: 'fa-file-alt',       key: 'ts.chapterDeliverables', descKey: 'ts.chapterDeliverablesDesc' },
-  { num: 13, icon: 'fa-chart-line',     key: 'ts.chapterMetrics',   descKey: 'ts.chapterMetricsDesc' },
-  { num: 14, icon: 'fa-exclamation-triangle', key: 'ts.chapterRisks',   descKey: 'ts.chapterRisksDesc' },
-  { num: 15, icon: 'fa-bug',            key: 'ts.chapterDefects',   descKey: 'ts.chapterDefectsDesc' },
-  { num: 16, icon: 'fa-code-branch',    key: 'ts.chapterCfg',       descKey: 'ts.chapterCfgDesc' },
-  { num: 17, icon: 'fa-graduation-cap', key: 'ts.chapterTraining',  descKey: 'ts.chapterTrainingDesc' },
-  { num: 18, icon: 'fa-rocket',         key: 'ts.chapterRelease',   descKey: 'ts.chapterReleaseDesc' },
-  { num: 19, icon: 'fa-sliders-h',      key: 'ts.chapterSeverity',  descKey: 'ts.chapterSeverityDesc', url: '/gui/templates/projects/severityConfig.html' }
-];
+var API = '/api/strategy/index.php';
 
-$(function() {
-  TLi18n.load(function() {
-    TLi18n.apply();
-    TLi18n.initLocaleSwitcher('#localeSwitcher');
-    renderChapters();
-  });
-});
+function showToast(msg, isError) {
+  var t = $('#toast');
+  t.text(msg).toggleClass('error', !!isError).fadeIn(200);
+  setTimeout(function() { t.fadeOut(300); }, 3200);
+}
 
-function renderChapters() {
+function renderChapters(chapters) {
   var grid = $('#taskGrid');
-  $.each(CHAPTERS, function(i, t) {
+  $.each(chapters, function(i, t) {
     var actions = $('<div class="actions"></div>');
     if (t.url) {
       actions.append('<a class="action-btn blue" href="' + t.url + '" target="mainframe">' +
@@ -114,6 +96,34 @@ function renderChapters() {
     grid.append(card);
   });
 }
+
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $.ajax({ url: API + '?action=chapters', dataType: 'json', method: 'GET' })
+      .done(function(res) {
+        if (res.status !== 'ok') {
+          showToast(TLi18n.t('ts.errLoad'), true);
+          return;
+        }
+        if (res.footer && res.footer.generated_on) {
+          $('#generatedOn').text(res.footer.generated_on);
+        }
+        if (res.footer && res.footer.displayName) {
+          $('#footerInfo').text(res.footer.displayName);
+        }
+        renderChapters(res.chapters || []);
+      })
+      .fail(function(xhr) {
+        if (xhr.status === 401) {
+          window.top.location.href = '/index.php';
+          return;
+        }
+        showToast(TLi18n.t('ts.errLoad'), true);
+      });
+  });
+});
 </script>
 </body>
 </html>

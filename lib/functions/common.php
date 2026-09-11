@@ -2061,6 +2061,12 @@ function getActions(&$gui,$baseURL) {
   $gui->uri = $actions;
   $actions->keywordsAssign =
     "/gui/templates/keywords/keywordsAssign.html?{$ctx}";
+  // Test Strategy section (General Overview + Scope + Exit Criteria chapter
+  // pages). Standalone Dashio pages fed by api/strategy; any authenticated
+  // user may read them (Refs #1431).
+  $actions->testStrategy = "/gui/templates/strategy/testStrategy.html?{$ctx}";
+  $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";
+  $actions->testStrategyExit = "/gui/templates/strategy/exitCriteria.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;
