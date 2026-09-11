@@ -1592,8 +1592,7 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
                '<td colspan="'  . $tsp . '">' . $bn . "</td></tr>\n";
 
       if(is_null($exec_info)) {
-        if(!is_null($buildCfields) && 
-           isset($st->buildCfields[$build_id]) && 
+        if(isset($st->buildCfields[$build_id]) && 
           $st->buildCfields[$build_id] != '') {
           $code .= '<tr><td width="' . $cfg['firstColWidth'] . 
                    '" valign="top"></td>' . '<td colspan="'  . $tsp . '">' . 
