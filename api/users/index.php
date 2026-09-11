@@ -61,6 +61,19 @@ $segments = array_values(array_filter(explode('/', $path)));
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
+// Legacy parity: lib/usermanagement/usersEdit.php:462-466 gates the expiration
+// date field (expDateEnabled) on config_get('noExpDateUsers') (default
+// ['admin']). The BFF re-applies the same rule server-side so noExpDateUsers
+// logins can never receive an expiration date via the API.
+$noExpDateUsers = (array)config_get('noExpDateUsers');
+$isNoExpDateUser = function ($login) use ($noExpDateUsers) {
+    $needle = strtolower(trim((string)$login));
+    foreach ($noExpDateUsers as $x) {
+        if (strtolower(trim((string)$x)) === $needle) { return true; }
+    }
+    return false;
+};
+
 function userToJSON(tlUser $u) {
     $roleName = '';
     if ($u->globalRole) {
@@ -170,6 +183,33 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok' , 'items' => $items]);
 }
 
+// Route: GET /users/meta/authentication - list authentication methods for
+// the create/edit modal (legacy parity: lib/usermanagement/usersEdit.php:440-451
+// builds auth_method_opt from config_get('authentication')['domain']). The
+// first option (value '') means "use the configured default method". Also
+// exposes noExpDateUsers (config.inc.php:492, default ['admin']) so the modal
+// can hide the expiration date field for those logins exactly like legacy
+// usersEdit.php:462-467.
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'authentication') {
+    $authCfg = config_get('authentication');
+    $domain = (isset($authCfg['domain']) && is_array($authCfg['domain'])) ? $authCfg['domain'] : [];
+    $items = [];
+    foreach ($domain as $code => $cfg) {
+        $items[] = [
+            'value' => (string)$code,
+            'label' => (string)$code,
+            'description' => (is_array($cfg) ? ($cfg['description'] ?? $code) : $code),
+            'allowPasswordManagement' => (is_array($cfg) && isset($cfg['allowPasswordManagement'])) ? (bool)$cfg['allowPasswordManagement'] : true,
+        ];
+    }
+    $noExp = config_get('noExpDateUsers');
+    if (!is_array($noExp)) { $noExp = []; }
+    out(['status' => 'ok',
+         'configuredMethod' => $authCfg['method'] ?? '',
+         'items' => $items,
+         'noExpDateUsers' => array_values($noExp)]);
+}
+
 // Route: GET /users/meta/grants - user mgmt grant flags (mirror of legacy
 // getGrantsForUserMgmt()). Used by the modernized screens (usersView,
 // usersExport, ...) to gate the tab bar: role mgmt / assign-project /
@@ -206,6 +246,18 @@ if ($method === 'POST' && empty($segments)) {
 
     $result = $u->writeToDB($db);
     if ($result >= tl::OK) {
+        // Legacy parity: lib/usermanagement/usersEdit.php:164 persists the
+        // expiration date (ISO, via tlUser::setExpirationDate) right after the
+        // user row is written. Empty/null clears it to NULL. Logins listed in
+        // noExpDateUsers (admin) can never have one set (legacy hides the field).
+        if (!$isNoExpDateUser($u->login) && array_key_exists('expirationDate', $body)) {
+            $expDate = $body['expirationDate'];
+            $expDate = is_string($expDate) ? trim($expDate) : '';
+            tlUser::setExpirationDate($db, $u->dbID, ($expDate === '') ? null : $expDate);
+            // refresh in-memory object so the JSON response carries the
+            // freshly written expiration_date (it is read at construction).
+            $u->readFromDB($db);
+        }
         logAuditEvent("User '$u->login' created", "CREATE", $u->dbID, "users");
         out(['status' => 'ok', 'item' => userToJSON($u)]);
     } else {
@@ -236,6 +288,17 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 
     $result = $u->writeToDB($db);
     if ($result >= tl::OK) {
+        // Legacy parity: lib/usermanagement/usersEdit.php:197 persists the
+        // expiration date after every update; empty/null clears it to NULL.
+        // noExpDateUsers logins (admin) are exempt, matching the hidden field.
+        if (!$isNoExpDateUser($u->login) && array_key_exists('expirationDate', $body)) {
+            $expDate = $body['expirationDate'];
+            $expDate = is_string($expDate) ? trim($expDate) : '';
+            tlUser::setExpirationDate($db, $u->dbID, ($expDate === '') ? null : $expDate);
+            // refresh in-memory object so the JSON response carries the
+            // freshly written expiration_date (it is read at construction).
+            $u->readFromDB($db);
+        }
         logAuditEvent("User '$u->login' updated", "UPDATE", $u->dbID, "users");
         out(['status' => 'ok', 'item' => userToJSON($u)]);
     } else {

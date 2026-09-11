@@ -129,6 +129,19 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
             <select id="editLocale" class="form-control" style="font-size:13px;"></select>
           </div>
         </div>
+        <div style="display:flex;gap:12px;">
+          <div class="form-group" style="margin-bottom:12px;flex:1;">
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.authenticationMethod">Authentication method</label>
+            <select id="editAuth" class="form-control" style="font-size:13px;"></select>
+          </div>
+          <div class="form-group" style="margin-bottom:12px;flex:1;" id="expDateGroup">
+            <label style="font-size:12px;font-weight:600;" data-i18n="user.expirationDate">Expiration Date</label>
+            <div style="display:flex;gap:8px;">
+              <input type="date" id="editExpDate" class="form-control" style="font-size:13px;">
+              <button type="button" class="btn btn-sm btn-outline-secondary" data-i18n="user.clearDate" onclick="$('#editExpDate').val('')" style="white-space:nowrap;">Clear</button>
+            </div>
+          </div>
+        </div>
         <div class="form-group">
           <label style="font-size:12px;">
             <input type="checkbox" id="editActive" checked> Active
@@ -154,6 +167,7 @@ var API = '/api/users/index.php';
 var table = null;
 var roleMap = {};
 var localeMap = [];
+var authMeta = null;
 var allItems = [];
 
 $(function() {
@@ -237,6 +251,23 @@ function loadMeta() {
       sel.append('<option value="' + loc.code + '">' + loc.name + '</option>');
     });
   });
+  // Legacy parity: usersEdit.php:440-451 auth_method_opt = "Default
+  // (configured desc)" as first option (value '') + one option per
+  // authentication domain key (DB/LDAP). noExpDateUsers hides the
+  // expiration date field for those logins (usersEdit.php:462-466).
+  $.getJSON(API + '/meta/authentication', function(r) {
+    authMeta = r;
+    var sel = $('#editAuth');
+    sel.empty();
+    var cfgDesc = '';
+    $.each(r.items, function(i, it) {
+      if (it.value === r.configuredMethod) { cfgDesc = it.description; }
+    });
+    sel.append('<option value="">' + TLi18n.t('user.defaultAuthMethod') + ' (' + cfgDesc + ')</option>');
+    $.each(r.items, function(i, it) {
+      sel.append('<option value="' + it.value + '">' + it.label + '</option>');
+    });
+  });
 }
 
 function loadUsers() {
@@ -295,6 +326,9 @@ function showCreateModal() {
   $('#pwLabel').text('*');
   $('#editRole').val($('#editRole option:first').val());
   $('#editLocale').val('en_GB');
+  $('#editAuth').val('');
+  $('#editExpDate').val('');
+  $('#expDateGroup').show();
   $('#editActive').prop('checked', true);
   $('#modalError').hide();
   $('#userModal').modal('show');
@@ -313,6 +347,14 @@ function editUser(id) {
     $('#pwLabel').text('(leave empty to keep)');
     $('#editRole').val(u.globalRoleID);
     $('#editLocale').val(u.locale);
+    $('#editAuth').val(u.authentication || '');
+    $('#editExpDate').val(u.expirationDate || '');
+    // Legacy parity: the expiration date field (expDateEnabled) is hidden for
+    // users listed in config_get('noExpDateUsers') (e.g. admin), see
+    // lib/usermanagement/usersEdit.php:462-467.
+    var forbidden = (authMeta && authMeta.noExpDateUsers || [])
+      .map(function(x) { return String(x).toLowerCase(); });
+    $('#expDateGroup').toggle(forbidden.indexOf(String(u.login).toLowerCase()) === -1);
     $('#editActive').prop('checked', u.active === 1);
     $('#modalError').hide();
     $('#userModal').modal('show');
@@ -352,10 +394,16 @@ function saveUser() {
     email: $('#editEmail').val().trim(),
     globalRoleID: parseInt($('#editRole').val()),
     locale: $('#editLocale').val(),
+    authentication: $('#editAuth').val(),
     active: $('#editActive').is(':checked'),
   };
   var pw = $('#editPassword').val();
   if (pw) data.password = pw;
+  // Only send the expiration date when the field is visible (it is hidden for
+  // noExpDateUsers logins e.g. admin; the BFF refuses to set it anyway).
+  if ($('#expDateGroup').is(':visible')) {
+    data.expirationDate = $('#editExpDate').val() || '';
+  }
 
   if (!data.login || !data.firstName || !data.lastName || !data.email) {
     $('#modalError').text(TLi18n.t('user.validation.required')).show();

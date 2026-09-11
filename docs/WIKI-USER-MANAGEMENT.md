@@ -84,6 +84,19 @@ Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.
 | E-mail | Yes | Valid email address |
 | Global Role | Yes | Select from available roles (e.g., admin, test designer, tester, etc.) |
 | Locale | No | UI language (e.g., en_GB, ro_RO) |
+| Authentication method | No | Legacy parity `usersEdit.php:440-451` (issue #882): `Default (configured)` — value `''`, uses `config_get('authentication')['method']` — plus one option per `authentication['domain']` key (DB/LDAP), pulled from the new BFF meta endpoint `GET /api/users/index.php/meta/authentication`. Persisted into `users.auth_method` on create/update. |
+| Expiration Date | No | Date picker (native `type=date`) + **Clear Date** button. Empty or cleared → `expiration_date = NULL`; otherwise stored ISO `Y-m-d` via `tlUser::setExpirationDate()`. Hidden entirely for users listed in `config_get('noExpDateUsers')` (default `['admin']`) — legacy `expDateEnabled` `usersEdit.php:462-467`; the BFF re-applies the same guard server-side. |
+
+### Authentication method & Expiration Date (issue #882)
+
+Legacy `usersEdit.tpl:268-304` let the admin choose the authentication method (Default/DB/LDAP) and set an expiration date with a calendar+clear control. The modern modal now matches:
+
+- **Authentication method** dropdown is populated from `GET /api/users/index.php/meta/authentication` — first option `Default (<configured method>)` (value `''` = follow `authentication['method']`), then one option per domain key. Selected value persists to `users.auth_method` on both create and update (legacy `initializeUserProperties` parity).
+- **Expiration Date** `input[type=date]` + **Clear Date** button. Empty date → `NULL`; a valid date is written via `tlUser::setExpirationDate()` (ISO `Y-m-d`). For users in `noExpDateUsers` (admin) the field is hidden in the modal **and** the BFF refuses to write it — double protection.
+- The BFF `POST`/`PUT` now refresh the in-memory user after writing the expiry so the JSON response returns the stored `expirationDate`.
+- New i18n keys in all 10 locale bundles: `user.authenticationMethod`, `user.defaultAuthMethod`, `user.clearDate` (plus existing `user.expirationDate`).
+
+Screenshots: `docs/screenshots/issue-882-create-modal-auth-expdate.png`, `docs/screenshots/issue-882-edit-admin-exp-hidden.png`, `docs/screenshots/issue-882-grid-expiration-dates.png`.
 
 ### Tips
 

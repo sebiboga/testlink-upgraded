@@ -12685,7 +12685,6 @@ Result: 13/13 PASS — gap #1354 closed: the modern revision viewer now has a `P
 
 Result: 9/9 PASS — gap #877 closed: the BFF exposes `canViewEvents` (project-less `hasRight($db,'mgt_view_events')`, matching legacy userInfo.php:90) and the User Profile Login History card gains a right-gated "Show event history" button opening the Event Viewer filtered to `users #<userID>` via the hidden `#eventhistory` GET form (planMilestones pattern).
 
-<<<<<<< HEAD
 ---
 
 ## Task — Issue #1362: reqSpecCompare revision list default ordering (gap vs legacy)
@@ -12925,3 +12924,26 @@ Result: 9/9 PASS — **#1410 FIXED** via commit `c2e77abb0` (guard `getStepsExec
 | 1411.15 | Event Viewer hygiene | after fixes, `events` table has only AUDIT LOGIN rows + one dev-transient E_USER_NOTICE (pre-fix `fetchRowsIntoMap` missing `id`, removed — fixed in commit `8764f8d7d`) — no residual Error/Warning | **PASS** |
 
 Result: 15/15 PASS — **#1411 DONE**. Bugs found & fixed in-session: same-origin guard required `X-Requested-With` on fetch POSTs; export used `fetchRowsIntoMap(...,'id')` on a query without `id`. Reference commits: `367106040` (BFF), `1651a90fd` (screen+i18n), `8764f8d7d` (fixes).
+
+---
+
+## Task — Issue #882: Authentication method + Expiration Date fields in User Management create/edit modal
+
+**Screens:** `gui/templates/usermanagement/usersView.html` · `api/users/index.php` · i18n bundles ×10 (keys `user.authenticationMethod`, `user.defaultAuthMethod`, `user.clearDate`)
+**Legacy ref:** `gui/templates/dashio/usermanagement/usersEdit.tpl:268-304` (auth `<select>` + expiration date input w/ calendar & clear), `lib/usermanagement/usersEdit.php:440-467` (`auth_method_opt` from `config_get('authentication')['domain']`, `expDateEnabled` gated on `noExpDateUsers`), `:120-128`/`:164`/`:197` (ISO date parse + `tlUser::setExpirationDate`)
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in. DB fresh: only `admin` (role 8 = admin, `auth_method=''`, `expiration_date=NULL`). Screen URL: `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 882.1 | `GET /api/users/index.php/meta/authentication` (admin) | 200 `{configuredMethod:"DB", items:[{value:DB,description:DB,allowPasswordManagement:true},{value:LDAP,...false}], noExpDateUsers:["admin"]}` | **PASS** |
+| 882.2 | Open Create User modal | "Authentication method" dropdown shows `Default (DB)` (selected) + `DB` + `LDAP`; "Expiration Date" `input[type=date]` + `Clear Date` button render | **PASS** |
+| 882.3 | Create `authuser` via UI (auth=LDAP, expiry 15/03/2027) | DB row: `auth_method='LDAP'`, `expiration_date='2027-03-15'`; grid shows localized `15/03/2027`; audit `User 'authuser' created` (AUDIT/16) | **PASS** |
+| 882.4 | Edit `authuser` → modal pre-fills LDAP + 15/03/2027 | Dropdown `value=LDAP`, date input `2027-03-15` | **PASS** |
+| 882.5 | Edit `authuser` → set auth=`Default (DB)` + expiry `31/12/2026`, Save | DB: `auth_method=''`, `expiration_date='2026-12-31'` (ISO persisted) | **PASS** |
+| 882.6 | Edit `authuser` → click `Clear Date` on set date, Save | DB: `expiration_date=NULL` (empty → NULL, legacy `setExpirationDate` parity); `auth_method='DB'` retained | **PASS** |
+| 882.7 | Edit `admin` (in `noExpDateUsers`) | Expiration Date field is HIDDEN; Authentication dropdown still visible; Save leaves `expiration_date=NULL` | **PASS** |
+| 882.8 | Direct `PUT /api/users/index.php/1` (admin) with `expirationDate:"2028-01-01"` + all fields | HTTP 200 but `expiration_date` stays NULL (BFF re-applies the noExpDateUsers guard server-side — matches legacy hidden field) | **PASS** |
+| 882.9 | `PUT /api/users/index.php/3` with auth=DB + expiry `2031-06-30` | Response JSON now carries `authentication:"DB"`, `expirationDate:"2031-06-30"` (object refreshed after write) | **PASS** |
+| 882.10 | Integrity | `php -l api/users/index.php` clean; `python3 -m json.tool` passes for all 10 i18n bundles; `events` table: only AUDIT(16) rows (CREATE/UPDATE/AUTH), **no new ERROR(1)/WARNING(2)** | **PASS** |
+
+Result: 10/10 PASS — #882 gap closed: BFF persists `authentication` + `expiration_date` (POST + PUT, `tlUser::setExpirationDate`, `noExpDateUsers` guard), new meta endpoint feeds the modal. Screenshots: `docs/screenshots/issue-882-{create-modal-auth-expdate,edit-admin-exp-hidden,grid-expiration-dates}.png`. **New bug discovered while testing (out of scope):** Create User modal defaults the new user's Global Role to reserved role 1 (zero rights) instead of `$tlCfg->default_roleid` → filed as **#1412** (`bug`, auto-resolved via modal role mis-selection can strip rights on re-save).
