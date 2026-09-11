@@ -13008,3 +13008,25 @@ Result: 11/11 PASS — **#1414 FIXED** via null-guard `!is_null($dummy) && count
 | 1415.8 | Hygiene | `php -l lib/functions/print.inc.php` clean; `events` table after all fixed-path renders has **0** rows matching `%buildCfields%` | **PASS** |
 
 Result: 8/8 PASS — **#1415 FIXED** via removing the stale `!is_null($buildCfields)` clause at `lib/functions/print.inc.php:1595` (single line, -2/+1, commit `e9fa9f0e9`). **New bug discovered while testing (out of scope):** anonymous/apikey direct access to `printDocument.php` emits 3 `E_WARNING Undefined array key "basehref"` events (printDocument.php:175/254, print.inc.php:700) because `$_SESSION['basehref']` is unset without a session — pre-existing (reproduced identically with the pre-fix file), filed separately with `bug` label → **#1416**.
+
+## Regression — Issue #1403: Set Results popup hides closed builds + no "Build is closed" read-only banner (Refs #1403)
+
+**Screen:** `gui/templates/execute/execSetResults.html` + `api/execsetresults/index.php` (already modernized, #817)
+**Gap:** the BFF `esrBuilds()` (index.php:191-246) ALREADY returned every build with `executable:false` for closed builds, but the frontend dropped them (`if (!b.executable) return;`) → the closed build vanished from the dropdown with no warning and no read-only signal. Save was rejected server-side (400) so data was safe, but the user had no explanation.
+**Fix (commits `6102f16c2`, `30bdc719f`):** build selector lists ALL builds, closed ones marked `(closed)`/`opt-closed`; selecting a closed build shows the `.closedbox` "Build is closed. Test cases can not be executed." (legacy `execSetResults.tpl:200`) and switches the popup to review-only (Save/status/steps/notes/duration disabled, build selector stays enabled so you can switch back); build change re-fetches init so the banner + prior box always match the selected build; `doSave()` defensively rejects a closed build with `esr.errClosedBuild`.
+**Precondition (2026-09-11, fresh DB):** fixture `php tmp/fixtures_1403.php` → tproject **9** (prefix E403), suite 10, TC "ESR Closed Build TC" (id 11, tcversion 12, v1, 2 steps), plan **15**, builds **3**=B-OPEN (open), **4**=B-CLOSED (is_open=0). Prior execution (Passed, step Passed) recorded on build 3 only. Popup URL: `gui/templates/execute/execSetResults.html?tproject_id=9&tplan_id=15&tcase_id=11&tcversion_id=12&setting_build=X`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1403.1 | Open popup with `setting_build=4` (closed build) | `#closedBox` visible with "Build is closed. Test cases can not be executed."; dropdown options = "B-CLOSED (closed)" (selected, class `opt-closed`) + "B-OPEN"; Save button disabled; all status buttons disabled; step selects + step notes + Notes + exec-duration disabled. Build selector itself stays enabled | **PASS** |
+| 1403.2 | `#priorBox` state with closed build (no executions on build 4) | Prior box hidden (r.prior null) — no stale content | **PASS** |
+| 1403.3 | Switch to B-OPEN (id 3) via dropdown change | `#closedBox` hidden; Save re-enabled; status buttons/step controls/Notes re-enabled; `#priorBox` shows "Latest execution: Passed · by admin · <ts>" + "prior run on open build"; status row pre-selects Passed | **PASS** |
+| 1403.4 | Switch back to B-CLOSED (id 4) | Banner returns, all WRITE controls disabled again, `#priorBox` hidden and emptied (commit `30bdc719f`), no active status | **PASS** |
+| 1403.5 | Save on OPEN build (status p, notes "browser test save on open build") | POST `?action=save` returns `{status:ok, saved:true, execution_id:2}`; new row in `executions` | **PASS** |
+| 1403.6 | Defensive guard: force-enable Save with B-CLOSED selected + status p, call `doSave()` | Client aborts with `esr.errClosedBuild` toast "Selected build is closed - result not saved." (`.toast.err`), no HTTP request | **PASS** |
+| 1403.7 | i18n: `esr.closedBuild`, `esr.buildClosedMsg`, `esr.errClosedBuild` fetchable from en.json and ro.json | Correct per-locale strings | **PASS** |
+| 1403.8 | All 10 bundles JSON-valid | `python3 -m json.tool` on `gui/templates/i18n/*.json` all OK | **PASS** |
+| 1403.9 | Console | No JS errors on load and on build switch (only pre-existing a11y auto-warnings) | **PASS** |
+| 1403.10 | Event Viewer hygiene | `events` table has 0 Error/Warning rows after all popup operations (2 fixture-typo E_WARNINGs `build_mgr.class.php` cleaned; they came from the fixture script, not the screen) | **PASS** |
+
+Result: 10/10 PASS — **#1403 FIXED** (front-end only; the BFF already delivered the data). No new bugs discovered while testing.
