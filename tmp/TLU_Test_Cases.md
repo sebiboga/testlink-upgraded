@@ -13277,3 +13277,23 @@ Result: 10/10 PASS — **#1431 DONE**. Commits: `e1799ff70` (BFF), `c28494cc7` (
 **Actual:** PASS — only the single info login event (`log_level` 16) exists; no errors/warnings.
 
 Result: 6/6 PASS — **#1426 COMPLETE**: all-10-bundle i18n with real native translations in de/es/fr/it/ja/pt/ru/zh (79 ts.* keys) + browser-verified + documented. Commits this run on `task/issue-1426`.
+
+## Regression — Issue #1430: usersView edit-modal `<option>` labels unescaped — stored-XSS via role names (Refs #1430)
+
+**Screen:** `gui/templates/usermanagement/usersView.html` (modernized User Management, Create/Edit modal)
+**Root cause:** `loadMeta()` (usersView.html:241) populated the three modal selects by string concatenation: `sel.append('<option value="' + role.id + '">' + role.name + '</option>')` (usersView.html:247) — `role.name`/`loc.name`/auth `it.label`/`cfgDesc` interpolated raw. A role named `"><img src=x onerror=...>` parsed as a real element inside the `<option>`; its `onerror` fired. `loadMeta()` runs at page init (usersView.html:200) → the XSS fired on plain page load, not only when the modal opened.
+**Fix:** wrap ONLY the user-controlled sink — `role.name` — with the existing `esc()` helper (usersView.html:173). The other three sinks (`loc.name`, auth `it.label`, `cfgDesc`) are fixed configuration literals (`cfg/const.inc.php:282,465-466`) which are **pre-HTML-entity-encoded** (`'fr_FR' => 'Fran&ccedil;ais'`); applying `esc()` double-encodes them → visible corruption (`Fran&ccedil;ais` rendered literally), verified in-browser and reverted. Legacy Smarty keeps them safe via `htmlspecialchars(..., double_encode=false)`; on the modernized screen they are server-config-owned data, not an XSS vector.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. Fixture: `INSERT INTO roles (description, notes) VALUES ('"><img src=x onerror=document.title=\'MODALXSS1430\'>x','xss-fixture')` → `roles.id=11` (leading `>` avoids the `<...>` system-role translation in `tlRole::getDisplayName()`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1430.1 | Pre-fix control: open `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0` with the payload role stored | `document.title` becomes `MODALXSS1430` on page load (option injected by `loadMeta()` at init); Create modal role select shows the payload shell as an `<img>`-consumed option | **PASS (pre-fix)** — title `MODALXSS1430` before any click; modal option visible as `">x"` with `<img>` element parsed |
+| 1430.2 | Post-fix: reload the same URL | title stays `User Management`; zero `img` elements inside `#editRole`; payload option `textContent` = `"><img src=x onerror=document.title='MODALXSS1430'>x` (literal, escaped) | **PASS** |
+| 1430.3 | Locale/auth labels still display correctly (no double-encode regression) | `fr_FR` option label `Français`, `ro_RO` `Română`; auth options `Default (DB)`/`DB`/`LDAP` | **PASS** |
+| 1430.4 | Create User modal functional | open modal, role select pre-selects first option; save a new user `xss_test_user` (role tester) → row appears in grid with role `tester` | **PASS** |
+| 1430.5 | Edit modal on the new user | title `Edit User: xss_test_user`, role select pre-selected `tester`, French label `Français`, 0 `img` in modal, document.title unchanged | **PASS** |
+| 1430.6 | "Manage user" lookup | typing `admin` opens `Edit User: admin`, login readonly `admin`, no XSS | **PASS** |
+| 1430.7 | rolesView cross-check (regression on shared role data path) | roles grid renders the payload role cell as escaped literal text (role column esc'd since #1406) | **PASS** (delete-cell onclick attribute breakout observed → filed as **#1432**) |
+| 1430.8 | Hygiene / Event Viewer | `events` table shows only info-level (`log_level` 16) audit rows (login + `User 'xss_test_user' created`); 0 new Error/Warning | **PASS** |
+
+Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlled sink (`role.name`, usersView.html:247), locale/auth labels left intact (config-owned, pre-entity-encoded — escaping would corrupt display). Commit on `fix/issue-1430`. Screenshots: `docs/screenshots/issue-1430-modal-xss-repro.png` (before), `docs/screenshots/issue-1430-modal-xss-fixed.png` (after). **New same-family bug filed:** `rolesView.html` delete-cell onclick attribute breakout → **#1432**.
