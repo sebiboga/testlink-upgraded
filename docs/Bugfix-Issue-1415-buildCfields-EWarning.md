@@ -51,9 +51,9 @@ E_WARNING on every affected render. Not a modernization regression; the legacy
 `printDocument.php` path reproduces it identically.
 
 **Blast radius:** grep `buildCfields` in `lib/functions/print.inc.php` →
-6 hits; only line 1595 uses the bare variable; the other 5 already use
-`$st->buildCfields` (lines 1068, 1069, 1596, 1597, 1600, 1630) plus an
-unrelated `$things->buildCfields` (2356). No other file references it.
+7 hits; only the guard under review used the bare variable; the other 6
+already use `$st->buildCfields` (lines 1068, 1069, 1595, 1596, 1599, 1629)
+plus an unrelated `$things->buildCfields` (2355). No other file references it.
 Single-line blast radius.
 
 ## Fix
@@ -107,7 +107,15 @@ All checks on branch `fix/issue-1415`, PHP 8.x, MySQL fresh-import schema:
 - Post-fix R4 (anonymous/apikey path): HTTP 200, **0** `buildCfields` events.
 - Post-fix R5 (positive path): a build custom field seeded
   (`cf_build_1415`, value `BUILDCF-MARKER-VALUE`) renders its row in the
-  document exactly once for the unexecuted TCs — the restored branch works.
+  document exactly once for the executed TC via `buildTestExecResults()` — the
+  restored `isset()` branch is now live for no-execution TCs when the static
+  has been populated by an earlier executed TC in the same render.
+- Post-fix R6 (restored branch proof): with the executed TC (tcversion 10)
+  reordered to render FIRST, `BUILDCF-MARKER-VALUE` appears **3x** in the HTML —
+  once per TC under its "Build: Build1415-2" line, i.e. the line-1595 row now
+  renders for the two no-execution TCs (`isset()` true from the earlier
+  executed TC). Pre-fix those rows were impossible (guard always false:
+  `is_null(undefined)` → `true` ⇒ `!is_null(...)` → `false`).
 - `php -l lib/functions/print.inc.php` clean.
 - Events table after all fixed-path renders: 0 rows matching `%buildCfields%`.
 
