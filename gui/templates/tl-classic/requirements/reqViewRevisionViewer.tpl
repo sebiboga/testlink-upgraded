@@ -57,9 +57,16 @@ viewer for requirement
 	  <td>{$labels.status}{$smarty.const.TITLE_SEP}{$args_gui->reqStatusDomain[$args_req.status]}</td>
 	</tr>
 	<tr>
-	  <td>{$labels.type}{$smarty.const.TITLE_SEP}{$args_gui->reqTypeDomain[$args_req.type]}</td>
+	  <td>{$labels.type}{$smarty.const.TITLE_SEP}
+	  {$req_type=$args_req.type}
+	  {if isset($args_gui->reqTypeDomain.$req_type)}
+	    {$args_gui->reqTypeDomain.$req_type}
+	  {else}
+	    {$args_req.type}
+	  {/if}
+	  </td>
 	</tr>
-	{if $args_gui->req_cfg->expected_coverage_management && $args_gui->attrCfg.expected_coverage[$args_req.type]} 
+	{if $args_gui->req_cfg->expected_coverage_management && isset($args_gui->attrCfg.expected_coverage.$req_type) && $args_gui->attrCfg.expected_coverage.$req_type} 
 	<tr>
 	  <td>{$labels.expected_coverage}{$smarty.const.TITLE_SEP}{$args_req.expected_coverage}</td>
 	</tr>
