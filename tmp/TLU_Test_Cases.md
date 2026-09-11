@@ -12900,3 +12900,28 @@ Result: 11/11 PASS — #1389 FIXED. **New bug discovered while testing:** well-f
 | 1410.9 | Hygiene | `php -l lib/functions/print.inc.php` clean; `events` table contains only the 4 recorded pre-fix E_WARNING ids (5-8) + AUDIT(16) rows — no new Error/Warning after fix | **PASS** |
 
 Result: 9/9 PASS — **#1410 FIXED** via commit `c2e77abb0` (guard `getStepsExecInfo` against null `$exec_info`, `lib/functions/print.inc.php:1233-1238`). No new bugs discovered; no i18n impact (no user-facing strings touched).
+
+## Task — Issue #1411: cfieldsExchange (Custom Fields XML Export/Import, modernizes cfieldsExport.php + cfieldsImport.php)
+
+**Screens:** `api/cfieldsx/index.php` (BFF) · `gui/templates/cfields/cfieldsExchange.html` (modern Auth — plugin signed) · wired from `cfieldsView.html` toolbar (Export / Upload File) + `$actions->cfieldsExchange` in `lib/functions/common.php`. Faithful port of legacy `lib/cfields/cfieldsExport.php` (right `cfield_view`, joined query, root `<custom_fields>`, row `<custom_field>`, default file `customFields.xml`) and `cfieldsImport.php` (right `cfield_management`, `cfield_mgr->get_by_name` + `create` loop, size limit `import_file_max_size_bytes`, XXE-safe parse via LIBXML_NONET + disabled entity loader).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in; seeded 2 CFs (`cf_ticket`, `cf_priority`) linked to node_type testcase; fixture XMLs in `/tmp`: `newf.xml` (cf_owner, new), `exported.xml` (round-trip), `newf2.xml` (cf_severity), `newf3.xml` (cf_env, new), `bad.xml` (garbage), `big.xml` (900 KB). Guest user `guest1`/`guestpass` (role 5, no cfield rights).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1411.1 | GET `/api/cfieldsx/` as admin | `{status:ok,count,has_export_right:1,has_import_right:1,default_filename:customFields.xml,import_limit_kb}` | **PASS** |
+| 1411.2 | POST `/api/cfieldsx/export` (X-Requested-With header, `{"export_filename":"myfields.xml"}`) | HTTP 200, `Content-Disposition: attachment; filename="myfields.xml"`, XML root `<custom_fields>` with 1 `<custom_field>` per row incl. name/label/type/possible_values/default_value/valid_regexp/length_min/length_max/show·enable flags/node_type_id | **PASS** |
+| 1411.3 | Export via UI button | Success box `Export complete - check your download`, file downloaded, no console errors | **PASS** |
+| 1411.4 | Empty export filename in UI | `Export name can not be empty!` message, no request sent | **PASS** |
+| 1411.5 | Import `newf.xml` (cf_owner) via curl | `{status:ok, imported:["cf_owner"], not_imported:[]}` | **PASS** |
+| 1411.6 | Import `exported.xml` (cf_ticket, cf_priority — already exist) | `imported:[]`, `not_imported:["cf_ticket","cf_priority"]` | **PASS** |
+| 1411.7 | Import `bad.xml` (garbage) | HTTP 422 `parse_failed` + libxml error text; UI shows `Could not load XML content…` | **PASS** |
+| 1411.8 | Import with no file | HTTP 422 `need_file`; UI shows `Please choose a file to import` | **PASS** |
+| 1411.9 | Import 900 KB file (limit 781 KB) | HTTP 422 `file_too_big` with `limit_kb:781` | **PASS** |
+| 1411.10 | UI import of `newf3.xml` (cf_env) | `Imported (1) » cf_env`, `Not imported (0)`, counter 4 → 5 | **PASS** |
+| 1411.11 | Permissions as `guest1` (no cfield rights) | info rights 0/0; POST /export → 403 `No permission`; POST /import → 403 `No permission` | **PASS** |
+| 1411.12 | Toolbar wiring | `cfieldsView.html` toolbar shows `Create Custom Field | Export | Upload File`; `getActions()` includes `$actions->cfieldsExchange` | **PASS** |
+| 1411.13 | i18n completeness | 32 `cfx.*` keys exist in all 10 bundles (`en,de,es,fr,it,ja,pt,ro,ru,zh`), all `json.tool`-valid | **PASS** |
+| 1411.14 | SSRF/XXE safety | XML parsed with `simplexml_load_string(+LIBXML_NONET)` after `libxml_disable_entity_loader(true)`; no entity expansion possible | **PASS** (code review) |
+| 1411.15 | Event Viewer hygiene | after fixes, `events` table has only AUDIT LOGIN rows + one dev-transient E_USER_NOTICE (pre-fix `fetchRowsIntoMap` missing `id`, removed — fixed in commit `8764f8d7d`) — no residual Error/Warning | **PASS** |
+
+Result: 15/15 PASS — **#1411 DONE**. Bugs found & fixed in-session: same-origin guard required `X-Requested-With` on fetch POSTs; export used `fetchRowsIntoMap(...,'id')` on a query without `id`. Reference commits: `367106040` (BFF), `1651a90fd` (screen+i18n), `8764f8d7d` (fixes).
