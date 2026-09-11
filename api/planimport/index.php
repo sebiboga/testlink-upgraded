@@ -117,8 +117,8 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
     // well-formed local file ("failed to load external entity") — the legacy
     // wrapper reads with file_get_contents + simplexml_load_string instead.
     @libxml_disable_entity_loader(true);
-    $zebra = @file_get_contents($targetFile);
-    $xml = ($zebra !== false) ? @simplexml_load_string($zebra) : false;
+    $rawXml = @file_get_contents($targetFile);
+    $xml = ($rawXml !== false) ? @simplexml_load_string($rawXml, 'SimpleXMLElement', LIBXML_NONET) : false;
     @libxml_clear_errors();
     if ($xml !== FALSE) {
         $tcaseMgr = new testcase($dbHandler);
