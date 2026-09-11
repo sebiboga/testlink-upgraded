@@ -138,6 +138,13 @@ $action = isset($_REQUEST['action']) ? trim($_REQUEST['action']) : '';
 
 $buildMgr = new build($db);
 $assignMgr = new assignment_mgr($db);
+$tprojectMgr = new testproject($db);
+
+function tprojectNameOf($tprojectMgr, $tprojectId)
+{
+    $proj = $tprojectMgr->get_by_id($tprojectId);
+    return (!is_null($proj) && isset($proj['name'])) ? (string)$proj['name'] : '';
+}
 
 if ($action === 'info' && $method === 'GET') {
     list($tprojectId, $buildInfo) = resolveBuildContext($db, $buildMgr);
@@ -155,6 +162,7 @@ if ($action === 'info' && $method === 'GET') {
         'build_id' => $buildId,
         'build_name' => (string)$buildInfo['name'],
         'tproject_id' => $tprojectId,
+        'tproject_name' => tprojectNameOf($tprojectMgr, $tprojectId),
         'count' => $count,
         'can_remove' => $count > 0,
     ));
@@ -179,6 +187,7 @@ if ($action === 'unassign' && $method === 'POST') {
         'build_id' => $buildId,
         'build_name' => (string)$buildInfo['name'],
         'tproject_id' => $tprojectId,
+        'tproject_name' => tprojectNameOf($tprojectMgr, $tprojectId),
         'removed_count' => $count,
     ));
 }

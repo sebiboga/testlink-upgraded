@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="tua.title">Remove all tester assignments</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; flex: 0 0 auto; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d9534f; }
+.btn-red:disabled { background: #f0a3a1; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.err-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; display: none; flex: 0 0 auto; }
+.panel { flex: 0 0 auto; margin: 18px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel-title { padding: 12px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #eee; background: #f7f7f7; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 20px 18px; font-size: 14px; color: #333; }
+.panel-body .build-ref { margin-top: 8px; font-size: 13px; color: #888; }
+.status-msg { display: flex; gap: 12px; align-items: flex-start; }
+.status-msg i { font-size: 26px; margin-top: 2px; }
+.status-msg.ok i { color: #5cb85c; }
+.status-msg.warn i { color: #f0ad4e; }
+.danger-zone { margin-top: 18px; border-top: 1px dashed #eee; padding-top: 16px; }
+#btnRemove { display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; flex: 0 0 auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
+.toast.err { background: #e6605e; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-bottom: 1px solid #333; }
+.modal-header .close { color: #fff; opacity: .8; }
+@media (max-width: 640px) {
+  .header { font-size: 16px; padding: 12px 16px; }
+  .toolbar, .panel, .footer, .err-banner { margin-left: 12px; margin-right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-user-times" style="margin-right:8px;"></i><span data-i18n="tua.title">Remove all tester assignments</span>
+  <span class="sub"><span data-i18n="tua.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" onclick="loadInfo()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="btnBack" href="#"><i class="fa fa-arrow-left"></i> <span data-i18n="tua.back">Back</span></a>
+  <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="errBox" class="err-banner"></div>
+
+<div class="panel" id="panel">
+  <div class="panel-title">
+    <i class="fa fa-user-times" style="color:#4ECDC4;"></i>
+    <span id="panelTitle" data-i18n="tua.title">Remove all tester assignments</span>
+  </div>
+  <div class="panel-body">
+    <div class="status-msg" id="statusMsg">
+      <i class="fa" aria-hidden="true"></i>
+      <div>
+        <div id="statusText">-</div>
+        <div class="build-ref">
+          <i class="fa fa-cube"></i> <span data-i18n="tua.buildId">Build</span>:
+          <b id="buildName">-</b> &nbsp;&middot;&nbsp;
+          <span data-i18n="tua.assignments">assignments</span>: <b id="assignCount">-</b>
+        </div>
+      </div>
+    </div>
+    <div class="danger-zone" id="dangerZone">
+      <button class="btn-red" id="btnRemove"><i class="fa fa-trash"></i> <span data-i18n="tua.btnRemoveAll">Unassign all testers from selected Build</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.tcUnassignAll">TestLink 2.0.1 - Remove all tester assignments</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="confirmModalLabel" data-i18n="tua.confirmTitle">Really remove all tester assignments?</h4>
+      </div>
+      <div class="modal-body" id="confirmModalBody">-</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal"><span data-i18n="common.no">No</span></button>
+        <button type="button" class="btn btn-danger" id="btnConfirmYes"><i class="fa fa-trash"></i> <span data-i18n="common.yes">Yes</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/tcunassignall/index.php';
+var requestToken = 0;
+var state = null;
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('tua.title'));
+    buildBackLink();
+    loadInfo();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 5000));
+}
+
+function showError(msg) {
+  $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+  $('#panel').hide();
+}
+
+function buildBackLink() {
+  var p = new URLSearchParams(window.location.search);
+  var tpid = parseInt(p.get('tproject_id') || 0, 10);
+  var tplan = parseInt(p.get('tplan_id') || 0, 10);
+  var href = '/';
+  if (tplan > 0) {
+    href = '/gui/templates/execute/tcExecAssignment.html?tproject_id=' + tpid + '&tplan_id=' + tplan;
+  } else if (tpid > 0) {
+    href = '/gui/templates/execute/tcExecAssignment.html?tproject_id=' + tpid;
+  }
+  $('#btnBack').attr('href', href);
+}
+
+function apiQuery(extra) {
+  var q = new URLSearchParams(window.location.search);
+  Object.keys(extra || {}).forEach(function (k) { q.set(k, extra[k]); });
+  return q.toString();
+}
+
+function loadInfo() {
+  var tok = ++requestToken;
+  $('#errBox').hide();
+  $('#panel').show();
+  $.getJSON(API + '?' + apiQuery({ action: 'info' }), function (r) {
+    if (tok !== requestToken) return;
+    if (!r || r.status !== 'ok') {
+      toast(r && r.message ? r.message : TLi18n.t('tua.errLoad'), true);
+      showError(r && r.message ? r.message : TLi18n.t('tua.errLoad'));
+      return;
+    }
+    state = r;
+    renderInfo();
+  }).fail(function (xhr) {
+    if (tok !== requestToken) return;
+    var msg = TLi18n.t('tua.errLoad');
+    try {
+      var j = JSON.parse(xhr.responseText);
+      if (j && j.message) msg = j.message;
+    } catch (e) { /* keep default */ }
+    if (xhr.status === 403) { msg = TLi18n.t('tua.errNoRights'); }
+    else if (xhr.status === 404) { msg = TLi18n.t('tua.errNotFound'); }
+    else if (xhr.status === 401) { msg = TLi18n.t('tua.errLoad'); }
+    toast(msg, true);
+    showError(msg);
+  });
+}
+
+function renderInfo() {
+  if (!state) return;
+  var build = state.build_name || '-';
+  var count = parseInt(state.count, 10) || 0;
+  $('#tprojectName').text(state.tproject_name || '-');
+  $('#buildName').text(build);
+  $('#assignCount').text(count);
+  $('#infoLine').html('<i class="fa fa-cube"></i> ' +
+    esc(TLi18n.t('tua.buildId')) + ' &middot; ' + esc(build));
+
+  var $icon = $('#statusMsg').find('i');
+  if (count > 0) {
+    $('#statusText').text(TLi18n.t('tua.countMsg', { count: count, build: build }));
+    $icon.removeClass('fa-check-circle-o').addClass('fa-exclamation-triangle');
+    $('#statusMsg').removeClass('ok').addClass('warn');
+    $('#btnRemove').show();
+  } else {
+    $('#statusText').text(TLi18n.t('tua.noAssignments', { build: build }));
+    $icon.removeClass('fa-exclamation-triangle').addClass('fa-check-circle-o');
+    $('#statusMsg').removeClass('warn').addClass('ok');
+    $('#btnRemove').hide();
+  }
+}
+
+$('#btnRemove').on('click', function () {
+  if (!state) return;
+  $('#confirmModalBody').text(TLi18n.t('tua.confirmMsg', { build: state.build_name || '-' }));
+  $('#confirmModal').modal('show');
+});
+
+$('#btnConfirmYes').on('click', function () {
+  var $btn = $(this).prop('disabled', true);
+  $('#confirmModal').modal('hide');
+  if (!state) return;
+
+  var body = new URLSearchParams();
+  body.set('action', 'unassign');
+  body.set('build_id', state.build_id);
+  body.set('tproject_id', state.tproject_id);
+
+  fetch(API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    credentials: 'same-origin',
+    body: body.toString()
+  }).then(function (res) {
+    return res.json().catch(function () { return { status: 'error', message: 'bad response' }; })
+      .then(function (j) { return { ok: res.ok, status: res.status, j: j }; });
+  }).then(function (r) {
+    $btn.prop('disabled', false);
+    if (!r.ok || !r.j || r.j.status !== 'ok') {
+      var msg = r.j && r.j.message ? r.j.message : TLi18n.t('tua.errDo');
+      if (r.status === 403) { msg = TLi18n.t('tua.errNoRights'); }
+      toast(msg, true);
+      return;
+    }
+    toast(TLi18n.t('tua.doneMsg', { build: r.j.build_name || '-' }), false);
+    loadInfo();
+  }).catch(function () {
+    $btn.prop('disabled', false);
+    toast(TLi18n.t('tua.errDo'), true);
+  });
+});
+</script>
+</body>
+</html>
