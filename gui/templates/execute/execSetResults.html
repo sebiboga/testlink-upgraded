@@ -117,6 +117,28 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       </table>
     </div>
 
+    <div id="relationsBox" style="display:none;">
+      <div class="desc-label" data-i18n="esr.relations">Test case relations</div>
+      <table class="steps" style="border:1px solid #eee;border-radius:6px;margin-bottom:12px;">
+        <thead>
+          <tr>
+            <th data-i18n="esr.relationIdType" style="width:200px;">ID / Type</th>
+            <th data-i18n="esr.testCase">Test case</th>
+          </tr>
+        </thead>
+        <tbody id="relationsBody"></tbody>
+      </table>
+    </div>
+
+    <div id="keywordsBox" style="display:none;">
+      <div class="desc-box" id="keywordsText" style="background:#fff;"></div>
+    </div>
+
+    <div id="requirementsBox" style="display:none;">
+      <div class="desc-label" data-i18n="esr.requirements">Linked requirements</div>
+      <div class="desc-box" id="requirementsText"></div>
+    </div>
+
     <div class="form-group">
       <label data-i18n="esr.overallResult">Overall result</label>
       <div class="status-row" id="statusRow"></div>
@@ -328,6 +350,8 @@ function render(r) {
     $('#stepsBody').html(st);
   }
 
+renderTcSpecSections(r);
+
   // prior execution box (hidden when the selected build has no execution —
   // e.g. a closed build that was never executed; matches the re-fetch on
   // build switch so the box always reflects the ACTUAL selected build)
@@ -408,6 +432,104 @@ function statusOptions(code) {
             esc(ctx.statusLabels[c]) + '</option>';
   });
   return opts;
+}
+
+// ---------------------------------------------------------------------------
+// TC-spec sub-sections (legacy exec_test_spec.inc.tpl): TC relations,
+// keywords and linked requirements of the executed test case version.
+// ---------------------------------------------------------------------------
+
+function renderTcSpecSections(r) {
+  var i;
+
+  // relations table (legacy exec_tc_relations.inc.tpl)
+  var rels = r.relations || [];
+  if (rels.length > 0) {
+    var rh = '';
+    for (i = 0; i < rels.length; i++) {
+      var rel = rels[i];
+      rh += '<tr>' +
+        '<td><span class="bold">' + esc(rel.id) + ' / ' + esc(rel.type_localized) + '</span></td>' +
+        '<td>' +
+          '<span class="clickable" title="' + esc(TLi18n.t('esr.execHistory')) + '" ' +
+            'style="cursor:pointer;margin-right:6px;color:#2563eb;" ' +
+            'onclick="openRelHistory(' + rel.related_tcase_id + ');return false;">' +
+            '<i class="fa fa-clock-rotate-left"></i></span>' +
+          '<span class="clickable" title="' + esc(TLi18n.t('esr.executeRel')) + '" ' +
+            'style="cursor:pointer;margin-right:6px;color:#4ECDC4;" ' +
+            'onclick="openRelExecution(' + rel.related_tcase_id + ',' + rel.related_tcversion_id + ');return false;">' +
+            '<i class="fa fa-play-circle"></i></span>' +
+          '<span class="clickable" title="' + esc(TLi18n.t('esr.designRel')) + '" ' +
+            'style="cursor:pointer;margin-right:6px;color:#e67e22;" ' +
+            'onclick="openRelDesign(' + rel.related_tcase_id + ',' + rel.related_tcversion_id + ');return false;">' +
+            '<i class="fa fa-pen-to-square"></i></span>' +
+          '<a href="javascript:void(0)" onclick="openRelDesign(' + rel.related_tcase_id + ',' + rel.related_tcversion_id + ')">' +
+            esc(rel.related_tcase_external_id) + ': ' + esc(rel.related_tcase_name) + '</a>' +
+        '</td></tr>';
+    }
+    $('#relationsBody').html(rh);
+    $('#relationsBox').show();
+  }
+
+  // keywords line (legacy "Keywords: kw1, kw2")
+  var kws = r.keywords || [];
+  if (kws.length > 0) {
+    var kwNames = [];
+    for (i = 0; i < kws.length; i++) { kwNames.push(kws[i].name); }
+    $('#keywordsText').html(
+      '<span class="desc-label" style="display:inline;">' + esc(TLi18n.t('esr.keywords')) + ': </span>' +
+      esc(kwNames.join(', ')));
+    $('#keywordsBox').show();
+  }
+
+  // requirements table (legacy "Requirements" section)
+  var reqs = r.requirements || [];
+  if (r.requirements_enabled && reqs.length > 0) {
+    var reqh = '';
+    for (i = 0; i < reqs.length; i++) {
+      var rq = reqs[i];
+      reqh += '<a href="javascript:void(0)" onclick="openReqWindow(' + rq.id + ');return false;" ' +
+        'title="' + esc(TLi18n.t('esr.clickToOpen')) + '" style="color:#2563eb;">' +
+        esc(rq.req_spec_title ? rq.req_spec_title + ' : ' : '') +
+        esc(rq.req_doc_id) + ' : ' + esc(rq.title) +
+        ' [' + esc(TLi18n.t('esr.version')) + ' ' + esc(rq.version) + ']</a><br>';
+    }
+    $('#requirementsText').html(reqh);
+    $('#requirementsBox').show();
+  }
+}
+
+function openReqWindow(requirementId) {
+  window.open('/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' +
+    requirementId + '&tproject_id=' + ctx.tprojectId, 'Requirement',
+    'width=800,height=600,resizable=yes,scrollbars=yes,dependent=yes');
+}
+
+function openRelHistory(tcaseId) {
+  window.open('/gui/templates/execute/execHistory.html?tcase_id=' + tcaseId +
+    '&tproject_id=' + ctx.tprojectId, '_blank',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function openRelExecution(tcaseId, tcversionId) {
+  var buildId = parseInt($('#selBuild').val() || '0', 10);
+  var platformId = 0;
+  if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
+    platformId = parseInt($('#selPlatform').val() || '0', 10);
+  }
+  var url = '/gui/templates/execute/execSetResults.html?tcase_id=' + tcaseId +
+    '&version_id=' + tcversionId + '&level=testcase&id=' + tcaseId +
+    '&tplan_id=' + ctx.tplanId +
+    '&setting_build=' + buildId + '&setting_platform=' + platformId +
+    '&caller=exec_feature';
+  window.open(url, '_blank',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
+}
+
+function openRelDesign(tcaseId, tcversionId) {
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcaseId +
+    '&tcversion_id=' + tcversionId + '&tproject_id=' + ctx.tprojectId, 'TestCaseSpec',
+    'width=800,height=600,resizable=yes,scrollbars=yes');
 }
 
 function doSave() {

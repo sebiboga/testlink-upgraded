@@ -13009,6 +13009,7 @@ Result: 11/11 PASS — **#1414 FIXED** via null-guard `!is_null($dummy) && count
 
 Result: 8/8 PASS — **#1415 FIXED** via removing the stale `!is_null($buildCfields)` clause at `lib/functions/print.inc.php:1595` (single line, -2/+1, commit `e9fa9f0e9`). **New bug discovered while testing (out of scope):** anonymous/apikey direct access to `printDocument.php` emits 3 `E_WARNING Undefined array key "basehref"` events (printDocument.php:175/254, print.inc.php:700) because `$_SESSION['basehref']` is unset without a session — pre-existing (reproduced identically with the pre-fix file), filed separately with `bug` label → **#1416**.
 
+<<<<<<< HEAD
 ## Regression — Issue #1403: Set Results popup hides closed builds + no "Build is closed" read-only banner (Refs #1403)
 
 **Screen:** `gui/templates/execute/execSetResults.html` + `api/execsetresults/index.php` (already modernized, #817)
@@ -13070,3 +13071,85 @@ Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISP
 | 884.12 | Integrity | `php -l api/users/index.php` clean; `python3 -m json.tool` passes for all 10 i18n bundles; `config.inc.php` diff empty after temporary flip reverted; screenshot `docs/screenshots/issue-884-usersView-reset-password-actions.png` | **PASS** |
 
 Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mirrors legacy `createNewPassword()`/`resetPassword()` (smtp validation, send-method, external-mgmt gate, PWD_RESET audit), Users grid gains the gated key-icon action, 8 i18n keys added to all 10 bundles. No new bugs discovered while testing.
+=======
+## TC-1404: execSetResults.html — TC-spec sub-sections (Relations, Keywords, Requirements)
+
+**Feature:** Issue #1404 — port linked Requirements table, TC relations table, and Keywords line
+**Precondition:** TC-1 (id 102) in project ESR2 (100), linked to REQ-1 (110), keyword Smoke (112), related_to TC-2 (105); TC-3 (120) linked to test plan but with no relations/requirements/keywords.
+
+### TC-1404.1: API returns populated sub-section data
+
+**Steps:**
+1. `curl -b cookies.txt "http://localhost:8082/api/execsetresults/?action=init&tplan_id=107&id=102&version_id=103"`
+
+**Expected:** JSON with `requirements=[{id:110, req_doc_id:"REQ-1", title:"ESR2 Requirement", version:1, req_spec_title:"[ESR2 Spec]"}]`, `relations=[{relation_type:3, type_localized:"is related to", related_tcase_external_id:"2", related_tcase_name:"TC-2"}]`, `keywords=[{id:112, name:"Smoke"}]`
+
+### TC-1404.2: API returns empty sub-sections when no data
+
+**Steps:**
+1. `curl -b cookies.txt "http://localhost:8082/api/execsetresults/?action=init&tplan_id=107&id=120&version_id=121"`
+
+**Expected:** `requirements=[]`, `relations=[]`, `keywords=[]` — no ERROR, HTTP 200
+
+### TC-1404.3: UI renders Keywords, Relations, Requirements sections (populated state)
+
+**Steps:**
+1. Login as admin
+2. Open: `/gui/templates/execute/execSetResults.html?tplan_id=107&tcase_id=102&version_id=103`
+
+**Expected:** Below the Steps table and before Overall result:
+- **TEST CASE RELATIONS** header visible
+- One row: "1 / is related to" under ID/Type, "2: TC-2" under Test case
+- History icon (clock-rotate-left), execution icon (play-circle), design icon (pen-to-square) present for TC-2
+- **KEYWORDS:** "Smoke" displayed
+- **LINKED REQUIREMENTS** header visible
+- Link: "[ESR2 Spec] : REQ-1 : ESR2 Requirement [Version 1]" present and clickable
+- All text rendered via i18n (no raw keys)
+
+### TC-1404.4: UI hides sub-sections when empty
+
+**Steps:**
+1. Open: `/gui/templates/execute/execSetResults.html?tplan_id=107&tcase_id=120&version_id=121`
+
+**Expected:** #relationsBox, #keywordsBox, #requirementsBox all `display:none`/not visible. Page renders correctly without them.
+
+### TC-1404.5: Relation icons open correct popup windows
+
+**Steps:**
+1. From TC-1 page, click the **design icon** (pen-to-square) for TC-2 relation
+
+**Expected:** New window opens `tcView.html?tcase_id=105&tcversion_id=106&tproject_id=100`
+
+**Steps:**
+2. Click the **history icon** (clock-rotate-left)
+
+**Expected:** New window opens `execHistory.html?tcase_id=105&tproject_id=100`
+
+**Steps:**
+3. Click the **execution icon** (play-circle)
+
+**Expected:** New window opens `execSetResults.html?tcase_id=105&version_id=106&level=testcase&id=105&tplan_id=107&setting_build=108`
+
+### TC-1404.6: Requirement link opens reqView.php popup
+
+**Steps:**
+1. From TC-1 page, click the "[ESR2 Spec] : REQ-1 : ESR2 Requirement [Version 1]" link
+
+**Expected:** New window opens `lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=110&tproject_id=100`, page loads without fatal error
+
+### TC-1404.7: Event Viewer — no new errors from feature
+
+**Steps:**
+1. After steps 3-6, query `events` table for new log_level IN (1,2) entries
+
+**Expected:** No new errors/warnings attributed to the BFF API or execSetResults.html modern screen (legacy reqView.php warnings already tracked in issue #1417)
+
+**Actual result:**
+- TC-1404.1 PASS (requirements 1 item, relations 1 item, keywords 1 item)
+- TC-1404.2 PASS (all empty, HTTP 200)
+- TC-1404.3 PASS (all three sections visible, icons functional)
+- TC-1404.4 PASS (all three hidden on TC-3)
+- TC-1404.5 PASS (correct URLs for history/execution/design)
+- TC-1404.6 PASS (reqView.php loads with REQ-1 data)
+- TC-1404.7 PASS (zero new events from modern code)
+>>>>>>> 7af919af4 (feat(execute): port TC-spec sub-sections to execSetResults.html (Refs #1404))

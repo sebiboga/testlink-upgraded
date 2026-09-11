@@ -378,6 +378,156 @@ function esrStepsForWip($db, $tplanId, $platformId, $buildId, $tcversionId, $ste
     return $rows;
 }
 
+/**
+ * Active linked requirements of this test case version (legacy
+ * requirement_mgr::getActiveForTCVersion, called from execSetResults when the
+ * project has requirements enabled). Same shape as api/testcases view.
+ */
+function esrRequirements($db, $tcaseId, $tcversionId, $tprojectId, $user) {
+    $requirements = [];
+    $tprojectMgr = new testproject($db);
+    $opt = $tprojectMgr->getOptions($tprojectId);
+    $opt = is_null($opt) ? new stdClass() : $opt;
+    $canViewReq = (!empty($opt->requirementsEnabled))
+        && $user->hasRight($db, 'mgt_view_req', $tprojectId);
+    if (!$canViewReq) {
+        return array($requirements, 0);
+    }
+    try {
+        $rqTables = tlObjectWithDB::getDBTables(
+            array('requirements', 'req_versions', 'req_coverage', 'req_specs', 'nodes_hierarchy'));
+        $rqSql = " SELECT REQ.id, REQ.req_doc_id, " .
+                 "        NHREQ.name AS title, NHRS.name AS req_spec_title, " .
+                 "        REQV.version " .
+                 " FROM {$rqTables['req_coverage']} RCOV " .
+                 " JOIN {$rqTables['requirements']} REQ ON REQ.id = RCOV.req_id " .
+                 " JOIN {$rqTables['nodes_hierarchy']} NHREQ ON NHREQ.id = REQ.id " .
+                 " JOIN {$rqTables['nodes_hierarchy']} NHRS ON NHRS.id = REQ.srs_id " .
+                 " JOIN {$rqTables['req_versions']} REQV ON REQV.id = RCOV.req_version_id " .
+                 " WHERE RCOV.tcversion_id = " . intval($tcversionId) .
+                 " AND RCOV.is_active = 1 " .
+                 " ORDER BY REQ.req_doc_id ASC";
+        $rqRows = $db->get_recordset($rqSql);
+        if (!is_null($rqRows)) {
+            foreach ($rqRows as $rq) {
+                $requirements[] = [
+                    'id' => intval($rq['id']),
+                    'req_doc_id' => strval($rq['req_doc_id']),
+                    'title' => strval($rq['title']),
+                    'version' => intval($rq['version'] ?? 1),
+                    'req_spec_title' => strval($rq['req_spec_title'] ?? ''),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $requirements = [];
+    }
+    return array($requirements, 1);
+}
+
+/**
+ * Test case version relations (legacy testcase::getTCVersionRelations, arg
+ * idCard = tcase_id + tcversion_id). Returns the related test case info the
+ * legacy exec_tc_relations.inc.tpl renders: id/type, related external id+name.
+ * NOTE: relation type names are NOT stored in a DB table — the mapping lives
+ * in config testcase_cfg->relations->type_labels (relation_type int -> pair
+ * of i18n keys) exactly like legacy getRelationLabels() + in_array check.
+ */
+function esrRelations($db, $tcversionId) {
+    $relations = [];
+    try {
+        $relTables = tlObjectWithDB::getDBTables(
+            array('testcase_relations', 'nodes_hierarchy', 'tcversions'));
+        $relSql = " SELECT TR.id, TR.source_id, TR.destination_id, " .
+                  "        TR.relation_type, TR.link_status " .
+                  " FROM {$relTables['testcase_relations']} TR " .
+                  " WHERE TR.source_id = " . intval($tcversionId) .
+                  "    OR TR.destination_id = " . intval($tcversionId) .
+                  " ORDER BY TR.id ASC";
+
+        // label map: relation_type int -> ['source'=>i18n key,'destination'=>i18n key]
+        $tcCfg = config_get('testcase_cfg');
+        $labels = [];
+        if (isset($tcCfg->relations) && isset($tcCfg->relations->type_labels)) {
+            $labels = is_object($tcCfg->relations->type_labels)
+                ? (array)$tcCfg->relations->type_labels
+                : $tcCfg->relations->type_labels;
+        }
+
+        $relRows = $db->get_recordset($relSql);
+        if (!is_null($relRows)) {
+            foreach ($relRows as $rr) {
+                $relTypeId = intval($rr['relation_type']);
+                if (!isset($labels[$relTypeId])) {
+                    continue; // relation type not configured -> legacy drops it
+                }
+                $isSource = intval($rr['source_id']) === intval($tcversionId);
+                $otherTcversionId = $isSource
+                    ? intval($rr['destination_id']) : intval($rr['source_id']);
+                $labelKey = $isSource
+                    ? $labels[$relTypeId]['source'] : $labels[$relTypeId]['destination'];
+                $typeLocalized = lang_get($labelKey);
+
+                // related test case version -> its owning test case id
+                $oth = $db->fetchFirstRow(
+                    "SELECT parent_id FROM {$relTables['nodes_hierarchy']} WHERE id = {$otherTcversionId}");
+                if (is_null($oth) || !isset($oth['parent_id'])) {
+                    continue;
+                }
+                $otherTcaseId = intval($oth['parent_id']);
+                // external id of the related test case
+                $extId = '';
+                $vr = $db->fetchFirstRow(
+                    "SELECT tc_external_id FROM {$relTables['tcversions']} WHERE id = {$otherTcversionId}");
+                if (!is_null($vr) && isset($vr['tc_external_id'])) {
+                    $extId = strval($vr['tc_external_id']);
+                }
+                $nm = $db->fetchFirstRow(
+                    "SELECT name FROM {$relTables['nodes_hierarchy']} WHERE id = {$otherTcaseId}");
+                $name = (!is_null($nm) && isset($nm['name'])) ? strval($nm['name']) : '';
+                $relations[] = [
+                    'id' => intval($rr['id']),
+                    'relation_type' => $relTypeId,
+                    'type_localized' => $typeLocalized,
+                    'link_status' => intval($rr['link_status'] ?? 1),
+                    'is_source' => $isSource ? 1 : 0,
+                    'related_tcase_id' => $otherTcaseId,
+                    'related_tcversion_id' => $otherTcversionId,
+                    'related_tcase_external_id' => $extId,
+                    'related_tcase_name' => $name,
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $relations = [];
+    }
+    return $relations;
+}
+
+/**
+ * Keywords assigned to this test case version (legacy testcase::
+ * getKeywordsByIdCard with output=kwfull). Array of {id, name}.
+ */
+function esrKeywords($tcaseMgr, $tcaseId, $tcversionId) {
+    $keywords = [];
+    try {
+        $kwMap = $tcaseMgr->getKeywordsByIdCard(
+            array('tcase_id' => $tcaseId, 'tcversion_id' => $tcversionId),
+            array('output' => 'kwfull'));
+        if (!is_null($kwMap)) {
+            foreach ($kwMap as $kwo) {
+                $keywords[] = [
+                    'id' => intval($kwo['keyword_id'] ?? 0),
+                    'name' => strval($kwo['keyword'] ?? ''),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $keywords = [];
+    }
+    return $keywords;
+}
+
 $action = $_GET['action'] ?? '';
 $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : $action;
 
@@ -447,6 +597,11 @@ if ($action === 'init') {
     $tcaseName = isset($basic['name']) ? strval($basic['name']) : '';
     $tcaseExternalId = strval($vinfo['tc_external_id']);
 
+    list($requirements, $requirementsEnabled) =
+        esrRequirements($db, $tcaseId, $tcversionId, $tprojectId, $user);
+    $relations = esrRelations($db, $tcversionId);
+    $keywords = esrKeywords($tcaseMgr, $tcaseId, $tcversionId);
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($tprojInfo['name']), 'prefix' => $prefix],
@@ -476,6 +631,10 @@ if ($action === 'init') {
             'ro_access' => $roAccess ? 1 : 0,
         ],
         'exec_duration_enabled' => $execDurationEnabled,
+        'requirements_enabled' => $requirementsEnabled,
+        'requirements' => $requirements,
+        'relations' => $relations,
+        'keywords' => $keywords,
         'prior' => $prior,
         'prior_steps' => $priorSteps,
     ]);
