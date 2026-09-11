@@ -131,3 +131,12 @@ modern UI (Dashio Bootstrap admin template) with a PHP REST BFF layer.
     `investigation`, `documentation`). Screens/features/enhancements belong to
     `modernize.yml`. When creating issues, ALWAYS label them correctly so the
     triage works; bug reports ALWAYS get `bug`.
+
+22. **CHANGELOG is mandatory in every run.** The `CHANGELOG` file documents what
+    has been implemented in 2.0.1; it must be updated in EVERY run that lands
+    feature work on the default branch (modernized screen, bugfix, new feature,
+    new BFF endpoint). Add one line under the matching 2.0.1 CHANGELOG section
+    (screens / key bugfix / new features) with the issue reference. Per-issue
+    details still live in `docs/` and the GitHub Wiki — the CHANGELOG is the
+    one-line summary. Code review (rule 16) checks that the CHANGELOG was
+    updated for the screen/issue being committed.

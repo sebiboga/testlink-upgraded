@@ -6,6 +6,244 @@ http://www.testlink.org
 http://forum.testlink.org
 https://twitter.com/TLOpenSource
 
+TestLink - 2.0.1 (2026 Q3) (Released 2026-09)
+===================================================
+
+TestLink Upgraded 2.0.1 is a modernization release of the TestLink 1.9.20
+codebase: the legacy Smarty UI was rewritten into a modern Dashio Bootstrap
+single-page HTML/JS/CSS front-end backed by a plain-PHP REST BFF API layer.
+Every screen of the application was ported one-by-one in a screen-compare
+(legacy 1.9.20 <-> modern) feature-parity process. The legacy code base was
+kept for backward compatibility and is progressively retired as each modern
+screen reaches full parity.
+
+MAJOR AREAS
+-----------
+
+- [UI MODERNIZATION] - New Dashio UI - Bootstrap-based admin template (teal/dark/red
+  palette) replacing the legacy Smarty layout. All screens rewritten as standalone
+  HTML + JS + CSS pages under gui/templates/<area>/<screen>.html using DataTables,
+  Bootstrap modals and Chart.js. No Smarty for modernized screens.
+- [BFF API LAYER] - 60 plain-PHP REST BFF endpoints (api/<area>/index.php) with
+  session-based authentication, CSRF same-origin guard and JSON I/O. No framework.
+- [PHP 8.x COMPATIBILITY] - All PHP 8.x warnings resolved (43+ unique warning
+  classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
+  compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
+  tested. MySQL 5.7+ / MariaDB 11.4+.
+- [MODERNIZED SCREENS] - 112 standalone HTML screens (87+ feature-parity checked,
+  see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
+  Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
+- [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale
+  JSON bundles (en/ro/de/es/fr/it/ja/pt/ru/zh). No hardcoded labels in modern screens.
+- [SECURITY HARDENING] - stored/filtered XSS sanitization (reqView/tcView/usersView,
+  #804/#1406/#1430), SQL injection guards, CSRF bffSameOriginGuard (#591), API key
+  isolation for anonymous public links (#1201/#1223/#1244/#1246/#1258/#1261/#1267),
+  role-gated BFF endpoints (mgt_view_events#867, mgt_users#879, mgt_modify_tc, ...),
+  hardening of guest/anonymous privilege paths (#985), OAuth2 secrets sanitization
+  (#703).
+- [CI FACTORY] - 5 autonomous GitHub Actions workflows: fix-bug.yml (every 2h),
+  implement-task-oldest.yml + implement-task-newest.yml (every 2h), merge-prs.yml
+  (hourly), modernize.yml (manual, one screen per run).
+- [TESTING] - 213 + numbered regression test-case suites in tmp/TLU_Test_Cases.md
+  (13.3k lines, 3649 PASS results), executed and recorded per run. Event Viewer
+  clean after each run.
+- [WIKI / DOCS] - Full GitHub Wiki (360 pages) + docs/ mirror, per-screen
+  modernization docs, 168 bugfix write-ups, MODERNIZATION-STATUS.md and
+  SCREEN-COMPARE-STATUS.md trackers.
+
+MODERNIZED SCREENS (per ASIDE section)
+--------------------------------------
+
+System:
+- Event Viewer (eventviewer/eventviewer.html) - BFF api/eventviewer.
+  Filters (level/date/user/object), drill-down, Clear-Events gated, charts,
+  chronological epoch sort, localized empty state (#867-#874).
+- My Settings / User Profile (usermanagement/userInfo.html) - BFF api/userinfo.
+  Edit personal data, change password, API key generate+copy, login history,
+  external-password-mgmt / API-enabled / demoMode gating (#875-#878).
+- User Management (usermanagement/usersView.html) - BFF api/users.
+  Create/edit modal, enable/disable/delete (soft-delete), grant-gated tabs
+  (mgt_users #879), login lookup, Auth method+Expiration Date, Reset Password,
+  Generate API Key, Locale/Expiration columns, XML export (#879-#891).
+- Role Management (usermanagement/rolesView.html) - BFF api/roles.
+- Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
+  usersAssignPlan.html).
+- Custom Fields (cfields/cfieldsView.html) - BFF api/cfields. Custom Fields
+  XML export/import screen (cfieldsExchange, #1411).
+- Custom Fields Assign (cfields/cfieldsAssignView.html).
+- Issue Tracker Management (issuetracker/issuetrackerView.html) - BFF
+  api/issuetracker. GitHub OAuth tracker (#771/#813).
+- Code Tracker Management (codetracker/codetrackerView.html) - BFF api/codetracker.
+- Plugin Management (plugins/pluginView.html) - BFF api/plugins.
+- Install / Upgrade check (install/installView.html) - BFF api/install.
+  Schema state, security notes, GD check (#797, #1282-#1287).
+- Documentation hub (documentation/documentation.html) - BFF api/documentation.
+  8 PDF docs + View/Download modal (#764/#1281).
+
+Product:
+- Test Project Management (projectsView.html) - BFF api/projects.
+  Create/edit/delete, copy-as (#989), show-event-history link (#991).
+- Test Project Information (projectInfoView.html) - BFF api/projectinfo.
+  Attachment mgmt, Test Suite Operations (new suite/reorder #994), Import (#995),
+  Test Spec print (#996/#1329).
+- Test Project Create/Edit (projectEdit).
+- Keywords Management (keywords/keywordsView.html) - BFF api/keywords.
+- Platforms Management (platforms/platformsView.html) - BFF api/platforms.
+- Platforms Assign (platforms/platformsAssign.html).
+- Severity Configuration (projects/severityConfig.html) - BFF api/severityconfig
+  (#1294, ISTQB severity scale).
+- Quality Objectives & Risk Traceability Matrix (requirements/qualityObjectives.html,
+  #1280/#1307).
+
+Dashboard:
+- Metrics Dashboard (results/metricsDashboard.html) - BFF api/metrics.
+  Chart.js pie/bar charts, per-plan metrics (#522/#892).
+- Inventory Management (inventory/inventoryView.html) - BFF api/inventory.
+
+Requirements:
+- Requirement Spec Management (reqSpecMgmt.html) - BFF api/reqspec.
+- Requirement Overview (reqOverview.html) - BFF api/reqspec.
+- Print Requirements (printReqSpec.html).
+- Search Requirements / Search Req Specs (searchReq.html, searchReqSpec.html).
+- Assign Requirements (assignReqs.html) - BFF api/requirements.
+- Req Monitor Overview (reqMonitorOverview.html) - BFF api/requirements.
+- Requirement Import (reqImport.html) - BFF api/reqimport (#1292).
+- Requirement Export (reqExport.html) - BFF api/reqexport (#1295).
+- Requirement Viewer (reqView.html) - BFF api/requirements (#1297-#1306).
+- Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384).
+- Requirement Version Compare (reqCompare.html) - BFF api/reqcompare (#1017,
+  #1308-#1311).
+- Requirement Document Print (printDocument.html).
+- Req Spec Viewer / Revision Viewer / Compare (reqSpecView.html,
+  reqSpecViewRevision.html, reqSpecCompare.html, #1360/#1362).
+
+Test Spec:
+- Test Specification tree/editor (testSpec.html) - BFF api/testcases.
+- TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
+- TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
+- Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),
+  Quick Search (searchQuickView.html) - BFF api/search.
+- TC Assign to Test Plan (tcAssign2Tplan.html) - BFF api/tcassign2tplan
+  (#1319-#1322).
+- TC Export (tcExport.html) - BFF api/testcasesexport (#853 MD export,
+  #1323-#1326).
+- TC Compare Versions (tcCompare.html) - BFF api/testcasescompare (#1327/#1328).
+- TC Print (tcPrint.html) - BFF api/testcasesprint (#1335/#1336).
+- Test Suite viewer popup (suiteView.html) - BFF api/suiteview (#1371).
+- Assign Keywords (keywordsAssign.html) - BFF api/keywords.
+- Test Case Bulk Update (tcBulkOp).
+- MD Test Case Import/Export (Feature #853, #1404).
+
+Plans:
+- Test Plan Management (planView.html) - BFF api/plans (#576).
+- Builds & Releases (buildsView.html) - BFF api/builds (#585, #826-#829,
+  #948/#949).
+- Add/Remove Test Cases (planAddTCView.html) - BFF api/plans.
+- Set Test Urgency (testUrgency.html) - BFF api/plans.
+- Show Newest TC Versions (showNewestTcVersions.html) - BFF api/plans.
+- Test Plan Milestones (planMilestones.html) - BFF api/milestones.
+- Update Linked TC Versions (planUpdateTC.html) - BFF api/plans.
+- Plan Export (planExport.html) - BFF api/planexport (#1385/#1386).
+- Plan Import (planImport.html) - BFF api/planimport (#1388-#1390, #1414).
+
+Execution:
+- Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
+  api/execsetresults (#662, #789-#796, #817, #1392-#1405).
+- Execution History (execHistory.html) - BFF api/execute.
+- TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
+- TC Assignments (tcAssignments.html) - BFF api/tcassignments.
+- Edit Execution popup (editExecution.html).
+- Export Test Case Set (execExport.html) - BFF api/executeexport.
+- Test Results Import (resultsImport.html) - BFF api/resultsimport (#1005).
+
+Reports (BFF api/reports + api/reportsprint + api/reportsexport):
+- Results by Test Suite (resultsByTSuite.html)
+- Baselines L1 & L2 (baselineL1L2.html)
+- Results by Tester per Build (resultsByTesterPerBuild.html)
+- Test Cases Never Run (neverRun.html)
+- Results by Status (resultsByStatus.html)
+- Test Cases with Custom Fields (tcasesWithCF.html)
+- Results Matrix (resultsMatrix.html)
+- Test Plan Report (testPlanReport.html)
+- Results TC Flat (resultsTCFlat.html) - send-by-mail + apikey/anon access
+  (#1219/#1220/#1223)
+- Results by Issues (resultsBugs.html)
+- Results Requirements (resultsRequirements.html)
+- Cases Without Tester (casesWithoutTester.html)
+- Test Plan with CF (tplanWithCF.html) - multi-column drag sort (#864/#865/#866)
+- Absolute Latest (absoluteLatest.html)
+- General Metrics (generalMetrics.html)
+- Assigned TC Overview (assignedTcOverview.html)
+- Charts (charts.html) - Chart.js, apikey/anon (#1258)
+- Free Test Cases (freeTestCases.html)
+- Execution Timeline Statistics (execTimelineStats.html) (#1273)
+- Test Plan Report Print (reportPrint.html) - apikey/anon doc generation (#1408)
+- Report XLS/Mail Export Gateway (api/reportsexport) (#602, #1219/#1220)
+- Execution/Report XLS export with apikey/anon support (#1246/#1261/#1267)
+
+Auth & Documentation:
+- Login/Logout (auth/login.html) - BFF api/auth. OAuth buttons,
+  self-sign-up + lost-password links, schema-block check (#775/#1047-#1051).
+- First Login / Self Sign-Up (firstLogin.html), Lost Password (lostPassword.html)
+  (#1337-#1339).
+
+Test Strategy:
+- General Overview + chapter pages (strategy/testStrategy.html, scope.html,
+  exitCriteria.html) - BFF api/strategy (18 chapters, #1423/#1425/#1431).
+
+NEW FEATURES
+------------
+- Markdown Test Case Import and Export (Feature #853) - full MD parser/emitter
+  (lib/functions/markdown_tc_import.class.php, markdown_tc_export.class.php,
+  api/testcasesimport, api/testcasesexport).
+- Quality Objectives & Risk Traceability Matrix (ISTQB) (#1280/#1307).
+- Test Strategy: ASIDE section with General Overview, Scope, Exit Criteria
+  chapter pages (#1423/#1425/#1431).
+- Native GitHub Code Tracker via GitHub REST API (#433/#771/#813).
+- API key / public-link anonymous access for reports and print documents
+  (resultsTCFlat #1223, resultsGeneral #1246, charts #1258, execTimelineStats
+  #1273, reportPrint #1408).
+- Reset Password and Generate API Key user actions in User Management (#884/#885).
+- Create-test-project-from-existing (copy_as) (#989).
+- Send-report-by-email toolbar action (Results TC Flat #1219/#1223).
+- Multi-column drag-to-toolbar sorting in Test Plan with Custom Fields report
+  (#864/#865/#866).
+- Quality-Oriented per-screen test suites + browser verification, Event Viewer
+  cleanliness checks after every run.
+- Windows/Docker development setup guide; PHP built-in server launcher
+  (scripts/devserver.sh).
+
+KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
+----------------------------------------------
+- PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
+  translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
+  null-array-offset protections across requirements/execution/reports
+  (#497/#516/#522/#581/#582/#587/#604/#614/#628/#629/#633/#645/#663/#664/#665/
+  #669/#741/#765/#802/#828/#1181/#1257/#1331-#1334/#1410/#1415/#1417).
+- Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
+  shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
+- Security: stored XSS in tcView (#804), usersView (#1406/#1430), login/firstLogin
+  SQLi (#702), addslashes-raw-output weak filter (#706), guest login 500 (#985),
+  BFF CSRF + session-cookie hardening (#591), API key authentication fix (#595),
+  apikey isolation on reports (#1261/#1267).
+- Legacy behavior restorations: Closed builds in execSetResults (#1403),
+  save-and-next (#793), partial-step save + per-step attachments (#795),
+  apikey/public-link chart access (#1258), execSetResults TC-spec sections
+  (#1404), reqEdit full screen (#798, #1374-#1384).
+
+PROCESS / KEEPING THIS CHANGELOG UPDATED
+----------------------------------------
+This CHANGELOG must be updated by every run that lands feature work on the
+default branch:
+- Modernized screen -> add one line under the matching section above (or the
+  screen list) with its BFF and issue reference.
+- Bugfix / security fix -> add one line under KEY BUGFIX with the issue number.
+- New feature -> add one line under NEW FEATURES.
+- New BFF endpoint -> keep count (api/*/index.php) in the BFF API LAYER line.
+The rule is mirrored in ai/AGENTS.md (rule of the same name) and is enforced
+during code review before each commit. A full per-issue history stays available
+in docs/ and the GitHub Wiki.
+
 TestLink - 1.9.20 Raijing (2020 Q1) (Released 2020 Week 03) 
 ===================================================
 
