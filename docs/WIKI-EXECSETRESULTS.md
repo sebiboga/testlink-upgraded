@@ -83,6 +83,33 @@ contract and `openExecutionWindow()`):
 3. The front-end `POST ?action=save` (JSON). The BFF writes the execution and
    returns `{status:ok, saved:true, execution_id}`; the toast confirms.
 
+## TC design-info sub-sections (Refs #1404)
+
+The legacy popup showed three design-info blocks under the steps table: the
+linked **Requirements** list, the test case **relations** table and the
+**Keywords** line. All three are reimplemented in the modern screen, fed by the
+same `GET ?action=init` call (`requirements`, `relations`, `keywords`,
+`requirements_enabled`).
+
+- **Keywords:** one line `Keywords: kw1, kw2, …` rendered only when the version
+  has keywords (legacy `exec_test_spec.inc.tpl`).
+- **Linked Requirements:** a list of links `/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=..&tproject_id=..`, titled
+  `[spec] : REQ-1 : Title [Version n]`; rendered only when the project enables
+  requirements (`requirementsEnabled`) AND the user has `mgt_view_req`. Empty
+  result collapses the section (matches legacy DF-empty behavior).
+- **Test case relations:** table with ID/Type + Test case columns. Each row
+  carries the relation id, the localized type label and, for every linked case
+  version, three popup icons: **execution history**
+  (`execHistory.html?tcase_id=..&tproject_id=..`), **execute**
+  (`execSetResults.html?tcase_id=..&version_id=..&level=testcase&id=..&tplan_id=..&setting_build=..&setting_platform=..`) and **design**
+  (`tcView.html?tcase_id=..&tcversion_id=..&tproject_id=..`). Relation type
+  labels come from `$tlCfg->testcase_cfg->relations->type_labels`; both
+  directions (source/destination) are shown per legacy `exec_tc_relations.inc.tpl`.
+
+All new labels are i18n keys (`esr.keywords`, `esr.relations`, `esr.relationIdType`,
+`esr.testCase`, `esr.requirements`, `esr.clickToOpen`, `esr.execHistory`,
+`esr.executeRel`, `esr.designRel`) present in all 10 locale bundles.
+
 ## Read-only access
 
 A user with only `exec_ro_access` sees the full context (steps, prior
