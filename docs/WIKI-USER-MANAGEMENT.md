@@ -62,8 +62,9 @@ Screenshot: `docs/screenshots/issue-881-manage-user-lookup.png`.
 | Name | The user's display name (first + last) |
 | E-mail | The user's email address |
 | Global Role | The system-wide role assigned to this user |
-| Locale | The UI language preference |
+| Locale | The UI language preference (e.g. `en_GB`, `fr_FR`) — legacy parity `usersView.php:173` (`th_locale`) |
 | Active | **Active** (green badge) or **Inactive** (red badge) |
+| Expiration Date | Localized expiration date of the account (`localize_dateOrTimeStamp(null,null,'date_format',…)` server-side, e.g. `31/12/2026`); empty cell when no expiry set — legacy parity `usersView.php:262-267`. Legacy gap #883 |
 | Actions | Edit, Enable/Disable, Delete icons |
 
 ### Actions

@@ -12837,3 +12837,24 @@ Result: 11/11 PASS — gap #881 closed: BFF `api/users/index.php` gains `GET /?l
 | 1388.6 | Regression — legacy screen + hygiene | Legacy `lib/plan/planImport.php?tplan_id=4` still shows `(View file formats documentation)` link; `events` table has only AUDIT (16) rows, no new ERROR/WARNING (1/2) | **PASS** |
 
 Result: 6/6 PASS — gap #1388 closed: `gui/templates/plans/planImport.html:72-75` File type row renders the legacy file-formats doc anchor (`/docs/tl-file-formats.pdf`, `_blank`, `.hint` styling, same pattern as `reqImport.html:90`); new `pli.fileFormatsDoc` key in all 10 locale bundles. Screenshot: `docs/screenshots/issue-1388-planimport-doc-link.png` + wiki `planImport-doc-link.png`.
+
+## Task — Issue #883: Locale + Expiration Date columns in User Management grid (gap vs legacy)
+
+**Screens:** `gui/templates/usermanagement/usersView.html` · `api/users/index.php` · i18n bundles ×10 (key `user.expirationDate`)
+**Legacy ref:** `lib/usermanagement/usersView.php:168-180` (columns `th_locale`, `expiration_date`) + `:239-268` (`getAllUsersForGrid` selects `U.locale, U.expiration_date`, localizes via `localize_dateOrTimeStamp`)
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in. Fixture: `tester1` (id 2, login `tester1`, locale `fr_FR`, `expiration_date='2026-12-31'`, role id 1) created + expiry set via mysql; existing `admin` (locale `en_GB`, no expiry). Screen URL: `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 883.1 | `GET /api/users/index.php` (admin) | 200; both items carry `locale` (`en_GB`/`fr_FR`), `expirationDate` (`""`/`2026-12-31`) AND new `expirationDateFormatted` (`""`/`31/12/2026`) | **PASS** |
+| 883.2 | Load modern usersView (admin) | Header row: Login, First Name, Last Name, Email, Role, **Locale**, Status, **Expiration Date**, Actions (legacy column order) | **PASS** |
+| 883.3 | `tester1` row | Locale cell shows `fr_FR`; Expiration Date cell shows `31/12/2026` (server-localized per `date_format` `%d/%m/%Y`) | **PASS** |
+| 883.4 | `admin` row | Locale cell shows `en_GB`; Expiration Date cell is empty (no expiry set, legacy empty-cell behavior) | **PASS** |
+| 883.5 | Sortability | Expiration Date column sorts (desc puts `31/12/2026` first); Login asc restores; Actions column stays non-orderable | **PASS** |
+| 883.6 | DataTables search | Search `tester` filters to 1 row; Locale/Expiration values still render | **PASS** |
+| 883.7 | Locale switch to Română | New column header translates via `user.expirationDate` (key present in all 10 bundles) | **PASS** |
+| 883.8 | Regression — Create User modal | Opens; role+locale dropdowns populated; Cancel closes cleanly | **PASS** |
+| 883.9 | Regression — Edit/Delete/Disable icons | 3 action icons render per editable row; no JS errors (`list_console_messages` clean beyond pre-existing a11y notices) | **PASS** |
+| 883.10 | Hygiene | `php -l api/users/index.php` clean; `python3 -m json.tool` passes all 10 i18n bundles; `events` has only the login AUDIT (16) row, no new ERROR/WARNING | **PASS** |
+
+Result: 10/10 PASS — gap #883 closed: BFF list route returns `expirationDateFormatted` (legacy `localize_dateOrTimeStamp` parity), `gui/templates/usermanagement/usersView.html` adds Locale (after Role) + Expiration Date (after Status) DataTable columns, 1 new i18n key `user.expirationDate` in all 10 locales. Screenshot: `docs/screenshots/issue-883-usersview-locale-expiration-columns.png`.

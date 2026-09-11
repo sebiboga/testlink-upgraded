@@ -120,6 +120,16 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
     $items = [];
     if ($rows) {
         foreach ($rows as $row) {
+            // Legacy parity: lib/usermanagement/usersView.php:262-267 localizes
+            // the expiration date via localize_dateOrTimeStamp(null, null,
+            // 'date_format', $ed) so the grid shows e.g. "31/12/2026". The BFF
+            // returns both the raw DB value (for the edit modal / save round-trip)
+            // and the localized display string for the grid column.
+            $expirationDateFormatted = '';
+            $ed = trim($row['expiration_date'] ?? '');
+            if ($ed !== '') {
+                $expirationDateFormatted = localize_dateOrTimeStamp(null, null, 'date_format', $ed);
+            }
             $items[] = [
                 'id' => intval($row['id']),
                 'login' => $row['login'],
@@ -132,6 +142,7 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
                 'globalRoleName' => $row['roleName'] ?? '',
                 'authentication' => $row['auth_method'] ?? '',
                 'expirationDate' => $row['expiration_date'] ?? '',
+                'expirationDateFormatted' => $expirationDateFormatted,
                 'creation_ts' => $row['creation_ts'] ?? '',
             ];
         }

@@ -3048,6 +3048,7 @@
   "user.inactive": "Inactiv",
   "user.lastName": "Nume",
   "user.locale": "Limba",
+  "user.expirationDate": "Data expirării",
   "user.login": "Utilizator",
   "user.loginDoesNotExist": "Loginul {login} nu exista",
   "user.manageUser": "Gestioneaza Utilizator",

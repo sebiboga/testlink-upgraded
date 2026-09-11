@@ -3048,6 +3048,7 @@
   "user.inactive": "Inactif",
   "user.lastName": "Nom",
   "user.locale": "Langue",
+  "user.expirationDate": "Date d'expiration",
   "user.login": "Connexion",
   "user.loginDoesNotExist": "Le nom d'utilisateur {login} n’existe pas",
   "user.manageUser": "Gérer les utilisateurs",

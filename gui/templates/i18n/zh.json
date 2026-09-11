@@ -3048,6 +3048,7 @@
   "user.inactive": "未激活",
   "user.lastName": "姓",
   "user.locale": "语言",
+  "user.expirationDate": "过期日期",
   "user.login": "登录名",
   "user.loginDoesNotExist": "登陆账号 {login} 不存在。",
   "user.manageUser": "用户管理",

@@ -73,7 +73,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="user.lastName">Last Name</th>
         <th data-i18n="user.email">Email</th>
         <th data-i18n="user.role">Role</th>
+        <th data-i18n="user.locale">Locale</th>
         <th data-i18n="user.status">Status</th>
+        <th data-i18n="user.expirationDate">Expiration Date</th>
         <th style="width:100px" data-i18n="common.actions">Actions</th>
       </tr>
     </thead>
@@ -259,7 +261,9 @@ function renderTable(items) {
       u.lastName || '',
       u.email || '',
       u.globalRoleName || '',
+      u.locale || '',
       u.active === 1 ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>',
+      u.expirationDateFormatted || u.expirationDate || '',
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
       (u.active
         ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
@@ -274,7 +278,7 @@ function renderTable(items) {
     order: [[0, 'asc']],
     pageLength: 25,
     columns: [
-      null, null, null, null, null, null,
+      null, null, null, null, null, null, null, null,
       { orderable: false, searchable: false }
     ]
   });

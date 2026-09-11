@@ -3048,6 +3048,7 @@
   "user.inactive": "無効",
   "user.lastName": "姓",
   "user.locale": "言語",
+  "user.expirationDate": "期限日",
   "user.login": "ログイン",
   "user.loginDoesNotExist": "ログイン {login} は存在しません",
   "user.manageUser": "ユーザーの管理",
