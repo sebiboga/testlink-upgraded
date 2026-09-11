@@ -107,7 +107,7 @@ $db->exec_query(
     "INSERT INTO executions (testplan_id, platform_id, build_id, tester_id," .
     " execution_type, tcversion_id, tcversion_number, status, notes, execution_ts)" .
     " VALUES ($idTP, $plat1, $bOpen, 1, 1, $tv1410, 1, 'p', 'exec on plat1 only', NOW())");
-$eid = intval($db->get_recordset("SELECT MAX(id) AS id FROM executions")[0]['id']);
+$eid = intval($db->get_recordset("SELECT MAX(id) AS id FROM executions WHERE testplan_id = $idTP AND build_id = $bOpen")[0]['id']);
 $stepRows = $db->get_recordset(" SELECT TC.id FROM tcsteps TC JOIN nodes_hierarchy NH ON NH.id = TC.id WHERE NH.parent_id = " . intval($tv1410));
 foreach ($stepRows as $sr) {
     $db->exec_query("INSERT INTO execution_tcsteps (execution_id, tcstep_id, notes, status) VALUES ($eid, {$sr['id']}, 'step note p1', 'p')");
