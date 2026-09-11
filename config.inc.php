@@ -1954,7 +1954,10 @@ $tlCfg->testCaseStatusDisplayHintOnTestDesign = array();
 /** Maximum uploadfile size to importing stuff in TL */
 // Also check your PHP settings (default is usually 2MBs)
 // unit BYTES is required by MAX_FILE_SIZE HTML option
-$tlCfg->import_file_max_size_bytes = '800000';
+// 10 MB default: matches the fallback used by the importers when the config
+// is unset, and leaves headroom for large MD/XML test case files which
+// regularly exceed the old 800 KB cap (see #1418).
+$tlCfg->import_file_max_size_bytes = '10485760';
 
 /** Maximum line size of the imported file */
 $tlCfg->import_max_row = '10000'; // in chars
