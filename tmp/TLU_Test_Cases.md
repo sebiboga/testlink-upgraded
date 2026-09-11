@@ -12858,3 +12858,25 @@ Result: 6/6 PASS — gap #1388 closed: `gui/templates/plans/planImport.html:72-7
 | 883.10 | Hygiene | `php -l api/users/index.php` clean; `python3 -m json.tool` passes all 10 i18n bundles; `events` has only the login AUDIT (16) row, no new ERROR/WARNING | **PASS** |
 
 Result: 10/10 PASS — gap #883 closed: BFF list route returns `expirationDateFormatted` (legacy `localize_dateOrTimeStamp` parity), `gui/templates/usermanagement/usersView.html` adds Locale (after Role) + Expiration Date (after Status) DataTable columns, 1 new i18n key `user.expirationDate` in all 10 locales. Screenshot: `docs/screenshots/issue-883-usersview-locale-expiration-columns.png`.
+
+## Regression — Issue #1389: planImport (modern) import never parses XML — "Failed to load XML" (simplexml_load_file after libxml_disable_entity_loader under PHP 8.3)
+
+**Screens:** `api/planimport/index.php` (action=import) · `gui/templates/plans/planImport.html`
+**Root cause:** `@libxml_disable_entity_loader(true)` + `simplexml_load_file()` returns false under PHP 8.3/libxml 2.9.x → `result_map [[simplexml_load_file_wrapper_error, not_imported]]` on every upload. Fix: mirror legacy `simplexml_load_file_wrapper()` (`lib/functions/xml.inc.php:28-44`) — `file_get_contents` + `simplexml_load_string`, keep XXE guard, `libxml_clear_errors()`. Files: `api/planimport/index.php:113-118` (fix commit `2d9b25a44`).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. Fixture `tmp/fixtures_pimp.php` (force-added, tracked): tproject 13 **PIMP** (prefix PIMP), TCs PIMP-1..3 (tc_external_id 1/2/3, tcversions 16/19/22), plan 24 `PIMP-Plan`, platform 2 `PIMP-Android` (`enable_on_design=1`). Sample XML: `tmp/pimp_xml/{mixed,single,update,badplat,invalid}.xml`. Recreate on a fresh DB: `php tmp/fixtures_pimp.php` then use printed ids (project/plan) from `tmp/pimp_tpid.txt`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1389.1 | Pre-fix repro: `POST /api/planimport/?action=import&tproject_id=13&tplan_id=24` + `mixed.xml` | HTTP 200 `result_map [["...Failed to load XML<br>","Not imported"]]`, `testplan_tcversions` count 0 | **PASS (pre-fix)** — bug confirmed exactly |
+| 1389.2 | Post-fix R1: import `mixed.xml` on plan 24 | `Platform PIMP-Android has been linked` OK + 2x `linked to Test Plan for Platform PIMP-Android` OK + link #3 `no platform element` Not imported; DB rows tcversion 16/19 platform 2 order 10/20 | **PASS** |
+| 1389.3 | Post-fix R2: re-import `mixed.xml` | 2x `already linked ... only execution order has been updated` OK + link #3 skip; links stay 2 (no dup) | **PASS** |
+| 1389.4 | Post-fix R3: import `update.xml` (exec_order 5) | `execution order has been updated` OK; DB `node_order` Login 10→5 | **PASS** |
+| 1389.5 | Post-fix R4: import `badplat.xml` (unknown platform) | `platform NoSuchPlatform ... does not exist on target Test Project` Not imported + link skip; DB count unchanged | **PASS** |
+| 1389.6 | Post-fix R5: import `invalid.xml` (malformed) | HTTP 200 graceful `Failed to load XML / Not imported` (no 500) | **PASS** |
+| 1389.7 | XXE payload via BFF (`<!ENTITY xxe SYSTEM "file:///etc/hostname">` in platform name) | No file content leak — entity not expanded (empty platform name, message `Input file request platform  be linked...`); `enable_on_design`-filtered | **PASS** |
+| 1389.8 | Bare plan (no platforms) + `single.xml` (no plat element) | create OK, `platform_id=0`, order 5 | **PASS** |
+| 1389.9 | Bare plan + `plat_noneeds.xml` (link has platform, plan has none) | `Test case link #1 has platform but Test Plan has no linked platforms` Not imported | **PASS** |
+| 1389.10 | Browser: load `planImport.html?tproject_id=13&tplan_id=24`, upload+submit XML | Report table renders OK rows — `Import completed successfully.`; screenshots `docs/screenshots/issue-1389-modern-import-{report,ok}.png`; no JS console errors | **PASS** |
+| 1389.11 | Hygiene | `php -l api/planimport/index.php` clean; `events` table: only AUDIT(16) rows from import, no new ERROR/WARNING entries (stray ERROR id 2 from fixture-script bug removed); `php_server.log` no 500s post-fix (only R1-wrong-root fixture 500s at line 151 → NEW bug #1407 filed) | **PASS** |
+
+Result: 11/11 PASS — #1389 FIXED. **New bug discovered while testing:** well-formed XML with a non-`<testplan>` root → unhandled `TypeError count(): null` 500 at `api/planimport/index.php:151` (legacy lines 285-286 identical) → filed as **#1407** (label `bug`), left for fix-bug factory.
