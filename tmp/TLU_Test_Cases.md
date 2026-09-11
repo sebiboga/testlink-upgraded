@@ -13320,7 +13320,7 @@ Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlle
 
 **Expected:** entries for UI modernization (Dashio), BFF API layer, PHP 8.x compatibility, modernized screens, i18n, security hardening, CI factory, testing, wiki/docs.
 
-**Actual:** PASS — all 9 entries present (screens count 112, BFF 60 endpoints, 10 locale bundles, 213 suites / 3649 PASS, 360-page wiki).
+**Actual:** PASS — all 9 entries present (screens count 112, BFF 60 endpoints, 10 locale bundles, 181 suites / 3658 PASS, 361-page wiki).
 
 ### TC-1424.3: MODERNIZED SCREENS grouped per ASIDE section with BFF references
 
@@ -13337,7 +13337,7 @@ Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlle
 **Steps:**
 1. Read `NEW FEATURES` and `KEY BUGFIX / COMPATIBILITY EFFORTS` blocks
 
-**Expected:** MD import/export (#853), Quality Objectives (#1280/#1307), Test Strategy (#1423/#1425/#1431), GitHub tracker (#433), apikey/anon report access, reset-password/generate-apikey user actions; PHP 8.x + security + legacy-restoration bugfix bullets.
+**Expected:** MD import/export (#853), Quality Objectives (#1280/#1307), Test Strategy (#1425/#1426/#1431), GitHub tracker (#433), apikey/anon report access, reset-password/generate-apikey user actions; PHP 8.x + security + legacy-restoration bugfix bullets.
 
 **Actual:** PASS — all listed with issue references.
 
@@ -13368,7 +13368,7 @@ Result: 8/8 PASS — **#1430 FIXED**: minimal `esc()` on the sole user-controlle
 
 **Expected:** both files exist with matching content (docs mirror without image lines); wiki Home.md lists the new page (31 pages).
 
-**Actual:** PASS — both files exist; wiki `Home.md` updated to 31 pages with link; wiki pushed (`d18ceb1..396f1bd`).
+**Actual:** PASS — both files exist; wiki `Home.md` updated to 31 pages with link; wiki pushed (`d18ceb1..396f1bd`); wiki CHANGELOG-2.0.1 page present (361 pages total).
 
 ### TC-1424.8: Event Viewer / runtime unaffected (docs-only task)
 

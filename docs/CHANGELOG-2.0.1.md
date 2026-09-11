@@ -24,8 +24,8 @@ with these blocks:
   PHP REST endpoints under `api/<area>/index.php`), PHP 8.x compatibility
   (43+ warning classes resolved, PHP 8.4 support), 112 modernized HTML screens
   (87+ feature-parity checked), i18n with 10 locale JSON bundles, security
-  hardening, the 5-workflow CI factory, 213 regression test suites, and the
-  360-page GitHub Wiki + `docs/` mirror.
+  hardening, the 5-workflow   CI factory, 181 regression test suites, and the
+  361-page GitHub Wiki + `docs/` mirror.
 - **MODERNIZED SCREENS** — grouped by ASIDE section (System, Product, Dashboard,
   Requirements, Test Spec, Plans, Execution, Reports, Auth & Documentation,
   Test Strategy) with each screen's HTML file, BFF API and issue references.

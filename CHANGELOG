@@ -44,10 +44,10 @@ MAJOR AREAS
 - [CI FACTORY] - 5 autonomous GitHub Actions workflows: fix-bug.yml (every 2h),
   implement-task-oldest.yml + implement-task-newest.yml (every 2h), merge-prs.yml
   (hourly), modernize.yml (manual, one screen per run).
-- [TESTING] - 213 + numbered regression test-case suites in tmp/TLU_Test_Cases.md
-  (13.3k lines, 3649 PASS results), executed and recorded per run. Event Viewer
+- [TESTING] - 181 numbered regression test-case suites in tmp/TLU_Test_Cases.md
+  (13.4k lines, 3658 PASS results), executed and recorded per run. Event Viewer
   clean after each run.
-- [WIKI / DOCS] - Full GitHub Wiki (360 pages) + docs/ mirror, per-screen
+- [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
   modernization docs, 168 bugfix write-ups, MODERNIZATION-STATUS.md and
   SCREEN-COMPARE-STATUS.md trackers.
 
@@ -189,7 +189,7 @@ Auth & Documentation:
 
 Test Strategy:
 - General Overview + chapter pages (strategy/testStrategy.html, scope.html,
-  exitCriteria.html) - BFF api/strategy (18 chapters, #1423/#1425/#1431).
+  exitCriteria.html) - BFF api/strategy (18 chapters, #1425/#1426/#1431).
 
 NEW FEATURES
 ------------
@@ -198,7 +198,7 @@ NEW FEATURES
   api/testcasesimport, api/testcasesexport).
 - Quality Objectives & Risk Traceability Matrix (ISTQB) (#1280/#1307).
 - Test Strategy: ASIDE section with General Overview, Scope, Exit Criteria
-  chapter pages (#1423/#1425/#1431).
+  chapter pages (#1425/#1426/#1431).
 - Native GitHub Code Tracker via GitHub REST API (#433/#771/#813).
 - API key / public-link anonymous access for reports and print documents
   (resultsTCFlat #1223, resultsGeneral #1246, charts #1258, execTimelineStats
