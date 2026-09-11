@@ -233,7 +233,8 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   (#1404), reqEdit full screen (#798, #1374-#1384).
 - planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
   in BFF association import (#1407/#1414), legacy twin count(null) guard
-  (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407).
+  (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407,
+  legacy lib/plan/planImport.php #1433).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
