@@ -3111,5 +3111,8 @@
   "version": "Versión",
   "profile.msg.apiDisabled": "La interfaz API está deshabilitada por el administrador",
   "profile.demoUpdateDisabled": "Versión demo, actualización deshabilitada.",
-  "user.noRights": "No tiene el derecho mgt_users necesario para gestionar usuarios."
+  "user.noRights": "No tiene el derecho mgt_users necesario para gestionar usuarios.",
+  "esr.closedBuild": "cerrada",
+  "esr.buildClosedMsg": "La build está cerrada. No se pueden ejecutar los casos de prueba.",
+  "esr.errClosedBuild": "La build seleccionada está cerrada - resultado no guardado."
 }

@@ -3111,5 +3111,8 @@
   "version": "Versiune",
   "profile.msg.apiDisabled": "Interfața API este dezactivată de administrator",
   "profile.demoUpdateDisabled": "Versiune demo, actualizare dezactivată.",
-  "user.noRights": "Nu aveți dreptul mgt_users necesar pentru a gestiona utilizatorii."
+  "user.noRights": "Nu aveți dreptul mgt_users necesar pentru a gestiona utilizatorii.",
+  "esr.closedBuild": "inchis",
+  "esr.buildClosedMsg": "Build-ul este închis. Cazurile de test nu pot fi executate.",
+  "esr.errClosedBuild": "Build-ul selectat este închis - rezultatul nu a fost salvat."
 }

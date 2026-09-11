@@ -51,6 +51,9 @@ table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; w
 .prior-box { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 8px 12px; font-size: 12.5px; margin-bottom: 12px; }
 .prior-box .lbl { font-weight: 700; }
 .warnbox { margin: 12px 22px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.closedbox { margin: 12px 22px 0; background: #fff8e6; border: 1px solid #f0d9a8; color: #8a6d3b; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.closedbox i { margin-right: 6px; }
+select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .actions-bar { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
 .save-ok { color: #2d8e88; font-size: 13px; font-weight: 600; }
 .footer { padding: 10px 22px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
@@ -74,6 +77,7 @@ table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; w
 </div>
 
 <div class="warnbox" id="warnBox"></div>
+<div class="closedbox" id="closedBox"><i class="fa fa-lock"></i><span data-i18n="esr.buildClosedMsg">Build is closed. Test cases can not be executed.</span></div>
 
 <div class="card" id="formCard" style="display:none;">
   <div class="card-head" id="tcInfoHead"><i class="fa fa-hand-pointer"></i> <span id="tcTitle">-</span></div>
@@ -230,19 +234,31 @@ function render(r) {
     '<span style="margin:0 6px;color:#777;">|</span>' + esc(r.tcase.name) +
     ' <span class="sub" style="font-size:12px;opacity:.9;">(v' + r.tcversion.version + ')</span>');
 
-  // build selector (only executable builds)
+  // build selector: ALL builds shown (active+closed). Closed builds are
+  // selectable so their prior executions can still be reviewed, but the form
+  // enters a read-only "Build is closed" state (legacy execSetResults parity).
   $('#selBuild').empty();
-  var hasExec = false;
-  (r.builds || []).forEach(function (b) {
-    if (!b.executable) return;
-    hasExec = true;
-    $('#selBuild').append('<option value="' + b.id + '">' + esc(b.name) + '</option>');
-  });
-  if (!hasExec) {
+  var builds = r.builds || [];
+  if (builds.length === 0) {
     $('#selBuild').append('<option value="0">' + esc(TLi18n.t('esr.noExecBuild')) + '</option>');
-    $('#btnSave').prop('disabled', true).css('opacity', .5);
+  } else {
+    builds.forEach(function (b) {
+      var label = esc(b.name);
+      if (!b.executable) {
+        label += ' (' + esc(TLi18n.t('esr.closedBuild')) + ')';
+      }
+      $('#selBuild').append('<option value="' + b.id + '"' + (b.executable ? '' : ' class="opt-closed"') + '>' + label + '</option>');
+    });
+    // selected build: the one requested via URL when valid, else the default
+    var wantBuild = String(ctx.buildId > 0 ? ctx.buildId : r.default_build_id);
+    var wantValid = builds.some(function (b) { return String(b.id) === wantBuild; });
+    if (!wantValid) {
+      wantBuild = String(r.default_build_id);
+      wantValid = builds.some(function (b) { return String(b.id) === wantBuild; });
+    }
+    if (!wantValid) wantBuild = String(builds[0].id);
+    $('#selBuild').val(wantBuild);
   }
-  $('#selBuild').val(String(r.default_build_id));
 
   // platform selector
   $('#platformCtx').toggle(!!(r.platforms && r.platforms.length > 0));
@@ -254,12 +270,20 @@ function render(r) {
     $('#selPlatform').val(String(ctx.platformId || r.platforms[0].id));
   }
 
+  // switching builds reloads the context so the prior-execution block and the
+  // closed-build banner always reflect the build actually selected (legacy
+  // execSetResults re-renders the whole page on build change)
+  $('#selBuild').off('change.esrbuild').on('change.esrbuild', function () {
+    ctx.buildId = parseInt($(this).val() || '0', 10);
+    loadInfo();
+  });
+
   // read-only gate for exec_ro_access (no WRITE right)
   var canExec = r.grants && r.grants.can_execute;
   if (!canExec) {
     $('#btnSave').prop('disabled', true).css('opacity', .5);
     $('#statusRow').addClass('readonly');
-    $('#selBuild').prop('disabled', true);
+    $('#selBuild').prop('disabled', false);
     if ($('#selPlatform').length) $('#selPlatform').prop('disabled', true);
     $('#txtNotes').prop('disabled', true);
     $('#txtExecDuration').prop('disabled', true);
@@ -332,7 +356,46 @@ function render(r) {
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
 
+  applyBuildState(r);
+
   $('#formCard').show();
+}
+
+// Closed-build read-only state (legacy execSetResults parity): when the
+// selected build is not executable (closed), show the "Build is closed" box
+// and disable every WRITE control while still allowing result review
+// (prior execution block, notes read-only). exec_ro_access overrides too.
+function applyBuildState(r) {
+  var bid = parseInt($('#selBuild').val() || '0', 10);
+  var sel = null;
+  (r.builds || []).forEach(function (b) { if (b.id === bid) sel = b; });
+  var closed = !sel || !sel.executable;
+  var canWExec = !closed && r.grants && r.grants.can_execute;
+
+  if (closed) {
+    $('#closedBox').show();
+  } else {
+    $('#closedBox').hide();
+  }
+  if (closed || !canWExec) {
+    $('#btnSave').prop('disabled', true).css('opacity', .5);
+    $('#statusRow').addClass('readonly');
+    $('#statusRow .st-btn').prop('disabled', true);
+    $('#selBuild').prop('disabled', false);
+    if ($('#selPlatform').length) $('#selPlatform').prop('disabled', true);
+    $('#txtNotes').prop('disabled', true);
+    $('#txtExecDuration').prop('disabled', true);
+    $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', true);
+  } else {
+    $('#btnSave').prop('disabled', false).css('opacity', 1);
+    $('#statusRow').removeClass('readonly');
+    $('#statusRow .st-btn').prop('disabled', false);
+    $('#selBuild').prop('disabled', false);
+    if ($('#selPlatform').length) $('#selPlatform').prop('disabled', false);
+    $('#txtNotes').prop('disabled', false);
+    $('#txtExecDuration').prop('disabled', false);
+    $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', false);
+  }
 }
 
 function statusLabel(code) {
@@ -352,12 +415,19 @@ function doSave() {
   if ($('#btnSave').prop('disabled')) return;
   if (ctx.statusCode === '') { toast(TLi18n.t('esr.errNoStatus'), true); return; }
 
+  var buildId = parseInt($('#selBuild').val() || '0', 10);
+  var selB = null;
+  ((ctx.info && ctx.info.builds) || []).forEach(function (b) { if (b.id === buildId) selB = b; });
+  if (!selB || !selB.executable) {
+    toast(TLi18n.t('esr.errClosedBuild'), true);
+    return;
+  }
+
   var steps = {};
   $('#stepsBody select[data-step]').each(function () {
     steps[$(this).data('step')] = { status: $(this).val(), notes: $(this).closest('td').find('[data-stepnotes]').val() || '' };
   });
 
-  var buildId = parseInt($('#selBuild').val() || '0', 10);
   var platformId = 0;
   if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
     platformId = parseInt($('#selPlatform').val() || '0', 10);

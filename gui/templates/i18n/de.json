@@ -3111,5 +3111,8 @@
   "version": "Version",
   "profile.msg.apiDisabled": "API-Schnittstelle ist vom Administrator deaktiviert",
   "profile.demoUpdateDisabled": "Demo-Version, Update deaktiviert.",
-  "user.noRights": "Sie benötigen das Recht mgt_users, um Benutzer zu verwalten."
+  "user.noRights": "Sie benötigen das Recht mgt_users, um Benutzer zu verwalten.",
+  "esr.closedBuild": "geschlossen",
+  "esr.buildClosedMsg": "Build ist geschlossen. Testfälle können nicht ausgeführt werden.",
+  "esr.errClosedBuild": "Ausgewählter Build ist geschlossen - Ergebnis nicht gespeichert."
 }

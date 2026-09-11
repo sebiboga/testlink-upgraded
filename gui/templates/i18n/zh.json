@@ -3111,5 +3111,8 @@
   "version": "版本",
   "profile.msg.apiDisabled": "API接口已被管理员禁用",
   "profile.demoUpdateDisabled": "演示版本，禁用更新。",
-  "user.noRights": "您没有管理用户所需的mgt_users权限。"
+  "user.noRights": "您没有管理用户所需的mgt_users权限。",
+  "esr.closedBuild": "已关闭",
+  "esr.buildClosedMsg": "版本已关闭。无法执行测试用例。",
+  "esr.errClosedBuild": "所选版本已关闭 - 结果未保存。"
 }
