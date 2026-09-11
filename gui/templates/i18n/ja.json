@@ -242,6 +242,7 @@
   "cfx.importing": "インポート中...",
   "cfx.localFile": "インポートするXMLファイル",
   "cfx.maxSize": "最大ファイルサイズ: {kb} KB",
+  "cfx.maxSizeLabel": "最大ファイルサイズ:",
   "cfx.msg.alreadyExists": "既に存在します",
   "cfx.msg.counts": "インポート完了: {ok} 件インポート、{ko} 件スキップ。",
   "cfx.msg.noFile": "インポートするファイルを選択してください",

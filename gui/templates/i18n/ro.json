@@ -242,6 +242,7 @@
   "cfx.importing": "Se importa...",
   "cfx.localFile": "Fisier XML de importat",
   "cfx.maxSize": "Dimensiune max. fisier: {kb} KB",
+  "cfx.maxSizeLabel": "Dimensiune max. fisier:",
   "cfx.msg.alreadyExists": "exista deja",
   "cfx.msg.counts": "Import terminat: {ok} importate, {ko} sarite.",
   "cfx.msg.noFile": "Va rugam alegeti un fisier de importat",

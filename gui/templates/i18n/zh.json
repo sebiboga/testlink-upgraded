@@ -242,6 +242,7 @@
   "cfx.importing": "正在导入...",
   "cfx.localFile": "要导入的XML文件",
   "cfx.maxSize": "最大文件大小：{kb} KB",
+  "cfx.maxSizeLabel": "最大文件大小：",
   "cfx.msg.alreadyExists": "已存在",
   "cfx.msg.counts": "导入完成：导入 {ok} 个，跳过 {ko} 个。",
   "cfx.msg.noFile": "请选择要导入的文件",

@@ -242,6 +242,7 @@
   "cfx.importing": "Импорт...",
   "cfx.localFile": "XML-файл для импорта",
   "cfx.maxSize": "Максимальный размер файла: {kb} КБ",
+  "cfx.maxSizeLabel": "Максимальный размер файла:",
   "cfx.msg.alreadyExists": "уже существует",
   "cfx.msg.counts": "Импорт завершен: импортировано {ok}, пропущено {ko}.",
   "cfx.msg.noFile": "Выберите файл для импорта",

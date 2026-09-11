@@ -57,7 +57,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <span class="chip"><span data-i18n="cfx.existing">Existing custom fields:</span> <b id="countInfo">-</b></span>
     <span class="chip"><span data-i18n="cfx.rightExport">Export right:</span> <b id="rightExport">-</b></span>
     <span class="chip"><span data-i18n="cfx.rightImport">Import right:</span> <b id="rightImport">-</b></span>
-    <span class="chip"><span data-i18n="cfx.maxSize">Max file size:</span> <b id="maxSizeInfo">-</b></span>
+    <span class="chip"><span data-i18n="cfx.maxSizeLabel">Max file size:</span> <b id="maxSizeInfo">-</b></span>
   </div>
 
   <div class="cards">
@@ -66,11 +66,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="card-body">
         <p class="hint" data-i18n="cfx.exportDesc" style="margin-top:0;">Download the current custom field definitions of this installation as an XML file, ready to be imported on another TestLink.</p>
         <div class="field-row">
-          <label data-i18n="cfx.filename">Export filename</label>
+          <label for="exportFilename" data-i18n="cfx.filename">Export filename</label>
           <input type="text" class="form-ctrl" id="exportFilename" value="customFields.xml">
         </div>
         <div class="field-row">
-          <label data-i18n="cfx.fileType">Format</label>
+          <label for="exportType" data-i18n="cfx.fileType">Format</label>
           <select class="form-ctrl" id="exportType"><option value="XML">XML</option></select>
         </div>
         <p class="hint"><a href="/docs/tl-file-formats.pdf" target="_blank" rel="noopener" data-i18n="cfx.formatDoc">View File Format Document</a></p>
@@ -86,11 +86,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
       <div class="card-body">
         <p class="hint" data-i18n="cfx.importDesc" style="margin-top:0;">Upload an XML file with custom field definitions. Fields that already exist by name are skipped.</p>
         <div class="field-row">
-          <label data-i18n="cfx.fileType">Format</label>
+          <label for="importType" data-i18n="cfx.fileType">Format</label>
           <select class="form-ctrl" id="importType"><option value="XML">XML</option></select>
         </div>
         <div class="field-row">
-          <label data-i18n="cfx.localFile">XML file to import</label>
+          <label for="targetFilename" data-i18n="cfx.localFile">XML file to import</label>
           <input type="file" class="form-ctrl" id="targetFilename" accept=".xml,text/xml,application/xml">
           <p class="hint" id="maxSizeHint">Max file size: -</p>
         </div>
@@ -142,7 +142,7 @@ function exportXml() {
   $('#exportMsg').hide();
   fetch(API + '/export', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest'},
     credentials: 'same-origin',
     body: JSON.stringify({export_filename: filename})
   }).then(function(res) {
@@ -182,6 +182,7 @@ function importXml() {
   fetch(API + '/import', {
     method: 'POST',
     credentials: 'same-origin',
+    headers: {'X-Requested-With': 'XMLHttpRequest'},
     body: fd
   }).then(function(res) {
     return res.json().then(function(data) { data._status = res.status; return data; });

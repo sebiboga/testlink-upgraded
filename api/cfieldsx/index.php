@@ -66,9 +66,10 @@ function buildExportXml(&$db) {
            " enable_on_execution,show_on_testplan_design,enable_on_testplan_design, node_type_id" .
            " FROM {$tables['custom_fields']} CF,{$tables['cfield_node_types']}" .
            " WHERE CF.id=field_id";
-    $rows = $db->fetchRowsIntoMap($sql, 'id');
-    if (empty($rows)) {
-        $rows = array();
+    $result = $db->exec_query($sql);
+    $rows = array();
+    while ($row = $db->fetch_array($result)) {
+        $rows[] = $row;
     }
 
     $dom = new DOMDocument('1.0', 'UTF-8');
