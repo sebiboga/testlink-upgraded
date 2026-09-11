@@ -58,14 +58,14 @@ $tlCfg->reports_list['test_plan'] = array(
 	'title' => 'link_report_test_plan',
 	'url' => 'lib/results/printDocOptions.php?type=' . DOC_TEST_PLAN_DESIGN,
 	'enabled' => 'all',
-	'directLink' => '%slnl.php?apikey=%s&tproject_id=%s&tplan_id=%s&type=test_plan',
+	'directLink' => '%1$sgui/templates/results/reportPrint.html?type=test_plan&level=testproject&id=%3$s&tproject_id=%3$s&tplan_id=%4$s&apikey=%2$s',
 	'format' => 'format_html,format_pseudo_msword'
 );
 $tlCfg->reports_list['test_report'] = array( 
 	'title' => 'link_report_test_report',
 	'url' => 'lib/results/printDocOptions.php?type=' . DOC_TEST_PLAN_EXECUTION,
 	'enabled' => 'all',
-	'directLink' => '%slnl.php?apikey=%s&tproject_id=%s&tplan_id=%s&type=test_report',
+	'directLink' => '%1$sgui/templates/results/reportPrint.html?type=test_report&level=testproject&id=%3$s&tproject_id=%3$s&tplan_id=%4$s&apikey=%2$s',
 	'format' => 'format_html,format_pseudo_msword'
 );
 

@@ -66,6 +66,7 @@ var tplanId = 0;
 var format = 0;
 var buildId = 0;
 var opts = '';
+var apikey = '';
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -87,6 +88,7 @@ function buildQuery() {
     '&tplan_id=' + tplanId +
     '&format=' + format +
     (buildId > 0 ? '&build_id=' + buildId : '') +
+    (apikey ? '&apikey=' + encodeURIComponent(apikey) : '') +
     (opts ? '&' + opts : '');
 }
 
@@ -119,6 +121,7 @@ $(function () {
   buildId = parseInt(p.get('build_id') || '0', 10);
   var o = p.get('opts') || '';
   opts = o; // e.g. "toc=y&summary=y..."
+  apikey = p.get('apikey') || ''; // public-share link (Refs #1408)
 
   // pre-fill project name from URL if provided
   var pn = p.get('tproject_name');

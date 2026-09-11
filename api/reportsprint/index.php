@@ -28,13 +28,16 @@
  *
  * Security differences vs legacy (intentional hardening):
  *  - Legacy printDocument.php reached the generator with testlinkInitPage()
- *    (session) OR an anonymous apikey (lnl.php share links). The modern print
- *    popup runs inside the authenticated app, so the BFF REQUIRES a session
- *    user and never accepts an apikey anonymous path.
+ *    (session) OR an anonymous/remote apikey (lnl.php share links). The modern
+ *    print popup keeps both: an authenticated session, or the legacy apikey
+ *    public-link path (Refs #1408): 32-char user key -> remote access with the
+ *    same testplan_metrics gate; 64-char object key -> anonymous access for the
+ *    single entity that carries the key (addOpAccess=false, no rights check).
  *  - Rights: testplan_metrics on the context test project + test plan (the
  *    exact right legacy checkRights() enforces via hasRightOnProj()).
  *  - Plan-based document types validate that the test plan belongs to the
- *    request's test project (legacy Refs #573 behavior) -> 400 otherwise.
+ *    request's test project (legacy Refs #573 behavior) -> 400 otherwise, and
+ *    anonymous keys are bound to their entity's context (fail closed).
  *
  * Routes:
  *   GET ?action=print&type=testplan&level=testproject|testsuite&id=N
@@ -61,21 +64,96 @@ doDBConnect($db);
 
 function out($data) { echo json_encode($data); exit; }
 
+// ---- legacy apikey / public-link anonymous access (Refs #1408) ----
+// Mirrors the allowlist pattern of api/reports and api/reportsexport
+// (Refs #1220/#1246): the legacy generator we wrap (printDocument.php
+// init_args, lib/results/printDocument.php:302-337) accepts an 'apikey':
+//   - 32-char   -> remote access for the owning user (setUpEnvForRemoteAccess
+//                  + checkRights on 'testplan_metrics')
+//   - longer    -> anonymous/public access for the connected test plan or
+//                  test project entity (setUpEnvForAnonymousAccess,
+//                  addOpAccess=false)
+// The same generator is what the legacy public links (lnl.php cases
+// test_plan/test_report/testreport_onbuild, cfg/reports.cfg.php directLink)
+// reach, so BOTH the print and download routes must keep working for these
+// callers. The apikey is forwarded to printDocument.php below, whose own
+// init_args() re-runs setUpEnv*() against the same (fresh) session,
+// guaranteeing identical behaviour to a legacy embed/public link. Any other
+// request keeps the session-only auth path.
+$apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+$isAnon = false;
+$anonEntityType = null;
+$anonEntityId = 0;
+
 $userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    out(['status' => 'error', 'message' => 'Not authenticated']);
+if ($apikey !== '') {
+    if (strlen($apikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $apikey);
+        if (is_array($apiUsers) && count($apiUsers) === 1) {
+            $uid = key($apiUsers);
+            $user = new tlUser($uid);
+            $user->readFromDB($db);
+            $userId = $uid;
+            $_SESSION['userID'] = $uid;
+            $_SESSION['currentUser'] = $user;
+            $_SESSION['lastActivity'] = time();
+            if (!isset($_SESSION['basehref'])) {
+                setPaths();
+            }
+            if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+                $_SESSION['locale'] = $user->locale;
+                setDateTimeFormats($_SESSION['locale']);
+            }
+        } else {
+            http_response_code(401);
+            out(['status' => 'error', 'message' => 'Unknown api key']);
+        }
+    } else {
+        // Object (64-char) key -> anonymous context bound to the entity that
+        // carries the key (read-only document access, addOpAccess=false).
+        $entity = getEntityByAPIKey($db, $apikey, 'testplan');
+        $anonEntityType = 'testplan';
+        if (is_null($entity)) {
+            $entity = getEntityByAPIKey($db, $apikey, 'testproject');
+            $anonEntityType = 'testproject';
+        }
+        if (is_null($entity)) {
+            http_response_code(401);
+            out(['status' => 'error', 'message' => 'Unknown api key']);
+        }
+        $anonEntityId = isset($entity['id']) ? intval($entity['id']) : 0;
+        $isAnon = true;
+        $user = new tlUser();
+        $userId = -1;
+        $_SESSION['userID'] = -1;
+        $_SESSION['currentUser'] = $user;
+        $_SESSION['lastActivity'] = time();
+        if (!isset($_SESSION['basehref'])) {
+            setPaths();
+        }
+        if (!isset($_SESSION['locale']) || is_null($_SESSION['locale'])) {
+            $_SESSION['locale'] = config_get('default_language');
+            setDateTimeFormats($_SESSION['locale']);
+        }
+    }
 }
+
 // keep the legacy checkSessionValid() (which redirects on staleness) happy so
 // it never emits a redirect script into our captured body.
 $_SESSION['lastActivity'] = time();
 
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    out(['status' => 'error', 'message' => 'User not found']);
+if (!$isAnon) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        out(['status' => 'error', 'message' => 'Not authenticated']);
+    }
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        out(['status' => 'error', 'message' => 'User not found']);
+    }
+    $_SESSION['currentUser'] = $user;
 }
-$_SESSION['currentUser'] = $user;
 
 $action = $_GET['action'] ?? '';
 
@@ -143,22 +221,64 @@ if (in_array($docType, $planBasedTypes, true)) {
     }
 }
 
-// ---- authorization: testplan_metrics on the context ----
-$hasRight = false;
-try {
-    $hasRight = $user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId);
-} catch (\Throwable $e) {
-    $hasRight = false;
+// ---- anonymous apikey context bound to its entity (fail closed) ----
+// An object key only ever grants the context of the single entity that
+// carries it (plan api_key => that plan's documents, project api_key =>
+// that project's). Legacy rendered whatever ids the shared link asked for;
+// this keeps the link behaviour while stopping id-guessing on other plans.
+if ($isAnon) {
+    $ctxMatch = ($anonEntityType === 'testplan')
+        ? ($tplanId === $anonEntityId)
+        : ($tprojectId === $anonEntityId);
+    if (!$ctxMatch) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid context for api key']);
+    }
 }
-if (!$hasRight) {
-    http_response_code(403);
-    out(['status' => 'error', 'message' => 'No permission']);
+
+// ---- authorization: testplan_metrics on the context ----
+// Anonymous/apikey access skips the contextual gate (legacy
+// setUpEnvForAnonymousAccess: addOpAccess=false, $cerbero->method=null) -
+// the key IS the authorization. Remote (32-char user key) callers keep the
+// same testplan_metrics check as a logged session.
+if (!$isAnon) {
+    $hasRight = false;
+    try {
+        $hasRight = $user->hasRight($db, 'testplan_metrics', $tprojectId, $tplanId);
+    } catch (\Throwable $e) {
+        $hasRight = false;
+    }
+    if (!$hasRight) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'No permission']);
+    }
 }
 
 // ---- set the session + request state the legacy controller expects ----
 $_SESSION['testprojectID'] = $tprojectId;
 if (empty($_SESSION['testprojectPrefix'])) {
     $_SESSION['testprojectPrefix'] = isset($proj['prefix']) ? $proj['prefix'] : '';
+}
+
+// apikey / public-link callers (lnl.php, reports.cfg directLink) always
+// render the FULL legacy document set, exactly like the legacy lnl.php
+// param string did. When the caller did not explicitely send print-option
+// flags, apply lnl.php's defaults so shared links keep the same output;
+// caller-supplied flags always win.
+if ($apikey !== '') {
+    $defaultPassFail = ($docType === 'testplan') ? 'n' : 'y';
+    $flagDefaults = [
+        'header' => 'y', 'summary' => 'y', 'toc' => 'y', 'body' => 'y',
+        'passfail' => $defaultPassFail, 'cfields' => 'y', 'metrics' => 'y',
+        'author' => 'y', 'requirement' => 'y', 'keyword' => 'y',
+        'notes' => 'y', 'headerNumbering' => 'y',
+    ];
+    foreach ($flagDefaults as $k => $v) {
+        if (!isset($_GET[$k])) {
+            $_GET[$k] = $v;
+            $_REQUEST[$k] = $v;
+        }
+    }
 }
 
 // Forward all generation params + optional print option flags into
@@ -174,6 +294,12 @@ $_GET['format'] = $format;
 if ($buildId > 0) {
     $_GET['build_id'] = $buildId;
     $_REQUEST['build_id'] = $buildId;
+}
+if ($apikey !== '') {
+    // the legacy controller's own init_args() sees the key and re-runs
+    // setUpEnvForRemoteAccess()/setUpEnvForAnonymousAccess() natively.
+    $_GET['apikey'] = $apikey;
+    $_REQUEST['apikey'] = $apikey;
 }
 $_REQUEST['type'] = $type;
 $_REQUEST['level'] = $level;

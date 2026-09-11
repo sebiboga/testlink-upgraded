@@ -46,27 +46,15 @@ switch($args->light) {
       break;
 
       case 'test_report':
-        $param = "&type={$args->type}&level=testproject" .
-                 "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                 "&header=y&summary=y&toc=y&body=y&passfail=y&cfields=y&metrics=y&author=y" .
-                 "&requirement=y&keyword=y&notes=y&headerNumbering=y&format=" . FORMAT_HTML;
-        $what2launch = "lib/results/printDocument.php?apikey=$args->apikey{$param}";         
+        $what2launch = reportPublicUrl($args, 'y', false);
       break;
-      
+
       case 'testreport_onbuild':
-        $param = "&type={$args->type}&level=testproject" .
-                 "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}&build_id={$args->build_id}" .
-                 "&header=y&summary=y&toc=y&body=y&passfail=y&cfields=y&metrics=y&author=y" .
-                 "&requirement=y&keyword=y&notes=y&headerNumbering=y&format=" . FORMAT_HTML;
-        $what2launch = "lib/results/printDocument.php?apikey=$args->apikey{$param}";         
+        $what2launch = reportPublicUrl($args, 'y', true);
       break;
 
       case 'test_plan':
-        $param = "&type={$args->type}&level=testproject" .
-                 "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                 "&header=y&summary=y&toc=y&body=y&passfail=n&cfields=y&metrics=y&author=y" .
-                 "&requirement=y&keyword=y&notes=y&headerNumbering=y&format=" . FORMAT_HTML;
-        $what2launch = "lib/results/printDocument.php?apikey=$args->apikey{$param}";         
+        $what2launch = reportPublicUrl($args, 'n', false);
       break;
       
       case 'testspec':
@@ -164,6 +152,32 @@ switch($args->light) {
 } 
 
 
+
+/**
+ * Refs #1408: public-link target for the plan report documents (test_plan /
+ * test_report / testreport_onbuild). Legacy pointed at
+ * lib/results/printDocument.php?apikey=...; the modern endpoint is the
+ * reportPrint.html popup backed by api/reportsprint, which accepts the same
+ * 32/64-char apikey and renders the very same generator. The legacy print
+ * option flags are carried in the screen's 'opts' box (urlencoded) so the
+ * shared-link output stays byte-identical to the legacy param string.
+ */
+function reportPublicUrl($args, $passfail, $withBuild = false)
+{
+  $optStr = "header=y&summary=y&toc=y&body=y&passfail={$passfail}&cfields=y&metrics=y&author=y" .
+            "&requirement=y&keyword=y&notes=y&headerNumbering=y";
+  $url = "gui/templates/results/reportPrint.html" .
+         "?type={$args->type}&level=testproject" .
+         "&id={$args->tproject_id}&tproject_id={$args->tproject_id}" .
+         "&tplan_id={$args->tplan_id}";
+  if ($withBuild && intval($args->build_id) > 0) {
+    $url .= "&build_id={$args->build_id}";
+  }
+  $url .= "&format=" . FORMAT_HTML .
+          "&apikey={$args->apikey}" .
+          "&opts=" . urlencode($optStr);
+  return $url;
+}
 
 /**
  *
