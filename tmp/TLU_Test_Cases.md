@@ -13421,6 +13421,7 @@ Result: 8/8 PASS — **#1424 COMPLETE**: CHANGELOG now documents all 2.0.1 work 
 | 1407.8 | Hygiene | `php -l api/planimport/index.php` clean; `events` table after all runs: no new Error/Warning (only AUDIT(16)/LOGIN/CREATE rows); no fatal in `tmp/php_server.log` after the fix | **PASS** |
 
 Result: 8/8 PASS — **#1407 FIXED** via direct-child guard on `$xml->executables` (`api/planimport/index.php:150-153`, +8/-2), no i18n bundles touched (no user-facing string). **New bug discovered while testing (out of scope, filed):** same input crashes the legacy twin at `lib/plan/planImport.php:286` (identical unguarded `count($xml->executables->children())`) → **#1433** (label `bug`).
+
 ## Regression — Issue #1433: planImport (legacy lib/plan/planImport.php) HTTP 500 `count(null)` crash at :286 for well-formed XML with wrong root element (Refs #1433)
 
 **Screen:** `lib/plan/planImport.php` (`importTestPlanLinksFromXML()`, legacy POST `?tplan_id=N`, Smarty page)
@@ -13437,3 +13438,31 @@ Result: 8/8 PASS — **#1407 FIXED** via direct-child guard on `$xml->executable
 | 1433.6 | No i18n bundles touched (no user-facing string changed) | `git diff --stat` touches only `lib/plan/planImport.php` (+8/-2) | **PASS** |
 
 Result: 6/6 PASS — **#1433 FIXED** via direct-child guard on `$xml->executables` (`lib/plan/planImport.php:285-289`, +8/-2), identical approach to #1407. Legacy screen still slated for removal via task #1409 (minimal patch only, no refactor).
+
+
+## Modernize: Remove all tester assignments from a Build (`tcExecAssignment` → `tcUnassignAll` screen) — Refs #1434
+
+**Screen:** `gui/templates/execute/tcUnassignAll.html` + BFF `api/tcunassignall/index.php` (`?action=info` GET, `?action=unassign` POST).
+**Legacy twin:** `lib/plan/tc_exec_unassign_all.php` (`testplan_planning` gate, confirm-then-delete round trip, `assignment_mgr` build-scoped count/delete).
+**Precondition:** fresh import; fixtures: project Demo(1), plan (2), Build **v1.0 (id=1)**; login admin/admin; screen at `http://localhost:8082/gui/templates/execute/tcUnassignAll.html?tproject_id=1&tplan_id=2&build_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1434.1 | `GET ?action=info&build_id=1&tproject_id=1` (authenticated session cookie, XMLHttpRequest header) | HTTP 200 JSON `{"status":"ok","build_id":1,"build_name":"v1.0","tproject_id":1,"tproject_name":"Demo Project","count":0,"can_remove":false}` | **PASS** |
+| 1434.2 | Insert `user_assignments` fixture row (type=1,feature_id=1,user_id=1,build_id=1,status=1); repeat 1434.1 | HTTP 200, `count:1, can_remove:true` | **PASS** |
+| 1434.3 | `POST ?action=unassign&build_id=1&tproject_id=1` | HTTP 200 `{"status":"ok","removed_count":1,...}`; `SELECT COUNT(*) FROM user_assignments WHERE build_id=1` → **0** | **PASS** |
+| 1434.4 | Anonymous (no cookie) `GET ?action=info` | HTTP **401** `{"status":"error","message":"Not authenticated"}` | **PASS** |
+| 1434.5 | User without `testplan_planning` (`role_id=0`, no rights) `GET ?action=info` | HTTP **403** `{"status":"error","message":"Insufficient rights"}` | **PASS** |
+| 1434.6 | Unknown route `?action=bogus` | HTTP **404** `{"status":"error","message":"Unknown route"}` | **PASS** |
+| 1434.7 | Unknown Build `?action=info&build_id=99999&tproject_id=1` | HTTP **404** `{"status":"error","message":"Build not found"}` | **PASS** |
+| 1434.8 | Browser (chrome-devtools): login admin → screen count=1 state (fixture row present) | Header "Remove all tester assignments in test project Demo Project"; build `v1.0`; "things to do: 1"; red button **"Unassign all testers from selected Build"**; zero console errors | **PASS** |
+| 1434.9 | Click button → confirm modal | Bootstrap modal "Really remove all tester assignments?" + Yes/No + warning text referencing v1.0; click **Yes** | **PASS** |
+| 1434.10 | After Yes | toast "Assignments have been removed from Build v1.0"; count drops to 0; button hidden; `SELECT ` count = **0**; DB row gone | **PASS** |
+| 1434.11 | Browser: count=0 state (fresh) | Info "There are no testers assigned to Test Cases in the Build v1.0."; remove button hidden; location d locale switcher + Back link → `tcExecAssignment.html?tproject_id=1&tplan_id=2` | **PASS** |
+| 1434.12 | Anonymous browser (incognito tab) same URL | 401 banner "Could not load unassign screen data." (no crash) | **PASS** |
+| 1434.13 | `limited` user (no `testplan_planning`) browser | 403 banner "No permission: the testplan_planning right is required." | **PASS** |
+| 1434.14 | Locale switch to Română | All `tua.*` + `footers.tcUnassignAll` translated (Row 1 rendered), no missing-key log in Event Viewer | **PASS** |
+| 1434.15 | i18n completeness | `tua.*` (15 keys) + `footers.tcUnassignAll` present in ALL 10 bundles (en/ro/de/es/fr/it/ja/pt/ru/zh), each `python3 -m json.tool` valid | **PASS** |
+| 1434.16 | Link wiring + hygiene | `$actions->tcUnassignAll` in `lib/functions/common.php` (tplan>0); `php -l` on api BFF clean; Event Viewer 403/401 logged at expected severity, no new ERROR/WARNING; footer text "TestLink 2.0.1 - Remove all tester assignments" | **PASS** |
+
+Result: 16/16 PASS — **#1434 FIXED**. New BFF `api/tcunassignall/index.php` + modern Dashio screen `gui/templates/execute/tcUnassignAll.html` wired as THE aside/execute-area "Remove all tester assignments" entry point; toolbar hand-off button from the modernized `tcExecAssignment.html`; legacy `lib/plan/tc_exec_unassign_all.php` retained for controller/back-compat. i18n: 15 `tua.*` keys + 1 footer key in all 10 bundles. Regression: full suite unaffected (modern area untouched elsewhere).
