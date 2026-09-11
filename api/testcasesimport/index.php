@@ -470,10 +470,20 @@ if ($action === 'import_md') {
                 continue;
             }
             try {
+                // Preserve an explicit **ExternalID:** from the markdown
+                // (numeric part) on create instead of always forcing
+                // AUTO-generated ids (see #1421). create_tcase_only() falls
+                // back to a generated number if the id is already taken.
+                $createOpt = [];
+                if ($externalId !== '') {
+                    if (preg_match('/(\d+)/', $externalId, $em)) {
+                        $createOpt['external_id'] = intval($em[1]);
+                    }
+                }
                 $ret = $tcaseMgr->create($suiteId, $title, '',
                     strval($c['preconditions']), $steps, intval($userId), '',
                     testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
-                    TESTCASE_EXECUTION_TYPE_MANUAL, $importance);
+                    TESTCASE_EXECUTION_TYPE_MANUAL, $importance, $createOpt);
                 $ok = is_array($ret)
                     ? (isset($ret['status_ok']) ? intval($ret['status_ok']) : 1)
                     : (isset($ret->status_ok) ? intval($ret->status_ok) : 0);
