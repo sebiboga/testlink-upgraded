@@ -13186,7 +13186,6 @@ Result: 6/6 PASS — **#1417 FIXED** via `isset($args_gui->reqTypeDomain.$req_ty
 | 1406.7 | Hygiene | `events` table: rows 2,4,5 `1406 - Data too long for column 'locale'` are my repro artifacts of the varchar(10) locale PUT (pre-existing, filed as #1429); post-fix verification added only INFO audit events (create/update/delete xssuser), 0 new Error/Warning from the fixed render | **PASS** |
 
 Result: 7/7 PASS — **#1406 FIXED** via `esc()` + delete-onclick hardening (+16/-9 on `gui/templates/usermanagement/usersView.html`, commit `a6821c188` pushed on `fix/issue-1406-usersview-xss`). Before/after screenshots: `docs/screenshots/issue-1406-usersview-xss-before.png`, `docs/screenshots/issue-1406-usersview-xss-after.png`. **New pre-existing bugs discovered while testing (out of scope, filed):** BFF leaks full DB debug backtrace on locale-overflow PUT → **#1429**; edit-modal `<option>` labels (role.name/loc.name/auth label) appended unescaped → **#1430**.
-
 # Test Suite 1431 — Modernize: Test Strategy General Overview (strategy/testStrategy.html + api/strategy BFF)
 
 **Screen:** `gui/templates/strategy/testStrategy.html` (Dashio General Overview, BFF-fed chapter grid)
@@ -13208,3 +13207,73 @@ Result: 7/7 PASS — **#1406 FIXED** via `esc()` + delete-onclick hardening (+16
 | 1431.10 | Hygiene / Event Viewer | `events` table has no new Error/Warning rows attributable to the screen (only the standard login audits from the harness) | **PASS** |
 
 Result: 10/10 PASS — **#1431 DONE**. Commits: `e1799ff70` (BFF), `c28494cc7` (front-end + i18n + ASIDE link switch), `04e5b7441` (ro translations). Screenshots: `docs/screenshots/issue-1431-strategy-overview-en.png`, `docs/screenshots/issue-1431-strategy-overview-ro.png`.
+
+## Task — Issue #1426: Test Strategy — display all standard chapters in the General Overview page (Refs #1426)
+
+**Screen:** `gui/templates/strategy/testStrategy.html` (General Overview, Test Strategy chapters grid, Dashio shell)
+**Scope:** Port/complete the chapters map: 18 standard chapters + Severity Configuration, number badges, open-chapter buttons where a dedicated page exists, and the `ts.*` i18n keys in **all 10** locale bundles (this run added them to the 8 non-en/ro bundles, which previously rendered literal keys).
+**Precondition (2026-09-11, fresh DB):** app @ `http://localhost:8082`, login admin/admin. Screen reachable standalone and via index.php aside menu → Test Strategy → General Overview.
+
+### TC-1426.1: Overview renders all 19 chapter cards in order
+
+**Steps:**
+1. Login as admin
+2. Open `gui/templates/strategy/testStrategy.html`
+
+**Expected:**
+- Section header "Test Strategy chapters" (i18n `ts.chapterTitle`)
+- Exactly **19** cards numbered **1–18** + **19**, in the documented order (1 Introduction & Background, 2 Quality Objectives, 3 Scope, 4 Test Approach, 5 Test Levels, 6 Test Types, 7 Entry & Exit Criteria, 8 Test Environments, 9 Roles & Responsibilities, 10 Testing Tools & Automation, 11 Communication & Status Reporting, 12 Test Deliverables, 13 Metrics & Measurements, 14 Risks & Mitigation, 15 Defect Management, 16 Change & Configuration Management, 17 Training Plan, 18 Release Information, 19 Severity Configuration)
+- Each card shows its number badge, chapter title and description
+- Info note text ("All 18 chapters … can be opened directly.")
+
+**Actual:** PASS — snapshot shows 19 numbered cards in that exact order with icons, titles and descriptions.
+
+### TC-1426.2: Open chapter buttons only on chapters with dedicated pages
+
+**Steps:**
+1. Inspect the card grid
+
+**Expected:** "Open chapter" button on exactly chapters **3** (`scope.html`), **7** (`exitCriteria.html`) and **19** (`/gui/templates/projects/severityConfig.html`); no button on any other chapter. Clicking chapter 3's button loads scope.html; Severity button in the shell loads `severityConfig.html` into the mainframe.
+
+**Actual:** PASS — 3 buttons, correct targets; mainframe click navigated to `severityConfig.html?tproject_id=`.
+
+### TC-1426.3: Locale switch renders translated chapters (new bundles)
+
+**Steps:**
+1. Open `testStrategy.html?locale=de`
+2. Open `testStrategy.html?locale=ru`
+
+**Expected:** All 19 chapter titles + descriptions + header + note in German (e.g. "Kapitel der Teststrategie", "Einleitung & Hintergrund") and Russian ("Главы тест-стратегии", "Введение и контекст"). Zero unresolved `ts.*` literal keys in the DOM.
+
+**Actual:** PASS — `?locale=de` full German grid; `?locale=ru` 19 cards, `[...cards].filter(c => /ts\./.test(c.innerText)).length` = **0**.
+
+### TC-1426.4: i18n key coverage across all 10 locale bundles
+
+**Steps:**
+1. `python3 -c "import json; … startswith('ts.')"` per bundle on `gui/templates/i18n/*.json`
+2. `python3 -m json.tool` every bundle
+
+**Expected:** 79 `ts.*` keys (77 chapter/screen keys + `ts.generatedOn` + `ts.errLoad`) in **every** bundle (en/ro/de/es/fr/it/ja/pt/ru/zh); all files valid JSON.
+
+**Actual:** PASS — 79/79 in all 10 bundles, all files `OK`, ru typo (`дефекты_REPORT`) corrected.
+
+### TC-1426.5: Aside menu integration
+
+**Steps:**
+1. Open `index.php` shell
+2. Expand aside Test Strategy → click General Overview
+
+**Expected:** Sub-menu lists General Overview / Scope / Exit Criteria / Severity Configuration; General Overview loads the 19-card grid into the mainframe.
+
+**Actual:** PASS — sub-menu and in-frame rendering confirmed.
+
+### TC-1426.6: Event Viewer — no new errors from feature
+
+**Steps:**
+1. After all the above, query `events` table for `log_level <= 8`
+
+**Expected:** No new Error/Warning entries related to the strategy screens (only the info-level login event present).
+
+**Actual:** PASS — only the single info login event (`log_level` 16) exists; no errors/warnings.
+
+Result: 6/6 PASS — **#1426 COMPLETE**: all-10-bundle i18n with real native translations in de/es/fr/it/ja/pt/ru/zh (79 ts.* keys) + browser-verified + documented. Commits this run on `task/issue-1426`.
