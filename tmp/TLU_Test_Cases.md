@@ -12989,3 +12989,21 @@ Result: 9/9 PASS — **#1390 FIXED** via null-guard `!is_null($dummy) && count($
 | 1414.11 | Hygiene | `php -l api/planimport/index.php` clean; no new Error/Warning **entries** in `events` table from the fixed path (only AUDIT(16): `audit_testproject_created`, `audit_login_succeeded`, 2x `audit_tc_added_to_testplan`) | **PASS** |
 
 Result: 11/11 PASS — **#1414 FIXED** via null-guard `!is_null($dummy) && count($dummy) > 0` at `api/planimport/index.php:208` (single line, mirrors `995ca7f36` legacy fix for #1390). No new bugs discovered while testing.
+
+## Regression — Issue #1415: print.inc.php:1595 E_WARNING Undefined variable $buildCfields on doc render with unexecuted TCs (Refs #1415)
+
+**Screen:** `lib/results/printDocument.php` (legacy test report on build) · `lib/functions/print.inc.php:1594-1601` (`renderTestCaseForPrinting()` build-CF row)
+**Root cause:** commit `90c461a54` (2019, Refs #8556) refactored static `$buildCfields` → `$st->buildCfields` but left `!is_null($buildCfields)` in the build-CF guard (`print.inc.php:1595`). $buildCfields was never declared in the function (params `$db,$node,$options,$env,$context,$indentLevel`) → PHP8 E_WARNING on every `DOC_TEST_PLAN_EXECUTION_ON_BUILD` render that visits a TC with **no execution row on that build** → 1 event per such TC (`log_level=2`, source 'GUI - Test Project ID : 1'). Fix: drop the stale clause; guard is now `isset($st->buildCfields[$build_id]) && $st->buildCfields[$build_id] != ''`, restoring the branch the refactor intended.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in (cookie jar `/tmp/tl_cookies.txt`). Fixture `php tmp/fixtures_1415.php` → tproject **1** (prefix W1415), plan **12**, platform 1, TCs Case1415-1/2/3 (ids 3/6/9, tcversions 4/7/10), builds **1** + **2**, execution id 1 on **build 2 for Case1415-3 only**. Session render URL: `lib/results/printDocument.php?id=1&docTestPlanId=12&type=testreport_onbuild&level=testproject&build_id=2&format=0&allOptionsOn=1`. Anonymous URL: same + `apikey=<testprojects.api_key of project 1>` and `tproject_id=1&tplan_id=12`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1415.1 | Pre-fix repro (control): render session URL | HTTP 200 but 2 new events `E_WARNING\nUndefined variable $buildCfields - in .../lib/functions/print.inc.php - Line 1595` (one per unexecuted TC Case1415-1/-2) | **PASS (pre-fix)** — bug confirmed exactly |
+| 1415.2 | Post-fix: repeat session URL (build_id=2, allOptionsOn=1) | HTTP 200, **0** new `buildCfields` events | **PASS** |
+| 1415.3 | Post-fix: `build_id=1` (no executions at all) allOptionsOn=1 | HTTP 200, **0** new `buildCfields` events | **PASS** |
+| 1415.4 | Post-fix: `build_id=2` without `allOptionsOn` (build_cfields off) | HTTP 200, **0** new `buildCfields` events | **PASS** |
+| 1415.5 | Post-fix: anonymous/apikey path, `build_id=2` allOptionsOn=1 | HTTP 200, **0** `buildCfields` events (the 3 `basehref` E_WARNINGs are a separate pre-existing anonymous-path issue, see note) | **PASS** |
+| 1415.6 | Positive path: seed build CF (`custom_fields` `cf_build_1415`, `cfield_node_types` node_type 12, `cfield_testprojects` project 1, `cfield_build_design_values` = `BUILDCF-MARKER-VALUE` on build 2), re-render session URL | HTML contains `<td...>Build Marker CF</td><td...>BUILDCF-MARKER-VALUE</td>` exactly once (build-CF row now renders for unexecuted TCs, branch no longer dead), **0** `buildCfields` events | **PASS** |
+| 1415.7 | Hygiene | `php -l lib/functions/print.inc.php` clean; `events` table after all fixed-path renders has **0** rows matching `%buildCfields%` | **PASS** |
+
+Result: 7/7 PASS — **#1415 FIXED** via removing the stale `!is_null($buildCfields)` clause at `lib/functions/print.inc.php:1595` (single line, -2/+1, commit `e9fa9f0e9`). **New bug discovered while testing (out of scope):** anonymous/apikey direct access to `printDocument.php` emits 3 `E_WARNING Undefined array key "basehref"` events (printDocument.php:175/254, print.inc.php:700) because `$_SESSION['basehref']` is unset without a session — pre-existing (reproduced identically with the pre-fix file), filed separately with `bug` label.
