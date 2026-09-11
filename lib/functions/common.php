@@ -2044,6 +2044,14 @@ function getActions(&$gui,$baseURL) {
       "/gui/templates/execute/tcUnassignAll.html?{$ctx}";
   }
 
+  // Requirement Revision Viewer modernized screen (Dashio standalone page) -
+  // Refs #1435. Replaces lib/requirements/reqViewRevision.php (the read-only
+  // requirement VERSION/REVISION snapshot popup reached via the legacy
+  // openReqRevisionWindow() helper). The BFF (api/reqrevision) enforces
+  // mgt_view_req on the OWNING project (modern parity) on every route.
+  $actions->reqRevisionView =
+    "/gui/templates/requirements/reqRevisionView.html?{$ctx}";
+
   // Show Newest Test Case Versions modernized screen (Dashio standalone
   // page) - Refs #643. Assigned after the workArea launcher copy-back above
   // (launcher entry removed) so the copy-back cannot overwrite the link.

@@ -1620,7 +1620,9 @@ function openReqRevisionWindow(item_id, anchor)
   var width = getCookie("ReqPopupWidth");
   var height = getCookie("ReqPopupHeight");
   var windowCfg='';
-  var feature_url = "lib/requirements/reqViewRevision.php";
+  // Refs #1435 - modernized screen (Dashio standalone page backed by
+  // api/reqrevision) replaces the legacy reqViewRevision.php popup.
+  var feature_url = "gui/templates/requirements/reqRevisionView.html";
 
 
   if (anchor == null) {

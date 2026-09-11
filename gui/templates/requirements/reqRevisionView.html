@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rrv.title">Requirement Revision</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header .proj { font-size: 13px; font-weight: 400; opacity: .85; margin-left: 14px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.btn-ghost.active { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 16px 18px; font-size: 13px; color: #444; }
+.error-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; }
+.id-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.kv { display: grid; grid-template-columns: 190px 1fr; row-gap: 7px; column-gap: 16px; }
+.kv .k { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; padding-top: 2px; }
+.kv .v { color: #333; word-break: break-word; }
+.scope-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
+.badge-frozen { background: #3598dc; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-open { background: #4ECDC4; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-status { background: #8e44ad; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-type { background: #e67e22; color: #fff; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.badge-rev { background: #22242a; color: #4ECDC4; border: 1px solid #2d8e88; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 700; }
+.cov-warn { color: #e6605e; font-weight: 700; }
+.cov-ok { color: #27ae60; font-weight: 700; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
+.direct-link-bar { background: #1c1e24; color: #ccc; border-bottom: 1px solid #333; padding: 10px 24px; font-size: 12px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.direct-link-bar a { color: #4ECDC4; word-break: break-all; }
+.direct-link-bar .btn-copy { background: transparent; color: #4ECDC4; border: 1px solid #2d8e88; padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.direct-link-bar .btn-copy:hover { background: #2d8e88; color: #fff; }
+.toast-bar { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast-bar.ok { background: #2d8e88; }
+.vr-chip { font-family: monospace; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-history"></i> <span data-i18n="rrv.title">Requirement Revision</span><span class="sub" data-i18n="rrv.subtitle"></span><span class="proj" id="projName"></span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<div class="toolbar">
+  <span class="ctx" id="infoLine"></span>
+  <button class="btn-teal" onclick="loadView()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh"></span></button>
+  <button id="openReqBtn" class="btn-ghost" style="display:none;"><i class="fa fa-file-text-o"></i> <span data-i18n="rrv.openReq"></span></button>
+  <button class="btn-ghost" onclick="openPrint()"><i class="fa fa-print"></i> <span data-i18n="rrv.print"></span></button>
+  <button id="directLinkBtn" class="btn-ghost" onclick="toggleDirectLink()"><i class="fa fa-link"></i> <span data-i18n="rrv.directLink"></span></button>
+  <a class="btn-ghost" href="https://github.com/sebiboga/testlink-upgraded/wiki/Requirement-Revision-Viewer" target="_blank" rel="noopener"><i class="fa fa-circle-question"></i> <span data-i18n="rrv.help"></span></a>
+</div>
+
+<div id="directLinkBox" class="direct-link-bar" style="display:none;">
+  <i class="fa fa-link"></i>
+  <a href="#" id="dlCurrent" target="_blank" rel="noopener"></a>
+  <button class="btn-copy" id="dlCopy" onclick="copyDirectLink()"><i class="fa fa-copy"></i> <span data-i18n="rrv.copyLink"></span></button>
+</div>
+
+<div id="errorBanner" class="error-banner" style="display:none;"></div>
+
+<div id="content" style="display:none;">
+  <div class="card">
+    <div class="card-title"><i class="fa fa-info-circle"></i> <span data-i18n="rrv.overview"></span></div>
+    <div class="card-body">
+      <div class="kv">
+        <div class="k" data-i18n="rrv.docId"></div><div class="v" id="vDocId"></div>
+        <div class="k" data-i18n="rrv.spec"></div><div class="v" id="vSpec"></div>
+        <div class="k" data-i18n="rrv.version"></div><div class="v" id="vVersion"></div>
+        <div class="k" data-i18n="rrv.revision"></div><div class="v" id="vRevision"></div>
+        <div class="k" data-i18n="rrv.type"></div><div class="v" id="vType"></div>
+        <div class="k" data-i18n="rrv.status"></div><div class="v" id="vStatus"></div>
+        <div class="k" data-i18n="rrv.frozen"></div><div class="v" id="vFrozen"></div>
+        <div class="k" data-i18n="rrv.expectedCoverage"></div><div class="v" id="vExpCov"></div>
+        <div class="k" data-i18n="rrv.author"></div><div class="v" id="vAuthor"></div>
+        <div class="k" data-i18n="rrv.createdOn"></div><div class="v" id="vCreated"></div>
+        <div class="k" data-i18n="rrv.modifiedOn"></div><div class="v" id="vModified"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><i class="fa fa-align-left"></i> <span data-i18n="rrv.scope"></span></div>
+    <div class="card-body"><div class="scope-text" id="vScope"></div></div>
+  </div>
+
+  <div class="card" id="covCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-link"></i> <span data-i18n="rrv.linkedTCs"></span></div>
+    <div class="card-body">
+      <div id="noCov" class="empty-state" style="display:none;" data-i18n="rrv.noCoverage"></div>
+      <table id="covTable" class="display" style="width:100%;display:none;">
+        <thead>
+          <tr>
+            <th data-i18n="rrv.externalId"></th>
+            <th data-i18n="rrv.tcaseName"></th>
+            <th data-i18n="rrv.tcVersion"></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" id="cfCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="rrv.customFields"></span></div>
+    <div class="card-body"><div class="kv" id="vCF"></div></div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="toast-bar" id="toastBar"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqrevision/index.php';
+var ITEM_ID = 0;
+var DATA = null;
+var DIRECT_LINK = '';
+var covTable = null;
+
+$(function() {
+  var p = new URLSearchParams(window.location.search);
+  ITEM_ID = parseInt(p.get('item_id') || 0, 10);
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!ITEM_ID) {
+      showError(TLi18n.t('rrv.invalidId'));
+      return;
+    }
+    loadView();
+  });
+});
+
+function loadView() {
+  $.getJSON(API, { action: 'revision', item_id: ITEM_ID,
+                   show_req_spec_title: 1 })
+    .done(function(r) {
+      if (!r || r.status !== 'ok') { showError((r && r.message) || TLi18n.t('rrv.loadError')); return; }
+      DATA = r;
+      $('#projName').text(' - ' + (r.tproject_name || ('#' + r.tproject_id)));
+      render(r);
+      $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rrv.title') +
+        ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    })
+    .fail(function(xhr) {
+      var msg = TLi18n.t('rrv.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+      showError(msg);
+    });
+}
+
+function showError(msg) {
+  $('#content').hide();
+  $('#directLinkBox').hide();
+  $('#errorBanner').css('display', 'block').text(msg);
+  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('rrv.title'));
+}
+
+function render(r) {
+  $('#errorBanner').hide();
+  $('#content').show();
+  DIRECT_LINK = '/linkto.php?item=req&id=' + encodeURIComponent(r.req_doc_id);
+
+  $('#vDocId').html('<span class="id-chip">' + escapeHtml(r.req_doc_id) + '</span> <b>' + escapeHtml(r.title) + '</b>');
+  $('#vSpec').text(escapeHtml(r.show_req_spec_title ? r.req_spec_title : '-'));
+  $('#vVersion').text('v' + r.version);
+  $('#vRevision').html('<span class="badge-rev vr-chip">r' + r.revision + '</span>');
+  $('#vType').html('<span class="badge-type">' + escapeHtml(r.type_label || r.type || '-') + '</span>');
+  $('#vStatus').html('<span class="badge-status">' + escapeHtml(r.status_label || r.status || '-') + '</span>');
+  $('#vFrozen').html(r.is_open
+    ? '<span class="badge-open">' + TLi18n.t('common.no') + '</span>'
+    : '<span class="badge-frozen">' + TLi18n.t('common.yes') + '</span>');
+  if (r.expected_coverage_mgmt) {
+    var pct = r.coverage_pct;
+    var covHtml;
+    if (pct !== null && pct !== undefined) {
+      covHtml = '<span class="' + (pct >= 100 ? 'cov-ok' : 'cov-warn') + '">' +
+        pct.toFixed(2).replace(/\.00$/, '') + '%</span> (' + r.coverage_qty + '/' + r.expected_coverage + ')';
+    } else {
+      covHtml = TLi18n.t('rrv.notApplicable') + ' (' + (r.coverage_qty || 0) + '/' + r.expected_coverage + ')';
+    }
+    $('#vExpCov').html(covHtml);
+  } else {
+    $('#vExpCov').text((r.coverage_qty || 0) + ' (' + TLi18n.t('rrv.notApplicable') + ')');
+  }
+  $('#vAuthor').html(escapeHtml(r.author || '-') + (r.modifier ? ' <span class="badge-rev" style="margin-left:6px;">' + TLi18n.t('rrv.modifier') + '</span>' : ''));
+  $('#vCreated').text(fmtTs(r.creation_ts));
+  $('#vModified').text(fmtTs(r.modification_ts));
+  $('#vScope').text(r.scope || '-');
+
+  $('#infoLine').html('<i class="fa fa-cube"></i> ' + TLi18n.t('rrv.displaying') +
+    ' <b>v' + r.version + 'r' + r.revision + '</b>');
+
+  $('#openReqBtn').off('click').on('click', function() {
+    window.open('/gui/templates/requirements/reqView.html?id=' + r.req_id +
+      '&version_id=' + r.version_id + '&tproject_id=' + r.tproject_id,
+      'req_view_' + r.req_id, 'width=900,height=700,resizable=yes,scrollbars=yes');
+  }).show();
+
+  renderCF(r);
+  renderCoverage(r);
+}
+
+function renderCF(r) {
+  var names = Object.keys(r.cf_values || {});
+  if (!names.length) { $('#cfCard').hide(); return; }
+  var out = '';
+  $.each(names, function(i, n) {
+    out += '<div class="k">' + escapeHtml(n) + '</div><div class="v">' +
+      escapeHtml(r.cf_values[n]) + '</div>';
+  });
+  $('#vCF').html(out);
+  $('#cfCard').show();
+}
+
+function renderCoverage(r) {
+  if (covTable) { covTable.destroy(); covTable = null; }
+  if (!(r.coverage || []).length) {
+    $('#noCov').show();
+    $('#covTable').hide();
+    $('#covCard').show();
+    return;
+  }
+  $('#noCov').hide();
+  $('#covCard').show();
+  $('#covTable').show();
+  var rows = [];
+  $.each(r.coverage, function(i, t) {
+    rows.push([
+      escapeHtml(t.tc_external_id || '-'),
+      '<a href="javascript:void(0)" onclick="openTC(' + t.tcase_id + ')">' +
+        escapeHtml(t.tcase_name) + '</a>' + (t.is_obsolete ? ' *' : ''),
+      escapeHtml(String(t.tc_version))
+    ]);
+  });
+  covTable = $('#covTable').DataTable({
+    data: rows,
+    pageLength: 10,
+    lengthMenu: [[10, 25, -1], [10, 25, 'All']],
+    language: { search: '', searchPlaceholder: TLi18n.t('common.search') },
+    columnDefs: [{ targets: '_all', defaultContent: '' }],
+    bInfo: false
+  });
+}
+
+function openTC(tcId) {
+  var w = Math.floor(window.innerWidth * 0.85), h = Math.floor(window.innerHeight * 0.85);
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + tcId +
+    '&tproject_id=' + DATA.tproject_id, 'tcview_' + tcId,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes');
+}
+
+function openPrint() {
+  if (!DATA) return;
+  var q = 'req_id=' + encodeURIComponent(DATA.req_id) +
+    '&req_version_id=' + encodeURIComponent(DATA.version_id) +
+    '&req_revision=' + encodeURIComponent(DATA.revision) +
+    '&tproject_id=' + encodeURIComponent(DATA.tproject_id);
+  var w = Math.floor(window.innerWidth * 0.9), h = Math.floor(window.innerHeight * 0.9);
+  if (DATA.node_kind === 'requirement_version') {
+    q = 'req_id=' + encodeURIComponent(DATA.req_id) +
+      '&req_version_id=' + encodeURIComponent(DATA.version_id) +
+      '&tproject_id=' + encodeURIComponent(DATA.tproject_id);
+  }
+  window.open('/gui/templates/requirements/printReq.html?' + q, 'req_print_' + DATA.req_id,
+    'width=' + w + ',height=' + h + ',resizable=yes,scrollbars=yes,toolbar=yes');
+}
+
+function toggleDirectLink() {
+  var $box = $('#directLinkBox');
+  if ($box.is(':visible')) { $box.hide(); return; }
+  $('#dlCurrent').attr('href', DIRECT_LINK).text(DIRECT_LINK);
+  $box.show();
+}
+
+function copyDirectLink() {
+  var done = function() { showToast(TLi18n.t('rrv.directLinkCopied'), true); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(DIRECT_LINK).then(done).catch(function() { legacyCopy(done); });
+  } else {
+    legacyCopy(done);
+  }
+}
+
+function legacyCopy(done) {
+  var ta = $('<textarea>').val(DIRECT_LINK).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  done();
+}
+
+function showToast(msg, ok) {
+  var $t = $('#toastBar').text(msg).attr('class', 'toast-bar' + (ok ? ' ok' : '')).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function() { $t.hide(); }, 3500));
+}
+
+function fmtTs(ts) {
+  if (!ts) return '-';
+  var d = new Date(String(ts).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(ts);
+  return d.toLocaleString();
+}
+
+function escapeHtml(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html();
+}
+</script>
+</body>
+</html>
