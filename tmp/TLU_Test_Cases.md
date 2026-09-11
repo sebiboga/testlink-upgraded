@@ -13009,7 +13009,6 @@ Result: 11/11 PASS — **#1414 FIXED** via null-guard `!is_null($dummy) && count
 
 Result: 8/8 PASS — **#1415 FIXED** via removing the stale `!is_null($buildCfields)` clause at `lib/functions/print.inc.php:1595` (single line, -2/+1, commit `e9fa9f0e9`). **New bug discovered while testing (out of scope):** anonymous/apikey direct access to `printDocument.php` emits 3 `E_WARNING Undefined array key "basehref"` events (printDocument.php:175/254, print.inc.php:700) because `$_SESSION['basehref']` is unset without a session — pre-existing (reproduced identically with the pre-fix file), filed separately with `bug` label → **#1416**.
 
-<<<<<<< HEAD
 ## Regression — Issue #1403: Set Results popup hides closed builds + no "Build is closed" read-only banner (Refs #1403)
 
 **Screen:** `gui/templates/execute/execSetResults.html` + `api/execsetresults/index.php` (already modernized, #817)
@@ -13071,7 +13070,7 @@ Result: 6/6 PASS — **#1405 FIXED** via `isset($gui->plugins.EVENT_TESTRUN_DISP
 | 884.12 | Integrity | `php -l api/users/index.php` clean; `python3 -m json.tool` passes for all 10 i18n bundles; `config.inc.php` diff empty after temporary flip reverted; screenshot `docs/screenshots/issue-884-usersView-reset-password-actions.png` | **PASS** |
 
 Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mirrors legacy `createNewPassword()`/`resetPassword()` (smtp validation, send-method, external-mgmt gate, PWD_RESET audit), Users grid gains the gated key-icon action, 8 i18n keys added to all 10 bundles. No new bugs discovered while testing.
-=======
+
 ## TC-1404: execSetResults.html — TC-spec sub-sections (Relations, Keywords, Requirements)
 
 **Feature:** Issue #1404 — port linked Requirements table, TC relations table, and Keywords line
@@ -13152,4 +13151,20 @@ Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mi
 - TC-1404.5 PASS (correct URLs for history/execution/design)
 - TC-1404.6 PASS (reqView.php loads with REQ-1 data)
 - TC-1404.7 PASS (zero new events from modern code)
->>>>>>> 7af919af4 (feat(execute): port TC-spec sub-sections to execSetResults.html (Refs #1404))
+
+## Regression — Issue #1417: reqView.php 2x E_WARNING "Undefined array key f" on every requirement view (Refs #1417)
+
+**Screen:** `lib/requirements/reqView.php` (legacy requirement view, dashio + tl-classic themes)
+**Root cause:** `$tlCfg->req_cfg->type_labels` (`cfg/const.inc.php:676-683`) defines only keys `'1'`..`'7'`, but `req_versions.type` is `CHAR(1)` and is written verbatim with no validation (`lib/functions/requirement_mgr.class.php:2293-2297`). `reqView.php:212` + `reqCommands.class.php:30-41` build `reqTypeDomain`/`attrCfg['expected_coverage']` exclusively from those keys → the viewer templates read them unguarded at source lines 179/181 (compiled `reqViewVersionsViewer.tpl.php:299/:302`) → `watchPHPErrors` (`logger.class.php:1407-1483`) logs 2× E_WARNING per view for any non-standard stored type like `'f'`. Fix: `isset()` guards + raw-code fallback in the 4 viewer templates (dashio + tl-classic, versions + revision), matching `reqSpecView.tpl:122-128`.
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in. Run `php tmp/fixtures_1417.php` → tproject **1**, req spec **2**, req REQ-F-1417 (id **4**, tcversion/version id **5**) stored with `type='f'`; the prologue also seeds a standard-type regression req REQ-STD-1417 (id **6**, type `'2'`). Baseline `SELECT MAX(id) FROM events` before each render; count rows `WHERE id > baseline AND log_level <= 8`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1417.1 | Pre-fix repro (control): render `lib/requirements/reqView.php?requirement_id=4&tproject_id=1&showReqSpecTitle=1` | HTTP 200; Type cell EMPTY (domain lookup fails), **+2** events `E_WARNING\nUndefined array key "f" - in .../reqViewVersionsViewer.tpl.php - Line 299` and `... Line 302` | **PASS (pre-fix)** — bug confirmed exactly |
+| 1417.2 | Post-fix: repeat the same URL | Type cell shows `Type : f` (raw stored code fallback); **0** new events with `log_level <= 8` | **PASS** |
+| 1417.3 | Regression standard type: `lib/requirements/reqView.php?requirement_id=6&tproject_id=1` (type `'2'`) | Type cell `Type : Feature`; **Number of test cases needed : 5** row present; **0** new events | **PASS** |
+| 1417.4 | Theme parity (compile-level): tl-classic twin templates (`gui/templates/tl-classic/requirements/reqViewVersionsViewer.tpl`, `reqViewRevisionViewer.tpl`) | Both recompile cleanly under Smarty 4.5.7 with the same `isset()` guards in the compiled output — dashio is the only runtime theme in this build (`lib/functions/tlsmarty.inc.php:102` hardcodes `main = gui/templates/dashio/`) | **PASS (compile-level)** |
+| 1417.5 | Revision viewer (popup): `lib/requirements/reqViewRevision.php?requirement_id=4&showReqSpecTitle=1`. **Blocked by pre-existing #1427** (dashio `displayReqCoverageRO.inc.tpl` missing → HTTP 500). | Compiled guards in `reqViewRevisionViewer.tpl.php` verified identical (lines 105/114) to the versions-viewer fix | **PASS (compiled-source check; live popup blocked by #1427)** |
+| 1417.6 | Hygiene | `events` table after all post-fix renders has **0** rows matching `%Undefined array key%` / `%reqViewVersionsViewer.tpl.php%` | **PASS** |
+
+Result: 6/6 PASS — **#1417 FIXED** via `isset($args_gui->reqTypeDomain.$req_type)` + `isset($args_gui->attrCfg.expected_coverage.$req_type)` guards (+11/-2 ×4 templates, commits pushed on `fix/issue-1417-undefined-array-key-f`). Before/after screenshots: `docs/screenshots/issue-1417-reqview-type-f-before.png`, `docs/screenshots/issue-1417-reqview-type-f-after.png`. **New pre-existing bug discovered while testing (out of scope, filed):** reqViewRevision.php HTTP 500 in dashio because `gui/templates/dashio/requirements/displayReqCoverageRO.inc.tpl` does not exist → **#1427**.
