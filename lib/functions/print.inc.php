@@ -1231,7 +1231,12 @@ function renderTestCaseForPrinting(&$db,&$node,&$options,$env,$context,$indentLe
 
           $sxni = null;
           if($opt['step_exec_notes'] || $opt['step_exec_status']) {
-            $sxni = $st->tc_mgr->getStepsExecInfo($exec_info[0]['execution_id']);
+            // Refs #1410: a platform where the TC was never executed leaves
+            // $exec_info null -> dereferencing [0] would raise an E_WARNING
+            // that floods the Event Viewer on every report render.
+            if(!is_null($exec_info) && isset($exec_info[0]['execution_id'])) {
+              $sxni = $st->tc_mgr->getStepsExecInfo($exec_info[0]['execution_id']);
+            }
 
             if($opt['step_exec_notes']) {
               $td_colspan++;
