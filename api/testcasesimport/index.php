@@ -221,8 +221,10 @@ if ($action === 'import_md') {
              'message' => 'No markdown content posted (use "markdown" field or "uploadedFile" upload)']);
     }
 
-    // legacy parity options
-    $hitCriteria = strtolower(trim(strval($_POST['hit_criteria'] ?? 'name')));
+    // legacy parity options — read from $_REQUEST so the documented query-string
+    // form (&dry_run=1, &hit_criteria=…) works exactly like import_xml does
+    // (see #1419).
+    $hitCriteria = strtolower(trim(strval($_REQUEST['hit_criteria'] ?? 'name')));
     if (!in_array($hitCriteria, ['name', 'internalid', 'externalid'], true)) {
         http_response_code(400);
         out(['status' => 'error',
@@ -231,14 +233,14 @@ if ($action === 'import_md') {
     // canonically re-case so downstream (and the legacy XML switch) match
     $hitCriteria = ($hitCriteria === 'internalid') ? 'internalID'
                   : (($hitCriteria === 'externalid') ? 'externalID' : 'name');
-    $actionOnHit = strtolower(trim(strval($_POST['action_on_hit'] ?? 'skip')));
+    $actionOnHit = strtolower(trim(strval($_REQUEST['action_on_hit'] ?? 'skip')));
     if (!in_array($actionOnHit, ['skip', 'update_last_version', 'generate_new', 'create_new_version'], true)) {
         http_response_code(400);
         out(['status' => 'error',
              'message' => 'Invalid action_on_hit']);
     }
 
-    $dryRun = intval($_POST['dry_run'] ?? 0) === 1;
+    $dryRun = intval($_REQUEST['dry_run'] ?? 0) === 1;
 
     // ---- parse --------------------------------------------------------------
     $parser = new markdownTcImport();
