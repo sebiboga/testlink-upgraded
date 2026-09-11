@@ -109,6 +109,46 @@ modern screen ports it to a row action backed by a new BFF route:
   `user.passwordResetDenied`, `user.resetFailed`, `user.passwordResetError`.
 - Screenshots: `docs/screenshots/issue-884-usersView-reset-password-actions.png`.
 
+### Generate API key (issue #885)
+
+The legacy edit screen offered a **Generate a new key** button
+(`gui/templates/dashio/usermanagement/usersEdit.tpl:351-355`) gated on
+`$tlCfg->api->enabled` and wired to `usersEdit.php:274-318` `createNewAPIKey()`.
+The modern screen ports it to a row action backed by a new BFF route:
+
+- **UI** (`gui/templates/usermanagement/usersView.html`): an **id-card icon** in the
+  Actions column per row, rendered only when the `/meta/authentication` payload
+  reports `apiEnabled = true` (`canGenerateApiKey()` — legacy `$tlCfg->api->enabled`
+  parity). Clicking shows a confirm dialog (`user.generateApiKeyConfirm`), then
+  `POST /api/users/index.php/{id}/generate-apikey`; the result is shown as an alert:
+  *"New API key has been sent via mail"* (`user.apiKeySent`) or the localized error.
+- **BFF** (`api/users/index.php`, `POST /users/{id}/generate-apikey`), mirroring the
+  legacy `createNewAPIKey()` flow step by step:
+  1. re-checks `$tlCfg->api->enabled` server-side → `403 api_disabled`
+     (defense-in-depth; the UI hides the action anyway);
+  2. validates `config_get('smtp_host')` with `Zend_Validate_Hostname(ALLOW_ALL)` →
+     `400 invalid_smtp_hostname` on failure (same gate as legacy). The legacy lang key
+     `apikey_cannot_be_reseted_invalid_smtp_hostname` is not defined in any
+     `strings.txt` bundle (lang_get would emit a "not localized" WARNING event), so the
+     BFF returns a plain message and the UI maps the `code` to the localized
+     `user.apiKeyInvalidSmtp`;
+  3. calls `APIKey::addKeyForUser($id)` (`lib/functions/APIKey.class.php:38-50`
+     `UPDATE users SET script_key = md5(8×mt_rand())`) and reads the fresh key via
+     `getAPIKey()`;
+  4. emails the key via `@email_send(...)` (subject `mail_apikey_subject`, body
+     `your_apikey_is` + key + `contact_admin`). A delivery failure is caught and written
+     to the PHP error log only (`error_log`) — never to the Event Viewer (no new
+     WARNING events), matching legacy's silent `@` suppression;
+  5. on success logs `logAuditEvent(tls('audit_user_apikey_set',$login),'CREATE',...)`.
+- **Config**: `config_get('smtp_host')` + the legacy `mail_apikey_subject` /
+  `your_apikey_is` / `from_email` globals. With the default unconfigured SMTP host the
+  route returns `400 invalid_smtp_hostname`, same as legacy.
+- New i18n keys in all 10 locale bundles: `user.generateApiKey`,
+  `user.generateApiKeyConfirm`, `user.apiKeySent`, `user.apiKeyFailed`,
+  `user.apiKeyInvalidSmtp`, `user.apiKeyDisabled`.
+- Screenshots: `docs/screenshots/issue-885-apikey-generate-row-action.png`,
+  `docs/screenshots/issue-885-apikey-generate-confirm.png`.
+
 ### Create/Edit User Modal
 
 | Field | Required | Description |

@@ -13168,3 +13168,23 @@ Result: 12/12 PASS — #884 gap closed: BFF `POST /users/{id}/reset-password` mi
 | 1417.6 | Hygiene | `events` table after all post-fix renders has **0** rows matching `%Undefined array key%` / `%reqViewVersionsViewer.tpl.php%` | **PASS** |
 
 Result: 6/6 PASS — **#1417 FIXED** via `isset($args_gui->reqTypeDomain.$req_type)` + `isset($args_gui->attrCfg.expected_coverage.$req_type)` guards (+11/-2 ×4 templates, commits pushed on `fix/issue-1417-undefined-array-key-f`). Before/after screenshots: `docs/screenshots/issue-1417-reqview-type-f-before.png`, `docs/screenshots/issue-1417-reqview-type-f-after.png`. **New pre-existing bug discovered while testing (out of scope, filed):** reqViewRevision.php HTTP 500 in dashio because `gui/templates/dashio/requirements/displayReqCoverageRO.inc.tpl` does not exist → **#1427**.
+
+---
+
+## Task — Issue #885: Generate API key action in User Management (Refs #885)
+
+**Screen:** `gui/templates/usermanagement/usersView.html` + `api/users/index.php` (POST /users/{id}/generate-apikey)
+**Legacy parity:** `lib/usermanagement/usersEdit.php:274-318` `createNewAPIKey()` + `usersEdit.tpl:351-355`
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin logged in; test user `tester1` (id 2, email tester1@example.com) exists (created via BFF). Local smtp override `custom_config.inc.php` (`$g_smtp_host='localhost'`, gitignored).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 885.1 | Open User Management screen as admin; inspect a user row action icons | `fa fa-id-card` icon titled "Generate a new key" present between the reset-password and disable icons (only when `apiEnabled` meta = true) | **PASS** — icon rendered for both admin and tester1 rows; curl `GET /api/users/index.php/meta/authentication` → `"apiEnabled": true` |
+| 885.2 | Click the id-card icon for tester1 | Native confirm dialog "Generate a new API key for user \"tester1\"? ..." | **PASS** — screenshot `docs/screenshots/issue-885-apikey-generate-confirm.png` |
+| 885.3 | Confirm; observe result alert | Success alert "New API key has been sent via mail."; HTTP 200 | **PASS** — verified in browser; DB `users.script_key` for tester1 rotated to a fresh md5; audit event `audit_user_apikey_set`/CREATE written |
+| 885.4 | Direct API: `POST /api/users/index.php/2/generate-apikey` (same-origin header) | `{"status":"ok","message":"New API key has been sent via mail"}` | **PASS** |
+| 885.5 | Direct API with invalid smtp_host (no local override / `[smtp_host_not_configured]`) — verified pre-override | HTTP 400 `code:"invalid_smtp_hostname"` (legacy `apikey_cannot_be_reseted_invalid_smtp_hostname` path) | **PASS** — no "not localized" event leaked |
+| 885.6 | Audit trail | New `audit_user_apikey_set` row per generation with correct actor/login | **PASS** |
+| 885.7 | Event Viewer hygiene | No new log_level <= 2 (Error/Warning) rows from the modern implementation | **PASS** — after final fix only `log_level=16` audit rows added |
+
+Result: 7/7 PASS — **#885 IMPLEMENTED**. Commits on `task/issue-885-apikey-generate` (c4be491b5). Screenshots: `docs/screenshots/issue-885-apikey-generate-row-action.png`, `docs/screenshots/issue-885-apikey-generate-confirm.png`.
