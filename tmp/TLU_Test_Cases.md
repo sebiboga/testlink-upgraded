@@ -12947,3 +12947,23 @@ Result: 15/15 PASS — **#1411 DONE**. Bugs found & fixed in-session: same-origi
 | 882.10 | Integrity | `php -l api/users/index.php` clean; `python3 -m json.tool` passes for all 10 i18n bundles; `events` table: only AUDIT(16) rows (CREATE/UPDATE/AUTH), **no new ERROR(1)/WARNING(2)** | **PASS** |
 
 Result: 10/10 PASS — #882 gap closed: BFF persists `authentication` + `expiration_date` (POST + PUT, `tlUser::setExpirationDate`, `noExpDateUsers` guard), new meta endpoint feeds the modal. Screenshots: `docs/screenshots/issue-882-{create-modal-auth-expdate,edit-admin-exp-hidden,grid-expiration-dates}.png`. **New bug discovered while testing (out of scope):** Create User modal defaults the new user's Global Role to reserved role 1 (zero rights) instead of `$tlCfg->default_roleid` → filed as **#1412** (`bug`, auto-resolved via modal role mis-selection can strip rights on re-save).
+
+## Regression — Issue #1390: planImport (legacy) HTTP 500 `count(null)` crash on import XML with a missing test-case version (Refs #1390)
+
+**Screen:** `lib/plan/planImport.php` (legacy `importTestPlanLinksFromXML()`, post-upload processing)
+**Root cause:** `lib/plan/planImport.php:369-372` passes `get_basic_info()` (→ `db->get_recordset()`, returns **`null`** for zero rows, `lib/functions/database.class.php:776-791`) straight into `count($dummy)` → PHP 8 `TypeError: count(): Argument #1 ... null`. The intended `else` (line 474, `tcversion_doesnot_exist`) was unreachable. Fix: `if( !is_null($dummy) && count($dummy) > 0 )` (`lib/plan/planImport.php:372`).
+**Precondition (2026-09-11, fresh DB):** app @ localhost:8082, admin/admin. Fixture `tmp/fixtures_pimp.php`: tproject **13 PIMP** (prefix PIMP), TCs PIMP-1..3 (tc_external_id 1/2/3, tcversions 16/19/22), plan **24** `PIMP-Plan`, platform 2 `PIMP-Android`. Repro/regression XML: `tmp/pimp_xml/repro1390.xml` (Login v1 + Login v99) and `regr1390.xml` (valid + v99 + extid 777 + no-platform link). Recreate on a fresh DB: `php tmp/fixtures_pimp.php` then use printed ids from `tmp/pimp_tpid.txt`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1390.1 | Pre-fix repro: `POST /lib/plan/planImport.php?tplan_id=24` + `repro1390.xml` (existing TC, version 99 missing) | HTTP 500 empty body + fatal `TypeError count(): ... null` at `planImport.php:372` in `tmp/php_server.log`; browser navigation fails | **PASS (pre-fix)** — bug confirmed exactly |
+| 1390.2 | Post-fix R1: repeat 1390.1 | HTTP **200**; body `Test Case with external id 1 version 99 does not exist on Test Project PIMP`; no fatal in server log | **PASS** |
+| 1390.3 | Post-fix R2: import `regr1390.xml` on plan 24 (fresh fixture) | `external id 1 version 1 has been linked to Test Plan for Platform PIMP-Android`; DB `testplan_tcversions` = 1 row (tcversion 16, platform 2) | **PASS** |
+| 1390.4 | R2b: missing-version link | `external id 1 version 99 does not exist on Test Project PIMP`, no crash, no link row | **PASS** |
+| 1390.5 | R2c: non-existent TC (externalid 777) | `Attention!! - Can not find test case identified by 777`, no row | **PASS** |
+| 1390.6 | R2d: link without platform element on platform-linked plan | `Test case link #4 has no platform element` / Not imported | **PASS** |
+| 1390.7 | Post-fix R3: re-import `regr1390.xml` (idempotency) | `already linked to Test Plan, only execution order has been updated.`; link count stays 1, `node_order` 10 preserved | **PASS** |
+| 1390.8 | Browser: upload + submit `regr1390.xml` | Report renders 4 rows, no console errors, HTTP 200; screenshot `tmp/wiki-repo/planImport-fixed-issue1390.png` | **PASS** |
+| 1390.9 | Hygiene | `php -l lib/plan/planImport.php` clean; no new Error **entries** from the fixed path in `events` table (only AUDIT(16) from link creation; 2x `E_WARNING Undefined array key 1` at compiled `planImport.tpl.php:105` = pre-existing render quirk → new bug **#1413**; `E_WARNING planImport.php:149` only for non-existent `tplan_id`, pre-existing) | **PASS** |
+
+Result: 9/9 PASS — **#1390 FIXED** via null-guard `!is_null($dummy) && count($dummy) > 0` at `lib/plan/planImport.php:372` (single line). Purpose-built payloads `tmp/pimp_xml/repro1390.xml` / `regr1390.xml` added. **New bugs discovered while testing:** (a) single-element result messages (`planImport.php:476/481`) vs template `$result[1]` → E_WARNING on every mixed import → filed as **#1413** (label `bug`); (b) identical unguarded `count($dummy)` in modern BFF `api/planimport/index.php:208` (masked by #1389) → filed as **#1414** (label `bug`). Both left for fix-bug factory.
