@@ -3219,5 +3219,21 @@
   "user.apiKeyInvalidSmtp": "API-Schlüssel kann nicht generiert werden. Grund: SMTP-Hostname scheint ungültig zu sein.",
   "user.apiKeySent": "Neuer API-Schlüssel wurde per E-Mail gesendet",
   "user.generateApiKey": "Neuen Schlüssel generieren",
-  "user.generateApiKeyConfirm": "Neuen API-Schlüssel für Benutzer \"{login}\" generieren? Ein neuer Schlüssel wird erstellt und an die E-Mail-Adresse des Benutzers gesendet."
+  "user.generateApiKeyConfirm": "Neuen API-Schlüssel für Benutzer \"{login}\" generieren? Ein neuer Schlüssel wird erstellt und an die E-Mail-Adresse des Benutzers gesendet.",
+  "tua.assignments": "Zuweisungen",
+  "tua.back": "Zurück",
+  "tua.buildId": "Build",
+  "tua.btnRemoveAll": "Alle Tester von der ausgewählten Build-Zuweisung entfernen",
+  "tua.confirmMsg": "Wenn Sie auf die Ja-Schaltfläche klicken, werden alle Tester-Zuweisungen aus dem Build {build} entfernt.",
+  "tua.confirmTitle": "Wirklich alle Tester-Zuweisungen entfernen?",
+  "tua.countMsg": "Es gibt {count} Ausführungszuweisungen für Build {build}",
+  "tua.doneMsg": "Alle Tester-Zuweisungen wurden aus dem Build {build} gelöscht.",
+  "tua.errDo": "Die Zuweisungen konnten nicht aus dem Build entfernt werden.",
+  "tua.errLoad": "Die Daten für die Entfernungsseite konnten nicht geladen werden.",
+  "tua.errNoRights": "Keine Berechtigung: das Recht testplan_planning ist erforderlich.",
+  "tua.errNotFound": "Build nicht gefunden.",
+  "tua.inProject": "im Testprojekt",
+  "tua.noAssignments": "Es sind keine Tester Testfällen im Build {build} zugewiesen.",
+  "tua.title": "Alle Tester-Zuweisungen entfernen",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - Alle Tester-Zuweisungen entfernen"
 }

@@ -2033,6 +2033,17 @@ function getActions(&$gui,$baseURL) {
       "/gui/templates/execute/tcExecAssignment.html?{$ctx}";
   }
 
+  // Remove all tester assignments from a Build modernized screen (Dashio
+  // standalone page) - Refs #1434. Replaces the legacy
+  // lib/plan/tc_exec_unassign_all.php flow (reached via the filter panel
+  // delete_testers_from_build()); wired into tcExecAssignment.html per build.
+  // The BFF (api/tcunassignall) enforces the legacy controller right
+  // (testplan_planning) server-side on every route.
+  if ($tplan_id > 0) {
+    $actions->tcUnassignAll =
+      "/gui/templates/execute/tcUnassignAll.html?{$ctx}";
+  }
+
   // Show Newest Test Case Versions modernized screen (Dashio standalone
   // page) - Refs #643. Assigned after the workArea launcher copy-back above
   // (launcher entry removed) so the copy-back cannot overwrite the link.

@@ -3219,5 +3219,21 @@
   "userexport.subtitle": "exportați întreaga listă de utilizatori într-un fișier XML",
   "userexport.title": "Export Utilizatori",
   "userexport.userCount": "Utilizatori de exportat",
-  "version": "Versiune"
+  "version": "Versiune",
+  "tua.assignments": "atribuiri",
+  "tua.back": "Înapoi",
+  "tua.buildId": "Build",
+  "tua.btnRemoveAll": "Anulează atribuirea tuturor testerilor din Build-ul selectat",
+  "tua.confirmMsg": "Dacă faceți clic pe butonul Da, toate atribuirile de testeri vor fi eliminate din Build-ul {build}.",
+  "tua.confirmTitle": "Chiar doriți eliminarea tuturor atribuirilor de testeri?",
+  "tua.countMsg": "Există {count} atribuiri de execuție pentru Build-ul {build}",
+  "tua.doneMsg": "Toate atribuirile de testeri au fost șterse din Build-ul {build}.",
+  "tua.errDo": "Atribuirile nu au putut fi eliminate din Build.",
+  "tua.errLoad": "Nu s-au putut încărca datele ecranului de de-atribuire.",
+  "tua.errNoRights": "Fără permisiune: este necesar dreptul testplan_planning.",
+  "tua.errNotFound": "Build-ul nu a fost găsit.",
+  "tua.inProject": "în proiectul de testare",
+  "tua.noAssignments": "Nu există testeri atribuiți la Cazuri de Test în Build-ul {build}.",
+  "tua.title": "Elimină toate atribuirile de testeri",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - Elimină toate atribuirile de testeri"
 }

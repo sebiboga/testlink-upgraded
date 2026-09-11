@@ -3219,5 +3219,21 @@
   "user.apiKeyInvalidSmtp": "Impossibile generare la chiave API. Motivo: il nome host SMTP sembra non valido.",
   "user.apiKeySent": "La nuova chiave API è stata inviata via email",
   "user.generateApiKey": "Genera una nuova chiave",
-  "user.generateApiKeyConfirm": "Generare una nuova chiave API per l'utente \"{login}\"? Verrà creata una nuova chiave e inviata via email all'indirizzo dell'utente."
+  "user.generateApiKeyConfirm": "Generare una nuova chiave API per l'utente \"{login}\"? Verrà creata una nuova chiave e inviata via email all'indirizzo dell'utente.",
+  "tua.assignments": "assegnazioni",
+  "tua.back": "Indietro",
+  "tua.buildId": "Build",
+  "tua.btnRemoveAll": "Annulla l'assegnazione di tutti i tester dal Build selezionato",
+  "tua.confirmMsg": "Se si fa clic sul pulsante Sì, tutte le assegnazioni dei tester verranno rimosse dal Build {build}.",
+  "tua.confirmTitle": "Rimuovere davvero tutte le assegnazioni dei tester?",
+  "tua.countMsg": "Ci sono {count} assegnazioni di esecuzione per il Build {build}",
+  "tua.doneMsg": "Tutte le assegnazioni dei tester sono state rimosse dal Build {build}.",
+  "tua.errDo": "Impossibile rimuovere le assegnazioni dal Build.",
+  "tua.errLoad": "Impossibile caricare i dati della schermata di rimozione.",
+  "tua.errNoRights": "Nessun permesso: è richiesto il diritto testplan_planning.",
+  "tua.errNotFound": "Build non trovato.",
+  "tua.inProject": "nel progetto di test",
+  "tua.noAssignments": "Non ci sono tester assegnati ai Casi di Test nel Build {build}.",
+  "tua.title": "Rimuovi tutte le assegnazioni dei tester",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - Rimuovi tutte le assegnazioni dei tester"
 }

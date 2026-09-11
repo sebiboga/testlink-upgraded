@@ -3219,5 +3219,21 @@
   "user.apiKeyInvalidSmtp": "无法生成 API 密钥。原因：SMTP 主机名似乎无效。",
   "user.apiKeySent": "新的 API 密钥已通过邮件发送",
   "user.generateApiKey": "生成新密钥",
-  "user.generateApiKeyConfirm": "为用户 \"{login}\" 生成新的 API 密钥？将创建新密钥并发送到该用户的邮箱地址。"
+  "user.generateApiKeyConfirm": "为用户 \"{login}\" 生成新的 API 密钥？将创建新密钥并发送到该用户的邮箱地址。",
+  "tua.assignments": "分配",
+  "tua.back": "返回",
+  "tua.buildId": "构建",
+  "tua.btnRemoveAll": "移除所选构建中的所有测试员分配",
+  "tua.confirmMsg": "如果单击“是”按钮，将移除构建 {build} 中的所有测试员分配。",
+  "tua.confirmTitle": "确实要移除所有测试员分配吗？",
+  "tua.countMsg": "构建 {build} 有 {count} 个执行分配",
+  "tua.doneMsg": "已移除构建 {build} 中的所有测试员分配。",
+  "tua.errDo": "无法从构建中移除分配。",
+  "tua.errLoad": "无法加载解除分配屏幕的数据。",
+  "tua.errNoRights": "没有权限：需要 testplan_planning 权限。",
+  "tua.errNotFound": "未找到构建。",
+  "tua.inProject": "在测试项目中",
+  "tua.noAssignments": "构建 {build} 中没有分配测试员给测试用例。",
+  "tua.title": "移除所有测试员分配",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - 移除所有测试员分配"
 }

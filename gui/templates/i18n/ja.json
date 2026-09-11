@@ -3219,5 +3219,21 @@
   "user.apiKeyInvalidSmtp": "APIキーを生成できません。理由: SMTPホスト名が無効のようです。",
   "user.apiKeySent": "新しいAPIキーがメールで送信されました",
   "user.generateApiKey": "新しいキーを生成",
-  "user.generateApiKeyConfirm": "ユーザー \"{login}\" に新しいAPIキーを生成しますか？新しいキーが作成され、ユーザーのアドレスにメールで送信されます。"
+  "user.generateApiKeyConfirm": "ユーザー \"{login}\" に新しいAPIキーを生成しますか？新しいキーが作成され、ユーザーのアドレスにメールで送信されます。",
+  "tua.assignments": "割り当て",
+  "tua.back": "戻る",
+  "tua.buildId": "ビルド",
+  "tua.btnRemoveAll": "選択したビルドからすべてのテスターの割り当てを解除",
+  "tua.confirmMsg": "「はい」ボタンをクリックすると、ビルド {build} からすべてのテスター割り当てが削除されます。",
+  "tua.confirmTitle": "本当にすべてのテスター割り当てを解除しますか？",
+  "tua.countMsg": "ビルド {build} には {count} 件の実行割り当てがあります",
+  "tua.doneMsg": "ビルド {build} からすべてのテスター割り当てが削除されました。",
+  "tua.errDo": "ビルドから割り当てを削除できませんでした。",
+  "tua.errLoad": "解除画面のデータを読み込めませんでした。",
+  "tua.errNoRights": "権限がありません: testplan_planning 権限が必要です。",
+  "tua.errNotFound": "ビルドが見つかりません。",
+  "tua.inProject": "テストプロジェクト内",
+  "tua.noAssignments": "ビルド {build} のテストケースに割り当てられたテスターはありません。",
+  "tua.title": "すべてのテスター割り当てを解除",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - すべてのテスター割り当てを解除"
 }

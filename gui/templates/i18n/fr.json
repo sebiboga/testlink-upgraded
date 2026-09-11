@@ -3219,5 +3219,21 @@
   "user.apiKeyInvalidSmtp": "Impossible de générer la clé API. Raison : le nom d'hôte SMTP semble invalide.",
   "user.apiKeySent": "La nouvelle clé API a été envoyée par e-mail",
   "user.generateApiKey": "Générer une nouvelle clé",
-  "user.generateApiKeyConfirm": "Générer une nouvelle clé API pour l'utilisateur \"{login}\" ? Une nouvelle clé sera créée et envoyée par e-mail à l'adresse de l'utilisateur."
+  "user.generateApiKeyConfirm": "Générer une nouvelle clé API pour l'utilisateur \"{login}\" ? Une nouvelle clé sera créée et envoyée par e-mail à l'adresse de l'utilisateur.",
+  "tua.assignments": "affectations",
+  "tua.back": "Retour",
+  "tua.buildId": "Build",
+  "tua.btnRemoveAll": "Désaffecter tous les testeurs du Build sélectionné",
+  "tua.confirmMsg": "Si vous cliquez sur le bouton Oui, toutes les affectations de testeurs seront supprimées du Build {build}.",
+  "tua.confirmTitle": "Vraiment supprimer toutes les affectations de testeurs ?",
+  "tua.countMsg": "Il y a {count} affectations d'exécution pour le Build {build}",
+  "tua.doneMsg": "Toutes les affectations de testeurs ont été supprimées du Build {build}.",
+  "tua.errDo": "Impossible de supprimer les affectations du Build.",
+  "tua.errLoad": "Impossible de charger les données de l'écran de désaffectation.",
+  "tua.errNoRights": "Pas d'autorisation : le droit testplan_planning est requis.",
+  "tua.errNotFound": "Build introuvable.",
+  "tua.inProject": "dans le projet de test",
+  "tua.noAssignments": "Aucun testeur n'est affecté aux cas de test du Build {build}.",
+  "tua.title": "Supprimer toutes les affectations de testeurs",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - Supprimer toutes les affectations de testeurs"
 }

@@ -3219,5 +3219,21 @@
   "userexport.subtitle": "export the full user list to an XML file",
   "userexport.title": "User Management Export",
   "userexport.userCount": "Users to export",
-  "version": "Version"
+  "version": "Version",
+  "tua.assignments": "assignments",
+  "tua.back": "Back",
+  "tua.buildId": "Build",
+  "tua.btnRemoveAll": "Unassign all testers from selected Build",
+  "tua.confirmMsg": "If you click the Yes-Button, all tester assignments will be removed from the Build {build}.",
+  "tua.confirmTitle": "Really remove all tester assignments?",
+  "tua.countMsg": "There are {count} execution assignments for Build {build}",
+  "tua.doneMsg": "All tester assignments have been deleted from the Build {build}.",
+  "tua.errDo": "Could not remove the assignments from the Build.",
+  "tua.errLoad": "Could not load unassign screen data.",
+  "tua.errNoRights": "No permission: the testplan_planning right is required.",
+  "tua.errNotFound": "Build not found.",
+  "tua.inProject": "in test project",
+  "tua.noAssignments": "There are no testers assigned to Test Cases in the Build {build}.",
+  "tua.title": "Remove all tester assignments",
+  "footers.tcUnassignAll": "TestLink 2.0.1 - Remove all tester assignments"
 }

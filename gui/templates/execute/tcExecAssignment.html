@@ -67,6 +67,7 @@ select.testerSel { width: 95%; min-width: 170px; height: 56px; font-size: 12.5px
   <select id="tplanSel"></select>
   <span class="ctx"><label for="buildSel" data-i18n="tea.build">Build</label>:</span>
   <select id="buildSel"></select>
+  <button class="btn-red" id="btnUnassignAll" disabled><i class="fa fa-user-times"></i> <span data-i18n="tua.btnRemoveAll">Unassign all testers from selected Build</span></button>
   <span class="ctx" id="platFilterWrap" style="display:none;">
     <label for="platFilterSel" data-i18n="tea.platform">Platform</label>:
     <select id="platFilterSel"></select>
@@ -164,7 +165,13 @@ $(function () {
   });
   $('#buildSel').on('change', function () {
     buildId = parseInt($(this).val() || '0', 10);
+    $('#btnUnassignAll').prop('disabled', buildId <= 0);
     loadItems();
+  });
+  $('#btnUnassignAll').on('click', function () {
+    if (buildId <= 0) return;
+    window.location.href = '/gui/templates/execute/tcUnassignAll.html?tproject_id=' + tprojectId +
+      '&tplan_id=' + tplanId + '&build_id=' + buildId;
   });
   $('#platFilterSel').on('change', function () {
     loadItems();
@@ -279,6 +286,7 @@ function initCtx() {
       });
       buildId = parseInt($bs.val() || '0', 10);
       if (!(r.builds || []).length) { $bs.val('0'); buildId = 0; }
+      $('#btnUnassignAll').prop('disabled', buildId <= 0);
 
       var $ts = $('#bulkTesters').empty();
       (r.testers || []).forEach(function (t) {
