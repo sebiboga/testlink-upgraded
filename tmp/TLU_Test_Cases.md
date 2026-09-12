@@ -13742,3 +13742,23 @@ Result: **11/11 PASS** — **#1478 FIXED**: unknown object api keys now deny bef
 | 889.11 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → **0** Error/Warning rows (only log_level=16 audit CREATE/UPDATE); browser console clean (only benign a11y hints) | **PASS** |
 
 Result: **11/11 PASS** — **#889 IMPLEMENTED/VERIFIED**: `meta/roles` excludes the id-0 `<inherited>` pseudo-role and exposes `defaultRoleID`; create defaults to guest (5) and edit with a 0/absent stored role preselects guest, exactly matching legacy usersEdit.php:77-78 + usersEdit.tpl:240-243; server-side POST falls back to `default_roleid` for role 0/absent; reserved/undefined roles are no longer assignable through the documented flow.
+
+## Regression — Issue #1459: Test Strategy ASIDE "Severity Configuration" label falls back to English in all non-en_GB locales (missing href_severity_config key)
+
+**Screen:** `gui/templates/dashio/aside.tpl:161` (legacy Smarty ASIDE sub-item, key `{$labels.href_severity_config}`).
+**Defect:** the key `$TLS_href_severity_config` existed only in `locale/en_GB/strings.txt:2329`; the other 18 locale `strings.txt` files lacked it, so `lang_get()` fell back to en_GB and the Test-Strategy sub-item rendered "Severity Configuration" in English inside the translated shell for every non-en_GB locale.
+**Fix:** added `$TLS_href_severity_config = "<native translation>";` to all 18 missing locale files, inserted right after the `$TLS_href_plan_define_priority` line (same relative placement as en_GB), quote style matched per file; cs_CZ string written in the file's real byte encoding (cp1250 — the file declares UTF-8 but stores Windows-1250 bytes). Translations: cs "Konfigurace závažnosti" · de "Schweregrad-Konfiguration" · en_US "Severity Configuration" · es_AR/es_ES "Configuración de Severidad" · fi "Vakavuusasetukset" · fr "Configuration de la sévérité" · id "Konfigurasi Tingkat Keparahan" · it "Configurazione della gravità" · ja "重大度設定" · ko "심각도 설정" · nl "Configuratie van de ernst" · pl "Konfiguracja ważności" · pt_BR/pt_PT "Configuração de Severidade" · ro "Configurare severitate" (matches ro.json `proj.severityConfig`) · ru "Настройка серьёзности" · zh_CN "严重性配置".
+**Precondition:** admin/admin on http://localhost:8082; `UPDATE users SET locale=<X> WHERE login='admin'` + fresh login to drive the PHP session locale (legacy `$_SESSION['locale']` from `lib/functions/users.inc.php:41`). chrome-devtools MCP + mysql CLI.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1459.1 | Pre-fix A: `UPDATE users SET locale='ro_RO'` + login; expand ASIDE "Strategia de Testare" | 4th-from-last sub-item shows **"Severity Configuration"** (English) amid Romanian labels; `grep -rl href_severity_config locale/*/strings.txt` → 1 file | **PASS (reproduced)** |
+| 1459.2 | Post-fix A: same ro_RO session, reload ASIDE | last sub-item shows **"Configurare severitate"**; `grep -rl href_severity_config locale/*/strings.txt` → 19 files | **PASS** |
+| 1459.3 | All 18 touched files: `php -l locale/<X>/strings.txt` | "No syntax errors" for cs_CZ, de_DE, en_US, es_AR, es_ES, fi_FI, fr_FR, id_ID, it_IT, ja_JP, ko_KR, nl_NL, pl_PL, pt_BR, pt_PT, ro_RO, ru_RU, zh_CN | **PASS** |
+| 1459.4 | Regression en_GB: `UPDATE users SET locale='en_GB'` + login, expand Test Strategy | last sub-item still **"Severity Configuration"** (signature value unchanged) | **PASS** |
+| 1459.5 | Regression de_DE: `UPDATE users SET locale='de_DE'` + login, expand Teststrategie | last sub-item shows **"Schweregrad-Konfiguration"** | **PASS** |
+| 1459.6 | cs_CZ file bytes | `z'ávažnosti` stored in cp1250 (`ž`=0x9e, `á`=0xe1), same scheme as the file's existing Czech strings; UTF-8 decode of header unaffected | **PASS** |
+| 1459.7 | ASIDE link target still works | Click last sub-item → `gui/templates/projects/severityConfig.html` loads (title "Severity Configuration", project selector + save button disabled until project chosen) | **PASS** |
+| 1459.8 | Event Viewer / events table | Only L18N fallback row for `href_severity_config` is the pre-fix repro (id 47); no new fallback/ERROR/WARNING rows after fix | **PASS** |
+
+Result: **8/8 PASS** — **#1459 FIXED**: `href_severity_config` now defined in all 19 locale bundles; ASIDE sub-item renders translated (ro/de verified) and unchanged in en_GB; cs_CZ byte-encoding honoured; zero new event entries.
