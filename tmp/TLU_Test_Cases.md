@@ -13955,3 +13955,24 @@ Result: **15/15 PASS** (test other than 10/11 run on the default DISABLED config
 | 1484.7 | Event Viewer / console | No new E_WARNING/E_ERROR (`log_level`=2/1) rows from the options path in `events` after the suite; browser console clean on a project-bound screen | **PASS** |
 
 Result: **7/7 PASS** — **#1484 FIXED**: corrupt options no longer flood the Event Viewer; valid options decode and persist exactly as before (zero behavior change, warning-containment only). Fix pushed as `fix/issue-1484` (commit 1de8a403a).
+
+## Regression — Issue #1432: rolesView.html delete-cell onclick attribute breakout (stored-XSS via role description)
+
+**Area:** `gui/templates/usermanagement/rolesView.html` delete-cell onclick + `api/roles/index.php`.
+**Change (Refs #1432):** the role name was interpolated **raw** into the delete icon's inline attribute — `onclick="confirmDelete(id, '<name>')"` with only single quotes escaped (`rolesView.html:203`). A double quote in the role name closed the attribute and trailing `><img onerror=…>` became a real element. Fix follows the #1406 usersView family: the icon now carries the id only — `onclick="confirmDelete(<id>)"` — and `confirmDelete(id)` resolves the name from the module-level `allItems` at click time, rendered through the existing `esc()` (text context only).
+**Precondition:** fresh DB; plant `"><img src=x onerror=location.hash=\`RVXSS\`>x` into `roles.description` for role 4 via `UPDATE roles SET description=… WHERE id=4;`. Admin/admin session, load `/gui/templates/usermanagement/rolesView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1432.1 | PRE-FIX symptom: grid load with payload role (verified before fix on this branch head) | `document.querySelectorAll('img')` → `["<img src=\"x\" onerror=\"location.hash=\`RVXSS\`\">"]`; `location.hash` = `#RVXSS` (onerror fires at render, no click) | **PASS** (pre) |
+| 1432.2 | POST-FIX: grid load with payload role | `img_count` = 0, no `onerror` element; `location.hash` = `""`; name column shows the payload as escaped text | **PASS** |
+| 1432.3 | POST-FIX: delete icon attribute for role 4 | `onclick="confirmDelete(4)"` — id only, no name string inside the attribute | **PASS** |
+| 1432.4 | POST-FIX: confirm modal on payload role | Modal text `Are you sure you want to delete role <b>"&gt;&lt;img src=x onerror=location.hash=\`RVXSS\`&gt;x</b>?` — entity-escaped text, no element created, hash unchanged | **PASS** |
+| 1432.5 | Cancel flow | Cancel closes the modal; grid unchanged; no hash change | **PASS** |
+| 1432.6 | Full create→list→delete with a payload NAMED role (fresh role `tmp" ><img src=y onerror=location.hash=DELXSS>z`, id=10) | Role created and listed; its action cell `onclick="confirmDelete(10)"`; confirm modal shows escaped name; DELETE succeeds → row removed, grid back to 9 roles | **PASS** |
+| 1432.7 | System roles unaffected | Roles id 1–3 render no trash icon (`isSystem` → empty deleteBtn); edit icons still present | **PASS** |
+| 1432.8 | Edit flow regression | Edit icon on role 4 opens modal; payload name lands in `#editRoleName` input via `.val()` (text context) | **PASS** |
+| 1432.9 | Event Viewer / console | `events` table: only audit-level rows (log_level 16: login, role create, role delete) — no ERROR/WARNING from the fix/repro/delete flows | **PASS** |
+| 1432.10 | Static syntax + sweep | Extracted inline `<script>` → `node --check` OK; no remaining raw `r.name` interpolation into the delete attribute | **PASS** |
+
+Result: **10/10 PASS** — **#1432 FIXED**: the role name no longer crosses an HTML-attribute boundary; name → text-context via `esc()` only, matching the #1406/#1430 usersView doctrine. Fix on branch `fix/issue-1432`.
