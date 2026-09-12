@@ -3697,6 +3697,7 @@ $TLS_installed_plugins = 'Installierte Plugins';
 $TLS_title_plugins = 'Plugins';
 
 $TLS_report_test_automation = 'Testautomatisierungsbericht';
+$TLS_btn_report_test_automation = 'Testautomatisierungsspezifikation';
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'wird zusammen ausgeführt mit';
 $TLS_remove_plat_msgbox_title = 'Plattform entfernen';

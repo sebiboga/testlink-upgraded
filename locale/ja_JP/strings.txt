@@ -4540,6 +4540,7 @@ $TLS_tests_design = 'テストケース設計';
 $TLS_title_dashboard = 'ダッシュボード';
 
 $TLS_report_test_automation = 'テスト自動化レポート';
+$TLS_btn_report_test_automation = 'テスト自動化仕様';
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'と一緒に実行される';
 $TLS_remove_plat_msgbox_title = 'プラットフォームを削除';

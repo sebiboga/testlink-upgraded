@@ -3454,5 +3454,21 @@
   "esr.remoteExecDone": "Test case executed and saved by the remote server",
   "esr.remoteExecErr": "Remote execution failed",
   "esr.remoteExecScheduled": "Remote execution scheduled for",
-  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build",
+  "tas.caption": "测试自动化规范",
+  "tas.inProject": "在测试项目中",
+  "tas.testProject": "测试项目",
+  "tas.automatedCases": "自动化测试用例",
+  "tas.hint": "列出所有执行类型为「自动化」的测试用例，按测试套件分组。用作测试自动化接线的依据。",
+  "tas.results": "包含自动化用例的测试套件",
+  "tas.noAutomated": "未找到自动化测试用例。",
+  "tas.noRights": "您没有查看此报告的权限（mgt_view_tc）。",
+  "tas.colTestCase": "自动化测试用例",
+  "tas.colVersion": "版本",
+  "tas.colImportance": "重要性",
+  "tas.impHigh": "高",
+  "tas.impMedium": "中",
+  "tas.impLow": "低",
+  "tas.stats": "在 {suites} 个套件中有 {cases} 个自动化用例",
+  "footers.tasSpec": "TestLink 2.0.1 - 测试自动化规范"
 }

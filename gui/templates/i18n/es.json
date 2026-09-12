@@ -3448,5 +3448,21 @@
   "esr.remoteExecDone": "Test case executed and saved by the remote server",
   "esr.remoteExecErr": "Remote execution failed",
   "esr.remoteExecScheduled": "Remote execution scheduled for",
-  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build",
+  "tas.caption": "Especificación de automatización de pruebas",
+  "tas.inProject": "en el proyecto de pruebas",
+  "tas.testProject": "Proyecto de pruebas",
+  "tas.automatedCases": "Casos de prueba automatizados",
+  "tas.hint": "Lista todos los casos de prueba con tipo de ejecución \"Automatizado\", agrupados por suite de pruebas.",
+  "tas.results": "Suites de pruebas con casos automatizados",
+  "tas.noAutomated": "No se encontraron casos de prueba automatizados.",
+  "tas.noRights": "No tiene derechos (mgt_view_tc) para ver este informe.",
+  "tas.colTestCase": "Caso de prueba automatizado",
+  "tas.colVersion": "Versión",
+  "tas.colImportance": "Importancia",
+  "tas.impHigh": "Alta",
+  "tas.impMedium": "Media",
+  "tas.impLow": "Baja",
+  "tas.stats": "{cases} casos automatizados en {suites} suites",
+  "footers.tasSpec": "TestLink 2.0.1 - Especificación de automatización de pruebas"
 }

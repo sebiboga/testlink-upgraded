@@ -3454,5 +3454,21 @@
   "esr.remoteExecDone": "Test case executed and saved by the remote server",
   "esr.remoteExecErr": "Remote execution failed",
   "esr.remoteExecScheduled": "Remote execution scheduled for",
-  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build",
+  "tas.caption": "テスト自動化仕様",
+  "tas.inProject": "テストプロジェクト内",
+  "tas.testProject": "テストプロジェクト",
+  "tas.automatedCases": "自動化テストケース",
+  "tas.hint": "実行タイプが「自動化」のテストケースをテストスイートごとに一覧表示します。テスト自動化の配線の根拠として使用します。",
+  "tas.results": "自動化ケースを含むテストスイート",
+  "tas.noAutomated": "自動化テストケースが見つかりません。",
+  "tas.noRights": "このレポートを表示する権限(mgt_view_tc)がありません。",
+  "tas.colTestCase": "自動化テストケース",
+  "tas.colVersion": "バージョン",
+  "tas.colImportance": "重要度",
+  "tas.impHigh": "高",
+  "tas.impMedium": "中",
+  "tas.impLow": "低",
+  "tas.stats": "{suites} スイート内の {cases} 自動化ケース",
+  "footers.tasSpec": "TestLink 2.0.1 - テスト自動化仕様"
 }

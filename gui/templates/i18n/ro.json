@@ -3647,5 +3647,21 @@
   "esr.remoteExecDone": "Test case executed and saved by the remote server",
   "esr.remoteExecErr": "Remote execution failed",
   "esr.remoteExecScheduled": "Remote execution scheduled for",
-  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build",
+  "tas.caption": "Specificație de automatizare a testelor",
+  "tas.inProject": "în proiectul de testare",
+  "tas.testProject": "Proiect de testare",
+  "tas.automatedCases": "Cazuri de test automatizate",
+  "tas.hint": "Listează toate cazurile de test cu tipul de execuție „Automatizat\", grupate pe suita de testare. Folosit ca sursă pentru integrarea automatizării.",
+  "tas.results": "Suite de testare cu cazuri automatizate",
+  "tas.noAutomated": "Niciun caz de test automatizat găsit.",
+  "tas.noRights": "Nu aveți drepturi (mgt_view_tc) pentru a vizualiza acest raport.",
+  "tas.colTestCase": "Caz de test automatizat",
+  "tas.colVersion": "Versiune",
+  "tas.colImportance": "Importanță",
+  "tas.impHigh": "Ridicată",
+  "tas.impMedium": "Medie",
+  "tas.impLow": "Scăzută",
+  "tas.stats": "{cases} cazuri automatizate în {suites} suite",
+  "footers.tasSpec": "TestLink 2.0.1 - Specificație de automatizare a testelor"
 }

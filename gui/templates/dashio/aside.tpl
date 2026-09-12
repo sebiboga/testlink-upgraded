@@ -226,6 +226,9 @@ Left side menu
                     <li><a href="{$gui->uri->tcImport}" target="mainframe">{$labels.href_tc_import}</a></li>
                     <li><a href="{$gui->uri->tcCreatedUser}" target="mainframe">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
+                  {if $menuGrants->view_tc == "yes"}
+                    <li><a href="{$gui->uri->testAutomationSpec}" target="mainframe">{$labels.btn_report_test_automation}</a></li>
+                  {/if}
                 </ul>
               </li>
             {/if}

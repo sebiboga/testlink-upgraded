@@ -155,6 +155,14 @@ Test Spec:
 - Test Suite viewer popup (suiteView.html) - BFF api/suiteview (#1371).
 - Assign Keywords (keywordsAssign.html) - BFF api/keywords.
 - Test Case Bulk Update (tcBulkOp).
+- Test Automation Specification (results/testAutomationSpec.html) - BFF
+  api/testautomationspec (#1485). Last standalone lib/results testAutomationSpec.php
+  controller modernized: BFF reuses the legacy genSpecViewFlat() with the AUTO
+  exec_type filter and onlyLatestTCV, re-shaping the flat spec view into JSON
+  (per-suite automated TCs: external id/name/latest version/importance); rights
+  mgt_view_tc on the requested project (hasRight, 401/400/403/404/500 JSON, 404
+  before 403), ASIDE entry under Test Case Design gated view_tc, `tas.*` keys
+  in all 10 locale bundles.
 - MD Test Case Import/Export (Feature #853, #1404).
 
 Plans:

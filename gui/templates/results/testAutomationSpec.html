@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Test Automation Specification</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.panel { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 20px 24px 0; }
+.panel-head { padding: 14px 20px; border-bottom: 1px solid #eee; font-size: 15px; font-weight: 700; color: #22242a; }
+.notice { margin: 12px 20px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 12px; }
+.results-head { padding: 14px 24px 0; }
+.results-head h2 { font-size: 15px; font-weight: 700; color: #22242a; margin: 0; }
+.results-head .count { font-weight: 400; color: #888; font-size: 13px; margin-left: 6px; }
+.tsuite-caption { background: #059; color: #fff; font-size: 12px; font-weight: 700; padding: 7px 14px; border-radius: 4px 4px 0 0; margin-top: 16px; }
+.tsuite-caption .qty { font-weight: 400; opacity: .85; margin-left: 6px; }
+.suite-table { margin-bottom: 0; }
+.suite-table th { background: #22242a; color: #fff; font-size: 12px; padding: 8px 14px; }
+.suite-table td { padding: 8px 14px; font-size: 13px; vertical-align: middle; border-bottom: 1px solid #eee; }
+.suite-table tr.row-odd td { background: #fafafa; }
+.tc-link { font-weight: 700; color: #2d8e88; text-decoration: none; }
+.tc-link:hover { text-decoration: underline; }
+.badge-imp { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; color: #fff; }
+.badge-imp.low { background: #6c757d; }
+.badge-imp.medium { background: #e0a800; }
+.badge-imp.high { background: #e6605e; }
+.warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 8px 24px; display: none; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 6px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span data-i18n="tas.caption">Test Automation Specification</span>
+  <span class="sub"><span data-i18n="tas.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="tas.testProject">Test Project</span>: <b id="tprojectName2">-</b></span>
+  <span class="ctx"><span data-i18n="tas.automatedCases">Automated test cases</span>: <b id="numTc">-</b></span>
+  <span style="flex:1"></span>
+  <button class="btn-teal" onclick="reloadReport()"><i class="fa fa-rotate-right"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="notice">
+  <i class="fa fa-info-circle"></i>
+  <span data-i18n="tas.hint">Lists every test case whose execution type is &quot;Automated&quot;, grouped by test suite. Used as the source of truth for test automation wiring.</span>
+</div>
+
+<div class="warnbox" id="warnBox"></div>
+<div class="empty" id="noResults" data-i18n="tas.noAutomated">No automated test cases found.</div>
+
+<div class="results-head" id="resultsHead" style="display:none">
+  <h2><span data-i18n="tas.results">Test suites with automated cases</span><span class="count" id="matchCount"></span></h2>
+</div>
+<div id="reportBody" style="margin:8px 24px 0;"></div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="footer"><span data-i18n="footers.tasSpec">TestLink 2.0.1 - Test Automation Specification</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/testautomationspec/index.php';
+var tprojectId = 0;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  tprojectId = parseInt(p.get('tproject_id') || '0', 10);
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadReport();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
+}
+
+function impLabel(code) {
+  switch (code) {
+    case 3: return TLi18n.t('tas.impHigh');
+    case 2: return TLi18n.t('tas.impMedium');
+    default: return TLi18n.t('tas.impLow');
+  }
+}
+
+function loadReport() {
+  $.getJSON(API + '?action=spec&tproject_id=' + tprojectId)
+    .done(function (r) {
+      if (r.status !== 'ok') { toast(r.message || TLi18n.t('common.error'), true); return; }
+      $('#tprojectName').text(r.tprojectName || '-');
+      $('#tprojectName2').text(r.tprojectName || '-');
+      $('#numTc').text(r.numTc);
+      document.title = r.tprojectName + ' - ' + TLi18n.t('tas.caption');
+      renderReport(r);
+    })
+    .fail(function (xhr) {
+      var status = xhr.status;
+      var target = $('#warnBox');
+      target.css('display', 'block');
+      if (status === 403) {
+        target.text(TLi18n.t('tas.noRights'));
+      } else {
+        var msg = TLi18n.t('common.error');
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+        target.text(msg);
+      }
+      $('#reportBody, #resultsHead').hide();
+    });
+}
+
+function reloadReport() {
+  $('#warnBox').hide();
+  loadReport();
+}
+
+function renderReport(r) {
+  $('#matchCount').text('(' + r.numTc + ')');
+
+  if (!r.suites || r.suites.length === 0) {
+    $('#resultsHead').hide();
+    $('#reportBody').empty();
+    $('#noResults').show();
+    $('#footerInfo').text('');
+    return;
+  }
+  $('#noResults').hide();
+  $('#resultsHead').show();
+
+  var body = '';
+  r.suites.forEach(function (suite) {
+    body += '<div class="tsuite-caption">' + esc(suite.name) +
+            '<span class="qty">(' + suite.testcase_qty + ')</span></div>';
+    body += '<table class="suite-table" style="width:100%"><thead><tr>' +
+            '<th style="width:26%">' + esc(TLi18n.t('tas.colTestCase')) + '</th>' +
+            '<th style="width:70px">' + esc(TLi18n.t('tas.colVersion')) + '</th>' +
+            '<th style="width:110px">' + esc(TLi18n.t('tas.colImportance')) + '</th>' +
+            '</tr></thead><tbody>';
+    suite.testcases.forEach(function (tc, i) {
+      var imp = '<span class="badge-imp ' + ['low','medium','high'][Math.min(Math.max(tc.importance,1),3)-1] + '">' +
+                esc(impLabel(tc.importance)) + '</span>';
+      var tcLabel = '<a class="tc-link" href="javascript:void(0)" onclick="openTcView(' +
+                    tc.id + ')">' +
+                    esc(tc.external_id) + ' : ' + esc(tc.name) + '</a>';
+      body += '<tr class="' + (i % 2 ? 'row-odd' : '') + '">' +
+              '<td>' + tcLabel + '</td>' +
+              '<td>' + esc(tc.version) + '</td>' +
+              '<td>' + imp + '</td></tr>';
+    });
+    body += '</tbody></table>';
+  });
+  $('#reportBody').html(body);
+
+  $('#footerInfo').html(
+    esc(TLi18n.t('common.generatedOn')) + ': ' + esc(r.generatedOn) +
+    ' &middot; ' + esc(TLi18n.t('tas.stats', {cases: r.numTc, suites: r.totalSuites}))
+  );
+}
+
+function openTcView(tcaseId) {
+  var url = '/gui/templates/testcases/tcView.html?tcase_id=' + tcaseId +
+            '&tproject_id=' + tprojectId;
+  window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
+}
+</script>
+</body>
+</html>

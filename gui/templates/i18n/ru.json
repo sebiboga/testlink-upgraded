@@ -3454,5 +3454,21 @@
   "esr.remoteExecDone": "Test case executed and saved by the remote server",
   "esr.remoteExecErr": "Remote execution failed",
   "esr.remoteExecScheduled": "Remote execution scheduled for",
-  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build",
+  "tas.caption": "Спецификация автоматизации тестирования",
+  "tas.inProject": "в тестовом проекте",
+  "tas.testProject": "Тестовый проект",
+  "tas.automatedCases": "Автоматизированные тестовые сценарии",
+  "tas.hint": "Перечисляет все тестовые сценарии с типом выполнения «Автоматизированный», сгруппированные по тестовым наборам.",
+  "tas.results": "Тестовые наборы с автоматизированными сценариями",
+  "tas.noAutomated": "Автоматизированные тестовые сценарии не найдены.",
+  "tas.noRights": "У вас нет прав (mgt_view_tc) на просмотр этого отчёта.",
+  "tas.colTestCase": "Автоматизированный сценарий",
+  "tas.colVersion": "Версия",
+  "tas.colImportance": "Важность",
+  "tas.impHigh": "Высокая",
+  "tas.impMedium": "Средняя",
+  "tas.impLow": "Низкая",
+  "tas.stats": "{cases} автоматизированных сценариев в {suites} наборах",
+  "footers.tasSpec": "TestLink 2.0.1 - Спецификация автоматизации тестирования"
 }

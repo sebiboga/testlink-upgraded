@@ -13976,3 +13976,51 @@ Result: **7/7 PASS** — **#1484 FIXED**: corrupt options no longer flood the Ev
 | 1432.10 | Static syntax + sweep | Extracted inline `<script>` → `node --check` OK; no remaining raw `r.name` interpolation into the delete attribute | **PASS** |
 
 Result: **10/10 PASS** — **#1432 FIXED**: the role name no longer crosses an HTML-attribute boundary; name → text-context via `esc()` only, matching the #1406/#1430 usersView doctrine. Fix on branch `fix/issue-1432`.
+
+## Suite #1485 — Test Automation Specification (results/testAutomationSpec.html)
+
+**Screen:** `gui/templates/results/testAutomationSpec.html` + BFF `api/testautomationspec/index.php`.
+**Change (Refs #1485):** the last standalone legacy `lib/results/testAutomationSpec.php` controller is
+modernized. The BFF reuses the legacy `genSpecViewFlat()` (lib/functions/specview.php) with the
+byte-identical legacy arguments (`'testproject'`, `exec_type=TESTCASE_EXECUTION_TYPE_AUTO`,
+`onlyLatestTCV=true`) and re-shapes the flat view into clean JSON (per-suite automated TCs with
+external id/name/latest-version/importance). Rights `mgt_view_tc` on the REQUESTED project via
+explicit `hasRight()` (`hasRightOnProj()` reads the session context — code-review finding #1);
+404 answered before the 403 probe; generation wrapped in try/catch (JSON 500 — finding #2).
+Screen lists every automated TC grouped by suite (caption = suite path), per-row link → modern
+`tcView.html` popup, version + importance badge (High=red/Medium=amber/Low=green), empty state,
+403 banner, TLi18n locale switch. ASIDE entry Test Case Design → "Test Automation Specification"
+gated `view_tc` (view-only users see it — finding #3); `$actions->testAutomationSpec` in common.php;
+label `btn_report_test_automation` in all 19 strings.txt + labels.aside.tpl; `tas.*` (16) +
+`footers.tasSpec` in all 10 client bundles.
+**Preconditions:** fixture `tmp/fixtures_aside_walk.php` (project ASD1001 id=120, suite id=121, TC
+"Login works" id=122 manual, TC "API health" id=126 AUTO tcversion 127) + `tmp/fixtures_tas_empty.php`
+(project ASD1002 id=142, no suites/TCs). Admin/admin session (project 120 in session);
+no-rights user `tasnouser`/tasnouser1 (globalRoleID 3).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1485.1 | ASIDE menu entry | Test Case Design section shows "Test Automation Specification" with `href=.../gui/templates/results/testAutomationSpec.html?tproject_id=120&tplan_id=129` (modern .html, NOT testAutomationSpec.php); visible for view-only grant | **PASS** |
+| 1485.2 | BFF filled (admin, ?action=spec&tproject_id=120) | HTTP 200 `{status:'ok', tprojectId:120, tprojectName:'ASD1001...', numTc:1, totalSuites:1}`; suites[0] `{id:121, name:'/ASD Root Suite/', testcase_qty:1}`; testcases[0] `{external_id:'2', name:'API health', version:1, importance:2}` | **PASS** |
+| 1485.3 | BFF empty (?action=spec&tproject_id=142) | HTTP 200 `numTc:0, totalSuites:0, suites:[]` — empty project degrades cleanly (no 500, no E_WARNING events) | **PASS** |
+| 1485.4 | BFF anonymous | No cookie → HTTP 401 `{status:'error'}` | **PASS** |
+| 1485.5 | BFF no-right user on existing project (tasnouser, tproject_id=120) | HTTP 403 `{"status":"error","message":"No rights to view this report"}` | **PASS** |
+| 1485.6 | BFF nonexistent project (admin tproject_id=999999 and 1) | HTTP 404 `{"status":"error","message":"Test project not found"}` | **PASS** |
+| 1485.7 | BFF 404-before-403 ordering (tasnouser tproject_id=999999) | HTTP 404 "Test project not found" (NOT 403) — the rights probe never runs for unknown projects | **PASS** |
+| 1485.8 | BFF unknown action / missing project | `?action=bogus` → HTTP 400; `?action=spec` without tproject_id falls back to session project (120) → 200 | **PASS** |
+| 1485.9 | Screen filled render (tproject 120) | Header "Test Automation Specification / in ASD1001...", toolbar stats "1 automated case(s) in 1 suite", suite caption `/ASD Root Suite/`, row `2 : API health` with Version 1 and Medium (amber) importance badge; refresh button present | **PASS** |
+| 1485.10 | TC link parity | Click `2 : API health` → popup opens `gui/templates/results/tcView.html?...` (modern viewer, NOT legacy testcaseView.php) | **PASS** |
+| 1485.11 | Screen empty render (tproject 142) | Empty-state panel "No automated test cases found." rendered, zero suite tables; no console errors | **PASS** |
+| 1485.12 | No-rights screen (tasnouser browser) | Red banner (tas.noRights) shown; no tables rendered | **PASS** |
+| 1485.13 | Locale switch (Romanian) | Switch to Română → title "Specificație de automatizare a testelor", stats "1 cazuri automatizate în 1 suite", footer "TestLink 2.0.1 - Specificație de automatizare a testelor" | **PASS** |
+| 1485.14 | i18n integrity | `tas.*` (16) + `footers.tasSpec` present and valid JSON in all 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh); no hardcoded labels in HTML; async label `btn_report_test_automation` present in all 19 `locale/*/strings.txt` | **PASS** |
+| 1485.15 | Static + review findings | `php -l api/testautomationspec/index.php` clean; rights gate uses `hasRight($db,'mgt_view_tc',$tproject_id)` on the URL id (no session-only `hasRightOnProj`); genSpecViewFlat wrapped in try/catch; `tcversions`/`importance` null-guarded; no dead `#formPanel` selector; no DataTables asset without initializer | **PASS** |
+| 1485.16 | Event Viewer / console | `events` table: no new ERROR/WARNING (log_level) rows during the suite (only audit INFO login rows + the pre-existing #1484 corrupt-options warning in project-bound audit); browser console clean | **PASS** |
+
+Result: **16/16 PASS** — **#1485 DONE**: the final standalone legacy `lib/results/testAutomationSpec.php`
+screen is modernized end-to-end (BFF `api/testautomationspec`, screen
+`gui/templates/results/testAutomationSpec.html`, ASIDE entry under Test Case Design). Code review
+(AGENTS rule 16) passed — fixes applied BEFORE commit: session-context rights gate → explicit
+`hasRight()` on the URL tproject id, try/catch JSON 500 on generation, 404-answered-before-403,
+null-guarded tcversions/importance, `view_tc` menu gate, removed dead `#formPanel` hide + DataTables
+asset/class leftovers.
