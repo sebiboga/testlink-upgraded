@@ -107,6 +107,7 @@ var TPROJECT_ID = 0;
 var ctx = null;
 var DT = null;
 var covSelected = 0;   // 1 -> per-row testcase_count has been set from "needed"
+var feedbackSticky = 0; // keep #feedback across the reload that follows a create
 var REQS = [];
 
 $(function () {
@@ -128,9 +129,10 @@ $(function () {
   });
   $('#createBtn').on('click', createTestCases);
   $('#reqTable').on('change', '.req-cbox', function () {
-    var all = $('.req-cbox').length === $('.req-cbox:checked').length;
-    $('#toggleAll').prop('checked', all);
-    $('#createBtn').prop('disabled', $('.req-cbox:checked').length === 0);
+    var len = $('.req-cbox').length;
+    var chk = $('.req-cbox:checked').length;
+    $('#toggleAll').prop('checked', len > 0 && len === chk);
+    $('#createBtn').prop('disabled', chk === 0);
   });
 });
 
@@ -187,7 +189,9 @@ function load() {
 function render() {
   if (DT) { DT.destroy(); DT = null; }
   var $tb = $('#reqTable tbody').empty();
-  $('#feedback').hide();
+  $('#errBox').hide();
+  if (!feedbackSticky) { $('#feedback').hide(); }
+  feedbackSticky = 0;
   if (!REQS.length) {
     $('#workArea').hide();
     $('#createRow').hide();
@@ -200,14 +204,17 @@ function render() {
 
   REQS.forEach(function (it) {
     var needed = '';
-    if (ctx.expected_coverage_management && it.expected_coverage > 0) {
-      needed = '<span>' + it.needed + '</span>' +
+    if (ctx.expected_coverage_management) {
+      // legacy reqCreateTestCases.tpl shows the TARGET (expected_coverage) in
+      // the "Needed" cell; the *delta* (expected - coverage) is what the magic
+      // toggle fills into the testcase_count inputs.
+      needed = '<span>' + it.expected_coverage + '</span>' +
         '<i class="fa fa-magic toggle-cov" title="' + esc(TLi18n.t('rctc.toggleCount')) + '"' +
         ' onclick="setCountFromNeeded(' + it.id + ')"></i>';
     }
     var tr = $('<tr>')
       .append($('<td class="check-col">')
-        .append('<input type="checkbox" class="req-cbox" name="req_id_cbox[' + it.id + ']" data-id="' + it.id + '" data-default="1">'))
+        .append('<input type="checkbox" class="req-cbox" name="req_id_cbox[' + it.id + ']" data-id="' + it.id + '">'))
       .append($('<td>')
         .append('<a class="req-link" onclick="openReq(' + it.id + ')">' +
           esc(it.req_doc_id) + ' : ' + esc(it.title) + '</a>'))
@@ -234,10 +241,11 @@ function setCountFromNeeded(id) {
   REQS.forEach(function (x) { if (x.id === id) { it = x; } });
   if (!it) { return; }
   if (covSelected === 0) {
-    // fill every visible row testcase_count with its "needed" value (legacy
-    // cs_all_coverage_in_div: hidden coverage_count holds the default)
+    // fill every visible row testcase_count with the hidden legacy coverage
+    // count (delta to reach expected coverage; 0 when already covered), like
+    // reqCreateTestCases.tpl cs_all_coverage_in_div reads coverage_count[]
     REQS.forEach(function (x) {
-      $('.tc-count[data-id="' + x.id + '"]').val(x.needed > 0 ? x.needed : 1);
+      $('.tc-count[data-id="' + x.id + '"]').val(x.needed >= 0 ? x.needed : 1);
     });
     covSelected = 1;
   } else {
@@ -263,8 +271,9 @@ function createTestCases() {
   }
   var tcCount = {};
   ids.forEach(function (id) {
-    var v = parseInt($('.tc-count[data-id="' + id + '"]').val() || '1', 10);
-    tcCount[id] = (isNaN(v) || v < 0) ? 1 : v;
+    // legacy ARRAY_INT semantics: empty/non-numeric -> 0, negative -> 0
+    var v = parseInt($('.tc-count[data-id="' + id + '"]').val() || '', 10);
+    tcCount[id] = (isNaN(v) || v < 0) ? 0 : v;
   });
   var payload = {
     spec_id: SPEC_ID,
@@ -289,6 +298,7 @@ function createTestCases() {
       html += '</ul>';
       $('#feedback').removeClass('err').html(html).show();
       toast(TLi18n.t('rctc.createdOk'), 'ok');
+      feedbackSticky = 1;
       load();
     } else {
       $('#feedback').addClass('err').text(r.message || TLi18n.t('rctc.errSave')).show();

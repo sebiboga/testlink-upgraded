@@ -65,7 +65,6 @@ $BODY = json_decode(file_get_contents('php://input'), true) ?? [];
 
 function ctx_out($data) { echo json_encode($data); exit; }
 
-$tprojectMgr = new testproject($db);
 $reqSpecMgr  = new requirement_spec_mgr($db);
 $reqMgr      = new requirement_mgr($db);
 
@@ -215,14 +214,17 @@ if ($method === 'POST' && $action === 'create') {
         ctx_out(['status' => 'error', 'message' => 'Select at least one requirement']);
     }
 
-    // Verify every selected requirement actually belongs to this spec (forged
-    // ids must not create orphans). Both forms legacy accepts: flat
-    // testcase_count and old 'testcase_count:{rid:n}' serialized_count.
+    // Verify every selected requirement belongs to a req spec of the OWNING
+    // project (forged/foreign ids must not create orphans). Project scope
+    // matches legacy: create_tc_from_requirement accepts any requirement of
+    // the project — including requirements of nested/child req specs
+    // (child_requirements_mgmt ENABLED) whose parent is NOT this spec.
     $tcCount = isset($BODY['testcase_count']) && is_array($BODY['testcase_count'])
         ? $BODY['testcase_count'] : [];
 
     $memberRows = $db->get_recordset(
-        'SELECT id FROM requirements WHERE srs_id = ' . intval($specId));
+        'SELECT r.id FROM requirements r JOIN req_specs s ON s.id = r.srs_id' .
+        ' WHERE s.testproject_id = ' . intval($owner));
     $members = [];
     foreach (($memberRows ?: []) as $m) { $members[] = intval($m['id']); }
 
