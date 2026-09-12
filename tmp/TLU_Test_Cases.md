@@ -13487,3 +13487,23 @@ Result: 16/16 PASS — **#1434 FIXED**. New BFF `api/tcunassignall/index.php` + 
 | 1402.10 | Hygiene | `php -l` BFF clean; browser console: zero JS errors; `events` table after all runs: only log_level 16 (INFO) rows, no Error/Warning | **PASS** |
 
 Result: 10/10 PASS — **#1402 implemented**: BFF `init` now ships `save_and_move` + `nav` chain, popup gained Previous / Save-and-move-to-next / Move-to-Next buttons (legacy `exec_controls.inc.tpl` parity) with read-only/closed-build disabling and cyclic wrap.
+
+## Task — Issue #886: "Show event history" (mgt_view_events) link in User Management edit
+
+**Screen:** `gui/templates/usermanagement/usersView.html` + BFF `api/users/index.php` (`GET /meta/grants` now returns `mgt_view_events`).
+**Legacy parity:** `gui/templates/dashio/usermanagement/usersEdit.tpl:189-193` (`showEventHistoryFor(user_id,'users')` question icon) + `lib/usermanagement/usersEdit.php:457-458` (`grants->mgt_view_events = hasRight('mgt_view_events')`).
+**Precondition (2026-09-12, fresh DB):** login admin/admin (role admin holds `mgt_users`+`mgt_view_events`); DB fixture user `uv` (role = ONLY `mgt_users`, no `mgt_view_events`, password = admin's hash). Screen URL `gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`. Recreated via `INSERT` into roles/role_rights/users/nodes_hierarchy (idempotent per fresh-import).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 886.1 | `curl`/fetch `/api/users/index.php/meta/grants` as admin | `grants.mgt_view_events === "yes"` (plus existing user_mgmt/role_mgmt keys) | **PASS** |
+| 886.2 | Fetch `/meta/grants` as `uv` (mgt_users only) | `grants.mgt_view_events === "no"` | **PASS** |
+| 886.3 | Admin: `editUser(1)` → inspect `#btnEventHistory` | Modal header shows button (`display:inline-block`, text "Show event history"), `canViewEvents===true` | **PASS** |
+| 886.4 | Admin: `showCreateModal()` → inspect `#btnEventHistory` | Button hidden (`display:none`, `editUserId` empty) | **PASS** |
+| 886.5 | Admin: click `#btnEventHistory` with user 1 loaded | New tab `eventviewer.html?object_id=1&object_type=users`; Event Viewer shows "Filtered by users #1" and admin's AUDIT login row (`events.object_id=1`, `object_type=users` verified in DB) | **PASS** |
+| 886.6 | `uv` session: `editUser(1)` → inspect `#btnEventHistory` | Button hidden (`canViewEvents:false`, `btnDisplay:none`) | **PASS** |
+| 886.7 | i18n completeness + locale switch | `user.showEventHistory` present in ALL 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh) with correct translations; `?locale=ro` renders "Arată istoricul evenimentelor"; every bundle `python3 -m json.tool` valid | **PASS** |
+| 886.8 | Hygiene | `php -l api/users/index.php` clean; no browser console errors; `events` table after all runs only log_level 16 (AUDIT) rows — zero new ERROR/WARNING/L18N | **PASS** |
+
+Result: 8/8 PASS — **#886 implemented**: `meta/grants` ships `mgt_view_events`, edit modal gained a right-gated "Show event history" button (matching userInfo.html/planMilestones.html pattern), the hidden GET form drills into the Event Viewer pre-filtered on `object_id`+`object_type=users`.
+

@@ -201,6 +201,38 @@ Screenshots: `docs/screenshots/887_1_demo_on.png`,
 `docs/screenshots/887_2_modal_readonly.png`,
 `docs/screenshots/887_3_normal_state.png`.
 
+### Show Event History in the edit modal (issue #886)
+
+Legacy `usersEdit.tpl:189-193` showed a question/help icon (title
+`show_event_history`) next to the "User Details" legend that drilled into the
+Event Viewer pre-filtered to the edited user's audit activity via
+`showEventHistoryFor(user_id,'users')`. The icon was gated on
+`grants->mgt_view_events` (`usersEdit.php:457-458`, `hasRight('mgt_view_events')`).
+
+The modern edit modal replicates it:
+
+- **BFF** (`api/users/index.php` `GET /meta/grants`): the grants payload now
+  includes `mgt_view_events` (`'yes'`/`'no'`), mirroring the legacy separate
+  assignment in `usersEdit.php:457-458` (the value is deliberately NOT part of
+  `getGrantsForUserMgmt()`, exactly like legacy).
+- **UI** (`usersView.html`): a **Show event history** button
+  (`#btnEventHistory`, `fa-history` + `data-i18n="user.showEventHistory"`)
+  appears in the edit modal header only while editing an existing user **and**
+  the current logged-in user holds `mgt_view_events`. It is hidden in the
+  create modal and for users without the right. Clicking it submits a hidden
+  GET form (`object_id=<user id>&object_type=users`) which opens the modern
+  Event Viewer at `eventviewer.html?object_id=<id>&object_type=users` in a new
+  tab, showing "Filtered by users #<id>" — the same pattern as the user profile
+  (`userInfo.html`) and milestones (`planMilestones.html`) screens.
+- The Event Viewer BFF (`api/eventviewer/index.php`) independently enforces
+  `mgt_view_events` (403 without it), so the filter cannot be abused.
+- New i18n key in all 10 locale bundles: `user.showEventHistory` (values match
+  the existing `profile.showEventHistory` translations).
+
+Screenshots: `docs/screenshots/issue-886-users-edit-event-history.png`
+(edit modal with the button), `docs/screenshots/issue-886-eventviewer-filtered-user.png`
+(Event Viewer filtered to user #1).
+
 ### Tips
 
 - Only users with `active = 1` (Active) appear in the table
