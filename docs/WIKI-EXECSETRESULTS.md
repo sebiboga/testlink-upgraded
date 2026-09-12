@@ -295,3 +295,30 @@ The initial 2.0.1 port dropped the whole block. Issue #1399 restores it.
 - **i18n:** `esr.testsuite`, `esr.details`, `esr.attachments`, `esr.suiteCfs`,
   `esr.cfField`, `esr.cfValue`, `esr.openSuite` in all 10 locale bundles.
 - **Test cases:** TLU suite #1399 (see `tmp/TLU_Test_Cases.md`).
+
+## Header execInfo strip, notes panels, execution meta (issue #1398)
+
+Legacy behavior (dropped in the initial 2.0.1 port, restored in #1398):
+
+- **Copy direct link** — init returns `feature_id` + `direct_link` (legacy
+  `buildExecContext`/`getFeatureID`); the popup header **Copy link** button
+  toggles an inline input with `basehref/ltx.php?item=exec&feature_id=…&
+  build_id=…` (legacy format) and copies it to the clipboard.
+- **Print** — header button → `window.print()`.
+- **Import XML Results** — opens `resultsImport.html` with `tproject_id`,
+  `tplan_id`, `build_id`, `platform_id` context.
+- **Execute and Save Results** — gated on `exec_cfg->enable_test_automation`
+  (default DISABLED: hidden button + BFF 403). Enabled mode ports
+  `do_remote_execution()`: `executeTestCase()` with `getXMLRPCServerParams()`;
+  writes an AUTO execution row on `now`; localized `configProblems`/
+  `connectionFailure` feedback surfaced.
+- **Notes panels** — collapsible Test Plan / Build / Platform boxes with
+  plan+build design-time custom fields (`show_on_execution=1` scope), from
+  init `tplan_notes/build_notes/platform_notes/tplan_cfs/build_cfs`; empty
+  boxes skipped.
+- **Execution meta** — "Execution type: Manual/Automated | Estimated execution
+  duration: N minutes" (`execution_type_label`, `estimated_exec_duration`).
+
+BFF: `esrDirectLink()`, `esrExecutionTypeLabel()` (uses
+`TESTCASE_EXECUTION_TYPE_AUTO`), `esrNotesPayload()`. i18n: 14 new `esr.*` keys
+in all 10 bundles. Test cases: TLU suite #1398.

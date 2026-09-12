@@ -13911,3 +13911,29 @@ Result: **5/5 PASS** — **#1480 FIXED/VERIFIED**: `createTestCases()` now sets 
 | 1483.20 | Post-code-review re-verify: forged/foreign-requirement guard now project-scoped (nested child req specs allowed) | Membership `JOIN req_specs s ON s.id = r.srs_id AND s.testproject_id = <owner>`; req id 999 → still 404 "Requirement does not exist in the specification"; requirements of the owning project's OTHER specs pass | **PASS** |
 
 Result: **20/20 PASS** — **#1483 DONE**: `reqCreateTestCases` is modernized end-to-end (BFF `api/reqcreatetestcases`, screen `gui/templates/requirements/reqCreateTestCases.html`, guided entry from reqSpecView toolbar); only Requirements-area screen still served by `lib/requirements/*.php` is replaced; coverage math and create semantics byte-identical to legacy. Code review (AGENTS rule 16) passed — fixes from review: sticky post-create feedback, correctly-guarded toggle-all, legacy "Needed" target display + delta autofill, ARRAY_INT count coercion, project-scoped membership guard.
+
+## Suite #1398 — Set Results popup execInfo strip + notes panels + remote exec (execSetResults)
+
+**Screen:** `gui/templates/execute/execSetResults.html` + BFF `api/execsetresults/index.php`.
+**Change (Refs #1398):** restored the legacy Set Results popup header strip — copy direct link to this execution (browser clipboard), Print, Import XML Results (opens `resultsImport.html` with current build/platform), Execute and Save Results (remote exec, gated on `exec_cfg->enable_test_automation`, DISABLED by default: button hidden + BFF `POST ?action=remote_exec` → 403) — plus collapsible Test Plan / Build / Platform notes panels with plan+build design-time custom fields (`tplan_notes/build_notes/platform_notes/tplan_cfs/build_cfs` from init) and the execution-type + estimated-duration meta row (`execution_type_label`, `estimated_exec_duration`, decimal). i18n `esr.*` (14 new keys) in all 10 bundles.
+**Precondition:** fresh DB seeded with `/tmp/fixture_1398.sql` (project 1, suite 2, TCs 3/8 vers 4/9, steps, plan 11 w/notes, builds 100 open + 101 closed, platform 200, testplan_tcversions rows incl. platform 200, custom field "Component" id=1 with `show_on_execution=1` + cfield_testprojects/cfield_node_types/cfield_design_values(plan)/cfield_build_design_values(100) plumbing, one prior 'passed' execution build 100). Session admin/admin on `execSetResults.html?tcase_id=3&tcversion_id=4&tproject_id=1&tplan_id=11&build_id=100`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1398.1 | Open popup (fresh fixtures) | Header shows "Copy link", "Print", "Import XML Results", NO remote-exec button (test_automation_enabled=0) | **PASS** |
+| 1398.2 | Click "Copy link" | Inline box reveals `http://localhost:8082/ltx.php?item=exec&feature_id=1&build_id=100` (matches `basehref/ltx.php?item=exec` legacy format) | **PASS** |
+| 1398.3 | Click the copy button | Toast "Direct link copied to clipboard"; value readable from clipboard/textarea fallback | **PASS** |
+| 1398.4 | Click "Print" | `window.print()` invoked without JS error | **PASS** |
+| 1398.5 | Click "Import XML Results" | Popup opens `resultsImport.html?tproject_id=1&tplan_id=11&build_id=100&platform_id=200`; build/plan pre-selected | **PASS** |
+| 1398.6 | Notes panels render | Test Plan Notes box: "Plan notes: sprint 42 execution." + CF table Field=Component/Value=Core / Auth; Build Notes box: build text + CF Component=Build 1.0 RC; empty Platform Notes box NOT rendered | **PASS** |
+| 1398.7 | Notes collapse | Click a notes head → body toggles hidden; click again → visible | **PASS** |
+| 1398.8 | Meta row | "Execution type: Manual \| Estimated execution duration: 5 minutes" (estimate half-minute decimal preserved as-is) | **PASS** |
+| 1398.9 | Remote exec gate (default) | Direct `POST /api/execsetresults/?action=remote_exec` with valid ids → HTTP 403 `{"status":"error","message":"Remote execution is not enabled by configuration"}` | **PASS** |
+| 1398.10 | Remote exec enabled path (config temporarily flipped ENABLED, reverted after) | Button "Execute and Save Results" appears; click → toast with localized configProblems message ("Remote execution can not be launched due to missing configuration…") — matches legacy no-server feedback; JSON `status:ok, feedback.system.status:configProblems`; no partial execution row written | **PASS** |
+| 1398.11 | Closed-build remote exec (enabled mode) | Selecting build 101 "Build closed" → BFF returns 400 "Invalid or non-executable build for this plan"; no execution row inserted | **PASS** |
+| 1398.12 | Platform switch refresh | Changing `#selPlatform` (single platform fixtures: value unchanged) triggers `setting_platform` refetch through `loadInfo()`; no console errors | **PASS** |
+| 1398.13 | Direct link survives build switch | Switch build → init refetches and `direct_link`/`feature_id`/prior-execution update on re-render | **PASS** |
+| 1398.14 | i18n integrity | 14 new `esr.*` keys present & valid JSON in all 10 bundles; pre-existing translations (e.g. de `esr.cfField` = "Feld", ro) preserved; no hardcoded labels in HTML | **PASS** |
+| 1398.15 | Event Viewer / console | `events` table: no new Error/Warning (log_level 1/2) from this screen (only the pre-existing audit + corrupt-options warning of issue #1484); browser console clean | **PASS** |
+
+Result: **15/15 PASS** (test other than 10/11 run on the default DISABLED config which was restored; the transient ENABLED mode was reverted). **#1398 DONE**: the Set Results popup now matches legacy execInfo/notes/type-duration behavior; pushed as `task/issue-1398` (commit 62251b96a). Remote-exec against a REAL automation server (configured via design CFs) is not coverable in this environment — verified up to the configProblems/connectionFailure boundary exactly as legacy.
