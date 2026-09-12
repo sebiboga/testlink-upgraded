@@ -273,8 +273,10 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   Test Case / Test Case Version carried no status element, so the Smarty
   renderer dereferenced `$result[1]` of a 1-element array and logged
   `E_WARNING Undefined array key 1` per missing link — the two appends now
-  include the "Not imported" status (legacy lib/plan/planImport.php #1413;
-  the modern BFF `api/planimport` has the same 1-element defect → #1461).
+  include the "Not imported" status (legacy lib/plan/planImport.php #1413).
+  The modern BFF `api/planimport` carried the same 1-element defect
+  (`index.php:280,283`), which rendered a blank/`undefined` status in the
+  modern report table status column — now fixed identically (#1461).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
