@@ -418,15 +418,47 @@ function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId, $
                 $prior['attachments'] = [];
             }
             $sr = $db->get_recordset(
-                "SELECT tcstep_id, notes, status" .
+                "SELECT tcstep_id, id AS tcsexe_id, notes, status" .
                 " FROM {$execTables['execution_tcsteps']}" .
                 " WHERE execution_id = " . intval($er[0]['execution_id']));
+            $stepExecIdByStep = [];
             if (!is_null($sr)) {
                 foreach ($sr as $srow) {
                     $priorSteps[intval($srow['tcstep_id'])] = [
                         'notes' => strval($srow['notes']),
                         'status' => strval($srow['status']),
                     ];
+                    $stepExecIdByStep[intval($srow['tcstep_id'])] =
+                        intval($srow['tcsexe_id']);
+                }
+            }
+            // step-level attachments of the latest full execution (legacy
+            // attachments on execution_tcsteps rows, written by
+            // write_execution() exec.inc.php:255-321). Download links allow
+            // reviewing what the previous run attached per step.
+            if (count($stepExecIdByStep) > 0) {
+                $attTbl = tlObjectWithDB::getDBTables(['attachments'])['attachments'];
+                $attRows = $db->get_recordset(
+                    "SELECT id, fk_id, title, file_name, file_size" .
+                    " FROM {$attTbl}" .
+                    " WHERE fk_table = 'execution_tcsteps'" .
+                    " AND fk_id IN (" .
+                    implode(',', array_values($stepExecIdByStep)) . ")");
+                if (!is_null($attRows)) {
+                    foreach ($attRows as $ar) {
+                        $stepIdOf = array_search(intval($ar['fk_id']),
+                            $stepExecIdByStep);
+                        if ($stepIdOf === false) { continue; }
+                        $priorSteps[$stepIdOf]['attachments'][] = [
+                            'id' => intval($ar['id']),
+                            'title' => strval($ar['title']),
+                            'file_name' => strval($ar['file_name']),
+                            'file_size' => intval($ar['file_size']),
+                            'download_url' =>
+                                '/lib/attachments/attachmentdownload.php?id=' .
+                                intval($ar['id']),
+                        ];
+                    }
                 }
             }
         }
@@ -697,6 +729,17 @@ if ($action === 'init') {
          && isset($execCfg->features->exec_duration)
          && !empty($execCfg->features->exec_duration->enabled)) ? 1 : 0;
 
+    // Step-level execution features (legacy $tlCfg->exec_cfg->steps_exec /
+    // steps_exec_attachments, config.inc.php:1140-1144): gate the per-step
+    // attachment uploader AND the "Save Steps Work In Progress Execution"
+    // button+warning below the steps table (exec_test_spec.inc.tpl:53-73).
+    $stepsExec = (int)(!isset($execCfg->steps_exec) || !empty($execCfg->steps_exec));
+    $stepsExecAttachments =
+        (int)(!isset($execCfg->steps_exec_attachments) || !empty($execCfg->steps_exec_attachments));
+    $attCfg = config_get('attachments');
+    $attachmentsEnabled =
+        (int)(!isset($attCfg->enabled) || !empty($attCfg->enabled));
+
     $tcaseName = isset($basic['name']) ? strval($basic['name']) : '';
     $tcaseExternalId = strval($vinfo['tc_external_id']);
 
@@ -736,6 +779,9 @@ if ($action === 'init') {
             'ro_access' => $roAccess ? 1 : 0,
         ],
         'exec_duration_enabled' => $execDurationEnabled,
+        'steps_exec' => $stepsExec,
+        'steps_exec_attachments' => $stepsExecAttachments,
+        'attachments_enabled' => $attachmentsEnabled,
         'requirements_enabled' => $requirementsEnabled,
         'requirements' => $requirements,
         'relations' => $relations,
@@ -881,6 +927,130 @@ if ($action === 'save') {
     }
 
     out(['status' => 'ok', 'saved' => true, 'execution_id' => $executionId]);
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=save_partial — Steps Work In Progress save (legacy
+// execSetResults.php:333-343 saveStepsPartialExec + testcase::
+// saveStepsPartialExec()): persist only the per-step statuses/notes into
+// execution_tcsteps_wip WITHOUT writing an overall execution and WITHOUT
+// touching the overall result. The next full save clears these rows
+// (write_execution() -> deleteStepsPartialExec, exec.inc.php:105-118).
+// ---------------------------------------------------------------------------
+if ($action === 'save_partial') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = setResultsPayload();
+    if (!is_array($payload) || count($payload) == 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid request body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, $tplanId, $tprojectId, ) =
+        esrResolvePlan($db, $user, $tplanId);
+
+    // WRITE right required (exec_ro_access is NOT enough), same as save
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcaseId = intval($payload['tcase_id'] ?? 0);
+    $tcversionId = intval($payload['tcversion_id'] ?? 0);
+    $buildId = intval($payload['build_id'] ?? 0);
+    $platformId = intval($payload['platform_id'] ?? -1);
+
+    $validBuild = false;
+    $rawBuilds = $tplanMgr->get_builds($tplanId);
+    if (!is_null($rawBuilds)) {
+        foreach ($rawBuilds as $bid => $b) {
+            if (intval($bid) === $buildId
+                && intval($b['active']) === 1 && intval($b['is_open']) === 1) {
+                $validBuild = true;
+                break;
+            }
+        }
+    }
+    if (!$validBuild) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Invalid or non-executable build for this plan']);
+    }
+
+    // platform_id must be 0 (legacy "no platform" default) or a real
+    // platform of the plan - a forged id would write orphan WIP rows
+    // that no later init re-reads
+    $validPlatform = false;
+    if ($platformId < 0) { $platformId = 0; }
+    if ($platformId === 0) {
+        $validPlatform = true;
+    } else {
+        $rawPlatforms = $tplanMgr->getPlatforms($tplanId);
+        if (!is_null($rawPlatforms)) {
+            foreach ($rawPlatforms as $p) {
+                if (intval($p['id']) === $platformId) {
+                    $validPlatform = true;
+                    break;
+                }
+            }
+        }
+    }
+    if (!$validPlatform) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Invalid platform for this plan']);
+    }
+
+    // version MUST belong to the test case AND be linked to the plan
+    list($tcaseMgr, ) = esrResolveTcVersion($db, $tplanMgr, $tplanId,
+        $tcaseId, $tcversionId);
+
+    // step-level statuses/notes: keys are STEP IDS; every id must belong to
+    // THIS version so forged ids cannot touch unrelated WIP rows
+    $stepsIn = isset($payload['steps']) && is_array($payload['steps'])
+        ? $payload['steps'] : [];
+    $partialExec = ['notes' => [], 'status' => []];
+    if (count($stepsIn) > 0) {
+        $wanted = array_map('intval', array_keys($stepsIn));
+        $validStepIds = [];
+        if (count($wanted) > 0) {
+            $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+            $tcstepsTable = DB_TABLE_PREFIX . 'tcsteps';
+            $stRs = $db->get_recordset(
+                "SELECT S.id FROM {$tcstepsTable} S" .
+                " JOIN {$nhTables['nodes_hierarchy']} NH ON NH.id = S.id" .
+                " WHERE NH.parent_id = {$tcversionId}" .
+                " AND S.id IN (" . implode(',', $wanted) . ")");
+            if (!is_null($stRs)) {
+                foreach ($stRs as $sr) { $validStepIds[intval($sr['id'])] = 1; }
+            }
+        }
+        foreach ($stepsIn as $sid => $sv) {
+            $sid = intval($sid);
+            if ($sid <= 0 || !isset($validStepIds[$sid])) { continue; }
+            $sn = isset($sv['notes']) ? strval($sv['notes']) : '';
+            $ss = strtolower(trim(strval($sv['status'] ?? '')));
+            $partialExec['notes'][$sid] = $sn;
+            $partialExec['status'][$sid] = $ss;
+            // saveStepsPartialExec() itself blanks excluded/not_run/invalid
+            // statuses (testcase.class.php:9670-9684) - legacy parity
+        }
+    }
+    if (count($partialExec['notes']) == 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'No step results provided']);
+    }
+
+    $ctx = new stdClass();
+    $ctx->testplan_id = $tplanId;
+    $ctx->platform_id = $platformId > 0 ? $platformId : 0;
+    $ctx->build_id = $buildId;
+    $ctx->tester_id = $userId;
+    $tcaseMgr->saveStepsPartialExec($partialExec, $ctx);
+
+    out(['status' => 'ok', 'saved' => true]);
 }
 
 http_response_code(404);

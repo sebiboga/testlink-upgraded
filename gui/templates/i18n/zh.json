@@ -3291,5 +3291,11 @@
   "reqv.directLinkCopied": "直接链接已复制到剪贴板",
   "reqv.help": "帮助",
   "reqv.helpTooltip": "打开此界面的TestLink wiki页面",
-  "reqv.specificLink": "链接到此版本/修订"
+  "reqv.specificLink": "链接到此版本/修订",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }

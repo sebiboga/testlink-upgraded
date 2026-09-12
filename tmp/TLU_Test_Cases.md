@@ -13600,21 +13600,24 @@ Result: **24/24 PASS** — **#1435 MODERNIZED**: BFF `api/reqrevision` (`?action
 | 1438.3 | i18n contract | Title/btnPrint/btnBack/generating/rendered/errLoad/errEmpty/errNoRights/errNotFound/errNotReady/inProject all resolve via `TLi18n.t()` (translated, `?locale=` honored) | **PASS** |
 
 Result: **3/3 PASS** — **#1438/#1439 FIXED**: `reqprint.*` (11 keys × 10 bundles) added, JSON validated, popup renders translated text in RO (and all bundles structurally identical to en).
+## Suite #1401 — Set Results popup: per-step attachments + Steps Work In Progress save
 
-## Regression — Issue #1413: planImport (legacy) 2x E_WARNING 'Undefined array key 1' on import with missing TC/version link (Refs #1413)
-
-**Screen:** `lib/plan/planImport.php` (legacy `importTestPlanLinksFromXML()`, Smarty `gui/templates/dashio/plan/planImport.tpl`).
-**Root cause:** `planImport.php:481` (`tcversion_doesnot_exist`) and `:486` (`tcase_doesnot_exist`) appended **1-element** `array(msg)` results; the template renders `{$result[1]|escape}` unconditionally (`planImport.tpl:58` → compiled `planImport.tpl.php:105` → `value[1]`), so PHP 8 emitted `E_WARNING Undefined array key 1` per missing link, logged to `events` (log_level=2). Every other append in the file is 2-element `array(msg,status)`.
-**Fix:** appended the existing `$labels['not_imported']` status to both arrays (`lib/plan/planImport.php:481,486`), matching the file's convention for error results (`:267,:422,:519`). No i18n change (`not_imported` already loaded at `:227`).
-**Precondition (2026-09-12, fresh DB):** app @ localhost:8082, admin/admin. Fixture `php tmp/fixtures_pimp.php` → tproject **1 PIMP**, tsuite 2, TCs Login(ext1,v1→tcv4)/Logout/Settings, plan **12 PIMP-Plan**, platform **1 PIMP-Android**. Import file `tmp/pimp_xml/regr1390.xml` (4 links: Login v1; Login v99; externalid 777; no-platform link).
+**Screen:** `gui/templates/execute/execSetResults.html` + BFF `api/execsetresults/index.php`.
+**Feature ported from legacy:** (1) per-step attachment upload on result save (`uploadedFile[<step_id>][]`, exec_test_spec.inc.tpl:53-73 / exec.inc.php:255-321), (2) "Save Steps Work In Progress Execution" partial-step save (`execution_tcsteps_wip`, execSetResults.php:333-343 / testcase.class.php:9658-9699), (3) "attachments will not be saved" warning.
+**Precondition:** fixture `php tmp/fixtures_esr2.php` (tproject 1 ESR2, tplan 15, TC-1=3 tcversion 4 with steps 5/6, builds B-OPEN=1 / B-CLOSED=2); admin session at popup `execSetResults.html?tcase_id=3&id=3&version_id=4&tcversion_id=4&tplan_id=15&setting_build=1&setting_platform=0`.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1413.1 | Pre-fix: login → `http://localhost:8082/lib/plan/planImport.php?tplan_id=12` → upload `regr1390.xml` | Result rows for Login v99 and extid 777 render with empty status `" :"`; `events` gains 2× `log_level=2` rows `E_WARNING Undefined array key 1 ... file.planImport.tpl.php - Line 105` | **PASS (pre-fix)** — events ids 4,5, `fired_at=1789189177` |
-| 1413.2 | Post-fix: re-upload same XML | HTTP 200; every result row carries a status: `... version 99 does not exist ... : **Not imported**`, `... identified by 777 : **Not imported**`, no empty `" :"` | **PASS** |
-| 1413.3 | Post-fix events table: `SELECT ... FROM events WHERE id > 5` | **0 rows** — no new Error/Warning; only the 2 pre-fix rows remain before baseline | **PASS** |
-| 1413.4 | `php -l lib/plan/planImport.php` | No syntax errors | **PASS** |
-| 1413.5 | Diff scope | `git diff --stat` touches only `lib/plan/planImport.php` (+4/-2); no i18n bundles touched | **PASS** |
-| 1413.6 | Modern-screen comparator (static, out of scope) | Same 1-element defect exists at `api/planimport/index.php:280,283` → would render `undefined` status in modern table (no PHP warning; JSON 1-elem array). Filed separately (Refs #1461). | **PASS (static)** |
+| 1401.1 | init fetch on popup | `steps_exec:1`, `steps_exec_attachments:1`, `attachments_enabled:1`; steps 5/6 present with notes/status | **PASS** |
+| 1401.2 | Step rows render "File:" input | Each step shows `<input type="file" data-stepfileinput multiple>` + label "File:" | **PASS** |
+| 1401.3 | WIP box renders | ATTENTION warning text + "Save Steps Work In Progress Execution" button visible under steps | **PASS** |
+| 1401.4 | WIP partial save | Set step1=Passed step2=Failed → click WIP button → `execution_tcsteps_wip` rows: (step5 p, step6 f, plan15, build1, tester1); toast "Steps Work In Progress Execution saved." | **PASS** |
+| 1401.5 | WIP reload popup | Step selects show Passed/Failed from WIP, notes preserved; file inputs remain enabled | **PASS** |
+| 1401.6 | Full save + step attachment | Upload /tmp/step_attach_proof.txt on step 1, overall Passed, Save result → new execution id 5 (status p, plan15, build1); WIP rows deleted (count 0); `attachments` row {fk_table=execution_tcsteps, fk_id=3, file_name=step_attach_proof.txt, file_size=18}, execution_id 5, tcstep 5 | **PASS** |
+| 1401.7 | Prior step attachment link | After reload, step 1 row shows link attachmentdownload.php?id=1 → HTTP 200 returns file bytes "step attach proof\n" | **PASS** |
+| 1401.8 | Closed build read-only | Switch to B-CLOSED → closedBox visible; Save + WIP button + both file inputs disabled | **PASS** |
+| 1401.9 | save_partial invalid step | `steps[99999][status]=p` → HTTP 400 {status:error, message:"No step results provided"}; no WIP rows written | **PASS** |
+| 1401.10 | i18n hygiene | 6 `esr.*` keys (errPartialSave/localFile/partialExecWarn/partialSaved/savePartialExec/stepFiles) in ALL 10 bundles, JSON valid, `git diff --check` clean; popup labels resolve (no raw keys) | **PASS** |
+| 1401.11 | Event Viewer / console | No new Error/Warning in `events` table; console only pre-existing a11y hints (file inputs lack labels), no JS errors | **PASS** |
 
-Result: **6/6 PASS** — **#1413 FIXED**: both 1-element result appends now include `$labels['not_imported']`; no further `Undefined array key 1` events on mixed import; minimal producer-side patch, no refactor.
+Result: **11/11 PASS** — **#1401 IMPLEMENTED**: BFF `?action=save_partial` + init feature flags + per-step prior attachments; screen file uploader / WIP warning + button / FormData save (per-step files as `uploadedFile[<sid>][]`); WIP cleared on full save; closed-build gating; `esr.*` keys (6 × 10 bundles).

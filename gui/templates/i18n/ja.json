@@ -3291,5 +3291,11 @@
   "reqv.directLinkCopied": "ダイレクトリンクをクリップボードにコピーしました",
   "reqv.help": "ヘルプ",
   "reqv.helpTooltip": "この画面のTestLink wikiページを開く",
-  "reqv.specificLink": "このバージョン/リビジョンへのリンク"
+  "reqv.specificLink": "このバージョン/リビジョンへのリンク",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }

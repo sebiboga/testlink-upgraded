@@ -56,6 +56,15 @@ table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; w
 select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .actions-bar { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
 .save-ok { color: #2d8e88; font-size: 13px; font-weight: 600; }
+.step-file { margin-top: 6px; font-size: 11.5px; color: #555; }
+.step-file .file-lbl { font-weight: 600; }
+.step-file input[type=file] { font-size: 11px; max-width: 100%; }
+.step-file-list { margin-bottom: 3px; color: #2563eb; }
+.step-file-list a { color: #2563eb; text-decoration: none; }
+.step-file-list a:hover { text-decoration: underline; }
+.wip-box { margin-top: 10px; background: #fff8e6; border: 1px solid #f0d9a8; color: #8a6d3b; border-radius: 6px; padding: 10px 14px; font-size: 12.5px; }
+.wip-box .wip-warn { margin-bottom: 9px; font-weight: 600; }
+.wip-box .wip-warn i { margin-right: 6px; }
 .footer { padding: 10px 22px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
@@ -115,6 +124,10 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
         </thead>
         <tbody id="stepsBody"></tbody>
       </table>
+      <div class="wip-box" id="wipBox" style="display:none;">
+        <div class="wip-warn"><i class="fa fa-triangle-exclamation"></i><span data-i18n="esr.partialExecWarn">ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved</span></div>
+        <button class="btn-dark" id="btnSavePartial"><i class="fa fa-bookmark"></i> <span data-i18n="esr.savePartialExec">Save Steps Work In Progress Execution</span></button>
+      </div>
     </div>
 
     <div id="relationsBox" style="display:none;">
@@ -340,20 +353,41 @@ function render(r) {
   // steps
   if (r.steps && r.steps.length > 0) {
     $('#stepsGroup').show();
+    // legacy gates for the per-step attachment uploader + the WIP partial
+    // save (exec_test_spec.inc.tpl:53-73, steps_horizontal.inc.tpl:59-60):
+    // $tlCfg->exec_cfg->steps_exec && steps_exec_attachments && attachments
+    var stepFilesOn = !!(r.steps_exec && r.steps_exec_attachments &&
+                        r.attachments_enabled);
     var st = r.steps.map(function (s) {
       var prior = (r.prior_steps || {})[s.id] || {};
       if (!prior.status) prior.status = 'n';
-      return '<tr>' +
+      var h = '<tr>' +
         '<td class="step-num">' + s.step_number + '</td>' +
         '<td class="step-act">' + esc(s.actions) + '</td>' +
         '<td class="step-act">' + esc(s.expected_results) + '</td>' +
         '<td class="step-status-cell">' +
           '<div class="row"><select data-step="' + s.id + '">' + statusOptions(prior.status) + '</select></div>' +
           '<textarea data-stepnotes="' + s.id + '" placeholder="' + esc(TLi18n.t('esr.stepNotes')) + '">' +
-            esc(prior.notes) + '</textarea>' +
-        '</td></tr>';
+            esc(prior.notes) + '</textarea>';
+      if (stepFilesOn) {
+        h += stepAttachmentBlock(s.id, prior.attachments || []);
+      }
+      h += '</td></tr>';
+      return h;
     }).join('');
     $('#stepsBody').html(st);
+
+    // WIP partial-save block (warning + submit) mirrors the legacy gate:
+    // shown whenever the tcversion has steps (exec_test_spec.inc.tpl:61-69),
+    // independent of the attachment features whose flags only gate files.
+    var wipOn = r.steps.length > 0;
+    if (wipOn) {
+      $('#wipBox').show();
+      $('#btnSavePartial').off('click.esrwip').on('click.esrwip', doSavePartial);
+    } else {
+      $('#btnSavePartial').off('click.esrwip');
+      $('#wipBox').hide();
+    }
   }
 
 renderTcSpecSections(r);
@@ -423,7 +457,8 @@ function applyBuildState(r) {
     if ($('#selPlatform').length) $('#selPlatform').prop('disabled', true);
     $('#txtNotes').prop('disabled', true);
     $('#txtExecDuration').prop('disabled', true);
-    $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', true);
+    $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', true);
+    $('#btnSavePartial').prop('disabled', true).css('opacity', .5);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
     $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
@@ -435,7 +470,8 @@ function applyBuildState(r) {
     if ($('#selPlatform').length) $('#selPlatform').prop('disabled', false);
     $('#txtNotes').prop('disabled', false);
     $('#txtExecDuration').prop('disabled', false);
-    $('#stepsBody select[data-step], #stepsBody [data-stepnotes]').prop('disabled', false);
+    $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', false);
+    $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
   }
 }
 
@@ -450,6 +486,28 @@ function statusOptions(code) {
             esc(ctx.statusLabels[c]) + '</option>';
   });
   return opts;
+}
+
+// Per-step attachment area (legacy attachments_simple.inc.tpl inside the
+// steps_horizontal.inc.tpl add_exec_info block): download links for the
+// attachments of the latest run's step execution + a multi-file upload
+// picker named uploadedFile[<step_id>][] so write_execution() consumes it
+// (exec.inc.php:255-321).
+function stepAttachmentBlock(stepId, atts) {
+  var h = '<div class="step-file">';
+  if (atts && atts.length) {
+    h += '<div class="step-file-list">' + esc(TLi18n.t('esr.stepFiles')) + ' ';
+    atts.forEach(function (a, i) {
+      h += (i ? ', ' : '') +
+        '<a href="' + esc(a.download_url) + '" target="_blank" ' +
+        'title="' + esc(a.title || a.file_name) + '">' +
+        '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>';
+    });
+    h += '</div>';
+  }
+  h += '<label class="file-lbl">' + esc(TLi18n.t('esr.localFile')) + ':</label> ' +
+       '<input type="file" data-stepfileinput="' + stepId + '" multiple>';
+  return h + '</div>';
 }
 
 // ---------------------------------------------------------------------------
@@ -593,37 +651,47 @@ function doSave(navNext) {
     return;
   }
 
-  var steps = {};
-  $('#stepsBody select[data-step]').each(function () {
-    steps[$(this).data('step')] = { status: $(this).val(), notes: $(this).closest('td').find('[data-stepnotes]').val() || '' };
-  });
+  $('#btnSave').prop('disabled', true);
+  $('#loadingOverlay').show();
 
+  // FormData (multipart/form-data) so the per-step attachment uploads
+  // (uploadedFile[<step_id>][]) ride along and write_execution() can attach
+  // them to the execution_tcsteps rows it creates (exec.inc.php:255-321).
+  var fd = new FormData();
+  fd.append('tplan_id', ctx.tplanId);
+  fd.append('tcase_id', ctx.tcaseId);
+  fd.append('tcversion_id', ctx.tcversionId);
+  fd.append('version_number', ctx.info.tcversion.version);
+  fd.append('build_id', buildId);
   var platformId = 0;
   if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
     platformId = parseInt($('#selPlatform').val() || '0', 10);
   }
-
-  var payload = {
-    tplan_id: ctx.tplanId,
-    tcase_id: ctx.tcaseId,
-    tcversion_id: ctx.tcversionId,
-    version_number: ctx.info.tcversion.version,
-    build_id: buildId,
-    platform_id: platformId,
-    status: ctx.statusCode,
-    notes: $('#txtNotes').val() || '',
-    execution_duration: $('#txtExecDuration').val() || '',
-    steps: steps
-  };
-
-  $('#btnSave').prop('disabled', true);
-  $('#loadingOverlay').show();
+  fd.append('platform_id', platformId);
+  fd.append('status', ctx.statusCode);
+  fd.append('notes', $('#txtNotes').val() || '');
+  fd.append('execution_duration', $('#txtExecDuration').val() || '');
+  $('#stepsBody select[data-step]').each(function () {
+    var sid = $(this).data('step');
+    fd.append('steps[' + sid + '][status]', $(this).val());
+    fd.append('steps[' + sid + '][notes]',
+      $(this).closest('td').find('[data-stepnotes]').val() || '');
+  });
+  $('#stepsBody [data-stepfileinput]').each(function () {
+    var sid = $(this).data('stepfileinput');
+    if (this.files && this.files.length) {
+      for (var f = 0; f < this.files.length; f++) {
+        fd.append('uploadedFile[' + sid + '][]', this.files[f]);
+      }
+    }
+  });
 
   $.ajax({
     url: '/api/execsetresults/?action=save',
     method: 'POST',
-    data: JSON.stringify(payload),
-    contentType: 'application/json',
+    processData: false,
+    contentType: false,
+    data: fd,
     dataType: 'json',
     headers: { 'X-Requested-With': 'XMLHttpRequest' }
   }).done(function (r) {
@@ -645,6 +713,71 @@ function doSave(navNext) {
     $('#loadingOverlay').hide();
     $('#btnSave').prop('disabled', false);
     var msg = TLi18n.t('esr.errSave');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
+}
+
+// Steps Work In Progress partial save (legacy submit name=saveStepsPartialExec
+// -> execSetResults.php:333-343 -> testcase::saveStepsPartialExec): persist
+// ONLY the per-step statuses/notes (execution_tcsteps_wip), never the overall
+// result, never an execution row. Attachments picked per step are NOT saved
+// here (legacy warning text) - they are only written by a full save.
+function doSavePartial() {
+  if ($('#btnSavePartial').prop('disabled')) return;
+  var buildId = parseInt($('#selBuild').val() || '0', 10);
+  var selB = null;
+  ((ctx.info && ctx.info.builds) || []).forEach(function (b) { if (b.id === buildId) selB = b; });
+  if (!selB || !selB.executable) {
+    toast(TLi18n.t('esr.errClosedBuild'), true);
+    return;
+  }
+
+  var fd = new FormData();
+  fd.append('tplan_id', ctx.tplanId);
+  fd.append('tcase_id', ctx.tcaseId);
+  fd.append('tcversion_id', ctx.tcversionId);
+  fd.append('build_id', buildId);
+  var platformId = 0;
+  if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
+    platformId = parseInt($('#selPlatform').val() || '0', 10);
+  }
+  fd.append('platform_id', platformId);
+  $('#stepsBody select[data-step]').each(function () {
+    var sid = $(this).data('step');
+    fd.append('steps[' + sid + '][status]', $(this).val());
+    fd.append('steps[' + sid + '][notes]',
+      $(this).closest('td').find('[data-stepnotes]').val() || '');
+  });
+
+  $('#btnSavePartial').prop('disabled', true);
+  $('#loadingOverlay').show();
+
+  $.ajax({
+    url: '/api/execsetresults/?action=save_partial',
+    method: 'POST',
+    processData: false,
+    contentType: false,
+    data: fd,
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#btnSavePartial').prop('disabled', false);
+    if (r.status !== 'ok') {
+      toast(r.message || TLi18n.t('esr.errPartialSave'), true);
+      return;
+    }
+    $('#saveOk').text(TLi18n.t('esr.partialSaved')).show();
+    toast(TLi18n.t('esr.partialSaved'));
+    // re-fetch context: the WIP rows now drive the per-step defaults (the
+    // init WIP merge esrStepsForWip) so the user can resume the partial run
+    $('#formCard').hide();
+    loadInfo();
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#btnSavePartial').prop('disabled', false);
+    var msg = TLi18n.t('esr.errPartialSave');
     try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
     toast(msg, true);
   });

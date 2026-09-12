@@ -237,6 +237,11 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   save-and-move-to-next (#1402), partial-step save + per-step attachments
   (#795), apikey/public-link chart access (#1258), execSetResults TC-spec
   sections (#1404), reqEdit full screen (#798, #1374-#1384).
+- Set Results popup (`execSetResults.html`, BFF `api/execsetresults`): per-step
+  attachment upload on result save (`uploadedFile[<step_id>][]`), the
+  "Save Steps Work In Progress Execution" partial-step save persisting
+  `execution_tcsteps_wip` (cleared on full save), and the ATTENTION
+  "attachments will not be saved" warning — restored to modern screen (Refs #1401).
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.

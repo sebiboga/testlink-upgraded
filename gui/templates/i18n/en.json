@@ -3451,5 +3451,11 @@
   "ts.releaseC2Title": "Go / no-go",
   "ts.releaseC2a": "Exit criteria met and residual risks accepted.",
   "ts.releaseC2b": "Stakeholder sign-off on the release.",
-  "ts.releaseC2c": "Rollback plan in case of issues."
+  "ts.releaseC2c": "Rollback plan in case of issues.",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }

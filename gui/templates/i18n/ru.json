@@ -3291,5 +3291,11 @@
   "reqv.directLinkCopied": "Прямая ссылка скопирована в буфер обмена",
   "reqv.help": "Справка",
   "reqv.helpTooltip": "Открыть страницу вики TestLink для этого экрана",
-  "reqv.specificLink": "Ссылка на эту версию/редакцию"
+  "reqv.specificLink": "Ссылка на эту версию/редакцию",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }

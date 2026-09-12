@@ -3451,5 +3451,11 @@
   "ts.releaseC2Title": "Go / no-go",
   "ts.releaseC2a": "Criterii de ieșire îndeplinite și riscuri reziduale acceptate.",
   "ts.releaseC2b": "Semnarea release-ului de către părțile interesate.",
-  "ts.releaseC2c": "Plan de rollback în caz de probleme."
+  "ts.releaseC2c": "Plan de rollback în caz de probleme.",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }

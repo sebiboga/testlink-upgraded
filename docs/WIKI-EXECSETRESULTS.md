@@ -177,3 +177,42 @@ full navigation.
   `esr.noNextCase`, `esr.noPrevCase` in all 10 locale bundles.
 
 ![Navigation toolbar and cyclic wrap](screenshots/issue-1402-setresults-navigation.png)
+
+## Per-step attachments & Steps Work In Progress save (issue #1401)
+
+The legacy popup allowed a file to be attached **per execution step** on result
+save (`exec_test_spec.inc.tpl:53-73` → `uploadedFile[<step_id>][]`, consumed by
+`write_execution()` in `lib/functions/exec.inc.php:255-321`), plus a partial
+save of step results before the execution was formally completed
+(`execSetResults.php:333-343` → `testcase::saveStepsPartialExec()`, persisted in
+`execution_tcsteps_wip`, `testcase.class.php:9658-9699`). Neither was present in
+the initial 2.0.1 popup port. Issue #1401 restores all three.
+
+- **BFF** (`api/execsetresults/index.php`):
+  - `?action=init` returns feature gates `steps_exec`, `steps_exec_attachments`,
+    `attachments_enabled` (from `$tlCfg->exec_cfg->steps_exec /
+    steps_exec_attachments`, config.inc.php:1140-1144, and the attachments
+    module flag).
+  - `esrPriorExecution()` additionally exposes, per step, the prior execution's
+    step attachments (from `attachments` where `fk_table='execution_tcsteps'`)
+    as `prior_steps[<stepId>].attachments[]` with `download_url`
+    (`/lib/attachments/attachmentdownload.php?id=`).
+  - New `POST ?action=save_partial` persists step results into
+    `execution_tcsteps_wip` (validates plan/build rights, open build, and that
+    every step id belongs to the selected tcversion; ctx testplan_id,
+    platform_id, build_id, tester_id).
+- **Front-end** (`gui/templates/execute/execSetResults.html`):
+  - Each step row shows the `File:` uploader (multiple) plus prior attachment
+    download links when the feature flags are on.
+  - Under the steps table: the legacy ATTENTION banner "When saving Steps Work
+    In Progress Execution, Attachments will not be saved" and the **Save Steps
+    Work In Progress Execution** button.
+  - `doSave()` now posts FormData multipart (overview fields +
+    `steps[<sid>][status]` / `steps[<sid>][notes]` + files as
+    `uploadedFile[<sid>][]`), so step files attach on the full save
+    (`write_execution()` also deletes the WIP rows).
+  - Closed build disables the file inputs and the WIP save.
+- **i18n:** `esr.localFile`, `esr.stepFiles`, `esr.partialExecWarn`,
+  `esr.savePartialExec`, `esr.partialSaved`, `esr.errPartialSave` in all 10
+  locale bundles.
+- **Test cases:** TLU suite #1401, 11/11 PASS (`tmp/TLU_Test_Cases.md`).

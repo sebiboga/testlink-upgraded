@@ -3291,5 +3291,11 @@
   "reqv.directLinkCopied": "Link diretto copiato negli appunti",
   "reqv.help": "Aiuto",
   "reqv.helpTooltip": "Aprire la pagina wiki di TestLink per questa schermata",
-  "reqv.specificLink": "Link a questa versione/revisione"
+  "reqv.specificLink": "Link a questa versione/revisione",
+  "esr.errPartialSave": "Failed to save Steps Work In Progress Execution.",
+  "esr.localFile": "File",
+  "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
+  "esr.partialSaved": "Steps Work In Progress Execution saved.",
+  "esr.savePartialExec": "Save Steps Work In Progress Execution",
+  "esr.stepFiles": "Step attachments:"
 }
