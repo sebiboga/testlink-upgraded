@@ -119,6 +119,8 @@ Requirements:
 - Requirement Document Print (printDocument.html).
 - Req Spec Viewer / Revision Viewer / Compare (reqSpecView.html,
   reqSpecViewRevision.html, reqSpecCompare.html, #1360/#1362).
+- Requirement Revision Viewer (reqRevisionView.html) - BFF api/reqrevision
+  (#1435, closes dashio 500 #1427).
 
 Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
