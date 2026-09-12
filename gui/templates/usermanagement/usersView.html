@@ -97,6 +97,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="modalTitle">Create User</h5>
+        <button type="button" class="btn btn-link" id="btnEventHistory" style="display:none;font-size:13px;padding:0 8px;color:#4ECDC4;" onclick="showEventHistory()"><i class="fa fa-history"></i> <span data-i18n="user.showEventHistory">Show event history</span></button>
         <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
       <div class="modal-body">
@@ -162,6 +163,14 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   </div>
 </div>
 
+<!-- Legacy parity: dashio usersEdit.tpl:189-193 showEventHistoryFor(uid,'users')
+     opens the Event Viewer pre-filtered to this user's audit activity. Gated
+     on grants.mgt_view_events (usersEdit.php:457-458). -->
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="users">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -175,6 +184,7 @@ var localeMap = [];
 var authMeta = null;
 var allItems = [];
 var demoMode = false;
+var canViewEvents = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -199,6 +209,9 @@ function loadGrants(ctx) {
       showNoAccess();
       return;
     }
+    // Legacy parity: usersEdit.php:457-458 grants->mgt_view_events gates the
+    // "Show event history" icon on the edit screen (usersEdit.tpl:189-193).
+    canViewEvents = (g.mgt_view_events === 'yes');
     renderTabs(ctx, g);
     // loadUsers() runs after the authentication meta resolves so the table
     // render knows each user's allowPasswordManagement before drawing the
@@ -362,6 +375,7 @@ function renderTable(items) {
 function showCreateModal() {
   $('#modalTitle').text(TLi18n.t('user.createUser'));
   $('#editUserId').val('');
+  $('#btnEventHistory').hide();
   $('#editLogin').val('').prop('readonly', false);
   $('#editFirstName').val('');
   $('#editLastName').val('');
@@ -403,8 +417,19 @@ function editUser(id) {
     $('#editActive').prop('checked', u.active === 1);
     $('#modalError').hide();
     applyDemoModal();
+    $('#btnEventHistory').toggle(canViewEvents);
     $('#userModal').modal('show');
   });
+}
+
+// Legacy parity: dashio usersEdit.tpl:189-193 showEventHistoryFor(uid,'users')
+// opens the Event Viewer pre-filtered to this user's audit activity; the BFF
+// re-checks mgt_view_events anyway and 403s without it (eventviewer.legacy.php).
+function showEventHistory() {
+  var id = $('#editUserId').val();
+  if (!id || !canViewEvents) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
 }
 
 // Legacy "Manage user" lookup (usersView.tpl manage_user form ->

@@ -1395,6 +1395,7 @@
   "profile.role": "Rol",
   "profile.save": "Guardar",
   "profile.showEventHistory": "Ver historial de eventos",
+  "user.showEventHistory": "Ver historial de eventos",
   "profile.successfulLogins": "Inicios de sesión exitosos",
   "profile.timestamp": "MARCA DE TIEMPO",
   "profile.yourApiKey": "Su clave API",

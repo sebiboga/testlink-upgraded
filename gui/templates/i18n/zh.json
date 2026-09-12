@@ -1395,6 +1395,7 @@
   "profile.role": "角色",
   "profile.save": "保存",
   "profile.showEventHistory": "显示事件历史",
+  "user.showEventHistory": "显示事件历史",
   "profile.successfulLogins": "成功登录",
   "profile.timestamp": "时间戳",
   "profile.yourApiKey": "您的API密钥",

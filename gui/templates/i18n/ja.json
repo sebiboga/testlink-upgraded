@@ -1395,6 +1395,7 @@
   "profile.role": "ロール",
   "profile.save": "保存",
   "profile.showEventHistory": "イベント履歴を表示",
+  "user.showEventHistory": "イベント履歴を表示",
   "profile.successfulLogins": "成功したログイン",
   "profile.timestamp": "タイムスタンプ",
   "profile.yourApiKey": "あなたのAPIキー",

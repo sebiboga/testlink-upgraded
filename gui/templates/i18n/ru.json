@@ -1395,6 +1395,7 @@
   "profile.role": "Роль",
   "profile.save": "Сохранить",
   "profile.showEventHistory": "Показать историю событий",
+  "user.showEventHistory": "Показать историю событий",
   "profile.successfulLogins": "Успешные входы",
   "profile.timestamp": "ВРЕМЕННАЯ МЕТКА",
   "profile.yourApiKey": "Ваш API-ключ",

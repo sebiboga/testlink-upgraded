@@ -1400,6 +1400,7 @@
   "profile.role": "Rol",
   "profile.save": "Salveaza",
   "profile.showEventHistory": "Arată istoricul evenimentelor",
+  "user.showEventHistory": "Arată istoricul evenimentelor",
   "profile.successfulLogins": "Autentificari Reusite",
   "profile.timestamp": "TIMP",
   "profile.yourApiKey": "Cheia ta API",

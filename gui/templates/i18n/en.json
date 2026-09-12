@@ -1400,6 +1400,7 @@
   "profile.role": "Role",
   "profile.save": "Save",
   "profile.showEventHistory": "Show event history",
+  "user.showEventHistory": "Show event history",
   "profile.successfulLogins": "Successful Logins",
   "profile.timestamp": "TIMESTAMP",
   "profile.yourApiKey": "Your API Key",

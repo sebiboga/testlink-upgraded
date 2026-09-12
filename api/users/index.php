@@ -251,6 +251,12 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
     $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
     $grants = getGrantsForUserMgmt($db, $user, $tprojectID, $tplanID);
+    // Legacy parity: lib/usermanagement/usersEdit.php:457-458 sets
+    // grants->mgt_view_events = hasRight('mgt_view_events') separately from
+    // getGrantsForUserMgmt(), only on the edit screen. The BFF mirrors it so
+    // the modern edit modal can gate its "Show event history" link exactly like
+    // usersEdit.tpl:189-193.
+    $grants->mgt_view_events = ($user->hasRight($db, 'mgt_view_events') === 'yes') ? 'yes' : 'no';
     out(['status' => 'ok', 'grants' => $grants]);
 }
 
