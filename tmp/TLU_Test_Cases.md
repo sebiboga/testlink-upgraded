@@ -13676,26 +13676,23 @@ Result: **6/6 PASS** — **#1461 FIXED**: `api/planimport/index.php:280,283` now
 
 Result: **7/7 PASS** — **#1477 DONE**: `openReqWindow()` now opens the modern `reqView.html`; closes the last `lib/**.php` screen reference in the modern UI.
 
-## Suite — Regression — Issue #1416: printDocument.php 3x `Undefined array key basehref` on anonymous/apikey plan reports
+## Suite #1400 — Set Results popup: edit-testcase-on-exec link (legacy openTCaseWindow 'editOnExec')
 
-**Screen:** `lib/results/printDocument.php` (anonymous 64-char object-api-key access) + shared gateway `setUpEnvForAnonymousAccess()` in `lib/functions/common.php`; also `lnl.php` public-link redirector and modern BFF `api/reportsprint/index.php`.
-**Defect:** with a **testprojects.api_key** + `tplan_id` in the URL, the paranoic env-check built `$tk=['testplan']` only; a testproject key never matches `testplans.api_key` → `$item` NULL → the anonymous session block (basehref/timezone/userID) never runs → 3 reads of `$_SESSION['basehref']` warn (printDocument.php:175, :254, print.inc.php:700) → 3 `log_level=2` events per render.
-**Precondition:** `php tmp/fixtures_1415.php` → tproject=1 (api_key `84366ce7a82ffc079646e80542b3f6178e8358c847126c1769c0e5765d5ff045`), tplan=12 (api_key `be562aa5...`), build=2, TC3 executed on build2. No session cookies used for the anonymous rows.
+**Screen:** `gui/templates/execute/execSetResults.html` `render()` `#tcTitle` + BFF `api/execsetresults/index.php` `GET ?action=init`.
+**Change:** restored the legacy `grants->edit_testcase` gate (mgt_modify_tc, project+plan scope — `lib/execute/execSetResults.php:1425`) exposed as `grants.edit_testcase` by the init BFF; when granted, a pencil icon (tooltip "Show Test Case specification") precedes the popup TC title and opens the modern TC-spec viewer `tcView.html` in the legacy-named `TestCaseSpec` popup (modern equivalent of `openTCaseWindow(tcase_id,tcversion_id,'editOnExec&tplan_id=..')` → `lib/testcases/archiveData.php`).
+**Precondition:** fixtures `php tmp/fixtures_esr2.php` → tproject ESR2(1), tplan ESR2 Plan(15), TC-1 (tcase 3 / tcversion 4, external id 1), builds B-OPEN(1)/B-CLOSED(2); users `admin` (id 1, global role admin → mgt_modify_tc) and `tester2` (id 2, global role tester → testplan_execute only); sessions on admin.iso / tester2.iso isolated contexts.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1416.1 | Pre-fix: `curl printDocument.php?apikey=<testprojects.api_key>&tproject_id=1&tplan_id=12&type=testreport_onbuild&level=testproject&build_id=2&format=0&allOptionsOn=1` then `SELECT COUNT(*) FROM events WHERE log_level=2` and diff rows | HTTP 200 doc renders BUT 3 new `E_WARNING Undefined array key "basehref"` rows (printDocument.php:175, print.inc.php:700, printDocument.php:254) | **PASS (reproduced)** |
-| 1416.2 | Post-fix (same URL, fresh events diff) | HTTP 200; doc renders with absolute assets (`basehref='http://localhost:8082/'`); **ZERO new `log_level=2`** rows | **PASS** |
-| 1416.3 | Debug harness `php /tmp/opencode/dbg1416.php` (anonymous setup, tproject key + tplan_id) | `$_SESSION` contains `lastActivity,currentUser,userID,locale,basehref` (was EMPTY pre-fix); `basehref='http://localhost:8082/'` | **PASS** |
-| 1416.4 | tplan api_key + same params (printDocOptions.php:50 shaped link) | HTTP 200, no new log_level=2 events (tplan-key path never regressed) | **PASS** |
-| 1416.5 | tproject api_key, `type=test_plan&id=1` WITHOUT tplan_id | HTTP 200, no new events (non-plan path still works) | **PASS** |
-| 1416.6 | Session-based: `curl -c cj.txt -d tl_login=admin&tl_password=admin...` then `printDocument.php?id=1&...&docTestPlanId=12` | HTTP 200, no new events | **PASS** |
-| 1416.7 | `lnl.php?apikey=<tproject key>&type=testreport_onbuild&entities=7&tproject_id=1&tplan_id=12&build_id=2` | HTTP 302 → Location `reportPrint.html?type=testreport_onbuild&...&apikey=...` (pre-fix: dead red page) | **PASS** |
-| 1416.8 | Modern BFF `api/reportsprint/index.php?action=print&...&apikey=<tproject key>` | HTTP 200 `{"status":"ok",body_html:...}` — full report, no new events | **PASS** |
-| 1416.9 | Browser (no session): `reportPrint.html?type=testreport_onbuild&level=testproject&id=1&tproject_id=1&tplan_id=12&build_id=2&format=0&apikey=<tproject key>` | Full doc (TOC, Project/Plan/Build headers, 3 TCs incl. Passed execution for TC3, TestLink logo w/ absolute URL); console clean except pre-existing `401` userinfo header call | **PASS** |
-| 1416.10 | Event Viewer / events table after whole suite | `COUNT(*) WHERE log_level=2` unchanged from pre-fix rows (3); no new Error/Warning rows | **PASS** |
-| 1416.11 | `php -l lib/functions/common.php` | No syntax errors | **PASS** |
-| 1416.12 | Reverse direction: tplan api_key on a NON-plan-shaped URL (`type=test_plan&id=1`, no `tplan_id`) | HTTP 200 graceful #573 page ("test plan missing"), 0 new events — no session handshake regression | **PASS** |
-| 1416.13 | Deny-path control: bogus 64-char key (`0000...0000`) on plan URL | HTTP 200 bare doc with relative asset URLs + same 3 pre-existing basehref warnings — **identical to pre-fix** (invalid key misses every lookup both before/after the fix); deny semantics unchanged | **PASS (unchanged, filed #1478)** |
+| 1400.1 | BFF init as admin: `GET /api/execsetresults/?action=init&tplan_id=15&id=3&version_id=4` | `grants` contains `"edit_testcase":1` (can_execute 1, ro_access 0) — legacy parity | **PASS** |
+| 1400.2 | Open `execSetResults.html?id=3&version_id=4&tplan_id=15` as admin | `#tcTitle` contains a pencil `<a>` (fa-pen-to-square) with `title` = "Show Test Case specification", followed by existing `1 | TC-1 (v1)` text | **PASS** |
+| 1400.3 | Click the pencil icon | `window.open` targets `/gui/templates/testcases/tcView.html?tcase_id=3&tcversion_id=4&tproject_id=1`, window named `TestCaseSpec` (legacy name) | **PASS** |
+| 1400.4 | tcView.html popup loads | Title "TC-1 - Test Case Viewer", version card shows `Version 1 LATEST ACTIVE`, SUMMARY/PRECONDITIONS/STEPS render the fixture content, "Edit Version" button present (admin rights) | **PASS** |
+| 1400.5 | BFF init as `tester2` (no mgt_modify_tc): logging into tester2.iso context | `grants.can_execute=1`, `grants.edit_testcase=0` | **PASS** |
+| 1400.6 | Set Results popup as `tester2` | `#tcTitle` has NO icon link — plain-text heading (`1 | TC-1 (v1)`) | **PASS** |
+| 1400.7 | i18n hygiene | `esr.showTcSpec` present + valid JSON in all 10 locale bundles (de/en/es/fr/it/ja/pt/ro/ru/zh); no hardcoded label in HTML (referenced as i18n key) | **PASS** |
+| 1400.8 | Regression: popup unaffected | Build selector (B-OPEN selected + B-CLOSED(closed) listed), prior-execution box, steps table, overall-result buttons, Save/Cancel all still functional; save flow untouched (additive-only change) | **PASS** |
+| 1400.9 | No-platform / no-edit-user popup still renders prior-exec | tester2 sees "Latest execution: Failed · by admin · 2026-08-05 12:00:00" prior box (read access intact) | **PASS** |
+| 1400.10 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → 0 new Error/Warning rows; browser console clean on both sessions | **PASS** |
 
-Result: **13/13 PASS** — **#1416 FIXED**: `setUpEnvForAnonymousAccess()` paranoic branch now always appends the counterpart entity as a fallback candidate; anonymous session (incl. basehref via the #1021 `setPaths()` fallback) initializes for testproject-key plan reports; public-link feature works for both object-key flavors. 1 file changed (`lib/functions/common.php`), no i18n keys touched. New observation (invalid-key rate, pre-existing): filed as #1478.
+Result: **10/10 PASS** — **#1400 DONE**: `grants.edit_testcase` + pencil icon + `TestCaseSpec` popup restored; legaccy frame-refresh parity noted separately as task **#1479**.

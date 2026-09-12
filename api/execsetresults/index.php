@@ -686,6 +686,9 @@ if ($action === 'init') {
         http_response_code(403);
         out(['status' => 'error', 'message' => 'Insufficient rights']);
     }
+    // Refs #1400: legacy execSetResults.php:1425 gates the "edit test case on
+    // execution" spec link on mgt_modify_tc at project+plan scope.
+    $editTestcase = $user->hasRight($db, 'mgt_modify_tc', $tprojectId, $tplanId);
 
     list($tcaseMgr, $vinfo, $basic) =
         esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
@@ -777,6 +780,7 @@ if ($action === 'init') {
         'grants' => [
             'can_execute' => $canExecute ? 1 : 0,
             'ro_access' => $roAccess ? 1 : 0,
+            'edit_testcase' => $editTestcase ? 1 : 0,
         ],
         'exec_duration_enabled' => $execDurationEnabled,
         'steps_exec' => $stepsExec,

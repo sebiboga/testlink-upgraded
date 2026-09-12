@@ -38,7 +38,7 @@ The BFF reproduces the `level=testcase` path of `lib/execute/execSetResults.php`
   - platforms linked to the plan (empty → UI hides the selector),
   - execution status vocabulary (f/b/p/n/x/u — the legacy virtual filter
     status `a`/All is excluded),
-  - grants (`testplan_execute` / `exec_ro_access`),
+  - grants (`testplan_execute` / `exec_ro_access` / `edit_testcase`),
   - prior execution of this version on this build+platform, including recorded
     step-level results (partial-execution feature) so the form resumes the last
     run.
@@ -60,6 +60,28 @@ contract and `openExecutionWindow()`):
 | `tcversion_id` | `version_id` |
 | `build_id` | `setting_build` |
 | `platform_id` | `setting_platform` |
+
+## Edit test case on execution (Refs #1400)
+
+Legacy parity: `exec_show_tc_exec.inc.tpl:476-481` shows a `note_edit` icon
+(gated on `grants->edit_testcase` = `mgt_modify_tc` at project+plan level,
+`execSetResults.php:1425`) left of the TC title, calling
+`openTCaseWindow(tcase_id, tcversion_id, 'editOnExec&tplan_id=…')` which opens
+the TC-spec viewer in a `TestCaseSpec` popup.
+
+The modern popup mirrors this:
+
+- **BFF** `GET ?action=init` returns `grants.edit_testcase` (1/0) computed with
+  the exact legacy scope `hasRight('mgt_modify_tc', tproject_id, tplan_id)`.
+- **UI** when granted, a pencil icon (tooltip "Show Test Case specification")
+  precedes the TC title (`TC-1 (v1)`) in the header card. It opens the modern
+  TC-spec viewer `gui/templates/testcases/tcView.html?tcase_id=..&tcversion_id=..&tproject_id=..`
+  in a `TestCaseSpec` popup — the modern equivalent of the legacy
+  `archiveData.php?show_mode=editOnExec` viewer (tcView.html itself offers the
+  "Edit Version" button to users with design rights; window name `TestCaseSpec`
+  is kept so repeated clicks reuse the popup, legacy behavior).
+
+Users without `mgt_modify_tc` see the plain-text title (no icon, no popup).
 
 ## Screen layout
 

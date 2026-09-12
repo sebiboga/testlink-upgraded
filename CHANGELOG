@@ -286,15 +286,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   Switched to the modern `reqView.html?id=..&tproject_id=..`; the `/view` BFF
   already renders the requirement spec title (r.spec_path) in the Overview
   card, superseding the legacy `showReqSpecTitle=1` flag (#1477).
-- Anonymous (64-char object api key) plan reports: `setUpEnvForAnonymousAccess()`
-  keyed its entity lookup on the request shape only, so a `testprojects.api_key`
-  report URL that also carried a `tplan_id` never initialized the anonymous
-  session — `$_SESSION['basehref']` stayed unset and `printDocument.php`
-  (`:175/:254`) + `print.inc.php` (`:700`) logged 3 `E_WARNING Undefined array
-  key basehref` events per render (and the `lnl.php` public link died red).
-  The paranoic candidate list now always appends the counterpart entity as a
-  fallback, restoring the documented public-link feature for both object-key
-  flavors (#1416).
+- Set Results popup edit-testcase-on-exec link: restored (Refs #1400) —
+  `grants.edit_testcase` (`mgt_modify_tc` at project+plan, exact legacy scope
+  execSetResults.php:1425) now returned by the `api/execsetresults` init BFF;
+  when granted, a pencil icon (tooltip "Show Test Case specification") precedes
+  the popup TC title and opens the modern TC-spec viewer `tcView.html`
+  (`TestCaseSpec` popup) — modern equivalent of the legacy
+  `openTCaseWindow(tcase_id,tcversion_id,'editOnExec&tplan_id=…')` link
+  (exec_show_tc_exec.inc.tpl:476-481).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------

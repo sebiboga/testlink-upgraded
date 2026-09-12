@@ -450,6 +450,7 @@
   "esr.saveDone": "Result saved successfully.",
   "esr.savedNotRun": "Not Run result - nothing written (legacy behavior).",
   "esr.saving": "Saving... please wait.",
+  "esr.showTcSpec": "Показать спецификацию теста",
   "esr.stepAct": "Actions",
   "esr.stepExp": "Expected result",
   "esr.stepNotes": "Notes for this step",

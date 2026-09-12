@@ -275,7 +275,22 @@ function render(r) {
   $('#ctxPlan').text(r.tplan.name + ' / v' + r.tcversion.version);
   $('#ctxTcase').text(r.tproject.prefix + '-' + r.tcase.external_id);
 
+  // Refs #1400: legacy exec_show_tc_exec.inc.tpl:476-481 renders, when
+  // grants->edit_testcase (mgt_modify_tc), a note_edit icon titled
+  // show_tcase_spec left of the TC title, invoking openTCaseWindow(tcase_id,
+  // tcversion_id,'editOnExec&tplan_id=…') which opens the TC-spec viewer in a
+  // 'TestCaseSpec' popup. Modern equivalent: tcView.html viewer (has its own
+  // Edit-version button), opened in the same named popup.
+  var specIcon = '';
+  if (r.grants && r.grants.edit_testcase) {
+    specIcon = '<a href="javascript:void(0)" ' +
+      'onclick="openTcSpecWindow();return false;" ' +
+      'title="' + esc(TLi18n.t('esr.showTcSpec')) + '" ' +
+      'style="color:#4ECDC4;margin-right:9px;text-decoration:none;">' +
+      '<i class="fa fa-pen-to-square"></i></a>';
+  }
   $('#tcTitle').html(
+    specIcon +
     '<span style="color:#4ECDC4;">' + esc(r.tcase.external_id) + '</span>' +
     '<span style="margin:0 6px;color:#777;">|</span>' + esc(r.tcase.name) +
     ' <span class="sub" style="font-size:12px;opacity:.9;">(v' + r.tcversion.version + ')</span>');
@@ -582,6 +597,19 @@ function openReqWindow(requirementId) {
   window.open('/gui/templates/requirements/reqView.html?id=' + requirementId +
     '&tproject_id=' + ctx.tprojectId, 'Requirement',
     'width=800,height=600,resizable=yes,scrollbars=yes,dependent=yes');
+}
+
+// Refs #1400: "edit test case on execution" — legacy openTCaseWindow(tcase_id,
+// tcversion_id, 'editOnExec&tplan_id=…') opened lib/testcases/archiveData.php
+// (TC-spec viewer, allow_edit=0) in the 'TestCaseSpec' popup. The modern
+// equivalent is the tcView.html viewer (which offers its own Edit button when
+// the user has rights); window name kept 'TestCaseSpec' so repeated clicks
+// reuse the same popup (legacy behavior).
+function openTcSpecWindow() {
+  window.open('/gui/templates/testcases/tcView.html?tcase_id=' + ctx.tcaseId +
+    '&tcversion_id=' + ctx.tcversionId + '&tproject_id=' + ctx.tprojectId,
+    'TestCaseSpec',
+    'width=900,height=700,resizable=yes,scrollbars=yes,dependent=yes');
 }
 
 function openRelHistory(tcaseId) {
