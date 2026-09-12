@@ -1903,7 +1903,8 @@ $TLS_printed_by = "Vytiskl";
 $TLS_tcs_with_bugs = "Testovací prípady s chybou";
 $TLS_title_test_case_bugs = "Chyby testovaciho prípadu";
 $TLS_project_open_issues = "Open Issues projektu";
-$TLS_project_open_issues_hint = "Vsechny otevrene issues prirazeneho issue trackeru, nezavisle na zvolenem testplanu";
+$TLS_project_open_issues_hint = "V
+sechny otevrene issues prirazeneho issue trackeru, nezavisle na zvolenem testplanu";
 $TLS_project_issue_labels = "Stitky";
 $TLS_title_test_case_timestamp = "Casová znacka testovacího prípadu";
 $TLS_title_test_case_title = $TLS_test_case;
@@ -3909,3 +3910,4 @@ $TLS_img_title_remove_keyword = "Klikni pro smazání tohoto klícového slova.";
 
 $TLS_doc_good_test_case = 'Good Test Case';
 $TLS_doc_youtrack_readme = 'YouTrack Readme';
+$TLS_href_nfr_requirements = "Nefunkèní požadavky"; // "Non-Functional Requirements" (Refs #1462)

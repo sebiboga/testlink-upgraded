@@ -2288,6 +2288,7 @@ $TLS_href_req_spec = "Gestion des exigences";
 $TLS_href_req_overview = "Récapitulatif d’exigences";
 $TLS_href_req_monitor_overview = "Surveillance d’exigences";
 $TLS_href_quality_objectives = "Objectifs qualité"; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "Exigences non fonctionnelles"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_roles_management = "Gestion des rôles";
 $TLS_href_search_tc = "Recherche de fiches de test";
 $TLS_href_tproject_management = "Gestion des projets";

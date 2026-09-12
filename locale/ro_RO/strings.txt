@@ -83,6 +83,7 @@ $TLS_href_req_overview = 'Prezentare cerințe';
 $TLS_href_req_assign = 'Atribuire cerințe';
 $TLS_href_req_monitor_overview = 'Prezentare monitorizare cerințe';
 $TLS_href_quality_objectives = 'Obiective de calitate'; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "Cerințe non-funcționale"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_print_req = 'Document specificație cerințe';
 $TLS_title_test_spec = 'Specificație de test';
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";

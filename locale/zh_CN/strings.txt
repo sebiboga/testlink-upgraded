@@ -2451,6 +2451,7 @@ $TLS_href_req_spec = "产品需求规格";
 $TLS_href_req_overview = "产品需求概览";
 $TLS_href_req_monitor_overview = "需求监测概览";
 $TLS_href_quality_objectives = "质量目标"; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "非功能需求"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_roles_management = "角色管理";
 $TLS_href_search_tc = "搜索测试用例";
 $TLS_href_tproject_management = "测试项目管理";

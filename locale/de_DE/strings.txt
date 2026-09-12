@@ -3672,6 +3672,7 @@ $TLS_href_codetracker_management = 'Code-Tracker-Verwaltung';
 $TLS_href_exec_ro_access = 'Testausführung (nur Lesen)';
 $TLS_href_req_monitor_overview = 'Übersicht Anforderungsüberwachung';
 $TLS_href_quality_objectives = 'Qualitätsziele'; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "Nicht-funktionale Anforderungen"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_user_profile = 'Benutzerprofil';
 $TLS_projects = 'Projekte';
 $TLS_quick_search = 'Schnellsuche';

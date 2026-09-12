@@ -3173,6 +3173,7 @@ $TLS_href_exec_ro_access = 'Acceso de solo lectura a la ejecución';
 $TLS_href_issuetracker_management = 'Gestión del gestor de incidencias';
 $TLS_href_req_monitor_overview = 'Resumen de monitorización de requisitos';
 $TLS_href_quality_objectives = 'Objetivos de calidad'; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "Requisitos no funcionales"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_reqmgrsystem_management = 'Gestión del sistema de requisitos';
 $TLS_href_user_profile = 'Perfil de usuario';
 $TLS_link_report_test_cases_created_per_user = 'Casos de prueba creados por usuario';

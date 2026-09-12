@@ -2770,6 +2770,7 @@ $TLS_href_issuetracker_management = 'Управление трекером за�
 $TLS_href_print_req = 'Документ спецификации требований';
 $TLS_href_req_monitor_overview = 'Обзор мониторинга требований';
 $TLS_href_quality_objectives = 'Цели по качеству'; // "Quality Objectives" (Refs #1280)
+$TLS_href_nfr_requirements = "Нефункциональные требования"; // "Non-Functional Requirements" (Refs #1462)
 $TLS_href_req_overview = 'Обзор требований';
 $TLS_href_reqmgrsystem_management = 'Управление системой требований';
 $TLS_href_user_profile = 'Профиль пользователя';

@@ -1889,6 +1889,10 @@ function getActions(&$gui,$baseURL) {
   // Refs #1280. Right (mgt_view_req / mgt_modify_req) enforced by the BFF on
   // every route; aside visibility gated by aside.tpl via menuGrants.
   $actions->qualityObjectives = "/gui/templates/requirements/qualityObjectives.html?{$ctx}";
+  // Non-Functional Requirements per-type management (Dashio standalone page) -
+  // Refs #1462. Rights (mgt_view_req / mgt_modify_req) enforced by the BFF
+  // api/nfr on every route; aside visibility gated by aside.tpl via menuGrants.
+  $actions->nfrRequirements = "/gui/templates/requirements/nfrRequirements.html?{$ctx}";
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
   $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";

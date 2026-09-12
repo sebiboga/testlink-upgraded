@@ -183,6 +183,9 @@ Left side menu
                   {if $menuGrants->reqs_view == "yes"}
                     <li><a href="{$gui->uri->qualityObjectives}" target="mainframe">{$labels.href_quality_objectives}</a></li>
                   {/if}
+                  {if $menuGrants->reqs_view == "yes"}
+                    <li><a href="{$gui->uri->nfrRequirements}" target="mainframe">{$labels.href_nfr_requirements}</a></li>
+                  {/if}
                 </ul>
               </li>
             {/if}
