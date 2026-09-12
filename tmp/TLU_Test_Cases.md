@@ -13937,3 +13937,21 @@ Result: **20/20 PASS** — **#1483 DONE**: `reqCreateTestCases` is modernized en
 | 1398.15 | Event Viewer / console | `events` table: no new Error/Warning (log_level 1/2) from this screen (only the pre-existing audit + corrupt-options warning of issue #1484); browser console clean | **PASS** |
 
 Result: **15/15 PASS** (test other than 10/11 run on the default DISABLED config which was restored; the transient ENABLED mode was reverted). **#1398 DONE**: the Set Results popup now matches legacy execInfo/notes/type-duration behavior; pushed as `task/issue-1398` (commit 62251b96a). Remote-exec against a REAL automation server (configured via design CFs) is not coverable in this environment — verified up to the configProblems/connectionFailure boundary exactly as legacy.
+
+## Regression — Issue #1484: corrupt testprojects.options unserialize() E_WARNING spam
+
+**Area:** `testproject.options` decoding — `lib/functions/testproject.class.php` (`decodeStoredOptions`, routed through `parseTestProjectRecordset:243`, `get_all:445`, `getOptions:3927`).
+**Change (Refs #1484):** the freshly imported DB carries a 93-byte hand-edited blob for testproject 1 (`a:3:{s:15:"requirementsEnabled";b:1;s:16:"priorityEnabled";b:1;s:17:"automationEnabled";b:1;}`) whose `s:N:` key lengths don't match the real names (requirementsEnabled=19, priorityEnabled=15, automationEnabled=17). Bare `unserialize()` aborts with `E_WARNING unserialize(): Error at offset 26 of 93 bytes`, and `watchPHPErrors()` (logger.class.php) forwards it into the `events` table on every project-bound request. Fix: a private `decodeStoredOptions($raw)` helper (`@unserialize`, the repo's existing pattern) now serves all three decode sites; corrupt blobs degrade silently to the pre-existing fallbacks (empty object / stdClass defaults), valid blobs decode identically.
+**Precondition:** fresh DB (`testprojects` empty before test, fixtures below recreated by the tester). Repro harness = throwaway PHP bootstrap (`config.inc.php` + `common.php` + `doDBConnect`, `watchPHPErrors` active) so a warning would land in `events`. Corrupt fixture: `INSERT INTO testprojects (id,color,options,active,prefix,is_public,api_key) VALUES (100001,'#9BD',CONCAT(0x613A333A7B733A31353A22,'requirementsEnabled',0x223B623A313B733A31363A22,'priorityEnabled',0x223B623A313B733A31373A22,'automationEnabled',0x223B623A313B7D),1,'T1484',1,'x')`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1484.1 | PRE-FIX symptom (reproduced on commit before fix) | `getOptions(100001)` + `get_by_id(100001,'full')` + `get_all(...,'access_key'=>'id')` each append an event row: `E_WARNING \| unserialize(): Error at offset 26 of 93 bytes` at lines 3927 / 243 / 445 (3 events per 3 calls) | **PASS** (pre) |
+| 1484.2 | POST-FIX corrupt blob, all 3 decoders | Same three calls against corrupt row → `getOptions` returns empty object, `get_by_id`/`get_all` return stdClass defaults (all flags 0); `events` count stays **0** | **PASS** |
+| 1484.3 | POST-FIX valid modern blob decodes | `UPDATE ... SET options='O:8:"stdClass":4:{s:19:"requirementsEnabled";i:1;s:19:"testPriorityEnabled";i:1;s:17:"automationEnabled";i:1;s:16:"inventoryEnabled";i:0;}'` → `getOptions` returns object req=1/auto=1; **0** events | **PASS** |
+| 1484.4 | setOptions round-trip still persists | `setOptions(100001, {requirementsEnabled:0})` → stored blob updated (req 1→0), `getOptions` reads back 0, **0** events | **PASS** |
+| 1484.5 | Empty / non-blob options still safe | `UPDATE options=''` then `getOptions` → empty object, no warning, **0** events (first-char guard path) | **PASS** |
+| 1484.6 | Static sweep | `grep -n "unserialize" lib/functions/testproject.class.php` → only the helper line (3951) reads options; no bare `unserialize($row['options'])`/`unserialize($raw)` left; `php -l` clean | **PASS** |
+| 1484.7 | Event Viewer / console | No new E_WARNING/E_ERROR (`log_level`=2/1) rows from the options path in `events` after the suite; browser console clean on a project-bound screen | **PASS** |
+
+Result: **7/7 PASS** — **#1484 FIXED**: corrupt options no longer flood the Event Viewer; valid options decode and persist exactly as before (zero behavior change, warning-containment only). Fix pushed as `fix/issue-1484` (commit 1de8a403a).
