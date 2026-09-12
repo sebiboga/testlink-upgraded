@@ -173,7 +173,14 @@ viewer for requirement
   {/if}
 
   <tr>
-    <td>{$labels.status}{$smarty.const.TITLE_SEP}{$args_gui->reqStatusDomain[$args_req.status]}</td>
+    <td>{$labels.status}{$smarty.const.TITLE_SEP}
+    {$req_status=$args_req.status}
+    {if isset($args_gui->reqStatusDomain.$req_status)}
+      {$args_gui->reqStatusDomain.$req_status}
+    {else}
+      {$args_req.status}
+    {/if}
+    </td>
   </tr>
   <tr>
     <td>{$labels.type}{$smarty.const.TITLE_SEP}

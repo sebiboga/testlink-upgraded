@@ -176,7 +176,13 @@ function cs_all_coverage_in_div(div_id, input_id_prefix, default_id_prefix, memo
 				{$gui->all_reqs[row].req_doc_id|escape}{$gsmarty_gui->title_separator_1}{$gui->all_reqs[row].title|escape}
 			</td>
 			{assign var="req_status" value=$gui->all_reqs[row].status }
-			<td style="padding:2px;">{$gui->reqStatusDomain.$req_status|escape}</td>
+			<td style="padding:2px;">
+			{if isset($gui->reqStatusDomain.$req_status)}
+			  {$gui->reqStatusDomain.$req_status|escape}
+			{else}
+			  {$req_status|escape}
+			{/if}
+			</td>
 			{assign var="req_type" value=$gui->all_reqs[row].type }
 			<td style="padding:2px;">
 			{if isset($gui->reqTypeDomain.$req_type)}
