@@ -178,7 +178,13 @@ function cs_all_coverage_in_div(div_id, input_id_prefix, default_id_prefix, memo
 			{assign var="req_status" value=$gui->all_reqs[row].status }
 			<td style="padding:2px;">{$gui->reqStatusDomain.$req_status|escape}</td>
 			{assign var="req_type" value=$gui->all_reqs[row].type }
-			<td style="padding:2px;">{$gui->reqTypeDomain.$req_type|escape}</td>
+			<td style="padding:2px;">
+			{if isset($gui->reqTypeDomain.$req_type)}
+			  {$gui->reqTypeDomain.$req_type|escape}
+			{else}
+			  {$req_type|escape}
+			{/if}
+			</td>
 			<td style="padding:2px;"><input name="testcase_count[{$gui->all_reqs[row].id}]" id="testcase_count{$gui->all_reqs[row].id}" type="text" size="3" maxlength="3" value="1"></td>
 			{if $gui->req_cfg->expected_coverage_management}
 				{* BUGID 4317 - CONTRIB FRL : add hidden field to store coverage_count with coverage values *}
