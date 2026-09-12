@@ -13763,38 +13763,21 @@ Result: **11/11 PASS** — **#889 IMPLEMENTED/VERIFIED**: `meta/roles` excludes 
 
 Result: **8/8 PASS** — **#1459 FIXED**: `href_severity_config` now defined in all 19 locale bundles; ASIDE sub-item renders translated (ro/de verified) and unchanged in en_GB; cs_CZ byte-encoding honoured; zero new event entries.
 
-## Suite — Issue #1470: Per-type NFR screens (nfrTypeView + api/nfrtype)
+## Regression — Issue #1428: reqCreateTestCases.tpl — E_WARNING 'Undefined array key "f"' on requirement type-domain read
 
-**Screen:** `gui/templates/requirements/nfrTypeView.html` + BFF `api/nfrtype/index.php` (Refs #1470-1476).
-**Feature (new, no legacy equivalent):** one dedicated per-NFR-type CRUD page — URL `?type=` drives a standalone Dashio screen (type chip, per-type focus box, project selector, type-filtered DataTable, type-locked create/edit modal, delete confirm, locale switcher) backed by a REST BFF that validates the type server-side against the NFR domain on every route and enforces `mgt_view_req` (read) / `mgt_modify_req` (write) on the owning test project. Served by 7 ASIDE sub-items under Requirements Design (gated `reqs_view`).
-**Implementation:** `api/nfrtype/index.php` routes `projects`/`meta`/`list`/`item`/`create`/`update`/`delete`; type-lock enforced on create AND update (a forged `type`/row-type mismatch → 400); `nfr_requirements` table reused (lazy-created whitelist from `tlObject::getDBTables()`); `nfrt.*` (40 keys) + `footers.nfrtype` in all 10 client bundles; `$TLS_href_nfr_{performance,security,usability,accessibility,compatibility,reliability,maintainability}` in all 19 `locale/*/strings.txt` (native translations: ro Performanță/Securitate/Uzabilitate/Accesibilitate/Compatibilitate/Fiabilitate/Menținabilitate, ja 性能/セキュリティ/ユーザビリティ/アクセシビリティ/互換性/信頼性/保守性, zh 性能/安全/易用性/可访问性/兼容性/可靠性/可维护性, etc.); `labels.aside.tpl` `{lang_get}` list; `aside.tpl` 7 sub-items; `$actions->nfr<Type>` in `common.php` → `nfrTypeView.html?type=X&tproject_id=&tplan_id=`.
-**Precondition:** fresh DB; run `php tmp/fixtures_nfrtype.php` (project `NFRProj`, id 1, requirements enabled; 6 NFR rows across performance/security/usability/reliability; viewer user `nfrviewer`/`viewerpw` role 2); admin/admin session on http://localhost:8082. Chrome DevTools MCP + curl + mysql CLI.
+**Screen:** `lib/requirements/reqEdit.php?doAction=createTestCases&req_spec_id=<id>&tproject_id=1` → `gui/templates/{dashio,tl-classic}/requirements/reqCreateTestCases.tpl` (row type cell, :181 pre-fix).
+**Defect:** `req_versions.type` is CHAR(1) written verbatim without validation (`requirement_mgr.class.php:2293-2297`), but `reqTypeDomain` only defines keys '1'..'7' (`init_labels($reqCfg->type_labels)`, `reqCommands.class.php:29-30`, `cfg/const.inc.php:676-683`). A stored out-of-domain type (e.g. 'f') made the unguarded `{$gui->reqTypeDomain.$req_type|escape}` log `E_WARNING Undefined array key "f"` to the Event Viewer (same class as fixed #1417).
+**Fix:** `gui/templates/{dashio,tl-classic}/requirements/reqCreateTestCases.tpl:181-187` — wrap the read in `{if isset($gui->reqTypeDomain.$req_type)}` … `{else} {$req_type|escape} {/if}` (raw-code fallback, `|escape` both branches). Commit `6578f645c`.
+**Precondition:** fixture `php tmp/fixtures_1428.php` (tproject=1 `ReqCreateTCBadType`, spec=2 `SRS-1428`; `R-BAD` req_versions.id=7 **type='f'**, `R-GOOD` id=5 type='2'); admin/admin session; `TRUNCATE events` before each measurement.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1470.1 | ASIDE → Requirements Design expand (admin) | 7 new sub-items after "Non-Functional Requirements": **NFR: Performance/Security/Usability/Accessibility/Compatibility/Reliability/Maintainability**, each href `nfrTypeView.html?type=<type>&tproject_id=1&tplan_id=0`; gated by `reqs_view` (`menuGrants->reqs_view=="yes"` block) | **PASS** |
-| 1470.2 | `php -l` on all 19 `locale/*/strings.txt` + `lib/functions/common.php` | No syntax errors; each strings.txt now contains the 7 `$TLS_href_nfr_*` lines (grep count 8 incl. `href_nfr_requirements`) | **PASS** |
-| 1470.3 | `python3 -m json.tool` on all 10 client i18n bundles | Valid JSON; `nfrt.*` (40) + `footers.nfrtype` present in each | **PASS** |
-| 1470.4 | `GET api/nfrtype/index.php?action=meta&type=performance` (admin cookie) | `{status:ok, type:{code:'performance', icon:'fa-gauge-high', focusKey:'nfrt.focus.performance'}, statuses:[proposed,approved,in_scope,waived]}` | **PASS** |
-| 1470.5 | `GET ?action=projects&type=security` (admin) | NFRProj listed; project selector for the screen | **PASS** |
-| 1470.6 | `GET ?action=list&tproject_id=1&type=performance` (admin) | status ok, `project.name=NFRProj`, `canEdit=true`, `count=2`, only `nfr_type=performance` rows, author_login populated | **PASS** |
-| 1470.7 | `GET ?action=list&tproject_id=1&type=bogus` | HTTP 400 `{"status":"error","message":"Unknown NFR type"}` | **PASS** |
-| 1470.8 | `POST ?action=create {tproject_id:1,type:'performance',title:'Create test',...}` | `{status:ok,id:N}`; DB row `nfr_type='performance'`; audit event `NFR_CREATE` | **PASS** |
-| 1470.9 | `POST ?action=create` with blank title | 400 `Title is required`; no row inserted | **PASS** |
-| 1470.10 | `POST ?action=update {id:N,title:'...EDITED',req_status:'in_scope'}` | ok; DB title/status updated; `nfr_type` unchanged | **PASS** |
-| 1470.11 | `POST ?action=delete {id:N}` | ok; row gone; `NFR_DELETE` audit event | **PASS** |
-| 1470.12 | anon: `GET ?action=list` + `POST ?action=create` (no cookie, plain curl) | HTTP 401 `Not authenticated` both | **PASS** |
-| 1470.13 | viewer `nfrviewer`: `GET ?action=item&id=1` / `POST ?action=create` | HTTP 403 `No permission` both; `GET ?action=projects` → empty `projects:[]` (no mgt_view_req project) | **PASS** |
-| 1470.14 | Open Performance screen `nfrTypeView.html?type=performance&tproject_id=1` | Title "NFRProj - NFR Management"; type chip **Performance**; focus box "Focus: load / stress / endurance / scalability targets and thresholds"; **2 rows** (API latency, Page load), status badges Proposed/Approved, count footer "2 requirement(s)" | **PASS** |
-| 1470.15 | Security screen `?type=security` | chip **Security**; focus "confidentiality, integrity, availability and auditability controls"; **2 rows** only; Reliability screen `?type=reliability` → **1 row** (Availability 99.9%) | **PASS** |
-| 1470.16 | Click **+ Add requirement** | modal "New requirement": title empty, **TYPE input readonly = "Performance"**, STATUS default Proposed, target/threshold/source/description fields | **PASS** |
-| 1470.17 | Fill title "Browser add test" + target 1.5s/threshold 2.5s/source NFR-PERF-900/description → Save | toast "Requirement saved"; new row appears in DataTable (Proposed) | **PASS** |
-| 1470.18 | Click Edit on that row | modal "Edit requirement" **pre-filled** (title/target/threshold/source/description, TYPE readonly "Performance", status Proposed) | **PASS** |
-| 1470.19 | Edit → title "Browser edit test", status **Approved**, target 1.2s → Save | toast "Requirement saved"; row updated: Approved badge, new timestamps | **PASS** |
-| 1470.20 | Click Delete on that row | confirm modal "Delete this non-functional requirement?" → Delete | toast "Requirement deleted"; row removed; count back to 2 | **PASS** |
-| 1470.21 | Open Add modal, leave title empty, Save | modal stays open; toast **"Title is required"** (server-side 400 surfaced); no request side effect | **PASS** |
-| 1470.22 | DataTable search "ASVS" on Security screen | 1 row (OWASP ASVS L2 for auth); "1 of 2 (filtered from 2)" | **PASS** |
-| 1470.23 | Locale switcher → Română (`?type=performance`) | header "Gestionare CNF", type chip **Performanță**, project label "Proiect de test:", buttons "Adauga cerinta"/"Editare"/"Stergere", status "Aprobat", focus text translated; back to English restores | **PASS** |
-| 1470.24 | `events` table + Event Viewer after suite | `NFR_CREATE/NFR_UPDATE/NFR_DELETE` audit rows exist (log_level info); `SELECT COUNT(*) FROM events WHERE log_level <= 3` → **0** ERROR/WARNING rows; browser console clean | **PASS** |
+| 1428.1 | Pre-fix repro (HEAD before `6578f645c`): `TRUNCATE events` then open `reqEdit.php?doAction=createTestCases&req_spec_id=2&tproject_id=1` | events `log_level<=8` contains `E_WARNING Undefined array key "f"` (1× per R-BAD row) + 2× `Undefined property stdClass::$tproject_id` (→ #1480, out of scope) | **PASS (reproduced)** |
+| 1428.2 | Post-fix reload (cache cleared) | R-BAD type cell renders raw **`f`** (fallback); R-GOOD renders localized **`Feature`**; body/stack intact | **PASS** |
+| 1428.3 | Post-fix Event Viewer | **0** `Undefined array key "f"` events (`SELECT ... WHERE log_level<=8` → only 2× `tproject_id`, tracked as #1480); no PHP/smarty compile errors in server log | **PASS** |
+| 1428.4 | POST flow `doCreateTestCases` (select both reqs, submit) | Success msgs: TS auto-created + "Test Case Req with non-standard type f [1] was successfully created" + "…Req with standard type [1]…"; re-rendered table still f/Feature; **0** array-key events after | **PASS** |
+| 1428.5 | tl-classic parity | `gui/templates/tl-classic/requirements/reqCreateTestCases.tpl` carries the identical isset()+escape fallback block (byte-diff vs dashio = 0 on the guard) | **PASS** |
+| 1428.6 | i18n hygiene | No new user-facing strings added (no bundle touched); all 10 i18n bundles still valid JSON / strings.txt files syntax-clean | **PASS** |
+| 1428.7 | Event Viewer / console after suite | events `log_level<=8`: only the #1480 `tproject_id` rows (pre-existing, separate issue); browser console clean | **PASS** |
 
-Result: **24/24 PASS** — **#1470 verified**: per-type NFR screen renders correctly per type (URL-driven, type-locked, localized), full CRUD + validation + search + locale + rights (401 anon / 403 viewer / 400 bad type / 400 blank title) + audit events; 7 ASIDE sub-items wired end to end; no Event Viewer or console regressions.
+Result: **7/7 PASS** — **#1428 FIXED**: unknown requirement types render as the raw stored code with no E_WARNING; standard types keep their localized label; both themes guarded. Related same-class issues filed separately: **#1480** (`tproject_id` undefined property) and **#1481** (unguarded `reqStatusDomain` status read).
