@@ -166,6 +166,20 @@ if ($method === 'GET' && $segments === ['bugsTested']) {
     ]);
 }
 
+// Route: GET /assigned - "Test cases assigned to me" widget (Refs #895).
+// Ports the legacy tcAssignedToUser.php personal view onto the Dashboard:
+// every test case whose execution is assigned to the logged-in user, scoped
+// to the selected test project (all its active test plans, or a single plan
+// when one is already selected), with the last execution status per row.
+if ($method === 'GET' && $segments === ['assigned']) {
+    $assigned = getAssignedToMeData($db, $tprojectID, $tplanID, $userId, $user, $lbl);
+
+    out([
+        'status' => 'ok',
+        'assigned' => $assigned,
+    ]);
+}
+
 http_response_code(404);
 out(['status' => 'error', 'message' => 'Not found']);
 
@@ -425,6 +439,186 @@ function mainpageIssueUrlFromCfg($cfg, $bugID)
             . '/' . rawurlencode($cfg['repo']) . '/issues/' . $bugID;
     }
     return '';
+}
+
+/**
+ * "Test cases assigned to me" widget payload (Refs #895).
+ *
+ * Ports the legacy personal view of lib/testcases/tcAssignedToUser.php onto the
+ * Dashboard: not the whole-overview variant (that one is the Reports screen
+ * Refs #684), but exactly what a tester needs to know what to work on today -
+ * the test cases assigned to the logged-in user, scoped to the selected test
+ * project, grouped per test plan.
+ *
+ * Scope decision (legacy init_args parity):
+ *  - tplan_id > 0  -> that single test plan only.
+ *  - tplan_id == 0 -> testcase::ALL_TESTPLANS of the selected project.
+ * Filters default to the "work today" view: active plans + open builds. The
+ * full_path mode resolves the test case's suite path so the widget reads like
+ * the legacy "Assigned to me" table.
+ */
+function getAssignedToMeData(&$dbHandler, $tprojectID, $tplanID, $userId, $user, $lbl)
+{
+    $empty = array(
+        'user_id' => intval($userId),
+        'tproject_id' => intval($tprojectID),
+        'has_data' => false,
+        'total' => 0,
+        'executed' => 0,
+        'pending' => 0,
+        'plans' => array(),
+    );
+    if ($tprojectID <= 0 || intval($userId) <= 0 || is_null($user)) {
+        return $empty;
+    }
+
+    require_once(__DIR__ . '/../../lib/functions/testcase.class.php');
+    require_once(__DIR__ . '/../../lib/functions/testplan.class.php');
+    require_once(__DIR__ . '/../../lib/functions/testproject.class.php');
+
+    $tcaseMgr = new testcase($dbHandler);
+    $tplanMgr = new testplan($dbHandler);
+
+    // Standard execution status whitelist for rendering.
+    $resultsCfg = config_get('results');
+
+    $tplan_param = $tplanID > 0 ? array(intval($tplanID)) : testcase::ALL_TESTPLANS;
+    $filters = array('tplan_status' => 'active', 'build_status' => 'open');
+    $resultSet = $tcaseMgr->get_assigned_to_user(
+        intval($userId), $tprojectID, $tplan_param,
+        array('mode' => 'full_path'), $filters);
+
+    if (is_null($resultSet)) {
+        return $empty;
+    }
+
+    $payload = $empty;
+
+    $tplanNames = array();
+    $nhTable = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+    $sql = 'SELECT id,name FROM ' . $nhTable['nodes_hierarchy'] .
+           ' WHERE id IN (' . implode(',', array_map('intval', array_keys($resultSet))) . ')';
+    $rows = $dbHandler->get_recordset($sql);
+    foreach ($rows as $r) {
+        $tplanNames[intval($r['id'])] = $r['name'];
+    }
+
+    $tprojectMgr = new testproject($dbHandler);
+    $tprojectInfo = $tprojectMgr->get_by_id($tprojectID);
+
+    foreach ($resultSet as $tplan_id => $tcase_set) {
+        $tplan_id = intval($tplan_id);
+        $hasExecRight = ($user->hasRight(
+            $dbHandler, 'testplan_execute', $tprojectID, $tplan_id, true) == 'yes');
+
+        $platforms = $tplanMgr->getPlatforms($tplan_id, array('outputFormat' => 'map'));
+        $showPlatforms = !is_null($platforms);
+
+        $projOpts = $tprojectInfo['opt'] ?? null;
+        if (is_null($projOpts) && !empty($tprojectInfo['options'])) {
+            $projOpts = json_decode($tprojectInfo['options']);
+        }
+        $priorityEnabled = is_object($projOpts)
+            ? !empty($projOpts->testPriorityEnabled)
+            : (is_array($projOpts) ? !empty($projOpts['testPriorityEnabled']) : false);
+
+        $rowsOut = array();
+        foreach ($tcase_set as $tcase_platform) {
+            foreach ($tcase_platform as $tcase) {
+                $tcase_id = intval($tcase['testcase_id']);
+                $tcversion_id = intval($tcase['tcversion_id']);
+                $build_id = intval($tcase['build_id']);
+
+                // Last execution on THIS build/platform (legacy parity).
+                $lexec = $tcaseMgr->get_last_execution(
+                    $tcase_id, $tcversion_id, $tplan_id,
+                    $build_id, intval($tcase['platform_id']),
+                    array('getSteps' => 0));
+                $status = isset($lexec[$tcversion_id]['status'])
+                    ? $lexec[$tcversion_id]['status'] : '';
+                if (!in_array($status, array('p', 'f', 'b', 'n'), true)) {
+                    $status = $resultsCfg['status_code']['not_run'];
+                }
+
+                $creationTs = $tcase['creation_ts'];
+                $tsEpoch = is_string($creationTs) ? strtotime($creationTs) : $creationTs;
+                $tsEpoch = $tsEpoch ? intval($tsEpoch) : 0;
+
+                $deadlineEpoch = 0;
+                if (!empty($tcase['deadline_ts'])) {
+                    $dts = strtotime($tcase['deadline_ts']);
+                    $deadlineEpoch = $dts ? intval($dts) : 0;
+                }
+
+                $row = array(
+                    'build_id' => $build_id,
+                    'build_name' => $tcase['build_name'],
+                    'suite_path' => $tcase['tcase_full_path'],
+                    'tc_id' => $tcase_id,
+                    'tcversion_id' => $tcversion_id,
+                    'prefix' => $tcase['prefix'],
+                    'tc_external_id' => intval($tcase['tc_external_id']),
+                    'name' => $tcase['name'],
+                    'version' => intval($tcase['version']),
+                    'tplan_id' => $tplan_id,
+                    'tplan_name' => isset($tplanNames[$tplan_id])
+                        ? $tplanNames[$tplan_id] : '',
+                    'status' => $status,
+                    'status_key' => in_array($status, array('p','f','b','n'), true)
+                        ? array('p'=>'passed','f'=>'failed','b'=>'blocked','n'=>'not_run')[$status]
+                        : 'not_run',
+                    'creation_ts_epoch' => $tsEpoch,
+                    'assigned_on_epoch' => $tsEpoch,
+                    'age_days' => $tsEpoch
+                        ? intval(floor((time() - $tsEpoch) / 86400)) : 0,
+                    'deadline_epoch' => $deadlineEpoch,
+                    'deadline_overdue' => ($deadlineEpoch > 0 && time() > $deadlineEpoch),
+                    'can_exec' => $hasExecRight,
+                );
+                if ($showPlatforms) {
+                    $row['platform_id'] = intval($tcase['platform_id']);
+                    $row['platform_name'] = $tcase['platform_name'];
+                }
+                if ($priorityEnabled) {
+                    $prio = intval($tcase['priority']);
+                    $level = ($prio >= HIGH) ? 'high'
+                        : (($prio >= MEDIUM) ? 'medium' : 'low');
+                    $row['priority'] = $prio;
+                    $row['priority_level'] = $level;
+                }
+                $rowsOut[] = $row;
+            }
+        }
+
+        $payload['plans'][] = array(
+            'id' => $tplan_id,
+            'name' => isset($tplanNames[$tplan_id]) ? $tplanNames[$tplan_id] : '',
+            'show_platforms' => $showPlatforms,
+            'priority_enabled' => $priorityEnabled,
+            'has_exec_right' => $hasExecRight,
+            'rows' => $rowsOut,
+        );
+    }
+
+    usort($payload['plans'], function ($a, $b) {
+        return strcasecmp($a['name'], $b['name']);
+    });
+
+    foreach ($payload['plans'] as $plan) {
+        $payload['total'] += count($plan['rows']);
+        foreach ($plan['rows'] as $r) {
+            if ($r['status'] != 'n') {
+                $payload['executed'] += 1;
+            } else {
+                $payload['pending'] += 1;
+            }
+        }
+        if (count($plan['rows']) > 0) {
+            $payload['has_data'] = true;
+        }
+    }
+
+    return $payload;
 }
 
 /**
