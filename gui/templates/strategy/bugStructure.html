@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="ts.bugStructureHeader">Bug Structure</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.back a { color: #4ECDC4; text-decoration: none; font-size: 13px; font-weight: 600; }
+.back a:hover { color: #3dbdb5; }
+.two-col { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; padding: 20px 24px; }
+.col { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); padding: 20px; border-top: 4px solid #3498db; }
+.col .title { font-size: 15px; font-weight: 700; color: #22242a; margin-bottom: 12px; }
+.col ul { margin: 0; padding-left: 18px; font-size: 13px; color: #555; }
+.col li { margin-bottom: 8px; }
+.col code { background: #f0fbfa; border: 1px solid #d5efec; border-radius: 3px; padding: 1px 5px; font-size: 12px; color: #1c7a72; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fas fa-database" style="margin-right:8px;"></i><span data-i18n="ts.bugStructureHeader">Bug Structure</span>
+  <span data-i18n="ts.bugStructureHeaderSub">the mandatory sections of a defect report (Refs #1289)</span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span class="back"><a href="/gui/templates/strategy/testStrategy.html" target="mainframe"><i class="fa fa-arrow-left"></i> <span data-i18n="ts.backToStrategy">Back to Test Strategy</span></a></span>
+  <span style="flex:1"></span>
+  <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
+</div>
+
+<div class="two-col">
+  <div class="col">
+    <div class="title"><span data-i18n="ts.bugStructureC1Title">Mandatory sections</span></div>
+    <ul>
+      <li data-i18n="ts.bugStructureC1a">ENVIRONMENT - Operating System, browser name/version, build version, URL and other agreements from the Test Strategy.</li>
+      <li data-i18n="ts.bugStructureC1b">STEPS TO REPRODUCE - exact reproducible steps.</li>
+      <li data-i18n="ts.bugStructureC1c">EXPECTED RESULTS - what should happen.</li>
+      <li data-i18n="ts.bugStructureC1d">ACTUAL RESULTS - what actually happens, with screenshots or video as evidence.</li>
+    </ul>
+  </div>
+  <div class="col">
+    <div class="title"><span data-i18n="ts.bugStructureC2Title">Optional sections</span></div>
+    <ul>
+      <li data-i18n="ts.bugStructureC2a">PRECONDITIONS - only when specific preconditions must be met before running the steps.</li>
+      <li data-i18n="ts.bugStructureC2b">Screenshots added in ACTUAL RESULTS as evidence.</li>
+      <li data-i18n="ts.bugStructureC2c">Video recording added in ACTUAL RESULTS as evidence.</li>
+      <li data-i18n="ts.bugStructureC2d">Bug Structure is part of the Test Strategy.</li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="ts.bugStructureHeader">Bug Structure</span> - <span data-i18n="ts.header">Test Strategy</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script>
+$(function() {
+  TLi18n.load(function() {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+  });
+});
+</script>
+</body>
+</html>

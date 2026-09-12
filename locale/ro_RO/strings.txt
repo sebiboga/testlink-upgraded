@@ -45,6 +45,8 @@ $TLS_href_test_strategy_defects = 'Gestionarea Defectelor';
 $TLS_href_test_strategy_cfg = 'Modificări și Config';
 $TLS_href_test_strategy_training = 'Instruire';
 $TLS_href_test_strategy_release = 'Livrare';
+$TLS_href_test_strategy_bug_structure = 'Structura Bug-ului';
+$TLS_href_test_strategy_bug_lifecycle = 'Ciclul de Viață al Bug-ului';
 
 $TLS_install_header = "Instalare / Upgrade";$TLS_title_dashboard = 'Tablou de bord';
 $TLS_quick_search = 'Căutare rapidă';

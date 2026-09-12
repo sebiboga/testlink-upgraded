@@ -74,6 +74,8 @@ function strategyChapters() {
         array('num' => 17, 'icon' => 'fa-graduation-cap',          'key' => 'ts.chapterTraining',       'descKey' => 'ts.chapterTrainingDesc',       'url' => '/gui/templates/strategy/training.html'),
         array('num' => 18, 'icon' => 'fa-rocket',                  'key' => 'ts.chapterRelease',        'descKey' => 'ts.chapterReleaseDesc',        'url' => '/gui/templates/strategy/release.html'),
         array('num' => 19, 'icon' => 'fa-sliders-h',               'key' => 'ts.chapterSeverity',       'descKey' => 'ts.chapterSeverityDesc',       'url' => '/gui/templates/projects/severityConfig.html'),
+        array('num' => 20, 'icon' => 'fa-database',                'key' => 'ts.chapterBugStructure',   'descKey' => 'ts.chapterBugStructureDesc',   'url' => '/gui/templates/strategy/bugStructure.html'),
+        array('num' => 21, 'icon' => 'fa-arrows-alt-h',            'key' => 'ts.chapterBugLifecycle',   'descKey' => 'ts.chapterBugLifecycleDesc',   'url' => '/gui/templates/strategy/bugLifecycle.html'),
     );
 }
 

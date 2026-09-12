@@ -2102,6 +2102,8 @@ function getActions(&$gui,$baseURL) {
   $actions->testStrategyCfg = "/gui/templates/strategy/changeConfig.html?{$ctx}";
   $actions->testStrategyTraining = "/gui/templates/strategy/training.html?{$ctx}";
   $actions->testStrategyRelease = "/gui/templates/strategy/release.html?{$ctx}";
+  $actions->testStrategyBugStructure = "/gui/templates/strategy/bugStructure.html?{$ctx}";
+  $actions->testStrategyBugLifecycle = "/gui/templates/strategy/bugLifecycle.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;

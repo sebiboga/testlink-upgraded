@@ -2319,6 +2319,8 @@ $TLS_href_test_strategy_defects = "Defect Management";
 $TLS_href_test_strategy_cfg = "Change & Config";
 $TLS_href_test_strategy_training = "Training";
 $TLS_href_test_strategy_release = "Release";
+$TLS_href_test_strategy_bug_structure = "Bug Structure";
+$TLS_href_test_strategy_bug_lifecycle = "Bug Lifecycle";
 
 $TLS_install_header = "Install / Upgrade";$TLS_title_product_mgmt = "Test Project";
 $TLS_href_plan_define_priority = "Test Plan priority";
