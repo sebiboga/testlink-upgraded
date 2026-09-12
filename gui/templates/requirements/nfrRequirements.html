@@ -193,6 +193,7 @@ var TYPES = [];       // [{code,icon}]
 var STATUSES = [];    // [code]
 var DT = null;
 var deleteTargetId = 0;
+var editSeq = 0;
 var CAN_EDIT = false;
 
 $(function () {
@@ -359,10 +360,9 @@ function renderTable(items) {
       .append($('<td>').html(act));
     $tb.append(tr);
   });
-  $('#nfrTable').DataTable({
+  DT = $('#nfrTable').DataTable({
     pageLength: 10,
-    retrieve: true,
-    language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_', info: '' }
+    language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_' }
   });
 }
 
@@ -373,12 +373,14 @@ function typeIcon(code) {
 
 function fmtDate(ts) {
   if (!ts) return '';
-  var d = new Date((ts || '').replace(' ', 'T') + 'Z');
+  var d = new Date((ts || '').replace(' ', 'T'));
   if (isNaN(d.getTime())) return ts;
   return d.toLocaleString();
 }
 
 function openEditModal(id) {
+  editSeq++;
+  var seq = editSeq;
   $('#editModalTitle').text(TLi18n.t(id ? 'nfr.editTitle' : 'nfr.newTitle'));
   $('#nfrId').val(id || '');
   var $t = $('#nfrType').empty();
@@ -395,6 +397,7 @@ function openEditModal(id) {
 
   if (id) {
     $.getJSON(API + '?action=item&id=' + id + '&_=' + Date.now()).done(function (r) {
+      if (seq !== editSeq) { return; }
       var it = r.item || {};
       $('#nfrId').val(it.id || '');
       $('#nfrTitle').val(it.title || '');
@@ -404,7 +407,7 @@ function openEditModal(id) {
       $('#nfrSource').val(it.source_ref || '');
       $t.val(it.nfr_type || typeFilter);
       $s.val(it.req_status || 'proposed');
-    }).fail(apiFail);
+    }).fail(function (xhr) { if (seq === editSeq) { apiFail(xhr); } });
   }
 }
 

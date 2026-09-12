@@ -165,8 +165,12 @@ switch ($method) {
             $rows = (array)$db->get_recordset($sql);
             $items = array();
             foreach ($rows as $row) {
+                $tpid = (int)$row['id'];
+                if ($user->hasRight($db, 'mgt_view_req', $tpid) !== 'yes') {
+                    continue;
+                }
                 $items[] = array(
-                    'id'     => (int)$row['id'],
+                    'id'     => $tpid,
                     'name'   => $row['name'],
                     'prefix' => $row['prefix'],
                 );
@@ -181,7 +185,6 @@ switch ($method) {
                 $types[] = array(
                     'code' => $t['code'],
                     'icon' => $t['icon'],
-                    'count' => 0,
                 );
             }
             $statuses = array();
@@ -200,6 +203,7 @@ switch ($method) {
                 echo json_encode(array('status' => 'error', 'message' => 'Requirement ID required'));
                 exit;
             }
+            nfrEnsureSchema($db);
             $row = $db->fetchFirstRow(
                 " SELECT r.*, u.login FROM " . nfrTable() . " r " .
                 " LEFT JOIN users u ON u.id = r.author_id " .
@@ -238,7 +242,10 @@ switch ($method) {
             }
 
             nfrEnsureSchema($db);
-            $typeFilter = trim((string)($_GET['type'] ?? ''));
+            $typeFilter = '';
+            if (isset($_GET['type']) && is_string($_GET['type'])) {
+                $typeFilter = trim((string)$_GET['type']);
+            }
             $where = " WHERE r.testproject_id = " . intval($tpid);
             if ($typeFilter !== '' && !in_array($typeFilter, array_column(nfrTypes(), 'code'), true)) {
                 http_response_code(400);
