@@ -304,6 +304,10 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   Switched to the modern `reqView.html?id=..&tproject_id=..`; the `/view` BFF
   already renders the requirement spec title (r.spec_path) in the Overview
   card, superseding the legacy `showReqSpecTitle=1` flag (#1477).
+- testproject::create(): `serialize($item->options)` ran on a possibly-missing
+  property, logging a PHP 8 `E_WARNING Undefined property: stdClass::$options`
+  ERROR row in the Event Viewer on every create call with a sparse stdClass
+  item — now guarded with `isset()` before the serialize (#1482).
 - Set Results popup edit-testcase-on-exec link: restored (Refs #1400) —
   `grants.edit_testcase` (`mgt_modify_tc` at project+plan, exact legacy scope
   execSetResults.php:1425) now returned by the `api/execsetresults` init BFF;
