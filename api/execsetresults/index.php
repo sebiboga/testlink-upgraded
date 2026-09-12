@@ -663,6 +663,133 @@ function esrKeywords($tcaseMgr, $tcaseId, $tcversionId) {
     return $keywords;
 }
 
+/**
+ * Test suite block of the exec popup (legacy exec_show_tc_exec.inc.tpl:36-71
+ * + execSetResults.php smarty_assign_tsuite_info/get_ts_name_details):
+ *  - breadcrumb of CLICKABLE suite links (legacy openTestSuiteWindow(tsuite_id)
+ *    per ancestor suite, testlink_library.js:1529) — the modern equivalent is
+ *    the suiteView.html viewer (api/suiteview), opened in the 'TestSuite' popup;
+ *  - the DIRECT parent suite name + details (testsuites.details);
+ *  - design-time suite custom fields (legacy testsuite::get_linked_cfields_at_design
+ *    + html_table_of_custom_field_values: cfield_design_values keyed by the
+ *    suite node id, label from custom_fields.label, value via
+ *    cfield_mgr::string_custom_field_value; BUGID-3989
+ *    show_custom_fields_without_value still honoured);
+ *  - download-only suite attachments (fk_table 'nodes_hierarchy', legacy
+ *    gui->tSuiteAttachments loaded with getAttachmentInfos(...,$suite_id,
+ *    'nodes_hierarchy',true,1)).
+ * Returns null when the test case has no test-suite parent (TC directly under
+ * the test project) — legacy get_ts_name_details() also returns nothing then.
+ */
+function esrTestSuite($db, $tcaseId, $tprojectId) {
+    $tables = tlObjectWithDB::getDBTables(array(
+        'nodes_hierarchy', 'testsuites', 'node_types'));
+    $nh = $tables['nodes_hierarchy'];
+
+    $par = $db->fetchFirstRow(
+        "SELECT parent_id FROM {$nh} WHERE id = " . intval($tcaseId));
+    if (is_null($par) || !isset($par['parent_id'])) { return null; }
+    $directId = intval($par['parent_id']);
+    if ($directId <= 0) { return null; }
+
+    // testsuite node type id (node_types.description='testsuite', default 2)
+    $tsType = 2;
+    $nt = $db->get_recordset("SELECT id, description FROM {$tables['node_types']}");
+    if (!is_null($nt)) {
+        foreach ($nt as $r) {
+            if (trim($r['description']) === 'testsuite') {
+                $tsType = intval($r['id']); break;
+            }
+        }
+    }
+
+    // ancestors of the direct suite that are themselves test suites
+    $path = array();
+    $nodeId = $directId;
+    $seen = array();
+    while ($nodeId > 0 && !isset($seen[$nodeId])) {
+        $seen[$nodeId] = 1;
+        $row = $db->fetchFirstRow(
+            "SELECT id, name, parent_id, node_type_id FROM {$nh} WHERE id = {$nodeId}");
+        if (is_null($row)) { break; }
+        if (intval($row['node_type_id']) !== $tsType) { break; }
+        $path[] = array(
+            'id' => intval($row['id']),
+            'name' => strval($row['name']),
+        );
+        $parentId = intval($row['parent_id']);
+        if ($parentId <= 0) { break; }
+        $nodeId = $parentId;
+    }
+    if (count($path) == 0) { return null; }
+    $path = array_reverse($path);
+
+    // direct suite details
+    $details = '';
+    $tsr = $db->fetchFirstRow(
+        "SELECT details FROM {$tables['testsuites']} WHERE id = {$directId}");
+    if (!is_null($tsr) && isset($tsr['details'])) {
+        $details = strval($tsr['details']);
+    }
+
+    // design-time suite custom fields (legacy testsuite::get_linked_cfields_at_design
+    // + html_table_of_custom_field_values). Raw rows instead of the legacy HTML
+    // table so the modern BFF stays JSON + the screen renders with its own styles.
+    $cfs = array();
+    try {
+        $tsuiteMgr = new testsuite($db);
+        $cfMap = $tsuiteMgr->get_linked_cfields_at_design(
+            $directId, null, null, $tprojectId);
+        if (!is_null($cfMap)) {
+            $showEmpty = config_get('custom_fields')->show_custom_fields_without_value;
+            foreach ($cfMap as $cfId => $cfInfo) {
+                $hasValue = intval($cfInfo['node_id'] ?? 0);
+                if (!$hasValue && !$showEmpty) { continue; }
+                $cfs[] = array(
+                    'id' => intval($cfId),
+                    'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                        lang_get($cfInfo['label'], null, true))),
+                    'value' => strval($tsuiteMgr->cfield_mgr
+                        ->string_custom_field_value($cfInfo, $directId)),
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        $cfs = array();
+    }
+
+    // download-only suite attachments (fk_table 'nodes_hierarchy')
+    $attachments = array();
+    try {
+        $attachmentMgr = tlAttachmentRepository::create($db);
+        $attItems = getAttachmentInfos($attachmentMgr, $directId,
+            'nodes_hierarchy', true, 1);
+        if ($attItems) {
+            foreach ($attItems as $ai) {
+                $attachments[] = array(
+                    'id' => intval($ai['id']),
+                    'title' => strval($ai['title']),
+                    'file_name' => strval($ai['file_name']),
+                    'file_size' => intval($ai['file_size']),
+                    'download_url' => '/lib/attachments/attachmentdownload.php?id='
+                        . intval($ai['id']),
+                );
+            }
+        }
+    } catch (Exception $e) {
+        $attachments = array();
+    }
+
+    return array(
+        'id' => $directId,
+        'name' => $path[count($path) - 1]['name'],
+        'details' => $details,
+        'path' => $path,
+        'cfs' => $cfs,
+        'attachments' => $attachments,
+    );
+}
+
 $action = $_GET['action'] ?? '';
 $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : $action;
 
@@ -750,6 +877,7 @@ if ($action === 'init') {
         esrRequirements($db, $tcaseId, $tcversionId, $tprojectId, $user);
     $relations = esrRelations($db, $tcversionId);
     $keywords = esrKeywords($tcaseMgr, $tcaseId, $tcversionId);
+    $suite = esrTestSuite($db, $tcaseId, $tprojectId);
 
     out([
         'status' => 'ok',
@@ -790,6 +918,7 @@ if ($action === 'init') {
         'requirements' => $requirements,
         'relations' => $relations,
         'keywords' => $keywords,
+        'suite' => $suite,
         'prior' => $prior,
         'prior_steps' => $priorSteps,
     ]);

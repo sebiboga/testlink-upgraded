@@ -279,6 +279,15 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   "Save Steps Work In Progress Execution" partial-step save persisting
   `execution_tcsteps_wip` (cleared on full save), and the ATTENTION
   "attachments will not be saved" warning — restored to modern screen (Refs #1401).
+- Set Results popup: test suite block restored (legacy
+  `exec_show_tc_exec.inc.tpl` suite section) — BFF `init` now returns a `suite`
+  object (id/name/details/path + suite custom fields via
+  `cfield_design_values` on the suite node + suite attachments for
+  `fk_table=nodes_hierarchy`); popup renders the suite link (opens
+  `suiteView.html` viewer), details, custom-fields table and attachments list;
+  hidden when the TC sits directly under the project. New i18n keys
+  `esr.testsuite/details/attachments/suiteCfs/cfField/cfValue/openSuite` in
+  all 10 locale bundles (Refs #1399).
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.

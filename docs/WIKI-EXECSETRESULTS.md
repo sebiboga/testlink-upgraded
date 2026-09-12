@@ -262,3 +262,36 @@ the initial 2.0.1 popup port. Issue #1401 restores all three.
   `esr.savePartialExec`, `esr.partialSaved`, `esr.errPartialSave` in all 10
   locale bundles.
 - **Test cases:** TLU suite #1401, 11/11 PASS (`tmp/TLU_Test_Cases.md`).
+
+## Test suite block (issue #1399)
+
+The legacy popup showed a test-suite block above the TC summary
+(`gui/templates/dashio/execute/include/exec_show_tc_exec.inc.tpl:36-71`):
+a link to the owning test suite opening the legacy suite viewer
+(`openTestSuiteWindow`, `gui/javascript/testlink_library.js:1529` →
+`archiveData.php?edit=testsuite`), the suite details, the suite's design-time
+custom fields (`testsuite::html_table_of_custom_field_values`,
+`lib/functions/testsuite.class.php:1419`, values from `cfield_design_values`
+keyed by the suite node), and the suite attachments (`getAttachmentInfos(...,
+'nodes_hierarchy', ...)`, `lib/execute/execSetResults.php:1766-1769/1980-1983`).
+The initial 2.0.1 port dropped the whole block. Issue #1399 restores it.
+
+- **BFF** (`api/execsetresults/index.php`): `esrTestSuite()` walks up from the
+  test case through `nodes_hierarchy` until it reaches a `testsuite` node
+  (returns `null` when the TC sits directly under the project), then returns:
+  - `id` / `name` / `details` / `path` (branch from the project down),
+  - `cfs[]` — suite design-time custom fields (all `get_linked_cfields_at_design`
+    fields; values read from `cfield_design_values` on the suite node,
+    formatted via `cfield_mgr::string_custom_field_value`),
+  - `attachments[]` — attachments where `fk_table='nodes_hierarchy'` and
+    `fk_id=<suite id>`, each with `download_url`
+    (`/lib/attachments/attachmentdownload.php?id=`).
+  `?action=init` includes it as the `suite` key.
+- **Front-end** (`gui/templates/execute/execSetResults.html`): the `suiteBox`
+  block renders "Test Suite : <name>" (link + icon that opens the modern
+  viewer `suiteView.html?id=<suite>&tproject_id=<project>` in a new window),
+  the `DETAILS` text, the `TEST SUITE CUSTOM FIELDS` table (Field/Value) and
+  the `ATTACHMENTS` list. The block is hidden when `suite` is null.
+- **i18n:** `esr.testsuite`, `esr.details`, `esr.attachments`, `esr.suiteCfs`,
+  `esr.cfField`, `esr.cfValue`, `esr.openSuite` in all 10 locale bundles.
+- **Test cases:** TLU suite #1399 (see `tmp/TLU_Test_Cases.md`).
