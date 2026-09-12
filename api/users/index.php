@@ -153,6 +153,11 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
            "ORDER BY u.login ASC";
     $rows = $db->get_recordset($sql);
     $items = [];
+    // Legacy parity: lib/usermanagement/usersView.php:295-303 flags
+    // demoSpecialUsers (config.inc.php:2061, default array('admin')) with
+    // is_special=1 while in demoMode. The blind grid keeps is_special=0.
+    $demoMode = (bool)config_get('demoMode');
+    $specialK = $demoMode ? array_flip((array)config_get('demoSpecialUsers')) : [];
     if ($rows) {
         foreach ($rows as $row) {
             // Legacy parity: lib/usermanagement/usersView.php:262-267 localizes
@@ -179,6 +184,13 @@ if ($method === 'GET' && ($path === '/' || $path === '' || $path === '/index.php
                 'expirationDate' => $row['expiration_date'] ?? '',
                 'expirationDateFormatted' => $expirationDateFormatted,
                 'creation_ts' => $row['creation_ts'] ?? '',
+                // Legacy parity: lib/usermanagement/usersView.php:177-180 keeps
+                // four HIDDEN grid columns (role_id, user_id, login, is_special)
+                // that the toolbar "Show all Columns" button reveals. The BFF
+                // exposes them so the modern grid can mirror the same behaviour.
+                'role_id' => intval($row['role_id']),
+                'user_id' => intval($row['id']),
+                'is_special' => isset($specialK[$row['login']]) ? 1 : 0,
             ];
         }
     }

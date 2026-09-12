@@ -234,6 +234,12 @@ NEW FEATURES
   `feedback_key`; toggle/delete errors toast too (i18n
   `user.feedback.created|updated|disabled|enabled|deleted` +
   `user.confirmDelete|Disable|Enable` in all 10 bundles).
+- User Management: grid toolbar (legacy parity, #891) — Show all Columns
+  (reveals the hidden role_id/user_id/is_special technical columns),
+  Reset to Default State, Refresh, Reset Filters and Expand/Collapse Groups
+  (RowGroup-by-role with per-group and all-group toggles); BFF `GET /users`
+  now exposes `role_id`, `user_id`, `is_special` (i18n `usergrid.*` in all
+  10 bundles).
 - Create-test-project-from-existing (copy_as) (#989).
 - Send-report-by-email toolbar action (Results TC Flat #1219/#1223).
 - Multi-column drag-to-toolbar sorting in Test Plan with Custom Fields report

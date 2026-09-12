@@ -7,6 +7,7 @@
 <title>User Management</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.4.1/css/rowGroup.dataTables.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
 * { box-sizing: border-box; }
@@ -18,6 +19,17 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .tabs-bar a:hover { color: #4ECDC4; background: #f0fffd; }
 .tabs-bar a.active { color: #4ECDC4; border-bottom-color: #4ECDC4; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
+.grid-toolbar { background: #2c2f38; padding: 8px 24px; display: flex; gap: 8px; align-items: center; border-top: 1px solid #3a3d47; }
+.tbtn { display: inline-flex; align-items: center; gap: 6px; background: #3a3d47; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+.tbtn:hover { background: #4ECDC4; color: #fff; }
+.tbtn i { color: #4ECDC4; }
+.tbtn:hover i { color: #fff; }
+.tbtn.active { background: #4ECDC4; color: #fff; }
+.tbtn.active i { color: #fff; }
+.gt-sep { border-left: 1px solid #4a4d57; height: 20px; margin: 0 2px; }
+table.dataTable tbody tr.dtrg-group td { background: #e9f5f3; font-weight: 700; color: #2b6f69; cursor: pointer; padding: 8px 14px; font-size: 12px; }
+table.dataTable tbody tr.dtrg-group td i { margin-right: 6px; color: #4ECDC4; }
+table.dataTable tbody tr.dtrg-group td .gcount { font-weight: 400; color: #6aa; font-size: 11px; margin-left: 6px; }
 .btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-teal:hover { background: #3dbdb5; }
 .btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
@@ -71,6 +83,21 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
 
+<!-- Legacy grid toolbar parity (lib/usermanagement/usersView.php:215-217:
+     showToolbar=true, toolbarShowAllColumnsButton=true; exttable.class.php:104-124
+     toolbarExpandCollapseGroupsButton / toolbarDefaultStateButton /
+     toolbarRefreshButton / toolbarResetFiltersButton). -->
+<div class="toolbar grid-toolbar" id="gridToolbar">
+  <button type="button" class="tbtn" id="btnGroupToggle"><i class="fa fa-chevron-down"></i> <span data-i18n="usergrid.expandCollapseGroups">Expand/Collapse Groups</span></button>
+  <button type="button" class="tbtn" id="btnShowAllCols"><i class="fa fa-columns"></i> <span data-i18n="usergrid.showAllColumns">Show all Columns</span></button>
+  <button type="button" class="tbtn" id="btnResetState"><i class="fa fa-rotate-left"></i> <span data-i18n="usergrid.defaultState">Reset to Default State</span></button>
+  <button type="button" class="tbtn" id="btnRefresh"><i class="fa fa-refresh"></i> <span data-i18n="usergrid.refresh">Refresh</span></button>
+  <span class="gt-sep"></span>
+  <button type="button" class="tbtn" id="btnResetFilters"><i class="fa fa-filter-circle-xmark"></i> <span data-i18n="usergrid.resetFilters">Reset Filters</span></button>
+  <span style="flex:1"></span>
+  <span id="gridToolbarInfo" style="color:#8a8f99;font-size:12px;"></span>
+</div>
+
 <div class="table-wrap">
   <table id="usersTable" class="display" style="width:100%">
     <thead>
@@ -84,6 +111,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <th data-i18n="user.status">Status</th>
         <th data-i18n="user.expirationDate">Expiration Date</th>
         <th style="width:100px" data-i18n="common.actions">Actions</th>
+        <th class="tech-col" data-i18n="usergrid.roleId">Role ID</th>
+        <th class="tech-col" data-i18n="usergrid.userId">User ID</th>
+        <th class="tech-col" data-i18n="usergrid.isSpecial">Is Special</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -180,6 +210,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="https://cdn.datatables.net/rowgroup/1.4.1/js/dataTables.rowGroup.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/users/index.php';
@@ -191,6 +222,8 @@ var allItems = [];
 var demoMode = false;
 var canViewEvents = false;
 var defaultRoleID = 0;
+var collapsedGroups = {};
+var showTechCols = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -366,43 +399,162 @@ function renderTable(items) {
   var filtered = items.filter(function(u) { return u.active != 2; });
   var rows = [];
   $.each(filtered, function(i, u) {
-    rows.push([
-      esc(u.login),
-      esc(u.firstName || ''),
-      esc(u.lastName || ''),
-      esc(u.email || ''),
-      esc(u.globalRoleName || ''),
-      esc(u.locale || ''),
-      u.active === 1 ? '<span class="badge-active">' + TLi18n.t('user.active') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('user.inactive') + '</span>',
-      esc(u.expirationDateFormatted || u.expirationDate || ''),
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
-      (!demoMode && canResetPassword(u)
-        ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
-        : '') +
-      (!demoMode && canGenerateApiKey()
-        ? '<i class="fa fa-id-card action-btn" title="' + TLi18n.t('user.generateApiKey') + '" onclick="generateApiKey(' + u.id + ')"></i>'
-        : '') +
-      (!demoMode && u.active
-        ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
-        : '') +
-      (!demoMode && !u.active
-        ? '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>'
-        : '') +
-      (!demoMode && u.login !== 'admin'
-        ? '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteUser(' + u.id + ')"></i>'
-        : '')
-    ]);
+    rows.push({
+      login: u.login,
+      firstName: u.firstName || '',
+      lastName: u.lastName || '',
+      email: u.email || '',
+      roleName: u.globalRoleName || '',
+      locale: u.locale || '',
+      status: u.active === 1 ? '<span class="badge-active">' + TLi18n.t('user.active') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('user.inactive') + '</span>',
+      expirationDate: u.expirationDateFormatted || u.expirationDate || '',
+      actions:
+        '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
+        (!demoMode && canResetPassword(u)
+          ? '<i class="fa fa-key action-btn" title="' + TLi18n.t('user.resetPassword') + '" onclick="resetPassword(' + u.id + ')"></i>'
+          : '') +
+        (!demoMode && canGenerateApiKey()
+          ? '<i class="fa fa-id-card action-btn" title="' + TLi18n.t('user.generateApiKey') + '" onclick="generateApiKey(' + u.id + ')"></i>'
+          : '') +
+        (!demoMode && u.active
+          ? '<i class="fa fa-ban action-btn danger" title="Disable" onclick="toggleActive(' + u.id + ', false)"></i>'
+          : '') +
+        (!demoMode && !u.active
+          ? '<i class="fa fa-check action-btn" title="Enable" onclick="toggleActive(' + u.id + ', true)"></i>'
+          : '') +
+        (!demoMode && u.login !== 'admin'
+          ? '<i class="fa fa-trash action-btn danger" title="Delete" onclick="deleteUser(' + u.id + ')"></i>'
+          : ''),
+      role_id: u.role_id,
+      user_id: u.user_id,
+      is_special: u.is_special
+    });
   });
   table = $('#usersTable').DataTable({
     data: rows,
     order: [[0, 'asc']],
     pageLength: 25,
-    columns: [
-      null, null, null, null, null, null, null, null,
-      { orderable: false, searchable: false }
+    // Legacy parity: the ExtJS grid groups rows by role (getRowClass uses the
+    // hidden role_id column, usersView.php:207-210) and the toolbar
+    // Expand/Collapse Groups button (exttable.class.php:104) toggles those
+    // groups. RowGroup by role name mirrors the same grouping behaviour.
+    rowGroup: {
+      dataSrc: 'roleName',
+      startRender: function (rows, group) {
+        var isCollapsed = !!collapsedGroups[group];
+        rows.nodes().each(function (r) { r.style.display = isCollapsed ? 'none' : ''; });
+        var n = rows.count();
+        var cnt = TLi18n.t('usergrid.groupItem', '({count} item)').replace('{count}', n);
+        if (n !== 1) { cnt = TLi18n.t('usergrid.groupItems', '({count} items)').replace('{count}', n); }
+        return $('<tr/>').attr('data-key', encodeURIComponent(group))
+          .append($('<td/>').append(
+            $('<i/>').addClass('fa ' + (isCollapsed ? 'fa-chevron-right' : 'fa-chevron-down')),
+            ' ' + esc(group) + '<span class="gcount">' + cnt + '</span>'
+          ));
+      }
+    },
+columns: [
+      { data: 'login', render: function(d) { return esc(d); } },
+      { data: 'firstName', render: function(d) { return esc(d); } },
+      { data: 'lastName', render: function(d) { return esc(d); } },
+      { data: 'email', render: function(d) { return esc(d); } },
+      { data: 'roleName', render: function(d) { return esc(d); } },
+      { data: 'locale', render: function(d) { return esc(d); } },
+      { data: 'status' },
+      { data: 'expirationDate' },
+      { data: 'actions', orderable: false, searchable: false },
+      { data: 'role_id', visible: showTechCols },
+      { data: 'user_id', visible: showTechCols },
+      { data: 'is_special', visible: showTechCols }
     ]
   });
+  // Persist the hidden technical column state: when a grid is re-rendered the
+  // 'visible' flag on the column config is applied at construction time, so
+  // after each DataTable rebuild we re-apply the user's latest choice and
+  // refresh the toolbar button label.
+  applyGridColsState();
 }
+
+// Grid toolbar state helpers (legacy exttable.class.php:96-124 toolbar):
+// toolbarShowAllColumnsButton reveals the hidden role_id / user_id / is_special
+// columns, toolbarDefaultStateButton resets them, toolbarRefreshButton reloads
+// the BFF data, toolbarResetFiltersButton clears the DataTables search box and
+// toolbarExpandCollapseGroupsButton collapses/expands the role group rows.
+function applyGridColsState() {
+  if (!table) return;
+  table.columns([9, 10, 11]).visible(showTechCols);
+  var $btn = $('#btnShowAllCols').toggleClass('active', showTechCols);
+  $btn.find('span').text(showTechCols
+    ? TLi18n.t('usergrid.hideTechColumns', 'Hide technical columns')
+    : TLi18n.t('usergrid.showAllColumns', 'Show all Columns'));
+}
+
+function expandAllGroups() {
+  if (!table) return;
+  collapsedGroups = {};
+  table.draw(false);
+  $('#btnGroupToggle').removeClass('active');
+  $('#btnGroupToggle span').text(TLi18n.t('usergrid.expandCollapseGroups', 'Expand/Collapse Groups'));
+}
+
+function collapseAllGroups() {
+  if (!table) return;
+  var keys = {};
+  var d = table.rows().data().toArray();
+  $.each(d, function (i, r) { keys[r.roleName] = r.roleName; });
+  collapsedGroups = keys;
+  table.draw(false);
+  $('#btnGroupToggle').addClass('active');
+  $('#btnGroupToggle span').text(TLi18n.t('usergrid.expandCollapseGroups', 'Expand/Collapse Groups'));
+}
+
+function toggleGroups() {
+  var anyCollapsed = false;
+  var d = table.rows().data().toArray();
+  $.each(d, function (i, r) { if (collapsedGroups[r.roleName]) { anyCollapsed = true; return false; } });
+  if (anyCollapsed) { expandAllGroups(); } else { collapseAllGroups(); }
+}
+
+function resetGridToDefault() {
+  if (!table) return;
+  showTechCols = false;
+  applyGridColsState();
+  expandAllGroups();
+  table.order([[0, 'asc']]).page.len(25).draw();
+  $('#usersTable_filter input').val('');
+  table.search('').draw();
+  resetGridFilters();
+  $('#gridToolbarInfo').text(TLi18n.t('usergrid.defaultStateApplied', 'Grid reset to default state.'));
+}
+
+function resetGridFilters() {
+  if (!table) return;
+  $('#usersTable_filter input').val('');
+  table.search('').draw();
+  $('#gridToolbarInfo').text(TLi18n.t('usergrid.filtersCleared', 'Filters cleared'));
+}
+
+// Wire the grid toolbar (legacy exttable toolbar buttons Refs #891).
+$(document).on('click', '#btnGroupToggle', toggleGroups);
+$(document).on('click', '#btnShowAllCols', function () {
+  showTechCols = !showTechCols;
+  if (table) {
+    table.columns([9, 10, 11]).visible(showTechCols);
+    table.draw(false);
+    applyGridColsState();
+  }
+});
+$(document).on('click', '#btnResetState', resetGridToDefault);
+$(document).on('click', '#btnRefresh', loadUsers);
+$(document).on('click', '#btnResetFilters', resetGridFilters);
+
+// Clicking a group header row expands/collapses that single group (same
+// toggle-on-click pattern as tplanWithCF.html:412-416).
+$(document).on('click', 'tr.dtrg-group', function () {
+  var key = decodeURIComponent($(this).attr('data-key') || '');
+  collapsedGroups[key] = !collapsedGroups[key];
+  table.draw(false);
+});
 
 // Preselect a role in the modal's Global Role dropdown. Falls back to the
 // legacy default role id ($tlCfg->default_roleid, guest) when the requested
