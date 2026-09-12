@@ -29,8 +29,12 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: m
 .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
 .badge-status { padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-block; }
 .st-V { background: #dff0d8; color: #3c763d; }
+.st-N { background: #f5f5f5; color: #777; }
 .st-D { background: #fdecea; color: #c0392b; }
 .st-R { background: #fcf3cf; color: #8a6d3b; }
+.st-W { background: #fdebd0; color: #b8690d; }
+.st-F { background: #d4efdf; color: #1e8449; }
+.st-I { background: #d6eaf8; color: #1a5276; }
 .st-O { background: #ecf0f1; color: #555; }
 .req-link { color: #2563eb; text-decoration: none; cursor: pointer; }
 .req-link:hover { text-decoration: underline; }
@@ -149,10 +153,9 @@ function apiFail(xhr, defKey) {
   }
 }
 
-function badge(status) {
-  var lbl = TLi18n.t('rctc.status' + status) ;
-  if (lbl === 'rctc.status' + status) { lbl = esc(status); }
-  return '<span class="badge-status st-' + esc(status) + '">' + lbl + '</span>';
+function badge(it) {
+  var cls = 'st-' + esc(it.status);
+  return '<span class="badge-status ' + cls + '">' + esc(it.status_label || it.status) + '</span>';
 }
 
 function openReq(id) {
@@ -206,8 +209,8 @@ function render() {
       .append($('<td>')
         .append('<a class="req-link" onclick="openReq(' + it.id + ')">' +
           esc(it.req_doc_id) + ' : ' + esc(it.title) + '</a>'))
-      .append($('<td>').html(badge(it.status)))
-      .append($('<td>').text(it.type))
+      .append($('<td>').html(badge(it)))
+      .append($('<td>').text(it.type_label || it.type))
       .append($('<td>').html('<input class="count-inp tc-count" data-id="' + it.id +
         '" type="text" maxlength="3" value="1">'))
       .append($('<td>').html(needed))

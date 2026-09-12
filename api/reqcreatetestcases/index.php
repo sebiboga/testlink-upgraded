@@ -118,6 +118,9 @@ function ctxRequirementRows($specId) {
     }
 
     $reqCfg = config_get('req_cfg');
+    $reqTypeDomain   = init_labels($reqCfg->type_labels);
+    $reqStatusDomain = init_labels($reqCfg->status_labels);
+
     $rows = array();
     foreach ($allReqs as $key => $req) {
         $count = is_null($req['id']) ? 0 : count((array)$reqMgr->get_coverage($req['id']));
@@ -136,7 +139,11 @@ function ctxRequirementRows($specId) {
             'req_doc_id'        => (string)$req['req_doc_id'],
             'title'             => (string)$req['title'],
             'status'            => (string)$req['status'],
+            'status_label'      => isset($reqStatusDomain[$req['status']])
+                                        ? (string)$reqStatusDomain[$req['status']] : (string)$req['status'],
             'type'              => (string)$req['type'],
+            'type_label'        => isset($reqTypeDomain[$req['type']])
+                                        ? (string)$reqTypeDomain[$req['type']] : (string)$req['type'],
             'expected_coverage' => intval($req['expected_coverage']),
             'coverage'          => $count,
             'coverage_percent'  => $coveragePercent,
