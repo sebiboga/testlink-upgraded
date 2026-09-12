@@ -107,3 +107,4 @@ deep-link regression). Suite 1305 — Print / Direct link / Help (see below).
 
 ![reqView toolbar with Direct link box](screenshots/issue-1305-reqview-directlink-toolbar.png)
 ![Print screen](screenshots/issue-1305-reqprint-screen.png)
+![Requirement Viewer opened from the Set Results popup](screenshots/issue-1477-reqview-popup-from-setresults.png)
