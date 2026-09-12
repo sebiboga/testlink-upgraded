@@ -66,23 +66,29 @@ if (!empty($reqRows)) {
     $v = $db->get_recordset(
         "SELECT v.id FROM req_versions v JOIN nodes_hierarchy n ON n.id=v.id " .
         " WHERE n.parent_id=" . $req['id'] . " ORDER BY v.version LIMIT 1");
-    if (!empty($v)) { $req['version_id'] = intval($v[0]['id']); }
+    if (!empty($v)) {
+        $req['version_id'] = intval($v[0]['id']);
+        // normalize attributes left stale by earlier buggy runs (re-runnable)
+        $db->exec_query(
+            "UPDATE req_versions SET status='" . $db->prepare_string(TL_REQ_STATUS_VALID) .
+            "', type=" . intval(TL_REQ_TYPE_FEATURE) . ", expected_coverage=100" .
+            " WHERE id=" . $req['version_id']);
+    }
 } else {
     $r = $reqMgr->create($specId, 'E403-RQ100', 'ESR1403 Sample Requirement',
-        'Requirement visible from the Set Results popup link.', $userId, 2, 0, 'V');
+        'Requirement visible from the Set Results popup link.', $userId,
+        TL_REQ_STATUS_VALID, TL_REQ_TYPE_FEATURE, 100);
     if (!$r['status_ok'] || !isset($r['id'])) { die("req create failed: " . ($r['msg'] ?? '?') . "\n"); }
     $req = ['id' => intval($r['id']), 'version_id' => intval($r['version_id'] ?? 0)];
     echo "req={$req['id']} version={$req['version_id']}\n";
 }
 
-// link the requirement to the first test case of the project via req_coverage
+// link the requirement to a test case of THIS project via req_coverage
 $tcs = $db->get_recordset(
-    "SELECT n.id FROM nodes_hierarchy n JOIN testprojects tp ON tp.id=n.id " .
-    " WHERE n.node_type_id=3 AND n.parent_id IN " .
-    " (SELECT id FROM nodes_hierarchy WHERE node_type_id=2 OR id=2) LIMIT 1");
-if (empty($tcs)) {
-    $tcs = $db->get_recordset("SELECT id FROM nodes_hierarchy WHERE node_type_id=3 LIMIT 1");
-}
+    "SELECT n.id FROM nodes_hierarchy n " .
+    "JOIN nodes_hierarchy p ON p.id = n.parent_id " .
+    "JOIN nodes_hierarchy s ON s.id = p.parent_id " .
+    " WHERE n.node_type_id=3 AND s.id = $tpid LIMIT 1");
 if (!empty($tcs)) {
     $tcId = intval($tcs[0]['id']);
     $tbl = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'tcversions']);

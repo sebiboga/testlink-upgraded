@@ -13670,7 +13670,7 @@ Result: **6/6 PASS** — **#1461 FIXED**: `api/planimport/index.php:280,283` now
 | 1477.2 | Click the linked-requirement link | `window.open` targets **modern** `/gui/templates/requirements/reqView.html?id=10&tproject_id=1` (NOT `/lib/requirements/reqView.php`) | **PASS** |
 | 1477.3 | New popup (page 2) loads | Title "Requirement Viewer", header shows project `ESR1403`, overview renders `E403-RQ100 / ESR1403 Sample Requirement` | **PASS** |
 | 1477.4 | Spec title parity (legacy `showReqSpecTitle=1`) | "REQUIREMENT SPEC" card in Overview shows `ESR1403 Req Spec` | **PASS** |
-| 1477.5 | Popup detail completeness | Scope card shows the fixture scope; Linked Test Cases table lists `ESR Closed Build TC`; Monitors card rendered; footer "Generated on…" present | **PASS** |
+| 1477.5 | Popup detail completeness | Scope card shows the fixture scope; Overview TYPE badge "Feature", STATUS badge "Valid"; Linked Test Cases table lists `ESR Closed Build TC`; Monitors card rendered; footer "Generated on…" present | **PASS** |
 | 1477.6 | Regression: legacy popup palette unaffected | Set Results popup still shows Build selector, steps table, overall-result buttons, Save/Cancel — no JS errors on either page | **PASS** |
 | 1477.7 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → 0 new Error/Warning rows; browser console clean (only benign a11y "form field should have id/name" audit hint) | **PASS** |
 

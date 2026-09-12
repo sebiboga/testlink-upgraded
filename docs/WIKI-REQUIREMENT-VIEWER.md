@@ -56,6 +56,13 @@ an empty version selector; the permission-denied path shows
   `reqOverview.html` (`openReq`), `reqMonitorOverview.html` (`openReq`),
   `searchReq.html` (`openReq`/`openReqVersion`; the legacy revision popup is
   mapped to the version viewer).
+* **Set Results popup** (`execSetResults.html` `openReqWindow()`, Refs #1477):
+  the last legacy screen reference left in the modern UI. The linked
+  requirements list ("LINKED REQUIREMENTS" section) now opens
+  `gui/templates/requirements/reqView.html?id=..&tproject_id=..` instead of
+  `/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=..`. The
+  legacy `showReqSpecTitle=1` flag is obsolete — the modern viewer always
+  renders the requirement spec path (`r.spec_path`) in the Overview card.
 * Required right: `mgt_view_req`. The BFF resolves the requirement's own
   test project through a direct JOIN (`requirements` → `req_specs`) instead of
   `requirement_mgr::getTestProjectID()` (that helper throws a DB error on
