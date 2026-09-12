@@ -13826,38 +13826,23 @@ Result: **10/10 PASS** — **#1479 IMPLEMENTED/VERIFIED**: the Set Results popup
 | 1481.9 | Event Viewer after suite | events `log_level<=8`: only the pre-existing #1480 `tproject_id` rows; **0** `Undefined array key` rows from any real-app render | **PASS** |
 
 Result: **9/9 PASS** — **#1481 FIXED/VERIFIED**: status-domain reads on reqCreateTestCases + both req viewers now fall back to the raw stored code for out-of-domain statuses, no more Event Viewer warning spam. (`reqViewRevision.php` page itself returns HTTP 500 in this environment pre- and post-fix — separate pre-existing class-loading issue, tracked separately; its viewer template is verified via step 1481.6.)
-## Task — Issue #891: Implement grid toolbar in User Management (gap vs legacy)
 
-**Screen:** `gui/templates/usermanagement/usersView.html` + BFF `api/users/index.php`.
-**Gap:** legacy ExtJS grid carried a toolbar (`lib/usermanagement/usersView.php:215-217`,
-`exttable.class.php:96-124`) with Expand/Collapse Groups / Show all Columns / Reset to
-Default State / Refresh / Reset Filters and 4 hidden technical columns
-(`role_id`,`user_id`,`login`,`is_special`); the modern grid had none.
-**Fix:** added the `#gridToolbar` row (5 Dashio `.tbtn` buttons), 3 hidden DataTable
-columns (Role ID / User ID / Is Special) toggled by Show all Columns, DataTables
-**RowGroup** grouping by role name (collapsible group headers + all-group toggle), and
-Refresh / Reset Filters / Reset to Default State grid-state controls. BFF `GET /users`
-now returns `role_id`, `user_id`, `is_special` (`is_special=1` for demoSpecialUsers in
-demoMode). i18n: `usergrid.*` keys in all 10 bundles.
-**Precondition:** admin/admin; seed extra users so multiple role groups exist
-(mysql: INSERT tester1(role 7), leader1(role 9), guest1(role 5)); run the screen at
-`gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+## Regression — Issue #1429: api/users PUT/POST with `locale` > varchar(10) returns naked HTTP 500 (empty body) instead of JSON error (CWE-200, Ref #1429)
+
+**Screen:** `PUT/POST /api/users` BFF (`api/users/index.php:364` update route, `:316` create route) → modern `gui/templates/usermanagement/usersView.html` modal.
+**Defect:** `PUT /api/users/index.php/{id}` with `locale` longer than the DB column `users.locale varchar(10)` made `tlUser::writeToDB()` → `exec_query()` fail with MariaDB strict-mode `1406 Data too long`. Since #1423 the DB layer throws `Exception('Database error (query failed)')` for BFF XHR requests (`lib/functions/database.class.php:204-207` instead of the legacy HTML `debug_print_backtrace()` page), but the BFF routes never caught it → `HTTP/1.0 500` with **empty body** — no JSON contract, no useful error. Any logged-in admin-token caller could trigger it. (Empty admin email E_EMAILLENGTH on all PUTs is a separate pre-existing quirk — use a fixture user with a non-empty email.)
+**Fix:** both `writeToDB()` call sites wrapped in `try/catch (Throwable)`; on catch → `http_response_code(422)` + `{status:'error', message:'Error creating/updating user', code:'db_write_failed'}` — JSON contract preserved, no stack trace, no paths, no HTML.
+**Precondition:** fixture user with valid email (`POST /api/users` `{"login":"repro","email":"repro@test.com","password":"Repro123!","locale":"en_GB","globalRoleID":5}` → id=2); admin session cookie (`POST /api/auth/login` admin/admin); header `X-Requested-With: XMLHttpRequest`.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 891.1 | Open User Management grid | `#gridToolbar` visible with 5 buttons (Expand/Collapse Groups, Show all Columns, Reset to Default State, Refresh, Reset Filters); grid grouped by role (4 group header rows admin/guest/leader/tester, each with item count) | **PASS** |
-| 891.2 | Click **Show all Columns** | 3 extra headers appear: Role ID / User ID / Is Special; rows show raw `role_id`/`user_id`/`is_special` values (e.g. admin 8/1/0); button label flips to "Hide technical columns" | **PASS** |
-| 891.3 | Click **Refresh** | Footer "Generated on" timestamp updates; technical columns REMAIN visible (state preserved through table re-init) | **PASS** |
-| 891.4 | Click **Expand/Collapse Groups** | All 4 role groups collapse (chevron-right) and their member rows hide; clicking again expands all (chevron-down) | **PASS** |
-| 891.5 | Click a single group header row | Only that group collapses/expands independently of the others | **PASS** |
-| 891.6 | Type "admin" into the DataTables search box, click **Reset Filters** | Search box cleared; info "Filters cleared"; all 4 rows/4 groups shown again | **PASS** |
-| 891.7 | After some dirty state (show-cols ON + one group collapsed + sort changed): click **Reset to Default State** | Hidden cols hidden again, all groups expanded, search empty, order `[[0,'asc']]`, pageLength 25, info "Grid reset to default state." | **PASS** |
-| 891.8 | BFF payload | `GET /api/users` items include `role_id`, `user_id`, `is_special` (fetch via browser context) | **PASS** |
-| 891.9 | i18n hygiene | `usergrid.*` (13 keys) present in all 10 locale bundles; all bundles `python3 -m json.tool` valid | **PASS** |
-| 891.10 | Syntax/gates | `php -l api/users/index.php` clean; `node --check` on inline script of usersView.html clean | **PASS** |
-| 891.11 | Event Viewer / events table | No new ERROR/WARNING events during the suite (only INFO audit rows, e.g. login) | **PASS** |
+| 1429.1 | Pre-fix repro: `curl -i -X PUT http://localhost:8082/api/users/index.php/2 -H 'Content-Type: application/json' -H 'X-Requested-With: XMLHttpRequest' -d '{"locale":"<img src=x onerror=1>"}'` | HTTP 500, empty body; `events` row `ERROR ON exec_query() … 1406 - Data too long for column 'locale'` | **PASS (reproduced)** |
+| 1429.2 | Post-fix same PUT | **HTTP 422**, body `{"status":"error","message":"Error updating user","code":"db_write_failed"}` — pure JSON, no paths/HTML | **PASS** |
+| 1429.3 | Post-fix `PUT …/index.php/2` `{"locale":"en_US"}` (valid, ≤10 chars) | HTTP 200 `{"status":"ok",…,"locale":"en_US","feedback_key":"user_updated"}`; `SELECT locale FROM users WHERE id=2` = `en_US` | **PASS** |
+| 1429.4 | Post-fix `POST /api/users/` valid create (login repro2, repro2@test.com) | HTTP 200 `{"status":"ok",…,"feedback_key":"user_created"}` | **PASS** |
+| 1429.5 | Post-fix `POST /api/users/` with `locale` > 10 chars | HTTP **422** `{"status":"error","message":"Error creating user","code":"db_write_failed"}`; no user row persisted | **PASS** |
+| 1429.6 | Regression on untouched routes: `PUT …/index.php/2/active {"active":false}`, `DELETE …/index.php/3`, `GET /api/users`, `GET /api/users/2`, `GET /api/users/meta/roles\|locales\|authentication\|grants` | All HTTP 200 with unchanged JSON shapes; DELETE soft-deletes (active=2) | **PASS** |
+| 1429.7 | UI smoke: User Management (`usersView.html`) → Edit `repro` modal → set Locale en_GB → save | Modal closes, success toast, DB `locale='en_GB'`; browser console 0 JS errors | **PASS** |
+| 1429.8 | Event Viewer check | No NEW Error/Warning rows from valid operations post-fix; the only `1406` rows present are from the deliberate overflow writes in 1429.1/1429.5 | **PASS** |
 
-Result: **11/11 PASS** — **#891 IMPLEMENTED/VERIFIED**: the User Management grid now offers
-the full legacy toolbar (group toggle, show-all-columns reveal of hidden technical fields,
-reset-to-default, refresh, reset-filters) backed by the extended BFF list payload and
-`usergrid.*` i18n in all locales.
+Result: **8/8 PASS** — **#1429 FIXED/VERIFIED**: DB write failures on `api/users` PUT/POST now always return a JSON 422 error; the naked 500/empty-body (and formerly the HTML backtrace) response class is eliminated.
