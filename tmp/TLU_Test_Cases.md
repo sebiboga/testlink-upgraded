@@ -13550,3 +13550,34 @@ Result: 10/10 PASS — **#1412 FIXED** (branch `fix/issue-1412`, commit `c35db8c
 | 1458.10 | Console hygiene | Browser console on overview + severity pages (EN/RO): zero messages/errors | **PASS** |
 
 Result: **10/10 PASS** — **#1458 FIXED** (branch `fix/issue-1458`, commit `dcdc97105`): the chapter note now recounts 18 chapters + the Severity Configuration chapter in every locale bundle, and the aside icon is aligned to the chapter's `fa-sliders-h`.
+
+## Suite #1435 — Requirement Revision Viewer (reqViewRevision.php modernization)
+
+**Screen:** `gui/templates/requirements/reqRevisionView.html` + BFF `api/reqrevision/index.php` (`GET ?action=revision&item_id=N[&show_req_spec_title=1]`).
+**Legacy parity:** `lib/requirements/reqViewRevision.php` (read-only version/revision snapshot popup) reached via `openReqRevisionWindow()` in `gui/javascript/testlink_library.js`; node kind resolved from `tree_mgr::get_available_node_types()` (requirement_version=8 / requirement_revision=10), `get_version()`/`get_revision()`, coverage via `getActiveForReqVersion()`, cfields via `get_linked_cfields(null, item_id, tid)`. Rights: `mgt_view_req` on the OWNING project (modern parity; legacy gated the session project).
+**Precondition (2026-09-12, fresh DB):** recreated fixtures `tmp/fixtures_rcmp.php` (patched PHP8 `count(null)` guard at line 153) → project `RCMP Demo Project` (id 1), spec `RC-SRS` (id 2), req REQ-100 (id 4), version nodes 5 (v1)/6 (v2), revision node 7 (r1); cfield `rcmp_milestone` (v2=5.0, r1=5.1, v3=5.0); guest `rcmp_guest` (role 5). Added `tmp/fixtures_1435.php` → suite node 9 (RCMP Suite), TC `RCMP-TC-1` (external id 2), tcversion 14 linked to req_version 6 (`req_coverage`), expected_coverage=3. Logins: admin/admin, rcmp_guest/rcmp_guest.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1435.1 | `GET /api/reqrevision/index.php?action=revision&item_id=5` (admin session) | HTTP 200, `node_kind=requirement_version`, `req_doc_id=REQ-100`, title, `version=1`, `revision=1`, type/status labels, scope, `req_spec_title`, `tproject_name=RCMP Demo Project`, `coverage_qty` counts linked TCs | **PASS** |
+| 1435.2 | Item 7 (requirement_revision node) | HTTP 200, `node_kind=requirement_revision`, `revision=1` (r1 of v2), custom field `rcmp_milestone=5.1`, frozen `is_open=0` | **PASS** |
+| 1435.3 | Coverage after linking: item 6 | `coverage` array has 1 row (`RCMP-TC-1`, external id 2, version 1); `expected_coverage_mgmt=true`, `coverage_pct=33.33`, `coverage_qty=1` of `expected_coverage=3` | **PASS** |
+| 1435.4 | `item_id=999` | HTTP 404 `Requirement item not found` | **PASS** |
+| 1435.5 | Missing `item_id` | HTTP 400 `Invalid item id` | **PASS** |
+| 1435.6 | `POST` same route | HTTP 405 `Method not allowed` | **PASS** |
+| 1435.7 | No session cookie | HTTP 401 `Not authenticated` | **PASS** |
+| 1435.8 | Guest session `rcmp_guest` on item 5 | HTTP 403 `No permission` (owns-right gate on owning project) | **PASS** |
+| 1435.9 | Browser item 5 (admin, `?item_id=5`) | Header + overview card: `REQ-100` chip + title, spec `RCMP Fixture Spec`, `v1`, `r1` badge, type/status badges, Frozen `Yes` (is_open=0), scope text; "No linked test cases" empty state; no console errors | **PASS** |
+| 1435.10 | Browser item 7 | `v2r1` context line, Frozen `No`, type `Feature`, Custom Fields card `rcmp_milestone=5.1`, status/author/timestamps | **PASS** |
+| 1435.11 | Browser item 6 (coverage) | EXPECTED COVERAGE `33.33% (1/3)`; DataTable renders linked TC (`RCMP-TC-1`, external id 2, version 1) with pagination/search UI | **PASS** |
+| 1435.12 | Browser `?item_id=999` | Error banner "Requirement item not found", content hidden | **PASS** |
+| 1435.13 | Browser without `item_id` | Error banner "No requirement item id provided" | **PASS** |
+| 1435.14 | Direct link toggle + Copy | Direct-link bar shows `/linkto.php?item=req&id=REQ-100` + Copy button; click → toast "Direct link copied to clipboard" | **PASS** |
+| 1435.15 | Locale switch → Română (`?locale=ro`) | Title "Revizie cerință", toolbar "Deschide cerința"/"Printare"/"Link direct", overview "Prezentare generală", "Câmpuri personalizate", "Niciun caz de testare legat" | **PASS** |
+| 1435.16 | Print → popup | `printReq.html?req_id=4&req_version_id=6&req_revision=1&tproject_id=1` opens with revision scope, v2, revision 2, cfield Milestone | **PASS** |
+| 1435.17 | Open requirement → popup | `reqView.html?id=4&version_id=6&tproject_id=1` opens Requirement Viewer (page present) | **PASS** |
+| 1435.18 | TC popup from coverage table | Click `RCMP-TC-1` → `tcView.html?tcase_id=13&tproject_id=1` Test Case Viewer opens | **PASS** |
+| 1435.19 | Link switch | `lib/functions/common.php` `$actions->reqRevisionView` → modern HTML; `openReqRevisionWindow()` (`testlink_library.js:1625`) opens `reqRevisionView.html?...&item_id=` (legacy `reqViewRevision.php` no longer reachable for this flow) | **PASS** (source) |
+| 1435.20 | i18n completeness + hygiene | `reqv.*` (40 keys) present in ALL 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh), all valid (`python3 -m json.tool`); `php -l api/reqrevision/index.php` clean; events table has NO new ERROR/WARNING rows; console only one DataTables a11y hint (search field id/name) — no JS errors | **PASS** |
+
+Result: **20/20 PASS** — **#1435 MODERNIZED**: BFF `api/reqrevision` (`?action=revision`, rights on owning project, 401/400/403/404/405 JSON contract), screen `reqRevisionView.html` (overview/scope/coverage DataTable/custom-fields cards, direct link, print, locale switcher, error banners), `reqv.*` i18n in all bundles, link switch in `common.php` + `testlink_library.js`; closes dashio breakage #1427 (HTTP 500 from missing `displayReqCoverageRO.inc.tpl`).

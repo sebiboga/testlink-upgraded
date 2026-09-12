@@ -150,7 +150,7 @@ $db->exec_query("UPDATE req_revisions SET scope='" . $db->prepare_string(
 echo "revision=$revId updated (scope changed, cf=5.1)\n";
 
 // guard sync: keep only ONE v2 revision row (skip if block already ran)
-if (count($revList) > 1) {
+if (is_array($revList) && count($revList) > 1) {
     foreach (array_slice($revList, 1) as $stray) {
         $db->exec_query("DELETE FROM cfield_design_values WHERE node_id=" . intval($stray['id']));
         $db->exec_query("DELETE FROM req_revisions WHERE id=" . intval($stray['id']));
