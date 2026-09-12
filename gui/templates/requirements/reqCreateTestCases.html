@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="rctc.title">Create Test Cases from Requirements</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 13px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .sep { flex: 1; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid #555; color: #ddd; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.content { padding: 18px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; white-space: nowrap; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.badge-status { padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-block; }
+.st-V { background: #dff0d8; color: #3c763d; }
+.st-D { background: #fdecea; color: #c0392b; }
+.st-R { background: #fcf3cf; color: #8a6d3b; }
+.st-O { background: #ecf0f1; color: #555; }
+.req-link { color: #2563eb; text-decoration: none; cursor: pointer; }
+.req-link:hover { text-decoration: underline; }
+.count-inp { width: 64px; text-align: center; padding: 4px 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; }
+.toggle-cov { cursor: pointer; color: #4ECDC4; margin-left: 6px; font-size: 14px; }
+.toggle-cov:hover { color: #12707a; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 0; }
+#feedback { display:none; margin: 14px 24px 0 24px; padding: 12px 16px; border-radius: 6px; font-size: 13px; background: #dff0d8; color: #3c763d; border: 1px solid #d0e9c6; }
+#feedback.err { background: #fdecea; color: #c0392b; border: 1px solid #f5c6c2; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #2d8e88; }
+.toast.err { background: #c0392b; }
+.check-col { text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.title">Create Test Cases from Requirements</span>
+  <span class="sub" data-i18n="rctc.headerSub">generate test cases from the requirements of a specification</span>
+  <span id="specLine" style="opacity:.85;font-weight:400;font-size:13px;margin-left:14px;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span class="sep"></span>
+  <span class="ctx"><span data-i18n="rctc.countInfo">Requirements</span>: <b id="countInfo">0</b></span>
+</div>
+
+<div id="feedback"></div>
+
+<div class="content">
+  <div class="empty" id="errBox" style="display:none;"></div>
+  <div class="card" id="workArea" style="display:none;">
+    <table class="table table-striped" id="reqTable" style="width:100%;">
+      <thead>
+        <tr>
+          <th class="check-col" style="width:34px;"><input type="checkbox" id="toggleAll" title=""></th>
+          <th data-i18n="rctc.colReq">Requirement</th>
+          <th data-i18n="rctc.colStatus">Status</th>
+          <th data-i18n="rctc.colType">Type</th>
+          <th data-i18n="rctc.colCount">Test cases</th>
+          <th data-i18n="rctc.colNeeded">Needed</th>
+          <th data-i18n="rctc.colCurrent">Current coverage</th>
+          <th data-i18n="rctc.colCoverage">Coverage</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="empty" id="noReqs" style="display:none;" data-i18n="rctc.noReqs"></div>
+  <div style="margin-top:14px;" id="createRow">
+    <button class="btn-teal" id="createBtn"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.create">Create test cases</span></button>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.rctc">TestLink 2.0.1 - Create Test Cases from Requirements</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqcreatetestcases/index.php';
+var SPEC_ID = 0;
+var TPROJECT_ID = 0;
+var ctx = null;
+var DT = null;
+var covSelected = 0;   // 1 -> per-row testcase_count has been set from "needed"
+var REQS = [];
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  SPEC_ID = parseInt(p.get('spec_id') || '0', 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#toggleAll').attr('title', TLi18n.t('rctc.toggleAll'));
+    load();
+  });
+
+  $('#toggleAll').on('change', function () {
+    $('.req-cbox').prop('checked', $(this).prop('checked'));
+  });
+  $('#createBtn').on('click', createTestCases);
+  $('#reqTable').on('change', '.req-cbox', function () {
+    var all = $('.req-cbox').length === $('.req-cbox:checked').length;
+    $('#toggleAll').prop('checked', all);
+    $('#createBtn').prop('disabled', $('.req-cbox:checked').length === 0);
+  });
+});
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast').text(msg).attr('class', 'toast ' + (kind || '')).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 4000));
+}
+
+function apiFail(xhr, defKey) {
+  var msg = TLi18n.t(defKey || 'rctc.errLoad');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+  if (xhr.status === 401 || xhr.status === 403) {
+    $('#errBox').show().html('<i class="fa fa-triangle-exclamation"></i> ' + esc(msg));
+  } else {
+    toast(msg, 'err');
+  }
+}
+
+function badge(status) {
+  var lbl = TLi18n.t('rctc.status' + status) ;
+  if (lbl === 'rctc.status' + status) { lbl = esc(status); }
+  return '<span class="badge-status st-' + esc(status) + '">' + lbl + '</span>';
+}
+
+function openReq(id) {
+  window.open('/gui/templates/requirements/reqView.html?id=' + id +
+    '&tproject_id=' + TPROJECT_ID, 'Requirement',
+    'width=800,height=600,resizable=yes,scrollbars=yes,dependent=yes');
+}
+
+function load() {
+  if (SPEC_ID <= 0) {
+    $('#errBox').show().text(TLi18n.t('rctc.errNoSpec'));
+    return;
+  }
+  $.getJSON(API + '?action=init&spec_id=' + SPEC_ID + '&tproject_id=' + TPROJECT_ID + '&_=' + Date.now())
+    .done(function (r) {
+      if (r.status !== 'ok') { apiFail({responseText: JSON.stringify(r)}); return; }
+      ctx = r;
+      TPROJECT_ID = r.tproject_id;
+      document.title = r.spec.title + ' - ' + TLi18n.t('rctc.title');
+      $('#specLine').text(r.spec.doc_id + ' : ' + r.spec.title);
+      REQS = r.requirements || [];
+      $('#countInfo').text(REQS.length);
+      render();
+    }).fail(apiFail);
+}
+
+function render() {
+  if (DT) { DT.destroy(); DT = null; }
+  var $tb = $('#reqTable tbody').empty();
+  $('#feedback').hide();
+  if (!REQS.length) {
+    $('#workArea').hide();
+    $('#createRow').hide();
+    $('#noReqs').show().text(TLi18n.t('rctc.noReqs'));
+    return;
+  }
+  $('#noReqs').hide();
+  $('#workArea').show();
+  $('#createRow').show();
+
+  REQS.forEach(function (it) {
+    var needed = '';
+    if (ctx.expected_coverage_management && it.expected_coverage > 0) {
+      needed = '<span>' + it.needed + '</span>' +
+        '<i class="fa fa-magic toggle-cov" title="' + esc(TLi18n.t('rctc.toggleCount')) + '"' +
+        ' onclick="setCountFromNeeded(' + it.id + ')"></i>';
+    }
+    var tr = $('<tr>')
+      .append($('<td class="check-col">')
+        .append('<input type="checkbox" class="req-cbox" data-id="' + it.id + '" data-default="1">'))
+      .append($('<td>')
+        .append('<a class="req-link" onclick="openReq(' + it.id + ')">' +
+          esc(it.req_doc_id) + ' : ' + esc(it.title) + '</a>'))
+      .append($('<td>').html(badge(it.status)))
+      .append($('<td>').text(it.type))
+      .append($('<td>').html('<input class="count-inp tc-count" data-id="' + it.id + '" type="text"
+        maxlength="3" value="1">'))
+      .append($('<td>').html(needed))
+      .append($('<td>').text(it.coverage))
+      .append($('<td>').text(it.coverage_percent + '%'));
+    $tb.append(tr);
+  });
+
+  DT = $('#reqTable').DataTable({
+    pageLength: 10,
+    order: [[1, 'asc']],
+    language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_' }
+  });
+  $('#createBtn').prop('disabled', true);
+}
+
+function setCountFromNeeded(id) {
+  var it = null;
+  REQS.forEach(function (x) { if (x.id === id) { it = x; } });
+  if (!it) { return; }
+  if (covSelected === 0) {
+    // fill every visible row testcase_count with its "needed" value (legacy
+    // cs_all_coverage_in_div: hidden coverage_count holds the default)
+    REQS.forEach(function (x) {
+      $('.tc-count[data-id="' + x.id + '"]').val(x.needed > 0 ? x.needed : 1);
+    });
+    covSelected = 1;
+  } else {
+    REQS.forEach(function (x) {
+      $('.tc-count[data-id="' + x.id + '"]').val(1);
+    });
+    covSelected = 0;
+  }
+  toast(covSelected ? TLi18n.t('rctc.countFilled') : TLi18n.t('rctc.countReset'), 'ok');
+}
+
+function checkedIds() {
+  var ids = [];
+  $('.req-cbox:checked').each(function () { ids.push(parseInt($(this).attr('data-id'), 10)); });
+  return ids;
+}
+
+function createTestCases() {
+  var ids = checkedIds();
+  if (!ids.length) {
+    toast(TLi18n.t('rctc.errSelect'), 'err');
+    return;
+  }
+  var tcCount = {};
+  ids.forEach(function (id) {
+    var v = parseInt($('.tc-count[data-id="' + id + '"]').val() || '1', 10);
+    tcCount[id] = (isNaN(v) || v < 0) ? 1 : v;
+  });
+  var payload = {
+    spec_id: SPEC_ID,
+    tproject_id: TPROJECT_ID,
+    req_ids: ids,
+    testcase_count: tcCount
+  };
+  $('#createBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=create',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    $('#createBtn').prop('disabled', false);
+    if (r.status === 'ok') {
+      var html = '<b>' + esc(TLi18n.t('rctc.createdTitle')) + '</b><ul style="margin:6px 0 0 18px;">';
+      (r.messages || []).forEach(function (m) {
+        html += '<li>' + esc(m) + '</li>';
+      });
+      html += '</ul>';
+      $('#feedback').removeClass('err').html(html).show();
+      toast(TLi18n.t('rctc.createdOk'), 'ok');
+      load();
+    } else {
+      $('#feedback').addClass('err').text(r.message || TLi18n.t('rctc.errSave')).show();
+      toast(r.message || TLi18n.t('rctc.errSave'), 'err');
+    }
+  }).fail(function (xhr) {
+    $('#createBtn').prop('disabled', false);
+    $('#feedback').addClass('err').text(TLi18n.t('rctc.errSave')).show();
+    apiFail(xhr);
+  });
+}
+</script>
+</body>
+</html>
