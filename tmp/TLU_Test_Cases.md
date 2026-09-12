@@ -13806,3 +13806,23 @@ Result: **8/8 PASS** — **#890 IMPLEMENTED/VERIFIED**: all write operations sur
 | 1479.10 | Event Viewer / events table | Only INFO audit rows (no new ERROR/WARNING entries during the suite) | **PASS** |
 
 Result: **10/10 PASS** — **#1479 IMPLEMENTED/VERIFIED**: the Set Results popup now auto-refreshes its execution context (summary/steps) after an on-exec test-case edit closes, mirroring the legacy `dialog_onUnload` behavior via a same-origin `postMessage` chain; toast + i18n complete.
+## Regression — Issue #1481: reqCreateTestCases.php — E_WARNING 'Undefined array key' on requirement STATUS-domain read (status twin of #1428)
+
+**Screen:** `lib/requirements/reqEdit.php?doAction=createTestCases&req_spec_id=<id>&tproject_id=1` (status cell), `lib/requirements/reqView.php?requirement_id=<id>&req_version_id=<id>` (versions viewer "Status :"), `lib/requirements/reqViewRevision.php?item_id=<version_id>` (revision viewer) → templates `gui/templates/{dashio,tl-classic}/requirements/reqCreateTestCases.tpl:179`, `…/reqViewVersionsViewer.tpl:176/172`, `…/reqViewRevisionViewer.tpl:57`.
+**Defect:** `req_versions.status` is CHAR(1) written verbatim without validation (`requirement_mgr.class.php:2293-2297`), but `reqStatusDomain` only defines keys D/R/W/F/I/V/N/O (`init_labels($reqCfg->status_labels)`, `reqCommands.class.php:29`, `cfg/const.inc.php:625-643`). Any stored out-of-domain status (e.g. 'z') made the unguarded reads log `E_WARNING Undefined array key "z"` to the Event Viewer — same class as #1417/#1428 type fix.
+**Fix:** all 6 read sites (2 themes × 3 templates) wrapped in `{if isset($domain.$code)}` … `{else} {$code|escape} {/if}` raw-code fallback; viewers use the `{$req_status=$args_req.status}` + isset pattern already applied by #1417 for `req_type`. See docs `docs/Bugfix-Issue-1481-reqStatusDomain-Undefined-array-key.md`.
+**Precondition:** fixture `php tmp/fixtures_1481.php` (tproject=1 `RCB1481:ReqCreateTCBadStatus`, spec=2 `SRS-1481`; `R-BAD` req_versions.id=7 **status='z'** out-of-domain, `R-GOOD` id=5 status='V'); admin/admin; `TRUNCATE events` before each measurement.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1481.1 | Pre-fix repro (branch before guard): `TRUNCATE events` then open `reqEdit.php?doAction=createTestCases&req_spec_id=2&tproject_id=1` | events `log_level<=8` contains `E_WARNING Undefined array key "z"` (1×) + 2× `Undefined property stdClass::$tproject_id` (→ #1480, out of scope); R-BAD status cell empty | **PASS (reproduced)** |
+| 1481.2 | Pre-fix `reqView.php?requirement_id=6&req_version_id=7&tproject_id=1` | events contains `E_WARNING Undefined array key "z"` (versions viewer); R-BAD `Status :` label shows no value | **PASS (reproduced)** |
+| 1481.3 | Post-fix reload createTestCases (cache cleared) | R-BAD status cell renders raw **`z`** (fallback); R-GOOD renders localized **`Valid`**; events: **0** `Undefined array key` (only 2× #1480 `tproject_id`) | **PASS** |
+| 1481.4 | Post-fix `reqView.php?requirement_id=6&req_version_id=7&tproject_id=1` | R-BAD `Status : z` rendered; events `log_level<=8` = **0 rows** after TRUNCATE | **PASS** |
+| 1481.5 | POST flow `doCreateTestCases` (select both reqs, submit) | Success msgs: TS auto-created + "Test Case Fixture Requirement BAD [1] … GOOD [1] … was successfully created"; coverage 0%→100%; re-rendered table still `z`/Valid; **0** array-key events after | **PASS** |
+| 1481.6 | Standalone Smarty render (`php tmp/smoke_1481.php`) of reqViewVersionsViewer.tpl + reqViewRevisionViewer.tpl, dashio + tl-classic | All 4 combos: BAD (status='z') → `Status : z` fallback; GOOD (status='V') → `Status : Valid` localized | **PASS** |
+| 1481.7 | tl-classic parity | `gui/templates/tl-classic/…` guard blocks identical to dashio for all 3 templates | **PASS** |
+| 1481.8 | i18n hygiene | No new user-facing strings (no locale bundle touched); `cfg/const.inc.php` status labels D/R/W/F/I/V/N/O unchanged | **PASS** |
+| 1481.9 | Event Viewer after suite | events `log_level<=8`: only the pre-existing #1480 `tproject_id` rows; **0** `Undefined array key` rows from any real-app render | **PASS** |
+
+Result: **9/9 PASS** — **#1481 FIXED/VERIFIED**: status-domain reads on reqCreateTestCases + both req viewers now fall back to the raw stored code for out-of-domain statuses, no more Event Viewer warning spam. (`reqViewRevision.php` page itself returns HTTP 500 in this environment pre- and post-fix — separate pre-existing class-loading issue, tracked separately; its viewer template is verified via step 1481.6.)
