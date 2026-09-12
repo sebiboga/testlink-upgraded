@@ -480,6 +480,7 @@ class reqCommands {
   function createTestCases(&$argsObj,$request)
   {
     $guiObj = $this->initGuiBean();
+    $guiObj->tproject_id = $argsObj->tproject_id;
     $guiObj->template = 'reqCreateTestCases.tpl';
     $req_spec = $this->reqSpecMgr->get_by_id($argsObj->req_spec_id);
     $guiObj->main_descr = lang_get('req_spec_short') . TITLE_SEP . $req_spec['title'];
