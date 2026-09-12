@@ -69,6 +69,31 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .loading-overlay { position: fixed; inset: 0; background: rgba(255,255,255,.75); display: none; align-items: center; justify-content: center; font-size: 15px; color: #555; z-index: 9998; }
+/* Refs #1398: header extra controls (direct link / print / import XML /
+   remote exec) + collapsible notes panels + execution meta row (legacy
+   execSetResults.tpl execInfo strip + exec_show_tc_exec.inc.tpl notes
+   sections + exec_test_spec.inc.tpl type/duration rows). */
+.card-head { gap: 10px; }
+.card-head .card-title { flex: 1; min-width: 0; }
+.hc-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.hc-btn { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.45); border-radius: 4px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.hc-btn:hover { background: rgba(255,255,255,.28); }
+.hc-btn .fa { margin-right: 5px; }
+.dl-box { margin: 0 0 12px; background: #f6fbfa; border: 1px solid #cfebe6; border-radius: 6px; padding: 8px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dl-box input[type=text] { flex: 1; min-width: 180px; font-size: 12px; padding: 5px 8px; border: 1px solid #c7ded9; border-radius: 4px; }
+.notes-panel { margin: 0 0 12px; }
+.notes-box { border: 1px solid #ddd; border-radius: 6px; background: #fff; margin-bottom: 8px; }
+.notes-head { cursor: pointer; padding: 8px 14px; font-weight: 700; color: #333; background: #f7f7f7; border-bottom: 1px solid #eee; border-radius: 6px 6px 0 0; font-size: 12.5px; }
+.notes-head .fa { margin-right: 6px; color: #4ECDC4; }
+.notes-body { padding: 10px 14px; }
+.notes-text { color: #555; font-size: 13px; white-space: pre-wrap; }
+.cf-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; background: #fff; border: 1px solid #e3efec; border-radius: 6px; }
+.cf-table th { text-align: left; padding: 5px 10px; background: #eef8f6; color: #2d8e88; font-weight: 700; }
+.cf-table td { padding: 5px 10px; border-bottom: 1px solid #e3efec; color: #22242a; }
+.cf-table td.cf-val { color: #333; }
+.meta-line { margin: 0 0 12px; font-size: 12.5px; color: #555; }
+.meta-line b { color: #22242a; }
+.meta-line .sep { margin: 0 8px; color: #ccc; }
 </style>
 </head>
 <body>
@@ -89,7 +114,14 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 <div class="closedbox" id="closedBox"><i class="fa fa-lock"></i><span data-i18n="esr.buildClosedMsg">Build is closed. Test cases can not be executed.</span></div>
 
 <div class="card" id="formCard" style="display:none;">
-  <div class="card-head" id="tcInfoHead"><i class="fa fa-hand-pointer"></i> <span id="tcTitle">-</span></div>
+  <div class="card-head" id="tcInfoHead">
+    <i class="fa fa-hand-pointer"></i>
+    <span class="card-title" id="tcTitle">-</span>
+    <!-- Refs #1398: legacy execSetResults.tpl header "execInfo" strip: copy
+         direct link to this execution, print the popup, Import XML Results,
+         and (when test automation is enabled) Execute and Save Results. -->
+    <span class="hc-actions" id="hcActions" style="display:none;"></span>
+  </div>
   <div class="card-body">
     <div id="planCtxBar">
       <div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:4px;">
@@ -98,7 +130,28 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
         <span style="font-size:13px;" id="platformCtx"><label data-i18n="esr.platform">Platform</label>
           <select id="selPlatform" style="padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:12.5px;"></select></span>
       </div>
+      <!-- Direct link box (legacy execSetResults.tpl execInfo clipboard
+           copy): revealed by the copy-link header button. -->
+      <div class="dl-box" id="dlBox" style="display:none;">
+        <input type="text" id="dlInput" readonly>
+        <button class="btn-dark" id="dlCopyBtn"><i class="fa fa-clipboard"></i> <span data-i18n="esr.copyLink">Copy link</span></button>
+      </div>
     </div>
+
+    <!-- Refs #1398: execution-type + estimated duration meta row (legacy
+         exec_test_spec.inc.tpl:79-84). -->
+    <div class="meta-line" id="tcMeta" style="display:none;">
+      <span><b data-i18n="esr.executionType">Execution type</b>: <span id="tcMetaType"></span></span>
+      <span class="sep" id="tcMetaSep" style="display:none;">|</span>
+      <span id="tcMetaDurWrap"><b data-i18n="esr.estExecDuration">Estimated execution duration</b>: <span id="tcMetaDur"></span></span>
+    </div>
+
+    <!-- Refs #1398: collapsible Test Plan / Build / Platform notes panels +
+         their plan/build design-time custom fields (legacy
+         exec_show_tc_exec.inc.tpl notes sections + execSetResults.php
+         testplan_cfields / build_cfields). Same pattern as execTest.html
+         notesPanel (Refs #1163). -->
+    <div class="notes-panel" id="notesPanel" style="display:none;"></div>
 
     <div class="prior-box" id="priorBox" style="display:none;"></div>
 
@@ -365,6 +418,14 @@ function render(r) {
     loadInfo();
   });
 
+  // Refs #1398: switching platform reloads the context too, so direct_link /
+  // feature_id, platform_notes and the prior-execution block follow the
+  // platform actually selected (same refresh that build switching does).
+  $('#selPlatform').off('change.esrplat').on('change.esrplat', function () {
+    ctx.platformId = parseInt($(this).val() || '0', 10);
+    loadInfo();
+  });
+
   // status vocabulary + buttons. WRITE disabling for exec_ro_access and for
   // closed builds is consolidated in applyBuildState() below.
   ctx.statusLabels = {};
@@ -433,7 +494,13 @@ function render(r) {
 
 renderSuiteBlock(r);
 
-renderTcSpecSections(r);
+  renderTcSpecSections(r);
+
+  // Refs #1398: header extra controls (direct link / print / import XML /
+  // remote exec), notes panels, execution-type + duration meta row.
+  renderHeaderActions(r);
+  renderNotesPanel(r);
+  renderTcMeta(r);
 
   // prior execution box (hidden when the selected build has no execution —
   // e.g. a closed build that was never executed; matches the re-fetch on
@@ -471,6 +538,233 @@ renderTcSpecSections(r);
   applyBuildState(r);
 
   $('#formCard').show();
+}
+
+// ---------------------------------------------------------------------------
+// Refs #1398: header extra controls (legacy execSetResults.tpl appheader
+// execInfo strip). Renders in the card-head, right of the TC title:
+//   - copy direct link to this execution (toggle reveals the link input);
+//   - print the popup (window.print, legacy execPrint flow for the whole page);
+//   - Import XML Results (legacy openImportResult -> resultsImport.html);
+//   - Execute and Save Results (remote exec, gated on
+//     exec_cfg->enable_test_automation -> BFF test_automation_enabled).
+// ---------------------------------------------------------------------------
+function renderHeaderActions(r) {
+  var wrap = $('#hcActions');
+  if (!r.direct_link && !r.test_automation_enabled) {
+    wrap.hide().empty();
+    return;
+  }
+  var h = '';
+  if (r.direct_link) {
+    h += '<button type="button" class="hc-btn" id="hcDirectLink" title="' +
+      esc(TLi18n.t('exe.copyDirectLink')) + '">' +
+      '<i class="fa fa-link"></i><span data-i18n="esr.copyLink">Copy link</span></button>';
+  }
+  h += '<button type="button" class="hc-btn" id="hcPrint" title="' +
+    esc(TLi18n.t('esr.print')) + '">' +
+    '<i class="fa fa-print"></i><span data-i18n="esr.print">Print</span></button>';
+  h += '<button type="button" class="hc-btn" id="hcImportXml" title="' +
+    esc(TLi18n.t('esr.importXml')) + '">' +
+    '<i class="fa fa-file-import"></i><span data-i18n="esr.importXml">Import XML Results</span></button>';
+  if (r.test_automation_enabled) {
+    h += '<button type="button" class="hc-btn" id="hcRemoteExec">' +
+      '<i class="fa fa-server"></i><span data-i18n="esr.remoteExec">Execute and Save Results</span></button>';
+  }
+  wrap.html(h).show();
+  TLi18n.apply();
+
+  $('#hcDirectLink').off('click.esrhc').on('click.esrhc', toggleDlBox);
+  $('#hcPrint').off('click.esrhc').on('click.esrhc', function () { window.print(); });
+  $('#hcImportXml').off('click.esrhc').on('click.esrhc', openImportXml);
+  $('#hcRemoteExec').off('click.esrhc').on('click.esrhc', remoteExec);
+  $('#dlCopyBtn').off('click.esrhc').on('click.esrhc', copyDirectLink);
+}
+
+function toggleDlBox() {
+  var $box = $('#dlBox');
+  if ($box.is(':visible')) { $box.hide(); return; }
+  var link = (ctx.info && ctx.info.direct_link) || '';
+  $('#dlInput').val(link);
+  $box.show();
+  if (link) { try { $('#dlInput')[0].focus(); $('#dlInput')[0].select(); } catch (e) {} }
+}
+
+function copyDirectLink() {
+  var link = $('#dlInput').val() || (ctx.info && ctx.info.direct_link) || '';
+  if (!link) { toast(TLi18n.t('esr.errNoLink'), true); return; }
+  function done() { toast(TLi18n.t('exe.directLinkCopied')); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(done, function () { fallbackCopy(link, done); });
+  } else {
+    fallbackCopy(link, done);
+  }
+}
+
+function fallbackCopy(text, done) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  document.body.removeChild(ta);
+  if (done) done();
+}
+
+function openImportXml() {
+  var buildId = parseInt($('#selBuild').val() || '0', 10) || 0;
+  var platformId = parseInt($('#selPlatform').val() || '0', 10) || 0;
+  var url = '/gui/templates/results/resultsImport.html?tproject_id=' +
+    ctx.tprojectId + '&tplan_id=' + ctx.tplanId;
+  if (buildId) { url += '&build_id=' + buildId; }
+  if (platformId) { url += '&platform_id=' + platformId; }
+  window.open(url, 'ImportXML',
+    'width=900,height=700,resizable=yes,scrollbars=yes,dependent=yes');
+}
+
+// Legacy "Execute and Save Results" (launchRemoteExec +
+// do_remote_execution): asks the configured automation server to run this
+// test case and, on success, writes an AUTO execution row (BFF side).
+function remoteExec() {
+  if ($('#hcRemoteExec').prop('disabled')) return;
+  var buildId = parseInt($('#selBuild').val() || '0', 10);
+  var selB = null;
+  ((ctx.info && ctx.info.builds) || []).forEach(function (b) { if (b.id === buildId) selB = b; });
+  if (!selB || !selB.executable) {
+    toast(TLi18n.t('esr.errRemoteClosedBuild'), true);
+    return;
+  }
+  var platformId = 0;
+  if ($('#selPlatform').length && $('#selPlatform').val() !== null) {
+    platformId = parseInt($('#selPlatform').val() || '0', 10);
+  }
+  $('#hcRemoteExec').prop('disabled', true);
+  $('#loadingOverlay').show();
+  $.ajax({
+    url: '/api/execsetresults/?action=remote_exec',
+    method: 'POST',
+    data: {
+      tplan_id: ctx.tplanId,
+      tcase_id: ctx.tcaseId,
+      tcversion_id: ctx.tcversionId,
+      build_id: buildId,
+      platform_id: platformId
+    },
+    dataType: 'json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    $('#loadingOverlay').hide();
+    $('#hcRemoteExec').prop('disabled', false);
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('esr.remoteExecErr'), true); return; }
+    var fb = r.feedback || {};
+    if (fb.execution_id) {
+      var execMsg = TLi18n.t('esr.remoteExecDone');
+      if (fb.status_verbose) { execMsg += ' — ' + fb.status_verbose; }
+      if (fb.notes) { execMsg += ' — ' + fb.notes; }
+      toast(execMsg);
+      // re-fetch context so the prior-execution block reflects the run
+      $('#formCard').hide();
+      loadInfo();
+    } else if (fb.system && fb.system.status) {
+      // legacy surfaces the localized server message (configProblems /
+      // connectionFailure nos include msg) — translate the raw status too
+      toast(fb.system.msg ? fb.system.msg :
+        TLi18n.t('esr.remoteExecErr') + ' (' + fb.system.status + ')', true);
+    } else if (fb.scheduled) {
+      toast(TLi18n.t('esr.remoteExecScheduled') + ' ' + esc(fb.timestamp || ''));
+    } else {
+      toast(TLi18n.t('esr.remoteExecErr'), true);
+    }
+  }).fail(function (xhr) {
+    $('#loadingOverlay').hide();
+    $('#hcRemoteExec').prop('disabled', false);
+    var msg = TLi18n.t('esr.remoteExecErr');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Refs #1398: collapsible Test Plan / Build / Platform notes panels + their
+// design-time custom fields (execSetResults.tpl notes sections +
+// execSetResults.php testplan_cfields / build_cfields). Same visual pattern
+// as execTest.html notesPanel (Refs #1163): each box has a clickable header
+// that toggles its body.
+// ---------------------------------------------------------------------------
+function renderNotesPanel(r) {
+  var $panel = $('#notesPanel');
+  var showEmpty = !!(r.tplan_cfs && r.tplan_cfs.length ||
+                     r.build_cfs && r.build_cfs.length);
+  var hasAny = !!(r.tplan_notes || r.build_notes || r.platform_notes || showEmpty);
+  if (!hasAny) {
+    $panel.hide().empty();
+    return;
+  }
+  var h = '';
+  if (r.tplan_notes || (r.tplan_cfs || []).length) {
+    h += notesBox('fa-file-lines', 'exe.tplanNotes', 'Test Plan Notes',
+                  r.tplan_notes, r.tplan_cfs || []);
+  }
+  if (r.build_notes || (r.build_cfs || []).length) {
+    h += notesBox('fa-cubes', 'exe.buildNotes', 'Build Notes',
+                  r.build_notes, r.build_cfs || []);
+  }
+  if (r.platform_notes) {
+    h += notesBox('fa-desktop', 'exe.platformNotes', 'Platform Notes',
+                  r.platform_notes, []);
+  }
+  $panel.html(h).show();
+  TLi18n.apply();
+  // collapsible bodies (legacy collapse toggles; expanded by default)
+  $panel.find('.notes-head').off('click.esrnotes').on('click.esrnotes', function () {
+    $(this).next('.notes-body').toggle();
+  });
+}
+
+function notesBox(icon, i18nKey, fallbackTitle, text, cfs) {
+  var t = '';
+  if (text) {
+    t = '<div class="notes-text">' + esc(text) + '</div>';
+  }
+  if (cfs.length > 0) {
+    var rows = '';
+    for (var i = 0; i < cfs.length; i++) {
+      rows += '<tr><td style="font-weight:600;">' + esc(cfs[i].label) + '</td>' +
+        '<td class="cf-val">' + esc(cfs[i].value) + '</td></tr>';
+    }
+    t += '<table class="cf-table"><thead><tr>' +
+      '<th data-i18n="esr.cfField">Field</th>' +
+      '<th data-i18n="esr.cfValue">Value</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  return '<div class="notes-box">' +
+    '<div class="notes-head"><i class="fa ' + icon + '"></i><span data-i18n="' +
+    i18nKey + '">' + fallbackTitle + '</span></div>' +
+    '<div class="notes-body">' + t + '</div>' +
+    '</div>';
+}
+
+// ---------------------------------------------------------------------------
+// Refs #1398: execution-type + estimated-duration meta row (legacy
+// exec_test_spec.inc.tpl:79-84). Type label comes from the BFF
+// (esrExecutionTypeLabel), duration only rendered when the version has one.
+// ---------------------------------------------------------------------------
+function renderTcMeta(r) {
+  var type = (r.tcversion && r.tcversion.execution_type_label) || '';
+  var dur = (r.tcversion && r.tcversion.estimated_exec_duration) || 0;
+  $('#tcMetaType').text(type);
+  if (dur > 0) {
+    $('#tcMetaDur').text(dur + ' ' + TLi18n.t('esr.minutes'));
+    $('#tcMetaSep').show();
+    $('#tcMetaDurWrap').show();
+  } else {
+    $('#tcMetaDur').text('');
+    $('#tcMetaSep').hide();
+    $('#tcMetaDurWrap').hide();
+  }
+  if (type) { $('#tcMeta').show(); } else { $('#tcMeta').hide(); }
 }
 
 // Closed-build read-only state (legacy execSetResults parity): when the

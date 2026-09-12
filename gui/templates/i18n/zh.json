@@ -3442,5 +3442,17 @@
   "rctc.toggleAll": "全选 / 取消全选需求",
   "rctc.toggleCount": "按所需覆盖率自动填写测试用例数",
   "rctc.toolbarLink": "创建测试用例",
-  "footers.rctc": "TestLink 2.0.1 - 根据需求创建测试用例"
+  "footers.rctc": "TestLink 2.0.1 - 根据需求创建测试用例",
+  "esr.copyLink": "Copy link",
+  "esr.errNoLink": "No direct link available for this execution",
+  "esr.estExecDuration": "Estimated execution duration",
+  "esr.executionType": "Execution type",
+  "esr.importXml": "Import XML Results",
+  "esr.minutes": "minutes",
+  "esr.print": "Print",
+  "esr.remoteExec": "Execute and Save Results",
+  "esr.remoteExecDone": "Test case executed and saved by the remote server",
+  "esr.remoteExecErr": "Remote execution failed",
+  "esr.remoteExecScheduled": "Remote execution scheduled for",
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
 }

@@ -3635,5 +3635,17 @@
   "rctc.toggleAll": "Selecteaza / deselecteaza toate cerintele",
   "rctc.toggleCount": "Completeaza automat numarul de cazuri de test din acoperirea necesara",
   "rctc.toolbarLink": "Creaza cazuri de test",
-  "footers.rctc": "TestLink 2.0.1 - Creare cazuri de test din cerinte"
+  "footers.rctc": "TestLink 2.0.1 - Creare cazuri de test din cerinte",
+  "esr.copyLink": "Copy link",
+  "esr.errNoLink": "No direct link available for this execution",
+  "esr.estExecDuration": "Estimated execution duration",
+  "esr.executionType": "Execution type",
+  "esr.importXml": "Import XML Results",
+  "esr.minutes": "minutes",
+  "esr.print": "Print",
+  "esr.remoteExec": "Execute and Save Results",
+  "esr.remoteExecDone": "Test case executed and saved by the remote server",
+  "esr.remoteExecErr": "Remote execution failed",
+  "esr.remoteExecScheduled": "Remote execution scheduled for",
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
 }

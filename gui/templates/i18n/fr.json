@@ -3436,5 +3436,17 @@
   "rctc.statusV": "Valide",
   "rctc.title": "Créer des cas de test à partir des exigences",
   "rctc.toolbarLink": "Créer des cas de test",
-  "footers.rctc": "TestLink 2.0.1 - Créer des cas de test à partir des exigences"
+  "footers.rctc": "TestLink 2.0.1 - Créer des cas de test à partir des exigences",
+  "esr.copyLink": "Copy link",
+  "esr.errNoLink": "No direct link available for this execution",
+  "esr.estExecDuration": "Estimated execution duration",
+  "esr.executionType": "Execution type",
+  "esr.importXml": "Import XML Results",
+  "esr.minutes": "minutes",
+  "esr.print": "Print",
+  "esr.remoteExec": "Execute and Save Results",
+  "esr.remoteExecDone": "Test case executed and saved by the remote server",
+  "esr.remoteExecErr": "Remote execution failed",
+  "esr.remoteExecScheduled": "Remote execution scheduled for",
+  "esr.errRemoteClosedBuild": "Remote execution requires an open (executable) build"
 }

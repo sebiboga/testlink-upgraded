@@ -134,6 +134,7 @@ function esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId) {
     $vr = $db->get_recordset(
         "SELECT V.id, V.version, V.active, V.summary, V.preconditions," .
         " V.importance, V.execution_type, V.tc_external_id," .
+        " V.estimated_exec_duration," .
         " NH.parent_id" .
         " FROM {$tables['tcversions']} V" .
         " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = V.id" .
@@ -152,6 +153,140 @@ function esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId) {
              'message' => 'This version is not linked to the test plan']);
     }
     return array($tcaseMgr, $vr[0], $basic);
+}
+
+/**
+ * Direct execution link of the popup header (legacy execSetResults.tpl
+ * "execInfo" link/print controls, Refs #1398):
+ *   direct_link = <basehref>/ltx.php?item=exec&feature_id=<testplan_tcversions.id>&build_id=<build_id>
+ * ltx.php validates feature_id + build_id at request time (ltx.php item=exec
+ * -> check_exec/process_exec, exec_remote calls). feature_id is the
+ * testplan_tcversions row of (plan, tcversion, platform); the platform row is
+ * preferred, else any linked row of the version.
+ */
+function esrDirectLink($db, $tplanId, $tcversionId, $platformId, $buildId) {
+    $featureId = 0;
+    $tptcv = tlObjectWithDB::getDBTables(array('testplan_tcversions'))['testplan_tcversions'];
+    $pid = $platformId > 0 ? $platformId : 0;
+    $rows = $db->get_recordset(
+        "SELECT id FROM {$tptcv}" .
+        " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}" .
+        " AND platform_id = {$pid} ORDER BY id ASC LIMIT 1");
+    if (is_null($rows) || count($rows) == 0) {
+        $rows = $db->get_recordset(
+            "SELECT id FROM {$tptcv}" .
+            " WHERE testplan_id = {$tplanId} AND tcversion_id = {$tcversionId}" .
+            " ORDER BY platform_id ASC, id ASC LIMIT 1");
+    }
+    if (!is_null($rows) && count($rows) > 0) {
+        $featureId = intval($rows[0]['id']);
+    }
+    $base = rtrim(strval($_SESSION['basehref'] ?? '/'), '/');
+    $link = $featureId > 0
+        ? $base . '/ltx.php?item=exec&feature_id=' . $featureId .
+          '&build_id=' . intval($buildId)
+        : '';
+    return array('feature_id' => $featureId, 'direct_link' => $link);
+}
+
+/**
+ * Execution-type label of the executed version (legacy exec_test_spec.inc.tpl
+ * "Execution type:" row + testcase::$execution_types, Refs #1398):
+ * tcversions.execution_type 1 = manual (EXECUTION_TYPE_MANUAL), 2 = automated.
+ */
+function esrExecutionTypeLabel($executionType) {
+    // mirror testcase::getExecutionTypes() so the DEFAULT (1=manual, 2=auto)
+    // vocabulary is rendered; both constants live in cfg/const.inc.php.
+    return intval($executionType) === TESTCASE_EXECUTION_TYPE_AUTO
+        ? lang_get('automated') : lang_get('manual');
+}
+
+/**
+ * Collapsible Notes panels payload (legacy exec_show_tc_exec.inc.tpl notes
+ * sections + execSetResults.php:1547-1607, Refs #1398): testplan notes +
+ * plan design-time custom fields whose field has show_on_execution=1
+ * (cfield_testplan_design_values, value keyed by the plan node id), build
+ * notes + build design-time CFs (cfield_build_design_values keyed by the
+ * build id), platform notes (platforms.notes). Values are raw {label,value}
+ * arrays — the same shape the esrTestSuite() suite.cfs block produces, so the
+ * screen renders them with Dashio styles instead of legacy HTML tables.
+ */
+function esrNotesPayload($db, $tplanMgr, $tplanId, $tprojectId, $buildId, $platformId) {
+    $out = array(
+        'tplan_notes' => '',
+        'build_notes' => '',
+        'platform_notes' => '',
+        'tplan_cfs' => array(),
+        'build_cfs' => array(),
+    );
+
+    $planRow = $tplanMgr->get_by_id($tplanId);
+    $out['tplan_notes'] = strval($planRow['notes'] ?? '');
+
+    $bTbl = tlObjectWithDB::getDBTables(array('builds'))['builds'];
+    $bRs = $db->get_recordset(
+        "SELECT id, notes FROM {$bTbl} WHERE id = " . intval($buildId));
+    if (!is_null($bRs) && count($bRs) > 0) {
+        $out['build_notes'] = strval($bRs[0]['notes'] ?? '');
+    }
+
+    if ($platformId > 0) {
+        $pTbl = tlObjectWithDB::getDBTables(array('platforms'))['platforms'];
+        $pRs = $db->get_recordset(
+            "SELECT id, notes FROM {$pTbl} WHERE id = " . intval($platformId));
+        if (!is_null($pRs) && count($pRs) > 0) {
+            $out['platform_notes'] = strval($pRs[0]['notes'] ?? '');
+        }
+    }
+
+    $showEmpty = config_get('custom_fields')->show_custom_fields_without_value;
+
+    // plan CFs: legacy html_table_of_custom_field_values($tplanId,'design',
+    // array('show_on_execution' => 1)) — get_linked_cfields_at_design($id,
+    // $parent_id, $show_on_execution) with the execution-scope filter on.
+    try {
+        $cfMap = $tplanMgr->get_linked_cfields_at_design($tplanId, null, 1);
+        if (!is_null($cfMap)) {
+            foreach ($cfMap as $cfId => $cfInfo) {
+                $hasValue = intval($cfInfo['node_id'] ?? 0);
+                if (!$hasValue && !$showEmpty) { continue; }
+                $out['tplan_cfs'][] = array(
+                    'id' => intval($cfId),
+                    'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                        lang_get($cfInfo['label'], null, true))),
+                    'value' => strval($tplanMgr->cfield_mgr
+                        ->string_custom_field_value($cfInfo, $tplanId)),
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        $out['tplan_cfs'] = array();
+    }
+
+    // build CFs: legacy html_table_of_custom_field_values($buildId,
+    // $tprojectId, 'design', array('show_on_execution' => 1)).
+    try {
+        $buildMgr = new build($db);
+        $cfMap = $buildMgr->get_linked_cfields_at_design(
+            $buildId, $tprojectId, array('show_on_execution' => 1));
+        if (!is_null($cfMap)) {
+            foreach ($cfMap as $cfId => $cfInfo) {
+                $hasValue = intval($cfInfo['node_id'] ?? 0);
+                if (!$hasValue && !$showEmpty) { continue; }
+                $out['build_cfs'][] = array(
+                    'id' => intval($cfId),
+                    'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                        lang_get($cfInfo['label'], null, true))),
+                    'value' => strval($buildMgr->cfield_mgr
+                        ->string_custom_field_value($cfInfo, $buildId)),
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        $out['build_cfs'] = array();
+    }
+
+    return $out;
 }
 
 /**
@@ -879,6 +1014,21 @@ if ($action === 'init') {
     $keywords = esrKeywords($tcaseMgr, $tcaseId, $tcversionId);
     $suite = esrTestSuite($db, $tcaseId, $tprojectId);
 
+    // Refs #1398: direct execution link + feature_id of the popup header
+    // (legacy execSetResults.tpl "execInfo" controls), so the screen can
+    // rebuild the shareable link whenever the build selector changes.
+    list($featureId, $directLink) = array_values(
+        esrDirectLink($db, $tplanId, $tcversionId, $platformId, $buildId));
+
+    // Refs #1398: collapsible Test Plan / Build / Platform notes panels +
+    // plan and build design-time custom fields (execution-scope filter).
+    $notesPayload = esrNotesPayload($db, $tplanMgr, $tplanId, $tprojectId,
+        $buildId, $platformId);
+
+    // Refs #1398: legacy "Execute and Save Results" remote-execution button
+    // is gated on exec_cfg->enable_test_automation (default DISABLED).
+    $testAutomation = !empty($execCfg->enable_test_automation) ? 1 : 0;
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($tprojInfo['name']), 'prefix' => $prefix],
@@ -896,6 +1046,10 @@ if ($action === 'init') {
             'preconditions' => strval($vinfo['preconditions']),
             'importance' => intval($vinfo['importance']),
             'execution_type' => intval($vinfo['execution_type']),
+            // Refs #1398: RFC-2119 column estimated_exec_duration + the
+            // localized type label (legacy exec_test_spec.inc.tpl rows).
+            'estimated_exec_duration' => floatval($vinfo['estimated_exec_duration'] ?? 0),
+            'execution_type_label' => esrExecutionTypeLabel($vinfo['execution_type']),
         ],
         'steps' => $steps,
         'builds' => $builds,
@@ -921,6 +1075,16 @@ if ($action === 'init') {
         'suite' => $suite,
         'prior' => $prior,
         'prior_steps' => $priorSteps,
+        // Refs #1398: direct link + remote execution feature flag
+        'feature_id' => $featureId,
+        'direct_link' => $directLink,
+        'test_automation_enabled' => $testAutomation,
+        // Refs #1398: collapsible notes panels payload
+        'tplan_notes' => $notesPayload['tplan_notes'],
+        'build_notes' => $notesPayload['build_notes'],
+        'platform_notes' => $notesPayload['platform_notes'],
+        'tplan_cfs' => $notesPayload['tplan_cfs'],
+        'build_cfs' => $notesPayload['build_cfs'],
     ]);
 }
 
@@ -1184,6 +1348,151 @@ if ($action === 'save_partial') {
     $tcaseMgr->saveStepsPartialExec($partialExec, $ctx);
 
     out(['status' => 'ok', 'saved' => true]);
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=remote_exec — "Execute and Save Results" (legacy
+// launchRemoteExec -> buildExecContext -> do_remote_execution,
+// execSetResults.php:2037,1997,1066-1210, Refs #1398). Gated on
+// exec_cfg->enable_test_automation (DISABLED by default). The automation
+// server settings travel via design-time custom fields
+// (cfield_mgr::getXMLRPCServerParams). On success ('ok', scheduled 'now')
+// an execution row is written with execution_type = AUTO, mirroring
+// do_remote_execution(); the feedback map keeps the status/notes/scheduled
+// info so the popup can surface the automation server result.
+// ---------------------------------------------------------------------------
+if ($action === 'remote_exec') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $execCfg = config_get('exec_cfg');
+    if (empty($execCfg->enable_test_automation)) {
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'Remote execution is not enabled by configuration']);
+    }
+    $payload = setResultsPayload();
+    if (!is_array($payload) || count($payload) == 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid request body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, $tplanId, $tprojectId, ) =
+        esrResolvePlan($db, $user, $tplanId);
+
+    // WRITE right required (exec_ro_access is NOT enough), same as save
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcaseId = intval($payload['tcase_id'] ?? 0);
+    $tcversionId = intval($payload['tcversion_id'] ?? 0);
+    $buildId = intval($payload['build_id'] ?? 0);
+    $platformId = intval($payload['platform_id'] ?? 0);
+    $platformId = $platformId > 0 ? $platformId : 0;
+
+    // closed builds never accept new executions (same guard the save
+    // action enforces), even though the remote-exec front-end hides the
+    // button when exec_cfg->enable_test_automation is off.
+    $validBuild = false;
+    $rawBuilds = $tplanMgr->get_builds($tplanId);
+    if (!is_null($rawBuilds)) {
+        foreach ($rawBuilds as $bid => $b) {
+            if (intval($bid) === $buildId
+                && intval($b['active']) === 1 && intval($b['is_open']) === 1) {
+                $validBuild = true;
+                break;
+            }
+        }
+    }
+    if (!$validBuild) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Invalid or non-executable build for this plan']);
+    }
+
+    // version MUST belong to the test case AND be linked to the plan
+    list($tcaseMgr, ) = esrResolveTcVersion($db, $tplanMgr, $tplanId,
+        $tcaseId, $tcversionId);
+
+    // feature_id on testplan_tcversions (needed for the server config
+    // custom-field retrieval; legacy buildExecContext -> getFeatureID)
+    $featureId = 0;
+    list($featureId, ) = array_values(
+        esrDirectLink($db, $tplanId, $tcversionId, $platformId, 0));
+    if ($featureId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Test case is not linked to the test plan']);
+    }
+
+    // lib/functions/remote_exec.php defines executeTestCase() and loads the
+    // IXR xml-rpc client (TL_ABS_PATH based, safe to require here).
+    require_once(TL_ABS_PATH . 'lib/functions/remote_exec.php');
+
+    $basic = $tcaseMgr->tree_manager->get_node_hierarchy_info($tcaseId);
+    $tcaseInfo = array_merge((array)$basic,
+        array('version_id' => $tcversionId));
+    $serverCfg = $tcaseMgr->cfield_mgr->getXMLRPCServerParams(
+        $tcversionId, $featureId);
+
+    $context = array(
+        'tproject_id' => $tprojectId,
+        'tplan_id' => $tplanId,
+        'platform_id' => $platformId,
+        'build_id' => $buildId,
+        'user_id' => $userId,
+    );
+    $execResult = executeTestCase($tcaseInfo, $serverCfg, $context);
+
+    // mirror do_remote_execution() feedback + row writing for ONE version
+    $feedback = array(
+        'status' => null,
+        'status_verbose' => '',
+        'notes' => null,
+        'system' => null,
+        'scheduled' => null,
+        'timestamp' => null,
+        'execution_id' => null,
+    );
+    $systemStatus = strtolower(strval($execResult['system']['status'] ?? ''));
+    if ($systemStatus === 'configproblems' || $systemStatus === 'connectionfailure') {
+        $feedback['system'] = $execResult['system'];
+    } else {
+        $trun = isset($execResult['execution']) ? $execResult['execution'] : array();
+        if ((strval($trun['scheduled'] ?? '') === 'now')) {
+            $resultsCfg = config_get('results');
+            $tcStatus = $resultsCfg['status_code'];
+            $statusCode = strtolower(strval($trun['result'] ?? ''));
+            if ($statusCode != $tcStatus['passed']
+                && $statusCode != $tcStatus['failed']
+                && $statusCode != $tcStatus['blocked']) {
+                $statusCode = $tcStatus['blocked'];
+            }
+            $notes = trim(strval($trun['notes'] ?? ''));
+            $execTables = tlObjectWithDB::getDBTables(array('executions'))['executions'];
+            $sql = "INSERT INTO {$execTables} " .
+                " (testplan_id, platform_id, build_id, tester_id, execution_type," .
+                "  tcversion_id, execution_ts, status, notes)" .
+                " VALUES ({$tplanId}, {$platformId}, {$buildId}, {$userId}," .
+                TESTCASE_EXECUTION_TYPE_AUTO . ", {$tcversionId}, " .
+                $db->db_now() . ", '" .
+                $db->prepare_string($statusCode) . "', '" .
+                $db->prepare_string($notes) . "')";
+            $db->exec_query($sql);
+            $feedback['execution_id'] = $db->insert_id();
+            $feedback['status'] = $statusCode;
+            $feedback['status_verbose'] = strval($trun['resultVerbose'] ?? '');
+            $feedback['notes'] = $notes;
+        } else {
+            $feedback['scheduled'] = strval($trun['scheduled'] ?? '');
+            $feedback['timestamp'] = strval($trun['timestampISO'] ?? '');
+        }
+    }
+
+    out(['status' => 'ok', 'feedback' => $feedback]);
 }
 
 http_response_code(404);

@@ -217,6 +217,16 @@ Test Strategy:
 
 NEW FEATURES
 ------------
+- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
+  `api/execsetresults`): legacy execInfo strip restored (Refs #1398) — copy
+  direct link (`direct_link`+`feature_id` in init) with clipboard toggle,
+  Print, Import XML Results popup, and Execute and Save Results (remote exec,
+  gated on `exec_cfg->enable_test_automation`, POST `?action=remote_exec`
+  porting `do_remote_execution`); collapsible Test Plan/Build/Platform notes
+  panels with plan/build design-time custom fields (`tplan_notes`,
+  `build_notes`, `platform_notes`, `tplan_cfs`, `build_cfs`); execution type +
+  estimated duration meta row (`execution_type_label`,
+  `estimated_exec_duration`). i18n `esr.*` keys in all 10 bundles.
 - Markdown Test Case Import and Export (Feature #853) - full MD parser/emitter
   (lib/functions/markdown_tc_import.class.php, markdown_tc_export.class.php,
   api/testcasesimport, api/testcasesexport).
