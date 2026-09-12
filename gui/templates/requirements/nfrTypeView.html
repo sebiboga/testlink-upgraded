@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="nfrt.title">NFR Management</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header .type-chip { display: inline-flex; align-items: center; gap: 7px; background: rgba(255,255,255,.18); border-radius: 18px; padding: 5px 14px; font-size: 13px; margin-left: 14px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar select { font-size: 13px; padding: 5px 8px; border-radius: 4px; border: none; background: #fff; min-width: 210px; }
+.toolbar .sep { flex: 1; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.content { padding: 18px 24px; }
+.focusbox { background: #fff; border: 1px solid #d5e8e5; border-left: 4px solid #4ECDC4; border-radius: 6px; padding: 10px 16px; font-size: 13px; color: #444; margin-bottom: 14px; }
+.focusbox i { color: #4ECDC4; margin-right: 8px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+table.dataTable thead th { background: #22242a; color: #fff; font-size: 13px; padding: 9px 14px; }
+table.dataTable tbody td { padding: 9px 14px; font-size: 13px; vertical-align: middle; }
+.dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
+.badge-type { display: inline-flex; align-items: center; gap: 6px; background: #eef7f6; color: #12707a; border: 1px solid #bce5e0; padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; }
+.badge-status { padding: 3px 10px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-block; }
+.st-proposed { background: #ecf0f1; color: #555; }
+.st-approved { background: #4ECDC4; color: #fff; }
+.st-in_scope { background: #3498db; color: #fff; }
+.st-waived { background: #f39c12; color: #fff; }
+.act-btn { background: transparent; border: 1px solid #d5d5d5; color: #555; border-radius: 4px; padding: 4px 9px; font-size: 12px; cursor: pointer; margin-right: 5px; }
+.act-btn:hover { border-color: #4ECDC4; color: #12707a; }
+.act-btn.del:hover { border-color: #e6605e; color: #e6605e; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 0; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #2d8e88; }
+.toast.err { background: #c0392b; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-radius: 8px 8px 0 0; }
+.modal-header .close { color: #fff; opacity: .8; }
+.modal-title { font-size: 15px; font-weight: 700; }
+.form-label { font-size: 12px; color: #555; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 4px; display: block; }
+.form-control { font-size: 13px; }
+#feedbackMsg { display:none; margin: 14px 24px 0 24px; padding: 10px 16px; border-radius: 6px; font-size: 13px; }
+#feedbackMsg.err { display:block; background: #fdeceb; color: #c0392b; border: 1px solid #f5c6c2; }
+#feedbackMsg.ok { display:block; background: #dff0d8; color: #3c763d; border: 1px solid #d0e9c6; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-sliders"></i> <span data-i18n="nfrt.title">NFR Management</span>
+  <span class="sub" data-i18n="nfrt.headerSub">per-type quality requirements of the Test Strategy</span>
+  <span class="type-chip" id="typeChip"><i class="fa fa-gauge-high"></i> <span id="typeName"></span></span>
+  <span id="projName" style="opacity:.85;font-weight:400;font-size:13px;margin-left:14px;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <label style="color:#aaa;font-size:13px;"><span data-i18n="nfrt.testProject">Test Project</span>:</label>
+  <select id="projectSel"></select>
+  <span class="sep"></span>
+  <button class="btn-teal" id="addBtn" disabled><i class="fa fa-plus"></i> <span data-i18n="nfrt.add">Add requirement</span></button>
+</div>
+
+<div id="feedbackMsg"></div>
+
+<div class="content">
+  <div class="empty" id="noProject" style="display:none;" data-i18n="nfrt.noProject">Please select a test project above to manage its non-functional requirements.</div>
+  <div id="workArea" style="display:none;">
+    <div class="focusbox" id="focusBox"><i class="fa fa-bullseye"></i><span id="focusText"></span></div>
+    <div class="card">
+      <table class="table table-striped" id="nfrTable" style="width:100%;">
+        <thead>
+          <tr>
+            <th data-i18n="nfrt.colTitle">Title</th>
+            <th data-i18n="nfrt.colTarget">Target</th>
+            <th data-i18n="nfrt.colThreshold">Threshold</th>
+            <th data-i18n="nfrt.colSource">Source</th>
+            <th data-i18n="nfrt.colStatus">Status</th>
+            <th data-i18n="nfrt.colUpdated">Updated</th>
+            <th data-i18n="nfrt.colActions">Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyState" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="footer" id="footerText"></div>
+<div class="footer"><span data-i18n="footers.nfrtype">TestLink 2.0.1 - Non-Functional Requirements</span></div>
+<div class="toast" id="toast"></div>
+
+<!-- Create/Edit modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalTitle">Requirement</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="nfrId">
+        <div class="form-group">
+          <label class="form-label" data-i18n="nfrt.titleLabel">Title *</label>
+          <input type="text" class="form-control" id="nfrTitle" maxlength="255">
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label class="form-label" data-i18n="nfrt.typeLabel">Type</label>
+              <input type="text" class="form-control" id="nfrTypeRead" readonly>
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label class="form-label" data-i18n="nfrt.statusLabel">Status</label>
+              <select class="form-control" id="nfrStatus"></select>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label class="form-label" data-i18n="nfrt.targetLabel">Target value</label>
+              <input type="text" class="form-control" id="nfrTarget" maxlength="255">
+            </div>
+          </div>
+          <div class="col-sm-6">
+            <div class="form-group">
+              <label class="form-label" data-i18n="nfrt.thresholdLabel">Threshold value</label>
+              <input type="text" class="form-control" id="nfrThreshold" maxlength="255">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="nfrt.sourceLabel">Source / reference</label>
+          <input type="text" class="form-control" id="nfrSource" maxlength="255">
+        </div>
+        <div class="form-group">
+          <label class="form-label" data-i18n="nfrt.descLabel">Description</label>
+          <textarea class="form-control" id="nfrDesc" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal btn-sm" onclick="saveRequirement()"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete confirm modal -->
+<div class="modal fade" id="delModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" data-i18n="nfrt.delete">Delete</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body"><p style="font-size:13px;color:#333;" data-i18n="nfrt.deleteConfirm">Delete this non-functional requirement?</p></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal" data-i18n="common.cancel">Cancel</button>
+        <button type="button" class="btn btn-teal btn-sm" id="delYes" style="background:#e6605e;"><i class="fa fa-trash"></i> <span data-i18n="nfrt.delete">Delete</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/nfrtype/index.php';
+var TYPE = 'performance';
+var TYPE_ICON = 'fa-sliders';
+var TYPE_FOCUS_KEY = 'nfrt.focus.performance';
+var projectId = 0;
+var STATUSES = [];    // [code]
+var DT = null;
+var deleteTargetId = 0;
+var editSeq = 0;
+var CAN_EDIT = false;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  TYPE = p.get('type') || 'performance';
+  projectId = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadMetaAndProjects();
+  });
+
+  $('#projectSel').on('change', function () {
+    projectId = parseInt($(this).val() || '0', 10);
+    syncUrl();
+    load();
+  });
+
+  $('#addBtn').on('click', function () { openEditModal(null); });
+  $('#delYes').on('click', doDelete);
+});
+
+function esc(s) {
+  return $('<div>').text(s == null ? '' : String(s)).html()
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function toast(msg, kind) {
+  var $t = $('#toast').text(msg).attr('class', 'toast ' + (kind || '')).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 3500));
+}
+
+function apiFail(xhr) {
+  var msg = TLi18n.t('nfrt.errLoad');
+  try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+  toast(msg, 'err');
+}
+
+function syncUrl() {
+  var url = new URL(window.location.href);
+  url.searchParams.set('type', TYPE);
+  url.searchParams.set('tproject_id', String(projectId || ''));
+  window.history.replaceState({}, '', url);
+}
+
+function typeLabelKey(code) {
+  return 'nfr.type' + code.charAt(0).toUpperCase() + code.slice(1);
+}
+
+function statusLabelKey(code) {
+  var camel = code.indexOf('_') > -1
+    ? code.split('_').map(function (p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join('')
+    : code.charAt(0).toUpperCase() + code.slice(1);
+  return 'nfr.status' + camel;
+}
+
+function statusClass(code) { return 'st-' + code; }
+
+function loadMetaAndProjects() {
+  $.getJSON(API + '?action=meta&type=' + encodeURIComponent(TYPE) + '&_=' + Date.now()).done(function (r) {
+    if (r.status === 'ok' && r.type) {
+      TYPE = r.type.code;
+      TYPE_ICON = r.type.icon || 'fa-sliders';
+      TYPE_FOCUS_KEY = r.type.focusKey || 'nfrt.focus.performance';
+      $('#typeChip').html('<i class="fa ' + esc(TYPE_ICON) + '"></i> <span id="typeName">' +
+        esc(TLi18n.t(typeLabelKey(TYPE))) + '</span>');
+      $('#nfrTypeRead').val(TLi18n.t(typeLabelKey(TYPE)));
+      $('#focusText').text(TLi18n.t(TYPE_FOCUS_KEY));
+      document.title = TLi18n.t(typeLabelKey(TYPE)) + ' - ' + TLi18n.t('nfrt.title');
+    }
+    STATUSES = (r.statuses || []).map(function (s) {
+      return typeof s === 'string' ? s : s.code;
+    });
+    loadProjects();
+  }).fail(apiFail);
+}
+
+function loadProjects() {
+  $.getJSON(API + '?action=projects&type=' + encodeURIComponent(TYPE) + '&_=' + Date.now()).done(function (r) {
+    var items = r.projects || [];
+    var $sel = $('#projectSel').empty();
+    $sel.append('<option value="0">-- ' + TLi18n.t('nfrt.selectProject') + ' --</option>');
+    items.forEach(function (pr) {
+      $sel.append('<option value="' + pr.id + '">' + esc(pr.name) + ' (' + esc(pr.prefix + '') + ')</option>');
+    });
+    if (items.length && projectId <= 0) {
+      projectId = parseInt(items[0].id, 10);
+    }
+    if (projectId > 0) {
+      $sel.val(String(projectId));
+    }
+    syncUrl();
+    load();
+  }).fail(function (xhr) {
+    $('#noProject').show();
+    apiFail(xhr);
+  });
+}
+
+function load() {
+  if (projectId <= 0) {
+    $('#workArea').hide();
+    $('#noProject').show();
+    return;
+  }
+  $('#workArea').hide();
+  $('#noProject').hide();
+  var q = API + '?action=list&tproject_id=' + projectId + '&type=' + encodeURIComponent(TYPE) + '&_=' + Date.now();
+  $.getJSON(q).done(function (r) {
+    if (r.status !== 'ok') { toast(TLi18n.t('nfrt.errLoad'), 'err'); return; }
+    $('#projName').text(r.project ? r.project.name : '');
+    document.title = (r.project ? r.project.name + ' - ' : '') + TLi18n.t('nfrt.title');
+    $('#addBtn').prop('disabled', !r.canEdit);
+    CAN_EDIT = !!r.canEdit;
+    renderTable(r.items || []);
+    $('#footerText').text(TLi18n.t('nfrt.footerCount', {n: (r.items || []).length}) + ' | ' +
+      TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+    $('#workArea').show();
+  }).fail(function (xhr) {
+    if (xhr.status === 404) { $('#noProject').show(); return; }
+    apiFail(xhr);
+  });
+}
+
+function renderTable(items) {
+  if (DT) { DT.destroy(); DT = null; }
+  var $tb = $('#nfrTable tbody').empty();
+  if (!items.length) {
+    $('#emptyState').text(TLi18n.t('nfrt.emptyList')).show();
+    $('#nfrTable').hide();
+    return;
+  }
+  $('#emptyState').hide();
+  $('#nfrTable').show();
+  items.forEach(function (it) {
+    var act = '';
+    if (CAN_EDIT) {
+      act = '<button class="act-btn" onclick="openEditModal(' + it.id + ')"><i class="fa fa-pencil"></i> ' + esc(TLi18n.t('nfrt.edit')) + '</button>' +
+            '<button class="act-btn del" onclick="openDelete(' + it.id + ')"><i class="fa fa-trash"></i> ' + esc(TLi18n.t('nfrt.delete')) + '</button>';
+    }
+    var tr = $('<tr>')
+      .append($('<td>').append($('<b>').text(it.title)).append(
+        it.description ? '<div style="color:#888;font-size:12px;max-width:420px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(it.description) + '</div>' : ''))
+      .append($('<td>').text(it.target_value || ''))
+      .append($('<td>').text(it.threshold_value || ''))
+      .append($('<td>').text(it.source_ref || ''))
+      .append($('<td>').html('<span class="badge-status ' + statusClass(it.req_status) + '">' + esc(TLi18n.t(statusLabelKey(it.req_status))) + '</span>'))
+      .append($('<td>').text(fmtDate(it.updated_ts)))
+      .append($('<td>').html(act));
+    $tb.append(tr);
+  });
+  DT = $('#nfrTable').DataTable({
+    pageLength: 10,
+    language: { search: TLi18n.t('common.search'), lengthMenu: '_MENU_' }
+  });
+}
+
+function fmtDate(ts) {
+  if (!ts) return '';
+  var d = new Date((ts || '').replace(' ', 'T'));
+  if (isNaN(d.getTime())) return ts;
+  return d.toLocaleString();
+}
+
+function openEditModal(id) {
+  editSeq++;
+  var seq = editSeq;
+  $('#editModalTitle').text(TLi18n.t(id ? 'nfrt.editTitle' : 'nfrt.newTitle'));
+  $('#nfrId').val(id || '');
+  $('#nfrTypeRead').val(TLi18n.t(typeLabelKey(TYPE)));
+  var $s = $('#nfrStatus').empty();
+  STATUSES.forEach(function (code) {
+    $s.append('<option value="' + code + '">' + esc(TLi18n.t(statusLabelKey(code))) + '</option>');
+  });
+  $('#nfrTitle,#nfrDesc,#nfrTarget,#nfrThreshold,#nfrSource').val('');
+  $('#editModal').modal('show');
+
+  if (id) {
+    $.getJSON(API + '?action=item&id=' + id + '&_=' + Date.now()).done(function (r) {
+      if (seq !== editSeq) { return; }
+      var it = r.item || {};
+      $('#nfrId').val(it.id || '');
+      $('#nfrTitle').val(it.title || '');
+      $('#nfrDesc').val(it.description || '');
+      $('#nfrTarget').val(it.target_value || '');
+      $('#nfrThreshold').val(it.threshold_value || '');
+      $('#nfrSource').val(it.source_ref || '');
+      $s.val(it.req_status || 'proposed');
+    }).fail(function (xhr) { if (seq === editSeq) { apiFail(xhr); } });
+  }
+}
+
+function saveRequirement() {
+  var id = parseInt($('#nfrId').val() || '0', 10);
+  var title = $('#nfrTitle').val().trim();
+  if (!title) { toast(TLi18n.t('nfrt.errTitleRequired'), 'err'); return; }
+  var payload = {
+    id: id,
+    tproject_id: projectId,
+    type: TYPE,
+    title: title,
+    description: $('#nfrDesc').val().trim(),
+    target_value: $('#nfrTarget').val().trim(),
+    threshold_value: $('#nfrThreshold').val().trim(),
+    source_ref: $('#nfrSource').val().trim(),
+    req_status: $('#nfrStatus').val() || 'proposed'
+  };
+  $.ajax({
+    url: API + '?action=' + (id ? 'update' : 'create'),
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify(payload),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    if (r.status === 'ok') {
+      $('#editModal').modal('hide');
+      toast(TLi18n.t('nfrt.savedOk'), 'ok');
+      load();
+    } else {
+      toast(r.message || TLi18n.t('nfrt.errSave'), 'err');
+    }
+  }).fail(function (xhr) {
+    apiFail(xhr);
+    if (xhr.status === 403 || xhr.status === 401) { $('#editModal').modal('hide'); }
+  });
+}
+
+function openDelete(id) {
+  deleteTargetId = id;
+  $('#delModal').modal('show');
+}
+
+function doDelete() {
+  if (!deleteTargetId) return;
+  $.ajax({
+    url: API + '?action=delete',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ id: deleteTargetId }),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  }).done(function (r) {
+    $('#delModal').modal('hide');
+    deleteTargetId = 0;
+    if (r.status === 'ok') { toast(TLi18n.t('nfrt.deletedOk'), 'ok'); load(); }
+    else { toast(r.message || TLi18n.t('nfrt.errSave'), 'err'); }
+  }).fail(function (xhr) {
+    $('#delModal').modal('hide');
+    deleteTargetId = 0;
+    apiFail(xhr);
+  });
+}
+</script>
+</body>
+</html>
