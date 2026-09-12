@@ -576,8 +576,11 @@ function renderTcSpecSections(r) {
 }
 
 function openReqWindow(requirementId) {
-  window.open('/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=' +
-    requirementId + '&tproject_id=' + ctx.tprojectId, 'Requirement',
+  // Refs #1477: modern reqView.html replaces lib/requirements/reqView.php.
+  // The legacy showReqSpecTitle=1 flag is obsolete: reqView.html always renders
+  // the spec path (r.spec_path) in the overview card.
+  window.open('/gui/templates/requirements/reqView.html?id=' + requirementId +
+    '&tproject_id=' + ctx.tprojectId, 'Requirement',
     'width=800,height=600,resizable=yes,scrollbars=yes,dependent=yes');
 }
 
