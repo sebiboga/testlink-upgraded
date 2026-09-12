@@ -205,14 +205,14 @@ function render() {
     }
     var tr = $('<tr>')
       .append($('<td class="check-col">')
-        .append('<input type="checkbox" class="req-cbox" data-id="' + it.id + '" data-default="1">'))
+        .append('<input type="checkbox" class="req-cbox" name="req_id_cbox[' + it.id + ']" data-id="' + it.id + '" data-default="1">'))
       .append($('<td>')
         .append('<a class="req-link" onclick="openReq(' + it.id + ')">' +
           esc(it.req_doc_id) + ' : ' + esc(it.title) + '</a>'))
       .append($('<td>').html(badge(it)))
       .append($('<td>').text(it.type_label || it.type))
       .append($('<td>').html('<input class="count-inp tc-count" data-id="' + it.id +
-        '" type="text" maxlength="3" value="1">'))
+        '" name="testcase_count[' + it.id + ']" type="text" maxlength="3" value="1">'))
       .append($('<td>').html(needed))
       .append($('<td>').text(it.coverage))
       .append($('<td>').text(it.coverage_percent + '%'));
