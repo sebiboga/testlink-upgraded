@@ -325,7 +325,16 @@ if ($method === 'POST' && empty($segments)) {
         ]);
     }
 
-    $result = $u->writeToDB($db);
+    // DB write failures (e.g. strict-mode column overflow of locale > varchar(10))
+    // throw from exec_query() (database.class.php:204-207, Refs #1423). Catch them
+    // so the BFF never returns a naked 500/HTML page but the JSON contract
+    // {status:'error',...} instead (Refs #1429).
+    try {
+        $result = $u->writeToDB($db);
+    } catch (Throwable $e) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Error creating user', 'code' => 'db_write_failed']);
+    }
     if ($result >= tl::OK) {
         // Legacy parity: lib/usermanagement/usersEdit.php:164 persists the
         // expiration date (ISO, via tlUser::setExpirationDate) right after the
@@ -373,7 +382,14 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && !iss
     if (isset($body['authentication'])) $u->authentication = $body['authentication'];
     if (!empty($body['password'])) $u->setPassword($body['password']);
 
-    $result = $u->writeToDB($db);
+    // Same DB-throw guard as the create route (Refs #1429) - column-overflow /
+    // constraint failures must surface as JSON, never as a raw 500 or HTML page.
+    try {
+        $result = $u->writeToDB($db);
+    } catch (Throwable $e) {
+        http_response_code(422);
+        out(['status' => 'error', 'message' => 'Error updating user', 'code' => 'db_write_failed']);
+    }
     if ($result >= tl::OK) {
         // Legacy parity: lib/usermanagement/usersEdit.php:197 persists the
         // expiration date after every update; empty/null clears it to NULL.

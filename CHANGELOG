@@ -282,6 +282,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.
+- api/users: PUT/POST DB write failures (e.g. strict-mode column overflow of
+  `locale` > varchar(10)) previously surfaced as a naked HTTP 500/empty body —
+  the exec_query() throw (#1423) was never caught; the create + update routes
+  now catch the Throwable and answer 422 `{status:'error',
+  code:'db_write_failed'}` — JSON contract preserved, no HTML/stack-trace/path
+  disclosure (Refs #1429).
 - Requirement print popup (`printReq.html`): all 11 `reqprint.*` i18n keys
   were missing from every locale bundle and rendered raw on
   header/buttons/error states — keys added to all 10 bundles (#1438/#1439).
