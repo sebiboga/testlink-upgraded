@@ -185,6 +185,13 @@ Left side menu
                   {/if}
                   {if $menuGrants->reqs_view == "yes"}
                     <li><a href="{$gui->uri->nfrRequirements}" target="mainframe">{$labels.href_nfr_requirements}</a></li>
+                    <li><a href="{$gui->uri->nfrPerformance}" target="mainframe"><i class="fa fa-gauge-high"></i> {$labels.href_nfr_performance}</a></li>
+                    <li><a href="{$gui->uri->nfrSecurity}" target="mainframe"><i class="fa fa-shield-halved"></i> {$labels.href_nfr_security}</a></li>
+                    <li><a href="{$gui->uri->nfrUsability}" target="mainframe"><i class="fa fa-hand-pointer"></i> {$labels.href_nfr_usability}</a></li>
+                    <li><a href="{$gui->uri->nfrAccessibility}" target="mainframe"><i class="fa fa-universal-access"></i> {$labels.href_nfr_accessibility}</a></li>
+                    <li><a href="{$gui->uri->nfrCompatibility}" target="mainframe"><i class="fa fa-cubes"></i> {$labels.href_nfr_compatibility}</a></li>
+                    <li><a href="{$gui->uri->nfrReliability}" target="mainframe"><i class="fa fa-life-ring"></i> {$labels.href_nfr_reliability}</a></li>
+                    <li><a href="{$gui->uri->nfrMaintainability}" target="mainframe"><i class="fa fa-screwdriver-wrench"></i> {$labels.href_nfr_maintainability}</a></li>
                   {/if}
                 </ul>
               </li>

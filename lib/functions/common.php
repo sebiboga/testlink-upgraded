@@ -1902,6 +1902,14 @@ function getActions(&$gui,$baseURL) {
   // Refs #1462. Rights (mgt_view_req / mgt_modify_req) enforced by the BFF
   // api/nfr on every route; aside visibility gated by aside.tpl via menuGrants.
   $actions->nfrRequirements = "/gui/templates/requirements/nfrRequirements.html?{$ctx}";
+  // Per-type Non-Functional Requirements screens (Dashio standalone pages) -
+  // Refs #1470, #1462. One CRUD screen api/nfrtype per NFR type; rights
+  // (mgt_view_req / mgt_modify_req) enforced by the BFF on every route; aside
+  // visibility gated by aside.tpl via menuGrants (reqs_view).
+  foreach (array('performance','security','usability','accessibility','compatibility','reliability','maintainability') as $nfrt) {
+    $actions->{'nfr' . ucfirst($nfrt)} =
+      "/gui/templates/requirements/nfrTypeView.html?type={$nfrt}&{$ctx}";
+  }
   $actions->tcSearch = "/gui/templates/search/searchView.html?{$ctx}";
   $actions->tcQuickSearch = "/gui/templates/search/searchQuickView.html?{$ctx}";
   $actions->tcCreatedUser = "/gui/templates/results/tcCreatedPerUserOnTestProject.html?{$ctx}";
