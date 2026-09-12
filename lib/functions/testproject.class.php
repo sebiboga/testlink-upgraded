@@ -240,7 +240,7 @@ function update($id, $name, $color, $notes,$options,$active=null,
 protected function parseTestProjectRecordset(&$recordset) {
   if (null != $recordset && count($recordset) > 0) {
     foreach ($recordset as $number => $row) {
-      $decoded = unserialize($row['options']);
+      $decoded = $this->decodeStoredOptions($row['options']);
       if (!is_object($decoded)) {
         $decoded = new stdClass();
         $decoded->requirementsEnabled = 0;
@@ -442,7 +442,7 @@ function get_all($filters=null,$options=null)
     $recordset = $this->db->fetchRowsIntoMap($sql,$my['options']['access_key']);
     if (null != $recordset && count($recordset) > 0) {
       foreach ($recordset as $number => $row) {
-        $decoded = unserialize($row['options']);
+        $decoded = $this->decodeStoredOptions($row['options']);
         if (!is_object($decoded)) {
           $decoded = new stdClass();
           $decoded->requirementsEnabled = 0;
@@ -3924,8 +3924,31 @@ function getPublicAttr($id)
     if (!is_string($raw) || $raw === '' || !in_array($raw[0], ['O','a','s','i','d','b','N','R'], true)) {
       return (object)[];
     }
-    $obj = unserialize($raw);
+    $obj = $this->decodeStoredOptions($raw);
     return $obj !== false ? $obj : (object)[];
+  }  
+
+  /**
+   * Decode a stored testprojects.options blob without emitting PHP warnings.
+   *
+   * Refs #1484. The freshly imported DB carries a 93-byte hand-edited blob for
+   * testproject 1 whose string-key lengths do not match the serialized names
+   * (s:15:"requirementsEnabled" while the name is 19 chars). Bare unserialize()
+   * aborts with E_WARNING "Error at offset 26 of 93 bytes" and floods the
+   * events table on every project-bound request (watchPHPErrors in
+   * logger.class.php only suppresses the E_NOTICE class). Decoders must
+   * therefore degrade silently to their existing fallback instead of logging
+   * noise; valid blobs decode exactly as before.
+   *
+   * @param string $raw serialized options blob (array or stdClass)
+   * @return mixed decoded value, or false when empty/corrupt (mirrors the
+   *               return of unserialize() on failure)
+   */
+  private function decodeStoredOptions($raw) {
+    if (!is_string($raw) || $raw === '') {
+      return false;
+    }
+    return @unserialize($raw);
   }  
 
   /**
