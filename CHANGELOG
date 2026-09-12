@@ -295,6 +295,15 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `openTCaseWindow(tcase_id,tcversion_id,'editOnExec&tplan_id=…')` link
   (exec_show_tc_exec.inc.tpl:476-481).
 
+- printDocument.php anonymous api-key deny (Refs #1478): a bogus/unknown
+  64-char object api key previously rendered the document (HTTP 200, relative
+  CSS/logo URLs) and emitted 3 `Undefined array key basehref` E_WARNING events
+  per hit because `init_args()` ignored the return of
+  `setUpEnvForAnonymousAccess()`; unknown keys now deny before any document
+  output with the graceful document-generation error page (new
+  `error_print_doc_invalid_apikey` string in en_US/en_GB strings.txt) and zero
+  event pollution — valid anonymous and session renders left untouched.
+
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
 This CHANGELOG must be updated by every run that lands feature work on the

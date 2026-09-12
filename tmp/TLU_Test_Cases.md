@@ -13696,3 +13696,26 @@ Result: **7/7 PASS** — **#1477 DONE**: `openReqWindow()` now opens the modern 
 | 1400.10 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → 0 new Error/Warning rows; browser console clean on both sessions | **PASS** |
 
 Result: **10/10 PASS** — **#1400 DONE**: `grants.edit_testcase` + pencil icon + `TestCaseSpec` popup restored; legaccy frame-refresh parity noted separately as task **#1479**.
+
+## Regression — Issue #1478: printDocument.php — bogus 64-char apikey renders doc + 3x basehref E_WARNING (deny not wired to caller)
+
+**Screen:** `lib/results/printDocument.php` (anonymous object-api-key branch of `init_args()`).
+**Defect:** a 64-char object api key matching NO testproject/testplan entity was silently accepted: `init_args()` called `setUpEnvForAnonymousAccess()` (common.php:1355-1379) and ignored its `false` return → anonymous session (incl. `basehref`) never initialized → document rendered HTTP 200 with relative CSS/logo URLs + 3 `E_WARNING Undefined array key "basehref"` events (`printDocument.php:175/254`, `print.inc.php:700`) per hit.
+**Fix:** `printDocument.php:334-340` — capture `$status_ok`; when `false`, `renderGracefulExit(lang_get('error_print_doc_invalid_apikey'))` + `exit`. New legacy key `error_print_doc_invalid_apikey` in `locale/en_US/strings.txt` + `locale/en_GB/strings.txt`.
+**Precondition:** fixture `php tmp/fixtures_1415.php` (tproject=1, tplan=12, tc3/6/9, builds 1/2, valid `testprojects.api_key=bffc7cfc…`); set `UPDATE testplans SET api_key='a'×64 WHERE id=12` for R3. Event baseline `log_level=2` = 3 (rows from the pre-fix reproduction).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1478.1 | Pre-fix (HEAD before a7c80b2d9) repro: `curl "…/printDocument.php?apikey=0000…0⁶⁴&tproject_id=1&tplan_id=12&type=testreport_onbuild&level=testproject&build_id=2&format=0&allOptionsOn=1"` | HTTP 200, 7932 bytes, `href="gui/themes/default/css/tl_documents.css"` relative + 3 new `log_level=2` basehref E_WARNING events | **PASS (reproduced)** |
+| 1478.2 | Post-fix: same bogus-key URL | HTTP 200, ~422 bytes = graceful error page; body contains "Document generation error" + `error_print_doc_invalid_apikey` text; `href` document CSS NOT present | **PASS** |
+| 1478.3 | Post-fix Event Viewer delta | `SELECT COUNT(*) FROM events WHERE log_level=2` stays 3 → **0 new** Error/Warning rows after the bogus-key request | **PASS** |
+| 1478.4 | Valid `testprojects.api_key` + tplan_id (the #1416 scenario) | HTTP 200, 7976-byte document, absolute `http://localhost:8082/gui/themes/default/css/tl_documents.css`, 0 new events → no #1416 regression | **PASS** |
+| 1478.5 | Valid `testplans.api_key` (set to 64×'a') | HTTP 200, 7976-byte document, 0 new events | **PASS** |
+| 1478.6 | Session render (no apikey): login admin/admin in browser, load navBar, open `printDocument.php?type=test_plan&level=testproject&id=1&docTestPlanId=12&format=0&allOptionsOn=1` | Full "Test Plan Design Report" (title page, TOC, platform/suite tree, 3 TCs incl. Passed exec tc3), absolute logo URL, 0 new events | **PASS** |
+| 1478.7 | `lnl.php?apikey=<valid testproject key>&type=testreport_onbuild&entities=7&tproject_id=1&tplan_id=12&build_id=2` | HTTP 302 → `reportPrint.html?…` (green public link unchanged) | **PASS** |
+| 1478.8 | `lnl.php` same URL with bogus 64×'0' key | HTTP 200, no redirect (dead/red launcher unchanged), 0 new events | **PASS** |
+| 1478.9 | Modern BFF parity (out-of-scope check): `api/reportsprint/index.php?action=print&…&apikey=0000…0⁶⁴` | HTTP 401 `{"status":"error","message":"Unknown api key"}` (already denies; consistent intent), 0 new events | **PASS** |
+| 1478.10 | i18n hygiene | `error_print_doc_invalid_apikey` present exactly once in `locale/en_US/strings.txt` + `locale/en_GB/strings.txt` (en_GB is the lang_get fallback bundle; other locales resolve via it) | **PASS** |
+| 1478.11 | Browser console on deny page + valid document (Anonymous + session) | `<no console messages found>` — clean; Event Viewer final count `log_level=2` = 3 (baseline, no growth) | **PASS** |
+
+Result: **11/11 PASS** — **#1478 FIXED**: unknown object api keys now deny before any document output; zero event pollution; valid anonymous/session renders byte-identical with absolute asset URLs.
