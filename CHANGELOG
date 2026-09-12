@@ -30,7 +30,7 @@ MAJOR AREAS
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
   compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
   tested. MySQL 5.7+ / MariaDB 11.4+.
-- [MODERNIZED SCREENS] - 112 standalone HTML screens (87+ feature-parity checked,
+- [MODERNIZED SCREENS] - 113 standalone HTML screens (87+ feature-parity checked,
   see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
   Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
 - [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale
@@ -129,6 +129,16 @@ Requirements:
   reqSpecViewRevision.html, reqSpecCompare.html, #1360/#1362).
 - Requirement Revision Viewer (reqRevisionView.html) - BFF api/reqrevision
   (#1435, closes dashio 500 #1427).
+- Create Test Cases from Requirements (reqCreateTestCases.html) - BFF
+  api/reqcreatetestcases (#1483). Replaces the last Requirements-area screen
+  still served by lib/requirements/reqEdit.php?doAction=createTestCases:
+  lists every requirement of a spec with localized status/type labels, per-row
+  testcase_count, needed (= expected_coverage − coverage when
+  expected_coverage_management), current coverage + legacy
+  100/(expected_coverage*coverage) %, select-all, magic auto-fill from needed,
+  POST create via requirement_mgr::create_tc_from_requirement; entry button in
+  reqSpecView.html toolbar; mgt_view_req+mgt_modify_req on owning project
+  (401/400/403/404), forged req-id guard; rctc.* keys in all 10 bundles.
 
 Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
