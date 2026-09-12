@@ -138,8 +138,24 @@ Left side menu
               </a>
               <ul class="sub">
                 <li><a href="{$gui->uri->testStrategy}" target="mainframe"><i class="fas fa-book-open"></i> {$labels.href_test_strategy_overview}</a></li>
-                <li><a href="{$gui->uri->testStrategyScope}" target="mainframe"><i class="fas fa-bullseye"></i> {$labels.href_test_strategy_scope}</a></li>
+                <li><a href="{$gui->uri->testStrategyIntro}" target="mainframe"><i class="fas fa-book"></i> {$labels.href_test_strategy_intro}</a></li>
+                <li><a href="{$gui->uri->testStrategyObjectives}" target="mainframe"><i class="fas fa-bullseye"></i> {$labels.href_test_strategy_objectives}</a></li>
+                <li><a href="{$gui->uri->testStrategyScope}" target="mainframe"><i class="fas fa-expand-arrows-alt"></i> {$labels.href_test_strategy_scope}</a></li>
+                <li><a href="{$gui->uri->testStrategyApproach}" target="mainframe"><i class="fas fa-compass"></i> {$labels.href_test_strategy_approach}</a></li>
+                <li><a href="{$gui->uri->testStrategyLevels}" target="mainframe"><i class="fas fa-layer-group"></i> {$labels.href_test_strategy_levels}</a></li>
+                <li><a href="{$gui->uri->testStrategyTypes}" target="mainframe"><i class="fas fa-check-double"></i> {$labels.href_test_strategy_types}</a></li>
                 <li><a href="{$gui->uri->testStrategyExit}" target="mainframe"><i class="fas fa-flag-checkered"></i> {$labels.href_test_strategy_exit_criteria}</a></li>
+                <li><a href="{$gui->uri->testStrategyEnvironments}" target="mainframe"><i class="fas fa-server"></i> {$labels.href_test_strategy_environments}</a></li>
+                <li><a href="{$gui->uri->testStrategyRoles}" target="mainframe"><i class="fas fa-users"></i> {$labels.href_test_strategy_roles}</a></li>
+                <li><a href="{$gui->uri->testStrategyTools}" target="mainframe"><i class="fas fa-wrench"></i> {$labels.href_test_strategy_tools}</a></li>
+                <li><a href="{$gui->uri->testStrategyCommunication}" target="mainframe"><i class="fas fa-comments"></i> {$labels.href_test_strategy_communication}</a></li>
+                <li><a href="{$gui->uri->testStrategyDeliverables}" target="mainframe"><i class="fas fa-file-alt"></i> {$labels.href_test_strategy_deliverables}</a></li>
+                <li><a href="{$gui->uri->testStrategyMetrics}" target="mainframe"><i class="fas fa-chart-line"></i> {$labels.href_test_strategy_metrics}</a></li>
+                <li><a href="{$gui->uri->testStrategyRisks}" target="mainframe"><i class="fas fa-exclamation-triangle"></i> {$labels.href_test_strategy_risks}</a></li>
+                <li><a href="{$gui->uri->testStrategyDefects}" target="mainframe"><i class="fas fa-bug"></i> {$labels.href_test_strategy_defects}</a></li>
+                <li><a href="{$gui->uri->testStrategyCfg}" target="mainframe"><i class="fas fa-code-branch"></i> {$labels.href_test_strategy_cfg}</a></li>
+                <li><a href="{$gui->uri->testStrategyTraining}" target="mainframe"><i class="fas fa-graduation-cap"></i> {$labels.href_test_strategy_training}</a></li>
+                <li><a href="{$gui->uri->testStrategyRelease}" target="mainframe"><i class="fas fa-rocket"></i> {$labels.href_test_strategy_release}</a></li>
                 <li><a href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-exclamation-triangle"></i> {$labels.href_severity_config}</a></li>
               </ul>
             </li>

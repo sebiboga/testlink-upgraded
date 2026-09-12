@@ -2080,12 +2080,28 @@ function getActions(&$gui,$baseURL) {
   $gui->uri = $actions;
   $actions->keywordsAssign =
     "/gui/templates/keywords/keywordsAssign.html?{$ctx}";
-  // Test Strategy section (General Overview + Scope + Exit Criteria chapter
-  // pages). Standalone Dashio pages fed by api/strategy; any authenticated
-  // user may read them (Refs #1431).
+  // Test Strategy section (General Overview + chapter pages for all 18
+  // chapters + chapter 19 Severity Configuration). Standalone Dashio pages fed
+  // by api/strategy; any authenticated user may read them (Refs #1431).
   $actions->testStrategy = "/gui/templates/strategy/testStrategy.html?{$ctx}";
+  $actions->testStrategyIntro = "/gui/templates/strategy/intro.html?{$ctx}";
+  $actions->testStrategyObjectives = "/gui/templates/strategy/objectives.html?{$ctx}";
   $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";
+  $actions->testStrategyApproach = "/gui/templates/strategy/approach.html?{$ctx}";
+  $actions->testStrategyLevels = "/gui/templates/strategy/testLevels.html?{$ctx}";
+  $actions->testStrategyTypes = "/gui/templates/strategy/testTypes.html?{$ctx}";
   $actions->testStrategyExit = "/gui/templates/strategy/exitCriteria.html?{$ctx}";
+  $actions->testStrategyEnvironments = "/gui/templates/strategy/environments.html?{$ctx}";
+  $actions->testStrategyRoles = "/gui/templates/strategy/roles.html?{$ctx}";
+  $actions->testStrategyTools = "/gui/templates/strategy/tools.html?{$ctx}";
+  $actions->testStrategyCommunication = "/gui/templates/strategy/communication.html?{$ctx}";
+  $actions->testStrategyDeliverables = "/gui/templates/strategy/deliverables.html?{$ctx}";
+  $actions->testStrategyMetrics = "/gui/templates/strategy/metrics.html?{$ctx}";
+  $actions->testStrategyRisks = "/gui/templates/strategy/risks.html?{$ctx}";
+  $actions->testStrategyDefects = "/gui/templates/strategy/defectManagement.html?{$ctx}";
+  $actions->testStrategyCfg = "/gui/templates/strategy/changeConfig.html?{$ctx}";
+  $actions->testStrategyTraining = "/gui/templates/strategy/training.html?{$ctx}";
+  $actions->testStrategyRelease = "/gui/templates/strategy/release.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;
