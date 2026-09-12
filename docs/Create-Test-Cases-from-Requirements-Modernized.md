@@ -107,9 +107,10 @@ all 10 bundles (`en ro de es fr it ja pt ru zh`).
 ## 6. Testing
 
 See **Suite 1483 — Create Test Cases from Requirements (reqCreateTestCases)**
-in `tmp/TLU_Test_Cases.md` (N/N PASS): init render, status/type labels, needed
+in `tmp/TLU_Test_Cases.md` (20/20 PASS): init render, status/type labels, needed
 + auto-fill toggle, per-row counts, `toggleAll`, create flow (multi-requirement
 counts → generated suite + TCs + `req_coverage` links), post-create coverage
 reload, missing-spec error, no-permission (403), req popup link, reqSpecView
-toolbar entry navigation, locale switch (ro), i18n integrity, and Event Viewer
-cleanliness.
+toolbar entry navigation, locale switch (ro), i18n integrity, plus post-code-review
+re-verification (sticky result feedback, delta-0 autofill, project-scoped
+forged-id guard) and Event Viewer cleanliness.
