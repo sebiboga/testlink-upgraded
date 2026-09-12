@@ -13826,3 +13826,38 @@ Result: **10/10 PASS** — **#1479 IMPLEMENTED/VERIFIED**: the Set Results popup
 | 1481.9 | Event Viewer after suite | events `log_level<=8`: only the pre-existing #1480 `tproject_id` rows; **0** `Undefined array key` rows from any real-app render | **PASS** |
 
 Result: **9/9 PASS** — **#1481 FIXED/VERIFIED**: status-domain reads on reqCreateTestCases + both req viewers now fall back to the raw stored code for out-of-domain statuses, no more Event Viewer warning spam. (`reqViewRevision.php` page itself returns HTTP 500 in this environment pre- and post-fix — separate pre-existing class-loading issue, tracked separately; its viewer template is verified via step 1481.6.)
+## Task — Issue #891: Implement grid toolbar in User Management (gap vs legacy)
+
+**Screen:** `gui/templates/usermanagement/usersView.html` + BFF `api/users/index.php`.
+**Gap:** legacy ExtJS grid carried a toolbar (`lib/usermanagement/usersView.php:215-217`,
+`exttable.class.php:96-124`) with Expand/Collapse Groups / Show all Columns / Reset to
+Default State / Refresh / Reset Filters and 4 hidden technical columns
+(`role_id`,`user_id`,`login`,`is_special`); the modern grid had none.
+**Fix:** added the `#gridToolbar` row (5 Dashio `.tbtn` buttons), 3 hidden DataTable
+columns (Role ID / User ID / Is Special) toggled by Show all Columns, DataTables
+**RowGroup** grouping by role name (collapsible group headers + all-group toggle), and
+Refresh / Reset Filters / Reset to Default State grid-state controls. BFF `GET /users`
+now returns `role_id`, `user_id`, `is_special` (`is_special=1` for demoSpecialUsers in
+demoMode). i18n: `usergrid.*` keys in all 10 bundles.
+**Precondition:** admin/admin; seed extra users so multiple role groups exist
+(mysql: INSERT tester1(role 7), leader1(role 9), guest1(role 5)); run the screen at
+`gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 891.1 | Open User Management grid | `#gridToolbar` visible with 5 buttons (Expand/Collapse Groups, Show all Columns, Reset to Default State, Refresh, Reset Filters); grid grouped by role (4 group header rows admin/guest/leader/tester, each with item count) | **PASS** |
+| 891.2 | Click **Show all Columns** | 3 extra headers appear: Role ID / User ID / Is Special; rows show raw `role_id`/`user_id`/`is_special` values (e.g. admin 8/1/0); button label flips to "Hide technical columns" | **PASS** |
+| 891.3 | Click **Refresh** | Footer "Generated on" timestamp updates; technical columns REMAIN visible (state preserved through table re-init) | **PASS** |
+| 891.4 | Click **Expand/Collapse Groups** | All 4 role groups collapse (chevron-right) and their member rows hide; clicking again expands all (chevron-down) | **PASS** |
+| 891.5 | Click a single group header row | Only that group collapses/expands independently of the others | **PASS** |
+| 891.6 | Type "admin" into the DataTables search box, click **Reset Filters** | Search box cleared; info "Filters cleared"; all 4 rows/4 groups shown again | **PASS** |
+| 891.7 | After some dirty state (show-cols ON + one group collapsed + sort changed): click **Reset to Default State** | Hidden cols hidden again, all groups expanded, search empty, order `[[0,'asc']]`, pageLength 25, info "Grid reset to default state." | **PASS** |
+| 891.8 | BFF payload | `GET /api/users` items include `role_id`, `user_id`, `is_special` (fetch via browser context) | **PASS** |
+| 891.9 | i18n hygiene | `usergrid.*` (13 keys) present in all 10 locale bundles; all bundles `python3 -m json.tool` valid | **PASS** |
+| 891.10 | Syntax/gates | `php -l api/users/index.php` clean; `node --check` on inline script of usersView.html clean | **PASS** |
+| 891.11 | Event Viewer / events table | No new ERROR/WARNING events during the suite (only INFO audit rows, e.g. login) | **PASS** |
+
+Result: **11/11 PASS** — **#891 IMPLEMENTED/VERIFIED**: the User Management grid now offers
+the full legacy toolbar (group toggle, show-all-columns reveal of hidden technical fields,
+reset-to-default, refresh, reset-filters) backed by the extended BFF list payload and
+`usergrid.*` i18n in all locales.
