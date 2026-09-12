@@ -362,6 +362,17 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `error_print_doc_invalid_apikey` string in en_US/en_GB strings.txt) and zero
   event pollution — valid anonymous and session renders left untouched.
 
+- reqCreateTestCases "Create Test Cases from Requirements" (Refs #1480):
+  `reqCommands::createTestCases()` built its gui bean via `initGuiBean()`
+  without ever setting `tproject_id`, so both dashio and tl-classic
+  `reqCreateTestCases.tpl` row icons rendered
+  `openLinkedReqWindow(req_id,)` — the compiled Smarty property read emitted
+  1× `E_WARNING Undefined property: stdClass::$tproject_id` per requirement
+  row per view into the Event Viewer and the detail icon opened with an
+  empty project id. The bean now receives `$guiObj->tproject_id =
+  $argsObj->tproject_id` (same pattern as `doCreate()`), covering the
+  submit path `doCreateTestCases()` too.
+
 - ASIDE Severity Configuration label i18n gap (Refs #1459): the Smarty key
   `href_severity_config` existed only in `locale/en_GB/strings.txt`, so the
   Test-Strategy ASIDE sub-item rendered in English in every non-en_GB locale
