@@ -451,6 +451,7 @@
   "esr.savedNotRun": "Not Run result - nothing written (legacy behavior).",
   "esr.saving": "Saving... please wait.",
   "esr.showTcSpec": "Mostra specifica del caso di test",
+  "esr.tcUpdated": "Caso di test aggiornato. Ricaricamento contesto di esecuzione...",
   "esr.stepAct": "Actions",
   "esr.stepExp": "Expected result",
   "esr.stepNotes": "Notes for this step",

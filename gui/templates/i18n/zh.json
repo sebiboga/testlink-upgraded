@@ -451,6 +451,7 @@
   "esr.savedNotRun": "Not Run result - nothing written (legacy behavior).",
   "esr.saving": "Saving... please wait.",
   "esr.showTcSpec": "显示测试用例规格",
+  "esr.tcUpdated": "测试用例已更新。正在刷新执行上下文...",
   "esr.stepAct": "Actions",
   "esr.stepExp": "Expected result",
   "esr.stepNotes": "Notes for this step",

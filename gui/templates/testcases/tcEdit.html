@@ -133,8 +133,26 @@ var ctx = {
   info: null,
   selectedKeywords: {},
   content_modified: false,
-  show_modified_warning: true
+  show_modified_warning: true,
+  // Refs #1479: opened from the Set Results popup (edit-on-execution). When a
+  // save/new-version succeeds, notify the opener (tcView.html 'TestCaseSpec'
+  // popup) which forwards to the exec popup -> it reloads its context. Legacy
+  // parity: testcase.class.php:7447-7460 + testlink_library.js dialog_onUnload.
+  editOnExec: qs('editOnExec') === '1'
 };
+
+// Refs #1479: tell the opener that this test case was modified on-exec so it
+// can refresh itself. Same origin; '*' keeps it simple across named popups.
+function notifyExecPopupUpdated() {
+  if (!ctx.editOnExec || !window.opener || window.opener === window) return;
+  try {
+    window.opener.postMessage({
+      type: 'tcedit-saved',
+      tcase_id: ctx.testcaseId,
+      tcversion_id: ctx.tcversionId
+    }, '*');
+  } catch (e) {}
+}
 
 function markModified() {
   ctx.content_modified = true;
@@ -416,6 +434,7 @@ function doSave() {
       resetModified();
       // reload current version to reflect updates
       ctx.tcversionId = r.tcversion_id || ctx.tcversionId;
+      notifyExecPopupUpdated();
       loadInfo();
     })
     .fail(function (xhr) {
@@ -442,6 +461,7 @@ function doNewVersion() {
       loadOverlay(false);
       if (r.status !== 'ok') { toast(r.message || TLi18n.t('tcedit.errNewVersion'), true); return; }
       ctx.tcversionId = r.tcversion_id;
+      notifyExecPopupUpdated();
       toast(TLi18n.t('tcedit.versionCreated'));
       loadInfo();
     })

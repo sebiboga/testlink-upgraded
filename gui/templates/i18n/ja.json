@@ -451,6 +451,7 @@
   "esr.savedNotRun": "Not Run result - nothing written (legacy behavior).",
   "esr.saving": "Saving... please wait.",
   "esr.showTcSpec": "テストケース仕様を表示する",
+  "esr.tcUpdated": "テストケースが更新されました。実行コンテキストを再読み込みしています...",
   "esr.stepAct": "Actions",
   "esr.stepExp": "Expected result",
   "esr.stepNotes": "Notes for this step",

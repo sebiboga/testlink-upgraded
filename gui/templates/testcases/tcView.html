@@ -117,6 +117,25 @@ var ctx = null;
 var data = null;
 var currentVersion = null;
 
+// Refs #1479: this viewer was opened from the Set Results popup (pencil icon,
+// edit-on-execution). We forward the editor's save notification to our own
+// opener (the exec popup) so it reloads its context — legacy parity with the
+// testlink_library.js dialog_onUnload opener-reload mechanism.
+var execEditMode = qs('editOnExec') === '1';
+
+window.addEventListener('message', function (ev) {
+  if (!ev.data || ev.data.type !== 'tcedit-saved') return;
+  var d = ev.data;
+  // the editor changed this TC: refresh our own view (summary/steps changed)
+  if (data && data.tcase && String(d.tcase_id) === String(data.tcase.id)) {
+    loadView();
+  }
+  // propagate to the exec popup that opened us, if any
+  if (execEditMode && window.opener && window.opener !== window) {
+    try { window.opener.postMessage(d, '*'); } catch (e) {}
+  }
+});
+
 $(function () {
   TLi18n.load(function () {
     TLi18n.apply();
@@ -417,6 +436,7 @@ function openTcBulk() {
 function openTcEdit() {
   var url = '/gui/templates/testcases/tcEdit.html?tcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id + '&tproject_id=' + data.tproject.id;
+  if (execEditMode) url += '&editOnExec=1';
   window.open(url, '_blank', 'width=1024,height=768,resizable=yes,scrollbars=yes');
 }
 

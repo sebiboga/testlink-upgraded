@@ -605,12 +605,27 @@ function openReqWindow(requirementId) {
 // equivalent is the tcView.html viewer (which offers its own Edit button when
 // the user has rights); window name kept 'TestCaseSpec' so repeated clicks
 // reuse the same popup (legacy behavior).
+// Refs #1479: pass editOnExec=1 so tcView.html/tcEdit.html can signal back
+// when the TC was modified; we then reload our context — legacy parity with
+// the dialog_onUnload opener-reload (testcase.class.php:7447-7460).
 function openTcSpecWindow() {
   window.open('/gui/templates/testcases/tcView.html?tcase_id=' + ctx.tcaseId +
-    '&tcversion_id=' + ctx.tcversionId + '&tproject_id=' + ctx.tprojectId,
+    '&tcversion_id=' + ctx.tcversionId + '&tproject_id=' + ctx.tprojectId +
+    '&editOnExec=1&tplan_id=' + ctx.tplanId,
     'TestCaseSpec',
     'width=900,height=700,resizable=yes,scrollbars=yes,dependent=yes');
 }
+
+// Refs #1479: when the on-exec TC edit popup reports a save, reload our
+// context so summary/steps shown here are not stale (legacy dialog_onUnload
+// refreshed top.opener when the TestCaseSpec popup closed).
+window.addEventListener('message', function (ev) {
+  if (!ev.data || ev.data.type !== 'tcedit-saved') return;
+  var d = ev.data;
+  if (String(d.tcase_id) !== String(ctx.tcaseId)) return;
+  loadInfo();
+  toast(TLi18n.t('esr.tcUpdated'));
+});
 
 function openRelHistory(tcaseId) {
   window.open('/gui/templates/execute/execHistory.html?tcase_id=' + tcaseId +

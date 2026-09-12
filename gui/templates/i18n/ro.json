@@ -454,6 +454,7 @@
   "esr.savedNotRun": "Not Run result - nothing written (legacy behavior).",
   "esr.saving": "Saving... please wait.",
   "esr.showTcSpec": "Afișează specificația cazului de test",
+  "esr.tcUpdated": "Cazul de test a fost actualizat. Se reîncarcă contextul de execuție...",
   "esr.stepAct": "Actions",
   "esr.stepExp": "Expected result",
   "esr.stepNotes": "Notes for this step",
