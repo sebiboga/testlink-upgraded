@@ -261,7 +261,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
   in BFF association import (#1407/#1414), legacy twin count(null) guard
   (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407,
-  legacy lib/plan/planImport.php #1433).
+  legacy lib/plan/planImport.php #1433); legacy result rows for a missing
+  Test Case / Test Case Version carried no status element, so the Smarty
+  renderer dereferenced `$result[1]` of a 1-element array and logged
+  `E_WARNING Undefined array key 1` per missing link — the two appends now
+  include the "Not imported" status (legacy lib/plan/planImport.php #1413;
+  the modern BFF `api/planimport` has the same 1-element defect → #1461).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
