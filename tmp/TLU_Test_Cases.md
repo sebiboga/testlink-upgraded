@@ -13527,3 +13527,26 @@ Result: 8/8 PASS — **#886 implemented**: `meta/grants` ships `mgt_view_events`
 | 1412.10 | Hygiene | `php -l` BFF clean; `node --check` on inline JS clean; `events` table has only log_level 16 (INFO) rows — no Error/Warning from these flows; no i18n bundle touched | **PASS** |
 
 Result: 10/10 PASS — **#1412 FIXED** (branch `fix/issue-1412`, commit `c35db8c8d`): BFF `/meta/roles` now exposes `defaultRoleID`, `POST /users` defaults role 0/absent to `default_roleid`, modal preselect helper `presetRole()` used by create+edit, `<inherited>` pseudo-role excluded from the dropdown (legacy `usersEdit.php:85` parity).
+
+## Regression — Issue #1458: Test Strategy chapter "Severity Configuration" — stale 18-chapter note + aside icon
+
+**Screen:** `gui/templates/strategy/testStrategy.html` (General Overview) + `gui/templates/projects/severityConfig.html` + `gui/templates/dashio/aside.tpl`
+**BFF:** `api/strategy/index.php` (`GET ?action=chapters`) + `api/severityconfig/index.php` (`action=projects|GET levels|POST/PUT save`)
+**Bug:** commit `f934433d7` appended chapter 19 (Severity Configuration) to the BFF chapter map, so the General Overview grid renders **19** cards, but the info note `ts.navAdded3` still claimed "All 18 chapters of a Test Strategy are listed below…" in all 10 locale bundles, and the aside sub-menu icon for "Severity Configuration" stayed `fa-exclamation-triangle` (duplicating the Risks chapter) instead of the chapter's `fa-sliders-h`.
+**Fix commits:** `dcdc97105` (this run, branch `fix/issue-1458`).
+**Precondition (2026-09-12, fresh DB):** app @ `http://localhost:8082`, login admin/admin. Fixture: test project `Demo Project` (id 1, prefix DEMO) inserted via SQL; one severity save performed (LOW → label "Minor").
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1458.1 | Pre-fix repro: General Overview note text | Note reads "All 18 chapters of a Test Strategy are listed below; the chapters with a dedicated page can be opened directly." while grid shows 19 cards | **PASS (pre-fix)** — screenshot `docs/screenshots/issue-1458-severity-chapter-stale-note.png` |
+| 1458.2 | Post-fix: General Overview (EN) note | Note reads "The 18 chapters of a Test Strategy and the Severity Configuration chapter are listed below; chapters with a dedicated page can be opened directly." | **PASS** — verified live in mainframe (19 cards, text matches) |
+| 1458.3 | Post-fix: General Overview card count | `.task-card` count = 19; card 19 title "Severity Configuration", desc "The per-project severity scheme and how it is part of the Test Strategy.", Open-chapter href `gui/templates/projects/severityConfig.html` | **PASS** |
+| 1458.4 | Locale switch → Română on the overview | Note = "Cele 18 capitole ale unei Strategii de Testare și capitolul Configurare Severitate sunt listate mai jos; capitolele cu pagină dedicată pot fi deschise direct."; card 19 "Configurare Severitate"; 19 cards | **PASS** |
+| 1458.5 | Bundle validity | `python3 -m json.tool` on all 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh) — valid; `git diff --stat` 1-line change per file | **PASS** |
+| 1458.6 | Aside source icon consistency | `aside.tpl:159` severity sub-item uses `fas fa-sliders-h` (matches BFF + General Overview card + issue icon spec `fa-sliders-h`) | **PASS** (source-level) |
+| 1458.7 | Chapter 19 opens from all entry points | Aside sub-menu, and overview card 19 (EN + RO) both load `gui/templates/projects/severityConfig.html?tproject_id=1`; project selector shows "Demo Project (DEMO)"; levels table shows LOW/MEDIUM/HIGH/CRITICAL | **PASS** |
+| 1458.8 | Severity save regression | Persisted `severityLevels` blob still served (LOW → label "Minor" in table + preview grid); save/reset buttons present; `mgt_modify_product` gate untouched | **PASS** |
+| 1458.9 | Event Viewer | `events` table: only log_level 16 (AUDIT) rows (login, severityConfig_saved) — **no** ERROR(1)/WARNING(2) rows from these flows | **PASS** |
+| 1458.10 | Console hygiene | Browser console on overview + severity pages (EN/RO): zero messages/errors | **PASS** |
+
+Result: **10/10 PASS** — **#1458 FIXED** (branch `fix/issue-1458`, commit `dcdc97105`): the chapter note now recounts 18 chapters + the Severity Configuration chapter in every locale bundle, and the aside icon is aligned to the chapter's `fa-sliders-h`.

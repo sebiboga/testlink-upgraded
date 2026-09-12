@@ -117,3 +117,43 @@ covers all three content screens (overview, scope, exit criteria).
 See `tmp/TLU_Test_Cases.md`:
 - Test Suite 1431 (10/10 PASS) — BFF API, ASIDE routing, card rendering, locale switch
 - Test Suite 1426 (6/6 PASS) — card order/count, open-chapter buttons, locale switch (de + ru, zero literal keys), all-bundle i18n coverage, aside menu integration, Event Viewer clean
+
+## Bugfix — Issue #1458 (chapter counter note + aside icon)
+
+**Symptom:** commit `f934433d7` added the 19th chapter (Severity Configuration)
+to the BFF chapter map, so the grid renders **19** cards, but two leftovers
+remained inconsistent:
+
+1. The overview info note (`ts.navAdded3`) still read *"All 18 chapters of a Test
+   Strategy are listed below…"* in **all 10** locale bundles.
+2. The ASIDE sub-menu item for "Severity Configuration" kept the Risks chapter's
+   `fa-exclamation-triangle` icon instead of the chapter's own `fa-sliders-h`.
+
+**Root cause:** `ts.navAdded3` sat at `en.json:3010` / `ro.json:3010` (and
+`*:3220` in the other 8 bundles) — the same stale sentence carried by all
+bundles from before chapter 19 existed. The aside icon was copied together with
+the *Risks & Mitigation* sub-item block in `aside.tpl:159` and never updated to
+the chapter icon `fa-sliders-h` (the one used by the BFF `api/strategy` chapter
+19 entry and the General Overview card 19).
+
+**Fix commit:** `dcdc97105` (branch `fix/issue-1458`, `Fixes #1458`):
+- `ts.navAdded3` now reads *"The 18 chapters of a Test Strategy and the Severity
+  Configuration chapter are listed below; chapters with a dedicated page can be
+  opened directly."* (native equivalents in ro and the other 8 bundles; 1-line
+  change per file, all `python3 -m json.tool`-valid).
+- `aside.tpl:159` icon: `fas fa-exclamation-triangle` → `fas fa-sliders-h`.
+
+Note on the aside icon: `asideMenu.php`/`asideFrame.tpl` JS rewraps each sub-item
+link with a `<span class="menu-label">` at runtime, which strips `<i>` icons in
+the rendered sub-menu — so the fix aligns the **source** template with the
+chapter icon (visual consistency is enforced elsewhere via the chapter card and
+BFF payload); this is documented, not hidden.
+
+**Regression:** new suite `Regression — Issue #1458` in `tmp/TLU_Test_Cases.md`
+(10/10 PASS): note text EN + RO, card count = 19, all 10 bundles valid, aside
+source icon, chapter 19 opens from aside + overview card (EN + RO), severity
+save regression, `events` table clean, browser console clean.
+
+Screenshots:
+![Severity chapter note — before fix](screenshots/issue-1458-severity-chapter-stale-note.png)
+![Severity chapter note — after fix](screenshots/issue-1458-severity-overview-note-fixed.png)

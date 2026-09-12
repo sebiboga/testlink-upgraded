@@ -238,6 +238,10 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.
+- Test Strategy chapter map: General Overview note now recounts the correct
+  "18 chapters + Severity Configuration chapter" in all 10 locale bundles, and
+  the aside icon for the Severity Configuration sub-item is aligned to the
+  chapter icon `fa-sliders-h` (#1458).
 - planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
   in BFF association import (#1407/#1414), legacy twin count(null) guard
   (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407,
