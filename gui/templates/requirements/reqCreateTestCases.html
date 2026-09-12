@@ -122,7 +122,9 @@ $(function () {
   });
 
   $('#toggleAll').on('change', function () {
-    $('.req-cbox').prop('checked', $(this).prop('checked'));
+    var on = $(this).prop('checked');
+    $('.req-cbox').prop('checked', on);
+    $('#createBtn').prop('disabled', !on);
   });
   $('#createBtn').on('click', createTestCases);
   $('#reqTable').on('change', '.req-cbox', function () {
