@@ -277,10 +277,12 @@ function importTestPlanLinksFromXML(&$dbHandler, &$tplanMgr, $targetFile, $conte
                                 }
                             }
                         } else {
-                            $msg[] = array(sprintf($labels['tcversion_doesnot_exist'], $externalID, $version, $tprojectInfo['name']));
+                            $msg[] = array(sprintf($labels['tcversion_doesnot_exist'], $externalID, $version, $tprojectInfo['name']),
+                                          $labels['not_imported']);
                         }
                     } else {
-                        $msg[] = array(sprintf($labels['tcase_doesnot_exist'], $externalID, $tprojectInfo['name']));
+                        $msg[] = array(sprintf($labels['tcase_doesnot_exist'], $externalID, $tprojectInfo['name']),
+                                      $labels['not_imported']);
                     }
                 }
             }
