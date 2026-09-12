@@ -13780,4 +13780,29 @@ Result: **8/8 PASS** — **#1459 FIXED**: `href_severity_config` now defined in 
 | 1428.6 | i18n hygiene | No new user-facing strings added (no bundle touched); all 10 i18n bundles still valid JSON / strings.txt files syntax-clean | **PASS** |
 | 1428.7 | Event Viewer / console after suite | events `log_level<=8`: only the #1480 `tproject_id` rows (pre-existing, separate issue); browser console clean | **PASS** |
 
-Result: **7/7 PASS** — **#1428 FIXED**: unknown requirement types render as the raw stored code with no E_WARNING; standard types keep their localized label; both themes guarded. Related same-class issues filed separately: **#1480** (`tproject_id` undefined property) and **#1481** (unguarded `reqStatusDomain` status read).
+Result: **8/8 PASS** — **#890 IMPLEMENTED/VERIFIED**: all write operations surface localized success/error feedback matching the legacy `user_feedback` behaviour; BFF returns `feedback_key`; toast + i18n complete.
+
+## Task — Issue #1479: execSetResults on-exec TC edit does not auto-refresh the popup after closing (legacy editOnExec dialog_onUnload parity)
+
+**Gap:** legacy `testcase.class.php:7447-7460` + `gui/javascript/testlink_library.js:712-757` wired the TC-spec viewer opened from the Set Results popup (`openTCaseWindow(...,'editOnExec&tplan_id=…')`) with `dialog_onLoad`/`dialog_onUnload`, which reloaded `top.opener` (the exec popup) when the viewer closed after an edit. The modern `/gui/templates/execute/execSetResults.html` pencil icon (Refs #1400) opened `tcView.html` in the same `TestCaseSpec` popup but WITHOUT the refresh wiring — after an on-exec edit the Set Results popup kept showing the stale summary/steps.
+**Fix:** same-origin `postMessage` chain porting the old opener-reload:
+- `execSetResults.html` `openTcSpecWindow()` now appends `&editOnExec=1&tplan_id=..` to the `tcView.html` URL; a `window` `message` listener (type `tcedit-saved`, matching the current `tcase_id`) re-runs `loadInfo()` (modern equivalent of `top.opener.location` reload) and toasts `esr.tcUpdated`.
+- `tcView.html` detects `editOnExec=1`, appends it to the `tcEdit.html` URL opened by "Edit Version", refreshes its own view on `tcedit-saved`, and forwards the message to `window.opener` (the exec popup).
+- `tcEdit.html` posts `{type:'tcedit-saved', tcase_id, tcversion_id}` to `window.opener` after successful `update` and `create_version` when in `editOnExec` mode.
+- i18n: new `esr.tcUpdated` key in all 10 locale bundles (JSON-validated).
+**Precondition:** admin/admin; fixture `tmp/fixtures_1403.php` run (project ESR1403, plan 7, TC E403-1 tcv 4, open build B-OPEN). DB is freshly imported each run → re-run fixture to replicate. chrome-devtools MCP.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1479.1 | Open Set Results popup (`execSetResults.html?tcase_id=3&version_id=4&id=3&tplan_id=7&setting_build=1&caller=exec_feature`) | Popup renders TC header E403-1, summary "summary for closed build case" | **PASS** |
+| 1479.2 | Click pencil icon ("Show Test Case specification") | `tcView.html` opens in popup with URL containing `editOnExec=1&tplan_id=7`; viewer loads E403-1 | **PASS** |
+| 1479.3 | In viewer click "Edit Version" | `tcEdit.html` opens with URL containing `editOnExec=1` | **PASS** |
+| 1479.4 | Change Summary to `summary for closed build case - UPDATED VIA ON-EXEC EDIT`, click Save | POST `?action=update` returns ok; editor reloads (ok box + toast) | **PASS** |
+| 1479.5 | Assert exec popup auto-refreshed | exec popup issued a second `GET ?action=init` (network reqids), SUMMARY now shows the UPDATED text; toast `esr.tcUpdated` === "Test case updated. Refreshing execution context..." | **PASS** |
+| 1479.6 | Assert viewer auto-refreshed | `tcView.html` issued a second `GET ?action=view`; viewer SUMMARY shows the UPDATED text | **PASS** |
+| 1479.7 | Direct `postMessage({type:'tcedit-saved', tcase_id: ctx.tcaseId})` into exec popup | Toast renders `esr.tcUpdated` text (`TLi18n.t('esr.tcUpdated')` check) | **PASS** |
+| 1479.8 | i18n hygiene | `esr.tcUpdated` present in all 10 locale bundles; every touched bundle `python3 -m json.tool` valid | **PASS** |
+| 1479.9 | JS syntax gate | `node --check` on the inline script of the 3 touched HTML files passes | **PASS** |
+| 1479.10 | Event Viewer / events table | Only INFO audit rows (no new ERROR/WARNING entries during the suite) | **PASS** |
+
+Result: **10/10 PASS** — **#1479 IMPLEMENTED/VERIFIED**: the Set Results popup now auto-refreshes its execution context (summary/steps) after an on-exec test-case edit closes, mirroring the legacy `dialog_onUnload` behavior via a same-origin `postMessage` chain; toast + i18n complete.

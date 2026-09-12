@@ -319,6 +319,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   (`TestCaseSpec` popup) — modern equivalent of the legacy
   `openTCaseWindow(tcase_id,tcversion_id,'editOnExec&tplan_id=…')` link
   (exec_show_tc_exec.inc.tpl:476-481).
+- Set Results popup auto-refresh after on-exec TC edit (Refs #1479): legacy
+  `dialog_onLoad`/`dialog_onUnload` opener-reload parity restored via a
+  same-origin `postMessage` chain — the pencil icon now opens `tcView.html`
+  with `editOnExec=1&tplan_id=..`, `tcEdit.html` notifies its opener after a
+  successful `update`/`create_version`, and `execSetResults.html` re-runs the
+  exec context `init` payload (no stale summary/steps) with a
+  "Test case updated. Refreshing execution context..." toast; new `esr.tcUpdated`
+  key in all 10 locale bundles.
 
 - printDocument.php anonymous api-key deny (Refs #1478): a bogus/unknown
   64-char object api key previously rendered the document (HTTP 200, relative

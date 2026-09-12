@@ -83,6 +83,30 @@ The modern popup mirrors this:
 
 Users without `mgt_modify_tc` see the plain-text title (no icon, no popup).
 
+## Auto-refresh after on-exec TC edit (Refs #1479)
+
+Legacy parity: the legacy `editOnExec` viewer wired `testcase.class.php:7447-7460`
++ `gui/javascript/testlink_library.js:712-757` (`dialog_onLoad`/`dialog_onUnload`)
+so the exec popup auto-refreshed when the `TestCaseSpec` popup closed after an
+edit. Issue #1479 restores that behavior in the modern popup with a same-origin
+`postMessage` signal chain (no backend change):
+
+- **`execSetResults.html`** `openTcSpecWindow()` opens the viewer with
+  `&editOnExec=1&tplan_id=..` and a `message` listener reloads the execution
+  context (`loadInfo()`, the modern equivalent of the legacy `top.opener.location`
+  reload) and shows a toast ("Test case updated. Refreshing execution context...")
+  when a `tcedit-saved` message arrives for the CURRENT test case.
+- **`tcView.html`** detects `editOnExec=1`, appends it to the `tcEdit.html` URL
+  its "Edit Version" button opens, and forwards the editor's `tcedit-saved`
+  notification to `window.opener` (the exec popup) while refreshing its own view.
+- **`tcEdit.html`** after a successful `update` or `create_version`, if
+  `editOnExec=1`, `postMessage({type:'tcedit-saved', tcase_id, tcversion_id})`
+  to `window.opener`.
+
+i18n: `esr.tcUpdated` in all 10 locale bundles.
+
+![Set Results popup after on-exec edit, refreshed](screenshots/issue1479-execpopup-refreshed.png)
+
 ## Screen layout
 
 | Section | Description |
