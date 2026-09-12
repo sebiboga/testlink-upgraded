@@ -253,6 +253,10 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - Requirement type-domain guard in reqCreateTestCases viewers: unknown stored
   req_versions.type (e.g. 'f') now renders as raw code with no E_WARNING
   "Undefined array key" (dashio + tl-classic, #1428).
+- Requirement status-domain guard (status twin of #1428): unknown stored
+  req_versions.status (e.g. 'z') on reqCreateTestCases + reqView versions/revision
+  viewers now renders as raw code with no E_WARNING "Undefined array key"
+  (dashio + tl-classic, #1481).
 - Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
   shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
 - Security: stored XSS in tcView (#804), usersView (#1406/#1430), login/firstLogin
