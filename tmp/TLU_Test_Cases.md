@@ -13507,3 +13507,23 @@ Result: 10/10 PASS — **#1402 implemented**: BFF `init` now ships `save_and_mov
 
 Result: 8/8 PASS — **#886 implemented**: `meta/grants` ships `mgt_view_events`, edit modal gained a right-gated "Show event history" button (matching userInfo.html/planMilestones.html pattern), the hidden GET form drills into the Event Viewer pre-filtered on `object_id`+`object_type=users`.
 
+## Regression — Issue #1412: Create User assigns reserved role 1 instead of default_roleid
+
+**Screen:** `gui/templates/usermanagement/usersView.html` + BFF `api/users/index.php` (`/meta/roles`, `POST /users`, `PUT /users/{id}`).
+**Legacy parity:** `gui/templates/dashio/usermanagement/usersEdit.tpl:240-243` → when `globalRoleID eq 0` preselect `$tlCfg->default_roleid` (`config.inc.php:1968` = `TL_ROLES_GUEST` = 5, `cfg/const.inc.php:521`); `lib/usermanagement/usersEdit.php:85` drops the `<inherited>` pseudo-role (`unset($roles[TL_ROLES_UNDEFINED])`).
+**Precondition (2026-09-12):** fresh import; roles 1..9 in DB (`1 <reserved system role 1>`, 5 guest, 4 test designer, ...); login admin/admin; screen `http://localhost:8082/gui/templates/usermanagement/usersView.html?tproject_id=0&tplan_id=0`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1412.1 | Pre-fix repro: open Create User modal leaving Global Role untouched, Save | DB new user `role_id=1` (no-rights reserved role) | **PASS (pre-fix)** — `reprouser` created with `role_id=1` |
+| 1412.2 | `GET /api/users/meta/roles` (post-fix) | HTTP 200, `defaultRoleID:5`, 9 items ids 1..9, **no** id 0 `<inherited>` | **PASS** |
+| 1412.3 | Create User modal preselection (post-fix) | Global Role = **guest** (value 5), not `<reserved system role 1>` | **PASS** → screenshot `docs/screenshots/issue-1412-create-modal-preselect-guest-fixed.png` |
+| 1412.4 | Create user leaving default role (UI) | DB new user `role_id=5` | **PASS** — `fixuser` → 5 |
+| 1412.5 | Create user selecting explicit role "test designer" (UI) | DB new user `role_id=4` (explicit choice preserved) | **PASS** — `designeruser` → 4 |
+| 1412.6 | API `POST /users` **without** `globalRoleID` | DB new user `role_id=5` (not 0) | **PASS** — `apinorole` → 5 |
+| 1412.7 | API `POST /users` with `globalRoleID: 0` | DB new user `role_id=5` | **PASS** — `apizerorole` → 5 |
+| 1412.8 | Edit user with a stored valid role (reprouser, role 1) | Modal shows `<reserved system role 1>`; Save preserves role 1 | **PASS** |
+| 1412.9 | User with legacy `role_id=0` (DB UPDATE), open edit modal | Modal preselects **guest** (5); Save persists `role_id=5` | **PASS** — `apizerorole` 0 → 5 after save |
+| 1412.10 | Hygiene | `php -l` BFF clean; `node --check` on inline JS clean; `events` table has only log_level 16 (INFO) rows — no Error/Warning from these flows; no i18n bundle touched | **PASS** |
+
+Result: 10/10 PASS — **#1412 FIXED** (branch `fix/issue-1412`, commit `c35db8c8d`): BFF `/meta/roles` now exposes `defaultRoleID`, `POST /users` defaults role 0/absent to `default_roleid`, modal preselect helper `presetRole()` used by create+edit, `<inherited>` pseudo-role excluded from the dropdown (legacy `usersEdit.php:85` parity).
