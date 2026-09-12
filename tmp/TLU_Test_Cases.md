@@ -13640,3 +13640,20 @@ Result: **11/11 PASS** — **#1401 IMPLEMENTED**: BFF `?action=save_partial` + i
 | 888.8 | Event Viewer / console after suite | No new Error/Warning entries in `events` table; browser console clean during modal interactions | **PASS** |
 
 Result: **8/8 PASS** — **#888 IMPLEMENTED**: BFF POST create rejects `setPassword()<tl::OK` with HTTP 400 `warning_empty_pwd` before `writeToDB()`; modal marks password `required` on create and blocks empty save with `user.passwordRequired` (also mapped from server 400); edit path unchanged (password optional); i18n key added ×10 bundles.
+
+## Regression — Issue #1461: planImport (modern) results table renders blank/'undefined' status for missing TC/version links
+
+**Screen:** `gui/templates/plans/planImport.html` + BFF `api/planimport/index.php`.
+**Defect (same class as #1413, different surface):** `processTestcaseExeBff()` appended 1-element `array(msg)` entries at `:280` (`tcversion_doesnot_exist`) and `:283` (`tcase_doesnot_exist`); the JS renderer `planImport.html:248-250` dereferences `r[1]` unconditionally → `esc(undefined)` = blank status cell in the report table.
+**Precondition:** fresh-DB fixture `php tmp/fixtures_pimp.php` → tproject PIMP(1), tplan PIMP-Plan(12), platform PIMP-Android(1); admin/admin session; NOT yet re-imported otherwise.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1461.1 | Pre-fix (HEAD before b0857ec47): open `planImport.html?tproject_id=1&tplan_id=12`, upload `tmp/pimp_xml/regr1390.xml` | Rows "external id 1 version 99 does not exist" and "Can not find test case identified by 777" render an **empty** status `<td>` (payload rows are 1-element arrays; API JSON `result_map[2],result_map[3]` lack the status element) | **PASS (reproduced)** |
+| 1461.2 | Post-fix: same upload | Both rows render **`Not imported`**; API JSON now emits `["...version 99 does not exist...","Not imported"]` and `["...identified by 777","Not imported"]` (2-element) | **PASS** |
+| 1461.3 | Valid route unaffected | Already-linked/OK row still renders `OK`; first-import link rows render `OK` | **PASS** |
+| 1461.4 | No-platform link row still correct | "Test case link #4 has no platform element" → `Not imported` | **PASS** |
+| 1461.5 | i18n hygiene | No new bundle keys (reuses existing `not_imported`); no bundle files touched | **PASS** |
+| 1461.6 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → 0 new Error/Warning rows (only `log_level=16` audits present); browser console clean | **PASS** |
+
+Result: **6/6 PASS** — **#1461 FIXED**: `api/planimport/index.php:280,283` now append `$labels['not_imported']` as the status element (same pattern as the #1413 legacy fix); report table renders a status for every row.
