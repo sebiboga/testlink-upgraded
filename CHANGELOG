@@ -280,6 +280,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   The modern BFF `api/planimport` carried the same 1-element defect
   (`index.php:280,283`), which rendered a blank/`undefined` status in the
   modern report table status column — now fixed identically (#1461).
+- Set Results popup requirement link (`execSetResults.html:579`): the last
+  remaining legacy screen reference reachable from a modern UI —
+  `openReqWindow()` opened `/lib/requirements/reqView.php?showReqSpecTitle=1`.
+  Switched to the modern `reqView.html?id=..&tproject_id=..`; the `/view` BFF
+  already renders the requirement spec title (r.spec_path) in the Overview
+  card, superseding the legacy `showReqSpecTitle=1` flag (#1477).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------

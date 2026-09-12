@@ -13658,28 +13658,20 @@ Result: **8/8 PASS** — **#888 IMPLEMENTED**: BFF POST create rejects `setPassw
 
 Result: **6/6 PASS** — **#1461 FIXED**: `api/planimport/index.php:280,283` now append `$labels['not_imported']` as the status element (same pattern as the #1413 legacy fix); report table renders a status for every row.
 
-## Suite — Issue #1462: Non-Functional Requirements module (screen `gui/templates/requirements/nfrRequirements.html` + BFF `api/nfr/index.php`)
+## Suite #1477 — Set Results popup: Requirement link opens modern reqView.html (reqView.php link switch)
 
-**Screen:** per-type NFR requirements CRUD for a test project (Dashio) with per-type chips, DataTable, create/edit modal, delete confirm, locale switching, permission gating.
-**Precondition:** fresh-DB fixture `NFRProj` (id=1) with rows: security "Login page response time" (Approved), usability "Touch targets" (Waived); admin/admin session; viewer user (id=2, no project rights) for 403 paths.
+**Screen:** `gui/templates/execute/execSetResults.html` `openReqWindow()` + modern `gui/templates/requirements/reqView.html` (BFF `api/requirements/index.php` `GET /view`).
+**Change:** the last legacy screen reference reachable from the modern UI — `openReqWindow()` opened `/lib/requirements/reqView.php?showReqSpecTitle=1&requirement_id=..&tproject_id=..`. Switched to `/gui/templates/requirements/reqView.html?id=..&tproject_id=..`; reqView.html renders the requirement spec path (`r.spec_path`) in the Overview card, superseding the legacy `showReqSpecTitle=1` flag.
+**Precondition:** fixtures `php tmp/fixtures_1403.php` + `php tmp/fixtures_1477.php` → tproject ESR1403(1), tplan(7), TC(3)/tcversion(4), requirement E403-RQ100(10) linked to TC3 via req_coverage; admin/admin session.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1462.1 | Open `nfrRequirements.html?tproject_id=1` as admin | Header/sub, project selector (NFRProj), 7 type chips with counts (All=2, Security=1, Usability=1), Add button enabled, empty/count footer, DataTable with 2 rows incl. badges (Security/Usability, Approved/Waived) | **PASS** |
-| 1462.2 | Select project (or URL) with `tproject_id` | Screen title = "NFRProj - Non-Functional Requirements"; URL keeps `tproject_id` | **PASS** |
-| 1462.3 | Click **+ Add requirement**, fill Title (+type/status/target/threshold/source/desc), Save | Modal closes; toast "Requirement saved."; new row appears; type chip count increments | **PASS** |
-| 1462.4 | **Add** with empty Title → Save | Toast "Title is required."; no request sent; modal stays open | **PASS** |
-| 1462.5 | Click **Edit** on a row | Modal pre-fills via `?action=item` (title/desc/type/status/target/threshold/source); change status to Approved → Save | Row shows updated status + "Updated" timestamp, toast "Requirement saved." | **PASS** |
-| 1462.6 | Click **Delete** on a row → confirm in delete modal | Toast "Requirement deleted."; row removed; "All types" and per-type counts decremented; AUDIT `NFR_DELETE` row in `events` | **PASS** |
-| 1462.7 | Type chip **Performance** | URL gains `type=performance`; only performance rows listed; empty-state message when none; counts on all chips unchanged | **PASS** |
-| 1462.8 | Chip **All types** | Filter cleared (`type` param removed); all rows of project visible | **PASS** |
-| 1462.9 | Locale switch to **Română** (or ?locale=ro) | All header/toolbar/modals/chips/statuses/types translate ("Cerințe non-funcționale", "Titlu", "Securitate", "Aprobat", "Derogat"); browser title updates | **PASS** |
-| 1462.10 | BFF auth: no session cookie on `GET ?action=list&tproject_id=1` | HTTP 401 `{message:"Not authenticated"}` | **PASS** |
-| 1462.11 | BFF rights viewer: list / item / create as viewer (no rights on project) | HTTP 403 `{message:"No permission"}` on all three | **PASS** |
-| 1462.12 | BFF errors: `action=bogus`; `item&id=9999`; `list&tproject_id=999`; `list&type=bogus`; delete without id (admin) | 400 Unknown action / 404 Requirement not found / 404 Test project not found / 400 Unknown NFR type / 400 Requirement ID required | **PASS** |
-| 1462.13 | Screen as viewer: open page | Add disabled / no edit-delete buttons (or 403 toast), no data leak | **PASS** |
-| 1462.14 | Print/view rendering | Search box + DataTable sortable headers + pagination present; footer "N requirement(s) | Generated on ..." | **PASS** |
-| 1462.15 | Event Viewer | `SELECT * FROM events WHERE activity LIKE 'NFR_%'` shows NFR_CREATE/UPDATE/DELETE at log_level 16 only; zero new Error/Warning (log_level<=3) rows during the suite | **PASS** |
-| 1462.16 | i18n hygiene | `nfr.*` + `footers.nfr` present in all 10 client bundles; `$TLS_href_nfr_requirements` in all 19 strings.txt; all JSON/strings valid | **PASS** |
+| 1477.1 | Open `execSetResults.html?tcase_id=3&version_id=4&level=testcase&id=3&tplan_id=7&setting_build=1&setting_platform=0&caller=exec_feature` | "LINKED REQUIREMENTS" section renders `ESR1403 Req Spec : E403-RQ100 : ESR1403 Sample Requirement [Version 1]` (req available via setup BFF) | **PASS** |
+| 1477.2 | Click the linked-requirement link | `window.open` targets **modern** `/gui/templates/requirements/reqView.html?id=10&tproject_id=1` (NOT `/lib/requirements/reqView.php`) | **PASS** |
+| 1477.3 | New popup (page 2) loads | Title "Requirement Viewer", header shows project `ESR1403`, overview renders `E403-RQ100 / ESR1403 Sample Requirement` | **PASS** |
+| 1477.4 | Spec title parity (legacy `showReqSpecTitle=1`) | "REQUIREMENT SPEC" card in Overview shows `ESR1403 Req Spec` | **PASS** |
+| 1477.5 | Popup detail completeness | Scope card shows the fixture scope; Linked Test Cases table lists `ESR Closed Build TC`; Monitors card rendered; footer "Generated on…" present | **PASS** |
+| 1477.6 | Regression: legacy popup palette unaffected | Set Results popup still shows Build selector, steps table, overall-result buttons, Save/Cancel — no JS errors on either page | **PASS** |
+| 1477.7 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → 0 new Error/Warning rows; browser console clean (only benign a11y "form field should have id/name" audit hint) | **PASS** |
 
-Result: **16/16 PASS** — **#1462 (Part B) IMPLEMENTED**: BFF CRUD + lazy schema + rights (mgt_view_req read / mgt_modify_req write) + AUDIT events; Dashio screen with per-type chips, DataTable, modals; i18n in 10 bundles + 19 server locales; aside entry under Requirements Design gated `reqs_view`; screenshots in wiki.
+Result: **7/7 PASS** — **#1477 DONE**: `openReqWindow()` now opens the modern `reqView.html`; closes the last `lib/**.php` screen reference in the modern UI.
