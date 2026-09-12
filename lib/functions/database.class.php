@@ -681,7 +681,7 @@ class database {
       {
         // -----------------------------------------------
                 // Error management Code         
-                if( !isset($row[$column]) )
+                if( !array_key_exists($column,$row) )
                 {
                 $errorMsg .= 'missing column:' . $column;
               $errorMsg .= ' - SQL:' . $sql;

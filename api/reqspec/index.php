@@ -500,7 +500,7 @@ if ($method === 'GET' && $action === 'spec_view') {
             if (is_array($value)) { $value = implode(', ', $value); }
             $value = preg_replace('!\s+!', ' ', trim((string)$value));
             if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
-                $value = tlStrftime(config_get($vType), intval($value));
+                $value = tlStrftime($vType == 'date' ? config_get('date_format') : config_get('timestamp_format'), intval($value));
             }
             $cfields[] = [
                 'name'  => $cf['name'],
@@ -669,7 +669,7 @@ if ($method === 'GET' && $action === 'spec_revision_view') {
             if (is_array($value)) { $value = implode(', ', $value); }
             $value = preg_replace('!\s+!', ' ', trim((string)$value));
             if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && intval($value) != 0) {
-                $value = tlStrftime(config_get($vType), intval($value));
+                $value = tlStrftime($vType == 'date' ? config_get('date_format') : config_get('timestamp_format'), intval($value));
             }
             $cfields[] = [
                 'name'  => $cf['name'],

@@ -446,7 +446,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'overview') {
                         // here rendered e.g. A&B as A&amp;B)
                         $value = preg_replace('!\s+!', ' ', $cf['value']);
                         if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && $value != 0) {
-                            $format = config_get($vType);
+                            $format = $vType == 'date' ? config_get('date_format') : config_get('timestamp_format');
                             $value = tlStrftime($format, intval($value));
                         }
                         $cfValues[$cf['name']] = $value;
@@ -590,7 +590,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
                 // raw value: the client escapes it (no double-encoding)
                 $value = preg_replace('!\s+!', ' ', $cf['value']);
                 if (($vType == 'date' || $vType == 'datetime') && is_numeric($value) && $value != 0) {
-                    $value = tlStrftime(config_get($vType), intval($value));
+                    $value = tlStrftime($vType == 'date' ? config_get('date_format') : config_get('timestamp_format'), intval($value));
                 }
                 $cfValues[$cf['name']] = $value;
             }
