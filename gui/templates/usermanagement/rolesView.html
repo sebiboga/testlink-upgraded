@@ -141,6 +141,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 var API = '/api/roles/index.php';
 var table = null;
 var rightsMap = {};
+var allItems = [];
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -176,6 +177,7 @@ function loadMeta() {
 
 function loadRoles() {
   $.getJSON(API, function(r) {
+    allItems = r.items;
     renderTable(r.items);
     $('#footerText').text(TLi18n.t('role.rolesCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   });
@@ -200,7 +202,7 @@ function renderTable(items) {
       : '<span class="badge-custom">' + TLi18n.t('role.custom') + '</span>';
     var deleteBtn = r.isSystem
       ? ''
-      : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ', \'' + r.name.replace(/'/g, "\\'") + '\')"></i>';
+      : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ')"></i>';
     rows.push([
       r.id,
       esc(r.name),
@@ -296,7 +298,11 @@ function saveRole() {
   });
 }
 
-function confirmDelete(id, name) {
+function confirmDelete(id) {
+  var name = '';
+  if (allItems) {
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+  }
   $.getJSON(API + '/' + id + '/users', function(r) {
     var items = r.items || [];
     var userCount = items.length;
