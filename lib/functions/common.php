@@ -1339,7 +1339,16 @@ function setUpEnvForAnonymousAccess(&$dbHandler,$apikey,$rightsCheck=null,$opt=n
     break;
 
     default:
-      $tk[] = (intval($rightsCheck->args->tplan_id) != 0) ? 'testplan' : 'testproject';
+      // Refs #1416: a 64-char object api key is bound to ONE entity
+      // (testproject or testplan). The paranoic primary is chosen from the
+      // request shape (plan report -> testplan), but the key may belong to
+      // the other entity; always keep the counterpart as a fallback candidate
+      // so a testprojects.api_key plan report still initializes the anonymous
+      // session (basehref included) instead of failing to render.
+      $primary = (intval($rightsCheck->args->tplan_id) != 0) ? 'testplan' : 'testproject';
+      $tk = ('testplan' == $primary)
+          ? array('testplan','testproject')
+          : array('testproject','testplan');
     break;
   }
 
