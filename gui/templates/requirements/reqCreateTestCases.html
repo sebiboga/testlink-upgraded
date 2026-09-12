@@ -208,8 +208,8 @@ function render() {
           esc(it.req_doc_id) + ' : ' + esc(it.title) + '</a>'))
       .append($('<td>').html(badge(it.status)))
       .append($('<td>').text(it.type))
-      .append($('<td>').html('<input class="count-inp tc-count" data-id="' + it.id + '" type="text"
-        maxlength="3" value="1">'))
+      .append($('<td>').html('<input class="count-inp tc-count" data-id="' + it.id +
+        '" type="text" maxlength="3" value="1">'))
       .append($('<td>').html(needed))
       .append($('<td>').text(it.coverage))
       .append($('<td>').text(it.coverage_percent + '%'));
