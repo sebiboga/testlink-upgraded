@@ -402,6 +402,9 @@ function showCreateModal() {
   $('#editEmail').val('');
   $('#editPassword').val('');
   $('#pwLabel').text('*');
+  // Legacy parity: usersEdit.tpl:217-227 marks the password input required on
+  // create (check_password=1, validateForm rejects empty with warning_empty_pwd).
+  $('#editPassword').prop('required', true);
   presetRole(defaultRoleID);
   $('#editLocale').val('en_GB');
   $('#editAuth').val('');
@@ -424,6 +427,9 @@ function editUser(id) {
     $('#editEmail').val(u.email);
     $('#editPassword').val('');
     $('#pwLabel').text('(leave empty to keep)');
+    // Legacy parity: password is optional on edit (leave empty to keep); only
+    // the create form requires it (usersEdit.tpl:153-165 check_password=0).
+    $('#editPassword').prop('required', false);
     presetRole(u.globalRoleID);
     $('#editLocale').val(u.locale);
     $('#editAuth').val(u.authentication || '');
@@ -598,7 +604,20 @@ function saveUser() {
     active: $('#editActive').is(':checked'),
   };
   var pw = $('#editPassword').val();
-  if (pw) data.password = pw;
+  // Legacy parity: usersEdit.tpl validateForm(f,check_password=1) blocks the
+  // create submit with warning_empty_pwd when the password is empty; the BFF
+  // re-checks E_PWDEMPTY server-side (400 warning_empty_pwd). On edit the
+  // password stays optional ("leave empty to keep").
+  if (!id) {
+    if (!pw) {
+      $('#modalError').text(TLi18n.t('user.passwordRequired')).show();
+      $('#editPassword').focus();
+      return;
+    }
+    data.password = pw;
+  } else if (pw) {
+    data.password = pw;
+  }
   // Only send the expiration date when the field is visible (it is hidden for
   // noExpDateUsers logins e.g. admin; the BFF refuses to set it anyway).
   if ($('#expDateGroup').is(':visible')) {
@@ -626,6 +645,8 @@ function saveUser() {
       } catch(e) {}
       if (code === 'demo_mode') {
         msg = TLi18n.t('user.demoUpdateDisabled');
+      } else if (code === 'warning_empty_pwd') {
+        msg = TLi18n.t('user.passwordRequired');
       }
       $('#modalError').text(msg).show();
     }

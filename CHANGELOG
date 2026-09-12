@@ -210,6 +210,9 @@ NEW FEATURES
   (resultsTCFlat #1223, resultsGeneral #1246, charts #1258, execTimelineStats
   #1273, reportPrint #1408).
 - Reset Password and Generate API Key user actions in User Management (#884/#885).
+- User Management: password required to create a user (legacy parity, #888) —
+  BFF rejects `E_PWDEMPTY` with HTTP 400 and the create modal blocks empty
+  passwords client-side (i18n `user.passwordRequired` in all 10 bundles).
 - Create-test-project-from-existing (copy_as) (#989).
 - Send-report-by-email toolbar action (Results TC Flat #1219/#1223).
 - Multi-column drag-to-toolbar sorting in Test Plan with Custom Fields report

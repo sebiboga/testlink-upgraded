@@ -174,6 +174,18 @@ Legacy `usersEdit.tpl:268-304` let the admin choose the authentication method (D
 
 Screenshots: `docs/screenshots/issue-882-create-modal-auth-expdate.png`, `docs/screenshots/issue-882-edit-admin-exp-hidden.png`, `docs/screenshots/issue-882-grid-expiration-dates.png`.
 
+### Password required on create (issue #888)
+
+Legacy creates a user only with a **non-empty password**: the create form blocks submit with `warning_empty_pwd` (`usersEdit.tpl:153-155` sets `check_password=1`, `validateForm` hook, password input `required`) and the server rejects empty passwords — `doCreate()` checks `setPassword()` and treats `tlUser::E_PWDEMPTY` (< 0) as a failure, so `writeToDB()` never runs (`usersEdit.php:153-171`).
+
+The modern screen now enforces the same rule on **both** layers:
+
+- **BFF** (`api/users/index.php`, POST create): the `setPassword()` return value is checked — anything `< tl::OK` (i.e. `E_PWDEMPTY` = "The password must not be empty!") returns HTTP 400 `{status:error, code:'warning_empty_pwd', message:<legacy string>}` **before** `writeToDB()`, so no blank-password row can be persisted (not even via a direct API POST). `S_PWDMGTEXTERNAL` (2 >= OK) remains allowed, matching legacy `doCreate`, which validates the password against the configured default auth method.
+- **UI** (`usersView.html`): the password input carries `required` in the create modal (removed again on edit — "leave empty to keep"), and `saveUser()` blocks an empty-password create client-side with the localized `user.passwordRequired` message, focusing the field — mirroring legacy `validateForm(f, check_password=1)`.
+- **i18n**: new key `user.passwordRequired` in all 10 locale bundles, used for both the client-side block and the server 400 mapping.
+
+Screenshots: `docs/screenshots/issue-888-create-blank-password-blocked.png`, `docs/screenshots/issue-888-create-with-password-ok.png`.
+
 ### Demo Mode (read-only gating, issue #887)
 
 When `$tlCfg->demoMode = ON;` in `config.inc.php` the whole User Management

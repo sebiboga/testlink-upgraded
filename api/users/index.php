@@ -297,7 +297,21 @@ if ($method === 'POST' && empty($segments)) {
     $u->authentication = $body['authentication'] ?? '';
     // setPassword() runs the value through password_hash() itself - hashing
     // here too would store bcrypt(md5(pwd)), which login can never verify.
-    $u->setPassword($body['password'] ?? '');
+    // Legacy parity: lib/usermanagement/usersEdit.php:153-171 doCreate() checks
+    // the setPassword() status and refuses to create the row on error -
+    // E_PWDEMPTY (-64 < tl::OK) yields 'warning_empty_pwd' ("The password must
+    // not be empty!"). S_PWDMGTEXTERNAL (2 >= tl::OK) stays allowed because
+    // external password-mgmt auth domains (LDAP) legitimately create users with
+    // no local password.
+    $pwStatus = $u->setPassword($body['password'] ?? '');
+    if ($pwStatus < tl::OK) {
+        http_response_code(400);
+        out([
+            'status' => 'error',
+            'code' => 'warning_empty_pwd',
+            'message' => getUserErrorMessage($pwStatus),
+        ]);
+    }
 
     $result = $u->writeToDB($db);
     if ($result >= tl::OK) {

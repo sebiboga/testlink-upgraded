@@ -13621,3 +13621,22 @@ Result: **3/3 PASS** — **#1438/#1439 FIXED**: `reqprint.*` (11 keys × 10 bund
 | 1401.11 | Event Viewer / console | No new Error/Warning in `events` table; console only pre-existing a11y hints (file inputs lack labels), no JS errors | **PASS** |
 
 Result: **11/11 PASS** — **#1401 IMPLEMENTED**: BFF `?action=save_partial` + init feature flags + per-step prior attachments; screen file uploader / WIP warning + button / FormData save (per-step files as `uploadedFile[<sid>][]`); WIP cleared on full save; closed-build gating; `esr.*` keys (6 × 10 bundles).
+
+## Task — Issue #888: Require password when creating a user in User Management (gap vs legacy)
+
+**Screen:** `gui/templates/usermanagement/usersView.html` + BFF `api/users/index.php`.
+**Feature ported from legacy:** legacy `doCreate` (lib/usermanagement/usersEdit.php:153-171) checks `setPassword()` — `E_PWDEMPTY` aborts creation ("warning_empty_pwd"); create form marks password required and `validateForm(f, check_password=1)` blocks empty (`usersEdit.tpl:153-227`). Modern modal previously created active users with `password=''`.
+**Precondition:** admin/admin session on `usersView.html?tproject_id=0&tplan_id=0`; fresh DB.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 888.1 | Open **+ Create User**, fill Login/First/Last/Email, **leave Password empty** → Save | Modal stays open; inline localized error **"Password is required when creating a user."**; password field focused; **no** user row created | **PASS** |
+| 888.2 | BFF parity: `POST /api/users/index.php` with `password:""` (admin cookie) | HTTP 400 `{status:error, code:'warning_empty_pwd', message:'The password must not be empty!'}`; no DB row | **PASS** |
+| 888.3 | Same POST with `password:'Secret123!'` | HTTP 200 `{status:'ok'}`; DB row has `LENGTH(password)=60` (bcrypt), active=1 | **PASS** |
+| 888.4 | Create via modal WITH password (`Strong#2026`) | User created, appears in grid, bcrypt hash stored | **PASS** |
+| 888.5 | Edit an existing user (Manage-user lookup), password field empty + `required` removed ("leave empty to keep") | Save 200; profile fields update, existing password hash **unchanged** (pwlen 60) | **PASS** |
+| 888.6 | Login validation still enforced (empty login/first/last/email on create) | `user.validation.required` inline error, no request sent | **PASS** |
+| 888.7 | i18n hygiene | `user.passwordRequired` present and identical translated in all 10 bundles; all bundles valid JSON | **PASS** |
+| 888.8 | Event Viewer / console after suite | No new Error/Warning entries in `events` table; browser console clean during modal interactions | **PASS** |
+
+Result: **8/8 PASS** — **#888 IMPLEMENTED**: BFF POST create rejects `setPassword()<tl::OK` with HTTP 400 `warning_empty_pwd` before `writeToDB()`; modal marks password `required` on create and blocks empty save with `user.passwordRequired` (also mapped from server 400); edit path unchanged (password optional); i18n key added ×10 bundles.

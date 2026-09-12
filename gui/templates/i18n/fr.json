@@ -3297,5 +3297,6 @@
   "esr.partialExecWarn": "ATTENTION: When saving Steps Work In Progress Execution, Attachments will not be saved",
   "esr.partialSaved": "Steps Work In Progress Execution saved.",
   "esr.savePartialExec": "Save Steps Work In Progress Execution",
-  "esr.stepFiles": "Step attachments:"
+  "esr.stepFiles": "Step attachments:",
+  "user.passwordRequired": "Un mot de passe est requis lors de la création d'un utilisateur."
 }
