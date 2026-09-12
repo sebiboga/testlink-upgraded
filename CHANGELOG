@@ -310,6 +310,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `error_print_doc_invalid_apikey` string in en_US/en_GB strings.txt) and zero
   event pollution — valid anonymous and session renders left untouched.
 
+- ASIDE Severity Configuration label i18n gap (Refs #1459): the Smarty key
+  `href_severity_config` existed only in `locale/en_GB/strings.txt`, so the
+  Test-Strategy ASIDE sub-item rendered in English in every non-en_GB locale
+  (silent lang_get() fallback). The key is now defined with a native
+  translation in all 18 non-en_GB locale `strings.txt` bundles (ro_RO
+  "Configurare severitate", de_DE "Schweregrad-Konfiguration", cs_CZ in the
+  file's real cp1250 bytes, ...).
+
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
 This CHANGELOG must be updated by every run that lands feature work on the
