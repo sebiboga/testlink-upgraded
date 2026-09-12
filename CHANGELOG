@@ -292,7 +292,8 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   identically (#1484).
 - Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
   shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
-- Security: stored XSS in tcView (#804), usersView (#1406/#1430), login/firstLogin
+- Security: stored XSS in tcView (#804), usersView (#1406/#1430), rolesView
+  delete-cell onclick attribute breakout (#1432), login/firstLogin
   SQLi (#702), addslashes-raw-output weak filter (#706), guest login 500 (#985),
   BFF CSRF + session-cookie hardening (#591), API key authentication fix (#595),
   apikey isolation on reports (#1261/#1267).
