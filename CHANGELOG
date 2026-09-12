@@ -340,6 +340,13 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   "18 chapters + Severity Configuration chapter" in all 10 locale bundles, and
   the aside icon for the Severity Configuration sub-item is aligned to the
   chapter icon `fa-sliders-h` (#1458).
+- Test Strategy chapter pages (20 files under `gui/templates/strategy/`):
+  they never loaded jQuery while both `i18n.js` and the inline bootstrap
+  depend on it, so inside the mainframe iframe every chapter page threw
+  `ReferenceError: $ is not defined`, showed only English fallback text and
+  never rendered the locale switcher — the jQuery include the hub page already
+  had (`testStrategy.html:72`) is now present on all chapter pages before
+  `i18n.js`, restoring translation + locale switcher on every chapter (#1457).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom

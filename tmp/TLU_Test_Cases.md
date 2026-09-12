@@ -14024,3 +14024,33 @@ screen is modernized end-to-end (BFF `api/testautomationspec`, screen
 `hasRight()` on the URL tproject id, try/catch JSON 500 on generation, 404-answered-before-403,
 null-guarded tcversions/importance, `view_tc` menu gate, removed dead `#formPanel` hide + DataTables
 asset/class leftovers.
+
+## Regression — Issue #1457: Test Strategy chapter pages throw `ReferenceError: $ is not defined` and never apply i18n (missing jQuery)
+
+Precondition: TestLink running at http://localhost:8082, logged in as admin/admin, fresh-import DB.
+Environment: PHP built-in server, headless Chrome. Fix branch `fix/issue-1457` (commit `1ee2e0501`).
+
+Pre-fix repro (the symptom the fix removes): browsing to
+`gui/templates/strategy/release.html` in the mainframe iframe produced
+`Uncaught ReferenceError: $ is not defined` on every chapter page; the page
+kept only the hard-coded English fallback text, the top-right locale switcher
+was empty and `#footerInfo` blank.
+
+| # | Step | Expected post-fix result | Result |
+|---|------|--------------------------|--------|
+| 1457.1 | Aside → Test Strategy → **Release** | Chapter page loads in the mainframe iframe; browser console shows **no** errors (no `$ is not defined`) | **PASS** |
+| 1457.2 | `release.html` English render | Title "Release Information", header sub "planned releases and go/no-go criteria", cards "Release plan" (3 bullets) and "Go / no-go" (3 bullets), footer "Release Information - Test Strategy"; top-right **locale switcher** dropdown rendered | **PASS** |
+| 1457.3 | `release.html?locale=ro` | Title "Informații de Livrare", header sub "release-uri planificate și criterii go/no-go", card "Plan de livrare", "Înapoi la Strategia de Testare" back-link; switcher shows "Română" selected | **PASS** |
+| 1457.4 | In-shell locale switch | Changing the switcher to **Română** reloads with `?locale=ro` and the mainframe translates to Romanian (evidence of live i18n) | **PASS** |
+| 1457.5 | Sibling chapter pages `intro.html`, `bugLifecycle.html` (`?locale=en`) | Both load with zero console errors; locale switcher rendered | **PASS** |
+| 1457.6 | Hub round-trip | Hub `testStrategy.html` still renders all 21 cards + generated-on footer; chapter links point at `gui/templates/strategy/*.html` | **PASS** |
+| 1457.7 | Static gate | `grep -c code.jquery.com gui/templates/strategy/*.html` → 21 files (all 20 chapter pages + hub), i.e. every chapter page includes the same jQuery as the hub | **PASS** |
+| 1457.8 | Event Viewer / console | `events` table gains **no** new ERROR/WARNING (log_level) rows during the suite (only the pre-existing login INFO row); browser console clean on every verified page | **PASS** |
+
+Result: **8/8 PASS** — **#1457 DONE**: all 20 Test Strategy chapter pages now
+load jQuery (`https://code.jquery.com/jquery-3.7.1.min.js`) before `i18n.js`,
+so `TLi18n.load()` executes inside the mainframe iframe: translations of the
+active locale, the locale switcher and the footer init all work. The hub page
+already had the include; the 20 chapter pages generated in `f934433d7`
+(Refs #1426, #1440-#1458) silently depended on it. Fix is one added line per
+file, identical URL to the hub — no layout/behavioral change otherwise.
