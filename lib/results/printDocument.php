@@ -331,7 +331,16 @@ function init_args(&$dbHandler) {
     } else {
       $args->addOpAccess = false;
       $cerbero->method = null;
-      setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
+      // Refs #1478: an object api key that matches NO testproject/testplan
+      // entity must not render the document. setUpEnvForAnonymousAccess()
+      // returns false when the key is unknown, leaving the anonymous session
+      // (basehref included) uninitialized; rendering anyway produced a broken
+      // relative-URL document plus 3 basehref E_WARNING events per hit.
+      $status_ok = setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$cerbero);
+      if (!$status_ok) {
+        renderGracefulExit(lang_get('error_print_doc_invalid_apikey'));
+        exit;
+      }
     }  
     $args->itemID = $args->tproject_id;
   }
