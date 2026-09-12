@@ -240,6 +240,9 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.
+- Requirement print popup (`printReq.html`): all 11 `reqprint.*` i18n keys
+  were missing from every locale bundle and rendered raw on
+  header/buttons/error states — keys added to all 10 bundles (#1438/#1439).
 - Test Strategy chapter map: General Overview note now recounts the correct
   "18 chapters + Severity Configuration chapter" in all 10 locale bundles, and
   the aside icon for the Severity Configuration sub-item is aligned to the

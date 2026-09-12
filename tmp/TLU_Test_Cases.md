@@ -13586,3 +13586,17 @@ Result: **10/10 PASS** — **#1458 FIXED** (branch `fix/issue-1458`, commit `dcd
 | 1435.24 | Post-review: Event Viewer hygiene | Root cause `fetchRowsIntoMap` `isset($row[$column])` → `array_key_exists()` in `lib/functions/database.class.php` (NULL custom-field values from LEFT JOIN no longer misreported as "missing column"); after all fixes events table clean (only INFO audit login); curl re-verified 200/400/401/403/404/405 contract | **PASS** |
 
 Result: **24/24 PASS** — **#1435 MODERNIZED**: BFF `api/reqrevision` (`?action=revision`, rights on owning project, 401/400/403/404/405 JSON contract), screen `reqRevisionView.html` (overview/scope/coverage DataTable/custom-fields cards, direct link, print, locale switcher, error banners), `rrv.*` (32 keys) i18n in all bundles, link switch in `common.php` + `testlink_library.js`, code-review fixes (double-escape, modifier badge, date CF keys, CF-id keying, `fetchRowsIntoMap` NULL-safe column check); closes dashio breakage #1427 (HTTP 500 from missing `displayReqCoverageRO.inc.tpl`).
+
+## Suite #1438 — Requirement Print popup (printReq.html) raw i18n keys
+
+**Screen:** `gui/templates/requirements/printReq.html` (modern requirement document print popup).
+**Bug:** all 11 `reqprint.*` keys referenced by the screen were missing from every locale bundle (#1438/#1439) → raw keys rendered in header/buttons/errors.
+**Fix:** added 11 `reqprint.*` keys to all 10 bundles (`de/en/es/fr/it/ja/pt/ro/ru/zh`), validated per bundle (`python3 -m json.tool`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1438.1 | Bundle coverage | Each bundle has exactly 11 `reqprint.*` keys and is valid JSON | **PASS** |
+| 1438.2 | `printReq.html?...&locale=ro` (admin session) | Header "Tipăriți cerința", subtitle "în proiectul de test", buttons "Tipărește"/"Înapoi", footer "TestLink 2.0.1 - Tipăriți cerința" — no raw `reqprint.*` keys | **PASS** |
+| 1438.3 | i18n contract | Title/btnPrint/btnBack/generating/rendered/errLoad/errEmpty/errNoRights/errNotFound/errNotReady/inProject all resolve via `TLi18n.t()` (translated, `?locale=` honored) | **PASS** |
+
+Result: **3/3 PASS** — **#1438/#1439 FIXED**: `reqprint.*` (11 keys × 10 bundles) added, JSON validated, popup renders translated text in RO (and all bundles structurally identical to en).
