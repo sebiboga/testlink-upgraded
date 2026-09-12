@@ -165,20 +165,27 @@ if (!empty($covRs)) {
 }
 
 // Linked design custom fields for this version/revision node (legacy
-// html_table_of_custom_field_values(null, item_id, tproject_id)).
+// html_table_of_custom_field_values(null, item_id, tproject_id): map is
+// keyed by custom field id — every cf the node has a value for, plus unset
+// ones when show_custom_fields_without_value is on).
 $cfValues = [];
 $cfieldMgr = new cfield_mgr($db);
-$cfMap = $reqMgr->get_linked_cfields(null, $itemId, $resolvedTid,
-    ['access_key' => 'node_id']);
+$cfMap = $reqMgr->get_linked_cfields(null, $itemId, $resolvedTid);
 if (!empty($cfMap)) {
+    $cfg_cf = config_get('custom_fields');
+    $showUnset = isset($cfg_cf->show_custom_fields_without_value)
+        && $cfg_cf->show_custom_fields_without_value;
     foreach ($cfMap as $cf) {
+        if (!$cf['node_id'] && !$showUnset) {
+            continue;
+        }
         $vType = isset($cfieldMgr->custom_field_types[$cf['type']])
             ? $cfieldMgr->custom_field_types[$cf['type']] : 'string';
         $value = trim((string)($cf['value'] ?? ''));
-        if ($vType == 'date' || $vType == 'datetime') {
-            if ($value !== '' && is_numeric($value) && intval($value) != 0) {
-                $value = tlStrftime(config_get($vType), intval($value));
-            }
+        if ($vType == 'date' && $value !== '' && is_numeric($value) && intval($value) != 0) {
+            $value = tlStrftime(config_get('date_format'), intval($value));
+        } elseif ($vType == 'datetime' && $value !== '' && is_numeric($value) && intval($value) != 0) {
+            $value = tlStrftime(config_get('timestamp_format'), intval($value));
         }
         $cfValues[(string)$cf['name']] = $value;
     }
@@ -208,7 +215,6 @@ out([
     'version_id'             => intval($info['version_id']),
     'revision_id'            => intval($info['revision_id']),
     'status_code'            => (string)$info['status'],
-    'status'                 => 'ok',
     'status_label'           => isset($statusLabels[$info['status']])
         ? $statusLabels[$info['status']] : (string)$info['status'],
     'type'                   => (string)$info['type'],
