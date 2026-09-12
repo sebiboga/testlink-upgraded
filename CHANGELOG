@@ -97,6 +97,9 @@ Product:
   (#1294, ISTQB severity scale).
 - Quality Objectives & Risk Traceability Matrix (requirements/qualityObjectives.html,
   #1280/#1307).
+- Non-Functional Requirements per-type management (requirements/nfrRequirements.html,
+  api/nfr) - new `nfr_requirements` table, 7 NFR types, target/threshold/source/status,
+  mgt_view_req/mgt_modify_req rights, NFR_CREATE/UPDATE/DELETE audit events (#1462).
 
 Dashboard:
 - Metrics Dashboard (results/metricsDashboard.html) - BFF api/metrics.
