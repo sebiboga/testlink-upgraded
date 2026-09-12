@@ -25,8 +25,8 @@ Smarty read `echo $_smarty_tpl->tpl_vars['gui']->value->tproject_id`
 triggers the E_WARNING and outputs an empty string.
 
 The reference pattern is `doCreate()` at `reqCommands.class.php:236`:
-`$obj->tproject_id = $argsObj->tproject_id;`. `doCreateTestCases()` (`:512-523`)
-delegates entirely to `createTestCases()` (called twice: `:515`, `:520`), so it
+`$obj->tproject_id = $argsObj->tproject_id;`. `doCreateTestCases()` (`:513-524`)
+delegates entirely to `createTestCases()` (called twice: `:516`, `:521`), so it
 inherits and re-triggers the same defect.
 
 ## Fix (minimal)
