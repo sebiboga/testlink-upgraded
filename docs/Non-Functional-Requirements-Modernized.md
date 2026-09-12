@@ -113,3 +113,75 @@ Browser-verified flows: list/empty state, create (mandatory title validation),
 edit (pre-fill + status change), delete (confirm + count decrement), type chips
 filter + URL, locale switching (Romanian), viewer-user permission gating,
 BFF error/HTTP code matrix, Event Viewer / audit events.
+---
+
+## Part C — Per-type NFR management (Refs #1470)
+
+Tracking issue:
+[#1470](https://github.com/sebiboga/testlink-upgraded/issues/1470) (Performance) —
+the same screen serves all seven NFR types from dedicated ASIDE sub-items
+(#1471 security, #1472 usability, #1473 accessibility, #1474 compatibility,
+#1475 reliability, #1476 maintainability).
+
+### What it adds
+
+The #1462 screen groups all NFR types on one page. The per-type screen gives
+each NFR type its own standalone page so a team can focus on a single quality
+dimension end to end:
+
+| Feature | Behavior |
+|---|---|
+| URL date type | `?type=<nfr_type>` drives the whole page; type is validated against the NFR domain (400 on unknown) |
+| Dedicated ASIDE sub-items | 7 sub-items under Requirements Design (gated `reqs_view`): *NFR: Performance / Security / Usability / Accessibility / Compatibility / Reliability / Maintainability* — wired via `$actions->nfr<Type>` in `common.php` and `href_nfr_<type>` labels in all 19 `locale/*/strings.txt` |
+| Type chip + focus box | header shows the active NFR type and a type-specific focus blurb (localized, e.g. *Focus: load / stress / endurance / scalability targets and thresholds*) |
+| Type-locked CRUD | create/edit modal shows the type read-only (`readonly` input); rows are always created under the active `?type=` and can never be moved to another type |
+| Table | DataTable of that type only: title (+description), target, threshold, source, status badge, updated, actions — server-side filtered by `type` |
+| Statuses | proposed / approved / in_scope / waived (localized badges) |
+| Rights | `mgt_view_req` read / `mgt_modify_req` write on the owning project (401/400/403/404 JSON contract); `canEdit` gating hides Add/Edit/Delete for viewers |
+| Audit | every write logs `NFR_CREATE` / `NFR_UPDATE` / `NFR_DELETE` (same events table as #1462) |
+
+### BFF API
+
+`api/nfrtype/index.php` (session auth, `bffSameOriginGuard()`, plain PHP):
+
+- `GET ?action=projects&type=X` → projects the user can view (mgt_view_req filtered).
+- `GET ?action=meta&type=X` → `{ type:{code,icon,focusKey}, statuses:[...] }`.
+- `GET ?action=list&tproject_id=N&type=X` → `{ project, canEdit, count, items[] }` (type-filtered).
+- `GET ?action=item&id=N` → single row for the edit modal.
+- `POST ?action=create {tproject_id,type,title,description,target_value,threshold_value,source_ref,req_status}` → `{status:ok,id}`.
+- `POST ?action=update {id,title,...}` → updates; preserves `nfr_type` from the row.
+- `POST ?action=delete {id}` → removes the row.
+- `POST ?action=validate` → title-required + type-domain validation (unused directly by the screen, which relies on BFF 400 errors).
+
+`type` is validated against the NFR domain on every route (including create/update,
+so a forged type is rejected with 400). Rights are checked against the row's
+*owning* project on item/update/delete.
+
+### Screen file
+
+`gui/templates/requirements/nfrTypeView.html` — Dashio layout, DataTables,
+Bootstrap modals, `TLi18n` client-side i18n, locale switcher, toast feedback.
+Same visual language as `nfrRequirements.html` (teal/dark/red palette).
+
+### i18n
+
+`nfrt.*` keys (40) + `footers.nfrtype` added to all 10 client bundles
+(`en.json ro.json de.json es.json fr.json it.json ja.json pt.json ru.json zh.json`),
+plus the 7 aside labels in all 19 `locale/*/strings.txt`
+(`$TLS_href_nfr_{performance,security,usability,accessibility,compatibility,reliability,maintainability}`,
+native translations) and `labels.aside.tpl`.
+
+### Data model
+
+Reuses the single `nfr_requirements` table registered in
+`lib/functions/object.class.php` `getDBTables()` (lazy-created), discriminated by
+`nfr_type`. No schema change.
+
+### Testing
+
+`tmp/TLU_Test_Cases.md` → **Suite — Issue #1470** (full pass). Browser-verified:
+all 7 ASIDE sub-items render with per-type labels and URLs; type-filtered list
+(performance/security/reliability), create with type-locked readonly field,
+edit pre-fill + status change, delete with confirm, mandatory-title validation,
+DataTable search, Romanian localization (chip *Performanță*, statuses, labels),
+audit events, Event Viewer clean, 401/403/400 API matrix.

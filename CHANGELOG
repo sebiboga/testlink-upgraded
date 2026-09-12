@@ -100,6 +100,11 @@ Product:
 - Non-Functional Requirements per-type management (requirements/nfrRequirements.html,
   api/nfr) - new `nfr_requirements` table, 7 NFR types, target/threshold/source/status,
   mgt_view_req/mgt_modify_req rights, NFR_CREATE/UPDATE/DELETE audit events (#1462).
+- Per-type NFR screens (requirements/nfrTypeView.html, api/nfrtype) - one dedicated
+  Dashio page per NFR type, served by 7 ASIDE sub-items (NFR: Performance/Security/
+  Usability/Accessibility/Compatibility/Reliability/Maintainability); URL-driven type
+  with server-side domain validation, type-locked CRUD modal, per-type focus box,
+  `nfrt.*` keys in all 10 bundles, `href_nfr_*` aside labels in all 19 locales (#1470-1476).
 
 Dashboard:
 - Metrics Dashboard (results/metricsDashboard.html) - BFF api/metrics.
