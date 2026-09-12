@@ -34,7 +34,7 @@ legacy controller gated the SESSION project only).
 | Direct link | — | **Direct link** toolbar button → `/linkto.php?item=req&id=<req_doc_id>` with one-click Copy + toast |
 | Print | legacy print helpers | **Print** → `printReq.html?req_id=&req_version_id=&req_revision=&tproject_id=` (revision-aware) |
 | Open requirement | — | **Open requirement** → `reqView.html?id=&version_id=&tproject_id=` popup |
-| Locale | PHP `$g_lang` | client-side `TLi18n`, keys under `reqv.*` (40 keys × 10 bundles) |
+| Locale | PHP `$g_lang` | client-side `TLi18n`, keys under `rrv.*` (32 keys × 10 bundles) |
 
 ## REST API Reference
 

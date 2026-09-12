@@ -244,6 +244,17 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   "18 chapters + Severity Configuration chapter" in all 10 locale bundles, and
   the aside icon for the Severity Configuration sub-item is aligned to the
   chapter icon `fa-sliders-h` (#1458).
+- Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
+  values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
+  for every request on a requirement whose versions/revisions lack a custom
+  field value — column-existence check now uses `array_key_exists()` instead of
+  `isset()` (#1435); the requirement-revision BFF keys its custom-field map by
+  custom-field id (legacy `html_table_of_custom_field_values` parity, all
+  configured CFs returned) and formats date/datetime CF values via the real
+  `date_format` / `timestamp_format` config keys — same key fix applied in the
+  `api/requirements` + `api/reqspec` BFFs (they previously called
+  `config_get('date')` / `config_get('datetime')`, which logged an event per
+  request).
 - planImport robustness: XXE-safe XML parse (#1389), PHP8 count(null) guards
   in BFF association import (#1407/#1414), legacy twin count(null) guard
   (#1390), wrong-root well-formed XML no longer returns HTTP 500 (#1407,
