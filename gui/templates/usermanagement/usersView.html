@@ -185,6 +185,7 @@ var authMeta = null;
 var allItems = [];
 var demoMode = false;
 var canViewEvents = false;
+var defaultRoleID = 0;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -261,6 +262,10 @@ function loadMeta(cb) {
   $.getJSON(API + '/meta/roles', function(r) {
     var sel = $('#editRole');
     sel.empty();
+    // Legacy parity: usersEdit.tpl:240-243 preselects $tlCfg->default_roleid
+    // (guest) for a new user. The BFF exposes it via defaultRoleID so the create
+    // modal does not fall back on the first option (reserved role 1, zero rights).
+    defaultRoleID = parseInt(r.defaultRoleID || 0, 10) || 0;
     $.each(r.items, function(i, role) {
       roleMap[role.id] = role.name;
       sel.append('<option value="' + role.id + '">' + esc(role.name) + '</option>');
@@ -372,6 +377,21 @@ function renderTable(items) {
   });
 }
 
+// Preselect a role in the modal's Global Role dropdown. Falls back to the
+// legacy default role id ($tlCfg->default_roleid, guest) when the requested
+// value is 0/absent or not among the options, and only as a last resort to the
+// first option (never persist a silently mis-selected reserved role, Refs #1412).
+function presetRole(value) {
+  var v = parseInt(value, 10) || 0;
+  if (v === 0) { v = defaultRoleID; }
+  var sel = $('#editRole');
+  if (v > 0 && sel.find('option[value="' + v + '"]').length) {
+    sel.val(String(v));
+  } else {
+    sel.val(sel.find('option:first').val());
+  }
+}
+
 function showCreateModal() {
   $('#modalTitle').text(TLi18n.t('user.createUser'));
   $('#editUserId').val('');
@@ -382,7 +402,7 @@ function showCreateModal() {
   $('#editEmail').val('');
   $('#editPassword').val('');
   $('#pwLabel').text('*');
-  $('#editRole').val($('#editRole option:first').val());
+  presetRole(defaultRoleID);
   $('#editLocale').val('en_GB');
   $('#editAuth').val('');
   $('#editExpDate').val('');
@@ -404,7 +424,7 @@ function editUser(id) {
     $('#editEmail').val(u.email);
     $('#editPassword').val('');
     $('#pwLabel').text('(leave empty to keep)');
-    $('#editRole').val(u.globalRoleID);
+    presetRole(u.globalRoleID);
     $('#editLocale').val(u.locale);
     $('#editAuth').val(u.authentication || '');
     $('#editExpDate').val(u.expirationDate || '');

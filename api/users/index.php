@@ -190,9 +190,20 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $items = [];
     foreach ($roles as $r) {
+        // Legacy parity: lib/usermanagement/usersEdit.php:85 unsets the
+        // TL_ROLES_UNDEFINED/INHERITED (id 0) pseudo-role before rendering the
+        // options dropdown; never offer it as a selectable global role.
+        if (intval($r->dbID) <= 0) { continue; }
         $items[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
-    out(['status' => 'ok', 'items' => $items]);
+    // Legacy parity: lib/usermanagement/usersEdit.tpl:240-243 preselects
+    // $tlCfg->default_roleid (config.inc.php:1968 = TL_ROLES_GUEST) whenever the
+    // user being created/edited has globalRoleID 0. Expose it so the modern
+    // modal preselects the same default instead of the first role row (roles
+    // come back ORDER BY id ASC -> reserved role 1, zero rights). Refs #1412.
+    out(['status' => 'ok',
+         'items' => $items,
+         'defaultRoleID' => intval(config_get('default_roleid'))]);
 }
 
 // Route: GET /users/meta/locales - list locales
@@ -276,7 +287,11 @@ if ($method === 'POST' && empty($segments)) {
     $u->firstName = trim($body['firstName'] ?? '');
     $u->lastName = trim($body['lastName'] ?? '');
     $u->emailAddress = trim($body['email'] ?? '');
-    $u->globalRoleID = intval($body['globalRoleID'] ?? 0);
+    // Legacy parity: usersEdit.tpl:240-243 treats globalRoleID 0 on the create
+    // form as "use $tlCfg->default_roleid" (role 5, guest). A missing/zero role
+    // must never persist a no-rights reserved role by omission (Refs #1412).
+    $roleID = intval($body['globalRoleID'] ?? 0);
+    $u->globalRoleID = $roleID > 0 ? $roleID : intval(config_get('default_roleid'));
     $u->locale = $body['locale'] ?? config_get('default_language');
     $u->isActive = ($body['active'] ?? true) ? 1 : 0;
     $u->authentication = $body['authentication'] ?? '';
