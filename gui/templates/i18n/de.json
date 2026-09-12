@@ -3217,7 +3217,7 @@
   "ts.overviewHeaderSub": "Die Teststrategie auf einen Blick: Zweck und Kapitel",
   "ts.navAdded2": "Nav: Teststrategie ist jetzt ein Untermenü mit echten Kapiteln.",
   "ts.openChapter": "Kapitel öffnen",
-  "ts.navAdded3": "Alle 18 Kapitel einer Teststrategie sind unten aufgelistet; Kapitel mit eigener Seite können direkt geöffnet werden.",
+  "ts.navAdded3": "Die 18 Kapitel einer Teststrategie und das Kapitel Schweregrad-Konfiguration sind unten aufgelistet; Kapitel mit eigener Seite können direkt geöffnet werden.",
   "ts.generatedOn": "Erstellt am",
   "ts.errLoad": "Fehler beim Laden der Teststrategie-Kapitel.",
   "user.apiKeyDisabled": "API-Schlüsselverwaltung ist auf dieser Installation deaktiviert.",

@@ -3007,7 +3007,7 @@
   "ts.introTitle": "Despre Strategia de Testare",
   "ts.navAdded": "Item de navigare adăugat în meniul aside (la același nivel cu System / Projects / Test Plan / Documentation).",
   "ts.navAdded2": "Nav: Strategia de Testare este acum un sub-meniu cu capitole reale.",
-  "ts.navAdded3": "Toate cele 18 capitole ale unei Strategii de Testare sunt listate mai jos; capitolele cu pagină dedicată pot fi deschise direct.",
+  "ts.navAdded3": "Cele 18 capitole ale unei Strategii de Testare și capitolul Configurare Severitate sunt listate mai jos; capitolele cu pagină dedicată pot fi deschise direct.",
   "ts.openChapter": "Deschide capitolul",
   "ts.openIssue": "Deschide task-ul pe GitHub",
   "ts.overviewHeader": "Prezentare Generală",

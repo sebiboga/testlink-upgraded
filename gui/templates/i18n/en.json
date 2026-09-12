@@ -3007,7 +3007,7 @@
   "ts.introTitle": "About the Test Strategy",
   "ts.navAdded": "Nav item added to the aside menu (same level as System / Projects / Test Plan / Documentation).",
   "ts.navAdded2": "Nav: Test Strategy is now a sub-menu with real chapters.",
-  "ts.navAdded3": "All 18 chapters of a Test Strategy are listed below; the chapters with a dedicated page can be opened directly.",
+  "ts.navAdded3": "The 18 chapters of a Test Strategy and the Severity Configuration chapter are listed below; chapters with a dedicated page can be opened directly.",
   "ts.openChapter": "Open chapter",
   "ts.openIssue": "Open the GitHub task",
   "ts.overviewHeader": "General Overview",

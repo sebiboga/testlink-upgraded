@@ -3217,7 +3217,7 @@
   "ts.overviewHeaderSub": "测试策略概览：目的和章节",
   "ts.navAdded2": "Nav：测试策略现在是包含实际章节的子菜单。",
   "ts.openChapter": "打开章节",
-  "ts.navAdded3": "测试策略的所有18个章节如下所列；有专门页面的章节可以直接打开。",
+  "ts.navAdded3": "测试策略的18个章节以及严重性配置章节如下所列；有专门页面的章节可以直接打开。",
   "ts.generatedOn": "生成于",
   "ts.errLoad": "无法加载测试策略的章节。",
   "user.apiKeyDisabled": "此安装已禁用 API 密钥管理。",

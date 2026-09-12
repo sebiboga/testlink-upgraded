@@ -156,7 +156,7 @@ Left side menu
                 <li><a href="{$gui->uri->testStrategyCfg}" target="mainframe"><i class="fas fa-code-branch"></i> {$labels.href_test_strategy_cfg}</a></li>
                 <li><a href="{$gui->uri->testStrategyTraining}" target="mainframe"><i class="fas fa-graduation-cap"></i> {$labels.href_test_strategy_training}</a></li>
                 <li><a href="{$gui->uri->testStrategyRelease}" target="mainframe"><i class="fas fa-rocket"></i> {$labels.href_test_strategy_release}</a></li>
-                <li><a href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-exclamation-triangle"></i> {$labels.href_severity_config}</a></li>
+                <li><a href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-sliders-h"></i> {$labels.href_severity_config}</a></li>
               </ul>
             </li>
             {if $gui->showMenu.requirements_design == true}
