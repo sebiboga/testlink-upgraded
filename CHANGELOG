@@ -250,6 +250,9 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   null-array-offset protections across requirements/execution/reports
   (#497/#516/#522/#581/#582/#587/#604/#614/#628/#629/#633/#645/#663/#664/#665/
   #669/#741/#765/#802/#828/#1181/#1257/#1331-#1334/#1410/#1415/#1417).
+- Requirement type-domain guard in reqCreateTestCases viewers: unknown stored
+  req_versions.type (e.g. 'f') now renders as raw code with no E_WARNING
+  "Undefined array key" (dashio + tl-classic, #1428).
 - Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
   shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
 - Security: stored XSS in tcView (#804), usersView (#1406/#1430), login/firstLogin
