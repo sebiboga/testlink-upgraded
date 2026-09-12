@@ -190,7 +190,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $items = [];
     foreach ($roles as $r) {
-        // Legacy parity: lib/usermanagement/usersEdit.php:85 unsets the
+        // Legacy parity: lib/usermanagement/usersEdit.php:77-78 unsets the
         // TL_ROLES_UNDEFINED/INHERITED (id 0) pseudo-role before rendering the
         // options dropdown; never offer it as a selectable global role.
         if (intval($r->dbID) <= 0) { continue; }

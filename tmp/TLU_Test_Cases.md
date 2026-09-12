@@ -13719,3 +13719,26 @@ Result: **10/10 PASS** — **#1400 DONE**: `grants.edit_testcase` + pencil icon 
 | 1478.11 | Browser console on deny page + valid document (Anonymous + session) | `<no console messages found>` — clean; Event Viewer final count `log_level=2` = 3 (baseline, no growth) | **PASS** |
 
 Result: **11/11 PASS** — **#1478 FIXED**: unknown object api keys now deny before any document output; zero event pollution; valid anonymous/session renders byte-identical with absolute asset URLs.
+
+## Task — Issue #889: Default role + reserved/undefined role handling in User Management create/edit (gap vs legacy)
+
+**Screen:** `gui/templates/usermanagement/usersView.html` (create/edit modal role logic) + BFF `api/users/index.php` (`meta/roles`, `POST /users`).
+**Feature ported from legacy:** legacy `lib/usermanagement/usersEdit.php:77-78` runs `unset($roles[TL_ROLES_UNDEFINED])` so the `<inherited>`/undefined pseudo-role (id 0) is **never offered** in the Global Role dropdown, and `gui/templates/dashio/usermanagement/usersEdit.tpl:240-243` preselects `$tlCfg->default_roleid` (**guest**, role 5) whenever the user's `globalRoleID == 0` — so create defaults to guest and reserved/undefined roles cannot be assigned via the documented flow. Modern parity was landed on the default branch by commit `80790f9d3` (`Fixes #1412`); this suite re-verifies the complete legacy feature set for task #889.
+**Implementation:** BFF `meta/roles` skips `dbID <= 0` and exposes `defaultRoleID` (`api/users/index.php:189-207`); `POST /users` maps role 0/absent → `config_get('default_roleid')` (`api/users/index.php:293-294`); `usersView.html` `presetRole()` (lines 384-393) preselects `defaultRoleID` when 0/absent — used by `showCreateModal()` (408) and `editUser()` (433). No new i18n keys (no user-facing string added/changed).
+**Precondition:** admin/admin session on `usersView.html?tproject_id=0&tplan_id=0`; fresh DB; roles table rows id 1..9 (no id-0 row); `default_roleid` = 5 (guest); Chrome DevTools MCP + mysql CLI.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 889.1 | `GET /api/users/index.php/meta/roles` (admin cookie, browser session) | `items` = ids 1..9 only — **NO** `{"id":0,"name":"<inherited>"}`; `defaultRoleID: 5` | **PASS** |
+| 889.2 | Open **+ Create User** | Global Role dropdown preselected **`guest`**; options = 9 (ids 1..9), **no `<inherited>` entry** (`#editRole` `selected="5"`, `hasZero=false`, `optionsCount=9`) | **PASS** |
+| 889.3 | Create user `rolletest` via modal, keep default role | `SELECT login,role_id FROM users` → `role_id = 5` (guest — legacy default; pre-fix this was reserved role 1) | **PASS** |
+| 889.4 | Create user `roleditpick`, pick role `tester` explicitly | `role_id = 7` (tester) persisted — explicit choice preserved | **PASS** |
+| 889.5 | Edit `rolletest` (guest) → change role to `tester` → Save | Modal preselects guest (5); after save `role_id = 7` in DB (PUT round-trip) | **PASS** |
+| 889.6 | Edit `rolletest` again → change back to `guest` → Save | `role_id = 5` restored | **PASS** |
+| 889.7 | Legacy edge: `UPDATE users SET role_id=0 WHERE login='roleditpick'` then open its edit modal | Modal shows **guest (5) preselected** (legacy `usersEdit.tpl:240-243`: `globalRoleID eq 0 → default_roleid`), `#editRole` options have no id 0; Save persists `role_id = 5` | **PASS** |
+| 889.8 | BFF fallback: `POST /api/users/index.php` (X-Requested-With + admin cookie) without `globalRoleID` | HTTP 200, `item.globalRoleID = 5`, DB `role_id = 5` | **PASS** |
+| 889.9 | BFF fallback: same POST with `globalRoleID: 0` | HTTP 200, `item.globalRoleID = 5`, DB `role_id = 5` — role-0-by-omission cannot persist | **PASS** |
+| 889.10 | i18n hygiene | No new hardcoded labels in HTML (role options fed from BFF); no i18n bundle touched (no new keys needed) — all bundles still valid JSON | **PASS** |
+| 889.11 | Event Viewer / console after suite | `SELECT COUNT(*) FROM events WHERE log_level <= 3` → **0** Error/Warning rows (only log_level=16 audit CREATE/UPDATE); browser console clean (only benign a11y hints) | **PASS** |
+
+Result: **11/11 PASS** — **#889 IMPLEMENTED/VERIFIED**: `meta/roles` excludes the id-0 `<inherited>` pseudo-role and exposes `defaultRoleID`; create defaults to guest (5) and edit with a 0/absent stored role preselects guest, exactly matching legacy usersEdit.php:77-78 + usersEdit.tpl:240-243; server-side POST falls back to `default_roleid` for role 0/absent; reserved/undefined roles are no longer assignable through the documented flow.

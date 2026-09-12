@@ -216,6 +216,12 @@ NEW FEATURES
 - User Management: password required to create a user (legacy parity, #888) —
   BFF rejects `E_PWDEMPTY` with HTTP 400 and the create modal blocks empty
   passwords client-side (i18n `user.passwordRequired` in all 10 bundles).
+- User Management create/edit: default role + reserved/undefined role handling
+  (legacy parity, #889) — `/meta/roles` drops the `<inherited>` id-0 pseudo-role
+  and exposes `defaultRoleID`; create and edit preselect `default_roleid` (guest)
+  when the global role is 0/absent; `POST /users` maps role 0/absent to the
+  configured default so no reserved role-1/zero-rights account can be created
+  (Refs #1412).
 - Create-test-project-from-existing (copy_as) (#989).
 - Send-report-by-email toolbar action (Results TC Flat #1219/#1223).
 - Multi-column drag-to-toolbar sorting in Test Plan with Custom Fields report
