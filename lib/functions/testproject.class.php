@@ -88,6 +88,10 @@ function create($item,$opt=null) {
   $my['opt'] = array('doChecks' => false);
   $my['opt'] = array_merge($my['opt'],(array)$opt);
   
+  // Refs #1479. Guard missing options (PHP 8.x: "Undefined property" E_WARNING).
+  if (!isset($item->options)) {
+    $item->options = array();
+  }
   $serOptions = serialize($item->options);
 
   try {
