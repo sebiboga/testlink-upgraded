@@ -222,6 +222,13 @@ NEW FEATURES
   when the global role is 0/absent; `POST /users` maps role 0/absent to the
   configured default so no reserved role-1/zero-rights account can be created
   (Refs #1412).
+- User Management: operation feedback toasts (legacy parity, #890) — every
+  write action (create/update/disable/enable/delete) now surfaces the localized
+  message legacy rendered via `$gui->user_feedback` (`user_created`,
+  `user_disabled`, ...) as a Dashio toast; BFF write-success routes return a
+  `feedback_key`; toggle/delete errors toast too (i18n
+  `user.feedback.created|updated|disabled|enabled|deleted` +
+  `user.confirmDelete|Disable|Enable` in all 10 bundles).
 - Create-test-project-from-existing (copy_as) (#989).
 - Send-report-by-email toolbar action (Results TC Flat #1219/#1223).
 - Multi-column drag-to-toolbar sorting in Test Plan with Custom Fields report

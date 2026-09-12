@@ -13762,3 +13762,22 @@ Result: **11/11 PASS** — **#889 IMPLEMENTED/VERIFIED**: `meta/roles` excludes 
 | 1459.8 | Event Viewer / events table | Only L18N fallback row for `href_severity_config` is the pre-fix repro (id 47); no new fallback/ERROR/WARNING rows after fix | **PASS** |
 
 Result: **8/8 PASS** — **#1459 FIXED**: `href_severity_config` now defined in all 19 locale bundles; ASIDE sub-item renders translated (ro/de verified) and unchanged in en_GB; cs_CZ byte-encoding honoured; zero new event entries.
+
+## Task — Issue #890: Show user-feedback messages after create/disable/update/delete in User Management
+
+**Gap:** legacy `lib/usermanagement/usersView.php:47`/`usersEdit.php:169/214` set `$gui->user_feedback` (localized, e.g. `user_created` = "User %s was successfully created", `user_disabled`) rendered as a banner via `inc_update.tpl`; the modern screen only closed the modal / reloaded the grid silently.
+**Fix:** BFF `api/users/index.php` now returns `feedback_key` (`user_created`/`user_updated`/`user_disabled`/`user_enabled`/`user_deleted`) on the 4 write-success routes; `gui/templates/usermanagement/usersView.html` shows a Dashio toast (`.toast ok/err`, bottom-right, auto-hide 3 s) built from new `user.feedback.*` TLi18n keys (all 10 locale bundles); toggle/delete errors now toast too; confirm dialogs localized (`user.confirmDelete/Disable/Enable`).
+**Precondition:** admin/admin on http://localhost:8082; navigate to `gui/templates/usermanagement/usersView.html`; fresh DB.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 890.1 | Open screen, click `+ Create User`, fill login `feedback_test` (Feedback/Test/user@example.com/test1234), Save | Modal closes, grid reloads, toast **`User feedback_test was successfully created`** (class `toast ok`), auto-hides after ~3 s | **PASS** |
+| 890.2 | Edit `feedback_test` → change Last Name → Save | Toast **`User feedback_test was successfully updated`** | **PASS** |
+| 890.3 | Row `feedback_test` → click disable (fa-ban); accept confirm | Row status flips to **Inactive**; toast **`User feedback_test was successfully disabled`** | **PASS** |
+| 890.4 | Row `feedback_test` → click enable (fa-check); accept confirm | Row status flips to **Active**; toast **`User feedback_test was successfully enabled`** | **PASS** |
+| 890.5 | Row `feedback_test` → click delete (fa-trash); accept confirm | Row removed from grid; toast **`User feedback_test was successfully deleted`** | **PASS** |
+| 890.6 | Row `admin` → click disable; accept confirm | Error toast (red `toast err`) **`Cannot disable yourself`**, admin row unchanged | **PASS** |
+| 890.7 | i18n hygiene | `user.feedback.created/updated/disabled/enabled/deleted` + `user.confirmDelete/Disable/Enable` present in all 10 JSON bundles; every bundle `python3 -m json.tool` valid; no new hardcoded strings in the HTML | **PASS** |
+| 890.8 | Event Viewer / events table | No ERROR/WARNING rows during suite; audit rows only (`feedback_test created/updated/disabled/enabled/deleted`, log_level 16) | **PASS** |
+
+Result: **8/8 PASS** — **#890 IMPLEMENTED/VERIFIED**: all write operations surface localized success/error feedback matching the legacy `user_feedback` behaviour; BFF returns `feedback_key`; toast + i18n complete.

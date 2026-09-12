@@ -245,6 +245,41 @@ Screenshots: `docs/screenshots/issue-886-users-edit-event-history.png`
 (edit modal with the button), `docs/screenshots/issue-886-eventviewer-filtered-user.png`
 (Event Viewer filtered to user #1).
 
+### Operation Feedback (issue #890)
+
+Legacy `lib/usermanagement/usersView.php:47` (disable) and
+`lib/usermanagement/usersEdit.php:169/214` (create/update) filled
+`$gui->user_feedback` with localized messages — `user_created` ("User %s was
+successfully created"), `user_disabled` ("User %s was successfully disabled"),
+`getUserErrorMessage()` for failures — rendered as a banner by
+`inc_update.tpl`. The modern screen used to close the modal / reload the grid
+after every write with no success feedback at all.
+
+The 2.0.1 screen now mirrors that feedback with a Dashio toast (bottom-right,
+auto-hides after ~3 s, teal for success / red for errors):
+
+- **BFF** (`api/users/index.php`): every write-success route now returns
+  `feedback_key` with the same key namespace legacy used for
+  `$gui->user_feedback`: POST `/users` → `user_created`, PUT `/users/{id}` →
+  `user_updated`, PUT `/users/{id}/active` → `user_enabled`|`user_disabled`,
+  DELETE `/users/{id}` → `user_deleted`.
+- **UI** (`gui/templates/usermanagement/usersView.html`): a fixed `.toast`
+  element (same pattern as `cfieldsAssignView.html` / `planUpdateTC.html`) plus
+  a `userFeedback(feedbackKey, login)` mapper to the client-side i18n keys.
+  Create/update save (`saveUser()`), enable/disable (`toggleActive()`) and
+  delete (`deleteUser()`) all show the localized toast with the affected login;
+  toggle/delete errors moved from `alert()` to the red toast; the confirm
+  dialogs (`user.confirmDelete/Disable/Enable`) and the status badges
+  (`user.active`/`user.inactive`) are localized too.
+- **i18n**: new keys in all 10 bundles — `user.feedback.created`,
+  `user.feedback.updated`, `user.feedback.disabled`, `user.feedback.enabled`,
+  `user.feedback.deleted`, `user.confirmDelete`, `user.confirmDisable`,
+  `user.confirmEnable` — translations taken from the legacy
+  `locale/<XX>/strings.txt` messages.
+
+Screenshot: `docs/screenshots/issue-890-operation-feedback-toast.png` (create
+toast "User <login> was successfully created").
+
 ### Tips
 
 - Only users with `active = 1` (Active) appear in the table

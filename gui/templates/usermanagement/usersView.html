@@ -43,6 +43,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
 .demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
@@ -90,6 +93,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="footer" id="footerText"></div>
 <div class="footer"><span data-i18n="footers.usersView">TestLink 2.0.1 - User Management</span></div>
 </div>
+
+<div class="toast" id="toast"></div>
 
 <!-- Create/Edit Modal -->
 <div class="modal fade" id="userModal" tabindex="-1">
@@ -149,7 +154,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         </div>
         <div class="form-group">
           <label style="font-size:12px;">
-            <input type="checkbox" id="editActive" checked> Active
+            <input type="checkbox" id="editActive" checked> <span data-i18n="user.active">Active</span>
           </label>
         </div>
         <div id="modalError" style="color:#e6605e;font-size:12px;margin-top:8px;display:none;"></div>
@@ -188,6 +193,28 @@ var canViewEvents = false;
 var defaultRoleID = 0;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+
+// Dashio toast pattern (see cfieldsAssignView.html:276, planUpdateTC.html:211):
+// fixed bottom-right banner used for the write-operation feedback that legacy
+// rendered through inc_update.tpl / $gui->user_feedback.
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isError).toggleClass('ok', !isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 3000));
+}
+
+// Map the BFF feedback_key (BFF mirrors the legacy lang keys from
+// usersView.php/usersEdit.php user_feedback) to the client-side TLi18n key.
+function userFeedback(feedbackKey, login) {
+  var map = {
+    user_created: 'user.feedback.created',
+    user_updated: 'user.feedback.updated',
+    user_disabled: 'user.feedback.disabled',
+    user_enabled: 'user.feedback.enabled',
+    user_deleted: 'user.feedback.deleted'
+  };
+  return TLi18n.t(map[feedbackKey] || 'user.feedback.updated', {login: login || ''});
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -346,7 +373,7 @@ function renderTable(items) {
       esc(u.email || ''),
       esc(u.globalRoleName || ''),
       esc(u.locale || ''),
-      u.active === 1 ? '<span class="badge-active">Active</span>' : '<span class="badge-inactive">Inactive</span>',
+      u.active === 1 ? '<span class="badge-active">' + TLi18n.t('user.active') + '</span>' : '<span class="badge-inactive">' + TLi18n.t('user.inactive') + '</span>',
       esc(u.expirationDateFormatted || u.expirationDate || ''),
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editUser(' + u.id + ')"></i>' +
       (!demoMode && canResetPassword(u)
@@ -634,7 +661,13 @@ function saveUser() {
   $.ajax({
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function() { $('#userModal').modal('hide'); loadUsers(); },
+    success: function(r) {
+      $('#userModal').modal('hide');
+      loadUsers();
+      // Legacy parity: usersEdit.php renders user_feedback / 
+      // getUserErrorMessage() after create|update; surface it as a toast.
+      toast(userFeedback(r && r.feedback_key, data.login), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('user.error.save');
       var code = '';
@@ -659,10 +692,13 @@ function deleteUser(id) {
     if (x.id === id) { u = x; return false; }
   });
   var login = u ? (u.login || '') : '';
-  if (!confirm('Delete user "' + login + '"?')) return;
+  if (!confirm(TLi18n.t('user.confirmDelete', {login: login}))) return;
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
-    success: function() { loadUsers(); },
+    success: function(r) {
+      loadUsers();
+      toast(userFeedback(r && r.feedback_key, login), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('user.error.delete');
       var code = '';
@@ -674,19 +710,27 @@ function deleteUser(id) {
       if (code === 'demo_mode') {
         msg = TLi18n.t('user.demoUpdateDisabled');
       }
-      alert(msg);
+      toast(msg, true);
     }
   });
 }
 
 function toggleActive(id, active) {
-  var action = active ? 'enable' : 'disable';
-  if (!confirm('Are you sure you want to ' + action + ' this user?')) return;
+  var u = null;
+  $.each(allItems, function(i, x) {
+    if (x.id === id) { u = x; return false; }
+  });
+  var login = u ? (u.login || '') : '';
+  var confirmKey = active ? 'user.confirmEnable' : 'user.confirmDisable';
+  if (!confirm(TLi18n.t(confirmKey, {login: login}))) return;
   $.ajax({
     url: API + '/' + id + '/active', type: 'PUT',
     contentType: 'application/json',
     data: JSON.stringify({active: active}),
-    success: function() { loadUsers(); },
+    success: function(r) {
+      loadUsers();
+      toast(userFeedback(r && r.feedback_key, login), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('user.error.save');
       var code = '';
@@ -698,7 +742,7 @@ function toggleActive(id, active) {
       if (code === 'demo_mode') {
         msg = TLi18n.t('user.demoUpdateDisabled');
       }
-      alert(msg);
+      toast(msg, true);
     }
   });
 }

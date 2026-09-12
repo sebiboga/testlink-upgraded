@@ -328,7 +328,12 @@ if ($method === 'POST' && empty($segments)) {
             $u->readFromDB($db);
         }
         logAuditEvent("User '$u->login' created", "CREATE", $u->dbID, "users");
-        out(['status' => 'ok', 'item' => userToJSON($u)]);
+        // Legacy parity: lib/usermanagement/usersEdit.php:169 sets
+        // $op->user_feedback = sprintf(lang_get('user_created'), $login);
+        // The BFF carries the same legacy key so the modern screen can show
+        // the localized success banner after the create operation.
+        out(['status' => 'ok', 'item' => userToJSON($u),
+             'feedback_key' => 'user_created']);
     } else {
         http_response_code(400);
         $msg = 'Error creating user';
@@ -370,7 +375,11 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && !iss
             $u->readFromDB($db);
         }
         logAuditEvent("User '$u->login' updated", "UPDATE", $u->dbID, "users");
-        out(['status' => 'ok', 'item' => userToJSON($u)]);
+        // Legacy parity: usersEdit.php:214 sets user_feedback =
+        // getUserErrorMessage($status) after every update; on success the
+        // modern screen surfaces a localized "user updated" toast.
+        out(['status' => 'ok', 'item' => userToJSON($u),
+             'feedback_key' => 'user_updated']);
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Error updating user', 'code' => $result]);
@@ -396,7 +405,12 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && isse
     logAuditEvent("User '$u->login' " . ($active ? 'enabled' : 'disabled'), "UPDATE", $u->dbID, "users");
     $item = userToJSON($u);
     $item['active'] = $newVal;
-    out(['status' => 'ok', 'item' => $item]);
+    // Legacy parity: lib/usermanagement/usersView.php:47 renders
+    // sprintf(lang_get('user_disabled'), $login) after a successful disable.
+    // The enable path (via the edit screen checkbox in legacy) gets its own
+    // mirrored key here.
+    out(['status' => 'ok', 'item' => $item,
+         'feedback_key' => $active ? 'user_enabled' : 'user_disabled']);
 }
 
 // Route: DELETE /users/{id} - soft delete (active=2)
@@ -415,7 +429,8 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     logAuditEvent("User '$u->login' deleted", "UPDATE", $u->dbID, "users");
     $item = userToJSON($u);
     $item['active'] = 2;
-    out(['status' => 'ok', 'item' => $item]);
+    // Success feedback for the soft-delete (active=2) row action.
+    out(['status' => 'ok', 'item' => $item, 'feedback_key' => 'user_deleted']);
 }
 
 // Route: POST /users/{id}/reset-password - reset/generate a user's password
