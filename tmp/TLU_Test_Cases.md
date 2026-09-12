@@ -13864,3 +13864,20 @@ Result: **8/8 PASS** — **#1429 FIXED/VERIFIED**: DB write failures on `api/use
 | 1399.8 | Event Viewer / events table | No new ERROR/WARNING rows from the app during the suite (fixture-debug SQL artifacts cleaned) | **PASS** |
 
 Result: **8/8 PASS** — **#1399 IMPLEMENTED/VERIFIED**: the Set Results popup test suite block is fully restored — suite link to the modern viewer, details, design-time suite custom fields and suite attachments, hidden for suite-less orphan TCs; BFF `init` now carries the `suite` payload; i18n complete in all 10 bundles.
+
+## Regression — Issue #1480: reqCreateTestCases.php E_WARNING 'Undefined property stdClass::$tproject_id' on every view — openLinkedReqWindow gets undefined id
+
+**Screen:** `lib/requirements/reqEdit.php?doAction=createTestCases&req_spec_id=<id>&tproject_id=<pid>` ("Create Test Cases from Requirements").
+**Defect:** `reqCommands::createTestCases()` built its gui bean via `initGuiBean()` (lib/requirements/reqCommands.class.php:482) without ever setting `tproject_id`, so template `gui/templates/{dashio,tl-classic}/requirements/reqCreateTestCases.tpl:174` rendered `openLinkedReqWindow(req_id, {"gui->tproject_id"})` → compiled Smarty `echo $gui->tproject_id` raised **1× E_WARNING per requirement row per view** (Event Viewer log_level=2) and row icons called `openLinkedReqWindow(4,)` with an empty project id.
+**Fix:** one line in `createTestCases()` right after `initGuiBean()` — `$guiObj->tproject_id = $argsObj->tproject_id;` (mirrors `doCreate()` at line 236; single location covers pure-view + `doCreateTestCases()` submit path which re-calls `createTestCases()`).
+**Precondition:** fixture `php tmp/fixtures_1480.php` (fresh DB) → testproject ReqCreateTCBadType id=1, spec SRS-1480 id=2, req R1480-RQ100 id=4; admin/admin; `TRUNCATE events;`; chrome-devtools MCP (mainframe navigated to the screen URL).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1480.1 | Pre-fix repro: `TRUNCATE events;` then GET `reqEdit.php?doAction=createTestCases&req_spec_id=2&tproject_id=1` | `events` table gains row(s): log_level=2 `E_WARNING Undefined property: stdClass::$tproject_id … reqCreateTestCases.tpl.php - Line 217`; DOM row icon = `openLinkedReqWindow(4,)` | **PASS (reproduced)** |
+| 1480.2 | Post-fix: `TRUNCATE events;` then same GET | `events` table stays empty (0 rows); DOM row icon = `openLinkedReqWindow(4,1)` (real tproject_id) | **PASS** |
+| 1480.3 | Post-fix submit path: append hidden `req_id_cbox[]=4`, `d.forms[0].submit()` (doAction=doCreateTestCases) | TC created (`nodes_hierarchy node_type_id=3` count +1 + linked coverage), page re-renders with message 'Test Case ReqCreateTCBadType Sample Req [1] was successfully created', DOM still `openLinkedReqWindow(4,1)`, no new E_WARNING | **PASS** |
+| 1480.4 | Syntax gate | `php -l lib/requirements/reqCommands.class.php` → No syntax errors detected | **PASS** |
+| 1480.5 | Event Viewer / events table full suite | No new ERROR/WARNING rows from the app during the run (truncate baseline = 0 rows at every check) | **PASS** |
+
+Result: **5/5 PASS** — **#1480 FIXED/VERIFIED**: `createTestCases()` now sets `tproject_id` on the gui bean; the per-row E_WARNING is gone and the requirement detail icon calls `openLinkedReqWindow(req_id, <real tproject_id>)`.
