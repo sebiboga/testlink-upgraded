@@ -181,7 +181,7 @@ function render(r) {
   DIRECT_LINK = '/linkto.php?item=req&id=' + encodeURIComponent(r.req_doc_id);
 
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(r.req_doc_id) + '</span> <b>' + escapeHtml(r.title) + '</b>');
-  $('#vSpec').text(escapeHtml(r.show_req_spec_title ? r.req_spec_title : '-'));
+  $('#vSpec').text(r.show_req_spec_title ? r.req_spec_title : '-');
   $('#vVersion').text('v' + r.version);
   $('#vRevision').html('<span class="badge-rev vr-chip">r' + r.revision + '</span>');
   $('#vType').html('<span class="badge-type">' + escapeHtml(r.type_label || r.type || '-') + '</span>');
@@ -202,7 +202,13 @@ function render(r) {
   } else {
     $('#vExpCov').text((r.coverage_qty || 0) + ' (' + TLi18n.t('rrv.notApplicable') + ')');
   }
-  $('#vAuthor').html(escapeHtml(r.author || '-') + (r.modifier ? ' <span class="badge-rev" style="margin-left:6px;">' + TLi18n.t('rrv.modifier') + '</span>' : ''));
+  var authorHtml = escapeHtml(r.author || '-');
+  if (r.modifier) {
+    authorHtml += ' <span class="badge-rev" style="margin-left:6px;" title="' +
+      $('<div>').text(TLi18n.t('rrv.modifier')).html().replace(/"/g, '&quot;') +
+      '">' + TLi18n.t('rrv.modifier') + ': ' + escapeHtml(r.modifier) + '</span>';
+  }
+  $('#vAuthor').html(authorHtml);
   $('#vCreated').text(fmtTs(r.creation_ts));
   $('#vModified').text(fmtTs(r.modification_ts));
   $('#vScope').text(r.scope || '-');
