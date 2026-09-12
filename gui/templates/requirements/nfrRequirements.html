@@ -245,7 +245,10 @@ function typeLabelKey(code) {
 }
 
 function statusLabelKey(code) {
-  return 'nfr.status' + code.charAt(0).toUpperCase() + code.slice(1);
+  var camel = code.indexOf('_') > -1
+    ? code.split('_').map(function (p) { return p.charAt(0).toUpperCase() + p.slice(1); }).join('')
+    : code.charAt(0).toUpperCase() + code.slice(1);
+  return 'nfr.status' + camel;
 }
 
 function statusClass(code) { return 'st-' + code; }
@@ -253,7 +256,9 @@ function statusClass(code) { return 'st-' + code; }
 function loadTypesAndProjects() {
   $.getJSON(API + '?action=types&_=' + Date.now()).done(function (r) {
     TYPES = r.types || [];
-    STATUSES = r.statuses || [];
+    STATUSES = (r.statuses || []).map(function (s) {
+      return typeof s === 'string' ? s : s.code;
+    });
     loadProjects();
   }).fail(apiFail);
 }
