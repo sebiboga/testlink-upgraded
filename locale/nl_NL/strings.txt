@@ -2453,6 +2453,7 @@ $TLS_title_requirements = "Vereisten";
 $TLS_title_test_spec = "Test specificatie";
 $TLS_title_product_mgmt = "Testproject beheer";
 $TLS_href_plan_define_priority = "Definieer prioriteitsregels";
+$TLS_href_severity_config = "Configuratie van de ernst";
 $TLS_href_my_testcase_assignments="Mijn testcases";
 $TLS_href_platform_management = "Platform beheer";
 $TLS_href_issuetracker_management = "Issue Tracker beheer";

@@ -1614,6 +1614,7 @@ $TLS_title_requirements = "요구사항";
 $TLS_title_test_spec = "테스트 명세";
 $TLS_title_product_mgmt = "테스트 프로젝트";
 $TLS_href_plan_define_priority = "테스트 계획 우선순위";
+$TLS_href_severity_config = "심각도 설정";
 $TLS_href_my_testcase_assignments="내가 실행해야 할 테스트 케이스";
 
 

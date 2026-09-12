@@ -2461,6 +2461,7 @@ $TLS_title_test_spec = "测试用例";
 $TLS_title_documentation = "文档";
 $TLS_title_product_mgmt = "产品管理";
 $TLS_href_plan_define_priority = "定义优先级规则";
+$TLS_href_severity_config = "严重性配置";
 $TLS_href_my_testcase_assignments="指派给我的用例";
 $TLS_href_platform_management = "平台管理";
 $TLS_href_issuetracker_management = "缺陷跟踪系统管理";

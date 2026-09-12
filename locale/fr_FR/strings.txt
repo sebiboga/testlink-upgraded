@@ -2298,6 +2298,7 @@ $TLS_title_test_spec = "Fiches de test";
 $TLS_title_documentation = "Documentation";
 $TLS_title_product_mgmt = "Projets";
 $TLS_href_plan_define_priority = "Priorité de campagne de test";
+$TLS_href_severity_config = "Configuration de la sévérité";
 $TLS_href_my_testcase_assignments = "Mes fiches de test à exécuter";
 $TLS_href_platform_management = "Gestion des plateformes";
 $TLS_href_issuetracker_management = "Gestion des Gestionnaires d’anomalies";

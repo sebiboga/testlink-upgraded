@@ -2330,6 +2330,7 @@ $TLS_title_test_spec = "Especificación de Pruebas";
 $TLS_title_documentation = "Documentación";
 $TLS_title_product_mgmt = "Gestión de Proyectos de Pruebas";
 $TLS_href_plan_define_priority = "Definir Reglas de Prioridad";
+$TLS_href_severity_config = "Configuración de Severidad";
 $TLS_href_my_testcase_assignments="Casos de Prueba asignados a mí";
 $TLS_href_platform_management = "Gestión de Plataformas";
 $TLS_href_issuetracker_management = "Gestión del Gestor de Defectos";

@@ -1977,6 +1977,7 @@ $TLS_title_test_spec = "Especificación de pruebas";
 $TLS_title_documentation = "Documentación";
 $TLS_title_product_mgmt = "Gestión de Proyectos";
 $TLS_href_plan_define_priority = "Definir Reglas de Prioridad";
+$TLS_href_severity_config = "Configuración de Severidad";
 $TLS_href_my_testcase_assignments="Casos de prueba que tengo asignados";
 $TLS_href_platform_management = "Gestión de Plataformas";
 

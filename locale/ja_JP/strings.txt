@@ -2597,6 +2597,7 @@ $TLS_title_test_spec = "テスト仕様";
 $TLS_title_documentation = "文書の参照";
 $TLS_title_product_mgmt = "テストプロジェクト";
 $TLS_href_plan_define_priority = "テスト計画優先度";
+$TLS_href_severity_config = "重大度設定";
 $TLS_href_my_testcase_assignments = "自分が担当するテストケース";
 $TLS_href_platform_management = "プラットフォームの管理";
 $TLS_href_issuetracker_management = "課題追跡システム"; // "Issue Tracker Management";

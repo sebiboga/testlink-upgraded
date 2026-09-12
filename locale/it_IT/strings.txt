@@ -1562,6 +1562,7 @@ $TLS_title_requirements = "Requisiti";
 $TLS_title_test_spec = "Specifiche di Test";
 $TLS_title_product_mgmt = "Gestione Test Project";
 $TLS_href_plan_define_priority = "Test Plan priority";
+$TLS_href_severity_config = "Configurazione della gravità";
 $TLS_href_my_testcase_assignments="Test Cases assigned to me";
 
 

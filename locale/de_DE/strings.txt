@@ -2257,6 +2257,7 @@ $TLS_title_test_spec = "Testspezifikation";
 $TLS_title_documentation = "Dokumentation";
 $TLS_title_product_mgmt = "Testprojekte verwalten";
 $TLS_href_plan_define_priority = "Test Plan Priorität";
+$TLS_href_severity_config = "Schweregrad-Konfiguration";
 $TLS_href_my_testcase_assignments = "Mir zugewiesene Testfälle";
 $TLS_href_platform_management = "Plattformen verwalten";
 $TLS_href_issuetracker_management 	= "Issue Tracker Management";				

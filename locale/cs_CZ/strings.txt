@@ -2410,6 +2410,7 @@ $TLS_title_test_spec = "Specifikace testu";
 $TLS_title_documentation = "Dokumentace";
 $TLS_title_product_mgmt = "Správa testovacích projektu";
 $TLS_href_plan_define_priority = "Definovat pravidla priorit";
+$TLS_href_severity_config = "Konfigurace závažnosti";
 $TLS_href_my_testcase_assignments="Moje testovací prípady";
 $TLS_href_platform_management = "Správa platformy";
 $TLS_href_issuetracker_management = "Správa chybových položek";

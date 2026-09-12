@@ -1426,6 +1426,7 @@ $TLS_title_requirements = "Vaatimukset";
 $TLS_title_test_spec = "Testausmäärittely";
 $TLS_title_product_mgmt = "Testausprojekti";
 $TLS_href_plan_define_priority = "Testaussuunniteman prioriteetti";
+$TLS_href_severity_config = "Vakavuusasetukset";
 $TLS_href_my_testcase_assignments="Minulle osoitetut testitapaukset";
 
 //-----   gui/templates/mainPage_right.tpl -----

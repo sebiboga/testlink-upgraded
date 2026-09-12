@@ -1811,6 +1811,7 @@ $TLS_title_requirements = "Требования";
 $TLS_title_test_spec = "Описание тестов";
 $TLS_title_product_mgmt = "Программный продукт";
 $TLS_href_plan_define_priority = "Определить правила приоритетов";
+$TLS_href_severity_config = "Настройка серьёзности";
 $TLS_href_my_testcase_assignments="Тесты, назначенные мне";
 $TLS_href_platform_management = "Управление платформами";
 

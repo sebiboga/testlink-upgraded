@@ -1977,6 +1977,7 @@ $TLS_title_test_spec = "Spesifikasi Tes";
 $TLS_title_product_mgmt = "Manajemen Produk";
 
 $TLS_href_plan_define_priority = "Test Plan priority";
+$TLS_href_severity_config = "Konfigurasi Tingkat Keparahan";
 $TLS_href_my_testcase_assignments="Test Cases assigned to me";
 
 
