@@ -322,3 +322,38 @@ Legacy behavior (dropped in the initial 2.0.1 port, restored in #1398):
 BFF: `esrDirectLink()`, `esrExecutionTypeLabel()` (uses
 `TESTCASE_EXECUTION_TYPE_AUTO`), `esrNotesPayload()`. i18n: 14 new `esr.*` keys
 in all 10 bundles. Test cases: TLU suite #1398.
+
+## Tester assignment display + "Assign task to me" (issue #1397)
+
+The legacy popup showed the tester assignment of the executed version inside
+its title block, and offered to claim an unassigned task on save — both were
+dropped in the initial 2.0.1 port:
+
+- **Assignment line** — legacy `exec_show_tc_exec.inc.tpl:484-491`: when the
+  version has no tester in the current plan/build/platform context, an amber
+  box "No tester assigned" (warning icon); otherwise a teal box "Assigned to:
+  <user>" (user icon). Display names come from
+  `testcase::get_version_exec_assignment()` + `tlUser::getDisplayName()`,
+  comma-joined exactly like legacy `setTesterAssignment()`
+  (execSetResults.php:1195-1225).
+- **Assign task to me** — legacy `exec_controls.inc.tpl:52-60`: only shown
+  (and only savable) while the version has no tester AND the user can
+  execute. On save the BFF claims the version for the current user
+  (`assignment_mgr::assign()`, exactly the execSetResults.php:208-219 flow).
+  Default state follows `exec_cfg->exec_mode->assignTaskChecked` (default
+  `false`). The checkbox is disabled on closed builds / in read-only mode
+  (grants.can_execute=0 hides it entirely for RO users).
+- **Legacy parity on not_run** — a `not_run` save with the box checked still
+  creates the assignment: the BFF applies `assign_task` BEFORE the legacy
+  `not_run` early-return (write_execution() skips not_run INSERTs but the
+  claim must still happen).
+- **Assignment line survives the save** — the popup re-fetches its context
+  after every save, so the warning + checkbox are replaced by the new
+  assignee without a manual reload.
+
+BFF additions in `api/execsetresults/index.php`: init now returns
+`assignment {assigned_to, assigned_user_ids, has_no_assignment,
+assigned_to_me}` + `assign_task_default_checked`; the save handler accepts
+`assign_task=1` (values `1/true/on/yes`). i18n: `esr.assignedTo`,
+`esr.hasNoAssignment`, `esr.assignTaskToMe` in all 10 locale bundles (reusing
+the existing `exe.*` translations). Test cases: TLU suite #1397.

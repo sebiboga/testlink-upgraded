@@ -14098,3 +14098,40 @@ translates correctly in all 10 locales. Root cause: `ts.intro*` content keys wer
 the 8 non-en/ro bundles and `TLi18n.t()` renders missing keys literally (i18n.js:134-135).
 Fix: 10 translated keys × 8 bundles. The sibling chapters share the same defect — filed as
 **#1486** (bug) so each chapter issue tracks its own key completion.
+
+## Task — Issue #1397: Set Results popup — tester assignment display, "Assign task to me", "no tester assigned" warning
+
+Precondition: TestLink running at http://localhost:8082, logged in as admin/admin.
+Fixture `tmp/fixtures_1397.php` run: project ASG1397 (tproject=1), plan "ASG Plan"
+(9), build B1397 (1) open, suite ASG Suite (2), Case One (tcase=3, tcversion=4,
+feature=1) **assigned** to user ro817 (id=2), Case Two (tcase=6, tcversion=7,
+feature=2) **unassigned**. Branch `task/issue-1397`.
+
+Popup URL pattern:
+`gui/templates/execute/execSetResults.html?tcase_id=..&id=..&version_id=..&tcversion_id=..&level=testcase&tplan_id=9&setting_build=1&caller=tcAssignments`
+
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 1397.1 | Open popup for **Case One** (tcase_id=3, version_id=4) | Header shows teal box "Assigned to: ro 817" (user icon); NO "Assign task to me" checkbox (already assigned) | **PASS** |
+| 1397.2 | Open popup for **Case Two** (tcase_id=6, version_id=7), no assignment for build 1 | Header shows amber box "No tester assigned" (warning icon) + enabled checkbox "Assign task to me" | **PASS** |
+| 1397.3 | Case Two: check "Assign task to me", pick **Not Run**, click **Save result** | Save succeeds (toast not_run); assignment row created for feature_id=2/user_id=1/build=1; header auto-re-renders to "Assigned to: Testlink Administrator" and the checkbox disappears WITHOUT reload (legacy not_run parity) | **PASS** |
+| 1397.4 | Reload Case Two popup | Header persists "Assigned to: Testlink Administrator"; checkbox still absent (`has_no_assignment` now 0 from init) | **PASS** |
+| 1397.5 | Delete assignment for feature 2 + close build (is_open=0), reload Case Two | Amber "No tester assigned" + checkbox rendered but **disabled**; "Build is closed" banner shown; Save disabled | **PASS** |
+| 1397.6 | Re-open build (is_open=1), reload | Checkbox enabled again; Save enabled | **PASS** |
+| 1397.7 | API init Case One | `assignment` = {assigned_to:"ro 817", assigned_user_ids:"2", has_no_assignment:0, assigned_to_me:0}; `assign_task_default_checked`=0 | **PASS** |
+| 1397.8 | API init Case Two (unassigned) | `assignment.has_no_assignment`=1; `assigned_to`="" | **PASS** |
+| 1397.9 | API save Case Two `assign_task=1` | `{"status":"ok","saved":true,...}`; new user_assignments row created (idempotent on re-save) | **PASS** |
+| 1397.10 | API save Case Two `status":"n"` + `assign_task=1` | `{"status":"ok","saved":false,"reason":"not_run"}` AND assignment row still created (legacy parity) | **PASS** |
+| 1397.11 | i18n bundles | `esr.assignedTo`, `esr.hasNoAssignment`, `esr.assignTaskToMe` present + valid JSON in all 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh), translations matching the existing `exe.*` keys | **PASS** |
+| 1397.12 | Event Viewer / console | `events` table gains NO new ERROR/WARNING (log_level) rows during the suite (only fixture/login audit INFO rows); browser console shows only the pre-existing a11y notices, no errors | **PASS** |
+
+Result: **12/12 PASS** — **#1397 DONE**: execSetResults.html + api/execsetresults
+now render the legacy assigned-user line (teal) / "No tester assigned" warning
+(amber), offer the "Assign task to me" checkbox only while unassigned+writable
+(disabled on closed builds, hidden for RO), claim the task on save via the
+same `assignment_mgr::assign()` flow as legacy execSetResults.php:208-219
+(applied BEFORE the not_run early-return so a not_run save still claims), and
+re-render the header after save. BFF init additions: `assignment` +
+`assign_task_default_checked`; save accepts `assign_task`. i18n: 3 new `esr.*`
+keys in all 10 bundles. Code review (AGENTS rule 16) passed — intval($userId),
+`$fmap=[]`, `\Throwable` catches, post-save re-render applied before commit.

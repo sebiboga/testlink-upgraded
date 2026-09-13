@@ -146,6 +146,13 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       <span id="tcMetaDurWrap"><b data-i18n="esr.estExecDuration">Estimated execution duration</b>: <span id="tcMetaDur"></span></span>
     </div>
 
+    <!-- Refs #1397: tester assignment line (legacy
+         exec_show_tc_exec.inc.tpl:484-491): warning when the version has no
+         tester; otherwise the assigned user(s). When unassigned and the
+         screen is writable, an "assign task to me" checkbox is offered
+         (legacy exec_controls.inc.tpl:52-60). -->
+    <div class="prior-box" id="assignBox" style="display:none;"></div>
+
     <!-- Refs #1398: collapsible Test Plan / Build / Platform notes panels +
          their plan/build design-time custom fields (legacy
          exec_show_tc_exec.inc.tpl notes sections + execSetResults.php
@@ -501,6 +508,7 @@ renderSuiteBlock(r);
   renderHeaderActions(r);
   renderNotesPanel(r);
   renderTcMeta(r);
+  renderAssignment(r);
 
   // prior execution box (hidden when the selected build has no execution —
   // e.g. a closed build that was never executed; matches the re-fetch on
@@ -767,6 +775,38 @@ function renderTcMeta(r) {
   if (type) { $('#tcMeta').show(); } else { $('#tcMeta').hide(); }
 }
 
+// ---------------------------------------------------------------------------
+// Refs #1397: tester assignment line (legacy exec_show_tc_exec.inc.tpl:
+// 484-491 + exec_controls.inc.tpl:52-60). No assignee -> amber warning box
+// with, when the screen is writable, an "Assign task to me" checkbox that
+// claims the version for the current user on save. Otherwise a teal box
+// with the assigned user(s). Same Dashio pattern as execTest.html:862-879.
+// ---------------------------------------------------------------------------
+function renderAssignment(r) {
+  var $box = $('#assignBox');
+  var asg = r.assignment || null;
+  if (!asg) { $box.hide(); return; }
+  var h = '';
+  if (asg.has_no_assignment) {
+    h = '<i class="fa fa-triangle-exclamation" style="color:#d9a514;"></i> ' +
+      esc(TLi18n.t('esr.hasNoAssignment'));
+    if (r.grants && r.grants.can_execute) {
+      var defChecked = r.assign_task_default_checked ? ' checked' : '';
+      h += ' <label style="font-size:12.5px;font-weight:600;color:#444;' +
+        'display:inline-flex;align-items:center;gap:6px;margin-left:10px;' +
+        'cursor:pointer;">' +
+        '<input type="checkbox" id="assignTask"' + defChecked + '> ' +
+        esc(TLi18n.t('esr.assignTaskToMe')) + '</label>';
+    }
+    $box.css({ 'border-color': '#e5b567', background: '#fff8e6', color: '#5a4a2a' });
+  } else {
+    h = '<i class="fa fa-user" style="color:#4ECDC4;"></i> ' +
+      esc(TLi18n.t('esr.assignedTo')) + ': <b>' + esc(asg.assigned_to) + '</b>';
+    $box.css({ 'border-color': '#bfe5e2', background: '#eefaf9', color: '#2d8e88' });
+  }
+  $box.html(h).show();
+}
+
 // Closed-build read-only state (legacy execSetResults parity): when the
 // selected build is not executable (closed), show the "Build is closed" box
 // and disable every WRITE control while still allowing result review
@@ -796,6 +836,7 @@ function applyBuildState(r) {
     $('#txtExecDuration').prop('disabled', true);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', true);
     $('#btnSavePartial').prop('disabled', true).css('opacity', .5);
+    $('#assignTask').prop('disabled', true);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
     $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
@@ -809,6 +850,7 @@ function applyBuildState(r) {
     $('#txtExecDuration').prop('disabled', false);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', false);
     $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
+    $('#assignTask').prop('disabled', false);
   }
 }
 
@@ -1118,6 +1160,14 @@ function doSave(navNext) {
   fd.append('status', ctx.statusCode);
   fd.append('notes', $('#txtNotes').val() || '');
   fd.append('execution_duration', $('#txtExecDuration').val() || '');
+
+  // Refs #1397: claim the execution task for the current user (legacy
+  // execSetResults assignTask checkbox, only offered while the version has
+  // no tester). Same contract as execTest.html:1350-1355.
+  var $asg = $('#assignTask');
+  if ($asg.length && $asg.is(':checked')) {
+    fd.append('assign_task', '1');
+  }
   $('#stepsBody select[data-step]').each(function () {
     var sid = $(this).data('step');
     fd.append('steps[' + sid + '][status]', $(this).val());
@@ -1150,12 +1200,26 @@ function doSave(navNext) {
       toast(TLi18n.t('esr.savedNotRun'));
       // legacy execSetResults.php:241 navigates on save_and_next even when
       // nothing was persisted (not_run selected); mirror that
-      if (navNext) navTo('next');
+      if (navNext) {
+        navTo('next');
+      } else {
+        // Refs #1397: a not_run save with "assign task to me" checked still
+        // claims the task for the current user (legacy parity) - refresh the
+        // assignment line so the header reflects the new assignee immediately.
+        loadInfo();
+      }
       return;
     }
     $('#saveOk').text(TLi18n.t('esr.saveDone')).show();
     toast(TLi18n.t('esr.saveDone'));
-    if (navNext) navTo('next');
+    if (navNext) {
+      navTo('next');
+    } else {
+      // Refs #1397: when the save claimed the task ("assign task to me"
+      // checked), re-render the header so the warning + checkbox are replaced
+      // by the new assignee (legacy execSetResults re-renders the whole page).
+      loadInfo();
+    }
   }).fail(function (xhr) {
     $('#loadingOverlay').hide();
     $('#btnSave').prop('disabled', false);

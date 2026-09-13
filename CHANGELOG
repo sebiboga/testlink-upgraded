@@ -226,6 +226,16 @@ Test Strategy:
 NEW FEATURES
 ------------
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
+  `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
+  header now shows "Assigned to: <user>" (teal) or the "No tester assigned"
+  warning (amber) plus an "Assign task to me" checkbox (only while
+  unassigned+writable; disabled on closed builds, hidden for RO users). The
+  BFF init returns `assignment {assigned_to, assigned_user_ids,
+  has_no_assignment, assigned_to_me}` + `assign_task_default_checked` and the
+  save handler claims the task via `assignment_mgr::assign()` before the
+  not_run early-return (legacy parity: a not_run save still claims). i18n
+  `esr.assignedTo/hasNoAssignment/assignTaskToMe` in all 10 bundles.
+- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): legacy execInfo strip restored (Refs #1398) — copy
   direct link (`direct_link`+`feature_id` in init) with clipboard toggle,
   Print, Import XML Results popup, and Execute and Save Results (remote exec,

@@ -1029,6 +1029,57 @@ if ($action === 'init') {
     // is gated on exec_cfg->enable_test_automation (default DISABLED).
     $testAutomation = !empty($execCfg->enable_test_automation) ? 1 : 0;
 
+    // Refs #1397: tester assignment of THIS version in the current
+    // plan/build/platform context (legacy execSetResults setTesterAssignment()
+    // via testcase::get_version_exec_assignment()). Empty = "no tester
+    // assigned": the popup must show the warning and offer the "assign task
+    // to me" checkbox (exec_show_tc_exec.inc.tpl:484-491 and
+    // exec_controls.inc.tpl:52-60). Display names come from tlUser, joined
+    // with ',' exactly like the legacy implode(',').
+    $assignment = [
+        'assigned_to' => '',
+        'assigned_user_ids' => '',
+        'has_no_assignment' => 1,
+        'assigned_to_me' => 0,
+    ];
+    try {
+        $asg = $tcaseMgr->get_version_exec_assignment(
+            $tcversionId, $tplanId, $buildId);
+        $asgPlatform = $platformId > 0 ? $platformId : 0;
+        if (is_array($asg) && isset($asg[$tcversionId][$asgPlatform])) {
+            $names = [];
+            $ids = [];
+            foreach ($asg[$tcversionId][$asgPlatform] as $uu) {
+                $uid = intval($uu['user_id']);
+                if ($uid <= 0) { continue; }
+                $ids[] = $uid;
+                if ($uid === intval($userId)) {
+                    $assignment['assigned_to_me'] = 1;
+                }
+                $aUser = tlUser::getByID($db, $uid);
+                $names[] = $aUser ? $aUser->getDisplayName() : strval($uid);
+            }
+            $assignment['assigned_to'] = implode(',', $names);
+            $assignment['assigned_user_ids'] = implode(',', $ids);
+            $assignment['has_no_assignment'] = count($names) > 0 ? 0 : 1;
+        }
+    } catch (\Throwable $e) {
+        // fall back to the "no tester assigned" defaults above
+    }
+
+    // Refs #1397: default state of the "Assign task to me" checkbox (legacy
+    // exec_cfg->exec_mode->assignTaskChecked, config.inc.php:1123). The
+    // checkbox itself is only rendered when there is no assignment.
+    $assignTaskDefault = 0;
+    try {
+        if (isset($execCfg->exec_mode->assignTaskChecked)
+            && !empty($execCfg->exec_mode->assignTaskChecked)) {
+            $assignTaskDefault = 1;
+        }
+    } catch (\Throwable $e) {
+        $assignTaskDefault = 0;
+    }
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($tprojInfo['name']), 'prefix' => $prefix],
@@ -1038,6 +1089,9 @@ if ($action === 'init') {
             'external_id' => $tcaseExternalId,
             'name' => $tcaseName,
         ],
+        // Refs #1397: tester assignment context for the "Set Results" header
+        'assignment' => $assignment,
+        'assign_task_default_checked' => $assignTaskDefault,
         'tcversion' => [
             'id' => $tcversionId,
             'version' => intval($vinfo['version']),
@@ -1147,6 +1201,36 @@ if ($action === 'save') {
     // same guarantee as init (prevents freezing coverage / auditing the
     // wrong test case via a mismatched tcase_id/tcversion_id pair)
     esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
+
+    // Refs #1397: legacy "Assign execution task to me" checkbox
+    // (execSetResults.php:208-219): claim THIS version + plan + build +
+    // platform for the current user when checked. Runs BEFORE the not_run
+    // early return so a not_run save still claims the task (legacy parity:
+    // write_execution() skips not_run INSERTs but the assignment happens
+    // anyway). assignment_mgr->assign() is idempotent — re-saving can never
+    // duplicate rows. Best-effort: never fail the whole save.
+    if (isset($payload['assign_task'])
+        && in_array(strtolower(strval($payload['assign_task'])),
+                    ['1', 'true', 'on', 'yes'])) {
+        try {
+            $asgPlatform = $platformId > 0 ? $platformId : 0; // -1 => no-platform plans
+            $fid = $tplanMgr->getFeatureID($tplanId, $asgPlatform, $tcversionId);
+            if ($fid > 0) {
+                $taskMgr = new assignment_mgr($db);
+                $taskDomain = $taskMgr->get_available_types();
+                $taskStatusDomain = $taskMgr->get_available_status();
+                $fmap = [];
+                $fmap[$fid]['user_id'] = $fmap[$fid]['assigner_id'] = $userId;
+                $fmap[$fid]['build_id'] = $buildId;
+                $fmap[$fid]['type'] = $taskDomain['testcase_execution']['id'];
+                $fmap[$fid]['status'] = $taskStatusDomain['open']['id'];
+                $taskMgr->assign($fmap);
+            }
+        } catch (\Throwable $e) {
+            // assignment creation is best-effort like the rest of the save
+            // side-effects; never fail the whole execution write
+        }
+    }
 
     $notRun = $resultsCfg['status_code']['not_run'];
     if ($statusCode === $notRun) {
