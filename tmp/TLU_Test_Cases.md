@@ -14461,3 +14461,24 @@ session authenticated as admin. Popup:
 Result: **PASS — 10/10 PASS** — ITS create-on-save, copy-from-latest, prior-box
 bug chips and link/create/unlink modal all verified in the browser; BFF actions
 gated and Event Viewer clean. Refs #1393.
+
+## Suite 903 — Role Management: demoMode read-only gating — Refs #903
+
+Precondition: app @ localhost:8082, logged in admin/admin. BFF `api/roles`,
+screen `gui/templates/usermanagement/rolesView.html`. Gate controlled by
+`config.inc.php:2060` `$tlCfg->demoMode` (OFF default). Tested both states.
+
+| # | Steps | Expected | Result |
+|---|-------|----------|--------|
+| 903.1 | `GET /api/roles/index.php` (demoMode OFF) | `status:ok`, new field `demoMode:false`; legacy fields intact (items/total/rights.canViewEvents) | **PASS** |
+| 903.2 | Open `rolesView.html` (demoMode OFF) | No demo banner; **Create Role** visible; row actions edit+duplicate (+delete for custom); edit modal shows **Save** | **PASS** |
+| 903.3 | Flip `config.inc.php` demoMode ON, reload `rolesView.html` | Amber banner "Demo mode enabled => Update Role DISABLED"; **Create Role** hidden; admin row shows only edit icon (duplicate/delete gated); `demoMode:true` in GET /roles | **PASS** |
+| 903.4 | Open edit modal on role 4 (test designer) with demoMode ON | **Save** hidden; `role.demoUpdateDisabled` notice visible; Name/Description/rights checkboxes + Select All disabled; modal openable for review | **PASS** |
+| 903.5 | BFF writes with demoMode ON — POST /roles, PUT /roles/4, DELETE /roles/9, POST /roles/9/duplicate, PUT /roles/tproject-roles | Each returns HTTP 403 `{status:error, code:'demo_mode', message:'Demo mode enabled => Update Role DISABLED'}`; no DB mutation | **PASS** |
+| 903.6 | Flip demoMode back OFF; POST create + DELETE a temp role | HTTP 200 create (`ZZ demo gate check`), 200 delete; normal write path not broken | **PASS** |
+| 903.7 | i18n: 11 bundles (de en es fr it ja pt ro ru zh) contain `role.demoUpdateDisabled` | All valid `python3 -m json.tool`; en value = legacy `locale/en_GB/strings.txt:448` | **PASS** |
+| 903.8 | Event Viewer + console hygiene | `events` table: 0 new ERROR/WARNING rows (only INFO audit rows for temp-role create/delete); browser console 0 errors across both states | **PASS** |
+
+Result: **PASS — 8/8 PASS** — demoMode read-only gating for Role Management
+implemented and verified end-to-end (UI + BFF + i18n), mirroring User
+Management #887 and legacy rolesEdit.tpl:185-205. Refs #903.

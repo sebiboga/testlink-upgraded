@@ -69,6 +69,9 @@ System:
   the edit modal (mgt_view_events-gated drill-down to the Event Viewer
   filtered on the edited user, #886) (#879-#891).
 - Role Management (usermanagement/rolesView.html) - BFF api/roles.
+  Create/edit/duplicate/delete, system-role protection, delete-with-users
+  reset warning (#902), and demoMode read-only gating (banner + BFF 403 on
+  all writes, #903).
 - Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
   usersAssignPlan.html).
 - Custom Fields (cfields/cfieldsView.html) - BFF api/cfields. Custom Fields

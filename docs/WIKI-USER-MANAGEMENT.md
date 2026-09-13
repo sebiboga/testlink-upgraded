@@ -363,6 +363,34 @@ Rights are color-coded in the table:
 - Before deletion, the system shows how many users currently have this role assigned
 - If users are assigned, you must reassign them to another role before deletion
 
+### Demo Mode (read-only gating, issue #903)
+
+When `$tlCfg->demoMode = ON;` in `config.inc.php` the whole Role Management
+screen becomes read-only, mirroring legacy `rolesEdit.tpl:185-205` where on
+`doUpdate` the Save button is replaced by the `demo_update_role_disabled` note
+("Demo mode enabled => Update Role DISABLED").
+
+- **BFF enforcement** (`api/roles/index.php`): a shared `demoModeBlockedWrite()`
+  helper (mirror of `api/users`) returns HTTP 403 `{status:error,
+  code:'demo_mode'}` from every write route — POST create, PUT update,
+  DELETE, POST `/duplicate`, and PUT `/tproject-roles` / `/tplan-roles`.
+  The UI can never bypass it.
+- **UI gating** (`rolesView.html`): with demo mode on a read-only amber banner
+  appears under the header, the **Create Role** toolbar button disappears, grid
+  rows show only the **Edit** icon (no duplicate/delete), and the edit modal
+  replaces **Save** with a `role.demoUpdateDisabled` notice and disables every
+  field (name, description, rights checkboxes, Select All). Opening a role for
+  view stays possible — legacy allowed viewing the edit page, only the update
+  was blocked. Cancel/close stay usable.
+- **Discovery**: `GET /api/roles/index.php` now returns `demoMode` so the
+  front-end knows the state.
+- New i18n key in all 11 locale bundles (value taken from legacy
+  `strings.txt`): `role.demoUpdateDisabled`.
+
+Screenshots: `docs/screenshots/903_1_demo_on.png`,
+`docs/screenshots/903_2_modal_readonly.png`,
+`docs/screenshots/903_3_normal_state.png`.
+
 ### Tips
 
 - Create roles with only the permissions needed (principle of least privilege)
