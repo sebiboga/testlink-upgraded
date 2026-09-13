@@ -14309,3 +14309,25 @@ Result: **PASS — 8/8 PASS** — Issue #1456 spec fully satisfied (Training Pla
 | 896.10 | Event Viewer + console hygiene | `events`: no new ERROR/WARNING rows from the fixed API (load/count/read); browser console 0 errors on EN+RO loads | **PASS** |
 
 Result: **PASS — 10/10 PASS** — Issue #896 implemented from scratch: live GitHub-style notification center (assignment/milestone/plan-completed/new-bug) with session read-state, Dashboard bell badge, 38 i18n keys ×10 bundles, docs/wiki + fixture; Event Viewer clean.
+
+# Regression — Issue #1442: Test Strategy "Scope" chapter (tracking issue) + header icon fix
+
+> STATUS: `**PASS**` — 9/9 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: (1) re-verify the tracking-issue spec (page/icon/ASIDE wiring/Overview CHAPTERS entry/i18n keys/In-scope+Out-of-scope content) is implemented and error-free on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n `945679c5b`); (2) fix + verify a real defect found while testing: **`gui/templates/strategy/scope.html:31` rendered the *Objectives* icon `fa-bullseye` in the chapter header instead of the Scope chapter's canonical icon `fa-expand-arrows-alt`** (the icon specified in this issue, used by `aside.tpl:143` and the BFF chapter map `api/strategy/index.php:60`). Fix: 1-line icon swap; no other files touched.
+
+**Screen:** `gui/templates/strategy/scope.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 3 card). **Wiring:** `gui/templates/dashio/aside.tpl:143` (`fas fa-expand-arrows-alt`), `labels.aside.tpl:18`, `locale/en_GB+en_US+ro_RO/strings.txt` (`href_test_strategy_scope`). **i18n:** `ts.scope*` (9 keys incl. `ts.chapterScope`/`ts.chapterScopeDesc`) in all 10 bundles.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1442.1 | `GET /gui/templates/strategy/scope.html` | HTTP 200; header "Scope" + "in-scope and out-of-scope areas of the testing effort"; **In scope** card (3 bullets: functional requirements / regression / non-functional checks) + **Out of scope** card (2 bullets: third-party software / historical releases); back link "Back to Test Strategy"; TLi18n init (no console errors) | **PASS** |
+| 1442.2 | scope.html header icon (fixed) | `<i class="fas fa-expand-arrows-alt">` — matches issue spec, `aside.tpl:143` and BFF chapter 3 (measured via JS → header icon class = `fas fa-expand-arrows-alt`) | **PASS** |
+| 1442.3 | ASIDE → Test Strategy → **Scope** | Sub-item present, opens `scope.html` in mainframe | **PASS** |
+| 1442.4 | General Overview (`testStrategy.html`) chapter card #3 | Card "Scope" + `fa-expand-arrows-alt` + **Open chapter** → `scope.html`; 28 cards total render (num 1..28) | **PASS** |
+| 1442.5 | Locale switch scope.html → `?locale=ro` | "Domeniul" / "zonele incluse și excluse din efortul de testare" / "În domeniu (in scope)" + 3 bullets / "În afara domeniului (out of scope)" + 2 bullets / "Înapoi la Strategia de Testare"; no literal `ts.*` keys in DOM; header icon still `fa-expand-arrows-alt` | **PASS** |
+| 1442.6 | All 28 chapter-page header icons vs canonical BFF icons | `scope.html` is the ONLY page that used a wrong icon pre-fix (was `fa-bullseye`); after fix all 28 match; grep × 28 files | **PASS** |
+| 1442.7 | BFF + i18n bundle integrity | `action=chapters` returns 28 entries; scope entry `{num:3, icon:"fa-expand-arrows-alt", key:"ts.chapterScope", url:".../scope.html"}`; all 10 bundles contain `ts.scope*` (9 keys) and pass `python3 -m json.tool` | **PASS** |
+| 1442.8 | Event Viewer hygiene | `events` table: only `audit_login_succeeded` INFO (log_level 16), no new ERROR/WARNING rows after all loads | **PASS** |
+| 1442.9 | Browser console hygiene | 0 errors/warnings across EN + RO loads and locale switch | **PASS** |
+
+Result: **PASS — 9/9 PASS** — Issue #1442 spec fully satisfied (Scope chapter complete end-to-end: page content, ASIDE wiring, Overview card #3 + Open chapter, i18n in all 10 bundles, EN/RO locale switch). The header-icon defect found during verification (`fa-bullseye` → `fa-expand-arrows-alt`, 1-line change in `gui/templates/strategy/scope.html:31`) is fixed and re-verified error-free.
