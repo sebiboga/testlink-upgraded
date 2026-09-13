@@ -107,15 +107,20 @@ function needOwnedSpec($specId, $tproject_id) {
  */
 function buildOrderedReqs($specId) {
     global $db;
-    $sql = "SELECT R.id, R.srs_id, NH.name AS title, V.req_doc_id," .
-           " V.status, V.type, V.version, NH.node_order" .
+    // node types: requirements=7, requirement_version=8 (nodes_hierarchy
+    // stores the requirement node itself; its LATEST version is the child
+    // node with type requirement_version and max id). Titles/order live on
+    // the requirement node, req_doc_id/status/type/version on req_versions.
+    $sql = "SELECT R.id, NH.name AS title, V.req_doc_id, NH.node_order," .
+           " V.status, V.type, V.version" .
            " FROM requirements R" .
            " JOIN nodes_hierarchy NH ON NH.id = R.id" .
-           " JOIN req_versions V ON V.id = NH.id" .
-           "   AND V.version = (SELECT MAX(V2.version) FROM req_versions V2" .
-           "        JOIN nodes_hierarchy H2 ON H2.id = V2.id" .
-           "        WHERE H2.parent_id = R.id)" .
+           " JOIN nodes_hierarchy VN ON VN.parent_id = R.id" .
+           "   AND VN.node_type_id = 8" .
+           " JOIN req_versions V ON V.id = VN.id" .
            " WHERE R.srs_id = " . intval($specId) .
+           "   AND VN.id = (SELECT MAX(VN2.id) FROM nodes_hierarchy VN2" .
+           "        WHERE VN2.parent_id = R.id AND VN2.node_type_id = 8)" .
            " ORDER BY NH.node_order ASC, R.id ASC";
     $rows = $db->get_recordset($sql);
     $list = [];
@@ -213,7 +218,7 @@ if ($method === 'POST' && $action === 'reorder') {
 
     foreach ($order as $nid => $nodeOrder) {
         $db->exec_query(
-            'UPDATE ' . $reqMgr->object_table . ' SET node_order = ' .
+            'UPDATE nodes_hierarchy SET node_order = ' .
             intval($nodeOrder) . ' WHERE id = ' . intval($nid));
     }
 
