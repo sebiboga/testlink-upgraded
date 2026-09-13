@@ -50,7 +50,13 @@ $segments = array_values(array_filter(explode('/', $path)));
 function out($data) { echo json_encode($data); exit; }
 
 function canVolatileChars($v, $prepend = 0) {
-    return preg_match("/^[a-zA-Z0-9_\.]+$/", $v);
+    // Refs #1487: legacy lib/cfields/cfieldsExport.php accepted ANY filename
+    // (downloadContentsToFile used it verbatim). Keep header-injection defenses
+    // (basename() + control-char strip + this charset) but allow the natural
+    // spaces/hyphens users actually type ("my custom fields.xml") so the
+    // Content-Disposition name matches what was typed instead of silently
+    // falling back to the default like the old ^[a-zA-Z0-9_.]+$ whitelist did.
+    return preg_match("/^[a-zA-Z0-9 _\.\-]+$/", $v);
 }
 
 $cfield_mgr = new cfield_mgr($db);
