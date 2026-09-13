@@ -2133,6 +2133,7 @@
   "role.deleteConfirmMsg": "Are you sure you want to delete role",
   "role.deleteUsersMsg": "{n} user(s) currently have this role: {users}",
   "role.description": "Description",
+  "role.editLocked": "This role is defined by the system and cannot be modified.",
   "role.editRole": "Edit Role",
   "role.error.delete": "Error deleting role",
   "role.error.save": "Error saving role",

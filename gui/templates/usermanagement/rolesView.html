@@ -89,6 +89,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       </div>
       <div class="modal-body">
         <input type="hidden" id="editRoleId">
+        <div id="roleLockNote" class="alert alert-warning" style="display:none;font-size:12px;padding:8px 12px;"><i class="fa fa-lock"></i> <span data-i18n="role.editLocked">This role is defined by the system and cannot be modified.</span></div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="role.roleName">Role Name *</label>
           <input type="text" id="editRoleName" class="form-control" maxlength="100" style="font-size:13px;">
@@ -100,7 +101,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <div class="form-group">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <label style="font-size:12px;font-weight:600;margin:0;"><span data-i18n="role.rights">Rights *</span> <span data-i18n="role.selectAtLeastOne" style="font-weight:400;color:#888;">(select at least one)</span></label>
-            <a href="javascript:;" onclick="toggleAllRights()" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="role.selectAll">Select All</a>
+            <a href="javascript:;" id="selectAllRightsLink" onclick="toggleAllRights()" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="role.selectAll">Select All</a>
           </div>
           <div id="rightsContainer" class="rights-grid"></div>
         </div>
@@ -108,7 +109,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="saveRole()" style="font-size:13px;" data-i18n="common.save">Save</button>
+        <button type="button" class="btn-teal" id="saveRoleBtn" onclick="saveRole()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
   </div>
@@ -256,6 +257,15 @@ function buildRightsCheckboxes(selectedRights) {
   return html;
 }
 
+function setRoleEditable(editable, disableInputs) {
+  $('#saveRoleBtn').toggle(editable);
+  $('#roleLockNote').toggle(!editable);
+  $('#editRoleName').prop('disabled', !editable && disableInputs);
+  $('#editRoleDesc').prop('disabled', !editable && disableInputs);
+  $('#selectAllRightsLink').toggle(editable);
+  $('#rightsContainer input[type="checkbox"]').prop('disabled', !editable && disableInputs);
+}
+
 function showCreateModal() {
   $('#modalTitle').text(TLi18n.t('role.createRole'));
   $('#editRoleId').val('');
@@ -263,6 +273,7 @@ function showCreateModal() {
   $('#editRoleDesc').val('');
   $('#rightsContainer').html(buildRightsCheckboxes([]));
   $('#modalError').hide();
+  setRoleEditable(true, false);
   $('#roleModal').modal('show');
 }
 
@@ -275,12 +286,17 @@ function editRole(id) {
     $('#editRoleDesc').val(role.description || '');
     $('#rightsContainer').html(buildRightsCheckboxes(role.rights));
     $('#modalError').hide();
+    setRoleEditable(!!role.canEdit, !!role.isAdmin);
     $('#roleModal').modal('show');
   });
 }
 
 function saveRole() {
   var id = $('#editRoleId').val();
+  if (id && !$('#saveRoleBtn').is(':visible')) {
+    $('#modalError').text(TLi18n.t('role.editLocked')).show();
+    return;
+  }
   var rightIDs = [];
   $('#rightsContainer input[name="right"]:checked').each(function() { rightIDs.push(parseInt($(this).val())); });
 

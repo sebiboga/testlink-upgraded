@@ -64,6 +64,12 @@ function roleToJSON(tlRole $r) {
         'id' => intval($r->dbID),
         'name' => $r->getDisplayName(),
         'description' => $r->description ?? '',
+        // Legacy parity: lib/usermanagement/rolesEdit.php:222 roleCanBeEdited =
+        // (roleid != TL_ROLES_ADMIN) and rolesEdit.tpl:193 Save rendered only
+        // when role->dbID != TL_ROLES_NO_RIGHTS. So admin (8) is fully
+        // read-only and <no rights> (3) cannot be saved.
+        'canEdit' => intval($r->dbID) != TL_ROLES_ADMIN && intval($r->dbID) != TL_ROLES_NO_RIGHTS,
+        'isAdmin' => intval($r->dbID) == TL_ROLES_ADMIN,
         'rights' => $r->rights ? array_map(function($right) {
             return ['id' => intval($right->dbID), 'name' => $right->name];
         }, $r->rights) : [],
@@ -133,6 +139,17 @@ if ($method === 'POST' && empty($segments)) {
 // Route: PUT /roles/{id} - update role
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
     $id = intval($segments[0]);
+
+    // Legacy parity: rolesEdit.php:222 roleCanBeEdited = (roleid !=
+    // TL_ROLES_ADMIN) and rolesEdit.tpl:193-201 hides the Save button for
+    // TL_ROLES_NO_RIGHTS. Admin (8) is read-only and <no rights> (3) can
+    // never be saved — reject any write attempt to either.
+    if ($id == TL_ROLES_ADMIN || $id == TL_ROLES_NO_RIGHTS) {
+        logAuditEvent("Forbidden update attempt on protected role #{$id}", 'AUTH', $id, 'roles');
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Cannot edit system role', 'id' => $id]);
+    }
+
     $r = tlRole::getByID($db, $id);
     if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
 
