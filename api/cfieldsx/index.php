@@ -144,7 +144,7 @@ if ($method === 'POST' && isset($segments[0]) && $segments[0] === 'export') {
 
     header_remove('Content-Type');
     header('Pragma: public');
-    header('Content-Type: application/xml; charset=' . config_get('charset') . '; name=' . $filename);
+    header('Content-Type: application/xml; charset=' . config_get('charset') . '; name="' . $filename . '"');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Content-Length: ' . strlen($content));
     header('Cache-Control: must-revalidate');

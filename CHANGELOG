@@ -72,7 +72,9 @@ System:
 - Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
   usersAssignPlan.html).
 - Custom Fields (cfields/cfieldsView.html) - BFF api/cfields. Custom Fields
-  XML export/import screen (cfieldsExchange, #1411).
+  XML export/import screen (cfieldsExchange, #1411). 2026-09-13 ledger close-out
+  (#1487): screen recorded in MODERNIZATION-STATUS.md/docs/wiki; export-filename
+  parity fix (spaces/hyphens honored like legacy, CRLF injection still blocked).
 - Custom Fields Assign (cfields/cfieldsAssignView.html).
 - Issue Tracker Management (issuetracker/issuetrackerView.html) - BFF
   api/issuetracker. GitHub OAuth tracker (#771/#813).

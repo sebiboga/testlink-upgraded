@@ -76,8 +76,22 @@ The BFF replicates the legacy `ADODB_XML` output exactly:
 - `X-Requested-With: XMLHttpRequest`/Origin proof required on all POSTs
   (`api/_guard.php` `bffSameOriginGuard`), same as every other BFF;
 - XXE protection (entity loader disabled + `LIBXML_NONET`);
-- exported filename sanitized via `basename()` and a `[a-zA-Z0-9_.]` allow-list
-  before being echoed in the `Content-Disposition` header.
+- exported filename sanitized via `basename()` and a `[a-zA-Z0-9 _.-]`
+  allow-list before being echoed in the `Content-Disposition` header. **#1487
+  parity fix (2026-09-13, commit `c5f4a706c`):** the previous `[a-zA-Z0-9_.]`
+  allow-list silently reverted natural filenames with spaces/hyphens
+  (`my custom fields-1487.xml`) to the default `customFields.xml`, while legacy
+  `cfieldsExport.php` honored them verbatim — spaces/hyphens are now accepted;
+  CRLF header-injection attempts still fall back to the default (no header
+  splitting).
+
+## Ledger / close-out (#1487)
+
+The screen was built in #1411 but was the only implemented modern screen
+missing from `docs/MODERNIZATION-STATUS.md`; recorded as row **#7b** (System —
+Custom Fields Export/Import XML) + an "extras" entry (39 extras) in the Summary
+block on 2026-09-13. Full fresh-DB BFF re-verification suite 1487 (17/17 PASS)
+in `tmp/TLU_Test_Cases.md`; Event Viewer clean.
 
 ## i18n
 

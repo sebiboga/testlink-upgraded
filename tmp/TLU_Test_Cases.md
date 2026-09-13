@@ -14194,3 +14194,37 @@ exitCriteria.html were confirmed already translated (not part of this fix). 179 
 | 1462.14 | i18n render + Event Viewer hygiene | No raw `nfr.*`/`nfrt.*`/`ts.*` keys in DOM; locale switch to ro renders Romanian; no new Error/Warning events (audits only) | **PASS** |
 
 Result after re-run: **PASS — 14/14 PASS** (verified 2026-09-13 on the merged build @ localhost:8082).
+
+---
+
+## Task — Issue #1487: cfieldsExchange — ledger close-out (reconcile with MODERNIZATION-STATUS.md) + export-filename parity fix
+
+**Screens:** `api/cfieldsx/index.php` (BFF) · `gui/templates/cfields/cfieldsExchange.html` · wired via `$actions->cfieldsExchange` in `lib/functions/common.php` (§ sidebar) + toolbar buttons in `gui/templates/cfields/cfieldsView.html`.
+
+**Background:** this screen is the ASIDE-parity check result — the *only* implemented modern screen missing from the `docs/MODERNIZATION-STATUS.md` ledger (no DONE row, no `docs/` mirror, no wiki page). This run records it in the ledger/docs/wiki and re-verifies the full BFF surface on a fresh DB, surfacing ONE real parity regression fixed as its own commit.
+
+**Bug fixed (commit `c5f4a706c`):** BFF `canVolatileChars()` used `^[a-zA-Z0-9_.]+$`, so any natural export filename containing a space or hyphen (`test cfields-1487.xml`) was silently reverted by the server to `customFields.xml` — legacy `lib/cfields/cfieldsExport.php` honored the typed verbatim. Now allowed: `^[a-zA-Z0-9 _\.\-]+$` + `basename()` + control-char strip; CRLF injection still safely falls back to the default.
+
+**Precondition (2026-09-13, fresh DB):** app @ localhost:8082, admin/admin logged in; fixture `tmp/fixtures_1487.php` re-run: tproject=25 (CFX1487), tsuite, tcase=27, tplan=30, build=1, CFs `cf_ticket`/`cf_priority`. Low-right user `cfxguest`/`cfxpass9` (role 5 guest) via SQL. XMLs in `/tmp`: `cfx_new.xml` (cf_owner2), `cfx_dup.xml` (cf_ticket), `cfx_env.xml` (cf_env), `cfx_bad.xml` (garbage).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1487.1 | Ledger gap confirmed | `docs/MODERNIZATION-STATUS.md` TODO empty; screen files exist on disk (HTML/BFF/i18n ×10/common.php) but NO DONE row for it → close-out work scope | **PASS** |
+| 1487.2 | Fixture `fixtures_1487.php` | tproject 25 / tcase 27 / tplan 30 / build 1, CFs cf_ticket(cf), cf_priority idem via SQL | **PASS** |
+| 1487.3 | GET `/api/cfieldsx/` as admin | `{status:ok,count:2,has_export_right:1,has_import_right:1,default_filename:customFields.xml,import_limit_kb:10240}` | **PASS** |
+| 1487.4 | POST `/export` `{"export_filename":"customFields.xml"}` | 200, `Content-Disposition: attachment; filename="customFields.xml"`, XML root `<custom_fields>` + 1 `<custom_field>` per CF with name/label/type/possible_values/default_value/valid_regexp/length*/show·enable flags/node_type_id (1229 B) | **PASS** |
+| 1487.5 | POST `/export` `{"export_filename":"my custom fields-1487.xml"}` | 200, filename **honored verbatim** (spaces+hyphen) — regression vs legacy parity | **PASS** |
+| 1487.6 | Export via UI (`test cfields-1487.xml`) | 200; response `content-disposition` + `content-type … name=` match the typed name; download blob uses typed name | **PASS** |
+| 1487.7 | Export with filename `evil%0d%0aX:1.xml` (CRLF injection) | falls back to `customFields.xml`; single header line, no split | **PASS** |
+| 1487.8 | Empty export filename in UI (ro) | localized toast `Numele de export nu poate fi gol!`; no request sent | **PASS** |
+| 1487.9 | Import `cfx_new.xml` (cf_owner2) | `{status:ok, imported:["cf_owner2"], not_imported:[]}` | **PASS** |
+| 1487.10 | Import `cfx_dup.xml` (cf_ticket — exists) | `{status:ok, imported:[], not_imported:["cf_ticket"]}` | **PASS** |
+| 1487.11 | Import `cfx_bad.xml` (garbage) | HTTP 422 `parse_failed` + libxml error text | **PASS** |
+| 1487.12 | Import with no file | HTTP 422 `need_file` | **PASS** |
+| 1487.13 | UI import `cfx_env.xml` | `Imported (1) » cf_env`, `Not imported (0)`, counter 3 → 4 | **PASS** |
+| 1487.14 | Permissions: anonymous export/import | HTTP 401 `Not authenticated` | **PASS** |
+| 1487.15 | Permissions: `cfxguest` (role 5) | GET info rights 0/0; POST `/export` → 403 `No permission`; POST `/import` → 403 `No permission` | **PASS** |
+| 1487.16 | i18n: locale switch ro | Full Romanian render (`Export/Import XML campuri personalizate`, `Campuri personalizate existente`, `Inapoi`, `Generat la` …); locale persisted via `?locale=ro`; no raw keys in DOM; no console errors | **PASS** |
+| 1487.17 | Event Viewer hygiene | `events` table: no Error/Warning rows after the full export/import/402/403 battery | **PASS** |
+
+Result: 17/17 PASS — **#1487 close-out DONE** (2026-09-13, fresh DB @ localhost:8082). Regression found & fixed: export-filename whitelist dropped spaces/hyphens → commit `c5f4a706c` (BFF) — legacy honored any filename. Screen now recorded in `docs/MODERNIZATION-STATUS.md` + `docs/cfields/CustomFieldsExchange.md` + wiki page + CHANGELOG line.
