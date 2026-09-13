@@ -239,6 +239,20 @@ Test Strategy:
 
 NEW FEATURES
 ------------
+- Notifications (`gui/templates/notifications/notifications.html`, BFF
+  `api/notifications`): GitHub-style per-user notification center computed
+  LIVE from existing 1.9.20 data (no legacy system existed to port, Refs
+  #896) — test cases assigned to the current user (`user_assignments`),
+  milestones approaching/overdue (`milestones` target_date in [-7,+14] days),
+  fully-executed test plans (`testplan_tcversions` vs `executions`,
+  linked=executed), and new bug links from executions (`execution_bugs`,
+  last 14 days). Summary category cards with filter, DataTable (icon,
+  localized message via TLi18n interpolation, relative time, read/unread
+  badge), select/mark-selected/mark-all-read (session-backed read-state, no
+  DB migration), empty state + toast, locale switcher; Dashboard toolbar
+  gains a bell + unread badge (`GET /api/notifications/count`) linking to the
+  screen. i18n `notif.*` (38 keys) in all 10 bundles. Schema-drift guards
+  (Refs #862 pattern) per query group.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
   header now shows "Assigned to: <user>" (teal) or the "No tester assigned"

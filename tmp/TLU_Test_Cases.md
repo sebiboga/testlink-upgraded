@@ -14286,3 +14286,26 @@ Result: **PASS — 13/13 PASS** — #1396 implemented: execSetResults popup now 
 | 1456.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows after all loads (only `audit_login_succeeded` INFO); browser console 0 errors/warnings across EN/RO loads | **PASS** |
 
 Result: **PASS — 8/8 PASS** — Issue #1456 spec fully satisfied (Training Plan chapter complete end-to-end); the General Overview note regression found during verification was fixed (count-free `ts.navAdded3` in all 10 bundles + HTML fallback) and re-verified error-free.
+
+## Task — Issue #896: Notifications center (bell + dropdown + live BFF)
+
+> STATUS: `PASS` — 10/10 PASS, verified 2026-09-13 @ http://localhost:8082 (branch `task/issue-896`, Refs #896).
+
+**Screen:** `gui/templates/notifications/notifications.html` (new standalone Dashio page: summary category cards, DataTable, mark-read actions, empty state). **BFF:** `api/notifications/index.php` (new; routes `GET /`, `GET /count`, `POST /read`; session-backed read-state `$_SESSION['tl_notif_read']`; schema-drift guards). **Dashboard bell:** `gui/templates/mainpage/mainPage.html`. **i18n:** 38 `notif.*`/`footers.notifications` keys in all 10 bundles. **Fixtures:** `tmp/fixture_notifications_896.php` (project NoteTest=1, TCs NT-ok/ko/block/assign, PlanA=11 fully executed + bug #42 + overdue milestone M-late, PlanB=12 assignment for admin + approaching milestone M-release).
+
+**Precondition:** fresh DB → run `php tmp/fixture_notifications_896.php` → login admin/admin.
+
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 896.1 | `GET /api/notifications/` (authenticated) | `200 {status:ok}`; list contains all 4 types: milestone×2, assignment×1, plan_completed×1, bug×1; `totals{total:5, unread:5}`; every item has id/type/icon/color/time_epoch/read/url | **PASS** |
+| 896.2 | Anonymous/no-session `GET` on the BFF | HTTP 401 `{status:error}` (auth guard) | **PASS** |
+| 896.3 | Open `notifications.html` (as admin) | Header + summary cards render: 1 Assignments / 2 Milestones / 1 Plans completed / 1 New bugs; unread badge "5 unread"; table rows show localized messages + relative time + "unread" badge | **PASS** |
+| 896.4 | Category filter: click "New bugs" card | Table filters to exactly 1 row (bug #42, red fa-bug icon); clicking again clears the filter back to all 5 | **PASS** |
+| 896.5 | Select row #2 + "Mark selected read" | POST /read → row #2 badge flips to "read", unread drops to 4; no console errors | **PASS** |
+| 896.6 | "Mark all read" | All rows "read", toolbar shows "You are all caught up" (0 unread); toast appears | **PASS** |
+| 896.7 | Dashboard bell badge | mainPage toolbar shows bell with red "5" (fresh session) linking to notifications.html; after marking all read it shows no count | **PASS** |
+| 896.8 | Deep links on each notification | assignment→execHistory, milestone→planMilestones?tplan_id, plan_completed→generalMetrics?tplan_id, bug→dashboard; all open the target screen | **PASS** |
+| 896.9 | i18n: `?locale=ro` | Titles/subtitles/categories/messages/badges in Romanian ("Notificari", "Atribuiri", "Milestone-ul … se apropie in 5 zi(le)", "necitite"); no literal `notif.*` keys; all 10 bundles contain the 38 keys and pass `python3 -m json.tool` | **PASS** |
+| 896.10 | Event Viewer + console hygiene | `events`: no new ERROR/WARNING rows from the fixed API (load/count/read); browser console 0 errors on EN+RO loads | **PASS** |
+
+Result: **PASS — 10/10 PASS** — Issue #896 implemented from scratch: live GitHub-style notification center (assignment/milestone/plan-completed/new-bug) with session read-state, Dashboard bell badge, 38 i18n keys ×10 bundles, docs/wiki + fixture; Event Viewer clean.

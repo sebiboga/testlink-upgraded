@@ -55,6 +55,7 @@ a.assigned-qe { color: #4ECDC4; }
   <span class="ctx"><span data-i18n="dash.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span class="ctx"><span data-i18n="dash.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
   <span style="flex:1"></span>
+  <a href="/gui/templates/notifications/notifications.html" id="notifBellLink" target="_blank" style="color:#fff;text-decoration:none;position:relative;margin-right:12px;display:none;" title="Notifications" data-i18n-title="notif.bellTitle"><i class="fas fa-bell" style="font-size:16px;"></i><span id="notifBellBadge" class="badge" style="background:#e6605e;position:absolute;top:-8px;right:-8px;padding:1px 5px;font-size:10px;"></span></a>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
 
@@ -224,6 +225,27 @@ function render(d) {
   renderIssues(d.projectIssues);
   loadAssigned();
   loadLinkedBugs();
+  loadNotifBadge();
+}
+
+// Notification bell badge (Refs #896): unread count from the Notifications
+// BFF, shown in the toolbar next to the footer info.
+function loadNotifBadge() {
+  $.ajax({
+    url: '/api/notifications/count',
+    data: { locale: TLi18n.getLocale() },
+    dataType: 'json',
+    success: function(d) {
+      if (d.status === 'ok' && d.totals && d.totals.unread > 0) {
+        $('#notifBellLink').show();
+        $('#notifBellBadge').text(d.totals.unread > 99 ? '99+' : d.totals.unread);
+      } else {
+        $('#notifBellLink').show();
+        $('#notifBellBadge').text('').hide();
+      }
+    },
+    error: function() { $('#notifBellLink').hide(); }
+  });
 }
 
 function renderExec(dash) {
