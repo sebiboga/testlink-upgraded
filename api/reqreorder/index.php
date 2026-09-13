@@ -64,6 +64,7 @@ $BODY = json_decode(file_get_contents('php://input'), true) ?? [];
 
 $reqSpecMgr = new requirement_spec_mgr($db);
 $reqMgr     = new requirement_mgr($db);
+$tprojMgr   = new testproject($db);
 
 /** Locate the test project the spec belongs to + verify it exists. */
 function needTprojectId() {
