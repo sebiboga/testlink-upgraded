@@ -217,6 +217,46 @@ the initial 2.0.1 popup port. Issue [#1401](https://github.com/sebiboga/testlink
   `esr.savePartialExec`, `esr.partialSaved`, `esr.errPartialSave` in all 10
   locale bundles.
 - **Test cases:** TLU suite #1401, 11/11 PASS (`tmp/TLU_Test_Cases.md`).
+## Execution & tc-level attachments, copy-from-latest and upload (issue #1394)
+The popup computed the prior run's execution-level attachments
+(`esrPriorExecution()` → `prior.attachments`) but never rendered them, and
+offered no way to attach files to the NEW execution (the legacy popup had
+download links for the prior run + an upload via
+`openFileUploadWindow()`/`copyAttFromLEXEC`). Issue
+[#1394](https://github.com/sebiboga/testlink-upgraded/issues/1394) restores all
+of it.
+- **BFF** (`api/execsetresults/index.php`):
+  - `?action=init` now returns `tc_attachments` (tcversion-level download-only
+    links, `getAttachmentInfos(...,'tcversions')` — legacy
+    `exec_test_spec.inc.tpl:134-139`) and `new_exec_latest` (1 when
+    `exec_cfg->exec_mode->new_exec == 'latest'`, config.inc.php:1111 — the
+    legacy copy-checkbox gate, `exec_img_controls.inc.tpl:69-73`).
+  - `POST ?action=save` parses `copy_att_from_lexec`; captures the latest
+    execution id in context (`testcase::getLatestExecIDInContext`,
+    `execSetResults.php:1731-1733`) BEFORE writing; after
+    `write_execution()` + re-read of the fresh row it copies exec-level
+    attachments (`tlAttachmentRepository::copyAttachments(...,'executions')`)
+    plus step-level attachments (execution_tcsteps rows matched by
+    step_number — `execSetResults.php:184-205`), then sinks any
+    `exec_attachments[]` files onto the new execution row via
+    `insertAttachment` (no `uploadedFile` — mirrors `api/execute?action=save`).
+    Response adds `attachments_uploaded` / `attachments_rejected`.
+- **Front-end** (`gui/templates/execute/execSetResults.html`):
+  - New `renderExecAttachments()` block: prior-run execution-attachment
+    download links, a "Copy attachments from latest execution" checkbox (shown
+    only when `new_exec_latest` && a prior execution exists), and a multi-file
+    upload picker (`exec_attachments[]`) — hidden when `attachments_enabled`
+    is off.
+  - New `#tcAttsBox` renders the tcversion-level attachment download links
+    (hidden when empty).
+  - `doSave()` forwards `copy_att_from_lexec=1` + `exec_attachments[]` in the
+    FormData; `applyBuildState()` disables the upload + copy controls on
+    closed builds / read-only while keeping the prior-run links reviewable;
+    `attachments_rejected` shows a warning toast after save.
+- **i18n:** new `esr.tcAttachments` in all 10 locale bundles; reused
+  `esr.attachments`, `exe.copyAttFromLatest`, `exe.attachmentsUpload`,
+  `exe.noAttachments`, `exe.attachmentsRejected`.
+- **Test cases:** TLU suite #1394, 8/8 PASS (`tmp/TLU_Test_Cases.md`).
 ## Test suite block (issue #1399)
 The legacy popup showed a test-suite block above the TC summary
 (`gui/templates/dashio/execute/include/exec_show_tc_exec.inc.tpl:36-71`):

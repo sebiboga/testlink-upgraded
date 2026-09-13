@@ -3842,5 +3842,6 @@
   "esr.cfsTestplanDesign": "Campos personalizados de design do plano de teste",
   "esr.execCfields": "Campos personalizados de execução",
   "esr.cfRequired": "O campo personalizado \"{field}\" é obrigatório.",
-  "esr.cfInvalid": "O valor inserido para o campo personalizado \"{field}\" é inválido."
+  "esr.cfInvalid": "O valor inserido para o campo personalizado \"{field}\" é inválido.",
+  "esr.tcAttachments": "Anexos do caso de teste"
 }

@@ -3842,5 +3842,6 @@
   "esr.cfsTestplanDesign": "测试计划设计自定义字段",
   "esr.execCfields": "执行时自定义字段",
   "esr.cfRequired": "自定义字段“{field}”为必填项。",
-  "esr.cfInvalid": "自定义字段“{field}”的值无效。"
+  "esr.cfInvalid": "自定义字段“{field}”的值无效。",
+  "esr.tcAttachments": "测试用例附件"
 }

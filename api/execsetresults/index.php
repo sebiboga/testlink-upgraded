@@ -1206,6 +1206,31 @@ if ($action === 'init') {
     $keywords = esrKeywords($tcaseMgr, $tcaseId, $tcversionId);
     $suite = esrTestSuite($db, $tcaseId, $tprojectId);
 
+    // tc-level (tcversion) attachments — download-only links the popup shows
+    // alongside the test case spec (legacy exec_test_spec.inc.tpl:134-139,
+    // gui->tcAttachments loaded by getAttachmentInfos($docRepository,
+    // $tcversion_id, 'tcversions')).
+    $tcAttachments = [];
+    try {
+        $tcAttMgr = tlAttachmentRepository::create($db);
+        $tcAttItems = getAttachmentInfos($tcAttMgr, $tcversionId, 'tcversions', true, 1);
+        if ($tcAttItems) {
+            foreach ($tcAttItems as $ai) {
+                $tcAttachments[] = [
+                    'id' => intval($ai['id']),
+                    'title' => strval($ai['title']),
+                    'file_name' => strval($ai['file_name']),
+                    'file_size' => intval($ai['file_size']),
+                    'download_url' =>
+                        '/lib/attachments/attachmentdownload.php?id=' .
+                        intval($ai['id']),
+                ];
+            }
+        }
+    } catch (\Throwable $e) {
+        $tcAttachments = [];
+    }
+
     // Refs #1398: direct execution link + feature_id of the popup header
     // (legacy execSetResults.tpl "execInfo" controls), so the screen can
     // rebuild the shareable link whenever the build selector changes.
@@ -1226,6 +1251,13 @@ if ($action === 'init') {
     // Refs #1398: legacy "Execute and Save Results" remote-execution button
     // is gated on exec_cfg->enable_test_automation (default DISABLED).
     $testAutomation = !empty($execCfg->enable_test_automation) ? 1 : 0;
+
+    // Issue #1394: 'Copy attachments from latest execution' checkbox is gated
+    // on exec_cfg->exec_mode->new_exec == 'latest' (legacy exec_img_controls
+    // inc.tpl:69-73). Exposed as a flag so the frontend can render the checkbox.
+    $newExecLatest = (isset($execCfg->exec_mode)
+        && isset($execCfg->exec_mode->new_exec)
+        && strval($execCfg->exec_mode->new_exec) === 'latest') ? 1 : 0;
 
     // Refs #1397: tester assignment of THIS version in the current
     // plan/build/platform context (legacy execSetResults setTesterAssignment()
@@ -1333,6 +1365,11 @@ if ($action === 'init') {
         'relations' => $relations,
         'keywords' => $keywords,
         'suite' => $suite,
+        // Issue #1394: tcversion-level attachment download links (legacy
+        // gui->tcAttachments) + the exec attachments computed for the prior
+        // box in esrPriorExecution() (prior.attachments).
+        'tc_attachments' => $tcAttachments,
+        'new_exec_latest' => $newExecLatest,
         'prior' => $prior,
         'prior_steps' => $priorSteps,
         // Refs #1398: direct link + remote execution feature flag
@@ -1538,6 +1575,31 @@ if ($action === 'save') {
         $execData[$pName] = $pVal;
     }
 
+    // Issue #1394: 'Copy attachments from latest execution' (legacy
+    // copyAttFromLEXEC checkbox, exec_img_controls.inc.tpl:69-73 -> payload
+    // 'copy_att_from_lexec'). Capture the latest execution id ON CONTEXT
+    // (tcversion + plan + platform + build) BEFORE writing, so we can copy its
+    // attachments onto the brand-new execution after it is inserted. Mirrors
+    // execSetResults.php:168-205 processTestCase()->testcase::
+    // getLatestExecIDInContext + the api/execute save handler.
+    $copyAttFromLEXEC = (isset($payload['copy_att_from_lexec'])
+        && in_array(strtolower(strval($payload['copy_att_from_lexec'])),
+                    ['1', 'true', 'on', 'yes']));
+    $latestExecIDInContext = -1;
+    if ($copyAttFromLEXEC) {
+        try {
+            $ctx = new stdClass();
+            $ctx->testplan_id = $tplanId;
+            $ctx->platform_id = $platformId > 0 ? $platformId : 0;
+            $ctx->build_id = $buildId;
+            $copyTcaseMgr = new testcase($db);
+            $latestExecIDInContext =
+                $copyTcaseMgr->getLatestExecIDInContext($tcversionId, $ctx);
+        } catch (\Throwable $e) {
+            $latestExecIDInContext = -1;
+        }
+    }
+
     $issueTracker = null;
     write_execution($db, $execSign, $execData, $issueTracker);
 
@@ -1554,7 +1616,89 @@ if ($action === 'save') {
         $executionId = intval($er[0]['id']);
     }
 
-    out(['status' => 'ok', 'saved' => true, 'execution_id' => $executionId]);
+    // Copy attachments from the latest execution of this context onto the
+    // fresh run (execution-level + step-level), the exact legacy flow from
+    // execSetResults.php:168-205 (gated on level == 'testcase').
+    if ($copyAttFromLEXEC && $executionId > 0 && $latestExecIDInContext > 0) {
+        try {
+            $fileRepo = tlAttachmentRepository::create($db);
+            $fileRepo->copyAttachments($latestExecIDInContext,
+                $executionId, 'executions');
+
+            // step-level attachments: copy per execution_tcsteps row, matched
+            // by step_number exactly like the legacy loop
+            $stepsTbl = DB_TABLE_PREFIX . 'execution_tcsteps';
+            $tcstepsTbl = DB_TABLE_PREFIX . 'tcsteps';
+            $sql = "SELECT step_number, tcstep_id, EXTCS.id AS tcsexe_id" .
+                   " FROM {$tcstepsTbl} TCS" .
+                   " JOIN {$stepsTbl} EXTCS ON EXTCS.tcstep_id = TCS.id" .
+                   " WHERE EXTCS.execution_id = ";
+            $from = (array)$db->fetchRowsIntoMap(
+                $sql . intval($latestExecIDInContext), 'step_number');
+            $to = (array)$db->fetchRowsIntoMap(
+                $sql . intval($executionId), 'step_number');
+            foreach ($from as $stepNum => $sxelem) {
+                if (isset($to[$stepNum])) {
+                    $fileRepo->copyAttachments($sxelem['tcsexe_id'],
+                        $to[$stepNum]['tcsexe_id'], 'execution_tcsteps');
+                }
+            }
+        } catch (\Throwable $e) {
+            // copying is best-effort; never fail the whole save
+        }
+    }
+
+    // Upload attachments at EXECUTION level, same sink the legacy
+    // write_execution() uses for executions rows. The frontend posts this
+    // dedicated 'exec_attachments' field (NOT 'uploadedFile') so the legacy
+    // write_execution() upload branch never inspects/var_dump-pollutes the
+    // response — the BFF owns the execution-level attachment upload here
+    // (same contract as api/execute?action=save, Refs #791).
+    $uploadedCount = 0;
+    $sentCount = 0;
+    if ($executionId > 0
+        && isset($_FILES['exec_attachments'])
+        && is_array($_FILES['exec_attachments']['name'])) {
+        try {
+            $exeRepo = tlAttachmentRepository::create($db);
+            $names = (array)$_FILES['exec_attachments']['name'];
+            foreach ($names as $i => $fname) {
+                if ($fname === '') { continue; }
+                $fInfo = array(
+                    'name' => strval($fname),
+                    'type' => strval($_FILES['exec_attachments']['type'][$i] ?? ''),
+                    'size' => intval($_FILES['exec_attachments']['size'][$i] ?? 0),
+                    'tmp_name' => strval($_FILES['exec_attachments']['tmp_name'][$i] ?? ''),
+                    'error' => intval($_FILES['exec_attachments']['error'][$i] ?? 0),
+                    'full_path' => strval($_FILES['exec_attachments']['full_path'][$i] ?? ''),
+                );
+                if ($fInfo['error'] !== UPLOAD_ERR_OK
+                    || $fInfo['size'] <= 0 || $fInfo['tmp_name'] === '') {
+                    continue;
+                }
+                $sentCount++;
+                $repOpt = array('allow_empty_title' => TRUE);
+                $upx = $exeRepo->insertAttachment(
+                    $executionId, DB_TABLE_PREFIX . 'executions', '',
+                    $fInfo, $repOpt);
+                if ($upx->statusOK) { $uploadedCount++; }
+            }
+        } catch (\Throwable $e) {
+            // best-effort; not fatal for the execution write
+        }
+    }
+
+    out([
+        'status' => 'ok',
+        'saved' => true,
+        'execution_id' => $executionId,
+        'attachments_uploaded' => $uploadedCount,
+        // the user picked files but __none__ reached the repo (e.g. forbidden
+        // extension/name filtered by allowed_files): surface it instead of the
+        // silent success the legacy flow gives (attachments whitelist).
+        // Same shape as api/execute?action=save.
+        'attachments_rejected' => ($sentCount > 0 && $uploadedCount === 0),
+    ]);
 }
 
 // ---------------------------------------------------------------------------

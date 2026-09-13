@@ -3846,5 +3846,6 @@
   "esr.cfsTestplanDesign": "Câmpuri personalizate de proiectare a planului de test",
   "esr.execCfields": "Câmpuri personalizate de execuție",
   "esr.cfRequired": "Câmpul personalizat \"{field}\" este obligatoriu.",
-  "esr.cfInvalid": "Valoarea introdusă pentru câmpul personalizat \"{field}\" este invalidă."
+  "esr.cfInvalid": "Valoarea introdusă pentru câmpul personalizat \"{field}\" este invalidă.",
+  "esr.tcAttachments": "Atașamentele cazului de test"
 }

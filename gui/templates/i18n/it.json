@@ -3836,5 +3836,6 @@
   "esr.cfsTestplanDesign": "Campi personalizzati di progettazione del plan di test",
   "esr.execCfields": "Campi personalizzati di esecuzione",
   "esr.cfRequired": "Il campo personalizzato \"{field}\" è obbligatorio.",
-  "esr.cfInvalid": "Il valore inserito per il campo personalizzato \"{field}\" non è valido."
+  "esr.cfInvalid": "Il valore inserito per il campo personalizzato \"{field}\" non è valido.",
+  "esr.tcAttachments": "Allegati del caso di test"
 }

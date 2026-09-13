@@ -3836,5 +3836,6 @@
   "esr.cfsTestplanDesign": "Benutzerdefinierte Felder des Testplan-Designs",
   "esr.execCfields": "Benutzerdefinierte Ausführungsfelder",
   "esr.cfRequired": "Das benutzerdefinierte Feld \"{field}\" ist erforderlich.",
-  "esr.cfInvalid": "Der für das benutzerdefinierte Feld \"{field}\" eingegebene Wert ist ungültig."
+  "esr.cfInvalid": "Der für das benutzerdefinierte Feld \"{field}\" eingegebene Wert ist ungültig.",
+  "esr.tcAttachments": "Testfall-Anhänge"
 }

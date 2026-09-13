@@ -3836,5 +3836,6 @@
   "esr.cfsTestplanDesign": "Champs personnalisés de conception du plan de test",
   "esr.execCfields": "Champs personnalisés d’exécution",
   "esr.cfRequired": "Le champ personnalisé \"{field}\" est obligatoire.",
-  "esr.cfInvalid": "La valeur saisie pour le champ personnalisé \"{field}\" est invalide."
+  "esr.cfInvalid": "La valeur saisie pour le champ personnalisé \"{field}\" est invalide.",
+  "esr.tcAttachments": "Pièces jointes du cas de test"
 }

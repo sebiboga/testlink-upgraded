@@ -193,7 +193,7 @@ Plans:
 
 Execution:
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
-  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1395, #1402).
+  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1395, #1402, #1394).
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).

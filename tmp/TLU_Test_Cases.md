@@ -14395,24 +14395,21 @@ Result: **PASS — 8/8 PASS** — Issue #1455 spec fully satisfied; no code chan
 | 1443.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only `audit_login_succeeded` INFO); browser console: 0 messages across EN/RO loads | **PASS** |
 
 Result: **PASS — 8/8 PASS** — Issue #1443 spec fully satisfied; no code change required (stale tracking issue).
+# Task — Issue #1394: Set Results popup (execSetResults.html): attachments rendered + uploadable (prior.attachments never shown)
 
-# Regression — Issue #1444: Test Strategy "Test Levels" chapter (tracking issue, feature verified complete)
+> STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin), ESR2 fixture (`tmp/fixtures_esr2.php` + SQL additions: exec 2 `failure.png`(id=1), tcversion `tcdesign.pdf`(id=2), step1/step2.png(ids 4/5), suite `suiteinfo.pdf`(id=6)). Purpose: port legacy exec-attachment feature (download links for prior run + tcversion, copy-from-latest, upload of new run) into the modern popup. BFF `api/execsetresults`, screen `gui/templates/execute/execSetResults.html`.
 
-> STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
-
-**Screen:** `gui/templates/strategy/testLevels.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 5 card). **Wiring:** `gui/templates/dashio/aside.tpl:145`, `lib/functions/common.php:2117`, `locale/en_US/strings.txt:2286` + `en_GB/strings.txt:2317` + `ro_RO/strings.txt:34` (`href_test_strategy_levels`). **i18n:** `ts.levels*` (10 keys) + `ts.chapterLevels`/`ts.chapterLevelsDesc` in all 10 bundles.
-
-**Precondition:** app @ localhost:8082, logged in admin/admin.
+**Precondition:** app @ localhost:8082, logged in admin/admin, tplan 15 (ESR2 Plan), TC-1 (tcversion 4), open build B-OPEN (id 1) with prior execution (exec 2, status f) carrying an execution-level attachment.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
-| 1444.1 | `GET /gui/templates/strategy/testLevels.html` | HTTP 200, contains `data-i18n="ts.levelsHeader"`, `fa-layer-group` icon, "Back to Test Strategy" link (target mainframe), TLi18n init with jQuery loaded first | **PASS** |
-| 1444.2 | ASIDE → Test Strategy → **Test Levels** | Chapter opens in mainframe: header "Test Levels" + sub "the layers of testing and their owners", card *Test levels* (3 bullets: Unit / Integration / System), card *Ownership* (3 bullets: Developers / QA / Stakeholders incl. BAT/UAT) | **PASS** |
-| 1444.3 | ASIDE label source | `gui/templates/dashio/aside.tpl:145` uses `fa-layer-group` + `{$labels.href_test_strategy_levels}`; label present in `locale/en_US/strings.txt:2286`, `en_GB/strings.txt:2317`, `ro_RO/strings.txt:34`; `common.php:2117` maps `testStrategyLevels` → `testLevels.html?{ctx}` | **PASS** |
-| 1444.4 | General Overview (`testStrategy.html`) chapter card #5 | Card "Test Levels" with `fa-layer-group` icon + **Open chapter** button; click navigates mainframe to `testLevels.html` | **PASS** |
-| 1444.5 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 5 `{icon:"fa-layer-group", key:"ts.chapterLevels", descKey:"ts.chapterLevelsDesc", url:"/gui/templates/strategy/testLevels.html"}`; footer keys (displayName/generated_on/right) present; card renders on the overview grid | **PASS** |
-| 1444.6 | Locale switching: switcher → Română | Header `Niveluri de Testare`, sub `nivelurile testării și deținătorii lor`, Back link `Înapoi la Strategia de Testare`, card titles `Niveluri de testare`/`Proprietate` + translated bullets; no literal `ts.levels*` keys in DOM | **PASS** |
-| 1444.7 | i18n bundle validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 10 `ts.levels*` keys + `ts.chapterLevels`/`ts.chapterLevelsDesc` and pass `python3 -m json.tool` | **PASS** |
-| 1444.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only `audit_login_succeeded` INFO); browser console: 0 messages across EN/RO loads | **PASS** |
+| 1394.1 | `GET api/execsetresults/?action=init&tplan_id=15&id=3&version_id=4&setting_build=1&setting_platform=0` | `prior.attachments` = [failure.png, id 1, download_url `/lib/attachments/attachmentdownload.php?id=1`]; `tc_attachments` = [tcdesign.pdf id 2]; `attachments_enabled`=1; `new_exec_latest`=0 (repo default exec_mode='clean') | **PASS** |
+| 1394.2 | Open `execSetResults.html?...` (TC-1, build B-OPEN) | "Attachments:" block in the form shows `failure.png` download link (opens `attachmentdownload.php?id=1`); "Test case attachments:" block shows `tcdesign.pdf`; step attachments step1.png/step2.png still listed; **no "Copy attachments from latest execution" checkbox** (gated: new_exec='clean') | **PASS** |
+| 1394.3 | Pick a file in "Attach files", click **Save result** | Re-fetch shows the new execution as latest; its link appears in the "Attachments:" block (`upload_test.txt`, DB: `attachments` id 7 → executions fk_id 5) | **PASS** |
+| 1394.4 | BFF `POST ?action=save` with `copy_att_from_lexec=1` (no files) | `status:ok, saved:true, execution_id`:6; DB `attachments` id 8 on executions fk_id 6 = copy of exec 5's upload_test.txt; step-copy query shape verified (execution_tcsteps join on step_number) | **PASS** |
+| 1394.5 | Flip `config.inc.php:1111` `new_exec` to `'latest'`, reload popup | "Copy attachments from latest execution" checkbox appears (only then); with it checked + save → new exec 7 receives copy (DB `attachments` id 9 on executions fk_id 7) | **PASS** |
+| 1394.6 | Switch build to **B-CLOSED** | "Build is closed" banner; upload picker + copy checkbox + save/step controls disabled; prior block shows "No attachments" (exec 3 has none); tc-attachments link still reviewable | **PASS** |
+| 1394.7 | i18n: switch locale Română | New `esr.tcAttachments` translated ("Atașamentele cazului de test") + all existing used keys (`esr.attachments`, `exe.copyAttFromLatest`, `exe.attachmentsUpload`, `exe.noAttachments`) resolve; all 10 bundles valid JSON with `esr.tcAttachments` present | **PASS** |
+| 1394.8 | Event Viewer + console hygiene (all steps above) | `events` table: no new ERROR/WARNING rows (only pre-existing `audit_*` at log_level 16/AUDIT); browser console: 0 error/warn messages during render, save, copy, upload, closed-build switch | **PASS** |
 
-Result: **PASS — 8/8 PASS** — Issue #1444 spec fully satisfied; no code change required (stale tracking issue).
+Result: **PASS — 8/8 PASS** — legacy attachment capabilities fully ported to the modern Set Results popup (Refs #1394).

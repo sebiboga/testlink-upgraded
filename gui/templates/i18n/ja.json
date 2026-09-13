@@ -3842,5 +3842,6 @@
   "esr.cfsTestplanDesign": "テストプラン設計のカスタムフィールド",
   "esr.execCfields": "実行時のカスタムフィールド",
   "esr.cfRequired": "カスタムフィールド「{field}」は必須です。",
-  "esr.cfInvalid": "カスタムフィールド「{field}」に入力された値が無効です。"
+  "esr.cfInvalid": "カスタムフィールド「{field}」に入力された値が無効です。",
+  "esr.tcAttachments": "テストケースの添付ファイル"
 }

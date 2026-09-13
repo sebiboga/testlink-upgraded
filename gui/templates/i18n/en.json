@@ -3851,5 +3851,6 @@
   "esr.cfsTestplanDesign": "Test plan design custom fields",
   "esr.execCfields": "Execution custom fields",
   "esr.cfRequired": "The custom field \"{field}\" is required.",
-  "esr.cfInvalid": "The value entered for custom field \"{field}\" is invalid."
+  "esr.cfInvalid": "The value entered for custom field \"{field}\" is invalid.",
+  "esr.tcAttachments": "Test case attachments"
 }

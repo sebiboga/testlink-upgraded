@@ -286,6 +286,32 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       <div class="desc-box" id="requirementsText"></div>
     </div>
 
+    <!-- Issue #1394: tcversion-level attachment download links (legacy
+         exec_test_spec.inc.tpl:134-139 gui->tcAttachments, download-only). -->
+    <div id="tcAttsBox" style="display:none;margin:0 0 12px;background:#f6fbfa;border:1px solid #cfebe6;border-radius:6px;padding:8px 14px;font-size:12.5px;">
+      <span class="desc-label" style="color:#2d8e88;display:inline;" data-i18n="esr.tcAttachments">Test case attachments</span>:
+      <span id="tcAtts"></span>
+    </div>
+
+    <!-- Issue #1394: execution attachments for THIS run — prior-run download
+         links + copy-from-latest checkbox + upload picker (legacy
+         exec_img_controls.inc.tpl copyAttFromLEXEC + openFileUploadWindow). -->
+    <div class="form-group" id="execAttachGroup" style="display:none;border:1px solid #eee;border-radius:6px;padding:10px 14px;background:#fafafa;">
+      <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+        <i class="fa fa-paperclip" style="color:#4ECDC4;margin-right:6px;"></i>
+        <span data-i18n="esr.attachments">Attachments</span>
+      </div>
+      <div id="priorAtts" style="font-size:12.5px;margin-bottom:6px;"></div>
+      <label style="font-size:12.5px;font-weight:600;color:#444;display:none;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="copyAttFromLEXEC">
+        <span data-i18n="exe.copyAttFromLatest">Copy attachments from latest execution</span>
+      </label>
+      <div style="font-size:12.5px;margin:6px 0 4px;">
+        <label class="file-lbl" style="font-weight:600;" data-i18n="exe.attachmentsUpload">Attach file(s)</label>:
+        <input type="file" id="execAttachmentFile" multiple style="font-size:12px;">
+      </div>
+    </div>
+
     <div class="form-group">
       <label data-i18n="esr.overallResult">Overall result</label>
       <div class="status-row" id="statusRow"></div>
@@ -589,6 +615,14 @@ renderSuiteBlock(r);
     ctx.statusCode = '';
     $('#statusRow .st-btn').removeClass('active');
   }
+
+  // Issue #1394: execution attachments block — prior-run download links,
+  // optional 'copy attachments from latest execution' checkbox (gated on
+  // exec_mode->new_exec == 'latest', legacy exec_img_controls.inc.tpl:69-73),
+  // and a multi-file upload picker for the NEW execution. Only offered while
+  // the build is open AND the user holds the Execute grant; the closed-build/
+  // read-only branch of applyBuildState() blanks it.
+  renderExecAttachments(r);
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
 
@@ -952,6 +986,10 @@ function applyBuildState(r) {
     $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', true);
     $('#btnSavePartial').prop('disabled', true).css('opacity', .5);
     $('#assignTask').prop('disabled', true);
+    // Issue #1394: execution-level attachments are write controls — disable
+    // upload + copy-from-latest on closed builds / read-only, while prior-run
+    // download links stay reviewable.
+    $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', true);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
     $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
@@ -967,6 +1005,7 @@ function applyBuildState(r) {
     $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', false);
     $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
     $('#assignTask').prop('disabled', false);
+    $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', false);
   }
 }
 
@@ -1003,6 +1042,60 @@ function stepAttachmentBlock(stepId, atts) {
   h += '<label class="file-lbl">' + esc(TLi18n.t('esr.localFile')) + ':</label> ' +
        '<input type="file" data-stepfileinput="' + stepId + '" multiple>';
   return h + '</div>';
+}
+
+// Issue #1394: execution-level attachment panel (legacy exec_show_tc_exec
+// inc.tpl:414-433 + exec_img_controls.inc.tpl:69-73). Renders, when TestLink
+// feature attachments are enabled:
+//   - download-only links of the PRIOR (latest) run's execution attachments
+//     (legacy "Attachments of latest execution" — download link + open
+//     edit-window button built from $priorAttachments);
+//   - a 'Copy attachments from latest execution' checkbox, offered ONLY when
+//     exec_cfg->exec_mode->new_exec == 'latest' (BFF new_exec_latest flag);
+//   - a multi-file upload picker for the NEW execution named exec_attachments[]
+//     so the BFF save handler can sink them onto the fresh execution row.
+// Left visible even for read-only reviewers of an open build: the prior-run
+// download links must stay reviewable, while the write controls below are
+// disabled by applyBuildState() when the build closes / rights drop.
+function renderExecAttachments(r) {
+  ctx.newExecLatest = !!r.new_exec_latest;
+
+  var attachmentsEnabled = !!(r.attachments_enabled);
+  if (!attachmentsEnabled) {
+    $('#execAttachGroup').hide().empty();
+    return;
+  }
+
+  // prior-run execution attachments — download-only links
+  var priorAtts = (r.prior && r.prior.attachments) || [];
+  var h = '';
+  if (priorAtts.length) {
+    h += '<span style="font-weight:600;">' + esc(TLi18n.t('esr.attachments')) + ':</span> ';
+    h += priorAtts.map(function (a) {
+      return '<a href="' + esc(a.download_url) + '" target="_blank" ' +
+        'title="' + esc(a.title || a.file_name) + '" style="margin-left:8px;">' +
+        '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>';
+    }).join('');
+  } else {
+    h += '<span style="font-style:italic;color:#888;">' +
+         esc(TLi18n.t('exe.noAttachments')) + '</span>';
+  }
+
+  $('#priorAtts').html(h);
+
+  // the write controls (copy-from-latest + upload) exist only while TestLink
+  // feature attachments are on; the copy checkbox additionally requires the
+  // exec_mode->new_exec='latest' gate AND a prior execution to copy from (the
+  // copy also covers step-level attachments, so absence of execution-level
+  // files must not hide it — legacy execSetResults.php:169 gates only on
+  // new_exec=='latest').
+  var copyOn = ctx.newExecLatest && !!r.prior;
+  $('#copyAttFromLEXEC').prop('checked', false).closest('label').css('display', copyOn ? 'inline-flex' : 'none');
+
+  // reset any files queued from a previous context/build re-render
+  $('#execAttachmentFile').val('');
+
+  $('#execAttachGroup').show();
 }
 
 // ---------------------------------------------------------------------------
@@ -1282,6 +1375,24 @@ function renderTcSpecSections(r) {
     $('#requirementsText').html(reqh);
     $('#requirementsBox').show();
   }
+
+  // Issue #1394: tcversion-level attachment download links (legacy
+  // exec_test_spec.inc.tpl:134-139 gui->tcAttachments, download-only).
+  var tcAtts = r.tc_attachments || [];
+  if (tcAtts.length) {
+    var tah = '';
+    tcAtts.forEach(function (a, ai) {
+      tah += (ai ? ' · ' : '') +
+        '<a href="' + esc(a.download_url) + '" target="_blank" ' +
+        'title="' + esc(a.title || a.file_name) + '">' +
+        '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>';
+    });
+    $('#tcAtts').html(tah);
+    $('#tcAttsBox').show();
+  } else {
+    $('#tcAtts').html('');
+    $('#tcAttsBox').hide();
+  }
 }
 
 function openReqWindow(requirementId) {
@@ -1439,6 +1550,23 @@ function doSave(navNext) {
     }
   });
 
+  // Issue #1394: execution-level attachments of the NEW run — 'copy
+  // attachments from latest execution' checkbox + multi-file upload picker.
+  // The BFF owns the exec-level upload sink (exec_attachments[]), mirroring
+  // api/execute?action=save (execTest.html:1347-1368), so the legacy
+  // write_execution() branch that would otherwise inspect/echo the payload is
+  // not triggered.
+  var $copyChk = $('#copyAttFromLEXEC');
+  if ($copyChk.length && $copyChk.is(':checked')) {
+    fd.append('copy_att_from_lexec', '1');
+  }
+  var $exeFile = $('#execAttachmentFile');
+  if ($exeFile.length && $exeFile[0].files && $exeFile[0].files.length) {
+    for (var f = 0; f < $exeFile[0].files.length; f++) {
+      fd.append('exec_attachments[]', $exeFile[0].files[f]);
+    }
+  }
+
   // Issue #1395: read every execution-time custom field input (text/numeric/
   // select/textarea/checkbox/date...) under its legacy name — the BFF save
   // whitelists them against the linked execution-time CFs (mirror execTest.html).
@@ -1486,6 +1614,10 @@ function doSave(navNext) {
     }
     $('#saveOk').text(TLi18n.t('esr.saveDone')).show();
     toast(TLi18n.t('esr.saveDone'));
+    // Issue #1394: when the BFF reports the picked files were all rejected by
+    // the attachment whitelist (same shape as api/execute?action=save), surface
+    // the warning so the user does not assume the upload succeeded silently.
+    if (r.attachments_rejected) { toast(TLi18n.t('exe.attachmentsRejected'), true); }
     if (navNext) {
       navTo('next');
     } else {
