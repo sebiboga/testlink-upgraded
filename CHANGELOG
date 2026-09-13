@@ -411,6 +411,22 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   in all 10 locale bundles (content translations landed for the 8 non-en/ro
   bundles under #1486) — no code change required; closed after a 6/6 PASS
   regression suite, browser/console/Event-Viewer clean (Refs #1441).
+- Test Strategy "Training Plan" chapter (tracking issue #1456): verified fully
+  implemented and error-free — dedicated page
+  `gui/templates/strategy/training.html`, `fa-graduation-cap` icon, ASIDE
+  sub-item **Training** (`aside.tpl:157`,
+  `href_test_strategy_training` in en_GB/en_US/ro_RO), General Overview
+  CHAPTERS card #17 "Training Plan" with **Open chapter** button (chapter map
+  entry in `api/strategy/index.php:74`), and all 12 `ts.training*` i18n keys
+  present in all 10 locale bundles. While verifying, a **regression of the
+  #1458 note fix** was found and repaired: `ts.navAdded3` claimed "All 18
+  chapters…" while the grid renders 28 cards (en/ro had been reverted to the
+  old wording by `5888975934` while chapters 20-21 were appended, followed by
+  NFR chapters 22-28; the other 8 bundles carried the stale intermediate
+  "18+Severity" text) — the note is now **count-free** ("All chapters of a
+  Test Strategy …") in all 10 bundles + the `testStrategy.html:63` fallback,
+  so it can never go stale again; 8/8 PASS regression suite,
+  browser/console/Event-Viewer clean (Refs #1456).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom
