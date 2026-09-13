@@ -14219,3 +14219,22 @@ Result after re-run: **PASS — 14/14 PASS** (verified 2026-09-13 on the merged 
 | 895.12 | Event Viewer hygiene | `events` table shows NO new ERROR/WARNING rows after load + quick-exec; browser console has no errors | **PASS** |
 
 Result: **PASS — 12/12 PASS** — #895 implemented: dashboard now shows the logged-in user's assigned test cases (active plans, open builds) with status, priority, build/platform, due date, quick-exec and execute links, backed by the `/assigned` BFF route and 29 i18n keys in all 10 bundles.
+
+# Regression — Issue #1441: Test Strategy "Quality Objectives" chapter (tracking issue, feature verified complete)
+
+> STATUS: `**PASS**` — 6/6 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
+
+**Screen:** `gui/templates/strategy/objectives.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 2 card). **Wiring:** `gui/templates/dashio/aside.tpl:142`, `lib/functions/common.php:2110`, `locale/en_US+en_GB+ro_RO/strings.txt` (`href_test_strategy_objectives`). **i18n:** `ts.objectives*` (10 keys) in all 10 bundles.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1441.1 | `GET /gui/templates/strategy/objectives.html` | HTTP 200, contains `data-i18n="ts.objectivesHeader"`, `fa-bullseye` icon, "Back to Test Strategy" link, TLi18n init | **PASS** |
+| 1441.2 | ASIDE → Test Strategy → **Objectives** | Chapter opens in mainframe, header + both cards ("Quality objectives" 3 bullets, "Service levels" 3 bullets) render in English | **PASS** |
+| 1441.3 | General Overview (`testStrategy.html`) chapter card #2 | Card "Quality Objectives" with bullseye icon + **Open chapter** button; click navigates mainframe to `objectives.html` | **PASS** |
+| 1441.4 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 2 `{icon:"fa-bullseye", key:"ts.chapterObjectives", url:".../objectives.html"}`; footer keys present; anonymous → 401 | **PASS** |
+| 1441.5 | Locale switching: switcher → Română (and direct `?locale=de`) | `Obiective Calitative` / `Qualitätsziele` headers + translated sub/cards/bullets; no literal `ts.objectives*` keys; all 10 bundles contain all 10 keys and pass `python3 -m json.tool` | **PASS** |
+| 1441.6 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only login AUDIT info); browser console: 0 messages across EN/RO/DE loads | **PASS** |
+
+Result: **PASS — 6/6 PASS** — Issue #1441 spec fully satisfied; no code change required (stale tracking issue).
