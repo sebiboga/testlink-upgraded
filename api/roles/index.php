@@ -127,8 +127,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'grants' => $grants]);
 }
 
-// Route: GET /roles/{id} - single role
-if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
+// Route: GET /roles/{id} - single role. The count($segments) === 1 guard is
+// REQUIRED (Issue #902): without it this route shadows the /roles/{id}/users
+// route below (the old code matched any GET with a numeric first segment, so
+// GET /roles/5/users returned the role object instead of the user list).
+if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $r = tlRole::getByID($db, intval($segments[0]));
     if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
     out([
@@ -167,7 +170,7 @@ if ($method === 'POST' && empty($segments)) {
 }
 
 // Route: PUT /roles/{id} - update role
-if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
+if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $id = intval($segments[0]);
 
     // Legacy parity: rolesEdit.php:222 roleCanBeEdited = (roleid !=
@@ -210,7 +213,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 }
 
 // Route: DELETE /roles/{id} - delete role
-if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
+if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
     $id = intval($segments[0]);
     if ($id <= TL_LAST_SYSTEM_ROLE) {
         http_response_code(400);
@@ -269,7 +272,24 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && isse
             }
         }
     } catch (\Throwable $e) {}
-    out(['status' => 'ok', 'items' => $items]);
+
+    // Legacy parity: dashio rolesView.tpl:61. When a role with assigned users is
+    // deleted, deleteFromDB remaps them to the configured replacement role
+    // (tlRole.class.php:63 replacementRoleID = config_get('role_replace_for_deleted_roles')).
+    // Expose that role here so the confirm modal can render the same "users will
+    // be reset to <role>" warning the legacy page shows before the explicit
+    // confirmDelete action.
+    $replacement = null;
+    $replacementId = intval(config_get('role_replace_for_deleted_roles'));
+    if ($replacementId > 0) {
+        $replacementRole = tlRole::getByID($db, $replacementId, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
+        if ($replacementRole) {
+            $replacement = ['id' => intval($replacementRole->dbID), 'name' => $replacementRole->getDisplayName()];
+        }
+    }
+
+    usort($items, function($a, $b) { return strcmp($a['login'], $b['login']); });
+    out(['status' => 'ok', 'items' => $items, 'replacementRole' => $replacement]);
 }
 
 // Route: GET /roles/meta/tproject-roles?tproject_id=X - get test project role assignments

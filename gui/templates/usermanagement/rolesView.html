@@ -127,6 +127,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       <div class="modal-body">
         <p id="deleteMsg" style="font-size:13px;"></p>
         <p id="deleteUsers" style="font-size:12px;color:#666;"></p>
+        <div id="deleteResetNote" style="display:none;margin-top:8px;font-size:12px;color:#856404;background:#fff3cd;border:1px solid #ffeeba;border-radius:4px;padding:6px 10px;"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
@@ -379,14 +380,28 @@ function confirmDelete(id) {
     if (userCount > 0) {
       var loginList = $.map(items, function(u) { return u.login; }).join(', ');
       userMsg = TLi18n.t('role.deleteUsersMsg', {n: userCount, users: loginList});
+      // Legacy parity: dashio rolesView.tpl:53-60 lists every affected user
+      // (caption_possible_affected_users) on the confirm-delete page.
+      var displayNames = $.map(items, function(u) { return u.name || u.login; });
+      userMsg += '<div style="margin:6px 0 0 14px;">' + $.map(displayNames, esc).join('<br>') + '</div>';
     }
     $('#deleteMsg').html(msg);
     $('#deleteUsers').html(userMsg);
+    // Legacy parity: dashio rolesView.tpl:61 warning_users_will_be_reset
+    // => <replacement role name>. Only shown when the role actually has users,
+    // matching the legacy flow where an empty affected-users list deleted
+    // immediately with no warning (rolesView.php:34-36).
+    if (userCount > 0 && r.replacementRole && r.replacementRole.name) {
+      $('#deleteResetNote').html(TLi18n.t('role.warningUsersWillBeReset') + ' <b>' + esc(r.replacementRole.name) + '</b>').show();
+    } else {
+      $('#deleteResetNote').hide();
+    }
     $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
     $('#deleteModal').modal('show');
   }).fail(function() {
     $('#deleteMsg').html(TLi18n.t('role.deleteConfirmMsg') + ' <b>' + esc(name) + '</b>?');
     $('#deleteUsers').html('');
+    $('#deleteResetNote').hide();
     $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
     $('#deleteModal').modal('show');
   });

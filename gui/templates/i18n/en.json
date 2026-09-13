@@ -2331,6 +2331,7 @@
   "role.type": "Type",
   "role.validation.nameRequired": "Role name is required.",
   "role.validation.rightsRequired": "Select at least one right.",
+  "role.warningUsersWillBeReset": "Affected users will get role",
   "rpt.close": "Close",
   "rpt.download": "Download",
   "rpt.empty": "No document content returned.",
