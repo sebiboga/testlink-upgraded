@@ -14353,3 +14353,24 @@ Result: **PASS — 9/9 PASS** — Issue #1442 spec fully satisfied (Scope chapte
 | 1395.11 | i18n bundle validity + Event Viewer | All 10 bundles contain `esr.cfsBeforeSteps/esr.cfsAfterSteps/esr.cfsTestplanDesign/esr.execCfields/esr.cfRequired/esr.cfInvalid` and pass `python3 -m json.tool`; `events` table no new ERROR/WARNING after all BFF calls; browser console 0 errors (only pre-existing a11y "No label" IUC) | **PASS** |
 
 Result: **PASS — 11/11 PASS** — Issue #1395 implemented: the Set Results popup now renders the executed test case's design-time CF values (before-steps + standard_location), testplan-design CF values, and editable execution-time CF inputs persisted with each save, with required/format validation and closed-build read-only handling.
+
+# Regression — Issue #1455: Test Strategy "Change & Configuration Management" chapter (tracking issue, feature verified complete)
+
+> STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
+
+**Screen:** `gui/templates/strategy/changeConfig.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 16 card). **Wiring:** `gui/templates/dashio/aside.tpl:156`, `lib/functions/common.php:2124`, `locale/en_US+en_GB+ro_RO/strings.txt` (`href_test_strategy_cfg`). **i18n:** `ts.cfg*` (10 keys) + `ts.chapterCfg`/`ts.chapterCfgDesc` in all 10 bundles.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1455.1 | `GET /gui/templates/strategy/changeConfig.html` | HTTP 200, contains `data-i18n="ts.cfgHeader"`, `fa-code-branch` icon, "Back to Test Strategy" link (target mainframe), TLi18n init with jQuery loaded first | **PASS** |
+| 1455.2 | ASIDE → Test Strategy → **Change & Config** | Chapter opens in mainframe: header "Change & Configuration Management" + sub "control of changes and configuration items", card *Change control* (3 bullets: impact analysis / requirement traceability / frozen baselines), card *Configuration* (3 bullets: build+env versioning / versioned artifacts / release branches to staging) | **PASS** |
+| 1455.3 | ASIDE label source | `gui/templates/dashio/aside.tpl:156` uses `fa-code-branch` + `{$labels.href_test_strategy_cfg}`; label present in `locale/en_US/strings.txt:2297`, `en_GB/strings.txt:2328`, `ro_RO/strings.txt:45`; `common.php:2124` maps `testStrategyCfg` → `changeConfig.html?{ctx}` | **PASS** |
+| 1455.4 | General Overview (`testStrategy.html`) chapter card #16 | Card "Change & Configuration Management" with `fa-code-branch` icon + **Open chapter** button; click navigates mainframe to `changeConfig.html` | **PASS** |
+| 1455.5 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 16 `{icon:"fa-code-branch", key:"ts.chapterCfg", url:".../changeConfig.html"}`; footer keys (displayName/generated_on/right) present; chapter 16 card renders on the overview grid | **PASS** |
+| 1455.6 | Locale switching: switcher → Română | Header `Gestionarea Modificărilor și a Configurațiilor`, sub `controlul modificărilor și al elementelor de configurare`, Back link `Înapoi la Strategia de Testare`, translated card titles + bullets; no literal `ts.cfg*` keys in DOM | **PASS** |
+| 1455.7 | i18n bundle validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 10 `ts.cfg*` keys + `ts.chapterCfg`/`ts.chapterCfgDesc` and pass `python3 -m json.tool` | **PASS** |
+| 1455.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only login AUDIT info); browser console: 0 messages across EN/RO loads | **PASS** |
+
+Result: **PASS — 8/8 PASS** — Issue #1455 spec fully satisfied; no code change required (stale tracking issue).
