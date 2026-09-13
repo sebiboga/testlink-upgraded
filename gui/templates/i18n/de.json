@@ -3814,5 +3814,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "Benutzerdefinierte Felder",
+  "esr.cfsAfterSteps": "Benutzerdefinierte Felder",
+  "esr.cfsTestplanDesign": "Benutzerdefinierte Felder des Testplan-Designs",
+  "esr.execCfields": "Benutzerdefinierte Ausführungsfelder",
+  "esr.cfRequired": "Das benutzerdefinierte Feld \"{field}\" ist erforderlich.",
+  "esr.cfInvalid": "Der für das benutzerdefinierte Feld \"{field}\" eingegebene Wert ist ungültig."
 }

@@ -3820,5 +3820,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "カスタムフィールド",
+  "esr.cfsAfterSteps": "カスタムフィールド",
+  "esr.cfsTestplanDesign": "テストプラン設計のカスタムフィールド",
+  "esr.execCfields": "実行時のカスタムフィールド",
+  "esr.cfRequired": "カスタムフィールド「{field}」は必須です。",
+  "esr.cfInvalid": "カスタムフィールド「{field}」に入力された値が無効です。"
 }

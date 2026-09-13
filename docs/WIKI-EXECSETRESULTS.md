@@ -357,3 +357,57 @@ assigned_to_me}` + `assign_task_default_checked`; the save handler accepts
 `assign_task=1` (values `1/true/on/yes`). i18n: `esr.assignedTo`,
 `esr.hasNoAssignment`, `esr.assignTaskToMe` in all 10 locale bundles (reusing
 the existing `exe.*` translations). Test cases: TLU suite #1397.
+
+## Testcase-scoped custom fields in the popup (issue #1395)
+
+The legacy popup rendered the executed test case's OWN custom fields — the ones
+defined with **testcase** entity scope — in three sections, all dropped in the
+initial 2.0.1 port:
+
+- **Design-time CF values** — `html_table_of_custom_field_values($tcase_id,
+  'design', $finalFilters, …, $tcversion_id)`. The value table
+  (`cfield_design_values`, keyed by `node_id` = tcversion id). Grouped by the
+  CF location so `before_steps_results (location 2)` renders between
+  Preconditions and the Steps table (legacy
+  `exec_test_spec.inc.tpl:47`), while `standard_location (location 1)` and all
+  other locations render after the steps (legacy tpl:100).
+- **Testplan-design CF values** —
+  `html_table_of_custom_field_values($tcversion_id, 'testplan_design', …,
+  $link_id)` where `$link_id` = `$target['feature_id']`
+  (`testplan_tcversions.id`). Value table `cfield_testplan_design_values`
+  keyed by `link_id`. Rendered after the design CFs (legacy tpl:124).
+- **Execution-time CF inputs** — `html_table_of_custom_field_inputs($tcase_id,
+  null, 'execution', '_'.$tcase_id, …)` gated on `grants.execute` (legacy
+  tpl:110-119). Real editable inputs under the legacy
+  `custom_field_<type>_<id>_<tcaseId>` names; their values are persisted with
+  the new execution via `write_execution()` →
+  `cfield_mgr::execution_values_to_db()` (exec.inc.php:190-203).
+
+Modern port:
+
+- **BFF** `esrTcaseCfields()` (`api/execsetresults/index.php`) builds a single
+  payload consumed by the popup:
+  - `design_cfs` — `[{location, cfs:[{id,label,value}]}]` from
+    `testcase::get_linked_cfields_at_design()` (execution-scope filter
+    `show_on_execution=1`, same as the legacy `$cf_filters`), grouped by the
+    `cfield_testprojects.location` code, `show_custom_fields_without_value`
+    honored;
+  - `testplan_design_cfs` — `[{id,label,value}]` from
+    `testcase::get_linked_cfields_at_testplan_design()` (link `$feature_id`);
+  - `exec_cfields_html` + `exec_cfields` (metadata `{id,name,label,type,
+    required}`) gated on `testplan_execute`, mirroring the already-port modern
+    Execute screen (`api/execute`, Refs #791).
+- **UI** (`gui/templates/execute/execSetResults.html`):
+  `renderTcaseCfields()` shows the four blocks (`#cfsBeforeSteps`,
+  `#cfsAfterSteps`, `#cfsTestplanDesign`, `#execCfWrap`) styled like the
+  suite-CF block; `validateExecCustomFields()` blocks save on missing
+  required / malformed CF values (reuses the `exe.cf*` contract); the save
+  form collects every `#execCFields` input under its legacy name; closed
+  builds / read-only freeze the CF inputs.
+- **BFF save** forwards `custom_field_*` payload keys after whitelisting
+  (type,id) against `testcase::get_linked_cfields_at_execution()` — forged
+  names cannot write unrelated values (same pattern as `api/execute`).
+
+i18n: `esr.cfsBeforeSteps`, `esr.cfsAfterSteps`, `esr.cfsTestplanDesign`,
+`esr.execCfields`, `esr.cfRequired`, `esr.cfInvalid` in all 10 locale bundles.
+Test cases: TLU suite #1395.

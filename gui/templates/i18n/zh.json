@@ -3820,5 +3820,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "自定义字段",
+  "esr.cfsAfterSteps": "自定义字段",
+  "esr.cfsTestplanDesign": "测试计划设计自定义字段",
+  "esr.execCfields": "执行时自定义字段",
+  "esr.cfRequired": "自定义字段“{field}”为必填项。",
+  "esr.cfInvalid": "自定义字段“{field}”的值无效。"
 }

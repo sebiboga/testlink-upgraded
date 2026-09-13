@@ -193,7 +193,7 @@ Plans:
 
 Execution:
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
-  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1402).
+  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1395, #1402).
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
@@ -285,6 +285,15 @@ NEW FEATURES
   `build_notes`, `platform_notes`, `tplan_cfs`, `build_cfs`); execution type +
   estimated duration meta row (`execution_type_label`,
   `estimated_exec_duration`). i18n `esr.*` keys in all 10 bundles.
+- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
+  `api/execsetresults`): testcase-scoped custom fields restored (Refs #1395) —
+  design-time CF values (before-steps `location=2` and standard `location=1`),
+  testplan-design CF values (keyed by `testplan_tcversions.id`), and editable
+  execution-time CF inputs, gated on `grants.execute`, with required/format
+  validation; BFF `esrTcaseCfields()` returns `design_cfs/testplan_design_
+  cfs/exec_cfields_html/exec_cfields`; save forwards whitelisted
+  `custom_field_*` payload. i18n `esr.cfsBeforeSteps/cfsAfterSteps/
+  cfsTestplanDesign/execCfields/cfRequired/cfInvalid` in all 10 bundles.
 - Markdown Test Case Import and Export (Feature #853) - full MD parser/emitter
   (lib/functions/markdown_tc_import.class.php, markdown_tc_export.class.php,
   api/testcasesimport, api/testcasesexport).

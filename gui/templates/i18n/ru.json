@@ -3820,5 +3820,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "Настраиваемые поля",
+  "esr.cfsAfterSteps": "Настраиваемые поля",
+  "esr.cfsTestplanDesign": "Настраиваемые поля проектирования плана тестирования",
+  "esr.execCfields": "Настраиваемые поля выполнения",
+  "esr.cfRequired": "Поле \"{field}\" обязательно для заполнения.",
+  "esr.cfInvalid": "Недопустимое значение поля \"{field}\"."
 }

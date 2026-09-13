@@ -3820,5 +3820,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "Campos personalizados",
+  "esr.cfsAfterSteps": "Campos personalizados",
+  "esr.cfsTestplanDesign": "Campos personalizados de design do plano de teste",
+  "esr.execCfields": "Campos personalizados de execução",
+  "esr.cfRequired": "O campo personalizado \"{field}\" é obrigatório.",
+  "esr.cfInvalid": "O valor inserido para o campo personalizado \"{field}\" é inválido."
 }

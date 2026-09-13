@@ -217,6 +217,15 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       <div class="desc-box" id="precondText"></div>
     </div>
 
+    <!-- Issue #1395: design-time CF values at the before_steps_results location
+         (legacy exec_test_spec.inc.tpl before_steps_results block) -->
+    <div id="cfsBeforeSteps" style="display:none;margin-top:10px;">
+      <div class="desc-label" data-i18n="esr.cfsBeforeSteps" style="color:#2d8e88;">Custom fields</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
+        <tbody id="cfsBeforeStepsBody"></tbody>
+      </table>
+    </div>
+
     <div class="form-group" id="stepsGroup" style="display:none;">
       <label data-i18n="esr.steps">Steps</label>
       <table class="steps">
@@ -247,6 +256,25 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
         </thead>
         <tbody id="relationsBody"></tbody>
       </table>
+    </div>
+
+    <!-- Issue #1395: design-time CF values at the standard_location + testplan-design
+         CF values + execution-time CF inputs (legacy exec_test_spec.inc.tpl blocks) -->
+    <div id="cfsAfterSteps" style="display:none;margin-bottom:10px;">
+      <div class="desc-label" data-i18n="esr.cfsAfterSteps" style="color:#2d8e88;">Custom fields</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
+        <tbody id="cfsAfterStepsBody"></tbody>
+      </table>
+    </div>
+    <div id="cfsTestplanDesign" style="display:none;margin-bottom:10px;">
+      <div class="desc-label" data-i18n="esr.cfsTestplanDesign" style="color:#2d8e88;">Testplan design custom fields</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
+        <tbody id="cfsTestplanDesignBody"></tbody>
+      </table>
+    </div>
+    <div id="execCfWrap" style="display:none;margin-bottom:10px;">
+      <div class="desc-label" data-i18n="esr.execCfields" style="color:#2d8e88;">Execution custom fields</div>
+      <div id="execCFields" style="margin-top:4px;"></div>
     </div>
 
     <div id="keywordsBox" style="display:none;">
@@ -522,6 +550,12 @@ function render(r) {
 renderSuiteBlock(r);
 
   renderTcSpecSections(r);
+
+  // Issue #1395: testcase-scoped custom fields of the executed version —
+  // design-time values (before_steps_results + standard_location), testplan
+  // design values, and execution-time input block (legacy processTestCase).
+
+  renderTcaseCfields(r);
 
   // Refs #1398: header extra controls (direct link / print / import XML /
   // remote exec), notes panels, execution-type + duration meta row.
@@ -915,6 +949,7 @@ function applyBuildState(r) {
     $('#txtNotes').prop('disabled', true);
     $('#txtExecDuration').prop('disabled', true);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', true);
+    $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', true);
     $('#btnSavePartial').prop('disabled', true).css('opacity', .5);
     $('#assignTask').prop('disabled', true);
   } else {
@@ -929,6 +964,7 @@ function applyBuildState(r) {
     $('#txtNotes').prop('disabled', false);
     $('#txtExecDuration').prop('disabled', false);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', false);
+    $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', false);
     $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
     $('#assignTask').prop('disabled', false);
   }
@@ -983,6 +1019,141 @@ function openSuiteWindow(tsuiteId) {
   window.open('/gui/templates/testcases/suiteView.html?id=' + tsuiteId +
     '&tproject_id=' + ctx.tprojectId, 'TestSuite',
     'width=900,height=650,resizable=yes,scrollbars=yes,dependent=yes');
+}
+
+// ---------------------------------------------------------------------------
+// Issue #1395: testcase-scoped custom fields of the executed version (legacy
+// processTestCase() -> design_time_cfields / testplan_design_time_cfields /
+// execution_time_cfields, rendered by exec_test_spec.inc.tpl):
+//   - design-time CF VALUES grouped by cfield_testprojects.location:
+//     location 2 (before_steps_results) rendered between Preconditions and the
+//     Steps table (legacy tpl line 47), every other location (standard_location
+//     = 1, ...) rendered after the steps (legacy tpl line 100);
+//   - testplan-design CF VALUES (legacy tpl line 124);
+//   - execution-time CF INPUTS (legacy tpl line 110-119, gated on the version
+//     being active + Execute grant): raw legacy input HTML under the exact
+//     'custom_field_<type>_<id>_<tcaseId>' names saved by the BFF.
+// ---------------------------------------------------------------------------
+
+function renderTcaseCfields(r) {
+  ctx.cfsBeforeSteps = [];
+  ctx.cfsAfterSteps = [];
+  ctx.cfsTplanDesign = [];
+  ctx.execCFields = [];
+
+  var designGroups = r.design_cfs || [];
+  for (var g = 0; g < designGroups.length; g++) {
+    var loc = designGroups[g].location;
+    var cfs = designGroups[g].cfs || [];
+    // location 2 = before_steps_results (between steps and preconditions);
+    // everything else (1 = standard_location and later slots) after the steps
+    var target = (loc === 2) ? ctx.cfsBeforeSteps : ctx.cfsAfterSteps;
+    for (var c = 0; c < cfs.length; c++) { target.push(cfs[c]); }
+  }
+
+  ctx.cfsTplanDesign = r.testplan_design_cfs || [];
+  ctx.execCFields = r.exec_cfields || [];
+
+  // before_steps_results values
+  if (ctx.cfsBeforeSteps.length > 0) {
+    var bh = '';
+    for (var i = 0; i < ctx.cfsBeforeSteps.length; i++) {
+      bh += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
+        esc(ctx.cfsBeforeSteps[i].label) + '</td>' +
+        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
+        esc(ctx.cfsBeforeSteps[i].value) + '</td></tr>';
+    }
+    $('#cfsBeforeStepsBody').html(bh);
+    $('#cfsBeforeSteps').show();
+  } else {
+    $('#cfsBeforeSteps').hide().html('');
+  }
+
+  // standard_location + other design values (after the steps)
+  if (ctx.cfsAfterSteps.length > 0) {
+    var ah = '';
+    for (i = 0; i < ctx.cfsAfterSteps.length; i++) {
+      ah += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
+        esc(ctx.cfsAfterSteps[i].label) + '</td>' +
+        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
+        esc(ctx.cfsAfterSteps[i].value) + '</td></tr>';
+    }
+    $('#cfsAfterStepsBody').html(ah);
+    $('#cfsAfterSteps').show();
+  } else {
+    $('#cfsAfterSteps').hide().html('');
+  }
+
+  // testplan-design values
+  if (ctx.cfsTplanDesign.length > 0) {
+    var th = '';
+    for (i = 0; i < ctx.cfsTplanDesign.length; i++) {
+      th += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
+        esc(ctx.cfsTplanDesign[i].label) + '</td>' +
+        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
+        esc(ctx.cfsTplanDesign[i].value) + '</td></tr>';
+    }
+    $('#cfsTestplanDesignBody').html(th);
+    $('#cfsTestplanDesign').show();
+  } else {
+    $('#cfsTestplanDesign').hide().html('');
+  }
+
+  // execution-time inputs (only rendered by the BFF when the user holds the
+  // Execute grant; the version being inactive is handled by applyBuildState)
+  if (r.exec_cfields_html) {
+    $('#execCFields').html(r.exec_cfields_html);
+    $('#execCfWrap').show();
+  } else {
+    $('#execCfWrap').hide().html('');
+  }
+}
+
+// Client-side required/format validation of execution-time CF inputs (mirror
+// execTest.html validateExecCustomFields, Refs #791): names follow the legacy
+// 'custom_field_<type>_<id>_<tcaseId>' contract. Returns {ok, message}.
+function validateExecCustomFields() {
+  var cfMeta = {};
+  (ctx.execCFields || []).forEach(function (cf) { cfMeta[cf.id + ''] = cf; });
+  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  var bad = null;
+  var cbGroups = {};
+  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
+    var $el = $(this);
+    var name = $el.attr('name') || '';
+    if (name.indexOf('custom_field_') !== 0) return;
+    var parts = name.split('_');
+    var cfType = parseInt(parts[2], 10);
+    var cf = cfMeta[parts[3]];
+    var label = cf ? (cf.label || name) : name;
+    if ($el.attr('type') === 'checkbox') {
+      var baseName = name.replace(/\[\]$/, '');
+      if (!cbGroups[baseName]) { cbGroups[baseName] = { required: !!(cf && cf.required), label: label, anyChecked: false }; }
+      if ($el.is(':checked')) { cbGroups[baseName].anyChecked = true; }
+      return;
+    }
+    var val = $el.is('select')
+      ? (($el.attr('multiple') ? ($el.val() || []) : [$el.val() || '']).join('|'))
+      : ($el.val() == null ? '' : $el.val());
+    var isEmpty = (val === '' || val == null);
+    if (cf && cf.required && isEmpty) { bad = { label: label, type: 'req' }; return; }
+    if (isEmpty) return;
+    if (cfType === 1 && /[^\d]/.test(String(val))) { bad = { label: label, type: 'numeric' }; return; }
+    if (cfType === 2 && (isNaN(Number(val)) || /^\s+$/.test(String(val)))) { bad = { label: label, type: 'float' }; return; }
+    if (cfType === 4 && !emailRe.test(String(val))) { bad = { label: label, type: 'email' }; return; }
+  });
+  if (!bad) {
+    $.each(cbGroups, function (k, g) {
+      if (g.required && !g.anyChecked) { bad = { label: g.label, type: 'req' }; return false; }
+    });
+  }
+  if (bad) {
+    if (bad.type === 'req') {
+      return { ok: false, message: TLi18n.t('esr.cfRequired', { field: bad.label }) };
+    }
+    return { ok: false, message: TLi18n.t('esr.cfInvalid', { field: bad.label }) };
+  }
+  return { ok: true };
 }
 
 function renderSuiteBlock(r) {
@@ -1212,6 +1383,11 @@ function doSave(navNext) {
   if (navNext && $('#btnSaveNext').prop('disabled')) return;
   if (ctx.statusCode === '') { toast(TLi18n.t('esr.errNoStatus'), true); return; }
 
+  // Issue #1395: execution-time custom fields are mandatory inputs — validate
+  // before submitting (same contract as execTest.html validateExecCustomFields)
+  var cfCheck = validateExecCustomFields();
+  if (!cfCheck.ok) { toast(cfCheck.message, true); return; }
+
   var buildId = parseInt($('#selBuild').val() || '0', 10);
   var selB = null;
   ((ctx.info && ctx.info.builds) || []).forEach(function (b) { if (b.id === buildId) selB = b; });
@@ -1261,6 +1437,24 @@ function doSave(navNext) {
         fd.append('uploadedFile[' + sid + '][]', this.files[f]);
       }
     }
+  });
+
+  // Issue #1395: read every execution-time custom field input (text/numeric/
+  // select/textarea/checkbox/date...) under its legacy name — the BFF save
+  // whitelists them against the linked execution-time CFs (mirror execTest.html).
+  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
+    var $el = $(this);
+    var name = $el.attr('name');
+    if (!name) return;
+    if ($el.attr('type') === 'checkbox') {
+      if ($el.is(':checked')) { fd.append(name, $el.val() || 'on'); }
+      return;
+    }
+    if ($el.is('select') && $el.attr('multiple')) {
+      ($el.val() || []).forEach(function (v) { fd.append(name, v); });
+      return;
+    }
+    fd.append(name, $el.val() == null ? '' : $el.val());
   });
 
   $.ajax({

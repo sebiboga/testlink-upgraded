@@ -3824,5 +3824,11 @@
   "notif.catPlanCompleted": "Planuri finalizate",
   "notif.catBug": "Bug-uri noi",
   "footers.notifications": "TestLink 2.0.1 - Notificari",
-  "notif.bellTitle": "Notificari"
+  "notif.bellTitle": "Notificari",
+  "esr.cfsBeforeSteps": "Câmpuri personalizate",
+  "esr.cfsAfterSteps": "Câmpuri personalizate",
+  "esr.cfsTestplanDesign": "Câmpuri personalizate de proiectare a planului de test",
+  "esr.execCfields": "Câmpuri personalizate de execuție",
+  "esr.cfRequired": "Câmpul personalizat \"{field}\" este obligatoriu.",
+  "esr.cfInvalid": "Valoarea introdusă pentru câmpul personalizat \"{field}\" este invalidă."
 }

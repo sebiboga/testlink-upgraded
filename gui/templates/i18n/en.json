@@ -3824,5 +3824,11 @@
   "notif.catPlanCompleted": "Plans completed",
   "notif.catBug": "New bugs",
   "footers.notifications": "TestLink 2.0.1 - Notifications",
-  "notif.bellTitle": "Notifications"
+  "notif.bellTitle": "Notifications",
+  "esr.cfsBeforeSteps": "Custom Fields",
+  "esr.cfsAfterSteps": "Custom Fields",
+  "esr.cfsTestplanDesign": "Test plan design custom fields",
+  "esr.execCfields": "Execution custom fields",
+  "esr.cfRequired": "The custom field \"{field}\" is required.",
+  "esr.cfInvalid": "The value entered for custom field \"{field}\" is invalid."
 }

@@ -336,6 +336,130 @@ function esrNotesPayload($db, $tplanMgr, $tplanId, $tprojectId, $buildId, $platf
 }
 
 /**
+ * Testcase-scoped custom fields of the executed version (issue #1395, legacy
+ * execSetResults.php processTestCase() lines 1736-1763):
+ *
+ *  - design_time_cfields:   design-time CF VALUES of the tcversion
+ *    (html_table_of_custom_field_values scope='design', $link_id=tcversion_id),
+ *    filtered to show_on_execution=1 exactly like the legacy call and grouped
+ *    by the cfield_testprojects.location code so the popup can render the
+ *    before_steps_results / standard_location blocks at their legacy positions
+ *    (exec_test_spec.inc.tpl). Values are raw {id,label,value} arrays (the
+ *    esrNotesPayload shape) rendered with Dashio styles.
+ *  - testplan_design:       testplan-design CF VALUES keyed by the plan link
+ *    id (cfield_testplan_design_values.link_id = testplan_tcversions.id),
+ *    legacy html_table_of_custom_field_values scope='testplan_design'.
+ *  - exec_cfields_html:     legacy-rendered input HTML for the execution-time
+ *    CFs (html_table_of_custom_field_inputs scope='execution', name suffix
+ *    '_<tcaseId>'), only when the user holds the execute grant (they are
+ *    inputs); input names are 'custom_field_<type>_<id>_<tcaseId>' — the
+ *    exact contract write_execution() -> execution_values_to_db() persists.
+ *  - exec_cfields:          metadata (id/name/label/type/required) for the
+ *    frontend required/format validation (same as api/execute exec_cfields).
+ */
+function esrTcaseCfields($db, $tcaseMgr, $tcaseId, $tcversionId, $linkId,
+                         $tplanId, $tprojectId, $canExecute)
+{
+    $out = array(
+        'design_cfs' => array(),   // grouped per cfield_testprojects.location
+        'testplan_design' => array(),
+        'exec_cfields_html' => '',
+        'exec_cfields' => array(),
+    );
+
+    $showEmpty = config_get('custom_fields')->show_custom_fields_without_value;
+    $cfFilters = array('show_on_execution' => 1);
+
+    // design-time CF values of the executed test case version (legacy
+    // html_table_of_custom_field_values($tcase_id,'design',...,$tcversion_id);
+    // value lives in cfield_design_values keyed by node_id = tcversion_id)
+    try {
+        $cfMap = $tcaseMgr->get_linked_cfields_at_design(
+            $tcaseId, $tcversionId, null, $cfFilters, $tprojectId);
+        if (is_array($cfMap)) {
+            $byLoc = array();
+            foreach ($cfMap as $cfId => $cfInfo) {
+                $loc = isset($cfInfo['location']) ? intval($cfInfo['location']) : 0;
+                $hasValue = intval($cfInfo['node_id'] ?? 0);
+                if (!$hasValue && !$showEmpty) { continue; }
+                if (!isset($byLoc[$loc])) { $byLoc[$loc] = array(); }
+                $byLoc[$loc][] = array(
+                    'id' => intval($cfId),
+                    'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                        lang_get($cfInfo['label'], null, true))),
+                    'value' => strval($tcaseMgr->cfield_mgr
+                        ->string_custom_field_value($cfInfo, $tcversionId)),
+                );
+            }
+            // JSON objects keyed by numeric location survive as objects on the
+            // client; array_values keeps the frontend iteration simple
+            foreach ($byLoc as $loc => $cfs) {
+                $out['design_cfs'][] = array('location' => $loc, 'cfs' => $cfs);
+            }
+        }
+    } catch (\Throwable $e) {
+        $out['design_cfs'] = array();
+    }
+
+    // testplan-design CF values of the executed version (legacy
+    // html_table_of_custom_field_values($tcversion_id,'testplan_design',...,
+    // $link_id] where $link_id = $target['feature_id'] = testplan_tcversions.id)
+    if ($linkId > 0) {
+        try {
+            $tpMap = $tcaseMgr->get_linked_cfields_at_testplan_design(
+                $tcversionId, null, $cfFilters, $linkId, $tplanId, $tprojectId);
+            if (is_array($tpMap)) {
+                foreach ($tpMap as $cfId => $cfInfo) {
+                    $hasValue = intval($cfInfo['node_id'] ?? 0);
+                    if (!$hasValue && !$showEmpty) { continue; }
+                    $out['testplan_design'][] = array(
+                        'id' => intval($cfId),
+                        'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                            lang_get($cfInfo['label'], null, true))),
+                        'value' => strval($tcaseMgr->cfield_mgr
+                            ->string_custom_field_value($cfInfo, $tcversionId)),
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            $out['testplan_design'] = array();
+        }
+    }
+
+    // execution-time custom-field INPUTS (legacy html_table_of_custom_field_inputs
+    // within if($guiObj->grants->execute) -> execution_time_cfields[$tcase_id]);
+    // only surfaced to users holding the Execute right (read-only keeps the
+    // recorded values via prior history instead)
+    if ($canExecute) {
+        try {
+            $out['exec_cfields_html'] = (string)$tcaseMgr
+                ->html_table_of_custom_field_inputs(
+                    $tcaseId, null, 'execution', '_' . $tcaseId,
+                    null, null, $tprojectId);
+            $cfDefs = $tcaseMgr->get_linked_cfields_at_execution(
+                $tcversionId, null, null, null, null, $tprojectId);
+            if (is_array($cfDefs)) {
+                foreach ($cfDefs as $cf) {
+                    $out['exec_cfields'][] = array(
+                        'id' => intval($cf['id']),
+                        'name' => 'custom_field_' . intval($cf['type']) . '_'
+                                  . intval($cf['id']) . '_' . $tcaseId,
+                        'label' => strval($cf['label']),
+                        'type' => intval($cf['type']),
+                        'required' => intval($cf['required'] ?? 0),
+                    );
+                }
+            }
+        } catch (\Throwable $e) {
+            $out['exec_cfields_html'] = '';
+            $out['exec_cfields'] = array();
+        }
+    }
+
+    return $out;
+}
+
+/**
  * Steps of the version, sorted by step_number.
  */
 function esrSteps($db, $tcaseMgr, $tcversionId) {
@@ -1088,6 +1212,12 @@ if ($action === 'init') {
     list($featureId, $directLink) = array_values(
         esrDirectLink($db, $tplanId, $tcversionId, $platformId, $buildId));
 
+    // Issue #1395: testcase-scoped custom fields of the executed version —
+    // design-time values (grouped by location), testplan-design values and
+    // execution-time input HTML + metadata (legacy processTestCase()).
+    $tcaseCfields = esrTcaseCfields($db, $tcaseMgr, $tcaseId, $tcversionId,
+        $featureId, $tplanId, $tprojectId, $canExecute);
+
     // Refs #1398: collapsible Test Plan / Build / Platform notes panels +
     // plan and build design-time custom fields (execution-scope filter).
     $notesPayload = esrNotesPayload($db, $tplanMgr, $tplanId, $tprojectId,
@@ -1215,6 +1345,12 @@ if ($action === 'init') {
         'platform_notes' => $notesPayload['platform_notes'],
         'tplan_cfs' => $notesPayload['tplan_cfs'],
         'build_cfs' => $notesPayload['build_cfs'],
+        // Issue #1395: testcase-scoped CF payload (design values by location,
+        // testplan-design values, execution-time inputs + metadata)
+        'design_cfs' => $tcaseCfields['design_cfs'],
+        'testplan_design_cfs' => $tcaseCfields['testplan_design'],
+        'exec_cfields_html' => $tcaseCfields['exec_cfields_html'],
+        'exec_cfields' => $tcaseCfields['exec_cfields'],
     ]);
 }
 
@@ -1365,6 +1501,41 @@ if ($action === 'save') {
             // deleteStepsPartialExec() reads the request superglobal
             $_REQUEST['step_notes'] = $stepNotes;
         }
+    }
+
+    // execution-time custom field values (issue #1395): the popup submits them
+    // under the exact legacy input names 'custom_field_<type>_<id>_<tcaseId>'
+    // (checkbox / multiselection carry '[]' which PHP folds into array values;
+    // date/datetime add '_input' / '_hour' / '_minute' / '_second' segments).
+    // Forward them into $execData so write_execution() ->
+    // execution_values_to_db() persists them onto the new execution row. Only
+    // accept names whose (type,id) belongs to a real execution-time custom
+    // field linked to this test case version, so a forged payload cannot write
+    // unrelated values. (Same contract as api/execute?action=save, Refs #791.)
+    $cfPrefix = 'custom_field_';
+    $allowedCf = [];
+    try {
+        $saveTcaseMgr = new testcase($db);
+        $cfDefs = $saveTcaseMgr->get_linked_cfields_at_execution(
+            $tcversionId, null, null, null, null, $tprojectId);
+        if (is_array($cfDefs)) {
+            foreach ($cfDefs as $cf) {
+                $allowedCf[intval($cf['type']) . '_' . intval($cf['id'])] = 1;
+            }
+        }
+    } catch (\Throwable $e) {
+        $allowedCf = [];
+    }
+    foreach ($payload as $pName => $pVal) {
+        if (strncmp($pName, $cfPrefix, strlen($cfPrefix)) !== 0) { continue; }
+        // input name 'custom_field_<type>_<id>_<tcaseId>' explodes on '_' with
+        // 'custom_field' itself containing an underscore, so positions are:
+        // 0='custom' 1='field' 2=type 3=id 4=tcaseId (5 parts).
+        $parts = explode('_', $pName);
+        if (count($parts) < 5) { continue; }
+        $typeIdKey = $parts[2] . '_' . $parts[3];
+        if (!isset($allowedCf[$typeIdKey])) { continue; }
+        $execData[$pName] = $pVal;
     }
 
     $issueTracker = null;

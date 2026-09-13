@@ -14331,3 +14331,25 @@ Result: **PASS — 10/10 PASS** — Issue #896 implemented from scratch: live Gi
 | 1442.9 | Browser console hygiene | 0 errors/warnings across EN + RO loads and locale switch | **PASS** |
 
 Result: **PASS — 9/9 PASS** — Issue #1442 spec fully satisfied (Scope chapter complete end-to-end: page content, ASIDE wiring, Overview card #3 + Open chapter, i18n in all 10 bundles, EN/RO locale switch). The header-icon defect found during verification (`fa-bullseye` → `fa-expand-arrows-alt`, 1-line change in `gui/templates/strategy/scope.html:31`) is fixed and re-verified error-free.
+
+# Task — Issue #1395: Set Results popup (execSetResults.html) — execution-time / design / testplan-design custom fields
+
+> STATUS: `**PASS**` — 11/11 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Implementation: BFF `api/execsetresults/index.php` (`esrTcaseCfields()` + init wiring + save whitelist-forwarding) + UI `gui/templates/execute/execSetResults.html` (`renderTcaseCfields()`, `validateExecCustomFields()`, save collection, closed-build freeze) + 6 `esr.*` i18n keys in all 10 bundles.
+
+**Precondition:** logged in admin/admin; DB fixture created (project `CF Demo Project` id 2 / plan `CF Demo Plan` id 6 / build id 1 / tcase `CF Test Case` id 4 / tcversion id 5; CF 1 `CF_Design_Std` location=1 standard_location value `Design standard value`; CF 2 `CF_Design_BeforeSteps` location=2 before_steps_results value `Prerequisite-42`; CF 3 `CF_Exec` execution-time required; CF 4 `CF_TPDesign` testplan-design value `TP design value-ABC` keyed by testplan_tcversions.link_id=1).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1395.1 | BFF `GET ?action=init&tplan_id=6&id=4&version_id=5&setting_build=1` | `status:ok`; new keys `design_cfs` (2 groups by location 1 and 2), `testplan_design_cfs` (1 entry), `exec_cfields_html` (input HTML), `exec_cfields` (metadata `{id:3,name:'custom_field_0_3_4',label:'Execution time CF',type:0,required:1}`) | **PASS** |
+| 1395.2 | `GET gui/templates/execute/execSetResults.html?...` (same context) | 4 CF blocks visible: before-steps (`Prerequisite CF / Prerequisite-42`), after-steps (`Design standard CF / Design standard value`), testplan-design (`Testplan design CF / TP design value-ABC`), exec-input block with text input `custom_field_0_3_4`; popup otherwise intact | **PASS** |
+| 1395.3 | CF block positions | before_steps group renders between Preconditions and Steps; standard_location group after Steps/relations; exec inputs + testplan-design below — legacy exec_test_spec.inc.tpl order | **PASS** |
+| 1395.4 | Required CF empty + status selected → Save | Save blocked client-side; toast `The custom field "Execution time CF" is required.`; no AJAX, no execution row | **PASS** |
+| 1395.5 | Fill exec CF `RUN-42`, status = failed, Save | Toast `Result saved successfully.`; `executions` row (id, status f) + `cfield_execution_values` {field 3, value RUN-42, execution, plan 6, tcversion 5} | **PASS** |
+| 1395.6 | Reload popup after save | Prior execution box shows latest run; exec-input empty again (`exec_mode->new_exec='clean'` default = legacy parity, no prefill); design CF blocks still rendered | **PASS** |
+| 1395.7 | Second save: exec CF `RUN-50`, status = passed | Second `executions` row (status p) + `cfield_execution_values` {field 3, value RUN-50, execution id 2}; no duplicate keys in payload | **PASS** |
+| 1395.8 | Closed build (build 2, is_open=0) via `setting_build=2` | Closed-build box + Save/Next disabled + exec CF input disabled; CF value blocks still readable (read-only review) | **PASS** |
+| 1395.9 | forged CF name save (e.g. `custom_field_0_999_4=evil`) | BFF save whitelists (type,id) against `get_linked_cfields_at_execution` → forged key silently dropped, no `cfield_execution_values` row for field 999 | **PASS** |
+| 1395.10 | i18n render EN | Section headings `Custom Fields` / `Test plan design custom fields` / `Execution custom fields` through `TLi18n.t`; no raw `esr.*` keys in DOM | **PASS** |
+| 1395.11 | i18n bundle validity + Event Viewer | All 10 bundles contain `esr.cfsBeforeSteps/esr.cfsAfterSteps/esr.cfsTestplanDesign/esr.execCfields/esr.cfRequired/esr.cfInvalid` and pass `python3 -m json.tool`; `events` table no new ERROR/WARNING after all BFF calls; browser console 0 errors (only pre-existing a11y "No label" IUC) | **PASS** |
+
+Result: **PASS — 11/11 PASS** — Issue #1395 implemented: the Set Results popup now renders the executed test case's design-time CF values (before-steps + standard_location), testplan-design CF values, and editable execution-time CF inputs persisted with each save, with required/format validation and closed-build read-only handling.
