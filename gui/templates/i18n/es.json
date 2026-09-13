@@ -3771,5 +3771,9 @@
   "ts.chapterReliability": "Reliability & Recovery Testing",
   "ts.chapterReliabilityDesc": "resilience and failover",
   "ts.chapterMaintainability": "Maintainability & Portability",
-  "ts.chapterMaintainabilityDesc": "standards, upgrades and platform moves"
+  "ts.chapterMaintainabilityDesc": "standards, upgrades and platform moves",
+  "esr.hasNewestVersionMsg": "Atención: esta no es la versión más reciente disponible",
+  "esr.updateLinkToLatestTCVersion": "Actualizar el TCV vinculado a la versión más reciente",
+  "esr.errUpdateLink": "No se pudo actualizar la versión vinculada.",
+  "esr.linkUpdated": "Versión de caso de prueba vinculada actualizada a la más reciente. Actualizando..."
 }

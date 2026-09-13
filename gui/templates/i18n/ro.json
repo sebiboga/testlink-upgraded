@@ -3781,5 +3781,9 @@
   "ts.chapterReliabilityDesc": "reziliență și failover",
   "ts.chapterMaintainability": "Mentenabilitate și Portabilitate",
   "ts.chapterMaintainabilityDesc": "standarde, upgrade-uri și mutări pe platforme",
-  "footers.nfrRequirements": "TestLink 2.0.1 - Cerințe NFR"
+  "footers.nfrRequirements": "TestLink 2.0.1 - Cerințe NFR",
+  "esr.hasNewestVersionMsg": "Atenție: aceasta nu este cea mai recentă versiune disponibilă",
+  "esr.updateLinkToLatestTCVersion": "Actualizează TCV-ul legat la cea mai recentă versiune",
+  "esr.errUpdateLink": "Nu s-a putut actualiza versiunea legată.",
+  "esr.linkUpdated": "Versiunea cazului de test legată a fost actualizată la cea mai recentă. Se reîncarcă..."
 }

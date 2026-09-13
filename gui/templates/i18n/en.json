@@ -3781,5 +3781,9 @@
   "ts.chapterReliabilityDesc": "resilience and failover",
   "ts.chapterMaintainability": "Maintainability & Portability",
   "ts.chapterMaintainabilityDesc": "standards, upgrades and platform moves",
-  "footers.nfrRequirements": "TestLink 2.0.1 - NFR Requirements"
+  "footers.nfrRequirements": "TestLink 2.0.1 - NFR Requirements",
+  "esr.hasNewestVersionMsg": "Attention: This is not the latest available version",
+  "esr.updateLinkToLatestTCVersion": "Update Linked TCV To The Latest",
+  "esr.errUpdateLink": "Failed to update the linked version.",
+  "esr.linkUpdated": "Linked test case version updated to the latest. Refreshing..."
 }

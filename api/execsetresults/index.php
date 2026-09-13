@@ -190,6 +190,52 @@ function esrDirectLink($db, $tplanId, $tcversionId, $platformId, $buildId) {
 }
 
 /**
+ * Newest-version handling of the executed test case (Refs #1396, legacy
+ * execSetResults.php:2085-2090 auto-bump + execSetResults.php:1725-1728
+ * hasNewestVersion):
+ *
+ *  - $linkedMax: newest tcversion_id of this test case LINKED to the plan
+ *    (legacy testplan::getVersionLinked() returns the single linked version
+ *    and THROWS on a multi-row state; we use MAX so stale/duplicated link
+ *    rows never 500 the popup — the bump semantics are identical for the
+ *    healthy single-row state).
+ *  - $latestOverall: newest tcversion_id of the test case OVERALL (legacy
+ *    testcase::getLatestVersionID(), latest_tcase_version_id view).
+ *
+ * When the plan already links a version NEWER than the one the user arrived
+ * with, the passed version is auto-BUMPED to the newest linked version so
+ * execution always targets the latest linked version (legacy getLinkedItems
+ * comment: "user can arrive to execute feature with a tcversion ... after an
+ * edit operation a new tcversion can exist. That's why we need to update.").
+ * Returns [resolved version id, linked max, latest overall id].
+ */
+function esrNewestVersion($db, $tplanId, $tcaseId, $tcversionId) {
+    $tables = tlObjectWithDB::getDBTables(
+        array('testplan_tcversions', 'nodes_hierarchy'));
+    $linkedMax = 0;
+    $rows = $db->get_recordset(
+        "SELECT MAX(TPTCV.tcversion_id) AS max_id" .
+        " FROM {$tables['testplan_tcversions']} TPTCV" .
+        " JOIN {$tables['nodes_hierarchy']} NH ON NH.id = TPTCV.tcversion_id" .
+        " WHERE TPTCV.testplan_id = " . intval($tplanId) .
+        " AND NH.parent_id = " . intval($tcaseId));
+    if (!is_null($rows) && count($rows) > 0) {
+        $linkedMax = intval($rows[0]['max_id'] ?? 0);
+    }
+    if ($linkedMax > intval($tcversionId)) {
+        $tcversionId = $linkedMax;
+    }
+    $latestOverall = 0;
+    try {
+        $tcaseMgr = new testcase($db);
+        $latestOverall = intval($tcaseMgr->getLatestVersionID($tcaseId));
+    } catch (\Throwable $e) {
+        $latestOverall = 0;
+    }
+    return array(intval($tcversionId), $linkedMax, $latestOverall);
+}
+
+/**
  * Execution-type label of the executed version (legacy exec_test_spec.inc.tpl
  * "Execution type:" row + testcase::$execution_types, Refs #1398):
  * tcversions.execution_type 1 = manual (EXECUTION_TYPE_MANUAL), 2 = automated.
@@ -952,8 +998,30 @@ if ($action === 'init') {
     // execution" spec link on mgt_modify_tc at project+plan scope.
     $editTestcase = $user->hasRight($db, 'mgt_modify_tc', $tprojectId, $tplanId);
 
+    // Refs #1396: newest-version handling (legacy execSetResults.php:2085-2090).
+    // The plan may already link a NEWER version of this test case than the one
+    // the user arrived with (e.g. after an edit operation created vN while the
+    // left-side tree / report still points at vN-1): auto-bump to the newest
+    // LINKED version so execution targets it, and compute whether the executed
+    // version is the newest overall (hasNewestVersion -> warning + update-link,
+    // legacy execSetResults.php:1725-1728).
+    list($tcversionId, $linkedMax, $latestOverall) =
+        esrNewestVersion($db, $tplanId, $tcaseId, $tcversionId);
+
     list($tcaseMgr, $vinfo, $basic) =
         esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
+
+    $hasNewestVersion = ($latestOverall > 0 && $latestOverall !== $tcversionId);
+    $newestVersionNumber = 0;
+    if ($latestOverall > 0) {
+        $nv = $db->fetchFirstRow(
+            "SELECT version FROM " .
+            tlObjectWithDB::getDBTables(array('tcversions'))['tcversions'] .
+            " WHERE id = " . intval($latestOverall));
+        if (!is_null($nv) && isset($nv['version'])) {
+            $newestVersionNumber = intval($nv['version']);
+        }
+    }
 
     $tprojectMgr = new testproject($db);
     $tprojInfo = $tprojectMgr->get_by_id($tprojectId);
@@ -1105,6 +1173,14 @@ if ($action === 'init') {
             'estimated_exec_duration' => floatval($vinfo['estimated_exec_duration'] ?? 0),
             'execution_type_label' => esrExecutionTypeLabel($vinfo['execution_type']),
         ],
+        // Refs #1396: newer-version handling (legacy hasNewestVersion /
+        // updateLinkToLatestTCVersion). When has_newest_version is set the
+        // popup shows the legacy warning + an "update linked TCV to the
+        // latest" action (POST ?action=update_link) that points the plan
+        // link to newest_version_id and reloads the popup on it.
+        'has_newest_version' => $hasNewestVersion ? 1 : 0,
+        'newest_version_id' => $latestOverall,
+        'newest_version_number' => $newestVersionNumber,
         'steps' => $steps,
         'builds' => $builds,
         'default_build_id' => $defaultBuildId,
@@ -1577,6 +1653,80 @@ if ($action === 'remote_exec') {
     }
 
     out(['status' => 'ok', 'feedback' => $feedback]);
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=update_link — update which TC version the plan links for this
+// test case (legacy execSetResults.php:83-88 linkLatestVersion +
+// testcase::updateTPlanLinkToLatestTCV, Refs #1396). Triggered by the
+// "not the latest available version" warning's "Update Linked TCV To The
+// Latest" button introduced with the newest-version handling. Updates ALL
+// plan links of the executed version to the newest version of the test case
+// (platform filter skipped, legacy $plat = null) and re-points existing
+// executions + execution custom-field values, then the popup reloads on the
+// new version. WRITE right (testplan_execute) required, same as save.
+// ---------------------------------------------------------------------------
+if ($action === 'update_link') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = setResultsPayload();
+    if (!is_array($payload) || count($payload) == 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid request body']);
+    }
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, $tplanId, $tprojectId, ) =
+        esrResolvePlan($db, $user, $tplanId);
+
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+
+    $tcaseId = intval($payload['tcase_id'] ?? 0);
+    $tcversionId = intval($payload['tcversion_id'] ?? 0);
+    if ($tcversionId <= 0) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Missing test case / version id']);
+    }
+
+    // the FROM version must belong to the test case AND be linked to the plan
+    // (same guarantee the init/save actions enforce) so a forged id cannot
+    // silently re-point a plan link of a foreign test case
+    esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
+
+    $tcaseMgr = new testcase($db);
+    $newTcvId = 0;
+    try {
+        $newTcvId = intval($tcaseMgr->updateTPlanLinkToLatestTCV(
+            $tcversionId, $tplanId, null));
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error',
+             'message' => 'Failed to update the linked version']);
+    }
+    if ($newTcvId <= 0) {
+        http_response_code(404);
+        out(['status' => 'error',
+             'message' => 'No newer version available to link']);
+    }
+
+    $newVersionNumber = 0;
+    $nv = $db->fetchFirstRow(
+        "SELECT version FROM " .
+        tlObjectWithDB::getDBTables(array('tcversions'))['tcversions'] .
+        " WHERE id = " . intval($newTcvId));
+    if (!is_null($nv) && isset($nv['version'])) {
+        $newVersionNumber = intval($nv['version']);
+    }
+
+    out([
+        'status' => 'ok',
+        'new_tcversion_id' => $newTcvId,
+        'new_version_number' => $newVersionNumber,
+    ]);
 }
 
 http_response_code(404);

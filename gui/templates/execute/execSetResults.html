@@ -53,6 +53,14 @@ table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; w
 .warnbox { margin: 12px 22px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .closedbox { margin: 12px 22px 0; background: #fff8e6; border: 1px solid #f0d9a8; color: #8a6d3b; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .closedbox i { margin-right: 6px; }
+/* Refs #1396: "not the latest available version" alert (legacy
+   exec_tc_title_alert + hasNewestVersionMsg). Alert-red box like .warnbox,
+   but inside the card body flow so it sits right under the title bar. */
+.nv-box { margin: 0 0 12px; background: #fdecea; border: 1px solid #f5b0a8;
+         color: #b94a48; border-radius: 6px; padding: 9px 12px; font-size: 12.5px;
+         display: none; align-items: center; }
+.nv-box i { margin-right: 7px; color: #d64541; }
+.nv-box .btn-dark { font-size: 12px; padding: 5px 10px; }
 select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .actions-bar { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
 .save-ok { color: #2d8e88; font-size: 13px; font-weight: 600; }
@@ -121,6 +129,18 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
          direct link to this execution, print the popup, Import XML Results,
          and (when test automation is enabled) Execute and Save Results. -->
     <span class="hc-actions" id="hcActions" style="display:none;"></span>
+  </div>
+  <!-- Refs #1396: newest-version handling (legacy exec_show_tc_exec.inc.tpl:
+       455-474): when the executed version is NOT the latest version of the
+       test case (hasNewestVersion), show the legacy "Attention: This is not
+       the latest available version" warning + the "Update Linked TCV To The
+       Latest" button that re-points the plan link to the newest version. -->
+  <div class="nv-box" id="newestVerBox" style="display:none;">
+    <i class="fa fa-triangle-exclamation"></i>
+    <span id="newestVerMsg" style="flex:1;"></span>
+    <button type="button" class="btn-dark" id="btnLinkLatest" style="margin-left:10px;">
+      <i class="fa fa-link"></i> <span data-i18n="esr.updateLinkToLatestTCVersion">Update Linked TCV To The Latest</span>
+    </button>
   </div>
   <div class="card-body">
     <div id="planCtxBar">
@@ -509,6 +529,7 @@ renderSuiteBlock(r);
   renderNotesPanel(r);
   renderTcMeta(r);
   renderAssignment(r);
+  renderNewestVersion(r);
 
   // prior execution box (hidden when the selected build has no execution —
   // e.g. a closed build that was never executed; matches the re-fetch on
@@ -805,6 +826,65 @@ function renderAssignment(r) {
     $box.css({ 'border-color': '#bfe5e2', background: '#eefaf9', color: '#2d8e88' });
   }
   $box.html(h).show();
+}
+
+// ---------------------------------------------------------------------------
+// Refs #1396: newest-version handling (legacy exec_show_tc_exec.inc.tpl:
+// 455-474). When the BFF resolved a version that is NOT the latest version of
+// the test case (has_newest_version), render the legacy "Attention: This is
+// not the latest available version" warning under the title bar. The
+// "Update Linked TCV To The Latest" button (write-enabled contexts only)
+// re-points the plan link to the newest version via ?action=update_link and
+// reloads the popup on the new version (in-place, like the build switch).
+// ---------------------------------------------------------------------------
+function renderNewestVersion(r) {
+  var $box = $('#newestVerBox');
+  if (!r || !r.has_newest_version || !r.newest_version_id) {
+    $box.hide().off('click'); return;
+  }
+  var msg = TLi18n.t('esr.hasNewestVersionMsg');
+  if (r.newest_version_number) {
+    msg += ' (' + TLi18n.t('esr.version') + ' v' + r.newest_version_number + ')';
+  }
+  $('#newestVerMsg').text(msg);
+  var canUpdate = r.grants && r.grants.can_execute;
+  $('#btnLinkLatest').toggle(!!canUpdate);
+  $box.show();
+  $('#btnLinkLatest').off('click.esrnv').on('click.esrnv', function () {
+    var btn = $('#btnLinkLatest');
+    btn.prop('disabled', true);
+    var fd = {
+      tplan_id: ctx.tplanId,
+      tcase_id: ctx.tcaseId,
+      tcversion_id: ctx.tcversionId
+    };
+    $.post('/api/execsetresults/?action=update_link', fd)
+      .done(function (res) {
+        btn.prop('disabled', false);
+        if (!res || res.status !== 'ok') {
+          toast((res && res.message) || TLi18n.t('esr.errUpdateLink'), true);
+          return;
+        }
+        toast(TLi18n.t('esr.linkUpdated'));
+        // re-target this popup to the newest linked version and refresh the
+        // context in place (legacy reloads the whole page with the new
+        // version_id after linkLatestVersion processing)
+        ctx.tcversionId = parseInt(res.new_tcversion_id || '0', 10) || ctx.tcversionId;
+        try {
+          var u = new URL(window.location.href);
+          u.searchParams.set('version_id', String(ctx.tcversionId));
+          u.searchParams.set('tcversion_id', String(ctx.tcversionId));
+          window.history.replaceState({}, '', u.toString());
+        } catch (e) {}
+        loadInfo();
+      })
+      .fail(function (xhr) {
+        btn.prop('disabled', false);
+        var msg = TLi18n.t('esr.errUpdateLink');
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+        toast(msg, true);
+      });
+  });
 }
 
 // Closed-build read-only state (legacy execSetResults parity): when the

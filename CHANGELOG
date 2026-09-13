@@ -250,6 +250,17 @@ NEW FEATURES
   not_run early-return (legacy parity: a not_run save still claims). i18n
   `esr.assignedTo/hasNoAssignment/assignTaskToMe` in all 10 bundles.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
+  `api/execsetresults`): legacy newer-version handling restored (Refs #1396) —
+  auto-bump to the newest plan-linked version (esrNewestVersion), amber
+  "Attention: This is not the latest available version (Version vN)" warning
+  + "Update Linked TCV To The Latest" action (`POST ?action=update_link`
+  calling `testcase::updateTPlanLinkToLatestTCV`, 405 on GET, 403 without
+  testplan_execute, 404 on foreign version) which re-points plan link +
+  executions + cfield_execution_values; init payload gains
+  `has_newest_version/newest_version_id/newest_version_number`. i18n
+  `esr.hasNewestVersionMsg/updateLinkToLatestTCVersion/errUpdateLink/
+  linkUpdated` in all 10 bundles.
+- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): legacy execInfo strip restored (Refs #1398) — copy
   direct link (`direct_link`+`feature_id` in init) with clipboard toggle,
   Print, Import XML Results popup, and Execute and Save Results (remote exec,

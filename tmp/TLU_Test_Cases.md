@@ -14238,3 +14238,29 @@ Result: **PASS — 12/12 PASS** — #895 implemented: dashboard now shows the lo
 | 1441.6 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only login AUDIT info); browser console: 0 messages across EN/RO/DE loads | **PASS** |
 
 Result: **PASS — 6/6 PASS** — Issue #1441 spec fully satisfied; no code change required (stale tracking issue).
+
+## Task — Issue #1396: Set Results popup newer-version handling (auto-bump + hasNewestVersion warning + update-link)
+
+> STATUS: `PASS` — 13/13 PASS, verified 2026-09-13 @ http://localhost:8082 (branch `task/issue-1396`, Refs #1396).
+
+**Screen:** `gui/templates/execute/execSetResults.html` + BFF `api/execsetresults/index.php`. Port of legacy `execSetResults.php` newest-version handling (getLinkedItems auto-bump :2085-2090, hasNewestVersion :1725-1728, linkLatestVersion/updateTPlanLinkToLatestTCV :83-88, exec_show_tc_exec.inc.tpl:455-474). **BFF:** `esrNewestVersion()` + `init` payload `has_newest_version`/`newest_version_id`/`newest_version_number` + `POST ?action=update_link` (plan link → newest version, executions + cfield_execution_values re-pointed). **i18n:** `esr.hasNewestVersionMsg`, `esr.updateLinkToLatestTCVersion`, `esr.errUpdateLink`, `esr.linkUpdated` in all 10 bundles.
+
+**Precondition (fresh DB, fixtures created via SQL):** testproject `Modern Project` (node/tproject 1, prefix MP), test case `Case One` (node 38, ext id 1) with v1 (tcversion 39) + v2 (tcversion 100), testplan `Plan Fifty` (node 50), build `Build One` (200, open). Scenario A = plan 50 links v1 only (`testplan_tcversions` (50,39,0)); Scenario B = ALSO link v2 (`(50,100,0)`). Login admin/admin.
+
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 1396.1 | Scenario A: BFF `GET ?action=init&tplan_id=50&id=38&version_id=39` | `status:ok`, `tcversion.id:39`, `has_newest_version:1`, `newest_version_id:100`, `newest_version_number:2` (v1 kept, warning-on because latest overall is v2) | **PASS** |
+| 1396.2 | Scenario A: open popup `execSetResults.html?tplan_id=50&id=38&version_id=39&setting_build=200` | Title "Case One (v1)"; alert box under title bar: "Attention: This is not the latest available version (Version v2)" + button "Update Linked TCV To The Latest" (write rights = admin) | **PASS** |
+| 1396.3 | Click "Update Linked TCV To The Latest" | POST `?action=update_link` → `{status:ok,new_tcversion_id:100,new_version_number:2}`; popup URL rewrites to `version_id=100&tcversion_id=100` and reloads; now shows "Case One (v2)", `Plan Fifty / v2`, summary/preconditions v2; warning box GONE; plan link `testplan_tcversions.tcversion_id 39 → 100` | **PASS** |
+| 1396.4 | Scenario B (both linked): BFF `GET ?action=init ... version_id=39` | Auto-bump: `tcversion.id:100` (v2 executed although v1 requested), `has_newest_version:0` — legacy getLinkedItems bump parity | **PASS** |
+| 1396.5 | Scenario B: open popup with `version_id=39` | Popup renders v2 ("Case One (v2)", Plan Fifty / v2), NO warning box, NO update button (current version IS latest) | **PASS** |
+| 1396.6 | BFF guard: `GET ?action=update_link` | 405 `POST required` | **PASS** |
+| 1396.7 | BFF guard: `update_link` with forged tcversion 999 | 404 `Version does not belong to test case`; plan link unchanged | **PASS** |
+| 1396.8 | BFF guard: anonymous `init` / `update_link` | 401 `Not authenticated` | **PASS** |
+| 1396.9 | Save regression after change: POST `?action=save` (v2, build 200, status p) | `{status:ok,saved:true,execution_id:1}`; executions row written | **PASS** |
+| 1396.10 | i18n English render | Warning + button + latest-version number rendered through `TLi18n.t` (no raw `esr.*` keys in DOM) | **PASS** |
+| 1396.11 | i18n RO render | Locale switch to ro → "Atenție: aceasta nu este cea mai recentă versiune disponibilă (Versiune v2)" + "Actualizează TCV-ul legat la cea mai recentă versiune" | **PASS** |
+| 1396.12 | i18n bundle validity | `python3 -m json.tool` passes on all 10 bundles; add-only keys | **PASS** |
+| 1396.13 | Event Viewer + console hygiene | `events` table: only INFO `audit_login_succeeded` rows (no Error/Warning) after all BFF calls; browser console 0 errors/warnings | **PASS** |
+
+Result: **PASS — 13/13 PASS** — #1396 implemented: execSetResults popup now auto-bumps execution to the newest plan-linked version, warns when the executed version is not the latest available, and offers the legacy "Update Linked TCV To The Latest" action (plan link + executions + cfield_execution_values re-pointed), backed by the `update_link` BFF route and 4 i18n keys in all 10 bundles.

@@ -3777,5 +3777,9 @@
   "ts.chapterReliability": "Reliability & Recovery Testing",
   "ts.chapterReliabilityDesc": "resilience and failover",
   "ts.chapterMaintainability": "Maintainability & Portability",
-  "ts.chapterMaintainabilityDesc": "standards, upgrades and platform moves"
+  "ts.chapterMaintainabilityDesc": "standards, upgrades and platform moves",
+  "esr.hasNewestVersionMsg": "注意: これは利用可能な最新のバージョンではありません",
+  "esr.updateLinkToLatestTCVersion": "リンクされた TCV を最新のものに更新する",
+  "esr.errUpdateLink": "リンクされたバージョンの更新に失敗しました。",
+  "esr.linkUpdated": "リンクされたテストケースのバージョンが最新に更新されました。再読み込み中..."
 }
