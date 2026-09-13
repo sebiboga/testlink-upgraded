@@ -819,6 +819,333 @@ function esrStepsForWip($db, $tplanId, $platformId, $buildId, $tcversionId, $ste
 }
 
 /**
+ * Issue-tracker discovery for the Set Results popup (Refs #1393, legacy
+ * execSetResults.php:726-739 initArgs() + build_execution_gui():1620-1682).
+ *
+ * Gates (AND):
+ *  - testproject.issue_tracker_enabled
+ *  - exec_cfg->features->issue_tracker->enabled (config.inc.php:1197-1198)
+ *
+ * Then resolves the linked tracker (tlIssueTracker::getLinkedTo + 
+ * getInterfaceObject — the object constructor fires the live GitHub
+ * connectivity probe, githubrestInterface::connect()). Returns
+ *  [$itsObj|null, $itsEnabled(0|1), $itsInfo array].
+ */
+function esrItsSetup($db, $tprojectId) {
+    $its = null;
+    $itsEnabled = 0;
+    $info = array('name' => '', 'type' => 0);
+    try {
+        $tprojectMgr = new testproject($db);
+        $pInfo = $tprojectMgr->get_by_id($tprojectId);
+        $enabled = !empty($pInfo['issue_tracker_enabled'])
+            && config_get('exec_cfg')->features->issue_tracker->enabled;
+        if (!$enabled) {
+            return array($its, $itsEnabled, $info);
+        }
+        $itsEnabled = 1;
+        $itMgr = new tlIssueTracker($db);
+        $linked = $itMgr->getLinkedTo($tprojectId);
+        if (!is_null($linked) && is_array($linked)) {
+            $info['name'] = strval($linked['issuetracker_name'] ?? '');
+            $info['type'] = intval($linked['type'] ?? 0);
+            $its = $itMgr->getInterfaceObject($tprojectId);
+        }
+    } catch (\Throwable $e) {
+        $its = null;
+        $itsEnabled = 0;
+    }
+    return array($its, $itsEnabled, $info);
+}
+
+/**
+ * Build the modern 'its' block of the init response (Refs #1393). Mirrors the
+ * legacy gui->tlCanCreateIssue / issueTrackerCfg / issueTrackerMetaData /
+ * createIssueURL / addLinkToTL*Checked surface so the popup can render the
+ * create-issue-on-save controls exactly like exec_controls.inc.tpl:62-89 +
+ * create_issue.inc.tpl (Google translate of the bug form: summary, notes,
+ * metadata selects when the tracker provides them, addLinkToTL flags).
+ */
+function esrItsBlock($db, $tprojectId, $its = null, $itsEnabled = null, $itsInfo = null) {
+    if (is_null($its) || is_null($itsEnabled) || is_null($itsInfo)) {
+        list($its, $itsEnabled, $itsInfo) = esrItsSetup($db, $tprojectId);
+    }
+    $info = $itsInfo;
+    $enabled = $itsEnabled;
+    $block = [
+        'enabled' => $enabled,
+        'tracker_name' => is_array($info) ? strval($info['name'] ?? '') : '',
+        'up_and_running' => 0,
+        'tl_can_create_issue' => 0,
+        'bug_summary_max_length' => 100, // legacy MAGIC fallback
+        'edit_issue_attr' => 0,
+        'create_issue_url' => '',
+        'copy_latest_exec_issues_enabled' => 0,
+        'copy_latest_exec_issues_default' => 0,
+        'add_link_to_tl_checked' => 0,
+        'add_link_to_tl_print_view_checked' => 0,
+        'metadata' => null,
+        'issue_type' => '',
+        'issue_priority' => '',
+        'artifact_version' => [],
+        'artifact_component' => [],
+    ];
+    if (!$enabled || is_null($its)) {
+        return $block;
+    }
+
+    $execCfg = config_get('exec_cfg');
+
+    // legacy exec_cfg->copyLatestExecIssues (config.inc.php:1169-1180, default
+    // DISABLED): gates the 'Copy issues from latest exec' checkbox.
+    if (isset($execCfg->copyLatestExecIssues)
+        && !empty($execCfg->copyLatestExecIssues->enabled)) {
+        $block['copy_latest_exec_issues_enabled'] = 1;
+        $block['copy_latest_exec_issues_default'] =
+            !empty($execCfg->copyLatestExecIssues->default) ? 1 : 0;
+    }
+
+    // legacy exec_cfg->exec_mode->addLinkToTLChecked /
+    // addLinkToTLPrintViewChecked (config.inc.php:1121-1122).
+    $block['add_link_to_tl_checked'] =
+        (isset($execCfg->exec_mode->addLinkToTLChecked)
+         && !empty($execCfg->exec_mode->addLinkToTLChecked)) ? 1 : 0;
+    $block['add_link_to_tl_print_view_checked'] =
+        (isset($execCfg->exec_mode->addLinkToTLPrintViewChecked)
+         && !empty($execCfg->exec_mode->addLinkToTLPrintViewChecked)) ? 1 : 0;
+
+    try {
+        if ($its->isConnected()) {
+            $block['up_and_running'] = 1;
+            $block['bug_summary_max_length'] =
+                intval($its->getBugSummaryMaxLength());
+            $itsCfg = $its->getCfg();
+            $block['edit_issue_attr'] =
+                intval($itsCfg->userinteraction ?? 0);
+            if (method_exists($its, 'getEnterBugURL')) {
+                $block['create_issue_url'] =
+                    strval($its->getEnterBugURL());
+            }
+            // metadata: HTML select items only for trackers that expose them
+            // (JIRA); GitHub returns null = the form renders summary+notes only
+            $meta = getIssueTrackerMetaData($its);
+            if (!is_null($meta)) {
+                $block['metadata'] = $meta;
+            }
+            if ($block['edit_issue_attr'] === 1) {
+                // userinteraction mode: the bug form offers the selects
+            } else if (!is_null($meta) && isset($itsCfg)) {
+                $sv = ['issuetype' => 'issue_type', 'issuepriority' => 'issue_priority'];
+                foreach ($sv as $kj => $attr) {
+                    $block[$attr] = property_exists($itsCfg, $kj)
+                        ? strval($itsCfg->$kj) : '';
+                }
+                $mv = ['version' => 'artifact_version', 'component' => 'artifact_component'];
+                foreach ($mv as $kj => $attr) {
+                    $block[$attr] = (array)(property_exists($itsCfg, $kj)
+                        ? $itsCfg->$kj : []);
+                }
+            }
+            $block['tl_can_create_issue'] =
+                (method_exists($its, 'addIssue') && $its->canCreateViaAPI()) ? 1 : 0;
+        }
+    } catch (\Throwable $e) {
+        // keep defaults
+    }
+    return $block;
+}
+
+/**
+ * Issues linked to one execution, enriched with the tracker view URL
+ * (Refs #1393, legacy get_bugs_for_exec exec.inc.php:616-668 + the modern
+ * api/execute tcDetails enrichment api/execute:242-280). Returns a list of
+ * {id, bug_url, tcstep_id, step_number, is_resolved} — empty when no ITS.
+ */
+function esrExecBugs($db, $its, $enabled, $executionId) {
+    $bugs = [];
+    if ($executionId <= 0) { return $bugs; }
+    $tables = tlObjectWithDB::getDBTables(
+        array('execution_bugs', 'tcsteps'));
+    $brs = $db->get_recordset(
+        "SELECT EB.bug_id, EB.tcstep_id, S.step_number" .
+        " FROM {$tables['execution_bugs']} EB" .
+        " LEFT JOIN {$tables['tcsteps']} S ON S.id = EB.tcstep_id" .
+        " WHERE EB.execution_id = " . intval($executionId) .
+        " ORDER BY EB.tcstep_id, EB.bug_id");
+    if (is_null($brs)) { return $bugs; }
+    $useITS = ($enabled && !is_null($its));
+    foreach ($brs as $br) {
+        $bug = [
+            'id' => strval($br['bug_id']),
+            'bug_url' => '',
+            'is_resolved' => 0,
+            'tcstep_id' => intval($br['tcstep_id'] ?? 0),
+            'step_number' => intval($br['step_number'] ?? 0),
+        ];
+        if ($useITS) {
+            try {
+                $bug['bug_url'] = strval($its->buildViewBugURL($bug['id']));
+                if (method_exists($its, 'getIssue')) {
+                    $issue = $its->getIssue($bug['id']);
+                    if (is_object($issue)) {
+                        $bug['is_resolved'] = !empty($issue->isResolved) ? 1 : 0;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $bug['bug_url'] = '';
+                $bug['is_resolved'] = 0;
+            }
+        }
+        $bugs[] = $bug;
+    }
+    return $bugs;
+}
+
+/**
+ * Build the modern git issue description on save (Refs #1393). Mirrors legacy
+ * generateIssueText() exec.inc.php:800-939: the user notes are used verbatim
+ * with the %%...%% tags replaced (legacy $tags list) and addLinkToTL /
+ * addLinkToTLPrintView appending the TestLink links. When notes are empty the
+ * generated description template (issue_generated_description) is used.
+ */
+function esrIssueDescription($db, $executionId, $tcversionId, $tplanId,
+    $tprojectId, $userId, $statusCode, $execNotes, $bugNotes,
+    $addLinkToTL, $addLinkToTLPrintView, $basehref, $tplanApiKey,
+    $directLink, $buildName) {
+    $resultsCfg = config_get('results');
+    $statusVerbose = $statusCode;
+    if (isset($resultsCfg['code_status'][$statusCode])) {
+        $statusVerbose = $resultsCfg['code_status'][$statusCode];
+    }
+    // context: tester login, plan/built names, tc name/external id
+    $testerLogin = strval($userId);
+    $planName = '';
+    $tcName = '';
+    $tcExtId = '';
+    try {
+        $u = tlUser::getByID($db, intval($userId));
+        $testerLogin = $u ? $u->getDisplayName() : $testerLogin;
+        $tplanMgr = new testplan($db);
+        $pl = $tplanMgr->get_by_id(intval($tplanId));
+        $planName = !is_null($pl) ? strval($pl['name']) : '';
+    } catch (\Throwable $e) {
+    }
+    try {
+        $th = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions', 'testprojects'));
+        $tr = $db->get_recordset(
+            "SELECT TCV.tc_external_id, NHV.parent_id AS tcase_id" .
+            " FROM {$th['tcversions']} TCV" .
+            " JOIN {$th['nodes_hierarchy']} NHV ON NHV.id = TCV.id" .
+            " WHERE TCV.id = " . intval($tcversionId));
+        if (!is_null($tr) && count($tr) > 0) {
+            $nm = $db->fetchFirstRow(
+                "SELECT name FROM {$th['nodes_hierarchy']}" .
+                " WHERE id = " . intval($tr[0]['tcase_id']));
+            $tcName = (!is_null($nm) && isset($nm['name']))
+                ? strval($nm['name']) : '';
+            $extId = strval($tr[0]['tc_external_id'] ?? '');
+            $prj = $db->fetchFirstRow(
+                "SELECT prefix FROM {$th['testprojects']}" .
+                " WHERE id = " . intval($tprojectId));
+            $prefix = (!is_null($prj) && isset($prj['prefix']))
+                ? strval($prj['prefix']) : '';
+            $tcExtId = trim($prefix . '-' . $extId, '-');
+        }
+    } catch (\Throwable $e) {
+    }
+
+    $ts = '';
+    try {
+        $er = $db->get_recordset(
+            "SELECT execution_ts FROM " .
+            tlObjectWithDB::getDBTables(array('executions'))['executions'] .
+            " WHERE id = " . intval($executionId));
+        if (!is_null($er) && count($er) > 0) {
+            $ts = strval($er[0]['execution_ts']);
+        }
+    } catch (\Throwable $e) {
+    }
+
+    $tags = ['%%EXECID%%', '%%TESTER%%', '%%TESTPLAN%%',
+             '%%PLATFORM_VALUE%%', '%%BUILD%%', '%%EXECTS%%',
+             '%%EXECSTATUS%%', '%%TCNAME%%', '%%TCEXTID%%'];
+    $values = [strval($executionId), $testerLogin, $planName, '',
+               $buildName, $ts, $statusVerbose, $tcName, $tcExtId];
+
+    if (trim($bugNotes) !== '') {
+        $lbl = array();
+        foreach (array('issue_exec_id', 'issue_tester', 'issue_tplan',
+                       'issue_platform', 'issue_build', 'execution_ts_iso',
+                       'issue_exec_result', 'tc_name', 'tc_external_id') as $k) {
+            $lbl[$k] = lang_get($k);
+        }
+        $tags2 = $tags;
+        $tags2[] = '%%EXECNOTES%%';
+        $values2 = array(
+            sprintf($lbl['issue_exec_id'], $executionId),
+            sprintf($lbl['issue_tester'], $testerLogin),
+            sprintf($lbl['issue_tplan'], $planName),
+            sprintf($lbl['issue_platform'], ''),
+            sprintf($lbl['issue_build'], $buildName),
+            sprintf($lbl['execution_ts_iso'], $ts),
+            sprintf($lbl['issue_exec_result'], $statusVerbose),
+            sprintf($lbl['tc_name'], $tcName),
+            sprintf($lbl['tc_external_id'], $tcExtId),
+            strval($execNotes));
+        $description = str_replace($tags2, $values2, $bugNotes);
+        // %%EXECPLINK%% and %%EXECATT:n%% links (legacy exec.inc.php)
+        $description = str_replace('%%EXECPLINK%%', $basehref .
+            'lnl.php?type=exec&id=' . intval($executionId) . '&apikey=' .
+            strval($tplanApiKey), $description);
+        while (preg_match('/%%EXECATT:(\d+)%%/', $description, $m)) {
+            $description = str_replace($m[0], $basehref .
+                'lnl.php?type=file&id=' . intval($m[1]) . '&apikey=' .
+                strval($tplanApiKey), $description);
+        }
+    } else {
+        $description = sprintf(lang_get('issue_generated_description'),
+            $executionId, $testerLogin, $planName);
+        $description .= sprintf(lang_get('issue_build') . "\n" .
+            lang_get('execution_ts_iso') . "\n", $buildName, $ts);
+        $description .= "\n" . $statusVerbose . "\n\n" . strval($execNotes);
+    }
+
+    if ($addLinkToTL && $directLink !== '') {
+        $description .= "\n\n" . lang_get('dl2tl') . $directLink;
+    }
+    if ($addLinkToTLPrintView && $tplanApiKey !== '') {
+        $description .= "\n\n" . lang_get('dl2tlpv') . $basehref .
+            'lnl.php?type=exec&id=' . intval($executionId) . '&apikey=' .
+            strval($tplanApiKey);
+    }
+    return $description;
+}
+
+/**
+ * Default bug summary when the user leaves it empty (legacy
+ * generateIssueText():822-825 audit sign + timestamp). The popup marks the
+ * summary required, but the BFF must not crash on an empty one.
+ */
+function esrIssueSummaryDefault($db, $executionId, $tcversionId, $tcaseId) {
+    try {
+        $tcaseMgr = new testcase($db);
+        $sign = $tcaseMgr->getAuditSignature(
+            (object)array('id' => intval($tcaseId)));
+        $ts = '';
+        $er = $db->get_recordset(
+            "SELECT execution_ts FROM " .
+            tlObjectWithDB::getDBTables(array('executions'))['executions'] .
+            " WHERE id = " . intval($executionId));
+        if (!is_null($er) && count($er) > 0) {
+            $ts = strval($er[0]['execution_ts']);
+        }
+        return $sign . ' - ' . sprintf(lang_get('execution_ts_iso'), $ts);
+    } catch (\Throwable $e) {
+        return 'Execution #' . intval($executionId);
+    }
+}
+
+/**
  * Active linked requirements of this test case version (legacy
  * requirement_mgr::getActiveForTCVersion, called from execSetResults when the
  * project has requirements enabled). Same shape as api/testcases view.
@@ -1173,6 +1500,30 @@ if ($action === 'init') {
         esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId,
             $steps);
 
+    // Refs #1393: issue-tracker surface of the popup (create-issue-on-save +
+    // copy-latest-exec issues + per-execution bug tables). Mirrors legacy
+    // execSetResults.php:1620-1682 (issueTrackerIntegrationOn /
+    // tlCanCreateIssue / issueTrackerMetaData) exposed as a JSON block.
+    list($itsObj, $itsEnabled, $itsInfo) = esrItsSetup($db, $tprojectId);
+    $itsBlock = esrItsBlock($db, $tprojectId, $itsObj, $itsEnabled, $itsInfo);
+
+    // Refs #1393: per-execution linked-issue table of the prior execution
+    // (legacy $gui->bugs[execID] + inc_show_bug_table.tpl in the history
+    // table, exec_show_tc_exec.inc.tpl:435-445). build_open mirrors the
+    // legacy $tc_old_exec.build_is_open gate for the link/create icons.
+    $priorBuildOpen = 0;
+    if ($buildId > 0 && !is_null($prior)) {
+        foreach ($builds as $b) {
+            if (intval($b['id']) === $buildId && !empty($b['executable'])) {
+                $priorBuildOpen = 1;
+                break;
+            }
+        }
+        $prior['build_open'] = $priorBuildOpen;
+        $prior['bugs'] = esrExecBugs($db, $itsObj, $itsEnabled,
+            intval($prior['execution_id']));
+    }
+
     $tprojOptions = null;
     if (!is_null($tprojInfo) && !empty($tprojInfo['options'])) {
         $tprojOptions = @unserialize($tprojInfo['options']);
@@ -1372,6 +1723,11 @@ if ($action === 'init') {
         'new_exec_latest' => $newExecLatest,
         'prior' => $prior,
         'prior_steps' => $priorSteps,
+        // Refs #1393: issue-tracker integration block (create-issue-on-save,
+        // copy-issues-from-latest, per-execution bug tables). The legacy
+        // feature_flags equivalent lives on gui->tlCanCreateIssue +
+        // issueTrackerCfg; the modern popup renders from this block.
+        'its' => $itsBlock,
         // Refs #1398: direct link + remote execution feature flag
         'feature_id' => $featureId,
         'direct_link' => $directLink,
@@ -1422,6 +1778,32 @@ if ($action === 'save') {
     $statusCode = strtolower(trim(strval($payload['status'] ?? '')));
     $notes = strval($payload['notes'] ?? '');
     $executionDuration = strval($payload['execution_duration'] ?? '');
+
+    // Refs #1393: issue-tracker save surface (legacy exec_controls.inc.tpl +
+    // create_issue.inc.tpl form fields: createIssue checkbox, bug_summary,
+    // bug_notes description, addLinkToTL / addLinkToTLPrintView flags and the
+    // copyIssues checkbox; args parsing execSetResults.php:597-605).
+    $createIssue = (isset($payload['create_issue'])
+        && in_array(strtolower(strval($payload['create_issue'])),
+                    ['1', 'true', 'on', 'yes']));
+    $bugSummary = trim(strval($payload['bug_summary'] ?? ''));
+    $bugNotes = strval($payload['bug_notes'] ?? $payload['bug_description'] ?? '');
+    $addLinkToTL = (isset($payload['add_link_to_tl'])
+        && in_array(strtolower(strval($payload['add_link_to_tl'])),
+                    ['1', 'true', 'on', 'yes']));
+    $addLinkToTLPrintView = (isset($payload['add_link_to_tl_print_view'])
+        && in_array(strtolower(strval($payload['add_link_to_tl_print_view'])),
+                    ['1', 'true', 'on', 'yes']));
+    $copyIssuesFlag = (isset($payload['copy_issues'])
+        && in_array(strtolower(strval($payload['copy_issues'])),
+                    ['1', 'true', 'on', 'yes']));
+    // tracker metadata when the tracker exposes selects (JIRA-side fields)
+    $issueType = intval($payload['issue_type'] ?? 0);
+    $issuePriority = intval($payload['issue_priority'] ?? 0);
+    $artifactComponent = $payload['artifact_component'] ?? [];
+    $artifactVersion = $payload['artifact_version'] ?? [];
+    if (!is_array($artifactComponent)) { $artifactComponent = [$artifactComponent]; }
+    if (!is_array($artifactVersion)) { $artifactVersion = [$artifactVersion]; }
 
     $resultsCfg = config_get('results');
     if (!isset($resultsCfg['code_status'][$statusCode])) {
@@ -1585,6 +1967,23 @@ if ($action === 'save') {
     $copyAttFromLEXEC = (isset($payload['copy_att_from_lexec'])
         && in_array(strtolower(strval($payload['copy_att_from_lexec'])),
                     ['1', 'true', 'on', 'yes']));
+    // Refs #1393 'copy issues': the source must be captured BEFORE the new
+    // execution is written, otherwise the fresh row becomes the latest
+    // system-wide execution and the copy becomes a self-copy no-op (legacy
+    // execSetResults.php:147-151 captures $lexidSysWide just before
+    // write_execution(), copyIssues runs after, line 221-223).
+    $copyLexecId = 0;
+    if ($copyIssuesFlag) {
+        try {
+            $lexr = $db->fetchFirstRow(
+                "SELECT MAX(id) AS mid FROM " .
+                tlObjectWithDB::getDBTables(array('executions'))['executions'] .
+                " WHERE tcversion_id = " . intval($tcversionId));
+            $copyLexecId = (!is_null($lexr)) ? intval($lexr['mid'] ?? 0) : 0;
+        } catch (\Throwable $e) {
+            $copyLexecId = 0;
+        }
+    }
     $latestExecIDInContext = -1;
     if ($copyAttFromLEXEC) {
         try {
@@ -1614,6 +2013,125 @@ if ($action === 'save') {
         " ORDER BY id DESC LIMIT 1");
     if (!is_null($er) && count($er) > 0) {
         $executionId = intval($er[0]['id']);
+    }
+
+    // Refs #1393: 'Copy issues from latest execution' (legacy copyIssues
+    // checkbox, exec_img_controls.inc.tpl + processTestCase; exec.inc.php:761
+    // copyIssues()): re-link the bug ids of the system-wide latest execution
+    // of this test case (getSystemWideLastestExecutionID testcase.class.php:
+    // 8342) to the fresh execution. Gated on exec_cfg->copyLatestExecIssues.
+    $copyIssuesInfo = array('status_ok' => 0, 'msg' => '');
+    if ($copyIssuesFlag && $executionId > 0) {
+        try {
+            if ($copyLexecId > 0 && $copyLexecId !== $executionId) {
+                $blocks = tlObjectWithDB::getDBTables(array('execution_bugs'));
+                $blist = $db->fetchRowsIntoMap(
+                    "SELECT bug_id FROM {$blocks['execution_bugs']}" .
+                    " WHERE execution_id = " . intval($copyLexecId), 'bug_id');
+                if (is_array($blist) && count($blist) > 0) {
+                    copyIssues($db, $copyLexecId, $executionId);
+                    $copyIssuesInfo = array('status_ok' => 1, 'msg' => '');
+                    logAuditEvent('Issues copied from execution ' . $copyLexecId .
+                        ' to execution ' . $executionId,
+                        'CREATE', $executionId, 'executions');
+                }
+            }
+        } catch (\Throwable $e) {
+            $copyIssuesInfo = array('status_ok' => 0,
+                'msg' => 'Issue copy failed');
+        }
+    }
+
+    // Refs #1393: 'Create issue on save' (legacy bug_create_into_bts checkbox,
+    // exec_controls.inc.tpl:80-89 -> completeCreateIssue): after the execution
+    // is written, push a new issue to the configured tracker (its->addIssue),
+    // then bind it to the execution via write_execution_bug. Gated on the ITS
+    // being enabled + up & running + tl_can_create_issue (mirrors the legacy
+    // tlCanCreateIssue gate). The description follows legacy generateIssueText
+    // (exec.inc.php:800-939) with the %%...%% tags + addLinkToTL flags.
+    $addIssueInfo = array('status_ok' => 0, 'id' => '', 'msg' => '');
+    if ($createIssue && $executionId > 0) {
+        list($itsObjSAVE, $itsEnabledSAVE, ) = esrItsSetup($db, $tprojectId);
+        if ($itsEnabledSAVE && !is_null($itsObjSAVE)) {
+            try {
+                if ($itsObjSAVE->isConnected()
+                    && method_exists($itsObjSAVE, 'addIssue')
+                    && $itsObjSAVE->canCreateViaAPI()) {
+
+                    $itsCfg = null;
+                    try { $itsCfg = $itsObjSAVE->getCfg(); } catch (\Throwable $e) {}
+                    $directLink = '';
+                    if ($addLinkToTL) {
+                        $directLink = ' ' . $_SESSION['basehref'] .
+                            'execSetResults.php?level=testcase&tplan_id=' .
+                            intval($tplanId) . '&testcase_id=' . intval($tcaseId) .
+                            '&tcaseversion_id=' . intval($tcversionId) .
+                            '&build_id=' . intval($buildId) .
+                            '&setting_platform=' . ($platformId > 0 ? $platformId : 0);
+                    }
+                    $tplanApiKey = '';
+                    try {
+                        $tplanApiKey = strval($tplanMgr->get_by_id($tplanId)['api_key']);
+                    } catch (\Throwable $e) {}
+                    $buildName = '';
+                    try {
+                        $buildRow = $db->fetchFirstRow(
+                            "SELECT name FROM " .
+                            tlObjectWithDB::getDBTables(array('builds'))['builds'] .
+                            " WHERE id = " . intval($buildId));
+                        if (!is_null($buildRow) && isset($buildRow['name'])) {
+                            $buildName = strval($buildRow['name']);
+                        }
+                    } catch (\Throwable $e) {
+                        $buildName = '';
+                    }
+                    $description = esrIssueDescription($db, $executionId,
+                        $tcversionId, $tplanId, $tprojectId, $user->dbID,
+                        $statusCode, $notes, $bugNotes, $addLinkToTL,
+                        $addLinkToTLPrintView,
+                        strval($_SESSION['basehref']), $tplanApiKey, $directLink,
+                        $buildName);
+
+                    $summary = ($bugSummary !== '')
+                        ? $bugSummary
+                        : esrIssueSummaryDefault($db, $executionId, $tcversionId, $tcaseId);
+
+                    $opt = new stdClass();
+                    $opt->reporter = $user->login;
+                    $opt->assign = '';
+                    $ui = 0;
+                    if (!is_null($itsCfg) && property_exists($itsCfg, 'userinteraction')) {
+                        $ui = intval($itsCfg->userinteraction);
+                    }
+                    if ($ui === 1) {
+                        $opt->issueType = $issueType;
+                        $opt->priority = $issuePriority;
+                        $opt->component = $artifactComponent;
+                        $opt->version = $artifactVersion;
+                    }
+
+                    $rs = $itsObjSAVE->addIssue($summary, $description, $opt);
+                    if (is_array($rs) && !empty($rs['status_ok'])
+                        && intval($rs['id']) > 0) {
+                        write_execution_bug($db, $executionId,
+                            strval($rs['id']), 0);
+                        logAuditEvent('Bug ' . strval($rs['id']) .
+                            ' created from execution ' . $executionId,
+                            'CREATE', $executionId, 'executions');
+                        $addIssueInfo = array('status_ok' => 1,
+                            'id' => strval($rs['id']),
+                            'msg' => strval($rs['msg'] ?? ''));
+                    } else {
+                        $addIssueInfo = array('status_ok' => 0, 'id' => '',
+                            'msg' => (is_array($rs) && !empty($rs['msg']))
+                                ? strval($rs['msg']) : 'Create failed');
+                    }
+                }
+            } catch (\Throwable $e) {
+                $addIssueInfo = array('status_ok' => 0, 'id' => '',
+                    'msg' => $e->getMessage());
+            }
+        }
     }
 
     // Copy attachments from the latest execution of this context onto the
@@ -1698,6 +2216,10 @@ if ($action === 'save') {
         // silent success the legacy flow gives (attachments whitelist).
         // Same shape as api/execute?action=save.
         'attachments_rejected' => ($sentCount > 0 && $uploadedCount === 0),
+        // Refs #1393: feedback of the optional issue-tracker side effects
+        // (legacy completeCreateIssue()/create_issue_feedback + copyIssues).
+        'add_issue' => $addIssueInfo,
+        'copy_issues' => $copyIssuesInfo,
     ]);
 }
 
@@ -2057,6 +2579,181 @@ if ($action === 'update_link') {
         'new_tcversion_id' => $newTcvId,
         'new_version_number' => $newVersionNumber,
     ]);
+}
+
+// ---------------------------------------------------------------------------
+// Shared ITS helpers for the per-execution bug actions below (Refs #1393).
+// Same contract as api/execute:execBugLinkContext — the target execution must
+// exist, belong to the plan and the user needs testplan_execute.
+// ---------------------------------------------------------------------------
+function esrExecBugContext(&$db, &$user, $payload) {
+    $tplanId = intval($payload['tplan_id'] ?? 0);
+    list($tplanMgr, $tplanId, $tprojectId, ) =
+        esrResolvePlan($db, $user, $tplanId);
+    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+        return null;
+    }
+    $execId = intval($payload['execution_id'] ?? 0);
+    if ($execId <= 0) {
+        return null;
+    }
+    $tables = tlObjectWithDB::getDBTables(array('executions', 'builds'));
+    $er = $db->get_recordset(
+        "SELECT E.id, E.testplan_id, E.build_id, B.is_open AS build_is_open" .
+        " FROM {$tables['executions']} E" .
+        " LEFT JOIN {$tables['builds']} B ON B.id = E.build_id" .
+        " WHERE E.id = {$execId}");
+    if (is_null($er) || count($er) == 0) {
+        return null;
+    }
+    if (intval($er[0]['testplan_id']) !== $tplanId) {
+        return null;
+    }
+    return array('tplanId' => $tplanId, 'tprojectId' => $tprojectId,
+                 'execId' => $execId,
+                 'buildIsOpen' => intval($er[0]['build_is_open']) === 1);
+}
+
+// POST ?action=linkBug / createBug / unlinkBug (JSON body) — the modern
+// equivalent of the legacy open_bug_add_window ?user_action=link/create +
+// bugDelete.php per-execution bug management (exec_show_tc_exec.inc.tpl:317-
+// 336 + inc_show_bug_table.tpl). Mirrors api/execute?action=linkBug (1989),
+// createBug (2070) and unlinkBug (~2145) exactly.
+if ($action === 'linkBug' || $action === 'createBug' || $action === 'unlinkBug') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    try {
+        $ctx = esrExecBugContext($db, $user, $payload);
+        if (is_null($ctx)) {
+            http_response_code(403);
+            out(['status' => 'error',
+                 'message' => 'Insufficient rights or invalid execution']);
+        }
+        $bugId = trim(strval($payload['bug_id'] ?? ''));
+        $tcstepId = intval($payload['tcstep_id'] ?? 0);
+
+        if ($action === 'unlinkBug') {
+            if ($bugId === '') {
+                http_response_code(400);
+                out(['status' => 'error', 'message' => 'Missing bug id']);
+            }
+            write_execution_bug($db, $ctx['execId'], $bugId, $tcstepId, true);
+            logAuditEvent(
+                'Bug ' . $bugId . ' unlinked from execution ' . $ctx['execId'] .
+                ($tcstepId > 0 ? ' (step ' . $tcstepId . ')' : ''),
+                'DELETE', $ctx['execId'], 'executions');
+            out(['status' => 'ok', 'unlinked' => true,
+                 'execution_id' => $ctx['execId'], 'tcstep_id' => $tcstepId,
+                 'bug_id' => $bugId]);
+        }
+
+        if (!$ctx['buildIsOpen']) {
+            http_response_code(400);
+            out(['status' => 'error',
+                 'message' => 'Cannot manage bugs for an execution of a closed build']);
+        }
+
+        $tprojectMgr = new testproject($db);
+        $info = $tprojectMgr->get_by_id($ctx['tprojectId']);
+        $useITS = !empty($info['issue_tracker_enabled'])
+            && config_get('exec_cfg')->features->issue_tracker->enabled;
+
+        if ($action === 'linkBug') {
+            if ($bugId === '') {
+                http_response_code(400);
+                out(['status' => 'error', 'message' => 'Missing bug id']);
+            }
+            if ($useITS) {
+                $itMgr = new tlIssueTracker($db);
+                $its = $itMgr->getInterfaceObject($ctx['tprojectId']);
+                if (is_null($its) || !method_exists($its, 'checkBugIDSyntax')) {
+                    http_response_code(500);
+                    out(['status' => 'error',
+                         'message' => 'Issue tracker not available']);
+                }
+                if (!$its->checkBugIDSyntax($bugId)) {
+                    http_response_code(400);
+                    out(['status' => 'error',
+                         'message' => 'wrong bug ID format (' . $bugId . ')']);
+                }
+                $bugID = method_exists($its, 'normalizeBugID')
+                    ? $its->normalizeBugID($bugId) : $bugId;
+                if (method_exists($its, 'checkBugIDExistence')
+                    && !$its->checkBugIDExistence($bugID)) {
+                    http_response_code(400);
+                    out(['status' => 'error',
+                         'message' => 'bug ' . $bugID .
+                             ' does not exist on the bug tracker']);
+                }
+                $bugId = $bugID;
+            }
+            $ok = write_execution_bug($db, $ctx['execId'], $bugId, $tcstepId);
+            if (!$ok) {
+                http_response_code(500);
+                out(['status' => 'error', 'message' => 'Link failed']);
+            }
+            logAuditEvent(
+                'Bug ' . $bugId . ' linked to execution ' . $ctx['execId'] .
+                ($tcstepId > 0 ? ' (step ' . $tcstepId . ')' : ''),
+                'CREATE', $ctx['execId'], 'executions');
+            out(['status' => 'ok', 'linked' => true,
+                 'execution_id' => $ctx['execId'], 'tcstep_id' => $tcstepId,
+                 'bug_id' => $bugId]);
+        }
+
+        // createBug
+        $summary = trim(strval($payload['bug_summary'] ?? ''));
+        if ($summary === '') {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Missing bug summary']);
+        }
+        if (!$useITS) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'Issue tracker is disabled']);
+        }
+        $itMgr = new tlIssueTracker($db);
+        $its = $itMgr->getInterfaceObject($ctx['tprojectId']);
+        if (is_null($its) || !method_exists($its, 'addIssue')) {
+            http_response_code(500);
+            out(['status' => 'error',
+                 'message' => 'Issue tracker cannot create issues']);
+        }
+        $description = trim(strval($payload['bug_description'] ?? ''));
+        if ($description === '') {
+            $description = 'Created from TestLink execution ' . $ctx['execId'];
+        }
+        $rs = $its->addIssue($summary, $description);
+        if (!is_array($rs) || empty($rs['status_ok']) || intval($rs['id']) <= 0) {
+            http_response_code(500);
+            out(['status' => 'error',
+                 'message' => (is_array($rs) && !empty($rs['msg']))
+                     ? $rs['msg'] : 'Bug creation failed']);
+        }
+        $newId = strval($rs['id']);
+        $ok = write_execution_bug($db, $ctx['execId'], $newId, $tcstepId);
+        if (!$ok) {
+            http_response_code(500);
+            out(['status' => 'error',
+                 'message' => 'Link failed after creating the bug']);
+        }
+        logAuditEvent(
+            'Bug ' . $newId . ' created and linked to execution ' . $ctx['execId'] .
+            ($tcstepId > 0 ? ' (step ' . $tcstepId . ')' : ''),
+            'CREATE', $ctx['execId'], 'executions');
+        out(['status' => 'ok', 'created' => true, 'linked' => true,
+             'execution_id' => $ctx['execId'], 'tcstep_id' => $tcstepId,
+             'bug_id' => $newId]);
+    } catch (\Throwable $e) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => $e->getMessage()]);
+    }
 }
 
 http_response_code(404);

@@ -14436,3 +14436,28 @@ Result: **PASS — 8/8 PASS** — legacy attachment capabilities fully ported to
 | 1488.11 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows after init/reorder/save calls; guest 403 logged only as audit/access entries, no exceptions; browser console 0 errors across EN/RO loads + drag/save | **PASS** |
 
 Result: **PASS — 11/11 PASS** — Issue #1488 fully modernized: BFF + Dashio screen + toolbar button + 10 i18n bundles + fixtures + regression suite all landed on the default branch.
+
+## Suite 1393 — Set Results popup: issue-tracker integration — Refs #1393
+
+Precondition: fixture project 1 (ESR817), plan 16, tc Case One (tcversion 5),
+builds REL-1/REL-2, platform 1; GitHub ITS `gh-esr-test` (issuetrackers id 1)
+hooked to project 1 (issue_tracker_enabled=1); env with `gh` token; cookie
+session authenticated as admin. Popup:
+`/gui/templates/execute/execSetResults.html?tplan_id=16&id=4&version_id=5&setting_build=1&setting_platform=1`.
+
+| # | Steps | Expected | Actual |
+|---|-------|----------|--------|
+| 1393.1 | Open popup with ITS enabled | "ISSUE TRACKER" panel shows tracker name `· GH-ESR-TEST`, "Create Issue" checkbox; "Copy issues" checkbox present only with `copyLatestExecIssues` enabled; prior execution box shows linked-issue chip(s) `#<id>` with open/link/unlink/add icons | Panel + tracker name render; chips show (e.g. #1494) with 4 icons |
+| 1393.2 | Tick Create Issue → fill Issue Summary + Description → Save | New issue created on GitHub via ITS, auto-linked to the new execution; toast "Issue <id> created on the issue tracker"; refresh shows new chip in prior box | Issue 1493 created + linked (exec 9); toast shown; chip #1493 appeared |
+| 1393.3 | Tick "Copy issues from latest execution" → Save | Save creates a new execution whose `execution_bugs` contain the latest execution's bugs; toast "Issues copied from latest execution"; checkbox resets after save | Exec 11 copied bug 1494 from exec 10; toast shown |
+| 1393.4 | Prior-box "+" icon → modal "Link bug to execution" targeting Execution <id> | Modal opens in "Link existing issue" mode; Bug/issue ID prefilled when opened from a chip | Modal targets "Execution 11", link mode active |
+| 1393.5 | Enter existing bug id → Link bug | BFF `linkBug` links the bug at case level (tcstep 0); toast "Bug <id> linked to execution"; modal closes; chip appears | Bug 1490 linked + toast + chip #1490 appeared |
+| 1393.6 | "+" icon → "Create new issue" toggle → summary fill → "Create & link bug" | Description pre-fills with tc external id + name; BFF `createBug` creates the issue and links it; toast "Bug <id> created and linked to execution" | Issue 1495 created+linked; toast shown |
+| 1393.7 | Unlink icon on a chip → confirm | BFF `unlinkBug` removes the link; toast "Bug <id> unlinked from execution"; chip disappears | Bug 1490 unlinked; chip gone |
+| 1393.8 | ITS disabled or not hooked (project without ITS) | ITS panel hidden, save behaves as before (no its.* side effects) | (covered by init gate; panel hidden when `its.enabled=0`) |
+| 1393.9 | Closed build / read-only grant | ITS write controls disabled (same gate as attachments) | applyBuildState disables `#itsGroup` inputs on closed/read-only |
+| 1393.10 | Event Viewer + i18n | No new ERROR/WARNING rows in `events` after create/link/unlink/copy calls; all 10 bundles contain the 30 new `esr.*` keys, valid JSON | events: only log_level 16 audit rows (8); bundles lint OK |
+
+Result: **PASS — 10/10 PASS** — ITS create-on-save, copy-from-latest, prior-box
+bug chips and link/create/unlink modal all verified in the browser; BFF actions
+gated and Event Viewer clean. Refs #1393.

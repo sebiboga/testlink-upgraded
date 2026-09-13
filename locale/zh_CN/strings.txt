@@ -1469,6 +1469,10 @@ $TLS_btn_save_exec_and_movetonext = "保存并进入下一个";
 $TLS_bug_mgmt = "问题管理";
 $TLS_bug_link_tl_to_bts = '链接已存在的问题';
 $TLS_bug_create_into_bts = '创建问题';
+$TLS_tc_name = "测试用例名称";
+$TLS_tc_external_id = "测试用例外部ID";
+$TLS_github_bug_created = "在 %s 中创建了 Bug %s";
+$TLS_github_bug_comment = "在 %s 的 Bug %s 中添加了评论";
 $TLS_bug_copy_from_latest_exec = '从最新的执行中复制问题';
 
 

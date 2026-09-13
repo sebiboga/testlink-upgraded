@@ -411,3 +411,76 @@ Modern port:
 i18n: `esr.cfsBeforeSteps`, `esr.cfsAfterSteps`, `esr.cfsTestplanDesign`,
 `esr.execCfields`, `esr.cfRequired`, `esr.cfInvalid` in all 10 locale bundles.
 Test cases: TLU suite #1395.
+
+## Issue-tracker integration in the popup (issue #1393)
+
+The legacy Set Results popup embedded the issue-tracker workflow of
+`execSetResults.php`:
+- a **create-issue-on-save** block (`bug_create_into_bts`, rendered by
+  `exec_controls.inc.tpl` when `$gui->tlCanCreateIssue`) with Issue Summary,
+  Issue Description, the "Add Link in Issue Tracker to Test Case Execution" /
+  "... Print View" checkboxes (config `exec_cfg->exec_mode->addLinkToTLChecked`
+  / `addLinkToTLPrintViewChecked`, config.inc.php:1121-1122);
+- a **copy-issues-from-latest-execution** checkbox (config
+  `exec_cfg->copyLatestExecIssues->enabled`/`->default`, config.inc.php:1169-
+  1180, default DISABLED) that runs the legacy `copyIssues()`
+  (`exec.inc.php:761`) so the freshly-written execution inherits the linked bugs
+  of the latest execution of the same test case;
+- a per-execution **linked-bug table** (`inc_show_bug_table.tpl`) in the
+  prior-execution history row with open / link / create / delete icons,
+  routed to `open_bug_add_window` (`exec_show_tc_exec.inc.tpl`) and gated on
+  `$gui->tlCanCreateIssue && $tc_old_exec.build_is_open`.
+
+Modern port:
+
+- **BFF** `api/execsetresults/index.php`:
+  - `esrItsSetup()` + `esrItsBlock()` — a single `its` payload block consumed by
+    the popup: `enabled`, `tracker_name`, `up_and_running`,
+    `tl_can_create_issue`, `bug_summary_max_length`, `edit_issue_attr`,
+    `create_issue_url`, `copy_latest_exec_issues_enabled/_default`,
+    `add_link_to_tl_checked/_print_view_checked`, `metadata` (HTML select items
+    only for trackers that expose them, e.g. JIRA; GitHub leaves them null),
+    `issue_type/issue_priority/artifact_version/artifact_component` defaults.
+  - `esrExecBugs()` — `prior.bugs[] (id, bug_url, is_resolved, tcstep_id,
+    step_number)` + `prior.build_open` attached to the existing prior block.
+  - **save** now honours `create_issue`, `bug_summary`, `bug_notes`,
+    `add_link_to_tl`, `add_link_to_tl_print_view`, `copy_issues` plus the
+    metadata fields. Issue creation goes through the tracker adapter
+    `$its->addIssue($summary,$description,$opt)` (returns
+    `['status_ok','id','msg']`); on success the bug is linked with
+    `write_execution_bug($db,$executionId,bugId,0)`. The copy-issues source is
+    captured **before** `write_execution()` — legacy execSetResults.php:147-151
+    (latest-exec lookup after the write would find the freshly-created row and
+    self-copy nothing). Response gains `add_issue` and `copy_issues` feedback.
+  - new actions `linkBug` / `createBug` / `unlinkBug` (POST JSON
+    `{tplan_id, execution_id, bug_id, tcstep_id?, bug_summary?,
+    bug_description?}`), all gated by `esrExecBugContext()` (testplan_execute
+    grant, execution belongs to the plan, build open).
+  - `esrIssueDescription()`/`esrIssueSummaryDefault()` reproduce the legacy
+    generated issue text (`issue_generated_description`, `dl2tl`,
+    `dl2tlpv` labels) with `%%EXECID%% %%TESTER%% %%TESTPLAN%% %%PLATFORM_VALUE%%
+    %%BUILD%% %%EXECTS%% %%EXECSTATUS%% %%TCNAME%% %%TCEXTID%%` && the
+    `%%EXECPLINK%%`/`%%EXECATT:n%%` tokens; tc name comes from the parent
+    `nodes_hierarchy` node and external id = `prefix-tc_external_id`.
+  - New locale labels `tc_name`, `tc_external_id`, `github_bug_created`,
+    `github_bug_comment` added to all 10 `locale/*/strings.txt` (they did not
+    exist → "LOCALIZE:" + E_WARNING events in legacy).
+- **UI** (`gui/templates/execute/execSetResults.html`):
+  - ITS panel (`#itsGroup`) with tracker-name header, "Create Issue" checkbox
+    that reveals the summary/description/add-link fields and the metadata
+    selects, and the "Copy issues from latest execution" checkbox (visible only
+    when `its.copy_latest_exec_issues_enabled`).
+  - prior-box bug chips (`#priorBox`) — the linked issues of the previous
+    execution with open link, link and unlink icons (plus an add icon), gated
+    on ITS connected + `grants.can_execute` + `prior.build_open`.
+  - `#linkBugModal` (mirror of the modern Execute screen modal) with the
+    "Link existing issue" / "Create new issue" toggle; create mode pre-fills the
+    description with the test-case external id + name; actions hit the BFF
+    `linkBug`/`createBug`/`unlinkBug` endpoints.
+  - closed-build / read-only freezes all ITS write controls (same gate as the
+    attachment controls).
+- Test cases: TLU suite #1393.
+
+Regression notes: the ITS panel and bug chips only appear when the project has
+an ITS configured and hooking enabled (`testprojects.issue_tracker_enabled`);
+with no ITS the panel stays hidden and saves behave exactly as before.

@@ -102,6 +102,13 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .meta-line { margin: 0 0 12px; font-size: 12.5px; color: #555; }
 .meta-line b { color: #22242a; }
 .meta-line .sep { margin: 0 8px; color: #ccc; }
+/* Refs #1393: linked-issue chips + link-bug modal (mirror execTest.html) */
+.bug-badge { display:inline-block; background:#fdeeee; border:1px solid #f3c6c4; color:#c0504e; border-radius:12px; padding:1px 9px; font-size:11.5px; text-decoration:none; }
+.bug-badge.resolved { background:#eef8f0; border-color:#c6e3cd; color:#3c8a4e; }
+.bug-mode-toggle { display:flex; gap:6px; margin:10px 0; }
+.bug-mode-btn { flex:1; padding:6px 8px; font-size:12px; border:1px solid #ccc; border-radius:4px; background:#f7f7f7; color:#333; cursor:pointer; }
+.bug-mode-btn.active { background:#2d8e88; color:#fff; border-color:#2d8e88; }
+.prior-bugs .fa { margin:0 2px; }
 </style>
 </head>
 <body>
@@ -322,6 +329,43 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       <textarea class="form-control" id="txtNotes" data-i18n-placeholder="esr.notesPlaceholder"></textarea>
     </div>
 
+    <!-- Refs #1393: issue-tracker integration (legacy bug_create_into_bts /
+         copyIssues checkboxes + create_issue.inc.tpl form, exec_controls.inc.tpl:
+         62-89 + exec_img_controls.inc.tpl:79-89). The 'Create Issue' controls
+         are offered while the tracker is enabled, up & running and the adapter
+         can create issues (its.tl_can_create_issue); metadata selects render
+         only when the tracker provides them (JIRA; GitHub has none). -->
+    <div class="form-group" id="itsGroup" style="display:none;border:1px solid #eee;border-radius:6px;padding:10px 14px;background:#fafafa;">
+      <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
+        <i class="fa fa-bug" style="color:#e6605e;margin-right:6px;"></i>
+        <span data-i18n="esr.issueTracker">Issue tracker</span>
+        <span id="itsTrackerName"></span>
+      </div>
+      <label style="font-size:12.5px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="itsCreateIssue">
+        <span data-i18n="esr.createIssue">Create Issue</span>
+      </label>
+      <div id="itsFields" style="display:none;margin-left:22px;margin-bottom:8px;">
+        <label data-i18n="esr.bugSummary">Issue Summary</label>
+        <input type="text" class="form-control" id="itsBugSummary" maxlength="200" style="margin-bottom:8px;">
+        <label data-i18n="esr.bugDescription">Issue Description</label>
+        <textarea class="form-control" id="itsBugDescription" rows="3" style="margin-bottom:8px;"></textarea>
+        <div id="itsMeta"></div>
+        <label style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
+          <input type="checkbox" id="itsAddLinkToTL">
+          <span data-i18n="esr.addLinkToTL">Add Link in Issue Tracker to Test Case Execution</span>
+        </label>
+        <label style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
+          <input type="checkbox" id="itsAddLinkToTLPrintView">
+          <span data-i18n="esr.addLinkToTLPrintView">Add Link in Issue Tracker to Test Case Execution Print View</span>
+        </label>
+      </div>
+      <label style="font-size:12.5px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
+        <input type="checkbox" id="itsCopyIssues">
+        <span data-i18n="esr.copyLatestIssues">Copy issues from latest execution</span>
+      </label>
+    </div>
+
     <div class="form-group" id="execDurGroup" style="display:none;">
       <label data-i18n="esr.execDuration">Execution time (minutes)</label>
       <input type="text" class="form-control" id="txtExecDuration" style="max-width:180px;" value="0">
@@ -344,6 +388,48 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i><span data-i18n="esr.saving">Saving... please wait.</span></div>
+
+<!-- Link Bug to Execution modal (mirrors legacy bugAdd.php?user_action=link
+     + exec_show_tc_exec.inc.tpl open_bug_add_window): binds a bug id to the
+     PRIOR execution of this tc on this build (step 0 = case-level). The same
+     modal supports both 'link existing' and 'create new' (doCreate) modes. -->
+<div class="modal fade" id="linkBugModal" tabindex="-1" role="dialog">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fa fa-bug" style="color:#e6605e;margin-right:6px;"></i>
+          <span data-i18n="esr.linkBugTitle">Link bug to execution</span></h5>
+        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <p id="linkBugTarget"></p>
+        <div class="bug-mode-toggle" role="tablist">
+          <button type="button" class="bug-mode-btn active" id="modeLinkBtn" onclick="setBugMode('link')"
+            data-i18n="esr.linkExisting">&nbsp;</button>
+          <button type="button" class="bug-mode-btn" id="modeCreateBtn" onclick="setBugMode('create')"
+            data-i18n="esr.createNew">&nbsp;</button>
+        </div>
+        <div id="bugModeLink">
+          <label for="linkBugId" data-i18n="esr.bugId">Bug / issue ID</label>
+          <input type="text" class="form-control" id="linkBugId" maxlength="120">
+        </div>
+        <div id="bugModeCreate" style="display:none;">
+          <label for="bugCreateSummary" data-i18n="esr.bugSummary">Issue Summary</label>
+          <input type="text" class="form-control" id="bugCreateSummary" maxlength="200">
+          <label for="bugCreateDescription" data-i18n="esr.bugDescription">Issue Description</label>
+          <textarea class="form-control" id="bugCreateDescription" rows="4" maxlength="4000"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-dark" data-dismiss="modal"><span data-i18n="esr.cancel">Cancel</span></button>
+        <button type="button" class="btn-teal" id="btnLinkBug" onclick="doLinkBug()" style="display:none;">
+          <i class="fa fa-link"></i> <span data-i18n="esr.linkBug">Link bug</span></button>
+        <button type="button" class="btn-teal" id="btnCreateBug" onclick="doCreateBug()" style="display:none;">
+          <i class="fa fa-plus"></i> <span data-i18n="esr.createAndLinkBug">Create &amp; link bug</span></button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -601,7 +687,17 @@ renderSuiteBlock(r);
       esc(statusLabel(r.prior.status)) +
       ' &middot; ' + esc(TLi18n.t('esr.by')) + ' ' + esc(r.prior.tester_login) +
       (r.prior.execution_ts ? ' &middot; ' + esc(r.prior.execution_ts) : '') +
-      (r.prior.notes ? '<br><span style="font-weight:400;">' + esc(r.prior.notes) + '</span>' : '')).show();
+      (r.prior.notes ? '<br><span style="font-weight:400;">' + esc(r.prior.notes) + '</span>' : '') +
+      priorBugsHtml(r)).show();
+    $('#priorBox').find('[data-role="its-link"], [data-role="its-unlink"]').off('click.its').on('click.its', function () {
+      var $t = $(this);
+      var bug = $t.data('bug');
+      if ($t.data('role') === 'its-unlink') { doUnlinkBug(bug); return; }
+      openItsLinkBug(bug);
+    });
+    $('#priorBox').find('[data-role="its-add"]').off('click.its').on('click.its', function () {
+      openItsLinkBug(null);
+    });
     var priorStatus = String(r.prior.status).toLowerCase();
     $('#statusRow .st-btn[data-code="' + priorStatus + '"]').addClass('active');
     ctx.statusCode = priorStatus;
@@ -623,6 +719,10 @@ renderSuiteBlock(r);
   // the build is open AND the user holds the Execute grant; the closed-build/
   // read-only branch of applyBuildState() blanks it.
   renderExecAttachments(r);
+
+  // Refs #1393: issue-tracker integration panel (create-issue-on-save +
+  // copy-issues-from-latest checkboxes, gated on its.* + write access).
+  renderIts(r);
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
 
@@ -990,6 +1090,9 @@ function applyBuildState(r) {
     // upload + copy-from-latest on closed builds / read-only, while prior-run
     // download links stay reviewable.
     $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', true);
+    // Refs #1393: issue-tracker write controls follow the same closed-build /
+    // read-only gate.
+    $('#itsGroup input, #itsGroup select, #itsGroup textarea').prop('disabled', true);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
     $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
@@ -1006,6 +1109,7 @@ function applyBuildState(r) {
     $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
     $('#assignTask').prop('disabled', false);
     $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', false);
+    $('#itsGroup input, #itsGroup select, #itsGroup textarea').prop('disabled', false);
   }
 }
 
@@ -1096,6 +1200,203 @@ function renderExecAttachments(r) {
   $('#execAttachmentFile').val('');
 
   $('#execAttachGroup').show();
+}
+
+// ---------------------------------------------------------------------------
+// Refs #1393: issue-tracker integration in the Set Results popup.
+//  - renderIts(): the create-issue-on-save + copy-issues controls (legacy
+//    bug_create_into_bts / copyIssues checkboxes, exec_controls.inc.tpl +
+//    exec_img_controls.inc.tpl), gated on the its.* block of the init payload.
+//  - priorBugsHtml(): the linked-issue chips of the PRIOR execution (legacy
+//    inc_show_bug_table.tpl inside the history table) with open / link /
+//    create / delete icons.
+//  - openItsLinkBug/doLinkBug/doCreateBug/doUnlinkBug: the per-execution bug
+//    management on the BFF actions (mirror execTest.html linkBugModal flow).
+// ---------------------------------------------------------------------------
+function renderIts(r) {
+  var its = r.its || {};
+  ctx.its = its;
+  $('#itsGroup').hide();
+  if (!its.enabled || !its.tl_can_create_issue) {
+    ctx.itsCreateOn = false;
+    return;
+  }
+  $('#itsTrackerName').text(its.tracker_name ? ' \u00b7 ' + its.tracker_name : '');
+  $('#itsCreateIssue').prop('checked', false);
+  $('#itsAddLinkToTL').prop('checked', !!its.add_link_to_tl_checked);
+  $('#itsAddLinkToTLPrintView').prop('checked', !!its.add_link_to_tl_print_view_checked);
+  var copyOn = !!its.copy_latest_exec_issues_enabled;
+  $('#itsCopyIssues').prop('checked', !!its.copy_latest_exec_issues_default);
+  $('#itsCopyIssues').closest('label').css('display', copyOn ? 'flex' : 'none');
+
+  // metadata selects (JIRA adapters); GitHub leaves them null -> skipped
+  var meta = its.metadata;
+  var metaHtml = '';
+  if (meta && (meta.issueTypes || meta.priorities || meta.components || meta.versions)) {
+    var st = function (name, opts) {
+      if (!opts) return '';
+      var h = '<label data-i18n="' + (name === 'is' ? 'esr.issueType' : 'esr.' + name) + '"></label>' +
+             '<select class="form-control" style="margin-bottom:8px;" name="' + name + '">' +
+             opts + '</select>';
+      return h;
+    };
+    if (meta.issueTypes) metaHtml += st('is', meta.issueTypes);
+    if (meta.priorities) metaHtml += st('priority', meta.priorities);
+    if (meta.versions) metaHtml += st('version', meta.versions);
+    if (meta.components) metaHtml += st('component', meta.components);
+  }
+  $('#itsMeta').html(metaHtml || '');
+  $('#itsFields').hide();
+  $('#itsCreateIssue').off('change.its').on('change.its', function () {
+    $('#itsFields').toggle(this.checked);
+  });
+  $('#itsGroup').show();
+}
+
+// Linked-issue chips inside the prior-execution box (legacy history-table bug
+// column with open_bug_add_window icons). Link/create/icons are gated on ITS
+// connected + prior build still open + user able to execute (legacy
+// $gui->tlCanCreateIssue && $tc_old_exec.build_is_open).
+function priorBugsHtml(r) {
+  var its = r.its || {};
+  var bugs = (r.prior && r.prior.bugs) || [];
+  if (!its.enabled || !its.up_and_running || !bugs.length) return '';
+  var canMgmt = !!(r.grants && r.grants.can_execute && r.prior.build_open);
+  var h = '<div class="prior-bugs" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">';
+  bugs.forEach(function (b) {
+    if (b.bug_url) {
+      h += '<a href="' + esc(b.bug_url) + '" target="_blank" title="' + esc(b.id) + '" class="bug-badge' +
+           (b.is_resolved ? ' resolved' : '') + '">#<span>' + esc(b.id) + '</span></a>';
+    } else {
+      h += '<span class="bug-badge' + (b.is_resolved ? ' resolved' : '') + '">#<span>' + esc(b.id) + '</span></span>';
+    }
+    if (canMgmt) {
+      h += '<a href="javascript:void(0)" data-role="its-link" data-bug="' + esc(b.id) + '" ' +
+           'title="' + esc(TLi18n.t('esr.linkBug')) + '" ' +
+           'style="color:#2d8e88;font-size:11px;text-decoration:none;"><i class="fa fa-link"></i></a>' +
+           '<a href="javascript:void(0)" data-role="its-unlink" data-bug="' + esc(b.id) + '" ' +
+           'title="' + esc(TLi18n.t('esr.unlinkBug')) + '" ' +
+           'style="color:#e6605e;font-size:11px;text-decoration:none;margin-right:4px;"><i class="fa fa-trash"></i></a>';
+    }
+  });
+  if (canMgmt) {
+    h += '<a href="javascript:void(0)" data-role="its-add" title="' +
+         esc(TLi18n.t('esr.addBug')) + '" style="color:#4ECDC4;font-size:12px;text-decoration:none;">' +
+         '<i class="fa fa-plus-circle"></i></a>';
+  }
+  h += '</div>';
+  return h;
+}
+
+// Open the link-bug modal bound to the PRIOR execution (case-level). The
+// legacy flow addresses the previous execution of this tc/build; the BFF
+// enforces plan membership + testplan_execute + open build.
+function openItsLinkBug(bug) {
+  var execId = ctx.prior ? ctx.prior.execution_id : 0;
+  if (!execId) { toast(TLi18n.t('esr.errNoExec'), true); return; }
+  window._itsBug = { execId: execId, bugId: bug || '' };
+  $('#linkBugTarget').html(TLi18n.t('esr.linkBugTarget', { id: execId }));
+  setBugMode('link');
+  $('#linkBugId').val(bug || '');
+  $('#bugCreateSummary').val('');
+  $('#bugCreateDescription').val('');
+  $('#linkBugModal').modal('show');
+  setTimeout(function () {
+    if (bug) { $('#bugCreateSummary').focus(); } else { $('#linkBugId').focus(); }
+  }, 250);
+}
+
+function setBugMode(mode) {
+  window._itsBugMode = (mode === 'create') ? 'create' : 'link';
+  var isCreate = window._itsBugMode === 'create';
+  $('#modeLinkBtn').toggleClass('active', !isCreate);
+  $('#modeCreateBtn').toggleClass('active', isCreate);
+  $('#bugModeLink').toggle(!isCreate);
+  $('#bugModeCreate').toggle(isCreate);
+  $('#btnLinkBug').toggle(!isCreate);
+  $('#btnCreateBug').toggle(isCreate);
+  if (isCreate) {
+    $('#bugCreateSummary').val('');
+    $('#bugCreateDescription').val(
+      '# ' + (ctx.info && ctx.info.tcase ? afterHash(ctx.info.tcase) : '') + '\n\n' +
+      TLi18n.t('esr.bugCreatedFromExec'));
+  }
+}
+function afterHash(tc) { return (tc.external_id || '') + ' ' + (tc.name || ''); }
+
+function doLinkBug() {
+  var tgt = window._itsBug;
+  if (!tgt) return;
+  var bugId = $.trim($('#linkBugId').val());
+  if (bugId === '') { toast(TLi18n.t('esr.bugIdRequired'), true); return; }
+  var $btn = $('#btnLinkBug').prop('disabled', true);
+  $.ajax({
+    url: '/api/execsetresults/?action=linkBug',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: tgt.execId, bug_id: bugId, tcstep_id: 0 })
+  }).done(function (r) {
+    if (r.status === 'ok' && r.linked) {
+      $('#linkBugModal').modal('hide');
+      toast(TLi18n.t('esr.linkBugDone', { id: bugId }));
+      loadInfo();
+    } else { toast(r.message || TLi18n.t('esr.errLinkBug'), true); }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('esr.errLinkBug');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  }).always(function () { $btn.prop('disabled', false); });
+}
+
+function doCreateBug() {
+  var tgt = window._itsBug;
+  if (!tgt) return;
+  var summary = $.trim($('#bugCreateSummary').val());
+  if (summary === '') { toast(TLi18n.t('esr.bugSummaryRequired'), true); return; }
+  var $btn = $('#btnCreateBug').prop('disabled', true);
+  $.ajax({
+    url: '/api/execsetresults/?action=createBug',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({
+      tplan_id: ctx.tplanId, execution_id: tgt.execId, tcstep_id: 0,
+      bug_summary: summary, bug_description: $('#bugCreateDescription').val() || ''
+    })
+  }).done(function (r) {
+    if (r.status === 'ok' && r.created) {
+      $('#linkBugModal').modal('hide');
+      toast(TLi18n.t('esr.createBugDone', { id: r.bug_id }));
+      loadInfo();
+    } else { toast(r.message || TLi18n.t('esr.errCreateBug'), true); }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('esr.errCreateBug');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  }).always(function () { $btn.prop('disabled', false); });
+}
+
+function doUnlinkBug(bugId) {
+  var execId = ctx.prior ? ctx.prior.execution_id : 0;
+  if (!execId || !bugId) return;
+  if (!window.confirm(TLi18n.t('esr.unlinkConfirm', { id: bugId }))) return;
+  $.ajax({
+    url: '/api/execsetresults/?action=unlinkBug',
+    method: 'POST',
+    contentType: 'application/json',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: execId, bug_id: bugId, tcstep_id: 0 })
+  }).done(function (r) {
+    if (r.status === 'ok' && r.unlinked) {
+      toast(TLi18n.t('esr.unlinkBugDone', { id: bugId }));
+      loadInfo();
+    } else { toast(r.message || TLi18n.t('esr.errUnlinkBug'), true); }
+  }).fail(function (xhr) {
+    var msg = TLi18n.t('esr.errUnlinkBug');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    toast(msg, true);
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -1567,6 +1868,30 @@ function doSave(navNext) {
     }
   }
 
+  // Refs #1393: issue-tracker create-on-save + copy-issues (legacy
+  // bug_create_into_bts + create_issue.inc.tpl fields; gated on its.*).
+  if (ctx.its && ctx.its.tl_can_create_issue) {
+    var $ci = $('#itsCreateIssue');
+    if ($ci.length && $ci.is(':checked')) {
+      fd.append('create_issue', '1');
+      fd.append('bug_summary', $('#itsBugSummary').val() || '');
+      fd.append('bug_notes', $('#itsBugDescription').val() || '');
+      if ($('#itsAddLinkToTL').is(':checked')) fd.append('add_link_to_tl', '1');
+      if ($('#itsAddLinkToTLPrintView').is(':checked')) fd.append('add_link_to_tl_print_view', '1');
+      $('#itsMeta select').each(function () {
+        var v = $(this).val();
+        if (v !== null && v !== '') {
+          fd.append(this.name.replace(/^is$/, 'issue_type')
+              .replace(/^priority$/, 'issue_priority')
+              .replace(/^version$/, 'artifact_version')
+              .replace(/^component$/, 'artifact_component'), v);
+        }
+      });
+    }
+    var $cop = $('#itsCopyIssues');
+    if ($cop.length && $cop.is(':checked')) { fd.append('copy_issues', '1'); }
+  }
+
   // Issue #1395: read every execution-time custom field input (text/numeric/
   // select/textarea/checkbox/date...) under its legacy name — the BFF save
   // whitelists them against the linked execution-time CFs (mirror execTest.html).
@@ -1618,6 +1943,16 @@ function doSave(navNext) {
     // the attachment whitelist (same shape as api/execute?action=save), surface
     // the warning so the user does not assume the upload succeeded silently.
     if (r.attachments_rejected) { toast(TLi18n.t('exe.attachmentsRejected'), true); }
+    // Refs #1393: surface the issue-tracker side effects of the save (new
+    // issue created / issues copied), mirroring the legacy create_issue_feedback.
+    if (r.add_issue && r.add_issue.status_ok && r.add_issue.id) {
+      toast(TLi18n.t('esr.createIssueDone', { id: r.add_issue.id }));
+    } else if (r.add_issue && r.add_issue.msg) {
+      toast(r.add_issue.msg, true);
+    }
+    if (r.copy_issues && r.copy_issues.status_ok) {
+      toast(TLi18n.t('esr.copyIssuesDone'));
+    }
     if (navNext) {
       navTo('next');
     } else {
