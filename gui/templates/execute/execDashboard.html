@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="edb.title">Execution Dashboard</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; }
+.header span.ctxbadge { display: inline-block; background: #22242a; color: #4ECDC4; font-size: 12px; font-weight: 700; border-radius: 11px; padding: 3px 11px; margin-left: 10px; vertical-align: middle; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 500; }
+.toolbar label { color: #aaa; font-size: 12px; margin-right: 5px; }
+.toolbar select, .toolbar input { height: 32px; font-size: 13px; border-radius: 4px; border: 1px solid #555; background: #31343c; color: #eee; padding: 0 8px; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal[disabled] { opacity: .5; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; padding: 18px 22px; overflow-x: auto; }
+.card h2 { margin: 0 0 4px; font-size: 16px; font-weight: 700; color: #22242a; }
+.card .card-sub { color: #888; font-size: 12px; margin: 0 0 12px; }
+.banner { border-radius: 6px; padding: 13px 18px; font-size: 13px; margin: 16px 24px; }
+.banner.err { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.banner.warn { background: #fff8e1; border: 1px solid #f9d976; color: #7d6608; }
+.spinner { color: #888; font-size: 13px; padding: 24px; text-align: center; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.notes { border: 1px solid #e6e6e6; border-radius: 6px; background: #fafafa; padding: 10px 14px; color: #555; font-size: 13px; margin-top: 8px; white-space: pre-wrap; }
+.notes-head { cursor: pointer; font-weight: 700; color: #333; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+.cfields { margin-top: 10px; }
+.cfields table { border-collapse: collapse; }
+.cfields td { border: 1px solid #eee; padding: 6px 10px; font-size: 13px; vertical-align: top; }
+.cfields td:first-child { background: #f4f9f9; font-weight: 700; color: #555; }
+.empty { color: #999; font-size: 12px; font-style: italic; margin-top: 6px; }
+.restbox { background: #22242a; color: #4ECDC4; font-family: monospace; font-size: 13px; border-radius: 6px; padding: 10px 14px; margin-top: 10px; word-break: break-all; }
+.toast { position: fixed; top: 16px; right: 16px; padding: 13px 20px; border-radius: 6px; color: #fff; font-size: 13px; font-weight: 600; display: none; z-index: 2000; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+.toast.ok { background: #27ae60; }
+.toast.err { background: #e74c3c; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-chart-pie"></i> <span data-i18n="edb.header">Execution Dashboard</span>
+  <span class="ctxbadge" id="planBadge">-</span>
+  <span class="sub" id="projName"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <span><label for="selBuild" data-i18n="edb.build">Build</label></span>
+  <select id="selBuild"></select>
+  <span><label for="selPlatform" data-i18n="edb.platform">Platform</label></span>
+  <select id="selPlatform"></select>
+  <button class="btn-teal" id="btnRefresh" onclick="loadInit()"><i class="fa fa-rotate"></i> <span data-i18n="edb.refresh">Refresh</span></button>
+  <button class="btn-teal" id="btnCopy" onclick="copyRestArgs()"><i class="fa fa-copy"></i> <span data-i18n="edb.copyArgs">Copy REST parameters</span></button>
+  <button class="btn-ghost" id="btnGoExec" onclick="goExecute()" style="display:none;"><i class="fa fa-play"></i> <span data-i18n="edb.goExecute">Continue to Execute Tests</span></button>
+</div>
+
+<div id="errBanner" class="banner err" style="display:none;"></div>
+<div id="ignoredBanner" class="banner err" style="display:none;"></div>
+<div id="closedBanner" class="banner warn" style="display:none;">
+  <i class="fa fa-lock"></i> <b data-i18n="edb.buildClosed">Build is closed</b> &nbsp;
+  <span data-i18n="edb.buildCannotExecute">Results cannot be saved against a closed build.</span>
+</div>
+<div id="loading" class="spinner"><i class="fa fa-spinner fa-spin" style="margin-right:6px;"></i><span data-i18n="common.loading">Loading...</span></div>
+
+<div id="content" style="display:none;">
+
+  <div class="card" id="cardTplan">
+    <h2><i class="fa fa-map" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="edb.testPlan">Test Plan</span></h2>
+    <p class="card-sub" id="tplanName"></p>
+    <div id="tplanNotes" class="notes" style="display:none;">
+      <div class="notes-head" onclick="$('#tplanNotesBody').toggle();"><i class="fa fa-sticky-note" style="color:#4ECDC4;"></i> <span data-i18n="edb.tplanNotes">Test plan notes</span></div>
+      <div id="tplanNotesBody" style="display:none;margin-top:8px;"></div>
+    </div>
+    <div id="tplanCfields" class="cfields"></div>
+    <p class="empty" id="tplanEmpty" style="display:none;" data-i18n="edb.noCfields"></p>
+  </div>
+
+  <div class="card" id="cardBuild">
+    <h2><i class="fa fa-cube" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="edb.build">Build</span></h2>
+    <p class="card-sub" id="buildName"></p>
+    <div id="buildNotes" class="notes" style="display:none;">
+      <div class="notes-head" onclick="$('#buildNotesBody').toggle();"><i class="fa fa-sticky-note" style="color:#4ECDC4;"></i> <span data-i18n="edb.buildNotes">Build notes</span></div>
+      <div id="buildNotesBody" style="display:none;margin-top:8px;"></div>
+    </div>
+    <div id="buildCfields" class="cfields"></div>
+    <p class="empty" id="buildEmpty" style="display:none;" data-i18n="edb.noCfields"></p>
+  </div>
+
+  <div class="card" id="cardPlatform">
+    <h2><i class="fa fa-server" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="edb.platform">Platform</span></h2>
+    <p class="card-sub" id="platformName"></p>
+    <div id="platformNotes" class="notes" style="display:none;">
+      <div class="notes-head" onclick="$('#platformNotesBody').toggle();"><i class="fa fa-sticky-note" style="color:#4ECDC4;"></i> <span data-i18n="edb.platformNotes">Platform notes</span></div>
+      <div id="platformNotesBody" style="display:none;margin-top:8px;"></div>
+    </div>
+    <p class="empty" id="platformEmpty" style="display:none;" data-i18n="edb.noPlatform"></p>
+  </div>
+
+</div>
+
+<div class="footer" id="footline"><span data-i18n="footers.execDashboard">TestLink 2.0.1 - Execution Dashboard</span></div>
+<div id="toast" class="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+'use strict';
+var API = '/api/execdashboard/index.php';
+var P = new URLSearchParams(window.location.search);
+var TPLAN_ID = parseInt(P.get('testPlanID') || P.get('tplan_id') || '0', 10);
+var START_BUILD = parseInt(P.get('buildID') || P.get('build_id') || '0', 10);
+var START_PLATFORM = parseInt(P.get('platformID') || P.get('platform_id') || '0', 10);
+var FORCE_BUILD = START_BUILD > 0;
+var FORCE_PLATFORM = START_PLATFORM > 0;
+var REST = { testPlanID: 0, buildID: 0, platformID: 0 };
+var CTX = { tprojectId: 0, tplanId: 0 };
+
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+function toast(msg, ok) {
+  var $t = $('#toast');
+  $t.text(msg).removeClass('ok err').addClass(ok ? 'ok' : 'err').fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function(){ $t.fadeOut(150); }, 3200));
+}
+
+function showError(msg) {
+  $('#loading').hide();
+  $('#content').hide();
+  $('#errBanner').text(msg).show();
+  $('#btnRefresh').prop('disabled', true);
+}
+
+function isHtmlCtx(notesType) { return notesType !== 'none'; }
+
+function fillNotes($wrap, $body, notes, notesType) {
+  var has = String(notes || '').trim() !== '';
+  $wrap.toggle(has);
+  if (!has) return;
+  if (isHtmlCtx(notesType)) { $body.html(notes); } else { $body.text(notes); }
+  $body.css('display', 'block');
+  $wrap.show();
+}
+
+function populateCfields(target, html) {
+  $(target).html(html || '');
+  var none = !html || html.trim() === '';
+  if (none) { $(target).hide(); $(target).siblings('.empty').show(); }
+  else { $(target).show(); $(target).siblings('.empty').hide(); }
+}
+
+function render(r) {
+  var tplan = r.tplan || {}, build = r.build || {}, plat = r.platform || {};
+  var ctx = r.context || {};
+  $('#planBadge').text(esc(ctx.tcase_prefix ? ctx.tcase_prefix : (ctx.tplan_id || '')));
+  var proj = '';
+  if (ctx.tproject_id) proj = '# ' + ctx.tproject_id;
+  $('#projName').text((tplan.name ? tplan.name + ' ' : '') + proj).show();
+
+  $('#tplanName').text(tplan.name || '');
+  fillNotes($('#tplanNotes'), $('#tplanNotesBody'), tplan.notes, tplan.notes_type);
+  populateCfields('#tplanCfields', tplan.cfields);
+
+  $('#buildName').text(build.name || (r.builds && r.builds.length === 0 ? TLi18n.t('edb.noBuild') : ''));
+  fillNotes($('#buildNotes'), $('#buildNotesBody'), build.notes, build.notes_type);
+  populateCfields('#buildCfields', build.cfields);
+
+  $('#platformName').text(plat.name || (r.platforms && r.platforms.length === 0 ? TLi18n.t('edb.noPlatform') : ''));
+  fillNotes($('#platformNotes'), $('#platformNotesBody'), plat.notes, plat.notes_type);
+
+  $('#closedBanner').toggle(build.is_open == null ? false : parseInt(build.is_open, 10) === 0);
+
+  REST = { testPlanID: ctx.tplan_id, buildID: ctx.build_id, platformID: ctx.platform_id };
+  CTX = { tprojectId: ctx.tproject_id, tplanId: ctx.tplan_id };
+  $('#btnGoExec').toggle(!!ctx.tplan_id);
+
+  // executor selector: closed builds appended first so the open one wins
+  renderBuildOptions(r.builds || [], ctx.build_id);
+  renderPlatformOptions(r.platforms || [], ctx.platform_id);
+
+  $('#content').show();
+  renderRestBox();
+}
+
+function renderBuildOptions(list, selected) {
+  var $sel = $('#selBuild').empty();
+  var picked = selected || 0;
+  list.forEach(function (b) {
+    var label = esc(b.name) + (parseInt(b.is_open, 10) === 0 ? ' (' + esc(TLi18n.t('edb.buildClosed')) + ')' : '');
+    $('<option>').val(b.id).text(label).appendTo($sel);
+  });
+  var found = list.some(function (b) { return String(b.id) === String(picked); });
+  if (found) { $sel.val(String(picked)); }
+  if (list.length === 0) {
+    $('<option>').val(0).text(esc(TLi18n.t('edb.noBuild'))).appendTo($sel);
+  }
+}
+
+function renderPlatformOptions(list, selected) {
+  var $sel = $('#selPlatform').empty();
+  if (list.length === 0) {
+    $('<option>').val(0).text(esc(TLi18n.t('edb.noPlatform'))).appendTo($sel);
+    return;
+  }
+  list.forEach(function (p) { $('<option>').val(p.id).text(esc(p.name)).appendTo($sel); });
+  var picked = selected || 0;
+  var has = list.some(function (p) { return String(p.id) === String(picked); });
+  if (!has && list.length > 0) { $sel.val(list[0].id); }
+}
+
+function renderRestBox() {
+  var keys = Object.keys(REST);
+  var has = keys.every(function (k) { return !!REST[k]; });
+  if (!has) return;
+  var existing = $('#restCard');
+  if (existing.length === 0) {
+    $('<div class="card" id="restCard">').appendTo('#content');
+    $('#restCard').append('<h2><i class="fa fa-link" style="color:#4ECDC4;margin-right:8px;"></i><span data-i18n="edb.restArgsTitle"></span></h2>');
+  }
+  var $box = $('#restCard .restbox');
+  if ($box.length === 0) { $box = $('<div class="restbox">').appendTo($('#restCard').find('h2').parent()); }
+  $box.text(keys.map(function (k) { return k + '=' + REST[k]; }).join('&'));
+  TLi18n.apply();
+}
+
+function copyRestArgs() {
+  var keys = Object.keys(REST);
+  var has = keys.every(function (k) { return !!REST[k]; });
+  if (!has) { toast(TLi18n.t('edb.copyError'), false); return; }
+  var txt = keys.map(function (k) { return k + '=' + REST[k]; }).join('&');
+  function good() { toast(TLi18n.t('edb.copyArgsReady'), true); }
+  function bad() { toast(TLi18n.t('edb.copyError'), false); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(good, bad);
+  } else {
+    var ta = document.createElement('textarea');
+    ta.value = txt; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); good(); } catch (e) { bad(); }
+    document.body.removeChild(ta);
+  }
+}
+
+function goExecute() {
+  var base = '/gui/templates/execute/execTest.html';
+  var qs = [];
+  if (REST.testPlanID) qs.push('tplan_id=' + REST.testPlanID);
+  if (CTX.tprojectId) qs.push('tproject_id=' + CTX.tprojectId);
+  window.location.href = qs.length ? base + '?' + qs.join('&') : base;
+}
+
+// persist the new context so the Execute Tests toolbar agrees
+function persistContext() {
+  $.ajax({
+    url: API + '?action=context',
+    method: 'POST',
+    data: JSON.stringify({
+      tplan_id: REST.testPlanID,
+      build_id: parseInt($('#selBuild').val() || '0', 10),
+      platform_id: parseInt($('#selPlatform').val() || '0', 10)
+    }),
+    contentType: 'application/json'
+  });
+}
+
+function loadInit() {
+  $('#loading').show();
+  $('#errBanner').hide();
+  $('#ignoredBanner').hide();
+  var qs = ['action=init'];
+  if (TPLAN_ID > 0) qs.push('tplan_id=' + TPLAN_ID);
+  if (FORCE_BUILD && START_BUILD > 0) qs.push('build_id=' + START_BUILD);
+  if (FORCE_PLATFORM && START_PLATFORM > 0) qs.push('platform_id=' + START_PLATFORM);
+  $.getJSON(API + '?' + qs.join('&'), function (r) {
+    $('#loading').hide();
+    if (r.status !== 'ok') {
+      showError(r.message || TLi18n.t('edb.loadError'));
+      return;
+    }
+    var ctx = r.context || {};
+    FORCE_BUILD = false; FORCE_PLATFORM = false;
+    $('#selBuild').off('change').on('change', function () {
+      REST.buildID = parseInt($(this).val() || '0', 10);
+      renderRestBox();
+      persistContext();
+      reload();
+    });
+    $('#selPlatform').off('change').on('change', function () {
+      REST.platformID = parseInt($(this).val() || '0', 10);
+      renderRestBox();
+      persistContext();
+      reload();
+    });
+    render(r);
+  }).fail(function (xhr) {
+    $('#loading').hide();
+    var msg = TLi18n.t('edb.loadError');
+    if (xhr.status === 401) msg = TLi18n.t('common.forbidden');
+    else if (xhr.status === 403) msg = TLi18n.t('edb.noRights');
+    else {
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+    }
+    showError(msg);
+  });
+}
+function reload() {
+  var qs = ['action=init'];
+  if (REST.testPlanID) qs.push('tplan_id=' + REST.testPlanID);
+  if (REST.buildID) qs.push('build_id=' + REST.buildID);
+  if (REST.platformID) qs.push('platform_id=' + REST.platformID);
+  $.getJSON(API + '?' + qs.join('&'), function (r) {
+    if (r.status !== 'ok') return;
+    render(r);
+  }).fail(function () {});
+}
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    loadInit();
+  });
+});
+</script>
+</body>
+</html>
