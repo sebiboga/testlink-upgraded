@@ -474,6 +474,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   bullets) + Configuration (3 bullets) content, and all 10 `ts.cfg*` +
   `ts.chapterCfg`/`ts.chapterCfgDesc` i18n keys present in all 10 locale
   bundles (Refs #1455).
+- Test Strategy "Test Approach" chapter (tracking issue #1443): verified
+  fully implemented and error-free — dedicated page
+  `gui/templates/strategy/approach.html`, `fa-compass` icon, ASIDE sub-item
+  **Approach** (`aside.tpl:144`, `href_test_strategy_approach` in
+  en_GB/en_US/ro_RO), General Overview CHAPTERS card #4 "Test Approach" with
+  **Open chapter** button (chapter map entry in `api/strategy/index.php:61`),
+  Strategy (3 bullets) + Techniques (3 bullets) content, and all 9
+  `ts.approach*` + `ts.chapterApproach`/`ts.chapterApproachDesc` i18n keys
+  present in all 10 locale bundles; 8/8 PASS regression suite,
+  browser/console/Event-Viewer clean (Refs #1443).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom
