@@ -480,7 +480,7 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   **Approach** (`aside.tpl:144`, `href_test_strategy_approach` in
   en_GB/en_US/ro_RO), General Overview CHAPTERS card #4 "Test Approach" with
   **Open chapter** button (chapter map entry in `api/strategy/index.php:61`),
-  Strategy (3 bullets) + Techniques (3 bullets) content, and all 9
+  Strategy (3 bullets) + Techniques (3 bullets) content, and all 10
   `ts.approach*` + `ts.chapterApproach`/`ts.chapterApproachDesc` i18n keys
   present in all 10 locale bundles; 8/8 PASS regression suite,
   browser/console/Event-Viewer clean (Refs #1443).

@@ -54,7 +54,7 @@ Implementation provenance:
   `lib/functions/common.php:2112`); label `href_test_strategy_approach` at
   `locale/en_US/strings.txt:2285`, `locale/en_GB/strings.txt:2316`,
   `locale/ro_RO/strings.txt:33`.
-- i18n: all 10 bundles (`de en es fr it ja pt ro ru zh`) contain all 9
+- i18n: all 10 bundles (`de en es fr it ja pt ro ru zh`) contain all 10
   `ts.approach*` keys + `ts.chapterApproach`/`ts.chapterApproachDesc` with
   native translations; every bundle passes `python3 -m json.tool`.
 - Browser (headless Chrome, admin/admin): ASIDE → Test Strategy → **Approach**

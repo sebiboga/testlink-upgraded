@@ -14379,7 +14379,7 @@ Result: **PASS — 8/8 PASS** — Issue #1455 spec fully satisfied; no code chan
 
 > STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, non-en/ro content i18n `945679c5b`) and this suite re-verifies each spec point error-free.
 
-**Screen:** `gui/templates/strategy/approach.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 4 card). **Wiring:** `gui/templates/dashio/aside.tpl:144`, `lib/functions/common.php:2112`, `locale/en_US/strings.txt:2285`, `locale/en_GB/strings.txt:2316`, `locale/ro_RO/strings.txt:33` (`href_test_strategy_approach`). **i18n:** `ts.approach*` (9 keys) + `ts.chapterApproach`/`ts.chapterApproachDesc` in all 10 bundles.
+**Screen:** `gui/templates/strategy/approach.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 4 card). **Wiring:** `gui/templates/dashio/aside.tpl:144`, `lib/functions/common.php:2112`, `locale/en_US/strings.txt:2285`, `locale/en_GB/strings.txt:2316`, `locale/ro_RO/strings.txt:33` (`href_test_strategy_approach`). **i18n:** `ts.approach*` (10 keys) + `ts.chapterApproach`/`ts.chapterApproachDesc` in all 10 bundles.
 
 **Precondition:** app @ localhost:8082, logged in admin/admin.
 
@@ -14391,7 +14391,7 @@ Result: **PASS — 8/8 PASS** — Issue #1455 spec fully satisfied; no code chan
 | 1443.4 | General Overview (`testStrategy.html`) chapter card #4 | Card "Test Approach" with `fa-compass` icon + **Open chapter** button; click navigates mainframe to `approach.html` | **PASS** |
 | 1443.5 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 4 `{icon:"fa-compass", key:"ts.chapterApproach", descKey:"ts.chapterApproachDesc", url:"/gui/templates/strategy/approach.html"}`; footer keys (displayName/generated_on/right) present; card renders on the overview grid | **PASS** |
 | 1443.6 | Locale switching: switcher → Română | Header `Abordarea Testării`, sub `strategia generală și tehnicile folosite`, Back link `Înapoi la Strategia de Testare`, card titles `Strategie`/`Tehnici` + translated bullets; no literal `ts.approach*` keys in DOM | **PASS** |
-| 1443.7 | i18n bundle validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 9 `ts.approach*` keys + `ts.chapterApproach`/`ts.chapterApproachDesc` and pass `python3 -m json.tool` | **PASS** |
+| 1443.7 | i18n bundle validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 10 `ts.approach*` keys + `ts.chapterApproach`/`ts.chapterApproachDesc` and pass `python3 -m json.tool` | **PASS** |
 | 1443.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only `audit_login_succeeded` INFO); browser console: 0 messages across EN/RO loads | **PASS** |
 
 Result: **PASS — 8/8 PASS** — Issue #1443 spec fully satisfied; no code change required (stale tracking issue).
