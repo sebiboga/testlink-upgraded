@@ -2020,6 +2020,10 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // Reorder Requirements modernized screen (Dashio standalone page) - Refs
+  // #1488. The Reorder toolbar button in reqSpecView.html carries the real
+  // req_spec_id; this generic launcher keeps legacy pointer/template parity.
+  $actions->reqReorder = "/gui/templates/requirements/reqReorder.html?{$ctx}";
   $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   // Print Test Specification modernized screen (Dashio standalone page) -
