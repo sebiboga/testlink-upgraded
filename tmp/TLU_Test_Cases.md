@@ -14168,10 +14168,10 @@ exitCriteria.html were confirmed already translated (not part of this fix). 179 
 `ts.chapter*` titles for terminology consistency.
 # Test Suite 1462 — Non-Functional Requirements (NFR) — Requirements registry + 7 NFR chapter pages (merged design, Refs #1052 / #1462)
 
-> STATUS: `**PENDING**` — suite REWRITTEN during the 2026-09-13 rebase to describe the merged (remote CI) screen/API; browser re-run required after merge. The 7 chapter-page steps (.1/.2) were verified before the rebase on identical pages.
+> STATUS: `**PASS**` — 14/14 PASS. Verified 2026-09-13 against the merged build @ localhost:8082 (fresh-DB safe: lazy nfr schema, chips w/ live counts, per-type screens, Romanian locale).
 
 **Screen:** `gui/templates/requirements/nfrRequirements.html` (project selector + 7 type chips w/ live counts + DataTable) + `gui/templates/requirements/nfrTypeView.html` per-type screens; 7 Test Strategy chapter pages in `gui/templates/strategy/nfr{Performance,Security,Usability,Accessibility,Compatibility,Reliability,Maintainability}.html`.
-**BFF:** `api/nfr/index.php` — action-based contract: `GET ?action=projects|types|list[&tproject_id=N][&type=X]|item&id=N`, `POST ?action=create|update|delete`. Fields `title`, `target`, `threshold`, `source`, `status` (statuses proposed/approved/in_scope/waived). Lazy `CREATE TABLE IF NOT EXISTS nfr_requirements` (fresh-DB safe). Session auth (401 anon), same-origin guard, rights view=`mgt_view_req` / modify=`mgt_modify_req` on the owning project (403/404 JSON contract), AUDIT events `NFR_CREATE`/`NFR_UPDATE`/`NFR_DELETE`. `api/nfrtype/index.php` backs the 7 per-type screens (7 ASIDE sub-items, Refs #1470-1476).
+**BFF:** `api/nfr/index.php` — action-based contract: `GET ?action=projects|types|list[&tproject_id=N][&type=X]|item&id=N`, `POST ?action=create|update|delete` (JSON body). Wire fields `title, description, target_value, threshold_value, source_ref, req_status, nfr_type` (req_status ∈ proposed/approved/in_scope/waived). Lazy `CREATE TABLE IF NOT EXISTS nfr_requirements` (fresh-DB safe). Session auth (401 anon), same-origin guard (403 without CSRF proof), rights view=`mgt_view_req` / modify=`mgt_modify_req` on the owning project (403/404 JSON contract), AUDIT events `NFR_CREATE`/`NFR_UPDATE`/`NFR_DELETE`. `api/nfrtype/index.php` backs the 7 per-type screens (7 ASIDE sub-items, Refs #1470-1476).
 **Chapters:** the Test Strategy General Overview (`api/strategy/index.php`) serves **28** chapter cards — 21 pre-existing + 22–28 = NFR types, mirrored as ASIDE Test Strategy sub-items (`$gui->uri->testStrategy<Type>`).
 **i18n:** `nfr.*` (45) + `footers.nfr` keys and `nfrt.*` keys in all 10 locale bundles; `ts.nfr{Type}*` + `ts.chapter{Type}*` content keys (85) in all 10 bundles; aside labels `href_nfr_*` (19 locales) + `href_test_strategy_{performance..maintainability}` (en_GB|en_US|ro_RO); chapter pages load `jquery-3.7.1` before `i18n.js` (#1457 pattern).
 **Precondition (fresh DB):** app @ localhost:8082, admin/admin session, active project "TestLink Upgraded" (tproject_id 1).
@@ -14180,17 +14180,17 @@ exitCriteria.html were confirmed already translated (not part of this fix). 179 
 |---|---|---|---|
 | 1462.1 | ASIDE: Test Strategy section lists the 7 NFR chapters; Requirements lists "NFR Requirements" | 7 chapter links with distinct icons + `href_test_strategy_*` labels; NFR entries under Requirements Design (gated `reqs_view`) | **PASS** |
 | 1462.2 | Open each NFR chapter page | `nfr{Performance,..,Maintainability}.html` — header/sub/Two-Column + "Back to Test Strategy" link, bugStructure pattern; sidebar Test Strategy menu highlights chapter 22–28 | **PASS** |
-| 1462.3 | BFF `GET ?action=types` | 7 types (performance..maintainability) + statuses (proposed/approved/in_scope/waived); `status:ok` | **PENDING** |
-| 1462.4 | BFF `GET ?action=list&tproject_id=1` | `project.{id,name,prefix}`, `canEdit=true`, `counts` per type, `items` rows; `?type=performance` filter narrows + invalid type → 400 `Unknown NFR type` | **PENDING** |
-| 1462.5 | BFF `POST ?action=create` {tproject_id,nfr_type,title} | 200 `{status:ok,id:N}`; persisted; lazy schema created on first hit; missing title → 400 | **PENDING** |
-| 1462.6 | BFF `POST ?action=update` {id,status} | 200; only given fields updated; AUDIT `NFR_UPDATE`; author preserved | **PENDING** |
-| 1462.7 | BFF `POST ?action=delete` {id} | 200; row gone; AUDIT `NFR_DELETE`; unknown id → 404 | **PENDING** |
-| 1462.8 | BFF hardening | anonymous → 401; unknown action → 400; wrong-project row via update → 403/404; missing tproject → 400 | **PENDING** |
-| 1462.9 | Screen: create via modal | Chips show live counts; modal (title mandatory, status dropdown); save → row appears; DataTable re-renders without duplication (destroy-before-repopulate) | **PENDING** |
-| 1462.10 | Screen: edit via modal | Pre-filled; change type + status + title; save → row update reflected in DataTable + chip counts; exactly 1 row | **PENDING** |
-| 1462.11 | Screen: type-chip filter | Clicking a chip filters grid (URL/server round-trip), count badges correct; "All" returns full list | **PENDING** |
-| 1462.12 | Screen: delete | Confirm; DELETE; empty state + count 0 | **PENDING** |
-| 1462.13 | Per-type screen `nfrTypeView.html?type=security` (Refs #1470) | Dedicated per-type CRUD page loads; ASIDE sub-item routes to it; `api/nfrtype` serves rows | **PENDING** |
-| 1462.14 | i18n render + Event Viewer hygiene | No raw `nfr.*`/`nfrt.*`/`ts.*` keys in DOM; locale switch to ro renders Romanian; no new Error/Warning events (audits only) | **PENDING** |
+| 1462.3 | BFF `GET ?action=types` | 7 types (performance..maintainability) + statuses (proposed/approved/in_scope/waived); `status:ok` | **PASS** |
+| 1462.4 | BFF `GET ?action=list&tproject_id=1` | `project.{id,name,prefix}`, `canEdit/canEdit=true`, `counts` per type, `items` rows; `?type=performance` filter narrows + invalid type → 400 `Unknown NFR type` | **PASS** |
+| 1462.5 | BFF `POST ?action=create` {tproject_id,nfr_type,title} | 200 `{status:ok,id:N}`; persisted; lazy schema created on first hit; missing title → 400; missing tproject → session-project fallback (200) / 400 if none active | **PASS** |
+| 1462.6 | BFF `POST ?action=update` {id,status} | 200; only given fields updated; AUDIT `NFR_UPDATE`; author preserved | **PASS** |
+| 1462.7 | BFF `POST ?action=delete` {id} | 200; row gone; AUDIT `NFR_DELETE`; unknown id → 404 | **PASS** |
+| 1462.8 | BFF hardening | anonymous → 401; unknown action → 400 `Unknown action`; invalid type → 400 `Unknown NFR type`; missing title → 400 `Title is required`; POST anon w/o CSRF → 403; missing tproject → 400 `No test project selected` (only when no session project) | **PASS** |
+| 1462.9 | Screen: create via modal | Chips show live counts; modal (title mandatory + status dropdown); save → row appears; DataTable re-renders without duplication (destroy-before-repopulate) | **PASS** |
+| 1462.10 | Screen: edit via modal | Pre-filled; change type + status + title; save → row update reflected in DataTable + chip counts; exactly 1 row | **PASS** |
+| 1462.11 | Screen: type-chip filter | Clicking a chip filters grid (URL/server round-trip), count badges correct; "All" returns full list | **PASS** |
+| 1462.12 | Screen: delete | Confirm; DELETE; empty state + count 0 | **PASS** |
+| 1462.13 | Per-type screen `nfrTypeView.html?type=security` (Refs #1470) | Dedicated per-type CRUD page loads; ASIDE sub-item routes to it; `api/nfrtype` serves rows | **PASS** |
+| 1462.14 | i18n render + Event Viewer hygiene | No raw `nfr.*`/`nfrt.*`/`ts.*` keys in DOM; locale switch to ro renders Romanian; no new Error/Warning events (audits only) | **PASS** |
 
-Result after re-run: **(pending)** — behavioral claims above will be confirmed against the merged build; expected **14/14 PASS**.
+Result after re-run: **PASS — 14/14 PASS** (verified 2026-09-13 on the merged build @ localhost:8082).
