@@ -225,7 +225,8 @@ function renderTable(items) {
       esc(r.description || ''),
       rightTags || '<span style="color:#999;font-size:11px;">' + TLi18n.t('common.none') + '</span>',
       typeBadge,
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' + deleteBtn
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' +
+      '<i class="fa fa-copy action-btn" title="' + TLi18n.t('role.duplicateRole') + '" onclick="duplicateRole(' + r.id + ')"></i>' + deleteBtn
     ]);
   });
   table = $('#rolesTable').DataTable({
@@ -363,6 +364,19 @@ function doDelete(id) {
     success: function() { $('#deleteModal').modal('hide'); loadRoles(); },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.delete');
+      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      alert(msg);
+    }
+  });
+}
+
+function duplicateRole(id) {
+  $.ajax({
+    url: API + '/' + id + '/duplicate',
+    type: 'POST',
+    success: function() { loadRoles(); },
+    error: function(xhr) {
+      var msg = TLi18n.t('role.error.duplicate');
       try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
       alert(msg);
     }

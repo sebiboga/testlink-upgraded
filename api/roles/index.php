@@ -59,6 +59,11 @@ function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
+// Legacy parity: lib/usermanagement/rolesEdit.php:292-297
+function generateUniqueName($s) {
+    return substr($s . ' - Copy - ' . substr(sha1(mt_rand()), 0, 50), 0, 100);
+}
+
 function roleToJSON(tlRole $r) {
     return [
         'id' => intval($r->dbID),
@@ -197,6 +202,30 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     } else {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Error deleting role']);
+    }
+}
+
+// Route: POST /roles/{id}/duplicate - duplicate a role with a unique copy name
+if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) && isset($segments[1]) && $segments[1] === 'duplicate') {
+    $id = intval($segments[0]);
+    $r = tlRole::getByID($db, $id, tlRole::TLOBJ_O_GET_DETAIL_FULL);
+    if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
+
+    // Legacy parity: lib/usermanagement/rolesEdit.php:109-114,125-128,292-297
+    // Reset dbID so writeToDB does INSERT; generate unique name.
+    $r->dbID = null;
+    $r->name = generateUniqueName($r->name);
+
+    $result = $r->writeToDB($db);
+    if ($result >= tl::OK) {
+        logAuditEvent("Role '{$r->name}' created", 'CREATE', $r->dbID, 'roles');
+        out(['status' => 'ok', 'item' => roleToJSON($r)]);
+    } else {
+        http_response_code(400);
+        $msg = 'Error duplicating role';
+        if ($result == tlRole::E_NAMEALREADYEXISTS) $msg = 'Role name already exists';
+        elseif ($result == tlRole::E_EMPTYROLE) $msg = 'Role must have at least one right';
+        out(['status' => 'error', 'message' => $msg, 'code' => $result]);
     }
 }
 
