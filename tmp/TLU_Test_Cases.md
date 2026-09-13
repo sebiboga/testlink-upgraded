@@ -14257,6 +14257,7 @@ Result: **PASS — 6/6 PASS** — Issue #1441 spec fully satisfied; no code chan
 | 1396.6 | BFF guard: `GET ?action=update_link` | 405 `POST required` | **PASS** |
 | 1396.7 | BFF guard: `update_link` with forged tcversion 999 | 404 `Version does not belong to test case`; plan link unchanged | **PASS** |
 | 1396.8 | BFF guard: anonymous `init` / `update_link` | 401 `Not authenticated` | **PASS** |
+| 1396.8b | BFF guard: `update_link` while newest version ALREADY linked (scenario B) | 409 `Newest version is already linked to the plan`; `testplan_tcversions` untouched (DB unique key would turn the naive re-point into a 500) | **PASS** |
 | 1396.9 | Save regression after change: POST `?action=save` (v2, build 200, status p) | `{status:ok,saved:true,execution_id:1}`; executions row written | **PASS** |
 | 1396.10 | i18n English render | Warning + button + latest-version number rendered through `TLi18n.t` (no raw `esr.*` keys in DOM) | **PASS** |
 | 1396.11 | i18n RO render | Locale switch to ro → "Atenție: aceasta nu este cea mai recentă versiune disponibilă (Versiune v2)" + "Actualizează TCV-ul legat la cea mai recentă versiune" | **PASS** |
