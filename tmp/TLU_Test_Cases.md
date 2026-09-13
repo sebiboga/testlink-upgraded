@@ -14265,3 +14265,24 @@ Result: **PASS — 6/6 PASS** — Issue #1441 spec fully satisfied; no code chan
 | 1396.13 | Event Viewer + console hygiene | `events` table: only INFO `audit_login_succeeded` rows (no Error/Warning) after all BFF calls; browser console 0 errors/warnings | **PASS** |
 
 Result: **PASS — 13/13 PASS** — #1396 implemented: execSetResults popup now auto-bumps execution to the newest plan-linked version, warns when the executed version is not the latest available, and offers the legacy "Update Linked TCV To The Latest" action (plan link + executions + cfield_execution_values re-pointed), backed by the `update_link` BFF route and 4 i18n keys in all 10 bundles.
+
+# Regression — Issue #1456: Test Strategy "Training Plan" chapter (tracking issue) + General Overview note regression
+
+> STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: (1) the tracking issue spec (page/icon/ASIDE wiring/Overview-CHAPTERS entry/i18n keys) was implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n `945679c5b`) and is re-verified error-free; (2) a **regression** of the #1458 fix was found while testing and fixed in this run: the General Overview note `ts.navAdded3` claimed "All 18 chapters…" while the grid renders **28** cards (en/ro had been reverted to the old wording by `5888975934`; the other 8 bundles carried the stale intermediate "18+Severity" text). Fix: count-free wording in all 10 bundles + the HTML fallback.
+
+**Screen:** `gui/templates/strategy/training.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 17 card). **Wiring:** `gui/templates/dashio/aside.tpl:157` (`fas fa-graduation-cap`), `labels.aside.tpl:18`, `locale/en_GB+en_US+ro_RO/strings.txt` (`href_test_strategy_training`). **i18n:** `ts.training*` (12 keys incl. `ts.chapterTraining`/`ts.chapterTrainingDesc`) in all 10 bundles; `ts.navAdded3` count-free in all 10 bundles + `testStrategy.html:63` fallback.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1456.1 | `GET /gui/templates/strategy/training.html` | HTTP 200; `fa-graduation-cap` icon; header "Training Plan" + sub; Tester training card (3 bullets) + User training card (3 bullets); back link; TLi18n init (no console errors) | **PASS** |
+| 1456.2 | ASIDE → Test Strategy → **Training** | Sub-item present, opens `training.html` in mainframe; source icon `fa-graduation-cap` (aside.tpl:157) matches BFF/chapter card | **PASS** |
+| 1456.3 | General Overview (`testStrategy.html`) chapter card #17 | Card "Training Plan" + `fa-graduation-cap` + **Open chapter** → `training.html`; 28 cards total render (num 1..28, last "Maintainability & Portability") | **PASS** |
+| 1456.4 | Overview note `ts.navAdded3` (EN) | Reads "All chapters of a Test Strategy are listed below; … opened directly." — count-free, does NOT contradict the 28 rendered cards | **PASS** |
+| 1456.5 | Overview note `ts.navAdded3` (RO, `?locale=ro`) | Romanian count-free text "Toate capitolele unei Strategii de Testare sunt listate mai jos; …"; title "Prezentare Generală" | **PASS** |
+| 1456.6 | Training chapter locale switch → `?locale=ro` | "Plan de Instruire" / "Instruire testeri" (3 bullets) / "Instruire utilizatori" (3 bullets) / back link "Înapoi la Strategia de Testare"; no literal `ts.training*` keys in DOM | **PASS** |
+| 1456.7 | BFF + i18n bundle integrity | `action=chapters` returns 28 entries; training entry `{num:17, icon:"fa-graduation-cap", key:"ts.chapterTraining", url:".../training.html"}`; all 10 bundles contain `ts.training*` + `ts.navAdded3` and pass `python3 -m json.tool` | **PASS** |
+| 1456.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows after all loads (only `audit_login_succeeded` INFO); browser console 0 errors/warnings across EN/RO loads | **PASS** |
+
+Result: **PASS — 8/8 PASS** — Issue #1456 spec fully satisfied (Training Plan chapter complete end-to-end); the General Overview note regression found during verification was fixed (count-free `ts.navAdded3` in all 10 bundles + HTML fallback) and re-verified error-free.
