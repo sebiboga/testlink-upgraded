@@ -14482,3 +14482,35 @@ screen `gui/templates/usermanagement/rolesView.html`. Gate controlled by
 Result: **PASS — 8/8 PASS** — demoMode read-only gating for Role Management
 implemented and verified end-to-end (UI + BFF + i18n), mirroring User
 Management #887 and legacy rolesEdit.tpl:185-205. Refs #903.
+
+## Suite 1496 — Execution Dashboard (execDashboard) — Refs #1496
+
+Precondition: app @ localhost:8082, logged in admin/admin. Fixture: idempotent
+`php tmp/fixtures_1496.php` — project ESX1496 (_tproject_id=1_), plan
+ESX1496-Plan (_tplan_id=2_, nodes_hierarchy title), open build 1
+(ESX1496-Build-Open) + closed build 2 (ESX1496-Build-Closed), platforms p1
+ESX1496-Win (linked to plan) / p2 ESX1496-Mac (unlinked), custom field
+ESX1496-CF with plan value `Pre-prod` and build value `Build-Edge`.
+Dashboard at `gui/templates/execute/execDashboard.html`, BFF `api/execdashboard`.
+
+| # | Steps | Expected | Result |
+|---|-------|----------|--------|
+| 1496.1 | `GET /api/execdashboard/index.php?action=init&testPlanID=2&buildID=1&platformID=1` (admin session) | `status:ok`; `context {tproject_id:1, tplan_id:2, build_id:1, platform_id:1, tcase_prefix:E96}`; tplan/build/platform objects with notes + `notes_type`; platforms list `[{1,ESX1496-Win}]` (only linked); builds `[{id:2,is_open:0},{id:1,is_open:1}]`; rest_args `{testPlanID:2,buildID:1,platformID:1}`; grants both read+execute | **PASS** |
+| 1496.2 | `GET ?action=init` (no params) | Defaults resolve: build 1 = max `active=1`+`open=1` of project 1; platform 1 = first plan-linked platform | **PASS** |
+| 1496.3 | `GET ?action=init&testPlanID=2&buildID=2&platformID=1` (closed build) | `is_open:0` returned; dashboard renders amber "Build is closed" banner (`edb.buildClosedMsg`) above the selectors | **PASS** |
+| 1496.4 | Dashboard header/labels | Project prefix badge `E96`, plan name ESX1496-Plan, project ESX1496; toolbar Build/Platform/Refresh/Copy REST/Continue buttons present with TLi18n labels | **PASS** |
+| 1496.5 | Test-plan custom fields card | Table `ESX1496 Environment` = `Pre-prod` (served from `cfield_design_values` on plan node, CF show_on_design+enable_on_design+show_on_execution, active cfield_testprojects) | **PASS** |
+| 1496.6 | Build custom fields card | Table `ESX1496 Environment` = `Build-Edge` (served from `cfield_build_design_values` on build node) | **PASS** |
+| 1496.7 | Notes panels (plan/open build/platform) | Collapsible cards with headers `edb.tplanNotes`/`edb.buildNotes`/`edb.platformNotes`; plan+build render CKEditor HTML (`notes_type`), platform text | **PASS** |
+| 1496.8 | Build selector preselect | Dropdown preselected with resolved build (not first option); closed build option suffixed `(Build is closed)` | **PASS** |
+| 1496.9 | Copy REST parameters | "REST parameters copied to clipboard" toast; clipboard contains `testPlanID=2&buildID=1&platformID=1` | **PASS** |
+| 1496.10 | `POST ?action=context` (testplan_id=2,build_id=1,platform_id=1) | `status:ok`; session `execution_mode` (tplan-source=102, build-source=100, platform-source=80) + `2_stored_setting_build/platform` persisted; subsequent `init` (no params) resolves them | **PASS** |
+| 1496.11 | Continue to Execute Tests | Navigates to `execTest.html?tplan_id=2&tproject_id=1`; execTest loads plan ESX1496-Plan + build + platform correctly | **PASS** |
+| 1496.12 | execTest toolbar Dashboard button | `btnDashboard` (label `exe.dashboard`) opens `execDashboard.html?tplan_id=2&build_id=1&platform_id=1` preserving the current context | **PASS** |
+| 1496.13 | i18n coverage | All 51 `data-i18n` keys of execDashboard+execTest present in all 10 bundles (de en es fr it ja pt ro ru zh), all valid `python3 -m json.tool`; `edb.*` = 21 keys | **PASS** |
+| 1496.14 | Event Viewer + console hygiene | No new ERROR/WARNING rows in `events` from any dashboard/BFF call; browser console 0 errors across all states (event_id cleaned, only 2 audit INFO rows) | **PASS** |
+
+Result: **PASS — 14/14 PASS** — Execution Dashboard modernized end-to-end (BFF +
+Dashio screen + link switch on both sides) with full legacy context-resolution
+parity, closed-build + custom-field + notes rendering verified in the browser,
+i18n complete and Event Viewer clean. Refs #1496.

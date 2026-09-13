@@ -211,6 +211,16 @@ Plans:
 Execution:
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
   api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1395, #1402, #1394).
+- Execution Dashboard landing pane (execDashboard.html) - BFF
+  api/execdashboard (#1496). Last ASIDE screen modernized: BFF resolves the
+  execution context (tplan/build/platform) with the full legacy precedence
+  chain (explicit params > execution_mode session cache scoped to the plan >
+  _stored_setting_* keys > defaults), returns plan/build notes + design-scope
+  custom-field tables and the selector lists (builds carry is_open); context
+  persist via POST ?action=context; closed-build banner, CKEditor notes
+  rendering, REST-params copy, Continue to Execute Tests hand-off;
+  $actions->execDashboard in common.php + execTest.html Dashboard button;
+  edb.* (21) + footers.execDashboard + exe.dashboard keys in all 10 bundles.
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
