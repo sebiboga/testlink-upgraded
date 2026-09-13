@@ -14413,3 +14413,26 @@ Result: **PASS — 8/8 PASS** — Issue #1443 spec fully satisfied; no code chan
 | 1394.8 | Event Viewer + console hygiene (all steps above) | `events` table: no new ERROR/WARNING rows (only pre-existing `audit_*` at log_level 16/AUDIT); browser console: 0 error/warn messages during render, save, copy, upload, closed-build switch | **PASS** |
 
 Result: **PASS — 8/8 PASS** — legacy attachment capabilities fully ported to the modern Set Results popup (Refs #1394).
+# Regression — Issue #1488: Reorder Requirements (Req Spec) screen — modernized Dashio screen + BFF (11/11 PASS)
+
+> STATUS: `**PASS**` — 11/11 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). The legacy `lib/requirements/reqEdit.php?doAction=reorder` + `reqReorder.tpl` was rewritten as a standalone Dashio screen (`gui/templates/requirements/reqReorder.html`) + REST BFF (`api/reqreorder/index.php`). Five implementation bugs were found and fixed during the run: (1) screen `down21` undefined → JS ReferenceError, list never rendered → rewritten with TLi18n; (2) BFF `$tprojMgr` never instantiated → 500 on init; (3) init `req_versions` lookup joined wrong (version nodes are children of requirement nodes; latest = MAX(VN.id)); (4) `V.req_doc_id` doesn't exist — `req_doc_id` lives on `requirements`; (5) reorder persisted `node_order` on `requirements` table instead of `nodes_hierarchy`. All fixed in BFF + screen, verified end-to-end (browser drag-drop → Save → DB `nodes_hierarchy.node_order`).
+
+**Screen:** `gui/templates/requirements/reqReorder.html`. **BFF:** `api/reqreorder/index.php` (`action=init` | `action=reorder`, rights: view `mgt_view_req`/`mgt_modify_req`, reorder `mgt_modify_req`; `bffSameOriginGuard()`). **Wiring:** `$actions->reqReorder` in `lib/functions/common.php` → `reqReorder.html?{ctx}`; toolbar button `#reorderLink` in `reqSpecView.html` (JS sets `href = reqReorder.html?req_spec_id=SPEC_ID&tproject_id=TPROJECT_ID`). **i18n:** `reqro.*` (15 keys) + `footers.reqReorder` in all 10 bundles (de en es fr it ja pt ro ru zh).
+
+**Precondition:** fixture `tmp/fixtures_1488.php` run (`php tmp/fixtures_1488.php`) → tproject id=4 RELOAD1488, req_spec_id=5 "Req Spec 1488", 4 requirements: id=7 R1488-RQ1 (Requirement D), 9 R1488-RQ2 (Requirement C), 11 R1488-RQ3 (Requirement B), 13 R1488-RQ4 (Requirement A), node_order D=0,C=1,B=2,A=3.not; admin/admin logged in.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1488.1 | `GET /api/reqreorder/index.php?action=init&req_spec_id=5&tproject_id=4` (authenticated) | `status:ok`; `req_spec_title:"Req Spec 1488"`, `total_req:4`, `grant:{reorder:true,view:true}`; `requirements[]` ordered D,C,B,A each with doc_id/name/node_order; no 500 | **PASS** |
+| 1488.2 | `GET gui/templates/requirements/reqReorder.html?req_spec_id=5&tproject_id=4` | HTTP 200; renders header "Reorder requirements", locale switcher (language `<select>`), Save button, "Back to spec viewer" link (href `reqSpecView.html?id=5&tproject_id=4`), hint "Drag and drop to reorder", 4 requirement rows D,C,B,A each with Up/Down | **PASS** |
+| 1488.3 | Drag row 1 (Requirement D) down one slot → order C,D,B,A → **Save** | Toast "Requirements reordered successfully."; DB `nodes_hierarchy.node_order`: id9(C)=0,id7(D)=1,id11(B)=2,id13(A)=3; reload shows C,D,B,A persisted | **PASS** |
+| 1488.4 | Up button on row 3 (Requirement B) → order C,D,B,A → B up → C,B,D,A → **Save** | DB node_order: C=0,B=1,D=2,A=3; screen reflects after reload | **PASS** |
+| 1488.5 | Anonymous `GET api/reqreorder/index.php?action=init` | HTTP 401 (no session); reorder POST anonymous → 403 | **PASS** |
+| 1488.6 | Guest user (role guest, mgt_view_req absent) → `action=init` | HTTP 403 + error `no_rights_msg`; reorder guest → 403 | **PASS** |
+| 1488.7 | Locale switcher → **Română** | Header "Reordonare cerințe", hint "Glisați și fixați pentru reordonare", Save "Salvează", back "Înapoi la vizualizatorul de specificație", footer rendered from `footers.reqReorder`; list rows fully translated, no raw `reqro.*` keys in DOM | **PASS** |
+| 1488.8 | Locale switcher → **English** (back) | English labels restored; no raw keys; rows render | **PASS** |
+| 1488.9 | reqSpecView toolbar: Reorder button (`#reorderLink`) visible | Button present on the spec viewer toolbar; click → Opens `reqReorder.html?req_spec_id=5&tproject_id=4` with the 4 requirements | **PASS** |
+| 1488.10 | i18n bundles validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 15 `reqro.*` keys + `footers.reqReorder`; all pass `python3 -m json.tool` | **PASS** |
+| 1488.11 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows after init/reorder/save calls; guest 403 logged only as audit/access entries, no exceptions; browser console 0 errors across EN/RO loads + drag/save | **PASS** |
+
+Result: **PASS — 11/11 PASS** — Issue #1488 fully modernized: BFF + Dashio screen + toolbar button + 10 i18n bundles + fixtures + regression suite all landed on the default branch.

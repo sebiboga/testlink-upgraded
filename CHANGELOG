@@ -147,6 +147,20 @@ Requirements:
   POST create via requirement_mgr::create_tc_from_requirement; entry button in
   reqSpecView.html toolbar; mgt_view_req+mgt_modify_req on owning project
   (401/400/403/404), forged req-id guard; rctc.* keys in all 10 bundles.
+- Reorder Requirements (reqReorder.html) - BFF api/reqreorder (#1488).
+  Replaces the last Requirements-area sub-screen still served by
+  lib/requirements/reqReorder.php (toolbar "Reorder requirements" entry on
+  reqSpecView.html): lists every requirement of the spec ordered by legacy
+  node_order (0-based, nodes_hierarchy) with per-row doc_id/name/
+  expected-coverage/coverage, localized status labels server-side; drag-drop +
+  Up/Down buttons + Save persist each node's node_order on nodes_hierarchy
+  (BFF POST ?action=reorder&req_spec_id=&tproject_id= with nodes_order[],
+  legacy change_order_bulk() port); GUI init calls the legacy get_requirements
+  join so forged requirement ids are rejected (membership on
+  requirements.srs_id); mgt_view_req/mgt_modify_req on owning project
+  (401/400/403/404/405 JSON; anon 401, guest 403 verified); Reorder toolbar
+  button ($actions->reqReorder in lib/functions/common.php); reqro.* (15) +
+  footers.reqReorder keys in all 10 bundles.
 - NFR Test Strategy chapters (strategy/nfr{Performance,Security,Usability,
   Accessibility,Compatibility,Reliability,Maintainability}.html) - the
   Test Strategy overview now serves 28 chapter cards (chapters 22-28 = the
