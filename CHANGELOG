@@ -347,6 +347,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   never rendered the locale switcher — the jQuery include the hub page already
   had (`testStrategy.html:72`) is now present on all chapter pages before
   `i18n.js`, restoring translation + locale switcher on every chapter (#1457).
+- Test Strategy "Introduction & Background" chapter
+  (`gui/templates/strategy/intro.html`): its `ts.intro*` content keys existed
+  only in `en.json` + `ro.json`, so for de/es/fr/it/ja/pt/ru/zh users the page
+  rendered literal keys (`ts.introHeader`, `ts.introC1Title`, ...) as visible
+  text — `TLi18n.t()` returns the raw key when the bundle entry is missing;
+  the 10 keys are now translated in all 8 remaining bundles (#1440).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom

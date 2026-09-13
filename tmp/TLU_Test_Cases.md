@@ -14054,3 +14054,47 @@ active locale, the locale switcher and the footer init all work. The hub page
 already had the include; the 20 chapter pages generated in `f934433d7`
 (Refs #1426, #1440-#1458) silently depended on it. Fix is one added line per
 file, identical URL to the hub — no layout/behavioral change otherwise.
+
+## Regression — Issue #1440: Test Strategy "Introduction & Background" chapter shows literal i18n keys outside en/ro
+
+**Screen:** `gui/templates/strategy/intro.html` (static chapter page, mainframe iframe).
+**Change (Refs #1440):** the chapter was implemented in `f934433d7` (feat(strategy): dedicated
+pages + nav sub-items for all 18 Test Strategy chapters) but the `ts.intro*` content keys were
+shipped only in `en.json` + `ro.json`. `TLi18n.t()` (`gui/templates/i18n/i18n.js:134-135`)
+returns the literal key for a missing bundle entry (`_strings[key] || key`), so for the 8 other
+locales — de, es, fr, it, ja, pt, ru, zh — the page rendered raw keys (`ts.introHeader`,
+`ts.introC1Title`, ...) as visible text. Fix: added the 10 content keys
+(`introHeader`, `introHeaderSub`, `introC1Title`, `introC1a/b/c`, `introC2Title`,
+`introC2a/b/c`) translated, to all 8 missing bundles, inserted after `ts.chapterIntroDesc`.
+**Preconditions:** TestLink at http://localhost:8082, login admin/admin, fresh-import DB.
+HUB keys `ts.chapterIntro` / `ts.chapterIntroDesc` were already present in all 10 bundles.
+Fix branch `fix/issue-1440` (commit `cbb2920f5`).
+
+Pre-fix repro (the symptom the fix removes): `intro.html?locale=de` showed document title
+`ts.introHeader` and body `ts.introHeaderSub`, `ts.introC1Title`, `ts.introC1a/b/c`,
+`ts.introC2Title`, `ts.introC2a/b/c`; en and ro rendered fine; hub keys (`ts.chapter*`,
+`ts.backToStrategy`, `ts.header`) translated in de.
+
+| # | Step | Expected post-fix result | Result |
+|---|------|--------------------------|--------|
+| 1440.1 | ASIDE → Test Strategy → **Introduction** | `intro.html` loads in the mainframe; header "Introduction & Background", sub "context and purpose of the Test Strategy document", 2 cards (Purpose of the document / Background, 3 bullets each), footer "Introduction & Background - Test Strategy", locale switcher rendered; console has **no** errors | **PASS** |
+| 1440.2 | Hub round-trip | `testStrategy.html` renders chapter 1 card "Introduction & Background" (icon fa-book, `ts.chapterIntro` description); **Open chapter** button → `gui/templates/strategy/intro.html` loads | **PASS** |
+| 1440.3 | `?locale=en` (fresh) | Title "Introduction & Background"; back-link "Back to Test Strategy"; switcher "English (wide/UK)" selected | **PASS** |
+| 1440.4 | Locale switch to Română | Reloads `?locale=ro`; title "Introducere și Context", card "Scopul documentului" + "Context", back-link "Înapoi la Strategia de Testare", footer "Introducere și Context - Strategia de Testare" | **PASS** |
+| 1440.5 | `?locale=de` | Title "Einleitung & Hintergrund", header sub "Kontext und Zweck des Teststrategie-Dokuments", cards "Zweck des Dokuments" / "Hintergrund", all 6 bullets translated, footer "Einleitung & Hintergrund - Teststrategie" — **zero literal `ts.intro*` keys** | **PASS** |
+| 1440.6 | `?locale=es` | Title "Introducción y Contexto", zero literal keys (title + header verified) | **PASS** |
+| 1440.7 | `?locale=fr` | Title "Introduction & Contexte", zero literal keys (title + header verified) | **PASS** |
+| 1440.8 | `?locale=it` | Title "Introduzione e Contesto", zero literal keys (title + header verified) | **PASS** |
+| 1440.9 | `?locale=ja` | Title "はじめに & 背景", zero literal keys (title + header verified) | **PASS** |
+| 1440.10 | `?locale=pt` | Title "Introdução e Contexto", zero literal keys (title + header verified) | **PASS** |
+| 1440.11 | `?locale=ru` | Title "Введение и контекст", zero literal keys (title + header verified) | **PASS** |
+| 1440.12 | `?locale=zh` | Title "引言与背景", zero literal keys (title + header verified) | **PASS** |
+| 1440.13 | Back to Test Strategy | Link returns to `gui/templates/strategy/testStrategy.html` (hub reloads) | **PASS** |
+| 1440.14 | i18n integrity | `ts.intro*` (10 keys) present in ALL 10 bundles (de/en/es/fr/it/ja/pt/ro/ru/zh); `python3 -m json.tool` valid on each; no hardcoded user-facing strings in `intro.html` | **PASS** |
+| 1440.15 | Event Viewer / console | `events` table gains **no** new ERROR/WARNING (log_level) rows during the suite (only the login INFO row); browser console clean on every locale | **PASS** |
+
+Result: **15/15 PASS** — **#1440 FIXED**: the Introduction & Background chapter page now
+translates correctly in all 10 locales. Root cause: `ts.intro*` content keys were missing from
+the 8 non-en/ro bundles and `TLi18n.t()` renders missing keys literally (i18n.js:134-135).
+Fix: 10 translated keys × 8 bundles. The sibling chapters share the same defect — filed as
+**#1486** (bug) so each chapter issue tracks its own key completion.
