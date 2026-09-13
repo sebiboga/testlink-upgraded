@@ -114,6 +114,19 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     out(['status' => 'ok', 'items' => $rights]);
 }
 
+// Route: GET /roles/meta/grants - user mgmt grant flags (mirror of legacy
+// getGrantsForUserMgmt()). Used by the modernized rolesView to gate UI
+// affordances per user right. Legacy parity: lib/usermanagement/rolesEdit.php:260
+// sets grants->mgt_view_events separately so the edit screen can render the
+// "Show event history" icon only when the right is granted (rolesEdit.tpl:68).
+if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'grants') {
+    $tprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+    $tplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+    $grants = getGrantsForUserMgmt($db, $currentUser, $tprojectID, $tplanID);
+    $grants->mgt_view_events = ($currentUser->hasRight($db, 'mgt_view_events') === 'yes') ? 'yes' : 'no';
+    out(['status' => 'ok', 'grants' => $grants]);
+}
+
 // Route: GET /roles/{id} - single role
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
     $r = tlRole::getByID($db, intval($segments[0]));
