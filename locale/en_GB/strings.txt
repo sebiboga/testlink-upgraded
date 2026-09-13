@@ -2330,6 +2330,13 @@ $TLS_href_test_strategy_training = "Training";
 $TLS_href_test_strategy_release = "Release";
 $TLS_href_test_strategy_bug_structure = "Bug Structure";
 $TLS_href_test_strategy_bug_lifecycle = "Bug Lifecycle";
+$TLS_href_test_strategy_performance = "Performance Testing";
+$TLS_href_test_strategy_security = "Security Testing";
+$TLS_href_test_strategy_usability = "Usability Testing";
+$TLS_href_test_strategy_accessibility = "Accessibility Testing";
+$TLS_href_test_strategy_compatibility = "Compatibility Testing";
+$TLS_href_test_strategy_reliability = "Reliability Testing";
+$TLS_href_test_strategy_maintainability = "Maintainability Testing";
 
 $TLS_install_header = "Install / Upgrade";$TLS_title_product_mgmt = "Test Project";
 $TLS_href_plan_define_priority = "Test Plan priority";

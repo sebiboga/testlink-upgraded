@@ -24,7 +24,7 @@ MAJOR AREAS
   palette) replacing the legacy Smarty layout. All screens rewritten as standalone
   HTML + JS + CSS pages under gui/templates/<area>/<screen>.html using DataTables,
   Bootstrap modals and Chart.js. No Smarty for modernized screens.
-- [BFF API LAYER] - 60 plain-PHP REST BFF endpoints (api/<area>/index.php) with
+- [BFF API LAYER] - 63 plain-PHP REST BFF endpoints (api/<area>/index.php) with
   session-based authentication, CSRF same-origin guard and JSON I/O. No framework.
 - [PHP 8.x COMPATIBILITY] - All PHP 8.x warnings resolved (43+ unique warning
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
@@ -44,7 +44,7 @@ MAJOR AREAS
 - [CI FACTORY] - 5 autonomous GitHub Actions workflows: fix-bug.yml (every 2h),
   implement-task-oldest.yml + implement-task-newest.yml (every 2h), merge-prs.yml
   (hourly), modernize.yml (manual, one screen per run).
-- [TESTING] - 181 numbered regression test-case suites in tmp/TLU_Test_Cases.md
+- [TESTING] - 184 numbered regression test-case suites in tmp/TLU_Test_Cases.md
   (13.4k lines, 3658 PASS results), executed and recorded per run. Event Viewer
   clean after each run.
 - [WIKI / DOCS] - Full GitHub Wiki (361 pages) + docs/ mirror, per-screen
@@ -139,6 +139,12 @@ Requirements:
   POST create via requirement_mgr::create_tc_from_requirement; entry button in
   reqSpecView.html toolbar; mgt_view_req+mgt_modify_req on owning project
   (401/400/403/404), forged req-id guard; rctc.* keys in all 10 bundles.
+- NFR Test Strategy chapters (strategy/nfr{Performance,Security,Usability,
+  Accessibility,Compatibility,Reliability,Maintainability}.html) - the
+  Test Strategy overview now serves 28 chapter cards (chapters 22-28 = the
+  seven NFR types), each chapter page also reachable from the ASIDE Test
+  Strategy submenu; ts.nfr{Type}* content keys + ts.chapter{Type}* overview
+  keys in all 10 bundles, href_test_strategy_* labels in the 3 php locales.
 
 Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
@@ -249,6 +255,10 @@ NEW FEATURES
   (lib/functions/markdown_tc_import.class.php, markdown_tc_export.class.php,
   api/testcasesimport, api/testcasesexport).
 - Quality Objectives & Risk Traceability Matrix (ISTQB) (#1280/#1307).
+- Non-Functional Requirements registry + 7 NFR Test Strategy chapters
+  (#1052/#1462) - per-project NFR CRUD screen (api/nfr) and chapters
+  22-28 (Performance/Security/Usability/Accessibility/Compatibility/
+  Reliability/Maintainability) in the Test Strategy overview + ASIDE.
 - Test Strategy: ASIDE section with General Overview, Scope, Exit Criteria
   chapter pages (#1425/#1426/#1431).
 - Native GitHub Code Tracker via GitHub REST API (#433/#771/#813).

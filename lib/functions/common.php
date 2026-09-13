@@ -2126,6 +2126,13 @@ function getActions(&$gui,$baseURL) {
   $actions->testStrategyRelease = "/gui/templates/strategy/release.html?{$ctx}";
   $actions->testStrategyBugStructure = "/gui/templates/strategy/bugStructure.html?{$ctx}";
   $actions->testStrategyBugLifecycle = "/gui/templates/strategy/bugLifecycle.html?{$ctx}";
+  $actions->testStrategyPerformance = "/gui/templates/strategy/nfrPerformance.html?{$ctx}";
+  $actions->testStrategySecurity = "/gui/templates/strategy/nfrSecurity.html?{$ctx}";
+  $actions->testStrategyUsability = "/gui/templates/strategy/nfrUsability.html?{$ctx}";
+  $actions->testStrategyAccessibility = "/gui/templates/strategy/nfrAccessibility.html?{$ctx}";
+  $actions->testStrategyCompatibility = "/gui/templates/strategy/nfrCompatibility.html?{$ctx}";
+  $actions->testStrategyReliability = "/gui/templates/strategy/nfrReliability.html?{$ctx}";
+  $actions->testStrategyMaintainability = "/gui/templates/strategy/nfrMaintainability.html?{$ctx}";
   $p2l = get_object_vars($actions);
   foreach( $p2l as $pp => $val) {
     $gui->$pp = $actions->$pp;

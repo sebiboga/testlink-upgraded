@@ -76,6 +76,13 @@ function strategyChapters() {
         array('num' => 19, 'icon' => 'fa-sliders-h',               'key' => 'ts.chapterSeverity',       'descKey' => 'ts.chapterSeverityDesc',       'url' => '/gui/templates/projects/severityConfig.html'),
         array('num' => 20, 'icon' => 'fa-database',                'key' => 'ts.chapterBugStructure',   'descKey' => 'ts.chapterBugStructureDesc',   'url' => '/gui/templates/strategy/bugStructure.html'),
         array('num' => 21, 'icon' => 'fa-arrows-alt-h',            'key' => 'ts.chapterBugLifecycle',   'descKey' => 'ts.chapterBugLifecycleDesc',   'url' => '/gui/templates/strategy/bugLifecycle.html'),
+        array('num' => 22, 'icon' => 'fa-tachometer-alt',          'key' => 'ts.chapterPerformance',     'descKey' => 'ts.chapterPerformanceDesc',     'url' => '/gui/templates/strategy/nfrPerformance.html'),
+        array('num' => 23, 'icon' => 'fa-shield-alt',              'key' => 'ts.chapterSecurity',        'descKey' => 'ts.chapterSecurityDesc',        'url' => '/gui/templates/strategy/nfrSecurity.html'),
+        array('num' => 24, 'icon' => 'fa-hand-pointer',            'key' => 'ts.chapterUsability',       'descKey' => 'ts.chapterUsabilityDesc',       'url' => '/gui/templates/strategy/nfrUsability.html'),
+        array('num' => 25, 'icon' => 'fa-universal-access',        'key' => 'ts.chapterAccessibility',   'descKey' => 'ts.chapterAccessibilityDesc',   'url' => '/gui/templates/strategy/nfrAccessibility.html'),
+        array('num' => 26, 'icon' => 'fa-sync-alt',                'key' => 'ts.chapterCompatibility',   'descKey' => 'ts.chapterCompatibilityDesc',   'url' => '/gui/templates/strategy/nfrCompatibility.html'),
+        array('num' => 27, 'icon' => 'fa-life-ring',               'key' => 'ts.chapterReliability',     'descKey' => 'ts.chapterReliabilityDesc',     'url' => '/gui/templates/strategy/nfrReliability.html'),
+        array('num' => 28, 'icon' => 'fa-cogs',                    'key' => 'ts.chapterMaintainability', 'descKey' => 'ts.chapterMaintainabilityDesc', 'url' => '/gui/templates/strategy/nfrMaintainability.html'),
     );
 }
 

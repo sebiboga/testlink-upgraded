@@ -5,7 +5,9 @@ Refs: issue #1431 · issue #1426 · issue #1425 · issue #1423
 ## What this screen does
 
 The **Test Strategy General Overview** is a Dashio screen that provides
-a hub/map of the 18 ISTQB-style chapters that make up a Test Strategy document.
+a hub/map of the standard ISTQB-style chapters that make up a Test Strategy
+document — currently 28 (18 standard + Severity Configuration + Bug Structure +
+Bug Lifecycle + the 7 NFR type chapters).
 It lives in the ASIDE under "Test Strategy" and is the landing page for the
 entire Test Strategy section.
 
@@ -19,17 +21,21 @@ via `TLi18n` keys — zero hardcoded text.
 | Dashio screen | `gui/templates/strategy/testStrategy.html` |
 | Scope sub-page | `gui/templates/strategy/scope.html` |
 | Exit Criteria sub-page | `gui/templates/strategy/exitCriteria.html` |
+| Bug Structure sub-page | `gui/templates/strategy/bugStructure.html` (Refs #1289) |
+| Bug Lifecycle sub-page | `gui/templates/strategy/bugLifecycle.html` (Refs #1290) |
+| NFR chapter sub-pages | `gui/templates/strategy/nfr{Performance,Security,Usability,Accessibility,Compatibility,Reliability,Maintainability}.html` (Refs #1052, #1462) |
 | Severity Configuration | `gui/templates/projects/severityConfig.html` (Refs #1294) |
 | BFF API | `api/strategy/index.php` |
-| i18n keys | `gui/templates/i18n/*.json` (79 keys under `ts.*`) |
-| ASIDE links | `lib/functions/common.php` → `$actions->testStrategy*` |
-| ASIDE menu | `gui/templates/dashio/aside.tpl` (Test Strategy submenu) |
+| NFR Requirements screen (Requirements ASIDE) | `gui/templates/requirements/nfrRequirements.html` + `api/nfr/index.php` (Refs #1052, #1462) |
+| i18n keys | `gui/templates/i18n/*.json` (`ts.chapter*` key pairs per chapter + screen keys; 14 `ts.chapter{Type}*` keys for chapters 22–28) |
+| ASIDE links | `lib/functions/common.php` → `$actions->testStrategy*` + `$actions->nfrRequirements` |
+| ASIDE menu | `gui/templates/dashio/aside.tpl` (Test Strategy submenu + Requirements → NFR Requirements) |
 
-## The 19 chapter cards
+## The 28 chapter cards
 
 Each card renders:
 
-- a **number badge** (1–19) in the teal circle;
+- a **number badge** (1–28) in the teal circle;
 - a chapter **icon** and **title**;
 - a short chapter **description**;
 - an **Open chapter** button **only** when a dedicated page exists.
@@ -55,8 +61,17 @@ Each card renders:
 | 17 | Training Plan | — |
 | 18 | Release Information | — |
 | 19 | Severity Configuration | `gui/templates/projects/severityConfig.html` |
+| 20 | Bug Structure | `gui/templates/strategy/bugStructure.html` |
+| 21 | Bug Lifecycle | `gui/templates/strategy/bugLifecycle.html` |
+| 22 | Non-Functional: Performance | `gui/templates/strategy/nfrPerformance.html` |
+| 23 | Non-Functional: Security | `gui/templates/strategy/nfrSecurity.html` |
+| 24 | Non-Functional: Usability | `gui/templates/strategy/nfrUsability.html` |
+| 25 | Non-Functional: Accessibility | `gui/templates/strategy/nfrAccessibility.html` |
+| 26 | Non-Functional: Compatibility | `gui/templates/strategy/nfrCompatibility.html` |
+| 27 | Non-Functional: Reliability | `gui/templates/strategy/nfrReliability.html` |
+| 28 | Non-Functional: Maintainability | `gui/templates/strategy/nfrMaintainability.html` |
 
-Total: **19 cards**. Chapters without a dedicated page render no action button (by
+Total: **28 cards**. Chapters without a dedicated page render no action button (by
 design — the card is the entry point for future chapter pages).
 
 ## BFF API — api/strategy/index.php
@@ -66,9 +81,10 @@ design — the card is the entry point for future chapter pages).
 | `GET ?action=chapters` | Session required (401 anonymous) | `{ status:'ok', chapters: [...], footer: {...}, grants:{strategy_read:true} }` |
 | `GET ?action=info` | Session required | `{ status:'ok', footer: {...}, grants:{strategy_read:true} }` |
 
-**`chapters` response** — the `chapters` array contains 19 entries (18 ISTQB
-chapters + 19: Severity Configuration). Each entry has:
-- `num` — chapter number (1–19)
+**`chapters` response** — the `chapters` array contains 28 entries (18 ISTQB
+chapters + Severity Configuration + Bug Structure + Bug Lifecycle + the 7 NFR
+type chapters). Each entry has:
+- `num` — chapter number (1–28)
 - `icon` — FontAwesome icon class (e.g. `fa-book`)
 - `key` — TLi18n title key (e.g. `ts.chapterIntro`)
 - `descKey` — TLi18n description key (e.g. `ts.chapterIntroDesc`)
@@ -82,23 +98,31 @@ same-origin CSRF guard), 400 (`Unknown action`).
 
 ## ASIDE link routing
 
-The ASIDE "Test Strategy" submenu items are wired through
+The **ASIDE "Test Strategy"** submenu items are wired through
 `lib/functions/common.php`:
 
 ```php
 $actions->testStrategy = "/gui/templates/strategy/testStrategy.html?{$ctx}";
 $actions->testStrategyScope = "/gui/templates/strategy/scope.html?{$ctx}";
 $actions->testStrategyExit = "/gui/templates/strategy/exitCriteria.html?{$ctx}";
+// ... bug chapters (testStrategyBugStructure, testStrategyBugLifecycle) and the
+// 7 NFR chapters (testStrategyPerformance … testStrategyMaintainability) ...
+$actions->nfrRequirements = "/gui/templates/requirements/nfrRequirements.html?{$ctx}";
 ```
 
 `gui/templates/dashio/aside.tpl` uses `{$gui->uri->testStrategy}`,
-`{$gui->uri->testStrategyScope}`, `{$gui->uri->testStrategyExit}`.
+`{$gui->uri->testStrategyScope}`, `{$gui->uri->testStrategyExit}` and the
+corresponding `{$gui->uri->testStrategy*}` / `{$gui->uri->nfrRequirements}`
+tokens for the newer items.
 
 ## i18n coverage
 
-All 79 `ts.*` keys are present in every locale bundle (en/ro/de/es/fr/it/ja/pt/ru/zh)
-and were validated via `python3 -m json.tool` before commit. The `ts.*` namespace
-covers all three content screens (overview, scope, exit criteria).
+The `ts.*` namespace covers all content screens (overview, scope, exit criteria,
+bug chapters, NFR chapters); the NFR type slugs share the `nfr.types.*` labels
+used by the NFR Requirements screen. All bundles are valid JSON
+(`python3 -m json.tool`) and carry the same key sets: 10 bundles, each with
+`ts.chapter<X>`/`ts.chapter<X>Desc` key pairs for all 28 chapters plus the 70
+`ts.nfr{Type}*` chapter-content keys and 40 `nfr.*` NFR Requirements screen keys.
 
 **Issue #1431** added the initial keys as English copies in all 10 bundles.
 **Issue #1426** upgraded the 8 non-en/ro bundles with **real native translations**

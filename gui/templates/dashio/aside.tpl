@@ -158,6 +158,13 @@ Left side menu
                 <li><a href="{$gui->uri->testStrategyRelease}" target="mainframe"><i class="fas fa-rocket"></i> {$labels.href_test_strategy_release}</a></li>
                 <li><a href="{$gui->uri->testStrategyBugStructure}" target="mainframe"><i class="fas fa-database"></i> {$labels.href_test_strategy_bug_structure}</a></li>
                 <li><a href="{$gui->uri->testStrategyBugLifecycle}" target="mainframe"><i class="fas fa-arrows-alt-h"></i> {$labels.href_test_strategy_bug_lifecycle}</a></li>
+                <li><a href="{$gui->uri->testStrategyPerformance}" target="mainframe"><i class="fas fa-tachometer-alt"></i> {$labels.href_test_strategy_performance}</a></li>
+                <li><a href="{$gui->uri->testStrategySecurity}" target="mainframe"><i class="fas fa-shield-alt"></i> {$labels.href_test_strategy_security}</a></li>
+                <li><a href="{$gui->uri->testStrategyUsability}" target="mainframe"><i class="fas fa-hand-pointer"></i> {$labels.href_test_strategy_usability}</a></li>
+                <li><a href="{$gui->uri->testStrategyAccessibility}" target="mainframe"><i class="fas fa-universal-access"></i> {$labels.href_test_strategy_accessibility}</a></li>
+                <li><a href="{$gui->uri->testStrategyCompatibility}" target="mainframe"><i class="fas fa-sync-alt"></i> {$labels.href_test_strategy_compatibility}</a></li>
+                <li><a href="{$gui->uri->testStrategyReliability}" target="mainframe"><i class="fas fa-life-ring"></i> {$labels.href_test_strategy_reliability}</a></li>
+                <li><a href="{$gui->uri->testStrategyMaintainability}" target="mainframe"><i class="fas fa-cogs"></i> {$labels.href_test_strategy_maintainability}</a></li>
                 <li><a href="gui/templates/projects/severityConfig.html" target="mainframe"><i class="fas fa-sliders-h"></i> {$labels.href_severity_config}</a></li>
               </ul>
             </li>
