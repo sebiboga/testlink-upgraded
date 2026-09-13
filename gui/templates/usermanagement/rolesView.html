@@ -91,7 +91,10 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <input type="hidden" id="editRoleId">
         <div id="roleLockNote" class="alert alert-warning" style="display:none;font-size:12px;padding:8px 12px;"><i class="fa fa-lock"></i> <span data-i18n="role.editLocked">This role is defined by the system and cannot be modified.</span></div>
         <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-size:12px;font-weight:600;" data-i18n="role.roleName">Role Name *</label>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="font-size:12px;font-weight:600;margin:0;" data-i18n="role.roleName">Role Name *</label>
+            <button type="button" class="btn btn-link" id="btnRoleEventHistory" style="display:none;font-size:13px;padding:0 4px;" onclick="showRoleEventHistory()" data-i18n-title="role.showEventHistory"><i class="fa fa-info-circle" style="color:#4ECDC4;"></i></button>
+          </div>
           <input type="text" id="editRoleName" class="form-control" maxlength="100" style="font-size:13px;">
         </div>
         <div class="form-group" style="margin-bottom:12px;">
@@ -135,6 +138,13 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
   </div>
 </div>
 
+<!-- Legacy parity: rolesEdit.tpl:69-71 + testlink_library.js showEventHistoryFor.
+     Submits to the event viewer filtered by object_type=roles + object_id=<roleid>. -->
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="roles">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
@@ -145,6 +155,7 @@ var API = '/api/roles/index.php';
 var table = null;
 var rightsMap = {};
 var allItems = [];
+var canViewEvents = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -183,6 +194,7 @@ function loadMeta() {
 function loadRoles() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    canViewEvents = !!(r.rights && r.rights.canViewEvents);
     renderTable(r.items);
     $('#footerText').text(TLi18n.t('role.rolesCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
@@ -274,6 +286,7 @@ function showCreateModal() {
   $('#editRoleDesc').val('');
   $('#rightsContainer').html(buildRightsCheckboxes([]));
   $('#modalError').hide();
+  $('#btnRoleEventHistory').hide();
   setRoleEditable(true, false);
   $('#roleModal').modal('show');
 }
@@ -288,8 +301,21 @@ function editRole(id) {
     $('#rightsContainer').html(buildRightsCheckboxes(role.rights));
     $('#modalError').hide();
     setRoleEditable(!!role.canEdit, !!role.isAdmin);
+    $('#btnRoleEventHistory').toggle(!!canViewEvents && !!role.id);
     $('#roleModal').modal('show');
   });
+}
+
+/**
+ * Legacy parity: rolesEdit.tpl + testlink_library.js showEventHistoryFor(roleid,'roles')
+ * (rolesEdit.tpl:69-71). Opens the event viewer for the role being edited,
+ * filtered to object_type=roles, only when the current user holds mgt_view_events.
+ */
+function showRoleEventHistory() {
+  var id = $('#editRoleId').val();
+  if (!id) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
 }
 
 function saveRole() {

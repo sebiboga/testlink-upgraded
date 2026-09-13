@@ -97,7 +97,15 @@ if ($method === 'GET' && empty($segments)) {
         $json['isSystem'] = intval($r->dbID) <= TL_LAST_SYSTEM_ROLE;
         $items[] = $json;
     }
-    out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
+    // Legacy parity: lib/usermanagement/rolesEdit.php:260 the show-event-history
+    // info icon next to the role name is rendered only when the current user
+    // holds mgt_view_events (plain user right, no tproject context).
+    out([
+        'status' => 'ok',
+        'items' => $items,
+        'total' => count($items),
+        'rights' => ['canViewEvents' => (bool)$currentUser->hasRight($db, 'mgt_view_events')],
+    ]);
 }
 
 // Route: GET /roles/meta/rights - all available rights
@@ -110,7 +118,11 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0])) {
     $r = tlRole::getByID($db, intval($segments[0]));
     if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
-    out(['status' => 'ok', 'item' => roleToJSON($r)]);
+    out([
+        'status' => 'ok',
+        'item' => roleToJSON($r),
+        'rights' => ['canViewEvents' => (bool)$currentUser->hasRight($db, 'mgt_view_events')],
+    ]);
 }
 
 // Route: POST /roles - create role
