@@ -111,7 +111,7 @@ function buildOrderedReqs($specId) {
     // stores the requirement node itself; its LATEST version is the child
     // node with type requirement_version and max id). Titles/order live on
     // the requirement node, req_doc_id/status/type/version on req_versions.
-    $sql = "SELECT R.id, NH.name AS title, V.req_doc_id, NH.node_order," .
+    $sql = "SELECT R.id, NH.name AS title, R.req_doc_id, NH.node_order," .
            " V.status, V.type, V.version" .
            " FROM requirements R" .
            " JOIN nodes_hierarchy NH ON NH.id = R.id" .
