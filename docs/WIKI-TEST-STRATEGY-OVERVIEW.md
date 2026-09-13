@@ -227,3 +227,34 @@ Screenshots:
 ![General Overview note — before fix (claims 18, grid shows 28)](screenshots/issue-1456-overview-stale-note-before.png)
 ![General Overview note — after fix (count-free)](screenshots/issue-1456-overview-note-after.png)
 ![Training Plan chapter in Romanian](screenshots/issue-1456-training-ro.png)
+
+## Bugfix — Issue #1442 (Scope chapter verified + header icon fix)
+
+**Symptom.** `gui/templates/strategy/scope.html` rendered the **Objectives**
+chapter icon `fa-bullseye` in its chapter header, while the canonical Scope
+icon is `fa-expand-arrows-alt` (the icon this tracking issue specifies, used by
+`aside.tpl:143` and the BFF chapter map `api/strategy/index.php:60`). A grep
+across all 28 `gui/templates/strategy/*.html` pages confirmed `scope.html` was
+the **only** chapter page whose header icon mismatched its canonical BFF icon.
+
+**Root cause.** The page was created in `08c334b4a` (together with
+`exitCriteria.html`) as the first pair of chapter sub-pages; at that time
+`fa-bullseye` was the initial icon used for the Scope entry both in
+`scope.html` and in the ASIDE sub-menu (`aside.tpl:141`). When `f934433d7`
+canonized `fa-expand-arrows-alt` (ASIDE + BFF map) and added the remaining
+chapter pages, the `scope.html` header — the source copy created at the start —
+was never aligned to the canonical icon.
+
+**Fix (branch `fix/issue-1442-scope-icon`):** `scope.html:31`
+`fas fa-bullseye` → `fas fa-expand-arrows-alt` (one line; no BFF/JS/i18n
+touched).
+
+**Regression:** suite `Regression — Issue #1442` in `tmp/TLU_Test_Cases.md`
+(**9/9 PASS**): chapter page EN/RO, header icon `fa-expand-arrows-alt` post-fix
+(JS-measured), ASIDE wiring, overview card #3 "Scope" + Open chapter, all 28
+chapter header icons match their canonical icons, BFF 28 entries + `ts.scope*`
+(9 keys) in all 10 bundles, `events` table clean, browser console clean.
+
+Screenshots:
+![Scope chapter header (English, fixed icon)](screenshots/issue-1442-scope-en-fixed.png)
+![Scope chapter (Romanian, fixed icon)](screenshots/issue-1442-scope-ro-fixed.png)

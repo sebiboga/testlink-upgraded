@@ -441,6 +441,20 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   Test Strategy …") in all 10 bundles + the `testStrategy.html:63` fallback,
   so it can never go stale again; 8/8 PASS regression suite,
   browser/console/Event-Viewer clean (Refs #1456).
+- Test Strategy "Scope" chapter (tracking issue #1442): verified fully
+  implemented and error-free — dedicated page
+  `gui/templates/strategy/scope.html`, `fa-expand-arrows-alt` icon, ASIDE
+  sub-item **Scope** (`aside.tpl:143`,
+  `href_test_strategy_scope` in en_GB/en_US/ro_RO), General Overview CHAPTERS
+  card #3 "Scope" with **Open chapter** button (chapter map entry in
+  `api/strategy/index.php:60`), In-scope (3 bullets) + Out-of-scope (2 bullets)
+  content, and all 9 `ts.scope*` i18n keys present in all 10 locale bundles.
+  While verifying, a real defect was found and fixed: the chapter header
+  rendered the *Objectives* icon `fa-bullseye` instead of the Scope chapter's
+  canonical `fa-expand-arrows-alt` (specified in the issue, used by
+  `aside.tpl:143` and the BFF map) — `scope.html:31` now uses
+  `fa-expand-arrows-alt`; the only chapter page whose header icon mismatched
+  its canonical icon (Refs #1442).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom
