@@ -34,6 +34,21 @@ if (is_null($currentUser)) {
     exit;
 }
 
+// Legacy parity: lib/usermanagement/rolesView.php checkRights() and
+// rolesEdit.php -> $user->hasRight($db,"role_management"). Every role
+// management entry point (list/view/create/edit/duplicate/delete/assign)
+// requires the role_management right. Without it the BFF refuses ANY route
+// (403), mirroring the legacy access-denied behavior for unauthorized users.
+if (!$currentUser->hasRight($db, 'role_management')) {
+    logAuditEvent(TLS("audit_security_user_right_missing",
+                      $currentUser->login,
+                      basename($_SERVER['SCRIPT_NAME']),
+                      $_SERVER['REQUEST_METHOD']),
+                  'AUTH', $currentUser->dbID, 'roles');
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => 'role_management']);
+}
+
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/roles(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');

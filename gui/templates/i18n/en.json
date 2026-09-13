@@ -2138,6 +2138,7 @@
   "role.error.save": "Error saving role",
   "role.id": "ID",
   "role.name": "Name",
+  "role.noRights": "You do not have the rights required to manage roles (role_management right required).",
   "role.rights": "Rights",
   "role.roleName": "Role Name",
   "role.rolesCount": "{n} roles",

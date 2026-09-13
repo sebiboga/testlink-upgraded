@@ -52,6 +52,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="tabs-bar" id="tabsBar"></div>
 
+<div id="denyBox" style="display:none;padding:24px;text-align:center;background:#fff;margin:24px;border-radius:8px;font-size:14px;"><i class="fa fa-lock"></i> <span data-i18n="role.noRights">You do not have the rights required to manage roles (role_management right required).</span></div>
+
 <div class="toolbar">
   <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="role.createRole">Create Role</span></button>
   <span style="flex:1"></span>
@@ -172,6 +174,8 @@ function loadMeta() {
     allRights = r.items;
     rightsMap = {};
     $.each(r.items, function(i, right) { rightsMap[right.id] = right.description || right.name; });
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
   });
 }
 
@@ -180,7 +184,18 @@ function loadRoles() {
     allItems = r.items;
     renderTable(r.items);
     $('#footerText').text(TLi18n.t('role.rolesCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
+    showNoAccess();
   });
+}
+
+function showNoAccess() {
+  $('#tabsBar').hide();
+  $('.toolbar').hide();
+  $('.table-wrap').hide();
+  $('#footerText').hide();
+  $('#denyBox').show();
 }
 
 function renderTable(items) {
