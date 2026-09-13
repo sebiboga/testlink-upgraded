@@ -300,9 +300,11 @@ function saveRole() {
 
 function confirmDelete(id) {
   var name = '';
+  var isSystem = false;
   if (allItems) {
-    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; isSystem = x.isSystem ? true : false; return false; } });
   }
+  if (isSystem) { alert(TLi18n.t('role.systemDeleteDenied')); return; }
   $.getJSON(API + '/' + id + '/users', function(r) {
     var items = r.items || [];
     var userCount = items.length;

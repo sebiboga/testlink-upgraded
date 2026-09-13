@@ -2144,6 +2144,7 @@
   "role.selectAll": "Select All",
   "role.selectAtLeastOne": "select at least one",
   "role.system": "System",
+  "role.systemDeleteDenied": "System roles cannot be deleted.",
   "role.type": "Type",
   "role.validation.nameRequired": "Role name is required.",
   "role.validation.rightsRequired": "Select at least one right.",

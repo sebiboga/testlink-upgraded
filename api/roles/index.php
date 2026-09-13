@@ -65,11 +65,10 @@ function getAllRights($db) {
 if ($method === 'GET' && empty($segments)) {
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_FULL);
     $items = [];
-    $systemRoleId = 3;
     foreach ($roles as $r) {
         if ($r->dbID == TL_ROLES_INHERITED) continue;
         $json = roleToJSON($r);
-        $json['isSystem'] = intval($r->dbID) <= intval($systemRoleId);
+        $json['isSystem'] = intval($r->dbID) <= TL_LAST_SYSTEM_ROLE;
         $items[] = $json;
     }
     out(['status' => 'ok', 'items' => $items, 'total' => count($items)]);
@@ -151,8 +150,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0])) {
 // Route: DELETE /roles/{id} - delete role
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0])) {
     $id = intval($segments[0]);
-    $systemRoleId = 3;
-    if ($id <= $systemRoleId) {
+    if ($id <= TL_LAST_SYSTEM_ROLE) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Cannot delete system role']);
     }
