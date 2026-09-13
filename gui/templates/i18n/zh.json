@@ -3897,5 +3897,15 @@
   "usergrid.roleId": "角色 ID",
   "usergrid.showAllColumns": "显示所有列",
   "usergrid.userId": "用户 ID",
-  "version": "版本"
+  "version": "版本",
+  "esr.historyOn": "History: ON",
+  "esr.historyOff": "History: OFF",
+  "esr.historyToggleOn": "Show full execution history",
+  "esr.historyToggleOff": "Show only the latest execution",
+  "esr.lastExecAnyBuild": "Latest execution (any build)",
+  "esr.lastExecCurrentBuild": "Last execution (current build)",
+  "esr.executionHistory": "Execution history",
+  "esr.actions": "Actions",
+  "esr.attachFiles": "Attach files to this execution",
+  "esr.status": "Status"
 }

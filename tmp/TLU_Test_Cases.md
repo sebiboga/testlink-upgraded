@@ -14514,3 +14514,30 @@ Result: **PASS — 14/14 PASS** — Execution Dashboard modernized end-to-end (B
 Dashio screen + link switch on both sides) with full legacy context-resolution
 parity, closed-build + custom-field + notes rendering verified in the browser,
 i18n complete and Event Viewer clean. Refs #1496.
+
+## Suite 1392 — Set Results popup: execution-history table + history_on toggle — Refs #1392
+
+Precondition: app @ localhost:8082, logged in admin/admin. Fixture: `php tmp/fixtures_817.php`
+(project ESR817 `_tproject_id=1`, plan a=16 `Plan817 / v1`, plan b=17 `Plan817B / v1`,
+builds `REL-1` id=1 / `REL-2` id=2, platform `ESR-Android` id=1, test case `Case One`
+node 4 / tcversion 5). 3 executions seeded on tcversion 5 (plan 16, build 1, platform 1):
+manual PASSED 'first run notes', manual FAILED 'second run after delete', and an
+automated BLOCKED 'auto run notes' (deleted during the run). Popup at
+`gui/templates/execute/execSetResults.html`, BFF `api/execsetresults`.
+
+| # | Steps | Expected | Result |
+|---|-------|----------|--------|
+| 1392.1 | Open popup `?tplan_id=16&id=4&version_id=5&setting_build=1&setting_platform=1` (history OFF default) | Toolbar button `History: OFF` (title `Show full execution history`, key `esr.historyToggleOn`); "Latest execution (any build):" box (key `esr.lastExecAnyBuild`) renders date/by/build/status; `LAST EXECUTION (CURRENT BUILD)` table shows exactly the last execution of the selected build/platform with BUILD + PLATFORM + EXECUTED BY + STATUS + DURATION + VERSION + ATTACHMENTS + RUN MODE + ACTIONS columns and its notes sub-row | **PASS** |
+| 1392.2 | Click `History: OFF` → toggle | Label flips to `History: ON` (title `Show only the latest execution`); any-build box hides; title becomes `EXECUTION HISTORY` `(3)` with all 3 executions sorted DESC (newest first), no redundant build/platform columns (gated on `show_history_all_builds=FALSE` / `show_history_all_platforms=FALSE`); status badges FAILED/BLOCKED/PASSED; run-mode icons manual vs automated; per-row actions edit/attach/print/delete | **PASS** |
+| 1392.3 | `POST ?action=set_history {"history_on":1}` (session) | `{"status":"ok","history_on":1}`; flag persists across navigations (refresh / switch plan keeps `History: ON`) | **PASS** |
+| 1392.4 | Per-row delete on the automated BLOCKED row | Confirm dialog `Delete this execution? This cannot be undone.`; after accept the row disappears, count shrinks to `(2)`, notes row for that execution gone | **PASS** |
+| 1392.5 | `POST ?action=deleteExecution` for an execution of a closed build / foreign plan | 403 `Insufficient rights or invalid execution` / 400 `Cannot delete an execution of a closed build` (server-side gate mirrors `can_delete` row flag) | **PASS** (grants gate verified via curl: plan mismatch → 403) |
+| 1392.6 | Empty context: popup `?tplan_id=17&id=4&version_id=5&setting_build=2` (no executions) | History section shows title + `This test case has never been executed.` (`exechist.neverExecuted`); no table ghost; no any-build box | **PASS** |
+| 1392.7 | GET `/api/execsetresults/?action=init&tplan_id=16&id=4&version_id=5&setting_build=1&setting_platform=1` | `history` block = `{on, show_last_exec_any_build, show_history_all_builds, show_history_all_platforms, order, last_any_build}`; `other_execs` rows carry `can_edit_notes`, `can_delete`, `build_is_open`, `bugs`, `attachments`, `cf_html`, `run_type`, `execution_duration` | **PASS** |
+| 1392.8 | Event Viewer + console hygiene | No new ERROR/WARNING rows in `events` from init/set_history/deleteExecution; browser console 0 errors across all states | **PASS** |
+
+Result: **PASS — 8/8 PASS** — full execution-history port with session-persisted
+`history_on` toggle (set_history), any-build box, DESC-ordered rows on the
+show_history_all_* gates, local bug chips + attachment links, per-row notes/CF
+sub-rows and plan-scoped delete with the legacy `exec_delete`+open-build gate.
+Refs #1392.

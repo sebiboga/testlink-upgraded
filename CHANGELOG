@@ -426,6 +426,20 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   screen). New `esr.issueTracker..copyIssuesDone` keys in all 10 bundles + the
   `tc_name`/`tc_external_id`/`github_bug_created`/`github_bug_comment` server
   labels in all 10 `locale/*/strings.txt` (Refs #1393).
+- Set Results popup: execution-history table + history_on toggle restored —
+  BFF `init` now returns a `history` block (on/show_last_exec_any_build/
+  show_history_all_builds/show_history_all_platforms/order/last_any_build)
+  and `other_execs[]` (per-row `can_edit_notes`, `can_delete`, build_is_open,
+  bugs, attachments, `cf_html`, run_type, execution_duration) mirroring legacy
+  `manage_history_on()` + `getOtherExecutions()`; new session-persisted
+  `POST ?action=set_history` and a plan-scoped `?action=deleteExecution`
+  (exec_delete + open build). Popup toolbar gets the History ON/OFF toggle
+  (session-persisted), the "Latest execution (any build)" box gated on
+  `show_last_exec_any_build`, and the full exec-history table DESC-ordered on
+  the show_history_all_* gates with per-row edit/attachments/bugs/delete/
+  run-mode/print actions + notes/CF sub-rows. New `esr.history*`,
+  `esr.lastExecAnyBuild/CurrentBuild`, `esr.executionHistory`, `esr.actions`,
+  `esr.attachFiles`, `esr.status` keys in all 10 locale bundles (Refs #1392).
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.

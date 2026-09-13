@@ -1426,6 +1426,229 @@ $action = $_GET['action'] ?? '';
 $action = isset($_REQUEST['action']) ? $_REQUEST['action'] : $action;
 
 // ---------------------------------------------------------------------------
+// Issue #1392: execution-history + history_on toggle (legacy
+// execSetResults.php manage_history_on():836-860 + getOtherExecutions():1868).
+// The history_on flag is session-scoped like the legacy flow (POST button →
+// $_SESSION['history_on'] → exec_cfg->history_on default). When ON the init
+// payload carries the FULL other_execs set (all builds/platforms per
+// show_history_all_*), when OFF only the last execution of the selected
+// build/platform plus the "Latest execution (any build)" box data
+// (legacy map_last_exec_any_build, show_last_exec_any_build gate).
+// ---------------------------------------------------------------------------
+function esrHistoryOn($execCfg, $requestOn = null) {
+    if ($requestOn !== null) {
+        $on = intval($requestOn) ? 1 : 0;
+        $_SESSION['history_on'] = $on;
+        return $on;
+    }
+    if (isset($_SESSION['history_on'])) {
+        return $_SESSION['history_on'] ? 1 : 0;
+    }
+    return (!empty($execCfg->history_on)) ? 1 : 0;
+}
+
+/**
+ * Issue #1392: per-execution linked-bug chips for the history table. Local
+ * enrichment only — no live tracker getIssue() round-trip per bug (mirrors
+ * api/execute execTestIssueViewUrl): the view URL comes from the instantiated
+ * tracker adapter (buildViewBugURL is a cheap string builder, GitHub adapter
+ * does not open sockets for it).
+ */
+function esrHistoryBugs($db, $its, $enabled, $executionId) {
+    $bugs = [];
+    if ($executionId <= 0) { return $bugs; }
+    $tables = tlObjectWithDB::getDBTables(array('execution_bugs', 'tcsteps'));
+    $brs = $db->get_recordset(
+        "SELECT EB.bug_id, EB.tcstep_id, S.step_number" .
+        " FROM {$tables['execution_bugs']} EB" .
+        " LEFT JOIN {$tables['tcsteps']} S ON S.id = EB.tcstep_id" .
+        " WHERE EB.execution_id = " . intval($executionId) .
+        " ORDER BY EB.tcstep_id, EB.bug_id");
+    if (is_null($brs)) { return $bugs; }
+    $useITS = ($enabled && !is_null($its));
+    foreach ($brs as $br) {
+        $id = strval($br['bug_id']);
+        $url = '';
+        if ($useITS) {
+            try { $url = strval($its->buildViewBugURL($id)); }
+            catch (\Throwable $e) { $url = ''; }
+        }
+        $bugs[] = [
+            'id' => $id,
+            'bug_url' => $url,
+            'is_resolved' => 0,
+            'tcstep_id' => intval($br['tcstep_id'] ?? 0),
+            'step_number' => intval($br['step_number'] ?? 0),
+        ];
+    }
+    return $bugs;
+}
+
+/**
+ * Issue #1392: build the execution-history payload block (legacy
+ * getOtherExecutions + exec_additional_info). Returns
+ *  ['history' => [...config flags + last-any-build], 'other_execs' => [...]].
+ * Each other_execs row mirrors the per-execution row of the legacy
+ * exec_history table (exec_show_tc_exec.inc.tpl:244-445) with the modern
+ * grants (edit-notes / delete) + attachments + bugs + execution-time CF values.
+ */
+function esrHistoryBlock($db, $user, $tcaseMgr, $tcaseId, $tcversionId,
+    $tplanId, $tprojectId, $platformId, $buildId, $historyOn, $execCfg,
+    $itsObj, $itsEnabled) {
+    $showAnyBuild = !empty($execCfg->show_last_exec_any_build) ? 1 : 0;
+    $allBuilds = !empty($execCfg->show_history_all_builds) ? 1 : 0;
+    $allPlatforms = !empty($execCfg->show_history_all_platforms) ? 1 : 0;
+    $order = strval($execCfg->history_order ?? 'DESC');
+
+    // "Latest execution (any build)" box (legacy exec_show_tc_exec.inc.tpl
+    // :75-177, map_last_exec_any_build from get_last_execution ANY_BUILD).
+    $lastAny = null;
+    if ($showAnyBuild) {
+        try {
+            $amap = $tcaseMgr->get_last_execution($tcaseId, $tcversionId,
+                $tplanId, testcase::ANY_BUILD, $platformId,
+                array('getNoExecutions' => 1, 'groupByBuild' => 0));
+            if (is_array($amap) && isset($amap[$tcversionId])) {
+                $a = $amap[$tcversionId];
+                $lastAny = [
+                    'execution_id' => intval($a['execution_id'] ?? 0),
+                    'status' => strval($a['status'] ?? ''),
+                    'execution_ts' => strval($a['execution_ts'] ?? ''),
+                    'notes' => strval($a['execution_notes'] ?? ''),
+                    'build_name' => strval($a['build_name'] ?? ''),
+                    'tester_id' => intval($a['tester_id'] ?? 0),
+                    'tester_login' => strval($a['tester_login'] ?? ''),
+                    'build_is_open' => intval($a['build_is_open'] ?? 0),
+                ];
+            }
+        } catch (\Throwable $e) { $lastAny = null; }
+    }
+
+    // execution set (legacy getOtherExecutions): full set when history ON,
+    // single last-execution row of the current build/platform when OFF.
+    $otherExecs = [];
+    $rows = null;
+    try {
+        if ($historyOn) {
+            $rows = $tcaseMgr->getExecutionSet($tcaseId, $tcversionId,
+                array(
+                    'testplan_id' => $tplanId,
+                    'platform_id' => $allPlatforms ? null : $platformId,
+                    'build_id' => $allBuilds ? null : $buildId,
+                ),
+                array('exec_id_order' => $order));
+        } else {
+            $aux = $tcaseMgr->get_last_execution($tcaseId, $tcversionId,
+                $tplanId, $buildId, $platformId);
+            if (is_array($aux) && isset($aux[$tcversionId])) {
+                $rows = array($tcversionId => array($aux[$tcversionId]));
+            }
+        }
+    } catch (\Throwable $e) { $rows = null; }
+
+    if (is_array($rows)) {
+        $resultsCfg = config_get('results');
+        // legacy per-row grants: edit-notes = execute && exec_edit_notes
+        // (execSetResults.php:1421-1422), delete = exec_delete
+        $editNotes = 0;
+        $canDelete = 0;
+        $canExec = $user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId) ? 1 : 0;
+        if ($canExec) {
+            $editNotes = $user->hasRight($db, 'exec_edit_notes', $tprojectId, $tplanId) ? 1 : 0;
+        }
+        $canDelete = $user->hasRight($db, 'exec_delete', $tprojectId, $tplanId, true) ? 1 : 0;
+        foreach ($rows as $verRows) {
+            if (!is_array($verRows)) { continue; }
+            foreach ($verRows as $h) {
+                $execId = intval($h['execution_id'] ?? 0);
+                if ($execId <= 0) { continue; }
+                $st = strval($h['status'] ?? '');
+                $suffix = (isset($resultsCfg['code_status'][$st]))
+                    ? $resultsCfg['code_status'][$st] : '';
+                $buildOpen = (intval($h['build_is_open'] ?? 0) === 1);
+                $tester = trim(strval($h['tester_first_name'] ?? '') . ' ' .
+                               strval($h['tester_last_name'] ?? ''));
+                if ($tester === '' && !empty($h['tester_login'])) {
+                    $tester = strval($h['tester_login']);
+                }
+                $entry = [
+                    'execution_id' => $execId,
+                    'tcversion_id' => intval($h['tcversion_id'] ?? 0),
+                    'testplan_id' => intval($h['testplan_id'] ?? 0),
+                    'tcversion_number' => intval($h['tcversion_number'] ?? 0),
+                    'feature_id' => intval($h['feature_id'] ?? 0),
+                    'build_id' => intval($h['build_id'] ?? 0),
+                    'build_name' => strval($h['build_name'] ?? ''),
+                    'build_is_open' => $buildOpen ? 1 : 0,
+                    'platform_id' => intval($h['platform_id'] ?? 0),
+                    'platform_name' => strval($h['platform_name'] ?? ''),
+                    'tester_id' => intval($h['tester_id'] ?? 0),
+                    'tester_login' => strval($h['tester_login'] ?? ''),
+                    'tester_name' => $tester,
+                    'status_code' => $st,
+                    'status_suffix' => $suffix,
+                    'status_label' => ($suffix != '')
+                        ? lang_get('test_status_' . $suffix) : $st,
+                    'execution_ts' => strval($h['execution_ts'] ?? ''),
+                    'execution_duration' => strval($h['execution_duration'] ?? ''),
+                    'run_type' => (intval($h['execution_run_type'] ?? 0)
+                        === TESTCASE_EXECUTION_TYPE_AUTO) ? 'automated' : 'manual',
+                    'notes' => strval($h['execution_notes'] ?? ''),
+                    'can_edit_notes' => ($editNotes && $buildOpen) ? 1 : 0,
+                    'can_delete' => ($canDelete && $buildOpen) ? 1 : 0,
+                    'bugs' => esrHistoryBugs($db, $itsObj, $itsEnabled, $execId),
+                    'attachments' => [],
+                    'cf_html' => '',
+                ];
+                try {
+                    $attachmentMgr = tlAttachmentRepository::create($db);
+                    $attItems = getAttachmentInfos($attachmentMgr, $execId,
+                        'executions', true, 1);
+                    if ($attItems) {
+                        foreach ($attItems as $ai) {
+                            $entry['attachments'][] = [
+                                'id' => intval($ai['id']),
+                                'title' => strval($ai['title']),
+                                'file_name' => strval($ai['file_name']),
+                                'file_size' => intval($ai['file_size']),
+                                'download_url' =>
+                                    '/lib/attachments/attachmentdownload.php?id=' .
+                                    intval($ai['id']),
+                            ];
+                        }
+                    }
+                } catch (\Throwable $e) { $entry['attachments'] = []; }
+                // execution-time custom-field VALUES of this run (legacy
+                // execSetResults.php:1035-1038 other_exec_cfields, rendered
+                // by exec_show_tc_exec.inc.tpl:403-410). Raw legacy HTML.
+                try {
+                    if (method_exists($tcaseMgr,
+                            'html_table_of_custom_field_values')) {
+                        $entry['cf_html'] = strval(
+                            $tcaseMgr->html_table_of_custom_field_values(
+                                $tcversionId, 'execution', null, $execId,
+                                $tplanId, $tprojectId));
+                    }
+                } catch (\Throwable $e) { $entry['cf_html'] = ''; }
+                $otherExecs[] = $entry;
+            }
+        }
+    }
+
+    return array(
+        'history' => array(
+            'on' => $historyOn ? 1 : 0,
+            'show_last_exec_any_build' => $showAnyBuild,
+            'show_history_all_builds' => $allBuilds,
+            'show_history_all_platforms' => $allPlatforms,
+            'order' => $order,
+            'last_any_build' => $lastAny,
+        ),
+        'other_execs' => $otherExecs,
+    );
+}
+
+// ---------------------------------------------------------------------------
 // GET ?action=init — context for one test case version execution
 // ---------------------------------------------------------------------------
 if ($action === 'init') {
@@ -1661,6 +1884,14 @@ if ($action === 'init') {
         $assignTaskDefault = 0;
     }
 
+    // Issue #1392: execution-history state (session-scoped history_on toggle,
+    // legacy manage_history_on) + the other_execs table data + the "Latest
+    // execution (any build)" box (legacy show_last_exec_any_build).
+    $historyOn = esrHistoryOn($execCfg);
+    $histBlock = esrHistoryBlock($db, $user, $tcaseMgr, $tcaseId,
+        $tcversionId, $tplanId, $tprojectId, $platformId, $buildId,
+        $historyOn, $execCfg, $itsObj, $itsEnabled);
+
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($tprojInfo['name']), 'prefix' => $prefix],
@@ -1744,6 +1975,10 @@ if ($action === 'init') {
         'testplan_design_cfs' => $tcaseCfields['testplan_design'],
         'exec_cfields_html' => $tcaseCfields['exec_cfields_html'],
         'exec_cfields' => $tcaseCfields['exec_cfields'],
+        // Issue #1392: execution history (toggle state + config flags + the
+        // last-execution-any-build box) and the full other_execs table rows.
+        'history' => $histBlock['history'],
+        'other_execs' => $histBlock['other_execs'],
     ]);
 }
 
@@ -2754,6 +2989,69 @@ if ($action === 'linkBug' || $action === 'createBug' || $action === 'unlinkBug')
         http_response_code(500);
         out(['status' => 'error', 'message' => $e->getMessage()]);
     }
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=deleteExecution — per-row delete in the exec_history table
+// (legacy execSetResults.php do_delete with the exec_Delete grant + open
+// build, exec_show_tc_exec.inc.tpl:1415). Mirrors api/execute (1827) exactly,
+// reusing esrExecBugContext for plan membership + build-open so the row-level
+// can_delete flag and this endpoint can never disagree.
+// ---------------------------------------------------------------------------
+if ($action === 'deleteExecution') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($payload)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid JSON body']);
+    }
+    $ctx = esrExecBugContext($db, $user, $payload);
+    if (is_null($ctx)) {
+        http_response_code(403);
+        out(['status' => 'error',
+             'message' => 'Insufficient rights or invalid execution']);
+    }
+    if (!$user->hasRight($db, 'exec_delete', $ctx['tprojectId'],
+                         $ctx['tplanId'], true)) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    }
+    if (!$ctx['buildIsOpen']) {
+        http_response_code(400);
+        out(['status' => 'error',
+             'message' => 'Cannot delete an execution of a closed build']);
+    }
+    $ok = delete_execution($db, $ctx['execId']);
+    if (!$ok) {
+        http_response_code(500);
+        out(['status' => 'error', 'message' => 'Delete failed']);
+    }
+    logAuditEvent(
+        'Execution ' . $ctx['execId'] . ' deleted from test plan ' .
+        $ctx['tplanId'],
+        'DELETE', $ctx['execId'], 'executions');
+    out(['status' => 'ok', 'deleted' => true,
+         'execution_id' => $ctx['execId']]);
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=set_history — persist the history_on toggle (legacy
+// btn_history_on / btn_history_off submit, execSetResults.php:836-860).
+// Body: { history_on: 0|1 }. Stored in the session; subsequent init reads it.
+// ---------------------------------------------------------------------------
+if ($action === 'set_history') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        out(['status' => 'error', 'message' => 'POST required']);
+    }
+    $payload = setResultsPayload();
+    $execCfg = config_get('exec_cfg');
+    $on = esrHistoryOn($execCfg,
+        isset($payload['history_on']) ? intval($payload['history_on']) : 0);
+    out(['status' => 'ok', 'history_on' => $on]);
 }
 
 http_response_code(404);

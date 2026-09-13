@@ -3897,5 +3897,15 @@
   "usergrid.roleId": "ロールID",
   "usergrid.showAllColumns": "全ての列を表示",
   "usergrid.userId": "ユーザーID",
-  "version": "バージョン"
+  "version": "バージョン",
+  "esr.historyOn": "History: ON",
+  "esr.historyOff": "History: OFF",
+  "esr.historyToggleOn": "Show full execution history",
+  "esr.historyToggleOff": "Show only the latest execution",
+  "esr.lastExecAnyBuild": "Latest execution (any build)",
+  "esr.lastExecCurrentBuild": "Last execution (current build)",
+  "esr.executionHistory": "Execution history",
+  "esr.actions": "Actions",
+  "esr.attachFiles": "Attach files to this execution",
+  "esr.status": "Status"
 }

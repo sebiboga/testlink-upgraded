@@ -3891,5 +3891,15 @@
   "usergrid.roleId": "ID Ruolo",
   "usergrid.showAllColumns": "Mostra tutte le colonne",
   "usergrid.userId": "ID Utente",
-  "version": "Versione"
+  "version": "Versione",
+  "esr.historyOn": "History: ON",
+  "esr.historyOff": "History: OFF",
+  "esr.historyToggleOn": "Show full execution history",
+  "esr.historyToggleOff": "Show only the latest execution",
+  "esr.lastExecAnyBuild": "Latest execution (any build)",
+  "esr.lastExecCurrentBuild": "Last execution (current build)",
+  "esr.executionHistory": "Execution history",
+  "esr.actions": "Actions",
+  "esr.attachFiles": "Attach files to this execution",
+  "esr.status": "Status"
 }

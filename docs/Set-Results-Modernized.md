@@ -386,3 +386,83 @@ Refs #1396 ports it end-to-end:
 - **i18n** (all 10 bundles): `esr.hasNewestVersionMsg`,
   `esr.updateLinkToLatestTCVersion`, `esr.errUpdateLink`, `esr.linkUpdated`.
 Test cases: TLU suite #1396 (see `tmp/TLU_Test_Cases.md`).
+
+## Issue-tracker integration in the popup (issue #1393)
+
+The legacy Set Results popup embedded the issue-tracker workflow of `execSetResults.php`
+— create-issue-on-save (`bug_create_into_bts` + `create_issue.inc.tpl`), the copy
+issues-from-latest-execution checkbox (`exec_cfg->copyLatestExecIssues`,
+config.inc.php:1169-1180) and the linked-bug table / link-create-delete icons of the
+prior-execution history row (`inc_show_bug_table.tpl` + `open_bug_add_window`).
+
+**BFF** (`api/execsetresults/index.php`):
+- `esrItsSetup()` / `esrItsBlock()` — the `its` init block: `enabled`, `tracker_name`,
+  `up_and_running`, `tl_can_create_issue`, `bug_summary_max_length`, `edit_issue_attr`,
+  `create_issue_url`, `copy_latest_exec_issues_enabled/_default`,
+  `add_link_to_tl_checked/_print_view_checked`, `metadata` (JIRA selects; GitHub null),
+  `issue_type/issue_priority/artifact_version/artifact_component`.
+- `esrExecBugs()` — `prior.bugs[] (id, bug_url, is_resolved, tcstep_id, step_number)` +
+  `prior.build_open`.
+- `save`: honours `create_issue`/`bug_summary`/`bug_notes`/`add_link_to_tl(_print_view)`/
+  `copy_issues` + metadata; creates the issue via `$its->addIssue()` (returns
+  `['status_ok','id','msg']`) then `write_execution_bug()`. Copy-issues source captured
+  **before** `write_execution()` (legacy execSetResults.php:147-151 — otherwise the
+  fresh row would be "latest" and copy no-op). Response gains `add_issue` + `copy_issues`.
+- New actions `linkBug`/`createBug`/`unlinkBug` (POST JSON, case level) gated by
+  `esrExecBugContext()` (testplan_execute + plan membership + open build).
+- `esrIssueDescription()` reproduces the legacy generated text with
+  `%%EXECID%% %%TESTER%% %%TESTPLAN%% %%PLATFORM_VALUE%% %%BUILD%% %%EXECTS%% %%EXECSTATUS%%
+  %%TCNAME%% %%TCEXTID%%` + `%%EXECPLINK%%`/`%%EXECATT:n%%`. New server labels
+  `tc_name`, `tc_external_id`, `github_bug_created`, `github_bug_comment` in all 10
+  `locale/*/strings.txt`.
+
+**UI** (`gui/templates/execute/execSetResults.html`):
+- ITS panel (tracker header, Create Issue → summary/description/add-link fields + metadata
+  selects, Copy issues checkbox gated on the config feature).
+- Prior-box bug chips (open / link / unlink / add icons) gated on ITS connected +
+  `grants.can_execute` + `prior.build_open`.
+- `#linkBugModal` mirroring the modern Execute screen modal (link-existing / create-new
+  toggle, create mode pre-fills description with tc external id + name).
+- Closed-build / read-only freezes the ITS write controls.
+
+![ITS panel](execsetresults-its-panel.png)
+![Prior-execution bug chips + ITS panel](execsetresults-its-multibug.png)
+
+i18n: 30 new `esr.*` keys in all 10 bundles. Test cases: TLU suite #1393. Events during
+testing: only audit rows (log_level 16), zero ERROR/WARNING.
+
+## Execution history — history_on toggle + exec_history table (Refs #1392)
+
+The legacy `execSetResults.php` embedded a per-tc execution history behind a
+session `history_on` toggle (`manage_history_on()`) plus a "Latest execution
+(any build)" box. All of it is restored:
+
+- **Toolbar toggle** — `History: ON/OFF` button (`esr.historyOn/Off`,
+  tooltips `esr.historyToggleOn/Off`) persists via `POST ?action=set_history`
+  (session-scoped, survives navigation / plan switches, default OFF from
+  `config.inc.php` `history_on=false`).
+- **History OFF** (default): the **"Latest execution (any build)"** box
+  (`esr.lastExecAnyBuild`, gated on `show_last_exec_any_build`) + a
+  `LAST EXECUTION (CURRENT BUILD)` table with exactly the last execution of
+  the selected build/platform (legacy `get_last_execution` wrapped set).
+- **History ON**: the full **exec_history table**, one row per historical
+  execution, DESC-ordered (`history_order=DESC`). Build/Platform columns are
+  dropped when `show_history_all_builds` / `show_history_all_platforms` are
+  false (matches legacy). Each row shows date/build/platform/tester/status
+  badge/duration/version/attachments/run-mode, the per-execution actions
+  (edit notes → `editExecution.html`, attachment upload, print preview →
+  `execPrint.html`, delete with confirm) and the notes/custom-fields/
+  attachments/bugs sub-rows. Bug chips + link/create icons render when the ITS
+  is connected and the execution's build is still open (`esr.linkBug`).
+- **BFF** (`api/execsetresults`): `init` returns `history` (incl.
+  `last_any_build`) + `other_execs[]` with row-level `can_edit_notes` /
+  `can_delete` grants (legacy `exec_edit_notes` / `exec_delete`), local bug
+  chips, attachment links and `cf_html` from
+  `html_table_of_custom_field_values`. New actions: `set_history` and
+  `deleteExecution` (plan-scoped + `exec_delete` + open-build gate, mirrors
+  `api/execute`).
+- **i18n** (Refs #1392): `esr.historyOn/Off`, `esr.historyToggleOn/Off`,
+  `esr.lastExecAnyBuild`, `esr.lastExecCurrentBuild`, `esr.executionHistory`,
+  `esr.actions`, `esr.attachFiles`, `esr.status` added to all 10 bundles.
+
+![Execution history (history ON)](issue-1392-execution-history.png)

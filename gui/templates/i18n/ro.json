@@ -3901,5 +3901,15 @@
   "usergrid.roleId": "ID Rol",
   "usergrid.showAllColumns": "Afișează toate coloanele",
   "usergrid.userId": "ID Utilizator",
-  "version": "Versiune"
+  "version": "Versiune",
+  "esr.historyOn": "Istoric: PORNIT",
+  "esr.historyOff": "Istoric: OPRIT",
+  "esr.historyToggleOn": "Afișează tot istoricul execuțiilor",
+  "esr.historyToggleOff": "Afișează doar ultima execuție",
+  "esr.lastExecAnyBuild": "Ultima execuție (orice build)",
+  "esr.lastExecCurrentBuild": "Ultima execuție (build-ul curent)",
+  "esr.executionHistory": "Istoricul execuțiilor",
+  "esr.actions": "Acțiuni",
+  "esr.attachFiles": "Atașează fișiere la această execuție",
+  "esr.status": "Status"
 }
