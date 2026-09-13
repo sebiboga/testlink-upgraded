@@ -484,6 +484,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `ts.approach*` + `ts.chapterApproach`/`ts.chapterApproachDesc` i18n keys
   present in all 10 locale bundles; 8/8 PASS regression suite,
   browser/console/Event-Viewer clean (Refs #1443).
+- Test Strategy "Test Levels" chapter (tracking issue #1444): verified
+  fully implemented and error-free — dedicated page
+  `gui/templates/strategy/testLevels.html`, `fa-layer-group` icon, ASIDE
+  sub-item **Test Levels** (`aside.tpl:145`, `href_test_strategy_levels` in
+  en_GB/en_US/ro_RO), General Overview CHAPTERS card #5 "Test Levels" with
+  **Open chapter** button (chapter map entry in `api/strategy/index.php:62`),
+  Test levels (3 bullets) + Ownership (3 bullets incl. BAT/UAT) content, and
+  all 10 `ts.levels*` + `ts.chapterLevels`/`ts.chapterLevelsDesc` i18n keys
+  present in all 10 locale bundles; 8/8 PASS regression suite,
+  browser/console/Event-Viewer clean (Refs #1444).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom

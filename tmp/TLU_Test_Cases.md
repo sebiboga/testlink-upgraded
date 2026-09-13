@@ -14395,3 +14395,24 @@ Result: **PASS — 8/8 PASS** — Issue #1455 spec fully satisfied; no code chan
 | 1443.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only `audit_login_succeeded` INFO); browser console: 0 messages across EN/RO loads | **PASS** |
 
 Result: **PASS — 8/8 PASS** — Issue #1443 spec fully satisfied; no code change required (stale tracking issue).
+
+# Regression — Issue #1444: Test Strategy "Test Levels" chapter (tracking issue, feature verified complete)
+
+> STATUS: `**PASS**` — 8/8 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
+
+**Screen:** `gui/templates/strategy/testLevels.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 5 card). **Wiring:** `gui/templates/dashio/aside.tpl:145`, `lib/functions/common.php:2117`, `locale/en_US/strings.txt:2286` + `en_GB/strings.txt:2317` + `ro_RO/strings.txt:34` (`href_test_strategy_levels`). **i18n:** `ts.levels*` (10 keys) + `ts.chapterLevels`/`ts.chapterLevelsDesc` in all 10 bundles.
+
+**Precondition:** app @ localhost:8082, logged in admin/admin.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1444.1 | `GET /gui/templates/strategy/testLevels.html` | HTTP 200, contains `data-i18n="ts.levelsHeader"`, `fa-layer-group` icon, "Back to Test Strategy" link (target mainframe), TLi18n init with jQuery loaded first | **PASS** |
+| 1444.2 | ASIDE → Test Strategy → **Test Levels** | Chapter opens in mainframe: header "Test Levels" + sub "the layers of testing and their owners", card *Test levels* (3 bullets: Unit / Integration / System), card *Ownership* (3 bullets: Developers / QA / Stakeholders incl. BAT/UAT) | **PASS** |
+| 1444.3 | ASIDE label source | `gui/templates/dashio/aside.tpl:145` uses `fa-layer-group` + `{$labels.href_test_strategy_levels}`; label present in `locale/en_US/strings.txt:2286`, `en_GB/strings.txt:2317`, `ro_RO/strings.txt:34`; `common.php:2117` maps `testStrategyLevels` → `testLevels.html?{ctx}` | **PASS** |
+| 1444.4 | General Overview (`testStrategy.html`) chapter card #5 | Card "Test Levels" with `fa-layer-group` icon + **Open chapter** button; click navigates mainframe to `testLevels.html` | **PASS** |
+| 1444.5 | BFF `GET api/strategy/index.php?action=chapters` (authenticated) | `status:ok`; chapter 5 `{icon:"fa-layer-group", key:"ts.chapterLevels", descKey:"ts.chapterLevelsDesc", url:"/gui/templates/strategy/testLevels.html"}`; footer keys (displayName/generated_on/right) present; card renders on the overview grid | **PASS** |
+| 1444.6 | Locale switching: switcher → Română | Header `Niveluri de Testare`, sub `nivelurile testării și deținătorii lor`, Back link `Înapoi la Strategia de Testare`, card titles `Niveluri de testare`/`Proprietate` + translated bullets; no literal `ts.levels*` keys in DOM | **PASS** |
+| 1444.7 | i18n bundle validity | All 10 bundles (de en es fr it ja pt ro ru zh) contain all 10 `ts.levels*` keys + `ts.chapterLevels`/`ts.chapterLevelsDesc` and pass `python3 -m json.tool` | **PASS** |
+| 1444.8 | Event Viewer + console hygiene | `events` table: no new ERROR/WARNING rows (only `audit_login_succeeded` INFO); browser console: 0 messages across EN/RO loads | **PASS** |
+
+Result: **PASS — 8/8 PASS** — Issue #1444 spec fully satisfied; no code change required (stale tracking issue).
