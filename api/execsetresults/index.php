@@ -1697,6 +1697,21 @@ if ($action === 'update_link') {
     // silently re-point a plan link of a foreign test case
     esrResolveTcVersion($db, $tplanMgr, $tplanId, $tcaseId, $tcversionId);
 
+    // guard: when the newest AVAILABLE version is already the one linked to
+    // the plan, re-pointing the FROM row would create a duplicate
+    // testplan_tcversions(plan, version, platform) row — reject explicitly
+    // (legacy getVersionLinked treats that state as a DB error)
+    list($guardResolved, $guardLinkedMax, $guardLatestOverall) =
+        esrNewestVersion($db, $tplanId, $tcaseId, $tcversionId);
+    if (
+        $guardLatestOverall > 0
+        && $guardLinkedMax === $guardLatestOverall
+    ) {
+        http_response_code(409);
+        out(['status' => 'error',
+             'message' => 'Newest version is already linked to the plan']);
+    }
+
     $tcaseMgr = new testcase($db);
     $newTcvId = 0;
     try {

@@ -333,7 +333,9 @@ Refs #1396 ports it end-to-end:
   bar: "Attention: This is not the latest available version (Version v2)" and
   the "Update Linked TCV To The Latest" button. Rendered by `renderNewestVersion()`
   only while `grants.can_execute` — read-only / closed-build users see no action.
-- **`POST ?action=update_link` (BFF)** — 405 on GET, errors when the version
+- **`POST ?action=update_link` (BFF)** — 405 on GET, 409 when the newest
+  available version is already plan-linked (forged re-point would hit the
+  `testplan_tcversions_tplan_tcversion` unique key), errors when the version
   does not belong to the test case (404) or the caller can't execute (403),
   then re-points the **plan link** via the legacy
   `testcase::updateTPlanLinkToLatestTCV($tcversionId,$tplanId,null)`

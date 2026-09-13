@@ -254,7 +254,8 @@ NEW FEATURES
   auto-bump to the newest plan-linked version (esrNewestVersion), amber
   "Attention: This is not the latest available version (Version vN)" warning
   + "Update Linked TCV To The Latest" action (`POST ?action=update_link`
-  calling `testcase::updateTPlanLinkToLatestTCV`, 405 on GET, 403 without
+  calling `testcase::updateTPlanLinkToLatestTCV`, 405 on GET, 409 when
+  newest already linked, 403 without
   testplan_execute, 404 on foreign version) which re-points plan link +
   executions + cfield_execution_values; init payload gains
   `has_newest_version/newest_version_id/newest_version_number`. i18n
