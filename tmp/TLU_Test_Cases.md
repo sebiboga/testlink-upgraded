@@ -14195,36 +14195,27 @@ exitCriteria.html were confirmed already translated (not part of this fix). 179 
 
 Result after re-run: **PASS — 14/14 PASS** (verified 2026-09-13 on the merged build @ localhost:8082).
 
----
+## Task — Issue #895: Dashboard "My Assigned Test Cases" widget (assigned-to-me data on mainPage)
 
-## Task — Issue #1487: cfieldsExchange — ledger close-out (reconcile with MODERNIZATION-STATUS.md) + export-filename parity fix
+> STATUS: `PASS` — 12/12 PASS, verified 2026-09-13 @ http://localhost:8082 (branch `task/issue-895`, Refs #895).
 
-**Screens:** `api/cfieldsx/index.php` (BFF) · `gui/templates/cfields/cfieldsExchange.html` · wired via `$actions->cfieldsExchange` in `lib/functions/common.php` (§ sidebar) + toolbar buttons in `gui/templates/cfields/cfieldsView.html`.
+**Screen:** `gui/templates/mainpage/mainPage.html` new `#secAssigned` card (DataTable: Test case w/ suite path + version, Build, Platform*, Test Plan, Priority*, Assigned on, Due, Status, Actions). **BFF:** `api/mainpage/index.php` route `GET /assigned` (port of legacy `lib/testcases/tcAssignedToUser.php` personal view via `testcase::get_assigned_to_user()`, active plans + open builds, last-execution status per build/platform) + `platform_id` always emitted; quick p/f/b icons post to `api/reports/index.php?action=quick_exec`. **i18n:** 29 new `dash.assigned*` / `dash.status*` keys in all 10 bundles.
 
-**Background:** this screen is the ASIDE-parity check result — the *only* implemented modern screen missing from the `docs/MODERNIZATION-STATUS.md` ledger (no DONE row, no `docs/` mirror, no wiki page). This run records it in the ledger/docs/wiki and re-verifies the full BFF surface on a fresh DB, surfacing ONE real parity regression fixed as its own commit.
+**Precondition (fresh DB, fixture `tmp/fixtures_895.php`):** project ASG895 (tproject=1, prefix A895, priority enabled) → suite "ASG Suite" → TCs "Dashboard TC One/Two/Three"; plan "ASG Dashboard Plan" (id 12) links all three; open build B895 Open (id 1), closed build B895 Closed (id 2). admin (user 1) assigned TC One + TC Two on the OPEN build, TC Three on the CLOSED build; TC Two deadline yesterday (overdue); TC One has a pre-inserted PASSED execution. Login admin/admin.
 
-**Bug fixed (commit `c5f4a706c`):** BFF `canVolatileChars()` used `^[a-zA-Z0-9_.]+$`, so any natural export filename containing a space or hyphen (`test cfields-1487.xml`) was silently reverted by the server to `customFields.xml` — legacy `lib/cfields/cfieldsExport.php` honored the typed verbatim. Now allowed: `^[a-zA-Z0-9 _\.\-]+$` + `basename()` + control-char strip; CRLF injection still safely falls back to the default.
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 895.1 | Open Dashboard with project ASG895 selected | `#secAssigned` card "My Assigned Test Cases" renders with summary chips "2 assigned · 1 pending · 1 executed · 1 overdue" | **PASS** |
+| 895.2 | Rows content | Exactly 2 rows: "A895-1: Dashboard TC One (v.1)" + "A895-2: Dashboard TC Two (v.1)", each showing suite path "ASG Suite", build "B895 Open", plan "ASG Dashboard Plan", priority "High", assigned date | **PASS** |
+| 895.3 | TC Three (assigned on the CLOSED build) is hidden | Closed-build assignment excluded by `build_status=open` filter (legacy parity) — not in the table | **PASS** |
+| 895.4 | Status badges | TC One → "Passed", TC Two → "Not run" (colors #4ECDC4 / #8f8f8f) | **PASS** |
+| 895.5 | Due/overdue | TC Two Due column shows `9/12/2026` + red "overdue" badge; TC One shows `-` (no deadline) | **PASS** |
+| 895.6 | Quick-exec icon "Mark as Failed" on TC Two (confirm dialog accepted) | POST `action=quick_exec` → toast "Result saved"; widget reloads: TC Two status "Failed", summary "0 pending · 2 executed"; DB gains executions row (tcversion 7, status f, tester 1, build 1) | **PASS** |
+| 895.7 | Execute link (play icon) | Targets `execSetResults.html?tcase_id=6&tcversion_id=7&tplan_id=12&setting_build=1&setting_platform=0&caller=mainPage` and opens the modern Set-Results screen | **PASS** |
+| 895.8 | History + Test-case links carry the resolved project | tcView / execHistory links contain `tproject_id=1` even though the dashboard URL stays `tproject_id=0` (session-backed `g_proj_id`) | **PASS** |
+| 895.9 | BFF hardening: no project selected | `GET /assigned?tproject_id=0` → `200 {has_data:false, total:0, plans:[]}`; widget hides (`#secAssigned` display none) | **PASS** |
+| 895.10 | i18n render | All new card/labels/status strings resolve (no literal `dash.assigned*` keys); locale switch to ro translates title/summary/statuses | **PASS** |
+| 895.11 | i18n bundle validity | `python3 -m json.tool` passes on all 10 bundles; diff is add-only (no reordering) | **PASS** |
+| 895.12 | Event Viewer hygiene | `events` table shows NO new ERROR/WARNING rows after load + quick-exec; browser console has no errors | **PASS** |
 
-**Precondition (2026-09-13, fresh DB):** app @ localhost:8082, admin/admin logged in; fixture `tmp/fixtures_1487.php` re-run: tproject=25 (CFX1487), tsuite, tcase=27, tplan=30, build=1, CFs `cf_ticket`/`cf_priority`. Low-right user `cfxguest`/`cfxpass9` (role 5 guest) via SQL. XMLs in `/tmp`: `cfx_new.xml` (cf_owner2), `cfx_dup.xml` (cf_ticket), `cfx_env.xml` (cf_env), `cfx_bad.xml` (garbage).
-
-| # | Step | Expected | Result |
-|---|---|---|---|
-| 1487.1 | Ledger gap confirmed | `docs/MODERNIZATION-STATUS.md` TODO empty; screen files exist on disk (HTML/BFF/i18n ×10/common.php) but NO DONE row for it → close-out work scope | **PASS** |
-| 1487.2 | Fixture `fixtures_1487.php` | tproject 25 / tcase 27 / tplan 30 / build 1, CFs cf_ticket(cf), cf_priority idem via SQL | **PASS** |
-| 1487.3 | GET `/api/cfieldsx/` as admin | `{status:ok,count:2,has_export_right:1,has_import_right:1,default_filename:customFields.xml,import_limit_kb:10240}` | **PASS** |
-| 1487.4 | POST `/export` `{"export_filename":"customFields.xml"}` | 200, `Content-Disposition: attachment; filename="customFields.xml"`, XML root `<custom_fields>` + 1 `<custom_field>` per CF with name/label/type/possible_values/default_value/valid_regexp/length*/show·enable flags/node_type_id (1229 B) | **PASS** |
-| 1487.5 | POST `/export` `{"export_filename":"my custom fields-1487.xml"}` | 200, filename **honored verbatim** (spaces+hyphen) — regression vs legacy parity | **PASS** |
-| 1487.6 | Export via UI (`test cfields-1487.xml`) | 200; response `content-disposition` + `content-type … name=` match the typed name; download blob uses typed name | **PASS** |
-| 1487.7 | Export with filename `evil%0d%0aX:1.xml` (CRLF injection) | falls back to `customFields.xml`; single header line, no split | **PASS** |
-| 1487.8 | Empty export filename in UI (ro) | localized toast `Numele de export nu poate fi gol!`; no request sent | **PASS** |
-| 1487.9 | Import `cfx_new.xml` (cf_owner2) | `{status:ok, imported:["cf_owner2"], not_imported:[]}` | **PASS** |
-| 1487.10 | Import `cfx_dup.xml` (cf_ticket — exists) | `{status:ok, imported:[], not_imported:["cf_ticket"]}` | **PASS** |
-| 1487.11 | Import `cfx_bad.xml` (garbage) | HTTP 422 `parse_failed` + libxml error text | **PASS** |
-| 1487.12 | Import with no file | HTTP 422 `need_file` | **PASS** |
-| 1487.13 | UI import `cfx_env.xml` | `Imported (1) » cf_env`, `Not imported (0)`, counter 3 → 4 | **PASS** |
-| 1487.14 | Permissions: anonymous export/import | HTTP 401 `Not authenticated` | **PASS** |
-| 1487.15 | Permissions: `cfxguest` (role 5) | GET info rights 0/0; POST `/export` → 403 `No permission`; POST `/import` → 403 `No permission` | **PASS** |
-| 1487.16 | i18n: locale switch ro | Full Romanian render (`Export/Import XML campuri personalizate`, `Campuri personalizate existente`, `Inapoi`, `Generat la` …); locale persisted via `?locale=ro`; no raw keys in DOM; no console errors | **PASS** |
-| 1487.17 | Event Viewer hygiene | `events` table: no Error/Warning rows after the full export/import/402/403 battery | **PASS** |
-
-Result: 17/17 PASS — **#1487 close-out DONE** (2026-09-13, fresh DB @ localhost:8082). Regression found & fixed: export-filename whitelist dropped spaces/hyphens → commit `c5f4a706c` (BFF) — legacy honored any filename. Screen now recorded in `docs/MODERNIZATION-STATUS.md` + `docs/cfields/CustomFieldsExchange.md` + wiki page + CHANGELOG line.
+Result: **PASS — 12/12 PASS** — #895 implemented: dashboard now shows the logged-in user's assigned test cases (active plans, open builds) with status, priority, build/platform, due date, quick-exec and execute links, backed by the `/assigned` BFF route and 29 i18n keys in all 10 bundles.

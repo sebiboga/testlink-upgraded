@@ -112,6 +112,12 @@ Dashboard:
 - Metrics Dashboard (results/metricsDashboard.html) - BFF api/metrics.
   Chart.js pie/bar charts, per-plan metrics (#522/#892).
 - Inventory Management (inventory/inventoryView.html) - BFF api/inventory.
+- "My Assigned Test Cases" widget on the main page (mainpage/mainPage.html) -
+  BFF api/mainpage GET /assigned ports the legacy tcAssignedToUser.php personal
+  view: the logged-in user's test cases assigned for execution (active plans,
+  open builds) with suite path, build, platform, priority, assigned-on, due
+  (overdue badge), last-execution status and quick p/f/b + execute + history
+  actions; 29 dash.assigned*/dash.status* keys in all 10 bundles (#895).
 
 Requirements:
 - Requirement Spec Management (reqSpecMgmt.html) - BFF api/reqspec.
