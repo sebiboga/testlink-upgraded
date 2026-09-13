@@ -14135,3 +14135,34 @@ re-render the header after save. BFF init additions: `assignment` +
 `assign_task_default_checked`; save accepts `assign_task`. i18n: 3 new `esr.*`
 keys in all 10 bundles. Code review (AGENTS rule 16) passed — intval($userId),
 `$fmap=[]`, `\Throwable` catches, post-save re-render applied before commit.
+
+## Regression — Issue #1486: Test Strategy chapter pages render literal i18n keys (`ts.<chapter>*`) for de/es/fr/it/ja/pt/ru/zh
+
+Precondition: TestLink at http://localhost:8082, logged in as admin/admin. DB freshly
+imported (schema `testlink`). The 8 non-en/ro bundles (`de/es/fr/it/ja/pt/ru/zh`)
+lacked the per-chapter content keys; `TLi18n.t()` (`gui/templates/i18n/i18n.js:134-135`)
+falls back to the raw key → literal keys shown as title+body. Fix: 179 translated keys
+added to all 8 bundles (branch `fix/issue-1486`, commit 945679c5b).
+
+Pre-fix repro: `objectives.html?locale=de` → document.title `ts.objectivesHeader`, body
+shows `ts.objectivesC1Title`, `ts.objectivesC1a`, ... literal.
+
+| # | Step | Expected result | Result |
+|---|------|-----------------|--------|
+| 1486.1 | POST-FIX `gui/templates/strategy/objectives.html?locale=de` | document.title `Qualitätsziele`; header/sub translated; all 8 card strings in German; NO literal `ts.` text visible | **PASS** |
+| 1486.2 | POST-FIX `gui/templates/strategy/training.html?locale=zh` | title `培训计划`; body strings translated; no literal keys | **PASS** |
+| 1486.3 | POST-FIX `gui/templates/strategy/bugLifecycle.html?locale=ru` | title `Жизненный цикл дефекта`; states New→Closed + C1g/i + GitHub-mapping C2* all translated | **PASS** |
+| 1486.4 | POST-FIX `gui/templates/strategy/bugStructure.html?locale=es` | title `Estructura del Bug`; mandatory/optional sections translated | **PASS** |
+| 1486.5 | UNCHANGED `scope.html?locale=de` and `exitCriteria.html?locale=fr` | still render translated (regression guard — these 2 were never affected) | **PASS** |
+| 1486.6 | Automated scan: every `data-i18n="ts.*"` in all 20 strategy/*.html checked against all 10 bundles | 0 missing keys across de/es/fr/it/ja/pt/ru/zh/en/ro | **PASS** |
+| 1486.7 | i18n bundle validity | `python3 -m json.tool` passes on all 8 touched bundles | **PASS** |
+| 1486.8 | `en.json` / `ro.json` regressions | existing `ts.*` keys untouched (diff only adds to the 8 bundles) | **PASS** |
+| 1486.9 | Event Viewer / console | navigation to the 4 pages above produces NO new ERROR/WARNING rows in `events` and no console errors | **PASS** |
+
+Result: **9/9 PASS** — **#1486 DONE**: all 17 broken chapters (approach, bugLifecycle,
+bugStructure, changeConfig, communication, defectManagement, deliverables,
+environments, metrics, objectives, release, risks, roles, testLevels, testTypes,
+tools, training) now render translated content in the 8 locales; scope.html and
+exitCriteria.html were confirmed already translated (not part of this fix). 179 keys ×
+8 bundles, chapter grouping matching en/ro order, header keys aligned to the hub
+`ts.chapter*` titles for terminology consistency.

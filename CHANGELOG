@@ -363,6 +363,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   rendered literal keys (`ts.introHeader`, `ts.introC1Title`, ...) as visible
   text — `TLi18n.t()` returns the raw key when the bundle entry is missing;
   the 10 keys are now translated in all 8 remaining bundles (#1440).
+- Test Strategy chapter pages (17 files, all siblings of `intro.html`):
+  their `ts.<chapter>*` content keys (`ts.objectivesHeader`,
+  `ts.approachC1a`, `ts.bugLifecycleC2d`, ...) existed only in `en.json` +
+  `ro.json`, so for de/es/fr/it/ja/pt/ru/zh users those pages rendered literal
+  keys as title/header/card text (`TLi18n.t()` falls back to the raw key);
+  the 179 content keys are now translated in all 8 remaining bundles, with
+  the per-chapter `Header` keys aligned to the hub `ts.chapter*` titles
+  (#1486).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom
