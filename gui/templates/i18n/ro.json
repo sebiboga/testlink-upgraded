@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "Confirma Stergere",
   "role.createRole": "Creaza Rol",
   "role.custom": "Personalizat",
+  "role.demoUpdateDisabled": "Mod demo activat => Actualizare Rol DEZACTIVAT",
   "role.deleteConfirmMsg": "Sunteti sigur ca doriti sa stergeti rolul",
   "role.deleteUsersMsg": "{n} utilizator(i) au acest rol: {users}",
   "role.description": "Descriere",

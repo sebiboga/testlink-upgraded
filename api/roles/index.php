@@ -59,6 +59,25 @@ function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
 
+// demoMode: legacy gates role-management writes in the template only
+// (gui/templates/dashio/usermanagement/rolesEdit.tpl:185-205 - on doUpdate the
+// Save button is replaced by the demo_update_role_disabled note). Server-side
+// enforcement lives here so no BFF write can bypass the button removal; mirror
+// of api/users demoModeBlockedWrite() used for User Management (issue #887).
+function demoModeBlockedWrite($phpMsgKey = 'demo_update_role_disabled', $jsMsgKey = 'role.demoUpdateDisabled') {
+    if (!config_get('demoMode')) {
+        return false;
+    }
+    http_response_code(403);
+    out([
+        'status' => 'error',
+        'code' => 'demo_mode',
+        'messageKey' => $jsMsgKey,
+        'message' => lang_get($phpMsgKey, 'en_GB'),
+    ]);
+    exit;
+}
+
 // Legacy parity: lib/usermanagement/rolesEdit.php:292-297
 function generateUniqueName($s) {
     return substr($s . ' - Copy - ' . substr(sha1(mt_rand()), 0, 50), 0, 100);
@@ -105,6 +124,10 @@ if ($method === 'GET' && empty($segments)) {
         'items' => $items,
         'total' => count($items),
         'rights' => ['canViewEvents' => (bool)$currentUser->hasRight($db, 'mgt_view_events')],
+        // Legacy parity: the whole role edit screen is read-only in demo mode
+        // (rolesEdit.tpl:185-205), so the UI must know the demo state to gate
+        // the toolbar, the row actions and the modal save button.
+        'demoMode' => (bool)config_get('demoMode'),
     ]);
 }
 
@@ -143,6 +166,7 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && coun
 
 // Route: POST /roles - create role
 if ($method === 'POST' && empty($segments)) {
+    demoModeBlockedWrite();
     $body = getBody();
     $r = new tlRole();
     $r->name = trim($body['name'] ?? '');
@@ -171,6 +195,7 @@ if ($method === 'POST' && empty($segments)) {
 
 // Route: PUT /roles/{id} - update role
 if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
 
     // Legacy parity: rolesEdit.php:222 roleCanBeEdited = (roleid !=
@@ -214,6 +239,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
 
 // Route: DELETE /roles/{id} - delete role
 if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0]) && count($segments) === 1) {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
     if ($id <= TL_LAST_SYSTEM_ROLE) {
         http_response_code(400);
@@ -235,6 +261,7 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0]) && c
 
 // Route: POST /roles/{id}/duplicate - duplicate a role with a unique copy name
 if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) && isset($segments[1]) && $segments[1] === 'duplicate') {
+    demoModeBlockedWrite();
     $id = intval($segments[0]);
     $r = tlRole::getByID($db, $id, tlRole::TLOBJ_O_GET_DETAIL_FULL);
     if (!$r) { http_response_code(404); out(['status' => 'error', 'message' => 'Role not found']); }
@@ -338,6 +365,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
 // Route: PUT /roles/tproject-roles - update test project role assignments
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles') {
+    // demoMode: role assignments are management writes; legacy demo deployments
+    // forbid role maintenance entirely (rolesEdit.tpl:185-205).
+    demoModeBlockedWrite();
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if (!$tproject_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tproject_id']); }
@@ -426,6 +456,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
 
 // Route: PUT /roles/tplan-roles - update test plan role assignments
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') {
+    // demoMode: role assignments are management writes; legacy demo deployments
+    // forbid role maintenance entirely (rolesEdit.tpl:185-205).
+    demoModeBlockedWrite();
     $body = getBody();
     $tplan_id = intval($body['tplan_id'] ?? 0);
     if (!$tplan_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tplan_id']); }

@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "Confirm Delete",
   "role.createRole": "Create Role",
   "role.custom": "Custom",
+  "role.demoUpdateDisabled": "Demo mode enabled => Update Role DISABLED",
   "role.deleteConfirmMsg": "Are you sure you want to delete role",
   "role.deleteUsersMsg": "{n} user(s) currently have this role: {users}",
   "role.description": "Description",

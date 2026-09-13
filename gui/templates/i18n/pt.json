@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "Confirmar eliminação",
   "role.createRole": "Criar função",
   "role.custom": "Personalizado",
+  "role.demoUpdateDisabled": "Modo Demo habilitado => Atualizar Regra DESABILITADO",
   "role.deleteConfirmMsg": "Tem certeza de que deseja eliminar a função",
   "role.deleteUsersMsg": "{n} utilizador(es) têm atualmente esta função: {users}",
   "role.description": "Descrição",

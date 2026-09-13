@@ -44,18 +44,22 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .rights-grid label { font-size: 12px; font-weight: 400; cursor: pointer; padding: 4px 8px; border-radius: 3px; background: #f8f9fa; }
 .rights-grid label:hover { background: #e2e6ea; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
+.demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
 </style>
 </head>
 <body>
 
 <div class="header"><span data-i18n="header.roleManagement">Role Management</span> <span data-i18n="header.roleManagementSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage roles and permissions</span><span id="localeSwitcher" style="float:right;"></span></div>
 
+<div id="demoBanner" class="demo-banner" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></div>
+
 <div class="tabs-bar" id="tabsBar"></div>
 
 <div id="denyBox" style="display:none;padding:24px;text-align:center;background:#fff;margin:24px;border-radius:8px;font-size:14px;"><i class="fa fa-lock"></i> <span data-i18n="role.noRights">You do not have the rights required to manage roles (role_management right required).</span></div>
 
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="role.createRole">Create Role</span></button>
+  <button class="btn-teal" id="btnCreateRole" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="role.createRole">Create Role</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -110,6 +114,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
+        <span id="demoModalNote" class="demo-note" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></span>
         <button type="button" class="btn-teal" id="saveRoleBtn" onclick="saveRole()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
@@ -154,8 +159,10 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 var API = '/api/roles/index.php';
 var table = null;
 var rightsMap = {};
+var allRights = [];
 var allItems = [];
 var canViewEvents = false;
+var demoMode = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
 
@@ -206,12 +213,40 @@ function loadMeta() {
 function loadRoles() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    // Legacy parity: rolesEdit.tpl:185-205 makes the whole role edit screen
+    // read-only in demo mode (Save button -> demo_update_role_disabled note).
+    // The BFF exposes the demo state so the UI can gate toolbar, row actions
+    // and the modal save button.
+    demoMode = !!(r.demoMode);
+    applyDemoMode();
     renderTable(r.items);
     $('#footerText').text(TLi18n.t('role.rolesCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
   }).fail(function(xhr) {
     if (xhr && xhr.status === 403) { showNoAccess(); return; }
     showNoAccess();
   });
+}
+
+// demoMode read-only gating. Mirrors legacy rolesEdit.tpl:185-205: with
+// $tlCfg->demoMode on, the role edit page shows the demo_update_role_disabled
+// note instead of the Save button; create/duplicate/delete are additionally
+// hidden so the screen is effectively view-only (consistent with #887).
+function applyDemoMode() {
+  $('#demoBanner').toggle(demoMode);
+  $('#btnCreateRole').toggle(!demoMode);
+}
+
+function applyRoleModal() {
+  var locked = !!demoMode;
+  $('#saveRoleBtn').toggle(!locked);
+  $('#demoModalNote').toggle(locked);
+  if (locked) {
+    $('#editRoleName').prop('disabled', true);
+    $('#editRoleDesc').prop('disabled', true);
+    $('#selectAllRightsLink').css('pointer-events', 'none').css('opacity', '.5');
+    $('#rightsContainer input[type="checkbox"]').prop('disabled', true);
+    $('#roleLockNote').hide();
+  }
 }
 
 function showNoAccess() {
@@ -239,7 +274,7 @@ function renderTable(items) {
     var typeBadge = r.isSystem
       ? '<span class="badge-system">' + TLi18n.t('role.system') + '</span>'
       : '<span class="badge-custom">' + TLi18n.t('role.custom') + '</span>';
-    var deleteBtn = r.isSystem
+    var deleteBtn = (r.isSystem || demoMode)
       ? ''
       : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ')"></i>';
     rows.push([
@@ -249,7 +284,9 @@ function renderTable(items) {
       rightTags || '<span style="color:#999;font-size:11px;">' + TLi18n.t('common.none') + '</span>',
       typeBadge,
       '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' +
-      '<i class="fa fa-copy action-btn" title="' + TLi18n.t('role.duplicateRole') + '" onclick="duplicateRole(' + r.id + ')"></i>' + deleteBtn
+      (!demoMode
+        ? '<i class="fa fa-copy action-btn" title="' + TLi18n.t('role.duplicateRole') + '" onclick="duplicateRole(' + r.id + ')"></i>'
+        : '') + deleteBtn
     ]);
   });
   table = $('#rolesTable').DataTable({
@@ -282,12 +319,14 @@ function buildRightsCheckboxes(selectedRights) {
 }
 
 function setRoleEditable(editable, disableInputs) {
-  $('#saveRoleBtn').toggle(editable);
-  $('#roleLockNote').toggle(!editable);
-  $('#editRoleName').prop('disabled', !editable && disableInputs);
-  $('#editRoleDesc').prop('disabled', !editable && disableInputs);
-  $('#selectAllRightsLink').toggle(editable);
-  $('#rightsContainer input[type="checkbox"]').prop('disabled', !editable && disableInputs);
+  var canSave = editable && !demoMode;
+  $('#saveRoleBtn').toggle(canSave);
+  $('#roleLockNote').toggle(!editable && !demoMode);
+  $('#demoModalNote').toggle(demoMode);
+  $('#editRoleName').prop('disabled', !canSave && (disableInputs || demoMode));
+  $('#editRoleDesc').prop('disabled', !canSave && (disableInputs || demoMode));
+  $('#selectAllRightsLink').toggle(canSave);
+  $('#rightsContainer input[type="checkbox"]').prop('disabled', !canSave && (disableInputs || demoMode));
 }
 
 function showCreateModal() {
@@ -359,7 +398,15 @@ function saveRole() {
     success: function() { $('#roleModal').modal('hide'); loadRoles(); },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.save');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
       $('#modalError').text(msg).show();
     }
   });
@@ -413,7 +460,15 @@ function doDelete(id) {
     success: function() { $('#deleteModal').modal('hide'); loadRoles(); },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.delete');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
       alert(msg);
     }
   });
@@ -426,7 +481,15 @@ function duplicateRole(id) {
     success: function() { loadRoles(); },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.duplicate');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
       alert(msg);
     }
   });

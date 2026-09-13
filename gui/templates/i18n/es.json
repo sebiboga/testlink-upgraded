@@ -2332,6 +2332,7 @@
   "role.confirmDelete": "Confirmar eliminación",
   "role.createRole": "Crear rol",
   "role.custom": "Personalizado",
+  "role.demoUpdateDisabled": "Modo Demo habilitado => Actualización de Rol DESHABILITADA",
   "role.deleteConfirmMsg": "¿Está seguro de que desea eliminar el rol",
   "role.deleteUsersMsg": "{n} usuario(s) tienen actualmente este rol: {users}",
   "role.description": "Descripción",

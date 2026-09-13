@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "削除の確認",
   "role.createRole": "ロール作成",
   "role.custom": "カスタム",
+  "role.demoUpdateDisabled": "デモモードが有効です => 役割の更新は無効です",
   "role.deleteConfirmMsg": "このロールを削除してもよろしいですか",
   "role.deleteUsersMsg": "{n} 人のユーザーが現在このロールを持っています：{users}",
   "role.description": "説明",

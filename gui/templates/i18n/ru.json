@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "Подтвердить удаление",
   "role.createRole": "Создать роль",
   "role.custom": "Пользовательская",
+  "role.demoUpdateDisabled": "Демо-режим включен => Обновление роли ОТКЛЮЧЕНО",
   "role.deleteConfirmMsg": "Вы уверены, что хотите удалить роль",
   "role.deleteUsersMsg": "{n} пользователей currently have this role: {users}",
   "role.description": "Описание",

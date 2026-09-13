@@ -2338,6 +2338,7 @@
   "role.confirmDelete": "确认删除",
   "role.createRole": "创建角色",
   "role.custom": "自定义",
+  "role.demoUpdateDisabled": "演示模式已启用 => 禁用创建用户角色",
   "role.deleteConfirmMsg": "确定要删除角色",
   "role.deleteUsersMsg": "{n} 个用户当前拥有此角色：{users}",
   "role.description": "描述",
