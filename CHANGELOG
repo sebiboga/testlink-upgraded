@@ -224,7 +224,11 @@ Execution:
   persist via POST ?action=context; closed-build banner, CKEditor notes
   rendering, REST-params copy, Continue to Execute Tests hand-off;
   $actions->execDashboard in common.php + execTest.html Dashboard button;
-  edb.* (21) + footers.execDashboard + exe.dashboard keys in all 10 bundles.
+  edb.* (21) + footers.execDashboard + exe.dashboard keys in all 10 bundles
+  (#1499): Execute -> "Execution Dashboard" ASIDE entry added as the first
+  Execute sub-item, gated testplan_execute OR exec_ro_access (same as Execute
+  Tests); aside label href_exec_dashboard in labels.aside.tpl + all 19
+  strings.txt; removed stray '<<<<<<< HEAD' marker that broke the en_US locale.
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).

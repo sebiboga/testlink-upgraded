@@ -2,19 +2,25 @@
 
 Modernization of the **Execution Dashboard** landing pane
 (`lib/execute/execDashboard.php`) — GitHub issue
-[#1496](https://github.com/sebiboga/testlink-upgraded/issues/1496).
+[#1496](https://github.com/sebiboga/testlink-upgraded/issues/1496), ASIDE menu
+entry completed in [#1499](https://github.com/sebiboga/testlink-upgraded/issues/1499).
 
 The legacy Smarty screen is replaced by a standalone Dashio page
 (`gui/templates/execute/execDashboard.html`) backed by a plain-PHP REST BFF
-(`api/execdashboard/index.php`). The ASIDE **Execute → Execute Tests** entry now
-opens the modern dashboard first, with a **Dashboard** toolbar button on
-`execTest.html` to jump back.
+(`api/execdashboard/index.php`). Since #1499 the ASIDE **Execute** sub-menu
+shows an **Execution Dashboard** entry (first Execute item, label
+`href_exec_dashboard` in `labels.aside.tpl` + all 19 `locale/*/strings.txt`,
+gated `testplan_execute OR exec_ro_access` exactly like Execute Tests) that
+opens the modern dashboard as the Execute landing pane, with a **Dashboard**
+toolbar button on `execTest.html` to jump back.
 
-**Path:** Execute → Execute Tests (landing pane)
+**Path:** Execute → Execution Dashboard
 **URL:** `gui/templates/execute/execDashboard.html?testPlanID=<id>&buildID=<id>&platformID=<id>`
 **BFF API:** `api/execdashboard/index.php`
 **Right:** `testplan_execute` OR `exec_ro_access` on the OWNING test project
 (read); `testplan_execute` for `POST ?action=context` (write).
+
+![ASIDE entry](images/execdashboard_aside.png)
 
 ![Execution Dashboard](images/execdashboard_normal.png)
 
@@ -88,6 +94,10 @@ All labels/messages use the client-side `TLi18n` module with keys prefixed
 `edb.noCfields`) plus `footers.execDashboard` and `exe.dashboard`,
 defined in ALL locale bundles (`gui/templates/i18n/*.json`: de, en, es,
 fr, it, ja, pt, ro, ru, zh).
+The server-side ASIDE label `href_exec_dashboard` ("Execution Dashboard") is
+defined in `gui/templates/dashio/labels/labels.aside.tpl` and in all 19
+`locale/*/strings.txt` (translated per locale); the 2.0.1 client bundles do not
+serve that menu (it renders server-side via Smarty, legacy layout).
 
 ## 5. Security
 
@@ -107,6 +117,10 @@ banner, cfields tables (plan + build), notes panels, Copy REST parameters,
 Continue-to-Execute navigation from the dashboard and back (Dashboard toolbar
 button), refresh, i18n key presence in all 10 bundles and Event Viewer hygiene
 (PASS, see the suite for recorded results).
+Suite `#1499`: ASIDE entry rendering (EN + RO), menu click → dashboard load,
+Continue/Toolbar round-trip, guest denial (menu hidden + BFF 403 + graceful
+degradation), `$TLS_href_exec_dashboard` in all 19 `strings.txt` (`php -l`
+clean) and Event Viewer hygiene (9/9 PASS).
 Fixture builder: `php tmp/fixtures_1496.php` (idempotent) — creates project
 ESX1496 (`tproject_id=1`), plan ESX1496-Plan (`tplan_id=2`), open build 1 +
 closed build 2, platforms ESX1496-Win (1, linked) / ESX1496-Mac (2, unlinked)
