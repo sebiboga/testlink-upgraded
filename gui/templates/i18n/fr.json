@@ -1429,6 +1429,7 @@
   "pex.generating": "Génération de lʼexport...",
   "pex.header": "Exporter le Plan de Test",
   "pex.linkedItems": "Éléments liés (cas de test et plateformes)",
+  "pex.scopedNote": "Exportation limitée aux {0} cas de test actuellement affichés dans la fenêtre d'exécution.",
   "pex.testProject": "Projet de Test",
   "pex.title": "Exporter le Plan de Test",
   "pex.tree": "Contenu complet du plan (arborescence)",

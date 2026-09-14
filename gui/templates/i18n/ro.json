@@ -1429,6 +1429,7 @@
   "pex.generating": "Se generează exportul...",
   "pex.header": "Exportare Plan de Testare",
   "pex.linkedItems": "Elemente asociate (cazuri de testare și platforme)",
+  "pex.scopedNote": "Exportul este limitat la cele {0} cazuri de test afișate în fereastra de execuție.",
   "pex.testProject": "Proiect de Testare",
   "pex.title": "Exportare Plan de Testare",
   "pex.tree": "Conținut complet al planului (arbore)",

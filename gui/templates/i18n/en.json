@@ -1429,6 +1429,7 @@
   "pex.generating": "Generating export...",
   "pex.header": "Export Test Plan",
   "pex.linkedItems": "Linked items (test cases & platforms)",
+  "pex.scopedNote": "Export limited to the {0} test case(s) currently shown in the execution window.",
   "pex.testProject": "Test Project",
   "pex.title": "Export Test Plan",
   "pex.tree": "Complete plan contents (tree)",

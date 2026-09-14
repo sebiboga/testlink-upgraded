@@ -83,9 +83,12 @@ select:focus, input[type=text]:focus { outline: none; border-color: #4ECDC4; }
             <option value="4results" data-i18n="pex.forResults">For results import</option>
           </select>
           <div class="hint" data-i18n="pex.contentHint">Choose what should be included in the exported XML file.</div>
+          <div class="hint" id="scopedHint" style="display:none; color:#2d8e88;"></div>
         </td>
       </tr>
     </table>
+
+    <input type="hidden" name="form_token" id="formToken" value="0">
 
     <div class="actions-bar">
       <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="pex.export">Export</span></button>
@@ -108,6 +111,11 @@ var ctx = {
   tplanId: parseInt(qs('tplan_id') || '0', 10),
   platformId: parseInt(qs('platform_id') || '0', 10),
   buildId: parseInt(qs('build_id') || '0', 10),
+  // execution-window tree token (legacy execNavigator.tpl openExportTestPlan):
+  // when > 0 the 4results export is scoped to the test cases currently shown
+  // in the execution window (form_token -> $_SESSION['execution_mode'][token]).
+  formToken: parseInt(qs('form_token') || '0', 10),
+  exportContent: qs('exportContent') || '',
   bffUrl: '/api/planexport/',
   info: null
 };
@@ -143,6 +151,7 @@ $(function () {
   $('#exportFilename').on('keydown', function (e) {
     if (e.key === 'Enter') { e.preventDefault(); doExport(); }
   });
+  $('#exportContent').on('change', refreshScopedHint);
   // apply i18n to dynamically-added option labels
   $('#exportContent option').each(function () {
     var k = $(this).data('i18n');
@@ -154,6 +163,8 @@ function loadInfo() {
   var params = { action: 'info', tproject_id: ctx.tprojectId, tplan_id: ctx.tplanId };
   if (ctx.platformId) params.platform_id = ctx.platformId;
   if (ctx.buildId) params.build_id = ctx.buildId;
+  if (ctx.formToken > 0) params.form_token = ctx.formToken;
+  if (ctx.exportContent) params.exportContent = ctx.exportContent;
 
   $.get(ctx.bffUrl, params)
     .done(function (r) {
@@ -187,6 +198,23 @@ function renderContext() {
   if (ctx.info.exportContent) {
     $('#exportContent').val(ctx.info.exportContent);
   }
+  // execution-window scoped export: keep the hidden form_token in sync and
+  // inform the user that only the currently shown test cases are exported.
+  if (ctx.formToken > 0) {
+    $('#formToken').val(ctx.formToken);
+  }
+  refreshScopedHint();
+}
+
+function refreshScopedHint() {
+  var scoped = ctx.formToken > 0
+    && parseInt((ctx.info && ctx.info.scopedCount) || '0', 10) > 0
+    && $('#exportContent').val() === '4results';
+  if (scoped) {
+    $('#scopedHint').show().text(TLi18n.t('pex.scopedNote', {0: ctx.info.scopedCount}));
+  } else {
+    $('#scopedHint').hide();
+  }
 }
 
 function doExport() {
@@ -202,6 +230,7 @@ function doExport() {
   params.set('exportContent', $('#exportContent').val() || 'linkedItems');
   params.set('exportType', $('#exportType').val() || 'XML');
   params.set('export_filename', fn);
+  params.set('form_token', ctx.formToken || parseInt($('#formToken').val() || '0', 10));
 
   $('#loadingOverlay').show().find('span').text(TLi18n.t('pex.generating'));
   $('#btnExport').prop('disabled', true);

@@ -14614,6 +14614,44 @@ No github set on admin initially.
 | 905.8 | Code/schema hygiene | `php -l` clean on tlUser.class.php, api/userinfo/index.php, navBar.php; `DESCRIBE users` shows `github varchar(100) NULL`; column present in mysql+postgres+mssql `testlink_create_tables.sql` | **PASS** |
 | 905.9 | Event Viewer + console after all states (set/clear/@/invalid) | `events` table: only log_level=16 SAVE/LOGIN audit rows, **0** Error/Warning; browser console 0 JS errors (only pre-existing a11y warnings) | **PASS** |
 
+Result: **PASS — 9/9 PASS** — GitHub account is stored on the user record and its avatar
+is rendered both as a 30px round image in the Dashio top navigation bar (initials-circle
+fallback when unset, immediate update after profile save) and as a live 72px preview in
+Personal Data; `@`-normalization and email-validation error mapping verified; i18n in all
+10 bundles; Event Viewer + console clean. Refs #905.
+
+## Suite 1385 — Task Issue #1385: planExport 4results export honors the execution-mode test-case set (form_token)
+
+**Screen:** `gui/templates/plans/planExport.html` + BFF `api/planexport/index.php`.
+**Feature ported from legacy:** when the execution window launches the export
+(`openExportTestPlan(...,'4results',form_token)` / `inc_filter_panel.tpl:204`), the
+"For results import" XML is scoped to the test cases currently shown in the execution
+tree (`$_SESSION['execution_mode'][token]['testcases_to_show']` → `tcaseSet` filter →
+`NH_TCASE.id IN (...)`, legacy `lib/plan/planExport.php:142-151` parity).
+**Precondition:** app @ http://localhost:8082, logged in admin/admin; fresh-import DB
+with fixture recreated via `php tmp/fixtures_1385.php` → project **ExportFixture**
+(NH id 25, prefix EXP), plan **PlanExport One** (id 36), 3 linked TCs EXP-1/2/3 (testcase
+node ids 27/30/33), build **R1** (id 3). `users.github` column present (env setup).
+Session seeded via `/tmp/seed_1385.php?token=N&tcase_id=<ids>` (same browser session).
+Chrome DevTools MCP + mysql CLI.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1385.1 | Seed `$_SESSION['execution_mode'][777]['testcases_to_show']=[30]`; POST `/api/planexport/ action=export, tproject_id=25, tplan_id=36, build_id=3, exportContent=4results, form_token=777` | XML contains exactly **1** `<testcase>` with `external_id="EXP-2"` (was 3 before the fix); HTTP 200, `Content-Type: application/xml` | **PASS** |
+| 1385.2 | Same export with **no** form_token | XML contains all **3** `<testcase>` (EXP-1, EXP-2, EXP-3) — management-launch behaviour unchanged | **PASS** |
+| 1385.3 | Same export with unknown token (`form_token=9999`, session not seeded) | Falls back to all **3** `<testcase>` — no session entry → `null` tcaseSet | **PASS** |
+| 1385.4 | Seed token 779 with `[27,30]`; export with `form_token=779` | XML contains exactly **2** `<testcase>` (EXP-1, EXP-2) — multi-id scope works | **PASS** |
+| 1385.5 | Open `planExport.html?tproject_id=25&tplan_id=36&build_id=3&exportContent=4results&form_token=777` | Export-content dropdown defaults to **"For results import"**; filename `4results_PlanExport_One_R1.xml`; hidden `<input name="form_token" id="formToken">` syncs to `777`; green hint shown "Export limited to the 1 test case(s) currently shown in the execution window." | **PASS** |
+| 1385.6 | On that page click **Export** (4results + token 777) | Blob download XML has exactly **1** `<testcase>` = EXP-2; toast "Export complete."; no error toast | **PASS** |
+| 1385.7 | On that page switch export content to `linkedItems` then to `tree` then back to `4results` (change event) | scoped hint **hides** for linkedItems/tree, **reappears** for 4results — hint is gated on the 4results mode | **PASS** |
+| 1385.8 | Locale switch → German | Hint key `pex.scopedNote` renders localized ("Export beschränkt auf die 1 Testfälle, die aktuell im Ausführungsfenster angezeigt werden."); key present in all 11 bundles (de en es fr it ja pt ro ru zh), `python3 -m json.tool` valid | **PASS** |
+| 1385.9 | Security + Event Viewer + console hygiene | `form_token` intval-cast (no `token[]` session-array injection); scope read server-side from session only; `events` table: only log_level=16 AUDIT rows, **0** Error/Warning from export calls; `tmp/php_server.log` no PHP warnings from the BFF; browser console 0 JS errors | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the modern 4results export now honors the execution-window
+`form_token`: the XML is scoped via `$_SESSION['execution_mode'][token]['testcases_to_show']`
+exactly like legacy, the UI round-trips the token (hidden input + URL mode preservation)
+and informs the user (localized `pex.scopedNote` hint), while the no-token management
+launch still exports every linked TC. Event Viewer + console clean. Refs #1385.
 Result: **PASS — 9/9 PASS** — the Execution Dashboard is now reachable from the
 ASIDE menu (first Execute sub-item, rights-gated exactly like Execute Tests);
 admin flow + Continue round-trip verified in-browser, guest denied on both the

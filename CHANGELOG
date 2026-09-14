@@ -212,6 +212,11 @@ Plans:
 - Plan Export (planExport.html) - BFF api/planexport (#1385/#1386).
   "View file formats documentation" link (/docs/tl-file-formats.pdf) beside the
   File type select, legacy parity (planExport.tpl:65), key pex.viewFileFormatDoc.
+  form_token scoping of the "For results import" export: when the execution
+  window launches the export with its tree form_token, only the test cases
+  currently shown in the execution window are exported (tcaseSet from
+  $_SESSION['execution_mode'][token]['testcases_to_show'], legacy
+  planExport.php:142-151 parity), key pex.scopedNote (#1385).
 - Plan Import (planImport.html) - BFF api/planimport (#1388-#1390, #1414).
 
 Execution:

@@ -1429,6 +1429,7 @@
   "pex.generating": "Export wird erstellt...",
   "pex.header": "Testplan exportieren",
   "pex.linkedItems": "Verknüpfte Elemente (Testfälle & Plattformen)",
+  "pex.scopedNote": "Export beschränkt auf die {0} Testfälle, die aktuell im Ausführungsfenster angezeigt werden.",
   "pex.testProject": "Testprojekt",
   "pex.title": "Testplan exportieren",
   "pex.tree": "Vollständiger Planinhalt (Baum)",
