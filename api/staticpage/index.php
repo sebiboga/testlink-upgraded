@@ -35,15 +35,15 @@ doSessionStart();
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
 
+header('Content-Type: application/json; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+
 $userId = $_SESSION['userID'] ?? null;
 if (!$userId || $userId <= 0) {
     http_response_code(401);
     echo json_encode(array('status' => 'error', 'message' => 'Not authenticated'));
     exit;
 }
-
-header('Content-Type: application/json; charset=utf-8');
-header('X-Content-Type-Options: nosniff');
 
 $action = isset($_GET['action']) ? trim((string)$_GET['action']) : 'show';
 if ($action !== 'show') {
@@ -137,7 +137,8 @@ $title = $found ? $strings['title'][$key] : '';
 $content = $found ? $strings['body'][$key] : sprintf(
     'Please, ask administrator to update localization file ' .
     '(&lt;testlink_root&gt;/locale/%s/texts.php) - missing key: %s',
-    $locale, htmlspecialchars($key, ENT_QUOTES, 'UTF-8')
+    htmlspecialchars($locale, ENT_QUOTES, 'UTF-8'),
+    htmlspecialchars($key, ENT_QUOTES, 'UTF-8')
 );
 
 echo json_encode(array(
