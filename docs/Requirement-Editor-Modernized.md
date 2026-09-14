@@ -38,6 +38,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Type | `char(1)` type code (V/R/...) | same; dropdown of 7 types |
 | Expected coverage | 1/2/3/5/10 | same dropdown |
 | Scope | description textarea | same |
+| Scope template on create | `renderGui()` default branch pre-fills the Scope editor with the configured `requirement_template` content (`getItemTemplateContents('requirement_template','scope',…)` in lib/functions/common.php:1104 — types `string` / `string_id` / `file`, `none` → empty) | **same (added in #1381)** — the BFF create `form` response resolves the same legacy function and returns the body as `requirement.scope` AND `template_body`; the screen pre-fills the textarea on create and re-applies it after a stay_here bulk-entry reset; edit mode never applies the template (legacy parity) |
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
 | Create another after saving (create) | `stay_here` checkbox ("check to create another requirement after saving", BUGID 3953 — create mode only) | **same (added in #1384)** — `stay_here` checkbox in the toolbar, create mode only; when checked the save resets the form (doc id/title/scope empty, status/type/coverage at defaults) and keeps the caller in create mode on the same spec for bulk entry; when unchecked the form transitions to edit mode for the created requirement |
 | Create New Version (edit) | `doAction=doCreateVersion` typewriter copy | `POST ?action=version` — copies content, bumps `version` (+1) |
@@ -50,7 +51,7 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 | Method | Route | Body / Query | Returns |
 |---|---|---|---|
 | GET | `?action=form&id=N` | `tproject_id`, optional `version_id`/`req_version_id` | `{mode:'edit', requirement, versions[], show_version_selector, options, tproject_id, tproject_name, rights}` — requirement includes `version_id` and `is_latest`; `versions[]` = {version_id, version, revision, status, is_open} |
-| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, versions:[], show_version_selector:false, tproject_id, tproject_name, options, rights}` |
+| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, versions:[], show_version_selector:false, tproject_id, tproject_name, options, rights}` — create mode also returns `template_body` (the configured `requirement_template` scaffold, `''` when type is `none`) and pre-fills `requirement.scope` with it (see #1381) |
 | POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage, version_id?, stay_here?}` | `{status:'ok', id, version_id, stay_here}` (update or create) — `version_id` targets THAT exact requirement version, absent → latest |
 | POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
 
@@ -80,6 +81,16 @@ form with the new id/version.
   to the latest; `save` writes through `requirement_mgr::update(reqId, versionId, ...)`
   which directly updates that `req_versions` row. The version selector follows the
   existing `reqView.html` pattern (`v<version>r<revision>`, ` *` for frozen).
+- **Requirement template on create (#1381):** mirrors `renderGui()`'s default
+  branch (`lib/requirements/reqEdit.php:166`). The BFF reuses the exact legacy
+  resolver `getItemTemplateContents('requirement_template','scope','')`
+  (lib/functions/common.php:1104) — same `string` / `string_id` (`lang_get`)
+  / `file` (`getFileContents`, already in scope via `requirement_mgr.class.php:18`
+  → `attachments.inc.php` → `files.inc.php`) / `none` resolution and the same
+  missing-file fallback message. `template_body` is exposed so the SPA can
+  re-apply the scaffold after a stay_here bulk-entry reset; the value is also
+  written into `requirement.scope` so the editor opens pre-filled exactly like
+  legacy (saving without touching the field persists the template as the scope).
 
 ## 4. i18n Keys
 
@@ -119,3 +130,10 @@ versions untouched), save without `version_id` targets latest, create regression
 invalid `version_id` → 404, BFF payload shape (`version_id`, `is_latest`,
 `versions[]`, `show_version_selector`), Event Viewer + console clean.
 ![Per-versioned editor: deep link into RE-1 v1](screenshots/issue-1382-edit-v1-loaded.png)
+
+See also **Task #1381 — requirement-template scope prefill** suite (10/10 PASS):
+BFF create form resolves `requirement_template` for types `string` / `string_id`
+(`lang_get`) / `file` (file contents + missing-file fallback) / `none` (empty),
+exposes `template_body`, the create screen pre-fills the Scope textarea on load,
+edit mode stays template-free, stay_here reset re-applies the scaffold, saved
+scope persists the template body, Event Viewer + console clean.

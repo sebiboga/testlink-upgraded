@@ -122,6 +122,20 @@ function needOwnedSpec($specId, $tproject_id, &$reqSpecMgr, &$db) {
     return @$reqSpecMgr->get_by_id(intval($specId)) ?: null;
 }
 
+/**
+ * Legacy parity with lib/functions/common.php::getItemTemplateContents():
+ * resolve the configured requirement_template for the 'scope' field so that
+ * create mode opens the Scope editor pre-filled with the template scaffold.
+ * Returns '' when no template is configured (type 'none' or unknown) — which
+ * matches lib/requirements/reqEdit.php renderGui() default branch behaviour.
+ */
+function requirementTemplateBody() {
+    if (!function_exists('getItemTemplateContents')) {
+        return '';
+    }
+    return (string)getItemTemplateContents('requirement_template', 'scope', '');
+}
+
 /** Localized type/status option maps + defaults, same as api/reqspec options. */
 function reqOptions() {
     $cfg = config_get('req_cfg');
@@ -268,11 +282,16 @@ if ($method === 'GET' && $action === 'form') {
             $specTitle = (string)$st[0]['name'];
         }
     }
+    // gap #1381: legacy create mode pre-fills the Scope editor with the
+    // requirement_template content (getItemTemplateContents) — mirror it here.
+    $templateBody = requirementTemplateBody();
     out(['status' => 'ok', 'mode' => 'create',
          'requirement' => ['srs_id' => $specId, 'spec_title' => $specTitle,
                            'version' => 0, 'req_doc_id' => '', 'title' => '',
-                           'scope' => '', 'status' => $options['defaultReqStatus'],
+                           'scope' => $templateBody,
+                           'status' => $options['defaultReqStatus'],
                            'type' => $options['defaultReqType'], 'expected_coverage' => 1],
+         'template_body' => $templateBody,
          'versions' => [], 'show_version_selector' => false,
          'options' => $options, 'tproject_id' => $tproject_id,
          'tproject_name' => $tpName,

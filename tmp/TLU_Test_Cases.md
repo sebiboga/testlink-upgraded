@@ -14936,3 +14936,31 @@ via `$tlCfg->testcase_cfg->estimated_execution_duration->required`) and persist 
 `testcase::create/update` options; the editor renders the input in create+edit, the detail
 view and tcView.html display the value; clearing maps to NULL like legacy. i18n keys
 `tspec.estimatedDuration*` added to all 10 bundles. Refs #911.
+## Task — Issue #1381: Requirement-template scope prefill in reqEdit create mode
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form` create branch).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin; fixture `tmp/fixtures_1381.php` → tproject id 2 `ReqTemplateFixture`, req spec id 3
+`SPEC-TPL`, requirement id 5 `REQ-TPL-1` (scope `initial scope`). Local gitignored
+`custom_config.inc.php` sets `$tlCfg->requirement_template->scope->type` per test row
+(default suite run: `string` + a template body; `none` is the repo-default).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1381.1 | With config type=`string`, GET BFF `?action=form&spec_id=3&tproject_id=2` | `response.requirement.scope` = template body AND `response.template_body` = same body | **PASS** |
+| 1381.2 | Same request with config type=`none` | `scope` = `''`, `template_body` = `''` (repo default unchanged) | **PASS** |
+| 1381.3 | Config type=`file` → `/tmp/req_template_file.html` | `scope` = file contents (`REQ TEMPLATE FROM FILE …`) | **PASS** |
+| 1381.4 | Config type=`file` → missing path | HTTP 200, fallback `problems_trying_to_access_template <path>`, no PHP fatal | **PASS** |
+| 1381.5 | Config type=`string_id` → value `title` | `scope` = `lang_get('title')` = `Title` | **PASS** |
+| 1381.6 | Open `reqEdit.html?tproject_id=2&spec_id=3` (type=`string`) | Scope textarea pre-filled with the template body on load | **PASS** |
+| 1381.7 | Open `reqEdit.html?id=5&tproject_id=2` (edit, type=`string`) | Scope = `initial scope`, NO template applied, no `template_body` in BFF payload | **PASS** |
+| 1381.8 | Create page, fill doc/title, keep `stay_here` checked, click Save | After reset: doc/title cleared, mode=create, REQ_ID=0 AND scope re-filled with template | **PASS** |
+| 1381.9 | Inspect `requirements`/`req_versions` after 1381.8 | New requirement persisted with the template text as its scope | **PASS** |
+| 1381.10 | Event Viewer (`events` table) + browser console after all steps | 0 ERROR/WARNING rows; no JS console errors | **PASS** |
+
+Result: **PASS — 10/10 PASS** — the legacy `requirement_template` scaffold is back:
+the BFF create/form response now resolves `getItemTemplateContents('requirement_template','scope')`
+(lib/functions/common.php:1104 parity) for all four config types (string / string_id /
+file / none) and exposes `template_body`; the HTML screen pre-fills the Scope textarea
+on create and re-applies the template after a stay_here bulk-entry reset, while edit
+mode stays template-free exactly like legacy `renderGui()`. Refs #1381.

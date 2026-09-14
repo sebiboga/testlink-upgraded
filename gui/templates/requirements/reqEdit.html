@@ -122,6 +122,9 @@ var CURRENT = null;
 var REQ_VERSION_ID = 0;
 var CURRENT_VERSION_ID = 0;
 var VERSIONS = [];
+/* gap #1381: requirement_template scaffold shown on create; kept so the
+   stay_here 'create another' reset can re-apply it (legacy reloads fresh). */
+var REQ_TEMPLATE = '';
 
 function fillSelect($sel, map, selected) {
   $sel.empty();
@@ -183,6 +186,7 @@ function loadForm() {
     CURRENT = r.requirement || {};
     CURRENT_VERSION_ID = CURRENT.version_id || 0;
     VERSIONS = r.versions || [];
+    REQ_TEMPLATE = r.template_body || '';
     SPEC_ID = CURRENT.srs_id || SPEC_ID;
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqe.pageTitle'));
 
@@ -290,7 +294,7 @@ function resetForm() {
   $('#versionChip').show().text('0');
   $('#reqDocId').val('');
   $('#reqTitle').val('');
-  $('#reqScope').val('');
+  $('#reqScope').val(REQ_TEMPLATE || '');
   var o = OPTIONS || {};
   fillSelect($('#reqStatus'), o.reqStatuses, o.defaultReqStatus);
   fillSelect($('#reqType'), o.reqTypes, o.defaultReqType);

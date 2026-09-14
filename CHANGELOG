@@ -325,6 +325,14 @@ NEW FEATURES
   bulk entry, when unchecked the form transitions to edit mode. BFF save reads
   `stay_here` from the JSON body and echoes it in the response, create + update.
   i18n `reqe.stayHere` in all 10 bundles.
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
+  `api/reqedit`): requirement-template scope prefill on create restored
+  (Refs #1381) — when the `requirement_template` config is not `none`, the BFF
+  create/form response resolves the legacy `getItemTemplateContents('requirement_template',
+  'scope')` body (types string / string_id / file, incl. missing-file fallback) and
+  returns it as `requirement.scope` + `template_body`; the editor pre-fills the Scope
+  textarea on create and re-applies the scaffold after a stay_here bulk-entry reset,
+  while edit mode stays template-free (legacy `renderGui()` parity).
 - Notifications (`gui/templates/notifications/notifications.html`, BFF
   `api/notifications`): GitHub-style per-user notification center computed
   LIVE from existing 1.9.20 data (no legacy system existed to port, Refs
