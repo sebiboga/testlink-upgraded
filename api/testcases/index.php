@@ -47,6 +47,20 @@ function getIntParam($key, $default = 0) {
 }
 
 /**
+ * Config-driven "required" flag for the estimated execution duration field
+ * (config.inc.php: $tlCfg->testcase_cfg->estimated_execution_duration->required).
+ * Legacy emits the raw string as an HTML5 required attribute; the BFF exposes
+ * a boolean so the modern editor can enforce the same rule client-side.
+ */
+function isDurationRequired($tcaseCfg) {
+    if (!isset($tcaseCfg) || !isset($tcaseCfg->estimated_execution_duration)) {
+        return false;
+    }
+    $req = $tcaseCfg->estimated_execution_duration->required ?? '';
+    return trim(strval($req)) !== '';
+}
+
+/**
  * Walk up the nodes_hierarchy parent chain.
  * NOTE: tree_manager::get_path() / testproject::getByChildID() proved
  * unreliable in this code base, so we resolve ancestors directly.
@@ -190,6 +204,7 @@ if ($action === 'context') {
         'hasTestPlans' => $hasTestPlans,
         'grants' => $grants,
         'canEditExecuted' => intval($tcaseCfg->canEditExecuted ?? 0),
+        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
         'dateFormat' => config_get('date_format'),
     ]);
 }
@@ -860,6 +875,7 @@ if ($action === 'get') {
         'keywordsProject' => $projKw,
         'executed' => $executed,
         'statusDomain' => tcStatusDomain(),
+        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
     ]);
 }
 
@@ -943,6 +959,7 @@ if ($action === 'keywords') {
         'keywordsProject' => $projKw,
         'customFields' => $customFields,
         'statusDomain' => tcStatusDomain(),
+        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
     ]);
 }
 
@@ -1121,11 +1138,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             $status = 1; // draft
         }
 
+        // Estimated execution duration (minutes): numeric validated, optionally
+        // required per config (legacy attributesLinear.inc.tpl + setEstimatedExecDuration).
+        $estDur = trim(strval($body['estimated_execution_duration'] ?? ''));
+        if ($estDur !== '' && !is_numeric($estDur)) {
+            jout(['status' => 'error', 'message' => 'Invalid estimated duration'], 400);
+        }
+        if (isDurationRequired($tcaseCfg) && $estDur === '') {
+            jout(['status' => 'error',
+                  'message' => 'Estimated execution duration is required'], 400);
+        }
+
         $ret = $tcaseMgr->create($parentId, $name, $summary, $preconds, $steps,
                                  intval($user->dbID ?? $userId), $kwIds,
                                  testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
                                  $execType, $importance,
-                                 array('status' => $status));
+                                 array('status' => $status,
+                                       'estimatedExecDuration' => $estDur));
         $newId = 0;
         if (is_array($ret)) {
             if (isset($ret['status_ok']) && !$ret['status_ok']) {
@@ -1202,7 +1231,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             $curStatus = intval($lvRow['status'] ?? 0);
             $status = $curStatus >= 1 ? $curStatus : 1;
         }
-        $attr = array('status' => $status);
+
+        // Estimated execution duration (minutes): numeric validated, optionally
+        // required per config (legacy setEstimatedExecDuration + update() $attr).
+        $estDur = trim(strval($body['estimated_execution_duration'] ?? ''));
+        if ($estDur !== '' && !is_numeric($estDur)) {
+            jout(['status' => 'error', 'message' => 'Invalid estimated duration'], 400);
+        }
+        if (isDurationRequired($tcaseCfg) && $estDur === '') {
+            jout(['status' => 'error',
+                  'message' => 'Estimated execution duration is required'], 400);
+        }
+        $attr = array('status' => $status, 'estimatedExecDuration' => $estDur);
 
         $ret = $tcaseMgr->update($tcaseId, $tcversionId, $name, $summary,
                                  $preconds, $steps,
