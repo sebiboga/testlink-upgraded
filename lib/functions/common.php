@@ -888,13 +888,19 @@ function getFileUploadErrorMessage($fInfo,$tlInfo=null)
 
 /**
  * Redirect to a page with static html defined in locale/en_GB/texts.php
+ *
+ * Refs #1501: the Help/Instructions viewer is modernized (Dashio HTML +
+ * BFF api/staticpage). All show_instructions() callers land on the modern
+ * screen; the legacy lib/general/staticPage.php stays only as a deep-link
+ * fallback.
  * 
  * @param string $key keyword for finding exact html text in definition array
  */
 function show_instructions($key, $refreshTree=0)
 {
-    $myURL = $_SESSION['basehref'] . "lib/general/staticPage.php?key={$key}";
-    
+    $myURL = $_SESSION['basehref'] .
+             "gui/templates/documentation/staticPage.html?key=" . urlencode($key);
+
     if( $refreshTree )
     {
         $myURL .= "&refreshTree=1";  
