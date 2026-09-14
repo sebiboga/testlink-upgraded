@@ -14687,3 +14687,35 @@ Undefined constant tlUser::E_EMAILINVALID` (`api/userinfo/index.php:174`) → HT
 Result: **PASS — 8/8 PASS** — profile save returns a clean 400 JSON `Invalid email address`
 for every email rejection path (`E_EMAILFORMAT`, `E_EMAILLENGTH`), the valid-email flow still
 saves, Event Viewer + console stay clean. Refs #1500.
+
+## Task — Issue #910: Drag-and-drop move/copy in Test Specification tree
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php` (`action=move` / `action=copy`).
+**Precondition:** app @ http://localhost:8082, DB freshly imported or with test fixtures (project 1 "DemoProject",
+suites 2 Reports / 3 Login / 4 Checkout, TCs 6 "Generate Report" / 9 "Do Login" / 12 "Do Checkout"); admin/admin
+session; BFF writes require `X-Requested-With: XMLHttpRequest`. Browse `testSpec.html?tproject_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 910.1 | `POST action=move {"node_id":9,"type":"testcase","new_parent_id":2,"position":"bottom"}` | `{"status":"ok"}`; row 9 parent_id=2, node_order tail | **PASS** |
+| 910.2 | `POST action=copy {"node_id":6,"type":"testcase","new_parent_id":3,"position":"bottom"}` | new TC created under suite 3 | **PASS** |
+| 910.3 | `POST action=copy {"node_id":2,"type":"testsuite","new_parent_id":4}` | recursive deep copy (suite + children) | **PASS** |
+| 910.4 | Move suite into its own child (`new_parent_id` = descendant) | 400 `Cannot move a suite into its own child` | **PASS** |
+| 910.5 | Move node into itself (`new_parent_id == node_id`) | 400 `Cannot move a node into itself` | **PASS** |
+| 910.6 | Copy nonexistent node | 400 `Node not found` | **PASS** |
+| 910.7 | Move with `position:"top"` | node_order=0, siblings shift down | **PASS** |
+| 910.8 | Right-click suite/tc → context menu Cut/Copy/Paste; right-click root → Paste only | menu opens with correct items | **PASS** |
+| 910.9 | Cut TC → Paste on a suite → modal "Move to..." with target list, confirm | node moved; toast `Moved`; tree reloads | **PASS** |
+| 910.10 | Copy suite → Paste → modal "Copy to..." shows copy-options checkboxes | deep copy; toast `Copied` | **PASS** |
+| 910.11 | Drag TC onto another suite (HTML5 DnD) | node moved; toast `Moved` | **PASS** |
+| 910.12 | Alt+drag TC onto another suite | node copied (source kept); toast `Copied` | **PASS** |
+| 910.13 | i18n: switch locale bundle `en`/`ro` | all DnD/move/copy labels localized, no hardcoded strings | **PASS** |
+| 910.14 | Event Viewer / `events` table after all steps | 0 ERROR / WARNING rows | **PASS** |
+| 910.15 | No new JS console errors during all browser flows | console clean | **PASS** |
+
+Result: **PASS — 15/15 PASS** — the Test Specification tree now supports move & copy of
+test cases and test suites via context menu (Cut/Copy/Paste → modal) AND HTML5 drag-and-drop
+(Alt = copy), backed by BFF `action=move`/`action=copy` using `tree::change_parent()`,
+`change_child_order()` and `testcase/testsuite::copy_to()`, gated by `mgt_modify_tc`, with
+same-project + descendant/self-move rejection. Fix for a false "own child" rejection
+(`fetchFirstRow` returns `false` on empty sets) included. Event Viewer + console clean. Refs #910.
