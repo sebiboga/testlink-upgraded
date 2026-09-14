@@ -1082,7 +1082,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             $descendantCheck = $db->fetchFirstRow(
                 "SELECT id FROM {$nhTables['nodes_hierarchy']} " .
                 "WHERE id = {$newParent} AND parent_id = {$nodeId}");
-            if (!is_null($descendantCheck)) {
+            if (!empty($descendantCheck)) {
                 // quick one-level check; for deep recursion, walk the chain
                 jout(['status' => 'error',
                       'message' => 'Cannot move a suite into its own child'], 400);
@@ -1093,7 +1093,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             for ($i = 0; $i < 50; $i++) {
                 $row = $db->fetchFirstRow(
                     "SELECT parent_id FROM {$nh} WHERE id = {$cur}");
-                if (is_null($row) || intval($row['parent_id']) <= 0) { break; }
+                if (empty($row) || intval($row['parent_id']) <= 0) { break; }
                 if (intval($row['parent_id']) === $nodeId) {
                     jout(['status' => 'error',
                           'message' => 'Cannot move a suite into its own descendant'], 400);
