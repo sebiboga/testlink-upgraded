@@ -82,10 +82,40 @@ function staticpageLoadLocale($locale) {
     return array('body' => $TLS_htmltext, 'title' => $TLS_htmltext_title);
 }
 
+/**
+ * Map a client bundle short code (de, ro, pt, ...) to the full TestLink
+ * locale dir used for the texts.php help bundles. Prefers the canonical
+ * region variant that ships a texts.php (pt_PT over pt_BR, es_ES over
+ * es_AR), mirroring the i18n.js LOCALE_MAP direction.
+ */
+function staticpageLocaleDir($short) {
+    $map = array(
+        'en' => 'en_GB', 'ro' => 'ro_RO', 'de' => 'de_DE', 'fr' => 'fr_FR',
+        'es' => 'es_ES', 'it' => 'it_IT', 'pt' => 'pt_PT', 'ru' => 'ru_RU',
+        'ja' => 'ja_JP', 'zh' => 'zh_CN', 'ko' => 'ko_KR', 'nl' => 'nl_NL',
+        'pl' => 'pl_PL', 'cs' => 'cs_CZ', 'fi' => 'fi_FI', 'id' => 'id_ID',
+    );
+    return isset($map[$short]) ? $map[$short] : null;
+}
+
 $locale = isset($_SESSION['locale']) ? (string)$_SESSION['locale'] : '';
 if ($locale === '' && isset($tlCfg) && !empty($tlCfg->default_language)) {
     $locale = $tlCfg->default_language;
 }
+
+// Explicit client-locale hint (from the TLi18n bundle the screen is
+// displaying): superset of legacy parity — the legacy page had no locale
+// switching at all. Only honoured when that locale ships a real texts.php.
+if (isset($_GET['locale'])) {
+    $hint = strtolower(trim((string)$_GET['locale']));
+    if (preg_match('/^[a-z]{2}$/', $hint) === 1) {
+        $hintDir = staticpageLocaleDir($hint);
+        if (!is_null($hintDir) && is_file(dirname(__FILE__) . '/../../locale/' . $hintDir . '/texts.php')) {
+            $locale = $hintDir;
+        }
+    }
+}
+
 $strings = staticpageLoadLocale($locale);
 if (is_null($strings)) {
     $strings = staticpageLoadLocale('en_GB');
@@ -100,7 +130,10 @@ if (is_null($strings)) {
 }
 
 $found = isset($strings['body'][$key]);
-$title = $found ? $strings['title'][$key] : lang_get('title_help');
+// Legacy parity: staticPage.php left pageTitle empty for unknown keys; the
+// front-end falls back to the raw key in that case (lang_get('title_help')
+// has no server-side definition).
+$title = $found ? $strings['title'][$key] : '';
 $content = $found ? $strings['body'][$key] : sprintf(
     'Please, ask administrator to update localization file ' .
     '(&lt;testlink_root&gt;/locale/%s/texts.php) - missing key: %s',
