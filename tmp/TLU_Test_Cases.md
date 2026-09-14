@@ -14873,3 +14873,35 @@ the BFF `save` route targets the submitted `version_id` (fallback: latest), and
 the editor renders a `Select version` dropdown when a requirement has multiple
 versions (frozen marked `*`). Region/sub-area regression: create flow, single
 version editing, latest-version default behaviour all unchanged. Refs #1382.
+
+## Modernize — Issue #1501: Help & Instructions screen (lib/general/staticPage.php)
+
+**Screen:** `gui/templates/documentation/staticPage.html` + BFF `api/staticpage/index.php`
+(`?action=show&key=…[&refreshTree=0|1][&locale=xx]`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, admin/admin
+session; legacy wiring switched: `lib/functions/common.php` `show_instructions()` and
+`lib/general/frmWorkArea.php` staticPage fallback both point at the modern screen.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1501.1 | Open `staticPage.html?key=tc_exec_assignment` (admin session) | Header "Help & Instructions", subtitle, key badge, toolbar (locale switcher / Back / Refresh), card title "Assign Testers to test execution" + Purpose/Get Started body from en_GB texts.php; footer with generated time | **PASS** |
+| 1501.2 | Open `staticPage.html?key=totally_missing_key` | Warnbar "Help topic not available in the selected language (en_GB)" + legacy body "ask administrator to update localization file … missing key"; card title shows the raw key (no 'LOCALIZE: title_help' leakage) | **PASS** |
+| 1501.3 | Open `staticPage.html?key=evil..%2Fetc%2Fpasswd` | BFF 400 → error banner "Invalid or missing contact key parameter", content hidden, key badge/fields stay text (no XSS) | **PASS** |
+| 1501.4 | Open `staticPage.html?key=planAddTC` in an isolated context WITHOUT session | Error banner "Not authenticated"; content hidden | **PASS** |
+| 1501.5 | Open `staticPage.html?key=planAddTC&locale=de` | UI chrome in German AND body from de_DE texts.php: title "Testfälle hinzufügen / entfernen", "Zweck:" | **PASS** |
+| 1501.6 | Open `staticPage.html?key=planAddTC&locale=ro` | UI chrome in Romanian; ro_RO has no texts.php → body served from en_GB fallback (legacy parity); no warnbar error shown for a valid key | **PASS** |
+| 1501.7 | Click **Refresh** (with an unknown key loaded) | Page reloads, warnbar + raw-key title still rendered (state re-fetched), no JS errors | **PASS** |
+| 1501.8 | Click **Back** | `window.history.back()` — returns to previous page (top context `/index.php`) | **PASS** |
+| 1501.9 | Open `staticPage.html?key=planAddTC&refreshTree=1` | Renders fine; BFF returns `refreshTree: 1` (tree-refresh contract preserved) | **PASS** |
+| 1501.10 | `curl` BFF `?action=show&key=planAddTC` with NO session cookie | HTTP 401, `{"status":"error","message":"Not authenticated"}` | **PASS** |
+| 1501.11 | BFF `?action=delete` (unimplemented action) | HTTP 405, error envelope | **PASS** |
+| 1501.12 | Browser console during 1501.1–1501.9 | No JS errors, no failed network requests | **PASS** |
+| 1501.13 | Event Viewer / `events` table after all tests | 0 ERROR/WARNING rows | **PASS** |
+
+Result: **PASS — 13/13 PASS** — the legacy Help/Instructions viewer
+(`lib/general/staticPage.php`) is fully ported: `show_instructions()` now
+targets the modern Dashio screen; the BFF serves `$TLS_htmltext` bodies for all
+16 texts.php keys with session + client-locale resolution (en_GB fallback,
+ro_RO parity) and returns 400/401/405 error envelopes; unknown keys keep the
+legacy "ask administrator" body via a warnbar instead of a hard failure.
+Refs #1501.

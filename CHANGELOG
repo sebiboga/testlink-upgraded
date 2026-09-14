@@ -285,6 +285,17 @@ Auth & Documentation:
   self-sign-up + lost-password links, schema-block check (#775/#1047-#1051).
 - First Login / Self Sign-Up (firstLogin.html), Lost Password (lostPassword.html)
   (#1337-#1339).
+- Help & Instructions viewer (gui/templates/documentation/staticPage.html) -
+  BFF api/staticpage (#1501). Last standalone lib/general/* screen modernized:
+  show_instructions() + the frmWorkArea.php staticPage fallback now point at
+  the modern screen; the BFF serves the $TLS_htmltext/$TLS_htmltext_title help
+  topics for the session locale (default_language -> en_GB fallback; 16 keys),
+  honours a client ?locale= hint (TLi18n switcher, only when that locale ships
+  a texts.php) so the help content finally localizes (de verified; ro_RO keeps
+  en_GB parity), unknown keys keep the legacy "ask administrator" warnbar with
+  the raw key as title, key validated ^[a-zA-Z0-9_\-]+$ (400), anon 401,
+  other actions 405; stp.* + common.back + footers.staticPage keys in all 10
+  bundles.
 
 Test Strategy:
 - General Overview + chapter pages (strategy/testStrategy.html, scope.html,
