@@ -44,6 +44,13 @@ The BFF reproduces `lib/plan/planExport.php`:
 | **Header** | "Export Test Plan" + plan name |
 | **Toolbar** | Test Project / Test Plan context + locale switcher |
 | **Form card** | File name (pre-filled with the default), File type (XML), Export content dropdown (Linked items / Complete plan contents / For results import) + a hint line |
+
+The **File type** row also carries a **"View file formats documentation"** link
+(`/docs/tl-file-formats.pdf`, opens in a new tab) — parity with the legacy
+`planExport.tpl:65` link `{$labels.view_file_format_doc}` beside the File type
+select (legacy constant `PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT`,
+`cfg/const.inc.php:917`). Label i18n key `pex.viewFileFormatDoc` in all ten
+bundles; tracked in [#1386](https://github.com/sebiboga/testlink-upgraded/issues/1386).
 | **Actions** | **Export** (streams the XML download) and **Cancel** (back/close) |
 
 ## Flow
@@ -103,3 +110,4 @@ All user-facing strings use `pex.*` keys present in all ten locale bundles
 ## Test coverage
 
 See **Suite 813** in `tmp/TLU_Test_Cases.md` (14/14 PASS).
+Feature "file formats documentation link" (issue #1386) covered by **Suite 1498**.

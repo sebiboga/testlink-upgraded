@@ -208,6 +208,8 @@ Plans:
 - Test Plan Milestones (planMilestones.html) - BFF api/milestones.
 - Update Linked TC Versions (planUpdateTC.html) - BFF api/plans.
 - Plan Export (planExport.html) - BFF api/planexport (#1385/#1386).
+  "View file formats documentation" link (/docs/tl-file-formats.pdf) beside the
+  File type select, legacy parity (planExport.tpl:65), key pex.viewFileFormatDoc.
 - Plan Import (planImport.html) - BFF api/planimport (#1388-#1390, #1414).
 
 Execution:

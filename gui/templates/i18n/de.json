@@ -1432,6 +1432,7 @@
   "pex.testProject": "Testprojekt",
   "pex.title": "Testplan exportieren",
   "pex.tree": "Vollständiger Planinhalt (Baum)",
+  "pex.viewFileFormatDoc": "Dokumentation der Dateiformate anzeigen",
   "piv.active": "Aktiv",
   "piv.addAttachment": "Anhang hinzufügen",
   "piv.attDate": "Hinzugefügt",

@@ -1432,6 +1432,7 @@
   "pex.testProject": "Projet de Test",
   "pex.title": "Exporter le Plan de Test",
   "pex.tree": "Contenu complet du plan (arborescence)",
+  "pex.viewFileFormatDoc": "voir la documentation des formats de fichier",
   "piv.active": "Actif",
   "piv.addAttachment": "Ajouter une pièce jointe",
   "piv.attDate": "Ajouté",

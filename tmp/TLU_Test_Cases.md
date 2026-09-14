@@ -14561,3 +14561,30 @@ Refs #1392.
 | 904.9 | Event Viewer + console after suite | `events` table: only log_level=16 audit rows (CREATE/UPDATE/DELETE), **0** Error/Warning rows; browser console 0 JS errors (one expected 400 from the intentional duplicate-name test) | **PASS** |
 
 Result: **9/9 PASS** — **#904 IMPLEMENTED/VERIFIED**: create/update/duplicate/delete now surface localized success toasts (BFF `feedback_key`: `role_created`/`role_updated`/`role_deleted`/`role_duplicated`) and all create/update/duplicate/delete error paths resolve localized legacy messages via `messageKey` — parity with #890 for User Management, no alerts, no ad-hoc English, clean Event Viewer.
+
+## Suite 1498 — Task Issue #1386: planExport "View file formats documentation" link (gap vs legacy)
+
+**Screen:** `gui/templates/plans/planExport.html` + BFF `api/planexport/index.php`.
+**Feature ported from legacy:** legacy `gui/templates/dashio/plan/planExport.tpl:65`
+renders `<a href={$basehref}{$smarty.const.PARTIAL_URL_TL_FILE_FORMATS_DOCUMENT}>{$labels.view_file_format_doc}</a>`
+beside the File type select (constant `cfg/const.inc.php:917` =
+`docs/tl-file-formats.pdf`, label `view_file_format_doc` = "(View file formats documentation)").
+The modern form had dropped it; now re-added as a `.doc-link` anchor
+(`href="/docs/tl-file-formats.pdf" target="_blank"`, i18n key `pex.viewFileFormatDoc`)
+beside the File type `<select>`.
+**Precondition:** app @ http://localhost:8082, logged in admin/admin. Fixture created via
+BFF APIs: testproject `ExportFixture` (id=1, prefix EXPF) via `POST /api/projects/`,
+testplan `Export Plan` (id=2) via `POST /api/plans/`. Screen URL:
+`gui/templates/plans/planExport.html?tproject_id=1&tplan_id=2`. Chrome DevTools MCP + mysql CLI.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1386.1 | Open `planExport.html?tproject_id=1&tplan_id=2` (EN) | File type row shows `<select>` + link **"(View file formats documentation)"** (`href=http://localhost:8082/docs/tl-file-formats.pdf`, `target=_blank`); BFF context loads OK (`ExportFixture / Export Plan`, default filename `linkedItems_Export_Plan.xml`) | **PASS** |
+| 1386.2 | Click the documentation link | Opens the PDF in a new tab; fetch of `/docs/tl-file-formats.pdf` → HTTP 200, `Content-Type: application/pdf`, 570890 bytes | **PASS** |
+| 1386.3 | Locale switcher → German (`&locale=de`) | Link text becomes **"Dokumentation der Dateiformate anzeigen"** (key `pex.viewFileFormatDoc` present in all 10 bundles: de en es fr it ja pt ro ru zh; `python3 -m json.tool` valid) | **PASS** |
+| 1386.4 | Event Viewer + console hygiene | `events` table: only log_level=16 audit rows (login/project/plan creation), **0** Error/Warning rows from any BFF call; browser console 0 JS errors across screen load, locale switch and link click | **PASS** |
+
+Result: **PASS — 4/4 PASS** — the legacy "View file formats documentation" hyperlink
+is fully ported beside the File type select, opens the real PDF (`docs/tl-file-formats.pdf`,
+200/application/pdf), is localized in all 10 bundles and leaves Event Viewer + console
+clean. Refs #1386.
