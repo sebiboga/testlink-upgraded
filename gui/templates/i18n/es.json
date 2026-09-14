@@ -3947,5 +3947,9 @@
   "tspec.insertStep": "Insertar paso después",
   "tspec.copyStep": "Copiar paso",
   "tspec.moveUp": "Mover arriba",
-  "tspec.moveDown": "Mover abajo"
+  "tspec.moveDown": "Mover abajo",
+
+  "tspec.customFields": "Campos personalizados",
+  "tspec.yes": "Sí",
+  "tspec.cfSelectEmpty": "- seleccionar -"
 }

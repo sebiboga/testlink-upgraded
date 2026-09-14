@@ -3947,5 +3947,9 @@
   "tspec.insertStep": "Schritt danach einfügen",
   "tspec.copyStep": "Schritt kopieren",
   "tspec.moveUp": "Nach oben",
-  "tspec.moveDown": "Nach unten"
+  "tspec.moveDown": "Nach unten",
+
+  "tspec.customFields": "Benutzerdefinierte Felder",
+  "tspec.yes": "Ja",
+  "tspec.cfSelectEmpty": "- auswählen -"
 }

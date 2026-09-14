@@ -14782,3 +14782,39 @@ read-only + edit per-step Execution Type column gated by `automationEnabled`,
 mixed Manual/Automated persisted in `tcsteps.execution_type` (step 3 manual,
 rest automated), locale switch to Română localizes the step-control tooltips,
 `events` table 0 ERROR/WARNING rows, browser console clean.
+
+Verified live on `http://localhost:8082` (php -S + `testlink-mariadb` @ 127.0.0.1:3307,
+login admin/admin, project peviitor.ro tcversion 4) against the working tree on
+2026-09-14: insert (new row between), renumber 1..N, duplicate row via copy,
+move up/down with re-sequencing, remove mid row, bounds no-op on first/last,
+read-only + edit per-step Execution Type column gated by `automationEnabled`,
+mixed Manual/Automated persisted in `tcsteps.execution_type` (step 3 manual,
+rest automated), locale switch to Română localizes the step-control tooltips,
+`events` table 0 ERROR/WARNING rows, browser console clean.
+
+## Task — Issue #907: Design-time custom fields in testSpec.html editor
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php` (`get`/`create`/`update`/`keywords`).
+**Precondition:** app @ http://localhost:8082, `testlink-mariadb` @ 3307, admin/admin session,
+9 CFs seeded on project 1 (tier/list, priority/list, owner/string, issue_tracker_url/email,
+complexity/radio, target_release/date, requires_signoff/checkbox, verification_env/multiselect list,
+notes/textarea).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 907.1 | Edit TC → CF block visible below keywords | 9 CF inputs rendered: 2 selects, 1 text, 1 email, 1 radio, 1 date, 1 checkbox, 1 multiselect, 1 textarea | **PASS** |
+| 907.2 | Fill all 9 CFs → Save → read-only view | values display correctly: Gold, High, alice, URL, Simple, 2026-12-31, checked, prod, CF note | **PASS** |
+| 907.3 | DB: `cfield_design_values` for tcversion 4 | 9 rows; date stored as unix timestamp (1798675200 for 2026-12-31) | **PASS** |
+| 907.4 | Re-open Edit → CF values pre-populated | all 9 CFs pre-filled from stored values; date=2026-12-31, checkbox checked, multiselect prod selected | **PASS** |
+| 907.5 | Create new TC → CF block visible | 9 CF inputs rendered with empty defaults (create form) | **PASS** |
+| 907.6 | Fill name + 4 CFs (tier=Silver, owner=bob, complexity=Simple, notes=text) → Save | TC created; DB: 4 `cfield_design_values` rows; unfilled CFs correctly absent | **PASS** |
+| 907.7 | Read-only view of new TC | 4 CF values display correctly; other 5 CFs show "-" | **PASS** |
+| 907.8 | Switch locale to Română → edit form | CF labels localized ("Câmpuri personalizate"); `- selectează -` empty option localized | **PASS** |
+| 907.9 | Browser console (edit + create flows) | no JS errors; only a11y hint (14 fields without name attr, now fixed) | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the testSpec.html editor now renders linked
+design-time custom fields as typed inputs (list/multiselect/radio/checkbox/
+string/email/numeric/textarea/date/datetime), collects values on save, and
+persists to `cfield_design_values` via the BFF on create/update. Date values
+stored as unix timestamps and exposed as ISO. Read-only view displays CFs.
+Refs #907.

@@ -771,6 +771,42 @@ if ($action === 'get') {
         $projKw = [];
     }
 
+    // design-time custom fields linked to the project (per-step/tc level)
+    $customFields = [];
+    try {
+        $cfMap = $tcaseMgr->get_linked_cfields_at_design(
+            $tcaseId, $tcversionId, null, null, $tprojectId);
+        if (!is_null($cfMap) && is_array($cfMap)) {
+            foreach ($cfMap as $cfi) {
+                $val = $cfi['value'] ?? null;
+                if (is_array($val)) { $val = implode('|', $val); }
+                $verbose = strval(
+                    $tcaseMgr->cfield_mgr->custom_field_types[intval($cfi['type'] ?? 0)] ?? 'string');
+                if (in_array($verbose, ['date', 'datetime'], true)
+                    && $val !== '' && is_numeric($val)) {
+                    $val = gmdate('Y-m-d\TH:i', intval($val));
+                    if ($verbose === 'date') { $val = substr($val, 0, 10); }
+                }
+                $customFields[] = [
+                    'id' => intval($cfi['id']),
+                    'name' => strval($cfi['name'] ?? ''),
+                    'label' => strval($cfi['label'] ?? ''),
+                    'type' => intval($cfi['type'] ?? 0),
+                    'typeName' => $verbose,
+                    'possible_values' => strval($cfi['possible_values'] ?? ''),
+                    'default_value' => strval($cfi['default_value'] ?? ''),
+                    'required' => intval($cfi['required'] ?? 0),
+                    'show_on_design' => intval($cfi['show_on_design'] ?? 0) === 1,
+                    'enable_on_design' => intval($cfi['enable_on_design'] ?? 0) === 1,
+                    'length_max' => intval($cfi['length_max'] ?? 0),
+                    'value' => ($val === null || $val === '') ? '' : (string)$val,
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $customFields = [];
+    }
+
     jout([
         'status' => 'ok',
         'tcase' => [
@@ -790,6 +826,7 @@ if ($action === 'get') {
             'parent_id' => intval($lvRow['suite_id'] ?? 0),
         ],
         'steps' => $steps,
+        'customFields' => $customFields,
         'keywordsAssigned' => $assignedKw,
         'keywordsProject' => $projKw,
         'executed' => $executed,
@@ -832,10 +869,49 @@ if ($action === 'keywords') {
         $projKw = [];
     }
 
+    // project-level design custom fields (definitions only, no value yet)
+    $customFields = [];
+    try {
+        $cfMap = $tcaseMgr->cfield_mgr->get_linked_cfields_at_design(
+            $tprojectId, ENABLED, null, 'testcase', null);
+        if (!is_null($cfMap) && is_array($cfMap)) {
+            foreach ($cfMap as $cfi) {
+                $val = $cfi['value'] ?? null;
+                if (is_array($val)) { $val = implode('|', $val); }
+                $verbose = strval(
+                    $tcaseMgr->cfield_mgr->custom_field_types[intval($cfi['type'] ?? 0)] ?? 'string');
+                if (in_array($verbose, ['date', 'datetime'], true)
+                    && $val !== '' && is_numeric($val)) {
+                    $val = gmdate('Y-m-d\TH:i', intval($val));
+                    if ($verbose === 'date') { $val = substr($val, 0, 10); }
+                }
+                $customFields[] = [
+                    'id' => intval($cfi['id']),
+                    'name' => strval($cfi['name'] ?? ''),
+                    'label' => strval($cfi['label'] ?? ''),
+                    'type' => intval($cfi['type'] ?? 0),
+                    'typeName' => $verbose,
+                    'possible_values' => strval($cfi['possible_values'] ?? ''),
+                    'default_value' => strval($cfi['default_value'] ?? ''),
+                    'required' => intval($cfi['required'] ?? 0),
+                    'show_on_design' => intval($cfi['show_on_design'] ?? 0) === 1,
+                    'enable_on_design' => intval($cfi['enable_on_design'] ?? 0) === 1,
+                    'length_max' => intval($cfi['length_max'] ?? 0),
+                    'value' => is_array($cfi['value'] ?? null)
+                        ? implode('|', array_map('strval', $cfi['value']))
+                        : strval($cfi['value'] ?? ''),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $customFields = [];
+    }
+
     jout([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
         'keywordsProject' => $projKw,
+        'customFields' => $customFields,
     ]);
 }
 
@@ -888,6 +964,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             if (intval($kid) > 0) { $ids[] = intval($kid); }
         }
         return count($ids) ? implode(',', $ids) : '';
+    };
+
+    // Persist design-time custom field values for a test case version.
+    // Mirrors legacy testcaseCommands: get_linked_cfields_at_design() +
+    // cfield_mgr::design_values_to_db().
+    $saveDesignCF = function($body, $tcaseId, $tcversionId, $tprojectId) use ($db, $tcaseMgr) {
+        $rawCF = $body['customFields'] ?? [];
+        if (!is_array($rawCF) || !count($rawCF)) {
+            // no custom fields posted - leave values untouched (like legacy,
+            // which only writes keys present on the form)
+            return;
+        }
+        $cf_map = $tcaseMgr->get_linked_cfields_at_design(
+            $tcaseId, $tcversionId, null, null, $tprojectId);
+        if (is_null($cf_map)) { return; }
+
+        // key: cf id value: field definition
+        $byId = [];
+        foreach ((array)$cf_map as $cfi) {
+            $byId[intval($cfi['id'])] = $cfi;
+        }
+
+        // legacy input name format: custom_field_<type>_<id>
+        $cfield = [];
+        foreach ($rawCF as $cfv) {
+            if (!is_array($cfv)) { continue; }
+            $cfId = intval($cfv['id'] ?? 0);
+            if ($cfId <= 0 || !isset($byId[$cfId])) { continue; }
+            $verbose = trim(strval(
+                $tcaseMgr->cfield_mgr->custom_field_types[intval($byId[$cfId]['type'] ?? 0)] ?? ''));
+            $value = $cfv['value'] ?? '';
+            if (is_array($value)) {
+                $value = implode('|', array_map('strval', $value));
+            } else {
+                $value = strval($value);
+            }
+            // date/datetime posted as ISO (Y-m-d / Y-m-d\TH:i) -> unix ts
+            if (($verbose === 'date' || $verbose === 'datetime') && $value !== '') {
+                $ts = strtotime($value);
+                if ($ts !== false) {
+                    if ($verbose === 'date') {
+                        $value = strval(mktime(
+                            0, 0, 0, intval(date('n', $ts)),
+                            intval(date('j', $ts)), intval(date('Y', $ts))));
+                    } else {
+                        $value = strval($ts);
+                    }
+                } else {
+                    $value = '';
+                }
+            }
+            $typeId = intval($cfv['type'] ?? $byId[$cfId]['type']);
+            $cfield[$cfId] = ['type_id' => $typeId, 'cf_value' => $value];
+        }
+        if (count($cfield)) {
+            $tcaseMgr->cfield_mgr->design_values_to_db(
+                $cfield, intval($tcversionId), null, 'bff_design_cf');
+        }
     };
 
     // POST ?action=suite_create {parent_id,name}
@@ -967,6 +1101,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         if ($newId <= 0) {
             jout(['status' => 'error', 'message' => 'Create failed'], 500);
         }
+
+        // persist design-time custom fields on the first version
+        $tvTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
+        $nrow = $db->fetchFirstRow(
+            " SELECT TCV.id AS tcversion_id FROM {$tvTables['tcversions']} TCV " .
+            " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$newId} ORDER BY TCV.version DESC LIMIT 1");
+        $newTcversionId = intval($nrow['tcversion_id'] ?? 0);
+        if ($newTcversionId > 0) {
+            $saveDesignCF($body, $newId, $newTcversionId, $tprojectId);
+        }
+
         jout(['status' => 'ok', 'id' => $newId, 'message' => 'Test case created']);
     }
 
@@ -1021,6 +1167,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             jout(['status' => 'error',
                   'message' => strval($ret['msg'] ?? 'Update failed')], 400);
         }
+        $saveDesignCF($body, $tcaseId, $tcversionId, $tprojectId);
         jout(['status' => 'ok', 'message' => 'Test case saved',
               'tcversion_id' => $tcversionId]);
     }

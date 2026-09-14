@@ -65,6 +65,9 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .form-row { margin-bottom: 12px; }
 .kw-list { max-width: 720px; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; background: #fafafa; }
 .kw-item { display: inline-block; margin: 0 14px 6px 0; font-size: 13px; }
+.cf-block { max-width: 720px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; background: #fbfdfd; }
+.cf-block-title { font-weight: 700; color: #2d8e88; margin-bottom: 8px; }
+.cf-row .form-control2, .cf-row select.cf-input, .cf-row textarea.cf-input { width: 100%; }
 .step-editor td textarea { width: 100%; min-height: 54px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12.5px; }
 .step-editor td select.st-exec { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
 .step-ctl { white-space: nowrap; }
@@ -529,6 +532,18 @@ function renderTcView(r) {
     '<div class="field-label">' + t('tspec.steps') + '</div>' + stepsHtml +
     '<div class="field-label">' + t('tspec.keywords') + '</div><div>' + kwHtml + '</div>';
 
+  var cfList = r.customFields || [];
+  if (cfList.length) {
+    h += '<div class="field-label">' + t('tspec.customFields') + '</div>';
+    cfList.forEach(function (cf) {
+      var label = esc(cf.label || cf.name || '');
+      var val = (cf.value !== undefined && cf.value !== null) ? String(cf.value) : '';
+      h += '<div style="padding:6px 0;border-bottom:1px solid #eee;">' +
+        '<span style="font-weight:600;">' + label + ':</span> ' +
+        (val === '' ? '<span class="none-text">-</span>' : esc(val)) + '</div>';
+    });
+  }
+
   if (canMod) {
     h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
       '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
@@ -555,6 +570,39 @@ function collectForm() {
   });
   var kws = [];
   $('#kwList input:checked').each(function () { kws.push(parseInt($(this).val(), 10)); });
+  var customFields = [];
+  $('#cfRows .cf-row').each(function (i, row) {
+    var $r = $(row);
+    var val = '';
+    var $radio = $r.find('input[type="radio"]:checked');
+    if ($radio.length) {
+      val = $radio.val() || '';
+    }
+    var $input = $r.find('input.cf-input:not([type="radio"])');
+    if (!val && $input.length) {
+      if ($input.attr('type') === 'checkbox') {
+        val = $input.is(':checked') ? '1' : '';
+      } else {
+        val = $input.val();
+      }
+    }
+    var $sel = $r.find('select.cf-input');
+    if (!val && $sel.length) {
+      if ($sel.attr('multiple')) {
+        val = $sel.val() || [];
+      } else {
+        val = $sel.val() || '';
+      }
+    }
+    if (!val) {
+      val = $r.find('textarea.cf-input').val() || '';
+    }
+    customFields.push({
+      id: parseInt($r.attr('data-cfid'), 10),
+      type: parseInt($r.attr('data-cftype'), 10),
+      value: val
+    });
+  });
   return {
     name: $('#tcNameInput').val(),
     summary: $('#tcSummaryInput').val(),
@@ -562,7 +610,8 @@ function collectForm() {
     execution_type: parseInt($('#tcExecTypeSel').val(), 10),
     importance: parseInt($('#tcImportanceSel').val(), 10),
     steps: steps,
-    keywords: kws
+    keywords: kws,
+    customFields: customFields
   };
 }
 
@@ -623,6 +672,7 @@ function formHtml(data, kwProject) {
     h += '<span class="none-text">' + t('tspec.noProjKeywords') + '</span>';
   }
   h += '</div></div>' +
+    customFieldsHtml(data.customFields) +
 
     '<div style="margin-top:14px;display:flex;gap:10px;">' +
       '<button class="btn-teal btn-sm" onclick="saveForm()"><i class="fa fa-floppy-disk"></i> ' + t('tspec.save') + '</button>' +
@@ -637,6 +687,93 @@ function stepExecOptions(selected) {
     '<option value="1"' + (selected !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
     '<option value="2"' + (selected === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
     '</select>';
+}
+
+function cfOptionsList(cf) {
+  var raw = cf.possible_values || '';
+  return raw.split('|').filter(function (v) { return v.trim() !== ''; });
+}
+
+function cfInputHtml(cf) {
+  var type = cf.typeName || 'string';
+  var val = (cf.value !== undefined && cf.value !== null) ? cf.value : '';
+  var cls = 'form-control2 cf-input';
+  var req = cf.required ? ' required' : '';
+  var label = esc(cf.label || cf.name || '');
+  var requiredMark = cf.required ? ' <span style="color:#c0392b;">*</span>' : '';
+  var cfId = cf.id !== undefined ? cf.id : 0;
+  var typeId = cf.type !== undefined ? cf.type : 0;
+  var baseName = 'custom_field_' + typeId + '_' + cfId;
+  var nameAttr = '';
+  switch (type) {
+    case 'date':
+    case 'datetime':
+      nameAttr = ' name="' + baseName + '_input"';
+      break;
+    default:
+      nameAttr = ' name="' + baseName + '"';
+      break;
+  }
+  var inner = '';
+  switch (type) {
+    case 'numeric':
+    case 'float':
+      inner = '<input type="number" step="any" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'email':
+      inner = '<input type="email" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'checkbox':
+      inner = '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;">' +
+        '<input type="checkbox" class="cf-input"' + nameAttr + ' value="1"' + (val === '1' ? ' checked' : '') + '> ' +
+        t('tspec.yes') + '</label>';
+      break;
+    case 'list':
+      inner = '<select class="' + cls + '"' + nameAttr + '>' +
+        '<option value="">' + t('tspec.cfSelectEmpty') + '</option>' +
+        cfOptionsList(cf).map(function (opt) {
+          return '<option value="' + esc(opt) + '"' + (val === opt ? ' selected' : '') + '>' + esc(opt) + '</option>';
+        }).join('') + '</select>';
+      break;
+    case 'radio':
+      inner = cfOptionsList(cf).map(function (opt) {
+        return '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-right:14px;">' +
+          '<input type="radio" class="cf-input"' + nameAttr + ' value="' + esc(opt) + '"' + (val === opt ? ' checked' : '') + '> ' +
+          esc(opt) + '</label>';
+      }).join('');
+      break;
+    case 'multiselection list':
+      inner = '<select multiple size="' + Math.max(3, cfOptionsList(cf).length) + '" class="' + cls + '"' + nameAttr + '>' +
+        cfOptionsList(cf).map(function (opt) {
+          var sel = val.split('|').indexOf(opt) !== -1 ? ' selected' : '';
+          return '<option value="' + esc(opt) + '"' + sel + '>' + esc(opt) + '</option>';
+        }).join('') + '</select>';
+      break;
+    case 'date':
+      inner = '<input type="date" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'datetime':
+      inner = '<input type="datetime-local" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'text area':
+      inner = '<textarea class="' + cls + '"' + nameAttr + req + '>' + esc(val) + '</textarea>';
+      break;
+    default:
+      inner = '<input type="text" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+  }
+  return '<div class="cf-row" data-cfid="' + cf.id + '" data-cftype="' + (cf.type !== undefined ? cf.type : 0) + '">' +
+    '<div class="field-label">' + label + requiredMark + '</div>' + inner +
+    '</div>';
+}
+
+function customFieldsHtml(cfList) {
+  if (!cfList || !cfList.length) { return ''; }
+  var h = '<div class="cf-block"><div class="cf-block-title">' + t('tspec.customFields') + '</div><div id="cfRows">';
+  cfList.forEach(function (cf, i) {
+    h += '<div class="form-row" style="max-width:720px;">' + cfInputHtml(cf) + '</div>';
+  });
+  return h + '</div></div>';
 }
 
 function stepRowHtml(num, actions, expected, execType) {
@@ -717,7 +854,7 @@ function openCreateTc() {
   $('#editView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
     if (editMode.mode !== 'create') { return; }
-    $('#editView').html(formHtml({}, r.keywordsProject || {})).show();
+    $('#editView').html(formHtml({ customFields: r.customFields }, r.keywordsProject || {})).show();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
     $('#editView').html(formHtml({}, {})).show();
@@ -736,6 +873,7 @@ function openEditTc(tcaseId) {
       importance: r.tcase.importance,
       execution_type: r.tcase.execution_type,
       steps: r.steps,
+      customFields: r.customFields,
       keywordsAssigned: r.keywordsAssigned
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });

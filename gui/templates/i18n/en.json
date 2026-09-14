@@ -3963,5 +3963,8 @@
   "tspec.insertStep": "Insert step after",
   "tspec.copyStep": "Copy step",
   "tspec.moveUp": "Move up",
-  "tspec.moveDown": "Move down"
+  "tspec.moveDown": "Move down",
+  "tspec.customFields": "Custom Fields",
+  "tspec.yes": "Yes",
+  "tspec.cfSelectEmpty": "- select -"
 }

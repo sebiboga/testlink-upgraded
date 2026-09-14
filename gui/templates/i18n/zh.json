@@ -3953,5 +3953,9 @@
   "tspec.insertStep": "在后面插入步骤",
   "tspec.copyStep": "复制步骤",
   "tspec.moveUp": "上移",
-  "tspec.moveDown": "下移"
+  "tspec.moveDown": "下移",
+
+  "tspec.customFields": "自定义字段",
+  "tspec.yes": "是",
+  "tspec.cfSelectEmpty": "- 选择 -"
 }

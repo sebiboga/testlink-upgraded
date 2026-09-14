@@ -179,6 +179,11 @@ Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
 - Test Specification step editor full step management: insert/copy/move
   up-down/resequence + per-step execution type in testSpec.html (Refs #906).
+- Test Specification design-time custom fields: linked project CFs now render
+  as typed inputs in the testSpec.html editor (list/multiselect/radio/checkbox/
+  string/email/numeric/textarea/date/datetime), collected on save and persisted
+  to cfield_design_values via the BFF on create/update; values shown read-only,
+  date/datetime stored as unix timestamps and exposed as ISO (Refs #907).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
 - Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),

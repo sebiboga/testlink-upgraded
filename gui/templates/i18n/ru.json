@@ -3953,5 +3953,9 @@
   "tspec.insertStep": "Вставить шаг после",
   "tspec.copyStep": "Скопировать шаг",
   "tspec.moveUp": "Вверх",
-  "tspec.moveDown": "Вниз"
+  "tspec.moveDown": "Вниз",
+
+  "tspec.customFields": "Пользовательские поля",
+  "tspec.yes": "Да",
+  "tspec.cfSelectEmpty": "- выбрать -"
 }

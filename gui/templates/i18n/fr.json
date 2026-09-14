@@ -3947,5 +3947,9 @@
   "tspec.insertStep": "Insérer une étape après",
   "tspec.copyStep": "Copier l'étape",
   "tspec.moveUp": "Vers le haut",
-  "tspec.moveDown": "Vers le bas"
+  "tspec.moveDown": "Vers le bas",
+
+  "tspec.customFields": "Champs personnalisés",
+  "tspec.yes": "Oui",
+  "tspec.cfSelectEmpty": "- sélectionner -"
 }

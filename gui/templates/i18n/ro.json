@@ -3957,5 +3957,9 @@
   "tspec.insertStep": "Inserează pas după",
   "tspec.copyStep": "Copiază pasul",
   "tspec.moveUp": "Mută sus",
-  "tspec.moveDown": "Mută jos"
+  "tspec.moveDown": "Mută jos",
+
+  "tspec.customFields": "Câmpuri personalizate",
+  "tspec.yes": "Da",
+  "tspec.cfSelectEmpty": "- selectează -"
 }
