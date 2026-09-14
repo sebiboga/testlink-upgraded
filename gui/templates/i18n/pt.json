@@ -2020,6 +2020,7 @@
   "reqe.title": "Título",
   "reqe.type": "Tipo",
   "reqe.version": "Versão",
+  "reqe.versionSelect": "Selecionar versão",
   "reqe.versionCreated": "Nova versão criada",
   "reqe.versionError": "Falha ao criar a nova versão",
   "reqexp.cancel": "Cancelar",

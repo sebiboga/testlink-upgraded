@@ -14843,3 +14843,33 @@ Result: **PASS — 9/9 PASS** — the testSpec.html editor now has the legacy
 Status workflow field on create + update, persists it to `tcversions.status`
 via the BFF, shows it in the detail view, and localizes all 7 statuses plus
 the field label across the 10 bundles. Refs #908.
+
+## Task — Issue #1382: reqEdit — open/edit a specific requirement version (req_version_id)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form`/`save`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin, project REPRO (id 1) with fixture RE-1 (req id 4: v1 = req_version_id 5
+`Original scope paragraph one.`, v2 = req_version_id 6 `Updated scope from v2.`) and RE-2 (id 7,
+single version id 8) as single-version control.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1382.1 | Open `reqEdit.html?id=4&tproject_id=1&req_version_id=5` | Editor opens v1: selector shows `v1r1` selected, scope = `Original scope paragraph one.` (NOT latest) | **PASS** |
+| 1382.2 | Open `reqEdit.html?id=4&tproject_id=1` (no version arg) | Editor opens the LATEST version (v2 `Updated scope from v2.`), selector present, chip=2 | **PASS** |
+| 1382.3 | RE-1 (2 versions) shows version selector | `#versionSelect` visible with options `v2r1`, `v1r1` | **PASS** |
+| 1382.4 | RE-2 (1 version) shows no selector | `#versionSelect` hidden, `#versionChip` visible | **PASS** |
+| 1382.5 | Change selector to `v2r1` | Scope reloads to `Updated scope from v2.`; `window.CURRENT_VERSION_ID` = 6 | **PASS** |
+| 1382.6 | Select `v1r1`, edit scope, click Save | DB: req_versions id 5 (v1) scope updated; id 6 (v2) untouched | **PASS** |
+| 1382.7 | POST save RE-2 with NO `version_id` | Targets its only version (id 8), update ok | **PASS** |
+| 1382.8 | POST save create new RE-3 | Create still works (regression), id returned | **PASS** |
+| 1382.9 | `form?action=form&id=4&version_id=9999` | HTTP 404, `Requirement version not found` | **PASS** |
+| 1382.10 | BFF form response shape | Contains `version_id`, `is_latest`, `versions[]` (id/version/revision/status/is_open), `show_version_selector` | **PASS** |
+| 1382.11 | Event Viewer / `events` table after all tests + browser console | 0 ERROR/WARNING rows; no JS errors (only a11y hint) | **PASS** |
+
+Result: **PASS — 11/11 PASS** — reqEdit.html can now open and edit ANY specific
+requirement version: the BFF `form` route honours `req_version_id`/`version_id`
+(returns the selected version deterministically plus the full `versions` list),
+the BFF `save` route targets the submitted `version_id` (fallback: latest), and
+the editor renders a `Select version` dropdown when a requirement has multiple
+versions (frozen marked `*`). Region/sub-area regression: create flow, single
+version editing, latest-version default behaviour all unchanged. Refs #1382.

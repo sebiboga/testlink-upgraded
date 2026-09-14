@@ -29,6 +29,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-control { font-size: 13px; height: 34px; border-radius: 4px; }
 textarea.form-control { height: auto; min-height: 120px; }
 .version-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.version-select { background: #22242a; color: #4ECDC4; border: 1px solid #3a3d45; border-radius: 3px; font-weight: 700; font-size: 12px; height: 26px; margin-left: 8px; max-width: 220px; }
 .stay-here { color: #ccc; font-size: 12px; display: inline-flex; align-items: center; gap: 7px; margin-right: 4px; cursor: pointer; user-select: none; }
 .stay-here input { accent-color: #4ECDC4; cursor: pointer; }
 .error-bar { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; display: none; }
@@ -44,7 +45,7 @@ textarea.form-control { height: auto; min-height: 120px; }
 
 <div class="toolbar">
   <span class="ctx" id="specLine"></span>
-  <span class="ctx"><span data-i18n="reqe.version">Version</span>: <b id="versionChip" class="version-chip">-</b></span>
+  <span class="ctx"><span data-i18n="reqe.version">Version</span>: <b id="versionChip" class="version-chip">-</b><select id="versionSelect" class="version-select" style="display:none;" title="" data-i18n-title="reqe.versionSelect"></select></span>
   <span style="flex:1"></span>
   <button id="newVersionBtn" class="btn-version" style="display:none;"><i class="fa fa-code-branch"></i> <span data-i18n="reqe.newVersion">Create New Version</span></button>
   <label id="stayHereOpt" class="stay-here" style="display:none;"><input type="checkbox" id="stayHere"> <span data-i18n="reqe.stayHere">Check to create another requirement after saving</span></label>
@@ -118,6 +119,9 @@ var TPROJECT_ID = 0;
 var MODE = 'create';
 var OPTIONS = null;
 var CURRENT = null;
+var REQ_VERSION_ID = 0;
+var CURRENT_VERSION_ID = 0;
+var VERSIONS = [];
 
 function fillSelect($sel, map, selected) {
   $sel.empty();
@@ -153,16 +157,32 @@ function showError(msg) {
 }
 function hideError() { $('#errorBar').hide(); }
 
+function renderVersionSelect() {
+  var sel = $('#versionSelect').empty();
+  var show = (MODE === 'edit' && VERSIONS.length > 1);
+  sel.toggle(show);
+  $('#versionChip').toggle(!show);
+  if (!show) { return; }
+  $.each(VERSIONS, function(i, v) {
+    var tag = 'v' + v.version + 'r' + v.revision + (v.is_open ? '' : ' *');
+    sel.append('<option value="' + v.version_id + '">' + tag + '</option>');
+  });
+  sel.val(String(CURRENT_VERSION_ID));
+}
+
 function loadForm() {
   hideError();
   var url = API + '?action=form' +
     (REQ_ID > 0 ? '&id=' + REQ_ID : '&spec_id=' + SPEC_ID) +
     '&tproject_id=' + TPROJECT_ID;
+  if (REQ_ID > 0 && REQ_VERSION_ID > 0) { url += '&version_id=' + REQ_VERSION_ID; }
   $.getJSON(url, function(r) {
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.loadError')); return; }
     MODE = r.mode;
     OPTIONS = r.options || {};
     CURRENT = r.requirement || {};
+    CURRENT_VERSION_ID = CURRENT.version_id || 0;
+    VERSIONS = r.versions || [];
     SPEC_ID = CURRENT.srs_id || SPEC_ID;
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqe.pageTitle'));
 
@@ -177,6 +197,8 @@ function loadForm() {
     fillSelect($('#reqStatus'), OPTIONS.reqStatuses, CURRENT.status);
     fillSelect($('#reqType'), OPTIONS.reqTypes, CURRENT.type);
     fillCoverage(CURRENT.expected_coverage);
+
+    renderVersionSelect();
 
     var canManage = r.rights && r.rights.manage;
     if (MODE === 'edit') {
@@ -220,7 +242,12 @@ function save() {
   };
   if (!payload.req_doc_id) { showError(TLi18n.t('reqe.errDocId')); return; }
   if (!payload.title) { showError(TLi18n.t('reqe.errTitle')); return; }
-  if (MODE === 'edit') { payload.id = REQ_ID; }
+  if (MODE === 'edit') {
+    payload.id = REQ_ID;
+    // gap #1382: save must target the selected version (not only the latest)
+    payload.version_id = CURRENT_VERSION_ID ||
+      parseInt($('#versionSelect').val() || '0', 10);
+  }
   else {
     payload.spec_id = SPEC_ID;
     payload.stay_here = $('#stayHere').is(':checked') ? 1 : 0;
@@ -254,8 +281,13 @@ function save() {
 function resetForm() {
   REQ_ID = 0;
   MODE = 'create';
+  REQ_VERSION_ID = 0;
+  CURRENT_VERSION_ID = 0;
+  VERSIONS = [];
   $('#newVersionBtn').hide();
   $('#stayHereOpt').show();
+  $('#versionSelect').hide();
+  $('#versionChip').show().text('0');
   $('#reqDocId').val('');
   $('#reqTitle').val('');
   $('#reqScope').val('');
@@ -263,7 +295,6 @@ function resetForm() {
   fillSelect($('#reqStatus'), o.reqStatuses, o.defaultReqStatus);
   fillSelect($('#reqType'), o.reqTypes, o.defaultReqType);
   fillCoverage(1);
-  $('#versionChip').text('0');
   $('#stayHere').prop('checked', true);
 }
 
@@ -279,6 +310,7 @@ function newVersion() {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.versionError')); return; }
       $('#infoBar').text(TLi18n.t('reqe.versionCreated') + ' v' + r.version).show();
       setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
+      REQ_VERSION_ID = 0;
       loadForm();
     },
     error: function(xhr) {
@@ -294,6 +326,8 @@ $(function() {
   REQ_ID = parseInt(p.get('id') || p.get('requirement_id') || 0, 10);
   SPEC_ID = parseInt(p.get('spec_id') || 0, 10);
   TPROJECT_ID = parseInt(p.get('tproject_id') || p.get('tp_id') || 0, 10);
+  // gap #1382: deep-link into a specific version, legacy req_version_id parity
+  REQ_VERSION_ID = parseInt(p.get('req_version_id') || p.get('version_id') || 0, 10);
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -302,6 +336,12 @@ $(function() {
     loadForm();
   });
   $('#newVersionBtn').on('click', newVersion);
+  $('#versionSelect').on('change', function() {
+    var vid = parseInt($(this).val(), 10);
+    if (!vid || vid === CURRENT_VERSION_ID) { return; }
+    REQ_VERSION_ID = vid;
+    loadForm();
+  });
 });
 </script>
 </body>

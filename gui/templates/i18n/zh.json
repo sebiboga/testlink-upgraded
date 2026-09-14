@@ -2020,6 +2020,7 @@
   "reqe.title": "标题",
   "reqe.type": "类型",
   "reqe.version": "版本",
+  "reqe.versionSelect": "选择版本",
   "reqe.versionCreated": "已创建新版本",
   "reqe.versionError": "创建新版本失败",
   "reqexp.cancel": "取消",

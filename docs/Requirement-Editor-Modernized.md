@@ -31,6 +31,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Feature | Legacy behavior | Modern implementation |
 |---|---|---|
 | Mode (edit / create) | `requirement_id` vs `req_spec_id` URL args | `id=` opens edit, `spec_id=` opens create; header shows spec title + latest version chip |
+| Specific version editing (edit) | `reqEdit.php?doAction=edit&requirement_id=N&req_version_id=VID` loads and edits THAT exact version (used by the legacy reqViewVersionsViewer 'Edit' submit); without `req_version_id` → latest version | **same (added in #1382)** — `req_version_id` / `version_id` URL arg deep-links into the exact version; the BFF `form` returns the selected version deterministically plus the full `versions` list; the editor shows a **`Select version`** dropdown when the requirement has multiple versions (frozen marked `*`); saving targets the selected version |
 | Document ID | required `req_doc_id` (created as child revision node) | same; validation blocks save when empty |
 | Title | required text | same; validation |
 | Status | `char(1)` status code (D/R/F/I/V/O/N/...) | same; mapped to human label on load/save |
@@ -48,9 +49,9 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 
 | Method | Route | Body / Query | Returns |
 |---|---|---|---|
-| GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, rights}` |
-| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, options, rights}` |
-| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage, stay_here?}` | `{status:'ok', id, stay_here}` (update or create) |
+| GET | `?action=form&id=N` | `tproject_id`, optional `version_id`/`req_version_id` | `{mode:'edit', requirement, versions[], show_version_selector, options, tproject_id, tproject_name, rights}` — requirement includes `version_id` and `is_latest`; `versions[]` = {version_id, version, revision, status, is_open} |
+| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, versions:[], show_version_selector:false, tproject_id, tproject_name, options, rights}` |
+| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage, version_id?, stay_here?}` | `{status:'ok', id, version_id, stay_here}` (update or create) — `version_id` targets THAT exact requirement version, absent → latest |
 | POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
 
 ### Error conditions
@@ -71,13 +72,22 @@ form with the new id/version.
 - On **create**, the requirement node + `requirements` row + first
   `requirements_revisions` row are created in one transaction, mirroring the
   legacy `doCreate` flow.
+- **Per-version editing (#1382):** mirrors the legacy `reqEdit.php` contract —
+  `get_by_id(id, version_id)` loads the exact version when given
+  (`lib/requirements/reqCommands.class.php:181`) and `update(id, version_id, ...)`
+  targets it (`reqCommands.class.php:343`). The modern BFF implements the same
+  contract: `form` picks the requested `req_version_id` (validated) or falls back
+  to the latest; `save` writes through `requirement_mgr::update(reqId, versionId, ...)`
+  which directly updates that `req_versions` row. The version selector follows the
+  existing `reqView.html` pattern (`v<version>r<revision>`, ` *` for frozen).
 
 ## 4. i18n Keys
 
 All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 (`reqe.pageTitle`, `reqe.title`, `reqe.docId`, `reqe.status`, `reqe.type`,
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
-`reqe.newVersion`, `reqe.stayHere`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`, and
+`reqe.newVersion`, `reqe.stayHere`, `reqe.spec`, `reqe.version`,
+`reqe.versionSelect`, `reqe.detailHeader`, and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -100,3 +110,12 @@ See also **Task #1384 — stay_here create-another** suite (10/10 PASS): checkbo
 visible/checked in create mode, bulk entry resets the form on same spec, unchecked
 save transitions to edit mode, edit mode hides the checkbox, BFF echoes
 `stay_here`, i18n `reqe.stayHere` in all 10 bundles, Event Viewer + console clean.
+
+See also **Task #1382 — per-version editing** suite (11/11 PASS): deep-link into a
+specific version via `req_version_id`, latest-version default, version selector
+shown for multi-version requirements and hidden for single-version ones, selector
+switch reloads the chosen version, save targets the selected version only (other
+versions untouched), save without `version_id` targets latest, create regression,
+invalid `version_id` → 404, BFF payload shape (`version_id`, `is_latest`,
+`versions[]`, `show_version_selector`), Event Viewer + console clean.
+![Per-versioned editor: deep link into RE-1 v1](screenshots/issue-1382-edit-v1-loaded.png)

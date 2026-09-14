@@ -2020,6 +2020,7 @@
   "reqe.title": "Titlu",
   "reqe.type": "Tip",
   "reqe.version": "Versiune",
+  "reqe.versionSelect": "Selectați versiunea",
   "reqe.versionCreated": "Versiune nouă creată",
   "reqe.versionError": "Eroare la crearea versiunii noi",
   "reqexp.cancel": "Anulează",

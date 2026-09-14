@@ -2020,6 +2020,7 @@
   "reqe.title": "Название",
   "reqe.type": "Тип",
   "reqe.version": "Версия",
+  "reqe.versionSelect": "Выберите версию",
   "reqe.versionCreated": "Новая версия создана",
   "reqe.versionError": "Не удалось создать новую версию",
   "reqexp.cancel": "Отмена",

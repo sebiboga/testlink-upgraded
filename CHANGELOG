@@ -293,6 +293,14 @@ Test Strategy:
 NEW FEATURES
 -------------
 - Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
+  `api/reqedit`): per-version editing (Refs #1382) — the editor honours
+  `req_version_id`/`version_id` and opens / saves THAT exact requirement version
+  (was: always the latest); BFF `form` returns `version_id`, `is_latest`,
+  `versions[]` and `show_version_selector`, `save` targets the submitted
+  `version_id` (fallback latest, 404 on invalid); a `Select version` dropdown is
+  shown for multi-version requirements (frozen marked `*`), a chip for
+  single-version ones. i18n `reqe.versionSelect` in all 10 bundles.
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
   `api/reqedit`): legacy "create another requirement after saving" (`stay_here`)
   checkbox restored (Refs #1384) — shown only in create mode; when checked the
   save resets the create form (same spec, empty fields, defaults restored) for

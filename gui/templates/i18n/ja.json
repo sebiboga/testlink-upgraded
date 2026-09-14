@@ -2020,6 +2020,7 @@
   "reqe.title": "タイトル",
   "reqe.type": "タイプ",
   "reqe.version": "バージョン",
+  "reqe.versionSelect": "バージョンを選択",
   "reqe.versionCreated": "新しいバージョンを作成しました",
   "reqe.versionError": "新バージョンの作成に失敗しました",
   "reqexp.cancel": "キャンセル",

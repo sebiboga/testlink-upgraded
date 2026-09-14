@@ -2014,6 +2014,7 @@
   "reqe.title": "Titre",
   "reqe.type": "Type",
   "reqe.version": "Version",
+  "reqe.versionSelect": "Sélectionner la version",
   "reqe.versionCreated": "Nouvelle version créée",
   "reqe.versionError": "Échec de la création de la nouvelle version",
   "reqexp.cancel": "Annuler",
