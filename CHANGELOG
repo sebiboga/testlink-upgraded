@@ -188,6 +188,13 @@ Test Spec:
   restored: Status select in the testSpec.html create/edit form, persisted to
   tcversions.status on create/update, status badge in the detail view; domain
   exposed via BFF statusDomain, labels via tcview.statusN keys (Refs #908).
+- Test Specification Estimated Execution Duration field restored: decimal min
+  input in the testSpec.html create/edit form, validated (is_numeric) and
+  persisted to tcversions.estimated_exec_duration via the BFF on create/update,
+  detail view + tcView.html display the value, clearing maps to NULL; optional
+  required gate via $tlCfg->testcase_cfg->estimated_execution_duration->required
+  (red asterisk + required attr; BFF 400 when configured and empty); keys
+  tspec.estimatedDuration* in all 10 bundles (Refs #911).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
 - Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),
