@@ -1199,7 +1199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         // TC status workflow domain (legacy setStatus); keep current when absent.
         $status = normalizeTcStatus($body['status'] ?? '');
         if ($status === null) {
-            $status = intval($lvRow['status'] ?? 1);
+            $curStatus = intval($lvRow['status'] ?? 0);
+            $status = $curStatus >= 1 ? $curStatus : 1;
         }
         $attr = array('status' => $status);
 

@@ -14818,3 +14818,28 @@ string/email/numeric/textarea/date/datetime), collects values on save, and
 persists to `cfield_design_values` via the BFF on create/update. Date values
 stored as unix timestamps and exposed as ISO. Read-only view displays CFs.
 Refs #907.
+
+## Task — Issue #908: Test case STATUS field in Test Specification editor
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php`
+(`get`/`create`/`update`/`keywords`).
+**Precondition:** app @ http://localhost:8082, `testlink` DB @ 127.0.0.1:3306,
+admin/admin session; project "Demo Project" (id=1), suite "Authentication",
+TC "Login with valid credentials" (status initially Default/Draft).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 908.1 | Open testSpec.html?tproject_id=1 → select suite → "New Test Case Here" | Create form shows a **Status** select with the 7 workflow options; Draft selected by default | **PASS** |
+| 908.2 | Fill name "Login with valid credentials", set Status = "Ready for review", add a summary → Save | TC created; DB `tcversions.status=2` | **PASS** |
+| 908.3 | Detail view of the created TC | "Status → Ready for review" meta-item rendered | **PASS** |
+| 908.4 | Edit the TC → Status select | Form re-opens with current status "Ready for review" preselected | **PASS** |
+| 908.5 | Change Status to "Final" → Save | DB `tcversions.status=7`; `modification_ts` refreshed | **PASS** |
+| 908.6 | Detail view after save | "Status → Final" shown | **PASS** |
+| 908.7 | Reload with `?locale=ro` → open editor | Status select shows 7 Romanian labels (Ciornă, Pentru review, Review în curs, Reproiectare, Învechit, Viitor, Final); field label localized "Status" | **PASS** |
+| 908.8 | Browser console during create/edit/detail | No JS errors; only pre-existing a11y hint | **PASS** |
+| 908.9 | Event Viewer (`events` table) after all actions | No new ERROR/WARNING rows (row 1 login audit, row 2 project-created audit) | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the testSpec.html editor now has the legacy
+Status workflow field on create + update, persists it to `tcversions.status`
+via the BFF, shows it in the detail view, and localizes all 7 statuses plus
+the field label across the 10 bundles. Refs #908.

@@ -547,7 +547,7 @@ function renderTcView(r) {
     (!tc.active ? '<span class="badge-tl badge-gray">' + t('tspec.inactive') + '</span>' : '') +
     '</div><div class="card-body">' +
     '<div class="meta-grid">' +
-      '<div class="meta-item"><b>' + t('tspec.status') + '</b>' + statusLabel(tc.status) + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.status') + '</b>' + esc(statusLabel(tc.status)) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.importance') + '</b>' + importanceLabel(tc.importance) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.executionType') + '</b>' + execTypeLabel(tc.execution_type) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.testCaseId') + '</b>' + tc.id + '</div>' +
