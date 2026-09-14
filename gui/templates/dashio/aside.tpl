@@ -314,7 +314,7 @@ Left side menu
                   {if $gui->uri->execDashboard != null
                       && ($menuGrants->testplan_execute == "yes"
                           || $menuGrants->exec_ro_access == "yes")}
-                    <li><a href="{$gui->uri->execDashboard}" target="mainframe"><i class="fa fa-tachometer"></i> {$labels.href_exec_dashboard}</a></li>
+                    <li><a href="{$gui->uri->execDashboard}" target="mainframe"><i class="fas fa-tachometer-alt"></i> {$labels.href_exec_dashboard}</a></li>
                   {/if}
 
                   {if $gui->uri->executeTest != null}
