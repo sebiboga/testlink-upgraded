@@ -864,11 +864,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             $expected = trim(strval($st['expected_results'] ?? ''));
             if ($actions === '' && $expected === '') { continue; }
             $num++;
+            // Per-step execution type (legacy step editor supports one per
+            // step); fall back to the TC-level execution type when absent or
+            // out of the manual/automated domain.
+            $stepExec = intval($st['execution_type'] ?? $execType);
+            if ($stepExec !== TESTCASE_EXECUTION_TYPE_MANUAL
+                && $stepExec !== TESTCASE_EXECUTION_TYPE_AUTO) {
+                $stepExec = intval($execType);
+            }
             $out[] = [
                 'step_number' => $num,
                 'actions' => $actions,
                 'expected_results' => $expected,
-                'execution_type' => intval($execType),
+                'execution_type' => $stepExec,
             ];
         }
         return $out;

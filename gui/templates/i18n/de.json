@@ -3943,5 +3943,9 @@
   "tspec.clipboardEmpty": "Nothing to paste — cut or copy a node first",
   "tspec.operationFailed": "Move/copy operation failed",
   "tspec.confirmMove": "Move \"{name}\" to \"{target}\"?",
-  "tspec.confirmCopy": "Copy \"{name}\" to \"{target}\"?"
+  "tspec.confirmCopy": "Copy \"{name}\" to \"{target}\"?",
+  "tspec.insertStep": "Schritt danach einfügen",
+  "tspec.copyStep": "Schritt kopieren",
+  "tspec.moveUp": "Nach oben",
+  "tspec.moveDown": "Nach unten"
 }

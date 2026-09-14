@@ -3949,5 +3949,9 @@
   "tspec.clipboardEmpty": "Nothing to paste — cut or copy a node first",
   "tspec.operationFailed": "Move/copy operation failed",
   "tspec.confirmMove": "Move \"{name}\" to \"{target}\"?",
-  "tspec.confirmCopy": "Copy \"{name}\" to \"{target}\"?"
+  "tspec.confirmCopy": "Copy \"{name}\" to \"{target}\"?",
+  "tspec.insertStep": "直後にステップを挿入",
+  "tspec.copyStep": "ステップをコピー",
+  "tspec.moveUp": "上へ移動",
+  "tspec.moveDown": "下へ移動"
 }

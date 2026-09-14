@@ -66,6 +66,9 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .kw-list { max-width: 720px; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; background: #fafafa; }
 .kw-item { display: inline-block; margin: 0 14px 6px 0; font-size: 13px; }
 .step-editor td textarea { width: 100%; min-height: 54px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12.5px; }
+.step-editor td select.st-exec { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
+.step-ctl { white-space: nowrap; }
+.step-ctl .btn-sm { margin: 1px; padding: 3px 8px; }
 .placeholder-box { text-align: center; color: #999; margin-top: 60px; font-size: 14px; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
@@ -261,6 +264,7 @@ function init() {
     $('#tprojectName').text(r.tproject.name);
     document.title = r.tproject.name + ' - ' + t('tspec.header');
     grants = r.grants || {};
+    ctx.options = r.options || {};
     refreshGrantsUi();
     return loadTree();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -491,12 +495,16 @@ function renderTcView(r) {
   }
 
   var stepsHtml = '<p class="none-text">' + t('tspec.noSteps') + '</p>';
+  var showExec = !!(ctx.options && ctx.options.automationEnabled);
   if ((r.steps || []).length) {
     stepsHtml = '<table class="steps"><thead><tr>' +
-      '<th style="width:50px;">#</th><th>' + t('tspec.stepActions') + '</th><th>' + t('tspec.expectedResults') + '</th>' +
+      '<th style="width:50px;">#</th>' +
+      (showExec ? '<th>' + t('tspec.executionType') + '</th>' : '') +
+      '<th>' + t('tspec.stepActions') + '</th><th>' + t('tspec.expectedResults') + '</th>' +
       '</tr></thead><tbody>';
     r.steps.forEach(function (st) {
       stepsHtml += '<tr><td class="step-num">' + st.step_number + '</td>' +
+        (showExec ? '<td>' + execTypeLabel(st.execution_type) + '</td>' : '') +
         '<td>' + esc(st.actions) + '</td><td>' + esc(st.expected_results) + '</td></tr>';
     });
     stepsHtml += '</tbody></table>';
@@ -539,7 +547,10 @@ function collectForm() {
     var a = $(tr).find('.st-actions').val();
     var e = $(tr).find('.st-expected').val();
     if ((a && a.trim()) || (e && e.trim())) {
-      steps.push({ actions: a || '', expected_results: e || '' });
+      var execType = $(tr).find('.st-exec').length
+        ? parseInt($(tr).find('.st-exec').val(), 10)
+        : (ctx.stepDefaultExec || 1);
+      steps.push({ actions: a || '', expected_results: e || '', execution_type: execType === 2 ? 2 : 1 });
     }
   });
   var kws = [];
@@ -556,6 +567,8 @@ function collectForm() {
 }
 
 function formHtml(data, kwProject) {
+  ctx.stepDefaultExec = parseInt(data.execution_type, 10) === 2 ? 2 : 1;
+  var showExec = !!(ctx.options && ctx.options.automationEnabled);
   var assigned = {};
   (data.keywordsAssigned ? Object.keys(data.keywordsAssigned) : []).forEach(function (k) { assigned[k] = true; });
   var steps = data.steps || [];
@@ -586,13 +599,16 @@ function formHtml(data, kwProject) {
     '<textarea class="form-control2" id="tcPrecondInput">' + esc(data.preconditions || '') + '</textarea></div>' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.steps') + '</div>' +
-    '<table class="steps step-editor" style="max-width:1000px;"><thead><tr>' +
-      '<th style="width:46px;">#</th><th style="width:40%;">' + t('tspec.stepActions') + '</th>' +
-      '<th style="width:40%;">' + t('tspec.expectedResults') + '</th><th style="width:36px;"></th>' +
+    '<table class="steps step-editor" style="max-width:1100px;"><thead><tr>' +
+      '<th style="width:46px;">#</th>' +
+      (showExec ? '<th style="width:100px;">' + t('tspec.executionType') + '</th>' : '') +
+      '<th style="width:34%;">' + t('tspec.stepActions') + '</th>' +
+      '<th style="width:34%;">' + t('tspec.expectedResults') + '</th>' +
+      '<th style="width:170px;"></th>' +
     '</tr></thead><tbody id="stepRows">';
-  if (!steps.length) { steps.push({ actions: '', expected_results: '' }); }
+  if (!steps.length) { steps.push({ actions: '', expected_results: '', execution_type: ctx.stepDefaultExec }); }
   steps.forEach(function (st, ix) {
-    h += stepRowHtml(ix + 1, st.actions, st.expected_results);
+    h += stepRowHtml(ix + 1, st.actions, st.expected_results, st.execution_type);
   });
   h += '</tbody></table>' +
     '<button class="btn-dark btn-sm" style="margin-top:8px;" onclick="addStepRow()"><i class="fa fa-plus"></i> ' + t('tspec.addStep') + '</button></div>' +
@@ -615,23 +631,76 @@ function formHtml(data, kwProject) {
   return h;
 }
 
-function stepRowHtml(num, actions, expected) {
+function stepExecOptions(selected) {
+  selected = parseInt(selected, 10) === 2 ? 2 : 1;
+  return '<select class="st-exec">' +
+    '<option value="1"' + (selected !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
+    '<option value="2"' + (selected === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
+    '</select>';
+}
+
+function stepRowHtml(num, actions, expected, execType) {
+  execType = execType || ctx.stepDefaultExec || 1;
+  var showExec = !!(ctx.options && ctx.options.automationEnabled);
+  var execTd = showExec
+    ? '<td>' + stepExecOptions(execType) + '</td>'
+    : '';
   return '<tr>' +
     '<td class="step-num">' + num + '</td>' +
     '<td><textarea class="st-actions">' + esc(actions || '') + '</textarea></td>' +
     '<td><textarea class="st-expected">' + esc(expected || '') + '</textarea></td>' +
-    '<td><button class="btn-red btn-sm" title="' + t('tspec.removeStep') + '" onclick="$(this).closest(\'tr\').remove();renumberSteps()"><i class="fa fa-xmark"></i></button></td>' +
+    execTd +
+    '<td><div class="step-ctl">' +
+      '<button class="btn-dark btn-sm" title="' + t('tspec.insertStep') + '" onclick="insertStepRow(this)"><i class="fa fa-plus"></i></button>' +
+      '<button class="btn-dark btn-sm" title="' + t('tspec.copyStep') + '" onclick="copyStepRow(this)"><i class="fa fa-copy"></i></button>' +
+      '<button class="btn-dark btn-sm" title="' + t('tspec.moveUp') + '" onclick="moveStepUp(this)"><i class="fa fa-arrow-up"></i></button>' +
+      '<button class="btn-dark btn-sm" title="' + t('tspec.moveDown') + '" onclick="moveStepDown(this)"><i class="fa fa-arrow-down"></i></button>' +
+      '<button class="btn-red btn-sm" title="' + t('tspec.removeStep') + '" onclick="$(this).closest(\'tr\').remove();renumberSteps()"><i class="fa fa-xmark"></i></button>' +
+    '</div></td>' +
   '</tr>';
 }
 
 function addStepRow() {
   var n = $('#stepRows tr').length + 1;
-  $('#stepRows').append(stepRowHtml(n, '', ''));
+  $('#stepRows').append(stepRowHtml(n, '', '', ctx.stepDefaultExec || 1));
+}
+
+function insertStepRow(btn) {
+  var $tr = $(btn).closest('tr');
+  var execType = $tr.find('.st-exec').length ? $tr.find('.st-exec').val() : (ctx.stepDefaultExec || 1);
+  $tr.after(stepRowHtml(0, '', '', execType));
+  renumberSteps();
+}
+
+function copyStepRow(btn) {
+  var $tr = $(btn).closest('tr');
+  var actions = $tr.find('.st-actions').val();
+  var expected = $tr.find('.st-expected').val();
+  var execType = $tr.find('.st-exec').length ? $tr.find('.st-exec').val() : (ctx.stepDefaultExec || 1);
+  $tr.after(stepRowHtml(0, actions, expected, execType));
+  renumberSteps();
+}
+
+function moveStepUp(btn) {
+  var $tr = $(btn).closest('tr');
+  var $prev = $tr.prev();
+  if (!$prev.length) { return; }
+  $tr.insertBefore($prev);
+  renumberSteps();
+}
+
+function moveStepDown(btn) {
+  var $tr = $(btn).closest('tr');
+  var $next = $tr.next();
+  if (!$next.length) { return; }
+  $tr.insertAfter($next);
+  renumberSteps();
 }
 
 function renumberSteps() {
   $('#stepRows tr').each(function (i, tr) {
     $(tr).find('.step-num').text(i + 1);
+    $(tr).attr('data-step', i + 1);
   });
 }
 

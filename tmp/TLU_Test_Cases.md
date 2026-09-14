@@ -14745,3 +14745,40 @@ checkbox; when checked the save keeps the caller on the blank create form (same 
 bulk entry, when unchecked the form transitions to edit mode for the created requirement.
 BFF save exposes the `stay_here` flag in the request + response. i18n key `reqe.stayHere`
 added to all 10 bundles. Event Viewer + console clean. Refs #1384.
+
+## Task — Issue #906: Full step management in testSpec.html step editor
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php` (`create`/`update`).
+**Precondition:** app @ http://localhost:8082, project with automation enabled OR sample project;
+admin/admin session; open `testSpec.html?tproject_id=1`, browse to an existing TC with 2+ steps
+(or create one), click Edit.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 906.1 | Edit a TC with 2 steps → click **+** (Insert step after) on row 1 | new empty row appears BETWEEN row 1 and 2; numbers re-order to 1,2,3 | **PASS** |
+| 906.2 | Fill inserted step, Save, re-open Edit | inserted step persists at position 2; step_numbers 1-3 sequential | **PASS** |
+| 906.3 | Click **copy** (**fa-copy**) on a row with content | duplicate row with identical actions/expected/execution_type inserted after it; renumbered | **PASS** |
+| 906.4 | Click **up** (**fa-arrow-up**) on the last row | row moves up one position; numbers re-sequence | **PASS** |
+| 906.5 | Click **down** (**fa-arrow-down**) on the first row | row moves down one position; numbers re-sequence | **PASS** |
+| 906.6 | Remove a middle row (**fa-xmark**) | row removed, remaining step_numbers collapse to 1..N (resequence) | **PASS** |
+| 906.7 | Move up on the first row / move down on the last row | no-op (bounds respected), no error | **PASS** |
+| 906.8 | Project with automationEnabled: Edit shows Execution Type column (Manual/Automated) per row | per-row `<select>` present; read-only TC view also shows per-step type | **PASS** |
+| 906.9 | Set step 1 Manual + step 2 Automated, Save, reload Edit | per-step execution_type persisted distinctly (BFF `get` returns mixed values) | **PASS** |
+| 906.10 | Project without automationEnabled | Execution Type column hidden; steps still save with TC-level execution_type | **PASS** |
+| 906.11 | i18n: switch locale bundle `en`/`ro` | insert/copy/move-up/move-down tooltips localized, no hardcoded strings | **PASS** |
+| 906.12 | Event Viewer / `events` table after all steps | 0 ERROR / WARNING rows | **PASS** |
+| 906.13 | Browser console during all flows | no JS errors | **PASS** |
+
+Result: **PASS — 13/13 PASS** — the testSpec.html step editor now supports
+insert/copy/up/down/resequence controls writing `steps[]` in the correct order plus
+per-step execution type (Manual/Automated, automationEnabled-gated) through BFF
+normalization. Refs #906.
+
+Verified live on `http://localhost:8082` (php -S + `testlink-mariadb` @ 127.0.0.1:3307,
+login admin/admin, project peviitor.ro tcversion 4) against the working tree on
+2026-09-14: insert (new row between), renumber 1..N, duplicate row via copy,
+move up/down with re-sequencing, remove mid row, bounds no-op on first/last,
+read-only + edit per-step Execution Type column gated by `automationEnabled`,
+mixed Manual/Automated persisted in `tcsteps.execution_type` (step 3 manual,
+rest automated), locale switch to Română localizes the step-control tooltips,
+`events` table 0 ERROR/WARNING rows, browser console clean.

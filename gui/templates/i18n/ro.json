@@ -3953,5 +3953,9 @@
   "tspec.clipboardEmpty": "Nimic de lipit — taie sau copiază un nod mai întâi",
   "tspec.operationFailed": "Operațiunea de mutare/copiere a eșuat",
   "tspec.confirmMove": "Mută \"{name}\" în \"{target}\"?",
-  "tspec.confirmCopy": "Copiază \"{name}\" în \"{target}\"?"
+  "tspec.confirmCopy": "Copiază \"{name}\" în \"{target}\"?",
+  "tspec.insertStep": "Inserează pas după",
+  "tspec.copyStep": "Copiază pasul",
+  "tspec.moveUp": "Mută sus",
+  "tspec.moveDown": "Mută jos"
 }

@@ -177,6 +177,8 @@ Requirements:
 
 Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
+- Test Specification step editor full step management: insert/copy/move
+  up-down/resequence + per-step execution type in testSpec.html (Refs #906).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
 - Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),
