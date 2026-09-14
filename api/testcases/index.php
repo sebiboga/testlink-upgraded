@@ -1044,6 +1044,160 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
               'message' => 'New version created']);
     }
 
+    // -------------------------------------------------------------------------
+    // POST ?action=move  {node_id, type, new_parent_id, position}
+    // Move a testsuite or testcase to a new parent (mirrors legacy do_move
+    // in tcEdit.php / containerEdit.php: change_parent + change_child_order).
+    // -------------------------------------------------------------------------
+    if ($action === 'move') {
+        $nodeId    = intval($body['node_id'] ?? 0);
+        $nodeType  = trim(strval($body['type'] ?? ''));       // 'testsuite' | 'testcase'
+        $newParent = intval($body['new_parent_id'] ?? 0);
+        $position  = trim(strval($body['position'] ?? 'bottom')); // 'top' | 'bottom'
+
+        if ($nodeId <= 0 || $newParent <= 0
+            || !in_array($nodeType, ['testsuite', 'testcase'])) {
+            jout(['status' => 'error',
+                  'message' => 'Missing node_id, new_parent_id, or invalid type'], 400);
+        }
+
+        // prevent moving a node into itself
+        if ($nodeId === $newParent) {
+            jout(['status' => 'error',
+                  'message' => 'Cannot move a node into itself'], 400);
+        }
+
+        $tprojectId = $checkWrite($nodeId);
+
+        // also verify the destination is in the same project
+        $destProject = owningProjectOf($db, $tprojectMgr, $newParent);
+        if (is_null($destProject) || $destProject !== $tprojectId) {
+            jout(['status' => 'error',
+                  'message' => 'Destination is not in the same project'], 400);
+        }
+
+        // prevent moving a testsuite into its own descendant
+        if ($nodeType === 'testsuite') {
+            $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
+            $descendantCheck = $db->fetchFirstRow(
+                "SELECT id FROM {$nhTables['nodes_hierarchy']} " .
+                "WHERE id = {$newParent} AND parent_id = {$nodeId}");
+            if (!is_null($descendantCheck)) {
+                // quick one-level check; for deep recursion, walk the chain
+                jout(['status' => 'error',
+                      'message' => 'Cannot move a suite into its own child'], 400);
+            }
+            // deeper descendant check: walk up from newParent to see if nodeId appears
+            $nh = $nhTables['nodes_hierarchy'];
+            $cur = $newParent;
+            for ($i = 0; $i < 50; $i++) {
+                $row = $db->fetchFirstRow(
+                    "SELECT parent_id FROM {$nh} WHERE id = {$cur}");
+                if (is_null($row) || intval($row['parent_id']) <= 0) { break; }
+                if (intval($row['parent_id']) === $nodeId) {
+                    jout(['status' => 'error',
+                          'message' => 'Cannot move a suite into its own descendant'], 400);
+                }
+                $cur = intval($row['parent_id']);
+            }
+        }
+
+        $excludeNodeTypes = ['testplan' => 1, 'requirement' => 1, 'requirement_spec' => 1];
+        $treeMgr = new tree($db);
+
+        $ok = $treeMgr->change_parent($nodeId, $newParent);
+        if (!$ok) {
+            jout(['status' => 'error', 'message' => 'Move failed'], 500);
+        }
+
+        if ($position === 'top' || $position === 'bottom') {
+            $treeMgr->change_child_order($newParent, $nodeId, $position,
+                                         $excludeNodeTypes);
+        }
+
+        jout(['status' => 'ok', 'message' => 'Node moved']);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST ?action=copy  {node_id, type, new_parent_id, position, options}
+    // Deep-copy a testsuite or testcase to a new parent (mirrors legacy
+    // do_copy in tcEdit.php / containerEdit.php: copy_to + change_child_order).
+    // -------------------------------------------------------------------------
+    if ($action === 'copy') {
+        $nodeId    = intval($body['node_id'] ?? 0);
+        $nodeType  = trim(strval($body['type'] ?? ''));
+        $newParent = intval($body['new_parent_id'] ?? 0);
+        $position  = trim(strval($body['position'] ?? 'bottom'));
+        $copyOpts  = $body['options'] ?? [];
+
+        if ($nodeId <= 0 || $newParent <= 0
+            || !in_array($nodeType, ['testsuite', 'testcase'])) {
+            jout(['status' => 'error',
+                  'message' => 'Missing node_id, new_parent_id, or invalid type'], 400);
+        }
+
+        $tprojectId = $checkWrite($nodeId);
+        $destProject = owningProjectOf($db, $tprojectMgr, $newParent);
+        if (is_null($destProject) || $destProject !== $tprojectId) {
+            jout(['status' => 'error',
+                  'message' => 'Destination is not in the same project'], 400);
+        }
+
+        $userIdInt = intval($user->dbID ?? $userId);
+        $newId = 0;
+
+        if ($nodeType === 'testcase') {
+            $copyAlso = [
+                'keyword_assignments'      => !empty($copyOpts['copyKeywords']),
+                'requirement_assignments'  => !empty($copyOpts['copyRequirements']),
+            ];
+            $tcCopyOpts = [
+                'check_duplicate_name'   => 0,
+                'action_on_duplicate_name' => 'generate_new',
+                'copy_also'              => $copyAlso,
+                'stepAsGhost'            => !empty($copyOpts['copyAsGhost']),
+                'copyOnlyLatest'         => !empty($copyOpts['copyOnlyLatestVersion']),
+                'preserve_external_id'   => false,
+            ];
+
+            $ret = $tcaseMgr->copy_to($nodeId, $newParent, $userIdInt, $tcCopyOpts);
+            if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
+                jout(['status' => 'error',
+                      'message' => strval($ret['msg'] ?? 'Copy failed')], 500);
+            }
+            $newId = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
+        } else {
+            // testsuite
+            $tsOpts = [
+                'check_duplicate_name'    => 0,
+                'action_on_duplicate_name' => 'allow_repeat',
+                'copyKeywords'            => !empty($copyOpts['copyKeywords']) ? 1 : 0,
+                'copyRequirements'        => !empty($copyOpts['copyRequirements']) ? 1 : 0,
+            ];
+            $tsuiteMgr = new testsuite($db);
+            $ret = $tsuiteMgr->copy_to($nodeId, $newParent, $userIdInt, $tsOpts);
+            if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
+                jout(['status' => 'error',
+                      'message' => strval($ret['msg'] ?? 'Copy failed')], 500);
+            }
+            $newId = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
+        }
+
+        if ($newId <= 0) {
+            jout(['status' => 'error', 'message' => 'Copy failed (no id)'], 500);
+        }
+
+        // position the copy
+        $excludeNodeTypes = ['testplan' => 1, 'requirement' => 1, 'requirement_spec' => 1];
+        $treeMgr = new tree($db);
+        if ($position === 'top' || $position === 'bottom') {
+            $treeMgr->change_child_order($newParent, $newId, $position,
+                                         $excludeNodeTypes);
+        }
+
+        jout(['status' => 'ok', 'id' => $newId, 'message' => 'Node copied']);
+    }
+
     jout(['status' => 'error', 'message' => 'Bad request'], 400);
 }
 
