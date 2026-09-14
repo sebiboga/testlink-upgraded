@@ -14588,3 +14588,40 @@ Result: **PASS — 4/4 PASS** — the legacy "View file formats documentation" h
 is fully ported beside the File type select, opens the real PDF (`docs/tl-file-formats.pdf`,
 200/application/pdf), is localized in all 10 bundles and leaves Event Viewer + console
 clean. Refs #1386.
+
+## Suite 1499 — Execution Dashboard: ASIDE menu entry (menu-link parity) — Refs #1499
+
+**Screen:** `gui/templates/dashio/aside.tpl` (Execute sub-menu) + label
+`href_exec_dashboard` in `labels.aside.tpl` + all 19 `locale/*/strings.txt`;
+target pane `gui/templates/execute/execDashboard.html`, BFF `api/execdashboard`.
+**Feature ported from legacy:** legacy ASIDE rendered an Execute → Execute-Test
+`executeTest` item; the modernized dashboard (Refs #1496) had no menu entry and
+was only reachable from the execTest toolbar Dashboard button. This gap closes
+it: aside now renders Execute → **Execution Dashboard** as the FIRST Execute
+sub-item, gated `testplan_execute == yes OR exec_ro_access == yes` AND
+`$gui->uri->execDashboard != null` (tplan in context).
+**Bonus fix:** stray `<<<<<<< HEAD` marker in `locale/en_US/strings.txt`
+(landed with the #1462 NFR work, commit 8c28f47af) was a PHP parse error that
+broke the EN-US locale bundle; removed.
+**Precondition:** app @ localhost:8082, admin/admin. Fixture: project NXT
+(nodes_hierarchy id 1000, prefix NXT), plan id 1002, open build id 1003 created
+DB-side. Guest fixture: user `noinv`/`noinv`, role guest (id 2).
+Chrome DevTools MCP + mysql CLI.
+
+| # | Steps | Expected | Result |
+|---|-------|----------|--------|
+| 1499.1 | Logged as admin w/ plan in context, open `asideMenu.php` | Execute sub-menu shows **Execution Dashboard** link first, href `gui/templates/execute/execDashboard.html?tproject_id=1000&tplan_id=1002`, text localized EN `Execution Dashboard` | **PASS** |
+| 1499.2 | Click Execute → Execution Dashboard | `execDashboard.html?tproject_id=1000&tplan_id=1002` loads in mainframe; BFF `GET ?action=init` → 200 JSON `status:ok`, context tproject 1000 / tplan 1002 / build 1003 / platform 0, tplan+build cards, toolbar buttons (Refresh / Copy REST / Continue) | **PASS** |
+| 1499.3 | Click **Continue to Execute Tests** | Navigates to `execTest.html?tplan_id=1002&tproject_id=1000`; execTest shows plan NXT Plan / project NXT Project; its toolbar **Dashboard** button returns to execDashboard (round-trip) | **PASS** |
+| 1499.4 | Locale switcher → Romanian (`&locale=ro`) | Dashboard reloads localized: title `Tablou de bord execuție`, buttons `Reîncarcă` / `Continuă la Rulare teste`, Platform `Platformă`; all 19 `strings.txt` carry `$TLS_href_exec_dashboard` and `php -l` clean | **PASS** |
+| 1499.5 | Log in as guest `noinv` (role guest), open aside | Execute section hidden entirely (no Execute Tests AND no Execution Dashboard) | **PASS** |
+| 1499.6 | Guest BFF `GET ?action=init&tproject_id=1000&tplan_id=1002` | HTTP 403 JSON `{status:error,message:"...not authorized to execute tests on this plan"}` | **PASS** |
+| 1499.7 | Guest opens `execDashboard.html` URL directly | Screen renders but init 403; build/platform selectors empty, Refresh disabled, permission notice `Nu ai permisiunea de a vedea contextul de execuție.` (graceful, no JS errors) | **PASS** |
+| 1499.8 | en_US locale bundle | `php -l locale/en_US/strings.txt` clean (conflict-marker fix); `$TLS_href_exec_dashboard` present once | **PASS** |
+| 1499.9 | Event Viewer + console hygiene | `events`: 0 new Error/Warning rows from the whole session (only pre-existing rows); browser console 0 JS errors (one expected 403 resource entry on the guest init fetch) | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the Execution Dashboard is now reachable from the
+ASIDE menu (first Execute sub-item, rights-gated exactly like Execute Tests);
+admin flow + Continue round-trip verified in-browser, guest denied on both the
+menu (hidden) and the BFF (403) with graceful degradation, all 19 locale
+bundles carry the label and en_US parse error fixed. Refs #1499.
