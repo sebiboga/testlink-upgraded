@@ -2372,6 +2372,8 @@ $TLS_info_search_req_spec = "Esta lista muestra todas las especificaciones de re
 $TLS_href_add_remove_test_cases = "Agregar / Quitar Casos de Prueba";
 $TLS_href_build_new = "Gestión de Builds";
 $TLS_href_execute_test = "Ejecutar Casos de Prueba";
+
+$TLS_href_exec_dashboard = "Panel de ejecución"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Resumen de Métricas";
 $TLS_href_newest_tcversions = "Mostrar las Versiones más recientes de los Casos de Prueba";
 $TLS_href_plan_assign_urgency = "Establecer Casos de Prueba Urgentes";

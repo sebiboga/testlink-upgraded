@@ -2447,6 +2447,8 @@ $TLS_info_search_req_spec = "Tento seznam zobrazuje v�echny specifikace po�a
 $TLS_href_add_remove_test_cases = "Pridat/odebrat testovac� pr�pady";
 $TLS_href_build_new = "Spr�va sestaven�";
 $TLS_href_execute_test = "Prov�st testy";
+
+$TLS_href_exec_dashboard = "Ovládací panel provádění"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Prehled metrik";
 $TLS_href_newest_tcversions = "Posledn� verze testovac�ch pr�padu";
 $TLS_href_plan_assign_urgency = "Nastavit dule�itost testu";

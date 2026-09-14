@@ -2646,6 +2646,8 @@ $TLS_info_search_req_spec = "このリストは検索条件に一致するすべ
 $TLS_href_add_remove_test_cases = "テストケースの追加";
 $TLS_href_build_new = "ビルド/リリース";
 $TLS_href_execute_test = "テストの実施";
+
+$TLS_href_exec_dashboard = "実行ダッシュボード"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "実施テスト読み取りアクセス";
 $TLS_href_metrics_dashboard = "指標メーター";   // "Metrics Dashboard"
 $TLS_href_newest_tcversions = "最新バージョンのテストを表示";

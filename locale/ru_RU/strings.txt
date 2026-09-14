@@ -1835,6 +1835,8 @@ $TLS_reqid = "Requirement ID";
 $TLS_href_add_remove_test_cases = "Добавить/удалить тесты";
 $TLS_href_build_new = "Редактировать версию (сборку)";
 $TLS_href_execute_test = "Прогнать тесты";
+
+$TLS_href_exec_dashboard = "Панель выполнения"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Панель метрик";
 $TLS_href_newest_tcversions = "Показать новейшие версии тестов";
 $TLS_href_plan_assign_urgency = "Назначить срочность тестов";

@@ -1434,6 +1434,8 @@ $TLS_filter_tp_by_product = "Filter Test Plans by Test Project";
 $TLS_href_add_remove_test_cases = "Lisää / poista testitapauksia";
 $TLS_href_build_new = "Ohjelmiston julkistukset";
 $TLS_href_execute_test = "Suorita testejä";
+
+$TLS_href_exec_dashboard = "Suorituksen hallintanäkymä"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Metriikkanäyttö";
 $TLS_href_newest_tcversions = "Näytä testitapausten uusimmat versiot";
 $TLS_href_plan_assign_urgency = "Aseta kiireelliset testit";

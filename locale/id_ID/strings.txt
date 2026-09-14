@@ -1989,6 +1989,8 @@ $TLS_href_build_new = "Manajemen 'Build'";
 
 $TLS_href_execute_test = "Jalankan Test";
 
+$TLS_href_exec_dashboard = "Dasbor Eksekusi"; // "Execution Dashboard" (Refs #1499)
+
 $TLS_href_metrics_dashboard = "Metrics dashboard";
 $TLS_href_newest_tcversions = "Show Test Cases newest versions";
 $TLS_href_plan_assign_urgency = "Set urgent tests";

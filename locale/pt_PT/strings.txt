@@ -2363,6 +2363,8 @@ $TLS_info_search_req_spec = "Esta lista mostra todas as Especificações de Requ
 $TLS_href_add_remove_test_cases = "Adicionar / Remover Casos de Teste";
 $TLS_href_build_new = "Produções / Distribuições";
 $TLS_href_execute_test = "Executar Testes";
+
+$TLS_href_exec_dashboard = "Painel de execução"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Acesso em modo de leitura à Execução de Testes";
 $TLS_href_metrics_dashboard = "Painel de Métricas";
 $TLS_href_newest_tcversions = "Verificar Casos de Teste atualizados";
