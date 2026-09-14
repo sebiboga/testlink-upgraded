@@ -83,6 +83,25 @@ function generateUniqueName($s) {
     return substr($s . ' - Copy - ' . substr(sha1(mt_rand()), 0, 50), 0, 100);
 }
 
+// Legacy parity: lib/functions/roles.inc.php getRoleErrorMessage() (440-466)
+// maps tlRole write error codes to the legacy localized lang keys
+// (error_duplicate_rolename / error_role_no_rolename / error_role_no_rights /
+// error_role_not_updated). The BFF exposes the client-side i18n key so the UI
+// resolves a localized message instead of ad-hoc English (issue #904).
+function roleErrorKey($code) {
+    switch ($code) {
+        case tlRole::E_NAMEALREADYEXISTS:
+            return 'role.error.nameExists';
+        case tlRole::E_NAMELENGTH:
+            return 'role.error.noRoleName';
+        case tlRole::E_EMPTYROLE:
+            return 'role.error.noRights';
+        case tlRole::E_DBERROR:
+        default:
+            return 'role.error.notUpdated';
+    }
+}
+
 function roleToJSON(tlRole $r) {
     return [
         'id' => intval($r->dbID),
@@ -183,13 +202,13 @@ if ($method === 'POST' && empty($segments)) {
     $result = $r->writeToDB($db);
     if ($result >= tl::OK) {
         logAuditEvent("Role '$r->name' created", "CREATE", $r->dbID, "roles");
-        out(['status' => 'ok', 'item' => roleToJSON($r)]);
+        out(['status' => 'ok', 'item' => roleToJSON($r), 'feedback_key' => 'role_created']);
     } else {
         http_response_code(400);
         $msg = 'Error creating role';
         if ($result == tlRole::E_NAMEALREADYEXISTS) $msg = 'Role name already exists';
         elseif ($result == tlRole::E_EMPTYROLE) $msg = 'Role must have at least one right';
-        out(['status' => 'error', 'message' => $msg, 'code' => $result]);
+        out(['status' => 'error', 'message' => $msg, 'messageKey' => roleErrorKey($result), 'code' => $result]);
     }
 }
 
@@ -227,13 +246,13 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
     $result = $r->writeToDB($db);
     if ($result >= tl::OK) {
         logAuditEvent("Role '$r->name' updated", "UPDATE", $r->dbID, "roles");
-        out(['status' => 'ok', 'item' => roleToJSON($r)]);
+        out(['status' => 'ok', 'item' => roleToJSON($r), 'feedback_key' => 'role_updated']);
     } else {
         http_response_code(400);
         $msg = 'Error updating role';
         if ($result == tlRole::E_NAMEALREADYEXISTS) $msg = 'Role name already exists';
         elseif ($result == tlRole::E_EMPTYROLE) $msg = 'Role must have at least one right';
-        out(['status' => 'error', 'message' => $msg, 'code' => $result]);
+        out(['status' => 'error', 'message' => $msg, 'messageKey' => roleErrorKey($result), 'code' => $result]);
     }
 }
 
@@ -252,10 +271,10 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0]) && c
     $result = $r->deleteFromDB($db);
     if ($result >= tl::OK) {
         logAuditEvent("Role '$r->name' deleted", "DELETE", $id, "roles");
-        out(['status' => 'ok']);
+        out(['status' => 'ok', 'feedback_key' => 'role_deleted']);
     } else {
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Error deleting role']);
+        out(['status' => 'error', 'message' => 'Error deleting role', 'messageKey' => 'role.error.deleted', 'code' => $result]);
     }
 }
 
@@ -274,13 +293,13 @@ if ($method === 'POST' && isset($segments[0]) && is_numeric($segments[0]) && iss
     $result = $r->writeToDB($db);
     if ($result >= tl::OK) {
         logAuditEvent("Role '{$r->name}' created", 'CREATE', $r->dbID, 'roles');
-        out(['status' => 'ok', 'item' => roleToJSON($r)]);
+        out(['status' => 'ok', 'item' => roleToJSON($r), 'feedback_key' => 'role_duplicated']);
     } else {
         http_response_code(400);
         $msg = 'Error duplicating role';
         if ($result == tlRole::E_NAMEALREADYEXISTS) $msg = 'Role name already exists';
         elseif ($result == tlRole::E_EMPTYROLE) $msg = 'Role must have at least one right';
-        out(['status' => 'error', 'message' => $msg, 'code' => $result]);
+        out(['status' => 'error', 'message' => $msg, 'messageKey' => roleErrorKey($result), 'code' => $result]);
     }
 }
 

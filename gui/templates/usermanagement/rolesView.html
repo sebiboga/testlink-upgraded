@@ -46,6 +46,9 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
 .demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
@@ -82,6 +85,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 
 <div class="footer" id="footerText"></div>
 <div class="footer"><span data-i18n="footers.rolesView">TestLink 2.0.1 - Role Management</span></div>
+
+<div class="toast" id="toast"></div>
 
 <!-- Create/Edit Modal -->
 <div class="modal fade" id="roleModal" tabindex="-1">
@@ -165,6 +170,30 @@ var canViewEvents = false;
 var demoMode = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+
+// Dashio toast pattern (see cfieldsAssignView.html:276, planUpdateTC.html:211,
+// usersView.html:233 for the identical helper used since #890): fixed
+// bottom-right banner replacing the legacy inc_update.tpl user feedback /
+// $sqlResult area of rolesView.tpl:43 and rolesEdit.tpl:53.
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isError).toggleClass('ok', !isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 3000));
+}
+
+// Map the BFF feedback_key to the client-side TLi18n key. The BFF mirrors the
+// legacy audit/lang keys (audit_role_created / audit_role_saved /
+// audit_role_deleted from rolesEdit.php:126-131 and roles.inc.php:474), just
+// like userFeedback() does for user_* in usersView.html:241.
+function roleFeedback(feedbackKey, name) {
+  var map = {
+    role_created: 'role.feedback.created',
+    role_updated: 'role.feedback.updated',
+    role_deleted: 'role.feedback.deleted',
+    role_duplicated: 'role.feedback.duplicated'
+  };
+  return TLi18n.t(map[feedbackKey] || 'role.feedback.updated', {name: name || ''});
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -395,14 +424,23 @@ function saveRole() {
   $.ajax({
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function() { $('#roleModal').modal('hide'); loadRoles(); },
+    success: function(r) {
+      $('#roleModal').modal('hide');
+      loadRoles();
+      // Legacy parity: rolesEdit.php:126,131 logAuditEvent feeds
+      // audit_role_created/audit_role_saved; surface them as a toast so the
+      // create/update is no longer silent (issue #904).
+      var savedName = (r && r.item && r.item.name) || data.name;
+      toast(roleFeedback(r && r.feedback_key, savedName), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.save');
       var code = '';
       try {
         var j = JSON.parse(xhr.responseText);
         if (j && j.code) code = j.code;
-        if (j && j.message) msg = j.message;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
       } catch(e) {}
       if (code === 'demo_mode') {
         msg = TLi18n.t('role.demoUpdateDisabled');
@@ -418,7 +456,7 @@ function confirmDelete(id) {
   if (allItems) {
     $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; isSystem = x.isSystem ? true : false; return false; } });
   }
-  if (isSystem) { alert(TLi18n.t('role.systemDeleteDenied')); return; }
+  if (isSystem) { toast(TLi18n.t('role.systemDeleteDenied'), true); return; }
   $.getJSON(API + '/' + id + '/users', function(r) {
     var items = r.items || [];
     var userCount = items.length;
@@ -455,42 +493,64 @@ function confirmDelete(id) {
 }
 
 function doDelete(id) {
+  var name = '';
+  if (allItems) {
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+  }
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
-    success: function() { $('#deleteModal').modal('hide'); loadRoles(); },
+    success: function(r) {
+      $('#deleteModal').modal('hide');
+      loadRoles();
+      // Legacy parity: roles.inc.php deleteRole() logs audit_role_deleted;
+      // the modern delete was silent (issue #904) - now toast the result.
+      toast(roleFeedback(r && r.feedback_key, name), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.delete');
       var code = '';
       try {
         var j = JSON.parse(xhr.responseText);
         if (j && j.code) code = j.code;
-        if (j && j.message) msg = j.message;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
       } catch(e) {}
       if (code === 'demo_mode') {
         msg = TLi18n.t('role.demoUpdateDisabled');
       }
-      alert(msg);
+      $('#deleteModal').modal('hide');
+      toast(msg, true);
     }
   });
 }
 
 function duplicateRole(id) {
+  var name = '';
+  if (allItems) {
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+  }
   $.ajax({
     url: API + '/' + id + '/duplicate',
     type: 'POST',
-    success: function() { loadRoles(); },
+    success: function(r) {
+      loadRoles();
+      // Legacy parity: rolesEdit.php duplicate is a CREATE audit; surface the
+      // result as a toast (issue #904) instead of a silent reload.
+      toast(roleFeedback(r && r.feedback_key, name), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.duplicate');
       var code = '';
       try {
         var j = JSON.parse(xhr.responseText);
         if (j && j.code) code = j.code;
-        if (j && j.message) msg = j.message;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
       } catch(e) {}
       if (code === 'demo_mode') {
         msg = TLi18n.t('role.demoUpdateDisabled');
       }
-      alert(msg);
+      toast(msg, true);
     }
   });
 }
