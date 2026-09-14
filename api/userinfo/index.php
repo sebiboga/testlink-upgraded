@@ -183,11 +183,7 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
     } else {
         http_response_code(400);
         $msg = 'Error updating profile';
-        // tlUser has no E_EMAILINVALID constant; email format errors are
-        // reported as E_EMAILFORMAT (empty email -> E_EMAILLENGTH).
-        if ($result == tlUser::E_EMAILFORMAT || $result == tlUser::E_EMAILLENGTH) {
-            $msg = 'Invalid email address';
-        }
+        if ($result == tlUser::E_EMAILFORMAT || $result == tlUser::E_EMAILLENGTH) $msg = 'Invalid email address';
         out(['status' => 'error', 'message' => $msg, 'code' => $result]);
     }
 }
