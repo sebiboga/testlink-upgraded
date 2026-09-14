@@ -14719,3 +14719,29 @@ test cases and test suites via context menu (Cut/Copy/Paste → modal) AND HTML5
 `change_child_order()` and `testcase/testsuite::copy_to()`, gated by `mgt_modify_tc`, with
 same-project + descendant/self-move rejection. Fix for a false "own child" rejection
 (`fetchFirstRow` returns `false` on empty sets) included. Event Viewer + console clean. Refs #910.
+
+## Task — Issue #1384: reqEdit 'create another requirement after saving' (stay_here)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`action=save`).
+**Precondition:** app @ http://localhost:8082, admin/admin session; fixture `php tmp/fixtures_1384.php`
+→ tproject_id=1 "StayHereFixture", spec_id=2 "StayHere Fixture Spec". Browse
+`reqEdit.html?spec_id=2&tproject_id=1` (create mode) and `reqEdit.html?id=8&tproject_id=1` (edit mode).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1384.1 | Open `reqEdit.html?spec_id=2&tproject_id=1` (create mode) | Toolbar shows checked checkbox "Check to create another requirement after saving"; no "Create New Version" button | **PASS** |
+| 1384.2 | Fill SHF-1001 (doc id/title/scope), keep checkbox checked, click Save | Info "Requirement saved"; form resets: doc id/title/scope empty, status=Valid, type=Feature, coverage=1, version chip 0, checkbox STILL checked, MODE=create | **PASS** |
+| 1384.3 | DB check | `requirements` row SHF-1001 exists under srs_id=2 | **PASS** |
+| 1384.4 | Immediately enter SHF-1002 and Save again (bulk entry, checkbox still checked) | Form stays in create mode, resets again; SHF-1002 row created | **PASS** |
+| 1384.5 | Uncheck stay_here; enter SHF-2001 and Save | Form transitions to edit mode: MODE=edit, REQ_ID set, "Create New Version" visible, stay_here checkbox HIDDEN, values retained | **PASS** |
+| 1384.6 | Reload `reqEdit.html?id=8&tproject_id=1` (edit mode) | stays_here checkbox absent, New Version button visible, requirement data loaded | **PASS** |
+| 1384.7 | BFF: `POST action=save` with `stay_here:1` (via browser fetch) | Response `{"status":"ok","mode":"create","id":N,"stay_here":1}` — flag exposed in create response | **PASS** |
+| 1384.8 | i18n: switch locale to Română on create mode | Checkbox label localized via `reqe.stayHere` (all 10 bundles contain key; `python3 -m json.tool` valid) | **PASS** |
+| 1384.9 | Event Viewer / `events` table after all steps | 0 ERROR / WARNING rows generated | **PASS** |
+| 1384.10 | Browser console during all flows | No JS errors | **PASS** |
+
+Result: **PASS — 10/10 PASS** — reqEdit.html create mode now offers the legacy stay_here
+checkbox; when checked the save keeps the caller on the blank create form (same spec) for
+bulk entry, when unchecked the form transitions to edit mode for the created requirement.
+BFF save exposes the `stay_here` flag in the request + response. i18n key `reqe.stayHere`
+added to all 10 bundles. Event Viewer + console clean. Refs #1384.

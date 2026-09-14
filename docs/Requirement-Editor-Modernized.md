@@ -38,6 +38,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Expected coverage | 1/2/3/5/10 | same dropdown |
 | Scope | description textarea | same |
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
+| Create another after saving (create) | `stay_here` checkbox ("check to create another requirement after saving", BUGID 3953 — create mode only) | **same (added in #1384)** — `stay_here` checkbox in the toolbar, create mode only; when checked the save resets the form (doc id/title/scope empty, status/type/coverage at defaults) and keeps the caller in create mode on the same spec for bulk entry; when unchecked the form transitions to edit mode for the created requirement |
 | Create New Version (edit) | `doAction=doCreateVersion` typewriter copy | `POST ?action=version` — copies content, bumps `version` (+1) |
 | Cancel | return to caller | returns without any DB write |
 
@@ -49,7 +50,7 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 |---|---|---|---|
 | GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, rights}` |
 | GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, options, rights}` |
-| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage}` | `{status:'ok', id}` (update or create) |
+| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage, stay_here?}` | `{status:'ok', id, stay_here}` (update or create) |
 | POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
 
 ### Error conditions
@@ -76,7 +77,7 @@ form with the new id/version.
 All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 (`reqe.pageTitle`, `reqe.title`, `reqe.docId`, `reqe.status`, `reqe.type`,
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
-`reqe.newVersion`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`, and
+`reqe.newVersion`, `reqe.stayHere`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`, and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -94,3 +95,8 @@ See **Suite 66 — Requirement Editor (reqEdit)** in `tmp/TLU_Test_Cases.md`
 (12/12 PASS): edit mode, create mode, validation, create, save persist,
 Create New Version, BFF rights, no-permission, cancel, i18n integrity, legacy
 link switch, and Event Viewer cleanliness.
+
+See also **Task #1384 — stay_here create-another** suite (10/10 PASS): checkbox
+visible/checked in create mode, bulk entry resets the form on same spec, unchecked
+save transitions to edit mode, edit mode hides the checkbox, BFF echoes
+`stay_here`, i18n `reqe.stayHere` in all 10 bundles, Event Viewer + console clean.

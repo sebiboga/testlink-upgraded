@@ -280,7 +280,14 @@ Test Strategy:
   exitCriteria.html) - BFF api/strategy (18 chapters, #1425/#1426/#1431).
 
 NEW FEATURES
-------------
+ ------------
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
+  `api/reqedit`): legacy "create another requirement after saving" (`stay_here`)
+  checkbox restored (Refs #1384) — shown only in create mode; when checked the
+  save resets the create form (same spec, empty fields, defaults restored) for
+  bulk entry, when unchecked the form transitions to edit mode. BFF save reads
+  `stay_here` from the JSON body and echoes it in the response, create + update.
+  i18n `reqe.stayHere` in all 10 bundles.
 - Notifications (`gui/templates/notifications/notifications.html`, BFF
   `api/notifications`): GitHub-style per-user notification center computed
   LIVE from existing 1.9.20 data (no legacy system existed to port, Refs

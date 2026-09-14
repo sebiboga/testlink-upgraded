@@ -237,7 +237,7 @@ function save() {
       if (MODE === 'create' && payload.stay_here) {
         resetForm();
       } else {
-        if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); }
+        if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); $('#stayHereOpt').hide(); }
         if (r.newVersion) { $('#versionChip').text(r.newVersion); }
       }
       $('#infoBar').text(TLi18n.t('reqe.saved')).show();
