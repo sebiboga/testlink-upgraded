@@ -44,6 +44,9 @@ value.
 
 ## Verification
 
+Screenshots (`docs/screenshots/`): `issue-911-testspec-duration-view.png`
+(detail-view meta item), `issue-911-testspec-duration-edit.png` (editor input).
+
 Browser E2E + BFF fetch against `http://localhost:8082` (admin/admin,
 project 1, suite 2):
 create/update persist decimal values (`7.5` → `7.50`, `23.5` → `23.50`);
