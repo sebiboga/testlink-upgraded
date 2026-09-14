@@ -77,6 +77,21 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .count-pill { background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 8px; font-size: 11px; }
 .loading { text-align: center; color: #888; padding: 40px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.tree-node[draggable="true"] { cursor: grab; }
+.tree-node[draggable="true"]:active { cursor: grabbing; }
+.tree-node.drag-over { background: #4ECDC4 !important; color: #fff !important; box-shadow: inset 0 0 0 2px #2d8e88; }
+.tree-node.drag-over i { color: #fff !important; }
+.tree-node.dragging-invalid { background: #f8d7da !important; }
+.tree-node.dragging-self { opacity: .4; }
+.tree-node.dragging-self .toggler { opacity: .4; }
+#ctxMenu { position: fixed; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.18); z-index: 8000; min-width: 180px; padding: 6px 0; display: none; }
+#ctxMenu .ctx-item { padding: 8px 16px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+#ctxMenu .ctx-item:hover { background: #eefaf9; color: #2d8e88; }
+#ctxMenu .ctx-item i { width: 16px; text-align: center; }
+#ctxMenu .ctx-sep { height: 1px; background: #eee; margin: 4px 0; }
+.mcOpt { margin: 8px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.mcOpt input[type="checkbox"] { margin: 0; }
+.mcSel { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; margin-top: 4px; }
 </style>
 
 </head>
@@ -140,6 +155,40 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="closeModal('confirmModal')" data-i18n="tspec.cancel">Cancel</button>
       <button class="btn-red btn-sm" id="confirmYesBtn" data-i18n="tspec.confirmDelete">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- right-click context menu -->
+<div id="ctxMenu">
+  <div class="ctx-item" id="ctxCut" onclick="ctxCutAction()"><i class="fa fa-scissors"></i> <span data-i18n="tspec.cut">Cut</span></div>
+  <div class="ctx-item" id="ctxCopy" onclick="ctxCopyAction()"><i class="fa fa-copy"></i> <span data-i18n="tspec.copy">Copy</span></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" id="ctxPaste" onclick="ctxPasteAction()"><i class="fa fa-clipboard"></i> <span data-i18n="tspec.paste">Paste</span></div>
+</div>
+
+<!-- move / copy modal -->
+<div class="modal-overlay" id="mcModal">
+  <div class="modal-box">
+    <div class="modal-head" id="mcModalTitle">Move</div>
+    <div class="modal-body">
+      <div class="field-label" data-i18n="tspec.targetSuite">Target suite</div>
+      <select class="mcSel" id="mcTargetSelect"></select>
+      <div class="field-label" style="margin-top:14px;" data-i18n="tspec.position">Position</div>
+      <div style="display:flex;gap:16px;">
+        <label class="mcOpt"><input type="radio" name="mcPos" value="bottom" checked> <span data-i18n="tspec.positionBottom">Bottom</span></label>
+        <label class="mcOpt"><input type="radio" name="mcPos" value="top"> <span data-i18n="tspec.positionTop">Top</span></label>
+      </div>
+      <div id="mcCopyOptions" style="display:none;margin-top:12px;border-top:1px solid #eee;padding-top:10px;">
+        <div class="field-label" data-i18n="tspec.copyOptions">Copy options</div>
+        <div class="mcOpt"><input type="checkbox" id="mcCopyKw"> <label for="mcCopyKw" data-i18n="tspec.copyKeywords">Copy keywords</label></div>
+        <div class="mcOpt"><input type="checkbox" id="mcCopyReq"> <label for="mcCopyReq" data-i18n="tspec.copyRequirements">Copy requirements</label></div>
+        <div class="mcOpt"><input type="checkbox" id="mcCopyLatest"> <label for="mcCopyLatest" data-i18n="tspec.copyOnlyLatestVersion">Copy only latest version</label></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="closeModal('mcModal')" data-i18n="tspec.cancel">Cancel</button>
+      <button class="btn-teal btn-sm" id="mcConfirmBtn" onclick="mcConfirm()">OK</button>
     </div>
   </div>
 </div>
@@ -304,14 +353,14 @@ function renderSuites(node, path) {
     var p = path.concat([s.name]);
     var sub = countNodes(s.children);
     h += '<li>' +
-      '<div class="tree-node suite-node" data-id="' + s.id + '" data-path="' + esc(p.join(' / ')) + '" onclick="selectNode(\'testsuite\',' + s.id + ')">' +
+      '<div class="tree-node suite-node" draggable="true" data-id="' + s.id + '" data-path="' + esc(p.join(' / ')) + '" onclick="selectNode(\'testsuite\',' + s.id + ')">' +
         '<span class="toggler" onclick="toggleBranch(event,this)"><i class="fa fa-chevron-down"></i></span>' +
         '<i class="fa fa-folder"></i> <span class="node-name">' + esc(s.name) + '</span>' +
         ' <span class="count-pill">' + (sub.tc + countDirectTc(s)) + '</span>' +
       '</div>' + renderSuites(s.children, p) + '</li>';
   });
   (node.testcases || []).forEach(function (tc) {
-    h += '<li><div class="tree-node tc-node' + (tc.active ? '' : ' inactive-tc') + '" data-id="' + tc.id + '" data-name="' + esc(tc.name.toLowerCase()) + '" onclick="selectNode(\'testcase\',' + tc.id + ')">' +
+    h += '<li><div class="tree-node tc-node' + (tc.active ? '' : ' inactive-tc') + '" draggable="true" data-id="' + tc.id + '" data-name="' + esc(tc.name.toLowerCase()) + '" onclick="selectNode(\'testcase\',' + tc.id + ')">' +
       '<span class="toggler"></span><i class="fa fa-flask"></i> <span class="node-name">' + esc(tc.name) + '</span>' +
       (tc.external_id > 0 ? '<span class="extid">' + tc.external_id + '</span>' : '') +
     '</div></li>';
@@ -736,6 +785,199 @@ function askConfirm(text, cb) {
   window.__confirmCb = cb;
   $('#confirmModal').show();
 }
+
+/* ------------------------------------------------------------------ */
+/*  Drag-and-Drop (HTML5)                                              */
+/* ------------------------------------------------------------------ */
+var dragSrc = null;
+var clipboard = null;
+
+function initDnd() {
+  $('#treeBox').on('dragstart', '.tree-node', function(ev) {
+    var $el = $(this);
+    var d = { type: $el.hasClass('suite-node') ? 'testsuite' : 'testcase',
+              id: parseInt($el.data('id'), 10) };
+    dragSrc = d;
+    var oe = ev.originalEvent || ev;
+    oe.dataTransfer.effectAllowed = 'move';
+    oe.dataTransfer.setData('text/plain', JSON.stringify(d));
+    setTimeout(function() { $el.addClass('dragging-self'); }, 0);
+  });
+
+  $('#treeBox').on('dragend', '.tree-node', function() {
+    $(this).removeClass('dragging-self');
+    $('.tree-node.drag-over').removeClass('drag-over');
+    $('.tree-node.dragging-invalid').removeClass('dragging-invalid');
+    dragSrc = null;
+  });
+
+  $('#treeBox').on('dragover', '.suite-node', function(ev) {
+    if (!dragSrc) return;
+    var $el = $(this);
+    var targetId = parseInt($el.data('id'), 10);
+    if (dragSrc.id === targetId) {
+      $el.addClass('dragging-self');
+      ev.preventDefault();
+      return;
+    }
+    $el.addClass('drag-over');
+    var oe = ev.originalEvent || ev;
+    oe.dataTransfer.dropEffect = oe.altKey ? 'copy' : 'move';
+    oe.preventDefault();
+  });
+
+  $('#treeBox').on('dragleave', '.suite-node', function() {
+    $(this).removeClass('drag-over dragging-self');
+  });
+
+  $('#treeBox').on('drop', '.suite-node', function(ev) {
+    ev.preventDefault();
+    var $el = $(this);
+    $el.removeClass('drag-over dragging-self');
+    if (!dragSrc) return;
+    var targetId = parseInt($el.data('id'), 10);
+    if (dragSrc.id === targetId) return;
+    var oe = ev.originalEvent || ev;
+    var isCopy = !!oe.altKey;
+    performMoveOrCopy(dragSrc.type, dragSrc.id, 'testsuite', targetId, isCopy ? 'copy' : 'move');
+  });
+}
+
+function performMoveOrCopy(srcType, srcId, tgtType, tgtId, action, opts) {
+  opts = opts || {};
+  if (action === 'copy') {
+    var body = { node_id: srcId, type: srcType, new_parent_id: tgtId,
+                 position: opts.position || 'bottom',
+                 options: { copyKeywords: !!opts.copyKeywords,
+                            copyRequirements: !!opts.copyRequirements,
+                            copyOnlyLatestVersion: !!opts.copyOnlyLatestVersion } };
+    toast(t('tspec.copied'));
+    apiPost('copy', body).then(function() {
+      toast(t('tspec.copied'));
+      loadTree();
+    }).catch(function(e) { toast(e.message || t('tspec.operationFailed'), true); });
+  } else {
+    var body2 = { node_id: srcId, type: srcType, new_parent_id: tgtId,
+                  position: opts.position || 'bottom' };
+    apiPost('move', body2).then(function() {
+      toast(t('tspec.moved'));
+      loadTree();
+    }).catch(function(e) { toast(e.message || t('tspec.operationFailed'), true); });
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Right-click context menu                                           */
+/* ------------------------------------------------------------------ */
+function initContextMenu() {
+  document.addEventListener('click', function() { $('#ctxMenu').hide(); });
+
+  $('#treeBox').on('contextmenu', '.tree-node', function(ev) {
+    if (!grants['mgt_modify_tc']) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    var $el = $(this);
+    var nd = { type: $el.hasClass('suite-node') ? 'testsuite' : 'testcase',
+               id: parseInt($el.data('id'), 10) };
+    selectNode(nd.type, nd.id);
+    var $m = $('#ctxMenu');
+    $m.css({ top: ev.pageY, left: ev.pageX }).show();
+    $m.data('node', nd);
+    $m.find('.ctx-item').show();
+    $('#ctxPaste').toggle(!!clipboard);
+  });
+
+  $('#treeBox').on('contextmenu', '.tree-root', function(ev) {
+    if (!grants['mgt_modify_tc']) return;
+    ev.preventDefault();
+    var $m = $('#ctxMenu');
+    $m.css({ top: ev.pageY, left: ev.pageX }).show();
+    $m.data('node', { type: 'testsuite', id: ctx.tproject_id, isRoot: true });
+    $m.find('.ctx-item').hide();
+    $('#ctxPaste').toggle(clipboard && !!clipboard).show();
+  });
+}
+
+function ctxCutAction() {
+  var nd = $('#ctxMenu').data('node');
+  if (!nd) return;
+  clipboard = { action: 'move', type: nd.type, id: nd.id, name: findNode(nd.type, nd.id)?.name || '' };
+  $('#ctxMenu').hide();
+  toast(t('tspec.cut') + ': ' + clipboard.name);
+}
+
+function ctxCopyAction() {
+  var nd = $('#ctxMenu').data('node');
+  if (!nd) return;
+  clipboard = { action: 'copy', type: nd.type, id: nd.id, name: findNode(nd.type, nd.id)?.name || '' };
+  $('#ctxMenu').hide();
+  toast(t('tspec.copy') + ': ' + clipboard.name);
+}
+
+function ctxPasteAction() {
+  var nd = $('#ctxMenu').data('node');
+  if (!nd || !clipboard) { toast(t('tspec.clipboardEmpty'), true); return; }
+  $('#ctxMenu').hide();
+  var tgtName = findNode(nd.type, nd.id)?.name || '';
+  if (clipboard.action === 'move') {
+    openMcModal('move', clipboard.type, clipboard.id, nd.type, nd.id, tgtName);
+  } else {
+    openMcModal('copy', clipboard.type, clipboard.id, nd.type, nd.id, tgtName);
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Move / Copy modal (target suite picker)                            */
+/* ------------------------------------------------------------------ */
+var mcState = {};
+
+function openMcModal(action, srcType, srcId, tgtType, tgtId, tgtName) {
+  mcState = { action: action, srcType: srcType, srcId: srcId,
+              tgtType: tgtType, tgtId: tgtId };
+  var title = action === 'move' ? t('tspec.moveTo') : t('tspec.copyTo');
+  $('#mcModalTitle').text(title);
+  $('#mcCopyOptions').toggle(action === 'copy');
+  $('#mcCopyKw,#mcCopyReq,#mcCopyLatest').prop('checked', false);
+  $('input[name="mcPos"][value="bottom"]').prop('checked', true);
+  var $sel = $('#mcTargetSelect').empty();
+  buildSuiteOptions($sel, treeData, tgtId, 0);
+  if (tgtType === 'testsuite' && tgtId !== ctx.tproject_id) {
+    $sel.val(String(tgtId));
+  }
+  $('#mcModal').show();
+}
+
+function buildSuiteOptions($sel, node, skipId, depth) {
+  (node.suites || []).forEach(function(s) {
+    if (s.id !== mcState.srcId) {
+      var label = '';
+      for (var i = 0; i < depth; i++) label += '\u00A0\u00A0';
+      label += s.name;
+      $sel.append($('<option>').val(s.id).text(label));
+    }
+    buildSuiteOptions($sel, s.children, skipId, depth + 1);
+  });
+}
+
+function mcConfirm() {
+  var targetId = parseInt($('#mcTargetSelect').val(), 10);
+  if (!targetId || targetId <= 0) { toast(t('tspec.errNoSuite'), true); return; }
+  var pos = $('input[name="mcPos"]:checked').val() || 'bottom';
+  closeModal('mcModal');
+  clipboard = null;
+  performMoveOrCopy(mcState.srcType, mcState.srcId, 'testsuite', targetId,
+                    mcState.action, {
+    position: pos,
+    copyKeywords: $('#mcCopyKw').is(':checked'),
+    copyRequirements: $('#mcCopyReq').is(':checked'),
+    copyOnlyLatestVersion: $('#mcCopyLatest').is(':checked')
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Init DnD + context menu on document ready                          */
+/* ------------------------------------------------------------------ */
+$(function() { initDnd(); initContextMenu(); });
 </script>
 <div class="footer"><span data-i18n="footers.testSpec">TestLink 2.0.1 - Test Specification</span></div>
 </body>
