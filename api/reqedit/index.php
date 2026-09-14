@@ -19,6 +19,7 @@
  *   GET  ?action=form&id=N                -> requirement (latest version) + spec + options (edit)
  *   GET  ?action=form&spec_id=N           -> options + spec info (create)
  *   POST ?action=save                     -> create (no id) or update (id) a requirement
+ *                                           body stay_here (1) keeps create form open (gap #1384)
  *   POST ?action=version&id=N             -> create a new version of the requirement
  */
 
@@ -250,6 +251,8 @@ if ($method === 'POST' && $action === 'save') {
     $status = strtoupper(trim((string)($BODY['status'] ?? TL_REQ_STATUS_VALID)));
     $type = (string)($BODY['type'] ?? TL_REQ_TYPE_FEATURE);
     $expectedCoverage = max(1, intval($BODY['expected_coverage'] ?? 1));
+    // legacy reqEdit.php stay_here: keep the caller on the create form after save
+    $stayHere = !empty($BODY['stay_here']) ? 1 : 0;
 
     if ($reqId > 0) {
         // resolve owning project + latest version
@@ -277,7 +280,8 @@ if ($method === 'POST' && $action === 'save') {
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
-        out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId)]);
+        out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId),
+             'stay_here' => $stayHere]);
     } else {
         $specId = intval($BODY['spec_id'] ?? 0);
         if ($specId <= 0) { badRequest('Invalid specification id'); }
@@ -287,7 +291,8 @@ if ($method === 'POST' && $action === 'save') {
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
-        out(['status' => 'ok', 'mode' => 'create', 'id' => intval($op['id'])]);
+        out(['status' => 'ok', 'mode' => 'create', 'id' => intval($op['id']),
+             'stay_here' => $stayHere]);
     }
 }
 

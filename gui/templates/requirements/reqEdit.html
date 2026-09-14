@@ -29,6 +29,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-control { font-size: 13px; height: 34px; border-radius: 4px; }
 textarea.form-control { height: auto; min-height: 120px; }
 .version-chip { background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 13px; }
+.stay-here { color: #ccc; font-size: 12px; display: inline-flex; align-items: center; gap: 7px; margin-right: 4px; cursor: pointer; user-select: none; }
+.stay-here input { accent-color: #4ECDC4; cursor: pointer; }
 .error-bar { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; display: none; }
 .info-bar { background: #eaf6ef; border: 1px solid #b7e0c3; color: #1e8e4e; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; }
 .coverage-hint { color: #888; font-size: 12px; }
@@ -45,6 +47,7 @@ textarea.form-control { height: auto; min-height: 120px; }
   <span class="ctx"><span data-i18n="reqe.version">Version</span>: <b id="versionChip" class="version-chip">-</b></span>
   <span style="flex:1"></span>
   <button id="newVersionBtn" class="btn-version" style="display:none;"><i class="fa fa-code-branch"></i> <span data-i18n="reqe.newVersion">Create New Version</span></button>
+  <label id="stayHereOpt" class="stay-here" style="display:none;"><input type="checkbox" id="stayHere"> <span data-i18n="reqe.stayHere">Check to create another requirement after saving</span></label>
   <button class="btn-teal" onclick="save()"><i class="fa fa-save"></i> <span data-i18n="common.save">Save</span></button>
   <button class="btn-ghost" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="common.cancel">Cancel</span></button>
 </div>
@@ -178,12 +181,15 @@ function loadForm() {
     var canManage = r.rights && r.rights.manage;
     if (MODE === 'edit') {
       $('#newVersionBtn').show();
+      $('#stayHereOpt').hide();
       if (!canManage) {
         setEditable(false);
         $('#readonlyNote').show();
       }
     } else {
       $('#newVersionBtn').hide();
+      $('#stayHereOpt').show();
+      $('#stayHere').prop('checked', true);
       if (!canManage) { setEditable(false); $('#readonlyNote').show(); }
     }
   }).fail(function(xhr) {
@@ -215,7 +221,10 @@ function save() {
   if (!payload.req_doc_id) { showError(TLi18n.t('reqe.errDocId')); return; }
   if (!payload.title) { showError(TLi18n.t('reqe.errTitle')); return; }
   if (MODE === 'edit') { payload.id = REQ_ID; }
-  else { payload.spec_id = SPEC_ID; }
+  else {
+    payload.spec_id = SPEC_ID;
+    payload.stay_here = $('#stayHere').is(':checked') ? 1 : 0;
+  }
 
   $.ajax({
     url: API + '?action=save',
@@ -225,10 +234,14 @@ function save() {
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.saveError')); return; }
       hideError();
-      if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); }
+      if (MODE === 'create' && payload.stay_here) {
+        resetForm();
+      } else {
+        if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); }
+        if (r.newVersion) { $('#versionChip').text(r.newVersion); }
+      }
       $('#infoBar').text(TLi18n.t('reqe.saved')).show();
       setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
-      if (r.newVersion) { $('#versionChip').text(r.newVersion); }
     },
     error: function(xhr) {
       var msg = TLi18n.t('reqe.saveError');
@@ -236,6 +249,22 @@ function save() {
       showError(msg);
     }
   });
+}
+
+function resetForm() {
+  REQ_ID = 0;
+  MODE = 'create';
+  $('#newVersionBtn').hide();
+  $('#stayHereOpt').show();
+  $('#reqDocId').val('');
+  $('#reqTitle').val('');
+  $('#reqScope').val('');
+  var o = OPTIONS || {};
+  fillSelect($('#reqStatus'), o.reqStatuses, o.defaultReqStatus);
+  fillSelect($('#reqType'), o.reqTypes, o.defaultReqType);
+  fillCoverage(1);
+  $('#versionChip').text('0');
+  $('#stayHere').prop('checked', true);
 }
 
 function newVersion() {

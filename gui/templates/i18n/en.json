@@ -2016,6 +2016,7 @@
   "reqe.scope": "Scope / Description",
   "reqe.spec": "Specification",
   "reqe.status": "Status",
+  "reqe.stayHere": "Check to create another requirement after saving",
   "reqe.title": "Title",
   "reqe.type": "Type",
   "reqe.version": "Version",

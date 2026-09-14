@@ -2010,6 +2010,7 @@
   "reqe.scope": "Portée / Description",
   "reqe.spec": "Spécification",
   "reqe.status": "Statut",
+  "reqe.stayHere": "Cocher pour créer une autre exigence après enregistrement",
   "reqe.title": "Titre",
   "reqe.type": "Type",
   "reqe.version": "Version",

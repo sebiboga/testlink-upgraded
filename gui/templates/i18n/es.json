@@ -2010,6 +2010,7 @@
   "reqe.scope": "Alcance / Descripción",
   "reqe.spec": "Especificación",
   "reqe.status": "Estado",
+  "reqe.stayHere": "Marcar para crear otro requisito después de guardar",
   "reqe.title": "Título",
   "reqe.type": "Tipo",
   "reqe.version": "Versión",
