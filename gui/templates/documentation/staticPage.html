@@ -104,7 +104,8 @@ function loadPage() {
   $('#errBar').hide();
   $('#warnBar').hide();
   $('#contentCard').hide();
-  $.getJSON(API, { action: 'show', key: CUR_KEY, refreshTree: REFRESH_TREE })
+  $.getJSON(API, { action: 'show', key: CUR_KEY, refreshTree: REFRESH_TREE,
+                   locale: TLi18n.getLocale() })
     .done(function (r) {
       if (!r || r.status !== 'ok') {
         showError((r && r.message) || TLi18n.t('stp.loadError'));
