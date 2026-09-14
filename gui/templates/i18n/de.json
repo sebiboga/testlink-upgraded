@@ -1658,6 +1658,8 @@
   "profile.timestamp": "ZEITSTEMPEL",
   "profile.yourApiKey": "Ihr API-Schlüssel",
   "profile.yourPasswordIsExternal": "Ihr Passwort wird von einem externen System verwaltet.",
+  "profile.github": "GitHub-Konto",
+  "profile.githubHint": "Dein GitHub-Benutzername — das Profilbild wird daraus in das Dashio-Layout geladen.",
   "proj.activate": "Aktivieren",
   "proj.active": "Aktiv",
   "proj.availability": "Verfügbarkeit",

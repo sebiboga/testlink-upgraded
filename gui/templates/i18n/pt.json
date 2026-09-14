@@ -1658,6 +1658,8 @@
   "profile.timestamp": "CARIMBO TEMPORAL",
   "profile.yourApiKey": "A sua chave API",
   "profile.yourPasswordIsExternal": "A sua senha é gerenciada por um sistema externo.",
+  "profile.github": "Conta do GitHub",
+  "profile.githubHint": "Seu nome de usuario do GitHub — a foto de perfil e carregada dele no layout Dashio.",
   "proj.activate": "Ativar",
   "proj.active": "Ativo",
   "proj.availability": "Disponibilidade",

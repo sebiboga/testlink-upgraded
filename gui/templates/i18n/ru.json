@@ -1658,6 +1658,8 @@
   "profile.timestamp": "ВРЕМЕННАЯ МЕТКА",
   "profile.yourApiKey": "Ваш API-ключ",
   "profile.yourPasswordIsExternal": "Ваш пароль управляется внешней системой.",
+  "profile.github": "Аккаунт GitHub",
+  "profile.githubHint": "Ваше имя пользователя GitHub — аватар загружается из него в макет Dashio.",
   "proj.activate": "Активировать",
   "proj.active": "Активен",
   "proj.availability": "Доступность",

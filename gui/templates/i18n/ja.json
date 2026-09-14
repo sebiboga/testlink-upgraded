@@ -1658,6 +1658,8 @@
   "profile.timestamp": "タイムスタンプ",
   "profile.yourApiKey": "あなたのAPIキー",
   "profile.yourPasswordIsExternal": "パスワードは外部システムで管理されています。",
+  "profile.github": "GitHub アカウント",
+  "profile.githubHint": "GitHub ユーザー名 — プロフィール画像はこれに基づいて Dashio レイアウトに読み込まれます。",
   "proj.activate": "有効化",
   "proj.active": "有効",
   "proj.availability": "利用可否",

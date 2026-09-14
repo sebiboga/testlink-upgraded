@@ -60,6 +60,8 @@ function userProfile(tlUser $u, $db) {
         'email' => $u->emailAddress,
         'locale' => $u->locale,
         'globalRoleName' => $roleName,
+        'github' => $u->github ?? '',
+        'avatarUrl' => $u->getGithubAvatarUrl(96),
         'apiKey' => $u->userApiKey ?? 'none',
         'authentication' => $u->authentication ?? '',
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
@@ -162,6 +164,9 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
     if (isset($body['lastName'])) $user->lastName = trim($body['lastName']);
     if (isset($body['email'])) $user->emailAddress = trim($body['email']);
     if (isset($body['locale'])) $user->locale = $body['locale'];
+    if (array_key_exists('github', $body)) {
+        $user->github = trim(ltrim((string)$body['github'], '@'));
+    }
 
     $result = $user->writeToDB($db);
     if ($result >= tl::OK) {

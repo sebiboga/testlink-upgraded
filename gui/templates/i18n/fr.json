@@ -1658,6 +1658,8 @@
   "profile.timestamp": "HORODATAGE",
   "profile.yourApiKey": "Votre clé API",
   "profile.yourPasswordIsExternal": "Votre mot de passe est géré par un système externe.",
+  "profile.github": "Compte GitHub",
+  "profile.githubHint": "Votre nom d'utilisateur GitHub — la photo de profil est chargee a partir de celui-ci dans la maquette Dashio.",
   "proj.activate": "Activer",
   "proj.active": "Actif",
   "proj.availability": "Disponibilité",

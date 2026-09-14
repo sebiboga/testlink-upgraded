@@ -1193,6 +1193,34 @@ div.form-border {
 	color: #888;
 }
 
+/* GitHub avatar in the identity block (Refs #905): a small round picture,
+   falling back to a colored initials circle when the user has no account. */
+.tlWhoamiAvatar {
+	display: inline-block;
+	width: 30px;
+	height: 30px;
+	border-radius: 50%;
+	object-fit: cover;
+	vertical-align: middle;
+	margin-right: 8px;
+	border: 1px solid rgba(255,255,255,.35);
+}
+
+.tlWhoamiAvatarFallback {
+	display: inline-block;
+	width: 30px;
+	height: 30px;
+	line-height: 30px;
+	text-align: center;
+	border-radius: 50%;
+	background: #4ECDC4;
+	color: #fff !important;
+	font-weight: bold;
+	font-size: 14px;
+	vertical-align: middle;
+	margin-right: 8px;
+}
+
 /* Near-white text on the logout button's light teal background was low
    contrast once the header stopped being dark. The generic
    ul.top-menu > li > a:hover rule below also forces a transparent

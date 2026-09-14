@@ -1658,6 +1658,8 @@
   "profile.timestamp": "TIMP",
   "profile.yourApiKey": "Cheia ta API",
   "profile.yourPasswordIsExternal": "Parola ta este gestionata de un sistem extern.",
+  "profile.github": "Cont GitHub",
+  "profile.githubHint": "Utilizatorul tau de GitHub — poza de profil este incarcata din acesta in aspectul Dashio.",
   "proj.activate": "Activează",
   "proj.active": "Activ",
   "proj.availability": "Disponibilitate",

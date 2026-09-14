@@ -1658,6 +1658,8 @@
   "profile.timestamp": "时间戳",
   "profile.yourApiKey": "您的API密钥",
   "profile.yourPasswordIsExternal": "您的密码由外部系统管理。",
+  "profile.github": "GitHub 账号",
+  "profile.githubHint": "您的 GitHub 用户名——头像将据此加载到 Dashio 布局中。",
   "proj.activate": "激活",
   "proj.active": "启用",
   "proj.availability": "可用性",

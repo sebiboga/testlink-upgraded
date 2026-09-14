@@ -89,6 +89,11 @@ class tlUser extends tlDBObject {
   public $creation_ts;
   public $expiration_date;
 
+  /**
+   * @var string the GitHub account of the user (used to fetch the avatar)
+   */
+  public $github;
+
 
   /**
    * @var string the password of the user
@@ -180,6 +185,7 @@ class tlUser extends tlDBObject {
     $this->securityCookie = null;
     $this->authentication = null;
     $this->expiration_date = null;
+    $this->github = null;
 
     if (!($options & self::TLOBJ_O_SEARCH_BY_ID)) {
       $this->dbID = null;
@@ -266,7 +272,7 @@ class tlUser extends tlDBObject {
     $this->_clean($options);
     $sql = " SELECT id,login,password,cookie_string,first,last,email," .
            " role_id,locale, " .
-           " login AS fullname, active,default_testproject_id, script_key,auth_method,creation_ts,expiration_date " .
+           " login AS fullname, active,default_testproject_id, script_key,auth_method,creation_ts,expiration_date,github " .
            " FROM {$this->object_table}";
     $clauses = null;
 
@@ -313,6 +319,7 @@ class tlUser extends tlDBObject {
       $this->password = $info['password'];
       $this->isActive = $info['active'];
       $this->defaultTestprojectID = $info['default_testproject_id'];
+      $this->github = isset($info['github']) ? $info['github'] : null;
     }
     return $info ? tl::OK : tl::ERROR;
   }
@@ -433,7 +440,8 @@ class tlUser extends tlDBObject {
                ", password = " . "'" . $db->prepare_string($this->password) . "'" .
                ", role_id = ". $db->prepare_int($this->globalRoleID) . 
                ", active = ". $db->prepare_string($this->isActive) . 
-               ", auth_method = ". "'" . $db->prepare_string($this->authentication) . "'";
+               ", auth_method = ". "'" . $db->prepare_string($this->authentication) . "'" .
+               ", github = '" . $db->prepare_string(is_null($this->github) ? '' : $this->github) . "'";
 
         if(!is_null($t_cookie_string) )
         {        
@@ -445,14 +453,15 @@ class tlUser extends tlDBObject {
       else
       {
         $sql = "/* debugMsg */ INSERT INTO {$this->tables['users']} " .
-               " (login,password,cookie_string,first,last,email,role_id,locale,active,auth_method) " .
+               " (login,password,cookie_string,first,last,email,role_id,locale,active,auth_method,github) " .
                " VALUES ('" . 
                $db->prepare_string($this->login) . "','" . $db->prepare_string($this->password) . "','" . 
                $db->prepare_string($t_cookie_string) . "','" .
                $db->prepare_string($this->firstName) . "','" . $db->prepare_string($this->lastName) . "','" . 
                $db->prepare_string($this->emailAddress) . "'," . $db->prepare_int($this->globalRoleID) . ",'". 
                $db->prepare_string($this->locale). "'," . $this->isActive . "," . 
-               "'" . $db->prepare_string($this->authentication). "'" . ")";
+               "'" . $db->prepare_string($this->authentication). "','" .
+               $db->prepare_string(is_null($this->github) ? '' : $this->github) . "'" . ")";
 
         $result = $db->exec_query($sql);
         if($result)
@@ -524,6 +533,29 @@ class tlUser extends tlDBObject {
     return $displayName;
   }
   
+  /**
+   * GitHub avatar URL for this user (Refs #905).
+   *
+   * When the user stored a GitHub account, build the avatar URL GitHub serves
+   * for username-based lookups: https://avatars.githubusercontent.com/<login>.
+   * The URL is created purely client-cacheable (no API call / rate limit), as
+   * suggested by the issue examples (?s=<size>&v=4). A leading '@' and any
+   * whitespace are stripped from the handle before embedding it.
+   *
+   * @param int $size  avatar edge length in pixels
+   * @return string|null null when the user has no GitHub account
+   */
+  public function getGithubAvatarUrl($size = 96)
+  {
+    $login = trim(ltrim((string)$this->github, '@'));
+    if ($login == '') {
+      return null;
+    }
+    $login = rawurlencode($login);
+    return 'https://avatars.githubusercontent.com/' . $login . '?s=' .
+           intval($size) . '&v=4';
+  }
+
   /**
    * Encrypts a given password with MD5
    * 
