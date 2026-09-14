@@ -3966,5 +3966,9 @@
   "stp.loadError": "加载帮助页面出错",
   "stp.missingKey": "缺少或无效的帮助键",
   "stp.notFound": "所选语言中无此帮助主题",
-  "footers.staticPage": "TestLink 2.0.1 - 帮助与说明"
+  "footers.staticPage": "TestLink 2.0.1 - 帮助与说明",
+  "tspec.estimatedDuration": "预计执行时长(分)",
+  "tspec.estimatedDurationHint": "分钟",
+  "tspec.errDurationInvalid": "预计执行时长必须是数字",
+  "tspec.errDurationRequired": "预计执行时长是必填项"
 }

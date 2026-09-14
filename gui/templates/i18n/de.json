@@ -3960,5 +3960,9 @@
   "stp.loadError": "Fehler beim Laden der Hilfeseite",
   "stp.missingKey": "Fehlender oder ungültiger Hilfeschlüssel",
   "stp.notFound": "Hilfethema in der gewählten Sprache nicht verfügbar",
-  "footers.staticPage": "TestLink 2.0.1 - Hilfe & Anleitung"
+  "footers.staticPage": "TestLink 2.0.1 - Hilfe & Anleitung",
+  "tspec.estimatedDuration": "Geschätzte Dauer (Min.)",
+  "tspec.estimatedDurationHint": "Minuten",
+  "tspec.errDurationInvalid": "Die geschätzte Dauer muss eine Zahl sein",
+  "tspec.errDurationRequired": "Die geschätzte Dauer ist erforderlich"
 }

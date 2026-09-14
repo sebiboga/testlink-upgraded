@@ -3966,5 +3966,9 @@
   "stp.loadError": "ヘルプページの読み込みエラー",
   "stp.missingKey": "ヘルプキーがありませんか、無効です",
   "stp.notFound": "選択した言語ではこのヘルプトピックは利用できません",
-  "footers.staticPage": "TestLink 2.0.1 - ヘルプとインストラクション"
+  "footers.staticPage": "TestLink 2.0.1 - ヘルプとインストラクション",
+  "tspec.estimatedDuration": "推定実行時間（分）",
+  "tspec.estimatedDurationHint": "分",
+  "tspec.errDurationInvalid": "推定実行時間は数値でなければなりません",
+  "tspec.errDurationRequired": "推定実行時間は必須です"
 }

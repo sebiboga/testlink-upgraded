@@ -3970,5 +3970,9 @@
   "stp.loadError": "Eroare la încărcarea paginii de ajutor",
   "stp.missingKey": "Cheie de ajutor lipsă sau invalidă — deschideți această pagină dintr-un buton de ajutor sau cu parametrul ?key=",
   "stp.notFound": "Subiectul de ajutor nu este disponibil în limba selectată",
-  "footers.staticPage": "TestLink 2.0.1 - Ajutor și instrucțiuni"
+  "footers.staticPage": "TestLink 2.0.1 - Ajutor și instrucțiuni",
+  "tspec.estimatedDuration": "Durată estimată (min)",
+  "tspec.estimatedDurationHint": "Minute",
+  "tspec.errDurationInvalid": "Durata estimată trebuie să fie un număr",
+  "tspec.errDurationRequired": "Durata estimată este obligatorie"
 }

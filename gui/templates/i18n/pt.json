@@ -3966,5 +3966,9 @@
   "stp.loadError": "Erro ao carregar a página de ajuda",
   "stp.missingKey": "Chave de ajuda ausente ou inválida",
   "stp.notFound": "Tópico de ajuda não disponível no idioma selecionado",
-  "footers.staticPage": "TestLink 2.0.1 - Ajuda e instruções"
+  "footers.staticPage": "TestLink 2.0.1 - Ajuda e instruções",
+  "tspec.estimatedDuration": "Duração estimada da execução (min)",
+  "tspec.estimatedDurationHint": "Minutos",
+  "tspec.errDurationInvalid": "A duração estimada deve ser um número",
+  "tspec.errDurationRequired": "A duração estimada da execução é obrigatória"
 }

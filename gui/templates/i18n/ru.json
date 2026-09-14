@@ -3966,5 +3966,9 @@
   "stp.loadError": "Ошибка загрузки страницы справки",
   "stp.missingKey": "Отсутствует или неверный ключ справки",
   "stp.notFound": "Тема справки недоступна на выбранном языке",
-  "footers.staticPage": "TestLink 2.0.1 - Справка и инструкции"
+  "footers.staticPage": "TestLink 2.0.1 - Справка и инструкции",
+  "tspec.estimatedDuration": "Оценка длительности (мин)",
+  "tspec.estimatedDurationHint": "Минуты",
+  "tspec.errDurationInvalid": "Оценка длительности должна быть числом",
+  "tspec.errDurationRequired": "Оценка длительности обязательна"
 }

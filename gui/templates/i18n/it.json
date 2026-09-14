@@ -3960,5 +3960,9 @@
   "stp.loadError": "Errore durante il caricamento della pagina di aiuto",
   "stp.missingKey": "Chiave di aiuto mancante o non valida",
   "stp.notFound": "Argomento di aiuto non disponibile nella lingua selezionata",
-  "footers.staticPage": "TestLink 2.0.1 - Aiuto e istruzioni"
+  "footers.staticPage": "TestLink 2.0.1 - Aiuto e istruzioni",
+  "tspec.estimatedDuration": "Durata stimata (min)",
+  "tspec.estimatedDurationHint": "Minuti",
+  "tspec.errDurationInvalid": "La durata stimata deve essere un numero",
+  "tspec.errDurationRequired": "La durata stimata è obbligatoria"
 }

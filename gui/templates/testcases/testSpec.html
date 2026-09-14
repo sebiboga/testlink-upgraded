@@ -268,6 +268,7 @@ function init() {
     document.title = r.tproject.name + ' - ' + t('tspec.header');
     grants = r.grants || {};
     ctx.options = r.options || {};
+    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
     refreshGrantsUi();
     return loadTree();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -549,8 +550,9 @@ function renderTcView(r) {
     '<div class="meta-grid">' +
       '<div class="meta-item"><b>' + t('tspec.status') + '</b>' + esc(statusLabel(tc.status)) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.importance') + '</b>' + importanceLabel(tc.importance) + '</div>' +
-      '<div class="meta-item"><b>' + t('tspec.executionType') + '</b>' + execTypeLabel(tc.execution_type) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.testCaseId') + '</b>' + tc.id + '</div>' +
+      (tc.estimatedExecDuration !== undefined && tc.estimatedExecDuration !== null && String(tc.estimatedExecDuration) !== ''
+        ? '<div class="meta-item"><b>' + t('tspec.estimatedDuration') + '</b>' + esc(tc.estimatedExecDuration) + ' min</div>' : '') +
     '</div>' +
     '<div class="field-label">' + t('tspec.summary') + '</div>' +
     '<div class="rich-field">' + (esc(tc.summary) || '<span class="none-text">-</span>') + '</div>' +
@@ -637,6 +639,7 @@ function collectForm() {
     execution_type: parseInt($('#tcExecTypeSel').val(), 10),
     importance: parseInt($('#tcImportanceSel').val(), 10),
     status: parseInt($('#tcStatusSel').val(), 10),
+    estimated_execution_duration: $('#tcDurationInput').val() ? String($('#tcDurationInput').val()).trim() : '',
     steps: steps,
     keywords: kws,
     customFields: customFields
@@ -671,6 +674,8 @@ function formHtml(data, kwProject) {
       '<select class="form-control2" id="tcStatusSel">' +
         statusOptions(parseInt(data.status, 10)) +
       '</select></div>' +
+      '<div style="flex:1;"><div class="field-label">' + t('tspec.estimatedDuration') + (ctx.durationRequired ? ' <span style="color:#c0392b;">*</span>' : '') + '</div>' +
+      '<input type="text" class="form-control2" id="tcDurationInput" maxlength="10" placeholder="' + t('tspec.estimatedDurationHint') + '" value="' + esc(data.estimatedExecDuration != null ? data.estimatedExecDuration : '') + '"' + (ctx.durationRequired ? ' required' : '') + '></div>' +
     '</div>' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.summary') + '</div>' +
@@ -887,6 +892,7 @@ function openCreateTc() {
   apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
     if (editMode.mode !== 'create') { return; }
     ctx.statusDomain = r.statusDomain || {};
+    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
     $('#editView').html(formHtml({ customFields: r.customFields }, r.keywordsProject || {})).show();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
@@ -900,6 +906,7 @@ function openEditTc(tcaseId) {
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
     editMode = { mode: 'update', tcase_id: r.tcase.id };
     ctx.statusDomain = r.statusDomain || {};
+    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
     hideAllPanes();
     $('#editView').html(formHtml({
       name: r.tcase.name,
@@ -908,6 +915,7 @@ function openEditTc(tcaseId) {
       importance: r.tcase.importance,
       execution_type: r.tcase.execution_type,
       status: r.tcase.status,
+      estimatedExecDuration: r.tcase.estimatedExecDuration,
       steps: r.steps,
       customFields: r.customFields,
       keywordsAssigned: r.keywordsAssigned
@@ -925,6 +933,15 @@ function cancelEdit() {
 function saveForm() {
   var fd = collectForm();
   if (!fd.name.trim()) { toast(t('tspec.errNameRequired'), true); return; }
+  var dur = fd.estimated_execution_duration || '';
+  if (dur !== '' && isNaN(Number(dur))) {
+    toast(t('tspec.errDurationInvalid'), true);
+    return;
+  }
+  if (ctx.durationRequired && dur === '') {
+    toast(t('tspec.errDurationRequired'), true);
+    return;
+  }
   var req;
   if (editMode.mode === 'create') {
     fd.parent_id = editMode.parent_id;
