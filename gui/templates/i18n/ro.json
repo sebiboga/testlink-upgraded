@@ -3962,5 +3962,13 @@
   "tspec.moveDown": "Mută jos",
   "tspec.customFields": "Câmpuri personalizate",
   "tspec.yes": "Da",
-  "tspec.cfSelectEmpty": "- selectează -"
+  "tspec.cfSelectEmpty": "- selectează -",
+  "common.back": "Înapoi",
+  "stp.title": "Ajutor și instrucțiuni",
+  "stp.headerSub": "Pagini de ajutor context TestLink",
+  "stp.helpKey": "Cheie ajutor",
+  "stp.loadError": "Eroare la încărcarea paginii de ajutor",
+  "stp.missingKey": "Cheie de ajutor lipsă sau invalidă — deschideți această pagină dintr-un buton de ajutor sau cu parametrul ?key=",
+  "stp.notFound": "Subiectul de ajutor nu este disponibil în limba selectată",
+  "footers.staticPage": "TestLink 2.0.1 - Ajutor și instrucțiuni"
 }

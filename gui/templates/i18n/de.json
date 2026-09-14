@@ -3952,5 +3952,13 @@
   "tspec.moveDown": "Nach unten",
   "tspec.customFields": "Benutzerdefinierte Felder",
   "tspec.yes": "Ja",
-  "tspec.cfSelectEmpty": "- auswählen -"
+  "tspec.cfSelectEmpty": "- auswählen -",
+  "common.back": "Zurück",
+  "stp.title": "Hilfe & Anleitung",
+  "stp.headerSub": "TestLink Kontext-Hilfeseiten",
+  "stp.helpKey": "Hilfeschlüssel",
+  "stp.loadError": "Fehler beim Laden der Hilfeseite",
+  "stp.missingKey": "Fehlender oder ungültiger Hilfeschlüssel",
+  "stp.notFound": "Hilfethema in der gewählten Sprache nicht verfügbar",
+  "footers.staticPage": "TestLink 2.0.1 - Hilfe & Anleitung"
 }

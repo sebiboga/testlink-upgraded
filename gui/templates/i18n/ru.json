@@ -3958,5 +3958,13 @@
   "tspec.moveDown": "Вниз",
   "tspec.customFields": "Пользовательские поля",
   "tspec.yes": "Да",
-  "tspec.cfSelectEmpty": "- выбрать -"
+  "tspec.cfSelectEmpty": "- выбрать -",
+  "common.back": "Назад",
+  "stp.title": "Справка и инструкции",
+  "stp.headerSub": "Контекстные страницы справки TestLink",
+  "stp.helpKey": "Ключ справки",
+  "stp.loadError": "Ошибка загрузки страницы справки",
+  "stp.missingKey": "Отсутствует или неверный ключ справки",
+  "stp.notFound": "Тема справки недоступна на выбранном языке",
+  "footers.staticPage": "TestLink 2.0.1 - Справка и инструкции"
 }

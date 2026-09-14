@@ -3968,5 +3968,13 @@
   "tspec.moveDown": "Move down",
   "tspec.customFields": "Custom Fields",
   "tspec.yes": "Yes",
-  "tspec.cfSelectEmpty": "- select -"
+  "tspec.cfSelectEmpty": "- select -",
+  "common.back": "Back",
+  "stp.title": "Help & Instructions",
+  "stp.headerSub": "TestLink context help pages",
+  "stp.helpKey": "Help key",
+  "stp.loadError": "Error loading help page",
+  "stp.missingKey": "Missing or invalid help key — open this page from a Help button or with a ?key= parameter",
+  "stp.notFound": "Help topic not available in the selected language",
+  "footers.staticPage": "TestLink 2.0.1 - Help & Instructions"
 }

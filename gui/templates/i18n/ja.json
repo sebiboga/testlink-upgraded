@@ -3958,5 +3958,13 @@
   "tspec.moveDown": "下へ移動",
   "tspec.customFields": "カスタムフィールド",
   "tspec.yes": "はい",
-  "tspec.cfSelectEmpty": "- 選択 -"
+  "tspec.cfSelectEmpty": "- 選択 -",
+  "common.back": "戻る",
+  "stp.title": "ヘルプとインストラクション",
+  "stp.headerSub": "TestLink コンテキストヘルプ",
+  "stp.helpKey": "ヘルプキー",
+  "stp.loadError": "ヘルプページの読み込みエラー",
+  "stp.missingKey": "ヘルプキーがありませんか、無効です",
+  "stp.notFound": "選択した言語ではこのヘルプトピックは利用できません",
+  "footers.staticPage": "TestLink 2.0.1 - ヘルプとインストラクション"
 }

@@ -3952,5 +3952,13 @@
   "tspec.moveDown": "Mover abajo",
   "tspec.customFields": "Campos personalizados",
   "tspec.yes": "Sí",
-  "tspec.cfSelectEmpty": "- seleccionar -"
+  "tspec.cfSelectEmpty": "- seleccionar -",
+  "common.back": "Atrás",
+  "stp.title": "Ayuda e instrucciones",
+  "stp.headerSub": "Páginas de ayuda contextual de TestLink",
+  "stp.helpKey": "Clave de ayuda",
+  "stp.loadError": "Error al cargar la página de ayuda",
+  "stp.missingKey": "Clave de ayuda ausente o no válida",
+  "stp.notFound": "Tema de ayuda no disponible en el idioma seleccionado",
+  "footers.staticPage": "TestLink 2.0.1 - Ayuda e instrucciones"
 }
