@@ -3722,6 +3722,7 @@
   "tspec.selectHint": "Seleccione una suite o un caso de prueba del árbol.",
   "tspec.stepActions": "Acciones del paso",
   "tspec.steps": "Pasos",
+  "tspec.status": "Estado",
   "tspec.subSuites": "Sub-suites",
   "tspec.suiteName": "Nombre",
   "tspec.suitesWord": "suites",
@@ -3948,7 +3949,6 @@
   "tspec.copyStep": "Copiar paso",
   "tspec.moveUp": "Mover arriba",
   "tspec.moveDown": "Mover abajo",
-
   "tspec.customFields": "Campos personalizados",
   "tspec.yes": "Sí",
   "tspec.cfSelectEmpty": "- seleccionar -"

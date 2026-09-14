@@ -3728,6 +3728,7 @@
   "tspec.selectHint": "ツリーからテストスイートまたはテストケースを選択してください。",
   "tspec.stepActions": "ステップ内容",
   "tspec.steps": "ステップ",
+  "tspec.status": "ステータス",
   "tspec.subSuites": "サブスイート",
   "tspec.suiteName": "名前",
   "tspec.suitesWord": "スイート",
@@ -3954,7 +3955,6 @@
   "tspec.copyStep": "ステップをコピー",
   "tspec.moveUp": "上へ移動",
   "tspec.moveDown": "下へ移動",
-
   "tspec.customFields": "カスタムフィールド",
   "tspec.yes": "はい",
   "tspec.cfSelectEmpty": "- 選択 -"

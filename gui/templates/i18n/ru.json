@@ -3728,6 +3728,7 @@
   "tspec.selectHint": "Выберите тест-сьюту или тест-кейс из дерева.",
   "tspec.stepActions": "Действия шага",
   "tspec.steps": "Шаги",
+  "tspec.status": "Статус",
   "tspec.subSuites": "Под-сьюты",
   "tspec.suiteName": "Имя",
   "tspec.suitesWord": "сьюты",
@@ -3954,7 +3955,6 @@
   "tspec.copyStep": "Скопировать шаг",
   "tspec.moveUp": "Вверх",
   "tspec.moveDown": "Вниз",
-
   "tspec.customFields": "Пользовательские поля",
   "tspec.yes": "Да",
   "tspec.cfSelectEmpty": "- выбрать -"

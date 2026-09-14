@@ -3728,6 +3728,7 @@
   "tspec.selectHint": "请从树中选择测试套件或测试用例。",
   "tspec.stepActions": "步骤动作",
   "tspec.steps": "步骤",
+  "tspec.status": "状态",
   "tspec.subSuites": "子套件",
   "tspec.suiteName": "名称",
   "tspec.suitesWord": "个套件",
@@ -3954,7 +3955,6 @@
   "tspec.copyStep": "复制步骤",
   "tspec.moveUp": "上移",
   "tspec.moveDown": "下移",
-
   "tspec.customFields": "自定义字段",
   "tspec.yes": "是",
   "tspec.cfSelectEmpty": "- 选择 -"

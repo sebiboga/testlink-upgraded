@@ -477,6 +477,32 @@ function execTypeLabel(v) {
   return parseInt(v, 10) === 2 ? t('tspec.execTypeAutomated') : t('tspec.execTypeManual');
 }
 
+function statusLabel(code) {
+  var key = 'tcview.status' + parseInt(code, 10);
+  var lbl = t(key);
+  return (lbl === key) ? String(code) : lbl;
+}
+
+function statusOptions(selected) {
+  selected = parseInt(selected, 10);
+  if (!selected) { selected = 1; }
+  var domain = (ctx && ctx.statusDomain) ? ctx.statusDomain : {};
+  var keys = Object.keys(domain);
+  if (!keys.length) {
+    // fallback to the standard domain (1..7) - labels from tcview.status*
+    for (var i = 1; i <= 7; i++) { domain[i] = ''; }
+    keys = Object.keys(domain);
+  }
+  var h = '';
+  keys.sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+  keys.forEach(function (code) {
+    var c = parseInt(code, 10);
+    h += '<option value="' + c + '"' + (c === selected ? ' selected' : '') + '>' +
+      esc(statusLabel(c)) + '</option>';
+  });
+  return h;
+}
+
 function loadTcView(tcaseId) {
   $('#tcView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
@@ -521,6 +547,7 @@ function renderTcView(r) {
     (!tc.active ? '<span class="badge-tl badge-gray">' + t('tspec.inactive') + '</span>' : '') +
     '</div><div class="card-body">' +
     '<div class="meta-grid">' +
+      '<div class="meta-item"><b>' + t('tspec.status') + '</b>' + statusLabel(tc.status) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.importance') + '</b>' + importanceLabel(tc.importance) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.executionType') + '</b>' + execTypeLabel(tc.execution_type) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.testCaseId') + '</b>' + tc.id + '</div>' +
@@ -609,6 +636,7 @@ function collectForm() {
     preconditions: $('#tcPrecondInput').val(),
     execution_type: parseInt($('#tcExecTypeSel').val(), 10),
     importance: parseInt($('#tcImportanceSel').val(), 10),
+    status: parseInt($('#tcStatusSel').val(), 10),
     steps: steps,
     keywords: kws,
     customFields: customFields
@@ -627,7 +655,7 @@ function formHtml(data, kwProject) {
     '<div class="form-row"><div class="field-label">' + t('tspec.tcName') + ' *</div>' +
     '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '"></div>' +
 
-    '<div class="form-row" style="display:flex;gap:24px;max-width:720px;">' +
+    '<div class="form-row" style="display:flex;gap:24px;max-width:900px;">' +
       '<div style="flex:1;"><div class="field-label">' + t('tspec.importance') + '</div>' +
       '<select class="form-control2" id="tcImportanceSel">' +
         '<option value="3"' + (parseInt(data.importance, 10) === 3 ? ' selected' : '') + '>' + t('tspec.importanceHigh') + '</option>' +
@@ -638,6 +666,10 @@ function formHtml(data, kwProject) {
       '<select class="form-control2" id="tcExecTypeSel">' +
         '<option value="1"' + (parseInt(data.execution_type, 10) !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
         '<option value="2"' + (parseInt(data.execution_type, 10) === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
+      '</select></div>' +
+      '<div style="flex:1;"><div class="field-label">' + t('tspec.status') + '</div>' +
+      '<select class="form-control2" id="tcStatusSel">' +
+        statusOptions(parseInt(data.status, 10)) +
       '</select></div>' +
     '</div>' +
 
@@ -854,9 +886,11 @@ function openCreateTc() {
   $('#editView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
     if (editMode.mode !== 'create') { return; }
+    ctx.statusDomain = r.statusDomain || {};
     $('#editView').html(formHtml({ customFields: r.customFields }, r.keywordsProject || {})).show();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
+    ctx.statusDomain = null;
     $('#editView').html(formHtml({}, {})).show();
     toast(e.message || t('tspec.errLoad'), true);
   });
@@ -865,6 +899,7 @@ function openCreateTc() {
 function openEditTc(tcaseId) {
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
     editMode = { mode: 'update', tcase_id: r.tcase.id };
+    ctx.statusDomain = r.statusDomain || {};
     hideAllPanes();
     $('#editView').html(formHtml({
       name: r.tcase.name,
@@ -872,6 +907,7 @@ function openEditTc(tcaseId) {
       preconditions: r.tcase.preconditions,
       importance: r.tcase.importance,
       execution_type: r.tcase.execution_type,
+      status: r.tcase.status,
       steps: r.steps,
       customFields: r.customFields,
       keywordsAssigned: r.keywordsAssigned

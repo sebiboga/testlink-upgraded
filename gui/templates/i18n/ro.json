@@ -3732,6 +3732,7 @@
   "tspec.selectHint": "Selectați o suită sau un caz de test din arbore.",
   "tspec.stepActions": "Acțiuni pas",
   "tspec.steps": "Pași",
+  "tspec.status": "Status",
   "tspec.subSuites": "Sub-suite",
   "tspec.suiteName": "Nume",
   "tspec.suitesWord": "suite",
@@ -3958,7 +3959,6 @@
   "tspec.copyStep": "Copiază pasul",
   "tspec.moveUp": "Mută sus",
   "tspec.moveDown": "Mută jos",
-
   "tspec.customFields": "Câmpuri personalizate",
   "tspec.yes": "Da",
   "tspec.cfSelectEmpty": "- selectează -"

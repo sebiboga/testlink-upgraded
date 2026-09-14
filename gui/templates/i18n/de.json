@@ -3722,6 +3722,7 @@
   "tspec.selectHint": "Wählen Sie eine Testsuite oder einen Testfall aus dem Baum.",
   "tspec.stepActions": "Schrittaktionen",
   "tspec.steps": "Schritte",
+  "tspec.status": "Status",
   "tspec.subSuites": "Sub-Suites",
   "tspec.suiteName": "Name",
   "tspec.suitesWord": "Suites",
@@ -3948,7 +3949,6 @@
   "tspec.copyStep": "Schritt kopieren",
   "tspec.moveUp": "Nach oben",
   "tspec.moveDown": "Nach unten",
-
   "tspec.customFields": "Benutzerdefinierte Felder",
   "tspec.yes": "Ja",
   "tspec.cfSelectEmpty": "- auswählen -"

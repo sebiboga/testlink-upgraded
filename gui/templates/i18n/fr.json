@@ -3722,6 +3722,7 @@
   "tspec.selectHint": "Sélectionnez une suite ou un cas de test dans l'arborescence.",
   "tspec.stepActions": "Actions de l'étape",
   "tspec.steps": "Étapes",
+  "tspec.status": "Statut",
   "tspec.subSuites": "Sous-suites",
   "tspec.suiteName": "Nom",
   "tspec.suitesWord": "suites",
@@ -3948,7 +3949,6 @@
   "tspec.copyStep": "Copier l'étape",
   "tspec.moveUp": "Vers le haut",
   "tspec.moveDown": "Vers le bas",
-
   "tspec.customFields": "Champs personnalisés",
   "tspec.yes": "Oui",
   "tspec.cfSelectEmpty": "- sélectionner -"

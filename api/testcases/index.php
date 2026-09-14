@@ -569,6 +569,35 @@ function getJsonBody() {
     return is_array($j) ? $j : [];
 }
 
+/**
+ * TC status workflow domain (draft..final) from global config.
+ * Returns map code => config key (e.g. 1 => 'draft'), mirroring legacy
+ * $tlCfg->testCaseStatus (cfg/const.inc.php). Client renders labels via
+ * i18n keys tcview.status<code> (same domain used by tcView.html).
+ */
+function tcStatusDomain() {
+    $cfg = config_get('testCaseStatus');
+    if (!is_array($cfg) || !count($cfg)) {
+        // fallback to the standard 1.9.20 domain
+        $cfg = array('draft' => 1, 'readyForReview' => 2, 'reviewInProgress' => 3,
+                     'rework' => 4, 'obsolete' => 5, 'future' => 6, 'final' => 7);
+    }
+    $domain = [];
+    foreach ($cfg as $key => $code) {
+        $code = intval($code);
+        if ($code > 0) { $domain[$code] = strval($key); }
+    }
+    ksort($domain);
+    return $domain;
+}
+
+/** Validate a submitted TC status code against the configured domain. */
+function normalizeTcStatus($value) {
+    $code = intval($value);
+    $domain = tcStatusDomain();
+    return isset($domain[$code]) ? $code : null;
+}
+
 function jout($data, $code = 200) {
     http_response_code($code);
     out($data);
@@ -830,6 +859,7 @@ if ($action === 'get') {
         'keywordsAssigned' => $assignedKw,
         'keywordsProject' => $projKw,
         'executed' => $executed,
+        'statusDomain' => tcStatusDomain(),
     ]);
 }
 
@@ -912,6 +942,7 @@ if ($action === 'keywords') {
         'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
         'keywordsProject' => $projKw,
         'customFields' => $customFields,
+        'statusDomain' => tcStatusDomain(),
     ]);
 }
 
@@ -1084,10 +1115,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $steps = $normSteps($body['steps'] ?? [], $execType);
         $kwIds = $kwString($body['keywords'] ?? []);
 
+        // TC status workflow domain (legacy setStatus); default = draft.
+        $status = normalizeTcStatus($body['status'] ?? '');
+        if ($status === null) {
+            $status = 1; // draft
+        }
+
         $ret = $tcaseMgr->create($parentId, $name, $summary, $preconds, $steps,
                                  intval($user->dbID ?? $userId), $kwIds,
                                  testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
-                                 $execType, $importance);
+                                 $execType, $importance,
+                                 array('status' => $status));
         $newId = 0;
         if (is_array($ret)) {
             if (isset($ret['status_ok']) && !$ret['status_ok']) {
@@ -1158,11 +1196,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $steps = $normSteps($body['steps'] ?? [], $execType);
         $kwIds = $kwString($body['keywords'] ?? []);
 
+        // TC status workflow domain (legacy setStatus); keep current when absent.
+        $status = normalizeTcStatus($body['status'] ?? '');
+        if ($status === null) {
+            $status = intval($lvRow['status'] ?? 1);
+        }
+        $attr = array('status' => $status);
+
         $ret = $tcaseMgr->update($tcaseId, $tcversionId, $name, $summary,
                                  $preconds, $steps,
                                  intval($user->dbID ?? $userId), $kwIds,
                                  intval($lvRow['node_order'] ?? testcase::DEFAULT_ORDER),
-                                 $execType, $importance);
+                                 $execType, $importance, $attr);
         if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
             jout(['status' => 'error',
                   'message' => strval($ret['msg'] ?? 'Update failed')], 400);

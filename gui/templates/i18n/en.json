@@ -3738,6 +3738,7 @@
   "tspec.selectHint": "Select a test suite or test case from the tree.",
   "tspec.stepActions": "Step Actions",
   "tspec.steps": "Steps",
+  "tspec.status": "Status",
   "tspec.subSuites": "Sub-suites",
   "tspec.suiteName": "Name",
   "tspec.suitesWord": "suites",
