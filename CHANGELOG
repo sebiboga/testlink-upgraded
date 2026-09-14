@@ -609,6 +609,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   "Test case updated. Refreshing execution context..." toast; new `esr.tcUpdated`
   key in all 10 locale bundles.
 
+- userinfo BFF profile save fatals on undefined `tlUser::E_EMAILINVALID`
+  (Refs #1500): `PUT /api/userinfo` with an email the validation rejects (e.g.
+  `admin@testlink.local`, TLD > 4 letters) crashed with a PHP 8
+  `Undefined constant` Error because the modernized BFF compared the
+  `checkDetails()` result against a constant tlUser never had. The error
+  branch now maps the two real codes (`tlUser::E_EMAILFORMAT` -512,
+  `tlUser::E_EMAILLENGTH` -2) to a clean HTTP 400 JSON
+  `{"status":"error","message":"Invalid email address","code":<n>}` — the
+  profile save web UI shows the proper error toast instead of an empty 400.
+
 - printDocument.php anonymous api-key deny (Refs #1478): a bogus/unknown
   64-char object api key previously rendered the document (HTTP 200, relative
   CSS/logo URLs) and emitted 3 `Undefined array key basehref` E_WARNING events
