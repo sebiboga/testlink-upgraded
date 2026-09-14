@@ -224,7 +224,7 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
     if ($id == TL_ROLES_ADMIN || $id == TL_ROLES_NO_RIGHTS) {
         logAuditEvent("Forbidden update attempt on protected role #{$id}", 'AUTH', $id, 'roles');
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Cannot edit system role', 'id' => $id]);
+        out(['status' => 'error', 'message' => 'Cannot edit system role', 'messageKey' => 'role.editLocked', 'id' => $id]);
     }
 
     $r = tlRole::getByID($db, $id);
@@ -262,7 +262,7 @@ if ($method === 'DELETE' && isset($segments[0]) && is_numeric($segments[0]) && c
     $id = intval($segments[0]);
     if ($id <= TL_LAST_SYSTEM_ROLE) {
         http_response_code(400);
-        out(['status' => 'error', 'message' => 'Cannot delete system role']);
+        out(['status' => 'error', 'message' => 'Cannot delete system role', 'messageKey' => 'role.systemDeleteDenied']);
     }
 
     $r = tlRole::getByID($db, $id);

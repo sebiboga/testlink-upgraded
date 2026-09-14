@@ -71,7 +71,9 @@ System:
 - Role Management (usermanagement/rolesView.html) - BFF api/roles.
   Create/edit/duplicate/delete, system-role protection, delete-with-users
   reset warning (#902), and demoMode read-only gating (banner + BFF 403 on
-  all writes, #903).
+  all writes, #903). Localized success/error feedback toasts after
+  create/update/duplicate/delete (BFF feedback_key + messageKey, legacy
+  audit_role_* / getRoleErrorMessage parity, #904).
 - Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
   usersAssignPlan.html).
 - Custom Fields (cfields/cfieldsView.html) - BFF api/cfields. Custom Fields

@@ -361,7 +361,39 @@ Rights are color-coded in the table:
 
 - Only **Custom** roles can be deleted (roles with IDs > 3)
 - Before deletion, the system shows how many users currently have this role assigned
-- If users are assigned, you must reassign them to another role before deletion
+- Users assigned to a deleted role are automatically reset to the configured
+  replacement role (`role_replace_for_deleted_roles`, legacy `rolesView.tpl:61`
+  warning `warning_users_will_be_reset`)
+
+### Operation Feedback (success/error toasts, issue #904)
+
+Every create/update/duplicate/delete operation now surfaces a **localized
+feedback toast** (bottom-right Dashio banner), mirroring the legacy
+`inc_update.tpl user_feedback`/`$sqlResult` area of `rolesEdit.tpl:53` and
+`rolesView.tpl:43`:
+
+- **BFF** (`api/roles/index.php`): write-success routes return the same
+  `feedback_key` namespace #890 added for User Management — `role_created`
+  (POST), `role_updated` (PUT), `role_deleted` (DELETE),
+  `role_duplicated` (POST `/duplicate`). Error routes return `messageKey`
+  that resolves the legacy localized messages via `getRoleErrorMessage()`
+  (`roles.inc.php:440-466`): `error_duplicate_rolename` →
+  `role.error.nameExists`, `error_role_no_rolename` → `role.error.noRoleName`,
+  `error_role_no_rights` → `role.error.noRights`, `error_role_not_updated` →
+  `role.error.notUpdated`, `error_role_deletion` → `role.error.deleted`; the
+  system-role guards map to `role.editLocked` / `role.systemDeleteDenied`.
+- **UI** (`rolesView.html`): Dashio `.toast` (ok = teal, err = red,
+  auto-hide ~3s), `toast()` + `roleFeedback()` helpers. Success → OK toast
+  ("Role `X` was successfully created / saved / deleted / duplicated");
+  errors → red toast or the modal error line, always localized — no `alert()`
+  dialogs remain.
+- **i18n**: 9 keys added to all 10 bundles (`role.feedback.created/updated/
+  deleted/duplicated`, `role.error.deleted/nameExists/noRoleName/noRights/
+  notUpdated`), translations taken from legacy `locale/*/strings.txt`.
+- i18n keys (10 bundles): `role.feedback.created/updated/deleted/duplicated`,
+  `role.error.deleted/nameExists/noRoleName/noRights/notUpdated`.
+
+Screenshot: `docs/screenshots/issue-904-create-toast.png`.
 
 ### Demo Mode (read-only gating, issue #903)
 

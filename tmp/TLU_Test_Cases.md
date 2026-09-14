@@ -14541,3 +14541,23 @@ Result: **PASS — 8/8 PASS** — full execution-history port with session-persi
 show_history_all_* gates, local bug chips + attachment links, per-row notes/CF
 sub-rows and plan-scoped delete with the legacy `exec_delete`+open-build gate.
 Refs #1392.
+
+## Task — Issue #904: Show user-feedback messages after create/update/delete in Role Management (gap vs legacy)
+
+**Screen:** `gui/templates/usermanagement/rolesView.html` + BFF `api/roles/index.php`.
+**Feature ported from legacy:** legacy `rolesEdit.php:126,131` feeds `audit_role_created`/`audit_role_saved` and shows errors via `rolesEdit.tpl:53` `inc_update.tpl user_feedback=$gui->userFeedback` (strings from `getRoleErrorMessage()`, `roles.inc.php:440-466`: `error_duplicate_rolename`/`error_role_no_rolename`/`error_role_no_rights`/`error_role_not_updated`); deletes show `lang_get('error_role_deletion')` via `rolesView.tpl:43` `inc_update.tpl result=$sqlResult`. Modern parity follows the #890 User-Management pattern: BFF success routes return `feedback_key` (`role_created`/`role_updated`/`role_deleted`/`role_duplicated`) + error routes return `messageKey`; the HTML adds the Dashio `.toast` banner, `toast()` + `roleFeedback()` helpers, and replaces `alert()` with red error toasts.
+**Precondition:** admin/admin on `rolesView.html?tproject_id=0&tplan_id=0` at http://localhost:8082, fresh import DB; Chrome DevTools MCP + mysql CLI. No demo mode (`demoMode`=off).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 904.1 | `+ Create Role` → Name `QA Feedback Check`, right `testplan_execute` + `role_management` → Save | Modal closes, grid reloads, fixed bottom-right OK toast **`Role QA Feedback Check was successfully created`** (`#toast` display block, class `toast ok`, auto-hides after ~3s); `#toast` node exists in DOM (pre-fix: no toast node at all) | **PASS** |
+| 904.2 | BFF network payload for the create | `POST /api/roles/index.php` → 200 `{"status":"ok","item":{...},"feedback_key":"role_created"}` | **PASS** |
+| 904.3 | Edit the role (pencil) → change Description → Save | Toast **`Role QA Feedback Check was successfully saved`** (`toast ok`), grid reloaded with new description | **PASS** |
+| 904.4 | Duplicate role `QA Auditor` (copy icon) | Toast **`Role QA Auditor was successfully duplicated`**, new role `QA Auditor - Copy - <hash>` appears | **PASS** |
+| 904.5 | `UPDATE users SET role_id=11 WHERE login='fbuser'` (fixture user) then click trash on role 11 `QA Feedback Check` | Confirm modal lists affected user `1 user(s) currently have this role: fbuser` + note `Affected users will get role guest`; on Delete → toast **`Role QA Feedback Check was successfully deleted`**; DB `role_id=0` (role gone), user reassigned `role_id=5` (guest) | **PASS** |
+| 904.6 | `+ Create Role` → Name `QA Auditor` (existing) + a right → Save | `#modalError` shows localized **`There's already a role with that name!`** (key `role.error.nameExists`, legacy `error_duplicate_rolename`) — previously ad-hoc English `Role name already exists` | **PASS** |
+| 904.7 | Code hygiene | `grep -c alert(` in `rolesView.html` → **0** (delete/duplicate/system-delete errors now red `toast err`); `node --check` on page script → OK; `php -l api/roles/index.php` → OK | **PASS** |
+| 904.8 | i18n | All 10 bundles valid JSON; keys `role.feedback.created/updated/deleted/duplicated` + `role.error.deleted/nameExists/noRoleName/noRights/notUpdated` present in de,en,es,fr,it,ja,pt,ro,ru,zh; no new hardcoded user-facing strings in HTML | **PASS** |
+| 904.9 | Event Viewer + console after suite | `events` table: only log_level=16 audit rows (CREATE/UPDATE/DELETE), **0** Error/Warning rows; browser console 0 JS errors (one expected 400 from the intentional duplicate-name test) | **PASS** |
+
+Result: **9/9 PASS** — **#904 IMPLEMENTED/VERIFIED**: create/update/duplicate/delete now surface localized success toasts (BFF `feedback_key`: `role_created`/`role_updated`/`role_deleted`/`role_duplicated`) and all create/update/duplicate/delete error paths resolve localized legacy messages via `messageKey` — parity with #890 for User Management, no alerts, no ad-hoc English, clean Event Viewer.
