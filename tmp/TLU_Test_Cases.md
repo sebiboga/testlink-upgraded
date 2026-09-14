@@ -14614,8 +14614,38 @@ No github set on admin initially.
 | 905.8 | Code/schema hygiene | `php -l` clean on tlUser.class.php, api/userinfo/index.php, navBar.php; `DESCRIBE users` shows `github varchar(100) NULL`; column present in mysql+postgres+mssql `testlink_create_tables.sql` | **PASS** |
 | 905.9 | Event Viewer + console after all states (set/clear/@/invalid) | `events` table: only log_level=16 SAVE/LOGIN audit rows, **0** Error/Warning; browser console 0 JS errors (only pre-existing a11y warnings) | **PASS** |
 
-Result: **PASS — 9/9 PASS** — GitHub account is stored on the user record and its avatar
-is rendered both as a 30px round image in the Dashio top navigation bar (initials-circle
-fallback when unset, immediate update after profile save) and as a live 72px preview in
-Personal Data; `@`-normalization and email-validation error mapping verified; i18n in all
-10 bundles; Event Viewer + console clean. Refs #905.
+Result: **PASS — 9/9 PASS** — the Execution Dashboard is now reachable from the
+ASIDE menu (first Execute sub-item, rights-gated exactly like Execute Tests);
+admin flow + Continue round-trip verified in-browser, guest denied on both the
+menu (hidden) and the BFF (403) with graceful degradation, all 19 locale
+bundles carry the label and en_US parse error fixed. Refs #1499.
+
+## Regression — Issue #1500: userinfo API profile save fatals on undefined tlUser::E_EMAILINVALID
+
+**Screen:** `api/userinfo/index.php` (PUT /userinfo) + modern `gui/templates/usermanagement/userInfo.html`.
+**Bug:** `PUT /api/userinfo` with an email the validation rejects threw `Uncaught Error:
+Undefined constant tlUser::E_EMAILINVALID` (`api/userinfo/index.php:174`) → HTTP 400 with
+**empty body** → client only showed the generic `Error saving profile` fallback.
+**Root cause:** `tlUser` defines `E_EMAILLENGTH`(-2)/`E_EMAILFORMAT`(-512)/`E_EMAILALREADYEXISTS`(-1024)
+(`lib/functions/tlUser.class.php:113,121,122`) — no `E_EMAILINVALID`. `checkEmailAddress()` returns
+`E_EMAILFORMAT` for a bad-format email (e.g. `admin@testlink.local`, regex TLD limit 2-4 letters).
+**Fix (branch `fix/issue-1500`):** `api/userinfo/index.php:174` now tests the real codes
+`tlUser::E_EMAILFORMAT || tlUser::E_EMAILLENGTH` → message `"Invalid email address"`, `code` kept for introspection.
+**Precondition:** app @ http://localhost:8082 (PHP 8.3), DB freshly imported, admin/admin session
+(obtain cookie via CSRF login; BFF write calls require `X-Requested-With: XMLHttpRequest` for the same-origin guard).
+**Pre-fix repro:** `curl -b cj -X PUT http://localhost:8082/api/userinfo/index.php -H "Content-Type: application/json" -H "X-Requested-With: XMLHttpRequest" -d '{"email":"admin@testlink.local"}'` → HTTP 400 empty body + server log `PHP Fatal error: Uncaught Error: Undefined constant tlUser::E_EMAILINVALID in api/userinfo/index.php:174`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1500.1 | Invalid TLD email via curl (`admin@testlink.local`) | HTTP 400, body JSON `{"status":"error","message":"Invalid email address","code":-512}`, no fatal in `tmp/php_server.log` | **PASS** |
+| 1500.2 | Blank email via curl (`""`) | HTTP 400, JSON `"message":"Invalid email address","code":-2` (E_EMAILLENGTH now mapped) | **PASS** |
+| 1500.3 | Valid email via curl (`test@testlink.com`) | HTTP 200 `{"status":"ok","message":"Profile updated"}`, GET reflects saved value | **PASS** |
+| 1500.4 | Full profile save (first/last/locale+email) via curl | HTTP 200, GET reflects all fields; profile restored afterwards | **PASS** |
+| 1500.5 | Browser UI: User Profile → email=`admin@testlink.local` → Save | Toast "Invalid email address", value NOT persisted, 0 JS errors | **PASS** |
+| 1500.6 | Browser UI: email=`test@testlink.com` → Save | Toast "Profile updated", persisted | **PASS** |
+| 1500.7 | Event Viewer / `events` table after all steps | 0 ERROR / WARNING rows generated | **PASS** |
+| 1500.8 | `php -l api/userinfo/index.php` + `grep -rn "E_EMAILINVALID"` repo-wide | No syntax errors; constant no longer referenced anywhere | **PASS** |
+
+Result: **PASS — 8/8 PASS** — profile save returns a clean 400 JSON `Invalid email address`
+for every email rejection path (`E_EMAILFORMAT`, `E_EMAILLENGTH`), the valid-email flow still
+saves, Event Viewer + console stay clean. Refs #1500.
