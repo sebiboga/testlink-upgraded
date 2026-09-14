@@ -14905,3 +14905,34 @@ targets the modern Dashio screen; the BFF serves `$TLS_htmltext` bodies for all
 ro_RO parity) and returns 400/401/405 error envelopes; unknown keys keep the
 legacy "ask administrator" body via a warnbar instead of a hard failure.
 Refs #1501.
+
+## Task — Issue #911: Test Specification — Estimated Execution Duration field
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php`
+(actions `context`, `get`, `create`, `update`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, admin/admin
+session; project "TestSpec Fixture" (id 1), suite "Suite Alpha" (id 2) with 5 TCs; default
+config `$tlCfg->testcase_cfg->estimated_execution_duration->required = ''`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 911.1 | Open `testSpec.html?tproject_id=1`, select a TC with a duration set | Detail view meta grid shows "Estimated Exec. Duration (min): <value> min" | **PASS** |
+| 911.2 | Click "Edit Test Case" on a TC with duration 42.75 | Editor shows "ESTIMATED EXEC. DURATION (MIN)" input pre-filled with 42.75 | **PASS** |
+| 911.3 | Change duration to 55, click Save | Toast "Test case saved"; detail view now shows 55.00 min; DB `tcversions.estimated_exec_duration`=55.00 | **PASS** |
+| 911.4 | In editor, type "abc" in duration field, click Save | Save blocked client-side, toast "Estimated duration must be a number", DB unchanged | **PASS** |
+| 911.5 | Click "+ New Test Case", fill name + duration 23.5, Save | Test case created; DB row value 23.50; detail view shows "23.50 min" | **PASS** |
+| 911.6 | In editor clear the duration field, Save | Value allowed (not required config); view hides the meta item; DB NULL | **PASS** |
+| 911.7 | Open `tcView.html?tcase_id=5` (Full Viewer) | Read-only viewer shows "Estimated Exec. Duration (min): 55 min" | **PASS** |
+| 911.8 | BFF `update` with `estimated_execution_duration="abc"` (fetch, session) | HTTP 400 `{"status":"error","message":"Invalid estimated duration"}` | **PASS** |
+| 911.9 | Temporarily set config `required='required'`, reload editor, clear field, Save | Label shows red `*`, input `required` attr set; save blocked with toast "Estimated execution duration is required"; BFF empty update → HTTP 400 "Estimated execution duration is required" | **PASS** |
+| 911.10 | Revert config to `''`; reload; context BFF `estimateDurationRequired=false` | Field optional again (no `*`, no required attr) | **PASS** |
+| 911.11 | Browser console during 911.1–911.10 | No new JS errors, no failed network requests | **PASS** |
+| 911.12 | Event Viewer / `events` table after all steps | No new ERROR/WARNING rows | **PASS** |
+
+Result: **PASS — 12/12 PASS** — the legacy "Estimated Execution Duration" field
+(`attributesLinear.inc.tpl`, TICKET 6422 config-gated mandatory) is fully ported to the
+modern Test Specification editor: BFF create/update validate (numeric, optional required
+via `$tlCfg->testcase_cfg->estimated_execution_duration->required`) and persist through
+`testcase::create/update` options; the editor renders the input in create+edit, the detail
+view and tcView.html display the value; clearing maps to NULL like legacy. i18n keys
+`tspec.estimatedDuration*` added to all 10 bundles. Refs #911.
