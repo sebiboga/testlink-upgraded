@@ -52,3 +52,6 @@ ALTER TABLE /*prefix*/builds
 ALTER TABLE /*prefix*/builds
   DROP KEY /*prefix*/testplan_id,
   DROP COLUMN testplan_id;
+/* 7. users.github (Refs #905): GitHub account used for the avatar in the
+   Dashio top navigation bar / profile preview. */
+ALTER TABLE /*prefix*/users ADD COLUMN `github` varchar(100) NULL AFTER `expiration_date`;

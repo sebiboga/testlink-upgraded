@@ -165,7 +165,14 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
     if (isset($body['email'])) $user->emailAddress = trim($body['email']);
     if (isset($body['locale'])) $user->locale = $body['locale'];
     if (array_key_exists('github', $body)) {
-        $user->github = trim(ltrim((string)$body['github'], '@'));
+        $github = trim(ltrim((string)$body['github'], '@'));
+        // users.github is varchar(100); mirror the UI maxlength server-side so
+        // an oversized payload degrades to a clean 400, never a DB overflow.
+        if (strlen($github) > 100) {
+            http_response_code(400);
+            out(['status' => 'error', 'message' => 'GitHub account is too long']);
+        }
+        $user->github = $github;
     }
 
     $result = $user->writeToDB($db);

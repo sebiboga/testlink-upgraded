@@ -61,6 +61,8 @@ System:
 - My Settings / User Profile (usermanagement/userInfo.html) - BFF api/userinfo.
   Edit personal data, change password, API key generate+copy, login history,
   external-password-mgmt / API-enabled / demoMode gating (#875-#878).
+  GitHub account + avatar: user-defined username (users.github) rendered as the
+  Dashio avatar in the top navigation bar and previewed in Personal Data (#905).
 - User Management (usermanagement/usersView.html) - BFF api/users.
   Create/edit modal, enable/disable/delete (soft-delete), grant-gated tabs
   (mgt_users #879), login lookup, Auth method+Expiration Date, Reset Password,
@@ -377,6 +379,9 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- userinfo BFF: profile save with a validation-rejected email fatals on the
+  undefined tlUser::E_EMAILINVALID constant (empty 400 body); now maps the real
+  E_EMAILFORMAT/E_EMAILLENGTH codes to a clean "Invalid email address" (#1500).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports

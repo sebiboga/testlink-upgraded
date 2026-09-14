@@ -14589,39 +14589,33 @@ is fully ported beside the File type select, opens the real PDF (`docs/tl-file-f
 200/application/pdf), is localized in all 10 bundles and leaves Event Viewer + console
 clean. Refs #1386.
 
-## Suite 1499 — Execution Dashboard: ASIDE menu entry (menu-link parity) — Refs #1499
+## Task — Issue #905: GitHub account + avatar in User Profile and Dashio navBar
 
-**Screen:** `gui/templates/dashio/aside.tpl` (Execute sub-menu) + label
-`href_exec_dashboard` in `labels.aside.tpl` + all 19 `locale/*/strings.txt`;
-target pane `gui/templates/execute/execDashboard.html`, BFF `api/execdashboard`.
-**Feature ported from legacy:** legacy ASIDE rendered an Execute → Execute-Test
-`executeTest` item; the modernized dashboard (Refs #1496) had no menu entry and
-was only reachable from the execTest toolbar Dashboard button. This gap closes
-it: aside now renders Execute → **Execution Dashboard** as the FIRST Execute
-sub-item, gated `testplan_execute == yes OR exec_ro_access == yes` AND
-`$gui->uri->execDashboard != null` (tplan in context).
-**Bonus fix:** stray `<<<<<<< HEAD` marker in `locale/en_US/strings.txt`
-(landed with the #1462 NFR work, commit 8c28f47af) was a PHP parse error that
-broke the EN-US locale bundle; removed.
-**Precondition:** app @ localhost:8082, admin/admin. Fixture: project NXT
-(nodes_hierarchy id 1000, prefix NXT), plan id 1002, open build id 1003 created
-DB-side. Guest fixture: user `noinv`/`noinv`, role guest (id 2).
-Chrome DevTools MCP + mysql CLI.
+**Screen:** `gui/templates/usermanagement/userInfo.html` + BFF `api/userinfo/index.php` +
+shell `lib/general/navBar.php` / `gui/templates/dashio/navBar.tpl`.
+**Feature ported from legacy:** net-new capability (legacy 1.9.20 had no avatar/github
+anywhere — grep returned 0 hits). The User Profile now stores a GitHub username
+(`users.github` column, added to all three schema seeds and the live DB) and the Dashio
+top navigation bar shows that GitHub account's avatar next to the user name, mirroring
+the Dashio profile-picture concept; Personal Data shows a live avatar preview.
+**Precondition:** app @ http://localhost:8082, logged in admin/admin; fresh-import DB with
+the `users.github` column applied. Chrome DevTools MCP + mysql CLI. `demoMode` off.
+No github set on admin initially.
 
-| # | Steps | Expected | Result |
-|---|-------|----------|--------|
-| 1499.1 | Logged as admin w/ plan in context, open `asideMenu.php` | Execute sub-menu shows **Execution Dashboard** link first, href `gui/templates/execute/execDashboard.html?tproject_id=1000&tplan_id=1002`, text localized EN `Execution Dashboard` | **PASS** |
-| 1499.2 | Click Execute → Execution Dashboard | `execDashboard.html?tproject_id=1000&tplan_id=1002` loads in mainframe; BFF `GET ?action=init` → 200 JSON `status:ok`, context tproject 1000 / tplan 1002 / build 1003 / platform 0, tplan+build cards, toolbar buttons (Refresh / Copy REST / Continue) | **PASS** |
-| 1499.3 | Click **Continue to Execute Tests** | Navigates to `execTest.html?tplan_id=1002&tproject_id=1000`; execTest shows plan NXT Plan / project NXT Project; its toolbar **Dashboard** button returns to execDashboard (round-trip) | **PASS** |
-| 1499.4 | Locale switcher → Romanian (`&locale=ro`) | Dashboard reloads localized: title `Tablou de bord execuție`, buttons `Reîncarcă` / `Continuă la Rulare teste`, Platform `Platformă`; all 19 `strings.txt` carry `$TLS_href_exec_dashboard` and `php -l` clean | **PASS** |
-| 1499.5 | Log in as guest `noinv` (role guest), open aside | Execute section hidden entirely (no Execute Tests AND no Execution Dashboard) | **PASS** |
-| 1499.6 | Guest BFF `GET ?action=init&tproject_id=1000&tplan_id=1002` | HTTP 403 JSON `{status:error,message:"...not authorized to execute tests on this plan"}` | **PASS** |
-| 1499.7 | Guest opens `execDashboard.html` URL directly | Screen renders but init 403; build/platform selectors empty, Refresh disabled, permission notice `Nu ai permisiunea de a vedea contextul de execuție.` (graceful, no JS errors) | **PASS** |
-| 1499.8 | en_US locale bundle | `php -l locale/en_US/strings.txt` clean (conflict-marker fix); `$TLS_href_exec_dashboard` present once | **PASS** |
-| 1499.9 | Event Viewer + console hygiene | `events`: 0 new Error/Warning rows from the whole session (only pre-existing rows); browser console 0 JS errors (one expected 403 resource entry on the guest init fetch) | **PASS** |
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 905.1 | Open `userInfo.html` (EN) as admin (github initially empty) | Personal Data card shows **GitHub Account** input + hint "Your GitHub username — the profile picture is loaded from it into the Dashio layout." (`profile.github`/`profile.githubHint`); avatar preview shows the `fa-user` placeholder; `GET /api/userinfo` returns `github:""`, `avatarUrl:null`; navBar whoami block shows the "T" initials circle fallback | **PASS** |
+| 905.2 | Type `sebiboga` in the GitHub Account field (input event) | Preview swaps to `<img src="https://avatars.githubusercontent.com/sebiboga?s=96&v=4">` (naturalWidth 96, fetched from GitHub, HTTP 200) | **PASS** |
+| 905.3 | Set Email `admin@example.com` + GitHub `sebiboga` → Save | `PUT /api/userinfo` → 200 "Profile updated"; DB `users.github='sebiboga'`, `email='admin@example.com'`; titlebar iframe reloads itself and the navBar whoami block now renders `<img class="tlWhoamiAvatar" src="...?s=60&v=4">` (GitHub avatar, 30px) | **PASS** |
+| 905.4 | Clear GitHub field → Save | DB `users.github=''`; navBar whoami block falls back to the initials circle ("T") — no avatar image | **PASS** |
+| 905.5 | Set GitHub `@sebiboga` → Save | Leading `@` stripped server-side: DB stores `sebiboga`; avatar URL uses `sebiboga` (no `@`) | **PASS** |
+| 905.6 | Set Email to a validation-rejected value (`admin@testlink.local` — `.local` TLD too long for the `user_email_valid_regex_php` 2-4 letter rule) → Save | Clean HTTP 400 `{"status":"error","message":"Invalid email address","code":-512}`; no PHP fatal; server log has no `Undefined constant tlUser::E_EMAILINVALID` (bug #1500 fixed); restore email to `admin@example.com` | **PASS** |
+| 905.7 | i18n hygiene | Keys `profile.github` + `profile.githubHint` present in all 10 bundles (de en es fr it ja pt ro ru zh), `python3 -m json.tool` valid on every bundle; no hardcoded English in the new HTML | **PASS** |
+| 905.8 | Code/schema hygiene | `php -l` clean on tlUser.class.php, api/userinfo/index.php, navBar.php; `DESCRIBE users` shows `github varchar(100) NULL`; column present in mysql+postgres+mssql `testlink_create_tables.sql` | **PASS** |
+| 905.9 | Event Viewer + console after all states (set/clear/@/invalid) | `events` table: only log_level=16 SAVE/LOGIN audit rows, **0** Error/Warning; browser console 0 JS errors (only pre-existing a11y warnings) | **PASS** |
 
-Result: **PASS — 9/9 PASS** — the Execution Dashboard is now reachable from the
-ASIDE menu (first Execute sub-item, rights-gated exactly like Execute Tests);
-admin flow + Continue round-trip verified in-browser, guest denied on both the
-menu (hidden) and the BFF (403) with graceful degradation, all 19 locale
-bundles carry the label and en_US parse error fixed. Refs #1499.
+Result: **PASS — 9/9 PASS** — GitHub account is stored on the user record and its avatar
+is rendered both as a 30px round image in the Dashio top navigation bar (initials-circle
+fallback when unset, immediate update after profile save) and as a live 72px preview in
+Personal Data; `@`-normalization and email-validation error mapping verified; i18n in all
+10 bundles; Event Viewer + console clean. Refs #905.

@@ -14,7 +14,7 @@ inspect their login history.
 
 | Card | Description |
 |------|-------------|
-| **Personal Data** | Login (read-only), First name, Last name, Email, Locale, Role (read-only), and a **Save** button. **Save hidden, replaced by a demo notice when `$tlCfg->demoMode = ON`** (see below). |
+| **Personal Data** | GitHub account + avatar preview, Login (read-only), First name, Last name, Email, Locale, Role (read-only), and a **Save** button. **Save hidden, replaced by a demo notice when `$tlCfg->demoMode = ON`** (see below). |
 | **Change Password** | Old / New / Confirm password fields and a **Change Password** button. **Hidden, replaced by an informational note when password management is external** (see below), and by the same demo notice in demo mode. |
 | **API Interface** | Read-only display of the current API key plus a **Generate New Key** button. **Only rendered when the XML-RPC API is enabled** (`$tlCfg->api->enabled = TRUE`, see below). |
 | **Login History** | Last 10 successful and failed logins (timestamp + description). Header shows a right-gated **Show event history** button (see below). |
@@ -115,13 +115,50 @@ Example (demo mode ON — red notices, no Save / Change Password buttons):
 
 ![User Profile — demo mode gating](screenshots/issue-878-demoMode-gating.png)
 
+## GitHub account & avatar (Refs #905)
+
+The logged-in user can store a GitHub username in their profile; the avatar of
+that GitHub account is then shown in the Dashio layout. This was a net-new
+capability (legacy 1.9.20 had no avatar concept at all — `grep -ri avatar`
+returned nothing).
+
+- **Storage:** new `users.github` varchar(100) NULL column, mapped through
+  `tlUser` (`lib/functions/tlUser.class.php`: property, `_clean()`,
+  `readFromDB()`, `writeToDB()`). Present in all three schema seeds
+  (`install/sql/mysql|postgres|mssql/testlink_create_tables.sql`).
+- **BFF** (`api/userinfo/index.php`): `GET /api/userinfo` returns
+  `github` (stored handle) + `avatarUrl`
+  (`tlUser::getGithubAvatarUrl(96)`); `PUT /api/userinfo` accepts `github`
+  (trimmed, leading `@` stripped server-side, demo-mode gate already enforced).
+- **Avatar URL:** `https://avatars.githubusercontent.com/<login>?s=<size>&v=4`
+  — the username-based form of the URLs in the issue examples; created
+  client-cacheable, no GitHub API call/rate-limit. `getGithubAvatarUrl($size)`
+  strips a leading `@`, rawurlencodes the handle and returns `null` when unset.
+- **User Profile screen** (`userInfo.html`): the Personal Data card shows a
+  72px round **avatar preview** (updates live on input, falls back to a
+  `fa-user` icon) and a **GitHub Account** input (i18n `profile.github` +
+  `profile.githubHint` in all 10 bundles).
+- **Dashio shell** (`lib/general/navBar.php` → `gui/templates/dashio/navBar.tpl`):
+  the identity block in the top black bar renders the GitHub avatar as a 30px
+  round picture next to the user name; without an account it shows an initials
+  circle (`.tlWhoamiAvatarFallback`). The profile save reloads the `titlebar`
+  frame so the avatar updates immediately.
+- **Bugfix discovered while testing:** `PUT /api/userinfo` fatals on the
+  undefined `tlUser::E_EMAILINVALID` constant whenever validation rejects the
+  email; fixed to map `E_EMAILFORMAT`/`E_EMAILLENGTH` → clean 400 "Invalid
+  email address" (#1500).
+
+Example (GitHub avatar in the Dashio navigation bar + profile preview):
+
+![User Profile — GitHub avatar in navBar](screenshots/issue-905-avatar-in-navbar.png)
+
 ## API endpoints
 
 | Method + path | Purpose |
 |---|---|
-| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled`, `canViewEvents` — the right-gated Event Viewer flag — and `demoMode`) |
+| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled`, `canViewEvents` — the right-gated Event Viewer flag — `demoMode`, and `github` + `avatarUrl`) |
 | `GET /api/userinfo/locales` | Available locales (single source of truth for all locale dropdowns) |
 | `GET /api/userinfo/login-history` | Last 10 successful + failed logins |
-| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale) — **403 in demo mode** |
+| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale, github) — **403 in demo mode** |
 | `PUT /api/userinfo/password` | Change password (403 when password management is external **or in demo mode**) |
 | `POST /api/userinfo/apikey` | Generate a new API key (403 when XML-RPC API is disabled) |
