@@ -1782,6 +1782,7 @@
   "reqe.status": "状态",
   "reqe.title": "标题",
   "reqe.type": "类型",
+  "reqe.unsavedWarning": "您有未保存的更改。确定要离开吗？",
   "reqe.version": "版本",
   "reqe.versionCreated": "已创建新版本",
   "reqe.versionError": "创建新版本失败",

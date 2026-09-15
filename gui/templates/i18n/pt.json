@@ -1782,6 +1782,7 @@
   "reqe.status": "Estado",
   "reqe.title": "Título",
   "reqe.type": "Tipo",
+  "reqe.unsavedWarning": "Você tem alterações não salvas. Tem certeza de que deseja sair?",
   "reqe.version": "Versão",
   "reqe.versionCreated": "Nova versão criada",
   "reqe.versionError": "Falha ao criar a nova versão",

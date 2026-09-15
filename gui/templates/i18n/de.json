@@ -1782,6 +1782,7 @@
   "reqe.status": "Status",
   "reqe.title": "Titel",
   "reqe.type": "Typ",
+  "reqe.unsavedWarning": "Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?",
   "reqe.version": "Version",
   "reqe.versionCreated": "Neue Version erstellt",
   "reqe.versionError": "Neue Version konnte nicht erstellt werden",

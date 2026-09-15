@@ -148,7 +148,37 @@ function fillCoverage(selected) {
   $sel.val(String(selected !== undefined && selected !== null && selected !== '' ? selected : 1));
 }
 
+/* Refs #1380: mirror legacy checkmodified.js - warn on unload when edits are
+   pending, suppress the warning once Save/Cancel force a deliberate
+   navigation (legacy reqEdit.tpl BUGID 4153 handling). */
+var content_modified = false;
+var show_modified_warning = true;
+
+function markModified() {
+  content_modified = true;
+}
+
+function resetModified() {
+  content_modified = false;
+}
+
+function doBeforeUnload(e) {
+  if (!show_modified_warning || !content_modified) {
+    return;
+  }
+  var msg = TLi18n.t('reqe.unsavedWarning');
+  e = e || window.event;
+  if (e) {
+    if (e.preventDefault) e.preventDefault();
+    e.returnValue = msg;
+  }
+  return msg;
+}
+
+window.onbeforeunload = doBeforeUnload;
+
 function goBack() {
+  show_modified_warning = false;
   if (window.history.length > 1) { window.history.back(); }
   else { window.parent && window.parent.mainframe ? window.parent.location.href = '/gui/templates/requirements/reqOverview.html?tproject_id=' + TPROJECT_ID : window.location.href = '/index.php'; }
 }
@@ -185,6 +215,7 @@ function loadForm() {
     fillSelect($('#reqType'), OPTIONS.reqTypes, CURRENT.type);
     fillCoverage(CURRENT.expected_coverage);
 
+resetModified();
     var canManage = r.rights && r.rights.manage;
     CAN_MANAGE = !!canManage;
     if (MODE === 'edit') {
@@ -255,6 +286,7 @@ function save() {
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.saveError')); return; }
       hideError();
+      resetModified();
       if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); applyLastDocIdHelper(); }
       $('#infoBar').text(TLi18n.t('reqe.saved')).show();
       setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
@@ -303,6 +335,9 @@ $(function() {
     loadForm();
   });
   $('#newVersionBtn').on('click', newVersion);
+  /* Refs #1380: track every edit on the form controls (scope, title, doc id,
+     status, type, expected coverage) so an unload mid-edit warns the user. */
+  $(document).on('input change', '.form-control', markModified);
 });
 </script>
 </body>

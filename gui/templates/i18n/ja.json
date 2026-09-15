@@ -1782,6 +1782,7 @@
   "reqe.status": "ステータス",
   "reqe.title": "タイトル",
   "reqe.type": "タイプ",
+  "reqe.unsavedWarning": "未保存の変更があります。本当に終了しますか？",
   "reqe.version": "バージョン",
   "reqe.versionCreated": "新しいバージョンを作成しました",
   "reqe.versionError": "新バージョンの作成に失敗しました",

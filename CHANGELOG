@@ -263,6 +263,13 @@ NEW FEATURES
   in create mode only (config on + project has a prior req) with tooltip and
   one-click fill; icon hides in edit mode and after the first create-save.
   i18n `reqe.insertLastDocId` in all 10 bundles.
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`): unsaved-changes
+  `beforeunload` guard restored (Refs #1380) — legacy `checkmodified.js` parity
+  (BUGID 4153). Delegated `input change` tracking on all form controls flips
+  `content_modified`; leaving the page with pending edits fires the native warning
+  instead of silently discarding them. Save success and Cancel suppress the warning,
+  `loadForm()`/version-switch reloads reset the dirty flag. Pure client-side; BFF
+  untouched. i18n `reqe.unsavedWarning` in all 10 bundles.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
   header now shows "Assigned to: <user>" (teal) or the "No tester assigned"

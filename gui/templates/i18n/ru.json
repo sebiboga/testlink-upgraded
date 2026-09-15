@@ -1782,6 +1782,7 @@
   "reqe.status": "Статус",
   "reqe.title": "Название",
   "reqe.type": "Тип",
+  "reqe.unsavedWarning": "У вас есть несохранённые изменения. Вы уверены, что хотите уйти?",
   "reqe.version": "Версия",
   "reqe.versionCreated": "Новая версия создана",
   "reqe.versionError": "Не удалось создать новую версию",
