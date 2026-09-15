@@ -46,6 +46,18 @@ function getIntParam($key, $default = 0) {
     return is_numeric($v) ? intval($v) : $default;
 }
 
+/** Read a testproject option flag tolerating both object and array results
+ *  from testproject::getOptions() (stored options blob may be either shape). */
+function tprojectOpt($opt, $key) {
+    if (is_object($opt)) {
+        return !empty($opt->$key);
+    }
+    if (is_array($opt)) {
+        return !empty($opt[$key]);
+    }
+    return false;
+}
+
 /**
  * Walk up the nodes_hierarchy parent chain.
  * NOTE: tree_manager::get_path() / testproject::getByChildID() proved
@@ -183,9 +195,9 @@ if ($action === 'context') {
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => $info['name']],
         'options' => [
-            'requirementsEnabled' => !empty($opt->requirementsEnabled),
-            'automationEnabled' => !empty($opt->automationEnabled),
-            'testPriorityEnabled' => !empty($opt->testPriorityEnabled),
+            'requirementsEnabled' => tprojectOpt($opt, 'requirementsEnabled'),
+            'automationEnabled' => tprojectOpt($opt, 'automationEnabled'),
+            'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
         ],
         'hasTestPlans' => $hasTestPlans,
         'grants' => $grants,
@@ -443,7 +455,7 @@ if ($action === 'view') {
     $requirements = [];
     $opt = $tprojectMgr->getOptions($tprojectId);
     $opt = is_null($opt) ? new stdClass() : $opt;
-    $canViewReq = (!empty($opt->requirementsEnabled))
+    $canViewReq = tprojectOpt($opt, 'requirementsEnabled')
         && $user->hasRight($db, 'mgt_view_req', $tprojectId);
     if ($canViewReq) {
         try {
@@ -548,9 +560,9 @@ if ($action === 'view') {
         'path' => $pathString,
         'versions' => $versions,
         'requirements' => $requirements,
-        'requirementsEnabled' => !empty($opt->requirementsEnabled),
-        'testPriorityEnabled' => !empty($opt->testPriorityEnabled),
-        'automationEnabled' => !empty($opt->automationEnabled),
+        'requirementsEnabled' => tprojectOpt($opt, 'requirementsEnabled'),
+        'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
+        'automationEnabled' => tprojectOpt($opt, 'automationEnabled'),
         'relations' => $relations,
         'grants' => $grants,
         'hasTestPlans' => $hasTestPlans,

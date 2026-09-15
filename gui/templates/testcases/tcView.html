@@ -588,6 +588,11 @@ function arqLoadReqs() {
   });
 }
 
+function arqRefreshMain() {
+  $.get('/api/testcases/index.php', { action: 'view', tcase_id: parseInt(qs('tcase_id') || '0', 10) })
+    .done(function(r) { if (r && r.status === 'ok') { data = r; render(); } });
+}
+
 function arqDoAssign() {
   var tcaseId = $('#assignReqsModal').data('tcaseId');
   var ids = $('#arqFree').val() || [];
@@ -600,6 +605,7 @@ function arqDoAssign() {
       toast(TLi18n.t('reqAssign.assignDone').replace('{n}', d.assigned_qty));
     }
     arqLoadReqs();
+    arqRefreshMain();
   });
 }
 
@@ -616,6 +622,7 @@ function arqDoUnassign() {
       toast(TLi18n.t('reqAssign.unassignDone').replace('{n}', d.unassigned_qty));
     }
     arqLoadReqs();
+    arqRefreshMain();
   });
 }
 </script>

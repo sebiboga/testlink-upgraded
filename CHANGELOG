@@ -149,6 +149,14 @@ Requirements:
 Test Spec:
 - Test Specification tree/editor (testSpec.html) - BFF api/testcases.
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
+- Assign Requirements in Test Spec tree/editor + TC Viewer (testSpec.html,
+  tcView.html) - "Assign Requirements" button + modal (reqspec combo, free/
+  assigned two-list assign/unassign with counts and empty notices) reusing the
+  `api/requirements` BFF; gated on requirementsEnabled +
+  req_tcase_link_management + latest version in tcView; main REQUIREMENTS
+  section refreshes live after each assignment change. i18n
+  `tspec.assignRequirements`/`tcview.assignRequirements` in all 10 bundles
+  (#912).
 - TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
 - Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),
   Quick Search (searchQuickView.html) - BFF api/search.
@@ -333,6 +341,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   parseTestProjectRecordset, get_all access_key branch) go through a silent
   @unserialize helper and degrade to the existing fallbacks; valid blobs decode
   identically (#1484).
+- BFF api/testcases: `requirementsEnabled`/`testPriorityEnabled`/`automationEnabled`
+  options (context + view actions) were read as object properties only, silently
+  reporting `false` for projects whose options blob decodes to an array — the
+  new `tprojectOpt()` helper tolerates both shapes (mirrors the api/requirements
+  pattern), so Assign Requirements and requirement coverage render for array-blob
+  projects (#912).
 - Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
   shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
 - Security: stored XSS in tcView (#804), usersView (#1406/#1430), rolesView
