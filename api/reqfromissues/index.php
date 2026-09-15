@@ -200,6 +200,10 @@ $tprojectMgr = new testproject($db);
 // limit, grant map, issue field labels localized via the client locale hint.
 // ---------------------------------------------------------------------------
 if ($action === 'init') {
+    if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+        http_response_code(405);
+        rfi_out(['status' => 'error', 'message' => 'Method not allowed']);
+    }
     $specId = rfi_intParam('req_spec_id', 0);
     if ($specId <= 0) {
         $specId = rfi_intParam('spec_id', 0);
@@ -315,6 +319,11 @@ if ($action === 'import') {
         rfi_out(['status' => 'error', 'message' => 'File upload failed (error code: ' . $errCode . ')']);
     }
 
+    $tmpPath = strval($_FILES['uploadedFile']['tmp_name'] ?? '');
+    if ($tmpPath === '' || !is_uploaded_file($tmpPath)) {
+        http_response_code(400);
+        rfi_out(['status' => 'error', 'message' => 'Not a valid uploaded file']);
+    }
     $maxBytes = intval(config_get('import_file_max_size_bytes'));
     if ($maxBytes <= 0) {
         $maxBytes = 10 * 1024 * 1024;
@@ -331,7 +340,7 @@ if ($action === 'import') {
 
     // ---- safe XML parse (LIBXML_NONET, no die()) ---------------------------
     libxml_use_internal_errors(true);
-    $rawXml = @file_get_contents($_FILES['uploadedFile']['tmp_name']);
+    $rawXml = @file_get_contents($tmpPath);
     $xml = @simplexml_load_string($rawXml, 'SimpleXMLElement', LIBXML_NONET);
     libxml_clear_errors();
     if ($xml === false || $rawXml === false || $xml->getName() !== 'mantis') {
@@ -373,6 +382,7 @@ if ($action === 'import') {
         if (!headers_sent()) {
             header('Content-Type: application/json; charset=utf-8');
         }
+        http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => 'Import failed']);
     });
 
@@ -405,6 +415,11 @@ if ($action === 'import') {
         }
     } catch (\Throwable $e) {
         $cleanExit = true;
+        if ($prevLocale !== null) {
+            $_SESSION['locale'] = $prevLocale;
+        } else {
+            unset($_SESSION['locale']);
+        }
         http_response_code(500);
         rfi_out(['status' => 'error', 'message' => 'Import failed: ' . $e->getMessage()]);
     }

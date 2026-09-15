@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="reqfi.title">Create Requirements from Issues</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
+.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 13px; }
+.toolbar .ctx b { color: #fff; }
+.toolbar .sep { flex: 1; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { opacity: .45; cursor: not-allowed; }
+.btn-ghost { background: transparent; border: 1px solid #555; color: #ddd; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; text-decoration: none; }
+.content { padding: 18px 24px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.card .card-head { background: #22242a; color: #fff; font-size: 14px; font-weight: 700; padding: 10px 16px; }
+.card .card-body { padding: 18px 16px; font-size: 13px; color: #444; }
+.empty { background: #fff; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 13px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 0; }
+#feedback { display:none; margin: 14px 24px 0 24px; padding: 12px 16px; border-radius: 6px; font-size: 13px; background: #dff0d8; color: #3c763d; border: 1px solid #d0e9c6; }
+#feedback.err { background: #fdecea; color: #c0392b; border: 1px solid #f5c6c2; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #2d8e88; }
+.toast.err { background: #c0392b; }
+table.result-table { width: 100%; border-collapse: collapse; }
+table.result-table th { background: #22242a; color: #fff; font-size: 12.5px; padding: 8px 12px; text-align: left; }
+table.result-table td { padding: 8px 12px; font-size: 13px; border-bottom: 1px solid #eee; word-break: break-word; }
+table.result-table tr.ok td:last-child { color: #2d8e88; }
+table.result-table tr.warn td:last-child { color: #b8690d; }
+.dropzone { border: 2px dashed #4ECDC4; border-radius: 8px; padding: 34px 20px; text-align: center; color: #888; background: #fbfefe; cursor: pointer; }
+.dropzone:hover { background: #f0faf9; }
+.dropzone input[type=file] { display: none; }
+.dropzone .fa-cloud-arrow-up { font-size: 34px; color: #4ECDC4; margin-bottom: 8px; }
+.hint { font-size: 12px; color: #999; margin-top: 6px; }
+.mapping { margin-top: 14px; background: #f7f9f9; border: 1px solid #e3e8e8; border-radius: 6px; padding: 10px 14px; font-size: 12px; color: #666; }
+.mapping b { color: #12707a; }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-book"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span>
+  <span class="sub" data-i18n="reqfi.headerSub">import a Mantis bug-tracker XML export as requirements</span>
+  <span id="ctxLine" style="opacity:.85;font-weight:400;font-size:13px;margin-left:14px;"></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-teal" onclick="load()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span class="sep"></span>
+  <span class="ctx"><span data-i18n="reqfi.ctxProject">Test project</span>: <b id="projLine">-</b> &nbsp;|&nbsp;
+    <span data-i18n="reqfi.ctxSpec">Requirement spec</span>: <b id="specLine">-</b></span>
+</div>
+
+<div id="feedback"></div>
+
+<div class="content">
+  <div class="empty" id="errBox" style="display:none;"></div>
+  <div id="workArea" style="display:none;">
+
+    <div class="card">
+      <div class="card-head"><i class="fa fa-file-arrow-up"></i> <span data-i18n="reqfi.uploadTitle">Upload Mantis XML export</span></div>
+      <div class="card-body">
+        <div class="dropzone" id="dropzone">
+          <i class="fa fa-cloud-arrow-up"></i>
+          <div data-i18n="reqfi.dropHint">Drag &amp; drop the Mantis XML export here, or click to choose a file</div>
+          <div class="hint" id="sizeHint" data-i18n="reqfi.sizeHint">max file size: {0} KB</div>
+          <input type="file" id="fileInput" accept=".xml,text/xml,application/xml">
+        </div>
+        <div class="mapping" id="mapping">
+          <span data-i18n="reqfi.mappingTitle">Mapping — one requirement per &lt;issue&gt;:</span>
+          <span data-i18n="reqfi.mappingBody">title “Issue:&lt;id&gt; - &lt;summary&gt;”, description = description (+ steps to reproduce / additional information), doc id = “Mantis Task ID:&lt;id&gt;”</span>
+        </div>
+        <div style="margin-top:16px; text-align:right;">
+          <button class="btn-teal" id="uploadBtn" disabled><i class="fa fa-upload"></i> <span data-i18n="reqfi.uploadBtn">Import issues</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultCard" class="card" style="display:none; margin-top:16px;">
+      <div class="card-head"><i class="fa fa-list-check"></i> <span data-i18n="reqfi.resultTitle">Import result</span>
+        <span style="float:right; font-weight:400; font-size:12.5px;"><span data-i18n="reqfi.issuesCount">Issues found</span>: <b id="issuesCount">0</b></span>
+      </div>
+      <div class="card-body" style="padding:0;">
+        <div class="empty" id="emptyResult" style="display:none;" data-i18n="reqfi.emptyResult">No issues were found in the uploaded file</div>
+        <table class="result-table" id="resultTable" style="display:none;">
+          <thead><tr><th data-i18n="reqfi.colDoc" style="width:20%;">Doc ID</th><th data-i18n="reqfi.colName" style="width:35%;">Requirement</th><th data-i18n="reqfi.colMessage">Result</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.reqFromIssues">TestLink 2.0.1 - Create Requirements from Issues</span></div>
+<div class="toast" id="toast"></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/reqfromissues/index.php';
+var TPROJECT_ID = 0;
+var REQ_SPEC_ID = 0;
+var CTX = null;
+var selectedFile = null;
+
+function toast(msg, ok) {
+  $('#toast').text(msg).toggleClass('ok', !!ok).toggleClass('err', !ok).fadeIn(200);
+  clearTimeout(toast._t);
+  toast._t = setTimeout(function () { $('#toast').fadeOut(250); }, 4200);
+}
+
+function feedback(msg, isErr) {
+  $('#feedback').text(msg).toggleClass('err', !!isErr).fadeIn(200);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function load() {
+  var q = 'action=init&req_spec_id=' + REQ_SPEC_ID;
+  if (TPROJECT_ID > 0) q += '&tproject_id=' + TPROJECT_ID;
+  q += '&locale=' + encodeURIComponent(TLi18n.getLocale());
+  $.getJSON(API + '?' + q)
+    .done(function (r) {
+      CTX = r;
+      TPROJECT_ID = r.tproject.id;
+      REQ_SPEC_ID = r.req_spec.id;
+      $('#projLine').text(r.tproject.name);
+      $('#specLine').text((r.req_spec.path ? (r.req_spec.path + ' / ') : '') + r.req_spec.name);
+      $('#ctxLine').text(r.tproject.name + ' / ' + r.req_spec.name);
+      var kb = Math.max(1, Math.round(r.maxUploadBytes / 1024));
+      $('#sizeHint').text(TLi18n.t('reqfi.sizeHint', 'max file size: {0} KB').replace('{0}', kb));
+      $('#feedback').fadeOut(150);
+      if (!r.grants.mgt_view_req || !r.grants.mgt_modify_req) {
+        $('#errBox').html('<i class="fa fa-ban"></i> ' + esc(TLi18n.t('reqfi.errNoPermission'))).show();
+        $('#workArea').hide();
+        return;
+      }
+      $('#errBox').hide();
+      $('#workArea').show();
+    })
+    .fail(function (xhr) {
+      var noPerm = xhr.status === 403 || (xhr.responseJSON && xhr.responseJSON.message === 'No permission');
+      var m = noPerm ? TLi18n.t('reqfi.errNoPermission')
+        : (xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : TLi18n.t('reqfi.errLoad'));
+      $('#errBox').html('<i class="fa fa-triangle-exclamation"></i> ' + esc(m)).show();
+      $('#workArea').hide();
+    });
+}
+
+function doUpload() {
+  if (!selectedFile) {
+    toast(TLi18n.t('reqfi.noFile'), false);
+    return;
+  }
+  var fd = new FormData();
+  fd.append('uploadedFile', selectedFile);
+  fd.append('req_spec_id', REQ_SPEC_ID);
+  fd.append('tproject_id', TPROJECT_ID);
+  fd.append('locale', TLi18n.getLocale());
+
+  var btn = $('#uploadBtn');
+  btn.prop('disabled', true).find('span').text(TLi18n.t('reqfi.importing'));
+  $('#resultCard').hide();
+
+  $.ajax({
+    url: API + '?action=import',
+    type: 'POST',
+    data: fd,
+    contentType: false,
+    processData: false,
+    dataType: 'json'
+  })
+    .done(function (r) {
+      if (r.status !== 'ok') {
+        feedback(r.message || TLi18n.t('reqfi.importFail'), true);
+        toast(TLi18n.t('reqfi.importFail'), false);
+        return;
+      }
+      $('#issuesCount').text(r.issues);
+      var rows = r.result || [];
+      var tbody = $('#resultTable tbody').empty();
+      if (rows.length === 0) {
+        $('#emptyResult').show();
+        $('#resultTable').hide();
+      } else {
+        $('#emptyResult').hide();
+        rows.forEach(function (row) {
+          var isWarn = (row.message || '').indexOf('Created') !== 0 &&
+            !/^(Created|Updated)/.test(row.message);
+          var tr = $('<tr>').addClass(isWarn ? 'warn' : 'ok');
+          $('<td>').append($('<b>').text(row.doc_id)).appendTo(tr);
+          $('<td>').append($('<b>').text(row.name)).appendTo(tr);
+          $('<td>').text(row.message).appendTo(tr);
+          tbody.append(tr);
+        });
+        $('#resultTable').show();
+      }
+      $('#resultCard').show();
+      feedback(TLi18n.t('reqfi.importOk') + ' — ' + rows.length + ' ' + TLi18n.t('reqfi.reqRows'), false);
+      toast(TLi18n.t('reqfi.importOk'), true);
+    })
+    .fail(function (xhr) {
+      var m = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : TLi18n.t('reqfi.importFail');
+      feedback(m, true);
+      toast(m, false);
+    })
+    .always(function () {
+      btn.prop('disabled', false).find('span').text(TLi18n.t('reqfi.uploadBtn'));
+    });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  REQ_SPEC_ID = parseInt(p.get('req_spec_id') || p.get('id') || '0', 10);
+  TPROJECT_ID = parseInt(p.get('tproject_id') || '0', 10);
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    load();
+  });
+
+  $('#dropzone').on('click', function (e) {
+    if (e.target !== this && $(e.target).closest('input[type=file]').length) return;
+    $('#fileInput').trigger('click');
+  });
+  $('#fileInput').on('change', function () {
+    selectedFile = this.files && this.files[0] ? this.files[0] : null;
+    $('#uploadBtn').prop('disabled', !selectedFile);
+    if (selectedFile) {
+      feedback(TLi18n.t('reqfi.fileSelected') + ' ' + selectedFile.name, false);
+    } else {
+      $('#feedback').fadeOut(150);
+    }
+  });
+  $('#uploadBtn').on('click', doUpload);
+});
+</script>
+</body>
+</html>
