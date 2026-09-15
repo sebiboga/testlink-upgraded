@@ -4081,5 +4081,11 @@
   "tspec.unfrozen": "バージョン凍結解除済み",
   "tspec.activated": "バージョン有効化済み",
   "tspec.deactivated": "バージョン無効化済み",
-  "tspec.versionDeleted": "バージョン削除済み"
+  "tspec.versionDeleted": "バージョン削除済み",
+  "tcedit.platforms": "プラットフォーム",
+  "tcedit.noPlatforms": "このプロジェクトにはプラットフォームが定義されていません",
+  "tcview.platforms": "プラットフォーム",
+  "tspec.platforms": "プラットフォーム",
+  "tspec.noProjPlatforms": "このプロジェクトにはプラットフォームが定義されていません",
+  "tspec.noPlatformsAssigned": "このバージョンに割り当てられたプラットフォームはありません"
 }

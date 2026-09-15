@@ -698,6 +698,16 @@ function renderTcView(r) {
     '<div class="field-label">' + t('tspec.steps') + '</div>' + stepsHtml +
     '<div class="field-label">' + t('tspec.keywords') + '</div><div>' + kwHtml + '</div>';
 
+  var platKeys = Object.keys(r.platformsProject || {});
+  var assignedPlats = platKeys.filter(function (pid) { return (r.platformsAssigned || {})[pid]; })
+    .map(function (pid) { return '<span class="chip">' + esc(r.platformsProject[pid].name) + '</span>'; })
+    .join('');
+  if (platKeys.length) {
+    h += '<div class="field-label">' + t('tspec.platforms') + '</div><div>' +
+      (assignedPlats ? assignedPlats : '<span class="none-text">' + t('tspec.noPlatformsAssigned') + '</span>') +
+      '</div>';
+  }
+
   var cfList = r.customFields || [];
   if (cfList.length) {
     h += '<div class="field-label">' + t('tspec.customFields') + '</div>';
@@ -798,7 +808,10 @@ function switchEditVersion(tcversionId) {
       attachments: r.attachments,
       tcversion_id: r.tcase.tcversion_id,
       version: r.tcase.version,
-      keywordsAssigned: r.keywordsAssigned
+      keywordsAssigned: r.keywordsAssigned,
+      platformsProject: r.platformsProject || {},
+      platformsAssigned: r.platformsAssigned || {},
+      platformsEditable: r.platformsEditable
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
 }
@@ -909,6 +922,8 @@ function collectForm() {
   });
   var kws = [];
   $('#kwList input:checked').each(function () { kws.push(parseInt($(this).val(), 10)); });
+  var plats = [];
+  $('#platList input:checked').each(function () { plats.push(parseInt($(this).val(), 10)); });
   var customFields = [];
   $('#cfRows .cf-row').each(function (i, row) {
     var $r = $(row);
@@ -950,6 +965,7 @@ function collectForm() {
     importance: parseInt($('#tcImportanceSel').val(), 10),
     steps: steps,
     keywords: kws,
+    platforms: plats,
     customFields: customFields
   };
 }
@@ -1013,6 +1029,7 @@ function formHtml(data, kwProject) {
     h += '<span class="none-text">' + t('tspec.noProjKeywords') + '</span>';
   }
   h += '</div></div>' +
+    platformsEditorHtml(data, editMode) +
     customFieldsHtml(data.customFields) +
     attachmentsEditorHtml(data) +
 
@@ -1020,6 +1037,35 @@ function formHtml(data, kwProject) {
       '<button class="btn-teal btn-sm" onclick="saveForm()"><i class="fa fa-floppy-disk"></i> ' + t('tspec.save') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="cancelEdit()" data-i18n="tspec.cancel">' + t('tspec.cancel') + '</button>' +
     '</div></div></div>';
+  return h;
+}
+
+// Per-version platform assignment (gap #915). Rendered for existing versions
+// only (create mode has no version yet, legacy tcNew form has no platforms):
+// assigned platforms as chips + a checkbox multi-select of the project's
+// design-visible platforms. Collected by collectForm() into 'platforms' and
+// persisted through testcase_platforms by the create/update BFF actions.
+function platformsEditorHtml(data, mode) {
+  if (mode && mode.mode === 'create') { return ''; }
+  var prj = data.platformsProject || {};
+  var assigned = data.platformsAssigned || {};
+  var ids = Object.keys(prj);
+  var h = '<div class="form-row"><div class="field-label">' + t('tspec.platforms') + '</div>';
+  if (!ids.length) {
+    h += '<span class="none-text">' + t('tspec.noProjPlatforms') + '</span></div>';
+    return h;
+  }
+  var chips = ids.filter(function (id) { return assigned[id]; })
+    .map(function (id) { return '<span class="chip">' + esc(prj[id].name) + '</span>'; });
+  h += chips.length
+    ? '<div style="margin-bottom:6px;">' + chips.join('') + '</div>'
+    : '<div style="margin-bottom:6px;"><span class="none-text">' + t('tspec.noPlatformsAssigned') + '</span></div>';
+  h += '<div class="kw-list" id="platList">';
+  ids.forEach(function (pid) {
+    var checked = assigned[pid] ? ' checked' : '';
+    h += '<label class="kw-item"><input type="checkbox" value="' + pid + '"' + checked + '> ' + esc(prj[pid].name) + '</label>';
+  });
+  h += '</div></div>';
   return h;
 }
 
@@ -1275,7 +1321,10 @@ function openEditTc(tcaseId, tcversionId) {
       attachments: r.attachments,
       tcversion_id: r.tcase.tcversion_id,
       version: r.tcase.version,
-      keywordsAssigned: r.keywordsAssigned
+      keywordsAssigned: r.keywordsAssigned,
+      platformsProject: r.platformsProject || {},
+      platformsAssigned: r.platformsAssigned || {},
+      platformsEditable: r.platformsEditable
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
 }

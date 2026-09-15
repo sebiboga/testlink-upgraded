@@ -4061,5 +4061,11 @@
   "tspec.errUpload": "上传失败",
   "tspec.errDelete": "删除失败",
   "tspec.attachUploaded": "附件已上传",
-  "tspec.attDeleted": "附件已删除"
+  "tspec.attDeleted": "附件已删除",
+  "tcedit.platforms": "平台",
+  "tcedit.noPlatforms": "该项目未定义平台",
+  "tcview.platforms": "平台",
+  "tspec.platforms": "平台",
+  "tspec.noProjPlatforms": "该项目未定义平台",
+  "tspec.noPlatformsAssigned": "此版本未分配平台"
 }

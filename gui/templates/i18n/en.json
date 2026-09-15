@@ -4091,5 +4091,11 @@
   "tspec.unfrozen": "Version unfrozen",
   "tspec.activated": "Version activated",
   "tspec.deactivated": "Version deactivated",
-  "tspec.versionDeleted": "Version deleted"
+  "tspec.versionDeleted": "Version deleted",
+  "tcedit.platforms": "Platforms",
+  "tcedit.noPlatforms": "No platforms defined for this project",
+  "tcview.platforms": "Platforms",
+  "tspec.platforms": "Platforms",
+  "tspec.noProjPlatforms": "No platforms defined for this project",
+  "tspec.noPlatformsAssigned": "No platforms assigned to this version"
 }

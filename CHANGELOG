@@ -159,6 +159,15 @@ Test Spec:
   testSpec.html editor (multipart/form-data via BFF, stored in attachments with
   fk_table='tcversions'); read-only view lists attachments with download links
   (Refs #913).
+- Test Specification per-testcase-version platform assignment (gap vs legacy):
+  platforms picker (chips + checkbox multi-select) in the testSpec.html editor,
+  platform pills in the tcEdit.html editor, read-only platform chips in
+  tcView.html + testSpec.html viewer; new BFF add_platform/remove_platform POST
+  routes + platforms payload in api/testcases get/view and api/testcasesedit
+  tcase payload; platforms persisted to testcase_platforms on create/update;
+  new-version creation copies platforms (legacy parity). i18n
+  tcedit.platforms/tcedit.noPlatforms/tcview.platforms/tspec.platforms/
+  tspec.noProjPlatforms/tspec.noPlatformsAssigned in all 10 bundles (Refs #915).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - Assign Requirements in Test Spec tree/editor + TC Viewer (testSpec.html,
   tcView.html) - "Assign Requirements" button + modal (reqspec combo, free/

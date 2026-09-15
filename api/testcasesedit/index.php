@@ -81,6 +81,57 @@ function getParam($key, $default = null) {
 function failsafeShutdown() { exit; }
 register_shutdown_function('failsafeShutdown');
 
+/** Project platforms {id:{name,enable_on_design}} (gap #915). */
+function tceProjectPlatforms($dbHandler, $tprojectId) {
+    $tables = tlObjectWithDB::getDBTables(array('platforms'));
+    $rows = $dbHandler->get_recordset(
+        " SELECT id, name, enable_on_design FROM {$tables['platforms']} " .
+        " WHERE testproject_id = " . intval($tprojectId) . " ORDER BY name ASC");
+    $map = [];
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $map[intval($r['id'])] = [
+                'name' => strval($r['name']),
+                'enable_on_design' => intval($r['enable_on_design']),
+            ];
+        }
+    }
+    return $map;
+}
+
+/** Assigned platforms of a version incl. tcplat_link id (gap #915). */
+function tceVersionPlatformAssignments($dbHandler, $tcaseId, $tcversionId) {
+    $tables = tlObjectWithDB::getDBTables(array('testcase_platforms', 'platforms'));
+    $rows = $dbHandler->get_recordset(
+        " SELECT TCPL.id AS tcplat_link, TCPL.platform_id, PL.name " .
+        " FROM {$tables['testcase_platforms']} TCPL " .
+        " JOIN {$tables['platforms']} PL ON PL.id = TCPL.platform_id " .
+        " WHERE TCPL.testcase_id = " . intval($tcaseId) .
+        " AND TCPL.tcversion_id = " . intval($tcversionId) .
+        " ORDER BY TCPL.id ASC");
+    $out = [];
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $out[] = [
+                'id' => intval($r['platform_id']),
+                'name' => strval($r['name']),
+                'tcplat_link' => intval($r['tcplat_link']),
+            ];
+        }
+    }
+    return $out;
+}
+
+/** Design-visible platforms not yet assigned (≈ legacy getFreePlatforms). */
+function tcePlatformFreeList($project, $assignedIds) {
+    $free = [];
+    foreach ($project as $pid => $info) {
+        if (intval($info['enable_on_design'] ?? 0) === 0) { continue; }
+        if (!isset($assignedIds[$pid])) { $free[$pid] = $info['name']; }
+    }
+    return $free;
+}
+
 $tcaseMgr = new testcase($db);
 $tprojectMgr = new testproject($db);
 $tcaseCfg = config_get('testcase_cfg');
@@ -229,6 +280,8 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
         }
     }
 
+    // per-version platform assignment (gap #915) - computed below.;
+
     // parent testsuite (from chain) - second to last
     $testsuiteId = 0;
     $testsuiteName = '';
@@ -266,6 +319,20 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
     $userRight = $user->hasRight($db, 'mgt_modify_tc', $tprojId);
     $editExecutedRight = $user->hasRight($db, 'testproject_edit_executed_testcases', $tprojId);
 
+    // per-version platform assignment (gap #915) - computed here AFTER
+    // $executed / $userRight / $editExecutedRight are resolved below so the
+    // edit gating matches the executed/frozen checks of the legacy viewer.
+    $platformsProject = tceProjectPlatforms($db, $tprojId);
+    $platformsAssigned = [];
+    foreach (tceVersionPlatformAssignments($db, $tcaseId, $tcverId) as $pa) {
+        $platformsAssigned[$pa['id']] = $pa['name'];
+    }
+    $platformsEditable = $userRight
+        && intval($versionData['is_open'] ?? 1) === 1
+        && (!$executed || $editExecutedRight
+            || intval($tcaseCfg->canEditExecuted ?? 0) > 0);
+    $platformsFree = tcePlatformFreeList($platformsProject, $platformsAssigned);
+
     return [
         'tcase' => [
             'id' => $tcaseId,
@@ -283,6 +350,10 @@ function buildEditPayload(&$db, &$tcaseMgr, &$tprojectMgr, &$user, $tcaseId, $tc
             'estimated_exec_duration' => strval($versionData['estimated_exec_duration'] ?? ''),
             'steps' => $steps,
             'keywords' => $keywords,
+            'platformsAssigned' => $platformsAssigned,
+            'platformsFree' => $platformsFree,
+            'platformsProject' => $platformsProject,
+            'platformsEditable' => $platformsEditable,
         ],
         'tproject_id' => $tprojId,
         'grants' => [
@@ -427,6 +498,38 @@ switch ($action) {
         if ($ret === false || $ret === null || $ret === ''
             || (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok'])) {
             out(['status' => 'error', 'message' => strval($ret['msg'] ?? 'Update failed')], 400);
+        }
+
+        // per-version platform set sync (gap #915): diff testcase_platforms to
+        // exactly match the submitted ids (legacy addPlatform/removePlatform).
+        if (isset($body['platforms']) && is_array($body['platforms'])) {
+            $wanted = [];
+            foreach ($body['platforms'] as $pid) {
+                $pid = intval($pid);
+                if ($pid > 0) { $wanted[$pid] = true; }
+            }
+            $prj = tceProjectPlatforms($db, $tprojId);
+            $cur = [];
+            foreach (tceVersionPlatformAssignments($db, $tcaseId, $tcverId) as $pa) {
+                $cur[$pa['id']] = true;
+            }
+            $toAdd = [];
+            $toRemove = [];
+            foreach ($wanted as $pid => $ign) {
+                if (!isset($cur[$pid]) && isset($prj[$pid])
+                    && intval($prj[$pid]['enable_on_design'] ?? 0) === 1) {
+                    $toAdd[] = $pid;
+                }
+            }
+            foreach ($cur as $pid => $ign) {
+                if (!isset($wanted[$pid])) { $toRemove[] = $pid; }
+            }
+            if (count($toAdd)) {
+                $tcaseMgr->addPlatforms($tcaseId, $tcverId, $toAdd);
+            }
+            if (count($toRemove)) {
+                $tcaseMgr->deletePlatforms($tcaseId, $tcverId, $toRemove);
+            }
         }
 
         out([

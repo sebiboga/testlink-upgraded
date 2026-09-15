@@ -109,6 +109,9 @@ textarea.form-control { resize: vertical; }
     <div class="field-label"><span data-i18n="tcedit.keywords">Keywords</span></div>
     <div id="kwContainer" class="kw-pills"><span class="readonly-note" data-i18n="tcedit.noKeywords">No keywords defined for this project</span></div>
 
+    <div class="field-label"><span data-i18n="tcedit.platforms">Platforms</span></div>
+    <div id="platContainer" class="kw-pills"><span class="readonly-note" data-i18n="tcedit.noPlatforms">No platforms defined for this project</span></div>
+
     <div class="actions-bar">
       <button class="btn-teal" id="btnSave"><i class="fa fa-save"></i> <span data-i18n="tcedit.btnSave">Save</span></button>
       <button class="btn-dark" id="btnCancel"><span data-i18n="tcedit.cancel">Cancel</span></button>
@@ -132,6 +135,7 @@ var ctx = {
   bffUrl: '/api/testcasesedit/',
   info: null,
   selectedKeywords: {},
+  selectedPlatforms: {},
   content_modified: false,
   show_modified_warning: true,
   // Refs #1479: opened from the Set Results popup (edit-on-execution). When a
@@ -291,6 +295,8 @@ function renderEditor() {
 
   // keywords
   renderKeywords();
+  // platforms (gap #915: per-version platform assignment)
+  renderPlatforms();
 
   // steps
   $('#stepsContainer').empty();
@@ -335,6 +341,54 @@ function renderKeywords() {
     ctx.selectedKeywords[id] = !ctx.selectedKeywords[id];
     $(this).toggleClass('selected', !!ctx.selectedKeywords[id]);
   });
+}
+
+// Per-version platform assignment (gap #915). Mirrors legacy
+// platforms.inc.tpl: assigned platforms are pre-selected pills; toggling a
+// pill adds/removes it from the version, persisted on Save through
+// testcase_platforms via the 'platforms' field of the update payload.
+function renderPlatforms() {
+  var prj = ctx.info.tcase.platformsProject || {};
+  var assigned = ctx.info.tcase.platformsAssigned || {};
+  var editable = ctx.info.tcase.platformsEditable !== false
+    && !!ctx.info.grants.mgt_modify_tc;
+  ctx.selectedPlatforms = {};
+  Object.keys(assigned || {}).forEach(function (id) {
+    ctx.selectedPlatforms[id] = true;
+  });
+
+  var ids = Object.keys(prj || {});
+  if (!ids.length) {
+    $('#platContainer').html('<span class="readonly-note">' + esc(TLi18n.t('tcedit.noPlatforms')) + '</span>');
+    return;
+  }
+  if (!editable) {
+    var names = ids.filter(function (id) { return ctx.selectedPlatforms[id]; })
+      .map(function (id) { return esc(prj[id].name); });
+    $('#platContainer').html(names.length
+      ? '<span class="readonly-note">' + names.join(', ') + '</span>'
+      : '<span class="readonly-note">' + esc(TLi18n.t('tcedit.noPlatforms')) + '</span>');
+    return;
+  }
+  var html = '';
+  ids.forEach(function (id) {
+    var sel = ctx.selectedPlatforms[id] ? ' selected' : '';
+    html += '<span class="kw-pill' + sel + '" data-platid="' + id + '">' + esc(prj[id].name) + '</span>';
+  });
+  $('#platContainer').html(html);
+  $('#platContainer .kw-pill').on('click', function () {
+    var id = $(this).data('platid');
+    ctx.selectedPlatforms[id] = !ctx.selectedPlatforms[id];
+    $(this).toggleClass('selected', !!ctx.selectedPlatforms[id]);
+  });
+}
+
+function collectPlatforms() {
+  var ids = [];
+  Object.keys(ctx.selectedPlatforms).forEach(function (k) {
+    if (ctx.selectedPlatforms[k]) ids.push(parseInt(k, 10));
+  });
+  return ids;
 }
 
 function addStepRow(step, number) {
@@ -420,7 +474,8 @@ function doSave() {
     exec_type: parseInt($('#tc_exec_type').val(), 10),
     estimated_execution_duration: dur,
     steps: collectSteps(),
-    keywords: collectKeywords()
+    keywords: collectKeywords(),
+    platforms: collectPlatforms()
   };
 
   loadOverlay(true);

@@ -774,6 +774,13 @@ if ($action === 'view') {
             }
         }
 
+        // platforms assigned to THIS version (gap #915) + edit capability
+        // (legacy platforms.inc.tpl remove-enabled flag).
+        $platforms = versionPlatformAssignments($db, $tcaseId, $tcvx);
+        $versionCanAssign = canAssignPlatforms(
+            $user, $db, $tprojectId,
+            intval($vr['is_open'] ?? 1), isset($executedSet[$tcvx]));
+
         // custom fields with design-time values for this version
         $customFields = [];
         try {
@@ -839,6 +846,8 @@ if ($action === 'view') {
             'has_been_executed' => isset($executedSet[$tcvx]),
             'steps' => $steps,
             'keywords' => $keywords,
+            'platforms' => $platforms,
+            'canAssignPlatforms' => $versionCanAssign,
             'customFields' => $customFields,
             'attachments' => $attachments,
         ];
@@ -952,6 +961,7 @@ if ($action === 'view') {
         'fullExternalId' => $prefix . $glue . intval($first['tc_external_id'] ?? 0),
         'path' => $pathString,
         'versions' => $versions,
+        'platformsProject' => projectPlatforms($db, $tprojectId),
         'requirements' => $requirements,
         'requirementsEnabled' => tprojectOpt($opt, 'requirementsEnabled'),
         'testPriorityEnabled' => tprojectOpt($opt, 'testPriorityEnabled'),
@@ -1022,6 +1032,132 @@ function owningProjectOf($dbHandler, $tprojectMgr, $nodeId) {
         return null;
     }
     return intval($root['id']);
+}
+
+/**
+ * Project platforms as {id: {name, enable_on_design}}. Mirrors the legacy
+ * assign-UI source: tlPlatform list of the owning project filtered to
+ * enable_on_design=1 (design-visible platforms). The full flag set is
+ * returned so callers can reproduce the "free platforms" computation.
+ */
+function projectPlatforms($dbHandler, $tprojectId) {
+    $tables = tlObjectWithDB::getDBTables(array('platforms'));
+    $rows = $dbHandler->get_recordset(
+        " SELECT id, name, enable_on_design FROM {$tables['platforms']} " .
+        " WHERE testproject_id = " . intval($tprojectId) .
+        " ORDER BY name ASC");
+    $map = [];
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $map[intval($r['id'])] = [
+                'name' => strval($r['name']),
+                'enable_on_design' => intval($r['enable_on_design']),
+            ];
+        }
+    }
+    return $map;
+}
+
+/**
+ * Per-version platform assignments incl. the testcase_platforms link id
+ * (tcplat_link), mirroring testcase::getPlatforms() (tcEdit platforms.inc).
+ */
+function versionPlatformAssignments($dbHandler, $tcaseId, $tcversionId) {
+    $tables = tlObjectWithDB::getDBTables(array('testcase_platforms', 'platforms'));
+    $rows = $dbHandler->get_recordset(
+        " SELECT TCPL.id AS tcplat_link, TCPL.platform_id, PL.name " .
+        " FROM {$tables['testcase_platforms']} TCPL " .
+        " JOIN {$tables['platforms']} PL ON PL.id = TCPL.platform_id " .
+        " WHERE TCPL.testcase_id = " . intval($tcaseId) .
+        " AND TCPL.tcversion_id = " . intval($tcversionId) .
+        " ORDER BY TCPL.id ASC");
+    $out = [];
+    if (!is_null($rows)) {
+        foreach ($rows as $r) {
+            $out[] = [
+                'id' => intval($r['platform_id']),
+                'name' => strval($r['name']),
+                'tcplat_link' => intval($r['tcplat_link']),
+                'enable_on_design' => 1,
+            ];
+        }
+    }
+    return $out;
+}
+
+/**
+ * Whether platform assignments of a version may be changed. Mirrors the
+ * legacy platRW flag (tcView_viewer.tpl): edit right required, version must
+ * not be frozen, and executed versions need the exec-edit right/config.
+ */
+function canAssignPlatforms($user, $dbHandler, $tprojId, $isOpen, $executed) {
+    if (!$user->hasRight($dbHandler, 'mgt_modify_tc', $tprojId)) {
+        return false;
+    }
+    if (intval($isOpen) === 0) { // frozen
+        return false;
+    }
+    if ($executed) {
+        if ($user->hasRight($dbHandler, 'testproject_edit_executed_testcases', $tprojId)) {
+            return true;
+        }
+        if (intval(config_get('testcase_cfg')->canEditExecuted ?? 0) > 0) {
+            return true;
+        }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Design-visible platforms NOT yet assigned to (tcase_id, tcversion_id).
+ * Mirrors legacy testcase::getFreePlatforms(): enable_on_design=1 minus the
+ * already-linked set. Returns {id: name}.
+ */
+function platformFreeList($platformsProject, $platformsAssigned) {
+    $free = [];
+    foreach ($platformsProject as $pid => $info) {
+        if (intval($info['enable_on_design'] ?? 0) === 0) {
+            continue;
+        }
+        if (!isset($platformsAssigned[$pid])) {
+            $free[$pid] = $info['name'];
+        }
+    }
+    return $free;
+}
+
+/** Whether a tcversion already has executions (drives platform edit gating). */
+function versionHasExecutions($dbHandler, $tcversionId) {
+    $tables = tlObjectWithDB::getDBTables(array('executions'));
+    $row = $dbHandler->fetchFirstRow(
+        "SELECT id FROM {$tables['executions']} " .
+        "WHERE tcversion_id = " . intval($tcversionId) . " LIMIT 1");
+    return !is_null($row) && isset($row['id']);
+}
+
+/**
+ * Resolve a tcversion id for a given test case id (defaults to the latest
+ * version). Used by the add/remove platform write actions.
+ */
+function resolveTcversionForPlatform($dbHandler, $tcaseId, $tcversionId) {
+    if (intval($tcversionId) > 0) {
+        $row = $dbHandler->fetchFirstRow(
+            " SELECT TCV.id, TCV.is_open, TCV.active FROM " .
+            tlObjectWithDB::getDBTables(array('tcversions'))['tcversions'] . " TCV " .
+            " JOIN " . tlObjectWithDB::getDBTables(array('nodes_hierarchy'))['nodes_hierarchy'] . " NH " .
+            "   ON NH.id = TCV.id " .
+            " WHERE TCV.id = " . intval($tcversionId) .
+            " AND NH.parent_id = " . intval($tcaseId));
+        return $row;
+    }
+    return $dbHandler->fetchFirstRow(
+        " SELECT TCV.id, TCV.is_open, TCV.active FROM " .
+        tlObjectWithDB::getDBTables(array('tcversions'))['tcversions'] . " TCV " .
+        " JOIN " . tlObjectWithDB::getDBTables(array('nodes_hierarchy'))['nodes_hierarchy'] . " NH " .
+        "   ON NH.id = TCV.id " .
+        " WHERE NH.parent_id = " . intval($tcaseId) .
+        " ORDER BY TCV.version DESC LIMIT 1");
 }
 
 if ($action === 'tree') {
@@ -1254,6 +1390,17 @@ if ($action === 'get') {
         $projKw = [];
     }
 
+    // per-version platform assignment (gap #915): assigned platforms + the
+    // project's design-visible platforms (legacy getPlatforms / getPlatformsMap
+    // + getFreePlatforms + platforms.inc.tpl).
+    $platformsPrj = projectPlatforms($db, $tprojectId);
+    $platformsAssigned = [];
+    foreach (versionPlatformAssignments($db, $tcaseId, $tcversionId) as $pa) {
+        $platformsAssigned[$pa['id']] = $pa['name'];
+    }
+    $platformsEditable = canAssignPlatforms(
+        $user, $db, $tprojectId, intval($lvRow['is_open'] ?? 1), $executed);
+
     // design-time custom fields linked to the project (per-step/tc level)
     $customFields = [];
     try {
@@ -1334,6 +1481,10 @@ if ($action === 'get') {
         'attachments' => $attachments,
         'keywordsAssigned' => $assignedKw,
         'keywordsProject' => $projKw,
+        'platformsAssigned' => $platformsAssigned,
+        'platformsFree' => platformFreeList($platformsPrj, $platformsAssigned),
+        'platformsProject' => $platformsPrj,
+        'platformsEditable' => $platformsEditable,
         'executed' => $executed,
         'statusDomain' => tcStatusDomain(),
         'estimateDurationRequired' => isDurationRequired($tcaseCfg),
@@ -1690,6 +1841,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         }
     };
 
+    // Persist the per-version platform SET posted by the modern editors
+    // (gap #915). testcase_platforms is synced to exactly match the submitted
+    // ids - functionally identical to the legacy discrete addPlatform /
+    // removePlatform operations (addPlatforms / deletePlatforms), but in one
+    // round-trip for the inline editor's Save button.
+    $syncPlatforms = function($rawPlatforms, $tcaseId, $tcversionId, $tprojectId)
+        use ($db, $tcaseMgr) {
+        if (!is_array($rawPlatforms)) { return; }
+        $wanted = [];
+        foreach ($rawPlatforms as $pid) {
+            $pid = intval($pid);
+            if ($pid > 0) { $wanted[$pid] = true; }
+        }
+        $prj = projectPlatforms($db, $tprojectId);
+        $cur = [];
+        foreach (versionPlatformAssignments($db, $tcaseId, $tcversionId) as $pa) {
+            $cur[$pa['id']] = true;
+        }
+        $toAdd = [];
+        $toRemove = [];
+        foreach ($wanted as $pid => $ign) {
+            if (!isset($cur[$pid]) && isset($prj[$pid])
+                && intval($prj[$pid]['enable_on_design'] ?? 0) === 1) {
+                $toAdd[] = $pid;
+            }
+        }
+        foreach ($cur as $pid => $ign) {
+            if (!isset($wanted[$pid])) { $toRemove[] = $pid; }
+        }
+        if (count($toAdd)) {
+            $tcaseMgr->addPlatforms($tcaseId, $tcversionId, $toAdd);
+        }
+        if (count($toRemove)) {
+            $tcaseMgr->deletePlatforms($tcaseId, $tcversionId, $toRemove);
+        }
+    };
+
+    // -----------------------------------------------------------------------
+    // POST ?action=add_platform {tcase_id, tcversion_id, platforms:[ids]}
+    // Assign one or more project platforms to a test case VERSION (legacy
+    // tcEdit doAction=addPlatform -> testcaseCommands::addPlatform ->
+    // testcase::addPlatforms). Mirrors the platforms.inc.tpl "free_platforms"
+    // multi-select submit.
+    // -----------------------------------------------------------------------
+    if ($action === 'add_platform') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        $pRow = resolveTcversionForPlatform($db, $tcaseId, intval($body['tcversion_id'] ?? 0));
+        if (empty($pRow) || !isset($pRow['id'])) {
+            jout(['status' => 'error', 'message' => 'Test case version not found'], 404);
+        }
+        $tcversionId = intval($pRow['id']);
+
+        if (!canAssignPlatforms($user, $db, $tprojectId,
+                                intval($pRow['is_open'] ?? 1), versionHasExecutions($db, $tcversionId))) {
+            jout(['status' => 'error',
+                  'message' => 'Platform assignment is not allowed on this version '
+                    . '(frozen, executed without exec-edit right, or no edit right)'],
+                 403);
+        }
+
+        $platIds = [];
+        foreach ((array)($body['platforms'] ?? []) as $pid) {
+            if (intval($pid) > 0) { $platIds[] = intval($pid); }
+        }
+        if (!count($platIds)) {
+            jout(['status' => 'error', 'message' => 'No platforms to assign'], 400);
+        }
+
+        // only design-visible platforms of the owning project may be assigned
+        $prj = projectPlatforms($db, $tprojectId);
+        foreach ($platIds as $pid) {
+            if (!isset($prj[$pid]) || intval($prj[$pid]['enable_on_design'] ?? 0) === 0) {
+                jout(['status' => 'error',
+                      'message' => 'Platform #' . $pid . ' is not assignable in this project'], 422);
+            }
+        }
+
+        try {
+            $tcaseMgr->addPlatforms($tcaseId, $tcversionId, array_unique($platIds));
+        } catch (Throwable $e) {
+            jout(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+
+        $assignedMap = [];
+        foreach (versionPlatformAssignments($db, $tcaseId, $tcversionId) as $pa) {
+            $assignedMap[$pa['id']] = $pa['name'];
+        }
+        jout([
+            'status' => 'ok',
+            'message' => 'Platform(s) assigned',
+            'tcversion_id' => $tcversionId,
+            'platformsAssigned' => $assignedMap,
+            'platformsFree' => platformFreeList($prj, $assignedMap),
+            'platformsProject' => $prj,
+            'platformsEditable' => canAssignPlatforms($user, $db, $tprojectId,
+                intval($pRow['is_open'] ?? 1), versionHasExecutions($db, $tcversionId)),
+        ]);
+    }
+
+    // -----------------------------------------------------------------------
+    // POST ?action=remove_platform {tcase_id, tcversion_id, platform_id|tcplat_link_id}
+    // Unassign ONE platform from a test case VERSION (legacy tcEdit
+    // doAction=removePlatform -> testcaseCommands::removePlatform ->
+    // testcase::deletePlatformsByLink(testcase_platforms.id)).
+    // -----------------------------------------------------------------------
+    if ($action === 'remove_platform') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        if ($tcaseId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        $pRow = resolveTcversionForPlatform($db, $tcaseId, intval($body['tcversion_id'] ?? 0));
+        if (empty($pRow) || !isset($pRow['id'])) {
+            jout(['status' => 'error', 'message' => 'Test case version not found'], 404);
+        }
+        $tcversionId = intval($pRow['id']);
+
+        if (!canAssignPlatforms($user, $db, $tprojectId,
+                                intval($pRow['is_open'] ?? 1), versionHasExecutions($db, $tcversionId))) {
+            jout(['status' => 'error',
+                  'message' => 'Platform assignment is not allowed on this version '
+                    . '(frozen, executed without exec-edit right, or no edit right)'],
+                 403);
+        }
+
+        $platId = intval($body['platform_id'] ?? 0);
+        $linkId = intval($body['tcplat_link_id'] ?? 0);
+        if ($platId > 0) {
+            $tcaseMgr->deletePlatforms($tcaseId, $tcversionId, $platId);
+        } elseif ($linkId > 0) {
+            $tcaseMgr->deletePlatformsByLink($tcaseId, $linkId);
+        } else {
+            jout(['status' => 'error', 'message' => 'Missing platform_id or tcplat_link_id'], 400);
+        }
+
+        $prj = projectPlatforms($db, $tprojectId);
+        $assignedMap = [];
+        foreach (versionPlatformAssignments($db, $tcaseId, $tcversionId) as $pa) {
+            $assignedMap[$pa['id']] = $pa['name'];
+        }
+        jout([
+            'status' => 'ok',
+            'message' => 'Platform removed',
+            'tcversion_id' => $tcversionId,
+            'platformsAssigned' => $assignedMap,
+            'platformsFree' => platformFreeList($prj, $assignedMap),
+            'platformsProject' => $prj,
+            'platformsEditable' => canAssignPlatforms($user, $db, $tprojectId,
+                intval($pRow['is_open'] ?? 1), versionHasExecutions($db, $tcversionId)),
+        ]);
+    }
+
     // POST ?action=suite_create {parent_id,name}
     if ($action === 'suite_create') {
         $parentId = intval($body['parent_id'] ?? 0);
@@ -1796,6 +2103,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $newTcversionId = intval($nrow['tcversion_id'] ?? 0);
         if ($newTcversionId > 0) {
             $saveDesignCF($body, $newId, $newTcversionId, $tprojectId);
+            // per-version platforms on the newly created first version
+            // (gap #915)
+            if ($newTcversionId > 0) {
+                $syncPlatforms($body['platforms'] ?? null, $newId,
+                               $newTcversionId, $tprojectId);
+            }
         }
 
         jout(['status' => 'ok', 'id' => $newId, 'message' => 'Test case created']);
@@ -1877,6 +2190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
                   'message' => strval($ret['msg'] ?? 'Update failed')], 400);
         }
         $saveDesignCF($body, $tcaseId, $tcversionId, $tprojectId);
+        $syncPlatforms($body['platforms'] ?? null, $tcaseId, $tcversionId, $tprojectId);
         jout(['status' => 'ok', 'message' => 'Test case saved',
               'tcversion_id' => $tcversionId]);
     }

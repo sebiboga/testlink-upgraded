@@ -4081,5 +4081,11 @@
   "tspec.unfrozen": "Версия разморожена",
   "tspec.activated": "Версия активирована",
   "tspec.deactivated": "Версия деактивирована",
-  "tspec.versionDeleted": "Версия удалена"
+  "tspec.versionDeleted": "Версия удалена",
+  "tcedit.platforms": "Платформы",
+  "tcedit.noPlatforms": "Платформы для этого проекта не определены",
+  "tcview.platforms": "Платформы",
+  "tspec.platforms": "Платформы",
+  "tspec.noProjPlatforms": "Платформы для этого проекта не определены",
+  "tspec.noPlatformsAssigned": "Платформы этой версии не назначены"
 }

@@ -4085,5 +4085,11 @@
   "tspec.unfrozen": "Versiune dezghețată",
   "tspec.activated": "Versiune activată",
   "tspec.deactivated": "Versiune dezactivată",
-  "tspec.versionDeleted": "Versiune ștearsă"
+  "tspec.versionDeleted": "Versiune ștearsă",
+  "tcedit.platforms": "Platforme",
+  "tcedit.noPlatforms": "Nicio platformă definită pentru acest proiect",
+  "tcview.platforms": "Platforme",
+  "tspec.platforms": "Platforme",
+  "tspec.noProjPlatforms": "Nicio platformă definită pentru acest proiect",
+  "tspec.noPlatformsAssigned": "Nicio platformă asociată acestei versiuni"
 }
