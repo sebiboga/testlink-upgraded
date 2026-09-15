@@ -375,6 +375,10 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Requirement Editor `?action=version` fallback (no `version_id` in the body)
+  copied from `latest['id']` — which `get_by_id()` exposes as the *requirement*
+  id, so `copy_version()` matched no `req_versions` row and produced empty
+  version nodes. It now uses `latest['version_id']` (Refs #1377).
 - userinfo BFF: GitHub handle was silently discarded on profile save — the #905
   `users.github` column + tlUser mapping were gutted by 8ef9694d3 (#1487) while
   the #1507 restore re-added only the BFF branch, so `$user->github` was an
