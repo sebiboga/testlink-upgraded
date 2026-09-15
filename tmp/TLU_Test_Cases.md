@@ -14991,8 +14991,11 @@ fixture `tmp/fixtures_1502.php` → tproject id 2 `IssueImportFixture` (prefix I
 | 1502.14 | ASIDE (project IIFXT active) → Test Case Design expanded | New item "Create Test Cases from Issues XML" → `/gui/templates/testcases/tcCreateFromIssues.html?tproject_id=2&tplan_id=0` | **PASS** |
 | 1502.15 | Locale switcher on the screen (EN → RO) | Header/sub/footer/labels rerender in Romanian; BFF re-requested with the new locale | **PASS** |
 | 1502.16 | Event Viewer / `events` table after the whole run | No new ERROR/WARNING rows (only GUI audit LOGIN/CREATE fixture entries) | **PASS** |
+| 1502.17 | UI switcher EN → Français (2-char `locale=fr` hint), upload new issue 106, click Import | Full French UI + server-side labels localized via the 2-char hint: result row `Anomalie/Tache:106 - Connexion lente sur Safari`, message `ok`, "Cas de test importés avec succès." (Review-fix: 2-char locale hint now maps through the configured locales, mirroring api/cfields assignLocale) | **PASS** |
+| 1502.18 | GET BFF `?action=init&tproject_id=2&containerID=4` (4 = a testcase node, not suite/project) | HTTP 400 `Container does not belong to the test project` (node-type validation on the container) | **PASS** |
+| 1502.19 | GET BFF `?action=init&tproject_id=2&containerID=13` (nonexistent node) | HTTP 400 same message | **PASS** |
 
-Result: **PASS — 16/16 PASS** — the last standalone legacy import screen
+Result: **PASS — 19/19 PASS** — the last standalone legacy import screen
 `lib/testcases/tcCreateFromIssueMantisXML.php` (Mantis bug-tracker XML → test cases) is fully
 modernized as a Dashio screen + REST BFF with byte-level legacy parity: name `Issue:<id> - <summary>`
 (server label `issue_issue`), summary = `issue_description` + optional `issue_steps_to_reproduce` /

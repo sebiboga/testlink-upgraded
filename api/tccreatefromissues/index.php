@@ -14,8 +14,10 @@
  *     description (+ steps_to_reproduce + additional_information), external id
  *     = the bug id, execution type MANUAL, importance MEDIUM
  *   - duplicate external ids owned by another suite are rejected (legacy
- *     hit_with_same_external_ID + path message); within the same container the
- *     testcase::create() duplicate-name auto-rename path applies
+ *     hit_with_same_external_ID + path message); duplicate NAMES inside the
+ *     same container are allowed exactly like legacy (testcase::create called
+ *     with check_duplicate_name + action_on_duplicate_name = null, which
+ *     overrides the 'generate_new' default — no rename happens)
  *   - the issue field labels (issue_issue, issue_description, ...) are served
  *     in the client locale (legacy used the session locale)
  *
@@ -57,13 +59,32 @@ function tcfi_intParam($key, $default = 0) {
     return is_numeric($v) ? intval($v) : $default;
 }
 
-/** Resolve a supported client locale hint; null keeps the session locale. */
+/**
+ * Resolve the client locale hint (2-char short code like the TLi18n switcher
+ * produces, or a full xx_YY flag) against the configured TestLink locales so
+ * server-side labels come back in the language the user picked. Returns null
+ * when the client says nothing / the code is unknown (session locale then).
+ * Mirrors api/cfields assignLocale() and keeps 5-char parity with the legacy.
+ */
 function tcfi_locale() {
-    $loc = trim(strval($_REQUEST['locale'] ?? ''));
-    if ($loc === '' || !preg_match('/^[a-z]{2}_[A-Z]{2}$/', $loc)) {
+    $hint = trim(strval($_REQUEST['locale'] ?? ''));
+    if ($hint === '') {
         return null;
     }
-    return $loc;
+    $codes = (array) config_get('locales');
+    if (preg_match('/^[a-z]{2}_[A-Z]{2}$/', $hint)) {
+        return (isset($codes[$hint])) ? $hint : null;
+    }
+    $short = preg_replace('/[^a-z]/', '', strtolower($hint));
+    if ($short === '' || strlen($short) !== 2) {
+        return null;
+    }
+    foreach (array_keys($codes) as $code) {
+        if (strpos(strtolower($code), $short) === 0) {
+            return $code;
+        }
+    }
+    return null;
 }
 
 /**
@@ -72,16 +93,22 @@ function tcfi_locale() {
  * Mirrors the legacy containerID semantics (container or project).
  */
 function tcfi_resolveContainer($db, $tprojectId, $containerId) {
-    $tables = tlObjectWithDB::getDBTables(['nodes_hierarchy']);
+    $tables = tlObjectWithDB::getDBTables(['nodes_hierarchy', 'node_types']);
     $projId = intval($tprojectId);
     $orig = intval($containerId);
     $row = $db->get_recordset(
-        "SELECT id, parent_id, name FROM {$tables['nodes_hierarchy']} " .
-        "WHERE id = " . intval($orig));
+        "SELECT nh.id, nh.parent_id, nh.name, nt.description AS node_type " .
+        "FROM {$tables['nodes_hierarchy']} nh " .
+        "JOIN {$tables['node_types']} nt ON nt.id = nh.node_type_id " .
+        "WHERE nh.id = " . intval($orig));
     if (is_null($row) || count($row) !== 1) {
         return null;
     }
     $origName = strval($row[0]['name']);
+    $origType = strval($row[0]['node_type']);
+    if (!in_array($origType, ['testproject', 'testsuite'], true)) {
+        return null;
+    }
     $cur = $orig;
     $visited = [];
     for ($hops = 0; $hops < 64; $hops++) {
@@ -266,6 +293,8 @@ if ($action === 'init') {
     ]);
     if ($prevLocale !== null) {
         $_SESSION['locale'] = $prevLocale;
+    } else {
+        unset($_SESSION['locale']);
     }
 
     tcfi_out([
@@ -370,6 +399,8 @@ if ($action === 'import') {
     ]);
     if ($prevLocale !== null) {
         $_SESSION['locale'] = $prevLocale;
+    } else {
+        unset($_SESSION['locale']);
     }
 
     $cleanExit = false;

@@ -66,6 +66,13 @@ against the requested `tproject_id`.
   `Anomalie/Tache:104 - …`, `Étapes pour reproduire`).
 - No keywords/custom fields/requirements in a bug-tracker export — the legacy
   branches for those data sources were out of scope of this screen.
+- Two documented deviations from the legacy byte-for-byte behavior (both
+  improvements): (1) `tc_external_id` is set to the bug id — the legacy
+  hardcoded `externalid => null`, so reimporting the same file into another
+  suite is now correctly blocked (`hit_with_same_external_ID`) instead of
+  silently creating duplicates with null external ids; (2) values are trimmed
+  and the `steps_to_reproduce` / `additional_information` sections are omitted
+  when empty (the legacy appended the label even for empty elements).
 
 ## 4. i18n Keys
 
@@ -96,7 +103,7 @@ other locales fall back through `lang_get` like the legacy did).
 
 ## 6. Testing
 
-Suite `#1502` in `tmp/TLU_Test_Cases.md`: 16/16 PASS — pristine import (name,
+Suite `#1502` in `tmp/TLU_Test_Cases.md`: 19/19 PASS — pristine import (name,
 summary structure, external id, MANUAL/medium, node order), container =
 project, foreign-container 400, unknown-project 404, duplicate external-id
 block with the legacy path message, malformed XML 422, wrong root 422,

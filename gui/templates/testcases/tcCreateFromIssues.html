@@ -142,7 +142,7 @@ function load() {
       $('#projLine').text(r.tproject.name);
       $('#contLine').text(r.container.name +
         (r.container.isProject ? '' : ' (' + esc(TLi18n.t('tcfi.suite')) + ')'));
-      $('#ctxLine').text(esc(r.tproject.name) + ' / ' + esc(r.container.name));
+      $('#ctxLine').text(r.tproject.name + ' / ' + r.container.name);
       var kb = Math.max(1, Math.round(r.maxUploadBytes / 1024));
       $('#sizeHint').text(TLi18n.t('tcfi.sizeHint', 'max file size: {0} KB').replace('{0}', kb));
       $('#feedback').fadeOut(150);
