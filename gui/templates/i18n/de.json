@@ -2009,6 +2009,7 @@
   "reqe.saveError": "Anforderung konnte nicht gespeichert werden",
   "reqe.saved": "Anforderung gespeichert",
   "reqe.scope": "Umfang / Beschreibung",
+  "reqe.showEventHistory": "Ereignisverlauf anzeigen",
   "reqe.spec": "Spezifikation",
   "reqe.status": "Status",
   "reqe.stayHere": "Nach dem Speichern weitere Anforderungen erstellen",

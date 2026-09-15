@@ -2009,6 +2009,7 @@
   "reqe.saveError": "Échec de l'enregistrement de l'exigence",
   "reqe.saved": "Exigence enregistrée",
   "reqe.scope": "Portée / Description",
+  "reqe.showEventHistory": "Afficher l'historique des événements",
   "reqe.spec": "Spécification",
   "reqe.status": "Statut",
   "reqe.stayHere": "Cocher pour créer une autre exigence après enregistrement",

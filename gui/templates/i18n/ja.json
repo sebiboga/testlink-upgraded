@@ -2015,6 +2015,7 @@
   "reqe.saveError": "要件の保存に失敗しました",
   "reqe.saved": "要件を保存しました",
   "reqe.scope": "スコープ / 説明",
+  "reqe.showEventHistory": "イベント履歴を表示",
   "reqe.spec": "仕様",
   "reqe.status": "ステータス",
   "reqe.stayHere": "保存後に別の要件を作成",

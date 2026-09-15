@@ -83,6 +83,10 @@ function canView($user, $db, $tproject_id) {
 function canManage($user, $db, $tproject_id) {
     return $user->hasRight($db, 'mgt_modify_req', $tproject_id);
 }
+/** Legacy reqEdit.php:299 grants->mgt_view_events — gates the event-history icon. */
+function canViewEvents($user, $db, $tproject_id) {
+    return $user->hasRight($db, 'mgt_view_events', $tproject_id);
+}
 
 /** Resolve + authorize the test project in context (query string or body). */
 function needTprojectId() {
@@ -293,7 +297,8 @@ if ($method === 'GET' && $action === 'form') {
              'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
              'last_doc_id' => $lastDoc['last_doc_id'],
              'rights' => ['view' => canView($user, $db, $tproject_id),
-                          'manage' => canManage($user, $db, $tproject_id)]]);
+                          'manage' => canManage($user, $db, $tproject_id),
+                          'canViewEvents' => (bool)canViewEvents($user, $db, $tproject_id)]]);
     }
 
     // create mode: require a spec in project
@@ -331,7 +336,8 @@ if ($method === 'GET' && $action === 'form') {
          'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
          'last_doc_id' => $lastDoc['last_doc_id'],
          'rights' => ['view' => canView($user, $db, $tproject_id),
-                      'manage' => canManage($user, $db, $tproject_id)]]);
+                      'manage' => canManage($user, $db, $tproject_id),
+                      'canViewEvents' => (bool)canViewEvents($user, $db, $tproject_id)]]);
 }
 
 // ------------------------------------------------------------------ save ---

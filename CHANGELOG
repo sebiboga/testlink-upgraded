@@ -121,7 +121,9 @@ Requirements:
 - Requirement Import (reqImport.html) - BFF api/reqimport (#1292).
 - Requirement Export (reqExport.html) - BFF api/reqexport (#1295).
 - Requirement Viewer (reqView.html) - BFF api/requirements (#1297-#1306).
-- Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384, #1377).
+- Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384, #1377,
+  #1378 event-history icon in edit mode gated on mgt_view_events, opens modern
+  eventviewer.html object-scoped to the requirement).
 - Requirement Version Compare (reqCompare.html) - BFF api/reqcompare (#1017,
   #1308-#1311).
 - Requirement Document Print (printDocument.html).

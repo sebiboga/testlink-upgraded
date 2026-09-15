@@ -40,6 +40,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
 | Create New Version (edit) | `doAction=doCreateVersion` → `create_new_version()` (reqCommands.class.php:609): copy the ENTIRE source version (scope/status/type/expected_coverage/custom fields/attachments/TC links), set `log_message` from the `ask4log()` prompt, freeze the source when `req_cfg->freezeREQVersionOnNewREQVersion` (default TRUE) and notify monitors (`notify=true`) | **same (Refs #1377)** — `POST ?action=version` now calls `requirement_mgr::create_new_version()`; the screen prompts for a log message (`reqe.newVersionPrompt`) and passes the editor's selected `version_id` as the copy source |
 | Insert last doc id (create) | icon next to Document ID fills it with the project's last `req_doc_id` (config `allow_insertion_of_last_doc_id`) | BFF form response carries `allow_insert_last_doc_id` + `last_doc_id`; a teal insert icon is rendered in create mode only and one-click fills the field (Refs #1379) |
+| Event history (edit) | `question.gif` icon next to Document ID (right `mgt_view_events` + req_id set) opens `eventviewer.php` object-scoped to the requirement | fa-history icon in the Document ID input group (edit mode + `rights.canViewEvents`) opens `eventviewer.html?object_id=&object_type=requirements` in a new tab (Refs #1378) |
 | Cancel | return to caller | returns without any DB write |
 
 ## 2. REST API Reference
@@ -97,6 +98,19 @@ form with the new id/version.
   with `window.prompt(TLi18n.t('reqe.newVersionPrompt'))` (revision-log
   pattern); Cancel aborts without a request. Related PHP 8 E_WARNINGs in the
   legacy `copy_version()` chain fixed in issue #1513.
+- **Event-history icon (Refs #1378):** legacy `reqEdit.tpl:287-292` renders a
+  `question.gif` next to Document ID calling
+  `showEventHistoryFor(req_id,'requirements')` when the user holds the
+  `mgt_view_events` right and a requirement is being edited (mode with
+  `$gui->req_id` set). The modern screen keeps full parity: the BFF `form`
+  responses expose `rights.canViewEvents` (computed via
+  `hasRight('mgt_view_events')`, mirrors `lib/requirements/reqEdit.php:299`),
+  and the HTML renders a FontAwesome history icon in the Document ID input group
+  **only when** `mode==='edit' && canViewEvents`. Clicking submits the hidden
+  `#eventhistory` GET form (target=_blank) to
+  `gui/templates/eventviewer/eventviewer.html?object_id=<req_id>&
+  object_type=requirements`, opening the modern event viewer object-scoped to
+  the requirement — same target/new-tab behaviour as the legacy helper.
 
 ## 4. i18n Keys
 
@@ -105,7 +119,8 @@ All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
 `reqe.newVersion`, `reqe.newVersionPrompt` (create-new-version log prompt,
 Refs #1377), `reqe.spec`, `reqe.version`, `reqe.detailHeader`,
-`reqe.insertLastDocId` (insert-last-doc-id tooltip), and
+`reqe.insertLastDocId` (insert-last-doc-id tooltip),
+`reqe.showEventHistory` (event-history icon tooltip), and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -141,6 +156,15 @@ icon, edit mode hides it, config-DISABLED hides it, duplicate doc id guard,
 locale switch, Event Viewer cleanliness.
 
 ![Insert last doc id helper](screenshots/issue-1379-reqedit-insert-last-docid.png)
+
+**Event-history icon** — see **Task — Issue #1378** in `tmp/TLU_Test_Cases.md`
+(9/9 PASS): BFF `canViewEvents` in edit + create payloads (admin=true,
+restricted user=false), icon visible in edit mode, opens the object-scoped
+event viewer in a new tab, icon hidden in create mode and without
+`mgt_view_events`, i18n integrity, Event Viewer cleanliness.
+
+![Event-history icon](screenshots/issue-1378-reqedit-event-history-icon.png)
+![Event viewer filtered to the requirement](screenshots/issue-1378-eventviewer-requirements.png)
 
 See also **Task #1380 — unsaved-changes warning** suite (8/8 PASS): the modern
 screen now installs the legacy `checkmodified.js` `beforeunload` guard (BUGID 4153

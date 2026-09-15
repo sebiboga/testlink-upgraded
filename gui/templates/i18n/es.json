@@ -2009,6 +2009,7 @@
   "reqe.saveError": "No se pudo guardar el requisito",
   "reqe.saved": "Requisito guardado",
   "reqe.scope": "Alcance / Descripción",
+  "reqe.showEventHistory": "Ver historial de eventos",
   "reqe.spec": "Especificación",
   "reqe.status": "Estado",
   "reqe.stayHere": "Marcar para crear otro requisito después de guardar",

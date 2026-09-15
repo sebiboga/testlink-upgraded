@@ -2015,6 +2015,7 @@
   "reqe.saveError": "Eroare la salvarea cerinței",
   "reqe.saved": "Cerință salvată",
   "reqe.scope": "Domeniu / Descriere",
+  "reqe.showEventHistory": "Arată istoricul evenimentelor",
   "reqe.spec": "Specificație",
   "reqe.status": "Stare",
   "reqe.stayHere": "Bifează pentru a crea o altă cerință după salvare",

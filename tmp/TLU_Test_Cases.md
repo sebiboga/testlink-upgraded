@@ -15198,3 +15198,33 @@ Fixes #1510.
 - Re-verified: form-encoded/JSON bodies, explicit version_id, no version_id (fallback), browser
   prompt create (v10) → type=Feature, coverage=5, log verbatim, source frozen, is_open on new.
 - RESULT: PASS (all paths), events table 0 Error/Warning.
+
+## Task — Issue #1378: reqEdit event-history icon (gap vs legacy, Refs #798)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form` action,
+`rights.canViewEvents`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin; fixture via direct SQL: tproject id 100 `Agent QA Project`, req spec id 110 `Spec One`,
+requirement id 120 `REQ-1` (version 121), one AUDIT event row (`object_id=120`,
+`object_type='requirements'`, "Requirement REQ-1 created"); restricted user `ednoev` (role 99
+`req_editor_no_events` = mgt_view_req + mgt_modify_req, NO mgt_view_events).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1378.1 | GET BFF `?action=form&id=120&tproject_id=100` (admin) | `{status:ok}`, `rights.canViewEvents === true` | **PASS** |
+| 1378.2 | GET BFF `?action=form&spec_id=110&tproject_id=100` (admin, create) | `{status:ok}`, `rights.canViewEvents === true` | **PASS** |
+| 1378.3 | GET BFF `?action=form&id=120&tproject_id=100` as `ednoev` | `rights.canViewEvents === false` (mgt_view_events absent) | **PASS** |
+| 1378.4 | Open `reqEdit.html?id=120&tproject_id=100` as admin | `#btnEventHistory` visible, title "Show event history"; hidden form `#eventhistory` action=`/gui/templates/eventviewer/eventviewer.html`, `object_type=requirements` | **PASS** |
+| 1378.5 | Click `#btnEventHistory` | New tab `eventviewer.html?object_id=120&object_type=requirements` opens, banner "Filtered by requirements #120", table shows the seeded event | **PASS** |
+| 1378.6 | Open `reqEdit.html?spec_id=110&tproject_id=100` as admin (create mode) | `#btnEventHistory` HIDDEN (legacy requires `$gui->req_id`) | **PASS** |
+| 1378.7 | Open `reqEdit.html?id=120&tproject_id=100` as `ednoev` (edit, no right) | Form loads REQ-1 read-only but `#btnEventHistory` HIDDEN | **PASS** |
+| 1378.8 | `python3 -m json.tool` on all 10 i18n bundles | Valid JSON; `reqe.showEventHistory` present in all 10 | **PASS** |
+| 1378.9 | Event Viewer / `events` table after the whole run | No new ERROR/WARNING rows (only the seeded AUDIT + pre-existing DEBUG/L18N) | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the legacy event-history entry point is back on the modern
+reqEdit screen: the BFF `form` payload now exposes `rights.canViewEvents`
+(`hasRight('mgt_view_events')`, mirrors `lib/requirements/reqEdit.php:299`), and the HTML
+renders the fa-history icon in the Document ID control only in edit mode + right granted
+(legacy reqEdit.tpl:288 condition), opening the modern event viewer object-scoped to the
+requirement (same target as `showEventHistoryFor(req_id,'requirements')`). i18n
+`reqe.showEventHistory` added in all 10 client bundles. Refs #1378.

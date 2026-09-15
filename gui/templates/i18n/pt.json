@@ -2015,6 +2015,7 @@
   "reqe.saveError": "Falha ao salvar o requisito",
   "reqe.saved": "Requisito salvo",
   "reqe.scope": "Escopo / Descrição",
+  "reqe.showEventHistory": "Mostrar histórico de eventos",
   "reqe.spec": "Especificação",
   "reqe.status": "Estado",
   "reqe.stayHere": "Selecione para criar um novo requisito após salvar",

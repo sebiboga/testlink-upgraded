@@ -2015,6 +2015,7 @@
   "reqe.saveError": "保存需求失败",
   "reqe.saved": "需求已保存",
   "reqe.scope": "范围 / 描述",
+  "reqe.showEventHistory": "显示事件历史",
   "reqe.spec": "规格",
   "reqe.status": "状态",
   "reqe.stayHere": "若选中，保存后会再建立一份产品需求",

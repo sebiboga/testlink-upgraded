@@ -67,6 +67,8 @@ textarea.form-control { height: auto; min-height: 120px; }
             <input type="text" id="reqDocId" class="form-control" maxlength="64">
             <span id="insertLastDocIdBtn" class="input-group-addon lastdoc-btn" style="display:none;"
                   title="" onclick="insertLastDocId()"><i class="fa fa-mouse-pointer"></i></span>
+            <span id="btnEventHistory" class="input-group-addon lastdoc-btn" style="display:none;"
+                  title="" onclick="showEventHistory()"><i class="fas fa-history"></i></span>
           </div>
         </div>
       </div>
@@ -111,6 +113,11 @@ textarea.form-control { height: auto; min-height: 120px; }
 
 <div class="footer"><span id="footerText">TestLink 2.0.1 - Requirement Editor</span></div>
 
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="requirements">
+</form>
+
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
@@ -123,6 +130,7 @@ var MODE = 'create';
 var OPTIONS = null;
 var CURRENT = null;
 var CAN_MANAGE = false;
+var CAN_VIEW_EVENTS = false;
 
 function fillSelect($sel, map, selected) {
   $sel.empty();
@@ -177,6 +185,14 @@ function doBeforeUnload(e) {
 
 window.onbeforeunload = doBeforeUnload;
 
+/* Legacy parity: reqEdit.tpl showEventHistoryFor(req_id,'requirements') opens
+   the event viewer for the requirement in a new tab (mgt_view_events). */
+function showEventHistory() {
+  if (!REQ_ID) { return; }
+  $('#eh_object_id').val(REQ_ID);
+  $('#eventhistory').submit();
+}
+
 function goBack() {
   show_modified_warning = false;
   if (window.history.length > 1) { window.history.back(); }
@@ -218,6 +234,13 @@ function loadForm() {
 resetModified();
     var canManage = r.rights && r.rights.manage;
     CAN_MANAGE = !!canManage;
+    CAN_VIEW_EVENTS = !!(r.rights && r.rights.canViewEvents);
+    /* Legacy reqEdit.tpl:288: event-history icon shown only on edit mode AND
+       mgt_view_events right. */
+    $('#btnEventHistory').toggle(MODE === 'edit' && CAN_VIEW_EVENTS);
+    if (MODE === 'edit' && CAN_VIEW_EVENTS) {
+      $('#btnEventHistory').attr('title', TLi18n.t('reqe.showEventHistory'));
+    }
     if (MODE === 'edit') {
       $('#newVersionBtn').show();
       if (!canManage) {

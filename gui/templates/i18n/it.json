@@ -2009,6 +2009,7 @@
   "reqe.saveError": "Errore nel salvataggio del requisito",
   "reqe.saved": "Requisito salvato",
   "reqe.scope": "Ambito / Descrizione",
+  "reqe.showEventHistory": "Mostra cronologia eventi",
   "reqe.spec": "Specifica",
   "reqe.status": "Stato",
   "reqe.stayHere": "Seleziona per creare un altro requisito dopo il salvataggio",
