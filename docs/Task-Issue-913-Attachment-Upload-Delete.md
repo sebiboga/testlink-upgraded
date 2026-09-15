@@ -153,3 +153,23 @@ attachments could be viewed was the legacy `tcView.html` (read-only) and
 - `gui/templates/i18n/{en,de,es,fr,it,ja,pt,ro,ru,zh}.json`
 - `CHANGELOG`
 - `docs/Task-Issue-913-Attachment-Upload-Delete.md`
+
+## Merge note (2026-09-15)
+
+Local commit `492b8280c` was merged with `origin/sebiboga` (`8038f9670`).
+Remote work integrated alongside: #1507 BFF API/template restores, #1380
+reqEdit unsaved-changes guard, #1382/#1379 reqEdit helpers, #908 status
+field, #911 estimated duration, #912 assign-requirements.
+
+Conflict resolution (all merged without regression):
+- `CHANGELOG`: kept our #906/#907/#913 Test Spec sub-bullets.
+- 10 i18n bundles: union merge (remote keys + our 12 `tspec.att*` keys).
+- `testSpec.html`: our version (already a superset: step editor + exec
+  types, CF design-time editing, attachments) + ported the remote's
+  **assign-requirements** feature (arq modal, arq* API helpers, CSS,
+  renderTcView button gated on `reqEnabled` + `req_tcase_link_management`).
+- `tmp/TLU_Test_Cases.md`: kept our #913 section + remote's 68 sections.
+
+Runtime re-verified after merge: spec editor loads with Attachments upload
+controls + CF typed inputs + step editor intact, assign-requirements modal
+present in DOM, no JS errors.
