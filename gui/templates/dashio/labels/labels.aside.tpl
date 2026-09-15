@@ -20,7 +20,7 @@ Testlink Open Source Project - http://testlink.sourceforge.net/
    href_nfr_performance,href_nfr_security,href_nfr_usability,href_nfr_accessibility,href_nfr_compatibility,href_nfr_reliability,href_nfr_maintainability,
    current_test_plan,ok,testplan_role,msg_no_rights_for_tp,
    href_tc_import,href_tc_create_from_issues,btn_report_test_automation,
-   title_test_execution,href_execute_test,href_rep_and_metrics,
+   title_test_execution,href_execute_test,href_exec_dashboard,href_rep_and_metrics,
    href_update_tplan,href_newest_tcversions,title_plugins,
    href_my_testcase_assignments,href_platform_assign,
    href_tc_exec_assignment,href_plan_assign_urgency,

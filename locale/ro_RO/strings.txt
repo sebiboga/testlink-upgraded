@@ -120,6 +120,7 @@ $TLS_href_plan_assign_urgency = 'Setează teste urgente';
 $TLS_href_tc_exec_assignment = 'Atribuire execuție cazuri de test';
 $TLS_title_test_execution = 'Execuție teste';
 $TLS_href_execute_test = 'Execută teste';
+$TLS_href_exec_dashboard = "Panou de execuție"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = 'Acces execuție teste (doar citire)';
 $TLS_href_my_testcase_assignments = 'Cazuri de test atribuite mie';
 $TLS_href_rep_and_metrics = 'Rapoarte și metrici de test';

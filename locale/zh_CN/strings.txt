@@ -2505,6 +2505,7 @@ $TLS_info_search_req_spec = '此列表显示匹配搜索条件的需求规范.<b
 $TLS_href_add_remove_test_cases = "添加/删除测试用例到测试计划";
 $TLS_href_build_new = "版本管理";
 $TLS_href_execute_test = "执行测试";
+$TLS_href_exec_dashboard = "执行仪表盘"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Access Execute Tests RO";
 $TLS_href_metrics_dashboard = "进度仪表盘";
 $TLS_href_newest_tcversions = "显示最新的测试用例版本";

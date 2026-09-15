@@ -2343,6 +2343,7 @@ $TLS_info_search_req_spec = "Cette liste affiche les exigences correspondant aux
 $TLS_href_add_remove_test_cases = "Ajout de fiches de test";
 $TLS_href_build_new = "Gestion des versions du produit";
 $TLS_href_execute_test = "Gestion des exécutions";
+$TLS_href_exec_dashboard = "Tableau de bord d’exécution"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Visualisation des exécutions";
 $TLS_href_metrics_dashboard = "Tableau de bord des métriques";
 $TLS_href_newest_tcversions = "Affichage nouvelles versions des fiches de test disponibles";

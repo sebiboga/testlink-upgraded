@@ -2097,6 +2097,14 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id > 0) {
     $actions->executeTest =
       "/gui/templates/execute/execTest.html?{$ctx}";
+    // Execution Dashboard (modernized execDashboard.php landing pane, Refs
+    // #1496, #1511). Standalone Dashio page fed by api/execdashboard; resolves
+    // the current execution context (tplan/build/platform) with the same legacy
+    // precedence and exposes the REST argument triplet used by the toolbar.
+    // Restored: the ASIDE entry + this action were regressively dropped by
+    // 8ef9694d3 (Refs #1511).
+    $actions->execDashboard =
+      "/gui/templates/execute/execDashboard.html?{$ctx}";
     // Execution Export popup (modernized execExport.php, BUGID 3421) - Refs
     // #1024. Opens as a standalone Dashio page fed by api/executeexport.
     $actions->execExport =

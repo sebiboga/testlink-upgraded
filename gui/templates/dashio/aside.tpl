@@ -308,6 +308,17 @@ Left side menu
                     {$lbx = $labels.href_exec_ro_access}
                   {/if}
 
+                  {* Execution Dashboard (modernized execDashboard.php landing
+                     pane, Refs #1496, #1511): $actions->execDashboard is set
+                     when a test plan is in context (same guard as
+                     executeTest); the entry shows for any execution-right
+                     holder. Restored: dropped by 8ef9694d3 (Refs #1511). *}
+                  {if $gui->uri->execDashboard != null
+                      && ($menuGrants->testplan_execute == "yes"
+                          || $menuGrants->exec_ro_access == "yes")}
+                    <li><a href="{$gui->uri->execDashboard}" target="mainframe"><i class="fas fa-tachometer-alt"></i> {$labels.href_exec_dashboard}</a></li>
+                  {/if}
+
                   {if $gui->uri->executeTest != null}
                     <li><a href="{$gui->uri->executeTest}" target="mainframe">
                     {$lbx}</a></li>
