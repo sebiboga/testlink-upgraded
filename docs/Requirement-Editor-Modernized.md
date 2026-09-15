@@ -137,3 +137,14 @@ BFF create form resolves `requirement_template` for types `string` / `string_id`
 exposes `template_body`, the create screen pre-fills the Scope textarea on load,
 edit mode stays template-free, stay_here reset re-applies the scaffold, saved
 scope persists the template body, Event Viewer + console clean.
+
+See also **Task #1380 — unsaved-changes warning** suite (8/8 PASS): the modern
+screen now installs the legacy `checkmodified.js` `beforeunload` guard (BUGID 4153
+parity). Dirty edits to any field (`scope`, `title`, doc id, `status`, `type`,
+expected coverage) flip `content_modified` and navigating away / closing the page
+fires the native "You have unsaved changes. Are you sure you want to leave?"
+confirmation. Save success and the Cancel button suppress the warning (a deliberate
+navigation), and `loadForm()`/version-switch reloads reset the dirty flag so
+programmatic filling never warns. i18n key `reqe.unsavedWarning` added to all 10
+client locale bundles (native translations, same text as `tcedit.unsavedWarning`).
+Event Viewer + console clean.
