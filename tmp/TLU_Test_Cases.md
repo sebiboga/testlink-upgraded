@@ -15189,3 +15189,27 @@ persistence (`tlUser` mapping + `users.github` column) while the #1507 restore r
 branch, so `$user->github` was an unwritten dynamic property. Fix restored the column (3 seeds + 2.0.0
 alter tables) and the full tlUser read/write mapping; verified error-free, Event Viewer clean.
 Fixes #1510.
+
+## Regression — Issue #1513: 2x E_WARNING 'Undefined property stdClass::$freezeLinkOnNewReqVersion' in requirement_mgr::copy_version
+
+**Screen:** `copy_version()` path inside `lib/functions/requirement_mgr.class.php` (`create_new_version()`), exercised via CLI harness replicating the BFF bootstrap and via the modern `gui/templates/requirements/reqEdit.html`.
+**Precondition:** TestLink 2.0.1 at http://localhost:8082; MariaDB 127.0.0.1:3306; fixtures: project 1000/PROJ (option_reqs), reqs specs 1001, requirement 1002/REQ-001 with versions; browser login admin/admin. Branch `fix/issue-1513`.
+
+**Pre-fix repro (bug):** CLI `requirement_mgr::create_new_version(1002)` → `copy_version()` reads `$reqTCLinksCfg->freezeLinkOnNewReqVersion` (config key is `freezeLinkOnNewREQVersion`, config.inc.php:1415) → PHP 8 E_WARNING, `events` row `log_level=2 E_WARNING\nUndefined property: stdClass::$freezeLinkOnNewReqVersion ... Line 2477`. Second, masked warning (`requirement_mgr::$debugMsg`, line 2498) appears once the freeze option is honoured. Link-freeze option never ran (null).
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | CLI `create_new_version(1002)` with config `freezeLinkOnNewREQVersion=TRUE` | new req_version created, `events` table gains **0** log_level=2 rows | **PASS** |
+| 2 | Repeat (any number of invocations) | still 0 warnings, 0 errors | **PASS** |
+| 3 | With an OPEN `req_coverage` link on the source version, run `create_new_version` | source-version link flipped `link_status 1 → 4` (LINK_TC_REQ_CLOSED_BY_NEW_REQVERSION) and `is_active → 0` — option now honoured | **PASS** |
+| 4 | CLI runs while source version has NO link | no TypeError/warning; is_open=0 applied to source version (freezeSourceVersion default) | **PASS** |
+| 5 | Browser `reqEdit.html?id=1002&tproject_id=1000` → Create New Version | version bump OK (16), `events` 0 rows, console has no JS errors | **PASS** |
+| 6 | `php -l lib/functions/requirement_mgr.class.php` | No syntax errors | **PASS** |
+| 7 | `grep freezeLinkOnNewReqVersion` repo-wide | 0 hits (typo gone); `freezeLinkOnNewREQVersion` used consistently | **PASS** |
+| 8 | Event Viewer / `events` table after the whole run | no new Error/Warning entries (only the OK audit log_level=16 from login) | **PASS** |
+
+Result: **PASS — 8/8 PASS** — Root cause: legacy typo `0d10acc5e` read `freezeLinkOnNewReqVersion`
+instead of config key `freezeLinkOnNewREQVersion`; null eval also masked `requirement_mgr::$debugMsg`
+(`$this->debugMsg` typo since `cb365cd5e`, 1.9.18). Fix renamed the 3 reads (2477/2478/2487) to the real
+key and aligned `closeOpenTCVersionOnOpenLinks()` with the class-local `$debugMsg` pattern keeping the
+`/* */` SQL comment. Verified error-free, Event Viewer clean. Refs #1513.
