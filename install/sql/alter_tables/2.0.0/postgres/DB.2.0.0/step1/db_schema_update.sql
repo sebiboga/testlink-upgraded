@@ -6,3 +6,6 @@
  */
 
 /* database version update is performed in stepZ/z_final_step.sql */
+
+/* users.github (Refs #1510): GitHub account stored from the User Profile. */
+ALTER TABLE /*prefix*/users ADD COLUMN "github" VARCHAR(100) NULL;

@@ -110,6 +110,7 @@ CREATE TABLE /*prefix*/users(
   "auth_method" VARCHAR(10) NULL DEFAULT '',
   "creation_ts" timestamp NOT NULL DEFAULT now(),
   "expiration_date" date DEFAULT NULL,
+  "github" VARCHAR(100) NULL,
   PRIMARY KEY ("id")
 );
 CREATE UNIQUE INDEX /*prefix*/users_uidx1 ON /*prefix*/users ("login");

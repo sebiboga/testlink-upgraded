@@ -52,3 +52,7 @@ ALTER TABLE /*prefix*/builds
 ALTER TABLE /*prefix*/builds
   DROP KEY /*prefix*/testplan_id,
   DROP COLUMN testplan_id;
+
+/* 7. users.github (Refs #1510): GitHub account stored from the User Profile
+   screen. Additive; the tlUser read/write mapping depends on this column. */
+ALTER TABLE /*prefix*/users ADD COLUMN `github` varchar(100) NULL AFTER `expiration_date`;
