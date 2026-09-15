@@ -85,9 +85,7 @@ All labels/messages use the client-side `TLi18n` module; keys `tcfi.title`,
 `tcfi.tcRows`, `tcfi.fileSelected`, `tcfi.suite`, `footers.tcCreateFromIssues`
 are defined in ALL locale bundles (`gui/templates/i18n/*.json`: de, en, es,
 fr, it, ja, pt, ro, ru, zh). The ASIDE label `href_tc_create_from_issues`
-was added to `labels.aside.tpl` + the 7 locale `strings.txt` files that
-ship `href_tc_import` (en_GB, ro_RO, fr_FR, es_AR, pt_PT, pt_BR, it_IT;
-other locales fall back through `lang_get` like the legacy did).
+was added to `labels.aside.tpl` + all 19 locale `strings.txt` files.
 
 ## 5. Security
 
