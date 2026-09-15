@@ -14194,39 +14194,14 @@ exitCriteria.html were confirmed already translated (not part of this fix). 179 
 | 1462.14 | i18n render + Event Viewer hygiene | No raw `nfr.*`/`nfrt.*`/`ts.*` keys in DOM; locale switch to ro renders Romanian; no new Error/Warning events (audits only) | **PASS** |
 
 Result after re-run: **PASS — 14/14 PASS** (verified 2026-09-13 on the merged build @ localhost:8082).
+# Task — Issue #912: Assign Requirements in Test Specification editor + Test Case Viewer
 
-## Task — Issue #895: Dashboard "My Assigned Test Cases" widget (assigned-to-me data on mainPage)
+> STATUS: **PASS** — 10/10 PASS. Verified 2026-09-15 @ localhost:8082 (echo: seeded project id=14).
 
-> STATUS: `PASS` — 12/12 PASS, verified 2026-09-13 @ http://localhost:8082 (branch `task/issue-895`, Refs #895).
-
-**Screen:** `gui/templates/mainpage/mainPage.html` new `#secAssigned` card (DataTable: Test case w/ suite path + version, Build, Platform*, Test Plan, Priority*, Assigned on, Due, Status, Actions). **BFF:** `api/mainpage/index.php` route `GET /assigned` (port of legacy `lib/testcases/tcAssignedToUser.php` personal view via `testcase::get_assigned_to_user()`, active plans + open builds, last-execution status per build/platform) + `platform_id` always emitted; quick p/f/b icons post to `api/reports/index.php?action=quick_exec`. **i18n:** 29 new `dash.assigned*` / `dash.status*` keys in all 10 bundles.
-
-**Precondition (fresh DB, fixture `tmp/fixtures_895.php`):** project ASG895 (tproject=1, prefix A895, priority enabled) → suite "ASG Suite" → TCs "Dashboard TC One/Two/Three"; plan "ASG Dashboard Plan" (id 12) links all three; open build B895 Open (id 1), closed build B895 Closed (id 2). admin (user 1) assigned TC One + TC Two on the OPEN build, TC Three on the CLOSED build; TC Two deadline yesterday (overdue); TC One has a pre-inserted PASSED execution. Login admin/admin.
-
-| # | Step | Expected result | Result |
-|---|------|-----------------|--------|
-| 895.1 | Open Dashboard with project ASG895 selected | `#secAssigned` card "My Assigned Test Cases" renders with summary chips "2 assigned · 1 pending · 1 executed · 1 overdue" | **PASS** |
-| 895.2 | Rows content | Exactly 2 rows: "A895-1: Dashboard TC One (v.1)" + "A895-2: Dashboard TC Two (v.1)", each showing suite path "ASG Suite", build "B895 Open", plan "ASG Dashboard Plan", priority "High", assigned date | **PASS** |
-| 895.3 | TC Three (assigned on the CLOSED build) is hidden | Closed-build assignment excluded by `build_status=open` filter (legacy parity) — not in the table | **PASS** |
-| 895.4 | Status badges | TC One → "Passed", TC Two → "Not run" (colors #4ECDC4 / #8f8f8f) | **PASS** |
-| 895.5 | Due/overdue | TC Two Due column shows `9/12/2026` + red "overdue" badge; TC One shows `-` (no deadline) | **PASS** |
-| 895.6 | Quick-exec icon "Mark as Failed" on TC Two (confirm dialog accepted) | POST `action=quick_exec` → toast "Result saved"; widget reloads: TC Two status "Failed", summary "0 pending · 2 executed"; DB gains executions row (tcversion 7, status f, tester 1, build 1) | **PASS** |
-| 895.7 | Execute link (play icon) | Targets `execSetResults.html?tcase_id=6&tcversion_id=7&tplan_id=12&setting_build=1&setting_platform=0&caller=mainPage` and opens the modern Set-Results screen | **PASS** |
-| 895.8 | History + Test-case links carry the resolved project | tcView / execHistory links contain `tproject_id=1` even though the dashboard URL stays `tproject_id=0` (session-backed `g_proj_id`) | **PASS** |
-| 895.9 | BFF hardening: no project selected | `GET /assigned?tproject_id=0` → `200 {has_data:false, total:0, plans:[]}`; widget hides (`#secAssigned` display none) | **PASS** |
-| 895.10 | i18n render | All new card/labels/status strings resolve (no literal `dash.assigned*` keys); locale switch to ro translates title/summary/statuses | **PASS** |
-| 895.11 | i18n bundle validity | `python3 -m json.tool` passes on all 10 bundles; diff is add-only (no reordering) | **PASS** |
-| 895.12 | Event Viewer hygiene | `events` table shows NO new ERROR/WARNING rows after load + quick-exec; browser console has no errors | **PASS** |
-
-Result: **PASS — 12/12 PASS** — #895 implemented: dashboard now shows the logged-in user's assigned test cases (active plans, open builds) with status, priority, build/platform, due date, quick-exec and execute links, backed by the `/assigned` BFF route and 29 i18n keys in all 10 bundles.
-
-# Regression — Issue #1441: Test Strategy "Quality Objectives" chapter (tracking issue, feature verified complete)
-
-> STATUS: `**PASS**` — 6/6 PASS. Verified 2026-09-13 against http://localhost:8082 (admin/admin). Purpose: the tracking issue spec listed page/icon/ASIDE wiring/Overview-CHAPTERS/i18n keys; all were implemented on the default branch (chapters commit `f934433d7`, TLi18n-jQuery `1ee2e0501`, content-i18n for non-en/ro bundles `945679c5b`) and this suite re-verifies each spec point error-free.
-
-**Screen:** `gui/templates/strategy/objectives.html`. **BFF:** `api/strategy/index.php?action=chapters` (chapter 2 card). **Wiring:** `gui/templates/dashio/aside.tpl:142`, `lib/functions/common.php:2110`, `locale/en_US+en_GB+ro_RO/strings.txt` (`href_test_strategy_objectives`). **i18n:** `ts.objectives*` (10 keys) in all 10 bundles.
-
-**Precondition:** app @ localhost:8082, logged in admin/admin.
+**Screen:** `gui/templates/testcases/testSpec.html` (Test Specification tree/editor) + `gui/templates/testcases/tcView.html` (TC Viewer).
+**BFF:** `api/requirements/index.php` — `GET ?assign-reqspecs&tproject_id=N` (spec combo), `GET ?assign-reqs&req_spec_id=N&tcase_id=X` (free/assigned split), `POST?assign-reqs` {tcase_id, req_ids[]} (legacy `assign_to_tcase`), `POST?unassign-reqs` {link_ids[]}. `api/testcases/index.php` supplies `grants.req_tcase_link_management` + `requirementsEnabled` (via new `tprojectOpt()` tolerating array/object options blobs).
+**i18n:** new `tspec.assignRequirements` + `tcview.assignRequirements` in all 10 bundles; modal reuses existing `reqAssign.*` keys.
+**Precondition:** seeded project id=14 "Seed Project 912" (prefix T912, requirements enabled), reqspec RS-912 with requirements REQ-912-1..4 (ids 17/19/21/23), suite id=25, TC "Test Case 912" id=26 / tcversion id=27 v1. Seed: `php tmp/seed_912.php` (idempotent). admin/admin session.
 
 | # | Step | Expected | Result |
 |---|---|---|---|
@@ -14846,3 +14821,337 @@ attachment upload/delete (multipart/form-data via BFF `upload_attachment`/
 `attachments` with `fk_table='tcversions'` mirroring legacy tcEdit.php; the
 read-only view lists attachments with download links via
 `lib/attachments/attachmentdownload.php`. Refs #913.
+
+## Task — Issue #908: Test case STATUS field in Test Specification editor
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php`
+(`get`/`create`/`update`/`keywords`).
+**Precondition:** app @ http://localhost:8082, `testlink` DB @ 127.0.0.1:3306,
+admin/admin session; project "Demo Project" (id=1), suite "Authentication",
+TC "Login with valid credentials" (status initially Default/Draft).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 908.1 | Open testSpec.html?tproject_id=1 → select suite → "New Test Case Here" | Create form shows a **Status** select with the 7 workflow options; Draft selected by default | **PASS** |
+| 908.2 | Fill name "Login with valid credentials", set Status = "Ready for review", add a summary → Save | TC created; DB `tcversions.status=2` | **PASS** |
+| 908.3 | Detail view of the created TC | "Status → Ready for review" meta-item rendered | **PASS** |
+| 908.4 | Edit the TC → Status select | Form re-opens with current status "Ready for review" preselected | **PASS** |
+| 908.5 | Change Status to "Final" → Save | DB `tcversions.status=7`; `modification_ts` refreshed | **PASS** |
+| 908.6 | Detail view after save | "Status → Final" shown | **PASS** |
+| 908.7 | Reload with `?locale=ro` → open editor | Status select shows 7 Romanian labels (Ciornă, Pentru review, Review în curs, Reproiectare, Învechit, Viitor, Final); field label localized "Status" | **PASS** |
+| 908.8 | Browser console during create/edit/detail | No JS errors; only pre-existing a11y hint | **PASS** |
+| 908.9 | Event Viewer (`events` table) after all actions | No new ERROR/WARNING rows (row 1 login audit, row 2 project-created audit) | **PASS** |
+
+Result: **PASS — 9/9 PASS** — the testSpec.html editor now has the legacy
+Status workflow field on create + update, persists it to `tcversions.status`
+via the BFF, shows it in the detail view, and localizes all 7 statuses plus
+the field label across the 10 bundles. Refs #908.
+
+## Task — Issue #1382: reqEdit — open/edit a specific requirement version (req_version_id)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form`/`save`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin, project REPRO (id 1) with fixture RE-1 (req id 4: v1 = req_version_id 5
+`Original scope paragraph one.`, v2 = req_version_id 6 `Updated scope from v2.`) and RE-2 (id 7,
+single version id 8) as single-version control.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1382.1 | Open `reqEdit.html?id=4&tproject_id=1&req_version_id=5` | Editor opens v1: selector shows `v1r1` selected, scope = `Original scope paragraph one.` (NOT latest) | **PASS** |
+| 1382.2 | Open `reqEdit.html?id=4&tproject_id=1` (no version arg) | Editor opens the LATEST version (v2 `Updated scope from v2.`), selector present, chip=2 | **PASS** |
+| 1382.3 | RE-1 (2 versions) shows version selector | `#versionSelect` visible with options `v2r1`, `v1r1` | **PASS** |
+| 1382.4 | RE-2 (1 version) shows no selector | `#versionSelect` hidden, `#versionChip` visible | **PASS** |
+| 1382.5 | Change selector to `v2r1` | Scope reloads to `Updated scope from v2.`; `window.CURRENT_VERSION_ID` = 6 | **PASS** |
+| 1382.6 | Select `v1r1`, edit scope, click Save | DB: req_versions id 5 (v1) scope updated; id 6 (v2) untouched | **PASS** |
+| 1382.7 | POST save RE-2 with NO `version_id` | Targets its only version (id 8), update ok | **PASS** |
+| 1382.8 | POST save create new RE-3 | Create still works (regression), id returned | **PASS** |
+| 1382.9 | `form?action=form&id=4&version_id=9999` | HTTP 404, `Requirement version not found` | **PASS** |
+| 1382.10 | BFF form response shape | Contains `version_id`, `is_latest`, `versions[]` (id/version/revision/status/is_open), `show_version_selector` | **PASS** |
+| 1382.11 | Event Viewer / `events` table after all tests + browser console | 0 ERROR/WARNING rows; no JS errors (only a11y hint) | **PASS** |
+
+Result: **PASS — 11/11 PASS** — reqEdit.html can now open and edit ANY specific
+requirement version: the BFF `form` route honours `req_version_id`/`version_id`
+(returns the selected version deterministically plus the full `versions` list),
+the BFF `save` route targets the submitted `version_id` (fallback: latest), and
+the editor renders a `Select version` dropdown when a requirement has multiple
+versions (frozen marked `*`). Region/sub-area regression: create flow, single
+version editing, latest-version default behaviour all unchanged. Refs #1382.
+
+## Modernize — Issue #1501: Help & Instructions screen (lib/general/staticPage.php)
+
+**Screen:** `gui/templates/documentation/staticPage.html` + BFF `api/staticpage/index.php`
+(`?action=show&key=…[&refreshTree=0|1][&locale=xx]`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, admin/admin
+session; legacy wiring switched: `lib/functions/common.php` `show_instructions()` and
+`lib/general/frmWorkArea.php` staticPage fallback both point at the modern screen.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1501.1 | Open `staticPage.html?key=tc_exec_assignment` (admin session) | Header "Help & Instructions", subtitle, key badge, toolbar (locale switcher / Back / Refresh), card title "Assign Testers to test execution" + Purpose/Get Started body from en_GB texts.php; footer with generated time | **PASS** |
+| 1501.2 | Open `staticPage.html?key=totally_missing_key` | Warnbar "Help topic not available in the selected language (en_GB)" + legacy body "ask administrator to update localization file … missing key"; card title shows the raw key (no 'LOCALIZE: title_help' leakage) | **PASS** |
+| 1501.3 | Open `staticPage.html?key=evil..%2Fetc%2Fpasswd` | BFF 400 → error banner "Invalid or missing contact key parameter", content hidden, key badge/fields stay text (no XSS) | **PASS** |
+| 1501.4 | Open `staticPage.html?key=planAddTC` in an isolated context WITHOUT session | Error banner "Not authenticated"; content hidden | **PASS** |
+| 1501.5 | Open `staticPage.html?key=planAddTC&locale=de` | UI chrome in German AND body from de_DE texts.php: title "Testfälle hinzufügen / entfernen", "Zweck:" | **PASS** |
+| 1501.6 | Open `staticPage.html?key=planAddTC&locale=ro` | UI chrome in Romanian; ro_RO has no texts.php → body served from en_GB fallback (legacy parity); no warnbar error shown for a valid key | **PASS** |
+| 1501.7 | Click **Refresh** (with an unknown key loaded) | Page reloads, warnbar + raw-key title still rendered (state re-fetched), no JS errors | **PASS** |
+| 1501.8 | Click **Back** | `window.history.back()` — returns to previous page (top context `/index.php`) | **PASS** |
+| 1501.9 | Open `staticPage.html?key=planAddTC&refreshTree=1` | Renders fine; BFF returns `refreshTree: 1` (tree-refresh contract preserved) | **PASS** |
+| 1501.10 | `curl` BFF `?action=show&key=planAddTC` with NO session cookie | HTTP 401, `{"status":"error","message":"Not authenticated"}` | **PASS** |
+| 1501.11 | BFF `?action=delete` (unimplemented action) | HTTP 405, error envelope | **PASS** |
+| 1501.12 | Browser console during 1501.1–1501.9 | No JS errors, no failed network requests | **PASS** |
+| 1501.13 | Event Viewer / `events` table after all tests | 0 ERROR/WARNING rows | **PASS** |
+
+Result: **PASS — 13/13 PASS** — the legacy Help/Instructions viewer
+(`lib/general/staticPage.php`) is fully ported: `show_instructions()` now
+targets the modern Dashio screen; the BFF serves `$TLS_htmltext` bodies for all
+16 texts.php keys with session + client-locale resolution (en_GB fallback,
+ro_RO parity) and returns 400/401/405 error envelopes; unknown keys keep the
+legacy "ask administrator" body via a warnbar instead of a hard failure.
+Refs #1501.
+
+## Task — Issue #911: Test Specification — Estimated Execution Duration field
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php`
+(actions `context`, `get`, `create`, `update`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, admin/admin
+session; project "TestSpec Fixture" (id 1), suite "Suite Alpha" (id 2) with 5 TCs; default
+config `$tlCfg->testcase_cfg->estimated_execution_duration->required = ''`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 911.1 | Open `testSpec.html?tproject_id=1`, select a TC with a duration set | Detail view meta grid shows "Estimated Exec. Duration (min): <value> min" | **PASS** |
+| 911.2 | Click "Edit Test Case" on a TC with duration 42.75 | Editor shows "ESTIMATED EXEC. DURATION (MIN)" input pre-filled with 42.75 | **PASS** |
+| 911.3 | Change duration to 55, click Save | Toast "Test case saved"; detail view now shows 55.00 min; DB `tcversions.estimated_exec_duration`=55.00 | **PASS** |
+| 911.4 | In editor, type "abc" in duration field, click Save | Save blocked client-side, toast "Estimated duration must be a number", DB unchanged | **PASS** |
+| 911.5 | Click "+ New Test Case", fill name + duration 23.5, Save | Test case created; DB row value 23.50; detail view shows "23.50 min" | **PASS** |
+| 911.6 | In editor clear the duration field, Save | Value allowed (not required config); view hides the meta item; DB NULL | **PASS** |
+| 911.7 | Open `tcView.html?tcase_id=5` (Full Viewer) | Read-only viewer shows "Estimated Exec. Duration (min): 55 min" | **PASS** |
+| 911.8 | BFF `update` with `estimated_execution_duration="abc"` (fetch, session) | HTTP 400 `{"status":"error","message":"Invalid estimated duration"}` | **PASS** |
+| 911.9 | Temporarily set config `required='required'`, reload editor, clear field, Save | Label shows red `*`, input `required` attr set; save blocked with toast "Estimated execution duration is required"; BFF empty update → HTTP 400 "Estimated execution duration is required" | **PASS** |
+| 911.10 | Revert config to `''`; reload; context BFF `estimateDurationRequired=false` | Field optional again (no `*`, no required attr) | **PASS** |
+| 911.11 | Browser console during 911.1–911.10 | No new JS errors, no failed network requests | **PASS** |
+| 911.12 | Event Viewer / `events` table after all steps | No new ERROR/WARNING rows | **PASS** |
+
+Result: **PASS — 12/12 PASS** — the legacy "Estimated Execution Duration" field
+(`attributesLinear.inc.tpl`, TICKET 6422 config-gated mandatory) is fully ported to the
+modern Test Specification editor: BFF create/update validate (numeric, optional required
+via `$tlCfg->testcase_cfg->estimated_execution_duration->required`) and persist through
+`testcase::create/update` options; the editor renders the input in create+edit, the detail
+view and tcView.html display the value; clearing maps to NULL like legacy. i18n keys
+`tspec.estimatedDuration*` added to all 10 bundles. Refs #911.
+## Task — Issue #1381: Requirement-template scope prefill in reqEdit create mode
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form` create branch).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin; fixture `tmp/fixtures_1381.php` → tproject id 2 `ReqTemplateFixture`, req spec id 3
+`SPEC-TPL`, requirement id 5 `REQ-TPL-1` (scope `initial scope`). Local gitignored
+`custom_config.inc.php` sets `$tlCfg->requirement_template->scope->type` per test row
+(default suite run: `string` + a template body; `none` is the repo-default).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1381.1 | With config type=`string`, GET BFF `?action=form&spec_id=3&tproject_id=2` | `response.requirement.scope` = template body AND `response.template_body` = same body | **PASS** |
+| 1381.2 | Same request with config type=`none` | `scope` = `''`, `template_body` = `''` (repo default unchanged) | **PASS** |
+| 1381.3 | Config type=`file` → `/tmp/req_template_file.html` | `scope` = file contents (`REQ TEMPLATE FROM FILE …`) | **PASS** |
+| 1381.4 | Config type=`file` → missing path | HTTP 200, fallback `problems_trying_to_access_template <path>`, no PHP fatal | **PASS** |
+| 1381.5 | Config type=`string_id` → value `title` | `scope` = `lang_get('title')` = `Title` | **PASS** |
+| 1381.6 | Open `reqEdit.html?tproject_id=2&spec_id=3` (type=`string`) | Scope textarea pre-filled with the template body on load | **PASS** |
+| 1381.7 | Open `reqEdit.html?id=5&tproject_id=2` (edit, type=`string`) | Scope = `initial scope`, NO template applied, no `template_body` in BFF payload | **PASS** |
+| 1381.8 | Create page, fill doc/title, keep `stay_here` checked, click Save | After reset: doc/title cleared, mode=create, REQ_ID=0 AND scope re-filled with template | **PASS** |
+| 1381.9 | Inspect `requirements`/`req_versions` after 1381.8 | New requirement persisted with the template text as its scope | **PASS** |
+| 1381.10 | Event Viewer (`events` table) + browser console after all steps | 0 ERROR/WARNING rows; no JS console errors | **PASS** |
+
+Result: **PASS — 10/10 PASS** — the legacy `requirement_template` scaffold is back:
+the BFF create/form response now resolves `getItemTemplateContents('requirement_template','scope')`
+(lib/functions/common.php:1104 parity) for all four config types (string / string_id /
+file / none) and exposes `template_body`; the HTML screen pre-fills the Scope textarea
+on create and re-applies the template after a stay_here bulk-entry reset, while edit
+mode stays template-free exactly like legacy `renderGui()`. Refs #1381.
+## Task — Issue #1502: Create Test Cases from Issue XML (Mantis) tcCreateFromIssueMantisXML
+
+**Screen:** `gui/templates/testcases/tcCreateFromIssues.html` + BFF `api/tccreatefromissues/index.php`
+(`GET ?action=init`, `POST ?action=import`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, login admin/admin;
+fixture `tmp/fixtures_1502.php` → tproject id 2 `IssueImportFixture` (prefix IIFXT), suite id 3
+`Suite From Issues`; second suite id 12 `Suite Two Issues`; sample file `/tmp/mantis_import_sample.xml`
+(2 issues: id 101 + full fields, id 102 + empty steps/additional).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1502.1 | GET BFF `?action=init&tproject_id=2&containerID=3` | `{status:ok}`, tproject=IssueImportFixture, container={id:3,name:"Suite From Issues",isProject:false}, maxUploadBytes=10240, grants.mgt_modify_tc=1 | **PASS** |
+| 1502.2 | GET BFF `?action=init&tproject_id=2&containerID=2` | container={id:2,name:"IssueImportFixture",isProject:true} | **PASS** |
+| 1502.3 | GET BFF `?action=init&tproject_id=2&containerID=999999` | HTTP 400 `Container does not belong to the test project` | **PASS** |
+| 1502.4 | GET BFF `?action=init&tproject_id=999999` | HTTP 404 `Test project not found` | **PASS** |
+| 1502.5 | Open `tcCreateFromIssues.html?tproject_id=2&containerID=3` | Screen loads: title, ctx "IssueImportFixture / Suite From Issues (test suite)", size hint "max file size: 10240 KB", mapping hint, upload disabled until file chosen | **PASS** |
+| 1502.6 | Upload `/tmp/mantis_import_sample.xml` via file input, click Import | Feedback "Test cases imported successfully. — 2 test case(s)", result table rows `Issue/Task:101 - Login fails on Firefox without cookies` → ok and `Issue/Task:102 - Export report crashes on empty project` → ok, issues found=2 | **PASS** |
+| 1502.7 | MySQL: nodes + tcversions for suite 3 | 2 TCs named `Issue/Task:101 - …`/`Issue/Task:102 - …` (node_order 1,2), tcversions.tc_external_id=101/102, execution_type=1 (manual), importance=2 (medium), summary=`Description<p>…[<p>Steps to reproduce<p>…][<p>Additional information<p>…]` (legacy `issue_*` labels + `<p>` joiner) | **PASS** |
+| 1502.8 | Re-import the same file into container = project 2 | Both rows blocked: `Can not be imported - You are hitting an existent Test Case with SAME EXTERNAL ID:Suite From Issues/IIFXT-101:Issue/Task:101 - …` (legacy path format), no new TCs created | **PASS** |
+| 1502.9 | Import malformed file (`<html><body>not xml`) | HTTP 422 `Invalid XML file: root element must be <mantis>` | **PASS** |
+| 1502.10 | Import well-formed `<bugs>` root | HTTP 422 same `root element must be <mantis>` | **PASS** |
+| 1502.11 | POST import with no `uploadedFile` | HTTP 400 `File upload failed (error code: -1)` | **PASS** |
+| 1502.12 | Import new issue id 104 with `locale=fr_FR` | TC named `Anomalie/Tache:104 - Connexion impossible`; summary `Description<p>…<p>Étapes pour reproduire<p>…` (server-side labels localized via the client locale hint) | **PASS** |
+| 1502.13 | GET import endpoint with `action=import` via GET | HTTP 405 `Use POST` | **PASS** |
+| 1502.14 | ASIDE (project IIFXT active) → Test Case Design expanded | New item "Create Test Cases from Issues XML" → `/gui/templates/testcases/tcCreateFromIssues.html?tproject_id=2&tplan_id=0` | **PASS** |
+| 1502.15 | Locale switcher on the screen (EN → RO) | Header/sub/footer/labels rerender in Romanian; BFF re-requested with the new locale | **PASS** |
+| 1502.16 | Event Viewer / `events` table after the whole run | No new ERROR/WARNING rows (only GUI audit LOGIN/CREATE fixture entries) | **PASS** |
+| 1502.17 | UI switcher EN → Français (2-char `locale=fr` hint), upload new issue 106, click Import | Full French UI + server-side labels localized via the 2-char hint: result row `Anomalie/Tache:106 - Connexion lente sur Safari`, message `ok`, "Cas de test importés avec succès." (Review-fix: 2-char locale hint now maps through the configured locales, mirroring api/cfields assignLocale) | **PASS** |
+| 1502.18 | GET BFF `?action=init&tproject_id=2&containerID=4` (4 = a testcase node, not suite/project) | HTTP 400 `Container does not belong to the test project` (node-type validation on the container) | **PASS** |
+| 1502.19 | GET BFF `?action=init&tproject_id=2&containerID=13` (nonexistent node) | HTTP 400 same message | **PASS** |
+
+Result: **PASS — 19/19 PASS** — the last standalone legacy import screen
+`lib/testcases/tcCreateFromIssueMantisXML.php` (Mantis bug-tracker XML → test cases) is fully
+modernized as a Dashio screen + REST BFF with byte-level legacy parity: name `Issue:<id> - <summary>`
+(server label `issue_issue`), summary = `issue_description` + optional `issue_steps_to_reproduce` /
+`issue_additional_information` joined with `<p>`, `tc_external_id` = bug id, MANUAL/medium,
+`import_file_max_size_bytes` upload cap, `mgt_modify_tc` right (403), duplicate-external-id block
+with the legacy `hit_with_same_external_ID` + suite path message, container membership validation,
+LIBXML_NONET parsing, 401/400/403/404/405/413/422/500 JSON contract, client-locale label
+localization. Entry points: ASIDE under Test Case Design (gated `modify_tc`) + `$actions->tcCreateFromIssues`
+link switch. i18n `tcfi.*` (25) + `footers.tcCreateFromIssues` in all 10 client bundles + server
+label `href_tc_create_from_issues` in all 19 strings.txt + `labels.aside.tpl`. Refs #1502.
+
+### Re-verification after restoration (commit 59d69150f → `29af13e99` + `9ec1822b6`), 2026-09-15
+
+The screen/BFF were restored after commit `8ef9694d3` accidentally wiped the
+`59d69150f` implementation. Re-ran the suite against fixture ids from the live
+DB run (tproject=20, suite1=21, suite2=22 — ids shifted because auto-increment
+continues after fixture delete). Every behavior re-verified green; results below.
+
+| # | Step (current-run ids) | Expected | Result |
+|---|---|---|---|
+| R1 | GET `init&tproject_id=20&containerID=21` | `{status:ok}`, container Suite From Issues, maxUploadBytes=10485760, grants.mgt_modify_tc=1 | **PASS** |
+| R2 | GET `init&tproject_id=20` (no containerID) | container={id:20,name:IssueImportFixture,isProject:true}, import into project root OK (issue 500 created) | **PASS** |
+| R3 | GET `init&tproject_id=20&containerID=999999` | HTTP 400 `Container does not belong to the test project` | **PASS** |
+| R4 | GET `init&tproject_id=999999` | HTTP 404 `Test project not found` | **PASS** |
+| R5 | Open screen `?tproject_id=20&containerID=21` (admin) | Title, ctx line, size hint, mapping hint, upload disabled until file chosen | **PASS** |
+| R6 | Upload `/tmp/mantis_import_sample.xml`, click Import | "Test cases imported successfully. — 2 test case(s)", rows 101/102 → ok, issues found=2 | **PASS** |
+| R7 | MySQL checks | 2 TCs `Issue/Task:101…`/`Issue/Task:102…`, tc_external_id 101/102, execution_type=1, importance=2, summary `Description<p>…<p>Steps to reproduce<p>…` | **PASS** |
+| R8 | Same-file re-import into the SAME suite | Both rows `ok` with NEW generated external ids (103/104) and unchanged names — identical to legacy (`duplicateLogic actionOnHit=null`) | **PASS** |
+| R9 | Import sample (ids 101/102) into suite 22 | Both blocked: `Can not be imported - You are hitting an existent Test Case with SAME EXTERNAL ID:Suite From Issues/IIFXT-101:…` (legacy path + prefix/glue) | **PASS** |
+| R10 | malformed / wrong-root XML | HTTP 422 `Invalid XML file: root element must be <mantis>` | **PASS** |
+| R11 | no file / GET-on-import | HTTP 400 `File upload failed (error code: -1)` / HTTP 405 `Use POST` | **PASS** |
+| R12 | upload > PHP `upload_max_filesize` (2M) | HTTP 400 (PHP-layer rejection precedes the TestLink 10 MB cap branch, same as legacy in this sandbox) | **PASS** |
+| R13 | init `locale=fr_FR` via API | server labels in French: `Anomalie/Tache`, `Étapes pour reproduire`, `Version du produit` | **PASS** |
+| R14 | UI locale switcher EN → Français | Full French rerender (titles, dropzone, mapping, button, footer) | **PASS** |
+| R15 | ASIDE Test Case Design (project active) | "Create Test Cases from Issues XML" item present → `tcCreateFromIssues.html` | **PASS** |
+| R16 | Screen as user with role_id=0 (no mgt_modify_tc) | Banner `You do not have permission to modify test cases in this project.` (403); BFF init 403 | **PASS** |
+| R17 | Restricted user NOT authenticated | BFF init HTTP 401 `Not authenticated` | **PASS** |
+| R18 | Browser console after all interactions | no error/warn entries | **PASS** |
+| R19 | Event Viewer / `events` table after run | 0 ERROR/WARNING rows (only GUI audit entries) | **PASS** |
+
+Result: **PASS — re-verification 19/19 green** on the restored implementation.
+
+## Task — Issue #1379: reqEdit 'Insert last doc id' create-mode helper (gap vs legacy, Refs #798)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form` create/edit branch).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
+admin/admin; tproject id 1 `ReqEdit Demo Project` (prefix DEPR), req spec id 1001 `Demo Req Spec`,
+requirements created live via the screen with `req_doc_id` REQ-001 (id 2001), REQ-002 (id 4002),
+REQ-003 (id 4004). Config `config.inc.php:1804 req_cfg->allow_insertion_of_last_doc_id` toggled
+locally between ENABLED/DISABLED for runs (repo default DISABLED, never committed).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1379.1 | Config ENABLED, GET BFF `?action=form&spec_id=1001&tproject_id=1` (create) | `allow_insert_last_doc_id=true` and `last_doc_id="REQ-002"` (max req id → its `req_doc_id`) | **PASS** |
+| 1379.2 | Open `reqEdit.html?spec_id=1001&tproject_id=1` (create) | Teal insert icon (fa-mouse-pointer) shown next to Document ID input; tooltip = `Insert Document ID of last created Requirement: "REQ-002"` | **PASS** |
+| 1379.3 | Click the insert icon | `#reqDocId` value becomes `REQ-002` (mirrors legacy `insert_last_doc_id()`) | **PASS** |
+| 1379.4 | Fill Title, click Save | Requirement persisted; info bar `Requirement saved`; mode flips to edit; icon hidden | **PASS** |
+| 1379.5 | Config ENABLED, DB check after save | `requirements` row created with `req_doc_id=REQ-003` | **PASS** |
+| 1379.6 | GET BFF `?action=form&id=2001&tproject_id=1` (edit) | flag pair present but invalid for create → icon hidden in edit mode (MODE=edit, visible=false) | **PASS** |
+| 1379.7 | Config DISABLED, GET create form + open create page | `allow_insert_last_doc_id=false`, `last_doc_id=null`; icon NOT rendered (repo default) | **PASS** |
+| 1379.8 | Duplicate doc id (existing REQ-002) + Save | Error `Document ID cannot be empty` NOT triggered; server rejects with `Duplicated document id REQ-002` — legacy create guard intact | **PASS** |
+| 1379.9 | Same request as 1379.1 with locale switch EN → Français | Tooltip label in French: `Insérer le document ID de la dernière exigence créée: "REQ-002"` | **PASS** |
+| 1379.10 | Event Viewer / `events` table + browser console after all steps | 0 ERROR/WARNING rows; no JS console errors | **PASS** |
+
+Result: **PASS — 10/10 PASS** — the legacy `allow_insertion_of_last_doc_id` create-mode helper is
+back: the BFF `form` response now exposes `allow_insert_last_doc_id` + `last_doc_id`
+(computed via `requirement_mgr::get_last_doc_id_for_testproject()`, legacy parity), and the HTML
+screen renders a Dashio teal insert icon in create mode only (config enabled + project has a prior
+req) with tooltip and one-click fill; the icon hides in edit mode and after the first create-save.
+i18n `reqe.insertLastDocId` added to all 10 client bundles. Refs #1379.
+
+---
+
+### Task — Issue #1380: reqEdit unsaved-changes warning (beforeunload guard)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` (client-side guard; BFF `api/reqedit/index.php` untouched).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, login admin/admin;
+fixture `tmp/fixtures_1380.php` → tproject 1 `UnsavedReqFixture` (UNSREQ), req-spec 2 `SPEC-UNS`, req 4
+(`REQ-UNS-1`, req_version 5). Open `http://localhost:8082/gui/templates/requirements/reqEdit.html?id=4&tproject_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1380.1 | Load editor, check guard | `window.onbeforeunload` installed; `content_modified === false`, `show_modified_warning === true` after render | **PASS** |
+| 1380.2 | Edit the Scope textarea (fire `input`) | `content_modified` flips `false→true` (delegated `.form-control` handler) | **PASS** |
+| 1380.3 | Call `doBeforeUnload({})` while dirty | returns `"You have unsaved changes. Are you sure you want to leave?"`; `event.returnValue` set | **PASS** |
+| 1380.4 | Navigate/close while dirty | Native beforeunload dialog FIRES — chrome-devtools navigation reports `Accepted a beforeunload dialog.`; edit no longer silently discarded | **PASS** |
+| 1380.5 | Clean reload (no edits) → navigate away | `content_modified === false` after `loadForm()`; `doBeforeUnload` returns `undefined`; no dialog on navigation | **PASS** |
+| 1380.6 | Edit Title → click Save | `content_modified` reset to `false` after save; infoBar shows saved; reload after save = no dialog; title persisted in DB/on reload | **PASS** |
+| 1380.7 | Edit Scope → click Cancel | `show_modified_warning=false` in `goBack()`; navigates back silently (no beforeunload dialog) | **PASS** |
+| 1380.8 | i18n + Event Viewer + console | `reqe.unsavedWarning` present and JSON-valid in all 10 bundles; `events` table has only `log_level=16` INFO/AUDIT (0 ERROR/WARNING); browser console 0 messages | **PASS** |
+
+Result: **PASS — 8/8 PASS** — legacy `checkmodified.js` guard (BUGID 4153) fully
+ported to the modern reqEdit screen: delegated dirty tracking on all form controls,
+`beforeunload` prompt on unload with pending edits, Save/Cancel suppress the warning,
+`loadForm()`/version-switch reloads reset the flag, i18n `reqe.unsavedWarning` in all
+10 bundles. Refs #1380.
+
+---
+
+### Regression — Issue #1507: BFF APIs deleted/gutted by 8ef9694d3 collateral damage
+
+**Screen:** 10 BFF API endpoints + 5 GUI templates + 10 i18n bundles.
+**Precondition:** TestLink 2.0.1 at http://localhost:8082; MariaDB 127.0.0.1:3306 (testlink/testlink);
+fixture: tproject 1 `Demo Project` (DP), testplan 2 `Demo Plan`, build 4, platform 1 `Linux`.
+Branch `fix/issue-1507` with commit `4bcf10e07`.
+
+#### Part A — Deleted APIs (must return HTTP 200 or meaningful validation, NOT 404)
+
+| # | Endpoint | Action | Expected | Result |
+|---|---|---|---|---|
+| A1 | `/api/execdashboard/index.php` | `action=init&tplan_id=2&tproject_id=1` | 200, context shows DP/Demo Plan/Build 1.0/Linux | **PASS** |
+| A2 | `/api/notifications/index.php` | `action=list` | 200, `notifications: []`, `totals: {total:0}` | **PASS** |
+| A3 | `/api/reqfromissues/index.php` | `action=init&tproject_id=1` | 400 "Invalid requirement spec id" (no specs exist) — validation OK, not 404 | **PASS** |
+| A4 | `/api/reqreorder/index.php` | `action=init&tproject_id=1` | 400 "Unknown action" or validation error — not 404 | **PASS** |
+| A5 | `/api/staticpage/index.php` | `action=show&key=index` | 200 with content HTML | **PASS** |
+
+#### Part B — Gutted APIs (restored to full 59d69150f / parent state)
+
+| # | Endpoint | Action | Expected | Result |
+|---|---|---|---|---|
+| B1 | `/api/execsetresults/index.php` | `action=init&tplan_id=2&tproject_id=1&testcase_id=0` | 400 validation "Missing test case/version id" — not 404 | **PASS** |
+| B2 | `/api/testcases/index.php` | `action=context&tproject_id=1&tplan_id=2` | 200, options + grants, tprojectOpt() helper present in source | **PASS** |
+| B3 | `/api/roles/index.php` | `action=get_roles` | 200, roles array with system roles | **PASS** |
+| B4 | `/api/reqedit/index.php` | `action=form&tproject_id=1&spec_id=0` | 400 "Missing requirement id or spec id" — lastDocIdInfo() present in source | **PASS** |
+| B5 | `/api/planexport/index.php` | `action=info&tplan_id=2&tproject_id=1` | 200, tplan=t2 Build=Demo Plan, grants visible | **PASS** |
+
+#### Part C — GUI templates (HTML pages return 200 with valid HTML)
+
+| # | Page | Expected | Result |
+|---|---|---|---|
+| C1 | `/gui/templates/execute/execDashboard.html` | 200, 332 lines, renders context header with Build/Platform selectors | **PASS** |
+| C2 | `/gui/templates/notifications/notifications.html` | 200, i18n labels translate after TLi18n.apply(), zero console errors | **PASS** |
+| C3 | `/gui/templates/requirements/reqFromIssues.html` | 200, valid HTML | **PASS** |
+| C4 | `/gui/templates/requirements/reqReorder.html` | 200, valid HTML | **PASS** |
+| C5 | `/gui/templates/documentation/staticPage.html` | 200, valid HTML | **PASS** |
+
+#### Part D — i18n bundles
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| D1 | `python3 -m json.tool` on all 10 bundles | All valid JSON | **PASS** |
+| D2 | `notif.screenTitle` in en.json | Present | **PASS** |
+| D3 | `edb.title` in en.json | Present | **PASS** |
+| D4 | Notification screen: translate on reload | "Notifications" shows (not raw key) | **PASS** |
+
+#### Part E — Events & console
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| E1 | `events` table: `log_level IN (3,4)` in last hour | 0 errors | **PASS** |
+| E2 | Browser console on restored screens | 0 JS errors | **PASS** |
+
+Result: **PASS — 20/20 PASS** — All 10 BFF APIs restored from pre-deletion state; post-regression
+commits #912 (options tolerance) and #1379 (insert-last-doc-id) re-applied on top; 5 GUI
+templates + 8 docs + screenshots restored; 10 i18n locale bundles patched (279/273 missing keys
+restored); event viewer clean. Refs #1507.

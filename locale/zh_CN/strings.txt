@@ -1469,10 +1469,6 @@ $TLS_btn_save_exec_and_movetonext = "保存并进入下一个";
 $TLS_bug_mgmt = "问题管理";
 $TLS_bug_link_tl_to_bts = '链接已存在的问题';
 $TLS_bug_create_into_bts = '创建问题';
-$TLS_tc_name = "测试用例名称";
-$TLS_tc_external_id = "测试用例外部ID";
-$TLS_github_bug_created = "在 %s 中创建了 Bug %s";
-$TLS_github_bug_comment = "在 %s 的 Bug %s 中添加了评论";
 $TLS_bug_copy_from_latest_exec = '从最新的执行中复制问题';
 
 
@@ -2509,8 +2505,6 @@ $TLS_info_search_req_spec = '此列表显示匹配搜索条件的需求规范.<b
 $TLS_href_add_remove_test_cases = "添加/删除测试用例到测试计划";
 $TLS_href_build_new = "版本管理";
 $TLS_href_execute_test = "执行测试";
-
-$TLS_href_exec_dashboard = "执行仪表盘"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Access Execute Tests RO";
 $TLS_href_metrics_dashboard = "进度仪表盘";
 $TLS_href_newest_tcversions = "显示最新的测试用例版本";
@@ -4149,6 +4143,7 @@ $TLS_title_dashboard = '仪表盘';
 
 $TLS_report_test_automation = '测试自动化报告';
 $TLS_btn_report_test_automation = '测试自动化规范';
+$TLS_href_tc_create_from_issues = "从问题XML创建测试用例";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = '与之一同执行';
 $TLS_remove_plat_msgbox_title = '移除平台';

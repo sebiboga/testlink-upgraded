@@ -1956,6 +1956,7 @@ $TLS_href_browse_tc = "Navegar por los Casos de prueba";
 $TLS_href_cfields_management = "Gestión de Campos Personalizados";
 $TLS_href_cfields_tproject_assign = "Asignar Campos Personalizados";
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
+$TLS_href_tc_create_from_issues = "Crear casos de prueba desde un XML de incidencias";
 $TLS_href_edit_tc = "Editar Casos de prueba";
 $TLS_href_inventory = "Inventario";
 $TLS_href_inventory_management = 'Gestión del inventario';
@@ -2003,8 +2004,6 @@ $TLS_reqid = "ID del Reqerimientos";
 $TLS_href_add_remove_test_cases = "Agregar / Remover Casos de prueba";
 $TLS_href_build_new = "Gestión de Builds";
 $TLS_href_execute_test = "Ejecutar Pruebas";
-
-$TLS_href_exec_dashboard = "Panel de ejecución"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Resumen de Métricas";
 $TLS_href_newest_tcversions = "Mostrar Versiones de Casos de prueba";
 $TLS_href_plan_assign_urgency = "Especificar urgencia de Pruebas";

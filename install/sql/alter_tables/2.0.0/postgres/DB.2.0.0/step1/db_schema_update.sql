@@ -6,6 +6,3 @@
  */
 
 /* database version update is performed in stepZ/z_final_step.sql */
-
-/* users.github (Refs #905): GitHub account used for the avatar. */
-ALTER TABLE /*prefix*/users ADD COLUMN "github" VARCHAR(100) NULL;

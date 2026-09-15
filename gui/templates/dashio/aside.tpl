@@ -231,6 +231,7 @@ Left side menu
                   {/if}
                   {if $menuGrants->modify_tc == 'yes'}
                     <li><a href="{$gui->uri->tcImport}" target="mainframe">{$labels.href_tc_import}</a></li>
+                    <li><a href="{$gui->uri->tcCreateFromIssues}" target="mainframe">{$labels.href_tc_create_from_issues}</a></li>
                     <li><a href="{$gui->uri->tcCreatedUser}" target="mainframe">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
                   {if $menuGrants->view_tc == "yes"}
@@ -305,16 +306,6 @@ Left side menu
                   {/if}
                   {if $menuGrants->exec_ro_access == "yes"}  
                     {$lbx = $labels.href_exec_ro_access}
-                  {/if}
-
-                  {* Execution Dashboard (modernized execDashboard.php landing
-                     pane, Refs #1496): $actions->execDashboard is set when a
-                     test plan is in context (same guard as executeTest); the
-                     entry shows for any execution-right holder. *}
-                  {if $gui->uri->execDashboard != null
-                      && ($menuGrants->testplan_execute == "yes"
-                          || $menuGrants->exec_ro_access == "yes")}
-                    <li><a href="{$gui->uri->execDashboard}" target="mainframe"><i class="fas fa-tachometer-alt"></i> {$labels.href_exec_dashboard}</a></li>
                   {/if}
 
                   {if $gui->uri->executeTest != null}

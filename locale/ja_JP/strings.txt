@@ -1528,10 +1528,6 @@ $TLS_btn_save_exec_and_movetonext = "保存して次へ";
 $TLS_bug_mgmt = "不具合管理";
 $TLS_bug_link_tl_to_bts = "登録済みの課題とリンク"; // "Link Existent Issue";
 $TLS_bug_create_into_bts = "不具合・課題を登録"; // "Create Issue";
-$TLS_tc_name = "テストケース名";
-$TLS_tc_external_id = "テストケース外部ID";
-$TLS_github_bug_created = "%s でバグ %s を作成";
-$TLS_github_bug_comment = "%s のバグ %s にコメントを追加";
 $TLS_bug_copy_from_latest_exec = "最後の実施から課題をコピー";
 
 
@@ -2646,8 +2642,6 @@ $TLS_info_search_req_spec = "このリストは検索条件に一致するすべ
 $TLS_href_add_remove_test_cases = "テストケースの追加";
 $TLS_href_build_new = "ビルド/リリース";
 $TLS_href_execute_test = "テストの実施";
-
-$TLS_href_exec_dashboard = "実行ダッシュボード"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "実施テスト読み取りアクセス";
 $TLS_href_metrics_dashboard = "指標メーター";   // "Metrics Dashboard"
 $TLS_href_newest_tcversions = "最新バージョンのテストを表示";
@@ -4547,6 +4541,7 @@ $TLS_title_dashboard = 'ダッシュボード';
 
 $TLS_report_test_automation = 'テスト自動化レポート';
 $TLS_btn_report_test_automation = 'テスト自動化仕様';
+$TLS_href_tc_create_from_issues = "問題XMLからテストケースを作成";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'と一緒に実行される';
 $TLS_remove_plat_msgbox_title = 'プラットフォームを削除';

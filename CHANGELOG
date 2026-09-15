@@ -61,8 +61,6 @@ System:
 - My Settings / User Profile (usermanagement/userInfo.html) - BFF api/userinfo.
   Edit personal data, change password, API key generate+copy, login history,
   external-password-mgmt / API-enabled / demoMode gating (#875-#878).
-  GitHub account + avatar: user-defined username (users.github) rendered as the
-  Dashio avatar in the top navigation bar and previewed in Personal Data (#905).
 - User Management (usermanagement/usersView.html) - BFF api/users.
   Create/edit modal, enable/disable/delete (soft-delete), grant-gated tabs
   (mgt_users #879), login lookup, Auth method+Expiration Date, Reset Password,
@@ -71,17 +69,10 @@ System:
   the edit modal (mgt_view_events-gated drill-down to the Event Viewer
   filtered on the edited user, #886) (#879-#891).
 - Role Management (usermanagement/rolesView.html) - BFF api/roles.
-  Create/edit/duplicate/delete, system-role protection, delete-with-users
-  reset warning (#902), and demoMode read-only gating (banner + BFF 403 on
-  all writes, #903). Localized success/error feedback toasts after
-  create/update/duplicate/delete (BFF feedback_key + messageKey, legacy
-  audit_role_* / getRoleErrorMessage parity, #904).
 - Assign Project / Test Plan Roles (usermanagement/usersAssignProject.html,
   usersAssignPlan.html).
 - Custom Fields (cfields/cfieldsView.html) - BFF api/cfields. Custom Fields
-  XML export/import screen (cfieldsExchange, #1411). 2026-09-13 ledger close-out
-  (#1487): screen recorded in MODERNIZATION-STATUS.md/docs/wiki; export-filename
-  parity fix (spaces/hyphens honored like legacy, CRLF injection still blocked).
+  XML export/import screen (cfieldsExchange, #1411).
 - Custom Fields Assign (cfields/cfieldsAssignView.html).
 - Issue Tracker Management (issuetracker/issuetrackerView.html) - BFF
   api/issuetracker. GitHub OAuth tracker (#771/#813).
@@ -119,12 +110,6 @@ Dashboard:
 - Metrics Dashboard (results/metricsDashboard.html) - BFF api/metrics.
   Chart.js pie/bar charts, per-plan metrics (#522/#892).
 - Inventory Management (inventory/inventoryView.html) - BFF api/inventory.
-- "My Assigned Test Cases" widget on the main page (mainpage/mainPage.html) -
-  BFF api/mainpage GET /assigned ports the legacy tcAssignedToUser.php personal
-  view: the logged-in user's test cases assigned for execution (active plans,
-  open builds) with suite path, build, platform, priority, assigned-on, due
-  (overdue badge), last-execution status and quick p/f/b + execute + history
-  actions; 29 dash.assigned*/dash.status* keys in all 10 bundles (#895).
 
 Requirements:
 - Requirement Spec Management (reqSpecMgmt.html) - BFF api/reqspec.
@@ -154,20 +139,6 @@ Requirements:
   POST create via requirement_mgr::create_tc_from_requirement; entry button in
   reqSpecView.html toolbar; mgt_view_req+mgt_modify_req on owning project
   (401/400/403/404), forged req-id guard; rctc.* keys in all 10 bundles.
-- Reorder Requirements (reqReorder.html) - BFF api/reqreorder (#1488).
-  Replaces the last Requirements-area sub-screen still served by
-  lib/requirements/reqReorder.php (toolbar "Reorder requirements" entry on
-  reqSpecView.html): lists every requirement of the spec ordered by legacy
-  node_order (0-based, nodes_hierarchy) with per-row doc_id/name/
-  expected-coverage/coverage, localized status labels server-side; drag-drop +
-  Up/Down buttons + Save persist each node's node_order on nodes_hierarchy
-  (BFF POST ?action=reorder&req_spec_id=&tproject_id= with nodes_order[],
-  legacy change_order_bulk() port); GUI init calls the legacy get_requirements
-  join so forged requirement ids are rejected (membership on
-  requirements.srs_id); mgt_view_req/mgt_modify_req on owning project
-  (401/400/403/404/405 JSON; anon 401, guest 403 verified); Reorder toolbar
-  button ($actions->reqReorder in lib/functions/common.php); reqro.* (15) +
-  footers.reqReorder keys in all 10 bundles.
 - NFR Test Strategy chapters (strategy/nfr{Performance,Security,Usability,
   Accessibility,Compatibility,Reliability,Maintainability}.html) - the
   Test Strategy overview now serves 28 chapter cards (chapters 22-28 = the
@@ -189,6 +160,14 @@ Test Spec:
   fk_table='tcversions'); read-only view lists attachments with download links
   (Refs #913).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
+- Assign Requirements in Test Spec tree/editor + TC Viewer (testSpec.html,
+  tcView.html) - "Assign Requirements" button + modal (reqspec combo, free/
+  assigned two-list assign/unassign with counts and empty notices) reusing the
+  `api/requirements` BFF; gated on requirementsEnabled +
+  req_tcase_link_management + latest version in tcView; main REQUIREMENTS
+  section refreshes live after each assignment change. i18n
+  `tspec.assignRequirements`/`tcview.assignRequirements` in all 10 bundles
+  (#912).
 - TC Editor (tcEdit.html) - BFF api/testcasesedit (#1312-#1318).
 - Search Test Cases (searchView.html), Advanced Search (searchAdvancedView.html),
   Quick Search (searchQuickView.html) - BFF api/search.
@@ -210,6 +189,21 @@ Test Spec:
   before 403), ASIDE entry under Test Case Design gated view_tc, `tas.*` keys
   in all 10 locale bundles.
 - MD Test Case Import/Export (Feature #853, #1404).
+- Create Test Cases from Issues XML (tcCreateFromIssues.html) - BFF
+  api/tccreatefromissues (#1502). Last standalone legacy import screen in
+  lib/testcases (tcCreateFromIssueMantisXML.php) modernized: uploads a Mantis
+  bug-tracker XML export (root <mantis>, one <issue> per bug) and creates one
+  test case per issue — name "Issue:<id> - <summary>", summary from
+  description (+ steps to reproduce / additional information) with the legacy
+  issue_* labels joined by <p>, tc_external_id = bug id, MANUAL/medium,
+  duplicate-external-id block with the legacy "hitting existent TC with SAME
+  EXTERNAL ID" + suite path message, field_size name-length warning + 80%
+  truncation, import_file_max_size_bytes cap (413), mgt_modify_tc right (403),
+  container membership validation, LIBXML_NONET + root checks (422);
+  client-locale hint localizes the server-side labels (fr "Anomalie/Tache"
+  verified); ASIDE entry under Test Case Design gated modify_tc +
+  $actions->tcCreateFromIssues; tcfi.* (25) + footers.tcCreateFromIssues keys
+  in all 10 bundles + href_tc_create_from_issues server label.
 
 Plans:
 - Test Plan Management (planView.html) - BFF api/plans (#576).
@@ -221,32 +215,11 @@ Plans:
 - Test Plan Milestones (planMilestones.html) - BFF api/milestones.
 - Update Linked TC Versions (planUpdateTC.html) - BFF api/plans.
 - Plan Export (planExport.html) - BFF api/planexport (#1385/#1386).
-  "View file formats documentation" link (/docs/tl-file-formats.pdf) beside the
-  File type select, legacy parity (planExport.tpl:65), key pex.viewFileFormatDoc.
-  form_token scoping of the "For results import" export: when the execution
-  window launches the export with its tree form_token, only the test cases
-  currently shown in the execution window are exported (tcaseSet from
-  $_SESSION['execution_mode'][token]['testcases_to_show'], legacy
-  planExport.php:142-151 parity), key pex.scopedNote (#1385).
 - Plan Import (planImport.html) - BFF api/planimport (#1388-#1390, #1414).
 
 Execution:
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
-  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1395, #1402, #1394).
-- Execution Dashboard landing pane (execDashboard.html) - BFF
-  api/execdashboard (#1496). Last ASIDE screen modernized: BFF resolves the
-  execution context (tplan/build/platform) with the full legacy precedence
-  chain (explicit params > execution_mode session cache scoped to the plan >
-  _stored_setting_* keys > defaults), returns plan/build notes + design-scope
-  custom-field tables and the selector lists (builds carry is_open); context
-  persist via POST ?action=context; closed-build banner, CKEditor notes
-  rendering, REST-params copy, Continue to Execute Tests hand-off;
-  $actions->execDashboard in common.php + execTest.html Dashboard button;
-  edb.* (21) + footers.execDashboard + exe.dashboard keys in all 10 bundles
-  (#1499): Execute -> "Execution Dashboard" ASIDE entry added as the first
-  Execute sub-item, gated testplan_execute OR exec_ro_access (same as Execute
-  Tests); aside label href_exec_dashboard in labels.aside.tpl + all 19
-  strings.txt; removed stray '<<<<<<< HEAD' marker that broke the en_US locale.
+  api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1402).
 - Execution History (execHistory.html) - BFF api/execute.
 - TC Exec Assignment (tcExecAssignment.html) - BFF api/execassignment.
 - Remove all tester assignments (tcUnassignAll.html) - BFF api/tcunassignall (#1434).
@@ -291,28 +264,23 @@ Test Strategy:
   exitCriteria.html) - BFF api/strategy (18 chapters, #1425/#1426/#1431).
 
 NEW FEATURES
--------------
+------------
 - Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
-  `api/reqedit`): legacy "create another requirement after saving" (`stay_here`)
-  checkbox restored (Refs #1384) — shown only in create mode; when checked the
-  save resets the create form (same spec, empty fields, defaults restored) for
-  bulk entry, when unchecked the form transitions to edit mode. BFF save reads
-  `stay_here` from the JSON body and echoes it in the response, create + update.
-  i18n `reqe.stayHere` in all 10 bundles.
-- Notifications (`gui/templates/notifications/notifications.html`, BFF
-  `api/notifications`): GitHub-style per-user notification center computed
-  LIVE from existing 1.9.20 data (no legacy system existed to port, Refs
-  #896) — test cases assigned to the current user (`user_assignments`),
-  milestones approaching/overdue (`milestones` target_date in [-7,+14] days),
-  fully-executed test plans (`testplan_tcversions` vs `executions`,
-  linked=executed), and new bug links from executions (`execution_bugs`,
-  last 14 days). Summary category cards with filter, DataTable (icon,
-  localized message via TLi18n interpolation, relative time, read/unread
-  badge), select/mark-selected/mark-all-read (session-backed read-state, no
-  DB migration), empty state + toast, locale switcher; Dashboard toolbar
-  gains a bell + unread badge (`GET /api/notifications/count`) linking to the
-  screen. i18n `notif.*` (38 keys) in all 10 bundles. Schema-drift guards
-  (Refs #862 pattern) per query group.
+  `api/reqedit`): legacy "Insert last doc id" create-mode helper restored
+  (Refs #1379) — the BFF `form` responses expose `allow_insert_last_doc_id`
+  (config `req_cfg->allow_insertion_of_last_doc_id`, repo default DISABLED)
+  + `last_doc_id` (computed via `requirement_mgr::get_last_doc_id_for_testproject`,
+  legacy parity), and the screen renders a teal insert icon next to Document ID
+  in create mode only (config on + project has a prior req) with tooltip and
+  one-click fill; icon hides in edit mode and after the first create-save.
+  i18n `reqe.insertLastDocId` in all 10 bundles.
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`): unsaved-changes
+  `beforeunload` guard restored (Refs #1380) — legacy `checkmodified.js` parity
+  (BUGID 4153). Delegated `input change` tracking on all form controls flips
+  `content_modified`; leaving the page with pending edits fires the native warning
+  instead of silently discarding them. Save success and Cancel suppress the warning,
+  `loadForm()`/version-switch reloads reset the dirty flag. Pure client-side; BFF
+  untouched. i18n `reqe.unsavedWarning` in all 10 bundles.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
   header now shows "Assigned to: <user>" (teal) or the "No tester assigned"
@@ -324,18 +292,6 @@ NEW FEATURES
   not_run early-return (legacy parity: a not_run save still claims). i18n
   `esr.assignedTo/hasNoAssignment/assignTaskToMe` in all 10 bundles.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
-  `api/execsetresults`): legacy newer-version handling restored (Refs #1396) —
-  auto-bump to the newest plan-linked version (esrNewestVersion), amber
-  "Attention: This is not the latest available version (Version vN)" warning
-  + "Update Linked TCV To The Latest" action (`POST ?action=update_link`
-  calling `testcase::updateTPlanLinkToLatestTCV`, 405 on GET, 409 when
-  newest already linked, 403 without
-  testplan_execute, 404 on foreign version) which re-points plan link +
-  executions + cfield_execution_values; init payload gains
-  `has_newest_version/newest_version_id/newest_version_number`. i18n
-  `esr.hasNewestVersionMsg/updateLinkToLatestTCVersion/errUpdateLink/
-  linkUpdated` in all 10 bundles.
-- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): legacy execInfo strip restored (Refs #1398) — copy
   direct link (`direct_link`+`feature_id` in init) with clipboard toggle,
   Print, Import XML Results popup, and Execute and Save Results (remote exec,
@@ -345,15 +301,6 @@ NEW FEATURES
   `build_notes`, `platform_notes`, `tplan_cfs`, `build_cfs`); execution type +
   estimated duration meta row (`execution_type_label`,
   `estimated_exec_duration`). i18n `esr.*` keys in all 10 bundles.
-- Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
-  `api/execsetresults`): testcase-scoped custom fields restored (Refs #1395) —
-  design-time CF values (before-steps `location=2` and standard `location=1`),
-  testplan-design CF values (keyed by `testplan_tcversions.id`), and editable
-  execution-time CF inputs, gated on `grants.execute`, with required/format
-  validation; BFF `esrTcaseCfields()` returns `design_cfs/testplan_design_
-  cfs/exec_cfields_html/exec_cfields`; save forwards whitelisted
-  `custom_field_*` payload. i18n `esr.cfsBeforeSteps/cfsAfterSteps/
-  cfsTestplanDesign/execCfields/cfRequired/cfInvalid` in all 10 bundles.
 - Markdown Test Case Import and Export (Feature #853) - full MD parser/emitter
   (lib/functions/markdown_tc_import.class.php, markdown_tc_export.class.php,
   api/testcasesimport, api/testcasesexport).
@@ -402,9 +349,12 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
-- userinfo BFF: profile save with a validation-rejected email fatals on the
-  undefined tlUser::E_EMAILINVALID constant (empty 400 body); now maps the real
-  E_EMAILFORMAT/E_EMAILLENGTH codes to a clean "Invalid email address" (#1500).
+- Bugfix Issue 1487's commit 8ef9694d3 accidentally deleted 5 BFF APIs
+  (execdashboard/notifications/reqfromissues/reqreorder/staticpage) and gutted 5
+  more (execsetresults/testcases/roles/reqedit/planexport) plus 5 GUI templates,
+  8 docs and 10 i18n bundles; all restored to their pre-deletion state with
+  post-regression fixes (#912 options tolerance, #1379 insert-last-doc-id)
+  re-applied (Refs #1507).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
@@ -424,6 +374,12 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   parseTestProjectRecordset, get_all access_key branch) go through a silent
   @unserialize helper and degrade to the existing fallbacks; valid blobs decode
   identically (#1484).
+- BFF api/testcases: `requirementsEnabled`/`testPriorityEnabled`/`automationEnabled`
+  options (context + view actions) were read as object properties only, silently
+  reporting `false` for projects whose options blob decodes to an array — the
+  new `tprojectOpt()` helper tolerates both shapes (mirrors the api/requirements
+  pattern), so Assign Requirements and requirement coverage render for array-blob
+  projects (#912).
 - Installer: PHP extension preflight (#482), config warnings (#484), memory-limit
   shorthand (#675/#676), mysql 8/MariaDB 11.4 (#856), timestamp compatibility.
 - Security: stored XSS in tcView (#804), usersView (#1406/#1430), rolesView
@@ -450,32 +406,6 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   hidden when the TC sits directly under the project. New i18n keys
   `esr.testsuite/details/attachments/suiteCfs/cfField/cfValue/openSuite` in
   all 10 locale bundles (Refs #1399).
-- Set Results popup: issue-tracker integration restored — BFF `init` returns an
-  `its` block (enabled/tracker_name/up_and_running/tl_can_create_issue/…
-  + JIRA metadata), `prior.bugs[]` + `prior.build_open`; `save` creates a bug
-  on `create_issue` (incl. TL direct-link + print-view links in the generated
-  description) and copies linked issues on `copy_issues` (source captured
-  before the execution write, legacy execSetResults.php:147-151); new
-  `linkBug`/`createBug`/`unlinkBug` BFF actions gated on testplan_execute +
-  open build. Popup renders the ITS create/copy panel and the prior-execution
-  bug chips with a link-existing/create-new modal (mirror of the modern Execute
-  screen). New `esr.issueTracker..copyIssuesDone` keys in all 10 bundles + the
-  `tc_name`/`tc_external_id`/`github_bug_created`/`github_bug_comment` server
-  labels in all 10 `locale/*/strings.txt` (Refs #1393).
-- Set Results popup: execution-history table + history_on toggle restored —
-  BFF `init` now returns a `history` block (on/show_last_exec_any_build/
-  show_history_all_builds/show_history_all_platforms/order/last_any_build)
-  and `other_execs[]` (per-row `can_edit_notes`, `can_delete`, build_is_open,
-  bugs, attachments, `cf_html`, run_type, execution_duration) mirroring legacy
-  `manage_history_on()` + `getOtherExecutions()`; new session-persisted
-  `POST ?action=set_history` and a plan-scoped `?action=deleteExecution`
-  (exec_delete + open build). Popup toolbar gets the History ON/OFF toggle
-  (session-persisted), the "Latest execution (any build)" box gated on
-  `show_last_exec_any_build`, and the full exec-history table DESC-ordered on
-  the show_history_all_* gates with per-row edit/attachments/bugs/delete/
-  run-mode/print actions + notes/CF sub-rows. New `esr.history*`,
-  `esr.lastExecAnyBuild/CurrentBuild`, `esr.executionHistory`, `esr.actions`,
-  `esr.attachFiles`, `esr.status` keys in all 10 locale bundles (Refs #1392).
 - Users: create/edit Global Role now preselects the config default role
   (default_roleid, guest) instead of the reserved role 1 with zero rights
   (#1412); /api/users POST defaults role 0/absent to the configured default.
@@ -513,76 +443,6 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   the 179 content keys are now translated in all 8 remaining bundles, with
   the per-chapter `Header` keys aligned to the hub `ts.chapter*` titles
   (#1486).
-- Test Strategy "Quality Objectives" chapter (tracking issue #1441): verified
-  fully implemented and error-free on the default branch — dedicated page
-  `gui/templates/strategy/objectives.html`, `fa-bullseye` icon, ASIDE sub-item
-  (`aside.tpl:142` / `lib/functions/common.php:2110`,
-  `href_test_strategy_objectives` in en_GB/en_US/ro_RO), General Overview
-  CHAPTERS card #2 with **Open chapter** button (chapter map entry in
-  `api/strategy/index.php:59`), and all 10 `ts.objectives*` i18n keys present
-  in all 10 locale bundles (content translations landed for the 8 non-en/ro
-  bundles under #1486) — no code change required; closed after a 6/6 PASS
-  regression suite, browser/console/Event-Viewer clean (Refs #1441).
-- Test Strategy "Training Plan" chapter (tracking issue #1456): verified fully
-  implemented and error-free — dedicated page
-  `gui/templates/strategy/training.html`, `fa-graduation-cap` icon, ASIDE
-  sub-item **Training** (`aside.tpl:157`,
-  `href_test_strategy_training` in en_GB/en_US/ro_RO), General Overview
-  CHAPTERS card #17 "Training Plan" with **Open chapter** button (chapter map
-  entry in `api/strategy/index.php:74`), and all 12 `ts.training*` i18n keys
-  present in all 10 locale bundles. While verifying, a **regression of the
-  #1458 note fix** was found and repaired: `ts.navAdded3` claimed "All 18
-  chapters…" while the grid renders 28 cards (en/ro had been reverted to the
-  old wording by `5888975934` while chapters 20-21 were appended, followed by
-  NFR chapters 22-28; the other 8 bundles carried the stale intermediate
-  "18+Severity" text) — the note is now **count-free** ("All chapters of a
-  Test Strategy …") in all 10 bundles + the `testStrategy.html:63` fallback,
-  so it can never go stale again; 8/8 PASS regression suite,
-  browser/console/Event-Viewer clean (Refs #1456).
-- Test Strategy "Scope" chapter (tracking issue #1442): verified fully
-  implemented and error-free — dedicated page
-  `gui/templates/strategy/scope.html`, `fa-expand-arrows-alt` icon, ASIDE
-  sub-item **Scope** (`aside.tpl:143`,
-  `href_test_strategy_scope` in en_GB/en_US/ro_RO), General Overview CHAPTERS
-  card #3 "Scope" with **Open chapter** button (chapter map entry in
-  `api/strategy/index.php:60`), In-scope (3 bullets) + Out-of-scope (2 bullets)
-  content, and all 9 `ts.scope*` i18n keys present in all 10 locale bundles.
-  While verifying, a real defect was found and fixed: the chapter header
-  rendered the *Objectives* icon `fa-bullseye` instead of the Scope chapter's
-  canonical `fa-expand-arrows-alt` (specified in the issue, used by
-  `aside.tpl:143` and the BFF map) — `scope.html:31` now uses
-  `fa-expand-arrows-alt`; the only chapter page whose header icon mismatched
-  its canonical icon (Refs #1442).
-- Test Strategy "Change & Configuration Management" chapter (tracking issue
-  #1455): verified fully implemented and error-free — dedicated page
-  `gui/templates/strategy/changeConfig.html`, `fa-code-branch` icon, ASIDE
-  sub-item **Change & Config** (`aside.tpl:156`,
-  `href_test_strategy_cfg` in en_GB/en_US/ro_RO), General Overview CHAPTERS
-  card #16 "Change & Configuration Management" with **Open chapter** button
-  (chapter map entry in `api/strategy/index.php:73`), Change control (3
-  bullets) + Configuration (3 bullets) content, and all 10 `ts.cfg*` +
-  `ts.chapterCfg`/`ts.chapterCfgDesc` i18n keys present in all 10 locale
-  bundles (Refs #1455).
-- Test Strategy "Test Approach" chapter (tracking issue #1443): verified
-  fully implemented and error-free — dedicated page
-  `gui/templates/strategy/approach.html`, `fa-compass` icon, ASIDE sub-item
-  **Approach** (`aside.tpl:144`, `href_test_strategy_approach` in
-  en_GB/en_US/ro_RO), General Overview CHAPTERS card #4 "Test Approach" with
-  **Open chapter** button (chapter map entry in `api/strategy/index.php:61`),
-  Strategy (3 bullets) + Techniques (3 bullets) content, and all 10
-  `ts.approach*` + `ts.chapterApproach`/`ts.chapterApproachDesc` i18n keys
-  present in all 10 locale bundles; 8/8 PASS regression suite,
-  browser/console/Event-Viewer clean (Refs #1443).
-- Test Strategy "Test Levels" chapter (tracking issue #1444): verified
-  fully implemented and error-free — dedicated page
-  `gui/templates/strategy/testLevels.html`, `fa-layer-group` icon, ASIDE
-  sub-item **Test Levels** (`aside.tpl:145`, `href_test_strategy_levels` in
-  en_GB/en_US/ro_RO), General Overview CHAPTERS card #5 "Test Levels" with
-  **Open chapter** button (chapter map entry in `api/strategy/index.php:62`),
-  Test levels (3 bullets) + Ownership (3 bullets incl. BAT/UAT) content, and
-  all 10 `ts.levels*` + `ts.chapterLevels`/`ts.chapterLevelsDesc` i18n keys
-  present in all 10 locale bundles; 8/8 PASS regression suite,
-  browser/console/Event-Viewer clean (Refs #1444).
 - Requirement custom fields: `fetchRowsIntoMap()` treated NULL LEFT-JOIN column
   values as "missing column", spamming the Event Viewer with `E_USER_NOTICE`
   for every request on a requirement whose versions/revisions lack a custom
@@ -631,16 +491,6 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   exec context `init` payload (no stale summary/steps) with a
   "Test case updated. Refreshing execution context..." toast; new `esr.tcUpdated`
   key in all 10 locale bundles.
-
-- userinfo BFF profile save fatals on undefined `tlUser::E_EMAILINVALID`
-  (Refs #1500): `PUT /api/userinfo` with an email the validation rejects (e.g.
-  `admin@testlink.local`, TLD > 4 letters) crashed with a PHP 8
-  `Undefined constant` Error because the modernized BFF compared the
-  `checkDetails()` result against a constant tlUser never had. The error
-  branch now maps the two real codes (`tlUser::E_EMAILFORMAT` -512,
-  `tlUser::E_EMAILLENGTH` -2) to a clean HTTP 400 JSON
-  `{"status":"error","message":"Invalid email address","code":<n>}` — the
-  profile save web UI shows the proper error toast instead of an empty 400.
 
 - printDocument.php anonymous api-key deny (Refs #1478): a bogus/unknown
   64-char object api key previously rendered the document (HTTP 200, relative

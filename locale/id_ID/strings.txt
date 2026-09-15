@@ -1989,8 +1989,6 @@ $TLS_href_build_new = "Manajemen 'Build'";
 
 $TLS_href_execute_test = "Jalankan Test";
 
-$TLS_href_exec_dashboard = "Dasbor Eksekusi"; // "Execution Dashboard" (Refs #1499)
-
 $TLS_href_metrics_dashboard = "Metrics dashboard";
 $TLS_href_newest_tcversions = "Show Test Cases newest versions";
 $TLS_href_plan_assign_urgency = "Set urgent tests";
@@ -2869,6 +2867,7 @@ $TLS_doc_youtrack_readme = 'YouTrack Readme';
 
 $TLS_report_test_automation = 'Laporan otomatisasi pengujian';
 $TLS_btn_report_test_automation = 'Spesifikasi Otomasi Pengujian';
+$TLS_href_tc_create_from_issues = "Buat Kasus Uji dari XML Masalah";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'dieksekusi bersama dengan';
 $TLS_remove_plat_msgbox_title = 'Hapus Platform';

@@ -745,7 +745,6 @@ CREATE TABLE /*prefix*/users (
   script_key varchar (32) NULL,
   cookie_string varchar (64) NOT NULL CONSTRAINT /*prefix*/DF_cookie_string DEFAULT (N''),
   auth_method varchar (10) NULL,
-  github varchar(100) NULL,
  CONSTRAINT /*prefix*/PK_users PRIMARY KEY CLUSTERED 
 (
   id ASC

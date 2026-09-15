@@ -137,7 +137,6 @@ a.bug-badge:hover { background: #f8d7da; color: #a93226; }
   <select id="selStatusFilter"></select>
   <input type="text" id="txtSearch" data-i18n-placeholder="exe.searchPlaceholder" placeholder="Search test case..." style="min-width:180px;">
   <button class="btn-teal" onclick="loadList()"><i class="fa fa-rotate"></i> <span data-i18n="exe.refresh">Refresh</span></button>
-  <button class="btn-teal" id="btnDashboard" onclick="openDashboard()"><i class="fa fa-chart-pie"></i> <span data-i18n="exe.dashboard">Dashboard</span></button>
   <button class="btn-teal" id="btnExport" onclick="openExport()"><i class="fa fa-download"></i> <span data-i18n="exe.export">Export</span></button>
 </div>
 
@@ -410,16 +409,6 @@ function openExport() {
     + '&tsuite_id=0'
     + '&tcversionSet=' + encodeURIComponent(ids.join(','));
   window.open(url, '_blank', 'width=860,height=680');
-}
-
-// Refs #1496 - Execution Dashboard (modernized execDashboard.php): opens the
-// context pane for the current build/platform in a new tab so the toolbar
-// context is preserved.
-function openDashboard() {
-  var url = '/gui/templates/execute/execDashboard.html?tplan_id=' + ctx.tplanId
-    + '&build_id=' + curBuildId()
-    + '&platform_id=' + Math.max(0, curPlatformId());
-  window.open(url, '_blank');
 }
 
 function resetSelection() {

@@ -60,7 +60,7 @@ View test specification containers
 
 {$tsuiteExportAction="$basehref$tcExportAction&amp;useRecursion=1&amp;form_token=$ft"}
 
-{$tcMantisXMLAction="lib/testcases/tcCreateFromIssueMantisXML.php?containerID=$container_id"}
+{$tcMantisXMLAction="gui/templates/testcases/tcCreateFromIssues.html?containerID=$container_id&tproject_id=$tproject_id"}
 {$createTCFromIssueMantisXMLAction="$basehref$tcMantisXMLAction"}
 
 

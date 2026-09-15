@@ -38,8 +38,8 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Expected coverage | 1/2/3/5/10 | same dropdown |
 | Scope | description textarea | same |
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
-| Create another after saving (create) | `stay_here` checkbox ("check to create another requirement after saving", BUGID 3953 — create mode only) | **same (added in #1384)** — `stay_here` checkbox in the toolbar, create mode only; when checked the save resets the form (doc id/title/scope empty, status/type/coverage at defaults) and keeps the caller in create mode on the same spec for bulk entry; when unchecked the form transitions to edit mode for the created requirement |
 | Create New Version (edit) | `doAction=doCreateVersion` typewriter copy | `POST ?action=version` — copies content, bumps `version` (+1) |
+| Insert last doc id (create) | icon next to Document ID fills it with the project's last `req_doc_id` (config `allow_insertion_of_last_doc_id`) | BFF form response carries `allow_insert_last_doc_id` + `last_doc_id`; a teal insert icon is rendered in create mode only and one-click fills the field (Refs #1379) |
 | Cancel | return to caller | returns without any DB write |
 
 ## 2. REST API Reference
@@ -48,9 +48,9 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 
 | Method | Route | Body / Query | Returns |
 |---|---|---|---|
-| GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, rights}` |
-| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, options, rights}` |
-| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage, stay_here?}` | `{status:'ok', id, stay_here}` (update or create) |
+| GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, rights}` |
+| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, options, rights}` |
+| POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage}` | `{status:'ok', id}` (update or create) |
 | POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
 
 ### Error conditions
@@ -71,13 +71,26 @@ form with the new id/version.
 - On **create**, the requirement node + `requirements` row + first
   `requirements_revisions` row are created in one transaction, mirroring the
   legacy `doCreate` flow.
+- **Insert last doc id (Refs #1379):** controlled by
+  `req_cfg->allow_insertion_of_last_doc_id` (`config.inc.php`, repo default
+  `DISABLED`, same as legacy). When enabled, the BFF form responses compute
+  `last_doc_id` via `requirement_mgr::get_last_doc_id_for_testproject()`
+  (lib/functions/requirement_mgr.class.php — `max()` over the project's
+  requirement IDs), exactly like legacy `reqEdit.php:249-251`. The screen shows
+  a teal FontAwesome insert icon next to Document ID **in create mode only**,
+  hidden when the project has no requirements yet, in edit mode, after the
+  first create-save flips to edit, or when the config flag is off. The tooltip
+  mirrors legacy `insert_last_req_doc_id`, e.g.
+  `Insert Document ID of last created Requirement: "REQ-002"`; clicking fills
+  `#reqDocId` (legacy `insert_last_doc_id()` parity).
 
 ## 4. i18n Keys
 
 All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 (`reqe.pageTitle`, `reqe.title`, `reqe.docId`, `reqe.status`, `reqe.type`,
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
-`reqe.newVersion`, `reqe.stayHere`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`, and
+`reqe.newVersion`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`,
+`reqe.insertLastDocId` (insert-last-doc-id tooltip), and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -96,7 +109,21 @@ See **Suite 66 — Requirement Editor (reqEdit)** in `tmp/TLU_Test_Cases.md`
 Create New Version, BFF rights, no-permission, cancel, i18n integrity, legacy
 link switch, and Event Viewer cleanliness.
 
-See also **Task #1384 — stay_here create-another** suite (10/10 PASS): checkbox
-visible/checked in create mode, bulk entry resets the form on same spec, unchecked
-save transitions to edit mode, edit mode hides the checkbox, BFF echoes
-`stay_here`, i18n `reqe.stayHere` in all 10 bundles, Event Viewer + console clean.
+**Insert last doc id helper** — see **Task — Issue #1379** in
+`tmp/TLU_Test_Cases.md` (10/10 PASS): config-enabled create BFF payload,
+icon render + tooltip, one-click fill, create-save flips mode and hides the
+icon, edit mode hides it, config-DISABLED hides it, duplicate doc id guard,
+locale switch, Event Viewer cleanliness.
+
+![Insert last doc id helper](screenshots/issue-1379-reqedit-insert-last-docid.png)
+
+See also **Task #1380 — unsaved-changes warning** suite (8/8 PASS): the modern
+screen now installs the legacy `checkmodified.js` `beforeunload` guard (BUGID 4153
+parity). Dirty edits to any field (`scope`, `title`, doc id, `status`, `type`,
+expected coverage) flip `content_modified` and navigating away / closing the page
+fires the native "You have unsaved changes. Are you sure you want to leave?"
+confirmation. Save success and the Cancel button suppress the warning (a deliberate
+navigation), and `loadForm()`/version-switch reloads reset the dirty flag so
+programmatic filling never warns. i18n key `reqe.unsavedWarning` added to all 10
+client locale bundles (native translations, same text as `tcedit.unsavedWarning`).
+Event Viewer + console clean.
