@@ -2301,6 +2301,7 @@ $TLS_href_browse_tc = "Pesquisar Casos de Teste";
 $TLS_href_cfields_management = "Gerenciar Campos Personalizados";
 $TLS_href_cfields_tproject_assign = "Selecionar Campos Personalizados";
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
+$TLS_href_tc_create_from_issues = "Criar casos de teste a partir de um XML de issues";
 $TLS_href_edit_tc = "Especificar Casos de Teste";
 $TLS_href_inventory = "Gerenciamento de Inventário";
 $TLS_href_inventory_management = "Gerenciamento de Inventário";

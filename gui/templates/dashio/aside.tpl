@@ -231,6 +231,7 @@ Left side menu
                   {/if}
                   {if $menuGrants->modify_tc == 'yes'}
                     <li><a href="{$gui->uri->tcImport}" target="mainframe">{$labels.href_tc_import}</a></li>
+                    <li><a href="{$gui->uri->tcCreateFromIssues}" target="mainframe">{$labels.href_tc_create_from_issues}</a></li>
                     <li><a href="{$gui->uri->tcCreatedUser}" target="mainframe">{$labels.link_report_test_cases_created_per_user}</a></li>
                   {/if}
                   {if $menuGrants->view_tc == "yes"}

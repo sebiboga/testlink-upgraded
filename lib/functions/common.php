@@ -1938,6 +1938,10 @@ function getActions(&$gui,$baseURL) {
   // MD/XML Test Case Import modernized screen
   $actions->tcImport = "/gui/templates/testcases/tcImport.html?{$ctx}";
 
+  // Create Test Cases from Issue XML (Mantis) modernized screen (Refs #1502)
+  $actions->tcCreateFromIssues =
+    "/gui/templates/testcases/tcCreateFromIssues.html?{$ctx}";
+
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
