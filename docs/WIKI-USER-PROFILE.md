@@ -125,13 +125,16 @@ was a net-new capability (legacy 1.9.20 had no avatar concept at all).
   (whatever the current session/user carries); `PUT /api/userinfo` accepts
   `github` (trimmed, leading `@` stripped, length-guarded, demo-mode gate
   enforced).
-- **Known limitation (pre-existing, issue #1510):** the handle is **not
-  persisted** — there is no `users.github` column in the current schema seeds /
-  DB exports and `tlUser` has no `github` property or read/write mapping, so a
-  saved handle is echoed back on the same session only and lost on reload. The
-  front-end avatar preview works regardless (built client-side from the form
-  field), so the avatar UI is functional; only the storage of the handle is
-  missing. Tracked separately in #1510.
+- **Storage (fixed, issue #1510):** the handle is **persisted** in `users.github`
+  varchar(100) NULL (column present in all three schema seeds
+  `install/sql/mysql|postgres|mssql/testlink_create_tables.sql` plus the 2.0.0
+  alter-tables migration `install/sql/alter_tables/2.0.0/{mysql,postgres}/`),
+  mapped through `tlUser` (`lib/functions/tlUser.class.php`: `github` property,
+  `_clean()` init, `readFromDB()` SELECT+assign, `writeToDB()` UPDATE+INSERT,
+  NULL → `''`). A saved handle survives a reload; the front-end avatar preview
+  reflects it. Regression suite `Regression — Issue #1510` in
+  `tmp/TLU_Test_Cases.md` covers PUT/get positives, `@`-strip, >100-char 400,
+  no-key PUT, events cleanliness.
 - **Bugfix #1509:** the `avatarUrl` field was **removed** from the GET payload.
   It called `tlUser::getGithubAvatarUrl(96)`, a helper that no longer exists in
   the codebase (deleted from `lib/functions/tlUser.class.php` in the #1487

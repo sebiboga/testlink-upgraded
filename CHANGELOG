@@ -360,6 +360,12 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- userinfo BFF: GitHub handle was silently discarded on profile save — the #905
+  `users.github` column + tlUser mapping were gutted by 8ef9694d3 (#1487) while
+  the #1507 restore re-added only the BFF branch, so `$user->github` was an
+  unwritten dynamic property. Restored `users.github` varchar(100) NULL to all
+  three schema seeds + 2.0.0 alter tables (mysql/postgres) and the full tlUser
+  read/write mapping; the handle now survives a reload (Refs #1510).
 - Bugfix Issue 1487's commit 8ef9694d3 accidentally deleted 5 BFF APIs
   (execdashboard/notifications/reqfromissues/reqreorder/staticpage) and gutted 5
   more (execsetresults/testcases/roles/reqedit/planexport) plus 5 GUI templates,
