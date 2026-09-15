@@ -126,3 +126,23 @@ ESX1496 (`tproject_id=1`), plan ESX1496-Plan (`tplan_id=2`), open build 1 +
 closed build 2, platforms ESX1496-Win (1, linked) / ESX1496-Mac (2, unlinked)
 and custom field ESX1496-CF with a plan value (`Pre-prod`) and a build value
 (`Build-Edge`).
+
+## 7. Regression history (Refs #1511)
+
+Bugfix Issue #1487's commit `8ef9694d3` regressed the execDashboard link
+machinery: `$actions->execDashboard` in `lib/functions/common.php`, the ASIDE
+sub-item in `gui/templates/dashio/aside.tpl` and the `href_exec_dashboard` label
+in `labels.aside.tpl` + all 19 `locale/*/strings.txt` vanished. The umbrella
+restore (#1507) brought back the BFF + HTML screen files but NOT the Execute-menu
+wiring, so the dashboard was again unreachable from the ASIDE.
+
+Restored (Refs #1511): the common.php link switch block (tplan>0 branch, after
+`executeTest`, before `execExport`), the `labels.aside.tpl` lang_get list entry
+and the Execute → **Execution Dashboard** sub-item (first Execute entry, gated
+`testplan_execute OR exec_ro_access` AND non-null uri). Verified in browser
+(admin: ASIDE click → `execDashboard.html?tproject_id=1000&tplan_id=1002`, BFF
+init 200, build 1003 / platform message / REST triple, Continue round-trip into
+`execTest.html?tplan_id=1002&tproject_id=1000`, EN→RO locale switch shows the full
+RO translation; `<no rights>` user: BFF 403 `execute tests on this plan` + graceful
+permission notice; anon: BFF 401 / POST CSRF 403). Event Viewer clean (0
+ERROR/WARNING). Suite #1511 in `tmp/TLU_Test_Cases.md` 27/27 PASS.

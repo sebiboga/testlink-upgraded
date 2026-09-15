@@ -218,6 +218,8 @@ Plans:
 - Plan Import (planImport.html) - BFF api/planimport (#1388-#1390, #1414).
 
 Execution:
+- Execution Dashboard (execDashboard.html) - BFF api/execdashboard (#1496/#1499);
+  Execute menu link switch + ASIDE entry restored after the #1487 guts (#1511).
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
   api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1402).
 - Execution History (execHistory.html) - BFF api/execute.
@@ -360,6 +362,13 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   the #1487 pass and the #1507 restore re-added only the call site; removed the
   unused avatarUrl field (front-end renders the avatar from `github` client-side),
   profile reads now return 200 (Refs #1509).
+- Execution Dashboard Execute-menu wiring (regression of the #1487 guts): commit
+  8ef9694d3 also dropped `$actions->execDashboard` (common.php), the ASIDE Execute
+  → "Execution Dashboard" sub-item and the `href_exec_dashboard` label
+  (labels.aside.tpl + 19 locale strings) — the #1507 restore brought back the BFF
+  + HTML files only, leaving the pane unreachable from the menu; the link switch +
+  ASIDE entry are restored and verified (admin click-through, RO locale, 401/403 +
+  graceful no-rights degradation), suite #1511 27/27 PASS (Refs #1511).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
