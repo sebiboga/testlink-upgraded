@@ -1169,14 +1169,27 @@ if ($action === 'get') {
 
     $tvTables = tlObjectWithDB::getDBTables(
         array('nodes_hierarchy', 'tcversions', 'tcsteps', 'executions'));
+    // optional tcversion_id: edit a SPECIFIC version, not always the latest
+    // (version selector port from legacy tcEdit viewer; default = latest).
+    $requestedTcversion = getIntParam('tcversion_id');
+    $versionFilter = $requestedTcversion > 0
+        ? " AND TCV.id = {$requestedTcversion} " : '';
     $lvRow = $db->fetchFirstRow(
         " SELECT TCV.*, NHT.name AS tc_name, NHT.parent_id AS suite_id " .
         " FROM {$tvTables['tcversions']} TCV " .
         " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
         " JOIN {$tvTables['nodes_hierarchy']} NHT ON NHT.id = NH.parent_id " .
-        " WHERE NH.parent_id = {$tcaseId} " .
+        " WHERE NH.parent_id = {$tcaseId} " . $versionFilter .
         " ORDER BY TCV.version DESC LIMIT 1");
-    if (is_null($lvRow)) {
+    if (empty($lvRow)) {
+        if ($requestedTcversion > 0) {
+            // A concrete version was requested but does not belong to this
+            // test case (anymore) -> fail loudly instead of silently showing
+            // the latest version (which caused an E_WARNING on the fallback
+            // and hid the real condition at the #914 version selector).
+            jout(['status' => 'error', 'message' => 'Test case version not found'],
+                 404);
+        }
         // fall back to manager API (handles schema variants)
         $basic = $tcaseMgr->get_basic_info($tcaseId, null);
         if (is_null($basic)) {
@@ -1186,7 +1199,7 @@ if ($action === 'get') {
         $lvRow = $db->fetchFirstRow(
             " SELECT * FROM {$tvTables['tcversions']} WHERE id = " .
             intval($firstV['tcversion_id']));
-        if (is_null($lvRow)) {
+        if (empty($lvRow)) {
             jout(['status' => 'error', 'message' => 'Test case not found'], 404);
         }
     }
@@ -1324,6 +1337,84 @@ if ($action === 'get') {
         'executed' => $executed,
         'statusDomain' => tcStatusDomain(),
         'estimateDurationRequired' => isDurationRequired($tcaseCfg),
+    ]);
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=version_list&tcase_id=N
+// All versions of a test case with lifecycle flags (id, version, active,
+// is_open, has_been_executed, is_latest). Mirrors the legacy tcView_viewer
+// version-section data (get_by_id ALL_VERSIONS) and drives the version
+// selector + Freeze/Unfreeze + Activate/Deactivate + Delete-version buttons.
+// ---------------------------------------------------------------------------
+if ($action === 'version_list') {
+    $tcaseId = getIntParam('tcase_id');
+    if ($tcaseId <= 0) {
+        jout(['status' => 'error', 'message' => 'Invalid test case id'], 400);
+    }
+    $tprojectId = owningProjectOf($db, $tprojectMgr, $tcaseId);
+    if (is_null($tprojectId)) {
+        jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        jout(['status' => 'error', 'message' => 'No permission'], 403);
+    }
+
+    $vTables = tlObjectWithDB::getDBTables(
+        array('nodes_hierarchy', 'tcversions', 'executions'));
+    $lvRow = $db->fetchFirstRow(
+        " SELECT MAX(TCV.version) AS vmax FROM {$vTables['tcversions']} TCV " .
+        " JOIN {$vTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " WHERE NH.parent_id = {$tcaseId}");
+    $latestVersion = intval($lvRow['vmax'] ?? 0);
+
+    $rows = $db->get_recordset(
+        " SELECT TCV.id AS tcversion_id, TCV.version, TCV.active, TCV.is_open, " .
+        "        TCV.summary, TCV.creation_ts, TCV.modification_ts " .
+        " FROM {$vTables['tcversions']} TCV " .
+        " JOIN {$vTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+        " WHERE NH.parent_id = {$tcaseId} " .
+        " ORDER BY TCV.version ASC");
+    $versions = [];
+    if (!is_null($rows)) {
+        $executedSet = [];
+        if (count($rows) > 0) {
+            $execRs = $db->get_recordset(
+                " SELECT DISTINCT tcversion_id FROM {$vTables['executions']} " .
+                " WHERE tcversion_id IN (" .
+                implode(',', array_map('intval', array_column($rows, 'tcversion_id'))) . ")");
+            if (!is_null($execRs)) {
+                foreach ($execRs as $ex) {
+                    $executedSet[intval($ex['tcversion_id'])] = 1;
+                }
+            }
+        }
+        foreach ($rows as $r) {
+            $vid = intval($r['tcversion_id']);
+            $versions[] = [
+                'tcversion_id' => $vid,
+                'version' => intval($r['version']),
+                'active' => intval($r['active']),
+                'is_open' => intval($r['is_open']),
+                'has_been_executed' => isset($executedSet[$vid]) ? 1 : 0,
+                'is_latest' => intval($r['version']) === $latestVersion,
+            ];
+        }
+    }
+
+    $grants = [];
+    foreach (array('mgt_modify_tc', 'testcase_freeze',
+                   'delete_frozen_tcversion',
+                   'testproject_delete_executed_testcases') as $gk) {
+        $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
+    }
+
+    jout([
+        'status' => 'ok',
+        'tcase_id' => $tcaseId,
+        'tproject_id' => $tprojectId,
+        'versions' => $versions,
+        'grants' => $grants,
     ]);
 }
 
@@ -1710,9 +1801,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         jout(['status' => 'ok', 'id' => $newId, 'message' => 'Test case created']);
     }
 
-    // POST ?action=update {tcase_id,name,summary,preconditions,steps[],
-    //                      importance,execution_type,keywords[]}
-    // Updates the LATEST version (legacy doUpdate behavior).
+    // POST ?action=update {tcase_id,tcversion_id(optional),name,summary,
+    //                      preconditions,steps[],importance,execution_type,
+    //                      keywords[]}
+    // Updates a specific version when tcversion_id is provided (version
+    // selector), otherwise the LATEST version (legacy doUpdate behavior).
     if ($action === 'update') {
         $tcaseId = intval($body['tcase_id'] ?? 0);
         if ($tcaseId <= 0) {
@@ -1721,13 +1814,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $tprojectId = $checkWrite($tcaseId);
 
         $tvTables2 = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions', 'executions'));
+        $updateTcversion = intval($body['tcversion_id'] ?? 0);
+        $updateFilter = $updateTcversion > 0
+            ? " AND TCV.id = {$updateTcversion} " : '';
         $lvRow = $db->fetchFirstRow(
             " SELECT TCV.* FROM {$tvTables2['tcversions']} TCV " .
             " JOIN {$tvTables2['nodes_hierarchy']} NH ON NH.id = TCV.id " .
-            " WHERE NH.parent_id = {$tcaseId} " .
+            " WHERE NH.parent_id = {$tcaseId} " . $updateFilter .
             " ORDER BY TCV.version DESC LIMIT 1");
-        if (is_null($lvRow)) {
-            jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+        if (empty($lvRow)) {
+            jout(['status' => 'error', 'message' => 'Test case version not found'], 404);
         }
         $tcversionId = intval($lvRow['id']);
 
@@ -1794,6 +1890,138 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $checkWrite($tcaseId);
         $ret = $tcaseMgr->delete($tcaseId);
         jout(['status' => 'ok', 'message' => 'Test case deleted', 'result' => $ret]);
+    }
+
+    // -----------------------------------------------------------------------
+    // POST ?action=delete_version {tcase_id, tcversion_id}
+    // Removes ONLY the requested version (legacy doDelete with a concrete
+    // tcversion_id). Mirrors "delete_tc_version" button in tcView_viewer.
+    // -----------------------------------------------------------------------
+    if ($action === 'delete_version') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        $tcversionId = intval($body['tcversion_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcversionId <= 0) {
+            jout(['status' => 'error',
+                  'message' => 'Missing test case or version id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+
+        $dvTables = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions', 'executions'));
+        $dvRow = $db->fetchFirstRow(
+            " SELECT TCV.* FROM {$dvTables['tcversions']} TCV " .
+            " JOIN {$dvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId} AND TCV.id = {$tcversionId}");
+        if (empty($dvRow)) {
+            jout(['status' => 'error',
+                  'message' => 'Version not found on this test case'], 404);
+        }
+
+        $isFrozen = intval($dvRow['is_open'] ?? 0) === 0;
+        if ($isFrozen
+            && !$user->hasRight($db, 'delete_frozen_tcversion', $tprojectId)) {
+            jout(['status' => 'error',
+                  'message' => 'This version is frozen: deleting requires the '
+                    . 'delete frozen tcversion permission'], 403);
+        }
+
+        $execRs = $db->get_recordset(
+            "SELECT id FROM {$dvTables['executions']} " .
+            "WHERE tcversion_id = {$tcversionId} LIMIT 1");
+        if (!is_null($execRs) && count($execRs) > 0
+            && !$user->hasRight($db,
+                'testproject_delete_executed_testcases', $tprojectId)
+            && !((config_get('testcase_cfg')->canDeleteExecuted ?? 0) > 0)) {
+            jout(['status' => 'error',
+                  'message' => 'This version has executions: deleting requires '
+                    . 'special permission'], 403);
+        }
+
+        $ret = $tcaseMgr->delete($tcaseId, $tcversionId);
+        $versionsLeft = intval($db->fetchOneValue(
+            " SELECT COUNT(0) FROM {$dvTables['tcversions']} TCV " .
+            " JOIN {$dvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId}"));
+        if ($versionsLeft <= 0) {
+            // Last version removed: destroy the (now empty) test case node as
+            // well, so no ghost test case stays in the tree. Legacy achieves
+            // the same through the (only) version delete + full drain path.
+            $db->exec_query(
+                "DELETE FROM {$dvTables['nodes_hierarchy']} WHERE id = {$tcaseId}");
+        }
+        jout(['status' => 'ok', 'message' => 'Test case version deleted',
+              'result' => $ret, 'versions_left' => $versionsLeft]);
+    }
+
+    // -----------------------------------------------------------------------
+    // POST ?action=freeze|unfreeze {tcase_id, tcversion_id}
+    // Toggle is_open on a single version (legacy testcaseCommands::freeze/
+    // unfreeze -> testcase::setIsOpen). Requires the testcase_freeze right.
+    // -----------------------------------------------------------------------
+    if ($action === 'freeze' || $action === 'unfreeze') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        $tcversionId = intval($body['tcversion_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcversionId <= 0) {
+            jout(['status' => 'error',
+                  'message' => 'Missing test case or version id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        if (!$user->hasRight($db, 'testcase_freeze', $tprojectId)) {
+            jout(['status' => 'error',
+                  'message' => 'Requires permission: freeze test cases'], 403);
+        }
+        $fuTables = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions'));
+        $fuRow = $db->fetchFirstRow(
+            " SELECT TCV.id FROM {$fuTables['tcversions']} TCV " .
+            " JOIN {$fuTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId} AND TCV.id = {$tcversionId}");
+        if (empty($fuRow)) {
+            jout(['status' => 'error',
+                  'message' => 'Version not found on this test case'], 404);
+        }
+        $isOpen = $action === 'unfreeze' ? 1 : 0;
+        $tcaseMgr->setIsOpen(null, $tcversionId, $isOpen);
+        $tcaseMgr->update_last_modified(
+            $tcversionId, intval($user->dbID ?? $userId));
+        jout(['status' => 'ok',
+              'message' => $isOpen
+                  ? 'Test case version unfrozen'
+                  : 'Test case version frozen',
+              'tcversion_id' => $tcversionId, 'is_open' => $isOpen]);
+    }
+
+    // -----------------------------------------------------------------------
+    // POST ?action=activate|deactivate {tcase_id, tcversion_id}
+    // Per-version active flag (legacy setActiveAttr -> update_active_status).
+    // -----------------------------------------------------------------------
+    if ($action === 'activate' || $action === 'deactivate') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        $tcversionId = intval($body['tcversion_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcversionId <= 0) {
+            jout(['status' => 'error',
+                  'message' => 'Missing test case or version id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        $adTables = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions'));
+        $adRow = $db->fetchFirstRow(
+            " SELECT TCV.id FROM {$adTables['tcversions']} TCV " .
+            " JOIN {$adTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId} AND TCV.id = {$tcversionId}");
+        if (empty($adRow)) {
+            jout(['status' => 'error',
+                  'message' => 'Version not found on this test case'], 404);
+        }
+        $activeAttr = $action === 'activate' ? 1 : 0;
+        $tcaseMgr->update_active_status($tcaseId, $tcversionId, $activeAttr);
+        $tcaseMgr->update_last_modified(
+            $tcversionId, intval($user->dbID ?? $userId));
+        jout(['status' => 'ok',
+              'message' => $activeAttr
+                  ? 'Test case version activated'
+                  : 'Test case version deactivated',
+              'tcversion_id' => $tcversionId, 'active' => $activeAttr]);
     }
 
     // POST ?action=create_version {tcase_id}  -> new version cloned from latest

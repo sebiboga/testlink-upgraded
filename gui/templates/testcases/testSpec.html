@@ -175,7 +175,7 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
     <div class="modal-body" id="confirmText"></div>
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="closeModal('confirmModal')" data-i18n="tspec.cancel">Cancel</button>
-      <button class="btn-red btn-sm" id="confirmYesBtn" data-i18n="tspec.confirmDelete">Delete</button>
+      <button class="btn-red btn-sm" id="confirmYesBtn">Delete</button>
     </div>
   </div>
 </div>
@@ -635,9 +635,16 @@ function execTypeLabel(v) {
   return parseInt(v, 10) === 2 ? t('tspec.execTypeAutomated') : t('tspec.execTypeManual');
 }
 
-function loadTcView(tcaseId) {
+function loadTcView(tcaseId, tcversionId) {
   $('#tcView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
-  apiGet('get', { tcase_id: tcaseId }).then(function (r) {
+  var params = { tcase_id: tcaseId };
+  if (tcversionId > 0) { params.tcversion_id = tcversionId; }
+  // fetch version list for the selector, then load the view
+  apiGet('version_list', { tcase_id: tcaseId }).then(function(vr) {
+    ctx._lastVersionList = vr.versions || [];
+    ctx._lastVersionGrants = vr.grants || {};
+    return apiGet('get', params);
+  }).then(function (r) {
     renderTcView(r);
   }).catch(function (e) {
     $('#tcView').html('<div class="placeholder-box">' + esc(e.message || t('tspec.errLoad')) + '</div>');
@@ -673,6 +680,7 @@ function renderTcView(r) {
 
   var h = '<div class="card"><div class="card-head">' +
     '<h2><i class="fa fa-flask"></i> ' + esc(tc.name) + '</h2>' +
+    versionSelectorHtml(r) +
     '<span class="badge-tl">' + t('tspec.versionShort') + ' ' + tc.version + '</span>' +
     (tc.external_id > 0 ? '<span class="badge-tl badge-gray">#' + tc.external_id + '</span>' : '') +
     (r.executed ? '<span class="badge-tl badge-purple">' + t('tspec.executed') + '</span>' : '') +
@@ -711,10 +719,15 @@ function renderTcView(r) {
 
   if (canMod) {
     h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
-      '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
+      '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ',' + tc.tcversion_id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="createNewVersion(' + tc.id + ')"><i class="fa fa-code-branch"></i> ' + t('tspec.newVersion') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="window.open(\'/gui/templates/testcases/tcView.html?tcase_id=' + tc.id + '\',\'_blank\')"><i class="fa fa-eye"></i> ' + t('tspec.fullViewer') + '</button>' +
       '<button class="btn-red btn-sm" onclick="askDeleteTc(' + tc.id + ')"><i class="fa fa-trash"></i> ' + t('tspec.deleteTc') + '</button>' +
+    '</div>';
+  }
+  if (canMod) {
+    h += '<div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">' +
+      versionLifecycleButtonsHtml(r) +
     '</div>';
   }
   if (ctx.reqEnabled && !!grants['req_tcase_link_management']) {
@@ -724,6 +737,160 @@ function renderTcView(r) {
   }
   h += '</div></div>';
   $('#tcView').html(h).show();
+}
+
+/* ------------------------------------------------------------------ */
+/*  Version selector + lifecycle actions (port of legacy tcView_viewer */
+/*  version section: pick a version, freeze/unfreeze, activate/        */
+/*  deactivate, delete this version only).                             */
+/* ------------------------------------------------------------------ */
+function versionSelectorHtml(r) {
+  var versions = ctx._lastVersionList || [];
+  if (!versions.length) { return ''; }
+  var curId = parseInt(r.tcase.tcversion_id, 10);
+  var opts = versions.map(function (v) {
+    var lbl = t('tspec.versionShort') + ' ' + v.version;
+    if (v.version === Number(r.tcase.version)) { lbl += ' (' + t('tspec.current') + ')'; }
+    else if (v.is_latest) { lbl += ' (' + t('tspec.latest') + ')'; }
+    if (!v.is_open) { lbl += ' \u2744'; }
+    if (!v.active) { lbl += ' (' + t('tspec.inactive') + ')'; }
+    if (v.has_been_executed) { lbl += ' (\u2713 ' + t('tspec.executed') + ')'; }
+    return '<option value="' + v.tcversion_id + '"' +
+      (parseInt(v.tcversion_id, 10) === curId ? ' selected' : '') + '>' +
+      esc(lbl) + '</option>';
+  }).join('');
+  return '<select class="form-control2" id="tcvSelector" style="width:auto;max-width:280px;padding:4px 8px;font-size:12px;" ' +
+    'onchange="switchViewVersion(this.value)"><option value="">' +
+    esc(t('tspec.selectVersion')) + '...</option>' + opts + '</select>';
+}
+
+function editorVersionSelectorHtml(data) {
+  var versions = ctx._lastVersionList || [];
+  if (!versions.length) { return ''; }
+  var curId = parseInt(data.tcversion_id, 10);
+  var opts = versions.map(function (v) {
+    var lbl = t('tspec.versionShort') + ' ' + v.version;
+    if (!v.is_open) { lbl += ' \u2744'; }
+    if (!v.active) { lbl += ' (' + t('tspec.inactive') + ')'; }
+    if (v.has_been_executed) { lbl += ' (\u2713 ' + t('tspec.executed') + ')'; }
+    return '<option value="' + v.tcversion_id + '"' +
+      (parseInt(v.tcversion_id, 10) === curId ? ' selected' : '') + '>' +
+      esc(lbl) + '</option>';
+  }).join('');
+  return '<select class="form-control2" id="tcvEditorSelector" style="width:auto;max-width:280px;padding:4px 8px;font-size:12px;" ' +
+    'onchange="switchEditVersion(this.value)"><option value="">' +
+    esc(t('tspec.selectVersion')) + '...</option>' + opts + '</select>';
+}
+
+function switchEditVersion(tcversionId) {
+  if (!tcversionId || !editMode || editMode.mode !== 'update') { return; }
+  apiGet('get', { tcase_id: editMode.tcase_id, tcversion_id: parseInt(tcversionId, 10) }).then(function (r) {
+    editMode.tcversion_id = r.tcase.tcversion_id;
+    editMode.version = r.tcase.version;
+    $('#editView').html(formHtml({
+      name: r.tcase.name,
+      summary: r.tcase.summary,
+      preconditions: r.tcase.preconditions,
+      importance: r.tcase.importance,
+      execution_type: r.tcase.execution_type,
+      steps: r.steps,
+      customFields: r.customFields,
+      attachments: r.attachments,
+      tcversion_id: r.tcase.tcversion_id,
+      version: r.tcase.version,
+      keywordsAssigned: r.keywordsAssigned
+    }, r.keywordsProject)).show();
+  }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
+}
+
+function versionLifecycleButtonsHtml(r) {
+  var tc = r.tcase;
+  var vg = ctx._lastVersionGrants || {};
+  var canFreeze = vg['testcase_freeze'];
+  var canDelFrozen = vg['delete_frozen_tcversion'];
+  var frozen = parseInt(tc.is_open, 10) === 0;
+  var isLatest = false;
+  (ctx._lastVersionList || []).forEach(function (v) {
+    if (parseInt(v.tcversion_id, 10) === parseInt(tc.tcversion_id, 10)) {
+      isLatest = !!v.is_latest;
+    }
+  });
+  // only the LATEST version can be activated/deactivated logically; for
+  // older versions show the current state toggle like legacy allows per version
+  var onlyVersion = (ctx._lastVersionList || []).length <= 1;
+  var btns = '';
+
+  if (canFreeze) {
+    if (!frozen) {
+      btns += '<button class="btn-dark btn-sm" onclick="setVersionOpen(' + tc.id + ',' + tc.tcversion_id + ',0)"><i class="fa fa-snowflake"></i> ' + t('tspec.freeze') + '</button>';
+    } else {
+      btns += '<button class="btn-dark btn-sm" onclick="setVersionOpen(' + tc.id + ',' + tc.tcversion_id + ',1)"><i class="fa fa-sun"></i> ' + t('tspec.unfreeze') + '</button>';
+    }
+  }
+  if (!frozen) {
+    var active = parseInt(tc.active, 10) === 1;
+    var deactLabel = isLatest && !onlyVersion ? t('tspec.deactivateLatest') : t('tspec.deactivate');
+    var actLabel = isLatest && !onlyVersion ? t('tspec.activateLatest') : t('tspec.activate');
+    if (active) {
+      btns += '<button class="btn-dark btn-sm" onclick="setVersionActive(' + tc.id + ',' + tc.tcversion_id + ',0)"><i class="fa fa-eye-slash"></i> ' + deactLabel + '</button>';
+    } else {
+      btns += '<button class="btn-dark btn-sm" onclick="setVersionActive(' + tc.id + ',' + tc.tcversion_id + ',1)"><i class="fa fa-eye"></i> ' + actLabel + '</button>';
+    }
+  }
+  if (!frozen || canDelFrozen) {
+    btns += '<button class="btn-red btn-sm" onclick="askDeleteVersion(' + tc.id + ',' + tc.tcversion_id + ')"><i class="fa fa-trash"></i> ' + t('tspec.deleteVersion') + '</button>';
+  }
+  return btns;
+}
+
+function switchViewVersion(tcversionId) {
+  if (!tcversionId || !selected || selected.type !== 'testcase') { return; }
+  loadTcView(selected.id, parseInt(tcversionId, 10));
+}
+
+function setVersionOpen(tcaseId, tcversionId, isOpen) {
+  var action = isOpen ? 'unfreeze' : 'freeze';
+  var msg = isOpen ? t('tspec.confirmUnfreeze') : t('tspec.confirmFreeze');
+  var ok = isOpen ? t('tspec.unfreeze') : t('tspec.freeze');
+  askConfirm(msg, function () {
+    apiPost(action, { tcase_id: tcaseId, tcversion_id: tcversionId }).then(function (r) {
+      toast(r.message || (isOpen ? t('tspec.unfrozen') : t('tspec.frozen')));
+      loadTcView(tcaseId, tcversionId);
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  }, ok);
+}
+
+function setVersionActive(tcaseId, tcversionId, active) {
+  var action = active ? 'activate' : 'deactivate';
+  var msg = active ? t('tspec.confirmActivate') : t('tspec.confirmDeactivate');
+  var ok = active ? t('tspec.activate') : t('tspec.deactivate');
+  askConfirm(msg, function () {
+    apiPost(action, { tcase_id: tcaseId, tcversion_id: tcversionId }).then(function (r) {
+      toast(r.message || (active ? t('tspec.activated') : t('tspec.deactivated')));
+      loadTcView(tcaseId, tcversionId);
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  }, ok);
+}
+
+function askDeleteVersion(tcaseId, tcversionId) {
+  askConfirm(t('tspec.confirmDeleteVersion'), function () {
+    apiPost('delete_version', { tcase_id: tcaseId, tcversion_id: tcversionId }).then(function (r) {
+      toast(r.message || t('tspec.versionDeleted'));
+      if (r.versions_left > 0) {
+        loadTcView(tcaseId);
+      } else {
+        askDeleteTcAfterVersion(); // no versions left -> test case is gone
+      }
+      loadTree();
+    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+  });
+}
+
+function askDeleteTcAfterVersion() {
+  selected = null;
+  hideAllPanes();
+  $('#placeholder').show();
+  updateContextButtons();
 }
 
 function collectForm() {
@@ -792,7 +959,9 @@ function formHtml(data, kwProject) {
   (data.keywordsAssigned ? Object.keys(data.keywordsAssigned) : []).forEach(function (k) { assigned[k] = true; });
   var steps = data.steps || [];
   var h = '<div class="card"><div class="card-head"><h2><i class="fa fa-pen-to-square"></i> ' +
-    (editMode === 'create' ? t('tspec.createTc') : t('tspec.editTc')) + '</h2></div><div class="card-body">' +
+    (editMode === 'create' ? t('tspec.createTc') : t('tspec.editTc')) + '</h2>' +
+    (editMode && editMode.mode === 'update' ? editorVersionSelectorHtml(data) : '') +
+    '</div><div class="card-body">' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.tcName') + ' *</div>' +
     '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '"></div>' +
@@ -1081,9 +1250,17 @@ function openCreateTc() {
   });
 }
 
-function openEditTc(tcaseId) {
-  apiGet('get', { tcase_id: tcaseId }).then(function (r) {
-    editMode = { mode: 'update', tcase_id: r.tcase.id, tcversion_id: r.tcase.tcversion_id };
+function openEditTc(tcaseId, tcversionId) {
+  var params = { tcase_id: tcaseId };
+  if (tcversionId > 0) { params.tcversion_id = tcversionId; }
+  // ensure the version list is available for the editor's version selector
+  var pre = apiGet('version_list', { tcase_id: tcaseId }).then(function (vr) {
+    ctx._lastVersionList = vr.versions || [];
+    ctx._lastVersionGrants = vr.grants || {};
+    return apiGet('get', params);
+  });
+  pre.then(function (r) {
+    editMode = { mode: 'update', tcase_id: r.tcase.id, tcversion_id: r.tcase.tcversion_id, version: r.tcase.version };
     hideAllPanes();
     $('#editView').html(formHtml({
       name: r.tcase.name,
@@ -1095,6 +1272,7 @@ function openEditTc(tcaseId) {
       customFields: r.customFields,
       attachments: r.attachments,
       tcversion_id: r.tcase.tcversion_id,
+      version: r.tcase.version,
       keywordsAssigned: r.keywordsAssigned
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -1156,6 +1334,7 @@ function saveForm() {
     req = apiPost('create', fd);
   } else {
     fd.tcase_id = editMode.tcase_id;
+    fd.tcversion_id = editMode.tcversion_id;
     req = apiPost('update', fd);
   }
   req.then(function (r) {
@@ -1171,14 +1350,14 @@ function saveForm() {
 }
 
 function createNewVersion(tcaseId) {
-  askConfirm(t('tspec.confirmNewVersion'), function () {
-    apiPost('create_version', { tcase_id: tcaseId }).then(function (r) {
-      toast(r.message || t('tspec.saved'));
-      loadTree();
-      selectNode('testcase', tcaseId);
-    }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
-  });
-}
+   askConfirm(t('tspec.confirmNewVersion'), function () {
+     apiPost('create_version', { tcase_id: tcaseId }).then(function (r) {
+       toast(r.message || t('tspec.saved'));
+       loadTree();
+       selectNode('testcase', tcaseId);
+     }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
+   }, t('tspec.newVersion'));
+ }
 
 function askDeleteTc(tcaseId) {
   askConfirm(t('tspec.confirmDelTc'), function () {
@@ -1248,8 +1427,9 @@ function submitSuiteModal() {
   }).catch(function (e) { toast(e.message || t('tspec.errSave'), true); });
 }
 
-function askConfirm(text, cb) {
+function askConfirm(text, cb, okLabel) {
   $('#confirmText').text(text);
+  $('#confirmYesBtn').text(okLabel || t('tspec.confirmDelete'));
   window.__confirmCb = cb;
   $('#confirmModal').show();
 }
