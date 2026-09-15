@@ -2495,7 +2495,7 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
    */
   function closeOpenTCVersionOnOpenLinks( $reqVersionID ) {
 
-    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
+    $debugMsg = '/* Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__ . ' */';
 
     $commonWhere = " WHERE req_version_id = " . intval($reqVersionID) .
                    " AND link_status = " . LINK_TC_REQ_OPEN; 

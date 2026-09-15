@@ -121,7 +121,7 @@ Requirements:
 - Requirement Import (reqImport.html) - BFF api/reqimport (#1292).
 - Requirement Export (reqExport.html) - BFF api/reqexport (#1295).
 - Requirement Viewer (reqView.html) - BFF api/requirements (#1297-#1306).
-- Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384).
+- Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384, #1377).
 - Requirement Version Compare (reqCompare.html) - BFF api/reqcompare (#1017,
   #1308-#1311).
 - Requirement Document Print (printDocument.html).
@@ -357,6 +357,21 @@ NEW FEATURES
   cleanliness checks after every run.
 - Windows/Docker development setup guide; PHP built-in server launcher
   (scripts/devserver.sh).
+
+NEW FEATURES
+------------
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
+  `api/reqedit`): "Create New Version" restored to full legacy parity
+  (Refs #1377) — the BFF `version` action now calls
+  `requirement_mgr::create_new_version()` (legacy `doCreateVersion` path):
+  copies the whole source version (scope, status, type, expected_coverage,
+  custom fields, attachments, TC links) instead of a bare INSERT with
+  type=Informational/coverage=1 defaults, stores the prompted log_message,
+  freezes the source version when `req_cfg->freezeREQVersionOnNewREQVersion`
+  (repo default TRUE) is set and notifies the requirement monitors
+  (`notify=true`). The screen prompts for a log message before posting
+  (revision-log pattern) and passes the editor's selected `version_id`.
+  i18n `reqe.newVersionPrompt` in all 10 bundles.
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
