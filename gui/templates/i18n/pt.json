@@ -2019,6 +2019,7 @@
   "reqe.stayHere": "Selecione para criar um novo requisito após salvar",
   "reqe.title": "Título",
   "reqe.type": "Tipo",
+  "reqe.unsavedWarning": "Você tem alterações não salvas. Tem certeza de que deseja sair?",
   "reqe.version": "Versão",
   "reqe.versionSelect": "Selecionar versão",
   "reqe.versionCreated": "Nova versão criada",

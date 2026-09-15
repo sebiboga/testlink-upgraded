@@ -2019,6 +2019,7 @@
   "reqe.stayHere": "若选中，保存后会再建立一份产品需求",
   "reqe.title": "标题",
   "reqe.type": "类型",
+  "reqe.unsavedWarning": "您有未保存的更改。确定要离开吗？",
   "reqe.version": "版本",
   "reqe.versionSelect": "选择版本",
   "reqe.versionCreated": "已创建新版本",

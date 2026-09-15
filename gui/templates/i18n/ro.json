@@ -2019,6 +2019,7 @@
   "reqe.stayHere": "Bifează pentru a crea o altă cerință după salvare",
   "reqe.title": "Titlu",
   "reqe.type": "Tip",
+  "reqe.unsavedWarning": "Aveți modificări nesalvate. Sunteți sigur că doriți să plecați?",
   "reqe.version": "Versiune",
   "reqe.versionSelect": "Selectați versiunea",
   "reqe.versionCreated": "Versiune nouă creată",

@@ -2019,6 +2019,7 @@
   "reqe.stayHere": "Check to create another requirement after saving",
   "reqe.title": "Title",
   "reqe.type": "Type",
+  "reqe.unsavedWarning": "You have unsaved changes. Are you sure you want to leave?",
   "reqe.version": "Version",
   "reqe.versionSelect": "Select version",
   "reqe.versionCreated": "New version created",

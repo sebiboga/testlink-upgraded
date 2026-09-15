@@ -2013,6 +2013,7 @@
   "reqe.stayHere": "Cocher pour créer une autre exigence après enregistrement",
   "reqe.title": "Titre",
   "reqe.type": "Type",
+  "reqe.unsavedWarning": "Vous avez des modifications non enregistrées. Êtes-vous sûr de vouloir quitter ?",
   "reqe.version": "Version",
   "reqe.versionSelect": "Sélectionner la version",
   "reqe.versionCreated": "Nouvelle version créée",

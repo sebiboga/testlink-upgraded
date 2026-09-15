@@ -2019,6 +2019,7 @@
   "reqe.stayHere": "保存後に別の要件を作成",
   "reqe.title": "タイトル",
   "reqe.type": "タイプ",
+  "reqe.unsavedWarning": "未保存の変更があります。本当に終了しますか？",
   "reqe.version": "バージョン",
   "reqe.versionSelect": "バージョンを選択",
   "reqe.versionCreated": "新しいバージョンを作成しました",

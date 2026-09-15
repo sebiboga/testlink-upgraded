@@ -2013,6 +2013,7 @@
   "reqe.stayHere": "Nach dem Speichern weitere Anforderungen erstellen",
   "reqe.title": "Titel",
   "reqe.type": "Typ",
+  "reqe.unsavedWarning": "Sie haben ungespeicherte Änderungen. Möchten Sie die Seite wirklich verlassen?",
   "reqe.version": "Version",
   "reqe.versionSelect": "Version auswählen",
   "reqe.versionCreated": "Neue Version erstellt",

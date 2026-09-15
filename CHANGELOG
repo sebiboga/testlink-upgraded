@@ -354,6 +354,13 @@ NEW FEATURES
   returns it as `requirement.scope` + `template_body`; the editor pre-fills the Scope
   textarea on create and re-applies the scaffold after a stay_here bulk-entry reset,
   while edit mode stays template-free (legacy `renderGui()` parity).
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`): unsaved-changes
+  `beforeunload` guard restored (Refs #1380) — legacy `checkmodified.js` parity
+  (BUGID 4153). Delegated `input change` tracking on all form controls flips
+  `content_modified`; leaving the page with pending edits fires the native warning
+  instead of silently discarding them. Save success and Cancel suppress the warning,
+  `loadForm()`/version-switch reloads reset the dirty flag. Pure client-side; BFF
+  untouched. i18n `reqe.unsavedWarning` in all 10 bundles.
 - Notifications (`gui/templates/notifications/notifications.html`, BFF
   `api/notifications`): GitHub-style per-user notification center computed
   LIVE from existing 1.9.20 data (no legacy system existed to port, Refs
