@@ -61,7 +61,6 @@ function userProfile(tlUser $u, $db) {
         'locale' => $u->locale,
         'globalRoleName' => $roleName,
         'github' => $u->github ?? '',
-        'avatarUrl' => $u->getGithubAvatarUrl(96),
         'apiKey' => $u->userApiKey ?? 'none',
         'authentication' => $u->authentication ?? '',
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
