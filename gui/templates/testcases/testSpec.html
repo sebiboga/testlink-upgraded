@@ -67,6 +67,15 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .kw-item { display: inline-block; margin: 0 14px 6px 0; font-size: 13px; }
 .cf-block { max-width: 720px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; background: #fbfdfd; }
 .cf-block-title { font-weight: 700; color: #2d8e88; margin-bottom: 8px; }
+.att-block { max-width: 720px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; background: #fbfdfd; }
+.att-block-title { font-weight: 700; color: #2d8e88; margin-bottom: 8px; }
+.att-row { display: flex; align-items: center; gap: 10px; padding: 5px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+.att-row .att-link { color: #2d8e88; text-decoration: none; font-weight: 600; }
+.att-row .att-link:hover { text-decoration: underline; }
+.att-row .att-meta { color: #888; font-size: 12px; margin-left: auto; }
+.att-upload { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.att-upload input[type="file"] { font-size: 12px; max-width: 220px; }
+.att-upload input[type="text"] { max-width: 220px; }
 .cf-row .form-control2, .cf-row select.cf-input, .cf-row textarea.cf-input { width: 100%; }
 .step-editor td textarea { width: 100%; min-height: 54px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12.5px; }
 .step-editor td select.st-exec { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
@@ -251,6 +260,21 @@ function apiPost(action, body) {
     method: 'POST',
     contentType: 'application/json',
     data: JSON.stringify(body || {})
+  }).then(function (r) {
+    if (!r || r.status !== 'ok') { throw new Error((r && r.message) || t('tspec.errRequest')); }
+    return r;
+  });
+}
+
+// Attachment upload/delete are multipart/form-data requests (file payload),
+// so they cannot use apiPost's JSON body.
+function apiFormPost(action, formData) {
+  return $.ajax({
+    url: '/api/testcases/index.php?action=' + encodeURIComponent(action),
+    method: 'POST',
+    processData: false,
+    contentType: false,
+    data: formData
   }).then(function (r) {
     if (!r || r.status !== 'ok') { throw new Error((r && r.message) || t('tspec.errRequest')); }
     return r;
@@ -544,6 +568,13 @@ function renderTcView(r) {
     });
   }
 
+  var attList = r.attachments || [];
+  if (attList.length) {
+    h += '<div class="field-label">' + t('tspec.attachments') + '</div>' +
+      '<div class="att-block" style="background:#fff;">' +
+      attachmentsListHtml(attList, false) + '</div>';
+  }
+
   if (canMod) {
     h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
       '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
@@ -673,6 +704,7 @@ function formHtml(data, kwProject) {
   }
   h += '</div></div>' +
     customFieldsHtml(data.customFields) +
+    attachmentsEditorHtml(data) +
 
     '<div style="margin-top:14px;display:flex;gap:10px;">' +
       '<button class="btn-teal btn-sm" onclick="saveForm()"><i class="fa fa-floppy-disk"></i> ' + t('tspec.save') + '</button>' +
@@ -776,6 +808,51 @@ function customFieldsHtml(cfList) {
   return h + '</div></div>';
 }
 
+function attachmentDownloadUrl(id) {
+  return '/lib/attachments/attachmentdownload.php?id=' + parseInt(id, 10);
+}
+
+function formatFileSize(bytes) {
+  bytes = parseInt(bytes, 10) || 0;
+  if (bytes < 1024) { return bytes + ' B'; }
+  if (bytes < 1048576) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function attachmentRowHtml(att, canDelete) {
+  var name = esc(att.title || att.file_name || '');
+  var link = '<a class="att-link" href="' + attachmentDownloadUrl(att.id) + '" target="_blank" rel="noopener">' +
+    '<i class="fa fa-paperclip"></i> ' + name + '</a>';
+  var meta = '<span class="att-meta">' + esc(att.file_name || '') +
+    ' &middot; ' + formatFileSize(att.file_size) + '</span>';
+  var delBtn = canDelete
+    ? '<button class="btn-red btn-sm" title="' + t('tspec.deleteAttachment') + '" onclick="deleteAttachment(' +
+      att.id + ')"><i class="fa fa-trash"></i></button>'
+    : '';
+  return '<div class="att-row">' + link + meta + delBtn + '</div>';
+}
+
+function attachmentsListHtml(attList, canDelete) {
+  var list = attList || [];
+  if (!list.length) { return '<div class="none-text">' + t('tspec.noAttachments') + '</div>'; }
+  return list.map(function (att) { return attachmentRowHtml(att, canDelete); }).join('');
+}
+
+function attachmentsEditorHtml(data) {
+  // Uploads target the version being edited; create mode has no version yet.
+  var canUpload = data.tcversion_id > 0 && grants && grants['mgt_modify_tc'];
+  var h = '<div class="att-block"><div class="att-block-title">' + t('tspec.attachments') + '</div>' +
+    '<div id="attRows">' + attachmentsListHtml(data.attachments, canUpload) + '</div>';
+  if (canUpload) {
+    h += '<div class="att-upload">' +
+      '<input type="file" id="attFileInput">' +
+      '<input type="text" class="form-control2" id="attTitleInput" maxlength="250" placeholder="' + t('tspec.attachmentTitle') + '">' +
+      '<button class="btn-teal btn-sm" onclick="uploadAttachment()"><i class="fa fa-upload"></i> ' + t('tspec.uploadAttachment') + '</button>' +
+      '</div>';
+  }
+  return h + '</div>';
+}
+
 function stepRowHtml(num, actions, expected, execType) {
   execType = execType || ctx.stepDefaultExec || 1;
   var showExec = !!(ctx.options && ctx.options.automationEnabled);
@@ -854,17 +931,20 @@ function openCreateTc() {
   $('#editView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
     if (editMode.mode !== 'create') { return; }
-    $('#editView').html(formHtml({ customFields: r.customFields }, r.keywordsProject || {})).show();
+    $('#editView').html(formHtml(
+      { customFields: r.customFields, tcversion_id: 0, attachments: [] },
+      r.keywordsProject || {})).show();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
-    $('#editView').html(formHtml({}, {})).show();
+    $('#editView').html(formHtml(
+      { tcversion_id: 0, attachments: [] }, {})).show();
     toast(e.message || t('tspec.errLoad'), true);
   });
 }
 
 function openEditTc(tcaseId) {
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
-    editMode = { mode: 'update', tcase_id: r.tcase.id };
+    editMode = { mode: 'update', tcase_id: r.tcase.id, tcversion_id: r.tcase.tcversion_id };
     hideAllPanes();
     $('#editView').html(formHtml({
       name: r.tcase.name,
@@ -874,6 +954,8 @@ function openEditTc(tcaseId) {
       execution_type: r.tcase.execution_type,
       steps: r.steps,
       customFields: r.customFields,
+      attachments: r.attachments,
+      tcversion_id: r.tcase.tcversion_id,
       keywordsAssigned: r.keywordsAssigned
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -884,6 +966,46 @@ function cancelEdit() {
   if (selected && selected.type === 'testcase') { loadTcView(selected.id); }
   else if (selected && selected.type === 'testsuite') { showSuiteView(); }
   else { $('#placeholder').show(); }
+}
+
+function refreshAttachmentRows(attachments) {
+  var canDel = grants && grants['mgt_modify_tc'];
+  $('#attRows').html(attachmentsListHtml(attachments, canDel));
+}
+
+function uploadAttachment() {
+  var $file = $('#attFileInput');
+  if (!$file.length || !$file[0].files || !$file[0].files.length) {
+    toast(t('tspec.errNoFile'), true); return;
+  }
+  if (!editMode || !editMode.tcase_id || !editMode.tcversion_id) {
+    toast(t('tspec.errNoVersion'), true); return;
+  }
+  var fd = new FormData();
+  fd.append('tcase_id', editMode.tcase_id);
+  fd.append('tcversion_id', editMode.tcversion_id);
+  fd.append('fileTitle', $('#attTitleInput').val() || '');
+  fd.append('uploadedFile', $file[0].files[0]);
+  apiFormPost('upload_attachment', fd).then(function (r) {
+    toast(r.message || t('tspec.attachUploaded'));
+    refreshAttachmentRows(r.attachments);
+    $('#attFileInput').val('');
+    $('#attTitleInput').val('');
+  }).catch(function (e) { toast(e.message || t('tspec.errUpload'), true); });
+}
+
+function deleteAttachment(fileId) {
+  if (!editMode || !editMode.tcase_id || !editMode.tcversion_id) { return; }
+  askConfirm(t('tspec.confirmDeleteAttachment'), function () {
+    var fd = new FormData();
+    fd.append('tcase_id', editMode.tcase_id);
+    fd.append('tcversion_id', editMode.tcversion_id);
+    fd.append('file_id', fileId);
+    apiFormPost('delete_attachment', fd).then(function (r) {
+      toast(r.message || t('tspec.attDeleted'));
+      refreshAttachmentRows(r.attachments);
+    }).catch(function (e) { toast(e.message || t('tspec.errDelete'), true); });
+  });
 }
 
 function saveForm() {

@@ -3958,8 +3958,19 @@
   "tspec.copyStep": "Copiază pasul",
   "tspec.moveUp": "Mută sus",
   "tspec.moveDown": "Mută jos",
-
   "tspec.customFields": "Câmpuri personalizate",
   "tspec.yes": "Da",
-  "tspec.cfSelectEmpty": "- selectează -"
+  "tspec.cfSelectEmpty": "- selectează -",
+  "tspec.attachments": "Atașamente",
+  "tspec.noAttachments": "Fără atașamente",
+  "tspec.attachmentTitle": "Titlu atașament (opțional)",
+  "tspec.uploadAttachment": "Încarcă",
+  "tspec.deleteAttachment": "Șterge atașament",
+  "tspec.confirmDeleteAttachment": "Ștergeți acest atașament?",
+  "tspec.errNoFile": "Niciun fișier selectat",
+  "tspec.errNoVersion": "Salvați mai întâi cazul de test pentru a atașa fișiere",
+  "tspec.errUpload": "Încărcare eșuată",
+  "tspec.errDelete": "Ștergere eșuată",
+  "tspec.attachUploaded": "Atașament încărcat",
+  "tspec.attDeleted": "Atașament șters"
 }

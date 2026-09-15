@@ -3948,8 +3948,19 @@
   "tspec.copyStep": "Copier l'étape",
   "tspec.moveUp": "Vers le haut",
   "tspec.moveDown": "Vers le bas",
-
   "tspec.customFields": "Champs personnalisés",
   "tspec.yes": "Oui",
-  "tspec.cfSelectEmpty": "- sélectionner -"
+  "tspec.cfSelectEmpty": "- sélectionner -",
+  "tspec.attachments": "Pièces jointes",
+  "tspec.noAttachments": "Aucune pièce jointe",
+  "tspec.attachmentTitle": "Titre de la pièce jointe (facultatif)",
+  "tspec.uploadAttachment": "Téléverser",
+  "tspec.deleteAttachment": "Supprimer la pièce jointe",
+  "tspec.confirmDeleteAttachment": "Supprimer cette pièce jointe ?",
+  "tspec.errNoFile": "Aucun fichier sélectionné",
+  "tspec.errNoVersion": "Enregistrez d'abord le cas de test pour joindre des fichiers",
+  "tspec.errUpload": "Échec du téléversement",
+  "tspec.errDelete": "Échec de la suppression",
+  "tspec.attachUploaded": "Pièce jointe téléversée",
+  "tspec.attDeleted": "Pièce jointe supprimée"
 }

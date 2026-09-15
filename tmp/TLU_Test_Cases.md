@@ -14818,3 +14818,31 @@ string/email/numeric/textarea/date/datetime), collects values on save, and
 persists to `cfield_design_values` via the BFF on create/update. Date values
 stored as unix timestamps and exposed as ISO. Read-only view displays CFs.
 Refs #907.
+
+## Task — Issue #913: Attachment upload/delete in testSpec.html editor
+
+**Screen:** `gui/templates/testcases/testSpec.html` + BFF `api/testcases/index.php` (`get`/`upload_attachment`/`delete_attachment`).
+**Precondition:** app @ http://localhost:8082, `testlink-mariadb` @ 3307, admin/admin session,
+a test case with a tcversion (project peviitor.ro, tcversion 9219).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 913.1 | `get` action on TC with no attachments | `attachments: []` in response | **PASS** |
+| 913.2 | API upload (`uploadedFile` multipart, fileTitle) | `attachments` row persisted (fk_table='tcversions', fk_id=tcversion_id); file stored in `upload_area/tcversions/` | **PASS** |
+| 913.3 | Download via `/lib/attachments/attachmentdownload.php?id=N` | file content returned (41 B text round-trip) | **PASS** |
+| 913.4 | API delete (file_id) | attachments row deleted + file removed from FS | **PASS** |
+| 913.5 | Edit TC → ATTACHMENTS block | "No attachments" + file input + title + Upload (controls shown because tcversion_id>0 and mgt_modify_tc) | **PASS** |
+| 913.6 | Upload `ui_att.txt` (title "UI spec notes") via UI | row appears: download link + `ui_att.txt · 51 B` + trash button; toast "Attachment uploaded" | **PASS** |
+| 913.7 | Click trash → confirm modal | "Delete this attachment?" → confirm → row removed, toast "Attachment deleted" | **PASS** |
+| 913.8 | Create TC → ATTACHMENTS block | "No attachments" WITHOUT upload controls (no tcversion yet) | **PASS** |
+| 913.9 | Re-select TC after upload → read-only view | ATTACHMENTS block shows download link + file name + size, NO delete button | **PASS** |
+| 913.10 | Forged delete: file_id bound to other tcversion | 404 "Attachment not found on this test case" | **PASS** |
+| 913.11 | POST without X-Requested-With | 403 (same-origin guard) | **PASS** |
+| 913.12 | POST without session | 401 | **PASS** |
+
+Result: **PASS — 12/12 PASS** — the testSpec.html editor now supports
+attachment upload/delete (multipart/form-data via BFF `upload_attachment`/
+`delete_attachment`, gated by `mgt_modify_tc` + same-origin guard), stored in
+`attachments` with `fk_table='tcversions'` mirroring legacy tcEdit.php; the
+read-only view lists attachments with download links via
+`lib/attachments/attachmentdownload.php`. Refs #913.

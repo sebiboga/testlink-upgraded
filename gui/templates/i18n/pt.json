@@ -3954,8 +3954,19 @@
   "tspec.copyStep": "Copiar passo",
   "tspec.moveUp": "Mover para cima",
   "tspec.moveDown": "Mover para baixo",
-
   "tspec.customFields": "Campos personalizados",
   "tspec.yes": "Sim",
-  "tspec.cfSelectEmpty": "- selecione -"
+  "tspec.cfSelectEmpty": "- selecione -",
+  "tspec.attachments": "Anexos",
+  "tspec.noAttachments": "Sem anexos",
+  "tspec.attachmentTitle": "Título do anexo (opcional)",
+  "tspec.uploadAttachment": "Enviar",
+  "tspec.deleteAttachment": "Excluir anexo",
+  "tspec.confirmDeleteAttachment": "Excluir este anexo?",
+  "tspec.errNoFile": "Nenhum arquivo selecionado",
+  "tspec.errNoVersion": "Salve o caso de teste primeiro para anexar arquivos",
+  "tspec.errUpload": "Falha no envio",
+  "tspec.errDelete": "Falha na exclusão",
+  "tspec.attachUploaded": "Anexo enviado",
+  "tspec.attDeleted": "Anexo excluído"
 }

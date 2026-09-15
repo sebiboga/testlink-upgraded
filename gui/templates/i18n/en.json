@@ -3966,5 +3966,17 @@
   "tspec.moveDown": "Move down",
   "tspec.customFields": "Custom Fields",
   "tspec.yes": "Yes",
-  "tspec.cfSelectEmpty": "- select -"
+  "tspec.cfSelectEmpty": "- select -",
+  "tspec.attachments": "Attachments",
+  "tspec.noAttachments": "No attachments",
+  "tspec.attachmentTitle": "Attachment title (optional)",
+  "tspec.uploadAttachment": "Upload",
+  "tspec.deleteAttachment": "Delete attachment",
+  "tspec.confirmDeleteAttachment": "Delete this attachment?",
+  "tspec.errNoFile": "No file selected",
+  "tspec.errNoVersion": "Save the test case first, then attach files",
+  "tspec.errUpload": "Upload failed",
+  "tspec.errDelete": "Delete failed",
+  "tspec.attachUploaded": "Attachment uploaded",
+  "tspec.attDeleted": "Attachment deleted"
 }

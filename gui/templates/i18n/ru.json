@@ -3954,8 +3954,19 @@
   "tspec.copyStep": "Скопировать шаг",
   "tspec.moveUp": "Вверх",
   "tspec.moveDown": "Вниз",
-
   "tspec.customFields": "Пользовательские поля",
   "tspec.yes": "Да",
-  "tspec.cfSelectEmpty": "- выбрать -"
+  "tspec.cfSelectEmpty": "- выбрать -",
+  "tspec.attachments": "Вложения",
+  "tspec.noAttachments": "Нет вложений",
+  "tspec.attachmentTitle": "Название вложения (необязательно)",
+  "tspec.uploadAttachment": "Загрузить",
+  "tspec.deleteAttachment": "Удалить вложение",
+  "tspec.confirmDeleteAttachment": "Удалить это вложение?",
+  "tspec.errNoFile": "Файл не выбран",
+  "tspec.errNoVersion": "Сначала сохраните тест-кейс, чтобы прикрепить файлы",
+  "tspec.errUpload": "Ошибка загрузки",
+  "tspec.errDelete": "Ошибка удаления",
+  "tspec.attachUploaded": "Вложение загружено",
+  "tspec.attDeleted": "Вложение удалено"
 }

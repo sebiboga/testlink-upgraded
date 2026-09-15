@@ -8,7 +8,8 @@
  * gui/templates/dashio/testcases/tcView_viewer.tpl (TestLink 1.9.20):
  * shows one test case with ALL its versions, steps, keywords,
  * custom fields, attachments, requirements and relations.
- * Read-only: no state changing operation is exposed here.
+ * Also backs the Test Specification editor (create/update/delete/upload
+ * attachment operations guarded by bffSameOriginGuard + mgt_modify_tc).
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -807,6 +808,27 @@ if ($action === 'get') {
         $customFields = [];
     }
 
+    // attachments of the latest version (metadata only; content streamed via
+    // lib/attachments/attachmentdownload.php?id=N)
+    $attachments = [];
+    try {
+        $attMap = getAttachmentInfosFrom($tcaseMgr, $tcversionId, false);
+        if (!is_null($attMap)) {
+            foreach ($attMap as $ai) {
+                $attachments[] = [
+                    'id' => intval($ai['id']),
+                    'title' => strval($ai['title'] ?? ''),
+                    'file_name' => strval($ai['file_name'] ?? ''),
+                    'file_size' => intval($ai['file_size'] ?? 0),
+                    'file_type' => strval($ai['file_type'] ?? ''),
+                    'date_added' => strval($ai['date_added'] ?? ''),
+                ];
+            }
+        }
+    } catch (Exception $e) {
+        $attachments = [];
+    }
+
     jout([
         'status' => 'ok',
         'tcase' => [
@@ -827,6 +849,7 @@ if ($action === 'get') {
         ],
         'steps' => $steps,
         'customFields' => $customFields,
+        'attachments' => $attachments,
         'keywordsAssigned' => $assignedKw,
         'keywordsProject' => $projKw,
         'executed' => $executed,
@@ -916,8 +939,6 @@ if ($action === 'keywords') {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
-    $body = getJsonBody();
-
     $writeGrants = ['mgt_modify_tc'];
     $checkWrite = function($nodeId) use ($db, $user, $tprojectMgr) {
         $tprojectId = owningProjectOf($db, $tprojectMgr, intval($nodeId));
@@ -930,6 +951,87 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         }
         return $tprojectId;
     };
+
+    // Attachment upload/delete use multipart/form-data (not JSON), so they are
+    // handled before $body = getJsonBody() reads php://input.
+    // Mirrors lib/testcases/tcEdit.php doAction=fileUpload / doAction=deleteFile
+    // (fileUploadManagement + deleteAttachment, fk_table='tcversions').
+    $handleAttachmentUpload = function($tcaseId, $tcversionId, $uploadTitle) use ($db, $tcaseMgr) {
+        $uploadOp = fileUploadManagement($db, $tcversionId, $uploadTitle, 'tcversions');
+        if (!$uploadOp->statusOK) {
+            $code = isset($uploadOp->statusCode) ? strval($uploadOp->statusCode) : '';
+            jout(['status' => 'error', 'message' => strval($uploadOp->msg ?: 'Upload failed'),
+                  'code' => $code], 422);
+        }
+        $attMap = getAttachmentInfosFrom($tcaseMgr, $tcversionId, false);
+        $attachments = [];
+        if (!is_null($attMap)) {
+            foreach ($attMap as $ai) {
+                $attachments[] = [
+                    'id' => intval($ai['id']),
+                    'title' => strval($ai['title'] ?? ''),
+                    'file_name' => strval($ai['file_name'] ?? ''),
+                    'file_size' => intval($ai['file_size'] ?? 0),
+                    'file_type' => strval($ai['file_type'] ?? ''),
+                    'date_added' => strval($ai['date_added'] ?? ''),
+                ];
+            }
+        }
+        jout([
+            'status' => 'ok',
+            'message' => strval($uploadOp->msg ?: 'Attachment uploaded'),
+            'attachments' => $attachments,
+        ]);
+    };
+
+    if ($action === 'upload_attachment') {
+        $tcaseId = intval($_POST['tcase_id'] ?? 0);
+        $tcversionId = intval($_POST['tcversion_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcversionId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case or version id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        $handleAttachmentUpload($tcaseId, $tcversionId, trim(strval($_POST['fileTitle'] ?? '')));
+    }
+
+    if ($action === 'delete_attachment') {
+        $tcaseId = intval($_POST['tcase_id'] ?? 0);
+        $tcversionId = intval($_POST['tcversion_id'] ?? 0);
+        $fileId = intval($_POST['file_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcversionId <= 0 || $fileId <= 0) {
+            jout(['status' => 'error', 'message' => 'Missing test case, version or file id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        // BFF hardening: the attachment must exist AND be bound to this
+        // tcversion before the delete is issued (forged file_id cannot remove
+        // attachments of other nodes).
+        $attTables = tlObjectWithDB::getDBTables(array('attachments'));
+        $attRows = $db->get_recordset(
+            "SELECT id FROM {$attTables['attachments']} " .
+            "WHERE id = {$fileId} AND fk_id = {$tcversionId} AND fk_table = 'tcversions'");
+        if (is_null($attRows) || count($attRows) === 0) {
+            jout(['status' => 'error', 'message' => 'Attachment not found on this test case'], 404);
+        }
+        deleteAttachment($db, $fileId, false);
+        $attMap = getAttachmentInfosFrom($tcaseMgr, $tcversionId, false);
+        $attachments = [];
+        if (!is_null($attMap)) {
+            foreach ($attMap as $ai) {
+                $attachments[] = [
+                    'id' => intval($ai['id']),
+                    'title' => strval($ai['title'] ?? ''),
+                    'file_name' => strval($ai['file_name'] ?? ''),
+                    'file_size' => intval($ai['file_size'] ?? 0),
+                    'file_type' => strval($ai['file_type'] ?? ''),
+                    'date_added' => strval($ai['date_added'] ?? ''),
+                ];
+            }
+        }
+        jout(['status' => 'ok', 'message' => 'Attachment deleted',
+              'deleted_id' => $fileId, 'attachments' => $attachments]);
+    }
+
+    $body = getJsonBody();
 
     $normSteps = function($rawSteps, $execType) {
         $out = [];

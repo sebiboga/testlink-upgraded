@@ -3954,8 +3954,19 @@
   "tspec.copyStep": "ステップをコピー",
   "tspec.moveUp": "上へ移動",
   "tspec.moveDown": "下へ移動",
-
   "tspec.customFields": "カスタムフィールド",
   "tspec.yes": "はい",
-  "tspec.cfSelectEmpty": "- 選択 -"
+  "tspec.cfSelectEmpty": "- 選択 -",
+  "tspec.attachments": "添付ファイル",
+  "tspec.noAttachments": "添付ファイルなし",
+  "tspec.attachmentTitle": "添付ファイルのタイトル（任意）",
+  "tspec.uploadAttachment": "アップロード",
+  "tspec.deleteAttachment": "添付ファイルを削除",
+  "tspec.confirmDeleteAttachment": "この添付ファイルを削除しますか？",
+  "tspec.errNoFile": "ファイルが選択されていません",
+  "tspec.errNoVersion": "ファイルを添付するには先にテストケースを保存してください",
+  "tspec.errUpload": "アップロードに失敗しました",
+  "tspec.errDelete": "削除に失敗しました",
+  "tspec.attachUploaded": "添付ファイルをアップロードしました",
+  "tspec.attDeleted": "添付ファイルを削除しました"
 }

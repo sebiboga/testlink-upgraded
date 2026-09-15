@@ -3948,8 +3948,19 @@
   "tspec.copyStep": "Schritt kopieren",
   "tspec.moveUp": "Nach oben",
   "tspec.moveDown": "Nach unten",
-
   "tspec.customFields": "Benutzerdefinierte Felder",
   "tspec.yes": "Ja",
-  "tspec.cfSelectEmpty": "- auswählen -"
+  "tspec.cfSelectEmpty": "- auswählen -",
+  "tspec.attachments": "Anhänge",
+  "tspec.noAttachments": "Keine Anhänge",
+  "tspec.attachmentTitle": "Titel des Anhangs (optional)",
+  "tspec.uploadAttachment": "Hochladen",
+  "tspec.deleteAttachment": "Anhang löschen",
+  "tspec.confirmDeleteAttachment": "Diesen Anhang löschen?",
+  "tspec.errNoFile": "Keine Datei ausgewählt",
+  "tspec.errNoVersion": "Speichern Sie zuerst den Testfall, um Dateien anzuhängen",
+  "tspec.errUpload": "Upload fehlgeschlagen",
+  "tspec.errDelete": "Löschen fehlgeschlagen",
+  "tspec.attachUploaded": "Anhang hochgeladen",
+  "tspec.attDeleted": "Anhang gelöscht"
 }
