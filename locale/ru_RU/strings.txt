@@ -2819,3 +2819,5 @@ $TLS_tc_external_id = "Внешний ID тест-кейса";
 $TLS_github_bug_created = "Баг %s создан в %s";
 $TLS_github_bug_comment = "Комментарий добавлен к багу %s в %s";
 ?>
+$TLS_req_title_length_exceeded = 'Превышена длина заголовка требования';
+$TLS_req_docid_length_exceeded = 'Превышена длина идентификатора документа требования';

@@ -170,3 +170,5 @@ $TLS_tc_name = "Numele cazului de test";
 $TLS_tc_external_id = "ID extern al cazului de test";
 $TLS_github_bug_created = "Bug %s creat în %s";
 $TLS_github_bug_comment = "Comentariu adăugat la bug %s în %s";
+$TLS_req_title_length_exceeded = 'Lungimea titlului cerinței depășită';
+$TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depășită';

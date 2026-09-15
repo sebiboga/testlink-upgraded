@@ -2424,3 +2424,5 @@ $TLS_tc_external_id = "ID esterno del caso di test";
 $TLS_github_bug_created = "Bug %s creato in %s";
 $TLS_github_bug_comment = "Commento aggiunto al bug %s in %s";
 ?>
+$TLS_req_title_length_exceeded = 'Lunghezza titolo requisito superata';
+$TLS_req_docid_length_exceeded = 'Lunghezza ID documento requisito superata';

@@ -2445,3 +2445,5 @@ $TLS_href_nfr_compatibility = "NFR: Compatibility"; // "NFR: Compatibility" (Ref
 $TLS_href_nfr_reliability = "NFR: Reliability"; // "NFR: Reliability" (Refs #1470)
 $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability" (Refs #1470)
 $TLS_href_nfr_requirements = "비기능 요구사항"; // "Non-Functional Requirements" (Refs #1462)
+$TLS_req_title_length_exceeded = '요구사항 제목 길이 초과';
+$TLS_req_docid_length_exceeded = '요구사항 문서 ID 길이 초과';
