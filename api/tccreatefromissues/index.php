@@ -74,9 +74,15 @@ function tcfi_locale() {
 function tcfi_resolveContainer($db, $tprojectId, $containerId) {
     $tables = tlObjectWithDB::getDBTables(['nodes_hierarchy']);
     $projId = intval($tprojectId);
-    $cur = intval($containerId);
-    $name = '';
-    $isProject = false;
+    $orig = intval($containerId);
+    $row = $db->get_recordset(
+        "SELECT id, parent_id, name FROM {$tables['nodes_hierarchy']} " .
+        "WHERE id = " . intval($orig));
+    if (is_null($row) || count($row) !== 1) {
+        return null;
+    }
+    $origName = strval($row[0]['name']);
+    $cur = $orig;
     $visited = [];
     for ($hops = 0; $hops < 64; $hops++) {
         if (isset($visited[$cur])) { break; }
@@ -87,17 +93,11 @@ function tcfi_resolveContainer($db, $tprojectId, $containerId) {
         if (is_null($row) || count($row) !== 1) {
             return null;
         }
-        $name = strval($row[0]['name']);
         $parent = intval($row[0]['parent_id']);
-        if ($parent === 0) {
-            $isProject = true;
+        if ($cur === $projId || $parent === 0) {
             return ($cur === $projId)
-                ? ['id' => $cur, 'name' => $name, 'isProject' => true]
+                ? ['id' => $orig, 'name' => $origName, 'isProject' => ($orig === $projId)]
                 : null;
-        }
-        if ($cur === $projId) {
-            $isProject = true;
-            return ['id' => $cur, 'name' => $name, 'isProject' => true];
         }
         $cur = $parent;
     }
