@@ -116,3 +116,14 @@ icon, edit mode hides it, config-DISABLED hides it, duplicate doc id guard,
 locale switch, Event Viewer cleanliness.
 
 ![Insert last doc id helper](screenshots/issue-1379-reqedit-insert-last-docid.png)
+
+See also **Task #1380 — unsaved-changes warning** suite (8/8 PASS): the modern
+screen now installs the legacy `checkmodified.js` `beforeunload` guard (BUGID 4153
+parity). Dirty edits to any field (`scope`, `title`, doc id, `status`, `type`,
+expected coverage) flip `content_modified` and navigating away / closing the page
+fires the native "You have unsaved changes. Are you sure you want to leave?"
+confirmation. Save success and the Cancel button suppress the warning (a deliberate
+navigation), and `loadForm()`/version-switch reloads reset the dirty flag so
+programmatic filling never warns. i18n key `reqe.unsavedWarning` added to all 10
+client locale bundles (native translations, same text as `tcedit.unsavedWarning`).
+Event Viewer + console clean.

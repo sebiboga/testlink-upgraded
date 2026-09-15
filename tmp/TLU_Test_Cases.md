@@ -15041,3 +15041,29 @@ back: the BFF `form` response now exposes `allow_insert_last_doc_id` + `last_doc
 screen renders a Dashio teal insert icon in create mode only (config enabled + project has a prior
 req) with tooltip and one-click fill; the icon hides in edit mode and after the first create-save.
 i18n `reqe.insertLastDocId` added to all 10 client bundles. Refs #1379.
+
+---
+
+### Task — Issue #1380: reqEdit unsaved-changes warning (beforeunload guard)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` (client-side guard; BFF `api/reqedit/index.php` untouched).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, login admin/admin;
+fixture `tmp/fixtures_1380.php` → tproject 1 `UnsavedReqFixture` (UNSREQ), req-spec 2 `SPEC-UNS`, req 4
+(`REQ-UNS-1`, req_version 5). Open `http://localhost:8082/gui/templates/requirements/reqEdit.html?id=4&tproject_id=1`.
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1380.1 | Load editor, check guard | `window.onbeforeunload` installed; `content_modified === false`, `show_modified_warning === true` after render | **PASS** |
+| 1380.2 | Edit the Scope textarea (fire `input`) | `content_modified` flips `false→true` (delegated `.form-control` handler) | **PASS** |
+| 1380.3 | Call `doBeforeUnload({})` while dirty | returns `"You have unsaved changes. Are you sure you want to leave?"`; `event.returnValue` set | **PASS** |
+| 1380.4 | Navigate/close while dirty | Native beforeunload dialog FIRES — chrome-devtools navigation reports `Accepted a beforeunload dialog.`; edit no longer silently discarded | **PASS** |
+| 1380.5 | Clean reload (no edits) → navigate away | `content_modified === false` after `loadForm()`; `doBeforeUnload` returns `undefined`; no dialog on navigation | **PASS** |
+| 1380.6 | Edit Title → click Save | `content_modified` reset to `false` after save; infoBar shows saved; reload after save = no dialog; title persisted in DB/on reload | **PASS** |
+| 1380.7 | Edit Scope → click Cancel | `show_modified_warning=false` in `goBack()`; navigates back silently (no beforeunload dialog) | **PASS** |
+| 1380.8 | i18n + Event Viewer + console | `reqe.unsavedWarning` present and JSON-valid in all 10 bundles; `events` table has only `log_level=16` INFO/AUDIT (0 ERROR/WARNING); browser console 0 messages | **PASS** |
+
+Result: **PASS — 8/8 PASS** — legacy `checkmodified.js` guard (BUGID 4153) fully
+ported to the modern reqEdit screen: delegated dirty tracking on all form controls,
+`beforeunload` prompt on unload with pending edits, Save/Cancel suppress the warning,
+`loadForm()`/version-switch reloads reset the flag, i18n `reqe.unsavedWarning` in all
+10 bundles. Refs #1380.
