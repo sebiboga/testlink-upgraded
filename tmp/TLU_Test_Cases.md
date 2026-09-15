@@ -15029,3 +15029,40 @@ label `href_tc_create_from_issues` in 7 strings.txt + `labels.aside.tpl`. Refs #
   - filters persist across page reload; Reset returns to 3 suites · 6 cases
   - reduced tree counters (`N suites · M cases`) and "filters applied" badge
 - **Actual result**: all above verified via API (curl) and browser (chrome-devtools); PASS.
+## Regression — Issue #1505: requirement_mgr.class.php E_WARNING "array offset on null" on version-less requirement hit
+
+**Screen:** `api/reqfromissues/index.php` (POST `?action=import`) → legacy
+`lib/functions/requirement_mgr.class.php` `createFromMap()` (import path shared with
+`api/reqimport` — CSV/DocBook/XML requirement import).
+**Bug:** importing a Mantis XML whose issue docid hits an existing requirement with
+**no** `req_versions` child row (`get_last_child_info()` returns null) dereferenced the
+null result — `E_WARNING Trying to access array offset on null` (`requirement_mgr.class.php:1624`)
+logged to the Event Viewer / `events` table on every import (observed events 34/35 testing #1503).
+**Root cause:** `requirement_mgr.class.php:1620-1624` — `get_last_child_info($reqID,['child_type'=>'version',...])`
+returns `null` when `SELECT COALESCE(MAX(version),-1) FROM req_versions ... WHERE NH.parent_id={reqID}`
+(SQL at lines 2911-2917) has no row (MAX=-1 → 2919 branch skipped); pre-fix code read `$last_version['is_open']`
+unconditionally.
+**Fix (minimal, landed on the default branch with 681d39dbc):** line 1624 now guards the
+dereference — `(is_array($last_version) && isset($last_version['is_open']) && $last_version['is_open'] == 1)
+|| !$my['options']['skipFrozenReq']` — a null/version-less hit short-circuits to the "is FROZEN" skip
+path with zero warnings; open-version hits keep exact previous semantics.
+**Precondition:** app @ http://localhost:8082, DB fresh, admin/admin session (BFF writes need header
+`X-Requested-With: XMLHttpRequest`). Fixture: testproject id=1, req spec id=2 (nodes: spec node 2 type 6,
+spec-revision node 3 type 11 + `req_specs_revisions` row id=3), version-less requirement id=4 (node 4 type 7
+under spec 2, `requirements` row `req_doc_id='Mantis Task ID:20'`, **no** `req_versions` child — SQL to
+rebuild: the three INSERTs in the INVESTIGATION comment of issue #1505).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1505.1 | POST `/api/reqfromissues/?action=import&req_spec_id=2` with Mantis XML containing `<issue><id>20</id>` (multipart `uploadedFile`) | HTTP 200 `status:ok`, result row Doc ID `Mantis Task ID:20` → message `Skipped - Requirement - Doc ID:Mantis Task ID:20 - is FROZEN` | **PASS** |
+| 1505.2 | `mysql ... SELECT id,log_level,description FROM events` after the import | **0 new** ERROR/WARNING rows (no `E_WARNING ... array offset on null ... requirement_mgr.class.php`) | **PASS** |
+| 1505.3 | Re-import the same XML (second hit) | Identical graceful skip, still 0 new event rows | **PASS** |
+| 1505.4 | `php -l lib/functions/requirement_mgr.class.php`; `grep -n "is_array(\$last_version)" lib/functions/requirement_mgr.class.php` | No syntax errors; guard present at line 1624 | **PASS** |
+| 1505.5 | A/B: temporarily revert line 1624 to `$last_version['is_open'] == 1 || ...`, re-import, then restore guard | events gains `E_WARNING Trying to access array offset on null ... Line 1624` (reproduces pre-fix bug); restore + re-import adds nothing | **PASS** |
+| 1505.6 | Event Viewer screen (`events` table) after all steps | No new Error/Warning entries (only the login audit + the deliberately-captured PRE-FIX repro row) | **PASS** |
+
+Result: **PASS — 6/6 PASS** — the version-less requirement hit through
+`createFromMap()` is handled with a clean "is FROZEN" skip and zero E_WARNING; the
+open-version branch (`is_open==1`) keeps legacy behavior verbatim. The fix was
+already shipped on the default branch (commit `681d39dbc`, `Fixes #1504, #1505`);
+this suite locks the regression. Refs #1505.
