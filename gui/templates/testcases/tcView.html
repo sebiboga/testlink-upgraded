@@ -21,6 +21,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .btn-teal:hover { background: #3dbdb5; }
 .btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-dark:hover { background: #4a4e59; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
 .warnbox { margin: 12px 24px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .infobox { margin: 12px 24px 0; background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .errorbox { margin: 24px; background: #fff; border-left: 5px solid #e6605e; border-radius: 8px; padding: 26px; text-align: center; color: #888; font-size: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); display: none; }
@@ -59,6 +60,20 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
 .loading { margin: 40px auto; text-align: center; color: #888; font-size: 14px; }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.45); z-index: 1000; display: none; align-items: center; justify-content: center; }
+.modal-box { background: #fff; border-radius: 10px; width: 500px; max-width: 96vw; box-shadow: 0 12px 40px rgba(0,0,0,.25); }
+.modal-head { background: #22242a; color: #fff; padding: 14px 18px; font-size: 15px; font-weight: 700; border-radius: 10px 10px 0 0; }
+.modal-body { padding: 18px; }
+.modal-foot { padding: 14px 18px; text-align: right; display: flex; gap: 10px; justify-content: flex-end; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d35552; }
+.reqassign-spec-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.reqassign-label { font-size: 12px; font-weight: 700; color: #444; }
+.notice-reqassign { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 8px 12px; font-size: 12px; margin-top: 10px; }
+.reqassign-msel { width: 100%; height: 260px; font-size: 12.5px; border: 1px solid #ccc; border-radius: 5px; padding: 6px; }
+.reqassign-msel option { padding: 4px 6px; }
+.count-pill-req { color: #888; font-weight: 400; font-size: 11px; }
+.form-control2 { border: 1px solid #ccc; border-radius: 5px; padding: 6px 10px; font-size: 13px; }
 @media print {
   .header, .toolbar, .footer, .actions-bar, .toast { display: none !important; }
   body { background: #fff; }
@@ -87,6 +102,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
     <button class="btn-dark" id="btnExport" onclick="openTcExport()"><i class="fa fa-file-export"></i> <span data-i18n="tcview.export">Export</span></button>
     <button class="btn-dark" id="btnCompare" style="display:none;" onclick="openTcCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="tcview.compareVersions">Compare Versions</span></button>
     <button class="btn-dark" onclick="openTcPrint()"><i class="fa fa-print"></i> <span data-i18n="tcview.print">Print</span></button>
+    <button class="btn-dark" id="btnAssignReqs" style="display:none;" onclick="openAssignReqs()"><i class="fa fa-bookmark"></i> <span data-i18n="tcview.assignRequirements">Assign Requirements</span></button>
   </div>
 </div>
 
@@ -107,6 +123,42 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- assign requirements modal -->
+<div class="modal-overlay" id="assignReqsModal">
+  <div class="modal-box" style="width:660px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-bookmark"></i> <span data-i18n="tcview.assignRequirements">Assign Requirements</span></div>
+    <div class="modal-body">
+      <div class="reqassign-spec-row">
+        <label class="reqassign-label" data-i18n="reqAssign.reqSpec">Requirement Specification:</label>
+        <select id="arqSpecSel" class="form-control2" style="max-width:420px;" onchange="arqLoadReqs()"></select>
+      </div>
+      <div class="notice-reqassign" id="arqNoSpec" style="display:none;">
+        <i class="fa fa-info-circle"></i> <span data-i18n="reqAssign.noReqSpecs">There are no requirement specifications defined in this test project.</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 120px 1fr;gap:10px;margin-top:12px;">
+        <div>
+          <div class="field-label"><span data-i18n="reqAssign.unassigned">Free Requirements</span> <span id="arqCntFree" class="count-pill-req"></span></div>
+          <select id="arqFree" multiple class="reqassign-msel"></select>
+          <div class="none-text" id="arqEmptyFree" style="display:none;" data-i18n="reqAssign.noReqsOnSpec">No requirements found on this specification.</div>
+        </div>
+        <div style="display:flex;flex-direction:column;justify-content:center;gap:10px;">
+          <button class="btn-teal btn-sm" onclick="arqDoAssign()"><i class="fa fa-arrow-right"></i> <span data-i18n="reqAssign.assignBtn">Assign</span></button>
+          <button class="btn-red btn-sm" onclick="arqDoUnassign()"><i class="fa fa-arrow-left"></i> <span data-i18n="reqAssign.unassignBtn">Unassign</span></button>
+        </div>
+        <div>
+          <div class="field-label"><span data-i18n="reqAssign.assigned">Assigned Requirements</span> <span id="arqCntAssigned" class="count-pill-req"></span></div>
+          <select id="arqAssigned" multiple class="reqassign-msel"></select>
+          <div class="none-text" id="arqEmptyAssigned" style="display:none;" data-i18n="reqAssign.emptyAssigned">No requirements assigned yet.</div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="$('#assignReqsModal').hide()"><span data-i18n="tspec.cancel">Cancel</span></button>
+      <button class="btn-teal btn-sm" onclick="$('#assignReqsModal').hide()"><i class="fa fa-check"></i> <span data-i18n="rpt.close">Close</span></button>
+    </div>
+  </div>
+</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -229,6 +281,7 @@ function renderActions() {
   $('#btnEdit').toggle(canEditCurrent());
   $('#btnAdd2Tplan').toggle(!!data.grants.mgt_modify_tc && !!data.hasTestPlans);
   $('#btnBulk').toggle(!!data.grants.mgt_modify_tc);
+  $('#btnAssignReqs').toggle(!!data.requirementsEnabled && !!data.grants.req_tcase_link_management && !!currentVersion.is_latest);
   if (data.versions.length > 1) {
     $('#btnCompare').show();
   }
@@ -470,6 +523,100 @@ function openTcPrint() {
     + '&testcase_id=' + data.tcase.id
     + '&tcversion_id=' + currentVersion.tcversion_id;
   window.open(url, '_blank', 'width=980,height=760,resizable=yes,scrollbars=yes');
+}
+
+/* ============ Assign Requirements Modal ============ */
+function arqApiGet(route, params, cb) {
+  $.getJSON('/api/requirements/index.php' + route, params || {}).done(function(d){ cb(d); })
+   .fail(function(xhr){ cb(null, xhr); });
+}
+function arqApiPost(route, body, cb) {
+  $.ajax({url: '/api/requirements/index.php' + route, method: 'POST', contentType: 'application/json',
+    data: JSON.stringify(body)}).done(function(d){ cb(d); })
+   .fail(function(xhr){ cb(null, xhr); });
+}
+function arqOptLabel(r) {
+  return esc(r.doc_id || r.req_doc_id || '') + ' - ' + esc(r.title || '') + (r.version ? ' (' + TLi18n.t('reqAssign.versionShort') + ' ' + r.version + ')' : '');
+}
+
+function openAssignReqs() {
+  if (!data || !data.tcase) return;
+  var tcaseId = data.tcase.id;
+  $('#arqSpecSel').empty();
+  $('#arqFree').empty();
+  $('#arqAssigned').empty();
+  $('#arqCntFree').text('');
+  $('#arqCntAssigned').text('');
+  $('#arqEmptyFree').hide();
+  $('#arqEmptyAssigned').hide();
+  $('#arqNoSpec').hide();
+  $('#assignReqsModal').data('tcaseId', tcaseId).css('display', 'flex');
+  arqApiGet('/assign-reqspecs', {tproject_id: data.tproject.id}, function(d) {
+    var specs = (d && d.items) ? d.items : [];
+    if (!specs.length) {
+      $('#arqNoSpec').show();
+      return;
+    }
+    $.each(specs, function(i, s) {
+      $('#arqSpecSel').append($('<option>').val(s.id).text(s.name));
+    });
+    arqLoadReqs();
+  });
+}
+
+function arqLoadReqs() {
+  var specId = parseInt($('#arqSpecSel').val() || '0', 10);
+  var tcaseId = $('#assignReqsModal').data('tcaseId');
+  if (!specId || !tcaseId) return;
+  arqApiGet('/assign-reqs', {req_spec_id: specId, tcase_id: tcaseId}, function(d) {
+    if (!d || d.status !== 'ok') return;
+    var $free = $('#arqFree');
+    $free.empty();
+    $.each(d.unassigned || [], function(i, r) {
+      $free.append($('<option>').val(r.id).text(arqOptLabel(r)));
+    });
+    $('#arqCntFree').text('(' + (d.unassigned||[]).length + ')');
+    $('#arqEmptyFree').toggle(!d.unassigned || d.unassigned.length === 0);
+    var $ass = $('#arqAssigned');
+    $ass.empty();
+    $.each(d.assigned || [], function(i, r) {
+      var v = r.link_id != null ? r.link_id : ('r' + r.id);
+      $ass.append($('<option>').val(v).text(arqOptLabel(r)));
+    });
+    $('#arqCntAssigned').text('(' + (d.assigned||[]).length + ')');
+    $('#arqEmptyAssigned').toggle(!d.assigned || d.assigned.length === 0);
+  });
+}
+
+function arqDoAssign() {
+  var tcaseId = $('#assignReqsModal').data('tcaseId');
+  var ids = $('#arqFree').val() || [];
+  if (!ids.length) { toast(TLi18n.t('reqAssign.selectOneReq'), true); return; }
+  arqApiPost('/assign-reqs', {tcase_id: tcaseId, req_ids: ids.map(Number)}, function(d) {
+    if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    if (d.failed && d.failed.length) {
+      toast(TLi18n.t('reqAssign.assignFailed').replace('{ids}', d.failed.join(', ')), true);
+    } else {
+      toast(TLi18n.t('reqAssign.assignDone').replace('{n}', d.assigned_qty));
+    }
+    arqLoadReqs();
+  });
+}
+
+function arqDoUnassign() {
+  var tcaseId = $('#assignReqsModal').data('tcaseId');
+  var vals = $('#arqAssigned').val() || [];
+  var links = vals.filter(function(v){ return String(v).charAt(0) !== 'r'; }).map(Number);
+  if (!links.length) { toast(TLi18n.t('reqAssign.selectOneLink'), true); return; }
+  arqApiPost('/unassign-reqs', {link_ids: links}, function(d) {
+    if (!d) { toast(TLi18n.t('reqAssign.loadError'), true); return; }
+    if (d.failed && d.failed.length) {
+      toast(TLi18n.t('reqAssign.unassignFailed').replace('{ids}', d.failed.join(', ')), true);
+    } else {
+      toast(TLi18n.t('reqAssign.unassignDone').replace('{n}', d.unassigned_qty));
+    }
+    arqLoadReqs();
+  });
 }
 </script>
 </body>
