@@ -15106,3 +15106,24 @@ this suite locks the regression. Refs #1505.
 Result: **PASS — 22/22 PASS** — full legacy parity for the Mantis XML requirement import
 (created / same-spec FROZEN / cross-branch / 400/401/403/404/405/413/422/500 / locale hint),
 Event-Viewer clean after the #1504/#1505 fixes. Refs #1503.
+
+## 72. Regression — ro_RO requirement-import message keys (#1506)
+
+**Screen:** `api/reqfromissues/index.php` POST import → legacy
+`requirement_mgr::createFromMap()` result templates (`locale/ro_RO/strings.txt`,
+short partial bundle). **Bug:** a Romanian-session import logged 6 L18N "not
+localized" WARNING events per import (`requirement`, `frozen_req_unable_to_import`,
+`import_req_skipped_plain`, `import_req_new_version_created`,
+`import_req_new_version_failed`, `import_req_update_last_version_failed`).
+**Fix:** the 9 result-template keys added to `locale/ro_RO/strings.txt`.
+**Precondition:** DB fresh, WALK1503 fixture (project 25, spec 36 already holds
+docids 100/101/500), admin session set to Romanian (`?locale=ro`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 72.1 | Import a Mantis XML with the existing docids 100/500 into spec 36 (`?locale=ro`) | Result table rows localized: `Omisă - Cerință - ID document:Mantis Task ID:100 - este ÎNGHEȚATĂ` (and 500) | **PASS** |
+| 72.2 | `SELECT ... FROM events WHERE log_level IN (2,32) AND id > <pre-import max>` | **0 new** 'not localized'/ERROR/WARNING rows for the import | **PASS** |
+| 72.3 | `php -l locale/ro_RO/strings.txt` | No syntax errors; the 9 keys present | **PASS** |
+
+Result: **PASS — 3/3 PASS** — Romanian requirement-import session renders the
+result messages in Romanian with zero 'not localized' events. Refs #1506.

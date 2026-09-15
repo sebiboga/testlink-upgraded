@@ -502,6 +502,20 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   correctly-spelled `req_title_length_exceeded`/`req_docid_length_exceeded` and
   the two keys (plus the missing title variant) were added to every locale
   `strings.txt` bundle.
+- ro_RO requirement-import message keys missing (#1506): every
+  `createFromMap()` import (BFF reqfromissues + reqimport, legacy reqImport
+  CSV/DocBook/XML) run under a Romanian session logged 6 L18N "not localized"
+  WARNING events (`requirement`, `frozen_req_unable_to_import`,
+  `import_req_skipped_plain`, `import_req_new_version_created`,
+  `import_req_new_version_failed`, `import_req_update_last_version_failed`)
+  because the short partial `locale/ro_RO/strings.txt` bundle never received
+  the requirement-import result templates; the 9 keys
+  (`requirement`, `import_req_created`, `import_req_skipped`,
+  `import_req_skipped_plain`, `import_req_updated`,
+  `import_req_new_version_created`, `import_req_new_version_failed`,
+  `import_req_update_last_version_failed`, `frozen_req_unable_to_import`) were
+  added with Romanian translations — a Romanian import now renders e.g.
+  `Omisă - Cerință - ID document:... - este ÎNGHEȚATĂ` with zero events.
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports

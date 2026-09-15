@@ -172,3 +172,16 @@ $TLS_github_bug_created = "Bug %s creat în %s";
 $TLS_github_bug_comment = "Comentariu adăugat la bug %s în %s";
 $TLS_req_title_length_exceeded = 'Lungimea titlului cerinței depășită';
 $TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depășită';
+
+// Added for TestLink 2.0.1 - issue #1506: requirement import message keys
+// (lib/functions/requirement_mgr.class.php createFromMap) missing from the short
+// ro_RO bundle -> every ro-session import logged 'not localized' warnings.
+$TLS_requirement = 'Cerință';
+$TLS_import_req_created = 'Creată - Cerință - ID document:%s';
+$TLS_import_req_skipped = 'Omisă - Cerință - ID document:%s - există deja pe altă ramură';
+$TLS_import_req_skipped_plain = 'Omisă - Motiv: %s';
+$TLS_import_req_updated = 'Actualizată - Cerință - ID document:%s';
+$TLS_import_req_new_version_created = 'Versiune nouă creată - Cerință - ID document:%s';
+$TLS_import_req_new_version_failed = 'Cererea de creare a unei versiuni noi a eșuat - %s';
+$TLS_import_req_update_last_version_failed = 'Cererea de actualizare a ULTIMEI versiuni a eșuat - %s';
+$TLS_frozen_req_unable_to_import = 'Omisă - Cerință - ID document:%s - este ÎNGHEȚATĂ';
