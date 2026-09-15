@@ -89,6 +89,11 @@ class tlUser extends tlDBObject {
   public $creation_ts;
   public $expiration_date;
 
+  /**
+   * @var string the GitHub account of the user (used to fetch the avatar)
+   */
+  public $github;
+
 
   /**
    * @var string the password of the user
@@ -180,6 +185,7 @@ class tlUser extends tlDBObject {
     $this->securityCookie = null;
     $this->authentication = null;
     $this->expiration_date = null;
+    $this->github = null;
 
     if (!($options & self::TLOBJ_O_SEARCH_BY_ID)) {
       $this->dbID = null;
@@ -266,7 +272,7 @@ class tlUser extends tlDBObject {
     $this->_clean($options);
     $sql = " SELECT id,login,password,cookie_string,first,last,email," .
            " role_id,locale, " .
-           " login AS fullname, active,default_testproject_id, script_key,auth_method,creation_ts,expiration_date " .
+           " login AS fullname, active,default_testproject_id, script_key,auth_method,creation_ts,expiration_date,github " .
            " FROM {$this->object_table}";
     $clauses = null;
 
@@ -298,6 +304,7 @@ class tlUser extends tlDBObject {
       $this->authentication = $info['auth_method'];
       $this->expiration_date = $info['expiration_date'];
       $this->creation_ts = $info['creation_ts'];
+      $this->github = isset($info['github']) ? $info['github'] : null;
       
       if ($this->globalRoleID) {
         $this->globalRole = new tlRole($this->globalRoleID);
@@ -433,7 +440,8 @@ class tlUser extends tlDBObject {
                ", password = " . "'" . $db->prepare_string($this->password) . "'" .
                ", role_id = ". $db->prepare_int($this->globalRoleID) . 
                ", active = ". $db->prepare_string($this->isActive) . 
-               ", auth_method = ". "'" . $db->prepare_string($this->authentication) . "'";
+               ", auth_method = ". "'" . $db->prepare_string($this->authentication) . "'" .
+               ", github = '" . $db->prepare_string(is_null($this->github) ? '' : $this->github) . "'";
 
         if(!is_null($t_cookie_string) )
         {        
@@ -445,14 +453,15 @@ class tlUser extends tlDBObject {
       else
       {
         $sql = "/* debugMsg */ INSERT INTO {$this->tables['users']} " .
-               " (login,password,cookie_string,first,last,email,role_id,locale,active,auth_method) " .
+               " (login,password,cookie_string,first,last,email,role_id,locale,active,auth_method,github) " .
                " VALUES ('" . 
                $db->prepare_string($this->login) . "','" . $db->prepare_string($this->password) . "','" . 
                $db->prepare_string($t_cookie_string) . "','" .
                $db->prepare_string($this->firstName) . "','" . $db->prepare_string($this->lastName) . "','" . 
                $db->prepare_string($this->emailAddress) . "'," . $db->prepare_int($this->globalRoleID) . ",'". 
                $db->prepare_string($this->locale). "'," . $this->isActive . "," . 
-               "'" . $db->prepare_string($this->authentication). "'" . ")";
+               "'" . $db->prepare_string($this->authentication). "','" .
+               $db->prepare_string(is_null($this->github) ? '' : $this->github) . "'" . ")";
 
         $result = $db->exec_query($sql);
         if($result)
