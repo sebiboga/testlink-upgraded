@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="stp.title">Help &amp; Instructions</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{box-sizing:border-box}
+body{background:#f2f2f2;font-family:'Ruda',sans-serif;margin:0;padding:0}
+.header{background:#4ECDC4;color:#fff;padding:14px 24px;font-size:20px;font-weight:700;letter-spacing:1px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header .fa-book-open{font-size:22px}
+.header .sub{font-size:13px;font-weight:400;opacity:.85;margin-left:10px}
+#localeSwitcher{margin-left:auto}
+.toolbar{background:#22242a;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.toolbar .ctx{color:#aaa;font-size:12px}
+.toolbar .ctx b{color:#fff}
+.btn-teal{background:#4ECDC4;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px}
+.btn-teal:hover{background:#3dbdb5}
+.btn-ghost{background:#2e3038;color:#fff;border:none;padding:7px 18px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+.btn-ghost:hover{background:#3d4049;color:#fff}
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin:14px 24px 0;overflow:hidden}
+.card .card-hd{padding:12px 18px;border-bottom:1px solid #eee;font-size:14px;font-weight:700;color:#22242a;display:flex;align-items:center;gap:8px}
+.card .card-hd i{color:#4ECDC4}
+.card .card-bd{padding:18px;overflow-x:auto}
+.help-body{font-size:13.5px;line-height:1.65;color:#333}
+.help-body h2{font-size:15px;color:#1d8a83;margin:16px 0 6px}
+.help-body h1{font-size:17px;color:#1d8a83;margin:14px 0 6px}
+.help-body h3,.help-body h4{font-size:14px;color:#22242a;margin:12px 0 6px}
+.help-body ul,.help-body ol{padding-left:22px;margin:6px 0}
+.help-body p{margin:6px 0}
+.help-body a{color:#2d8e88}
+.help-body table{border-collapse:collapse;margin:8px 0}
+.help-body table td,.help-body table th{border:1px solid #ddd;padding:5px 9px;font-size:12.5px}
+.warnbar{background:#fff3cd;border:1px solid #f0d68a;color:#856404;border-radius:6px;padding:10px 16px;margin:14px 24px 0;font-size:13px;display:none}
+.errobbar{background:#fdeceb;border:1px solid #f5c6c2;color:#c0392b;border-radius:6px;padding:10px 16px;margin:14px 24px 0;font-size:13px;display:none}
+.footer{padding:12px 24px;color:#888;font-size:12px;border-top:1px solid #ddd;background:#fff;margin-top:18px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa-solid fa-book-open"></i>
+  <span data-i18n="stp.title">Help &amp; Instructions</span>
+  <span class="sub"><span data-i18n="stp.headerSub">TestLink context help pages</span> <span id="keyBadge"></span></span>
+  <span id="localeSwitcher"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" id="backBtn"><i class="fa fa-arrow-left"></i> <span data-i18n="common.back">Back</span></button>
+  <button class="btn-teal" id="refreshBtn"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <span style="flex:1"></span>
+  <span class="ctx"><span data-i18n="stp.helpKey">Key</span>: <b id="ctxKey">-</b></span>
+</div>
+
+<div id="warnBar" class="warnbar"></div>
+<div id="errBar" class="errobbar"></div>
+
+<div class="card" id="contentCard" style="display:none;">
+  <div class="card-hd"><i class="fa fa-circle-info"></i> <span id="cardTitle">-</span></div>
+  <div class="card-bd"></div>
+</div>
+
+<div class="footer" id="footerText"><span data-i18n="footers.staticPage">TestLink 2.0.1 - Help &amp; Instructions</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/staticpage/index.php';
+var CUR_KEY = '';
+var REFRESH_TREE = 0;
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  CUR_KEY = p.get('key') || '';
+  REFRESH_TREE = p.get('refreshTree') === '1' ? 1 : 0;
+
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    if (!CUR_KEY) {
+      showError(TLi18n.t('stp.missingKey'));
+      return;
+    }
+    $('#ctxKey').text(CUR_KEY);
+    $('#keyBadge').html('<i class="fa fa-tag" style="opacity:.7"></i> ' + esc(CUR_KEY));
+    loadPage();
+  });
+
+  $('#refreshBtn').on('click', loadPage);
+  $('#backBtn').on('click', function () {
+    if (window.self !== window.top) {
+      window.top.location.href = '/index.php';
+    } else {
+      window.history.length > 1 ? history.back() : (window.location.href = '/index.php');
+    }
+  });
+});
+
+function loadPage() {
+  $('#errBar').hide();
+  $('#warnBar').hide();
+  $('#contentCard').hide();
+  $.getJSON(API, { action: 'show', key: CUR_KEY, refreshTree: REFRESH_TREE,
+                   locale: TLi18n.getLocale() })
+    .done(function (r) {
+      if (!r || r.status !== 'ok') {
+        showError((r && r.message) || TLi18n.t('stp.loadError'));
+        return;
+      }
+      render(r);
+    })
+    .fail(function (xhr) {
+      var msg = TLi18n.t('stp.loadError');
+      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
+      showError(msg);
+    });
+}
+
+function render(r) {
+  $('#cardTitle').text(r.title || CUR_KEY);
+  $('#contentCard').css('display', 'block');
+  $('.card-bd:first').html(r.content_html || '');
+  $('#ctxKey').text(r.key);
+  $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('stp.title') + ' | ' + CUR_KEY +
+    ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  if (r.notFound) {
+    $('#warnBar').css('display', 'block')
+      .text(TLi18n.t('stp.notFound') + ' (' + r.locale + ') : ' + r.key);
+  } else {
+    $('#warnBar').hide();
+  }
+}
+
+function showError(msg) {
+  $('#contentCard').hide();
+  $('#errBar').css('display', 'block').text(msg);
+}
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+</script>
+</body>
+</html>
