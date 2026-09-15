@@ -47,20 +47,6 @@ function getIntParam($key, $default = 0) {
 }
 
 /**
- * Config-driven "required" flag for the estimated execution duration field
- * (config.inc.php: $tlCfg->testcase_cfg->estimated_execution_duration->required).
- * Legacy emits the raw string as an HTML5 required attribute; the BFF exposes
- * a boolean so the modern editor can enforce the same rule client-side.
- */
-function isDurationRequired($tcaseCfg) {
-    if (!isset($tcaseCfg) || !isset($tcaseCfg->estimated_execution_duration)) {
-        return false;
-    }
-    $req = $tcaseCfg->estimated_execution_duration->required ?? '';
-    return trim(strval($req)) !== '';
-}
-
-/**
  * Walk up the nodes_hierarchy parent chain.
  * NOTE: tree_manager::get_path() / testproject::getByChildID() proved
  * unreliable in this code base, so we resolve ancestors directly.
@@ -137,304 +123,6 @@ function getProjectSuites($dbHandler, $tprojectId) {
             'childMap' => $childMap, 'types' => $types];
 }
 
-/* ------------------------------------------------------------------
- * Edit-mode tree filter support (port of the legacy
- * tlTestCaseFilterControl edit_mode + treeMenu.inc.php getTestSpecTree
- * behaviour). The modern testSpec.html filter panel posts these params
- * to the BFF `tree` action; the last applied set is kept in session so
- * a full page reload keeps the same view (legacy persisted per filter
- * mode + form token).
- * ------------------------------------------------------------------ */
-
-/** Parse a list of positive ints from CSV/array input. */
-function treeFilterCsvInts($v) {
-    $out = [];
-    if (is_array($v)) {
-        foreach ($v as $x) {
-            if (is_numeric($x) && intval($x) > 0) { $out[] = intval($x); }
-        }
-    } else {
-        foreach (preg_split('/[,;\s]+/', trim(strval($v))) as $tok) {
-            if ($tok !== '' && is_numeric($tok) && intval($tok) > 0) { $out[] = intval($tok); }
-        }
-    }
-    return array_values(array_unique($out));
-}
-
-/** Is the edit-mode tree filter panel enabled by config (legacy show_filters)? */
-function treeFiltersEnabled() {
-    try {
-        $cfg = config_get('tree_filter_cfg');
-        $editCfg = $cfg->testcases->edit_mode ?? null;
-        return intval($editCfg->show_filters ?? 0) === 1;
-    } catch (Exception $e) {
-        return false;
-    }
-}
-
-/** Sanitize the raw __GET filter params into a consistent filter map. */
-function treeFiltersFromInput() {
-    $f = [];
-    $name = trim(strval($_GET['filter_testcase_name'] ?? ''));
-    if ($name !== '') { $f['testcase_name'] = $name; }
-    $tcId = trim(strval($_GET['filter_tc_id'] ?? ''));
-    if ($tcId !== '') { $f['tc_id'] = $tcId; }
-    $topSuites = treeFilterCsvInts($_GET['filter_toplevel_testsuite'] ?? null);
-    if (count($topSuites) > 0) { $f['toplevel_suite'] = $topSuites[0]; }
-    $kw = treeFilterCsvInts($_GET['filter_keywords'] ?? null);
-    if (count($kw) > 0) {
-        $f['keywords'] = $kw;
-        $type = strtoupper(trim(strval($_GET['filter_keywords_filter_type'] ?? 'Or')));
-        if ($type === 'NOT') { $type = 'NOTLINKED'; }
-        if (!in_array($type, array('OR', 'AND', 'NOTLINKED'), true)) { $type = 'OR'; }
-        $f['keywords_type'] = $type;
-    }
-    $plats = treeFilterCsvInts($_GET['filter_platforms'] ?? null);
-    if (count($plats) > 0) { $f['platforms'] = $plats; }
-    if (isset($_GET['filter_active_inactive'])) {
-        $ai = intval($_GET['filter_active_inactive']);
-        if ($ai === 1 || $ai === 2) { $f['active_inactive'] = $ai; }
-    }
-    foreach (array('importance', 'execution_type', 'workflow_status') as $k) {
-        if (isset($_GET['filter_' . $k])) {
-            $v = intval($_GET['filter_' . $k]);
-            if ($v > 0) { $f[$k] = $v; }
-        }
-    }
-    if (isset($_GET['filter_custom_fields']) && strval($_GET['filter_custom_fields']) !== ''
-        && strval($_GET['filter_custom_fields']) !== '{}') {
-        $cfRaw = strval($_GET['filter_custom_fields']);
-        $cf = json_decode($cfRaw, true);
-        if (!is_array($cf)) {
-            parse_str(preg_replace('/[\[\]]/u', '', $cfRaw), $cf);
-        }
-        foreach ((array)$cf as $fk => $fv) {
-            if (is_numeric($fk) && intval($fk) > 0 && is_scalar($fv)
-                && trim(strval($fv)) !== '') {
-                $f['custom_fields'][intval($fk)] = trim(strval($fv));
-            }
-        }
-    }
-    return $f;
-}
-
-/** Compute the effective filter set: request params override, else session. */
-function treeEffectiveFilters($tprojectId, $fromRequest, $reset) {
-    $key = 'testSpecFilters_' . intval($tprojectId);
-    if ($reset) {
-        unset($_SESSION[$key]);
-        return [];
-    }
-    if (is_array($fromRequest) && count($fromRequest) > 0) {
-        $_SESSION[$key] = $fromRequest;
-        return $fromRequest;
-    }
-    return (isset($_SESSION[$key]) && is_array($_SESSION[$key]))
-        ? $_SESSION[$key] : [];
-}
-
-/**
- * All project testcase node-ids reachable from the project root
- * (BFS over nodes_hierarchy, same walk as the tree builder).
- */
-function treeProjectTestcaseIds($tprojectId, $childMap, $nodeTypes) {
-    $tcaseType = intval($nodeTypes['testcase'] ?? 3);
-    $out = [];
-    $queue = [intval($tprojectId)];
-    $seen = [intval($tprojectId) => true];
-    while (count($queue) > 0) {
-        $cur = array_shift($queue);
-        foreach ($childMap[$cur] ?? [] as $cid) {
-            $cid = intval($cid);
-            if (isset($seen[$cid])) { continue; }
-            $seen[$cid] = true;
-            $queue[] = $cid;
-            $ntype = intval($nodeTypes['byType'][$cid] ?? -1);
-            if ($ntype === $tcaseType) { $out[] = $cid; }
-        }
-    }
-    return $out;
-}
-
-/**
- * Compute the set of testcase node-ids that pass the active filters.
- * Acts on the LATEST tcversion (latest_tcase_version_id view).
- * Returns null when no tc-level filter is active (whole tree is shown),
- * otherwise an associative array id => true (ids of the full project set
- * that were NOT filtered out).
- */
-function treeMatchTestcases($dbHandler, $tprojectId, $tcIds, $filters, $nodeTypes, $tables) {
-    $tcaseType = intval($nodeTypes['testcase'] ?? 3);
-    $universe = array_fill_keys($tcIds, true);
-    if (count($universe) === 0) { return $universe; }
-
-    $byName = $filters['testcase_name'] ?? null;
-    $byTcId = $filters['tc_id'] ?? null;
-    $byKw = $filters['keywords'] ?? null;
-    $byKwType = $filters['keywords_type'] ?? 'OR';
-    $byPlat = $filters['platforms'] ?? null;
-    $byActive = $filters['active_inactive'] ?? null;
-    $byImp = $filters['importance'] ?? null;
-    $byExec = $filters['execution_type'] ?? null;
-    $byStatus = $filters['workflow_status'] ?? null;
-    $byCf = $filters['custom_fields'] ?? null;
-
-    if (!$byName && !$byTcId && !$byKw && !$byPlat && !$byActive
-        && !$byImp && !$byExec && !$byStatus && !$byCf) {
-        return null;
-    }
-
-    $match = $universe;
-    $nh = $tables['nodes_hierarchy'];
-    $tcv = $tables['tcversions'];
-    $vLatest = 'latest_tcase_version_id';
-
-    // filter by testcase name (node name substring, like legacy)
-    if ($byName !== null) {
-        $like = $dbHandler->prepare_string($byName);
-        $rs = $dbHandler->get_recordset(
-            " SELECT NH.id AS tc_id FROM {$nh} NH " .
-            " WHERE NH.node_type_id = {$tcaseType} " .
-            " AND NH.name LIKE '%{$like}%'");
-        $set = [];
-        foreach ((array)$rs as $r) { $set[intval($r['tc_id'])] = true; }
-        $match = array_intersect_key($match, $set);
-    }
-
-    // filter by test case id: internal node id and/or external id (prefix-aware)
-    if ($byTcId !== null) {
-        $tok = strval($byTcId);
-        if (is_numeric($tok)) {
-            $idx = intval($tok);
-            $rs = $dbHandler->get_recordset(
-                " SELECT NH.parent_id AS tc_id FROM {$nh} NH " .
-                " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = NH.id " .
-                " JOIN {$tcv} TCV ON TCV.id = NH.id " .
-                " WHERE NH.parent_id = {$idx} OR TCV.tc_external_id = {$idx} ");
-        } else {
-            $like = $dbHandler->prepare_string($tok);
-            $rs = $dbHandler->get_recordset(
-                " SELECT NH.parent_id AS tc_id FROM {$nh} NH " .
-                " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = NH.id " .
-                " JOIN {$tcv} TCV ON TCV.id = NH.id " .
-                " WHERE CAST(TCV.tc_external_id AS CHAR) LIKE '{$like}%' ");
-        }
-        $set = [];
-        foreach ((array)$rs as $r) { $set[intval($r['tc_id'])] = true; }
-        $match = array_intersect_key($match, $set);
-    }
-
-    // filter by keywords (latest version; Or / And / NotLinked semantics)
-    if ($byKw !== null) {
-        $kwIn = implode(',', $byKw);
-        $set = [];
-        if ($byKwType === 'AND') {
-            $rs = $dbHandler->get_recordset(
-                " SELECT FOX.testcase_id FROM ( " .
-                "   SELECT MAX(TK.testcase_id) AS testcase_id, COUNT(*) AS HITS " .
-                "   FROM testcase_keywords TK " .
-                "   JOIN {$vLatest} LTVC ON LTVC.tcversion_id = TK.tcversion_id " .
-                "   WHERE TK.keyword_id IN ({$kwIn}) " .
-                "   GROUP BY TK.tcversion_id ) AS FOX " .
-                " WHERE FOX.HITS = " . intval(count($byKw)));
-        } elseif ($byKwType === 'NOTLINKED') {
-            $rs = $dbHandler->get_recordset(
-                " SELECT NHTCV.parent_id AS testcase_id FROM {$nh} NHTCV " .
-                " JOIN {$vLatest} LTCV ON NHTCV.id = LTCV.tcversion_id " .
-                " WHERE NOT EXISTS (SELECT 1 FROM testcase_keywords TCK " .
-                "                  WHERE TCK.tcversion_id = LTCV.tcversion_id " .
-                "                  AND TCK.keyword_id IN ({$kwIn}))");
-        } else { // OR
-            $rs = $dbHandler->get_recordset(
-                " SELECT TK.testcase_id FROM testcase_keywords TK " .
-                " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = TK.tcversion_id " .
-                " WHERE TK.keyword_id IN ({$kwIn}) ");
-        }
-        foreach ((array)$rs as $r) {
-            $set[intval($r['testcase_id'])] = true;
-        }
-        $match = array_intersect_key($match, $set);
-    }
-
-    // filter by platforms (latest version; any-of)
-    if ($byPlat !== null) {
-        $platIn = implode(',', $byPlat);
-        $rs = $dbHandler->get_recordset(
-            " SELECT TP.testcase_id FROM testcase_platforms TP " .
-            " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = TP.tcversion_id " .
-            " WHERE TP.platform_id IN ({$platIn}) ");
-        $set = [];
-        foreach ((array)$rs as $r) { $set[intval($r['testcase_id'])] = true; }
-        $match = array_intersect_key($match, $set);
-    }
-
-    // active / inactive (by presence of any active version)
-    if ($byActive !== null) {
-        $rs = $dbHandler->get_recordset(
-            " SELECT DISTINCT NH.parent_id AS tc_id FROM {$nh} NH " .
-            " JOIN {$tcv} TCV ON TCV.id = NH.id " .
-            " WHERE TCV.active = 1 ");
-        $activeSet = [];
-        foreach ((array)$rs as $r) { $activeSet[intval($r['tc_id'])] = true; }
-        if ($byActive === 1) { // active only
-            $match = array_intersect_key($match, $activeSet);
-        } else { // inactive only
-            $match = array_diff_key($match, $activeSet);
-        }
-    }
-
-    // importance / execution_type / workflow_status on the latest version
-    foreach (array('importance' => 'importance', 'execution_type' => 'execution_type',
-                   'workflow_status' => 'status') as $fk => $col) {
-        $val = $filters[$fk] ?? null;
-        if ($val === null) { continue; }
-        $rs = $dbHandler->get_recordset(
-            " SELECT NH.parent_id AS tc_id FROM {$nh} NH " .
-            " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = NH.id " .
-            " JOIN {$tcv} TCV ON TCV.id = NH.id " .
-            " WHERE TCV.{$col} = " . intval($val));
-        $set = [];
-        foreach ((array)$rs as $r) { $set[intval($r['tc_id'])] = true; }
-        $match = array_intersect_key($match, $set);
-    }
-
-    // custom fields: design values stored on the (latest) tcversion
-    if ($byCf !== null && count($byCf) > 0) {
-        foreach ($byCf as $fieldId => $needle) {
-            $like = $dbHandler->prepare_string(substr($needle, 0, 60));
-            $rs = $dbHandler->get_recordset(
-                " SELECT NH.parent_id AS tc_id FROM cfield_design_values CDV " .
-                " JOIN {$nh} NH ON NH.id = CDV.node_id " .
-                " JOIN {$vLatest} LTVC ON LTVC.tcversion_id = CDV.node_id " .
-                " WHERE CDV.field_id = " . intval($fieldId) .
-                " AND CDV.value != '' AND CDV.value LIKE '%{$like}%' ");
-            $set = [];
-            foreach ((array)$rs as $r) { $set[intval($r['tc_id'])] = true; }
-            $match = array_intersect_key($match, $set);
-        }
-    }
-
-    return $match;
-}
-
-/**
- * Top-level suite restriction: returns the id of the single top-level
- * suite to KEEP (legacy select "all" = 0/no filter), or null when the
- * whole tree should be shown.
- */
-function treeToplevelSuiteKeep($filters, $childMap, $tprojectId, $nodeTypes) {
-    if (empty($filters['toplevel_suite'])) { return null; }
-    $suiteType = intval($nodeTypes['testsuite'] ?? 2);
-    foreach ($childMap[intval($tprojectId)] ?? [] as $cid) {
-        $cid = intval($cid);
-        if (intval($nodeTypes['byType'][$cid] ?? -1) === $suiteType
-            && $cid === intval($filters['toplevel_suite'])) {
-            return $cid;
-        }
-    }
-    return null;
-}
-
 $action = $_GET['action'] ?? '';
 
 $tcaseMgr = new testcase($db);
@@ -491,83 +179,6 @@ if ($action === 'context') {
         $grants[$gk] = $user->hasRight($db, $gk, $tprojectId) ? 1 : 0;
     }
 
-    // --- edit-mode tree filter panel data (port of legacy tree_filter_cfg) ---
-    $filterOptions = ['enabled' => false, 'keywords' => [], 'platforms' => [],
-                      'toplevelSuites' => [], 'customFields' => [], 'statusDomain' => []];
-    try {
-        $tFilterCfg = config_get('tree_filter_cfg');
-        $editCfg = $tFilterCfg->testcases->edit_mode ?? null;
-        $filterOptions['enabled'] = intval($editCfg->show_filters ?? 0) === 1;
-        $filterOptions['statusDomain'] = tcStatusDomain();
-        if ($filterOptions['enabled']) {
-            $cfgKeyMap = array('filter_tc_id' => 'filter_tc_id',
-                'filter_testcase_name' => 'filter_testcase_name',
-                'filter_toplevel_testsuite' => 'filter_toplevel_testsuite',
-                'filter_keywords' => 'filter_keywords',
-                'filter_platforms' => 'filter_platforms',
-                'filter_active_inactive' => 'filter_active_inactive',
-                'filter_importance' => 'filter_importance',
-                'filter_execution_type' => 'filter_execution_type',
-                'filter_workflow_status' => 'filter_workflow_status',
-                'filter_custom_fields' => 'filter_custom_fields');
-            foreach ($cfgKeyMap as $hint => $cfgKey) {
-                $filterOptions[$hint] = intval($editCfg->{$cfgKey} ?? 0) === 1;
-            }
-            $nhT = tlObjectWithDB::getDBTables(
-                array('nodes_hierarchy', 'node_types', 'keywords', 'platforms', 'custom_fields', 'cfield_testprojects'));
-            $kwRows = $db->get_recordset(
-                " SELECT KW.id, KW.keyword FROM {$nhT['keywords']} KW " .
-                " WHERE KW.testproject_id = " . intval($tprojectId) . " ORDER BY KW.keyword");
-            foreach ((array)$kwRows as $kr) {
-                $filterOptions['keywords'][intval($kr['id'])] = strval($kr['keyword']);
-            }
-            $platRows = $db->get_recordset(
-                " SELECT PL.id, PL.name FROM {$nhT['platforms']} PL " .
-                " WHERE PL.testproject_id = " . intval($tprojectId) .
-                " AND PL.enable_on_design = 1 ORDER BY PL.name");
-            foreach ((array)$platRows as $pr) {
-                $filterOptions['platforms'][intval($pr['id'])] = strval($pr['name']);
-            }
-            $typeRows2 = $db->get_recordset(
-                " SELECT id, description FROM {$nhT['node_types']} " .
-                " WHERE description IN ('testsuite','testcase')");
-            $tsuiteType = 2; $tcaseType = 3;
-            foreach ((array)$typeRows2 as $tr) {
-                if ($tr['description'] === 'testsuite') { $tsuiteType = intval($tr['id']); }
-                if ($tr['description'] === 'testcase') { $tcaseType = intval($tr['id']); }
-            }
-            $suiteRows = $db->get_recordset(
-                " SELECT id, name, node_type_id FROM {$nhT['nodes_hierarchy']} " .
-                " WHERE parent_id = " . intval($tprojectId) .
-                " AND node_type_id = {$tsuiteType} ORDER BY name");
-            $filterOptions['toplevelSuites'][] = ['id' => 0, 'name' => ''];
-            foreach ((array)$suiteRows as $sr) {
-                $filterOptions['toplevelSuites'][] = ['id' => intval($sr['id']), 'name' => strval($sr['name'])];
-            }
-            $cfRows = $db->get_recordset(
-                " SELECT CF.id, CF.name, CF.label, CF.type, CF.possible_values " .
-                " FROM {$nhT['custom_fields']} CF " .
-                " JOIN {$nhT['cfield_testprojects']} CTP ON CTP.field_id = CF.id " .
-                " WHERE CTP.testproject_id = " . intval($tprojectId) .
-                " AND CF.enable_on_design = 1 " .
-                " ORDER BY CTP.display_order, CF.id");
-            foreach ((array)$cfRows as $cr) {
-                $filterOptions['customFields'][] = [
-                    'id' => intval($cr['id']),
-                    'name' => strval($cr['name']),
-                    'label' => strval($cr['label'] ?: $cr['name']),
-                    'type' => intval($cr['type']),
-                    'possible_values' => strval($cr['possible_values']),
-                ];
-            }
-        }
-    } catch (Exception $e) {
-        $filterOptions = ['enabled' => false];
-    }
-    $sessionKey = 'testSpecFilters_' . intval($tprojectId);
-    $persistedFilters = (isset($_SESSION[$sessionKey]) && is_array($_SESSION[$sessionKey]))
-        ? $_SESSION[$sessionKey] : null;
-
     out([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => $info['name']],
@@ -579,10 +190,7 @@ if ($action === 'context') {
         'hasTestPlans' => $hasTestPlans,
         'grants' => $grants,
         'canEditExecuted' => intval($tcaseCfg->canEditExecuted ?? 0),
-        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
         'dateFormat' => config_get('date_format'),
-        'filterOptions' => $filterOptions,
-        'persistedFilters' => $persistedFilters,
     ]);
 }
 
@@ -961,35 +569,6 @@ function getJsonBody() {
     return is_array($j) ? $j : [];
 }
 
-/**
- * TC status workflow domain (draft..final) from global config.
- * Returns map code => config key (e.g. 1 => 'draft'), mirroring legacy
- * $tlCfg->testCaseStatus (cfg/const.inc.php). Client renders labels via
- * i18n keys tcview.status<code> (same domain used by tcView.html).
- */
-function tcStatusDomain() {
-    $cfg = config_get('testCaseStatus');
-    if (!is_array($cfg) || !count($cfg)) {
-        // fallback to the standard 1.9.20 domain
-        $cfg = array('draft' => 1, 'readyForReview' => 2, 'reviewInProgress' => 3,
-                     'rework' => 4, 'obsolete' => 5, 'future' => 6, 'final' => 7);
-    }
-    $domain = [];
-    foreach ($cfg as $key => $code) {
-        $code = intval($code);
-        if ($code > 0) { $domain[$code] = strval($key); }
-    }
-    ksort($domain);
-    return $domain;
-}
-
-/** Validate a submitted TC status code against the configured domain. */
-function normalizeTcStatus($value) {
-    $code = intval($value);
-    $domain = tcStatusDomain();
-    return isset($domain[$code]) ? $code : null;
-}
-
 function jout($data, $code = 200) {
     http_response_code($code);
     out($data);
@@ -1067,54 +646,22 @@ if ($action === 'tree') {
         }
     }
 
-    // --- edit-mode filters (session-persisted, mirror legacy) ---
-    $nodeTypesByType = ['testsuite' => $tsuiteType, 'testcase' => $tcaseType];
-    $byType = [];
-    foreach ($nodesById as $nid => $nrow) {
-        $byType[$nid] = intval($nrow['node_type_id']);
-    }
-    $nodeTypesByType['byType'] = $byType;
-    $resetFilters = intval($_GET['reset_filters'] ?? 0) === 1;
-    if (treeFiltersEnabled()) {
-        $filters = treeEffectiveFilters(
-            $tprojectId, treeFiltersFromInput(), $resetFilters);
-    } else {
-        unset($_SESSION['testSpecFilters_' . intval($tprojectId)]);
-        $filters = [];
-    }
-    $filtersActive = count($filters) > 0;
-
-    $tcIds = treeProjectTestcaseIds($tprojectId, $childMap, $nodeTypesByType);
-    $match = $filtersActive
-        ? treeMatchTestcases($db, $tprojectId, $tcIds, $filters, $nodeTypesByType, $tables)
-        : null;
-    $keepSuiteId = treeToplevelSuiteKeep($filters, $childMap, $tprojectId, $nodeTypesByType);
-
     // iterative subtree walk (BFS) building nested structure
     $build = function($pid) use (&$build, $childMap, $nodesById,
-                                $tsuiteType, $tcaseType, $tcAgg, $match,
-                                $filtersActive) {
+                                $tsuiteType, $tcaseType, $tcAgg) {
         $suites = [];
         $testcases = [];
         foreach ($childMap[$pid] ?? [] as $cid) {
             $n = $nodesById[$cid];
             $ntype = intval($n['node_type_id']);
             if ($ntype === $tsuiteType) {
-                $children = $build($cid);
-                $hasChildren = (count($children['suites']) + count($children['testcases'])) > 0;
-                if ($filtersActive && !$hasChildren) {
-                    continue; // prune empty suite when filtering
-                }
                 $suites[] = [
                     'type' => 'testsuite',
                     'id' => $cid,
                     'name' => strval($n['name']),
-                    'children' => $children,
+                    'children' => $build($cid),
                 ];
             } elseif ($ntype === $tcaseType) {
-                if (!is_null($match) && !isset($match[$cid])) {
-                    continue; // filtered out
-                }
                 $agg = $tcAgg[$cid] ?? null;
                 $testcases[] = [
                     'type' => 'testcase',
@@ -1130,14 +677,10 @@ if ($action === 'tree') {
         return ['suites' => $suites, 'testcases' => $testcases];
     };
 
-    $branchId = is_null($keepSuiteId) ? $tprojectId : $keepSuiteId;
     jout([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
-        'tree' => $build($branchId),
-        'filtered' => $filtersActive,
-        'filters' => $filters,
-        'matchCount' => is_null($match) ? null : count($match),
+        'tree' => $build($tprojectId),
     ]);
 }
 
@@ -1228,42 +771,6 @@ if ($action === 'get') {
         $projKw = [];
     }
 
-    // design-time custom fields linked to the project (per-step/tc level)
-    $customFields = [];
-    try {
-        $cfMap = $tcaseMgr->get_linked_cfields_at_design(
-            $tcaseId, $tcversionId, null, null, $tprojectId);
-        if (!is_null($cfMap) && is_array($cfMap)) {
-            foreach ($cfMap as $cfi) {
-                $val = $cfi['value'] ?? null;
-                if (is_array($val)) { $val = implode('|', $val); }
-                $verbose = strval(
-                    $tcaseMgr->cfield_mgr->custom_field_types[intval($cfi['type'] ?? 0)] ?? 'string');
-                if (in_array($verbose, ['date', 'datetime'], true)
-                    && $val !== '' && is_numeric($val)) {
-                    $val = gmdate('Y-m-d\TH:i', intval($val));
-                    if ($verbose === 'date') { $val = substr($val, 0, 10); }
-                }
-                $customFields[] = [
-                    'id' => intval($cfi['id']),
-                    'name' => strval($cfi['name'] ?? ''),
-                    'label' => strval($cfi['label'] ?? ''),
-                    'type' => intval($cfi['type'] ?? 0),
-                    'typeName' => $verbose,
-                    'possible_values' => strval($cfi['possible_values'] ?? ''),
-                    'default_value' => strval($cfi['default_value'] ?? ''),
-                    'required' => intval($cfi['required'] ?? 0),
-                    'show_on_design' => intval($cfi['show_on_design'] ?? 0) === 1,
-                    'enable_on_design' => intval($cfi['enable_on_design'] ?? 0) === 1,
-                    'length_max' => intval($cfi['length_max'] ?? 0),
-                    'value' => ($val === null || $val === '') ? '' : (string)$val,
-                ];
-            }
-        }
-    } catch (Exception $e) {
-        $customFields = [];
-    }
-
     jout([
         'status' => 'ok',
         'tcase' => [
@@ -1283,12 +790,9 @@ if ($action === 'get') {
             'parent_id' => intval($lvRow['suite_id'] ?? 0),
         ],
         'steps' => $steps,
-        'customFields' => $customFields,
         'keywordsAssigned' => $assignedKw,
         'keywordsProject' => $projKw,
         'executed' => $executed,
-        'statusDomain' => tcStatusDomain(),
-        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
     ]);
 }
 
@@ -1328,51 +832,10 @@ if ($action === 'keywords') {
         $projKw = [];
     }
 
-    // project-level design custom fields (definitions only, no value yet)
-    $customFields = [];
-    try {
-        $cfMap = $tcaseMgr->cfield_mgr->get_linked_cfields_at_design(
-            $tprojectId, ENABLED, null, 'testcase', null);
-        if (!is_null($cfMap) && is_array($cfMap)) {
-            foreach ($cfMap as $cfi) {
-                $val = $cfi['value'] ?? null;
-                if (is_array($val)) { $val = implode('|', $val); }
-                $verbose = strval(
-                    $tcaseMgr->cfield_mgr->custom_field_types[intval($cfi['type'] ?? 0)] ?? 'string');
-                if (in_array($verbose, ['date', 'datetime'], true)
-                    && $val !== '' && is_numeric($val)) {
-                    $val = gmdate('Y-m-d\TH:i', intval($val));
-                    if ($verbose === 'date') { $val = substr($val, 0, 10); }
-                }
-                $customFields[] = [
-                    'id' => intval($cfi['id']),
-                    'name' => strval($cfi['name'] ?? ''),
-                    'label' => strval($cfi['label'] ?? ''),
-                    'type' => intval($cfi['type'] ?? 0),
-                    'typeName' => $verbose,
-                    'possible_values' => strval($cfi['possible_values'] ?? ''),
-                    'default_value' => strval($cfi['default_value'] ?? ''),
-                    'required' => intval($cfi['required'] ?? 0),
-                    'show_on_design' => intval($cfi['show_on_design'] ?? 0) === 1,
-                    'enable_on_design' => intval($cfi['enable_on_design'] ?? 0) === 1,
-                    'length_max' => intval($cfi['length_max'] ?? 0),
-                    'value' => is_array($cfi['value'] ?? null)
-                        ? implode('|', array_map('strval', $cfi['value']))
-                        : strval($cfi['value'] ?? ''),
-                ];
-            }
-        }
-    } catch (Exception $e) {
-        $customFields = [];
-    }
-
     jout([
         'status' => 'ok',
         'tproject' => ['id' => $tprojectId, 'name' => strval($info['name'])],
         'keywordsProject' => $projKw,
-        'customFields' => $customFields,
-        'statusDomain' => tcStatusDomain(),
-        'estimateDurationRequired' => isDurationRequired($tcaseCfg),
     ]);
 }
 
@@ -1401,19 +864,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             $expected = trim(strval($st['expected_results'] ?? ''));
             if ($actions === '' && $expected === '') { continue; }
             $num++;
-            // Per-step execution type (legacy step editor supports one per
-            // step); fall back to the TC-level execution type when absent or
-            // out of the manual/automated domain.
-            $stepExec = intval($st['execution_type'] ?? $execType);
-            if ($stepExec !== TESTCASE_EXECUTION_TYPE_MANUAL
-                && $stepExec !== TESTCASE_EXECUTION_TYPE_AUTO) {
-                $stepExec = intval($execType);
-            }
             $out[] = [
                 'step_number' => $num,
                 'actions' => $actions,
                 'expected_results' => $expected,
-                'execution_type' => $stepExec,
+                'execution_type' => intval($execType),
             ];
         }
         return $out;
@@ -1425,64 +880,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
             if (intval($kid) > 0) { $ids[] = intval($kid); }
         }
         return count($ids) ? implode(',', $ids) : '';
-    };
-
-    // Persist design-time custom field values for a test case version.
-    // Mirrors legacy testcaseCommands: get_linked_cfields_at_design() +
-    // cfield_mgr::design_values_to_db().
-    $saveDesignCF = function($body, $tcaseId, $tcversionId, $tprojectId) use ($db, $tcaseMgr) {
-        $rawCF = $body['customFields'] ?? [];
-        if (!is_array($rawCF) || !count($rawCF)) {
-            // no custom fields posted - leave values untouched (like legacy,
-            // which only writes keys present on the form)
-            return;
-        }
-        $cf_map = $tcaseMgr->get_linked_cfields_at_design(
-            $tcaseId, $tcversionId, null, null, $tprojectId);
-        if (is_null($cf_map)) { return; }
-
-        // key: cf id value: field definition
-        $byId = [];
-        foreach ((array)$cf_map as $cfi) {
-            $byId[intval($cfi['id'])] = $cfi;
-        }
-
-        // legacy input name format: custom_field_<type>_<id>
-        $cfield = [];
-        foreach ($rawCF as $cfv) {
-            if (!is_array($cfv)) { continue; }
-            $cfId = intval($cfv['id'] ?? 0);
-            if ($cfId <= 0 || !isset($byId[$cfId])) { continue; }
-            $verbose = trim(strval(
-                $tcaseMgr->cfield_mgr->custom_field_types[intval($byId[$cfId]['type'] ?? 0)] ?? ''));
-            $value = $cfv['value'] ?? '';
-            if (is_array($value)) {
-                $value = implode('|', array_map('strval', $value));
-            } else {
-                $value = strval($value);
-            }
-            // date/datetime posted as ISO (Y-m-d / Y-m-d\TH:i) -> unix ts
-            if (($verbose === 'date' || $verbose === 'datetime') && $value !== '') {
-                $ts = strtotime($value);
-                if ($ts !== false) {
-                    if ($verbose === 'date') {
-                        $value = strval(mktime(
-                            0, 0, 0, intval(date('n', $ts)),
-                            intval(date('j', $ts)), intval(date('Y', $ts))));
-                    } else {
-                        $value = strval($ts);
-                    }
-                } else {
-                    $value = '';
-                }
-            }
-            $typeId = intval($cfv['type'] ?? $byId[$cfId]['type']);
-            $cfield[$cfId] = ['type_id' => $typeId, 'cf_value' => $value];
-        }
-        if (count($cfield)) {
-            $tcaseMgr->cfield_mgr->design_values_to_db(
-                $cfield, intval($tcversionId), null, 'bff_design_cf');
-        }
     };
 
     // POST ?action=suite_create {parent_id,name}
@@ -1545,29 +942,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $steps = $normSteps($body['steps'] ?? [], $execType);
         $kwIds = $kwString($body['keywords'] ?? []);
 
-        // TC status workflow domain (legacy setStatus); default = draft.
-        $status = normalizeTcStatus($body['status'] ?? '');
-        if ($status === null) {
-            $status = 1; // draft
-        }
-
-        // Estimated execution duration (minutes): numeric validated, optionally
-        // required per config (legacy attributesLinear.inc.tpl + setEstimatedExecDuration).
-        $estDur = trim(strval($body['estimated_execution_duration'] ?? ''));
-        if ($estDur !== '' && !is_numeric($estDur)) {
-            jout(['status' => 'error', 'message' => 'Invalid estimated duration'], 400);
-        }
-        if (isDurationRequired($tcaseCfg) && $estDur === '') {
-            jout(['status' => 'error',
-                  'message' => 'Estimated execution duration is required'], 400);
-        }
-
         $ret = $tcaseMgr->create($parentId, $name, $summary, $preconds, $steps,
                                  intval($user->dbID ?? $userId), $kwIds,
                                  testcase::DEFAULT_ORDER, testcase::AUTOMATIC_ID,
-                                 $execType, $importance,
-                                 array('status' => $status,
-                                       'estimatedExecDuration' => $estDur));
+                                 $execType, $importance);
         $newId = 0;
         if (is_array($ret)) {
             if (isset($ret['status_ok']) && !$ret['status_ok']) {
@@ -1581,18 +959,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         if ($newId <= 0) {
             jout(['status' => 'error', 'message' => 'Create failed'], 500);
         }
-
-        // persist design-time custom fields on the first version
-        $tvTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'tcversions'));
-        $nrow = $db->fetchFirstRow(
-            " SELECT TCV.id AS tcversion_id FROM {$tvTables['tcversions']} TCV " .
-            " JOIN {$tvTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
-            " WHERE NH.parent_id = {$newId} ORDER BY TCV.version DESC LIMIT 1");
-        $newTcversionId = intval($nrow['tcversion_id'] ?? 0);
-        if ($newTcversionId > 0) {
-            $saveDesignCF($body, $newId, $newTcversionId, $tprojectId);
-        }
-
         jout(['status' => 'ok', 'id' => $newId, 'message' => 'Test case created']);
     }
 
@@ -1638,35 +1004,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         $steps = $normSteps($body['steps'] ?? [], $execType);
         $kwIds = $kwString($body['keywords'] ?? []);
 
-        // TC status workflow domain (legacy setStatus); keep current when absent.
-        $status = normalizeTcStatus($body['status'] ?? '');
-        if ($status === null) {
-            $curStatus = intval($lvRow['status'] ?? 0);
-            $status = $curStatus >= 1 ? $curStatus : 1;
-        }
-
-        // Estimated execution duration (minutes): numeric validated, optionally
-        // required per config (legacy setEstimatedExecDuration + update() $attr).
-        $estDur = trim(strval($body['estimated_execution_duration'] ?? ''));
-        if ($estDur !== '' && !is_numeric($estDur)) {
-            jout(['status' => 'error', 'message' => 'Invalid estimated duration'], 400);
-        }
-        if (isDurationRequired($tcaseCfg) && $estDur === '') {
-            jout(['status' => 'error',
-                  'message' => 'Estimated execution duration is required'], 400);
-        }
-        $attr = array('status' => $status, 'estimatedExecDuration' => $estDur);
-
         $ret = $tcaseMgr->update($tcaseId, $tcversionId, $name, $summary,
                                  $preconds, $steps,
                                  intval($user->dbID ?? $userId), $kwIds,
                                  intval($lvRow['node_order'] ?? testcase::DEFAULT_ORDER),
-                                 $execType, $importance, $attr);
+                                 $execType, $importance);
         if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
             jout(['status' => 'error',
                   'message' => strval($ret['msg'] ?? 'Update failed')], 400);
         }
-        $saveDesignCF($body, $tcaseId, $tcversionId, $tprojectId);
         jout(['status' => 'ok', 'message' => 'Test case saved',
               'tcversion_id' => $tcversionId]);
     }
@@ -1696,160 +1042,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
         }
         jout(['status' => 'ok', 'tcversion_id' => $newTcv,
               'message' => 'New version created']);
-    }
-
-    // -------------------------------------------------------------------------
-    // POST ?action=move  {node_id, type, new_parent_id, position}
-    // Move a testsuite or testcase to a new parent (mirrors legacy do_move
-    // in tcEdit.php / containerEdit.php: change_parent + change_child_order).
-    // -------------------------------------------------------------------------
-    if ($action === 'move') {
-        $nodeId    = intval($body['node_id'] ?? 0);
-        $nodeType  = trim(strval($body['type'] ?? ''));       // 'testsuite' | 'testcase'
-        $newParent = intval($body['new_parent_id'] ?? 0);
-        $position  = trim(strval($body['position'] ?? 'bottom')); // 'top' | 'bottom'
-
-        if ($nodeId <= 0 || $newParent <= 0
-            || !in_array($nodeType, ['testsuite', 'testcase'])) {
-            jout(['status' => 'error',
-                  'message' => 'Missing node_id, new_parent_id, or invalid type'], 400);
-        }
-
-        // prevent moving a node into itself
-        if ($nodeId === $newParent) {
-            jout(['status' => 'error',
-                  'message' => 'Cannot move a node into itself'], 400);
-        }
-
-        $tprojectId = $checkWrite($nodeId);
-
-        // also verify the destination is in the same project
-        $destProject = owningProjectOf($db, $tprojectMgr, $newParent);
-        if (is_null($destProject) || $destProject !== $tprojectId) {
-            jout(['status' => 'error',
-                  'message' => 'Destination is not in the same project'], 400);
-        }
-
-        // prevent moving a testsuite into its own descendant
-        if ($nodeType === 'testsuite') {
-            $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy'));
-            $descendantCheck = $db->fetchFirstRow(
-                "SELECT id FROM {$nhTables['nodes_hierarchy']} " .
-                "WHERE id = {$newParent} AND parent_id = {$nodeId}");
-            if (!empty($descendantCheck)) {
-                // quick one-level check; for deep recursion, walk the chain
-                jout(['status' => 'error',
-                      'message' => 'Cannot move a suite into its own child'], 400);
-            }
-            // deeper descendant check: walk up from newParent to see if nodeId appears
-            $nh = $nhTables['nodes_hierarchy'];
-            $cur = $newParent;
-            for ($i = 0; $i < 50; $i++) {
-                $row = $db->fetchFirstRow(
-                    "SELECT parent_id FROM {$nh} WHERE id = {$cur}");
-                if (empty($row) || intval($row['parent_id']) <= 0) { break; }
-                if (intval($row['parent_id']) === $nodeId) {
-                    jout(['status' => 'error',
-                          'message' => 'Cannot move a suite into its own descendant'], 400);
-                }
-                $cur = intval($row['parent_id']);
-            }
-        }
-
-        $excludeNodeTypes = ['testplan' => 1, 'requirement' => 1, 'requirement_spec' => 1];
-        $treeMgr = new tree($db);
-
-        $ok = $treeMgr->change_parent($nodeId, $newParent);
-        if (!$ok) {
-            jout(['status' => 'error', 'message' => 'Move failed'], 500);
-        }
-
-        if ($position === 'top' || $position === 'bottom') {
-            $treeMgr->change_child_order($newParent, $nodeId, $position,
-                                         $excludeNodeTypes);
-        }
-
-        jout(['status' => 'ok', 'message' => 'Node moved']);
-    }
-
-    // -------------------------------------------------------------------------
-    // POST ?action=copy  {node_id, type, new_parent_id, position, options}
-    // Deep-copy a testsuite or testcase to a new parent (mirrors legacy
-    // do_copy in tcEdit.php / containerEdit.php: copy_to + change_child_order).
-    // -------------------------------------------------------------------------
-    if ($action === 'copy') {
-        $nodeId    = intval($body['node_id'] ?? 0);
-        $nodeType  = trim(strval($body['type'] ?? ''));
-        $newParent = intval($body['new_parent_id'] ?? 0);
-        $position  = trim(strval($body['position'] ?? 'bottom'));
-        $copyOpts  = $body['options'] ?? [];
-
-        if ($nodeId <= 0 || $newParent <= 0
-            || !in_array($nodeType, ['testsuite', 'testcase'])) {
-            jout(['status' => 'error',
-                  'message' => 'Missing node_id, new_parent_id, or invalid type'], 400);
-        }
-
-        $tprojectId = $checkWrite($nodeId);
-        $destProject = owningProjectOf($db, $tprojectMgr, $newParent);
-        if (is_null($destProject) || $destProject !== $tprojectId) {
-            jout(['status' => 'error',
-                  'message' => 'Destination is not in the same project'], 400);
-        }
-
-        $userIdInt = intval($user->dbID ?? $userId);
-        $newId = 0;
-
-        if ($nodeType === 'testcase') {
-            $copyAlso = [
-                'keyword_assignments'      => !empty($copyOpts['copyKeywords']),
-                'requirement_assignments'  => !empty($copyOpts['copyRequirements']),
-            ];
-            $tcCopyOpts = [
-                'check_duplicate_name'   => 0,
-                'action_on_duplicate_name' => 'generate_new',
-                'copy_also'              => $copyAlso,
-                'stepAsGhost'            => !empty($copyOpts['copyAsGhost']),
-                'copyOnlyLatest'         => !empty($copyOpts['copyOnlyLatestVersion']),
-                'preserve_external_id'   => false,
-            ];
-
-            $ret = $tcaseMgr->copy_to($nodeId, $newParent, $userIdInt, $tcCopyOpts);
-            if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
-                jout(['status' => 'error',
-                      'message' => strval($ret['msg'] ?? 'Copy failed')], 500);
-            }
-            $newId = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
-        } else {
-            // testsuite
-            $tsOpts = [
-                'check_duplicate_name'    => 0,
-                'action_on_duplicate_name' => 'allow_repeat',
-                'copyKeywords'            => !empty($copyOpts['copyKeywords']) ? 1 : 0,
-                'copyRequirements'        => !empty($copyOpts['copyRequirements']) ? 1 : 0,
-            ];
-            $tsuiteMgr = new testsuite($db);
-            $ret = $tsuiteMgr->copy_to($nodeId, $newParent, $userIdInt, $tsOpts);
-            if (is_array($ret) && isset($ret['status_ok']) && !$ret['status_ok']) {
-                jout(['status' => 'error',
-                      'message' => strval($ret['msg'] ?? 'Copy failed')], 500);
-            }
-            $newId = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
-        }
-
-        if ($newId <= 0) {
-            jout(['status' => 'error', 'message' => 'Copy failed (no id)'], 500);
-        }
-
-        // position the copy
-        $excludeNodeTypes = ['testplan' => 1, 'requirement' => 1, 'requirement_spec' => 1];
-        $treeMgr = new tree($db);
-        if ($position === 'top' || $position === 'bottom') {
-            $treeMgr->change_child_order($newParent, $newId, $position,
-                                         $excludeNodeTypes);
-        }
-
-        jout(['status' => 'ok', 'id' => $newId, 'message' => 'Node copied']);
     }
 
     jout(['status' => 'error', 'message' => 'Bad request'], 400);

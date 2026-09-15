@@ -58,7 +58,7 @@ Each card renders:
 | 14 | Risks & Mitigation | — |
 | 15 | Defect Management | — |
 | 16 | Change & Configuration Management | — |
-| 17 | Training Plan | `gui/templates/strategy/training.html` (Refs #1456) |
+| 17 | Training Plan | — |
 | 18 | Release Information | — |
 | 19 | Severity Configuration | `gui/templates/projects/severityConfig.html` |
 | 20 | Bug Structure | `gui/templates/strategy/bugStructure.html` |
@@ -181,80 +181,3 @@ save regression, `events` table clean, browser console clean.
 Screenshots:
 ![Severity chapter note — before fix](screenshots/issue-1458-severity-chapter-stale-note.png)
 ![Severity chapter note — after fix](screenshots/issue-1458-severity-overview-note-fixed.png)
-
-## Bugfix — Issue #1456 (Training Plan chapter verified + General Overview note regression)
-
-**Scope.** #1456 is the tracking issue for the *Test Strategy chapter: Training
-Plan*. The chapter implementation (`gui/templates/strategy/training.html`,
-icon `fa-graduation-cap`, ASIDE sub-menu **Training** `aside.tpl:157`, card 17
-"Training Plan" with *Open chapter* in the General Overview, `ts.training*`
-i18n keys in all 10 bundles) already landed on the default branch
-(`f934433d7` + `1ee2e0501` + `945679c5b`) and was re-verified end-to-end in
-this run (8/8 PASS — see `tmp/TLU_Test_Cases.md`).
-
-**Defect found while verifying → a regression of the #1458 fix.** The General
-Overview info note (`ts.navAdded3`) claimed *"All 18 chapters of a Test
-Strategy are listed below…"* while the same page renders **28** chapter cards:
-
-- **EN + RO** bundles had been reverted by `5888975934`
-  (`feat(strategy): add Bug Structure and Bug Lifecycle chapters`) from the
-  #1458 recount ("18 + Severity Configuration") back to the *original* "All 18
-  chapters…" wording — even though that same commit appended chapters 20–21
-  to the BFF map (and `8c28f47af` later appended chapters 22–28).
-- The **other 8 bundles** still carried the *old intermediate* #1458 text
-  ("The 18 chapters … and the Severity Configuration chapter …").
-- The static pre-i18n fallback `testStrategy.html:63` also said "18".
-
-**Root cause.** Any hardcoded chapter count in a user-facing note is brittle:
-every chapter addition silently desynchronizes the note from the grid (this is
-the second time it went stale). The fix therefore makes `ts.navAdded3`
-**count-free**.
-
-**Fix (branch `fix/issue-1456-training-chapter`):**
-- `ts.navAdded3` in **all 10** locale bundles now reads *"All chapters of a
-  Test Strategy are listed below; the chapters with a dedicated page can be
-  opened directly."* (native equivalents in de/es/fr/it/ja/pt/ro/ru/zh;
-  1-line change per file, all `python3 -m json.tool`-valid).
-- `gui/templates/strategy/testStrategy.html:63` fallback updated to the same
-  wording.
-
-**Regression:** suite `Regression — Issue #1456` in `tmp/TLU_Test_Cases.md`
-(**8/8 PASS**): chapter page EN/RO, ASIDE wiring + icon, overview card 17,
-note text EN/RO count-free, 28 cards + BFF 28 entries, all 10 bundles valid,
-`events` table clean, browser console clean.
-
-Screenshots:
-![General Overview note — before fix (claims 18, grid shows 28)](screenshots/issue-1456-overview-stale-note-before.png)
-![General Overview note — after fix (count-free)](screenshots/issue-1456-overview-note-after.png)
-![Training Plan chapter in Romanian](screenshots/issue-1456-training-ro.png)
-
-## Bugfix — Issue #1442 (Scope chapter verified + header icon fix)
-
-**Symptom.** `gui/templates/strategy/scope.html` rendered the **Objectives**
-chapter icon `fa-bullseye` in its chapter header, while the canonical Scope
-icon is `fa-expand-arrows-alt` (the icon this tracking issue specifies, used by
-`aside.tpl:143` and the BFF chapter map `api/strategy/index.php:60`). A grep
-across all 28 `gui/templates/strategy/*.html` pages confirmed `scope.html` was
-the **only** chapter page whose header icon mismatched its canonical BFF icon.
-
-**Root cause.** The page was created in `08c334b4a` (together with
-`exitCriteria.html`) as the first pair of chapter sub-pages; at that time
-`fa-bullseye` was the initial icon used for the Scope entry both in
-`scope.html` and in the ASIDE sub-menu (`aside.tpl:141`). When `f934433d7`
-canonized `fa-expand-arrows-alt` (ASIDE + BFF map) and added the remaining
-chapter pages, the `scope.html` header — the source copy created at the start —
-was never aligned to the canonical icon.
-
-**Fix (branch `fix/issue-1442-scope-icon`):** `scope.html:31`
-`fas fa-bullseye` → `fas fa-expand-arrows-alt` (one line; no BFF/JS/i18n
-touched).
-
-**Regression:** suite `Regression — Issue #1442` in `tmp/TLU_Test_Cases.md`
-(**9/9 PASS**): chapter page EN/RO, header icon `fa-expand-arrows-alt` post-fix
-(JS-measured), ASIDE wiring, overview card #3 "Scope" + Open chapter, all 28
-chapter header icons match their canonical icons, BFF 28 entries + `ts.scope*`
-(9 keys) in all 10 bundles, `events` table clean, browser console clean.
-
-Screenshots:
-![Scope chapter header (English, fixed icon)](screenshots/issue-1442-scope-en-fixed.png)
-![Scope chapter (Romanian, fixed icon)](screenshots/issue-1442-scope-ro-fixed.png)

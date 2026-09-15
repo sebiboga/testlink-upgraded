@@ -152,9 +152,7 @@ if( is_array($aa_tfp[$showFeature]) ) {
 
 } else {
   $leftPane = $aa_tfp[$showFeature];
-  // Refs #1501: help/instructions viewer is modernized; the legacy
-  // lib/general/staticPage.php right pane is replaced by the Dashio screen.
-  $rightPane = 'gui/templates/documentation/staticPage.html?key=' . urlencode($showFeature);
+  $rightPane = 'lib/general/staticPage.php?key=' . $showFeature;
 } 
 
 if( intval($args->tproject_id) > 0 || intval($args->tplan_id) > 0)

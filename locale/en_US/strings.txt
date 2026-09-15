@@ -2261,6 +2261,7 @@ $TLS_href_req_spec = "Requirement Specification";
 $TLS_href_req_overview = "Requirement Overview";
 $TLS_href_req_monitor_overview = "Req. Monitoring Overview";
 $TLS_href_quality_objectives = "Quality Objectives"; // "Quality Objectives" (Refs #1280)
+<<<<<<< HEAD
 $TLS_href_nfr_performance = "NFR: Performance"; // "NFR: Performance" (Refs #1470)
  $TLS_href_nfr_security = "NFR: Security"; // "NFR: Security" (Refs #1470)
  $TLS_href_nfr_usability = "NFR: Usability"; // "NFR: Usability" (Refs #1470)
@@ -2343,8 +2344,6 @@ $TLS_info_search_req_spec = "This list shows all requirement specifications whic
 $TLS_href_add_remove_test_cases = "Add / Remove Test Cases";
 $TLS_href_build_new = "Builds / Releases";
 $TLS_href_execute_test = "Execute Tests";
-
-$TLS_href_exec_dashboard = "Execution Dashboard"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Access Execute Tests RO";
 $TLS_href_metrics_dashboard = "Metrics Dashboard";
 $TLS_href_newest_tcversions = "Show Test Cases Newest Versions";
@@ -3599,7 +3598,6 @@ $TLS_frozen_req_unable_to_import = 'Skipped - Requirement - Doc ID:%s - is FROZE
 
 
 $TLS_req_title_length_exceeded = 'Req title length exceeded';
-$TLS_req_docid_length_exceeded = 'Req doc id length exceeded';
 
 // ----- lib/plan/planExport.php -----
 $TLS_export_test_plan = 'Export Test Plan';

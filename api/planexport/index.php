@@ -11,21 +11,12 @@
  *
  * Routes:
  *   GET  ?action=info [&tproject_id=N][&tplan_id=N][&platform_id=N][&build_id=N]
- *                     [&form_token=N]
  *                     -> { tproject:{id,name}, tplan:{id,name}, types, filename,
- *                          nothing_todo, form_token, scopedCount }
+ *                          nothing_todo }
  *   POST ?action=export (X-Requested-With: XMLHttpRequest)
  *                     [&exportContent=linkedItems|tree|4results]
  *                     [&export_filename=NAME][&platform_id=N][&build_id=N]
- *                     [&form_token=N]
  *                     -> streams XML attachment download (application/xml)
- *
- * Legacy parity for the execution-window launch: when a form_token (the
- * execution tree token, >0) is supplied, the 4results export is scoped to the
- * test cases currently shown in the execution window — mirroring legacy
- * lib/plan/planExport.php:142-151 which reads
- * $_SESSION['execution_mode'][token]['testcases_to_show'] and passes it as the
- * tcaseSet filter to exportForResultsToXML() (NH_TCASE.id IN (...)).
  *
  * Permission parity with legacy: lib/plan/planExport.php performs no explicit
  * right check beyond an authenticated session (reading plan contents, like
@@ -86,28 +77,6 @@ function sanitizeExportContent($value) {
 }
 
 /**
- * Mirror legacy lib/plan/planExport.php:142-151 (init_args()): when a
- * form_token (execution-window tree token) > 0 is supplied, resolve the test
- * case set currently shown in the execution tree from the session cache
- * ($_SESSION['execution_mode'][token]['testcases_to_show']). The 4results
- * export then uses it as the tcaseSet filter (NH_TCASE.id IN (...)). Token
- * values from the request are always intval-cast -> safe session array index.
- */
-function resolveScopedTcaseSet($formToken) {
-    if ($formToken <= 0) {
-        return null;
-    }
-    if (!isset($_SESSION['execution_mode']) || !is_array($_SESSION['execution_mode'])) {
-        return null;
-    }
-    $sessionData = $_SESSION['execution_mode'][$formToken] ?? null;
-    if (!is_array($sessionData) || !isset($sessionData['testcases_to_show'])) {
-        return null;
-    }
-    return (array)$sessionData['testcases_to_show'];
-}
-
-/**
  * Build the default export filename the same way the legacy
  * initializeGui() does:
  *   <exportContent>_<tplan name>[+_platform_<name>][+_build_<name>].xml
@@ -159,9 +128,6 @@ if (($_GET['action'] ?? '') === 'info') {
         $tproject_name = testproject::getName($db, $tproject_id);
     }
 
-    $formToken = getIntParam('form_token');
-    $scopedSet = resolveScopedTcaseSet($formToken);
-
     $args = array(
         'tplan_id' => $tplan_id,
         'tproject_id' => $tproject_id,
@@ -180,8 +146,6 @@ if (($_GET['action'] ?? '') === 'info') {
         'exportContent' => $args['exportContent'],
         'types' => $types,
         'filename' => $filename,
-        'form_token' => $formToken,
-        'scopedCount' => is_array($scopedSet) ? count($scopedSet) : 0,
         'grants' => array(
             'mgt_testplan_create' => $user->hasRight($db, 'mgt_testplan_create', $tproject_id) ? 1 : 0,
         ),
@@ -211,9 +175,6 @@ if (($_POST['action'] ?? '') === 'export') {
 
     $exportContent = sanitizeExportContent($_POST['exportContent'] ?? null);
 
-    $formToken = getIntParam('form_token');
-    $tcaseSet = resolveScopedTcaseSet($formToken);
-
     $context = array(
         'platform_id' => getIntParam('platform_id'),
         'build_id' => getIntParam('build_id'),
@@ -226,7 +187,7 @@ if (($_POST['action'] ?? '') === 'export') {
             break;
         case '4results':
             $content = $tplanMgr->exportForResultsToXML($tplan_id, $context, null,
-                array('tcaseSet' => $tcaseSet));
+                array('tcaseSet' => null));
             break;
         case 'linkedItems':
         default:

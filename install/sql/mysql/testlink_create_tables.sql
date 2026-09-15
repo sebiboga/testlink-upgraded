@@ -592,7 +592,6 @@ CREATE TABLE /*prefix*/users (
   `auth_method` varchar(10) NULL default '',
   `creation_ts` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `expiration_date` date DEFAULT NULL,
-  `github` varchar(100) NULL,
   PRIMARY KEY  (`id`),
   UNIQUE KEY /*prefix*/users_login (`login`),
   UNIQUE KEY /*prefix*/users_cookie_string (`cookie_string`)

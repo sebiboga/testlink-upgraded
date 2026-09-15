@@ -2394,8 +2394,6 @@ $TLS_info_search_req_spec = "Lista prezentuje wszystkie specyfikacje wymagań sp
 $TLS_href_add_remove_test_cases = "Dodaj / usuń przypadki z planu testów";
 $TLS_href_build_new = "Zarządzanie wydaniami";
 $TLS_href_execute_test = "Wykonaj testy";
-
-$TLS_href_exec_dashboard = "Panel wykonania"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Statystyki ogólne";
 $TLS_href_newest_tcversions = "Pokaż najnowsze wersje przypadków testowych";
 $TLS_href_plan_assign_urgency = "Ustaw pilne przypadki testowe";
@@ -3630,8 +3628,6 @@ $TLS_import_req_spec_ancestor_skipped = 'Skipped - Req. Spec. - Doc ID:%s - a pa
 $TLS_import_req_created = 'Created - Requirement - Doc ID:%s';
 $TLS_import_req_skipped = 'Skipped - Requirement - Doc ID:%s - Already exists on other branch';
 $TLS_import_req_skipped_plain = 'Skipped - Reason: %s';
-$TLS_req_title_length_exceeded = 'Przekroczono długość tytułu wymagania';
-$TLS_req_docid_length_exceeded = 'Przekroczono długość identyfikatora dokumentu wymagania';
 $TLS_import_req_updated = 'Updated - Requirement - Doc ID:%s';
 $TLS_import_req_new_version_created = 'New version created - Requirement - Doc ID:%s';
 $TLS_import_req_new_version_failed = 'Request to create a New version has failed - %s';

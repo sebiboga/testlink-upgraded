@@ -1402,10 +1402,6 @@ $TLS_btn_save_exec_and_movetonext = "Enregistrer et afficher la fiche de test su
 $TLS_bug_mgmt = "Gestion des anomalies";
 $TLS_bug_link_tl_to_bts = "Lier à une anomalie existante";
 $TLS_bug_create_into_bts = "Créer une anomalie";
-$TLS_tc_name = "Nom du cas de test";
-$TLS_tc_external_id = "ID externe du cas de test";
-$TLS_github_bug_created = "Bug %s créé dans %s";
-$TLS_github_bug_comment = "Commentaire ajouté au bug %s dans %s";
 $TLS_bug_copy_from_latest_exec = "Copier les anomalies à partir de la dernière exécution";
 
 
@@ -2280,7 +2276,6 @@ $TLS_href_browse_tc = "Parcourir les fiches de test";
 $TLS_href_cfields_management = "Gestion des champs personnalisés";
 $TLS_href_cfields_tproject_assign = "Affectation des champs personnalisés";
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
-$TLS_href_tc_create_from_issues = "Créer des cas de test depuis un XML de tickets";
 $TLS_href_edit_tc = "Gestion des fiches de test";
 $TLS_href_inventory = "Inventaire";
 $TLS_href_inventory_management = "Gestion de l’inventaire";
@@ -2347,8 +2342,6 @@ $TLS_info_search_req_spec = "Cette liste affiche les exigences correspondant aux
 $TLS_href_add_remove_test_cases = "Ajout de fiches de test";
 $TLS_href_build_new = "Gestion des versions du produit";
 $TLS_href_execute_test = "Gestion des exécutions";
-
-$TLS_href_exec_dashboard = "Tableau de bord d’exécution"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Visualisation des exécutions";
 $TLS_href_metrics_dashboard = "Tableau de bord des métriques";
 $TLS_href_newest_tcversions = "Affichage nouvelles versions des fiches de test disponibles";
@@ -3649,7 +3642,6 @@ $TLS_frozen_req_unable_to_import = "Ignoré - Exigence - Doc ID : %s - verrouill
 
 
 $TLS_req_title_length_exceeded = "Titre d'exigence trop long";
-$TLS_req_docid_length_exceeded = "ID de document d'exigence trop long";
 
 // ----- lib/plan/planExport.php -----
 $TLS_export_test_plan = "Exporter la campagne de test";

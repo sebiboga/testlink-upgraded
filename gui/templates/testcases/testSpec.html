@@ -65,13 +65,7 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .form-row { margin-bottom: 12px; }
 .kw-list { max-width: 720px; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; background: #fafafa; }
 .kw-item { display: inline-block; margin: 0 14px 6px 0; font-size: 13px; }
-.cf-block { max-width: 720px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; background: #fbfdfd; }
-.cf-block-title { font-weight: 700; color: #2d8e88; margin-bottom: 8px; }
-.cf-row .form-control2, .cf-row select.cf-input, .cf-row textarea.cf-input { width: 100%; }
 .step-editor td textarea { width: 100%; min-height: 54px; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-family: inherit; font-size: 12.5px; }
-.step-editor td select.st-exec { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 12px; }
-.step-ctl { white-space: nowrap; }
-.step-ctl .btn-sm { margin: 1px; padding: 3px 8px; }
 .placeholder-box { text-align: center; color: #999; margin-top: 60px; font-size: 14px; }
 .toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
 .toast.err { background: #e6605e; }
@@ -83,47 +77,6 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .count-pill { background: rgba(255,255,255,.25); border-radius: 10px; padding: 1px 8px; font-size: 11px; }
 .loading { text-align: center; color: #888; padding: 40px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
-.tree-node[draggable="true"] { cursor: grab; }
-.tree-node[draggable="true"]:active { cursor: grabbing; }
-.tree-node.drag-over { background: #4ECDC4 !important; color: #fff !important; box-shadow: inset 0 0 0 2px #2d8e88; }
-.tree-node.drag-over i { color: #fff !important; }
-.tree-node.dragging-invalid { background: #f8d7da !important; }
-.tree-node.dragging-self { opacity: .4; }
-.tree-node.dragging-self .toggler { opacity: .4; }
-#ctxMenu { position: fixed; background: #fff; border: 1px solid #ddd; border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.18); z-index: 8000; min-width: 180px; padding: 6px 0; display: none; }
-#ctxMenu .ctx-item { padding: 8px 16px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-#ctxMenu .ctx-item:hover { background: #eefaf9; color: #2d8e88; }
-#ctxMenu .ctx-item i { width: 16px; text-align: center; }
-#ctxMenu .ctx-sep { height: 1px; background: #eee; margin: 4px 0; }
-.mcOpt { margin: 8px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; }
-.mcOpt input[type="checkbox"] { margin: 0; }
-.mcSel { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; margin-top: 4px; }
-/* edit-mode filter panel (port of legacy tree_filter_cfg edit_mode) */
-.tree-pane { width: 400px; }
-.filter-panel { border: 1px solid #d9d9d9; border-radius: 6px; background: #f8fbfb; margin-bottom: 10px; overflow: hidden; }
-.fp-head { background: #22242a; color: #fff; padding: 6px 12px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.fp-head i { font-size: 11px; }
-.fp-body { padding: 10px 12px; max-height: 340px; overflow-y: auto; border-top: 1px solid #e3e7e7; }
-.fp-row { margin-bottom: 8px; }
-.fp-row label.fp-lab { display: block; font-size: 11px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
-.fp-row input.fld, .fp-row select.fld { width: 100%; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12.5px; font-family: inherit; }
-.fp-row select.fld[multiple] { min-height: 58px; }
-.kwmode { display: flex; gap: 10px; font-size: 12px; margin-top: 4px; }
-.kwmode label { display: flex; align-items: center; gap: 3px; font-weight: 400; color: #444; }
-.kwmode input { margin: 0; }
-.cf-fields { border-top: 1px dashed #ccc; margin-top: 8px; padding-top: 8px; }
-.cf-fields.hidden { display: none; }
-.fp-actions { display: flex; gap: 8px; margin-top: 10px; }
-.fp-actions .btn-sm { flex: 1; }
-.refresh-setting { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #444; margin-top: 8px; }
-.refresh-setting input { margin: 0; }
-.tree-search-row { display: flex; gap: 6px; margin-bottom: 10px; }
-.tree-search-row .tree-search { flex: 1; margin-bottom: 0; }
-.tree-ctl { display: flex; gap: 4px; margin-bottom: 8px; }
-.tree-ctl .btn-ctl { flex: 1; background: #f0f4f4; border: 1px solid #d9dfe0; color: #333; padding: 5px 4px; border-radius: 4px; cursor: pointer; font-size: 11.5px; font-weight: 600; }
-.tree-ctl .btn-ctl:hover { background: #e0efee; }
-.fp-active-badge { display: none; background: #e6605e; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; }
-.filter-panel.has-filter .fp-active-badge { display: inline-block; }
 </style>
 
 </head>
@@ -149,78 +102,7 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 
 <div class="main">
   <div class="tree-pane">
-    <div class="filter-panel" id="filterPanel" style="display:none;">
-      <div class="fp-head" onclick="toggleFilterPanel()" title="Toggle filters">
-        <i class="fa fa-sliders"></i>
-        <span data-i18n="tspec.filters">Filters</span>
-        <span class="fp-active-badge" id="fpActiveBadge" data-i18n="tspec.filtersApplied">filters applied</span>
-        <span style="flex:1"></span>
-        <i class="fa fa-chevron-up" id="fpChevron"></i>
-      </div>
-      <div class="fp-body" id="fpBody">
-        <div class="fp-row" data-fkeys="filter_tc_id"><label class="fp-lab" data-i18n="tspec.filterTcId">Test Case ID</label>
-          <input type="text" class="fld" id="flTcId" maxlength="30">
-        </div>
-        <div class="fp-row" data-fkeys="filter_testcase_name"><label class="fp-lab" data-i18n="tspec.filterTitle">Title</label>
-          <input type="text" class="fld" id="flTitle" maxlength="100">
-        </div>
-        <div class="fp-row" data-fkeys="filter_toplevel_testsuite"><label class="fp-lab" data-i18n="tspec.filterSuite">Test Suite</label>
-          <select class="fld" id="flSuite"></select>
-        </div>
-        <div class="fp-row" data-fkeys="filter_keywords"><label class="fp-lab" data-i18n="tspec.filterKeywords">Keywords</label>
-          <select class="fld" multiple id="flKeywords"></select>
-          <div class="kwmode">
-            <label><input type="radio" name="kwMode" value="OR" checked> <span data-i18n="tspec.keywordOr">Or</span></label>
-            <label><input type="radio" name="kwMode" value="AND"> <span data-i18n="tspec.keywordAnd">And</span></label>
-            <label><input type="radio" name="kwMode" value="NOTLINKED"> <span data-i18n="tspec.keywordNot">Not</span></label>
-          </div>
-        </div>
-        <div class="fp-row" data-fkeys="filter_platforms"><label class="fp-lab" data-i18n="tspec.filterPlatforms">Platforms</label>
-          <select class="fld" multiple id="flPlatforms"></select>
-        </div>
-        <div class="fp-row" data-fkeys="filter_active_inactive,filter_importance" style="display:flex;gap:10px;">
-          <div style="flex:1;"><label class="fp-lab" data-i18n="tspec.filterActiveInactive">Active/Inactive</label>
-            <select class="fld" id="flActive">
-              <option value="0" data-i18n="tspec.filterAny">any</option>
-              <option value="1" data-i18n="tspec.activeOnly">active only</option>
-              <option value="2" data-i18n="tspec.inactiveOnly">inactive only</option>
-            </select>
-          </div>
-          <div style="flex:1;"><label class="fp-lab" data-i18n="tspec.filterImportance">Importance</label>
-            <select class="fld" id="flImportance">
-              <option value="0" data-i18n="tspec.filterAny">any</option>
-              <option value="3" data-i18n="tspec.importanceHigh">High</option>
-              <option value="2" data-i18n="tspec.importanceMedium">Medium</option>
-              <option value="1" data-i18n="tspec.importanceLow">Low</option>
-            </select>
-          </div>
-        </div>
-        <div class="fp-row" data-fkeys="filter_execution_type"><label class="fp-lab" data-i18n="tspec.filterExecType">Execution Type</label>
-          <select class="fld" id="flExecType">
-            <option value="0" data-i18n="tspec.filterAny">any</option>
-            <option value="1" data-i18n="tspec.execTypeManual">Manual</option>
-            <option value="2" data-i18n="tspec.execTypeAutomated">Automated</option>
-          </select>
-        </div>
-        <div class="fp-row" data-fkeys="filter_workflow_status"><label class="fp-lab" data-i18n="tspec.filterWorkflow">Workflow Status</label>
-          <select class="fld" id="flStatus"></select>
-        </div>
-        <div class="cf-fields" id="cfFields" data-fkeys="filter_custom_fields"></div>
-        <div class="fp-actions">
-          <button class="btn-teal btn-sm" onclick="applyFilters()"><i class="fa fa-check"></i> <span data-i18n="tspec.apply">Apply</span></button>
-          <button class="btn-dark btn-sm" onclick="resetFilters()"><i class="fa fa-rotate-left"></i> <span data-i18n="tspec.resetFilters">Reset Filters</span></button>
-        </div>
-        <label class="refresh-setting"><input type="checkbox" id="flRefresh" checked> <span data-i18n="tspec.refreshOnAction">Update tree after every operation</span></label>
-      </div>
-    </div>
-    <div class="tree-ctl">
-      <button class="btn-ctl" onclick="expandAllTree()" data-i18n="tspec.expandTree">Expand tree</button>
-      <button class="btn-ctl" onclick="collapseAllTree()" data-i18n="tspec.collapseTree">Collapse tree</button>
-    </div>
-    <div class="tree-search-row">
-      <input type="text" class="tree-search" id="treeFilter" oninput="filterTree()" data-i18n-placeholder="tspec.filterPlaceholder" placeholder="Filter by name...">
-      <button class="btn-ctl" id="btnFilterPanel" onclick="toggleFilterPanel(true)" title="Filters"><i class="fa fa-sliders"></i></button>
-    </div>
+    <input type="text" class="tree-search" id="treeFilter" oninput="filterTree()" data-i18n-placeholder="tspec.filterPlaceholder" placeholder="Filter by name...">
     <div class="loading" id="treeLoading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tspec.loadingTree">Loading tree...</span></div>
     <div class="tree" id="treeBox" style="display:none;"></div>
   </div>
@@ -258,40 +140,6 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="closeModal('confirmModal')" data-i18n="tspec.cancel">Cancel</button>
       <button class="btn-red btn-sm" id="confirmYesBtn" data-i18n="tspec.confirmDelete">Delete</button>
-    </div>
-  </div>
-</div>
-
-<!-- right-click context menu -->
-<div id="ctxMenu">
-  <div class="ctx-item" id="ctxCut" onclick="ctxCutAction()"><i class="fa fa-scissors"></i> <span data-i18n="tspec.cut">Cut</span></div>
-  <div class="ctx-item" id="ctxCopy" onclick="ctxCopyAction()"><i class="fa fa-copy"></i> <span data-i18n="tspec.copy">Copy</span></div>
-  <div class="ctx-sep"></div>
-  <div class="ctx-item" id="ctxPaste" onclick="ctxPasteAction()"><i class="fa fa-clipboard"></i> <span data-i18n="tspec.paste">Paste</span></div>
-</div>
-
-<!-- move / copy modal -->
-<div class="modal-overlay" id="mcModal">
-  <div class="modal-box">
-    <div class="modal-head" id="mcModalTitle">Move</div>
-    <div class="modal-body">
-      <div class="field-label" data-i18n="tspec.targetSuite">Target suite</div>
-      <select class="mcSel" id="mcTargetSelect"></select>
-      <div class="field-label" style="margin-top:14px;" data-i18n="tspec.position">Position</div>
-      <div style="display:flex;gap:16px;">
-        <label class="mcOpt"><input type="radio" name="mcPos" value="bottom" checked> <span data-i18n="tspec.positionBottom">Bottom</span></label>
-        <label class="mcOpt"><input type="radio" name="mcPos" value="top"> <span data-i18n="tspec.positionTop">Top</span></label>
-      </div>
-      <div id="mcCopyOptions" style="display:none;margin-top:12px;border-top:1px solid #eee;padding-top:10px;">
-        <div class="field-label" data-i18n="tspec.copyOptions">Copy options</div>
-        <div class="mcOpt"><input type="checkbox" id="mcCopyKw"> <label for="mcCopyKw" data-i18n="tspec.copyKeywords">Copy keywords</label></div>
-        <div class="mcOpt"><input type="checkbox" id="mcCopyReq"> <label for="mcCopyReq" data-i18n="tspec.copyRequirements">Copy requirements</label></div>
-        <div class="mcOpt"><input type="checkbox" id="mcCopyLatest"> <label for="mcCopyLatest" data-i18n="tspec.copyOnlyLatestVersion">Copy only latest version</label></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn-dark btn-sm" onclick="closeModal('mcModal')" data-i18n="tspec.cancel">Cancel</button>
-      <button class="btn-teal btn-sm" id="mcConfirmBtn" onclick="mcConfirm()">OK</button>
     </div>
   </div>
 </div>
@@ -364,9 +212,6 @@ function init() {
     $('#tprojectName').text(r.tproject.name);
     document.title = r.tproject.name + ' - ' + t('tspec.header');
     grants = r.grants || {};
-    ctx.options = r.options || {};
-    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
-    initFilterPanel(r);
     refreshGrantsUi();
     return loadTree();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -401,15 +246,11 @@ function updateContextButtons() {
   }
 }
 
-function loadTree(extraParams) {
+function loadTree() {
   $('#treeLoading').show(); $('#treeBox').hide();
-  var params = { tproject_id: ctx.tproject_id };
-  $.extend(params, extraParams || {});
-  return apiGet('tree', params).then(function (r) {
+  return apiGet('tree', { tproject_id: ctx.tproject_id }).then(function (r) {
     treeData = r.tree;
     $('#tprojectName').text(r.tproject.name);
-    ctx.filtered = !!r.filtered;
-    syncFilterBadge();
     renderTree();
     $('#treeLoading').hide(); $('#treeBox').show();
     var deepId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
@@ -463,14 +304,14 @@ function renderSuites(node, path) {
     var p = path.concat([s.name]);
     var sub = countNodes(s.children);
     h += '<li>' +
-      '<div class="tree-node suite-node" draggable="true" data-id="' + s.id + '" data-path="' + esc(p.join(' / ')) + '" onclick="selectNode(\'testsuite\',' + s.id + ')">' +
+      '<div class="tree-node suite-node" data-id="' + s.id + '" data-path="' + esc(p.join(' / ')) + '" onclick="selectNode(\'testsuite\',' + s.id + ')">' +
         '<span class="toggler" onclick="toggleBranch(event,this)"><i class="fa fa-chevron-down"></i></span>' +
         '<i class="fa fa-folder"></i> <span class="node-name">' + esc(s.name) + '</span>' +
         ' <span class="count-pill">' + (sub.tc + countDirectTc(s)) + '</span>' +
       '</div>' + renderSuites(s.children, p) + '</li>';
   });
   (node.testcases || []).forEach(function (tc) {
-    h += '<li><div class="tree-node tc-node' + (tc.active ? '' : ' inactive-tc') + '" draggable="true" data-id="' + tc.id + '" data-name="' + esc(tc.name.toLowerCase()) + '" onclick="selectNode(\'testcase\',' + tc.id + ')">' +
+    h += '<li><div class="tree-node tc-node' + (tc.active ? '' : ' inactive-tc') + '" data-id="' + tc.id + '" data-name="' + esc(tc.name.toLowerCase()) + '" onclick="selectNode(\'testcase\',' + tc.id + ')">' +
       '<span class="toggler"></span><i class="fa fa-flask"></i> <span class="node-name">' + esc(tc.name) + '</span>' +
       (tc.external_id > 0 ? '<span class="extid">' + tc.external_id + '</span>' : '') +
     '</div></li>';
@@ -503,194 +344,6 @@ function filterTree() {
     var nm = ($(this).find('.node-name').text() || '').toLowerCase();
     $(this).toggle(nm.indexOf(q) >= 0);
   });
-}
-
-/* ------------------------------------------------------------------ */
-/*  Edit-mode filter panel (port of legacy tree_filter_cfg edit_mode) */
-/* ------------------------------------------------------------------ */
-
-function refreshSettingOn() {
-  var v = localStorage.getItem('tspec_refresh_tree_on_action');
-  return v === null || v === '1';
-}
-
-function initFilterPanel(ctxData) {
-  ctx.filterOptions = (ctxData && ctxData.filterOptions) || null;
-  ctx.refreshOnAction = refreshSettingOn();
-  $('#flRefresh').prop('checked', ctx.refreshOnAction);
-
-  var cfo = ctx.filterOptions;
-  var $st = $('#flSuite');
-  $st.empty();
-  $st.append($('<option>').val('0').text(t('tspec.filterAll')));
-  (cfo && cfo.toplevelSuites || []).forEach(function (s) {
-    if (!s.id) { return; }
-    $st.append($('<option>').val(s.id).text(s.name));
-  });
-
-  var $kw = $('#flKeywords');
-  $kw.empty();
-  (cfo && cfo.keywords ? Object.keys(cfo.keywords) : []).forEach(function (kid) {
-    $kw.append($('<option>').val(kid).text(cfo.keywords[kid]));
-  });
-
-  var $pl = $('#flPlatforms');
-  $pl.empty();
-  (cfo && cfo.platforms ? Object.keys(cfo.platforms) : []).forEach(function (pid) {
-    $pl.append($('<option>').val(pid).text(cfo.platforms[pid]));
-  });
-
-  var $stSel = $('#flStatus');
-  $stSel.empty();
-  $stSel.append($('<option>').val('0').text(t('tspec.filterAny')));
-  var domain = (cfo && cfo.statusDomain) || {};
-  Object.keys(domain).map(Number).sort(function(a, b) { return a - b; }).forEach(function (code) {
-    $stSel.append($('<option>').val(code).text(statusLabel(code)));
-  });
-
-  var $cf = $('#cfFields').empty();
-  if (cfo && cfo.customFields && cfo.customFields.length) {
-    $cf.append('<div class="fp-row" style="text-align:right;"><a href="javascript:void(0)" onclick="toggleCfFields()" id="cfToggle" data-i18n="tspec.hideCustomFields">Hide custom fields</a></div>');
-    cfo.customFields.forEach(function (cf) {
-      $cf.append(
-        '<div class="fp-row"><label class="fp-lab">' + esc(cf.label) + '</label>' +
-        '<input type="text" class="fld cf-filter-input" data-cfid="' + cf.id + '" maxlength="120"></div>');
-    });
-    TLi18n.apply();
-  }
-
-  var pf = (ctxData && ctxData.persistedFilters) || null;
-  if (pf && cfo && cfo.enabled) {
-    restoreFiltersToPanel(pf);
-    $('#filterPanel').addClass('has-filter');
-    ctx.filtered = true;
-  }
-  $('#filterPanel').toggle(!!(cfo && cfo.enabled));
-  $('#btnFilterPanel').toggle(!!(cfo && cfo.enabled));
-  if (cfo && cfo.enabled) {
-    $('#fpBody [data-fkeys]').each(function () {
-      var keys = String($(this).attr('data-fkeys')).split(',');
-      var on = keys.every(function (k) { return cfo[k] !== false; });
-      if (!on) { $(this).hide(); }
-    });
-  }
-}
-
-function toggleCfFields() {
-  var $cf = $('#cfFields');
-  var hidden = !$cf.hasClass('hidden');
-  $cf.toggleClass('hidden', hidden);
-  $('#cfToggle').text(t(hidden ? 'tspec.showCustomFields' : 'tspec.hideCustomFields'));
-}
-
-function toggleFilterPanel(forceOpen) {
-  var $pn = $('#filterPanel');
-  var open = $pn.is(':visible') && $pn.find('#fpBody').is(':visible');
-  if (forceOpen) {
-    if (open) { return; }
-  }
-  var show = forceOpen ? true : !$pn.find('#fpBody').is(':visible');
-  $pn.find('#fpBody').toggle(show);
-  $('#fpChevron').toggleClass('fa-chevron-down fa-chevron-up');
-}
-
-function restoreFiltersToPanel(pf) {
-  if (pf.testcase_name != null) { $('#flTitle').val(pf.testcase_name); }
-  if (pf.tc_id != null) { $('#flTcId').val(pf.tc_id); }
-  if (pf.toplevel_suite) { $('#flSuite').val(String(pf.toplevel_suite)); }
-  if (pf.keywords && pf.keywords.length) { $('#flKeywords').val(pf.keywords.map(String)); }
-  if (pf.keywords_type) {
-    $('input[name="kwMode"][value="' + pf.keywords_type + '"]').prop('checked', true);
-  }
-  if (pf.platforms && pf.platforms.length) { $('#flPlatforms').val(pf.platforms.map(String)); }
-  if (pf.active_inactive != null) { $('#flActive').val(String(pf.active_inactive)); }
-  if (pf.importance != null) { $('#flImportance').val(String(pf.importance)); }
-  if (pf.execution_type != null) { $('#flExecType').val(String(pf.execution_type)); }
-  if (pf.workflow_status != null) { $('#flStatus').val(String(pf.workflow_status)); }
-  if (pf.custom_fields) {
-    $('#cfFields .cf-filter-input').each(function () {
-      var v = pf.custom_fields[String($(this).data('cfid'))];
-      if (v != null) { $(this).val(v); }
-    });
-  }
-}
-
-function clearFilterPanel() {
-  $('#flTcId,#flTitle').val('');
-  $('#flSuite,#flImportance,#flExecType,#flStatus').val('0');
-  $('#flActive').val('0');
-  $('#flKeywords,#flPlatforms').val(null);
-  $('input[name="kwMode"][value="OR"]').prop('checked', true);
-  $('#cfFields .cf-filter-input').val('');
-  $('#filterPanel').removeClass('has-filter');
-  ctx.filtered = false;
-}
-
-function syncFilterBadge() {
-  $('#filterPanel').toggleClass('has-filter', !!ctx.filtered);
-}
-
-function collectFilters() {
-  var p = {};
-  var v = $('#flTcId').val().trim();
-  if (v) { p.filter_tc_id = v; }
-  v = $('#flTitle').val().trim();
-  if (v) { p.filter_testcase_name = v; }
-  v = $('#flSuite').val();
-  if (v && parseInt(v, 10) > 0) { p.filter_toplevel_testsuite = v; }
-  var kws = $('#flKeywords').val() || [];
-  if (kws.length) {
-    p.filter_keywords = kws.join(',');
-    p.filter_keywords_filter_type = $('input[name="kwMode"]:checked').val() || 'OR';
-  }
-  var plats = $('#flPlatforms').val() || [];
-  if (plats.length) { p.filter_platforms = plats.join(','); }
-  v = $('#flActive').val();
-  if (v && v !== '0') { p.filter_active_inactive = v; }
-  v = $('#flImportance').val();
-  if (v && v !== '0') { p.filter_importance = v; }
-  v = $('#flExecType').val();
-  if (v && v !== '0') { p.filter_execution_type = v; }
-  v = $('#flStatus').val();
-  if (v && v !== '0') { p.filter_workflow_status = v; }
-  var cf = {};
-  $('#cfFields .cf-filter-input').each(function () {
-    var x = $(this).val().trim();
-    if (x) { cf[String($(this).data('cfid'))] = x; }
-  });
-  if (Object.keys(cf).length) { p.filter_custom_fields = JSON.stringify(cf); }
-  return p;
-}
-
-function applyFilters() {
-  ctx.refreshOnAction = $('#flRefresh').is(':checked');
-  localStorage.setItem('tspec_refresh_tree_on_action', ctx.refreshOnAction ? '1' : '0');
-  var p = collectFilters();
-  $('#treeFilter').val('');
-  if (Object.keys(p).length === 0) { resetFilters(); return; }
-  loadTree(p);
-}
-
-function resetFilters() {
-  clearFilterPanel();
-  ctx.refreshOnAction = $('#flRefresh').is(':checked');
-  localStorage.setItem('tspec_refresh_tree_on_action', ctx.refreshOnAction ? '1' : '0');
-  loadTree({ reset_filters: 1 });
-}
-
-function expandAllTree() {
-  $('#treeBox ul').show();
-  $('#treeBox .toggler i')
-    .removeClass('fa-chevron-down fa-chevron-right')
-    .addClass('fa-chevron-down');
-}
-
-function collapseAllTree() {
-  $('#treeBox > ul').show();
-  $('#treeBox li > ul').hide();
-  $('#treeBox li .toggler i')
-    .removeClass('fa-chevron-down fa-chevron-right')
-    .addClass('fa-chevron-right');
 }
 
 function markSelected() {
@@ -768,32 +421,6 @@ function execTypeLabel(v) {
   return parseInt(v, 10) === 2 ? t('tspec.execTypeAutomated') : t('tspec.execTypeManual');
 }
 
-function statusLabel(code) {
-  var key = 'tcview.status' + parseInt(code, 10);
-  var lbl = t(key);
-  return (lbl === key) ? String(code) : lbl;
-}
-
-function statusOptions(selected) {
-  selected = parseInt(selected, 10);
-  if (!selected) { selected = 1; }
-  var domain = (ctx && ctx.statusDomain) ? ctx.statusDomain : {};
-  var keys = Object.keys(domain);
-  if (!keys.length) {
-    // fallback to the standard domain (1..7) - labels from tcview.status*
-    for (var i = 1; i <= 7; i++) { domain[i] = ''; }
-    keys = Object.keys(domain);
-  }
-  var h = '';
-  keys.sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); });
-  keys.forEach(function (code) {
-    var c = parseInt(code, 10);
-    h += '<option value="' + c + '"' + (c === selected ? ' selected' : '') + '>' +
-      esc(statusLabel(c)) + '</option>';
-  });
-  return h;
-}
-
 function loadTcView(tcaseId) {
   $('#tcView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
@@ -815,16 +442,12 @@ function renderTcView(r) {
   }
 
   var stepsHtml = '<p class="none-text">' + t('tspec.noSteps') + '</p>';
-  var showExec = !!(ctx.options && ctx.options.automationEnabled);
   if ((r.steps || []).length) {
     stepsHtml = '<table class="steps"><thead><tr>' +
-      '<th style="width:50px;">#</th>' +
-      (showExec ? '<th>' + t('tspec.executionType') + '</th>' : '') +
-      '<th>' + t('tspec.stepActions') + '</th><th>' + t('tspec.expectedResults') + '</th>' +
+      '<th style="width:50px;">#</th><th>' + t('tspec.stepActions') + '</th><th>' + t('tspec.expectedResults') + '</th>' +
       '</tr></thead><tbody>';
     r.steps.forEach(function (st) {
       stepsHtml += '<tr><td class="step-num">' + st.step_number + '</td>' +
-        (showExec ? '<td>' + execTypeLabel(st.execution_type) + '</td>' : '') +
         '<td>' + esc(st.actions) + '</td><td>' + esc(st.expected_results) + '</td></tr>';
     });
     stepsHtml += '</tbody></table>';
@@ -838,11 +461,9 @@ function renderTcView(r) {
     (!tc.active ? '<span class="badge-tl badge-gray">' + t('tspec.inactive') + '</span>' : '') +
     '</div><div class="card-body">' +
     '<div class="meta-grid">' +
-      '<div class="meta-item"><b>' + t('tspec.status') + '</b>' + esc(statusLabel(tc.status)) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.importance') + '</b>' + importanceLabel(tc.importance) + '</div>' +
+      '<div class="meta-item"><b>' + t('tspec.executionType') + '</b>' + execTypeLabel(tc.execution_type) + '</div>' +
       '<div class="meta-item"><b>' + t('tspec.testCaseId') + '</b>' + tc.id + '</div>' +
-      (tc.estimatedExecDuration !== undefined && tc.estimatedExecDuration !== null && String(tc.estimatedExecDuration) !== ''
-        ? '<div class="meta-item"><b>' + t('tspec.estimatedDuration') + '</b>' + esc(tc.estimatedExecDuration) + ' min</div>' : '') +
     '</div>' +
     '<div class="field-label">' + t('tspec.summary') + '</div>' +
     '<div class="rich-field">' + (esc(tc.summary) || '<span class="none-text">-</span>') + '</div>' +
@@ -850,18 +471,6 @@ function renderTcView(r) {
     '<div class="rich-field">' + (esc(tc.preconditions) || '<span class="none-text">-</span>') + '</div>' +
     '<div class="field-label">' + t('tspec.steps') + '</div>' + stepsHtml +
     '<div class="field-label">' + t('tspec.keywords') + '</div><div>' + kwHtml + '</div>';
-
-  var cfList = r.customFields || [];
-  if (cfList.length) {
-    h += '<div class="field-label">' + t('tspec.customFields') + '</div>';
-    cfList.forEach(function (cf) {
-      var label = esc(cf.label || cf.name || '');
-      var val = (cf.value !== undefined && cf.value !== null) ? String(cf.value) : '';
-      h += '<div style="padding:6px 0;border-bottom:1px solid #eee;">' +
-        '<span style="font-weight:600;">' + label + ':</span> ' +
-        (val === '' ? '<span class="none-text">-</span>' : esc(val)) + '</div>';
-    });
-  }
 
   if (canMod) {
     h += '<div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">' +
@@ -881,64 +490,23 @@ function collectForm() {
     var a = $(tr).find('.st-actions').val();
     var e = $(tr).find('.st-expected').val();
     if ((a && a.trim()) || (e && e.trim())) {
-      var execType = $(tr).find('.st-exec').length
-        ? parseInt($(tr).find('.st-exec').val(), 10)
-        : (ctx.stepDefaultExec || 1);
-      steps.push({ actions: a || '', expected_results: e || '', execution_type: execType === 2 ? 2 : 1 });
+      steps.push({ actions: a || '', expected_results: e || '' });
     }
   });
   var kws = [];
   $('#kwList input:checked').each(function () { kws.push(parseInt($(this).val(), 10)); });
-  var customFields = [];
-  $('#cfRows .cf-row').each(function (i, row) {
-    var $r = $(row);
-    var val = '';
-    var $radio = $r.find('input[type="radio"]:checked');
-    if ($radio.length) {
-      val = $radio.val() || '';
-    }
-    var $input = $r.find('input.cf-input:not([type="radio"])');
-    if (!val && $input.length) {
-      if ($input.attr('type') === 'checkbox') {
-        val = $input.is(':checked') ? '1' : '';
-      } else {
-        val = $input.val();
-      }
-    }
-    var $sel = $r.find('select.cf-input');
-    if (!val && $sel.length) {
-      if ($sel.attr('multiple')) {
-        val = $sel.val() || [];
-      } else {
-        val = $sel.val() || '';
-      }
-    }
-    if (!val) {
-      val = $r.find('textarea.cf-input').val() || '';
-    }
-    customFields.push({
-      id: parseInt($r.attr('data-cfid'), 10),
-      type: parseInt($r.attr('data-cftype'), 10),
-      value: val
-    });
-  });
   return {
     name: $('#tcNameInput').val(),
     summary: $('#tcSummaryInput').val(),
     preconditions: $('#tcPrecondInput').val(),
     execution_type: parseInt($('#tcExecTypeSel').val(), 10),
     importance: parseInt($('#tcImportanceSel').val(), 10),
-    status: parseInt($('#tcStatusSel').val(), 10),
-    estimated_execution_duration: $('#tcDurationInput').val() ? String($('#tcDurationInput').val()).trim() : '',
     steps: steps,
-    keywords: kws,
-    customFields: customFields
+    keywords: kws
   };
 }
 
 function formHtml(data, kwProject) {
-  ctx.stepDefaultExec = parseInt(data.execution_type, 10) === 2 ? 2 : 1;
-  var showExec = !!(ctx.options && ctx.options.automationEnabled);
   var assigned = {};
   (data.keywordsAssigned ? Object.keys(data.keywordsAssigned) : []).forEach(function (k) { assigned[k] = true; });
   var steps = data.steps || [];
@@ -948,7 +516,7 @@ function formHtml(data, kwProject) {
     '<div class="form-row"><div class="field-label">' + t('tspec.tcName') + ' *</div>' +
     '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '"></div>' +
 
-    '<div class="form-row" style="display:flex;gap:24px;max-width:900px;">' +
+    '<div class="form-row" style="display:flex;gap:24px;max-width:720px;">' +
       '<div style="flex:1;"><div class="field-label">' + t('tspec.importance') + '</div>' +
       '<select class="form-control2" id="tcImportanceSel">' +
         '<option value="3"' + (parseInt(data.importance, 10) === 3 ? ' selected' : '') + '>' + t('tspec.importanceHigh') + '</option>' +
@@ -960,12 +528,6 @@ function formHtml(data, kwProject) {
         '<option value="1"' + (parseInt(data.execution_type, 10) !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
         '<option value="2"' + (parseInt(data.execution_type, 10) === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
       '</select></div>' +
-      '<div style="flex:1;"><div class="field-label">' + t('tspec.status') + '</div>' +
-      '<select class="form-control2" id="tcStatusSel">' +
-        statusOptions(parseInt(data.status, 10)) +
-      '</select></div>' +
-      '<div style="flex:1;"><div class="field-label">' + t('tspec.estimatedDuration') + (ctx.durationRequired ? ' <span style="color:#c0392b;">*</span>' : '') + '</div>' +
-      '<input type="text" class="form-control2" id="tcDurationInput" maxlength="10" placeholder="' + t('tspec.estimatedDurationHint') + '" value="' + esc(data.estimatedExecDuration != null ? data.estimatedExecDuration : '') + '"' + (ctx.durationRequired ? ' required' : '') + '></div>' +
     '</div>' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.summary') + '</div>' +
@@ -975,16 +537,13 @@ function formHtml(data, kwProject) {
     '<textarea class="form-control2" id="tcPrecondInput">' + esc(data.preconditions || '') + '</textarea></div>' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.steps') + '</div>' +
-    '<table class="steps step-editor" style="max-width:1100px;"><thead><tr>' +
-      '<th style="width:46px;">#</th>' +
-      (showExec ? '<th style="width:100px;">' + t('tspec.executionType') + '</th>' : '') +
-      '<th style="width:34%;">' + t('tspec.stepActions') + '</th>' +
-      '<th style="width:34%;">' + t('tspec.expectedResults') + '</th>' +
-      '<th style="width:170px;"></th>' +
+    '<table class="steps step-editor" style="max-width:1000px;"><thead><tr>' +
+      '<th style="width:46px;">#</th><th style="width:40%;">' + t('tspec.stepActions') + '</th>' +
+      '<th style="width:40%;">' + t('tspec.expectedResults') + '</th><th style="width:36px;"></th>' +
     '</tr></thead><tbody id="stepRows">';
-  if (!steps.length) { steps.push({ actions: '', expected_results: '', execution_type: ctx.stepDefaultExec }); }
+  if (!steps.length) { steps.push({ actions: '', expected_results: '' }); }
   steps.forEach(function (st, ix) {
-    h += stepRowHtml(ix + 1, st.actions, st.expected_results, st.execution_type);
+    h += stepRowHtml(ix + 1, st.actions, st.expected_results);
   });
   h += '</tbody></table>' +
     '<button class="btn-dark btn-sm" style="margin-top:8px;" onclick="addStepRow()"><i class="fa fa-plus"></i> ' + t('tspec.addStep') + '</button></div>' +
@@ -999,7 +558,6 @@ function formHtml(data, kwProject) {
     h += '<span class="none-text">' + t('tspec.noProjKeywords') + '</span>';
   }
   h += '</div></div>' +
-    customFieldsHtml(data.customFields) +
 
     '<div style="margin-top:14px;display:flex;gap:10px;">' +
       '<button class="btn-teal btn-sm" onclick="saveForm()"><i class="fa fa-floppy-disk"></i> ' + t('tspec.save') + '</button>' +
@@ -1008,163 +566,23 @@ function formHtml(data, kwProject) {
   return h;
 }
 
-function stepExecOptions(selected) {
-  selected = parseInt(selected, 10) === 2 ? 2 : 1;
-  return '<select class="st-exec">' +
-    '<option value="1"' + (selected !== 2 ? ' selected' : '') + '>' + t('tspec.execTypeManual') + '</option>' +
-    '<option value="2"' + (selected === 2 ? ' selected' : '') + '>' + t('tspec.execTypeAutomated') + '</option>' +
-    '</select>';
-}
-
-function cfOptionsList(cf) {
-  var raw = cf.possible_values || '';
-  return raw.split('|').filter(function (v) { return v.trim() !== ''; });
-}
-
-function cfInputHtml(cf) {
-  var type = cf.typeName || 'string';
-  var val = (cf.value !== undefined && cf.value !== null) ? cf.value : '';
-  var cls = 'form-control2 cf-input';
-  var req = cf.required ? ' required' : '';
-  var label = esc(cf.label || cf.name || '');
-  var requiredMark = cf.required ? ' <span style="color:#c0392b;">*</span>' : '';
-  var cfId = cf.id !== undefined ? cf.id : 0;
-  var typeId = cf.type !== undefined ? cf.type : 0;
-  var baseName = 'custom_field_' + typeId + '_' + cfId;
-  var nameAttr = '';
-  switch (type) {
-    case 'date':
-    case 'datetime':
-      nameAttr = ' name="' + baseName + '_input"';
-      break;
-    default:
-      nameAttr = ' name="' + baseName + '"';
-      break;
-  }
-  var inner = '';
-  switch (type) {
-    case 'numeric':
-    case 'float':
-      inner = '<input type="number" step="any" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
-      break;
-    case 'email':
-      inner = '<input type="email" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
-      break;
-    case 'checkbox':
-      inner = '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;">' +
-        '<input type="checkbox" class="cf-input"' + nameAttr + ' value="1"' + (val === '1' ? ' checked' : '') + '> ' +
-        t('tspec.yes') + '</label>';
-      break;
-    case 'list':
-      inner = '<select class="' + cls + '"' + nameAttr + '>' +
-        '<option value="">' + t('tspec.cfSelectEmpty') + '</option>' +
-        cfOptionsList(cf).map(function (opt) {
-          return '<option value="' + esc(opt) + '"' + (val === opt ? ' selected' : '') + '>' + esc(opt) + '</option>';
-        }).join('') + '</select>';
-      break;
-    case 'radio':
-      inner = cfOptionsList(cf).map(function (opt) {
-        return '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-right:14px;">' +
-          '<input type="radio" class="cf-input"' + nameAttr + ' value="' + esc(opt) + '"' + (val === opt ? ' checked' : '') + '> ' +
-          esc(opt) + '</label>';
-      }).join('');
-      break;
-    case 'multiselection list':
-      inner = '<select multiple size="' + Math.max(3, cfOptionsList(cf).length) + '" class="' + cls + '"' + nameAttr + '>' +
-        cfOptionsList(cf).map(function (opt) {
-          var sel = val.split('|').indexOf(opt) !== -1 ? ' selected' : '';
-          return '<option value="' + esc(opt) + '"' + sel + '>' + esc(opt) + '</option>';
-        }).join('') + '</select>';
-      break;
-    case 'date':
-      inner = '<input type="date" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
-      break;
-    case 'datetime':
-      inner = '<input type="datetime-local" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
-      break;
-    case 'text area':
-      inner = '<textarea class="' + cls + '"' + nameAttr + req + '>' + esc(val) + '</textarea>';
-      break;
-    default:
-      inner = '<input type="text" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
-      break;
-  }
-  return '<div class="cf-row" data-cfid="' + cf.id + '" data-cftype="' + (cf.type !== undefined ? cf.type : 0) + '">' +
-    '<div class="field-label">' + label + requiredMark + '</div>' + inner +
-    '</div>';
-}
-
-function customFieldsHtml(cfList) {
-  if (!cfList || !cfList.length) { return ''; }
-  var h = '<div class="cf-block"><div class="cf-block-title">' + t('tspec.customFields') + '</div><div id="cfRows">';
-  cfList.forEach(function (cf, i) {
-    h += '<div class="form-row" style="max-width:720px;">' + cfInputHtml(cf) + '</div>';
-  });
-  return h + '</div></div>';
-}
-
-function stepRowHtml(num, actions, expected, execType) {
-  execType = execType || ctx.stepDefaultExec || 1;
-  var showExec = !!(ctx.options && ctx.options.automationEnabled);
-  var execTd = showExec
-    ? '<td>' + stepExecOptions(execType) + '</td>'
-    : '';
+function stepRowHtml(num, actions, expected) {
   return '<tr>' +
     '<td class="step-num">' + num + '</td>' +
     '<td><textarea class="st-actions">' + esc(actions || '') + '</textarea></td>' +
     '<td><textarea class="st-expected">' + esc(expected || '') + '</textarea></td>' +
-    execTd +
-    '<td><div class="step-ctl">' +
-      '<button class="btn-dark btn-sm" title="' + t('tspec.insertStep') + '" onclick="insertStepRow(this)"><i class="fa fa-plus"></i></button>' +
-      '<button class="btn-dark btn-sm" title="' + t('tspec.copyStep') + '" onclick="copyStepRow(this)"><i class="fa fa-copy"></i></button>' +
-      '<button class="btn-dark btn-sm" title="' + t('tspec.moveUp') + '" onclick="moveStepUp(this)"><i class="fa fa-arrow-up"></i></button>' +
-      '<button class="btn-dark btn-sm" title="' + t('tspec.moveDown') + '" onclick="moveStepDown(this)"><i class="fa fa-arrow-down"></i></button>' +
-      '<button class="btn-red btn-sm" title="' + t('tspec.removeStep') + '" onclick="$(this).closest(\'tr\').remove();renumberSteps()"><i class="fa fa-xmark"></i></button>' +
-    '</div></td>' +
+    '<td><button class="btn-red btn-sm" title="' + t('tspec.removeStep') + '" onclick="$(this).closest(\'tr\').remove();renumberSteps()"><i class="fa fa-xmark"></i></button></td>' +
   '</tr>';
 }
 
 function addStepRow() {
   var n = $('#stepRows tr').length + 1;
-  $('#stepRows').append(stepRowHtml(n, '', '', ctx.stepDefaultExec || 1));
-}
-
-function insertStepRow(btn) {
-  var $tr = $(btn).closest('tr');
-  var execType = $tr.find('.st-exec').length ? $tr.find('.st-exec').val() : (ctx.stepDefaultExec || 1);
-  $tr.after(stepRowHtml(0, '', '', execType));
-  renumberSteps();
-}
-
-function copyStepRow(btn) {
-  var $tr = $(btn).closest('tr');
-  var actions = $tr.find('.st-actions').val();
-  var expected = $tr.find('.st-expected').val();
-  var execType = $tr.find('.st-exec').length ? $tr.find('.st-exec').val() : (ctx.stepDefaultExec || 1);
-  $tr.after(stepRowHtml(0, actions, expected, execType));
-  renumberSteps();
-}
-
-function moveStepUp(btn) {
-  var $tr = $(btn).closest('tr');
-  var $prev = $tr.prev();
-  if (!$prev.length) { return; }
-  $tr.insertBefore($prev);
-  renumberSteps();
-}
-
-function moveStepDown(btn) {
-  var $tr = $(btn).closest('tr');
-  var $next = $tr.next();
-  if (!$next.length) { return; }
-  $tr.insertAfter($next);
-  renumberSteps();
+  $('#stepRows').append(stepRowHtml(n, '', ''));
 }
 
 function renumberSteps() {
   $('#stepRows tr').each(function (i, tr) {
     $(tr).find('.step-num').text(i + 1);
-    $(tr).attr('data-step', i + 1);
   });
 }
 
@@ -1181,12 +599,9 @@ function openCreateTc() {
   $('#editView').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>').show();
   apiGet('keywords', { tproject_id: ctx.tproject_id }).then(function (r) {
     if (editMode.mode !== 'create') { return; }
-    ctx.statusDomain = r.statusDomain || {};
-    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
-    $('#editView').html(formHtml({ customFields: r.customFields }, r.keywordsProject || {})).show();
+    $('#editView').html(formHtml({}, r.keywordsProject || {})).show();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
-    ctx.statusDomain = null;
     $('#editView').html(formHtml({}, {})).show();
     toast(e.message || t('tspec.errLoad'), true);
   });
@@ -1195,8 +610,6 @@ function openCreateTc() {
 function openEditTc(tcaseId) {
   apiGet('get', { tcase_id: tcaseId }).then(function (r) {
     editMode = { mode: 'update', tcase_id: r.tcase.id };
-    ctx.statusDomain = r.statusDomain || {};
-    ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
     hideAllPanes();
     $('#editView').html(formHtml({
       name: r.tcase.name,
@@ -1204,10 +617,7 @@ function openEditTc(tcaseId) {
       preconditions: r.tcase.preconditions,
       importance: r.tcase.importance,
       execution_type: r.tcase.execution_type,
-      status: r.tcase.status,
-      estimatedExecDuration: r.tcase.estimatedExecDuration,
       steps: r.steps,
-      customFields: r.customFields,
       keywordsAssigned: r.keywordsAssigned
     }, r.keywordsProject)).show();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -1223,15 +633,6 @@ function cancelEdit() {
 function saveForm() {
   var fd = collectForm();
   if (!fd.name.trim()) { toast(t('tspec.errNameRequired'), true); return; }
-  var dur = fd.estimated_execution_duration || '';
-  if (dur !== '' && isNaN(Number(dur))) {
-    toast(t('tspec.errDurationInvalid'), true);
-    return;
-  }
-  if (ctx.durationRequired && dur === '') {
-    toast(t('tspec.errDurationRequired'), true);
-    return;
-  }
   var req;
   if (editMode.mode === 'create') {
     fd.parent_id = editMode.parent_id;
@@ -1335,199 +736,6 @@ function askConfirm(text, cb) {
   window.__confirmCb = cb;
   $('#confirmModal').show();
 }
-
-/* ------------------------------------------------------------------ */
-/*  Drag-and-Drop (HTML5)                                              */
-/* ------------------------------------------------------------------ */
-var dragSrc = null;
-var clipboard = null;
-
-function initDnd() {
-  $('#treeBox').on('dragstart', '.tree-node', function(ev) {
-    var $el = $(this);
-    var d = { type: $el.hasClass('suite-node') ? 'testsuite' : 'testcase',
-              id: parseInt($el.data('id'), 10) };
-    dragSrc = d;
-    var oe = ev.originalEvent || ev;
-    oe.dataTransfer.effectAllowed = 'move';
-    oe.dataTransfer.setData('text/plain', JSON.stringify(d));
-    setTimeout(function() { $el.addClass('dragging-self'); }, 0);
-  });
-
-  $('#treeBox').on('dragend', '.tree-node', function() {
-    $(this).removeClass('dragging-self');
-    $('.tree-node.drag-over').removeClass('drag-over');
-    $('.tree-node.dragging-invalid').removeClass('dragging-invalid');
-    dragSrc = null;
-  });
-
-  $('#treeBox').on('dragover', '.suite-node', function(ev) {
-    if (!dragSrc) return;
-    var $el = $(this);
-    var targetId = parseInt($el.data('id'), 10);
-    if (dragSrc.id === targetId) {
-      $el.addClass('dragging-self');
-      ev.preventDefault();
-      return;
-    }
-    $el.addClass('drag-over');
-    var oe = ev.originalEvent || ev;
-    oe.dataTransfer.dropEffect = oe.altKey ? 'copy' : 'move';
-    oe.preventDefault();
-  });
-
-  $('#treeBox').on('dragleave', '.suite-node', function() {
-    $(this).removeClass('drag-over dragging-self');
-  });
-
-  $('#treeBox').on('drop', '.suite-node', function(ev) {
-    ev.preventDefault();
-    var $el = $(this);
-    $el.removeClass('drag-over dragging-self');
-    if (!dragSrc) return;
-    var targetId = parseInt($el.data('id'), 10);
-    if (dragSrc.id === targetId) return;
-    var oe = ev.originalEvent || ev;
-    var isCopy = !!oe.altKey;
-    performMoveOrCopy(dragSrc.type, dragSrc.id, 'testsuite', targetId, isCopy ? 'copy' : 'move');
-  });
-}
-
-function performMoveOrCopy(srcType, srcId, tgtType, tgtId, action, opts) {
-  opts = opts || {};
-  if (action === 'copy') {
-    var body = { node_id: srcId, type: srcType, new_parent_id: tgtId,
-                 position: opts.position || 'bottom',
-                 options: { copyKeywords: !!opts.copyKeywords,
-                            copyRequirements: !!opts.copyRequirements,
-                            copyOnlyLatestVersion: !!opts.copyOnlyLatestVersion } };
-    toast(t('tspec.copied'));
-    apiPost('copy', body).then(function() {
-      toast(t('tspec.copied'));
-      loadTree();
-    }).catch(function(e) { toast(e.message || t('tspec.operationFailed'), true); });
-  } else {
-    var body2 = { node_id: srcId, type: srcType, new_parent_id: tgtId,
-                  position: opts.position || 'bottom' };
-    apiPost('move', body2).then(function() {
-      toast(t('tspec.moved'));
-      loadTree();
-    }).catch(function(e) { toast(e.message || t('tspec.operationFailed'), true); });
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Right-click context menu                                           */
-/* ------------------------------------------------------------------ */
-function initContextMenu() {
-  document.addEventListener('click', function() { $('#ctxMenu').hide(); });
-
-  $('#treeBox').on('contextmenu', '.tree-node', function(ev) {
-    if (!grants['mgt_modify_tc']) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-    var $el = $(this);
-    var nd = { type: $el.hasClass('suite-node') ? 'testsuite' : 'testcase',
-               id: parseInt($el.data('id'), 10) };
-    selectNode(nd.type, nd.id);
-    var $m = $('#ctxMenu');
-    $m.css({ top: ev.pageY, left: ev.pageX }).show();
-    $m.data('node', nd);
-    $m.find('.ctx-item').show();
-    $('#ctxPaste').toggle(!!clipboard);
-  });
-
-  $('#treeBox').on('contextmenu', '.tree-root', function(ev) {
-    if (!grants['mgt_modify_tc']) return;
-    ev.preventDefault();
-    var $m = $('#ctxMenu');
-    $m.css({ top: ev.pageY, left: ev.pageX }).show();
-    $m.data('node', { type: 'testsuite', id: ctx.tproject_id, isRoot: true });
-    $m.find('.ctx-item').hide();
-    $('#ctxPaste').toggle(clipboard && !!clipboard).show();
-  });
-}
-
-function ctxCutAction() {
-  var nd = $('#ctxMenu').data('node');
-  if (!nd) return;
-  clipboard = { action: 'move', type: nd.type, id: nd.id, name: findNode(nd.type, nd.id)?.name || '' };
-  $('#ctxMenu').hide();
-  toast(t('tspec.cut') + ': ' + clipboard.name);
-}
-
-function ctxCopyAction() {
-  var nd = $('#ctxMenu').data('node');
-  if (!nd) return;
-  clipboard = { action: 'copy', type: nd.type, id: nd.id, name: findNode(nd.type, nd.id)?.name || '' };
-  $('#ctxMenu').hide();
-  toast(t('tspec.copy') + ': ' + clipboard.name);
-}
-
-function ctxPasteAction() {
-  var nd = $('#ctxMenu').data('node');
-  if (!nd || !clipboard) { toast(t('tspec.clipboardEmpty'), true); return; }
-  $('#ctxMenu').hide();
-  var tgtName = findNode(nd.type, nd.id)?.name || '';
-  if (clipboard.action === 'move') {
-    openMcModal('move', clipboard.type, clipboard.id, nd.type, nd.id, tgtName);
-  } else {
-    openMcModal('copy', clipboard.type, clipboard.id, nd.type, nd.id, tgtName);
-  }
-}
-
-/* ------------------------------------------------------------------ */
-/*  Move / Copy modal (target suite picker)                            */
-/* ------------------------------------------------------------------ */
-var mcState = {};
-
-function openMcModal(action, srcType, srcId, tgtType, tgtId, tgtName) {
-  mcState = { action: action, srcType: srcType, srcId: srcId,
-              tgtType: tgtType, tgtId: tgtId };
-  var title = action === 'move' ? t('tspec.moveTo') : t('tspec.copyTo');
-  $('#mcModalTitle').text(title);
-  $('#mcCopyOptions').toggle(action === 'copy');
-  $('#mcCopyKw,#mcCopyReq,#mcCopyLatest').prop('checked', false);
-  $('input[name="mcPos"][value="bottom"]').prop('checked', true);
-  var $sel = $('#mcTargetSelect').empty();
-  buildSuiteOptions($sel, treeData, tgtId, 0);
-  if (tgtType === 'testsuite' && tgtId !== ctx.tproject_id) {
-    $sel.val(String(tgtId));
-  }
-  $('#mcModal').show();
-}
-
-function buildSuiteOptions($sel, node, skipId, depth) {
-  (node.suites || []).forEach(function(s) {
-    if (s.id !== mcState.srcId) {
-      var label = '';
-      for (var i = 0; i < depth; i++) label += '\u00A0\u00A0';
-      label += s.name;
-      $sel.append($('<option>').val(s.id).text(label));
-    }
-    buildSuiteOptions($sel, s.children, skipId, depth + 1);
-  });
-}
-
-function mcConfirm() {
-  var targetId = parseInt($('#mcTargetSelect').val(), 10);
-  if (!targetId || targetId <= 0) { toast(t('tspec.errNoSuite'), true); return; }
-  var pos = $('input[name="mcPos"]:checked').val() || 'bottom';
-  closeModal('mcModal');
-  clipboard = null;
-  performMoveOrCopy(mcState.srcType, mcState.srcId, 'testsuite', targetId,
-                    mcState.action, {
-    position: pos,
-    copyKeywords: $('#mcCopyKw').is(':checked'),
-    copyRequirements: $('#mcCopyReq').is(':checked'),
-    copyOnlyLatestVersion: $('#mcCopyLatest').is(':checked')
-  });
-}
-
-/* ------------------------------------------------------------------ */
-/*  Init DnD + context menu on document ready                          */
-/* ------------------------------------------------------------------ */
-$(function() { initDnd(); initContextMenu(); });
 </script>
 <div class="footer"><span data-i18n="footers.testSpec">TestLink 2.0.1 - Test Specification</span></div>
 </body>

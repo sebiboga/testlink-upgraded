@@ -1508,8 +1508,8 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
                     'import_req_update_last_version_failed' => '',
                     'import_req_new_version_failed' => '', 
                     'import_req_skipped_plain' => '',
-                    'req_title_length_exceeded' => '', 
-                    'req_docid_length_exceeded' => '');
+                    'req_title_lenght_exceeded' => '', 
+                    'req_docid_lenght_exceeded' => '');
     foreach($labels as $key => $dummy) {
       $labels[$key] = lang_get($key);
     }  
@@ -1541,13 +1541,13 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
   if( strlen($req['title']) > $fieldSize->req_title )
   {
      $checkLengthOK = false;
-     $what2add = $labels['req_title_length_exceeded'] . '/';
+     $what2add = $labels['req_title_lenght_exceeded'] . '/';
   }  
 
   if( strlen($req['docid']) > $fieldSize->req_docid )
   {
      $checkLengthOK = false;
-     $what2add .= $labels['req_docid_length_exceeded'];
+     $what2add .= $labels['req_docid_lenght_exceeded'];
   }  
 
   if( $checkLengthOK == FALSE )
@@ -1621,8 +1621,7 @@ function createFromMap($req,$tproject_id,$parent_id,$author_id,$filters = null,$
     $msgID = 'frozen_req_unable_to_import';
     $status_ok = false;
 
-    if( (is_array($last_version) && isset($last_version['is_open']) && $last_version['is_open'] == 1)
-        || !$my['options']['skipFrozenReq']) {
+    if( $last_version['is_open'] == 1 || !$my['options']['skipFrozenReq']) {
       switch ($my['options']['actionOnHit']) {
         case 'update_last_version':
 		      $importMode = 'update';

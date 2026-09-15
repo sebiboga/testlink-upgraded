@@ -1409,10 +1409,6 @@ $TLS_bug_mgmt = "BUG management";
 $TLS_bug_link_tl_to_bts = "Link Existent Issue";
 $TLS_bug_create_into_bts = "Create Issue";
 $TLS_bug_copy_from_latest_exec = "Copy issues from latest exec";
-$TLS_tc_name = "Test Case Name";
-$TLS_tc_external_id = "Test Case External ID";
-$TLS_github_bug_created = "Bug %s created in %s";
-$TLS_github_bug_comment = "Comment added to bug %s in %s";
 
 
 $TLS_btn_export_testcases = "Export Test Cases";
@@ -2286,7 +2282,6 @@ $TLS_href_cfields_management = "Define Custom Fields";
 $TLS_href_cfields_tproject_assign = "Assign Custom Fields";
 $TLS_href_edit_tc = "Test Specification";
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
-$TLS_href_tc_create_from_issues = "Create Test Cases from Issues XML";
 $TLS_href_inventory = "Inventory";
 $TLS_href_inventory_management = 'Inventory management';
 $TLS_href_keywords_assign = "Assign Keywords";
@@ -2382,8 +2377,6 @@ $TLS_info_search_req_spec = "This list shows all requirement specifications whic
 $TLS_href_add_remove_test_cases = "Add / Remove Test Cases";
 $TLS_href_build_new = "Builds / Releases";
 $TLS_href_execute_test = "Execute Tests";
-
-$TLS_href_exec_dashboard = "Execution Dashboard"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Access Execute Tests RO";
 $TLS_href_metrics_dashboard = "Metrics Dashboard";
 $TLS_href_newest_tcversions = "Show Test Cases Newest Versions";
@@ -3682,7 +3675,6 @@ $TLS_frozen_req_unable_to_import = 'Skipped - Requirement - Doc ID:%s - is FROZE
 
 
 $TLS_req_title_length_exceeded = 'Req title length exceeded';
-$TLS_req_docid_length_exceeded = 'Req doc id length exceeded';
 
 // ----- lib/plan/planExport.php -----
 $TLS_export_test_plan = 'Export Test Plan';

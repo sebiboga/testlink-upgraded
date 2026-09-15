@@ -888,19 +888,13 @@ function getFileUploadErrorMessage($fInfo,$tlInfo=null)
 
 /**
  * Redirect to a page with static html defined in locale/en_GB/texts.php
- *
- * Refs #1501: the Help/Instructions viewer is modernized (Dashio HTML +
- * BFF api/staticpage). All show_instructions() callers land on the modern
- * screen; the legacy lib/general/staticPage.php stays only as a deep-link
- * fallback.
  * 
  * @param string $key keyword for finding exact html text in definition array
  */
 function show_instructions($key, $refreshTree=0)
 {
-    $myURL = $_SESSION['basehref'] .
-             "gui/templates/documentation/staticPage.html?key=" . urlencode($key);
-
+    $myURL = $_SESSION['basehref'] . "lib/general/staticPage.php?key={$key}";
+    
     if( $refreshTree )
     {
         $myURL .= "&refreshTree=1";  
@@ -1938,10 +1932,6 @@ function getActions(&$gui,$baseURL) {
   // MD/XML Test Case Import modernized screen
   $actions->tcImport = "/gui/templates/testcases/tcImport.html?{$ctx}";
 
-  // Create Test Cases from Issue XML (Mantis) modernized screen (Refs #1502)
-  $actions->tcCreateFromIssues =
-    "/gui/templates/testcases/tcCreateFromIssues.html?{$ctx}";
-
   $actions->metrics_dashboard =
     "/gui/templates/results/metricsDashboard.html?{$ctx}";
 
@@ -2030,10 +2020,6 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
-  // Reorder Requirements modernized screen (Dashio standalone page) - Refs
-  // #1488. The Reorder toolbar button in reqSpecView.html carries the real
-  // req_spec_id; this generic launcher keeps legacy pointer/template parity.
-  $actions->reqReorder = "/gui/templates/requirements/reqReorder.html?{$ctx}";
   $actions->reqImport = "/gui/templates/requirements/reqImport.html?{$ctx}";
   $actions->printReqSpec = "/gui/templates/requirements/printReqSpec.html?{$ctx}";
   // Print Test Specification modernized screen (Dashio standalone page) -
@@ -2107,12 +2093,6 @@ function getActions(&$gui,$baseURL) {
   if ($tplan_id > 0) {
     $actions->executeTest =
       "/gui/templates/execute/execTest.html?{$ctx}";
-    // Execution Dashboard (modernized execDashboard.php landing pane, Refs
-    // #1496). Standalone Dashio page fed by api/execdashboard; resolves the
-    // current execution context (tplan/build/platform) with the same legacy
-    // precedence and exposes the REST argument triplet used by the toolbar.
-    $actions->execDashboard =
-      "/gui/templates/execute/execDashboard.html?{$ctx}";
     // Execution Export popup (modernized execExport.php, BUGID 3421) - Refs
     // #1024. Opens as a standalone Dashio page fed by api/executeexport.
     $actions->execExport =

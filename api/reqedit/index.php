@@ -16,15 +16,9 @@
  *   manage -> mgt_modify_req
  *
  * Endpoints (JSON in/out):
- *   GET  ?action=form&id=N                -> requirement (selected version) + spec + options (edit)
- *                                           optional version_id|req_version_id loads THAT exact
- *                                           version (legacy reqEdit.php parity, gap #1382); no
- *                                           version arg -> latest version. Returns the full
- *                                           'versions' list for the editor version selector.
+ *   GET  ?action=form&id=N                -> requirement (latest version) + spec + options (edit)
  *   GET  ?action=form&spec_id=N           -> options + spec info (create)
  *   POST ?action=save                     -> create (no id) or update (id) a requirement
- *                                           body version_id targets that exact version (gap #1382),
- *                                           absent -> latest. stay_here (1) keeps create form open
  *   POST ?action=version&id=N             -> create a new version of the requirement
  */
 
@@ -122,20 +116,6 @@ function needOwnedSpec($specId, $tproject_id, &$reqSpecMgr, &$db) {
     return @$reqSpecMgr->get_by_id(intval($specId)) ?: null;
 }
 
-/**
- * Legacy parity with lib/functions/common.php::getItemTemplateContents():
- * resolve the configured requirement_template for the 'scope' field so that
- * create mode opens the Scope editor pre-filled with the template scaffold.
- * Returns '' when no template is configured (type 'none' or unknown) — which
- * matches lib/requirements/reqEdit.php renderGui() default branch behaviour.
- */
-function requirementTemplateBody() {
-    if (!function_exists('getItemTemplateContents')) {
-        return '';
-    }
-    return (string)getItemTemplateContents('requirement_template', 'scope', '');
-}
-
 /** Localized type/status option maps + defaults, same as api/reqspec options. */
 function reqOptions() {
     $cfg = config_get('req_cfg');
@@ -180,48 +160,22 @@ if ($method === 'GET' && $action === 'form') {
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Requirement not found or not in project']);
         }
-        // all version rows of the requirement: selector list + fallback source.
-        // gap #1382: legacy reqEdit.php?doAction=edit&req_version_id=VID edits
-        // THAT exact version; without it, the latest version is edited.
-        $versionRows = $db->get_recordset(
-            "SELECT v.id AS version_id, v.version, v.revision, v.status," .
-            " v.is_open, v.scope, v.creation_ts" .
-            " FROM nodes_hierarchy vh" .
-            " JOIN req_versions v ON v.id = vh.id" .
-            " WHERE vh.parent_id = " . intval($reqId) .
-            " ORDER BY v.version DESC");
-        if (!$versionRows) {
-            http_response_code(404);
-            out(['status' => 'error', 'message' => 'Requirement not found']);
-        }
-        $reqVersionId = intval($_REQUEST['req_version_id'] ?? ($_REQUEST['version_id'] ?? 0));
-        if ($reqVersionId > 0) {
-            $found = false;
-            foreach ($versionRows as $vrow) {
-                if (intval($vrow['version_id']) === $reqVersionId) { $found = true; break; }
-            }
-            if (!$found) {
-                http_response_code(404);
-                out(['status' => 'error', 'message' => 'Requirement version not found']);
-            }
-        } else {
-            // no explicit version -> latest (first row of the DESC list)
-            $reqVersionId = intval($versionRows[0]['version_id']);
-        }
-        // render the selected version (same field set as before + version_id)
+        // loadRequirement uses $tproject_id via a closure-global; pass explicitly
         $rows = $db->get_recordset(
             "SELECT r.id, r.srs_id, r.req_doc_id, nh.name AS title, nh.node_order," .
             " v.scope, v.status, v.type, v.version, v.active, v.is_open," .
-            " v.expected_coverage, v.creation_ts, v.modification_ts, v.id AS version_id," .
+            " v.expected_coverage, v.creation_ts, v.modification_ts," .
             " u.login AS author_login, srsnh.name AS spec_title" .
             " FROM requirements r" .
             " JOIN nodes_hierarchy nh ON nh.id = r.id" .
             " JOIN nodes_hierarchy vh ON vh.parent_id = r.id" .
             " JOIN req_versions v ON v.id = vh.id" .
+            "   AND v.version = (SELECT MAX(v2.version) FROM req_versions v2" .
+            "                    JOIN nodes_hierarchy h2 ON h2.id = v2.id" .
+            "                    WHERE h2.parent_id = r.id)" .
             " JOIN nodes_hierarchy srsnh ON srsnh.id = r.srs_id" .
             " LEFT JOIN users u ON u.id = v.author_id" .
-            " WHERE r.id = " . intval($reqId) .
-            "   AND v.id = " . intval($reqVersionId) . " LIMIT 1");
+            " WHERE r.id = " . intval($reqId) . " LIMIT 1");
         if (!$rows) {
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Requirement not found']);
@@ -229,8 +183,6 @@ if ($method === 'GET' && $action === 'form') {
         $r = $rows[0];
         $req = [
             'id'                => intval($r['id']),
-            'version_id'        => intval($r['version_id']),
-            'is_latest'         => intval($r['version_id']) === intval($versionRows[0]['version_id']),
             'srs_id'            => intval($r['srs_id']),
             'req_doc_id'        => (string)$r['req_doc_id'],
             'title'             => (string)$r['title'],
@@ -244,20 +196,8 @@ if ($method === 'GET' && $action === 'form') {
             'author'            => (string)$r['author_login'],
             'spec_title'        => (string)$r['spec_title'],
         ];
-        // version list for the editor selector (same shape as reqView /view)
-        $versions = [];
-        foreach ($versionRows as $vrow) {
-            $versions[] = [
-                'version_id' => intval($vrow['version_id']),
-                'version'    => intval($vrow['version']),
-                'revision'   => intval($vrow['revision']),
-                'status'     => (string)$vrow['status'],
-                'is_open'    => intval($vrow['is_open']),
-            ];
-        }
         $specId = intval($req['srs_id']);
         out(['status' => 'ok', 'mode' => 'edit', 'requirement' => $req,
-             'versions' => $versions, 'show_version_selector' => count($versions) > 1,
              'options' => $options, 'tproject_id' => $tproject_id,
              'tproject_name' => $tpName,
              'rights' => ['view' => canView($user, $db, $tproject_id),
@@ -282,17 +222,11 @@ if ($method === 'GET' && $action === 'form') {
             $specTitle = (string)$st[0]['name'];
         }
     }
-    // gap #1381: legacy create mode pre-fills the Scope editor with the
-    // requirement_template content (getItemTemplateContents) — mirror it here.
-    $templateBody = requirementTemplateBody();
     out(['status' => 'ok', 'mode' => 'create',
          'requirement' => ['srs_id' => $specId, 'spec_title' => $specTitle,
                            'version' => 0, 'req_doc_id' => '', 'title' => '',
-                           'scope' => $templateBody,
-                           'status' => $options['defaultReqStatus'],
+                           'scope' => '', 'status' => $options['defaultReqStatus'],
                            'type' => $options['defaultReqType'], 'expected_coverage' => 1],
-         'template_body' => $templateBody,
-         'versions' => [], 'show_version_selector' => false,
          'options' => $options, 'tproject_id' => $tproject_id,
          'tproject_name' => $tpName,
          'rights' => ['view' => canView($user, $db, $tproject_id),
@@ -316,11 +250,9 @@ if ($method === 'POST' && $action === 'save') {
     $status = strtoupper(trim((string)($BODY['status'] ?? TL_REQ_STATUS_VALID)));
     $type = (string)($BODY['type'] ?? TL_REQ_TYPE_FEATURE);
     $expectedCoverage = max(1, intval($BODY['expected_coverage'] ?? 1));
-    // legacy reqEdit.php stay_here: keep the caller on the create form after save
-    $stayHere = !empty($BODY['stay_here']) ? 1 : 0;
 
     if ($reqId > 0) {
-        // resolve owning project + exact version to edit (gap #1382)
+        // resolve owning project + latest version
         $info = $db->get_recordset(
             "SELECT srs.testproject_id FROM requirements r" .
             " JOIN req_specs srs ON srs.id = r.srs_id" .
@@ -329,37 +261,23 @@ if ($method === 'POST' && $action === 'save') {
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Requirement not found or not in project']);
         }
-        $versionRows = $db->get_recordset(
-            "SELECT v.id AS version_id, v.version FROM nodes_hierarchy vh" .
-            " JOIN req_versions v ON v.id = vh.id" .
-            " WHERE vh.parent_id = " . intval($reqId) .
-            " ORDER BY v.version DESC");
-        if (!$versionRows) {
+        $reqData = $reqMgr->get_by_id(intval($reqId));
+        if (!$reqData) {
             http_response_code(404);
             out(['status' => 'error', 'message' => 'Requirement not found']);
         }
-        $versionId = intval($BODY['version_id'] ?? ($BODY['req_version_id'] ?? 0));
-        if ($versionId > 0) {
-            // deterministically target the requested version
-            $found = false;
-            foreach ($versionRows as $vrow) {
-                if (intval($vrow['version_id']) === $versionId) { $found = true; break; }
+        $latest = null;
+        foreach ($reqData as $v) {
+            if (is_null($latest) || intval($v['version']) > intval($latest['version'])) {
+                $latest = $v;
             }
-            if (!$found) {
-                http_response_code(404);
-                out(['status' => 'error', 'message' => 'Requirement version not found']);
-            }
-        } else {
-            // no explicit version -> edit the latest (legacy default)
-            $versionId = intval($versionRows[0]['version_id']);
         }
-        $op = $reqMgr->update(intval($reqId), intval($versionId), $docId, $title,
+        $op = $reqMgr->update(intval($reqId), intval($latest['version_id']), $docId, $title,
                               $scope, $userId, $status, $type, $expectedCoverage);
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
-        out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId),
-             'version_id' => intval($versionId), 'stay_here' => $stayHere]);
+        out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId)]);
     } else {
         $specId = intval($BODY['spec_id'] ?? 0);
         if ($specId <= 0) { badRequest('Invalid specification id'); }
@@ -369,8 +287,7 @@ if ($method === 'POST' && $action === 'save') {
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
-        out(['status' => 'ok', 'mode' => 'create', 'id' => intval($op['id']),
-             'stay_here' => $stayHere]);
+        out(['status' => 'ok', 'mode' => 'create', 'id' => intval($op['id'])]);
     }
 }
 

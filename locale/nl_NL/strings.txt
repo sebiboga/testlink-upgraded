@@ -2497,8 +2497,6 @@ $TLS_info_search_req_spec = "Deze lijst toont alle vereistenspecificaties die aa
 $TLS_href_add_remove_test_cases = "Testcases toevoegen/verwijderen";
 $TLS_href_build_new = "Build beheer";
 $TLS_href_execute_test = "Voer tests uit";
-
-$TLS_href_exec_dashboard = "Uitvoeringsdashboard"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Statistieken overzicht";
 $TLS_href_newest_tcversions = "Toon de nieuwste versies van de testcases";
 $TLS_href_plan_assign_urgency = "Kies dringende tests";

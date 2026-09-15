@@ -60,8 +60,6 @@ function userProfile(tlUser $u, $db) {
         'email' => $u->emailAddress,
         'locale' => $u->locale,
         'globalRoleName' => $roleName,
-        'github' => $u->github ?? '',
-        'avatarUrl' => $u->getGithubAvatarUrl(96),
         'apiKey' => $u->userApiKey ?? 'none',
         'authentication' => $u->authentication ?? '',
         'isPasswordExternal' => tlUser::isPasswordMgtExternal($u->authentication),
@@ -164,16 +162,6 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
     if (isset($body['lastName'])) $user->lastName = trim($body['lastName']);
     if (isset($body['email'])) $user->emailAddress = trim($body['email']);
     if (isset($body['locale'])) $user->locale = $body['locale'];
-    if (array_key_exists('github', $body)) {
-        $github = trim(ltrim((string)$body['github'], '@'));
-        // users.github is varchar(100); mirror the UI maxlength server-side so
-        // an oversized payload degrades to a clean 400, never a DB overflow.
-        if (strlen($github) > 100) {
-            http_response_code(400);
-            out(['status' => 'error', 'message' => 'GitHub account is too long']);
-        }
-        $user->github = $github;
-    }
 
     $result = $user->writeToDB($db);
     if ($result >= tl::OK) {
@@ -183,7 +171,7 @@ if ($method === 'PUT' && ($path === '/' || $path === '' || $path === '/index.php
     } else {
         http_response_code(400);
         $msg = 'Error updating profile';
-        if ($result == tlUser::E_EMAILFORMAT || $result == tlUser::E_EMAILLENGTH) $msg = 'Invalid email address';
+        if ($result == tlUser::E_EMAILINVALID) $msg = 'Invalid email address';
         out(['status' => 'error', 'message' => $msg, 'code' => $result]);
     }
 }

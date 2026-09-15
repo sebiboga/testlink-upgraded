@@ -202,8 +202,6 @@ function initializeGui(&$db,&$args) {
   } 
   $gui->whoamiName = $args->user->getDisplayName();
   $gui->whoamiRole = $testprojectRole;
-  // GitHub avatar for the identity block (Refs #905); null when unset.
-  $gui->whoamiAvatarUrl = $args->user->getGithubAvatarUrl(60);
                    
 
   // only when the user has changed project 

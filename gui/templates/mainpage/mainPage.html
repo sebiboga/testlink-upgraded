@@ -13,7 +13,7 @@
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
 .header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
-.header span { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header span { font-size: 13px; font-weight: 400; color: #000; opacity: 1; margin-left: 12px; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 .toolbar .ctx { color: #aaa; font-size: 12px; }
 .toolbar .ctx b { color: #fff; }
@@ -32,30 +32,16 @@ table.dataTable tbody td { padding: 8px 14px; font-size: 13px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 .empty { color: #7a7a7a; font-size: 13px; padding: 8px 0; }
 .dataTables_wrapper .dataTables_paginate .paginate_button.current { background: #4ECDC4 !important; color: #fff !important; border: none !important; }
-.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
-.toast.ok { background: #4ECDC4; }
-.toast.err { background: #e6605e; }
-.assigned-sub { color: #888; font-size: 11px; }
-.assigned-tc a { color: #2d8e88; text-decoration: none; border-bottom: 1px dotted #2d8e88; }
-a.assigned-ic { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; color: #667; text-decoration: none; font-size: 12px; margin-right: 2px; }
-a.assigned-ic:hover { background: #4ECDC4; color: #fff; }
-a.assigned-qe { color: #4ECDC4; }
-.prio-h { color: #b94a48; font-weight: 700; }
-.prio-m { color: #e67e22; font-weight: 600; }
-.prio-l { color: #27ae60; font-weight: 600; }
-.due-over { color: #e6605e; font-weight: 700; }
-#assignedTable td { vertical-align: middle; }
 </style>
 </head>
 <body>
 
-<div class="header"><span data-i18n="dash.header">Dashboard</span> <span data-i18n="dash.headerSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">test plan progress and project-wide overview</span><span id="localeSwitcher" style="float:right;"></span></div>
+<div class="header"><span data-i18n="dash.header">Dashboard</span> <span data-i18n="dash.headerSub" style="font-size:13px;font-weight:400;color:#000;opacity:1;margin-left:12px;">test plan progress and project-wide overview</span><span id="localeSwitcher" style="float:right;"></span></div>
 
 <div class="toolbar">
   <span class="ctx"><span data-i18n="dash.testProject">Test Project</span>: <b id="tprojectName">-</b></span>
   <span class="ctx"><span data-i18n="dash.testPlan">Test Plan</span>: <b id="tplanName">-</b></span>
   <span style="flex:1"></span>
-  <a href="/gui/templates/notifications/notifications.html" id="notifBellLink" target="_blank" style="color:#fff;text-decoration:none;position:relative;margin-right:12px;display:none;" title="Notifications" data-i18n-title="notif.bellTitle"><i class="fas fa-bell" style="font-size:16px;"></i><span id="notifBellBadge" class="badge" style="background:#e6605e;position:absolute;top:-8px;right:-8px;padding:1px 5px;font-size:10px;"></span></a>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
 
@@ -82,29 +68,6 @@ a.assigned-qe { color: #4ECDC4; }
           </table>
         </div>
       </div>
-    </div>
-
-    <!-- My assigned test cases (Refs #895) -->
-    <div class="card" id="secAssigned" style="display:none;">
-      <h3><i class="fa fa-user-check" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="dash.assignedTitle">My Assigned Test Cases</span></h3>
-      <h5><span data-i18n="dash.assignedHint">test cases assigned to you for execution, from your active test plans</span>
-          <span id="assignedSummary" style="float:right;font-weight:700;"></span></h5>
-      <table id="assignedTable" class="display" style="width:100%">
-        <thead>
-          <tr>
-            <th data-i18n="dash.assignedTc">Test case</th>
-            <th data-i18n="dash.assignedBuild">Build</th>
-            <th data-i18n="dash.assignedPlatform">Platform</th>
-            <th data-i18n="dash.testPlan">Test Plan</th>
-            <th data-i18n="dash.assignedPriority">Priority</th>
-            <th data-i18n="dash.assignedAssignedOn">Assigned on</th>
-            <th data-i18n="dash.assignedDue">Due</th>
-            <th data-i18n="dash.status">Status</th>
-            <th data-i18n="dash.assignedActions">Actions</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
     </div>
 
     <!-- Bugs from executions -->
@@ -148,8 +111,6 @@ a.assigned-qe { color: #4ECDC4; }
       </table>
     </div>
   </div>
-
-  <div class="toast" id="assignedToast"></div>
 </div>
 
 <div class="footer" id="footerText"></div>
@@ -164,7 +125,6 @@ a.assigned-qe { color: #4ECDC4; }
 var API = '/api/mainpage/index.php';
 var t = TLi18n.t;
 var g_tproject_id = 0, g_tplan_id = 0;
-var g_proj_id = 0; // resolved project id for deep links (session-backed)
 var execChart = null, growthChart = null;
 
 function esc(s) {
@@ -216,36 +176,13 @@ function render(d) {
   $('#contentBox').show();
   $('#tprojectName').text(d.tproject.name || '-');
   $('#tplanName').text(d.tplan_name || '-');
-  g_proj_id = parseInt(d.tproject.id || g_tproject_id, 10);
   $('#footerText').text(t('dash.generatedOn') + ' ' + new Date().toLocaleString());
 
   renderExec(d.dashboard);
   renderBugs(d.bugsInfo, d.dashboard);
   renderGrowth(d.tcGrowth);
   renderIssues(d.projectIssues);
-  loadAssigned();
   loadLinkedBugs();
-  loadNotifBadge();
-}
-
-// Notification bell badge (Refs #896): unread count from the Notifications
-// BFF, shown in the toolbar next to the footer info.
-function loadNotifBadge() {
-  $.ajax({
-    url: '/api/notifications/count',
-    data: { locale: TLi18n.getLocale() },
-    dataType: 'json',
-    success: function(d) {
-      if (d.status === 'ok' && d.totals && d.totals.unread > 0) {
-        $('#notifBellLink').show();
-        $('#notifBellBadge').text(d.totals.unread > 99 ? '99+' : d.totals.unread);
-      } else {
-        $('#notifBellLink').show();
-        $('#notifBellBadge').text('').hide();
-      }
-    },
-    error: function() { $('#notifBellLink').hide(); }
-  });
 }
 
 function renderExec(dash) {
@@ -400,156 +337,6 @@ function renderIssues(issues) {
     order: [[0, 'asc']],
     columns: [ null, null, null, null ]
   });
-}
-
-// "Test cases assigned to me" widget (Refs #895). Pushed by the BFF through
-// GET /assigned; one row per (test case, test plan, build, platform).
-function loadAssigned() {
-  $.ajax({
-    url: API + '/assigned',
-    data: { tproject_id: g_tproject_id, tplan_id: g_tplan_id, locale: TLi18n.getLocale() },
-    dataType: 'json',
-    success: function(d) {
-      if (d.status === 'ok') { renderAssigned(d.assigned); }
-    },
-    error: function() { $('#secAssigned').hide(); }
-  });
-}
-
-function renderAssigned(a) {
-  if (!a || !a.has_data || !a.plans || a.plans.length === 0) { $('#secAssigned').hide(); return; }
-  $('#secAssigned').show();
-
-  // Column availability is per plan; merge to widget-level flags so the
-  // single DataTable shows a column when ANY plan needs it (ATO parity).
-  var showPlatforms = false, showPriority = false;
-  $.each(a.plans, function(i, p) {
-    if (p.show_platforms) showPlatforms = true;
-    if (p.priority_enabled) showPriority = true;
-  });
-
-  // Re-key rows by their (testcase, tcversion, tplan, build, platform)
-  // coordinates so duplicate assignee rows collapse into one table row.
-  var map = {};
-  var order = [];
-  $.each(a.plans, function(i, p) {
-    $.each(p.rows, function(j, r) {
-      var key = [r.tc_id, r.tcversion_id, r.tplan_id, r.build_id, r.platform_id].join('|');
-      if (!map[key]) { map[key] = r; order.push(key); }
-    });
-  });
-
-  var rowsHtml = [];
-  $.each(order, function(i, key) {
-    var r = map[key];
-    var tc = '<div class="assigned-tc"><a class="tlink" href="' + esc('/gui/templates/testcases/tcView.html?tcase_id=' + r.tc_id + '&tproject_id=' + g_proj_id) + '" target="_blank">' +
-              esc(r.prefix) + '-' + esc(r.tc_external_id) + ': ' + esc(r.name) +
-              ' <span style="color:#888;font-size:11px;">(v.' + esc(r.version) + ')</span></a>' +
-              '<div class="assigned-sub">' + esc(r.suite_path || '') + '</div></div>';
-    var plat = showPlatforms ? esc(r.platform_name || '-') : '';
-    var prio = showPriority ? assignedPrio(r.priority_level) : '';
-    var due = r.deadline_epoch ? '<span' + (r.deadline_overdue ? ' class="due-over"' : '') + '>' +
-              esc(new Date(r.deadline_epoch * 1000).toLocaleDateString()) +
-              (r.deadline_overdue ? ' <span class="badge" style="background:#e6605e;">' + t('dash.assignedOverdueShort') + '</span>' : '') + '</span>'
-              : '<span class="assigned-sub">-</span>';
-    rowsHtml.push([
-      tc,
-      esc(r.build_name),
-      plat,
-      esc(r.tplan_name),
-      prio,
-      '<span class="assigned-sub">' + esc(new Date(r.assigned_on_epoch * 1000).toLocaleDateString()) + '</span>',
-      due,
-      assignedStatusBadge(r.status_key),
-      assignedActions(r)
-    ]);
-  });
-
-  if ($.fn.DataTable.isDataTable('#assignedTable')) $('#assignedTable').DataTable().destroy();
-  $('#assignedTable tbody').empty();
-  $('#assignedTable').DataTable({
-    data: rowsHtml,
-    pageLength: 10,
-    order: [[0, 'asc']],
-    columns: [ null, null, null, null, null, null, null, null, null ],
-    columnDefs: (function() {
-      var defs = [{ targets: 0, orderable: false }, { targets: 8, orderable: false }];
-      if (!showPlatforms) defs.push({ targets: 2, visible: false });
-      if (!showPriority) defs.push({ targets: 4, visible: false });
-      return defs;
-    })()
-  });
-
-  // Toolbar summary: total / pending / executed / overdue.
-  var overdue = 0;
-  $.each(order, function(i, key) {
-    if (map[key].deadline_overdue) overdue += 1;
-  });
-  $('#assignedSummary').html(
-    '<span class="badge" style="background:#22242a;">' + a.total + ' ' + t('dash.assignedTotal') + '</span> ' +
-    '<span class="badge" style="background:#f0ad4e;">' + a.pending + ' ' + t('dash.assignedPending') + '</span> ' +
-    '<span class="badge" style="background:#4ECDC4;">' + a.executed + ' ' + t('dash.assignedExecuted') + '</span>' +
-    (overdue > 0 ? ' <span class="badge" style="background:#e6605e;">' + overdue + ' ' + t('dash.assignedOverdue') + '</span>' : ''));
-}
-
-function assignedPrio(lvl) {
-  var cls = lvl === 'high' ? 'prio-h' : lvl === 'medium' ? 'prio-m' : 'prio-l';
-  var txt = lvl === 'high' ? t('dash.assignedPriorityHigh') :
-            lvl === 'medium' ? t('dash.assignedPriorityMedium') : t('dash.assignedPriorityLow');
-  return '<span class="' + cls + '">' + esc(txt) + '</span>';
-}
-
-function assignedStatusBadge(key) {
-  var map = { passed: '#4ECDC4', failed: '#e6605e', blocked: '#f0ad4e', not_run: '#8f8f8f' };
-  var lbl = { passed: 'dash.statusPassed', failed: 'dash.statusFailed',
-              blocked: 'dash.statusBlocked', not_run: 'dash.statusNotRun' };
-  var k = map[key] ? key : 'not_run';
-  return '<span class="badge" style="background:' + map[k] + ';">' + esc(t(lbl[k])) + '</span>';
-}
-
-function assignedActions(r) {
-  var h = '';
-  if (r.can_exec) {
-    h += '<a class="assigned-ic assigned-qe" href="javascript:void(0)" title="' + esc(t('dash.assignedQuickPassed')) + '" onclick="assignedQuick(' + r.tplan_id + ',' + (r.platform_id || 0) + ',' + r.build_id + ',' + r.tcversion_id + ',\'p\',this);return false;"><i class="fa fa-check-circle"></i></a>';
-    h += '<a class="assigned-ic assigned-qe" href="javascript:void(0)" title="' + esc(t('dash.assignedQuickFailed')) + '" onclick="assignedQuick(' + r.tplan_id + ',' + (r.platform_id || 0) + ',' + r.build_id + ',' + r.tcversion_id + ',\'f\',this);return false;"><i class="fa fa-times-circle"></i></a>';
-    h += '<a class="assigned-ic assigned-qe" href="javascript:void(0)" title="' + esc(t('dash.assignedQuickBlocked')) + '" onclick="assignedQuick(' + r.tplan_id + ',' + (r.platform_id || 0) + ',' + r.build_id + ',' + r.tcversion_id + ',\'b\',this);return false;"><i class="fa fa-ban"></i></a>';
-    h += '<a class="assigned-ic" href="' + esc('/gui/templates/execute/execSetResults.html?tcase_id=' + r.tc_id + '&tcversion_id=' + r.tcversion_id + '&level=testcase&id=' + r.tc_id + '&tplan_id=' + r.tplan_id + '&setting_build=' + r.build_id + '&setting_platform=' + (r.platform_id || 0) + '&caller=mainPage') + '" target="_blank" title="' + esc(t('dash.assignedExecTitle')) + '"><i class="fa fa-play"></i></a>';
-  }
-  h += '<a class="assigned-ic" href="' + esc('/gui/templates/execute/execHistory.html?tcase_id=' + r.tc_id + '&tproject_id=' + g_proj_id) + '" target="_blank" title="' + esc(t('dash.assignedHistoryTitle')) + '"><i class="fa fa-clock"></i></a>';
-  return h;
-}
-
-function assignedQuick(tplanId, platformId, buildId, tcversionId, code, el) {
-  if (!confirm(t('dash.assignedConfirm'))) return;
-  $.ajax({
-    url: '/api/reports/index.php?action=quick_exec',
-    method: 'POST',
-    contentType: 'application/json',
-    data: JSON.stringify({
-      tplan_id: tplanId, platform_id: platformId, build_id: buildId,
-      tcversion_id: tcversionId, result: code
-    }),
-    success: function(r) {
-      if (r.status === 'ok') {
-        assignedToast(t('dash.assignedQuickOk'), 'ok');
-        loadAssigned();
-      } else {
-        assignedToast(r.message || t('dash.errLoad'), 'err');
-      }
-    },
-    error: function(xhr) {
-      var msg = t('dash.assignedSaveFailed');
-      if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
-      else if (xhr.status === 403) msg = t('dash.assignedNoPerm');
-      assignedToast(msg, 'err');
-    }
-  });
-}
-
-function assignedToast(msg, type) {
-  var $t = $('#assignedToast').text(msg).attr('class', 'toast ' + (type || '')).show();
-  clearTimeout($t.data('tm'));
-  $t.data('tm', setTimeout(function(){ $t.hide(); }, 3500));
 }
 </script>
 </body>

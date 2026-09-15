@@ -2297,7 +2297,6 @@ $TLS_href_browse_tc = "Pesquisar Casos de Teste";
 $TLS_href_cfields_management = "Gerir Campos Personalizados";
 $TLS_href_cfields_tproject_assign = "Selecionar Campos Personalizados";
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
-$TLS_href_tc_create_from_issues = "Criar casos de teste a partir de um XML de issues";
 $TLS_href_edit_tc = "Especificar Casos de Teste";
 $TLS_href_inventory = "Gestão de Inventário";
 $TLS_href_inventory_management = "Gestão de Inventário";
@@ -2364,8 +2363,6 @@ $TLS_info_search_req_spec = "Esta lista mostra todas as Especificações de Requ
 $TLS_href_add_remove_test_cases = "Adicionar / Remover Casos de Teste";
 $TLS_href_build_new = "Produções / Distribuições";
 $TLS_href_execute_test = "Executar Testes";
-
-$TLS_href_exec_dashboard = "Painel de execução"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = "Acesso em modo de leitura à Execução de Testes";
 $TLS_href_metrics_dashboard = "Painel de Métricas";
 $TLS_href_newest_tcversions = "Verificar Casos de Teste atualizados";
@@ -3667,7 +3664,6 @@ $TLS_frozen_req_unable_to_import = "Ignorar - Requisito - Doc ID:%s - está CONG
 
 
 $TLS_req_title_length_exceeded = "Req Título, comprimento excedido";
-$TLS_req_docid_length_exceeded = 'Req Doc ID, comprimento excedido';
 
 // ----- lib/plan/planExport.php -----
 $TLS_export_test_plan = "Exportar Plano de Testes";

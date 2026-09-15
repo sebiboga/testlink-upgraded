@@ -150,14 +150,7 @@ The _top value of the target attribute specifies that the URL should open in the
           {if isset($gui->whoamiName) && $gui->whoamiName != ''}
             <li class="tlWhoami">
               <a href="{$gui->uri->userInfo}" target="mainframe"
-                 title="{$gui->whoamiName|escape} - {$gui->whoamiRole|escape}">
-                {if isset($gui->whoamiAvatarUrl) && $gui->whoamiAvatarUrl != ''}
-                <img class="tlWhoamiAvatar" src="{$gui->whoamiAvatarUrl|escape}" alt="avatar"
-                     title="{$labels.title_edit_personal_data|escape}" width="30" height="30">
-                {else}
-                <span class="tlWhoamiAvatarFallback">{strtoupper($gui->whoamiName|truncate:1:'')|escape}</span>
-                {/if}
-                <span class="tlWhoamiName">{$gui->whoamiName|escape}</span><br><span class="tlWhoamiRole">{$gui->whoamiRole|escape}</span></a>
+                 title="{$gui->whoamiName|escape} - {$gui->whoamiRole|escape}"><span class="tlWhoamiName">{$gui->whoamiName|escape}</span><br><span class="tlWhoamiRole">{$gui->whoamiRole|escape}</span></a>
             </li>
           {/if}
           <li><a class="logout" href="{$gui->logout}" target="top">Logout</a></li>

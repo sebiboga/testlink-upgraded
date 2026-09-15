@@ -53,14 +53,6 @@ table.steps .step-num { font-weight: 700; color: #4ECDC4; white-space: nowrap; w
 .warnbox { margin: 12px 22px 0; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .closedbox { margin: 12px 22px 0; background: #fff8e6; border: 1px solid #f0d9a8; color: #8a6d3b; border-radius: 6px; padding: 10px 14px; font-size: 13px; display: none; }
 .closedbox i { margin-right: 6px; }
-/* Refs #1396: "not the latest available version" alert (legacy
-   exec_tc_title_alert + hasNewestVersionMsg). Alert-red box like .warnbox,
-   but inside the card body flow so it sits right under the title bar. */
-.nv-box { margin: 0 0 12px; background: #fdecea; border: 1px solid #f5b0a8;
-         color: #b94a48; border-radius: 6px; padding: 9px 12px; font-size: 12.5px;
-         display: none; align-items: center; }
-.nv-box i { margin-right: 7px; color: #d64541; }
-.nv-box .btn-dark { font-size: 12px; padding: 5px 10px; }
 select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .actions-bar { margin-top: 16px; display: flex; gap: 12px; align-items: center; }
 .save-ok { color: #2d8e88; font-size: 13px; font-weight: 600; }
@@ -102,40 +94,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 .meta-line { margin: 0 0 12px; font-size: 12.5px; color: #555; }
 .meta-line b { color: #22242a; }
 .meta-line .sep { margin: 0 8px; color: #ccc; }
-/* Refs #1393: linked-issue chips + link-bug modal (mirror execTest.html) */
-.bug-badge { display:inline-block; background:#fdeeee; border:1px solid #f3c6c4; color:#c0504e; border-radius:12px; padding:1px 9px; font-size:11.5px; text-decoration:none; }
-.bug-badge.resolved { background:#eef8f0; border-color:#c6e3cd; color:#3c8a4e; }
-.bug-mode-toggle { display:flex; gap:6px; margin:10px 0; }
-.bug-mode-btn { flex:1; padding:6px 8px; font-size:12px; border:1px solid #ccc; border-radius:4px; background:#f7f7f7; color:#333; cursor:pointer; }
-.bug-mode-btn.active { background:#2d8e88; color:#fff; border-color:#2d8e88; }
-.prior-bugs .fa { margin:0 2px; }
-/* Issue #1392: execution-history table + history_on toggle (legacy
-   exec_show_tc_exec.inc.tpl exec_history table + execSetResults.tpl
-   btn_history_on/btn_history_off toggle). Same visual language as the
-   execTest.html inline history (Refs #662). */
-#btnHistory { display:inline-flex; align-items:center; gap:7px; }
-.hist-head { margin: 8px 0 6px; font-size: 12.5px; font-weight: 700; color: #22242a; text-transform: uppercase; letter-spacing: .4px; display: flex; align-items: center; }
-.hist-head .count { font-weight: 400; color: #888; font-size: 12px; margin-left: 6px; }
-.hist-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
-.hist-table thead th { background: #f0f0f0; color: #444; font-size: 11px; text-transform: uppercase; letter-spacing: .3px; padding: 7px 8px; text-align: left; border-bottom: 2px solid #ddd; }
-.hist-table tbody td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; font-size: 12.5px; vertical-align: middle; }
-.hist-table .icon-cell { white-space: nowrap; text-align: center; }
-.hist-table .bug-cell { min-width: 90px; }
-.hist-row-notes td { background: #fafafa; padding: 6px 10px; color: #555; font-size: 12px; border-top: 1px dashed #ddd; }
-.hist-row-cf td, .hist-row-att td, .hist-row-bug td { background: #fafafa; padding: 5px 10px; font-size: 12px; border-top: 1px dashed #eee; }
-.hist-row-cf table, .hist-row-cf .cf_table { margin: 2px 0; border-collapse: collapse; }
-.hist-row-cf td td, .hist-row-cf table td { border: none; padding: 2px 8px 2px 0; }
-.icon-btn { background: none; border: none; cursor: pointer; font-size: 14px; padding: 2px 6px; color: #4ECDC4; }
-.icon-btn:hover { color: #3dbdb5; }
-.icon-btn.danger { color: #e6605e; } .icon-btn.danger:hover { color: #c0392b; }
-.icon-btn.dark { color: #888; } .icon-btn.dark:hover { color: #444; }
-.icon-btn.buglink { color: #e6605e; } .icon-btn.buglink:hover { color: #c0392b; }
-.badge-status { display: inline-block; border-radius: 10px; padding: 3px 10px; font-size: 11.5px; font-weight: 600; color: #fff; text-transform: uppercase; white-space: nowrap; }
-.badge-status.st-passed { background: #2ecc71; }
-.badge-status.st-failed { background: #e6605e; }
-.badge-status.st-blocked { background: #e67e22; }
-.badge-status.st-other { background: #95a5a6; }
-.st-epass { background: #2ecc71; } .st-efail { background: #e6605e; } .st-eblock { background: #e67e22; } .st-enotrun { background: #95a5a6; } .st-eerror { background: #c0392b; } .st-ewait { background: #34495e; }
 </style>
 </head>
 <body>
@@ -149,13 +107,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
   <span class="ctx"><span data-i18n="esr.tproject">Test Project</span>: <b id="ctxProject">-</b></span>
   <span class="ctx"><span data-i18n="esr.tplan">Test Plan</span>: <b id="ctxPlan">-</b></span>
   <span style="flex:1"></span>
-  <!-- Issue #1392: execution-history toggle (legacy execSetResults.tpl
-       btn_history_on / btn_history_off submit button). Persists the
-       history_on flag in the session via ?action=set_history, then the
-       context is re-fetched so the full history table appears. -->
-  <button type="button" class="btn-dark" id="btnHistory" title="">
-    <i class="fa fa-clock-rotate-left"></i> <span id="btnHistoryLabel">-</span>
-  </button>
   <span id="localeSwitcher"></span>
 </div>
 
@@ -170,18 +121,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
          direct link to this execution, print the popup, Import XML Results,
          and (when test automation is enabled) Execute and Save Results. -->
     <span class="hc-actions" id="hcActions" style="display:none;"></span>
-  </div>
-  <!-- Refs #1396: newest-version handling (legacy exec_show_tc_exec.inc.tpl:
-       455-474): when the executed version is NOT the latest version of the
-       test case (hasNewestVersion), show the legacy "Attention: This is not
-       the latest available version" warning + the "Update Linked TCV To The
-       Latest" button that re-points the plan link to the newest version. -->
-  <div class="nv-box" id="newestVerBox" style="display:none;">
-    <i class="fa fa-triangle-exclamation"></i>
-    <span id="newestVerMsg" style="flex:1;"></span>
-    <button type="button" class="btn-dark" id="btnLinkLatest" style="margin-left:10px;">
-      <i class="fa fa-link"></i> <span data-i18n="esr.updateLinkToLatestTCVersion">Update Linked TCV To The Latest</span>
-    </button>
   </div>
   <div class="card-body">
     <div id="planCtxBar">
@@ -223,25 +162,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 
     <div class="prior-box" id="priorBox" style="display:none;"></div>
 
-    <!-- Issue #1392: execution history — the "Latest execution (any build)"
-         box (legacy exec_show_tc_exec.inc.tpl:75-177, gated on
-         show_last_exec_any_build && !history_on) + the exec_history table
-         (legacy :185-449): one row per historical execution with the
-         per-execution actions (edit notes / attachments / bugs / delete /
-         run-mode / print), plus per-execution notes / CF-values /
-         attachments / bugs sub-rows. Toggle button in the toolbar. -->
-    <div id="historySection" style="display:none;">
-      <div class="prior-box" id="anyBuildBox" style="display:none;"></div>
-      <div id="histWrap">
-        <div class="hist-head" id="histTitle">
-          <i class="fa fa-clock-rotate-left" style="color:#4ECDC4;margin-right:6px;"></i>
-          <span id="histTitleText"></span><span class="count" id="histTitleCount"></span>
-        </div>
-        <div id="histBody"></div>
-        <div id="histEmpty" style="display:none;font-size:12px;color:#777;font-style:italic;margin-bottom:12px;"></div>
-      </div>
-    </div>
-
     <!-- Test suite block (legacy exec_show_tc_exec.inc.tpl:36-71): clickable
          suite breadcrumb links + direct-suite details + design-time suite
          custom fields + download-only suite attachments. Hidden when the test
@@ -277,15 +197,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       <div class="desc-box" id="precondText"></div>
     </div>
 
-    <!-- Issue #1395: design-time CF values at the before_steps_results location
-         (legacy exec_test_spec.inc.tpl before_steps_results block) -->
-    <div id="cfsBeforeSteps" style="display:none;margin-top:10px;">
-      <div class="desc-label" data-i18n="esr.cfsBeforeSteps" style="color:#2d8e88;">Custom fields</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
-        <tbody id="cfsBeforeStepsBody"></tbody>
-      </table>
-    </div>
-
     <div class="form-group" id="stepsGroup" style="display:none;">
       <label data-i18n="esr.steps">Steps</label>
       <table class="steps">
@@ -318,25 +229,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
       </table>
     </div>
 
-    <!-- Issue #1395: design-time CF values at the standard_location + testplan-design
-         CF values + execution-time CF inputs (legacy exec_test_spec.inc.tpl blocks) -->
-    <div id="cfsAfterSteps" style="display:none;margin-bottom:10px;">
-      <div class="desc-label" data-i18n="esr.cfsAfterSteps" style="color:#2d8e88;">Custom fields</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
-        <tbody id="cfsAfterStepsBody"></tbody>
-      </table>
-    </div>
-    <div id="cfsTestplanDesign" style="display:none;margin-bottom:10px;">
-      <div class="desc-label" data-i18n="esr.cfsTestplanDesign" style="color:#2d8e88;">Testplan design custom fields</div>
-      <table style="width:100%;border-collapse:collapse;font-size:12.5px;background:#fff;border:1px solid #e3efec;border-radius:6px;margin-top:4px;">
-        <tbody id="cfsTestplanDesignBody"></tbody>
-      </table>
-    </div>
-    <div id="execCfWrap" style="display:none;margin-bottom:10px;">
-      <div class="desc-label" data-i18n="esr.execCfields" style="color:#2d8e88;">Execution custom fields</div>
-      <div id="execCFields" style="margin-top:4px;"></div>
-    </div>
-
     <div id="keywordsBox" style="display:none;">
       <div class="desc-box" id="keywordsText" style="background:#fff;"></div>
     </div>
@@ -344,32 +236,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
     <div id="requirementsBox" style="display:none;">
       <div class="desc-label" data-i18n="esr.requirements">Linked requirements</div>
       <div class="desc-box" id="requirementsText"></div>
-    </div>
-
-    <!-- Issue #1394: tcversion-level attachment download links (legacy
-         exec_test_spec.inc.tpl:134-139 gui->tcAttachments, download-only). -->
-    <div id="tcAttsBox" style="display:none;margin:0 0 12px;background:#f6fbfa;border:1px solid #cfebe6;border-radius:6px;padding:8px 14px;font-size:12.5px;">
-      <span class="desc-label" style="color:#2d8e88;display:inline;" data-i18n="esr.tcAttachments">Test case attachments</span>:
-      <span id="tcAtts"></span>
-    </div>
-
-    <!-- Issue #1394: execution attachments for THIS run — prior-run download
-         links + copy-from-latest checkbox + upload picker (legacy
-         exec_img_controls.inc.tpl copyAttFromLEXEC + openFileUploadWindow). -->
-    <div class="form-group" id="execAttachGroup" style="display:none;border:1px solid #eee;border-radius:6px;padding:10px 14px;background:#fafafa;">
-      <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
-        <i class="fa fa-paperclip" style="color:#4ECDC4;margin-right:6px;"></i>
-        <span data-i18n="esr.attachments">Attachments</span>
-      </div>
-      <div id="priorAtts" style="font-size:12.5px;margin-bottom:6px;"></div>
-      <label style="font-size:12.5px;font-weight:600;color:#444;display:none;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
-        <input type="checkbox" id="copyAttFromLEXEC">
-        <span data-i18n="exe.copyAttFromLatest">Copy attachments from latest execution</span>
-      </label>
-      <div style="font-size:12.5px;margin:6px 0 4px;">
-        <label class="file-lbl" style="font-weight:600;" data-i18n="exe.attachmentsUpload">Attach file(s)</label>:
-        <input type="file" id="execAttachmentFile" multiple style="font-size:12px;">
-      </div>
     </div>
 
     <div class="form-group">
@@ -380,43 +246,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
     <div class="form-group">
       <label data-i18n="esr.notes">Notes</label>
       <textarea class="form-control" id="txtNotes" data-i18n-placeholder="esr.notesPlaceholder"></textarea>
-    </div>
-
-    <!-- Refs #1393: issue-tracker integration (legacy bug_create_into_bts /
-         copyIssues checkboxes + create_issue.inc.tpl form, exec_controls.inc.tpl:
-         62-89 + exec_img_controls.inc.tpl:79-89). The 'Create Issue' controls
-         are offered while the tracker is enabled, up & running and the adapter
-         can create issues (its.tl_can_create_issue); metadata selects render
-         only when the tracker provides them (JIRA; GitHub has none). -->
-    <div class="form-group" id="itsGroup" style="display:none;border:1px solid #eee;border-radius:6px;padding:10px 14px;background:#fafafa;">
-      <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">
-        <i class="fa fa-bug" style="color:#e6605e;margin-right:6px;"></i>
-        <span data-i18n="esr.issueTracker">Issue tracker</span>
-        <span id="itsTrackerName"></span>
-      </div>
-      <label style="font-size:12.5px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
-        <input type="checkbox" id="itsCreateIssue">
-        <span data-i18n="esr.createIssue">Create Issue</span>
-      </label>
-      <div id="itsFields" style="display:none;margin-left:22px;margin-bottom:8px;">
-        <label data-i18n="esr.bugSummary">Issue Summary</label>
-        <input type="text" class="form-control" id="itsBugSummary" maxlength="200" style="margin-bottom:8px;">
-        <label data-i18n="esr.bugDescription">Issue Description</label>
-        <textarea class="form-control" id="itsBugDescription" rows="3" style="margin-bottom:8px;"></textarea>
-        <div id="itsMeta"></div>
-        <label style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
-          <input type="checkbox" id="itsAddLinkToTL">
-          <span data-i18n="esr.addLinkToTL">Add Link in Issue Tracker to Test Case Execution</span>
-        </label>
-        <label style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px;margin-bottom:4px;cursor:pointer;">
-          <input type="checkbox" id="itsAddLinkToTLPrintView">
-          <span data-i18n="esr.addLinkToTLPrintView">Add Link in Issue Tracker to Test Case Execution Print View</span>
-        </label>
-      </div>
-      <label style="font-size:12.5px;font-weight:600;color:#444;display:flex;align-items:center;gap:6px;margin-bottom:8px;cursor:pointer;">
-        <input type="checkbox" id="itsCopyIssues">
-        <span data-i18n="esr.copyLatestIssues">Copy issues from latest execution</span>
-      </label>
     </div>
 
     <div class="form-group" id="execDurGroup" style="display:none;">
@@ -441,48 +270,6 @@ select option.opt-closed { color: #7a6a3a; font-style: italic; }
 
 <div class="toast" id="toast"></div>
 <div class="loading-overlay" id="loadingOverlay"><i class="fa fa-spinner fa-spin" style="margin-right:8px;"></i><span data-i18n="esr.saving">Saving... please wait.</span></div>
-
-<!-- Link Bug to Execution modal (mirrors legacy bugAdd.php?user_action=link
-     + exec_show_tc_exec.inc.tpl open_bug_add_window): binds a bug id to the
-     PRIOR execution of this tc on this build (step 0 = case-level). The same
-     modal supports both 'link existing' and 'create new' (doCreate) modes. -->
-<div class="modal fade" id="linkBugModal" tabindex="-1" role="dialog">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="fa fa-bug" style="color:#e6605e;margin-right:6px;"></i>
-          <span data-i18n="esr.linkBugTitle">Link bug to execution</span></h5>
-        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-      </div>
-      <div class="modal-body">
-        <p id="linkBugTarget"></p>
-        <div class="bug-mode-toggle" role="tablist">
-          <button type="button" class="bug-mode-btn active" id="modeLinkBtn" onclick="setBugMode('link')"
-            data-i18n="esr.linkExisting">&nbsp;</button>
-          <button type="button" class="bug-mode-btn" id="modeCreateBtn" onclick="setBugMode('create')"
-            data-i18n="esr.createNew">&nbsp;</button>
-        </div>
-        <div id="bugModeLink">
-          <label for="linkBugId" data-i18n="esr.bugId">Bug / issue ID</label>
-          <input type="text" class="form-control" id="linkBugId" maxlength="120">
-        </div>
-        <div id="bugModeCreate" style="display:none;">
-          <label for="bugCreateSummary" data-i18n="esr.bugSummary">Issue Summary</label>
-          <input type="text" class="form-control" id="bugCreateSummary" maxlength="200">
-          <label for="bugCreateDescription" data-i18n="esr.bugDescription">Issue Description</label>
-          <textarea class="form-control" id="bugCreateDescription" rows="4" maxlength="4000"></textarea>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn-dark" data-dismiss="modal"><span data-i18n="esr.cancel">Cancel</span></button>
-        <button type="button" class="btn-teal" id="btnLinkBug" onclick="doLinkBug()" style="display:none;">
-          <i class="fa fa-link"></i> <span data-i18n="esr.linkBug">Link bug</span></button>
-        <button type="button" class="btn-teal" id="btnCreateBug" onclick="doCreateBug()" style="display:none;">
-          <i class="fa fa-plus"></i> <span data-i18n="esr.createAndLinkBug">Create &amp; link bug</span></button>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -536,34 +323,6 @@ $(function () {
   $('#btnPrev').on('click', function () { navTo('prev'); });
   $('#btnClose').on('click', function () {
     if (window.history.length > 1) window.history.back(); else window.close();
-  });
-
-  // Issue #1392: history_on toggle (legacy btn_history_on/btn_history_off).
-  // Persist in the session via ?action=set_history, then re-fetch the context
-  // so the table expands to all executions (or collapses back to the
-  // "Latest execution (any build)" + current-build last execution).
-  $('#btnHistory').on('click', function () {
-    var targetOn = ctx.info && ctx.info.history && ctx.info.history.on ? 0 : 1;
-    $('#btnHistory').prop('disabled', true);
-    $.ajax({
-      url: '/api/execsetresults/?action=set_history',
-      method: 'POST',
-      data: { history_on: targetOn },
-      dataType: 'json',
-      headers: { 'X-Requested-With': 'XMLHttpRequest' }
-    }).done(function (res) {
-      $('#btnHistory').prop('disabled', false);
-      if (!res || res.status !== 'ok') {
-        toast((res && res.message) || TLi18n.t('esr.errLoad'), true);
-        return;
-      }
-      loadInfo();
-    }).fail(function (xhr) {
-      $('#btnHistory').prop('disabled', false);
-      var msg = TLi18n.t('esr.errLoad');
-      try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-      toast(msg, true);
-    });
   });
 });
 
@@ -744,19 +503,12 @@ renderSuiteBlock(r);
 
   renderTcSpecSections(r);
 
-  // Issue #1395: testcase-scoped custom fields of the executed version —
-  // design-time values (before_steps_results + standard_location), testplan
-  // design values, and execution-time input block (legacy processTestCase).
-
-  renderTcaseCfields(r);
-
   // Refs #1398: header extra controls (direct link / print / import XML /
   // remote exec), notes panels, execution-type + duration meta row.
   renderHeaderActions(r);
   renderNotesPanel(r);
   renderTcMeta(r);
   renderAssignment(r);
-  renderNewestVersion(r);
 
   // prior execution box (hidden when the selected build has no execution —
   // e.g. a closed build that was never executed; matches the re-fetch on
@@ -768,17 +520,7 @@ renderSuiteBlock(r);
       esc(statusLabel(r.prior.status)) +
       ' &middot; ' + esc(TLi18n.t('esr.by')) + ' ' + esc(r.prior.tester_login) +
       (r.prior.execution_ts ? ' &middot; ' + esc(r.prior.execution_ts) : '') +
-      (r.prior.notes ? '<br><span style="font-weight:400;">' + esc(r.prior.notes) + '</span>' : '') +
-      priorBugsHtml(r)).show();
-    $('#priorBox').find('[data-role="its-link"], [data-role="its-unlink"]').off('click.its').on('click.its', function () {
-      var $t = $(this);
-      var bug = $t.data('bug');
-      if ($t.data('role') === 'its-unlink') { doUnlinkBug(bug); return; }
-      openItsLinkBug(bug);
-    });
-    $('#priorBox').find('[data-role="its-add"]').off('click.its').on('click.its', function () {
-      openItsLinkBug(null);
-    });
+      (r.prior.notes ? '<br><span style="font-weight:400;">' + esc(r.prior.notes) + '</span>' : '')).show();
     var priorStatus = String(r.prior.status).toLowerCase();
     $('#statusRow .st-btn[data-code="' + priorStatus + '"]').addClass('active');
     ctx.statusCode = priorStatus;
@@ -792,22 +534,6 @@ renderSuiteBlock(r);
     ctx.statusCode = '';
     $('#statusRow .st-btn').removeClass('active');
   }
-
-  // Issue #1392: execution-history section (toggle state, any-build box and
-  // the other_execs table) — rendered after the prior box so the single-run
-  // resume box stays on top and the history table follows beneath it.
-  renderHistory(r);
-
-  // Issue #1394: execution attachments block — prior-run download links,
-  // exec_mode->new_exec == 'latest', legacy exec_img_controls.inc.tpl:69-73),
-  // and a multi-file upload picker for the NEW execution. Only offered while
-  // the build is open AND the user holds the Execute grant; the closed-build/
-  // read-only branch of applyBuildState() blanks it.
-  renderExecAttachments(r);
-
-  // Refs #1393: issue-tracker integration panel (create-issue-on-save +
-  // copy-issues-from-latest checkboxes, gated on its.* + write access).
-  renderIts(r);
 
   if (r.exec_duration_enabled) $('#execDurGroup').show();
 
@@ -1081,65 +807,6 @@ function renderAssignment(r) {
   $box.html(h).show();
 }
 
-// ---------------------------------------------------------------------------
-// Refs #1396: newest-version handling (legacy exec_show_tc_exec.inc.tpl:
-// 455-474). When the BFF resolved a version that is NOT the latest version of
-// the test case (has_newest_version), render the legacy "Attention: This is
-// not the latest available version" warning under the title bar. The
-// "Update Linked TCV To The Latest" button (write-enabled contexts only)
-// re-points the plan link to the newest version via ?action=update_link and
-// reloads the popup on the new version (in-place, like the build switch).
-// ---------------------------------------------------------------------------
-function renderNewestVersion(r) {
-  var $box = $('#newestVerBox');
-  if (!r || !r.has_newest_version || !r.newest_version_id) {
-    $box.hide().off('click'); return;
-  }
-  var msg = TLi18n.t('esr.hasNewestVersionMsg');
-  if (r.newest_version_number) {
-    msg += ' (' + TLi18n.t('esr.version') + ' v' + r.newest_version_number + ')';
-  }
-  $('#newestVerMsg').text(msg);
-  var canUpdate = r.grants && r.grants.can_execute;
-  $('#btnLinkLatest').toggle(!!canUpdate);
-  $box.show();
-  $('#btnLinkLatest').off('click.esrnv').on('click.esrnv', function () {
-    var btn = $('#btnLinkLatest');
-    btn.prop('disabled', true);
-    var fd = {
-      tplan_id: ctx.tplanId,
-      tcase_id: ctx.tcaseId,
-      tcversion_id: ctx.tcversionId
-    };
-    $.post('/api/execsetresults/?action=update_link', fd)
-      .done(function (res) {
-        btn.prop('disabled', false);
-        if (!res || res.status !== 'ok') {
-          toast((res && res.message) || TLi18n.t('esr.errUpdateLink'), true);
-          return;
-        }
-        toast(TLi18n.t('esr.linkUpdated'));
-        // re-target this popup to the newest linked version and refresh the
-        // context in place (legacy reloads the whole page with the new
-        // version_id after linkLatestVersion processing)
-        ctx.tcversionId = parseInt(res.new_tcversion_id || '0', 10) || ctx.tcversionId;
-        try {
-          var u = new URL(window.location.href);
-          u.searchParams.set('version_id', String(ctx.tcversionId));
-          u.searchParams.set('tcversion_id', String(ctx.tcversionId));
-          window.history.replaceState({}, '', u.toString());
-        } catch (e) {}
-        loadInfo();
-      })
-      .fail(function (xhr) {
-        btn.prop('disabled', false);
-        var msg = TLi18n.t('esr.errUpdateLink');
-        try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-        toast(msg, true);
-      });
-  });
-}
-
 // Closed-build read-only state (legacy execSetResults parity): when the
 // selected build is not executable (closed), show the "Build is closed" box
 // and disable every WRITE control while still allowing result review
@@ -1168,16 +835,8 @@ function applyBuildState(r) {
     $('#txtNotes').prop('disabled', true);
     $('#txtExecDuration').prop('disabled', true);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', true);
-    $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', true);
     $('#btnSavePartial').prop('disabled', true).css('opacity', .5);
     $('#assignTask').prop('disabled', true);
-    // Issue #1394: execution-level attachments are write controls — disable
-    // upload + copy-from-latest on closed builds / read-only, while prior-run
-    // download links stay reviewable.
-    $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', true);
-    // Refs #1393: issue-tracker write controls follow the same closed-build /
-    // read-only gate.
-    $('#itsGroup input, #itsGroup select, #itsGroup textarea').prop('disabled', true);
   } else {
     $('#btnSave').prop('disabled', false).css('opacity', 1);
     $('#btnSaveNext').prop('disabled', false).css('opacity', 1);
@@ -1190,11 +849,8 @@ function applyBuildState(r) {
     $('#txtNotes').prop('disabled', false);
     $('#txtExecDuration').prop('disabled', false);
     $('#stepsBody select[data-step], #stepsBody [data-stepnotes], #stepsBody [data-stepfileinput]').prop('disabled', false);
-    $('#execCFields input, #execCFields select, #execCFields textarea').prop('disabled', false);
     $('#btnSavePartial').prop('disabled', false).css('opacity', 1);
     $('#assignTask').prop('disabled', false);
-    $('#execAttachGroup input[type="file"], #execAttachGroup input[type="checkbox"]').prop('disabled', false);
-    $('#itsGroup input, #itsGroup select, #itsGroup textarea').prop('disabled', false);
   }
 }
 
@@ -1233,515 +889,6 @@ function stepAttachmentBlock(stepId, atts) {
   return h + '</div>';
 }
 
-// Issue #1394: execution-level attachment panel (legacy exec_show_tc_exec
-// inc.tpl:414-433 + exec_img_controls.inc.tpl:69-73). Renders, when TestLink
-// feature attachments are enabled:
-//   - download-only links of the PRIOR (latest) run's execution attachments
-//     (legacy "Attachments of latest execution" — download link + open
-//     edit-window button built from $priorAttachments);
-//   - a 'Copy attachments from latest execution' checkbox, offered ONLY when
-//     exec_cfg->exec_mode->new_exec == 'latest' (BFF new_exec_latest flag);
-//   - a multi-file upload picker for the NEW execution named exec_attachments[]
-//     so the BFF save handler can sink them onto the fresh execution row.
-// Left visible even for read-only reviewers of an open build: the prior-run
-// download links must stay reviewable, while the write controls below are
-// disabled by applyBuildState() when the build closes / rights drop.
-function renderExecAttachments(r) {
-  ctx.newExecLatest = !!r.new_exec_latest;
-
-  var attachmentsEnabled = !!(r.attachments_enabled);
-  if (!attachmentsEnabled) {
-    $('#execAttachGroup').hide().empty();
-    return;
-  }
-
-  // prior-run execution attachments — download-only links
-  var priorAtts = (r.prior && r.prior.attachments) || [];
-  var h = '';
-  if (priorAtts.length) {
-    h += '<span style="font-weight:600;">' + esc(TLi18n.t('esr.attachments')) + ':</span> ';
-    h += priorAtts.map(function (a) {
-      return '<a href="' + esc(a.download_url) + '" target="_blank" ' +
-        'title="' + esc(a.title || a.file_name) + '" style="margin-left:8px;">' +
-        '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>';
-    }).join('');
-  } else {
-    h += '<span style="font-style:italic;color:#888;">' +
-         esc(TLi18n.t('exe.noAttachments')) + '</span>';
-  }
-
-  $('#priorAtts').html(h);
-
-  // the write controls (copy-from-latest + upload) exist only while TestLink
-  // feature attachments are on; the copy checkbox additionally requires the
-  // exec_mode->new_exec='latest' gate AND a prior execution to copy from (the
-  // copy also covers step-level attachments, so absence of execution-level
-  // files must not hide it — legacy execSetResults.php:169 gates only on
-  // new_exec=='latest').
-  var copyOn = ctx.newExecLatest && !!r.prior;
-  $('#copyAttFromLEXEC').prop('checked', false).closest('label').css('display', copyOn ? 'inline-flex' : 'none');
-
-  // reset any files queued from a previous context/build re-render
-  $('#execAttachmentFile').val('');
-
-  $('#execAttachGroup').show();
-}
-
-// ---------------------------------------------------------------------------
-// Refs #1393: issue-tracker integration in the Set Results popup.
-//  - renderIts(): the create-issue-on-save + copy-issues controls (legacy
-//    bug_create_into_bts / copyIssues checkboxes, exec_controls.inc.tpl +
-//    exec_img_controls.inc.tpl), gated on the its.* block of the init payload.
-//  - priorBugsHtml(): the linked-issue chips of the PRIOR execution (legacy
-//    inc_show_bug_table.tpl inside the history table) with open / link /
-//    create / delete icons.
-//  - openItsLinkBug/doLinkBug/doCreateBug/doUnlinkBug: the per-execution bug
-//    management on the BFF actions (mirror execTest.html linkBugModal flow).
-// ---------------------------------------------------------------------------
-function renderIts(r) {
-  var its = r.its || {};
-  ctx.its = its;
-  $('#itsGroup').hide();
-  if (!its.enabled || !its.tl_can_create_issue) {
-    ctx.itsCreateOn = false;
-    return;
-  }
-  $('#itsTrackerName').text(its.tracker_name ? ' \u00b7 ' + its.tracker_name : '');
-  $('#itsCreateIssue').prop('checked', false);
-  $('#itsAddLinkToTL').prop('checked', !!its.add_link_to_tl_checked);
-  $('#itsAddLinkToTLPrintView').prop('checked', !!its.add_link_to_tl_print_view_checked);
-  var copyOn = !!its.copy_latest_exec_issues_enabled;
-  $('#itsCopyIssues').prop('checked', !!its.copy_latest_exec_issues_default);
-  $('#itsCopyIssues').closest('label').css('display', copyOn ? 'flex' : 'none');
-
-  // metadata selects (JIRA adapters); GitHub leaves them null -> skipped
-  var meta = its.metadata;
-  var metaHtml = '';
-  if (meta && (meta.issueTypes || meta.priorities || meta.components || meta.versions)) {
-    var st = function (name, opts) {
-      if (!opts) return '';
-      var h = '<label data-i18n="' + (name === 'is' ? 'esr.issueType' : 'esr.' + name) + '"></label>' +
-             '<select class="form-control" style="margin-bottom:8px;" name="' + name + '">' +
-             opts + '</select>';
-      return h;
-    };
-    if (meta.issueTypes) metaHtml += st('is', meta.issueTypes);
-    if (meta.priorities) metaHtml += st('priority', meta.priorities);
-    if (meta.versions) metaHtml += st('version', meta.versions);
-    if (meta.components) metaHtml += st('component', meta.components);
-  }
-  $('#itsMeta').html(metaHtml || '');
-  $('#itsFields').hide();
-  $('#itsCreateIssue').off('change.its').on('change.its', function () {
-    $('#itsFields').toggle(this.checked);
-  });
-  $('#itsGroup').show();
-}
-
-// ---------------------------------------------------------------------------
-// Issue #1392: execution history section (legacy exec_show_tc_exec.inc.tpl).
-//  - history_on=FALSE (+ show_last_exec_any_build): the "Latest execution
-//    (any build)" box (:75-177) + a one-row table with the last execution of
-//    the selected build/platform (legacy get_last_execution wrapped set).
-//  - history_on=TRUE: the full exec_history table (:185-449), one row per
-//    historical execution across the builds/platforms allowed by
-//    show_history_all_builds / show_history_all_platforms.
-// Per-row actions mirror legacy: edit-notes (openExecEditWindow →
-// editExecution.html), attachment download links + open-upload (legacy
-// openFileUploadWindow), bug link/create (open_bug_add_window →
-// linkBugModal bound to that execution), delete execution w/ confirm (legacy
-// confirm_and_submit do_delete → ?action=deleteExecution), run-mode
-// manual/auto icon, steps-print (openPrintPreview 'exec' → execPrint.html).
-// ---------------------------------------------------------------------------
-function renderHistory(r) {
-  ctx.hist = r.history || {};
-  var histOn = !!ctx.hist.on;
-
-  // toggle button label + tooltip
-  $('#btnHistory').prop('disabled', false);
-  $('#btnHistoryLabel').text(histOn ? TLi18n.t('esr.historyOn') : TLi18n.t('esr.historyOff'));
-  $('#btnHistory').attr('title', histOn ? TLi18n.t('esr.historyToggleOff') : TLi18n.t('esr.historyToggleOn'));
-
-  var others = r.other_execs || [];
-
-  // "Latest execution (any build)" box (legacy exec_show_tc_exec.inc.tpl
-  // :75-177): shown only while history is OFF and the config flag is on.
-  var anyB = (ctx.hist.last_any_build) || null;
-  if (!histOn && ctx.hist.show_last_exec_any_build && anyB &&
-      anyB.status !== '' && anyB.status !== 'n') {
-    var abh = '<i class="fa fa-clock-rotate-left"></i> ' +
-      '<span class="lbl">' + esc(TLi18n.t('esr.lastExecAnyBuild')) + ':</span> ' +
-      esc(TLi18n.t('exechist.colDateTimeRun')) + ': ' + esc(anyB.execution_ts) +
-      ' &middot; ' + esc(TLi18n.t('esr.by')) + ' ' +
-      execTesterLabel(anyB) +
-      ' &middot; ' + esc(TLi18n.t('esr.build')) + ': ' + esc(anyB.build_name) +
-      ' &middot; ' + esc(TLi18n.t('esr.status')) + ': ' + esc(statusLabel(anyB.status));
-    if (anyB.notes) { abh += '<br><span style="font-weight:400;">' + esc(anyB.notes) + '</span>'; }
-    $('#anyBuildBox').html(abh).show();
-  } else {
-    $('#anyBuildBox').hide().html('');
-  }
-
-  var hasPlatforms = !!(r.platforms && r.platforms.length > 0) ||
-                     !!(r.platform_feature_enabled);
-  $('#histWrap').show();
-
-  if (!others.length) {
-    $('#histTitleText').text(histOn ? TLi18n.t('esr.executionHistory')
-                                    : TLi18n.t('esr.lastExecCurrentBuild'));
-    $('#histTitleCount').text('');
-    $('#histBody').html('');
-    $('#histEmpty').text(TLi18n.t('exechist.neverExecuted')).show();
-    $('#historySection').show();
-    return;
-  }
-
-  $('#histEmpty').hide();
-  $('#histTitleText').text(histOn ? TLi18n.t('esr.executionHistory')
-                                  : TLi18n.t('esr.lastExecCurrentBuild'));
-  $('#histTitleCount').text('(' + others.length + ')');
-
-  var colBuild = (!histOn) || ctx.hist.show_history_all_builds;
-  var colPlatform = hasPlatforms && ((!histOn) || ctx.hist.show_history_all_platforms);
-  var itsOn = r.its && r.its.enabled;
-
-  var thead = '<thead><tr>' +
-    '<th>' + esc(TLi18n.t('exechist.colDateTimeRun')) + '</th>' +
-    (colBuild ? '<th>' + esc(TLi18n.t('exechist.colBuild')) + '</th>' : '') +
-    (colPlatform ? '<th>' + esc(TLi18n.t('exechist.colPlatform')) + '</th>' : '') +
-    '<th>' + esc(TLi18n.t('exechist.colTester')) + '</th>' +
-    '<th>' + esc(TLi18n.t('exechist.colStatus')) + '</th>' +
-    '<th title="' + esc(TLi18n.t('exechist.colDuration')) + '">' + esc(TLi18n.t('exechist.colDuration')) + '</th>' +
-    '<th>' + esc(TLi18n.t('exechist.colVersion')) + '</th>' +
-    '<th>' + esc(TLi18n.t('exechist.attachments')) + '</th>' +
-    (itsOn ? '<th>' + esc(TLi18n.t('exechist.bugs')) + '</th>' : '') +
-    '<th class="icon-cell">' + esc(TLi18n.t('exechist.colRunMode')) + '</th>' +
-    '<th class="icon-cell">' + esc(TLi18n.t('esr.actions')) + '</th>' +
-    '</tr></thead>';
-
-  var rows = '';
-  for (var i = 0; i < others.length; i++) {
-    var e = others[i];
-    var stCode = String(e.status_code || '').toLowerCase();
-    var badgeCls = 'st-other';
-    if (e.status_suffix === 'passed') badgeCls = 'st-passed';
-    else if (e.status_suffix === 'failed') badgeCls = 'st-failed';
-    else if (e.status_suffix === 'blocked') badgeCls = 'st-blocked';
-    var stLbl = statusLabel(e.status_code) || e.status_label || e.status_code;
-
-    var acts = '';
-    if (e.can_edit_notes) {
-      acts += '<button type="button" class="icon-btn" title="' + esc(TLi18n.t('exechist.editExecution')) +
-        '" onclick="openHistoryEdit(' + e.execution_id + ',' + e.tcversion_id + ',' + e.testplan_id + ')">' +
-        '<i class="fa fa-pen-to-square"></i></button>';
-    }
-    (e.attachments || []).forEach(function (a) {
-      acts += '<a class="icon-btn" href="' + esc(a.download_url) + '" target="_blank" rel="noopener" ' +
-        'title="' + esc(a.title || a.file_name) + '"><i class="fa fa-paperclip"></i></a>';
-    });
-    if (e.can_edit_notes) {
-      acts += '<button type="button" class="icon-btn" title="' + esc(TLi18n.t('esr.attachFiles')) +
-        '" onclick="openHistoryAttach(' + e.execution_id + ',' + e.tcversion_id + ',' + e.testplan_id + ')">' +
-        '<i class="fa fa-upload"></i></button>';
-    }
-    // steps-print (legacy openPrintPreview('exec', ...))
-    acts += '<button type="button" class="icon-btn" title="' + esc(TLi18n.t('exechist.printPreview')) +
-      '" onclick="openHistoryPrint(' + e.execution_id + ')">' +
-      '<i class="fa fa-print"></i></button>';
-    if (e.can_delete) {
-      acts += '<button type="button" class="icon-btn danger" title="' + esc(TLi18n.t('exe.deleteExecution')) +
-        '" onclick="deleteHistoryExec(' + e.execution_id + ')">' +
-        '<i class="fa fa-trash-can"></i></button>';
-    }
-
-    var bugChips = '';
-    if (itsOn) {
-      var bugMgmt = !!(r.grants && r.grants.can_execute && e.build_is_open);
-      var chips = '';
-      (e.bugs || []).forEach(function (b) {
-        if (b.bug_url) {
-          chips += '<a href="' + esc(b.bug_url) + '" target="_blank" title="' + esc(b.id) +
-            '" class="bug-badge"><span>#' + esc(b.id) + '</span></a> ';
-        } else {
-          chips += '<span class="bug-badge"><span>#' + esc(b.id) + '</span></span> ';
-        }
-        if (bugMgmt) {
-          chips += '<a href="javascript:void(0)" onclick="openItsLinkBugFor(' + e.execution_id +
-            ',\'' + esc(b.id).replace(/&#39;/g, "\\'") + '\');return false;" ' +
-            'title="' + esc(TLi18n.t('esr.linkBug')) + '" style="color:#2d8e88;font-size:11px;">' +
-            '<i class="fa fa-link"></i></a>';
-        }
-      });
-      if (bugMgmt) {
-        chips += '<a href="javascript:void(0)" onclick="openItsLinkBugFor(' + e.execution_id +
-          ',null);return false;" title="' + esc(TLi18n.t('esr.addBug')) +
-          '" style="color:#4ECDC4;font-size:12px;"><i class="fa fa-plus-circle"></i></a>';
-      }
-      bugChips = '<td class="bug-cell">' + (chips || '&ndash;') + '</td>';
-    }
-
-    var buildCell = '';
-    if (colBuild) {
-      buildCell = '<td>' + esc(e.build_name) +
-        (e.build_is_open ? '' : ' <i class="fa fa-lock" title="' + esc(TLi18n.t('exechist.closedBuild')) + '"></i>') +
-        '</td>';
-    }
-
-    rows += '<tr>' +
-      '<td style="white-space:nowrap;">' + esc(e.execution_ts || '-') + '</td>' +
-      buildCell +
-      (colPlatform ? '<td>' + esc(e.platform_name || '-') + '</td>' : '') +
-      '<td>' + esc(e.tester_name || e.tester_login || TLi18n.t('exechist.deletedUser')) + '</td>' +
-      '<td><span class="badge-status ' + badgeCls + '">' + esc(stLbl) + '</span></td>' +
-      '<td style="text-align:right;">' + esc(e.execution_duration || '-') + '</td>' +
-      '<td class="icon-cell">' + esc(e.tcversion_number) + '</td>' +
-      '<td class="icon-cell">' + ((e.attachments && e.attachments.length) ?
-        '<i class="fa fa-paperclip" style="color:#4ECDC4;"></i>' : '&ndash;') + '</td>' +
-      bugChips +
-      '<td class="icon-cell"><i class="fa ' + (e.run_type === 'automated' ? 'fa-robot' : 'fa-user') +
-        '" title="' + esc(e.run_type === 'automated' ? TLi18n.t('exechist.runAuto') : TLi18n.t('exechist.runManual')) + '"></i></td>' +
-      '<td class="icon-cell">' + acts + '</td>' +
-      '</tr>';
-
-    if (e.notes) {
-      rows += '<tr class="hist-row-notes"><td colspan="' + histColspan(others, colBuild, colPlatform, itsOn) + '">' +
-        '<span style="font-weight:700;color:#444;">' + esc(TLi18n.t('exechist.execNotes')) + ':</span> ' +
-        esc(e.notes) + '</td></tr>';
-    }
-    if (e.cf_html) {
-      rows += '<tr class="hist-row-cf"><td colspan="' + histColspan(others, colBuild, colPlatform, itsOn) + '">' +
-        '<span style="font-weight:700;color:#2d8e88;">' + esc(TLi18n.t('exechist.customFields')) + ':</span> ' +
-        e.cf_html + '</td></tr>';
-    }
-    if (e.attachments && e.attachments.length) {
-      var al = '<span style="font-weight:700;color:#444;">' + esc(TLi18n.t('exechist.attachments')) + ':</span> ';
-      var links = [];
-      e.attachments.forEach(function (a) {
-        links.push('<a href="' + esc(a.download_url) + '" target="_blank" title="' +
-          esc(a.title || a.file_name) + '">' +
-          '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>');
-      });
-      rows += '<tr class="hist-row-att"><td colspan="' + histColspan(others, colBuild, colPlatform, itsOn) + '">' +
-        al + links.join(', ') + '</td></tr>';
-    }
-    if (itsOn && e.bugs && e.bugs.length) {
-      var bl = '<span style="font-weight:700;color:#444;">' + esc(TLi18n.t('exechist.bugs')) + ':</span> ';
-      var bchips = [];
-      e.bugs.forEach(function (b) {
-        if (b.bug_url) {
-          bchips.push('<a href="' + esc(b.bug_url) + '" target="_blank" class="bug-badge">#' +
-            esc(b.id) + '</a>');
-        } else {
-          bchips.push('<span class="bug-badge">#' + esc(b.id) + '</span>');
-        }
-      });
-      rows += '<tr class="hist-row-bug"><td colspan="' + histColspan(others, colBuild, colPlatform, itsOn) + '">' +
-        bl + bchips.join(' ') + '</td></tr>';
-    }
-  }
-
-  $('#histBody').html('<table class="hist-table">' + thead + '<tbody>' + rows + '</tbody></table>');
-  $('#historySection').show();
-}
-
-function histColspan(others, colBuild, colPlatform, itsOn) {
-  return 9 + (colBuild ? 1 : 0) + (colPlatform ? 1 : 0) + (itsOn ? 1 : 0);
-}
-
-function execTesterLabel(u) {
-  return (u.tester_login && u.tester_login !== '') ? u.tester_login :
-    TLi18n.t('exechist.deletedUser');
-}
-
-// history row actions
-function openHistoryEdit(execId, tcversionId, tplanId) {
-  window.open('/gui/templates/execute/editExecution.html?exec_id=' + execId +
-    '&tcversion_id=' + tcversionId + '&tplan_id=' + tplanId +
-    '&tproject_id=' + ctx.tprojectId, 'execution_notes',
-    'width=820,height=620,resizable=yes,scrollbars=yes');
-}
-
-function openHistoryPrint(execId) {
-  window.open('/gui/templates/execute/execPrint.html?id=' + execId, '_blank',
-    'width=800,height=600,resizable=yes,scrollbars=yes');
-}
-
-function openHistoryAttach(execId, tcversionId, tplanId) {
-  openHistoryEdit(execId, tcversionId, tplanId);
-}
-
-function deleteHistoryExec(execId) {
-  if (!window.confirm(TLi18n.t('exe.confirmDeleteExecution'))) return;
-  $.ajax({
-    url: '/api/execsetresults/?action=deleteExecution',
-    method: 'POST',
-    contentType: 'application/json',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: execId })
-  }).done(function (r) {
-    if (r.status === 'ok' && r.deleted) {
-      toast(TLi18n.t('exe.deletedOk'));
-      loadInfo();
-    } else { toast(r.message || TLi18n.t('exe.errDelete'), true); }
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('exe.errDelete');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-  });
-}
-
-// open the link-bug modal bound to an arbitrary execution id (history rows).
-function openItsLinkBugFor(execId, bugId) {
-  if (!execId) { toast(TLi18n.t('esr.errNoExec'), true); return; }
-  window._itsBug = { execId: execId, bugId: bugId || '' };
-  $('#linkBugTarget').html(TLi18n.t('esr.linkBugTarget', { id: execId }));
-  setBugMode('link');
-  $('#linkBugId').val(bugId || '');
-  $('#bugCreateSummary').val('');
-  $('#bugCreateDescription').val('');
-  $('#linkBugModal').modal('show');
-  setTimeout(function () {
-    if (bugId) { $('#bugCreateSummary').focus(); } else { $('#linkBugId').focus(); }
-  }, 250);
-}
-
-// Linked-issue chips inside the prior-execution box (legacy history-table bug
-// column with open_bug_add_window icons). Link/create/icons are gated on ITS
-// connected + prior build still open + user able to execute (legacy
-// $gui->tlCanCreateIssue && $tc_old_exec.build_is_open).
-function priorBugsHtml(r) {
-  var its = r.its || {};
-  var bugs = (r.prior && r.prior.bugs) || [];
-  if (!its.enabled || !its.up_and_running || !bugs.length) return '';
-  var canMgmt = !!(r.grants && r.grants.can_execute && r.prior.build_open);
-  var h = '<div class="prior-bugs" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">';
-  bugs.forEach(function (b) {
-    if (b.bug_url) {
-      h += '<a href="' + esc(b.bug_url) + '" target="_blank" title="' + esc(b.id) + '" class="bug-badge' +
-           (b.is_resolved ? ' resolved' : '') + '">#<span>' + esc(b.id) + '</span></a>';
-    } else {
-      h += '<span class="bug-badge' + (b.is_resolved ? ' resolved' : '') + '">#<span>' + esc(b.id) + '</span></span>';
-    }
-    if (canMgmt) {
-      h += '<a href="javascript:void(0)" data-role="its-link" data-bug="' + esc(b.id) + '" ' +
-           'title="' + esc(TLi18n.t('esr.linkBug')) + '" ' +
-           'style="color:#2d8e88;font-size:11px;text-decoration:none;"><i class="fa fa-link"></i></a>' +
-           '<a href="javascript:void(0)" data-role="its-unlink" data-bug="' + esc(b.id) + '" ' +
-           'title="' + esc(TLi18n.t('esr.unlinkBug')) + '" ' +
-           'style="color:#e6605e;font-size:11px;text-decoration:none;margin-right:4px;"><i class="fa fa-trash"></i></a>';
-    }
-  });
-  if (canMgmt) {
-    h += '<a href="javascript:void(0)" data-role="its-add" title="' +
-         esc(TLi18n.t('esr.addBug')) + '" style="color:#4ECDC4;font-size:12px;text-decoration:none;">' +
-         '<i class="fa fa-plus-circle"></i></a>';
-  }
-  h += '</div>';
-  return h;
-}
-
-// Open the link-bug modal bound to the PRIOR execution (case-level). The
-// legacy flow addresses the previous execution of this tc/build; the BFF
-// enforces plan membership + testplan_execute + open build.
-function openItsLinkBug(bug) {
-  var execId = ctx.prior ? ctx.prior.execution_id : 0;
-  if (!execId) { toast(TLi18n.t('esr.errNoExec'), true); return; }
-  openItsLinkBugFor(execId, bug);
-}
-
-function setBugMode(mode) {
-  window._itsBugMode = (mode === 'create') ? 'create' : 'link';
-  var isCreate = window._itsBugMode === 'create';
-  $('#modeLinkBtn').toggleClass('active', !isCreate);
-  $('#modeCreateBtn').toggleClass('active', isCreate);
-  $('#bugModeLink').toggle(!isCreate);
-  $('#bugModeCreate').toggle(isCreate);
-  $('#btnLinkBug').toggle(!isCreate);
-  $('#btnCreateBug').toggle(isCreate);
-  if (isCreate) {
-    $('#bugCreateSummary').val('');
-    $('#bugCreateDescription').val(
-      '# ' + (ctx.info && ctx.info.tcase ? afterHash(ctx.info.tcase) : '') + '\n\n' +
-      TLi18n.t('esr.bugCreatedFromExec'));
-  }
-}
-function afterHash(tc) { return (tc.external_id || '') + ' ' + (tc.name || ''); }
-
-function doLinkBug() {
-  var tgt = window._itsBug;
-  if (!tgt) return;
-  var bugId = $.trim($('#linkBugId').val());
-  if (bugId === '') { toast(TLi18n.t('esr.bugIdRequired'), true); return; }
-  var $btn = $('#btnLinkBug').prop('disabled', true);
-  $.ajax({
-    url: '/api/execsetresults/?action=linkBug',
-    method: 'POST',
-    contentType: 'application/json',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: tgt.execId, bug_id: bugId, tcstep_id: 0 })
-  }).done(function (r) {
-    if (r.status === 'ok' && r.linked) {
-      $('#linkBugModal').modal('hide');
-      toast(TLi18n.t('esr.linkBugDone', { id: bugId }));
-      loadInfo();
-    } else { toast(r.message || TLi18n.t('esr.errLinkBug'), true); }
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('esr.errLinkBug');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-  }).always(function () { $btn.prop('disabled', false); });
-}
-
-function doCreateBug() {
-  var tgt = window._itsBug;
-  if (!tgt) return;
-  var summary = $.trim($('#bugCreateSummary').val());
-  if (summary === '') { toast(TLi18n.t('esr.bugSummaryRequired'), true); return; }
-  var $btn = $('#btnCreateBug').prop('disabled', true);
-  $.ajax({
-    url: '/api/execsetresults/?action=createBug',
-    method: 'POST',
-    contentType: 'application/json',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({
-      tplan_id: ctx.tplanId, execution_id: tgt.execId, tcstep_id: 0,
-      bug_summary: summary, bug_description: $('#bugCreateDescription').val() || ''
-    })
-  }).done(function (r) {
-    if (r.status === 'ok' && r.created) {
-      $('#linkBugModal').modal('hide');
-      toast(TLi18n.t('esr.createBugDone', { id: r.bug_id }));
-      loadInfo();
-    } else { toast(r.message || TLi18n.t('esr.errCreateBug'), true); }
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('esr.errCreateBug');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-  }).always(function () { $btn.prop('disabled', false); });
-}
-
-function doUnlinkBug(bugId) {
-  var execId = ctx.prior ? ctx.prior.execution_id : 0;
-  if (!execId || !bugId) return;
-  if (!window.confirm(TLi18n.t('esr.unlinkConfirm', { id: bugId }))) return;
-  $.ajax({
-    url: '/api/execsetresults/?action=unlinkBug',
-    method: 'POST',
-    contentType: 'application/json',
-    headers: { 'X-Requested-With': 'XMLHttpRequest' },
-    data: JSON.stringify({ tplan_id: ctx.tplanId, execution_id: execId, bug_id: bugId, tcstep_id: 0 })
-  }).done(function (r) {
-    if (r.status === 'ok' && r.unlinked) {
-      toast(TLi18n.t('esr.unlinkBugDone', { id: bugId }));
-      loadInfo();
-    } else { toast(r.message || TLi18n.t('esr.errUnlinkBug'), true); }
-  }).fail(function (xhr) {
-    var msg = TLi18n.t('esr.errUnlinkBug');
-    try { msg = JSON.parse(xhr.responseText).message || msg; } catch (e) {}
-    toast(msg, true);
-  });
-}
-
 // ---------------------------------------------------------------------------
 // Test suite block (legacy exec_show_tc_exec.inc.tpl:36-71). Renders, when the
 // executed test case lives inside a test suite:
@@ -1756,141 +903,6 @@ function openSuiteWindow(tsuiteId) {
   window.open('/gui/templates/testcases/suiteView.html?id=' + tsuiteId +
     '&tproject_id=' + ctx.tprojectId, 'TestSuite',
     'width=900,height=650,resizable=yes,scrollbars=yes,dependent=yes');
-}
-
-// ---------------------------------------------------------------------------
-// Issue #1395: testcase-scoped custom fields of the executed version (legacy
-// processTestCase() -> design_time_cfields / testplan_design_time_cfields /
-// execution_time_cfields, rendered by exec_test_spec.inc.tpl):
-//   - design-time CF VALUES grouped by cfield_testprojects.location:
-//     location 2 (before_steps_results) rendered between Preconditions and the
-//     Steps table (legacy tpl line 47), every other location (standard_location
-//     = 1, ...) rendered after the steps (legacy tpl line 100);
-//   - testplan-design CF VALUES (legacy tpl line 124);
-//   - execution-time CF INPUTS (legacy tpl line 110-119, gated on the version
-//     being active + Execute grant): raw legacy input HTML under the exact
-//     'custom_field_<type>_<id>_<tcaseId>' names saved by the BFF.
-// ---------------------------------------------------------------------------
-
-function renderTcaseCfields(r) {
-  ctx.cfsBeforeSteps = [];
-  ctx.cfsAfterSteps = [];
-  ctx.cfsTplanDesign = [];
-  ctx.execCFields = [];
-
-  var designGroups = r.design_cfs || [];
-  for (var g = 0; g < designGroups.length; g++) {
-    var loc = designGroups[g].location;
-    var cfs = designGroups[g].cfs || [];
-    // location 2 = before_steps_results (between steps and preconditions);
-    // everything else (1 = standard_location and later slots) after the steps
-    var target = (loc === 2) ? ctx.cfsBeforeSteps : ctx.cfsAfterSteps;
-    for (var c = 0; c < cfs.length; c++) { target.push(cfs[c]); }
-  }
-
-  ctx.cfsTplanDesign = r.testplan_design_cfs || [];
-  ctx.execCFields = r.exec_cfields || [];
-
-  // before_steps_results values
-  if (ctx.cfsBeforeSteps.length > 0) {
-    var bh = '';
-    for (var i = 0; i < ctx.cfsBeforeSteps.length; i++) {
-      bh += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
-        esc(ctx.cfsBeforeSteps[i].label) + '</td>' +
-        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
-        esc(ctx.cfsBeforeSteps[i].value) + '</td></tr>';
-    }
-    $('#cfsBeforeStepsBody').html(bh);
-    $('#cfsBeforeSteps').show();
-  } else {
-    $('#cfsBeforeSteps').hide().html('');
-  }
-
-  // standard_location + other design values (after the steps)
-  if (ctx.cfsAfterSteps.length > 0) {
-    var ah = '';
-    for (i = 0; i < ctx.cfsAfterSteps.length; i++) {
-      ah += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
-        esc(ctx.cfsAfterSteps[i].label) + '</td>' +
-        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
-        esc(ctx.cfsAfterSteps[i].value) + '</td></tr>';
-    }
-    $('#cfsAfterStepsBody').html(ah);
-    $('#cfsAfterSteps').show();
-  } else {
-    $('#cfsAfterSteps').hide().html('');
-  }
-
-  // testplan-design values
-  if (ctx.cfsTplanDesign.length > 0) {
-    var th = '';
-    for (i = 0; i < ctx.cfsTplanDesign.length; i++) {
-      th += '<tr><td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#22242a;font-weight:600;">' +
-        esc(ctx.cfsTplanDesign[i].label) + '</td>' +
-        '<td style="padding:5px 10px;border-bottom:1px solid #e3efec;color:#333;">' +
-        esc(ctx.cfsTplanDesign[i].value) + '</td></tr>';
-    }
-    $('#cfsTestplanDesignBody').html(th);
-    $('#cfsTestplanDesign').show();
-  } else {
-    $('#cfsTestplanDesign').hide().html('');
-  }
-
-  // execution-time inputs (only rendered by the BFF when the user holds the
-  // Execute grant; the version being inactive is handled by applyBuildState)
-  if (r.exec_cfields_html) {
-    $('#execCFields').html(r.exec_cfields_html);
-    $('#execCfWrap').show();
-  } else {
-    $('#execCfWrap').hide().html('');
-  }
-}
-
-// Client-side required/format validation of execution-time CF inputs (mirror
-// execTest.html validateExecCustomFields, Refs #791): names follow the legacy
-// 'custom_field_<type>_<id>_<tcaseId>' contract. Returns {ok, message}.
-function validateExecCustomFields() {
-  var cfMeta = {};
-  (ctx.execCFields || []).forEach(function (cf) { cfMeta[cf.id + ''] = cf; });
-  var emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  var bad = null;
-  var cbGroups = {};
-  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
-    var $el = $(this);
-    var name = $el.attr('name') || '';
-    if (name.indexOf('custom_field_') !== 0) return;
-    var parts = name.split('_');
-    var cfType = parseInt(parts[2], 10);
-    var cf = cfMeta[parts[3]];
-    var label = cf ? (cf.label || name) : name;
-    if ($el.attr('type') === 'checkbox') {
-      var baseName = name.replace(/\[\]$/, '');
-      if (!cbGroups[baseName]) { cbGroups[baseName] = { required: !!(cf && cf.required), label: label, anyChecked: false }; }
-      if ($el.is(':checked')) { cbGroups[baseName].anyChecked = true; }
-      return;
-    }
-    var val = $el.is('select')
-      ? (($el.attr('multiple') ? ($el.val() || []) : [$el.val() || '']).join('|'))
-      : ($el.val() == null ? '' : $el.val());
-    var isEmpty = (val === '' || val == null);
-    if (cf && cf.required && isEmpty) { bad = { label: label, type: 'req' }; return; }
-    if (isEmpty) return;
-    if (cfType === 1 && /[^\d]/.test(String(val))) { bad = { label: label, type: 'numeric' }; return; }
-    if (cfType === 2 && (isNaN(Number(val)) || /^\s+$/.test(String(val)))) { bad = { label: label, type: 'float' }; return; }
-    if (cfType === 4 && !emailRe.test(String(val))) { bad = { label: label, type: 'email' }; return; }
-  });
-  if (!bad) {
-    $.each(cbGroups, function (k, g) {
-      if (g.required && !g.anyChecked) { bad = { label: g.label, type: 'req' }; return false; }
-    });
-  }
-  if (bad) {
-    if (bad.type === 'req') {
-      return { ok: false, message: TLi18n.t('esr.cfRequired', { field: bad.label }) };
-    }
-    return { ok: false, message: TLi18n.t('esr.cfInvalid', { field: bad.label }) };
-  }
-  return { ok: true };
 }
 
 function renderSuiteBlock(r) {
@@ -2019,24 +1031,6 @@ function renderTcSpecSections(r) {
     $('#requirementsText').html(reqh);
     $('#requirementsBox').show();
   }
-
-  // Issue #1394: tcversion-level attachment download links (legacy
-  // exec_test_spec.inc.tpl:134-139 gui->tcAttachments, download-only).
-  var tcAtts = r.tc_attachments || [];
-  if (tcAtts.length) {
-    var tah = '';
-    tcAtts.forEach(function (a, ai) {
-      tah += (ai ? ' · ' : '') +
-        '<a href="' + esc(a.download_url) + '" target="_blank" ' +
-        'title="' + esc(a.title || a.file_name) + '">' +
-        '<i class="fa fa-paperclip"></i> ' + esc(a.file_name) + '</a>';
-    });
-    $('#tcAtts').html(tah);
-    $('#tcAttsBox').show();
-  } else {
-    $('#tcAtts').html('');
-    $('#tcAttsBox').hide();
-  }
 }
 
 function openReqWindow(requirementId) {
@@ -2138,11 +1132,6 @@ function doSave(navNext) {
   if (navNext && $('#btnSaveNext').prop('disabled')) return;
   if (ctx.statusCode === '') { toast(TLi18n.t('esr.errNoStatus'), true); return; }
 
-  // Issue #1395: execution-time custom fields are mandatory inputs — validate
-  // before submitting (same contract as execTest.html validateExecCustomFields)
-  var cfCheck = validateExecCustomFields();
-  if (!cfCheck.ok) { toast(cfCheck.message, true); return; }
-
   var buildId = parseInt($('#selBuild').val() || '0', 10);
   var selB = null;
   ((ctx.info && ctx.info.builds) || []).forEach(function (b) { if (b.id === buildId) selB = b; });
@@ -2194,65 +1183,6 @@ function doSave(navNext) {
     }
   });
 
-  // Issue #1394: execution-level attachments of the NEW run — 'copy
-  // attachments from latest execution' checkbox + multi-file upload picker.
-  // The BFF owns the exec-level upload sink (exec_attachments[]), mirroring
-  // api/execute?action=save (execTest.html:1347-1368), so the legacy
-  // write_execution() branch that would otherwise inspect/echo the payload is
-  // not triggered.
-  var $copyChk = $('#copyAttFromLEXEC');
-  if ($copyChk.length && $copyChk.is(':checked')) {
-    fd.append('copy_att_from_lexec', '1');
-  }
-  var $exeFile = $('#execAttachmentFile');
-  if ($exeFile.length && $exeFile[0].files && $exeFile[0].files.length) {
-    for (var f = 0; f < $exeFile[0].files.length; f++) {
-      fd.append('exec_attachments[]', $exeFile[0].files[f]);
-    }
-  }
-
-  // Refs #1393: issue-tracker create-on-save + copy-issues (legacy
-  // bug_create_into_bts + create_issue.inc.tpl fields; gated on its.*).
-  if (ctx.its && ctx.its.tl_can_create_issue) {
-    var $ci = $('#itsCreateIssue');
-    if ($ci.length && $ci.is(':checked')) {
-      fd.append('create_issue', '1');
-      fd.append('bug_summary', $('#itsBugSummary').val() || '');
-      fd.append('bug_notes', $('#itsBugDescription').val() || '');
-      if ($('#itsAddLinkToTL').is(':checked')) fd.append('add_link_to_tl', '1');
-      if ($('#itsAddLinkToTLPrintView').is(':checked')) fd.append('add_link_to_tl_print_view', '1');
-      $('#itsMeta select').each(function () {
-        var v = $(this).val();
-        if (v !== null && v !== '') {
-          fd.append(this.name.replace(/^is$/, 'issue_type')
-              .replace(/^priority$/, 'issue_priority')
-              .replace(/^version$/, 'artifact_version')
-              .replace(/^component$/, 'artifact_component'), v);
-        }
-      });
-    }
-    var $cop = $('#itsCopyIssues');
-    if ($cop.length && $cop.is(':checked')) { fd.append('copy_issues', '1'); }
-  }
-
-  // Issue #1395: read every execution-time custom field input (text/numeric/
-  // select/textarea/checkbox/date...) under its legacy name — the BFF save
-  // whitelists them against the linked execution-time CFs (mirror execTest.html).
-  $('#execCFields input, #execCFields select, #execCFields textarea').each(function () {
-    var $el = $(this);
-    var name = $el.attr('name');
-    if (!name) return;
-    if ($el.attr('type') === 'checkbox') {
-      if ($el.is(':checked')) { fd.append(name, $el.val() || 'on'); }
-      return;
-    }
-    if ($el.is('select') && $el.attr('multiple')) {
-      ($el.val() || []).forEach(function (v) { fd.append(name, v); });
-      return;
-    }
-    fd.append(name, $el.val() == null ? '' : $el.val());
-  });
-
   $.ajax({
     url: '/api/execsetresults/?action=save',
     method: 'POST',
@@ -2282,20 +1212,6 @@ function doSave(navNext) {
     }
     $('#saveOk').text(TLi18n.t('esr.saveDone')).show();
     toast(TLi18n.t('esr.saveDone'));
-    // Issue #1394: when the BFF reports the picked files were all rejected by
-    // the attachment whitelist (same shape as api/execute?action=save), surface
-    // the warning so the user does not assume the upload succeeded silently.
-    if (r.attachments_rejected) { toast(TLi18n.t('exe.attachmentsRejected'), true); }
-    // Refs #1393: surface the issue-tracker side effects of the save (new
-    // issue created / issues copied), mirroring the legacy create_issue_feedback.
-    if (r.add_issue && r.add_issue.status_ok && r.add_issue.id) {
-      toast(TLi18n.t('esr.createIssueDone', { id: r.add_issue.id }));
-    } else if (r.add_issue && r.add_issue.msg) {
-      toast(r.add_issue.msg, true);
-    }
-    if (r.copy_issues && r.copy_issues.status_ok) {
-      toast(TLi18n.t('esr.copyIssuesDone'));
-    }
     if (navNext) {
       navTo('next');
     } else {

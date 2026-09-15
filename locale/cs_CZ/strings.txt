@@ -2447,8 +2447,6 @@ $TLS_info_search_req_spec = "Tento seznam zobrazuje v�echny specifikace po�a
 $TLS_href_add_remove_test_cases = "Pridat/odebrat testovac� pr�pady";
 $TLS_href_build_new = "Spr�va sestaven�";
 $TLS_href_execute_test = "Prov�st testy";
-
-$TLS_href_exec_dashboard = "Ovládací panel provádění"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Prehled metrik";
 $TLS_href_newest_tcversions = "Posledn� verze testovac�ch pr�padu";
 $TLS_href_plan_assign_urgency = "Nastavit dule�itost testu";
@@ -3701,8 +3699,6 @@ $TLS_import_req_spec_ancestor_skipped = 'Preskoceno - Req. Spec. - Doc ID:%s - a
 $TLS_import_req_created = 'Vytvoren - Po�adavek - Doc ID:%s';
 $TLS_import_req_skipped = 'Preskocen - Po�adavek - Doc ID:%s - Ji� existuje v jin� vetvi';
 $TLS_import_req_skipped_plain = 'Preskoceno - Duvod: %s';
-$TLS_req_title_length_exceeded = 'Překročena délka názvu požadavku';
-$TLS_req_docid_length_exceeded = 'Překročena délka ID dokumentu požadavku';
 $TLS_import_req_updated = 'Aktualizov�n - Po�adavek - Doc ID:%s';
 $TLS_import_req_new_version_created = 'Nov� verze vytvorena - Po�adavek - Doc ID:%s';
 $TLS_import_req_new_version_failed = '��dost o vytvoren� nov� verze selhala - %s';

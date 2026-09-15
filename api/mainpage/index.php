@@ -512,10 +512,7 @@ function getAssignedToMeData(&$dbHandler, $tprojectID, $tplanID, $userId, $user,
             $dbHandler, 'testplan_execute', $tprojectID, $tplan_id, true) == 'yes');
 
         $platforms = $tplanMgr->getPlatforms($tplan_id, array('outputFormat' => 'map'));
-        // The legacy check was !is_null($platforms), but the map accessor
-        // always returns an array (possibly empty); capacity matters so the
-        // widget can hide the platform column when the project defines none.
-        $showPlatforms = is_array($platforms) && count($platforms) > 0;
+        $showPlatforms = !is_null($platforms);
 
         $projOpts = $tprojectInfo['opt'] ?? null;
         if (is_null($projOpts) && !empty($tprojectInfo['options'])) {
@@ -556,7 +553,7 @@ function getAssignedToMeData(&$dbHandler, $tprojectID, $tplanID, $userId, $user,
                 $row = array(
                     'build_id' => $build_id,
                     'build_name' => $tcase['build_name'],
-                    'suite_path' => $tcase['tcase_full_path'] ?? '',
+                    'suite_path' => $tcase['tcase_full_path'],
                     'tc_id' => $tcase_id,
                     'tcversion_id' => $tcversion_id,
                     'prefix' => $tcase['prefix'],
@@ -578,12 +575,10 @@ function getAssignedToMeData(&$dbHandler, $tprojectID, $tplanID, $userId, $user,
                     'deadline_overdue' => ($deadlineEpoch > 0 && time() > $deadlineEpoch),
                     'can_exec' => $hasExecRight,
                 );
-                // Always ship platform_id/platform_name: the quick-exec and
-                // "execute results" links key on platform_id even when the
-                // project has no platforms defined (legacy parity,
-                // tcAssignedToUser.php builds the exec link unconditionally).
-                $row['platform_id'] = intval($tcase['platform_id']);
-                $row['platform_name'] = $tcase['platform_name'];
+                if ($showPlatforms) {
+                    $row['platform_id'] = intval($tcase['platform_id']);
+                    $row['platform_name'] = $tcase['platform_name'];
+                }
                 if ($priorityEnabled) {
                     $prio = intval($tcase['priority']);
                     $level = ($prio >= HIGH) ? 'high'

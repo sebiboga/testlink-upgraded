@@ -12,7 +12,7 @@
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
 .header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; }
-.header span.sub { font-size: 13px; font-weight: 400; opacity: .8; margin-left: 12px; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .toolbar .ctx { color: #aaa; font-size: 12px; }
 .toolbar .ctx b { color: #fff; }
@@ -61,8 +61,6 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsv.compareRevisions">Compare revisions</span></a>
   <a class="btn-ghost" id="createTcLink" href="#" target="_blank"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.toolbarLink">Create Test Cases</span></a>
-  <a class="btn-ghost" id="createFromIssuesLink" href="#" style="display:none;"><i class="fa fa-bug-slash"></i> <span data-i18n="reqfi.title">Create Requirements from Issues</span></a>
-  <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('branch')"><i class="fa fa-sitemap"></i> <span data-i18n="reqexp.exportBranch">Export branch</span></a>
   <span style="flex:1"></span>
@@ -312,20 +310,14 @@ function showHideActions(r) {
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createTcLink').attr('href', '/gui/templates/requirements/reqCreateTestCases.html?spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
-  $('#reorderLink').attr('href', '/gui/templates/requirements/reqReorder.html?req_spec_id=' +
-    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
-  $('#createFromIssuesLink').attr('href', '/gui/templates/requirements/reqFromIssues.html?req_spec_id=' +
-    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   if (r.rights && r.rights.manage) {
     $('#freezeBtn').show();
     $('#revBtn').show();
-    $('#createFromIssuesLink').show();
     hb($('#freezeBtn'), freezeSpec);
     hb($('#revBtn'), newRevision);
   } else {
     $('#freezeBtn').hide();
     $('#revBtn').hide();
-    $('#createFromIssuesLink').hide();
   }
 }
 

@@ -101,7 +101,6 @@ $TLS_href_nfr_performance = "NFR: Performanță"; // "NFR: Performanță" (Refs 
  $TLS_href_print_req = 'Document specificație cerințe';
 $TLS_title_test_spec = 'Specificație de test';
 $TLS_href_tc_import = "Import Test Cases (MD/XML)";
-$TLS_href_tc_create_from_issues = "Creare Test Cases din Probleme XML";
 $TLS_href_edit_tc = 'Specificație de test';
 $TLS_href_browse_tc = 'Răsfoire cazuri de test';
 $TLS_href_print_tc = 'Document specificație de test';
@@ -120,8 +119,6 @@ $TLS_href_plan_assign_urgency = 'Setează teste urgente';
 $TLS_href_tc_exec_assignment = 'Atribuire execuție cazuri de test';
 $TLS_title_test_execution = 'Execuție teste';
 $TLS_href_execute_test = 'Execută teste';
-
-$TLS_href_exec_dashboard = "Panou de execuție"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_exec_ro_access = 'Acces execuție teste (doar citire)';
 $TLS_href_my_testcase_assignments = 'Cazuri de test atribuite mie';
 $TLS_href_rep_and_metrics = 'Rapoarte și metrici de test';
@@ -166,22 +163,3 @@ $TLS_the_format_tc_xml_import = "";
 
 // Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
 $TLS_simplexml_load_file_wrapper_error = "Va rugam sa transmiteti acest text administratorului TestLink<br> - Incarcarea XML a esuat<br>";
-$TLS_tc_name = "Numele cazului de test";
-$TLS_tc_external_id = "ID extern al cazului de test";
-$TLS_github_bug_created = "Bug %s creat în %s";
-$TLS_github_bug_comment = "Comentariu adăugat la bug %s în %s";
-$TLS_req_title_length_exceeded = 'Lungimea titlului cerinței depășită';
-$TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depășită';
-
-// Added for TestLink 2.0.1 - issue #1506: requirement import message keys
-// (lib/functions/requirement_mgr.class.php createFromMap) missing from the short
-// ro_RO bundle -> every ro-session import logged 'not localized' warnings.
-$TLS_requirement = 'Cerință';
-$TLS_import_req_created = 'Creată - Cerință - ID document:%s';
-$TLS_import_req_skipped = 'Omisă - Cerință - ID document:%s - există deja pe altă ramură';
-$TLS_import_req_skipped_plain = 'Omisă - Motiv: %s';
-$TLS_import_req_updated = 'Actualizată - Cerință - ID document:%s';
-$TLS_import_req_new_version_created = 'Versiune nouă creată - Cerință - ID document:%s';
-$TLS_import_req_new_version_failed = 'Cererea de creare a unei versiuni noi a eșuat - %s';
-$TLS_import_req_update_last_version_failed = 'Cererea de actualizare a ULTIMEI versiuni a eșuat - %s';
-$TLS_frozen_req_unable_to_import = 'Omisă - Cerință - ID document:%s - este ÎNGHEȚATĂ';

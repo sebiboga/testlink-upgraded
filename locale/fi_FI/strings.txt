@@ -1434,8 +1434,6 @@ $TLS_filter_tp_by_product = "Filter Test Plans by Test Project";
 $TLS_href_add_remove_test_cases = "Lisää / poista testitapauksia";
 $TLS_href_build_new = "Ohjelmiston julkistukset";
 $TLS_href_execute_test = "Suorita testejä";
-
-$TLS_href_exec_dashboard = "Suorituksen hallintanäkymä"; // "Execution Dashboard" (Refs #1499)
 $TLS_href_metrics_dashboard = "Metriikkanäyttö";
 $TLS_href_newest_tcversions = "Näytä testitapausten uusimmat versiot";
 $TLS_href_plan_assign_urgency = "Aseta kiireelliset testit";
@@ -2151,5 +2149,3 @@ $TLS_href_nfr_compatibility = "NFR: Compatibility"; // "NFR: Compatibility" (Ref
 $TLS_href_nfr_reliability = "NFR: Reliability"; // "NFR: Reliability" (Refs #1470)
 $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability" (Refs #1470)
 $TLS_href_nfr_requirements = "Ei-toiminnalliset vaatimukset"; // "Non-Functional Requirements" (Refs #1462)
-$TLS_req_title_length_exceeded = 'Vaatimuksen otsikon pituus ylittyi';
-$TLS_req_docid_length_exceeded = 'Vaatimuksen dokumentti-ID:n pituus ylittyi';
