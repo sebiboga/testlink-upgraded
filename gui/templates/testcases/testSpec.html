@@ -815,8 +815,9 @@ function versionLifecycleButtonsHtml(r) {
       isLatest = !!v.is_latest;
     }
   });
-  // only the LATEST version can be activated/deactivated logically; for
-  // older versions show the current state toggle like legacy allows per version
+  // activate/deactivate toggles the VIEWED version's active flag exactly like
+  // legacy setActiveAttr(); the TC-level (tree) active state follows the latest
+  // version, so on OLD versions of a multi-version TC hint "(latest only)".
   var onlyVersion = (ctx._lastVersionList || []).length <= 1;
   var btns = '';
 
@@ -829,8 +830,9 @@ function versionLifecycleButtonsHtml(r) {
   }
   if (!frozen) {
     var active = parseInt(tc.active, 10) === 1;
-    var deactLabel = isLatest && !onlyVersion ? t('tspec.deactivateLatest') : t('tspec.deactivate');
-    var actLabel = isLatest && !onlyVersion ? t('tspec.activateLatest') : t('tspec.activate');
+    var isOldVersion = !isLatest && !onlyVersion;
+    var deactLabel = isOldVersion ? t('tspec.deactivateLatest') : t('tspec.deactivate');
+    var actLabel = isOldVersion ? t('tspec.activateLatest') : t('tspec.activate');
     if (active) {
       btns += '<button class="btn-dark btn-sm" onclick="setVersionActive(' + tc.id + ',' + tc.tcversion_id + ',0)"><i class="fa fa-eye-slash"></i> ' + deactLabel + '</button>';
     } else {
