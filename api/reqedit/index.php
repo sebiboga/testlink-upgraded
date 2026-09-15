@@ -444,7 +444,10 @@ if ($method === 'POST' && $action === 'version') {
     // computed internally by create_new_version() from the last child.
     $sourceVersionId = intval($BODY['version_id'] ?? ($BODY['req_version_id'] ?? 0));
     if ($sourceVersionId <= 0) {
-        $sourceVersionId = intval($latest['id']);
+        // get_by_id() exposes the requirement id as 'id' and the VERSION id as
+        // 'version_id' (requirement_mgr.class.php:1745) — must use the latter so
+        // copy_version() has a real req_versions row to copy from.
+        $sourceVersionId = intval($latest['version_id']);
     }
     $logMsg = (string)($BODY['log_message'] ?? '');
 
