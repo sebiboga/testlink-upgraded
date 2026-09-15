@@ -38,7 +38,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Expected coverage | 1/2/3/5/10 | same dropdown |
 | Scope | description textarea | same |
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
-| Create New Version (edit) | `doAction=doCreateVersion` typewriter copy | `POST ?action=version` — copies content, bumps `version` (+1) |
+| Create New Version (edit) | `doAction=doCreateVersion` → `create_new_version()` (reqCommands.class.php:609): copy the ENTIRE source version (scope/status/type/expected_coverage/custom fields/attachments/TC links), set `log_message` from the `ask4log()` prompt, freeze the source when `req_cfg->freezeREQVersionOnNewREQVersion` (default TRUE) and notify monitors (`notify=true`) | **same (Refs #1377)** — `POST ?action=version` now calls `requirement_mgr::create_new_version()`; the screen prompts for a log message (`reqe.newVersionPrompt`) and passes the editor's selected `version_id` as the copy source |
 | Insert last doc id (create) | icon next to Document ID fills it with the project's last `req_doc_id` (config `allow_insertion_of_last_doc_id`) | BFF form response carries `allow_insert_last_doc_id` + `last_doc_id`; a teal insert icon is rendered in create mode only and one-click fills the field (Refs #1379) |
 | Cancel | return to caller | returns without any DB write |
 
@@ -51,7 +51,7 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 | GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, rights}` |
 | GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, options, rights}` |
 | POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage}` | `{status:'ok', id}` (update or create) |
-| POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
+| POST | `?action=version` | `{id, tproject_id, version_id?, log_message?}` | `{status:'ok', version, version_id, new_version}` — full copy of the source version (type/coverage/CFs/attachments/scope/status), stores `log_message`, freezes source per config, notifies monitors (Refs #1377) |
 
 ### Error conditions
 - Missing/invalid session → HTTP 401.
@@ -83,13 +83,28 @@ form with the new id/version.
   mirrors legacy `insert_last_req_doc_id`, e.g.
   `Insert Document ID of last created Requirement: "REQ-002"`; clicking fills
   `#reqDocId` (legacy `insert_last_doc_id()` parity).
+- **Create New Version (Refs #1377):** mirrors legacy `doCreateVersion()`
+  (reqCommands.class.php:609 → `requirement_mgr::create_new_version()` at
+  requirement_mgr.class.php:2328). The BFF `version` action passes
+  `reqVersionID` (the editor's selected version, `version_id` arg), `log_msg`
+  (`log_message` arg), `notify=true` and `freezeSourceVersion` from
+  `req_cfg->freezeREQVersionOnNewREQVersion` (default TRUE). Internally it
+  computes next version number (last child + 1), notifies monitors
+  (`notifyMonitors`, mail cfg at requirement_mgr.class.php:4435), copies the
+  whole source version (`copy_version()`: scope/status/type/expected_coverage +
+  `copy_cfields()` + `copy_attachments()` + TC-link freeze/close), persists the
+  log message and freezes the source (`updateOpen(...,0)`). The screen prompts
+  with `window.prompt(TLi18n.t('reqe.newVersionPrompt'))` (revision-log
+  pattern); Cancel aborts without a request. Related PHP 8 E_WARNINGs in the
+  legacy `copy_version()` chain fixed in issue #1513.
 
 ## 4. i18n Keys
 
 All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 (`reqe.pageTitle`, `reqe.title`, `reqe.docId`, `reqe.status`, `reqe.type`,
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
-`reqe.newVersion`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`,
+`reqe.newVersion`, `reqe.newVersionPrompt` (create-new-version log prompt,
+Refs #1377), `reqe.spec`, `reqe.version`, `reqe.detailHeader`,
 `reqe.insertLastDocId` (insert-last-doc-id tooltip), and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
@@ -108,6 +123,16 @@ See **Suite 66 — Requirement Editor (reqEdit)** in `tmp/TLU_Test_Cases.md`
 (12/12 PASS): edit mode, create mode, validation, create, save persist,
 Create New Version, BFF rights, no-permission, cancel, i18n integrity, legacy
 link switch, and Event Viewer cleanliness.
+
+**Create New Version full parity (Task #1377)** — **Suite 185** in
+`tmp/TLU_Test_Cases.md` (PASS): log-message prompt shown (`reqe.newVersionPrompt`),
+accept creates a full copy (type Feature + coverage 5 + scope/status preserved),
+log_message persisted verbatim, source version frozen (is_open=0), new version
+open, prompt Cancel creates nothing, Event Viewer / `events` table zero
+Error/Warning rows, browser console clean.
+
+![Create New Version prompt](screenshots/issue-1377-reqedit-before-new-version.png)
+![New version created — type/coverage preserved](screenshots/issue-1377-reqedit-new-version-created.png)
 
 **Insert last doc id helper** — see **Task — Issue #1379** in
 `tmp/TLU_Test_Cases.md` (10/10 PASS): config-enabled create BFF payload,
