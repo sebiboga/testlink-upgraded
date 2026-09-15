@@ -188,6 +188,12 @@ Test Spec:
   restored: Status select in the testSpec.html create/edit form, persisted to
   tcversions.status on create/update, status badge in the detail view; domain
   exposed via BFF statusDomain, labels via tcview.statusN keys (Refs #908).
+- Test Specification edit-mode filter panel (legacy tlTestCaseFilterControl
+  parity): test case id/title, top-level test suite, keywords Or/And/Not,
+  platforms, active/inactive, importance, execution type, workflow status and
+  design custom fields, all applied server-side in the BFF tree action with
+  session persistence, empty-suite pruning, "filters applied" badge and
+  expand/collapse tree controls (Refs #909).
 - Test Specification Estimated Execution Duration field restored: decimal min
   input in the testSpec.html create/edit form, validated (is_numeric) and
   persisted to tcversions.estimated_exec_duration via the BFF on create/update,

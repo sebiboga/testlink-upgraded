@@ -15006,3 +15006,26 @@ LIBXML_NONET parsing, 401/400/403/404/405/413/422/500 JSON contract, client-loca
 localization. Entry points: ASIDE under Test Case Design (gated `modify_tc`) + `$actions->tcCreateFromIssues`
 link switch. i18n `tcfi.*` (25) + `footers.tcCreateFromIssues` in all 10 client bundles + server
 label `href_tc_create_from_issues` in 7 strings.txt + `labels.aside.tpl`. Refs #1502.
+
+## Task — Issue #909: Implement edit-mode filter panel in Test Specification tree
+
+- **Precondition**: fixture project FT909 present (`php tmp/fixtures_909.php`), logged in as admin.
+- **Steps**:
+  1. Open Test Specification for FT909
+  2. Toggle the Filters panel and apply filters
+  3. Exercise every field (TC id, title, suite, keywords Or/And/Not, platforms, active/inactive, importance, execution type, workflow status, custom field)
+  4. Apply, Reset, reload the page, expand/collapse tree
+- **Expected**:
+  - No filter → full tree (3 suites · 6 cases) is rendered
+  - importance=High → 2 suites · 2 cases
+  - keywords Smoke+Regression AND → only the case carrying both keywords
+  - keywords Smoke NOT → complement (no case with Smoke)
+  - platforms Linux → 2 cases
+  - active only → 4 cases; inactive only → 2 cases
+  - title 'Alpha' → 3 cases, excludes sub-suite-only content
+  - tc id '3' → the case with external id 3
+  - top-level suite Beta → only Beta Suite remains
+  - custom field Tier=High → 2 cases
+  - filters persist across page reload; Reset returns to 3 suites · 6 cases
+  - reduced tree counters (`N suites · M cases`) and "filters applied" badge
+- **Actual result**: all above verified via API (curl) and browser (chrome-devtools); PASS.

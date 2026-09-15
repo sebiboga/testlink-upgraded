@@ -98,6 +98,32 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .mcOpt { margin: 8px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .mcOpt input[type="checkbox"] { margin: 0; }
 .mcSel { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; margin-top: 4px; }
+/* edit-mode filter panel (port of legacy tree_filter_cfg edit_mode) */
+.tree-pane { width: 400px; }
+.filter-panel { border: 1px solid #d9d9d9; border-radius: 6px; background: #f8fbfb; margin-bottom: 10px; overflow: hidden; }
+.fp-head { background: #22242a; color: #fff; padding: 6px 12px; font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.fp-head i { font-size: 11px; }
+.fp-body { padding: 10px 12px; max-height: 340px; overflow-y: auto; border-top: 1px solid #e3e7e7; }
+.fp-row { margin-bottom: 8px; }
+.fp-row label.fp-lab { display: block; font-size: 11px; font-weight: 700; color: #2d8e88; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 3px; }
+.fp-row input.fld, .fp-row select.fld { width: 100%; padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 12.5px; font-family: inherit; }
+.fp-row select.fld[multiple] { min-height: 58px; }
+.kwmode { display: flex; gap: 10px; font-size: 12px; margin-top: 4px; }
+.kwmode label { display: flex; align-items: center; gap: 3px; font-weight: 400; color: #444; }
+.kwmode input { margin: 0; }
+.cf-fields { border-top: 1px dashed #ccc; margin-top: 8px; padding-top: 8px; }
+.cf-fields.hidden { display: none; }
+.fp-actions { display: flex; gap: 8px; margin-top: 10px; }
+.fp-actions .btn-sm { flex: 1; }
+.refresh-setting { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #444; margin-top: 8px; }
+.refresh-setting input { margin: 0; }
+.tree-search-row { display: flex; gap: 6px; margin-bottom: 10px; }
+.tree-search-row .tree-search { flex: 1; margin-bottom: 0; }
+.tree-ctl { display: flex; gap: 4px; margin-bottom: 8px; }
+.tree-ctl .btn-ctl { flex: 1; background: #f0f4f4; border: 1px solid #d9dfe0; color: #333; padding: 5px 4px; border-radius: 4px; cursor: pointer; font-size: 11.5px; font-weight: 600; }
+.tree-ctl .btn-ctl:hover { background: #e0efee; }
+.fp-active-badge { display: none; background: #e6605e; color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 10.5px; font-weight: 700; }
+.filter-panel.has-filter .fp-active-badge { display: inline-block; }
 </style>
 
 </head>
@@ -123,7 +149,78 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 
 <div class="main">
   <div class="tree-pane">
-    <input type="text" class="tree-search" id="treeFilter" oninput="filterTree()" data-i18n-placeholder="tspec.filterPlaceholder" placeholder="Filter by name...">
+    <div class="filter-panel" id="filterPanel" style="display:none;">
+      <div class="fp-head" onclick="toggleFilterPanel()" title="Toggle filters">
+        <i class="fa fa-sliders"></i>
+        <span data-i18n="tspec.filters">Filters</span>
+        <span class="fp-active-badge" id="fpActiveBadge" data-i18n="tspec.filtersApplied">filters applied</span>
+        <span style="flex:1"></span>
+        <i class="fa fa-chevron-up" id="fpChevron"></i>
+      </div>
+      <div class="fp-body" id="fpBody">
+        <div class="fp-row" data-fkeys="filter_tc_id"><label class="fp-lab" data-i18n="tspec.filterTcId">Test Case ID</label>
+          <input type="text" class="fld" id="flTcId" maxlength="30">
+        </div>
+        <div class="fp-row" data-fkeys="filter_testcase_name"><label class="fp-lab" data-i18n="tspec.filterTitle">Title</label>
+          <input type="text" class="fld" id="flTitle" maxlength="100">
+        </div>
+        <div class="fp-row" data-fkeys="filter_toplevel_testsuite"><label class="fp-lab" data-i18n="tspec.filterSuite">Test Suite</label>
+          <select class="fld" id="flSuite"></select>
+        </div>
+        <div class="fp-row" data-fkeys="filter_keywords"><label class="fp-lab" data-i18n="tspec.filterKeywords">Keywords</label>
+          <select class="fld" multiple id="flKeywords"></select>
+          <div class="kwmode">
+            <label><input type="radio" name="kwMode" value="OR" checked> <span data-i18n="tspec.keywordOr">Or</span></label>
+            <label><input type="radio" name="kwMode" value="AND"> <span data-i18n="tspec.keywordAnd">And</span></label>
+            <label><input type="radio" name="kwMode" value="NOTLINKED"> <span data-i18n="tspec.keywordNot">Not</span></label>
+          </div>
+        </div>
+        <div class="fp-row" data-fkeys="filter_platforms"><label class="fp-lab" data-i18n="tspec.filterPlatforms">Platforms</label>
+          <select class="fld" multiple id="flPlatforms"></select>
+        </div>
+        <div class="fp-row" data-fkeys="filter_active_inactive,filter_importance" style="display:flex;gap:10px;">
+          <div style="flex:1;"><label class="fp-lab" data-i18n="tspec.filterActiveInactive">Active/Inactive</label>
+            <select class="fld" id="flActive">
+              <option value="0" data-i18n="tspec.filterAny">any</option>
+              <option value="1" data-i18n="tspec.activeOnly">active only</option>
+              <option value="2" data-i18n="tspec.inactiveOnly">inactive only</option>
+            </select>
+          </div>
+          <div style="flex:1;"><label class="fp-lab" data-i18n="tspec.filterImportance">Importance</label>
+            <select class="fld" id="flImportance">
+              <option value="0" data-i18n="tspec.filterAny">any</option>
+              <option value="3" data-i18n="tspec.importanceHigh">High</option>
+              <option value="2" data-i18n="tspec.importanceMedium">Medium</option>
+              <option value="1" data-i18n="tspec.importanceLow">Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="fp-row" data-fkeys="filter_execution_type"><label class="fp-lab" data-i18n="tspec.filterExecType">Execution Type</label>
+          <select class="fld" id="flExecType">
+            <option value="0" data-i18n="tspec.filterAny">any</option>
+            <option value="1" data-i18n="tspec.execTypeManual">Manual</option>
+            <option value="2" data-i18n="tspec.execTypeAutomated">Automated</option>
+          </select>
+        </div>
+        <div class="fp-row" data-fkeys="filter_workflow_status"><label class="fp-lab" data-i18n="tspec.filterWorkflow">Workflow Status</label>
+          <select class="fld" id="flStatus"></select>
+        </div>
+        <div class="cf-fields" id="cfFields" data-fkeys="filter_custom_fields"></div>
+        <div class="fp-actions">
+          <button class="btn-teal btn-sm" onclick="applyFilters()"><i class="fa fa-check"></i> <span data-i18n="tspec.apply">Apply</span></button>
+          <button class="btn-dark btn-sm" onclick="resetFilters()"><i class="fa fa-rotate-left"></i> <span data-i18n="tspec.resetFilters">Reset Filters</span></button>
+        </div>
+        <label class="refresh-setting"><input type="checkbox" id="flRefresh" checked> <span data-i18n="tspec.refreshOnAction">Update tree after every operation</span></label>
+      </div>
+    </div>
+    <div class="tree-ctl">
+      <button class="btn-ctl" onclick="expandAllTree()" data-i18n="tspec.expandTree">Expand tree</button>
+      <button class="btn-ctl" onclick="collapseAllTree()" data-i18n="tspec.collapseTree">Collapse tree</button>
+    </div>
+    <div class="tree-search-row">
+      <input type="text" class="tree-search" id="treeFilter" oninput="filterTree()" data-i18n-placeholder="tspec.filterPlaceholder" placeholder="Filter by name...">
+      <button class="btn-ctl" id="btnFilterPanel" onclick="toggleFilterPanel(true)" title="Filters"><i class="fa fa-sliders"></i></button>
+    </div>
     <div class="loading" id="treeLoading"><i class="fa fa-spinner fa-spin"></i> <span data-i18n="tspec.loadingTree">Loading tree...</span></div>
     <div class="tree" id="treeBox" style="display:none;"></div>
   </div>
@@ -269,6 +366,7 @@ function init() {
     grants = r.grants || {};
     ctx.options = r.options || {};
     ctx.durationRequired = !!(r.estimateDurationRequired || r.estimateDurationRequired === true);
+    initFilterPanel(r);
     refreshGrantsUi();
     return loadTree();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -303,11 +401,15 @@ function updateContextButtons() {
   }
 }
 
-function loadTree() {
+function loadTree(extraParams) {
   $('#treeLoading').show(); $('#treeBox').hide();
-  return apiGet('tree', { tproject_id: ctx.tproject_id }).then(function (r) {
+  var params = { tproject_id: ctx.tproject_id };
+  $.extend(params, extraParams || {});
+  return apiGet('tree', params).then(function (r) {
     treeData = r.tree;
     $('#tprojectName').text(r.tproject.name);
+    ctx.filtered = !!r.filtered;
+    syncFilterBadge();
     renderTree();
     $('#treeLoading').hide(); $('#treeBox').show();
     var deepId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
@@ -401,6 +503,194 @@ function filterTree() {
     var nm = ($(this).find('.node-name').text() || '').toLowerCase();
     $(this).toggle(nm.indexOf(q) >= 0);
   });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Edit-mode filter panel (port of legacy tree_filter_cfg edit_mode) */
+/* ------------------------------------------------------------------ */
+
+function refreshSettingOn() {
+  var v = localStorage.getItem('tspec_refresh_tree_on_action');
+  return v === null || v === '1';
+}
+
+function initFilterPanel(ctxData) {
+  ctx.filterOptions = (ctxData && ctxData.filterOptions) || null;
+  ctx.refreshOnAction = refreshSettingOn();
+  $('#flRefresh').prop('checked', ctx.refreshOnAction);
+
+  var cfo = ctx.filterOptions;
+  var $st = $('#flSuite');
+  $st.empty();
+  $st.append($('<option>').val('0').text(t('tspec.filterAll')));
+  (cfo && cfo.toplevelSuites || []).forEach(function (s) {
+    if (!s.id) { return; }
+    $st.append($('<option>').val(s.id).text(s.name));
+  });
+
+  var $kw = $('#flKeywords');
+  $kw.empty();
+  (cfo && cfo.keywords ? Object.keys(cfo.keywords) : []).forEach(function (kid) {
+    $kw.append($('<option>').val(kid).text(cfo.keywords[kid]));
+  });
+
+  var $pl = $('#flPlatforms');
+  $pl.empty();
+  (cfo && cfo.platforms ? Object.keys(cfo.platforms) : []).forEach(function (pid) {
+    $pl.append($('<option>').val(pid).text(cfo.platforms[pid]));
+  });
+
+  var $stSel = $('#flStatus');
+  $stSel.empty();
+  $stSel.append($('<option>').val('0').text(t('tspec.filterAny')));
+  var domain = (cfo && cfo.statusDomain) || {};
+  Object.keys(domain).map(Number).sort(function(a, b) { return a - b; }).forEach(function (code) {
+    $stSel.append($('<option>').val(code).text(statusLabel(code)));
+  });
+
+  var $cf = $('#cfFields').empty();
+  if (cfo && cfo.customFields && cfo.customFields.length) {
+    $cf.append('<div class="fp-row" style="text-align:right;"><a href="javascript:void(0)" onclick="toggleCfFields()" id="cfToggle" data-i18n="tspec.hideCustomFields">Hide custom fields</a></div>');
+    cfo.customFields.forEach(function (cf) {
+      $cf.append(
+        '<div class="fp-row"><label class="fp-lab">' + esc(cf.label) + '</label>' +
+        '<input type="text" class="fld cf-filter-input" data-cfid="' + cf.id + '" maxlength="120"></div>');
+    });
+    TLi18n.apply();
+  }
+
+  var pf = (ctxData && ctxData.persistedFilters) || null;
+  if (pf && cfo && cfo.enabled) {
+    restoreFiltersToPanel(pf);
+    $('#filterPanel').addClass('has-filter');
+    ctx.filtered = true;
+  }
+  $('#filterPanel').toggle(!!(cfo && cfo.enabled));
+  $('#btnFilterPanel').toggle(!!(cfo && cfo.enabled));
+  if (cfo && cfo.enabled) {
+    $('#fpBody [data-fkeys]').each(function () {
+      var keys = String($(this).attr('data-fkeys')).split(',');
+      var on = keys.every(function (k) { return cfo[k] !== false; });
+      if (!on) { $(this).hide(); }
+    });
+  }
+}
+
+function toggleCfFields() {
+  var $cf = $('#cfFields');
+  var hidden = !$cf.hasClass('hidden');
+  $cf.toggleClass('hidden', hidden);
+  $('#cfToggle').text(t(hidden ? 'tspec.showCustomFields' : 'tspec.hideCustomFields'));
+}
+
+function toggleFilterPanel(forceOpen) {
+  var $pn = $('#filterPanel');
+  var open = $pn.is(':visible') && $pn.find('#fpBody').is(':visible');
+  if (forceOpen) {
+    if (open) { return; }
+  }
+  var show = forceOpen ? true : !$pn.find('#fpBody').is(':visible');
+  $pn.find('#fpBody').toggle(show);
+  $('#fpChevron').toggleClass('fa-chevron-down fa-chevron-up');
+}
+
+function restoreFiltersToPanel(pf) {
+  if (pf.testcase_name != null) { $('#flTitle').val(pf.testcase_name); }
+  if (pf.tc_id != null) { $('#flTcId').val(pf.tc_id); }
+  if (pf.toplevel_suite) { $('#flSuite').val(String(pf.toplevel_suite)); }
+  if (pf.keywords && pf.keywords.length) { $('#flKeywords').val(pf.keywords.map(String)); }
+  if (pf.keywords_type) {
+    $('input[name="kwMode"][value="' + pf.keywords_type + '"]').prop('checked', true);
+  }
+  if (pf.platforms && pf.platforms.length) { $('#flPlatforms').val(pf.platforms.map(String)); }
+  if (pf.active_inactive != null) { $('#flActive').val(String(pf.active_inactive)); }
+  if (pf.importance != null) { $('#flImportance').val(String(pf.importance)); }
+  if (pf.execution_type != null) { $('#flExecType').val(String(pf.execution_type)); }
+  if (pf.workflow_status != null) { $('#flStatus').val(String(pf.workflow_status)); }
+  if (pf.custom_fields) {
+    $('#cfFields .cf-filter-input').each(function () {
+      var v = pf.custom_fields[String($(this).data('cfid'))];
+      if (v != null) { $(this).val(v); }
+    });
+  }
+}
+
+function clearFilterPanel() {
+  $('#flTcId,#flTitle').val('');
+  $('#flSuite,#flImportance,#flExecType,#flStatus').val('0');
+  $('#flActive').val('0');
+  $('#flKeywords,#flPlatforms').val(null);
+  $('input[name="kwMode"][value="OR"]').prop('checked', true);
+  $('#cfFields .cf-filter-input').val('');
+  $('#filterPanel').removeClass('has-filter');
+  ctx.filtered = false;
+}
+
+function syncFilterBadge() {
+  $('#filterPanel').toggleClass('has-filter', !!ctx.filtered);
+}
+
+function collectFilters() {
+  var p = {};
+  var v = $('#flTcId').val().trim();
+  if (v) { p.filter_tc_id = v; }
+  v = $('#flTitle').val().trim();
+  if (v) { p.filter_testcase_name = v; }
+  v = $('#flSuite').val();
+  if (v && parseInt(v, 10) > 0) { p.filter_toplevel_testsuite = v; }
+  var kws = $('#flKeywords').val() || [];
+  if (kws.length) {
+    p.filter_keywords = kws.join(',');
+    p.filter_keywords_filter_type = $('input[name="kwMode"]:checked').val() || 'OR';
+  }
+  var plats = $('#flPlatforms').val() || [];
+  if (plats.length) { p.filter_platforms = plats.join(','); }
+  v = $('#flActive').val();
+  if (v && v !== '0') { p.filter_active_inactive = v; }
+  v = $('#flImportance').val();
+  if (v && v !== '0') { p.filter_importance = v; }
+  v = $('#flExecType').val();
+  if (v && v !== '0') { p.filter_execution_type = v; }
+  v = $('#flStatus').val();
+  if (v && v !== '0') { p.filter_workflow_status = v; }
+  var cf = {};
+  $('#cfFields .cf-filter-input').each(function () {
+    var x = $(this).val().trim();
+    if (x) { cf[String($(this).data('cfid'))] = x; }
+  });
+  if (Object.keys(cf).length) { p.filter_custom_fields = JSON.stringify(cf); }
+  return p;
+}
+
+function applyFilters() {
+  ctx.refreshOnAction = $('#flRefresh').is(':checked');
+  localStorage.setItem('tspec_refresh_tree_on_action', ctx.refreshOnAction ? '1' : '0');
+  var p = collectFilters();
+  $('#treeFilter').val('');
+  if (Object.keys(p).length === 0) { resetFilters(); return; }
+  loadTree(p);
+}
+
+function resetFilters() {
+  clearFilterPanel();
+  ctx.refreshOnAction = $('#flRefresh').is(':checked');
+  localStorage.setItem('tspec_refresh_tree_on_action', ctx.refreshOnAction ? '1' : '0');
+  loadTree({ reset_filters: 1 });
+}
+
+function expandAllTree() {
+  $('#treeBox ul').show();
+  $('#treeBox .toggler i')
+    .removeClass('fa-chevron-down fa-chevron-right')
+    .addClass('fa-chevron-down');
+}
+
+function collapseAllTree() {
+  $('#treeBox > ul').show();
+  $('#treeBox li > ul').hide();
+  $('#treeBox li .toggler i')
+    .removeClass('fa-chevron-down fa-chevron-right')
+    .addClass('fa-chevron-right');
 }
 
 function markSelected() {
