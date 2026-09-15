@@ -375,15 +375,10 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
-- requirements: `requirement_mgr::copy_version()` read the link-freeze option as
-  `freezeLinkOnNewReqVersion` while the config key is `freezeLinkOnNewREQVersion`
-  (config.inc.php:1415) — PHP 8 E_WARNING "Undefined property stdClass::..."
-  logged to the Event Viewer on every `create_new_version()` (req edit /
-  reqimport hit-action). Renamed the 3 reads (2477/2478/2487) to the real key —
-  the option is now honoured (req_coverage link flips to
-  LINK_TC_REQ_CLOSED_BY_NEW_REQVERSION) — and fixed the masked
-  `closeOpenTCVersionOnOpenLinks()` `$this->debugMsg` typo (local $debugMsg,
-  since 1.9.18) that the null eval had hidden for ~8 releases (Refs #1513).
+- Requirement Editor `?action=version` fallback (no `version_id` in the body)
+  copied from `latest['id']` — which `get_by_id()` exposes as the *requirement*
+  id, so `copy_version()` matched no `req_versions` row and produced empty
+  version nodes. It now uses `latest['version_id']` (Refs #1377).
 - userinfo BFF: GitHub handle was silently discarded on profile save — the #905
   `users.github` column + tlUser mapping were gutted by 8ef9694d3 (#1487) while
   the #1507 restore re-added only the BFF branch, so `$user->github` was an
