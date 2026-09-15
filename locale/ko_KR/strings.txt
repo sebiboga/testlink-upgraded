@@ -2423,6 +2423,7 @@ $TLS_doc_youtrack_readme = 'YouTrack Readme';
 
 $TLS_report_test_automation = '테스트 자동화 보고서';
 $TLS_btn_report_test_automation = '테스트 자동화 사양';
+$TLS_href_tc_create_from_issues = "이슈 XML에서 테스트 케이스 생성";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = '함께 실행됨';
 $TLS_remove_plat_msgbox_title = '플랫폼 제거';

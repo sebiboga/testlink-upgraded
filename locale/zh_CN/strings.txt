@@ -4143,6 +4143,7 @@ $TLS_title_dashboard = '仪表盘';
 
 $TLS_report_test_automation = '测试自动化报告';
 $TLS_btn_report_test_automation = '测试自动化规范';
+$TLS_href_tc_create_from_issues = "从问题XML创建测试用例";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = '与之一同执行';
 $TLS_remove_plat_msgbox_title = '移除平台';

@@ -3920,4 +3920,4 @@ $TLS_href_nfr_reliability = "NFR: Reliability"; // "NFR: Reliability" (Refs #147
 $TLS_href_nfr_maintainability = "NFR: Maintainability"; // "NFR: Maintainability" (Refs #1470)
 $TLS_href_nfr_requirements = "Nefunk�n� po�adavky"; // "Non-Functional Requirements" (Refs #1462)
 
-$TLS_btn_report_test_automation = 'Specifikace automatizace testů';
+$TLS_btn_report_test_automation = 'Specifikace automatizace testů';$TLS_href_tc_create_from_issues = "Vytvořit test případy z XML problémů";

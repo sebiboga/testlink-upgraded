@@ -2129,6 +2129,7 @@ $TLS_testproject_prefix_hint = 'Enintään 16 merkkiä on sallittu, mutta suosit
 
 $TLS_report_test_automation = 'Testiautomaatioraportti';
 $TLS_btn_report_test_automation = 'Testauksen automaation spesifikaatio';
+$TLS_href_tc_create_from_issues = "Luo testitapauksia ongelmien XML-tiedostosta";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'suoritetaan yhdessä kohteen kanssa';
 $TLS_remove_plat_msgbox_title = 'Poista alusta';

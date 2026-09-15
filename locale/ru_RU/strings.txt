@@ -2801,6 +2801,7 @@ $TLS_title_plugins = 'Плагины';
 
 $TLS_report_test_automation = 'Отчёт по автоматизации тестирования';
 $TLS_btn_report_test_automation = 'Спецификация автоматизации тестирования';
+$TLS_href_tc_create_from_issues = "Создать тест-кейсы из XML проблем";
 // ----- issue #644: keys restored (accidentally deleted by commit 1c33eb305) -----
 $TLS_executed_me_and_also = 'выполняется вместе с';
 $TLS_remove_plat_msgbox_title = 'Удалить платформу';
