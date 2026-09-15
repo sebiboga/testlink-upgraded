@@ -2474,8 +2474,8 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
 
 
     $reqTCLinksCfg = config_get('reqTCLinks');
-    $freezeLinkOnNewReqVersion = $reqTCLinksCfg->freezeLinkOnNewReqVersion;
-    $freezeLinkedTCases = $freezeLinkOnNewReqVersion &
+    $freezeLinkOnNewREQVersion = $reqTCLinksCfg->freezeLinkOnNewREQVersion;
+    $freezeLinkedTCases = $freezeLinkOnNewREQVersion &
       $reqTCLinksCfg->freezeBothEndsOnNewREQVersion;
 
     if( $freezeLinkedTCases ) {
@@ -2484,7 +2484,7 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
 
     $signature = array('user_id' => $user_id, 'when' => $now);
 
-    if( $freezeLinkOnNewReqVersion ) { 
+    if( $freezeLinkOnNewREQVersion ) { 
       $this->updateTCVLinkStatus($from_version_id,LINK_TC_REQ_CLOSED_BY_NEW_REQVERSION);      
     }
 
@@ -2495,12 +2495,12 @@ function html_table_of_custom_field_values($id,$child_id,$tproject_id=null)
    */
   function closeOpenTCVersionOnOpenLinks( $reqVersionID ) {
 
-    $debugMsg = "/* {$this->debugMsg}" . __FUNCTION__ . ' */ ';
+    $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
 
     $commonWhere = " WHERE req_version_id = " . intval($reqVersionID) .
                    " AND link_status = " . LINK_TC_REQ_OPEN; 
 
-    $sql = " $debugMsg UPDATE {$this->tables['tcversions']}
+    $sql = " /* $debugMsg */ UPDATE {$this->tables['tcversions']}
              SET is_open = 0
              WHERE id IN (
                  SELECT tcversion_id 
