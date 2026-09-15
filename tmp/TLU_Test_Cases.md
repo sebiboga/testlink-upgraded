@@ -15032,3 +15032,77 @@ ported to the modern reqEdit screen: delegated dirty tracking on all form contro
 `beforeunload` prompt on unload with pending edits, Save/Cancel suppress the warning,
 `loadForm()`/version-switch reloads reset the flag, i18n `reqe.unsavedWarning` in all
 10 bundles. Refs #1380.
+
+## Regression — Issue #1505: requirement_mgr.class.php E_WARNING "array offset on null" on version-less requirement hit
+
+**Screen:** `api/reqfromissues/index.php` (POST `?action=import`) → legacy
+`lib/functions/requirement_mgr.class.php` `createFromMap()` (import path shared with
+`api/reqimport` — CSV/DocBook/XML requirement import).
+**Bug:** importing a Mantis XML whose issue docid hits an existing requirement with
+**no** `req_versions` child row (`get_last_child_info()` returns null) dereferenced the
+null result — `E_WARNING Trying to access array offset on null` (`requirement_mgr.class.php:1624`)
+logged to the Event Viewer / `events` table on every import (observed events 34/35 testing #1503).
+**Root cause:** `requirement_mgr.class.php:1620-1624` — `get_last_child_info($reqID,['child_type'=>'version',...])`
+returns `null` when `SELECT COALESCE(MAX(version),-1) FROM req_versions ... WHERE NH.parent_id={reqID}`
+(SQL at lines 2911-2917) has no row (MAX=-1 → 2919 branch skipped); pre-fix code read `$last_version['is_open']`
+unconditionally.
+**Fix (minimal, landed on the default branch with 681d39dbc):** line 1624 now guards the
+dereference — `(is_array($last_version) && isset($last_version['is_open']) && $last_version['is_open'] == 1)
+|| !$my['options']['skipFrozenReq']` — a null/version-less hit short-circuits to the "is FROZEN" skip
+path with zero warnings; open-version hits keep exact previous semantics.
+**Precondition:** app @ http://localhost:8082, DB fresh, admin/admin session (BFF writes need header
+`X-Requested-With: XMLHttpRequest`). Fixture: testproject id=1, req spec id=2 (nodes: spec node 2 type 6,
+spec-revision node 3 type 11 + `req_specs_revisions` row id=3), version-less requirement id=4 (node 4 type 7
+under spec 2, `requirements` row `req_doc_id='Mantis Task ID:20'`, **no** `req_versions` child — SQL to
+rebuild: the three INSERTs in the INVESTIGATION comment of issue #1505).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1505.1 | POST `/api/reqfromissues/?action=import&req_spec_id=2` with Mantis XML containing `<issue><id>20</id>` (multipart `uploadedFile`) | HTTP 200 `status:ok`, result row Doc ID `Mantis Task ID:20` → message `Skipped - Requirement - Doc ID:Mantis Task ID:20 - is FROZEN` | **PASS** |
+| 1505.2 | `mysql ... SELECT id,log_level,description FROM events` after the import | **0 new** ERROR/WARNING rows (no `E_WARNING ... array offset on null ... requirement_mgr.class.php`) | **PASS** |
+| 1505.3 | Re-import the same XML (second hit) | Identical graceful skip, still 0 new event rows | **PASS** |
+| 1505.4 | `php -l lib/functions/requirement_mgr.class.php`; `grep -n "is_array(\$last_version)" lib/functions/requirement_mgr.class.php` | No syntax errors; guard present at line 1624 | **PASS** |
+| 1505.5 | A/B: temporarily revert line 1624 to `$last_version['is_open'] == 1 || ...`, re-import, then restore guard | events gains `E_WARNING Trying to access array offset on null ... Line 1624` (reproduces pre-fix bug); restore + re-import adds nothing | **PASS** |
+| 1505.6 | Event Viewer screen (`events` table) after all steps | No new Error/Warning entries (only the login audit + the deliberately-captured PRE-FIX repro row) | **PASS** |
+
+Result: **PASS — 6/6 PASS** — the version-less requirement hit through
+`createFromMap()` is handled with a clean "is FROZEN" skip and zero E_WARNING; the
+open-version branch (`is_open==1`) keeps legacy behavior verbatim. The fix was
+already shipped on the default branch (commit `681d39dbc`, `Fixes #1504, #1505`);
+this suite locks the regression. Refs #1505.
+
+## 71. Modernization — Create Requirements from Issues (Mantis) — `reqFromIssues.html` (Suite ID: 71)
+
+**Refs:** #1503 · **BFF:** `api/reqfromissues/index.php` · **Screen:** `gui/templates/requirements/reqFromIssues.html`
+**Modernizes:** legacy `reqCreateFromIssueMantisXML.php` + `.tpl` (Requirements ▸ Create from Issues (XML), reached from `reqSpecView`). Sibling of suite 70's `tcCreateFromIssues`.
+
+**Precondition:** app @ http://localhost:8082, DB fresh, privileged fixture project **WALK1503** (tproject id=25) with req specs: id=31 (has legacy docids `Mantis Task ID:20/21`), id=36 (clean, gets fresh ids 100/101), id=38 (clean cross-branch probe). Admin/admin session. BFF POST needs header `X-Requested-With: XMLHttpRequest` (same-origin guard, `api/_guard.php`).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 71.1 | GET `/api/reqfromissues/?action=init&req_spec_id=31&locale=en` | 200; `tproject.id=25,name=WALK1503`; `req_spec.id,name,path`; `maxUploadBytes=10485760`; `fieldSize.req_title=100, req_docid=64`; `grants.mgt_view_req=1, mgt_modify_req=1`; localized `labels.issue_issue="Issue/Task"` | **PASS** |
+| 71.2 | Init without session cookie (no auth) | HTTP 401, JSON `Not authenticated` | **PASS** |
+| 71.3 | Init with `req_spec_id=0` / missing | HTTP 400 JSON error | **PASS** |
+| 71.4 | Init with an unknown spec id (e.g. 99999) | HTTP 404 JSON error | **PASS** |
+| 71.5 | POST `action=import` with valid Mantis XML (`<mantis><issue>…</issue>`) into **spec 31** | HTTP 200 `status:ok`; issue 20 → `Created - Requirement - Doc ID:Mantis Task ID:20`; issue 21 → row skipped (its dangling node from the pre-fix fatal run is FROZEN) | **PASS** |
+| 71.6 | DB check: `SELECT id,srs_id,req_doc_id FROM requirements` (schema uses **srs_id/req_doc_id** — NOT `testproject_id/doc_id`) | Requirement rows created for the imported docids; `req_versions` carries the scope/description; `nodes_hierarchy` has node_type 7 children under the spec | **PASS** |
+| 71.7 | Re-import the same XML into the **same spec** | Both rows `Skipped - Requirement - Doc ID:… - is FROZEN` (same-spec hit on last version) | **PASS** |
+| 71.8 | Import the same XML into a **different spec** (cross-branch) | Both rows `Skipped - … - Already exists on other branch` | **PASS** |
+| 71.9 | Import an XML rooted at something else (`<foo>`) | HTTP 422 JSON error | **PASS** |
+| 71.10 | Import a malformed/unparseable XML file | HTTP 422 JSON error (no PHP fatal) | **PASS** |
+| 71.11 | POST `action=import` with no file part | HTTP 400 JSON error | **PASS** |
+| 71.12 | POST `action=import` over `import_file_max_size_bytes` (set cap; note php `upload_max_filesize=2M` floors the practical path → UPLOAD_ERR_INI_SIZE maps to 400 with error code) | HTTP 413 for pre-check-surpassing files; 400 'File upload failed (error code: 1)' for INI_SIZE-rejected ones — both clean JSON | **PASS** |
+| 71.13 | Anon POST import; and GET `action=import` | 401 anon; 405 for GET import | **PASS** |
+| 71.14 | POST `action=import` with `locale=de` into spec 38 | Skip messages localize to German (`Wurde übersprungen - Anforderung…`), proving the session-locale swap path | **PASS** |
+| 71.15 | `events` table after all imports | **0 new** Error/Warning/'not localized' rows (the pre-#1504/#1505 typo keys + 1624 warning now fixed) | **PASS** |
+| 71.16 | Browser: open `reqFromIssues.html?req_spec_id=36&tproject_id=25` as admin | Header/ctx line `WALK1503 / WALK1503 Requirements 2`, toolbar spec/project names, upload card + mapping note, `max file size: 10240 KB`, Import button disabled until a file is picked | **PASS** |
+| 71.17 | Browser: upload `mantis_test2.xml` (new ids 100/101) → Import | Result card: 2 rows `Created - Requirement - Doc ID:Mantis Task ID:100/101`; green success styling; toast+feedback | **PASS** |
+| 71.18 | Browser: re-import same file | Rows flip to amber warn styling. `Skipped - … - is FROZEN` | **PASS** |
+| 71.19 | Browser: `?locale=ro` variant renders Romanian chrome ('Creare Cerințe din Probleme', 'Cerințele au fost importate cu succes'), server message falls back to English (ro_RO is a short partial bundle — same as legacy) | UI Romanian, results English fallback, no JS errors | **PASS** |
+| 71.20 | `reqSpecView.html?id=36&tproject_id=25` as admin | Toolbar shows new link **Create Requirements from Issues** → `reqFromIssues.html?req_spec_id=36&tproject_id=25`; imported 100/101 listed under Requirements | **PASS** |
+| 71.21 | Browser: no-rights user (`guest900`, no project roles) opens `reqFromIssues.html?req_spec_id=36&tproject_id=25` | BFF 403 → localized ban banner 'You do not have permission to modify requirements in this project.'; work area hidden | **PASS** |
+| 71.22 | Client i18n: verify `reqfi.*` + `footers.reqFromIssues` exist in all 10 `gui/templates/i18n/*.json` bundles; `python3 -m json.tool` each | All bundles valid JSON; keys present (en + 9 translations) | **PASS** |
+
+Result: **PASS — 22/22 PASS** — full legacy parity for the Mantis XML requirement import
+(created / same-spec FROZEN / cross-branch / 400/401/403/404/405/413/422/500 / locale hint),
+Event-Viewer clean after the #1504/#1505 fixes. Refs #1503.

@@ -168,6 +168,24 @@ Requirements:
   (401/400/403/404/405 JSON; anon 401, guest 403 verified); Reorder toolbar
   button ($actions->reqReorder in lib/functions/common.php); reqro.* (15) +
   footers.reqReorder keys in all 10 bundles.
+- Create Requirements from Issues XML — Mantis import (reqFromIssues.html) -
+  BFF api/reqfromissues (#1503, closes gap #1349). Last standalone legacy
+  Requirements import screen (reqCreateFromIssueMantisXML.php + .tpl, the
+  "Create From Issues (XML)" button of the legacy reqSpecView Requirement
+  Operations fieldset) modernized, the REQ sibling of #1502: uploads a Mantis
+  bug-tracker XML export (root <mantis>, one <issue> per bug) and creates one
+  requirement per issue directly under the target spec with full legacy parity
+  via requirement_mgr::createFromMap() — docid "Mantis Task ID:<id>", title
+  "Issue:<id> - <summary>", description = description (+ steps to reproduce /
+  additional information) joined with <p>, node_order = document order,
+  status/type empty, expected_coverage=1; duplicate handling stays inside
+  createFromMap (same-spec hit -> "is FROZEN", cross-branch -> "Already exists
+  on other branch", over-length skip). Permission mgt_view_req AND
+  mgt_modify_req on the OWNING project (403; anon 401), import_file_max_size
+  cap (413), LIBXML_NONET + well-formedness + root checks (422), client-locale
+  hint localizes the server-side issue_* labels (de verified); entry: modern
+  reqSpecView.html already-gained toolbar button (shown on r.rights.manage);
+  reqfi.* (25) + footers.reqFromIssues keys in all 10 bundles.
 - NFR Test Strategy chapters (strategy/nfr{Performance,Security,Usability,
   Accessibility,Compatibility,Reliability,Maintainability}.html) - the
   Test Strategy overview now serves 28 chapter cards (chapters 22-28 = the
