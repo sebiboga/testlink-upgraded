@@ -115,13 +115,44 @@ Example (demo mode ON — red notices, no Save / Change Password buttons):
 
 ![User Profile — demo mode gating](screenshots/issue-878-demoMode-gating.png)
 
+## GitHub account & avatar (Refs #905)
+
+The logged-in user can type a GitHub username in their profile; the avatar that
+Would be shown in the Dashio layout was intended to come from that account. This
+was a net-new capability (legacy 1.9.20 had no avatar concept at all).
+
+- **BFF** (`api/userinfo/index.php`): `GET /api/userinfo` returns `github`
+  (whatever the current session/user carries); `PUT /api/userinfo` accepts
+  `github` (trimmed, leading `@` stripped, length-guarded, demo-mode gate
+  enforced).
+- **Known limitation (pre-existing, issue #1510):** the handle is **not
+  persisted** — there is no `users.github` column in the current schema seeds /
+  DB exports and `tlUser` has no `github` property or read/write mapping, so a
+  saved handle is echoed back on the same session only and lost on reload. The
+  front-end avatar preview works regardless (built client-side from the form
+  field), so the avatar UI is functional; only the storage of the handle is
+  missing. Tracked separately in #1510.
+- **Bugfix #1509:** the `avatarUrl` field was **removed** from the GET payload.
+  It called `tlUser::getGithubAvatarUrl(96)`, a helper that no longer exists in
+  the codebase (deleted from `lib/functions/tlUser.class.php` in the #1487
+  codebase hygiene pass). The re-added call site made `GET /api/userinfo`
+  fatal on every profile read with `Error: Call to undefined method
+  tlUser::getGithubAvatarUrl()` → HTTP 500 with empty body. No consumer used
+  `avatarUrl` — the front-end avatar preview builds
+  `https://avatars.githubusercontent.com/<login>?s=96&v=4` client-side from the
+  `github` field (`userInfo.html` `updateAvatarPreview()`), so no UI behaviour
+  was lost.
+- **User Profile screen** (`userInfo.html`): the Personal Data card shows a
+  72px round avatar preview (updates live on input, falls back to a `fa-user`
+  icon) and a GitHub Account input (i18n `profile.github` + `profile.githubHint`).
+
 ## API endpoints
 
 | Method + path | Purpose |
 |---|---|
-| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled`, `canViewEvents` — the right-gated Event Viewer flag — and `demoMode`) |
+| `GET /api/userinfo` | Profile payload (includes `authentication`, `isPasswordExternal`, `apiEnabled`, `canViewEvents` — the right-gated Event Viewer flag — `demoMode`, and `github`) — `avatarUrl` removed in #1509 |
 | `GET /api/userinfo/locales` | Available locales (single source of truth for all locale dropdowns) |
 | `GET /api/userinfo/login-history` | Last 10 successful + failed logins |
-| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale) — **403 in demo mode** |
+| `PUT /api/userinfo` | Update profile (firstName, lastName, email, locale, github) — **403 in demo mode** |
 | `PUT /api/userinfo/password` | Change password (403 when password management is external **or in demo mode**) |
 | `POST /api/userinfo/apikey` | Generate a new API key (403 when XML-RPC API is disabled) |

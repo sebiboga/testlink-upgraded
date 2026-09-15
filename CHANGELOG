@@ -355,6 +355,11 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   8 docs and 10 i18n bundles; all restored to their pre-deletion state with
   post-regression fixes (#912 options tolerance, #1379 insert-last-doc-id)
   re-applied (Refs #1507).
+- userinfo BFF: GET /api/userinfo profile route fatals 500 "Call to undefined
+  method tlUser::getGithubAvatarUrl()" — the #905 avatar helper was deleted by
+  the #1487 pass and the #1507 restore re-added only the call site; removed the
+  unused avatarUrl field (front-end renders the avatar from `github` client-side),
+  profile reads now return 200 (Refs #1509).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
