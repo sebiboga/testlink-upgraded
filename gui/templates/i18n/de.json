@@ -2003,6 +2003,7 @@
   "reqe.expectedCoverage": "Erwartete Abdeckung",
   "reqe.loadError": "Anforderung konnte nicht geladen werden",
   "reqe.newVersion": "Neue Version erstellen",
+  "reqe.newVersionPrompt": "Logmeldung für die neue Version:",
   "reqe.pageTitle": "Anforderungseditor",
   "reqe.readonly": "Sie haben keine Rechte zum Ändern von Anforderungen. Sie sind im Nur-Lese-Modus.",
   "reqe.saveError": "Anforderung konnte nicht gespeichert werden",

@@ -2009,6 +2009,7 @@
   "reqe.expectedCoverage": "预期覆盖率",
   "reqe.loadError": "加载需求失败",
   "reqe.newVersion": "创建新版本",
+  "reqe.newVersionPrompt": "新版本日志消息：",
   "reqe.pageTitle": "需求编辑器",
   "reqe.readonly": "您没有修改需求的权限。您处于只读模式。",
   "reqe.saveError": "保存需求失败",

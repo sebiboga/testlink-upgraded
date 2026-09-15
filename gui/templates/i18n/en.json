@@ -2009,6 +2009,7 @@
   "reqe.expectedCoverage": "Expected Coverage",
   "reqe.loadError": "Failed to load requirement",
   "reqe.newVersion": "Create New Version",
+  "reqe.newVersionPrompt": "Log message for the new version:",
   "reqe.pageTitle": "Requirement Editor",
   "reqe.readonly": "You do not have rights to modify requirements. You are in read-only mode.",
   "reqe.saveError": "Failed to save requirement",

@@ -2003,6 +2003,7 @@
   "reqe.expectedCoverage": "Couverture attendue",
   "reqe.loadError": "Échec du chargement de l'exigence",
   "reqe.newVersion": "Créer une nouvelle version",
+  "reqe.newVersionPrompt": "Message de journal pour la nouvelle version :",
   "reqe.pageTitle": "Éditeur d'exigence",
   "reqe.readonly": "Vous n'avez pas les droits pour modifier les exigences. Vous êtes en lecture seule.",
   "reqe.saveError": "Échec de l'enregistrement de l'exigence",

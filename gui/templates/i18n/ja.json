@@ -2009,6 +2009,7 @@
   "reqe.expectedCoverage": "期待カバレッジ",
   "reqe.loadError": "要件の読み込みに失敗しました",
   "reqe.newVersion": "新バージョンを作成",
+  "reqe.newVersionPrompt": "新しいバージョンのログメッセージ:",
   "reqe.pageTitle": "要件エディタ",
   "reqe.readonly": "要件を変更する権限がありません。読み取り専用モードです。",
   "reqe.saveError": "要件の保存に失敗しました",
