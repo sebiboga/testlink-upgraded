@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "Требуется ID документа",
   "reqe.errTitle": "Требуется название",
   "reqe.expectedCoverage": "Ожидаемое покрытие",
+  "reqe.insertLastDocId": "Вставить ID документа последнего созданного требования",
   "reqe.loadError": "Не удалось загрузить требование",
   "reqe.newVersion": "Создать новую версию",
   "reqe.pageTitle": "Редактор требований",

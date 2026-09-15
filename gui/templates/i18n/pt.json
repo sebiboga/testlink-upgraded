@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "O ID do Documento é obrigatório",
   "reqe.errTitle": "O Título é obrigatório",
   "reqe.expectedCoverage": "Cobertura Esperada",
+  "reqe.insertLastDocId": "Insira o ID do documento do último requisito criado",
   "reqe.loadError": "Falha ao carregar o requisito",
   "reqe.newVersion": "Criar Nova Versão",
   "reqe.pageTitle": "Editor de Requisito",

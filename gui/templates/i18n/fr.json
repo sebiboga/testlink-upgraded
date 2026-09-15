@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "L'ID de document est requis",
   "reqe.errTitle": "Le titre est requis",
   "reqe.expectedCoverage": "Couverture attendue",
+  "reqe.insertLastDocId": "Insérer le document ID de la dernière exigence créée",
   "reqe.loadError": "Échec du chargement de l'exigence",
   "reqe.newVersion": "Créer une nouvelle version",
   "reqe.pageTitle": "Éditeur d'exigence",

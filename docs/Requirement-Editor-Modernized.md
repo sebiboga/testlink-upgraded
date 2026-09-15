@@ -39,6 +39,7 @@ or `gui/templates/requirements/reqEdit.html?spec_id=<spec_node_id>&tproject_id=<
 | Scope | description textarea | same |
 | Save | `doAction=save` → update/create revision | `POST ?action=save`; on create, builds `nodes_hierarchy` + `requirements` + first `requirements_revisions` row and switches to edit mode |
 | Create New Version (edit) | `doAction=doCreateVersion` typewriter copy | `POST ?action=version` — copies content, bumps `version` (+1) |
+| Insert last doc id (create) | icon next to Document ID fills it with the project's last `req_doc_id` (config `allow_insertion_of_last_doc_id`) | BFF form response carries `allow_insert_last_doc_id` + `last_doc_id`; a teal insert icon is rendered in create mode only and one-click fills the field (Refs #1379) |
 | Cancel | return to caller | returns without any DB write |
 
 ## 2. REST API Reference
@@ -47,8 +48,8 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
 
 | Method | Route | Body / Query | Returns |
 |---|---|---|---|
-| GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, rights}` |
-| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, options, rights}` |
+| GET | `?action=form&id=N` | `tproject_id` | `{mode:'edit', requirement, options, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, rights}` |
+| GET | `?action=form&spec_id=N` | `tproject_id` | `{mode:'create', spec_title, tproject_id, tproject_name, allow_insert_last_doc_id, last_doc_id, options, rights}` |
 | POST | `?action=save` | `{id?, spec_id?, tproject_id, doc_id, title, status, type, scope, expected_coverage}` | `{status:'ok', id}` (update or create) |
 | POST | `?action=version` | `{id, tproject_id, ...fields}` | `{status:'ok', version}` (create new version) |
 
@@ -70,13 +71,26 @@ form with the new id/version.
 - On **create**, the requirement node + `requirements` row + first
   `requirements_revisions` row are created in one transaction, mirroring the
   legacy `doCreate` flow.
+- **Insert last doc id (Refs #1379):** controlled by
+  `req_cfg->allow_insertion_of_last_doc_id` (`config.inc.php`, repo default
+  `DISABLED`, same as legacy). When enabled, the BFF form responses compute
+  `last_doc_id` via `requirement_mgr::get_last_doc_id_for_testproject()`
+  (lib/functions/requirement_mgr.class.php — `max()` over the project's
+  requirement IDs), exactly like legacy `reqEdit.php:249-251`. The screen shows
+  a teal FontAwesome insert icon next to Document ID **in create mode only**,
+  hidden when the project has no requirements yet, in edit mode, after the
+  first create-save flips to edit, or when the config flag is off. The tooltip
+  mirrors legacy `insert_last_req_doc_id`, e.g.
+  `Insert Document ID of last created Requirement: "REQ-002"`; clicking fills
+  `#reqDocId` (legacy `insert_last_doc_id()` parity).
 
 ## 4. i18n Keys
 
 All labels are client-side via `TLi18n`; keys under the `reqe.` namespace
 (`reqe.pageTitle`, `reqe.title`, `reqe.docId`, `reqe.status`, `reqe.type`,
 `reqe.expectedCoverage`, `reqe.scope`, `reqe.save`, `reqe.cancel`,
-`reqe.newVersion`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`, and
+`reqe.newVersion`, `reqe.spec`, `reqe.version`, `reqe.detailHeader`,
+`reqe.insertLastDocId` (insert-last-doc-id tooltip), and
 validation/toast messages). Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -94,3 +108,11 @@ See **Suite 66 — Requirement Editor (reqEdit)** in `tmp/TLU_Test_Cases.md`
 (12/12 PASS): edit mode, create mode, validation, create, save persist,
 Create New Version, BFF rights, no-permission, cancel, i18n integrity, legacy
 link switch, and Event Viewer cleanliness.
+
+**Insert last doc id helper** — see **Task — Issue #1379** in
+`tmp/TLU_Test_Cases.md` (10/10 PASS): config-enabled create BFF payload,
+icon render + tooltip, one-click fill, create-save flips mode and hides the
+icon, edit mode hides it, config-DISABLED hides it, duplicate doc id guard,
+locale switch, Event Viewer cleanliness.
+
+![Insert last doc id helper](screenshots/issue-1379-reqedit-insert-last-docid.png)

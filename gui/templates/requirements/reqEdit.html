@@ -34,6 +34,9 @@ textarea.form-control { height: auto; min-height: 120px; }
 .coverage-hint { color: #888; font-size: 12px; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .readonly-note { background: #fff8e1; border: 1px solid #efe0a6; color: #8a6d3b; border-radius: 6px; padding: 12px 16px; font-size: 13px; margin: 16px 24px 0; }
+.input-group .form-control { height: 34px; }
+.lastdoc-btn { background: #4ECDC4; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 0 4px 4px 0; font-size: 13px; }
+.lastdoc-btn:hover { background: #3dbdb5; }
 </style>
 </head>
 <body>
@@ -60,7 +63,11 @@ textarea.form-control { height: auto; min-height: 120px; }
       <div class="col-md-6">
         <div class="form-group">
           <label class="f-label" data-i18n="reqe.docId">Document ID <span class="f-req">*</span></label>
-          <input type="text" id="reqDocId" class="form-control" maxlength="64">
+          <div class="input-group">
+            <input type="text" id="reqDocId" class="form-control" maxlength="64">
+            <span id="insertLastDocIdBtn" class="input-group-addon lastdoc-btn" style="display:none;"
+                  title="" onclick="insertLastDocId()"><i class="fa fa-mouse-pointer"></i></span>
+          </div>
         </div>
       </div>
       <div class="col-md-6">
@@ -115,6 +122,7 @@ var TPROJECT_ID = 0;
 var MODE = 'create';
 var OPTIONS = null;
 var CURRENT = null;
+var CAN_MANAGE = false;
 
 function fillSelect($sel, map, selected) {
   $sel.empty();
@@ -160,6 +168,8 @@ function loadForm() {
     MODE = r.mode;
     OPTIONS = r.options || {};
     CURRENT = r.requirement || {};
+    CURRENT.last_doc_id = r.last_doc_id || null;
+    CURRENT.allow_insert_last_doc_id = !!(r.allow_insert_last_doc_id);
     SPEC_ID = CURRENT.srs_id || SPEC_ID;
     $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('reqe.pageTitle'));
 
@@ -176,6 +186,7 @@ function loadForm() {
     fillCoverage(CURRENT.expected_coverage);
 
     var canManage = r.rights && r.rights.manage;
+    CAN_MANAGE = !!canManage;
     if (MODE === 'edit') {
       $('#newVersionBtn').show();
       if (!canManage) {
@@ -186,6 +197,7 @@ function loadForm() {
       $('#newVersionBtn').hide();
       if (!canManage) { setEditable(false); $('#readonlyNote').show(); }
     }
+    applyLastDocIdHelper();
   }).fail(function(xhr) {
     var msg = TLi18n.t('reqe.loadError');
     try { if (xhr.responseJSON && xhr.responseJSON.message) { msg = xhr.responseJSON.message; } } catch (e) {}
@@ -195,6 +207,24 @@ function loadForm() {
 
 function setEditable(on) {
   $('.form-control').prop('disabled', !on);
+}
+
+/* Mirrors legacy insert_last_doc_id(): fill Document ID with the project's last
+   req doc id (only offered in create mode when config
+   req_cfg->allow_insertion_of_last_doc_id is enabled). */
+function insertLastDocId() {
+  if (!CURRENT || !CURRENT.last_doc_id) { return; }
+  $('#reqDocId').val(CURRENT.last_doc_id);
+  $('#reqDocId').trigger('change');
+}
+
+function applyLastDocIdHelper() {
+  var showBtn = MODE === 'create' && CAN_MANAGE && CURRENT &&
+                CURRENT.allow_insert_last_doc_id && CURRENT.last_doc_id;
+  $('#insertLastDocIdBtn').toggle(!!showBtn);
+  if (showBtn) {
+    $('#insertLastDocIdBtn').attr('title', TLi18n.t('reqe.insertLastDocId') + ': "' + CURRENT.last_doc_id + '"');
+  }
 }
 
 function sanitize(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
@@ -225,7 +255,7 @@ function save() {
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.saveError')); return; }
       hideError();
-      if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); }
+      if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); applyLastDocIdHelper(); }
       $('#infoBar').text(TLi18n.t('reqe.saved')).show();
       setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
       if (r.newVersion) { $('#versionChip').text(r.newVersion); }

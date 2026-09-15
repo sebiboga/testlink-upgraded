@@ -254,6 +254,15 @@ Test Strategy:
 
 NEW FEATURES
 ------------
+- Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
+  `api/reqedit`): legacy "Insert last doc id" create-mode helper restored
+  (Refs #1379) — the BFF `form` responses expose `allow_insert_last_doc_id`
+  (config `req_cfg->allow_insertion_of_last_doc_id`, repo default DISABLED)
+  + `last_doc_id` (computed via `requirement_mgr::get_last_doc_id_for_testproject`,
+  legacy parity), and the screen renders a teal insert icon next to Document ID
+  in create mode only (config on + project has a prior req) with tooltip and
+  one-click fill; icon hides in edit mode and after the first create-save.
+  i18n `reqe.insertLastDocId` in all 10 bundles.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
   header now shows "Assigned to: <user>" (teal) or the "No tester assigned"

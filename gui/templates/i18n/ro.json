@@ -1775,6 +1775,7 @@
   "reqe.errDocId": "ID Document este obligatoriu",
   "reqe.errTitle": "Titlul este obligatoriu",
   "reqe.expectedCoverage": "Acoperire așteptată",
+  "reqe.insertLastDocId": "Inserează ID-ul documentului ultimei cerințe create",
   "reqe.loadError": "Eroare la încărcarea cerinței",
   "reqe.newVersion": "Creează Versiune Nouă",
   "reqe.pageTitle": "Editor Cerințe",

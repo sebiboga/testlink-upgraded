@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "文档ID为必填",
   "reqe.errTitle": "标题为必填",
   "reqe.expectedCoverage": "预期覆盖率",
+  "reqe.insertLastDocId": "插入最新产品需求的文档标识",
   "reqe.loadError": "加载需求失败",
   "reqe.newVersion": "创建新版本",
   "reqe.pageTitle": "需求编辑器",

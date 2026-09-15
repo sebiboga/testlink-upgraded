@@ -135,6 +135,31 @@ function reqOptions() {
     ];
 }
 
+/**
+ * Mirrors legacy lib/requirements/reqEdit.php:249-251: expose the "Insert last
+ * doc id" create-mode helper state. Controlled by config
+ * req_cfg->allow_insertion_of_last_doc_id (default DISABLED). When enabled the
+ * value is the last req_doc_id of the test project (or null if the project has
+ * no requirements yet) - legacy requirement_mgr::get_last_doc_id_for_testproject().
+ */
+function lastDocIdInfo($tproject_id) {
+    global $reqMgr;
+    $cfg = config_get('req_cfg');
+    $allowed = isset($cfg->allow_insertion_of_last_doc_id)
+        ? (bool)$cfg->allow_insertion_of_last_doc_id : false;
+    if (!$allowed) {
+        return ['allow_insert_last_doc_id' => false, 'last_doc_id' => null];
+    }
+    $info = null;
+    try {
+        $info = $reqMgr->get_last_doc_id_for_testproject(intval($tproject_id));
+    } catch (\Throwable $e) {
+        $info = null;
+    }
+    return ['allow_insert_last_doc_id' => true,
+            'last_doc_id' => (is_null($info) || trim((string)$info) === '') ? null : (string)$info];
+}
+
 if ($action === '') {
     http_response_code(400);
     out(['status' => 'error', 'message' => 'Missing action']);
@@ -197,9 +222,12 @@ if ($method === 'GET' && $action === 'form') {
             'spec_title'        => (string)$r['spec_title'],
         ];
         $specId = intval($req['srs_id']);
+        $lastDoc = lastDocIdInfo($tproject_id);
         out(['status' => 'ok', 'mode' => 'edit', 'requirement' => $req,
              'options' => $options, 'tproject_id' => $tproject_id,
              'tproject_name' => $tpName,
+             'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
+             'last_doc_id' => $lastDoc['last_doc_id'],
              'rights' => ['view' => canView($user, $db, $tproject_id),
                           'manage' => canManage($user, $db, $tproject_id)]]);
     }
@@ -222,6 +250,7 @@ if ($method === 'GET' && $action === 'form') {
             $specTitle = (string)$st[0]['name'];
         }
     }
+    $lastDoc = lastDocIdInfo($tproject_id);
     out(['status' => 'ok', 'mode' => 'create',
          'requirement' => ['srs_id' => $specId, 'spec_title' => $specTitle,
                            'version' => 0, 'req_doc_id' => '', 'title' => '',
@@ -229,6 +258,8 @@ if ($method === 'GET' && $action === 'form') {
                            'type' => $options['defaultReqType'], 'expected_coverage' => 1],
          'options' => $options, 'tproject_id' => $tproject_id,
          'tproject_name' => $tpName,
+         'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
+         'last_doc_id' => $lastDoc['last_doc_id'],
          'rights' => ['view' => canView($user, $db, $tproject_id),
                       'manage' => canManage($user, $db, $tproject_id)]]);
 }

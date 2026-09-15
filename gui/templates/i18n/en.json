@@ -1775,6 +1775,7 @@
   "reqe.errDocId": "Document ID is required",
   "reqe.errTitle": "Title is required",
   "reqe.expectedCoverage": "Expected Coverage",
+  "reqe.insertLastDocId": "Insert Document ID of last created Requirement",
   "reqe.loadError": "Failed to load requirement",
   "reqe.newVersion": "Create New Version",
   "reqe.pageTitle": "Requirement Editor",

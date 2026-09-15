@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "Dokument-ID ist erforderlich",
   "reqe.errTitle": "Titelfeld ist erforderlich",
   "reqe.expectedCoverage": "Erwartete Abdeckung",
+  "reqe.insertLastDocId": "Füge Dokument ID der zuletzt erstellten Anforderung ein",
   "reqe.loadError": "Anforderung konnte nicht geladen werden",
   "reqe.newVersion": "Neue Version erstellen",
   "reqe.pageTitle": "Anforderungseditor",

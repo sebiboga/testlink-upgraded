@@ -1770,6 +1770,7 @@
   "reqe.errDocId": "文書IDは必須です",
   "reqe.errTitle": "タイトルは必須です",
   "reqe.expectedCoverage": "期待カバレッジ",
+  "reqe.insertLastDocId": "最後に作成した要件の文書IDを入力",
   "reqe.loadError": "要件の読み込みに失敗しました",
   "reqe.newVersion": "新バージョンを作成",
   "reqe.pageTitle": "要件エディタ",
