@@ -460,6 +460,23 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 - userinfo BFF: profile save with a validation-rejected email fatals on the
   undefined tlUser::E_EMAILINVALID constant (empty 400 body); now maps the real
   E_EMAILFORMAT/E_EMAILLENGTH codes to a clean "Invalid email address" (#1500).
+- requirement import E_WARNING on version-less hits (#1505): a Mantis issue /
+  req import whose docid hits an existing requirement owning NO `req_versions`
+  child row (`get_last_child_info()` returns null) emitted
+  `E_WARNING Trying to access array offset on null` at
+  `requirement_mgr.class.php:1624` into the Event Viewer on every import; the
+  frozen-req check now guards the dereference
+  (`is_array($last_version) && isset($last_version['is_open']) && $last_version['is_open'] == 1`),
+  so version-less hits fall through to the clean "is FROZEN" skip with zero
+  warnings — covers the whole `createFromMap()` import surface (BFF
+  reqfromissues + reqimport, legacy reqImport CSV/DocBook/XML).
+- requirement import over-length locale keys misspelled (#1504): createFromMap
+  read `req_title_lenght_exceeded`/`req_docid_lenght_exceeded` (typos) which did
+  not exist in any bundle, logging an L18N "not localized" event and rendering a
+  raw key on every over-length title/docid import skip; renamed to the
+  correctly-spelled `req_title_length_exceeded`/`req_docid_length_exceeded` and
+  the two keys (plus the missing title variant) were added to every locale
+  `strings.txt` bundle.
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
