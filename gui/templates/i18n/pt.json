@@ -2009,6 +2009,7 @@
   "reqe.expectedCoverage": "Cobertura Esperada",
   "reqe.loadError": "Falha ao carregar o requisito",
   "reqe.newVersion": "Criar Nova Versão",
+  "reqe.newVersionPrompt": "Mensagem de log da nova versão:",
   "reqe.pageTitle": "Editor de Requisito",
   "reqe.readonly": "Você não tem direitos para modificar requisitos. Está em modo de leitura.",
   "reqe.saveError": "Falha ao salvar o requisito",

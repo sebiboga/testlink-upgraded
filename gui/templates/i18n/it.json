@@ -2003,6 +2003,7 @@
   "reqe.expectedCoverage": "Copertura attesa",
   "reqe.loadError": "Errore nel caricamento del requisito",
   "reqe.newVersion": "Crea Nuova Versione",
+  "reqe.newVersionPrompt": "Messaggio di registro per la nuova versione:",
   "reqe.pageTitle": "Editor Requisiti",
   "reqe.readonly": "Non hai i diritti per modificare i requisiti. Sei in modalità sola lettura.",
   "reqe.saveError": "Errore nel salvataggio del requisito",

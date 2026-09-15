@@ -25,7 +25,11 @@
  *   POST ?action=save                     -> create (no id) or update (id) a requirement
  *                                           body version_id targets that exact version (gap #1382),
  *                                           absent -> latest. stay_here (1) keeps create form open
- *   POST ?action=version&id=N             -> create a new version of the requirement
+ *   POST ?action=version&id=N             -> create a new version (copy of the
+ *                                           source version, log_message prompt,
+ *                                           freeze source, notify monitors)
+ *                                           body: {tproject_id, id, version_id?,
+ *                                                  log_message?}
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -434,14 +438,41 @@ if ($method === 'POST' && $action === 'version') {
             $latest = $v;
         }
     }
-    $newVersion = intval($latest['version']) + 1;
-    $ok = $reqMgr->create_version(intval($reqId), $newVersion, (string)$latest['scope'],
-                                  $userId, $latest['status']);
-    if (!$ok) {
+    // Refs #1377: port legacy doCreateVersion() (reqCommands.class.php:609).
+    // Source version is the one being edited (legacy reqView passes
+    // req_version_id); the next version number is always last version + 1,
+    // computed internally by create_new_version() from the last child.
+    $sourceVersionId = intval($BODY['version_id'] ?? ($BODY['req_version_id'] ?? 0));
+    if ($sourceVersionId <= 0) {
+        $sourceVersionId = intval($latest['id']);
+    }
+    $logMsg = (string)($BODY['log_message'] ?? '');
+
+    $reqCfg = config_get('req_cfg');
+    $freezeSourceVersion = true;
+    if (isset($reqCfg->freezeREQVersionOnNewREQVersion)) {
+        $freezeSourceVersion = (bool)$reqCfg->freezeREQVersionOnNewREQVersion;
+    }
+
+    try {
+        // create_new_version() copies the whole source version (scope, status,
+        // type, expected_coverage, custom fields, attachments, TC links), sets
+        // the log message, freezes the source when configured and notifies the
+        // requirement monitors (legacy parity, requirement_mgr.class.php:2328).
+        $op = $reqMgr->create_new_version(intval($reqId), $userId, array(
+            'reqVersionID'        => intval($sourceVersionId),
+            'log_msg'             => $logMsg,
+            'notify'              => true,
+            'freezeSourceVersion' => $freezeSourceVersion,
+        ));
+    } catch (\Throwable $e) {
         http_response_code(500);
         out(['status' => 'error', 'message' => 'Failed to create new version']);
     }
-    out(['status' => 'ok', 'version' => $newVersion]);
+    out(['status' => 'ok',
+         'version'    => intval($op['version']),
+         'version_id' => intval($op['id']),
+         'new_version'=> intval($op['version'])]);
 }
 
 http_response_code(400);

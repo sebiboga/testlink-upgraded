@@ -302,12 +302,19 @@ function save() {
 
 function newVersion() {
   if (!REQ_ID) { return; }
+  /* Refs #1377: legacy ask4log() (reqViewVersions.tpl:155) prompts for a log
+     message before creating the new version (commit_title / please_add_revision_log).
+     Reuse the modern revision-log prompt pattern (reqSpecView.html newRevision()). */
+  var logMsg = window.prompt(TLi18n.t('reqe.newVersionPrompt'), '');
+  if (logMsg === null) { return; }
   hideError();
   $.ajax({
     url: API + '?action=version&id=' + REQ_ID,
     method: 'POST',
     contentType: 'application/json',
-    data: JSON.stringify({ tproject_id: TPROJECT_ID, id: REQ_ID }),
+    data: JSON.stringify({ tproject_id: TPROJECT_ID, id: REQ_ID,
+                           version_id: (CURRENT && CURRENT.version_id) || 0,
+                           log_message: logMsg }),
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.versionError')); return; }
       $('#infoBar').text(TLi18n.t('reqe.versionCreated') + ' v' + r.version).show();

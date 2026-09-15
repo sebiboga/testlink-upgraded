@@ -2009,6 +2009,7 @@
   "reqe.expectedCoverage": "Acoperire așteptată",
   "reqe.loadError": "Eroare la încărcarea cerinței",
   "reqe.newVersion": "Creează Versiune Nouă",
+  "reqe.newVersionPrompt": "Mesaj de log pentru noua versiune:",
   "reqe.pageTitle": "Editor Cerințe",
   "reqe.readonly": "Nu aveți drepturi de modificare a cerințelor. Sunteți în mod citire.",
   "reqe.saveError": "Eroare la salvarea cerinței",
