@@ -44,16 +44,25 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 .rights-grid label { font-size: 12px; font-weight: 400; cursor: pointer; padding: 4px 8px; border-radius: 3px; background: #f8f9fa; }
 .rights-grid label:hover { background: #e2e6ea; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
+.demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
 
 <div class="header"><span data-i18n="header.roleManagement">Role Management</span> <span data-i18n="header.roleManagementSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">manage roles and permissions</span><span id="localeSwitcher" style="float:right;"></span></div>
 
+<div id="demoBanner" class="demo-banner" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></div>
+
 <div class="tabs-bar" id="tabsBar"></div>
 
+<div id="denyBox" style="display:none;padding:24px;text-align:center;background:#fff;margin:24px;border-radius:8px;font-size:14px;"><i class="fa fa-lock"></i> <span data-i18n="role.noRights">You do not have the rights required to manage roles (role_management right required).</span></div>
+
 <div class="toolbar">
-  <button class="btn-teal" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="role.createRole">Create Role</span></button>
+  <button class="btn-teal" id="btnCreateRole" onclick="showCreateModal()"><i class="fa fa-plus"></i> <span data-i18n="role.createRole">Create Role</span></button>
   <span style="flex:1"></span>
   <span id="footerInfo" style="color:#aaa;font-size:12px;"></span>
 </div>
@@ -77,6 +86,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 <div class="footer" id="footerText"></div>
 <div class="footer"><span data-i18n="footers.rolesView">TestLink 2.0.1 - Role Management</span></div>
 
+<div class="toast" id="toast"></div>
+
 <!-- Create/Edit Modal -->
 <div class="modal fade" id="roleModal" tabindex="-1">
   <div class="modal-dialog modal-lg">
@@ -87,8 +98,10 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       </div>
       <div class="modal-body">
         <input type="hidden" id="editRoleId">
+        <div id="roleLockNote" class="alert alert-warning" style="display:none;font-size:12px;padding:8px 12px;"><i class="fa fa-lock"></i> <span data-i18n="role.editLocked">This role is defined by the system and cannot be modified.</span></div>
         <div class="form-group" style="margin-bottom:12px;">
           <label style="font-size:12px;font-weight:600;" data-i18n="role.roleName">Role Name *</label>
+          <span id="btnEventHistory" title="Show event history" onclick="showEventHistory()" style="display:none;cursor:pointer;color:#4ECDC4;font-size:14px;margin-left:6px;"><i class="fa fa-info-circle"></i></span>
           <input type="text" id="editRoleName" class="form-control" maxlength="100" style="font-size:13px;">
         </div>
         <div class="form-group" style="margin-bottom:12px;">
@@ -98,7 +111,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
         <div class="form-group">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <label style="font-size:12px;font-weight:600;margin:0;"><span data-i18n="role.rights">Rights *</span> <span data-i18n="role.selectAtLeastOne" style="font-weight:400;color:#888;">(select at least one)</span></label>
-            <a href="javascript:;" onclick="toggleAllRights()" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="role.selectAll">Select All</a>
+            <a href="javascript:;" id="selectAllRightsLink" onclick="toggleAllRights()" style="font-size:12px;color:#4ECDC4;font-weight:600;" data-i18n="role.selectAll">Select All</a>
           </div>
           <div id="rightsContainer" class="rights-grid"></div>
         </div>
@@ -106,7 +119,8 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
-        <button type="button" class="btn-teal" onclick="saveRole()" style="font-size:13px;" data-i18n="common.save">Save</button>
+        <span id="demoModalNote" class="demo-note" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="role.demoUpdateDisabled">Demo mode enabled => Update Role DISABLED</span></span>
+        <button type="button" class="btn-teal" id="saveRoleBtn" onclick="saveRole()" style="font-size:13px;" data-i18n="common.save">Save</button>
       </div>
     </div>
   </div>
@@ -123,6 +137,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
       <div class="modal-body">
         <p id="deleteMsg" style="font-size:13px;"></p>
         <p id="deleteUsers" style="font-size:12px;color:#666;"></p>
+        <div id="deleteResetNote" style="display:none;margin-top:8px;font-size:12px;color:#856404;background:#fff3cd;border:1px solid #ffeeba;border-radius:4px;padding:6px 10px;"></div>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal" style="font-size:13px;" data-i18n="common.cancel">Cancel</button>
@@ -131,6 +146,14 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
     </div>
   </div>
 </div>
+
+<!-- Legacy parity: dashio rolesEdit.tpl:67-72 showEventHistoryFor(roleid,'roles')
+     opens the Event Viewer pre-filtered to this role's audit activity. Gated
+     on grants.mgt_view_events (rolesEdit.php:260). -->
+<form id="eventhistory" target="_blank" method="GET" action="/gui/templates/eventviewer/eventviewer.html" style="display:none;">
+  <input type="hidden" name="object_id" id="eh_object_id">
+  <input type="hidden" name="object_type" id="eh_object_type" value="roles">
+</form>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -141,9 +164,36 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; }
 var API = '/api/roles/index.php';
 var table = null;
 var rightsMap = {};
+var allRights = [];
 var allItems = [];
+var canViewEvents = false;
+var demoMode = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s)); return d.innerHTML; }
+
+// Dashio toast pattern (see cfieldsAssignView.html:276, planUpdateTC.html:211,
+// usersView.html:233 for the identical helper used since #890): fixed
+// bottom-right banner replacing the legacy inc_update.tpl user feedback /
+// $sqlResult area of rolesView.tpl:43 and rolesEdit.tpl:53.
+function toast(msg, isError) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isError).toggleClass('ok', !isError).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(200); }, 3000));
+}
+
+// Map the BFF feedback_key to the client-side TLi18n key. The BFF mirrors the
+// legacy audit/lang keys (audit_role_created / audit_role_saved /
+// audit_role_deleted from rolesEdit.php:126-131 and roles.inc.php:474), just
+// like userFeedback() does for user_* in usersView.html:241.
+function roleFeedback(feedbackKey, name) {
+  var map = {
+    role_created: 'role.feedback.created',
+    role_updated: 'role.feedback.updated',
+    role_deleted: 'role.feedback.deleted',
+    role_duplicated: 'role.feedback.duplicated'
+  };
+  return TLi18n.t(map[feedbackKey] || 'role.feedback.updated', {name: name || ''});
+}
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -162,25 +212,78 @@ $(function() {
       html += '<a href="' + t.url + '"' + (t.active ? ' class="active"' : '') + '>' + t.label + '</a>';
     });
     $('#tabsBar').html(html);
+    loadGrants();
     loadMeta();
     loadRoles();
   });
 });
+
+// Legacy parity: lib/usermanagement/rolesEdit.php:259-260 grants are built by
+// getGrantsForUserMgmt() + a separate mgt_view_events flag that gates the
+// "Show event history" icon (rolesEdit.tpl:67-72).
+function loadGrants() {
+  $.getJSON(API + '/meta/grants', function(r) {
+    canViewEvents = (r.grants && r.grants.mgt_view_events === 'yes');
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
+  });
+}
 
 function loadMeta() {
   $.getJSON(API + '/meta/rights', function(r) {
     allRights = r.items;
     rightsMap = {};
     $.each(r.items, function(i, right) { rightsMap[right.id] = right.description || right.name; });
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
   });
 }
 
 function loadRoles() {
   $.getJSON(API, function(r) {
     allItems = r.items;
+    // Legacy parity: rolesEdit.tpl:185-205 makes the whole role edit screen
+    // read-only in demo mode (Save button -> demo_update_role_disabled note).
+    // The BFF exposes the demo state so the UI can gate toolbar, row actions
+    // and the modal save button.
+    demoMode = !!(r.demoMode);
+    applyDemoMode();
     renderTable(r.items);
     $('#footerText').text(TLi18n.t('role.rolesCount', {n: r.total}) + ' | ' + TLi18n.t('common.generatedOn') + ' ' + new Date().toLocaleString());
+  }).fail(function(xhr) {
+    if (xhr && xhr.status === 403) { showNoAccess(); return; }
+    showNoAccess();
   });
+}
+
+// demoMode read-only gating. Mirrors legacy rolesEdit.tpl:185-205: with
+// $tlCfg->demoMode on, the role edit page shows the demo_update_role_disabled
+// note instead of the Save button; create/duplicate/delete are additionally
+// hidden so the screen is effectively view-only (consistent with #887).
+function applyDemoMode() {
+  $('#demoBanner').toggle(demoMode);
+  $('#btnCreateRole').toggle(!demoMode);
+}
+
+function applyRoleModal() {
+  var locked = !!demoMode;
+  $('#saveRoleBtn').toggle(!locked);
+  $('#demoModalNote').toggle(locked);
+  if (locked) {
+    $('#editRoleName').prop('disabled', true);
+    $('#editRoleDesc').prop('disabled', true);
+    $('#selectAllRightsLink').css('pointer-events', 'none').css('opacity', '.5');
+    $('#rightsContainer input[type="checkbox"]').prop('disabled', true);
+    $('#roleLockNote').hide();
+  }
+}
+
+function showNoAccess() {
+  $('#tabsBar').hide();
+  $('.toolbar').hide();
+  $('.table-wrap').hide();
+  $('#footerText').hide();
+  $('#denyBox').show();
 }
 
 function renderTable(items) {
@@ -200,7 +303,7 @@ function renderTable(items) {
     var typeBadge = r.isSystem
       ? '<span class="badge-system">' + TLi18n.t('role.system') + '</span>'
       : '<span class="badge-custom">' + TLi18n.t('role.custom') + '</span>';
-    var deleteBtn = r.isSystem
+    var deleteBtn = (r.isSystem || demoMode)
       ? ''
       : '<i class="fa fa-trash action-btn danger" title="Delete" onclick="confirmDelete(' + r.id + ')"></i>';
     rows.push([
@@ -209,7 +312,10 @@ function renderTable(items) {
       esc(r.description || ''),
       rightTags || '<span style="color:#999;font-size:11px;">' + TLi18n.t('common.none') + '</span>',
       typeBadge,
-      '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' + deleteBtn
+      '<i class="fa fa-edit action-btn" title="Edit" onclick="editRole(' + r.id + ')"></i>' +
+      (!demoMode
+        ? '<i class="fa fa-copy action-btn" title="' + TLi18n.t('role.duplicateRole') + '" onclick="duplicateRole(' + r.id + ')"></i>'
+        : '') + deleteBtn
     ]);
   });
   table = $('#rolesTable').DataTable({
@@ -241,6 +347,17 @@ function buildRightsCheckboxes(selectedRights) {
   return html;
 }
 
+function setRoleEditable(editable, disableInputs) {
+  var canSave = editable && !demoMode;
+  $('#saveRoleBtn').toggle(canSave);
+  $('#roleLockNote').toggle(!editable && !demoMode);
+  $('#demoModalNote').toggle(demoMode);
+  $('#editRoleName').prop('disabled', !canSave && (disableInputs || demoMode));
+  $('#editRoleDesc').prop('disabled', !canSave && (disableInputs || demoMode));
+  $('#selectAllRightsLink').toggle(canSave);
+  $('#rightsContainer input[type="checkbox"]').prop('disabled', !canSave && (disableInputs || demoMode));
+}
+
 function showCreateModal() {
   $('#modalTitle').text(TLi18n.t('role.createRole'));
   $('#editRoleId').val('');
@@ -248,6 +365,8 @@ function showCreateModal() {
   $('#editRoleDesc').val('');
   $('#rightsContainer').html(buildRightsCheckboxes([]));
   $('#modalError').hide();
+  $('#btnEventHistory').hide();
+  setRoleEditable(true, false);
   $('#roleModal').modal('show');
 }
 
@@ -260,12 +379,28 @@ function editRole(id) {
     $('#editRoleDesc').val(role.description || '');
     $('#rightsContainer').html(buildRightsCheckboxes(role.rights));
     $('#modalError').hide();
+    $('#btnEventHistory').toggle(canViewEvents);
+    setRoleEditable(!!role.canEdit, !!role.isAdmin);
     $('#roleModal').modal('show');
   });
 }
 
+// Legacy parity: dashio rolesEdit.tpl:67-72 showEventHistoryFor(roleid,'roles')
+// opens the Event Viewer pre-filtered to this role's audit activity; the BFF
+// re-checks mgt_view_events anyway and 403s without it (eventviewer.legacy.php).
+function showEventHistory() {
+  var id = $('#editRoleId').val();
+  if (!id || !canViewEvents) return;
+  $('#eh_object_id').val(id);
+  $('#eventhistory').submit();
+}
+
 function saveRole() {
   var id = $('#editRoleId').val();
+  if (id && !$('#saveRoleBtn').is(':visible')) {
+    $('#modalError').text(TLi18n.t('role.editLocked')).show();
+    return;
+  }
   var rightIDs = [];
   $('#rightsContainer input[name="right"]:checked').each(function() { rightIDs.push(parseInt($(this).val())); });
 
@@ -289,10 +424,27 @@ function saveRole() {
   $.ajax({
     url: url, type: type,
     contentType: 'application/json', data: JSON.stringify(data),
-    success: function() { $('#roleModal').modal('hide'); loadRoles(); },
+    success: function(r) {
+      $('#roleModal').modal('hide');
+      loadRoles();
+      // Legacy parity: rolesEdit.php:126,131 logAuditEvent feeds
+      // audit_role_created/audit_role_saved; surface them as a toast so the
+      // create/update is no longer silent (issue #904).
+      var savedName = (r && r.item && r.item.name) || data.name;
+      toast(roleFeedback(r && r.feedback_key, savedName), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.save');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
       $('#modalError').text(msg).show();
     }
   });
@@ -300,9 +452,11 @@ function saveRole() {
 
 function confirmDelete(id) {
   var name = '';
+  var isSystem = false;
   if (allItems) {
-    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; isSystem = x.isSystem ? true : false; return false; } });
   }
+  if (isSystem) { toast(TLi18n.t('role.systemDeleteDenied'), true); return; }
   $.getJSON(API + '/' + id + '/users', function(r) {
     var items = r.items || [];
     var userCount = items.length;
@@ -311,27 +465,92 @@ function confirmDelete(id) {
     if (userCount > 0) {
       var loginList = $.map(items, function(u) { return u.login; }).join(', ');
       userMsg = TLi18n.t('role.deleteUsersMsg', {n: userCount, users: loginList});
+      // Legacy parity: dashio rolesView.tpl:53-60 lists every affected user
+      // (caption_possible_affected_users) on the confirm-delete page.
+      var displayNames = $.map(items, function(u) { return u.name || u.login; });
+      userMsg += '<div style="margin:6px 0 0 14px;">' + $.map(displayNames, esc).join('<br>') + '</div>';
     }
     $('#deleteMsg').html(msg);
     $('#deleteUsers').html(userMsg);
+    // Legacy parity: dashio rolesView.tpl:61 warning_users_will_be_reset
+    // => <replacement role name>. Only shown when the role actually has users,
+    // matching the legacy flow where an empty affected-users list deleted
+    // immediately with no warning (rolesView.php:34-36).
+    if (userCount > 0 && r.replacementRole && r.replacementRole.name) {
+      $('#deleteResetNote').html(TLi18n.t('role.warningUsersWillBeReset') + ' <b>' + esc(r.replacementRole.name) + '</b>').show();
+    } else {
+      $('#deleteResetNote').hide();
+    }
     $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
     $('#deleteModal').modal('show');
   }).fail(function() {
     $('#deleteMsg').html(TLi18n.t('role.deleteConfirmMsg') + ' <b>' + esc(name) + '</b>?');
     $('#deleteUsers').html('');
+    $('#deleteResetNote').hide();
     $('#deleteBtn').off('click').on('click', function() { doDelete(id); });
     $('#deleteModal').modal('show');
   });
 }
 
 function doDelete(id) {
+  var name = '';
+  if (allItems) {
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+  }
   $.ajax({
     url: API + '/' + id, type: 'DELETE',
-    success: function() { $('#deleteModal').modal('hide'); loadRoles(); },
+    success: function(r) {
+      $('#deleteModal').modal('hide');
+      loadRoles();
+      // Legacy parity: roles.inc.php deleteRole() logs audit_role_deleted;
+      // the modern delete was silent (issue #904) - now toast the result.
+      toast(roleFeedback(r && r.feedback_key, name), false);
+    },
     error: function(xhr) {
       var msg = TLi18n.t('role.error.delete');
-      try { msg = JSON.parse(xhr.responseText).message; } catch(e) {}
-      alert(msg);
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
+      $('#deleteModal').modal('hide');
+      toast(msg, true);
+    }
+  });
+}
+
+function duplicateRole(id) {
+  var name = '';
+  if (allItems) {
+    $.each(allItems, function(i, x) { if (parseInt(x.id) === id) { name = x.name || ''; return false; } });
+  }
+  $.ajax({
+    url: API + '/' + id + '/duplicate',
+    type: 'POST',
+    success: function(r) {
+      loadRoles();
+      // Legacy parity: rolesEdit.php duplicate is a CREATE audit; surface the
+      // result as a toast (issue #904) instead of a silent reload.
+      toast(roleFeedback(r && r.feedback_key, name), false);
+    },
+    error: function(xhr) {
+      var msg = TLi18n.t('role.error.duplicate');
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message) msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') {
+        msg = TLi18n.t('role.demoUpdateDisabled');
+      }
+      toast(msg, true);
     }
   });
 }
