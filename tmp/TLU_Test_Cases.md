@@ -14964,3 +14964,42 @@ the BFF create/form response now resolves `getItemTemplateContents('requirement_
 file / none) and exposes `template_body`; the HTML screen pre-fills the Scope textarea
 on create and re-applies the template after a stay_here bulk-entry reset, while edit
 mode stays template-free exactly like legacy `renderGui()`. Refs #1381.
+## Task — Issue #1502: Create Test Cases from Issue XML (Mantis) tcCreateFromIssueMantisXML
+
+**Screen:** `gui/templates/testcases/tcCreateFromIssues.html` + BFF `api/tccreatefromissues/index.php`
+(`GET ?action=init`, `POST ?action=import`).
+**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306, login admin/admin;
+fixture `tmp/fixtures_1502.php` → tproject id 2 `IssueImportFixture` (prefix IIFXT), suite id 3
+`Suite From Issues`; second suite id 12 `Suite Two Issues`; sample file `/tmp/mantis_import_sample.xml`
+(2 issues: id 101 + full fields, id 102 + empty steps/additional).
+
+| # | Step | Expected | Result |
+|---|---|---|---|
+| 1502.1 | GET BFF `?action=init&tproject_id=2&containerID=3` | `{status:ok}`, tproject=IssueImportFixture, container={id:3,name:"Suite From Issues",isProject:false}, maxUploadBytes=10240, grants.mgt_modify_tc=1 | **PASS** |
+| 1502.2 | GET BFF `?action=init&tproject_id=2&containerID=2` | container={id:2,name:"IssueImportFixture",isProject:true} | **PASS** |
+| 1502.3 | GET BFF `?action=init&tproject_id=2&containerID=999999` | HTTP 400 `Container does not belong to the test project` | **PASS** |
+| 1502.4 | GET BFF `?action=init&tproject_id=999999` | HTTP 404 `Test project not found` | **PASS** |
+| 1502.5 | Open `tcCreateFromIssues.html?tproject_id=2&containerID=3` | Screen loads: title, ctx "IssueImportFixture / Suite From Issues (test suite)", size hint "max file size: 10240 KB", mapping hint, upload disabled until file chosen | **PASS** |
+| 1502.6 | Upload `/tmp/mantis_import_sample.xml` via file input, click Import | Feedback "Test cases imported successfully. — 2 test case(s)", result table rows `Issue/Task:101 - Login fails on Firefox without cookies` → ok and `Issue/Task:102 - Export report crashes on empty project` → ok, issues found=2 | **PASS** |
+| 1502.7 | MySQL: nodes + tcversions for suite 3 | 2 TCs named `Issue/Task:101 - …`/`Issue/Task:102 - …` (node_order 1,2), tcversions.tc_external_id=101/102, execution_type=1 (manual), importance=2 (medium), summary=`Description<p>…[<p>Steps to reproduce<p>…][<p>Additional information<p>…]` (legacy `issue_*` labels + `<p>` joiner) | **PASS** |
+| 1502.8 | Re-import the same file into container = project 2 | Both rows blocked: `Can not be imported - You are hitting an existent Test Case with SAME EXTERNAL ID:Suite From Issues/IIFXT-101:Issue/Task:101 - …` (legacy path format), no new TCs created | **PASS** |
+| 1502.9 | Import malformed file (`<html><body>not xml`) | HTTP 422 `Invalid XML file: root element must be <mantis>` | **PASS** |
+| 1502.10 | Import well-formed `<bugs>` root | HTTP 422 same `root element must be <mantis>` | **PASS** |
+| 1502.11 | POST import with no `uploadedFile` | HTTP 400 `File upload failed (error code: -1)` | **PASS** |
+| 1502.12 | Import new issue id 104 with `locale=fr_FR` | TC named `Anomalie/Tache:104 - Connexion impossible`; summary `Description<p>…<p>Étapes pour reproduire<p>…` (server-side labels localized via the client locale hint) | **PASS** |
+| 1502.13 | GET import endpoint with `action=import` via GET | HTTP 405 `Use POST` | **PASS** |
+| 1502.14 | ASIDE (project IIFXT active) → Test Case Design expanded | New item "Create Test Cases from Issues XML" → `/gui/templates/testcases/tcCreateFromIssues.html?tproject_id=2&tplan_id=0` | **PASS** |
+| 1502.15 | Locale switcher on the screen (EN → RO) | Header/sub/footer/labels rerender in Romanian; BFF re-requested with the new locale | **PASS** |
+| 1502.16 | Event Viewer / `events` table after the whole run | No new ERROR/WARNING rows (only GUI audit LOGIN/CREATE fixture entries) | **PASS** |
+
+Result: **PASS — 16/16 PASS** — the last standalone legacy import screen
+`lib/testcases/tcCreateFromIssueMantisXML.php` (Mantis bug-tracker XML → test cases) is fully
+modernized as a Dashio screen + REST BFF with byte-level legacy parity: name `Issue:<id> - <summary>`
+(server label `issue_issue`), summary = `issue_description` + optional `issue_steps_to_reproduce` /
+`issue_additional_information` joined with `<p>`, `tc_external_id` = bug id, MANUAL/medium,
+`import_file_max_size_bytes` upload cap, `mgt_modify_tc` right (403), duplicate-external-id block
+with the legacy `hit_with_same_external_ID` + suite path message, container membership validation,
+LIBXML_NONET parsing, 401/400/403/404/405/413/422/500 JSON contract, client-locale label
+localization. Entry points: ASIDE under Test Case Design (gated `modify_tc`) + `$actions->tcCreateFromIssues`
+link switch. i18n `tcfi.*` (25) + `footers.tcCreateFromIssues` in all 10 client bundles + server
+label `href_tc_create_from_issues` in 7 strings.txt + `labels.aside.tpl`. Refs #1502.
