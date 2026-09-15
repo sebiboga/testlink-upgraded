@@ -15067,3 +15067,63 @@ ported to the modern reqEdit screen: delegated dirty tracking on all form contro
 `beforeunload` prompt on unload with pending edits, Save/Cancel suppress the warning,
 `loadForm()`/version-switch reloads reset the flag, i18n `reqe.unsavedWarning` in all
 10 bundles. Refs #1380.
+
+---
+
+### Regression — Issue #1507: BFF APIs deleted/gutted by 8ef9694d3 collateral damage
+
+**Screen:** 10 BFF API endpoints + 5 GUI templates + 10 i18n bundles.
+**Precondition:** TestLink 2.0.1 at http://localhost:8082; MariaDB 127.0.0.1:3306 (testlink/testlink);
+fixture: tproject 1 `Demo Project` (DP), testplan 2 `Demo Plan`, build 4, platform 1 `Linux`.
+Branch `fix/issue-1507` with commit `4bcf10e07`.
+
+#### Part A — Deleted APIs (must return HTTP 200 or meaningful validation, NOT 404)
+
+| # | Endpoint | Action | Expected | Result |
+|---|---|---|---|---|
+| A1 | `/api/execdashboard/index.php` | `action=init&tplan_id=2&tproject_id=1` | 200, context shows DP/Demo Plan/Build 1.0/Linux | **PASS** |
+| A2 | `/api/notifications/index.php` | `action=list` | 200, `notifications: []`, `totals: {total:0}` | **PASS** |
+| A3 | `/api/reqfromissues/index.php` | `action=init&tproject_id=1` | 400 "Invalid requirement spec id" (no specs exist) — validation OK, not 404 | **PASS** |
+| A4 | `/api/reqreorder/index.php` | `action=init&tproject_id=1` | 400 "Unknown action" or validation error — not 404 | **PASS** |
+| A5 | `/api/staticpage/index.php` | `action=show&key=index` | 200 with content HTML | **PASS** |
+
+#### Part B — Gutted APIs (restored to full 59d69150f / parent state)
+
+| # | Endpoint | Action | Expected | Result |
+|---|---|---|---|---|
+| B1 | `/api/execsetresults/index.php` | `action=init&tplan_id=2&tproject_id=1&testcase_id=0` | 400 validation "Missing test case/version id" — not 404 | **PASS** |
+| B2 | `/api/testcases/index.php` | `action=context&tproject_id=1&tplan_id=2` | 200, options + grants, tprojectOpt() helper present in source | **PASS** |
+| B3 | `/api/roles/index.php` | `action=get_roles` | 200, roles array with system roles | **PASS** |
+| B4 | `/api/reqedit/index.php` | `action=form&tproject_id=1&spec_id=0` | 400 "Missing requirement id or spec id" — lastDocIdInfo() present in source | **PASS** |
+| B5 | `/api/planexport/index.php` | `action=info&tplan_id=2&tproject_id=1` | 200, tplan=t2 Build=Demo Plan, grants visible | **PASS** |
+
+#### Part C — GUI templates (HTML pages return 200 with valid HTML)
+
+| # | Page | Expected | Result |
+|---|---|---|---|
+| C1 | `/gui/templates/execute/execDashboard.html` | 200, 332 lines, renders context header with Build/Platform selectors | **PASS** |
+| C2 | `/gui/templates/notifications/notifications.html` | 200, i18n labels translate after TLi18n.apply(), zero console errors | **PASS** |
+| C3 | `/gui/templates/requirements/reqFromIssues.html` | 200, valid HTML | **PASS** |
+| C4 | `/gui/templates/requirements/reqReorder.html` | 200, valid HTML | **PASS** |
+| C5 | `/gui/templates/documentation/staticPage.html` | 200, valid HTML | **PASS** |
+
+#### Part D — i18n bundles
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| D1 | `python3 -m json.tool` on all 10 bundles | All valid JSON | **PASS** |
+| D2 | `notif.screenTitle` in en.json | Present | **PASS** |
+| D3 | `edb.title` in en.json | Present | **PASS** |
+| D4 | Notification screen: translate on reload | "Notifications" shows (not raw key) | **PASS** |
+
+#### Part E — Events & console
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| E1 | `events` table: `log_level IN (3,4)` in last hour | 0 errors | **PASS** |
+| E2 | Browser console on restored screens | 0 JS errors | **PASS** |
+
+Result: **PASS — 20/20 PASS** — All 10 BFF APIs restored from pre-deletion state; post-regression
+commits #912 (options tolerance) and #1379 (insert-last-doc-id) re-applied on top; 5 GUI
+templates + 8 docs + screenshots restored; 10 i18n locale bundles patched (279/273 missing keys
+restored); event viewer clean. Refs #1507.

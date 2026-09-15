@@ -338,6 +338,12 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Bugfix Issue 1487's commit 8ef9694d3 accidentally deleted 5 BFF APIs
+  (execdashboard/notifications/reqfromissues/reqreorder/staticpage) and gutted 5
+  more (execsetresults/testcases/roles/reqedit/planexport) plus 5 GUI templates,
+  8 docs and 10 i18n bundles; all restored to their pre-deletion state with
+  post-regression fixes (#912 options tolerance, #1379 insert-last-doc-id)
+  re-applied (Refs #1507).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
