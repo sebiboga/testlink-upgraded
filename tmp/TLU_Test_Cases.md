@@ -15626,3 +15626,19 @@ no mgt_modify_tc). Login admin/admin (manager) and viewer/admin (non-manager).
 Result: **PASS — 10/10 PASS** — the legacy suite-level import launchers are
 restored (flat + deep), correctly gated on `mgt_modify_tc`, and route into the
 existing modern import screen; no BFF change required.
+## Issue #1370 — suiteView import launchers (admin, Seed Project id=100)
+
+Modern screen: `gui/templates/testcases/suiteView.html` (BFF `api/suiteview`, popup
+`suiteView.html?id=110&tproject_id=100` opened for suite id=110 "Suite A" in project
+100). Launcher (legacy `containerViewTestSuiteTextButtons.inc.tpl:72-77` importItem /
+`:129` import-TC span; legacy tcImport chain via `lib/functions/containerView.php`
+`importItem`). admin/admin gated by `can_manage` (mgt_modify_tc).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Open suiteView id=110 as admin | Toolbar shows **Import Test Suite** (flat span) + **Import Test Suite (deep)** (importItem) buttons + existing Export/Table buttons | PASS |
+| 2 | Click "Import Test Suite" (flat) | Opens `tcImport.html?containerID=110&tproject_id=100`; header "Import Test Cases" | PASS |
+| 3 | Click "Import Test Suite (deep)" | Opens `tcImport.html?containerID=110&tproject_id=100&useRecursion=1` | PASS |
+| 4 | Check `can_manage` in toolbar render | `can_manage===true`; buttons only rendered for mgt_modify_tc holders (viewer, role mgt_view_tc only, gets none) | PASS |
+| 5 | Refresh console | No JS errors; DataTables re-init after refresh clean | PASS |
+| 6 | `events` table after clicks | No new Error/Warning | PASS |
