@@ -133,6 +133,33 @@ function badRequest($msg) {
     out(['status' => 'error', 'message' => $msg]);
 }
 
+// Refs #1376, #1516 — tolerant boolean read of a req_cfg knob
+// (ENABLED/DISABLED constants are ints 1/0; a literal 'DISABLED'/'FALSE'/'' means false).
+function boolishConfig($cfg, $key, $default) {
+    if (!isset($cfg->$key)) { return (bool)$default; }
+    $v = $cfg->$key;
+    if (is_string($v)) {
+        $t = strtoupper(trim($v));
+        if ($t === 'DISABLED' || $t === 'FALSE' || $t === '') { return false; }
+        if ($t === 'ENABLED' || $t === 'TRUE') { return true; }
+        return (bool)intval($v);
+    }
+    return (bool)$v;
+}
+
+// Refs #1376, #1516 — effective expected_coverage to persist, mirroring legacy:
+//  - management disabled (req_cfg->expected_coverage_management = false) → 0
+//  - selected type not enabled in type_expected_coverage map            → 0
+//  - otherwise the posted free numeric input, any positive integer      → max(1,int)
+function effectiveExpectedCoverage($type, $posted) {
+    $cfg = config_get('req_cfg');
+    if (!boolishConfig($cfg, 'expected_coverage_management', false)) { return 0; }
+    $typeEc = isset($cfg->type_expected_coverage) ? (array)$cfg->type_expected_coverage : [];
+    $typeEnabled = isset($typeEc[$type]) ? (bool)$typeEc[$type] : true;
+    if (!$typeEnabled) { return 0; }
+    return max(1, intval($posted));
+}
+
 /**
  * ids of the spec subtree: the spec itself plus every req_spec descendant,
  * discovered through nodes_hierarchy (req_spec nodes are tree children).
@@ -183,6 +210,16 @@ if ($method === 'GET' && $action === 'options') {
 
     $info = $tprojectMgr->get_by_id($tproject_id);
 
+    // Refs #1376, #1516: per-requirement-type expected-coverage enable map
+    // (legacy reqCommands.class.php:33-41). A type absent from the map is
+    // ENABLED by default (value 1).
+    $typeEc = isset($cfg->type_expected_coverage) ? (array)$cfg->type_expected_coverage : [];
+    $expectedCoverageByType = [];
+    foreach ($reqTypes as $code => $dummy) {
+        $value = isset($typeEc[$code]) ? ($typeEc[$code] ? 1 : 0) : 1;
+        $expectedCoverageByType[(string)$code] = $value;
+    }
+
     out([
         'status' => 'ok',
         'tproject_id' => $tproject_id,
@@ -197,6 +234,9 @@ if ($method === 'GET' && $action === 'options') {
             'view'   => canView($user, $db, $tproject_id),
             'manage' => canManage($user, $db, $tproject_id),
         ],
+        // Refs #1516: legacy expected-coverage gates (reqEdit.tpl:345)
+        'expectedCoverageManagement' => boolishConfig($cfg, 'expected_coverage_management', false),
+        'expectedCoverageByType' => $expectedCoverageByType,
     ]);
 }
 
@@ -372,7 +412,8 @@ if ($method === 'POST' && $action === 'create_req') {
     $scope = (string)($BODY['scope'] ?? '');
     $status = strtoupper(trim((string)($BODY['status'] ?? TL_REQ_STATUS_VALID)));
     $type = (string)($BODY['type'] ?? TL_REQ_TYPE_FEATURE);
-    $expectedCoverage = max(1, intval($BODY['expected_coverage'] ?? 1));
+    // Refs #1516: gate expected_coverage through legacy config (mirrors #1376 fix)
+    $expectedCoverage = effectiveExpectedCoverage($type, $BODY['expected_coverage'] ?? 1);
 
     $op = $reqMgr->create($specId, $docId, $title, $scope, $userId,
                           $status, $type, $expectedCoverage);
@@ -413,10 +454,10 @@ if ($method === 'POST' && $action === 'update_req') {
     $scope = (string)($BODY['scope'] ?? '');
     $status = strtoupper(trim((string)($BODY['status'] ?? $latestVersion['status'])));
     $type = (string)($BODY['type'] ?? $latestVersion['type']);
-    $expectedCoverage = max(1, intval(
+    // Refs #1516: gate expected_coverage through legacy config (mirrors #1376 fix)
+    $expectedCoverage = effectiveExpectedCoverage($type,
         $BODY['expected_coverage'] !== null && $BODY['expected_coverage'] !== ''
-            ? intval($BODY['expected_coverage'])
-            : intval($latestVersion['expected_coverage'])));
+            ? $BODY['expected_coverage'] : $latestVersion['expected_coverage']);
 
     // get_by_id() exposes the version node id under 'version_id'
     $op = $reqMgr->update($reqId, intval($latestVersion['version_id']), $docId, $title,

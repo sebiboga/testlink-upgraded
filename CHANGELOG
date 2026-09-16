@@ -313,6 +313,17 @@ NEW FEATURES
   either gate is off (legacy `configure_attr` toggle on reqType change); client
   validation mirrors legacy `warning_expected_coverage(_range)`.
   i18n `reqe.warningExpectedCoverage(_range)` in all 10 bundles.
+- Requirement Spec Mgmt (`gui/templates/requirements/reqSpecMgmt.html`, BFF
+  `api/reqspec`): expected-coverage configuration gates restored for the
+  Create/Edit Requirement modal (Refs #1516) — the same legacy gates #1376
+  restored for reqEdit are now honoured here: `options` exposes
+  `expectedCoverageManagement` + `expectedCoverageByType` (default
+  Info/type-1 disabled), `create_req`/`update_req` persist through
+  `effectiveExpectedCoverage()` (management disabled or type disabled → 0,
+  else posted value as-is), and the modal hides the coverage field when either
+  gate is off (`#expectedCoverageCol` + `refreshCoverageField()` on reqType
+  change) and sends 0 on save for hidden/disabled types. Pure config-driven,
+  no new i18n keys.
 - Set Results popup (`gui/templates/execute/execSetResults.html`, BFF
   `api/execsetresults`): tester assignment restored (Refs #1397) — the popup
   header now shows "Assigned to: <user>" (teal) or the "No tester assigned"

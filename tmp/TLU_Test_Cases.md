@@ -15340,26 +15340,36 @@ modern screen serves 200; BFF anon guard 401; Event Viewer clean.
 
 ---
 
-## Suite 1520 — Task — Issue #916: Add to Test Plan action in Test Specification editor
+### Task — Issue #1516: reqSpecMgmt expected-coverage configuration gate (2026-09-16)
 
-**Screen:** `gui/templates/testcases/testSpec.html` (TC view panel) + BFF `api/testcases/index.php` (`add_plan_options` GET / `add_to_plan` POST). Branch `task/issue-916`.
-**Precondition:** fresh-import DB; fixtures created via modern UI during this run: test project **TP916** (id=1, prefix TP916), platforms **Linux** (id=1) / **Windows** (id=2), test plans **Release 1.0** (id=2) / **Release 2.0** (id=3) with both platforms assigned via `platformsAssign.html`, suite **Login Suite** (node 4), test case **TC Login Valid** (tcase 5, tcversion 6). Login admin/admin (browser session).
+Port of the #1376 (reqEdit) legacy expected-coverage gates into the
+reqSpecMgmt modal + `api/reqspec` BFF: field hidden when
+`req_cfg->expected_coverage_management` is DISABLED or when the selected
+requirement type is disabled in `req_cfg->type_expected_coverage`
+(`TL_REQ_TYPE_INFO => false` in `cfg/const.inc.php:759`); hidden/disabled
+types persist `expected_coverage = 0`.
 
-| # | Step | Expected | Result |
+Fixture (fresh DB): Test project 1 (CoverageGateProj, prefix CGP), spec 2,
+FEAT-001 (type 2, cov 3), INFO-001 (type 1, cov 5).
+
+| # | Test | Expected | Result |
 |---|---|---|---|
-| 1 | `python3 -m json.tool` on the 10 touched i18n bundles (en/ro/de/es/fr/it/ja/pt/ru/zh) | valid JSON; keys `tspec.addToTestPlan`, `tspec.loadingPlanOptions`, `tspec.alreadyLinked`, `tspec.noPlatform`, `tspec.addedToPlan`, `tspec.errNoPlanSelected`, `tspec.testPlans`, `tspec.versionShort`, `tspec.platform`, `tspec.noTestPlans` present | PASS |
-| 2 | `php -l api/testcases/index.php` | no syntax errors | PASS |
-| 3 | Open `testSpec.html?tproject_id=1`, click TC **TC Login Valid** in the tree | TC view panel shows button **Add to Test Plan** (icon cube), plus Edit/Create New Version/Full Viewer/Delete | PASS |
-| 4 | Click **Add to Test Plan** | Modal `#addToPlanModal` opens: title "Add to Test Plan", target identity `TP916-1:TC Login Valid`, table Ver./Test Plans/Platform with 4 rows (Release 1.0×Linux, Release 1.0×Windows, Release 2.0×Linux, Release 2.0×Windows), submit enabled after a free checkbox is ticked | PASS |
-| 5 | Tick Release 1.0×Linux + Release 2.0×Windows → click **+ Add to Test Plan** | Toast "Test case added to test plan(s) (2)"; modal closes; DB `testplan_tcversions` rows `(2,6,1)` and `(3,6,2)`; `events` gains two `audit_tc_added_to_testplan` ASSIGN rows for plans 2 and 3 | PASS |
-| 6 | Reopen **Add to Test Plan** | Linked rows Release 1.0×Linux and Release 2.0×Windows render checkbox checked+disabled with "(Already linked)"; other two rows remain selectable | PASS |
-| 7 | `GET ?action=add_plan_options&tcase_id=5&tcversion_id=6` (browser session) | HTTP 200; `tcase.identity="TP916-1:TC Login Valid"`; `plans[0].platforms[0]` (Release 1.0/Linux) `already_linked=true,draw_checkbox=false`; `can_do=true` | PASS |
-| 8 | `POST ?action=add_to_plan` with already-linked `{2:{1:true}}` + fresh `{3:{1:true}}` | `{"status":"ok","added":1,"added_by_plan":{"3":[1]}}`; DB gains exactly ONE new row `(3,6,1)` (dedup, no duplicate) | PASS |
-| 9 | `GET ?action=add_plan_options` (no params) | HTTP 400 "Missing test case or version id" | PASS |
-| 10 | `GET ?action=add_plan_options&tcase_id=999&tcversion_id=999` | HTTP 404 "Test case not found" | PASS |
-| 11 | `POST ?action=add_to_plan` empty body | HTTP 400 "Missing test case or version id" | PASS |
-| 12 | Plan tree effect: `planUpdateTC.html?tproject_id=1&tplan_id=2` | "Linked test cases: 1"; tree Login Suite → `TP916-1: TC Login Valid` (version 1, Latest); plan management shows Test Cases: 1 for Release 1.0 and Release 2.0 | PASS |
-| 13 | Browser console during all steps | 0 JS errors; all `api/testcases` requests HTTP 200/expected-error | PASS |
-| 14 | `events` table after the run | 0 new `log_level IN (1,2)` (Error/Warning) rows; only AUDIT=16 rows (login, project/plan/platform create, tc_added_to_testplan) | PASS |
+| 1 | `php -l api/reqspec/index.php` | No syntax errors | PASS |
+| 2 | `GET ?action=options&tproject_id=1` | Response includes `expectedCoverageManagement: true` + `expectedCoverageByType` (type 1 → 0, others → 1) | PASS |
+| 3 | Create req modal, default type Feature (2) | "Expected coverage" field VISIBLE ($#expectedCoverageCol visible, `currentCoverageEnabled()===true`) | PASS |
+| 4 | Switch type to Informational (1) in modal | Field HIDDEN (`{typeVal:"1",coverageColVisible:false,coverageEnabled:false}`) | PASS |
+| 5 | Switch back to Feature | Field VISIBLE again (`{typeVal:"2",coverageColVisible:true}`) | PASS |
+| 6 | Create Informational req via modal (field hidden) | Stored `expected_coverage = 0` in `req_versions` (CGP-INFO-002) | PASS |
+| 7 | Create Feature req with coverage = 7 | Stored `expected_coverage = 7` (arbitrary value preserved) (CGP-FEAT-002) | PASS |
+| 8 | Edit FEAT-001 | Modal opens, type Feature, field VISIBLE with value 3 | PASS |
+| 9 | Edit INFO-001 (field hidden), change title, save | Stored `expected_coverage = 0` (was 5) (INFO-001 edited) | PASS |
+| 10 | Temporarily set `config.inc.php:1666` → DISABLED | `options` returns `expectedCoverageManagement: false`; modal hides field even for Feature; saved req stores `expected_coverage = 0` (CGP-FEAT-003). Reverted config after test | PASS |
+| 11 | No new Error/Warning in `events` table | Table only has the login audit event (INFO) | PASS |
+| 12 | Browser console after all interactions | No JS errors (only pre-existing a11y 'form field should have id/name' issue) | PASS |
 
-Result: **PASS — 14/14 PASS** — Task #916 delivered/verified: the legacy `doAdd2testplan` capability (tcEdit.php:80 → testcaseCommands.class.php:476 `link_tcversions`) is fully ported into the modern Test Specification editor — BFF `add_plan_options` (addToplanGrid, api/testcases/index.php:1138/1598) + `add_to_plan` (line 1921, with (plan,tcversion,platform) dedup), UI button (testSpec.html:858) + modal (line 260) + submit JS, i18n in all 10 bundles. Browser E2E: add, already-linked read-only state, dedup, plan-tree effect, error paths, Event Viewer clean. Branch `task/issue-916` pushed; docs + wiki + CHANGELOG updated.
+Result: **PASS — 12/12 PASS** — Suite for #1516: mirrored #1376 gate pattern
+(`boolishConfig` + `effectiveExpectedCoverage`) into `api/reqspec/index.php`;
+wrapped coverage input in `#expectedCoverageCol` in reqSpecMgmt.html with
+`refreshCoverageField()`/`currentCoverageEnabled()` + delegated type-change
+handler; save sends 0 when gated. Create + edit paths verified in browser for
+both per-type and global disable; DB stores correct values; Event Viewer clean.
