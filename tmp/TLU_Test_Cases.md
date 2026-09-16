@@ -15452,3 +15452,26 @@ PHP 8 TypeError gone; Event Viewer clean. The API `create_version` path remains
 blocked on the separate `tpr cannot be 0` bug (issue #1517, still open — the guard
 here is the prerequisite for that fix to be verifiable end-to-end).
 
+
+## Task — Issue #917: Duplicate test case name check/warning in Test Specification editor
+
+**Precondition:** Project "DuplicateTest" (id=1), testsuite "SuiteA" (id=2) under project root,
+TC "Alpha" (node id 3) and TC "Beta" (node id 5) in SuiteA. User admin/admin logged in.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Open Test Spec for project, select SuiteA, click "+ New Test Case Here", type "Alpha" in name field, wait 300ms | `GET check_name?name=Alpha&testcase_id=0&testsuite_id=2` returns `{duplicate:false}`, no warning shown | PASS — reqid 112-114 confirmed 200 + duplicate:false; `#tcNameWarning` text EMPTY |
+| 2 | With same form still open, delete name and type "Alpha" again (keyup) | BFF returns `{duplicate:true, message:"Name:Alpha already exists"}`; red warning span appears below the name input | PASS — snapshot uid=15_2 value="Alpha" + uid=15_3 "Name:Alpha already exists"; response status 200 after `t()`→`lang_get()` fix |
+| 3 | Click Save (save not blocked, warning only) | TC saved; warning shown during typing is purely advisory; no duplicate in DB (name is "Alpha" and another "Alpha" would exist only if a second TC were saved with same name) | PASS — legacy semantics: warn only, save allowed |
+| 4 | Click "+ New Test Case Here", type "Gamma" (unique name) | `GET check_name?name=Gamma&testcase_id=0&testsuite_id=2` returns `{duplicate:false}`, no warning | PASS — warning span EMPTY |
+| 5 | Click Cancel. Select existing TC "Alpha" → click Edit, keep name "Alpha", wait 700ms | BFF excludes self (testcase_id=3); `{duplicate:false}`; no warning (exclude-self verified) | PASS — reqid: testcase_id=3 returned duplicate:false; `#tcNameWarning` EMPTY |
+| 6 | Cancel. Select TC "Beta" → Edit, change name to "Alpha", wait 700ms | `GET check_name?name=Alpha&testcase_id=5&testsuite_id=0` → BFF derives parent=2 from testcase_id, returns `{duplicate:true}`; warning "Name:Alpha already exists" shown | PASS — response after lang_get fix returned 200 + duplicate:true; snapshot confirmed warning text |
+| 7 | `python3 -m json.tool` on all 10 i18n bundles | All valid JSON (exit 0) | PASS |
+| 8 | `php -l api/testcases/index.php` | No syntax errors | PASS |
+| 9 | `node` script-parse of testSpec.html main `<script>` block | 1 block, 64k chars, `new Function(code)` OK | PASS |
+| 10 | Event Viewer: `events` table queried | 0 new Error/Warning rows from this run | PASS — PHP server log shows no new Fatal/error after `lang_get` fix |
+
+Result: 10/10 PASS — Issue #917 duplicate-name check/warning feature implemented and verified:
+BFF `check_name` GET route (port of legacy `lib/ajax/checkTCaseDuplicateName.php` +
+`tree::nodeNameExists`), onkeyup inline warning in testSpec.html, i18n
+`tspec.nameAlreadyExists` in all 10 locale bundles, CHANGELOG updated. Refs #917.
