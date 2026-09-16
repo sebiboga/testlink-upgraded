@@ -10369,7 +10369,9 @@ class testcase extends tlObjectWithAttachments {
     // Now add into tlIssueTracker    
     $system = new tlIssueTracker($this->db);
     $repo = $system->getInterfaceObject($safeID['tpr']);
-    if ( method_exists($repo,'addLink') ) {
+    // Tracker updating is optional: getInterfaceObject() returns null when the
+    // project has no issue tracker configured (method_exists() then fatals on PHP 8).
+    if ( !is_null($repo) && method_exists($repo,'addLink') ) {
       $link = new stdClass();
       $in = $this->getExternalID($safeID['tc'],$safeID['tpr']);
       $link->testCaseID = $in[0];
@@ -10576,12 +10578,20 @@ class testcase extends tlObjectWithAttachments {
     $sourceIT = $this->getAliens($source['id'],
                                  $source['version_id']);
     if( !is_null($sourceIT) ) {
-      $itSet = array_keys($sourceIT);
       $cedula = new stdClass();
-      $cedula->tproject_id = $this->tproject_id;
+      // BFF callers (new testcase($db)) do not set $this->tproject_id;
+      // resolve the owning project from the tree in that case.
+      $cedula->tproject_id = intval($this->tproject_id) > 0
+                             ? intval($this->tproject_id)
+                             : intval($this->get_testproject($dest['id']));
       $cedula->tcase_id = $dest['id'];
       $cedula->tcversion_id = $dest['version_id'];
-      $this->addAliens($cedula,$itSet,$adt);
+      // addAliens applies ONE relation type per idSet: copy per alien so the
+      // source relation_type is preserved; $adt is the audit-context argument.
+      foreach( $sourceIT as $alienID => $elem ) {
+        $this->addAliens($cedula,array($alienID),
+                         $elem['relation_type'],$adt);
+      }
     }
 
     return true;
