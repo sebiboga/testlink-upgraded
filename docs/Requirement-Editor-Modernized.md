@@ -166,6 +166,23 @@ event viewer in a new tab, icon hidden in create mode and without
 ![Event-history icon](screenshots/issue-1378-reqedit-event-history-icon.png)
 ![Event viewer filtered to the requirement](screenshots/issue-1378-eventviewer-requirements.png)
 
+**Design-time Custom Fields (Task #1374)** — see **Task — Issue #1374** in
+`tmp/TLU_Test_Cases.md` (12/12 PASS): the modern editor previously dropped the
+linked custom-field inputs legacy `reqEdit.php` renders below the form. BFF now
+serves the `show_on_design` CFs (`linkedReqCustomFields` via
+`get_linked_cfields`, localized labels, per-type metadata, stored `value`,
+`required`, date/datetime ISO conversion) and persists them on create/update via
+`cfield_mgr::design_values_to_db`; a CF-value change on save forces a revision
+(`simpleReqCompare` parity with legacy `simpleCompare`). The screen renders the
+per-type inputs (`custom_field_<type>_<id>`) in a "Custom Fields" card (edit
+prefilled + create empty), disables them in readonly mode, and validates
+required fields (`reqe.cfRequired`). i18n keys `reqe.customFields`,
+`reqe.yes`, `reqe.cfSelectEmpty`, `reqe.cfRequired` added to all 10 bundles.
+Event Viewer + console clean.
+
+![Requirement editor with design-time Custom Field (edit mode)](screenshots/issue-1374-reqedit-cf-design.png)
+![Create mode Custom Field input](screenshots/issue-1374-reqedit-cf-create.png)
+
 See also **Task #1380 — unsaved-changes warning** suite (8/8 PASS): the modern
 screen now installs the legacy `checkmodified.js` `beforeunload` guard (BUGID 4153
 parity). Dirty edits to any field (`scope`, `title`, doc id, `status`, `type`,

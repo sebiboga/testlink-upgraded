@@ -192,19 +192,29 @@ function boolishConfig($cfg, $key, $default) {
 }
 
 /**
- * Refs #1375: legacy reqCommands::simpleCompare() (reqCommands.class.php:804).
- *   force   -> status/type/expected_coverage/req_doc_id/title changed
+ * Refs #1375/#1374: legacy reqCommands::simpleCompare() (reqCommands.class.php:804).
+ *   force   -> status/type/expected_coverage/req_doc_id/title changed, OR a
+ *              design-time CF value changed ('custom field:NAME', :824-837)
  *   suggest -> only the scope changed (checked only when nothing forced)
  *   null    -> nochange
- * The legacy custom-field comparison is intentionally skipped: the modern
- * reqEdit screen has no custom-field section, so CFs cannot change here.
  * Mirrors the exact legacy field arrays AND their precedence.
+ * $oldCF/$newCF are the linked-CF maps id => {value, ...} (old stored rows)
+ * and id => {cf_value, ...} (posted values) — same shapes simpleCompare uses.
  */
-function simpleReqCompare($old, $posted) {
+function simpleReqCompare($old, $posted, $oldCF = null, $newCF = null) {
     $forceMap = ['status', 'type', 'expected_coverage', 'req_doc_id', 'title'];
     foreach ($forceMap as $key) {
         if ((string)$old[$key] !== (string)$posted[$key]) {
             return 'force';
+        }
+    }
+    if (is_array($newCF)) {
+        foreach ($newCF as $cfId => $cf) {
+            $oldVal = is_array($oldCF) && isset($oldCF[$cfId])
+                ? (string)($oldCF[$cfId]['value'] ?? '') : '';
+            if ((string)$cf['cf_value'] !== $oldVal) {
+                return 'force';
+            }
         }
     }
     if ((string)$old['scope'] !== (string)$posted['scope']) {
@@ -253,6 +263,115 @@ function lastDocIdInfo($tproject_id) {
     }
     return ['allow_insert_last_doc_id' => true,
             'last_doc_id' => (is_null($info) || trim((string)$info) === '') ? null : (string)$info];
+}
+
+/**
+ * Refs #1374: design-time custom fields for the requirement editor. Mirrors
+ * legacy reqCommands::create()/edit() -> requirement_mgr::
+ * html_table_of_custom_field_inputs() (requirement_mgr.class.php:1859):
+ * get_linked_cfields() returns every CF linked at design scope for
+ * node_type=requirement with show_on_design && enable_on_design
+ * (cfield_mgr::get_linked_cfields_at_design), plus the stored value (CFDV join)
+ * when a req version id is given. Each entry carries the same rendering data
+ * html_table_inputs() uses (label/type/possible_values/value/required/default).
+ */
+function linkedReqCustomFields($reqId, $versionId, $tproject_id) {
+    global $reqMgr;
+    $cfMap = $reqMgr->get_linked_cfields($reqId, $versionId, $tproject_id);
+    if (!is_array($cfMap) || !count($cfMap)) { return []; }
+    $out = [];
+    foreach ($cfMap as $cfId => $cf) {
+        $cfType = intval($cf['type'] ?? 0);
+        $verbose = trim(strval(
+            isset($reqMgr->cfield_mgr->custom_field_types[$cfType])
+                ? $reqMgr->cfield_mgr->custom_field_types[$cfType] : 'string'));
+        $stored = (string)($cf['value'] ?? '');
+        // Stored date/datetime values are unix timestamps; serve ISO for the
+        // <input type="date|datetime-local"> renderer (mirror api/testcases:1512).
+        if (($verbose === 'date' || $verbose === 'datetime')
+            && $stored !== '' && is_numeric($stored)) {
+            $stored = gmdate('Y-m-d\TH:i', intval($stored));
+            if ($verbose === 'date') { $stored = substr($stored, 0, 10); }
+        }
+        $out[] = [
+            'id'              => intval($cf['id'] ?? $cfId),
+            'label'           => str_replace(TL_LOCALIZE_TAG, '',
+                lang_get($cf['label'], null, true)),
+            'type'            => $cfType,
+            'verbose_type'    => $verbose,
+            'possible_values' => (string)($cf['possible_values'] ?? ''),
+            'default_value'   => (string)($cf['default_value'] ?? ''),
+            'value'           => ($stored !== '') ? $stored : (string)($cf['default_value'] ?? ''),
+            'required'        => (bool)($cf['required'] ?? false),
+        ];
+    }
+    return $out;
+}
+
+/**
+ * Refs #1374: build the persisted CF value set for a req version, mirroring
+ * legacy reqCommands::doCreate()/doUpdate() -> requirement_mgr::values_to_db()
+ * (reqCommands.class.php:258-259, 358). The frontend posts
+ * custom_fields:[{id,type,value}]; date/datetime arrive ISO and are converted
+ * to the unix timestamps legacy string_custom_field_input/_build_cfield store.
+ * Returns the linked-CF id => {type_id, cf_value} map OR null when the screen
+ * posted nothing (leave stored values untouched, like modern api/testcases).
+ */
+function reqCfValueSet($rawCF, $versionId, $tproject_id, &$reqMgr) {
+    if (!is_array($rawCF)) { return null; }
+    $cfMap = $reqMgr->get_linked_cfields(null, null, $tproject_id);
+    if (!is_array($cfMap) || !count($cfMap)) { return []; }
+    $byId = [];
+    foreach ($cfMap as $cfi) { $byId[intval($cfi['id'])] = $cfi; }
+    $cfield = [];
+    foreach ($rawCF as $cfv) {
+        if (!is_array($cfv)) { continue; }
+        $cfId = intval($cfv['id'] ?? 0);
+        if ($cfId <= 0 || !isset($byId[$cfId])) { continue; }
+        $verbose = trim(strval(
+            isset($reqMgr->cfield_mgr->custom_field_types[intval($byId[$cfId]['type'] ?? 0)])
+                ? $reqMgr->cfield_mgr->custom_field_types[intval($byId[$cfId]['type'] ?? 0)] : ''));
+        $value = $cfv['value'] ?? '';
+        if (is_array($value)) {
+            $value = implode('|', array_map('strval', $value));
+        } else {
+            $value = strval($value);
+        }
+        if (($verbose === 'date' || $verbose === 'datetime') && $value !== '') {
+            $ts = strtotime($value);
+            if ($ts !== false) {
+                if ($verbose === 'date') {
+                    $value = strval(mktime(0, 0, 0,
+                        intval(date('n', $ts)), intval(date('j', $ts)), intval(date('Y', $ts))));
+                } else {
+                    $value = strval($ts);
+                }
+            } else {
+                $value = '';
+            }
+        }
+        $typeId = intval($cfv['type'] ?? $byId[$cfId]['type']);
+        $cfield[$cfId] = ['type_id' => $typeId, 'cf_value' => $value];
+    }
+    // Legacy _build_cfield() pre-seeds every linked CF with an empty value, so a
+    // deselected checkbox/multiselect (or cleared input) is written as empty and
+    // design_values_to_db() deletes the stored row. Replicate for parity.
+    foreach ($byId as $cfId => $cfi) {
+        if (!isset($cfield[$cfId])) {
+            $cfield[$cfId] = ['type_id' => intval($cfi['type']), 'cf_value' => ''];
+        }
+    }
+    return $cfield;
+}
+
+/**
+ * Refs #1374: persist the posted design-time CF values for a req version via the
+ * same writer the legacy uses (values_to_db -> cfield_mgr::design_values_to_db).
+ */
+function saveReqCustomFields($rawCF, $versionId, $tproject_id, &$reqMgr) {
+    $cfield = reqCfValueSet($rawCF, $versionId, $tproject_id, $reqMgr);
+    if (is_null($cfield) || !count($cfield)) { return; }
+    $reqMgr->cfield_mgr->design_values_to_db($cfield, intval($versionId), null, 'bff_reqedit_cf');
 }
 
 if ($action === '') {
@@ -357,12 +476,16 @@ if ($method === 'GET' && $action === 'form') {
         }
         $specId = intval($req['srs_id']);
         $lastDoc = lastDocIdInfo($tproject_id);
+        // Refs #1374: linked design-time CFs with their stored values on the
+        // selected version (legacy edit() -> html_table_of_custom_field_inputs).
+        $customFields = linkedReqCustomFields($reqId, $reqVersionId, $tproject_id);
         out(['status' => 'ok', 'mode' => 'edit', 'requirement' => $req,
              'versions' => $versions, 'show_version_selector' => count($versions) > 1,
              'options' => $options, 'tproject_id' => $tproject_id,
              'tproject_name' => $tpName,
              'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
              'last_doc_id' => $lastDoc['last_doc_id'],
+             'custom_fields' => $customFields,
              'rights' => ['view' => canView($user, $db, $tproject_id),
                           'manage' => canManage($user, $db, $tproject_id),
                           'canViewEvents' => (bool)canViewEvents($user, $db, $tproject_id)]]);
@@ -390,6 +513,9 @@ if ($method === 'GET' && $action === 'form') {
     // requirement_template content (getItemTemplateContents) — mirror it here.
     $templateBody = requirementTemplateBody();
     $lastDoc = lastDocIdInfo($tproject_id);
+    // Refs #1374: linked design-time CF definitions, no values yet (legacy
+    // create() -> html_table_of_custom_field_inputs(null,null,tproject_id)).
+    $customFields = linkedReqCustomFields(null, null, $tproject_id);
     out(['status' => 'ok', 'mode' => 'create',
          'requirement' => ['srs_id' => $specId, 'spec_title' => $specTitle,
                            'version' => 0, 'req_doc_id' => '', 'title' => '',
@@ -402,6 +528,7 @@ if ($method === 'GET' && $action === 'form') {
          'tproject_name' => $tpName,
          'allow_insert_last_doc_id' => $lastDoc['allow_insert_last_doc_id'],
          'last_doc_id' => $lastDoc['last_doc_id'],
+         'custom_fields' => $customFields,
          'rights' => ['view' => canView($user, $db, $tproject_id),
                       'manage' => canManage($user, $db, $tproject_id),
                       'canViewEvents' => (bool)canViewEvents($user, $db, $tproject_id)]]);
@@ -472,6 +599,11 @@ if ($method === 'POST' && $action === 'save') {
         // confirms with a log message (second POST with create_revision).
         $createRevision = !empty($BODY['create_revision']) ? 1 : 0;
         $logMessage = (string)($BODY['log_message'] ?? '');
+        // Refs #1374: legacy doUpdate() compares old vs new linked CF values and
+        // persists them via values_to_db() after the update succeeds.
+        $oldCF = $reqMgr->get_linked_cfields(null, intval($versionId), $tproject_id);
+        $newCF = reqCfValueSet($BODY['custom_fields'] ?? null, intval($versionId),
+                               $tproject_id, $reqMgr);
         $revisionPrompt = null;
         $oldRows = $reqMgr->get_by_id(intval($reqId), intval($versionId));
         if (!empty($oldRows)) {
@@ -482,7 +614,7 @@ if ($method === 'POST' && $action === 'save') {
                 'req_doc_id'        => $docId,
                 'title'             => $title,
                 'scope'             => $scope,
-            ]);
+            ], is_array($oldCF) ? $oldCF : null, $newCF);
             // The frontend already answered the revision question on the second
             // round-trip -> never re-prompt (prevents a prompt loop when the
             // first pass already persisted the change).
@@ -496,6 +628,10 @@ if ($method === 'POST' && $action === 'save') {
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
+        // Refs #1374: persist design-time CF values (legacy doUpdate ->
+        // values_to_db($request, req_version_id, $cf_map) at reqCommands.class.php:358).
+        saveReqCustomFields($BODY['custom_fields'] ?? null, intval($versionId),
+                            $tproject_id, $reqMgr);
         out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId),
              'version_id' => intval($versionId), 'stay_here' => $stayHere,
              'revision_prompt'   => $revisionPrompt,
@@ -509,6 +645,11 @@ if ($method === 'POST' && $action === 'save') {
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
+        // Refs #1374: persist design-time CF values on the fresh version
+        // (legacy doCreate -> values_to_db($request, $ret['version_id'], $cf_map)
+        // at reqCommands.class.php:258-259).
+        saveReqCustomFields($BODY['custom_fields'] ?? null,
+                            intval($op['version_id'] ?? 0), $tproject_id, $reqMgr);
         out(['status' => 'ok', 'mode' => 'create', 'id' => intval($op['id']),
              'stay_here' => $stayHere]);
     }

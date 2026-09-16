@@ -15483,3 +15483,38 @@ log_message='Requirement Created'). Browser admin/admin.
 
 Result: **PASS — 12/12 PASS** — revision-on-save gap closed with full legacy
 parity (suggest + force + both Cancel paths + no-change + create-mode).
+
+### Task — Issue #1374: reqEdit design-time Custom Field inputs (2026-09-16)
+
+Branch `task/issue-1374`. Modern `reqEdit.html` + `api/reqedit/index.php` ported
+legacy design-time CF inputs (`reqCommands.class.php` create()/edit() →
+`requirement_mgr::html_table_of_custom_field_inputs()` → `cfield_mgr`: inputs
+named `custom_field_<type>_<id>`, values persisted via
+`design_values_to_db`/`values_to_db`, CF-only edits force a revision via
+`simpleCompare()`), following the testcases pattern of `api/testcases`
+`$saveDesignCF` and `testSpec.html` `cfInputHtml`/`cfRenderValue`/`cfInputRow`.
+
+Fixture (fresh DB, created with `/tmp/fixture_1374.sql`): project 1 `ReqEdit
+Demo` (RED, requirements ON, requirements_cf enabled), CF `Goal` (id=1, type 0
+string, show_on_design=1, enable_on_design=1, active), spec RS1 (id=2),
+requirement RE-1 (id=3, spec_id=2, version node 4, CF value `G1`).
+Browser admin/admin. All dates 2026-09-16.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Edit RE-1 `reqEdit.html?id=3&tproject_id=1` | "Custom Fields" card with single `Goal` input prefilled `G1` | PASS |
+| 2 | BFF `?action=form&id=3` includes `custom_fields:[{id,label,type,verbose_type,possible_values,default_value,value,required}]` | `value:G1` at top level | PASS |
+| 3 | Change Goal `G1`→`G2` → Save | Force "Revision Log / add a log message" prompt (CF change ⇒ `simpleReqCompare` force) | PASS |
+| 4 | Accept prompt with log `CF change test` | `Requirement saved and revision created` toast; DB `cfield_design_values` node 4 = `G2`; revision node snapshot created | PASS |
+| 5 | Reload edit RE-1 | Goal input renders `G2` (persistence) | PASS |
+| 6 | Create mode `?spec_id=2&tproject_id=1` | CF card renders; Goal empty input present | PASS |
+| 7 | Create RE-2 with Goal `GCreate` → Save | `Requirement saved`; DB `cfield_design_values` node 8 = `GCreate` | PASS |
+| 8 | Set `cfield_testprojects.required=1` (Goal) → reload create mode | Goal labeled `*` and input `required` | PASS |
+| 9 | Create RE-3 with empty Goal → Save | Client aborts with `Custom field 'Goal' is required` (reqe.cfRequired); no DB row created | PASS |
+| 10 | Read-only path (`setEditable(false)`) disables `.form-control` incl. CF inputs | CF input non-editable | PASS |
+| 11 | `python3 -m json.tool` on all 10 i18n bundles | Valid JSON; `reqe.cfRequired`/`reqe.cfSelectEmpty`/`reqe.customFields`/`reqe.yes` present | PASS |
+| 12 | `events` after testing | No new Error/Warning from the modern flow (only INFO) | PASS |
+
+Result: **PASS — 12/12 PASS** — design-time CF gap closed with full legacy
+parity (edit + create render with stored values, save persistence, CF-change
+revision force, required-field validation, date/datetime ISO handling).

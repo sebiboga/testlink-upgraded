@@ -37,6 +37,12 @@ textarea.form-control { height: auto; min-height: 120px; }
 .input-group .form-control { height: 34px; }
 .lastdoc-btn { background: #4ECDC4; color: #fff; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0 12px; border-radius: 0 4px 4px 0; font-size: 13px; }
 .lastdoc-btn:hover { background: #3dbdb5; }
+.cf-block-title { color: #22242a; font-size: 13px; font-weight: 700; margin-bottom: 12px; }
+.cf-row { margin-bottom: 14px; max-width: 720px; }
+.cf-label { color: #666; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.cf-label .f-req { color: #e6605e; }
+.cf-hint { color: #888; font-size: 11px; margin-top: 3px; }
+select.cf-input[multiple] { height: auto; min-height: 72px; }
 </style>
 </head>
 <body>
@@ -108,6 +114,13 @@ textarea.form-control { height: auto; min-height: 120px; }
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<div class="card" id="cfCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="reqe.customFields">Custom Fields</span></div>
+  <div class="card-body">
+    <div id="cfRows"></div>
   </div>
 </div>
 
@@ -266,6 +279,8 @@ resetModified();
       if (!canManage) { setEditable(false); $('#readonlyNote').show(); }
     }
     applyLastDocIdHelper();
+    /* Refs #1374: design-time CF inputs (values already carried by the BFF). */
+    renderCustomFields(r.custom_fields || []);
   }).fail(function(xhr) {
     var msg = TLi18n.t('reqe.loadError');
     try { if (xhr.responseJSON && xhr.responseJSON.message) { msg = xhr.responseJSON.message; } } catch (e) {}
@@ -295,6 +310,150 @@ function applyLastDocIdHelper() {
   }
 }
 
+/* ========================================================================
+   Refs #1374: design-time custom-field inputs.  Mirrors gui/templates/testcases/
+   testSpec.html cfOptionsList/cfInputHtml/customFieldsHtml, adapting the same
+   cf-input naming convention (custom_field_<type>_<id>) for legacy _build_cfield
+   parity.  collectCustomFields() gathers the user inputs into the JSON payload
+   custom_fields:[{id,type,value}] the BFF save handler consumes via
+   saveReqCustomFields → reqCfValueSet → design_values_to_db.
+   ======================================================================== */
+function cfOptionsList(cf) {
+  var raw = cf.possible_values || '';
+  return raw.split('|').filter(function (v) { return v.trim() !== ''; });
+}
+
+function cfInputHtml(cf) {
+  var type = cf.verbose_type || 'string';
+  var val  = (cf.value !== undefined && cf.value !== null) ? cf.value : '';
+  var cls  = 'form-control cf-input';
+  var req  = cf.required ? ' required' : '';
+  var label = esc(cf.label || '');
+  var requiredMark = cf.required ? ' <span style="color:#e6605e;">*</span>' : '';
+  var cfId   = cf.id != null ? cf.id : 0;
+  var typeId = cf.type != null ? cf.type : 0;
+  var baseName = 'custom_field_' + typeId + '_' + cfId;
+  var nameAttr = '';
+  if (type === 'date' || type === 'datetime') {
+    nameAttr = ' name="' + baseName + '_input"';
+  } else {
+    nameAttr = ' name="' + baseName + '"';
+  }
+  var inner = '';
+  switch (type) {
+    case 'numeric': case 'float':
+      inner = '<input type="number" step="any" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'email':
+      inner = '<input type="email" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'checkbox':
+      inner = '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;">' +
+        '<input type="checkbox" class="cf-input"' + nameAttr + ' value="1"' + (val === '1' ? ' checked' : '') + '> ' +
+        TLi18n.t('reqe.yes') + '</label>';
+      break;
+    case 'list':
+      inner = '<select class="' + cls + '"' + nameAttr + '>' +
+        '<option value="">' + TLi18n.t('reqe.cfSelectEmpty') + '</option>' +
+        cfOptionsList(cf).map(function (opt) {
+          return '<option value="' + esc(opt) + '"' + (val === opt ? ' selected' : '') + '>' + esc(opt) + '</option>';
+        }).join('') + '</select>';
+      break;
+    case 'radio':
+      inner = cfOptionsList(cf).map(function (opt) {
+        return '<label style="display:flex;align-items:center;gap:8px;font-weight:normal;margin-right:14px;">' +
+          '<input type="radio" class="cf-input"' + nameAttr + ' value="' + esc(opt) + '"' + (val === opt ? ' checked' : '') + '> ' +
+          esc(opt) + '</label>';
+      }).join('');
+      break;
+    case 'multiselection list':
+      inner = '<select multiple size="' + Math.max(3, cfOptionsList(cf).length) + '" class="' + cls + '"' + nameAttr + '>' +
+        cfOptionsList(cf).map(function (opt) {
+          var sel = val.split('|').indexOf(opt) !== -1 ? ' selected' : '';
+          return '<option value="' + esc(opt) + '"' + sel + '>' + esc(opt) + '</option>';
+        }).join('') + '</select>';
+      break;
+    case 'date':
+      inner = '<input type="date" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'datetime':
+      inner = '<input type="datetime-local" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+    case 'text area':
+      inner = '<textarea class="' + cls + '"' + nameAttr + req + '>' + esc(val) + '</textarea>';
+      break;
+    default:
+      inner = '<input type="text" class="' + cls + '"' + nameAttr + ' value="' + esc(val) + '"' + req + '>';
+      break;
+  }
+  return '<div class="cf-row" data-cfid="' + cfId + '" data-cftype="' + typeId + '"' +
+    (cf.required ? ' data-required="1"' : '') + '>' +
+    '<div class="cf-label">' + label + requiredMark + '</div>' + inner +
+    '</div>';
+}
+
+function renderCustomFields(cfList) {
+  if (!cfList || !cfList.length) { $('#cfCard').hide(); return; }
+  $('#cfCard').show();
+  var h = '';
+  cfList.forEach(function (cf) { h += cfInputHtml(cf); });
+  $('#cfRows').html(h);
+}
+
+function collectCustomFields() {
+  var cfs = [];
+  $('#cfRows .cf-row').each(function (i, row) {
+    var $r = $(row);
+    var val = '';
+    var $radio = $r.find('input[type="radio"]:checked');
+    if ($radio.length) { val = $radio.val() || ''; }
+    var $input = $r.find('input.cf-input:not([type="radio"])');
+    if (!val && $input.length) {
+      if ($input.attr('type') === 'checkbox') {
+        val = $input.is(':checked') ? '1' : '';
+      } else {
+        val = $input.val();
+      }
+    }
+    var $sel = $r.find('select.cf-input');
+    if (!val && $sel.length) {
+      val = $sel.attr('multiple') ? ($sel.val() || []) : ($sel.val() || '');
+    }
+    if (!val) { val = $r.find('textarea.cf-input').val() || ''; }
+    cfs.push({
+      id:    parseInt($r.attr('data-cfid'), 10),
+      type:  parseInt($r.attr('data-cftype'), 10),
+      value: val
+    });
+  });
+  return cfs;
+}
+
+function validateCustomFieldsUI() {
+  var bad = null;
+  $('#cfRows .cf-row[data-required="1"]').each(function (i, row) {
+    var $r = $(row);
+    var val = '';
+    var $radio = $r.find('input[type="radio"]:checked');
+    if ($radio.length) { val = $radio.val() || ''; }
+    var $input = $r.find('input.cf-input:not([type="radio"])');
+    if (!val && $input.length) {
+      val = $input.attr('type') === 'checkbox'
+        ? ($input.is(':checked') ? '1' : '') : ($input.val() || '');
+    }
+    var $sel = $r.find('select.cf-input');
+    if (!val && $sel.length) {
+      var v = $sel.val();
+      val = v ? (typeof v === 'object' ? v.join('|') : v) : '';
+    }
+    if (!val) { val = $r.find('textarea.cf-input').val() || ''; }
+    if (!val && !bad) {
+      bad = $r.find('.cf-label').text().replace(/[*\s]+$/, '') || TLi18n.t('reqe.customFields');
+    }
+  });
+  return bad;
+}
+
 function sanitize(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
 function esc(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
 
@@ -321,6 +480,15 @@ function save() {
   };
   if (!payload.req_doc_id) { showError(TLi18n.t('reqe.errDocId')); return; }
   if (!payload.title) { showError(TLi18n.t('reqe.errTitle')); return; }
+  /* Refs #1374: legacy reqEdit.tpl validateForm() calls validateCustomFields()
+     over the inputs in #custom_field_container (reqEdit.tpl:93-114); the modern
+     editor enforces required CFs client-side with the same warn-and-abort. */
+  var missingCf = validateCustomFieldsUI();
+  if (missingCf) {
+    showError(TLi18n.t('reqe.cfRequired').replace('%s', missingCf));
+    return;
+  }
+  payload.custom_fields = collectCustomFields();
   if (MODE === 'edit') { payload.id = REQ_ID; }
   else { payload.spec_id = SPEC_ID; }
 

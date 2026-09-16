@@ -124,6 +124,12 @@ Requirements:
 - Requirement Editor (reqEdit.html) - BFF api/reqedit (#798, #1374-#1384, #1377,
   #1378 event-history icon in edit mode gated on mgt_view_events, opens modern
   eventviewer.html object-scoped to the requirement).
+- Requirement Editor design-time Custom Fields (#1374): linked CF inputs
+  (get_linked_cfields show_on_design) rendered in edit + create mode with
+  stored values, save persistence via cfield_mgr::design_values_to_db and
+  CF-change detection feeding requirement_mgr::create_new_revision (legacy
+  html_table_of_custom_field_inputs / reqCommands values_to_db parity,
+  incl. date/datetime and required-field validation).
 - Requirement Editor revision-on-save (#1375): scope-only change offers a
   "create a new revision?" prompt with an optional log message (contributor
   can abort and still save), attribute changes (doc-id/title/status/type/
