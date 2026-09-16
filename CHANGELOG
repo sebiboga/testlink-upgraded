@@ -170,6 +170,14 @@ Test Spec:
   new-version creation copies platforms (legacy parity). i18n
   tcedit.platforms/tcedit.noPlatforms/tcview.platforms/tspec.platforms/
   tspec.noProjPlatforms/tspec.noPlatformsAssigned in all 10 bundles (Refs #915).
+- Test Specification "Add to Test Plan" action (gap vs legacy doAdd2testplan):
+  Add to Test Plan button on the TC view panel (gated by testplan_planning +
+  project has test plans), modal listing every ACTIVE test plan × platform pair
+  with already-linked pairs read-only; BFF add_plan_options GET + add_to_plan
+  POST in api/testcases mirroring testplan::link_tcversions with
+  (plan, tcversion, platform) dedup. i18n tspec.addToTestPlan/tspec.alreadyLinked/
+  tspec.addedToPlan/tspec.noTestPlans/tspec.loadingPlanOptions in all 10 bundles
+  (Refs #916).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - Assign Requirements in Test Spec tree/editor + TC Viewer (testSpec.html,
   tcView.html) - "Assign Requirements" button + modal (reqspec combo, free/
