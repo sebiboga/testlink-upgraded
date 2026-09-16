@@ -59,6 +59,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <button class="btn-teal" id="btnRefresh" onclick="loadInit()"><i class="fa fa-rotate"></i> <span data-i18n="edb.refresh">Refresh</span></button>
   <button class="btn-teal" id="btnCopy" onclick="copyRestArgs()"><i class="fa fa-copy"></i> <span data-i18n="edb.copyArgs">Copy REST parameters</span></button>
   <button class="btn-ghost" id="btnGoExec" onclick="goExecute()" style="display:none;"><i class="fa fa-play"></i> <span data-i18n="edb.goExecute">Continue to Execute Tests</span></button>
+  <button class="btn-ghost" id="btnCopyAssign" onclick="goCopyAssign()" style="display:none;"><i class="fa fa-clone"></i> <span data-i18n="edb.copyAssign">Copy Task Assignment</span></button>
 </div>
 
 <div id="errBanner" class="banner err" style="display:none;"></div>
@@ -181,6 +182,9 @@ function render(r) {
   REST = { testPlanID: ctx.tplan_id, buildID: ctx.build_id, platformID: ctx.platform_id };
   CTX = { tprojectId: ctx.tproject_id, tplanId: ctx.tplan_id };
   $('#btnGoExec').toggle(!!ctx.tplan_id);
+  // Copy & Execute Task Assignment (legacy buildCopyExecTaskAssignment.php
+  // entry from the execution dashboard): needs a build context.
+  $('#btnCopyAssign').toggle(!!ctx.build_id);
 
   // executor selector: closed builds appended first so the open one wins
   renderBuildOptions(r.builds || [], ctx.build_id);
@@ -254,6 +258,14 @@ function goExecute() {
   if (REST.testPlanID) qs.push('tplan_id=' + REST.testPlanID);
   if (CTX.tprojectId) qs.push('tproject_id=' + CTX.tprojectId);
   window.location.href = qs.length ? base + '?' + qs.join('&') : base;
+}
+
+// legacy buildCopyExecTaskAssignment.php?build_id=<target> (filter panel copy
+// button) -> modern Copy & Execute Task Assignment screen (Refs #1522)
+function goCopyAssign() {
+  var b = REST.buildID || parseInt($('#selBuild').val() || '0', 10);
+  if (b <= 0) { toast(TLi18n.t('edb.copyAssignNoBuild'), false); return; }
+  window.location.href = '/gui/templates/plans/execTaskCopy.html?build_id=' + b;
 }
 
 // persist the new context so the Execute Tests toolbar agrees

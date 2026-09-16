@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="etc.title">Copy &amp; Execute Task Assignment</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; flex: 0 0 auto; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.err-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; display: none; flex: 0 0 auto; }
+.ok-banner { background: #eef7ee; border: 1px solid #c6e4c6; color: #2e6b2e; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px 0; display: none; flex: 0 0 auto; }
+.panel { flex: 0 0 auto; margin: 18px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel-title { padding: 12px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #eee; background: #f7f7f7; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 20px 18px; font-size: 14px; color: #333; }
+.kv { display: flex; flex-wrap: wrap; gap: 8px 28px; margin-bottom: 12px; }
+.kv .kv-item { min-width: 180px; }
+.kv .kv-label { color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; }
+.kv .kv-value { font-size: 15px; font-weight: 600; color: #22242a; }
+.chip { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 11px; padding: 2px 10px; vertical-align: 2px; margin-left: 6px; }
+.chip.open { background: #eaf6f5; color: #287d75; }
+.chip.closed { background: #fdecea; color: #b94a48; }
+.form-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.form-row select { height: 32px; font-size: 13px; border-radius: 4px; border: 1px solid #ccc; padding: 0 8px; min-width: 280px; }
+.hint { color: #888; font-size: 12px; margin-top: 8px; }
+.msg-line { display: flex; gap: 10px; align-items: flex-start; margin-top: 4px; }
+.msg-line i { font-size: 18px; margin-top: 2px; }
+.counts { margin-top: 14px; font-size: 13px; color: #555; }
+.counts .num { font-weight: 700; color: #22242a; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; flex: 0 0 auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
+.toast.err { background: #e6605e; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-bottom: 1px solid #333; }
+.modal-header .close { color: #fff; opacity: .8; }
+@media (max-width: 640px) {
+  .header { font-size: 16px; padding: 12px 16px; }
+  .toolbar, .panel, .footer, .err-banner, .ok-banner { margin-left: 12px; margin-right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-clone" style="margin-right:8px;"></i><span data-i18n="etc.title">Copy &amp; Execute Task Assignment</span>
+  <span class="sub"><span data-i18n="etc.inProject">in test project</span> <b id="tprojectName">-</b></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" onclick="loadInit()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="btnBack" href="#"><i class="fa fa-arrow-left"></i> <span data-i18n="etc.back">Back</span></a>
+  <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="errBox" class="err-banner"></div>
+<div id="okBox" class="ok-banner"></div>
+
+<div class="panel" id="panelTarget">
+  <div class="panel-title"><i class="fa fa-crosshairs" style="color:#4ECDC4;"></i> <span data-i18n="etc.targetBuild">Target build</span></div>
+  <div class="panel-body">
+    <div class="kv">
+      <div class="kv-item">
+        <div class="kv-label"><span data-i18n="etc.build">Build</span></div>
+        <div class="kv-value" id="targetName">-</div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label"><span data-i18n="etc.releaseDate">Release date</span></div>
+        <div class="kv-value" id="targetRelease">-</div>
+      </div>
+      <div class="kv-item">
+        <div class="kv-label" data-i18n="etc.targetAssignments">Tester assignments</div>
+        <div class="kv-value" id="targetCount">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panelCopy">
+  <div class="panel-title"><i class="fa fa-copy" style="color:#4ECDC4;"></i> <span data-i18n="etc.copyFrom">Copy tester assignments from</span></div>
+  <div class="panel-body">
+    <div class="form-row">
+      <label for="sourceBuild" class="control-label" style="font-size:13px;"><span data-i18n="etc.sourceBuild">Source build</span>:</label>
+      <select id="sourceBuild"></select>
+      <button class="btn-teal" id="btnCopy" disabled><i class="fa fa-clone"></i> <span data-i18n="etc.btnCopy">Copy Task Assignments</span></button>
+    </div>
+    <div class="hint"><i class="fa fa-circle-info"></i> <span data-i18n="etc.sourceHint">The source build's tester assignments will replace the target build's current ones.</span></div>
+    <div id="noSourceMsg" class="hint" style="display:none;"><i class="fa fa-triangle-exclamation"></i> <span data-i18n="etc.noSource">No other active/open build with tester assignments is available to copy from.</span></div>
+  </div>
+</div>
+
+<div class="panel" id="panelResult" style="display:none;">
+  <div class="panel-title"><i class="fa fa-circle-check" style="color:#27ae60;"></i> <span data-i18n="etc.result">Result</span></div>
+  <div class="panel-body">
+    <div class="msg-line">
+      <i class="fa fa-check-circle" style="color:#27ae60;"></i>
+      <div>
+        <div id="resultText">-</div>
+        <div class="counts" id="resultCounts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.execTaskCopy">TestLink 2.0.1 - Copy &amp; Execute Task Assignment</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="confirmModalLabel" data-i18n="etc.confirmTitle">Copy tester assignments?</h4>
+      </div>
+      <div class="modal-body" id="confirmModalBody">-</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal"><span data-i18n="common.no">No</span></button>
+        <button type="button" class="btn btn-danger" id="btnConfirmYes"><i class="fa fa-clone"></i> <span data-i18n="common.yes">Yes</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+'use strict';
+var API = '/api/execassignmentcopy/index.php';
+var P = new URLSearchParams(window.location.search);
+var BUILD_ID = parseInt(P.get('build_id') || '0', 10);
+var requestToken = 0;
+var state = null;
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    buildBackLink();
+    if (BUILD_ID <= 0) {
+      toast(TLi18n.t('etc.errNoBuild'), true);
+      showError(TLi18n.t('etc.errNoBuild'));
+      return;
+    }
+    loadInit();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 5000));
+}
+
+function showError(msg) {
+  $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+  $('#panelTarget').hide();
+  $('#panelCopy').hide();
+  $('#panelResult').hide();
+}
+
+function buildBackLink() {
+  var href = '/gui/templates/execute/execDashboard.html';
+  if (BUILD_ID > 0) { href += '?build_id=' + BUILD_ID; }
+  $('#btnBack').attr('href', href);
+}
+
+function populateSources(list) {
+  var $sel = $('#sourceBuild').empty();
+  list.forEach(function (s, idx) {
+    $('<option>').val(s.id)
+      .text(esc(s.name) + ' (assignments: ' + s.assignments + ')')
+      .prop('selected', idx === 0)
+      .appendTo($sel);
+  });
+}
+
+function loadInit() {
+  var tok = ++requestToken;
+  $('#errBox').hide();
+  $('#okBox').hide();
+  $('#panelTarget').show();
+  $('#panelCopy').show();
+  $.getJSON(API + '/init?build_id=' + BUILD_ID, function (r) {
+    if (tok !== requestToken) { return; }
+    if (!r || r.status !== 'ok') {
+      var msg = (r && r.message) ? r.message : TLi18n.t('etc.errLoad');
+      toast(msg, true);
+      showError(msg);
+      return;
+    }
+    state = r.data;
+    render();
+  }).fail(function (xhr) {
+    if (tok !== requestToken) { return; }
+    var msg = TLi18n.t('etc.errLoad');
+    try {
+      var j = JSON.parse(xhr.responseText);
+      if (j && j.message) { msg = j.message; }
+    } catch (e) { /* keep default */ }
+    if (xhr.status === 403) { msg = TLi18n.t('etc.errNoRights'); }
+    else if (xhr.status === 404) { msg = TLi18n.t('etc.errNotFound'); }
+    toast(msg, true);
+    showError(msg);
+  });
+}
+
+function render() {
+  var t = state.target || {};
+  var p = state.project || {};
+  $('#tprojectName').text(esc(p.name || '-'));
+  $('#targetName').html(esc(t.name || '-'));
+  $('#targetRelease').text(esc(t.release_date || '-'));
+  $('#targetCount').text(String(t.assignments));
+  $('#infoLine').html('<i class="fa fa-cube"></i> ' + esc(t.name || ''));
+  $('#panelResult').hide();
+
+  var open = parseInt(t.is_open, 10) === 1;
+  $('#targetName').append($('<span>')
+    .addClass('chip ' + (open ? 'open' : 'closed'))
+    .text(open ? TLi18n.t('etc.statusOpen') : TLi18n.t('etc.statusClosed')));
+
+  populateSources(state.sources || []);
+  $('#noSourceMsg').toggle(!state.can_copy);
+  $('#btnCopy').prop('disabled', !state.can_copy);
+}
+
+$('#sourceBuild').on('change', function () {
+  $('#panelResult').hide();
+  $('#okBox').hide();
+});
+
+$('#btnCopy').on('click', function () {
+  if (!state || state.sources.length === 0) { return; }
+  var src = state.sources.find(function (s) {
+    return String(s.id) === String($('#sourceBuild').val());
+  });
+  if (!src) { return; }
+  if (src.assignments <= 0) {
+    toast(TLi18n.t('etc.noAssignments'), true);
+    return;
+  }
+  $('#confirmModalBody').text(TLi18n.t('etc.confirmBody', {
+    n: src.assignments,
+    source: src.name,
+    target: state.target.name || '-'
+  }));
+  $('#confirmModal').modal('show');
+});
+
+$('#btnConfirmYes').on('click', function () {
+  var $btn = $(this).prop('disabled', true);
+  $('#confirmModal').modal('hide');
+  var srcId = parseInt($('#sourceBuild').val() || '0', 10);
+
+  fetch(API + '/copy', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify({ build_id: BUILD_ID, source_build_id: srcId })
+  }).then(function (res) {
+    return res.json().catch(function () {
+      return { status: 'error', message: 'bad response' };
+    }).then(function (j) { return { ok: res.ok, status: res.status, j: j }; });
+  }).then(function (r) {
+    $btn.prop('disabled', false);
+    if (!r.ok || !r.j || r.j.status !== 'ok') {
+      var msg = (r.j && r.j.message) ? r.j.message : TLi18n.t('etc.errCopy');
+      if (r.status === 403) { msg = TLi18n.t('etc.errNoRights'); }
+      toast(msg, true);
+      return;
+    }
+    toast(TLi18n.t('etc.copyDone', {
+      n: r.j.data.copied,
+      source: (r.j.data.source && r.j.data.source.id === srcId)
+        ? $('#sourceBuild option:selected').text() : '',
+      target: state.target.name || '-'
+    }), false);
+    $('#okBox').html('<i class="fa fa-circle-check"></i> ' + esc(TLi18n.t('etc.copyDone', {
+      n: r.j.data.copied,
+      source: $('#sourceBuild option:selected').text(),
+      target: state.target.name || '-'
+    }))).show();
+    $('#panelResult').show();
+    $('#resultCounts').html(
+      esc(TLi18n.t('etc.resultTarget')) + ': <span class="num">' +
+      r.j.data.target.assignments + '</span> &middot; ' +
+      esc(TLi18n.t('etc.resultSource')) + ': <span class="num">' +
+      $('#sourceBuild option:selected').text() + '</span>');
+    $('#resultText').text(TLi18n.t('etc.resultText', {
+      n: r.j.data.copied,
+      target: state.target.name || '-'
+    }));
+    loadInit();
+  }).catch(function () {
+    $btn.prop('disabled', false);
+    toast(TLi18n.t('etc.errCopy'), true);
+  });
+});
+</script>
+</body>
+</html>
