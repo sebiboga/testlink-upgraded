@@ -271,6 +271,10 @@ $('#btnConfirmYes').on('click', function () {
   var $btn = $(this).prop('disabled', true);
   $('#confirmModal').modal('hide');
   var srcId = parseInt($('#sourceBuild').val() || '0', 10);
+  var src = (state.sources || []).find(function (s) {
+    return String(s.id) === String(srcId);
+  });
+  var srcName = src ? src.name : '';
 
   fetch(API + '/copy', {
     method: 'POST',
@@ -292,28 +296,27 @@ $('#btnConfirmYes').on('click', function () {
       toast(msg, true);
       return;
     }
+    var copied = r.j.data.copied;
+    var targetName = state.target.name || '-';
     toast(TLi18n.t('etc.copyDone', {
-      n: r.j.data.copied,
-      source: (r.j.data.source && r.j.data.source.id === srcId)
-        ? $('#sourceBuild option:selected').text() : '',
-      target: state.target.name || '-'
+      n: copied, source: srcName, target: targetName
     }), false);
-    $('#okBox').html('<i class="fa fa-circle-check"></i> ' + esc(TLi18n.t('etc.copyDone', {
-      n: r.j.data.copied,
-      source: $('#sourceBuild option:selected').text(),
-      target: state.target.name || '-'
-    }))).show();
-    $('#panelResult').show();
+    $('#okBox').html('<i class="fa fa-circle-check"></i> ' +
+      esc(TLi18n.t('etc.copyDone', {
+        n: copied, source: srcName, target: targetName
+      }))).show();
+    $('#resultText').text(TLi18n.t('etc.resultText', {
+      n: copied, target: targetName
+    }));
     $('#resultCounts').html(
       esc(TLi18n.t('etc.resultTarget')) + ': <span class="num">' +
       r.j.data.target.assignments + '</span> &middot; ' +
       esc(TLi18n.t('etc.resultSource')) + ': <span class="num">' +
-      $('#sourceBuild option:selected').text() + '</span>');
-    $('#resultText').text(TLi18n.t('etc.resultText', {
-      n: r.j.data.copied,
-      target: state.target.name || '-'
-    }));
-    loadInit();
+      esc(srcName) + '</span>');
+    $('#panelResult').show();
+    // refresh the target count in place so the Result panel stays visible
+    state.target.assignments = r.j.data.target.assignments;
+    $('#targetCount').text(String(state.target.assignments));
   }).catch(function () {
     $btn.prop('disabled', false);
     toast(TLi18n.t('etc.errCopy'), true);
