@@ -1894,6 +1894,11 @@ class testcase extends tlObjectWithAttachments {
             WHERE testcase_id = {$id}
             AND tcversion_id IN ({$tcversion_list})";
 
+    $sql[]="/* $debugMsg */ 
+            DELETE FROM {$this->tables['testcase_aliens']} 
+            WHERE testcase_id = {$id}
+            AND tcversion_id IN ({$tcversion_list})";
+
 
     // This has to be the last, to avoid FK issues
     $sql[]="/* $debugMsg */ 
