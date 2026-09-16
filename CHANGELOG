@@ -377,6 +377,16 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Deleting a test case version left orphaned `testcase_platforms` rows behind:
+  `_blind_delete()` never purged the version's platform assignments (the only
+  DELETEs were the UI-scoped `deletePlatforms`/`deletePlatformsByLink`), so both
+  the modern BFF `delete_version`/`delete` and the legacy `doDelete` paths
+  accumulated dead rows after the #915 platform-assignment work started writing
+  them via `copyPlatformsTo`. One scoped DELETE
+  (`WHERE testcase_id = $id AND tcversion_id IN ($tcversion_list)`) added to
+  `_blind_delete` covers single-version and ALL-VERSIONS deletes;
+  `SELECT COUNT(*) FROM testcase_platforms WHERE tcversion_id NOT IN (SELECT id
+  FROM tcversions)` is now 0 after every delete flavor (Fixes #1512).
 - Requirement Editor `?action=version` fallback (no `version_id` in the body)
   copied from `latest['id']` — which `get_by_id()` exposes as the *requirement*
   id, so `copy_version()` matched no `req_versions` row and produced empty
