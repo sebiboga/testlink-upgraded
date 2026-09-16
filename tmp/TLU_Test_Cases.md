@@ -15373,3 +15373,42 @@ wrapped coverage input in `#expectedCoverageCol` in reqSpecMgmt.html with
 `refreshCoverageField()`/`currentCoverageEnabled()` + delegated type-change
 handler; save sends 0 when gated. Create + edit paths verified in browser for
 both per-type and global disable; DB stores correct values; Event Viewer clean.
+
+---
+
+### Suite 1517 — Regression — Issue #1517: `copyAliensTo` copies aliens with relation types on `create_new_version` (2026-09-16)
+
+BFF/legacy `create_new_version` previously 500ed on the BFF path
+(`testcase::addAliens tpr cannot be 0`) and copied **zero** alien rows because
+`copyAliensTo` passed the audit-context array as the scalar `$alienRelType`.
+Fixed in `lib/functions/testcase.class.php` (`copyAliensTo` tproject resolution
++ per-alien relation-type copy with correct audit slot; plus tracker-null guard
+in `addAliens`, filed as #1520).
+
+**Precondition:** fresh-import DB; login admin/admin
+(`curl -X POST -c /tmp/tl_cookies.txt -H "X-Requested-With: XMLHttpRequest"
+  -d 'login=admin&password=admin' http://localhost:8082/api/auth/login` → OK);
+fixture: tproject 1, suite node 2, testcase node 3, tcversion node 4, aliens
+`aliens` id1 + id2 (rel_types 1 and 2), `testcase_aliens (1,3,4,1,1)+(1,3,4,2,2)`;
+tcase node 11 created without aliens.
+
+**Pre-fix repro:** `POST /api/testcases/?action=create_version {"tcase_id":3}`
+→ HTTP 500 (fatal `tpr cannot be 0`, stack testcase.class.php:10584→2468→
+api/testcases/index.php:2595); the repeated call 200s but creates **no**
+`testcase_aliens` rows.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `create_version` on source with aliens | HTTP 200 `{"tcversion_id":<new>}`; `testcase_aliens` gets one row per alien | PASS |
+| 2 | Re-run `create_version` (source now a version with aliens) | HTTP 200; aliens copied to the new version | PASS |
+| 3 | Source holds 2 aliens with **different** `relation_type`s (1 and 2) | Both copied, relation types preserved (`(1,3,<v>,1,1)` + `(1,3,<v>,2,2)`) | PASS |
+| 4 | `create_version` on a testcase with **no** aliens | HTTP 200, no exception, 0 alien rows on new version | PASS |
+| 5 | Browser E2E: Test Specification → TC-1 → Create New Version → confirm modal | Tree shows "Ver. N (current)"; DB has aliens for the new tcversion with original rel_types; console: no Error/Warning | PASS |
+| 6 | Event Viewer (`events` table) after run | only LOGIN audit rows (`log_level=16`), 0 rows `log_level IN (1,2)` | PASS |
+| 7 | `php -l lib/functions/testcase.class.php` | no syntax errors | PASS |
+
+Result: **PASS — 7/7 PASS** — Suite for #1517: pre-fix first `create_version`
+500s and copies no aliens; post-fix BFF + UI flows copy all aliens preserving
+their relation types, tracker-less projects no longer throw (guard → #1520),
+`events` clean. Evidence: DB dumps + screenshots referenced from
+`docs/Bugfix-Issue-1517-CopyAliensTo-RelType.md`.
