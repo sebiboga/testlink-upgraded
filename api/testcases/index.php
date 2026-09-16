@@ -1127,6 +1127,103 @@ function platformFreeList($platformsProject, $platformsAssigned) {
     return $free;
 }
 
+/**
+ * Active test plans of the project with per-platform link options for a
+ * given test case version. Mirrors the legacy tcAssign2Tplan.php grid logic
+ * (get_all_testplans plan_status=1 + testcase::get_linked_versions +
+ * testplan::getPlatforms) and the already-modernized api/tcassign2tplan BFF.
+ * Returns ['plans' => [...], 'can_do' => bool]; the UI draws one checkbox row
+ * per (plan, platform) pair exactly like the legacy "Add to Test Plan" screen.
+ */
+function addToplanGrid(&$db, &$tplanMgr, &$tprojectMgr, $tcaseId, $tcverId, $tprojId, $version) {
+    $tcaseMgr = new testcase($db);
+    $linkInfo = $tcaseMgr->get_linked_versions($tcaseId);
+    $tplanSet = $tprojectMgr->get_all_testplans($tprojId, ['plan_status' => 1]);
+    $plans = [];
+
+    if (is_null($tplanSet)) {
+        return ['plans' => [], 'can_do' => false];
+    }
+
+    $hasLinks = array_fill_keys(array_keys($tplanSet), false);
+    $linkedTplans = null;
+    if (!is_null($linkInfo)) {
+        foreach ($linkInfo as $tcvId => $info) {
+            foreach ($info as $tplanId => $platformInfo) {
+                $tplanId = intval($tplanId);
+                $hasLinks[$tplanId] = true;
+                foreach ((array)$platformInfo as $platformId => $value) {
+                    $linkedTplans[$tplanId][$platformId]['tcversion_id'] = $value['tcversion_id'] ?? 0;
+                    $linkedTplans[$tplanId][$platformId]['version'] = $value['version'] ?? '';
+                    $linkedTplans[$tplanId][$platformId]['draw_checkbox'] = false;
+                }
+            }
+        }
+    }
+
+    $getOpt = ['outputFormat' => 'map', 'addIfNull' => true];
+    $grid = [];
+    $canDo = false;
+    foreach ($tplanSet as $tplanId => $value) {
+        $tplanId = intval($tplanId);
+        $platformSet = $tplanMgr->getPlatforms($tplanId, $getOpt);
+        $row = [
+            'id' => $tplanId,
+            'name' => strval($value['name'] ?? ''),
+            'platforms' => [],
+            'linked' => false,
+            'can_add' => false,
+            'target_version' => $version,
+            'target_version_id' => $tcverId,
+        ];
+
+        $linkedPlatforms = null;
+        $targetVersionNumber = $version;
+        $targetVersionId = $tcverId;
+        if ($hasLinks[$tplanId]) {
+            $linkedPlatforms = array_flip(array_keys($linkedTplans[$tplanId]));
+            $dummy = current($linkedTplans[$tplanId]);
+            $targetVersionNumber = $dummy['version'];
+            $targetVersionId = $dummy['tcversion_id'];
+            $row['linked'] = true;
+        }
+
+        foreach ($platformSet as $platformId => $platformInfo) {
+            $platformId = intval($platformId);
+            // mirror legacy: a plan can host at most ONE version of a test case,
+            // so platforms already bound to another version cannot be requested.
+            $doAdd = true;
+            $drawCheckbox = true;
+            if ($hasLinks[$tplanId]) {
+                if (isset($linkedPlatforms[$platformId])) {
+                    $drawCheckbox = false;
+                } elseif ($targetVersionNumber == $version) {
+                    $drawCheckbox = true;
+                } else {
+                    $doAdd = false;
+                }
+            }
+            if ($doAdd) {
+                $row['platforms'][] = [
+                    'platform_id' => $platformId,
+                    'platform' => strval($platformInfo ?? ''),
+                    'tcversion_id' => $targetVersionId,
+                    'version' => $targetVersionNumber,
+                    'draw_checkbox' => $drawCheckbox,
+                    'already_linked' => !$drawCheckbox,
+                ];
+                if ($drawCheckbox) {
+                    $row['can_add'] = true;
+                    $canDo = true;
+                }
+            }
+        }
+        $grid[] = $row;
+    }
+
+    return ['plans' => $grid, 'can_do' => $canDo];
+}
+
 /** Whether a tcversion already has executions (drives platform edit gating). */
 function versionHasExecutions($dbHandler, $tcversionId) {
     $tables = tlObjectWithDB::getDBTables(array('executions'));
@@ -1492,6 +1589,72 @@ if ($action === 'get') {
 }
 
 // ---------------------------------------------------------------------------
+// GET ?action=add_plan_options&tcase_id=N&tcversion_id=M
+// Active test plans + per-platform link options to drive the "Add to Test
+// Plan" action in the editor (issue #916). Mirrors the legacy tcAssign2Tplan
+// screen data: which ACTIVE test plans the given test case version can be
+// added to, and which (plan, platform) pairs are already linked.
+// ---------------------------------------------------------------------------
+if ($action === 'add_plan_options') {
+    $tcaseId = getIntParam('tcase_id');
+    $tcverId = getIntParam('tcversion_id');
+    if ($tcaseId <= 0 || $tcverId <= 0) {
+        jout(['status' => 'error', 'message' => 'Missing test case or version id'], 400);
+    }
+    $tprojectId = owningProjectOf($db, $tprojectMgr, $tcaseId);
+    if (is_null($tprojectId)) {
+        jout(['status' => 'error', 'message' => 'Test case not found'], 404);
+    }
+    if (!$user->hasRight($db, 'testplan_planning', $tprojectId)) {
+        jout(['status' => 'error',
+              'message' => 'Requires permission: test plan planning'], 403);
+    }
+
+    // version numbers of the target test case (identity + version label).
+    $glue = config_get('testcase_cfg')->glue_character;
+    $version = null;
+    $tcaseIdentity = '';
+    $tcName = '';
+    $options = ['output' => 'essential'];
+    $all = $tcaseMgr->get_by_id($tcaseId, testcase::ALL_VERSIONS, null, $options);
+    if (!is_null($all)) {
+        foreach ($all as $tcvInfo) {
+            if (intval($tcvInfo['id']) == $tcverId) {
+                $version = $tcvInfo['version'];
+                $tcName = strval($tcvInfo['name'] ?? '');
+                $prefix = $tprojectMgr->getTestCasePrefix($tprojectId);
+                $tcaseIdentity = $prefix . $glue . $tcvInfo['tc_external_id'] . ':' . $tcName;
+                break;
+            }
+        }
+    }
+    if (is_null($version)) {
+        jout(['status' => 'error',
+              'message' => 'Test case version not found in this project'], 404);
+    }
+
+    $tplanMgr = new testplan($db);
+    $gridData = addToplanGrid($db, $tplanMgr, $tprojectMgr,
+                              $tcaseId, $tcverId, $tprojectId, $version);
+
+    jout([
+        'status' => 'ok',
+        'tcase' => [
+            'id' => $tcaseId,
+            'tcversion_id' => $tcverId,
+            'name' => $tcName,
+            'version' => $version,
+            'identity' => $tcaseIdentity,
+        ],
+        'tproject_id' => $tprojectId,
+        'plans' => $gridData['plans'],
+        'can_do' => $gridData['can_do'],
+        'title' => lang_get('add_tcversion_to_plans'),
+        'no_test_plans' => lang_get('no_test_plans'),
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // GET ?action=version_list&tcase_id=N
 // All versions of a test case with lifecycle flags (id, version, active,
 // is_open, has_been_executed, is_latest). Mirrors the legacy tcView_viewer
@@ -1747,6 +1910,90 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== '') {
     }
 
     $body = getJsonBody();
+
+    // POST ?action=add_to_plan {tcase_id, tcversion_id, add2tplanid:{..}}
+    // Mirrors legacy tcEdit.php doAction=doAdd2testplan
+    // (lib/testcases/testcaseCommands.class.php:476): link the target test
+    // case version to the selected (test plan, platform) pairs via
+    // testplan::link_tcversions. Gated by the same right the legacy viewer
+    // uses to show the add2tplan button (testplan_planning) plus the modern
+    // editor write gate (mgt_modify_tc).
+    if ($action === 'add_to_plan') {
+        $tcaseId = intval($body['tcase_id'] ?? 0);
+        $tcverId = intval($body['tcversion_id'] ?? 0);
+        if ($tcaseId <= 0 || $tcverId <= 0) {
+            jout(['status' => 'error',
+                  'message' => 'Missing test case or version id'], 400);
+        }
+        $tprojectId = $checkWrite($tcaseId);
+        if (!$user->hasRight($db, 'testplan_planning', $tprojectId)) {
+            jout(['status' => 'error',
+                  'message' => 'Requires permission: test plan planning'], 403);
+        }
+
+        // the tcversion must actually belong to the tcase (defensive, like
+        // delete_version): a forged version id would link a different case.
+        $atpTables = tlObjectWithDB::getDBTables(
+            array('nodes_hierarchy', 'tcversions'));
+        $atpRow = $db->fetchFirstRow(
+            " SELECT TCV.* FROM {$atpTables['tcversions']} TCV " .
+            " JOIN {$atpTables['nodes_hierarchy']} NH ON NH.id = TCV.id " .
+            " WHERE NH.parent_id = {$tcaseId} AND TCV.id = {$tcverId}");
+        if (empty($atpRow)) {
+            jout(['status' => 'error',
+                  'message' => 'Version not found on this test case'], 404);
+        }
+
+        $add2tplanid = $body['add2tplanid'] ?? null;
+        if (!is_array($add2tplanid) || count($add2tplanid) === 0) {
+            jout(['status' => 'error', 'message' => 'No test plan selected'], 400);
+        }
+
+        $tplanMgr = new testplan($db);
+        $tptc = tlObjectWithDB::getDBTables(array('testplan_tcversions'));
+        $added = 0;
+        $addedByPlan = [];
+        foreach ($add2tplanid as $tplanId => $platformSet) {
+            $tplanId = intval($tplanId);
+            if ($tplanId <= 0 || !is_array($platformSet)) { continue; }
+            $platformSet = array_filter($platformSet, function ($v) {
+                return $v === true || $v === 1 || $v === '1' || $v === 'on';
+            });
+            if (count($platformSet) === 0) { continue; }
+
+            $item2link = null;
+            $item2link['tcversion'][$tcaseId] = $tcverId;
+            $item2link['platform'] = [];
+            $item2link['items'] = [];
+            foreach (array_keys($platformSet) as $platformId) {
+                $platformId = intval($platformId);
+                // BFF hardening: the (plan, tcversion, platform) unique key
+                // already exists -> skip silently instead of failing the INSERT.
+                $dup = $db->fetchFirstRow(
+                    " SELECT id FROM {$tptc['testplan_tcversions']} " .
+                    " WHERE testplan_id = {$tplanId} " .
+                    " AND tcversion_id = {$tcverId} " .
+                    " AND platform_id = {$platformId} LIMIT 1");
+                if (!is_null($dup) && isset($dup['id'])) { continue; }
+                $item2link['platform'][$platformId] = $platformId;
+                $item2link['items'][$tcaseId][$platformId] = $tcverId;
+            }
+            if (count($item2link['platform']) === 0) { continue; }
+
+            $tplanMgr->link_tcversions($tplanId, $item2link,
+                                       intval($user->dbID ?? $userId));
+            $addedByPlan[$tplanId] = array_keys($item2link['platform']);
+            $added++;
+        }
+
+        jout([
+            'status' => 'ok',
+            'added' => $added,
+            'added_by_plan' => $addedByPlan,
+            'tcase_id' => $tcaseId,
+            'tcversion_id' => $tcverId,
+        ]);
+    }
 
     $normSteps = function($rawSteps, $execType) {
         $out = [];

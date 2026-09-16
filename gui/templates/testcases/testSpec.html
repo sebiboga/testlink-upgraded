@@ -113,6 +113,12 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
 .mcOpt { margin: 8px 0; display: flex; align-items: center; gap: 8px; font-size: 13px; }
 .mcOpt input[type="checkbox"] { margin: 0; }
 .mcSel { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; margin-top: 4px; }
+.plan-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.plan-table th { background: #22242a; color: #fff; padding: 8px 10px; text-align: left; font-weight: 600; }
+.plan-table td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.plan-table tr.plan-linked { background: #f4fbf9; }
+.plan-note { color: #888; font-size: 12px; }
+.notice-plan { background: #eefaf9; border: 1px solid #bfe5e2; color: #2d8e88; border-radius: 6px; padding: 8px 12px; font-size: 12px; }
 </style>
 
 </head>
@@ -246,6 +252,32 @@ textarea.form-control2 { min-height: 80px; resize: vertical; }
     <div class="modal-foot">
       <button class="btn-dark btn-sm" onclick="closeModal('assignReqsModal')"><span data-i18n="tspec.cancel">Cancel</span></button>
       <button class="btn-teal btn-sm" onclick="closeModal('assignReqsModal')"><i class="fa fa-check"></i> <span data-i18n="rpt.close">Close</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- Add to Test Plan modal (legacy tcAssign2Tplan.php parity) -->
+<div class="modal-overlay" id="addToPlanModal">
+  <div class="modal-box" style="width:680px;max-width:96vw;">
+    <div class="modal-head"><i class="fa fa-cube"></i> <span data-i18n="tspec.addToTestPlan">Add to Test Plan</span></div>
+    <div class="modal-body">
+      <div class="notice-plan" id="atpTarget" style="margin-bottom:12px;"></div>
+      <div id="atpNoPlans" style="display:none;" class="plan-note"><span data-i18n="tspec.noTestPlans">No active test plans available.</span></div>
+      <table class="plan-table" id="atpPlanTable" style="display:none;">
+        <thead>
+          <tr>
+            <th style="width:44px"></th>
+            <th style="width:70px"><span data-i18n="tspec.versionShort">Ver.</span></th>
+            <th><span data-i18n="tspec.testPlans">Test Plans</span></th>
+            <th><span data-i18n="tspec.platform">Platform</span></th>
+          </tr>
+        </thead>
+        <tbody id="atpPlanRows"></tbody>
+      </table>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="closeModal('addToPlanModal')" data-i18n="tspec.cancel">Cancel</button>
+      <button class="btn-teal btn-sm" id="atpSubmitBtn" onclick="submitAddToPlan()"><i class="fa fa-plus"></i> <span data-i18n="tspec.addToTestPlan">Add to Test Plan</span></button>
     </div>
   </div>
 </div>
@@ -417,6 +449,95 @@ function apiFormPost(action, formData) {
 
 function closeModal(id) { $('#' + id).hide(); }
 
+/* ------------------------------------------------------------------ */
+/*  Add to Test Plan (gap vs legacy tcAssign2Tplan.php / tcEdit.php    */
+/*  doAction=doAdd2testplan). Lists the project's ACTIVE test plans    */
+/*  with per-platform checkboxes and links the current TC version to    */
+/*  every checked (plan, platform) pair via api/testcases add_to_plan.  */
+/* ------------------------------------------------------------------ */
+var atpContext = null;
+
+function openAddToPlan(tcaseId, tcversionId) {
+  $('#atpPlanTable').hide();
+  $('#atpNoPlans').hide();
+  $('#atpPlanRows').empty();
+  $('#atpSubmitBtn').prop('disabled', true);
+  $('#atpTarget').text(t('tspec.loadingPlanOptions'));
+  $('#addToPlanModal').show();
+  atpContext = { tcase_id: tcaseId, tcversion_id: tcversionId };
+  apiGet('add_plan_options', { tcase_id: tcaseId, tcversion_id: tcversionId })
+    .then(function (r) { renderAddToPlanModal(r); })
+    .catch(function (e) {
+      $('#atpTarget').removeClass('notice-plan').addClass('plan-note')
+        .text(e.message || t('tspec.errLoad'));
+    });
+}
+
+function renderAddToPlanModal(r) {
+  var plans = r.plans || [];
+  if (r.tcase && r.tcase.identity) {
+    $('#atpTarget').text(r.tcase.identity);
+  }
+  if (!plans.length) {
+    $('#atpPlanTable').hide();
+    $('#atpNoPlans').css('display', '');
+    return;
+  }
+  var rows = '';
+  plans.forEach(function (plan) {
+    plan.platforms.forEach(function (p) {
+      var cbId = 'atpcb_' + plan.id + '_' + p.platform_id;
+      var checked = p.already_linked ? 'checked disabled' : '';
+      var note = p.already_linked
+        ? ' <span class="plan-note">(' + t('tspec.alreadyLinked') + ')</span>' : '';
+      var platLabel = p.platform_id === 0 && p.platform === ''
+        ? t('tspec.noPlatform') : p.platform;
+      rows += '<tr' + (plan.linked ? ' class="plan-linked"' : '') + '>' +
+        '<td><input type="checkbox" id="' + cbId + '" data-tplan="' + plan.id +
+          '" data-platform="' + p.platform_id + '" ' + checked + '></td>' +
+        '<td>' + esc(p.version) + '</td>' +
+        '<td>' + esc(plan.name) + '</td>' +
+        '<td>' + esc(platLabel) + note + '</td>' +
+        '</tr>';
+    });
+  });
+  $('#atpPlanRows').html(rows);
+  $('#atpPlanTable').css('display', '');
+  $('#atpNoPlans').hide();
+  $('#atpSubmitBtn').prop('disabled', r.can_do ? false : !!(plans.length === 0));
+  $('#atpPlanRows input[type=checkbox]').on('change', function () {
+    $('#atpSubmitBtn').prop('disabled', $('#atpPlanRows input[type=checkbox]:checked:not(:disabled)').length === 0);
+  });
+}
+
+function submitAddToPlan() {
+  if (!atpContext) { return; }
+  var add = {};
+  $('#atpPlanRows input[type=checkbox]:checked:not(:disabled)').each(function () {
+    var $cb = $(this);
+    var tp = $cb.data('tplan');
+    var pf = $cb.data('platform');
+    if (!add[tp]) { add[tp] = {}; }
+    add[tp][pf] = true;
+  });
+  if (!Object.keys(add).length) {
+    toast(t('tspec.errNoPlanSelected'), true);
+    return;
+  }
+  $('#atpSubmitBtn').prop('disabled', true);
+  apiPost('add_to_plan', {
+    tcase_id: atpContext.tcase_id,
+    tcversion_id: atpContext.tcversion_id,
+    add2tplanid: add
+  }).then(function (r) {
+    closeModal('addToPlanModal');
+    toast(t('tspec.addedToPlan').replace('{n}', r.added || 0));
+  }).catch(function (e) {
+    $('#atpSubmitBtn').prop('disabled', false);
+    toast(e.message || t('tspec.errSave'), true);
+  });
+}
+
 function init() {
   ctx = { tproject_id: parseInt(qs('tproject_id') || '0', 10) };
   var cParams = ctx.tproject_id > 0 ? { tproject_id: ctx.tproject_id } : {};
@@ -426,6 +547,7 @@ function init() {
     document.title = r.tproject.name + ' - ' + t('tspec.header');
     grants = r.grants || {};
     ctx.options = r.options || {};
+    ctx.hasTestPlans = !!r.hasTestPlans;
     refreshGrantsUi();
     return loadTree();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
@@ -732,6 +854,8 @@ function renderTcView(r) {
       '<button class="btn-teal btn-sm" onclick="openEditTc(' + tc.id + ',' + tc.tcversion_id + ')"><i class="fa fa-pen"></i> ' + t('tspec.editTc') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="createNewVersion(' + tc.id + ')"><i class="fa fa-code-branch"></i> ' + t('tspec.newVersion') + '</button>' +
       '<button class="btn-dark btn-sm" onclick="window.open(\'/gui/templates/testcases/tcView.html?tcase_id=' + tc.id + '\',\'_blank\')"><i class="fa fa-eye"></i> ' + t('tspec.fullViewer') + '</button>' +
+      (grants['testplan_planning'] && ctx.hasTestPlans
+        ? '<button class="btn-dark btn-sm" onclick="openAddToPlan(' + tc.id + ',' + tc.tcversion_id + ')"><i class="fa fa-cube"></i> ' + t('tspec.addToTestPlan') + '</button>' : '') +
       '<button class="btn-red btn-sm" onclick="askDeleteTc(' + tc.id + ')"><i class="fa fa-trash"></i> ' + t('tspec.deleteTc') + '</button>' +
     '</div>';
   }
