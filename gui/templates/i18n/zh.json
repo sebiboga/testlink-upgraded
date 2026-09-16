@@ -2797,6 +2797,8 @@
   "suvw.impHigh": "高",
   "suvw.impLow": "低",
   "suvw.impMedium": "中",
+  "suvw.importCases": "导入测试用例",
+  "suvw.importSuite": "导入测试套件",
   "suvw.importance": "重要性",
   "suvw.inactive": "不活动",
   "suvw.keywords": "关键词",

@@ -2797,6 +2797,8 @@
   "suvw.impHigh": "高",
   "suvw.impLow": "低",
   "suvw.impMedium": "中",
+  "suvw.importCases": "テストケースをインポート",
+  "suvw.importSuite": "テストスイートをインポート",
   "suvw.importance": "重要度",
   "suvw.inactive": "非アクティブ",
   "suvw.keywords": "キーワード",

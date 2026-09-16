@@ -58,6 +58,8 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
   <a class="btn-ghost" id="treeLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.openTree">Open in Test Specification</span></a>
   <button class="btn-ghost" onclick="openSuiteExport(false)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuiteCases">Export Test Cases</span></button>
   <button class="btn-ghost" onclick="openSuiteExport(true)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuite">Export Test Suite</span></button>
+  <button class="btn-ghost" id="importCasesBtn" onclick="openSuiteImport(false)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importCases">Import Test Cases</span></button>
+  <button class="btn-ghost" id="importSuiteBtn" onclick="openSuiteImport(true)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importSuite">Import Test Suite</span></button>
   <button class="btn-ghost" id="tvBtn" onclick="toggleTableView()" style="display:none;"><i class="fa fa-table"></i> <span data-i18n="suvw.tableView">Table view</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
@@ -214,6 +216,11 @@ function render(r) {
   CAN_MANAGE = !!r.can_manage;
   DOMAINS = r.domains || null;
   $('#tvBtn').toggle(CAN_MANAGE);
+  // Import launchers: legacy containerViewTestSuiteTextButtons.inc.tpl:72-77
+  // importItem ($importToTSuiteAction = tcImport.html?...&useRecursion=1,
+  // deep suite import) and :129 import-TC span ($importTestCasesAction,
+  // flat import), both gated by modify_tc_rights (mgt_modify_tc).
+  $('#importCasesBtn, #importSuiteBtn').toggle(CAN_MANAGE);
   $('#tvSelAll').attr('title', TLi18n.t('suvw.tblSelectAll'));
   $('#projName').text(' - ' + (r.tproject.name || ('#' + TPROJECT_ID)));
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(s.name) + '</span>' +
@@ -460,6 +467,15 @@ function openSuiteExport(deep) {
     '&containerID=' + SUITE_ID;
   if (deep) url += '&useRecursion=1';
   window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
+}
+
+function openSuiteImport(deep) {
+  // Mirrors legacy importToTSuiteAction / importTestCasesAction
+  // (containerView.tpl:40-44) — tcImport.html pre-targeted at this suite.
+  var url = '/gui/templates/testcases/tcImport.html?containerID=' + SUITE_ID +
+    '&tproject_id=' + TPROJECT_ID;
+  if (deep) url += '&useRecursion=1';
+  window.open(url, '_blank', 'width=900,height=780,resizable=yes,scrollbars=yes');
 }
 
 function showError(msg) {

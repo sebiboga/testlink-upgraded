@@ -15590,3 +15590,39 @@ user_id=1, deadline now+5d), 3 milestones (near, mid, +10d), execution 1 (plan
 Result: **PASS — 15/15 PASS** — Notifications center fully verified; the
 mark-read re-render bug found & fixed (b8714ac6d); screen ready for
 documentation (docs mirror + wiki) and ledger close-out.
+
+### Task — Issue #1370: Import-testsuite launcher in suiteView (2026-09-16)
+
+Modern screen: `gui/templates/testcases/suiteView.html` (BFF
+`api/suiteview/index.php`). Ports the legacy suite-level import entry points
+`containerViewTestSuiteTextButtons.inc.tpl:72-77` (`importItem` →
+`tcImport.html?containerID=<suite>&tproject_id=<pid>&useRecursion=1`, deep
+suite import) and `:129` (import-TC span → `tcImport.html?containerID=<suite>
+&tproject_id=<pid>`, flat import), both gated by legacy `modify_tc_rights`
+(modern `can_manage` == `mgt_modify_tc`). Reuses the already-modern
+`tcImport.html` + `api/testcasesimport`. New i18n keys `suvw.importCases`,
+`suvw.importSuite` in all 10 bundles. refs #1370.
+
+Preconditions: app `http://localhost:8082` (PHP built-in server, docroot = repo
+root); DB `testlink` freshly imported, seeded via SQL this run — project 100
+`Seed Project` (prefix SEED, tc_counter 2), suite 110 `Suite A` (child suite
+150), testsuites rows for 110/120/150, test cases 130 `TC-One`/140 `TC-Two`
+with tcversion nodes 160/161; user `viewer` id=2 role 7 (mgt_view_tc only,
+no mgt_modify_tc). Login admin/admin (manager) and viewer/admin (non-manager).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Open `suiteView.html?id=110&tproject_id=100` as admin | Suite `Suite A` of `Seed Project`; toolbar shows Export Test Cases/Export Test Suite **and** Import Test Cases / Import Test Suite | PASS |
+| 2 | Inspect `can_manage` via `api/suiteview?action=info` as admin | `true` → both import buttons visible | PASS |
+| 3 | Click `Import Test Suite` | Opens `tcImport.html?containerID=110&tproject_id=100&useRecursion=1`; target header `Suite A` / `Seed Project`; upload enabled | PASS |
+| 4 | Click `Import Test Cases` | Opens `tcImport.html?containerID=110&tproject_id=100` (no `useRecursion`); target `Suite A` | PASS |
+| 5 | E2E flat import via launched screen (`<testcases>` XML, `Imported Via SuiteView`) | Import report `Created: 1` / `ok`; DB `nodes_hierarchy id=162 parent_id=110`; suiteView now shows `SEED-3 Imported Via SuiteView` | PASS |
+| 6 | Open same screen as `viewer` (role 7) | `can_manage:false`; both Import buttons and Table view absent; Export still shown; 3 cases listed | PASS |
+| 7 | `python3 -m json.tool` all 10 bundles | Valid; `suvw.importCases` + `suvw.importSuite` present in each | PASS |
+| 8 | Console after full walk | No JS errors (only benign DataTables a11y notes) | PASS |
+| 9 | `node --check` on inline suiteView script | `JS syntax ok` | PASS |
+| 10 | `events` table after testing | Empty — no new Error/Warning from the flow | PASS |
+
+Result: **PASS — 10/10 PASS** — the legacy suite-level import launchers are
+restored (flat + deep), correctly gated on `mgt_modify_tc`, and route into the
+existing modern import screen; no BFF change required.

@@ -2791,6 +2791,8 @@
   "suvw.impHigh": "Hoch",
   "suvw.impLow": "Niedrig",
   "suvw.impMedium": "Mittel",
+  "suvw.importCases": "Testfälle importieren",
+  "suvw.importSuite": "Testsuite importieren",
   "suvw.importance": "Wichtigkeit",
   "suvw.inactive": "Inaktiv",
   "suvw.keywords": "Stichwörter",

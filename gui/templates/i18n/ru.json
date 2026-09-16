@@ -2797,6 +2797,8 @@
   "suvw.impHigh": "Высокая",
   "suvw.impLow": "Низкая",
   "suvw.impMedium": "Средняя",
+  "suvw.importCases": "Импортировать тест-кейсы",
+  "suvw.importSuite": "Импортировать тестовый набор",
   "suvw.importance": "Важность",
   "suvw.inactive": "Неактивен",
   "suvw.keywords": "Ключевые слова",

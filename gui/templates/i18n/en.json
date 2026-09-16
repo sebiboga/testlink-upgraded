@@ -2803,6 +2803,8 @@
   "suvw.impHigh": "High",
   "suvw.impLow": "Low",
   "suvw.impMedium": "Medium",
+  "suvw.importCases": "Import Test Cases",
+  "suvw.importSuite": "Import Test Suite",
   "suvw.importance": "Importance",
   "suvw.inactive": "Inactive",
   "suvw.keywords": "Keywords",

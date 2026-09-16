@@ -109,6 +109,25 @@ Screenshots (issue #1371):
 - Front-end: red banner + hidden content for load failures; "No test suite id
   provided." when the page is opened without an id.
 
+## Import launchers (Refs #1370)
+
+The suite-level import entry points of the legacy operations panel are restored
+(legacy `containerViewTestSuiteTextButtons.inc.tpl:72-77` `importItem` and
+`:129` import-TC span):
+
+- **Import Test Cases** — opens
+  `tcImport.html?containerID=<suite>&tproject_id=<pid>` (flat import, legacy
+  `$importTestCasesAction`).
+- **Import Test Suite** — opens
+  `tcImport.html?containerID=<suite>&tproject_id=<pid>&useRecursion=1` (deep
+  suite import, legacy `$importToTSuiteAction`).
+
+Both buttons are gated by `mgt_modify_tc` on the owning project (legacy
+`modify_tc_rights`; the BFF already exposes it as `can_manage`) — for a
+read-only user they are not rendered. The launcher reuses the already-modern
+`tcImport.html` + `api/testcasesimport` (no BFF change); the target suite is
+shown in the import screen header and the uploaded cases land under that suite.
+
 ## Security
 
 - **Permission:** `mgt_view_tc` enforced server-side on the owning test
@@ -131,10 +150,11 @@ screen routes suite viewing through `archiveData.php` (grep-clean).
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
-(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 38 keys (25 original + 13 table-view
-keys added with issue #1371); bundles validated with
-`python3 -m json.tool`.
+(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 42 keys total (including the 13
+table-view keys added with issue #1371 and the 2 import-launcher keys added with
+issue #1370); bundles validated with `python3 -m json.tool`.
 
 ## Test coverage
 
-See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS).
+See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS). The import launchers
+(#1370) are covered by the **Issue #1370** suite in the same file (10/10 PASS).
