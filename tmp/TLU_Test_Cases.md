@@ -15552,3 +15552,41 @@ Login admin/admin (browser). Legacy reference:
 
 Result: **PASS — 14/14 PASS** — MD user export implemented with full legacy
 parity (XML untouched), filename/format rollover, rights and auth gates intact.
+
+### Screen — Notifications center (navBar bell) (2026-09-16, Refs #1521)
+
+Completes the modernization already landed in commit 54793866d (Refs #896):
+`gui/templates/notifications/notifications.html` + `api/notifications/index.php`
+(BFF routes GET list, GET count, POST read; session-stored read state; no schema
+change). This run verified all functionality end-to-end and fixed the
+DataTables re-render bug (commit b8714ac6d): the destroy+re-init after mark-read
+threw `Cannot read properties of undefined (reading 'style')`, leaving stale
+'unread' badges; the instance is now reused via `clear()/rows.add()/draw()`.
+
+Fixture (fresh DB, this run): project 1 `MQA Project` (MQA), test plan 2 `MQA
+Plan` (tplan_id=2), suite node 3, TC node 4 `MQA TC1` (external id 101, tcversion
+node 5), tplan link 1, build 1, user_assignment 1 (type=1, feature_id=1,
+user_id=1, deadline now+5d), 3 milestones (near, mid, +10d), execution 1 (plan
+2, tcversion 5, status 'p'), execution_bug BUG-100. Browser admin/admin.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Logged-in GET `api/notifications/` (no data) | `{status:"ok",notifications:[],totals.unread:0}` — empty state renders "No notifications at this time" | PASS |
+| 2 | With fixtures, GET `api/notifications/` | 5 notifications across all 4 groups: assignment, 3×milestone (approaching), plan_completed, bug; unread counted; each has type/icon/color/time_epoch/url | PASS |
+| 3 | Summary cards | Assignment/Milestone/Plans completed/New bugs counts match group totals | PASS |
+| 4 | Relative time + due-by + assigner + deep links | "x day(s) ago"/"just now", "(due by …)", "by Testlink Administrator"; links open planMilestones/execHistory/generalMetrics/mainPage | PASS |
+| 5 | Sort by Time (hidden epoch col) + DataTables search | Times sort desc by default; search filters rows | PASS |
+| 6 | Mark selected read | Checkbox + "Mark selected read" → POST /read `{ids:[...]}` 200; row badge → "read"; unread badge updates | PASS |
+| 7 | Mark all read | POST /read `{all:true}` 200; all rows "read"; header "You are all caught up"; re-GET shows read:true | PASS |
+| 8 | Mark selected read with no selection | Client toast "Select at least one notification"; no POST | PASS |
+| 9 | Refresh re-render (fixed path) | After DB adds milestone 3 → Refresh shows new row as unread, existing as read; no JS error | PASS |
+| 10 | Locale switch → Română | Full UI (title, cards, buttons, columns, messages, footer, tooltips) in Romanian | PASS |
+| 11 | Anon GET `api/notifications/` | HTTP 401 `{status:"error",message:"Not authenticated"}` | PASS |
+| 12 | Anon POST `api/notifications/read` / wrong method | HTTP 403 same-origin guard (CSRF) | PASS |
+| 13 | Console after full walk | No errors (only benign DataTables "form field id/name" a11y note) | PASS |
+| 14 | `python3 -m json.tool` on all 10 i18n bundles | Valid JSON; all 38 `notif.*` keys present in every bundle | PASS |
+| 15 | `events` table after testing | No new Error/Warning from the modern flow | PASS |
+
+Result: **PASS — 15/15 PASS** — Notifications center fully verified; the
+mark-read re-render bug found & fixed (b8714ac6d); screen ready for
+documentation (docs mirror + wiki) and ledger close-out.

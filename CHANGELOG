@@ -434,6 +434,20 @@ NEW FEATURES
   (`notify=true`). The screen prompts for a log message before posting
   (revision-log pattern) and passes the editor's selected `version_id`.
   i18n `reqe.newVersionPrompt` in all 10 bundles.
+- Notifications center (`gui/templates/notifications/notifications.html`, BFF
+  `api/notifications`): GitHub-style per-user Notifications center reachable
+  from the Dashboard bell badge (`mainPage.html` → `GET /api/notifications/count`)
+  (Refs #896, recorded in the ledger + fully verified under Refs #1521). Four
+  notification groups computed LIVE from existing TestLink tables (no schema
+  change): test-case assignments (assigner + deadline), milestones approaching
+   / overdue, test plans fully executed, new bugs from execution_bugs. Read/
+  unread state per login in the PHP session; routes `GET /`, `GET /count`,
+  `POST /read` (`{ids}` or `{all:true}`); session auth + `bffSameOriginGuard`,
+  rights-scoped via `get_accessible_for_user()`, schema-drift guard per group.
+  UI: summary cards with per-type counts + filter, DataTable with localized
+  interpolated messages / relative time / read-unread badges / checkboxes /
+  select-all / mark-read toasts, locale switcher. i18n `notif.*` (38) +
+  `footers.notifications` in all 10 bundles.
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
@@ -675,6 +689,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   translation in all 18 non-en_GB locale `strings.txt` bundles (ro_RO
   "Configurare severitate", de_DE "Schweregrad-Konfiguration", cs_CZ in the
   file's real cp1250 bytes, ...).
+- Notifications center Mark read / Mark all read / Refresh showed stale
+  "unread" badges although the BFF had persisted `read=true`: the re-render
+  destroyed and re-created the DataTable, and the re-init threw `Cannot read
+  properties of undefined (reading 'style')` (jquery.dataTables.min) so the
+  table + unread badge were never refreshed (Refs #1521). The instance is now
+  reused via `clear()/rows.add()/draw()` with row styling moved into
+  `createdRow` (re-applied on every draw); verified with live fixtures across
+  the selected / all / refresh paths (suite 15/15 PASS).
 
 PROCESS / KEEPING THIS CHANGELOG UPDATED
 ----------------------------------------
