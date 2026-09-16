@@ -15453,25 +15453,33 @@ blocked on the separate `tpr cannot be 0` bug (issue #1517, still open — the g
 here is the prerequisite for that fix to be verifiable end-to-end).
 
 
-## Task — Issue #917: Duplicate test case name check/warning in Test Specification editor
+### Task — Issue #1375: reqEdit revision-creation + log-message prompt on save (2026-09-16)
 
-**Precondition:** Project "DuplicateTest" (id=1), testsuite "SuiteA" (id=2) under project root,
-TC "Alpha" (node id 3) and TC "Beta" (node id 5) in SuiteA. User admin/admin logged in.
+Branch `task/issue-1375`. Modern `reqEdit.html` + `api/reqedit/index.php` ported
+legacy `prompt4revision`/`prompt4log` (reqCommands.class.php `doUpdate()` +
+`simpleCompare()`): attribute changes (doc-id/title/status/type/coverage) force a
+"suggest revision with log message" prompt, scope-only changes offer it
+(Cancel = save without revision); on confirm a NEW revision is created via
+`requirement_mgr::create_new_revision()` with the typed log message.
 
-| # | Step | Expected | Actual |
-|---|------|----------|--------|
-| 1 | Open Test Spec for project, select SuiteA, click "+ New Test Case Here", type "Alpha" in name field, wait 300ms | `GET check_name?name=Alpha&testcase_id=0&testsuite_id=2` returns `{duplicate:false}`, no warning shown | PASS — reqid 112-114 confirmed 200 + duplicate:false; `#tcNameWarning` text EMPTY |
-| 2 | With same form still open, delete name and type "Alpha" again (keyup) | BFF returns `{duplicate:true, message:"Name:Alpha already exists"}`; red warning span appears below the name input | PASS — snapshot uid=15_2 value="Alpha" + uid=15_3 "Name:Alpha already exists"; response status 200 after `t()`→`lang_get()` fix |
-| 3 | Click Save (save not blocked, warning only) | TC saved; warning shown during typing is purely advisory; no duplicate in DB (name is "Alpha" and another "Alpha" would exist only if a second TC were saved with same name) | PASS — legacy semantics: warn only, save allowed |
-| 4 | Click "+ New Test Case Here", type "Gamma" (unique name) | `GET check_name?name=Gamma&testcase_id=0&testsuite_id=2` returns `{duplicate:false}`, no warning | PASS — warning span EMPTY |
-| 5 | Click Cancel. Select existing TC "Alpha" → click Edit, keep name "Alpha", wait 700ms | BFF excludes self (testcase_id=3); `{duplicate:false}`; no warning (exclude-self verified) | PASS — reqid: testcase_id=3 returned duplicate:false; `#tcNameWarning` EMPTY |
-| 6 | Cancel. Select TC "Beta" → Edit, change name to "Alpha", wait 700ms | `GET check_name?name=Alpha&testcase_id=5&testsuite_id=0` → BFF derives parent=2 from testcase_id, returns `{duplicate:true}`; warning "Name:Alpha already exists" shown | PASS — response after lang_get fix returned 200 + duplicate:true; snapshot confirmed warning text |
-| 7 | `python3 -m json.tool` on all 10 i18n bundles | All valid JSON (exit 0) | PASS |
-| 8 | `php -l api/testcases/index.php` | No syntax errors | PASS |
-| 9 | `node` script-parse of testSpec.html main `<script>` block | 1 block, 64k chars, `new Function(code)` OK | PASS |
-| 10 | Event Viewer: `events` table queried | 0 new Error/Warning rows from this run | PASS — PHP server log shows no new Fatal/error after `lang_get` fix |
+Fixture (fresh DB): project 1 `Revisions demo` (requirements ON), spec
+REV-SPEC-1, requirement RE-1 (id=4, version_id=5, version=1, revision=1,
+log_message='Requirement Created'). Browser admin/admin.
 
-Result: 10/10 PASS — Issue #917 duplicate-name check/warning feature implemented and verified:
-BFF `check_name` GET route (port of legacy `lib/ajax/checkTCaseDuplicateName.php` +
-`tree::nodeNameExists`), onkeyup inline warning in testSpec.html, i18n
-`tspec.nameAlreadyExists` in all 10 locale bundles, CHANGELOG updated. Refs #917.
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Edit RE-1 scope only → Save | "Attention!! - Do you want to create a new revision?" prompt (reqe.revScopePrompt) | PASS |
+| 2 | Prompt OK + log "review #5" | Second POST `create_revision:true` → `revision_created:1`; DB `revision=2`, `log_message` recorded, 1 row in `req_revisions` (snapshot of new scope) | PASS |
+| 3 | Scope change → prompt → Cancel | Scope SAVED, `revision` unchanged (still 2), `req_revisions` count unchanged | PASS |
+| 4 | Edit title only → Save | "Revision Log / Please add a log message" (force) prompt (reqe.revLogPrompt) | PASS |
+| 5 | Force prompt OK + log "PO review" | `revision=3`, second snapshot, log stored | PASS |
+| 6 | Edit title → force prompt → Cancel | Title saved, `revision=3` (no new revision) | PASS |
+| 7 | Save with NO changes | No prompt, data re-saved idempotently, no revision | PASS |
+| 8 | Create mode (`?spec_id=N`) | No prompt; requirement created plainly | PASS |
+| 9 | First-round response carries `revision_prompt`; confirmed second round returns `revision_prompt:null` | No re-prompt loop | PASS |
+| 10 | Browser console | 0 errors after all flows | PASS |
+| 11 | `events` table after testing | Only INFO entries (AUDIT/LOCALIZE), 0 new Error/Warning | PASS |
+| 12 | `python3 -m json.tool` on all 10 touched bundles | Valid JSON | PASS |
+
+Result: **PASS — 12/12 PASS** — revision-on-save gap closed with full legacy
+parity (suggest + force + both Cancel paths + no-change + create-mode).

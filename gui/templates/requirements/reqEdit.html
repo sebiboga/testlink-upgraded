@@ -324,6 +324,33 @@ function save() {
   if (MODE === 'edit') { payload.id = REQ_ID; }
   else { payload.spec_id = SPEC_ID; }
 
+  doSave(payload, function(r) {
+    /* Refs #1375: legacy prompt4revision/prompt4log (reqEdit.tpl:115-151).
+       The data is already persisted by this first round-trip (legacy first
+       submit parity); the prompt only asks whether to create a REVISION and
+       with which log message:
+         'suggest' -> scope-only change, revision optional (cancel = save
+                      without revision, exactly like the legacy Ext prompt).
+         'force'   -> status/type/coverage/doc-id/title changed, revision
+                      expected; cancel leaves the save without a revision. */
+    if (r.revision_prompt === 'suggest' || r.revision_prompt === 'force') {
+      var revLog = window.prompt(
+        r.revision_prompt === 'force'
+          ? TLi18n.t('reqe.revLogPrompt')
+          : TLi18n.t('reqe.revScopePrompt'), '');
+      if (revLog === null) { showSaved(r); return; }
+      payload.create_revision = true;
+      payload.log_message = revLog;
+      doSave(payload, showSaved);
+      return;
+    }
+    showSaved(r);
+  });
+}
+
+/* Refs #1375: single AJAX save call shared by the first round-trip and the
+   confirmed revision round-trip. */
+function doSave(payload, onOk) {
   $.ajax({
     url: API + '?action=save',
     method: 'POST',
@@ -331,12 +358,7 @@ function save() {
     data: JSON.stringify(payload),
     success: function(r) {
       if (r.status !== 'ok') { showError(r.message || TLi18n.t('reqe.saveError')); return; }
-      hideError();
-      resetModified();
-      if (r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); applyLastDocIdHelper(); }
-      $('#infoBar').text(TLi18n.t('reqe.saved')).show();
-      setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
-      if (r.newVersion) { $('#versionChip').text(r.newVersion); }
+      onOk(r);
     },
     error: function(xhr) {
       var msg = TLi18n.t('reqe.saveError');
@@ -344,6 +366,14 @@ function save() {
       showError(msg);
     }
   });
+}
+
+function showSaved(r) {
+  hideError();
+  resetModified();
+  if (r && r.id) { REQ_ID = r.id; MODE = 'edit'; $('#newVersionBtn').show(); applyLastDocIdHelper(); }
+  $('#infoBar').text((r && r.revision_created) ? TLi18n.t('reqe.revisionCreated') : TLi18n.t('reqe.saved')).show();
+  setTimeout(function() { $('#infoBar').fadeOut(); }, 2500);
 }
 
 function newVersion() {

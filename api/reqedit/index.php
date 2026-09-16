@@ -192,6 +192,28 @@ function boolishConfig($cfg, $key, $default) {
 }
 
 /**
+ * Refs #1375: legacy reqCommands::simpleCompare() (reqCommands.class.php:804).
+ *   force   -> status/type/expected_coverage/req_doc_id/title changed
+ *   suggest -> only the scope changed (checked only when nothing forced)
+ *   null    -> nochange
+ * The legacy custom-field comparison is intentionally skipped: the modern
+ * reqEdit screen has no custom-field section, so CFs cannot change here.
+ * Mirrors the exact legacy field arrays AND their precedence.
+ */
+function simpleReqCompare($old, $posted) {
+    $forceMap = ['status', 'type', 'expected_coverage', 'req_doc_id', 'title'];
+    foreach ($forceMap as $key) {
+        if ((string)$old[$key] !== (string)$posted[$key]) {
+            return 'force';
+        }
+    }
+    if ((string)$old['scope'] !== (string)$posted['scope']) {
+        return 'suggest';
+    }
+    return null;
+}
+
+/**
  * Refs #1376: effective expected_coverage to persist, mirroring legacy:
  *  - management disabled (reqEdit.tpl:345 gates the field off)      -> 0
  *  - selected type not enabled in type_expected_coverage map
@@ -442,13 +464,42 @@ if ($method === 'POST' && $action === 'save') {
             // no explicit version -> edit the latest (legacy default)
             $versionId = intval($versionRows[0]['version_id']);
         }
+        // Refs #1375: legacy reqCommands::doUpdate() — before persisting, run
+        // simpleCompare() against the OLD row so we can tell the frontend which
+        // revision prompt to show (scope-only change => 'suggest', attribute
+        // change => 'force'). The data is saved here (legacy first-submit
+        // parity); the revision itself is created only when the frontend
+        // confirms with a log message (second POST with create_revision).
+        $createRevision = !empty($BODY['create_revision']) ? 1 : 0;
+        $logMessage = (string)($BODY['log_message'] ?? '');
+        $revisionPrompt = null;
+        $oldRows = $reqMgr->get_by_id(intval($reqId), intval($versionId));
+        if (!empty($oldRows)) {
+            $revisionPrompt = simpleReqCompare($oldRows[0], [
+                'status'            => $status,
+                'type'              => $type,
+                'expected_coverage' => $expectedCoverage,
+                'req_doc_id'        => $docId,
+                'title'             => $title,
+                'scope'             => $scope,
+            ]);
+            // The frontend already answered the revision question on the second
+            // round-trip -> never re-prompt (prevents a prompt loop when the
+            // first pass already persisted the change).
+            if (array_key_exists('create_revision', $BODY)) {
+                $revisionPrompt = null;
+            }
+        }
         $op = $reqMgr->update(intval($reqId), intval($versionId), $docId, $title,
-                              $scope, $userId, $status, $type, $expectedCoverage);
+                              $scope, $userId, $status, $type, $expectedCoverage,
+                              null, null, 0, (bool)$createRevision, $logMessage);
         if (!$op['status_ok']) {
             badRequest($op['msg']);
         }
         out(['status' => 'ok', 'mode' => 'update', 'id' => intval($reqId),
-             'version_id' => intval($versionId), 'stay_here' => $stayHere]);
+             'version_id' => intval($versionId), 'stay_here' => $stayHere,
+             'revision_prompt'   => $revisionPrompt,
+             'revision_created'  => $createRevision ? 1 : 0]);
     } else {
         $specId = intval($BODY['spec_id'] ?? 0);
         if ($specId <= 0) { badRequest('Invalid specification id'); }
