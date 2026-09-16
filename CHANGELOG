@@ -381,6 +381,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   copied from `latest['id']` — which `get_by_id()` exposes as the *requirement*
   id, so `copy_version()` matched no `req_versions` row and produced empty
   version nodes. It now uses `latest['version_id']` (Refs #1377).
+- reqEdit "Create New Version" aborted with HTTP 500 (XHR) / full HTML backtrace
+  (legacy, CWE-200) right after copying the version: `closeOpenTCVersionOnOpenLinks()`
+  (`requirement_mgr.class.php:2498`) re-introduced a self-delimited `$debugMsg=
+  '/* Class:... */'` that the `" /* $debugMsg */ UPDATE ..."` template double-wraps
+  into `/* /* Class:... */ */ UPDATE tcversions` — nested comments → SQL error 1064
+  on every `create_new_version()` (modern reqEdit, legacy reqViewVersions,
+  reqimport actionOnHit). The debugMsg is plain text again so the template composes
+  one valid comment; the copy chain now completes error-free: type/expected_coverage/
+  scope/status + `copy_cfields` + `copy_attachments` copied, log_message persisted,
+  source version frozen, linked open TC versions closed (Fixes #1514).
 - userinfo BFF: GitHub handle was silently discarded on profile save — the #905
   `users.github` column + tlUser mapping were gutted by 8ef9694d3 (#1487) while
   the #1507 restore re-added only the BFF branch, so `$user->github` was an
