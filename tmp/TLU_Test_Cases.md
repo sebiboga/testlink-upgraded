@@ -15245,3 +15245,26 @@ Verified error-free, Event Viewer clean, CHANGELOG updated. Fixes #1514.
 | 8 | `events` table after the run | 0 new `log_level=1` (Error) / Warning rows (only AUDIT=16 LOGIN rows pre-existing) | PASS |
 
 Result: **PASS — 8/8 PASS** — Regression suite for Fixes #1512 (one DELETE in `testcase::_blind_delete` purges per-version `testcase_platforms` rows on single-version and ALL-VERSIONS deletes, modern BFF + legacy send). Verified error-free, Event Viewer clean, CHANGELOG updated, docs + wiki updated.
+## Suite 1376 — Task Issue #1376: reqEdit expected-coverage configuration gates + free numeric input (gap vs legacy)
+
+**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit`. Branch `task/issue-1376`.
+**Precondition:** fresh-import DB; fixtures: test project id=1 (prefix COV, management ENABLED default), spec node id=2, requirements id=7 (COV-REQ-001, type Feature/2), id=9 (COV-REQ-002, type Info/1), id=12 (COV-REQ-1501, type Feature/2). Login admin/admin. Config defaults from `config.inc.php:1666` (`expected_coverage_management=ENABLED`) and `cfg/const.inc.php:759` (`type_expected_coverage=[TL_REQ_TYPE_INFO=>false]`, so type Info/1 is disabled).
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | `GET /api/reqedit/index.php?action=form&id=7&tproject_id=1` (options block) | `expectedCoverageManagement:true`; `expectedCoverageByType:{1:0,2:1,3:1,4:1,5:1,6:1,7:1}` (Info/type-1 disabled, all others enabled) | **PASS** |
+| 2 | Edit id=7: `#reqExpectedCoverage` element is a free text `INPUT` (not select), placeholder-only, carries current value 7 | Numeric text input, value `7`, column visible (management enabled, type Feature enabled) | **PASS** |
+| 3 | Edit id=7 → set coverage `12` → Save | `Requirement saved`; DB `SELECT expected_coverage FROM req_versions WHERE id=vh(...) id=7` = `12` (arbitrary value stored as-is — old dropdown only allowed 1/2/3/5/10) | **PASS** |
+| 4 | Create mode `?spec_id=2`: new req COV-REQ-1501 with coverage `15`, type Feature → Save | new req id=12, DB `expected_coverage=15`, `type=2`, scope persisted | **PASS** |
+| 5 | Edit id=9 (type Info/1): load page | `#expectedCoverageCol` hidden from the start (per-type gate, legacy reqEdit.tpl:345 `{if $gui->req_cfg->expected_coverage_management}` + type gate) | **PASS** |
+| 6 | Edit id=7: switch type to Info/1 | field hides on `#reqType` change (legacy `configure_attr` reqEdit.tpl:188); switch back to Feature → shows again | **PASS** |
+| 7 | Edit id=9 (type Info, field hidden) → Save | DB `expected_coverage=0` persisted (legacy force-0, reqEdit.tpl:89) — not `max(1,...)` | **PASS** |
+| 8 | Validation: set coverage `abc` → Save | error bar "Expected coverage must be a number." (`reqe.warningExpectedCoverage`); no AJAX save | **PASS** |
+| 9 | Validation: set coverage `0` → Save | "Expected coverage must be greater than 0." (`reqe.warningExpectedCoverageRange`); no save; no new DB row | **PASS** |
+| 10 | Management DISABLED: temp override `api/reqedit` gate (`expected_coverage_management=0`) → reload id=7 | `expectedCoverageManagement:false`, `#expectedCoverageCol` hidden on load; Save → DB `expected_coverage=0`; override then reverted (config default ENABLED re-verified: options show `true`) | **PASS** |
+| 11 | Regression — edit id=7 general save (spec/status unchanged, coverage kept) | `Requirement saved`, no error, DB row intact | **PASS** |
+| 12 | Regression — Create New Version on id=7 with log | info bar "New version created v2"; DB v2 `expected_coverage=12` (copied from source), source v1 `is_open=0` | **PASS** |
+| 13 | `events` table after the run | 0 new `log_level=1` (Error)/Warning rows from feature work (only 3 pre-existing fixture-setup errors with timestamps ≤ 00:52:02, before implementation) | **PASS** |
+| 14 | Browser console during the flows | 0 JS errors; `api/reqedit` requests all HTTP 200 JSON | **PASS** |
+
+Result: **PASS — 14/14 PASS** — Task #1376 delivered: BFF `reqOptions()` exposes `expectedCoverageManagement` + `expectedCoverageByType` (legacy `reqCommands.class.php:33-41` parity), save uses `effectiveExpectedCoverage()` (management disabled or type disabled → persist 0, else posted positive int as-is); front-end free numeric input replacing the fixed `[1,2,3,5,10]` dropdown, hide/show driven by both gates and by reqType change; client validation with i18n `reqe.warningExpectedCoverage(_range)` in all 10 bundles. Branch `task/issue-1376` pushed (CI lands it); Event Viewer clean; CHANGELOG updated; docs + wiki mirrored.
