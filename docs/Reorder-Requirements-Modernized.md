@@ -72,3 +72,27 @@ Error/Warning rows; console clean.
 ---
 **Mirror-source:** `docs/MODERNIZATION-STATUS.md` row **24f** (`#1488`). Wiki:
 `Reorder-Requirements-Modernized.md`. CHANGELOG: `docs/CHANGELOG.md`.
+
+---
+## 5. Regression restore (Refs #1518, 2026-09-16)
+
+Bugfix commit `8ef9694d3` (Issue #1487, 2026-09-15) regressed the wiring:
+`$actions->reqReorder` was reverted from `lib/functions/common.php` and the
+`#reorderLink` toolbar button + JS href wiring were deleted from
+`gui/templates/requirements/reqSpecView.html`, orphaning the modernized
+screen. Restored per pre-gut parity (`36d667658`):
+
+- `lib/functions/common.php` — re-added `$actions->reqReorder`
+- `gui/templates/requirements/reqSpecView.html` — re-added the toolbar
+  `<a id="reorderLink" data-i18n="reqro.toolbarLink">Reorder requirements</a>`
+  and its `href` wiring in `showHideActions()`.
+
+Regression suite **1518** appended to `tmp/TLU_Test_Cases.md` — 14/14 PASS:
+`php -l` clean, both wiring leaves present, BFF `init` 200 (reorder grant),
+anon 401, bad-spec 404, browser toolbar link resolves to
+`reqReorder.html?req_spec_id=2&tproject_id=1`, Up/Down reorder + Save persist
+`nodes_hierarchy.node_order` (Alpha=1, Gamma=0, Beta=2), Event Viewer clean
+(0 Error/Warning), `reqro.*` + `footers.reqReorder` present in all 10 bundles,
+en→ro locale switch renders "Reordonare cerințe". Screenshots:
+`docs/screenshots/issue-1518-reorder-screen.png`,
+`docs/screenshots/issue-1518-reorder-ro.png`.

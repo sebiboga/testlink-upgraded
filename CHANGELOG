@@ -446,6 +446,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   + HTML files only, leaving the pane unreachable from the menu; the link switch +
   ASIDE entry are restored and verified (admin click-through, RO locale, 401/403 +
   graceful no-rights degradation), suite #1511 27/27 PASS (Refs #1511).
+- Reorder Requirements entry (regression of the #1487 guts): bugfix 8ef9694d3
+  also dropped `$actions->reqReorder` (common.php) and deleted the
+  "#reorderLink" toolbar button + JS wiring from reqSpecView.html, orphaning the
+  #1488 modernized screen (reqReorder.html + api/reqreorder BFF + reqro.* i18n
+  stayed intact); the link switch + toolbar button are restored per pre-gut
+  parity and verified end-to-end (BFF init/reorder, anon 401, bad-spec 404,
+  browser Up/Down reorder + Save persists nodes_hierarchy.node_order, en→ro
+  locale, Event Viewer clean), suite #1518 14/14 PASS (Refs #1518).
 - PHP 8.0-8.4: strftime removal (#563), pChart PHP8 constructor (#586), Symfony
   translation implicit-nullable (#481), getimagesize guards (#498/#515/#574),
   null-array-offset protections across requirements/execution/reports
