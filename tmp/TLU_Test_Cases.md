@@ -15285,3 +15285,29 @@ Result: **PASS — 14/14 PASS** — Task #1376 delivered: BFF `reqOptions()` exp
 | 6 | `events` table after the run | 0 new Error/Warning rows (only pre-existing AUDIT=16 LOGIN row id 1) | PASS |
 
 Result: **PASS — 6/6 PASS** — Regression suite for Fixes #1515 (one DELETE in `testcase::_blind_delete` purges per-version `testcase_aliens` rows on single-version and ALL-VERSIONS deletes, modern BFF + legacy paths). Related pre-existing bug #1517 (`copyAliensTo` never copies aliens on create_new_version — arg-type mismatch, out of scope) filed separately with `bug` label. Event Viewer clean; CHANGELOG + docs + wiki updated.
+
+## Suite 1518 — Regression — Issue #1518: Reorder Requirements link switch restore (regressed by 8ef9694d3)
+
+**Screen:** `gui/templates/requirements/reqSpecView.html` (toolbar) → `gui/templates/requirements/reqReorder.html` + BFF `api/reqreorder/index.php`. Branch `sebiboga`.
+**Precondition:** app http://localhost:8082 (PHP built-in server, docroot = repo root), DB testlink, login admin/admin. Fixture (created via BFF/API during the run): test project `Reorder Demo` (id=1, prefix RRO, is_public=1, optionReqs=1, optionPriority=1) with req spec `RS-RRO` Reorder Spec (node id=2, testproject=1) containing 3 requirements: R1 Alpha req first (node 4, type F), R2 Beta (node 6, type F), R3 Gamma (node 8, type F). Node orders set via prior `POST ?action=reorder` to Gamma=0, Beta=1, Alpha=2. Login via browser fetch `/api/auth/login` (credentials: `admin`/`admin`, cookie `TESTLINK1920TESTLINK_USER_AUTH_COOKIE`).
+
+**Root cause:** Bugfix commit 8ef9694d3 (Issue #1487, 2026-09-15) reverted `$actions->reqReorder` from `lib/functions/common.php` and deleted the `#reorderLink` toolbar button + JS wiring from `gui/templates/requirements/reqSpecView.html`, orphaning the modernized screen (gui/templates/requirements/reqReorder.html + api/reqreorder BFF, Refs #1488). Screen, BFF, `reqro.*` i18n (14 keys + `footers.reqReorder` in all 10 bundles) remained intact.
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | `php -l lib/functions/common.php` | no syntax errors | PASS |
+| 2 | `grep -n 'reqReorder' lib/functions/common.php` | line with `$actions->reqReorder = "/gui/templates/requirements/reqReorder.html?{$ctx}"` present | PASS |
+| 3 | `grep -n 'reorderLink' gui/templates/requirements/reqSpecView.html` | `<a ... id="reorderLink" ... data-i18n="reqro.toolbarLink">Reorder requirements</a>` + `$('#reorderLink').attr('href', ...)` both present | PASS |
+| 4 | `GET /api/reqreorder/index.php?action=init&req_spec_id=2&tproject_id=1` (admin, BFF init) | HTTP 200, `grant.view=true`, `grant.reorder=yes`, requirements in node_order (Gamma→R3=0, Beta→R2=1, Alpha→R1=2) | PASS |
+| 5 | `POST /api/reqreorder/index.php?action=reorder` (anon) | HTTP 401, no DB change | PASS |
+| 6 | `GET /api/reqreorder/index.php?action=init&req_spec_id=999&tproject_id=1` (admin, bad spec) | HTTP 200, `status: error`, message "Requirement specification not found" | PASS |
+| 7 | Browser: open `reqSpecView.html?id=2&tproject_id=1`, admin logged in | "Reorder requirements" toolbar link visible, href resolves to `reqReorder.html?req_spec_id=2&tproject_id=1` | PASS |
+| 8 | Browser: click "Reorder requirements" link | New tab opens `reqReorder.html?req_spec_id=2&tproject_id=1`; screen shows "Reorder Spec" header + 3 rows (R3 Gamma #1, R2 Beta #2, R1 Alpha #3) matching persisted node_order | PASS |
+| 9 | Browser: click "Up" on R1 Alpha row → R1 moves from #3 to #2 (R3, R1, R2) | Reorder reflects in UI: rows now (Gamma #1, Alpha #2, Beta #3) | PASS |
+| 10 | Browser: click "Save" → confirmation | BFF POST reorder returns `status: ok`, `reordered: 3`; DB `nodes_hierarchy WHERE node_type_id=7 ORDER BY node_order` → Alpha=1, Gamma=0, Beta=2 | PASS |
+| 11 | Browser: "Back to spec viewer" link | Navigates to `reqSpecView.html?id=2&tproject_id=1` with refreshed spec | PASS |
+| 12 | `events` table after the run | 0 new `log_level IN (1,2)` (Error/Warning) rows; only AUDIT=16 rows (login + project_create) | PASS |
+| 13 | i18n keys in all 10 bundles | `reqro.{back,down,empty,errNoSpec,grip,hint,loadfail,noModRight,nothing,reqsTitle,saved,savefail,title,toolbarLink,up}` + `footers.reqReorder` present in en de es fr it ja pt ro ru zh | PASS |
+| 14 | Browser: locale switch (en→ro) on reorder screen | Romanian labels render (e.g. 'Reorder requirements' → 'Reordonare cerințe') | PASS |
+
+Result: **PASS — 14/14 PASS** — Regression suite for #1518: restored `$actions->reqReorder` in common.php + reorderLink toolbar button + JS wiring in reqSpecView.html; BFF init/reorder verified anon 401, bad spec 404; browser end-to-end reorder (up/down + save → node_order persisted); Event Viewer clean; i18n keys present in all 10 bundles. The #1488 screen is reachable again after 8ef9694d3 regression. Screenshot: `docs/screenshots/issue-1518-reorder-screen.png`.
