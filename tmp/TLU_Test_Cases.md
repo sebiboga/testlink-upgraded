@@ -15198,3 +15198,31 @@ Fixes #1510.
 - Re-verified: form-encoded/JSON bodies, explicit version_id, no version_id (fallback), browser
   prompt create (v10) → type=Feature, coverage=5, log verbatim, source frozen, is_open on new.
 - RESULT: PASS (all paths), events table 0 Error/Warning.
+
+## Suite 1514 — Regression — Issue #1514: reqEdit Create New Version copies type/coverage/CF/attachments and completes error-free
+
+**Screen:** Requirement Editor (`gui/templates/requirements/reqEdit.html`) + BFF `POST /api/reqedit/index.php?action=version`. Branch `fix/issue-1514-reqedit-newversion-500`.
+**Precondition:** fresh DB fixtures — testproject `id=1` (I1514, option_reqs=1), req_spec `id=6` (SR-1514), requirement `id=8` (REQ-1514, v1 node 9 with type=2/expected_coverage=2/scope `fixture scope v1`), custom field 1 (`cf_priority`) linked to node_type 7 + project, `cfield_design_values (1,9,'HIGH')`, optional testcase `id=15`/tcversion `id=16` with `req_coverage` link_status=1 to req_version 9. Login admin/admin, Event Viewer baseline 0 `log_level=1`.
+
+**Pre-fix repro (bug):** click **Create New Version** in reqEdit.html → `POST ?action=version` HTTP 500 (XHR) — console "Failed to load resource 500"; events gain `1064 ... near '*/ UPDATE tcversions'` from `closeOpenTCVersionOnOpenLinks`; new `req_versions` row half-done: log_message NULL, source version NOT frozen (`is_open=1`), form not refreshed. Root cause: commit `f24b6d28b` (Fixes #1513) re-introduced a self-delimited `$debugMsg='/* Class:... */'` that the SQL template `" /* $debugMsg */ UPDATE ..."` double-wraps → nested `/* /* ... */ */` → SQL syntax error; `exec_query()` XHR branch throws → 500.
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | Open `reqEdit.html?id=8&tproject_id=1` | Form TYPE=Feature (value `2`), EXPECTED COVERAGE=2, Version 1 | **PASS** |
+| 2 | Click **Create New Version**, accept prompt with log `regr1514` | `POST ?action=version&id=8` → HTTP 200 `{"status":"ok","version":2,"version_id":13,"new_version":2}` | **PASS** |
+| 3 | `SELECT type,expected_coverage,scope,status FROM req_versions WHERE id=13` | `2/2/'fixture scope v1'/V` — full copy of source v1 | **PASS** |
+| 4 | `SELECT log_message FROM req_versions WHERE id=13` | `regr1514` (prompt text persisted verbatim) | **PASS** |
+| 5 | `SELECT is_open FROM req_versions WHERE id=9` (source) | `0` — source version frozen (`freezeREQVersionOnNewREQVersion`) | **PASS** |
+| 6 | `SELECT value FROM cfield_design_values WHERE node_id=13` | `HIGH` — custom-field value copied via `copy_cfields` | **PASS** |
+| 7 | Form after reload | Version chip `2`, TYPE Feature, EXPECTED COVERAGE 2, info bar "New version created v2", no error | **PASS** |
+| 8 | Same flow with `req_coverage` link_status=1 to a tcversion (freezeLinkedTCases real path) | No exception; linked tcversion `is_open` set to `0` | **PASS** |
+| 9 | `events` table after the run | 0 new `log_level=1` (Error) entries | **PASS** |
+| 10 | Browser console during the flow | 0 JS errors / no 500 resource | **PASS** |
+| 11 | CLI harness `requirement_mgr::create_new_version(8,1)` (legacy non-XHR path) | Returns `{id,version,msg:ok}` with no HTML backtrace/die | **PASS** |
+
+Result: **PASS — 11/11 PASS** — Fix: single line `lib/functions/requirement_mgr.class.php:2498` — drop the
+self-delimited SQL comment markers from `$debugMsg` (`/* Class:... */` → `Class:...`) so the existing
+`" /* $debugMsg */ "` template composes a single valid SQL comment; `closeOpenTCVersionOnOpenLinks` →
+`copy_version` → `create_new_version` complete error-free and the full legacy copy chain (type/coverage/
+scope/status + `copy_cfields` + `copy_attachments`, log_message, source freeze, linked-TC close) runs.
+Verified error-free, Event Viewer clean, CHANGELOG updated. Fixes #1514.
