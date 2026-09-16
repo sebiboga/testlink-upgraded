@@ -24,36 +24,46 @@ holds it).
 
 The BFF reproduces `lib/usermanagement/usersExport.php`:
 
-- **Content:** full user list as XML — one `<user>` per account with the exact
-  legacy 10 fields: `id`, `login`, `role_id`, `email`, `first`, `last`, `locale`,
-  `default_testproject_id`, `active`, `expiration_date` (CDATA), generated with
-  the ADODB_XML generator (`root <users>`, row `<user>`, same as legacy).
-- **Default filename:** `users.xml` (empty → sent empty, client-side validated).
-- **Filename override:** the input is pre-filled with `users.xml`; any custom
-  name is honored in `Content-Disposition` after being sanitized by
-  `basename()` (path-traversal safe).
+- **Content:** full user list — one entry per account with the exact legacy 10
+  fields: `id`, `login`, `role_id`, `email`, `first`, `last`, `locale`,
+  `default_testproject_id`, `active`, `expiration_date`.
+- **Formats:** **XML** (legacy default; ADODB_XML generator, root `<users>`,
+  row `<user>`, `text/xml; charset=ISO-8859-1`) or **Markdown** (Refs #922) — a
+  GitHub-flavoured table with the same 10 fields, pipe/backslash/newline-escaped
+  cells, served `text/markdown; charset=utf-8`.
+- **Default filename:** `users.xml` for XML, `users.md` for MD; selecting a
+  format auto-rolls the pre-filled name (`applyTypeDefaultFilename`) while the
+  select still honours any user-typed custom name.
+- **Filename override:** any custom name is honored in `Content-Disposition`
+  after being sanitized by `basename()` (path-traversal safe).
 
 ## Flow
 
 1. `GET ?action=info` (requires `mgt_users`) returns the default filename, the
-   number of users to export and the grants map. The screen shows it in the
-   export card.
-2. User clicks **Export**.
-3. `POST ?action=export` streams the XML as `text/xml; charset=ISO-8859-1` with
+   number of users to export, the `exportTypes` map (`XML`, `MD`) and the grants
+   map. The screen shows them in the export card.
+2. User picks the **File type** (XML or Markdown) and clicks **Export**.
+3. `POST ?action=export` (with `exportType`) streams the dump as
+   `text/xml; charset=ISO-8859-1` or `text/markdown; charset=utf-8` with
    `Content-Disposition: attachment` (`Pragma: public`, `Cache-Control:
    must-revalidate`).
-4. Browser saves the XML via blob download (`X-Requested-With:
+4. Browser saves the file via blob download (`X-Requested-With:
    XMLHttpRequest`); JSON errors surface as a toast.
 5. **Back to User Management** returns to `usersView.html` in the same context.
+
+Screenshots: `docs/screenshots/issue-922-userexport-md.png` (MD format
+selected) and `docs/screenshots/issue-922-userexport-norights.png` (no-right
+warn box).
 
 ## Error handling
 
 - No `mgt_users` right → HTTP 403 `{"status":"error","message":"No rights",
   "right":"mgt_users"}` on BOTH routes; the screen shows the lock warn-box
   "You do not have the mgt_users right required to export users." and disables
-  the Export button.
+  the Export button and leaves the file-type select empty.
 - Unauthenticated → HTTP 401 `"Not authenticated"`.
 - Empty file name → client-side toast "Please provide a filename.", no POST.
+- Unknown export type (e.g. `CSV`) → HTTP 400 `"Unsupported export type: CSV"`.
 
 ## Security
 
@@ -73,8 +83,10 @@ The BFF reproduces `lib/usermanagement/usersExport.php`:
 
 ## i18n
 
-All 16 strings use `userexport.*` keys present in all ten locale bundles
-(en/de/es/fr/it/ja/pt/ro/ru/zh), plus the `user.export` toolbar key.
+All strings use `userexport.*` keys present in all ten locale bundles
+(en/de/es/fr/it/ja/pt/ro/ru/zh), plus the `user.export` toolbar key. The MD
+feature adds `userexport.fileType`, `userexport.type.xml`, `userexport.type.md`
+(Refs #922).
 
 ## Test coverage
 
@@ -82,3 +94,9 @@ All 16 strings use `userexport.*` keys present in all ten locale bundles
 filename override + sanitization, empty-filename validation, 403 no-right both
 routes + browser warn state, 401 unauthenticated, i18n in all bundles, Event
 Viewer clean).
+
+**Suite 1520** (Refs #922) in `tmp/TLU_Test_Cases.md` — 14/14 PASS (info
+`exportTypes` map, browser format selector + filename rollover, MD export
+payload/headers, custom MD filename, XML regression, UI blob download, unknown-
+type 400, empty-filename client guard, guest 403 warn state, anonymous 401,
+i18n keys in all 10 bundles, Event Viewer clean).

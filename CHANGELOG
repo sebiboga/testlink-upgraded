@@ -305,6 +305,17 @@ Test Strategy:
 
 NEW FEATURES
 ------------
+- User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
+  `api/usersexport/index.php`): Markdown (MD) user export added next to the
+  legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the
+  screen gained a "File type" select (auto-rolls the default filename to
+  `users.md`/`users.xml`, `applyTypeDefaultFilename` on change), and the export
+  route streams a GitHub-flavoured Markdown table (`# Users` + header/separator/
+  data rows over the same legacy 10-field set, pipe/backslash/newline-escaped
+  cells) as `text/markdown; charset=utf-8` with `users.md` fallback; XML path
+  unchanged (ADODB_XML, `users.xml`). Unsupported types → 400. i18n
+  `userexport.fileType`, `userexport.type.xml`, `userexport.type.md` in all 10
+  bundles.
 - Requirement Editor (`gui/templates/requirements/reqEdit.html`, BFF
   `api/reqedit`): legacy "Insert last doc id" create-mode helper restored
   (Refs #1379) — the BFF `form` responses expose `allow_insert_last_doc_id`

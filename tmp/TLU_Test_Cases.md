@@ -15518,3 +15518,37 @@ Browser admin/admin. All dates 2026-09-16.
 Result: **PASS — 12/12 PASS** — design-time CF gap closed with full legacy
 parity (edit + create render with stored values, save persistence, CF-change
 revision force, required-field validation, date/datetime ISO handling).
+
+## Suite 1520 — Task Issue #922: User Export to MD (Markdown) in User Management Export
+
+Modern screen: `gui/templates/usermanagement/usersExport.html` (BFF
+`api/usersexport/index.php`). Ports the MD export capability already used by the
+test-case exporter (Feature #853) into the User Management Export screen next to
+the legacy XML dump. i18n keys `userexport.fileType`, `userexport.type.xml`,
+`userexport.type.md` in all 10 bundles. refs #922.
+
+Preconditions: app `http://localhost:8082` (PHP built-in server, docroot = repo
+root), DB `testlink` freshly imported (users: `admin` id=1 role 8; guest
+`guestmd` id=2 role 1 created via SQL with bcrypt pw `guest`, cookie_string set).
+Login admin/admin (browser). Legacy reference:
+`lib/usermanagement/usersExport.php` (XML-only export, `mgt_users` right).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `GET ?action=info` as admin | `{status:ok, filename:"users.xml", exportTypes:{XML,MD}, grants.mgt_users:1}` | PASS |
+| 2 | Open `usersExport.html` as admin | "File type" `<select id=exportType>` with XML + Markdown options; default filename `users.xml`; user count shown | PASS |
+| 3 | Switch File type → Markdown | Filename auto-rolls to `users.md` (applyTypeDefaultFilename) | PASS |
+| 4 | Export MD (`POST ?action=export&exportType=MD`) | HTTP 200, `Content-Type: text/markdown; charset=utf-8`, `Content-Disposition: attachment; filename="users.md"`, body is GFM table: `# Users`, `\| id \| login \| role_id \| email \| first \| last \| locale \| default_testproject_id \| active \| expiration_date \|` + separator + row(s) matching legacy 10-field set | PASS |
+| 5 | Export MD with `export_filename=team.md` | Filename honored → `team.md`; table body intact | PASS |
+| 6 | Export XML (regression, `exportType=XML`) | HTTP 200, `text/xml; charset=ISO-8859-1`, `users.xml`, ADODB_XML `<users><user>` structure preserved | PASS |
+| 7 | Click Export button in UI (MD + XML) | Blob download triggered; toast `Users exported successfully.`; button re-enabled after download | PASS |
+| 8 | `exportType=CSV` | HTTP 400 `{"status":"error","message":"Unsupported export type: CSV"}` | PASS |
+| 9 | Empty filename in UI | Client toast `Please provide a filename.` (error style), no POST (loading overlay never shown) | PASS |
+| 10 | Guest `guestmd` (role 1, no `mgt_users`) opens screen | Info returns 403; screen shows lock warn-box "You do not have the mgt_users right required to export users."; Export button disabled; File type select empty | PASS |
+| 11 | Export as guest | 403 `{"status":"error","message":"No rights","right":"mgt_users"}`; no download | PASS |
+| 12 | Unauthenticated `?action=info` / `?action=export` | HTTP 401 `Not authenticated` | PASS |
+| 13 | `python3 -m json.tool` on all 10 i18n bundles | Valid JSON; `userexport.fileType`, `userexport.type.xml`, `userexport.type.md` present in all 10 | PASS |
+| 14 | `events` table after testing | No new Error/Warning entries introduced by the flow (only LOGIN INFO) | PASS |
+
+Result: **PASS — 14/14 PASS** — MD user export implemented with full legacy
+parity (XML untouched), filename/format rollover, rights and auth gates intact.
