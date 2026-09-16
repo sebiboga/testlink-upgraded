@@ -15412,3 +15412,43 @@ Result: **PASS — 7/7 PASS** — Suite for #1517: pre-fix first `create_version
 their relation types, tracker-less projects no longer throw (guard → #1520),
 `events` clean. Evidence: DB dumps + screenshots referenced from
 `docs/Bugfix-Issue-1517-CopyAliensTo-RelType.md`.
+
+### Regression — Issue #1520: addAliens/removeAlien method_exists null guard on tracker-less projects (2026-09-16)
+
+Branch `fix/issue-1520`. `testcase::addAliens()` (lib/functions/testcase.class.php:10372)
+fed a `null` repo straight into `method_exists($repo,'addLink')` when the owning test
+project has NO issue tracker linked — PHP 8 `TypeError` (PHP 7 returned false). Fix:
+`!is_null($repo) && method_exists(...)` guard; identical clone guarded at line 10481
+(`removeLink`) in `removeAlien()`.
+
+Fixture (fresh DB): test project 1 (PRJ, `issue_tracker_enabled=0`, no issuetracker
+linked), suite node 2, testcase node 3, tcversion 4 (v1) + 5 (v2),
+`testcase_aliens (1,3,4,1001)` present on v4 only. Login admin/admin; framework
+harness `/tmp/repro1520.php` bootstraps exactly like `api/testcases/index.php`
+(`config.inc.php` + `lib/functions/common.php`), instantiates `testcase`,
+`setTestProject(1)`, calls `addAliens({tpr:1,tc:3,tcv:5}, [1001], 1)`.
+
+**Pre-fix repro (bug):** harness exit 255,
+`PHP Fatal error: Uncaught TypeError: method_exists(): Argument #1
+($object_or_class) must be of type object|string, null given in
+testcase.class.php:10372`. Alien row for v5 WAS inserted (INSERT runs before the
+crash), then fatal abort.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `php -l lib/functions/testcase.class.php` | No syntax errors | PASS |
+| 2 | Harness `/tmp/repro1520.php` on tracker-less project (tpr=1, target tcv=5) | `addAliens` returns OK, exit 0, NO TypeError | PASS |
+| 3 | `SELECT * FROM testcase_aliens WHERE tcversion_id=5` | Row `(1,3,5,1001,1)` persisted (alien INSERT completes) | PASS |
+| 4 | Re-run harness twice | Idempotent: no error, still 1 row for v5 (nuCheck skip) | PASS |
+| 5 | Call `addAliens` for target tcv=4 (alien already exists) | Early return, exit 0 | PASS |
+| 6 | `grep -n "is_null(\$repo)" lib/functions/testcase.class.php` | Guard present at both 10372 (addLink) and 10481 (removeLink) | PASS |
+| 7 | `events` table after run | 0 new `log_level IN (1,2)` Error/Warning rows (only pre-existing AUDIT=16 LOGIN) | PASS |
+| 8 | i18n bundles untouched | No locale/json file changed in this fix | PASS |
+
+Result: **PASS — 8/8 PASS** — Regression suite for Fixes #1520: `!is_null($repo)`
+guard on both tracker blocks in `testcase::addAliens()`/`removeAlien()`; alien
+INSERT persists and tracker update is silently skipped on tracker-less projects;
+PHP 8 TypeError gone; Event Viewer clean. The API `create_version` path remains
+blocked on the separate `tpr cannot be 0` bug (issue #1517, still open — the guard
+here is the prerequisite for that fix to be verifiable end-to-end).
+
