@@ -15199,32 +15199,30 @@ Fixes #1510.
   prompt create (v10) → type=Feature, coverage=5, log verbatim, source frozen, is_open on new.
 - RESULT: PASS (all paths), events table 0 Error/Warning.
 
-## Task — Issue #1378: reqEdit event-history icon (gap vs legacy, Refs #798)
+## Suite 1514 — Regression — Issue #1514: reqEdit Create New Version copies type/coverage/CF/attachments and completes error-free
 
-**Screen:** `gui/templates/requirements/reqEdit.html` + BFF `api/reqedit/index.php` (`form` action,
-`rights.canViewEvents`).
-**Precondition:** app @ http://localhost:8082, DB `testlink` @ 127.0.0.1:3306 (fresh import), login
-admin/admin; fixture via direct SQL: tproject id 100 `Agent QA Project`, req spec id 110 `Spec One`,
-requirement id 120 `REQ-1` (version 121), one AUDIT event row (`object_id=120`,
-`object_type='requirements'`, "Requirement REQ-1 created"); restricted user `ednoev` (role 99
-`req_editor_no_events` = mgt_view_req + mgt_modify_req, NO mgt_view_events).
+**Screen:** Requirement Editor (`gui/templates/requirements/reqEdit.html`) + BFF `POST /api/reqedit/index.php?action=version`. Branch `fix/issue-1514-reqedit-newversion-500`.
+**Precondition:** fresh DB fixtures — testproject `id=1` (I1514, option_reqs=1), req_spec `id=6` (SR-1514), requirement `id=8` (REQ-1514, v1 node 9 with type=2/expected_coverage=2/scope `fixture scope v1`), custom field 1 (`cf_priority`) linked to node_type 7 + project, `cfield_design_values (1,9,'HIGH')`, optional testcase `id=15`/tcversion `id=16` with `req_coverage` link_status=1 to req_version 9. Login admin/admin, Event Viewer baseline 0 `log_level=1`.
 
-| # | Step | Expected | Result |
+**Pre-fix repro (bug):** click **Create New Version** in reqEdit.html → `POST ?action=version` HTTP 500 (XHR) — console "Failed to load resource 500"; events gain `1064 ... near '*/ UPDATE tcversions'` from `closeOpenTCVersionOnOpenLinks`; new `req_versions` row half-done: log_message NULL, source version NOT frozen (`is_open=1`), form not refreshed. Root cause: commit `f24b6d28b` (Fixes #1513) re-introduced a self-delimited `$debugMsg='/* Class:... */'` that the SQL template `" /* $debugMsg */ UPDATE ..."` double-wraps → nested `/* /* ... */ */` → SQL syntax error; `exec_query()` XHR branch throws → 500.
+
+| # | Step | Expected after fix | Result |
 |---|---|---|---|
-| 1378.1 | GET BFF `?action=form&id=120&tproject_id=100` (admin) | `{status:ok}`, `rights.canViewEvents === true` | **PASS** |
-| 1378.2 | GET BFF `?action=form&spec_id=110&tproject_id=100` (admin, create) | `{status:ok}`, `rights.canViewEvents === true` | **PASS** |
-| 1378.3 | GET BFF `?action=form&id=120&tproject_id=100` as `ednoev` | `rights.canViewEvents === false` (mgt_view_events absent) | **PASS** |
-| 1378.4 | Open `reqEdit.html?id=120&tproject_id=100` as admin | `#btnEventHistory` visible, title "Show event history"; hidden form `#eventhistory` action=`/gui/templates/eventviewer/eventviewer.html`, `object_type=requirements` | **PASS** |
-| 1378.5 | Click `#btnEventHistory` | New tab `eventviewer.html?object_id=120&object_type=requirements` opens, banner "Filtered by requirements #120", table shows the seeded event | **PASS** |
-| 1378.6 | Open `reqEdit.html?spec_id=110&tproject_id=100` as admin (create mode) | `#btnEventHistory` HIDDEN (legacy requires `$gui->req_id`) | **PASS** |
-| 1378.7 | Open `reqEdit.html?id=120&tproject_id=100` as `ednoev` (edit, no right) | Form loads REQ-1 read-only but `#btnEventHistory` HIDDEN | **PASS** |
-| 1378.8 | `python3 -m json.tool` on all 10 i18n bundles | Valid JSON; `reqe.showEventHistory` present in all 10 | **PASS** |
-| 1378.9 | Event Viewer / `events` table after the whole run | No new ERROR/WARNING rows (only the seeded AUDIT + pre-existing DEBUG/L18N) | **PASS** |
+| 1 | Open `reqEdit.html?id=8&tproject_id=1` | Form TYPE=Feature (value `2`), EXPECTED COVERAGE=2, Version 1 | **PASS** |
+| 2 | Click **Create New Version**, accept prompt with log `regr1514` | `POST ?action=version&id=8` → HTTP 200 `{"status":"ok","version":2,"version_id":13,"new_version":2}` | **PASS** |
+| 3 | `SELECT type,expected_coverage,scope,status FROM req_versions WHERE id=13` | `2/2/'fixture scope v1'/V` — full copy of source v1 | **PASS** |
+| 4 | `SELECT log_message FROM req_versions WHERE id=13` | `regr1514` (prompt text persisted verbatim) | **PASS** |
+| 5 | `SELECT is_open FROM req_versions WHERE id=9` (source) | `0` — source version frozen (`freezeREQVersionOnNewREQVersion`) | **PASS** |
+| 6 | `SELECT value FROM cfield_design_values WHERE node_id=13` | `HIGH` — custom-field value copied via `copy_cfields` | **PASS** |
+| 7 | Form after reload | Version chip `2`, TYPE Feature, EXPECTED COVERAGE 2, info bar "New version created v2", no error | **PASS** |
+| 8 | Same flow with `req_coverage` link_status=1 to a tcversion (freezeLinkedTCases real path) | No exception; linked tcversion `is_open` set to `0` | **PASS** |
+| 9 | `events` table after the run | 0 new `log_level=1` (Error) entries | **PASS** |
+| 10 | Browser console during the flow | 0 JS errors / no 500 resource | **PASS** |
+| 11 | CLI harness `requirement_mgr::create_new_version(8,1)` (legacy non-XHR path) | Returns `{id,version,msg:ok}` with no HTML backtrace/die | **PASS** |
 
-Result: **PASS — 9/9 PASS** — the legacy event-history entry point is back on the modern
-reqEdit screen: the BFF `form` payload now exposes `rights.canViewEvents`
-(`hasRight('mgt_view_events')`, mirrors `lib/requirements/reqEdit.php:299`), and the HTML
-renders the fa-history icon in the Document ID control only in edit mode + right granted
-(legacy reqEdit.tpl:288 condition), opening the modern event viewer object-scoped to the
-requirement (same target as `showEventHistoryFor(req_id,'requirements')`). i18n
-`reqe.showEventHistory` added in all 10 client bundles. Refs #1378.
+Result: **PASS — 11/11 PASS** — Fix: single line `lib/functions/requirement_mgr.class.php:2498` — drop the
+self-delimited SQL comment markers from `$debugMsg` (`/* Class:... */` → `Class:...`) so the existing
+`" /* $debugMsg */ "` template composes a single valid SQL comment; `closeOpenTCVersionOnOpenLinks` →
+`copy_version` → `create_new_version` complete error-free and the full legacy copy chain (type/coverage/
+scope/status + `copy_cfields` + `copy_attachments`, log_message, source freeze, linked-TC close) runs.
+Verified error-free, Event Viewer clean, CHANGELOG updated. Fixes #1514.
