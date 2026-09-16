@@ -10480,7 +10480,7 @@ class testcase extends tlObjectWithAttachments {
     // Remove from issue tracker    
     $system = new tlIssueTracker($this->db);
     $repo = $system->getInterfaceObject($this->tproject_id);
-    if ( method_exists($repo,'removeLink') ) {
+    if ( !is_null($repo) && method_exists($repo,'removeLink') ) {
       $link = new stdClass();
       $in = $this->getExternalID($sf->tcase_id,$this->tproject_id);
       $link->testCaseID = $in[0];

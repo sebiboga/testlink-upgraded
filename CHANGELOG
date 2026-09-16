@@ -407,6 +407,14 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- `testcase::addAliens()` aborted with a PHP 8 `TypeError` on every tracker-less
+  test project: `getInterfaceObject()` returns `null` when the project has no
+  issue tracker linked, and line 10372 fed that `null` straight into
+  `method_exists($repo,'addLink')` — PHP 8 requires an object|string first arg
+  (PHP < 8 silently returned false), so the INSERT into `testcase_aliens`
+  succeeded but the request fatally crashed. The tracker loop is now guarded
+  with `!is_null($repo) &&`; the identical clone in `removeAlien()` (line 10481,
+  `method_exists($repo,'removeLink')`) got the same guard (Fixes #1520).
 - Deleting a test case version left orphaned `testcase_platforms` rows behind:
   `_blind_delete()` never purged the version's platform assignments (the only
   DELETEs were the UI-scoped `deletePlatforms`/`deletePlatformsByLink`), so both
