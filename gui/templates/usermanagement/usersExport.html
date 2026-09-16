@@ -25,7 +25,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .form-table { width: 100%; max-width: 760px; border-collapse: collapse; }
 .form-table td { padding: 8px 12px 8px 0; vertical-align: middle; font-size: 13px; }
 .form-table td.lbl { width: 240px; font-weight: 700; color: #22242a; }
-input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
+input[type=text], select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 260px; background: #fff; }
 .hint { color: #888; font-size: 12px; margin-top: 3px; }
 .actions-bar { margin-top: 18px; display: flex; gap: 12px; align-items: center; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
@@ -38,7 +38,7 @@ input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px
 
 <div class="header">
   <i class="fa fa-users"></i> <span data-i18n="userexport.title">User Management Export</span>
-  <span class="sub" data-i18n="userexport.subtitle">export the full user list to an XML file</span>
+  <span class="sub" data-i18n="userexport.subtitle">export the full user list to an XML or Markdown (MD) file</span>
 </div>
 
 <div class="toolbar">
@@ -52,22 +52,28 @@ input[type=text] { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px
 <div class="card">
   <div class="card-head"><i class="fa fa-file-export"></i> <span data-i18n="userexport.exportSettings">Export settings</span></div>
   <div class="card-body">
-    <p style="font-size:13px;color:#444;margin-top:0;" data-i18n="userexport.info">Generates an XML file (users.xml) with login, role, email, first/last name, locale, default test project, active flag and expiration date for every user.</p>
+    <p style="font-size:13px;color:#444;margin-top:0;" data-i18n="userexport.info">Generates an XML or Markdown (MD) file (users.xml / users.md) with login, role, email, first/last name, locale, default test project, active flag and expiration date for every user.</p>
     <table class="form-table">
       <tr>
         <td class="lbl"><span data-i18n="userexport.userCount">Users to export</span></td>
         <td><b id="userCount" style="color:#22242a;">-</b></td>
       </tr>
       <tr>
+        <td class="lbl"><label for="exportType" data-i18n="userexport.fileType">File type</label></td>
+        <td>
+          <select id="exportType"></select>
+        </td>
+      </tr>
+      <tr>
         <td class="lbl"><label for="exportFilename" data-i18n="userexport.filename">Export filename</label></td>
         <td>
           <input type="text" id="exportFilename" required>
-          <div class="hint" data-i18n="userexport.filenameHint">The file is downloaded as XML.</div>
+          <div class="hint" id="filenameHint" data-i18n="userexport.filenameHint">The file is downloaded in the selected format.</div>
         </td>
       </tr>
     </table>
     <div class="actions-bar">
-      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="userexport.export">Export Users to XML</span></button>
+      <button class="btn-teal" id="btnExport"><i class="fa fa-download"></i> <span data-i18n="userexport.export">Export Users</span></button>
     </div>
   </div>
 </div>
@@ -96,6 +102,32 @@ function toast(msg, isErr) {
   t.data('tm', setTimeout(function () { t.fadeOut(250); }, 3500));
 }
 
+function defaultFilenameForType(type) {
+  return 'users.' + (String(type || 'XML').toUpperCase() === 'MD' ? 'md' : 'xml');
+}
+
+function applyTypeDefaultFilename(type) {
+  var cur = ($('#exportFilename').val() || '').trim();
+  var defs = { 'users.xml': 1, 'users.md': 1 };
+  if (cur === '' || defs[cur.toLowerCase()]) {
+    $('#exportFilename').val(defaultFilenameForType(type));
+  }
+}
+
+function populateExportTypes(types) {
+  var $sel = $('#exportType').empty();
+  var first = '';
+  var map = types || { XML: 'XML', MD: 'Markdown' };
+  Object.keys(map).forEach(function (code) {
+    var i18nKey = 'userexport.type.' + code.toLowerCase();
+    var label = TLi18n.t(i18nKey);
+    if (label === i18nKey) { label = map[code] || code; } // backend fallback
+    $('<option></option>').attr('value', code).text(label).appendTo($sel);
+    if (first === '') { first = code; }
+  });
+  if (first !== '') { $sel.val(first); }
+}
+
 function showFatal(msg) {
   $('#warnBox').html('<i class="fa fa-lock"></i> ' + esc(msg)).show();
   $('#btnExport').prop('disabled', true);
@@ -113,6 +145,7 @@ function loadInfo() {
         return;
       }
       $('#userCount').text(d.count);
+      populateExportTypes(d.exportTypes);
       if (d.filename) { $('#exportFilename').val(d.filename); }
     })
     .fail(function (xhr) {
@@ -132,6 +165,7 @@ function doExport() {
 
   var params = new URLSearchParams();
   params.set('action', 'export');
+  params.set('exportType', $('#exportType').val() || 'XML');
   params.set('export_filename', fn);
 
   fetch(API, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: params })
@@ -179,6 +213,7 @@ $(function () {
     document.title = TLi18n.t('userexport.title');
     $('#btnBack').attr('href', 'usersView.html?tproject_id=' + ctx.tproject_id + '&tplan_id=' + ctx.tplan_id);
     $('#btnExport').on('click', doExport);
+    $('#exportType').on('change', function () { applyTypeDefaultFilename($(this).val()); });
     $('#exportFilename').on('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); doExport(); }
     });

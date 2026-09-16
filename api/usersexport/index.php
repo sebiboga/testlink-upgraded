@@ -11,13 +11,16 @@
  *
  * Routes:
  *   GET  ?action=info
- *        -> { status, filename, count, grants:{ mgt_users } }
- *   POST ?action=export [&export_filename=users.xml]  (X-Requested-With: XMLHttpRequest)
- *        -> streams the XML attachment download (application/xml)
+ *        -> { status, filename, count, exportTypes, grants:{ mgt_users } }
+ *   POST ?action=export [&exportType=XML|MD] [&export_filename=users.xml]  (X-Requested-With: XMLHttpRequest)
+ *        -> streams the XML/Markdown attachment download
  *
  * Permission parity with legacy: usersExport.php checkRights() requires the
  * mgt_users right on both the page view and the doExport action, so it is
  * enforced on every route here (401 unauthenticated, 403 no right).
+ *
+ * Refs #922: MD (Markdown) export added next to the legacy XML dump — same
+ * user field set, rendered as a GitHub-style Markdown table.
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -60,10 +63,20 @@ if (!$user->hasRight($db, 'mgt_users')) {
 /**
  * Default export filename, mirroring initializeGui() in usersExport.php
  * ($gui->export_filename = 'users.xml'). The user may override it via the
- * export_filename parameter on the export route.
+ * export_filename parameter on the export route; the prefix is shared by
+ * both formats, the extension follows the selected export type.
  */
 function defaultExportFilename() {
-    return 'users.xml';
+    return 'users';
+}
+
+/**
+ * Allowed export types, mirroring the legacy tcExport export_file_types map
+ * (testcase.class.php) so the User Management export offers the same XML/MD
+ * choice the project already uses for test-case exports.
+ */
+function exportTypes() {
+    return array('XML' => 'XML', 'MD' => 'Markdown');
 }
 
 /**
@@ -88,6 +101,48 @@ function buildUsersXml(&$dbHandler) {
     return $adodbXML->ConvertToXMLString($dbHandler->db, $sql);
 }
 
+/**
+ * Build a Markdown dump of the users table with the same field set as the
+ * XML export (id, login, role_id, email, first, last, locale,
+ * default_testproject_id, active, expiration_date), rendered as a
+ * GitHub-flavoured table. Cell content is escaped so that pipe/backslash/
+ * newline characters cannot break the table layout.
+ */
+function buildUsersMd(&$dbHandler) {
+    $tables = tlObjectWithDB::getDBTables(array('users'));
+    $fieldSet = 'id,login,role_id,email,first,last,locale,' .
+                'default_testproject_id,active,expiration_date';
+    $sql = " SELECT {$fieldSet} FROM {$tables['users']} ";
+    $rows = $dbHandler->get_recordset($sql);
+    if (is_null($rows) || count($rows) === 0) {
+        return '';
+    }
+
+    $esc = function ($v) {
+        $s = is_null($v) ? '' : strval($v);
+        $s = str_replace(array('\\', '|', "\r", "\n"), array('\\\\', '\\|', ' ', ' '), $s);
+        return $s;
+    };
+
+    $headers = array('id', 'login', 'role_id', 'email', 'first', 'last',
+                     'locale', 'default_testproject_id', 'active', 'expiration_date');
+    $lines = array();
+    $lines[] = '# Users';
+    $lines[] = '';
+    $lines[] = '| ' . implode(' | ', array_map($esc, $headers)) . ' |';
+    $lines[] = '|' . implode('|', array_fill(0, count($headers), '----')) . '|';
+    foreach ($rows as $row) {
+        $cells = array();
+        foreach ($headers as $h) {
+            $cells[] = $esc(isset($row[$h]) ? $row[$h] : '');
+        }
+        $lines[] = '| ' . implode(' | ', $cells) . ' |';
+    }
+    $lines[] = '';
+
+    return implode("\n", $lines);
+}
+
 $action = $_REQUEST['action'] ?? '';
 
 // ---------------------------------------------------------------------------
@@ -103,16 +158,16 @@ if ($action === 'info') {
 
     out(array(
         'status'        => 'ok',
-        'filename'      => defaultExportFilename(),
+        'filename'      => defaultExportFilename() . '.xml',
         'count'         => $count,
-        'exportTypes'   => array('XML' => 'XML'),
+        'exportTypes'   => exportTypes(),
         'grants'        => array('mgt_users' => 1),
         'pageTitle'     => 'export_users',
     ));
 }
 
 // ---------------------------------------------------------------------------
-// POST ?action=export  -> stream the XML dump as a file download
+// POST ?action=export  -> stream the XML or Markdown dump as a file download
 // ---------------------------------------------------------------------------
 if ($action === 'export') {
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
@@ -121,7 +176,17 @@ if ($action === 'export') {
         out(['status' => 'error', 'message' => 'Method not allowed']);
     }
 
-    $content = buildUsersXml($db);
+    $exportType = strtoupper(trim($_REQUEST['exportType'] ?? 'XML'));
+    $allowedTypes = exportTypes();
+    if (!isset($allowedTypes[$exportType])) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Unsupported export type: ' . $exportType]);
+    }
+    $ext = ($exportType === 'MD') ? '.md' : '.xml';
+
+    // Content depends on the selected format: XML keeps the legacy
+    // ADODB_XML dump, MD is a Markdown table over the same field set.
+    $content = ($exportType === 'MD') ? buildUsersMd($db) : buildUsersXml($db);
     if ($content === null || $content === '') {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Nothing to export']);
@@ -129,19 +194,22 @@ if ($action === 'export') {
 
     $exportFilename = trim((string)($_REQUEST['export_filename'] ?? ''));
     if ($exportFilename === '') {
-        $exportFilename = defaultExportFilename();
+        $exportFilename = defaultExportFilename() . $ext;
     }
     // Safety: basename only + strip CR/LF/quotes to avoid header injection;
     // cap the length at the legacy field size (STRING_N 0,100).
     $exportFilename = substr(basename($exportFilename), 0, 100);
     $headerFilename = str_replace(["\r", "\n", '"'], '', $exportFilename);
     if ($headerFilename === '') {
-        $headerFilename = defaultExportFilename();
+        $headerFilename = defaultExportFilename() . $ext;
     }
 
-    // Override the JSON header set above and stream the XML as an attachment.
+    // Override the JSON header set above and stream the file as an attachment.
     if (!headers_sent()) {
-        header('Content-Type: text/xml; charset=ISO-8859-1');
+        $ctype = ($exportType === 'MD')
+            ? 'text/markdown; charset=utf-8'
+            : 'text/xml; charset=ISO-8859-1';
+        header('Content-Type: ' . $ctype);
         header('Content-Disposition: attachment; filename="' . $headerFilename . '"');
         header('Pragma: public');
         header('Cache-Control: must-revalidate');
