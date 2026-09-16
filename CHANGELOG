@@ -398,6 +398,16 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `_blind_delete` covers single-version and ALL-VERSIONS deletes;
   `SELECT COUNT(*) FROM testcase_platforms WHERE tcversion_id NOT IN (SELECT id
   FROM tcversions)` is now 0 after every delete flavor (Fixes #1512).
+- Same orphan bug class for the aliens feature (sibling of #1512): deleting a
+  test case version left orphaned `testcase_aliens` rows
+  (`testcase_id`+`tcversion_id`+`alien_id`) because `_blind_delete()` never
+  purged them and the table carries no FK constraints. One scoped DELETE
+  (`WHERE testcase_id = $id AND tcversion_id IN ($tcversion_list)`) added next to
+  the `testcase_platforms` purge covers single-version and ALL-VERSIONS deletes
+  on both the modern BFF `delete_version`/`delete` and the legacy doDelete paths;
+  `SELECT COUNT(*) FROM testcase_aliens ta LEFT JOIN tcversions t ON
+  ta.tcversion_id = t.id WHERE t.id IS NULL` is now 0 after every delete flavor
+  (Fixes #1515).
 - Requirement Editor `?action=version` fallback (no `version_id` in the body)
   copied from `latest['id']` — which `get_by_id()` exposes as the *requirement*
   id, so `copy_version()` matched no `req_versions` row and produced empty

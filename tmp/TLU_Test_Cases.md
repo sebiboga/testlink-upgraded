@@ -15268,3 +15268,20 @@ Result: **PASS — 8/8 PASS** — Regression suite for Fixes #1512 (one DELETE i
 | 14 | Browser console during the flows | 0 JS errors; `api/reqedit` requests all HTTP 200 JSON | **PASS** |
 
 Result: **PASS — 14/14 PASS** — Task #1376 delivered: BFF `reqOptions()` exposes `expectedCoverageManagement` + `expectedCoverageByType` (legacy `reqCommands.class.php:33-41` parity), save uses `effectiveExpectedCoverage()` (management disabled or type disabled → persist 0, else posted positive int as-is); front-end free numeric input replacing the fixed `[1,2,3,5,10]` dropdown, hide/show driven by both gates and by reqType change; client validation with i18n `reqe.warningExpectedCoverage(_range)` in all 10 bundles. Branch `task/issue-1376` pushed (CI lands it); Event Viewer clean; CHANGELOG updated; docs + wiki mirrored.
+## Suite 1515 — Regression — Issue #1515: delete_version / whole-TC delete purge testcase_aliens (no orphans)
+
+**Screen:** `POST /api/testcases/?action=delete_version` and `?action=delete` (BFF) + core `testcase::_blind_delete` (also covers legacy tcView_viewer/tcEdit doDelete). Branch `fix/issue-1515`.
+**Precondition:** fresh-import DB; fixture via SQL: testproject `Aliens Demo` (id=1, prefix AL), user 1 = admin(role 8), suite `Suite A` (node 2), testcase `TC Main` (node 3), tcversion node 4 (`tcversions.id=4`, v1), alien `ALIEN-BUG-1515` (`aliens.id=1`), `testcase_aliens (1,3,4,1)`. Login admin/admin via `POST /api/auth/login` (+ `X-Requested-With: XMLHttpRequest`), cookies in `/tmp/opencode/cookies.txt`.
+
+**Pre-fix repro (bug, on baseline `8ff73e50c`):** version with a `testcase_aliens` row deleted via `delete_version` → API ok, `tcversions`/`nodes_hierarchy` lose the version, but `testcase_aliens` keeps the row → orphans (`SELECT COUNT(*) FROM testcase_aliens ta LEFT JOIN tcversions t ON ta.tcversion_id=t.id WHERE t.id IS NULL` = 1). Root cause: `testcase::_blind_delete()` (lib/functions/testcase.class.php:1834) DELETEs user_assignments/testplan_tcversions/tcsteps/testcase_script_links/testcase_keywords/req_coverage/testcase_platforms/tcversions but never `testcase_aliens`; no FK constraints on that table. Fix: one scoped DELETE added to `_blind_delete` (`WHERE testcase_id = $id AND tcversion_id IN ($tcversion_list)`).
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | `php -l lib/functions/testcase.class.php` | no syntax errors | PASS |
+| 2 | Insert `testcase_aliens (1,3,9,1)` for version 9 → `POST ?action=delete_version {"tcase_id":3,"tcversion_id":9}` | `{"status":"ok","result":1,"versions_left":1}`; `testcase_aliens` has NO row for 9 | PASS |
+| 3 | `SELECT COUNT(*) FROM testcase_aliens ta LEFT JOIN tcversions t ON ta.tcversion_id=t.id WHERE t.id IS NULL` | `0` orphans | PASS |
+| 4 | Surviving version aliens intact: `SELECT tcversion_id,alien_id FROM testcase_aliens WHERE testcase_id=3` | still `4/1` (version 1) only | PASS |
+| 5 | Add version node 10 + `testcase_aliens (1,3,10,1)` → `POST ?action=delete {"tcase_id":3}` (whole TC) | ok; nodes 3/4/10 gone; `testcase_aliens` COUNT=0; orphans 0 | PASS |
+| 6 | `events` table after the run | 0 new Error/Warning rows (only pre-existing AUDIT=16 LOGIN row id 1) | PASS |
+
+Result: **PASS — 6/6 PASS** — Regression suite for Fixes #1515 (one DELETE in `testcase::_blind_delete` purges per-version `testcase_aliens` rows on single-version and ALL-VERSIONS deletes, modern BFF + legacy paths). Related pre-existing bug #1517 (`copyAliensTo` never copies aliens on create_new_version — arg-type mismatch, out of scope) filed separately with `bug` label. Event Viewer clean; CHANGELOG + docs + wiki updated.
