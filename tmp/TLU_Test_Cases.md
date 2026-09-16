@@ -15311,3 +15311,29 @@ Result: **PASS — 6/6 PASS** — Regression suite for Fixes #1515 (one DELETE i
 | 14 | Browser: locale switch (en→ro) on reorder screen | Romanian labels render (e.g. 'Reorder requirements' → 'Reordonare cerințe') | PASS |
 
 Result: **PASS — 14/14 PASS** — Regression suite for #1518: restored `$actions->reqReorder` in common.php + reorderLink toolbar button + JS wiring in reqSpecView.html; BFF init/reorder verified anon 401, bad spec 404; browser end-to-end reorder (up/down + save → node_order persisted); Event Viewer clean; i18n keys present in all 10 bundles. The #1488 screen is reachable again after 8ef9694d3 regression. Screenshot: `docs/screenshots/issue-1518-reorder-screen.png`.
+
+---
+
+### Suite 1519 — Help/Instructions (staticPage) link switches restore (2026-09-16)
+
+Regression of commit `8ef9694d3` (Issue #1487): 4 legacy link switches kept
+pointing at `lib/general/staticPage.php` after the #1501 modern screen landed.
+Restored to `gui/templates/documentation/staticPage.html` (BFF `api/staticpage`).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `php -l` on 4 edited files | No syntax errors in common.php, frmWorkArea.php, resultsNavigator.php, planUpdateTC.php | PASS |
+| 2 | `lib/functions/common.php` `show_instructions()` | Builds URL against `gui/templates/documentation/staticPage.html?key={key}` (+ `&refreshTree=1` when set) | PASS |
+| 3 | `lib/general/frmWorkArea.php` right-pane fallback | `$rightPane = 'gui/templates/documentation/staticPage.html?key=' . $showFeature` | PASS |
+| 4 | `lib/results/resultsNavigator.php` showMetrics workframe | Points at `gui/templates/documentation/staticPage.html?key=showMetrics` | PASS |
+| 5 | `lib/plan/planUpdateTC.php` redirect | Redirects to backend + `/gui/templates/documentation/staticPage.html?key=planUpdateTC` | PASS |
+| 6 | No legacy `lib/general/staticPage.php?key=` pointers remain in lib/ | grep: only the legacy file itself + old-format none left in the 4 switches | PASS |
+| 7 | Modern screen serves | `GET gui/templates/documentation/staticPage.html?key=showMetrics` → HTTP 200 | PASS |
+| 8 | BFF anon guard intact | `GET api/staticpage/index.php?action=show&key=planUpdateTC` anon → `{"status":"error","message":"Not authenticated"}` | PASS |
+| 9 | `events` table after run | 0 new `log_level IN (1,2)` (Error/Warning) rows | PASS |
+| 10 | Issue #1519 state | Auto-closed by commit `7b6b95cdb` (`Fixes #1519`) on default branch | PASS |
+
+Result: **PASS — 10/10 PASS** — Suite for #1519: repointed `show_instructions()`
+(common.php), `frmWorkArea.php` fallback, `resultsNavigator.php` showMetrics and
+`planUpdateTC.php` redirects to the #1501 modern screen; `php -l` clean on all 4;
+modern screen serves 200; BFF anon guard 401; Event Viewer clean.
