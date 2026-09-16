@@ -15226,3 +15226,22 @@ self-delimited SQL comment markers from `$debugMsg` (`/* Class:... */` → `Clas
 `copy_version` → `create_new_version` complete error-free and the full legacy copy chain (type/coverage/
 scope/status + `copy_cfields` + `copy_attachments`, log_message, source freeze, linked-TC close) runs.
 Verified error-free, Event Viewer clean, CHANGELOG updated. Fixes #1514.
+## Suite 1512 — Regression — Issue #1512: delete_version / whole-TC delete purge testcase_platforms (no orphans)
+
+**Screen:** `POST /api/testcases/?action=delete_version` and `?action=delete` (BFF) + modern Test Specification UI. Branch `fix/issue-1512`.
+**Precondition:** fresh-import DB; fixture via SQL: testproject `Platform Demo` (node 1, prefix PD), suite `Suite A` (2), testcase `TC Login` (3), tcversion node 4 (`tcversions.id=4`, v1, step node), platforms Android(1)/iOS(2)/Windows(3) enable_on_design=1, `testcase_platforms (3,4,1),(3,4,2),(3,4,3)`. Login admin/admin via `POST /api/auth/login` (+ `X-Requested-With: XMLHttpRequest`), cookies in `/tmp/opencode/cookies.txt`.
+
+**Pre-fix repro (bug, on baseline `0709e7b0e`):** `create_version` on TC3 → new version copies platforms (`copyPlatformsTo`); `delete_version` → API returns ok, `tcversions`/`nodes_hierarchy` lose the version, but `testcase_platforms` keeps rows `(dead_version,1),(dead_version,2),(dead_version,3)` — orphans (verified: `SELECT COUNT(*) FROM testcase_platforms WHERE tcversion_id NOT IN (SELECT id FROM tcversions)` > 0). Root cause: `testcase::_blind_delete()` (lib/functions/testcase.class.php:1834) DELETEs user_assignments/testplan_tcversions/tcsteps/testcase_script_links/testcase_keywords/req_coverage/tcversions but never `testcase_platforms`; no FK constraints on that table. Fix: one scoped DELETE added to `_blind_delete` (`WHERE testcase_id = $id AND tcversion_id IN ($tcversion_list)`).
+
+| # | Step | Expected after fix | Result |
+|---|---|---|---|
+| 1 | `php -l lib/functions/testcase.class.php` | no syntax errors | PASS |
+| 2 | `POST ?action=create_version {"tcase_id":3}` | `{"status":"ok","tcversion_id":<N>}` and `testcase_platforms` gains `(N,1),(N,2),(N,3)` (copy works) | PASS |
+| 3 | `POST ?action=delete_version {"tcase_id":3,"tcversion_id":<N>}` | ok, `versions_left:1`; `testcase_platforms` has NO row for `<N>` | PASS |
+| 4 | `SELECT COUNT(*) FROM testcase_platforms WHERE tcversion_id NOT IN (SELECT id FROM tcversions)` | `0` orphans | PASS |
+| 5 | Surviving version platforms: `SELECT tcversion_id,platform_id FROM testcase_platforms WHERE testcase_id=3` | only `4/1,4/2,4/3` (version 1 intact) | PASS |
+| 6 | Recreate version N then `POST ?action=delete {"tcase_id":3}` (whole TC) | ok; nodes 3/4 gone; `testcase_platforms` 0 rows for TC  3; orphans 0 | PASS |
+| 7 | Modern Test Specification UI: TC Login → Create New Version → Ver.2 shows Android/iOS/Windows → Delete this version → confirm | Ver. 1 (current) remains; platforms Android/iOS/Windows still listed for v1 | PASS |
+| 8 | `events` table after the run | 0 new `log_level=1` (Error) / Warning rows (only AUDIT=16 LOGIN rows pre-existing) | PASS |
+
+Result: **PASS — 8/8 PASS** — Regression suite for Fixes #1512 (one DELETE in `testcase::_blind_delete` purges per-version `testcase_platforms` rows on single-version and ALL-VERSIONS deletes, modern BFF + legacy send). Verified error-free, Event Viewer clean, CHANGELOG updated, docs + wiki updated.
