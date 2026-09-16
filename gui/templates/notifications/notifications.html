@@ -200,32 +200,37 @@ function render(notifs, totals) {
     ]);
   });
 
-  if ($.fn.DataTable.isDataTable('#notifTable')) $('#notifTable').DataTable().destroy();
-  $('#notifTable tbody').empty();
-  var dt = $('#notifTable').DataTable({
-    data: rows,
-    pageLength: 20,
-    order: [[5, 'desc']],
-    columns: [null, null, null, null, null, null],
-    columnDefs: [
-      { targets: 0, orderable: false, searchable: false, className: 'select-checkbox' },
-      { targets: 1, orderable: false, searchable: false },
-      { targets: 4, orderable: true, searchable: false, className: 'notif-status-cell' },
-      { targets: 5, visible: false, searchable: false }
-    ],
-    rowCallback: function(row, data, dataIndex) {
-      var n = allNotifs[dataIndex];
-      if (n && !n.read) $(row).addClass('notif-row-unread');
-    },
-    createdRow: function(row) {
-      $('input.notif-cb[data-id]', row).on('change', function() {
-        var total = $('input.notif-cb[data-id]').length;
-        var checked = $('input.notif-cb[data-id]:checked').length;
-        $('#selectAll').prop('checked', total > 0 && checked === total);
-        $('#theadCb').prop('checked', total > 0 && checked === total);
-      });
-    }
-  });
+  var dt;
+  if ($.fn.DataTable.isDataTable('#notifTable')) {
+    dt = $('#notifTable').DataTable();
+    dt.clear();
+    dt.rows.add(rows).draw();
+    $('#selectAll').prop('checked', false);
+    $('#theadCb').prop('checked', false);
+  } else {
+    dt = $('#notifTable').DataTable({
+      data: rows,
+      pageLength: 20,
+      order: [[5, 'desc']],
+      columns: [null, null, null, null, null, null],
+      columnDefs: [
+        { targets: 0, orderable: false, searchable: false, className: 'select-checkbox' },
+        { targets: 1, orderable: false, searchable: false },
+        { targets: 4, orderable: true, searchable: false, className: 'notif-status-cell' },
+        { targets: 5, visible: false, searchable: false }
+      ],
+      createdRow: function(row, data, dataIndex) {
+        var n = allNotifs[dataIndex];
+        if (n && !n.read) $(row).addClass('notif-row-unread');
+        $('input.notif-cb[data-id]', row).on('change', function() {
+          var total = $('input.notif-cb[data-id]').length;
+          var checked = $('input.notif-cb[data-id]:checked').length;
+          $('#selectAll').prop('checked', total > 0 && checked === total);
+          $('#theadCb').prop('checked', total > 0 && checked === total);
+        });
+      }
+    });
+  }
   // Hide the raw select-all checkbox row checkbox (we have our own in the toolbar)
   $('#notifTableWrap .select-checkbox input').hide();
 
