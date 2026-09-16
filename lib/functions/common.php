@@ -893,7 +893,7 @@ function getFileUploadErrorMessage($fInfo,$tlInfo=null)
  */
 function show_instructions($key, $refreshTree=0)
 {
-    $myURL = $_SESSION['basehref'] . "lib/general/staticPage.php?key={$key}";
+    $myURL = $_SESSION['basehref'] . "gui/templates/documentation/staticPage.html?key={$key}";
     
     if( $refreshTree )
     {

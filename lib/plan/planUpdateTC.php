@@ -86,7 +86,7 @@ switch($args->level)
   
 	default:
 		// show instructions
-  		redirect($_SESSION['basehref'] . "/lib/general/staticPage.php?key=planUpdateTC");
+  		redirect($_SESSION['basehref'] . "/gui/templates/documentation/staticPage.html?key=planUpdateTC");
 		break;
 }
 

@@ -116,7 +116,7 @@ function init_args() {
 function initializeGui(&$dbHandler,$argsObj) {
   $gui = new stdClass();
   
-  $gui->workframe = $_SESSION['basehref'] . "lib/general/staticPage.php?key=showMetrics";
+  $gui->workframe = $_SESSION['basehref'] . "gui/templates/documentation/staticPage.html?key=showMetrics";
   $gui->do_report = array('status_ok' => 1, 'msg' => '');
   $gui->tplan_id = $argsObj->tplan_id;
   $gui->tproject_id = $argsObj->tproject_id;

@@ -152,7 +152,7 @@ if( is_array($aa_tfp[$showFeature]) ) {
 
 } else {
   $leftPane = $aa_tfp[$showFeature];
-  $rightPane = 'lib/general/staticPage.php?key=' . $showFeature;
+  $rightPane = 'gui/templates/documentation/staticPage.html?key=' . $showFeature;
 } 
 
 if( intval($args->tproject_id) > 0 || intval($args->tplan_id) > 0)
