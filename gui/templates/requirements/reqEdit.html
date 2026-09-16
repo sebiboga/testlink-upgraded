@@ -92,10 +92,10 @@ textarea.form-control { height: auto; min-height: 120px; }
           <select id="reqType" class="form-control"></select>
         </div>
       </div>
-      <div class="col-md-3">
+      <div id="expectedCoverageCol" class="col-md-3">
         <div class="form-group">
           <label class="f-label" data-i18n="reqe.expectedCoverage">Expected Coverage</label>
-          <select id="reqExpectedCoverage" class="form-control"></select>
+          <input type="text" id="reqExpectedCoverage" class="form-control" maxlength="6">
           <div class="coverage-hint" data-i18n="reqe.coverageHint">How many test cases should cover this requirement.</div>
         </div>
       </div>
@@ -142,18 +142,28 @@ function fillSelect($sel, map, selected) {
   }
 }
 
-/* coverage choices mirror legacy reqEdit.php (1,2,3,5,10,'other' not handled -> numeric) */
-function fillCoverage(selected) {
-  var $sel = $('#reqExpectedCoverage');
-  $sel.empty();
-  var vals = [1,2,3,5,10];
-  var has = false;
-  $.each(vals, function(i, v) { $sel.append($('<option>').val(v).text(v)); });
-  $.each(vals, function(i, v) { if (String(v) === String(selected)) { has = true; } });
-  if (!has && selected !== undefined && selected !== null && selected !== '') {
-    $sel.append($('<option>').val(selected).text(selected));
-  }
-  $sel.val(String(selected !== undefined && selected !== null && selected !== '' ? selected : 1));
+/* Refs #1376: legacy expected-coverage gates (reqEdit.tpl:345 + reqCommands.class.php:33):
+   the field is a FREE NUMERIC input and it is hidden entirely when coverage management is
+   disabled or when the selected requirement type is not enabled in type_expected_coverage.
+   When hidden, legacy persisted expected_coverage = 0. */
+function coverageManagementEnabled() {
+  return !(OPTIONS && OPTIONS.expectedCoverageManagement === false);
+}
+
+function coverageEnabledForType(type) {
+  var byType = (OPTIONS && OPTIONS.expectedCoverageByType) || {};
+  var v = byType[String(type)];
+  return (v === undefined) ? true : (v == 1);
+}
+
+function refreshCoverageField() {
+  var visible = coverageManagementEnabled() && coverageEnabledForType($('#reqType').val());
+  $('#expectedCoverageCol').toggle(!!visible);
+  return visible;
+}
+
+function currentCoverageEnabled() {
+  return coverageManagementEnabled() && coverageEnabledForType($('#reqType').val());
 }
 
 /* Refs #1380: mirror legacy checkmodified.js - warn on unload when edits are
@@ -229,7 +239,11 @@ function loadForm() {
 
     fillSelect($('#reqStatus'), OPTIONS.reqStatuses, CURRENT.status);
     fillSelect($('#reqType'), OPTIONS.reqTypes, CURRENT.type);
-    fillCoverage(CURRENT.expected_coverage);
+    /* Refs #1376: free numeric input, value carried as-is (any positive int) */
+    $('#reqExpectedCoverage').val(
+      (CURRENT.expected_coverage !== undefined && CURRENT.expected_coverage !== null && CURRENT.expected_coverage !== '')
+        ? CURRENT.expected_coverage : 1);
+    refreshCoverageField();
 
 resetModified();
     var canManage = r.rights && r.rights.manage;
@@ -287,6 +301,15 @@ function esc(v) { return $('<div>').text(v == null ? '' : String(v)).html(); }
 function save() {
   hideError();
   $('#infoBar').hide();
+  /* Refs #1376: legacy reqEdit.tpl validation — for an enabled type the coverage
+     must be a number > 0; for a disabled type (or management disabled) legacy
+     forces the stored value to 0. */
+  var expectedCoverage = 0;
+  if (currentCoverageEnabled()) {
+    expectedCoverage = parseInt($('#reqExpectedCoverage').val(), 10);
+    if (isNaN(expectedCoverage)) { showError(TLi18n.t('reqe.warningExpectedCoverage')); return; }
+    if (expectedCoverage < 1) { showError(TLi18n.t('reqe.warningExpectedCoverageRange')); return; }
+  }
   var payload = {
     tproject_id: TPROJECT_ID,
     req_doc_id: $.trim($('#reqDocId').val()),
@@ -294,7 +317,7 @@ function save() {
     scope: $('#reqScope').val(),
     status: $('#reqStatus').val(),
     type: $('#reqType').val(),
-    expected_coverage: parseInt($('#reqExpectedCoverage').val() || '1', 10)
+    expected_coverage: expectedCoverage
   };
   if (!payload.req_doc_id) { showError(TLi18n.t('reqe.errDocId')); return; }
   if (!payload.title) { showError(TLi18n.t('reqe.errTitle')); return; }
@@ -365,6 +388,11 @@ $(function() {
     loadForm();
   });
   $('#newVersionBtn').on('click', newVersion);
+  /* Refs #1376: legacy configure_attr() (reqEdit.tpl:188) — hide/show the
+     coverage field when the requirement type changes. */
+  $('#reqType').on('change', function() {
+    refreshCoverageField();
+  });
   /* Refs #1380: track every edit on the form controls (scope, title, doc id,
      status, type, expected coverage) so an unload mid-edit warns the user. */
   $(document).on('input change', '.form-control', markModified);

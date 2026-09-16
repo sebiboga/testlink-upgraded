@@ -2001,6 +2001,8 @@
   "reqcov.thType": "Type",
   "reqcov.thVersion": "Ver",
   "reqe.coverageHint": "How many test cases should cover this requirement.",
+  "reqe.warningExpectedCoverage": "Expected coverage must be a number.",
+  "reqe.warningExpectedCoverageRange": "Expected coverage must be greater than 0.",
   "reqe.details": "Requirement details",
   "reqe.docId": "Document ID",
   "reqe.errContext": "Missing requirement or specification context",

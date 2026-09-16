@@ -1995,6 +1995,8 @@
   "reqcov.thType": "Tipo",
   "reqcov.thVersion": "Ver",
   "reqe.coverageHint": "Cuántos casos de prueba deberían cubrir este requisito.",
+  "reqe.warningExpectedCoverage": "La cobertura esperada debe ser un número.",
+  "reqe.warningExpectedCoverageRange": "La cobertura esperada debe ser mayor que 0.",
   "reqe.details": "Detalles del Requisito",
   "reqe.docId": "ID de Documento",
   "reqe.errContext": "Falta el contexto del requisito o especificación",

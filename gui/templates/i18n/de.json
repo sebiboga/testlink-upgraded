@@ -1995,6 +1995,8 @@
   "reqcov.thType": "Typ",
   "reqcov.thVersion": "Ver",
   "reqe.coverageHint": "Wie viele Testfälle sollen diese Anforderung abdecken.",
+  "reqe.warningExpectedCoverage": "Die erwartete Abdeckung muss eine Zahl sein.",
+  "reqe.warningExpectedCoverageRange": "Die erwartete Abdeckung muss größer als 0 sein.",
   "reqe.details": "Anforderungsdetails",
   "reqe.docId": "Dokument-ID",
   "reqe.errContext": "Anforderungs- oder Spezifikationskontext fehlt",

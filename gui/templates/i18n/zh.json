@@ -2001,6 +2001,8 @@
   "reqcov.thType": "类型",
   "reqcov.thVersion": "版本",
   "reqe.coverageHint": "多少个测试用例应覆盖此需求。",
+  "reqe.warningExpectedCoverage": "预期覆盖率必须是一个数字。",
+  "reqe.warningExpectedCoverageRange": "预期覆盖率必须大于 0。",
   "reqe.details": "需求详情",
   "reqe.docId": "文档ID",
   "reqe.errContext": "缺少需求或规格上下文",

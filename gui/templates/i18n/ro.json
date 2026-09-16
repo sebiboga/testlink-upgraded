@@ -2001,6 +2001,8 @@
   "reqcov.thType": "Tip",
   "reqcov.thVersion": "Ver",
   "reqe.coverageHint": "Câte cazuri de testare ar trebui să acopere această cerință.",
+  "reqe.warningExpectedCoverage": "Acoperirea estimată trebuie să fie un număr.",
+  "reqe.warningExpectedCoverageRange": "Acoperirea estimată trebuie să fie mai mare decât 0.",
   "reqe.details": "Detalii cerință",
   "reqe.docId": "ID Document",
   "reqe.errContext": "Lipsește contextul cerinței sau specificației",

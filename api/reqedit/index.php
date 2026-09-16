@@ -155,12 +155,57 @@ function reqOptions() {
     foreach ($cfg->status_labels as $code => $labelKey) {
         $reqStatuses[(string)$code] = lang_get($labelKey);
     }
+    // Refs #1376: legacy requirements/reqCommands.class.php:33-41 — per-requirement-type
+    // expected-coverage enable map built from config req_cfg->type_expected_coverage;
+    // a type absent from the map is ENABLED by default (value 1).
+    $typeEc = isset($cfg->type_expected_coverage) ? (array)$cfg->type_expected_coverage : [];
+    $expectedCoverageByType = [];
+    foreach ($reqTypes as $code => $dummy) {
+        $value = isset($typeEc[$code]) ? ($typeEc[$code] ? 1 : 0) : 1;
+        $expectedCoverageByType[(string)$code] = $value;
+    }
     return [
         'reqTypes'    => $reqTypes,
         'reqStatuses' => $reqStatuses,
         'defaultReqType'    => TL_REQ_TYPE_FEATURE,
         'defaultReqStatus'  => TL_REQ_STATUS_VALID,
+        // Refs #1376: legacy reqEdit.tpl:345 hides the whole "Expected Coverage"
+        // field when config req_cfg->expected_coverage_management is DISABLED
+        // (config.inc.php:1666 default ENABLED).
+        'expectedCoverageManagement' => boolishConfig($cfg, 'expected_coverage_management', false),
+        'expectedCoverageByType' => $expectedCoverageByType,
     ];
+}
+
+/** Tolerant boolean read of a req_cfg knob (ENABLED/DISABLED constants are ints
+ *  1/0; a literal 'DISABLED'/'FALSE'/'' string means false). */
+function boolishConfig($cfg, $key, $default) {
+    if (!isset($cfg->$key)) { return (bool)$default; }
+    $v = $cfg->$key;
+    if (is_string($v)) {
+        $t = strtoupper(trim($v));
+        if ($t === 'DISABLED' || $t === 'FALSE' || $t === '') { return false; }
+        if ($t === 'ENABLED' || $t === 'TRUE') { return true; }
+        return (bool)intval($v);
+    }
+    return (bool)$v;
+}
+
+/**
+ * Refs #1376: effective expected_coverage to persist, mirroring legacy:
+ *  - management disabled (reqEdit.tpl:345 gates the field off)      -> 0
+ *  - selected type not enabled in type_expected_coverage map
+ *    (reqCommands.class.php:33-41 + reqEdit.tpl:69-91 force 0)      -> 0
+ *  - otherwise the posted free numeric input, any positive integer
+ *    (legacy text field stores arbitrary values like 7 as-is).      -> max(1,int)
+ */
+function effectiveExpectedCoverage($type, $posted) {
+    $cfg = config_get('req_cfg');
+    if (!boolishConfig($cfg, 'expected_coverage_management', false)) { return 0; }
+    $typeEc = isset($cfg->type_expected_coverage) ? (array)$cfg->type_expected_coverage : [];
+    $typeEnabled = isset($typeEc[$type]) ? (bool)$typeEc[$type] : true;
+    if (!$typeEnabled) { return 0; }
+    return max(1, intval($posted));
 }
 
 /**
@@ -356,7 +401,10 @@ if ($method === 'POST' && $action === 'save') {
     $scope = (string)($BODY['scope'] ?? '');
     $status = strtoupper(trim((string)($BODY['status'] ?? TL_REQ_STATUS_VALID)));
     $type = (string)($BODY['type'] ?? TL_REQ_TYPE_FEATURE);
-    $expectedCoverage = max(1, intval($BODY['expected_coverage'] ?? 1));
+    // Refs #1376: honour the legacy coverage configuration gates; the field is
+    // hidden when management is disabled or the selected type is not enabled,
+    // in which case legacy persisted 0 (reqEdit.tpl:345 / reqCommands.class.php:33).
+    $expectedCoverage = effectiveExpectedCoverage($type, $BODY['expected_coverage'] ?? 1);
     // legacy reqEdit.php stay_here: keep the caller on the create form after save
     $stayHere = !empty($BODY['stay_here']) ? 1 : 0;
 

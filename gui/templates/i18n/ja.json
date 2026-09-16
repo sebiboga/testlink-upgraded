@@ -2001,6 +2001,8 @@
   "reqcov.thType": "タイプ",
   "reqcov.thVersion": "Ver",
   "reqe.coverageHint": "この要件をカバーするテストケースの数。",
+  "reqe.warningExpectedCoverage": "期待されるカバレッジは数値である必要があります。",
+  "reqe.warningExpectedCoverageRange": "期待されるカバレッジは 0 より大きい必要があります。",
   "reqe.details": "要件の詳細",
   "reqe.docId": "文書ID",
   "reqe.errContext": "要件または仕様のコンテキストがありません",

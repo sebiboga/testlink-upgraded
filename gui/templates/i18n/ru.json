@@ -2001,6 +2001,8 @@
   "reqcov.thType": "Тип",
   "reqcov.thVersion": "Вер",
   "reqe.coverageHint": "Сколько тест-кейсов должно покрывать это требование.",
+  "reqe.warningExpectedCoverage": "Ожидаемое покрытие должно быть числом.",
+  "reqe.warningExpectedCoverageRange": "Ожидаемое покрытие должно быть больше 0.",
   "reqe.details": "Детали требования",
   "reqe.docId": "ID документа",
   "reqe.errContext": "Отсутствует контекст требования или спецификации",
