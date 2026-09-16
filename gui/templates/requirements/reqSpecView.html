@@ -61,6 +61,7 @@ table.dataTable tbody td { padding: 9px 14px; font-size: 13px; }
   <a class="btn-ghost" id="mgmtLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="rsv.openInMgmt">Open in Spec Management</span></a>
   <a class="btn-ghost" id="compareLink" href="#" target="_blank"><i class="fa fa-code-compare"></i> <span data-i18n="rsv.compareRevisions">Compare revisions</span></a>
   <a class="btn-ghost" id="createTcLink" href="#" target="_blank"><i class="fa fa-clipboard-check"></i> <span data-i18n="rctc.toolbarLink">Create Test Cases</span></a>
+  <a class="btn-ghost" id="reorderLink" href="#" target="_blank"><i class="fa fa-list-ol"></i> <span data-i18n="reqro.toolbarLink">Reorder requirements</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('items')"><i class="fa fa-download"></i> <span data-i18n="reqexp.export">Export</span></a>
   <a class="btn-ghost" href="#" onclick="return goExportReqs('branch')"><i class="fa fa-sitemap"></i> <span data-i18n="reqexp.exportBranch">Export branch</span></a>
   <span style="flex:1"></span>
@@ -309,6 +310,8 @@ function showHideActions(r) {
   $('#compareLink').attr('href', '/gui/templates/requirements/reqSpecCompare.html?spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   $('#createTcLink').attr('href', '/gui/templates/requirements/reqCreateTestCases.html?spec_id=' +
+    SPEC_ID + '&tproject_id=' + TPROJECT_ID);
+  $('#reorderLink').attr('href', '/gui/templates/requirements/reqReorder.html?req_spec_id=' +
     SPEC_ID + '&tproject_id=' + TPROJECT_ID);
   if (r.rights && r.rights.manage) {
     $('#freezeBtn').show();
