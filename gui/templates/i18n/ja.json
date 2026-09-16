@@ -4098,5 +4098,6 @@
     "tspec.noPlatform": "プラットフォームなし",
     "tspec.loadingPlanOptions": "テストプランのオプションを読み込み中...",
     "tspec.errNoPlanSelected": "テストプランが選択されていません",
-    "tspec.addedToPlan": "テストケースをテストプランに追加しました ({n})"
+    "tspec.addedToPlan": "テストケースをテストプランに追加しました ({n})",
+    "tspec.nameAlreadyExists": "名前「%s」は既に存在します"
 }

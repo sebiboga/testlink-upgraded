@@ -4078,5 +4078,6 @@
     "tspec.noPlatform": "无平台",
     "tspec.loadingPlanOptions": "正在加载测试计划选项...",
     "tspec.errNoPlanSelected": "未选择测试计划",
-    "tspec.addedToPlan": "测试用例已添加到测试计划（{n}）"
+    "tspec.addedToPlan": "测试用例已添加到测试计划（{n}）",
+    "tspec.nameAlreadyExists": "名称「%s」已存在"
 }

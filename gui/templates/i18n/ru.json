@@ -4098,5 +4098,6 @@
     "tspec.noPlatform": "Без платформы",
     "tspec.loadingPlanOptions": "Загрузка параметров плана...",
     "tspec.errNoPlanSelected": "Не выбран тест-план",
-    "tspec.addedToPlan": "Тест-кейс добавлен в тест-план(ы) ({n})"
+    "tspec.addedToPlan": "Тест-кейс добавлен в тест-план(ы) ({n})",
+    "tspec.nameAlreadyExists": "Имя %s уже существует"
 }

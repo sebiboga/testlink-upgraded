@@ -4108,5 +4108,6 @@
     "tspec.noPlatform": "No platform",
     "tspec.loadingPlanOptions": "Loading test plan options...",
     "tspec.errNoPlanSelected": "No test plan selected",
-    "tspec.addedToPlan": "Test case added to test plan(s) ({n})"
+    "tspec.addedToPlan": "Test case added to test plan(s) ({n})",
+    "tspec.nameAlreadyExists": "Name: %s already exists"
 }

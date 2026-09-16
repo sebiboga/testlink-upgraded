@@ -4092,5 +4092,6 @@
     "tspec.noPlatform": "Nessuna piattaforma",
     "tspec.loadingPlanOptions": "Caricamento opzioni piano...",
     "tspec.errNoPlanSelected": "Nessun piano selezionato",
-    "tspec.addedToPlan": "Caso aggiunto al piano di test ({n})"
+    "tspec.addedToPlan": "Caso aggiunto al piano di test ({n})",
+    "tspec.nameAlreadyExists": "Nome: %s esiste già"
 }

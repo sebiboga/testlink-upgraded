@@ -1589,6 +1589,85 @@ if ($action === 'get') {
 }
 
 // ---------------------------------------------------------------------------
+// GET ?action=check_name&name=..&testcase_id=..&testsuite_id=..&testproject_id=..
+// Duplicate test case name check (gap vs legacy, issue #917). Port of the
+// legacy lib/ajax/checkTCaseDuplicateName.php + tree::nodeNameExists()
+// (tree.class.php:1347): counts SIBLING test case nodes with the same name
+// inside the same testsuite (excluding the node itself when editing) and
+// returns the localized warning message. Warning only - does NOT block save,
+// matching the legacy behaviour.
+// ---------------------------------------------------------------------------
+if ($action === 'check_name') {
+    $name = trim(strval($_GET['name'] ?? ''));
+    $tcaseId = getIntParam('testcase_id');
+    $suiteId = getIntParam('testsuite_id');
+    $tprojectId = getIntParam('testproject_id');
+
+    if ($name === '') {
+        jout(['status' => 'error', 'message' => 'Missing name'], 400);
+    }
+    if ($tcaseId <= 0 && $suiteId <= 0) {
+        jout(['status' => 'error',
+              'message' => 'testcase_id or testsuite_id required'], 400);
+    }
+
+    // resolve owning project (mirrors legacy: check performed on the project
+    // the test case / suite belongs to; legacy read it from the call params)
+    if ($tprojectId <= 0) {
+        if ($tcaseId > 0) {
+            $tprojectId = owningProjectOf($db, $tprojectMgr, $tcaseId);
+        } else {
+            $tprojectId = owningProjectOf($db, $tprojectMgr, $suiteId);
+        }
+    }
+    if (is_null($tprojectId) || $tprojectId <= 0) {
+        jout(['status' => 'error', 'message' => 'Test project not found'], 404);
+    }
+    // legacy: any of mgt_view_tc OR mgt_modify_tc grants the check
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)
+        && !$user->hasRight($db, 'mgt_modify_tc', $tprojectId)) {
+        jout(['status' => 'error', 'message' => 'No permission'], 403);
+    }
+
+    $nhTables = tlObjectWithDB::getDBTables(array('nodes_hierarchy', 'node_types'));
+    $typeRows = $db->get_recordset(
+        "SELECT id, description FROM {$nhTables['node_types']} " .
+        "WHERE description = 'testcase'");
+    $tcaseType = (is_null($typeRows) || count($typeRows) === 0)
+        ? 3 : intval($typeRows[0]['id']);
+
+    // legacy nodeNameExists(): when editing (testcase_id > 0) and the parent
+    // suite is unknown, derive it from the node itself; exclude self either way
+    if ($tcaseId > 0 && $suiteId <= 0) {
+        $modeRow = $db->fetchFirstRow(
+            "SELECT parent_id FROM {$nhTables['nodes_hierarchy']} " .
+            "WHERE id = {$tcaseId} AND node_type_id = {$tcaseType}");
+        if (!empty($modeRow)) {
+            $suiteId = intval($modeRow['parent_id']);
+        }
+    }
+    if ($suiteId <= 0) {
+        jout(['status' => 'error', 'message' => 'Invalid testsuite id'], 400);
+    }
+
+    $excludeSelf = $tcaseId > 0 ? " AND id <> {$tcaseId} " : '';
+    $dupeRow = $db->fetchFirstRow(
+        "SELECT count(0) AS qty FROM {$nhTables['nodes_hierarchy']} " .
+        "WHERE node_type_id = {$tcaseType} " .
+        "AND name = '" . $db->prepare_string($name) . "' " .
+        "AND parent_id = {$suiteId} {$excludeSelf}");
+    $duplicate = intval($dupeRow['qty'] ?? 0) > 0;
+
+    jout([
+        'status' => 'ok',
+        'duplicate' => $duplicate,
+        'message' => $duplicate
+            ? sprintf(lang_get('name_already_exists'), $name)
+            : '',
+    ]);
+}
+
+// ---------------------------------------------------------------------------
 // GET ?action=add_plan_options&tcase_id=N&tcversion_id=M
 // Active test plans + per-platform link options to drive the "Add to Test
 // Plan" action in the editor (issue #916). Mirrors the legacy tcAssign2Tplan

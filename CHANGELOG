@@ -178,6 +178,13 @@ Test Spec:
   (plan, tcversion, platform) dedup. i18n tspec.addToTestPlan/tspec.alreadyLinked/
   tspec.addedToPlan/tspec.noTestPlans/tspec.loadingPlanOptions in all 10 bundles
   (Refs #916).
+- Test Specification duplicate test case name check/warning (gap vs legacy
+  checkTCaseDuplicateName): typing the TC name in the testSpec.html editor now
+  queries the new BFF check_name GET route (api/testcases, port of
+  lib/ajax/checkTCaseDuplicateName.php + tree::nodeNameExists — sibling test
+  cases in the same suite, excluding self) and shows a localized inline warning
+  (tspec.nameAlreadyExists, all 10 bundles); warning only, save is not blocked,
+  exactly like legacy (Refs #917).
 - TC Viewer popup (tcView.html) - BFF api/testcases (#804/#918/#977-#979).
 - Assign Requirements in Test Spec tree/editor + TC Viewer (testSpec.html,
   tcView.html) - "Assign Requirements" button + modal (reqspec combo, free/

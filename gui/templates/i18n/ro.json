@@ -4102,5 +4102,6 @@
     "tspec.noPlatform": "Fără platformă",
     "tspec.loadingPlanOptions": "Se încarcă opțiunile planului...",
     "tspec.errNoPlanSelected": "Niciun plan selectat",
-    "tspec.addedToPlan": "Caz de testare adăugat în planul/planurile de testare ({n})"
+    "tspec.addedToPlan": "Caz de testare adăugat în planul/planurile de testare ({n})",
+    "tspec.nameAlreadyExists": "Numele: %s există deja"
 }

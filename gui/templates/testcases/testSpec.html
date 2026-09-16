@@ -61,6 +61,7 @@ table.steps tbody tr:nth-child(even) { background: #fafafa; }
 .chip { display: inline-block; background: #eefaf9; color: #2d8e88; border: 1px solid #bfe5e2; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 0 6px 6px 0; }
 .none-text { color: #999; font-style: italic; }
 .form-control2 { width: 100%; max-width: 720px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }
+.name-warning { color: #e6605e; font-size: 12px; font-weight: 600; margin-top: 4px; max-width: 720px; }
 textarea.form-control2 { min-height: 80px; resize: vertical; }
 .form-row { margin-bottom: 12px; }
 .kw-list { max-width: 720px; border: 1px solid #eee; border-radius: 6px; padding: 10px 14px; background: #fafafa; }
@@ -937,6 +938,7 @@ function switchEditVersion(tcversionId) {
       platformsAssigned: r.platformsAssigned || {},
       platformsEditable: r.platformsEditable
     }, r.keywordsProject)).show();
+    checkDuplicateName();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
 }
 
@@ -1032,6 +1034,38 @@ function askDeleteTcAfterVersion() {
   updateContextButtons();
 }
 
+// Duplicate test case name check (gap vs legacy, issue #917). Port of the
+// legacy checkTCaseDuplicateName() (gui/javascript/tcase_utils.js:42): on name
+// keyup, ask the BFF check_name action whether a SIBLING test case in the same
+// suite already uses this name and show the localized warning inline (warning
+// only - the legacy editor never blocked the save). Debounced to avoid one
+// request per keystroke; create uses the target suite, edit lets the BFF derive
+// the parent from the test case id.
+var _dupNameTimer = null;
+function checkDuplicateName() {
+  clearTimeout(_dupNameTimer);
+  _dupNameTimer = setTimeout(function () {
+    var $warn = $('#tcNameWarning');
+    if (!$warn.length) { return; }
+    var name = ($('#tcNameInput').val() || '').trim();
+    if (!name) { $warn.text(''); return; }
+    var tcaseId = (editMode && editMode.mode === 'update') ? editMode.tcase_id : 0;
+    var suiteId = (editMode && editMode.mode === 'create') ? editMode.parent_id : 0;
+    apiGet('check_name', {
+      name: name,
+      testcase_id: tcaseId || 0,
+      testsuite_id: suiteId || 0,
+      testproject_id: ctx.tproject_id
+    }).then(function (r) {
+      if (r.duplicate) {
+        $warn.text(r.message || t('tspec.nameAlreadyExists').split('%s').join(name));
+      } else {
+        $warn.text('');
+      }
+    }).catch(function () { $warn.text(''); });
+  }, 300);
+}
+
 function collectForm() {
   var steps = [];
   $('#stepRows tr').each(function (i, tr) {
@@ -1106,7 +1140,8 @@ function formHtml(data, kwProject) {
     '</div><div class="card-body">' +
 
     '<div class="form-row"><div class="field-label">' + t('tspec.tcName') + ' *</div>' +
-    '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '"></div>' +
+    '<input type="text" class="form-control2" id="tcNameInput" maxlength="200" value="' + esc(data.name || '') + '" onkeyup="checkDuplicateName()">' +
+    '<div class="name-warning" id="tcNameWarning"></div></div>' +
 
     '<div class="form-row" style="display:flex;gap:24px;max-width:720px;">' +
       '<div style="flex:1;"><div class="field-label">' + t('tspec.importance') + '</div>' +
@@ -1414,6 +1449,7 @@ function openCreateTc() {
     $('#editView').html(formHtml(
       { customFields: r.customFields, tcversion_id: 0, attachments: [] },
       r.keywordsProject || {})).show();
+    checkDuplicateName();
   }).catch(function (e) {
     if (editMode.mode !== 'create') { return; }
     $('#editView').html(formHtml(
@@ -1450,6 +1486,7 @@ function openEditTc(tcaseId, tcversionId) {
       platformsAssigned: r.platformsAssigned || {},
       platformsEditable: r.platformsEditable
     }, r.keywordsProject)).show();
+    checkDuplicateName();
   }).catch(function (e) { toast(e.message || t('tspec.errLoad'), true); });
 }
 
