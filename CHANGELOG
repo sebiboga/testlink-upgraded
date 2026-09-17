@@ -345,6 +345,15 @@ NEW FEATURES
   (previously blocked by the role_management-only gate) and the project combo hides
   projects whose effective role cannot assign roles. i18n `assign.rolesDisabled` in all
   10 bundles.
+- Assign Test Project Roles / Plan — server-side update rights check on PUT (Refs #925):
+  `PUT /api/roles/tproject-roles` and `PUT /api/roles/tplan-roles` now enforce legacy
+  `checkRightsForUpdate()` (`api/roles/index.php:84-94` `userCanUpdateAssignments`,
+  gates `:155-167`, `denyAssignRights()` `:96-104`) — a caller without
+  `user_role_assignment` on the target project (or inherited `testproject_user_role_assignment`)
+  receives HTTP 403 + `audit_security_user_right_missing` AUTH event and no assignment is
+  written, closing the privilege escalation where any authenticated user could rewrite any
+  project's role map. tplan route equally gated; empty-map no-op and authorized flows
+  (admin, global `user_role_assignment` holders) unaffected. Suite "Task — Issue #925" 11/11 PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

@@ -15838,3 +15838,37 @@ referenced from the modern UI is fully modernized: BFF `api/attachments/index.ph
 `attachmentUpload.html`, i18n `att.*` in all bundles, and every modern download link
 (`testSpec`, `execTest`, `execute`, `execsetresults`, `reqspec`, `projectinfo`) now emits
 `/api/attachments/index.php?action=download&id=` instead of `/lib/attachments/attachmentdownload.php`.
+
+---
+
+## Task — Issue #925: PUT update rights check (checkRightsForUpdate) on Assign Test Project Roles
+
+Suite for task `#925` — the server-side enforcement on `PUT /api/roles/tproject-roles`
+(and `/tplan-roles`) of legacy `checkRightsForUpdate()`: a caller without
+`user_role_assignment` on the target project (or inherited `testproject_user_role_assignment`)
+gets **HTTP 403 + `audit_security_user_right_missing` AUTH event** and no row is written.
+Code: `api/roles/index.php:84-94` (`userCanUpdateAssignments`), `:155-167` (PUT gates),
+`:96-104` (`denyAssignRights`). Fixtures (fresh DB): users `frank`(2)/`alice`(3), tproject
+1 `Test Project One` + 2 `TP Two`, tplan 3 `Plan Alpha`; sessions via `POST /api/auth/login`.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `frank` (global role 3 `<no rights>`) `PUT /api/roles/tproject-roles {"tproject_id":1,"assignments":{"3":7}}` | HTTP 403 `{"status":"error","message":"no_permissions_for_action","right":"testproject_user_role_assignment"}`; **no** `user_testproject_roles` row; `events` gains `log_level=16` AUTH `audit_security_user_right_missing` | PASS |
+| 2 | `admin` same PUT (browser-verified save afterwards) | HTTP 200 `{"status":"ok"}`; row `(alice,1,tester 7)` written; UPDATE audit `Test project roles updated for project #1` | PASS |
+| 3 | `alice` global role 9 (`leader`, holds global `user_role_assignment`) PUT on tproject 2 | HTTP 200; row `(admin,2,tester 7)` written — global `user_role_assignment` holder may assign on any project | PASS |
+| 4 | `alice` global role 3 + project-role `leader`(9) on tproject 1, PUT on tproject 1 | HTTP 403 — legacy-equivalent: `user_role_assignment` is global-propagable (`roles.inc.php:191-195`), stripped from scoped rights, not granted by a scoped project role | PASS |
+| 5 | `frank` `PUT /api/roles/tplan-roles {"tplan_id":3,"assignments":{"1":4}}` (and with `assignments:{}`) | HTTP 403 — rights gate precedes handler and the empty-map no-op | PASS |
+| 6 | `admin` `PUT /api/roles/tplan-roles {"tplan_id":3,"assignments":{"2":4}}` | HTTP 200; row `(frank,3,test designer 4)` written | PASS |
+| 7 | `frank` in-page `fetch` PUT (browser, isolated context) | HTTP 403 identical JSON; per-request nothing written | PASS |
+| 8 | Browser `admin`: change alice role to `test designer` on tproject 1 via `usersAssignProject.html` Save | PUT 200, row updated to role 4, UPDATE + ASSIGN (`audit_users_roles_added`) audits, "modified" badge shown | PASS |
+| 9 | Browser `frank`: open `usersAssignProject.html` | combo disabled + legacy `testproject_roles_assign_disabled` message; GET `meta/tproject-roles` → 403; no JS errors (only expected 403 resource) | PASS |
+| 10 | `events` table after rows 1-9 | only AUDIT/16-INFO rows (login/login/failed rights); **no new Error/Warning rows** | PASS |
+| 11 | `php -l api/roles/index.php` + `python3 -m json.tool` all 10 bundles | no syntax errors; all bundles valid JSON | PASS |
+
+Result: **PASS — 11/11 PASS** — the legacy `checkRightsForUpdate()` privilege escalation
+gap on `PUT tproject-roles` (any authenticated user could rewrite any project's role
+assignments, issue verified with `frank`) is closed: the PUT gate mirrors the legacy guard
+exactly (`api/roles/index.php:84-94`), failures return HTTP 403 + `audit_security_user_right_missing`
+AUTH event, authorized flows (admin, global `user_role_assignment` holders) are unaffected,
+and the tplan-roles route is equally gated. Verified end-to-end via curl matrix + browser
+(chrome-devtools) on the live 2.0.1 app; Event Viewer clean after the runs.
