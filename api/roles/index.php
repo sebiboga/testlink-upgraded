@@ -379,9 +379,12 @@ if ($method === 'POST' && empty($segments)) {
 
     if (!empty($body['rightIDs']) && is_array($body['rightIDs'])) {
         foreach ($body['rightIDs'] as $rid) {
+            // Legacy parity (rolesEdit.php:102-103): only EXISTING rights may be
+            // attached. tlRight::_clean() keeps dbID under TLOBJ_O_SEARCH_BY_ID,
+            // so a failed read leaves a truthy dbID on a name-less phantom object
+            // (issue #1535) - test the read result, never the dbID property.
             $right = new tlRight(intval($rid));
-            $right->readFromDB($db);
-            if ($right->dbID) { $r->rights[] = $right; }
+            if ($right->readFromDB($db) >= tl::OK) { $r->rights[] = $right; }
         }
     }
 
@@ -423,9 +426,10 @@ if ($method === 'PUT' && isset($segments[0]) && is_numeric($segments[0]) && coun
     if (isset($body['rightIDs']) && is_array($body['rightIDs'])) {
         $r->rights = [];
         foreach ($body['rightIDs'] as $rid) {
+            // Legacy parity (rolesEdit.php:102-103) - attach existing rights only;
+            // a failed read must not leave a dangling role_rights row (issue #1535).
             $right = new tlRight(intval($rid));
-            $right->readFromDB($db);
-            if ($right->dbID) { $r->rights[] = $right; }
+            if ($right->readFromDB($db) >= tl::OK) { $r->rights[] = $right; }
         }
     }
 
