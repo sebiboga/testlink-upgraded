@@ -1832,6 +1832,15 @@ function setPublicStatus($id,$status)
   {
     $my['opt'] = array('auditlog' => true);
     $my['opt'] = array_merge($my['opt'],(array)$opt);
+
+    // Legacy parity (usersAssign.php:560-562): an empty user list is a no-op.
+    // Without this guard implode() below yields "user_id IN()" -> SQL 1064.
+    // null keeps its historical "delete all roles of this feature" meaning.
+    if (is_array($users) && count($users) === 0)
+    {
+      return tl::OK;
+    }
+
     $query = " DELETE FROM {$this->tables['user_testproject_roles']} " . 
              " WHERE testproject_id = " . intval($tproject_id) ;
 

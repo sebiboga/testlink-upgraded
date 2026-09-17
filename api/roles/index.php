@@ -495,6 +495,16 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles
     if (!$tproject_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tproject_id']); }
 
     $assignments = $body['assignments'] ?? [];
+
+    // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
+    // no-op ("this can happen when filtering via Javascript" / every row left
+    // at "-- no role --"). Short-circuit before any manager call so no delete
+    // query is built for an empty user list and no misleading audit event is
+    // written for a no-op.
+    if (!is_array($assignments) || count($assignments) === 0) {
+        out(['status' => 'ok']);
+    }
+
     $tprojectMgr = new testproject($db);
     $userIds = array_map('intval', array_keys($assignments));
     $tprojectMgr->deleteUserRoles($tproject_id, $userIds);
@@ -586,6 +596,14 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') 
     if (!$tplan_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tplan_id']); }
 
     $assignments = $body['assignments'] ?? [];
+
+    // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
+    // no-op. Short-circuit before any manager call so no delete query is built
+    // for an empty user list and no misleading audit event is written.
+    if (!is_array($assignments) || count($assignments) === 0) {
+        out(['status' => 'ok']);
+    }
+
     $tplanMgr = new testplan($db);
     $userIds = array_map('intval', array_keys($assignments));
     $tplanMgr->deleteUserRoles($tplan_id, $userIds);

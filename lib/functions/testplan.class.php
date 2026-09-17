@@ -1928,6 +1928,15 @@ class testplan extends tlObjectWithAttachments
 
     $debugMsg = 'Class:' . __CLASS__ . ' - Method: ' . __FUNCTION__;
     $status = tl::ERROR;
+
+    // Legacy parity (usersAssign.php:560-562): an empty user list is a no-op.
+    // Without this guard implode() below yields "user_id IN()" -> SQL 1064.
+    // null keeps its historical "delete all roles of this feature" meaning.
+    if (is_array($users) && count($users) === 0)
+    {
+      return tl::OK;
+    }
+
     $sql = " /* $debugMsg */ DELETE FROM {$this->tables['user_testplan_roles']} " .
            " WHERE testplan_id = " . intval($id);
     if(!is_null($users))
