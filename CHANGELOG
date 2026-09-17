@@ -30,7 +30,7 @@ MAJOR AREAS
   classes fixed, from E_WARNING/E_NOTICE to PHP 8.4 deprecations). Full PHP 8.4
   compatibility (Symfony translation implicit-nullable fix, #481). MariaDB 11.4
   tested. MySQL 5.7+ / MariaDB 11.4+.
-- [MODERNIZED SCREENS] - 113 standalone HTML screens (87+ feature-parity checked,
+- [MODERNIZED SCREENS] - 114 standalone HTML screens (87+ feature-parity checked,
   see docs/SCREEN-COMPARE-STATUS.md). All ASIDE menu sections covered: System,
   Product, Requirements, Test Spec, Plans, Execution, Reports, Auth, Documentation.
 - [I18N] - Client-side TLi18n module (gui/templates/i18n/i18n.js) with 10 locale
@@ -173,6 +173,17 @@ Test Spec:
   testSpec.html editor (multipart/form-data via BFF, stored in attachments with
   fk_table='tcversions'); read-only view lists attachments with download links
   (Refs #913).
+- Attachment Upload/Download screen (attachments/attachmentUpload.html) - BFF
+  api/attachments (#1525): the last standalone legacy screens still referenced
+  from the modern UI, lib/attachments/attachmentupload.php +
+  attachmentdelete.php + attachmentdownload.php, are replaced by a Dashio screen
+  + BFF (list/upload/delete + streamed download honoring the legacy XSS-safe
+  SVG handling and TL_REPOSITORY_MAXFILESIZE). All modern download links
+  (testSpec, execTest, execute, execsetresults, reqspec, projectinfo) now emit
+  /api/attachments/index.php?action=download&id=; openFileUploadWindow() opens
+  the modern screen. Hardened DELETE (attachment must belong to the requested
+  fk_table/fk_id) + per-request CSRF same-origin guard + 401/400/403/404 JSON
+  contract; att.* keys in all 10 bundles.
 - Test Specification per-testcase-version platform assignment (gap vs legacy):
   platforms picker (chips + checkbox multi-select) in the testSpec.html editor,
   platform pills in the tcEdit.html editor, read-only platform chips in

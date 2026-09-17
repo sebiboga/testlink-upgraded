@@ -15791,3 +15791,45 @@ Fixtures (fresh DB, recreated this run): project node 1 (FixtureProject), plan n
 Result: **PASS — 8/8 PASS** — clearing a user's project role to `-- no role --` now
 deletes the assignment exactly like legacy `usersAssign.php`; the plan screen path is
 confirmed unaffected.
+
+## Issue #1525 — Attachment Upload / Download screen (admin, WLK project id=1)
+
+Modern screen: `gui/templates/attachments/attachmentUpload.html` (BFF
+`api/attachments/index.php`), replacing the legacy `lib/attachments/attachmentupload.php`
++ `attachmentdelete.php` + `attachmentdownload.php` popup flow. Reached directly with
+`?table=<fk_table>&id=<fk_id>` (opens from `openFileUploadWindow()` in legacy JS;
+modern download links in testSpec/execTest/execute/execsetresults/reqspec/projectinfo
+now point at `api/attachments/index.php?action=download&id=`). Fixtures: tproject 1
+`WLK Walk`, fk_table `testprojects`. BFF matrix driven with curl against a logged-in
+admin session; browser flow on the modern screen.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `GET /api/attachments/?action=list&table=testprojects&id=1` | 200 `{status:ok, attachments:[], max_size:1048576}` | PASS |
+| 2 | `POST upload` 1 text file + title | 200 `{uploaded:1, errors:[]}`; row in `attachments` | PASS |
+| 3 | `GET list` after upload | 200; one row with `download_url=/api/attachments/index.php?action=download&id=N` | PASS |
+| 4 | `GET download&id=` (auth) | 200; `Content-Disposition: inline`; exact file bytes match | PASS |
+| 5 | `GET download` anonymous | 401 `Not authenticated` (no cookie) | PASS |
+| 6 | `POST delete {table,id,file_id}` | 200 ok; row gone from `attachments` | PASS |
+| 7 | Forged delete: `file_id` valid but `table/id` mismatch | 404 `Attachment not found for this object` | PASS |
+| 8 | `list` with bogus table (`../../foo`) | 400 `Invalid attachment table` | PASS |
+| 9 | `list` with `id=0` | 400 `Invalid id` | PASS |
+| 10 | `upload` with disallowed extension (`.php`) | 200 `{uploaded:0, errors:[File does not pass allowed file type check]}` | PASS |
+| 11 | `POST upload` without `X-Requested-With` (no same-origin proof) | 403 CSRF `Forbidden: ... same-origin proof` | PASS |
+| 12 | `POST`/`GET` before session auth (raw curl, no cookie) | 401 `Not authenticated` | PASS |
+| 13 | Browser: open `attachmentUpload.html?table=testprojects&id=1` admin | header `(testproject name)`, `Max file size 1.0 MB` rendered, list + upload controls shown | PASS |
+| 14 | Browser multi-file upload via picker + title | toast `1 file(s) uploaded`; row appears with title + size; Download link resolves to the BFF | PASS |
+| 15 | Browser: click Delete → confirm modal | `Delete this attachment?`; confirm removes row; toast `Attachment deleted` | PASS |
+| 16 | Binary file round-trip (`.png` bytes) | download returns `Content-Type: image/png`, `Content-Length` = stored size, `cmp` identical | PASS |
+| 17 | `php -l` on `api/attachments/index.php` + 4 patched BFFs (execute/execsetresults/reqspec/projectinfo) | No syntax errors 5/5 | PASS |
+| 18 | `python3 -m json.tool` on all 10 bundles | Valid JSON; `att.*` (13 keys) present in all | PASS |
+| 19 | `grep attachmentdownload` across `gui/templates/**/*.html` + `api/**/*.php` | No live reference to `/lib/attachments/attachmentdownload.php` (only the new BFF endpoint; legacy file kept for external API callers) | PASS |
+| 20 | Modern screen console | No JS errors/warnings | PASS |
+| 21 | Event Viewer / `events` table after 1–20 | Only AUDIT/16 INFO rows (login + attachment create/delete); no new Error/Warning rows | PASS |
+
+Result: **PASS — 21/21 PASS** — the last legacy attachment popup + download endpoint
+referenced from the modern UI is fully modernized: BFF `api/attachments/index.php`
+(list/upload/delete + XSS-safe streamed download), Dashio screen
+`attachmentUpload.html`, i18n `att.*` in all bundles, and every modern download link
+(`testSpec`, `execTest`, `execute`, `execsetresults`, `reqspec`, `projectinfo`) now emits
+`/api/attachments/index.php?action=download&id=` instead of `/lib/attachments/attachmentdownload.php`.
