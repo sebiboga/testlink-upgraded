@@ -500,6 +500,13 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- `tree::getBottomOrder()` interpolated its `$parentID` argument raw into SQL
+  (`WHERE parent_id={$parentID}`, tree.class.php:727) with no type/range check, so a
+  non-numeric parent (a suite name like `WLK Suite`) produced a SQL error 1064 logged
+  to `events` and a silently failing create/reorder — and was a SQL-injection class
+  sink. `$parentID` is now int-cast at function entry (`intval()`), which drives any
+  non-numeric input to the same safe default as an empty container (`max_order` 0)
+  while leaving legitimate numeric ids byte-identical (Fixes #1526).
 - Roles BFF `PUT /tproject-roles` / `PUT /tplan-roles` with an empty `assignments`
   map passed `array_keys([]) = []` into `deleteUserRoles()`, whose `!is_null($users)`
   branch built `AND user_id IN()` → MariaDB 1064, HTTP 500 and an `events` ERROR
