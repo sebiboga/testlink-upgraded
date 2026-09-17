@@ -566,7 +566,7 @@ if ($method === 'GET' && $action === 'spec_view') {
                     'file_size'    => isset($ai['file_size']) ? intval($ai['file_size']) : 0,
                     'file_type'    => isset($ai['file_type']) ? $ai['file_type'] : '',
                     'date_added'   => isset($ai['date_added']) ? (string)$ai['date_added'] : '',
-                    'download_url' => 'lib/attachments/attachmentdownload.php?id=' . intval($ai['id']),
+                    'download_url' => '/api/attachments/index.php?action=download&id=' . intval($ai['id']),
                 ];
             }
         }

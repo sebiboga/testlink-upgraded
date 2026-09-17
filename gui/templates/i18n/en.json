@@ -4150,5 +4150,18 @@
   "etc.title": "Copy & Execute Task Assignment",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copy & Execute Task Assignment",
   "edb.copyAssign": "Copy Task Assignment",
-  "edb.copyAssignNoBuild": "Select a build to copy assignments from."
+  "edb.copyAssignNoBuild": "Select a build to copy assignments from.",
+  "att.confirmDelete": "Delete this attachment?",
+  "att.errorDelete": "Could not delete attachment",
+  "att.errorList": "Could not load attachments",
+  "att.errorUpload": "Could not upload file(s)",
+  "att.header": "Attachments",
+  "att.maxSize": "Max file size",
+  "att.noAttachments": "No attachments",
+  "att.objectAttachments": "Attachments of this object",
+  "att.selectFile": "Choose file(s)",
+  "att.title": "Attachment title (optional)",
+  "att.upload": "Upload",
+  "att.uploaded": "file(s) uploaded",
+  "att.invalidFile": "File rejected"
 }

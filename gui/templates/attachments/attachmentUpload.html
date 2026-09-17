@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attachments</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; font-size: 13px; }
+.header { background: #4ECDC4; color: #fff; padding: 12px 24px; font-size: 19px; font-weight: 700; letter-spacing: 1px; display: flex; align-items: center; gap: 12px; }
+.header .sub { font-size: 13px; font-weight: 400; opacity: .85; }
+.toolbar { background: #22242a; padding: 10px 24px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-dark { background: #3a3d46; color: #eee; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-dark:hover { background: #4a4e59; }
+.btn-red { background: #e6605e; color: #fff; border: none; padding: 7px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-red:hover { background: #d34f4d; }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.main { max-width: 880px; margin: 20px auto; padding: 0 16px; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin-bottom: 16px; overflow: hidden; }
+.card-head { background: #22242a; color: #fff; padding: 11px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.card-head h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+.card-body { padding: 16px 20px; }
+.none-text { color: #999; font-style: italic; }
+.att-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 13px; }
+.att-row .att-link { color: #2d8e88; text-decoration: none; font-weight: 600; word-break: break-all; }
+.att-row .att-link:hover { text-decoration: underline; }
+.att-row .att-meta { color: #888; font-size: 12px; margin-left: auto; white-space: nowrap; }
+.att-row .att-actions { display: flex; gap: 6px; }
+.att-upload { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.att-upload input[type="file"] { font-size: 12px; flex: 1; min-width: 200px; }
+.att-upload input[type="text"] { flex: 1; min-width: 200px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-family: inherit; font-size: 13px; }
+.upload-note { font-size: 12px; color: #888; margin-top: 10px; }
+.upload-errors { margin-top: 10px; }
+.err-line { color: #e6605e; font-size: 12px; padding: 2px 0; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.err { background: #e6605e; }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: none; align-items: center; justify-content: center; z-index: 9000; }
+.modal-box { background: #fff; border-radius: 8px; width: 440px; max-width: 94vw; box-shadow: 0 6px 30px rgba(0,0,0,.3); overflow: hidden; }
+.modal-head { background: #22242a; color: #fff; padding: 11px 18px; font-weight: 700; font-size: 14px; }
+.modal-body { padding: 18px; font-size: 13px; color: #333; }
+.modal-foot { padding: 10px 18px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #eee; }
+.footer { text-align: center; color: #aaa; font-size: 12px; padding: 14px 0 20px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-paperclip"></i>
+  <span data-i18n="att.header">Attachments</span>
+  <span class="sub"><span id="objectLabel">-</span></span>
+</div>
+<div class="toolbar">
+  <span class="ctx"><span data-i18n="att.maxSize">Max file size</span>: <b id="maxSize">-</b></span>
+  <button class="btn-teal btn-sm" style="margin-left:auto;" onclick="refresh()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
+</div>
+
+<div class="main">
+  <div class="card">
+    <div class="card-head"><h2><span data-i18n="att.objectAttachments">Attachments of this object</span></h2></div>
+    <div class="card-body">
+      <div id="listBox"><div class="loading"><i class="fa fa-spinner fa-spin"></i></div></div>
+
+      <div class="att-upload" id="uploadBox">
+        <input type="file" id="fileInput" multiple>
+        <input type="text" id="titleInput" maxlength="250" data-i18n-placeholder="att.title" placeholder="Attachment title (optional)">
+        <button class="btn-teal btn-sm" id="btnUpload" onclick="upload()"><i class="fa fa-upload"></i> <span data-i18n="att.upload">Upload</span></button>
+      </div>
+      <div class="upload-note"><span data-i18n="att.maxSize">Max file size</span>: <b id="maxSize2">-</b></div>
+      <div class="upload-errors" id="uploadErrors"></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer" id="footerInfo"></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="confirmOverlay">
+  <div class="modal-box">
+    <div class="modal-head"><i class="fa fa-trash"></i> <span data-i18n="common.confirm">Confirm</span></div>
+    <div class="modal-body" id="confirmMsg"></div>
+    <div class="modal-foot">
+      <button class="btn-dark btn-sm" onclick="closeConfirm()"><span data-i18n="common.cancel">Cancel</span></button>
+      <button class="btn-red btn-sm" id="btnConfirmDel" onclick="confirmDelete()"><span data-i18n="common.delete">Delete</span></button>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/attachments/index.php';
+var fkTable = '';
+var fkId = 0;
+var pendingDeleteId = 0;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function(){ $t.hide(); }, 4000));
+}
+
+function formatSize(bytes) {
+  bytes = parseInt(bytes, 10) || 0;
+  if (bytes < 1024) { return bytes + ' B'; }
+  if (bytes < 1048576) { return (bytes / 1024).toFixed(1) + ' KB'; }
+  return (bytes / 1048576).toFixed(1) + ' MB';
+}
+
+function refresh() {
+  $('#uploadErrors').html('');
+  $('#listBox').html('<div class="loading"><i class="fa fa-spinner fa-spin"></i></div>');
+  $.getJSON(API, { action: 'list', table: fkTable, id: fkId })
+    .done(function (r) {
+      if (r.status !== 'ok') {
+        $('#listBox').html('<div class="none-text">' + esc(r.message || TLi18n.t('att.errorList')) + '</div>');
+        return;
+      }
+      if (r.max_size) {
+        $('#maxSize').text(formatSize(r.max_size));
+        $('#maxSize2').text(formatSize(r.max_size));
+      }
+      if (r.attachments.length === 0) {
+        $('#listBox').html('<div class="none-text">' + TLi18n.t('att.noAttachments') + '</div>');
+        return;
+      }
+      var h = '';
+      r.attachments.forEach(function (a) {
+        var name = esc(a.title || a.file_name || '');
+        var meta = esc(a.file_name || '') + ' &middot; ' + formatSize(a.file_size);
+        h += '<div class="att-row">' +
+             '<a class="att-link" href="' + esc(a.download_url) + '" target="_blank" rel="noopener"><i class="fa fa-paperclip"></i> ' + name + '</a>' +
+             '<span class="att-meta">' + meta + '</span>' +
+             '<span class="att-actions">' +
+               '<button class="btn-red btn-sm" title="' + TLi18n.t('common.delete') + '" onclick="askDelete(' + a.id + ')"><i class="fa fa-trash"></i></button>' +
+             '</span></div>';
+      });
+      $('#listBox').html(h);
+    })
+    .fail(function () {
+      $('#listBox').html('<div class="none-text">' + TLi18n.t('att.errorList') + '</div>');
+    });
+}
+
+function upload() {
+  var $file = $('#fileInput');
+  if (!$file[0].files || !$file[0].files.length) {
+    toast(TLi18n.t('att.selectFile'), true);
+    return;
+  }
+  var fd = new FormData();
+  fd.append('action', 'upload');
+  fd.append('table', fkTable);
+  fd.append('id', fkId);
+  fd.append('title', $('#titleInput').val() || '');
+  $.each($file[0].files, function (i, f) { fd.append('uploadedFile[]', f); });
+
+  $('#btnUpload').prop('disabled', true);
+  $.ajax({
+    url: API,
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  })
+  .done(function (r) {
+    $('#btnUpload').prop('disabled', false);
+    if (r.status !== 'ok') {
+      var errs = (r.errors || []).concat(r.message || '');
+      $('#uploadErrors').html(errs.map(function (e) {
+        return '<div class="err-line"><i class="fa fa-exclamation-triangle"></i> ' + esc(e) + '</div>';
+      }).join(''));
+      toast(r.message || TLi18n.t('att.errorUpload'), true);
+      return;
+    }
+    if (r.errors && r.errors.length) {
+      $('#uploadErrors').html(r.errors.map(function (e) {
+        return '<div class="err-line"><i class="fa fa-exclamation-triangle"></i> ' + esc(e) + '</div>';
+      }).join(''));
+    }
+    toast(r.uploaded + ' ' + TLi18n.t('att.uploaded') + (r.errors && r.errors.length ? ' (' + r.errors.length + ' ' + TLi18n.t('att.invalidFile') + ')' : ''));
+    $('#fileInput').val('');
+    $('#titleInput').val('');
+    refresh();
+  })
+  .fail(function () {
+    $('#btnUpload').prop('disabled', false);
+    toast(TLi18n.t('att.errorUpload'), true);
+  });
+}
+
+function askDelete(id) {
+  pendingDeleteId = id;
+  $('#confirmMsg').text(TLi18n.t('att.confirmDelete'));
+  $('#confirmOverlay').show();
+}
+
+function closeConfirm() {
+  pendingDeleteId = 0;
+  $('#confirmOverlay').hide();
+}
+
+function confirmDelete() {
+  if (!pendingDeleteId) { closeConfirm(); return; }
+  var fd = new FormData();
+  fd.append('action', 'delete');
+  fd.append('table', fkTable);
+  fd.append('id', fkId);
+  fd.append('file_id', pendingDeleteId);
+  closeConfirm();
+  $('#btnConfirmDel').prop('disabled', true);
+  $.ajax({
+    url: API,
+    method: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    dataType: 'json'
+  })
+  .done(function (r) {
+    $('#btnConfirmDel').prop('disabled', false);
+    if (r.status !== 'ok') { toast(r.message || TLi18n.t('att.errorDelete'), true); }
+    else { toast(r.message || 'ok'); }
+    refresh();
+  })
+  .fail(function () {
+    $('#btnConfirmDel').prop('disabled', false);
+    toast(TLi18n.t('att.errorDelete'), true);
+  });
+}
+
+$(function () {
+  var p = new URLSearchParams(window.location.search);
+  fkTable = p.get('table') || '';
+  fkId = parseInt(p.get('id') || '0', 10);
+  var objName = p.get('name') || (fkTable + ' #' + fkId);
+  $('#objectLabel').text(' (' + esc(objName) + ')');
+  TLi18n.load(function () {
+    TLi18n.apply();
+    refresh();
+  });
+});
+</script>
+</body>
+</html>

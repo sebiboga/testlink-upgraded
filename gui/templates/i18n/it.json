@@ -4134,5 +4134,18 @@
   "etc.title": "Copia assegnazione task di test",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copia assegnazione task di test",
   "edb.copyAssign": "Copia assegnazioni",
-  "edb.copyAssignNoBuild": "Seleziona un build da cui copiare le assegnazioni."
+  "edb.copyAssignNoBuild": "Seleziona un build da cui copiare le assegnazioni.",
+  "att.confirmDelete": "Eliminare questo allegato?",
+  "att.errorDelete": "Impossibile eliminare l'allegato",
+  "att.errorList": "Impossibile caricare gli allegati",
+  "att.errorUpload": "Impossibile caricare i file",
+  "att.header": "Allegati",
+  "att.maxSize": "Dimensione max file",
+  "att.noAttachments": "Nessun allegato",
+  "att.objectAttachments": "Allegati di questo oggetto",
+  "att.selectFile": "Scegli file",
+  "att.title": "Titolo allegato (facoltativo)",
+  "att.upload": "Carica",
+  "att.uploaded": "file caricati",
+  "att.invalidFile": "File rifiutato"
 }

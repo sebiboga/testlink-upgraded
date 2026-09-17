@@ -4144,5 +4144,18 @@
   "etc.title": "Copiere și executare atribuiri",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copiere și executare atribuiri",
   "edb.copyAssign": "Copiază atribuirile",
-  "edb.copyAssignNoBuild": "Selectați un build de la care să copiați atribuirile."
+  "edb.copyAssignNoBuild": "Selectați un build de la care să copiați atribuirile.",
+  "att.confirmDelete": "Ștergeți această atașare?",
+  "att.errorDelete": "Atașarea nu a putut fi ștearsă",
+  "att.errorList": "Atașările nu au putut fi încărcate",
+  "att.errorUpload": "Fișierul/fișierele nu au putut fi încărcate",
+  "att.header": "Atașamente",
+  "att.maxSize": "Dimensiune maximă fișier",
+  "att.noAttachments": "Niciun atașament",
+  "att.objectAttachments": "Atașamentele acestui obiect",
+  "att.selectFile": "Alegeți fișier(e)",
+  "att.title": "Titlu atașament (opțional)",
+  "att.upload": "Încarcă",
+  "att.uploaded": "fișier(e) încărcate",
+  "att.invalidFile": "Fișier respins"
 }

@@ -4140,5 +4140,18 @@
   "etc.title": "Копирование назначения задач тестирования",
   "footers.execTaskCopy": "TestLink 2.0.1 - Копирование назначения задач тестирования",
   "edb.copyAssign": "Скопировать назначения",
-  "edb.copyAssignNoBuild": "Выберите билд для копирования назначений."
+  "edb.copyAssignNoBuild": "Выберите билд для копирования назначений.",
+  "att.confirmDelete": "Удалить это вложение?",
+  "att.errorDelete": "Не удалось удалить вложение",
+  "att.errorList": "Не удалось загрузить вложения",
+  "att.errorUpload": "Не удалось загрузить файл(ы)",
+  "att.header": "Вложения",
+  "att.maxSize": "Макс. размер файла",
+  "att.noAttachments": "Нет вложений",
+  "att.objectAttachments": "Вложения этого объекта",
+  "att.selectFile": "Выбрать файл(ы)",
+  "att.title": "Название вложения (необязательно)",
+  "att.upload": "Загрузить",
+  "att.uploaded": "файл(ов) загружено",
+  "att.invalidFile": "Файл отклонён"
 }

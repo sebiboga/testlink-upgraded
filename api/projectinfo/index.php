@@ -208,7 +208,7 @@ function getProjectAttachments($db, $tables, $projectId) {
                 'file_type'   => strval($a['file_type']),
                 'file_size'   => intval($a['file_size']),
                 'date_added'  => strval($a['date_added']),
-                'download_url' => '/lib/attachments/attachmentdownload.php?id=' . intval($a['id']),
+                'download_url' => '/api/attachments/index.php?action=download&id=' . intval($a['id']),
             );
         }
     }

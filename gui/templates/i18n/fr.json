@@ -4134,5 +4134,18 @@
   "etc.title": "Copier l'affectation des tâches de test",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copier l'affectation des tâches de test",
   "edb.copyAssign": "Copier les affectations",
-  "edb.copyAssignNoBuild": "Choisissez un build depuis lequel copier les affectations."
+  "edb.copyAssignNoBuild": "Choisissez un build depuis lequel copier les affectations.",
+  "att.confirmDelete": "Supprimer cette pièce jointe ?",
+  "att.errorDelete": "Impossible de supprimer la pièce jointe",
+  "att.errorList": "Impossible de charger les pièces jointes",
+  "att.errorUpload": "Impossible de téléverser le(s) fichier(s)",
+  "att.header": "Pièces jointes",
+  "att.maxSize": "Taille max. du fichier",
+  "att.noAttachments": "Aucune pièce jointe",
+  "att.objectAttachments": "Pièces jointes de cet objet",
+  "att.selectFile": "Choisir le(s) fichier(s)",
+  "att.title": "Titre de la pièce jointe (facultatif)",
+  "att.upload": "Téléverser",
+  "att.uploaded": "fichier(s) téléversé(s)",
+  "att.invalidFile": "Fichier rejeté"
 }

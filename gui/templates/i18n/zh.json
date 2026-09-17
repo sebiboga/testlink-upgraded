@@ -4120,5 +4120,18 @@
   "etc.title": "复制测试任务分配",
   "footers.execTaskCopy": "TestLink 2.0.1 - 复制测试任务分配",
   "edb.copyAssign": "复制分配",
-  "edb.copyAssignNoBuild": "请选择要复制分配的构建。"
+  "edb.copyAssignNoBuild": "请选择要复制分配的构建。",
+  "att.confirmDelete": "删除此附件？",
+  "att.errorDelete": "无法删除附件",
+  "att.errorList": "无法加载附件",
+  "att.errorUpload": "无法上传文件",
+  "att.header": "附件",
+  "att.maxSize": "最大文件大小",
+  "att.noAttachments": "无附件",
+  "att.objectAttachments": "此对象的附件",
+  "att.selectFile": "选择文件",
+  "att.title": "附件标题（可选）",
+  "att.upload": "上传",
+  "att.uploaded": "个文件已上传",
+  "att.invalidFile": "文件被拒绝"
 }

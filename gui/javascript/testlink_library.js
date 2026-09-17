@@ -452,8 +452,8 @@ function modifyRoles_warning()
  *
  */
 function openFileUploadWindow(id,tableName) {
-  var windowCfg="width=510,height=300,resizable=yes,dependent=yes";
-  window.open(fRoot+"lib/attachments/attachmentupload.php?id="+id+"&tableName="+tableName,
+  var windowCfg="width=540,height=320,resizable=yes,dependent=yes";
+  window.open(fRoot+"gui/templates/attachments/attachmentUpload.html?id="+id+"&table="+tableName,
               "FileUpload",windowCfg);
 }
 

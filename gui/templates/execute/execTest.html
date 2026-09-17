@@ -1187,7 +1187,7 @@ function renderHistoryHtml() {
     // swallowing the legacy button-onclick approach for some users.
     if (e.attachments && e.attachments.length) {
       e.attachments.forEach(function (a) {
-        var attUrl = a.download_url || ('/lib/attachments/attachmentdownload.php?id=' + a.id);
+        var attUrl = a.download_url || ('/api/attachments/index.php?action=download&id=' + a.id);
         actions += '<a class="icon-btn" href="' + esc(attUrl) + '" target="_blank" rel="noopener"'
           + ' title="' + esc((a.title || a.file_name)) + '">'
           + '<i class="fas fa-paperclip"></i></a>';

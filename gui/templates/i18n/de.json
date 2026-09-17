@@ -4134,5 +4134,18 @@
   "etc.title": "Testaufgaben-Zuweisung kopieren",
   "footers.execTaskCopy": "TestLink 2.0.1 - Testaufgaben-Zuweisung kopieren",
   "edb.copyAssign": "Zuweisung kopieren",
-  "edb.copyAssignNoBuild": "Bitte ein Build zum Kopieren der Zuweisungen wählen."
+  "edb.copyAssignNoBuild": "Bitte ein Build zum Kopieren der Zuweisungen wählen.",
+  "att.confirmDelete": "Diese Anlage löschen?",
+  "att.errorDelete": "Anlage konnte nicht gelöscht werden",
+  "att.errorList": "Anlagen konnten nicht geladen werden",
+  "att.errorUpload": "Datei(en) konnten nicht hochgeladen werden",
+  "att.header": "Anlagen",
+  "att.maxSize": "Maximale Dateigröße",
+  "att.noAttachments": "Keine Anlagen",
+  "att.objectAttachments": "Anlagen dieses Objekts",
+  "att.selectFile": "Datei(en) wählen",
+  "att.title": "Anlagetitel (optional)",
+  "att.upload": "Hochladen",
+  "att.uploaded": "Datei(en) hochgeladen",
+  "att.invalidFile": "Datei abgelehnt"
 }

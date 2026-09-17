@@ -714,7 +714,7 @@ function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId, $
                             'file_name' => strval($ai['file_name']),
                             'file_size' => intval($ai['file_size']),
                             'download_url' =>
-                                '/lib/attachments/attachmentdownload.php?id=' .
+                                '/api/attachments/index.php?action=download&id=' .
                                 intval($ai['id']),
                         ];
                     }
@@ -760,7 +760,7 @@ function esrPriorExecution($db, $tplanId, $buildId, $platformId, $tcversionId, $
                             'file_name' => strval($ar['file_name']),
                             'file_size' => intval($ar['file_size']),
                             'download_url' =>
-                                '/lib/attachments/attachmentdownload.php?id=' .
+                                '/api/attachments/index.php?action=download&id=' .
                                 intval($ar['id']),
                         ];
                     }
@@ -1403,7 +1403,7 @@ function esrTestSuite($db, $tcaseId, $tprojectId) {
                     'title' => strval($ai['title']),
                     'file_name' => strval($ai['file_name']),
                     'file_size' => intval($ai['file_size']),
-                    'download_url' => '/lib/attachments/attachmentdownload.php?id='
+                    'download_url' => '/api/attachments/index.php?action=download&id='
                         . intval($ai['id']),
                 );
             }
@@ -1612,7 +1612,7 @@ function esrHistoryBlock($db, $user, $tcaseMgr, $tcaseId, $tcversionId,
                                 'file_name' => strval($ai['file_name']),
                                 'file_size' => intval($ai['file_size']),
                                 'download_url' =>
-                                    '/lib/attachments/attachmentdownload.php?id=' .
+                                    '/api/attachments/index.php?action=download&id=' .
                                     intval($ai['id']),
                             ];
                         }
@@ -1796,7 +1796,7 @@ if ($action === 'init') {
                     'file_name' => strval($ai['file_name']),
                     'file_size' => intval($ai['file_size']),
                     'download_url' =>
-                        '/lib/attachments/attachmentdownload.php?id=' .
+                        '/api/attachments/index.php?action=download&id=' .
                         intval($ai['id']),
                 ];
             }

@@ -1324,7 +1324,7 @@ function customFieldsHtml(cfList) {
 }
 
 function attachmentDownloadUrl(id) {
-  return '/lib/attachments/attachmentdownload.php?id=' + parseInt(id, 10);
+  return '/api/attachments/index.php?action=download&id=' + parseInt(id, 10);
 }
 
 function formatFileSize(bytes) {

@@ -231,7 +231,7 @@ if ($action === 'history') {
                                 'file_name' => strval($ai['file_name']),
                                 'file_size' => intval($ai['file_size']),
                                 'download_url' =>
-                                    'lib/attachments/attachmentdownload.php?id=' . intval($ai['id']),
+                                    '/api/attachments/index.php?action=download&id=' . intval($ai['id']),
                             ];
                         }
                     }
@@ -1085,7 +1085,7 @@ if ($action === 'tcDetails') {
                             'file_name' => strval($ai['file_name']),
                             'file_size' => intval($ai['file_size']),
                             'download_url' =>
-                                '/lib/attachments/attachmentdownload.php?id=' . intval($ai['id']),
+                                '/api/attachments/index.php?action=download&id=' . intval($ai['id']),
                         ];
                     }
                 }
@@ -1199,7 +1199,7 @@ if ($action === 'tcDetails') {
                                     'title' => strval($hai['title']),
                                     'file_name' => strval($hai['file_name']),
                                     'file_size' => intval($hai['file_size']),
-                                    'download_url' => '/lib/attachments/attachmentdownload.php?id='
+                                    'download_url' => '/api/attachments/index.php?action=download&id='
                                         . intval($hai['id']),
                                 ];
                             }

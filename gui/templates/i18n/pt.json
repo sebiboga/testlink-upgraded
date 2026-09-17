@@ -4140,5 +4140,18 @@
   "etc.title": "Copiar atribuição de tarefas de teste",
   "footers.execTaskCopy": "TestLink 2.0.1 - Copiar atribuição de tarefas de teste",
   "edb.copyAssign": "Copiar atribuições",
-  "edb.copyAssignNoBuild": "Selecione um build para copiar as atribuições."
+  "edb.copyAssignNoBuild": "Selecione um build para copiar as atribuições.",
+  "att.confirmDelete": "Excluir este anexo?",
+  "att.errorDelete": "Não foi possível excluir o anexo",
+  "att.errorList": "Não foi possível carregar os anexos",
+  "att.errorUpload": "Não foi possível enviar o(s) arquivo(s)",
+  "att.header": "Anexos",
+  "att.maxSize": "Tamanho máximo do arquivo",
+  "att.noAttachments": "Sem anexos",
+  "att.objectAttachments": "Anexos deste objeto",
+  "att.selectFile": "Escolher arquivo(s)",
+  "att.title": "Título do anexo (opcional)",
+  "att.upload": "Enviar",
+  "att.uploaded": "arquivo(s) enviados",
+  "att.invalidFile": "Arquivo rejeitado"
 }

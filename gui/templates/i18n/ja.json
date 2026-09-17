@@ -4140,5 +4140,18 @@
   "etc.title": "テストタスク割り当てのコピー",
   "footers.execTaskCopy": "TestLink 2.0.1 - テストタスク割り当てのコピー",
   "edb.copyAssign": "割り当てをコピー",
-  "edb.copyAssignNoBuild": "割り当てをコピーするビルドを選択してください。"
+  "edb.copyAssignNoBuild": "割り当てをコピーするビルドを選択してください。",
+  "att.confirmDelete": "この添付ファイルを削除しますか？",
+  "att.errorDelete": "添付ファイルを削除できませんでした",
+  "att.errorList": "添付ファイルを読み込めませんでした",
+  "att.errorUpload": "ファイルをアップロードできませんでした",
+  "att.header": "添付ファイル",
+  "att.maxSize": "最大ファイルサイズ",
+  "att.noAttachments": "添付ファイルなし",
+  "att.objectAttachments": "このオブジェクトの添付ファイル",
+  "att.selectFile": "ファイルを選択",
+  "att.title": "添付ファイルのタイトル（任意）",
+  "att.upload": "アップロード",
+  "att.uploaded": "件のファイルをアップロードしました",
+  "att.invalidFile": "ファイルが拒否されました"
 }
