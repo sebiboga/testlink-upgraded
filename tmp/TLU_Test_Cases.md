@@ -16283,3 +16283,35 @@ project id **1** `Attach Fixture Project` (prefix ATF), suite id **2**
 **Result: 11/11 PASS** — attachment upload + delete ported into the modern
 suiteView (admin write path, read-only viewer path, ownership guard, permission
 gate, i18n, clean events). Refs #1366.
+
+## Regression — Issue #1535: POST/PUT /api/roles with nonexistent rightID creates dangling role_rights
+
+**Feature:** `api/roles/index.php` create (POST) + edit (PUT) routes must attach only
+**existing** rights. Legacy parity: `lib/usermanagement/rolesEdit.php:102-103` builds
+rights via `tlRight::getAll("WHERE description IN (...)")`, so invalid ids can never
+survive; an all-invalid payload yields an empty role → `E_EMPTYROLE` 400.
+
+**Root cause:** `tlRight::_clean()` (`lib/functions/tlRight.class.php:29-36`) keeps
+`dbID` under `TLOBJ_O_SEARCH_BY_ID`, so `readFromDB()` failure returns `tl::ERROR` but
+leaves a truthy `dbID`; the old guard `if ($right->dbID)` appended the phantom object.
+
+**Precondition:** fresh DB import; admin session (admin/admin); `rights` table max id=56
+so `99999` is nonexistent; `role_rights` dangling count 0.
+
+**Repro steps (pre-fix):** POST `{"name":"probeX","rightIDs":[99999]}` → HTTP 200 with
+`"rights":[{"id":99999,"name":null}]`; `SELECT * FROM role_rights WHERE right_id=99999`
+returns the dangling row. **Post-fix expected:** HTTP 400 `role.error.noRights`
+(`E_EMPTYROLE`); invalid ids silently dropped; never a dangling row.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | POST `rightIDs:[99999]` | HTTP 400 `{"messageKey":"role.error.noRights","code":-5}`; no role created | PASS — HTTP 400 E_EMPTYROLE |
+| 2 | POST `rightIDs:[99999,1]` | HTTP 200; role `rights` = only `[{"id":1,"name":"testplan_execute"}]` (99999 dropped) | PASS — rights list = id 1 only |
+| 3 | POST `rightIDs:[1,5]` (valid) | HTTP 200; both rights present (no valid-path regression) | PASS — id 1 + id 5 present |
+| 4 | PUT `rightIDs:[99999]` on existing role | HTTP 400 E_EMPTYROLE; role unchanged on GET | PASS — 400; GET shows original rights |
+| 5 | PUT `rightIDs:[1]` on existing role | HTTP 200 `role_updated`; role keeps only right id 1 | PASS — 200; GET = id 1 only |
+| 6 | DB + Event Viewer after all probes | `role_rights` dangling count 0; events only INFO audit rows (no Error/Warning) | PASS — dangling 0; no Error/Warning |
+| 7 | Syntax gate | `php -l api/roles/index.php` | PASS — no syntax errors |
+
+**Result: 7/7 PASS** — invalid rightIDs no longer mint dangling `role_rights` rows on
+either POST or PUT; empty-role fallback 400 matches legacy semantics (Refs #1535).
