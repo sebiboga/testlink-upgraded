@@ -15684,3 +15684,41 @@ Result: **PASS — 22/22 PASS** — the legacy `buildCopyExecTaskAssignment` (br
 the project-scoped builds schema) is restored as a modern screen; rights, CSRF and
 the full 400/401/403/404 contract are enforced on both routes, the copy is
 idempotent (delete + copy), and the Result panel persists after the refresh.
+
+## Suite 1523 — Task Issue #924: Assign Test Project Roles rights check + assign-right project filtering
+
+Modern screen: `gui/templates/usermanagement/usersAssignProject.html` (BFF
+`api/roles/index.php`, routes `GET /meta/tproject-roles`, `PUT /tproject-roles`).
+Legacy refs: `lib/usermanagement/usersAssign.php:201-240` `checkRights()`,
+`:246-266` `checkRightsForUpdate()`, `:273-336` `getTestProjectEffectiveRoles()`,
+`lib/functions/common.php:1010-1048` `checkUserRightsFor()`.
+Fixtures (fresh DB, recreated for the run): testprojects `1 Alpha Project`,
+`2 Beta Project` (both public/active); users `admin` (role 8), `frank` (role 3
+`<no rights>`), `leader` (role 9, holds `user_role_assignment` + `testplan_user_role_assignment`)
+with a **project role** `tester` (7) on project 1; testplan `10 Plan One` in project 1.
+Expected reference measured on the legacy page for `leader`:
+`lib/usermanagement/usersAssign.php?featureType=testproject&featureID=1` renders combo
+options `["2:Beta Project"]` only.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `GET /api/roles/meta/tproject-roles?tproject_id=1` as admin | 200; `projects=[1 Alpha, 2 Beta]` (admin effective role holds both assign rights) | PASS |
+| 2 | Same as `leader` (only `user_role_assignment`) | 200; `projects=[2 Beta]` — Alpha hidden (effective role `tester` has neither assign right) | PASS |
+| 3 | Legacy page as `leader` (reference) | `#featureSel` options = `["2:Beta Project"]` — matches modern #2 | PASS |
+| 4 | Same as `frank` (role 3) | 403 `{message:no_permissions_for_action, right:user_role_assignment}` | PASS |
+| 5 | `events` row after #4 | AUDIT/16 `audit_security_user_right_missing`, object_id=2 (frank), action `user_role_assignment` | PASS |
+| 6 | `PUT /api/roles/tproject-roles {tproject_id:1,assignments:{}}` as `frank` | 403 `right=testproject_user_role_assignment` | PASS |
+| 7 | `PUT /api/roles/tproject-roles` as `leader` (rights check) | reaches the route (legacy `checkRightsForUpdate` allows: global `user_role_assignment` propagates) — 200 path; empty map hits pre-existing bug #1523 (see #10) | PASS |
+| 8 | `GET /api/roles/meta/tplan-roles?tproject_id=1&tplan_id=10` as `leader` | 200; `plans=[10 Plan One]` | PASS |
+| 9 | Modern screen as admin (`?tproject_id=1`) | project combo `[Alpha, Beta]`, selected 1, assignment table 3 rows, `#disabledMsg` hidden | PASS |
+| 10 | Modern screen as `leader` (`?tproject_id=1`, not assignable) | combo `[Beta]`, selected 2 (legacy fallback to first assignable), table 3 rows | PASS |
+| 11 | Modern screen as `frank` | `#disabledMsg` visible with `testproject_roles_assign_disabled` text, table hidden, project select disabled | PASS |
+| 12 | `assign.rolesDisabled` i18n | present in all 10 bundles, `python3 -m json.tool` clean | PASS |
+| 13 | `php -l api/roles/index.php` | No syntax errors | PASS |
+| 14 | Console on admin/leader screens | No JS errors (frank screen has only the expected `403` resource log) | PASS |
+| 15 | `events` after full walk | Only AUDIT/16 login + rights-missing rows; the 2 `log_level=1` DB errors are pre-existing bug **#1523** (`deleteUserRoles(id,[])`), NOT introduced by this change | PASS |
+
+Result: **PASS — 15/15 PASS** — the legacy `checkRights()` union is enforced (a user
+whose only assign right is `user_role_assignment` is no longer blocked by the
+role_management-only gate), unauthorized users get 403 + audit, and the project combo is
+filtered by the caller effective role exactly like `getTestProjectEffectiveRoles()`.
