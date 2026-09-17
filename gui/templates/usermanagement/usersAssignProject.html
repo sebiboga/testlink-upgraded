@@ -195,7 +195,7 @@ function saveAssignments() {
   $('#assignBody tr').each(function() {
     var uid = $(this).data('uid');
     var roleVal = parseInt($(this).find('select').val());
-    if (uid && roleVal > 0) assignments[uid] = roleVal;
+    if (uid) assignments[uid] = roleVal;
   });
   $.ajax({
     url: API + '/tproject-roles', type: 'PUT',

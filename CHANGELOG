@@ -487,6 +487,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   (return `tl::OK` without building SQL; `null` still deletes all roles of the
   feature) and the two BFF handlers short-circuit an empty/absent map to
   `{"status":"ok"}` like legacy `usersAssign.php:560-562` (Fixes #1523).
+- `usersAssignProject.html` built the assignment map with `if (uid && roleVal > 0)`,
+  filtering out every user whose role select was `-- no role --` (0). The BFF deletes
+  only `array_keys($assignments)` before re-adding `rid > 0` (legacy
+  `usersAssign.php:557-573`), so a user being un-assigned was silently skipped: map `{}`
+  hit the empty-map no-op and `user_testproject_roles` kept the old role. The map
+  builder now keeps `0` rows (`if (uid)`, identical to the already-correct
+  `usersAssignPlan.html`), so clearing a role performs the DELETE exactly like legacy
+  (Fixes #1524).
 - `testcase::addAliens()` aborted with a PHP 8 `TypeError` on every tracker-less
   test project: `getInterfaceObject()` returns `null` when the project has no
   issue tracker linked, and line 10372 fed that `null` straight into
