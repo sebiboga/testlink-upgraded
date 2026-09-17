@@ -95,7 +95,8 @@ as a no-op (`lib/usermanagement/usersAssign.php:560-562`, `[] == null`).
   `deleteUserRoles()`: an empty array returns `tl::OK` before any SQL is built;
   `null` keeps its delete-all meaning.
 - `api/roles/index.php`: both PUT handlers short-circuit an empty/absent
-  `assignments` map to `{"status":"ok"}` before any manager call or audit event.
+  `assignments` map to `{"status":"ok"}` before any manager call or audit event;
+  a non-array `assignments` is rejected with HTTP `400`.
 
 **Verified** — both endpoints answer `200 {"status":"ok"}`, `events` gains no
 new ERROR; assignment (`{uid:role}`), un-assignment (`{uid:0}`) and the legacy

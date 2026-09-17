@@ -15749,7 +15749,7 @@ to stored roles; non-empty maps still assign/unassign.
 | 1 | `php -l` on the 3 changed files | No syntax errors | PASS |
 | 2 | `PUT /tproject-roles {tproject_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
 | 3 | `PUT /tplan-roles {tplan_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
-| 4 | `assignments:"oops"` (non-array) | 200 `{"status":"ok"}`, no crash | PASS |
+| 4 | `assignments:"oops"` (non-array) | 400 `{"status":"error","message":"Invalid assignments"}`, no crash | PASS |
 | 5 | `user_testproject_roles` after #2/#3 | unchanged (no rows) | PASS |
 | 6 | `events` `log_level=1` before/after #2/#3 | `2 → 2` (no new ERROR) | PASS |
 | 7 | Direct `deleteUserRoles(1, [])` on both managers | `tl::OK` (=1), no new ERROR event | PASS |

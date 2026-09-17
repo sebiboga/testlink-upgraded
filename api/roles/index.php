@@ -496,12 +496,19 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles
 
     $assignments = $body['assignments'] ?? [];
 
+    // A map is required: reject wrong-typed payloads instead of silently
+    // treating them as "no assignments" (array_keys() would fatal on a scalar).
+    if (!is_array($assignments)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid assignments']);
+    }
+
     // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
     // no-op ("this can happen when filtering via Javascript" / every row left
     // at "-- no role --"). Short-circuit before any manager call so no delete
     // query is built for an empty user list and no misleading audit event is
     // written for a no-op.
-    if (!is_array($assignments) || count($assignments) === 0) {
+    if (count($assignments) === 0) {
         out(['status' => 'ok']);
     }
 
@@ -597,10 +604,17 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') 
 
     $assignments = $body['assignments'] ?? [];
 
+    // A map is required: reject wrong-typed payloads instead of silently
+    // treating them as "no assignments" (array_keys() would fatal on a scalar).
+    if (!is_array($assignments)) {
+        http_response_code(400);
+        out(['status' => 'error', 'message' => 'Invalid assignments']);
+    }
+
     // Legacy parity (usersAssign.php:560-562): an empty assignment map is a
     // no-op. Short-circuit before any manager call so no delete query is built
     // for an empty user list and no misleading audit event is written.
-    if (!is_array($assignments) || count($assignments) === 0) {
+    if (count($assignments) === 0) {
         out(['status' => 'ok']);
     }
 
