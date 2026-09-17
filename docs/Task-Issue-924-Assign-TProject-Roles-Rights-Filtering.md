@@ -77,8 +77,27 @@ Consequences of the modern behaviour:
 - `php -l` clean; all 10 i18n bundles valid JSON. Full matrix: `tmp/TLU_Test_Cases.md`
   suite 1523 (15/15 PASS).
 
-## Note (separate, pre-existing bug)
+## Bug #1523 — empty assignments map caused a DB error (FIXED)
 
-`PUT` with an empty `assignments` map triggers `deleteUserRoles(id, [])` →
-`user_id IN()` SQL syntax error (`lib/functions/testproject.class.php:1830-1843`).
-Not part of this task; filed as bug [#1523](https://github.com/sebiboga/testlink-upgraded/issues/1523).
+Discovered while building the rights/filtering work above; filed as
+[#1523](https://github.com/sebiboga/testlink-upgraded/issues/1523) and fixed in
+commit `7464701df` (branch `fix/issue-1523-empty-userids`).
+
+**Root cause** — `PUT /tproject-roles` / `PUT /tplan-roles` with
+`assignments:{}` passed `array_keys([]) = []` to `deleteUserRoles()`; the
+`!is_null($users)` branch appended `AND user_id IN()` (empty `implode()`) →
+MariaDB `1064 ... near ')'` → uncaught DB exception → HTTP 500 and a new
+`events` `log_level=1` row. The legacy controller already treated an empty map
+as a no-op (`lib/usermanagement/usersAssign.php:560-562`, `[] == null`).
+
+**Fix**
+- `lib/functions/testproject.class.php` / `lib/functions/testplan.class.php`
+  `deleteUserRoles()`: an empty array returns `tl::OK` before any SQL is built;
+  `null` keeps its delete-all meaning.
+- `api/roles/index.php`: both PUT handlers short-circuit an empty/absent
+  `assignments` map to `{"status":"ok"}` before any manager call or audit event.
+
+**Verified** — both endpoints answer `200 {"status":"ok"}`, `events` gains no
+new ERROR; assignment (`{uid:role}`), un-assignment (`{uid:0}`) and the legacy
+`null` delete-all paths (project/plan delete) are unaffected. Regression suite
+in `tmp/TLU_Test_Cases.md` (“Regression — Issue #1523”, 11/11 PASS).

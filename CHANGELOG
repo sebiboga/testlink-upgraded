@@ -471,6 +471,13 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Roles BFF `PUT /tproject-roles` / `PUT /tplan-roles` with an empty `assignments`
+  map passed `array_keys([]) = []` into `deleteUserRoles()`, whose `!is_null($users)`
+  branch built `AND user_id IN()` → MariaDB 1064, HTTP 500 and an `events` ERROR
+  entry on a normal UI action. Both managers now treat an empty array as a no-op
+  (return `tl::OK` without building SQL; `null` still deletes all roles of the
+  feature) and the two BFF handlers short-circuit an empty/absent map to
+  `{"status":"ok"}` like legacy `usersAssign.php:560-562` (Fixes #1523).
 - `testcase::addAliens()` aborted with a PHP 8 `TypeError` on every tracker-less
   test project: `getInterfaceObject()` returns `null` when the project has no
   issue tracker linked, and line 10372 fed that `null` straight into
