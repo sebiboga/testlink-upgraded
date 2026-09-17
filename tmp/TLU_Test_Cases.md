@@ -15762,3 +15762,32 @@ all options on) is fully ported into the modern suiteView toolbar; it reuses the
 battle-tested `api/testcasesprint` + `printTestDoc.html` pipeline, scopes correctly
 per suite (including nested sub-suites), and is rights-gated (`testplan_metrics`)
 in both UI and BFF exactly like legacy `printDocument.php` `checkRights()`.
+
+## Suite 1525 — Regression — Issue #1524: usersAssignProject "no role" never un-assigns (map drops 0 rows)
+
+Bug: `gui/templates/usermanagement/usersAssignProject.html:198` built the assignment map
+with `if (uid && roleVal > 0)` — filtering out every user whose role select was `0`
+(`-- no role --`). The PUT BFF (`api/roles/index.php:516-523`) deletes for
+`array_keys($assignments)` then re-adds only `rid > 0` (legacy `usersAssign.php:557-573`);
+with the cleared user absent from the map the DELETE never targeted them and the old role
+stayed. Plan twin (`usersAssignPlan.html:182`, `if (uid)`) already kept `0` and was
+verified working. Fix: single line — project screen now keeps `0` rows
+(`if (uid) assignments[uid] = roleVal;`), identical to the plan screen.
+Fixtures (fresh DB, recreated this run): project node 1 (FixtureProject), plan node 2
+(FixturePlan), users admin (1) + bob (2). Pre-fix symptom reproduced live
+(`builtAssignments = "{}"` when select=0; row `(1,1,9)` survived the save).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | Assign admin role leader (9) on project 1 | `user_testproject_roles` = `(1,1,9)` | PASS |
+| 2 | Clear admin to `-- no role --` (0) and save (PRE-FIX repro: map `{}`, row stays) | after fix: map `{"1":0}`, row `(1,1,9)` DELETED — `SELECT` returns 0 rows | PASS |
+| 3 | Re-assign admin leader after a clear | row re-appears `(1,1,9)` (delete+add both fire) | PASS |
+| 4 | Multi-user: admin+leader and bob+leader → clear ONLY bob, keep admin | map `{"1":9,"2":0}`; only bob row deleted, admin `(1,1,9)` remains | PASS |
+| 5 | Plan screen (`usersAssignPlan.html`, project1/plan2): assign leader, clear to 0 | map keeps `0`; row deleted from `user_testplan_roles` (unchanged behavior — control) | PASS |
+| 6 | Console during 1–5 | no new JS errors on either screen | PASS |
+| 7 | Event Viewer / `events` table after 1–5 | only AUDIT/16 INFO rows (login, roles updated); no new Error/Warning entries | PASS |
+| 8 | `grep` for `roleVal > 0` in both assign screens | no remaining 0-filtering map builder | PASS |
+
+Result: **PASS — 8/8 PASS** — clearing a user's project role to `-- no role --` now
+deletes the assignment exactly like legacy `usersAssign.php`; the plan screen path is
+confirmed unaffected.
