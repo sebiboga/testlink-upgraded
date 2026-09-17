@@ -78,6 +78,18 @@ if (!isset($_GET['load']))
     if($args->tprojectPrefix != '') {
       $hasRight = checkTestProject($db,$user,$args);
       if( $hasRight ) {
+        // Refs #1532: requirement deep links are resolved by the modern
+        // resolver screen (gui/templates/links/directLink.html + BFF
+        // api/directlink) instead of the legacy reqView.php shell.
+        if( $args->item == 'req' ) {
+          $resolver = $_SESSION['basehref'] .
+            'gui/templates/links/directLink.html?tprojectPrefix=' .
+            urlencode($args->tprojectPrefix) . '&item=req&id=' .
+            urlencode($args->id) .
+            (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
+          header('Location: ' . $resolver);
+          exit();
+        }
         $gui = new stdClass();
         $gui->titleframe = 'lib/general/navBar.php?caller=linkto';
         $gui->asideframe = 'lib/general/asideMenu.php';
@@ -161,6 +173,18 @@ else
 
   if($op['status_ok'])
   {
+    // Refs #1532: keep inner-frame bookmarks working for requirement links by
+    // redirecting them onto the modern resolver screen.
+    if( $args->item == 'req' ) {
+      $resolver = $_SESSION['basehref'] .
+        'gui/templates/links/directLink.html?tprojectPrefix=' .
+        urlencode($args->tprojectPrefix) . '&item=req&id=' .
+        urlencode($args->id) .
+        (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
+      header('Location: ' . $resolver);
+      exit();
+    }
+
     // need to set test project item on Navbar
     // add anchor to URL
     $url = $jump_to['url'] . $args->anchor;

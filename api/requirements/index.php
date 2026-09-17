@@ -688,7 +688,7 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'view') {
         'tproject_id' => $resolvedTid,
         'tproject_name' => $tproject_name,
         'tcase_prefix' => $tcasePrefix,
-        'direct_link' => $_SESSION['basehref'] . 'linkto.php?tprojectPrefix=' .
+        'direct_link' => $_SESSION['basehref'] . 'gui/templates/links/directLink.html?tprojectPrefix=' .
             urlencode($tcasePrefix) . '&item=req&id=' . urlencode($cur['req_doc_id']),
         'req_id' => $reqId,
         'grant' => [

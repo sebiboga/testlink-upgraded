@@ -2024,6 +2024,12 @@ function getActions(&$gui,$baseURL) {
 
   // Modernized screens (Dashio standalone pages)
   $actions->reqSpecMgmt = "/gui/templates/requirements/reqSpecMgmt.html?{$ctx}";
+  // Direct-link resolver modernized screen (Dashio standalone page) - Refs
+  // #1532. Replaces the legacy linkto.php deep-link gateway for
+  // linkto.php?tprojectPrefix=<prefix>&item=req&id=<doc_id>; the browser-facing
+  // resolver renders gui/templates/links/directLink.html and the BFF resolves
+  // prefix + doc-id into the modern reqView.html viewer.
+  $actions->directLink = "/gui/templates/links/directLink.html";
   // Reorder Requirements modernized screen (Dashio standalone page) - Refs
   // #1488/#1518. The Reorder toolbar button in reqSpecView.html carries the
   // real req_spec_id; this generic launcher keeps legacy pointer/template

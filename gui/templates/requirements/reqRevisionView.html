@@ -178,7 +178,12 @@ function showError(msg) {
 function render(r) {
   $('#errorBanner').hide();
   $('#content').show();
-  DIRECT_LINK = '/linkto.php?item=req&id=' + encodeURIComponent(r.req_doc_id);
+  // Refs #1532: the legacy direct link (/linkto.php?item=req&id=..) opened
+  // the legacy reqView.php shell and was BROKEN here anyway (it omitted
+  // tprojectPrefix, which the legacy gateway requires). The modern resolver
+  // takes the numeric project alias.
+  DIRECT_LINK = '/gui/templates/links/directLink.html?tproject_id=' +
+    (r.tproject_id || '') + '&item=req&id=' + encodeURIComponent(r.req_doc_id);
 
   $('#vDocId').html('<span class="id-chip">' + escapeHtml(r.req_doc_id) + '</span> <b>' + escapeHtml(r.title) + '</b>');
   $('#vSpec').text(r.show_req_spec_title ? r.req_spec_title : '-');
