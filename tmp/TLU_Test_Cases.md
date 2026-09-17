@@ -15722,3 +15722,42 @@ Result: **PASS — 15/15 PASS** — the legacy `checkRights()` union is enforced
 whose only assign right is `user_role_assignment` is no longer blocked by the
 role_management-only gate), unauthorized users get 403 + audit, and the project combo is
 filtered by the caller effective role exactly like `getTestProjectEffectiveRoles()`.
+
+## Regression — Issue #1523: roles BFF empty assignments map → no-op (tproject/tplan)
+
+Fix commit: `7464701df` (branch `fix/issue-1523-empty-userids`).
+Code under test: `api/roles/index.php` `PUT /tproject-roles` + `PUT /tplan-roles`,
+`lib/functions/testproject.class.php` `deleteUserRoles()`,
+`lib/functions/testplan.class.php` `deleteUserRoles()`.
+Legacy reference: `lib/usermanagement/usersAssign.php:560-562` (empty map = no-op).
+
+**Precondition** — fresh DB; logged-in `admin/admin` (curl cookie jar from
+`POST /api/auth/login`); fixture project `1 Repro Project` (`POST /api/projects/index.php`,
+public/active); `events` contains 2 pre-existing `log_level=1` rows (the pre-fix repro of
+this very bug); `user_testproject_roles` empty.
+
+**Repro steps (pre-fix behaviour)** — `PUT /api/roles/index.php/tproject-roles` (and
+`/tplan-roles`) with body `{"tproject_id":1,"assignments":{}}`. Pre-fix: HTTP 500, empty
+body, `events` row `log_level=1` `1064 ... DELETE FROM user_testproject_roles WHERE
+testproject_id = 1 AND user_id IN()` (same for `user_testplan_roles`).
+
+**Expected post-fix** — HTTP 200 JSON `{"status":"ok"}`, no new DB-error event, no change
+to stored roles; non-empty maps still assign/unassign.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `php -l` on the 3 changed files | No syntax errors | PASS |
+| 2 | `PUT /tproject-roles {tproject_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
+| 3 | `PUT /tplan-roles {tplan_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
+| 4 | `assignments:"oops"` (non-array) | 200 `{"status":"ok"}`, no crash | PASS |
+| 5 | `user_testproject_roles` after #2/#3 | unchanged (no rows) | PASS |
+| 6 | `events` `log_level=1` before/after #2/#3 | `2 → 2` (no new ERROR) | PASS |
+| 7 | Direct `deleteUserRoles(1, [])` on both managers | `tl::OK` (=1), no new ERROR event | PASS |
+| 8 | `PUT /tproject-roles {tproject_id:1,assignments:{1:9}}` | 200; row `1,1,9` stored | PASS |
+| 9 | `PUT /tproject-roles {tproject_id:1,assignments:{1:0}}` (direct; UI bug filed separately) | 200; row deleted (`rows_after_unassign=0`) | PASS |
+| 10 | Legacy null path: assigned project 2, then `DELETE /api/projects/index.php/2` | 200; project gone AND its `user_testproject_roles` rows purged | PASS |
+| 11 | `events` after the full walk | only the 2 pre-existing ERROR rows; no new Error/Warning | PASS |
+
+Result: **PASS — 11/11 PASS.** Empty assignment map is a valid no-op on both role-assignment
+endpoints; `null` still deletes all roles (project/plan delete paths unaffected); the invariant
+"empty user array never reaches `implode()`" holds at the manager layer too.
