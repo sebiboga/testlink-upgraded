@@ -15907,3 +15907,44 @@ the suite, and the reorder honours the legacy external-id/name criteria. During 
 pre-existing bug was found and fixed: `TV_TABLE` was referenced but never declared in
 suiteView.html, aborting `renderTableView()` before DataTable init (filed as issue #1527).
 
+
+---
+
+## Suite 1528 — Re-record: Create Requirements from Issues (Mantis XML) — reqFromIssues.html + api/reqfromissues (Refs #1503, #1528)
+
+**Screen:** `gui/templates/requirements/reqFromIssues.html` + BFF `api/reqfromissues/index.php`.
+**Precondition:** fresh `php tmp/fixtures_1503.php` → project 6 `WALK1503` (prefix W3), req spec
+7 `RS-WALK` (`Walk Issue Import Spec`), spec 9 `RS-OTHER` (`Other Branch Spec`); sample file
+`/tmp/mantis_import_1503.xml` (issues 201 + 202). Admin logged in (http://localhost:8082).
+**Context:** this run re-recorded the screen (its ledger row + CHANGELOG line had been destroyed
+by the #1487 guts `8ef9694d3` and never restored) and re-verified it end-to-end. Two real
+regressions from the gut were found + fixed: createFromMap() misspelled length-exceeded locale
+keys (2 log_level=32 "not localized" WARNING rows fired on EVERY import) and the unguarded
+`$last_version['is_open']` null deref.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | GET BFF `action=init&tproject_id=6&req_spec_id=7` (anon, no cookie) | 401 `Not authenticated` | PASS |
+| 2 | GET BFF `action=init&tproject_id=6&req_spec_id=7` (admin) | 200; spec path `WALK1503 / Walk Issue Import Spec`, owner project name `WALK1503`, `maxUploadBytes` = `import_file_max_size_bytes`, `grants.mgt_view_req`/`mgt_modify_req` = 1, localized `issue_*` labels | PASS |
+| 3 | Load screen `reqFromIssues.html?req_spec_id=7&tproject_id=6` | BFF context header shows `WALK1503 / Walk Issue Import Spec`; dropzone + size hint (10240 KB); Import disabled until file chosen; console clean | PASS |
+| 4 | Upload `/tmp/mantis_import_1503.xml` → click Import | feedback `Requirements imported successfully. — 2 requirement(s)`; result table rows: `Mantis Task ID:201` / `Issue/Task:201 - Requirement import drops leading spaces` / `Created - Requirement ...`, and `Mantis Task ID:202` / Created | PASS |
+| 5 | DB: requirements under spec 7 | 2 rows, docids `Mantis Task ID:201`/`202`, descriptions with `Steps to reproduce` + `Additional information` joined via `<p>`, `req_versions.expected_coverage=1`, `is_open=1` | PASS |
+| 6 | Re-upload same XML to spec 7 (FROZEN dup) | rows show `... is FROZEN` skip (Skipped row, amber), no new requirement nodes | PASS |
+| 7 | Import `/tmp/mantis_import_1503.xml` into spec 9 (cross-branch) | rows show `Already exists on other branch` skip; no new nodes under 9 | PASS |
+| 8 | GET BFF `action=init&tproject_id=6&req_spec_id=99999` | 404 `Requirement spec not found` | PASS |
+| 9 | GET BFF `action=init&tproject_id=6&req_spec_id=abc` | 400 `Invalid requirement spec id` | PASS |
+| 10 | POST BFF `action=import` without file | 400 `File upload failed (error code: -1)` | PASS |
+| 11 | POST BFF `action=import` malformed `not xml` file | 422 `Invalid XML file: root element must be <mantis>` | PASS |
+| 12 | POST BFF `action=import` wrong root `<bugs>` | 422 `Invalid XML file: root element must be <mantis>` | PASS |
+| 13 | POST BFF `action=init` (method enforcement) | 405 `Method not allowed` | PASS |
+| 14 | POST BFF `action=import` without same-origin header | 403 `missing or mismatched same-origin proof (CSRF protection)` | PASS |
+| 15 | Over-length docid+title issue import | skip message `Req title length exceeded/` localized (en_GB), **no** `not localized` event | PASS |
+| 16 | `grep req_title_lenght_exceeded|req_docid_lenght_exceeded lib/functions/requirement_mgr.class.php` | 0 matches (typos gone) | PASS |
+| 17 | `php -l` all 19 `locale/*/strings.txt` + `lib/functions/requirement_mgr.class.php` | no syntax errors | PASS |
+| 18 | Event Viewer after all runs | 0 ERROR/WARNING rows (`log_level 16` AUDIT only; the 4 stale log_level=32 rows deleted, none re-fired) | PASS |
+| 19 | `reqfi.*` (24) + `footers.reqFromIssues` keys in all 10 client bundles; `python3 -m json.tool` valid | present + valid JSON | PASS |
+| 20 | `reqSpecView.html` toolbar `createFromIssuesLink` | href `reqFromIssues.html?req_spec_id=<id>&tproject_id=<id>`, shown on `r.rights.manage` | PASS |
+
+Result: **PASS — 20/20 PASS** — screen re-recorded and re-verified; the #1504/#1505
+regressions from the #1487 guts found + fixed (class misspelled keys + null-version deref),
+locale keys restored in 16 bundles, Event Viewer clean afterwards. Refs #1503, #1528.
