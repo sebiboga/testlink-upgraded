@@ -152,6 +152,21 @@ else
     $tproject_data = $tproject->get_by_prefix($args->tprojectPrefix);
     if(($op['status_ok'] = !is_null($tproject_data))) 
     {
+      // Refs #1532: requirement deep links are resolved by the modern resolver
+      // screen (gui/templates/links/directLink.html + api/directlink). This also
+      // sidesteps the pre-existing testproject::setSessionProject() fatal (the
+      // method no longer exists on the upgraded schema) that broke EVERY
+      // inner-frame deep link before reaching anything else.
+      if( $args->item == 'req' ) {
+        $resolver = $_SESSION['basehref'] .
+          'gui/templates/links/directLink.html?tprojectPrefix=' .
+          urlencode($args->tprojectPrefix) . '&item=req&id=' .
+          urlencode($args->id) .
+          (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
+        header('Location: ' . $resolver);
+        exit();
+      }
+
       $tproject->setSessionProject($tproject_data['id']);
       $op['status_ok'] = isset($itemCode[$args->item]);
       $op['msg'] = sprintf(lang_get('invalid_item'),$args->item);
@@ -173,18 +188,6 @@ else
 
   if($op['status_ok'])
   {
-    // Refs #1532: keep inner-frame bookmarks working for requirement links by
-    // redirecting them onto the modern resolver screen.
-    if( $args->item == 'req' ) {
-      $resolver = $_SESSION['basehref'] .
-        'gui/templates/links/directLink.html?tprojectPrefix=' .
-        urlencode($args->tprojectPrefix) . '&item=req&id=' .
-        urlencode($args->id) .
-        (!is_null($args->version) ? '&version=' . urlencode($args->version) : '');
-      header('Location: ' . $resolver);
-      exit();
-    }
-
     // need to set test project item on Navbar
     // add anchor to URL
     $url = $jump_to['url'] . $args->anchor;
