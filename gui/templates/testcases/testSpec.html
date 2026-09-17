@@ -593,6 +593,15 @@ function loadTree() {
     var deepId = parseInt(qs('tcase_id') || qs('id') || '0', 10);
     if (deepId > 0) {
       selectNode('testcase', deepId);
+      return;
+    }
+    // deep-link to a suite: auto-select it and (optionally) open the create
+    // test-case form — the modern entry point for the legacy suiteView
+    // "create_tc" -> tcEdit.php?doAction=create&containerID=<suite> button.
+    var suiteId = parseInt(qs('containerID') || '0', 10);
+    if (suiteId > 0) {
+      selectNode('testsuite', suiteId);
+      if (qs('create') === '1') { setTimeout(openCreateTc, 50); }
     }
   }).catch(function (e) {
     $('#treeLoading').hide();

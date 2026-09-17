@@ -57,7 +57,7 @@ function out($data) { echo json_encode($data); exit; }
 $tables = tlObjectWithDB::getDBTables(
     array('nodes_hierarchy', 'node_types', 'testsuites', 'tcversions',
           'tcsteps', 'keywords', 'object_keywords', 'attachments',
-          'cfield_design_values'));
+          'cfield_design_values', 'executions'));
 
 /**
  * Build localized label maps for the three bulk domains (status/importance/
@@ -609,6 +609,312 @@ if ($method === 'POST' && $action === 'bulk_set') {
             'execution_type' => $executionType),
             function ($v) { return $v > 0; }),
     ));
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=suites&tproject_id=<pid>
+// Flat list of all test suites of the owning project (id + scope path) used to
+// populate the Move/Copy target picker. Mirrors the legacy
+// gen_combo_test_suites() of containerMoveTC.tpl (containerEdit.php:983).
+// Requires mgt_view_tc on the project.
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && $action === 'suites') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test project id'));
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        http_response_code(403);
+        out(array('status' => 'error',
+                  'message' => 'You are not authorized for this test project'));
+    }
+    $suites = array();
+    $stack = array(array('id' => $tprojectId, 'path' => ''));
+    while (count($stack) > 0) {
+        $cur = array_pop($stack);
+        $kids = $db->get_recordset(
+            "SELECT id, name, node_type_id FROM {$tables['nodes_hierarchy']} " .
+            "WHERE parent_id = " . intval($cur['id']) .
+            " ORDER BY node_order, id");
+        if (is_null($kids)) continue;
+        foreach ($kids as $k) {
+            if (intval($k['node_type_id']) !== $tsuiteTypeId) continue;
+            $name = strval($k['name']);
+            $path = $cur['path'] === '' ? $name : $cur['path'] . ' / ' . $name;
+            $suites[] = array(
+                'id' => intval($k['id']),
+                'name' => $name,
+                'path' => $path,
+            );
+            $stack[] = array('id' => intval($k['id']), 'path' => $path);
+        }
+    }
+    usort($suites, function ($a, $b) { return strcmp($a['path'], $b['path']); });
+    out(array('status' => 'ok', 'suites' => $suites));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=reorder_testcases  {id, tproject_id, by:'name'|'external_id'}
+// Re-orders the direct test-case children of the suite, rewriting
+// nodes_hierarchy.node_order (name-natural dictionary sort, legacy
+// reorderTestCasesDictionary containerEdit.php:1339-1352, or external-id
+// sort reorderTestCasesByExtID :1359-1373; 'by' falls back to config
+// testcase_reorder_by). Requires mgt_modify_tc on the owning project.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'reorder_testcases') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $tcaseTypeId = isset($types['testcase']) ? $types['testcase'] : 3;
+    $suiteId = intval($_POST['id'] ?? ($_REQUEST['id'] ?? 0));
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    if ($suiteId <= 0) {
+        $suiteId = intval($json['id'] ?? 0);
+    }
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($json['tproject_id'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to modify test cases'));
+    }
+
+    $by = strval($json['by'] ?? '');
+    if ($by === '') {
+        $crit = strtoupper(strval(config_get('testcase_reorder_by')));
+        $by = ($crit === 'NAME') ? 'name' : 'external_id';
+    }
+
+    $treeMgr = new tree($db);
+    if ($by === 'external_id') {
+        $rs = $db->get_recordset(
+            "SELECT DISTINCT NHTC.id, TCV.tc_external_id " .
+            "FROM {$tables['nodes_hierarchy']} NHTC " .
+            "JOIN {$tables['nodes_hierarchy']} NHTCV ON NHTCV.parent_id = NHTC.id " .
+            "JOIN {$tables['tcversions']} TCV ON TCV.id = NHTCV.id " .
+            "WHERE NHTC.parent_id = {$suiteId} " .
+            "ORDER BY tc_external_id ASC");
+        $ids = array();
+        if (!is_null($rs)) {
+            foreach ($rs as $r) {
+                $ids[] = intval($r['id']);
+            }
+        }
+        if (count($ids) > 0) $treeMgr->change_order_bulk($ids);
+    } else {
+        $kids = $db->get_recordset(
+            "SELECT id, name FROM {$tables['nodes_hierarchy']} " .
+            "WHERE parent_id = {$suiteId} AND node_type_id = {$tcaseTypeId}");
+        $a2sort = array();
+        if (!is_null($kids)) {
+            foreach ($kids as $k) {
+                $a2sort[intval($k['id'])] = strtolower(strval($k['name']));
+            }
+        }
+        if (count($a2sort) > 0) {
+            natsort($a2sort);
+            $treeMgr->change_order_bulk(array_keys($a2sort));
+        }
+    }
+
+    out(array('status' => 'ok', 'message' => 'Test cases reordered', 'by' => $by));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=delete_testcases  {id, tproject_id, tcase_ids:[...]}
+// Deletes the selected test cases (ALL versions), mirroring legacy
+// doDeleteTestCases (containerEdit.php:1312-1321). Executed test cases are
+// blocked unless the user holds testproject_delete_executed_testcases
+// (legacy draw_check gate containerEdit.php:1235).
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'delete_testcases') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suiteId = intval($_POST['id'] ?? ($_REQUEST['id'] ?? 0));
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    if ($suiteId <= 0) {
+        $suiteId = intval($json['id'] ?? 0);
+    }
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($json['tproject_id'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to modify test cases'));
+    }
+
+    $ids = array_filter(array_map('intval', (array)($json['tcase_ids'] ?? array())));
+    if (count($ids) === 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'No test cases selected'));
+    }
+
+    sort($ids);
+    $idList = implode(',', $ids);
+
+    // executed gate (legacy: executed test cases have no delete checkbox
+    // without testproject_delete_executed_testcases)
+    $execRows = $db->get_recordset(
+        "SELECT DISTINCT NH.parent_id AS tcase_id " .
+        "FROM {$tables['executions']} E " .
+        "JOIN {$tables['nodes_hierarchy']} NH ON NH.id = E.tcversion_id " .
+        "WHERE NH.parent_id IN ({$idList})");
+    $executedIds = array();
+    if (!is_null($execRows)) {
+        foreach ($execRows as $e) {
+            $executedIds[intval($e['tcase_id'])] = 1;
+        }
+    }
+    if (count($executedIds) > 0
+        && $user->hasRight($db, 'testproject_delete_executed_testcases',
+                           $tprojectId) !== 'yes') {
+        http_response_code(422);
+        out(array('status' => 'error',
+                  'message' => 'Some selected test cases have executions: deleting '
+                    . 'requires the delete executed testcases permission',
+                  'executed_ids' => array_keys($executedIds)));
+    }
+
+    $tcaseMgr = new testcase($db);
+    $deleted = 0;
+    foreach ($ids as $tid) {
+        $tcaseMgr->delete($tid);
+        $deleted++;
+    }
+
+    out(array('status' => 'ok', 'message' => 'Test cases deleted', 'deleted' => $deleted));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=move_testcases  {id, tproject_id, tcase_ids:[...], target_id}
+// POST ?action=copy_testcases  {id, tproject_id, tcase_ids:[...], target_id}
+// Move (change_parent, legacy do_move_tcase_set containerEdit.php:295-297) or
+// copy (copy_to, legacy do_copy_tcase_set :299-306) the selected test cases
+// to the chosen target suite. Requires mgt_modify_tc on the owning project
+// and a target suite that belongs to the SAME project (self/descendant moves
+// are also rejected, matching the api/testcases move guard).
+// ---------------------------------------------------------------------------
+if ($method === 'POST'
+    && ($action === 'move_testcases' || $action === 'copy_testcases')) {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suiteId = intval($_POST['id'] ?? ($_REQUEST['id'] ?? 0));
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    if ($suiteId <= 0) {
+        $suiteId = intval($json['id'] ?? 0);
+    }
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = intval($json['tproject_id'] ?? 0);
+    }
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to modify test cases'));
+    }
+
+    $ids = array_filter(array_map('intval', (array)($json['tcase_ids'] ?? array())));
+    $targetId = intval($json['target_id'] ?? 0);
+    if (count($ids) === 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'No test cases selected'));
+    }
+    $target = resolveSuite($targetId);
+    if (is_null($target)) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid target test suite'));
+    }
+    $targetProject = owningProjectOf($target['id'], $types);
+    if ($targetProject !== $tprojectId) {
+        http_response_code(422);
+        out(array('status' => 'error',
+                  'message' => 'Target test suite belongs to a different test project'));
+    }
+    if (in_array($targetId, $ids, true)) {
+        http_response_code(422);
+        out(array('status' => 'error',
+                  'message' => 'Cannot move/copy onto the selected test case set'));
+    }
+
+    if ($action === 'move_testcases') {
+        $treeMgr = new tree($db);
+        $ok = $treeMgr->change_parent($ids, $targetId);
+        out(array('status' => 'ok', 'message' => 'Test cases moved',
+                  'moved' => count($ids), 'result' => intval($ok)));
+    } else {
+        $tcaseMgr = new testcase($db);
+        $copyOpt = array(
+            'check_duplicate_name' => config_get('check_names_for_duplicates'),
+            'action_on_duplicate_name' => config_get('action_on_duplicate_name'),
+            'stepAsGhost' => 0,
+        );
+        $copyOpt['copy_also'] = array(
+            'keyword_assignments' => 1,
+            'requirement_assignments' => 0,
+        );
+        $copied = 0;
+        foreach ($ids as $tid) {
+            $tcaseMgr->copy_to($tid, $targetId,
+                               intval($user->dbID ?? $userId), $copyOpt);
+            $copied++;
+        }
+        out(array('status' => 'ok', 'message' => 'Test cases copied',
+                  'copied' => $copied));
+    }
 }
 
 http_response_code(400);

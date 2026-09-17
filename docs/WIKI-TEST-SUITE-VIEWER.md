@@ -189,3 +189,33 @@ See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS). The import launchers
 (#1370) are covered by the **Issue #1370** suite in the same file (10/10 PASS).
 The generate-testsuite-spec feature (#1369) is covered by the **Issue #1369 /
 Suite 1524** suite (13/13 PASS).
+## Test-case management operations (issue #1368)
+
+The viewer exposes the legacy Test-Suite-Viewer test-case operations from the
+toolbar and the table view:
+
+- **+ Create Test Case** — deep-links
+  `testSpec.html?tproject_id=<p>&containerID=<suite>&create=1`; testSpec
+  auto-selects the suite in the tree and opens the create-test-case form
+  (modern entry to legacy `create_tc` → `tcEdit.php?doAction=create&containerID=`).
+- **Reorder Test Cases** — `POST api/suiteview/index.php?action=reorder_testcases`;
+  honours `$tlCfg->testcase_reorder_by` (`EXTERNAL_ID` default / `NAME` natsort),
+  legacy `reorderTestCasesViewer`. An explicit `by` override is accepted.
+- **Create from Issue XML** — opens
+  `tcCreateFromIssues.html?containerID=<suite>&tproject_id=<p>` pre-targeted at
+  the suite (legacy `create_tc_from_issue_xml` span).
+- **Table view — Move / Copy / Delete selected** — target-suite picker lists all
+  suites of the project except the current one. `move_testcases` reparents,
+  `copy_testcases` performs a deep copy (testcase + version + steps/CF), and
+  `delete_testcases` removes the node and its version (executed test cases are
+  refused, mirroring `testproject_delete_executed_testcases`). Legacy
+  `do_move_tcase_set` / `do_copy_tcase_set` / `do_delete_testcases`.
+
+All operations are gated on `mgt_modify_tc` on the owning project
+(`can_manage`); the three toolbar buttons are hidden otherwise. New BFF
+endpoints live in `api/suiteview/index.php` and 17 `suvw.*` keys were added to
+all ten locale bundles.
+
+**Bug fixed during testing:** `TV_TABLE` was referenced but never declared in
+`suiteView.html`, aborting `renderTableView()` before DataTable initialization
+(console `ReferenceError`). Declared the variable; filed as issue #1527.

@@ -62,6 +62,9 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
   <button class="btn-ghost" id="genWordSpecBtn" onclick="openSuiteSpec(4)" style="display:none;"><i class="fa fa-file-word"></i> <span data-i18n="suvw.genSpecWord">Generate spec (Word)</span></button>
   <button class="btn-ghost" id="importCasesBtn" onclick="openSuiteImport(false)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importCases">Import Test Cases</span></button>
   <button class="btn-ghost" id="importSuiteBtn" onclick="openSuiteImport(true)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importSuite">Import Test Suite</span></button>
+  <button class="btn-ghost" id="createTcBtn" onclick="openCreateTc()" style="display:none;"><i class="fa fa-plus"></i> <span data-i18n="suvw.createTc">Create Test Case</span></button>
+  <button class="btn-ghost" id="reorderTcBtn" onclick="reorderTc()" style="display:none;"><i class="fa fa-sort-amount-asc"></i> <span data-i18n="suvw.reorderTc">Reorder Test Cases</span></button>
+  <button class="btn-ghost" id="fromIssueBtn" onclick="openFromIssue()" style="display:none;"><i class="fa fa-file-code"></i> <span data-i18n="suvw.createFromIssue">Create from Issue XML</span></button>
   <button class="btn-ghost" id="tvBtn" onclick="toggleTableView()" style="display:none;"><i class="fa fa-table"></i> <span data-i18n="suvw.tableView">Table view</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
@@ -137,6 +140,13 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
         <button class="btn-teal" onclick="tvApply()"><i class="fa fa-check"></i> <span data-i18n="suvw.tblApply">Apply to selected</span></button>
         <span class="tv-saved" id="tvSaved"></span>
       </div>
+      <div class="tv-bulk" id="tvMoveBar" style="display:none;">
+        <label><span data-i18n="suvw.moveCopySel">Move/Copy to:</span></label>
+        <select id="tvTargetSuite" title="" style="min-width:200px;"></select>
+        <button class="btn-teal" onclick="tvMove(false)"><i class="fa fa-arrows-alt"></i> <span data-i18n="suvw.moveSelected">Move</span></button>
+        <button class="btn-ghost" onclick="tvMove(true)"><i class="fa fa-copy"></i> <span data-i18n="suvw.copySelected">Copy</span></button>
+        <button class="btn-red" style="background:#e74c3c;color:#fff;border:none;padding:6px 14px;border-radius:4px;cursor:pointer;font-size:13px;" onclick="tvDeleteSelected()"><i class="fa fa-trash"></i> <span data-i18n="suvw.deleteSelected">Delete</span></button>
+      </div>
     </div>
   </div>
 
@@ -171,6 +181,7 @@ var DOMAINS = null;
 var TV_LOADED = false;
 var TV_DATA = null;
 var TV_ACTIVE = false;
+var TV_TABLE = null;
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
@@ -220,6 +231,8 @@ function render(r) {
   CAN_PRINT = !!r.can_print;
   DOMAINS = r.domains || null;
   $('#tvBtn').toggle(CAN_MANAGE);
+  $('#createTcBtn, #reorderTcBtn, #fromIssueBtn').toggle(CAN_MANAGE);
+  loadTargetSuites();
   // Generate-spec toolbar actions (issue #1369): legacy
   // containerViewTestSuiteTextButtons.inc.tpl:66-70 showed the
   // btn_gen_test_suite_spec_new_window / btn_gen_test_suite_spec_word report
@@ -335,6 +348,7 @@ function renderTableView(r) {
   var rows = r.rows || [];
   $('#tvEmpty').toggle(rows.length === 0);
   $('#tvBulk').toggle(rows.length > 0 && !!CAN_MANAGE);
+  $('#tvMoveBar').toggle(rows.length > 0 && !!CAN_MANAGE);
   $('#tvCount').text('(' + rows.length + ')');
 
   // per-design-CF set inputs (addCheck pattern from legacy html_table_inputs)
@@ -503,6 +517,143 @@ function openSuiteImport(deep) {
     '&tproject_id=' + TPROJECT_ID;
   if (deep) url += '&useRecursion=1';
   window.open(url, '_blank', 'width=900,height=780,resizable=yes,scrollbars=yes');
+}
+
+function loadTargetSuites() {
+  // Move/Copy target picker — mirrors legacy gen_combo_test_suites
+  // (containerMoveTC.tpl). Loaded once per render; current suite excluded.
+  if (!$('#tvTargetSuite').length || $('#tvTargetSuite').data('loaded')) return;
+  $.getJSON(API + '?action=suites&tproject_id=' + TPROJECT_ID, function(r) {
+    if (r.status !== 'ok') return;
+    var opts = '<option value="0">-- ' + escapeHtml(TLi18n.t('suvw.selTarget')) + ' --</option>';
+    $.each(r.suites, function(i, s) {
+      if (s.id === SUITE_ID) return;
+      opts += '<option value="' + s.id + '">' + escapeHtml(s.path) + '</option>';
+    });
+    $('#tvTargetSuite').html(opts).data('loaded', 1);
+  });
+}
+
+function openCreateTc() {
+  // Legacy create_tc button posted tcEdit.php doAction=create&containerID=<suite>
+  // (containerViewTestSuiteTextButtons.inc.tpl:97) -> tcNew.tpl create form.
+  // Modern: open testSpec.html pre-targeted at this suite, auto-opening the
+  // create-tc form (testSpec auto-select by containerID).
+  var url = SPEC_URL + TPROJECT_ID + '&containerID=' + SUITE_ID + '&create=1';
+  window.open(url, '_blank', 'width=1280,height=860,resizable=yes,scrollbars=yes');
+}
+
+function openFromIssue() {
+  // Legacy create_tc_from_issue_xml span navigated to the modern
+  // tcCreateFromIssues.html (containerView.tpl:63-64).
+  var url = '/gui/templates/testcases/tcCreateFromIssues.html?containerID=' +
+    SUITE_ID + '&tproject_id=' + TPROJECT_ID;
+  window.open(url, '_blank', 'width=900,height=780,resizable=yes,scrollbars=yes');
+}
+
+function reorderTc() {
+  // Legacy reorder_testcases -> reorderTestCasesByCriteria (containerEdit.php:322).
+  if (!confirm(TLi18n.t('suvw.reorderConfirm'))) return;
+  $('#reorderTcBtn').prop('disabled', true);
+  $.ajax({
+    url: API + '?action=reorder_testcases', method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ id: SUITE_ID, tproject_id: TPROJECT_ID, by: '' })
+  }).done(function(res) {
+    $('#reorderTcBtn').prop('disabled', false);
+    if (res.status !== 'ok') { showToast(TLi18n.t('suvw.opError') + ': ' + (res.message || ''), true); return; }
+    showToast(TLi18n.t('suvw.reorderDone'), false);
+    loadView();
+  }).fail(function(xhr) {
+    $('#reorderTcBtn').prop('disabled', false);
+    var msg = TLi18n.t('suvw.opError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    showToast(msg, true);
+  });
+}
+
+function tvSelectedRows() {
+  var sel = [];
+  $('#tvTable tbody .tvRow:checked').each(function() {
+    sel.push({ tcversion_id: parseInt($(this).data('tcversion'), 10), tcase_id: parseInt($(this).data('tcase'), 10) });
+  });
+  return sel;
+}
+
+function tvMove(isCopy) {
+  // Legacy do_move_tcase_set / do_copy_tcase_set on containerEdit.php — moves
+  // or copies the SELECTED test cases to the chosen target suite.
+  var sel = tvSelectedRows();
+  if (!sel.length) { $('#tvSaved').text(TLi18n.t('suvw.tblSelectOne')).css('color', '#b94a48'); return; }
+  var target = parseInt($('#tvTargetSuite').val() || 0, 10);
+  if (target <= 0) { $('#tvSaved').text(TLi18n.t('suvw.selTarget')).css('color', '#b94a48'); return; }
+  var key = isCopy ? 'suvw.copyConfirm' : 'suvw.moveConfirm';
+  if (!confirm(TLi18n.t(key, { count: sel.length }))) return;
+  var tcase_ids = $.map(sel, function(r) { return r.tcase_id; });
+  $('#tvSaved').text(TLi18n.t('common.loading')).css('color', '#999');
+  $.ajax({
+    url: API + '?action=' + (isCopy ? 'copy_testcases' : 'move_testcases'),
+    method: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ id: SUITE_ID, tproject_id: TPROJECT_ID,
+      tcase_ids: tcase_ids, target_id: target })
+  }).done(function(res) {
+    if (res.status !== 'ok') {
+      $('#tvSaved').text(res.message || TLi18n.t('suvw.opError')).css('color', '#b94a48');
+      return;
+    }
+    $('#tvSaved').text(isCopy ? TLi18n.t('suvw.copied', {count: sel.length}) : TLi18n.t('suvw.moved', {count: sel.length})).css('color', '#1a7f79');
+    $('#tvTable tbody .tvRow').prop('checked', false);
+    $('#tvSelAll').prop('checked', false);
+    TV_LOADED = false;
+    tvLoadData();
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('suvw.opError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    $('#tvSaved').text(msg).css('color', '#b94a48');
+  });
+}
+
+function tvDeleteSelected() {
+  // Legacy do_delete_testcases (containerEdit.php:314-320) -> tcaseMgr->delete.
+  var sel = tvSelectedRows();
+  if (!sel.length) { $('#tvSaved').text(TLi18n.t('suvw.tblSelectOne')).css('color', '#b94a48'); return; }
+  if (!confirm(TLi18n.t('suvw.deleteConfirm', { count: sel.length }))) return;
+  var tcase_ids = $.map(sel, function(r) { return r.tcase_id; });
+  $('#tvSaved').text(TLi18n.t('common.loading')).css('color', '#999');
+  $.ajax({
+    url: API + '?action=delete_testcases', method: 'POST', contentType: 'application/json',
+    data: JSON.stringify({ id: SUITE_ID, tproject_id: TPROJECT_ID, tcase_ids: tcase_ids })
+  }).done(function(res) {
+    if (res.status !== 'ok') {
+      $('#tvSaved').text(res.message || TLi18n.t('suvw.opError')).css('color', '#b94a48');
+      return;
+    }
+    $('#tvSaved').text(TLi18n.t('suvw.deleted', { count: sel.length })).css('color', '#1a7f79');
+    $('#tvTable tbody .tvRow').prop('checked', false);
+    $('#tvSelAll').prop('checked', false);
+    TV_LOADED = false;
+    tvLoadData();
+    loadView();
+  }).fail(function(xhr) {
+    var msg = TLi18n.t('suvw.opError');
+    try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e) {}
+    $('#tvSaved').text(msg).css('color', '#b94a48');
+  });
+}
+
+function tvLoadData() {
+  if (TV_ACTIVE) loadTableView();
+}
+
+function showToast(msg, isError) {
+  var t = $('#toastBox');
+  if (!t.length) {
+    t = $('<div id="toastBox" style="position:fixed;top:14px;right:14px;z-index:9999;padding:10px 18px;border-radius:5px;color:#fff;font-size:13px;box-shadow:0 2px 8px rgba(0,0,0,.25);max-width:420px;"></div>');
+    $('body').append(t);
+  }
+  t.text(msg).css('background', isError ? '#b94a48' : '#1a7f79').fadeIn(150);
+  clearTimeout(t.data('tmr'));
+  t.data('tmr', setTimeout(function() { t.fadeOut(400); }, 4000));
 }
 
 function showError(msg) {

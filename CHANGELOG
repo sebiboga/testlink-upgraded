@@ -239,9 +239,23 @@ Test Spec:
   for type=testspec&level=testsuite with all 9 print options =y (modern
   equivalent of legacy allOptionsOn=1, containerViewTestSuiteTextButtons.inc.tpl
   report/report_word); scope = the suite + nested sub-suites; gated on
-  testplan_metrics via new BFF info field can_print (legacy checkRights()
-  parity, 403 server-side); suvw.genSpecHtml / suvw.genSpecWord keys in all 10
-  bundles (Refs #1369).
+   testplan_metrics via new BFF info field can_print (legacy checkRights()
+   parity, 403 server-side); suvw.genSpecHtml / suvw.genSpecWord keys in all 10
+   bundles (Refs #1369).
+- Test Suite viewer test-case management (suiteView.html): toolbar "+ Create
+  Test Case" (deep-links testSpec.html?containerID&create=1, auto-selects the
+  suite + opens the create form - legacy create_tc/tcEdit.php doAction=create),
+  "Reorder Test Cases" (BFF reorder_testcases honouring
+  $tlCfg->testcase_reorder_by EXTERNAL_ID/NAME natsort - legacy
+  reorderTestCasesViewer) and "Create from Issue XML"
+  (tcCreateFromIssues.html?containerID&tproject_id); table-view
+  "Move/Copy/Delete selected" bulk bar (BFF move_testcases/copy_testcases deep
+  copy + delete_testcases with executed-TC gate - legacy do_move_tcase_set /
+  do_copy_tcase_set / do_delete_testcases); new BFF suites endpoint for the
+  target picker excluding the current suite; all gated on mgt_modify_tc
+  (can_manage), 17 suvw.* keys in all 10 bundles (Refs #1368). Also fixed a
+  pre-existing `TV_TABLE` ReferenceError that aborted renderTableView() before
+  DataTable init (Refs #1527).
 - Assign Keywords (keywordsAssign.html) - BFF api/keywords.
 - Test Case Bulk Update (tcBulkOp).
 - Test Automation Specification (results/testAutomationSpec.html) - BFF

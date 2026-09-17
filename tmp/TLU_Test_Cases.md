@@ -15875,26 +15875,35 @@ and the tplan-roles route is equally gated. Verified end-to-end via curl matrix 
 
 ---
 
-## Regression — Issue #1526: SQL injection-class in tree.class.php getBottomOrder() (parent_id=WLK Suite)
+## Task — Issue #1368: Test case management operations in suiteView (create, move/copy, delete, reorder, create-from-issue-XML)
 
-**Precondition**: PHP CLI + live MariaDB at 127.0.0.1:3306 (db `testlink`, user `testlink`). App classes load via `config.inc.php` + `lib/functions/common.php`. Fresh DB.
-
-**Repro steps (pre-fix)**:
-1. `$tree = new tree($db); $tree->getBottomOrder('WLK Suite');`
-2. Function builds `SELECT MAX(node_order) AS max_order FROM nodes_hierarchy WHERE parent_id=WLK Suite GROUP BY parent_id` (tree.class.php:727).
-3. MariaDB returns error 1064 `...near 'Suite GROUP BY parent_id'`; `exec_query()` logs it to `events` (log_level ERROR) and terminates/throws.
-4. **Expected post-fix**: `getBottomOrder('WLK Suite')` returns `int(0)` (safe default); no SQL error; no event row.
+Suite for task `#1368` — porting the legacy Test-Suite-Viewer test-case management
+operations into the modern `gui/templates/testcases/suiteView.html` + BFF
+`api/suiteview/index.php`. Legacy refs: `containerViewTestSuiteTextButtons.inc.tpl:88-134`
+(create_tc / reorder_testcases / create_tc_from_issue_xml), `containerEdit.php`
+(`do_move_tcase_set`/`do_copy_tcase_set`/`do_delete_testcases`/`reorderTestCasesByCriteria`).
+Fixtures (fresh DB, created via SQL): tproject 1001 `Demo Project`, suites 1010
+`Suite Alpha`, 1011 `Suite Beta`, 1012 `Sub Suite`; tcases 1101 Zulu / 1102 Alpha /
+1103 Mambo (in 1010), 1111 Beta One (1011), 1121 Gamma One (1012). Login admin/admin.
 
 | # | Test | Expected | Result |
 |---|---|---|---|
-| 1 | `getBottomOrder('WLK Suite')` (non-numeric string) | `int(0)`, no SQL error | PASS |
-| 2 | `getBottomOrder('abc123')` (numeric-leading string) | `int(0)`, no SQL error | PASS |
-| 3 | `getBottomOrder(0)` / `getBottomOrder(999)` (no rows) | `int(0)` | PASS |
-| 4 | Create test project + 2 test suites; `getBottomOrder(projectId)` | returns `2` (MAX node_order) | PASS |
-| 5 | `testsuite::create()` ordering path (testsuite.class.php:146) | suites get distinct node_order 1,2 | PASS |
-| 6 | Create 2 testcases; `change_child_order($suite,$tc,'bottom')` (tree.class.php:701) | completes; bottom-move assigns the moved testcase `getBottomOrder+1` (=1) | PASS |
-| 7 | BFF browser flow: create project → `suite_create` → `create` (testcase) | 200 ok for all three; suite node_order=1 | PASS |
-| 8 | `events` table after fixes | no new Error rows; only INFO/audit | PASS |
-| 9 | `php -l lib/functions/tree.class.php` | No syntax errors | PASS |
+| 1 | Open `suiteView.html?id=1010&tproject_id=1001` as admin | Toolbar shows `+ Create Test Case`, `Reorder Test Cases`, `Create from Issue XML` (all visible to `CAN_MANAGE`) | PASS |
+| 2 | Click `Reorder Test Cases` (confirm accepted) | POST `reorder_testcases` OK; node_order re-sorted by configured `$tlCfg->testcase_reorder_by='EXTERNAL_ID'` (config.inc.php:893): Zulu→0, Alpha→1, Mambo→2 | PASS |
+| 3 | Browser fetch POST `reorder_testcases` `{"by":"name"}` | `{"status":"ok","by":"name"}`; node_order becomes Alpha→0, Mambo→1, Zulu→2 (dictionary/natsort path matches legacy `reorderTestCasesViewer`) | PASS |
+| 4 | Click `Table view` | DataTable initializes; `MOVE/COPY SELECTED TO:` picker lists all suites of the project **except** the current one (Sub Suite, Suite Beta); `Move`/`Copy`/`Delete` buttons shown | PASS |
+| 5 | Select `Alpha Test` row → target `Suite Beta` → `Copy` | Confirm accepted; POST `copy_testcases` creates a DEEP copy: new testcase node 1222 under 1011 + version node 1223 (tcversions ext-id 6, summary copied); source 1102 still in 1010 | PASS |
+| 6 | Select `Mambo Test` row → target `Suite Beta` → `Move` | POST `move_testcases` reparents 1103 from 1010 to 1011; node no longer under 1010 | PASS |
+| 7 | Select `Zulu Test` row → `Delete` | Confirm accepted; POST `delete_testcases` removes tcase node 1101 + version node 1201 from `nodes_hierarchy` | PASS |
+| 8 | Click `+ Create Test Case` | Opens `testSpec.html?tproject_id=1001&containerID=1010&create=1`; suite auto-selected and create form auto-opened | PASS |
+| 9 | In the opened create form, name `Created Via DeepLink` → Save | New testcase node 1224 created under Suite Alpha (1010) | PASS |
+| 10 | Click `Create from Issue XML` | Opens `tcCreateFromIssues.html?containerID=1010&tproject_id=1001`; page renders target container `Suite Alpha`, no console errors | PASS |
+| 11 | `php -l api/suiteview/index.php` + `node --check` (extracted JS of suiteView/testSpec) + `python3 -m json.tool` all 10 bundles | no syntax errors; all bundles valid JSON | PASS |
 
-Result: **PASS — 9/9 PASS** — `parentID` is now int-cast at function entry (`$parentID = intval($parentID)`), eliminating both the SQL-error class and the injection vector for non-numeric input while preserving identical behaviour for legitimate numeric IDs.
+Result: **PASS — 11/11 PASS** — all five legacy test-case management operations are
+available from the modern suiteView (toolbar create/reorder/create-from-issue + table-view
+move/copy/delete), the create deep-link auto-opens the testSpec create form pre-targeted at
+the suite, and the reorder honours the legacy external-id/name criteria. During testing a
+pre-existing bug was found and fixed: `TV_TABLE` was referenced but never declared in
+suiteView.html, aborting `renderTableView()` before DataTable init (filed as issue #1527).
+
