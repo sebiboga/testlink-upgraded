@@ -15948,3 +15948,55 @@ keys (2 log_level=32 "not localized" WARNING rows fired on EVERY import) and the
 Result: **PASS — 20/20 PASS** — screen re-recorded and re-verified; the #1504/#1505
 regressions from the #1487 guts found + fixed (class misspelled keys + null-version deref),
 locale keys restored in 16 bundles, Event Viewer clean afterwards. Refs #1503, #1528.
+
+## Issue #1367 — Test-suite management operations in suiteView
+
+**Precondition:** Test project "SuiteOps Demo" (prefix SOD) exists with at least one test suite (Zulu Root) containing child suites. Admin (mgt_modify_tc) and viewer (mgt_view_tc only, no mgt_modify_tc) sessions.
+
+**Test 1 — New Sub-Suite (admin)**
+1. Login as admin, navigate to suiteView.html?id=2&tproject_id=1 (Zulu Root).
+2. Click "New Sub-Suite". Enter name "Echo Zephyr", details "Created via modal". Click Save.
+- **Expected:** Toast "Test suite created", view tracks to new suite; CHILD TEST SUITES count increases by 1.
+- **Actual:** PASS — suite #8 created, details persisted, focus tracks.
+
+**Test 2 — Edit Suite (admin)**
+1. On suite 8 view, click "Edit Suite". Name prefilled, details prefilled. Rename to "Echo Alpha". Click Save.
+- **Expected:** Toast "Test suite updated", name changed in IDENTIFIER row.
+- **Actual:** PASS — name changed, details persisted.
+
+**Test 3 — Move Suite (admin)**
+1. Move/Copy on suite 8 → Move radio, target "Zulu Root", position "Top". Click Execute.
+- **Expected:** Toast "Test suite moved", children of 2 reordered (Echo Alpha now first).
+- **Actual:** PASS — DB confirmed node_order: Echo Alpha(0) Alpha(1) Bahama(2) Charlie(3).
+
+**Test 4 — Reorder Suites A-Z (admin)**
+1. Click "Reorder Suites (A-Z)". Confirm modal "Reorder the direct child test suites alphabetically?". Click OK.
+- **Expected:** Toast "Child test suites reordered", children sorted Alpha, Bahama, Charlie, Echo Alpha.
+- **Actual:** PASS — DB confirmed node_order: Alpha(0) Bahama(1) Charlie(2) Echo Alpha(3).
+
+**Test 5 — Copy Suite (admin)**
+1. Navigate to suite 4 (Alpha). Move/Copy → Copy radio, target "Top level of SuiteOps Demo", copy keywords ✓, copy requirements ✓. Execute.
+- **Expected:** Toast "Test suite copied", new suite created at project root.
+- **Actual:** PASS — suite #9 created at project root with correct details.
+
+**Test 6 — Delete Suite (admin)**
+1. On suite 9 view, click "Delete Suite". Confirm modal "Delete test suite "Alpha"...". Click Delete.
+- **Expected:** Toast "Test suite deleted", redirect to testSpec.html; suite 9 removed from DB.
+- **Actual:** PASS — suite 9 gone from nodes_hierarchy and testsuites.
+
+**Test 7 — Direct Link (admin)**
+1. Click "Direct link". Direct-link bar shows URL. Click Copy.
+- **Expected:** URL matches `linkto.php?tprojectPrefix=SOD&item=testsuite&id=2`, toast "Direct link copied to clipboard".
+- **Actual:** PASS — correct URL shown, link opens in new tab resolving to legacy archive page.
+
+**Test 8 — Validation: empty name (admin)**
+1. New Sub-Suite, leave name empty, click Save.
+- **Expected:** Toast "Please enter a suite name", modal stays open.
+- **Actual:** PASS — validation error shown, no API call.
+
+**Test 9 — Viewer gating (viewer role, mgt_view_tc only)**
+1. Login as viewer (tester role), navigate to suiteView.html?id=2&tproject_id=1.
+- **Expected:** New Sub-Suite, Edit Suite, Move/Copy, Delete Suite, Reorder Suites buttons ALL hidden. Direct link visible.
+- **Actual:** PASS — none of the 5 management buttons visible; Direct link visible. Server-side 403 enforced on POST.
+
+**Result: 9/9 PASS**
