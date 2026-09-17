@@ -15642,3 +15642,45 @@ Modern screen: `gui/templates/testcases/suiteView.html` (BFF `api/suiteview`, po
 | 4 | Check `can_manage` in toolbar render | `can_manage===true`; buttons only rendered for mgt_modify_tc holders (viewer, role mgt_view_tc only, gets none) | PASS |
 | 5 | Refresh console | No JS errors; DataTables re-init after refresh clean | PASS |
 | 6 | `events` table after clicks | No new Error/Warning | PASS |
+
+## Issue #1522 — Copy & Execute Task Assignment (admin, MQA Project id=1)
+
+Modern screen: `gui/templates/plans/execTaskCopy.html` (BFF `api/execassignmentcopy/index.php`),
+reached from the Execution Dashboard toolbar button **Copy Task Assignment**
+(`execDashboard.html?build_id=2`). Legacy: `lib/plan/buildCopyExecTaskAssignment.php`
+(broken on the upgraded project-scoped-builds schema — it called
+`get_builds_for_html_options(0)`, resolved project 0 and always returned an empty
+source list). Fixtures: tproject 1 `MQA Project`, tplan 19 `MQA Plan`, builds
+1 `MQA Build 1` (3 tester assignments), 2 `MQA Build 2` (target), 3 `MQA Build 3`
+(0 assignments). BFF matrix driven with curl against a logged-in admin session;
+rights matrix with `viewer9822` (role 7 tester, no `testplan_planning`).
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `GET /api/execassignmentcopy/init?build_id=2` | 200; target build 2 `assignments:3 is_open:1`, project 1 `MQA Project`, sources [3 (0), 1 (3)] newest-first, `selected_source_id:1`, `can_copy:true` | PASS |
+| 2 | `init` default source selection | Source select defaults to the newest source that HAS assignments (build 1), not the empty newest build 3 | PASS |
+| 3 | `GET /init?build_id=99999` | 404 JSON `Invalid Build ID` (was wrongly 200 before the `out()` status-code fix) | PASS |
+| 4 | `GET /init` (no `build_id`) | 400 JSON `build_id is required` | PASS |
+| 5 | `GET /init?build_id=abc` | 400 JSON `build_id is required` | PASS |
+| 6 | `POST /copy {build_id:2,source_build_id:1}` | 200; `copied:3`; target assignments 3; DB `user_assignments` build 2 = 3 rows type `testcase_execution` | PASS |
+| 7 | Re-run `POST /copy` (idempotent) | 200; target still 3 rows (delete+copy, no duplicates) | PASS |
+| 8 | `POST /copy {build_id:2,source_build_id:2}` | 400 `Source and target build must differ` | PASS |
+| 9 | `POST /copy {build_id:2,source_build_id:3}` (source empty) | 400 `Source build has no tester assignments` | PASS |
+| 10 | `POST /copy` without `X-Requested-With` | 403 same-origin CSRF guard | PASS |
+| 11 | `GET /init` anonymous | 401 `Not authenticated` | PASS |
+| 12 | Unknown route `/api/execassignmentcopy/nope` | 404 `Unknown route` | PASS |
+| 13 | `init` + `copy` as `viewer9822` (role 7) | 403 `Insufficient rights` on BOTH routes | PASS |
+| 14 | Load `execTaskCopy.html?build_id=2` | Target card `MQA Build 2` (Open, 3 tester assignments), source select with `(assignments: N)` labels (default `MQA Build 1`), Back → `execDashboard.html?build_id=2` | PASS |
+| 15 | Select a source with 0 assignments + Copy | `etc.noAssignments` toast, NO confirm modal, no POST sent | PASS |
+| 16 | Select `MQA Build 1` + Copy | Localized confirm modal: `All tester assignments of build "MQA Build 2" will be deleted and replaced with the 3 assignments of build "MQA Build 1". Continue?` | PASS |
+| 17 | Confirm → Yes | Success toast + banner `Tester assignments copied from "MQA Build 1" to "MQA Build 2" (3 assignments).`; Result panel visible and stays visible; target count 3; source label clean (no `(assignments: N)` suffix) | PASS |
+| 18 | Execution Dashboard `?tplan_id=19&build_id=2` toolbar | `Copy Task Assignment` button present → navigates to `execTaskCopy.html?build_id=2` | PASS |
+| 19 | Screen Refresh (`loadInit()`) after changing source | Re-runs init and re-selects the default source (`MQA Build 1`) | PASS |
+| 20 | `?locale=ro` | Title `Copiere și executare atribuiri`, `Copiază atribuirile de testeri din`, `Build sursă`, `Copiază atribuirile` | PASS |
+| 21 | Console after full walk | No JS errors | PASS |
+| 22 | `events` table after browser + curl flows | No new Error/Warning (only pre-existing fixture rows + AUDIT=16 `audit_login_succeeded` rows 22–25) | PASS |
+
+Result: **PASS — 22/22 PASS** — the legacy `buildCopyExecTaskAssignment` (broken by
+the project-scoped builds schema) is restored as a modern screen; rights, CSRF and
+the full 400/401/403/404 contract are enforced on both routes, the copy is
+idempotent (delete + copy), and the Result panel persists after the refresh.

@@ -184,12 +184,17 @@ function buildBackLink() {
   $('#btnBack').attr('href', href);
 }
 
-function populateSources(list) {
+function populateSources(list, selectedId) {
   var $sel = $('#sourceBuild').empty();
+  var hasSelected = list.some(function (s) {
+    return String(s.id) === String(selectedId);
+  });
   list.forEach(function (s, idx) {
     $('<option>').val(s.id)
-      .text(esc(s.name) + ' (assignments: ' + s.assignments + ')')
-      .prop('selected', idx === 0)
+      .text(s.name + ' (assignments: ' + s.assignments + ')')
+      .prop('selected', hasSelected
+        ? String(s.id) === String(selectedId)
+        : idx === 0)
       .appendTo($sel);
   });
 }
@@ -227,9 +232,9 @@ function loadInit() {
 function render() {
   var t = state.target || {};
   var p = state.project || {};
-  $('#tprojectName').text(esc(p.name || '-'));
+  $('#tprojectName').text(p.name || '-');
   $('#targetName').html(esc(t.name || '-'));
-  $('#targetRelease').text(esc(t.release_date || '-'));
+  $('#targetRelease').text(t.release_date || '-');
   $('#targetCount').text(String(t.assignments));
   $('#infoLine').html('<i class="fa fa-cube"></i> ' + esc(t.name || ''));
   $('#panelResult').hide();
@@ -239,7 +244,7 @@ function render() {
     .addClass('chip ' + (open ? 'open' : 'closed'))
     .text(open ? TLi18n.t('etc.statusOpen') : TLi18n.t('etc.statusClosed')));
 
-  populateSources(state.sources || []);
+  populateSources(state.sources || [], state.selected_source_id);
   $('#noSourceMsg').toggle(!state.can_copy);
   $('#btnCopy').prop('disabled', !state.can_copy);
 }

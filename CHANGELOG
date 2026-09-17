@@ -264,6 +264,13 @@ Plans:
 Execution:
 - Execution Dashboard (execDashboard.html) - BFF api/execdashboard (#1496/#1499);
   Execute menu link switch + ASIDE entry restored after the #1487 guts (#1511).
+- Copy & Execute Task Assignment (execTaskCopy.html) - BFF api/execassignmentcopy
+  (#1522): copies tester assignments from a source build to the target build of
+  the same test project, replacing the target's current assignments. Modernizes
+  lib/plan/buildCopyExecTaskAssignment.php, which was broken on the upgraded
+  schema (resolved project 0 -> always empty source list). Sources resolved via
+  the target build's testproject_id; testplan_planning gate; confirm modal +
+  Result panel; entry button added to the Execution Dashboard toolbar.
 - Execute Tests (execTest.html, execSetResults.html) - BFF api/execute +
   api/execsetresults (#662, #789-#796, #817, #1392-#1405, #1402).
 - Execution History (execHistory.html) - BFF api/execute.

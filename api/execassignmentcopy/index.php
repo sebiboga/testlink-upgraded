@@ -88,8 +88,7 @@ function canManage(&$user, &$db, $tprojectId) {
 }
 
 function deny() {
-    http_response_code(403);
-    out(['status' => 'error', 'message' => 'Insufficient rights']);
+    out(['status' => 'error', 'message' => 'Insufficient rights'], 403);
 }
 
 /** Resolve the target build + its owning test project (project-scoped). */
@@ -97,13 +96,12 @@ function resolveTargetBuild(&$db, $buildId) {
     $buildMgr = new build($db);
     $b = $buildMgr->get_by_id($buildId);
     if (!$b) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Invalid Build ID']);
+        out(['status' => 'error', 'message' => 'Invalid Build ID'], 404);
     }
     $tprojectId = intval($b['testproject_id'] ?? 0);
     if ($tprojectId <= 0) {
-        http_response_code(404);
-        out(['status' => 'error', 'message' => 'Build has no owning test project']);
+        out(['status' => 'error', 'message' => 'Build has no owning test project'],
+            404);
     }
     return ['build' => $b, 'tproject_id' => $tprojectId];
 }
@@ -161,8 +159,16 @@ if ($method === 'GET' && count($segments) === 1 && $segments[0] === 'init') {
     $sources = listSourceBuilds($db, $target['tproject_id'], $buildId,
         $assignmentMgr);
 
-    // legacy: default the source selector to the newest build
-    $selected = count($sources) > 0 ? intval($sources[0]['id']) : 0;
+    // legacy: default the source selector to the newest build that actually
+    // has tester assignments (falls back to the newest build when none do)
+    $selected = 0;
+    foreach ($sources as $s) {
+        if ($selected === 0) { $selected = intval($s['id']); }
+        if (intval($s['assignments']) > 0) {
+            $selected = intval($s['id']);
+            break;
+        }
+    }
 
     out(['status' => 'ok', 'data' => [
         'target' => [
