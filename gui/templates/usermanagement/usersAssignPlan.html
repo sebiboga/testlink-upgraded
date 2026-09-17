@@ -30,6 +30,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .changed { background: #fff3cd !important; }
 .changed-badge { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-left: 6px; }
 .inherited-col { font-size: 12px; color: #666; }
+.assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
 </style>
 </head>
@@ -154,12 +155,17 @@ function loadUsers(pid, planId) {
         var sel = u.roleID == role.id ? ' selected' : '';
         opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
       });
+      // Legacy parity: usersAssign.tpl:244-247 + :275-277 (shared by testplan
+      // contexts) - global-admin rows render a disabled select plus the
+      // "Global Admin can not be changed" hint (issue #927).
+      var disabled = u.isAdmin ? ' disabled' : '';
+      var hint = u.isAdmin ? ' <i class="fa fa-info-circle inherited-col" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>' : '';
       html += '<tr data-uid="' + esc(u.id) + '">' +
         '<td>' + (i + 1) + '</td>' +
         '<td>' + esc(u.login) + '</td>' +
         '<td>' + esc(u.name) + '</td>' +
         '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
-        '<td><select onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select></td>' +
+        '<td><select' + disabled + ' onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
       '</tr>';
     });
     if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
@@ -183,8 +189,12 @@ function onRoleChange(sel, uid, origRoleId) {
 function saveAssignments() {
   var assignments = {};
   $('#assignBody tr').each(function() {
+    var sel = $(this).find('select');
+    // Legacy parity: usersAssign.tpl:244-247 - global-admin rows render a
+    // disabled select the browser never submits (issue #927). Skip them.
+    if (sel.prop('disabled')) return;
     var uid = $(this).data('uid');
-    var roleVal = parseInt($(this).find('select').val());
+    var roleVal = parseInt(sel.val());
     if (uid) assignments[uid] = roleVal;
   });
   $.ajax({

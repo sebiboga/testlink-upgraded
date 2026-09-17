@@ -221,8 +221,13 @@ function updateSaveBtn() {
 function saveAssignments() {
   var assignments = {};
   $('#assignBody tr').each(function() {
+    var sel = $(this).find('select');
+    // Legacy parity: usersAssign.tpl:244-247 renders global-admin rows with a
+    // disabled select, which the browser never submits (issue #927). Skip them
+    // so a locked admin's project role can never be written or erased by Save.
+    if (sel.prop('disabled')) return;
     var uid = $(this).data('uid');
-    var roleVal = parseInt($(this).find('select').val());
+    var roleVal = parseInt(sel.val());
     if (uid) assignments[uid] = roleVal;
   });
   $.ajax({

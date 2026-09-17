@@ -288,6 +288,29 @@ function getAllRights($db) {
     return $db->get_recordset($sql);
 }
 
+// Legacy parity: usersAssign.tpl:244-247 renders global-admin rows with a
+// disabled select that the browser never submits (issue #927) - a global
+// admin's project/plan role is locked on these screens. First normalize the
+// assignment keys to canonical ints (so malformed JSON keys like " 1" cannot
+// dodge the strip), then remove active global-admin ids from the map so
+// neither a crafted API call nor a stale client payload can change or erase
+// an admin's role. Returns the number of remaining assignments.
+function stripGlobalAdminAssignments(&$db, &$assignments) {
+    $normalized = [];
+    foreach ($assignments as $uid => $rid) {
+        $normalized[intval($uid)] = $rid;
+    }
+    $assignments = $normalized;
+    $tables = tlObject::getDBTables('users');
+    $adminRows = $db->get_recordset("SELECT id FROM {$tables['users']} WHERE role_id = " . TL_ROLES_ADMIN);
+    if ($adminRows) {
+        foreach ($adminRows as $ar) {
+            unset($assignments[intval($ar['id'])]);
+        }
+    }
+    return count($assignments);
+}
+
 // Route: GET /roles - list all roles
 if ($method === 'GET' && empty($segments)) {
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_FULL);
@@ -586,6 +609,12 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles
         out(['status' => 'ok']);
     }
 
+    // Legacy parity: usersAssign.tpl:244-247 - a global admin's project role is
+    // locked on this screen (issue #927); strip admin ids (and canonicalize keys).
+    if (stripGlobalAdminAssignments($db, $assignments) === 0) {
+        out(['status' => 'ok']);
+    }
+
     $tprojectMgr = new testproject($db);
     $userIds = array_map('intval', array_keys($assignments));
     $tprojectMgr->deleteUserRoles($tproject_id, $userIds);
@@ -659,6 +688,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
                     'roleID' => $assignedRoleId,
                     'inheritedRoleID' => $inheritedRoleId,
                     'inheritedRoleName' => $inheritedRoleName,
+                    // Legacy parity: usersAssign.tpl:244-247 (same template used
+                    // for test plan contexts) locks global-admin selects (issue #927).
+                    'isAdmin' => intval($u->globalRoleID) == TL_ROLES_ADMIN,
                 ];
             }
         }
@@ -689,6 +721,12 @@ if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') 
     // no-op. Short-circuit before any manager call so no delete query is built
     // for an empty user list and no misleading audit event is written.
     if (count($assignments) === 0) {
+        out(['status' => 'ok']);
+    }
+
+    // Legacy parity: usersAssign.tpl:244-247 (shared by testplan contexts) - a
+    // global admin's plan-role override is locked (issue #927); strip admin ids.
+    if (stripGlobalAdminAssignments($db, $assignments) === 0) {
         out(['status' => 'ok']);
     }
 

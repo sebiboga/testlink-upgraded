@@ -16170,3 +16170,35 @@ Before the fix, `window.alert` was instrumented before navigation. On **both** s
 - **Actual:** PASS — only audit INFO rows (login/create/assign) + that 1 fixture-induced LOCALIZATION warning; nothing caused by the escaping change.
 
 **Result: 7/7 PASS** — both screens render every DB-sourced name as inert text, all four alert vectors (project 3, plan 4, user 5, role/inherited 6) neutralized, save/normal/tab flows unchanged, no new Event Viewer errors (Fixes #1530).
+## Task — Issue #927: Disable role select for global-admin users in Assign Test Project Roles (and Test Plan Roles)
+
+Suite for task `#927` — porting the legacy global-admin role lock
+(`gui/templates/dashio/usermanagement/usersAssign.tpl:244-248,275-277`) into the
+modern `usersAssignProject.html` / `usersAssignPlan.html` screens:
+admin rows render a disabled role select + localized hint, and admin ids are never
+submitted by Save (client) nor accepted by the BFF PUT routes (server).
+
+**Precondition:** fresh DB (`tmp/fixtures_927.php` — created for this run) with
+- user `admin` (id 1, global role 8 = admin),
+- user `tester927` (id 2, global role 9 = leader),
+- testproject `CATALOG` (public, active) and testplan `CATALOG-R1`.
+Run `php tmp/fixtures_927.php` before executing; the script is re-runnable
+(it deletes and recreates the project/plan).
+
+| # | Test | Steps | Expected | Actual |
+|---|------|-------|----------|--------|
+| 1 | BFF flags admins (tproject) | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=<CATALOG>` (admin session) | user 1 `isAdmin=true`; user 2 `isAdmin=false` | PASS |
+| 2 | BFF flags admins (tplan) | `GET /api/roles/index.php/meta/tplan-roles?tproject_id=&tplan_id=<R1>` | user 1 `isAdmin=true`; user 2 `isAdmin=false` | PASS |
+| 3 | Project screen — admin select disabled + hint | Open `usersAssignProject.html`, select CATALOG | admin row select `disabled`, value `<inherited> admin`, info hint icon with title "Administrator role is locked and cannot be changed"; tester927 select enabled | PASS |
+| 4 | Project Save excludes locked admin | Change tester927 → tester, Save | PUT body `{"tproject_id":<id>,"assignments":{"2":7}}` (no `"1"` key); DB row `(user 2, role 7)`; admin unchanged | PASS |
+| 5 | Crafted PUT cannot hijack admin (tproject) | Direct `PUT /tproject-roles` `{"assignments":{"1":9,"2":4}}` | 200; admin assignment stripped server-side; only user 2 → role 4 written | PASS |
+| 6 | Plan screen — admin override select disabled + hint | Open `usersAssignPlan.html`, CATALOG → CATALOG-R1 | admin row "Plan Role Override" select `disabled` + hint; tester927 editable | PASS |
+| 7 | Plan Save excludes locked admin | Change tester927 override → tester, Save | PUT `{"tplan_id":<id>,"assignments":{"2":7}}` (no `"1"` key); DB `(user 2, role 7)` | PASS |
+| 8 | Crafted PUT cannot hijack admin (tplan) | Direct `PUT /tplan-roles` `{"assignments":{"1":9,"2":6}}` | 200; admin stripped; only user 2 → role 6 written | PASS |
+| 9 | Re-load after save keeps admin locked | After saves, reload both screens | admin select still disabled with hint on both screens | PASS |
+| 10 | JS syntax gates | `node --check` on both screen inline scripts; `php -l api/roles/index.php` | clean | PASS |
+| 11 | Event Viewer clean | `SELECT log_level FROM events` after all steps | no new Error/Warning (only AUDIT/16 rows) | PASS |
+
+**Result: 11/11 PASS** — Refs #927. Global admins are locked on both role-assignment
+screens exactly as in legacy, their rows are never written by Save, crafted API calls
+are rejected server-side, and no new Error/Warning entries were generated.

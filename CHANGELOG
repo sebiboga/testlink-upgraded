@@ -414,6 +414,16 @@ NEW FEATURES
   labels (blank reserved-system-role/`<inherited>` options fixed). i18n
   `assign.inheritedRoleOption`/`inheritedRoleHint`/`adminRoleLocked` in all 10 bundles.
   Suite "Task — Issue #926" 12/12 PASS.
+- Assign Test Project / Plan Roles — global-admin role lock completed (Refs #927):
+  `saveAssignments()` in `usersAssignProject.html` + `usersAssignPlan.html` now skips
+  disabled (global-admin) selects so a locked admin's project/plan role is never written
+  or erased by Save (mirror of the browser not submitting disabled controls in legacy
+  usersAssign.tpl:244-247), and `PUT /api/roles/tproject-roles` + `PUT /roles/tplan-roles`
+  strip active global-admin ids from the assignment map server-side (crafted direct API
+  calls can no longer change an admin's role). `GET /roles/meta/tplan-roles` now emits
+  `isAdmin` and the plan screen disables the "Plan Role Override" select for admins with
+  the localized `assign.adminRoleLocked` hint (legacy serves both contexts from the same
+  template). Suite "Task — Issue #927" all PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the
