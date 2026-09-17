@@ -16125,3 +16125,48 @@ Before the fix, on `usersAssignProject.html?tproject_id=1%22%20onclick=%22alert(
 - **Actual:** PASS — events table contains only the login-success audit log; 0 Error/Warning.
 
 **Result: 10/10 PASS** — payload URLs produce inert encoded hrefs on all 4 US screens, normal/no-param/tab-nav/project/plan flows unaffected, no console errors, no new Event Viewer entries (Fixes #1529).
+
+## Regression — Issue #1530: stored XSS via unescaped project/plan/user/role names in role-assignment screens
+
+**Precondition:** TestLink 2.0.1 @ http://localhost:8082, logged in as admin/admin. Fixtures (DB freshly imported, testprojects/nodes empty): test project "`<img src=x onerror="alert(3)">`" (id=1, prefix=XSS1530) created via `POST /api/projects/index.php`; test plan "`<img src=x onerror="alert(4)">`" (id=2) via `POST /api/plans/index.php`; user `xss1530` (id=2) with firstName `"<img src=x onerror="alert(5)">"` via `POST /api/users/index.php`; role id=100 description `'<img src=x onerror="alert(6)">'` inserted directly into `roles` + `role_rights` (role POST rejects injected names via `getDisplayName` localization, so direct insert), and assigned to user 2 in `user_testproject_roles` (project 1) to exercise the inherited-role cell. Entry points:
+`gui/templates/usermanagement/usersAssignProject.html`, `gui/templates/usermanagement/usersAssignPlan.html`.
+
+**PU — Primary symptom (reproduced pre-fix):**
+Before the fix, `window.alert` was instrumented before navigation. On **both** screens the project `<option>` was rendered raw: `optionInnerHTML` = `"<img src=\"x\" onerror=\"alert(3)\">"`, `hasImg=true`, and `window.__alerts` = `["3"]` with **zero user interaction**. Expected post-fix: escaped text, `hasImg=false`, `alerts=[]`.
+
+**Test 1 — usersAssignProject project option (primary)**
+1. Hard-reload `usersAssignProject.html` with alert instrumented; dump `#projectSelect` options and `window.__alerts`.
+- **Expected:** no alert; option shows `&lt;img src=x onerror="alert(3)"&gt;`; no `<img>` element.
+- **Actual:** PASS — `{"alerts":[],"optionInnerHTML":["-- select project --","&lt;img src=x onerror=\"alert(3)\"&gt;"],"hasImgInSelect":false,"hasImgAnywhere":false}`.
+
+**Test 2 — usersAssignPlan project option (primary)**
+1. Hard-reload `usersAssignPlan.html?tproject_id=1` with alert instrumented; dump options + alerts.
+- **Expected:** no alert; same escaped option; no `<img>`.
+- **Actual:** PASS — `{"alerts":[],"projectOptionInnerHTML":["-- select project --","&lt;img src=x onerror=\"alert(3)\"&gt;"],"hasImgInSelect":false,"hasImgAnywhere":false}`.
+
+**Test 3 — usersAssignPlan plan option + user/role/inheritedRoleName cells (full sink coverage)**
+1. On `usersAssignPlan.html?tproject_id=1`, set `#planSelect` to plan 2 and dispatch `change`; dump `#assignBody` + plan options + alerts.
+- **Expected:** plan option escaped (`alert(4)` inert); user row shows login `xss1530`, name `&lt;img src=x onerror="alert(5)"&gt; XSS`, inherited cell escaped role-100 name; role option #100 escaped; no alert, no `<img>`.
+- **Actual:** PASS — plan option `&lt;img src=x onerror="alert(4)"&gt;`; row2 `<td>&lt;img src=x onerror="alert(5)"&gt; XSS</td>`, inherited-col `&lt;LOCALIZE: img_src=x_onerror="alert(6)"&gt;`, role option #100 escaped; `alerts:[]`, `hasImg:false`.
+
+**Test 4 — Save-changes flow unaffected (usersAssignProject)**
+1. On `usersAssignProject.html?tproject_id=1`, change user 2's role to 5, observe badge/Save, click Save, wait for reload.
+- **Expected:** row gets `.changed` + badge, Save enabled, `PUT /roles/tproject-roles` succeeds, reload shows `onRoleChange(this,2,5)`.
+- **Actual:** PASS — `{"changedClass":"changed","badge":true,"saveDisabled":false}` then `onchange="onRoleChange(this,2,5)"`; no alert.
+
+**Test 5 — Normal names render without double-encoding**
+1. Inspect `option.textContent` for the injected project (decoded) and normal values like `admin`/`Testlink Administrator`.
+- **Expected:** literal `<img ...>` shown as text; normal strings unchanged (`A & B` stays `A & B`).
+- **Actual:** PASS — option `textContent` = `<img src=x onerror="alert(3)">`; user cells show `xss1530`, `Testlink Administrator` unchanged.
+
+**Test 6 — Inline JS syntax gate**
+1. Extract both inline scripts and parse with `new Function(...)` (Node).
+- **Expected:** both syntax-valid.
+- **Actual:** PASS — `OK usersAssignProject.html inline scripts: 1`, `OK usersAssignPlan.html inline scripts: 1`.
+
+**Test 7 — Event Viewer / events table**
+1. `SELECT log_level, source, description FROM events`.
+- **Expected:** no new ERROR entries from the fix. The only WARNING (`log_level=32`, LOCALIZATION "img_src=... is not localized") is produced by the injected role fixture via `getDisplayName()`, independent of the client-side fix.
+- **Actual:** PASS — only audit INFO rows (login/create/assign) + that 1 fixture-induced LOCALIZATION warning; nothing caused by the escaping change.
+
+**Result: 7/7 PASS** — both screens render every DB-sourced name as inert text, all four alert vectors (project 3, plan 4, user 5, role/inherited 6) neutralized, save/normal/tab flows unchanged, no new Event Viewer errors (Fixes #1530).
