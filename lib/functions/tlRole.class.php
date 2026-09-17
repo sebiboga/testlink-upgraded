@@ -221,7 +221,7 @@ class tlRole extends tlDBObject
     $this->description = trim($this->description);
     
     $result = tl::OK;
-    if (!sizeof($this->rights)) {
+    if (empty($this->rights)) {
       $result = self::E_EMPTYROLE;
     }
 
