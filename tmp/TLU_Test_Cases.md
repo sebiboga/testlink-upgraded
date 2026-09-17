@@ -15872,3 +15872,29 @@ exactly (`api/roles/index.php:84-94`), failures return HTTP 403 + `audit_securit
 AUTH event, authorized flows (admin, global `user_role_assignment` holders) are unaffected,
 and the tplan-roles route is equally gated. Verified end-to-end via curl matrix + browser
 (chrome-devtools) on the live 2.0.1 app; Event Viewer clean after the runs.
+
+---
+
+## Regression — Issue #1526: SQL injection-class in tree.class.php getBottomOrder() (parent_id=WLK Suite)
+
+**Precondition**: PHP CLI + live MariaDB at 127.0.0.1:3306 (db `testlink`, user `testlink`). App classes load via `config.inc.php` + `lib/functions/common.php`. Fresh DB.
+
+**Repro steps (pre-fix)**:
+1. `$tree = new tree($db); $tree->getBottomOrder('WLK Suite');`
+2. Function builds `SELECT MAX(node_order) AS max_order FROM nodes_hierarchy WHERE parent_id=WLK Suite GROUP BY parent_id` (tree.class.php:727).
+3. MariaDB returns error 1064 `...near 'Suite GROUP BY parent_id'`; `exec_query()` logs it to `events` (log_level ERROR) and terminates/throws.
+4. **Expected post-fix**: `getBottomOrder('WLK Suite')` returns `int(0)` (safe default); no SQL error; no event row.
+
+| # | Test | Expected | Result |
+|---|---|---|---|
+| 1 | `getBottomOrder('WLK Suite')` (non-numeric string) | `int(0)`, no SQL error | PASS |
+| 2 | `getBottomOrder('abc123')` (numeric-leading string) | `int(0)`, no SQL error | PASS |
+| 3 | `getBottomOrder(0)` / `getBottomOrder(999)` (no rows) | `int(0)` | PASS |
+| 4 | Create test project + 2 test suites; `getBottomOrder(projectId)` | returns `2` (MAX node_order) | PASS |
+| 5 | `testsuite::create()` ordering path (testsuite.class.php:146) | suites get distinct node_order 1,2 | PASS |
+| 6 | Create 2 testcases; `change_child_order($suite,$tc,'bottom')` (tree.class.php:701) | completes; bottom-move assigns the moved testcase `getBottomOrder+1` (=1) | PASS |
+| 7 | BFF browser flow: create project → `suite_create` → `create` (testcase) | 200 ok for all three; suite node_order=1 | PASS |
+| 8 | `events` table after fixes | no new Error rows; only INFO/audit | PASS |
+| 9 | `php -l lib/functions/tree.class.php` | No syntax errors | PASS |
+
+Result: **PASS — 9/9 PASS** — `parentID` is now int-cast at function entry (`$parentID = intval($parentID)`), eliminating both the SQL-error class and the injection vector for non-numeric input while preserving identical behaviour for legitimate numeric IDs.
