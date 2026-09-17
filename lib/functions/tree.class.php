@@ -717,7 +717,8 @@ class tree extends tlObject
   */
   function getBottomOrder($parentID,$opt=null) {
     $debugMsg='Class:' .__CLASS__ . ' - Method:' . __FUNCTION__ . ' :: ';
-    
+    $parentID = intval($parentID);
+
     $my['opt'] = [];
     $my['opt'] = array_merge(['node_type' => null],(array)$opt);
 
