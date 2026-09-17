@@ -79,6 +79,12 @@ var currentProject = null;
 var currentPlan = null;
 var roles = [];
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 TLi18n.load(function() {
   TLi18n.apply();
   TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -104,7 +110,7 @@ function loadProjects(selectedId) {
     var sel = $('#projectSelect');
     sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
     $.each(r.projects, function(i, p) {
-      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+      sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
     });
     roles = r.roles || [];
     if (selectedId) { sel.val(selectedId); loadPlans(selectedId); }
@@ -124,7 +130,7 @@ function loadPlans(pid) {
     var sel = $('#planSelect');
     sel.html('<option value="">' + TLi18n.t('assign.selectPlan') + '</option>');
     $.each(r.plans, function(i, p) {
-      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+      sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
     });
     sel.prop('disabled', false);
     $('#assignBody').empty(); $('#emptyMsg').show(); $('#saveBtn').prop('disabled', true);
@@ -146,14 +152,14 @@ function loadUsers(pid, planId) {
       var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
       $.each(roles, function(j, role) {
         var sel = u.roleID == role.id ? ' selected' : '';
-        opts += '<option value="' + role.id + '"' + sel + '>' + role.name + '</option>';
+        opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
       });
-      html += '<tr data-uid="' + u.id + '">' +
+      html += '<tr data-uid="' + esc(u.id) + '">' +
         '<td>' + (i + 1) + '</td>' +
-        '<td>' + u.login + '</td>' +
-        '<td>' + u.name + '</td>' +
-        '<td class="inherited-col">' + u.inheritedRoleName + '</td>' +
-        '<td><select onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select></td>' +
+        '<td>' + esc(u.login) + '</td>' +
+        '<td>' + esc(u.name) + '</td>' +
+        '<td class="inherited-col">' + esc(u.inheritedRoleName) + '</td>' +
+        '<td><select onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select></td>' +
       '</tr>';
     });
     if (!r.items.length) html = '<tr><td colspan="5" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';

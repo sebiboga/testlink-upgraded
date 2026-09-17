@@ -118,7 +118,7 @@ function loadProjects(selectedId) {
       sel.empty();
       sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
       $.each(r.projects, function(i, p) {
-        sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+        sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
       });
       roles = r.roles || [];
       if (!r.projects || !r.projects.length) {
@@ -176,7 +176,7 @@ function loadUsers(pid) {
       var opts = '<option value="0"' + (inherited ? ' selected' : '') + '>' + noRoleLbl + '</option>';
       $.each(roles, function(j, role) {
         var sel = (!inherited && u.effectiveRoleID == role.id) ? ' selected' : '';
-        opts += '<option value="' + role.id + '"' + sel + '>' + esc(role.name) + '</option>';
+        opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
       });
       var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';
       var disabled = u.isAdmin ? ' disabled' : '';
@@ -186,11 +186,11 @@ function loadUsers(pid) {
       } else if (inherited) {
         hint = ' <span class="inherited-lbl" title="' + esc(TLi18n.t('assign.inheritedRoleHint')) + '">' + esc(TLi18n.t('assign.inheritedRole')) + '</span>';
       }
-      html += '<tr data-uid="' + u.id + '"' + rowClass + '>' +
+      html += '<tr data-uid="' + esc(u.id) + '"' + rowClass + '>' +
         '<td>' + (i + 1) + '</td>' +
         '<td>' + esc(u.login) + '</td>' +
         '<td>' + esc(u.name) + '</td>' +
-        '<td><select' + disabled + ' onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select>' + hint + '</td>' +
+        '<td><select' + disabled + ' onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
       '</tr>';
     });
     if (!r.items.length) html = '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
