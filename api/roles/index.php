@@ -129,6 +129,59 @@ function getAssignableProjects(&$db, $userId) {
     return $opts;
 }
 
+// Legacy parity: lib/functions/roles.inc.php:298-343 get_tproject_effective_role().
+// Resolves each user's EFFECTIVE role on a test project plus the inheritance
+// nature of that role, using the 3-layer model (user -> test project).
+// Returns a map keyed by user id with:
+//   effective_role_id - role that applies on the project
+//   is_inherited      - 1 when the effective role comes from the global role,
+//                       0 when explicitly assigned on the project (or <no rights>)
+//   uplayer_role_id   - user's global role id
+//   inherited_role_id / inherited_role_name - the role whose name decorates the
+//                        "<inherited> X" select option (legacy $ikx, usersAssign.tpl:226-232)
+function getTprojectEffectiveRoleMap(&$db, &$users, $tproject_id, $isPublic) {
+    $roleNames = [];
+    $effective = [];
+    foreach ($users as $u) {
+        $u->readTestProjectRoles($db, $tproject_id);
+        $globalRoleID = intval($u->globalRoleID);
+        $effectiveRoleID = $globalRoleID;
+        $isInherited = 1;
+
+        // admin exception + private project: non-admins get <no rights>
+        if (($globalRoleID != TL_ROLES_ADMIN) && !$isPublic) {
+            $isInherited = 0;
+            $effectiveRoleID = TL_ROLES_NO_RIGHTS;
+        }
+
+        // highest priority: explicit assignment on the project
+        if (isset($u->tprojectRoles[$tproject_id])) {
+            $isInherited = 0;
+            $effectiveRoleID = intval($u->tprojectRoles[$tproject_id]->dbID);
+        }
+
+        // legacy $ikx (usersAssign.tpl:226-232): label source for the
+        // "<inherited> X" option - effective role when inherited, global role otherwise.
+        $inheritedRoleID = $isInherited ? $effectiveRoleID : $globalRoleID;
+        if (!array_key_exists($inheritedRoleID, $roleNames)) {
+            $roleNames[$inheritedRoleID] = '-';
+            if ($inheritedRoleID > 0) {
+                $irole = tlRole::getByID($db, $inheritedRoleID, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
+                $roleNames[$inheritedRoleID] = $irole ? $irole->getDisplayName() : '-';
+            }
+        }
+
+        $effective[$u->dbID] = [
+            'effective_role_id' => $effectiveRoleID,
+            'is_inherited' => $isInherited,
+            'uplayer_role_id' => $globalRoleID,
+            'inherited_role_id' => $inheritedRoleID,
+            'inherited_role_name' => $roleNames[$inheritedRoleID],
+        ];
+    }
+    return $effective;
+}
+
 // ---------------------------------------------------------------------------
 // Route-aware rights enforcement (issues #897 + #924).
 // Role catalog routes keep the role_management gate; the role-assignment
@@ -455,6 +508,14 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
     foreach ($roles as $r) {
+        // Skip the TL_ROLES_INHERITED (id 0) pseudo-role that tlRole::getAll()
+        // injects: "inherited" is expressed per user through the "<inherited> X"
+        // option, never as a real selectable role (issue #926).
+        // Legacy parity: usersAssign.tpl:249-273 iterates $gui->optRights which also
+        // contains the id-0 pseudo-role - but usersAssign.tpl renders only ONE value-0
+        // option (the inherited one), while the 2.0.1 rewrite rendered two, corrupting
+        // the select. Filtering it here restores the legacy single-option behaviour.
+        if (intval($r->dbID) == TL_ROLES_INHERITED) continue;
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
@@ -463,26 +524,39 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
     $projectOpts = getAssignableProjects($db, $userId);
 
     $items = [];
+    $isPublic = 1;
     if ($tproject_id) {
+        $tprojectMgr = new testproject($db);
+        $tprojectInfo = $tprojectMgr->get_by_id($tproject_id);
+        $isPublic = ($tprojectInfo && isset($tprojectInfo['is_public'])) ? intval($tprojectInfo['is_public']) : 1;
+
         $users = tlUser::getAll($db, "WHERE active=1", null, null, tlUser::TLOBJ_O_GET_DETAIL_MINIMUM);
         if ($users) {
+            // Legacy parity: usersAssign.php:328-335 readTestProjectRoles() then
+            // get_tproject_effective_role() for every user.
+            $effectiveMap = getTprojectEffectiveRoleMap($db, $users, $tproject_id, $isPublic);
             foreach ($users as $u) {
-                $u->readTestProjectRoles($db, $tproject_id);
                 $assignedRoleId = 0;
                 if (isset($u->tprojectRoles[$tproject_id])) {
                     $assignedRoleId = intval($u->tprojectRoles[$tproject_id]->dbID);
                 }
+                $eff = $effectiveMap[$u->dbID];
                 $items[] = [
                     'id' => intval($u->dbID),
                     'login' => $u->login,
                     'name' => $u->getDisplayName(),
                     'roleID' => $assignedRoleId,
+                    'effectiveRoleID' => $eff['effective_role_id'],
+                    'isInherited' => $eff['is_inherited'],
+                    'inheritedRoleID' => $eff['inherited_role_id'],
+                    'inheritedRoleName' => $eff['inherited_role_name'],
+                    'isAdmin' => intval($u->globalRoleID) == TL_ROLES_ADMIN,
                 ];
             }
         }
     }
 
-    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts]);
+    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic]);
 }
 
 // Route: PUT /roles/tproject-roles - update test project role assignments

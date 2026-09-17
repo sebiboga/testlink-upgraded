@@ -27,6 +27,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .assign-table select { font-size: 13px; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; }
 .changed { background: #fff3cd !important; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+.assign-table tr.not_authorized_user td { color: #999; }
+.inherited-lbl { color: #1a7f74; font-weight: 600; font-size: 11px; display: inline-block; margin-left: 6px; text-transform: uppercase; }
+.assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ccc; border-top-color: #4ECDC4; border-radius: 50%; animation: spin .6s linear infinite; margin-right: 6px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .changed-badge { background: #ffc107; color: #333; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; margin-left: 6px; }
@@ -78,6 +81,13 @@ var API = '/api/roles/index.php';
 var currentProject = null;
 var originalData = {};
 var roles = [];
+var NO_RIGHTS_ROLE_ID = 3;
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 
 $(function() {
   var params = new URLSearchParams(window.location.search);
@@ -153,16 +163,34 @@ function loadUsers(pid) {
     roles = r.roles || roles;
     var html = '';
     $.each(r.items, function(i, u) {
-      var opts = '<option value="0">' + TLi18n.t('assign.noRole') + '</option>';
+      // Legacy parity: usersAssign.tpl:226-269. The select exposes ONE value-0
+      // option per user - labelled "<inherited> <role>" when the effective role
+      // is inherited from the global role, "-- no role --" otherwise. The
+      // effective role is never hidden (issue #926).
+      var inherited = u.isInherited == 1;
+      // Legacy parity: usersAssign.tpl:264-269 renders "<inherited> <role>".
+      // Escaped as a whole so the literal <inherited> is not parsed as HTML.
+      var noRoleLbl = u.isInherited == 1
+        ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
+        : esc(TLi18n.t('assign.noRole'));
+      var opts = '<option value="0"' + (inherited ? ' selected' : '') + '>' + noRoleLbl + '</option>';
       $.each(roles, function(j, role) {
-        var sel = u.roleID == role.id ? ' selected' : '';
-        opts += '<option value="' + role.id + '"' + sel + '>' + role.name + '</option>';
+        var sel = (!inherited && u.effectiveRoleID == role.id) ? ' selected' : '';
+        opts += '<option value="' + role.id + '"' + sel + '>' + esc(role.name) + '</option>';
       });
-      html += '<tr data-uid="' + u.id + '">' +
+      var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';
+      var disabled = u.isAdmin ? ' disabled' : '';
+      var hint = '';
+      if (u.isAdmin) {
+        hint = ' <i class="fa fa-info-circle inherited-lbl" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>';
+      } else if (inherited) {
+        hint = ' <span class="inherited-lbl" title="' + esc(TLi18n.t('assign.inheritedRoleHint')) + '">' + esc(TLi18n.t('assign.inheritedRole')) + '</span>';
+      }
+      html += '<tr data-uid="' + u.id + '"' + rowClass + '>' +
         '<td>' + (i + 1) + '</td>' +
-        '<td>' + u.login + '</td>' +
-        '<td>' + u.name + '</td>' +
-        '<td><select onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select></td>' +
+        '<td>' + esc(u.login) + '</td>' +
+        '<td>' + esc(u.name) + '</td>' +
+        '<td><select' + disabled + ' onchange="onRoleChange(this,' + u.id + ',' + u.roleID + ')">' + opts + '</select>' + hint + '</td>' +
       '</tr>';
     });
     if (!r.items.length) html = '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
