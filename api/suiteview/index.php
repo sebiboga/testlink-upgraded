@@ -15,11 +15,29 @@
  *          (latest ACTIVE version) + suite keywords + attachments
  *          + can_manage (mgt_modify_tc) + can_print (testplan_metrics,
  *          drives the Generate-spec HTML/Word toolbar actions)
+ *   POST ?action=attachment_upload&id=<suite_id>   (multipart: uploadedFile,
+ *        fileTitle optional) -> uploads a new suite attachment bound to the
+ *        'nodes_hierarchy' table (fk_id = suite node id), mirroring legacy
+ *        containerEdit.php doAction=fileUpload at level=testsuite:
+ *        fileUploadManagement($db, testsuiteID, fileTitle, 'nodes_hierarchy')
+ *        (testsuite.class.php ctor binds the manager to 'nodes_hierarchy').
+ *        Requires mgt_modify_tc == 'yes' on the OWNING project (legacy
+ *        grants->testcase_mgmt). Returns the refreshed attachment list.
+ *   POST ?action=attachment_delete&id=<suite_id>&file_id=<id>
+ *        -> deletes the attachment, mirroring legacy containerEdit.php
+ *        doAction=deleteFile at level=testsuite (deleteAttachment). The
+ *        attachment must be bound to THIS suite node (fk_id + fk_table
+ *        guard) before the delete is issued (BFF hardening). Requires
+ *        mgt_modify_tc == 'yes' on the owning project. Returns the
+ *        refreshed attachment list.
  *
  * Rights: legacy suite viewer requires read access to the owning test
  * project (mgt_view_tc). The owning project is resolved from the suite node
  * itself (walk up nodes_hierarchy), NOT from the session, because the popup
  * can be opened for a suite of a different project (system-wide search).
+ * The read-only actions need mgt_view_tc; the two write actions additionally
+ * need mgt_modify_tc (403 otherwise) — exactly the legacy split between the
+ * suite viewer (read) and containerEdit.php fileUpload/deleteFile (write).
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -29,6 +47,8 @@ doSessionStart();
 
 require_once(__DIR__ . '/../_guard.php');
 bffSameOriginGuard();
+
+require_once(__DIR__ . '/../../lib/functions/attachments.inc.php');
 
 header('Content-Type: application/json');
 
@@ -162,6 +182,40 @@ function frr($sql)
     global $db;
     $row = $db->fetchFirstRow($sql);
     return is_array($row) ? $row : null;
+}
+
+/**
+ * Attachment rows of a test suite. The legacy testsuite manager binds every
+ * suite attachment to 'nodes_hierarchy' (testsuite.class.php parent ctor:
+ * tlObjectWithAttachments::__construct($this->db,"nodes_hierarchy")), so the
+ * fk_table filter is the same one the modern info action already used and the
+ * same one the legacy upload/delete wrote to via fileUploadManagement /
+ * deleteAttachment. Each row carries a download_url (api/attachments BFF),
+ * mirroring api/projectinfo getProjectAttachments().
+ */
+function suiteAttachments($db, $tables, $suiteId)
+{
+    $attachments = array();
+    $attRows = $db->get_recordset(
+        "SELECT id, title, file_name, file_type, file_size, date_added " .
+        "FROM {$tables['attachments']} " .
+        "WHERE fk_id = " . intval($suiteId) . " AND fk_table = 'nodes_hierarchy' " .
+        "ORDER BY date_added DESC LIMIT 50");
+    if (!is_null($attRows)) {
+        foreach ($attRows as $a) {
+            $attachments[] = array(
+                'id'          => intval($a['id']),
+                'title'       => strval($a['title']),
+                'file_name'   => strval($a['file_name']),
+                'file_type'   => strval($a['file_type']),
+                'file_size'   => intval($a['file_size']),
+                'date_added'  => strval($a['date_added']),
+                'download_url' => '/api/attachments/index.php?action=download&id=' .
+                                  intval($a['id']),
+            );
+        }
+    }
+    return $attachments;
 }
 
 /**
@@ -313,25 +367,9 @@ if ($method === 'GET' && $action === 'info') {
 
     // attachments for the suite — legacy suite manager is bound to the
     // 'nodes_hierarchy' attachment table (testsuite.class.php parent ctor);
-    // suite attachments are stored/read with that fk_table
-    $attachments = array();
-    $attRows = $db->get_recordset(
-        "SELECT id, title, file_name, file_type, file_size, date_added " .
-        "FROM {$tables['attachments']} " .
-        "WHERE fk_id = {$suiteId} AND fk_table = 'nodes_hierarchy' " .
-        "ORDER BY date_added DESC LIMIT 50");
-    if (!is_null($attRows)) {
-        foreach ($attRows as $a) {
-            $attachments[] = array(
-                'id' => intval($a['id']),
-                'title' => strval($a['title']),
-                'file_name' => strval($a['file_name']),
-                'file_type' => strval($a['file_type']),
-                'file_size' => intval($a['file_size']),
-                'date_added' => strval($a['date_added']),
-            );
-        }
-    }
+    // suite attachments are stored/read with that fk_table. Rows carry a
+    // download_url (same shape as api/projectinfo getProjectAttachments).
+    $attachments = suiteAttachments($db, $tables, $suiteId);
 
     $tprojectRow = frr("SELECT name FROM {$tables['nodes_hierarchy']} WHERE id = {$tprojectId} LIMIT 1");
     $tprojectName = is_null($tprojectRow) ? '' : strval($tprojectRow['name']);
@@ -1214,6 +1252,134 @@ if ($method === 'GET' && $action === 'move_targets') {
         'project_name' => $tprojectName,
         'excluded' => array_keys($excluded),
         'targets' => $targets,
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=attachment_upload  (multipart: uploadedFile, fileTitle?)
+// POST ?action=attachment_delete  (file_id)
+// Suite attachment management (issue #1366). Mirrors the legacy
+// containerEdit.php doAction=fileUpload / deleteFile at level=testsuite
+// (containerEdit.php:129-137 and :150-165), gated by
+// "yes" == $args->grants->testcase_mgmt (i.e. mgt_modify_tc == 'yes' on the
+// OWNING project). Upload goes through fileUploadManagement($db, testsuiteID,
+// fileTitle, 'nodes_hierarchy') — the testsuite manager's attachment table —
+// and delete through deleteAttachment($db, file_id). Both return the
+// refreshed attachment list so the UI re-renders in place, like the legacy
+// show() re-render.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'attachment_upload') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suiteId = intval($_POST['id'] ?? ($_REQUEST['id'] ?? 0));
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error',
+                  'message' => 'No permission to upload suite attachments'));
+    }
+
+    // Legacy attachment-upload path: fileUploadManagement with the suite id
+    // as fk_id and the testsuite manager's table name. On success it fires
+    // the audit_attachment_created audit event itself (attachments.inc.php:138).
+    $title = trim(strval($_POST['fileTitle'] ?? ($_REQUEST['fileTitle'] ?? '')));
+    $uploadOp = fileUploadManagement($db, $suiteId, $title, 'nodes_hierarchy');
+    if ($uploadOp->statusOK) {
+        out(array(
+            'status' => 'ok',
+            'message' => ($uploadOp->msg !== null && $uploadOp->msg !== '')
+                ? strval($uploadOp->msg)
+                : ($title !== '' ? $title : 'Attachment uploaded'),
+            'attachments' => suiteAttachments($db, $tables, $suiteId),
+        ));
+    }
+
+    $statusCode = isset($uploadOp->statusCode) ? strval($uploadOp->statusCode) : '';
+    $msg = isset($uploadOp->msg) && $uploadOp->msg !== '' && $uploadOp->msg !== null
+        ? strval($uploadOp->msg)
+        : (($statusCode !== '' && $statusCode !== '0')
+            ? $statusCode
+            : (trim(strval($_FILES['uploadedFile']['name'] ?? '')) === ''
+                ? 'No file uploaded'
+                : 'upload failed'));
+    http_response_code(422);
+    out(array(
+        'status' => 'error',
+        'message' => $msg,
+        'code' => $statusCode,
+    ));
+}
+
+if ($method === 'POST' && $action === 'attachment_delete') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suiteId = intval($_POST['id'] ?? ($_REQUEST['id'] ?? 0));
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error',
+                  'message' => 'No permission to delete suite attachments'));
+    }
+
+    $fileId = intval($_POST['file_id'] ?? ($_REQUEST['file_id'] ?? 0));
+    if ($fileId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Missing file id'));
+    }
+
+    // Security guard (BFF hardening): the attachment must exist AND be bound
+    // to THIS suite node before the delete is issued, so a forged file_id
+    // cannot remove attachments of other containers even with mgt_modify_tc.
+    $attRows = $db->get_recordset(
+        "SELECT id FROM {$tables['attachments']} " .
+        "WHERE id = {$fileId} AND fk_id = " . intval($suiteId) . " " .
+        "AND fk_table = 'nodes_hierarchy'");
+    if (is_null($attRows) || count($attRows) === 0) {
+        http_response_code(404);
+        out(array('status' => 'error',
+                  'message' => 'Attachment not found on this test suite'));
+    }
+
+    // Legacy containerEdit.php deleteFile path (deleteAttachment with the
+    // session check disabled — the BFF does not keep the legacy session list).
+    deleteAttachment($db, $fileId, false);
+    out(array(
+        'status' => 'ok',
+        'deleted_id' => $fileId,
+        'message' => 'Attachment deleted',
+        'attachments' => suiteAttachments($db, $tables, $suiteId),
     ));
 }
 

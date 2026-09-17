@@ -33,8 +33,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .kv .v { color: #333; word-break: break-word; }
 .details-text { white-space: pre-wrap; background: #fafafa; border: 1px solid #eee; border-radius: 5px; padding: 12px; color: #333; font-size: 13px; line-height: 1.55; }
 .kw-chip { display: inline-block; background: #eaf7f6; border: 1px solid #bfe6e2; color: #1a7f79; border-radius: 12px; padding: 3px 12px; font-size: 12px; font-weight: 600; margin: 2px 4px 2px 0; }
-.att-row { display: flex; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px dashed #eee; }
-.att-row:last-child { border-bottom: none; }
+#attTable thead th { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; border-bottom: 2px solid #4ECDC4; }
+#attTable td { font-size: 13px; vertical-align: middle; }
+.dl-link { color: #1a7f79; text-decoration: none; font-weight: 600; }
+.dl-link:hover { text-decoration: underline; }
+.btn-sm-del { background: #fff; border: 1px solid #e5b8bb; color: #c0392b; border-radius: 4px; padding: 3px 9px; margin-left: 8px; font-size: 12px; cursor: pointer; }
+.btn-sm-del:hover { background: #fdecea; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; margin-top: 16px; }
 .empty-state { padding: 30px; text-align: center; color: #888; font-size: 14px; }
 table.table-tc thead th { font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: .5px; border-bottom: 2px solid #4ECDC4; }
@@ -193,7 +197,36 @@ textarea.form-control2 { min-height: 90px; resize: vertical; }
 
   <div class="card" id="attCard" style="display:none;">
     <div class="card-title"><i class="fa fa-paperclip"></i> <span data-i18n="suvw.attachments">Attachments</span></div>
-    <div class="card-body" id="vAttachments"></div>
+    <div class="card-body">
+      <div id="attUpload" style="display:none;margin-bottom:14px;border:1px dashed #d0d0d0;border-radius:6px;padding:12px 14px;background:#fbfbfb;">
+        <div style="font-size:12px;font-weight:700;color:#22242a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;"><i class="fa fa-plus" style="color:#4ECDC4;margin-right:6px;"></i><span data-i18n="suvw.addAttachment">Add attachment</span></div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;" data-i18n="suvw.uploadTitle">Attachment title</div>
+            <input type="text" id="attTitle" class="form-control form-control-sm" maxlength="100" placeholder="">
+          </div>
+          <div style="flex:1;min-width:180px;">
+            <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;" data-i18n="suvw.chooseFile">Choose file</div>
+            <input type="file" id="attFile" class="form-control form-control-sm">
+          </div>
+          <button class="btn-teal" onclick="uploadAttachment()"><i class="fa fa-upload"></i> <span data-i18n="suvw.upload">Upload</span></button>
+        </div>
+        <div id="attMsg" style="margin-top:8px;font-size:12.5px;color:#a00;display:none;"></div>
+      </div>
+      <table class="table" id="attTable">
+        <thead>
+          <tr>
+            <th data-i18n="suvw.attTitle">Title</th>
+            <th data-i18n="suvw.attFile">File</th>
+            <th data-i18n="suvw.attSize">Size</th>
+            <th data-i18n="suvw.attDate">Added</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="empty-state" id="attEmpty" style="display:none;"><span data-i18n="suvw.noAttachments">No attachments yet. Use "Add attachment" to upload one.</span></div>
+    </div>
   </div>
 </div>
 
@@ -418,16 +451,117 @@ function renderKeywords(kws) {
 }
 
 function renderAttachments(atts) {
-  if (!atts.length) { $('#attCard').hide(); return; }
-  var out = '';
-  $.each(atts, function(i, a) {
-    out += '<div class="att-row"><i class="fa fa-paperclip" style="color:#4ECDC4;"></i>' +
-      '<div><b>' + escapeHtml(a.title || a.file_name) + '</b>' +
-      (a.file_name ? '<span class="att-name"> &mdash; ' + escapeHtml(a.file_name) + '</span>' : '') +
-      '<div class="sub">' + fmtSize(a.file_size) + (a.date_added ? ' &middot; ' + escapeHtml(a.date_added) : '') + '</div></div></div>';
-  });
-  $('#vAttachments').html(out);
+  // Legacy containerView.tpl:194-204 — the attachment block (attachments.inc.tpl)
+  // renders the upload form whenever modify_tc_rights == 'yes' (mgt_modify_tc),
+  // even with zero attachments; read-only users get the plain list only.
+  $('#attUpload').css('display', CAN_MANAGE ? 'block' : 'none');
+  if (!atts.length && !CAN_MANAGE) { $('#attCard').hide(); return; }
   $('#attCard').show();
+  if ($.fn.DataTable.isDataTable('#attTable')) {
+    $('#attTable').DataTable().destroy();
+  }
+  var $tb = $('#attTable tbody').empty().html('');
+  $('#attEmpty').toggle(atts.length === 0);
+  if (atts.length === 0) return;
+  $.each(atts, function(i, a) {
+    var actions = '';
+    if (CAN_MANAGE) {
+      actions = '<button class="btn-sm-del" onclick="deleteAttachment(' + a.id + ')" title="' +
+        TLi18n.t('suvw.delete') + '"><i class="fa fa-trash"></i> ' + TLi18n.t('suvw.delete') + '</button>';
+    }
+    $tb.append('<tr>' +
+      '<td><b>' + escapeHtml(a.title || a.file_name) + '</b></td>' +
+      '<td>' + escapeHtml(a.file_name || '') + '</td>' +
+      '<td>' + fmtSize(a.file_size) + '</td>' +
+      '<td>' + escapeHtml(a.date_added || '') + '</td>' +
+      '<td>' + actions + '</td>' +
+    '</tr>');
+  });
+  $('#attTable').DataTable({
+    pageLength: 10, lengthChange: false, searching: true,
+    order: [[3, 'desc']], language: { search: TLi18n.t('common.search') }
+  });
+}
+
+function attMsg(text, isError) {
+  var $m = $('#attMsg');
+  $m.css('display', text ? 'block' : 'none');
+  $m.css('color', isError ? '#a00' : '#1a7f79');
+  $m.text(text || '');
+}
+
+function uploadErrorText(r) {
+  var code = String((r && r.code) || '');
+  var map = {
+    'allowed_files': 'suvw.errAllowedFiles',
+    'allowed_filenames_regexp': 'suvw.errAllowedFilenames',
+    'empty_extension': 'suvw.errEmptyExtension',
+    'fNameORfTypeOrfSize': 'suvw.errNoFile',
+    '0': 'suvw.errNoFile',
+    '': 'suvw.errNoFile'
+  };
+  var key = Object.prototype.hasOwnProperty.call(map, code) ? map[code] : 'suvw.errUploadGeneric';
+  return TLi18n.t(key);
+}
+
+// Mirrors legacy containerEdit.php doAction=fileUpload at level=testsuite
+// (fileUploadManagement -> insertAttachment bound to the suite's
+// 'nodes_hierarchy' attachment table). Multipart upload like the legacy
+// attachments.inc.tpl form (uploadedFile + fileTitle).
+function uploadAttachment() {
+  var $file = $('#attFile')[0];
+  if (!$file || !$file.files.length) {
+    attMsg(TLi18n.t('suvw.noFileSelected'), true);
+    return;
+  }
+  attMsg('', false);
+  var fd = new FormData();
+  fd.append('uploadedFile', $file.files[0]);
+  fd.append('fileTitle', $('#attTitle').val() || $file.files[0].name);
+  $.ajax({
+    url: API + '?action=attachment_upload&id=' + SUITE_ID + '&tproject_id=' + TPROJECT_ID,
+    type: 'POST',
+    data: fd,
+    processData: false,
+    contentType: false,
+    success: function(r) {
+      if (r.status !== 'ok') {
+        attMsg(uploadErrorText(r), true);
+        return;
+      }
+      $('#attTitle').val('');
+      $('#attFile').val('');
+      attMsg(TLi18n.t('suvw.uploadOk'), false);
+      renderAttachments(r.attachments || []);
+    },
+    error: function(xhr) {
+      var body = null;
+      try { body = JSON.parse(xhr.responseText); } catch(e) {}
+      attMsg(uploadErrorText(body), true);
+    }
+  });
+}
+
+// Mirrors legacy containerEdit.php doAction=deleteFile at level=testsuite
+// (deleteAttachment + viewer re-render) + the JS delete_confirmation dialog
+// (containerView.tpl:77-85 jsCallDeleteFile -> $gui->delAttachmentURL).
+function deleteAttachment(id) {
+  if (!window.confirm(TLi18n.t('suvw.delAttConfirm'))) return;
+  $.ajax({
+    url: API + '?action=attachment_delete&id=' + SUITE_ID + '&tproject_id=' + TPROJECT_ID + '&file_id=' + id,
+    type: 'POST',
+    success: function(r) {
+      if (r.status !== 'ok') {
+        attMsg(TLi18n.t('suvw.deleteFail'), true);
+        return;
+      }
+      attMsg(TLi18n.t('suvw.deleteOk'), false);
+      renderAttachments(r.attachments || []);
+    },
+    error: function() {
+      attMsg(TLi18n.t('suvw.deleteFail'), true);
+    }
+  });
 }
 
 function toggleTableView() {
