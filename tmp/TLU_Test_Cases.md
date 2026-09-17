@@ -16000,3 +16000,69 @@ locale keys restored in 16 bundles, Event Viewer clean afterwards. Refs #1503, #
 - **Actual:** PASS — none of the 5 management buttons visible; Direct link visible. Server-side 403 enforced on POST.
 
 **Result: 9/9 PASS**
+
+## Task — Issue #926: Effective/inherited role display in Assign Test Project Roles
+
+**Precondition:** Two test projects created via BFF — "Project Alpha" (id=1, public) and "Project Beta" (id=2, private). Six users with distinct global roles: admin (8), alice (7 tester), bob (9 leader), carol (5 guest), erin (6 senior tester), frank (3 `<no rights>`). No explicit project role assignments except admin on Beta (protectFromLockout). Login: admin/admin. Entry URL: http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html.
+
+**Test 1 — BFF: no id-0 pseudo-role in roles option list (public project)**
+1. Logged in as admin, load the screen; GET `api/roles/index.php/meta/tproject-roles?tproject_id=1`.
+- **Expected:** `roles` array contains NO entry with `id:0` (the `TL_ROLES_INHERITED` pseudo-role is filtered); one value-0 option only ever comes from the per-user inherited option.
+- **Actual:** PASS — roles = [1,2,3,4,5,6,7,8,9], no id-0.
+
+**Test 2 — BFF: effective role + inheritance fields per user (public project)**
+1. GET `meta/tproject-roles?tproject_id=1`.
+- **Expected:** every user carries `effectiveRoleID`, `isInherited`, `inheritedRoleID`, `inheritedRoleName`, `isAdmin`. For no-explicit-assignment users on a public project: `isInherited=1`, `effectiveRoleID == globalRoleID`, `inheritedRoleName == globalRoleName`.
+- **Actual:** PASS — alice `{effectiveRoleID:7, isInherited:1, inheritedRoleName:"tester"}`, bob 9/leader, carol 5/guest, erin 6/senior tester, frank 3/`<no rights>`, admin `{8,1,"admin",isAdmin:true}`.
+
+**Test 3 — BFF: private project non-admins get TL_ROLES_NO_RIGHTS**
+1. GET `meta/tproject-roles?tproject_id=2` (Project Beta is private).
+- **Expected:** non-admin users without explicit assignment: `effectiveRoleID=3` (`TL_ROLES_NO_RIGHTS`), `isInherited=0`.
+- **Actual:** PASS — alice/bob/carol/erin/frank all `{effectiveRoleID:3, isInherited:0}`.
+
+**Test 4 — HTML: inherited option label + single value-0 option (public project)**
+1. Load screen with Project Alpha selected (default).
+- **Expected:** alice/bob/carol/erin/frank selects show `<inherited> <globalRoleName>` as the SELECTED value-0 option; exactly ONE value-0 option per select; `esc()` keeps the literal `<inherited>` text visible; no raw `assign.inheritedRoleOption` key text anywhere.
+- **Actual:** PASS — alice `<inherited> tester`, bob `<inherited> leader`, carol `<inherited> guest`, erin `<inherited> senior tester`, frank `<inherited> <no rights>`; `value0count=1` for all 6 rows; `rawKeyVisible=false`.
+
+**Test 5 — HTML: admin select disabled + tooltips**
+1. Inspect the admin row and the `INHERITED ROLE` badges.
+- **Expected:** admin select `disabled` with `<inherited> admin` selected and an info icon whose tooltip is `assign.adminRoleLocked` translation; inherited users show `INHERITED ROLE` badge titled `assign.inheritedRoleHint` translation.
+- **Actual:** PASS — admin select disabled; titles resolve to English ("Administrator role is locked and cannot be changed." / "This role is inherited from the user's global role.").
+
+**Test 6 — HTML: not_authorized_user row class**
+1. Inspect table rows for effective role = TL_ROLES_NO_RIGHTS (3).
+- **Expected:** rows whose `effectiveRoleID==3` get `class="not_authorized_user"`.
+- **Actual:** PASS — frank (Alpha, global role 3) and all 5 non-admins on Beta carry `not_authorized_user`.
+
+**Test 7 — HTML: private project select shows `<no rights>` selected, not `<inherited>`**
+1. Switch project select to Project Beta.
+- **Expected:** non-admin users: `not_authorized_user` row + selected option `<no rights>` (id 3), NOT `<inherited> X`.
+- **Actual:** PASS — all 5 non-admin rows show `<no rights>` selected with `not_authorized_user` class; admin select disabled showing explicit "admin".
+
+**Test 8 — Assign explicit role changes inherited → selected role**
+1. On Alpha, set alice's select to "leader" (9), click Save Changes.
+- **Expected:** row highlights `changed`; after save+reload alice's select shows "leader" (value 9), no INHERITED badge; DB `user_testproject_roles` has (alice, Alpha, 9).
+- **Actual:** PASS — row changed, saved, reload shows "leader" selected, badge gone, DB row `(2,1,9)` present.
+
+**Test 9 — Unassign deletes and reverts to inherited**
+1. Set alice's select back to value 0 (`-- no role --`), click Save Changes.
+- **Expected:** DB row removed; reload shows `<inherited> tester` selected again with INHERITED badge.
+- **Actual:** PASS — DB row gone, alice back to `<inherited> tester` + badge.
+
+**Test 10 — i18n: all locale bundles valid + translated inherited option**
+1. `python3 -m json.tool` on the 10 bundles; reload screen with `?locale=ro`.
+- **Expected:** all bundles valid JSON; `assign.inheritedRoleOption/Hint/adminRoleLocked` present in all; Romanian page shows `<mostenit> tester` option + Romanian tooltips.
+- **Actual:** PASS — 10/10 valid; `?locale=ro` shows `<mostenit> tester` (lang=ro) with `Acest rol este mostenit din rolul global al utilizatorului.` and `Rolul de administrator este blocat si nu poate fi schimbat.`
+
+**Test 11 — Regression: tplan-roles endpoint unaffected**
+1. GET `meta/tplan-roles?tproject_id=1&tplan_id=0`.
+- **Expected:** 200 with role options (no id-0) and empty plan list (no plans in DB).
+- **Actual:** PASS — status 200, plans=[].
+
+**Test 12 — Event Viewer clean**
+1. Query `events` table after all runs.
+- **Expected:** no ERROR/WARNING entries (log_level 16 AUDIT only for the test writes).
+- **Actual:** PASS — all 12 rows log_level=16 (audit); 0 Error/Warning.
+
+**Result: 12/12 PASS** — effective/inherited role display ported and verified (Refs #926). BFF filtered the id-0 pseudo-role, computes effective roles with the legacy 3-layer model, HTML renders the `<inherited> X` option, admin-locked select, and `not_authorized_user` rows; i18n keys restored in all 10 bundles after a parallel rewrite clobbered them.

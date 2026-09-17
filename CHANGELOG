@@ -402,6 +402,18 @@ NEW FEATURES
   written, closing the privilege escalation where any authenticated user could rewrite any
   project's role map. tplan route equally gated; empty-map no-op and authorized flows
   (admin, global `user_role_assignment` holders) unaffected. Suite "Task — Issue #925" 11/11 PASS.
+- Assign Test Project Roles — effective/inherited role display (Refs #926): BFF
+  `getTprojectEffectiveRoleMap()` (`api/roles/index.php:142-183`) ports legacy
+  `get_tproject_effective_role()` and `GET /roles/meta/tproject-roles` now returns
+  `effectiveRoleID`/`isInherited`/`inheritedRoleID`/`inheritedRoleName`/`isAdmin` per
+  user, filters the id-0 `TL_ROLES_INHERITED` pseudo-role from the role options (kills
+  the duplicate value-0 option). Screen renders `<inherited> <globalRoleName>` as the
+  selected value-0 option for inherited users, selects real roles for explicit
+  assignments, disables admin selects with a tooltip, adds `INHERITED ROLE` badges and
+  `not_authorized_user` rows for `TL_ROLES_NO_RIGHTS`, and HTML-escapes all dynamic
+  labels (blank reserved-system-role/`<inherited>` options fixed). i18n
+  `assign.inheritedRoleOption`/`inheritedRoleHint`/`adminRoleLocked` in all 10 bundles.
+  Suite "Task — Issue #926" 12/12 PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the
