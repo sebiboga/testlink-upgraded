@@ -4122,6 +4122,7 @@
   "edb.copyAssign": "复制分配",
   "edb.copyAssignNoBuild": "请选择要复制分配的构建。",
   "att.confirmDelete": "删除此附件？",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "无法删除附件",
   "att.errorList": "无法加载附件",
   "att.errorUpload": "无法上传文件",

@@ -4136,6 +4136,7 @@
   "edb.copyAssign": "Copiar asignaciones",
   "edb.copyAssignNoBuild": "Seleccione un build del que copiar asignaciones.",
   "att.confirmDelete": "¿Eliminar este adjunto?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "No se pudo eliminar el adjunto",
   "att.errorList": "No se pudieron cargar los adjuntos",
   "att.errorUpload": "No se pudieron subir los archivos",

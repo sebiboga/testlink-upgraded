@@ -4136,6 +4136,7 @@
   "edb.copyAssign": "Copier les affectations",
   "edb.copyAssignNoBuild": "Choisissez un build depuis lequel copier les affectations.",
   "att.confirmDelete": "Supprimer cette pièce jointe ?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "Impossible de supprimer la pièce jointe",
   "att.errorList": "Impossible de charger les pièces jointes",
   "att.errorUpload": "Impossible de téléverser le(s) fichier(s)",

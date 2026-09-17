@@ -94,7 +94,7 @@ if ($action === 'download') {
         exit;
     }
     $content = $fileRepo->getAttachmentContent($id, $attachInfo);
-    if ($content === '') {
+    if (is_null($content) || $content === '') {
         http_response_code(404);
         exit;
     }
@@ -119,9 +119,11 @@ if ($action === 'download') {
           preg_match("/MSIE/", $_SERVER["HTTP_USER_AGENT"]))) {
         header('Pragma: no-cache');
     }
-    header('Content-Type: ' . $attachInfo['file_type']);
+    $safeType = str_replace(["\r", "\n"], '', strval($attachInfo['file_type']));
+    $safeName = str_replace(["\r", "\n", '"'], '', strval($attachInfo['file_name']));
+    header('Content-Type: ' . $safeType);
     header('Content-Length: ' . $attachInfo['file_size']);
-    header($what2do . " filename=\"" . $attachInfo['file_name'] . "\"");
+    header($what2do . " filename=\"" . $safeName . "\"");
     header("Content-Description: Download Data");
     echo $content;
     exit;
@@ -146,7 +148,14 @@ $KNOWN_TABLES = [
 /** @return int the attachment id on success, or exits with an error. */
 function checkFk($needTable, $needId) {
     global $KNOWN_TABLES;
-    if (!is_string($needTable) || !in_array($needTable, $KNOWN_TABLES, true)) {
+    // Legacy stores fk_table prefix-stripped; accept the unprefixed form and
+    // strip any configured DB prefix before the whitelist check.
+    $stripped = $needTable;
+    if (defined('DB_TABLE_PREFIX') && DB_TABLE_PREFIX !== '') {
+        $stripped = str_replace(DB_TABLE_PREFIX, '', $needTable);
+    }
+    if (!is_string($needTable) ||
+        !in_array($stripped, $KNOWN_TABLES, true)) {
         bffOut(['status' => 'error',
                 'message' => 'Invalid attachment table'], 400);
     }
@@ -154,7 +163,7 @@ function checkFk($needTable, $needId) {
     if ($fkId <= 0) {
         bffOut(['status' => 'error', 'message' => 'Invalid id'], 400);
     }
-    return [$needTable, $fkId];
+    return [$stripped, $fkId];
 }
 
 if ($action === 'list') {
@@ -211,6 +220,13 @@ if ($action === 'upload') {
             ? $_FILES['uploadedFile']['error'][$fdx] : 0;
 
         if ($fSize > 0 && $fTmpName !== '' && $fErr === 0) {
+            if ($fSize > TL_REPOSITORY_MAXFILESIZE) {
+                $errors[] = strval(getFileUploadErrorMessage(
+                    ['name' => $fName, 'type' => $fType,
+                     'tmp_name' => $fTmpName, 'size' => $fSize,
+                     'error' => UPLOAD_ERR_FORM_SIZE]));
+                continue;
+            }
             $fin = [
                 'name' => $fName, 'type' => $fType,
                 'tmp_name' => $fTmpName, 'size' => $fSize, 'error' => $fErr,
@@ -223,7 +239,15 @@ if ($action === 'upload') {
                                   $title, $fName),
                               "CREATE", $fkId, "attachments");
             } else {
-                $errors[] = strval($uploadOp->msg ?: $fName);
+                $errMsg = strval($uploadOp->msg ?: $fName);
+                if (is_null($uploadOp->msg) &&
+                    isset($uploadOp->statusCode) && $uploadOp->statusCode) {
+                    $tmpMsg = lang_get('FILE_UPLOAD_' . $uploadOp->statusCode);
+                    if ($tmpMsg !== false) {
+                        $errMsg = $tmpMsg;
+                    }
+                }
+                $errors[] = $errMsg;
             }
         } else {
             $errors[] = strval(getFileUploadErrorMessage(
@@ -260,7 +284,11 @@ if ($action === 'delete') {
         bffOut(['status' => 'error',
                 'message' => 'Attachment not found for this object'], 404);
     }
-    deleteAttachment($db, $fileId, false);
+    $delInfo = deleteAttachment($db, $fileId, false);
+    if (!$delInfo) {
+        bffOut(['status' => 'error', 'message' => 'Attachment delete failed'],
+               500);
+    }
     bffOut(['status' => 'ok', 'message' => 'Attachment deleted',
             'deleted_id' => $fileId]);
 }

@@ -15822,12 +15822,17 @@ admin session; browser flow on the modern screen.
 | 15 | Browser: click Delete → confirm modal | `Delete this attachment?`; confirm removes row; toast `Attachment deleted` | PASS |
 | 16 | Binary file round-trip (`.png` bytes) | download returns `Content-Type: image/png`, `Content-Length` = stored size, `cmp` identical | PASS |
 | 17 | `php -l` on `api/attachments/index.php` + 4 patched BFFs (execute/execsetresults/reqspec/projectinfo) | No syntax errors 5/5 | PASS |
-| 18 | `python3 -m json.tool` on all 10 bundles | Valid JSON; `att.*` (13 keys) present in all | PASS |
+| 18 | `python3 -m json.tool` on all 10 bundles | Valid JSON; `att.*` (14 keys) present in all | PASS |
 | 19 | `grep attachmentdownload` across `gui/templates/**/*.html` + `api/**/*.php` | No live reference to `/lib/attachments/attachmentdownload.php` (only the new BFF endpoint; legacy file kept for external API callers) | PASS |
 | 20 | Modern screen console | No JS errors/warnings | PASS |
 | 21 | Event Viewer / `events` table after 1–20 | Only AUDIT/16 INFO rows (login + attachment create/delete); no new Error/Warning rows | PASS |
+| 22 | Post-review: oversize upload (file > TL_REPOSITORY_MAXFILESIZE) | BFF 400-class `errors:["The size of the file is larger than the configured maximum value of TestLink!"]`, `uploaded:0` (server-side cap added — legacy only displayed the limit) | PASS |
+| 23 | Post-review: missing/empty file download (row without content) | 404 (was HTTP 200 empty body → PHP 8.1 `strripos(null)` deprecation; fixed via `is_null($content)` check) | PASS |
+| 24 | Post-review: header-injection hardening | CR/LF + `"` stripped from `file_type`/`file_name` before `header()` in download | PASS |
+| 25 | Post-review: `db_table_prefix` fk_table | prefix stripped before whitelist check (`checkFk` accepts prefixed + unprefixed) | PASS |
+| 26 | Post-review: delete of non-existent/graf. failed attachment | BFF checks `deleteAttachment()` return → 500 `Attachment delete failed` instead of fake ok | PASS |
 
-Result: **PASS — 21/21 PASS** — the last legacy attachment popup + download endpoint
+Result: **PASS — 26/26 PASS** — the last legacy attachment popup + download endpoint
 referenced from the modern UI is fully modernized: BFF `api/attachments/index.php`
 (list/upload/delete + XSS-safe streamed download), Dashio screen
 `attachmentUpload.html`, i18n `att.*` in all bundles, and every modern download link

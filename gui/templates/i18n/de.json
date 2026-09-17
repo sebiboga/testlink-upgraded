@@ -4136,6 +4136,7 @@
   "edb.copyAssign": "Zuweisung kopieren",
   "edb.copyAssignNoBuild": "Bitte ein Build zum Kopieren der Zuweisungen wählen.",
   "att.confirmDelete": "Diese Anlage löschen?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "Anlage konnte nicht gelöscht werden",
   "att.errorList": "Anlagen konnten nicht geladen werden",
   "att.errorUpload": "Datei(en) konnten nicht hochgeladen werden",

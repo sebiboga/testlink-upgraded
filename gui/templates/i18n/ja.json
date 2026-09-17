@@ -4142,6 +4142,7 @@
   "edb.copyAssign": "割り当てをコピー",
   "edb.copyAssignNoBuild": "割り当てをコピーするビルドを選択してください。",
   "att.confirmDelete": "この添付ファイルを削除しますか？",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "添付ファイルを削除できませんでした",
   "att.errorList": "添付ファイルを読み込めませんでした",
   "att.errorUpload": "ファイルをアップロードできませんでした",

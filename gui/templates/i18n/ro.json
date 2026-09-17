@@ -4146,6 +4146,7 @@
   "edb.copyAssign": "Copiază atribuirile",
   "edb.copyAssignNoBuild": "Selectați un build de la care să copiați atribuirile.",
   "att.confirmDelete": "Ștergeți această atașare?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "Atașarea nu a putut fi ștearsă",
   "att.errorList": "Atașările nu au putut fi încărcate",
   "att.errorUpload": "Fișierul/fișierele nu au putut fi încărcate",

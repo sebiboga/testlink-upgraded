@@ -4152,6 +4152,7 @@
   "edb.copyAssign": "Copy Task Assignment",
   "edb.copyAssignNoBuild": "Select a build to copy assignments from.",
   "att.confirmDelete": "Delete this attachment?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "Could not delete attachment",
   "att.errorList": "Could not load attachments",
   "att.errorUpload": "Could not upload file(s)",

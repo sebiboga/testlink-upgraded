@@ -74,10 +74,10 @@ large, 500 internal.
 
 ## 4. i18n Keys
 
-`att.*` (13 keys: att.title, att.titleChoose removed→`att.name`+`att.optional`,
-att.maxFileSize, att.noAttachments, att.upload, att.uploading, att.uploaded,
-att.file, att.size, att.delete, att.deleteConfirm, att.deleted, att.error,
-att.invalidFile) in all 10 locale bundles (`en/ro/de/es/fr/it/ja/pt/ru/zh`).
+`att.*` (14 keys in all 10 locale bundles `en/ro/de/es/fr/it/ja/pt/ru/zh`):
+att.confirmDelete, att.deleted, att.errorDelete, att.errorList, att.errorUpload,
+att.header, att.invalidFile, att.maxSize, att.noAttachments, att.objectAttachments,
+att.selectFile, att.title, att.upload, att.uploaded.
 
 ## 5. Security
 

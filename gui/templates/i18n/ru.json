@@ -4142,6 +4142,7 @@
   "edb.copyAssign": "Скопировать назначения",
   "edb.copyAssignNoBuild": "Выберите билд для копирования назначений.",
   "att.confirmDelete": "Удалить это вложение?",
+  "att.deleted": "Attachment deleted",
   "att.errorDelete": "Не удалось удалить вложение",
   "att.errorList": "Не удалось загрузить вложения",
   "att.errorUpload": "Не удалось загрузить файл(ы)",

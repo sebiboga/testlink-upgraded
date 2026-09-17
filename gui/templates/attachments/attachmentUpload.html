@@ -236,7 +236,7 @@ function confirmDelete() {
   .done(function (r) {
     $('#btnConfirmDel').prop('disabled', false);
     if (r.status !== 'ok') { toast(r.message || TLi18n.t('att.errorDelete'), true); }
-    else { toast(r.message || 'ok'); }
+    else { toast(TLi18n.t('att.deleted')); }
     refresh();
   })
   .fail(function () {
@@ -250,9 +250,10 @@ $(function () {
   fkTable = p.get('table') || '';
   fkId = parseInt(p.get('id') || '0', 10);
   var objName = p.get('name') || (fkTable + ' #' + fkId);
-  $('#objectLabel').text(' (' + esc(objName) + ')');
+  $('#objectLabel').text(' (' + objName + ')');
   TLi18n.load(function () {
     TLi18n.apply();
+    document.title = TLi18n.t('att.header');
     refresh();
   });
 });
