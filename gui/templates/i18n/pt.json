@@ -34,6 +34,7 @@
   "assign.noRole": "-- sem função --",
   "assign.noUsers": "Nenhum utilizador neste projeto.",
   "assign.planRoleOverride": "Substituição de função do plano",
+  "assign.rolesDisabled": "A configuração do seu papel não permite atribuir funções para projetos de teste",
   "assign.saveChanges": "Guardar alterações",
   "assign.selectPlan": "-- selecionar plano --",
   "assign.selectProject": "-- selecionar projeto --",

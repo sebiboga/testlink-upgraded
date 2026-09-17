@@ -318,6 +318,13 @@ Test Strategy:
 
 NEW FEATURES
 ------------
+- Assign Test Project Roles (`gui/templates/usermanagement/usersAssignProject.html`,
+  BFF `api/roles/index.php`): legacy `checkRights()` union enforcement (403 + audit on
+  failure) on the assign GET/PUT routes + effective-role project filtering ported
+  (Refs #924) — users whose only assign right is `user_role_assignment` regain access
+  (previously blocked by the role_management-only gate) and the project combo hides
+  projects whose effective role cannot assign roles. i18n `assign.rolesDisabled` in all
+  10 bundles.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

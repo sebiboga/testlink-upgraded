@@ -34,21 +34,6 @@ if (is_null($currentUser)) {
     exit;
 }
 
-// Legacy parity: lib/usermanagement/rolesView.php checkRights() and
-// rolesEdit.php -> $user->hasRight($db,"role_management"). Every role
-// management entry point (list/view/create/edit/duplicate/delete/assign)
-// requires the role_management right. Without it the BFF refuses ANY route
-// (403), mirroring the legacy access-denied behavior for unauthorized users.
-if (!$currentUser->hasRight($db, 'role_management')) {
-    logAuditEvent(TLS("audit_security_user_right_missing",
-                      $currentUser->login,
-                      basename($_SERVER['SCRIPT_NAME']),
-                      $_SERVER['REQUEST_METHOD']),
-                  'AUTH', $currentUser->dbID, 'roles');
-    http_response_code(403);
-    out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => 'role_management']);
-}
-
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = preg_replace('#^/api/roles(/index\.php)?#', '', $path);
 $path = '/' . trim($path, '/');
@@ -58,6 +43,131 @@ $segments = array_values(array_filter(explode('/', $path)));
 function out($data) { echo json_encode($data); exit; }
 function getParam($key, $default = null) { return $_GET[$key] ?? $default; }
 function getBody() { return json_decode(file_get_contents('php://input'), true) ?? []; }
+
+// Legacy parity: lib/usermanagement/rolesView.php checkRights() and
+// rolesEdit.php -> $user->hasRight($db,"role_management"). The role catalog
+// list/view/create/edit/duplicate/delete routes require role_management.
+function denyRoleManagement(&$currentUser) {
+    logAuditEvent(TLS("audit_security_user_right_missing",
+                      $currentUser->login,
+                      basename($_SERVER['SCRIPT_NAME']),
+                      $_SERVER['REQUEST_METHOD']),
+                  'AUTH', $currentUser->dbID, 'roles');
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => 'role_management']);
+}
+
+// Legacy parity: lib/usermanagement/usersAssign.php:201-240 checkRights().
+// The role-assignment screens are accessible when the user holds ANY of:
+//   role_management, testplan_user_role_assignment (tproject or tplan context),
+//   user_role_assignment (global) or (test project target)
+//   testproject_user_role_assignment on the target project.
+// This is deliberately MORE permissive than role_management alone: a user
+// whose only assign right is user_role_assignment must still get in (issue #924).
+function userCanAssignRoles(&$db, &$user, $featureType, $featureID, $tprojectID) {
+    $user->readTestProjectRoles($db);
+    $user->readTestPlanRoles($db);
+
+    if ($user->hasRight($db, 'role_management') === 'yes') return true;
+    if ($user->hasRight($db, 'testplan_user_role_assignment', $tprojectID > 0 ? $tprojectID : null, -1) === 'yes') return true;
+    if ($featureType === 'testplan' && $featureID > 0 &&
+        $user->hasRight($db, 'testplan_user_role_assignment', null, $featureID) === 'yes') return true;
+    if ($user->hasRight($db, 'user_role_assignment', null, -1) === 'yes') return true;
+    if ($featureType === 'testproject') {
+        $feature2check = $featureID > 0 ? $featureID : $tprojectID;
+        if ($feature2check > 0 &&
+            $user->hasRight($db, 'testproject_user_role_assignment', $feature2check, -1) === 'yes') return true;
+    }
+    return false;
+}
+
+// Legacy parity: lib/usermanagement/usersAssign.php:246-266 checkRightsForUpdate().
+function userCanUpdateAssignments(&$db, &$user, $featureType, $featureID, $tprojectID) {
+    $user->readTestProjectRoles($db);
+    $user->readTestPlanRoles($db);
+    if ($featureType === 'testproject') {
+        if ($user->hasRight($db, 'user_role_assignment', $featureID) === 'yes') return true;
+        if ($user->hasRight($db, 'testproject_user_role_assignment', $featureID, -1, true) === 'yes') return true;
+        return false;
+    }
+    return $user->hasRight($db, 'testplan_user_role_assignment', $tprojectID, $featureID) === 'yes';
+}
+
+function denyAssignRights(&$currentUser, $right) {
+    logAuditEvent(TLS("audit_security_user_right_missing",
+                      $currentUser->login,
+                      basename($_SERVER['SCRIPT_NAME']),
+                      $right),
+                  'AUTH', $currentUser->dbID, 'users');
+    http_response_code(403);
+    out(['status' => 'error', 'message' => 'no_permissions_for_action', 'right' => $right]);
+}
+
+// Legacy parity: lib/usermanagement/usersAssign.php:273-305
+// getTestProjectEffectiveRoles(). The Test Project combo lists ONLY projects
+// whose caller effective role holds user_role_assignment OR
+// testproject_user_role_assignment. A project whose effective role lacks both
+// is hidden even if the user can otherwise access it.
+function getAssignableProjects(&$db, $userId) {
+    $tprojectMgr = new testproject($db);
+    $projects = $tprojectMgr->get_accessible_for_user($userId,
+        ['output' => 'map_of_map_full', 'order_by' => 'ORDER BY name ASC']);
+    $roleCache = [];
+    $opts = [];
+    if ($projects) {
+        foreach ($projects as $pid => $p) {
+            $effRoleId = intval($p['effective_role'] ?? 0);
+            if (!array_key_exists($effRoleId, $roleCache)) {
+                $roleCache[$effRoleId] = tlRole::getByID($db, $effRoleId, tlRole::TLOBJ_O_GET_DETAIL_FULL);
+            }
+            $role = $roleCache[$effRoleId];
+            if ($role && ($role->hasRight('user_role_assignment') || $role->hasRight('testproject_user_role_assignment'))) {
+                $opts[] = ['id' => intval($pid), 'name' => $p['name'] ?? ''];
+            }
+        }
+    }
+    return $opts;
+}
+
+// ---------------------------------------------------------------------------
+// Route-aware rights enforcement (issues #897 + #924).
+// Role catalog routes keep the role_management gate; the role-assignment
+// routes use the legacy usersAssign.php checkRights() union / update check.
+// ---------------------------------------------------------------------------
+$isTprojectRolesMeta = (isset($segments[0]) && $segments[0] === 'meta'
+                        && isset($segments[1]) && $segments[1] === 'tproject-roles');
+$isTplanRolesMeta = (isset($segments[0]) && $segments[0] === 'meta'
+                     && isset($segments[1]) && $segments[1] === 'tplan-roles');
+$isTprojectRoles = (isset($segments[0]) && $segments[0] === 'tproject-roles');
+$isTplanRoles = (isset($segments[0]) && $segments[0] === 'tplan-roles');
+$sessionTprojectID = isset($_SESSION['testprojectID']) ? intval($_SESSION['testprojectID']) : 0;
+$sessionTplanID = isset($_SESSION['testplanID']) ? intval($_SESSION['testplanID']) : 0;
+
+if ($isTprojectRolesMeta && $method === 'GET') {
+    if (!userCanAssignRoles($db, $currentUser, 'testproject', intval(getParam('tproject_id')), $sessionTprojectID)) {
+        denyAssignRights($currentUser, 'user_role_assignment');
+    }
+} elseif ($isTplanRolesMeta && $method === 'GET') {
+    $tprojectID = intval(getParam('tproject_id'));
+    if (!userCanAssignRoles($db, $currentUser, 'testplan', intval(getParam('tplan_id')), $tprojectID)) {
+        denyAssignRights($currentUser, 'testplan_user_role_assignment');
+    }
+} elseif ($isTprojectRoles && $method === 'PUT') {
+    $tprojectID = intval((getBody()['tproject_id'] ?? 0));
+    if (!userCanUpdateAssignments($db, $currentUser, 'testproject', $tprojectID, $tprojectID)) {
+        denyAssignRights($currentUser, 'testproject_user_role_assignment');
+    }
+} elseif ($isTplanRoles && $method === 'PUT') {
+    $tplanID = intval((getBody()['tplan_id'] ?? 0));
+    $tplanMgr = new testplan($db);
+    $planInfo = $tplanID > 0 ? $tplanMgr->get_by_id($tplanID, ['output' => 'minimun']) : null;
+    $tprojectID = $planInfo ? intval($planInfo['tproject_id']) : 0;
+    if (!userCanUpdateAssignments($db, $currentUser, 'testplan', $tplanID, $tprojectID)) {
+        denyAssignRights($currentUser, 'testplan_user_role_assignment');
+    }
+} elseif (!$currentUser->hasRight($db, 'role_management')) {
+    denyRoleManagement($currentUser);
+}
 
 // demoMode: legacy gates role-management writes in the template only
 // (gui/templates/dashio/usermanagement/rolesEdit.tpl:185-205 - on doUpdate the
@@ -341,7 +451,6 @@ if ($method === 'GET' && isset($segments[0]) && is_numeric($segments[0]) && isse
 // Route: GET /roles/meta/tproject-roles?tproject_id=X - get test project role assignments
 if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset($segments[1]) && $segments[1] === 'tproject-roles') {
     $tproject_id = intval(getParam('tproject_id'));
-    $tprojectMgr = new testproject($db);
 
     $roles = tlRole::getAll($db, null, null, null, tlRole::TLOBJ_O_GET_DETAIL_MINIMUM);
     $roleOpts = [];
@@ -349,15 +458,9 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         $roleOpts[] = ['id' => intval($r->dbID), 'name' => $r->getDisplayName()];
     }
 
-    $projects = $tprojectMgr->get_accessible_for_user($userId, ['output' => 'map_of_map', 'order_by' => 'ORDER BY name ASC']);
-    $projectOpts = [];
-    if ($projects) {
-        foreach ($projects as $pId => $p) {
-            $pId = intval($pId);
-            $pName = $p['name'] ?? $p->name ?? '';
-            if ($pId) $projectOpts[] = ['id' => $pId, 'name' => $pName];
-        }
-    }
+    // Legacy parity: usersAssign.php:285-305 getTestProjectEffectiveRoles().
+    // Only projects whose caller effective role can assign roles are listed.
+    $projectOpts = getAssignableProjects($db, $userId);
 
     $items = [];
     if ($tproject_id) {

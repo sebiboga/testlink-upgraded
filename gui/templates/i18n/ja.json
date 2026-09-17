@@ -34,6 +34,7 @@
   "assign.noRole": "-- ロールなし --",
   "assign.noUsers": "このプロジェクトにユーザーがいません。",
   "assign.planRoleOverride": "計画ロールの上書き",
+  "assign.rolesDisabled": "あなたのロール設定ではテストプロジェクトのロールを割り当てることはできません",
   "assign.saveChanges": "変更を保存",
   "assign.selectPlan": "-- 計画を選択 --",
   "assign.selectProject": "-- プロジェクトを選択 --",

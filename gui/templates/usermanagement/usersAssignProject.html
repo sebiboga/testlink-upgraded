@@ -61,6 +61,10 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
     <i class="fa fa-folder-open" style="font-size:32px;color:#ccc;margin-bottom:12px;display:block;"></i>
     Select a test project above to manage role assignments.
   </div>
+  <div id="disabledMsg" style="display:none;padding:40px;text-align:center;color:#c0392b;font-size:14px;">
+    <i class="fa fa-lock" style="font-size:32px;color:#e74c3c;margin-bottom:12px;display:block;"></i>
+    <span data-i18n="assign.rolesDisabled">Your role configuration do not allow you Assign Roles for Test Projects</span>
+  </div>
 </div>
 
 <div class="footer" id="footerText"></div>
@@ -98,25 +102,47 @@ $(function() {
 });
 
 function loadProjects(selectedId) {
-  $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0), function(r) {
-    var sel = $('#projectSelect');
-    sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
-    $.each(r.projects, function(i, p) {
-      sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+  $.getJSON(API + '/meta/tproject-roles?tproject_id=' + (selectedId || 0))
+    .done(function(r) {
+      var sel = $('#projectSelect');
+      sel.empty();
+      sel.append('<option value="">' + TLi18n.t('assign.selectProject') + '</option>');
+      $.each(r.projects, function(i, p) {
+        sel.append('<option value="' + p.id + '">' + p.name + '</option>');
+      });
+      roles = r.roles || [];
+      if (!r.projects || !r.projects.length) {
+        showDisabled();
+        return;
+      }
+      // Legacy parity: usersAssign.php:307-316. Only projects present in the
+      // filtered combo can be selected; otherwise fall back to the first one.
+      var ids = $.map(r.projects, function(p) { return String(p.id); });
+      var pid = (selectedId && $.inArray(String(selectedId), ids) !== -1) ? selectedId : r.projects[0].id;
+      sel.val(pid);
+      loadUsers(pid);
+    })
+    .fail(function(xhr) {
+      if (xhr.status === 403) { showDisabled(); }
+      else { $('#emptyMsg').show(); }
     });
-    roles = r.roles || [];
-    if (selectedId && r.items && r.items.length) {
-      sel.val(selectedId);
-      loadUsers(selectedId);
-    } else {
-      $('#emptyMsg').show();
-    }
-  });
   $('#projectSelect').on('change', function() {
     var pid = $(this).val();
     if (pid) loadUsers(pid);
     else { $('#assignBody').empty(); $('#emptyMsg').show(); }
   });
+}
+
+// Legacy parity: usersAssign.php:123-127. When the user has no test project
+// where the effective role can assign roles, the page shows
+// testproject_roles_assign_disabled instead of the assignment table.
+function showDisabled() {
+  $('#projectSelect').empty().prop('disabled', true);
+  $('#assignTable').hide();
+  $('#emptyMsg').hide();
+  $('#disabledMsg').show();
+  $('#saveBtn').prop('disabled', true);
+  $('#footerText').empty();
 }
 
 function loadUsers(pid) {

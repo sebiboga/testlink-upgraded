@@ -34,6 +34,7 @@
   "assign.noRole": "-- fara rol --",
   "assign.noUsers": "Niciun utilizator in acest proiect.",
   "assign.planRoleOverride": "Suprascriere Rol Plan",
+  "assign.rolesDisabled": "Configuratia rolului dumneavoastra nu va permite sa atribuiti roluri pentru proiectele de test",
   "assign.saveChanges": "Salveaza Modificarile",
   "assign.selectPlan": "-- selecteaza plan --",
   "assign.selectProject": "-- selecteaza proiect --",

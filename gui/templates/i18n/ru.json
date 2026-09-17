@@ -34,6 +34,7 @@
   "assign.noRole": "-- без роли --",
   "assign.noUsers": "Нет пользователей в этом проекте.",
   "assign.planRoleOverride": "Переопределение роли плана",
+  "assign.rolesDisabled": "Конфигурация вашей роли не позволяет назначать роли для тестовых проектов",
   "assign.saveChanges": "Сохранить изменения",
   "assign.selectPlan": "-- выбрать план --",
   "assign.selectProject": "-- выбрать проект --",

@@ -34,6 +34,7 @@
   "assign.noRole": "-- keine Rolle --",
   "assign.noUsers": "Keine Benutzer in diesem Projekt.",
   "assign.planRoleOverride": "Planrollen-Überschreibung",
+  "assign.rolesDisabled": "Ihre Rollenkonfiguration erlaubt es Ihnen nicht, Rollen für Testprojekte zuzuweisen",
   "assign.saveChanges": "Änderungen speichern",
   "assign.selectPlan": "-- Plan auswählen --",
   "assign.selectProject": "-- Projekt auswählen --",
