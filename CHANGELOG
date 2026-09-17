@@ -592,6 +592,13 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `usersAssignProject.html`) and applied it to every DB-sourced interpolation
   (project/plan name, user login/name, role name, inheritedRoleName) plus the
   `data-uid`/`onchange` args (Fixes #1530).
+- BFF role creation: `POST /api/roles` with a `rightIDs` array containing `0`
+  (or an empty/no rights payload) crashed with an uncaught PHP 8
+  `TypeError: sizeof(): Argument #1 ... null given` in `tlRole::checkDetails()`
+  — HTTP 500 with an empty body instead of the intended validation JSON.
+  `checkDetails` now tests `empty($this->rights)` (null-safe, identical
+  semantics for arrays), so invalid/no-right payloads reach the declared
+  `E_EMPTYROLE` 400 branch "Role must have at least one right" (Fixes #1531).
 - Reflected XSS in the User Management tab bars: the four modern screens
   (`usersView.html`, `rolesView.html`, `usersAssignProject.html`,
   `usersAssignPlan.html`) concatenated the raw `tproject_id`/`tplan_id` URL

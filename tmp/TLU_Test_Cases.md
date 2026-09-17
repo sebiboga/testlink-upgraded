@@ -16250,3 +16250,52 @@ revision 1.
 - **Actual:** PASS — no Event Viewer errors from the direct-link milestone.
 
 **Result: 16/16 PASS** — resolver screen + BFF + link switches delivered (Refs #1532). Pre-existing legacy bug surfaced and filed as #1533 (linkto.php inner-frame `testproject::setSessionProject()` fatal for non-req item types).
+
+## Regression — Issue #1531: BFF POST /api/roles 500 (empty body) on rightIDs containing 0
+
+**Precondition:** TestLink app up at http://localhost:8082, logged in as admin/admin (curl cookie jar `/tmp/tlu_cookies.txt`). DB freshly imported; rights ids 3/6 exist in the `rights` table, id 0 does not. BFF requires same-origin proof (send `Origin: http://localhost:8082`).
+
+**Test 1 — Bug repro (pre-fix on the 500 path)**
+1. `curl -sb $JAR -X POST http://localhost:8082/api/roles/index.php -H "Origin: http://localhost:8082" -H "Content-Type: application/json" --data '{"name":"probe0_1531","description":"probe0","rightIDs":[0]}'`
+- **Pre-fix expected/observed:** HTTP 500 with EMPTY body (uncaught `TypeError: sizeof(): Argument #1 ($value) must be of type Countable|array, null given` in `lib/functions/tlRole.class.php:224` via `checkDetails`).
+- **Post-fix expected:** HTTP 400 JSON `{"status":"error","message":"Role must have at least one right","messageKey":"role.error.noRights","code":-5}` with a non-empty body, no error in Event Viewer.
+- **Actual:** PASS — post-fix returns exactly the 400 JSON.
+
+**Test 2 — POST rightIDs:[] (empty array)**
+- **Expected:** 400 same message (pre-fix this also fatalled: `empty([])` skips the loop leaving `rights` null).
+- **Actual:** PASS — 400 `Role must have at least one right`.
+
+**Test 3 — POST with no rightIDs field at all**
+- **Expected:** 400 same message.
+- **Actual:** PASS — 400 `Role must have at least one right`.
+
+**Test 4 — POST valid rights [3,6] still works**
+- **Expected:** 200 `{"status":"ok","item":{...,"rights":[{"id":3,...},{"id":6,...}]},"feedback_key":"role_created"}`.
+- **Actual:** PASS — 200, role created (cleanup: DELETE afterwards).
+
+**Test 5 — PUT regression with rightIDs:[0]**
+1. Create a role with valid rights, then `PUT /api/roles/index.php/{id}` with `{"rightIDs":[0]}`.
+- **Expected:** 400 `Role must have at least one right` (PUT was already safe pre-fix since it resets `rights=[]`; unchanged).
+- **Actual:** PASS — 400.
+
+**Test 6 — PUT valid rights + DELETE cleanup**
+1. `PUT` with `rightIDs:[1]` then `DELETE /{id}`.
+- **Expected:** 200 `role_updated`, then 200 `role_deleted`.
+- **Actual:** PASS.
+
+**Test 7 — UI create-role modal still works (browser)**
+1. Open `gui/templates/usermanagement/rolesView.html` as admin; click `+ Create Role`; name "UI probe 1531"; tick `testplan_execute`; Save.
+- **Expected:** toast "Role UI probe 1531 was successfully created"; row appears (Type Custom); GET /roles list contains it.
+- **Actual:** PASS.
+
+**Test 8 — UI blocks no-rights save client-side (browser)**
+1. Open create modal, fill name only, click Save.
+- **Expected:** client-side message "Select at least one right." appears; NO network POST is sent; no console errors. (Independent of the BFF fix.)
+- **Actual:** PASS.
+
+**Test 9 — Event Viewer clean**
+1. `SELECT id,log_level,description FROM events ORDER BY id DESC;`
+- **Expected:** no log_level 1 (ERROR) or 2 (WARNING) rows produced by these steps; AUDIT (16) role create/update/delete rows only.
+- **Actual:** PASS — no Error/Warning entries.
+
+**Result: 9/9 PASS** — the 500 empty-body fatal is gone; `rightIDs:[0]`, `[]` and missing field all yield the intended 400 `E_EMPTYROLE` JSON; valid create/update/delete and UI flows unaffected. Related discovery filed as #1535 (nonexistent rid > 0 creates a dangling `role_rights` reference). (Refs #1531).
