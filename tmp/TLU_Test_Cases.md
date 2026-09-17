@@ -16066,3 +16066,62 @@ locale keys restored in 16 bundles, Event Viewer clean afterwards. Refs #1503, #
 - **Actual:** PASS — all 12 rows log_level=16 (audit); 0 Error/Warning.
 
 **Result: 12/12 PASS** — effective/inherited role display ported and verified (Refs #926). BFF filtered the id-0 pseudo-role, computes effective roles with the legacy 3-layer model, HTML renders the `<inherited> X` option, admin-locked select, and `not_authorized_user` rows; i18n keys restored in all 10 bundles after a parallel rewrite clobbered them.
+
+## Regression — Issue #1529: reflected XSS via unescaped tproject_id/tplan_id in US tab-bar hrefs
+
+**Precondition:** TestLink 2.0.1 @ http://localhost:8082, logged in as admin/admin. Fixture: one test project "Fixtures TP" (nodes_hierarchy id=1, testprojects id=1, prefix=FIX, is_public=1) and one test plan "Fixtures TPlan" (nodes_hierarchy id=2, testplans id=2, testproject_id=1) created directly in MariaDB. Entry points: the four modern US screens under `http://localhost:8082/gui/templates/usermanagement/`.
+
+**PU — Payload URL / primary symptom (reproduced pre-fix):**
+Before the fix, on `usersAssignProject.html?tproject_id=1%22%20onclick=%22alert(1)%22%20x=%22`, `document.querySelectorAll('#tabsBar a')` returned all 4 anchors parsed with `onclick="alert(1)"` and `x="&tplan_id=0"` (attribute breakout). Expected post-fix: anchors carry NO injected attributes; the payload is URL-encoded inside `href`.
+
+**Test 1 — usersAssignProject.html payload URL**
+1. Browse `usersAssignProject.html?tproject_id=1%22%20onclick=%22alert(1)%22%20x=%22`, then `Array.from(document.querySelectorAll('#tabsBar a')).map(a=>({href:a.getAttribute('href'),onclick:a.getAttribute('onclick'),x:a.getAttribute('x')}))`.
+- **Expected:** 4 anchors, all `onclick=null`, `x=null`; each `href` contains `tproject_id=1%22%20onclick%3D%22alert(1)%22%20x%3D%22`.
+- **Actual:** PASS — 4/4 anchors clean (`onclick:null, x:null`), encoded payload present in hrefs.
+
+**Test 2 — usersView.html payload URL**
+1. Same payload on `usersView.html`, dump `#tabsBar a` attrs.
+- **Expected:** no `onclick` on any anchor; user table still renders.
+- **Actual:** PASS — clean anchors, table rendered (legend: "1 item" admin row).
+
+**Test 3 — rolesView.html payload URL**
+1. Same payload on `rolesView.html`, dump `#tabsBar a` attrs.
+- **Expected:** no `onclick`; roles table renders.
+- **Actual:** PASS — clean anchors, 9 role rows rendered.
+
+**Test 4 — usersAssignPlan.html payload URL with tplan_id**
+1. Browse `usersAssignPlan.html?tproject_id=1%22%20onclick=%22alert(1)%22%20x=%22&tplan_id=3`, dump anchors.
+- **Expected:** no `onclick`; `tplan_id=3` still carried through each href; page renders project combo.
+- **Actual:** PASS — clean anchors, hrefs end with `&tplan_id=3`.
+
+**Test 5 — Normal params no breakage**
+1. Browse `usersAssignProject.html?tproject_id=1&tplan_id=0`.
+- **Expected:** hrefs exactly `usersView.html?tproject_id=1&tplan_id=0` (etc.); project "Fixtures TP" preselected in dropdown.
+- **Actual:** PASS — 4 hrefs exact; projectSelect.value="1".
+
+**Test 6 — No-param degradation**
+1. Browse `usersAssignProject.html` with no query string.
+- **Expected:** hrefs degrade to `tproject_id=0&tplan_id=0`; project dropdown falls back to first project.
+- **Actual:** PASS — hrefs `...?tproject_id=0&tplan_id=0`; projectSelect.value="1".
+
+**Test 7 — Assign-plan flow (tplan fixture)**
+1. Browse `usersAssignPlan.html?tproject_id=1&tplan_id=2`; set planSelect to "Fixtures TPlan" (2) and trigger change.
+- **Expected:** users table loads after plan change; no JS errors.
+- **Actual:** PASS — plan=2 selected, table shows admin row; no errors.
+
+**Test 8 — Tab navigation still works**
+1. On `usersView.html?tproject_id=1&tplan_id=0` click the "Role Management" tab.
+- **Expected:** navigates to `rolesView.html?tproject_id=1&tplan_id=0`, page renders.
+- **Actual:** PASS — navigation succeeded, rolesView loaded.
+
+**Test 9 — usersView gotoExport path compiles**
+1. Confirm `gotoExport()`'s ctx (usersView.html line ~317) carries the same encoding change; `node --check` on all four screens' inline JS.
+- **Expected:** all inline JS syntax-valid; encoded ctx in gotoExport too.
+- **Actual:** PASS — `node --check` OK on all 4 files; ligne 317 encoded.
+
+**Test 10 — Event Viewer clean**
+1. Query `events` table after all runs.
+- **Expected:** no new ERROR/WARNING entries (only log_level=16 login audit).
+- **Actual:** PASS — events table contains only the login-success audit log; 0 Error/Warning.
+
+**Result: 10/10 PASS** — payload URLs produce inert encoded hrefs on all 4 US screens, normal/no-param/tab-nav/project/plan flows unaffected, no console errors, no new Event Viewer entries (Fixes #1529).
