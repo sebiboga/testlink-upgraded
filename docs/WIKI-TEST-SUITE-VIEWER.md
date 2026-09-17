@@ -49,7 +49,9 @@ The BFF reproduces the read-only suite viewer:
   date), newest first. The legacy suite manager is bound to the
   `nodes_hierarchy` attachment table, so the BFF filters
   `fk_table='nodes_hierarchy'` (suite attachments uploaded through the real
-  workflow are stored there, not under `testsuites`).
+  workflow are stored there, not under `testsuites`). With `mgt_modify_tc` on
+  the owning project the user can additionally **upload** and **delete**
+  attachments (issue #1366, see below); read-only viewers get the plain list.
 
 ## Screen layout
 
@@ -62,7 +64,7 @@ The BFF reproduces the read-only suite viewer:
 | **Test cases card** | DataTable (External ID, Name, Version, Importance badge, Summary) with search + pagination |
 | **Test cases table view card** | Full grid for bulk-set (admin/designer with `mgt_modify_tc`): checkbox column, External ID, Name, Version, **Status**, Importance, **Execution Type**, Summary + per design-time custom field a set-input (checkbox + value select/text); bulk toolbar (Status / Importance / Execution Type selects + "Apply to selected") |
 | **Keywords card** | Keyword chips (hidden when empty) |
-| **Attachments card** | Attachment rows with size + date (hidden when empty) |
+| **Attachments card** | Attachment DataTable rows with size + date + per-row **Delete** + **Add attachment** upload form (title + file + Upload) when `mgt_modify_tc`; hidden only for read-only users with no attachments |
 | **Footer** | Generated-on timestamp |
 
 ## Test cases table view (gap vs legacy, issue #1371)
@@ -88,6 +90,27 @@ The modern screen reproduces it:
 Screenshots (issue #1371):
 `![table-view](screenshots/issue-1371-table-view.png)`,
 `![before](screenshots/issue-1371-before.png)`.
+
+## Attachment upload & delete (issue #1366)
+
+Legacy parity target: legacy `containerView.tpl:77-85` (`jsCallDeleteFile` →
+`deleteAttachmentRelativeURL`) and `containerView.tpl:196-204` include
+`attachments.inc.tpl` with `bDownloadOnly=false` whenever
+`$gui->modify_tc_rights == 'yes'` → the `fileUpload` / `deleteFile` actions of
+`lib/testcases/containerEdit.php:129-167` (`level=testsuite`), calling
+`fileUploadManagement($db, testsuiteID, fileTitle, 'nodes_hierarchy')` and
+`deleteAttachment($db, file_id)`.
+
+| Piece | Location |
+|-------|----------|
+| **Rights** | Same `can_manage` = `mgt_modify_tc == 'yes'` on the OWNING project (legacy `grants->testcase_mgmt`); the upload form and per-row Delete are rendered only when true, and both BFF endpoints re-check it server-side (403). |
+| **Upload BFF** | `POST /api/suiteview/?action=attachment_upload&id=<suite>&tproject_id=<pid>` — multipart `uploadedFile` + optional `fileTitle`; calls `fileUploadManagement($db, <suite>, <title>, 'nodes_hierarchy')` (same helper as legacy). Returns the refreshed attachment list; 422 + `code` on upload failure (`allowed_files`, `empty_extension`, ...). |
+| **Delete BFF** | `POST /api/suiteview/?action=attachment_delete&id=<suite>&tproject_id=<pid>&file_id=<att>` — ownership guard (`attachments.id=<file_id> AND fk_id=<suite> AND fk_table='nodes_hierarchy'`, else 404), then `deleteAttachment($db, <att>, false)`. Returns the refreshed list. |
+| **Rows** | `info` / both write actions return each attachment with a `download_url` (`/api/attachments/index.php?action=download&id=<att>`), so the metadata matches the legacy download link. |
+| **UI** | `#attUpload` (title + file + Upload) shown when `CAN_MANAGE`; `#attTable` DataTable with a per-row Delete button gated by the same flag; inline success/error feedback (`suvw.uploadOk`, `suvw.deleteOk`, `suvw.delAttConfirm`, upload error codes). |
+
+Screenshot (issue #1366):
+`![attachment-upload](screenshots/issue-1366-suiteview-attachment-upload.png)`.
 
 ## Flow
 
@@ -178,17 +201,21 @@ screen routes suite viewing through `archiveData.php` (grep-clean).
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
-(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 44 keys total (including the 13
-table-view keys added with issue #1371, the 2 import-launcher keys added with
-issue #1370 and the 2 generate-spec keys `suvw.genSpecHtml`/`suvw.genSpecWord`
-added with issue #1369); bundles validated with `python3 -m json.tool`.
+(`de, en, es, fr, it, ja, pt, ro, ru, zh`). The attachment upload/delete feature
+(#1366) adds/documents 19 attachment keys (`suvw.addAttachment`, `suvw.upload`,
+`suvw.uploadTitle`, `suvw.chooseFile`, `suvw.uploadOk`, `suvw.delete`,
+`suvw.delAttConfirm`, `suvw.deleteOk`, `suvw.deleteFail`, `suvw.noAttachments`,
+`suvw.noFileSelected`, `suvw.attTitle/attFile/attSize/attDate`, `suvw.attachments`
+and the four `suvw.err*` upload codes) in every bundle; all bundles validated
+with `python3 -m json.tool`.
 
 ## Test coverage
 
 See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS). The import launchers
 (#1370) are covered by the **Issue #1370** suite in the same file (10/10 PASS).
 The generate-testsuite-spec feature (#1369) is covered by the **Issue #1369 /
-Suite 1524** suite (13/13 PASS).
+Suite 1524** suite (13/13 PASS). The attachment upload + delete feature (#1366)
+is covered by the **Issue #1366** suite in the same file (11/11 PASS).
 ## Test-case management operations (issue #1368)
 
 The viewer exposes the legacy Test-Suite-Viewer test-case operations from the

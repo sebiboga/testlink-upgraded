@@ -227,6 +227,15 @@ Test Spec:
 - TC Compare Versions (tcCompare.html) - BFF api/testcasescompare (#1327/#1328).
 - TC Print (tcPrint.html) - BFF api/testcasesprint (#1335/#1336).
 - Test Suite viewer popup (suiteView.html) - BFF api/suiteview (#1371).
+- Test Suite viewer attachment upload + delete (suiteView.html): when
+  `can_manage` (mgt_modify_tc on the owning project, legacy
+  `modify_tc_rights`) the Attachments card shows an "Add attachment" form
+  (title + file + Upload) and a per-row Delete with confirmation; read-only
+  viewers keep the plain list. New BFF POST attachment_upload (multipart
+  uploadedFile/fileTitle -> fileUploadManagement bound to `nodes_hierarchy`,
+  legacy containerEdit.php:129-137) and attachment_delete (fk ownership guard
+  then deleteAttachment, legacy :150-165); info/upload/delete rows now carry
+  download_url; 19 suvw.* attachment keys in all 10 bundles (Refs #1366).
 - Test Suite viewer Import launchers (suiteView.html): toolbar "Import Test
   Cases" (flat) and "Import Test Suite" (deep, useRecursion=1) buttons route to
   the modern tcImport.html pre-targeted at the current suite, mirroring legacy
