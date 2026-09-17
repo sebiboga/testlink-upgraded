@@ -2788,6 +2788,8 @@
   "suvw.exportSuite": "Esporta suite di test",
   "suvw.exportSuiteCases": "Esporta casi di test",
   "suvw.extId": "ID esterno",
+  "suvw.genSpecHtml": "Genera specifica (HTML)",
+  "suvw.genSpecWord": "Genera specifica (Word)",
   "suvw.identifier": "Identificatore",
   "suvw.impHigh": "Alta",
   "suvw.impLow": "Bassa",

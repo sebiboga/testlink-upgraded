@@ -56,7 +56,7 @@ The BFF reproduces the read-only suite viewer:
 | Section | Description |
 |---------|-------------|
 | **Header** | "Test Suite Viewer" + owning test project name + locale switcher |
-| **Toolbar** | Refresh, "Open in Test Specification" (→ `testSpec.html?tproject_id=..`), Export Test Cases, Export Test Suite, **Table view** (when `mgt_modify_tc` on the owning project), context (#id) |
+| **Toolbar** | Refresh, "Open in Test Specification" (→ `testSpec.html?tproject_id=..`), Export Test Cases, Export Test Suite, **Generate spec (HTML)**, **Generate spec (Word)** (when `testplan_metrics` on the owning project), Import Test Cases/Test Suite + **Table view** (when `mgt_modify_tc`), context (#id) |
 | **Overview card** | Identifier (suite name + `#id`), Parent, Child test suites, Test cases |
 | **Details card** | Suite `details` (fallback `(no details)`) |
 | **Test cases card** | DataTable (External ID, Name, Version, Importance badge, Summary) with search + pagination |
@@ -128,6 +128,34 @@ read-only user they are not rendered. The launcher reuses the already-modern
 `tcImport.html` + `api/testcasesimport` (no BFF change); the target suite is
 shown in the import screen header and the uploaded cases land under that suite.
 
+## Generate testsuite-spec document — HTML + MS Word (Refs #1369)
+
+The testsuite-level test-spec document generation of the legacy operations panel
+(`containerViewTestSuiteTextButtons.inc.tpl:66-70` report / report_word buttons,
+URLs `containerView.tpl:54-58`: `lib/results/printDocument.php?type=testspec&
+level=testsuite&allOptionsOn=1&format=0|4&id=<suite>`) is ported into the modern
+toolbar:
+
+| Piece | Location |
+|-------|----------|
+| **Buttons** | "Generate spec (HTML)" (format=0) + "Generate spec (Word)" (format=4) ghost buttons in the suiteView toolbar, rendered only when `info.can_print` is true. |
+| **Rights** | `info` now returns `can_print` = `testplan_metrics` on the OWNING test project — exact legacy `printDocument.php checkRights()` parity (explicit project id, because the popup may be opened for a suite of another project). |
+| **Launcher** | `openSuiteSpec(format)` opens `gui/templates/testcases/printTestDoc.html?type=testspec&level=testsuite&id=<suite>&tproject_id=<pid>&format=0|4&toc=y&headerNumbering=y&header=y&summary=y&body=y&author=y&keyword=y&cfields=y&requirement=y` — **all 9 print options =y**, the modern equivalent of legacy `allOptionsOn=1` (full document). |
+| **Document** | Reuses the already-modern print stack: `api/testcasesprint` (BFF, session + `testplan_metrics`) wrapping the battle-tested legacy generator `lib/results/printDocument.php`. HTML renders in a real-time iframe viewer; Word triggers the `.doc` blob download. |
+
+The scope is the single suite (with its nested sub-suites); sibling suites are
+excluded — verified on the fixture (Suite Alpha + Subsuite Gamma included, Suite
+Beta's "Create Report" case excluded).
+
+Server side stays authoritative: even if the UI gate were bypassed, the print
+BFF returns **HTTP 403 "No permission"** for a user without `testplan_metrics` on
+the project.
+
+Screenshots (issue #1369):
+`![buttons](screenshots/issue-1369-suite-spec-buttons.png)`,
+`![doc](screenshots/issue-1369-testsuite-spec-html-doc.png)`,
+`![hidden](screenshots/issue-1369-viewer-no-print-buttons.png)`.
+
 ## Security
 
 - **Permission:** `mgt_view_tc` enforced server-side on the owning test
@@ -150,11 +178,14 @@ screen routes suite viewing through `archiveData.php` (grep-clean).
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
-(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 42 keys total (including the 13
-table-view keys added with issue #1371 and the 2 import-launcher keys added with
-issue #1370); bundles validated with `python3 -m json.tool`.
+(`de, en, es, fr, it, ja, pt, ro, ru, zh`). 44 keys total (including the 13
+table-view keys added with issue #1371, the 2 import-launcher keys added with
+issue #1370 and the 2 generate-spec keys `suvw.genSpecHtml`/`suvw.genSpecWord`
+added with issue #1369); bundles validated with `python3 -m json.tool`.
 
 ## Test coverage
 
 See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS). The import launchers
 (#1370) are covered by the **Issue #1370** suite in the same file (10/10 PASS).
+The generate-testsuite-spec feature (#1369) is covered by the **Issue #1369 /
+Suite 1524** suite (13/13 PASS).

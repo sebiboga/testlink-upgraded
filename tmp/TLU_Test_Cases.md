@@ -15723,41 +15723,42 @@ whose only assign right is `user_role_assignment` is no longer blocked by the
 role_management-only gate), unauthorized users get 403 + audit, and the project combo is
 filtered by the caller effective role exactly like `getTestProjectEffectiveRoles()`.
 
-## Regression — Issue #1523: roles BFF empty assignments map → no-op (tproject/tplan)
+## Suite 1524 — Task Issue #1369: Generate testsuite-spec document (HTML + MS Word) in suiteView
 
-Fix commit: `7464701df` (branch `fix/issue-1523-empty-userids`).
-Code under test: `api/roles/index.php` `PUT /tproject-roles` + `PUT /tplan-roles`,
-`lib/functions/testproject.class.php` `deleteUserRoles()`,
-`lib/functions/testplan.class.php` `deleteUserRoles()`.
-Legacy reference: `lib/usermanagement/usersAssign.php:560-562` (empty map = no-op).
-
-**Precondition** — fresh DB; logged-in `admin/admin` (curl cookie jar from
-`POST /api/auth/login`); fixture project `1 Repro Project` (`POST /api/projects/index.php`,
-public/active); `events` contains 2 pre-existing `log_level=1` rows (the pre-fix repro of
-this very bug); `user_testproject_roles` empty.
-
-**Repro steps (pre-fix behaviour)** — `PUT /api/roles/index.php/tproject-roles` (and
-`/tplan-roles`) with body `{"tproject_id":1,"assignments":{}}`. Pre-fix: HTTP 500, empty
-body, `events` row `log_level=1` `1064 ... DELETE FROM user_testproject_roles WHERE
-testproject_id = 1 AND user_id IN()` (same for `user_testplan_roles`).
-
-**Expected post-fix** — HTTP 200 JSON `{"status":"ok"}`, no new DB-error event, no change
-to stored roles; non-empty maps still assign/unassign.
+Modern screen: `gui/templates/testcases/suiteView.html` (BFF `api/suiteview/index.php`);
+two new toolbar actions 'Generate spec (HTML)' (format=0) and 'Generate spec (Word)'
+(format=4) opening `gui/templates/testcases/printTestDoc.html?type=testspec&level=testsuite&id=<suite>&tproject_id=<pid>&<9 opts>=y`
+(all print options on = exact modern equivalent of the legacy `allOptionsOn=1`).
+Document rendered through the existing `api/testcasesprint` pipeline (legacy
+`lib/results/printDocument.php` generator). Gate: `can_print` = `testplan_metrics`
+on the owning project (legacy `checkRights()`), returned by suiteview `info`.
+Legacy ref: `gui/templates/dashio/testcases/include/containerViewTestSuiteTextButtons.inc.tpl:66-70`
++ `containerView.tpl:54-58` (`$testSuiteDocAction` / `$testSuiteWordDocAction`).
+Fixtures (fresh DB, recreated for this run): test project `Spec Generator Test
+Project` (id 1, prefix SGP), suites `Suite Alpha` (2), `Suite Beta` (3),
+`Subsuite Gamma` (4, child of Alpha — tests recursive scoping), test cases
+`Login User` (5) + `Logout User` (9) under Alpha, `Create Report` (12) under Beta;
+negative-path user `viewer` (id 2, custom role 10 = only `mgt_view_tc`,
+NO `testplan_metrics`) assigned on project 1.
 
 | # | Test | Expected | Result |
 |---|---|---|---|
-| 1 | `php -l` on the 3 changed files | No syntax errors | PASS |
-| 2 | `PUT /tproject-roles {tproject_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
-| 3 | `PUT /tplan-roles {tplan_id:1,assignments:{}}` | 200 `{"status":"ok"}` | PASS |
-| 4 | `assignments:"oops"` (non-array) | 400 `{"status":"error","message":"Invalid assignments"}`, no crash | PASS |
-| 5 | `user_testproject_roles` after #2/#3 | unchanged (no rows) | PASS |
-| 6 | `events` `log_level=1` before/after #2/#3 | `2 → 2` (no new ERROR) | PASS |
-| 7 | Direct `deleteUserRoles(1, [])` on both managers | `tl::OK` (=1), no new ERROR event | PASS |
-| 8 | `PUT /tproject-roles {tproject_id:1,assignments:{1:9}}` | 200; row `1,1,9` stored | PASS |
-| 9 | `PUT /tproject-roles {tproject_id:1,assignments:{1:0}}` (direct; UI bug filed separately) | 200; row deleted (`rows_after_unassign=0`) | PASS |
-| 10 | Legacy null path: assigned project 2, then `DELETE /api/projects/index.php/2` | 200; project gone AND its `user_testproject_roles` rows purged | PASS |
-| 11 | `events` after the full walk | only the 2 pre-existing ERROR rows; no new Error/Warning | PASS |
+| 1 | `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` as admin | 200; `can_manage=true`, **`can_print=true`** (new field), suite Suite Alpha, 2 TCs | PASS |
+| 2 | suiteView.html?id=2 as admin — toolbar | 'Generate spec (HTML)' + 'Generate spec (Word)' buttons visible (i18n `suvw.genSpecHtml`/`suvw.genSpecWord`) | PASS |
+| 3 | Click 'Generate spec (HTML)' as admin | popup `printTestDoc.html?...level=testsuite&id=2...format=0&toc=y..requirement=y` opens; document renders with TOC `1.Suite Alpha` / `1.1.Subsuite Gamma`, TC sections Login User + Logout User with steps | PASS |
+| 4 | Spec document scope (HTML) | contains Login User + Logout User + nested Subsuite Gamma; does NOT contain 'Create Report' (Suite Beta excluded) | PASS |
+| 5 | Click 'Generate spec (Word)' as admin | popup with `format=4` renders same doc; format!=0 branch triggers `.doc` blob download | PASS |
+| 6 | `GET /api/testcasesprint?action=print&...level=testsuite&id=2&format=0` | HTTP 200, `title='testspec Spec Generator Test Project - Suite Alpha'`, body ~4595 B | PASS |
+| 7 | `GET /api/testcasesprint?action=print&...level=testsuite&id=3&format=4` | HTTP 200 (Word content), title Suite Beta | PASS |
+| 8 | Negative path — user `viewer` (role 10, no testplan_metrics) opens suiteView | suite loads (mgt_view_tc ok) but **Generate-spec buttons HIDDEN** (`info.can_print=false`) | PASS |
+| 9 | Server-side enforcement as `viewer` | direct `action=print` → HTTP 403 `{message:"No permission"}` | PASS |
+| 10 | i18n `suvw.genSpecHtml` + `suvw.genSpecWord` | present in ALL 10 bundles, every bundle passes `python3 -m json.tool` | PASS |
+| 11 | `php -l api/suiteview/index.php` | No syntax errors | PASS |
+| 12 | Console during #2/#3/#5 | No JS errors/warnings on suiteView or printTestDoc | PASS |
+| 13 | Event Viewer / logs | `events` has only AUDIT/16 rows (LOGIN/CREATE); userlog0/1/2 have zero error/warning/fatal lines | PASS |
 
-Result: **PASS — 11/11 PASS.** Empty assignment map is a valid no-op on both role-assignment
-endpoints; `null` still deletes all roles (project/plan delete paths unaffected); the invariant
-"empty user array never reaches `implode()`" holds at the manager layer too.
+Result: **PASS — 13/13 PASS** — the testsuite-level spec generation (HTML + Word,
+all options on) is fully ported into the modern suiteView toolbar; it reuses the
+battle-tested `api/testcasesprint` + `printTestDoc.html` pipeline, scopes correctly
+per suite (including nested sub-suites), and is rights-gated (`testplan_metrics`)
+in both UI and BFF exactly like legacy `printDocument.php` `checkRights()`.

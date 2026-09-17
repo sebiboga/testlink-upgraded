@@ -222,6 +222,15 @@ Test Spec:
   containerViewTestSuiteTextButtons.inc.tpl importItem / import-TC span; gated
   on mgt_modify_tc (can_manage); suvw.importCases / suvw.importSuite keys in all
   10 bundles (Refs #1370).
+- Test Suite viewer Generate-spec (suiteView.html): toolbar "Generate spec
+  (HTML)" (format=0) + "Generate spec (Word)" (format=4) actions open the modern
+  printTestDoc.html pipeline (api/testcasesprint -> legacy printDocument.php)
+  for type=testspec&level=testsuite with all 9 print options =y (modern
+  equivalent of legacy allOptionsOn=1, containerViewTestSuiteTextButtons.inc.tpl
+  report/report_word); scope = the suite + nested sub-suites; gated on
+  testplan_metrics via new BFF info field can_print (legacy checkRights()
+  parity, 403 server-side); suvw.genSpecHtml / suvw.genSpecWord keys in all 10
+  bundles (Refs #1369).
 - Assign Keywords (keywordsAssign.html) - BFF api/keywords.
 - Test Case Bulk Update (tcBulkOp).
 - Test Automation Specification (results/testAutomationSpec.html) - BFF

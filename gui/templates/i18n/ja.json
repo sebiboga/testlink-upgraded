@@ -2794,6 +2794,8 @@
   "suvw.exportSuite": "テストスイートをエクスポート",
   "suvw.exportSuiteCases": "テストケースをエクスポート",
   "suvw.extId": "外部ID",
+  "suvw.genSpecHtml": "スペックを生成 (HTML)",
+  "suvw.genSpecWord": "スペックを生成 (Word)",
   "suvw.identifier": "識別子",
   "suvw.impHigh": "高",
   "suvw.impLow": "低",

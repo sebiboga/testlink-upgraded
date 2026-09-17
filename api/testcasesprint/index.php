@@ -103,10 +103,15 @@ $hasProject = !is_null($proj) && isset($proj['name']);
 
 // ---- authorization: testplan_metrics on the context project (legacy
 //      printDocument.php checkRights() -> hasRightOnProj('testplan_metrics')).
+//      The EXPLICIT request project is used (NOT hasRightOnProj, which would
+//      silently resolve against the session's active project): the print
+//      popup can be opened from suiteView for a suite of a different project
+//      (system-wide search), where the session project must not decide the
+//      grant (issue #1369).
 $canGenerate = false;
 if ($hasProject) {
     try {
-        $canGenerate = (bool)$user->hasRightOnProj($db, 'testplan_metrics', $tprojectId);
+        $canGenerate = ($user->hasRight($db, 'testplan_metrics', $tprojectId) === 'yes');
     } catch (\Throwable $e) {
         $canGenerate = false;
     }

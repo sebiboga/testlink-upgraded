@@ -58,6 +58,8 @@ table.table-tc td { font-size: 13px; vertical-align: top; }
   <a class="btn-ghost" id="treeLink" href="#" target="_blank"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.openTree">Open in Test Specification</span></a>
   <button class="btn-ghost" onclick="openSuiteExport(false)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuiteCases">Export Test Cases</span></button>
   <button class="btn-ghost" onclick="openSuiteExport(true)"><i class="fa fa-file-export"></i> <span data-i18n="suvw.exportSuite">Export Test Suite</span></button>
+  <button class="btn-ghost" id="genHtmlSpecBtn" onclick="openSuiteSpec(0)" style="display:none;"><i class="fa fa-print"></i> <span data-i18n="suvw.genSpecHtml">Generate spec (HTML)</span></button>
+  <button class="btn-ghost" id="genWordSpecBtn" onclick="openSuiteSpec(4)" style="display:none;"><i class="fa fa-file-word"></i> <span data-i18n="suvw.genSpecWord">Generate spec (Word)</span></button>
   <button class="btn-ghost" id="importCasesBtn" onclick="openSuiteImport(false)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importCases">Import Test Cases</span></button>
   <button class="btn-ghost" id="importSuiteBtn" onclick="openSuiteImport(true)" style="display:none;"><i class="fa fa-file-import"></i> <span data-i18n="suvw.importSuite">Import Test Suite</span></button>
   <button class="btn-ghost" id="tvBtn" onclick="toggleTableView()" style="display:none;"><i class="fa fa-table"></i> <span data-i18n="suvw.tableView">Table view</span></button>
@@ -164,6 +166,7 @@ var TOKEN = 0;
 var SPEC_URL = '/gui/templates/testcases/testSpec.html?tproject_id=';
 var TC_VIEW_URL = '/gui/templates/testcases/tcView.html';
 var CAN_MANAGE = false;
+var CAN_PRINT = false;
 var DOMAINS = null;
 var TV_LOADED = false;
 var TV_DATA = null;
@@ -214,8 +217,16 @@ function render(r) {
   var s = r.suite;
   TPROJECT_ID = r.tproject.id || TPROJECT_ID;
   CAN_MANAGE = !!r.can_manage;
+  CAN_PRINT = !!r.can_print;
   DOMAINS = r.domains || null;
   $('#tvBtn').toggle(CAN_MANAGE);
+  // Generate-spec toolbar actions (issue #1369): legacy
+  // containerViewTestSuiteTextButtons.inc.tpl:66-70 showed the
+  // btn_gen_test_suite_spec_new_window / btn_gen_test_suite_spec_word report
+  // icons; the modern pipeline renders printTestDoc.html (testspec at
+  // level=testsuite, all options on) via api/testcasesprint. Generation needs
+  // testplan_metrics on the owning project (legacy checkRights()).
+  $('#genHtmlSpecBtn, #genWordSpecBtn').toggle(CAN_PRINT);
   // Import launchers: legacy containerViewTestSuiteTextButtons.inc.tpl:72-77
   // importItem ($importToTSuiteAction = tcImport.html?...&useRecursion=1,
   // deep suite import) and :129 import-TC span ($importTestCasesAction,
@@ -467,6 +478,22 @@ function openSuiteExport(deep) {
     '&containerID=' + SUITE_ID;
   if (deep) url += '&useRecursion=1';
   window.open(url, '_blank', 'width=900,height=720,resizable=yes,scrollbars=yes');
+}
+
+function openSuiteSpec(format) {
+  // Generate the testsuite-spec document (HTML format=0 / MS Word format=4)
+  // with ALL print options on — exact modern equivalent of the legacy
+  // testSuiteDocAction / testSuiteWordDocAction
+  // (lib/results/printDocument.php?type=testspec&level=testsuite
+  //  &allOptionsOn=1&format=0|4&id=<suite>, containerView.tpl:54-58).
+  if (!CAN_PRINT) return;
+  var allOpts = 'toc=y&headerNumbering=y&header=y&summary=y&body=y' +
+    '&author=y&keyword=y&cfields=y&requirement=y';
+  var url = '/gui/templates/testcases/printTestDoc.html' +
+    '?type=testspec&level=testsuite&id=' + SUITE_ID +
+    '&tproject_id=' + TPROJECT_ID +
+    '&format=' + (format === 4 ? 4 : 0) + '&' + allOpts;
+  window.open(url, '_blank', 'width=1080,height=820,resizable=yes,scrollbars=yes');
 }
 
 function openSuiteImport(deep) {

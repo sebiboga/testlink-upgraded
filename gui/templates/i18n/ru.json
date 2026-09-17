@@ -2794,6 +2794,8 @@
   "suvw.exportSuite": "Экспортировать тест-сьют",
   "suvw.exportSuiteCases": "Экспортировать тестовые случаи",
   "suvw.extId": "Внешний ID",
+  "suvw.genSpecHtml": "Создать спецификацию (HTML)",
+  "suvw.genSpecWord": "Создать спецификацию (Word)",
   "suvw.identifier": "Идентификатор",
   "suvw.impHigh": "Высокая",
   "suvw.impLow": "Низкая",

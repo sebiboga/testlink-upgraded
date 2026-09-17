@@ -13,6 +13,8 @@
  *   GET ?action=info&id=<suite_id>&tproject_id=<pid>
  *       -> suite header + child suites count + linked test cases
  *          (latest ACTIVE version) + suite keywords + attachments
+ *          + can_manage (mgt_modify_tc) + can_print (testplan_metrics,
+ *          drives the Generate-spec HTML/Word toolbar actions)
  *
  * Rights: legacy suite viewer requires read access to the owning test
  * project (mgt_view_tc). The owning project is resolved from the suite node
@@ -335,6 +337,15 @@ if ($method === 'GET' && $action === 'info') {
     // when modify_tc_rights == 'yes' (mgt_modify_tc on the owning project)
     $canManage = ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) === 'yes');
 
+    // may the current user generate the testsuite spec document — mirrors
+    // legacy lib/results/printDocument.php checkRights() which enforces
+    // 'testplan_metrics' on the owning project (via hasRightOnProj). The
+    // explicit project id is used because the session testproject may belong
+    // to a different project when the suite popup opens from a system-wide
+    // search (see header note). This drives the suiteView toolbar
+    // Generate-spec (HTML/Word) actions (issue #1369).
+    $canPrint = ($user->hasRight($db, 'testplan_metrics', $tprojectId) === 'yes');
+
     out(array(
         'status' => 'ok',
         'suite' => array(
@@ -350,6 +361,7 @@ if ($method === 'GET' && $action === 'info') {
         'keywords' => $keywords,
         'attachments' => $attachments,
         'can_manage' => $canManage,
+        'can_print' => $canPrint,
         'domains' => buildDomains($db),
         'tproject' => array('id' => $tprojectId, 'name' => $tprojectName),
     ));

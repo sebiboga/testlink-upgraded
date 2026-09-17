@@ -2794,6 +2794,8 @@
   "suvw.exportSuite": "Exportă suite de test",
   "suvw.exportSuiteCases": "Exportă cazuri de testare",
   "suvw.extId": "ID extern",
+  "suvw.genSpecHtml": "Generează specificația (HTML)",
+  "suvw.genSpecWord": "Generează specificația (Word)",
   "suvw.identifier": "Identificator",
   "suvw.impHigh": "Ridicată",
   "suvw.impLow": "Scăzută",
