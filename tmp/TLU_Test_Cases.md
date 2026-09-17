@@ -16251,51 +16251,35 @@ revision 1.
 
 **Result: 16/16 PASS** — resolver screen + BFF + link switches delivered (Refs #1532). Pre-existing legacy bug surfaced and filed as #1533 (linkto.php inner-frame `testproject::setSessionProject()` fatal for non-req item types).
 
-## Regression — Issue #1531: BFF POST /api/roles 500 (empty body) on rightIDs containing 0
+---
 
-**Precondition:** TestLink app up at http://localhost:8082, logged in as admin/admin (curl cookie jar `/tmp/tlu_cookies.txt`). DB freshly imported; rights ids 3/6 exist in the `rights` table, id 0 does not. BFF requires same-origin proof (send `Origin: http://localhost:8082`).
+## Suite 1366 — Task Issue #1366: Attachment upload + delete in suiteView
 
-**Test 1 — Bug repro (pre-fix on the 500 path)**
-1. `curl -sb $JAR -X POST http://localhost:8082/api/roles/index.php -H "Origin: http://localhost:8082" -H "Content-Type: application/json" --data '{"name":"probe0_1531","description":"probe0","rightIDs":[0]}'`
-- **Pre-fix expected/observed:** HTTP 500 with EMPTY body (uncaught `TypeError: sizeof(): Argument #1 ($value) must be of type Countable|array, null given` in `lib/functions/tlRole.class.php:224` via `checkDetails`).
-- **Post-fix expected:** HTTP 400 JSON `{"status":"error","message":"Role must have at least one right","messageKey":"role.error.noRights","code":-5}` with a non-empty body, no error in Event Viewer.
-- **Actual:** PASS — post-fix returns exactly the 400 JSON.
+**Feature:** `gui/templates/testcases/suiteView.html` (BFF `api/suiteview/index.php`)
+gets the legacy read/write attachment block back: an "Add attachment" upload form
+(file + title + Upload) and a per-row Delete with confirmation, gated by
+`mgt_modify_tc` on the owning test project. Legacy ref: `containerView.tpl:77-85`
++ `:196-204` → `containerEdit.php:129-167` (`fileUpload` / `deleteFile`).
 
-**Test 2 — POST rightIDs:[] (empty array)**
-- **Expected:** 400 same message (pre-fix this also fatalled: `empty([])` skips the loop leaving `rights` null).
-- **Actual:** PASS — 400 `Role must have at least one right`.
+**Precondition:** fresh DB import. Recreated fixtures via the modern BFF:
+project id **1** `Attach Fixture Project` (prefix ATF), suite id **2**
+`Attachment Fixture Suite`, suite id **3** `Other Suite`, user **viewer1366**
+(role 5 guest). Admin (`admin/admin`) holds `mgt_modify_tc` on project 1.
 
-**Test 3 — POST with no rightIDs field at all**
-- **Expected:** 400 same message.
-- **Actual:** PASS — 400 `Role must have at least one right`.
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Admin `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` | each `attachments[]` row carries `download_url` `/api/attachments/index.php?action=download&id=<id>` | PASS — `download_url` present on every row |
+| 2 | Open `suiteView.html?id=2&tproject_id=1` as admin | Attachments card shows ADD ATTACHMENT form (TITLE textbox + Choose File + Upload) + empty state (CAN_MANAGE=true) | PASS — form + empty state rendered |
+| 3 | Choose `att1366.txt` (37 B), title `Suite attachment demo`, click Upload | HTTP 200; row appears (title/file/size/date), success banner | PASS — row `Suite attachment demo` / `att1366.txt` / `37 B`; "Attachment uploaded successfully." |
+| 4 | `GET` the row's `download_url` | 200, body = uploaded file bytes | PASS — `hello suite attachment fixture #1366` |
+| 5 | Click per-row **Delete**, confirm dialog `Delete this attachment? This cannot be undone.` | dialog shows; accepting deletes; "Attachment deleted."; empty state returns | PASS — confirm dialog + message + empty list |
+| 6 | Ownership guard: upload to suite 2 (att id=3), then `POST attachment_delete&id=3&file_id=3` (forged, suite 3 owns nothing) | 404 `Attachment not found on this test suite`; attachment still on suite 2; real delete via id=2 → 200 | PASS — 404 for forged, `stillThere:[3,2]`, real delete `deleted_id:3` |
+| 7 | Permission: log in as `viewer1366` (guest, no `mgt_modify_tc`) → `POST attachment_upload` + `attachment_delete` on suite 2 | both 403 (`No permission to upload/delete suite attachments`); `info` still 200 | PASS — upload 403, delete 403, info 200 |
+| 8 | As `viewer1366` open `suiteView.html?id=2&tproject_id=1` | `CAN_MANAGE=false`; upload form hidden; **no** per-row Delete; read-only attachment row still listed | PASS — `uploadDisplay:none`, `deleteButtons:0`, 1 row listed |
+| 9 | i18n | 19 attachment keys (`suvw.addAttachment/attTitle/attFile/attSize/attDate/attachments/chooseFile/upload/uploadTitle/uploadOk/noAttachments` + `delAttConfirm/delete/deleteOk/deleteFail/noFileSelected` + `errAllowedFiles/errAllowedFilenames/errEmptyExtension/errUploadGeneric`) present in all 10 bundles; all bundles valid JSON | PASS — none missing; `python3 -m json.tool` all OK |
+| 10 | Syntax gates | `php -l api/suiteview/index.php`; `node --check` on inline suiteView JS | PASS — no syntax errors; JS OK |
+| 11 | Event Viewer | only audit INFO rows (`audit_login_succeeded`, `audit_testproject_created`, `audit_attachment_created`, `audit_attachment_deleted`); no Error/Warning | PASS — 4 rows, all `log_level=16` |
 
-**Test 4 — POST valid rights [3,6] still works**
-- **Expected:** 200 `{"status":"ok","item":{...,"rights":[{"id":3,...},{"id":6,...}]},"feedback_key":"role_created"}`.
-- **Actual:** PASS — 200, role created (cleanup: DELETE afterwards).
-
-**Test 5 — PUT regression with rightIDs:[0]**
-1. Create a role with valid rights, then `PUT /api/roles/index.php/{id}` with `{"rightIDs":[0]}`.
-- **Expected:** 400 `Role must have at least one right` (PUT was already safe pre-fix since it resets `rights=[]`; unchanged).
-- **Actual:** PASS — 400.
-
-**Test 6 — PUT valid rights + DELETE cleanup**
-1. `PUT` with `rightIDs:[1]` then `DELETE /{id}`.
-- **Expected:** 200 `role_updated`, then 200 `role_deleted`.
-- **Actual:** PASS.
-
-**Test 7 — UI create-role modal still works (browser)**
-1. Open `gui/templates/usermanagement/rolesView.html` as admin; click `+ Create Role`; name "UI probe 1531"; tick `testplan_execute`; Save.
-- **Expected:** toast "Role UI probe 1531 was successfully created"; row appears (Type Custom); GET /roles list contains it.
-- **Actual:** PASS.
-
-**Test 8 — UI blocks no-rights save client-side (browser)**
-1. Open create modal, fill name only, click Save.
-- **Expected:** client-side message "Select at least one right." appears; NO network POST is sent; no console errors. (Independent of the BFF fix.)
-- **Actual:** PASS.
-
-**Test 9 — Event Viewer clean**
-1. `SELECT id,log_level,description FROM events ORDER BY id DESC;`
-- **Expected:** no log_level 1 (ERROR) or 2 (WARNING) rows produced by these steps; AUDIT (16) role create/update/delete rows only.
-- **Actual:** PASS — no Error/Warning entries.
-
-**Result: 9/9 PASS** — the 500 empty-body fatal is gone; `rightIDs:[0]`, `[]` and missing field all yield the intended 400 `E_EMPTYROLE` JSON; valid create/update/delete and UI flows unaffected. Related discovery filed as #1535 (nonexistent rid > 0 creates a dangling `role_rights` reference). (Refs #1531).
+**Result: 11/11 PASS** — attachment upload + delete ported into the modern
+suiteView (admin write path, read-only viewer path, ownership guard, permission
+gate, i18n, clean events). Refs #1366.
