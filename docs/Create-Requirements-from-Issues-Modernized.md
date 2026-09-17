@@ -134,3 +134,51 @@ enforcement 405, `locale=de` German server messages, EN↔RO UI switch, entry
 button on `reqSpecView.html`, Event Viewer clean (0 ERROR/WARNING rows).
 Fixture: `tmp/fixtures_walk.php` creates the WALK1503 test project (id 25)
 with specs 31 / 36 / 38; rerun after every DB reset/CI re-import.
+
+## 7. Regression re-record (Recorded + re-verified, kills RE-OPEN #1503, Refs #1528)
+
+Screen + BFF + i18n were fully built (#1503) but the **MODERNIZATION-STATUS
+ledger row, Summary extras mention and CHANGELOG line were destroyed by the
+#1487 guts** commit `8ef9694d3` and never restored — only the BFF/HTML/i18n
+files came back via `4bcf10e07` (#1507). This run re-recorded the screen in
+the ledger + CHANGELOG and re-verified it end-to-end against fresh fixtures.
+
+**Two real regressions fixed in-run (restored from #1504/#1505):**
+
+- **#1504 re-regression — misspelled length-exceeded locale keys restored in
+  `requirement_mgr.class.php`.** The class still called `lang_get()` with the
+  typos `req_title_lenght_exceeded`/`req_docid_lenght_exceeded` (only the
+  `strings.txt` side had been corrected by #1504, and even that was reverted
+  by `8ef9694d3`). Every `createFromMap()` import therefore fired two
+  `log_level=32` "not localized" Event Viewer WARNING rows — observed live
+  (events 8-11) and confirmed gone after the fix. Restored the corrected
+  spellings (`req_title_length_exceeded`/`req_docid_length_exceeded`) in the
+  class label init + both over-length branches, and re-added the translated
+  keys to the 16 bundles the guts dropped (cs_CZ, de_DE, en_GB, en_US, es_AR,
+  es_ES, fi_FI, fr_FR, id_ID, it_IT, ko_KR, pl_PL, pt_BR, pt_PT, ro_RO,
+  ru_RU). Verified: over-length docid/title import now returns the clean
+  localized skip `Req title length exceeded/` (en_GB) with zero new events;
+  all 19 bundles `php -l` clean.
+- **#1505 re-regression — `createFromMap()` null-version guard restored.**
+  Line 1624 `$last_version['is_open']` was dereferenced unguarded again
+  (E_WARNING "Trying to access array offset on null" on a docid hit owning NO
+  `req_versions` row); restored the `is_array($last_version) && isset(...)`
+  guard so a version-less hit falls through to the clean "is FROZEN" skip.
+
+**Re-verified browser flows (fresh fixture `tmp/fixtures_1503.php`, project 6
+WALK1503, spec 7 RS-WALK / 9 RS-OTHER):** pristine 2-issue import (docid
+`Mantis Task ID:<id>`, title `Issue:<id> - <summary>`, description with `Steps
+to reproduce` + `Additional information` appended via `<p>`, versions
+`expected_coverage=1`), FROZEN re-import skip on the same spec, cross-branch
+`Already exists on other branch`, 401 anonymous, 400 missing file, 422
+malformed XML, 422 wrong root, 404 unknown spec, 400 invalid params, 405
+POST-on-init (with CSRF header), 403 missing-right path (BFF grant map
+`mgt_view_req/mgt_modify_req` both required); locale `de` German server labels;
+EN↔RO UI switch; toolbar button `Create Requirements from Issues` on
+`reqSpecView.html` shown on `r.rights.manage`. Event Viewer clean after the
+fix (0 ERROR/WARNING, AUDIT 16 only); browser console clean.
+
+Screenshots: `docs/screenshot-reqfi-screen.png` (loaded screen with spec
+context) + `docs/screenshot-reqfi-import-result.png` (2-issue import result
+table with Created rows). Wiki page `Create-Requirements-from-Issues-Modernized.md`
+updated with the regression section.

@@ -165,3 +165,5 @@ $TLS_the_format_tc_xml_import = "";
 
 // Added for TestLink 2.0.1 - issue #836: simplexml_load_file_wrapper_error missing from most locale bundles
 $TLS_simplexml_load_file_wrapper_error = "Va rugam sa transmiteti acest text administratorului TestLink<br> - Incarcarea XML a esuat<br>";
+$TLS_req_title_length_exceeded = 'Lungimea titlului cerinței depășită';
+$TLS_req_docid_length_exceeded = 'Lungimea ID-ului documentului cerinței depășită';

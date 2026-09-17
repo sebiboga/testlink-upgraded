@@ -3677,6 +3677,7 @@ $TLS_frozen_req_unable_to_import = 'Skipped - Requirement - Doc ID:%s - is FROZE
 
 
 $TLS_req_title_length_exceeded = 'Req title length exceeded';
+$TLS_req_docid_length_exceeded = 'Req doc id length exceeded';
 
 // ----- lib/plan/planExport.php -----
 $TLS_export_test_plan = 'Export Test Plan';
