@@ -560,6 +560,17 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- Reflected XSS in the User Management tab bars: the four modern screens
+  (`usersView.html`, `rolesView.html`, `usersAssignProject.html`,
+  `usersAssignPlan.html`) concatenated the raw `tproject_id`/`tplan_id` URL
+  params into the `href="..."` attribute of their tab anchors, so a crafted URL
+  like `?tproject_id=1" onclick="alert(1)" x="` injected a `onclick` attribute
+  into every tab (arbitrary JS in the logged-in session). Both params are now
+  `encodeURIComponent()`-ed when the tab `ctx` query string is built (5 sites:
+  usersView.html:254+317, rolesView.html:200, usersAssignProject.html:95,
+  usersAssignPlan.html:87), making attribute breakout impossible; verified
+  payload-free DOM on all 4 screens + full regression on tab nav, project/plan
+  preselection (Fixes #1529).
 - Restored `requirement_mgr::createFromMap()` length-exceeded locale keys and
   the null-version guard destroyed by bugfix `8ef9694d3` (Issue #1487 collateral
   damage; re-regressions of #1504/#1505). The class still called `lang_get()`

@@ -197,7 +197,7 @@ function roleFeedback(feedbackKey, name) {
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
-  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  var ctx = 'tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') + '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

@@ -251,7 +251,7 @@ function userFeedback(feedbackKey, login) {
 
 $(function() {
   var p = new URLSearchParams(window.location.search);
-  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  var ctx = 'tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') + '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');
@@ -314,7 +314,7 @@ function renderTabs(ctx, g) {
 // the legacy usersExport.php entry point stays for backward compatibility.
 function gotoExport() {
   var p = new URLSearchParams(window.location.search);
-  var ctx = 'tproject_id=' + (p.get('tproject_id') || 0) + '&tplan_id=' + (p.get('tplan_id') || 0);
+  var ctx = 'tproject_id=' + encodeURIComponent(p.get('tproject_id') || '0') + '&tplan_id=' + encodeURIComponent(p.get('tplan_id') || '0');
   window.location.href = 'usersExport.html?' + ctx;
 }
 

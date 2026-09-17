@@ -92,7 +92,7 @@ function esc(s) {
 $(function() {
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
-  var ctx = 'tproject_id=' + (tp || 0) + '&tplan_id=' + (params.get('tplan_id') || 0);
+  var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(params.get('tplan_id') || '0');
   TLi18n.load(function() {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

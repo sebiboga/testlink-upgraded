@@ -84,7 +84,7 @@ TLi18n.load(function() {
   TLi18n.initLocaleSwitcher('#localeSwitcher');
   var params = new URLSearchParams(window.location.search);
   var tp = params.get('tproject_id');
-  var ctx = 'tproject_id=' + (tp || 0) + '&tplan_id=' + (params.get('tplan_id') || 0);
+  var ctx = 'tproject_id=' + encodeURIComponent(tp || '0') + '&tplan_id=' + encodeURIComponent(params.get('tplan_id') || '0');
   var tabs = [
     { label: TLi18n.t('tab.userManagement'), url: 'usersView.html?' + ctx },
     { label: TLi18n.t('tab.roleManagement'), url: 'rolesView.html?' + ctx },
