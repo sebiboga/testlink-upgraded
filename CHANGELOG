@@ -316,6 +316,20 @@ Test Spec:
   (removed 2 log_level=32 "not localized" Event Viewer rows fired on EVERY
   import) + the unguarded $last_version['is_open'] null deref (E_WARNING) in
   the frozen-req check guarded — see KEY BUGFIX below.
+- Direct-Link Resolver (links/directLink.html) - BFF api/directlink (#1532):
+  modernizes the legacy linkto.php?item=req deep-link gateway into a
+  self-contained Dashio resolver screen. GET ?action=resolve&tprojectPrefix=X
+  (or tproject_id=N)&item=req&id=<doc_id>[&version=N] resolves the doc id to
+  project + requirement (rights mgt_view_req on the OWNING project,
+  401/400/403/404/405/500 JSON contract), version-pinned cards forward to
+  reqView.html?id=..&req_version_id=.. (the modern viewer honors it), plus
+  copy-link box + locale switcher. linkto.php outer AND inner frame now 302
+  to the resolver for item=req (the inner redirect also sidesteps the
+  pre-existing testproject::setSessionProject() fatal that 500'd every
+  inner-frame deep link — remaining item types filed as #1533); api/requirements
+  direct_link + reqRevisionView copy-link emit resolver URLs (reqRevisionView
+  gains the viewed version + numeric project alias). dl.* (18) + footers.directLink
+  keys in all 10 bundles.
 
 Plans:
 - Test Plan Management (planView.html) - BFF api/plans (#576).

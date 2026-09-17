@@ -139,6 +139,7 @@ if (is_null($reqId)) {
 }
 
 // Optional explicit version validation (legacy process_req second step).
+$pinnedVersionId = null;
 if ($version !== '' && is_numeric($version)) {
     try {
         $vreq = $reqMgr->get_by_id($reqId, null, intval($version));
@@ -156,30 +157,39 @@ if ($version !== '' && is_numeric($version)) {
             'message' => sprintf('Requirement %s version %s not found', $docId, $version),
         ]);
     }
+    $pinnedVersionId = intval($versionId);
 }
 
-// Latest version used for the card enrichment.
-try {
-    $latestRows = $reqMgr->get_by_id($reqId);
-} catch (Exception $e) {
-    http_response_code(500);
-    dlOut(['status' => 'error', 'message' => 'Requirements service error']);
+// Card enrichment: use the PINNED version when one was requested (legacy
+// process_req parity — metadata + viewer link must match that version), else
+// the latest version.
+$item = is_null($pinnedVersionId) || is_null($vreq) ? null : $vreq;
+if (is_null($item)) {
+    try {
+        $latestRows = $reqMgr->get_by_id($reqId);
+    } catch (Exception $e) {
+        http_response_code(500);
+        dlOut(['status' => 'error', 'message' => 'Requirements service error']);
+    }
+    $item = is_null($latestRows) ? null : current($latestRows);
 }
-$latest = is_null($latestRows) ? null : current($latestRows);
 
 $href = '/gui/templates/requirements/reqView.html?id=' . $reqId . '&tproject_id=' . $tprojectId;
+if (!is_null($pinnedVersionId)) {
+    $href .= '&req_version_id=' . $pinnedVersionId;
+}
 
 dlOut([
     'status' => 'ok',
     'tproject_id' => $tprojectId,
     'tproject_name' => is_array($tprojectData) ? (string)($tprojectData['name'] ?? '') : '',
-    'tproject_prefix' => $prefix,
+    'tproject_prefix' => is_array($tprojectData) ? (string)($tprojectData['prefix'] ?? '') : '',
     'req_id' => $reqId,
     'req_doc_id' => $docId,
-    'title' => is_array($latest) ? (string)($latest['title'] ?? '') : '',
-    'version' => is_array($latest) ? intval($latest['version'] ?? 0) : 0,
-    'version_id' => is_array($latest) ? intval($latest['version_id'] ?? 0) : 0,
-    'revision' => is_array($latest) ? intval($latest['revision'] ?? 0) : 0,
+    'title' => is_array($item) ? (string)($item['title'] ?? '') : '',
+    'version' => is_array($item) ? intval($item['version'] ?? 0) : 0,
+    'version_id' => is_array($item) ? intval($item['version_id'] ?? 0) : 0,
+    'revision' => is_array($item) ? intval($item['revision'] ?? 0) : 0,
     'href' => $href,
     'grant' => [
         'req_mgmt' => $user->hasRight($db, 'mgt_modify_req', $tprojectId),

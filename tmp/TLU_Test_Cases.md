@@ -16170,35 +16170,83 @@ Before the fix, `window.alert` was instrumented before navigation. On **both** s
 - **Actual:** PASS — only audit INFO rows (login/create/assign) + that 1 fixture-induced LOCALIZATION warning; nothing caused by the escaping change.
 
 **Result: 7/7 PASS** — both screens render every DB-sourced name as inert text, all four alert vectors (project 3, plan 4, user 5, role/inherited 6) neutralized, save/normal/tab flows unchanged, no new Event Viewer errors (Fixes #1530).
-## Task — Issue #927: Disable role select for global-admin users in Assign Test Project Roles (and Test Plan Roles)
 
-Suite for task `#927` — porting the legacy global-admin role lock
-(`gui/templates/dashio/usermanagement/usersAssign.tpl:244-248,275-277`) into the
-modern `usersAssignProject.html` / `usersAssignPlan.html` screens:
-admin rows render a disabled role select + localized hint, and admin ids are never
-submitted by Save (client) nor accepted by the BFF PUT routes (server).
+## Suite 1532 — Direct-Link Resolver screen (directLink.html + api/directlink) (Refs #1532)
 
-**Precondition:** fresh DB (`tmp/fixtures_927.php` — created for this run) with
-- user `admin` (id 1, global role 8 = admin),
-- user `tester927` (id 2, global role 9 = leader),
-- testproject `CATALOG` (public, active) and testplan `CATALOG-R1`.
-Run `php tmp/fixtures_927.php` before executing; the script is re-runnable
-(it deletes and recreates the project/plan).
+**Precondition:** TestLink 2.0.1 @ http://localhost:8082. Two users: `admin/admin`
+(full rights) and `nobody1532/admin` (role id 3 `<no rights>`, created for the
+403 path). Fixture created by `php tmp/fixtures_1532.php`: test project
+**DL1532** (prefix `DLS2`, id 4), requirement spec **RS-DL** (id 5),
+requirements **DLREQ-001** (id 7) and **DLREQ-002** (id 9), each version 1 /
+revision 1.
 
-| # | Test | Steps | Expected | Actual |
-|---|------|-------|----------|--------|
-| 1 | BFF flags admins (tproject) | `GET /api/roles/index.php/meta/tproject-roles?tproject_id=<CATALOG>` (admin session) | user 1 `isAdmin=true`; user 2 `isAdmin=false` | PASS |
-| 2 | BFF flags admins (tplan) | `GET /api/roles/index.php/meta/tplan-roles?tproject_id=&tplan_id=<R1>` | user 1 `isAdmin=true`; user 2 `isAdmin=false` | PASS |
-| 3 | Project screen — admin select disabled + hint | Open `usersAssignProject.html`, select CATALOG | admin row select `disabled`, value `<inherited> admin`, info hint icon with title "Administrator role is locked and cannot be changed"; tester927 select enabled | PASS |
-| 4 | Project Save excludes locked admin | Change tester927 → tester, Save | PUT body `{"tproject_id":<id>,"assignments":{"2":7}}` (no `"1"` key); DB row `(user 2, role 7)`; admin unchanged | PASS |
-| 5 | Crafted PUT cannot hijack admin (tproject) | Direct `PUT /tproject-roles` `{"assignments":{"1":9,"2":4}}` | 200; admin assignment stripped server-side; only user 2 → role 4 written | PASS |
-| 6 | Plan screen — admin override select disabled + hint | Open `usersAssignPlan.html`, CATALOG → CATALOG-R1 | admin row "Plan Role Override" select `disabled` + hint; tester927 editable | PASS |
-| 7 | Plan Save excludes locked admin | Change tester927 override → tester, Save | PUT `{"tplan_id":<id>,"assignments":{"2":7}}` (no `"1"` key); DB `(user 2, role 7)` | PASS |
-| 8 | Crafted PUT cannot hijack admin (tplan) | Direct `PUT /tplan-roles` `{"assignments":{"1":9,"2":6}}` | 200; admin stripped; only user 2 → role 6 written | PASS |
-| 9 | Re-load after save keeps admin locked | After saves, reload both screens | admin select still disabled with hint on both screens | PASS |
-| 10 | JS syntax gates | `node --check` on both screen inline scripts; `php -l api/roles/index.php` | clean | PASS |
-| 11 | Event Viewer clean | `SELECT log_level FROM events` after all steps | no new Error/Warning (only AUDIT/16 rows) | PASS |
+**Test 1 — BFF resolve OK (doc id + prefix)**
+1. `curl` (admin cookie) `GET /api/directlink/index.php?action=resolve&tprojectPrefix=DLS2&item=req&id=DLREQ-001`.
+- **Expected:** 200 `{"status":"ok", tproject_id:4, tproject_name:DL1532, tproject_prefix:DLS2, req_id:"7", req_doc_id:DLREQ-001, req_title, version:"1", revision:"1", viewer_url/copy_url to reqView.html?id=7&tproject_id=4}`.
+- **Actual:** PASS — 200, id 7 resolved, versions present.
 
-**Result: 11/11 PASS** — Refs #927. Global admins are locked on both role-assignment
-screens exactly as in legacy, their rows are never written by Save, crafted API calls
-are rejected server-side, and no new Error/Warning entries were generated.
+**Test 2 — BFF resolve with explicit version** (GET `&version=1`)
+- **Expected:** 200 with `version=1`, `copy_url` carrying `&version=1`, revision 1 from that version.
+- **Actual:** PASS — version pinned, revision 1.
+
+**Test 3 — 404 unknown project prefix** (GET `&tprojectPrefix=NOPE&item=req&id=DLREQ-001`)
+- **Expected:** 404 `Test project NOPE not found`.
+- **Actual:** PASS — 404, JSON message.
+
+**Test 4 — 404 unknown doc id** (GET `&tprojectPrefix=DLS2&item=req&id=ZZZ-999`)
+- **Expected:** 404 `Requirement ZZZ-999 not found`.
+- **Actual:** PASS — 404; browser shows "Requirement ZZZ-999 not found" card state.
+
+**Test 5 — 404 unknown version** (GET `&tprojectPrefix=DLS2&item=req&id=DLREQ-001&version=99`)
+- **Expected:** 404 `Requirement DLREQ-001 version 99 not found`.
+- **Actual:** PASS — 404, JSON message.
+
+**Test 6 — 400 missing params** (GET `?action=resolve`)
+- **Expected:** 400 `Missing tprojectPrefix (or tproject_id), item or id`.
+- **Actual:** PASS — 400, JSON message.
+
+**Test 7 — 400 unsupported item** (GET `&tprojectPrefix=DLS2&item=testcase&id=1`)
+- **Expected:** 400 `Unsupported item type: testcase`.
+- **Actual:** PASS — 400, JSON message.
+
+**Test 8 — 405 method not allowed** (POST `?action=resolve&…` with `X-Requested-With: XMLHttpRequest`)
+- **Expected:** 405 `Method not allowed`.
+- **Actual:** PASS — 405; POST without the same-origin header → 403 CSRF guard first (expected).
+
+**Test 9 — 401 anonymous** (no session cookie)
+- **Expected:** 401 JSON; browser lands on the resolver and bounces to `/index.php` → login form.
+- **Actual:** PASS — curl 401; Browser (isolated context) redirected to `login.php`.
+
+**Test 10 — 403 no right** (logged in as `nobody1532`, role `<no rights>`)
+- **Expected:** 403 `No permission to view requirements in this project`; resolver page renders that localized error card with Resolve again.
+- **Actual:** PASS — curl 403 + browser card state.
+
+**Test 11 — `tproject_id` numeric alias** (GET `&tproject_id=4&item=req&id=DLREQ-002`)
+- **Expected:** 200 resolving DLREQ-002 → req_id 9, copy/viewer URL for id 9.
+- **Actual:** PASS — 200, id 9.
+
+**Test 12 — Resolver page OK state (admin)** 
+1. Browse `gui/templates/links/directLink.html?tprojectPrefix=DLS2&item=req&id=DLREQ-001`; click Open viewer.
+- **Expected:** card shows project DL1532 (DLS2), requirement DLREQ-001, title, version 1, revision 1; Open viewer → modern `reqView.html?id=7&tproject_id=4` renders (Requirement Viewer, DLREQ-001); copy-link input holds the viewer URL.
+- **Actual:** PASS — all present; reqView renders modern viewer; copy input matches.
+
+**Test 13 — Locale switch en→ro** (set locale selector to Română)
+- **Expected:** URL gains `&locale=ro`; "Link direct", "Rezolvă din nou", "Element rezolvat", "Proiect de testare", "Cerință", "Titlu", "Versiune", "Revizie", "Deschide vizualizatorul", "Copiază", footer "TestLink 2.0.1 - Link direct".
+- **Actual:** PASS — full Romanian label set present.
+
+**Test 14 — linkto.php redirects (item=req)**
+1. Admin curl: GET `/linkto.php?tprojectPrefix=DLS2&item=req&id=DLREQ-001` and `/linkto.php?load&tprojectPrefix=DLS2&item=req&id=DLREQ-001&version=1`.
+- **Expected:** both 302 → `gui/templates/links/directLink.html?…` (outer without version, inner with `&version=1`). Non-req item (`item=reqspec`) must NOT be redirected.
+- **Actual:** PASS — outer/inner 302 to resolver; reqspec untouched (200 legacy shell), no HTTP 500 left on the req inner-frame path.
+
+**Test 15 — modern screens emit resolver URLs**
+1. `GET /api/requirements/index.php?action=req_view&req_id=7&tproject_id=4` (admin) → check `direct_link`; open `reqRevisionView.html?id=7&tproject_id=4` and read the Direct link input.
+- **Expected:** both produce `gui/templates/links/directLink.html?tprojectPrefix=DLS2&item=req&id=DLREQ-001[&version=1]` (no legacy `linkto.php`).
+- **Actual:** PASS — resolver URLs emitted; reqRevisionView direct link now carries `tproject_id` (fixes latent missing-prefix bug of the old linkto URL).
+
+**Test 16 — Event Viewer clean**
+1. Query `events` table after all runs (login, BFF calls).
+- **Expected:** no new Error/Warning entries from the resolver/BFF (audit INFO rows only), no 404 JS resource besides the still-open font-awesome issue on `reqReorder.html` (logged separately, #1534).
+- **Actual:** PASS — no Event Viewer errors from the direct-link milestone.
+
+**Result: 16/16 PASS** — resolver screen + BFF + link switches delivered (Refs #1532). Pre-existing legacy bug surfaced and filed as #1533 (linkto.php inner-frame `testproject::setSessionProject()` fatal for non-req item types).

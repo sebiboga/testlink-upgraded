@@ -81,7 +81,7 @@ $(function () {
 
 function showMsg(kind, text) {
   var m = $('#msg');
-  m.removeClass('ok err info').addClass(kind);
+  m.removeClass('ok err info').addClass(kind).show();
   m.text(text);
 }
 
@@ -121,7 +121,7 @@ function resolve() {
       document.title = TLi18n.t('dl.title');
       $('#rProject').text(r.tproject_name + ' (' + r.tproject_prefix + ')');
       $('#rReqId').text(r.req_doc_id);
-      $('#rTitle').text(r.title || '&mdash;');
+      $('#rTitle').text(r.title || '\u2014');
       $('#rVersion').text(r.version);
       $('#rRevision').text(r.revision);
       var href = r.href + (anchor ? '#' + encodeURIComponent(anchor) : '');
