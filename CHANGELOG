@@ -608,6 +608,14 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   `checkDetails` now tests `empty($this->rights)` (null-safe, identical
   semantics for arrays), so invalid/no-right payloads reach the declared
   `E_EMPTYROLE` 400 branch "Role must have at least one right" (Fixes #1531).
+- BFF role create/edit: `POST/PUT /api/roles` accepted nonexistent `rightIDs`
+  (e.g. `[99999]`) and attached them, minting dangling `role_rights` rows shown
+  as `{"id":99999,"name":null}` in the role list. `tlRight::_clean()` keeps
+  `dbID` under `TLOBJ_O_SEARCH_BY_ID`, so the old `if ($right->dbID)` guard
+  treated a failed `readFromDB()` as success; both handlers now test the read
+  result (`>= tl::OK`) so invalid ids are dropped and an all-invalid payload
+  yields the `E_EMPTYROLE` 400 (legacy `rolesEdit.php:102-103` parity)
+  (Fixes #1535).
 - Reflected XSS in the User Management tab bars: the four modern screens
   (`usersView.html`, `rolesView.html`, `usersAssignProject.html`,
   `usersAssignPlan.html`) concatenated the raw `tproject_id`/`tplan_id` URL
