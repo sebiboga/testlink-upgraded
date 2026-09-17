@@ -167,17 +167,21 @@ function frr($sql)
 /**
  * Suite must exist, be a testsuite node, and belong (somewhere up the tree)
  * to a test project. Returns array(id, name) or null.
+ *
+ * $typeId: expected node_type_id of the suite; when null the global
+ * $tsuiteTypeId is not consulted (callers that resolved it locally must pass
+ * it explicitly — the function cannot see handler-local variables).
  */
-function resolveSuite($suiteId)
+function resolveSuite($suiteId, $typeId = null)
 {
-    global $db, $tables, $tsuiteTypeId;
+    global $db, $tables;
     $suiteId = intval($suiteId);
     $row = frr(
         "SELECT NH.id, NH.name, NH.parent_id, NH.node_type_id " .
         "FROM {$tables['nodes_hierarchy']} NH " .
         "WHERE NH.id = {$suiteId} LIMIT 1");
     if (is_null($row)) return null;
-    if ($tsuiteTypeId > 0 && intval($row['node_type_id']) !== $tsuiteTypeId) return null;
+    if (!is_null($typeId) && intval($row['node_type_id']) !== intval($typeId)) return null;
     return $row;
 }
 
@@ -191,7 +195,7 @@ if ($method === 'GET' && $action === 'info') {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -346,6 +350,12 @@ if ($method === 'GET' && $action === 'info') {
     // Generate-spec (HTML/Word) actions (issue #1369).
     $canPrint = ($user->hasRight($db, 'testplan_metrics', $tprojectId) === 'yes');
 
+    // direct-link URL for the suite (legacy testsuite::buildDirectWebLink,
+    // testsuite.class.php:1827) — mirrors the reqView/reqSpec BFF precedent
+    // (api/requirements/index.php:691). The prefix is already resolved above.
+    $directLink = $_SESSION['basehref'] . 'linkto.php?tprojectPrefix=' .
+        urlencode($extPrefix) . '&item=testsuite&id=' . urlencode(intval($suite['id']));
+
     out(array(
         'status' => 'ok',
         'suite' => array(
@@ -356,6 +366,7 @@ if ($method === 'GET' && $action === 'info') {
             'parent_name' => $parentName,
             'child_suites' => $childSuites,
             'testcases_cnt' => count($testcases),
+            'direct_link' => $directLink,
         ),
         'testcases' => $testcases,
         'keywords' => $keywords,
@@ -384,7 +395,7 @@ if ($method === 'GET' && $action === 'table') {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -533,7 +544,7 @@ if ($method === 'POST' && $action === 'bulk_set') {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -678,7 +689,7 @@ if ($method === 'POST' && $action === 'reorder_testcases') {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -760,7 +771,7 @@ if ($method === 'POST' && $action === 'delete_testcases') {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -846,7 +857,7 @@ if ($method === 'POST'
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid test suite id'));
     }
-    $suite = resolveSuite($suiteId);
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
     if (is_null($suite)) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
@@ -873,7 +884,7 @@ if ($method === 'POST'
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'No test cases selected'));
     }
-    $target = resolveSuite($targetId);
+    $target = resolveSuite($targetId, $tsuiteTypeId);
     if (is_null($target)) {
         http_response_code(400);
         out(array('status' => 'error', 'message' => 'Invalid target test suite'));
@@ -915,6 +926,295 @@ if ($method === 'POST'
         out(array('status' => 'ok', 'message' => 'Test cases copied',
                   'copied' => $copied));
     }
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=save_suite  create: {parent_id, name, details}
+//                          update: {id, name, details}
+// Create a new test suite under parent_id (legacy add_testsuite, containerEdit
+// addTestSuite:729) or update an existing suite name/details (legacy
+// update_testsuite, containerEdit updateTestSuite:839). Requires mgt_modify_tc
+// (legacy testcase_mgmt grant gate, containerEdit.php:123). The legacy edit
+// form also manages keywords/custom-fields; the tcTestSpec tree covers those
+// (api/testcases suite_*), so here we persist name + details for full parity
+// with the legacy suite editor.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'save_suite') {
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+
+    $name = trim(strval($json['name'] ?? ''));
+    $details = strval($json['details'] ?? '');
+    $suiteId = intval($json['id'] ?? 0);
+    $parentId = intval($json['parent_id'] ?? 0);
+
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+
+    if ($name === '') {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Test suite name is required'));
+    }
+
+    if ($suiteId > 0) {
+        // ---- UPDATE existing suite -----------------------------
+        $suite = resolveSuite($suiteId, $tsuiteTypeId);
+        if (is_null($suite)) {
+            http_response_code(404);
+            out(array('status' => 'error', 'message' => 'Test suite not found'));
+        }
+        $tprojectId = owningProjectOf($suite['id'], $types);
+        if ($tprojectId <= 0) {
+            http_response_code(404);
+            out(array('status' => 'error', 'message' => 'Owning test project not found'));
+        }
+        if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+            http_response_code(403);
+            out(array('status' => 'error', 'message' => 'You are not authorized to modify test suites'));
+        }
+        $tsuiteMgr = new testsuite($db);
+        $ret = $tsuiteMgr->update($suiteId, $name, $details, intval($suite['parent_id']));
+        if (isset($ret['status_ok']) && !$ret['status_ok']) {
+            http_response_code(422);
+            out(array('status' => 'error',
+                      'message' => strval($ret['msg'] ?? 'Test suite update failed')));
+        }
+        $id = $suiteId;
+        $created = false;
+        $message = 'Test suite updated';
+    } else {
+        // ---- CREATE new suite under parent --------------------
+        if ($parentId <= 0) {
+            http_response_code(400);
+            out(array('status' => 'error', 'message' => 'Missing parent container id'));
+        }
+        $parentSuite = resolveSuite($parentId, $tsuiteTypeId);
+        if (is_null($parentSuite)) {
+            // parent may also be the test project node itself (create top-level suite)
+            $projRow = frr(
+                "SELECT id, node_type_id FROM {$tables['nodes_hierarchy']} " .
+                "WHERE id = {$parentId} LIMIT 1");
+            if (is_null($projRow)) {
+                http_response_code(404);
+                out(array('status' => 'error', 'message' => 'Parent container not found'));
+            }
+            $tprojectTypeId = isset($types['testproject']) ? $types['testproject'] : 1;
+            if (intval($projRow['node_type_id']) !== $tprojectTypeId) {
+                http_response_code(404);
+                out(array('status' => 'error',
+                          'message' => 'Parent is neither a test suite nor a test project'));
+            }
+        }
+        $tprojectId = owningProjectOf($parentId, $types);
+        if ($tprojectId <= 0) {
+            http_response_code(404);
+            out(array('status' => 'error', 'message' => 'Owning test project not found'));
+        }
+        if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+            http_response_code(403);
+            out(array('status' => 'error', 'message' => 'You are not authorized to modify test suites'));
+        }
+        $tsuiteMgr = new testsuite($db);
+        $ret = $tsuiteMgr->create($parentId, $name, $details, null,
+                                  config_get('check_names_for_duplicates'), 'block');
+        $id = is_array($ret) ? intval($ret['id'] ?? 0) : intval($ret);
+        if ($id <= 0) {
+            http_response_code(500);
+            out(array('status' => 'error',
+                      'message' => strval(is_array($ret) ? ($ret['msg'] ?? 'Create failed') : 'Create failed')));
+        }
+        $created = true;
+        $message = 'Test suite created';
+    }
+
+    out(array(
+        'status' => 'ok',
+        'message' => $message,
+        'id' => intval($id),
+        'parent_id' => $parentId,
+        'created' => $created,
+    ));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=delete_suite  {id}
+// Deep-deletes a test suite (ALL descendants) and its keyword links — legacy
+// deleteTestSuite (containerEdit.php:655) bSure path:
+//   $tsuiteMgr->delete_deep($objectID); $tsuiteMgr->deleteKeywords($objectID);
+// Requires mgt_modify_tc on the owning project (legacy testcase_mgmt gate).
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'delete_suite') {
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    $suiteId = intval($json['id'] ?? 0);
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = owningProjectOf($suite['id'], $types);
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to modify test suites'));
+    }
+
+    $tsuiteMgr = new testsuite($db);
+    $tsuiteMgr->delete_deep($suiteId);
+    $tsuiteMgr->deleteKeywords($suiteId);
+
+    out(array('status' => 'ok', 'message' => 'Test suite deleted', 'id' => $suiteId));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=reorder_child_suites  {id}
+// Alphabetically (natural-dictionary sort) reorder the DIRECT child test suites
+// of the given suite — legacy reorder_testsuites_alpha doAction
+// (containerEdit.php:330-335) -> reorderTestSuitesDictionary (:1381), which
+// natsort()s the child suite names and rewrites nodes_hierarchy.node_order via
+// tree->change_order_bulk(). Requires mgt_modify_tc on the owning project.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'reorder_child_suites') {
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    $suiteId = intval($json['id'] ?? 0);
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = owningProjectOf($suite['id'], $types);
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to modify test suites'));
+    }
+
+    $kids = $db->get_recordset(
+        "SELECT id, name FROM {$tables['nodes_hierarchy']} " .
+        "WHERE parent_id = {$suiteId} AND node_type_id = {$tsuiteTypeId} " .
+        "ORDER BY node_order, id");
+    $a2sort = array();
+    if (!is_null($kids)) {
+        foreach ($kids as $k) {
+            $a2sort[intval($k['id'])] = strtolower(strval($k['name']));
+        }
+    }
+    if (count($a2sort) > 0) {
+        natsort($a2sort);
+        $treeMgr = new tree($db);
+        $treeMgr->change_order_bulk(array_keys($a2sort));
+    }
+
+    out(array('status' => 'ok', 'message' => 'Child test suites reordered',
+              'count' => count($a2sort)));
+}
+
+// ---------------------------------------------------------------------------
+// GET ?action=move_targets&id=<suite>&tproject_id=<pid>
+// Destination list for suite Move/Copy — mirrors legacy moveTestSuiteViewer
+// (containerEdit.php:776): the owning test project (as top-level container,
+// FIRST option) + every other test suite of the project, EXCLUDING the suite
+// itself and ALL its descendants (moving/copying a suite into its own subtree
+// is invalid; the legacy tree operations reject it too). Requires mgt_view_tc.
+// ---------------------------------------------------------------------------
+if ($method === 'GET' && $action === 'move_targets') {
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suiteId = intval($_REQUEST['id'] ?? 0);
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
+    if ($tprojectId <= 0) {
+        $tprojectId = owningProjectOf($suite['id'], $types);
+    }
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if (!$user->hasRight($db, 'mgt_view_tc', $tprojectId)) {
+        http_response_code(403);
+        out(array('status' => 'error',
+                  'message' => 'You are not authorized for this test project'));
+    }
+
+    // collect every node of the project (limit walking depth)
+    $all = array();
+    $stack = array(intval($tprojectId));
+    while (count($stack) > 0) {
+        $cur = array_pop($stack);
+        $kids = $db->get_recordset(
+            "SELECT id, name, parent_id, node_type_id FROM {$tables['nodes_hierarchy']} " .
+            "WHERE parent_id = {$cur} ORDER BY node_order, id");
+        if (is_null($kids)) continue;
+        foreach ($kids as $k) {
+            $all[] = array(
+                'id' => intval($k['id']),
+                'name' => strval($k['name']),
+                'parent_id' => intval($k['parent_id']),
+                'node_type_id' => intval($k['node_type_id']),
+            );
+            $stack[] = intval($k['id']);
+        }
+    }
+
+    // excluded = the suite itself + every descendant (walk children edges)
+    $excluded = array($suiteId => 1);
+    $stack = array($suiteId);
+    $depth = 0;
+    while (count($stack) > 0 && $depth < 500) {
+        $cur = array_pop($stack);
+        foreach ($all as $n) {
+            if ($n['parent_id'] === $cur) {
+                $excluded[$n['id']] = 1;
+                $stack[] = $n['id'];
+            }
+        }
+        $depth++;
+    }
+
+    $tprojectRow = frr("SELECT name FROM {$tables['nodes_hierarchy']} WHERE id = {$tprojectId} LIMIT 1");
+    $tprojectName = is_null($tprojectRow) ? '' : strval($tprojectRow['name']);
+
+    $targets = array();
+    foreach ($all as $n) {
+        if ($n['node_type_id'] !== $tsuiteTypeId || isset($excluded[$n['id']])) continue;
+        $targets[] = array('id' => $n['id'], 'name' => $n['name']);
+    }
+    usort($targets, function ($a, $b) { return strtolower($a['name']) <=> strtolower($b['name']); });
+
+    out(array(
+        'status' => 'ok',
+        'project_id' => $tprojectId,
+        'project_name' => $tprojectName,
+        'excluded' => array_keys($excluded),
+        'targets' => $targets,
+    ));
 }
 
 http_response_code(400);

@@ -256,6 +256,16 @@ Test Spec:
   (can_manage), 17 suvw.* keys in all 10 bundles (Refs #1368). Also fixed a
   pre-existing `TV_TABLE` ReferenceError that aborted renderTableView() before
   DataTable init (Refs #1527).
+- Test Suite viewer test-suite management (suiteView.html): toolbar suite-actions
+  panel "New Sub-Suite" / "Edit Suite" / "Move / Copy" / "Delete Suite" /
+  "Reorder Suites (A-Z)" + "Direct link" (copy bar) — legacy
+  tsuite_control_panel / containerViewTestSuiteTextButtons.inc.tpl parity. BFF
+  api/suiteview gains direct_link in info + POST save_suite (create/update),
+  delete_suite (delete_deep + keywords) and reorder_child_suites (natsort A-Z),
+  plus GET move_targets (excludes the suite itself + descendants) consumed by the
+  move/copy modal which reuses api/testcases move/copy (deep copy with keyword /
+  requirement options). All endpoints gated on mgt_modify_tc (can_manage), 41
+  suvw.* keys added to all 10 bundles (Refs #1367).
 - Assign Keywords (keywordsAssign.html) - BFF api/keywords.
 - Test Case Bulk Update (tcBulkOp).
 - Test Automation Specification (results/testAutomationSpec.html) - BFF
