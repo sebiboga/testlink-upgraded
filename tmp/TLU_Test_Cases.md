@@ -16351,3 +16351,46 @@ Node syntax: `node --check` PASS on both extracted inline scripts.
 - Const added: `ADMIN_ROLE_ID = 8` (both files, legacy `TL_ROLES_ADMIN`).
 - Drop rule: project → skip unless `!inherited && u.effectiveRoleID==8`; plan →
   skip unless `u.roleID==8` (explicit). (Refs #928)
+
+## Regression — Issue #1537: ltx.php item=exec deep links fatal (Call to undefined method testproject::setSessionProject())
+
+**Feature:** external execution deep links via `ltx.php` — inner-frame path
+(`?load&item=exec&build_id=..&feature_id=..`) and the outer email flow
+(`?item=exec&feature_id=..&build_id=..` built at `lib/execute/execSetResults.php:1774`)
+— must open the exec dashboard (execNavigator) with the session testproject set, instead
+of HTTP 500.
+
+**Root cause:** `ltx.php:334` (`launch_inner_exec()`) called
+`testproject::setSessionProject()` — the method removed from
+`lib/functions/testproject.class.php` in commit `94c9adf5c` (TN2023-97 refactor) →
+PHP 8 fatal on every exec deep link once a valid testplan was resolved (via `check_exec()`
+from `feature_id`). Fix: restore the method's exact semantics (recovered from
+`fe154f2e6` testproject.class.php:249-285) inline — `$_SESSION['testprojectID'|Name|Color|Prefix|
+OptReqs|OptPriority|OptAutomation]` from the project row fetched with the already
+instantiated `$tproject_mgr` (ltx.php:333). Mirrors the merged #1533 linkto.php fix.
+
+**Precondition:** project `DLS2` (id=1), testplan `Plan DL` (id=7,
+`nodes_hierarchy` id=7 parent=1, node_type 5), testcase node 4 + tcversion 5,
+platform id=1, build id=8, `testplan_tcversions` id=1 (testplan_id=7, tcversion_id=5,
+platform_id=1); login admin/admin.
+
+**Repro steps (pre-fix):** `GET /ltx.php?load&item=exec&build_id=8&feature_id=1` →
+HTTP 500 empty body; server log `[500] ... Uncaught Error: Call to undefined method
+testproject::setSessionProject() in ltx.php:334`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `ltx.php?load&item=exec&build_id=8&feature_id=1` (inner, feature_id) | HTTP 200; frmInner with treeframe `execNavigator.php` + workframe URL `execSetResults.php?...setting_testplan=7...`; session testproject=1 | PASS for the outer request + treeframe — execNavigator renders "Execute Tests / Plan DL / Build 8 / DLS2-". NOTE: the workframe (`execSetResults.php`) itself still 500s with `Bad Test Project ID` — a SEPARATE defect (filed as #1538) not covered by this fix |
+| 2 | `ltx.php?load&item=exec&build_id=8&tplan_id=7&platform_id=1&tcversion_id=5` (inner, 3-key) | HTTP 200, execNavigator treeframe | PASS — 200, no fatal |
+| 3 | `ltx.php?item=exec&build_id=8&feature_id=1` (outer email flow, no `load`) | HTTP 200, no 500 | PASS — 200 |
+| 4 | `ltx.php?load&item=xta2m&user_id=1&build_id=8&feature_id=1` (regression, Refs #1255) | HTTP 200, modern screen | PASS — 200 |
+| 5 | Browser end-to-end (headless Chrome, admin/admin) exec deep link | left frame execNavigator dashboard shows Plan DL/Build 8/prefix DLS2 | PASS — renders; screenshot `issue-1537-exec-dashboard.png` |
+| 6 | Event Viewer / `events` table after full pass | No new Error / Warning (log_level ≥ 32) | PASS — only INFO 16 `audit_login_succeeded` rows |
+| 7 | Syntax gate | `php -l ltx.php` | PASS — no syntax errors |
+
+**Result: 7/7 PASS** — the ltx.php exec fatal is gone; session testproject propagates to
+the exec dashboard. Known side finding: the exec *workframe* (`execSetResults.php`) still
+500s with `Bad Test Project ID` — `getSettingsAndFilters()` form-tokenless fallback reads
+`$_REQUEST[tplan_id]` instead of `$_REQUEST[setting_testplan]`; this is a SEPARATE
+long-standing upstream defect (filed as **#1538**) and not part of the setSessionProject fix
+(Refs #1537).
