@@ -167,7 +167,18 @@ else
         exit();
       }
 
-      $tproject->setSessionProject($tproject_data['id']);
+      // Refs #1533: testproject::setSessionProject() was removed during the
+      // 2.0.1 refactor (commit 94c9adf5c) and called with an undefined method
+      // fatal. Restore its exact semantics (session project/name/color/prefix
+      // + option flags) from the already-fetched $tproject_data row so the
+      // legacy inner-frame screens (reqSpecView/archiveData) still work.
+      $_SESSION['testprojectID'] = intval($tproject_data['id']);
+      $_SESSION['testprojectName'] = $tproject_data['name'];
+      $_SESSION['testprojectColor'] = $tproject_data['color'];
+      $_SESSION['testprojectPrefix'] = $tproject_data['prefix'];
+      $_SESSION['testprojectOptReqs'] = isset($tproject_data['option_reqs']) ? $tproject_data['option_reqs'] : null;
+      $_SESSION['testprojectOptPriority'] = isset($tproject_data['option_priority']) ? $tproject_data['option_priority'] : null;
+      $_SESSION['testprojectOptAutomation'] = isset($tproject_data['option_automation']) ? $tproject_data['option_automation'] : null;
       $op['status_ok'] = isset($itemCode[$args->item]);
       $op['msg'] = sprintf(lang_get('invalid_item'),$args->item);
     }

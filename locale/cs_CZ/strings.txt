@@ -3626,6 +3626,7 @@ $TLS_testproject_not_set = "Kl�c testovac�ho projektu nebyl nalezen v _GET."
 $TLS_item_not_set = "Polo�ka nen� nastavena - co chceme videt? [item=tc|req|reqspec]";
 $TLS_id_not_set = "ID nen� nastaveno.";
 $TLS_testcase_not_found = "Testovac� pr�pad %s nen� nalezen v testovac�m projektu (prefix:%s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "Specifikace po�adavku %s nen� nalezena v testovac�m projektu (prefix:%s).";
 $TLS_req_not_found = "Po�adavek %s nen� nalezen v testovac�m projektu (prefix:%s).";
 $TLS_req_version_not_found = "Verze %s po�adavku %s nen� nalezena v testovac�m projektu (prefix:%s).";

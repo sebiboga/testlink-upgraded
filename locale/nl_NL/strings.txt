@@ -3706,6 +3706,7 @@ $TLS_testproject_not_set = "Testproject key (tprojectPrefix) niet gevonden met _
 $TLS_item_not_set = "Item not set - what do we want to see? [item=tc|req|reqspec]";
 $TLS_id_not_set = "ID not set.";
 $TLS_testcase_not_found = "Testcase %s niet gevonden in testproject (prefix:%s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "Vereistenspecificatie %s niet gevonden in test project (prefix:%s).";
 $TLS_req_not_found = "Vereiste %s niet gevonden in test project (prefix:%s).";
 $TLS_req_version_not_found = "Versie %s van vereiste %s niet gevonden in testproject (prefix:%s).";

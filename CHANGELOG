@@ -601,6 +601,18 @@ NEW FEATURES
 
 KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
 ----------------------------------------------
+- `linkto.php` inner-frame deep links (`item=reqspec|testcase|testsuite`) returned
+  HTTP 500 on every hit: the inner-frame branch still called
+  `testproject::setSessionProject()`, a method removed from
+  `lib/functions/testproject.class.php` during the TN2023-97 refactor (commit
+  `94c9adf5c`) → PHP 8 `Call to undefined method`. Replaced the call with direct
+  `$_SESSION` assignment restoring the removed method's exact semantics
+  (id/name/color/prefix + option_reqs/priority/automation) from the already-fetched
+  `$tproject_data` row, so reqspec/testcase/testsuite bookmark links open the legacy
+  tree+work frames again (`item=req` keeps the modern directLink resolver, #1532).
+  Also re-added the missing legacy i18n key `testsuite_not_found` (a
+  `log_level=32` LOCALIZATION Event Viewer warning on every testsuite deep link) to
+  all 14 full locale bundles (Fixes #1533).
 - Stored XSS in the role-assignment screens (`usersAssignProject.html`,
   `usersAssignPlan.html`): DB-controlled project/plan/user/role display names
   were concatenated raw into `<option>`/`<td>` HTML, so a project named

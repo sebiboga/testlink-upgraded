@@ -3535,6 +3535,7 @@ $TLS_testproject_not_set = "Clé de projet (Préfixe projet) non trouvé sur _GE
 $TLS_item_not_set = "Objet non défini - que voulez-vous voir ? [item=tc|req|reqspec]";
 $TLS_id_not_set = "ID non défini.";
 $TLS_testcase_not_found = "Fiche de test %s inconnue du projet (préfixe %s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "Dossier d’exigences %s inconnu du projet (préfixe %s).";
 $TLS_req_not_found = "Exigence %s inconnue du projet(préfixe %s).";
 $TLS_req_version_not_found = "La version %s de l’exigence %s est inconnue du projet (préfixe %s).";

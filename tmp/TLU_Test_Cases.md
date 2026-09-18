@@ -16347,3 +16347,41 @@ read-only user `ro1365` (global role 7 tester = `mgt_view_tc` only).
 **Result: 7/7 PASS** — suite attachment titles are now clickable download links in
 both admin and read-only viewer modes, mirroring legacy `attachmentdownload.php`
 behavior (Refs #1365).
+## Regression — Issue #1533: linkto.php inner-frame deep links fatal (Call to undefined method testproject::setSessionProject())
+
+**Feature:** `linkto.php` external deep links for `item=reqspec|testcase|testsuite` open
+the legacy frame shell and land on the right tree+work frame. `item=req` is handled by
+the modern direct-link resolver (Refs #1532).
+
+**Root cause:** `linkto.php:170` called `testproject::setSessionProject()`, a method
+removed from `lib/functions/testproject.class.php` in commit `94c9adf5c` (TN2023-97
+refactor) → PHP 8 fatal on every non-req inner-frame deep link. Fix: restore the
+method's exact semantics (session id/name/color/prefix + option_reqs/priority/
+automation) via direct `$_SESSION` assignment from the already-fetched `$tproject_data`
+row. Also added the missing legacy i18n key `testsuite_not_found` to all 14 full locale
+bundles (fires a LOCALIZATION warning on every testsuite deep link otherwise).
+
+**Precondition:** project `DLS2` (id=1) with reqspec `RS-DL` (id=2), testsuite (id=3),
+testcase `DLS2-1` (id=4) + tcversion (id=5); login admin/admin; fresh session.
+
+**Repro steps (pre-fix):** `GET /linkto.php?load&tprojectPrefix=DLS2&item=reqspec&id=RS-DL`
+→ HTTP 500 empty body (`Call to undefined method testproject::setSessionProject()`).
+**Post-fix expected:** HTTP 200, frmInner with tree+work frames.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `linkto.php?load&tprojectPrefix=DLS2&item=reqspec&id=RS-DL` | HTTP 200; workframe `lib/requirements/reqSpecView.php?req_spec_id=2`; treeframe `reqSpecListTree.php` | PASS — both frames; reqSpecView renders "RS-DL :: Spec DL" |
+| 2 | `linkto.php?load&tprojectPrefix=DLS2&item=testcase&id=DLS2-1` | HTTP 200; workframe `archiveData.php?edit=testcase&id=4&tproject_id=1` | PASS — archiveData shows "DLS2-1 : TC DL - Version 1" |
+| 3 | `linkto.php?load&tprojectPrefix=DLS2&item=testsuite&id=3` | HTTP 200; workframe `archiveData.php?...print_scope=test_specification...&id=3` | PASS — "Test Suite : Suite DL" rendered; no LOCALIZATION event |
+| 4 | `reqSpecView.php` + `archiveData.php` direct (happy path targets) read `$_SESSION['testprojectID']`/`testprojectName` | HTTP 200, project + name visible | PASS — navBar shows "DLS2:DLS2 Project"; both 200 |
+| 5 | `item=req` deep link (regression, #1532) | 302 → `gui/templates/links/directLink.html?item=req&id=...` | PASS — modern resolver shown |
+| 6 | Unknown item `item=bogus` | legacy msg `Invalid item (bogus)`, no 500 | PASS |
+| 7 | Unknown prefix `tprojectPrefix=NOPE` | legacy msg `Testproject with prefix (NOPE) does not exist` | PASS |
+| 8 | Browser (chrome-devtools) end-to-end for all 3 items | outer frame + inner tree/work frames load; no console errors | PASS — reqspec/testcase/testsuite all render |
+| 9 | Event Viewer after full pass | No new Error / LOCALIZATION / DB-error entries (only pre-existing legacy-template E_WARNINGs — tracked separately in #1536) | PASS — no LOCALIZATION, no DB error, no fatal |
+| 10 | Syntax gates | `php -l linkto.php`; `php -l locale/*/strings.txt` | PASS — all clean; exactly 14 locale files +1 line each |
+
+**Result: 10/10 PASS** — inner-frame deep links for reqspec/testcase/testsuite restored
+to 1.9.20 behavior; session project correctly propagated; `item=req` resolver path
+unchanged (Refs #1533). Side findings filed as separate bugs: #1536 (legacy template
+E_WARNINGs on reqSpecView/archiveData), #1537 (ltx.php item=exec same fatal).

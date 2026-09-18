@@ -3943,6 +3943,7 @@ $TLS_testproject_not_set = "テストプロジェクトキー (tprojectPrefix) �
 $TLS_item_not_set = "アイテムが設定されていません - 何を表示しますか? [item=tc|req|reqspec]";
 $TLS_id_not_set = "ID が設定されていません。";
 $TLS_testcase_not_found = "テストケース %s がテストプロジェクト (prefix:%s) で見つかりません。";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "要件定義 %s がテストプロジェクト (prefix:%s) で見つかりません。";
 $TLS_req_not_found = "要件 %s がテストプロジェクト (prefix:%s) で見つかりません。";
 $TLS_req_version_not_found = "バージョン %s の要件 %s がテストプロジェクト (prefix:%s) で見つかりません。";

@@ -3417,6 +3417,7 @@ $TLS_testproject_not_set = "Testprojekt Parameter (tprojectPrefix) in Adresse ni
 $TLS_item_not_set = "Item nicht gewählt. Was möchten Sie sehen ? [item=tc|req|reqspec]";
 $TLS_id_not_set = "ID nicht gesetzt.";
 $TLS_testcase_not_found = "Testfall %s konnte im Testprojekt (Präfix:%s) nicht gefunden werden.";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "Anforderungsspezifikation %s konnte im Testprojekt (prefix:%s) nicht gefunden werden.";
 $TLS_req_not_found = "Anforderung %s konnte im Testprojekt (prefix:%s) nicht gefunden werden.";
 $TLS_req_version_not_found = "Version %s der Anforderung %s konnte im Testprojekt (prefix:%s) nicht gefunden werden.";

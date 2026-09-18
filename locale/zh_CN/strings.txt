@@ -3739,6 +3739,7 @@ $TLS_testproject_not_set = "测试项目键 (tprojectPrefix) 为在 _GET 中找�
 $TLS_item_not_set = "未设置项 - 想看什么？ [item=tc|req|reqspec]";
 $TLS_id_not_set = "未设置 ID。";
 $TLS_testcase_not_found = "测试用例 %s 不在测试项目中 (前缀：%s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "产品需求规格 %s 不在测试项目中 (前缀：%s).";
 $TLS_req_not_found = "产品需求 %s 不在项目中 (前缀：%s).";
 $TLS_req_version_not_found = "版本 %s 产品需求 %s 不在项目中 (前缀：%s).";

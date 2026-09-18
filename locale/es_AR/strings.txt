@@ -3060,6 +3060,7 @@ $TLS_testproject_not_set = "La key del proyecto no se encuentra en el _GET.";
 $TLS_item_not_set = "Item no establecido - qué queremos ver? [item=tc|req|Especreq]";
 $TLS_id_not_set = "ID no establecido";
 $TLS_testcase_not_found = "El caso de prueba %s no se encuentra en el proyecto (prefijo:%s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "La especificación de requerimientos %s no se encuentra en el proyecto (prefijo:%s).";
 $TLS_req_not_found = "El requerimiento %s no se encuentra en el proyecto (prefijo:%s).";
 $TLS_invalid_item = 'Item inválido (%s)';

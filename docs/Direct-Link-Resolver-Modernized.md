@@ -81,8 +81,12 @@ pinned version (request params `version_id`/`req_version_id` are honored by
 - Emitting **new** legacy linkto URLs has stopped: `api/requirements`
   `direct_link` and `reqRevisionView.html` copy-link now produce
   `gui/templates/links/directLink.html?…` URLs.
-- The other `item=` families (`reqspec`, `testcase`, `testsuite`) are left
-  behind `linkto.php` untouched.
+- The other `item=` families (`reqspec`, `testcase`, `testsuite`) stay behind
+  `linkto.php` and open the legacy frame shell. Issue #1533 fixed the HTTP 500
+  that broke them (the removed `testproject::setSessionProject()` call on the
+  inner-frame path is replaced by direct session assignment), so those legacy
+  deep links work again — they are not redirected to the resolver, only `req`
+  is (the resolver BFF supports requirements only for now).
 - Fixture used during testing (created by `tmp/fixtures_1532.php`): test
   project *DL1532* (prefix `DLS2`, id 4), requirement spec *RS-DL* (id 5),
   requirements **DLREQ-001** (id 7) and **DLREQ-002** (id 9).

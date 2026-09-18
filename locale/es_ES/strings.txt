@@ -3519,6 +3519,7 @@ $TLS_testproject_not_set = "La key del Proyecto de Pruebas (tprojectPrefix) no s
 $TLS_item_not_set = "Elemento no establecido - ¿qué quieres ver? [elemento=tc|req|especreq]";
 $TLS_id_not_set = "ID no establecido.";
 $TLS_testcase_not_found = "El Caso de Prueba %s no se encuentra en el proyecto de pruebas (prefijo:%s).";
+$TLS_testsuite_not_found = "Test suite %s not found in test project (prefix:%s).";
 $TLS_req_spec_not_found = "La Especificación del Requisito %s no se encuentra en el proyecto de pruebas (prefijo:%s).";
 $TLS_req_not_found = "El requisito %s no se encuentra en el proyecto de pruebas (prefijo:%s).";
 $TLS_req_version_not_found = "Versión %s del requisito %s no se encuentra en el proyecto de pruebas (prefijo:%s).";
