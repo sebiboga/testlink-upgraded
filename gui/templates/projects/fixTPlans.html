@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="fixp.title">Fix Test Plans</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.header { background: #4ECDC4; color: #fff; padding: 14px 24px; font-size: 20px; font-weight: 700; letter-spacing: 1px; flex: 0 0 auto; }
+.header span.sub { font-size: 13px; font-weight: 400; color: #0d3f3c; opacity: 1; margin-left: 12px; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; flex: 0 0 auto; }
+.toolbar .ctx { color: #aaa; font-size: 12px; }
+.toolbar .ctx b { color: #fff; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-teal:hover { background: #3dbdb5; }
+.btn-teal:disabled { background: #8fcfc9; cursor: not-allowed; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.err-banner { background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; border-radius: 6px; padding: 14px 18px; font-size: 14px; margin: 16px 24px; display: none; flex: 0 0 auto; }
+.panel { flex: 0 0 auto; margin: 18px 24px; background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); overflow: hidden; }
+.panel-title { padding: 12px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #eee; background: #f7f7f7; display: flex; align-items: center; gap: 8px; }
+.panel-body { padding: 20px 18px; font-size: 14px; color: #333; }
+.tbl-wrap { overflow-x: auto; }
+table.list { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.list th { background: #22242a; color: #eee; text-align: left; padding: 9px 12px; font-weight: 600; white-space: nowrap; }
+table.list td { padding: 9px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+table.list tr:hover td { background: #fafafa; }
+.chip { display: inline-block; padding: 2px 10px; border-radius: 10px; font-size: 11px; font-weight: 700; }
+.chip.open { background: #dff0d8; color: #3c763d; }
+.chip.closed { background: #fcf8e3; color: #8a6d3b; }
+.chip.active { background: #dff0d8; color: #3c763d; }
+.chip.inactive { background: #f2dede; color: #a94442; }
+.panel-body .intro { color: #777; font-size: 13px; margin-bottom: 14px; }
+select.form-control-s { padding: 5px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px; min-width: 220px; }
+.empty { color: #5cb85c; font-size: 13px; padding: 10px 0; }
+.empty i { margin-right: 6px; }
+.result-msg { margin-top: 16px; padding: 12px 16px; border-radius: 6px; font-size: 13px; display: none; }
+.result-msg.ok { background: #dff0d8; color: #3c763d; display: block; }
+.result-msg.err { background: #f2dede; color: #a94442; display: block; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; flex: 0 0 auto; }
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); max-width: 480px; }
+.toast.err { background: #e6605e; }
+.modal-content { border-radius: 8px; }
+.modal-header { background: #22242a; color: #fff; border-bottom: 1px solid #333; }
+.modal-header .close { color: #fff; opacity: .8; }
+#confirmList { font-size: 13px; max-height: 260px; overflow-y: auto; }
+#confirmList li { margin-bottom: 4px; }
+@media (max-width: 640px) {
+  .header { font-size: 16px; padding: 12px 16px; }
+  .toolbar, .panel, .footer, .err-banner { margin-left: 12px; margin-right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <i class="fa fa-wrench" style="margin-right:8px;"></i><span data-i18n="fixp.title">Fix Test Plans</span>
+  <span class="sub"><span data-i18n="fixp.subtitle">repair test plan / build test-project linkage</span></span>
+  <span id="localeSwitcher" style="float:right;"></span>
+</div>
+
+<div class="toolbar">
+  <button class="btn-ghost" onclick="loadInfo()"><i class="fa fa-refresh"></i> <span data-i18n="fixp.refresh">Refresh</span></button>
+  <a class="btn-ghost" id="btnBack" href="/gui/templates/projectsView.html"><i class="fa fa-arrow-left"></i> <span data-i18n="fixp.back">Back</span></a>
+  <span class="ctx" style="margin-left:auto;" id="infoLine"></span>
+</div>
+
+<div id="errBox" class="err-banner"></div>
+
+<div class="panel" id="panelPlans">
+  <div class="panel-title">
+    <i class="fa fa-list" style="color:#4ECDC4;"></i>
+    <span data-i18n="fixp.plansTitle">Test plans without a valid test project</span>
+    <span class="badge" id="planCountBadge" style="background:#4ECDC4;">0</span>
+  </div>
+  <div class="panel-body">
+    <div class="intro" data-i18n="fixp.plansIntro">Select the correct test project for each orphan test plan, then press "Apply changes". Rows left on "(no change)" are ignored.</div>
+    <div class="tbl-wrap" id="plansWrap"></div>
+    <div class="empty" id="plansEmpty" style="display:none;"><i class="fa fa-check-circle-o"></i><span data-i18n="fixp.noPlans">No orphan test plans to fix</span></div>
+    <button class="btn-teal" id="btnApplyPlans" disabled style="margin-top:16px;"><i class="fa fa-check"></i> <span data-i18n="fixp.applyPlans">Apply changes to test plans</span></button>
+    <div class="result-msg" id="resultPlans"></div>
+  </div>
+</div>
+
+<div class="panel" id="panelBuilds">
+  <div class="panel-title">
+    <i class="fa fa-cubes" style="color:#4ECDC4;"></i>
+    <span data-i18n="fixp.buildsTitle">Builds without a valid test project</span>
+    <span class="badge" id="buildCountBadge" style="background:#4ECDC4;">0</span>
+  </div>
+  <div class="panel-body">
+    <div class="intro" data-i18n="fixp.buildsIntro">Builds are project-scoped since 2.0.1; reassign orphan builds to their correct test project.</div>
+    <div class="tbl-wrap" id="buildsWrap"></div>
+    <div class="empty" id="buildsEmpty" style="display:none;"><i class="fa fa-check-circle-o"></i><span data-i18n="fixp.noBuilds">No orphan builds to fix</span></div>
+    <button class="btn-teal" id="btnApplyBuilds" disabled style="margin-top:16px;"><i class="fa fa-check"></i> <span data-i18n="fixp.applyBuilds">Apply changes to builds</span></button>
+    <div class="result-msg" id="resultBuilds"></div>
+  </div>
+</div>
+
+<div class="footer"><span id="footerText" data-i18n="footers.fixTPlans">TestLink 2.0.1 - Fix Test Plans</span></div>
+<div class="toast" id="toast"></div>
+
+<div class="modal fade" id="confirmModal" tabindex="-1" role="dialog" aria-labelledby="confirmModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="confirmModalLabel" data-i18n="fixp.confirmTitle">Confirm reassignment</h4>
+      </div>
+      <div class="modal-body">
+        <p id="confirmIntro" data-i18n="fixp.confirmMsg">The following rows will be moved to the selected test project:</p>
+        <ul id="confirmList"></ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal"><span data-i18n="fixp.confirmNo">Cancel</span></button>
+        <button type="button" class="btn btn-danger" id="btnConfirmYes"><i class="fa fa-wrench"></i> <span data-i18n="fixp.confirmYes">Apply</span></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
+<script>
+var API = '/api/fixplans/index.php';
+var requestToken = 0;
+var state = null;
+var pendingKind = null; // 'plans' | 'builds'
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    $('#footerText').text('TestLink 2.0.1 - ' + TLi18n.t('fixp.title'));
+    loadInfo();
+  });
+});
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function toast(msg, isErr) {
+  var $t = $('#toast').text(msg).toggleClass('err', !!isErr).show();
+  clearTimeout($t.data('tm'));
+  $t.data('tm', setTimeout(function () { $t.hide(); }, 5000));
+}
+
+function showError(msg) {
+  $('#errBox').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg)).show();
+  $('#panelPlans').hide();
+  $('#panelBuilds').hide();
+}
+
+function loadInfo() {
+  var tok = ++requestToken;
+  $('#errBox').hide();
+  $('#panelPlans').show();
+  $('#panelBuilds').show();
+  $.getJSON(API + '?action=init', function (r) {
+    if (tok !== requestToken) return;
+    if (!r || r.status !== 'ok') {
+      var msg = (r && r.message) ? r.message : TLi18n.t('fixp.errLoad');
+      toast(msg, true);
+      showError(msg);
+      return;
+    }
+    state = r;
+    renderPlans();
+    renderBuilds();
+    renderInfoLine();
+  }).fail(function (xhr) {
+    if (tok !== requestToken) return;
+    var msg = TLi18n.t('fixp.errLoad');
+    try {
+      var j = JSON.parse(xhr.responseText);
+      if (j && j.message) msg = j.message;
+    } catch (e) { /* keep default */ }
+    if (xhr.status === 403) { msg = TLi18n.t('fixp.errNoRights'); }
+    else if (xhr.status === 401) { msg = TLi18n.t('fixp.errLoad'); }
+    toast(msg, true);
+    showError(msg);
+  });
+}
+
+function renderInfoLine() {
+  var nPlans = (state.orphan_plans || []).length;
+  var nBuilds = (state.orphan_builds || []).length;
+  $('#infoLine').html(
+    '<i class="fa fa-list"></i> ' + nPlans + ' / ' +
+    '<i class="fa fa-cubes"></i> ' + nBuilds);
+}
+
+function projectSelect(selectedId) {
+  var opts = '<option value="0" ' + (selectedId > 0 ? '' : 'selected') + ' data-i18n="fixp.none">(no change)</option>';
+  (state.projects || []).forEach(function (p) {
+    opts += '<option value="' + parseInt(p.id, 10) + '"' +
+      (parseInt(p.id, 10) === parseInt(selectedId, 10) ? ' selected' : '') + '>' +
+      esc(p.name) + ' (' + esc(p.prefix) + ')</option>';
+  });
+  return opts;
+}
+
+function chip(active, isOpen) {
+  var a = parseInt(active, 10) === 1;
+  var o = isOpen === null || isOpen === undefined ? null : parseInt(isOpen, 10) === 1;
+  var h = '';
+  h += '<span class="chip ' + (a ? 'active' : 'inactive') + '">' + (a ? esc(TLi18n.t('fixp.chipActive')) : esc(TLi18n.t('fixp.chipInactive'))) + '</span> ';
+  if (o !== null) {
+    h += '<span class="chip ' + (o ? 'open' : 'closed') + '">' + (o ? esc(TLi18n.t('fixp.chipOpen')) : esc(TLi18n.t('fixp.chipClosed'))) + '</span>';
+  }
+  return h;
+}
+
+function renderPlans() {
+  var rows = state.orphan_plans || [];
+  $('#planCountBadge').text(rows.length);
+  if (!rows.length) {
+    $('#plansWrap').html('');
+    $('#plansEmpty').show();
+    $('#btnApplyPlans').prop('disabled', true).show();
+    return;
+  }
+  $('#plansEmpty').hide();
+  var h = '<table class="list"><thead><tr>' +
+    '<th data-i18n="fixp.colName">Name</th>' +
+    '<th data-i18n="fixp.colState">State</th>' +
+    '<th data-i18n="fixp.colTarget">Assign to test project</th>' +
+    '</tr></thead><tbody>';
+  rows.forEach(function (t) {
+    h += '<tr data-kind="plan" data-id="' + parseInt(t.id, 10) + '">' +
+      '<td><b>' + esc(t.name) + '</b> <span class="text-muted">(#' + parseInt(t.id, 10) + ')</span></td>' +
+      '<td>' + chip(t.active, t.is_open) + '</td>' +
+      '<td><select class="plan-sel form-control-s">' + projectSelect(t.testproject_id) + '</select></td>' +
+      '</tr>';
+  });
+  h += '</tbody></table>';
+  $('#plansWrap').html(h);
+  $('#plansWrap select').on('change', function () {
+    $('#resultPlans').removeClass('ok err').hide();
+    updateApplyButtons();
+  });
+  updateApplyButtons();
+}
+
+function renderBuilds() {
+  var rows = state.orphan_builds || [];
+  $('#buildCountBadge').text(rows.length);
+  if (!rows.length) {
+    $('#buildsWrap').html('');
+    $('#buildsEmpty').show();
+    $('#btnApplyBuilds').prop('disabled', true).show();
+    return;
+  }
+  $('#buildsEmpty').hide();
+  var h = '<table class="list"><thead><tr>' +
+    '<th data-i18n="fixp.colName">Name</th>' +
+    '<th data-i18n="fixp.colState">State</th>' +
+    '<th data-i18n="fixp.colTarget">Assign to test project</th>' +
+    '</tr></thead><tbody>';
+  rows.forEach(function (b) {
+    h += '<tr data-kind="build" data-id="' + parseInt(b.id, 10) + '">' +
+      '<td><b>' + esc(b.name) + '</b> <span class="text-muted">(#' + parseInt(b.id, 10) + ')</span></td>' +
+      '<td>' + chip(b.active, b.is_open) + '</td>' +
+      '<td><select class="build-sel form-control-s">' + projectSelect(b.testproject_id) + '</select></td>' +
+      '</tr>';
+  });
+  h += '</tbody></table>';
+  $('#buildsWrap').html(h);
+  $('#buildsWrap select').on('change', function () {
+    $('#resultBuilds').removeClass('ok err').hide();
+    updateApplyButtons();
+  });
+  updateApplyButtons();
+}
+
+function updateApplyButtons() {
+  var anyPlan = false;
+  $('#plansWrap .plan-sel').each(function () {
+    if (parseInt(this.value, 10) > 0) anyPlan = true;
+  });
+  $('#btnApplyPlans').prop('disabled', !anyPlan);
+
+  var anyBuild = false;
+  $('#buildsWrap .build-sel').each(function () {
+    if (parseInt(this.value, 10) > 0) anyBuild = true;
+  });
+  $('#btnApplyBuilds').prop('disabled', !anyBuild);
+}
+
+function collectAssignments(kind) {
+  var out = [];
+  $('#' + (kind === 'plans' ? 'plansWrap' : 'buildsWrap') + ' tr[data-kind]').each(function () {
+    var $tr = $(this);
+    var pid = parseInt($tr.attr('data-id'), 10);
+    var proj = parseInt($tr.find('select').val(), 10);
+    if (pid > 0 && proj > 0) {
+      out.push((kind === 'plans')
+        ? { plan_id: pid, project_id: proj }
+        : { build_id: pid, project_id: proj });
+    }
+  });
+  return out;
+}
+
+function renderConfirmList(kind) {
+  var items = collectAssignments(kind);
+  var $list = $('#confirmList').html('');
+  items.forEach(function (it) {
+    var projName = '';
+    (state.projects || []).forEach(function (p) {
+      if (parseInt(p.id, 10) === parseInt(it.project_id, 10)) projName = p.name;
+    });
+    var idKey = kind === 'plans' ? it.plan_id : it.build_id;
+    $list.append('<li>' + esc(kind === 'plans'
+      ? TLi18n.t('fixp.planLabel', { id: idKey }) + ' '
+      : TLi18n.t('fixp.buildLabel', { id: idKey }) + ' ')
+      + '&rarr; <b>' + esc(projName) + '</b></li>');
+  });
+}
+
+$('#btnApplyPlans').on('click', function () {
+  pendingKind = 'plans';
+  renderConfirmList('plans');
+  $('#confirmModalLabel').text(TLi18n.t('fixp.applyPlans'));
+  $('#confirmModal').modal('show');
+});
+
+$('#btnApplyBuilds').on('click', function () {
+  pendingKind = 'builds';
+  renderConfirmList('builds');
+  $('#confirmModalLabel').text(TLi18n.t('fixp.applyBuilds'));
+  $('#confirmModal').modal('show');
+});
+
+function postJson(payload) {
+  return fetch(API, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json;charset=UTF-8',
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    credentials: 'same-origin',
+    body: JSON.stringify(payload)
+  }).then(function (res) {
+    return res.json().catch(function () {
+      return { status: 'error', message: 'bad response' };
+    }).then(function (j) {
+      return { ok: res.ok, status: res.status, j: j };
+    });
+  });
+}
+
+function refreshState(next) {
+  state = next;
+  renderPlans();
+  renderBuilds();
+  renderInfoLine();
+}
+
+function doApply() {
+  var kind = pendingKind;
+  var items = collectAssignments(kind);
+  pendingKind = null;
+  var $btn = (kind === 'plans') ? $('#btnApplyPlans') : $('#btnApplyBuilds');
+  var $res = (kind === 'plans') ? $('#resultPlans') : $('#resultBuilds');
+  $btn.prop('disabled', true);
+
+  if (kind === 'plans') {
+    postJson({ action: 'reassign', assignments: items }).then(function (r) {
+      $btn.prop('disabled', false);
+      if (!r.ok || !r.j || r.j.status !== 'ok') {
+        var msg = r.j && r.j.message ? r.j.message : TLi18n.t('fixp.errApply');
+        if (r.status === 403) msg = TLi18n.t('fixp.errNoRights');
+        $res.removeClass('ok').addClass('err').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg));
+        return;
+      }
+      $res.removeClass('err').addClass('ok').html('<i class="fa fa-check-circle-o"></i> ' +
+        esc(TLi18n.t('fixp.donePlans', { n: r.j.updated })));
+      refreshState(r.j);
+      updateApplyButtons();
+      toast(TLi18n.t('fixp.donePlans', { n: r.j.updated }), false);
+    }).catch(function () {
+      $btn.prop('disabled', false);
+      $res.removeClass('ok').addClass('err').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(TLi18n.t('fixp.errApply')));
+    });
+    return;
+  }
+
+  // builds: one fix_build call per changed row (small admin surface)
+  var seq = items.reduce(function (p, it) {
+    return p.then(function () {
+      return postJson({ action: 'fix_build', build_id: it.build_id, project_id: it.project_id });
+    }).then(function (r) {
+      if (!r.ok || !r.j || r.j.status !== 'ok') {
+        throw new Error((r.j && r.j.message) ? r.j.message : TLi18n.t('fixp.errApply'));
+      }
+      return r;
+    });
+  }, Promise.resolve(null));
+
+  var updatedCount = 0;
+  seq
+    .then(function () {
+      return postJson({ action: 'init' }).then(function (r) {
+        if (r.ok && r.j && r.j.status === 'ok') return r.j;
+        return state;
+      });
+    })
+    .then(function (next) {
+      $btn.prop('disabled', false);
+      $res.removeClass('err').addClass('ok').html('<i class="fa fa-check-circle-o"></i> ' +
+        esc(TLi18n.t('fixp.doneBuilds', { n: items.length })));
+      refreshState(next);
+      updateApplyButtons();
+      toast(TLi18n.t('fixp.doneBuilds', { n: items.length }), false);
+    })
+    .catch(function (e) {
+      $btn.prop('disabled', false);
+      var msg = e && e.message ? e.message : TLi18n.t('fixp.errApply');
+      $res.removeClass('ok').addClass('err').html('<i class="fa fa-exclamation-triangle"></i> ' + esc(msg));
+    });
+}
+
+$('#btnConfirmYes').on('click', function () {
+  $('#confirmModal').modal('hide');
+  doApply();
+});
+</script>
+</body>
+</html>
