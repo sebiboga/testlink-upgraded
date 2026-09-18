@@ -2307,8 +2307,9 @@ function getSettingsAndFilters(&$argsObj) {
     if (is_null($argsObj->$prop)) {
       // let's this page be functional withouth a form token too 
       // (when called from testcases assigned to me)
-      $argsObj->$prop = isset($_REQUEST[$prop]) ? 
-                        $_REQUEST[$prop] : null;
+      $argsObj->$prop = isset($_REQUEST[$cacheKey]) ? 
+                        $_REQUEST[$cacheKey] :
+                        (isset($_REQUEST[$prop]) ? $_REQUEST[$prop] : null);
     }
 
     if(isset($isNumeric[$prop])) {
