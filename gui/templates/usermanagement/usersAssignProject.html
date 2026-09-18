@@ -7,6 +7,7 @@
 <title>Assign Test Project Roles</title>
 <link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap.min.css">
 <style>
 * { box-sizing: border-box; }
 body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
@@ -82,11 +83,12 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap.min.js"></script>
 <script src="/gui/templates/dashio/lib/bootstrap/js/bootstrap.min.js"></script>
 <script>
 var API = '/api/roles/index.php';
 var currentProject = null;
-var originalData = {};
 var roles = [];
 var NO_RIGHTS_ROLE_ID = 3;
 // Legacy parity: usersAssign.php:TL_ROLES_ADMIN == 8. The legacy template
@@ -95,6 +97,11 @@ var NO_RIGHTS_ROLE_ID = 3;
 // (non-inherited) assignment - that is why the modern project-role dropdown
 // excludes it the same way (issue #928).
 var ADMIN_ROLE_ID = 8;
+var assignTbl = null;
+var currentItems = [];
+var roleChoices = {};
+var changedMap = {};
+var paginationCfg = { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -171,27 +178,68 @@ function showDisabled() {
 
 function loadUsers(pid) {
   currentProject = pid;
-  originalData = {};
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
     roles = r.roles || roles;
+    paginationCfg = r.pagination || { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
     buildBulkSelect();
-    var html = '';
-    $.each(r.items, function(i, u) {
-      // Legacy parity: usersAssign.tpl:226-269. The select exposes ONE value-0
-      // option per user - labelled "<inherited> <role>" when the effective role
-      // is inherited from the global role, "-- no role --" otherwise. The
-      // effective role is never hidden (issue #926).
-      var inherited = u.isInherited == 1;
-      // Legacy parity: usersAssign.tpl:264-269 renders "<inherited> <role>".
-      // Escaped as a whole so the literal <inherited> is not parsed as HTML.
-      var noRoleLbl = u.isInherited == 1
-        ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
-        : esc(TLi18n.t('assign.noRole'));
-      var opts = '<option value="0"' + (inherited ? ' selected' : '') + '>' + noRoleLbl + '</option>';
-      $.each(roles, function(j, role) {
-        var sel = (!inherited && u.effectiveRoleID == role.id) ? ' selected' : '';
-        // Legacy parity: usersAssign.tpl:259-271 ($removeRole). The admin role
+    currentItems = r.items || [];
+    // Drop any previous DataTables instance before re-populating the tbody
+    // (suiteView.html:450 pattern) - re-initialising over live rows throws.
+    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#assignTable')) {
+      $('#assignTable').DataTable().destroy();
+    }
+    assignTbl = null;
+    roleChoices = {};
+    changedMap = {};
+    $.each(currentItems, function(i, u) {
+      // The select's initial value mirrors the legacy render: value 0 when the
+      // effective role is inherited, else the effective role id.
+      roleChoices[u.id] = (u.isInherited == 1) ? 0 : u.effectiveRoleID;
+      changedMap[u.id] = false;
+    });
+    $('#assignBody').html(buildBodyHtml());
+    initAssignTable();
+    $('#emptyMsg').hide();
+    $('#footerText').text(TLi18n.t('user.usersCount', {n: currentItems.length}));
+  }).fail(function(xhr) {
+    // Guard against a stale project's data being saved under the new pid: on
+    // failure (403/500/network) keep the previous view coherent and never let
+    // Save run against a half-loaded state (issue #930).
+    if (xhr.status === 403) { showDisabled(); }
+    else {
+      $('#assignBody').empty();
+      $('#emptyMsg').show();
+    }
+  });
+}
+
+// Single source of truth for the grid markup: everything (rows, selects,
+// highlight classes, changed badges) is derived from currentItems +
+// roleChoices + changedMap. Rebuilds the tbody from state so a DataTables
+// draw (page/sort/search) never shows stale values, and re-rendering after a
+// change keeps off-page rows consistent.
+function buildBodyHtml() {
+  if (!currentItems.length) {
+    return '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
+  }
+  var html = '';
+  $.each(currentItems, function(i, u) {
+    // Legacy parity: usersAssign.tpl:226-269. The select exposes ONE value-0
+    // option per user - labelled "<inherited> <role>" when the effective role
+    // is inherited from the global role, "-- no role --" otherwise. The
+    // effective role is never hidden (issue #926).
+    var inherited = u.isInherited == 1;
+    // Legacy parity: usersAssign.tpl:264-269 renders "<inherited> <role>".
+    // Escaped as a whole so the literal <inherited> is not parsed as HTML.
+    var noRoleLbl = u.isInherited == 1
+      ? esc(TLi18n.t('assign.inheritedRoleOption', {role: u.inheritedRoleName}))
+      : esc(TLi18n.t('assign.noRole'));
+    var cur = roleChoices[u.id];
+    var opts = '<option value="0"' + (cur === 0 ? ' selected' : '') + '>' + noRoleLbl + '</option>';
+    $.each(roles, function(j, role) {
+      var sel = (cur == role.id) ? ' selected' : '';
+      // Legacy parity: usersAssign.tpl:259-271 ($removeRole). The admin role
       // (TL_ROLES_ADMIN, id 8) is deliberately NOT offered as an assignable
       // option for a project - UNLESS it is that user's current effective
       // (non-inherited) role, in which case it is rendered and pre-selected
@@ -199,41 +247,94 @@ function loadUsers(pid) {
       // "<inherited> <role>" value-0 option above.
       if (role.id == ADMIN_ROLE_ID && !(!inherited && u.effectiveRoleID == role.id)) return;
       opts += '<option value="' + esc(role.id) + '"' + sel + '>' + esc(role.name) + '</option>';
-      });
-      var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' class="not_authorized_user"' : '';
-      var disabled = u.isAdmin ? ' disabled' : '';
-      var hint = '';
-      if (u.isAdmin) {
-        hint = ' <i class="fa fa-info-circle inherited-lbl" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>';
-      } else if (inherited) {
-        hint = ' <span class="inherited-lbl" title="' + esc(TLi18n.t('assign.inheritedRoleHint')) + '">' + esc(TLi18n.t('assign.inheritedRole')) + '</span>';
-      }
-      html += '<tr data-uid="' + esc(u.id) + '"' + rowClass + '>' +
-        '<td>' + (i + 1) + '</td>' +
-        '<td>' + esc(u.login) + '</td>' +
-        '<td>' + esc(u.name) + '</td>' +
-        '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
-      '</tr>';
     });
-    if (!r.items.length) html = '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
-    $('#assignBody').html(html);
-    $('#emptyMsg').hide();
-    $('#footerText').text(TLi18n.t('user.usersCount', {n: r.items.length}));
+    var rowClass = (u.effectiveRoleID == NO_RIGHTS_ROLE_ID) ? ' not_authorized_user' : '';
+    if (changedMap[u.id]) rowClass += ' changed';
+    var disabled = u.isAdmin ? ' disabled' : '';
+    var hint = '';
+    if (u.isAdmin) {
+      hint = ' <i class="fa fa-info-circle inherited-lbl" title="' + esc(TLi18n.t('assign.adminRoleLocked')) + '"></i>';
+    } else if (inherited) {
+      hint = ' <span class="inherited-lbl" title="' + esc(TLi18n.t('assign.inheritedRoleHint')) + '">' + esc(TLi18n.t('assign.inheritedRole')) + '</span>';
+    }
+    var badge = changedMap[u.id] ? ' <span class="changed-badge">' + esc(TLi18n.t('common.modified')) + '</span>' : '';
+    html += '<tr data-uid="' + esc(u.id) + '"' + (rowClass ? ' class="' + rowClass + '"' : '') + '>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td>' + esc(u.login) + badge + '</td>' +
+      '<td>' + esc(u.name) + '</td>' +
+      '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
+    '</tr>';
+  });
+  return html;
+}
+
+// Re-render the grid after a state change while preserving the user's current
+// DataTables view (page, entries-per-page, search string, sort). DataTables
+// caches cell HTML at init and re-renders page rows from that cache on draw, so
+// without this the choices made on one page would be lost/reset once the data
+// is redrawn. Full rebuild is safe here: the dataset is small.
+function renderAssignTable() {
+  var keep = { search: '', len: 20, order: [[1, 'asc']], page: 0 };
+  if ($.fn.DataTable && $.fn.DataTable.isDataTable('#assignTable')) {
+    var dt = $('#assignTable').DataTable();
+    keep.search = dt.search();
+    keep.len = dt.page.len();
+    keep.order = dt.order();
+    keep.page = dt.page();
+    dt.destroy();
+  }
+  assignTbl = null;
+  $('#assignBody').html(buildBodyHtml());
+  initAssignTable();
+  if (paginationCfg.enabled && assignTbl) {
+    assignTbl.search(keep.search).page.len(keep.len);
+    assignTbl.order(keep.order);
+    assignTbl.page(keep.page).draw(false);
+    // The rebuilt wrapper ships a fresh (empty) search box while the filter
+    // state above is restored internally - repopulate the visible input so the
+    // user's search string is not silently dropped from view (issue #930).
+    if (keep.search) {
+      $(assignTbl.table().container()).find('input[type=search]').val(keep.search);
+    }
+  }
+}
+
+// Legacy parity: config.inc.php:663-666 + usersAssign.tpl:111-120. When
+// $tlCfg->gui->usersAssign->pagination->enabled is true the legacy user grid
+// is a DataTable with the configured entries-per-page menu (20/40/60/All), a
+// "User" search box and sortable columns; search is disabled on the role
+// column (legacy columnDefs targets: 1). When disabled the table stays plain.
+// The BFF delivers both flags via the pagination block (issue #930).
+function initAssignTable() {
+  if (!window.jQuery || !$.fn.DataTable) return;
+  // Never turn the empty-state placeholder row into a paginated grid.
+  if (!paginationCfg.enabled || !currentItems.length) return;
+  var menu = paginationCfg.lengthMenu || [[20, 40, 60, -1], [20, 40, 60, 'All']];
+  assignTbl = $('#assignTable').DataTable({
+    // Legacy parity: usersAssign.tpl:115-117 searchable false on the role
+    // column only. In the 2.0.1 layout the ordinal column (0) is decorative;
+    // the role select lives in column 3.
+    columnDefs: [
+      { orderable: false, searchable: false, targets: 0 },
+      { searchable: false, targets: 3 }
+    ],
+    lengthMenu: menu,
+    pageLength: menu[0] && menu[0][0] ? menu[0][0] : 20,
+    order: [[1, 'asc']],
+    // Legacy parity: usersAssign.tpl:116 language.search = "User" - the DataTables
+    // search box is labelled like the legacy grid's search label.
+    language: { search: TLi18n.t('assign.searchUsers') }
   });
 }
 
 function onRoleChange(sel, uid, origRoleId) {
   var newVal = parseInt(sel.value);
-  var changed = newVal !== origRoleId;
-  var tr = $(sel).closest('tr');
-  tr.toggleClass('changed', changed);
-  var badge = tr.find('.changed-badge');
-  if (changed && !badge.length) {
-    tr.find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
-  } else if (!changed) {
-    badge.remove();
-  }
+  roleChoices[uid] = newVal;
+  changedMap[uid] = newVal !== origRoleId;
   updateSaveBtn();
+  // Rebuild from state so the badge/highlight appear and DataTables never
+  // serves stale cell content on the next draw.
+  renderAssignTable();
 }
 
 // Legacy parity: usersAssign.tpl:192-198 + :20-43 set_combo_group(). The bulk
@@ -253,40 +354,46 @@ function buildBulkSelect() {
 }
 
 // Legacy parity: usersAssign.tpl:202-204 - the Do button applies the chosen
-// role to EVERY visible (non-disabled) row's select, exactly like legacy
+// role to EVERY (non-disabled) user's select, exactly like legacy
 // set_combo_group(usersRoleTable, userRole_, value). Disabled global-admin
 // rows are skipped (legacy !input_element.disabled, usersAssign.tpl:244-247).
-// Rows re-run through onRoleChange() so the modified highlight/badge and the
-// Save button state reflect the bulk change before the user clicks Save.
+// With DataTables pagination the per-user selects live in the interior JS
+// state (roleChoices) rather than the DOM - off-page rows are not reachable
+// through $('#assignBody tr'). Updating the state map for every user first,
+// then the visible DOM rows, keeps the bulk apply correct on all pages.
 function applyBulkRole() {
-  var roleVal = $('#bulkRoleSelect').val();
-  $('#assignBody tr').each(function() {
-    var sel = $(this).find('select');
-    // Skip the empty-state placeholder row (no <select>) and disabled
-    // global-admin rows (legacy !input_element.disabled).
-    if (!sel.length || sel.prop('disabled')) return;
-    var uid = $(this).data('uid');
-    var origRoleId = parseInt(sel.attr('data-role'));
-    sel.val(roleVal);
-    onRoleChange(sel[0], uid, origRoleId);
+  var roleVal = parseInt($('#bulkRoleSelect').val());
+  // State-driven: DataTables pagination pages out rows from the DOM, so the
+  // per-user selects live in roleChoices/changedMap (source of truth) rather
+  // than the DOM. Updating the maps for EVERY (non-admin) user, then a single
+  // re-render, applies the choice to all pages - not just the visible one.
+  $.each(currentItems, function(i, u) {
+    // Skip disabled global-admin rows (legacy !input_element.disabled,
+    // usersAssign.tpl:244-247).
+    if (u.isAdmin) return;
+    roleChoices[u.id] = roleVal;
+    changedMap[u.id] = roleVal !== u.roleID;
   });
+  renderAssignTable();
+  updateSaveBtn();
 }
 
 function updateSaveBtn() {
-  $('#saveBtn').prop('disabled', !$('.changed').length);
+  var anyChanged = false;
+  $.each(changedMap, function(k, v) { if (v) { anyChanged = true; return false; } });
+  $('#saveBtn').prop('disabled', !anyChanged);
 }
 
 function saveAssignments() {
   var assignments = {};
-  $('#assignBody tr').each(function() {
-    var sel = $(this).find('select');
-    // Legacy parity: usersAssign.tpl:244-247 renders global-admin rows with a
-    // disabled select, which the browser never submits (issue #927). Skip them
-    // so a locked admin's project role can never be written or erased by Save.
-    if (sel.prop('disabled')) return;
-    var uid = $(this).data('uid');
-    var roleVal = parseInt(sel.val());
-    if (uid) assignments[uid] = roleVal;
+  // State-driven save: DataTables pagination pages out rows from the DOM, so
+  // read the choices from roleChoices (source of truth) instead of the DOM.
+  // Legacy parity: usersAssign.tpl:244-247 renders global-admin rows with a
+  // disabled select, which the browser never submits (issue #927). Skip them
+  // so a locked admin's project role can never be written or erased by Save.
+  $.each(currentItems, function(i, u) {
+    if (u.isAdmin) return;
+    assignments[u.id] = roleChoices[u.id];
   });
   $.ajax({
     url: API + '/tproject-roles', type: 'PUT',

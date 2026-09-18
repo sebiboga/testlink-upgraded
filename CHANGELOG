@@ -492,6 +492,19 @@ NEW FEATURES
   avoid a duplicate value-0 option. No BFF change — the write reuses
   `PUT /roles/tproject-roles` / `PUT /roles/tplan-roles`. i18n
   `assign.setRolesTo`/`assign.do` in all 10 bundles. Suite 929 9/9 PASS.
+- Assign Test Project Roles — DataTables pagination + "User" search (Refs #930):
+  `usersAssignProject.html` grid is now a DataTable when
+  `$tlCfg->gui->usersAssign->pagination->enabled` is true (legacy default),
+  matching legacy `usersAssign.tpl:111-120` — entries-per-page menu 20/40/60/All
+  and sortable columns from the legacy length-menu config (BFF exposes it as
+  `pagination {enabled, lengthMenu}` from `GET /roles/meta/tproject-roles` via
+  `getUsersAssignPaginationConfig()`, `api/roles/index.php`), search box labelled
+  "User" (`language.search`, disabled on the role column). Bulking, change
+  tracking, badges and Save are now driven by JS state (`buildBodyHtml()` from
+  `currentItems`/`roleChoices`/`changedMap`) so pagination-sliced DOM rows can
+  never drop an assignment — Save writes every non-admin user from state; bulk
+  "Set roles to" applies to all pages. Pagination-disabled fallback keeps the
+  plain table. i18n `assign.searchUsers` in all 10 bundles. Suite 930 all PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

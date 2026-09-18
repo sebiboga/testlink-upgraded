@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "计划角色覆盖",
   "assign.rolesDisabled": "您的角色配置不允许您为测试项目分配角色",
   "assign.saveChanges": "保存更改",
+  "assign.searchUsers": "用户",
   "assign.selectPlan": "-- 选择计划 --",
   "assign.selectProject": "-- 选择项目 --",
   "assign.setRolesTo": "设置角色给",

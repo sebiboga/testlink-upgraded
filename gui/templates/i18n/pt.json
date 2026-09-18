@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "Substituição de função do plano",
   "assign.rolesDisabled": "A configuração do seu papel não permite atribuir funções para projetos de teste",
   "assign.saveChanges": "Guardar alterações",
+  "assign.searchUsers": "Utilizador",
   "assign.selectPlan": "-- selecionar plano --",
   "assign.selectProject": "-- selecionar projeto --",
   "assign.setRolesTo": "Atribuir papéis para",

@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "Remplacement du rôle du plan",
   "assign.rolesDisabled": "La configuration de votre rôle ne vous permet pas d'attribuer des rôles aux projets de test",
   "assign.saveChanges": "Enregistrer les modifications",
+  "assign.searchUsers": "Utilisateur",
   "assign.selectPlan": "-- sélectionner un plan --",
   "assign.selectProject": "-- sélectionner un projet --",
   "assign.setRolesTo": "Définir le rôle à",

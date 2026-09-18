@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "Suprascriere Rol Plan",
   "assign.rolesDisabled": "Configuratia rolului dumneavoastra nu va permite sa atribuiti roluri pentru proiectele de test",
   "assign.saveChanges": "Salveaza Modificarile",
+  "assign.searchUsers": "Utilizator",
   "assign.selectPlan": "-- selecteaza plan --",
   "assign.selectProject": "-- selecteaza proiect --",
   "assign.setRolesTo": "Setare roluri pentru",

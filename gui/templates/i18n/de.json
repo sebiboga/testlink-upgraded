@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "Planrollen-Überschreibung",
   "assign.rolesDisabled": "Ihre Rollenkonfiguration erlaubt es Ihnen nicht, Rollen für Testprojekte zuzuweisen",
   "assign.saveChanges": "Änderungen speichern",
+  "assign.searchUsers": "Benutzer",
   "assign.selectPlan": "-- Plan auswählen --",
   "assign.selectProject": "-- Projekt auswählen --",
   "assign.setRolesTo": "Rollen setzen",

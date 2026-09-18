@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "計画ロールの上書き",
   "assign.rolesDisabled": "あなたのロール設定ではテストプロジェクトのロールを割り当てることはできません",
   "assign.saveChanges": "変更を保存",
+  "assign.searchUsers": "ユーザー",
   "assign.selectPlan": "-- 計画を選択 --",
   "assign.selectProject": "-- プロジェクトを選択 --",
   "assign.setRolesTo": "この役割へ",

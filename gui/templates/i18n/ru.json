@@ -40,6 +40,7 @@
   "assign.planRoleOverride": "Переопределение роли плана",
   "assign.rolesDisabled": "Конфигурация вашей роли не позволяет назначать роли для тестовых проектов",
   "assign.saveChanges": "Сохранить изменения",
+  "assign.searchUsers": "Пользователь",
   "assign.selectPlan": "-- выбрать план --",
   "assign.selectProject": "-- выбрать проект --",
   "assign.setRolesTo": "Установить роли",

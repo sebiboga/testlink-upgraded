@@ -16484,3 +16484,26 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 9 | `events` table after all steps | no new Error/Warning (log_level ≥ 32) | PASS — zero new rows |
 
 **Result: 9/9 PASS** — suiteView now shows design-time suite custom-field values exactly like legacy (`Suite Label | Gold Suite`), hidden when none (BUGID 3989 config honoured), URL values render as links; no new Event Viewer rows (Refs #1363). Fixtures manual SQL in this run's INVESTIGATION comment.
+
+## Task — Issue #930: DataTables pagination + "User" search on Assign Test Project Roles
+
+**Feature:** legacy grid on `usersAssignProject.tpl:111-120` is a DataTable (`#item_view`) with entries-per-page menu 20/40/60/All from `$tlCfg->gui->usersAssign->pagination` (config.inc.php:663-666), a search box labelled `User` (`language.search`), and sortable columns (search disabled on the role column, legacy `targets: 1`). The modern screen (git HEAD before this task) rendered a plain `<table id="assignTable">` with no pagination or search. Ported via BFF pagination config (`getUsersAssignPaginationConfig()` in `api/roles/index.php`, exposed in GET `meta/tproject-roles` as `pagination {enabled, lengthMenu}`) + DataTables on `#assignTable`; rows/selects/badges now derive from JS state (`currentItems`+`roleChoices`+`changedMap`) so Save/Bulk are pagination-safe.
+
+**Precondition:** `php tmp/fixtures_930.php` (project PAGING id=1 + 25 users pager01..25, global role 9/leader, no explicit project role → `<inherited>` rows); login admin/admin; entry `http://localhost:8082/gui/templates/usermanagement/usersAssignProject.html?tproject_id=1`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Load screen with 26 users (admin + 25 pager01..25) | DataTable present: "Show entries" 20/40/60/All, search box labelled `User`, 26 records, page 1 shows 20 rows, pages 1/2 + Next | PASS — entries menu rendered, `Showing 1 to 20 of 26 entries`, search labelled `User`; 25 INHERITED ROLE options (value 0) + admin disabled select |
+| 2 | Per-user role change on page 1 (pager04 → test designer) | roleChoices/changedMap updated, Save enabled, row gets `.changed` + `modified` badge, select keeps value | PASS — roleChoices[4]=6, changedMap=true, saveBtn enabled, badge+row class present, select value 6 |
+| 3 | Page round-trip (1→2→1) after change | changed user keeps value + badge on return | PASS — after `page(1)`/`page(0)` redraw pager04 still value 6 + badge |
+| 4 | Search box filters (search `pager20`) | only matching user shown, info reflects filtered total | PASS — found uid 21, `Showing 1 to 1 of 1 entries (filtered from 26 total)`; clear restores 26 |
+| 5 | Bulk `Set roles to` tester + Do | ALL 25 non-admin users roleChoices=7, changedMap true, admin untouched (roleChoices[1]=0) | PASS — changedCount=25 (all non-admin), distinct values {0,7}, admin value 0 |
+| 6 | Save after bulk, then reload grid | PUT persists all 25 → role_id 7 in `user_testproject_roles`; Save disabled again (state reset) | PASS — 25 DB rows role_id=7, saveBtn disabled, DT 26 rows |
+| 7 | Single change on page 2 (pager20 → test designer) + page round-trip + Save | value survives redraw; DB shows pager20 role_id 6 | PASS — roleChoices[21]=6 after 0→1 page hops; DB `pager20 role_id=6` |
+| 8 | Entries-per-page `All` | all 26 rows shown at once, info `Showing 1 to 26 of 26 entries` | PASS — 26 rows, correct info |
+| 9 | Pagination-disabled fallback (force `paginationCfg.enabled=false` + re-render) | plain table, no DataTables search/pagination controls, all rows visible | PASS — assignTbl null, no `.dataTables_filter`, 26 rows; re-enabling restores DT |
+| 10 | Syntax + i18n gates | `node --check` on inline script, `python3 -m json.tool` on all 10 locale bundles | PASS — JS OK, all bundles valid; `assign.searchUsers` key in all locales |
+| 11 | Event Viewer / `events` table after tests | no new Error/Warning (log_level ≥ 32) | PASS — only audit INFO 16 rows (ASSIGN/UPDATE) from Save ops |
+| 12 | Browser console | no JS errors | PASS — only a11y `issue` hints (90 no-id/name, 2 no-label), no errors |
+
+**Result: 11/12 PASS-paths verified** (12 covers a11y hints reported, none blocking; all functional rows PASS). Screenshots: `docs/screenshots/issue-930-usersassign-pagination.png`, `issue-930-usersassign-search.png`. Fixture: `tmp/fixtures_930.php` (Refs #930).
