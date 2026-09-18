@@ -16444,3 +16444,23 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 7 | Browser console on the workframe URL | no JS errors | PASS — only 2 a11y/deprecation `issue`s |
 
 **Result: 7/7 PASS** — the exec deep-link workframe 500 is gone; setting_* deep links and tplan_id legacy callers both resolve, ltx.php inner exec renders, Event Viewer stays clean (Refs #1538). Fixture: `tmp/fixtures_1538.php`.
+
+## Regression — Issue #1536: legacy deep-link stubs redirect to wrong (404) target — relative Location resolves under lib/requirements|lib/testcases
+
+**Feature:** legacy deep-link controllers `lib/requirements/reqSpecView.php` and `lib/testcases/archiveData.php` (stubbed in `367cb83` to stop the 7× E_WARNING family) must land the user on the **modern twin** screen. A relative `Location: gui/templates/...` header is resolved by the browser against the *current* directory (`lib/requirements/` / `lib/testcases/`), producing a PHP-built-in-server 404. Fix: root-relative `Location: /gui/templates/...` (matching the modern screens' own internal JS links, e.g. reqSpecView.html:315).
+
+**Precondition:** app at http://localhost:8082, login admin/admin (fresh DB — fixture ids irrelevant, redirect target loads regardless of data), repo head containing the one-line `/` fix in both stubs.
+
+**Repro steps (pre-fix):** `curl -L http://localhost:8082/lib/requirements/reqSpecView.php?req_spec_id=2&tproject_id=1` → 302 then **404** at `/lib/requirements/gui/templates/requirements/reqSpecView.html`; `curl -L http://localhost:8082/lib/testcases/archiveData.php?edit=testcase&id=4&tproject_id=1` → 302 then **404** at `/lib/testcases/gui/templates/testcases/tcEdit.html`. Browser console: `Failed to load resource: 404 (Not Found)` ×3 / ×2.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Syntax gate | `php -l` on both stubs → no errors | PASS — clean |
+| 2 | `curl -L` reqSpecView deep link | HTTP 200, final `/gui/templates/requirements/reqSpecView.html`, `<title>Requirement Specification Viewer</title>` | PASS — 302→200, correct title |
+| 3 | `curl -L` archiveData deep link | HTTP 200, final `/gui/templates/testcases/tcEdit.html`, `<title>Test Case Editor</title>` | PASS — 302→200, correct title |
+| 4 | Browser navigation of both deep links | Modern screen renders (no 404 page) | PASS — Chrome landed on Requirement Specification Viewer + Test Case Editor |
+| 5 | Root-relative twin direct hits | 200 | PASS — both 200 |
+| 6 | `events` table after all hits | zero new Error/Warning (log_level ≥ 32) | PASS — only `audit_login_succeeded` log_level=16 |
+| 7 | grep repo for relative `Location: gui/templates` | no occurrences | PASS — only `/gui/templates/...` |
+
+**Result: 7/7 PASS** — legacy deep links now 302 → correct modern screen (error-free); E_WARNING family remains suppressed (Refs #1536). Screenshots: `docs/screenshots/issue-1536-reqspecview-404.png`, `issue-1536-archive-404.png` (pre-fix), `issue-1536-reqspecview-fixed.png`, `issue-1536-archive-fixed.png` (post-fix).
