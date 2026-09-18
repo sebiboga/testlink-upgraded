@@ -1868,6 +1868,11 @@ function getActions(&$gui,$baseURL) {
   // a caller needs the read-only project info view (e.g. the "home" right pane
   // of frmWorkArea.php and the info icon on Test Project Management rows).
   $actions->projectInfo = "/gui/templates/projects/projectInfoView.html?{$ctx}";
+  // Fix Test Plans repair utility (modernized lib/project/fix_tplans.php) -
+  // Refs #1540. Standalone Dashio screen backed by api/fixplans; reassigns
+  // orphan test plans/builds to a valid test project. Legacy right
+  // (mgt_modify_product) is enforced by the BFF on every route.
+  $actions->fixTPlans = "/gui/templates/projects/fixTPlans.html?{$ctx}";
 
   $actions->cfAssignment = "/gui/templates/cfields/cfieldsAssignView.html?{$ctx}";
   $actions->cfieldsView = "/gui/templates/cfields/cfieldsView.html?{$ctx}";
