@@ -16596,3 +16596,44 @@ own revision viewer popup with the correct id, cookie-sized window (defaults 800
 styling + tooltip, i18n in all bundles, Event Viewer + console + PHP log clean.
 Screenshots: `docs/screenshots/issue-1358-rsvc-timestamp-cell-link.png`,
 `docs/screenshots/issue-1358-rsvc-revision-popup.png`. Fixture: `tmp/fixtures_1358.php` (re-runnable).
+
+## Task — Issue #1540: Modernize Fix Test Plans repair utility (fix_tplans) (2026-09-18)
+
+**Feature:** modern Dashio replacement for the fatal-broken legacy `lib/project/fix_tplans.php` (calls
+undefined `getTestPlansWithoutProject()` → PHP Fatal on every load). Standalone screen
+`gui/templates/projects/fixTPlans.html` backed by `api/fixplans/index.php`:
+- lists **orphan test plans** (`testplans.testproject_id = 0 OR points at a missing testprojects row`,
+  display name joined from `nodes_hierarchy` on the upgraded schema) with a per-row target-project select;
+- lists **orphan builds** (same orphan rule; 2.0.1 makes builds project-scoped) with the same select;
+- `POST ?action=reassign {assignments:[{plan_id,project_id}]}` updates `testplans.testproject_id`;
+- `POST ?action=fix_build {build_id,project_id}` updates `builds.testproject_id`;
+- legacy right gate `mgt_modify_product` (admin-only) → 403; anonymous → 401; CSRF `bffSameOriginGuard`.
+- i18n keys `fixp.*` + `footers.fixTPlans` in **all 10** locale bundles.
+
+**Precondition:** fresh-import DB + fixtures via mysql (orphan plans `testplans` id 12 `WK1 Plan X`,
+id 23 `Orphan Plan B` with `testproject_id=0`, names in `nodes_hierarchy`; orphan build id 2
+`Orphan Build A` with `testproject_id=0`; target project id 21 `WALK1`/`WK1`), login admin/admin,
+screen at `fixTPlans.html?tproject_id=21&tplan_id=22`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Page load (admin) | 2 orphan plan rows + 1 orphan build row, project select showing `(no change)` + `WALK1 (WK1)`; Apply buttons disabled | PASS — name/state chips render, badges 2 and 1, buttons disabled |
+| 2 | Select a target for both plans | Apply plan button enables; table state unchanged until confirm | PASS — change handler re-enables button |
+| 3 | Apply plans (confirm modal) | Modal lists `Test plan #12 → WALK1`, `Test plan #23 → WALK1`; Confirm → `2 test plan(s) fixed`; plans panel empty state `No orphan test plans to fix`; DB `testplans.testproject_id IN (12,23)` = 21 | PASS — UI + `mysql` check confirm both rows updated |
+| 4 | Build apply (confirm modal) | Modal lists `Build #2 → WALK1`; Confirm → `1 build(s) fixed`; builds panel empty state; DB `builds.testproject_id`=21 | PASS — table refresh via GET init clears orphan row |
+| 5 | Empty state rendering | Both panels show `No orphan ... to fix` + badge `0`, Apply buttons disabled | PASS — reload after fix shows both empties |
+| 6 | Cancel path | Opening confirm modal + Cancel leaves rows/tables unchanged, no DB write | PASS — modal closes, build still orphan, no change |
+| 7 | Locale switch | `locale=ro` → headers `Repară planurile de test`, buttons `Reîncarcă`/`Înapoi`, chips `Activ`/`Deschis`, dynamic cells `Nume/Stare/Atribuie…`, select `(fără schimbare)` | PASS — dynamic JS rows use `TLi18n.t()` |
+| 8 | Permission 403 | User without `mgt_modify_product` (role guest) sees `You have no permission to manage test projects` banner, no data | PASS — new `fixguest` (role 5) verified |
+| 9 | Anonymous 401 | No session → `Error loading the repair screen` banner (BFF 401 JSON), no data leak | PASS — isolated incognito context |
+| 10 | BFF input validation | unknown plan/project or missing assignments → 400 JSON; unknown action → 400; non-GET/POST → 405; bad action in body on POST handled | PASS — `assignments` path validates each id; `action` read from JSON body fallback |
+| 11 | i18n gate | `fixp.*`+`footers.fixTPlans` present in **all 10** bundles; all bundles `python3 -m json.tool` valid | PASS — 10/10 bundles valid; namespaces verified |
+| 12 | Event Viewer / `events` table | no new Error/Warning (log_level ≥ 32) from the screen's BFF calls | PASS — only INFO 16 audit rows (login + reassign writes) |
+
+**Result: 12/12 PASS** — repair utility fully restored as a modern screen (superset of the broken legacy:
+also repairs orphan **builds**). Orphan rule verified against fresh DB, name join via `nodes_hierarchy`,
+admin-only gate, CSRF-guarded BFF, i18n in all bundles, Event Viewer/console clean.
+Screenshots: `docs/screenshots/issue-1540-fixplans-initial.png`,
+`docs/screenshots/issue-1540-fixplans-empty-state.png`,
+`docs/screenshots/issue-1540-fixplans-confirm-modal.png`,
+`docs/screenshots/issue-1540-fixplans-ro-locale.png`. Fixture: manual mysql (see RESUME in issue #1540).
