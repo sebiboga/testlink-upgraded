@@ -2035,6 +2035,12 @@ function getActions(&$gui,$baseURL) {
   // resolver renders gui/templates/links/directLink.html and the BFF resolves
   // prefix + doc-id into the modern reqView.html viewer.
   $actions->directLink = "/gui/templates/links/directLink.html";
+  // Public share-link gateway modernized screen (Dashio standalone page) -
+  // Refs #1541. Replaces the legacy lnl.php deep-link gateway for
+  // lnl.php?type=exec|file|metricsdashboard&...&apikey=...; the resolver
+  // screen gui/templates/links/publicLink.html resolves through the BFF and
+  // the BFF caps resolver screen rendering for session-only contexts.
+  $actions->publicLink = "/gui/templates/links/publicLink.html";
   // Reorder Requirements modernized screen (Dashio standalone page) - Refs
   // #1488/#1518. The Reorder toolbar button in reqSpecView.html carries the
   // real req_spec_id; this generic launcher keeps legacy pointer/template

@@ -1,283 +1,36 @@
 <?php
-/** 
+/**
  * TestLink Open Source Project - http://testlink.sourceforge.net/
- * This script is distributed under the GNU General Public License 2 or later. 
+ * This script is distributed under the GNU General Public License 2 or later.
  *
- * Direct links for external access to reports
+ * Public share-link gateway (modernized, Refs #1541).
  *
- * How this feature works:
- * 
- * @package   TestLink
- * @author    franciscom
- * @copyright 2012,2019 TestLink community
- * @link      http://www.testlink.org/
+ * Legacy direct links for external access to reports landed here and were
+ * resolved inline (apikey + type auth, then a redirect to a lib/* target).
+ * The modern implementation splits that into:
+ *   - api/publiclink/index.php  -> BFF resolver (auth + type mapping, JSON)
+ *   - gui/templates/links/publicLink.html -> resolver screen (ERR/redirect)
+ *
+ * This entry now ONLY forwards the browser to the modern resolver screen,
+ * keeping every original query parameter. All existing share links keep
+ * working unchanged:
+ *   lnl.php?type=exec&id=N&apikey=K
+ *   lnl.php?type=file&id=N&apikey=K
+ *   lnl.php?type=metricsdashboard&apikey=K
+ *   lnl.php?type=testplan&tproject_id=P&tplan_id=T&apikey=K ...
  */
 
-// some session and settings stuff from original index.php 
+// some session and settings stuff from original index.php
 require_once('config.inc.php');
 require_once('reports.cfg.php');
 require_once('common.php');
 
 doDBConnect($db);
-$args = init_args($db);
-switch($args->light) {
-  case 'red':
-    // can not find user or item 
-  break;
 
-  case 'green':
-    $reportCfg = config_get('reports_list');
-    $what2launch = null; 
-    $cfg = isset($reportCfg[$args->type]) ? $reportCfg[$args->type] : null;
+// strip any control characters that could poison a Location header
+$qs = isset($_SERVER['QUERY_STRING']) ? $_SERVER['QUERY_STRING'] : '';
+$qs = str_replace(["\r", "\n"], '', $qs);
 
-    switch($args->type) {
-      case 'exec':
-        $what2launch = "lib/execute/execPrint.php" .
-                       "?id={$args->id}&apikey=$args->apikey";
-      break;
-
-      case 'file':
-        $what2launch = "lib/attachments/attachmentdownload.php" .
-                       "?id={$args->id}&apikey=$args->apikey";
-      break;
-
-      case 'metricsdashboard':
-        $what2launch = "lib/results/metricsDashboard.php?apikey=$args->apikey";
-      break;
-
-      case 'test_report':
-        $what2launch = reportPublicUrl($args, 'y', false);
-      break;
-
-      case 'testreport_onbuild':
-        $what2launch = reportPublicUrl($args, 'y', true);
-      break;
-
-      case 'test_plan':
-        $what2launch = reportPublicUrl($args, 'n', false);
-      break;
-      
-      case 'testspec':
-        $param = "&type={$args->type}&level=testproject&id={$args->tproject_id}" .
-                 "&tproject_id={$args->tproject_id}" .
-                 "&header=y&summary=y&toc=y&body=y&cfields=y&author=y".
-                 "&requirement=y&keyword=y&headerNumbering=y&format=" . FORMAT_HTML;    
-        $what2launch = $cfg['url'] . "?apikey=$args->apikey{$param}";
-      break;
-      
-      
-      case 'metrics_tp_general':
-        $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                 "&format=" . FORMAT_HTML;
-        $what2launch = $cfg['url'] . "?apikey=$args->apikey{$param}";
-      break;
-  
-      case 'list_tc_failed':
-      case 'list_tc_blocked':
-      case 'list_tc_not_run':
-        $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                 "&format={$args->format}";
-        $what2launch = $cfg['url'] ."&apikey=$args->apikey{$param}";
-      break;
-      
-      case 'results_matrix';
-        $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                 "&format={$args->format}";
-        $what2launch = $cfg['url'] ."?apikey=$args->apikey{$param}";
-      break;
-
-
-      case 'results_by_tester_per_build';
-        $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}&format=" . FORMAT_HTML;
-        $what2launch = $cfg['url'] ."?apikey=$args->apikey{$param}";
-      break;
-      
-      case 'charts_basic':
-        $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}&format=" . FORMAT_HTML;
-        $what2launch = $cfg['url'] ."?apikey=$args->apikey{$param}";
-      break;
-      
-      case 'abslatest_results_matrix';
-        $param = "&tproject_id={$args->tproject_id}" .
-                 "&tplan_id={$args->tplan_id}" .
-                 "&format={$args->format}";
-        $what2launch = $cfg['url'] ."?apikey=$args->apikey{$param}";
-      break;
-      
-      case 'report_exec_timeline';
-        $param = "&tproject_id={$args->tproject_id}" .
-                 "&tplan_id={$args->tplan_id}" .
-                 "&format={$args->format}";
-        $what2launch = $cfg['url'] ."?apikey=$args->apikey{$param}";
-      break;
-
-      default:
-        $needle = 'list_tc_';
-        $nl = strlen($needle);
-        if(strpos($args->type,$needle) !== FALSE) {
-          $param = "&tproject_id={$args->tproject_id}&tplan_id={$args->tplan_id}" .
-                   "&format={$args->format}";
-          $what2launch = $cfg['url'] ."&apikey=$args->apikey{$param}";
-        } else {
-      
-          $awl = config_get('accessWithoutLogin');
-          if( !isset($awl[$args->type]) ) {
-            echo 'ABORTING - UNKNOWN TYPE:' . htmlspecialchars($args->type, ENT_QUOTES, 'UTF-8');
-            die(); 
-          }
-          
-          $conf = $awl[$args->type];
-          $param = "";
-          foreach($args->use as $prop => $useIt) {
-            $param .= "&$prop={$args->$prop}";
-          }
-          $what2launch = $conf['url'] ."&apikey=$args->apikey{$param}";
-        }  
-      break;
-    }  
-  
-    if(!is_null($what2launch)) {
-      // changed to be able to get XLS file using wget
-      // redirect(TL_BASE_HREF . $what2launch);
-      //echo $what2launch;
-      //die();
-      header('Location:' . TL_BASE_HREF . $what2launch);
-      exit();
-    }
-  break;
-  
-  default:
-    // ??
-  break;
-} 
-
-
-
-/**
- * Refs #1408: public-link target for the plan report documents (test_plan /
- * test_report / testreport_onbuild). Legacy pointed at
- * lib/results/printDocument.php?apikey=...; the modern endpoint is the
- * reportPrint.html popup backed by api/reportsprint, which accepts the same
- * 32/64-char apikey and renders the very same generator. The legacy print
- * option flags are carried in the screen's 'opts' box (urlencoded) so the
- * shared-link output stays byte-identical to the legacy param string.
- */
-function reportPublicUrl($args, $passfail, $withBuild = false)
-{
-  $optStr = "header=y&summary=y&toc=y&body=y&passfail={$passfail}&cfields=y&metrics=y&author=y" .
-            "&requirement=y&keyword=y&notes=y&headerNumbering=y";
-  $url = "gui/templates/results/reportPrint.html" .
-         "?type={$args->type}&level=testproject" .
-         "&id={$args->tproject_id}&tproject_id={$args->tproject_id}" .
-         "&tplan_id={$args->tplan_id}";
-  if ($withBuild && intval($args->build_id) > 0) {
-    $url .= "&build_id={$args->build_id}";
-  }
-  $url .= "&format=" . FORMAT_HTML .
-          "&apikey={$args->apikey}" .
-          "&opts=" . urlencode($optStr);
-  return $url;
-}
-
-/**
- *
- */
-function init_args(&$dbHandler) {
-
-  $_REQUEST = strings_stripSlashes($_REQUEST);
-  $args = new stdClass();
-
-  try {
-    // ATTENTION - give a look to $tlCfg->reports_list
-    // format domain: see reports.cfg.php FORMAT_*
-    $typeSize = 30;
-    $userAPIkeyLen = 32;
-    $objectAPIkeyLen = 64;
-
-    $iParams = array("apikey" => array(tlInputParameter::STRING_N,
-                                       $userAPIkeyLen,$objectAPIkeyLen),
-                     "tproject_id" => array(tlInputParameter::INT_N),
-                     "tplan_id" => array(tlInputParameter::INT_N),
-                     "build_id" => array(tlInputParameter::INT_N),
-                     "level" => array(tlInputParameter::STRING_N,0,16),
-                     "type" => array(tlInputParameter::STRING_N,0,$typeSize),
-                     'id' => array(tlInputParameter::INT_N),
-                     'format' => array(tlInputParameter::STRING_N,0,1),
-                     'entities' => array(tlInputParameter::STRING_N,0,3));  
-  } catch (Exception $e) {  
-    echo $e->getMessage();
-    exit();
-  }
-                  
-  R_PARAMS($iParams,$args);
-
-  $args->format = intval($args->format);
-  $args->format = ($args->format <= 0) ? FORMAT_HTML : $args->format;
-
-  $args->envCheckMode = $args->type == 'file' ? 'hippie' : 'paranoic';
-  $args->light = 'red';
-  $opt = array('setPaths' => true,'clearSession' => true);
-  
-  // what to use when is custom
-  $masks = array('tproject_id' => 1, 'tplan_id' => 2, 'build_id' => 4);
-  $args->use = $masks;
-  foreach($masks as $kx => $mm) {
-    $args->use[$kx] = (($args->entities & $mm) > 0); 
-  }
-
-  // validate apikey to avoid SQL injection
-  $args->apikey = trim($args->apikey);
-  $akl = strlen($args->apikey);
-  
-  switch($akl) {
-    case $userAPIkeyLen:
-    case $objectAPIkeyLen:
-    break;
-
-    default:
-     throw new Exception("Aborting - Bad API Key lenght", 1);
-    break;  
-  }
-
-  if($akl == $userAPIkeyLen) {
-    $args->debug = 'USER-APIKEY';
-    setUpEnvForRemoteAccess($dbHandler,$args->apikey,null,$opt);
-    $user = tlUser::getByAPIKey($dbHandler,$args->apikey);
-    $args->light = (count($user) == 1) ? 'green' : 'red';
-  } else {
-    if(is_null($args->type) || trim($args->type) == '') {
-      throw new Exception("Aborting - Bad type", 1);
-    } 
-
-    if($args->type == 'exec') {
-      $tex = DB_TABLE_PREFIX . 'executions';
-      $sql = "SELECT testplan_id FROM $tex WHERE id=" . intval($args->id);
-      $rs = $dbHandler->get_recordset($sql);
-
-      if( is_null($rs) ) {
-        die(__FILE__ . '-' . __LINE__);
-      }  
-
-      $rs = $rs[0];
-      $tpl = DB_TABLE_PREFIX . 'testplans';
-      $sql = "SELECT api_key FROM $tpl WHERE id=" . intval($rs['testplan_id']);
-      $rs = $dbHandler->get_recordset($sql);
-      if( is_null($rs) ) {
-        die(__FILE__ . '-' . __LINE__);
-      }  
-      $rs = $rs[0];
-      $args->apikey = $rs['api_key'];
-      $args->envCheckMode = 'hippie';
-    }  
-
-    $args->debug = 'OBJECT-APIKEY';
-    $kerberos = new stdClass();
-    $kerberos->args = $args;
-    $kerberos->method = null;
-
-    if( setUpEnvForAnonymousAccess($dbHandler,$args->apikey,$kerberos,$opt) ) {
-      $args->light = 'green';
-    }
-  }
-  return $args;
-}
+header('Location: ' . TL_BASE_HREF . 'gui/templates/links/publicLink.html' .
+       ($qs !== '' ? '?' . $qs : ''), true, 302);
+exit();
