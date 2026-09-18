@@ -16531,37 +16531,34 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 
 **Result: 8/8 PASS** — the `LINKS_NEW_WINDOW` fatal for URL-valued string CFs is gone; URLs render as legacy-style clickable `target="_blank"` links across the direct code path, the suiteview BFF and the browser-rendered Custom-fields card, with no Event Viewer noise (Refs #1539). Fixture: manual SQL (project 1 / suite 2 / CF `URL_CF`).
 
-## Task — Issue #931: Localized success/failure feedback after saving (Assign Test Project Roles)
+## Task — Issue #1359: Cancel/Back toolbar + bottom button in reqSpecCompare (2026-09-18)
 
-**Feature:** after saving project role assignments the modern screen must give the same
-localized feedback legacy gave (`lib/usermanagement/usersAssign.php:82-89` +
-`gui/templates/dashio/usermanagement/inc_update.tpl:26-35`): a success "User Roles updated"
-box after a real update, "No users selected - nothing done" for an empty role map, and —
-new in the rewrite — a localized error banner instead of the former silent uncaught ajax
-failure. Server side: `PUT /api/roles/tproject-roles` now returns
-`feedback_key = assign_roles_updated | no_users_selected`. Client: Dashio `#toast` helper
-(`toast(msg, cls)` with `.ok`/`.warn`/`.err`), `assignFeedback()` mapping, rewritten
-`saveAssignments()` success/error handlers. i18n keys `assign.rolesUpdated`,
-`assign.noUsersSelected`, `assign.updateFailed` in all 10 bundles.
+**Feature:** the modern `reqSpecCompare.html` must expose the legacy Cancel affordance
+(`gui/templates/dashio/requirements/reqSpecCompareRevisions.tpl` `cancel_top` line 209 + `cancel_bottom`
+line 258, both `btn_cancel` → `history.back()`) as a toolbar button AND a bottom-footer button.
+`goBack()` walks the browser history back; when the page was opened directly
+(`window.history.length <= 1`) it falls back to the spec entry screen
+`reqSpecView.html?id=<spec>&tproject_id=<tid>`. Label reuses `common.cancel` (present in all 10 locale
+bundles — no new i18n keys).
 
-**Precondition:** login admin/admin on http://localhost:8082; fixtures — test project
-"QA Demo" (id 1, public), users: admin (id 1, global admin role 8), qa_tester (id 2,
-global test designer 4). Open
-`gui/templates/usermanagement/usersAssignProject.html?tproject_id=1&tplan_id=0`.
+**Precondition:** fresh-import DB + fixture (project node 16 `QA`/`QA Dashboard Project`, req spec
+node 17 `SPEC-001` with revisions 100/101 + their nodes_hierarchy revision nodes), login admin/admin,
+compare screen open at `reqSpecCompare.html?spec_id=17&tproject_id=16`.
 
 | # | Step | Expected | Actual |
 |---|------|----------|--------|
-| 1 | Syntax + i18n gates | `php -l api/roles/index.php`; `node`-parse inline script of usersAssignProject.html; `python3 -m json.tool` on all 10 bundles; grep the 3 new keys in every bundle | PASS — PHP clean, JS parses OK, 10/10 bundles valid, keys present once each in all bundles |
-| 2 | Change qa_tester role to "tester", click Save Changes | green success toast "User Roles updated" (`.toast.ok`), list reloads, DB row `user_testproject_roles` updated (2,1,7) | PASS — toast `{text:"User Roles updated", cls:"toast ok", visible:true}`; reload; DB `2|1|7` |
-| 3 | BFF success payload | `PUT /roles/tproject-roles` `{tproject_id:1,assignments:{2:7}}` → `{status:ok, feedback_key:"assign_roles_updated"}` | PASS — exact payload measured via fetch |
-| 4 | Empty map (only global-admin row in `currentItems`, Save) | warning toast "No users selected - nothing done" (`.toast.warn`), no DB write | PASS — `{text:"No users selected - nothing done", cls:"toast warn", visible:true}` |
-| 5 | BFF empty-map payload | `PUT ... {tproject_id:1, assignments:{}}` → `{status:ok, feedback_key:"no_users_selected"}` | PASS — exact payload measured |
-| 6 | BFF validation error (force `tproject_id:0`) | red error toast (`.toast.err`) with the server message; no reload breakage | PASS — `{text:"Missing tproject_id", cls:"toast err", visible:true}` |
-| 7 | 403 (no-permissions) error branch | red toast "Insufficient rights" (`common.forbidden`) | PASS — synthetic 403 body → `Insufficient rights`, `.toast.err` |
-| 8 | demo-mode error branch | red toast "Demo mode enabled => Update Role DISABLED" (`role.demoUpdateDisabled`) | PASS — synthetic `{code:demo_mode,messageKey:role.demoUpdateDisabled}` |
-| 9 | generic 500 error branch | red toast "Error updating user roles" (`assign.updateFailed`) | PASS — synthetic non-JSON 500 → `Error updating user roles` |
-| 10 | Locale bundle resolution | `assign.rolesUpdated`/`noUsersSelected`/`updateFailed` resolve in a non-en locale (ro) | PASS — ro: "Rolurile utilizatorilor au fost actualizate" / "Niciun utilizator selectat - nu s-a făcut nimic" / "Eroare la actualizarea rolurilor utilizatorului" |
-| 11 | Event Viewer / `events` table after all runs | no new Error/Warning (log_level ≥ 32) | PASS — only audit INFO 16 rows (ASSIGN/UPDATE); zero ≥32 |
-| 12 | Browser console | no JS errors | PASS — only pre-existing a11y `issue` hints |
+| 1 | Syntax gate | HTML renders; inline JS parses (no `ReferenceError` on load) | PASS — screen loads, revisions table + DataTables initialise, console has no JS errors |
+| 2 | Toolbar contains Back/Cancel | Refresh + Compare selected revisions + **Cancel** button (`.btn-ghost`, `fa-arrow-left`, label `common.cancel`) | PASS — snapshot shows Refresh, Compare selected revisions, Cancel |
+| 3 | Footer contains Back/Cancel | bottom bar has `#footerText` (generated-on) + **Cancel** button | PASS — footer shows generated-on text left, Cancel button right |
+| 4 | Toolbar Cancel with history | navigate spec-view → compare in same tab, click toolbar Cancel | returns to the calling screen (spec view URL) via `history.back()` | PASS — landed back on `reqSpecView.html?id=17&tproject_id=16` |
+| 5 | Footer Cancel with history | same two-page flow, click footer Cancel | same `history.back()` return | PASS — landed back on spec view URL |
+| 6 | Deep-link fallback | open compare in a fresh tab (`location.replace`, `history.length=1`), click Cancel | `goBack()` else-branch → navigate to `reqSpecView.html?id=17&tproject_id=16` | PASS — navigated to spec view URL |
+| 7 | Compare regression | click "Compare selected revisions" with rev 1 ↔ rev 2 preselected | diff renders (attributes table + scope ins/del, count badge) | PASS — "Diff between r1 ↔ r2", 1 change, scope diff shown; footer Cancel still present in diff view |
+| 8 | i18n gate | `common.cancel` resolves in all 10 bundles; no hardcoded label | PASS — key present `en ro de es fr it ja pt ru zh`; all bundles `python3 -m json.tool` valid (untouched) |
+| 9 | Event Viewer / `events` table | no new Error/Warning (log_level ≥ 32) from the compare screen | PASS — only INFO 16 `audit_login_succeeded` rows remain |
+| 10 | Browser console | no JS errors while exercising both buttons + diff | PASS — only pre-existing a11y `issue` (missing id/name on a form field) |
 
-**Result: 12/12 PASS.** Screenshot: `docs/screenshots/issue-931-assign-roles-success-toast.png`.
+**Result: 10/10 PASS** — Cancel/Back parity restored at top (toolbar) and bottom (footer), both
+history.back() and the direct-open fallback verified, compare/diff unaffected, no i18n changes needed,
+Event Viewer + console clean. Screenshots: `docs/screenshots/issue-1359-gap-before.png`,
+`docs/screenshots/issue-1359-cancel-buttons.png`. Fixture: manual SQL (project 16 / spec 17 / revs 100-101).
