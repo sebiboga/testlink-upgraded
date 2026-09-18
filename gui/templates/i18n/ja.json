@@ -2889,6 +2889,7 @@
   "suvw.cancel": "キャンセル",
   "suvw.childSuites": "子テストスイート",
   "suvw.chooseFile": "ファイルを選択",
+  "suvw.clickToDownload": "添付ファイルを取得",
   "suvw.confirmTitle": "確認",
   "suvw.copied": "{count}件のテストケースをコピーしました",
   "suvw.copyConfirm": "選択したスイートに{count}件のテストケースをコピーしますか?",

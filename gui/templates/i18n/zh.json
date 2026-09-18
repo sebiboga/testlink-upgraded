@@ -2889,6 +2889,7 @@
   "suvw.cancel": "取消",
   "suvw.childSuites": "子测试套件",
   "suvw.chooseFile": "选择文件",
+  "suvw.clickToDownload": "点击下载附件",
   "suvw.confirmTitle": "确认",
   "suvw.copied": "已复制 {count} 个测试用例",
   "suvw.copyConfirm": "将 {count} 个测试用例复制到所选套件?",

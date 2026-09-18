@@ -112,6 +112,27 @@ Legacy parity target: legacy `containerView.tpl:77-85` (`jsCallDeleteFile` →
 Screenshot (issue #1366):
 `![attachment-upload](screenshots/issue-1366-suiteview-attachment-upload.png)`.
 
+### Attachment download links (issue #1365)
+
+Legacy `attachments.inc.tpl:89` renders EVERY attachment row as a clickable
+download in both read-write and read-only modes — `<a href="lib/attachments/
+attachmentdownload.php?id=N" target="_blank" class="bold"
+title="click_to_get_attachment">{title}</a>`. Only the delete button is gated
+by `modify_tc_rights` (`attach_downloadOnly`, `containerView.tpl:201-204`).
+The modern BFF already returned a `download_url` per row; the front-end was
+printing the title as inert `<b>` text.
+
+| Piece | Location |
+|-------|----------|
+| **Download URL** | `api/suiteview/index.php` `suiteAttachments()` emits `download_url` = `/api/attachments/index.php?action=download&id=<att>` per row (upload/delete refresh lists too). |
+| **Download endpoint** | `api/attachments/index.php?action=download&id=<att>` streams the file (attachments feature must be enabled; SVG not script-safe is force-downloaded). |
+| **Link** | `gui/templates/testcases/suiteView.html` `renderAttachments()` wraps the title in `<a class="bold att-dl-link" href="{download_url}" target="_blank" rel="noopener" title="{suvw.clickToDownload}">` for EVERY row (fallback download URL assembled from `a.id` if `download_url` missing); delete button only when `CAN_MANAGE`. |
+| **Tooltip** | new i18n key `suvw.clickToDownload` (legacy `click_to_get_attachment` = "Click to get attachment") in all ten locale bundles. |
+
+Screenshots (issue #1365):
+`![attachment-download](screenshots/issue-1365-suiteview-attachment-download.png)`,
+read-only `![readonly](screenshots/issue-1365-suiteview-readonly-attachment.png)`.
+
 ## Flow
 
 1. On load the page reads `id` (accepts `id` / `testsuite_id` / `item_id`) and

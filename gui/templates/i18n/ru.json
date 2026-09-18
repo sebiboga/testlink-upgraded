@@ -2889,6 +2889,7 @@
   "suvw.cancel": "Отмена",
   "suvw.childSuites": "Дочерние наборы тестов",
   "suvw.chooseFile": "Выбрать файл",
+  "suvw.clickToDownload": "Нажмите, чтобы получить вложение",
   "suvw.confirmTitle": "Подтверждение",
   "suvw.copied": "Скопировано тест-кейс(ов): {count}",
   "suvw.copyConfirm": "Скопировать {count} тест-кейс(ов) в выбранный набор?",

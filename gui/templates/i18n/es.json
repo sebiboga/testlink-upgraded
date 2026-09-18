@@ -2883,6 +2883,7 @@
   "suvw.cancel": "Cancelar",
   "suvw.childSuites": "Suites de pruebas hijas",
   "suvw.chooseFile": "Elegir archivo",
+  "suvw.clickToDownload": "Haz clic para obtener el archivo adjunto",
   "suvw.confirmTitle": "Confirmar",
   "suvw.copied": "{count} caso(s) de prueba copiado(s)",
   "suvw.copyConfirm": "¿Copiar {count} caso(s) de prueba a la suite seleccionada?",

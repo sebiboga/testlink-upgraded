@@ -16315,3 +16315,35 @@ returns the dangling row. **Post-fix expected:** HTTP 400 `role.error.noRights`
 
 **Result: 7/7 PASS** — invalid rightIDs no longer mint dangling `role_rights` rows on
 either POST or PUT; empty-role fallback 400 matches legacy semantics (Refs #1535).
+
+## Task — Issue #1365: suiteView attachment download links (gap vs legacy)
+
+**Feature:** legacy `attachments.inc.tpl:89` renders EVERY suite attachment as a
+clickable download (`<a href="lib/attachments/attachmentdownload.php?id=N"
+target="_blank" class="bold" title="click_to_get_attachment">{title}</a>`) in both
+read-write and read-only modes (`attach_downloadOnly` per `modify_tc_rights`,
+`containerView.tpl:201-204`). The modern suiteView previously printed the title as
+inert `<b>` text (BFF `suiteAttachments()` already emitted `download_url`).
+Fix: `gui/templates/testcases/suiteView.html` `renderAttachments()` now wraps the
+title in `<a class="bold att-dl-link" href="{a.download_url}" target="_blank"
+rel="noopener" title="{suvw.clickToDownload}">`, gated only for delete; i18n key
+`suvw.clickToDownload` ("Click to get attachment") added to all 10 locales.
+
+**Precondition:** fresh DB import; recreated fixture: project **1** `SUVW-ATT`
+(prefix SUVW), suite **2** `Downloads`, attachment id **1** `SV Plan Doc` /
+`plan.pdf` (343 B) uploaded via the modern BFF; admin (`admin/admin`) plus
+read-only user `ro1365` (global role 7 tester = `mgt_view_tc` only).
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` | `attachments[]` each carries `download_url` `/api/attachments/index.php?action=download&id=1` | PASS — `download_url` present |
+| 2 | Open `suiteView.html?id=2&tproject_id=1` as admin | Title cell is a link `a.att-dl-link`, `href=http://localhost:8082/api/attachments/index.php?action=download&id=1`, `target=_blank`, tooltip `Click to get attachment`, text `SV Plan Doc`; delete button still shown | PASS — measured row HTML exact |
+| 3 | Click the title link | opens `/api/attachments/index.php?action=download&id=1`; PDF streams (343 B, `%PDF-1.4`) | PASS — PDF viewer rendered `plan.pdf` |
+| 4 | Same screen as `ro1365` (read-only) | `CAN_MANAGE=false`; title still a clickable download link with same tooltip; NO delete button; upload form hidden | PASS — anchor present, delete btn none, upload display none |
+| 5 | i18n | `suvw.clickToDownload` present in all 10 bundles; all bundles valid JSON | PASS — 10/10, `python3 -m json.tool` OK |
+| 6 | Syntax gate | `php -l api/suiteview/index.php` | PASS — no syntax errors |
+| 7 | Event Viewer after all steps | no Error/Warning rows | PASS — only INFO (log_level 16) audit rows |
+
+**Result: 7/7 PASS** — suite attachment titles are now clickable download links in
+both admin and read-only viewer modes, mirroring legacy `attachmentdownload.php`
+behavior (Refs #1365).

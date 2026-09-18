@@ -236,6 +236,14 @@ Test Spec:
   legacy containerEdit.php:129-137) and attachment_delete (fk ownership guard
   then deleteAttachment, legacy :150-165); info/upload/delete rows now carry
   download_url; 19 suvw.* attachment keys in all 10 bundles (Refs #1366).
+- Test Suite viewer attachment download links (suiteView.html): every
+  attachment row now renders its title as a clickable download link
+  (`<a class="bold att-dl-link" href="{download_url}" target="_blank"
+  rel="noopener" title="...">`, legacy attachments.inc.tpl:89
+  attachmentdownload.php?id=N parity) in BOTH admin and read-only modes — only
+  the per-row Delete stays gated on can_manage (legacy attach_downloadOnly);
+  new suvw.clickToDownload ("Click to get attachment") key in all 10 bundles
+  (Refs #1365).
 - Test Suite viewer Import launchers (suiteView.html): toolbar "Import Test
   Cases" (flat) and "Import Test Suite" (deep, useRecursion=1) buttons route to
   the modern tcImport.html pre-targeted at the current suite, mirroring legacy

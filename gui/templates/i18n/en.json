@@ -2895,6 +2895,7 @@
   "suvw.cancel": "Cancel",
   "suvw.childSuites": "Child test suites",
   "suvw.chooseFile": "Choose file",
+  "suvw.clickToDownload": "Click to get attachment",
   "suvw.confirmTitle": "Confirm",
   "suvw.copied": "Copied {count} test case(s)",
   "suvw.copyConfirm": "Copy {count} test case(s) to the selected suite?",

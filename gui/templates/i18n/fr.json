@@ -2883,6 +2883,7 @@
   "suvw.cancel": "Annuler",
   "suvw.childSuites": "Suites de tests enfants",
   "suvw.chooseFile": "Choisir un fichier",
+  "suvw.clickToDownload": "Cliquer pour obtenir la pièce jointe",
   "suvw.confirmTitle": "Confirmer",
   "suvw.copied": "{count} cas de test copiés",
   "suvw.copyConfirm": "Copier {count} cas de test vers la suite sélectionnée ?",

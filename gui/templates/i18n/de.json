@@ -2883,6 +2883,7 @@
   "suvw.cancel": "Abbrechen",
   "suvw.childSuites": "Unter-Testsuites",
   "suvw.chooseFile": "Datei auswählen",
+  "suvw.clickToDownload": "Klicken, um den Anhang abzurufen",
   "suvw.confirmTitle": "Bestätigen",
   "suvw.copied": "{count} Testfall(e) kopiert",
   "suvw.copyConfirm": "{count} Testfall(e) in die ausgewählte Suite kopieren?",

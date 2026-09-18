@@ -2889,6 +2889,7 @@
   "suvw.cancel": "Cancelar",
   "suvw.childSuites": "Suítes de testes filhas",
   "suvw.chooseFile": "Escolher arquivo",
+  "suvw.clickToDownload": "Clique para obter o anexo",
   "suvw.confirmTitle": "Confirmar",
   "suvw.copied": "{count} caso(s) de teste copiado(s)",
   "suvw.copyConfirm": "Copiar {count} caso(s) de teste para a suíte selecionada?",

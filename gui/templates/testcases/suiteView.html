@@ -469,8 +469,18 @@ function renderAttachments(atts) {
       actions = '<button class="btn-sm-del" onclick="deleteAttachment(' + a.id + ')" title="' +
         TLi18n.t('suvw.delete') + '"><i class="fa fa-trash"></i> ' + TLi18n.t('suvw.delete') + '</button>';
     }
+    // Legacy attachments.inc.tpl:89 wraps the title in a clickable download
+    // link (`attachmentdownload.php?id=N`, title tooltip 'click_to_get_attachment')
+    // for EVERY attachment row, read-write and read-only alike; only the delete
+    // button is gated by CAN_MANAGE. The BFF carries a.download_url (api/
+    // suiteview suiteAttachments -> api/attachments download endpoint).
+    var attLink = '<a class="bold att-dl-link" href="' +
+      escapeHtml(a.download_url || ('/api/attachments/index.php?action=download&id=' + a.id)) +
+      '" target="_blank" rel="noopener" title="' +
+      TLi18n.t('suvw.clickToDownload') + '">' +
+      escapeHtml(a.title || a.file_name) + '</a>';
     $tb.append('<tr>' +
-      '<td><b>' + escapeHtml(a.title || a.file_name) + '</b></td>' +
+      '<td>' + attLink + '</td>' +
       '<td>' + escapeHtml(a.file_name || '') + '</td>' +
       '<td>' + fmtSize(a.file_size) + '</td>' +
       '<td>' + escapeHtml(a.date_added || '') + '</td>' +

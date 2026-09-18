@@ -2889,6 +2889,7 @@
   "suvw.cancel": "Anulează",
   "suvw.childSuites": "Seturi de testare secundare",
   "suvw.chooseFile": "Alege fișier",
+  "suvw.clickToDownload": "Apasă pentru a descărca atașamentul",
   "suvw.confirmTitle": "Confirmare",
   "suvw.copied": "{count} caz(uri) de testare copiate",
   "suvw.copyConfirm": "Copiem {count} caz(uri) de testare în suita selectată?",
