@@ -331,7 +331,33 @@ function launch_inner_exec(&$dbHandler,&$tplMgr)
     }  
 
     $tproject_mgr = new testproject($dbHandler);
-    $tproject_mgr->setSessionProject($info['tproject_id']);
+    // Refs #1537: testproject::setSessionProject() was removed during the
+    // 2.0.1 refactor (commit 94c9adf5c) and called with an undefined method
+    // fatal. Restore its exact semantics (recovered from fe154f2e6): set the
+    // session testproject vars from the project row so the legacy inner-frame
+    // exec dashboard (execNavigator.php) keeps working for deep links.
+    $tproject = $tproject_mgr->get_by_id($info['tproject_id']);
+    if(!is_null($tproject))
+    {
+      $_SESSION['testprojectID'] = $tproject['id'];
+      $_SESSION['testprojectName'] = $tproject['name'];
+      $_SESSION['testprojectColor'] = $tproject['color'];
+      $_SESSION['testprojectPrefix'] = $tproject['prefix'];
+      $_SESSION['testprojectOptReqs'] = isset($tproject['option_reqs']) ? $tproject['option_reqs'] : null;
+      $_SESSION['testprojectOptPriority'] = isset($tproject['option_priority']) ? $tproject['option_priority'] : null;
+      $_SESSION['testprojectOptAutomation'] = isset($tproject['option_automation']) ? $tproject['option_automation'] : null;
+    }
+    else
+    {
+      // deactivation path of the removed method (fe154f2e6)
+      unset($_SESSION['testprojectID']);
+      unset($_SESSION['testprojectName']);
+      unset($_SESSION['testprojectColor']);
+      unset($_SESSION['testprojectOptReqs']);
+      unset($_SESSION['testprojectOptPriority']);
+      unset($_SESSION['testprojectOptAutomation']);
+      unset($_SESSION['testprojectPrefix']);
+    }
     $op['status_ok'] = true;
   } 
 
