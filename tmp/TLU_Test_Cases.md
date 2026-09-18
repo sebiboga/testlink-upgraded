@@ -16422,3 +16422,43 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 9 | Syntax gates | inline `<script>` extracted → `node --check`; i18n bundles → `python3 -m json.tool` | PASS — all clean |
 
 **Result: 9/9 PASS**
+
+## Task — Issue #1364: Suite keyword add/remove assignment in suiteView (gap vs legacy)
+
+**Target files (modern):** `gui/templates/testcases/suiteView.html`,
+`api/suiteview/index.php`, `gui/templates/i18n/*.json` (all 10 bundles).
+**Legacy parity:** `gui/templates/dashio/testcases/include/object_keywords.inc.tpl:37-51`
+(remove confirm → containerEdit.php doAction=removeKeyword →
+`testsuite::deleteKeywordByLinkID`), `:105-137` (free-keyword multiselect +
+`addKeyword` / `addKeywordTSDeep` buttons → `testsuite::addKeywords` /
+`addKeywordsDeep`), write gate containerEdit.php:120-124 (`grants->testcase_mgmt`),
+UI gate `modify_tc_rights` + `assign_keywords` (mgt_modify_key).
+
+**Precondition (fresh empty DB, seeded during the run):** public test project
+`KwFixtureProject` (nodes_hierarchy id 100, testprojects prefix `KWFIX`), suite
+`KwFixtureSuite` (id 101) with 2 child suites (102 `ChildSuiteA`, 103
+`ChildSuiteB`); keywords `kw_alpha`(1) / `kw_beta`(2) / `kw_gamma`(3) on project
+100; `object_keywords` pre-row (fk_id=101, keyword_id=1). Login admin/admin;
+rights-less `guest`/guest (role guest). URL
+`http://127.0.0.1:8082/gui/templates/testcases/suiteView.html?id=101&tproject_id=100`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Open suiteView as admin | Keywords card lists chip `kw_alpha` WITH a remove icon (title "Click to remove this keyword."), a "Select Keywords" multi-select (kw_beta, kw_gamma) + "+ Add" + "Add to all testsuites deep" buttons | PASS — chip + remove icon + multiselect + both buttons rendered (verified in a11y snapshot + screenshot) |
+| 2 | Click remove icon on `kw_alpha`, confirm | Browser confirm "Really remove keyword kw_alpha?"; after accept the link disappears (`object_keywords` for fk_id=101 emptied); card refreshes with all 3 keywords in free select + msg "Keyword removed from the test suite." | PASS — confirm shown, row deleted, refresh with 3 free keywords + success msg |
+| 3 | Select `kw_beta`, click "+ Add" | Flat add only to suite 101 (legacy `addKeywords`); chip + msg "Keywords added to the test suite."; DB row fk_id=101 keyword_id=2 | PASS — row inserted (link id 2), chip + msg shown |
+| 4 | Select `kw_gamma`, click "Add to all testsuites deep" | Legacy `addKeywordsDeep` on suite 101; kw_gamma linked to suite 101; keyword-less child suites 102/103 remain untouched (legacy `getKeywordsForTSSet` map quirk — chains only through suites already having ≥1 keyword) | PASS — row fk_id=101 kw_gamma created; 102/103 untouched; IDENTICAL result reproduced by directly invoking the legacy method (`/tmp/legacy_deep_test.php`) |
+| 5 | Seed kw_alpha onto suite 102, then deep-add `kw_alpha` | Deep add cascades to 101 and 103 (102 already has it → skipped as dup) | PASS — links: 101 kw_alpha, 102 kw_alpha, 103 untouched (keyword-less skip quirk documented) |
+| 6 | Summary read-only (guest on public project) | `GET info` → 200, `can_manage:false`, `can_assign_keywords:false`; keywords readable with kw_link_id; free_keywords empty; UI renders chips WITHOUT remove icon and WITHOUT assign panel | PASS — measured payload as described |
+| 7 | Guest posts `keyword_add` / `keyword_remove` | HTTP 403 for both (not authorized) | PASS — 403 "You are not authorized to assign/remove suite keywords" |
+| 8 | Hardening (admin): remove wrong kw_link_id | HTTP 404 "Keyword link not found for this test suite" | PASS |
+| 9 | Hardening: add keyword of another project | HTTP 400 "None of the keywords belong to the owning test project" | PASS |
+| 10 | Hardening: re-add already-assigned keyword | HTTP 409 "Selected keywords are already assigned to this test suite" | PASS |
+| 11 | Hardening: empty keyword_ids | HTTP 400 "No keywords to add" | PASS |
+| 12 | Event Viewer / `events` table after full pass | No new Error/Warning (log_level ≥ 32) rows | PASS — only audit login/logout INFO rows |
+| 13 | i18n smoke (switch locale to Română / German) | All new labels translated (no raw keys echoed) | PASS — bundles validated `python3 -m json.tool`; keys present in all 10 locales |
+
+**Result: 13/13 PASS** — full legacy suite-keyword assignment capability ported:
+remove (with confirm), flat add, deep add (exact legacy `addKeywordsDeep`
+semantics incl. its keyword-less-child quirk), rights gating (mgt_modify_tc AND
+mgt_modify_key), plus BFF hardening beyond legacy. (Refs #1364)

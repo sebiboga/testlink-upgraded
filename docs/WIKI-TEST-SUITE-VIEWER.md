@@ -63,7 +63,7 @@ The BFF reproduces the read-only suite viewer:
 | **Details card** | Suite `details` (fallback `(no details)`) |
 | **Test cases card** | DataTable (External ID, Name, Version, Importance badge, Summary) with search + pagination |
 | **Test cases table view card** | Full grid for bulk-set (admin/designer with `mgt_modify_tc`): checkbox column, External ID, Name, Version, **Status**, Importance, **Execution Type**, Summary + per design-time custom field a set-input (checkbox + value select/text); bulk toolbar (Status / Importance / Execution Type selects + "Apply to selected") |
-| **Keywords card** | Keyword chips (hidden when empty) |
+| **Keywords card** | Keyword chips, each with a remove icon when the user may assign keywords; plus a free-keyword multi-select with **+ Add** and **Add to all testsuites deep** buttons (hidden for read-only users / when no free keywords) |
 | **Attachments card** | Attachment DataTable rows with size + date + per-row **Delete** + **Add attachment** upload form (title + file + Upload) when `mgt_modify_tc`; hidden only for read-only users with no attachments |
 | **Footer** | Generated-on timestamp |
 
@@ -219,6 +219,50 @@ Screenshots (issue #1369):
 `/lib/testcases/archiveData.php?edit=testsuite&id=<id>`. No other modernized
 screen routes suite viewing through `archiveData.php` (grep-clean).
 
+## Suite keyword assignment — add / remove (issue #1364)
+
+Full legacy parity with `gui/templates/dashio/testcases/include/object_keywords.inc.tpl`
+(rendered by `tsuiteViewerRO.inc.tpl:39-41` with
+`args_edit_enabled = $gui->modify_tc_rights`):
+
+- **Remove** — each keyword chip carries a remove icon when the user may assign
+  keywords. Clicking it shows the native confirm *"Really remove keyword <name>?"*
+  (legacy `keyword_remove_confirmation` + `remove_kw_msgbox_msg`), then
+  `POST api/suiteview/index.php?action=keyword_remove` (`{id, kw_link_id}`) →
+  legacy `containerEdit.php doAction=removeKeyword` → `testsuite::deleteKeywordByLinkID()`
+  (plain `DELETE FROM object_keywords WHERE id = kw_link_id`).
+- **Add** — free-keyword multi-select lists the project keywords NOT already
+  linked to this suite (legacy `testsuite::getFreeKeywords()`: `keywords.testproject_id`
+  = owning project, `id NOT IN object_keywords` for `fk_id` = suite). **+ Add** →
+  `POST ?action=keyword_add` (`{id, keyword_ids}`) → legacy `doAction=addKeyword` →
+  `testsuite::addKeywords()` (flat link to the suite only).
+- **Add to all testsuites deep** — `POST ?action=keyword_add_deep` → legacy
+  `doAction=addKeywordTSDeep` → `testsuite::addKeywordsDeep()`: assigns to the
+  suite AND its whole subtree, diffing against `getKeywordsForTSSet()` to avoid
+  duplicate links. **Legacy quirk preserved verbatim:** `addKeywordsDeep` only
+  chains through suites that already have at least one keyword (the
+  `getKeywordsForTSSet` map only contains suites present in `object_keywords`),
+  so keyword-less child suites are left untouched — reproduced exactly by the BFF
+  because it invokes the same `testsuite` method (verified by calling the legacy
+  method directly, `/tmp/legacy_deep_test.php`).
+
+**Rights gate** (port of the full legacy gate):
+- Invoke the legacy method directly (`testsuite::addKeywords` /
+  `addKeywordsDeep` / `deleteKeywordByLinkID`).
+- UI + API gate: BOTH `mgt_modify_tc == 'yes'` on the owning project (legacy
+  `modify_tc_rights` / `grants->testcase_mgmt`, containerEdit.php:120-124) AND
+  `mgt_modify_key == 'yes'` (legacy `assign_keywords`, testsuite.class.php:521-525).
+  The `info` payload exposes `can_assign_keywords` for the front-end; the three
+  write endpoints return **403** otherwise.
+- BFF hardening beyond legacy: `keyword_ids` validated to belong to the owning
+  project (else 400) and not already linked (else 409); `kw_link_id` validated
+  to actually belong to THIS suite (fk_id + fk_table guard, else 404) before
+  the delete.
+
+`info` payload now returns keywords as objects `{keyword_id, kw_link_id, keyword}`
+(the link id is what `removeKeyword` needs) plus `free_keywords`
+`[{keyword_id, keyword}]` and `can_assign_keywords`.
+
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
@@ -228,7 +272,11 @@ All user-facing strings use `suvw.*` keys present in all ten locale bundles
 `suvw.delAttConfirm`, `suvw.deleteOk`, `suvw.deleteFail`, `suvw.noAttachments`,
 `suvw.noFileSelected`, `suvw.attTitle/attFile/attSize/attDate`, `suvw.attachments`
 and the four `suvw.err*` upload codes) in every bundle; all bundles validated
-with `python3 -m json.tool`.
+with `python3 -m json.tool`. The keyword assignment feature (#1364) adds 10 keys
+(`suvw.selectKeywords`, `suvw.removeKeyword`, `suvw.removeKwConfirm` with
+`{kw}` interpolation, `suvw.addKeyword`, `suvw.addKeywordsDeep`,
+`suvw.noKeywordSelected`, `suvw.kwAddOk`, `suvw.kwAddDeepOk`, `suvw.kwRemoveOk`,
+`suvw.kwOpFail`) in all ten bundles.
 
 ## Test coverage
 
@@ -236,7 +284,9 @@ See **Suite 819** in `tmp/TLU_Test_Cases.md` (21/21 PASS). The import launchers
 (#1370) are covered by the **Issue #1370** suite in the same file (10/10 PASS).
 The generate-testsuite-spec feature (#1369) is covered by the **Issue #1369 /
 Suite 1524** suite (13/13 PASS). The attachment upload + delete feature (#1366)
-is covered by the **Issue #1366** suite in the same file (11/11 PASS).
+is covered by the **Issue #1366** suite in the same file (11/11 PASS). The
+keyword assignment feature (#1364) is covered by the **Issue #1364** suite in
+the same file (13/13 PASS).
 ## Test-case management operations (issue #1368)
 
 The viewer exposes the legacy Test-Suite-Viewer test-case operations from the

@@ -30,14 +30,29 @@
  *        guard) before the delete is issued (BFF hardening). Requires
  *        mgt_modify_tc == 'yes' on the owning project. Returns the
  *        refreshed attachment list.
+ *   POST ?action=keyword_add  {id, keyword_ids: [...]}
+ *   POST ?action=keyword_add_deep  {id, keyword_ids: [...]}
+ *        -> assign free project keywords to the suite (flat: legacy
+ *        containerEdit.php doAction=addKeyword -> testsuite::addKeywords;
+ *        deep: doAction=addKeywordTSDeep -> testsuite::addKeywordsDeep, the
+ *        suite + whole subtree, exact legacy chaining semantics). Requires
+ *        BOTH mgt_modify_tc and mgt_modify_key on the owning project.
+ *        Endpoint-hardened beyond legacy: keyword_ids must belong to the
+ *        owning project (400) and not already be linked (409).
+ *   POST ?action=keyword_remove  {id, kw_link_id}
+ *        -> removes one suite keyword link (legacy doAction=removeKeyword ->
+ *        testsuite::deleteKeywordByLinkID). Same dual rights gate; the link
+ *        must belong to THIS suite (fk_id + fk_table guard, else 404).
  *
  * Rights: legacy suite viewer requires read access to the owning test
  * project (mgt_view_tc). The owning project is resolved from the suite node
  * itself (walk up nodes_hierarchy), NOT from the session, because the popup
  * can be opened for a suite of a different project (system-wide search).
- * The read-only actions need mgt_view_tc; the two write actions additionally
- * need mgt_modify_tc (403 otherwise) — exactly the legacy split between the
- * suite viewer (read) and containerEdit.php fileUpload/deleteFile (write).
+ * The read-only actions need mgt_view_tc; the write actions additionally
+ * need mgt_modify_tc (attachment) or mgt_modify_tc AND mgt_modify_key
+ * (keyword add/remove) — exactly the legacy split between the suite viewer
+ * (read), containerEdit.php fileUpload/deleteFile (write) and
+ * object_keywords.inc.tpl (keywords, dual-gated).
  */
 
 require_once(__DIR__ . '/../../config.inc.php');
@@ -254,10 +269,11 @@ if ($method === 'GET' && $action === 'info') {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Test suite not found'));
     }
-    $tprojectId = intval($_REQUEST['tproject_id'] ?? 0);
-    if ($tprojectId <= 0) {
-        $tprojectId = owningProjectOf($suite['id'], $types);
-    }
+    // always resolve the owning project from the suite node itself (walk up
+    // nodes_hierarchy) — authoritative and immune to a caller-supplied
+    // tproject_id mismatch (a wrong id must never leak another project's
+    // keywords/free_keywords nor gate rights against the wrong project)
+    $tprojectId = owningProjectOf($suite['id'], $types);
     if ($tprojectId <= 0) {
         http_response_code(404);
         out(array('status' => 'error', 'message' => 'Owning test project not found'));
@@ -356,6 +372,7 @@ if ($method === 'GET' && $action === 'info') {
     // object_keywords id (kw_link_id) that containerEdit.php
     // doAction=removeKeyword needs for testsuite::deleteKeywordByLinkID().
     $keywords = array();
+    $seenKw = array();
     $kwRows = $db->get_recordset(
         "SELECT OK.id AS kw_link, OK.keyword_id, K.keyword " .
         "FROM {$tables['object_keywords']} OK " .
@@ -364,10 +381,16 @@ if ($method === 'GET' && $action === 'info') {
         " ORDER BY K.keyword");
     if (!is_null($kwRows)) {
         foreach ($kwRows as $k) {
+            $kwId = intval($k['keyword_id']);
+            // dedupe on keyword_id (legacy getKeywords() collates by
+            // keyword_id map key) so a duplicated object_keywords row does
+            // not render duplicate chips
+            if (isset($seenKw[$kwId])) continue;
+            $seenKw[$kwId] = true;
             $kw = trim(strval($k['keyword']));
-            if ($kw !== '' && !in_array($kw, $keywords, true)) {
+            if ($kw !== '') {
                 $keywords[] = array(
-                    'keyword_id' => intval($k['keyword_id']),
+                    'keyword_id' => $kwId,
                     'kw_link_id' => intval($k['kw_link']),
                     'keyword' => $kw,
                 );

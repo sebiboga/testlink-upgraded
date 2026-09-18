@@ -283,6 +283,19 @@ Test Spec:
   move/copy modal which reuses api/testcases move/copy (deep copy with keyword /
   requirement options). All endpoints gated on mgt_modify_tc (can_manage), 41
   suvw.* keys added to all 10 bundles (Refs #1367).
+- Test Suite viewer suite-keyword assignment (suiteView.html): the Keywords card
+  now mirrors the legacy object_keywords.inc.tpl editing UI — per-keyword remove
+  icon with confirm (legacy keyword_remove_confirmation -> containerEdit.php
+  doAction=removeKeyword -> testsuite::deleteKeywordByLinkID) plus a free-keyword
+  multi-select with "+ Add" (doAction=addKeyword -> testsuite::addKeywords) and
+  "Add to all testsuites deep" (doAction=addKeywordTSDeep ->
+  testsuite::addKeywordsDeep, exact legacy subtree-chaining semantics). New BFF
+  api/suiteview POST keyword_add / keyword_add_deep / keyword_remove gated on
+  BOTH mgt_modify_tc AND mgt_modify_key (legacy dual UI gate), hardened beyond
+  legacy (project-ownership check, dup-link 409, fk ownership guard on remove);
+  info now exposes keywords as {keyword_id, kw_link_id, keyword}, free_keywords
+  (legacy getFreeKeywords) and can_assign_keywords; 10 suvw.* keys in all 10
+  bundles (Refs #1364).
 - Assign Keywords (keywordsAssign.html) - BFF api/keywords.
 - Test Case Bulk Update (tcBulkOp).
 - Test Automation Specification (results/testAutomationSpec.html) - BFF
