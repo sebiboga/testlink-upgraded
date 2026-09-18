@@ -149,6 +149,44 @@ function designCfields($db, $tprojectId)
 }
 
 /**
+ * Design-time custom fields linked to a test suite, with their current values
+ * (legacy testsuite::html_table_of_custom_field_values + get_linked_cfields_at_design:
+ * cfield_node_types JOIN for node_type 'testsuite', cfield_design_values keyed by
+ * the suite node id, value formatted via cfield_mgr::string_custom_field_value;
+ * BUGID 3989 show_custom_fields_without_value still honoured). Emits the same
+ * {id,label,value} shape api/execsetresults esrTestSuite() returns for its exec
+ * popup suite block. The value is backend-escaped HTML (htmlspecialchars +
+ * string_insert_hrefs for the 'string' type) exactly like the legacy $gui->cf
+ * table cell, so the front-end inserts it as-is.
+ */
+function suiteDesignCfields($db, $suiteId, $tprojectId)
+{
+    $cfs = array();
+    try {
+        $tsuiteMgr = new testsuite($db);
+        $cfMap = $tsuiteMgr->get_linked_cfields_at_design(
+            $suiteId, null, null, $tprojectId);
+        if (!is_null($cfMap)) {
+            $showEmpty = config_get('custom_fields')->show_custom_fields_without_value;
+            foreach ($cfMap as $cfId => $cfInfo) {
+                $hasValue = intval($cfInfo['node_id'] ?? 0);
+                if (!$hasValue && !$showEmpty) { continue; }
+                $cfs[] = array(
+                    'id' => intval($cfId),
+                    'label' => trim(str_replace(TL_LOCALIZE_TAG, '',
+                        lang_get($cfInfo['label'], null, true))),
+                    'value' => strval($tsuiteMgr->cfield_mgr
+                        ->string_custom_field_value($cfInfo, $suiteId)),
+                );
+            }
+        }
+    } catch (\Throwable $e) {
+        $cfs = array();
+    }
+    return $cfs;
+}
+
+/**
  * node_type_id => canonical description, read once from node_types.
  */
 function typeIds()
@@ -470,6 +508,7 @@ if ($method === 'GET' && $action === 'info') {
         'testcases' => $testcases,
         'keywords' => $keywords,
         'free_keywords' => $freeKeywords,
+        'custom_fields' => suiteDesignCfields($db, $suiteId, $tprojectId),
         'can_assign_keywords' => $canAssignKeywords,
         'attachments' => $attachments,
         'can_manage' => $canManage,

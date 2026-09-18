@@ -75,6 +75,8 @@ define('DISABLED',   0 );
 define('ON',    1 );
 define('OFF',    0 );
 define('ACTIVE',  1 );
+define('LINKS_SAME_WINDOW', 0);
+define('LINKS_NEW_WINDOW', 1);
 define('INACTIVE',  0 );
 define('OPEN',    1 );
 define('CLOSED',  0 );

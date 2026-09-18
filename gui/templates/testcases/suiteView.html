@@ -133,6 +133,13 @@ textarea.form-control2 { min-height: 90px; resize: vertical; }
     <div class="card-body"><div class="details-text" id="vDetails"></div></div>
   </div>
 
+  <div class="card" id="cfCard" style="display:none;">
+    <div class="card-title"><i class="fa fa-tasks"></i> <span data-i18n="suvw.customFields">Custom fields</span></div>
+    <div class="card-body">
+      <div class="kv" id="vCustomFields"></div>
+    </div>
+  </div>
+
   <div class="card" id="tcCard">
     <div class="card-title"><i class="fa fa-file-text-o"></i> <span data-i18n="suvw.linkedCases">Test cases in this suite</span></div>
     <div class="card-body">
@@ -425,7 +432,24 @@ function render(r) {
   renderTc(r.testcases || []);
   KW_FREE = r.free_keywords || [];
   renderKeywords(r.keywords || []);
+  renderCustomFields(r.custom_fields || []);
   renderAttachments(r.attachments || []);
+}
+
+function renderCustomFields(cfs) {
+  // Legacy testsuite viewer: html_table_of_custom_field_values rendered a
+  // label/value table under the suite name (tsuiteViewerRO.inc.tpl:48-53,
+  // scope='design', honouring show_custom_fields_without_value). The BFF
+  // returns backend-escaped HTML values (links for string CFs, mailto for
+  // email, nl2br for text areas) — inserted raw to preserve that formatting.
+  if (!cfs || !cfs.length) { $('#cfCard').hide(); return; }
+  var html = '';
+  $.each(cfs, function(i, cf) {
+    html += '<div class="k">' + escapeHtml(cf.label || '') + '</div>' +
+      '<div class="v cf-value">' + (cf.value || '') + '</div>';
+  });
+  $('#vCustomFields').html(html);
+  $('#cfCard').show();
 }
 
 function renderTc(rows) {
@@ -683,7 +707,7 @@ function deleteAttachment(id) {
 
 function toggleTableView() {
   TV_ACTIVE = !TV_ACTIVE;
-  $('#tcCard, #kwCard, #attCard').toggle(!TV_ACTIVE);
+  $('#tcCard, #kwCard, #attCard, #cfCard').toggle(!TV_ACTIVE);
   $('#viewLoading').hide();
   if (TV_ACTIVE && !TV_LOADED) {
     $('#tvCard').show();
