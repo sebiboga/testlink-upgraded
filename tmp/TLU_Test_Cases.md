@@ -16316,72 +16316,38 @@ returns the dangling row. **Post-fix expected:** HTTP 400 `role.error.noRights`
 **Result: 7/7 PASS** — invalid rightIDs no longer mint dangling `role_rights` rows on
 either POST or PUT; empty-role fallback 400 matches legacy semantics (Refs #1535).
 
-## Task — Issue #1365: suiteView attachment download links (gap vs legacy)
+---
 
-**Feature:** legacy `attachments.inc.tpl:89` renders EVERY suite attachment as a
-clickable download (`<a href="lib/attachments/attachmentdownload.php?id=N"
-target="_blank" class="bold" title="click_to_get_attachment">{title}</a>`) in both
-read-write and read-only modes (`attach_downloadOnly` per `modify_tc_rights`,
-`containerView.tpl:201-204`). The modern suiteView previously printed the title as
-inert `<b>` text (BFF `suiteAttachments()` already emitted `download_url`).
-Fix: `gui/templates/testcases/suiteView.html` `renderAttachments()` now wraps the
-title in `<a class="bold att-dl-link" href="{a.download_url}" target="_blank"
-rel="noopener" title="{suvw.clickToDownload}">`, gated only for delete; i18n key
-`suvw.clickToDownload` ("Click to get attachment") added to all 10 locales.
+## Suite — Issue #928 — admin role no longer offered as assignable dropdown option (projects + plans)
 
-**Precondition:** fresh DB import; recreated fixture: project **1** `SUVW-ATT`
-(prefix SUVW), suite **2** `Downloads`, attachment id **1** `SV Plan Doc` /
-`plan.pdf` (343 B) uploaded via the modern BFF; admin (`admin/admin`) plus
-read-only user `ro1365` (global role 7 tester = `mgt_view_tc` only).
+**Target files** (modern):
+`gui/templates/usermanagement/usersAssignProject.html`, `gui/templates/usermanagement/usersAssignPlan.html`
+**Legacy parity:** `gui/templates/usermanagement/usersAssign.tpl:259-271` — the
+admin role (TL_ROLES_ADMIN, id 8) is deliberately NOT an assignable option
+UNLESS it is the user's current effective (non-inherited) assignment.
 
-| # | Step | Expected | Actual |
-|---|------|----------|--------|
-| 1 | `GET /api/suiteview/index.php?action=info&id=2&tproject_id=1` | `attachments[]` each carries `download_url` `/api/attachments/index.php?action=download&id=1` | PASS — `download_url` present |
-| 2 | Open `suiteView.html?id=2&tproject_id=1` as admin | Title cell is a link `a.att-dl-link`, `href=http://localhost:8082/api/attachments/index.php?action=download&id=1`, `target=_blank`, tooltip `Click to get attachment`, text `SV Plan Doc`; delete button still shown | PASS — measured row HTML exact |
-| 3 | Click the title link | opens `/api/attachments/index.php?action=download&id=1`; PDF streams (343 B, `%PDF-1.4`) | PASS — PDF viewer rendered `plan.pdf` |
-| 4 | Same screen as `ro1365` (read-only) | `CAN_MANAGE=false`; title still a clickable download link with same tooltip; NO delete button; upload form hidden | PASS — anchor present, delete btn none, upload display none |
-| 5 | i18n | `suvw.clickToDownload` present in all 10 bundles; all bundles valid JSON | PASS — 10/10, `python3 -m json.tool` OK |
-| 6 | Syntax gate | `php -l api/suiteview/index.php` | PASS — no syntax errors |
-| 7 | Event Viewer after all steps | no Error/Warning rows | PASS — only INFO (log_level 16) audit rows |
+**Precondition:** fresh DB (issued default data: project 1 "Alpha Project";
+users 1=admin, 2=tester1[global tester], 3=tester2[global designer],
+4=designer1[global leader]). Explicit assignments created for this suite via
+BFF (`PUT /api/roles/.../tproject-roles` and `.../tplan-roles`):
+user 2 → admin (8) explicitly on project 1 AND testplan 2 ("Alpha Sprint 1",
+created via `POST /api/plans/index.php` this suite).
 
-**Result: 7/7 PASS** — suite attachment titles are now clickable download links in
-both admin and read-only viewer modes, mirroring legacy `attachmentdownload.php`
-behavior (Refs #1365).
-## Regression — Issue #1533: linkto.php inner-frame deep links fatal (Call to undefined method testproject::setSessionProject())
+| # | Screen | User row | Admin (8) option present? | Expected |
+|---|--------|----------|---------------------------|----------|
+| 1 | Assign Test Project Roles | tester1 (explicit admin 8, non-inherited) | YES + pre-selected (uid shows value=8 selected) | admin kept: it is the current explicit assignment |
+| 2 | Assign Test Project Roles | tester2 (no explicit) | NO admin option in dropdown | admin not offered |
+| 3 | Assign Test Project Roles | designer1 (no explicit) | NO admin option | admin not offered |
+| 4 | Assign Test Project Roles | admin (global admin, inherited) | NO admin option; renders `<inherited> admin` as value-0 | inherited-role row keeps value-0 representation |
+| 5 | Assign Test Plan Roles | tester1 (explicit plan admin 8) | YES + pre-selected | admin kept |
+| 6 | Assign Test Plan Roles | tester2 (no explicit plan role) | NO admin option | admin not offered |
 
-**Feature:** `linkto.php` external deep links for `item=reqspec|testcase|testsuite` open
-the legacy frame shell and land on the right tree+work frame. `item=req` is handled by
-the modern direct-link resolver (Refs #1532).
-
-**Root cause:** `linkto.php:170` called `testproject::setSessionProject()`, a method
-removed from `lib/functions/testproject.class.php` in commit `94c9adf5c` (TN2023-97
-refactor) → PHP 8 fatal on every non-req inner-frame deep link. Fix: restore the
-method's exact semantics (session id/name/color/prefix + option_reqs/priority/
-automation) via direct `$_SESSION` assignment from the already-fetched `$tproject_data`
-row. Also added the missing legacy i18n key `testsuite_not_found` to all 14 full locale
-bundles (fires a LOCALIZATION warning on every testsuite deep link otherwise).
-
-**Precondition:** project `DLS2` (id=1) with reqspec `RS-DL` (id=2), testsuite (id=3),
-testcase `DLS2-1` (id=4) + tcversion (id=5); login admin/admin; fresh session.
-
-**Repro steps (pre-fix):** `GET /linkto.php?load&tprojectPrefix=DLS2&item=reqspec&id=RS-DL`
-→ HTTP 500 empty body (`Call to undefined method testproject::setSessionProject()`).
-**Post-fix expected:** HTTP 200, frmInner with tree+work frames.
-
-| # | Step | Expected | Actual |
-|---|------|----------|--------|
-| 1 | `linkto.php?load&tprojectPrefix=DLS2&item=reqspec&id=RS-DL` | HTTP 200; workframe `lib/requirements/reqSpecView.php?req_spec_id=2`; treeframe `reqSpecListTree.php` | PASS — both frames; reqSpecView renders "RS-DL :: Spec DL" |
-| 2 | `linkto.php?load&tprojectPrefix=DLS2&item=testcase&id=DLS2-1` | HTTP 200; workframe `archiveData.php?edit=testcase&id=4&tproject_id=1` | PASS — archiveData shows "DLS2-1 : TC DL - Version 1" |
-| 3 | `linkto.php?load&tprojectPrefix=DLS2&item=testsuite&id=3` | HTTP 200; workframe `archiveData.php?...print_scope=test_specification...&id=3` | PASS — "Test Suite : Suite DL" rendered; no LOCALIZATION event |
-| 4 | `reqSpecView.php` + `archiveData.php` direct (happy path targets) read `$_SESSION['testprojectID']`/`testprojectName` | HTTP 200, project + name visible | PASS — navBar shows "DLS2:DLS2 Project"; both 200 |
-| 5 | `item=req` deep link (regression, #1532) | 302 → `gui/templates/links/directLink.html?item=req&id=...` | PASS — modern resolver shown |
-| 6 | Unknown item `item=bogus` | legacy msg `Invalid item (bogus)`, no 500 | PASS |
-| 7 | Unknown prefix `tprojectPrefix=NOPE` | legacy msg `Testproject with prefix (NOPE) does not exist` | PASS |
-| 8 | Browser (chrome-devtools) end-to-end for all 3 items | outer frame + inner tree/work frames load; no console errors | PASS — reqspec/testcase/testsuite all render |
-| 9 | Event Viewer after full pass | No new Error / LOCALIZATION / DB-error entries (only pre-existing legacy-template E_WARNINGs — tracked separately in #1536) | PASS — no LOCALIZATION, no DB error, no fatal |
-| 10 | Syntax gates | `php -l linkto.php`; `php -l locale/*/strings.txt` | PASS — all clean; exactly 14 locale files +1 line each |
-
-**Result: 10/10 PASS** — inner-frame deep links for reqspec/testcase/testsuite restored
-to 1.9.20 behavior; session project correctly propagated; `item=req` resolver path
-unchanged (Refs #1533). Side findings filed as separate bugs: #1536 (legacy template
-E_WARNINGs on reqSpecView/archiveData), #1537 (ltx.php item=exec same fatal).
+**Result:** 6/6 PASS (verified in live browser on `http://127.0.0.1:8082` — project
+screen: tester1 select shows `value="8" selected` admin; tester2/designer1
+dropdowns omit admin entirely; admin row shows `<inherited> admin` value-0.
+Plan screen (testplan 2): same parity — only tester1's row offers/preselected
+admin). Event table: no new Error/Warning rows (all `log_level=9` INFO audit).
+Node syntax: `node --check` PASS on both extracted inline scripts.
+- Const added: `ADMIN_ROLE_ID = 8` (both files, legacy `TL_ROLES_ADMIN`).
+- Drop rule: project → skip unless `!inherited && u.effectiveRoleID==8`; plan →
+  skip unless `u.roleID==8` (explicit). (Refs #928)
