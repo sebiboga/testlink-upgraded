@@ -16464,3 +16464,23 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 7 | grep repo for relative `Location: gui/templates` | no occurrences | PASS — only `/gui/templates/...` |
 
 **Result: 7/7 PASS** — legacy deep links now 302 → correct modern screen (error-free); E_WARNING family remains suppressed (Refs #1536). Screenshots: `docs/screenshots/issue-1536-reqspecview-404.png`, `issue-1536-archive-404.png` (pre-fix), `issue-1536-reqspecview-fixed.png`, `issue-1536-archive-fixed.png` (post-fix).
+
+## Task — Issue #1363: Implement suite design-time custom-field values display in suiteView
+
+**Feature:** the modern suite viewer (`gui/templates/testcases/suiteView.html`, BFF `api/suiteview/index.php action=info`) must render the suite's design-time custom-field values exactly like legacy `lib/functions/testsuite.class.php:533` (`html_table_of_custom_field_values`) shown by `tsuiteViewerRO.inc.tpl:48-53`. BFF now emits `custom_fields:[{id,label,value}]` (built with `testsuite::get_linked_cfields_at_design` + `cfield_mgr::string_custom_field_value`, honouring BUGID 3989 `show_custom_fields_without_value`, mirroring `api/execsetresults esrTestSuite()`); the screen shows a Dashio "Custom fields" `.card` between Details and the test-case table, hidden when no CFs.
+
+**Precondition:** fixtures seeded (mysql testlink): project node 15 SVDEMO (`testprojects.prefix='SV'`), suite node 16 "SV Root Suite", no-CF project 18 + suite 19; custom field `SV_Label` (label `Suite Label`, type 0 string) linked to `cfield_node_types` node_type 2 (testsuite), enabled on `cfield_testprojects` for project 15, design value `Gold Suite` on node 16 (`cfield_design_values`). Login admin/admin on http://localhost:8082.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Syntax gates | `php -l api/suiteview/index.php` + `php -l cfg/const.inc.php` + `python3 -m json.tool` on all 10 `gui/templates/i18n/*.json` → no errors | PASS — all clean |
+| 2 | `GET /api/suiteview/index.php?action=info&id=16` | `custom_fields` array present: `[{id:500,label:"Suite Label",value:"Gold Suite"}]` | PASS — exact match |
+| 3 | `GET /api/suiteview/index.php?action=info&id=19` (no CFs on project) | `custom_fields: []` | PASS — `[]` |
+| 4 | Browser `suiteView.html?id=16&tproject_id=15` | "Custom fields" card visible between Details and the test-case table; label `Suite Label` → value `Gold Suite`; card title from i18n (`suvw.customFields`, en locale = "Custom fields") | PASS — card shown, `SUITE LABEL / Gold Suite`, title "Custom fields"; screenshot `docs/screenshots/issue-1363-suite-custom-fields.png` |
+| 5 | Browser `suiteView.html?id=19&tproject_id=18` (no CFs) | Custom fields card hidden (`display:none`) | PASS — `display:none`, not in page text |
+| 6 | Table view toggle on suite 16 | CF card hidden in table view, restored on exit | PASS — CF card joins `#tcCard/#kwCard/#attCard` toggle |
+| 7 | URL-valued string CF (value `https://example.com/docs`, node 16) → BFF | value renders as link `<a href="https://example.com/docs" target="_blank">…</a>` (no `Undefined constant LINKS_NEW_WINDOW` fatal) | PASS — link rendered; killed bug #1539 |
+| 8 | Restore fixture, reload suite 16 screen | `Gold Suite` again, no JS console errors added | PASS — console only pre-existing a11y `issue`; no new Error entries |
+| 9 | `events` table after all steps | no new Error/Warning (log_level ≥ 32) | PASS — zero new rows |
+
+**Result: 9/9 PASS** — suiteView now shows design-time suite custom-field values exactly like legacy (`Suite Label | Gold Suite`), hidden when none (BUGID 3989 config honoured), URL values render as links; no new Event Viewer rows (Refs #1363). Fixtures manual SQL in this run's INVESTIGATION comment.

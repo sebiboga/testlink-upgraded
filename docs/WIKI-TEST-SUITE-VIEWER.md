@@ -263,6 +263,36 @@ Full legacy parity with `gui/templates/dashio/testcases/include/object_keywords.
 (the link id is what `removeKeyword` needs) plus `free_keywords`
 `[{keyword_id, keyword}]` and `can_assign_keywords`.
 
+## Suite design-time custom-field values (issue #1363)
+
+Legacy parity with `testsuite.class.php:533` →
+`html_table_of_custom_field_values($id, scope='design')` rendered by
+`tsuiteViewerRO.inc.tpl:48-53`:
+
+- **BFF** — `GET ?action=info` now returns `custom_fields`:
+  `[{id, label, value}]` built with `testsuite::get_linked_cfields_at_design()`
+  (cfield_node_types JOIN for node_type `testsuite`, LEFT JOIN
+  `cfield_design_values` keyed by the suite node id, ORDER BY display_order)
+  + `cfield_mgr::string_custom_field_value()`. BUGID 3989
+  `show_custom_fields_without_value` (true in `config.inc.php:1971`) is
+  honoured: CFs without a value are still listed with an empty cell. Same
+  `{id,label,value}` shape + implementation as the exec-popup suite block
+  (`api/execsetresults` `esrTestSuite()`).
+- **Screen** — a Dashio **Custom fields** `.card` (teal `fa-tasks` icon) sits
+  between the Details card and the test-case table. `.kv` label/value grid;
+  `renderCustomFields(r.custom_fields)` hides the card entirely when the
+  project has no design CFs for the suite. The `value` is backend-escaped HTML
+  (htmlspecialchars + link insertion for `string`, `mailto:` for `email`,
+  nl2br for `text area`, date formatting for `date`/`datetime`) and is inserted
+  raw (not re-escaped) exactly like the legacy `{$gui->cf}` cell, so clickable
+  links survive. Screenshot: `docs/screenshots/issue-1363-suite-custom-fields.png`.
+
+**Bug found while implementing:** any URL-valued *string* CF crashed with
+`Undefined constant LINKS_NEW_WINDOW` (string_api.php:322, MantisBT backport
+6969837d9 added the reference without the constant). Fixed by defining
+`LINKS_NEW_WINDOW=1` / `LINKS_SAME_WINDOW=0` in `cfg/const.inc.php` — filed as
+[#1539](https://github.com/sebiboga/testlink-upgraded/issues/1539).
+
 ## i18n
 
 All user-facing strings use `suvw.*` keys present in all ten locale bundles
@@ -276,7 +306,8 @@ with `python3 -m json.tool`. The keyword assignment feature (#1364) adds 10 keys
 (`suvw.selectKeywords`, `suvw.removeKeyword`, `suvw.removeKwConfirm` with
 `{kw}` interpolation, `suvw.addKeyword`, `suvw.addKeywordsDeep`,
 `suvw.noKeywordSelected`, `suvw.kwAddOk`, `suvw.kwAddDeepOk`, `suvw.kwRemoveOk`,
-`suvw.kwOpFail`) in all ten bundles.
+`suvw.kwOpFail`) in all ten bundles. The custom-field values feature (#1363)
+adds `suvw.customFields` in all ten bundles.
 
 ## Test coverage
 
@@ -286,7 +317,8 @@ The generate-testsuite-spec feature (#1369) is covered by the **Issue #1369 /
 Suite 1524** suite (13/13 PASS). The attachment upload + delete feature (#1366)
 is covered by the **Issue #1366** suite in the same file (11/11 PASS). The
 keyword assignment feature (#1364) is covered by the **Issue #1364** suite in
-the same file (13/13 PASS).
+the same file (13/13 PASS). The custom-field values feature (#1363) is covered
+by the **Issue #1363** suite in the same file (9/9 PASS).
 ## Test-case management operations (issue #1368)
 
 The viewer exposes the legacy Test-Suite-Viewer test-case operations from the

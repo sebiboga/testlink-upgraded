@@ -274,6 +274,18 @@ Test Spec:
   (can_manage), 17 suvw.* keys in all 10 bundles (Refs #1368). Also fixed a
   pre-existing `TV_TABLE` ReferenceError that aborted renderTableView() before
   DataTable init (Refs #1527).
+- Test Suite viewer suite design-time custom-field values (suiteView.html): BFF
+  api/suiteview action=info now emits custom_fields [{id,label,value}] built via
+  testsuite::get_linked_cfields_at_design + cfield_mgr::string_custom_field_value
+  (cfield_node_types JOIN + cfield_design_values keyed by the suite node,
+  honours BUGID 3989 show_custom_fields_without_value, same shape as
+  api/execsetresults esrTestSuite); the screen renders a Dashio "Custom fields"
+  card between Details and the test-case table (hidden when the project has no
+  suite design CFs); suvw.customFields key in all 10 bundles. During testing
+  also defined the missing LINKS_NEW_WINDOW/LINKS_SAME_WINDOW constants in
+  cfg/const.inc.php so URL-valued string CFs render as links instead of the
+  `Undefined constant LINKS_NEW_WINDOW` fatal in string_api.php:322
+  (Refs #1363, Refs #1539).
 - Test Suite viewer test-suite management (suiteView.html): toolbar suite-actions
   panel "New Sub-Suite" / "Edit Suite" / "Move / Copy" / "Delete Suite" /
   "Reorder Suites (A-Z)" + "Direct link" (copy bar) — legacy
