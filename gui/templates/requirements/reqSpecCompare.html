@@ -197,8 +197,39 @@ function revRow(rev, isRight, isLeft) {
       '<label class="radio-inline" title="' + TLi18n.t('rsvc.right') + '"><input type="radio" name="right_item_id" value="' + rev.item_id + '"' + (isRight ? ' checked' : '') + '></label>' +
     '</td>' +
     '<td>' + escapeHtml(rev.log_message || '-') + '</td>' +
-    '<td style="white-space:nowrap;">' + fmtTs(rev.timestamp) + ' · ' + escapeHtml(rev.last_editor || '-') + '</td>' +
+    // Refs #1358 - legacy reqSpecCompareRevisions.tpl:234 renders the Last
+    // change cell as a link (openReqSpecRevisionWindow(item_id)); restore the
+    // clickable cell opening the modern revision viewer (reqSpecViewRevision.html)
+    '<td style="white-space:nowrap;cursor:pointer;color:rgb(0,85,153);" title="' +
+      TLi18n.t('rsvc.openRevision') + '" onclick="openReqSpecRevision(' + rev.item_id + ')">' +
+      fmtTs(rev.timestamp) + ' · ' + escapeHtml(rev.last_editor || '-') + '</td>' +
     '</tr>';
+}
+
+// Refs #1358 - mirror of legacy openReqSpecRevisionWindow(item_id) in
+// gui/javascript/testlink_library.js:1743: opens reqSpecViewRevision.html for the
+// spec-revision id in a popup sized from the ReqPopupWidth/ReqPopupHeight cookies
+// (defaults 800x600), window name ReqSpecRevisionView.
+function openReqSpecRevision(revisionId) {
+  var url = '/gui/templates/requirements/reqSpecViewRevision.html?revision_id=' + revisionId;
+  var width = getCookie('ReqPopupWidth') || '800';
+  var height = getCookie('ReqPopupHeight') || '600';
+  var windowCfg = 'width=' + width + ',height=' + height +
+    ',resizable=yes,scrollbars=yes,dependent=yes';
+  window.open(url, 'ReqSpecRevisionView', windowCfg);
+}
+
+function getCookie(name) {
+  var cookie = document.cookie;
+  var posName = cookie.indexOf('; ' + name + '=');
+  if (posName === -1) {
+    if (cookie.indexOf(name + '=') === 0) { posName = 0; }
+    else { return null; }
+  }
+  var valueStart = cookie.indexOf('=', posName) + 1;
+  var valueEnd = cookie.indexOf(';', posName + 1);
+  if (valueEnd === -1) { valueEnd = cookie.length; }
+  return cookie.substring(valueStart, valueEnd);
 }
 
 function doCompare() {

@@ -43,6 +43,7 @@ Viewer** (`reqSpecView.html`) and **Spec Revision Viewer**
 | Context default (gap #1360) | Context input **prefilled with diffEngine default 5** so code-compare runs without typing (`lib/requirements/reqSpecCompareRevisions.php:241-245`; tpl line 251 renders `value={$gui->context}`) | same — HTML code-comparison mode shows Context **prefilled with 5**; the BFF list response returns `context` (mirror of sibling `reqCompare.html:153-154` / `api/reqcompare/index.php:161`); user can still edit it or tick "Show all" |
 | Revision ordering (gap #1362) | newest-first (DESC by revision number) | same — DataTable disabled default client-side ascending sort; the Revision cell carries an integer `data-order` sort key and the DataTable is initialised with `order: [[0,"desc"]]`, so rows render newest-first AND sort numerically for 10+ revisions ("Revision 10" > "Revision 2") |
 | Cancel/Back (gap #1359) | **two** Cancel buttons (`cancel_top` tpl line 209 + `cancel_bottom` line 258, both `btn_cancel` → `history.back()`) so the user can leave the compare page without the browser Back | same — a `btn-ghost` Cancel button (`.fa-arrow-left` + `common.cancel`) in the toolbar and a second one in the bottom footer; both call `goBack()` = `history.back()`, with a same-origin fallback to `reqSpecView.html?id=<spec>&tproject_id=<tid>` when the page was opened directly (`history.length <= 1`) |
+| Revision-popup link (gap #1358) | the **Last change** cell is clickable (blue `rgb(0,85,153)`, hand cursor) and opens the spec-revision viewer popup for that row (`reqSpecCompareRevisions.tpl:234` → `openReqSpecRevisionWindow(item_id)` → `lib/requirements/reqSpecViewRevision.php` sized from `ReqPopupWidth`/`ReqPopupHeight` cookies, window name `ReqSpecRevisionView`) | same — the timestamp cell is a clickable link (`cursor:pointer;color:rgb(0,85,153)` + tooltip `rsvc.openRevision`) calling `openReqSpecRevision(item_id)`, which opens the modern `reqSpecViewRevision.html?revision_id=<id>` viewer popup, cookie-sized (defaults 800x600), window name `ReqSpecRevisionView` |
 
 ## 2. REST API Reference
 
@@ -85,6 +86,20 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
   no new i18n keys); `goBack()` keeps exact legacy semantics on a flowing
   history and adds a same-origin deep-link fallback to `reqSpecView.html`
   (pattern mirrors `reqEdit.html:58` + `reqEdit.html:219`).
+- **Revision-popup link (gap #1358):** legacy `reqSpecCompareRevisions.tpl:234`
+  renders the **Last change** cell as a link calling
+  `openReqSpecRevisionWindow({$rspec.item_id})` (`gui/javascript/testlink_library.js:1743`),
+  which opens `lib/requirements/reqSpecViewRevision.php?showReqSpecTitle=1&item_id=N`
+  in a popup sized from the `ReqPopupWidth`/`ReqPopupHeight` cookies (defaults
+  800x600), window name `ReqSpecRevisionView`. The modern screen restores the
+  same affordance: the timestamp cell is clickable (`cursor:pointer`, legacy
+  blue `rgb(0,85,153)`, tooltip `rsvc.openRevision`) and calls the new
+  `openReqSpecRevision(item_id)` helper, which opens the modern revision viewer
+  `gui/templates/requirements/reqSpecViewRevision.html?revision_id=<id>` with the
+  same cookie sizing/window name. `item_id` is the same `req_specs_revisions.id`
+  ref the BFF already returns per row, so **no BFF change** was needed; the
+  no-revision-change guard in `get_history()` (r1 falls back to `author_id`/
+  `creation_ts`) still produces correct per-row ids.
 
 ## 4. i18n Keys
 
@@ -96,7 +111,7 @@ All labels are client-side via `TLi18n`; keys under the `rsvc.` namespace
 `rsvc.left`, `rsvc.right`, `rsvc.compareSelected`, `rsvc.invalidContext`,
 `rsvc.computing`, `rsvc.diffDetails`, `rsvc.diffBetween`, `rsvc.attributes`,
 `rsvc.attribute`, `rsvc.scope`, `rsvc.noChanges`, `rsvc.changes`,
-`rsvc.customFields`, `rsvc.customField`). The link labels use
+`rsvc.customFields`, `rsvc.customField`, `rsvc.openRevision`). The link labels use
 `rsv.compareRevisions` / `rsvr.compareRevisions`. Present in all 10 bundles
 (`en ro de es fr it ja pt ru zh`).
 
@@ -128,3 +143,13 @@ direct-open fallback navigates to the spec viewer, compare/diff regression
 passes, `common.cancel` reused from all 10 locale bundles, Event Viewer and
 console clean. Screenshots: `screenshots/issue-1359-gap-before.png`,
 `screenshots/issue-1359-cancel-buttons.png`.
+
+See also **Suite 1358 — Revision-popup link on the Last-change cell** (10/10 PASS):
+each row's timestamp cell is clickable (blue + pointer cursor) and opens
+`reqSpecViewRevision.html?revision_id=<item_id>` for that exact revision
+(cookie-sized popup, window name `ReqSpecRevisionView`), popup content matches the
+selected revision, compare/diff regression passes, `rsvc.openRevision` present in
+all 10 locale bundles, Event Viewer + console + PHP log clean. Screenshots:
+`screenshots/issue-1358-rsvc-timestamp-cell-link.png`,
+`screenshots/issue-1358-rsvc-revision-popup.png`. Fixture:
+`tmp/fixtures_1358.php`.

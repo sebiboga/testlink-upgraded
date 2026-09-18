@@ -2642,6 +2642,7 @@
   "rsvc.noChanges": "No changes",
   "rsvc.noRevisions": "No revisions available for this specification",
   "rsvc.noSpec": "Missing requirement spec id",
+  "rsvc.openRevision": "Ouvrir la révision dans une nouvelle fenêtre",
   "rsvc.revision": "Revision",
   "rsvc.right": "Right",
   "rsvc.sameSelected": "Cannot compare a revision with itself",

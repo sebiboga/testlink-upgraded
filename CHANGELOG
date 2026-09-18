@@ -141,7 +141,11 @@ Requirements:
   #1308-#1311).
 - Requirement Document Print (printDocument.html).
 - Req Spec Viewer / Revision Viewer / Compare (reqSpecView.html,
-  reqSpecViewRevision.html, reqSpecCompare.html, #1359/#1360/#1362).
+  reqSpecViewRevision.html, reqSpecCompare.html, #1358/#1359/#1360/#1362).
+  #1358: the Last-change (timestamp) cell in the revision table is again a
+  clickable link (legacy `openReqSpecRevisionWindow` parity) opening the modern
+  revision viewer `reqSpecViewRevision.html?revision_id=<id>` in a
+  cookie-sized popup (ReqPopupWidth/ReqPopupHeight, defaults 800x600).
 - Requirement Revision Viewer (reqRevisionView.html) - BFF api/reqrevision
   (#1435, closes dashio 500 #1427).
 - Create Test Cases from Requirements (reqCreateTestCases.html) - BFF

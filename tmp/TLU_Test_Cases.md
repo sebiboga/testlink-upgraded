@@ -16563,39 +16563,36 @@ history.back() and the direct-open fallback verified, compare/diff unaffected, n
 Event Viewer + console clean. Screenshots: `docs/screenshots/issue-1359-gap-before.png`,
 `docs/screenshots/issue-1359-cancel-buttons.png`. Fixture: manual SQL (project 16 / spec 17 / revs 100-101).
 
----
+## Task — Issue #1358: revision-popup link on Last-change timestamp cell in reqSpecCompare (2026-09-18)
 
-## Suite 932 — Task Issue #932: demoMode read-only gating in Assign Test Project/Plan Roles (gap vs legacy)
+**Feature:** the modern `reqSpecCompare.html` must restore the legacy clickable **Last change**
+(`timestamp · last_editor`) cell (`gui/templates/dashio/requirements/reqSpecCompareRevisions.tpl:234 `
+`onclick="openReqSpecRevisionWindow({$rspec.item_id})"`, `gui/javascript/testlink_library.js:1743`).
+Clicking the cell opens the modern spec-revision viewer
+`reqSpecViewRevision.html?revision_id=<item_id>` in a popup sized from the
+`ReqPopupWidth`/`ReqPopupHeight` cookies (defaults 800x600), window name `ReqSpecRevisionView`.
+Cell keeps legacy styling: `cursor:pointer; color:rgb(0,85,153)` + tooltip from new i18n key
+`rsvc.openRevision` (all 10 bundles).
 
-**Feature:** when `$tlCfg->demoMode = ON` the legacy assignment form is read-only:
-`gui/templates/dashio/usermanagement/usersAssign.tpl:144-147` blocks submission with
-`alert('warn_demo')` + `return false`, and `:286-292` REPLACES the Save/submit button with
-the localized warn_demo note ("We are sorry. This feature is disabled for Demo.",
-locale/en_GB/strings.txt:465). The modern port must (a) expose `demoMode` from the BFF meta
-endpoints, (b) replace the Save button with the warn_demo note + show a demo banner,
-(c) the BFF PUT must reject with the same warn_demo message. Config toggled at
-config.inc.php:2060 (temporarily ON for this suite, restored OFF afterwards — not committed).
-
-**Precondition:** DB after `php tmp/fixtures_927.php` (tproject 1 CATALOG, user 2 tester927,
-tplan 2 CATALOG-R1), login admin/admin, `config.inc.php` demoMode toggled ON.
+**Precondition:** fresh-import DB + fixture `tmp/fixtures_1358.php` (project 1 `CMP1358`, req spec 2
+`RS-CMP`, revisions 3/4/5), login admin/admin, compare screen open at
+`reqSpecCompare.html?spec_id=2&tproject_id=1`.
 
 | # | Step | Expected | Actual |
 |---|------|----------|--------|
-| 1 | Enable demoMode (config.inc.php:2060 → ON), open `usersAssignProject.html` | demo banner + warn_demo note visible, Save button ABSENT, grid/selects still rendered | PASS — banner ""We are sorry. This feature is disabled for Demo."" + note next to Do; Save hidden (`demoMode:true, saveVisible:false, noteVisible:true, bannerVisible:true`) |
-| 2 | Change tester927 role (project screen) with demoMode ON | Save stays hidden AND disabled; changed-row highlight still appears | PASS — after onRoleChange: `saveVisible:false, saveDisabled:true`, 1 changed row |
-| 3 | Call `saveAssignments()` with demoMode ON (mirrors legacy alert+return false) | no PUT is issued; warn_demo toast shown | PASS — toast text "We are sorry. This feature is disabled for Demo." (class err), no network PUT |
-| 4 | Direct PUT `/api/roles/index.php/tproject-roles` with demoMode ON | 403 `{code:demo_mode, messageKey:assign.demoDisabled, message:"We are sorry..."}` | PASS — HTTP 403, exact payload above |
-| 5 | Direct PUT `/api/roles/index.php/tplan-roles` with demoMode ON | same 403 warn_demo rejection | PASS — HTTP 403 identical payload |
-| 6 | `usersAssignPlan.html` with demoMode ON | banner + note visible, Save hidden, grid (project/plan selects) usable | PASS — project CATALOG → plan CATALOG-R1 → 2 user rows; `demoMode:true, bannerVisible:true, saveVisible:false, noteVisible:true`; console clean |
-| 7 | Change override on plan screen, attempt `saveAssignments()` | blocked client-side with warn_demo toast; no persistence | PASS — onRoleChange keeps Save hidden/disabled; no user_testplan_roles row created |
-| 8 | Restore demoMode=OFF, reload project screen | banner/note hidden, Save visible; changing role enables Save | PASS — `demoMode:false, bannerVisible:false, noteVisible:false, saveVisible:true`; Save enabled after change |
-| 9 | Save a role change with demoMode OFF | write persists via PUT; success toast | PASS — toast "User Roles updated"; DB `user_testproject_roles` row (2,1,7) created |
-| 10 | i18n gate | `assign.demoDisabled` present in ALL 10 bundles (de en es fr it ja pt ro ru zh); legacy warn_demo text used; all bundles valid JSON | PASS — key added + `python3 -m json.tool` valid for all 10; RO/IT translated |
-| 11 | Event Viewer / `events` table | no new Error/Warning (log_level ≥ 32) from screen or BFF | PASS — only INFO 16 audit rows (login, project created, roles updated) |
-| 12 | config.inc.php restored | `$tlCfg->demoMode = OFF;` after the suite | PASS — line 2060 back to OFF |
+| 1 | Syntax gate | HTML renders; inline JS parses (no `ReferenceError` on load) | PASS — screen loads, 3 revision rows + DataTable initialise, console clean |
+| 2 | Cell markup — row r3 | Last-change cell: `cursor:pointer`, `color:rgb(0,85,153)`, `onclick="openReqSpecRevision(5)"`, `title=rsvc.openRevision` | PASS — DOM inspection confirms all 3 cells; r3 → `openReqSpecRevision(5)` |
+| 3 | Cell markup — rows r2/r1 | r2 → `openReqSpecRevision(4)`, r1 → `openReqSpecRevision(3)` | PASS — verified via `querySelectorAll` on `#revTable` |
+| 4 | Click r3 cell | popup opens `reqSpecViewRevision.html?revision_id=5` | PASS — new page `Requirement Spec Revision Viewer` at that URL |
+| 5 | Popup content r3 | shows `#5 · Revision r3`, `Cmp Spec r3`, scope `scope revision 3 — final wording.`, log `r3: final wording` | PASS — snapshot confirms all four fields |
+| 6 | Click r2 cell | popup switches to `revision_id=4` = `#4 · Revision r2` (historical) | PASS — URL + content confirm r2 |
+| 7 | Compare regression | "Compare selected revisions" still diffs preselected r2 ↔ r3 | PASS — diff renders via BFF; timestamp cell still clickable after diff |
+| 8 | i18n gate | `rsvc.openRevision` present in **all 10** bundles; all bundles `python3 -m json.tool` valid | PASS — key present `en ro de es fr it ja pt ru zh`; 10/10 bundles valid |
+| 9 | Event Viewer / `events` table | no new Error/Warning (log_level ≥ 32) from compare + popup BFF calls | PASS — only INFO 16 audit rows (login + project create) |
+| 10 | PHP server log | `spec_revision_view&id=4/5` → HTTP 200, no PHP warning/notice | PASS — log shows `[200]` for both BFF calls, no warnings |
 
-**Result: 12/12 PASS** — demoMode read-only gating fully ported: UI replaces Save with the legacy
-warn_demo note + banner on both assign screens, client-side save guard mirrors the legacy
-onsubmit alert, BFF rejection carries the warn_demo message, demoMode OFF behaviour unchanged.
-Screenshots: `docs/screenshots/issue-932-assign-project-roles-demoMode.png` (project screen, demoMode ON),
-`docs/screenshots/issue-932-assign-plan-roles-demoMode.png` (plan screen, demoMode ON). Fixture: tmp/fixtures_927.php.
+**Result: 10/10 PASS** — legacy revision-popup link restored on the Last-change cell: each row opens its
+own revision viewer popup with the correct id, cookie-sized window (defaults 800x600), legacy blue/pointer
+styling + tooltip, i18n in all bundles, Event Viewer + console + PHP log clean.
+Screenshots: `docs/screenshots/issue-1358-rsvc-timestamp-cell-link.png`,
+`docs/screenshots/issue-1358-rsvc-revision-popup.png`. Fixture: `tmp/fixtures_1358.php` (re-runnable).
