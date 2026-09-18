@@ -26,17 +26,64 @@ $db = new database(DB_TYPE);
 doDBConnect($db);
 
 $userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
-    exit;
+
+// ---- legacy public share-link apikey path (Refs #1541) ----
+// lnl.php ?type=metricsdashboard share links (and the direct_link exposed by
+// the dashboard itself) carry the test project api_key (64-char object key)
+// or a 32-char user key. Anonymous access is bound to the owning project.
+$metaApikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+$metaIsAnon = false;
+$metaAnonProjectId = 0;
+if ($metaApikey !== '') {
+    $userId = 0;
+    $metaIsAnon = true;
+    if (strlen($metaApikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $metaApikey);
+        if (count($apiUsers) != 1) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid API key']);
+            exit;
+        }
+        $userId = intval($apiUsers[0]['id']);
+        $metaIsAnon = false;
+    } else {
+        // 64-char object key bound to the owning test project (fail-closed)
+        $ent = getEntityByAPIKey($db, $metaApikey, 'testproject');
+        if (is_null($ent)) {
+            $ent = getEntityByAPIKey($db, $metaApikey, 'testplan');
+            if (is_array($ent) && (intval($ent['id'] ?? 0) > 0)) {
+                $pt = tlObjectWithDB::getDBTables(['testplans']);
+                $prs = $db->get_recordset(
+                    "SELECT testproject_id FROM {$pt['testplans']} WHERE id=" . intval($ent['id']));
+                $metaAnonProjectId = (is_array($prs) && count($prs) > 0)
+                    ? intval($prs[0]['testproject_id']) : 0;
+            }
+        } elseif (is_array($ent) && (intval($ent['id'] ?? 0) > 0)) {
+            $metaAnonProjectId = intval($ent['id']);
+        }
+        if ($metaAnonProjectId <= 0) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid API key']);
+            exit;
+        }
+    }
 }
 
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
-    exit;
+if (!$metaIsAnon) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+        exit;
+    }
+
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
+        exit;
+    }
+} else {
+    $user = null;
 }
 
 $path = $_SERVER['PATH_INFO'] ?? parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -51,6 +98,11 @@ function getPercentage($denominator, $numerator, $round_precision) {
 }
 
 function resolveTprojectId() {
+    global $metaIsAnon, $metaAnonProjectId;
+    if ($metaIsAnon) {
+        // an anonymous share link is bound to its owning test project
+        return $metaAnonProjectId;
+    }
     // explicit ?tproject_id= wins (like legacy R_PARAMS), else session project
     $tid = intval($_GET['tproject_id'] ?? 0);
     if ($tid <= 0) {
@@ -60,6 +112,11 @@ function resolveTprojectId() {
 }
 
 function checkDashboardRights(&$db, &$user) {
+    global $metaIsAnon;
+    if ($metaIsAnon) {
+        // anonymous apikey access already validated the bound project
+        return true;
+    }
     $context = new stdClass();
     $context->tproject_id = resolveTprojectId();
     $context->tplan_id = null;
@@ -121,7 +178,32 @@ if ($method === 'GET' && ($path === '/dashboard' || $path === '/dashboard/')) {
     // all test plans accessible for this user on this project
     $options = array('output' => 'map');
     $options['active'] = $selection ? ACTIVE : TP_ALL_STATUS;
-    $test_plans = $user->getAccessibleTestPlans($db, $tproject_id, null, $options);
+    if ($metaIsAnon) {
+        // anonymous public share link: the whole bound project dashboard
+        $test_plans = array();
+        $tp = tlObjectWithDB::getDBTables(array('testplans', 'nodes_hierarchy'));
+        $actWhere = $selection ? ' AND TPLAN.active=1' : '';
+        $prs = $db->get_recordset(
+            "SELECT NH.id, NH.name, TPLAN.is_public, TPLAN.active " .
+            "FROM {$tp['testplans']} TPLAN " .
+            "JOIN {$tp['nodes_hierarchy']} NH ON NH.id = TPLAN.id " .
+            "WHERE TPLAN.testproject_id = " . intval($tproject_id) . $actWhere .
+            " ORDER BY NH.name");
+        if (is_array($prs)) {
+            foreach ($prs as $prow) {
+                $test_plans[intval($prow['id'])] = array(
+                    'id' => intval($prow['id']),
+                    'name' => strval($prow['name']),
+                    'is_public' => intval($prow['is_public']),
+                    'has_role' => 0,
+                    'active' => intval($prow['active']),
+                    'selected' => 0,
+                );
+            }
+        }
+    } else {
+        $test_plans = $user->getAccessibleTestPlans($db, $tproject_id, null, $options);
+    }
 
     $show_platforms = false;
     $rows = array();

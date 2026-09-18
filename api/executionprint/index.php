@@ -58,15 +58,58 @@ doDBConnect($db);
 function out($data) { echo json_encode($data); exit; }
 
 $userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    out(['status' => 'error', 'message' => 'Not authenticated']);
+
+// ---- legacy public-link apikey path (Refs #1541) ----
+// lnl.php share links (?type=exec) land on this BFF with an apikey: 32-char
+// user key (remote access for that user) or 64-char test-plan object key
+// (the resolver already swapped the link key for the owning plan's api_key).
+// Mirrors the api/reportsprint pattern (Refs #1408) so the modern
+// execPrint.html screen serves anonymous public share links.
+$apikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+$isAnon = false;
+if ($apikey !== '') {
+    $userId = 0;
+    $isAnon = true;
+    if (strlen($apikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $apikey);
+        if (count($apiUsers) != 1) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Invalid API key']);
+        }
+        $userId = intval($apiUsers[0]['id']);
+        $isAnon = false;
+    } else {
+        // 64-char object key -> anonymous access for the execution's test
+        // plan ONLY (fail-closed: a key that does not belong to the plan the
+        // execution lives in must not open it).
+        $t = tlObjectWithDB::getDBTables(['executions', 'testplans']);
+        $er = $db->get_recordset(
+            "SELECT testplan_id FROM {$t['executions']} WHERE id=" . intval($id));
+        if (is_null($er) || count($er) == 0) {
+            http_response_code(404);
+            out(['status' => 'error', 'message' => 'Execution not found']);
+        }
+        $prs = $db->get_recordset(
+            "SELECT api_key FROM {$t['testplans']} WHERE id=" . intval($er[0]['testplan_id']));
+        if (is_null($prs) || count($prs) == 0 || strval($prs[0]['api_key']) !== $apikey) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'API key does not match execution test plan']);
+        }
+    }
 }
 
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    out(['status' => 'error', 'message' => 'User not found']);
+if (!$isAnon) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        out(['status' => 'error', 'message' => 'Not authenticated']);
+    }
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        out(['status' => 'error', 'message' => 'User not found']);
+    }
+} else {
+    $user = null;
 }
 
 $action = $_GET['action'] ?? '';
@@ -103,7 +146,7 @@ function resolveExecution(&$db, $execId) {
  * project (the same gate as api/execute). Outputs 404/403 and exits on
  * failure; returns the resolved row on success.
  */
-function resolveAndAuthorize(&$db, &$user, $execId) {
+function resolveAndAuthorize(&$db, &$user, $execId, $checkRights = true) {
     if ($execId <= 0) {
         http_response_code(400);
         out(['status' => 'error', 'message' => 'Missing id']);
@@ -119,15 +162,17 @@ function resolveAndAuthorize(&$db, &$user, $execId) {
         http_response_code(404);
         out(['status' => 'error', 'message' => 'Execution not found']);
     }
-    if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
-        http_response_code(403);
-        out(['status' => 'error', 'message' => 'Insufficient rights']);
+    if ($checkRights && !is_null($user)) {
+        if (!$user->hasRight($db, 'testplan_execute', $tprojectId, $tplanId)) {
+            http_response_code(403);
+            out(['status' => 'error', 'message' => 'Insufficient rights']);
+        }
     }
     return $row;
 }
 
 if ($action === 'print') {
-    $row = resolveAndAuthorize($db, $user, $id);
+    $row = resolveAndAuthorize($db, $user, $id, !$isAnon);
     $tprojectId = intval($row['tproject_id']);
     $tplanId = intval($row['testplan_id']);
 
@@ -179,6 +224,10 @@ if ($action === 'delete_attachment') {
     if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         http_response_code(405);
         out(['status' => 'error', 'message' => 'Method not allowed']);
+    }
+    if ($isAnon) {
+        http_response_code(403);
+        out(['status' => 'error', 'message' => 'Anonymous links are read-only']);
     }
     $row = resolveAndAuthorize($db, $user, $id);
     $deleteAttachmentID = isset($_GET['deleteAttachmentID'])

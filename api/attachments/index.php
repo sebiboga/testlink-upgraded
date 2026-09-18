@@ -28,23 +28,114 @@ bffSameOriginGuard();
 $db = new database(DB_TYPE);
 doDBConnect($db);
 
+$action = trim(strval($_GET['action'] ?? ($_POST['action'] ?? '')));
+
 $userId = $_SESSION['userID'] ?? null;
-if (!$userId || $userId <= 0) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
-    exit;
+
+// ---- legacy public share-link apikey path (Refs #1541) ----
+// lnl.php ?type=file share links land on the download route with an apikey
+// (32-char user key, or 64-char object key already swapped by the resolver).
+// Anonymous object-key downloads are bound to the attachment's owning entity
+// below (fail-closed). All other actions keep requiring a session user.
+$publicApikey = isset($_GET['apikey']) ? trim((string)$_GET['apikey']) : '';
+$isAnonFromKey = false;
+if ($publicApikey !== '' && $action === 'download') {
+    $userId = 0;
+    $isAnonFromKey = true;
+    if (strlen($publicApikey) === 32) {
+        $apiUsers = tlUser::getByAPIKey($db, $publicApikey);
+        if (count($apiUsers) != 1) {
+            http_response_code(403);
+            echo json_encode(['status' => 'error', 'message' => 'Invalid API key']);
+            exit;
+        }
+        $userId = intval($apiUsers[0]['id']);
+        $isAnonFromKey = false;
+    }
 }
 
-$user = tlUser::getByID($db, $userId);
-if (is_null($user)) {
-    http_response_code(401);
-    echo json_encode(['status' => 'error', 'message' => 'User not found']);
-    exit;
+if (!$isAnonFromKey) {
+    if (!$userId || $userId <= 0) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'Not authenticated']);
+        exit;
+    }
+
+    $user = tlUser::getByID($db, $userId);
+    if (is_null($user)) {
+        http_response_code(401);
+        echo json_encode(['status' => 'error', 'message' => 'User not found']);
+        exit;
+    }
+} else {
+    $user = null;
+}
+
+/**
+ * Bind a 64-char object key to the scope of an attachment download: the key
+ * must belong to the entity that owns the attachment (execution -> test plan,
+ * test plan / build / test project -> their own api_key), otherwise the
+ * download is refused. Legacy only checked "some entity" (hippie env mode);
+ * this is the fail-closed hardening for the modern public links.
+ */
+function bffAttachBindObjectKey(&$db, $attachInfo, $apikey) {
+    $fkTable = strval($attachInfo['fk_table'] ?? '');
+    $fkId = intval($attachInfo['fk_id'] ?? 0);
+    $keyOf = '';
+    if ($fkTable === 'executions') {
+        $t = tlObjectWithDB::getDBTables(['executions', 'testplans']);
+        $er = $db->get_recordset(
+            "SELECT testplan_id FROM {$t['executions']} WHERE id=" . $fkId);
+        if (is_null($er) || count($er) == 0) {
+            return false;
+        }
+        $prs = $db->get_recordset(
+            "SELECT api_key FROM {$t['testplans']} WHERE id=" . intval($er[0]['testplan_id']));
+        if (is_null($prs) || count($prs) == 0) {
+            return false;
+        }
+        $keyOf = strval($prs[0]['api_key']);
+    } elseif ($fkTable === 'testplans') {
+        $t = tlObjectWithDB::getDBTables(['testplans']);
+        $prs = $db->get_recordset(
+            "SELECT api_key FROM {$t['testplans']} WHERE id=" . $fkId);
+        if (is_null($prs) || count($prs) == 0) {
+            return false;
+        }
+        $keyOf = strval($prs[0]['api_key']);
+    } elseif ($fkTable === 'builds') {
+        $t = tlObjectWithDB::getDBTables(['builds']);
+        $brs = $db->get_recordset(
+            "SELECT testproject_id FROM {$t['builds']} WHERE id=" . $fkId);
+        if (is_null($brs) || count($brs) == 0) {
+            return false;
+        }
+        // builds link to a test project, not a single plan
+        $ent = getEntityByAPIKey($db, $apikey, 'testproject');
+        return is_array($ent) && intval($ent['id'] ?? 0) === intval($brs[0]['testproject_id']);
+    } elseif ($fkTable === 'testprojects') {
+        $ent = getEntityByAPIKey($db, $apikey, 'testproject');
+        return is_array($ent) && intval($ent['id'] ?? 0) === $fkId;
+    } elseif ($fkTable === 'nodes_hierarchy') {
+        $ent = getEntityByAPIKey($db, $apikey, 'testproject');
+        if (is_array($ent)) {
+            return true;
+        }
+        $ent2 = getEntityByAPIKey($db, $apikey, 'testplan');
+        return is_array($ent2);
+    } else {
+        // generic: any entity carrying this key (legacy hippie parity)
+        $ent = getEntityByAPIKey($db, $apikey, 'testproject');
+        if (is_array($ent)) {
+            return true;
+        }
+        $ent2 = getEntityByAPIKey($db, $apikey, 'testplan');
+        return is_array($ent2);
+    }
+    return ($keyOf !== '' && $keyOf === $apikey);
 }
 
 require_once(__DIR__ . '/../../lib/functions/attachments.inc.php');
-
-$action = trim(strval($_GET['action'] ?? ($_POST['action'] ?? '')));
 
 function bffOut($data, $code = 200) {
     http_response_code($code);
@@ -91,6 +182,15 @@ if ($action === 'download') {
     $attachInfo = $fileRepo->getAttachmentInfo($id);
     if (!$attachInfo) {
         http_response_code(404);
+        exit;
+    }
+    // Anonymous object-key downloads: the key must belong to the entity the
+    // attachment belongs to (Refs #1541, fail-closed hardening vs the legacy
+    // hippie "any entity with this key" check).
+    if ($isAnonFromKey && !bffAttachBindObjectKey($db, $attachInfo, $publicApikey)) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error',
+                          'message' => 'API key not bound to attachment owner']);
         exit;
     }
     $content = $fileRepo->getAttachmentContent($id, $attachInfo);
