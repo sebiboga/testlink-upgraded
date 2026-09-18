@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<link rel="icon" type="image/x-icon" href="/gui/themes/default/images/favicon.ico">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title data-i18n="plnk.title">Public share link</title>
+<link rel="stylesheet" href="/gui/templates/dashio/lib/bootstrap/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+* { box-sizing: border-box; }
+body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding: 0; }
+.header { background: #22242a; color: #fff; padding: 14px 24px; font-size: 18px; font-weight: 700; letter-spacing: 1px; }
+.header span { font-size: 12px; font-weight: 400; color: #999; margin-left: 10px; }
+.header .loc { float: right; }
+.toolbar { background: #22242a; padding: 12px 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border-bottom: 1px solid #2e3138; }
+.btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-teal:hover { background: #3dbdb5; color: #fff; }
+.btn-ghost { background: transparent; color: #ccc; border: 1px solid #555; padding: 8px 14px; border-radius: 4px; cursor: pointer; font-size: 13px; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; }
+.btn-ghost:hover { border-color: #4ECDC4; color: #4ECDC4; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.08); margin: 16px 24px 0; overflow: hidden; max-width: 720px; }
+.card-title { background: #f7f7f7; padding: 10px 18px; font-size: 13px; font-weight: 700; color: #22242a; border-bottom: 1px solid #e5e5e5; display: flex; align-items: center; gap: 8px; }
+.card-body { padding: 18px; }
+.msg { display: none; margin: 12px 24px 0; padding: 10px 16px; border-radius: 5px; font-size: 13px; max-width: 672px; }
+.msg.err { display: block; background: #fdecea; border: 1px solid #f5c6cb; color: #b94a48; }
+.msg.info { display: block; background: #eef4fb; border: 1px solid #c5d6ec; color: #2c5f9d; }
+.row { display: flex; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px dashed #eee; flex-wrap: wrap; }
+.row:last-child { border-bottom: none; }
+.row .k { color: #888; font-size: 12px; width: 190px; flex: 0 0 190px; }
+.row .v { color: #22242a; font-size: 14px; font-weight: 600; }
+.chip { display: inline-block; background: #22242a; color: #4ECDC4; padding: 3px 10px; border-radius: 3px; font-weight: 700; font-size: 12px; }
+.chip.grey { background: #efefef; color: #555; font-weight: 600; }
+.dlink-row { display: flex; gap: 8px; margin-top: 14px; align-items: center; flex-wrap: wrap; }
+.dlink-row input { flex: 1; min-width: 260px; padding: 8px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; color: #333; }
+.footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #e5e5e5; margin-top: 14px; max-width: 720px; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid #ddd; border-top-color: #4ECDC4; border-radius: 50%; animation: plnkspin .8s linear infinite; vertical-align: middle; }
+@keyframes plnkspin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header"><i class="fa fa-share-alt"></i> <span data-i18n="plnk.title">Public share link</span><span id="localeSwitcher" class="loc"></span></div>
+
+<div class="toolbar">
+  <a class="btn-ghost" id="againLink" href="#"><i class="fa fa-redo"></i> <span data-i18n="plnk.resolveAgain">Resolve again</span></a>
+</div>
+
+<div class="msg" id="msg"></div>
+
+<div class="card" id="resultCard" style="display:none;">
+  <div class="card-title"><i class="fa fa-bullseye"></i> <span data-i18n="plnk.resolved">Resolved link</span></div>
+  <div class="card-body">
+    <div class="row"><span class="k" data-i18n="plnk.typeLbl">Link type</span><span class="v"><span class="chip" id="rType"></span></span></div>
+    <div class="row"><span class="k" data-i18n="plnk.targetLbl">Redirecting to</span><span class="v"><span class="chip grey" id="rTarget"></span></span></div>
+    <div class="dlink-row">
+      <a class="btn-teal" id="openBtn" href="#" target="_blank"><i class="fa fa-external-link-alt"></i> <span data-i18n="plnk.open">Open</span></a>
+      <input type="text" id="linkInput" readonly value="">
+      <button class="btn-ghost" id="copyBtn"><i class="fa fa-copy"></i> <span data-i18n="plnk.copy">Copy</span></button>
+    </div>
+  </div>
+</div>
+
+<div class="footer"><span data-i18n="footers.publicLink">TestLink 2.0.1 - Public share link</span></div>
+
+<script src="/gui/templates/i18n/i18n.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script>
+'use strict';
+var API = '/api/publiclink/index.php';
+
+$(function () {
+  TLi18n.load(function () {
+    TLi18n.apply();
+    TLi18n.initLocaleSwitcher('#localeSwitcher');
+    resolve();
+  });
+});
+
+function showMsg(kind, text) {
+  var m = $('#msg');
+  m.removeClass('ok err info').addClass(kind).show();
+  m.text(text);
+}
+
+function resolve() {
+  var q = new URLSearchParams(location.search);
+  var params = {
+    action: 'resolve',
+    type: q.get('type') || '',
+    id: q.get('id') || '',
+    apikey: q.get('apikey') || '',
+    tproject_id: q.get('tproject_id') || '',
+    tplan_id: q.get('tplan_id') || '',
+    format: q.get('format') || '',
+    entities: q.get('entities') || ''
+  };
+
+  if (!params.apikey || !params.type) {
+    showErr(TLi18n.t('plnk.errParams'));
+    return;
+  }
+
+  $('#againLink').attr('href', location.pathname + location.search);
+  showMsg('info', TLi18n.t('plnk.loading'));
+  $('#resultCard').hide();
+
+  $.ajax({
+    url: API + '?' + $.param(params),
+    method: 'GET',
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    success: function (r) {
+      $('#msg').hide();
+      if (!r || r.status !== 'ok') { showErrByCode(r); return; }
+      document.title = TLi18n.t('plnk.title');
+      $('#rType').text(r.type);
+      $('#rTarget').text(r.target || '');
+      var href = r.href || '#';
+      $('#openBtn').attr('href', href);
+      $('#linkInput').val(location.origin + href);
+      $('#resultCard').show();
+      // the legacy lnl.php gateway redirected instantly; keep that behaviour
+      setTimeout(function () { window.location.replace(href); }, 450);
+    },
+    error: function (xhr) {
+      $('#resultCard').hide();
+      showErrByCode(xhr && xhr.responseJSON ? xhr.responseJSON : { code: 'http' + (xhr && xhr.status) });
+    }
+  });
+}
+
+function showErrByCode(r) {
+  var msg = TLi18n.t('plnk.errDefault');
+  switch (r && r.code) {
+    case 'bad_apikey': msg = TLi18n.t('plnk.errBadApikey'); break;
+    case 'bad_type':   msg = TLi18n.t('plnk.errBadType'); break;
+    case 'bad_id':     msg = TLi18n.t('plnk.errBadId'); break;
+    case 'not_found':  msg = TLi18n.t('plnk.errNotFound'); break;
+    case 'invalid_link': msg = TLi18n.t('plnk.errInvalid'); break;
+    case 'unknown_type': msg = TLi18n.t('plnk.errUnknown'); break;
+    case 'no_target':  msg = TLi18n.t('plnk.errNoTarget'); break;
+    case 'http403':    msg = TLi18n.t('plnk.errInvalid'); break;
+    case 'http401':    msg = TLi18n.t('plnk.errSession'); break;
+    case 'http404':    msg = TLi18n.t('plnk.errNotFound'); break;
+    case 'http405':    msg = TLi18n.t('plnk.errMethod'); break;
+    case 'http500':    msg = TLi18n.t('plnk.errServer'); break;
+  }
+  if (r && r.message && r.code && r.code.indexOf('http') !== 0) { msg = r.message; }
+  showErr(msg);
+}
+
+function showErr(text) {
+  showMsg('err', text);
+  $('#resultCard').hide();
+}
+
+$('#copyBtn').on('click', function () {
+  var inp = $('#linkInput')[0];
+  if (!inp) return;
+  inp.select();
+  try { document.execCommand('copy'); } catch (e) {}
+  showMsg('info', TLi18n.t('plnk.copied'));
+});
+</script>
+</body>
+</html>

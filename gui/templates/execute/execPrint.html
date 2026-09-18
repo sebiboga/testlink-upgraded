@@ -73,6 +73,7 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 'use strict';
 var API = '/api/executionprint/index.php';
 var EXEC_ID = 0;
+var PUBKEY = ''; // public share-link apikey (lnl.php gateway, Refs #1541)
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
@@ -106,7 +107,9 @@ function statusBadge(status) {
 function load() {
   $('#loading').show();
   $('#errBanner').hide();
-  $.getJSON(API + '?action=print&id=' + EXEC_ID, function (r) {
+  var url = API + '?action=print&id=' + EXEC_ID +
+            (PUBKEY ? '&apikey=' + encodeURIComponent(PUBKEY) : '');
+  $.getJSON(url, function (r) {
     $('#loading').hide();
     if (r.status !== 'ok') { showError(r.message || TLi18n.t('execprint.loadError')); return; }
     $('#infoLine').text(' — #' + r.exec_id);
@@ -138,6 +141,16 @@ function load() {
 // and route through the BFF so the modern screen handles deletion without
 // leaving the page, then re-render the print.
 function bindInlineDeletes() {
+  // a public share link is read-only: never submit the inline delete forms
+  if (PUBKEY) {
+    $('#printBody').off('submit.execPrint').on('submit.execPrint', 'form', function (e) {
+      if (parseInt($(this).find('[name="deleteAttachmentID"]').val() || '0', 10) > 0) {
+        e.preventDefault();
+        toast(TLi18n.t('plnk.readonly'), false);
+      }
+    });
+    return;
+  }
   $('#printBody').off('submit.execPrint').on('submit.execPrint', 'form', function (e) {
     var $form = $(this);
     var delId = parseInt($form.find('[name="deleteAttachmentID"]').val() || '0', 10);
@@ -164,6 +177,7 @@ function bindInlineDeletes() {
 $(function () {
   var p = new URLSearchParams(window.location.search);
   EXEC_ID = parseInt(p.get('id') || 0, 10);
+  PUBKEY = p.get('apikey') || '';
   TLi18n.load(function () {
     TLi18n.apply();
     TLi18n.initLocaleSwitcher('#localeSwitcher');

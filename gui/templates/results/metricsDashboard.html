@@ -124,6 +124,7 @@ table.dataTable tbody td { padding: 10px 14px; font-size: 13px; vertical-align: 
 var API = '/api/metrics/index.php';
 var qs = new URLSearchParams(window.location.search);
 var tproject_id = qs.get('tproject_id') || '';
+var PUBKEY = qs.get('apikey') || ''; // public share-link apikey (Refs #1541)
 var table = null;
 var STATUS_COLORS = {
   not_run: '#8f8f8f', passed: '#5cb85c',
@@ -161,7 +162,8 @@ function showMsg(sel, key) {
 }
 
 function loadRightsAndDashboard() {
-  $.getJSON(API + '/meta/rights', function(r) {
+  var u = API + '/meta/rights' + (PUBKEY ? '?apikey=' + encodeURIComponent(PUBKEY) : '');
+  $.getJSON(u, function(r) {
     if (!r.canView) {
       showMsg('#errorBox', 'md.msg.noRights');
       return;
@@ -175,6 +177,7 @@ function loadRightsAndDashboard() {
 function loadDashboard(showOnlyActive) {
   var p = [];
   if (tproject_id) p.push('tproject_id=' + tproject_id);
+  if (PUBKEY) p.push('apikey=' + encodeURIComponent(PUBKEY));
   if (showOnlyActive !== null) p.push('show_only_active=' + showOnlyActive);
   $.getJSON(API + '/dashboard' + (p.length ? '?' + p.join('&') : ''), function(r) {
     if (r.status !== 'ok') {
