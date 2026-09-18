@@ -39,12 +39,13 @@ if ($metaApikey !== '') {
     $metaIsAnon = true;
     if (strlen($metaApikey) === 32) {
         $apiUsers = tlUser::getByAPIKey($db, $metaApikey);
-        if (count($apiUsers) != 1) {
+        if (!is_array($apiUsers) || count($apiUsers) !== 1) {
             http_response_code(403);
             echo json_encode(['status' => 'error', 'message' => 'Invalid API key']);
             exit;
         }
-        $userId = intval($apiUsers[0]['id']);
+        $auRow = reset($apiUsers);
+        $userId = intval($auRow['id'] ?? 0);
         $metaIsAnon = false;
     } else {
         // 64-char object key bound to the owning test project (fail-closed)

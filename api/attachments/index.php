@@ -44,12 +44,13 @@ if ($publicApikey !== '' && $action === 'download') {
     $isAnonFromKey = true;
     if (strlen($publicApikey) === 32) {
         $apiUsers = tlUser::getByAPIKey($db, $publicApikey);
-        if (count($apiUsers) != 1) {
+        if (!is_array($apiUsers) || count($apiUsers) !== 1) {
             http_response_code(403);
             echo json_encode(['status' => 'error', 'message' => 'Invalid API key']);
             exit;
         }
-        $userId = intval($apiUsers[0]['id']);
+        $auRow = reset($apiUsers);
+        $userId = intval($auRow['id'] ?? 0);
         $isAnonFromKey = false;
     }
 }

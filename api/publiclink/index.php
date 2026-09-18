@@ -103,7 +103,7 @@ if ($akl === $userAPIkeyLen) {
     // remote access for the owning user
     setUpEnvForRemoteAccess($db, $apikey, null, $opt);
     $users = tlUser::getByAPIKey($db, $apikey);
-    $light = (count($users) == 1) ? 'green' : 'red';
+    $light = (is_array($users) && count($users) == 1) ? 'green' : 'red';
 } else {
     // object key; for exec, swap to the owning plan's api_key (legacy parity)
     if ($type === 'exec') {

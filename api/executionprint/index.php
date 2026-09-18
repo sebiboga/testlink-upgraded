@@ -59,6 +59,9 @@ function out($data) { echo json_encode($data); exit; }
 
 $userId = $_SESSION['userID'] ?? null;
 
+$action = $_GET['action'] ?? '';
+$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
+
 // ---- legacy public-link apikey path (Refs #1541) ----
 // lnl.php share links (?type=exec) land on this BFF with an apikey: 32-char
 // user key (remote access for that user) or 64-char test-plan object key
@@ -72,11 +75,12 @@ if ($apikey !== '') {
     $isAnon = true;
     if (strlen($apikey) === 32) {
         $apiUsers = tlUser::getByAPIKey($db, $apikey);
-        if (count($apiUsers) != 1) {
+        if (!is_array($apiUsers) || count($apiUsers) !== 1) {
             http_response_code(403);
             out(['status' => 'error', 'message' => 'Invalid API key']);
         }
-        $userId = intval($apiUsers[0]['id']);
+        $auRow = reset($apiUsers);
+        $userId = intval($auRow['id'] ?? 0);
         $isAnon = false;
     } else {
         // 64-char object key -> anonymous access for the execution's test
@@ -111,9 +115,6 @@ if (!$isAnon) {
 } else {
     $user = null;
 }
-
-$action = $_GET['action'] ?? '';
-$id = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
 /**
  * Resolve an execution row (execution id, owning test plan + project, build).
@@ -188,6 +189,19 @@ if ($action === 'print') {
         http_response_code(500);
         out(['status' => 'error',
              'message' => 'Print generation failed']);
+    }
+
+    // Anonymous share link: the print body embeds legacy
+    // lib/attachments/attachmentdownload.php URLs (with the skipCheck token).
+    // The legacy endpoint does not run in the anonymous context of a public
+    // link, so re-route those downloads through the modern attachments BFF
+    // carrying the same apikey (Refs #1541).
+    if ($isAnon && $bodyHtml !== '') {
+        $bodyHtml = preg_replace(
+            '#lib/attachments/attachmentdownload\.php\?[^"\']*?id=(\d+)#',
+            '/api/attachments/index.php?action=download&id=$1&apikey='
+            . rawurlencode($apikey),
+            $bodyHtml);
     }
 
     // Tester display name (may be absent / null).
