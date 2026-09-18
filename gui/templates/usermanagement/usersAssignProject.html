@@ -19,6 +19,8 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .toolbar { background: #22242a; padding: 12px 24px; display: flex; gap: 12px; align-items: center; }
 .btn-teal { background: #4ECDC4; color: #fff; border: none; padding: 7px 18px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
 .btn-teal:hover { background: #3dbdb5; }
+.btn-ghost { background: #333; color: #4ECDC4; border: 1px solid #4ECDC4; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600; }
+.btn-ghost:hover { background: #2a2c33; }
 .table-wrap { padding: 20px 24px; }
 .assign-table { background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); width: 100%; border-collapse: collapse; }
 .assign-table thead th { background: #22242a; color: #fff; font-size: 13px; padding: 10px 14px; text-align: left; }
@@ -45,6 +47,11 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <label style="color:#aaa;font-size:13px;margin-right:4px;" data-i18n="assign.testProject">Test Project:</label>
   <select id="projectSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:250px;"></select>
   <span style="flex:1"></span>
+  <!-- Legacy parity: usersAssign.tpl:189-206. Bulk "Set roles to <role>" selector
+       + Do button that sets every visible (non-disabled) row's role select before Save. -->
+  <label style="color:#aaa;font-size:13px;margin-right:4px;" data-i18n="assign.setRolesTo">Set roles to:</label>
+  <select id="bulkRoleSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:180px;"></select>
+  <button class="btn-ghost" id="bulkDoBtn" onclick="applyBulkRole()"><i class="fa fa-bolt"></i> <span data-i18n="assign.do">Do</span></button>
   <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> <span data-i18n="assign.saveChanges">Save Changes</span></button>
 </div>
 
@@ -127,6 +134,7 @@ function loadProjects(selectedId) {
         sel.append('<option value="' + esc(p.id) + '">' + esc(p.name) + '</option>');
       });
       roles = r.roles || [];
+      buildBulkSelect();
       if (!r.projects || !r.projects.length) {
         showDisabled();
         return;
@@ -167,6 +175,7 @@ function loadUsers(pid) {
   $('#saveBtn').prop('disabled', true);
   $.getJSON(API + '/meta/tproject-roles?tproject_id=' + pid, function(r) {
     roles = r.roles || roles;
+    buildBulkSelect();
     var html = '';
     $.each(r.items, function(i, u) {
       // Legacy parity: usersAssign.tpl:226-269. The select exposes ONE value-0
@@ -203,7 +212,7 @@ function loadUsers(pid) {
         '<td>' + (i + 1) + '</td>' +
         '<td>' + esc(u.login) + '</td>' +
         '<td>' + esc(u.name) + '</td>' +
-        '<td><select' + disabled + ' onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
+        '<td><select' + disabled + ' data-role="' + esc(u.roleID) + '" onchange="onRoleChange(this,' + esc(u.id) + ',' + esc(u.roleID) + ')">' + opts + '</select>' + hint + '</td>' +
       '</tr>';
     });
     if (!r.items.length) html = '<tr><td colspan="4" style="text-align:center;color:#888;padding:30px;">' + TLi18n.t('assign.noUsers') + '</td></tr>';
@@ -225,6 +234,42 @@ function onRoleChange(sel, uid, origRoleId) {
     badge.remove();
   }
   updateSaveBtn();
+}
+
+// Legacy parity: usersAssign.tpl:192-198 + :20-43 set_combo_group(). The bulk
+// "Set roles to <role>" selector offers the same assignable roles as the
+// per-user dropdowns, minus the admin role (issue #928 exclusion) plus the
+// value-0 "no role / revert to inherited" pseudo-choice (legacy id-0 option).
+function buildBulkSelect() {
+  var sel = $('#bulkRoleSelect');
+  sel.empty();
+  sel.append('<option value="0">' + TLi18n.t('assign.noRole') + '</option>');
+  $.each(roles, function(j, role) {
+    // Defensive: the tproject-roles BFF already excludes the id-0
+    // "<inherited>" pseudo-role, but never offer it from the bulk selector.
+    if (role.id <= 0 || role.id == ADMIN_ROLE_ID) return;
+    sel.append('<option value="' + esc(role.id) + '">' + esc(role.name) + '</option>');
+  });
+}
+
+// Legacy parity: usersAssign.tpl:202-204 - the Do button applies the chosen
+// role to EVERY visible (non-disabled) row's select, exactly like legacy
+// set_combo_group(usersRoleTable, userRole_, value). Disabled global-admin
+// rows are skipped (legacy !input_element.disabled, usersAssign.tpl:244-247).
+// Rows re-run through onRoleChange() so the modified highlight/badge and the
+// Save button state reflect the bulk change before the user clicks Save.
+function applyBulkRole() {
+  var roleVal = $('#bulkRoleSelect').val();
+  $('#assignBody tr').each(function() {
+    var sel = $(this).find('select');
+    // Skip the empty-state placeholder row (no <select>) and disabled
+    // global-admin rows (legacy !input_element.disabled).
+    if (!sel.length || sel.prop('disabled')) return;
+    var uid = $(this).data('uid');
+    var origRoleId = parseInt(sel.attr('data-role'));
+    sel.val(roleVal);
+    onRoleChange(sel[0], uid, origRoleId);
+  });
 }
 
 function updateSaveBtn() {

@@ -455,6 +455,17 @@ NEW FEATURES
   `isAdmin` and the plan screen disables the "Plan Role Override" select for admins with
   the localized `assign.adminRoleLocked` hint (legacy serves both contexts from the same
   template). Suite "Task — Issue #927" all PASS.
+- Assign Test Project / Plan Roles — bulk "Set roles to" action (Refs #929):
+  `usersAssignProject.html` + `usersAssignPlan.html` gain a toolbar "Set roles to"
+  selector + Do button porting legacy `usersAssign.tpl:189-206` +
+  `set_combo_group()` (:20-43) — one click applies the chosen role to every visible
+  (non-disabled) user row's role select, highlighting rows as Modified before one
+  Save. Disabled global-admin rows are skipped (issue #927 lock), the admin role
+  (id 8) itself is not offered (issue #928 exclusion), value-0 = revert to
+  inherited/no-role; the plan selector skips the id-0 `<inherited>` pseudo-role to
+  avoid a duplicate value-0 option. No BFF change — the write reuses
+  `PUT /roles/tproject-roles` / `PUT /roles/tplan-roles`. i18n
+  `assign.setRolesTo`/`assign.do` in all 10 bundles. Suite 929 9/9 PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

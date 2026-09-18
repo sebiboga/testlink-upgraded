@@ -16395,35 +16395,30 @@ the exec dashboard. Known side finding: the exec *workframe* (`execSetResults.ph
 long-standing upstream defect (filed as **#1538**) and not part of the setSessionProject fix
 (Refs #1537).
 
-## Regression — Issue #1534: reqReorder.html loads broken local font-awesome CSS path (404) — icons missing
+## Suite 929 — Task Issue #929: "Set roles to" bulk assignment action (Assign Test Project Roles + Assign Test Plan Roles)
 
-**Feature:** the modern Reorder Requirements screen
-(`gui/templates/requirements/reqReorder.html`, Refs #1488) links Font Awesome via a local Dashio
-path that is not shipped (`/gui/templates/dashio/lib/font-awesome/css/all.min.css` — only FA4
-`font-awesome.min.css` exists there), yielding HTTP 404 and empty/tofu FA glyphs. Fix (already
-landed on default branch @ `398d68115`): switch the `<link>` to the CDN URL used by the other 148
-modern screens (`https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css`).
+**Feature:** legacy `usersAssign.tpl:189-206` "Set roles to <role>" selector + Do button
+(`set_combo_group()` at :20-43) that applies one chosen role to every visible
+(non-disabled) user row's role select before Save. Ported to the modern
+`usersAssignProject.html` + `usersAssignPlan.html` screens; admin rows (disabled
+selects, issue #927) are skipped and the admin role (id 8) is not offered in the bulk
+selector (issue #928 exclusion rule).
 
-**Approach:** reproduce the 404 pre-fix (`curl` of the local path), then verify post-fix page in
-headless Chrome: CDN css/webfont [200], no request to the local path, glyphs compute
-`font-family: "Font Awesome 6 Free"`, and a full reorder save round-trip (move → Save → re-init).
-
-**Precondition:** fixtures from `php tmp/fixtures_1534.php` (project `RE1534`/prefix `RS34`,
-spec `RS-REORD` id=2, requirements RRQ-001/002/003); login admin/admin on
-http://localhost:8082; open `gui/templates/requirements/reqReorder.html?req_spec_id=2&tproject_id=1`.
-
-**Repro steps (pre-fix):** page loads but Network panel shows 404 for
-`/gui/templates/dashio/lib/font-awesome/css/all.min.css`; all `class="fa …"` glyphs render empty.
+**Precondition:** fresh DB + fixtures: test project `Fixture Admin Project` (id 1),
+test plan `Fixture Plan` (id 6 under project 1), users alice(id2)/bob(id3)/carol(id4)/
+dave(id5) with global roles tester/senior tester/test designer/guest; login admin/admin;
+clear `user_testproject_roles` and `user_testplan_roles`.
 
 | # | Step | Expected | Actual |
 |---|------|----------|--------|
-| 1 | `curl -o /dev/null -w "%{http_code}" /gui/templates/dashio/lib/font-awesome/css/all.min.css` | 404 (file not shipped — confirms bug premise) | PASS — 404; local FA dir only has FA4 `font-awesome.min.css` |
-| 2 | Open reqReorder page; Network panel | CDN `all.min.css` [200]; **no** request to dashio-local path | PASS — CDN css [200], webfont fa-solid-900.woff2 [200]; local path not requested |
-| 3 | Grep fleet for leftover local FA refs | no other modern file references `dashio/lib/font-awesome` | PASS — 0 matches across `gui/templates/` |
-| 4 | JS probe: count `.fa` elements + computed font-family | ≥1 element, `Font Awesome 6 Free`, visible | PASS — 14 icons, `"Font Awesome 6 Free"`, inline-block |
-| 5 | Reorder: click Down on RRQ-001 row, then Save | list swaps to RRQ-002, RRQ-001, RRQ-003; green "Requirements reordered successfully." | PASS — green msg observed |
-| 6 | Persistence: `GET /api/reqreorder/index.php?action=init&req_spec_id=2&tproject_id=1` | returns `["RRQ-002","RRQ-001","RRQ-003"]` | PASS — init re-query returns the new order |
-| 7 | Browser console + `events` table | no new console errors; no Error/Warning rows (log_level ≥ 32) | PASS — 0 console msgs; events only INFO 16 audit rows (login + fixture) |
+| 1 | Open `usersAssignProject.html` | Toolbar shows `Set roles to` select + `Do` button (legacy parity) | PASS — control present |
+| 2 | Inspect bulk selector options | `-- no role --` (value 0) + roles 1,2,3,4,5,6,7,9; admin (8) and `<inherited>` absent | PASS — exactly 9 options, no admin, no pseudo-role |
+| 3 | Select `leader`(9) → click Do | Every non-admin row select becomes `leader`, row highlighted + `modified` badge, Save enabled; admin row untouched/disabled | PASS — alice/bob/carol/dave = leader (verified via DOM + snapshot) |
+| 4 | Click Save | `PUT /roles/tproject-roles` persists all 4 rows; UI reloads, no stale badges | PASS — `user_testproject_roles` = (2,1,9),(3,1,9),(4,1,9),(5,1,9); global users.role_id unchanged |
+| 5 | Select `-- no role --`(0) → Do → Save | All explicit project roles removed (revert to inheritance), legacy `doUpdate()` no-re-add | PASS — `user_testproject_roles` empty |
+| 6 | `usersAssignPlan.html`: pick project+plan, select `tester`(7) → Do → Save | All non-admin rows 7; persisted to `user_testplan_roles` | PASS — rows 2,3,4,5 → (uid,6,7), admin skipped |
+| 7 | Bulk selector on plan screen | Single value-0 option (`-- no override --`), no `<inherited>` duplicate, no admin | PASS — 9 options after dedup fix |
+| 8 | Event Viewer / `events` | No new Error/Warning (log_level ≥ 32) after all steps | PASS — only AUDIT (16) rows |
+| 9 | Syntax gates | inline `<script>` extracted → `node --check`; i18n bundles → `python3 -m json.tool` | PASS — all clean |
 
-**Result: 7/7 PASS** — the FA 404 is gone, icons render, and the reorder feature itself still
-works end-to-end after the CDN switch (Refs #1534).
+**Result: 9/9 PASS**
