@@ -13,7 +13,7 @@
  */
 
 // Route to the modern twin, preserving the deep-link target identity.
-header('Location: gui/templates/testcases/tcEdit.html?doAction=edit&tcase_id=' .
+header('Location: /gui/templates/testcases/tcEdit.html?doAction=edit&tcase_id=' .
        intval($_REQUEST['id'] ?? $_REQUEST['tcase_id'] ?? 0) .
        '&tproject_id=' . intval($_REQUEST['tproject_id'] ?? 0) .
        '&tplan_id=' . intval($_REQUEST['tplan_id'] ?? 0));

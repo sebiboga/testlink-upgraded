@@ -13,7 +13,7 @@
  */
 
 // Route to the modern twin, preserving the deep-link target identity.
-header('Location: gui/templates/requirements/reqSpecView.html?req_spec_id=' .
+header('Location: /gui/templates/requirements/reqSpecView.html?req_spec_id=' .
        intval($_REQUEST['req_spec_id'] ?? $_REQUEST['id'] ?? 0) .
        '&tproject_id=' . intval($_REQUEST['tproject_id'] ?? 0) .
        '&tplan_id=' . intval($_REQUEST['tplan_id'] ?? 0));
