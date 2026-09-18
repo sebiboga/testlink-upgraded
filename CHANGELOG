@@ -20,6 +20,7 @@ screen reaches full parity.
 MAJOR AREAS
 -----------
 
+- [KEY BUGFIX] - #1536: legacy deep-link controllers reqSpecView.php + archiveData.php no longer video E_WARNING-on-view. Both are now clean 302 redirect stubs to their modern twins (gui/templates/requirements/reqSpecView.html, gui/templates/testcases/tcEdit.html), preserving req_spec_id/tcase_id/tproject_id/tplan_id deep-links. 7x E_WARNING class removed from legacy dashio deep-link views. (Refs #1536)
 - [UI MODERNIZATION] - New Dashio UI - Bootstrap-based admin template (teal/dark/red
   palette) replacing the legacy Smarty layout. All screens rewritten as standalone
   HTML + JS + CSS pages under gui/templates/<area>/<screen>.html using DataTables,
