@@ -62,10 +62,11 @@ if (!$user->hasRight($db, 'mgt_modify_product')) {
 }
 
 $tables = tlObjectWithDB::getDBTables(
-    array('testprojects', 'testplans', 'builds'));
+    array('testprojects', 'testplans', 'builds', 'nodes_hierarchy'));
 $tprojT = $tables['testprojects'];
 $tplanT = $tables['testplans'];
 $buildT = $tables['builds'];
+$nodeT = $tables['nodes_hierarchy'];
 
 function fpErr($code, $msg)
 {
@@ -87,11 +88,14 @@ function fpRows($db, $sql)
     return $out;
 }
 
-function orphanPlans($db, $tplanT, $tprojT)
+function orphanPlans($db, $tplanT, $tprojT, $nodeT)
 {
+    // Project/plan display names live in nodes_hierarchy on the upgraded
+    // schema, not on the testplans/testprojects tables.
     return fpRows($db,
-        "SELECT tp.id, tp.name, tp.active, tp.is_open, tp.testproject_id " .
+        "SELECT tp.id, n.name, tp.active, tp.is_open, tp.testproject_id " .
         "FROM {$tplanT} tp " .
+        "LEFT JOIN {$nodeT} n ON n.id = tp.id " .
         "WHERE tp.testproject_id = 0 OR NOT EXISTS " .
         "(SELECT 1 FROM {$tprojT} p WHERE p.id = tp.testproject_id) " .
         "ORDER BY tp.id");
@@ -107,10 +111,12 @@ function orphanBuilds($db, $buildT, $tprojT)
         "ORDER BY b.id");
 }
 
-function allProjects($db, $tprojT)
+function allProjects($db, $tprojT, $nodeT)
 {
     return fpRows($db,
-        "SELECT id, name, prefix FROM {$tprojT} ORDER BY name");
+        "SELECT t.id, n.name, t.prefix FROM {$tprojT} t " .
+        "LEFT JOIN {$nodeT} n ON n.id = t.id " .
+        "ORDER BY n.name, t.prefix");
 }
 
 function existsRow($db, $sql)
@@ -119,12 +125,12 @@ function existsRow($db, $sql)
     return ($rs && !$rs->EOF && intval($rs->fields['c'] ?? 0) > 0);
 }
 
-function fpState($db, $tplanT, $buildT, $tprojT)
+function fpState($db, $tplanT, $buildT, $tprojT, $nodeT)
 {
     return array(
-        'orphan_plans' => orphanPlans($db, $tplanT, $tprojT),
+        'orphan_plans' => orphanPlans($db, $tplanT, $tprojT, $nodeT),
         'orphan_builds' => orphanBuilds($db, $buildT, $tprojT),
-        'projects' => allProjects($db, $tprojT),
+        'projects' => allProjects($db, $tprojT, $nodeT),
     );
 }
 
@@ -140,13 +146,18 @@ try {
             echo json_encode(array(
                 'status' => 'ok',
                 'grant' => array('modify_product' => true),
-            ) + fpState($db, $tplanT, $buildT, $tprojT));
+             ) + fpState($db, $tplanT, $buildT, $tprojT, $nodeT));
             exit;
 
         case 'POST':
             $body = json_decode(file_get_contents('php://input'), true);
             if (!is_array($body)) {
                 $body = $_POST;
+            }
+            // JSON clients send the action inside the body; $_REQUEST only
+            // carries query/form parameters, so fall back to the body value.
+            if (isset($body['action'])) {
+                $action = trim((string)$body['action']);
             }
 
             if ($action === 'reassign') {
@@ -191,7 +202,7 @@ try {
                     $updated += $db->affected_rows();
                 }
                 echo json_encode(array('status' => 'ok', 'updated' => $updated)
-                    + fpState($db, $tplanT, $buildT, $tprojT));
+                    + fpState($db, $tplanT, $buildT, $tprojT, $nodeT));
                 exit;
             }
 
@@ -213,7 +224,7 @@ try {
                     intval($projId) . " WHERE id = " . intval($buildId));
                 $updated = $db->affected_rows();
                 echo json_encode(array('status' => 'ok', 'updated' => $updated)
-                    + fpState($db, $tplanT, $buildT, $tprojT));
+                    + fpState($db, $tplanT, $buildT, $tprojT, $nodeT));
                 exit;
             }
 

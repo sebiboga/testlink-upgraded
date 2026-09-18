@@ -200,7 +200,8 @@ function renderInfoLine() {
 }
 
 function projectSelect(selectedId) {
-  var opts = '<option value="0" ' + (selectedId > 0 ? '' : 'selected') + ' data-i18n="fixp.none">(no change)</option>';
+  var opts = '<option value="0" ' + (selectedId > 0 ? '' : 'selected') + '>' +
+    esc(TLi18n.t('fixp.none')) + '</option>';
   (state.projects || []).forEach(function (p) {
     opts += '<option value="' + parseInt(p.id, 10) + '"' +
       (parseInt(p.id, 10) === parseInt(selectedId, 10) ? ' selected' : '') + '>' +
@@ -231,9 +232,9 @@ function renderPlans() {
   }
   $('#plansEmpty').hide();
   var h = '<table class="list"><thead><tr>' +
-    '<th data-i18n="fixp.colName">Name</th>' +
-    '<th data-i18n="fixp.colState">State</th>' +
-    '<th data-i18n="fixp.colTarget">Assign to test project</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colName')) + '</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colState')) + '</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colTarget')) + '</th>' +
     '</tr></thead><tbody>';
   rows.forEach(function (t) {
     h += '<tr data-kind="plan" data-id="' + parseInt(t.id, 10) + '">' +
@@ -262,9 +263,9 @@ function renderBuilds() {
   }
   $('#buildsEmpty').hide();
   var h = '<table class="list"><thead><tr>' +
-    '<th data-i18n="fixp.colName">Name</th>' +
-    '<th data-i18n="fixp.colState">State</th>' +
-    '<th data-i18n="fixp.colTarget">Assign to test project</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colName')) + '</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colState')) + '</th>' +
+    '<th>' + esc(TLi18n.t('fixp.colTarget')) + '</th>' +
     '</tr></thead><tbody>';
   rows.forEach(function (b) {
     h += '<tr data-kind="build" data-id="' + parseInt(b.id, 10) + '">' +
@@ -366,6 +367,13 @@ function refreshState(next) {
   renderInfoLine();
 }
 
+function getInit() {
+  return fetch(API + '?action=init', {
+    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+    credentials: 'same-origin'
+  }).then(function (res) { return res.json(); });
+}
+
 function doApply() {
   var kind = pendingKind;
   var items = collectAssignments(kind);
@@ -407,12 +415,10 @@ function doApply() {
     });
   }, Promise.resolve(null));
 
-  var updatedCount = 0;
   seq
     .then(function () {
-      return postJson({ action: 'init' }).then(function (r) {
-        if (r.ok && r.j && r.j.status === 'ok') return r.j;
-        return state;
+      return getInit().then(function (r) {
+        return (r && r.status === 'ok') ? r : state;
       });
     })
     .then(function (next) {
