@@ -16507,3 +16507,26 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 12 | Browser console | no JS errors | PASS — only a11y `issue` hints (90 no-id/name, 2 no-label), no errors |
 
 **Result: 11/12 PASS-paths verified** (12 covers a11y hints reported, none blocking; all functional rows PASS). Screenshots: `docs/screenshots/issue-930-usersassign-pagination.png`, `issue-930-usersassign-search.png`. Fixture: `tmp/fixtures_930.php` (Refs #930).
+
+## Regression — Issue #1539: string CF values containing URLs throw fatal "Undefined constant LINKS_NEW_WINDOW"
+
+**Feature:** any `string`-type custom field whose value contains an URL (`https?://...`) must render as a clickable `<a>` link exactly like legacy TestLink 1.9.20 — never a `PHP Fatal error: Undefined constant "LINKS_NEW_WINDOW"` at `lib/functions/string_api.php:322`. The fatal came from the MantisBT 2.25.2 `string_insert_hrefs()` closure (commit `bbe0cfee2`, 2022 PHP 8 `create_function()` replacement of the original 2016 `6969837d9` backport), which unconditionally evaluated `config_get('html_make_links') == LINKS_NEW_WINDOW` inside the URL-match closure while `LINKS_NEW_WINDOW` was never defined in `cfg/const.inc.php`.
+
+**Root cause:** `cfg/const.inc.php` lacked the MantisBT constants while `string_api.php:322` (constant reference introduced in `bbe0cfee2`, the 2022 PHP-8 replacement of the Mantis-derived `6969837d9` 2016 backport) evaluates `LINKS_NEW_WINDOW` at runtime inside the `preg_replace_callback` closure — so the fatal fires only when the URL regex actually matches (i.e. only for URL-valued string CFs). Call path: `cfield_mgr::string_custom_field_value()` → `case 'string': string_display_links()` (`lib/functions/cfield_mgr.class.php:1583`) → `string_insert_hrefs()` (`lib/functions/string_api.php:124`). `config.inc.php:2033` sets `html_make_links = ENABLED` (=1) which under Mantis semantics equals `LINKS_NEW_WINDOW` (=1) → intended `target="_blank"` links.
+
+**Fix (verified on default branch, commit `5175dd161`):** define `LINKS_SAME_WINDOW=0` and `LINKS_NEW_WINDOW=1` in `cfg/const.inc.php:78-79`. No code change was needed in THIS run — the constants are already on the default branch; this run verified the fix error-free across the affected call sites and regression-tested it.
+
+**Precondition:** fresh DB invariant — fixtures: project node 1 (`testprojects.prefix='I1539'`), suite node 2 "SuiteWithURL" under it, custom field `URL_CF` (type 0 string, label `URL CF`) linked to `cfield_node_types` node_type 2 (testsuite) + `cfield_testprojects` (project 1, active), `cfield_design_values` = `https://example.com/docs` on node 2. Login admin/admin on http://localhost:8082.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Syntax gate | `php -l cfg/const.inc.php` → no errors | PASS — clean |
+| 2 | Direct code path, constant UNDEFINED (pre-fix simulation, harness) | `PHP Fatal error: Uncaught Error: Undefined constant "LINKS_NEW_WINDOW"` at `string_api.php:322`, exit 255 — reproduces the issue evidence verbatim | PASS — exact match (stack: closure → preg_replace_callback → string_insert_hrefs) |
+| 3 | Direct code path, constant DEFINED (post-fix) `string_insert_hrefs('Read the docs at https://example.com/docs and mail a@b.com')` | exit 0; URL linked `target="_blank"`, email linked `mailto:` | PASS — `<a href="https://example.com/docs" target="_blank">https://example.com/docs</a>` + `<a href="mailto:a@b.com">` |
+| 4 | URL-format matrix (https, http+query+anchor, trailing dot, two URLs, mailto-only, plain text, empty) | no fatal; only the URL/email spans become links; plain text + empty string unchanged | PASS — 7/7 cases, MATRIX ALL PASS (trailing-dot href keeps `doc` w/o dot, text shows `doc.` — legacy rtrim behavior) |
+| 5 | BFF end-to-end `GET /api/suiteview/index.php?action=info&id=2` URL-valued string CF | HTTP 200; `custom_fields:[{id:1,label:"URL CF",value:"<a href=\"https://example.com/docs\" target=\"_blank\">https://example.com/docs</a>"}]` (no swallowed-fatal `[]`) | PASS — exact payload |
+| 6 | Browser `suiteView.html?id=2&tproject_id=1` | "Custom fields" card shows `URL CF` → clickable link; anchor `href="https://example.com/docs"`, `target="_blank"` | PASS — anchor attributes verified via DOM; screenshot `docs/screenshots/issue-1539-suiteview-url-cf-link.png`; console has no JS errors (only 2 pre-existing a11y `issue`s) |
+| 7 | Event Viewer / `events` table after BFF + browser runs | no new Error/Warning (log_level ≥ 32) | PASS — only existing INFO 16 `audit_login_succeeded` rows |
+| 8 | Non-URL string CF (plain text) on same path | unchanged plain text, no fatal, no link | PASS — matrix row `plain text value` |
+
+**Result: 8/8 PASS** — the `LINKS_NEW_WINDOW` fatal for URL-valued string CFs is gone; URLs render as legacy-style clickable `target="_blank"` links across the direct code path, the suiteview BFF and the browser-rendered Custom-fields card, with no Event Viewer noise (Refs #1539). Fixture: manual SQL (project 1 / suite 2 / CF `URL_CF`).
