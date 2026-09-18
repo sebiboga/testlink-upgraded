@@ -265,6 +265,35 @@ function roleErrorKey($code) {
     }
 }
 
+// Legacy parity: config.inc.php:663-666. $tlCfg->gui->usersAssign->pagination
+// holds the enabled flag plus the DataTables length menu as a legacy JS-array
+// string ('[20, 40, 60, -1], [20, 40, 60, "All"]'). The BFF parses that string
+// into a numeric lengthMenu so the modern screen can initialize DataTables with
+// the exact entries-per-page options the legacy template used (issue #930).
+function getUsersAssignPaginationConfig() {
+    $enabled = true;
+    $lengthMenu = [[20, 40, 60, -1], [20, 40, 60, 'All']];
+    if (isset($GLOBALS['tlCfg']->gui->usersAssign->pagination)) {
+        $pg = $GLOBALS['tlCfg']->gui->usersAssign->pagination;
+        $enabled = isset($pg->enabled) ? (bool)$pg->enabled : true;
+        if (!empty($pg->length) && preg_match('/^\[([^\]]*)\],\s*\[([^\]]*)\]$/', $pg->length, $m)) {
+            $parse = function ($csv) {
+                $out = [];
+                foreach (explode(',', $csv) as $tok) {
+                    $tok = trim($tok);
+                    if ($tok === '') continue;
+                    if ($tok === '-1') { $out[] = -1; continue; }
+                    if (is_numeric($tok)) { $out[] = (int)$tok; continue; }
+                    $out[] = trim($tok, '"\'');
+                }
+                return $out;
+            };
+            $lengthMenu = [$parse($m[1]), $parse($m[2])];
+        }
+    }
+    return ['enabled' => $enabled, 'lengthMenu' => $lengthMenu];
+}
+
 function roleToJSON(tlRole $r) {
     return [
         'id' => intval($r->dbID),
@@ -583,7 +612,8 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
-    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic]);
+    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
+         'pagination' => getUsersAssignPaginationConfig()]);
 }
 
 // Route: PUT /roles/tproject-roles - update test project role assignments
