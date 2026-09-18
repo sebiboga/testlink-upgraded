@@ -193,6 +193,15 @@ textarea.form-control2 { min-height: 90px; resize: vertical; }
   <div class="card" id="kwCard" style="display:none;">
     <div class="card-title"><i class="fa fa-tags"></i> <span data-i18n="suvw.keywords">Keywords</span></div>
     <div class="card-body" id="vKeywords"></div>
+    <div class="card-body" id="kwAssign" style="display:none;border-top:1px solid #eee;">
+      <div data-i18n="suvw.selectKeywords"></div>
+      <select id="kwFreeSelect" class="form-control2" multiple size="4" style="max-width:720px;"></select>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-teal" onclick="addKeywords(false)"><i class="fa fa-plus"></i> <span data-i18n="suvw.addKeyword">Add</span></button>
+        <button class="btn-teal" onclick="addKeywords(true)"><i class="fa fa-sitemap"></i> <span data-i18n="suvw.addKeywordsDeep">Add to all testsuites deep</span></button>
+        <span id="kwMsg" style="font-size:12.5px;color:#a00;align-self:center;display:none;"></span>
+      </div>
+    </div>
   </div>
 
   <div class="card" id="attCard" style="display:none;">
@@ -307,12 +316,14 @@ var SPEC_URL = '/gui/templates/testcases/testSpec.html?tproject_id=';
 var TC_VIEW_URL = '/gui/templates/testcases/tcView.html';
 var CAN_MANAGE = false;
 var CAN_PRINT = false;
+var CAN_ASSIGN_KEYWORDS = false;
 var DOMAINS = null;
 var TV_LOADED = false;
 var TV_DATA = null;
 var TV_ACTIVE = false;
 var TV_TABLE = null;
 var DIRECT_LINK = '';
+var KW_FREE = [];
 var SUITE_MC_STATE = null;
 var SUITE_CTX = null;
 var PROJECT_CTX = null;
@@ -328,6 +339,10 @@ $(function() {
     // move/copy suite modal: operation radio toggles the copy-options block
     $('input[name="mcSuiteOp"]').on('change', function() {
       $('#mcSuiteCopyOptions').toggle($(this).val() === 'copy');
+    });
+    // keyword remove icon (delegated: chips re-render on every loadView)
+    $(document).on('click', '.kw-remove', function() {
+      removeKeyword(parseInt($(this).data('link'), 10), String($(this).data('name')));
     });
     if (!SUITE_ID) {
       showError(TLi18n.t('suvw.noId'));
@@ -368,6 +383,7 @@ function render(r) {
   TPROJECT_ID = r.tproject.id || TPROJECT_ID;
   CAN_MANAGE = !!r.can_manage;
   CAN_PRINT = !!r.can_print;
+  CAN_ASSIGN_KEYWORDS = !!r.can_assign_keywords;
   DOMAINS = r.domains || null;
   SUITE_CTX = { id: s.id, name: s.name };
   PROJECT_CTX = r.tproject ? { id: r.tproject.id, name: r.tproject.name } : null;
@@ -407,6 +423,7 @@ function render(r) {
   $('#treeLink').attr('href', SPEC_URL + TPROJECT_ID);
 
   renderTc(r.testcases || []);
+  KW_FREE = r.free_keywords || [];
   renderKeywords(r.keywords || []);
   renderAttachments(r.attachments || []);
 }
@@ -443,11 +460,101 @@ function renderTc(rows) {
 }
 
 function renderKeywords(kws) {
-  if (!kws.length) { $('#kwCard').hide(); return; }
+  // Legacy object_keywords.inc.tpl: show the linked keywords as chips, each
+  // with a remove icon when the user may assign keywords (modify_tc + modify_key);
+  // below them the free-keyword multiselect + Add / Add-to-deep buttons.
+  var hasKws = kws.length > 0;
+  var hasFree = CAN_ASSIGN_KEYWORDS && KW_FREE.length > 0;
+  if (!hasKws && !hasFree) { $('#kwCard').hide(); return; }
   var out = '';
-  $.each(kws, function(i, kw) { out += '<span class="kw-chip">' + escapeHtml(kw) + '</span>'; });
+  $.each(kws, function(i, kw) {
+    var name = (kw && kw.keyword) || String(kw);
+    var remove = '';
+    if (CAN_ASSIGN_KEYWORDS && kw && kw.kw_link_id) {
+      remove = ' <a href="javascript:void(0)" class="kw-remove" data-link="' +
+        kw.kw_link_id + '" data-name="' + escapeHtml(name) + '" title="' +
+        TLi18n.t('suvw.removeKeyword') + '"><i class="fa fa-times-circle" ' +
+        'style="color:#e74c3c;font-size:13px;"></i></a>';
+    }
+    out += '<span class="kw-chip">' + escapeHtml(name) + remove + '</span>';
+  });
   $('#vKeywords').html(out);
+  renderKwAssign();
   $('#kwCard').show();
+}
+
+function renderKwAssign() {
+  var show = CAN_ASSIGN_KEYWORDS && KW_FREE.length > 0;
+  $('#kwAssign').css('display', show ? 'block' : 'none');
+  if (!show) return;
+  var $sel = $('#kwFreeSelect').empty();
+  $.each(KW_FREE, function(i, f) {
+    $sel.append('<option value="' + f.keyword_id + '">' + escapeHtml(f.keyword) + '</option>');
+  });
+}
+
+function kwMsg(text, isError) {
+  var $m = $('#kwMsg');
+  $m.css('display', text ? 'inline' : 'none');
+  $m.css('color', isError ? '#a00' : '#1a7f79');
+  $m.text(text || '');
+}
+
+// Mirrors legacy containerEdit.php doAction=addKeyword / addKeywordTSDeep
+// (testsuite::addKeywords / addKeywordsDeep on the suite). deep=true assigns
+// to the suite AND all child suites (testsuite::addKeywordsDeep).
+function addKeywords(deep) {
+  var ids = $('#kwFreeSelect').val();
+  if (!ids || !ids.length) {
+    kwMsg(TLi18n.t('suvw.noKeywordSelected'), true);
+    return;
+  }
+  kwMsg('', false);
+  $.ajax({
+    url: API + '?action=' + (deep ? 'keyword_add_deep' : 'keyword_add'),
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ id: SUITE_ID, keyword_ids: ids.map(Number) }),
+    success: function(r) {
+      if (r.status !== 'ok') {
+        kwMsg(r.message || TLi18n.t('suvw.kwOpFail'), true);
+        return;
+      }
+      kwMsg(deep ? TLi18n.t('suvw.kwAddDeepOk') : TLi18n.t('suvw.kwAddOk'), false);
+      loadView();
+    },
+    error: function(xhr) {
+      var body = null;
+      try { body = JSON.parse(xhr.responseText); } catch(e) {}
+      kwMsg((body && body.message) || TLi18n.t('suvw.kwOpFail'), true);
+    }
+  });
+}
+
+// Mirrors legacy object_keywords.inc.tpl keyword_remove_confirmation →
+// containerEdit.php doAction=removeKeyword → testsuite::deleteKeywordByLinkID.
+function removeKeyword(kwLinkId, keyword) {
+  if (!window.confirm(TLi18n.t('suvw.removeKwConfirm', { kw: keyword }))) return;
+  kwMsg('', false);
+  $.ajax({
+    url: API + '?action=keyword_remove',
+    type: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ id: SUITE_ID, kw_link_id: kwLinkId }),
+    success: function(r) {
+      if (r.status !== 'ok') {
+        kwMsg(r.message || TLi18n.t('suvw.kwOpFail'), true);
+        return;
+      }
+      kwMsg(TLi18n.t('suvw.kwRemoveOk'), false);
+      loadView();
+    },
+    error: function(xhr) {
+      var body = null;
+      try { body = JSON.parse(xhr.responseText); } catch(e) {}
+      kwMsg((body && body.message) || TLi18n.t('suvw.kwOpFail'), true);
+    }
+  });
 }
 
 function renderAttachments(atts) {

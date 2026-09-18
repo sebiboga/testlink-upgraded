@@ -349,19 +349,50 @@ if ($method === 'GET' && $action === 'info') {
         );
     }
 
-    // suite-level keywords — legacy testsuite::getKeywords() reads object_keywords
-    // by fk_id only (fk_table is 'nodes_hierarchy' for suite nodes); mirror it and
-    // dedupe so real UI-assigned suite keywords are shown
+    // suite-level keywords — legacy testsuite::get_keywords_map() reads
+    // object_keywords by fk_id (fk_table is 'nodes_hierarchy' for suite nodes)
+    // WITH the link id (used by removeKeyword); mirror it and dedupe so real
+    // UI-assigned suite keywords are shown. Each entry carries the
+    // object_keywords id (kw_link_id) that containerEdit.php
+    // doAction=removeKeyword needs for testsuite::deleteKeywordByLinkID().
     $keywords = array();
     $kwRows = $db->get_recordset(
-        "SELECT K.keyword FROM {$tables['object_keywords']} OK " .
+        "SELECT OK.id AS kw_link, OK.keyword_id, K.keyword " .
+        "FROM {$tables['object_keywords']} OK " .
         " JOIN {$tables['keywords']} K ON K.id = OK.keyword_id " .
         " WHERE OK.fk_id = {$suiteId} " .
         " ORDER BY K.keyword");
     if (!is_null($kwRows)) {
         foreach ($kwRows as $k) {
             $kw = trim(strval($k['keyword']));
-            if ($kw !== '' && !in_array($kw, $keywords, true)) $keywords[] = $kw;
+            if ($kw !== '' && !in_array($kw, $keywords, true)) {
+                $keywords[] = array(
+                    'keyword_id' => intval($k['keyword_id']),
+                    'kw_link_id' => intval($k['kw_link']),
+                    'keyword' => $kw,
+                );
+            }
+        }
+    }
+
+    // free (assignable) project keywords — legacy testsuite::getFreeKeywords()
+    // (testsuite.class.php:1935): project keywords whose id is NOT already
+    // linked to THIS suite via object_keywords (fk_table='nodes_hierarchy').
+    $freeKeywords = array();
+    $fkRows = $db->get_recordset(
+        "SELECT KW.id AS keyword_id, KW.keyword " .
+        "FROM {$tables['keywords']} KW " .
+        "WHERE KW.testproject_id = {$tprojectId} " .
+        " AND KW.id NOT IN (" .
+        "   SELECT TSKW.keyword_id FROM {$tables['object_keywords']} TSKW " .
+        "   WHERE TSKW.fk_id = {$suiteId} AND TSKW.fk_table = 'nodes_hierarchy'" .
+        " ) ORDER BY KW.keyword");
+    if (!is_null($fkRows)) {
+        foreach ($fkRows as $k) {
+            $freeKeywords[] = array(
+                'keyword_id' => intval($k['keyword_id']),
+                'keyword' => strval($k['keyword']),
+            );
         }
     }
 
@@ -378,6 +409,13 @@ if ($method === 'GET' && $action === 'info') {
     // legacy containerView.tpl only rendered the testcases_table_view button
     // when modify_tc_rights == 'yes' (mgt_modify_tc on the owning project)
     $canManage = ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) === 'yes');
+
+    // may the current user assign/remove suite keywords — legacy
+    // object_keywords.inc.tpl rendered the remove icon and the free-keyword
+    // multiselect only when BOTH modify_tc_rights == 'yes' ($gui->modify_tc_rights)
+    // AND assign_keywords == 'yes' (testsuite.class.php:521-525, mgt_modify_key).
+    $canAssignKeywords = ($canManage &&
+        ($user->hasRight($db, 'mgt_modify_key', $tprojectId) === 'yes'));
 
     // may the current user generate the testsuite spec document — mirrors
     // legacy lib/results/printDocument.php checkRights() which enforces
@@ -408,6 +446,8 @@ if ($method === 'GET' && $action === 'info') {
         ),
         'testcases' => $testcases,
         'keywords' => $keywords,
+        'free_keywords' => $freeKeywords,
+        'can_assign_keywords' => $canAssignKeywords,
         'attachments' => $attachments,
         'can_manage' => $canManage,
         'can_print' => $canPrint,
@@ -1164,6 +1204,154 @@ if ($method === 'POST' && $action === 'reorder_child_suites') {
 
     out(array('status' => 'ok', 'message' => 'Child test suites reordered',
               'count' => count($a2sort)));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=keyword_add  {id, keyword_ids:[...]}
+// POST ?action=keyword_add_deep  {id, keyword_ids:[...]}
+// Assign the given free project keywords to the suite — legacy containerEdit.php
+// doAction=addKeyword / addKeywordTSDeep (:358-368) →
+//   testsuite::addKeywords(item_id, free_keywords) (testsuite.class.php:1133)
+// for the flat add, and testsuite::addKeywordsDeep (:2010, subtree diff via
+// getKeywordsForTSSet) for the deep add to ALL child suites.
+// GATE: BOTH mgt_modify_tc ('yes', legacy grants->testcase_mgmt) AND
+// mgt_modify_key ('yes', legacy $gui->assign_keywords) on the owning project —
+// object_keywords.inc.tpl rendered the Add buttons only when both were set.
+// HARDENING (beyond legacy): keyword_ids are validated to belong to the owning
+// project and to NOT already be linked to the suite before inserting.
+// ---------------------------------------------------------------------------
+if (($method === 'POST' && ($action === 'keyword_add' || $action === 'keyword_add_deep'))) {
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    $suiteId = intval($json['id'] ?? 0);
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = owningProjectOf($suite['id'], $types);
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes' ||
+        $user->hasRight($db, 'mgt_modify_key', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to assign suite keywords'));
+    }
+
+    $rawIds = isset($json['keyword_ids']) ? $json['keyword_ids'] : array();
+    if (!is_array($rawIds)) $rawIds = array($rawIds);
+    $kwIds = array();
+    foreach ($rawIds as $id) {
+        $id = intval($id);
+        if ($id > 0 && !in_array($id, $kwIds, true)) $kwIds[] = $id;
+    }
+    if (count($kwIds) === 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'No keywords to add'));
+    }
+    $idList = implode(',', $kwIds);
+    // hardening: every keyword must belong to the owning project
+    $owned = $db->get_recordset(
+        "SELECT id FROM {$tables['keywords']} " .
+        "WHERE testproject_id = {$tprojectId} AND id IN ({$idList})");
+    $ownedIds = array();
+    if (!is_null($owned)) {
+        foreach ($owned as $ow) $ownedIds[] = intval($ow['id']);
+    }
+    $kwIds = array_values(array_intersect($kwIds, $ownedIds));
+    if (count($kwIds) === 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'None of the keywords belong to the owning test project'));
+    }
+    // hardening: skip keywords already linked to THIS suite
+    $idList = implode(',', $kwIds);
+    $already = $db->get_recordset(
+        "SELECT keyword_id FROM {$tables['object_keywords']} " .
+        "WHERE fk_id = {$suiteId} AND fk_table = 'nodes_hierarchy' " .
+        "  AND keyword_id IN ({$idList})");
+    $alreadyIds = array();
+    if (!is_null($already)) {
+        foreach ($already as $al) $alreadyIds[] = intval($al['keyword_id']);
+    }
+    $kwIds = array_values(array_diff($kwIds, $alreadyIds));
+    if (count($kwIds) === 0) {
+        http_response_code(409);
+        out(array('status' => 'error', 'message' => 'Selected keywords are already assigned to this test suite'));
+    }
+
+    $tsuiteMgr = new testsuite($db);
+    $deep = ($action === 'keyword_add_deep');
+    if ($deep) {
+        $tsuiteMgr->addKeywordsDeep($suiteId, $kwIds);
+    } else {
+        $tsuiteMgr->addKeywords($suiteId, $kwIds);
+    }
+
+    out(array('status' => 'ok', 'message' => $deep ? 'Keywords added to the test suite and all child suites' : 'Keywords added to the test suite',
+              'id' => $suiteId, 'deep' => $deep, 'added' => count($kwIds)));
+}
+
+// ---------------------------------------------------------------------------
+// POST ?action=keyword_remove  {id, kw_link_id}
+// Remove one suite keyword link — legacy containerEdit.php
+// doAction=removeKeyword (:370-373) → testsuite::deleteKeywordByLinkID
+// (testsuite.class.php:1995, DELETE FROM object_keywords WHERE id = kw_link_id).
+// GATE: same as keyword_add (mgt_modify_tc AND mgt_modify_key). HARDENING
+// (beyond legacy): the kw_link_id is validated to actually belong to THIS
+// suite before the delete is issued.
+// ---------------------------------------------------------------------------
+if ($method === 'POST' && $action === 'keyword_remove') {
+    $json = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($json)) $json = array();
+    $suiteId = intval($json['id'] ?? 0);
+    if ($suiteId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid test suite id'));
+    }
+    $types = typeIds();
+    $tsuiteTypeId = isset($types['testsuite']) ? $types['testsuite'] : 2;
+    $suite = resolveSuite($suiteId, $tsuiteTypeId);
+    if (is_null($suite)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Test suite not found'));
+    }
+    $tprojectId = owningProjectOf($suite['id'], $types);
+    if ($tprojectId <= 0) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Owning test project not found'));
+    }
+    if ($user->hasRight($db, 'mgt_modify_tc', $tprojectId) !== 'yes' ||
+        $user->hasRight($db, 'mgt_modify_key', $tprojectId) !== 'yes') {
+        http_response_code(403);
+        out(array('status' => 'error', 'message' => 'You are not authorized to remove suite keywords'));
+    }
+    $kwLinkId = intval($json['kw_link_id'] ?? 0);
+    if ($kwLinkId <= 0) {
+        http_response_code(400);
+        out(array('status' => 'error', 'message' => 'Invalid keyword link id'));
+    }
+    // hardening: the link must belong to THIS suite
+    $link = frr(
+        "SELECT id FROM {$tables['object_keywords']} " .
+        "WHERE id = {$kwLinkId} AND fk_id = {$suiteId} AND fk_table = 'nodes_hierarchy' LIMIT 1");
+    if (is_null($link)) {
+        http_response_code(404);
+        out(array('status' => 'error', 'message' => 'Keyword link not found for this test suite'));
+    }
+
+    $tsuiteMgr = new testsuite($db);
+    $tsuiteMgr->deleteKeywordByLinkID($kwLinkId);
+
+    out(array('status' => 'ok', 'message' => 'Keyword removed from the test suite',
+              'id' => $suiteId, 'kw_link_id' => $kwLinkId));
 }
 
 // ---------------------------------------------------------------------------
