@@ -656,6 +656,18 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   the exec dashboard (execNavigator) again — inner (`feature_id`/3-key) and outer
   flows, plus the `xta2m` regression all verified (Fixes #1537; follow-up
   execSetResults workframe defect filed as #1538).
+- `execSetResults.php` execution deep links still failed after #1537: the exec
+  **workframe** URL built by `ltx.php process_exec()` (and by the modern
+  assigned-tc links) carries **no form_token** and the settings under their
+  cache-key names (`setting_testplan`/`setting_build`/`setting_platform`), but
+  `getSettingsAndFilters()`'s form-tokenless fallback read the *prop* names
+  (`tplan_id`/`build_id`/`platform_id`) → `tplan_id=0` → HTTP 500 `Bad Test
+  Project ID` (`execSetResults.php:706`). The fallback now reads
+  `$_REQUEST[$cacheKey]` (`setting_*`, and the `filter_*` cache keys) **first**
+  and falls back to `$_REQUEST[$prop]` for the legacy `tplan_id` callers, so
+  setting_* deep links, filter cache-key params and `tplan_id` links all render
+  the execution pane again (regression from commit `857555dad`, which flipped
+  the upstream `ff21e9920` `$_REQUEST[$sfKey]` behavior) (Fixes #1538).
 - Stored XSS in the role-assignment screens (`usersAssignProject.html`,
   `usersAssignPlan.html`): DB-controlled project/plan/user/role display names
   were concatenated raw into `<option>`/`<td>` HTML, so a project named
