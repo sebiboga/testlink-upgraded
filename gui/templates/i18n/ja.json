@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "管理者ロールはロックされており、変更できません。",
   "assign.assignedRole": "割り当てられたロール",
+  "assign.demoDisabled": "申し訳ありません。この機能はデモでは使用できません。",
   "assign.do": "実行",
   "assign.emptyPlan": "上記でテストプロジェクトとテスト計画を選択して、ロール割り当てを管理してください。",
   "assign.emptyProject": "上記でテストプロジェクトを選択して、ロール割り当てを管理してください。",

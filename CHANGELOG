@@ -517,6 +517,17 @@ NEW FEATURES
   `role.demoUpdateDisabled`, BFF `messageKey`, generic → `assign.updateFailed`).
   i18n `assign.rolesUpdated` / `assign.noUsersSelected` / `assign.updateFailed`
   in all 10 bundles. Suite "Task — Issue #931" all PASS.
+- Assign Test Project/Plan Roles — demoMode read-only gating (Refs #932): legacy
+  `usersAssign.tpl:144-147,286-292` blocks the assign form when `$tlCfg->demoMode`
+  is on (submit blocked + Save button replaced by the `warn_demo` note); the 2.0.1
+  rewrite kept a working Save button. `GET /roles/meta/tproject-roles` /
+  `/meta/tplan-roles` now expose `demoMode`, `PUT /roles/tproject-roles` &
+  `/roles/tplan-roles` reject with the legacy `warn_demo` message
+  (`demoModeBlockedWrite('warn_demo','assign.demoDisabled')`), and both
+  `usersAssignProject.html` + `usersAssignPlan.html` render the demo banner and
+  replace the Save button with the localized warn_demo note while demoMode is on
+  (client-side save guard mirrors the legacy onsubmit alert). i18n
+  `assign.demoDisabled` in all 10 bundles. Suite 932 — 12/12 PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

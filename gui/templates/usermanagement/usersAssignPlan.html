@@ -34,11 +34,26 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .inherited-col { font-size: 12px; color: #666; }
 .assign-table select:disabled { background: #f5f5f5; color: #888; cursor: not-allowed; }
 .footer { padding: 12px 24px; color: #888; font-size: 12px; border-top: 1px solid #ddd; background: #fff; }
+/* Dashio demo-mode gating (usersView.html:56-57 pattern): legacy usersAssign.tpl
+   is shared by testplan contexts and :286-292 replaces the Save button with the
+   localized warn_demo note; the banner + note render that warn_demo text (issue #932). */
+.demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
+.demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
+/* Dashio toast pattern (usersAssignProject.html:39-46): fixed bottom-right
+   banner used to surface the demo_mode / permission rejection on Save. */
+.toast { position: fixed; right: 20px; bottom: 20px; background: #22242a; color: #fff; padding: 10px 16px; border-radius: 5px; font-size: 13px; display: none; z-index: 9999; box-shadow: 0 3px 10px rgba(0,0,0,.25); }
+.toast.ok { background: #4ECDC4; }
+.toast.warn { background: #f0ad4e; color: #333; }
+.toast.err { background: #e6605e; }
 </style>
 </head>
 <body>
 
 <div class="header"><span data-i18n="header.assignPlanRoles">Assign Test Plan Roles</span> <span data-i18n="header.assignPlanRolesSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">assign user roles within test plans</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<!-- Legacy parity: usersAssign.tpl:286-292 (shared legacy template also covers
+     test plan contexts) - the Save button is replaced by the warn_demo note. -->
+<div id="demoBanner" class="demo-banner" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="assign.demoDisabled">We are sorry. This feature is disabled for Demo.</span></div>
 
 <div class="tabs-bar" id="tabsBar"></div>
 
@@ -55,6 +70,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <select id="bulkRoleSelect"></select>
   <button class="btn-ghost" id="bulkDoBtn" onclick="applyBulkRole()"><i class="fa fa-bolt"></i> <span data-i18n="assign.do">Do</span></button>
   <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled data-i18n="assign.saveChanges"><i class="fa fa-save"></i> Save Changes</button>
+  <!-- Legacy parity: usersAssign.tpl:286-292 (shared template) - Save button
+       replaced by the localized warn_demo note while demoMode is on. -->
+  <span id="demoNote" class="demo-note" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="assign.demoDisabled">We are sorry. This feature is disabled for Demo.</span></span>
 </div>
 
 <div class="table-wrap">
@@ -93,11 +111,27 @@ var roles = [];
 // assignment, in which case it is rendered and pre-selected (issue #928).
 // Inherited admin keeps rendering as the "<inherited> <role>" value-0 option.
 var ADMIN_ROLE_ID = 8;
+// Legacy parity: usersAssign.tpl:286-292 (shared template) - read-only
+// assignment form in demoMode; Save button replaced by warn_demo note.
+var demoMode = false;
 
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Legacy parity: usersAssign.tpl:286-292 ($tlCfg->demoMode, shared template).
+// In demoMode the Save button is replaced by the localized warn_demo note; the
+// same note shows as a banner. Selects/bulk "Do" stay usable as in legacy;
+// submission is blocked client-side (usersAssign.tpl:144-147) and by the BFF.
+function applyDemoMode() {
+  $('#demoBanner').toggle(demoMode);
+  $('#saveBtn').toggle(!demoMode);
+  // Mirror the project screen: only render the demo-note when a real assign
+  // grid context exists (project selected), not over the empty state.
+  $('#demoNote').toggle(demoMode && !!$('#projectSelect').val());
+  if (demoMode) { $('#saveBtn').prop('disabled', true); }
 }
 
 TLi18n.load(function() {
@@ -129,6 +163,8 @@ function loadProjects(selectedId) {
     });
     roles = r.roles || [];
     buildBulkSelect();
+    demoMode = !!(r.demoMode);
+    applyDemoMode();
     if (selectedId) { sel.val(selectedId); loadPlans(selectedId); }
   });
   $('#projectSelect').on('change', function() {
@@ -164,6 +200,8 @@ function loadUsers(pid, planId) {
   $.getJSON(API + '/meta/tplan-roles?tproject_id=' + pid + '&tplan_id=' + planId, function(r) {
     roles = r.roles || roles;
     buildBulkSelect();
+    demoMode = !!(r.demoMode);
+    applyDemoMode();
     var html = '';
     $.each(r.items, function(i, u) {
       var opts = '<option value="0">' + TLi18n.t('assign.noOverride') + '</option>';
@@ -205,6 +243,7 @@ function onRoleChange(sel, uid, origRoleId) {
   if (changed && !badge.length) {
     tr.find('td:eq(1)').append('<span class="changed-badge">' + TLi18n.t('common.modified') + '</span>');
   } else if (!changed) { badge.remove(); }
+  if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
   $('#saveBtn').prop('disabled', !$('.changed').length);
 }
 
@@ -243,6 +282,14 @@ function applyBulkRole() {
 }
 
 function saveAssignments() {
+  // Legacy parity: usersAssign.tpl:144-147 (shared template) - the legacy
+  // form's onsubmit alerts the localized warn_demo message and returns false
+  // in demoMode. Mirror that guard; the BFF additionally rejects with the
+  // same warn_demo message (issue #932).
+  if (demoMode) {
+    showDemoToast();
+    return;
+  }
   var assignments = {};
   $('#assignBody tr').each(function() {
     var sel = $(this).find('select');
@@ -257,8 +304,34 @@ function saveAssignments() {
     url: API + '/tplan-roles', type: 'PUT',
     contentType: 'application/json',
     data: JSON.stringify({ tplan_id: parseInt(currentPlan), assignments: assignments }),
-    success: function() { loadUsers(currentProject, currentPlan); }
+    success: function() { loadUsers(currentProject, currentPlan); },
+    error: function(xhr) {
+      // Surface the demo_mode / permission rejection as a toast instead of a
+      // silent fail (usersAssignProject.html:445-461 pattern, issue #931).
+      var msg = TLi18n.t('assign.updateFailed');
+      var code = '';
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j && j.code) code = j.code;
+        if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
+        else if (j && j.message && j.message !== 'no_permissions_for_action') msg = j.message;
+      } catch(e) {}
+      if (code === 'demo_mode') msg = TLi18n.t('assign.demoDisabled');
+      else if (xhr.status === 403) msg = TLi18n.t('common.forbidden');
+      showDemoToast(msg, 'err');
+    }
   });
+}
+
+function showDemoToast(msg, cls) {
+  msg = msg || TLi18n.t('assign.demoDisabled');
+  // The demo-save guard (no cls) must look like an error, not a success toast.
+  cls = cls || 'err';
+  var $t = $('<div class="toast"></div>').appendTo('body');
+  // reuse the project-screen toast banner look
+  $t.removeClass('ok warn err').addClass(cls || 'ok').text(msg).fadeIn(120);
+  clearTimeout($t.data('t'));
+  $t.data('t', setTimeout(function () { $t.fadeOut(300, function() { $t.remove(); }); }, 4000));
 }
 </script>
 </body>

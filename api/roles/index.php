@@ -612,15 +612,24 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
+    // Legacy parity: usersAssign.tpl:286-292 - in demoMode the assign form's
+    // Save button is replaced by the localized warn_demo note. The UI needs the
+    // demo state up front so it can render that note instead of the button
+    // (issue #932); mirror of the demoMode block fed by GET /roles (line 364).
     out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'projects' => $projectOpts, 'isPublic' => $isPublic,
+         'demoMode' => (bool)config_get('demoMode'),
          'pagination' => getUsersAssignPaginationConfig()]);
 }
 
 // Route: PUT /roles/tproject-roles - update test project role assignments
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tproject-roles') {
     // demoMode: role assignments are management writes; legacy demo deployments
-    // forbid role maintenance entirely (rolesEdit.tpl:185-205).
-    demoModeBlockedWrite();
+    // forbid role maintenance entirely (usersAssign.tpl:144-147 + :286-292 - the
+    // form's submit is blocked with an alert of the localized warn_demo message
+    // and the Save button is replaced by that same warn_demo note). Use the
+    // warn_demo message explicitly so the BFF rejection matches the legacy text
+    // the UI shows instead of the button (issue #932).
+    demoModeBlockedWrite('warn_demo', 'assign.demoDisabled');
     $body = getBody();
     $tproject_id = intval($body['tproject_id'] ?? 0);
     if (!$tproject_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tproject_id']); }
@@ -738,14 +747,20 @@ if ($method === 'GET' && isset($segments[0]) && $segments[0] === 'meta' && isset
         }
     }
 
-    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts]);
+    // Legacy parity: usersAssign.tpl:286-292 - the shared usersAssign.tpl
+    // replaces the Save button with the warn_demo note in demo mode for test
+    // plan contexts too; expose the demo state for the same UI gating (issue #932).
+    out(['status' => 'ok', 'items' => $items, 'roles' => $roleOpts, 'plans' => $planOpts, 'projects' => $projectOpts,
+         'demoMode' => (bool)config_get('demoMode')]);
 }
 
 // Route: PUT /roles/tplan-roles - update test plan role assignments
 if ($method === 'PUT' && isset($segments[0]) && $segments[0] === 'tplan-roles') {
     // demoMode: role assignments are management writes; legacy demo deployments
-    // forbid role maintenance entirely (rolesEdit.tpl:185-205).
-    demoModeBlockedWrite();
+    // forbid role maintenance entirely (usersAssign.tpl:144-147 + :286-292 -
+    // the shared usersAssign.tpl also governs test plan contexts).
+    // warn_demo message mirrors legacy (issue #932).
+    demoModeBlockedWrite('warn_demo', 'assign.demoDisabled');
     $body = getBody();
     $tplan_id = intval($body['tplan_id'] ?? 0);
     if (!$tplan_id) { http_response_code(400); out(['status' => 'error', 'message' => 'Missing tplan_id']); }

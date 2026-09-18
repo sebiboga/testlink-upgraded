@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Die Administratorrolle ist gesperrt und kann nicht geändert werden.",
   "assign.assignedRole": "Zugewiesene Rolle",
+  "assign.demoDisabled": "Entschuldigung. Dieses Feature ist im Demo-Modus deaktiviert.",
   "assign.do": "Ausführen",
   "assign.emptyPlan": "Wählen Sie oben ein Testprojekt und einen Testplan aus, um Rollenzuweisungen zu verwalten.",
   "assign.emptyProject": "Wählen Sie oben ein Testprojekt aus, um Rollenzuweisungen zu verwalten.",

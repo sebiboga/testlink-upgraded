@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Le rôle d'administrateur est verrouillé et ne peut pas être modifié.",
   "assign.assignedRole": "Rôle attribué",
+  "assign.demoDisabled": "Veuillez nous excuser. La fonctionnalité est désactivée pour la démonstration.",
   "assign.do": "Appliquer",
   "assign.emptyPlan": "Sélectionnez un projet de test et un plan de test ci-dessus pour gérer les attributions de rôles.",
   "assign.emptyProject": "Sélectionnez un projet de test ci-dessus pour gérer les attributions de rôles.",

@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Rolul de administrator este blocat si nu poate fi schimbat.",
   "assign.assignedRole": "Rol Atribuit",
+  "assign.demoDisabled": "Ne cerem scuze. Această funcționalitate este dezactivată în versiunea Demo.",
   "assign.do": "Execută",
   "assign.emptyPlan": "Selecteaza un proiect si un plan deasupra pentru a gestiona atribuirile de roluri.",
   "assign.emptyProject": "Selecteaza un proiect deasupra pentru a gestiona atribuirile de roluri.",

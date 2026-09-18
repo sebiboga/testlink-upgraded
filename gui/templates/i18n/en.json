@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "Administrator role is locked and cannot be changed.",
   "assign.assignedRole": "Assigned Role",
+  "assign.demoDisabled": "We are sorry. This feature is disabled for Demo.",
   "assign.do": "Do",
   "assign.emptyPlan": "Select a test project and test plan above to manage role assignments.",
   "assign.emptyProject": "Select a test project above to manage role assignments.",

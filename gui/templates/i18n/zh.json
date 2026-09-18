@@ -28,6 +28,7 @@
   "app.version": "2.0.1 [TEST]",
   "assign.adminRoleLocked": "管理员角色已锁定，无法更改。",
   "assign.assignedRole": "已分配角色",
+  "assign.demoDisabled": "非常抱歉，演示模式中这个功能被禁用",
   "assign.do": "执行",
   "assign.emptyPlan": "请在上方选择一个测试项目和测试计划以管理角色分配。",
   "assign.emptyProject": "请在上方选择一个测试项目以管理角色分配。",

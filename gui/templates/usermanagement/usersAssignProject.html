@@ -44,11 +44,21 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
 .toast.ok { background: #4ECDC4; }
 .toast.warn { background: #f0ad4e; color: #333; }
 .toast.err { background: #e6605e; }
+/* Dashio demo-mode gating (usersView.html:56-57 pattern): in demoMode the
+   legacy usersAssign.tpl:286-292 replaces the Save button with the localized
+   warn_demo note. The banner + note render that same legacy warn_demo text.
+   Legacy parity: gui/templates/dashio/usermanagement/usersAssign.tpl:286-292. */
+.demo-banner { background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px 24px; font-size: 13px; font-weight: 600; }
+.demo-note { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; border-radius: 4px; padding: 8px 14px; font-size: 12px; }
 </style>
 </head>
 <body>
 
 <div class="header"><span data-i18n="header.assignProjectRoles">Assign Test Project Roles</span> <span data-i18n="header.assignProjectRolesSub" style="font-size:13px;font-weight:400;opacity:.8;margin-left:12px;">assign user roles within test projects</span><span id="localeSwitcher" style="float:right;"></span></div>
+
+<!-- Legacy parity: usersAssign.tpl:286-292 - in demoMode the assignment form is
+     read-only; the Save button is replaced by the localized warn_demo note. -->
+<div id="demoBanner" class="demo-banner" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="assign.demoDisabled">We are sorry. This feature is disabled for Demo.</span></div>
 
 <div class="tabs-bar" id="tabsBar"></div>
 
@@ -62,6 +72,9 @@ body { background: #f2f2f2; font-family: 'Ruda', sans-serif; margin: 0; padding:
   <select id="bulkRoleSelect" style="font-size:13px;padding:5px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;min-width:180px;"></select>
   <button class="btn-ghost" id="bulkDoBtn" onclick="applyBulkRole()"><i class="fa fa-bolt"></i> <span data-i18n="assign.do">Do</span></button>
   <button class="btn-teal" id="saveBtn" onclick="saveAssignments()" disabled><i class="fa fa-save"></i> <span data-i18n="assign.saveChanges">Save Changes</span></button>
+  <!-- Legacy parity: usersAssign.tpl:286-292 - the Save button is replaced by the
+       localized warn_demo note while demoMode is on. -->
+  <span id="demoNote" class="demo-note" style="display:none;"><i class="fa fa-lock"></i> <span data-i18n="assign.demoDisabled">We are sorry. This feature is disabled for Demo.</span></span>
 </div>
 
 <div class="table-wrap">
@@ -112,6 +125,9 @@ var currentItems = [];
 var roleChoices = {};
 var changedMap = {};
 var paginationCfg = { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
+// Legacy parity: usersAssign.tpl:286-292 - read-only assignment form while
+// demoMode is on (Save button replaced by the localized warn_demo note).
+var demoMode = false;
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -174,6 +190,8 @@ function loadProjects(selectedId) {
       });
       roles = r.roles || [];
       buildBulkSelect();
+      demoMode = !!(r.demoMode);
+      applyDemoMode();
       if (!r.projects || !r.projects.length) {
         showDisabled();
         return;
@@ -199,12 +217,26 @@ function loadProjects(selectedId) {
 // Legacy parity: usersAssign.php:123-127. When the user has no test project
 // where the effective role can assign roles, the page shows
 // testproject_roles_assign_disabled instead of the assignment table.
+// Legacy parity: usersAssign.tpl:286-292 ($tlCfg->demoMode). While demoMode is
+// on the assignment form is read-only: the Save button is REPLACED by the
+// localized warn_demo note (usersAssign.tpl:287 $labels.warn_demo), and the
+// same warn_demo note is shown as a banner. Selects/bulk "Do" stay usable, as
+// in legacy (only submission is blocked - usersAssign.tpl:144-147 alert +
+// return false, mirrored server-side by the BFF 403 demo_mode rejection).
+function applyDemoMode() {
+  $('#demoBanner').toggle(demoMode);
+  $('#saveBtn').toggle(!demoMode);
+  $('#demoNote').toggle(demoMode && $('#projectSelect').prop('disabled') !== true);
+  if (demoMode) { $('#saveBtn').prop('disabled', true); }
+}
+
 function showDisabled() {
   $('#projectSelect').empty().prop('disabled', true);
   $('#assignTable').hide();
   $('#emptyMsg').hide();
   $('#disabledMsg').show();
   $('#saveBtn').prop('disabled', true);
+  $('#demoNote').hide();
   $('#footerText').empty();
 }
 
@@ -215,6 +247,8 @@ function loadUsers(pid) {
     roles = r.roles || roles;
     paginationCfg = r.pagination || { enabled: true, lengthMenu: [[20, 40, 60, -1], [20, 40, 60, 'All']] };
     buildBulkSelect();
+    demoMode = !!(r.demoMode);
+    applyDemoMode();
     currentItems = r.items || [];
     // Drop any previous DataTables instance before re-populating the tbody
     // (suiteView.html:450 pattern) - re-initialising over live rows throws.
@@ -411,12 +445,23 @@ function applyBulkRole() {
 }
 
 function updateSaveBtn() {
+  // demoMode read-only gate: never re-enable the (hidden) Save button
+  // (legacy usersAssign.tpl:286-292 replaces it with the warn_demo note).
+  if (demoMode) { $('#saveBtn').prop('disabled', true); return; }
   var anyChanged = false;
   $.each(changedMap, function(k, v) { if (v) { anyChanged = true; return false; } });
   $('#saveBtn').prop('disabled', !anyChanged);
 }
 
 function saveAssignments() {
+  // Legacy parity: usersAssign.tpl:144-147 - the legacy form's onsubmit alerts
+  // the localized warn_demo message and returns false in demoMode, so no submit
+  // is ever attempted. Mirror that client-side guard (the BFF additionally
+  // rejects with the same warn_demo message, issue #932).
+  if (demoMode) {
+    toast(TLi18n.t('assign.demoDisabled'), 'err');
+    return;
+  }
   var assignments = {};
   // State-driven save: DataTables pagination pages out rows from the DOM, so
   // read the choices from roleChoices (source of truth) instead of the DOM.
@@ -455,7 +500,7 @@ function saveAssignments() {
         if (j && j.messageKey) msg = TLi18n.t(j.messageKey);
         else if (j && j.message && j.message !== 'no_permissions_for_action') msg = j.message;
       } catch(e) {}
-      if (code === 'demo_mode') msg = TLi18n.t('role.demoUpdateDisabled');
+      if (code === 'demo_mode') msg = TLi18n.t('assign.demoDisabled');
       else if (xhr.status === 403) msg = TLi18n.t('common.forbidden');
       toast(msg, 'err');
     }
