@@ -613,6 +613,17 @@ KEY BUGFIX / COMPATIBILITY EFFORTS (selection)
   Also re-added the missing legacy i18n key `testsuite_not_found` (a
   `log_level=32` LOCALIZATION Event Viewer warning on every testsuite deep link) to
   all 14 full locale bundles (Fixes #1533).
+- `ltx.php` execution deep links (`item=exec`) returned HTTP 500 on every hit:
+  `launch_inner_exec()` still called `testproject::setSessionProject()` at
+  `ltx.php:334` — the same method removed during the TN2023-97 refactor (commit
+  `94c9adf5c`, sibling of the #1533 linkto.php fatal) → PHP 8
+  `Call to undefined method`. Replaced the call with direct `$_SESSION`
+  assignment restoring the removed method's exact semantics (id/name/color/prefix
+  + option_reqs/priority/automation) from the project row fetched via the already
+  instantiated `$tproject_mgr`, so execution links from email notifications open
+  the exec dashboard (execNavigator) again — inner (`feature_id`/3-key) and outer
+  flows, plus the `xta2m` regression all verified (Fixes #1537; follow-up
+  execSetResults workframe defect filed as #1538).
 - Stored XSS in the role-assignment screens (`usersAssignProject.html`,
   `usersAssignPlan.html`): DB-controlled project/plan/user/role display names
   were concatenated raw into `<option>`/`<td>` HTML, so a project named
