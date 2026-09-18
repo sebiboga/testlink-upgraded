@@ -54,6 +54,7 @@ table.diff-table tr.changed { background: #fdf3e7; }
 <div class="toolbar">
   <button class="btn-teal" id="selMode" onclick="loadRevisions()"><i class="fa fa-refresh"></i> <span data-i18n="common.refresh">Refresh</span></button>
   <button class="btn-ghost" id="compareBtn" style="display:none;" onclick="doCompare()"><i class="fa fa-code-compare"></i> <span data-i18n="rsvc.compareSelected">Compare selected revisions</span></button>
+  <button class="btn-ghost" id="backBtn" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="common.cancel">Cancel</span></button>
   <span class="ctx" style="margin-left:auto;color:#aaa;font-size:12px;" id="infoLine"></span>
 </div>
 
@@ -99,7 +100,10 @@ table.diff-table tr.changed { background: #fdf3e7; }
   </div>
 </div>
 
-<div class="footer" id="footerText"></div>
+<div class="footer" style="display:flex;align-items:center;gap:12px;">
+  <span id="footerText" style="flex:1;"></span>
+  <button class="btn-ghost" onclick="goBack()"><i class="fa fa-arrow-left"></i> <span data-i18n="common.cancel">Cancel</span></button>
+</div>
 
 <script src="/gui/templates/i18n/i18n.js"></script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -319,6 +323,20 @@ function sanitizeDiffHtml(html) {
 
 function showWarn(msg) {
   $('#warnBanner').text(msg).css('display', 'block');
+}
+
+// Refs #1359 - legacy reqSpecCompareRevisions.tpl cancel_top/cancel_bottom
+// buttons (btn_cancel -> history.back()); same affordance, with a same-origin
+// fallback when the page was opened directly (no history to walk back).
+function goBack() {
+  if (window.history.length > 1) { window.history.back(); }
+  else if (SPEC_ID > 0) {
+    window.location.href = '/gui/templates/requirements/reqSpecView.html?id=' +
+      SPEC_ID + (TPROJECT_ID > 0 ? '&tproject_id=' + TPROJECT_ID : '');
+  } else {
+    window.location.href = '/gui/templates/requirements/reqOverview.html' +
+      (TPROJECT_ID > 0 ? '?tproject_id=' + TPROJECT_ID : '');
+  }
 }
 
 function fmtTs(ts) {

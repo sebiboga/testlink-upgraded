@@ -42,6 +42,7 @@ Viewer** (`reqSpecView.html`) and **Spec Revision Viewer**
 | Validation | two distinct revisions required, context must be numeric ≥ 0 | same client-side validation before the compare request |
 | Context default (gap #1360) | Context input **prefilled with diffEngine default 5** so code-compare runs without typing (`lib/requirements/reqSpecCompareRevisions.php:241-245`; tpl line 251 renders `value={$gui->context}`) | same — HTML code-comparison mode shows Context **prefilled with 5**; the BFF list response returns `context` (mirror of sibling `reqCompare.html:153-154` / `api/reqcompare/index.php:161`); user can still edit it or tick "Show all" |
 | Revision ordering (gap #1362) | newest-first (DESC by revision number) | same — DataTable disabled default client-side ascending sort; the Revision cell carries an integer `data-order` sort key and the DataTable is initialised with `order: [[0,"desc"]]`, so rows render newest-first AND sort numerically for 10+ revisions ("Revision 10" > "Revision 2") |
+| Cancel/Back (gap #1359) | **two** Cancel buttons (`cancel_top` tpl line 209 + `cancel_bottom` line 258, both `btn_cancel` → `history.back()`) so the user can leave the compare page without the browser Back | same — a `btn-ghost` Cancel button (`.fa-arrow-left` + `common.cancel`) in the toolbar and a second one in the bottom footer; both call `goBack()` = `history.back()`, with a same-origin fallback to `reqSpecView.html?id=<spec>&tproject_id=<tid>` when the page was opened directly (`history.length <= 1`) |
 
 ## 2. REST API Reference
 
@@ -77,6 +78,13 @@ All routes are session-authenticated and JSON; CSRF Origin header required.
   (previously the fallback was `null`). The screen prefills the Context input
   from that field (`r.context || 5`), identical to legacy and to the sibling
   requirement-version compare screen.
+- **Cancel/Back (gap #1359):** legacy `reqSpecCompareRevisions.tpl` exposes
+  `cancel_top` (line 209) and `cancel_bottom` (line 258) — two `btn_cancel`
+  buttons calling `history.back()`. The modern screen restores the same
+  affordance in the toolbar and in the bottom footer (label `common.cancel`,
+  no new i18n keys); `goBack()` keeps exact legacy semantics on a flowing
+  history and adds a same-origin deep-link fallback to `reqSpecView.html`
+  (pattern mirrors `reqEdit.html:58` + `reqEdit.html:219`).
 
 ## 4. i18n Keys
 
@@ -113,3 +121,10 @@ Context input is prefilled with 5 from the BFF `context` field on load, compare
 runs without typing, "Show all" still disables the field, HTML-compare (Daisy)
 path unaffected, explicit context override honored, BFF fallback default,
 syntax gates, and Event Viewer/console cleanliness.
+
+See also **Suite 1359 — Cancel/Back buttons** (10/10 PASS): toolbar + footer
+Cancel buttons present, both return to the calling screen via `history.back()`,
+direct-open fallback navigates to the spec viewer, compare/diff regression
+passes, `common.cancel` reused from all 10 locale bundles, Event Viewer and
+console clean. Screenshots: `screenshots/issue-1359-gap-before.png`,
+`screenshots/issue-1359-cancel-buttons.png`.
