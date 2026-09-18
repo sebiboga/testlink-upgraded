@@ -505,6 +505,18 @@ NEW FEATURES
   never drop an assignment — Save writes every non-admin user from state; bulk
   "Set roles to" applies to all pages. Pagination-disabled fallback keeps the
   plain table. i18n `assign.searchUsers` in all 10 bundles. Suite 930 all PASS.
+- Assign Test Project Roles — localized success/failure feedback after saving
+  (Refs #931): legacy `usersAssign.php:82-89` + `inc_update.tpl:26-35` showed the
+  "User Roles updated" box after a successful update or the "No users selected -
+  nothing done" notice for an empty role map; the 2.0.1 rewrite reloaded the grid
+  silently. `PUT /roles/tproject-roles` now returns `feedback_key`
+  (`assign_roles_updated` on success, `no_users_selected` on the empty-map no-op)
+  and `usersAssignProject.html` gained the Dashio `#toast` helper (rolesView
+  pattern) that renders the localized success (ok), empty-map warning (warn) and,
+  on HTTP failure, a localized error (403 → `common.forbidden`, demo mode →
+  `role.demoUpdateDisabled`, BFF `messageKey`, generic → `assign.updateFailed`).
+  i18n `assign.rolesUpdated` / `assign.noUsersSelected` / `assign.updateFailed`
+  in all 10 bundles. Suite "Task — Issue #931" all PASS.
 - User Management Export (`gui/templates/usermanagement/usersExport.html`, BFF
   `api/usersexport/index.php`): Markdown (MD) user export added next to the
   legacy XML dump (Refs #922) — `exportTypes` now exposes `XML` and `MD`, the

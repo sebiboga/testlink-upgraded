@@ -16530,3 +16530,38 @@ clear `user_testproject_roles` and `user_testplan_roles`.
 | 8 | Non-URL string CF (plain text) on same path | unchanged plain text, no fatal, no link | PASS — matrix row `plain text value` |
 
 **Result: 8/8 PASS** — the `LINKS_NEW_WINDOW` fatal for URL-valued string CFs is gone; URLs render as legacy-style clickable `target="_blank"` links across the direct code path, the suiteview BFF and the browser-rendered Custom-fields card, with no Event Viewer noise (Refs #1539). Fixture: manual SQL (project 1 / suite 2 / CF `URL_CF`).
+
+## Task — Issue #931: Localized success/failure feedback after saving (Assign Test Project Roles)
+
+**Feature:** after saving project role assignments the modern screen must give the same
+localized feedback legacy gave (`lib/usermanagement/usersAssign.php:82-89` +
+`gui/templates/dashio/usermanagement/inc_update.tpl:26-35`): a success "User Roles updated"
+box after a real update, "No users selected - nothing done" for an empty role map, and —
+new in the rewrite — a localized error banner instead of the former silent uncaught ajax
+failure. Server side: `PUT /api/roles/tproject-roles` now returns
+`feedback_key = assign_roles_updated | no_users_selected`. Client: Dashio `#toast` helper
+(`toast(msg, cls)` with `.ok`/`.warn`/`.err`), `assignFeedback()` mapping, rewritten
+`saveAssignments()` success/error handlers. i18n keys `assign.rolesUpdated`,
+`assign.noUsersSelected`, `assign.updateFailed` in all 10 bundles.
+
+**Precondition:** login admin/admin on http://localhost:8082; fixtures — test project
+"QA Demo" (id 1, public), users: admin (id 1, global admin role 8), qa_tester (id 2,
+global test designer 4). Open
+`gui/templates/usermanagement/usersAssignProject.html?tproject_id=1&tplan_id=0`.
+
+| # | Step | Expected | Actual |
+|---|------|----------|--------|
+| 1 | Syntax + i18n gates | `php -l api/roles/index.php`; `node`-parse inline script of usersAssignProject.html; `python3 -m json.tool` on all 10 bundles; grep the 3 new keys in every bundle | PASS — PHP clean, JS parses OK, 10/10 bundles valid, keys present once each in all bundles |
+| 2 | Change qa_tester role to "tester", click Save Changes | green success toast "User Roles updated" (`.toast.ok`), list reloads, DB row `user_testproject_roles` updated (2,1,7) | PASS — toast `{text:"User Roles updated", cls:"toast ok", visible:true}`; reload; DB `2|1|7` |
+| 3 | BFF success payload | `PUT /roles/tproject-roles` `{tproject_id:1,assignments:{2:7}}` → `{status:ok, feedback_key:"assign_roles_updated"}` | PASS — exact payload measured via fetch |
+| 4 | Empty map (only global-admin row in `currentItems`, Save) | warning toast "No users selected - nothing done" (`.toast.warn`), no DB write | PASS — `{text:"No users selected - nothing done", cls:"toast warn", visible:true}` |
+| 5 | BFF empty-map payload | `PUT ... {tproject_id:1, assignments:{}}` → `{status:ok, feedback_key:"no_users_selected"}` | PASS — exact payload measured |
+| 6 | BFF validation error (force `tproject_id:0`) | red error toast (`.toast.err`) with the server message; no reload breakage | PASS — `{text:"Missing tproject_id", cls:"toast err", visible:true}` |
+| 7 | 403 (no-permissions) error branch | red toast "Insufficient rights" (`common.forbidden`) | PASS — synthetic 403 body → `Insufficient rights`, `.toast.err` |
+| 8 | demo-mode error branch | red toast "Demo mode enabled => Update Role DISABLED" (`role.demoUpdateDisabled`) | PASS — synthetic `{code:demo_mode,messageKey:role.demoUpdateDisabled}` |
+| 9 | generic 500 error branch | red toast "Error updating user roles" (`assign.updateFailed`) | PASS — synthetic non-JSON 500 → `Error updating user roles` |
+| 10 | Locale bundle resolution | `assign.rolesUpdated`/`noUsersSelected`/`updateFailed` resolve in a non-en locale (ro) | PASS — ro: "Rolurile utilizatorilor au fost actualizate" / "Niciun utilizator selectat - nu s-a făcut nimic" / "Eroare la actualizarea rolurilor utilizatorului" |
+| 11 | Event Viewer / `events` table after all runs | no new Error/Warning (log_level ≥ 32) | PASS — only audit INFO 16 rows (ASSIGN/UPDATE); zero ≥32 |
+| 12 | Browser console | no JS errors | PASS — only pre-existing a11y `issue` hints |
+
+**Result: 12/12 PASS.** Screenshot: `docs/screenshots/issue-931-assign-roles-success-toast.png`.
